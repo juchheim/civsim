@@ -158,5 +158,5 @@ A first playable is "right" when:
 3. ~~Re-run balance and checks C1–C5~~ ✅ [07c](07c-e0-e2-checks.md) · ~~territory model re-run~~ ✅ [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18).
 4. ~~Architecture decision (WS-L), catalog tooling spec (WS-M), vertical-slice definition (WS-N)~~ ✅ drafted: [15](15-architecture-decision.md), [16](16-catalog-format-and-tooling.md), [17](17-vertical-slice.md).
 5. **You:** decide the **art source** (D19) before milestone M7c, and review the remaining open decisions D1–D12 in §2. (D17 and D18 are locked.)
-6. **Start implementation at M0** ([17 §3](17-vertical-slice.md#3-milestones)): repo scaffold, `Fix64`, RNG, checksums, CI on macOS and Windows, and the toy-sim determinism test. Then M1 (content pipeline).
+6. ~~Start implementation at M0~~ ✅ 2026-10-18 ([17 §3.1](17-vertical-slice.md#31-progress)). **Next: M1, the content pipeline** (loader, validator, `import-md`, content pack), per [16](16-catalog-format-and-tooling.md).
 7. **In parallel with building:** wireframes and clickable mockups for the focus bar and research web (WS-I), then UX testing with real people. Detail the E3–E9 projects to the same level as E0–E2 (WS-B, C, D for later eras), informed by what the slice shows.

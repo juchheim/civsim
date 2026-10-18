@@ -96,6 +96,13 @@ flowchart LR
 
 **Parallel streams.** After M1, the **sim stream** (M2 → M3 → M4 → M5 → M6) and the **presentation stream** (M7a once M3's snapshots are stable) run side by side, joining at M8. The AI harness (M6) needs M5 but not any UI.
 
+### 3.1 Progress
+
+| M | Status | Notes |
+|---|--------|-------|
+| **M0** Foundations | ✅ 2026-10-18 | `CivSim.Sim` (`Fix64`, `Hash64`, `Pcg32`, `StateHasher`, `SimRunner`, replays, toy canary), `CivSim.Harness`, 66 tests (numerics against independent Python references, RNG against the published PCG32 vectors, source rules, replay tamper detection, snapshot resume), CI on macOS and Windows against `tests/golden/toy-v1.txt`. Cross-platform proof depends on the first CI run on Windows |
+| M1 Content pipeline | next | |
+
 ## 4. Acceptance checklist
 
 The slice is done when every row passes in the nightly CI report, except those marked **human**, which need real players.

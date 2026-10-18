@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Engine-independent deterministic simulation. Targets net8.0 so the Godot .NET front end can
+       reference it. Must never reference Godot or any UI assembly (docs/MVP/15 §5.1). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>CivSim.Sim</RootNamespace>
+    <!-- Integer overflow throws instead of wrapping silently; hashing code opts out with `unchecked`. -->
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+  </PropertyGroup>
+
+</Project>
