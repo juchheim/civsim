@@ -27,6 +27,9 @@
 | 12 | [World Generation](12-world-generation.md) | Map sizes, pipeline, biomes and yields, water, fauna, deposits, paired start placement, guarantees, fairness pass |
 | 13 | [Contact & Conflict](13-contact-and-conflict.md) | Scouting and awareness, first contact, relations, gifts and barter, raids, defense, combat numbers, war and settlement capture |
 | 14 | [AI Opponents](14-ai-opponents.md) | The smart-AI design: forecast-driven research planning, opponent reading under fog, war/raid/diplomacy intelligence, difficulty without cheats, the AI harness and its acceptance targets |
+| 15 | [Architecture Decision](15-architecture-decision.md) | Requirements, questions and answers, options compared, the recommended stack (Godot 4 .NET + a deterministic C# sim library), visual style, determinism rules, threading, saves and replays, repo layout, risks |
+| 16 | [Catalog Format & Tooling](16-catalog-format-and-tooling.md) | YAML schema for projects and registries, content pack and hash, the 18-check validator and CLI, migration from markdown, golden numbers |
+| 17 | [Vertical Slice](17-vertical-slice.md) | First-playable scope (E0–E2, one player vs. three AI), what is stubbed or cut, milestones M0–M9 with gates, the consolidated acceptance checklist, a demo script |
 
 ## The game in ten lines
 1. Every player starts as a band of **12 people** in the Paleolithic.

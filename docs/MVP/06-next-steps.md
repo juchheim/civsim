@@ -19,7 +19,7 @@
 | **Smart AI** | [14](14-ai-opponents.md) | ✅ Design: forecast-driven planner, opponent reading, war and diplomacy intelligence, difficulty without cheats, AI harness with acceptance targets |
 | UX & world display (concept) | [08](08-ui-and-world-display.md) | ✅ Concept drafted (wireframes in ASCII; art not started) |
 | Art, audio | — | ⏳ Not started |
-| Technical architecture decision | — | ⏳ Not started (constraints captured in 05 §18–19) |
+| Technical architecture, catalog tooling, vertical slice | [15](15-architecture-decision.md), [16](16-catalog-format-and-tooling.md), [17](17-vertical-slice.md) | ✅ Drafted: Godot 4 (.NET) + C# deterministic sim library, YAML catalog and validator spec, slice scope with milestones M0–M9. 🔒 Confirmed 2026-10-18 (D17, D18) |
 
 ## 2. Decisions I made that you may want to override
 
@@ -42,6 +42,9 @@ These were made autonomously to keep momentum. Each one is cheap to change *now*
 | D13 | **Dominion victory = ≥ 50% of habitable land and ≥ 2× the runner-up, for 5 years; in practice a conquest victory** | 01 §7.2, [07b](07b-territory-findings.md) T2 | **🔒 Locked by you (2026-10-18).** |
 | D14 | **First release is 1 player vs. 3 AI**; online multiplayer later, lockstep kept for replays and the AI harness | 01 §11, §14 | **🔒 Locked by you (2026-10-18).** |
 | D15 | **The AI must be smart**: planning, opponent modeling and adaptive war and diplomacy, with no cheating at any difficulty; quality is measured by an AI-vs-AI and AI-vs-scripted-player harness | 01 P7, [14](14-ai-opponents.md) | **🔒 Locked by you (2026-10-18).** |
+| D17 | **Engine and language:** Godot 4 (.NET) front end, C# deterministic simulation library, Fix64 fixed-point math, headless harness; built sim-first ([15](15-architecture-decision.md)) | 15 §4, §10 | **🔒 Locked by you (2026-10-18).** |
+| D18 | **Visual style:** 2.5D diorama (3D scene, orthographic-leaning camera, billboard sprites), flat 2D as fallback | 15 §5.4 | **🔒 Locked by you (2026-10-18).** |
+| D19 | **Final art source** (commission, asset pack, AI-assisted with curation, or minimal flat-shaded look) | [17 §6](17-vertical-slice.md#6-placeholders-and-the-art-question) | ⏳ **Open: needed before milestone M7c** |
 | D16 | **WAY-02 seasonal camps claim land** (2 per E1–E3 settlement, radius 2, 50% of the band's strength; 75% with TER-02) | 05 §11.1, [07b §9.4](07b-territory-findings.md#94-seasonal-camps-as-claim-sources-adopted-2026-10-18) | **🔒 Locked by you (2026-10-18).** |
 
 ## 3. Remaining design workstreams
@@ -59,9 +62,9 @@ These were made autonomously to keep momentum. Each one is cheap to change *now*
 | **I** | **UX & information design** | Turn the concept in [08](08-ui-and-world-display.md) into proper wireframes and clickable mockups: focus bar, research web (lanes × eras, Glimpse fog, lenses), HUD, overlays, Chronicle, follow cam, Moments, era transition, onboarding. Resolve [08 §15](08-ui-and-world-display.md#15-open-questions-for-ws-i--ws-j) open questions. | 01–05, 08 | L |
 | **J** | **Art direction** | Style frames for 3 eras (E0, E4, E9) following [08 §2–§4](08-ui-and-world-display.md#2-how-figures-read). Figure readability at zoom levels Z0–Z2 and at representation scales. Tool and outfit silhouette language. Validate the Okabe–Ito civ palette and border patterns. | I, 08 | M |
 | **K** | **Audio direction** | Ambient per era and biome; event stingers; Moment cues. | J | S |
-| **L** | **Technical architecture decision record** | Engine or rendering choice; **sim core as an engine-independent, deterministic library**; data format for the catalog (YAML/JSON); save and replay format; threading model. Decide from the budgets in 05 §19. | 05 | M |
-| **M** | **Catalog tooling spec** | Specify the validator (§4) and the generators for the 04 diagrams, so data stays the source of truth. | L | S |
-| **N** | **Vertical slice definition** | An exact scope list for the first playable: E0–E2, 1 map, 2–4 civilizations, ~145 projects. Acceptance tests (§6). | All above for E0–E2 | S |
+| **L** | **Technical architecture decision record** | Engine or rendering choice; **sim core as an engine-independent, deterministic library**; data format for the catalog (YAML/JSON); save and replay format; threading model. Decide from the budgets in 05 §19. **Drafted:** [15](15-architecture-decision.md). | 05 | M |
+| **M** | **Catalog tooling spec** | Specify the validator (§4) and the generators for the 04 diagrams, so data stays the source of truth. **Drafted:** [16](16-catalog-format-and-tooling.md); reference scripts in [catalog-tools](catalog-tools/README.md). | L | S |
+| **N** | **Vertical slice definition** | An exact scope list for the first playable: E0–E2, 1 map, 2–4 civilizations, ~145 projects. Acceptance tests (§6). **Drafted:** [17](17-vertical-slice.md). | All above for E0–E2 | S |
 
 ## 4. Catalog validation (already practiced in design; to become tooling)
 
@@ -151,9 +154,9 @@ A first playable is "right" when:
 
 ## 9. Immediate next actions (in order)
 1. ~~Balance spreadsheet~~ ✅ [07](07-balance-findings.md) · ~~4-civ territory model~~ ✅ [07b](07b-territory-findings.md) · ~~Population & health~~ ✅ [09](09-population-and-health.md).
-2. ~~E0–E2 deep spec (WS-B/C/D/F/G for the first three eras)~~ ✅ [10](10-e0-e2-actions-and-goods.md)–[13](13-contact-and-conflict.md). ~~Smart-AI design (WS-E)~~ ✅ [14](14-ai-opponents.md). ~~Paper prototypes~~ replaced by the AI harness (D14).
-3. ~~Re-run the balance model with R6 and check 11 §6 C1–C5~~ ✅ [07c](07c-e0-e2-checks.md): **all five pass** after fixes (applied to 10, 11, 02); C3 (death rates) fixed with 07c §5's population-average values plus the KEY-2 Neolithic rise; cold deaths in the live sim come from warmth tiers (10 §9). Territory model re-run: ✅ [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18).
-4. **You:** review the remaining open decisions D1–D12 in §2 (D13–D15 are locked).
-5. **Architecture decision (WS-L)** and **catalog tooling spec (WS-M)**: the sim core must be deterministic and run headless for the AI harness, so the harness requirements in 14 §10 and §12 are inputs.
-6. **Vertical-slice definition (WS-N):** scope list for E0–E2, 1 player vs. 3 AI, acceptance tests from §6, 11 §6, 13 §11 and 14 §10.3.
-7. **Wireframes and clickable mockups** for the focus bar and research web (WS-I), then UX testing with real people (the one prototype that still needs humans).
+2. ~~E0–E2 deep spec~~ ✅ [10](10-e0-e2-actions-and-goods.md)–[13](13-contact-and-conflict.md) · ~~Smart-AI design~~ ✅ [14](14-ai-opponents.md) · ~~Paper prototypes~~ replaced by the AI harness (D14).
+3. ~~Re-run balance and checks C1–C5~~ ✅ [07c](07c-e0-e2-checks.md) · ~~territory model re-run~~ ✅ [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18).
+4. ~~Architecture decision (WS-L), catalog tooling spec (WS-M), vertical-slice definition (WS-N)~~ ✅ drafted: [15](15-architecture-decision.md), [16](16-catalog-format-and-tooling.md), [17](17-vertical-slice.md).
+5. **You:** decide the **art source** (D19) before milestone M7c, and review the remaining open decisions D1–D12 in §2. (D17 and D18 are locked.)
+6. **Start implementation at M0** ([17 §3](17-vertical-slice.md#3-milestones)): repo scaffold, `Fix64`, RNG, checksums, CI on macOS and Windows, and the toy-sim determinism test. Then M1 (content pipeline).
+7. **In parallel with building:** wireframes and clickable mockups for the focus bar and research web (WS-I), then UX testing with real people. Detail the E3–E9 projects to the same level as E0–E2 (WS-B, C, D for later eras), informed by what the slice shows.

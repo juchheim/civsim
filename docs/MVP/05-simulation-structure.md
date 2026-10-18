@@ -481,6 +481,8 @@ The full design is in **[14-ai-opponents.md](14-ai-opponents.md)**. In short:
 - AI quality is measured by an automated **harness** of AI-vs-AI and AI-vs-scripted-bot tournaments with acceptance targets and blunder detectors (14 §10).
 
 ## 18. Determinism, multiplayer, saves
+*Implementation rules (Fix64, RNG streams, ordered collections, cross-platform checksums, saves and replays) are in [15 §5.6 and §6](15-architecture-decision.md#6-determinism-rules-binding-on-civsimsim).*
+
 - **Lockstep:** each client simulates the full world. Only **commands** are networked: slot changes, queue edits, Leaning, Beacon placement, Posture, pause. Commands are scheduled for tick `t + delay`.
 - **Determinism rules:** fixed-point arithmetic for all sim state (no floats); one seeded RNG stream per system per entity (`hash(matchSeed, system, entityId, tick)`); stable iteration orders; no wall-clock reads; render-only code never feeds back.
 - **Desync detection:** state checksums every N ticks; on mismatch, resync from the host's snapshot.
