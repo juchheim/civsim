@@ -100,7 +100,7 @@ flowchart LR
 
 | M | Status | Notes |
 |---|--------|-------|
-| **M0** Foundations | ✅ 2026-10-18 | `CivSim.Sim` (`Fix64`, `Hash64`, `Pcg32`, `StateHasher`, `SimRunner`, replays, toy canary), `CivSim.Harness`, 66 tests (numerics against independent Python references, RNG against the published PCG32 vectors, source rules, replay tamper detection, snapshot resume), CI on macOS and Windows against `tests/golden/toy-v1.txt`. Cross-platform proof depends on the first CI run on Windows |
+| **M0** Foundations | ⏳ code done 2026-10-18; gate pending | `CivSim.Sim` (`Fix64`, `Hash64`, `Pcg32`, `StateHasher`, `SimRunner`, replays, toy canary), `CivSim.Harness`, 66 tests (numerics against independent Python references, RNG against the published PCG32 vectors, source rules, replay tamper detection, snapshot resume), CI workflow for macOS and Windows against `tests/golden/toy-v1.txt`. **Open:** the workflow is committed locally but the push was rejected (the GitHub token lacks the `workflow` scope), so the **Windows determinism proof has not run yet**; M0's exit gate is not fully met until it does |
 | M1 Content pipeline | next | |
 
 ## 4. Acceptance checklist

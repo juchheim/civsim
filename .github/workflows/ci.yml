@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    name: build, test, determinism (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-latest is Apple silicon (arm64); windows-latest is x64. Both must reproduce the same golden checksum.
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build CivSim.slnx -c Release
+
+      - name: Test
+        run: dotnet test CivSim.slnx -c Release --no-build
+
+      - name: Determinism golden check (cross-platform)
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- toy --check-golden tests/golden/toy-v1.txt
+
+      - name: Replay record and verify
+        run: |
+          dotnet run --project src/CivSim.Harness -c Release --no-build -- toy --record toy.replay
+          dotnet run --project src/CivSim.Harness -c Release --no-build -- replay verify toy.replay
