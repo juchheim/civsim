@@ -3,7 +3,7 @@
 A mostly hands-off civilization simulation from the Paleolithic to the post-modern era. You choose what your people learn (three research projects at a time), and hundreds of small autonomous figures live out the consequences on a shared world map against smart AI rivals.
 
 - **Design documents:** [docs/MVP/README.md](docs/MVP/README.md) (game, research system, 509-project catalog, simulation, AI, architecture, first-playable plan).
-- **Status:** milestones **M0 (foundations)** and **M1 (content pipeline)** done; see [docs/MVP/17-vertical-slice.md](docs/MVP/17-vertical-slice.md) for M1 onward.
+- **Status:** milestones **M0 (foundations)**, **M1 (content pipeline)**, and **M2 (world generation)** done; **M3 (living economy)** is next. See [docs/MVP/17-vertical-slice.md](docs/MVP/17-vertical-slice.md) for the full roadmap.
 
 ## Build and test
 
