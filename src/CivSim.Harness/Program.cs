@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Toy;
+using CivSim.Sim.World;
 
 namespace CivSim.Harness;
 
@@ -15,6 +18,8 @@ namespace CivSim.Harness;
 /// civsim-harness toy --check-golden FILE                              compare against a golden file (CI)
 /// civsim-harness toy --write-golden FILE                              (re)write the golden file
 /// civsim-harness toy --record FILE                                    write a replay file
+/// civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]
+///                                                                      generate/report, sweep seeds, or verify a golden fingerprint
 /// civsim-harness replay verify FILE                                   re-run a replay and verify checksums
 /// </code>
 /// </summary>
@@ -28,6 +33,7 @@ public static class Program
             return args[0] switch
             {
                 "toy" => RunToy(args[1..]),
+                "worldgen" => RunWorldGen(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2]),
                 _ => Usage(),
             };
@@ -42,6 +48,7 @@ public static class Program
     private static int Usage()
     {
         Console.Error.WriteLine("usage: civsim-harness toy [--seed N] [--ticks N] [--checksum-every N] [--check-golden FILE | --write-golden FILE | --record FILE]");
+        Console.Error.WriteLine("       civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE");
         return 2;
     }
@@ -101,6 +108,130 @@ public static class Program
             Console.WriteLine("determinism check passed");
         }
         return 0;
+    }
+
+    private static int RunWorldGen(string[] args)
+    {
+        ulong seed = 1;
+        int auditSeeds = 1;
+        string? checkFingerprint = null;
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--seed": seed = ulong.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
+                case "--audit-seeds": auditSeeds = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
+                case "--check-fingerprint": checkFingerprint = Next(args, ref i); break;
+                default: return Usage();
+            }
+        }
+        if (auditSeeds < 1) throw new ArgumentOutOfRangeException(nameof(auditSeeds), "Audit count must be positive.");
+        if (checkFingerprint is not null && auditSeeds != 1)
+            throw new ArgumentException("Fingerprint checks require exactly one seed.");
+
+        int failures = 0, riverStarts = 0, coastalStarts = 0, accepted = 0;
+        int minLand = int.MaxValue, maxLand = 0, maxGenerationMs = 0;
+        int minShare = int.MaxValue, maxShare = 0;
+        GeneratedWorld? firstWorld = null;
+        var startBiomeCounts = new int[Enum.GetValues<Biome>().Length];
+        var all = Stopwatch.StartNew();
+        int progressInterval = auditSeeds >= 10 ? 10 : 0;
+        for (int offset = 0; offset < auditSeeds; offset++)
+        {
+            ulong currentSeed = checked(seed + (ulong)offset);
+            var generationTimer = Stopwatch.StartNew();
+            GeneratedWorld world;
+            try { world = WorldGenerator.Generate(currentSeed); }
+            catch (InvalidOperationException e)
+            {
+                generationTimer.Stop();
+                int failedGenerationMs = checked((int)generationTimer.ElapsedMilliseconds);
+                maxGenerationMs = Math.Max(maxGenerationMs, failedGenerationMs);
+                failures++;
+                string error = $"seed {currentSeed}: generation rejected: {e.Message}";
+                Console.WriteLine("FAIL " + error);
+                if (progressInterval > 0 && (offset + 1) % progressInterval == 0)
+                    Console.WriteLine($"audited {offset + 1:N0}/{auditSeeds:N0} seeds; accepted={accepted} failures={failures}");
+                continue;
+            }
+            if (offset == 0) firstWorld = world;
+            generationTimer.Stop();
+            int generationMs = checked((int)generationTimer.ElapsedMilliseconds);
+            if (generationMs > maxGenerationMs) maxGenerationMs = generationMs;
+            WorldAcceptanceResult result = WorldAcceptance.Validate(world);
+            if (result.Passed) accepted++;
+            else
+            {
+                failures++;
+                foreach (string error in result.Failures)
+                    Console.WriteLine($"FAIL seed {currentSeed}: {error}");
+            }
+            riverStarts += result.RiverStarts;
+            coastalStarts += result.CoastalStarts;
+            minLand = Math.Min(minLand, world.Report.LandShareBasisPoints);
+            maxLand = Math.Max(maxLand, world.Report.LandShareBasisPoints);
+            foreach (int share in world.Report.E7SharesBasisPoints.Span)
+            {
+                minShare = Math.Min(minShare, share);
+                maxShare = Math.Max(maxShare, share);
+            }
+            foreach (WorldStart startAt in world.Starts) startBiomeCounts[(int)world.TileAt(startAt.Tile).Biome]++;
+            if (progressInterval > 0 && (offset + 1) % progressInterval == 0)
+                Console.WriteLine($"audited {offset + 1:N0}/{auditSeeds:N0} seeds; accepted={accepted} failures={failures}");
+        }
+        all.Stop();
+
+        int totalStarts = auditSeeds * 4;
+        Console.WriteLine($"seeds={auditSeeds} accepted={accepted} failures={failures}");
+        Console.WriteLine($"landShareBp={minLand}..{maxLand} riverStarts={riverStarts}/{totalStarts} coastalStarts={coastalStarts}/{totalStarts}");
+        Console.WriteLine($"E7ShareBp={minShare}..{maxShare} maxGenerateMs={maxGenerationMs} totalMs={all.ElapsedMilliseconds}");
+        Console.WriteLine("startBiomes=" + string.Join(", ", Enum.GetValues<Biome>().Where(b => startBiomeCounts[(int)b] > 0)
+            .Select(b => $"{b}:{startBiomeCounts[(int)b]}")));
+        if (auditSeeds == 1 && accepted == 1)
+        {
+            GeneratedWorld world = firstWorld!;
+            Console.WriteLine($"fairnessAttempts={world.Report.FairnessAttempts} blockedSeasons={world.Report.BlockedSeasons} contactSeason={world.Report.FirstContactSeason}");
+            var startText = new string[world.Starts.Length];
+            for (int i = 0; i < world.Starts.Length; i++)
+            {
+                WorldStart startAt = world.Starts[i];
+                startText[i] = $"{startAt.Civilization}:{startAt.Tile % world.Width},{startAt.Tile / world.Width}";
+            }
+            Console.WriteLine("starts=" + string.Join(", ", startText));
+            Console.WriteLine("E7SharesBp=" + string.Join(",", world.Report.E7SharesBasisPoints.ToArray()));
+            string fingerprintLine = $"seed={seed} fingerprint={world.Fingerprint():x16}";
+            Console.WriteLine(fingerprintLine);
+            if (checkFingerprint is not null)
+            {
+                string expected = File.ReadAllText(checkFingerprint).Replace("\r\n", "\n").Trim();
+                if (expected != fingerprintLine)
+                {
+                    Console.Error.WriteLine("WORLD GENERATION FINGERPRINT CHECK FAILED");
+                    Console.Error.WriteLine($"expected: {expected}");
+                    Console.Error.WriteLine($"actual:   {fingerprintLine}");
+                    return 1;
+                }
+                Console.WriteLine("world generation fingerprint check passed");
+            }
+        }
+        Biome[] possibleStartBiomes =
+        {
+            Biome.TemperateForest, Biome.OpenWoodland, Biome.GrasslandSteppe,
+            Biome.Savanna, Biome.TropicalForest, Biome.Wetland
+        };
+        // Desert's forage score is below the §9.1 90%-of-map-median start threshold, so it is
+        // intentionally not a required start type even though desert tiles can occur nearby.
+        Biome[] missingStartBiomes = possibleStartBiomes.Where(b => startBiomeCounts[(int)b] == 0).ToArray();
+        bool varied = auditSeeds < 1000 || missingStartBiomes.Length == 0;
+        bool hasRivers = riverStarts * 100 >= totalStarts * 60;
+        bool hasCoastal = coastalStarts * 100 >= totalStarts * 30;
+        bool fast = maxGenerationMs < 5_000;
+        if (auditSeeds >= 1000 && !varied)
+            Console.WriteLine("FAIL missing start biomes: " + string.Join(", ", missingStartBiomes));
+        if (auditSeeds >= 1000 && !hasRivers) Console.WriteLine("FAIL fewer than 60% of starts have nearby rivers");
+        if (auditSeeds >= 1000 && !hasCoastal) Console.WriteLine("FAIL fewer than 30% of starts have nearby coast");
+        if (!fast) Console.WriteLine("FAIL a world exceeded the 5-second generation budget");
+        return failures == 0 && varied && fast && (auditSeeds < 1000 || (hasRivers && hasCoastal)) ? 0 : 1;
     }
 
     private static string Describe(ulong seed, long ticks, int interval, SimRunner runner)

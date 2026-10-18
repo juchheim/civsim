@@ -8,6 +8,10 @@ in `ToyScenario` (seed, ticks, command script). It is checked by:
   and Windows (x64)**. Both must reproduce the same file. That is the cross-platform determinism proof
   (docs/MVP/15 rule D9).
 
+`worldgen-v1.txt` records the standard world fingerprint for seed 42. The test
+`Seed_42_matches_world_generation_fingerprint_golden` checks it through the `dotnet test` matrix on macOS and
+Windows.
+
 `content-pack.txt` is the format, project count, size and SHA-256 of the compiled content pack built from
 `content/`. It is checked by the unit test `The_pack_matches_the_committed_golden_summary` and by the CI step
 `civsim build-pack --check-golden`, on macOS and Windows. **Unlike the toy golden, this one changes whenever
