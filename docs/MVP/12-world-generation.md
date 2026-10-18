@@ -2,7 +2,7 @@
 
 > How a match's world is built: landmasses, terrain, climate, biomes, water, fauna, deposits, start placement, the resource guarantees, and the fairness pass. It is detailed to the level the first three eras need, but it generates the whole world, including late-era deposits (coal, oil), at match start.
 > Inputs: [05 §4](05-simulation-structure.md#4-the-world), [02 §6.1](02-research-structure.md#61-keystone-critical-gates-and-world-generation-guarantees) (guarantees), [07b](07b-territory-findings.md) (map size, start spacing, fairness), [10](10-e0-e2-actions-and-goods.md) (rates that biome multipliers scale).
-> Design only. No code.
+> The M2 implementation is in `src/CivSim.Sim/World/`. Its as-built scope and validation status are recorded in §14; this document remains the target design for features outside the four-player MVP.
 
 ---
 
@@ -41,11 +41,11 @@ flowchart TD
     D --> E[5 Biomes + soil]
     E --> F[6 Deposits by geology rules]
     F --> G[7 Fauna herds + predators]
-    G --> H[8 Start placement: neighbour pairs]
-    H --> I[9 Guarantees: inject missing<br/>start and continental resources]
-    I --> J[10 Fairness pass:<br/>resource score, then expansion simulation]
-    J -->|fail| H
-    J -->|pass| K[11 Mirror for symmetry + cosmetic noise<br/>→ World]
+    G --> H[8 Search paired starts]
+    H --> I[9 Fairness pass:<br/>paired resource score and seasonal expansion]
+    I -->|next candidate pair| H
+    I -->|pass| J[10 Repair start and continental guarantees]
+    J --> K[11 Validate and return World]
 ```
 
 ### 3.1 Landmasses
@@ -69,6 +69,8 @@ flowchart TD
 - **Climate bands** (05 §4.2): Cold, Temperate, Warm, Arid, Tropical. Seasons per band: Tropical has wet and dry seasons (no winter); Arid has a hot summer and a mild winter.
 - **Year-to-year variance** (seeded per year, [09 §4.3](09-population-and-health.md#43-winter-hazards)): each winter is harsh (30%), normal (45%) or mild (25%). Drought years: 8% chance per Arid/Warm region per year (forage −40%, river fish −30%).
 
+The M2 generator produces the **static starting climate**. Seasonal climate variance, drought, wildfire and flood simulation belong to the living-world milestone, not world generation.
+
 ## 4. Biomes and their yields
 
 Multipliers apply to the base rates in [10](10-e0-e2-actions-and-goods.md). Temperate forest is the 1.0 reference.
@@ -90,6 +92,8 @@ Multipliers apply to the base rates in [10](10-e0-e2-actions-and-goods.md). Temp
 | Coast / shallows | water | (boat) | — | fish 1.5 R/tile | — | — | — | Coast-adjacent land gets shellfish +0.3 R/tile forage |
 
 **Seasonal forage profile** (fraction of the annual-average regrowth, [10 §4.1](10-e0-e2-actions-and-goods.md#41-forage-plants)): Temperate 0.6 / 1.0 / 0.9 / 0.15 (Sp/Su/Au/Wi); Cold 0.4 / 1.1 / 0.8 / 0.05; Warm 0.9 / 0.8 / 1.0 / 0.5; Arid 1.0 / 0.4 / 0.6 / 0.6; Tropical wet 1.1, dry 0.8.
+
+The Standard generator assigns Wetland to non-Cold, non-Arid lowlands with rainfall ≥68 and elevation <120. This keeps damp lowlands common enough to appear among eligible starts.
 
 ## 5. Water
 
@@ -172,7 +176,7 @@ A candidate start tile must have:
 `Score = 0.30 × forage(r3) + 0.20 × game(r12) + 0.15 × water + 0.10 × stone/flint(r10) + 0.10 × soil(r6) + 0.10 × room(Voronoi land) + 0.05 × coast access`, normalized to the map median.
 
 ### 9.3 Spacing: neighbour pairs
-- Each continent hosts one **neighbour pair**. The two starts are **25 walking tiles apart (22–28)**, measured as path distance using movement costs, with a 1-tile strait counted as passable.
+- Each continent hosts one **neighbour pair**. The two starts are **25 walking tiles apart (22–28)**, measured as a weighted path using the biome movement costs in §4; a single shallow-water tile may connect shores.
 - Starts of different pairs are **≥ 60 tiles apart or across ocean**.
 - Why: your first rival appears in **late E1–E2** (minute ~18 at Standard), and the wider world in E4–E7 ([07b](07b-territory-findings.md) T1). That gives every match an early rival to read and react to, which is exactly what a smart AI needs to show off (14).
 
@@ -214,6 +218,8 @@ Applied after placement. If a requirement is missing, the generator **injects** 
 ### 11.1 Resource check
 Both members of each pair: start score within ±5%; guarantee distances within ±20% of each other.
 
+The M2 implementation compares ten nearest-distance samples after repairs: freshwater, clay, native copper, flint, wolves, small herd, large game, the nearest two herds, and wild grain. Each distance is normalized by its allowed radius. The average normalized distance may differ by at most 20% between pair members (a maximum aggregate score delta of 2,000 across ten samples). This supplies a deterministic interpretation for the design's parity target.
+
 ### 11.2 Expansion simulation
 Run the territory model of [07b](07b-territory-findings.md) (claims + fission + frontier race, 4× Balanced trajectories) on the candidate world. **Accept if every civilization's simulated E7 land share is within ±15% of the mean** **and no civilization is below its settlement target for more than 8 seasons in E1–E7** (an early warning of a boxed-in start, [07b §9.5](07b-territory-findings.md#95-model-fixes-exact-symmetry-and-mirror-invariant-tie-breaks-2026-10-18)) (relative), e.g. 22–30% when the mean is 26%. Equal room isn't equal land: the frontier race decides shares (07b T9), so this check catches maps where one civilization must go the long way round a lake or ridge.
 
@@ -232,10 +238,20 @@ Expansion simulation is mean-field and runs per season on the hex grid: ≤ 1 s 
 | Guarantees | 100% of starts meet §10 in 10,000 generated worlds |
 | Fairness | §11 passes; distribution of E7 shares logged |
 | Contact timing | Paired starts reach first contact at minute 15–25 in the 07b model |
-| Variety | Across 1,000 worlds, each start biome type occurs; ≥ 60% of starts have a river; ≥ 30% coastal |
+| Variety | Every complete 1,000-seed window contains each required start biome type; across the full audit, ≥ 60% of starts have a river and ≥ 30% have coast access |
 | Performance | 4-player world in < 5 s including fairness |
 
 ## 13. Open items
 - **Natural (non-symmetric) worlds** and Earth-like maps (post-MVP, D9).
 - **6–8 player maps** exceed the 16,000-tile budget in 05 §19 (WS-L).
 - **Cold starts** as an advanced option once FIB-04's pacing is tested.
+
+## 14. M2 implementation status (2026-10-18)
+
+The four-player Standard path is implemented in `src/CivSim.Sim/World/WorldGenerator.cs`. It builds a deterministic 160 × 100 world with land, elevation, rivers, lakes, springs, climate, biomes, soil, deposits, fauna, point-mirrored starts and repaired start/continental guarantees. `WorldAcceptance` checks the generated result before `Generate` returns it. The harness command is `dotnet run --project src/CivSim.Harness -- worldgen --seed N` or `--audit-seeds N`.
+
+The fairness pass in `TerritoryFairnessSimulator.cs` replays seasons 1–462 through E7. It uses the per-season tuned Standard Balanced population trajectory exported from `balance/tools/territory_sim.py`, the reference fission seasons and settlement targets, claim radii and multipliers, T = 0.7, the 1.2 lead, the one-season ownership delay, E4 overseas reach, and the adopted WAY-02 camps. Population is stored in thousandths; claim arithmetic and site ties are integer deterministic. First contact uses the territory model's unit-cost reach graph. Start-pair spacing uses §4 biome movement costs and allows a single-tile strait.
+
+M2 scope is four players on the standard map. The current implementation uses deterministic value noise and simplified landform, climate, hydrology, geology and fauna placement rules; it does not yet simulate seasonal weather, fauna migration, natural events, 2/3/6/8-player layouts, or terrain movement in the territory contact model. The distance-fit curve is a fixed lookup table sampled at 0.1σ rather than the reference model's floating-point exponential. Those limits are explicit; they do not change the static map layers or the four-player validation gates.
+
+The Release build succeeds with zero warnings or errors, and the full test suite passes (138/138). The seed 42 fingerprint remains `f51b5947f6b2eb3b`; its golden test passed on macOS and Windows in [CI run 39156059788](https://github.com/juchheim/civsim/actions/runs/39156059788). An initial 10,000-seed audit pooled biome counts across the full range and concealed a gap: seeds 1–1,000 had no Wetland starts. Wetland classification was broadened to rainfall ≥68 and elevation <120, and the harness now checks variety separately for every complete 1,000-seed window. The corrected Release audit accepted all 10,000 worlds with no failures in 29m 25.0s; all ten windows contained all six required start biomes. The slowest world generated in 4,644 ms. Land share was 3,997 bp in every world; E7 shares ranged from 1,945 to 2,757 bp. All 40,000 starts had nearby rivers and coast access. The 40,000 starts included 154 Wetlands, with 20 in seeds 1–1,000. The Release suite passes 138/138 and the corrected M2 acceptance gates pass locally.
