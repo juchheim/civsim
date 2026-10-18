@@ -1,6 +1,6 @@
 # Reference catalog tools (Python)
 
-Throwaway-grade scripts that were used to design and check the catalog. They parse the **markdown tables** in `03a`–`03c`. They are kept as the **reference implementation** for the C# validator specified in [16-catalog-format-and-tooling.md](../16-catalog-format-and-tooling.md), and the C# tool must reproduce their results (the golden numbers in 16 §6). Once the YAML catalog exists they are retired.
+`import_md.py` is the **one-time importer** that generated `content/` (retired after M1; never re-run it over edited content). The others are throwaway-grade scripts that were used to design and check the catalog. They parse the **markdown tables** in `03a`–`03c`. They are kept as the **reference implementation** for the C# validator specified in [16-catalog-format-and-tooling.md](../16-catalog-format-and-tooling.md), and the C# tool must reproduce their results (the golden numbers in 16 §6). Once the YAML catalog exists they are retired.
 
 ```bash
 python3 -I validate_catalog.py <docs/MVP dir> graph.json   # references, cycles, era order, cross-theme, counts

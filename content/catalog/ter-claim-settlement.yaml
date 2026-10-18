@@ -1,0 +1,143 @@
+# TER: Claim & Settlement (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: TER, theme: reach, name: "Claim & Settlement", purpose: "the rules of owning land. Claim radius, claim strength, how fissioned groups choose new sites, how distant land is held, and how expansion overseas works. The lineage most directly tied to Dominion score.", anchors: "home ranges; seasonal camp circuits; boundary markers and cairns; permanent villages; daughter-village colonization (Neolithic spread); boundary stones (kudurru); city-states; provinces (Persian satrapies, Roman provinces); Greek and Phoenician colonies; manors; overseas colonies; cadastral registries; suburbanization; decolonization (1945–75); smart cities."}
+projects:
+  - id: TER-01
+    name: Home Range
+    era: 0
+    type: I
+    status: numeric
+    requires: [WAY-01]
+    effects:
+      - {kind: mod, stat: claim_decay_after_a_camp_moves, op: mult, value: 0.5, note: "Claim decay after a camp moves, ×0.5"}
+      - {kind: show, text: home range hatch}
+      - {kind: presence, text: capped 0.5 T}
+    practice: [{action: scout, share: 50}, {action: mark, share: 50}]
+    flavor: This valley knows our names.
+    moment: Children name every stream and hill around the camp
+  - id: TER-02
+    name: Camp Circuits
+    era: 1
+    type: M
+    status: numeric
+    requires: [TER-01, WAY-02]
+    effects:
+      - {kind: claim, text: "seasonal camp emission 50% → 75% of the band's"}
+      - {kind: rule, text: camp claims never decay while the band is elsewhere}
+    practice: [{action: mark, share: 50}, {action: scout, share: 50}]
+    flavor: All these places are ours.
+    moment: "The band returns to last year's camp; its claim never faded"
+  - id: TER-03
+    name: Territorial Markers
+    era: 1
+    type: M
+    status: numeric
+    requires: [TER-02, BEL-02]
+    effects:
+      - {kind: build, structure: marker, note: "cairn or totem, claim +30% within radius 2"}
+    practice: [{action: mark, share: 100}]
+    flavor: Here begins our land.
+    moment: A cairn rises on the border hill
+  - id: TER-04
+    name: Permanent Villages
+    era: 2
+    type: I
+    status: numeric
+    requires: [TER-03, BLD-04]
+    effects:
+      - {kind: claim, text: Village radius 4}
+      - {kind: rule, text: claims never decay while occupied}
+    practice: [{action: mark, share: 50}, {action: build, share: 50}]
+    flavor: "This place is ours, always."
+    moment: A boundary ditch dug around fields
+  - id: TER-05
+    name: Daughter Villages
+    era: 2
+    type: I
+    status: numeric
+    requires: [TER-04, SOC-06]
+    effects:
+      - {kind: rule, text: "fission sites scored by quality and Beacons; new villages start with claim ×1.5"}
+    practice: [{action: mark, share: 50}, {action: scout, share: 50}]
+    flavor: "Our children's children spread across the land."
+    moment: A daughter village is founded across the valley
+  - id: TER-06
+    name: "Boundary Stones & Land Rights"
+    era: 3
+    type: I
+    status: draft
+    requires: [TER-05, GOV-03]
+    effects:
+      - {kind: prose, text: "Claimed tiles resist rival pressure: −30% flip rate."}
+  - id: TER-07
+    name: "City-States & Hinterlands"
+    era: 3
+    type: I
+    status: draft
+    requires: [TER-06, SOC-09]
+    effects:
+      - {kind: prose, text: Cities project claim radius 7 over their hinterland.}
+  - id: TER-08
+    name: "Provinces & Governors"
+    era: 4
+    type: I
+    status: draft
+    requires: [TER-07, GOV-07]
+    effects:
+      - {kind: prose, text: "Role: Governor. Overreach −30% in governed provinces."}
+  - id: TER-09
+    name: Frontier Colonies
+    era: 4
+    type: I
+    status: draft
+    requires: [TER-08, SEA-06]
+    effects:
+      - {kind: prose, text: "Planned colonies across water or far away: fission bands can found overseas settlements."}
+  - id: TER-10
+    name: Manorial Estates
+    era: 5
+    type: I
+    status: draft
+    requires: [TER-08, GOV-09]
+    effects:
+      - {kind: prose, text: "Rural land held cheaply: claim upkeep −30% for farm tiles."}
+  - id: TER-11
+    name: Overseas Colonies
+    era: 6
+    type: I
+    status: draft
+    requires: [TER-09, SEA-12]
+    effects:
+      - {kind: prose, text: "Colonies on other continents; colonial trade +. Overreach risk high (independence events)."}
+  - id: TER-12
+    name: "Land Registry & Cadastre"
+    era: 7
+    type: M
+    status: draft
+    requires: [TER-10, WAY-11]
+    effects:
+      - {kind: prose, text: "Precise land ownership: claim strength +20% everywhere; border disputes −50%."}
+  - id: TER-13
+    name: "Urban Planning & Suburbs"
+    era: 8
+    type: M
+    status: draft
+    requires: [TER-12, TRN-13]
+    effects:
+      - {kind: prose, text: "Cities sprawl into suburbs: city claim radius +3."}
+  - id: TER-14
+    name: Self-Determination
+    era: 8
+    type: I
+    status: draft
+    requires: [TER-11, DIP-12]
+    effects:
+      - {kind: prose, text: "Former colonies become autonomous allies, not rebels: Overreach losses become Legacy-neutral partnerships."}
+  - id: TER-15
+    name: Smart Megacities
+    era: 9
+    type: M
+    status: draft
+    requires: [TER-13, COM-16]
+    effects:
+      - {kind: prose, text: "Megacity density: population per tile ×2; claim radius +2."}

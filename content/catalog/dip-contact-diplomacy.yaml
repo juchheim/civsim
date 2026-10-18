@@ -1,0 +1,135 @@
+# DIP: Contact & Diplomacy (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: DIP, theme: reach, name: "Contact & Diplomacy", purpose: "structured relations with rival civilizations: peaceful first contact, alliances, treaties, vassals and global institutions. Diplomacy lets a weaker civilization survive and lets everyone share diffusion.", anchors: "greeting rituals; hospitality norms; marriage alliances; envoys and oaths; Treaty of Kadesh (~1259 BCE); tributary systems; Delian League and confederacies; dynastic marriages; resident embassies (Renaissance Italy); Concert of Europe (1815); Geneva Conventions (1864+); League of Nations and UN; arms control (1963+); G20 and global forums; Paris Agreement (2015)."}
+projects:
+  - id: DIP-01
+    name: Stranger Greetings
+    era: 0
+    type: D
+    status: numeric
+    requires: [COM-01]
+    effects:
+      - {kind: diplo, text: "violent first contacts −50%"}
+      - {kind: rule, text: "default stance to strangers: wary, not hostile"}
+    practice: [{action: meet_strangers, share: 100}]
+    flavor: "Stranger, not enemy. Not yet."
+    moment: "Two strangers, palms open, circling each other slowly"
+  - id: DIP-02
+    name: Hospitality Customs
+    era: 1
+    type: I
+    status: numeric
+    requires: [DIP-01, SOC-03]
+    effects:
+      - {kind: rule, text: "guests welcomed: contact → diffusion begins"}
+      - {kind: relations, text: "+5 per peaceful encounter"}
+    practice: [{action: meet_strangers, share: 100}]
+    flavor: A guest is sacred.
+    moment: A stranger is given the warm place by the fire
+  - id: DIP-03
+    name: Marriage Alliances
+    era: 2
+    type: I
+    status: numeric
+    requires: [DIP-02, SOC-04]
+    effects:
+      - {kind: diplo, text: "Alliance: no fighting, shared diffusion, joint defense"}
+    practice: [{action: meet_strangers, share: 50}, {action: feast, share: 50}]
+    flavor: Blood ties make peace.
+    moment: A wedding between two peoples
+  - id: DIP-04
+    name: "Envoys & Oaths"
+    era: 3
+    type: I
+    status: draft
+    requires: [DIP-03, GOV-04]
+    effects:
+      - {kind: prose, text: "Diplo: Non-aggression pact; Role: Envoy."}
+  - id: DIP-05
+    name: Written Treaties
+    era: 3
+    type: I
+    status: draft
+    requires: [DIP-04, COM-05]
+    effects:
+      - {kind: prose, text: "Diplo: Border treaty (fixes a border line; neither side's claims flip across it)."}
+  - id: DIP-06
+    name: Tributary States
+    era: 4
+    type: I
+    status: draft
+    requires: [DIP-05, WAR-07]
+    effects:
+      - {kind: prose, text: "Diplo: Vassalage (a weaker civilization pays tribute; its land counts 25% toward your Dominion)."}
+  - id: DIP-07
+    name: "Leagues & Confederations"
+    era: 4
+    type: I
+    status: draft
+    requires: [DIP-05, GOV-08]
+    effects:
+      - {kind: prose, text: "Diplo: League (multi-civ alliance; shared Wonder build)."}
+  - id: DIP-08
+    name: Dynastic Marriages
+    era: 5
+    type: I
+    status: draft
+    requires: [DIP-07, GOV-09]
+    effects:
+      - {kind: prose, text: "Alliances survive leader deaths; chance of peaceful inheritance of a Free Folk region."}
+  - id: DIP-09
+    name: Resident Embassies
+    era: 6
+    type: I
+    status: draft
+    requires: [DIP-08, COM-10]
+    effects:
+      - {kind: prose, text: "Permanent embassies: see rivals' research slots; diffusion +."}
+  - id: DIP-10
+    name: Balance of Power
+    era: 7
+    type: I
+    status: draft
+    requires: [DIP-09, GOV-12]
+    effects:
+      - {kind: prose, text: "AI civilizations coalition against the leader: comeback mechanic for *you* when behind."}
+  - id: DIP-11
+    name: International Law
+    era: 7
+    type: I
+    status: draft
+    requires: [DIP-10, BEL-13]
+    effects:
+      - {kind: prose, text: "Rules of war: civilian deaths −50%; war Cohesion cost −."}
+  - id: DIP-12
+    name: International Organizations
+    era: 8
+    type: I
+    status: draft
+    requires: [DIP-11, COM-14]
+    effects:
+      - {kind: prose, text: "Diplo: World assembly votes (sanctions, embargoes)."}
+  - id: DIP-13
+    name: Arms Control
+    era: 8
+    type: I
+    status: draft
+    requires: [DIP-12, WAR-16]
+    effects:
+      - {kind: prose, text: "Nuclear catastrophe risk −90%; military upkeep −20%."}
+  - id: DIP-14
+    name: Global Governance Forum
+    era: 9
+    type: I
+    status: draft
+    requires: [DIP-12, COM-16]
+    effects:
+      - {kind: prose, text: "Coordinated global policy: all members' disaster damage −30%. *KEY-10 prerequisite.*"}
+  - id: DIP-15
+    name: Climate Accords
+    era: 9
+    type: I
+    status: draft
+    requires: [DIP-14, INQ-19]
+    effects:
+      - {kind: prose, text: "Global pollution and climate damage −40% for signatories."}

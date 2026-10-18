@@ -1,0 +1,137 @@
+# NRG: Energy & Power (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: NRG, theme: craft, name: "Energy & Power", purpose: "the power source behind every action, from muscle to animals, water, wind, steam, electricity, oil, the atom and renewables. Energy is the hidden multiplier on almost every Craft ladder from E3 onward.", anchors: "draft cattle (~4000 BCE); yoke; water wheel (~3rd c. BCE); horse collar (China ~5th c.; Europe ~10th c.); windmill (Persia ~9th c.; Europe ~12th c.); Newcomen 1712; Watt 1769; dynamo 1860s; grid 1880s; ICE 1876; hydro (1880s+); fission 1942/1954; PV 1954; wind turbines; Li-ion 1991."}
+projects:
+  - id: NRG-01
+    name: Draft Animals
+    era: 2
+    type: D
+    status: numeric
+    requires: [HUS-04]
+    effects:
+      - {kind: unlock_action, action: draft_oxen}
+      - {kind: mod, stat: farm_and_haul_labor, op: pct, value: -0.3, note: "Farm and haul labor, −30%; needs cattle"}
+    practice: [{action: herd, share: 50}, {action: work_animals, share: 50}]
+    flavor: "Their strength, our purpose."
+    moment: Oxen drag a sledge of stone
+  - id: NRG-02
+    name: "Harness & Yoke"
+    era: 3
+    type: M
+    status: draft
+    requires: [NRG-01, FIB-03]
+    effects:
+      - {kind: prose, text: "Animal power ×1.5."}
+  - id: NRG-03
+    name: Water Wheel
+    era: 4
+    type: S
+    status: draft
+    requires: [NRG-02, MEC-05]
+    gates: [{kind: near, target: River}]
+    effects:
+      - {kind: prose, text: "Build: Water mill. Grinding ×5; powers sawmills, bellows and trip hammers."}
+  - id: NRG-04
+    name: Horse Collar
+    era: 5
+    type: M
+    status: draft
+    requires: [NRG-02, HUS-07]
+    effects:
+      - {kind: prose, text: "Horses pull without choking: draft power ×2 where horses are available."}
+  - id: NRG-05
+    name: Windmill
+    era: 5
+    type: S
+    status: draft
+    requires: [NRG-03, MEC-07]
+    effects:
+      - {kind: prose, text: "Build: Windmill. Milling without rivers; drainage pumps (reclaim wetlands)."}
+  - id: NRG-06
+    name: Steam Engine
+    era: 6
+    type: D
+    status: draft
+    requires: [NRG-05, MIN-09, MET-12]
+    effects:
+      - {kind: prose, text: "Build: Atmospheric engine (pumps). Coal → work. *KEY-7 prerequisite.*"}
+  - id: NRG-07
+    name: Watt Engine
+    era: 7
+    type: M
+    status: draft
+    requires: [NRG-06, MEC-09]
+    effects:
+      - {kind: prose, text: "Rotary steam power: factories, mills and ships run anywhere; output ×3 on powered work."}
+  - id: NRG-08
+    name: Electric Generator
+    era: 7
+    type: D
+    status: draft
+    requires: [NRG-07, INQ-11]
+    effects:
+      - {kind: prose, text: "Good: Electricity (local). *KEY-8 prerequisite.*"}
+  - id: NRG-09
+    name: Electric Grid
+    era: 8
+    type: S
+    status: draft
+    requires: [NRG-08, MET-14]
+    effects:
+      - {kind: prose, text: "Build: Power station, lines. Electric light and motors in all connected settlements: work +20%, Insight +10%."}
+  - id: NRG-10
+    name: Internal Combustion Engine
+    era: 8
+    type: D
+    status: draft
+    requires: [NRG-07, MIN-13, INQ-12]
+    effects:
+      - {kind: prose, text: "Portable power: tractors, trucks, cars, aircraft."}
+  - id: NRG-11
+    name: Hydroelectric Dams
+    era: 8
+    type: S
+    status: draft
+    requires: [NRG-09, BLD-14]
+    effects:
+      - {kind: prose, text: "Build: Dam [Near: River]. Clean power; floods −; reservoir displaces tiles."}
+  - id: NRG-12
+    name: Nuclear Fission Power
+    era: 8
+    type: S
+    status: draft
+    requires: [NRG-11, INQ-16]
+    effects:
+      - {kind: prose, text: "Build: Reactor. Huge power, low pollution; small meltdown risk (lowered by INQ and GOV)."}
+  - id: NRG-13
+    name: Solar Photovoltaics
+    era: 9
+    type: M
+    status: draft
+    requires: [NRG-09, MEC-14]
+    effects:
+      - {kind: prose, text: "Build: Solar field. Clean power, best in sunny biomes."}
+  - id: NRG-14
+    name: Wind Turbines
+    era: 9
+    type: S
+    status: draft
+    requires: [NRG-09, MET-17]
+    effects:
+      - {kind: prose, text: "Build: Wind farm (plains, coasts). Clean power."}
+  - id: NRG-15
+    name: Battery Storage
+    era: 9
+    type: M
+    status: draft
+    requires: [NRG-13, MIN-15]
+    effects:
+      - {kind: prose, text: "Store renewables; enables EVs and mobile devices."}
+  - id: NRG-16
+    name: Sustainable Grid
+    era: 9
+    type: I
+    status: draft
+    requires: [NRG-13, NRG-14, NRG-15, INQ-19]
+    effects:
+      - {kind: prose, text: "Pollution from energy −80%; climate-damage events −50%. *KEY-10 prerequisite.*"}

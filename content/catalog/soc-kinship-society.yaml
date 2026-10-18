@@ -1,0 +1,156 @@
+# SOC: Kinship & Society (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: SOC, theme: kin, name: "Kinship & Society", purpose: "the group cap and the settlement tier. Sets how large a community can be before it fissions, and how fission turns into organized expansion. Uses real social-group-size layers (band → clan/Dunbar → tribe → chiefdom → city → nation).", anchors: "alloparenting; food sharing; exogamy and alliance networks; totemic clans; competitive feasting; Neolithic villages (Çatalhöyük); chiefdoms; craft specialization; urban revolution (Uruk); citizenship (Athens, Rome); guilds; bourgeoisie; labor movement; welfare state (1880s–1940s); networked society (1990s+)."}
+projects:
+  - id: SOC-01
+    name: Kin Bonds
+    era: 0
+    type: I
+    status: numeric
+    requires: []
+    effects:
+      - {kind: cap, cap: group, value: 35}
+      - {kind: hazard, cause: child, mult: 0.97}
+      - {kind: cohesion, value: 5}
+    practice: [{action: socialize, share: 100}]
+    flavor: Every child has many mothers.
+    moment: An aunt carries a sleeping child while its mother forages
+  - id: SOC-02
+    name: Food Sharing
+    era: 0
+    type: I
+    status: numeric
+    requires: [SOC-01]
+    effects:
+      - {kind: hazard, cause: starvation, mult: 0.92}
+      - {kind: cohesion, value: 3}
+      - {kind: rule, text: no figure starves while another camp of yours within reach has food}
+    practice: [{action: socialize, share: 50}, {action: feast, share: 50}]
+    flavor: "Meat is shared, or it rots in the heart."
+    moment: A hunter cuts the kill into equal shares
+  - id: SOC-03
+    name: Band Alliances
+    era: 1
+    type: I
+    status: numeric
+    requires: [SOC-02, COM-02]
+    effects:
+      - {kind: cap, cap: group, value: 50}
+      - {kind: rule, text: "daughter bands share Insight 100% and stay allied"}
+    practice: [{action: socialize, share: 100}]
+    flavor: Our daughters are their mothers.
+    moment: "Two bands meet; a young couple leaves together"
+  - id: SOC-04
+    name: "Clans & Totems"
+    era: 1
+    type: I
+    status: numeric
+    requires: [SOC-03, BEL-02]
+    effects:
+      - {kind: cap, cap: group, value: 150}
+      - {kind: tier, tier: hamlet}
+      - {kind: cap, cap: housing, mult: 1.3}
+    practice: [{action: socialize, share: 50}, {action: ritual, share: 50}]
+    flavor: We are the Heron people.
+    moment: "A totem post carved with the clan's animal"
+  - id: SOC-05
+    name: Feasting
+    era: 2
+    type: I
+    status: numeric
+    requires: [SOC-04, FOD-05]
+    effects:
+      - {kind: unlock_action, action: feast, note: "0.5 R per guest, Cohesion +8 for a year"}
+      - {kind: rule, text: feast-givers become Legends}
+    practice: [{action: feast, share: 100}]
+    flavor: Generosity is power.
+    moment: "A great feast; a host stands, arms wide"
+  - id: SOC-06
+    name: Village Life
+    era: 2
+    type: I
+    status: numeric
+    requires: [SOC-05, BLD-06]
+    effects:
+      - {kind: tier, tier: village}
+      - {kind: cap, cap: group, value: 500}
+      - {kind: cap, cap: housing, mult: 1.5}
+    practice: [{action: socialize, share: 50}, {action: build, share: 50}]
+    flavor: "We stayed, and became a village."
+    moment: "Houses clustered along a stream, paths between them"
+  - id: SOC-07
+    name: Chiefdom
+    era: 2
+    type: I
+    status: numeric
+    requires: [SOC-06, GOV-02]
+    effects:
+      - {kind: cap, cap: group, value: 2000, note: per polity core}
+      - {kind: rule, text: "daughter villages stay fully in the polity; stores shared within 15 tiles"}
+    practice: [{action: council, share: 50}, {action: feast, share: 50}]
+    flavor: "Many villages, one voice."
+    moment: A chief receives tribute from three villages
+  - id: SOC-08
+    name: Craft Specialization
+    era: 3
+    type: I
+    status: draft
+    requires: [SOC-07, TRD-04]
+    effects:
+      - {kind: prose, text: "Full-time specialists: Role output +30%; inequality (−5% Cohesion)."}
+  - id: SOC-09
+    name: Urbanism
+    era: 3
+    type: I
+    status: draft
+    requires: [SOC-08, AGR-06]
+    effects:
+      - {kind: prose, text: "Settlement tier: City. Cap: 10,000. Cities radiate claim and Insight."}
+  - id: SOC-10
+    name: Citizenship
+    era: 4
+    type: I
+    status: draft
+    requires: [SOC-09, GOV-06]
+    effects:
+      - {kind: prose, text: "Shared civic identity: Cohesion decays 50% slower with distance from capital."}
+  - id: SOC-11
+    name: Guilds
+    era: 5
+    type: I
+    status: draft
+    requires: [SOC-10, TRD-07]
+    effects:
+      - {kind: prose, text: "Craft quality +20%; apprenticeship speed ×1.5 for craft roles."}
+  - id: SOC-12
+    name: Middle Class
+    era: 6
+    type: I
+    status: draft
+    requires: [SOC-11, TRD-08]
+    effects:
+      - {kind: prose, text: "Commerce and education spread: Commons Insight +20%; demand for goods (+trade)."}
+  - id: SOC-13
+    name: Labor Movement
+    era: 7
+    type: I
+    status: draft
+    requires: [SOC-12, MEC-10]
+    effects:
+      - {kind: prose, text: "Factory workers organize: Cohesion stabilizes during industrialization (strike events −)."}
+  - id: SOC-14
+    name: Welfare State
+    era: 8
+    type: I
+    status: draft
+    requires: [SOC-13, GOV-13]
+    effects:
+      - {kind: prose, text: "Social safety net: Cohesion +, famine and old-age deaths −; life expectancy +."}
+  - id: SOC-15
+    name: Networked Society
+    era: 9
+    type: I
+    status: draft
+    requires: [SOC-14, COM-18]
+    effects:
+      - {kind: prose, text: "Identity through networks: group cap effectively unlimited; Cohesion volatility + (viral events)."}

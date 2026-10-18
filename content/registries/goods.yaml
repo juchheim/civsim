@@ -1,0 +1,61 @@
+# Goods registry (docs/MVP/10 §10). Imported once by catalog-tools/import_md.py; edit here from now on.
+schema: 1
+goods:
+  - {id: G-MEAT, name: Meat (fresh), category: food, first_from: [start], spoilage: 0.6, load: 0.5, barter: 1}
+  - {id: G-PLANT, name: Plant food (fresh), category: food, first_from: [start], spoilage: 0.4, load: 0.5, barter: 0.8}
+  - {id: G-ROOT, name: "Roots & tubers", category: food, first_from: [FOR-02], spoilage: 0.15, load: 0.5, barter: 0.8}
+  - {id: G-NUTS, name: "Nuts & seeds", category: food, first_from: [FOR-03], spoilage: 0.05, load: 0.5, barter: 1.2}
+  - {id: G-WGRAIN, name: Wild grain, category: food, first_from: [FOR-04], spoilage: 0.08, load: 0.4, barter: 1.2}
+  - {id: G-GRAIN, name: Grain (domestic), category: food, first_from: [AGR-02], spoilage: 0.05, durability: "10% more to pests outside a granary", load: 0.4, barter: 1.2}
+  - {id: G-FISH, name: Fish (fresh), category: food, first_from: [HNT-07], spoilage: 0.7, load: 0.5, barter: 1}
+  - {id: G-DRIED, name: "Dried / smoked meat & fish", category: food, first_from: [FOD-02], spoilage: 0.1, load: 0.3, barter: 1.5}
+  - {id: G-BREW, name: "Beer & bread", category: food_feast, first_from: [FOD-05], spoilage: 0.15, load: 0.5, barter: 2}
+  - {id: G-WOOD, name: Wood / fuel, category: material, first_from: [start], durability: durable, load: 1, barter: 0.3}
+  - {id: G-STONE, name: Stone (knapping), category: material, first_from: [start], durability: durable, load: 1, barter: 0.2}
+  - {id: G-FLINT, name: Flint / chert, category: material, first_from: [MIN-01], durability: durable, load: 1, barter: 1}
+  - {id: G-OCHRE, name: Ochre, category: material, first_from: [MIN-01], durability: durable, load: 1, barter: 2}
+  - {id: G-FIBER, name: Plant fiber, category: material, first_from: [FIB-01], spoilage: 0.1, load: 1, barter: 0.3}
+  - {id: G-HIDE, name: Hide (raw), category: material, first_from: [start], spoilage: 0.3, load: 0.5, barter: 0.6}
+  - {id: G-BONE, name: "Bone & antler", category: material, first_from: [start], durability: durable, load: 1, barter: 0.3}
+  - {id: G-CORD, name: Cord, category: processed, first_from: [FIB-01], durability: durable, load: 0.1, per: 10, barter: 0.5}
+  - {id: G-RAWHIDE, name: Rawhide, category: processed, first_from: [FIB-02], spoilage: 0.05, load: 0.5, barter: 1}
+  - {id: G-LEATHER, name: Leather, category: processed, first_from: [FIB-03], durability: durable, load: 0.5, barter: 2}
+  - {id: G-CLAY, name: Clay, category: material, first_from: [CER-01, BLD-05], durability: durable, load: 1, barter: 0.2}
+  - {id: G-BRICK, name: Mudbrick, category: processed, first_from: [BLD-05], durability: durable, load: 0.1, per: 10, barter: 0.2}
+  - {id: G-YARN, name: Yarn, category: processed, first_from: [FIB-06], durability: durable, load: 0.2, barter: 1}
+  - {id: G-CLOTH, name: Cloth, category: processed, first_from: [FIB-07], durability: durable, load: 0.2, barter: 4}
+  - {id: G-LIME, name: Lime, category: processed, first_from: [CHM-03], durability: durable, load: 1, barter: 1.5}
+  - {id: G-PIGMENT, name: Pigment, category: processed, first_from: [CHM-01], durability: durable, load: 0.1, barter: 2}
+  - {id: G-TAR, name: Birch tar, category: processed, first_from: [CHM-02], durability: durable, load: 0.1, barter: 1.5}
+  - {id: G-CHAR, name: Charcoal, category: fuel, first_from: [FIR-08], durability: durable, load: 1, barter: 1.5}
+  - {id: G-COPPER, name: Copper, category: metal, first_from: [MET-02], durability: durable, load: 1, barter: 20}
+  - {id: G-TOOL1, name: "Pebble choppers & flakes (T1)", category: tool, first_from: [STN-01], durability: "1.0 ws", load: 0.3, barter: 1}
+  - {id: G-TOOL2, name: Hand axe kit (T2), category: tool, first_from: [STN-02], durability: "2.0 ws", load: 0.3, barter: 1.5}
+  - {id: G-TOOL3, name: Prepared-core kit (T3), category: tool, first_from: [STN-03], durability: "2.0 ws", load: 0.3, barter: 2}
+  - {id: G-TOOL4, name: Hafted kit (T4), category: tool, first_from: [STN-04], durability: "3.0 ws", load: 0.3, barter: 3}
+  - {id: G-TOOL5, name: Blade kit (T5), category: tool, first_from: [STN-05], durability: "4.5 ws", load: 0.3, barter: 4}
+  - {id: G-TOOL6, name: Composite microlith kit (T6), category: tool, first_from: [STN-06], durability: "4.0 ws", load: 0.3, barter: 5}
+  - {id: G-TOOL7, name: Polished axe (T7), category: tool, first_from: [STN-08], durability: "10 ws", load: 0.3, barter: 8}
+  - {id: G-SPEAR, name: Spear, category: tool, first_from: [HNT-02], durability: "5 ws", load: 0.3, barter: 2}
+  - {id: G-ATLATL, name: Spear-thrower and darts, category: tool, first_from: [HNT-05], durability: "8 ws", load: 0.3, barter: 3}
+  - {id: G-BOW, name: Bow and arrows, category: tool, first_from: [HNT-06], durability: "10 ws", load: 0.3, barter: 4}
+  - {id: G-HARPOON, name: Harpoon, category: tool, first_from: [HNT-07], durability: "6 ws", load: 0.3, barter: 2}
+  - {id: G-FISHKIT, name: Hooks and lines, category: tool, first_from: [HNT-08], durability: "8 ws", load: 0.3, barter: 2}
+  - {id: G-NET, name: Net, category: tool, first_from: [FIB-05], durability: "12 ws", load: 0.3, barter: 4}
+  - {id: G-SICKLE, name: Microlith sickle, category: tool, first_from: [FOR-04], durability: "6 ws", load: 0.2, barter: 2}
+  - {id: G-STICK, name: Digging stick, category: tool, first_from: [WOD-01], durability: "4 ws", load: 0.2, barter: 0.5}
+  - {id: G-CLUB, name: Wooden club, category: tool, first_from: [WOD-01], durability: "5 ws", load: 0.3, barter: 0.5}
+  - {id: G-NEEDLE, name: Bone needle set, category: tool, first_from: [STN-07], durability: "6 ws", load: 0.1, barter: 3}
+  - {id: G-BASKET, name: Basket, category: container, first_from: [FIB-05], durability: "8 ws", load: 0.3, barter: 1}
+  - {id: G-POT, name: Pot, category: container, first_from: [CER-02], durability: "10% breakage per move", load: 0.3, barter: 1.5}
+  - {id: G-JAR, name: Storage jar, category: container, first_from: [CER-03], durability: "10% breakage per move", load: 0.3, barter: 2}
+  - {id: G-WRAP, name: Hide wrap, category: clothing, first_from: [FIB-02], durability: "8 seasons", load: 0.3, barter: 2}
+  - {id: G-TAILORED, name: Tailored clothing, category: clothing, first_from: [FIB-04], durability: "12 seasons", load: 0.3, barter: 6}
+  - {id: G-GARMENT, name: Cloth garment, category: clothing, first_from: [FIB-07], durability: "16 seasons", load: 0.3, barter: 6}
+  - {id: G-BEADS, name: Beads, category: luxury, first_from: [ART-01], durability: durable, load: 0.05, barter: 5}
+  - {id: G-FIGURINE, name: Figurine, category: luxury, first_from: [CER-01], durability: durable, load: 0.1, barter: 4}
+  - {id: G-CARVING, name: Carving, category: luxury, first_from: [WOD-02], durability: durable, load: 0.1, barter: 4}
+  - {id: G-POLAXE, name: Polished axe (prestige), category: luxury, first_from: [STN-08], durability: "10 ws", load: 0.4, barter: 12}
+  - {id: G-COPORN, name: Copper ornament, category: luxury, first_from: [MET-01], durability: durable, load: 0.05, barter: 25}
+  - {id: G-TENT, name: Tent kit, category: shelter, first_from: [BLD-02], durability: "30 seasons", load: 1, barter: 6}
+  - {id: G-DOG, name: Dog, category: animal, first_from: [HUS-01], durability: eats 0.3 R/season, load: 0, barter: 3}

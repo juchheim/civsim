@@ -1,0 +1,147 @@
+# SEA: Watercraft & Seafaring (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: SEA, theme: reach, name: "Watercraft & Seafaring", purpose: "crossing water. Opens islands, coasts, other continents and maritime trade. Water is the biggest barrier on the map and the fastest highway once mastered.", anchors: "rafts (Sahul crossing ≥ ~50–65 ka); hide boats; dugouts (Pesse ~8000 BCE); outriggers (Austronesian); plank boats; sail (Egypt ~3000 BCE); harbors and the Pharos (~280 BCE); galleys and triremes; keeled longships and cogs; lateen sail and sternpost rudder; caravels (15th c.); galleons; steamships (1807+); steel hulls; container ships (1956)."}
+projects:
+  - id: SEA-01
+    name: "Floats & Rafts"
+    era: 0
+    type: D
+    status: numeric
+    requires: [WOD-01]
+    gates: [{kind: near, target: Water}]
+    effects:
+      - {kind: unlock_action, action: raft_crossing, note: "rivers, lakes, 1-tile straits"}
+      - {kind: gate, text: "use: [Near: Water]"}
+    practice: [{action: paddle, share: 100}]
+    flavor: The water stopped being a wall.
+    moment: "Logs lashed together; a family floats across a river"
+  - id: SEA-02
+    name: "Bark & Hide Canoes"
+    era: 1
+    type: M
+    status: numeric
+    requires: [SEA-01, FIB-03]
+    effects:
+      - {kind: method, action: paddle, rung: 1, name: Canoe, mult: 2, note: "river speed; lake fishing"}
+    practice: [{action: paddle, share: 50}, {action: fish, share: 50}]
+    flavor: The river carries us.
+    moment: A bark canoe slides past a slow-walking family on the bank
+  - id: SEA-03
+    name: Dugout Canoes
+    era: 2
+    type: M
+    status: numeric
+    requires: [SEA-02, WOD-03]
+    effects:
+      - {kind: method, action: paddle, rung: 2, name: Dugout, mult: 2, note: "coastal water within 2 tiles; 4 L"}
+      - {kind: mod, stat: fishing_offshore, op: pct, value: 0.5, note: "Fishing offshore, +50%"}
+    practice: [{action: paddle, share: 50}, {action: chop, share: 50}]
+    flavor: "The sea's edge opened."
+    moment: A hollowed log slides into the sea
+  - id: SEA-04
+    name: Outriggers
+    era: 2
+    type: M
+    status: numeric
+    requires: [SEA-03, WAY-03]
+    effects:
+      - {kind: method, action: paddle, rung: 3, name: Outrigger, mult: 2.5, note: open-sea hops of up to 3 tiles}
+    practice: [{action: paddle, share: 100}]
+    flavor: "Beyond the horizon, more land."
+    moment: An outrigger rides a swell toward a distant island
+  - id: SEA-05
+    name: Plank Boats
+    era: 3
+    type: M
+    status: draft
+    requires: [SEA-04, WOD-05]
+    effects:
+      - {kind: prose, text: "Cargo boats: water haul ×3."}
+  - id: SEA-06
+    name: Sail
+    era: 3
+    type: M
+    status: draft
+    requires: [SEA-05, FIB-07]
+    effects:
+      - {kind: prose, text: "▸ Sail: Square sail. Sea speed ×2; coastal trade routes."}
+  - id: SEA-07
+    name: Harbors
+    era: 4
+    type: S
+    status: draft
+    requires: [SEA-06, BLD-09]
+    effects:
+      - {kind: prose, text: "Build: Harbor. Ship capacity ×2; port cities grow +20%."}
+  - id: SEA-08
+    name: Great Lighthouse
+    era: 4
+    type: W
+    status: draft
+    requires: [SEA-07, BLD-11]
+    effects:
+      - {kind: prose, text: "Wonder: Lighthouse. Shipwrecks −50% civilization-wide; sea trade +20%; landmark claim."}
+  - id: SEA-09
+    name: War Galleys
+    era: 4
+    type: M
+    status: draft
+    requires: [SEA-07, WAR-07]
+    effects:
+      - {kind: prose, text: "Naval combat; blockade enemy harbors."}
+  - id: SEA-10
+    name: "Keeled Ships & Cogs"
+    era: 5
+    type: M
+    status: draft
+    requires: [SEA-06, WOD-10]
+    effects:
+      - {kind: prose, text: "Sturdy hulls: open-sea routes; cargo ×2."}
+  - id: SEA-11
+    name: "Lateen Sail & Sternpost Rudder"
+    era: 5
+    type: M
+    status: draft
+    requires: [SEA-10]
+    effects:
+      - {kind: prose, text: "Sail upwind: sea route speed +40%."}
+  - id: SEA-12
+    name: "Caravels & Ocean Voyages"
+    era: 6
+    type: M
+    status: draft
+    requires: [SEA-11, WAY-09]
+    effects:
+      - {kind: prose, text: "Ocean crossing: reach other continents; overseas contact."}
+  - id: SEA-13
+    name: "Galleons & Ships of the Line"
+    era: 6
+    type: M
+    status: draft
+    requires: [SEA-12, WAR-12]
+    effects:
+      - {kind: prose, text: "Armed ocean ships: naval dominance; protected trade fleets."}
+  - id: SEA-14
+    name: Steamships
+    era: 7
+    type: M
+    status: draft
+    requires: [SEA-12, NRG-07]
+    effects:
+      - {kind: prose, text: "Wind-independent: sea speed ×2, schedules reliable."}
+  - id: SEA-15
+    name: Steel Hulls
+    era: 8
+    type: M
+    status: draft
+    requires: [SEA-14, MET-15]
+    effects:
+      - {kind: prose, text: "Large ships: cargo ×5; battleships."}
+  - id: SEA-16
+    name: Container Ships
+    era: 9
+    type: M
+    status: draft
+    requires: [SEA-15, TRD-14]
+    effects:
+      - {kind: prose, text: "Global shipping: trade volume ×5 at minimal cost."}

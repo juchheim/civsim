@@ -1,0 +1,159 @@
+# FIB: Fiber, Hide & Textiles (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: FIB, theme: craft, name: "Fiber, Hide & Textiles", purpose: "cordage, containers, clothing and cloth. Lets people survive cold, carry more, fish with nets, and trade cloth, the great commodity of history.", anchors: "Abri du Maras cord ~41–52 ka; eyed needles ~40–20 ka; spindle whorls and looms (Neolithic); silk (China, ~3000 BCE); flying shuttle 1733; power loom 1785; nylon 1935."}
+projects:
+  - id: FIB-01
+    name: Cordage
+    era: 0
+    type: D
+    status: numeric
+    requires: [FOR-01]
+    effects:
+      - {kind: good, id: G-CORD}
+      - {kind: unlock, text: "hafting, nets, tumplines"}
+      - {kind: good, id: G-FIBER}
+    practice: [{action: fiber, share: 100}]
+    flavor: "Three weak strands, one strong."
+    moment: Bark strips rolled on a thigh into twisted cord
+  - id: FIB-02
+    name: Hide Scraping
+    era: 0
+    type: D
+    status: numeric
+    requires: [STN-02]
+    effects:
+      - {kind: good, id: G-RAWHIDE}
+      - {kind: good, id: G-WRAP}
+      - {kind: hazard, cause: exposure, mult: 0.96}
+      - {kind: mod, stat: carry, op: pct, value: 0.1, note: "Carry, +10%"}
+    practice: [{action: fiber_hide, share: 50}, {action: butcher, share: 50}]
+    flavor: "We borrowed the animal's coat."
+    moment: "A hide stretched and scraped clean, then worn"
+  - id: FIB-03
+    name: "Tanning & Leather"
+    era: 1
+    type: M
+    status: numeric
+    requires: [FIB-02, FIR-03]
+    effects:
+      - {kind: good, id: G-LEATHER}
+      - {kind: mod, stat: tent_and_bag_durability, op: mult, value: 2, note: "Tent and bag durability, ×2"}
+    practice: [{action: fiber_hide, share: 50}, {action: tend_fire, share: 50}]
+    flavor: Smoke made the skin last.
+    moment: Hides hung in smoke over the fire
+  - id: FIB-04
+    name: Tailored Clothing
+    era: 1
+    type: M
+    status: numeric
+    requires: [FIB-03, STN-07]
+    effects:
+      - {kind: good, id: G-TAILORED, note: "warmth +2"}
+      - {kind: hazard, cause: exposure, mult: 0.84}
+      - {kind: unlock, text: settlement in Cold band}
+    practice: [{action: fiber_hide, share: 100}]
+    flavor: Now the cold could not find us.
+    moment: A fitted parka is sewn with a bone needle
+  - id: FIB-05
+    name: "Basketry & Netting"
+    era: 1
+    type: D
+    status: numeric
+    requires: [FIB-01]
+    effects:
+      - {kind: good, id: G-BASKET}
+      - {kind: good, id: G-NET}
+      - {kind: method, action: forage, rung: 2, name: Baskets, mult: 1.5, note: carry}
+      - {kind: unlock, text: storing nuts and seeds}
+    practice: [{action: fiber, share: 100}]
+    flavor: "Carry more, waste less."
+    moment: Reeds woven into a basket heaped with hazelnuts
+  - id: FIB-06
+    name: Spinning
+    era: 2
+    type: M
+    status: numeric
+    requires: [FIB-05]
+    requires_any: [HUS-03, AGR-02]
+    effects:
+      - {kind: good, id: G-YARN}
+    practice: [{action: fiber, share: 50}, {action: herd, share: 50}]
+    flavor: Turning fluff into thread.
+    moment: "A spindle whorl twirls, drawing wool into thread"
+  - id: FIB-07
+    name: Loom Weaving
+    era: 2
+    type: M
+    status: numeric
+    requires: [FIB-06]
+    effects:
+      - {kind: good, id: G-CLOTH, note: "warmth +1, trade staple"}
+      - {kind: good, id: G-GARMENT}
+    practice: [{action: fiber, share: 100}]
+    flavor: "The first cloth, woven."
+    moment: "A warp-weighted loom; a striped cloth grows"
+  - id: FIB-08
+    name: Dyed Cloth
+    era: 3
+    type: M
+    status: draft
+    requires: [FIB-07, CHM-04]
+    effects:
+      - {kind: prose, text: "Good: Dyed cloth (luxury). Trade value ×2; +Prestige for chiefs."}
+  - id: FIB-09
+    name: Silk
+    era: 3
+    type: D
+    status: draft
+    requires: [FIB-07, HUS-03]
+    gates: [{kind: seen, target: Silk moths}]
+    effects:
+      - {kind: prose, text: "Good: Silk, a premium trade good. Trade routes to silk-holders gain priority."}
+  - id: FIB-10
+    name: Treadle Loom
+    era: 5
+    type: M
+    status: draft
+    requires: [FIB-08, MEC-07, SOC-11]
+    effects:
+      - {kind: prose, text: "▸ Weave: Treadle loom ×2."}
+  - id: FIB-11
+    name: Spinning Wheel
+    era: 5
+    type: M
+    status: draft
+    requires: [FIB-06, MEC-07]
+    effects:
+      - {kind: prose, text: "▸ Spin: Wheel ×3."}
+  - id: FIB-12
+    name: "Flying Shuttle & Spinning Jenny"
+    era: 6
+    type: M
+    status: draft
+    requires: [FIB-10, FIB-11, MEC-09, TRD-10]
+    effects:
+      - {kind: prose, text: "▸ Weave/Spin ×3. Cottage textile boom (+trade)."}
+  - id: FIB-13
+    name: "Power Loom & Cotton Mill"
+    era: 7
+    type: S
+    status: draft
+    requires: [FIB-12, NRG-07]
+    effects:
+      - {kind: prose, text: "Build: Textile mill. ▸ Weave: Power ×10; cloth becomes cheap for everyone."}
+  - id: FIB-14
+    name: Synthetic Fibers
+    era: 8
+    type: M
+    status: draft
+    requires: [FIB-13, CHM-13]
+    effects:
+      - {kind: prose, text: "Nylon and polyester: cloth no longer needs farmland (sheep/flax land freed)."}
+  - id: FIB-15
+    name: Technical Textiles
+    era: 9
+    type: M
+    status: draft
+    requires: [FIB-14, CHM-15, TRD-16]
+    effects:
+      - {kind: prose, text: "Kevlar, Gore-Tex, geotextiles: protective gear (+defense), cheap clothing; pollution +5%."}

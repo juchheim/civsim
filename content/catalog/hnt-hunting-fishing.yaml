@@ -1,0 +1,175 @@
+# HNT: Hunting & Fishing (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: HNT, theme: kin, name: "Hunting & Fishing", purpose: "protein, hides and bone. Hunting dominates early food and skill (and feeds into WAR). Fishing makes coasts and rivers rich.", anchors: "power scavenging; Schöningen spears (~300 ka); stone-tipped spears (~500–300 ka); atlatl (~30–20 ka); bow (~70–64 ka; possibly ~80 ka); fishhooks (Sakitari ~23 ka); fish weirs; whaling; falconry; deep-sea fleets; steam trawlers (1880s); aquaculture; sonar and quotas."}
+projects:
+  - id: HNT-01
+    name: Power Scavenging
+    era: 0
+    type: M
+    status: numeric
+    requires: []
+    effects:
+      - {kind: method, action: scavenge, rung: 1, name: Power scavenging, mult: 1.5}
+      - {kind: cap, cap: food, mult: 1.12}
+    practice: [{action: hunt, share: 50}, {action: fight, share: 50}]
+    flavor: We took our share from the lions.
+    moment: Shouting figures with clubs drive hyenas off a fresh kill
+  - id: HNT-02
+    name: Wooden Thrusting Spears
+    era: 0
+    type: M
+    status: numeric
+    requires: [HNT-01, WOD-01]
+    effects:
+      - {kind: unlock_action, action: hunt, note: ambush}
+      - {kind: method, action: hunt, rung: 1, name: Wooden spear, rate: 1.6, unit: R/ws}
+      - {kind: cap, cap: food, mult: 1.04}
+      - {kind: good, id: G-SPEAR}
+    practice: [{action: hunt, share: 100}]
+    flavor: "Patience, then one thrust."
+    moment: "Hunters crouch in reeds by a watering hole, spears ready"
+  - id: HNT-03
+    name: Stone-Tipped Spears
+    era: 0
+    type: M
+    status: numeric
+    requires: [HNT-02, STN-04]
+    effects:
+      - {kind: method, action: hunt, rung: 2, name: Stone-tipped spear, rate: 2.2, unit: R/ws}
+      - {kind: hazard, cause: injury, mult: 0.95, scope: hunters}
+      - {kind: cap, cap: food, mult: 1.04}
+    practice: [{action: hunt, share: 100}]
+    flavor: Sharper teeth than any wolf.
+    moment: A stone-tipped spear brings down a deer at the first strike
+  - id: HNT-04
+    name: Cooperative Drives
+    era: 1
+    type: M
+    status: numeric
+    requires: [HNT-03, COM-02]
+    effects:
+      - {kind: method, action: hunt, rung: 3, name: Cooperative drive, rate: 3.2, unit: R/ws, note: "party ≥ 6, on large herds"}
+      - {kind: mod, stat: herd_fear, op: mult, value: 3, note: "Herd fear, ×3"}
+      - {kind: cap, cap: food, mult: 1.10, take: 0.7}
+    practice: [{action: hunt, share: 100}]
+    flavor: Together we are the cliff.
+    moment: A line of hunters drives bison toward a cliff edge
+  - id: HNT-05
+    name: Spear-Thrower
+    era: 1
+    type: M
+    status: numeric
+    requires: [HNT-04, WOD-02]
+    ack: [V11]
+    ack_reason: "The atlatl is slower per hour than a cooperative drive but safer and needs fewer hunters (10 §4.2)."
+    effects:
+      - {kind: method, action: hunt, rung: 4, name: Spear-thrower, rate: 2.8, unit: R/ws}
+      - {kind: hazard, cause: injury, mult: 0.92, scope: hunters}
+      - {kind: good, id: G-ATLATL}
+    practice: [{action: hunt, share: 100}]
+    flavor: A longer arm.
+    moment: A dart flies twice as far as any throw
+  - id: HNT-06
+    name: "Bow & Arrow"
+    era: 1
+    type: M
+    status: numeric
+    requires: [HNT-05, STN-06, FIB-01]
+    effects:
+      - {kind: method, action: hunt, rung: 5, name: Bow, rate: 3.0, unit: R/ws, note: "solo; small game prey class"}
+      - {kind: hazard, cause: injury, mult: 0.92, scope: hunters}
+      - {kind: cap, cap: food, mult: 1.03}
+      - {kind: good, id: G-BOW}
+    practice: [{action: hunt, share: 100}]
+    flavor: "The string sings, the meat falls."
+    moment: "A lone hunter draws a bow; a rabbit drops at thirty paces"
+  - id: HNT-07
+    name: "Harpoons & Fish Spears"
+    era: 1
+    type: D
+    status: numeric
+    requires: [HNT-03, STN-07]
+    gates: [{kind: near, target: Water}]
+    effects:
+      - {kind: unlock_action, action: fish}
+      - {kind: method, action: fish, rung: 1, name: Harpoon, rate: 1.6, unit: R/ws}
+      - {kind: gate, text: "use: [Near: Water]"}
+      - {kind: cap, cap: food, mult: 1.10, take: 0.6}
+      - {kind: good, id: G-FISH}
+      - {kind: good, id: G-HARPOON}
+    practice: [{action: fish, share: 100}]
+    flavor: The river feeds those who learn it.
+    moment: A barbed harpoon lifts a salmon from the shallows
+  - id: HNT-08
+    name: "Hooks, Lines & Nets"
+    era: 1
+    type: M
+    status: numeric
+    requires: [HNT-07, FIB-05]
+    effects:
+      - {kind: method, action: fish, rung: 2, name: Hooks, rate: 3.2, unit: R/ws, note: lines and nets}
+      - {kind: good, id: G-FISHKIT}
+    practice: [{action: fish, share: 50}, {action: fiber, share: 50}]
+    flavor: A hundred fish in one pull.
+    moment: A net comes up heavy and silver
+  - id: HNT-09
+    name: "Weirs & Fish Traps"
+    era: 2
+    type: S
+    status: numeric
+    requires: [HNT-08, WOD-03]
+    effects:
+      - {kind: build, structure: weir, note: "passive 2.0 R/season, ×3 in salmon runs"}
+      - {kind: cap, cap: food, mult: 1.08, take: 0.4}
+    practice: [{action: fish, share: 50}, {action: build, share: 50}]
+    flavor: The river fishes for us.
+    moment: "A fence of stakes across a stream, fish trapped behind it"
+  - id: HNT-10
+    name: "Seal & Whale Hunting"
+    era: 3
+    type: D
+    status: draft
+    requires: [HNT-09, SEA-04]
+    gates: [{kind: near, target: Coast}]
+    effects:
+      - {kind: prose, text: "+Action: Marine hunt. Blubber, oil and bone; high food per trip."}
+  - id: HNT-11
+    name: "Game Reserves & Falconry"
+    era: 5
+    type: I
+    status: draft
+    requires: [HNT-06, GOV-09]
+    effects:
+      - {kind: prose, text: "Managed hunting grounds: game never collapses in reserves; noble prestige (+Cohesion among elites)."}
+  - id: HNT-12
+    name: Deep-Sea Fishing Fleets
+    era: 6
+    type: M
+    status: draft
+    requires: [HNT-10, SEA-12]
+    effects:
+      - {kind: prose, text: "▸ Fish: Offshore fleets ×3; cod and herring trade."}
+  - id: HNT-13
+    name: Steam Trawlers
+    era: 7
+    type: M
+    status: draft
+    requires: [HNT-12, SEA-14]
+    effects:
+      - {kind: prose, text: "▸ Fish ×3. Overfishing: fish stocks deplete without management."}
+  - id: HNT-14
+    name: Aquaculture
+    era: 8
+    type: D
+    status: draft
+    requires: [HNT-13, INQ-14]
+    effects:
+      - {kind: prose, text: "Build: Fish farm. Fish independent of wild stocks."}
+  - id: HNT-15
+    name: "Sustainable Fisheries & Sonar"
+    era: 9
+    type: M
+    status: draft
+    requires: [HNT-14, INQ-19]
+    effects:
+      - {kind: prose, text: "Stocks regenerate under quotas; catch efficiency +50%."}

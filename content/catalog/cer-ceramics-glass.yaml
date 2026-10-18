@@ -1,0 +1,140 @@
+# CER: Ceramics & Glass (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: CER, theme: craft, name: "Ceramics & Glass", purpose: "containers, storage, building materials and optics. Pottery revolutionizes food storage; glass eventually lets people see the very small and the very far.", anchors: "Dolní Věstonice figurines ~26 ka; Xianrendong pottery ~20–19 ka; potter's wheel ~3500 BCE; glass ~2500–1500 BCE; glassblowing ~50 BCE; spectacles ~1290; achromatic lenses 18th c.; Czochralski silicon ~1950; optical fiber 1970."}
+projects:
+  - id: CER-01
+    name: Fired Clay Figurines
+    era: 1
+    type: D
+    status: numeric
+    requires: [FIR-03, ART-01]
+    gates: [{kind: seen, target: Clay}]
+    effects:
+      - {kind: good, id: G-FIGURINE}
+      - {kind: unlock_action, action: gather_clay}
+      - {kind: cohesion, value: 2}
+      - {kind: good, id: G-CLAY}
+    practice: [{action: clay, share: 100}]
+    flavor: "Earth, made into us."
+    moment: A small clay figure is fired in the hearth and cracks in the heat
+  - id: CER-02
+    name: Pottery
+    era: 1
+    type: D
+    status: numeric
+    requires: [CER-01, FOD-01]
+    effects:
+      - {kind: good, id: G-POT}
+      - {kind: mod, stat: spoilage_of_stored_food, op: pct, value: -0.25, note: "Spoilage of stored food, −25%"}
+      - {kind: unlock, text: boiling}
+    practice: [{action: clay, share: 50}, {action: tend_fire, share: 50}]
+    flavor: A stomach of clay.
+    moment: The first pot holds water over the fire without breaking
+  - id: CER-03
+    name: Storage Jars
+    era: 2
+    type: M
+    status: numeric
+    requires: [CER-02]
+    effects:
+      - {kind: good, id: G-JAR}
+      - {kind: mod, stat: storage_capacity_per_storage_building, op: pct, value: 0.5, note: "Storage capacity per storage building, +50%"}
+    practice: [{action: clay, share: 100}]
+    flavor: Every harvest has a home.
+    moment: Rows of large jars sealed with clay lids
+  - id: CER-04
+    name: "Potter's Wheel"
+    era: 3
+    type: M
+    status: draft
+    requires: [CER-03, MEC-03]
+    effects:
+      - {kind: prose, text: "▸ Pottery: Wheel ×3. Role: Potter."}
+  - id: CER-05
+    name: "Glazes & Faience"
+    era: 3
+    type: M
+    status: draft
+    requires: [CER-04, CHM-03]
+    effects:
+      - {kind: prose, text: "Good: Glazed wares, faience beads (luxury trade)."}
+  - id: CER-06
+    name: Glassmaking
+    era: 3
+    type: D
+    status: draft
+    requires: [CER-05, FIR-09]
+    effects:
+      - {kind: prose, text: "Good: Glass beads and core-formed vessels (luxury)."}
+  - id: CER-07
+    name: Glassblowing
+    era: 4
+    type: M
+    status: draft
+    requires: [CER-06]
+    effects:
+      - {kind: prose, text: "▸ Glass: Blown ×4. Glass becomes common: storage, trade, early windows."}
+  - id: CER-08
+    name: "Fired Brick & Tile"
+    era: 4
+    type: M
+    status: draft
+    requires: [CER-04, FIR-07]
+    effects:
+      - {kind: prose, text: "Good: Fired brick and roof tile. Fire risk in towns −50%; building durability +."}
+  - id: CER-09
+    name: Porcelain
+    era: 5
+    type: M
+    status: draft
+    requires: [CER-08, FIR-10, TRD-07]
+    effects:
+      - {kind: prose, text: "Good: Porcelain, a top-tier luxury export."}
+  - id: CER-10
+    name: Lens Grinding
+    era: 5
+    type: D
+    status: draft
+    requires: [CER-07, INQ-06]
+    effects:
+      - {kind: prose, text: "Good: Spectacles. Elders keep working and teaching longer: Elder Insight +25%. Leads to telescopes."}
+  - id: CER-11
+    name: Plate Glass
+    era: 6
+    type: M
+    status: draft
+    requires: [CER-07, MEC-09]
+    effects:
+      - {kind: prose, text: "Glazed windows: housing comfort, greenhouses (+winter food)."}
+  - id: CER-12
+    name: "Optical Glass & Microscopy"
+    era: 7
+    type: M
+    status: draft
+    requires: [CER-10, CER-11, CHM-08]
+    effects:
+      - {kind: prose, text: "Good: Microscope, camera lens. Required for Germ Theory and photography."}
+  - id: CER-13
+    name: Electrical Insulators
+    era: 8
+    type: M
+    status: draft
+    requires: [CER-12, NRG-09]
+    effects:
+      - {kind: prose, text: "Grid losses −30%; high-voltage transmission (power reaches far settlements)."}
+  - id: CER-14
+    name: Silicon Crystal Growing
+    era: 8
+    type: M
+    status: draft
+    requires: [CER-13, INQ-15]
+    effects:
+      - {kind: prose, text: "Good: Pure silicon. Required for transistors and solar cells."}
+  - id: CER-15
+    name: Fiber Optics
+    era: 9
+    type: M
+    status: draft
+    requires: [CER-14, COM-13]
+    effects:
+      - {kind: prose, text: "Bandwidth: data links between cities ×10; required for the Internet."}

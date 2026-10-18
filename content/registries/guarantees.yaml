@@ -1,0 +1,17 @@
+# World-generation guarantees (docs/MVP/12 §10). `gate` names match `[Seen: ...]` gate targets.
+schema: 1
+guarantees:
+  - {id: freshwater, scope: start, radius: 2, gate: Freshwater}
+  - {id: clay, scope: start, radius: 20, gate: Clay}
+  - {id: native_copper, scope: start, radius: 20, gate: Native copper}
+  - {id: flint, scope: start, radius: 15, gate: Flint}
+  - {id: wolves, scope: start, radius: 20, gate: Wolves}
+  - {id: wild_goats_sheep, scope: start, radius: 25, gate: Wild goats or sheep}
+  - {id: herds, scope: start, radius: 12, gate: Herds}
+  - {id: grain_stands, scope: start, radius: 10, gate: Wild grain}
+  - {id: gold_silver, scope: continental, gate: Gold or Silver}
+  - {id: coal, scope: continental, gate: Coal}
+  - {id: oil, scope: continental, gate: Oil seep}
+  - {id: tin, scope: continental, gate: Tin}
+  - {id: iron, scope: continental, gate: Iron}
+  - {id: salt, scope: continental, gate: Salt}

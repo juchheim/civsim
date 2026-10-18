@@ -1,0 +1,147 @@
+# MIN: Mining & Quarrying (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: MIN, theme: craft, name: "Mining & Quarrying", purpose: "access to stone, ores, salt, coal and oil. Mining turns the map's hidden deposits into usable stock. A depleting deposit is a reason to expand.", anchors: "ochre mining (Lion Cave ~40 ka); flint mines (Grimes Graves ~2600 BCE); copper shafts (Timna); fire-setting; Archimedes' screw; Agricola's *De re metallica* (1556); steam pumping (1712); dynamite (1867); oil wells (1859); satellite prospecting (1972+)."}
+projects:
+  - id: MIN-01
+    name: "Flint & Ochre Seeking"
+    era: 1
+    type: D
+    status: numeric
+    requires: [STN-05]
+    effects:
+      - {kind: reveal, text: flint and ochre within sight}
+      - {kind: unlock_action, action: collect_flint_ochre}
+      - {kind: good, id: G-FLINT}
+      - {kind: good, id: G-OCHRE}
+    practice: [{action: mine, share: 50}, {action: scout, share: 50}]
+    flavor: The best stone hides where few look.
+    moment: A scout pockets a lump of red earth and a dark flint nodule
+  - id: MIN-02
+    name: Flint Mines
+    era: 2
+    type: D
+    status: numeric
+    requires: [MIN-01, STN-08]
+    effects:
+      - {kind: unlock_action, action: mine_flint, note: "3 L/ws"}
+    practice: [{action: mine, share: 100}]
+    flavor: We dug for the best stone.
+    moment: Antler picks chip at chalk at the bottom of a deep pit
+  - id: MIN-03
+    name: Quarrying
+    era: 2
+    type: D
+    status: numeric
+    requires: [MIN-02]
+    effects:
+      - {kind: unlock_action, action: quarry, note: "2 L/ws"}
+    practice: [{action: mine, share: 100}]
+    flavor: The mountain gives us its bones.
+    moment: A block is wedged loose from a rock face
+  - id: MIN-04
+    name: Shaft Mining
+    era: 3
+    type: M
+    status: draft
+    requires: [MIN-03, MET-03, SOC-07]
+    effects:
+      - {kind: prose, text: "▸ Mine: Shaft. Reach deep deposits; ore yield +50%. Role: Miner."}
+  - id: MIN-05
+    name: Fire-Setting
+    era: 3
+    type: M
+    status: draft
+    requires: [MIN-04, FIR-08]
+    effects:
+      - {kind: prose, text: "Crack hard rock with fire: ▸ Mine ×1.5."}
+  - id: MIN-06
+    name: Salt Works
+    era: 3
+    type: D
+    status: draft
+    requires: [MIN-03, FOD-02]
+    gates: [{kind: seen, target: Salt}]
+    effects:
+      - {kind: prose, text: "Good: Salt (mines or evaporation pans). Enables salting (FOD-07); high trade value."}
+  - id: MIN-07
+    name: Mine Drainage
+    era: 4
+    type: M
+    status: draft
+    requires: [MIN-05, MEC-05]
+    effects:
+      - {kind: prose, text: "Archimedes' screw and bucket wheels: flooded deposits usable; depth tier 2."}
+  - id: MIN-08
+    name: Mine Surveying
+    era: 5
+    type: M
+    status: draft
+    requires: [MIN-07, NUM-07]
+    effects:
+      - {kind: prose, text: "Reveal: Ore veins within territory. Mine yield +25%."}
+  - id: MIN-09
+    name: Coal Mining
+    era: 6
+    type: D
+    status: draft
+    requires: [MIN-08]
+    gates: [{kind: seen, target: Coal}]
+    effects:
+      - {kind: prose, text: "Good: Coal."}
+  - id: MIN-10
+    name: Black-Powder Blasting
+    era: 6
+    type: M
+    status: draft
+    requires: [MIN-09, CHM-07]
+    effects:
+      - {kind: prose, text: "▸ Mine & Quarry ×2."}
+  - id: MIN-11
+    name: Steam Pumping
+    era: 7
+    type: M
+    status: draft
+    requires: [MIN-10, NRG-07]
+    effects:
+      - {kind: prose, text: "Depth tier 3: coal and ore yield ×2."}
+  - id: MIN-12
+    name: "Dynamite & Pneumatic Drills"
+    era: 7
+    type: M
+    status: draft
+    requires: [MIN-11, CHM-11]
+    effects:
+      - {kind: prose, text: "▸ Mine ×2; tunnels for rail and canals."}
+  - id: MIN-13
+    name: Oil Drilling
+    era: 8
+    type: D
+    status: draft
+    requires: [MIN-12, INQ-13]
+    gates: [{kind: seen, target: Oil seep}]
+    effects:
+      - {kind: prose, text: "Good: Crude oil. Build: Oil well."}
+  - id: MIN-14
+    name: "Open-Pit & Heavy Machinery"
+    era: 8
+    type: M
+    status: draft
+    requires: [MIN-12, NRG-10]
+    effects:
+      - {kind: prose, text: "▸ Mine: Open pit ×3; labor −50%; scars terrain (+pollution)."}
+  - id: MIN-15
+    name: "Rare Earths & Lithium"
+    era: 9
+    type: D
+    status: draft
+    requires: [MIN-14, CHM-13, INQ-15]
+    effects:
+      - {kind: prose, text: "Good: Rare earths and lithium, needed for batteries and electronics."}
+  - id: MIN-16
+    name: Remote-Sensing Prospecting
+    era: 9
+    type: M
+    status: draft
+    requires: [MIN-15, WAY-13]
+    effects:
+      - {kind: prose, text: "Reveal: All deposits on the map (not only in your territory)."}

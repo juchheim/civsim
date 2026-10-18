@@ -1,0 +1,155 @@
+# TRN: Land Transport (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: TRN, theme: reach, name: Land Transport, purpose: "move and carry. Haul capacity and travel speed decide how far a settlement's workers can reach, how fast goods flow, and how quickly a civilization can respond on its borders. Hosts the Haul and Travel ladders.", anchors: "tumplines; dog travois; skis (~8000 BCE); pack donkeys; wheeled carts (~3500 BCE); horse riding; Persian and Roman roads; stone bridges; stirrup (~4th c. China; Europe ~8th c.) and horseshoe; turnpikes; canals; railways (1825); automobiles (1886); highways; aviation (1903); containers (1956); high-speed rail (1964+) and EVs."}
+projects:
+  - id: TRN-01
+    name: "Tumplines & Carry Frames"
+    era: 0
+    type: M
+    status: numeric
+    requires: [FIB-01]
+    effects:
+      - {kind: mod, stat: carry, op: set, value: 1.3, note: "Carry, 1.0 → 1.3 L"}
+    practice: [{action: haul, share: 100}]
+    flavor: Carry it with your whole body.
+    moment: A strap across the forehead takes the weight of a bundle
+  - id: TRN-02
+    name: "Travois & Sledges"
+    era: 1
+    type: M
+    status: numeric
+    requires: [TRN-01, HUS-01]
+    effects:
+      - {kind: mod, stat: carry, op: flat, value: 2, note: "Carry, +2 L per dog"}
+      - {kind: mod, stat: camp_move_speed, op: mult, value: 2, note: "Camp move speed, ×2"}
+    practice: [{action: haul, share: 100}]
+    flavor: The dogs carry our home.
+    moment: Dogs drag poles loaded with a whole camp
+  - id: TRN-03
+    name: "Snowshoes & Skis"
+    era: 1
+    type: M
+    status: numeric
+    requires: [TRN-02, FIB-03]
+    gates: [{kind: climate, target: Cold}]
+    effects:
+      - {kind: mod, stat: snow_tile_cost, op: set, value: 1, note: "Snow tile cost, ×2 → ×1"}
+      - {kind: gate, text: "soft: [Climate: Cold] ×0.7 cost"}
+    practice: [{action: haul, share: 100}]
+    flavor: Winter became a road.
+    moment: Figures glide down a snowy slope on long boards
+  - id: TRN-04
+    name: Pack Animals
+    era: 2
+    type: M
+    status: numeric
+    requires: [TRN-02, HUS-03]
+    effects:
+      - {kind: mod, stat: carry, op: flat, value: 3, note: "Carry, +3 L per pack animal"}
+    practice: [{action: haul, share: 50}, {action: herd, share: 50}]
+    flavor: A beast to bear our load.
+    moment: A donkey laden with baskets plods down a trail
+  - id: TRN-05
+    name: Wheeled Carts
+    era: 3
+    type: M
+    status: draft
+    requires: [TRN-04, MEC-03, NRG-01]
+    effects:
+      - {kind: prose, text: "▸ Haul: Ox cart ×5 on flat or road tiles."}
+  - id: TRN-06
+    name: Horseback Riding
+    era: 3
+    type: M
+    status: draft
+    requires: [TRN-04, HUS-07]
+    effects:
+      - {kind: prose, text: "▸ Travel: Riding ×2 for scouts, messengers and herders."}
+  - id: TRN-07
+    name: Paved Roads
+    era: 4
+    type: S
+    status: draft
+    requires: [TRN-05, STN-11]
+    effects:
+      - {kind: prose, text: "Build: Road. Move ×1.5 on roads; claim strength along roads +; adoption spreads along roads ×2."}
+  - id: TRN-08
+    name: Stone Bridges
+    era: 4
+    type: S
+    status: draft
+    requires: [TRN-07, BLD-09]
+    effects:
+      - {kind: prose, text: "Build: Bridge. Rivers no longer block roads."}
+  - id: TRN-09
+    name: "Stirrup & Horseshoe"
+    era: 5
+    type: M
+    status: draft
+    requires: [TRN-06, MET-10]
+    effects:
+      - {kind: prose, text: "Riders ×1.3 speed and endurance; heavy cavalry possible."}
+  - id: TRN-10
+    name: "Turnpikes & Coaches"
+    era: 6
+    type: M
+    status: draft
+    requires: [TRN-08, GOV-11]
+    effects:
+      - {kind: prose, text: "Maintained toll roads: road speed ×1.5; scheduled coaches (messages and people)."}
+  - id: TRN-11
+    name: "Canals & Locks"
+    era: 6
+    type: S
+    status: draft
+    requires: [TRN-10, MEC-09]
+    effects:
+      - {kind: prose, text: "Build: Canal. Bulk haul inland ×10 (coal, grain)."}
+  - id: TRN-12
+    name: Railways
+    era: 7
+    type: S
+    status: draft
+    requires: [TRN-11, NRG-07, MET-14]
+    effects:
+      - {kind: prose, text: "Build: Railway. ▸ Haul: Rail ×20; ▸ Travel: Rail ×5. *KEY-8 prerequisite.*"}
+  - id: TRN-13
+    name: "Automobiles & Trucks"
+    era: 8
+    type: M
+    status: draft
+    requires: [TRN-12, NRG-10]
+    effects:
+      - {kind: prose, text: "▸ Haul/Travel: Motor. Door-to-door logistics; suburbs."}
+  - id: TRN-14
+    name: Highways
+    era: 8
+    type: S
+    status: draft
+    requires: [TRN-13, BLD-14]
+    effects:
+      - {kind: prose, text: "Build: Highway. Motor speed ×2; national market integration."}
+  - id: TRN-15
+    name: Aviation
+    era: 8
+    type: D
+    status: draft
+    requires: [TRN-13, MET-16]
+    effects:
+      - {kind: prose, text: "Build: Airfield. ▸ Travel: Air (ignores terrain); air power."}
+  - id: TRN-16
+    name: Intermodal Containers
+    era: 9
+    type: M
+    status: draft
+    requires: [TRN-14, SEA-16]
+    effects:
+      - {kind: prose, text: "Container logistics: haul cost −70% for long-distance trade."}
+  - id: TRN-17
+    name: "High-Speed Rail & EVs"
+    era: 9
+    type: M
+    status: draft
+    requires: [TRN-16, NRG-15]
+    effects:
+      - {kind: prose, text: "Fast clean transit: commute radius ×2 (cities draw labor from far); transport pollution −60%."}

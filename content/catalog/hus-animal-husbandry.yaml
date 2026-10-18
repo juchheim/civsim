@@ -1,0 +1,142 @@
+# HUS: Animal Husbandry (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: HUS, theme: kin, name: Animal Husbandry, purpose: "walking food stores, draft power, wool, milk and the horse. Turns grasslands and hills into productive territory; enables nomadic expansion.", anchors: "dogs (≥ ~15 ka, possibly 30–40 ka; Goyet ~31.7 ka disputed); reindeer following; goats and sheep (~11–10 ka); cattle and pigs (~10.5 ka); dairying (~7000 BCE); wool sheep; horse (Botai ~3500 BCE; DOM2 ~2200 BCE); pastoral nomadism; camels (~1000 BCE); Bakewell's breeding (18th c.); fodder crops; vet schools (1761); refrigerated meat ships (1877–1882); feedlots; animal genomics."}
+projects:
+  - id: HUS-01
+    name: Wolf Companions
+    era: 1
+    type: D
+    status: numeric
+    requires: [HNT-04]
+    gates: [{kind: seen, target: Wolves}]
+    effects:
+      - {kind: good, id: G-DOG, note: "Dogs: 1 per 4 people, eat 0.3 R/season"}
+      - {kind: mod, stat: hunt, op: pct, value: 0.2, note: "Hunt, +20%"}
+      - {kind: mod, stat: raid_surprise, op: pct, value: -0.5, note: "Raid surprise, −50%"}
+      - {kind: unlock, text: dog travois}
+      - {kind: hazard, cause: predators, mult: 0.92}
+    practice: [{action: hunt, share: 50}, {action: herd, share: 50}]
+    flavor: The wolf chose to stay.
+    moment: "A wolf pup takes meat from a child's hand"
+  - id: HUS-02
+    name: Herd Following
+    era: 1
+    type: M
+    status: numeric
+    requires: [HUS-01, WAY-02]
+    effects:
+      - {kind: method, action: herd, rung: 0, name: Herd following, mult: 2, note: "herd fear decays , drives can't push it off"}
+      - {kind: cap, cap: food, mult: 1.04}
+    practice: [{action: herd, share: 50}, {action: hunt, share: 50}]
+    flavor: "We followed, and the herd kept us."
+    moment: "Hunters walk beside a reindeer herd, not chasing it"
+  - id: HUS-03
+    name: "Goats & Sheep"
+    era: 2
+    type: D
+    status: numeric
+    requires: [HUS-02]
+    gates: [{kind: seen, target: Wild goats or sheep}]
+    effects:
+      - {kind: unlock_action, action: herd, note: "tame 0.5 ws per animal; pasture carries 6"}
+      - {kind: rule, text: "meat 0.8 R, hide 0.2 per animal per yr"}
+      - {kind: gate, text: "[Seen: Wild goats or sheep]"}
+      - {kind: build, structure: pasture, note: "holds the herd; a pasture tile carries 6 goats or sheep"}
+    practice: [{action: herd, share: 100}]
+    flavor: Meat that walks beside us.
+    moment: A child leads a goat on a rope
+  - id: HUS-04
+    name: "Cattle & Pigs"
+    era: 2
+    type: D
+    status: numeric
+    requires: [HUS-03, AGR-01]
+    effects:
+      - {kind: unlock_action, action: herd}
+      - {kind: rule, text: "cattle 2.5 R + 0.3 hide/yr; pigs 1.2 R, eat waste"}
+      - {kind: unlock, project: NRG-01, text: NRG-01}
+    practice: [{action: herd, share: 100}]
+    flavor: "The wild bull, tamed."
+    moment: An aurochs calf penned behind stakes
+  - id: HUS-05
+    name: Dairying
+    era: 3
+    type: M
+    status: draft
+    requires: [HUS-04, CER-03]
+    effects:
+      - {kind: prose, text: "Milk, cheese and butter: herd food yield ×1.5 without slaughter; famine buffer."}
+  - id: HUS-06
+    name: Wool Breeds
+    era: 3
+    type: M
+    status: draft
+    requires: [HUS-03, FIB-06]
+    effects:
+      - {kind: prose, text: "Good: Wool. Textile output ×1.5; cold-climate clothing."}
+  - id: HUS-07
+    name: Horse Taming
+    era: 3
+    type: D
+    status: draft
+    requires: [HUS-04]
+    gates: [{kind: seen, target: Wild horses}]
+    effects:
+      - {kind: prose, text: "Good: Horses. Enables riding, chariots, horse collar."}
+  - id: HUS-08
+    name: Pastoral Nomadism
+    era: 3
+    type: I
+    status: draft
+    requires: [HUS-07, TER-05]
+    effects:
+      - {kind: prose, text: "Mobile herding societies: grassland claim radius ×2; camps move with herds without losing claims."}
+  - id: HUS-09
+    name: "Camels & Caravan Animals"
+    era: 4
+    type: D
+    status: draft
+    requires: [HUS-07]
+    gates: [{kind: seen, target: Camels or Llamas}]
+    effects:
+      - {kind: prose, text: "Desert and mountain caravans: trade range across deserts ×3."}
+  - id: HUS-10
+    name: Selective Breeding
+    era: 5
+    type: M
+    status: draft
+    requires: [HUS-06, AGR-07]
+    effects:
+      - {kind: prose, text: "Herd yields ×1.5; stronger draft animals."}
+  - id: HUS-11
+    name: "Fodder Crops & Stall-Feeding"
+    era: 6
+    type: M
+    status: draft
+    requires: [HUS-10, AGR-11]
+    effects:
+      - {kind: prose, text: "Winter herds kept alive: livestock survive winter +80%; manure → field fertility."}
+  - id: HUS-12
+    name: Veterinary Science
+    era: 7
+    type: M
+    status: draft
+    requires: [HUS-11, MED-11]
+    effects:
+      - {kind: prose, text: "Livestock disease losses −70%."}
+  - id: HUS-13
+    name: "Feedlots & Refrigerated Meat"
+    era: 8
+    type: M
+    status: draft
+    requires: [HUS-12, FOD-12]
+    effects:
+      - {kind: prose, text: "Meat output ×3 per tile; meat traded globally. Pollution +."}
+  - id: HUS-14
+    name: "Animal Genetics & Welfare"
+    era: 9
+    type: M
+    status: draft
+    requires: [HUS-13, INQ-20]
+    effects:
+      - {kind: prose, text: "Efficient, healthier herds: output +30%, disease −50%, Cohesion + (welfare norms)."}

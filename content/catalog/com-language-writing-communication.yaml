@@ -1,0 +1,167 @@
+# COM: Language, Writing & Communication (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: COM, theme: reach, name: "Language, Writing & Communication", purpose: "coordination, record-keeping and information speed. Communication speeds adoption, reduces Overreach, and is the backbone of the Information era.", anchors: "calls and gestures; spoken language; symbols (Blombos engravings ~75 ka); signal fires and drums; writing (Uruk ~3200 BCE; Egypt; China; Mesoamerica); papyrus and parchment; alphabet (~1800 BCE); Persian and Roman relays; paper (China ~105 CE); movable type (Bi Sheng ~1040; Gutenberg ~1450); newspapers (1605); telegraph (1837–44); telephone (1876); radio (1895); TV (1920s–50s); Internet (ARPANET 1969; Web 1991); mobile phones; social media (2000s)."}
+projects:
+  - id: COM-01
+    name: "Calls & Gestures"
+    era: 0
+    type: D
+    status: numeric
+    requires: []
+    effects:
+      - {kind: mod, stat: hunt, op: pct, value: 0.1, note: "Hunt, +10% for parties ≥ 2"}
+      - {kind: hazard, cause: predators, mult: 0.95}
+      - {kind: mod, stat: raid_surprise, op: pct, value: -0.2, note: "Raid surprise, −20%"}
+    practice: [{action: tell_stories, share: 50}, {action: scout, share: 50}]
+    flavor: "One call, and we moved as one."
+    moment: "A sharp whistle; the whole band freezes and looks the same way"
+  - id: COM-02
+    name: Spoken Language
+    era: 0
+    type: I
+    status: numeric
+    requires: [COM-01]
+    effects:
+      - {kind: adopt, mult: 2}
+      - {kind: planner, text: "look-ahead 1 season: winter stockpiling"}
+      - {kind: unlock, text: "group actions of ≥ 6"}
+    practice: [{action: tell_stories, share: 50}, {action: teach, share: 50}]
+    flavor: We could speak of what was not here.
+    moment: "Two hunters plan a hunt for tomorrow, pointing at the hills"
+  - id: COM-03
+    name: "Symbols & Marks"
+    era: 1
+    type: D
+    status: numeric
+    requires: [COM-02, ART-01]
+    effects:
+      - {kind: claim, text: "+10% on marked tiles"}
+      - {kind: rule, text: Ownership marks on goods}
+    practice: [{action: mark, share: 50}, {action: tell_stories, share: 50}]
+    flavor: Marks that speak when we are gone.
+    moment: "A pattern scratched on bone, then on a boundary stone"
+  - id: COM-04
+    name: "Signal Fires & Drums"
+    era: 2
+    type: M
+    status: numeric
+    requires: [COM-03, FIR-03]
+    effects:
+      - {kind: build, structure: signal_post}
+      - {kind: mod, stat: defense_response_time, op: pct, value: -0.7, note: "Defense response time, −70%"}
+      - {kind: rule, text: raid warnings reach all settlements within 20 tiles at once}
+    practice: [{action: guard, share: 50}, {action: tell_stories, share: 50}]
+    flavor: The news ran faster than feet.
+    moment: Fires lit on hill after hill
+  - id: COM-05
+    name: Writing
+    era: 3
+    type: D
+    status: draft
+    requires: [COM-03, NUM-03]
+    effects:
+      - {kind: prose, text: "Role: Scribe. Records: knowledge not lost; admin capacity +. *KEY-4 prerequisite.*"}
+  - id: COM-06
+    name: "Papyrus & Parchment"
+    era: 3
+    type: M
+    status: draft
+    requires: [COM-05, FIB-03]
+    effects:
+      - {kind: prose, text: "Portable writing: scribe output ×2; letters travel."}
+  - id: COM-07
+    name: Alphabet
+    era: 4
+    type: M
+    status: draft
+    requires: [COM-06]
+    effects:
+      - {kind: prose, text: "Literacy easy to learn: scribes ×2; Commons Insight +5%."}
+  - id: COM-08
+    name: Courier Relays
+    era: 4
+    type: I
+    status: draft
+    requires: [COM-07, TRN-07]
+    effects:
+      - {kind: prose, text: "Postal relays on roads: Overreach −20%; adoption across distance ×2."}
+  - id: COM-09
+    name: Paper
+    era: 5
+    type: M
+    status: draft
+    requires: [COM-08, FIB-07]
+    effects:
+      - {kind: prose, text: "Cheap writing: all writing-based roles +30%."}
+  - id: COM-10
+    name: Movable Type
+    era: 5
+    type: D
+    status: draft
+    requires: [COM-09, MEC-05, MET-06]
+    effects:
+      - {kind: prose, text: "Printing press: books abundant; Insight +15%; diffusion ×1.5. *KEY-6 prerequisite.*"}
+  - id: COM-11
+    name: "Newspapers & Pamphlets"
+    era: 6
+    type: M
+    status: draft
+    requires: [COM-10]
+    effects:
+      - {kind: prose, text: "News spreads: Cohesion responds to events faster; public opinion (GOV effects +10%)."}
+  - id: COM-12
+    name: Telegraph
+    era: 7
+    type: D
+    status: draft
+    requires: [COM-11, INQ-11]
+    effects:
+      - {kind: prose, text: "Build: Telegraph lines. Instant messages between settlements: Overreach −40%; coordination of rail and armies. *KEY-8 prerequisite.*"}
+  - id: COM-13
+    name: Telephone
+    era: 8
+    type: D
+    status: draft
+    requires: [COM-12, NRG-09]
+    effects:
+      - {kind: prose, text: "Voice at distance: business and admin efficiency +15%."}
+  - id: COM-14
+    name: Radio
+    era: 8
+    type: D
+    status: draft
+    requires: [COM-13, INQ-15]
+    effects:
+      - {kind: prose, text: "Broadcast: national Cohesion +; soft power reaches abroad."}
+  - id: COM-15
+    name: Television
+    era: 8
+    type: D
+    status: draft
+    requires: [COM-14, ART-12]
+    effects:
+      - {kind: prose, text: "Mass culture at home: Cohesion +10%; soft power ×1.5."}
+  - id: COM-16
+    name: Internet
+    era: 9
+    type: S
+    status: draft
+    requires: [COM-15, MEC-15, CER-15]
+    effects:
+      - {kind: prose, text: "Build: Data center and backbone. Data links glow between cities: Insight +25%, adoption instant in connected areas. *KEY-10 prerequisite.*"}
+  - id: COM-17
+    name: Mobile Networks
+    era: 9
+    type: M
+    status: draft
+    requires: [COM-16, NRG-15]
+    effects:
+      - {kind: prose, text: "Everyone connected: rural settlements gain urban Insight rates."}
+  - id: COM-18
+    name: Social Media
+    era: 9
+    type: I
+    status: draft
+    requires: [COM-17, ART-14]
+    effects:
+      - {kind: prose, text: "Viral culture: soft power ×1.5; Cohesion volatility (random swings ±)."}

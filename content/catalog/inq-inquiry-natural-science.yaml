@@ -1,0 +1,176 @@
+# INQ: Inquiry & Natural Science (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: INQ, theme: reach, name: "Inquiry & Natural Science", purpose: "pushing the frontier. Reveals hidden resources (prospecting, geology), unlocks the scientific institutions that cut research costs, and provides the physics behind electricity, the atom, rockets and transistors.", anchors: "tracking (an ancient \"science\"); sky watching; stone and ore lore; Ionian natural philosophy (~600 BCE); Archimedes; Ibn al-Haytham's optics and Peregrinus on magnetism; Galileo's telescope (1609) and Copernicus; scientific method (Bacon, Galileo, Royal Society); Newton (1687); Lavoisier (1789); Faraday and Maxwell; thermodynamics; Lyell and Darwin; genetics (1900 rediscovery); relativity and quantum theory (1905–1927); fission (1938); rocketry (1926–57); transistor (1947); ecology and climate science; molecular biology (1953+)."}
+projects:
+  - id: INQ-01
+    name: "Tracking & Animal Lore"
+    era: 1
+    type: M
+    status: numeric
+    requires: [HNT-03]
+    effects:
+      - {kind: reveal, text: "herds within 2× sight"}
+      - {kind: mod, stat: hunt, op: pct, value: 0.2, note: "Hunt, +20%"}
+    practice: [{action: hunt, share: 50}, {action: scout, share: 50}]
+    flavor: The ground tells stories.
+    moment: A tracker kneels at hoof prints and points east
+  - id: INQ-02
+    name: Sky Watching
+    era: 1
+    type: M
+    status: numeric
+    requires: [COM-02]
+    effects:
+      - {kind: rule, text: "season prediction: migrations on time"}
+      - {kind: unlock, text: "calendars, star paths"}
+    practice: [{action: scout, share: 100}]
+    flavor: The sky warns us of winter.
+    moment: An elder watches the first star rise at dawn
+  - id: INQ-03
+    name: "Stone & Ore Lore"
+    era: 2
+    type: M
+    status: numeric
+    requires: [INQ-01, MIN-01]
+    effects:
+      - {kind: reveal, text: "surface ores within sight: copper, tin, gold"}
+      - {kind: rule, text: "makes [Seen] metal gates reachable"}
+    practice: [{action: mine, share: 50}, {action: scout, share: 50}]
+    flavor: "The earth's colors tell of metal."
+    moment: A prospector cracks open a green-streaked rock
+  - id: INQ-04
+    name: Natural Philosophy
+    era: 4
+    type: I
+    status: draft
+    requires: [INQ-03, BEL-08, NUM-07]
+    effects:
+      - {kind: prose, text: "Rational inquiry: Scholar Insight +20%."}
+  - id: INQ-05
+    name: "Mechanics & Hydrostatics"
+    era: 4
+    type: M
+    status: draft
+    requires: [INQ-04, MEC-05]
+    effects:
+      - {kind: prose, text: "MEC and NRG project costs −10%; buoyancy (ships +10% cargo)."}
+  - id: INQ-06
+    name: "Optics & Magnetism"
+    era: 5
+    type: M
+    status: draft
+    requires: [INQ-05, CER-07]
+    effects:
+      - {kind: prose, text: Enables lenses and the compass.}
+  - id: INQ-07
+    name: "Telescope & Heliocentrism"
+    era: 6
+    type: D
+    status: draft
+    requires: [INQ-06, CER-10]
+    effects:
+      - {kind: prose, text: "Reveal: Sight from towers ×2; navigation +; challenges dogma (Cohesion −5% unless BEL-12)."}
+  - id: INQ-08
+    name: Scientific Method
+    era: 6
+    type: I
+    status: draft
+    requires: [INQ-07, LRN-08]
+    effects:
+      - {kind: prose, text: "Systematic experiment: all project costs −10%; Insight +10%. *KEY-7 prerequisite.*"}
+  - id: INQ-09
+    name: Newtonian Physics
+    era: 6
+    type: M
+    status: draft
+    requires: [INQ-08, NUM-11]
+    effects:
+      - {kind: prose, text: "Engineering precision: MEC, NRG and SEA effects +10%."}
+  - id: INQ-10
+    name: Modern Chemistry
+    era: 7
+    type: M
+    status: draft
+    requires: [INQ-09, CHM-08]
+    effects:
+      - {kind: prose, text: "CHM and MET projects −15% cost."}
+  - id: INQ-11
+    name: Electromagnetism
+    era: 7
+    type: D
+    status: draft
+    requires: [INQ-10]
+    effects:
+      - {kind: prose, text: "Enables generators, the telegraph and motors."}
+  - id: INQ-12
+    name: Thermodynamics
+    era: 7
+    type: M
+    status: draft
+    requires: [INQ-09, NRG-07]
+    effects:
+      - {kind: prose, text: "Engine efficiency +40%."}
+  - id: INQ-13
+    name: "Geology & Evolution"
+    era: 7
+    type: M
+    status: draft
+    requires: [INQ-10, WAY-11]
+    effects:
+      - {kind: prose, text: "Reveal: Coal and oil basins in territory; breeding theory (FOR and HUS effects +10%)."}
+  - id: INQ-14
+    name: Genetics
+    era: 8
+    type: M
+    status: draft
+    requires: [INQ-13, FOR-11]
+    effects:
+      - {kind: prose, text: "Crop and livestock improvement ×1.2; enables biotech."}
+  - id: INQ-15
+    name: "Relativity & Quantum Physics"
+    era: 8
+    type: M
+    status: draft
+    requires: [INQ-11, NUM-12]
+    effects:
+      - {kind: prose, text: "Modern physics: enables nuclear, electronics and radio."}
+  - id: INQ-16
+    name: Nuclear Physics
+    era: 8
+    type: D
+    status: draft
+    requires: [INQ-15]
+    effects:
+      - {kind: prose, text: Enables reactors and weapons.}
+  - id: INQ-17
+    name: Rocketry
+    era: 8
+    type: D
+    status: draft
+    requires: [INQ-15, CHM-13]
+    effects:
+      - {kind: prose, text: "Rockets: enables satellites (WAY-13)."}
+  - id: INQ-18
+    name: Transistor
+    era: 8
+    type: D
+    status: draft
+    requires: [INQ-15, CER-14]
+    effects:
+      - {kind: prose, text: "Solid-state electronics: all electronic devices ×10 cheaper. *KEY-9 prerequisite.*"}
+  - id: INQ-19
+    name: "Ecology & Climate Science"
+    era: 9
+    type: I
+    status: draft
+    requires: [INQ-14, NUM-14]
+    effects:
+      - {kind: prose, text: "Reveal: Pollution and climate overlays; sustainability projects −20% cost."}
+  - id: INQ-20
+    name: "Molecular Biology & Biotech"
+    era: 9
+    type: M
+    status: draft
+    requires: [INQ-14, CHM-13]
+    effects:
+      - {kind: prose, text: "Biotech: MED, AGR and HUS late projects −20% cost; new medicines."}

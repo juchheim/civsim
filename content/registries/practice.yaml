@@ -1,0 +1,39 @@
+# Practice actions: which lineages' Know-how an activity feeds (docs/MVP/10 §11).
+schema: 1
+practice:
+  - {id: forage, knowhow: {FOR: 80, FIB: 10, INQ: 10}}
+  - {id: hunt, knowhow: {HNT: 70, WAR: 15, INQ: 15}}
+  - {id: butcher, knowhow: {HNT: 70, WAR: 15, INQ: 15}}
+  - {id: fish, knowhow: {HNT: 70, SEA: 30}}
+  - {id: farm, knowhow: {AGR: 85, FOR: 15}}
+  - {id: herd, knowhow: {HUS: 90, TRN: 10}}
+  - {id: chop, knowhow: {WOD: 70, STN: 30}, knowhow_from_era2: {WOD: 85, STN: 15}, note: From era 2 the split is WOD 85 / STN 15 (knowhow_from_era2).}
+  - {id: knap, knowhow: {STN: 85, MIN: 15}}
+  - {id: fiber, knowhow: {FIB: 90, CHM: 10}}
+  - {id: hide, knowhow: {FIB: 90, CHM: 10}}
+  - {id: fiber_hide, knowhow: {FIB: 90, CHM: 10}}
+  - {id: clay, knowhow: {CER: 80, FIR: 20}}
+  - {id: tend_fire, knowhow: {FIR: 50, FOD: 50}}
+  - {id: cook, knowhow: {FIR: 50, FOD: 50}}
+  - {id: preserve, knowhow: {FOD: 100}}
+  - {id: build, knowhow: {BLD: 80, MEC: 10, DEF: 10}}
+  - {id: haul, knowhow: {TRN: 70, WAY: 30}}
+  - {id: paddle, knowhow: {SEA: 100}}
+  - {id: mine, knowhow: {MIN: 80, STN: 20}}
+  - {id: smelt, knowhow: {MET: 70, FIR: 30}}
+  - {id: heal, knowhow: {MED: 100}}
+  - {id: teach, knowhow: {LRN: 40, ART: 30, COM: 30}}
+  - {id: tell_stories, knowhow: {LRN: 40, ART: 30, COM: 30}}
+  - {id: ritual, knowhow: {BEL: 80, ART: 20}}
+  - {id: feast, knowhow: {SOC: 70, FOD: 30}}
+  - {id: socialize, knowhow: {SOC: 70, FOD: 30}}
+  - {id: council, knowhow: {GOV: 100}}
+  - {id: scout, knowhow: {WAY: 70, TER: 20, INQ: 10}}
+  - {id: mark, knowhow: {TER: 80, DEF: 20}}
+  - {id: trade, knowhow: {TRD: 70, DIP: 30}}
+  - {id: meet_strangers, knowhow: {DIP: 70, COM: 30}}
+  - {id: guard, knowhow: {WAR: 60, DEF: 40}}
+  - {id: fight, knowhow: {WAR: 60, DEF: 40}}
+  - {id: count_stores, knowhow: {NUM: 100}}
+  - {id: craft, knowhow: {STN: 25, FIB: 15, CER: 15, ART: 20, CHM: 15, MET: 10}, note: "Added in M1: 10 §11 has no generic craft row; split chosen so craft-based E0-E2 projects feed their own lineage."}
+  - {id: work_animals, knowhow: {NRG: 60, HUS: 40}, note: "Added in M1: no E0-E2 activity fed the NRG lineage (found by check V14)."}

@@ -1,0 +1,15 @@
+# Roles (docs/MVP/02 §8.1 with the 07 §5 output scale). Insight per person per year at Standard pace.
+schema: 1
+roles:
+  - {id: elder, name: Elder, insight: 8, unlocked_by: GOV-01}
+  - {id: shaman, name: Shaman, insight: 12, unlocked_by: BEL-03}
+  - {id: priest, name: Priest, insight: 16, unlocked_by: BEL-06}
+  - {id: scribe, name: Scribe, insight: 24, unlocked_by: LRN-04}
+  - {id: scholar, name: Scholar, insight: 48, unlocked_by: LRN-05}
+  - {id: researcher, name: Researcher, insight: 120, unlocked_by: LRN-12}
+  - {id: watcher, name: Watcher, insight: 0, unlocked_by: DEF-02}
+  - {id: collier, name: Collier, insight: 0, unlocked_by: FIR-08}
+  - {id: smith, name: Smith, insight: 0, unlocked_by: MET-02}
+  - {id: midwife, name: Midwife, insight: 0, unlocked_by: MED-03}
+  - {id: chief, name: Chief, insight: 0, unlocked_by: GOV-02}
+  - {id: warrior, name: Warrior, insight: 0, unlocked_by: WAR-04}

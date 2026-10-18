@@ -1,0 +1,136 @@
+# GOV: Governance & Law (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: GOV, theme: kin, name: "Governance & Law", purpose: "holding large, spread-out populations together; unlocking player levers (Posture); reducing Overreach; enabling taxation and administration.", anchors: "elder councils; chieftainship; customary law; tribute and redistribution (palace economies); kingship; Ur-Nammu (~2100 BCE) and Hammurabi (~1754 BCE); bureaucracy and census; Athenian democracy and Roman Republic; feudal contracts; canon and common law; Magna Carta and parliaments; Westphalian nation-state (1648); constitutions (1787+); universal suffrage; e-government."}
+projects:
+  - id: GOV-01
+    name: "Elders' Council"
+    era: 1
+    type: I
+    status: numeric
+    requires: [SOC-02, COM-02]
+    effects:
+      - {kind: role, id: elder, insight: 8}
+      - {kind: hazard, cause: violence, mult: 0.84}
+    practice: [{action: council, share: 100}]
+    flavor: The old ones settle what the young would fight over.
+    moment: "Elders sit in a circle; a quarrel ends with a nod"
+  - id: GOV-02
+    name: Chieftainship
+    era: 2
+    type: I
+    status: numeric
+    requires: [GOV-01, SOC-05]
+    effects:
+      - {kind: role, id: chief}
+      - {kind: lever, text: "Posture: Expand / Prosper / Fortify / Raid"}
+    practice: [{action: council, share: 100}]
+    flavor: One will decide.
+    moment: A chosen leader with a staff stands before the gathering
+  - id: GOV-03
+    name: Customary Law
+    era: 2
+    type: I
+    status: numeric
+    requires: [GOV-02, LRN-02]
+    effects:
+      - {kind: hazard, cause: violence, mult: 0.84}
+      - {kind: rule, text: no border conflict between your own bands}
+    practice: [{action: council, share: 100}]
+    flavor: The law is older than anger.
+    moment: "Compensation paid: a feud ends"
+  - id: GOV-04
+    name: "Tribute & Redistribution"
+    era: 3
+    type: I
+    status: draft
+    requires: [GOV-02, FOD-06]
+    effects:
+      - {kind: prose, text: "Central stores redistribute food across settlements: local famines −50%."}
+  - id: GOV-05
+    name: "Kingship & Palace"
+    era: 3
+    type: I
+    status: draft
+    requires: [GOV-04, SOC-09]
+    effects:
+      - {kind: prose, text: "Build: Palace. Claim strength +25% within capital radius; Wonder build +20%."}
+  - id: GOV-06
+    name: Code of Law
+    era: 3
+    type: I
+    status: draft
+    requires: [GOV-05, COM-05]
+    effects:
+      - {kind: prose, text: "Written law: Cohesion +10%; crime events −; Overreach −15%. *KEY-4 prerequisite.*"}
+  - id: GOV-07
+    name: "Bureaucracy & Census"
+    era: 4
+    type: I
+    status: draft
+    requires: [GOV-06, NUM-05]
+    effects:
+      - {kind: prose, text: "Role: Administrator. Overreach −25%; planners see full-civilization stats (better allocation)."}
+  - id: GOV-08
+    name: "Republic & Assemblies"
+    era: 4
+    type: I
+    status: draft
+    requires: [GOV-06, SOC-10]
+    effects:
+      - {kind: prose, text: "Citizen participation: Commons Insight +15%, Cohesion +; slower war declarations."}
+  - id: GOV-09
+    name: Feudal Contract
+    era: 4
+    type: I
+    status: draft
+    requires: [GOV-07, WAR-07]
+    effects:
+      - {kind: prose, text: "Vassal lords hold distant land: remote regions don't secede; local defense +. *KEY-5 prerequisite.*"}
+  - id: GOV-10
+    name: "Canon & Common Law"
+    era: 5
+    type: I
+    status: draft
+    requires: [GOV-09, BEL-09]
+    effects:
+      - {kind: prose, text: "Courts: dispute and crime events −50%; contracts (+trade)."}
+  - id: GOV-11
+    name: "Charters & Parliaments"
+    era: 5
+    type: I
+    status: draft
+    requires: [GOV-10, TRD-08]
+    effects:
+      - {kind: prose, text: "Representative bodies: taxes accepted (+admin capacity); town charters (cities +10% growth)."}
+  - id: GOV-12
+    name: Nation-State
+    era: 6
+    type: I
+    status: draft
+    requires: [GOV-11, COM-10]
+    effects:
+      - {kind: prose, text: "National identity: Cohesion uniform across your territory; Overreach −40%."}
+  - id: GOV-13
+    name: Constitutional Democracy
+    era: 7
+    type: I
+    status: draft
+    requires: [GOV-12, LRN-09]
+    effects:
+      - {kind: prose, text: "Rights and elections: Cohesion +, Insight +10%; revolution events −."}
+  - id: GOV-14
+    name: Universal Suffrage
+    era: 8
+    type: I
+    status: draft
+    requires: [GOV-13, LRN-10]
+    effects:
+      - {kind: prose, text: "Whole population participates: Cohesion +15%, Commons Insight +10%."}
+  - id: GOV-15
+    name: Digital Governance
+    era: 9
+    type: I
+    status: draft
+    requires: [GOV-14, COM-16]
+    effects:
+      - {kind: prose, text: "E-government: admin cost −50%; Overreach nearly eliminated."}

@@ -1,0 +1,163 @@
+# BLD: Building & Architecture (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: BLD, theme: craft, name: "Building & Architecture", purpose: "shelter, housing capacity, public buildings and wonders. Housing is one of the three hard caps on population (with food and cohesion).", anchors: "lean-tos (Paleolithic); pit houses (Ohalo II ~23 ka); wattle and daub, mudbrick, longhouses (Neolithic); ziggurats; Roman arch, concrete and aqueducts; Gothic cathedrals; Renaissance; reinforced concrete (1860s); skyscrapers (1885); green building (1990s+)."}
+projects:
+  - id: BLD-01
+    name: "Windbreaks & Lean-tos"
+    era: 0
+    type: S
+    status: numeric
+    requires: [WOD-01]
+    effects:
+      - {kind: build, structure: lean_to, note: "houses 4, warmth +1"}
+      - {kind: cap, cap: housing, mult: 1.25}
+      - {kind: hazard, cause: exposure, mult: 0.93}
+    practice: [{action: build, share: 100}]
+    flavor: A wall against the wind.
+    moment: "Branches leaned against a fallen trunk, roofed with brush"
+  - id: BLD-02
+    name: Hide Tents
+    era: 1
+    type: S
+    status: numeric
+    requires: [BLD-01, FIB-02]
+    effects:
+      - {kind: build, structure: hide_tent, note: "houses 5, packs to 1 L"}
+      - {kind: cap, cap: housing, mult: 1.2}
+      - {kind: mod, stat: camp_relocation_time, op: mult, value: 0.5, note: "Camp relocation time, ×0.5"}
+      - {kind: good, id: G-TENT}
+    practice: [{action: build, share: 50}, {action: hide, share: 50}]
+    flavor: Home goes where we go.
+    moment: "Hides stretched over poles; the camp packs up and moves before noon"
+  - id: BLD-03
+    name: Pit House
+    era: 1
+    type: S
+    status: numeric
+    requires: [BLD-02, WOD-02]
+    effects:
+      - {kind: build, structure: pit_house, note: "houses 6, warmth +2"}
+      - {kind: cap, cap: housing, mult: 1.5}
+      - {kind: hazard, cause: exposure, mult: 0.88}
+    practice: [{action: build, share: 100}]
+    flavor: "Half in the earth, warm as a burrow."
+    moment: "A dugout floor roofed with poles and turf, smoke rising from the center"
+  - id: BLD-04
+    name: "Wattle & Daub"
+    era: 2
+    type: M
+    status: numeric
+    requires: [BLD-03, FIB-05]
+    effects:
+      - {kind: build, structure: wattle_daub_house, note: houses 8}
+      - {kind: cap, cap: housing, mult: 1.5}
+    practice: [{action: build, share: 100}]
+    flavor: Walls that breathe.
+    moment: Woven branches plastered with mud
+  - id: BLD-05
+    name: Mudbrick
+    era: 2
+    type: M
+    status: numeric
+    requires: [BLD-04]
+    gates: [{kind: seen, target: Clay}]
+    effects:
+      - {kind: good, id: G-BRICK}
+      - {kind: build, structure: mudbrick_house, note: "houses 8, fire-resistant"}
+      - {kind: cap, cap: housing, mult: 1.5}
+    practice: [{action: build, share: 50}, {action: clay, share: 50}]
+    flavor: "The river's mud became our walls."
+    moment: Rows of bricks drying in the sun
+  - id: BLD-06
+    name: Longhouses
+    era: 2
+    type: S
+    status: numeric
+    requires: [BLD-04, SOC-05]
+    effects:
+      - {kind: build, structure: longhouse, note: houses 25}
+      - {kind: cap, cap: housing, mult: 1.5}
+      - {kind: cohesion, value: 5}
+    practice: [{action: build, share: 100}]
+    flavor: "Many families, one roof."
+    moment: "A long hall, smoke rising from several hearths"
+  - id: BLD-07
+    name: Post-and-Lintel
+    era: 3
+    type: M
+    status: draft
+    requires: [BLD-05, STN-11]
+    effects:
+      - {kind: prose, text: "Public buildings: temples, palaces, halls."}
+  - id: BLD-08
+    name: Stepped Pyramid
+    era: 3
+    type: W
+    status: draft
+    requires: [BLD-07, BEL-06]
+    effects:
+      - {kind: prose, text: "Wonder: Ziggurat or stepped pyramid. Huge Cohesion and claim radius +4 around it."}
+  - id: BLD-09
+    name: "True Arch & Vault"
+    era: 4
+    type: M
+    status: draft
+    requires: [BLD-07, CER-08]
+    effects:
+      - {kind: prose, text: "Spans without timber: bridges, aqueducts, large halls."}
+  - id: BLD-10
+    name: Aqueducts
+    era: 4
+    type: S
+    status: draft
+    requires: [BLD-09, NUM-07]
+    effects:
+      - {kind: prose, text: "Build: Aqueduct. City population cap +40% (water), disease −15%."}
+  - id: BLD-11
+    name: "Concrete & Domes"
+    era: 4
+    type: M
+    status: draft
+    requires: [BLD-09, CHM-03]
+    effects:
+      - {kind: prose, text: "Roman concrete: build speed +30%; harbor and dome construction. Wonder: Great Dome (unlocked here, built later)."}
+  - id: BLD-12
+    name: Gothic Cathedral
+    era: 5
+    type: W
+    status: draft
+    requires: [BLD-11, STN-13]
+    effects:
+      - {kind: prose, text: "Wonder: Cathedral. +Cohesion civilization-wide; pilgrimage trade."}
+  - id: BLD-13
+    name: Renaissance Architecture
+    era: 6
+    type: M
+    status: draft
+    requires: [BLD-11, NUM-10]
+    effects:
+      - {kind: prose, text: "Perspective-planned cities: city layout efficiency (+15% city movement and build speed). Wonder: Palace."}
+  - id: BLD-14
+    name: Reinforced Concrete
+    era: 7
+    type: M
+    status: draft
+    requires: [BLD-13, CHM-09, MET-14]
+    effects:
+      - {kind: prose, text: "Large cheap structures: dams, bridges, factories; build cost −30%."}
+  - id: BLD-15
+    name: Steel-Frame Skyscrapers
+    era: 8
+    type: M
+    status: draft
+    requires: [BLD-14, MET-15, NRG-09, TRD-12]
+    effects:
+      - {kind: prose, text: "Elevators and steel: city density cap ×3 (more people per tile, so more pop per claimed tile)."}
+  - id: BLD-16
+    name: "Green & Smart Buildings"
+    era: 9
+    type: M
+    status: draft
+    requires: [BLD-15, NRG-13, INQ-19]
+    effects:
+      - {kind: prose, text: "Energy use −40%, pollution −20%; climate-hazard resilience."}

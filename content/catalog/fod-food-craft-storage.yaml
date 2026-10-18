@@ -1,0 +1,147 @@
+# FOD: Food Craft & Storage (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: FOD, theme: kin, name: "Food Craft & Storage", purpose: "getting more value from food and keeping it. Storage turns seasonal surplus into year-round security, which enables sedentism, specialists and cities.", anchors: "cooking (≥ ~800 ka); smoking and drying; storage pits (Natufian); boiling in pots; beer and bread (~13 ka Raqefet; ~14 ka Shubayqa flatbread); granaries (Dhra' ~11 ka); salting; ovens; the Roman *annona*; sugar refining; canning (Appert 1810); refrigeration (1870s+); industrial processing; cold-chain logistics."}
+projects:
+  - id: FOD-01
+    name: Cooking
+    era: 0
+    type: D
+    status: numeric
+    requires: [FIR-01]
+    effects:
+      - {kind: mod, stat: food_value_of_meat_roots_cereals, op: pct, value: 0.3, note: "Food value of meat, roots, cereals, +30%"}
+      - {kind: hazard, cause: endemic, mult: 0.93, note: food-borne deaths fall}
+      - {kind: cap, cap: food, mult: 1.10}
+    practice: [{action: cook, share: 100}]
+    flavor: Fire chewed our food for us.
+    moment: Meat sizzling on a flat stone by the fire
+  - id: FOD-02
+    name: "Smoking & Drying"
+    era: 1
+    type: M
+    status: numeric
+    requires: [FOD-01, FIR-03]
+    effects:
+      - {kind: build, structure: drying_rack}
+      - {kind: good, id: G-DRIED, note: "spoilage 10%"}
+      - {kind: cap, cap: lean, mult: 1.15}
+    practice: [{action: preserve, share: 100}]
+    flavor: Smoke for later.
+    moment: Strips of fish hang over a smoky fire
+  - id: FOD-03
+    name: Storage Pits
+    era: 1
+    type: S
+    status: numeric
+    requires: [FOD-02, FOR-03]
+    effects:
+      - {kind: build, structure: storage_pit, note: "15 R, spoilage ×0.5"}
+      - {kind: cap, cap: lean, mult: 1.30}
+    practice: [{action: preserve, share: 50}, {action: build, share: 50}]
+    flavor: "We buried our winter, and it waited."
+    moment: A lined pit filled with nuts and sealed with stones
+  - id: FOD-04
+    name: "Boiling & Stews"
+    era: 1
+    type: M
+    status: numeric
+    requires: [FOD-01, CER-02]
+    effects:
+      - {kind: mod, stat: food_value, op: pct, value: 0.2, note: "Food value, +20%"}
+      - {kind: hazard, cause: age0, mult: 0.96, note: weaning foods}
+      - {kind: mod, stat: fertility, op: pct, value: 0.05, note: "Fertility, +5%"}
+      - {kind: cap, cap: food, mult: 1.05}
+    practice: [{action: cook, share: 100}]
+    flavor: "Soft food, strong children."
+    moment: "A stew bubbles in a pot; an infant is fed soft food"
+  - id: FOD-05
+    name: Fermentation
+    era: 2
+    type: D
+    status: numeric
+    requires: [FOD-04, AGR-02]
+    effects:
+      - {kind: good, id: G-BREW}
+      - {kind: mod, stat: food_value, op: pct, value: 0.15, note: "Food value, +15%"}
+      - {kind: mod, stat: feast_cost, op: mult, value: 0.7, note: "Feast cost, ×0.7"}
+      - {kind: cap, cap: food, mult: 1.05}
+    practice: [{action: cook, share: 50}, {action: feast, share: 50}]
+    flavor: Grain that makes us glad.
+    moment: Foam on a clay jar of beer
+  - id: FOD-06
+    name: Granaries
+    era: 2
+    type: S
+    status: numeric
+    requires: [FOD-03, BLD-05]
+    effects:
+      - {kind: build, structure: granary, note: "80 R, spoilage ×0.25, pests −50%"}
+      - {kind: cap, cap: food, mult: 1.05}
+    practice: [{action: preserve, share: 50}, {action: build, share: 50}]
+    flavor: "Hunger has a door, and we closed it."
+    moment: A raised granary with grain pouring into it
+  - id: FOD-07
+    name: "Salting & Pickling"
+    era: 3
+    type: M
+    status: draft
+    requires: [FOD-06, MIN-06]
+    effects:
+      - {kind: prose, text: "Long-life food: expeditions, armies and sea voyages range ×2."}
+  - id: FOD-08
+    name: "Ovens & Bakeries"
+    era: 3
+    type: S
+    status: draft
+    requires: [FOD-05, FIR-07]
+    effects:
+      - {kind: prose, text: "Build: Bakery. Role: Baker. Grain food value +20% in towns."}
+  - id: FOD-09
+    name: Public Grain Supply
+    era: 4
+    type: I
+    status: draft
+    requires: [FOD-07, GOV-07]
+    effects:
+      - {kind: prose, text: "State grain distribution: city food security +; city population cap +25%."}
+  - id: FOD-10
+    name: Sugar Refining
+    era: 6
+    type: M
+    status: draft
+    requires: [FOD-09, SEA-12]
+    gates: [{kind: has, target: Sugarcane}]
+    effects:
+      - {kind: prose, text: "Good: Sugar. High trade value; Cohesion +5% (luxury)."}
+  - id: FOD-11
+    name: Canning
+    era: 7
+    type: M
+    status: draft
+    requires: [FOD-10, MET-14]
+    effects:
+      - {kind: prose, text: "Preserved food lasts years: famine −50%; army and explorer range ×2."}
+  - id: FOD-12
+    name: Refrigeration
+    era: 8
+    type: M
+    status: draft
+    requires: [FOD-11, NRG-09]
+    effects:
+      - {kind: prose, text: "Spoilage −90%; fresh food shipped far."}
+  - id: FOD-13
+    name: Industrial Food Processing
+    era: 8
+    type: M
+    status: draft
+    requires: [FOD-12, TRN-13]
+    effects:
+      - {kind: prose, text: "Supermarkets: food distribution labor −50%; urban food cap +."}
+  - id: FOD-14
+    name: "Cold Chain & Nutrition Science"
+    era: 9
+    type: M
+    status: draft
+    requires: [FOD-13, TRD-16]
+    effects:
+      - {kind: prose, text: "Global fresh-food logistics: food waste −40%; health +10%."}

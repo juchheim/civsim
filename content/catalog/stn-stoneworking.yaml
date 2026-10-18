@@ -1,0 +1,165 @@
+# STN: Stoneworking (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: STN, theme: craft, name: Stoneworking, purpose: "the first tool tiers. Stone tools multiply nearly every early action, and later stone becomes a building material.", anchors: "Oldowan ~2.6 Ma → Acheulean ~1.7 Ma → Levallois ~300 ka → blades and microliths (Upper Paleolithic) → polished Neolithic axes → ashlar masonry."}
+projects:
+  - id: STN-01
+    name: Pebble Choppers
+    era: 0
+    type: M
+    status: numeric
+    requires: []
+    effects:
+      - {kind: method, action: chop, rung: 1, name: Pebble chopper, mult: 1.5}
+      - {kind: mod, stat: butcher.meat, op: pct, value: 0.25, note: "Butcher.meat, +25%"}
+      - {kind: good, id: G-TOOL1}
+    practice: [{action: knap, share: 50}, {action: chop, share: 50}]
+    flavor: The stone remembered how to cut.
+    moment: "An elder cracks a river cobble; the flake opens a bone for marrow"
+  - id: STN-02
+    name: Hand Axes
+    era: 0
+    type: M
+    status: numeric
+    requires: [STN-01]
+    effects:
+      - {kind: method, action: chop, rung: 2, name: Hand axe, mult: 2.0}
+      - {kind: mod, stat: butcher.meat, op: pct, value: 0.2, note: "Butcher.meat, +20%"}
+      - {kind: good, id: G-TOOL2}
+    practice: [{action: knap, share: 50}, {action: chop, share: 50}]
+    flavor: "Shaped with patience, the same on both sides."
+    moment: "A teardrop axe turns in firelight; the knapper admires its symmetry"
+  - id: STN-03
+    name: Prepared Cores
+    era: 0
+    type: M
+    status: numeric
+    requires: [STN-02]
+    effects:
+      - {kind: mod, stat: stone_per_tool, op: pct, value: -0.3, note: "Stone per tool, −30%"}
+      - {kind: mod, stat: knap.speed, op: pct, value: 0.1, note: "Knap.speed, +10%"}
+      - {kind: good, id: G-TOOL3, note: stone points}
+    practice: [{action: knap, share: 100}]
+    flavor: See the tool in the stone before you strike.
+    moment: One strike lifts a perfect point from a prepared core
+  - id: STN-04
+    name: Hafting
+    era: 0
+    type: M
+    status: numeric
+    requires: [STN-03, FIB-01]
+    effects:
+      - {kind: method, action: chop, rung: 3, name: Hafted axe, mult: 3.0}
+      - {kind: good, id: G-TOOL4, note: hafted spear}
+      - {kind: unlock, project: HNT-03, text: points}
+    practice: [{action: knap, share: 34}, {action: chop, share: 33}, {action: hunt, share: 33}]
+    flavor: Stone married to wood.
+    moment: "Cord binds a point to a shaft; the first spear is lifted"
+  - id: STN-05
+    name: Blade Industry
+    era: 1
+    type: M
+    status: numeric
+    requires: [STN-04]
+    effects:
+      - {kind: good, id: G-TOOL5, note: blade kit}
+      - {kind: mod, stat: knap.speed, op: pct, value: 0.4, note: "Knap.speed, +40%"}
+      - {kind: mod, stat: tool_durability, op: mult, value: 1.5, note: "Tool durability, ×1.5"}
+      - {kind: need, text: "flint, else T4 quality"}
+    practice: [{action: knap, share: 100}]
+    flavor: "One stone, many knives."
+    moment: Long blades peel off a core like pages
+  - id: STN-06
+    name: Microliths
+    era: 1
+    type: M
+    status: numeric
+    requires: [STN-05]
+    effects:
+      - {kind: good, id: G-TOOL6, note: composite microliths}
+      - {kind: unlock, text: "arrows, sickles"}
+    practice: [{action: knap, share: 100}]
+    flavor: "Small teeth, set together."
+    moment: Tiny blades set in a row along a grooved bone
+  - id: STN-07
+    name: "Bone & Antler Tools"
+    era: 1
+    type: D
+    status: numeric
+    requires: [STN-05, HNT-03]
+    effects:
+      - {kind: good, id: G-NEEDLE, note: "harpoon heads, flutes, awls"}
+      - {kind: mod, stat: carcass_value, op: pct, value: 0.15, note: "Carcass value, +15%"}
+    practice: [{action: knap, share: 50}, {action: butcher, share: 50}]
+    flavor: Nothing of the animal was wasted.
+    moment: "A needle's eye drilled through a sliver of bone"
+  - id: STN-08
+    name: "Ground & Polished Stone"
+    era: 2
+    type: M
+    status: numeric
+    requires: [STN-06]
+    effects:
+      - {kind: method, action: chop, rung: 4, name: Polished axe, mult: 4.0}
+      - {kind: mod, stat: clearing, op: mult, value: 2, note: "Clearing, ×2"}
+      - {kind: good, id: G-POLAXE, note: prestige}
+      - {kind: good, id: G-TOOL7}
+    practice: [{action: knap, share: 50}, {action: chop, share: 50}]
+    flavor: Polished until it shone like water.
+    moment: "Hours of grinding; a jade-green axe gleams"
+  - id: STN-09
+    name: "Querns & Grindstones"
+    era: 2
+    type: S
+    status: numeric
+    requires: [STN-08, FOR-05]
+    effects:
+      - {kind: build, structure: quern, note: "cereal food value +30% for 10 people, replaces FOR-05's +25%"}
+    practice: [{action: cook, share: 50}, {action: knap, share: 50}]
+    flavor: Bread begins on its knees.
+    moment: "A woman kneels at a saddle quern, flour gathering at its lip"
+  - id: STN-10
+    name: Megalith Raising
+    era: 2
+    type: W
+    status: numeric
+    requires: [STN-08, MEC-02, BEL-05]
+    effects:
+      - {kind: wonder, structure: megalith, note: "120 ws, stone blocks 60 L, rollers"}
+      - {kind: cohesion, value: 10, note: within radius 8}
+      - {kind: claim, text: "+1.0, radius 6"}
+      - {kind: event, text: "seasonal festival, +Cohesion for all your settlements"}
+    practice: [{action: mine, share: 34}, {action: build, share: 33}, {action: ritual, share: 33}]
+    flavor: "We raised the sky's pillars."
+    moment: Dozens haul a standing stone on rollers as the sun sets behind it
+  - id: STN-11
+    name: Dressed Masonry
+    era: 3
+    type: M
+    status: draft
+    requires: [STN-08, MIN-03]
+    effects:
+      - {kind: prose, text: "Good: Cut stone. ▸ Build (stone structures). Unlocks stone walls, temples, roads."}
+  - id: STN-12
+    name: "Ashlar & Columns"
+    era: 4
+    type: M
+    status: draft
+    requires: [STN-11, MET-09]
+    effects:
+      - {kind: prose, text: "Iron chisels: +40% stone build speed. Unlocks classical colonnades (Theatre, Temple tier 2)."}
+  - id: STN-13
+    name: Master Masons
+    era: 5
+    type: R
+    status: draft
+    requires: [STN-12, SOC-11]
+    effects:
+      - {kind: prose, text: "Role: Master mason. Large stone works +50% speed; required for Gothic Cathedral (BLD-12)."}
+  - id: STN-14
+    name: Synthetic Abrasives
+    era: 8
+    type: M
+    status: draft
+    requires: [STN-13, FIR-14]
+    effects:
+      - {kind: prose, text: "Carborundum grinding wheels: precision finishing; machine-tool output +20%."}

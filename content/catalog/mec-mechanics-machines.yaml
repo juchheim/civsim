@@ -1,0 +1,140 @@
+# MEC: Mechanics & Machines (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: MEC, theme: craft, name: "Mechanics & Machines", purpose: "mechanical advantage and automation. Turns energy into work: cranes, mills, clocks, factories and computers. The late-game multiplier on Craft output and Insight.", anchors: "levers and rollers (prehistoric); wheel (~3500 BCE); pulley and screw (Archimedes); treadwheel crane (Roman); crank and cam (medieval); mechanical clock (~1300); precision instruments (17th–18th c.); factory system (Arkwright, 1771); interchangeable parts (~1800–1850); assembly line (1913); ENIAC (1945); integrated circuit (1958); personal computer (1970s); industrial robots (1961+)."}
+projects:
+  - id: MEC-01
+    name: "Lever & Wedge"
+    era: 1
+    type: M
+    status: numeric
+    requires: [WOD-02]
+    effects:
+      - {kind: mod, stat: heavy_object_handling, op: pct, value: 0.3, note: "Heavy-object handling, +30%"}
+      - {kind: mod, stat: wood_yield, op: pct, value: 0.15, note: "Wood yield, +15% by splitting"}
+    practice: [{action: build, share: 50}, {action: chop, share: 50}]
+    flavor: A long enough stick moves anything.
+    moment: A long pole pries a boulder from the stream
+  - id: MEC-02
+    name: "Rollers & Sledges"
+    era: 2
+    type: M
+    status: numeric
+    requires: [MEC-01, FIB-05]
+    effects:
+      - {kind: unlock, text: moving blocks and logs at 0.5 speed}
+      - {kind: mod, stat: heavy_haul, op: pct, value: 0.5, note: "Heavy haul, +50%"}
+    practice: [{action: haul, share: 50}, {action: build, share: 50}]
+    flavor: Rolling the impossible.
+    moment: Logs rolled under a great stone
+  - id: MEC-03
+    name: The Wheel
+    era: 3
+    type: D
+    status: draft
+    requires: [MEC-02, WOD-05]
+    effects:
+      - {kind: prose, text: "Good: Wheel. Enables carts (TRN-05), potter's wheel, lathe."}
+  - id: MEC-04
+    name: "Pulley & Windlass"
+    era: 4
+    type: M
+    status: draft
+    requires: [MEC-03, FIB-05]
+    effects:
+      - {kind: prose, text: "Lift loads: tall buildings, deep wells (water access +). Build speed +15%."}
+  - id: MEC-05
+    name: "Gears & Screws"
+    era: 4
+    type: M
+    status: draft
+    requires: [MEC-04, NUM-07]
+    effects:
+      - {kind: prose, text: "Presses (olive oil, wine: food & trade +), Archimedes' screw, water-wheel gearing."}
+  - id: MEC-06
+    name: Treadwheel Crane
+    era: 4
+    type: S
+    status: draft
+    requires: [MEC-05]
+    effects:
+      - {kind: prose, text: "Build: Crane. Large structures and wonders build ×2."}
+  - id: MEC-07
+    name: "Crank & Camshaft"
+    era: 5
+    type: M
+    status: draft
+    requires: [MEC-05, NRG-03]
+    effects:
+      - {kind: prose, text: "Convert rotation: trip hammers, fulling mills, bellows. Mill-driven crafts ×2."}
+  - id: MEC-08
+    name: Mechanical Clock
+    era: 5
+    type: D
+    status: draft
+    requires: [MEC-07, NUM-06]
+    effects:
+      - {kind: prose, text: "Time discipline: all scheduled work +5%; Build: Clock tower (+Cohesion)."}
+  - id: MEC-09
+    name: Precision Instruments
+    era: 6
+    type: M
+    status: draft
+    requires: [MEC-08, CER-10]
+    effects:
+      - {kind: prose, text: "Accurate instruments: surveying, navigation and machine fits. Enables chronometers and textile machinery."}
+  - id: MEC-10
+    name: Factory System
+    era: 6
+    type: I
+    status: draft
+    requires: [MEC-09, FIB-12, SOC-12]
+    effects:
+      - {kind: prose, text: "Build: Factory. Centralized production: craft output ×2 per worker; urban migration. *KEY-7 prerequisite.*"}
+  - id: MEC-11
+    name: "Machine Tools & Interchangeable Parts"
+    era: 7
+    type: M
+    status: draft
+    requires: [MEC-10, MET-14]
+    effects:
+      - {kind: prose, text: "Lathes and mills cutting metal: factory output ×2; repairs −50% time."}
+  - id: MEC-12
+    name: Assembly Line
+    era: 8
+    type: M
+    status: draft
+    requires: [MEC-11, NRG-09]
+    effects:
+      - {kind: prose, text: "Mass production ×3; consumer goods abundant (+Cohesion via prosperity)."}
+  - id: MEC-13
+    name: Electronic Computer
+    era: 8
+    type: D
+    status: draft
+    requires: [MEC-12, NUM-13]
+    effects:
+      - {kind: prose, text: "Build: Computing center. +Insight (Researcher output ×1.5); planners optimize logistics. *KEY-9 prerequisite.*"}
+  - id: MEC-14
+    name: Integrated Circuits
+    era: 9
+    type: M
+    status: draft
+    requires: [MEC-13, INQ-18, CER-14]
+    effects:
+      - {kind: prose, text: "Microchips: every electronic-age project's effect +25%."}
+  - id: MEC-15
+    name: Personal Computing
+    era: 9
+    type: D
+    status: draft
+    requires: [MEC-14]
+    effects:
+      - {kind: prose, text: "Computers everywhere: Commons Insight ×1.3; office work efficiency ×2."}
+  - id: MEC-16
+    name: "Industrial Robotics & Automation"
+    era: 9
+    type: M
+    status: draft
+    requires: [MEC-14, NUM-14]
+    effects:
+      - {kind: prose, text: "Factories run with 80% fewer workers; freed labor flows to services and research."}

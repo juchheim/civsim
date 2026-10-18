@@ -1,0 +1,13 @@
+# Fauna (docs/MVP/12 §6).
+schema: 1
+fauna:
+  - {id: deer, name: Deer, biomes: "forest, woodland", herd_size: "15–30", growth_yr: "30%", meat_per_kill_r: 4, hide: 1, migrates: Local, domesticable_project: "—", exposure_gate: "—"}
+  - {id: aurochs, name: Aurochs, biomes: "woodland, grassland, forest edge", herd_size: "20–40", growth_yr: "18%", meat_per_kill_r: 15, hide: 2, migrates: Seasonal (15 tiles), domesticable_project: Cattle (HUS-04), exposure_gate: "—"}
+  - {id: wild_boar, name: Wild boar, biomes: "forest, wetland", herd_size: "10–20", growth_yr: "40%", meat_per_kill_r: 5, hide: 1, migrates: Local, domesticable_project: Pigs (HUS-04), exposure_gate: "—"}
+  - {id: bison, name: Bison, biomes: "grassland, steppe", herd_size: "40–100", growth_yr: "15%", meat_per_kill_r: 15, hide: 2, migrates: Seasonal (25 tiles), domesticable_project: "—", exposure_gate: "—"}
+  - {id: horse, name: Horse, biomes: "steppe, grassland", herd_size: "20–50", growth_yr: "18%", meat_per_kill_r: 10, hide: 1, migrates: Seasonal (20 tiles), domesticable_project: HUS-07 (E3), exposure_gate: "[Seen: Wild horses]"}
+  - {id: reindeer, name: Reindeer, biomes: "tundra, taiga", herd_size: "50–150", growth_yr: "20%", meat_per_kill_r: 5, hide: 1, migrates: Long (40 tiles), domesticable_project: herd following (HUS-02), exposure_gate: "—"}
+  - {id: wild_goat_sheep, name: Wild goat / sheep, biomes: "mountain, hills", herd_size: "15–30", growth_yr: "30%", meat_per_kill_r: 3, hide: 1, migrates: Altitudinal, domesticable_project: HUS-03, exposure_gate: "[Seen: Wild goats or sheep]"}
+  - {id: gazelle_antelope, name: Gazelle / antelope, biomes: "savanna, desert edge", herd_size: "30–60", growth_yr: "30%", meat_per_kill_r: 3, hide: 1, migrates: Seasonal, domesticable_project: "—", exposure_gate: "—"}
+  - {id: camel_llama, name: Camel / llama, biomes: "desert, high mountain (Americas-like set)", herd_size: "10–20", growth_yr: "15%", meat_per_kill_r: 8, hide: 1, migrates: Long, domesticable_project: HUS-09 (E4), exposure_gate: "[Seen: Camels or Llamas]"}
+  - {id: small_game_birds, name: "Small game & birds", biomes: all habitable, herd_size: "(not agents)", growth_yr: "—", meat_per_kill_r: 1, hide: 0, migrates: "—", domesticable_project: "—", exposure_gate: always present for bows (HNT-06)}

@@ -1,0 +1,137 @@
+# WAY: Wayfinding & Cartography (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: WAY, theme: reach, name: "Wayfinding & Cartography", purpose: "vision, exploration, map knowledge and route efficiency. Exploration triggers exposure gates ([Seen: …]), so Wayfinding unlocks research across all three themes.", anchors: "landmarks and trails; seasonal rounds; star navigation; sketch maps (Pavlov ~25 ka; Mezhyrich); celestial navigation (Polynesia, Phoenicia); periplus; Ptolemy's *Geography*; magnetic compass (China ~11th c.); portolans and astrolabe; Harrison's chronometer (1761); triangulation surveys; aerial photography and radar; GPS (1978–1995); GIS."}
+projects:
+  - id: WAY-01
+    name: "Landmarks & Trails"
+    era: 0
+    type: M
+    status: numeric
+    requires: []
+    effects:
+      - {kind: reach, text: "scout range +50%"}
+      - {kind: mod, stat: trails_form_after_20_crossings_cost, op: mult, value: 0.8, note: "Trails form after 20 crossings: cost ×0.8"}
+      - {kind: mod, stat: lost_scouts, op: pct, value: -0.9, note: "Lost scouts, −90%"}
+    practice: [{action: scout, share: 100}]
+    flavor: The land became a map in our heads.
+    moment: "A cairn on a ridge; a scout looks back and finds home"
+  - id: WAY-02
+    name: Seasonal Round
+    era: 1
+    type: I
+    status: numeric
+    requires: [WAY-01, FOR-02]
+    effects:
+      - {kind: rule, text: "seasonal round: bands move between 2–4 planned camps"}
+      - {kind: claim, text: "2 seasonal camps per settlement founded in E1–E3, placed r+1 to r+3 from it; each radius 2 at 50% of the band's Emit; satellite camps persist"}
+      - {kind: hazard, cause: starvation, mult: 0.92}
+      - {kind: cap, cap: food, mult: 1.05}
+      - {kind: reach, text: "+1"}
+      - {kind: build, structure: seasonal_camp, note: "2 per settlement founded in E1-E3, radius-2 claim at 50% strength (07b 9.4)"}
+    practice: [{action: scout, share: 50}, {action: haul, share: 50}]
+    flavor: We go where the food will be.
+    moment: "The band leaves the river camp for the autumn hills, as every year"
+  - id: WAY-03
+    name: Star Paths
+    era: 1
+    type: M
+    status: numeric
+    requires: [WAY-02, INQ-02]
+    effects:
+      - {kind: rule, text: "night travel; scouts never get lost"}
+      - {kind: reach, text: "+1"}
+    practice: [{action: scout, share: 100}]
+    flavor: The sky is a map.
+    moment: A scout steers by a bright star across a dark plain
+  - id: WAY-04
+    name: Sketch Maps
+    era: 2
+    type: D
+    status: numeric
+    requires: [WAY-03, ART-03]
+    effects:
+      - {kind: rule, text: explored terrain stays revealed for the whole civilization}
+      - {kind: planner, text: "settler site choice +"}
+    practice: [{action: scout, share: 100}]
+    flavor: "We drew the land, and shared it."
+    moment: A map scratched on a mammoth tusk
+  - id: WAY-05
+    name: Celestial Navigation
+    era: 3
+    type: M
+    status: draft
+    requires: [WAY-04, NUM-06]
+    effects:
+      - {kind: prose, text: "Sea voyages out of sight of land (open-sea hops ×2 distance)."}
+  - id: WAY-06
+    name: "Periplus & Itineraries"
+    era: 4
+    type: M
+    status: draft
+    requires: [WAY-05, COM-07]
+    effects:
+      - {kind: prose, text: "Written route guides: trade route efficiency +25%."}
+  - id: WAY-07
+    name: Grid Cartography
+    era: 4
+    type: M
+    status: draft
+    requires: [WAY-06, NUM-07, LRN-05]
+    effects:
+      - {kind: prose, text: "Coordinate maps: Reveal: coastline outlines of the known world; Beacon range +."}
+  - id: WAY-08
+    name: Magnetic Compass
+    era: 5
+    type: M
+    status: draft
+    requires: [WAY-07, INQ-06]
+    effects:
+      - {kind: prose, text: "All-weather navigation: sea travel losses −50%. *KEY-6 prerequisite.*"}
+  - id: WAY-09
+    name: "Portolan Charts & Astrolabe"
+    era: 5
+    type: M
+    status: draft
+    requires: [WAY-08, NUM-08]
+    effects:
+      - {kind: prose, text: "Accurate sea charts and latitude: sea routes +30% speed."}
+  - id: WAY-10
+    name: Marine Chronometer
+    era: 6
+    type: M
+    status: draft
+    requires: [WAY-09, MEC-09]
+    effects:
+      - {kind: prose, text: "Longitude solved: ocean routes optimal; shipwrecks −70%."}
+  - id: WAY-11
+    name: Triangulation Survey
+    era: 7
+    type: M
+    status: draft
+    requires: [WAY-10, NUM-11]
+    effects:
+      - {kind: prose, text: "National surveys: Reveal: full terrain in own territory; planners place infrastructure optimally."}
+  - id: WAY-12
+    name: "Aerial Survey & Radar"
+    era: 8
+    type: M
+    status: draft
+    requires: [WAY-11, TRN-15, INQ-15]
+    effects:
+      - {kind: prose, text: "Reveal: large radius around airfields; enemy movements visible."}
+  - id: WAY-13
+    name: Satellite Constellation
+    era: 9
+    type: S
+    status: draft
+    requires: [WAY-12, INQ-17]
+    effects:
+      - {kind: prose, text: "Build: Launch site; satellites. Reveal: entire map; perfect navigation. *KEY-10 prerequisite.*"}
+  - id: WAY-14
+    name: Geographic Information Systems
+    era: 9
+    type: M
+    status: draft
+    requires: [WAY-13, MEC-15]
+    effects:
+      - {kind: prose, text: "Planners optimize land use: all settlement layouts +10% efficiency."}

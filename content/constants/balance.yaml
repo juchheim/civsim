@@ -1,0 +1,62 @@
+# Tuned constants (docs/MVP/07, 07b, 09, 13). Values from balance/tools/params.py (tuned) plus the rules below.
+schema: 1
+type_mult: {D: 1, M: 1, S: 1.2, R: 0.8, I: 1.5, W: 2, K: 2.5}
+constants:
+  - {id: SeasonSeconds, value: 15, unit: s, source: "05 §3.1: 150 ticks at 10 Hz"}
+  - {id: StartChildren, value: 2, unit: people, source: "05 §20"}
+  - {id: StartAdults, value: 8, unit: people, source: "05 §20 (4 men, 4 women)"}
+  - {id: StartElders, value: 2, unit: people, source: "05 §20"}
+  - {id: WomenShare, value: 0.5, unit: share, source: share of adults who are fertile women}
+  - {id: ChildYears, value: 14, unit: years, source: "05 §5.3: adult at 14"}
+  - {id: AdultYears, value: 31, unit: years, source: "05 §5.3: elder at 45"}
+  - {id: BaseFertility, value: 0.13, unit: births/woman/season, source: "05 §9.2 (tuned: WS-H rec.)"}
+  - {id: CrowdingExp, value: 6, unit: exp, source: "09 §3.2: births × (1 − (Pop/Cap)^k)"}
+  - {id: GroupInCrowding, value: 0, unit: flag, source: "09 §3.2: 1 = crowding counts the group cap; tuned: food and housing only"}
+  - {id: OvercapLoss, value: 0.1, unit: share/season, source: "ASSUMED: people above cap who die or leave"}
+  - {id: CohesionFactor, value: 1, unit: "×", source: "05 §10.1 (0.6–1.2); 1.0 = average"}
+  - {id: FissionTrigger, value: 0.85, unit: "× settlement cap", source: "05 §9.4: over cap OR food/housing pressure high"}
+  - {id: FissionRate, value: 0.34, unit: share of settlements/season, source: "ASSUMED: over-cap settlements that split per season"}
+  - {id: DaughterShare, value: 0.4, unit: share, source: "05 §9.4: 30–45% of pop"}
+  - {id: MinDaughter, value: 6, unit: people, source: "ASSUMED: smallest viable daughter band"}
+  - {id: SettlementPacking, value: 0.6, unit: "× claim area", source: "ASSUMED: tiles per settlement = hex area of claim radius × packing"}
+  - {id: LowTiesShare, value: 0.5, unit: "×", source: "05 §9.4: daughter bands share Insight at 50% before SOC-03"}
+  - {id: CommonsCoef, value: 4.8, unit: Insight/yr, source: "02 §8.1 Commons coefficient"}
+  - {id: CommonsExp, value: 0.85, unit: exp, source: "02 §8.1"}
+  - {id: ElderCommons, value: 2, unit: "×", source: "02 §8.1: elders count double"}
+  - {id: RoleScale, value: 8, unit: "×", source: "multiplies every role and structure output in 02 §8.1"}
+  - {id: OutElder, value: 1, unit: Insight/yr, source: "GOV-01 (×RoleScale)"}
+  - {id: OutShaman, value: 1.5, unit: Insight/yr, source: BEL-03}
+  - {id: OutPriest, value: 2, unit: Insight/yr, source: BEL-06}
+  - {id: OutScribe, value: 3, unit: Insight/yr, source: LRN-04 / COM-05}
+  - {id: OutScholar, value: 6, unit: Insight/yr, source: LRN-05}
+  - {id: OutResearcher, value: 15, unit: Insight/yr, source: LRN-12}
+  - {id: OutMonastery, value: 2, unit: Insight/yr, source: BEL-10 (per monastery)}
+  - {id: EraBoonPct, value: 0.05, unit: share, source: "02 §13: +5% Insight Era Boon"}
+  - {id: EraBoonTake, value: 0.5, unit: prob, source: "ASSUMED: Leaning picks Insight boon half the time"}
+  - {id: KHPerAdult, value: 0, unit: KH/adult/season, source: "02 §9: 0.05 per figure-equivalent per season (linear)"}
+  - {id: KHOfCommons, value: 0.35, unit: "× Commons", source: "tuned: Know-how = share of Commons Insight (after learning mults)"}
+  - {id: KHUsable, value: 0.7, unit: share, source: "ASSUMED: practice in lineages that get slotted"}
+  - {id: KHMaxRatio, value: 0.75, unit: "× Insight", source: "02 §9 drain ≤ slot rate and ≤ 50% of cost; ~6/7 of slots practised"}
+  - {id: SlotPrimary, value: 4, unit: parts, source: "02 §8.2"}
+  - {id: SlotSecondary, value: 2, unit: parts, source: "02 §8.2"}
+  - {id: SlotTertiary, value: 1, unit: parts, source: "02 §8.2"}
+  - {id: KeystoneMult, value: 2.5, unit: "×", source: "02 §4 type K"}
+  - {id: EraLag, value: 0.7, unit: "× per era", source: "02 §8.3 EraLagMult"}
+  - {id: BackfillOverlap, value: 0.3, unit: share, source: "ASSUMED: forced backfills already taken as earlier free picks"}
+  - {id: DiffusionMult, value: 1, unit: "×", source: "02 §8.3; 1.0 = the leader, no contacted civ knows it"}
+  - {id: CapsByProject, value: 1, unit: flag, source: "09 §5: caps rise project by project (Caps sheet); 0 = per-era tables only"}
+  - {id: WinterTrigger, value: 1, unit: flag, source: "09 §7.2: late-winter food-pressure fission trigger (0 = off)"}
+  - {id: LeanBase, value: 0.77, unit: "× FoodCap", source: "09 §6.2: late-winter food a camp can count on, before any storage project"}
+  - {id: OwnershipThreshold, value: 0.7, unit: claim, source: "07b R3"}
+  - {id: OwnershipLead, value: 0.2, unit: share, source: "05 §11.2"}
+  - {id: FlipSeasons, value: 1, unit: seasons, source: "05 §11.2"}
+  - {id: FalloffTail, value: 1, unit: tiles, source: "07b R3c: max(0, 1 - d/(r+1))"}
+  - {id: CampsPerSettlement, value: 2, unit: camps, source: "07b §9.4 (WAY-02)"}
+  - {id: CampRadius, value: 2, unit: tiles, source: "07b §9.4"}
+  - {id: CampEmit, value: 0.5, unit: share, source: "07b §9.4"}
+  - {id: TickRate, value: 10, unit: ticks/s, source: "05 §3.1"}
+  - {id: SeasonTicks, value: 150, unit: ticks, source: "05 §3.1"}
+  - {id: ChecksumInterval, value: 50, unit: ticks, source: "15 §6 D8"}
+  - {id: BandStart, value: 12, unit: people, source: "05 §20"}
+  - {id: DiffusionStep, value: 0.1, unit: share per contacted civ, source: "02 §8.3"}
+  - {id: DiffusionFloor, value: 0.5, unit: share, source: "02 §8.3"}

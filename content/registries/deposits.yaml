@@ -1,0 +1,21 @@
+# Deposits (docs/MVP/12 §8).
+schema: 1
+deposits:
+  - {id: stone, name: Stone (knapping), rule: "any hill, riverbed cobbles", per_1_000_land: ubiquitous, depth: 1, gate_used_by: STN}
+  - {id: flint_chert, name: Flint / chert, rule: "chalk and limestone lowlands, river gravels", per_1_000_land: 25, depth: "1 (2 for mines)", gate_used_by: "STN-05/06, MIN-01/02"}
+  - {id: clay, name: Clay, rule: "river and lake margins, wetland edges", per_1_000_land: 20, depth: 1, gate_used_by: "[Seen: Clay], CER, BLD-05"}
+  - {id: ochre, name: Ochre, rule: "hills, cave regions", per_1_000_land: 8, depth: 1, gate_used_by: "MIN-01, CHM-01"}
+  - {id: native_copper, name: Native copper, rule: foothill outcrops, per_1_000_land: 3, depth: 1, gate_used_by: "[Seen: Native copper], MET-01"}
+  - {id: copper_ore, name: Copper ore, rule: "foothills, mountains", per_1_000_land: 6, depth: "1–2", gate_used_by: MET-02}
+  - {id: arsenical_copper, name: Arsenical copper, rule: mountains, per_1_000_land: 3, depth: 2, gate_used_by: MET-04}
+  - {id: tin, name: Tin, rule: "granite mountains, river placers", per_1_000_land: 1, depth: "1–2", gate_used_by: MET-05 (strategic)}
+  - {id: gold_silver, name: Gold / silver, rule: "mountains, river placers", per_1_000_land: "1.5 / 1", depth: "1–2", gate_used_by: "[Seen: Gold or Silver], MET-07"}
+  - {id: iron, name: Iron, rule: widespread hills and bogs, per_1_000_land: 10, depth: "1–2", gate_used_by: MET-08}
+  - {id: salt, name: Salt, rule: "arid lowlands, coast pans, salt domes", per_1_000_land: 3, depth: 1, gate_used_by: "[Seen: Salt], MIN-06"}
+  - {id: coal, name: Coal, rule: ancient lowland basins, per_1_000_land: "4 (in 1–2 basins per continent)", depth: "2–3", gate_used_by: "[Seen: Coal], MIN-09"}
+  - {id: oil, name: Oil, rule: "sedimentary basins, offshore shelves", per_1_000_land: "2 (+ offshore)", depth: 3, gate_used_by: "[Seen: Oil seep], MIN-13"}
+  - {id: saltpeter_sulfur, name: Saltpeter / sulfur, rule: caves and arid / volcanic zones, per_1_000_land: "1.5 / 1", depth: 1, gate_used_by: CHM-07}
+  - {id: bauxite, name: Bauxite, rule: tropical uplands, per_1_000_land: 2, depth: 1, gate_used_by: MET-16}
+  - {id: rare_earths_lithium, name: Rare earths / lithium, rule: "old mountain cores, salt flats", per_1_000_land: 1, depth: 2, gate_used_by: MIN-15}
+  - {id: silk_moths, name: Silk moths, rule: Warm and Temperate woodland, per_1_000_land: "4 regions per map", depth: "—", gate_used_by: "[Seen: Silk moths], FIB-09"}
+  - {id: sugarcane, name: Sugarcane, rule: "Tropical, Warm wetland", per_1_000_land: "3 regions per map", depth: "—", gate_used_by: FOD-10}

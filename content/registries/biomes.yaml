@@ -1,0 +1,16 @@
+# Biomes (docs/MVP/12 §4).
+schema: 1
+biomes:
+  - {id: temperate_forest, name: Temperate forest, climate: Temperate, move_cost: 1.5, forage: 1.0, game_herds_per_100_tiles: "4 (deer, aurochs, boar)", wood_stock_l_tile: 30, soil_fertility: 70, habitable_weight: 1.0, notes: "Heavy clearing; good all-rounder"}
+  - {id: open_woodland, name: Open woodland, climate: Temperate / Warm, move_cost: 1.2, forage: 1.1, game_herds_per_100_tiles: 5, wood_stock_l_tile: 15, soil_fertility: 65, habitable_weight: 1.0, notes: "Wild-grain stands common (25% of tiles)"}
+  - {id: grassland_steppe, name: Grassland / steppe, climate: Temperate / Arid edge, move_cost: 1.0, forage: 0.8, game_herds_per_100_tiles: "7 (bison, horse, aurochs)", wood_stock_l_tile: 2, soil_fertility: 75, habitable_weight: 1.0, notes: "Stands 40%; horses here; fire spreads fast"}
+  - {id: savanna, name: Savanna, climate: Warm, move_cost: 1.0, forage: 1.15, game_herds_per_100_tiles: 8, wood_stock_l_tile: 4, soil_fertility: 55, habitable_weight: 1.0, notes: "Stands 35%; big game"}
+  - {id: tropical_forest, name: Tropical forest, climate: Tropical, move_cost: 1.6, forage: "0.9 (no winter)", game_herds_per_100_tiles: 3, wood_stock_l_tile: 40, soil_fertility: 45, habitable_weight: 1.0, notes: "Year-round forage; disease ×1.2"}
+  - {id: wetland, name: Wetland, climate: any non-Cold, move_cost: 2.0, forage: 1.15, game_herds_per_100_tiles: "3 + waterfowl", wood_stock_l_tile: 5, soil_fertility: "85 (when drained/used for rice)", habitable_weight: 1.0, notes: "Fish ×1.2; rice in Warm"}
+  - {id: taiga, name: Taiga, climate: Cold, move_cost: 1.5, forage: 0.7, game_herds_per_100_tiles: "4 (reindeer, elk)", wood_stock_l_tile: 25, soil_fertility: 35, habitable_weight: 1.0, notes: Needs FIB-04 to settle}
+  - {id: tundra, name: Tundra, climate: Cold, move_cost: 1.3, forage: 0.45, game_herds_per_100_tiles: "5 (reindeer)", wood_stock_l_tile: 0, soil_fertility: 15, habitable_weight: 0.5, notes: "Needs FIB-04; herd following"}
+  - {id: desert, name: Desert, climate: Arid, move_cost: 1.5, forage: 0.35, game_herds_per_100_tiles: "1 (camels, gazelle)", wood_stock_l_tile: 0, soil_fertility: "20 (100 with irrigation)", habitable_weight: 0.5, notes: "Oases at springs; camels"}
+  - {id: mountain, name: Mountain, climate: any, move_cost: 4.0, forage: 0.4, game_herds_per_100_tiles: "2 (goats, sheep)", wood_stock_l_tile: 10, soil_fertility: 25, habitable_weight: 1.0, notes: "Ores; wild goats and sheep"}
+  - {id: peak, name: Peak, climate: "—", move_cost: impassable, forage: 0, game_herds_per_100_tiles: 0, wood_stock_l_tile: 0, soil_fertility: 0, habitable_weight: 0, notes: ""}
+  - {id: ice, name: Ice, climate: Polar, move_cost: 3.0, forage: 0, game_herds_per_100_tiles: 0, wood_stock_l_tile: 0, soil_fertility: 0, habitable_weight: 0, notes: "Map's top edge"}
+  - {id: coast_shallows, name: Coast / shallows, climate: water, move_cost: "(boat)", forage: "—", game_herds_per_100_tiles: fish 1.5 R/tile, wood_stock_l_tile: "—", soil_fertility: "—", habitable_weight: "—", notes: "Coast-adjacent land gets shellfish +0.3 R/tile forage"}

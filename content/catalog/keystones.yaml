@@ -1,0 +1,120 @@
+# Era keystones KEY-1..KEY-10 (docs/MVP/03c). `era` is the era being left; `enters` the era entered (10 = Apex).
+schema: 1
+keystones:
+  - id: KEY-1
+    name: Symbolic Mind
+    era: 0
+    enters: 1
+    type: K
+    status: numeric
+    requires: [COM-02, FIR-02, STN-04, SOC-01]
+    ack: [V9]
+    ack_reason: "Two free picks are accepted so the first keystone lands near the 7.5 minute onboarding target (07 F9, 08 §12)."
+    breadth: {era: 0, min: 13}
+    effects:
+      - {kind: era_advance, era: 1}
+      - {kind: show, text: E1 projects}
+      - {kind: rule, text: Legends begin to appear}
+      - {kind: legacy, text: "Keystone, ×3 if First"}
+    flavor: We began to think in symbols.
+    moment: "The band gathers at the hearth; painted hands appear on a rock wall"
+  - id: KEY-2
+    name: Sedentism
+    era: 1
+    enters: 2
+    type: K
+    status: numeric
+    requires: [FOR-04, FOD-03, BLD-03, WAY-02]
+    breadth: {era: 1, min: 14}
+    effects:
+      - {kind: era_advance, era: 2}
+      - {kind: rule, text: year-round camps possible}
+      - {kind: legacy, text: Keystone}
+      - {kind: hazard, cause: endemic, mult: 1.30}
+      - {kind: rule, text: "epidemics begin, 09 §10"}
+    flavor: We stayed.
+    moment: A camp that does not move when the leaves fall
+  - id: KEY-3
+    name: Age of Metal
+    era: 2
+    enters: 3
+    type: K
+    status: numeric
+    requires: [MET-02, SOC-07, TRD-03, NUM-03]
+    breadth: {era: 2, min: 20}
+    effects:
+      - {kind: era_advance, era: 3}
+      - {kind: highlight, text: ore deposits on the map}
+      - {kind: legacy, text: Keystone}
+    flavor: The Age of Metal begins.
+    moment: "Copper glints in a chief's hand as villages gather"
+  - id: KEY-4
+    name: "Iron & Law"
+    era: 3
+    enters: 4
+    type: K
+    status: draft
+    requires: [MET-08, COM-05, GOV-06, TRD-05]
+    breadth: {era: 3, min: 21}
+    effects:
+      - {kind: prose, text: "Iron era; representation scale 1:2; provinces possible."}
+  - id: KEY-5
+    name: Feudal Order
+    era: 4
+    enters: 5
+    type: K
+    status: draft
+    requires: [AGR-10, GOV-09, BEL-09, DEF-08]
+    breadth: {era: 4, min: 21}
+    effects:
+      - {kind: prose, text: "Faith & Fief era; scale 1:5."}
+  - id: KEY-6
+    name: Printing Revolution
+    era: 5
+    enters: 6
+    type: K
+    status: draft
+    requires: [COM-10, TRD-09, WAY-08, LRN-08]
+    breadth: {era: 5, min: 16}
+    effects:
+      - {kind: prose, text: "Discovery era; scale 1:25; oceans open."}
+  - id: KEY-7
+    name: Industrial Revolution
+    era: 6
+    enters: 7
+    type: K
+    status: draft
+    requires: [NRG-06, MEC-10, TRD-10, INQ-08]
+    breadth: {era: 6, min: 14}
+    effects:
+      - {kind: prose, text: "Industry era; scale 1:100; pollution system activates."}
+  - id: KEY-8
+    name: Electrification
+    era: 7
+    enters: 8
+    type: K
+    status: draft
+    requires: [NRG-08, COM-12, TRN-12, MED-11]
+    breadth: {era: 7, min: 14}
+    effects:
+      - {kind: prose, text: "Modern era; scale 1:250; night lights on the map."}
+  - id: KEY-9
+    name: Digital Revolution
+    era: 8
+    enters: 9
+    type: K
+    status: draft
+    requires: [INQ-18, MEC-13, LRN-11, TRD-14]
+    breadth: {era: 8, min: 18}
+    effects:
+      - {kind: prose, text: "Information (post-modern) era; scale 1:500; data-link layer appears on the map."}
+  - id: KEY-10
+    name: Planetary Network
+    era: 9
+    enters: 10
+    type: K
+    status: draft
+    requires: [COM-16, WAY-13, NRG-16, DIP-14]
+    breadth: {era: 9, min: 17}
+    effects:
+      - {kind: prose, text: "Must be built as 5 uplink sites spread across your territory (each ≥ 15 tiles apart). The first to finish wins the Apex victory."}

@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/CivSim.Cli/CivSim.Cli.csproj" />
+    <Project Path="src/CivSim.Content/CivSim.Content.csproj" />
     <Project Path="src/CivSim.Harness/CivSim.Harness.csproj" />
     <Project Path="src/CivSim.Sim/CivSim.Sim.csproj" />
     <Project Path="src/CivSim.Tests/CivSim.Tests.csproj" />

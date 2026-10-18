@@ -1,0 +1,136 @@
+# CHM: Chemistry & Materials (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: CHM, theme: craft, name: "Chemistry & Materials", purpose: "transforming substances: pigments, glues, lime, soap, gunpowder, acids, cement, explosives, fertilizer, plastics. Supplies inputs to nearly every other lineage.", anchors: "ochre pigment (Blombos ~100–75 ka); birch tar (~200 ka, Neanderthal); lime plaster (~12 ka); natron and soap (Babylon ~2800 BCE); distillation (alchemy); gunpowder (China ~9th c.); Leblanc soda (1791); Portland cement (1824); coal-tar dyes (1856); dynamite (1867); Haber–Bosch (1913); plastics (Bakelite 1907; post-war boom); green chemistry (1990s); nanomaterials (2000s)."}
+projects:
+  - id: CHM-01
+    name: Ochre Pigments
+    era: 1
+    type: D
+    status: numeric
+    requires: [FIR-03]
+    effects:
+      - {kind: good, id: G-PIGMENT}
+    practice: [{action: craft, share: 100}]
+    flavor: "Red as blood, red as life."
+    moment: Ochre ground on a flat stone into red paste
+  - id: CHM-02
+    name: Birch-Tar Adhesive
+    era: 1
+    type: M
+    status: numeric
+    requires: [FIR-03, STN-04]
+    effects:
+      - {kind: good, id: G-TAR}
+      - {kind: mod, stat: hafted_tool_durability, op: mult, value: 1.4, note: "Hafted tool durability, ×1.4"}
+    practice: [{action: craft, share: 50}, {action: tend_fire, share: 50}]
+    flavor: "Glue from the tree's tears."
+    moment: "Birch bark heated under a stone; black tar oozes out"
+  - id: CHM-03
+    name: Lime Burning
+    era: 2
+    type: D
+    status: numeric
+    requires: [FIR-07, MIN-03]
+    effects:
+      - {kind: good, id: G-LIME}
+      - {kind: hazard, cause: endemic, mult: 0.99, note: lime plaster}
+    practice: [{action: tend_fire, share: 50}, {action: craft, share: 50}]
+    flavor: Burned stone made our homes clean.
+    moment: White plaster spread on a floor
+  - id: CHM-04
+    name: "Mordants & Dyes"
+    era: 3
+    type: D
+    status: draft
+    requires: [CHM-01, FIB-07]
+    effects:
+      - {kind: prose, text: "Fast colors in cloth: enables FIB-08."}
+  - id: CHM-05
+    name: "Soap & Natron"
+    era: 3
+    type: D
+    status: draft
+    requires: [CHM-03, FOD-05]
+    effects:
+      - {kind: prose, text: "Good: Soap. Disease −10%, wound infection −15%."}
+  - id: CHM-06
+    name: Distillation
+    era: 5
+    type: D
+    status: draft
+    requires: [CHM-05, CER-07]
+    effects:
+      - {kind: prose, text: "Good: Spirits and essences (trade, medicine, preservation). Early lab practice."}
+  - id: CHM-07
+    name: Gunpowder
+    era: 5
+    type: D
+    status: draft
+    requires: [CHM-06]
+    gates: [{kind: has, target: Saltpeter}]
+    effects:
+      - {kind: prose, text: "Good: Gunpowder. Enables firearms, cannon and blasting."}
+  - id: CHM-08
+    name: "Acids & Alkalis"
+    era: 6
+    type: M
+    status: draft
+    requires: [CHM-07, INQ-08]
+    effects:
+      - {kind: prose, text: "Industrial sulfuric acid and soda: soap, glass, textile bleaching ×2."}
+  - id: CHM-09
+    name: Portland Cement
+    era: 7
+    type: M
+    status: draft
+    requires: [CHM-08, BLD-13]
+    effects:
+      - {kind: prose, text: "Good: Cement, needed for reinforced concrete."}
+  - id: CHM-10
+    name: Coal-Tar Dyes
+    era: 7
+    type: M
+    status: draft
+    requires: [CHM-08, FIR-12]
+    effects:
+      - {kind: prose, text: "Synthetic colors: cloth trade value +; leads to pharmaceuticals."}
+  - id: CHM-11
+    name: High Explosives
+    era: 7
+    type: M
+    status: draft
+    requires: [CHM-08, INQ-10]
+    effects:
+      - {kind: prose, text: "Dynamite: mining and construction ×2; warfare escalation."}
+  - id: CHM-12
+    name: Fertilizer Synthesis
+    era: 8
+    type: M
+    status: draft
+    requires: [CHM-11, NRG-09, AGR-13]
+    effects:
+      - {kind: prose, text: "Haber–Bosch nitrogen: farm yield ×1.8 (supports billions in the real world)."}
+  - id: CHM-13
+    name: "Petrochemicals & Plastics"
+    era: 8
+    type: D
+    status: draft
+    requires: [CHM-12, MIN-13]
+    effects:
+      - {kind: prose, text: "Good: Plastics. Consumer goods cost −40%; pollution +."}
+  - id: CHM-14
+    name: "Green Chemistry & Recycling"
+    era: 9
+    type: M
+    status: draft
+    requires: [CHM-13, INQ-19]
+    effects:
+      - {kind: prose, text: "Industrial pollution −40%; materials recycled."}
+  - id: CHM-15
+    name: Nanomaterials
+    era: 9
+    type: M
+    status: draft
+    requires: [CHM-14, INQ-20]
+    effects:
+      - {kind: prose, text: "Graphene and nano-coatings: materials performance +30% across MET/CER/NRG ladders."}

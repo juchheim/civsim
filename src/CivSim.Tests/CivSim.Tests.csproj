@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CivSim.Sim\CivSim.Sim.csproj" />
+    <ProjectReference Include="..\CivSim.Content\CivSim.Content.csproj" />
+    <ProjectReference Include="..\CivSim.Cli\CivSim.Cli.csproj" />
   </ItemGroup>
 
 </Project>

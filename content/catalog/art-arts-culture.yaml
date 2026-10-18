@@ -1,0 +1,146 @@
+# ART: Arts & Culture (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: ART, theme: kin, name: "Arts & Culture", purpose: "Cohesion, soft claims (cultural influence beyond borders), the Beacon lever, Know-how sharing and Legends. In the post-modern era, culture becomes a primary means of influence (soft power).", anchors: "shell beads (Blombos ~75 ka); storytelling; cave art (Sulawesi ~51 ka; Chauvet ~36 ka); bone flutes (~40 ka); songlines; reliefs; epics (Gilgamesh); theatre (Athens); illuminated manuscripts; Renaissance patronage; public museums (1683+) and concerts; photography (1839) and cinema (1895); radio and TV; global pop culture; video games (1970s+)."}
+projects:
+  - id: ART-01
+    name: "Beads & Body Ornament"
+    era: 0
+    type: D
+    status: numeric
+    requires: [SOC-01]
+    effects:
+      - {kind: good, id: G-BEADS}
+      - {kind: cohesion, value: 2}
+      - {kind: rule, text: First tradeable good}
+    practice: [{action: craft, share: 50}, {action: socialize, share: 50}]
+    flavor: This is who we are.
+    moment: "Shell beads strung on cord, held up to the sun"
+  - id: ART-02
+    name: Storytelling
+    era: 0
+    type: I
+    status: numeric
+    requires: [ART-01, COM-02]
+    effects:
+      - {kind: know_how, text: "+20%"}
+      - {kind: cohesion, value: 1, note: per season at a hearth}
+    practice: [{action: tell_stories, share: 100}]
+    flavor: The story of the bear kept us from the bear.
+    moment: "An elder acts out a hunt by firelight; children laugh"
+  - id: ART-03
+    name: Cave Painting
+    era: 1
+    type: D
+    status: numeric
+    requires: [ART-02, CHM-01]
+    effects:
+      - {kind: claim, text: "+0.5, radius 3 around painted sites"}
+      - {kind: cohesion, value: 3}
+      - {kind: know_how, text: "HNT, +10%"}
+    practice: [{action: craft, share: 50}, {action: ritual, share: 50}]
+    flavor: "Paint the herd, and it returns."
+    moment: Torchlight on a cave wall where a painted aurochs seems to move
+  - id: ART-04
+    name: "Music & Dance"
+    era: 1
+    type: D
+    status: numeric
+    requires: [ART-02, STN-07]
+    effects:
+      - {kind: cohesion, value: 3}
+      - {kind: mod, stat: feast_and_gathering_effect, op: pct, value: 0.25, note: "Feast and gathering effect, +25%"}
+    practice: [{action: ritual, share: 50}, {action: socialize, share: 50}]
+    flavor: Music made us one body.
+    moment: "A bone flute plays; feet stamp in rhythm"
+  - id: ART-05
+    name: Songlines
+    era: 1
+    type: I
+    status: numeric
+    requires: [ART-02, WAY-02]
+    effects:
+      - {kind: lever, text: "Beacon +1"}
+      - {kind: mod, stat: travel_speed_in_known_land, op: pct, value: 0.3, note: "Travel speed in known land, +30%"}
+    practice: [{action: scout, share: 50}, {action: tell_stories, share: 50}]
+    flavor: The song is the path.
+    moment: A wanderer sings the way across the desert
+  - id: ART-06
+    name: Monumental Reliefs
+    era: 3
+    type: M
+    status: draft
+    requires: [ART-03, STN-11]
+    effects:
+      - {kind: prose, text: "Carved stone art: Wonders give +25% Cohesion; Legends commemorated (Legend effects persist after death)."}
+  - id: ART-07
+    name: Epic Poetry
+    era: 3
+    type: I
+    status: draft
+    requires: [ART-04, COM-05]
+    effects:
+      - {kind: prose, text: "Shared epics: Cohesion across all your settlements +10%; Lever: Beacon +1."}
+  - id: ART-08
+    name: "Theatre & Arena"
+    era: 4
+    type: S
+    status: draft
+    requires: [ART-07, BLD-09]
+    effects:
+      - {kind: prose, text: "Build: Theatre or arena. City Cohesion +15%; unrest −."}
+  - id: ART-09
+    name: Illuminated Manuscripts
+    era: 5
+    type: M
+    status: draft
+    requires: [ART-08, BEL-10]
+    effects:
+      - {kind: prose, text: "Luxury books: prestige trade; monasteries' Insight +10%."}
+  - id: ART-10
+    name: Renaissance Patronage
+    era: 6
+    type: I
+    status: draft
+    requires: [ART-09, TRD-08]
+    effects:
+      - {kind: prose, text: "Patron-funded masters: Legend chance ×2; Insight +10%; Lever: Beacon +1."}
+  - id: ART-11
+    name: "Museums & Concert Halls"
+    era: 7
+    type: S
+    status: draft
+    requires: [ART-10, SOC-12]
+    effects:
+      - {kind: prose, text: "Build: Museum. City Cohesion +; tourism trade income."}
+  - id: ART-12
+    name: "Photography & Cinema"
+    era: 8
+    type: D
+    status: draft
+    requires: [ART-11, CER-12, NRG-09]
+    effects:
+      - {kind: prose, text: "Soft claim: your culture projects influence into rival border tiles (claim pressure without settlers)."}
+  - id: ART-13
+    name: Broadcast Media
+    era: 8
+    type: D
+    status: draft
+    requires: [ART-12, COM-14]
+    effects:
+      - {kind: prose, text: "Soft-claim range ×2; national Cohesion +10%."}
+  - id: ART-14
+    name: Global Pop Culture
+    era: 9
+    type: I
+    status: draft
+    requires: [ART-13, COM-16]
+    effects:
+      - {kind: prose, text: "Soft power ×2; rival civilizations' Cohesion against you −10% (they like your culture). Lever: Beacon +2."}
+  - id: ART-15
+    name: Interactive Media
+    era: 9
+    type: D
+    status: draft
+    requires: [ART-14, MEC-15]
+    effects:
+      - {kind: prose, text: "Video games and virtual worlds: Cohesion +; Commons Insight +5% (a wink)."}

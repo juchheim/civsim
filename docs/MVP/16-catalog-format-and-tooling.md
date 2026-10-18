@@ -230,3 +230,33 @@ Checks marked **new** do not exist in the Python scripts yet.
 | Round trip | `import-md` then `docs` reproduces the original tables byte for byte (before the banner is added) |
 | Determinism | `build-pack` twice gives an identical hash; the hash is identical on macOS and Windows |
 | Property tests | Random valid catalogs compile; random single-field mutations are rejected or accepted as expected |
+
+## 11. M1 as built (2026-10-18)
+
+M1 implemented this spec. Where it differs from the text above, **this section wins**.
+
+| # | Spec said | M1 did | Why |
+|---|-----------|--------|-----|
+| 1 | `civsim import-md` (C# command) | A one-time **Python script**, [import_md.py](catalog-tools/import_md.py), generated `content/` and is now retired | The import runs once; a throwaway script was far less work than a typed C# importer. It also cross-checked the catalog tables against doc 11 (names, types, requires, costs) |
+| 2 | Text keys resolved through `text/en.yaml` | **Inline** `name`, `flavor`, `moment` strings | Simpler for now; localization can add keys later without changing the pack |
+| 3 | JSON Schemas in `content/schema/` | Schemas are **C# code** (`Schema.cs`, `EffectSpecs.cs`); no schema files | One place to maintain; schema files can be generated later for editors |
+| 4 | Binary pack with a SHA-256 | **Canonical JSON** pack (UTF-8, sorted keys, decimals as exact Q32.32 raw integers) with a SHA-256 of its bytes; 254 KB for 519 projects | Human-diffable, loads in milliseconds, no custom binary reader. Revisit only if load time matters |
+| 5 | Typed effect fields per primitive | Effects are `{kind, fields}` records checked by per-kind specs; mechanical kinds carry numbers, behavioural kinds carry a `text` rule the simulation will implement in code | Keeps the YAML readable; behaviour that needs code gets its numbers when the system is built (M3 onward) |
+| 6 | Registries: actions, goods, structures, roles, tools, biomes, fauna, deposits, eras, archetypes, difficulty | Those, plus **practice** (action to lineage Know-how), **guarantees** (world-generation guarantees) and **openings** (the validated example openings) | The checks V8, V14 and V18 need them as data |
+| 7 | `anchor` per project | `anchors` per **lineage** | The docs only record anchors per lineage |
+| 8 | V1 to V18 | **V1 to V14, V17 and V18** implemented. **V15 (cap targets) and V16 (hazard coverage) are deferred** to M3, when the simulation computes caps and hazards from the effects | They need the balance model's per-era tables inside the validator |
+| 9 | `diagram`, `docs`, `replay` commands | `validate`, `build-pack`, `stats`, `paths`, `gates`, `pack-info` implemented; **`diagram`, `docs` and `replay` deferred** | The generated markdown (migration step M5) and replay tooling are not needed until the YAML has been edited for a while |
+| 10 | Costs derived unless overridden | Same, plus a required `cost_reason` on any override and an `ack` / `ack_reason` pair to accept a specific warning on one project | Keeps exceptions deliberate and visible |
+
+**What the first validation run found** (and the import corrected, so a re-run reproduces the YAML): 16 goods
+that the goods registry says a project unlocks, but whose project had no `good` effect; two structures
+(`seasonal_camp`, `pasture`) with no `build` effect; three method rungs whose multiplier had been mis-read from a
+note (forage rung 4, dugout, outrigger); and ten projects whose practice did not feed their own lineage (so the
+`craft` practice split was widened and a `work_animals` practice added for the NRG lineage). Every finding was a
+real gap between the prose documents.
+
+**Results:** the golden numbers of §7 reproduce exactly (519 nodes, 170/161/178 by theme, 34 · 59 · 52 · 65 · 56 ·
+49 · 41 · 43 · 60 · 50 by era, keystone closures 11 to 338, the same seven critical gates, every lineage at least
+36% cross-theme), `civsim validate --strict` reports 0 errors and 0 warnings, the pack builds byte-identically
+twice, is independent of file order, field order and comments, and its hash is checked on macOS and Windows in CI
+against `tests/golden/content-pack.txt`. 133 tests cover it, including one injected defect per check.

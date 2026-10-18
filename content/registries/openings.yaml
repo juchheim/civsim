@@ -1,0 +1,6 @@
+# Validated example openings (docs/MVP/04 §7). The validator (V18) replays them against the catalog.
+schema: 1
+openings:
+  - {id: grower, name: Grower (Kin-leaning), steps: [FOR-01, SOC-01, FIR-01, FOD-01, SOC-02, STN-01, WOD-01, FOR-02, FIB-01, COM-01, COM-02, ART-01, ART-02, STN-02, FIR-02, FIR-03, STN-03, STN-04, WAY-01, KEY-1, SOC-03, WAY-02, FIB-05, FOR-03, STN-05, FOD-02, STN-06, FOR-04, FOD-03, MED-01, FOR-05, FOR-06, FIB-02, BLD-01, WOD-02, BLD-02, BLD-03, LRN-01, LRN-02, KEY-2]}
+  - {id: builder, name: Builder (Craft-leaning), steps: [STN-01, FIR-01, FOR-01, STN-02, WOD-01, FIB-01, FIR-02, STN-03, FIR-03, FIR-04, BLD-01, STN-04, FIB-02, COM-01, COM-02, SOC-01, KEY-1, STN-05, FIR-06, STN-06, CHM-01, CHM-02, ART-01, WOD-02, MEC-01, BLD-02, BLD-03, FIB-03, FIB-05, MIN-01, FOR-02, WAY-01, WAY-02, FOR-03, FOR-04, FOD-01, FOD-02, FOD-03, KEY-2]}
+  - {id: wanderer, name: Wanderer (Reach-leaning), steps: [WAY-01, COM-01, HNT-01, TER-01, DIP-01, COM-02, STN-01, FIR-01, FOR-01, SOC-01, STN-02, FIB-01, FIR-02, STN-03, STN-04, KEY-1, WOD-01, FOR-02, WAY-02, TER-02, INQ-02, WAY-03, SEA-01, HNT-02, HNT-03, INQ-01, HNT-04, HUS-01, TRN-01, TRN-02, SOC-02, SOC-03, DIP-02, FIB-05, FOR-03, STN-05, STN-06, FOR-04, FIR-03, FOD-01, FOD-02, FOD-03, FIB-02, BLD-01, BLD-02, ART-01, WOD-02, BLD-03, KEY-2]}

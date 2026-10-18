@@ -1,0 +1,13 @@
+# Tool tiers (docs/MVP/10 §5.2). Imported once; edit here from now on.
+schema: 1
+tools:
+  - {id: t0, name: "Hands, sticks", unlocked_by: [start], inputs: "—", durability: "—", enables: rung 0 everywhere}
+  - {id: t1, name: "Pebble choppers & flakes", unlocked_by: [STN-01], make_time: 0.05, inputs: stone 0.3 L, durability: "1.0", enables: "chop 1, butcher +25%"}
+  - {id: t2, name: Hand axe kit, unlocked_by: [STN-02], make_time: 0.08, inputs: stone 0.4 L, durability: "2.0", enables: "chop 2, butcher +45% (incl. +20% carcass)"}
+  - {id: t3, name: "Prepared-core kit (flakes, points)", unlocked_by: [STN-03], make_time: 0.08, inputs: stone 0.28 L, durability: "2.0", enables: stone points}
+  - {id: t4, name: "Hafted kit (axe, spear)", unlocked_by: [STN-04], make_time: 0.12, inputs: "stone 0.3, cord 0.1, wood 0.1", durability: "3.0 (×1.4 with CHM-02 tar)", enables: "chop 3, hunt 2"}
+  - {id: t5, name: Blade kit, unlocked_by: [STN-05, FIR-06], make_time: 0.07, inputs: flint 0.25 L, durability: "4.5", enables: durable everyday tools}
+  - {id: t6, name: Composite microlith kit, unlocked_by: [STN-06], make_time: 0.09, inputs: "flint 0.2, wood 0.1, tar or cord", durability: "4.0", enables: "arrows, sickles"}
+  - {id: t7, name: Polished axe, unlocked_by: [STN-08], make_time: 0.3, inputs: stone 0.4 L, durability: "10", enables: "chop 4, clearing"}
+  - {id: bone_set, name: "Bone & antler set (needles, awls, harpoons, flutes)", unlocked_by: [STN-07], make_time: 0.1, inputs: bone/antler 0.3 L, durability: "6", enables: "tailoring, harpoons, flutes"}
+  - {id: copper_awls, name: "Copper awls & ornaments", unlocked_by: [MET-01, MET-02], make_time: 0.2, inputs: copper 0.1 L, durability: "8 (awl)", enables: "prestige, trade"}

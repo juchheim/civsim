@@ -1,0 +1,127 @@
+# NUM: Number, Measure & Time (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: NUM, theme: reach, name: "Number, Measure & Time", purpose: "counting, calendars and mathematics, so planning, building, trade and science work. Feeds planners' foresight and many cross-theme prerequisites.", anchors: "tally bones (Lebombo ~43 ka; Ishango ~20 ka); lunar notation; clay tokens (~8000 BCE); standard weights; Babylonian place value; solar calendars; Egyptian and Greek geometry; zero and Hindu-Arabic numerals; al-Khwarizmi's algebra; Napier's logarithms (1614) and Descartes; calculus (1660s–80s); probability and statistics; Boole (1854) and Turing (1936); data science."}
+projects:
+  - id: NUM-01
+    name: Tally Marks
+    era: 1
+    type: D
+    status: numeric
+    requires: [COM-02]
+    effects:
+      - {kind: planner, text: "tracks stores: stockpile targets; winter forecast error −50%"}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "We counted, and we knew."
+    moment: "Notches cut in a bone, one for each basket"
+  - id: NUM-02
+    name: Lunar Calendar
+    era: 1
+    type: M
+    status: numeric
+    requires: [NUM-01, INQ-02]
+    effects:
+      - {kind: mod, stat: seasonal_yields, op: pct, value: 0.1, note: "Seasonal yields, +10% from timing"}
+      - {kind: planner, text: migration and harvest dates exact}
+    practice: [{action: count_stores, share: 50}, {action: scout, share: 50}]
+    flavor: The moon keeps our calendar.
+    moment: Moon phases scratched on antler
+  - id: NUM-03
+    name: Clay Tokens
+    era: 2
+    type: D
+    status: numeric
+    requires: [NUM-02, CER-02]
+    effects:
+      - {kind: mod, stat: storage_losses_to_mismanagement, op: pct, value: -0.5, note: "Storage losses to mismanagement, −50%"}
+      - {kind: rule, text: "trade debts tracked: barter over several seasons"}
+    practice: [{action: count_stores, share: 50}, {action: trade, share: 50}]
+    flavor: Little clay shapes stood for grain.
+    moment: Clay tokens in a sealed ball
+  - id: NUM-04
+    name: "Standard Weights & Measures"
+    era: 3
+    type: M
+    status: draft
+    requires: [NUM-03, TRD-04]
+    effects:
+      - {kind: prose, text: "Fair trade: trade friction −20%; construction precision (+10% build)."}
+  - id: NUM-05
+    name: Place-Value Arithmetic
+    era: 3
+    type: M
+    status: draft
+    requires: [NUM-04, COM-05]
+    effects:
+      - {kind: prose, text: "Large-number administration: admin capacity +25%."}
+  - id: NUM-06
+    name: "Solar Calendar & Astronomy"
+    era: 3
+    type: M
+    status: draft
+    requires: [NUM-05, BEL-06]
+    effects:
+      - {kind: prose, text: "Accurate year: farm yields +10%; flood prediction."}
+  - id: NUM-07
+    name: "Geometry & Surveying"
+    era: 4
+    type: M
+    status: draft
+    requires: [NUM-06]
+    effects:
+      - {kind: prose, text: "Land surveying: fields, roads and aqueducts laid out optimally (+15% infrastructure efficiency)."}
+  - id: NUM-08
+    name: "Zero & Positional Numerals"
+    era: 5
+    type: M
+    status: draft
+    requires: [NUM-07, LRN-05]
+    effects:
+      - {kind: prose, text: "Efficient calculation: trade and admin +15%."}
+  - id: NUM-09
+    name: Algebra
+    era: 5
+    type: M
+    status: draft
+    requires: [NUM-08]
+    effects:
+      - {kind: prose, text: "Abstract problem-solving: Scholar Insight +15%."}
+  - id: NUM-10
+    name: "Logarithms & Analytic Geometry"
+    era: 6
+    type: M
+    status: draft
+    requires: [NUM-09, COM-10]
+    effects:
+      - {kind: prose, text: "Navigation and engineering calculation ×2 speed."}
+  - id: NUM-11
+    name: Calculus
+    era: 6
+    type: M
+    status: draft
+    requires: [NUM-10]
+    effects:
+      - {kind: prose, text: "Physics and engineering: INQ projects −10% cost (stacking with Know-how)."}
+  - id: NUM-12
+    name: "Statistics & Probability"
+    era: 7
+    type: M
+    status: draft
+    requires: [NUM-11, GOV-12]
+    effects:
+      - {kind: prose, text: "Census analysis, insurance and public health: planners predict famine and epidemics."}
+  - id: NUM-13
+    name: "Boolean Logic & Computation"
+    era: 8
+    type: M
+    status: draft
+    requires: [NUM-12]
+    effects:
+      - {kind: prose, text: "Theory of computation: enables Electronic Computer."}
+  - id: NUM-14
+    name: Data Science
+    era: 9
+    type: M
+    status: draft
+    requires: [NUM-13, MEC-15]
+    effects:
+      - {kind: prose, text: "Big data: all planners +10% efficiency; Council auto-picks get smarter."}

@@ -1,0 +1,164 @@
+# MET: Metallurgy (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: MET, theme: craft, name: Metallurgy, purpose: "the Bronze → Iron → Steel tool and weapon tiers, which are the biggest single multipliers on chopping, farming, building and fighting from E3 on. Geography-gated: copper, tin, arsenic and iron sit unevenly on the map, so trade or conquest matters.", anchors: "native copper (~8000 BCE); copper smelting (~5000 BCE); arsenical then tin bronze (~3000 BCE); bloomery iron (~1200 BCE); quench-hardened steel; wootz crucible steel; blast furnace (China ~5th c. BCE; Europe ~1300); coke smelting (1709); puddling (1784); Bessemer (1856); Hall–Héroult aluminium (1886)."}
+projects:
+  - id: MET-01
+    name: Native Copper
+    era: 2
+    type: D
+    status: numeric
+    requires: [STN-08]
+    gates: [{kind: seen, target: Native copper}]
+    effects:
+      - {kind: unlock_action, action: collect_native_copper}
+      - {kind: good, id: G-COPORN}
+      - {kind: gate, text: "[Seen: Native copper]"}
+    practice: [{action: mine, share: 50}, {action: craft, share: 50}]
+    flavor: A stone that bends.
+    moment: "Green-streaked stone, hammered into a bright bead"
+  - id: MET-02
+    name: Copper Smelting
+    era: 2
+    type: D
+    status: numeric
+    requires: [MET-01, FIR-07, INQ-03]
+    effects:
+      - {kind: good, id: G-COPPER}
+      - {kind: role, id: smith}
+      - {kind: rule, text: "copper awls and ornaments; copper tools come with MET-03"}
+    practice: [{action: smelt, share: 100}]
+    flavor: We melted the rock.
+    moment: "Green stone in a hot kiln; red metal runs into the ash"
+  - id: MET-03
+    name: "Casting & Moulds"
+    era: 3
+    type: M
+    status: draft
+    requires: [MET-02, CER-03]
+    effects:
+      - {kind: prose, text: "▸ Chop: Copper axe; copper tools cheaper (−40% metal)."}
+  - id: MET-04
+    name: Arsenical Bronze
+    era: 3
+    type: M
+    status: draft
+    requires: [MET-03]
+    gates: [{kind: has, target: Arsenic ore}]
+    effects:
+      - {kind: prose, text: "Good: Bronze (route A). ▸ Tools & arms: Bronze."}
+  - id: MET-05
+    name: Tin Bronze
+    era: 3
+    type: M
+    status: draft
+    requires: [MET-03]
+    gates: [{kind: has, target: Tin}]
+    effects:
+      - {kind: prose, text: "Good: Bronze (route B, +20% quality). ▸ Tools & arms: Bronze. Tin trade becomes strategic."}
+  - id: MET-06
+    name: Lost-Wax Casting
+    era: 3
+    type: M
+    status: draft
+    requires: [ART-06]
+    requires_any: [MET-04, MET-05]
+    effects:
+      - {kind: prose, text: "Fine bronze: statues, bells, type molds. +Prestige goods."}
+  - id: MET-07
+    name: "Gold & Silver Working"
+    era: 3
+    type: D
+    status: draft
+    requires: [MET-03, TRD-03]
+    gates: [{kind: seen, target: Gold or Silver}]
+    effects:
+      - {kind: prose, text: "Good: Precious metal, the basis for coinage (TRD-06)."}
+  - id: MET-08
+    name: Bloomery Iron
+    era: 3
+    type: D
+    status: draft
+    requires: [FIR-09]
+    requires_any: [MET-04, MET-05]
+    effects:
+      - {kind: prose, text: "Good: Iron (bloom). Iron ore is common, so metal becomes available everywhere. *KEY-4 prerequisite.*"}
+  - id: MET-09
+    name: Iron Tools
+    era: 4
+    type: M
+    status: draft
+    requires: [MET-08]
+    effects:
+      - {kind: prose, text: "▸ Chop: Iron axe; ▸ Till: Iron share; ▸ Quarry: Iron pick. Tools for everyone, not just elites."}
+  - id: MET-10
+    name: "Quench & Temper"
+    era: 4
+    type: M
+    status: draft
+    requires: [MET-09]
+    effects:
+      - {kind: prose, text: "Steel edges: tool durability ×2, weapons +25%."}
+  - id: MET-11
+    name: Crucible Steel
+    era: 5
+    type: M
+    status: draft
+    requires: [MET-10, CER-08, TRD-07]
+    effects:
+      - {kind: prose, text: "Good: High-grade steel. Arms +20%; luxury blades as trade goods."}
+  - id: MET-12
+    name: "Blast Furnace & Cast Iron"
+    era: 5
+    type: S
+    status: draft
+    requires: [MET-10, NRG-03]
+    effects:
+      - {kind: prose, text: "Build: Blast furnace. Iron output ×4; cast iron pots, cannon, machine parts."}
+  - id: MET-13
+    name: Coke Smelting
+    era: 6
+    type: M
+    status: draft
+    requires: [MET-12, FIR-12]
+    effects:
+      - {kind: prose, text: "Iron without charcoal: output ×3, wood demand ↓."}
+  - id: MET-14
+    name: "Puddling & Rolling Mills"
+    era: 7
+    type: M
+    status: draft
+    requires: [MET-13, NRG-07]
+    effects:
+      - {kind: prose, text: "Wrought iron by the ton: rails, girders, boilers."}
+  - id: MET-15
+    name: Bessemer Steel
+    era: 7
+    type: M
+    status: draft
+    requires: [MET-14, INQ-10]
+    effects:
+      - {kind: prose, text: "▸ Steel: Converter ×10. Steel replaces iron in everything."}
+  - id: MET-16
+    name: Aluminium Smelting
+    era: 8
+    type: M
+    status: draft
+    requires: [MET-15, NRG-09, INQ-11]
+    effects:
+      - {kind: prose, text: "Good: Aluminium (needs Bauxite). Light alloys for aviation and transmission lines."}
+  - id: MET-17
+    name: "Alloy Steels & Superalloys"
+    era: 8
+    type: M
+    status: draft
+    requires: [MET-16, INQ-15]
+    effects:
+      - {kind: prose, text: "Stainless steel and superalloys: machine durability ×2; jet engines; turbine blades."}
+  - id: MET-18
+    name: "Advanced Materials & Recycling"
+    era: 9
+    type: M
+    status: draft
+    requires: [MET-17, CHM-14, INQ-19]
+    effects:
+      - {kind: prose, text: "Composites and closed-loop recycling: metal demand from mines −40%."}

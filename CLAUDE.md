@@ -8,6 +8,7 @@ Read [docs/MVP/README.md](docs/MVP/README.md) for the design. The architecture d
 dotnet build CivSim.slnx -c Release
 dotnet test CivSim.slnx -c Release                      # must stay green
 dotnet run --project src/CivSim.Harness -c Release -- toy --check-golden tests/golden/toy-v1.txt
+dotnet run --project src/CivSim.Cli -c Release -- validate --strict      # content must stay clean
 ```
 
 On this Mac the SDK comes from Homebrew; if `dotnet` cannot find its runtime set
@@ -25,6 +26,15 @@ On this Mac the SDK comes from Homebrew; if `dotnet` cannot find its runtime set
 3. **Integer overflow throws** (project setting). Hashing code uses `unchecked` explicitly.
 4. **Never change the semantics of `Fix64`, `Pcg32`, `Hash64`, the replay format or command numbering casually.** Replays and the golden checksum depend on them. Append to `CommandKind`; never renumber.
 5. **Cross-platform determinism is a CI check** (macOS arm64 and Windows x64 must reproduce `tests/golden/toy-v1.txt`). If the golden changes, explain why in the commit message.
+
+## Content
+
+- `content/` (YAML) is the source of truth for the catalog, registries and constants; see `content/README.md`.
+- Edit YAML, run `civsim validate --strict`, and if the content changed on purpose refresh
+  `tests/golden/content-pack.txt` (`build-pack --write-golden`) in the same commit.
+- Never re-run `docs/MVP/catalog-tools/import_md.py` over edited content: it rewrites every file.
+- `CivSim.Content` (YamlDotNet) is tooling. The simulation and the game load the compiled pack through
+  `CivSim.Sim.Content.ContentPack` and never read YAML.
 
 ## Workflow
 

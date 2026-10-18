@@ -1,0 +1,137 @@
+# DEF: Defense & Fortification (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: DEF, theme: reach, name: "Defense & Fortification", purpose: "protecting people, stores and claims from raids, predators and conquest. Defense makes claims sticky.", anchors: "thorn zarebas; lookouts; palisades and ditches; hillforts; Jericho's walls (~8000 BCE) and Uruk; towers and gatehouses; Hadrian's Wall and the *limes*; castles (10th c.+); concentric castles; *trace italienne* (16th c.); coastal batteries; trenches (1914); radar (1930s); nuclear deterrence (1950s+); cyber defense (2000s+)."}
+projects:
+  - id: DEF-01
+    name: Thorn Barriers
+    era: 0
+    type: S
+    status: numeric
+    requires: [WOD-01]
+    effects:
+      - {kind: build, structure: thorn_barrier}
+      - {kind: hazard, cause: predators, mult: 0.80}
+      - {kind: mod, stat: raiders_entering_camp_speed, op: mult, value: 0.5, note: "Raiders entering camp, speed ×0.5"}
+    practice: [{action: build, share: 100}]
+    flavor: Let the night beasts go hungry.
+    moment: A ring of thorny branches pulled around the sleeping camp
+  - id: DEF-02
+    name: Lookouts
+    era: 1
+    type: R
+    status: numeric
+    requires: [DEF-01, COM-02]
+    effects:
+      - {kind: role, id: watcher}
+      - {kind: build, structure: lookout_post, note: "sight +3"}
+      - {kind: mod, stat: raid_surprise, op: pct, value: -0.7, note: "Raid surprise, −70%"}
+    practice: [{action: guard, share: 100}]
+    flavor: Eyes that never sleep.
+    moment: A watcher on a rock shouts a warning
+  - id: DEF-03
+    name: "Palisades & Ditches"
+    era: 2
+    type: S
+    status: numeric
+    requires: [DEF-02, WOD-03]
+    effects:
+      - {kind: build, structure: palisade, note: "settlement defense ×2"}
+    practice: [{action: build, share: 50}, {action: guard, share: 50}]
+    flavor: A wall of trees.
+    moment: Sharpened stakes ring a village
+  - id: DEF-04
+    name: "Earthworks & Hillforts"
+    era: 3
+    type: S
+    status: draft
+    requires: [DEF-03, MIN-03]
+    effects:
+      - {kind: prose, text: "Build: Hillfort (refuge for the whole hinterland)."}
+  - id: DEF-05
+    name: Stone Walls
+    era: 3
+    type: S
+    status: draft
+    requires: [DEF-04, STN-11]
+    effects:
+      - {kind: prose, text: "Build: City walls. Defense ×3; besiegers need siege engines."}
+  - id: DEF-06
+    name: "Towers & Gatehouses"
+    era: 4
+    type: S
+    status: draft
+    requires: [DEF-05, MEC-04]
+    effects:
+      - {kind: prose, text: "Wall defense +50%; controlled gates (trade not disrupted in wartime)."}
+  - id: DEF-07
+    name: Frontier Walls
+    era: 4
+    type: S
+    status: draft
+    requires: [DEF-06, TER-08]
+    effects:
+      - {kind: prose, text: "Build: Border wall segments. Border tiles resist flips −50%; raids across walls −70%."}
+  - id: DEF-08
+    name: Castle Building
+    era: 4
+    type: S
+    status: draft
+    requires: [DEF-06, BLD-09]
+    effects:
+      - {kind: prose, text: "Build: Castle. Holds a region (claim radius 5, strong); garrisons. *KEY-5 prerequisite.*"}
+  - id: DEF-09
+    name: Concentric Castles
+    era: 5
+    type: S
+    status: draft
+    requires: [DEF-08, MEC-06]
+    effects:
+      - {kind: prose, text: "Castles ×2 defense; siege attrition favors defenders."}
+  - id: DEF-10
+    name: Star Forts
+    era: 6
+    type: S
+    status: draft
+    requires: [DEF-09, NUM-07, WAR-12]
+    effects:
+      - {kind: prose, text: "Build: Bastion fort. Resists cannon."}
+  - id: DEF-11
+    name: Coastal Fortifications
+    era: 7
+    type: S
+    status: draft
+    requires: [DEF-10, SEA-14]
+    effects:
+      - {kind: prose, text: "Build: Coastal battery. Harbors immune to blockade by unarmored fleets."}
+  - id: DEF-12
+    name: "Trenches & Wire"
+    era: 8
+    type: S
+    status: draft
+    requires: [DEF-11, MET-15]
+    effects:
+      - {kind: prose, text: "Defensive lines: front-line tiles near-impossible to flip by infantry."}
+  - id: DEF-13
+    name: "Radar & Air Defense"
+    era: 8
+    type: S
+    status: draft
+    requires: [DEF-12, WAY-12]
+    effects:
+      - {kind: prose, text: "Build: Radar station. Air raids −60%."}
+  - id: DEF-14
+    name: Nuclear Deterrence
+    era: 8
+    type: I
+    status: draft
+    requires: [DEF-13, WAR-16]
+    effects:
+      - {kind: prose, text: Rivals cannot declare war of conquest on you (raids and proxy pressure still possible).}
+  - id: DEF-15
+    name: Cyber Defense
+    era: 9
+    type: M
+    status: draft
+    requires: [DEF-13, COM-16]
+    effects:
+      - {kind: prose, text: "Protects data infrastructure: sabotage of your Apex uplinks −80%."}

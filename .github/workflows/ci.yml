@@ -30,6 +30,12 @@ jobs:
       - name: Determinism golden check (cross-platform)
         run: dotnet run --project src/CivSim.Harness -c Release --no-build -- toy --check-golden tests/golden/toy-v1.txt
 
+      - name: Validate content (strict)
+        run: dotnet run --project src/CivSim.Cli -c Release --no-build -- validate --strict
+
+      - name: Content pack hash (cross-platform)
+        run: dotnet run --project src/CivSim.Cli -c Release --no-build -- build-pack --out civsim.pack --check-golden tests/golden/content-pack.txt
+
       - name: Replay record and verify
         run: |
           dotnet run --project src/CivSim.Harness -c Release --no-build -- toy --record toy.replay

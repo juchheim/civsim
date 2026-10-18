@@ -1,0 +1,127 @@
+# LRN: Learning & Education (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: LRN, theme: kin, name: "Learning & Education", purpose: the Insight multiplier and adoption speed (how fast completed projects spread across the map). The research engine of the research game., anchors: "imitation learning; oral tradition; apprenticeship; scribal schools (edubba, Sumer); Plato's Academy and the Lyceum; Library of Alexandria; cathedral schools; universities (Bologna 1088); Royal Society (1660); public schooling (Prussia 1763; widespread 19th c.); mass education; industrial R&D labs (Menlo Park 1876; Bell Labs 1925); open knowledge (Wikipedia 2001; MOOCs); AI-assisted research (2020s)."}
+projects:
+  - id: LRN-01
+    name: "Imitation & Demonstration"
+    era: 0
+    type: M
+    status: numeric
+    requires: [SOC-01]
+    effects:
+      - {kind: adopt, mult: 1.5}
+    practice: [{action: teach, share: 100}]
+    flavor: Watch my hands.
+    moment: "A youth copies an elder's knapping, stroke for stroke"
+  - id: LRN-02
+    name: Oral Tradition
+    era: 1
+    type: I
+    status: numeric
+    requires: [LRN-01, ART-02]
+    effects:
+      - {kind: mod, stat: elder_insight, op: mult, value: 1.5, note: "Elder Insight, ×1.5"}
+      - {kind: rule, text: Know-how not lost when elders die}
+    practice: [{action: teach, share: 50}, {action: tell_stories, share: 50}]
+    flavor: "When an elder dies, nothing is forgotten."
+    moment: An old woman recites the names of forty plants
+  - id: LRN-03
+    name: Apprenticeship
+    era: 2
+    type: I
+    status: numeric
+    requires: [LRN-02, SOC-05]
+    effects:
+      - {kind: mod, stat: role_training_time, op: pct, value: -0.5, note: "Role training time, −50%"}
+      - {kind: mod, stat: skill_gain, op: mult, value: 1.5, note: "Skill gain, ×1.5"}
+    practice: [{action: teach, share: 100}]
+    flavor: Skill passes hand to hand.
+    moment: "A master potter guides an apprentice's hands"
+  - id: LRN-04
+    name: Scribal Schools
+    era: 3
+    type: S
+    status: draft
+    requires: [LRN-03, COM-05]
+    effects:
+      - {kind: prose, text: "Build: School. Role: Scribe (Insight 3)."}
+  - id: LRN-05
+    name: Academies
+    era: 4
+    type: S
+    status: draft
+    requires: [LRN-04, BEL-08]
+    effects:
+      - {kind: prose, text: "Build: Academy. Role: Scholar (Insight 6)."}
+  - id: LRN-06
+    name: Great Library
+    era: 4
+    type: W
+    status: draft
+    requires: [LRN-05, COM-06]
+    effects:
+      - {kind: prose, text: "Wonder: Great Library. Insight +20%; diffusion discount from contacted civilizations doubles."}
+  - id: LRN-07
+    name: "Monastery & Cathedral Schools"
+    era: 5
+    type: S
+    status: draft
+    requires: [LRN-05, BEL-10]
+    effects:
+      - {kind: prose, text: "Scholars trained in every diocese: Scholar count cap +50%."}
+  - id: LRN-08
+    name: Universities
+    era: 5
+    type: S
+    status: draft
+    requires: [LRN-07, GOV-10]
+    effects:
+      - {kind: prose, text: "Build: University. Scholar Insight ×1.5; all adoption +25%. *KEY-6 prerequisite.*"}
+  - id: LRN-09
+    name: Learned Societies
+    era: 6
+    type: I
+    status: draft
+    requires: [LRN-08, COM-10]
+    effects:
+      - {kind: prose, text: "Journals and correspondence: Know-how is shared across lineages (10% spillover); diffusion with contacted civilizations +."}
+  - id: LRN-10
+    name: Public Schooling
+    era: 7
+    type: I
+    status: draft
+    requires: [LRN-09, GOV-12]
+    effects:
+      - {kind: prose, text: "Literacy for all children: Commons Insight ×1.5."}
+  - id: LRN-11
+    name: Mass Education
+    era: 8
+    type: I
+    status: draft
+    requires: [LRN-10, COM-14]
+    effects:
+      - {kind: prose, text: "Secondary and tertiary education for the masses: Commons Insight ×1.5; specialist roles fill instantly. *KEY-9 prerequisite.*"}
+  - id: LRN-12
+    name: "R&D Laboratories"
+    era: 8
+    type: S
+    status: draft
+    requires: [LRN-11, INQ-15]
+    effects:
+      - {kind: prose, text: "Build: Research lab. Role: Researcher (Insight 15)."}
+  - id: LRN-13
+    name: Open Knowledge
+    era: 9
+    type: I
+    status: draft
+    requires: [LRN-12, COM-16]
+    effects:
+      - {kind: prose, text: "Online learning and open access: adoption nearly instant within connected territory; diffusion ×2."}
+  - id: LRN-14
+    name: AI-Assisted Research
+    era: 9
+    type: M
+    status: draft
+    requires: [LRN-13, MEC-15, NUM-14]
+    effects:
+      - {kind: prose, text: "Researcher Insight ×2; Know-how spills over to *all* slotted projects."}

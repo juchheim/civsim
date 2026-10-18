@@ -1,0 +1,160 @@
+# AGR: Agriculture (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: AGR, theme: kin, name: Agriculture, purpose: "the great food multiplier. It anchors people to land, makes settlements permanent and fuels population growth. Hosts the Till and Harvest ladders.", anchors: "cultivation (~11.5 ka, Fertile Crescent; independently in China, Mesoamerica, Andes, New Guinea, Sahel); legumes; slash-and-burn; ard (~4000 BCE); irrigation (Mesopotamia); manuring; terracing; iron sickles; heavy mouldboard plough (Roman/medieval); three-field system (~800 CE); Norfolk rotation (18th c.); seed drill (Tull 1701); reaper (1831); tractors (1890s–1920s); Green Revolution (1950s–60s); precision ag (1990s+); GM crops (1994+)."}
+projects:
+  - id: AGR-01
+    name: Cultivation
+    era: 2
+    type: D
+    status: numeric
+    requires: [FOR-05, FOR-06]
+    effects:
+      - {kind: unlock_action, action: farm}
+      - {kind: build, structure: field}
+      - {kind: method, action: farm, rung: 1, name: Cultivation, rate: 4, unit: R/tile/yr}
+      - {kind: cap, cap: food, mult: 1.30}
+    practice: [{action: farm, share: 100}]
+    flavor: We stopped following the food.
+    moment: The first seeds pressed into cleared soil
+  - id: AGR-02
+    name: Domesticated Staples
+    era: 2
+    type: M
+    status: numeric
+    requires: [AGR-01]
+    effects:
+      - {kind: method, action: farm, rung: 2, name: Domesticated staple by biome, rate: 8, unit: R/tile/yr}
+      - {kind: cap, cap: food, mult: 1.22}
+      - {kind: good, id: G-GRAIN}
+    practice: [{action: farm, share: 100}]
+    flavor: "The plants changed for us, and we for them."
+    moment: "Plump grain that doesn't fall from the stalk"
+  - id: AGR-03
+    name: Legume Pairing
+    era: 2
+    type: M
+    status: numeric
+    requires: [AGR-02]
+    effects:
+      - {kind: mod, stat: field_yield, op: mult, value: 1.08, note: "Field yield, ×1.08"}
+      - {kind: mod, stat: soil_fertility_loss, op: mult, value: 0.5, note: "Soil fertility loss, ×0.5"}
+      - {kind: cap, cap: food, mult: 1.08, take: 0.5}
+    practice: [{action: farm, share: 100}]
+    flavor: The beans feed the soil.
+    moment: Lentils and wheat growing side by side
+  - id: AGR-04
+    name: Slash-and-Burn
+    era: 2
+    type: M
+    status: numeric
+    requires: [AGR-01, STN-08, FIR-05]
+    effects:
+      - {kind: method, action: clear, rung: 1, name: Slash-and-burn, mult: 1, note: "forest 1 ws/tile, fields shift every 4 yrs"}
+    practice: [{action: farm, share: 50}, {action: tend_fire, share: 50}]
+    flavor: Fire opens the forest.
+    moment: "A burning forest edge; ash-blackened fields beyond"
+  - id: AGR-05
+    name: Ard Plough
+    era: 3
+    type: M
+    status: draft
+    requires: [AGR-02, NRG-01]
+    effects:
+      - {kind: prose, text: "▸ Till: Ard (ox-drawn) ×2."}
+  - id: AGR-06
+    name: Irrigation Canals
+    era: 3
+    type: S
+    status: draft
+    requires: [AGR-05, NUM-04]
+    gates: [{kind: near, target: River}]
+    effects:
+      - {kind: prose, text: "Build: Canal network. Arid and floodplain fields ×2; supports cities."}
+  - id: AGR-07
+    name: "Fallow & Manuring"
+    era: 3
+    type: M
+    status: draft
+    requires: [AGR-05, HUS-04]
+    effects:
+      - {kind: prose, text: "Soil exhaustion −60%; integrates herds with fields."}
+  - id: AGR-08
+    name: Terracing
+    era: 4
+    type: S
+    status: draft
+    requires: [AGR-06, STN-11]
+    effects:
+      - {kind: prose, text: "Build: Terraces. Hills and mountains become farmland."}
+  - id: AGR-09
+    name: "Iron Sickle & Scythe"
+    era: 4
+    type: M
+    status: draft
+    requires: [AGR-05, MET-09]
+    effects:
+      - {kind: prose, text: "▸ Harvest: Scythe ×2."}
+  - id: AGR-10
+    name: Heavy Plough
+    era: 4
+    type: M
+    status: draft
+    requires: [AGR-09, NRG-02]
+    effects:
+      - {kind: prose, text: "▸ Till: Mouldboard. Heavy clay soils (temperate forest biomes) become prime farmland. *KEY-5 prerequisite.*"}
+  - id: AGR-11
+    name: Three-Field Rotation
+    era: 5
+    type: M
+    status: draft
+    requires: [AGR-10, AGR-03]
+    effects:
+      - {kind: prose, text: "Land productivity +50%."}
+  - id: AGR-12
+    name: "Four-Course Rotation & Enclosure"
+    era: 6
+    type: M
+    status: draft
+    requires: [AGR-11, HUS-10, TER-10]
+    effects:
+      - {kind: prose, text: "Fodder in rotation, no fallow: land productivity +50%; rural labor released to towns."}
+  - id: AGR-13
+    name: "Seed Drill & Mechanical Reaper"
+    era: 7
+    type: M
+    status: draft
+    requires: [AGR-12, MEC-11]
+    effects:
+      - {kind: prose, text: "▸ Sow/Harvest: Machine ×3; farm labor −40%."}
+  - id: AGR-14
+    name: "Tractors & Combines"
+    era: 8
+    type: M
+    status: draft
+    requires: [AGR-13, NRG-10]
+    effects:
+      - {kind: prose, text: "▸ Till/Harvest: Motorized ×4; farm labor −80%."}
+  - id: AGR-15
+    name: Green Revolution
+    era: 8
+    type: M
+    status: draft
+    requires: [AGR-14, CHM-12, FOR-11]
+    effects:
+      - {kind: prose, text: "High-yield varieties with fertilizer: yield ×2. Famine nearly ends where adopted."}
+  - id: AGR-16
+    name: Precision Farming
+    era: 9
+    type: M
+    status: draft
+    requires: [AGR-15, MEC-15, WAY-13]
+    effects:
+      - {kind: prose, text: "GPS and sensors: inputs −30%, yield +20%, pollution −."}
+  - id: AGR-17
+    name: Genetically Engineered Crops
+    era: 9
+    type: M
+    status: draft
+    requires: [AGR-15, INQ-20]
+    effects:
+      - {kind: prose, text: "Drought and pest resistant: crop failures −50%; marginal biomes farmable."}

@@ -1,0 +1,7 @@
+# AI difficulty levels (docs/MVP/14 §9.2). Better thinking, never bonuses.
+schema: 1
+difficulty:
+  - {id: settler, name: Settler, horizon_eras: 1, beam_width: 2, opponent_model: none, replan: yearly, council_prior_pct: 20, note: reacts to threats 2 seasons late}
+  - {id: chieftain, name: Chieftain, horizon_eras: 2, beam_width: 4, opponent_model: archetype_posterior, replan: season, council_prior_pct: 5}
+  - {id: warlord, name: Warlord, horizon_eras: 3, beam_width: 8, opponent_model: full, replan: season_and_events, council_prior_pct: 0}
+  - {id: legend, name: Legend, horizon_eras: 4, beam_width: 16, opponent_model: full_coalition, replan: season_and_events, council_prior_pct: 0}

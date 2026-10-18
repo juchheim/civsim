@@ -1,0 +1,137 @@
+# FOR: Foraging & Plant Lore (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: FOR, theme: kin, name: "Foraging & Plant Lore", purpose: "the first food engine and the root of agriculture. Later, plant science.", anchors: "tuber digging; nut and seed gathering; Ohalo II wild cereals (~23 ka); Natufian sickles (~12 ka); orchards (olive, fig, date, ~6000 BCE); grafting (antiquity); botanical gardens (Padua 1545); Columbian Exchange (1492+); Mendel (1866); seed banks (Svalbard 2008)."}
+projects:
+  - id: FOR-01
+    name: Plant Lore
+    era: 0
+    type: D
+    status: numeric
+    requires: []
+    effects:
+      - {kind: mod, stat: forage.yield, op: pct, value: 0.3, note: "Forage.yield, +30%"}
+      - {kind: mod, stat: forage.reachable_stock, op: set, value: 0.52, note: "Forage.reachable stock, 40% → 52%"}
+      - {kind: hazard, cause: endemic, mult: 0.98, note: "poisonings −80%"}
+      - {kind: cap, cap: food, mult: 1.10}
+    practice: [{action: forage, share: 100}]
+    flavor: "Learn the plants, or they will teach you."
+    moment: A child is shown which berries to leave alone
+  - id: FOR-02
+    name: "Roots & Tubers"
+    era: 0
+    type: M
+    status: numeric
+    requires: [FOR-01, WOD-01]
+    effects:
+      - {kind: rule, text: "Forage, roots and tubers open"}
+      - {kind: mod, stat: winter_forage_stock, op: mult, value: 2, note: "Winter forage stock, ×2"}
+      - {kind: cap, cap: lean, mult: 1.10}
+      - {kind: good, id: G-ROOT}
+    practice: [{action: forage, share: 100}]
+    flavor: Food that waits underground.
+    moment: Tubers dug from frozen ground in the hungry months
+  - id: FOR-03
+    name: "Nut & Seed Gathering"
+    era: 1
+    type: M
+    status: numeric
+    requires: [FOR-02, FIB-05]
+    effects:
+      - {kind: rule, text: "Forage with baskets: nuts and seeds storable"}
+      - {kind: mod, stat: autumn_forage, op: pct, value: 0.4, note: "Autumn forage, +40%"}
+      - {kind: cap, cap: food, mult: 1.08}
+      - {kind: cap, cap: lean, mult: 1.25}
+      - {kind: good, id: G-NUTS}
+    practice: [{action: forage, share: 100}]
+    flavor: "Autumn's gift, saved for winter."
+    moment: Baskets of acorns poured into a dry cache
+  - id: FOR-04
+    name: Wild Cereal Harvest
+    era: 1
+    type: M
+    status: numeric
+    requires: [FOR-03, STN-06]
+    effects:
+      - {kind: method, action: forage, rung: 3, name: Wild-grass sickle, mult: 2.4, note: on stand tiles}
+      - {kind: cap, cap: food, mult: 1.10}
+      - {kind: good, id: G-WGRAIN}
+      - {kind: good, id: G-SICKLE}
+    practice: [{action: forage, share: 100}]
+    flavor: The grass gave us grain.
+    moment: A sickle sweeps through a golden stand of wild wheat
+  - id: FOR-05
+    name: Seed Grinding
+    era: 1
+    type: M
+    status: numeric
+    requires: [FOR-04, STN-05]
+    effects:
+      - {kind: mod, stat: cereal_food_value, op: pct, value: 0.25, note: "Cereal food value, +25%"}
+      - {kind: cap, cap: food, mult: 1.04}
+    practice: [{action: forage, share: 50}, {action: cook, share: 50}]
+    flavor: "Grind it, and it feeds twice."
+    moment: Seeds rubbed between two stones into coarse flour
+  - id: FOR-06
+    name: Tending Wild Stands
+    era: 1
+    type: M
+    status: numeric
+    requires: [FOR-04, WAY-02]
+    effects:
+      - {kind: method, action: forage, rung: 4, name: Tended stands, mult: 2.4, note: stand regrowth x2}
+      - {kind: show, text: tended tile state}
+      - {kind: cap, cap: food, mult: 1.06}
+    practice: [{action: forage, share: 50}, {action: farm, share: 50}]
+    flavor: We began to help the plants.
+    moment: "Weeds pulled from a wild-grain stand; seeds pressed back into the soil"
+  - id: FOR-07
+    name: Orchards
+    era: 2
+    type: D
+    status: numeric
+    requires: [AGR-01, WOD-03]
+    effects:
+      - {kind: build, structure: orchard, note: "matures in 6 yrs, then 3 R/tile/yr"}
+    practice: [{action: farm, share: 50}, {action: forage, share: 50}]
+    flavor: We planted for our grandchildren.
+    moment: Saplings planted in rows
+  - id: FOR-08
+    name: Grafting
+    era: 4
+    type: M
+    status: draft
+    requires: [FOR-07, MET-09]
+    effects:
+      - {kind: prose, text: "Orchard yield ×2; wine and oil trade goods."}
+  - id: FOR-09
+    name: "Herbals & Botanical Gardens"
+    era: 6
+    type: S
+    status: draft
+    requires: [FOR-08, COM-10]
+    effects:
+      - {kind: prose, text: "Build: Botanical garden. Medicinal plants: MED effects +15%; new-crop trials."}
+  - id: FOR-10
+    name: Columbian Exchange
+    era: 6
+    type: M
+    status: draft
+    requires: [FOR-09, SEA-12]
+    effects:
+      - {kind: prose, text: "Exchange crops with a civilization on another continent (needs contact): food yield +20%, new staples by biome."}
+  - id: FOR-11
+    name: Plant Breeding
+    era: 7
+    type: M
+    status: draft
+    requires: [FOR-10, INQ-13]
+    effects:
+      - {kind: prose, text: "Selected cultivars: crop yield +30%. Leads to hybrids and the Green Revolution."}
+  - id: FOR-12
+    name: "Seed Banks & Agroforestry"
+    era: 9
+    type: M
+    status: draft
+    requires: [FOR-11, INQ-19]
+    effects:
+      - {kind: prose, text: "Blight and climate-shock resilience: crop-failure events −60%."}

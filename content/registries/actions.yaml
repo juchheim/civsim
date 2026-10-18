@@ -1,0 +1,30 @@
+# Actions: method-ladder families and one-off activities (docs/MVP/10 §3-§8).
+# Ladder rungs are NOT listed here: they are the `method` effects of projects, collected per action by the compiler.
+schema: 1
+actions:
+  - {id: forage, name: Forage, class: family, base_rate: 1.6, unit: R/ws}
+  - {id: scavenge, name: Scavenge, class: family, base_rate: 0.9, unit: R/ws}
+  - {id: hunt, name: Hunt, class: family}
+  - {id: fish, name: Fish, class: family}
+  - {id: farm, name: Farm, class: family}
+  - {id: clear, name: Clear land, class: family}
+  - {id: herd, name: Herd, class: family}
+  - {id: chop, name: Chop wood, class: family, base_rate: 2.0, unit: L/ws}
+  - {id: shape_timber, name: Shape timber, class: family}
+  - {id: paddle, name: Paddle, class: family}
+  - {id: keep_fire, name: Keep fire, class: activity}
+  - {id: make_fire, name: Make fire, class: activity}
+  - {id: bury, name: Bury the dead, class: activity}
+  - {id: raft_crossing, name: Raft crossing, class: activity}
+  - {id: gift_exchange, name: Gift exchange, class: activity}
+  - {id: controlled_burn, name: Controlled burn, class: activity}
+  - {id: gather_clay, name: Gather clay, class: activity, base_rate: 3, unit: L/ws}
+  - {id: collect_flint_ochre, name: Collect flint and ochre, class: activity, base_rate: 1, unit: L/ws}
+  - {id: tend_sick, name: Tend the sick, class: activity}
+  - {id: barter, name: Barter, class: activity}
+  - {id: raid, name: Raid, class: activity}
+  - {id: mine_flint, name: Mine flint pits, class: activity, base_rate: 3, unit: L/ws}
+  - {id: quarry, name: Quarry stone blocks, class: activity, base_rate: 2, unit: L/ws}
+  - {id: collect_native_copper, name: Collect native copper, class: activity, base_rate: 0.2, unit: L/ws}
+  - {id: draft_oxen, name: Draft oxen, class: activity}
+  - {id: feast, name: Feast, class: activity}

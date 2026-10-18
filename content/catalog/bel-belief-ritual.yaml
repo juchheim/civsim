@@ -1,0 +1,146 @@
+# BEL: Belief & Ritual (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: BEL, theme: kin, name: "Belief & Ritual", purpose: "Cohesion, morale under hardship, and sacred claims on land. Myth is the social technology that lets strangers cooperate at scale. No magic: belief works through people.", anchors: "burial (Qafzeh ~100 ka; Shanidar); animism and totemism; shamanism; ancestor cults (plastered skulls, Jericho); sacred sites (Göbekli Tepe ~9500 BCE); temples and priesthoods; state cults; Axial Age philosophy (~800–200 BCE); universal religions; monasticism; pilgrimage; Reformation (1517); humanism and the Enlightenment; Universal Declaration of Human Rights (1948); pluralism."}
+projects:
+  - id: BEL-01
+    name: "Mourning & Burial"
+    era: 0
+    type: I
+    status: numeric
+    requires: [SOC-01]
+    effects:
+      - {kind: unlock_action, action: bury}
+      - {kind: mod, stat: cohesion_loss_per_death, op: mult, value: 0.5, note: "Cohesion loss per death, ×0.5"}
+      - {kind: claim, text: "+0.3, radius 2 around burial grounds"}
+    practice: [{action: ritual, share: 100}]
+    flavor: They stay with us in the earth.
+    moment: "A body laid in a shallow grave, red ochre and a stone tool beside it"
+  - id: BEL-02
+    name: "Animism & Totems"
+    era: 1
+    type: I
+    status: numeric
+    requires: [BEL-01, ART-01]
+    effects:
+      - {kind: cohesion, value: 3}
+      - {kind: build, structure: totem}
+      - {kind: claim, text: "+0.3, radius 2 around totems"}
+    practice: [{action: ritual, share: 100}]
+    flavor: Everything is alive and watching.
+    moment: Offerings left at the foot of a great tree
+  - id: BEL-03
+    name: Shamanism
+    era: 1
+    type: R
+    status: numeric
+    requires: [BEL-02, MED-01]
+    effects:
+      - {kind: role, id: shaman, insight: 12, note: heals as MED-01}
+      - {kind: rule, text: "Morale floor in famine: Cohesion never below 25"}
+    practice: [{action: ritual, share: 50}, {action: heal, share: 50}]
+    flavor: One of us walks between worlds.
+    moment: A shaman drums at the edge of the firelight
+  - id: BEL-04
+    name: Ancestor Veneration
+    era: 2
+    type: I
+    status: numeric
+    requires: [BEL-03, SOC-04]
+    effects:
+      - {kind: claim, text: "×1.5 within radius 4 of ancestral burial grounds"}
+      - {kind: rule, text: settlements near ancestors resist abandonment}
+    practice: [{action: ritual, share: 100}]
+    flavor: The ancestors hold the land.
+    moment: Plastered ancestor skulls set in a niche
+  - id: BEL-05
+    name: Sacred Places
+    era: 2
+    type: S
+    status: numeric
+    requires: [BEL-04, ART-03]
+    effects:
+      - {kind: build, structure: shrine, note: "claim +0.5 in radius 3; pilgrimage"}
+      - {kind: cohesion, value: 3, note: for all settlements within 20 tiles}
+    practice: [{action: ritual, share: 50}, {action: build, share: 50}]
+    flavor: A place where the world is thin.
+    moment: Pilgrims climb toward a shrine at dawn
+  - id: BEL-06
+    name: "Temples & Priesthood"
+    era: 3
+    type: S
+    status: draft
+    requires: [BEL-05, BLD-07]
+    effects:
+      - {kind: prose, text: "Build: Temple. Role: Priest (Insight 2, calendar keeping). Cohesion ++."}
+  - id: BEL-07
+    name: State Cult
+    era: 3
+    type: I
+    status: draft
+    requires: [BEL-06, GOV-05]
+    effects:
+      - {kind: prose, text: "Gods of the city: Cohesion shared across all cities; ruler legitimacy (Overreach −10%)."}
+  - id: BEL-08
+    name: "Philosophy & Ethics"
+    era: 4
+    type: I
+    status: draft
+    requires: [BEL-07, COM-07]
+    effects:
+      - {kind: prose, text: "Reasoned inquiry: Insight +10%; diverse groups cohere (conquered peoples integrate faster)."}
+  - id: BEL-09
+    name: Organized Faith
+    era: 4
+    type: I
+    status: draft
+    requires: [BEL-08, TRD-07]
+    effects:
+      - {kind: prose, text: "Universal religion spreads along trade routes: Cohesion with *other* civilizations' converts (soft influence, claim pressure abroad). Role: Missionary. *KEY-5 prerequisite.*"}
+  - id: BEL-10
+    name: Monasticism
+    era: 5
+    type: S
+    status: draft
+    requires: [BEL-09, LRN-05]
+    effects:
+      - {kind: prose, text: "Build: Monastery. Insight +16 each; copies texts (knowledge never lost); farms wilderness."}
+  - id: BEL-11
+    name: Pilgrimage Routes
+    era: 5
+    type: I
+    status: draft
+    requires: [BEL-10, TRN-07]
+    effects:
+      - {kind: prose, text: "Pilgrims travel roads: trade +15% along routes; claim along routes +."}
+  - id: BEL-12
+    name: "Reformation & Tolerance"
+    era: 6
+    type: I
+    status: draft
+    requires: [BEL-11, COM-10]
+    effects:
+      - {kind: prose, text: "Religious diversity tolerated: Cohesion loss from diversity −50%; Insight +10%."}
+  - id: BEL-13
+    name: Secular Humanism
+    era: 7
+    type: I
+    status: draft
+    requires: [BEL-12, INQ-08]
+    effects:
+      - {kind: prose, text: "Reason-based ethics: Insight +10%; Cohesion less tied to faith."}
+  - id: BEL-14
+    name: Human Rights
+    era: 8
+    type: I
+    status: draft
+    requires: [BEL-13, DIP-11]
+    effects:
+      - {kind: prose, text: "Universal norms: Cohesion +; atrocity backlash (wars of annihilation impossible)."}
+  - id: BEL-15
+    name: "Pluralism & Interfaith Dialogue"
+    era: 9
+    type: I
+    status: draft
+    requires: [BEL-14, SOC-15]
+    effects:
+      - {kind: prose, text: "Diverse societies stable: migrants integrate instantly; soft-power +."}

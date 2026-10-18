@@ -1,0 +1,165 @@
+# WAR: Arms & Warfare (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: WAR, theme: reach, name: "Arms & Warfare", purpose: "taking land and stores by force, and defending them in the field. War is risky (deaths, Cohesion loss, rival alliances), but it is a legitimate path to Dominion. Posture *Raid* uses it.", anchors: "clubs and thrown stones; raiding; archery in conflict (Nataruk ~10 ka); warrior bands; bronze arms and shields; chariots (~2000 BCE); phalanx and legion; iron weapons; siege engines; knights; crossbows and longbows; gunpowder weapons (China, then 14th c. Europe); pike and musket; rifles and artillery; tanks and aircraft (WWI); nuclear weapons (1945); precision and drone warfare; UN peacekeeping (1948+)."}
+projects:
+  - id: WAR-01
+    name: "Clubs & Thrown Stones"
+    era: 0
+    type: M
+    status: numeric
+    requires: [WOD-01]
+    effects:
+      - {kind: combat, text: "×1.5 vs predators and raiders"}
+      - {kind: good, id: G-CLUB}
+    practice: [{action: fight, share: 100}]
+    flavor: "We were small, but we could throw."
+    moment: A thrown stone drives off a prowling wolf
+  - id: WAR-02
+    name: Raiding
+    era: 1
+    type: I
+    status: numeric
+    requires: [WAR-01, HNT-04]
+    effects:
+      - {kind: unlock_action, action: raid, note: "steal stores, burn, capture camps; 13 §5"}
+    practice: [{action: fight, share: 50}, {action: hunt, share: 50}]
+    flavor: "What they have, we can take."
+    moment: Painted warriors slip through the grass at dawn
+  - id: WAR-03
+    name: Archery Warfare
+    era: 1
+    type: M
+    status: numeric
+    requires: [WAR-02, HNT-06]
+    effects:
+      - {kind: combat, text: "ranged ×1.5"}
+      - {kind: defense, text: "defenders behind barriers ×2"}
+    practice: [{action: fight, share: 100}]
+    flavor: The bow made the few the many.
+    moment: Arrows arc over a thorn barrier
+  - id: WAR-04
+    name: Warrior Bands
+    era: 2
+    type: R
+    status: numeric
+    requires: [WAR-03, SOC-05]
+    effects:
+      - {kind: role, id: warrior}
+      - {kind: mod, stat: raid_success, op: pct, value: 0.4, note: "Raid success, +40%"}
+      - {kind: rule, text: "border patrols: presence along borders"}
+    practice: [{action: fight, share: 100}]
+    flavor: Some of us live for war.
+    moment: Warriors paint their faces before a raid
+  - id: WAR-05
+    name: "Bronze Arms & Shields"
+    era: 3
+    type: M
+    status: draft
+    requires: [WAR-04]
+    requires_any: [MET-04, MET-05]
+    effects:
+      - {kind: prose, text: "Combat ×1.5; casualties −30%."}
+  - id: WAR-06
+    name: Chariots
+    era: 3
+    type: M
+    status: draft
+    requires: [WAR-05, TRN-05, HUS-07]
+    effects:
+      - {kind: prose, text: "Shock and mobility on open terrain ×2."}
+  - id: WAR-07
+    name: Professional Armies
+    era: 4
+    type: I
+    status: draft
+    requires: [WAR-05, GOV-07]
+    effects:
+      - {kind: prose, text: "Role: Soldier. Standing army: drilled units ×1.5; garrisons hold claims."}
+  - id: WAR-08
+    name: Iron Weapons
+    era: 4
+    type: M
+    status: draft
+    requires: [WAR-07, MET-09]
+    effects:
+      - {kind: prose, text: "Cheap iron arms: army size cap ×2."}
+  - id: WAR-09
+    name: Siege Engines
+    era: 4
+    type: M
+    status: draft
+    requires: [WAR-07, MEC-05]
+    effects:
+      - {kind: prose, text: "Assault walls: siege time −60%."}
+  - id: WAR-10
+    name: Heavy Cavalry
+    era: 5
+    type: M
+    status: draft
+    requires: [WAR-08, TRN-09]
+    effects:
+      - {kind: prose, text: "Mounted shock troops ×2 in open battle."}
+  - id: WAR-11
+    name: "Crossbows & Longbows"
+    era: 5
+    type: M
+    status: draft
+    requires: [WAR-08, MEC-07]
+    effects:
+      - {kind: prose, text: "Ranged troops pierce armor; peasant levies effective."}
+  - id: WAR-12
+    name: Gunpowder Weapons
+    era: 5
+    type: M
+    status: draft
+    requires: [WAR-11, CHM-07]
+    effects:
+      - {kind: prose, text: "Cannon and handguns: walls (pre–Star Fort) −70% effective."}
+  - id: WAR-13
+    name: "Pike & Musket Drill"
+    era: 6
+    type: M
+    status: draft
+    requires: [WAR-12, GOV-12]
+    effects:
+      - {kind: prose, text: "Disciplined national armies ×1.5."}
+  - id: WAR-14
+    name: "Rifles & Artillery"
+    era: 7
+    type: M
+    status: draft
+    requires: [WAR-13, MET-15]
+    effects:
+      - {kind: prose, text: "Firepower ×3; casualties high (Cohesion cost of war +50%)."}
+  - id: WAR-15
+    name: Mechanized Warfare
+    era: 8
+    type: M
+    status: draft
+    requires: [WAR-14, NRG-10, TRN-15]
+    effects:
+      - {kind: prose, text: "Tanks and aircraft: break trench lines; air raids."}
+  - id: WAR-16
+    name: Nuclear Weapons
+    era: 8
+    type: D
+    status: draft
+    requires: [WAR-15, INQ-16]
+    effects:
+      - {kind: prose, text: Ultimate deterrent (enables DEF-14). Use triggers global catastrophe and Legacy penalties.}
+  - id: WAR-17
+    name: "Precision & Drone Warfare"
+    era: 9
+    type: M
+    status: draft
+    requires: [WAR-15, WAY-13]
+    effects:
+      - {kind: prose, text: "Precision strikes: combat ×2 with low own casualties. Infrastructure sabotage (vs. Apex uplinks)."}
+  - id: WAR-18
+    name: Peacekeeping Forces
+    era: 9
+    type: I
+    status: draft
+    requires: [WAR-17, DIP-14]
+    effects:
+      - {kind: prose, text: "Deploy into neutral or allied zones: conflicts there end; Legacy bonus for peace."}

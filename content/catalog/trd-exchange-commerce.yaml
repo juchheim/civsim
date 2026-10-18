@@ -1,0 +1,146 @@
+# TRD: Exchange & Commerce (reach). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: TRD, theme: reach, name: "Exchange & Commerce", purpose: "getting what your land lacks (tin, salt, silk, oil) without conquering it; wealth; peaceful contact; diffusion. Trade is the alternative to war for satisfying [Has: …] gates.", anchors: "gift exchange; obsidian and shell networks (~100 ka+); barter; Neolithic exchange; marketplaces; market towns; coinage (Lydia ~600 BCE); Silk Road; banking and bills of exchange (Italy, 13th c.); double-entry bookkeeping (Pacioli 1494); joint-stock companies (VOC 1602); stock exchange (Amsterdam); industrial capitalism; central banking; Bretton Woods and GATT (1944–47); e-commerce (1990s); global supply chains."}
+projects:
+  - id: TRD-01
+    name: Gift Exchange
+    era: 0
+    type: D
+    status: numeric
+    requires: [SOC-02]
+    effects:
+      - {kind: unlock_action, action: gift_exchange}
+      - {kind: diplo, text: "peaceful first contact +40%"}
+      - {kind: relations, text: "+10 per gift"}
+    practice: [{action: trade, share: 100}]
+    flavor: A gift says we come in peace.
+    moment: Beads laid on a rock between two wary groups
+  - id: TRD-02
+    name: Barter
+    era: 1
+    type: M
+    status: numeric
+    requires: [TRD-01, COM-02, ART-01]
+    effects:
+      - {kind: unlock_action, action: barter}
+      - {kind: rule, text: "traded goods satisfy [Seen] gates"}
+    practice: [{action: trade, share: 100}]
+    flavor: Your stone for our shells.
+    moment: Flint traded for shell across a river
+  - id: TRD-03
+    name: Exchange Networks
+    era: 2
+    type: I
+    status: numeric
+    requires: [TRD-02, WAY-04]
+    effects:
+      - {kind: rule, text: "persistent trade routes; diffusion along routes; luxuries flow"}
+      - {kind: mod, stat: luxury_cohesion, op: mult, value: 1.5, note: "Luxury Cohesion, ×1.5"}
+    practice: [{action: trade, share: 50}, {action: haul, share: 50}]
+    flavor: Our goods travel farther than we do.
+    moment: Traders with obsidian arrive along a well-worn path
+  - id: TRD-04
+    name: Marketplaces
+    era: 3
+    type: S
+    status: draft
+    requires: [TRD-03, SOC-07]
+    effects:
+      - {kind: prose, text: "Build: Market. Internal goods distribution +30%; Role: Trader."}
+  - id: TRD-05
+    name: Market Towns
+    era: 3
+    type: I
+    status: draft
+    requires: [TRD-04, TRN-05]
+    effects:
+      - {kind: prose, text: "Towns specialize in trade: settlements at route crossroads grow +25%. *KEY-4 prerequisite.*"}
+  - id: TRD-06
+    name: Coinage
+    era: 4
+    type: M
+    status: draft
+    requires: [TRD-05, MET-07]
+    effects:
+      - {kind: prose, text: "Money: trade friction −40%; taxes (admin capacity +)."}
+  - id: TRD-07
+    name: Long-Distance Trade Routes
+    era: 4
+    type: I
+    status: draft
+    requires: [TRD-06]
+    requires_any: [HUS-09, SEA-07]
+    effects:
+      - {kind: prose, text: "Caravan (overland) or maritime (harbor-to-harbor) trade: route length ×3; Silk-Road / Indian-Ocean–style network."}
+  - id: TRD-08
+    name: Banking
+    era: 5
+    type: I
+    status: draft
+    requires: [TRD-07, NUM-08]
+    effects:
+      - {kind: prose, text: "Credit and bills of exchange: trade volume ×1.5; projects funded (Wonder build +15%)."}
+  - id: TRD-09
+    name: Double-Entry Bookkeeping
+    era: 5
+    type: M
+    status: draft
+    requires: [TRD-08, NUM-09]
+    effects:
+      - {kind: prose, text: "Accurate accounting: trade profit +20%, admin waste −. *KEY-6 prerequisite.*"}
+  - id: TRD-10
+    name: Joint-Stock Company
+    era: 6
+    type: I
+    status: draft
+    requires: [TRD-09, SEA-12]
+    effects:
+      - {kind: prose, text: "Pooled capital: overseas ventures, colonies and big works ×1.5 speed. *KEY-7 prerequisite.*"}
+  - id: TRD-11
+    name: "Stock Exchange & Insurance"
+    era: 6
+    type: I
+    status: draft
+    requires: [TRD-10, COM-11]
+    effects:
+      - {kind: prose, text: "Risk pooling: losses from wrecks and disasters −50%."}
+  - id: TRD-12
+    name: Industrial Capitalism
+    era: 7
+    type: I
+    status: draft
+    requires: [TRD-11, MEC-10]
+    effects:
+      - {kind: prose, text: "Investment in factories: factory build speed ×2; boom/bust cycle events."}
+  - id: TRD-13
+    name: Central Banking
+    era: 8
+    type: I
+    status: draft
+    requires: [TRD-12, GOV-13]
+    effects:
+      - {kind: prose, text: "Economic stabilization: bust events −60%."}
+  - id: TRD-14
+    name: Global Trade Order
+    era: 8
+    type: I
+    status: draft
+    requires: [TRD-13, DIP-12]
+    effects:
+      - {kind: prose, text: "Tariff agreements: trade with *all* contacted civilizations +30%; diffusion +. *KEY-9 prerequisite.*"}
+  - id: TRD-15
+    name: "Digital Finance & E-Commerce"
+    era: 9
+    type: M
+    status: draft
+    requires: [TRD-14, COM-16]
+    effects:
+      - {kind: prose, text: "Instant global markets: internal distribution near-frictionless."}
+  - id: TRD-16
+    name: Global Supply Chains
+    era: 9
+    type: M
+    status: draft
+    requires: [TRD-15, TRN-16]
+    effects:
+      - {kind: prose, text: "Just-in-time production: craft output +20%, but vulnerable to disruption events."}

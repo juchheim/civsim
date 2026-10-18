@@ -1,0 +1,8 @@
+# AI archetypes (docs/MVP/14 §9.1). Style, never competence.
+schema: 1
+archetypes:
+  - {id: builder, name: Builder, leaning: {craft: 0.5, kin: 0.25, reach: 0.25}, raid_margin: high, expansion: moderate, diplomacy: trade-friendly, signature: "Tool tiers, wonders, efficient core"}
+  - {id: grower, name: Grower, leaning: {craft: 0.2, kin: 0.6, reach: 0.2}, raid_margin: high, expansion: fast fission, diplomacy: friendly, signature: "Many settlements, big population"}
+  - {id: wanderer, name: Wanderer, leaning: {craft: 0.2, kin: 0.2, reach: 0.6}, raid_margin: medium, expansion: "widest claims, overseas early", diplomacy: "first to contact, gifts", signature: "Maps, boats, trade routes"}
+  - {id: warlord, name: Warlord, leaning: {craft: 0.3, kin: 0.2, reach: 0.5}, raid_margin: low, expansion: opportunistic, diplomacy: alliances of convenience, signature: "Raids, conquest windows"}
+  - {id: sage, name: Sage, leaning: {craft: 0.25, kin: 0.5, reach: 0.25}, raid_margin: high, expansion: "slow early, surges", diplomacy: "friendly, tolerant", signature: "Insight, Firsts, institutions"}

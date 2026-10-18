@@ -101,7 +101,8 @@ flowchart LR
 | M | Status | Notes |
 |---|--------|-------|
 | **M0** Foundations | ✅ 2026-10-18 | `CivSim.Sim` (`Fix64`, `Hash64`, `Pcg32`, `StateHasher`, `SimRunner`, replays, toy canary), `CivSim.Harness`, 66 tests (numerics against independent Python references, RNG against the published PCG32 vectors, source rules, replay tamper detection, snapshot resume), CI workflow for macOS and Windows against `tests/golden/toy-v1.txt`. **Gate met:** the first CI run ([run 39138154161](https://github.com/juchheim/civsim/actions/runs/39138154161)) passed build, tests, the golden check and the replay round trip on both **macOS arm64 and Windows x64**, reproducing the same checksums |
-| M1 Content pipeline | next | |
+| **M1** Content pipeline | ✅ 2026-10-18 | `CivSim.Content` (strict YAML loader, schemas, validator V1 to V14, V17, V18, graph analysis, pack compiler), `CivSim.Cli` (`civsim`), `content/` (519 catalog nodes, 14 registries, constants), canonical JSON content pack with SHA-256, 133 tests. Deviations and the validator's first findings are in [16 §11](16-catalog-format-and-tooling.md#11-m1-as-built-2026-10-18). Gate: golden numbers reproduce, 145 + 3 projects `numeric`, stable pack hash; the macOS and Windows hash comparison runs in CI |
+| M2 World | next | |
 
 ## 4. Acceptance checklist
 

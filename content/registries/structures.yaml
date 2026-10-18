@@ -1,0 +1,28 @@
+# Structures registry (docs/MVP/10 §6). Imported once; edit here from now on.
+schema: 1
+structures:
+  - {id: hearth, name: Hearth, class: structure, unlocked_by: FIR-03, labor: 0.2, materials: stone 0.5 L, effect: "Warmth +1 within the camp; evening gathering: +Cohesion, +10% Commons Insight", upkeep: wood 1.5 L/season}
+  - {id: lean_to, name: Lean-to, class: structure, unlocked_by: BLD-01, labor: 0.3, materials: wood 1 L, effect: "Houses 4; warmth +1", upkeep: "—"}
+  - {id: hide_tent, name: Hide tent, class: structure, unlocked_by: BLD-02, labor: 0.4, materials: "hide 3, wood 1", effect: "Houses 5; warmth +1; packs to 1 L (moves with the band)", upkeep: "—"}
+  - {id: pit_house, name: Pit house, class: structure, unlocked_by: BLD-03, labor: 2.0, materials: wood 4 L, effect: "Houses 6; warmth +2", upkeep: rebuild every 10 yrs}
+  - {id: wattle_daub_house, name: "Wattle & daub house", class: structure, unlocked_by: BLD-04, labor: 2.5, materials: "wood 3 L, clay 2 L", effect: "Houses 8; warmth +2", upkeep: "—"}
+  - {id: mudbrick_house, name: Mudbrick house, class: structure, unlocked_by: BLD-05, labor: 3.0, materials: mudbrick 60, effect: "Houses 8; warmth +2; fire-resistant", upkeep: "—"}
+  - {id: longhouse, name: Longhouse, class: structure, unlocked_by: BLD-06, labor: 8.0, materials: "wood 12 L, clay 4 L", effect: "Houses 25; warmth +2; +Cohesion", upkeep: "—"}
+  - {id: storage_pit, name: Storage pit, class: structure, unlocked_by: FOD-03, labor: 0.5, materials: "—", effect: "15 R, spoilage ×0.5", upkeep: "—"}
+  - {id: drying_rack, name: Drying rack, class: structure, unlocked_by: FOD-02, labor: 0.2, materials: wood 0.5 L, effect: Enables smoking/drying at this camp, upkeep: "—"}
+  - {id: granary, name: Granary, class: structure, unlocked_by: FOD-06, labor: 4.0, materials: mudbrick 80, effect: "80 R, spoilage ×0.25", upkeep: "—"}
+  - {id: kiln, name: Kiln, class: structure, unlocked_by: FIR-07, labor: 2.0, materials: "clay 3 L, stone 2 L", effect: "Pottery breakage 20%; enables lime and copper", upkeep: "—"}
+  - {id: quern, name: Grinding stone / quern, class: structure, unlocked_by: STN-09, labor: 0.5, materials: stone 1 L, effect: "Cereal food value +30% for 10 people", upkeep: "—"}
+  - {id: thorn_barrier, name: Thorn barrier, class: structure, unlocked_by: DEF-01, labor: 0.6, materials: wood 2 L, effect: "Predator attacks −60%; raiders slowed ×0.5 entering", upkeep: rebuild yearly}
+  - {id: palisade, name: Palisade, class: structure, unlocked_by: DEF-03, labor_note: "6.0 per hamlet ring (×2 village)", materials: "wood 20 L (×2)", effect: "Settlement defense ×2 (13 §6)", upkeep: "0.2 ws/yr"}
+  - {id: lookout_post, name: Lookout post, class: structure, unlocked_by: DEF-02, labor: 0.5, materials: wood 1 L, effect: "+3 sight; raid warning (13 §5)", upkeep: "—"}
+  - {id: seasonal_camp, name: Seasonal camp, class: structure, unlocked_by: WAY-02, labor: 0.2, materials: hides or brush, effect: "2 per settlement founded in E1–E3, placed 1–3 tiles beyond its claim radius; claims radius 2 at 50% of the band's strength (05 §11.1); used by the seasonal round", upkeep: "—"}
+  - {id: marker, name: Marker (cairn or totem), class: structure, unlocked_by: TER-03, labor: 0.3, materials: stone or wood 1 L, effect: "Claim +30% within radius 2", upkeep: "—"}
+  - {id: shrine, name: Shrine, class: structure, unlocked_by: BEL-05, labor: 2.0, materials: stone 4 L, effect: "Pilgrimage site: inter-band Cohesion; claim +0.5 in radius 3", upkeep: "—"}
+  - {id: weir, name: Weir, class: structure, unlocked_by: HNT-09, labor: 1.5, materials: "wood 3 L, stone 2 L", effect: "§4.3", upkeep: "0.1 ws/season"}
+  - {id: field, name: Field, class: structure, unlocked_by: AGR-01, labor_note: "clearing (§4.4.1)", materials: "—", effect: "§4.4", upkeep: yearly labor}
+  - {id: pasture, name: Pasture, class: structure, unlocked_by: HUS-03, labor_note: "0.2 per tile (fence)", materials: wood 1 L, effect: Holds herd, upkeep: "—"}
+  - {id: orchard, name: Orchard, class: structure, unlocked_by: FOR-07, labor_note: "1.0 per tile", materials: saplings, effect: "Matures after 6 yrs, then 3 R/tile/yr for 50 yrs", upkeep: "0.1 ws/yr"}
+  - {id: megalith, name: Megalith (Wonder), class: wonder, unlocked_by: STN-10, labor: 120, materials: "stone blocks 60 L; rollers (MEC-02)", effect: "10.1 Wonder; Cohesion within 8; seasonal festival", upkeep: "—"}
+  - {id: totem, name: Totem, class: structure, unlocked_by: BEL-02, effect: "Totem poles and marks: +Cohesion; +claim at totems (BEL-02)."}
+  - {id: signal_post, name: Signal post, class: structure, unlocked_by: COM-04, effect: "Alerts cross the territory instantly: defense response time -70% (COM-04)."}

@@ -1,0 +1,13 @@
+# Keep line endings identical on macOS and Windows so content hashes and golden files match.
+*.cs text eol=lf
+*.csproj text eol=lf
+*.props text eol=lf
+*.slnx text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.py text eol=lf
+*.xlsx binary
+*.png binary

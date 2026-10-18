@@ -1,0 +1,165 @@
+# FIR: Fire & Heat (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: FIR, theme: craft, name: "Fire & Heat", purpose: "warmth, safety, cooking and every high-temperature craft. Fire decides where people can survive and what they can transform.", anchors: "fire use at Wonderwerk ~1 Ma; hearths at Gesher Benot Ya'aqov ~800 ka; heat-treated silcrete ~72 ka; kilns (Neolithic); coke (1709); arc furnace (1900)."}
+projects:
+  - id: FIR-01
+    name: Fire Keeping
+    era: 0
+    type: D
+    status: numeric
+    requires: []
+    effects:
+      - {kind: unlock_action, action: keep_fire}
+      - {kind: hazard, cause: exposure, mult: 0.92}
+      - {kind: hazard, cause: predators, mult: 0.88}
+      - {kind: risk, text: "fire can die, 10.§9"}
+    practice: [{action: tend_fire, share: 100}]
+    flavor: We did not make it. We kept it.
+    moment: "Embers carried from a lightning-struck tree, cupped in bark"
+  - id: FIR-02
+    name: Fire Making
+    era: 0
+    type: D
+    status: numeric
+    requires: [FIR-01, STN-02]
+    effects:
+      - {kind: unlock_action, action: make_fire}
+      - {kind: risk, text: fire loss removed}
+      - {kind: hazard, cause: exposure, mult: 0.95}
+      - {kind: mod, stat: warmth, op: flat, value: 1, note: "Warmth +1 at any night camp"}
+    practice: [{action: tend_fire, share: 100}]
+    flavor: Now fire lives in our hands.
+    moment: Sparks from struck stone catch in dry moss
+  - id: FIR-03
+    name: Hearths
+    era: 0
+    type: S
+    status: numeric
+    requires: [FIR-02]
+    effects:
+      - {kind: build, structure: hearth}
+      - {kind: mod, stat: commons_insight, op: pct, value: 0.1, note: "Commons Insight, +10% at hearth settlements"}
+      - {kind: cohesion, value: 3}
+      - {kind: rule, text: Storytelling site}
+    practice: [{action: tend_fire, share: 50}, {action: tell_stories, share: 50}]
+    flavor: The night became a place to talk.
+    moment: "A ring of stones; faces gather around it at dusk"
+  - id: FIR-04
+    name: Fire-Hardened Points
+    era: 0
+    type: M
+    status: numeric
+    requires: [FIR-01, WOD-01]
+    effects:
+      - {kind: mod, stat: wooden_tool_durability, op: pct, value: 0.5, note: "Wooden tool durability, +50%"}
+      - {kind: mod, stat: hunt_r1, op: pct, value: 0.1, note: "Hunt r1, +10%"}
+    practice: [{action: tend_fire, share: 50}, {action: hunt, share: 50}]
+    flavor: Fire taught the wood to bite.
+    moment: A spear tip is turned slowly over coals until it darkens
+  - id: FIR-05
+    name: Landscape Burning
+    era: 1
+    type: D
+    status: numeric
+    requires: [FIR-02, FOR-02]
+    effects:
+      - {kind: unlock_action, action: controlled_burn}
+      - {kind: mod, stat: forage_on_burned_tile, op: pct, value: 0.4, note: for 3 yrs}
+      - {kind: mod, stat: game_on_burned_tile, op: pct, value: 0.3, note: for 3 yrs}
+      - {kind: risk, text: "5% wildfire spread per burn"}
+    practice: [{action: tend_fire, share: 50}, {action: forage, share: 50}]
+    flavor: "Burn the old, and the green comes back."
+    moment: A line of flame walks across dry grass at dusk
+  - id: FIR-06
+    name: Heat-Treating Stone
+    era: 1
+    type: M
+    status: numeric
+    requires: [FIR-03, STN-05]
+    effects:
+      - {kind: mod, stat: knap.speed, op: pct, value: 0.3, note: "Knap.speed, +30%"}
+      - {kind: rule, text: New tools start at quality 1.3}
+    practice: [{action: knap, share: 50}, {action: tend_fire, share: 50}]
+    flavor: Fire made the stone obey.
+    moment: "Stones buried under the hearth, then flaked: glossy and sharp"
+  - id: FIR-07
+    name: Kilns
+    era: 2
+    type: S
+    status: numeric
+    requires: [FIR-03, CER-02]
+    effects:
+      - {kind: build, structure: kiln}
+      - {kind: mod, stat: pottery_breakage, op: set, value: 0.2, note: "Pottery breakage, 40% → 20%"}
+      - {kind: unlock, text: "lime, copper smelting"}
+    practice: [{action: tend_fire, share: 50}, {action: clay, share: 50}]
+    flavor: A fire that does not escape.
+    moment: A domed kiln glows orange at night
+  - id: FIR-08
+    name: Charcoal Burning
+    era: 2
+    type: D
+    status: numeric
+    requires: [FIR-07, WOD-03]
+    effects:
+      - {kind: good, id: G-CHAR}
+      - {kind: role, id: collier}
+    practice: [{action: tend_fire, share: 50}, {action: chop, share: 50}]
+    flavor: Black wood that burns hotter.
+    moment: A smoking mound of earth-covered wood
+  - id: FIR-09
+    name: "Bellows & Tuyères"
+    era: 3
+    type: M
+    status: draft
+    requires: [FIR-08, FIB-03]
+    effects:
+      - {kind: prose, text: "Forced air: furnace temperature tier 2. Smelting yield +40%; required for iron and glass."}
+  - id: FIR-10
+    name: "Chimneys & Flues"
+    era: 5
+    type: M
+    status: draft
+    requires: [FIR-09, STN-11]
+    effects:
+      - {kind: prose, text: "Indoor heat without smoke: winter deaths −40%, respiratory disease −30%, housing comfort +."}
+  - id: FIR-11
+    name: Coal Firing
+    era: 6
+    type: M
+    status: draft
+    requires: [FIR-10, MIN-09, TRN-11]
+    effects:
+      - {kind: prose, text: "Fuel: Coal. Wood demand for heat −50%; deforestation pressure falls."}
+  - id: FIR-12
+    name: Coking
+    era: 6
+    type: M
+    status: draft
+    requires: [FIR-11, CHM-06]
+    effects:
+      - {kind: prose, text: "Good: Coke. Enables coke smelting (MET-13)."}
+  - id: FIR-13
+    name: Gas Lighting
+    era: 7
+    type: S
+    status: draft
+    requires: [FIR-12, CHM-08, SOC-12]
+    effects:
+      - {kind: prose, text: "Build: Gasworks. City night activity: +10% city Insight and craft output."}
+  - id: FIR-14
+    name: Electric Arc Furnace
+    era: 8
+    type: M
+    status: draft
+    requires: [FIR-13, NRG-09]
+    effects:
+      - {kind: prose, text: "▸ Smelt: Electric arc. Scrap recycling; steel output +50% with no ore needed."}
+  - id: FIR-15
+    name: "Induction & Plasma Heating"
+    era: 9
+    type: M
+    status: draft
+    requires: [FIR-14, INQ-15]
+    effects:
+      - {kind: prose, text: "Precision heat processing: advanced-materials output +40%, industrial emissions −20%."}

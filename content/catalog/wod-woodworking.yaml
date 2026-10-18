@@ -1,0 +1,132 @@
+# WOD: Woodworking (craft). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: WOD, theme: craft, name: Woodworking, purpose: "the universal material of the pre-industrial world: tools, shelters, boats, wheels and fuel. Hosts the Chop Wood ladder.", anchors: "Schöningen wooden spears ~300 ka; adzes (Neolithic); joinery (Bronze Age); water sawmills (Hierapolis, 3rd c.; medieval Europe); chainsaw (1920s, portable 1950s)."}
+projects:
+  - id: WOD-01
+    name: Digging Sticks
+    era: 0
+    type: D
+    status: numeric
+    requires: [STN-01]
+    effects:
+      - {kind: good, id: G-STICK, note: wooden club}
+      - {kind: method, action: forage, rung: 1, name: Digging stick, mult: 1.5}
+    practice: [{action: forage, share: 50}, {action: chop, share: 50}]
+    flavor: The earth gave up its hidden food.
+    moment: A sharpened stick pries a tuber from hard ground
+  - id: WOD-02
+    name: Woodcarving
+    era: 1
+    type: M
+    status: numeric
+    requires: [WOD-01, STN-05, ART-01]
+    effects:
+      - {kind: good, id: G-CARVING, note: "bowls, handles"}
+      - {kind: mod, stat: craft.speed, op: pct, value: 0.15, note: "Craft.speed, +15%"}
+    practice: [{action: craft, share: 50}, {action: chop, share: 50}]
+    flavor: Wood holds whatever shape we dream.
+    moment: A bowl takes shape under a blade
+  - id: WOD-03
+    name: "Adzes & Gouges"
+    era: 2
+    type: M
+    status: numeric
+    requires: [WOD-02, STN-08]
+    effects:
+      - {kind: method, action: shape_timber, rung: 1, name: Adze, mult: 1, note: adze}
+      - {kind: mod, stat: timber_building, op: pct, value: 0.2, note: "Timber building, +20%"}
+      - {kind: unlock, text: "planks, dugouts"}
+    practice: [{action: chop, share: 50}, {action: build, share: 50}]
+    flavor: We cut the tree into what we needed.
+    moment: An adze hollows a log
+  - id: WOD-04
+    name: Coppicing
+    era: 2
+    type: D
+    status: numeric
+    requires: [WOD-03, FOR-06]
+    effects:
+      - {kind: mod, stat: wood_regrowth, op: mult, value: 2, note: "Wood regrowth, ×2 within settlement radius"}
+    practice: [{action: chop, share: 50}, {action: forage, share: 50}]
+    flavor: "Cut, and it grows back."
+    moment: Stumps sprouting straight poles in a managed grove
+  - id: WOD-05
+    name: Joinery
+    era: 3
+    type: M
+    status: draft
+    requires: [WOD-03, MET-03]
+    effects:
+      - {kind: prose, text: "Mortise and tenon. ▸ Build (timber) +40%. Enables plank boats and wheels."}
+  - id: WOD-06
+    name: Bow Lathe
+    era: 3
+    type: M
+    status: draft
+    requires: [WOD-05, MEC-03]
+    effects:
+      - {kind: prose, text: "Good: Turned goods (hubs, bowls, furniture legs). +Trade goods."}
+  - id: WOD-07
+    name: Cooperage
+    era: 4
+    type: M
+    status: draft
+    requires: [WOD-05, MET-09, FOD-05]
+    effects:
+      - {kind: prose, text: "Good: Barrels. Bulk liquid storage and shipping: food spoilage in transit −40%."}
+  - id: WOD-08
+    name: "Frame & Crosscut Saws"
+    era: 4
+    type: M
+    status: draft
+    requires: [WOD-07, MET-10]
+    effects:
+      - {kind: prose, text: "▸ Chop: Saw (×1.4 over iron axe); plank output ×2."}
+  - id: WOD-09
+    name: Water-Powered Sawmill
+    era: 5
+    type: S
+    status: draft
+    requires: [WOD-08, NRG-03]
+    effects:
+      - {kind: prose, text: "Build: Sawmill [Near: River]. ▸ Saw: Mill ×4."}
+  - id: WOD-10
+    name: "Timber Framing & Trusses"
+    era: 5
+    type: M
+    status: draft
+    requires: [WOD-08, NUM-07]
+    effects:
+      - {kind: prose, text: "Large roof spans: halls, barns, shipyards. Building size cap +50%."}
+  - id: WOD-11
+    name: Steam Sawmill
+    era: 7
+    type: S
+    status: draft
+    requires: [WOD-09, NRG-07]
+    effects:
+      - {kind: prose, text: "Sawmill anywhere; ▸ Saw ×2 over water mill."}
+  - id: WOD-12
+    name: "Plywood & Engineered Lumber"
+    era: 8
+    type: M
+    status: draft
+    requires: [WOD-11, CHM-13]
+    effects:
+      - {kind: prose, text: "Timber build cost −30%; prefab housing."}
+  - id: WOD-13
+    name: Chainsaw
+    era: 8
+    type: M
+    status: draft
+    requires: [WOD-11, NRG-10]
+    effects:
+      - {kind: prose, text: "▸ Chop: Chainsaw (×2 over crosscut). Forest clearing ×3."}
+  - id: WOD-14
+    name: Mechanized Forestry
+    era: 9
+    type: M
+    status: draft
+    requires: [WOD-13, INQ-19]
+    effects:
+      - {kind: prose, text: "▸ Chop: Harvester. Sustainable-yield rules: forests regrow at full rate under managed harvest."}

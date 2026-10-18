@@ -1,0 +1,136 @@
+# MED: Medicine & Health (kin). Imported once from docs/MVP/03*.md; edit here from now on.
+schema: 1
+lineage: {code: MED, theme: kin, name: "Medicine & Health", purpose: "fewer deaths and longer lives. Elders produce double Insight, so lifespan *is* research. Medicine also defends against density disease, the natural brake on big cities.", anchors: "herbal medicine; bone setting (Shanidar); trepanation (~7000 BCE); Edwin Smith papyrus (~1600 BCE); Hippocrates and Galen; Roman baths and latrines; medieval hospitals; quarantine (Ragusa 1377); Vesalius (1543); inoculation and Jenner (1796); germ theory (Pasteur/Koch 1860s–80s); sewers (London 1860s); penicillin (1928/1940s); mass vaccination; genomics and imaging."}
+projects:
+  - id: MED-01
+    name: Herbal Remedies
+    era: 1
+    type: D
+    status: numeric
+    requires: [FOR-01, COM-02]
+    effects:
+      - {kind: unlock_action, action: tend_sick}
+      - {kind: hazard, cause: endemic, mult: 0.96}
+    practice: [{action: heal, share: 50}, {action: forage, share: 50}]
+    flavor: The forest is also medicine.
+    moment: A healer presses chewed leaves onto a fevered brow
+  - id: MED-02
+    name: "Bone Setting & Wound Care"
+    era: 1
+    type: M
+    status: numeric
+    requires: [MED-01, FIB-02]
+    effects:
+      - {kind: hazard, cause: injury, mult: 0.92}
+    practice: [{action: heal, share: 100}]
+    flavor: "Broken, but mended."
+    moment: A broken leg splinted with sticks and cord
+  - id: MED-03
+    name: Midwifery
+    era: 2
+    type: R
+    status: numeric
+    requires: [MED-02, SOC-04]
+    effects:
+      - {kind: role, id: midwife}
+      - {kind: hazard, cause: age0, mult: 0.93}
+      - {kind: hazard, cause: maternal, mult: 0.88}
+    practice: [{action: heal, share: 100}]
+    flavor: "More mothers live, more children grow."
+    moment: A midwife holds up a newborn
+  - id: MED-04
+    name: "Surgery & Trepanation"
+    era: 3
+    type: M
+    status: draft
+    requires: [MED-03, MET-03]
+    effects:
+      - {kind: prose, text: "Metal blades: trauma survival +25%."}
+  - id: MED-05
+    name: Medical Texts
+    era: 4
+    type: M
+    status: draft
+    requires: [MED-04, COM-07]
+    effects:
+      - {kind: prose, text: "Codified medicine: all MED effects +15%; Role: Physician."}
+  - id: MED-06
+    name: "Baths & Latrines"
+    era: 4
+    type: S
+    status: draft
+    requires: [MED-05, BLD-10]
+    effects:
+      - {kind: prose, text: "Build: Bathhouse, latrines. Density disease −25%."}
+  - id: MED-07
+    name: Hospitals
+    era: 5
+    type: S
+    status: draft
+    requires: [MED-06, BEL-09]
+    effects:
+      - {kind: prose, text: "Build: Hospital. Epidemic deaths −20%; elders live longer."}
+  - id: MED-08
+    name: Quarantine
+    era: 5
+    type: I
+    status: draft
+    requires: [MED-07, GOV-10]
+    effects:
+      - {kind: prose, text: "Epidemics spread between settlements −50%."}
+  - id: MED-09
+    name: Anatomy
+    era: 6
+    type: M
+    status: draft
+    requires: [MED-08, LRN-08]
+    effects:
+      - {kind: prose, text: "Surgery +30%; medical training ×2."}
+  - id: MED-10
+    name: "Inoculation & Vaccination"
+    era: 7
+    type: M
+    status: draft
+    requires: [MED-09, LRN-09]
+    effects:
+      - {kind: prose, text: "Smallpox-type epidemics −80%."}
+  - id: MED-11
+    name: Germ Theory
+    era: 7
+    type: D
+    status: draft
+    requires: [MED-10, CER-12]
+    effects:
+      - {kind: prose, text: "Understanding contagion: all disease −30%; enables sanitation and antiseptics. *KEY-8 prerequisite.*"}
+  - id: MED-12
+    name: "Sanitation & Sewers"
+    era: 7
+    type: S
+    status: draft
+    requires: [MED-11, BLD-13]
+    effects:
+      - {kind: prose, text: "Build: Sewer system. Density disease −60%; city caps +50%."}
+  - id: MED-13
+    name: Antibiotics
+    era: 8
+    type: M
+    status: draft
+    requires: [MED-12, CHM-12]
+    effects:
+      - {kind: prose, text: "Infection deaths −80%; life expectancy +10 years."}
+  - id: MED-14
+    name: "Public Health & Mass Vaccination"
+    era: 8
+    type: I
+    status: draft
+    requires: [MED-13, SOC-14]
+    effects:
+      - {kind: prose, text: "Child mortality near-modern; population growth spike, then demographic transition."}
+  - id: MED-15
+    name: "Genomic Medicine & Imaging"
+    era: 9
+    type: M
+    status: draft
+    requires: [MED-14, INQ-20, MEC-15]
+    effects:
+      - {kind: prose, text: "Lifespan +8 years; elder Insight ×1.25."}

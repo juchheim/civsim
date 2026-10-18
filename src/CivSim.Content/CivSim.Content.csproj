@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Content tooling: YAML loader, schema and rule validator, pack compiler (docs/MVP/16).
+       Depends on CivSim.Sim for the value tree and pack format. The simulation never depends on this project. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>CivSim.Content</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CivSim.Sim\CivSim.Sim.csproj" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+</Project>
