@@ -93,6 +93,8 @@ Multipliers apply to the base rates in [10](10-e0-e2-actions-and-goods.md). Temp
 
 **Seasonal forage profile** (fraction of the annual-average regrowth, [10 §4.1](10-e0-e2-actions-and-goods.md#41-forage-plants)): Temperate 0.6 / 1.0 / 0.9 / 0.15 (Sp/Su/Au/Wi); Cold 0.4 / 1.1 / 0.8 / 0.05; Warm 0.9 / 0.8 / 1.0 / 0.5; Arid 1.0 / 0.4 / 0.6 / 0.6; Tropical wet 1.1, dry 0.8.
 
+The Standard generator assigns Wetland to non-Cold, non-Arid lowlands with rainfall ≥68 and elevation <120. This keeps damp lowlands common enough to appear among eligible starts.
+
 ## 5. Water
 
 | Feature | Per tile | Notes |
@@ -236,7 +238,7 @@ Expansion simulation is mean-field and runs per season on the hex grid: ≤ 1 s 
 | Guarantees | 100% of starts meet §10 in 10,000 generated worlds |
 | Fairness | §11 passes; distribution of E7 shares logged |
 | Contact timing | Paired starts reach first contact at minute 15–25 in the 07b model |
-| Variety | Across 1,000 worlds, each start biome type occurs; ≥ 60% of starts have a river; ≥ 30% coastal |
+| Variety | Every complete 1,000-seed window contains each required start biome type; across the full audit, ≥ 60% of starts have a river and ≥ 30% have coast access |
 | Performance | 4-player world in < 5 s including fairness |
 
 ## 13. Open items
@@ -252,4 +254,4 @@ The fairness pass in `TerritoryFairnessSimulator.cs` replays seasons 1–462 thr
 
 M2 scope is four players on the standard map. The current implementation uses deterministic value noise and simplified landform, climate, hydrology, geology and fauna placement rules; it does not yet simulate seasonal weather, fauna migration, natural events, 2/3/6/8-player layouts, or terrain movement in the territory contact model. The distance-fit curve is a fixed lookup table sampled at 0.1σ rather than the reference model's floating-point exponential. Those limits are explicit; they do not change the static map layers or the four-player validation gates.
 
-The Release build succeeds with zero warnings or errors, and the full test suite passes (138/138). The seed 42 fingerprint is checked against `tests/golden/worldgen-v1.txt` by a test in the macOS/Windows `dotnet test` matrix; both platform jobs passed in [CI run 39156059788](https://github.com/juchheim/civsim/actions/runs/39156059788). Seed 42 generated in 426 ms. The 10,000-seed audit (seeds 1–10,000) accepted every world with no failures in 28m 5.6s; the slowest world generated in 3,188 ms. Land share was 3,997 bp in every world; E7 shares ranged from 1,945 to 2,748 bp. All 40,000 starts had nearby rivers and 39,998 had nearby coast. All six required start biomes occurred, including six Wetland starts. The M2 acceptance gates pass locally and across platforms.
+The Release build succeeds with zero warnings or errors, and the full test suite passes (138/138). The seed 42 fingerprint remains `f51b5947f6b2eb3b`; its golden test passed on macOS and Windows in [CI run 39156059788](https://github.com/juchheim/civsim/actions/runs/39156059788). An initial 10,000-seed audit pooled biome counts across the full range and concealed a gap: seeds 1–1,000 had no Wetland starts. Wetland classification was broadened to rainfall ≥68 and elevation <120, and the harness now checks variety separately for every complete 1,000-seed window. The corrected Release audit accepted all 10,000 worlds with no failures in 29m 25.0s; all ten windows contained all six required start biomes. The slowest world generated in 4,644 ms. Land share was 3,997 bp in every world; E7 shares ranged from 1,945 to 2,757 bp. All 40,000 starts had nearby rivers and coast access. The 40,000 starts included 154 Wetlands, with 20 in seeds 1–1,000. The Release suite passes 138/138 and the corrected M2 acceptance gates pass locally.

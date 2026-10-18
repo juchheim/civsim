@@ -290,7 +290,9 @@ public static class WorldGenerator
             else if (tile.Climate == ClimateBand.Cold)
                 tile.Biome = latitude > 83 ? Biome.Ice : rainfall > 60 ? Biome.Taiga : Biome.Tundra;
             else if (tile.Climate == ClimateBand.Arid) tile.Biome = Biome.Desert;
-            else if (rainfall >= 76 && tile.Elevation < 108) tile.Biome = Biome.Wetland;
+            // Wetlands cover damp lowlands, not just the exceptionally rainy bottom tail.
+            // The old 76/108 cutoffs produced almost no start candidates across large seed audits.
+            else if (rainfall >= 68 && tile.Elevation < 120) tile.Biome = Biome.Wetland;
             else if (tile.Climate == ClimateBand.Tropical) tile.Biome = rainfall > 42 ? Biome.TropicalForest : Biome.Savanna;
             else if (tile.Climate == ClimateBand.Warm) tile.Biome = rainfall > 55 ? Biome.OpenWoodland : Biome.Savanna;
             else if (rainfall > 56) tile.Biome = Biome.TemperateForest;

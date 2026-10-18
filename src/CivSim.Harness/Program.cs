@@ -134,6 +134,8 @@ public static class Program
         int minShare = int.MaxValue, maxShare = 0;
         GeneratedWorld? firstWorld = null;
         var startBiomeCounts = new int[Enum.GetValues<Biome>().Length];
+        var windowStartBiomeCounts = new int[Enum.GetValues<Biome>().Length];
+        bool varietyWindowFailed = false;
         var all = Stopwatch.StartNew();
         int progressInterval = auditSeeds >= 10 ? 10 : 0;
         for (int offset = 0; offset < auditSeeds; offset++)
@@ -175,7 +177,28 @@ public static class Program
                 minShare = Math.Min(minShare, share);
                 maxShare = Math.Max(maxShare, share);
             }
-            foreach (WorldStart startAt in world.Starts) startBiomeCounts[(int)world.TileAt(startAt.Tile).Biome]++;
+            foreach (WorldStart startAt in world.Starts)
+            {
+                int biome = (int)world.TileAt(startAt.Tile).Biome;
+                startBiomeCounts[biome]++;
+                windowStartBiomeCounts[biome]++;
+            }
+            if (auditSeeds >= 1_000 && (offset + 1) % 1_000 == 0)
+            {
+                Biome[] windowMissing = RequiredStartBiomes()
+                    .Where(b => windowStartBiomeCounts[(int)b] == 0).ToArray();
+                ulong firstSeed = checked(seed + (ulong)(offset + 1 - 1_000));
+                ulong lastSeed = currentSeed;
+                if (windowMissing.Length == 0)
+                    Console.WriteLine($"biome variety passed for seeds {firstSeed:N0}–{lastSeed:N0}");
+                else
+                {
+                    varietyWindowFailed = true;
+                    Console.WriteLine($"FAIL biome variety for seeds {firstSeed:N0}–{lastSeed:N0}: " +
+                        string.Join(", ", windowMissing));
+                }
+                Array.Clear(windowStartBiomeCounts);
+            }
             if (progressInterval > 0 && (offset + 1) % progressInterval == 0)
                 Console.WriteLine($"audited {offset + 1:N0}/{auditSeeds:N0} seeds; accepted={accepted} failures={failures}");
         }
@@ -214,25 +237,26 @@ public static class Program
                 Console.WriteLine("world generation fingerprint check passed");
             }
         }
-        Biome[] possibleStartBiomes =
-        {
-            Biome.TemperateForest, Biome.OpenWoodland, Biome.GrasslandSteppe,
-            Biome.Savanna, Biome.TropicalForest, Biome.Wetland
-        };
-        // Desert's forage score is below the §9.1 90%-of-map-median start threshold, so it is
-        // intentionally not a required start type even though desert tiles can occur nearby.
-        Biome[] missingStartBiomes = possibleStartBiomes.Where(b => startBiomeCounts[(int)b] == 0).ToArray();
-        bool varied = auditSeeds < 1000 || missingStartBiomes.Length == 0;
+        bool hasRequiredBiomes = RequiredStartBiomes().All(b => startBiomeCounts[(int)b] > 0);
+        bool varied = auditSeeds < 1000 || (!varietyWindowFailed && hasRequiredBiomes);
         bool hasRivers = riverStarts * 100 >= totalStarts * 60;
         bool hasCoastal = coastalStarts * 100 >= totalStarts * 30;
         bool fast = maxGenerationMs < 5_000;
-        if (auditSeeds >= 1000 && !varied)
-            Console.WriteLine("FAIL missing start biomes: " + string.Join(", ", missingStartBiomes));
+        if (auditSeeds >= 1000 && !hasRequiredBiomes)
+            Console.WriteLine("FAIL missing start biomes in the aggregate: " +
+                string.Join(", ", RequiredStartBiomes().Where(b => startBiomeCounts[(int)b] == 0)));
         if (auditSeeds >= 1000 && !hasRivers) Console.WriteLine("FAIL fewer than 60% of starts have nearby rivers");
         if (auditSeeds >= 1000 && !hasCoastal) Console.WriteLine("FAIL fewer than 30% of starts have nearby coast");
         if (!fast) Console.WriteLine("FAIL a world exceeded the 5-second generation budget");
         return failures == 0 && varied && fast && (auditSeeds < 1000 || (hasRivers && hasCoastal)) ? 0 : 1;
     }
+
+    // Desert's forage is below the §9.1 90%-of-map-median start threshold, so it is not a required type.
+    private static Biome[] RequiredStartBiomes() =>
+    [
+        Biome.TemperateForest, Biome.OpenWoodland, Biome.GrasslandSteppe,
+        Biome.Savanna, Biome.TropicalForest, Biome.Wetland
+    ];
 
     private static string Describe(ulong seed, long ticks, int interval, SimRunner runner)
     {
