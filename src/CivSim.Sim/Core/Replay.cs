@@ -16,7 +16,7 @@ public sealed class Replay
     public const int ContentHashLength = 32;
 
     public ulong MatchSeed { get; init; }
-    /// <summary>SHA-256 of the content pack the match used (all zeros until the content pipeline exists, M1).</summary>
+    /// <summary>SHA-256 of the content pack when known; legacy toy replays use 32 zero bytes.</summary>
     public byte[] ContentHash { get; init; } = new byte[ContentHashLength];
     public int ChecksumInterval { get; init; } = SimRunner.DefaultChecksumInterval;
     public long TotalTicks { get; init; }
@@ -89,14 +89,18 @@ public sealed class Replay
 
     /// <summary>Runs a model for <paramref name="totalTicks"/> ticks with the given commands and captures the result as a replay.</summary>
     public static Replay Record(ISimModel model, ulong matchSeed, long totalTicks, IEnumerable<Command> commands,
-        int checksumInterval = SimRunner.DefaultChecksumInterval)
+        int checksumInterval = SimRunner.DefaultChecksumInterval, byte[]? contentHash = null)
     {
+        if (contentHash is not null && contentHash.Length != ContentHashLength)
+            throw new ArgumentException("Content hash must be 32 bytes.", nameof(contentHash));
+        byte[] recordedHash = contentHash is null ? new byte[ContentHashLength] : (byte[])contentHash.Clone();
         var runner = new SimRunner(model, checksumInterval);
         foreach (Command c in commands) runner.Submit(c);
         runner.Advance(totalTicks);
         return new Replay
         {
             MatchSeed = matchSeed,
+            ContentHash = recordedHash,
             ChecksumInterval = checksumInterval,
             TotalTicks = totalTicks,
             Commands = new List<Command>(runner.AppliedCommands),
@@ -110,6 +114,16 @@ public readonly record struct ReplayVerification(bool Ok, long FirstMismatchTick
 
 public static class ReplayVerifier
 {
+    /// <summary>Rejects mismatched content before constructing or running a model.</summary>
+    public static ReplayVerification Verify(Replay replay, Func<ulong, ISimModel> modelFactory,
+        ReadOnlySpan<byte> expectedContentHash)
+    {
+        if (expectedContentHash.Length != Replay.ContentHashLength ||
+            !expectedContentHash.SequenceEqual(replay.ContentHash))
+            return new ReplayVerification(false, -1, "Replay content hash differs from the loaded pack.");
+        return Verify(replay, modelFactory);
+    }
+
     /// <summary>
     /// Re-runs the replay on a fresh model (from <paramref name="modelFactory"/>, given the match seed) and
     /// compares every recorded checksum. A mismatch means the simulation is no longer deterministic or the

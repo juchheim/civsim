@@ -103,6 +103,8 @@ The Standard generator assigns Wetland to non-Cold, non-Arid lowlands with rainf
 | Salmon run | Autumn fish ×3 | Weirs ×3 (HNT-09) |
 | Lake | Fish 1.0 R; freshwater | |
 | Coast | Fish 1.5 R; shellfish +0.3 forage on the shore | Whales offshore (E3, HNT-10) |
+
+The M3 economy projects fish-bearing coastal water through the second water tile from land. Shore fishing uses the first tile; SEA-03 permits access to the second tile and gives the documented +50% deeper-water fishing rate. Lake tiles beyond the shore follow the corresponding SEA-02 rule.
 | Spring | Freshwater | Desert oases |
 
 ## 6. Fauna

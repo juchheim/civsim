@@ -9,14 +9,14 @@
 
 **Demography still drives pacing, and the arc still lands.** With the new population model the Standard arc runs **172.5 min** (Quick 86, Epic 299). Every era is inside its 02 §8.3 window. Fertility ±15% still moves the arc −8% / +11%, so demography is the lever WS-B must not disturb.
 
-**First fission now lands at minute 7–9 for every archetype** (WS-A: 6–13). A late-winter food check splits the band when its lean-season food runs short (§7.2). The timing depends on the population clock, not on research speed: Insight ±20–25% moves it by at most one year.
+**The mean-field balance model puts first fission at minute 7–9 for every archetype** (WS-A: 6–13). A late-winter food check splits the band when its lean-season food runs short (§7.2). The timing depends on the population clock, not on research speed: Insight ±20–25% moves it by at most one year. Live-simulation timing remains an open integration gate; see [07c §6](07c-e0-e2-checks.md#6-c4--first-fission).
 
 **Caps now rise project by project.** Food, late-winter food, housing and group caps each step up when a specific catalog project completes, at the point in its era where that project typically lands (§5). In WS-A they jumped at era boundaries. 96 cap effects from 92 projects replace the per-era tables.
 
 | Change (headline) | WS-A placeholder | WS-H value |
 |---|---|---|
 | Caps | one value per era | **start value × 96 project steps** (`Caps` sheet) |
-| Fission triggers | ≥ 85% of cap | ≥ 85% of cap **or late-winter food security < 1** |
+| Fission triggers | ≥ 85% of cap | ≥ 85% of cap **or population exceeds LeanFood scaled by actual late-winter security** |
 | Fertility × (E0…E9) | 1.0 · 1.25 · 1.35 · 1.3 · 1.2 · 1.1 · 1.05 · 1.0 · 0.75 · 0.55 | **1.0 · 1.15 · 1.3 · 1.25 · 1.2 · 1.1 · 1.1 · 1.0 · 0.55 · 0.35** (TFR anchors, §3.3) |
 | Mortality | ASSUMED | life-table anchors per era (§4.1): child q(14) 47% → 1%, e45 15 → 37 years |
 | Winter multiplier | 2.0 … 1.0 | **2.0 · 1.7 · 1.4 · 1.25 · 1.2 · 1.15 · 1.1 · 1.08 · 1.05 · 1.05** (§4.3) |
@@ -41,7 +41,7 @@ Unchanged: Insight scale (Commons 4.8, roles ×8), breadth N, representation sca
 ## 3. Cohorts and births
 
 ### 3.1 Cohorts and aging
-- **Game:** each settlement holds counts by **single year of age (0–99) × sex**: 200 fixed-point counters. Births enter age 0 each season, and all cohorts shift one year at the end of Winter. Figures are drawn from the cohorts as before (05 §5.2). At 1:1 every counter is a real person.
+- **Game:** each settlement holds counts by **single year of age (0–99) × sex**: 200 fixed-point counters. Births enter age 0 each season; people present before the Winter update shift one year at its end, so Winter births remain age 0 until the next year boundary. Figures are drawn from the cohorts as before (05 §5.2). At 1:1 every counter is a real person.
 - **Life stages** stay as in 05 §5.3: child 0–13, adult 14–44, elder 45+.
 - **Balance model:** three bands, with flows of C/(14·4) children to adults and A/(31·4) adults to elders each season.
 - **Migration:** a daughter group takes a **cross-section** of the parent: 40% of every age band, rounded so it holds at least 1 adult woman and 1 elder or skilled adult (05 §9.4).
@@ -53,7 +53,7 @@ Crowding        = min(1, (Pop / MIN(FoodCap, HousingCap)) ^ 6)
 ```
 - **Crowding is food and housing pressure only.** The v0.1 formula also counted GroupCap × Cohesion. A group that has grown too large to hold together **splits** (§7). It doesn't stop having children. This also means low Cohesion triggers fission but doesn't cut fertility.
 - The exponent 6 keeps births nearly unaffected below 60% of the cap (−5%). They halve at 89% and stop at the cap. Real density dependence in foragers works through birth spacing and weaning age, both of which respond late and sharply.
-- **FoodSecurity** (0–1) is the share of the band fed last season. **Health** = 1 − 0.5 × (share of fertile women sick this season, §10). Both are 1.0 in the balance model, whose hazards already carry the expected losses.
+- **FoodSecurity** (0–1) is the share of the band fed last season and scales this season's conception chance. **Health** = 1 − 0.5 × (share of fertile women sick this season, §10). Both are 1.0 in the balance model, whose hazards already carry the expected losses.
 - **Per figure (1:1 scale):** a woman conceives with probability *p* per season and is then unavailable for 3 seasons (pregnancy and early nursing). *p* = 1 / (1 / (0.13 × FertMult) − 3): 0.21 at FertMult 1.0, 0.34 at 1.3, 0.05 at 0.35. Above 1:1 the cohort rate is used directly.
 - **Modifiers** are catalog effects with no era of their own, such as Posture and Legends. FOD-04 and MED-03 are already inside FertMult and the child hazard (§3.3, §4.1).
 
@@ -86,6 +86,7 @@ The table values are **annual hazards outside winter**. Per season, the hazard i
 
 - **Anchors.** Forager life tables give 40–50% of children dead by 15, about 1–1.5% adult mortality a year, and e45 of about 20 (Gurven & Kaplan's cross-forager synthesis). E0 is set harsher than living foragers (e45 = 15) because the band has no fire-making, cooking or shelter yet. Pre-industrial child mortality stays near 30–40% until vaccination and germ theory (E7). Antibiotics and public health (E8) bring it to modern levels.
 - **The Neolithic paradox (E2).** Child and adult hazards rise slightly in E2 while fertility jumps. Sedentism, herds and stored grain bring zoonoses, waterborne disease and dental and nutritional stress (§10: epidemics start in E2). Kin-leaning players feel it as more births and more funerals.
+- **Live E0–E2 baseline.** The simulation keeps the E0 child/adult cause budgets as its starting hazards through E2. Completed projects, seasonal food and warmth, and the E2 epidemic rule produce the E1/E2 outcomes in the table. The runtime must not also switch its base hazard to the era's MortChild/MortAdult value, since that would apply the mortality shift once in the base and again through project effects.
 - **Elders.** The balance model uses one constant elder hazard, 1/e45. In the game the elder hazard is **Gompertz**, *h*(*a*) = *h*45 × e^(0.085 (*a* − 45)), with *h*45 chosen to give the same e45: 0.023 (E0), 0.021 (E1–E2), 0.018 (E3), 0.016 (E4), 0.015 (E5), 0.013 (E6), 0.009 (E7), 0.0045 (E8) and 0.0024 (E9). MED-07/13/15 effects shift *h*45, not the slope.
 - **Infants.** In the game, age 0 carries **3×** the child hazard and ages 1–4 carry 1.5×, rescaled so the 0–13 average equals MortChild. MED-03 (midwifery) and FOD-04 (weaning foods) act mainly on age 0. The balance model doesn't need the split.
 - **The tables include expected epidemic losses** (§10.6). The game's base hazards are the table values minus that share, so outbreaks don't double count.
@@ -117,8 +118,8 @@ Winter is the early game's main pressure (05 §4.3). It works through three chan
    | Drivers | no stores, open sleeping | FIR-02, BLD-02/03, FOD-02/03 | granaries, longhouses | | | FIR-10 chimneys | | | | modern excess winter mortality |
 
    Pre-modern Europe shows winter excess mortality of 20–30% above the annual mean. Modern temperate countries show 10–15%, concentrated in elders. In the game the multiplier is the **expected** winter, made of the two channels below plus seasonal disease. It falls as those channels are closed.
-2. **Lean-season food (starvation).** At the end of each Autumn the planner forecasts **food security** FS = (stores + expected winter food) / winter need. The forecast is already exposed to the UI (05 §16.5). If a Winter ends with FS < 1, the unfed share 1 − FS takes an extra hazard of 0.25 per season for children and elders and 0.10 for adults (the band shares food, so the weakest go first). FS < 1 also fires the fission check (§7.2).
-3. **Exposure (cold).** For each figure without warmth (no fire, shelter or clothing at the biome's cold tier), add 0.04 per Winter season in Cold climates and 0.02 in Temperate ones. FIR-01 fire, BLD-01 lean-tos and FIB-04 tailored clothing remove it one tier at a time.
+2. **Lean-season food (starvation).** At the end of each Autumn the planner forecasts **food security** FS = (stores + expected winter food) / winter need. The forecast is already exposed to the UI (05 §16.5). If a Winter ends with FS < 1, the unfed share 1 − FS takes an extra Winter mortality hazard of 0.25 for children and elders and 0.10 for adults (the band shares food, so the weakest go first). Baseline starvation cause-budget mortality still applies seasonally (§4.2). Actual winter security also scales the late-winter fission threshold (§7.2).
+3. **Exposure (cold).** The exposure shares in §4.2 are the annual mortality budget for this cause; warmth deficits determine how much of that budget is active. In the live model, the budget is concentrated in Winter and scaled by the figure's share of missing warmth tiers (`deficit / required tiers`); Cold climates double that fraction, capped at 2. FIR-01 fire, BLD-01 lean-tos and FIB-04 tailored clothing raise warmth and reduce exposure. The exposure Hazard values in 11 §1 are population-average equivalents of these warmth mechanisms and are not applied again as separate live multipliers. This keeps winter exposure tied to actual warmth without double-counting those projects.
 
 **Climate variance** (05 §4.3, seeded): each winter's late-winter food is ×0.75 when **harsh** (P = 0.30: forage −40%, cold +1 tier), ×1.15 when **mild** (P = 0.25), and ×1.08 when normal (P = 0.45). The average is ×1.00, so LeanBase is the climate-averaged value and the mean-field model needs no correction.
 
@@ -216,7 +217,7 @@ FOR-02 is an E0 project, but its lean-season effect is placed at E1 0.40, where 
 | Parameter | Value | Note |
 |---|---|---|
 | Cap trigger | settlement pop ≥ **85%** of EffectivePopCap | 07 §5, locked |
-| **Late-winter trigger** | at the end of Winter, settlement pop ≥ late-winter food (FS < 1) | §7.2, new |
+| **Late-winter trigger** | at the end of Winter, settlement pop ≥ live FoodCap × LeanShare × actual winter security | §7.2, new |
 | Daughter size | **40%** of the settlement (cross-section of ages), at least **6** people | 07 §5, locked; below 6 the split waits |
 | Daughter composition | ≥ 1 adult woman, ≥ 1 elder or skilled adult; carries 1 season of food per person and its tools | 05 §9.4 |
 | Departure | the season after the trigger (spring for a winter split); median delay 1 season, while volunteers form | 05 §9.4 |
@@ -227,32 +228,39 @@ FOR-02 is an E0 project, but its lean-season effect is placed at E1 0.40, where 
 | Over-cap loss | 10% of the people above the cap per season starve or leave | kept from WS-A: a settlement above cap that can't split (territory full) sheds people to Free Folk land or death |
 
 ### 7.2 The late-winter food-pressure trigger
-At the end of each Winter, each settlement compares its population with its late-winter food (§6.2). If the band is larger (FS < 1) and the daughter would be viable, a group leaves in spring to found its own camp. This happened among real foragers: bands disperse when the lean season can't feed them together. In the game it gives the first split a cause the player can read: *"After the hungry winter of year 7, Ama led eight of the Reed Camp west."*
+At the end of each Winter, each live settlement derives LeanFood from its current world-based FoodCap (§5.1) and the lean-season project share (§5.2), then scales the threshold by the winter's actual food security:
+```
+FissionLeanShare = MIN(1, (LeanBase + LeanShareAdjustment(civ)) × Π (lean-season projects done))
+LeanFoodCapacity = FoodCap(settlement) × FissionLeanShare
+LateWinterThreshold = LeanFoodCapacity × clamp(actual FS, 0, 1)
+```
+`LeanShareAdjustment` is −0.02 for Builder and 0 for the other archetypes. It calibrates only the fission threshold; the physical seasonal share reported by C2 is still derived from the world, stocks, and yields. The reference balance model and live simulation apply the same adjustment.
+A secure winter (FS = 1) uses the full LeanFood threshold; a shortfall lowers it and can advance the split. The live threshold follows the settlement's actual renewable yields, stores, and completed projects instead of reconstructing an average cap from a fixed baseline. If the population exceeds that threshold and a 40% daughter would be viable, a group leaves in spring to found its own camp. This uses actual food conditions continuously instead of treating every shortfall as a binary trigger. In the game it gives the first split a cause the player can read: *"After the late winter of year 7, Ama led eight of the Reed Camp west."*
 
 **Why it fixes the knife-edge.** WS-A's only trigger was 85% of a cap that jumped at the E0→E1 boundary. Two things made the timing fragile:
 1. Crowding slows growth as the band nears 85% (births −38% there), so a small change in the cap moved the crossing a lot.
 2. A fast E0 raised the cap just before the band reached it, so the timing hung on research speed.
 
-The late-winter threshold sits at about 0.77 of the food cap. The band crosses it while it is still growing fast (crowding −21%, against −38% at 85%). The check runs once a year, and E0 lean food rises only through E0 food projects that are done by minute ~4 for every archetype. So the split lands on the first winter after the band outgrows its lean food. That timing is set by the population clock.
+Before project modifiers, the late-winter fission threshold starts at 0.77 of the live food cap (0.75 for Builder). The band crosses it while it is still growing fast (crowding −21%, against −38% at 85%). Actual winter security can lower the threshold, while a secure winter leaves it at the settlement's LeanFood capacity. The check runs once a year, and E0 lean food rises only through E0 food projects that are done by minute ~4 for every archetype. So the split lands on the first winter after the band outgrows its lean food. That timing is set by the population clock.
 
 ### 7.3 Results: first fission
-Standard pace, in minutes (= in-game years at every pace). "w" = by the late-winter trigger, "c" = by the cap trigger.
+The table below is the deterministic mean-field balance-model result, in standard-pace minutes (= in-game years at every pace). "w" = by the late-winter trigger, "c" = by the cap trigger. It passes the calibration check. For the stochastic live integration, C4 is the median successful founding year per archetype; report the in-window count and non-fissions separately (see [07c §6](07c-e0-e2-checks.md#6-c4--first-fission)).
 
 | Archetype | WS-A | **WS-H** | Insight ×0.8 | Insight ×1.25 | Fertility ×0.85 | Fertility ×1.15 | CohesionFactor 0.8 | Without the winter trigger |
 |---|---|---|---|---|---|---|---|---|
-| Balanced | 7.0 | **7 w** | 8 | 7 | 9 | 6 | 7 | 9.0 c |
-| Grower | 11.75 | **9 w** | 9 | 8 | 10 | 7 | 3 c ¹ | 9.75 c |
-| Builder | 12.75 | **9 w** | 9 | 8 | 11 | 7 | 9 | 11.0 c |
-| Wanderer | 6.0 | **7 w** | 7 | 7 | 8 | 6 | 7 | 8.5 c |
-| Warlord | 7.75 | **8 w** | 8 | 8 | 10 | 7 | 8 | 9.75 c |
-| Sage | 6.75 | **7 w** | 7 | 7 | 9 | 6 | 7 | 8.75 c |
+| Balanced | 7.0 | **7 w** | 7 | 7 | 9 | 6 | 7 | 8.75 c |
+| Grower | 11.75 | **8 w** | 8 | 8 | 10 | 7 | 2.75 c ¹ | 9.5 c |
+| Builder | 12.75 | **8 w** | 9 | 8 | 11 | 7 | 8 | 10.75 c |
+| Wanderer | 6.0 | **7 w** | 7 | 7 | 8 | 6 | 7 | 8.25 c |
+| Warlord | 7.75 | **8 w** | 8 | 8 | 9 | 6 | 8 | 9.5 c |
+| Sage | 6.75 | **7 w** | 7 | 7 | 8 | 6 | 7 | 8.5 c |
 
 ¹ A low-Cohesion Grower outgrows its group cap of 25 × 0.8 = 20 before SOC-01 completes. That is the intended Cohesion behavior, not a timing fault.
 
 - **Every archetype splits at minute 7–9** at Standard, and at year 7–9 at Quick (minute 3.5–4.5) and Epic (minute 12–16).
-- **Research speed barely matters:** Insight ±20–25% moves the split by at most one year. That was the source of the 6–13 spread.
+- **Research speed barely matters:** Insight ×0.8 or ×1.25 moves the split by at most one year. That was the source of the 6–13 spread.
 - **Fertility still matters:** ±15% gives 6–11. That is demography doing its job, and fertility is locked.
-- **Project steps alone fix half of it:** the last column (8.5–11) is caps by project without the winter trigger.
+- **Project steps alone fix half of it:** the last column (8.25–10.75) is caps by project without the winter trigger.
 
 ### 7.4 Finding: the long wait for the third settlement
 After the first split, the average civilization stays at **2 settlements until minute ~45**, then grows: 3 at 45, 5 at 67, 9 at 82, 16 at 99, 21 at 104. WS-A had the same shape, a bit earlier (3 at minute 29). This is not a cap or trigger problem:

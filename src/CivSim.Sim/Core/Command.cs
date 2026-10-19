@@ -22,6 +22,8 @@ public enum CommandKind : ushort
     RemoveBeacon = 6,
     /// <summary>A = posture (see <see cref="Posture"/>).</summary>
     SetPosture = 7,
+    /// <summary>A = dense project index from the loaded content pack.</summary>
+    CompleteProject = 8,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>

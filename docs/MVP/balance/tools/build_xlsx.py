@@ -106,7 +106,7 @@ def build_params(wb):
 
     # archetypes
     r0 = 15
-    ws.cell(row=r0, column=1, value="Archetype sensitivity multipliers (ASSUMED; 06 §8 asks for all five archetypes)").font = BOLD
+    ws.cell(row=r0, column=1, value="Archetype profile multipliers and adjustments (ASSUMED; 06 §8 asks for all five archetypes)").font = BOLD
     header(ws, r0 + 1, 1, ["Archetype"] + P.ARCH_FIELDS)
     for i, (a, vals) in enumerate(P.ARCHETYPES.items()):
         r = r0 + 2 + i
@@ -275,7 +275,7 @@ def build_caps(wb):
     ws["A1"], ws["A1"].font = "Caps — population caps raised project by project (09 §5)", TITLE
     ws["A2"] = ("Each row multiplies one settlement cap once research reaches Point = Era + At. Era = the era in which the project typically completes "
                 "(a forced backfill completes in the era whose keystone forces it); At = share of that era's requirement done by then. Prob < 1 for optional projects: the cap is × Mult^Prob. Food = sustainable food per settlement; "
-                "Lean = late-winter food as a share of Food (× LeanBase, capped at 1); Housing = dwelling capacity; Group = social layer (× CohesionFactor). "
+                "Lean = late-winter food as a share of Food (× LeanBase plus the selected archetype adjustment, capped at 1); Housing = dwelling capacity; Group = social layer (× CohesionFactor). "
                 "Used by both Sim sheets; CapsByProject = 0 (v0.1) switches every multiplier off.")
     ws.merge_cells("A2:J2")
     ws["A2"].alignment = WRAP
@@ -376,7 +376,7 @@ SIM_COLS = [
     ("act", "Active", "flag", "=IF([era]{r}<=9,1,0)", 1, "0"),
     ("pos", "Research position (era + share done)", "era", "=MIN(10,[era]{p}+IF([req]{p}>0,MIN(1,[prog]{p}/[req]{p}),1))", 0, "0.00"),
     ("food", "Food cap / settlement", "people", "=INDEX(X_FoodCap,[ei]{r})*Arch_FoodCap*" + capmult("Food", "[pos]{r}"), CAPF, "#,##0.0"),
-    ("lean", "Late-winter food cap", "people", "=[food]{r}*MIN(1,X_LeanBase*" + capmult("Lean", "[pos]{r}") + ")", CAPF, "#,##0.0"),
+    ("lean", "Late-winter food cap", "people", "=[food]{r}*MIN(1,(X_LeanBase+Arch_LeanShareAdjustment)*" + capmult("Lean", "[pos]{r}") + ")", CAPF, "#,##0.0"),
     ("hous", "Housing cap / settlement", "people", "=INDEX(X_HousingCap,[ei]{r})*" + capmult("Housing", "[pos]{r}"), CAPF, "#,##0"),
     ("grp", "Group cap × CF", "people", "=INDEX(X_GroupCap,[ei]{r})*X_CohesionFactor*" + capmult("Group", "[pos]{r}"), CAPF, "#,##0"),
     ("scap", "Settlement cap = MIN(food, housing, group)", "people", "=MIN([food]{r},[hous]{r},[grp]{r})", CAPF, "#,##0.0"),
@@ -394,8 +394,8 @@ SIM_COLS = [
     ("A", "Adults 14–44", "people", "=[A]{p}+[aCA]{r}-[aAE]{r}-[dA]{r}-[A]{p}*[over]{r}/[pop]{p}", "=X_StartAdults", "#,##0.0"),
     ("E", "Elders 45+", "people", "=[E]{p}+[aAE]{r}-[dE]{r}-[E]{p}*[over]{r}/[pop]{p}", "=X_StartElders", "#,##0.0"),
     ("pop", "Population", "people", "=[C]{r}+[A]{r}+[E]{r}", "=[C]{r}+[A]{r}+[E]{r}", "#,##0"),
-    ("wtr", "Late-winter food pressure", "flag", "=IF(AND(X_WinterTrigger=1,[win]{r}=1,[pop]{p}/[S]{p}>=[lean]{r}),1,0)", 0, "0"),
-    ("fis", "Fission requests", "settlements", "=[act]{r}*IF(AND(OR([pop]{p}/[S]{p}>=X_FissionTrigger*[scap]{r},[wtr]{r}=1),[pop]{p}/[S]{p}*X_DaughterShare>=X_MinDaughter),MAX(1,ROUND([S]{p}*X_FissionRate,0)),0)", 0, "0"),
+    ("wtr", "Late-winter food pressure", "flag", "=IF(AND(X_WinterTrigger=1,[win]{r}=1,[pop]{r}/[S]{p}>=[lean]{r}),1,0)", 0, "0"),
+    ("fis", "Fission requests", "settlements", "=[act]{r}*IF(AND(OR([pop]{r}/[S]{p}>=X_FissionTrigger*[scap]{r},[wtr]{r}=1),[pop]{r}/[S]{p}*X_DaughterShare>=X_MinDaughter),MAX(1,ROUND([S]{p}*X_FissionRate,0)),0)", 0, "0"),
     ("S", "Settlements", "#", "=IF([act]{r}=1,MAX(1,MIN(INDEX(X_Smax,[ei]{r}),[S]{p}+[fis]{r})),[S]{p})", 1, "0"),
     ("newS", "New settlements", "#", "=MAX(0,[S]{r}-[S]{p})", 0, "0"),
     ("fmin", "Fission minute", "min", '=IF([newS]{r}>0,[min]{r},"")', '=""', "0.00"),

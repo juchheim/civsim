@@ -36,7 +36,7 @@ projects:
     requires: [HNT-02, STN-04]
     effects:
       - {kind: method, action: hunt, rung: 2, name: Stone-tipped spear, rate: 2.2, unit: R/ws}
-      - {kind: hazard, cause: injury, mult: 0.95, scope: hunters}
+      - {kind: hazard, cause: injury, mult: 0.90, scope: hunters}
       - {kind: cap, cap: food, mult: 1.04}
     practice: [{action: hunt, share: 100}]
     flavor: Sharper teeth than any wolf.

@@ -68,7 +68,7 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 | FOR-02 | Roots & Tubers | M | 22 | FOR-01, WOD-01 | Method(Forage, roots and tubers open) · Mod(Winter forage stock, ×2) · Cap(Lean, ×1.10) | forage |
 | HNT-01 | Power Scavenging | M | 22 | — | Method(Scavenge, r0+ Power scavenging, ×1.5) · Cap(Food, ×1.12) | hunt, fight |
 | HNT-02 | Wooden Thrusting Spears | M | 22 | HNT-01, WOD-01 | Action+(Hunt, ambush) · Method(Hunt, r1 Wooden spear, 1.6 R/ws) · Cap(Food, ×1.04) | hunt |
-| HNT-03 | Stone-Tipped Spears | M | 22 | HNT-02, STN-04 | Method(Hunt, r2 Stone-tipped spear, 2.2 R/ws) · Hazard(injury of hunters, ×0.95) · Cap(Food, ×1.04) | hunt |
+| HNT-03 | Stone-Tipped Spears | M | 22 | HNT-02, STN-04 | Method(Hunt, r2 Stone-tipped spear, 2.2 R/ws) · Hazard(injury of hunters, ×0.90) · Cap(Food, ×1.04) | hunt |
 | FOD-01 | Cooking | D | 22 | FIR-01 | Mod(Food value of meat, roots, cereals, +30%) · Hazard(endemic, ×0.93: food-borne deaths fall) · Cap(Food, ×1.10) | cook |
 | SOC-01 | Kin Bonds | I | 33 | — | Cap(Group, 35) · Hazard(child, ×0.97) · Cohesion(+5) | socialize |
 | SOC-02 | Food Sharing | I | 33 | SOC-01 | Hazard(starvation, ×0.92) · Cohesion(+3) · Rule(no figure starves while another camp of yours within reach has food) | socialize, feast |
@@ -288,7 +288,7 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 | AGR-04 | Slash-and-Burn | M | 75 | AGR-01, STN-08, FIR-05 | Method(Clear, Slash-and-burn: forest 1 ws/tile, fields shift every 4 yrs) | farm, tend fire |
 | HUS-03 | Goats & Sheep | D | 75 | HUS-02, [Seen: Wild goats or sheep] | Action+(Herd: tame 0.5 ws per animal; pasture carries 6) · Good(meat 0.8 R, hide 0.2 per animal per yr) · Gate([Seen: Wild goats or sheep]) | herd |
 | HUS-04 | Cattle & Pigs | D | 75 | HUS-03, AGR-01 | Action+(Herd cattle and pigs) · Good(cattle 2.5 R + 0.3 hide/yr; pigs 1.2 R, eat waste) · Unlock(NRG-01) | herd |
-| FOD-05 | Fermentation | D | 75 | FOD-04, AGR-02 | Good(G-BREW) · Mod(Food value, +15%) · Mod(Feast cost, ×0.7) · Cap(Food, ×1.05) | cook, feast |
+| FOD-05 | Fermentation | D | 75 | FOD-04, AGR-02 | Good(G-BREW) · Mod(Cereal food value, +15%) · Mod(Feast cost, ×0.7) · Cap(Food, ×1.05) | cook, feast |
 | FOD-06 | Granaries | S | 90 | FOD-03, BLD-05 | Build(Granary: 80 R, spoilage ×0.25, pests −50%) · Cap(Food, ×1.05) | preserve, build |
 | MED-03 | Midwifery | R | 60 | MED-02, SOC-04 | Role(Midwife) · Hazard(age 0, ×0.93) · Hazard(maternal, ×0.88) | heal |
 | SOC-05 | Feasting | I | 113 | SOC-04, FOD-05 | Action+(Feast: 0.5 R per guest, Cohesion +8 for a year) · Rule(feast-givers become Legends) | feast |
@@ -379,11 +379,11 @@ These are the checks implementation (and the balance model) runs against the num
 |---|-------|--------|--------|
 | C1 | **Food cap trajectory**: average settlement FoodCap produced by the real effects (yields, stocks, food value) | 20 → 27 (E0) → 41 (E1) → 88 (E2), ±10% | [09 §5.3](09-population-and-health.md#53-what-the-caps-do-balanced-standard) |
 | C2 | **Late-winter food share** reaches **0.85**, the cap-trigger share: from then on the cap trigger fires before the winter one, so winter no longer limits the band. A share of 1.0 is out of reach while stored food spoils ([07c](07c-e0-e2-checks.md) C2). | by E1 ≈ 0.4 of the era (FOR-03, FOR-02, FOD-02, FOD-03) | [09 §6.2](09-population-and-health.md#62-late-winter-food-the-lean-season) |
-| C3 | **Hazards by cause**: the product of the Hazard primitives taken by an average civilization (and, in the live sim, the population average of the death mechanisms) reproduces 09's MortChild / MortAdult / MortElder at each era midpoint | ±10% (07c §5 table applied: within ±8%) | [09 §4.1–4.2](09-population-and-health.md#41-hazards-by-era) |
-| C4 | **First fission** (late-winter trigger) | minute 7–9 at Standard for every archetype | [09 §7.3](09-population-and-health.md#73-results-first-fission) |
+| C3 | **Hazards by cause**: project Hazard primitives and live mechanisms reproduce the 09 child/adult targets from the E0 base at each era midpoint. Do not apply the era's MortChild/MortAdult value a second time as the runtime base. Compare annual-effective E1/E0 and E2/E0 ratios after converting each era's outside-winter Mort* with its WinterMult. Elder live rates are age-standardized from exact-age seasonal hazards to e45 and compared with 09's 15/16/16-year anchors; a transient 45+ cohort mean is diagnostic only. | ±10% for ratios and e45; live gate passes per 07c §5 | [09 §4.1–4.2](09-population-and-health.md#41-hazards-by-era) |
+| C4 | **First fission** (late-winter trigger) | per-archetype median successful founding at years 7–9 at Standard; report stochastic tails and non-fissions separately | [09 §7.3](09-population-and-health.md#73-results-first-fission) and [07c §6](07c-e0-e2-checks.md#6-c4--first-fission) |
 | C5 | **Keystone timing** with the 04 openings | KEY-1 ≈ 7.5 min, KEY-2 ≈ 17.5, KEY-3 ≈ 29 (Standard) ±25% | [07 §6](07-balance-findings.md#6-tuned-run) |
 | C6 | **Efficiency growth** on core actions | ×1.5–2 per era | [10 §12](10-e0-e2-actions-and-goods.md#12-efficiency-check-e0--e2-growth) |
 | C7 | **First winter is a felt threat** in about half of games without storage picks | 51% chance of a harsh winter in the first two | [09 §4.3](09-population-and-health.md#43-winter-hazards) |
 | C8 | **Every project has a visible change** within one season of completion (its Moment and a new action, tool sprite, structure or overlay change) | 145/145 | [08](08-ui-and-world-display.md) |
 
-**Note on catalog percentages.** The prose percentages in the catalog are per-figure effects; this document gives population averages. Some prose in 03a–03c states bigger numbers than here (e.g. SOC-01 "child survival +20%"). Where they differ, **this document wins**. 09 §4.2 showed the face-value percentages overshoot, so the hazard multipliers here are scaled to the cause shares.
+**Note on catalog percentages.** The prose percentages in 03a–03c may describe a per-figure effect (e.g. SOC-01 "child survival +20%"); the Hazard values in this document are already whole-population averages, as specified in §1. Where they differ, **this document wins**. V16 checks the cumulative catalog proxy; only the live mechanism-level run can establish C3.

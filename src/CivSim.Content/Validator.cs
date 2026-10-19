@@ -8,8 +8,7 @@ namespace CivSim.Content;
 
 /// <summary>
 /// The rule checks of docs/MVP/16 §6.1 (V2 to V18; V1 is the loader and schema). Each finding is an error or a
-/// warning in the <see cref="Report"/>. Not yet implemented: V15 (cap targets) and V16 (hazard coverage),
-/// which need the balance model's per-era tables inside the validator (16 §6.1, scheduled with M3).
+/// warning in the <see cref="Report"/>.
 /// </summary>
 public static class Validator
 {
@@ -39,6 +38,8 @@ public static class Validator
         CheckCosts(set, report);
         CheckPractice(set, report);
         CheckText(set, report);
+        CheckCapTargets(set, report);
+        CheckHazardCoverage(set, report);
 
         if (cycle is null && !report.HasErrorsOf("V2"))
         {
@@ -57,6 +58,162 @@ public static class Validator
     {
         if (p.Ack.Contains(code)) return;
         report.Warning(code, At(p), message);
+    }
+
+    // ---- V15 cap targets -------------------------------------------------------------------------
+    // These are numeric projects with catalog era E0-E2 in 09 §5.2, including effects
+    // forced back into later research eras. Group caps are direct ladder values, not multipliers.
+    private static readonly (string Project, string Cap, double Mult, double Take)[] CapTargets =
+    {
+        ("FOR-01", "food", 1.10, 1.0), ("HNT-01", "food", 1.12, 1.0), ("FOD-01", "food", 1.10, 1.0),
+        ("HNT-02", "food", 1.04, 1.0), ("FOR-03", "food", 1.08, 1.0), ("HNT-03", "food", 1.04, 1.0),
+        ("WAY-02", "food", 1.05, 1.0), ("HNT-07", "food", 1.10, 0.6), ("FOR-04", "food", 1.10, 1.0),
+        ("HNT-04", "food", 1.10, 0.7), ("FOD-04", "food", 1.05, 1.0), ("FOR-05", "food", 1.04, 1.0),
+        ("FOR-06", "food", 1.06, 1.0), ("AGR-01", "food", 1.30, 1.0), ("AGR-02", "food", 1.22, 1.0),
+        ("FOD-05", "food", 1.05, 1.0), ("AGR-03", "food", 1.08, 0.5), ("HNT-09", "food", 1.08, 0.4),
+        ("FOR-07", "food", 1.08, 0.4), ("HUS-02", "food", 1.04, 1.0),
+        ("FOD-06", "food", 1.05, 1.0), ("HNT-06", "food", 1.03, 1.0),
+        ("FOR-03", "lean", 1.25, 1.0), ("FOR-02", "lean", 1.10, 1.0), ("FOD-02", "lean", 1.15, 1.0),
+        ("FOD-03", "lean", 1.30, 1.0),
+        ("BLD-01", "housing", 1.25, 1.0), ("BLD-02", "housing", 1.20, 1.0),
+        ("BLD-03", "housing", 1.50, 1.0), ("BLD-05", "housing", 1.50, 1.0),
+        ("SOC-04", "housing", 1.30, 1.0),
+        ("BLD-04", "housing", 1.50, 1.0), ("SOC-06", "housing", 1.50, 1.0),
+        ("BLD-06", "housing", 1.50, 1.0),
+    };
+
+    private static void CheckCapTargets(ContentSet set, Report report)
+    {
+        const double tolerance = 0.10;
+        var expected = CapTargets.ToDictionary(x => (x.Project, x.Cap));
+        var actual = new Dictionary<(string Project, string Cap), (double Mult, double Take, Project Owner)>();
+        foreach (Project p in set.Projects.Where(p => p.Status == "numeric" && p.Era <= 2))
+        foreach (Effect e in p.Effects.Where(e => e.Kind == "cap" && e.Str("cap") is "food" or "lean" or "housing"))
+        {
+            if (e.Num("mult") is not { } mult || e.Str("cap") is not { } cap) continue;
+            actual[(p.Id, cap)] = (mult.ToDoubleForDisplay(), e.Num("take")?.ToDoubleForDisplay() ?? 1.0, p);
+        }
+
+        foreach (var target in CapTargets)
+        {
+            double expectedMult = Math.Pow(target.Mult, target.Take);
+            if (!actual.TryGetValue((target.Project, target.Cap), out var found))
+            {
+                string location = set.ById.TryGetValue(target.Project, out Project? p) ? At(p) : "catalog";
+                report.Warning("V15", location,
+                    $"{target.Project}: missing numeric {target.Cap} cap multiplier; target is ×{expectedMult:F3} (09 §5.2)");
+                continue;
+            }
+            double actualMult = Math.Pow(found.Mult, found.Take);
+            double delta = (actualMult - expectedMult) / expectedMult;
+            if (Math.Abs(delta) > tolerance)
+                Warn(report, found.Owner, "V15",
+                    $"{target.Project}: {target.Cap} cap multiplier is ×{actualMult:F3}, target ×{expectedMult:F3} ({delta:+0%;-0%;0%}; tolerance ±10%, 09 §5.2)");
+        }
+
+        foreach (var item in actual)
+            if (!expected.ContainsKey(item.Key))
+                Warn(report, item.Value.Owner, "V15",
+                    $"{item.Key.Project}: unlisted numeric {item.Key.Cap} cap multiplier ×{Math.Pow(item.Value.Mult, item.Value.Take):F3}; add its target to V15 if intentional (09 §5.2)");
+    }
+
+    // ---- V16 hazard coverage ---------------------------------------------------------------------
+    // 07c §5 defines the E0 cause shares and the age-band target ratios. Project hazard values are
+    // already population-average effects and are applied directly (11 §1). The E0 mix is
+    // the reference; E1 and E2 add that era's numeric projects cumulatively. This is a catalog-level
+    // warning proxy for the live C3 check, not a replacement for measuring deaths in the simulation.
+    private static void CheckHazardCoverage(ContentSet set, Report report)
+    {
+        const double tolerance = 0.10;
+        var childShares = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            ["endemic"] = .45, ["epidemic"] = 0, ["starvation"] = .20, ["exposure"] = .20,
+            ["injury"] = .10, ["predators"] = .05, ["violence"] = 0,
+        };
+        var adultShares = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            ["endemic"] = .30, ["epidemic"] = 0, ["starvation"] = .15, ["exposure"] = .15,
+            ["injury"] = .25, ["predators"] = .05, ["violence"] = .10,
+        };
+        var targets = new Dictionary<(int Era, string Band), double>
+        {
+            [(1, "child")] = .917, [(1, "adult")] = .917, [(1, "elder")] = 1.000,
+            [(2, "child")] = .972, [(2, "adult")] = 1.000, [(2, "elder")] = 1.075,
+        };
+        var effects = new Dictionary<int, List<(string Cause, double Mult, string? Scope)>>();
+        foreach (Project p in set.Projects.Where(p => p.Status == "numeric" && p.Era <= 2))
+        foreach (Effect e in p.Effects.Where(e => e.Kind == "hazard" && e.Str("cause") is not null))
+        {
+            if (e.Num("mult") is not { } raw || e.Str("cause") is not { } cause) continue;
+            int effectiveEra = p.IsKeystone ? p.Enters : p.Era;
+            if (effectiveEra > 2) continue;
+            if (!effects.TryGetValue(effectiveEra, out List<(string Cause, double Mult, string? Scope)>? eraEffects))
+                effects[effectiveEra] = eraEffects = new List<(string Cause, double Mult, string? Scope)>();
+            eraEffects.Add((cause, raw.ToDoubleForDisplay(), e.Str("scope")));
+        }
+
+        double BandHazard(string band, int throughEra)
+        {
+            double total = 0;
+            IReadOnlyDictionary<string, double> shares = band == "child" ? childShares : adultShares;
+            foreach (var cause in shares)
+            {
+                double factor = 1;
+                for (int era = 0; era <= throughEra; era++)
+                    if (effects.TryGetValue(era, out var causeEffects))
+                        foreach (var effect in causeEffects)
+                            if (effect.Cause == cause.Key)
+                            {
+                                double mult = effect.Mult;
+                                if (effect.Scope == "hunters" && cause.Key == "injury")
+                                {
+                                    // 07c §5 assumes 60% of adult injury occurs while hunting;
+                                    // hunter-scoped modifiers affect that share, not all injury.
+                                    if (band == "child") continue;
+                                    mult = 1 + .60 * (mult - 1);
+                                }
+                                factor *= mult;
+                            }
+                total += cause.Value * factor;
+            }
+
+            // Age-band hazards apply to all child mortality. Age-0 and maternal effects are weighted
+            // using the assumptions in 07c §5: infants contribute 1/6 of child deaths; childbirth 6% of adults.
+            if (band == "child")
+            {
+                double childFactor = 1, infantFactor = 1;
+                for (int era = 0; era <= throughEra; era++)
+                    if (effects.TryGetValue(era, out var ageBandEffects))
+                        foreach (var effect in ageBandEffects)
+                        {
+                            if (effect.Cause == "child") childFactor *= effect.Mult;
+                            if (effect.Cause == "age0") infantFactor *= effect.Mult;
+                        }
+                total *= childFactor * (5.0 / 6.0 + infantFactor / 6.0);
+            }
+            else if (band == "adult")
+            {
+                double maternalFactor = 1;
+                for (int era = 0; era <= throughEra; era++)
+                    if (effects.TryGetValue(era, out var maternalEffects))
+                        foreach (var effect in maternalEffects)
+                            if (effect.Cause == "maternal") maternalFactor *= effect.Mult;
+                total *= .94 + .06 * maternalFactor;
+            }
+            else // Elders: 40% senescence is unaffected; remaining 60% follows adult causes.
+                total = .40 + .60 * total;
+            return total;
+        }
+
+        foreach (var target in targets)
+        {
+            double baseline = BandHazard(target.Key.Band, 0);
+            double measured = BandHazard(target.Key.Band, target.Key.Era) / baseline;
+            double delta = (measured - target.Value) / target.Value;
+            if (Math.Abs(delta) > tolerance)
+                report.Warning("V16", "catalog",
+                    $"E{target.Key.Era} {target.Key.Band} mortality ratio vs E0 is {measured:F3}; target {target.Value:F3} ({delta:+0%;-0%;0%}, tolerance ±10%; 09 §4.1, 07c §5)");
+        }
     }
 
     // ---- eras and keystone chain ------------------------------------------------------------------

@@ -24,6 +24,7 @@ projects:
     requires: [FOR-01, WOD-01]
     effects:
       - {kind: rule, text: "Forage, roots and tubers open"}
+      - {kind: mod, stat: forage.reachable_stock, op: pct, value: 0.25, note: "Reachable forage, +25% with roots and tubers"}
       - {kind: mod, stat: winter_forage_stock, op: mult, value: 2, note: "Winter forage stock, ×2"}
       - {kind: cap, cap: lean, mult: 1.10}
       - {kind: good, id: G-ROOT}
@@ -92,6 +93,7 @@ projects:
     requires: [AGR-01, WOD-03]
     effects:
       - {kind: build, structure: orchard, note: "matures in 6 yrs, then 3 R/tile/yr"}
+      - {kind: cap, cap: food, mult: 1.08, take: 0.4}
     practice: [{action: farm, share: 50}, {action: forage, share: 50}]
     flavor: We planted for our grandchildren.
     moment: Saplings planted in rows

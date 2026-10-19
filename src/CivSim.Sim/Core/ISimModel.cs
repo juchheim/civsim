@@ -4,8 +4,8 @@ using System.IO;
 namespace CivSim.Sim.Core;
 
 /// <summary>
-/// A simulation the <see cref="SimRunner"/> can drive. The real game world implements this in later
-/// milestones; the toy model in <c>CivSim.Sim.Toy</c> is a permanent determinism canary.
+/// A simulation the <see cref="SimRunner"/> can drive. The toy model in <c>CivSim.Sim.Toy</c> is a
+/// permanent determinism canary; the living economy implements the current E0–E2 simulation slice.
 /// </summary>
 public interface ISimModel
 {

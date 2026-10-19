@@ -3,7 +3,7 @@
 > The build-ready spec for **what figures can do** in the first three eras (Dawn, Hunters, Roots), **how fast** they do it at each rung of each ladder, and **what goods** flow through the economy.
 > Project-by-project effects that unlock these rungs are in [11-e0-e2-project-specs.md](11-e0-e2-project-specs.md). The world they act on is in [12-world-generation.md](12-world-generation.md).
 > Targets come from the balance work: per-settlement caps from [09 §5](09-population-and-health.md#5-caps-raised-project-by-project), mortality causes from [09 §4](09-population-and-health.md#4-deaths), and pacing from [07](07-balance-findings.md). **The rates below are tuned so an average settlement reproduces 09's FoodCap trajectory (20 → 27 → 41 → 88 people across E0–E2) within ±10%.** That is the acceptance check for this document.
-> Design only. No code.
+> Normative design specification. The E0–E2 economy implementation is complete; its acceptance results are in [07c](07c-e0-e2-checks.md) and tracked in [17](17-vertical-slice.md).
 
 ---
 
@@ -24,7 +24,7 @@ Representation scale is **1 : 1 through E3** ([07](07-balance-findings.md) §5 #
 A typical E0 band of **20** at 09's age structure (48% children by the end of E0, [07c](07c-e0-e2-checks.md)): **8 adults, 10 children, 2 elders** (the starting band of 12 is adult-heavy: 8 / 2 / 2).
 - **Labor:** 8 × 1.0 + 2 × 0.5 + ~2.5 children aged 10–13 × 0.3 = **≈ 9.8 ws** per season.
 - **Food need:** 8 + 10 × 0.6 + 2 × 0.8 = **15.6 R** per season (≈ 18 R in a cold Winter).
-- **Non-food work** (fire, shelter, tools, childcare, hauling, ritual) takes about 30% of labor in E0, so ~6.8 ws goes to food. The band needs **≈ 2.3 R per food-ws**. The rung-0 mix delivers 1.9, enough for the adult-heavy starting band (1.7 needed) but not for a grown, child-heavy one, so FOR-01, WOD-01 and HNT-01 (2.2–3.1 R/ws) must land before the band nears 20. Labor is a viability check, not the cap: need and labor both scale with band size.
+- **Non-food work** (fire, shelter, tools, childcare, hauling, ritual) takes about 30% of labor in E0, so ~6.8 ws goes to food. The band needs **≈ 2.3 R per food-ws**. With a 70/30 forage/scavenge work split, rung-0 output is `0.8 × (0.70 × 3.2 + 0.30 × 0.9) ≈ 1.9 R/ws`; that feeds the adult-heavy starting band (≈1.7 needed) but not a grown, child-heavy one. FOR-01, WOD-01 and HNT-01 raise effective food output before the band nears 20. Labor is a viability check, not the cap: need and labor both scale with band size.
 - **The cap is set by stocks.** A band forages and hunts within its **range** (§3.1, radius 3 = 37 tiles). Its sustainable plant regrowth (37 × 2.65 R/yr × 40% reachable = 39 R) plus its share of the herds' growth (37 × 0.04 herds × 46 R/yr × 40% = 27 R) feeds ≈ 18 people at the starting band's 3.6 R per person per year. That is **FoodBase ≈ 20** (09 §6.1), within 10%.
 - **Winter:** plant regrowth falls to 0.15 R/tile, and fresh plants lose 40% a season in store. The band covers ≈ 76% of late-winter need (§4.6, 07c C2), which is **LeanBase 0.77** (09 §6.2). The starting season of stores covers the first winter.
 
@@ -58,7 +58,7 @@ These four constants turn the rates below into 09's FoodCap trajectory. They wer
 
 | Rung | Method | Unlocked by | Tool / input | MethodMult | Notes |
 |------|--------|-------------|--------------|-----------:|-------|
-| 0 | Hand gathering | start | — | 1.0 | Base rate **1.6 R/ws** while stock lasts; 40% of the stock is reachable by hand |
+| 0 | Hand gathering | start | — | 1.0 | Base rate **3.2 R/ws** while stock lasts; 40% of the stock is reachable by hand |
 | 1 | Digging stick | WOD-01 (+FOR-02 for roots) | Digging stick (durability 4 ws) | 1.5 | Roots and tubers open: reachable stock +25%; Winter stock ×2 (tubers keep) |
 | 2 | Baskets | FIB-05 + FOR-03 | Basket (8 ws) | 1.8 | Carry ×1.5 for forage; nuts and seeds become **storable** (spoilage 5%/season) |
 | 3 | Wild-grass sickle | FOR-04 + STN-06 | Microlith sickle (6 ws) | 2.4 | Only on grass-stand tiles (grassland, steppe, savanna, open woodland): +60% stock on those tiles in Summer–Autumn |
@@ -166,6 +166,8 @@ Herding labor: 0.1 ws per 10 small stock or 4 cattle per season. Domestic herds 
 
 **Flint vs. stone:** T1–T4 use any stone. T5–T6 need **flint or chert** (MIN-01 reveals it; MIN-02 mines it). With no flint, they fall back to T4 quality.
 
+**Hunting and fishing tools:** HNT-05 makes one atlatl-and-dart set for 8 ws from 0.5 wood and 0.1 cord; HNT-06 makes one bow-and-arrow set for 10 ws from 0.3 wood and 0.1 flint; HNT-08 makes one fishing kit for 8 ws from 0.1 bone and 0.1 cord. FIB-05 makes one net for 12 ws from 20 cord (as in §4.3 and the goods table).
+
 ### 5.3 Fiber, hide, clay, textile
 | Good | Unlocked by | Recipe | Time (ws) |
 |------|-------------|--------|----------:|
@@ -174,15 +176,16 @@ Herding labor: 0.1 ws per 10 small stock or 4 cattle per season. Domestic herds 
 | Leather | FIB-03 | 1 rawhide + smoke (hearth) | 0.2 |
 | Hide wrap (warmth +1) | FIB-02 | 2 rawhide | 0.1 |
 | Tailored clothing (warmth +2) | FIB-04 | 3 leather + bone needle set | 0.3 |
+| Sapling ×1 | FOR-07 | wood 0.1 L | 0.1 |
 | Basket | FIB-05 | plant fiber 0.5 L | 0.15 |
-| Net | FIB-05 | cord ×20 | 0.3 |
+| Net | FIB-05 | cord ×20 | 12 |
 | Clay | CER-01 (or BLD-05) | gather on clay tiles: 3 L/ws | — |
 | Figurine | CER-01 | clay 0.1 L, fired in a hearth | 0.05 |
 | Pot ×4 | CER-02 | clay 1 L; open firing breaks 40%, kiln 20% | 0.3 |
 | Storage jar ×2 | CER-03 | clay 1 L, kiln | 0.3 |
 | Yarn ×1 | FIB-06 | wool or flax 0.5 L | 0.3 |
 | Cloth ×1 (warmth +1, trade) | FIB-07 | yarn ×2 | 0.5 |
-| Mudbrick ×10 | BLD-05 | clay 1 L + straw, sun-dried 1 season | 0.3 |
+| Mudbrick ×10 | BLD-05 | clay 1 L + straw 1 L, sun-dried 1 season | 0.3 |
 | Lime ×1 | CHM-03 | stone 1 L + wood 2 L in a kiln | 0.3 |
 | Pigment ×1 | CHM-01 | ochre 0.2 L | 0.05 |
 | Birch tar ×1 | CHM-02 | bark 0.5 L, controlled heat | 0.1 |
@@ -269,7 +272,7 @@ Housing is **build-limited** (09 §6.3): the planner builds ahead of demand when
 
 ## 9. Warmth (the cold rule)
 
-Each figure's **warmth tiers** = fire (+1 when at a camp with a hearth or kept fire) + shelter (lean-to/tent +1, pit house or better +2) + clothing (hide wrap +1, tailored +2, cloth +1). The highest of each category counts.
+Each figure's **warmth tiers** = fire (+1 when at a camp with a hearth or kept fire) + shelter (lean-to/tent +1, pit house or better +2) + clothing (hide wrap +1, tailored +2, cloth +1). The highest of each category counts. Shelter places and available whole garments are assigned in ascending figure-id order, with warmer shelter and clothing first; each figure receives at most one shelter and one garment.
 
 | Climate band | Winter tiers needed | Summer |
 |--------------|-------------------:|-------:|
@@ -278,7 +281,7 @@ Each figure's **warmth tiers** = fire (+1 when at a camp with a hearth or kept f
 | Temperate | 2 | 0 |
 | Cold | 3 (so **FIB-04** is needed to live there) | 1 |
 
-Each tier short adds the exposure hazard from 09 §4.3 (0.02 per Winter season in Temperate, 0.04 in Cold) and food need ×1.15. **Fire Keeping (FIR-01)** fire can go out: if the camp's fire-keeper is absent for 10 ticks without fuel, the fire dies, and only a wildfire (12 §7) or a neighbor gives it back. **Fire Making (FIR-02)** removes the risk.
+Each missing warmth tier raises the active share of the exposure cause budget described in 09 §4.2–4.3; the live hazard is scaled by `deficit / required tiers`, doubled in Cold climates (capped at 2), concentrated in Winter, and multiplied by completed exposure-cause catalog modifiers. It is not a second hazard added on top of the Mort* target. Food need also rises ×1.15 while warmth is short. **Fire Keeping (FIR-01)** fire can go out: if the camp's fire-keeper is absent for 10 ticks without fuel, the fire dies, and only a wildfire (12 §7) or a neighbor gives it back. The headless E0–E2 model assigns the keeper deterministically and budgets 0.1 work-season to tending; while the keeper is absent, one stored wood fuels one season. **Fire Making (FIR-02)** removes the loss risk. A hearth provides fire warmth without a keeper.
 
 **Warmth tiers are the only source of cold deaths in the live simulation.** The `Hazard(exposure, …)` values in [11](11-e0-e2-project-specs.md#1-effect-primitives-syntax-used-in-the-tables) are population averages for the balance model and the C3 check. They describe what these tiers should produce across a whole population; they are never applied on top of them.
 

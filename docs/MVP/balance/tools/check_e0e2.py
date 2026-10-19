@@ -85,7 +85,7 @@ FIX_HAZ = {
     "FIB-02": [("exposure", 0.96)],
     "BLD-01": [("exposure", 0.93)],
     "FOR-01": [("endemic", 0.98)],
-    "HNT-03": [("injury of hunters", 0.95)],
+    "HNT-03": [("injury of hunters", 0.90)],
     "FOD-01": [("endemic", 0.93)],
     "SOC-01": [("child", 0.97)],
     "SOC-02": [("starvation", 0.92)],
@@ -282,9 +282,11 @@ def food_cap(pos, age, c):
         access *= 1.10
     game = tiles * HERDS_PER_TILE * HERD_YIELD * access * cook * boil
     # fish (HNT-07, take 0.6): 2 river tiles in range at 1.2 R/season, half reachable with harpoons
-    fish = (0.6 * 2 * 1.2 * 4 * 0.5 * cook * boil) if done("HNT-07") else 0.0
+    # FOD-01 cooking applies only to meat, roots and cereals; FOD-04's general food-value
+    # bonus still applies to fish. Keep the fixed reference aligned with 10 §4.6.
+    fish = (0.6 * 2 * 1.2 * 4 * 0.5 * boil) if done("HNT-07") else 0.0
     if done("HNT-09"):
-        fish += 0.4 * 2.0 * 4                                  # one weir, take 0.4
+        fish += 0.4 * 2.0 * 4 * boil                          # one weir, expected take 0.4
     # fields (10 §4.4)
     fields = 0.0
     if field_tiles:
@@ -356,7 +358,7 @@ def lean_share(pos, c):
 
 
 def check_c2(fixed):
-    print("\nC2 — late-winter food share (target: reaches 1.0 by E1 ≈ 0.4; 09 LeanBase 0.77)")
+    print("\nC2 — late-winter food share (target: reaches 0.85 by E1 ≈ 0.4; 09 LeanBase 0.77)")
     c = CONST["fixed" if fixed else "spec"]
     out = [(pos, *lean_share(pos, c)) for pos in (0.0, 0.5, 1.0, 1.3, 1.4, 1.5, 1.7, 2.0, 2.9)]
     print("  position " + "  ".join(f"{p:4.1f}" for p, *_ in out))
@@ -369,7 +371,7 @@ def check_c2(fixed):
 
 
 def check_c4():
-    print("\nC4 — first fission (late-winter trigger), Standard, every archetype (target minute 7–9)")
+    print("\nC4 — mean-field first-fission calibration (late-winter trigger), Standard, every archetype (target minute 7–9; live integration is reported in 07c §6)")
     for a in P.ARCHETYPES:
         s = P.scenario("tuned", "Standard", a)
         rows, D = B.run(s)

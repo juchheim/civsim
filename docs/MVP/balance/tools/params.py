@@ -284,15 +284,15 @@ CAPS = [
     ("BLD-16", "Green & Smart Buildings", 9, 0.60, "Housing", 1.10, 0.6),
 ]
 
-# ---- archetype sensitivity (multipliers applied on top of a scenario) ---------------
-ARCH_FIELDS = ["Fertility", "FoodCap", "Territory", "Insight", "Roles", "KH", "AdultMort", "Diffusion"]
+# ---- archetype profile (multipliers and threshold adjustments) -----------------------
+ARCH_FIELDS = ["Fertility", "FoodCap", "Territory", "Insight", "Roles", "KH", "AdultMort", "Diffusion", "LeanShareAdjustment"]
 ARCHETYPES = {
-    "Balanced": [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00],
-    "Grower":   [1.15, 1.20, 1.10, 1.00, 0.90, 0.95, 1.00, 1.00],
-    "Builder":  [0.95, 1.05, 0.90, 1.00, 1.00, 1.30, 1.00, 1.00],
-    "Wanderer": [1.00, 0.95, 1.40, 0.95, 0.95, 1.10, 1.05, 0.90],
-    "Warlord":  [1.00, 1.00, 1.30, 0.90, 0.90, 1.00, 1.30, 1.00],
-    "Sage":     [0.95, 0.95, 0.90, 1.10, 1.40, 1.00, 0.95, 1.00],
+    "Balanced": [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.00],
+    "Grower":   [1.15, 1.20, 1.10, 1.00, 0.90, 0.95, 1.00, 1.00, 0.00],
+    "Builder":  [0.95, 1.05, 0.90, 1.00, 1.00, 1.30, 1.00, 1.00, -0.02],
+    "Wanderer": [1.00, 0.95, 1.40, 0.95, 0.95, 1.10, 1.05, 0.90, 0.00],
+    "Warlord":  [1.00, 1.00, 1.30, 0.90, 0.90, 1.00, 1.30, 1.00, 0.00],
+    "Sage":     [0.95, 0.95, 0.90, 1.10, 1.40, 1.00, 0.95, 1.00, 0.00],
 }
 
 

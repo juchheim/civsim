@@ -62,7 +62,7 @@ projects:
     requires: [FOD-04, AGR-02]
     effects:
       - {kind: good, id: G-BREW}
-      - {kind: mod, stat: food_value, op: pct, value: 0.15, note: "Food value, +15%"}
+      - {kind: mod, stat: cereal_food_value, op: pct, value: 0.15, note: "Grain to beer or bread food value, +15%"}
       - {kind: mod, stat: feast_cost, op: mult, value: 0.7, note: "Feast cost, ×0.7"}
       - {kind: cap, cap: food, mult: 1.05}
     practice: [{action: cook, share: 50}, {action: feast, share: 50}]

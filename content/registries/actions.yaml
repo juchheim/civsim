@@ -2,7 +2,7 @@
 # Ladder rungs are NOT listed here: they are the `method` effects of projects, collected per action by the compiler.
 schema: 1
 actions:
-  - {id: forage, name: Forage, class: family, base_rate: 1.6, unit: R/ws}
+  - {id: forage, name: Forage, class: family, base_rate: 3.2, unit: R/ws}
   - {id: scavenge, name: Scavenge, class: family, base_rate: 0.9, unit: R/ws}
   - {id: hunt, name: Hunt, class: family}
   - {id: fish, name: Fish, class: family}

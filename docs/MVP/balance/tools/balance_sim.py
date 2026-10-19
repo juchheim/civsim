@@ -61,7 +61,7 @@ def caps(s, e, pos):
     E, A_ = s["era"], s["arch"]
     m = cap_mults(pos, s["CapsByProject"])
     food = E["FoodCap"][e] * A_["FoodCap"] * m["Food"]
-    lean = food * min(1.0, s["LeanBase"] * m["Lean"])
+    lean = food * min(1.0, (s["LeanBase"] + A_["LeanShareAdjustment"]) * m["Lean"])
     housing = E["HousingCap"][e] * m["Housing"]
     group = E["GroupCap"][e] * s["CohesionFactor"] * m["Group"]
     return dict(pos=pos, food=food, lean=lean, housing=housing, group=group, sett=min(food, housing, group),
@@ -142,10 +142,12 @@ def run(s, max_seasons=MAX_SEASONS):
         A = prev["A"] + aCA - aAE - dA - prev["A"] * oshare
         El = prev["El"] + aAE - dE - prev["El"] * oshare
         newpop = C + A + El
-        # fission (from the previous row's settlement pressure)
-        # a settlement splits when it passes 85% of its cap, or when a late-winter
-        # check finds it larger than its lean-season food (09 §7.2); daughter must be viable
-        per = pop / prev["S"]
+        # Fission is checked against the population at the end of this season.
+        # In particular, 09 §7.2 defines the lean-food check at Winter's end,
+        # after winter births, deaths and cohort aging. Keep the previous-row
+        # population for this season's rates and crowding, but use the resulting
+        # population for both pressure triggers, as the live model does.
+        per = newpop / prev["S"]
         fission = 0
         wfis = 1 if (s["WinterTrigger"] and winter and per >= cp["lean"]) else 0
         if (per >= s["FissionTrigger"] * cp["sett"] or wfis) and per * s["DaughterShare"] >= s["MinDaughter"]:
