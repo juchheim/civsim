@@ -45,6 +45,7 @@ public static class Program
                 "economy" => RunEconomy(args[1..]),
                 "research" => ResearchCommand.Run(args[1..]),
                 "politics" => PoliticsCommand.Run(args[1..]),
+                "ai" => AiCommand.Run(args[1..]),
                 "worldgen" => RunWorldGen(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2..]),
                 _ => Usage(),
@@ -63,6 +64,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE");
         Console.Error.WriteLine("       civsim-harness economy --pack FILE [--seed N] [--ticks N] [--checksum-every N] [--archetypes Balanced,Grower,Builder,Wanderer] [--complete TICK:CIV:PROJECT] [--record FILE] [--check-golden FILE | --write-golden FILE] [--report-economy] [--report-balance-reference] [--report-c1-reference] [--report-c3-midpoints] [--trace-demography]");
+        Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6) [--seeds N] [--minutes N] [--archetype X]");
         Console.Error.WriteLine("       civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none] [--archetypes a,b,c,d] [--trace] [--record FILE] [--check-golden FILE | --write-golden FILE] [--check-c5]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");
         return 2;
