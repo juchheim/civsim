@@ -1,0 +1,3 @@
+seed=20261019 ticks=7200 bot=grower commands=31
+final=85577521985d50b9
+digest=3e62a110cf02d5a8

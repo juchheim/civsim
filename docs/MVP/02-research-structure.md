@@ -132,6 +132,7 @@ Insight/yr = Commons + Roles + Structures
 ```
 
 - **Scale:** the starting band of 12 (8 adults, 2 elders) makes about 40 Insight per year, enough to finish E0 in 7–9 minutes. v0.1 used a coefficient of 0.6 and role outputs one-eighth of these, which made E0 take ~58 minutes. Every output was scaled ×8 together, so the commons-vs-specialist ratios are unchanged ([07](07-balance-findings.md) F1).
+- **Live calibration (M4).** The whole formula (Commons, roles and structures together) is multiplied by `InsightCalibration` = **1.6** in `content/constants/balance.yaml`. With exact ages the first children reach adulthood only at minute 14, so the live adult stock through E1 trails the balance model's smoothed one by 30–40%, and the 7.5 / 17.5 / 29 minute Keystone targets need the factor ([07c §7a](07c-e0-e2-checks.md#7a-c5-in-the-live-sim-m4-2026-10-19)). It is the same kind of change as the ×8 above. EraBase for E3 and later is untouched; re-fit it when those eras run live (M8).
 - The sublinear population exponent (0.85) keeps huge empires from researching at absurd speed. Specialists and institutions are how large civilizations stay ahead. The balance model found that lowering the exponent changes little ([07](07-balance-findings.md) F3), so it stays at 0.85.
 - Children contribute nothing. Elders contribute double Commons (wisdom), which makes keeping elders alive (MED, FOD) a research strategy.
 
@@ -144,6 +145,7 @@ Insight/yr = Commons + Roles + Structures
 | Tertiary | 1/7 ≈ 14% | |
 
 - If a slot is **empty**, its share is redistributed proportionally to the occupied slots. The player is never punished for having fewer than three available projects, which can happen in the first minutes.
+- **Cascade**: when a project completes, the projects below it slide up one slot, and the queue head (or, after its grace period, the Council) fills the Tertiary slot ([08 §7](08-ui-and-world-display.md#7-focus-bar)). A slot is never refilled in place: a long chain would otherwise sit in the 1/7 slot for minutes.
 - **Overflow**: Insight that exceeds a project's remaining cost carries into the project that cascades into that slot.
 - **Focus bonus** (optional; tune in playtest): if all three slotted projects share a theme, +10% total Insight ("deep focus"). If they span all three themes, Know-how gain is +10% ("broad curiosity"). This is a light flavor choice and is *off* by default in the MVP.
 
@@ -287,6 +289,8 @@ Score = Leaning[theme]
 ```
 **KeystoneProgress** applies to the next keystone's *whole closure*: every project its four named prerequisites need, transitively, including backfills from earlier eras. Boosting only the four named projects leaves the Council blind to the backfills a closure forces. KEY-3 needs 25 projects from E0–E1 that KEY-2 didn't, and KEY-10 needs 52 ([07](07-balance-findings.md) F8).
 The top three scores fill Primary, Secondary and Tertiary. Urgency signals come from the simulation (food-security index, recent deaths by cause, border tension, cohesion level). Tie-breaks are deterministic (by id), for lockstep safety. The scorer also returns each suggestion's **dominant factor** (e.g. "famine risk", "keystone path", "rivals know it"), which the UI shows as a reason tag ([08 §8.6](08-ui-and-world-display.md#86-hub-emphasis-and-suggestions)).
+
+**As built (M4).** `KeystoneProgress` is 3 plus the length of the chain still ahead of the project inside the closure, so the critical path leads; a keystone that has become Available adds +20. When the closure is finished and the era's breadth `N` is still short, any project of the current era counts ×2 (earlier-era backfills do not count toward breadth). `Opportunity` is stored Know-how, the discount a contacted rival's knowledge gives, and **Insight gain** (roles, Commons mods, SOC-03 sharing, weighted ×16), so a band that can get wiser does so early. `Urgency` is 2 × the matching signal (famine → FOR HNT FOD AGR HUS SEA; threat → DEF WAR DIP; disease → MED; cohesion → BEL GOV SOC ART). An **AI** civilization keeps its best-scoring work in Primary and pulls a ready keystone straight into it; the **player's** slots are never reordered, and the player's Council waits one season (150 ticks) before filling an empty slot. A queued project is taken at once.
 
 ## 16. Catalog notation
 

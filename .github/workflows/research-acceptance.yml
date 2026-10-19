@@ -1,0 +1,33 @@
+name: scheduled research acceptance (C5)
+
+on:
+  schedule:
+    - cron: '17 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  c5:
+    name: C5 keystone timing (KEY-1, KEY-2, KEY-3 at 7.5 / 17.5 / 29 min, +/-25%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build CivSim.slnx -c Release
+
+      - name: Build the content pack
+        run: dotnet run --project src/CivSim.Cli -c Release --no-build -- build-pack --out civsim.pack
+
+      - name: C5 on the default seed
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --check-c5
+
+      - name: C5 on a second seed
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --check-c5 --seed 777

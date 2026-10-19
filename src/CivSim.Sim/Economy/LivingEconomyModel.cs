@@ -363,6 +363,9 @@ public sealed class LivingEconomyModel : ISimModel
             s.FieldTiles.Count, WarmthTier(s));
     }
 
+    /// <summary>Hearths built at a settlement (FIR-03), for research's hearth Insight bonus.</summary>
+    public int HearthCount(int settlementIndex) => _settlements[settlementIndex].Structures[(int)Structure.Hearth];
+
     public FigureView Figure(int index)
     {
         FigureState f = _figures[index];

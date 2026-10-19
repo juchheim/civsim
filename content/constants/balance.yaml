@@ -23,6 +23,7 @@ constants:
   - {id: CommonsCoef, value: 4.8, unit: Insight/yr, source: "02 §8.1 Commons coefficient"}
   - {id: CommonsExp, value: 0.85, unit: exp, source: "02 §8.1"}
   - {id: ElderCommons, value: 2, unit: "×", source: "02 §8.1: elders count double"}
+  - {id: InsightCalibration, value: 1.6, unit: "×", source: "M4 re-fit of the whole Insight formula (Commons, roles and structures together) to the live exact-age demography: adults are 14+ and the first-born reach 14 only at minute 14, so the live adult stock trails the balance model's smoothed one by 30-40% through E1 (07c §7a). Same precedent as 07 F1 (x8 on every output). Re-fit EraBase for E3+ when those eras are live (M8)"}
   - {id: RoleScale, value: 8, unit: "×", source: "multiplies every role and structure output in 02 §8.1"}
   - {id: OutElder, value: 1, unit: Insight/yr, source: "GOV-01 (×RoleScale)"}
   - {id: OutShaman, value: 1.5, unit: Insight/yr, source: BEL-03}

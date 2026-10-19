@@ -230,6 +230,43 @@ The old continuous `C / 56` mean-field comparison is superseded for this gate; t
 
 Then update 11 §2's sums (×1.10, ×1.11, ×1.07). I didn't edit the column because it should follow 02, not lead it.
 
+## 7a. C5 in the live sim (M4, 2026-10-19)
+
+**Method.** `civsim-harness research --pack FILE --check-c5` plays four **Balanced** civilizations (the balance model's reference) on the Council for 40 minutes of the real living economy (M3) driven by the real research system (M4). The median civilization must land in ±25% of 7.5 / 17.5 / 29 minutes and none may stray beyond ±40%. The scripted openings are played by `--bot grower|builder|wanderer` (civilization 0 follows the opening, then hands back to the Council; the other three stay on the Council).
+
+| Run | KEY-1 (target 7.5, window 5.6–9.4) | KEY-2 (17.5, window 13.1–21.9) | KEY-3 (29, window 21.8–36.2) |
+|---|---|---|---|
+| Council, seed 20261019, four civs | median **6.3** (6.1 6.3 6.3 6.6) | median **19.3** (18.6 19.1 19.6 19.7) | median **32.6** (29.8 32.1 33.0 34.0) |
+| Council, seed 777, four civs | median **6.6** (6.0 6.5 6.6 6.8) | median **20.5** (20.0 20.2 20.7 21.6) | median **34.4** (34.0 34.2 34.6 34.6) |
+| Grower opening (civ 0) | **8.5** (+13%) | **18.4** (+5%) | **31.6** (+9%) |
+| Builder opening | **7.3** (−3%) | **19.8** (+13%) | **35.4** (+22%) |
+| Wanderer opening | **8.0** (+7%) | **20.9** (+19%) | **35.6** (+23%) |
+
+**All within ±25%; C5 passes.** Know-how is 17–19% of research progress (target 13–20%). The unit test `KEY_1_lands_inside_the_C5_window_…` runs the first 9.5 minutes in `dotnet test`; the full check is the scheduled workflow `research-acceptance.yml`.
+
+**What the live sim showed, in the order I found it.**
+1. **The oracle's adults are smoother than the live ones.** M3 ages people exactly, so the founding adults (18–32) stay at 8–9 until the first-born reach 14 at minute 14, and the first adults start turning 45 at minute 13. The balance model's `C / 56` flow gave 13 adults at minute 15; the live sim has 8–9. Children contribute nothing, so Insight is flat at about 40 a year for 14 minutes, then climbs. The balance model also granted two things for free from the start of E1 that the live sim must research: the Elder and Shaman roles (GOV-01, BEL-03: +20 Insight a year per settlement) and full Insight sharing between daughter bands (SOC-03: +33% at two settlements).
+2. **Slots must cascade.** Refilling a freed slot in place left a keystone prerequisite chain (STN-01 → 02 → 03 → 04) in the 1/7 slot for minutes: KEY-1 arrived at minute 12 to 20 with 22 projects done against a breadth of 13. The cascade of 08 §7 (the others slide up, the queue fills Tertiary) and a Council that ranks the critical path first removed the 2× spread between civilizations.
+3. **A Council that ignores wisdom is slow.** GOV-01 + BEL-03 cost 115 Insight and return +20 a year per settlement, a payback of under three minutes. The Council now counts Insight gain in `Opportunity` (02 §15).
+4. **Calibration.** Even so, the live sim needs more Insight than the oracle's formula gives. Scanning a uniform scale on the whole formula (Commons, roles, structures; four Balanced civs, Council, KEY-1 / KEY-2 / KEY-3 in minutes):
+
+| Scale | KEY-1 | KEY-2 | KEY-3 |
+|---:|---|---|---|
+| ×1.0 | 9.5–10.7 | 26.6–28.1 | not by minute 34 |
+| ×1.3 | 7.5–8.3 | 22.0–23.9 | not by minute 34 |
+| ×1.5 | 6.5–7.1 | 19.7–21.2 | 32.7–33.7 (two of four) |
+| **×1.6 (adopted)** | 6.0–6.8 | 18.6–21.6 | 29.8–34.6 |
+| ×1.7 | 5.9–6.2 | 18.1–19.9 | 28.8–32.0 |
+
+**Adopted: `InsightCalibration` = 1.6** (`content/constants/balance.yaml`, applied to the whole formula, as ×8 was in 07 F1). It is a re-fit to the live demography, not a design change to 02 §8.1. 1.7 centers KEY-2 and KEY-3 better but puts KEY-1 at the edge of its window; 1.6 keeps all three inside on both seeds.
+
+**Consequences and limits.**
+- The Python balance model (`params.py`) is **not** changed. It still describes the smoothed demography, so its E0–E2 durations (7.8 / 10.0 / 11.8 min) no longer predict the live sim, in the same way the exact-age reference superseded the `C / 56` comparison for population (§6). EraBase for E3 and later was fit with the balance model's Insight; re-fit it when those eras run live (M8).
+- **Stand-ins until their systems exist:** practice that is not an M3 job (talk, ritual, teaching, counting, marking; `AmbientPractice` in `LivingEconomySource`) is a flat background of work-seasons per adult; resource exposure for `[Seen]` gates is "within routine reach of a settlement" (6 / 9 / 12 tiles by era, ×1.5 with WAY-01, ores within 25 with INQ-03) because M3 figures have no line of sight; Elder and Shaman holders are one per settlement with an elder or six adults; contact is not simulated (M5 calls `RecordContact`).
+- **The 04 openings carry more picks before KEY-1 than the breadth rule needs** (Grower 19, Builder 16, Wanderer 15; costs 521 / 438 / 418 including the keystone, against 363 for the cheapest route: KEY-1's 11 closure projects and the keystone cost 319, and two more free picks reach the breadth of 13). They pass because Know-how and the cascade make up the difference.
+- **P8** (a Council-only player loses to an engaged one in ≥ 65% of paired matches) needs the scripted-bot harness of M6.
+- **C8** is checked in the sim's event stream: every one of the 148 numeric projects emits `Completed`, `Moment` and at least one `VisibleChange` on completion (`Every_numeric_project_announces_a_visible_change_when_it_completes`), and every completion in a real match does too.
+
 ## 8. Change list
 
 | # | Doc § | Change | Status |
@@ -244,6 +281,7 @@ Then update 11 §2's sums (×1.10, ×1.11, ×1.07). I didn't edit the column bec
 | 8 | 02 §8.3, 11 §2 and cost column | EraBase 22 / 50 / 75 (09 §12 #1), then rescale 11's costs | recommended |
 | 9 | 11 FOD-04, FOD-05 | Optional: narrow the grain food-value stack; if so, raise the E2 field limit to ~34% | optional |
 | 10 | [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18) | Re-run the territory model on the R6 trajectory (9 metropolises in E8–E9) | ✅ done: recommendations hold; early map emptier (07b §9.3 L2) |
+| 12 | 02 §8.1, §8.2, §15; `balance.yaml` | M4: `InsightCalibration` 1.6; the slot cascade; Council critical-path depth, Insight gain, AI re-rank (§7a) | ✅ applied |
 | 11 | 05 §9.1 | Replace "the balance model hasn't adopted them yet" with a link here; the per-era caps there become the E7 project steps of §2 | recommended |
 
 ## 9. Regenerating

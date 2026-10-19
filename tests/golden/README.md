@@ -12,6 +12,16 @@ in `ToyScenario` (seed, ticks, command script). It is checked by:
 `Seed_42_matches_world_generation_fingerprint_golden` checks it through the `dotnet test` matrix on macOS and
 Windows.
 
+`research-v1.txt` records seed, ticks, command count, final checksum and digest of a 12-minute match
+(`civsim-harness research --minutes 12 --bot grower`): the living economy driven by research, civilization 0 playing the
+Grower opening. It is checked by the CI step `research --check-golden` on **macOS and Windows**, which is the
+cross-platform proof for M4. It changes whenever the economy, the research rules, the Council or the content change;
+regenerate it deliberately and say why in the commit message:
+
+```bash
+dotnet run --project src/CivSim.Harness -c Release -- research --pack civsim.pack --minutes 12 --bot grower --write-golden tests/golden/research-v1.txt
+```
+
 `content-pack.txt` is the format, project count, size and SHA-256 of the compiled content pack built from
 `content/`. It is checked by the unit test `The_pack_matches_the_committed_golden_summary` and by the CI step
 `civsim build-pack --check-golden`, on macOS and Windows. **Unlike the toy golden, this one changes whenever

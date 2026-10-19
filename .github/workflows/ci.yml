@@ -40,3 +40,11 @@ jobs:
         run: |
           dotnet run --project src/CivSim.Harness -c Release --no-build -- toy --record toy.replay
           dotnet run --project src/CivSim.Harness -c Release --no-build -- replay verify toy.replay
+
+      - name: Research and economy golden (cross-platform)
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --minutes 12 --bot grower --check-golden tests/golden/research-v1.txt
+
+      - name: Match replay record and verify
+        run: |
+          dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --minutes 5 --bot grower --record match.replay
+          dotnet run --project src/CivSim.Harness -c Release --no-build -- replay verify match.replay --pack civsim.pack

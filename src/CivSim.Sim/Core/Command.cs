@@ -24,6 +24,8 @@ public enum CommandKind : ushort
     SetPosture = 7,
     /// <summary>A = dense project index from the loaded content pack.</summary>
     CompleteProject = 8,
+    /// <summary>A = 1 to let the Council of Elders fill empty focus slots, 0 to leave them empty.</summary>
+    SetCouncil = 9,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>

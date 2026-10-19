@@ -9,6 +9,7 @@ using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Randomness;
+using CivSim.Sim.Research;
 using CivSim.Sim.Toy;
 using CivSim.Sim.World;
 
@@ -42,6 +43,7 @@ public static class Program
             {
                 "toy" => RunToy(args[1..]),
                 "economy" => RunEconomy(args[1..]),
+                "research" => ResearchCommand.Run(args[1..]),
                 "worldgen" => RunWorldGen(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2..]),
                 _ => Usage(),
@@ -60,6 +62,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE");
         Console.Error.WriteLine("       civsim-harness economy --pack FILE [--seed N] [--ticks N] [--checksum-every N] [--archetypes Balanced,Grower,Builder,Wanderer] [--complete TICK:CIV:PROJECT] [--record FILE] [--check-golden FILE | --write-golden FILE] [--report-economy] [--report-balance-reference] [--report-c1-reference] [--report-c3-midpoints] [--trace-demography]");
+        Console.Error.WriteLine("       civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none] [--archetypes a,b,c,d] [--trace] [--record FILE] [--check-golden FILE | --write-golden FILE] [--check-c5]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");
         return 2;
     }
@@ -1146,7 +1149,18 @@ public static class Program
                 : verification.Message);
             return verification.Ok ? 0 : 1;
         }
-        if (packPath is not null) throw new ArgumentException("--pack is only used for economy replay files.");
+        if (magic == MatchReplay.Magic)
+        {
+            if (packPath is null) throw new ArgumentException("Match replay verification requires --pack.");
+            MatchReplay match = MatchReplay.Read(stream);
+            ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
+            ReplayVerification verification = match.Verify(pack);
+            Console.WriteLine(verification.Ok
+                ? $"match replay OK ({match.Replay.Checksums.Count} checksums, {match.Replay.Commands.Count} commands, final={match.FinalChecksum:x16})"
+                : verification.Message);
+            return verification.Ok ? 0 : 1;
+        }
+        if (packPath is not null) throw new ArgumentException("--pack is only used for economy and match replay files.");
         Replay replay = Replay.Read(stream);
         ReplayVerification result = ReplayVerifier.Verify(replay, seed => new ToyModel(seed));
         Console.WriteLine(result.Ok ? $"replay OK ({replay.Checksums.Count} checksums, {replay.Commands.Count} commands)" : result.Message);
