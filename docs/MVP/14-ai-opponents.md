@@ -305,3 +305,36 @@ Automated checks flagging AI mistakes, with target rates per match at Warlord le
 - How much of the AI's **intent** should be legible to the player (warpaint, war drums before a raid) without making it trivial to counter?
 - Should the AI **adapt across matches** to a specific player's habits (post-MVP; needs a fairness review)?
 - Legend-level coalition behavior must not feel like "everyone hates the player". The harness should verify that AIs gang up on AI leaders as often as on human leaders.
+
+## 16. M6 belief state as built (2026-10-19)
+
+Code: `CivSim.Sim/Ai/Belief` (`BeliefBuilder`, `BeliefRules`, `TechEstimate`, `ArchetypeModel`, `ThreatModel`) and the belief types in `Ai/Beliefs.cs`. The builder runs once a season after politics for each AI seat; it is the only AI code that reads true state, and it reads other civilizations only through the rules below. Gate: `FogFairnessTests` (A8) and the `Belief*Tests`.
+
+### 16.1 What counts as seen
+Distances are hex tiles (terrain slows walking, not the eye; hex distance is a cheap lower bound of the walking distance politics uses). r is the observer's routine reach for its era (13 §2.2), s = 3 a figure's sight (13 §2.1).
+
+| Channel | Rule | What it shows |
+|---|---|---|
+| Routine sight | tiles within r + s of an own settlement, every season | explored terrain and current owner (MapKnowledge); rival settlements on those tiles |
+| Scouts (13 §2.3) | once Aware of anyone: settlements within S + s, S = r (×1.5 with WAY-01, ×2 with WAY-03) | the settlement, and the tiles within s of it |
+| Visits | an own gift, barter, raid or assault party that reached a settlement this season | the settlement |
+| Figures in the field | settlements (r + r′) × 1.1 + s apart: the awareness rule of 13 §12.2 | best weapon carried, warriors' paint (WAR-04), warpaint (Raid posture) |
+| Public | no sight needed | Aware, contact, Relations, reputation, war, alliance, truce; era and Keystones; Firsts; raids on us, gifts to us |
+| Incoming | a party aimed at an own settlement within r + s of it (≈ its remaining seasons × 10 tiles) or that left a settlement in sight | `Belief.IncomingParties` |
+
+Nothing is seen of a civilization before the observer is Aware of it. A seen settlement gives its head count and fighters times one noise factor uniform in [0.75, 1.25] (a stream keyed by match seed, observer, settlement and season), warriors exactly (painted), defenders' strength times the same factor, thorn barrier, palisade and watchers, distress (last food security < 0.9) and the structures standing there. Out of sight a record keeps its last values and `LastSeenSeason`; a settlement seen under a new owner, as Free Folk or empty moves or leaves the list. Without scouts and visits no settlement would be seen in E2 at all: paired starts are 25 tiles apart and r + s is 15.
+
+### 16.2 Estimates
+- **Tech (§5.2):** each sighting maps through the catalog's effects (`build` structure, `role` id, the politics weapon ladder) to the projects that produce it; when several could, only what all their closures share is believed. Closures follow `requires`, and for `requires_any` only what every alternative shares. The public era adds the closures of the keystones left behind; Firsts add their projects. The estimate is monotone and, by construction, never contains a project the rival lacks (tested).
+- **Archetype posterior (§5.3):** uniform prior; one Bayes update per piece of evidence with the likelihood table in `ArchetypeModel` (new settlement, claims advancing, a post-Dawn structure kind, more warriors, warpaint, a raid on us, war, contact stance, a gift, a First, an era ahead of ours, defenses, a ranged weapon); a 2% floor before renormalising, sum exactly one.
+- **Threat (§5.4):** P = hostility(Relations, war, alliance, truce) × posterior-weighted raid propensity (0.6 / 0.6 / 0.9 / 2.0 / 0.6) × capability (WAR-02 believed 1, E1+ 0.6, else 0.1) × (1 + warriors/20, at most 2) × distance (1 within their reach, 0 at three reaches, 0.5 unknown) × 1.5 warpaint × 1.3 distress × 1.5 if they raided us in two years, capped at 0.95. Loss = their believed party ÷ (party + our nearest settlement's defense).
+- **Opportunity:** our party ÷ (party + believed defense × defenses seen), × 1.3 distress, × 1.25 their warriors away, × 1.2 a weapon gap in our favour while they are in our era, × 1.2 at war, × 0.3 in truce, × (0.5 + 0.5 confidence); zero without contact or with an ally. Best over their believed settlements.
+- **Confidence:** 0.85 per season unseen, floor 0.05.
+
+### 16.3 Difficulty
+`None` (Settler): diplomacy, the public record and the map; uniform posterior; threat from diplomacy alone. `ArchetypePosterior` (Chieftain): adds settlements (place, head count, distress), the posterior and the public tech closure, but no weapons, warriors, fighters, defenses or sighted tech. `Full` and `FullCoalition`: everything.
+
+### 16.4 Results
+- **A8 fog fairness:** a match is cloned by snapshot at season 40 (before contact), three seasons after first contact (season 98) and at season 120 (mid E2); in the copy, people are killed and wounded, stores taken and Cohesion lowered in every rival settlement at least 8 tiles beyond sight, and research is granted to never-contacted rivals out of figure sight (no Firsts, no era change). After the season-end step the observer's belief (field by field and hash), own view, research slots, queue, Leaning, posture, Beacons and decision log are identical. Killing people in a settlement in sight, or handing a rival in figure sight a better weapon, changes the belief. A builder that reads every settlement fails the test.
+- **Cost:** 0.19 ms per civilization per season at mid E2 (target < 2 ms).
+- **Known limits:** a captured settlement's structures still count as evidence of its new owner's projects; terrain sight modifiers (hills, forest, lookouts) are not applied; the contact-time population band of 13 §2.4 is read as the band of the settlements seen. While the Strategist placeholder leaves AI seats on the v0 politics rules, those rules still read true state (the real Strategist turns them off); and by the research rules a contacted rival's completions reach an observer's own project states (Glimpse, Diffusion), so research is perturbed only for rivals never contacted.
