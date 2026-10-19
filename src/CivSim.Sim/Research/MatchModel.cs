@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -22,8 +23,10 @@ public sealed class MatchModel : ISimModel
     private readonly List<Command> _economyCommands = new();
     private readonly List<(int Civ, int Project)> _completions = new();
 
-    public MatchModel(LivingEconomyModel economy, ResearchSystem research, LivingEconomySource source, PoliticsSystem politics)
+    public MatchModel(LivingEconomyModel economy, ResearchSystem research, LivingEconomySource source, PoliticsSystem politics,
+        AiSystem? ai = null)
     {
+        Ai = ai;
         Economy = economy;
         Research = research;
         Source = source;
@@ -35,6 +38,8 @@ public sealed class MatchModel : ISimModel
     public ResearchSystem Research { get; }
     public LivingEconomySource Source { get; }
     public PoliticsSystem Politics { get; }
+    /// <summary>The AI civilizations' minds; null when every civilization is on the Council.</summary>
+    public AiSystem? Ai { get; }
 
     /// <summary>
     /// A standard four-civilization match on the world generated from <paramref name="seed"/>. Civilization 0 is the
@@ -48,11 +53,22 @@ public sealed class MatchModel : ISimModel
 
     public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
         ReadOnlySpan<EconomyArchetype> archetypes = default)
+        => Create(seed, pack, generated, archetypes, ReadOnlySpan<CivControl>.Empty);
+
+    /// <summary>
+    /// A match in which each civilization has its own control: the Council, the smart AI at a level, or a scripted bot
+    /// (docs/MVP/14 §10.2). An AI civilization's archetype is its personality and replaces the economy archetype given.
+    /// </summary>
+    public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
+        ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls)
     {
         var catalog = new ResearchCatalog(pack);
         WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);
         var profiles = new EconomyArchetype[world.CivilizationCount];
         if (!archetypes.IsEmpty) archetypes.CopyTo(profiles);
+        if (!controls.IsEmpty && controls.Length != profiles.Length) throw new ArgumentException("One control per civilization.", nameof(controls));
+        for (int c = 0; c < controls.Length; c++)
+            if (controls[c].Kind == ControlKind.Ai) profiles[c] = controls[c].Spec.Archetype;
         var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles);
         var source = new LivingEconomySource(economy, world, generated, catalog, profiles);
         var setups = new ResearchCivSetup[profiles.Length];
@@ -63,7 +79,10 @@ public sealed class MatchModel : ISimModel
         }
         var research = new ResearchSystem(catalog, source, seed, setups);
         var politics = new PoliticsSystem(economy, research, generated, profiles, seed);
-        return new MatchModel(economy, research, source, politics);
+        AiSystem? ai = null;
+        foreach (CivControl control in controls)
+            if (control.Kind != ControlKind.Council) { ai = new AiSystem(economy, research, politics, generated, pack, seed, controls); break; }
+        return new MatchModel(economy, research, source, politics, ai);
     }
 
     /// <summary>An archetype's starting Leaning in percent (docs/MVP/14 §8): from the archetypes registry, equal for Balanced.</summary>
@@ -97,6 +116,7 @@ public sealed class MatchModel : ISimModel
             Source.BeginSeason(tick);
             Research.OnSeasonEnd(tick);
             Politics.OnSeasonEnd(tick);
+            Ai?.OnSeasonEnd(tick);
         }
     }
 
@@ -106,6 +126,7 @@ public sealed class MatchModel : ISimModel
         hasher.Add(Economy.ComputeChecksum());
         Research.Hash(ref hasher);
         Politics.Hash(ref hasher);
+        Ai?.Hash(ref hasher);
         return hasher.Finish();
     }
 
@@ -115,6 +136,7 @@ public sealed class MatchModel : ISimModel
         Economy.WriteSnapshot(writer);
         Politics.WriteSnapshot(writer);
         Research.WriteSnapshot(writer);
+        Ai?.Write(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -122,5 +144,6 @@ public sealed class MatchModel : ISimModel
         Economy.ReadSnapshot(reader);
         Politics.ReadSnapshot(reader);
         Research.ReadSnapshot(reader);
+        Ai?.Read(reader);
     }
 }

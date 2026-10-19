@@ -42,6 +42,8 @@ public sealed class CivResearch
     public int ClimateTarget = -1;
     /// <summary>The Council fills empty slots on its own (always for AI; the player's Council toggle).</summary>
     public bool Council = true;
+    /// <summary>An AI Spark (docs/MVP/14 §2) sets this civilization's slots and queue; the Council then only fills a slot the plan leaves empty and never re-ranks.</summary>
+    public bool AiControlled;
     /// <summary>Ticks an empty slot waits before the Council fills it (0 for AI, 150 for the player: docs/MVP/08 §7).</summary>
     public int CouncilDelay;
     public Fix64 EraBoonInsight = Fix64.One;
@@ -116,6 +118,7 @@ public sealed class CivResearch
         foreach (int l in Leaning) h.Add(l);
         h.Add(KnowHow);
         h.Add(Council);
+        if (AiControlled) h.Add(0xA1C0A1C0A1C0A1C0UL); // only when set, so matches without an AI keep their checksums
         h.Add(CouncilDelay);
         h.Add(EraBoonInsight);
         h.Add(BeaconBoons);
@@ -138,6 +141,7 @@ public sealed class CivResearch
         w.Write(HasMask);
         w.Write(ClimateTarget);
         w.Write(Council);
+        w.Write(AiControlled);
         w.Write(CouncilDelay);
         w.Write(EraBoonInsight.Raw);
         w.Write(BeaconBoons);
@@ -179,6 +183,7 @@ public sealed class CivResearch
         HasMask = r.ReadUInt64();
         ClimateTarget = r.ReadInt32();
         Council = r.ReadBoolean();
+        AiControlled = r.ReadBoolean();
         CouncilDelay = r.ReadInt32();
         EraBoonInsight = Fix64.FromRaw(r.ReadInt64());
         BeaconBoons = r.ReadInt32();

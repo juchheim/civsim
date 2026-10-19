@@ -35,7 +35,7 @@ public sealed partial class PoliticsSystem
         for (int c = 0; c < _civs; c++)
             for (int o = 0; o < _civs; o++)
             {
-                if (c == o || !_dip.Contacted(c, o)) continue;
+                if (c == o || _externalMind[c] || !_dip.Contacted(c, o)) continue;
                 if (c < o) MaybeAlly(c, o);
                 if (_dip.Allied(c, o)) continue;
                 if (_dip.AtWar(c, o))
@@ -123,6 +123,13 @@ public sealed partial class PoliticsSystem
         int rel = _dip.Relations(c, o);
         if (rel < Diplomacy.HostileBelow || rel > 60 || _season - _dip.LastGift(c, o) < GiftIntervalSeasons) return false;
         if ((Posture)_posture[c] is Posture.Raid) return false;
+        return TryGift(c, o);
+    }
+
+    /// <summary>Sends a gift party if the hard rules allow (TRD-01, contact, no war, food to spare); desirability is the caller's.</summary>
+    private bool TryGift(int c, int o)
+    {
+        if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _season - _dip.LastGift(c, o) < 2) return false;
         (int origin, int target) = ClosestPair(c, o);
         if (origin < 0) return false;
         int travel = Walk(_sTile[origin], _sTile[target]);
@@ -144,6 +151,14 @@ public sealed partial class PoliticsSystem
     {
         if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02)) return false;
         if (_dip.Relations(a, b) <= 0 || _season - _dip.LastBarter(a, b) < BarterIntervalSeasons) return false;
+        return TryBarter(a, b);
+    }
+
+    /// <summary>Sends a barter trip if the hard rules allow (TRD-02 on both sides, Peaceful, none in flight).</summary>
+    private bool TryBarter(int a, int b)
+    {
+        if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02) || _dip.Relations(a, b) <= 0 ||
+            !_dip.Contacted(a, b) || _dip.AtWar(a, b) || _season - _dip.LastBarter(a, b) < 2) return false;
         foreach (Expedition e in _expeditions)
             if (e.Kind == ExpeditionKind.Barter && (e.Civ == a && e.TargetCiv == b || e.Civ == b && e.TargetCiv == a)) return false;
         (int origin, int target) = ClosestPair(a, b);
@@ -205,14 +220,19 @@ public sealed partial class PoliticsSystem
         (int origin, int target) = ClosestPair(c, o);
         if (origin < 0) { Trace?.Invoke("raid: no pair"); return false; }
         origin = BestOrigin(c, _sTile[target]);
-        int travel = Walk(_sTile[origin], _sTile[target]);
-        if (travel == int.MaxValue || (forecast && travel > ReachOf(c) * 3)) { Trace?.Invoke($"raid: travel {travel}"); return false; }
-
         int adults = AdultCount(origin);
         int percent = posture == Posture.Raid ? 30 : 20; // of the adults, rounded up (13 §5.2)
         int size = Math.Max(4, (adults * percent + 99) / 100);
+        return SendRaid(c, o, origin, target, size, forecast);
+    }
+
+    /// <summary>Sends a raid party of up to <paramref name="size"/> from <paramref name="origin"/> to a chosen settlement.</summary>
+    private bool SendRaid(int c, int o, int origin, int target, int size, bool forecast)
+    {
+        int travel = Walk(_sTile[origin], _sTile[target]);
+        if (travel == int.MaxValue || (forecast && travel > ReachOf(c) * 3)) { Trace?.Invoke($"raid: travel {travel}"); return false; }
         List<Fighter> party = PickParty(origin, c, size, attacking: true, out List<long> ids);
-        if (party.Count < 4) { Trace?.Invoke($"raid: party {party.Count} of {adults} adults"); return false; }
+        if (party.Count < 4) { Trace?.Invoke($"raid: party {party.Count}"); return false; }
 
         if (forecast)
         {
@@ -290,11 +310,17 @@ public sealed partial class PoliticsSystem
     /// </summary>
     public bool LaunchAssault(int c, int o, bool requireOdds)
     {
-        foreach (Expedition e in _expeditions) if (e.Kind == ExpeditionKind.Assault && e.Civ == c && e.TargetCiv == o) return false;
-        foreach (Occupation occ in _occupations) if (occ.Civ == c && _sCiv[occ.Settlement] == o) return false;
         (int origin, int target) = ClosestPair(c, o);
         if (origin < 0) return false;
-        origin = BestOrigin(c, _sTile[target]);
+        return SendAssault(c, o, target, requireOdds);
+    }
+
+    private bool SendAssault(int c, int o, int target, bool requireOdds)
+    {
+        foreach (Expedition e in _expeditions) if (e.Kind == ExpeditionKind.Assault && e.Civ == c && e.TargetCiv == o) return false;
+        foreach (Occupation occ in _occupations) if (occ.Civ == c && _sCiv[occ.Settlement] == o) return false;
+        int origin = BestOrigin(c, _sTile[target]);
+        if (origin < 0) return false;
         int travel = Walk(_sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (requireOdds && travel > ReachOf(c) * 3)) return false;
 

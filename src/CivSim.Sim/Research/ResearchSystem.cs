@@ -145,6 +145,16 @@ public sealed partial class ResearchSystem : IResearchView
     public Fix64 MasteryLegacy(int civ) => _civs[civ].MasteryLegacy;
     public int BeaconBoons(int civ) => _civs[civ].BeaconBoons;
     public bool CouncilOn(int civ) => _civs[civ].Council;
+
+    /// <summary>Marks a civilization as run by an AI Spark: its slots are its own plan, not the Council's ranking.</summary>
+    public void SetAiControlled(int civ, bool on) => _civs[civ].AiControlled = on;
+    public bool IsAiControlled(int civ) => _civs[civ].AiControlled;
+
+    /// <summary>
+    /// Applies a research command (SetSlot, QueueProject, DequeueProject, SetLeaning, SetCouncil) to its civilization now.
+    /// The AI uses the same commands a player does (docs/MVP/14 §2).
+    /// </summary>
+    public void ApplyOrder(in Command command) => Apply(command, _tick);
     public int Leaning(int civ, int theme) => _civs[civ].Leaning[theme];
     public bool InContact(int a, int b) => _contact[a * _civs.Length + b];
     public ulong SeenMask(int civ) => _civs[civ].SeenMask;
@@ -380,7 +390,7 @@ public sealed partial class ResearchSystem : IResearchView
         }
         for (int s = 0; s < CivResearch.SlotCount; s++)
             if (project[s] >= 0) AddProgress(c, project[s], amount[s], tick);
-        if (civ.CouncilDelay == 0 && civ.Council) RankByCouncil(c);
+        if (civ.CouncilDelay == 0 && civ.Council && !civ.AiControlled) RankByCouncil(c);
     }
 
     /// <summary>Adds Insight to a project, with Know-how, and completes it, passing the overflow on (docs/MVP/02 §8.2).</summary>

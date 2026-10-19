@@ -105,6 +105,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly Territory _territory;
     private readonly Diplomacy _dip;
     private readonly byte[] _posture;
+    private readonly bool[] _externalMind;
     private readonly List<int>[] _beacons;
     private readonly List<(int Tile, int Settlement, int Civ)> _camps = new();
     private readonly List<bool> _campsPlaced = new();
@@ -168,6 +169,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _territory = new Territory(generated, _civs);
         _dip = new Diplomacy(_civs);
         _posture = new byte[_civs];
+        _externalMind = new bool[_civs];
         _beacons = new List<int>[_civs];
         for (int c = 0; c < _civs; c++) _beacons[c] = new List<int>();
         _failedCampaigns = new int[_civs * _civs];

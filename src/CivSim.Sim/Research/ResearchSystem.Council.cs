@@ -174,6 +174,20 @@ public sealed partial class ResearchSystem
         return leaning * (Fix64.One + urgency) * (Fix64.One + opportunity) * keyFactor / cost;
     }
 
+    /// <summary>
+    /// The Council's score for every project (zero unless Available and not slotted): the prior the AI's search starts from
+    /// (docs/MVP/14 §4.2) and the Settler's fallback picks.
+    /// </summary>
+    public void CouncilPrior(int civ, Span<Fix64> scores)
+    {
+        if (scores.Length < _catalog.Count) throw new ArgumentException("One score per project.", nameof(scores));
+        scores.Clear();
+        CivResearch c = _civs[civ];
+        CouncilContext ctx = BuildCouncilContext(civ);
+        for (int p = 0; p < _catalog.Count; p++)
+            if (c.LastState[p] == ProjectState.Available) scores[p] = CouncilScore(civ, p, ctx, out _);
+    }
+
     /// <summary>The Council of Elders' auto-pick among Available projects; ties go to the lowest index. Returns -1 when none.</summary>
     private int CouncilPick(int c, out CouncilReason reason)
     {
