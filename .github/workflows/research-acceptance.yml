@@ -1,4 +1,4 @@
-name: scheduled research acceptance (C5)
+name: scheduled acceptance (C5 research timing, M5 territory and conflict)
 
 on:
   schedule:
@@ -31,3 +31,6 @@ jobs:
 
       - name: C5 on a second seed
         run: dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --check-c5 --seed 777
+
+      - name: M5 gates (F1 contact timing, F3 to F5 combat, claimed land)
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- politics --pack civsim.pack --check-m5

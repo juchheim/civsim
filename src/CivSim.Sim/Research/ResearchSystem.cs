@@ -231,6 +231,20 @@ public sealed partial class ResearchSystem : IResearchView
         RefreshStates(b, announce: true);
     }
 
+    /// <summary>
+    /// Marks gate targets as seen (bit i = target i): traded goods satisfy [Seen] gates for those goods (docs/MVP/13 §4.2).
+    /// </summary>
+    public void AddSeen(int civ, ulong mask)
+    {
+        CivResearch c = _civs[civ];
+        ulong fresh = mask & ~c.SeenMask;
+        if (fresh == 0) return;
+        c.SeenMask |= fresh;
+        for (int t = 0; t < 64; t++)
+            if ((fresh & (1UL << t)) != 0) Emit((byte)civ, ResearchEventKind.SeenResource, -1, t, 0);
+        RefreshStates(civ, announce: true);
+    }
+
     /// <summary>Sets whether access gate target i is available (own territory or trade). Cutting it makes dependent projects Dormant.</summary>
     public void SetAccess(int civ, int gateTarget, bool available)
     {

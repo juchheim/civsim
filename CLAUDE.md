@@ -9,6 +9,7 @@ dotnet build CivSim.slnx -c Release
 dotnet test CivSim.slnx -c Release                      # must stay green
 dotnet run --project src/CivSim.Harness -c Release -- toy --check-golden tests/golden/toy-v1.txt
 dotnet run --project src/CivSim.Harness -c Release -- research --pack civsim.pack --minutes 12 --bot grower --check-golden tests/golden/research-v1.txt
+dotnet run --project src/CivSim.Harness -c Release -- politics --pack civsim.pack --minutes 24 --check-golden tests/golden/politics-v1.txt
 dotnet run --project src/CivSim.Cli -c Release -- validate --strict      # content must stay clean
 ```
 

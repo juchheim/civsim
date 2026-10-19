@@ -13,7 +13,7 @@ namespace CivSim.Sim.Economy;
 /// Deterministic E0–E2 settlement simulation. M2 supplies the immutable generated map; this model owns
 /// its changing resource stocks, people, stores, jobs, structures, seasonal hazards and fission.
 /// </summary>
-public sealed class LivingEconomyModel : ISimModel
+public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 14;
@@ -482,6 +482,7 @@ public sealed class LivingEconomyModel : ISimModel
     {
         if (_completedProjects[civ][index]) return;
         _completedProjects[civ][index] = true;
+        ClearModifierCache(civ);
         if (_content.Projects[index].Id is "FIR-01" or "FIR-02")
         {
             // Discovering fire keeping supplies the initial embers; completing it again
@@ -2289,6 +2290,10 @@ public sealed class LivingEconomyModel : ISimModel
         Fix64 fertilityHealth = FertilityHealthFactor(settlement);
         var deadIds = new List<long>();
         var birthMothers = new List<FigureState>();
+        // The food and housing caps do not change during the pass over the settlement's figures, so work them out once,
+        // when the first fertile woman needs them.
+        Fix64 conceptionCap = Fix64.Zero;
+        bool conceptionCapKnown = false;
 
         for (int i = 0; i < _figures.Count; i++)
         {
@@ -2347,7 +2352,12 @@ public sealed class LivingEconomyModel : ISimModel
             {
                 Fix64 targetFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization);
                 Fix64 conceptionChance = Fix64.One / (Fix64.One / targetFertility - Fix64.FromInt(3));
-                Fix64 cap = Fix64.Min(FoodCap(settlement), HousingCap(settlement));
+                if (!conceptionCapKnown)
+                {
+                    conceptionCap = Fix64.Min(FoodCap(settlement), HousingCap(settlement));
+                    conceptionCapKnown = true;
+                }
+                Fix64 cap = conceptionCap;
                 Fix64 density = cap <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, Fix64.FromInt(populationAtStart) / cap);
                 Fix64 crowding = Fix64.One;
                 for (int power = 0; power < 6; power++) crowding *= density;
@@ -2660,12 +2670,13 @@ public sealed class LivingEconomyModel : ISimModel
     {
         if (parent.FissionPending || season - parent.LastFissionSeason < 4) return;
         int population = Population(parent.Id);
-        Fix64 effectiveCap = Fix64.Min(FoodCap(parent), Fix64.Min(HousingCap(parent), GroupCap(parent)));
-        bool capPressure = Fix64.FromInt(population) >= effectiveCap * Fix64.Parse("0.85");
+        Fix64 foodCap = FoodCap(parent);
+        Fix64 effectiveCap = Fix64.Min(foodCap, Fix64.Min(HousingCap(parent), GroupCap(parent)));
+        bool capPressure = Fix64.FromInt(population) >= effectiveCap * Fix64.Parse("0.85") * FissionThresholdScale(parent.Civilization);
         // Live fission follows the settlement's current world-derived FoodCap. Lean-season
         // project effects set the share of that capacity available in winter, then actual
         // winter security scales the threshold as described in §09 §7.2.
-        Fix64 leanFoodCapacity = LeanFoodCapacity(parent);
+        Fix64 leanFoodCapacity = foodCap * LeanFoodShare(parent.Civilization);
         bool lateWinterPressure = season % 4 == 3 &&
             Fix64.FromInt(population) >= leanFoodCapacity * Fix64.Clamp(parent.LateWinterFoodShare, Fix64.Zero, Fix64.One);
         if ((!capPressure && !lateWinterPressure) ||
@@ -2850,7 +2861,9 @@ public sealed class LivingEconomyModel : ISimModel
                 if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
                 { farEnough = false; break; }
             if (!farEnough) continue;
+            if (SiteAdvisor is not null && !SiteAdvisor.Allows(parent.Civilization, tile)) continue;
             Fix64 score = _siteFoodScores[tile];
+            if (SiteAdvisor is not null) score *= SiteAdvisor.Multiplier(parent.Civilization, tile);
             if (score > bestScore || score == bestScore && (best < 0 || tile < best))
             { best = tile; bestScore = score; }
         }
@@ -2912,8 +2925,15 @@ public sealed class LivingEconomyModel : ISimModel
 
     private int ProjectIndex(string projectId)
     {
-        for (int i = 0; i < _content.Projects.Length; i++)
-            if (_content.Projects[i].Id == projectId) return _content.Projects[i].Index;
+        // Packs list projects in ordinal id order, so look the id up by bisection (every HasProject call comes here).
+        int low = 0, high = _content.Projects.Length - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) >> 1;
+            int order = string.CompareOrdinal(_content.Projects[mid].Id, projectId);
+            if (order == 0) return _content.Projects[mid].Index;
+            if (order < 0) low = mid + 1; else high = mid - 1;
+        }
         return -1;
     }
 
@@ -3904,7 +3924,49 @@ public sealed class LivingEconomyModel : ISimModel
     private static bool IsLandBiome(int biomeId)
         => biomeId != (int)Biome.Ocean && biomeId != (int)Biome.Coast;
 
+    // Modifier(civ, stat) multiplies every completed project's effect on a stat. It is asked for thousands of times a
+    // season and only changes when a project completes, so each civilization keeps the answers it has worked out.
+    private string?[][]? _modifierKeys;
+    private Fix64[][]? _modifierValues;
+    private int[]? _modifierCounts;
+
+    private void ClearModifierCache(int civ)
+    {
+        if (_modifierCounts is not null) _modifierCounts[civ] = 0;
+    }
+
     private Fix64 Modifier(int civ, string stat)
+    {
+        _modifierKeys ??= new string?[_completedProjects.Length][];
+        _modifierValues ??= new Fix64[_completedProjects.Length][];
+        _modifierCounts ??= new int[_completedProjects.Length];
+        string?[] keys = _modifierKeys[civ] ??= new string?[64];
+        Fix64[] values = _modifierValues[civ] ??= new Fix64[64];
+        int count = _modifierCounts[civ];
+        int low = 0, high = count - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) >> 1;
+            int order = string.CompareOrdinal(keys[mid], stat);
+            if (order == 0) return values[mid];
+            if (order < 0) low = mid + 1; else high = mid - 1;
+        }
+        Fix64 computed = ComputeModifier(civ, stat);
+        if (count == keys.Length)
+        {
+            Array.Resize(ref keys, count * 2);
+            Array.Resize(ref values, count * 2);
+            _modifierKeys[civ] = keys;
+            _modifierValues[civ] = values;
+        }
+        for (int i = count; i > low; i--) { keys[i] = keys[i - 1]; values[i] = values[i - 1]; }
+        keys[low] = stat;
+        values[low] = computed;
+        _modifierCounts[civ] = count + 1;
+        return computed;
+    }
+
+    private Fix64 ComputeModifier(int civ, string stat)
     {
         Fix64 multiplier = Fix64.One;
         for (int i = 0; i < _content.Effects.Length; i++)
@@ -4326,6 +4388,7 @@ public sealed class LivingEconomyModel : ISimModel
         {
             if (reader.ReadInt32() != _completedProjects[civ].Length) throw new InvalidDataException("Snapshot project count differs.");
             for (int i = 0; i < _completedProjects[civ].Length; i++) _completedProjects[civ][i] = reader.ReadBoolean();
+            ClearModifierCache(civ);
         }
         _settlements.Clear();
         int settlementCount = ReadCount(reader, 100_000);
@@ -4582,7 +4645,10 @@ public sealed class LivingEconomyModel : ISimModel
         Array.Copy(source._fieldOwner, _fieldOwner, _fieldOwner.Length);
         Array.Copy(source._tendedStandYieldBonus, _tendedStandYieldBonus, _tendedStandYieldBonus.Length);
         for (int civ = 0; civ < _completedProjects.Length; civ++)
+        {
             Array.Copy(source._completedProjects[civ], _completedProjects[civ], _completedProjects[civ].Length);
+            ClearModifierCache(civ);
+        }
         _settlements.Clear();
         foreach (SettlementState settlement in source._settlements)
             _settlements.Add(CloneSettlement(settlement));

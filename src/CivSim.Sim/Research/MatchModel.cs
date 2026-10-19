@@ -5,6 +5,7 @@ using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 using CivSim.Sim.World;
 
 namespace CivSim.Sim.Research;
@@ -21,16 +22,19 @@ public sealed class MatchModel : ISimModel
     private readonly List<Command> _economyCommands = new();
     private readonly List<(int Civ, int Project)> _completions = new();
 
-    public MatchModel(LivingEconomyModel economy, ResearchSystem research, LivingEconomySource source)
+    public MatchModel(LivingEconomyModel economy, ResearchSystem research, LivingEconomySource source, PoliticsSystem politics)
     {
         Economy = economy;
         Research = research;
         Source = source;
+        Politics = politics;
+        source.FreeFolk = politics;
     }
 
     public LivingEconomyModel Economy { get; }
     public ResearchSystem Research { get; }
     public LivingEconomySource Source { get; }
+    public PoliticsSystem Politics { get; }
 
     /// <summary>
     /// A standard four-civilization match on the world generated from <paramref name="seed"/>. Civilization 0 is the
@@ -58,7 +62,8 @@ public sealed class MatchModel : ISimModel
             setups[c] = c == 0 ? ResearchCivSetup.Player(craft, kin, reach) : ResearchCivSetup.Ai(craft, kin, reach);
         }
         var research = new ResearchSystem(catalog, source, seed, setups);
-        return new MatchModel(economy, research, source);
+        var politics = new PoliticsSystem(economy, research, generated, profiles, seed);
+        return new MatchModel(economy, research, source, politics);
     }
 
     /// <summary>An archetype's starting Leaning in percent (docs/MVP/14 §8): from the archetypes registry, equal for Balanced.</summary>
@@ -78,6 +83,7 @@ public sealed class MatchModel : ISimModel
     public void Step(long tick, ReadOnlySpan<Command> commands)
     {
         Research.Step(tick, commands);
+        Politics.Step(tick, commands);
         _economyCommands.Clear();
         foreach (Command command in commands)
             if (command.Kind == CommandKind.CompleteProject) _economyCommands.Add(command);
@@ -90,6 +96,7 @@ public sealed class MatchModel : ISimModel
         {
             Source.BeginSeason(tick);
             Research.OnSeasonEnd(tick);
+            Politics.OnSeasonEnd(tick);
         }
     }
 
@@ -98,18 +105,22 @@ public sealed class MatchModel : ISimModel
         var hasher = new StateHasher();
         hasher.Add(Economy.ComputeChecksum());
         Research.Hash(ref hasher);
+        Politics.Hash(ref hasher);
         return hasher.Finish();
     }
 
     public void WriteSnapshot(BinaryWriter writer)
     {
+        // Politics goes before research: research's restore re-reads the economy through a source that asks politics which settlements are Free Folk.
         Economy.WriteSnapshot(writer);
+        Politics.WriteSnapshot(writer);
         Research.WriteSnapshot(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
     {
         Economy.ReadSnapshot(reader);
+        Politics.ReadSnapshot(reader);
         Research.ReadSnapshot(reader);
     }
 }

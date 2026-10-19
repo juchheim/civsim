@@ -44,6 +44,7 @@ public static class Program
                 "toy" => RunToy(args[1..]),
                 "economy" => RunEconomy(args[1..]),
                 "research" => ResearchCommand.Run(args[1..]),
+                "politics" => PoliticsCommand.Run(args[1..]),
                 "worldgen" => RunWorldGen(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2..]),
                 _ => Usage(),

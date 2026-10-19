@@ -3,7 +3,7 @@
 > The rules for meeting other peoples, trading with them, raiding them and taking their settlements. Numbers are detailed for Dawn, Hunters and Roots. The **capture rules** (§8) apply to every era, because the Dominion victory needs conquest (D13).
 > This document is the *rules*. **When** a civilization chooses to raid, ally or go to war is the AI's job ([14](14-ai-opponents.md)). Both the player's civilization and the AI's run those decisions through the same Civ Mind, steered by Posture and Beacons.
 > Inputs: [05 §12](05-simulation-structure.md#12-contact-diplomacy-and-conflict), [07b](07b-territory-findings.md) T1 and R10, [10](10-e0-e2-actions-and-goods.md), [12 §9](12-world-generation.md#9-start-placement).
-> Design only. No code.
+> Rules for the slice; **§12 records how M5 built them and where it chose between readings.**
 
 ---
 
@@ -228,3 +228,43 @@ Because peaceful expansion plateaus around 30% of the world (07b T2), **capture 
 | F4 | An unprovoked raid's net value to the raider (stores − deaths − Relations cost) | positive vs undefended targets, negative vs palisaded ones |
 | F5 | Capturing a defended village with 1.5× strength | succeeds ≥ 60% in one season of campaigning |
 | F6 | Conquest of a whole neighbour (E4–E7) | feasible for a determined leader by minute ~110 (07b T2); harness confirms the AI can do it |
+
+## 12. M5 as built (2026-10-19)
+
+Code: `CivSim.Sim/Politics` (`Combat`, `Raids`, `Territory`, `Diplomacy`, `PoliticsSystem`), run once a season after the economy and research by `MatchModel`. Gates: `civsim-harness politics --pack FILE --check-m5` (scheduled workflow) and the unit tests.
+
+### 12.1 Results
+
+| Check | Target | Measured |
+|---|---|---|
+| **F1** first contact, paired starts | minute 15–25 on ≥ 90% of maps | **24 of 24** seeds, minutes 18.2–23.5 (median ≈ 20, the start of E2) |
+| **F2** first-contact outcomes, no DIP/TRD projects | ~25 / 45 / 30% | 25 / 45 / 30 within ±1.5 points over 20,000 rolls (unit test) |
+| **F3** raid table (§5.5) | ±10 points | all twelve cells inside (table below) |
+| **F4** net value of an unprovoked raid | positive vs undefended, negative vs palisaded | **+16.4** undefended, −3.0 thorn + watchers + dogs, **−13.1** palisade, −18.1 palisade + warriors (rations; a life is 8, the Relations cost 6) |
+| **F5** village taken within one season at 1.5× strength | ≥ 60% | **100%** vs thorn barrier and vs palisade (0–10% at equal strength, 100% at 2×) |
+| Claimed land at the end of E2 (07b §9.4) | 12.4–13.1% | **13.2%** mean over six seeds at minute 30 (10.6–15.5%) |
+
+Raid table, a warband of 8 (stone-tipped spears, 1.6) against a band of 40 with 22 adults (wooden spears, 1.3), 4,000 raids a row:
+
+| Defenses | Success: target → measured | Raiders hurt | Defenders hurt |
+|---|---|---|---|
+| none | 75 → **83** | 5–10 → 11 | 8–15 → 20 |
+| thorn barrier + watchers + dogs | 40 → **37** | 15–25 → 29 | 5–10 → 12.5 |
+| palisade + watchers | 15 → **12** | 25–40 → 42 | 2–5 → 6 |
+| palisade + watchers + warriors | 5 → **4.5** | 40+ → 52 | 1–3 → 3 |
+
+### 12.2 Where I chose between readings
+1. **The table's "deaths" are casualties (dead and wounded).** Raider "deaths" of 40%+ against a palisade with warriors means the whole warband is lost, which only happens if wounds count; with the 30% break rule the dead alone cannot reach it. Deaths are still 40% of casualties (§7.2). The tests compare casualties.
+2. **Defenders break at 40% in a raid and at 60% when children are inside in an assault.** A raid is a grab for stores, so the camp's fighters give way at the usual 40%; the 60% of §7.3 is for those fighting for their families in a siege. With 60% in raids no row of the table can be reproduced.
+3. **Mobilization.** Only the defenders who reach the fight count (§6.1): **40%** of the adults when the raid surprises the camp, **52%** when it was warned. Surprise, watchers, dogs and the stacked multipliers do the rest. These two numbers are the fitted constants (`Raids.SurprisedShare`, `AlertShare`).
+4. **Field strength for F5 includes defenses** (05 §12.3): the attackers' strength is 1.5 × Σ defenders × defense multiplier, with every adult of the village fighting.
+5. **Reach and contact.** Routine reach is the era value (6 / 9 / 12 …); the table already folds in the scouting projects (07b §2), so the +1s of §2.2 are not added again. It is counted in the terrain-weighted tiles the start pairs are placed by (12 §9.3), plus a tenth for trails, from **settlement** to settlement (camps are not scouting bases). Two figures meet when walking distance ≤ reach(A) + reach(B) + 2 (aware at + 3). Daughter bands refuse sites within 23 weighted tiles of a rival settlement, so contact comes from reach and not from a band wandering over; without that, 5 of 24 seeds met in E1.
+6. **Camps** follow 07b §9.4: two per settlement once WAY-02 is known (existing settlements included), radius 2, half the band's emission (three quarters with TER-02), none on rival land.
+
+### 12.3 What is a stand-in
+- **The Civ Mind is version 0:** a fixed rule set, the same for every civilization, that reads true state. It sends a gift every two years (TRD-01) and a barter trip every year (TRD-02, both sides) while Relations allow; allies at Relations > 40 with DIP-03 on both sides; raids when Posture is Raid, Relations < −30, or a hungry Warlord is not on good terms, only if a rehearsal of 12 raids wins at the archetype's raid margin (high 65%, medium 50%, low 35%) and pays; declares war on Raid posture or a Warlord at Relations < −30 with 1.5× the rival's field strength; makes peace after three years, or after two failed campaigns. M6 replaces it with belief state, forecast and the Strategist; the fog-fairness test (A8) belongs there.
+- **Raiders and soldiers keep working** in the economy while their party is on the road; only the dead and wounded leave it. Palisades are assumed built two seasons after DEF-03 (M3 has no palisade structure).
+- **Barter** is food for food with a 10% gain each way; the goods that carry sight (clay, copper, salt, tin, gold, coal, silk) pass each side's `[Seen]` knowledge to the other. Gifts are food.
+- **Free Folk** are settlements flagged neutral: they make no Insight, claim no land and are left out of Dominion. Secession (Cohesion < 15 for two years) is not built because M3 has no 0–100 Cohesion; people with nowhere to flee after a capture found them. Re-absorption (§9) is not built.
+- Not built: presence and the home-range hatch, trespass Relations (−1 per five figure-seasons), shared-enemy Relations (+15), the reputation effect on alliance willingness, razing, player-initiated anything. Traits (nurturing, brave) are not simulated, so their modifiers are zero.
+- **Beacons** (ART-05 grants one, Era Boons add more) pull daughter bands toward them (up to +50% on a site's score within 15 tiles); **Posture** needs GOV-02 and Expand/Prosper move the fission threshold −/+20%; Fortify and Prosper never raid. Raid is the only posture that raids unprovoked.

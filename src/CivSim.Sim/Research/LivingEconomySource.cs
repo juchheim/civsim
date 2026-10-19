@@ -9,6 +9,12 @@ using CivSim.Sim.World;
 
 namespace CivSim.Sim.Research;
 
+/// <summary>Settlements that belong to no civilization (Free Folk, docs/MVP/13 §9) produce no Insight and no claims.</summary>
+public interface IFreeFolkRegistry
+{
+    bool IsFreeFolk(int settlementIndex);
+}
+
 /// <summary>
 /// Adapts M3's <see cref="LivingEconomyModel"/> to what research reads (docs/MVP/05 §16): adults and elders for
 /// Commons Insight, the season's work by practice family for Know-how, urgency signals from food security and
@@ -21,6 +27,9 @@ namespace CivSim.Sim.Research;
 /// </summary>
 public sealed class LivingEconomySource : IResearchSource
 {
+    /// <summary>Set by politics once it exists; until then every settlement belongs to its civilization.</summary>
+    public IFreeFolkRegistry? FreeFolk { get; set; }
+
     private const int OreRevealRadius = 25;
     private static readonly Fix64 ReachWithTrails = Fix64.FromRatio(3, 2);
 
@@ -150,19 +159,20 @@ public sealed class LivingEconomySource : IResearchSource
         }
         for (int i = 0; i < _economy.SettlementCount; i++)
         {
-            SettlementView view = _economy.Settlement(i);
+            if (FreeFolk is not null && FreeFolk.IsFreeFolk(i)) continue;
+            var view = _economy.SettlementLite(i);
             List<int> list = _settlementIndices[view.Civilization];
             if (list.Count < CivResearch.MaxSettlements) list.Add(i);
         }
         // Figures reference settlements by id; map ids to the civilization-local index.
         int maxId = 0;
-        for (int i = 0; i < _economy.SettlementCount; i++) maxId = Math.Max(maxId, _economy.Settlement(i).Id);
+        for (int i = 0; i < _economy.SettlementCount; i++) maxId = Math.Max(maxId, _economy.SettlementLite(i).Id);
         var localById = new int[maxId + 1];
         Array.Fill(localById, -1);
         for (int c = 0; c < CivCount; c++)
             for (int s = 0; s < _settlementIndices[c].Count; s++)
             {
-                SettlementView view = _economy.Settlement(_settlementIndices[c][s]);
+                var view = _economy.SettlementLite(_settlementIndices[c][s]);
                 localById[view.Id] = s;
                 _hearth[c][s] = _economy.HearthCount(_settlementIndices[c][s]) > 0;
             }
@@ -184,11 +194,11 @@ public sealed class LivingEconomySource : IResearchSource
             {
                 int parent = 0;
                 for (int o = 0; o < _lastSettlementCount[c]; o++)
-                    if (_economy.Settlement(_settlementIndices[c][o]).Fissions > _lastFissions[c][o]) { parent = o; break; }
+                    if (_economy.SettlementLite(_settlementIndices[c][o]).Fissions > _lastFissions[c][o]) { parent = o; break; }
                 _pendingFissions[c].Add((parent, s));
             }
             _lastSettlementCount[c] = now;
-            for (int s = 0; s < now; s++) _lastFissions[c][s] = _economy.Settlement(_settlementIndices[c][s]).Fissions;
+            for (int s = 0; s < now; s++) _lastFissions[c][s] = _economy.SettlementLite(_settlementIndices[c][s]).Fissions;
         }
     }
 
@@ -280,7 +290,7 @@ public sealed class LivingEconomySource : IResearchSource
         Fix64 famine = Fix64.Zero;
         foreach (int index in _settlementIndices[civ])
         {
-            SettlementView view = _economy.Settlement(index);
+            var view = _economy.SettlementLite(index);
             Fix64 security = Fix64.Min(view.LastFoodSecurity, view.LateWinterFoodForecast);
             famine = Fix64.Max(famine, Fix64.Clamp(Fix64.One - security, Fix64.Zero, Fix64.One));
         }
@@ -302,8 +312,8 @@ public sealed class LivingEconomySource : IResearchSource
     public int AdoptionLagSeasons(int civ, int settlement)
     {
         if (settlement == 0 || settlement >= _settlementIndices[civ].Count) return 0;
-        int home = _economy.Settlement(_settlementIndices[civ][0]).SiteTile;
-        int there = _economy.Settlement(_settlementIndices[civ][settlement]).SiteTile;
+        int home = _economy.SettlementLite(_settlementIndices[civ][0]).SiteTile;
+        int there = _economy.SettlementLite(_settlementIndices[civ][settlement]).SiteTile;
         return HexGrid.Distance(home, there, _world.Width) / 6;
     }
 
@@ -346,7 +356,7 @@ public sealed class LivingEconomySource : IResearchSource
     {
         foreach (int settlementIndex in _settlementIndices[civ])
         {
-            int site = _economy.Settlement(settlementIndex).SiteTile;
+            int site = _economy.SettlementLite(settlementIndex).SiteTile;
             foreach (int tile in tiles)
                 if (HexGrid.Distance(site, tile, _world.Width) <= range) return true;
         }
