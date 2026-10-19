@@ -9,7 +9,7 @@ namespace CivSim.Sim.Ai;
 /// </summary>
 internal static class BotFactory
 {
-    public static (IBeliefBuilder, IResearchSpark, IStrategist) Create(BotKind kind, ResearchCatalog catalog)
+    public static (IBeliefBuilder, IResearchSpark, IStrategist) Create(BotKind kind, ResearchCatalog catalog, BotPolicy? policy = null)
     {
         var builder = new BeliefBuilder();
         switch (kind)
@@ -19,6 +19,8 @@ internal static class BotFactory
             case BotKind.OpeningWanderer: return (builder, ScriptedSpark.Opening(catalog, "wanderer"), new PassiveStrategist());
             case BotKind.Rusher: return (builder, ScriptedSpark.Prefer(catalog, "WAR", "HNT"), new RusherStrategist(catalog));
             case BotKind.Turtle: return (builder, ScriptedSpark.Prefer(catalog, "DEF", "BLD"), new TurtleStrategist());
+            case BotKind.Policy when policy is not null:
+                return (builder, ScriptedSpark.Prefer(catalog, policy.Lineages), new PolicyStrategist(policy));
             default: return (builder, ScriptedSpark.RandomPicks(), new PassiveStrategist());
         }
     }

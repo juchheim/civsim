@@ -64,7 +64,17 @@ public sealed class DifficultyProfile
 public readonly record struct AiSpec(Difficulty Level, EconomyArchetype Archetype);
 
 /// <summary>The scripted opponents that stand in for players in the harness (docs/MVP/14 §10.2).</summary>
-public enum BotKind : byte { Random, OpeningGrower, OpeningBuilder, OpeningWanderer, Rusher, Turtle }
+public enum BotKind : byte { Random, OpeningGrower, OpeningBuilder, OpeningWanderer, Rusher, Turtle, Policy }
+
+/// <summary>
+/// A fixed policy for the exploit searcher (docs/MVP/14 §10.2): the lineages to research first (by lineage code), the
+/// season Raid posture starts (or -1), the season Fortify starts (or -1), the biggest raid party and whether it gifts.
+/// The searcher mutates these looking for a cheap plan that beats the smart AI; anything it finds is a bug to fix.
+/// </summary>
+public sealed record BotPolicy(string[] Lineages, int RaidFromSeason, int FortifyFromSeason, int PartySize, bool Gifts)
+{
+    public override string ToString() => $"lineages={string.Join('>', Lineages)} raid@{RaidFromSeason} fortify@{FortifyFromSeason} party={PartySize} gifts={Gifts}";
+}
 
 public enum ControlKind : byte
 {
@@ -77,11 +87,12 @@ public enum ControlKind : byte
 }
 
 /// <summary>Who runs a civilization.</summary>
-public readonly record struct CivControl(ControlKind Kind, AiSpec Spec = default, BotKind Bot = BotKind.Random)
+public readonly record struct CivControl(ControlKind Kind, AiSpec Spec = default, BotKind Bot = BotKind.Random, BotPolicy? Policy = null)
 {
     public static CivControl Council => new(ControlKind.Council);
     public static CivControl Ai(Difficulty level, EconomyArchetype archetype) => new(ControlKind.Ai, new AiSpec(level, archetype));
     public static CivControl Scripted(BotKind bot) => new(ControlKind.Bot, default, bot);
+    public static CivControl Fixed(BotPolicy policy) => new(ControlKind.Bot, default, BotKind.Policy, policy);
 }
 
 /// <summary>One logged strategic decision with the reasons that decided it (docs/MVP/14 §11).</summary>

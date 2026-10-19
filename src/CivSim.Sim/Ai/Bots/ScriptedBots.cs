@@ -160,8 +160,6 @@ internal sealed class TurtleStrategist : IStrategist
 /// </summary>
 internal sealed class RusherStrategist : IStrategist
 {
-    private static readonly int[] PartySizes = { 12, 8, 6, 4 };
-
     public RusherStrategist(ResearchCatalog catalog) { }
 
     public bool ActsOnPolitics => true;
@@ -169,6 +167,12 @@ internal sealed class RusherStrategist : IStrategist
     public void Decide(AiContext ctx)
     {
         ctx.Orders.SetPosture(Posture.Raid);
+        RaidNearest(ctx, 12);
+    }
+
+    /// <summary>Raids the believed settlement nearest to any of ours, party sizes from <paramref name="biggest"/> down to four.</summary>
+    internal static void RaidNearest(AiContext ctx, int biggest)
+    {
         if (ctx.Own.RaidsOnTheRoad > 0) return;
         int width = ctx.Belief.Map.Width;
         foreach (PairView o in ctx.Own.Others)
@@ -186,12 +190,38 @@ internal sealed class RusherStrategist : IStrategist
                 }
             }
             if (bestTarget < 0) continue;
-            foreach (int party in PartySizes)
+            for (int party = biggest; party >= 4; party -= 2)
             {
                 if (!ctx.Orders.Raid(bestTarget, party)) continue;
-                ctx.Note("strategist", "raid", bestTarget, party, Fix64.One, "rusher: raid from contact");
+                ctx.Note("strategist", "raid", bestTarget, party, Fix64.One, "scripted raid from contact");
                 return;
             }
+        }
+    }
+
+    public void Hash(ref StateHasher hasher) { }
+    public void Write(BinaryWriter writer) { }
+    public void Read(BinaryReader reader) { }
+}
+
+/// <summary>A fixed posture schedule and raid habit (the exploit searcher's candidate plans; docs/MVP/14 §10.2).</summary>
+internal sealed class PolicyStrategist : IStrategist
+{
+    private readonly BotPolicy _policy;
+    public PolicyStrategist(BotPolicy policy) => _policy = policy;
+    public bool ActsOnPolitics => true;
+
+    public void Decide(AiContext ctx)
+    {
+        bool raiding = _policy.RaidFromSeason >= 0 && ctx.Season >= _policy.RaidFromSeason;
+        bool fortify = _policy.FortifyFromSeason >= 0 && ctx.Season >= _policy.FortifyFromSeason;
+        ctx.Orders.SetPosture(raiding ? Posture.Raid : fortify ? Posture.Fortify : Posture.Expand);
+        if (raiding) RusherStrategist.RaidNearest(ctx, _policy.PartySize);
+        foreach (PairView o in ctx.Own.Others)
+        {
+            if (o.Civ == ctx.Civ || !o.Contacted) continue;
+            if (o.AtWar && !raiding) ctx.Orders.MakePeace(o.Civ);
+            else if (_policy.Gifts && !raiding && ctx.Season - o.LastGiftSeason >= 8) ctx.Orders.Gift(o.Civ);
         }
     }
 

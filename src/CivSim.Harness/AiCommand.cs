@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Content;
 using CivSim.Sim.Economy;
 
@@ -14,6 +15,7 @@ namespace CivSim.Harness;
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
+/// civsim-harness ai --pack FILE --exploit [--generations N] [--children N] [--seeds N]
 /// </code>
 /// A duel puts team A in seats 0 and 3 and team B in seats 1 and 2 (the world is point-symmetric), then swaps the teams,
 /// and compares the teams' summed Legacy (Dominion + Mastery + Firsts).
@@ -23,8 +25,8 @@ internal static class AiCommand
     public static int Run(string[] args)
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
-        bool check = false;
-        int seeds = 8, minutes = 33;
+        bool check = false, exploit = false;
+        int seeds = 8, minutes = 33, generations = 6, children = 12;
         var archetype = EconomyArchetype.Balanced;
         for (int i = 0; i < args.Length; i++)
         {
@@ -35,6 +37,9 @@ internal static class AiCommand
                 case "--ladder": ladder = args[++i]; break;
                 case "--ffa": ffa = args[++i]; break;
                 case "--check-m6": check = true; break;
+                case "--exploit": exploit = true; break;
+                case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--archetype": archetype = Enum.Parse<EconomyArchetype>(args[++i], true); break;
@@ -47,6 +52,13 @@ internal static class AiCommand
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes);
         if (check) return CheckM6(pack, seeds, minutes, archetype);
+        if (exploit)
+        {
+            (BotPolicy best, double rate, int evaluations) = ExploitSearch.Search(pack, generations, children, seeds, minutes, 20261019);
+            Console.WriteLine($"Best fixed policy after {evaluations} evaluations: {rate * 100:F0}% against Warlord (confirmed on fresh seeds)\n  {best}");
+            Console.WriteLine(rate <= 0.55 ? "EXPLOIT SEARCH PASSED (<= 55%)" : "EXPLOIT FOUND (> 55%): a bug in the AI");
+            return rate <= 0.55 ? 0 : 1;
+        }
         throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL or --check-m6.");
     }
 

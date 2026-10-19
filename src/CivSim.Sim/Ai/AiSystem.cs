@@ -153,6 +153,6 @@ internal static class AiMinds
     {
         if (control.Kind == ControlKind.Ai)
             return (new BeliefBuilder(), new ResearchSpark(control.Spec, profile), new Strategist(control.Spec, profile));
-        return BotFactory.Create(control.Bot, catalog);
+        return BotFactory.Create(control.Bot, catalog, control.Policy);
     }
 }
