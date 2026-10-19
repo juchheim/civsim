@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 using CivSim.Sim.World;
 
 namespace CivSim.Sim.Ai;
@@ -17,6 +18,8 @@ public sealed class BeliefSettlement
     public int Settlement;
     public int Tile;
     public int LastSeenSeason;
+    /// <summary>The season this settlement was first seen.</summary>
+    public int FirstSeenSeason;
     /// <summary>Believed population, within about ±25% of the truth when seen.</summary>
     public int PopulationEstimate;
     /// <summary>Believed fighting-age people.</summary>
@@ -27,6 +30,25 @@ public sealed class BeliefSettlement
     public bool ThornBarrierSeen, PalisadeSeen, WatchersSeen;
     /// <summary>Hungry or sick people were visible on the last sighting.</summary>
     public bool DistressSeen;
+}
+
+/// <summary>A party of another civilization seen on its way to one of our settlements (docs/MVP/13 §10 "raid incoming").</summary>
+public sealed class IncomingParty
+{
+    public int Civ;
+    public ExpeditionKind Kind;
+    public int FromSettlement, TargetSettlement;
+    public int ArriveSeason;
+    /// <summary>Heads counted in the party.</summary>
+    public int PartySize;
+}
+
+/// <summary>Bits of <see cref="RivalBelief.SeenFlags"/>: things ever seen of a rival.</summary>
+public static class SeenFlag
+{
+    public const int ThornBarrier = 1, Palisade = 2, Watchers = 4, RangedWeapon = 8, Warriors = 16;
+    /// <summary>Warpaint (Raid posture) on the latest sighting of its figures; cleared when seen without.</summary>
+    public const int RaidPostureLast = 32;
 }
 
 /// <summary>What one civilization believes about one rival (docs/MVP/14 §3.1, §5).</summary>
@@ -60,6 +82,24 @@ public sealed class RivalBelief
     public Fix64 ThreatProbability, ThreatLoss;
     /// <summary>How inviting this rival is to strike right now (14 §5.4): famine seen, warriors away, a gap closing.</summary>
     public Fix64 Opportunity;
+
+    // ---- the observation record the estimates above are built from (docs/MVP/14 §5.3) ----------------
+    /// <summary>Distinct settlements of this rival ever seen.</summary>
+    public int SettlementsSeenEver;
+    /// <summary>Tiles this rival owned among the tiles in sight this season, and the most ever counted.</summary>
+    public int ClaimTilesSeen, ClaimTilesSeenMax;
+    /// <summary>Bit k set when a structure of economy kind k was seen at one of its settlements.</summary>
+    public ulong StructureKindsSeen;
+    /// <summary>What was ever seen of them, as <see cref="SeenFlag"/> bits: thorn barrier, palisade, watchers, a ranged weapon, warriors.</summary>
+    public int SeenFlags;
+    /// <summary>The most warriors ever seen at once.</summary>
+    public int WarriorsSeenMax;
+    /// <summary>Raids it made on our settlements (mutual knowledge) and the season of the last one (-1000 none).</summary>
+    public int RaidsOnUs, LastRaidOnUsSeason = -1000;
+    /// <summary>The season its last gift reached us (-1000 none).</summary>
+    public int LastGiftFromSeason = -1000;
+    /// <summary>Its people seen away on raids or assaults this season (warriors away, 14 §5.4).</summary>
+    public int PartiesAwaySeen;
 }
 
 /// <summary>
@@ -140,6 +180,8 @@ public sealed class Belief
     public int Season { get; set; }
     public RivalBelief[] Rivals { get; }
     public MapKnowledge Map { get; }
+    /// <summary>Parties of other civilizations seen on their way to our settlements this season.</summary>
+    public List<IncomingParty> IncomingParties { get; } = new();
 
     /// <summary>
     /// Hashes, writes and reads every field above. Whoever adds a field to the belief types adds it here too, or a resumed
@@ -156,15 +198,23 @@ public sealed class Belief
             h.Add(r.RaidPostureSeen); h.Add(r.WarriorsEstimate); h.Add(r.KeystonesAnnounced); h.Add(r.FirstsAnnounced);
             h.Add(r.Relations); h.Add(r.Reputation); h.Add(r.AtWar); h.Add(r.Allied); h.Add(r.InTruce);
             h.Add(r.Confidence); h.Add(r.ThreatProbability); h.Add(r.ThreatLoss); h.Add(r.Opportunity);
+            h.Add(r.SettlementsSeenEver); h.Add(r.ClaimTilesSeen); h.Add(r.ClaimTilesSeenMax); h.Add(r.StructureKindsSeen);
+            h.Add(r.SeenFlags); h.Add(r.WarriorsSeenMax); h.Add(r.RaidsOnUs); h.Add(r.LastRaidOnUsSeason);
+            h.Add(r.LastGiftFromSeason); h.Add(r.PartiesAwaySeen);
             foreach (Fix64 p in r.ArchetypePosterior) h.Add(p);
             foreach (bool b in r.ProjectBelieved) h.Add(b);
             h.Add(r.Settlements.Count);
             foreach (BeliefSettlement s in r.Settlements)
             {
-                h.Add(s.Settlement); h.Add(s.Tile); h.Add(s.LastSeenSeason); h.Add(s.PopulationEstimate); h.Add(s.FightersEstimate);
-                h.Add(s.WarriorsSeen); h.Add(s.DefendingStrengthEstimate); h.Add(s.ThornBarrierSeen); h.Add(s.PalisadeSeen);
-                h.Add(s.WatchersSeen); h.Add(s.DistressSeen);
+                h.Add(s.Settlement); h.Add(s.Tile); h.Add(s.LastSeenSeason); h.Add(s.FirstSeenSeason); h.Add(s.PopulationEstimate);
+                h.Add(s.FightersEstimate); h.Add(s.WarriorsSeen); h.Add(s.DefendingStrengthEstimate); h.Add(s.ThornBarrierSeen);
+                h.Add(s.PalisadeSeen); h.Add(s.WatchersSeen); h.Add(s.DistressSeen);
             }
+        }
+        h.Add(IncomingParties.Count);
+        foreach (IncomingParty p in IncomingParties)
+        {
+            h.Add(p.Civ); h.Add((int)p.Kind); h.Add(p.FromSettlement); h.Add(p.TargetSettlement); h.Add(p.ArriveSeason); h.Add(p.PartySize);
         }
     }
 
@@ -180,6 +230,9 @@ public sealed class Belief
             w.Write(r.FirstsAnnounced); w.Write(r.Relations); w.Write(r.Reputation); w.Write(r.AtWar); w.Write(r.Allied);
             w.Write(r.InTruce); w.Write(r.Confidence.Raw); w.Write(r.ThreatProbability.Raw); w.Write(r.ThreatLoss.Raw);
             w.Write(r.Opportunity.Raw);
+            w.Write(r.SettlementsSeenEver); w.Write(r.ClaimTilesSeen); w.Write(r.ClaimTilesSeenMax); w.Write(r.StructureKindsSeen);
+            w.Write(r.SeenFlags); w.Write(r.WarriorsSeenMax); w.Write(r.RaidsOnUs); w.Write(r.LastRaidOnUsSeason);
+            w.Write(r.LastGiftFromSeason); w.Write(r.PartiesAwaySeen);
             w.Write(r.ArchetypePosterior.Length);
             foreach (Fix64 p in r.ArchetypePosterior) w.Write(p.Raw);
             w.Write(r.ProjectBelieved.Length);
@@ -187,10 +240,15 @@ public sealed class Belief
             w.Write(r.Settlements.Count);
             foreach (BeliefSettlement s in r.Settlements)
             {
-                w.Write(s.Settlement); w.Write(s.Tile); w.Write(s.LastSeenSeason); w.Write(s.PopulationEstimate);
+                w.Write(s.Settlement); w.Write(s.Tile); w.Write(s.LastSeenSeason); w.Write(s.FirstSeenSeason); w.Write(s.PopulationEstimate);
                 w.Write(s.FightersEstimate); w.Write(s.WarriorsSeen); w.Write(s.DefendingStrengthEstimate.Raw);
                 w.Write(s.ThornBarrierSeen); w.Write(s.PalisadeSeen); w.Write(s.WatchersSeen); w.Write(s.DistressSeen);
             }
+        }
+        w.Write(IncomingParties.Count);
+        foreach (IncomingParty p in IncomingParties)
+        {
+            w.Write(p.Civ); w.Write((byte)p.Kind); w.Write(p.FromSettlement); w.Write(p.TargetSettlement); w.Write(p.ArriveSeason); w.Write(p.PartySize);
         }
     }
 
@@ -208,6 +266,10 @@ public sealed class Belief
             r.Reputation = r0.ReadInt32(); r.AtWar = r0.ReadBoolean(); r.Allied = r0.ReadBoolean(); r.InTruce = r0.ReadBoolean();
             r.Confidence = Fix64.FromRaw(r0.ReadInt64()); r.ThreatProbability = Fix64.FromRaw(r0.ReadInt64());
             r.ThreatLoss = Fix64.FromRaw(r0.ReadInt64()); r.Opportunity = Fix64.FromRaw(r0.ReadInt64());
+            r.SettlementsSeenEver = r0.ReadInt32(); r.ClaimTilesSeen = r0.ReadInt32(); r.ClaimTilesSeenMax = r0.ReadInt32();
+            r.StructureKindsSeen = r0.ReadUInt64(); r.SeenFlags = r0.ReadInt32(); r.WarriorsSeenMax = r0.ReadInt32();
+            r.RaidsOnUs = r0.ReadInt32(); r.LastRaidOnUsSeason = r0.ReadInt32(); r.LastGiftFromSeason = r0.ReadInt32();
+            r.PartiesAwaySeen = r0.ReadInt32();
             int posterior = r0.ReadInt32();
             r.ArchetypePosterior = new Fix64[posterior];
             for (int i = 0; i < posterior; i++) r.ArchetypePosterior[i] = Fix64.FromRaw(r0.ReadInt64());
@@ -219,10 +281,19 @@ public sealed class Belief
             for (int i = 0; i < count; i++)
                 r.Settlements.Add(new BeliefSettlement
                 {
-                    Settlement = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(), PopulationEstimate = r0.ReadInt32(),
-                    FightersEstimate = r0.ReadInt32(), WarriorsSeen = r0.ReadInt32(), DefendingStrengthEstimate = Fix64.FromRaw(r0.ReadInt64()),
-                    ThornBarrierSeen = r0.ReadBoolean(), PalisadeSeen = r0.ReadBoolean(), WatchersSeen = r0.ReadBoolean(), DistressSeen = r0.ReadBoolean(),
+                    Settlement = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(), FirstSeenSeason = r0.ReadInt32(),
+                    PopulationEstimate = r0.ReadInt32(), FightersEstimate = r0.ReadInt32(), WarriorsSeen = r0.ReadInt32(),
+                    DefendingStrengthEstimate = Fix64.FromRaw(r0.ReadInt64()), ThornBarrierSeen = r0.ReadBoolean(),
+                    PalisadeSeen = r0.ReadBoolean(), WatchersSeen = r0.ReadBoolean(), DistressSeen = r0.ReadBoolean(),
                 });
         }
+        IncomingParties.Clear();
+        int parties = r0.ReadInt32();
+        for (int i = 0; i < parties; i++)
+            IncomingParties.Add(new IncomingParty
+            {
+                Civ = r0.ReadInt32(), Kind = (ExpeditionKind)r0.ReadByte(), FromSettlement = r0.ReadInt32(),
+                TargetSettlement = r0.ReadInt32(), ArriveSeason = r0.ReadInt32(), PartySize = r0.ReadInt32(),
+            });
     }
 }
