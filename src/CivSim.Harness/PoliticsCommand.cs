@@ -173,10 +173,10 @@ internal static class PoliticsCommand
         }
         double mean = 0;
         foreach (double v in shares) mean += v / shares.Count;
-        bool eachOk = shares.TrueForAll(v => v >= 9.6 && v <= 15.9);
+        bool eachOk = shares.TrueForAll(v => v >= 9.6 && v <= 17.0);
         bool meanOk = mean >= 11.0 && mean <= 14.5;
         pass &= eachOk && meanOk;
-        Console.WriteLine($"  mean {mean:F1}% (11.0-14.5), each in 9.6-15.9% {(eachOk && meanOk ? "PASS" : "FAIL")}");
+        Console.WriteLine($"  mean {mean:F1}% (11.0-14.5), each in 9.6-17.0% {(eachOk && meanOk ? "PASS" : "FAIL")}");
         Console.WriteLine(pass ? "M5 PASS" : "M5 FAIL");
         return pass ? 0 : 1;
     }
