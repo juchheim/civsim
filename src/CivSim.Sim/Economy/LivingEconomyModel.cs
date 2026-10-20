@@ -1211,7 +1211,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (available > Fix64.Zero && materialRemaining > Fix64.Zero)
             {
                 Fix64 amount = Fix64.Min(available, materialRemaining);
-                EconomyJob job = i % 3 == 0 ? EconomyJob.Craft : i % 3 == 1 ? EconomyJob.Chop : EconomyJob.Gather;
+                // Keyed on the figure's own id, not its place in the global list, so deaths elsewhere cannot reshuffle this civilization's jobs (the fog-fairness rule, docs/MVP/15 D10).
+                long rotation = figure.Id % 3;
+                EconomyJob job = rotation == 0 ? EconomyJob.Craft : rotation == 1 ? EconomyJob.Chop : EconomyJob.Gather;
                 Assign(figure, job, amount);
                 if (job == EconomyJob.Chop) chopWork += amount;
                 else if (job == EconomyJob.Gather) gatherWork += amount;
