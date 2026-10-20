@@ -837,7 +837,8 @@ public partial class Game : Node3D
         layer.AddChild(help);
         CreatePoliticsPanel(layer);
         CreateResearchHud(layer);
-        if (ReadResearchWebArgument()) SetResearchWebVisible(true);
+        if (ReadResearchWebArgument() || ReadResearchOverviewArgument()) SetResearchWebVisible(true);
+        if (ReadResearchOverviewArgument()) SetResearchOverviewMode(true);
         if (_current is not null) UpdatePoliticsControls(_current);
     }
 

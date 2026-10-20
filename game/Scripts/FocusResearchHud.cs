@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -34,14 +35,18 @@ public partial class Game
     private readonly Label?[] _leaningValues = new Label?[3];
     private readonly Dictionary<int, Button> _researchProjectButtons = new();
     private readonly Dictionary<int, Button> _researchKeystoneButtons = new();
+    private readonly Dictionary<(int Lineage, int Era), ResearchOverviewCell> _researchOverviewCells = new();
     private readonly HSlider?[] _leaningEditSliders = new HSlider?[3];
     private readonly Label?[] _leaningEditValues = new Label?[3];
     private LineEdit? _researchSearch;
     private OptionButton? _researchThemeFilter, _researchTypeFilter, _researchStateFilter;
     private Label? _researchSelectionTitle, _researchSelectionText, _researchWebMessage;
+    private VBoxContainer? _researchPrerequisiteLinks, _researchUnlockLinks;
+    private Button? _researchOverviewButton, _researchLanesButton;
+    private CheckButton? _researchHubEmphasis;
     private Button? _researchQueueButton, _researchRemoveQueueButton;
     private Button?[] _researchSlotButtons = new Button?[3];
-    private VBoxContainer? _researchRows;
+    private VBoxContainer? _researchRows, _researchOverviewRows;
     private ScrollContainer? _researchScroll;
     private readonly double[] _focusRatePermillePerSecond = new double[3];
     private readonly double[] _focusObservedAt = new double[3];
@@ -50,8 +55,15 @@ public partial class Game
     private int _selectedFocusSlot;
     private int _selectedResearchProject = -1;
     private bool _researchWebVisible;
+    private bool _researchOverviewMode;
     private bool _leaningVisible;
     private bool _updatingResearchHud;
+
+    private sealed class ResearchOverviewCell
+    {
+        public Button Button = null!;
+        public ColorRect[] Segments = new ColorRect[3];
+    }
 
     private void CreateResearchHud(CanvasLayer layer)
     {
@@ -118,15 +130,19 @@ public partial class Game
             title.AddThemeFontSizeOverride("font_size", 11);
             title.AddThemeColorOverride("font_color", ResearchThemeColors[slot == 0 ? 0 : slot]);
             cardContent.AddChild(title);
-            var project = new Button
+            var project = new ResearchProjectButton
             {
                 Text = "Choose a project",
+                ProjectIndex = -1,
+                DropSlot = capturedSlot,
+                CanAssignProject = CanAssignResearchProject,
                 Alignment = HorizontalAlignment.Left,
                 Flat = true,
                 CustomMinimumSize = new Vector2(0, 24),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
             project.Pressed += () => OpenResearchForSlot(capturedSlot);
+            project.ProjectDropped += AssignResearchToSlot;
             cardContent.AddChild(project);
             _focusProjectLabels[slot] = project;
             var progress = new ProgressBar { MinValue = 0, MaxValue = 100, Value = 0, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 9) };
@@ -239,6 +255,20 @@ public partial class Game
         title.AddThemeFontSizeOverride("font_size", 20);
         title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         header.AddChild(title);
+        _researchOverviewButton = new Button { Text = "W1 Overview", TooltipText = "Summarize known progress by lineage and era" };
+        _researchOverviewButton.Pressed += () => SetResearchOverviewMode(true);
+        header.AddChild(_researchOverviewButton);
+        _researchLanesButton = new Button { Text = "W2 Lanes", TooltipText = "Browse visible research projects by lineage" };
+        _researchLanesButton.Pressed += () => SetResearchOverviewMode(false);
+        header.AddChild(_researchLanesButton);
+        _researchHubEmphasis = new CheckButton
+        {
+            Text = "Hub size",
+            ButtonPressed = true,
+            TooltipText = "Size nodes by the number of currently known projects they lead to",
+        };
+        _researchHubEmphasis.Toggled += _ => RefreshResearchGrid();
+        header.AddChild(_researchHubEmphasis);
         _researchSearch = new LineEdit { PlaceholderText = "Search name, ID, lineage or effect…", CustomMinimumSize = new Vector2(260, 0) };
         _researchSearch.TextChanged += _ => RefreshResearchGrid();
         header.AddChild(_researchSearch);
@@ -262,12 +292,17 @@ public partial class Game
         _researchRows.AddThemeConstantOverride("separation", 2);
         BuildResearchRows();
         _researchScroll.AddChild(_researchRows);
+        _researchOverviewRows = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Visible = false };
+        _researchOverviewRows.AddThemeConstantOverride("separation", 2);
+        BuildResearchOverview();
+        _researchScroll.AddChild(_researchOverviewRows);
         body.AddChild(_researchScroll);
         body.AddChild(BuildResearchInspector());
         contents.AddChild(body);
         _researchWebMessage = new Label { Text = "Select a node to review it and assign a slot.", AutowrapMode = TextServer.AutowrapMode.WordSmart };
         contents.AddChild(_researchWebMessage);
         layer.AddChild(_researchWebPanel);
+        SetResearchOverviewMode(false);
     }
 
     private OptionButton NewResearchFilter(string[] names, Action changed)
@@ -325,6 +360,114 @@ public partial class Game
         }
     }
 
+    private void BuildResearchOverview()
+    {
+        if (_catalog is null || _researchOverviewRows is null) return;
+        var header = new HBoxContainer();
+        header.AddChild(new Label { Text = "LANE", CustomMinimumSize = new Vector2(74, 0) });
+        string[] eras = { "E0 · DAWN", "E1 · HUNTERS", "E2 · ROOTS" };
+        foreach (string era in eras)
+            header.AddChild(new Label { Text = era, HorizontalAlignment = HorizontalAlignment.Center, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        _researchOverviewRows.AddChild(header);
+
+        var keystones = new HBoxContainer();
+        keystones.AddChild(new Label { Text = "KEYSTONE", CustomMinimumSize = new Vector2(74, 0), VerticalAlignment = VerticalAlignment.Center });
+        for (int era = 0; era < 3; era++) keystones.AddChild(CreateResearchOverviewCell(-1, era).Button.GetParent<Control>());
+        _researchOverviewRows.AddChild(keystones);
+
+        for (int theme = 0; theme < 3; theme++)
+        {
+            var band = new Label { Text = ResearchThemeNames[theme].ToUpperInvariant(), CustomMinimumSize = new Vector2(0, 22) };
+            band.AddThemeFontSizeOverride("font_size", 13);
+            band.AddThemeColorOverride("font_color", ResearchThemeColors[theme]);
+            _researchOverviewRows.AddChild(band);
+            for (int lineage = 0; lineage < _catalog.LineageCodes.Count; lineage++)
+            {
+                if (!LineageBelongsToTheme(lineage, theme)) continue;
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 4);
+                var label = new Label { Text = _catalog.LineageCodes[lineage], CustomMinimumSize = new Vector2(74, 0), VerticalAlignment = VerticalAlignment.Center };
+                label.AddThemeColorOverride("font_color", ResearchThemeColors[theme]);
+                row.AddChild(label);
+                for (int era = 0; era < 3; era++) row.AddChild(CreateResearchOverviewCell(lineage, era).Button.GetParent<Control>());
+                _researchOverviewRows.AddChild(row);
+            }
+        }
+    }
+
+    private ResearchOverviewCell CreateResearchOverviewCell(int lineage, int era)
+    {
+        var cell = new ResearchOverviewCell();
+        var contents = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        contents.AddThemeConstantOverride("separation", 1);
+        cell.Button = new Button
+        {
+            Text = "—",
+            CustomMinimumSize = new Vector2(0, 26),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            Disabled = true,
+            TooltipText = "No currently visible projects",
+        };
+        cell.Button.Pressed += () => OpenResearchOverviewCell(lineage, era);
+        contents.AddChild(cell.Button);
+        var bar = new HBoxContainer { CustomMinimumSize = new Vector2(0, 4), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        Color[] colors = { new Color("#8eb58b"), new Color("#d5ad5e"), new Color("#858477") };
+        for (int i = 0; i < cell.Segments.Length; i++)
+        {
+            cell.Segments[i] = new ColorRect { Color = colors[i], Visible = false, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            bar.AddChild(cell.Segments[i]);
+        }
+        contents.AddChild(bar);
+        _researchOverviewCells.Add((lineage, era), cell);
+        return cell;
+    }
+
+    private void SetResearchOverviewMode(bool overview)
+    {
+        _researchOverviewMode = overview;
+        if (_researchRows is not null) _researchRows.Visible = !overview;
+        if (_researchOverviewRows is not null) _researchOverviewRows.Visible = overview;
+        if (_researchOverviewButton is not null) _researchOverviewButton.Text = overview ? "● W1 Overview" : "W1 Overview";
+        if (_researchLanesButton is not null) _researchLanesButton.Text = overview ? "W2 Lanes" : "● W2 Lanes";
+        if (overview && _researchScroll is not null) _researchScroll.ScrollVertical = 0;
+        RefreshResearchGrid();
+    }
+
+    private void OpenResearchOverviewCell(int lineage, int era)
+    {
+        if (_catalog is null || _current is null) return;
+        int candidate = -1;
+        int candidateRank = int.MaxValue;
+        int themeFilter = _researchThemeFilter?.Selected ?? 0;
+        int typeFilter = _researchTypeFilter?.Selected ?? 0;
+        int stateFilter = _researchStateFilter?.Selected ?? 0;
+        string query = _researchSearch?.Text.Trim() ?? "";
+        foreach (ProjectDef def in _catalog.Projects)
+        {
+            if (def.Era != era || (lineage < 0 ? !def.IsKeystone : def.IsKeystone || def.Lineage != lineage)) continue;
+            if (!IsResearchVisible(def, themeFilter, typeFilter, stateFilter, query)) continue;
+            ProjectState state = (ProjectState)_current.FocusProjectState[def.Index];
+            int rank = state switch
+            {
+                ProjectState.Available => 0,
+                ProjectState.Slotted => 1,
+                ProjectState.Glimpsed => 2,
+                ProjectState.Completed => 3,
+                ProjectState.Dormant => 4,
+                _ => int.MaxValue,
+            };
+            if (rank < candidateRank) { candidate = def.Index; candidateRank = rank; }
+        }
+        if (candidate < 0) return;
+        _selectedResearchProject = candidate;
+        SetResearchOverviewMode(false);
+        UpdateResearchSelection();
+        Dictionary<int, Button> buttons = _researchProjectButtons;
+        if (lineage < 0) buttons = _researchKeystoneButtons;
+        if (_researchScroll is not null && buttons.TryGetValue(candidate, out Button? button))
+            _researchScroll.EnsureControlVisible(button);
+    }
+
     private Control BuildResearchColumnHeader()
     {
         var row = new HBoxContainer();
@@ -349,9 +492,10 @@ public partial class Game
 
     private Button CreateResearchNode(ProjectDef def, bool keystone = false)
     {
-        var button = new Button
+        var button = new ResearchProjectButton
         {
             Text = def.Id,
+            ProjectIndex = def.Index,
             CustomMinimumSize = new Vector2(63, 24),
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
             TooltipText = $"{def.Id} · {def.Name}",
@@ -367,15 +511,23 @@ public partial class Game
     private Control BuildResearchInspector()
     {
         var inspector = new PanelContainer { CustomMinimumSize = new Vector2(300, 0) };
-        var contents = new VBoxContainer();
+        var scroll = new ScrollContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        inspector.AddChild(scroll);
+        var contents = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         contents.AddThemeConstantOverride("separation", 6);
-        inspector.AddChild(contents);
+        scroll.AddChild(contents);
         _researchSelectionTitle = new Label { Text = "Choose a project", AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _researchSelectionTitle.AddThemeFontSizeOverride("font_size", 17);
         contents.AddChild(_researchSelectionTitle);
-        _researchSelectionText = new Label { Text = "Available nodes can go straight into a focus slot. Glimpsed nodes can be queued while you meet their last requirement.", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        _researchSelectionText = new Label { Text = "Available nodes can go straight into a focus slot. Glimpsed nodes can be queued while you meet their last requirement.", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         _researchSelectionText.AddThemeFontSizeOverride("font_size", 12);
         contents.AddChild(_researchSelectionText);
+        contents.AddChild(new Label { Text = "Prerequisite path" });
+        _researchPrerequisiteLinks = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        contents.AddChild(_researchPrerequisiteLinks);
+        contents.AddChild(new Label { Text = "Known projects unlocked" });
+        _researchUnlockLinks = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        contents.AddChild(_researchUnlockLinks);
         _researchQueueButton = new Button { Text = "Add to queue" };
         _researchQueueButton.Pressed += QueueSelectedResearch;
         contents.AddChild(_researchQueueButton);
@@ -403,9 +555,25 @@ public partial class Game
         {
             _leaningVisible = false;
             if (_leaningPanel is not null) _leaningPanel.Visible = false;
+            if (_selectedResearchProject < 0 || _current is null || _selectedResearchProject >= _current.FocusProjectCount ||
+                (ProjectState)_current.FocusProjectState[_selectedResearchProject] == ProjectState.Hidden)
+                _selectedResearchProject = FindDefaultResearchProject();
             RefreshResearchGrid();
             UpdateResearchSelection();
         }
+    }
+
+    private int FindDefaultResearchProject()
+    {
+        if (_current is null || _catalog is null) return -1;
+        int glimpsed = -1;
+        for (int project = 0; project < Math.Min(_current.FocusProjectCount, _catalog.Count); project++)
+        {
+            ProjectState state = (ProjectState)_current.FocusProjectState[project];
+            if (state is ProjectState.Available or ProjectState.Slotted) return project;
+            if (state == ProjectState.Glimpsed && glimpsed < 0) glimpsed = project;
+        }
+        return glimpsed;
     }
 
     private void OpenResearchForSlot(int slot)
@@ -419,6 +587,17 @@ public partial class Game
     {
         _selectedResearchProject = project;
         UpdateResearchSelection();
+        if (_researchScroll is not null)
+        {
+            if (_researchKeystoneButtons.TryGetValue(project, out Button? keystone)) _researchScroll.EnsureControlVisible(keystone);
+            else if (_researchProjectButtons.TryGetValue(project, out Button? button)) _researchScroll.EnsureControlVisible(button);
+        }
+    }
+
+    private void NavigateResearchPath(int project)
+    {
+        if (_researchOverviewMode) SetResearchOverviewMode(false);
+        SelectResearchProject(project);
     }
 
     private void UpdateResearchHud(MatchFrame frame)
@@ -439,6 +618,7 @@ public partial class Game
         {
             int project = frame.FocusSlotProject[slot];
             short permille = frame.FocusSlotPermille[slot];
+            if (_focusProjectLabels[slot] is ResearchProjectButton dragButton) dragButton.ProjectIndex = project;
             if (_focusProgressBars[slot] is not null) _focusProgressBars[slot]!.Value = permille / 10.0;
             if (_focusProjectLabels[slot] is not null)
             {
@@ -527,24 +707,36 @@ public partial class Game
         int typeFilter = _researchTypeFilter?.Selected ?? 0;
         int stateFilter = _researchStateFilter?.Selected ?? 0;
         string query = _researchSearch?.Text.Trim() ?? "";
+        int[] visibleDependents = CountVisibleDependents();
         foreach ((int project, Button button) in _researchProjectButtons)
-            UpdateResearchNodeButton(project, button, themeFilter, typeFilter, stateFilter, query);
+            UpdateResearchNodeButton(project, button, themeFilter, typeFilter, stateFilter, query, visibleDependents[project]);
         foreach ((int project, Button button) in _researchKeystoneButtons)
-            UpdateResearchNodeButton(project, button, themeFilter, typeFilter, stateFilter, query);
+            UpdateResearchNodeButton(project, button, themeFilter, typeFilter, stateFilter, query, visibleDependents[project]);
+        RefreshResearchOverview(themeFilter, typeFilter, stateFilter, query);
     }
 
-    private void UpdateResearchNodeButton(int project, Button button, int themeFilter, int typeFilter, int stateFilter, string query)
+    private bool IsResearchVisible(ProjectDef def, int themeFilter, int typeFilter, int stateFilter, string query)
+    {
+        if (_current is null || def.Index >= _current.FocusProjectCount) return false;
+        ProjectState state = (ProjectState)_current.FocusProjectState[def.Index];
+        return state != ProjectState.Hidden &&
+               (themeFilter == 0 || (int)def.Theme == themeFilter - 1) &&
+               (typeFilter == 0 || (int)def.Type == typeFilter - 1) &&
+               (stateFilter == 0 || (int)state == stateFilter) &&
+               (query.Length == 0 || ResearchMatches(def, query));
+    }
+
+    private void UpdateResearchNodeButton(int project, Button button, int themeFilter, int typeFilter, int stateFilter, string query, int visibleDependents)
     {
         if (_current is null || _catalog is null || project >= _current.FocusProjectCount) return;
         ProjectDef def = _catalog.Projects[project];
         ProjectState state = (ProjectState)_current.FocusProjectState[project];
-        bool visible = state != ProjectState.Hidden &&
-                       (themeFilter == 0 || (int)def.Theme == themeFilter - 1) &&
-                       (typeFilter == 0 || (int)def.Type == typeFilter - 1) &&
-                       (stateFilter == 0 || (int)state == stateFilter);
-        if (visible && query.Length > 0) visible = ResearchMatches(def, query);
+        bool visible = IsResearchVisible(def, themeFilter, typeFilter, stateFilter, query);
         button.Visible = visible;
         if (!visible) return;
+        bool emphasize = _researchHubEmphasis?.ButtonPressed ?? true;
+        float width = emphasize ? 63 + Math.Min(48, visibleDependents * 4) : 63;
+        button.CustomMinimumSize = new Vector2(width, 24);
         int slot = FindFocusSlot(project);
         string marker = state switch
         {
@@ -565,7 +757,73 @@ public partial class Game
             _ => Colors.White,
         };
         button.AddThemeColorOverride("font_color", color);
-        button.TooltipText = $"{def.Id} · {def.Name}\n{ResearchThemeNames[(int)def.Theme]} · {def.Type} · {ResearchStateNames[(int)state]}";
+        string hub = visibleDependents > 0 ? $"\nKnown visible dependents: {visibleDependents}" : "";
+        button.TooltipText = $"{def.Id} · {def.Name}\n{ResearchThemeNames[(int)def.Theme]} · {def.Type} · {ResearchStateNames[(int)state]}{hub}";
+    }
+
+    private int[] CountVisibleDependents()
+    {
+        if (_current is null || _catalog is null) return Array.Empty<int>();
+        int count = _catalog.Count;
+        int visibleCount = Math.Min(_current.FocusProjectCount, count);
+        var dependents = new int[count];
+        var countedBy = new int[count];
+        for (int dependent = 0; dependent < visibleCount; dependent++)
+        {
+            if ((ProjectState)_current.FocusProjectState[dependent] == ProjectState.Hidden) continue;
+            int stamp = dependent + 1;
+            ProjectDef def = _catalog.Projects[dependent];
+            foreach (int prerequisite in def.Requires) AddVisibleDependent(prerequisite, stamp, countedBy, dependents);
+            foreach (int prerequisite in def.RequiresAny) AddVisibleDependent(prerequisite, stamp, countedBy, dependents);
+        }
+        return dependents;
+    }
+
+    private static void AddVisibleDependent(int prerequisite, int stamp, int[] countedBy, int[] dependents)
+    {
+        if ((uint)prerequisite >= (uint)dependents.Length || countedBy[prerequisite] == stamp) return;
+        countedBy[prerequisite] = stamp;
+        dependents[prerequisite]++;
+    }
+
+    private void RefreshResearchOverview(int themeFilter, int typeFilter, int stateFilter, string query)
+    {
+        if (_current is null || _catalog is null) return;
+        var counts = new Dictionary<(int Lineage, int Era), int[]>();
+        foreach (ProjectDef def in _catalog.Projects)
+        {
+            if (!IsResearchVisible(def, themeFilter, typeFilter, stateFilter, query)) continue;
+            var key = (def.IsKeystone ? -1 : def.Lineage, def.Era);
+            if (!counts.TryGetValue(key, out int[]? stateCounts)) counts.Add(key, stateCounts = new int[3]);
+            switch ((ProjectState)_current.FocusProjectState[def.Index])
+            {
+                case ProjectState.Completed:
+                case ProjectState.Dormant: stateCounts[0]++; break;
+                case ProjectState.Available:
+                case ProjectState.Slotted: stateCounts[1]++; break;
+                case ProjectState.Glimpsed: stateCounts[2]++; break;
+            }
+        }
+
+        foreach (KeyValuePair<(int Lineage, int Era), ResearchOverviewCell> pair in _researchOverviewCells)
+        {
+            int lineage = pair.Key.Lineage, era = pair.Key.Era;
+            ResearchOverviewCell cell = pair.Value;
+            counts.TryGetValue((lineage, era), out int[]? values);
+            int completed = values?[0] ?? 0, available = values?[1] ?? 0, glimpsed = values?[2] ?? 0;
+            int total = completed + available + glimpsed;
+            cell.Button.Disabled = total == 0;
+            cell.Button.Text = total == 0 ? "—" : $"✓ {completed}   ◇ {available}   ? {glimpsed}";
+            cell.Button.TooltipText = total == 0
+                ? "No currently visible projects in this cell"
+                : $"Known projects only: {completed} completed · {available} available or slotted · {glimpsed} glimpsed. Hidden projects are not counted. Click to open this lane.";
+            int[] segments = { completed, available, glimpsed };
+            for (int i = 0; i < segments.Length; i++)
+            {
+                cell.Segments[i].Visible = segments[i] > 0;
+                cell.Segments[i].SizeFlagsStretchRatio = Math.Max(0.1f, segments[i]);
+            }
+        }
     }
 
     private bool ResearchMatches(ProjectDef def, string query)
@@ -598,6 +856,8 @@ public partial class Game
         {
             _researchSelectionTitle.Text = "Choose a project";
             _researchSelectionText.Text = "Hidden projects stay outside the viewer's web. Select a visible node to review its prerequisites and expected changes.";
+            ClearResearchLinks(_researchPrerequisiteLinks);
+            ClearResearchLinks(_researchUnlockLinks);
             SetResearchActionAvailability(false, false, false);
             return;
         }
@@ -608,30 +868,30 @@ public partial class Game
         var text = new StringBuilder();
         text.Append(ResearchThemeNames[(int)def.Theme]).Append(" · ").Append(def.Type).Append(" · E").Append(def.Era).Append(" · ").Append(ResearchStateNames[(int)state]);
         if (def.Lineage >= 0) text.Append("\nLineage: ").Append(_catalog.LineageCodes[def.Lineage]);
-        if (def.Requires.Length > 0)
-        {
-            text.Append("\n\nRequires: ");
-            AppendProjectNames(text, def.Requires);
-        }
-        if (def.RequiresAny.Length > 0)
-        {
-            text.Append("\nOne of: ");
-            AppendProjectNames(text, def.RequiresAny);
-        }
         if (def.Effects.Length > 0)
         {
-            text.Append("\n\nWhat changes");
+            text.Append("\n\nExpected changes");
             int shown = 0;
             foreach (EffectDef effect in def.Effects)
             {
                 if (effect.Visual == VisibleChange.None && effect.Text is null) continue;
-                text.Append("\n• ").Append(FormatEffect(effect));
+                text.Append("\n• ").Append(effect.Kind == EffectKind.Method ? FormatMethodImpact(effect) : FormatVisibleChange(effect));
                 if (++shown == 5) break;
             }
             if (shown == 0) text.Append("\n• Enables the project's simulation effects.");
         }
+        if (def.Gates.Length > 0)
+        {
+            text.Append("\n\nConditions");
+            foreach (Gate gate in def.Gates)
+            {
+                string target = (uint)gate.Target < (uint)_catalog.GateTargets.Count ? _catalog.GateTargets[gate.Target] : "known condition";
+                text.Append("\n• ").Append(gate.Kind switch { GateKind.Seen => "See", GateKind.Has => "Have", GateKind.Near => "Near", GateKind.Climate => "Climate", _ => "Meet" }).Append(' ').Append(target);
+            }
+        }
         if (!string.IsNullOrWhiteSpace(def.Flavor)) text.Append("\n\n“").Append(def.Flavor).Append('”');
         _researchSelectionText.Text = text.ToString();
+        BuildResearchPathLinks(def);
 
         bool assignable = state is ProjectState.Available or ProjectState.Slotted;
         bool queued = false;
@@ -639,15 +899,159 @@ public partial class Game
         SetResearchActionAvailability(assignable, state is ProjectState.Glimpsed or ProjectState.Available, queued);
     }
 
-    private void AppendProjectNames(StringBuilder text, int[] projects)
+    private void BuildResearchPathLinks(ProjectDef selected)
     {
-        if (_catalog is null) return;
-        for (int i = 0; i < projects.Length; i++)
+        ClearResearchLinks(_researchPrerequisiteLinks);
+        ClearResearchLinks(_researchUnlockLinks);
+        if (_catalog is null || _current is null) return;
+
+        bool hasPrerequisite = false;
+        bool unrevealedRequired = false;
+        foreach (int prerequisite in selected.Requires)
         {
-            if (i > 0) text.Append(", ");
-            int index = projects[i];
-            if ((uint)index < (uint)_catalog.Count) text.Append(_catalog.Projects[index].Id);
+            hasPrerequisite = true;
+            if ((uint)prerequisite >= (uint)_current.FocusProjectCount || (ProjectState)_current.FocusProjectState[prerequisite] == ProjectState.Hidden)
+                unrevealedRequired = true;
+            else AddKnownResearchPath(prerequisite, _researchPrerequisiteLinks, "");
         }
+        if (unrevealedRequired) AddResearchPathNote(_researchPrerequisiteLinks, "Unrevealed requirement");
+        bool knownAlternative = false;
+        foreach (int prerequisite in selected.RequiresAny)
+        {
+            if ((uint)prerequisite >= (uint)_current.FocusProjectCount || (ProjectState)_current.FocusProjectState[prerequisite] == ProjectState.Hidden) continue;
+            hasPrerequisite = true;
+            knownAlternative = true;
+            AddKnownResearchPath(prerequisite, _researchPrerequisiteLinks, "");
+        }
+        if (selected.RequiresAny.Length > 0 && !knownAlternative && selected.Requires.Length == 0)
+        {
+            hasPrerequisite = true;
+            AddResearchPathNote(_researchPrerequisiteLinks, "Prerequisite routes not revealed yet");
+        }
+        if (!hasPrerequisite) AddResearchPathNote(_researchPrerequisiteLinks, "No earlier project prerequisite");
+
+        int added = 0, more = 0;
+        foreach (ProjectDef candidate in _catalog.Projects)
+        {
+            if (candidate.Index >= _current.FocusProjectCount || candidate.Index == selected.Index ||
+                (ProjectState)_current.FocusProjectState[candidate.Index] == ProjectState.Hidden ||
+                !DependsOn(candidate, selected.Index)) continue;
+            if (added < 8) { AddKnownResearchPath(candidate.Index, _researchUnlockLinks, ""); added++; }
+            else more++;
+        }
+        if (added == 0) AddResearchPathNote(_researchUnlockLinks, "No known direct unlocks");
+        else if (more > 0) AddResearchPathNote(_researchUnlockLinks, $"+{more} more known");
+    }
+
+    private static bool DependsOn(ProjectDef candidate, int prerequisite)
+    {
+        foreach (int required in candidate.Requires) if (required == prerequisite) return true;
+        foreach (int required in candidate.RequiresAny) if (required == prerequisite) return true;
+        return false;
+    }
+
+    private void AddKnownResearchPath(int project, VBoxContainer? container, string hiddenLabel)
+    {
+        if (_catalog is null || _current is null || container is null) return;
+        if ((uint)project >= (uint)_current.FocusProjectCount || (ProjectState)_current.FocusProjectState[project] == ProjectState.Hidden)
+        {
+            if (hiddenLabel.Length > 0) AddResearchPathNote(container, hiddenLabel);
+            return;
+        }
+        ProjectDef def = _catalog.Projects[project];
+        var button = new Button { Text = def.Id, TooltipText = $"Open {def.Id} · {def.Name}", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        button.AddThemeFontSizeOverride("font_size", 10);
+        button.AddThemeColorOverride("font_color", ResearchThemeColors[(int)def.Theme]);
+        button.Pressed += () => NavigateResearchPath(project);
+        container.AddChild(button);
+    }
+
+    private static void AddResearchPathNote(VBoxContainer? container, string note)
+    {
+        if (container is not null) container.AddChild(new Label { Text = note, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+    }
+
+    private static void ClearResearchLinks(VBoxContainer? container)
+    {
+        if (container is null) return;
+        foreach (Node child in container.GetChildren())
+        {
+            container.RemoveChild(child);
+            child.QueueFree();
+        }
+    }
+
+    private static string FormatVisibleChange(EffectDef effect)
+    {
+        string target = effect.Action ?? effect.Id ?? effect.Stat ?? effect.Text ?? effect.Kind.ToString();
+        double value = effect.Value.ToDoubleForDisplay();
+        if (effect.Kind == EffectKind.Mod)
+        {
+            string stat = effect.Stat ?? effect.Id ?? effect.Action ?? "behavior";
+            return effect.Op switch
+            {
+                "pct" => $"{stat}: {value * 100:+0.##;-0.##;0}%",
+                "mult" => $"{stat}: multiplier ×{value.ToString("0.##", CultureInfo.InvariantCulture)}",
+                "flat" => $"{stat}: {value:+0.##;-0.##;0} flat",
+                "set" => $"{stat}: set to {value.ToString("0.##", CultureInfo.InvariantCulture)}",
+                _ => FormatEffect(effect),
+            };
+        }
+        if (effect.Kind == EffectKind.Hazard)
+        {
+            string cause = effect.Cause ?? effect.Id ?? "hazard";
+            return $"{cause} risk ×{value.ToString("0.##", CultureInfo.InvariantCulture)}";
+        }
+        return effect.Visual switch
+        {
+            VisibleChange.NewAction => $"Unlocks {target}",
+            VisibleChange.ToolOrMethod => $"Improves {target} methods",
+            VisibleChange.Good => $"Adds {target}",
+            VisibleChange.Structure => $"Enables {target}",
+            VisibleChange.Role => $"Adds the {target} role",
+            VisibleChange.Tier => $"Advances {target}",
+            VisibleChange.Overlay => $"Opens {target} on the map",
+            VisibleChange.EraCelebration => "Advances the era",
+            _ => FormatEffect(effect),
+        };
+    }
+
+    private string FormatMethodImpact(EffectDef effect)
+    {
+        string action = effect.Action ?? "work";
+        int rung = (int)effect.Int;
+        if (_current is null || _current.FocusCiv < 0 || !TryGetActivity(action, out FigureActivity activity))
+            return $"Adds the {action} method rung {rung}";
+
+        int figures = 0, belowRung = 0;
+        for (int i = 0; i < _current.FigureCount; i++)
+        {
+            if (_current.FigureCiv[i] != _current.FocusCiv || (FigureActivity)_current.FigureActivity[i] != activity) continue;
+            figures++;
+            if (_current.FigureToolRung[i] < rung) belowRung++;
+        }
+        if (figures == 0) return $"Adds the {action} method rung {rung}; no current figures are doing this action.";
+        return $"Adds the {action} method rung {rung}; {figures} current figures do this action, {belowRung} are below this rung at their settlement.";
+    }
+
+    private static bool TryGetActivity(string action, out FigureActivity activity)
+    {
+        activity = action switch
+        {
+            "forage" => FigureActivity.Forage,
+            "hunt" => FigureActivity.Hunt,
+            "fish" => FigureActivity.Fish,
+            "farm" => FigureActivity.Farm,
+            "chop" => FigureActivity.Chop,
+            "gather" => FigureActivity.Gather,
+            "craft" => FigureActivity.Craft,
+            "build" => FigureActivity.Build,
+            "preserve" => FigureActivity.Preserve,
+            "tend_fire" => FigureActivity.TendFire,
+            "herd" => FigureActivity.Herd,
+            _ => (FigureActivity)byte.MaxValue,
+        };
+        return (byte)activity != byte.MaxValue;
     }
 
     private static string FormatEffect(EffectDef effect)
@@ -658,7 +1062,7 @@ public partial class Game
         if (!string.IsNullOrEmpty(effect.Id)) text.Append(" · ").Append(effect.Id);
         if (!string.IsNullOrEmpty(effect.Stat)) text.Append(" · ").Append(effect.Stat);
         if (!string.IsNullOrEmpty(effect.Text)) text.Append(" · ").Append(effect.Text);
-        if (effect.HasValue) text.Append(" · ").Append(effect.Value.ToString());
+        if (effect.HasValue) text.Append(" · ").Append(effect.Value.ToDoubleForDisplay().ToString("0.###", CultureInfo.InvariantCulture));
         return text.ToString();
     }
 
@@ -676,11 +1080,22 @@ public partial class Game
 
     private void AssignSelectedResearch(int slot)
     {
-        if (_session is null || _current is null || _selectedResearchProject < 0) return;
-        _session.Queue(PlayerCommands.SetSlot(_session.Tick, _current.FocusCiv, slot, _selectedResearchProject));
+        AssignResearchToSlot(_selectedResearchProject, slot);
+    }
+
+    private bool CanAssignResearchProject(int project)
+        => _session is not null && _current is not null && project >= 0 && project < _current.FocusProjectCount &&
+           (ProjectState)_current.FocusProjectState[project] is ProjectState.Available or ProjectState.Slotted;
+
+    private void AssignResearchToSlot(int project, int slot)
+    {
+        if (_session is null || _current is null || (uint)slot >= 3u || !CanAssignResearchProject(project)) return;
+        _session.Queue(PlayerCommands.SetSlot(_session.Tick, _current.FocusCiv, slot, project));
+        _selectedResearchProject = project;
         _selectedFocusSlot = slot;
         string[] slotNames = { "Primary", "Secondary", "Tertiary" };
-        _researchWebMessage?.SetDeferred("text", $"{_catalog!.Projects[_selectedResearchProject].Id} sent to the {slotNames[slot]} slot.");
+        _researchWebMessage?.SetDeferred("text", $"{_catalog!.Projects[project].Id} sent to the {slotNames[slot]} slot. Drag a slotted project to another slot to change its rank.");
+        UpdateResearchSelection();
     }
 
     private void QueueSelectedResearch()
@@ -755,6 +1170,13 @@ public partial class Game
     {
         foreach (string arg in OS.GetCmdlineUserArgs())
             if (string.Equals(arg, "--research-web", StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    private static bool ReadResearchOverviewArgument()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (string.Equals(arg, "--research-overview", StringComparison.Ordinal)) return true;
         return false;
     }
 }

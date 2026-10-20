@@ -40,11 +40,20 @@ shares are normalized to 100% when applied. In the research web, select a visibl
 project and use the inspector to set Primary/Secondary/Tertiary, enqueue it, or
 remove it from the queue. Keys `1`–`3` assign the selected project while the web is
 open; `Esc` closes it. Search covers project IDs, names, lineages, effect terms and
-gate targets. Hidden projects remain absent from search. A development capture can
-open the web on launch with:
+gate targets. Hidden projects remain absent from search. **W1 Overview** summarizes
+known completed, available/slotted and glimpsed projects by lineage and era without
+counting hidden projects; clicking a cell drills into its lane. **W2 Lanes** shows
+the individual nodes, with optional size emphasis based only on known dependents.
+The inspector's visible prerequisite and unlock buttons navigate between lanes.
+Method previews include how many of your current figures perform the action and how
+many are below the new rung at their settlement.
+A research node can be dragged onto a focus slot, and dragging a slotted project to
+another slot changes its rank without losing progress.
+A development capture can open the web on launch with:
 
 ```bash
 godot-mono --path game -- --research-web --screenshot=/tmp/civsim-m7b-web.png
+godot-mono --path game -- --research-overview --screenshot=/tmp/civsim-m7b-overview.png
 ```
 
 For renderer checks, `--start-minute=70 --viewer=-1` advances the deterministic
