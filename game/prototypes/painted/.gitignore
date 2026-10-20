@@ -1,0 +1,7 @@
+.godot/
+*.log
+*.uid
+*.import
+shots/frame20_check.png
+shots/capture_*.png
+shots/grid_check.png
