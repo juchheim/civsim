@@ -18,7 +18,7 @@ namespace CivSim.Sim.Ai;
 /// project) and the queue, written with the same commands a player has, so slots never idle and the Council only fills a
 /// slot the plan leaves empty. Budgets are counted in rollouts, never in time (14 §12).
 /// </summary>
-public sealed class ResearchSpark : IResearchSpark
+public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 {
     private const ulong StreamPart = 0x535041524BUL; // "SPARK": the Settler's and Chieftain's prior picks
     private static readonly Fix64 Third = Fix64.FromRatio(1, 3);
@@ -30,6 +30,8 @@ public sealed class ResearchSpark : IResearchSpark
     private readonly int[] _lastSlots = { -1, -1, -1 };
     /// <summary>Season each civilization was first seen in each era (civ × era), -1 if not yet: the public keystone record.</summary>
     private int[] _eraSeason = Array.Empty<int>();
+    /// <summary>The Strategist's threat and war readings at the last decision: a sharp change lifts the commitment (14 §3.3).</summary>
+    private Fix64 _lastDefense, _lastAttack;
 
     // Derived per catalog and rebuilt each decision; never part of the saved state.
     private ForecastCatalog? _fc;
@@ -232,6 +234,7 @@ public sealed class ResearchSpark : IResearchSpark
         _value.MarginSteps = SparkTuning.FirstMarginSeasons * _forecast.StepsPerSeason;
         _value.EtaUncertainty = SparkTuning.RivalEtaUncertainty;
         _value.KeystoneTempo = SparkTuning.KeystoneTempo;
+        _value.UrgencySteps = SparkTuning.UrgencySeasons * _forecast.StepsPerSeason;
         foreach (int p in fc.Numeric)
         {
             Theme theme = fc.Theme[p];
@@ -240,8 +243,11 @@ public sealed class ResearchSpark : IResearchSpark
             Fix64 bonus = SparkTuning.HubBonus * fc.HubWeight[p];
             if (closure is not null && closure[p] && !_start.Done[p]) bonus += SparkTuning.ClosureBonus;
             string code = _lineageCode[p];
-            if (code is "DEF" or "WAR") bonus += defense;
-            if (code == "WAR") bonus += attack;
+            Fix64 urgent = Fix64.Zero;
+            if (code is "DEF" or "WAR") urgent += defense;
+            if (code == "WAR") urgent += attack;
+            _value.Urgent[p] = urgent;
+            // Open land is a standing aim, not an emergency: a flat value, collected whenever the project lands.
             if (code is "TER" or "WAY" or "SOC") bonus += frontier;
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
             _value.Bonus[p] = bonus;
@@ -275,7 +281,7 @@ public sealed class ResearchSpark : IResearchSpark
             _candidates.Add(p);
             Fix64 cost = Fix64.Max(_start.Cost[p], Fix64.One);
             Fix64 first = _start.FirstBy[p] < 0 ? fc.FirstPoints[p] : Fix64.Zero;
-            Fix64 h = ((Fix64.FromInt(fc.Mastery[p]) + first) * _value.Weight[p] + _value.Bonus[p] + _forecast.InsightGain(p, _start) * 100) / cost;
+            Fix64 h = ((Fix64.FromInt(fc.Mastery[p]) + first) * _value.Weight[p] + _value.Bonus[p] + _value.Urgent[p] + _forecast.InsightGain(p, _start) * 100) / cost;
             _rank[p] = h;
             if (h > maxHeuristic) maxHeuristic = h;
             if (_prior[p] > maxPrior) maxPrior = _prior[p];
@@ -389,7 +395,12 @@ public sealed class ResearchSpark : IResearchSpark
             currentUtility = _forecast.Run(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_current), _value, promoteKeystone: true).Utility;
         Fix64 margin = Fix64.Max(SparkTuning.CommitmentFloor, Fix64.Abs(currentUtility == Fix64.MinValue ? Fix64.Zero : currentUtility) * SparkTuning.CommitmentShare);
         _plan.Clear();
-        if (currentUtility != Fix64.MinValue && best.Utility < currentUtility + margin)
+        // A hard event (14 §3.3): the threat or war reading jumped since the last decision, so the plan in force is not kept.
+        bool shaken = Fix64.Abs(ctx.Intent.DefenseUrgency - _lastDefense) >= SparkTuning.IntentShock
+            || Fix64.Abs(ctx.Intent.AttackReadiness - _lastAttack) >= SparkTuning.IntentShock;
+        _lastDefense = ctx.Intent.DefenseUrgency;
+        _lastAttack = ctx.Intent.AttackReadiness;
+        if (!shaken && currentUtility != Fix64.MinValue && best.Utility < currentUtility + margin)
             foreach (int q in _current) _plan.Add(q);
         else
             for (int i = 0; i < best.Length; i++) _plan.Add(best.Seq[i]);
@@ -520,8 +531,7 @@ public sealed class ResearchSpark : IResearchSpark
         ForecastCatalog fc = _fc!;
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         if (fc.IsKeystone[p] || (closure is not null && closure[p])) return "keystone path";
-        bool military = _lineageCode[p] is "DEF" or "WAR";
-        if (military && _value.Bonus[p] > SparkTuning.HubBonus * fc.HubWeight[p] + SparkTuning.SignatureBonus + SparkTuning.ClosureBonus)
+        if (_lineageCode[p] is "DEF" or "WAR" && _value.Urgent[p] >= SparkTuning.DefenseBonus / 4)
             return "threat: defense first";
         if (_forecast.InsightGain(p, _start).Raw > 0) return "insight gain";
         if (_start.FirstBy[p] < 0)
@@ -535,6 +545,27 @@ public sealed class ResearchSpark : IResearchSpark
         return "best forecast";
     }
 
+    // ---- events between decisions ---------------------------------------------------------
+
+    /// <summary>
+    /// A keystone that has just become ready takes Primary at once (14 §4.3), as the Council would pull it, instead of
+    /// waiting in a lower slot for the season's decision. The project it displaces goes back to the queue.
+    /// </summary>
+    public void OnResearchStep(AiContext ctx)
+    {
+        AiResearchPort port = ctx.Research;
+        int key = ctx.Catalog.KeystoneLeaving(port.Era);
+        if (key < 0 || port.Slot(0) == key) return;
+        ProjectState state = port.State(key);
+        if (state is not (ProjectState.Available or ProjectState.Slotted)) return;
+        int displaced = port.Slot(0);
+        bool wasSlotted = state == ProjectState.Slotted;
+        port.SetSlot(0, key);
+        if (!wasSlotted && displaced >= 0) port.Enqueue(displaced);
+        ctx.Note("Spark", "Primary", key, 0, Fix64.Zero, "keystone ready");
+        _lastSlots[0] = key;
+    }
+
     // ---- saved state ----------------------------------------------------------------------
 
     public void Hash(ref StateHasher h)
@@ -542,6 +573,8 @@ public sealed class ResearchSpark : IResearchSpark
         h.Add(_lastDecision);
         h.Add(_lastSlots);
         h.Add(_eraSeason);
+        h.Add(_lastDefense);
+        h.Add(_lastAttack);
         _tracker.Hash(ref h);
     }
 
@@ -549,6 +582,8 @@ public sealed class ResearchSpark : IResearchSpark
     {
         w.Write(_lastDecision);
         foreach (int s in _lastSlots) w.Write(s);
+        w.Write(_lastDefense.Raw);
+        w.Write(_lastAttack.Raw);
         w.Write(_eraSeason.Length);
         foreach (int e in _eraSeason) w.Write(e);
         _tracker.Write(w);
@@ -558,6 +593,8 @@ public sealed class ResearchSpark : IResearchSpark
     {
         _lastDecision = r.ReadInt32();
         for (int i = 0; i < _lastSlots.Length; i++) _lastSlots[i] = r.ReadInt32();
+        _lastDefense = Fix64.FromRaw(r.ReadInt64());
+        _lastAttack = Fix64.FromRaw(r.ReadInt64());
         _eraSeason = new int[r.ReadInt32()];
         for (int i = 0; i < _eraSeason.Length; i++) _eraSeason[i] = r.ReadInt32();
         _tracker.Read(r);

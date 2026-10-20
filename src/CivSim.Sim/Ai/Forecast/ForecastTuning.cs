@@ -36,8 +36,12 @@ public static class ForecastTuning
     public const int StepsPerSeason = 5;
     /// <summary>Steps per season in the planner's rollouts: coarser (75 ticks each) so hundreds fit a decision's budget.</summary>
     public const int PlannerStepsPerSeason = 2;
-    /// <summary>Seasons of play an era of research spans in the planner's horizon (live E0 to E2 run 6, 13 and 13 minutes).</summary>
-    public const int SeasonsPerEra = 30;
+    /// <summary>
+    /// Seasons of the planner's horizon per difficulty era (Settler 1 era = 6 minutes, Warlord 3 = 18, Legend 4 = 24; live E0
+    /// to E2 run 6, 13 and 13 minutes). Harness duel, Warlord v Council, 16 seeds: 20 → 94%, 24 → 97%, 30 → 97% at a
+    /// quarter more cost; 24 keeps four Warlord Sparks inside the 40-minute budget.
+    /// </summary>
+    public const int SeasonsPerEra = 24;
     /// <summary>The fudge that maps the model's Insight now onto the live Insight now is kept inside this band.</summary>
     public static readonly Fix64 FudgeMin = Fix64.FromRatio(7, 10);
     public static readonly Fix64 FudgeMax = Fix64.FromRatio(13, 10);

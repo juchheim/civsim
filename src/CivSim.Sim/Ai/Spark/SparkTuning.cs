@@ -10,8 +10,13 @@ public static class SparkTuning
 {
     /// <summary>Projects the beam search orders explicitly (14 §4.2: "the next ~6 projects").</summary>
     public const int SearchDepth = 6;
-    /// <summary>Slots held by the next keystone's critical path while its closure has available projects (Primary, Secondary).</summary>
-    public const int ClosureSlots = 2;
+    /// <summary>
+    /// Slots forced onto the next keystone's critical path while its closure has available projects, ahead of the search.
+    /// Zero: the search with keystone tempo already routes the keystone (the ready keystone itself is always forced into
+    /// Primary), and forcing the closure costs Firsts. Harness duel against the Council (16 seeds, 32 matches, with tempo 25):
+    /// 2 slots 75%, 1 slot 88%, 0 slots 97% wins on Legacy.
+    /// </summary>
+    public const int ClosureSlots = 0;
     /// <summary>Children tried per beam node: half the beam width plus this, capped (Settler 4, Chieftain 5, Warlord and Legend 6).</summary>
     public const int ExtraCandidates = 3;
     public const int MaxCandidates = 6;
@@ -32,12 +37,15 @@ public static class SparkTuning
     public static readonly Fix64 RivalEtaUncertainty = Fix64.FromRatio(3, 10);
     /// <summary>
     /// Keystone tempo in Legacy points per season earlier (14 §4.3): the era it opens brings cheaper backfills (EraLag 0.7),
-    /// the next era's Firsts and the Era Boon sooner, more than the horizon's flat time weight credits.
+    /// the next era's Firsts and the Era Boon sooner, more than the horizon's flat time weight credits. Duel (16 seeds, no
+    /// closure slots): 10 → 94%, 25 → 97%, 100 → 84%.
     /// </summary>
-    public static readonly Fix64 KeystoneTempo = Fix64.FromInt(50);
+    public static readonly Fix64 KeystoneTempo = Fix64.FromInt(25);
     /// <summary>A new plan replaces the one in force only if its forecast utility is higher by this share (or this floor).</summary>
     public static readonly Fix64 CommitmentShare = Fix64.FromRatio(2, 100);
     public static readonly Fix64 CommitmentFloor = Fix64.FromInt(3);
+    /// <summary>A change this large in the Strategist's DefenseUrgency or AttackReadiness is a hard event that lifts the commitment.</summary>
+    public static readonly Fix64 IntentShock = Fix64.FromRatio(1, 4);
 
     /// <summary>
     /// Archetype style (14 §9.1): a completion's Legacy is weighted by 1 + StyleWeight × (Leaning − 1/3) for its theme, so a
@@ -54,6 +62,8 @@ public static class SparkTuning
     public static readonly Fix64 DefenseBonus = Fix64.FromInt(40);
     public static readonly Fix64 AttackBonus = Fix64.FromInt(30);
     public static readonly Fix64 FrontierBonus = Fix64.FromInt(8);
+    /// <summary>The Strategist's readings are worth their full bonus only if answered at once, nothing after this many seasons.</summary>
+    public const int UrgencySeasons = 16;
     /// <summary>Option value (14 §4.1) per project that transitively needs this one (hub emphasis, 03 §4.3), in Legacy points.</summary>
     public static readonly Fix64 HubBonus = Fix64.FromRatio(1, 10);
     /// <summary>Option value of a project on the next keystone's closure: forced, so done early is never wasted (07 F8).</summary>

@@ -102,6 +102,7 @@ public sealed class MatchModel : ISimModel
     public void Step(long tick, ReadOnlySpan<Command> commands)
     {
         Research.Step(tick, commands);
+        Ai?.AfterResearchStep(tick);
         Politics.Step(tick, commands);
         _economyCommands.Clear();
         foreach (Command command in commands)

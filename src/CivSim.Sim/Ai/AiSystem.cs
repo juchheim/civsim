@@ -81,6 +81,23 @@ public sealed class AiSystem
     public AiLog Log => _log;
     public TrueWorld World => _world;
 
+    /// <summary>
+    /// Event-driven research steering (docs/MVP/14 §9.2: Warlord and Legend re-plan "each season + events"): after every
+    /// research step, a Spark that listens may react to what just happened, such as a keystone becoming ready. Call after
+    /// <see cref="ResearchSystem.Step"/>. It reads only the seat's own research through its port.
+    /// </summary>
+    public void AfterResearchStep(long tick)
+    {
+        if ((tick + 1) % ResearchSystem.StepTicks != 0) return;
+        foreach (AiSeat? seat in _seats)
+        {
+            if (seat is null || seat.Profile.Replan != ReplanCadence.SeasonAndEvents) continue;
+            if (seat.Spark is not IResearchStepListener listener) continue;
+            seat.Context.Tick = tick;
+            listener.OnResearchStep(seat.Context);
+        }
+    }
+
     /// <summary>Call after <see cref="PoliticsSystem.OnSeasonEnd"/>.</summary>
     public void OnSeasonEnd(long tick)
     {
