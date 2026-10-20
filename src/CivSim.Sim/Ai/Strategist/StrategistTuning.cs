@@ -15,6 +15,8 @@ public static class StrategistTuning
     /// <summary>Without a hard event the plan changes at most twice in this many seasons (14 §10.4 "dithering": > 2 in 3 years).</summary>
     public const int DitherWindowSeasons = 12;
     public const int MaxSwitchesInWindow = 2;
+    /// <summary>A plan is held at least this long before it may change, unless a hard event calls for defense.</summary>
+    public const int PlanDwellSeasons = 4;
     /// <summary>Weight of open land in the Frontier race plan (E0 to E3 default, 14 §3.3).</summary>
     public static readonly Fix64 FrontierWeight = Fix64.One;
     /// <summary>The frontier race keeps this much value through E3 even when the map is unread, so it stays the default.</summary>
@@ -122,6 +124,8 @@ public static class StrategistTuning
     /// reach (it would answer by taking it; below one for the uncertainty of the belief).
     /// </summary>
     public static readonly Fix64 CounterMargin = Fix64.FromRatio(80, 100);
+    /// <summary>A settlement whose sisters within relief range can field this share of the rival's army is covered.</summary>
+    public static readonly Fix64 ReliefCover = Fix64.FromRatio(75, 100);
     /// <summary>The Monte Carlo of the assault must take and hold the settlement at least this often (13 §11 F5 is ≥ 60% at 1.5×).</summary>
     public static readonly Fix64 MinCaptureChance = Fix64.FromRatio(60, 100);
     /// <summary>Relief from the defender's settlements within 8 tiles counts at this share (they bring 60% of their fighters).</summary>

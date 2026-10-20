@@ -203,17 +203,24 @@ public sealed partial class Strategist : IStrategist
             bool beats = value[bestPlan] > current + StrategistTuning.CommitmentPenalty * current;
             int recent = 0;
             foreach (int season in _switchSeasons) if (v.Season - season < StrategistTuning.DitherWindowSeasons) recent++;
-            if (hard || (beats && recent < StrategistTuning.MaxSwitchesInWindow))
+            // A hard event that calls for defense is answered at once; every other change waits out the dwell and the cap,
+            // so a band raided every few seasons does not flip between racing and defending (14 §10.4 dithering).
+            bool urgent = hard && bestPlan == (int)GrandPlan.Defend;
+            // Defense is not given up while raids keep coming.
+            bool besieged = false;
+            for (int o = 0; o < _civs; o++)
+                if (o != v.Civ && v.Season - v.Own.Others[o].LastRaidOnUsSeason <= StrategistTuning.RecentRaidSeasons) besieged = true;
+            if (_plan == GrandPlan.Defend && besieged) urgent = false;
+            bool settled = v.Season - _planSince >= StrategistTuning.PlanDwellSeasons && recent < StrategistTuning.MaxSwitchesInWindow;
+            bool holdDefense = _plan == GrandPlan.Defend && besieged;
+            if (urgent || (settled && !holdDefense && (hard || beats)))
             {
                 GrandPlan old = _plan;
                 _plan = (GrandPlan)bestPlan;
                 _planSince = v.Season;
                 _planTarget = target[bestPlan];
-                if (!hard)
-                {
-                    Array.Copy(_switchSeasons, 1, _switchSeasons, 0, _switchSeasons.Length - 1);
-                    _switchSeasons[^1] = v.Season;
-                }
+                Array.Copy(_switchSeasons, 1, _switchSeasons, 0, _switchSeasons.Length - 1);
+                _switchSeasons[^1] = v.Season;
                 v.Note("Plan", bestPlan, (int)old, value[bestPlan],
                     $"hard={(hard ? 1 : 0)} {old} -> {_plan}{(hard ? " after " + s.HardWhy : "")}: {why}");
             }
@@ -248,7 +255,7 @@ public sealed partial class Strategist : IStrategist
         Posture current = v.Own.Posture;
         Posture want;
         string why;
-        if (s.Urgency >= StrategistTuning.FortifyAt || _plan == GrandPlan.Defend)
+        if (s.Urgency >= StrategistTuning.FortifyAt || (_plan == GrandPlan.Defend && s.Urgency >= StrategistTuning.FortifyAt / 2))
         { want = Posture.Fortify; why = $"threat from civ {s.TopThreatCiv}, urgency {F2(s.Urgency)}"; }
         else if (_plan == GrandPlan.Conquer && s.WarPostureWanted)
         { want = Posture.Raid; why = $"a war of conquest on civ {_planTarget} needs the Raid posture (13 §8.1)"; }

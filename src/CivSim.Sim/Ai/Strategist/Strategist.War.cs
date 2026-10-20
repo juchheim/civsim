@@ -105,9 +105,16 @@ public sealed partial class Strategist
             foreach (Site site in read.Sites) if (HexGrid.Distance(o.Tile, site.Tile, width) <= range) near = true;
             if (!near) continue;
             Fix64 defense = o.DefendingStrength * o.Defenses.Multiplier();
-            if (defense < weakestDefense) { weakestDefense = defense; weakest = o; }
+            if (army < defense * StrategistTuning.WarRatio * StrategistTuning.CounterMargin || defense >= weakestDefense) continue;
+            // Sister settlements within relief range break an occupation (13 §8.2): they bring 60% of their fighters.
+            Fix64 relief = Fix64.Zero;
+            foreach (OwnSettlement sister in v.Own.Settlements)
+                if (!ReferenceEquals(sister, o) && sister.Fighters > 0 && HexGrid.Distance(sister.Tile, o.Tile, width) <= StrategistTuning.ReliefRange)
+                    relief += sister.AttackingStrength * Math.Max(0, Math.Min(sister.Fighters - 2, sister.Fighters * 6 / 10)) / sister.Fighters;
+            if (relief >= army * StrategistTuning.ReliefCover) continue;
+            weakestDefense = defense;
+            weakest = o;
         }
-        if (weakest is null || army < weakestDefense * StrategistTuning.WarRatio * StrategistTuning.CounterMargin) return (army, null);
         return (army, weakest);
     }
 

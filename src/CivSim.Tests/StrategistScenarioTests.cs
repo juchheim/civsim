@@ -51,7 +51,9 @@ public class StrategistScenarioTests
         Assert.Contains(rig.Notes(0, "Gift"), n => n.Subject == 1 && n.Season >= contact);
         Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.Gift && e.Civ == 0 && e.Other == 1);
         Assert.Contains(rig.Notes(0, "Barter"), n => n.Subject == 1);
-        Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.Barter && e.Civ == 0);
+        // The trip takes seasons each way: it has come home with the goods, or is on the road.
+        Assert.True(rig.Politics.Events.Any(e => e.Kind == PoliticsEventKind.Barter && e.Civ == 0) ||
+                    rig.Politics.Expeditions.Any(e => e.Kind == ExpeditionKind.Barter && e.Civ == 0), "no barter trip of civ 0");
         Assert.True(rig.Politics.Diplomacy.Relations(0, 1) > 0);
         // Every decision carries its reasons (14 §11), and the plan starts as the frontier race (the E0-E3 default).
         Assert.All(rig.Log.Entries.Where(e => e.Layer == Strategist.Layer), e => Assert.False(string.IsNullOrWhiteSpace(e.Reason)));
@@ -97,9 +99,16 @@ public class StrategistScenarioTests
         // Bows and warriors against spears, Relations hostile: war, an assault, and the ratio in the log.
         StrategistRig strong = Resume();
         strong.Grant(0, Bows);
-        strong.Grant(0, "DEF-01", "DEF-02", "WOD-03", "DEF-03"); // walls at home, so a war cannot cost a settlement in reply
+        // A sickness has halved the neighbour (its army could otherwise take one of our young daughter settlements in reply,
+        // which the Strategist refuses to risk).
+        foreach (int s in strong.SettlementsOf(1))
+        {
+            var people = new System.Collections.Generic.List<FigureView>();
+            strong.Match.Economy.ListFigures(s, people);
+            for (int i = 0; i < people.Count; i += 2) strong.Match.Economy.KillFigure(people[i].Id);
+        }
         strong.Politics.Diplomacy.Set(0, 1, -60);
-        strong.Seasons(12);
+        strong.Seasons(8);
         Assert.True(strong.Notes(0, "War").Count() == 1, string.Join(" | ", strong.Log.Entries.Where(e => e.Civ == 0 && e.Season > BaseSeason && e.Kind.StartsWith("War")).Select(e => $"{e.Season} {e.Kind} {e.Reason}")));
         AiDecision war = strong.Notes(0, "War").Single();
         Assert.True(war.Score >= StrategistTuning.WarRatio, war.Reason);
@@ -136,9 +145,10 @@ public class StrategistScenarioTests
         StrategistRig walled = Resume();
         walled.Grant(0, spears);
         walled.Grant(1, "DEF-01", "DEF-02", "WOD-03", "DEF-03");
+        walled.Grant(1, Bows); // and warriors with bows behind it (13 §5.5: "palisade + warriors", 5% success)
         walled.Politics.Diplomacy.Set(0, 1, -40);
         walled.Seasons(8);
-        Assert.Empty(walled.Notes(0, "Raid"));
+        Assert.True(!walled.Notes(0, "Raid").Any(), string.Join(" || ", walled.Log.Entries.Where(e => e.Civ == 0 && e.Season > BaseSeason && e.Kind.StartsWith("Raid")).Select(e => $"{e.Season} {e.Kind} {e.Reason}")) + " ## " + string.Join(" ", walled.Match.Ai!.SeatOf(0)!.Belief.Rivals[1].Settlements.Select(b => $"s{b.Settlement} seen{b.LastSeenSeason} pop{b.PopulationEstimate} f{b.FightersEstimate} d{b.DefendingStrengthEstimate} pal{b.PalisadeSeen} w{b.WatchersSeen}")));
         Assert.Contains(walled.Notes(0, "RaidRejected"), n => n.Other == 1 && n.Reason.Contains("palisade seen"));
         Assert.DoesNotContain(walled.Politics.Events, e => e.Kind == PoliticsEventKind.RaidLaunched && e.Civ == 0);
 

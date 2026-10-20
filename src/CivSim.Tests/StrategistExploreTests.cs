@@ -25,7 +25,10 @@ public class StrategistExploreTests
         string mode = Environment.GetEnvironmentVariable("CIVSIM_MODE") ?? "duel";
         var world = WorldGenerator.Generate(seed);
         var ai = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
-        var rig = new StrategistRig(seed, world, new[] { ai, CivControl.Council, CivControl.Council, ai });
+        bool swap = Environment.GetEnvironmentVariable("CIVSIM_SWAP") is not null;
+        var rig = swap
+            ? new StrategistRig(seed, world, new[] { CivControl.Council, ai, ai, CivControl.Council }) { Omniscient = false }
+            : new StrategistRig(seed, world, new[] { ai, CivControl.Council, CivControl.Council, ai }) { Omniscient = false };
         if (mode == "rusher") { rig.Rushers.Add(new Rusher(1, 0)); rig.Rushers.Add(new Rusher(2, 3)); }
         var sb = new StringBuilder();
         var sw = System.Diagnostics.Stopwatch.StartNew();
