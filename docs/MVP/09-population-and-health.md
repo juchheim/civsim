@@ -35,7 +35,7 @@ Unchanged: Insight scale (Commons 4.8, roles ×8), breadth N, representation sca
 **Method.** Anchor each value on a real-world demographic figure, adjust it for the game's time compression (one year = one minute at Standard, people age in real time), then run the balance model across all archetypes and paces. Where an anchor and the pacing targets disagreed, I kept the anchor and re-fit EraBase (§11).
 
 **Time compression.** Base fertility 0.13 per woman per season is about **16 births per lifetime** of unconstrained fertility, roughly three times a real forager's 5–6. That is what lets 12 people become ~145,000 in three hours. Two consequences follow:
-- Populations are **young**: 54–58% children from E1 to E7 (real foragers: ~40%). The workforce is about 35% of the population, so WS-E's labor targets should assume it.
+- Populations are **young**. The three-band mean-field balance model estimates 54–58% children from E1 to E7 (real foragers: ~40%), but this is not a live-cohort acceptance target: the exact-age controlled reference is about 66% children at its E2 checkpoint, and the minute-40 live view is 65.4% (374/572, at 1 figure per person through E3). The workforce is about 35% in the balance model; labor targets should use the live cohort mix when available.
 - Crowding against the caps does most of the braking. That is why caps and fission timing matter so much for pacing.
 
 ## 3. Cohorts and births

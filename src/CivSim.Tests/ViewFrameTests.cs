@@ -165,6 +165,22 @@ public class ViewFrameTests
     }
 
     [Fact]
+    public void Known_deposit_mask_never_exposes_unseen_resources()
+    {
+        WatchedMatch w = ViewKit.Watched.Value;
+        MatchFrame viewer = w.ViewerFrame;
+        MatchFrame omniscient = w.OmniFrame;
+        GeneratedWorld world = ViewKit.World.Value;
+        for (int tile = 0; tile < viewer.Width * viewer.Height; tile++)
+        {
+            bool hasDeposit = world.TileAt(tile).Deposit != DepositKind.None;
+            bool seen = viewer.Visibility[tile] != (byte)TileVisibility.Unknown;
+            Assert.Equal(hasDeposit && seen, viewer.KnownDeposits[tile] != 0);
+            Assert.Equal(hasDeposit, omniscient.KnownDeposits[tile] != 0);
+        }
+    }
+
+    [Fact]
     public void Fog_does_not_leak_unseen_state_into_a_frame()
     {
         // In the spirit of the AI's fog-fairness test (docs/MVP/15 D10): change state the viewer cannot see and require

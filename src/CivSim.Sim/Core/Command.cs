@@ -43,6 +43,8 @@ public enum CommandKind : ushort
     MakePeace = 15,
     /// <summary>A = civilization (DIP-03 on both sides, Relations above 40).</summary>
     FormAlliance = 16,
+    /// <summary>A = expedition index: recall the selected party to its origin settlement.</summary>
+    RecallParty = 17,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>

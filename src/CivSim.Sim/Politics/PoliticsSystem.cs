@@ -38,7 +38,12 @@ public enum PoliticsEventKind : byte
     FreeFolkFounded,
     AllianceFormed,
     BeaconPlaced,
+    /// <summary>A player order was refused. Other = target, A = command kind, B = refusal reason.</summary>
+    OrderRefused,
 }
+
+/// <summary>Stable reason codes for a rejected player order.</summary>
+public enum OrderRefusalReason : byte { InvalidTarget = 1, RequirementsNotMet = 2, InvalidState = 3 }
 
 /// <summary>Something that happened between civilizations, for the Chronicle (docs/MVP/13 §10).</summary>
 public readonly record struct PoliticsEvent(long Tick, byte Civ, PoliticsEventKind Kind, int Other, int A, int B);
@@ -262,25 +267,35 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     break;
                 // A human player's politics orders: the AI's Order* rules, checked here (docs/MVP/18 §7).
                 case CommandKind.SendGift:
-                    if (command.A >= 0 && command.A < _civs) OrderGift(civ, command.A);
+                    if (command.A < 0 || command.A >= _civs || !OrderGift(civ, command.A))
+                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.SendBarter:
-                    if (command.A >= 0 && command.A < _civs) OrderBarter(civ, command.A);
+                    if (command.A < 0 || command.A >= _civs || !OrderBarter(civ, command.A))
+                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.LaunchRaid:
-                    if (command.A >= 0) OrderRaid(civ, command.A, command.B);
+                    if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderRaid(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.LaunchAssault:
-                    if (command.A >= 0) OrderAssault(civ, command.A);
+                    if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderAssault(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.DeclareWar:
-                    if (command.A >= 0 && command.A < _civs) OrderWar(civ, command.A);
+                    if (command.A < 0 || command.A >= _civs || !OrderWar(civ, command.A))
+                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.MakePeace:
-                    if (command.A >= 0 && command.A < _civs) OrderPeace(civ, command.A);
+                    if (command.A < 0 || command.A >= _civs || !OrderPeace(civ, command.A))
+                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.InvalidState);
                     break;
                 case CommandKind.FormAlliance:
-                    if (command.A >= 0 && command.A < _civs) OrderAlliance(civ, command.A);
+                    if (command.A < 0 || command.A >= _civs || !OrderAlliance(civ, command.A))
+                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
+                    break;
+                case CommandKind.RecallParty:
+                    OrderRecallCommand(civ, command.A, command);
                     break;
             }
         }

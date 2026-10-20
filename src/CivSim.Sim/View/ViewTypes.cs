@@ -204,6 +204,8 @@ public enum ViewEventKind : ushort
     AllianceFormed = 54,
     /// <summary>A Beacon was placed. Tile = where.</summary>
     BeaconPlaced = 55,
+    /// <summary>A player command was rejected. A = command kind, B = refusal reason code.</summary>
+    OrderRefused = 56,
 }
 
 /// <summary>
@@ -226,7 +228,7 @@ public enum ChronicleKey : ushort
     BarterDone = 66, RaidLaunched = 67, RaidSucceeded = 68, RaidFailed = 69, RaidSuffered = 70, RaidRepelled = 71,
     WarDeclaredByUs = 72, WarDeclaredOnUs = 73, PeaceMade = 74, AssaultWon = 75, AssaultLost = 76, SettlementFell = 77,
     SettlementHeld = 78, Occupied = 79, OccupationBroken = 80, OccupationAbandoned = 81, SettlementCaptured = 82,
-    SettlementLost = 83, FreeFolkFounded = 84, AllianceFormed = 85, BeaconPlaced = 86,
+    SettlementLost = 83, FreeFolkFounded = 84, AllianceFormed = 85, BeaconPlaced = 86, OrderRefused = 87,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -294,6 +296,7 @@ public static class ViewText
         ChronicleKey.FreeFolkFounded => "chronicle.capture.free_folk",
         ChronicleKey.AllianceFormed => "chronicle.alliance.formed",
         ChronicleKey.BeaconPlaced => "chronicle.beacon.placed",
+        ChronicleKey.OrderRefused => "alert.order.refused",
         _ => "",
     };
 }

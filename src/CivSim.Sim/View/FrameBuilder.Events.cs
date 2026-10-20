@@ -325,6 +325,10 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.BeaconPlaced; e.Text = ChronicleKey.BeaconPlaced;
                     e.Tile = HexLayout.TileAt(p.A, p.B, _width, _height);
                     break;
+                case PoliticsEventKind.OrderRefused:
+                    e.Kind = ViewEventKind.OrderRefused; e.Text = ChronicleKey.OrderRefused;
+                    e.Tier = ViewEventTier.Info; e.A = p.A; e.B = p.B;
+                    break;
                 default:
                     continue;
             }

@@ -1,7 +1,7 @@
 # 18 — The View Layer (sim → renderer contract)
 
 > What the simulation hands the Godot front end, and how. This is the "read-only view structs, double-buffered, plus an event stream" of [15 §5.1](15-architecture-decision.md#51-layers-and-the-one-way-interface), built in `CivSim.Sim.View` (`src/CivSim.Sim/View/`) ahead of M7a ([17 §3](17-vertical-slice.md#3-milestones)). The front end draws from it and sends `Command`s back; it never writes simulation state (rule D7).
-> **Status (2026-10-20):** the sim side is built and tested (17 tests in `src/CivSim.Tests/View*.cs`); no Godot code exists yet.
+> **Status (2026-10-20):** the sim-side frame contract is built and tested. The new `game/` Godot 4.7 .NET project references `CivSim.Sim` and has an initial low-poly renderer, viewer fog, season and territory shading, figures, herds, structures, camera controls and command ingress. The 2,400-figure frame-rate gate and later sprite/zoom-level LOD work remain open.
 
 ---
 
@@ -21,7 +21,7 @@ Two small read-only surfaces were added to the systems for it: `LivingEconomyMod
 
 ## 2. Static world
 
-`WorldView.FromGenerated(world)` copies the per-tile terrain into byte arrays (`Biome`, `Elevation`, `Climate`, `Flags`, `Rainfall`, `Soil`, `Continent`, `Deposit`, `DepositAmount`) plus `StartTiles`. A renderer builds its terrain mesh and textures from it once. `Deposit` is the truth: show a deposit only once the viewer knows it (the Resources overlay, [08 §5](08-ui-and-world-display.md#5-overlays-catalog)); the M7c overlay will need a per-viewer "known deposits" mask, which the frame does not carry yet.
+`WorldView.FromGenerated(world)` copies the per-tile terrain into byte arrays (`Biome`, `Elevation`, `Climate`, `Flags`, `Rainfall`, `Soil`, `Continent`, `Deposit`, `DepositAmount`) plus `StartTiles`. A renderer builds its terrain mesh and textures from it once. `Deposit` is the truth; `MatchFrame.KnownDeposits[tile]` is 1 only after the viewer has seen that tile (or in omniscient mode). Read `WorldView.Deposit` and `DepositAmount` only where the mask is set. The mask is derived from the frame builder's saved fog memory, so the Resources overlay does not reveal deposits beyond explored land.
 
 ## 3. Frame fields and units
 
@@ -37,7 +37,7 @@ Shares are permille, Fix64 values are raw Q32.32 `long`s (divide by 2³² to dis
 | Block | Fields (arrays are indexed 0 .. Count-1) |
 |-------|------------------------------------------|
 | Header | `Sequence` (build number), `Tick` (state after ticks 0 .. Tick-1), `Season`, `SeasonOfYear` (0 spring .. 3 winter), `Year`, `TickInSeason` (0–149, to blend the seasonal palette), `LastWinterHarsh`, `ViewerCiv`, `Width`, `Height`, `TotalFigures` (debug only) |
-| Tiles (W × H) | `Visibility` (Unknown, Explored, Visible), `Owner` (−1 none; remembered on explored tiles), `Claim` (strongest claim in hundredths, 70 = ownership threshold; visible tiles only) and `Claimant`, `TileFlags` (Contested, Camp, Beacon, HomeRange) |
+| Tiles (W × H) | `Visibility` (Unknown, Explored, Visible), `Owner` (−1 none; remembered on explored tiles), `Claim` (strongest claim in hundredths, 70 = ownership threshold; visible tiles only) and `Claimant`, `TileFlags` (Contested, Camp, Beacon, HomeRange), `KnownDeposits` (1 only for a deposit on a tile the viewer has discovered) |
 | Figures | `FigureId` (ascending), `FigureCiv`, `FigureSettlement`, `FigureTile`, `FigureX/Y`, `FigureActivity` (job, Child, Convalescing, OnGift/Barter/Raid/Assault, Occupying), `FigureAge` (child/adult/elder), `FigureHealth` (4 bands), `FigureFlags` (female, walking, wounded, ill, pregnant, hungry, cold, warrior, armed, away, Free Folk), `FigureToolRung` (best method rung for the job at its settlement: the tool sprite and tint of 08 §2.1), `FigureCarry` (plants, meat, fish, wood, stone, grain, goods) |
 | Wild herds | `HerdId` (ascending), `HerdSpecies`, `HerdTile`, `HerdX/Y`, `HerdAnimals`, `HerdFear` (0–255), `HerdAway` (off its home range) |
 | Predators | `PredatorTile`, `PredatorSpecies`, `PredatorSize` (static packs from world generation; the economy has no predator movement) |
@@ -104,7 +104,7 @@ Each `ViewEvent`: `Sequence`, `Tick`, `Kind`, `Text` (a `ChronicleKey`), `Tier` 
 |-------|------------------------------------------|------------------|
 | Derived from the economy | `SeasonBegan` 1 (A season of year, B year, C harsh winter), `Births` 2, `Deaths` 3 (A cause, B count), `SettlementFounded` 4, `StructureBuilt` 5, `StructureLost` 6, `FireOut` 7, `FamineRisk` 8 (now or forecast; Critical), `PartyIncoming` 9 (a raid or assault on one of its settlements came into sight; Critical) | its own civilization |
 | Research | `SlotFilled` 20, `CouncilPick` 21, `ProjectCompleted` 22 (Figure = innovator, Tile = where they live, A = first `VisibleChange`), `Moment` 23, `VisibleChange` 24, `FirstClaimed` 25, `EraAdvanced` 26, `Adopted` 27, `DormantChanged` 28, `ResourceSeen` 29, `ProjectUnlocked` 30 | its own; Firsts and era advances of everyone (they are announced) |
-| Politics | `Aware` 40, `Contact` 41 (text by stance), `Skirmish` 42, `GiftArrived` 43, `BarterDone` 44, `RaidLaunched` 45, `RaidResolved` 46, `WarDeclared` 47, `PeaceMade` 48, `AssaultResolved` 49, `Occupied` 50, `OccupationBroken` 51, `Captured` 52, `FreeFolkFounded` 53, `AllianceFormed` 54, `BeaconPlaced` 55 | records of its own side; gifts, barter and occupations also when it is the other side (those are recorded once) |
+| Politics | `Aware` 40, `Contact` 41 (text by stance), `Skirmish` 42, `GiftArrived` 43, `BarterDone` 44, `RaidLaunched` 45, `RaidResolved` 46, `WarDeclared` 47, `PeaceMade` 48, `AssaultResolved` 49, `Occupied` 50, `OccupationBroken` 51, `Captured` 52, `FreeFolkFounded` 53, `AllianceFormed` 54, `BeaconPlaced` 55, `OrderRefused` 56 | records of its own side; gifts, barter and occupations also when it is the other side (those are recorded once); a refusal is visible only to the ordering civilization |
 
 **Moments.** `Moment` (A = 1 in-era, plays a vignette; 0 a backfill, batched) follows each `ProjectCompleted` with the same project and innovator. The front end looks the text up in the content pack: `ResearchCatalog.Projects[event.Project].Moment` and `.Flavor` (every numeric E0–E2 project has both; the tests check every Moment that fires). `VisibleChange` events name what changes on the map (new action, tool, good, structure, role, tier, overlay, behaviour, era celebration).
 
@@ -121,14 +121,17 @@ The front end sends `Command(Tick, Civ, Kind, A, B, C)` to the `SimRunner` (help
 | 14 | `DeclareWar` | civ |
 | 15 | `MakePeace` | civ |
 | 16 | `FormAlliance` | civ |
+| 17 | `RecallParty` | zero-based ordinal among the player's own parties |
 
 A refused order does nothing (out-of-range arguments too; negative `RemoveBeacon` indices no longer throw). No existing replay contains these kinds, so every golden is unchanged.
 
-**Gaps (for M7b/M7c):**
-1. **No refusal feedback.** Orders fail silently; the front end must grey out what the frame says is impossible (`CivFlags` contacted/at war/in truce, `FocusProjectState` for WAR-02, TRD-01/02, DIP-03). An `OrderRefused` event would need a reason code from each `Order*` method.
-2. **The player's Civ Mind still acts.** Civilization 0's v0 rules keep sending gifts, barter and raids on their own. Handing them to the human means `PoliticsSystem.SetExternalMind(0, true)`, but that flag is neither hashed nor in the snapshot (the AI system sets it at construction), so it cannot simply become a command: it should become a match setting or snapshotted state first.
-3. **No recall or cancel** of a party on the road, and no "target this settlement" for gifts and barter (the rules pick the closest pair).
-4. **Speed and pause** are not commands: the front end's sim loop decides how many ticks to run ([15 §5.5](15-architecture-decision.md#55-threading-model)).
+The sim now reports failed politics commands as `OrderRefused` events. `A` is the command kind and `B` is an `OrderRefusalReason` code (`InvalidTarget`, `RequirementsNotMet`, `InvalidState`); the front end can localize the stable `alert.order.refused` key and explain the code. A valid recall removes the expedition so its surviving members return to their origin in the next frame. `RecallParty.A` indexes only parties owned by the issuing civilization, in their expedition order; hidden rival parties cannot affect the index. `PoliticsSystem.SetExternalMind` is a match setup setting, applied before tick 0 and intentionally outside the mutable checksum and simulation snapshot. A caller resuming a match must reapply that control setting after loading the snapshot.
+
+**Remaining player-facing gaps (M7b/M7c):**
+1. Grey out orders the frame says are impossible (`CivFlags` contacted/at war/in truce and `FocusProjectState` for WAR-02, TRD-01/02 and DIP-03). The initial M7a renderer surfaces refused-order events in its status panel.
+2. Add controls for the full politics order set, including recall; the sim builders and command kind are ready, while M7a currently exposes Beacon placement.
+3. Explicit gift/barter destination remains deferred (the rules pick the closest pair).
+4. Speed and pause are front-end sim-loop controls, not simulation commands: that loop decides how many ticks to run ([15 §5.5](15-architecture-decision.md#55-threading-model)). They do not affect deterministic match state or replay numbering.
 
 ## 8. Determinism and saves
 
@@ -154,7 +157,7 @@ The allocation test (`ViewStoreTests`) builds viewer and omniscient frames for 6
 
 ## 10. Using it from Godot (C#)
 
-The Godot project (`game/`, M7a) references the library directly; Godot 4.6 .NET targets `net8.0`, as `CivSim.Sim` does:
+The Godot project (`game/`, M7a) references the library directly; Godot 4.7 .NET targets `net8.0`, as `CivSim.Sim` does:
 
 ```xml
 <!-- game/CivSim.Game.csproj (Godot.NET.Sdk) -->
@@ -190,4 +193,6 @@ for (int i = 0; i < cur.FigureCount; i++)
 }
 ```
 
-**Still to do on the Godot side (M7a–M7c):** the project itself; terrain meshes and the territory shader from `WorldView`, `Owner`, `Claim`, `Visibility` and `TileFlags`; the camera and zoom levels with crew glyphs (group figures by settlement and activity at Z2); figure and herd billboards with MultiMesh; walk cycles and facing from the movement direction; season palettes from `SeasonOfYear` and `TickInSeason`; the day/night cycle (cosmetic, 08 §3.1, not in the frame); structure placement around the site from `SettlementStructures`; the Chronicle, alerts and Moment vignettes from the event stream and the localisation table for `ChronicleKey`; the command queue. On the sim side: a known-deposits mask for the Resources overlay, refusal reasons for orders, and the external-mind setting (§7).
+**Implemented in the initial Godot project:** static terraced hex terrain and water, fog/territory state texture and borders, seasonal tint and lighting, instanced low-poly figures/herds/structures, Z0–Z3 orthographic zoom, pan/orbit, pause/speed controls, right-click Beacon command, a Resources marker toggle gated by `KnownDeposits`, and refused-order feedback. `IGameLook` isolates the palette, shaders, materials and primitive models behind the `civsim/look` project setting (`low_poly_3d` today); painted and pixel implementations can be swapped in there without changing the renderer-facing frame contract. The sim contract is renderer-neutral.
+
+**Still to do on the Godot side (M7a–M7c):** verify 60 fps with a 2,400-figure frame at Z0–Z2 on a mid-range Mac; add character art and movement animations; finish zoom-specific representations (crew glyphs at Z2 and no figures at Z3); add the Chronicle, full order controls, focus bar and research web, and Moments. The initial window currently reports live FPS and has been smoke-captured on Apple M4 at 120 fps with the 12-figure opening frame; that does not close the 2,400-figure gate.

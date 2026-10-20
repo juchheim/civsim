@@ -1,4 +1,5 @@
 using System.IO;
+using System;
 using CivSim.Sim.Core;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -19,7 +20,7 @@ public class ViewCommandTests
         match.Politics.ForceContact(0, 3);
         runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, match.Research.Catalog.IndexOf("WAR-02"), 0, 0));
         runner.Submit(PlayerCommands.DeclareWar(runner.Tick, 0, 2));
-        // Malformed orders are refused quietly.
+        // Malformed orders report stable refusal codes through the view event stream.
         runner.Submit(PlayerCommands.LaunchRaid(runner.Tick, 0, -5, 4));
         runner.Submit(PlayerCommands.DeclareWar(runner.Tick, 0, 99));
         runner.Submit(PlayerCommands.MakePeace(runner.Tick, 0, -1));
@@ -56,6 +57,13 @@ public class ViewCommandTests
         bool logged = false;
         for (int i = 0; i < frame.EventCount; i++) logged |= frame.Events[i].Kind == ViewEventKind.WarDeclared;
         Assert.True(logged);
+        bool refusalLogged = false;
+        for (int i = 0; i < frame.EventCount; i++)
+            refusalLogged |= frame.Events[i].Kind == ViewEventKind.OrderRefused && frame.Events[i].A == (int)CommandKind.LaunchRaid;
+        Assert.True(refusalLogged);
+        runner.Submit(PlayerCommands.RecallParty(runner.Tick, 0, 0));
+        runner.Advance(1);
+        Assert.Empty(match.Politics.Expeditions);
     }
 
     [Fact]
@@ -81,5 +89,32 @@ public class ViewCommandTests
         Assert.Equal(9, (int)CommandKind.SetCouncil);
         Assert.Equal(10, (int)CommandKind.SendGift);
         Assert.Equal(16, (int)CommandKind.FormAlliance);
+        Assert.Equal(17, (int)CommandKind.RecallParty);
+    }
+
+    [Fact]
+    public void External_mind_is_match_setup_not_snapshot_state_and_party_recall_is_a_command()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        ulong checksum = match.ComputeChecksum();
+        byte[] before = WriteSnapshot(match);
+        match.Politics.SetExternalMind(0, true);
+        Assert.True(match.Politics.IsExternalMind(0));
+        Assert.Equal(checksum, match.ComputeChecksum());
+        Assert.Equal(before, WriteSnapshot(match));
+
+        MatchModel restored = ViewKit.NewMatch();
+        using (var stream = new MemoryStream(before))
+        using (var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true)) restored.ReadSnapshot(reader);
+        Assert.False(restored.Politics.IsExternalMind(0));
+        restored.Politics.SetExternalMind(0, true);
+        Assert.True(restored.Politics.IsExternalMind(0));
+    }
+
+    private static byte[] WriteSnapshot(MatchModel match)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) match.WriteSnapshot(writer);
+        return stream.ToArray();
     }
 }

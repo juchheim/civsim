@@ -33,4 +33,5 @@ public static class PlayerCommands
     public static Command DeclareWar(long tick, int civ, int onCiv) => new(tick, (byte)civ, CommandKind.DeclareWar, onCiv, 0, 0);
     public static Command MakePeace(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.MakePeace, withCiv, 0, 0);
     public static Command FormAlliance(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.FormAlliance, withCiv, 0, 0);
+    public static Command RecallParty(long tick, int civ, int expeditionIndex) => new(tick, (byte)civ, CommandKind.RecallParty, expeditionIndex, 0, 0);
 }

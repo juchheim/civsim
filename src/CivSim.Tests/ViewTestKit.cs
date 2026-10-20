@@ -45,7 +45,7 @@ internal static class ViewKit
         h.Add(f.Sequence); h.Add(f.Tick); h.Add(f.Season); h.Add(f.SeasonOfYear); h.Add(f.Year); h.Add(f.TickInSeason);
         h.Add(f.LastWinterHarsh); h.Add(f.ViewerCiv); h.Add(f.Width); h.Add(f.Height);
         if (includeTotals) h.Add(f.TotalFigures);
-        for (int t = 0; t < f.Visibility.Length; t++) { h.Add(f.Visibility[t]); h.Add(f.Owner[t]); h.Add(f.Claim[t]); h.Add(f.Claimant[t]); h.Add(f.TileFlags[t]); }
+        for (int t = 0; t < f.Visibility.Length; t++) { h.Add(f.Visibility[t]); h.Add(f.Owner[t]); h.Add(f.Claim[t]); h.Add(f.Claimant[t]); h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]); }
         h.Add(f.FigureCount);
         for (int i = 0; i < f.FigureCount; i++)
         {

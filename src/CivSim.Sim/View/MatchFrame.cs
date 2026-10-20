@@ -46,6 +46,8 @@ public sealed class MatchFrame
     public sbyte[] Claimant = Array.Empty<sbyte>();
     /// <summary><see cref="TileViewFlags"/> per tile.</summary>
     public byte[] TileFlags = Array.Empty<byte>();
+    /// <summary>1 when the viewer has discovered a deposit on this tile; 0 otherwise. Read WorldView.Deposit only when set.</summary>
+    public byte[] KnownDeposits = Array.Empty<byte>();
 
     // ---- figures (ascending id) ---------------------------------------------------------------
     public int FigureCount;
@@ -229,12 +231,12 @@ public sealed class MatchFrame
 
     internal void EnsureTiles(int count)
     {
-        if (Visibility.Length == count) return;
-        Visibility = new byte[count];
-        Owner = new sbyte[count];
-        Claim = new byte[count];
-        Claimant = new sbyte[count];
-        TileFlags = new byte[count];
+        if (Visibility.Length != count) Visibility = new byte[count];
+        if (Owner.Length != count) Owner = new sbyte[count];
+        if (Claim.Length != count) Claim = new byte[count];
+        if (Claimant.Length != count) Claimant = new sbyte[count];
+        if (TileFlags.Length != count) TileFlags = new byte[count];
+        if (KnownDeposits.Length != count) KnownDeposits = new byte[count];
     }
 
     internal void EnsureFigures(int n)

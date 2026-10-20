@@ -485,7 +485,7 @@ public sealed partial class FrameBuilder
     {
         target.EnsureTiles(_tileCount);
         Territory territory = pol.Territory;
-        byte[] vis = target.Visibility, claim = target.Claim, flags = target.TileFlags;
+        byte[] vis = target.Visibility, claim = target.Claim, flags = target.TileFlags, knownDeposits = target.KnownDeposits;
         sbyte[] owner = target.Owner, claimant = target.Claimant;
         for (int t = 0; t < _tileCount; t++)
         {
@@ -508,6 +508,9 @@ public sealed partial class FrameBuilder
                 claimant[t] = -1;
                 flags[t] = 0;
             }
+            knownDeposits[t] = _tiles[t].Deposit != DepositKind.None && (_omniscient || _explored[t] != 0)
+                ? (byte)1
+                : (byte)0;
         }
         if (_omniscient) return;
         // The home range hatch: half the scouting reach around the viewer's settlements (08 §4.1).

@@ -50,6 +50,32 @@ public sealed partial class PoliticsSystem
     public bool OrderGift(int c, int o) => c != o && TryGift(c, o);
     public bool OrderBarter(int c, int o) => c != o && TryBarter(c, o);
 
+    private void Refused(Command command, int target, OrderRefusalReason reason)
+        => _events.Add(new PoliticsEvent(_tick, command.Civ, PoliticsEventKind.OrderRefused, target,
+            (int)command.Kind, (int)reason));
+
+    /// <summary>Cancel the zero-based own-party ordinal. Its surviving members return to the origin settlement.</summary>
+    public bool OrderRecall(int civ, int ownPartyIndex)
+    {
+        if (ownPartyIndex < 0) return false;
+        int ordinal = 0;
+        for (int i = 0; i < _expeditions.Count; i++)
+        {
+            if (_expeditions[i].Civ != civ) continue;
+            if (ordinal++ != ownPartyIndex) continue;
+            _expeditions.RemoveAt(i);
+            return true;
+        }
+        return false;
+    }
+
+    public bool OrderRecallCommand(int civ, int expeditionIndex, Command command)
+    {
+        bool recalled = OrderRecall(civ, expeditionIndex);
+        if (!recalled) Refused(command, expeditionIndex, OrderRefusalReason.InvalidState);
+        return recalled;
+    }
+
     /// <summary>A raid on a chosen settlement, from the nearest settlement that can spare the party. Hard rules: WAR-02, contact, no alliance or truce.</summary>
     public bool OrderRaid(int c, int targetSettlement, int partySize)
     {
