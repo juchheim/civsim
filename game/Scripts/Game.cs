@@ -248,6 +248,7 @@ public partial class Game : Node3D
     public override void _UnhandledInput(InputEvent input)
     {
         if (_session is null) return;
+        if (HandleResearchInput(input)) return;
         if (input is InputEventMouseButton button)
         {
             if (button.ButtonIndex == MouseButton.WheelUp && button.Pressed) SetZoom(_zoom * 0.88f);
@@ -824,8 +825,8 @@ public partial class Game : Node3D
             AnchorTop = 1,
             AnchorRight = 0,
             AnchorBottom = 1,
-            Position = new Vector2(16, -28),
-            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · R resources · D orders · right-click beacon · Space pause · [ ] speed · F capital",
+            Position = new Vector2(16, -14),
+            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · T research · R resources · D orders · right-click beacon · Space pause · [ ] speed · F capital",
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         help.AddThemeFontSizeOverride("font_size", 14);
@@ -835,6 +836,8 @@ public partial class Game : Node3D
         help.AddThemeConstantOverride("shadow_offset_y", 1);
         layer.AddChild(help);
         CreatePoliticsPanel(layer);
+        CreateResearchHud(layer);
+        if (ReadResearchWebArgument()) SetResearchWebVisible(true);
         if (_current is not null) UpdatePoliticsControls(_current);
     }
 
@@ -1550,6 +1553,7 @@ public partial class Game : Node3D
                             $"Z{zoom:0}  ·  {(_session.Paused ? "Paused" : $"{_session.Speed:0.0}×")}  ·  " +
                             $"{Engine.GetFramesPerSecond()} fps" +
                             (_alertTimer > 0 && _alertMessage is not null ? $"\n{_alertMessage}" : "");
+        UpdateResearchHud(_current);
     }
 
     private void ApplySeasonLight(int season)
