@@ -31,6 +31,7 @@ public sealed class ForecastValuation
         RivalEta = new int[projects];
         Array.Fill(RivalEta, int.MaxValue);
         Bonus = new Fix64[projects];
+        Urgent = new Fix64[projects];
         Weight = new Fix64[projects];
         Array.Fill(Weight, Fix64.One);
     }
@@ -47,6 +48,12 @@ public sealed class ForecastValuation
     public Fix64 EtaUncertainty { get; set; } = Fix64.FromRatio(1, 5);
     /// <summary>Value of a keystone per season it lands before the horizon, on top of its Legacy.</summary>
     public Fix64 KeystoneTempo { get; set; }
+    /// <summary>
+    /// Value that is only worth having soon (a threat to answer, 14 §6.4): full at once, falling to nothing at
+    /// <see cref="UrgencySteps"/>. A flat bonus would be collected later just the same.
+    /// </summary>
+    public Fix64[] Urgent { get; }
+    public int UrgencySteps { get; set; } = 1;
 }
 
 /// <summary>
@@ -731,6 +738,7 @@ public sealed class ResearchForecast
         // Tempo: every season a keystone lands before the horizon is a season of cheaper backfills, the next era's Firsts
         // in reach and the Era Boon (docs/MVP/02 §8.3, §13).
         if (_c.IsKeystone[p] && _value.KeystoneTempo.Raw != 0) worth += _value.KeystoneTempo * (_steps - step) / _sps;
+        if (_value.Urgent[p].Raw != 0 && step < _value.UrgencySteps) worth += _value.Urgent[p] * (_value.UrgencySteps - step) / _value.UrgencySteps;
         return worth;
     }
 

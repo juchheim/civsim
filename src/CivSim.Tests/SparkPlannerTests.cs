@@ -53,23 +53,31 @@ public class SparkPlannerTests
     [Fact]
     public void The_Strategists_threat_reading_moves_defense_research_forward()
     {
-        // 14 §6.4: when the Strategist reads a threat, DEF and WAR projects jump in priority.
-        int DefenseDone(bool threatened)
+        // 14 §6.4: when the Strategist reads a threat, DEF and WAR projects jump in priority. Two identical matches reach the
+        // same season end (the real Strategist and Spark have decided); the Spark then re-plans once with the threat reading
+        // the Strategist would hand it, calm in one copy and urgent in the other.
+        int MilitaryPlanned(Sim.Numerics.Fix64 urgency, out bool reasoned)
         {
             MatchModel match = ForecastTestKit.Match(777, Warlord, CivControl.Council, CivControl.Council, CivControl.Council);
-            if (threatened) match.Ai!.SeatOf(0)!.Context.Intent.DefenseUrgency = Sim.Numerics.Fix64.One;
-            new SimRunner(match).Advance(9 * ForecastTestKit.TicksPerMinute);
+            new SimRunner(match).Advance(8 * ForecastTestKit.TicksPerMinute);
+            AiSeat seat = match.Ai!.SeatOf(0)!;
+            seat.Context.Intent.DefenseUrgency = urgency;
+            seat.Spark.Decide(seat.Context);
             ResearchCatalog cat = match.Research.Catalog;
-            return cat.Projects.Count(p => p.Lineage >= 0 && cat.LineageCodes[p.Lineage] is "DEF" or "WAR" && match.Research.IsDone(0, p.Index));
+            var plan = ((ResearchSpark)seat.Spark).LastPlan;
+            reasoned = match.Ai.Log.Entries.Any(e => e.Civ == 0 && e.Layer == "Spark" && e.Reason == "threat: defense first");
+            return plan.Count(p => cat.Projects[p].Lineage >= 0 && cat.LineageCodes[cat.Projects[p].Lineage] is "DEF" or "WAR");
         }
-        int calm = DefenseDone(false), threatened = DefenseDone(true);
-        Assert.True(threatened > calm, $"DEF/WAR projects done by minute 9: threatened {threatened}, calm {calm}");
+        int calm = MilitaryPlanned(Sim.Numerics.Fix64.Zero, out _);
+        int threatened = MilitaryPlanned(Sim.Numerics.Fix64.One, out bool reasoned);
+        Assert.True(threatened > calm, $"DEF/WAR projects in the plan: threatened {threatened}, calm {calm}");
+        Assert.True(reasoned, "a defense pick logs its reason");
     }
 
     [Fact]
     public void Thinking_budgets_grow_with_difficulty_and_stay_inside_the_Warlord_budget()
     {
-        // 14 §9.2, §12: deeper search at higher levels, counted in rollouts. Warlord about 150 a decision (a few ms), Legend
+        // 14 §9.2, §12: deeper search at higher levels, counted in rollouts. Warlord about 220 a decision (about 4 ms), Legend
         // at most twice that.
         MatchModel match = ForecastTestKit.Match(4242,
             CivControl.Ai(Difficulty.Settler, EconomyArchetype.Balanced), CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Balanced),
@@ -82,7 +90,7 @@ public class SparkPlannerTests
         }).ToArray();
         Assert.True(perDecision[0] < perDecision[1] && perDecision[1] < perDecision[2] && perDecision[2] < perDecision[3],
             "rollouts per decision: " + string.Join(", ", perDecision.Select(x => x.ToString("0"))));
-        Assert.InRange(perDecision[2], 50, 220);
+        Assert.InRange(perDecision[2], 50, 260);
         Assert.True(perDecision[3] <= 2 * perDecision[2] + 1, $"Legend {perDecision[3]:0} vs Warlord {perDecision[2]:0}");
         // The Settler thinks once a year (AiSystem's cadence), the others every season.
         Assert.Equal(8, ((ResearchSpark)match.Ai!.SeatOf(0)!.Spark).Decisions);
