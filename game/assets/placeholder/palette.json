@@ -1,0 +1,93 @@
+{
+  "civs": [
+    {
+      "slot": 1,
+      "name": "Orange",
+      "hex": "#E69F00",
+      "emblem": "sun",
+      "border": "solid"
+    },
+    {
+      "slot": 2,
+      "name": "SkyBlue",
+      "hex": "#56B4E9",
+      "emblem": "wave",
+      "border": "long_dash"
+    },
+    {
+      "slot": 3,
+      "name": "BluishGreen",
+      "hex": "#009E73",
+      "emblem": "leaf",
+      "border": "dot"
+    },
+    {
+      "slot": 4,
+      "name": "Yellow",
+      "hex": "#F0E442",
+      "emblem": "star",
+      "border": "dash_dot"
+    },
+    {
+      "slot": 5,
+      "name": "Blue",
+      "hex": "#0072B2",
+      "emblem": "mountain",
+      "border": "double"
+    },
+    {
+      "slot": 6,
+      "name": "Vermilion",
+      "hex": "#D55E00",
+      "emblem": "flame",
+      "border": "zigzag"
+    },
+    {
+      "slot": 7,
+      "name": "ReddishPurple",
+      "hex": "#CC79A7",
+      "emblem": "moon",
+      "border": "short_dash"
+    },
+    {
+      "slot": 8,
+      "name": "NeutralDark",
+      "hex": "#4D4D4D",
+      "emblem": "antler",
+      "border": "chain"
+    }
+  ],
+  "tool_tiers": {
+    "t0": "#8a7d6b",
+    "t1": "#7a6e5c",
+    "t2": "#8b8f92",
+    "t3": "#c8742c",
+    "t4": "#d8aa3a",
+    "t5": "#9aa3ab",
+    "t6": "#4b5560",
+    "t7": "#2fd0c0"
+  },
+  "biomes": {
+    "Ocean": "#2f6fa3",
+    "Coast": "#d8c690",
+    "Ice": "#e8f1f6",
+    "Tundra": "#a9b49a",
+    "Taiga": "#4f7a5a",
+    "TemperateForest": "#5d8f4a",
+    "OpenWoodland": "#8aa854",
+    "GrasslandSteppe": "#b6c25c",
+    "Savanna": "#cfb257",
+    "TropicalForest": "#2f8a4f",
+    "Wetland": "#6f9a86",
+    "Desert": "#e0c38a",
+    "Mountain": "#8c8478",
+    "Peak": "#d8dde0"
+  },
+  "season_modulate": {
+    "spring": "#f4fff0",
+    "summer": "#ffffff",
+    "autumn": "#ffe2b8",
+    "winter": "#dfe8f2"
+  },
+  "winter_desaturate": 0.45
+}
