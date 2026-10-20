@@ -12,7 +12,7 @@ config_version=5
 
 config/name="CivSim"
 run/main_scene="res://Main.tscn"
-config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [display]
 
@@ -29,9 +29,51 @@ project/assembly_name="CivSim.Game"
 [civsim]
 
 look="low_poly_3d"
+renderer_script="res://Renderer/LowPoly3DView.gd"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
 environment/defaults/default_clear_color=Color(0.11, 0.16, 0.2, 1)
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1
+lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=1
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=1
+environment/ssao/quality=2
+
+[shader_globals]
+
+season_spring={
+"type": "float",
+"value": 1.0
+}
+season_autumn={
+"type": "float",
+"value": 0.0
+}
+season_snow={
+"type": "float",
+"value": 0.0
+}
+season_dry={
+"type": "float",
+"value": 0.0
+}
+snow_line={
+"type": "float",
+"value": 0.8
+}
+map_lat={
+"type": "vec2",
+"value": Vector2(43.3, 43.3)
+}
+cloud_amount={
+"type": "float",
+"value": 1.0
+}
+fig_scale={
+"type": "float",
+"value": 1.0
+}

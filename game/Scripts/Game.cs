@@ -35,6 +35,7 @@ public partial class Game : Node3D
 
     private SimulationSession? _session;
     private IGameLook _look = null!;
+    private Node3D? _visualRenderer;
     private Camera3D? _camera;
     private DirectionalLight3D? _sun;
     private Godot.Environment? _environment;
@@ -77,7 +78,7 @@ public partial class Game : Node3D
     private Vector3 _target;
     private float _zoom = 20.0f;
     private float _yaw = -0.6f;
-    private float _pitch = Mathf.DegToRad(54.0f);
+    private float _pitch = Mathf.DegToRad(45.0f);
     private bool _dragging;
     private float _hudTime;
     private double _renderTick;
@@ -90,8 +91,10 @@ public partial class Game : Node3D
     private readonly Stopwatch _benchmarkWindowWatch = new();
     private int _benchmarkFrames;
     private int _benchmarkWindowFrames;
-    private double _benchmarkActorUpdateMs;
-    private double _benchmarkMaxActorUpdateMs;
+    private long _benchmarkStartTick;
+    private double _benchmarkFrameUpdateMs;
+    private double _benchmarkMaxFrameUpdateMs;
+    private int _benchmarkFrameUpdates;
     private double _benchmarkMinWindowFps = double.MaxValue;
     private int _lastSeason = -1;
     private bool _resourcesVisible;
@@ -119,11 +122,6 @@ public partial class Game : Node3D
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);
-            CreateEnvironment();
-            CreateCamera();
-            CreateTerrain(_session.WorldView);
-            CreateActors();
-            CreateHud(seed);
             if (_session.Frames.TryAcquire())
             {
                 _previous = _session.Frames.Previous;
@@ -132,21 +130,37 @@ public partial class Game : Node3D
                 {
                     _currentSequence = _current.Sequence;
                     _renderTick = _previous?.Tick ?? _current.Tick;
-                    ApplyNewFrame(_current);
-                    UpdateActors(1.0f);
                 }
             }
+            if (_current is null) throw new InvalidOperationException("Simulation did not publish its initial MatchFrame.");
+            string rendererPath = ProjectSettings.GetSetting(
+                "civsim/renderer_script", "res://Renderer/LowPoly3DView.gd").AsString();
+            var rendererScript = GD.Load<GDScript>(rendererPath)
+                ?? throw new InvalidOperationException($"Could not load renderer script '{rendererPath}'.");
+            _visualRenderer = rendererScript.New().AsGodotObject() as Node3D
+                ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
+            AddChild(_visualRenderer);
+            _visualRenderer.Call("setup_frame", BuildFramePayload(_current, _session.WorldView, includeWorld: true));
+            _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
+            _resourceNode = CreateMultiMeshNode(_look.CreateSphere(), "KnownResourceDeposits", _look.LitVertexMaterial());
+            _resourceNode.Visible = false;
+            CreateHud(seed);
+            UpdateKnownResources(_current);
             FrameCapital();
             ReadCaptureArgument();
             _benchmarkSeconds = ReadBenchmarkSeconds();
             _benchmarkConfigured = _benchmarkSeconds > 0;
             if (_benchmarkSeconds > 0)
             {
+                _session.SetPaused(false);
+                _session.SetSpeedIndex(1);
+                _benchmarkStartTick = _session.Tick;
+                DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
                 int zoomLevel = ReadBenchmarkZoom();
-                SetZoom(zoomLevel switch { 0 => 4.2f, 1 => 12.0f, 2 => 38.0f, _ => 90.0f });
+                SetZoom(zoomLevel switch { 0 => 5.0f, 1 => 12.0f, 2 => 40.0f, _ => 90.0f });
                 _benchmarkWarmupRemaining = 2.0;
                 GD.Print($"M7A benchmark ready: Z{zoomLevel}, {_current?.FigureCount ?? 0} figures, " +
-                         $"live 1x simulation, 2s warm-up + {_benchmarkSeconds}s measurement.");
+                         $"live 1x simulation (paused={_session.Paused}), 2s warm-up + {_benchmarkSeconds}s measurement.");
             }
         }
         catch (Exception ex)
@@ -176,7 +190,15 @@ public partial class Game : Node3D
                 _current = newest;
                 _currentSequence = newest.Sequence;
                 _renderTick = _previous?.Tick ?? newest.Tick;
+                long frameUpdateStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
                 ApplyNewFrame(newest);
+                if (_benchmarkSeconds > 0)
+                {
+                    double updateMs = (Stopwatch.GetTimestamp() - frameUpdateStarted) * 1000.0 / Stopwatch.Frequency;
+                    _benchmarkFrameUpdateMs += updateMs;
+                    _benchmarkMaxFrameUpdateMs = Math.Max(_benchmarkMaxFrameUpdateMs, updateMs);
+                    _benchmarkFrameUpdates++;
+                }
             }
         }
 
@@ -184,10 +206,9 @@ public partial class Game : Node3D
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
         if (_alertTimer > 0) _alertTimer = Math.Max(0, _alertTimer - (float)delta);
         float alpha = FrameAlpha(_renderTick);
-        long actorUpdateStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
         UpdateActors(alpha);
         if (_benchmarkSeconds > 0)
-            RecordBenchmarkFrame((Stopwatch.GetTimestamp() - actorUpdateStarted) * 1000.0 / Stopwatch.Frequency, delta);
+            RecordBenchmarkFrame(delta);
         _hudTime += (float)delta;
         if (_hudTime >= 0.2f)
         {
@@ -200,7 +221,7 @@ public partial class Game : Node3D
             _screenshotTimer += (float)delta;
             if (_screenshotTimer >= 3.0f)
             {
-                Error result = GetViewport().GetTexture().GetImage().SavePng(_screenshotPath);
+                Error result = SaveScreenshot(_screenshotPath);
                 GD.Print($"Screenshot {result}: {_screenshotPath}");
                 _screenshotPath = null;
                 GetTree().Quit();
@@ -253,13 +274,13 @@ public partial class Game : Node3D
                     if (_current is not null) UpdateKnownResources(_current);
                     break;
                 case Key.Key0:
-                    SetZoom(4.2f);
+                    SetZoom(5.0f);
                     break;
                 case Key.Key1:
                     SetZoom(12.0f);
                     break;
                 case Key.Key2:
-                    SetZoom(38.0f);
+                    SetZoom(40.0f);
                     break;
                 case Key.Key3:
                     SetZoom(90.0f);
@@ -337,7 +358,106 @@ public partial class Game : Node3D
         return 0;
     }
 
-    private void RecordBenchmarkFrame(double actorUpdateMs, double delta)
+    private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld)
+    {
+        int tiles = frame.Width * frame.Height;
+        var figures = new int[frame.FigureCount * 8];
+        for (int i = 0; i < frame.FigureCount; i++)
+        {
+            int o = i * 8;
+            figures[o] = frame.FigureX[i];
+            figures[o + 1] = frame.FigureY[i];
+            figures[o + 2] = frame.FigureCiv[i];
+            figures[o + 3] = frame.FigureAge[i];
+            figures[o + 4] = frame.FigureActivity[i];
+            figures[o + 5] = frame.FigureFlags[i];
+            figures[o + 6] = frame.FigureToolRung[i];
+            figures[o + 7] = frame.FigureSettlement[i];
+        }
+
+        var herds = new int[frame.HerdCount * 4];
+        for (int i = 0; i < frame.HerdCount; i++)
+        {
+            int o = i * 4;
+            herds[o] = frame.HerdX[i];
+            herds[o + 1] = frame.HerdY[i];
+            herds[o + 2] = frame.HerdSpecies[i];
+            herds[o + 3] = frame.HerdAnimals[i];
+        }
+
+        var settlements = new Godot.Collections.Array();
+        int kinds = MatchFrame.StructureKinds;
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            var structures = new int[kinds];
+            for (int kind = 0; kind < kinds; kind++)
+                structures[kind] = frame.SettlementStructures[i * kinds + kind];
+            var settlement = new Godot.Collections.Dictionary
+            {
+                ["tile"] = frame.SettlementTile[i],
+                ["civ"] = (int)frame.SettlementCiv[i],
+                ["population"] = frame.SettlementPopulation[i],
+                ["food"] = (int)frame.SettlementFood[i],
+                ["structures"] = structures,
+                ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
+            };
+            settlements.Add(settlement);
+        }
+
+        var plots = new int[frame.PlotCount * 2];
+        for (int i = 0; i < frame.PlotCount; i++)
+        {
+            plots[i * 2] = frame.PlotTile[i];
+            plots[i * 2 + 1] = frame.PlotKind[i];
+        }
+
+        var owners = new int[tiles];
+        for (int i = 0; i < tiles; i++) owners[i] = frame.Owner[i];
+        var payload = new Godot.Collections.Dictionary
+        {
+            ["width"] = frame.Width,
+            ["height"] = frame.Height,
+            ["tick"] = frame.Tick,
+            ["year"] = frame.Year,
+            ["seasonOfYear"] = frame.SeasonOfYear,
+            ["owner"] = owners,
+            ["claim"] = Slice(frame.Claim, tiles),
+            ["visibility"] = Slice(frame.Visibility, tiles),
+            ["camps"] = Slice(frame.CampTile, frame.CampCount),
+            ["campCiv"] = ToIntArray(frame.CampCiv, frame.CampCount),
+            ["beacons"] = Slice(frame.BeaconTile, frame.BeaconCount),
+            ["beaconCiv"] = ToIntArray(frame.BeaconCiv, frame.BeaconCount),
+            ["figures"] = figures,
+            ["herds"] = herds,
+            ["settlements"] = settlements,
+            ["plots"] = plots,
+        };
+        if (includeWorld)
+        {
+            payload["biome"] = world.Biome;
+            payload["elevation"] = world.Elevation;
+            var worldFlags = new int[tiles];
+            for (int i = 0; i < tiles; i++) worldFlags[i] = world.Flags[i];
+            payload["flags"] = worldFlags;
+        }
+        return payload;
+    }
+
+    private static T[] Slice<T>(T[] values, int count)
+    {
+        var result = new T[count];
+        Array.Copy(values, result, count);
+        return result;
+    }
+
+    private static int[] ToIntArray(sbyte[] values, int count)
+    {
+        var result = new int[count];
+        for (int i = 0; i < count; i++) result[i] = values[i];
+        return result;
+    }
+
+    private void RecordBenchmarkFrame(double delta)
     {
         if (_benchmarkWarmupRemaining > 0)
         {
@@ -352,8 +472,6 @@ public partial class Game : Node3D
 
         _benchmarkFrames++;
         _benchmarkWindowFrames++;
-        _benchmarkActorUpdateMs += actorUpdateMs;
-        _benchmarkMaxActorUpdateMs = Math.Max(_benchmarkMaxActorUpdateMs, actorUpdateMs);
         if (_benchmarkWindowWatch.Elapsed.TotalSeconds >= 1.0)
         {
             _benchmarkMinWindowFps = Math.Min(_benchmarkMinWindowFps,
@@ -365,15 +483,23 @@ public partial class Game : Node3D
         if (_benchmarkWatch.Elapsed.TotalSeconds < _benchmarkSeconds) return;
         double elapsed = _benchmarkWatch.Elapsed.TotalSeconds;
         double averageFps = _benchmarkFrames / elapsed;
-        double averageActorUpdateMs = _benchmarkActorUpdateMs / _benchmarkFrames;
+        long simulationTicks = _session is null ? 0 : _session.Tick - _benchmarkStartTick;
+        bool simulationPaused = _session?.Paused ?? true;
+        int renderObjects = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalObjectsInFrame);
+        int renderPrimitives = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame);
+        int renderDrawCalls = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
         int zoom = _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
         GD.Print($"M7A_PERF zoom=Z{zoom} figures={_current?.FigureCount ?? 0} " +
-                 $"simulation=running seconds={elapsed:F2} frames={_benchmarkFrames} avg_fps={averageFps:F1} " +
-                 $"min_1s_fps={_benchmarkMinWindowFps:F1} avg_actor_update_ms={averageActorUpdateMs:F3} " +
-                 $"max_actor_update_ms={_benchmarkMaxActorUpdateMs:F3}");
+                 $"simulation_paused={simulationPaused} tick_advance={simulationTicks} " +
+                 $"seconds={elapsed:F2} frames={_benchmarkFrames} avg_fps={averageFps:F1} " +
+                 $"min_1s_fps={_benchmarkMinWindowFps:F1} " +
+                 $"render_objects={renderObjects} render_primitives={renderPrimitives} draw_calls={renderDrawCalls} " +
+                 $"frame_updates={_benchmarkFrameUpdates} avg_frame_update_ms=" +
+                 $"{(_benchmarkFrameUpdates > 0 ? _benchmarkFrameUpdateMs / _benchmarkFrameUpdates : 0):F2} " +
+                 $"max_frame_update_ms={_benchmarkMaxFrameUpdateMs:F2}");
         if (_screenshotPath is not null)
         {
-            Error result = GetViewport().GetTexture().GetImage().SavePng(_screenshotPath);
+            Error result = SaveScreenshot(_screenshotPath);
             GD.Print($"Screenshot {result}: {_screenshotPath}");
         }
         _benchmarkSeconds = 0;
@@ -395,6 +521,13 @@ public partial class Game : Node3D
         label.AddThemeFontSizeOverride("font_size", 24);
         label.AddThemeColorOverride("font_color", new Color("#f3efe4"));
         layer.AddChild(label);
+    }
+
+    private Error SaveScreenshot(string path)
+    {
+        using ViewportTexture texture = GetViewport().GetTexture();
+        using Image image = texture.GetImage();
+        return image.SavePng(path);
     }
 
     private void CreateEnvironment()
@@ -684,17 +817,15 @@ public partial class Game : Node3D
 
     private void ApplyNewFrame(MatchFrame frame)
     {
-        UpdateTileState(frame);
-        _terrainMaterial?.SetShaderParameter("season", frame.SeasonOfYear);
-        _terrainMaterial?.SetShaderParameter("season_progress", 0.72f + 0.28f * frame.TickInSeason / 149.0f);
-        _waterMaterial?.SetShaderParameter("season", frame.SeasonOfYear);
-        if (frame.SeasonOfYear != _lastSeason)
+        if (_visualRenderer is not null && _session is not null)
         {
-            _lastSeason = frame.SeasonOfYear;
-            ApplySeasonLight(frame.SeasonOfYear);
+            long started = Stopwatch.GetTimestamp();
+            var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false);
+            double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
+            _visualRenderer.Call("update_frame", payload);
+            if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))
+                GD.Print($"M7A_FRAME_HOST payload={payloadMs:F2}ms figures={frame.FigureCount} herds={frame.HerdCount}");
         }
-        UpdateBorders(frame);
-        UpdateStructures(frame);
         UpdateKnownResources(frame);
         ReadEvents(frame);
     }
@@ -943,6 +1074,7 @@ public partial class Game : Node3D
 
     private void UpdateActors(float alpha)
     {
+        if (_visualRenderer is not null) return;
         if (_current is null || _session is null) return;
         MatchFrame current = _current;
         MatchFrame? previous = _previous;
@@ -1062,6 +1194,11 @@ public partial class Game : Node3D
 
     private void ApplySeasonLight(int season)
     {
+        if (_visualRenderer is not null)
+        {
+            _visualRenderer.Call("set_season", season);
+            return;
+        }
         if (_sun is null || _environment is null) return;
         bool winter = season == 3;
         _sun.LightColor = winter ? new Color("#e4ebf4") : new Color("#ffe6bf");
@@ -1086,29 +1223,40 @@ public partial class Game : Node3D
     {
         if (_current is null || _camera is null) return;
         int selected = -1;
+        int population = -1;
         for (int i = 0; i < _current.SettlementCount; i++)
             if (_current.SettlementCiv[i] == 0 && (_current.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0)
             {
-                selected = i;
-                break;
+                if (_current.SettlementPopulation[i] > population)
+                {
+                    selected = i;
+                    population = _current.SettlementPopulation[i];
+                }
             }
         if (selected < 0 && _current.SettlementCount > 0) selected = 0;
         if (selected < 0) return;
         int tile = _current.SettlementTile[selected];
         Vector3 center = TileCenter(tile % _current.Width, tile / _current.Width);
-        _target = new Vector3(center.X, _terrainHeights[tile], center.Z);
-        SetZoom(4.2f);
+        _target = new Vector3(center.X + 0.3f, _terrainHeights[tile], center.Z + 0.2f);
+        _yaw = Mathf.DegToRad(30.0f);
+        _pitch = Mathf.DegToRad(40.0f);
+        SetZoom(5.0f);
         UpdateCamera();
     }
 
     private void SetZoom(float value)
     {
-        _zoom = Mathf.Clamp(value, 2.7f, 100.0f);
+        _zoom = Mathf.Clamp(value, 2.7f, 120.0f);
         UpdateCamera();
     }
 
     private void UpdateCamera()
     {
+        if (_visualRenderer is not null)
+        {
+            _visualRenderer.Call("set_camera", _target, _yaw, _pitch, _zoom);
+            return;
+        }
         if (_camera is null) return;
         _camera.Size = _zoom;
         float distance = _zoom * 1.65f + 4.0f;

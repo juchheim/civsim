@@ -41,12 +41,22 @@ godot-mono --path game -- --start-minute=70 --viewer=-1 --benchmark-seconds=8 --
 ```
 
 `--benchmark-zoom` accepts 0–3 (Z0–Z3). The match continues at its normal 1×
-speed, the renderer warms up for two seconds, then prints an `M7A_PERF` line with average
-FPS, the slowest complete one-second window, and the mean and peak CPU time spent
-updating actors. Pass `--screenshot=/tmp/civsim-m7a-z0.png` to save a capture at
-the end. Run the command with zoom values 0, 1 and 2 for the M7a performance gate.
+speed, the renderer warms up for two seconds, then prints an `M7A_PERF` line with
+average FPS, the slowest complete one-second window, simulation pause state and
+tick advance, plus the mean and peak main-thread frame refresh time. Pass
+`--screenshot=/tmp/civsim-m7a-z0.png` to save a capture at the end. Run the
+command with zoom values 0, 1 and 2 for the M7a performance gate.
 
-The renderer loads its `IGameLook` from the `civsim/look` project setting. The
-current value, `low_poly_3d`, selects the low-poly palette, shaders, materials and
-primitive models in `Scripts/Looks/`; painted and pixel styles can be added as
-separate implementations without changing the frame contract or simulation.
+The current M7a view is the low-poly 3D renderer at
+`Renderer/LowPoly3DView.gd`; its terrain, settlement, vegetation and actor assets
+live under `Renderer/LowPoly3D/`. The renderer script path is selected by
+`civsim/renderer_script`. A replacement view must implement `setup_frame`,
+`update_frame`, `set_camera`, and `set_season`, and expose its `Camera3D` as
+`Camera3D`. The view receives only viewer-filtered `MatchFrame` data, so painted
+and pixel renderers can use the same sim boundary later.
+
+Latest local M7a gate on an Apple M4, Godot 4.7.2, 1600×900, 2-second warm-up and
+5-second samples: Z0 60.2 fps average / 59.1 minimum one-second window, Z1 65.2 /
+61.7, Z2 45.3 / 42.9. Each run had 2,731 figures, was explicitly unpaused at
+1×, and advanced 80–90 simulation ticks. Z2 remains below the 60 fps target; its
+sample reported 2.91 million rendered primitives and 441 draw calls per frame.
