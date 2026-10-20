@@ -216,7 +216,7 @@ Hunts are kept under each herd's sustainable yield (growth 15–30%/yr, [12 §6]
 | Warlord | 0.3 / 0.2 / 0.5 (WAR/DEF) | **low** | opportunistic | alliances of convenience | Raids, conquest windows |
 | Sage | 0.25 / 0.5 (LRN/BEL) / 0.25 | high | slow early, surges | friendly, tolerant | Insight, Firsts, institutions |
 
-Archetypes are weights *inside* the same planner. A Warlord at Legend difficulty still won't raid a palisaded village it can't take.
+Archetypes are weights *inside* the same planner. A Warlord at Legend difficulty still won't raid a palisaded village it can't take. Each archetype's research multipliers are fitted so that its whole package (Leaning, Era Boon, economy) reaches the same Legacy as the others (§17).
 
 ### 9.2 Difficulty: better thinking, never bonuses
 | Level | Forecast horizon | Beam width | Opponent modeling | Re-plan | Deliberate imperfection |
@@ -338,3 +338,50 @@ Nothing is seen of a civilization before the observer is Aware of it. A seen set
 - **A8 fog fairness:** a match is cloned by snapshot at season 40 (before contact), three seasons after first contact (season 98) and at season 120 (mid E2); in the copy, people are killed and wounded, stores taken and Cohesion lowered in every rival settlement at least 8 tiles beyond sight, and research is granted to never-contacted rivals out of figure sight (no Firsts, no era change). After the season-end step the observer's belief (field by field and hash), own view, research slots, queue, Leaning, posture, Beacons and decision log are identical. Killing people in a settlement in sight, or handing a rival in figure sight a better weapon, changes the belief. A builder that reads every settlement fails the test.
 - **Cost:** 0.19 ms per civilization per season at mid E2 (target < 2 ms).
 - **Known limits:** a captured settlement's structures still count as evidence of its new owner's projects; terrain sight modifiers (hills, forest, lookouts) are not applied; the contact-time population band of 13 §2.4 is read as the band of the settlements seen. While the Strategist placeholder leaves AI seats on the v0 politics rules, those rules still read true state (the real Strategist turns them off); and by the research rules a contacted rival's completions reach an observer's own project states (Glimpse, Diffusion), so research is perturbed only for rivals never contacted.
+
+## 17. Archetype balance (A5, 2026-10-20)
+
+Gate A5 (§10.3): in four-AI free-for-alls at equal difficulty no archetype may win more than 30% of its matches. Measure with `civsim-harness ai --pack civsim.pack --ffa warlord --seeds N`: each seed is played five times, each rotation leaving one archetype out and shifting the seats, and Legacy (Dominion + Mastery + Firsts) at minute 33 decides. The command also prints each archetype's mean Legacy, its parts, settlements, projects, Keystone minutes, raids and captures.
+
+### 17.1 What made the archetypes unequal
+Before (8 seeds, 40 matches): Sage won 78% of its appearances, Grower 38%, Builder 6%, Wanderer 3%, Warlord 0%. Mean Legacy was Sage 3,163, Grower 2,423, Builder 1,953, Wanderer 1,428 and Warlord 1,195. Dominion was 709 to 918 for everyone. The gap was Firsts: Sage 2,018 against Warlord 327. Projects done were 138 against 90.
+
+- **Firsts amplify any research edge.** A First goes only to the civilization that finishes a project first, and in E0 to E2 one is worth 11 to 37 points (×3 for a Keystone) against 1 to 3 for Mastery. A civilization that researches 10% faster takes most of the Firsts, which is about half of all Legacy in a match. Dominion cannot make up the difference: claims are bounded by the era's claim radius, so a civilization's share of the land follows its settlement count and stays within about ±10% of the mean.
+- **The economy gave Sage free research.** The research scales from 07 `params.ARCHETYPES` gave Sage Insight ×1.1 and specialist Insight ×1.4, Wanderer ×0.95/×0.95 and Warlord ×0.9/×0.9. In the balance model these costs were paid for by Territory ×1.4 (Wanderer) and ×1.3 (Warlord), which caps the number of settlements there. The live sim has no Territory multiplier: a ×1.4 claim emission was tried and moved Dominion by less than 1%, because the radius binds. The Warlord also kept 07's adult mortality ×1.3, a stand-in for war deaths from a model without war, which M5 now simulates.
+- **A Kin Leaning is a research Leaning.** LRN, SOC and the food lineages are all Kin, so they are the research engine. With identical economies (all multipliers one), the Kin-leaning Grower and Sage still did 116 projects to the others' 99 to 107. When every AI played with Balanced Leaning, the Wanderer rose from 100 to 114 projects and the Builder from 114 to 121. Three channels carry this. The Spark's style weight (`SparkTuning.StyleWeight`, 0.6) and signature bonus skew the plan. A Reach Leaning takes both E0 to E2 Era Boons as Beacons instead of +5% Insight each, and setting every boon to Insight alone added about 6 projects to Wanderer and Warlord. The Council fallback that fills an empty slot also follows the Leaning. Ranking the Spark's search prior by a Balanced Leaning made no measurable difference (Wanderer 96 → 95 projects), so that change was not kept.
+- **Grower fertility ×1.3** (07c's first-fission calibration) gives the Grower 5 settlements to the others' 3. With its research scales near one, it won 44 to 63% of its matches.
+
+### 17.2 What changed
+The style, Leanings, signatures, raid margins and Era Boon rule stay as they are, and so does the Balanced civilization (all goldens use it, and the A1 to A4 duels play Balanced AIs). The research multipliers are re-fitted so that each archetype's whole package (Leaning, Boon, economy) ends up at the same Legacy. One table, `CivSim.Sim.Economy.ArchetypeResearch`, is read by both the research source and the AI forecast; before, the forecast kept its own copy.
+
+| Archetype | Insight | Specialist Insight | Know-how | Was (07) | Why |
+|---|---:|---:|---:|---|---|
+| Builder | 1.00 | 1.00 | 1.30 | same | already at the mean |
+| Grower | **0.93** | 0.90 | 0.95 | 1.00 / 0.90 / 0.95 | fertility ×1.3 and a Kin Leaning already buy research |
+| Wanderer | **1.15** | **1.00** | 1.10 | 0.95 / 0.95 / 1.10 | Reach Leaning, Beacon Boons, no live Territory ×1.4 |
+| Warlord | **1.15** | **1.00** | 1.00 | 0.90 / 0.90 / 1.00 | same as the Wanderer; no live Territory ×1.3 |
+| Sage | **0.97** | **1.10** | 1.00 | 1.10 / 1.40 / 1.00 | the Kin Leaning with the LRN/BEL signature is its research edge |
+
+Warlord adult mortality goes from ×1.3 to ×1.0 (`LivingEconomyModel.Profile`), because raids and assaults now kill fighters in the simulation.
+
+The values were fitted on 8 seeds and then on 24 seeds, moving one archetype at a time toward the mean Legacy. Settling between Grower 0.94 and 0.93 alone moved its win share from 30.2% to 25.0%. That is the size of the sampling noise, so the gate also measures more: `--check-m6` now plays its A5 free-for-alls on three seeds per `--seeds`, which is 24 seeds and 120 matches at `--seeds 8`. Before, it used half of `--seeds`. With 4 seeds an archetype appears 16 times, and at a true 25% the binomial error is 11%, so the 30% line failed most balanced builds by chance.
+
+Also fixed: snapshot validation rejected a founding settlement owned by another civilization. Since M5, capitals can be captured (13 §8.3), and the new Warlord tables produced such a capture in `BeliefMatchTests` and `FogFairnessTests`.
+
+### 17.3 Results
+Free-for-alls at Warlord level, 24 seeds, 120 matches, minute 33:
+
+| Archetype | Wins | Legacy | Dominion | Mastery | Firsts | Settlements | Projects | KEY-1 / KEY-2 min |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Builder | 25/96 = 26.0% | 2,033 | 892 | 225 | 917 | 3.6 | 114.0 | 6.8 / 20.3 |
+| Grower | 24/96 = 25.0% | 2,040 | 873 | 217 | 950 | 5.2 | 110.6 | 8.1 / 22.6 |
+| Wanderer | 27/96 = 28.1% | 2,055 | 803 | 223 | 1,029 | 3.2 | 112.8 | 6.2 / 21.6 |
+| Warlord | 21/96 = 21.9% | 1,964 | 768 | 219 | 977 | 3.1 | 111.4 | 6.1 / 19.5 |
+| Sage | 23/96 = 24.0% | 1,925 | 789 | 228 | 909 | 3.2 | 114.6 | 7.0 / 21.1 |
+
+The mean Legacy over all archetypes is 2,003, against 2,032 before (Sage's free research is gone). The archetypes' means now lie within ±4% of each other, where before they ranged from −41% to +56%. Styles still show: the Grower has the most settlements, the Builder the most Dominion, the Warlord the fastest Keystones, and the Builder raids least.
+
+**Left unbalanced:**
+- Wins rest almost entirely on the Firsts race, so outcomes are high-variance. The Sage has the lowest mean Legacy but wins in streaks.
+- The Warlord's conquest windows almost never open between Warlord-level AIs: fewer than 0.01 captures per civilization and match. Its style earns Legacy through research, not war. A Territory or Dominion channel for Wanderer and Warlord (wider claim radius, overseas claims) is left for the balance pass that brings E3+.
+- Firsts are about half of all Legacy at minute 33, against ~15% in 01 §7.1. Re-weighting them is a scoring change for every gate and is not made here.

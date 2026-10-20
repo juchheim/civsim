@@ -187,18 +187,14 @@ public sealed class ForecastStart
     public bool BoonIsBeacon => Leaning[2] > Leaning[0] && Leaning[2] > Leaning[1];
 
     /// <summary>
-    /// Archetype multipliers on Insight and specialist output (docs/MVP/07 sensitivity; the same table the living economy
-    /// reports through its research source). Know-how scale is observed, not assumed.
+    /// Archetype multipliers on Insight and specialist output (<see cref="ArchetypeResearch"/>, the same table the living
+    /// economy reports through its research source). Know-how scale is observed, not assumed.
     /// </summary>
-    public static (Fix64 Insight, Fix64 Roles) ArchetypeScale(EconomyArchetype a) => a switch
+    public static (Fix64 Insight, Fix64 Roles) ArchetypeScale(EconomyArchetype a)
     {
-        EconomyArchetype.Grower => (Fix64.One, Fix64.FromRatio(9, 10)),
-        EconomyArchetype.Builder => (Fix64.One, Fix64.One),
-        EconomyArchetype.Wanderer => (Fix64.FromRatio(95, 100), Fix64.FromRatio(95, 100)),
-        EconomyArchetype.Warlord => (Fix64.FromRatio(9, 10), Fix64.FromRatio(9, 10)),
-        EconomyArchetype.Sage => (Fix64.FromRatio(11, 10), Fix64.FromRatio(14, 10)),
-        _ => (Fix64.One, Fix64.One),
-    };
+        ArchetypeResearch.Scales s = ArchetypeResearch.Of(a);
+        return (s.Insight, s.Roles);
+    }
 
     /// <summary>
     /// People from the own view: adults and population are exact, elders are recovered from Commons Insight
