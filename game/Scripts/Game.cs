@@ -8,6 +8,7 @@ using CivSim.Sim.Core;
 using CivSim.Sim.Content;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
+using CivSim.Sim.Research;
 using CivSim.Game.Looks;
 using Godot;
 
@@ -20,6 +21,7 @@ public partial class Game : Node3D
     private const float RowSpacing = 0.8660254f;
     private const float HexRadius = 0.5773503f;
     private const float MapUnit = HexLayout.Unit;
+    private const int AutomaticDestinationItemId = int.MinValue;
 
     private static readonly Color[] CivColors =
     {
@@ -61,6 +63,14 @@ public partial class Game : Node3D
     private MultiMesh[] _structureMeshes = Array.Empty<MultiMesh>();
     private Mesh[] _structureModels = Array.Empty<Mesh>();
     private Label? _statusLabel;
+    private PanelContainer? _politicsPanel;
+    private Label? _politicsNote;
+    private OptionButton? _politicsCivPicker, _targetSettlementPicker, _recallPartyPicker;
+    private Button? _giftButton, _barterButton, _warButton, _peaceButton, _allianceButton, _raidButton, _assaultButton, _recallButton;
+    private ResearchCatalog? _catalog;
+    private int _war02 = -1, _trd01 = -1, _trd02 = -1, _dip03 = -1;
+    private int _selectedPoliticsCiv = -1, _selectedTargetSettlement = -1, _selectedRecallParty = -1;
+    private bool _politicsVisible, _updatingPoliticsOptions;
     private readonly Dictionary<MultiMesh, float[]> _instanceBuffers = new();
     private readonly List<Transform3D> _bodyTransforms = new(4096), _headTransforms = new(4096), _carryTransforms = new(4096);
     private readonly List<Color> _bodyColors = new(4096), _headColors = new(4096), _carryColors = new(4096);
@@ -116,6 +126,11 @@ public partial class Game : Node3D
         {
             ulong seed = ReadSeed();
             ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
+            _catalog = new ResearchCatalog(pack);
+            _war02 = _catalog.IndexOf("WAR-02");
+            _trd01 = _catalog.IndexOf("TRD-01");
+            _trd02 = _catalog.IndexOf("TRD-02");
+            _dip03 = _catalog.IndexOf("DIP-03");
             int startMinute = ReadStartMinute();
             int viewerCiv = ReadViewerCiv();
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv);
@@ -192,6 +207,7 @@ public partial class Game : Node3D
                 _renderTick = _previous?.Tick ?? newest.Tick;
                 long frameUpdateStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
                 ApplyNewFrame(newest);
+                if (_politicsVisible) UpdatePoliticsControls(newest);
                 if (_benchmarkSeconds > 0)
                 {
                     double updateMs = (Stopwatch.GetTimestamp() - frameUpdateStarted) * 1000.0 / Stopwatch.Frequency;
@@ -272,6 +288,11 @@ public partial class Game : Node3D
                 case Key.R:
                     _resourcesVisible = !_resourcesVisible;
                     if (_current is not null) UpdateKnownResources(_current);
+                    break;
+                case Key.D:
+                    _politicsVisible = !_politicsVisible;
+                    if (_politicsPanel is not null) _politicsPanel.Visible = _politicsVisible;
+                    if (_current is not null) UpdatePoliticsControls(_current);
                     break;
                 case Key.Key0:
                     SetZoom(5.0f);
@@ -804,7 +825,7 @@ public partial class Game : Node3D
             AnchorRight = 0,
             AnchorBottom = 1,
             Position = new Vector2(16, -28),
-            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · R resources · right-click beacon · Space pause · [ ] speed · F capital",
+            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · R resources · D orders · right-click beacon · Space pause · [ ] speed · F capital",
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         help.AddThemeFontSizeOverride("font_size", 14);
@@ -813,6 +834,345 @@ public partial class Game : Node3D
         help.AddThemeConstantOverride("shadow_offset_x", 1);
         help.AddThemeConstantOverride("shadow_offset_y", 1);
         layer.AddChild(help);
+        CreatePoliticsPanel(layer);
+        if (_current is not null) UpdatePoliticsControls(_current);
+    }
+
+    private void CreatePoliticsPanel(CanvasLayer layer)
+    {
+        _politicsPanel = new PanelContainer
+        {
+            Name = "PoliticsOrders",
+            AnchorLeft = 1,
+            AnchorRight = 1,
+            AnchorTop = 0,
+            AnchorBottom = 0,
+            OffsetLeft = -366,
+            OffsetRight = -14,
+            OffsetTop = 14,
+            OffsetBottom = 355,
+            Visible = _politicsVisible,
+        };
+        var contents = new VBoxContainer();
+        contents.AddThemeConstantOverride("separation", 7);
+        _politicsPanel.AddChild(contents);
+        var title = new Label { Text = "Diplomacy & orders" };
+        title.AddThemeFontSizeOverride("font_size", 18);
+        contents.AddChild(title);
+
+        _politicsCivPicker = NewPicker("Choose a civilization");
+        _politicsCivPicker.ItemSelected += index =>
+        {
+            if (_updatingPoliticsOptions) return;
+            _selectedPoliticsCiv = _politicsCivPicker.GetItemId((int)index);
+            _selectedTargetSettlement = -1;
+            if (_current is not null) UpdatePoliticsControls(_current);
+        };
+        contents.AddChild(_politicsCivPicker);
+
+        _targetSettlementPicker = NewPicker("Choose a destination or use the closest pair");
+        _targetSettlementPicker.ItemSelected += index =>
+        {
+            if (_updatingPoliticsOptions) return;
+            int id = _targetSettlementPicker.GetItemId((int)index);
+            _selectedTargetSettlement = id == AutomaticDestinationItemId ? -1 : id;
+            if (_current is not null) UpdatePoliticsButtons(_current);
+        };
+        contents.AddChild(_targetSettlementPicker);
+
+        var tradeRow = new HBoxContainer();
+        _giftButton = NewOrderButton("Send gift", QueueGift);
+        _barterButton = NewOrderButton("Send barter", QueueBarter);
+        tradeRow.AddChild(_giftButton);
+        tradeRow.AddChild(_barterButton);
+        contents.AddChild(tradeRow);
+
+        var diplomacyRow = new HBoxContainer();
+        _warButton = NewOrderButton("Declare war", () => QueueDiplomacyOrder(PlayerCommands.DeclareWar));
+        _peaceButton = NewOrderButton("Make peace", () => QueueDiplomacyOrder(PlayerCommands.MakePeace));
+        _allianceButton = NewOrderButton("Alliance", () => QueueDiplomacyOrder(PlayerCommands.FormAlliance));
+        diplomacyRow.AddChild(_warButton);
+        diplomacyRow.AddChild(_peaceButton);
+        diplomacyRow.AddChild(_allianceButton);
+        contents.AddChild(diplomacyRow);
+
+        var militaryRow = new HBoxContainer();
+        _raidButton = NewOrderButton("Raid settlement", QueueRaid);
+        _assaultButton = NewOrderButton("Assault settlement", QueueAssault);
+        militaryRow.AddChild(_raidButton);
+        militaryRow.AddChild(_assaultButton);
+        contents.AddChild(militaryRow);
+
+        var partyRow = new HBoxContainer();
+        _recallPartyPicker = NewPicker("Choose your party");
+        _recallPartyPicker.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _recallPartyPicker.ItemSelected += index =>
+        {
+            if (_updatingPoliticsOptions) return;
+            _selectedRecallParty = _recallPartyPicker.GetItemId((int)index);
+            if (_current is not null) UpdatePoliticsButtons(_current);
+        };
+        _recallButton = NewOrderButton("Recall", QueueRecall);
+        partyRow.AddChild(_recallPartyPicker);
+        partyRow.AddChild(_recallButton);
+        contents.AddChild(partyRow);
+
+        _politicsNote = new Label
+        {
+            Text = "Choose a visible destination, or use the closest settlement pair. Orders are checked by the simulation.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            CustomMinimumSize = new Vector2(320, 36),
+        };
+        _politicsNote.AddThemeFontSizeOverride("font_size", 12);
+        contents.AddChild(_politicsNote);
+        layer.AddChild(_politicsPanel);
+    }
+
+    private static OptionButton NewPicker(string placeholder)
+    {
+        var picker = new OptionButton
+        {
+            CustomMinimumSize = new Vector2(322, 30),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            TooltipText = placeholder,
+        };
+        return picker;
+    }
+
+    private static Button NewOrderButton(string text, Action pressed)
+    {
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(82, 30),
+        };
+        button.Pressed += pressed;
+        return button;
+    }
+
+    private void UpdatePoliticsControls(MatchFrame frame)
+    {
+        if (_politicsCivPicker is null || _targetSettlementPicker is null || _recallPartyPicker is null) return;
+        if (frame.ViewerCiv != 0)
+        {
+            _updatingPoliticsOptions = true;
+            _politicsCivPicker.Clear();
+            _targetSettlementPicker.Clear();
+            _recallPartyPicker.Clear();
+            _selectedPoliticsCiv = _selectedTargetSettlement = _selectedRecallParty = -1;
+            _updatingPoliticsOptions = false;
+            if (_politicsNote is not null) _politicsNote.Text = "Player orders are available when viewing civilization 1.";
+            UpdatePoliticsButtons(frame);
+            return;
+        }
+        if (_politicsNote is not null)
+            _politicsNote.Text = "Choose a visible destination, or use the closest settlement pair. Orders are checked by the simulation.";
+        _updatingPoliticsOptions = true;
+        try
+        {
+            int priorCiv = _selectedPoliticsCiv;
+            _politicsCivPicker.Clear();
+            bool civStillAvailable = false;
+            for (int civ = 0; civ < frame.CivCount; civ++)
+            {
+                if (civ == 0 || (frame.CivFlags[civ] & (ushort)CivViewFlags.Aware) == 0) continue;
+                CivViewFlags flags = (CivViewFlags)frame.CivFlags[civ];
+                string state = (flags & CivViewFlags.AtWar) != 0 ? " · at war" :
+                    (flags & CivViewFlags.Allied) != 0 ? " · allied" :
+                    (flags & CivViewFlags.Contacted) != 0 ? " · contacted" : " · known";
+                _politicsCivPicker.AddItem($"Civilization {civ + 1}{state}", civ);
+                if (civ == priorCiv) civStillAvailable = true;
+            }
+            if (!civStillAvailable)
+                _selectedPoliticsCiv = _politicsCivPicker.ItemCount > 0 ? _politicsCivPicker.GetItemId(0) : -1;
+            SelectItemId(_politicsCivPicker, _selectedPoliticsCiv);
+
+            int priorSettlement = _selectedTargetSettlement;
+            _targetSettlementPicker.Clear();
+            _targetSettlementPicker.AddItem("Automatic · closest settlement pair", AutomaticDestinationItemId);
+            bool settlementStillAvailable = priorSettlement < 0;
+            if (_selectedPoliticsCiv >= 0)
+            {
+                for (int i = 0; i < frame.SettlementCount; i++)
+                {
+                    if (frame.SettlementCiv[i] != _selectedPoliticsCiv) continue;
+                    SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[i];
+                    if ((flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
+                    int settlement = frame.SettlementIndex[i];
+                    _targetSettlementPicker.AddItem($"Settlement {settlement + 1} · {frame.SettlementPopulation[i]} people", settlement);
+                    if (settlement == priorSettlement) settlementStillAvailable = true;
+                }
+            }
+            if (!settlementStillAvailable)
+                _selectedTargetSettlement = -1;
+            SelectItemId(_targetSettlementPicker, _selectedTargetSettlement < 0 ? AutomaticDestinationItemId : _selectedTargetSettlement);
+
+            int priorParty = _selectedRecallParty;
+            _recallPartyPicker.Clear();
+            bool partyStillAvailable = false;
+            int ownOrdinal = 0;
+            for (int i = 0; i < frame.PartyCount; i++)
+            {
+                if (frame.PartyCiv[i] != 0) continue;
+                string kind = ((PartyKind)frame.PartyKind[i]) switch
+                {
+                    PartyKind.Gift => "Gift",
+                    PartyKind.Barter => "Barter",
+                    PartyKind.Raid => "Raid",
+                    _ => "Assault",
+                };
+                _recallPartyPicker.AddItem($"{kind} · {frame.PartyMembers[i]} people · {frame.PartyProgress[i]}‰", ownOrdinal);
+                if (ownOrdinal == priorParty) partyStillAvailable = true;
+                ownOrdinal++;
+            }
+            if (!partyStillAvailable)
+                _selectedRecallParty = _recallPartyPicker.ItemCount > 0 ? _recallPartyPicker.GetItemId(0) : -1;
+            SelectItemId(_recallPartyPicker, _selectedRecallParty);
+        }
+        finally
+        {
+            _updatingPoliticsOptions = false;
+        }
+        UpdatePoliticsButtons(frame);
+    }
+
+    private static void SelectItemId(OptionButton picker, int id)
+    {
+        picker.Select(-1);
+        for (int i = 0; i < picker.ItemCount; i++)
+            if (picker.GetItemId(i) == id) { picker.Select(i); return; }
+    }
+
+    private void UpdatePoliticsButtons(MatchFrame frame)
+    {
+        if (_giftButton is null || _barterButton is null || _warButton is null || _peaceButton is null ||
+            _allianceButton is null || _raidButton is null || _assaultButton is null || _recallButton is null) return;
+        int civ = _selectedPoliticsCiv;
+        bool validCiv = frame.ViewerCiv == 0 && civ > 0 && civ < frame.CivCount;
+        CivViewFlags relation = validCiv ? (CivViewFlags)frame.CivFlags[civ] : CivViewFlags.None;
+        bool contacted = (relation & CivViewFlags.Contacted) != 0;
+        bool atWar = (relation & CivViewFlags.AtWar) != 0;
+        bool allied = (relation & CivViewFlags.Allied) != 0;
+        bool inTruce = (relation & CivViewFlags.InTruce) != 0;
+        bool hasTrd01 = HasProject(frame, _trd01);
+        bool hasTrd02 = HasProject(frame, _trd02);
+        bool hasWar02 = HasProject(frame, _war02);
+        bool hasDip03 = HasProject(frame, _dip03);
+        bool ownBarterInFlight = false;
+        for (int i = 0; i < frame.PartyCount; i++)
+            if (frame.PartyCiv[i] == 0 && frame.PartyTargetCiv[i] == civ && frame.PartyKind[i] == (byte)PartyKind.Barter)
+                ownBarterInFlight = true;
+        bool targetValid = TryGetTargetSettlement(frame, civ, out _);
+        bool destinationValid = _selectedTargetSettlement < 0 || targetValid;
+        string destinationHint = destinationValid ? "" : "Choose a visible settlement of this civilization.";
+
+        SetOrderButton(_giftButton, validCiv && contacted && !atWar && hasTrd01 && destinationValid,
+            !hasTrd01 ? "Requires TRD-01." : !contacted ? "Requires first contact." : atWar ? "Unavailable during war." :
+            !destinationValid ? destinationHint : "Send a food gift to this civilization.");
+        SetOrderButton(_barterButton, validCiv && contacted && !atWar && hasTrd02 && frame.CivRelations[civ] > 0 && !ownBarterInFlight && destinationValid,
+            !hasTrd02 ? "Requires TRD-02 for your civilization." : !contacted ? "Requires first contact." : atWar ? "Unavailable during war." :
+            frame.CivRelations[civ] <= 0 ? "Requires positive relations." : ownBarterInFlight ? "A barter trip is already underway." :
+            !destinationValid ? destinationHint : "Trade with this civilization.");
+        SetOrderButton(_warButton, validCiv && contacted && !atWar && !allied,
+            !contacted ? "Requires first contact." : atWar ? "Already at war." : allied ? "End the alliance before declaring war." : "Declare war; breaking a truce harms reputation.");
+        bool occupationHeld = false;
+        for (int i = 0; i < frame.OccupationCount; i++)
+        {
+            for (int s = 0; s < frame.SettlementCount; s++)
+                if (frame.SettlementIndex[s] == frame.OccupationSettlement[i] &&
+                    (frame.OccupationCiv[i] == 0 && frame.SettlementCiv[s] == civ ||
+                     frame.OccupationCiv[i] == civ && frame.SettlementCiv[s] == 0))
+                    occupationHeld = true;
+        }
+        SetOrderButton(_peaceButton, validCiv && atWar && !occupationHeld,
+            !atWar ? "You are not at war with this civilization." : occupationHeld ? "Peace is unavailable while you occupy one of its settlements." : "Make peace.");
+        bool relationEnough = validCiv && frame.CivRelations[civ] > 40;
+        SetOrderButton(_allianceButton, validCiv && contacted && !atWar && !allied && relationEnough && hasDip03,
+            !hasDip03 ? "Requires DIP-03 for your civilization and the other side." : !contacted ? "Requires first contact." :
+            atWar ? "Unavailable during war." : allied ? "Already allied." : !relationEnough ? "Requires relations above 40." : "Form an alliance.");
+
+        SetOrderButton(_raidButton, targetValid && contacted && hasWar02 && !allied && !inTruce,
+            !hasWar02 ? "Requires WAR-02." : !contacted ? "Requires first contact." : allied ? "Cannot raid an ally." :
+            inTruce ? "Unavailable during a truce." : !targetValid ? "Choose a visible settlement of this civilization." : "Launch a raid against the selected settlement.");
+        SetOrderButton(_assaultButton, targetValid && atWar,
+            !atWar ? "Declare war before assaulting." : !targetValid ? "Choose a visible settlement of the civilization you are at war with." : "Assault the selected settlement.");
+        bool recallValid = frame.ViewerCiv == 0 && _selectedRecallParty >= 0 && _selectedRecallParty < CountOwnParties(frame);
+        SetOrderButton(_recallButton, recallValid,
+            recallValid ? "Recall this party; surviving members return home next frame." : "You have no parties on the road.");
+        if (_politicsCivPicker is not null) _politicsCivPicker.Disabled = _politicsCivPicker.ItemCount == 0;
+        if (_targetSettlementPicker is not null)
+            _targetSettlementPicker.Disabled = _selectedPoliticsCiv < 0 || _targetSettlementPicker.ItemCount == 0;
+        if (_recallPartyPicker is not null) _recallPartyPicker.Disabled = _recallPartyPicker.ItemCount == 0;
+    }
+
+    private bool TryGetTargetSettlement(MatchFrame frame, int civ, out int settlement)
+    {
+        settlement = _selectedTargetSettlement;
+        if (civ <= 0 || civ >= frame.CivCount || settlement < 0) return false;
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            if (frame.SettlementIndex[i] != settlement || frame.SettlementCiv[i] != civ) continue;
+            SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[i];
+            return (flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) == 0;
+        }
+        return false;
+    }
+
+    private static int CountOwnParties(MatchFrame frame)
+    {
+        int count = 0;
+        for (int i = 0; i < frame.PartyCount; i++) if (frame.PartyCiv[i] == 0) count++;
+        return count;
+    }
+
+    private static bool HasProject(MatchFrame frame, int project)
+    {
+        if (project < 0 || project >= frame.FocusProjectCount) return false;
+        ProjectState state = (ProjectState)frame.FocusProjectState[project];
+        return state is ProjectState.Completed or ProjectState.Dormant;
+    }
+
+    private static void SetOrderButton(Button button, bool enabled, string tooltip)
+    {
+        button.Disabled = !enabled;
+        button.TooltipText = tooltip;
+    }
+
+    private void QueueDiplomacyOrder(Func<long, int, int, Command> create)
+    {
+        if (_session is null || _selectedPoliticsCiv <= 0) return;
+        _session.Queue(create(_session.Tick, 0, _selectedPoliticsCiv));
+    }
+
+    private void QueueGift()
+    {
+        if (_session is null || _selectedPoliticsCiv <= 0) return;
+        _session.Queue(PlayerCommands.SendGift(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
+    }
+
+    private void QueueBarter()
+    {
+        if (_session is null || _selectedPoliticsCiv <= 0) return;
+        _session.Queue(PlayerCommands.SendBarter(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
+    }
+
+    private void QueueRaid()
+    {
+        if (_session is null || _selectedTargetSettlement < 0) return;
+        _session.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _selectedTargetSettlement, 4));
+    }
+
+    private void QueueAssault()
+    {
+        if (_session is null || _selectedTargetSettlement < 0) return;
+        _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, _selectedTargetSettlement));
+    }
+
+    private void QueueRecall()
+    {
+        if (_session is null || _selectedRecallParty < 0) return;
+        _session.Queue(PlayerCommands.RecallParty(_session.Tick, 0, _selectedRecallParty));
     }
 
     private void ApplyNewFrame(MatchFrame frame)

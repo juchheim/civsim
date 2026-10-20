@@ -214,11 +214,12 @@ func tile_at(p: Vector2) -> int:
 		for xx in range(cx - 1, cx + 2):
 			if xx < 0 or xx >= width:
 				continue
-			var t := yy * width + xx
-			var d := tile_center(t).distance_squared_to(p)
+			var dx := xx + 0.5 + off - p.x
+			var dz := (yy + 0.5) * S - p.y
+			var d := dx * dx + dz * dz
 			if d < bd:
 				bd = d
-				best = t
+				best = yy * width + xx
 	return best
 
 func height_at(p: Vector2) -> float:

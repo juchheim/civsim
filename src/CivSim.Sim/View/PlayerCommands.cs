@@ -25,9 +25,13 @@ public static class PlayerCommands
     public static Command PlaceBeacon(long tick, int civ, int tile, int width) => new(tick, (byte)civ, CommandKind.PlaceBeacon, tile % width, tile / width, 0);
     public static Command RemoveBeacon(long tick, int civ, int beaconIndex) => new(tick, (byte)civ, CommandKind.RemoveBeacon, beaconIndex, 0, 0);
 
-    // ---- politics orders (PoliticsSystem.Step, CommandKind 10 to 16) ----
-    public static Command SendGift(long tick, int civ, int toCiv) => new(tick, (byte)civ, CommandKind.SendGift, toCiv, 0, 0);
-    public static Command SendBarter(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.SendBarter, withCiv, 0, 0);
+    // ---- politics orders (PoliticsSystem.Step, CommandKind 10 to 17) ----
+    /// <summary>Target settlement is optional; -1 keeps the rules' closest-pair destination.</summary>
+    public static Command SendGift(long tick, int civ, int toCiv, int targetSettlement = -1)
+        => new(tick, (byte)civ, CommandKind.SendGift, toCiv, targetSettlement + 1, 0);
+    /// <summary>Target settlement is optional; -1 keeps the rules' closest-pair destination.</summary>
+    public static Command SendBarter(long tick, int civ, int withCiv, int targetSettlement = -1)
+        => new(tick, (byte)civ, CommandKind.SendBarter, withCiv, targetSettlement + 1, 0);
     public static Command LaunchRaid(long tick, int civ, int targetSettlement, int partySize) => new(tick, (byte)civ, CommandKind.LaunchRaid, targetSettlement, partySize, 0);
     public static Command LaunchAssault(long tick, int civ, int targetSettlement) => new(tick, (byte)civ, CommandKind.LaunchAssault, targetSettlement, 0, 0);
     public static Command DeclareWar(long tick, int civ, int onCiv) => new(tick, (byte)civ, CommandKind.DeclareWar, onCiv, 0, 0);

@@ -47,12 +47,22 @@ public sealed partial class PoliticsSystem
 
     // ---- orders ---------------------------------------------------------------------------
 
-    public bool OrderGift(int c, int o) => c != o && TryGift(c, o);
-    public bool OrderBarter(int c, int o) => c != o && TryBarter(c, o);
+    public bool OrderGift(int c, int o, int targetSettlement = -1) => c != o && TryGift(c, o, targetSettlement);
+    public bool OrderBarter(int c, int o, int targetSettlement = -1) => c != o && TryBarter(c, o, targetSettlement);
 
     private void Refused(Command command, int target, OrderRefusalReason reason)
         => _events.Add(new PoliticsEvent(_tick, command.Civ, PoliticsEventKind.OrderRefused, target,
             (int)command.Kind, (int)reason));
+
+    /// <summary>Decode optional destination settlement (B = index + 1; zero keeps the automatic closest-pair choice).</summary>
+    private bool TryDecodeOrderDestination(int encoded, int targetCiv, out int settlement)
+    {
+        settlement = -1;
+        if (encoded == 0) return true;
+        if (encoded < 0 || encoded > _sCount) return false;
+        settlement = encoded - 1;
+        return _sCiv[settlement] == targetCiv && !_free[settlement] && _sPop[settlement] > 0;
+    }
 
     /// <summary>Cancel the zero-based own-party ordinal. Its surviving members return to the origin settlement.</summary>
     public bool OrderRecall(int civ, int ownPartyIndex)

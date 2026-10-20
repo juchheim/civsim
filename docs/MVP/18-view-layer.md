@@ -114,8 +114,8 @@ The front end sends `Command(Tick, Civ, Kind, A, B, C)` to the `SimRunner` (help
 
 | # | Kind | A, B |
 |---|------|------|
-| 10 | `SendGift` | recipient civ |
-| 11 | `SendBarter` | partner civ |
+| 10 | `SendGift` | recipient civ; B = optional destination settlement index + 1 (0 = closest pair) |
+| 11 | `SendBarter` | partner civ; B = optional destination settlement index + 1 (0 = closest pair) |
 | 12 | `LaunchRaid` | target settlement, party size (≥ 4) |
 | 13 | `LaunchAssault` | target settlement |
 | 14 | `DeclareWar` | civ |
@@ -127,11 +127,7 @@ A refused order does nothing (out-of-range arguments too; negative `RemoveBeacon
 
 The sim now reports failed politics commands as `OrderRefused` events. `A` is the command kind and `B` is an `OrderRefusalReason` code (`InvalidTarget`, `RequirementsNotMet`, `InvalidState`); the front end can localize the stable `alert.order.refused` key and explain the code. A valid recall removes the expedition so its surviving members return to their origin in the next frame. `RecallParty.A` indexes only parties owned by the issuing civilization, in their expedition order; hidden rival parties cannot affect the index. `PoliticsSystem.SetExternalMind` is a match setup setting, applied before tick 0 and intentionally outside the mutable checksum and simulation snapshot. A caller resuming a match must reapply that control setting after loading the snapshot.
 
-**Remaining player-facing gaps (M7b/M7c):**
-1. Grey out orders the frame says are impossible (`CivFlags` contacted/at war/in truce and `FocusProjectState` for WAR-02, TRD-01/02 and DIP-03). The initial M7a renderer surfaces refused-order events in its status panel.
-2. Add controls for the full politics order set, including recall; the sim builders and command kind are ready, while M7a currently exposes Beacon placement.
-3. Explicit gift/barter destination remains deferred (the rules pick the closest pair).
-4. Speed and pause are front-end sim-loop controls, not simulation commands: that loop decides how many ticks to run ([15 §5.5](15-architecture-decision.md#55-threading-model)). They do not affect deterministic match state or replay numbering.
+**Player controls now in M7a:** the D panel offers gifts, barter, war, peace, alliance, raids, assaults and recall. It greys out orders when the viewer frame shows a missing prerequisite, unavailable relation, invalid settlement or missing party; the simulation remains authoritative for rules the filtered frame cannot expose, such as the other civilization's private project state. Refused orders still appear in the status panel. Gift and barter can target a visible settlement; when the destination is left automatic, the rules select the closest settlement pair. Pause and speed are front-end sim-loop controls, not simulation commands: the loop decides how many ticks to run ([15 §5.5](15-architecture-decision.md#55-threading-model)); they do not affect deterministic match state or replay numbering.
 
 ## 8. Determinism and saves
 
@@ -193,6 +189,6 @@ for (int i = 0; i < cur.FigureCount; i++)
 }
 ```
 
-**Implemented in the initial Godot project:** static terraced hex terrain and water, fog/territory state texture and borders, seasonal tint and lighting, instanced low-poly figures/herds/structures, Z0–Z3 orthographic zoom, pan/orbit, pause/speed controls, right-click Beacon command, a Resources marker toggle gated by `KnownDeposits`, and refused-order feedback. `IGameLook` isolates the palette, shaders, materials and primitive models behind the `civsim/look` project setting (`low_poly_3d` today); painted and pixel implementations can be swapped in there without changing the renderer-facing frame contract. The sim contract is renderer-neutral.
+**Implemented in the initial Godot project:** static terraced hex terrain and water, fog/territory state texture and borders, seasonal tint and lighting, instanced low-poly figures/herds/structures, Z0–Z3 orthographic zoom, pan/orbit, pause/speed controls, right-click Beacon command, a Resources marker toggle gated by `KnownDeposits`, refused-order feedback, and a D panel for the complete politics order set with frame-based availability, optional gift/barter destination and recall. `IGameLook` isolates the palette, shaders, materials and primitive models behind the `civsim/look` project setting (`low_poly_3d` today); painted and pixel implementations can be swapped in there without changing the renderer-facing frame contract. The sim contract is renderer-neutral.
 
-**Still to do on the Godot side (M7a–M7c):** verify 60 fps with a 2,400-figure frame at Z0–Z2 on a mid-range Mac; add character art and movement animations; finish zoom-specific representations (crew glyphs at Z2 and no figures at Z3); add the Chronicle, full order controls, focus bar and research web, and Moments. The initial window currently reports live FPS and has been smoke-captured on Apple M4 at 120 fps with the 12-figure opening frame; that does not close the 2,400-figure gate.
+**Still to do on the Godot side (M7a–M7c):** verify 60 fps with a 2,400-figure frame at Z0–Z2 on a mid-range Mac; add character art and movement animations; finish zoom-specific representations (crew glyphs at Z2 and no figures at Z3); add the Chronicle, focus bar and research web, and Moments. The initial window currently reports live FPS and has been smoke-captured on Apple M4 at 120 fps with the 12-figure opening frame; that does not close the 2,400-figure gate.

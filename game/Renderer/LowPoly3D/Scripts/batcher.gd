@@ -52,6 +52,7 @@ func update_existing(parent: Node3D, kit: M7MeshKit, material_for: Callable, pre
 			node.name = String(key).replace("@", "_")
 			node.multimesh = mm
 			node.material_override = material_for.call(g.mesh)
+			node.set_meta("civsim_mesh_name", String(g.mesh))
 			_configure_node(node, String(g.mesh))
 			parent.add_child(node)
 		mm.instance_count = int(g.count)
@@ -75,7 +76,7 @@ func update_existing(parent: Node3D, kit: M7MeshKit, material_for: Callable, pre
 	return active
 
 func _configure_node(node: MultiMeshInstance3D, mesh_name: String) -> void:
-	if mesh_name.begins_with("tuft") or mesh_name.begins_with("tallgrass") or mesh_name == "reeds" \
+	if mesh_name == "person_far" or mesh_name.begins_with("tuft") or mesh_name.begins_with("tallgrass") or mesh_name == "reeds" \
 		or mesh_name == "shadow_disc" or mesh_name == "field" or mesh_name == "flame" or mesh_name.begins_with("banner"):
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if mesh_name.begins_with("tuft") or mesh_name.begins_with("tallgrass") or mesh_name == "reeds" \

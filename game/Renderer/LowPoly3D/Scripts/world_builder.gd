@@ -38,6 +38,9 @@ var river_node: MeshInstance3D
 var structure_signature := -1
 var border_signature := -1
 var river_visibility_signature := -1
+var regional_lod := false
+var figure_tints := PackedColorArray()
+var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
@@ -49,6 +52,11 @@ func _init(world: M7WorldData, mesh_kit: M7MeshKit, materials: Dictionary) -> vo
 	w = world
 	kit = mesh_kit
 	mats = materials
+	for civ in 8:
+		var colour := M7WorldData.civ_color(civ).srgb_to_linear()
+		figure_tints.append(Color(colour.r, colour.g, colour.b, 1.0))
+	var freefolk := Color("#9a9a9a").srgb_to_linear()
+	freefolk_tint = Color(freefolk.r, freefolk.g, freefolk.b, 1.0)
 
 func build() -> Node3D:
 	var t0 := Time.get_ticks_msec()
@@ -191,6 +199,29 @@ func update_frame() -> bool:
 			" actor_groups=", actor_multimeshes.size(),
 			" structure_changed=", structures_changed)
 	return structures_changed
+
+## Swap vegetation meshes and use compact actor silhouettes at regional zoom.
+## Mesh swaps retain the existing MultiMesh buffers and draw-call grouping.
+func set_regional_lod(enabled: bool) -> void:
+	if regional_lod == enabled or vegetation_props == null:
+		return
+	regional_lod = enabled
+	for child in vegetation_props.get_children():
+		if not child is MultiMeshInstance3D:
+			continue
+		var instance := child as MultiMeshInstance3D
+		var mesh_name := String(instance.get_meta("civsim_mesh_name", ""))
+		var far_mesh := kit.get_far_tree_mesh(mesh_name)
+		if far_mesh != null:
+			instance.multimesh.mesh = far_mesh if enabled else kit.get_mesh(mesh_name)
+			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if enabled \
+				else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	props = M7Batcher.new()
+	_figures()
+	_herds()
+	_beacons()
+	actor_multimeshes = props.update_existing(actor_props, kit, _material_for, actor_multimeshes)
+	props = M7Batcher.new()
 
 func _build_props_node(node_name: String, batcher: M7Batcher) -> Node3D:
 	var node := Node3D.new()
@@ -764,6 +795,12 @@ func _figures() -> void:
 		var home := w.figures[fi + 7]
 		var p := w.map_to_world2(float(mx), float(my))
 		var seed := M7WorldData.hash01(mx, my, n)
+		var cc: Color = freefolk_tint if (fl & 1024) else figure_tints[civ % figure_tints.size()]
+		if regional_lod:
+			var y := w.height_at(p)
+			props.add("person_far", _xf(p, y, 0.0, 1.0), Color(cc.r, cc.g, cc.b, seed))
+			n += 1
+			continue
 		var face := seed * TAU
 		# people at home gather around the hearth (the sim keeps them within ~0.3 tiles of the centre)
 		if home >= 0 and home < hearths.size():
@@ -795,7 +832,6 @@ func _figures() -> void:
 			if fl & 256:
 				mesh = "person_spear"
 		var y := maxf(w.height_at(p), 0.0)
-		var cc := M7MeshBuilder.lin(M7WorldData.civ_color(civ) if not (fl & 1024) else Color("#9a9a9a"), 0.5)
 		props.add(mesh, _xf(p, y, face, 1.0), Color(cc.r, cc.g, cc.b, seed))
 		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 1.0), Color(1, 1, 1, seed))
 		n += 1

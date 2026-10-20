@@ -267,13 +267,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     break;
                 // A human player's politics orders: the AI's Order* rules, checked here (docs/MVP/18 §7).
                 case CommandKind.SendGift:
-                    if (command.A < 0 || command.A >= _civs || !OrderGift(civ, command.A))
-                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
+                {
+                    bool invalidCiv = command.A < 0 || command.A >= _civs;
+                    int destination = -1;
+                    bool validDestination = !invalidCiv && TryDecodeOrderDestination(command.B, command.A, out destination);
+                    if (invalidCiv || !validDestination || !OrderGift(civ, command.A, destination))
+                        Refused(command, command.A, invalidCiv || !validDestination ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
+                }
                 case CommandKind.SendBarter:
-                    if (command.A < 0 || command.A >= _civs || !OrderBarter(civ, command.A))
-                        Refused(command, command.A, command.A < 0 || command.A >= _civs ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
+                {
+                    bool invalidCiv = command.A < 0 || command.A >= _civs;
+                    int destination = -1;
+                    bool validDestination = !invalidCiv && TryDecodeOrderDestination(command.B, command.A, out destination);
+                    if (invalidCiv || !validDestination || !OrderBarter(civ, command.A, destination))
+                        Refused(command, command.A, invalidCiv || !validDestination ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
+                }
                 case CommandKind.LaunchRaid:
                     if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderRaid(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);

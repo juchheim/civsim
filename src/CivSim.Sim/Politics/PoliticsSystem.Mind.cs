@@ -99,8 +99,22 @@ public sealed partial class PoliticsSystem
         return best >= 0 ? best : fullest;
     }
 
-    private (int Origin, int Target) ClosestPair(int civ, int other)
+    private (int Origin, int Target) ClosestPair(int civ, int other, int targetSettlement = -1)
     {
+        if (targetSettlement >= 0)
+        {
+            if ((uint)targetSettlement >= (uint)_sCount || _sCiv[targetSettlement] != other || _free[targetSettlement] || _sPop[targetSettlement] <= 0)
+                return (-1, -1);
+            int origin = -1, distance = int.MaxValue;
+            for (int s = 0; s < _sCount; s++)
+            {
+                if (_sCiv[s] != civ || _free[s]) continue;
+                int d = HexGrid.Distance(_sTile[s], _sTile[targetSettlement], _width);
+                if (d < distance) { distance = d; origin = s; }
+            }
+            return (origin, targetSettlement);
+        }
+
         int bestA = -1, bestB = -1, best = int.MaxValue;
         for (int s = 0; s < _sCount; s++)
         {
@@ -127,10 +141,10 @@ public sealed partial class PoliticsSystem
     }
 
     /// <summary>Sends a gift party if the hard rules allow (TRD-01, contact, no war, food to spare); desirability is the caller's.</summary>
-    private bool TryGift(int c, int o)
+    private bool TryGift(int c, int o, int targetSettlement = -1)
     {
         if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _season - _dip.LastGift(c, o) < 2) return false;
-        (int origin, int target) = ClosestPair(c, o);
+        (int origin, int target) = ClosestPair(c, o, targetSettlement);
         if (origin < 0) return false;
         int travel = Walk(_sTile[origin], _sTile[target]);
         if (travel == int.MaxValue) return false;
@@ -155,13 +169,13 @@ public sealed partial class PoliticsSystem
     }
 
     /// <summary>Sends a barter trip if the hard rules allow (TRD-02 on both sides, Peaceful, none in flight).</summary>
-    private bool TryBarter(int a, int b)
+    private bool TryBarter(int a, int b, int targetSettlement = -1)
     {
         if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02) || _dip.Relations(a, b) <= 0 ||
             !_dip.Contacted(a, b) || _dip.AtWar(a, b) || _season - _dip.LastBarter(a, b) < 2) return false;
         foreach (Expedition e in _expeditions)
             if (e.Kind == ExpeditionKind.Barter && (e.Civ == a && e.TargetCiv == b || e.Civ == b && e.TargetCiv == a)) return false;
-        (int origin, int target) = ClosestPair(a, b);
+        (int origin, int target) = ClosestPair(a, b, targetSettlement);
         if (origin < 0) return false;
         int travel = Walk(_sTile[origin], _sTile[target]);
         if (travel == int.MaxValue) return false;

@@ -23,6 +23,7 @@ var last_season := -1
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
+var regional_render_scale_active := false
 
 func setup_frame(frame_data: Dictionary) -> void:
 	world = M7WorldData.new()
@@ -71,6 +72,14 @@ func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> v
 		return
 	camera_focus = target
 	camera_distance = distance
+	var regional := distance > 38.0
+	if builder != null:
+		builder.set_regional_lod(regional)
+	if regional != regional_render_scale_active:
+		regional_render_scale_active = regional
+		var viewport := get_viewport()
+		viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
+		viewport.scaling_3d_scale = 0.75 if regional else 1.0
 	var off := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * distance
 	camera.position = target + off
 	camera.look_at(target, Vector3.UP)
@@ -275,7 +284,7 @@ func _apply_season(season: int) -> void:
 
 func _set_villages() -> void:
 	var values := PackedVector4Array()
-	var limit := 8 if camera_distance < 10.0 else (12 if camera_distance < 24.0 else 16)
+	var limit := 8 if camera_distance < 10.0 else (12 if camera_distance < 24.0 else (6 if camera_distance > 38.0 else 16))
 	var nearest: Array = builder.villages.duplicate()
 	nearest.sort_custom(func(a: Vector3, b: Vector3) -> bool:
 		return Vector2(a.x - camera_focus.x, a.y - camera_focus.z).length_squared() < \

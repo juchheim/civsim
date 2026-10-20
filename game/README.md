@@ -18,7 +18,12 @@ The window defaults to civilization 0 and seed `20261019`. Use the mouse wheel t
 zoom through Z0–Z3, drag to orbit, WASD/arrows to pan, Q/E to rotate, Space to pause,
 and `[` / `]` to change speed. Press F to refocus the capital, R to show deposits
 the viewer has discovered, and right-click a tile to place a Beacon through the
-normal command queue. A refused order appears in the status panel. If Godot cannot
+normal command queue. Press D to open the politics panel: choose a known civilization
+and, for military orders, one of its visible settlements. The panel offers gifts,
+barter, war, peace, alliance, raids, assaults and recall for parties on the road;
+orders that the current frame shows as unavailable are disabled. Gift and barter
+can use a selected visible destination or choose the closest settlement pair. A
+refused order appears in the status panel. If Godot cannot
 find the .NET runtime on macOS, set `DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec`.
 Build the C# project with `dotnet build game/CivSim.Game.csproj -c Release`. A
 screenshot can be captured after startup with:
@@ -55,8 +60,20 @@ live under `Renderer/LowPoly3D/`. The renderer script path is selected by
 `Camera3D`. The view receives only viewer-filtered `MatchFrame` data, so painted
 and pixel renderers can use the same sim boundary later.
 
+Regional zoom (Z2) swaps trees and people to simpler silhouettes, omits tree
+shadows and limits trampled-earth washes to the nearest six settlements. It also
+renders the 3D buffer at 75% scale with FSR upscaling; the HUD remains at native
+resolution. Close zooms retain the detailed meshes and full-resolution rendering.
+
 Latest local M7a gate on an Apple M4, Godot 4.7.2, 1600×900, 2-second warm-up and
-5-second samples: Z0 60.2 fps average / 59.1 minimum one-second window, Z1 65.2 /
-61.7, Z2 45.3 / 42.9. Each run had 2,731 figures, was explicitly unpaused at
-1×, and advanced 80–90 simulation ticks. Z2 remains below the 60 fps target; its
-sample reported 2.91 million rendered primitives and 441 draw calls per frame.
+8-second samples:
+
+| Zoom | Average FPS | Minimum 1-second FPS | Figures | Tick advance | Primitives | Draw calls |
+|------|------------:|--------------------:|--------:|-------------:|-----------:|-----------:|
+| Z0 | 60.5 | 59.9 | 2,731 | 110 | 1.93M | 226 |
+| Z1 | 60.0 | 59.9 | 2,731 | 110 | 1.58M | 209 |
+| Z2 | 60.4 | 58.4 | 2,731 | 110 | 1.82M | 299 |
+
+All samples ran the simulation unpaused at 1×. Average FPS clears 60 at Z0–Z2;
+the minimum one-second window dipped slightly below 60 at each zoom, so repeat the
+gate on the target Mac when making later renderer changes.

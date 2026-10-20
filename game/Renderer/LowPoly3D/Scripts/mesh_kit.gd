@@ -35,6 +35,7 @@ const ROCK_HI := Color("#a39c90")
 const SNOW := Color("#eef3f7")
 
 var meshes := {}
+var far_tree_meshes := {}
 
 func _init() -> void:
 	_trees()
@@ -98,6 +99,10 @@ func _trees() -> void:
 		b.blob(Vector3(0.06, 0.16, 0.03), Vector3(0.07, 0.05, 0.07), 6, 3, JUNGLE.lightened(0.08), 0.18, JUNGLE.darkened(0.3))
 		b.blob(Vector3(-0.05, 0.17, -0.04), Vector3(0.065, 0.05, 0.065), 6, 3, JUNGLE.lightened(0.04), 0.18, JUNGLE.darkened(0.3))
 		meshes["jungle%d" % k] = b.commit()
+	for kind in ["conifer", "broadleaf", "acacia", "jungle"]:
+		var variant_count := 2 if kind == "acacia" or kind == "jungle" else 3
+		for variant in variant_count:
+			far_tree_meshes["%s%d" % [kind, variant]] = _make_far_tree(kind, variant)
 	# bushes
 	var bb := _b(91)
 	bb.tag = M7MeshBuilder.TAG_FOLIAGE
@@ -118,6 +123,45 @@ func _trees() -> void:
 		var a := TAU * i / 5.0 + 0.3
 		ob.blob(Vector3(cos(a) * 0.038, 0.07 + 0.015 * sin(a * 3.0), sin(a) * 0.038), Vector3(0.008, 0.008, 0.008), 4, 2, Color("#c0392b"))
 	meshes["orchard_tree"] = ob.commit()
+	far_tree_meshes["orchard_tree"] = _make_far_tree("orchard", 0)
+
+func get_far_tree_mesh(name: String) -> ArrayMesh:
+	return far_tree_meshes.get(name)
+
+func _make_far_tree(kind: String, variant: int) -> ArrayMesh:
+	# The far camera covers many more trees at once. Keep their silhouettes and colours,
+	# but use a single canopy form so the 80k vegetation instances stay inexpensive.
+	var b := _b(811 + variant * 17 + kind.length() * 31)
+	match kind:
+		"conifer":
+			b.prism(Vector3.ZERO, 0.013, 0.008, 0.065, 4, BARK, BARK)
+			b.tag = M7MeshBuilder.TAG_EVERGREEN
+			b.prism(Vector3(0, 0.035, 0), 0.105 + variant * 0.006, 0.0, 0.18 + variant * 0.012,
+				5, CONIFER.lerp(CONIFER_LIGHT, variant * 0.12), CONIFER_LIGHT, 0.15, 0.06)
+		"broadleaf":
+			b.prism(Vector3.ZERO, 0.015, 0.01, 0.10, 4, BARK, BARK)
+			b.tag = M7MeshBuilder.TAG_FOLIAGE
+			b.blob(Vector3(0, 0.15, 0), Vector3(0.09 + variant * 0.008, 0.075, 0.09),
+				6, 2, LEAF, 0.08, LEAF_DARK)
+		"acacia":
+			var top := Vector3(0.0, 0.13, 0.0)
+			b.pole(Vector3.ZERO, top, 0.011, BARK)
+			b.pole(top, top + Vector3(0.05, 0.04, 0.0), 0.007, BARK)
+			b.pole(top, top + Vector3(-0.045, 0.035, 0.02), 0.007, BARK)
+			b.tag = M7MeshBuilder.TAG_FOLIAGE
+			b.blob(top + Vector3(0.0, 0.05, 0.0), Vector3(0.13 + variant * 0.008, 0.03, 0.105),
+				6, 2, ACACIA, 0.06, ACACIA.darkened(0.25))
+		"jungle":
+			b.prism(Vector3.ZERO, 0.02, 0.013, 0.17, 4, BARK, BARK)
+			b.tag = M7MeshBuilder.TAG_FOLIAGE
+			b.blob(Vector3(0, 0.20, 0), Vector3(0.115 + variant * 0.008, 0.075, 0.11),
+				6, 2, JUNGLE, 0.12, JUNGLE.darkened(0.3))
+		"orchard":
+			b.prism(Vector3.ZERO, 0.009, 0.007, 0.05, 4, BARK, BARK)
+			b.tag = M7MeshBuilder.TAG_FOLIAGE
+			b.blob(Vector3(0, 0.075, 0), Vector3(0.045, 0.04, 0.045), 6, 2,
+				LEAF.lightened(0.05), 0.05, LEAF_DARK)
+	return b.commit()
 
 func _ground_cover() -> void:
 	for k in 2:
@@ -615,6 +659,14 @@ func _people() -> void:
 		var a1 := TAU * (i + 1) / 8.0
 		b.tri(Vector3(0, 0.002, 0), Vector3(cos(a0) * 0.022, 0.002, sin(a0) * 0.022), Vector3(cos(a1) * 0.022, 0.002, sin(a1) * 0.022), Color("#20180f"), Vector3(0, -1, 0))
 	meshes["shadow_disc"] = b.commit()
+	# At map scale the kit details and contact shadows are sub-pixel; keep each person
+	# visible as a civ-coloured figure with a head using only a few polygons.
+	b = _b(581)
+	b.tag = M7MeshBuilder.TAG_CIV
+	b.prism(Vector3(0, 0.004, 0), 0.016, 0.011, 0.04, 4, Color.WHITE, Color.WHITE)
+	b.tag = M7MeshBuilder.TAG_PLAIN
+	b.blob(Vector3(0, 0.051, 0), Vector3(0.01, 0.011, 0.01), 5, 2, SKIN)
+	meshes["person_far"] = b.commit()
 
 # ------------------------------------------------------------------ animals (facing +X, body in civ/species colour)
 
