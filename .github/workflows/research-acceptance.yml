@@ -1,4 +1,4 @@
-name: scheduled acceptance (C5 research timing, M5 territory and conflict)
+name: scheduled acceptance (C5 research timing, M5 territory and conflict, M6 AI)
 
 on:
   schedule:
@@ -34,3 +34,26 @@ jobs:
 
       - name: M5 gates (F1 contact timing, F3 to F5 combat, claimed land)
         run: dotnet run --project src/CivSim.Harness -c Release --no-build -- politics --pack civsim.pack --check-m5
+
+  m6:
+    name: M6 AI gates (A1-A5, A7: tournaments; A6: exploit search)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build CivSim.slnx -c Release
+
+      - name: Build the content pack
+        run: dotnet run --project src/CivSim.Cli -c Release --no-build -- build-pack --out civsim.pack
+
+      - name: Tournament gates (Warlord vs Council, openings, Rusher; Chieftain vs Warlord; archetype balance; blunders)
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- ai --pack civsim.pack --check-m6 --seeds 8
+
+      - name: Exploit search (no fixed policy may beat Warlord more than 55%)
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- ai --pack civsim.pack --exploit --generations 8 --children 12 --seeds 2
