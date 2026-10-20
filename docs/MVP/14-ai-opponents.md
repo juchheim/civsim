@@ -414,3 +414,11 @@ Deferred with the later eras: Legend vs Warlord ≥ 65% (Legend ties Warlord wit
 **Found by the fog test.** Killing people in an unseen rival settlement shifted a global figure index in the economy's material-job rotation and reshuffled other civilizations' jobs and Know-how; the rotation is now keyed on the figure id (research and politics goldens refreshed). The economy snapshot also dropped last season's death events, which the Council reads as its disease signal; they are now saved.
 
 **Known limits.** Firsts are about half of Legacy in these matches (doc 01 §7.1 expects ~15%), so results hinge on the Firsts race; conquest between Warlord-level AIs is almost absent; full AI stack adds about 4 s to a 40-minute four-AI match (over the 3 s the parts were budgeted, far inside the 20 s budget).
+
+### 18.1 Follow-up analysis: Firsts against the 15% target (2026-10-20)
+
+At minute 33 Firsts are about half of Legacy (Dominion ~800, Mastery ~220, Firsts ~950 per civilization). I checked whether that is a bug before touching the weights. Findings:
+
+- **Within E0–E2 it is consistent with the design.** Dominion is back-loaded on purpose (07b R8: 2.7% of Dominion in E0–E3 under habitable-land scoring, 24% under claimed-land scoring), so the early mix cannot show the full-game 50/30/15 split. A First is `EraBase × 0.5` (`×3` for Keystones and Wonders), which at E0–E2 is 11–37 points (33–112 for Keystones), against 1–3 for a Mastery project.
+- **It will not scale to later eras as written.** `EraBase` grows from 22 (E0) to 3,800,000 (E9) because it is an Insight cost, while Mastery is `(era + 1)` per project and Dominion is 100 points a year times land share. A First in E7 would be worth 65,000 points and one in E9 about 1.9 million, so Firsts would swamp Dominion and Mastery completely and the 50/30/15 split would be impossible. This is a scoring-scale decision for the milestone that builds E3 and later (a Legacy scale per era, for example a fixed Legacy base per era like `10 × (era + 1)²` for Firsts and Mastery scaled to match); it is not something to tune with E0–E2 data alone, and changing it now would move every gate for no gain.
+- **Decision:** leave the E0–E2 weights as they are; carry the scale problem as a risk for the later-era milestone (17 §9). The A1–A5 results are insensitive to it because every civilization sees the same scale.

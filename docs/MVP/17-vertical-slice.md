@@ -217,6 +217,7 @@ In order of what to drop first. **Never cut** the items at the bottom.
 | The AI is smart in the harness but opaque to a human | Players feel cheated or bored | The "why" log, visible cues (palisades, warpaint, gift parties), and the human playtest P9 |
 | Presentation lags behind the sim | Late discovery of UX problems | Start M7a as soon as M3's snapshots are stable; test the focus bar with real people at M7b |
 | Scope creep from E3+ | The slice never ships | Era gating hides everything past KEY-3; the cut list is the guard |
+| Firsts Legacy does not scale past E2 | In later eras a First (`EraBase × 0.5`, E9 about 1.9 million) swamps Dominion and Mastery, so the 50/30/15 split of 01 §7.1 is impossible | Needs a Legacy scale per era when E3+ is built; E0–E2 is fine ([14 §18.1](14-ai-opponents.md#181-follow-up-analysis-firsts-against-the-15-target-2026-10-20)) |
 | Art becomes the critical path | Ugly or blocked build | Placeholders first (§6); decide the art source before M7c |
 
 ## 10. Definition of done for the slice
