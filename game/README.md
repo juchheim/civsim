@@ -32,6 +32,20 @@ match to a mature omniscient frame before drawing; the HUD reports the number of
 figures in that frame. This development option defaults to minute 0 and viewer
 civilization 0. Long fast-forwards can take a while in Godot's Debug configuration.
 
+For a sustained renderer sample, build optimized managed assemblies and run one
+zoom level at a time:
+
+```bash
+dotnet build game/CivSim.Game.csproj -c Debug -p:Optimize=true
+godot-mono --path game -- --start-minute=70 --viewer=-1 --benchmark-seconds=8 --benchmark-zoom=0
+```
+
+`--benchmark-zoom` accepts 0–3 (Z0–Z3). The match continues at its normal 1×
+speed, the renderer warms up for two seconds, then prints an `M7A_PERF` line with average
+FPS, the slowest complete one-second window, and the mean and peak CPU time spent
+updating actors. Pass `--screenshot=/tmp/civsim-m7a-z0.png` to save a capture at
+the end. Run the command with zoom values 0, 1 and 2 for the M7a performance gate.
+
 The renderer loads its `IGameLook` from the `civsim/look` project setting. The
 current value, `low_poly_3d`, selects the low-poly palette, shaders, materials and
 primitive models in `Scripts/Looks/`; painted and pixel styles can be added as

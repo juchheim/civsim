@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -82,6 +83,16 @@ public partial class Game : Node3D
     private double _renderTick;
     private string? _screenshotPath;
     private float _screenshotTimer;
+    private int _benchmarkSeconds;
+    private bool _benchmarkConfigured;
+    private double _benchmarkWarmupRemaining;
+    private readonly Stopwatch _benchmarkWatch = new();
+    private readonly Stopwatch _benchmarkWindowWatch = new();
+    private int _benchmarkFrames;
+    private int _benchmarkWindowFrames;
+    private double _benchmarkActorUpdateMs;
+    private double _benchmarkMaxActorUpdateMs;
+    private double _benchmarkMinWindowFps = double.MaxValue;
     private int _lastSeason = -1;
     private bool _resourcesVisible;
     private string? _alertMessage;
@@ -127,6 +138,16 @@ public partial class Game : Node3D
             }
             FrameCapital();
             ReadCaptureArgument();
+            _benchmarkSeconds = ReadBenchmarkSeconds();
+            _benchmarkConfigured = _benchmarkSeconds > 0;
+            if (_benchmarkSeconds > 0)
+            {
+                int zoomLevel = ReadBenchmarkZoom();
+                SetZoom(zoomLevel switch { 0 => 4.2f, 1 => 12.0f, 2 => 38.0f, _ => 90.0f });
+                _benchmarkWarmupRemaining = 2.0;
+                GD.Print($"M7A benchmark ready: Z{zoomLevel}, {_current?.FigureCount ?? 0} figures, " +
+                         $"live 1x simulation, 2s warm-up + {_benchmarkSeconds}s measurement.");
+            }
         }
         catch (Exception ex)
         {
@@ -163,7 +184,10 @@ public partial class Game : Node3D
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
         if (_alertTimer > 0) _alertTimer = Math.Max(0, _alertTimer - (float)delta);
         float alpha = FrameAlpha(_renderTick);
+        long actorUpdateStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
         UpdateActors(alpha);
+        if (_benchmarkSeconds > 0)
+            RecordBenchmarkFrame((Stopwatch.GetTimestamp() - actorUpdateStarted) * 1000.0 / Stopwatch.Frequency, delta);
         _hudTime += (float)delta;
         if (_hudTime >= 0.2f)
         {
@@ -171,7 +195,7 @@ public partial class Game : Node3D
             UpdateHud();
         }
 
-        if (_screenshotPath is not null)
+        if (_screenshotPath is not null && !_benchmarkConfigured)
         {
             _screenshotTimer += (float)delta;
             if (_screenshotTimer >= 3.0f)
@@ -291,6 +315,69 @@ public partial class Game : Node3D
         foreach (string arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=", StringComparison.Ordinal))
                 _screenshotPath = Path.GetFullPath(arg.Substring("--screenshot=".Length));
+    }
+
+    private static int ReadBenchmarkSeconds()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--benchmark-seconds=", StringComparison.Ordinal) &&
+                int.TryParse(arg.Substring("--benchmark-seconds=".Length), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out int seconds))
+                return Math.Clamp(seconds, 1, 60);
+        return 0;
+    }
+
+    private static int ReadBenchmarkZoom()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--benchmark-zoom=", StringComparison.Ordinal) &&
+                int.TryParse(arg.Substring("--benchmark-zoom=".Length), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out int zoom))
+                return Math.Clamp(zoom, 0, 3);
+        return 0;
+    }
+
+    private void RecordBenchmarkFrame(double actorUpdateMs, double delta)
+    {
+        if (_benchmarkWarmupRemaining > 0)
+        {
+            _benchmarkWarmupRemaining -= delta;
+            if (_benchmarkWarmupRemaining <= 0)
+            {
+                _benchmarkWatch.Restart();
+                _benchmarkWindowWatch.Restart();
+            }
+            return;
+        }
+
+        _benchmarkFrames++;
+        _benchmarkWindowFrames++;
+        _benchmarkActorUpdateMs += actorUpdateMs;
+        _benchmarkMaxActorUpdateMs = Math.Max(_benchmarkMaxActorUpdateMs, actorUpdateMs);
+        if (_benchmarkWindowWatch.Elapsed.TotalSeconds >= 1.0)
+        {
+            _benchmarkMinWindowFps = Math.Min(_benchmarkMinWindowFps,
+                _benchmarkWindowFrames / _benchmarkWindowWatch.Elapsed.TotalSeconds);
+            _benchmarkWindowFrames = 0;
+            _benchmarkWindowWatch.Restart();
+        }
+
+        if (_benchmarkWatch.Elapsed.TotalSeconds < _benchmarkSeconds) return;
+        double elapsed = _benchmarkWatch.Elapsed.TotalSeconds;
+        double averageFps = _benchmarkFrames / elapsed;
+        double averageActorUpdateMs = _benchmarkActorUpdateMs / _benchmarkFrames;
+        int zoom = _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
+        GD.Print($"M7A_PERF zoom=Z{zoom} figures={_current?.FigureCount ?? 0} " +
+                 $"simulation=running seconds={elapsed:F2} frames={_benchmarkFrames} avg_fps={averageFps:F1} " +
+                 $"min_1s_fps={_benchmarkMinWindowFps:F1} avg_actor_update_ms={averageActorUpdateMs:F3} " +
+                 $"max_actor_update_ms={_benchmarkMaxActorUpdateMs:F3}");
+        if (_screenshotPath is not null)
+        {
+            Error result = GetViewport().GetTexture().GetImage().SavePng(_screenshotPath);
+            GD.Print($"Screenshot {result}: {_screenshotPath}");
+        }
+        _benchmarkSeconds = 0;
+        GetTree().Quit();
     }
 
     private void ShowBootError(string details = "")
