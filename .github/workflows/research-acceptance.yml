@@ -36,7 +36,7 @@ jobs:
         run: dotnet run --project src/CivSim.Harness -c Release --no-build -- politics --pack civsim.pack --check-m5
 
   m6:
-    name: M6 AI gates (A1-A5, A7: tournaments; A6: exploit search)
+    name: "M6 AI gates (A1-A5 and A7 tournaments, A6 exploit search)"
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
