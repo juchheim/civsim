@@ -1,0 +1,6 @@
+Frame time, 1600x900, vsync off, all effects on (MSAA 4x + FXAA, SSAO, soft PCF shadows, glow, DOF); about 16.7 ms is the display cap
+Machine: macOS / Apple M4 (Apple9)
+map_scale (40 tiles across)     19.02 ms ( 53 fps)  primitives  3979392  draw calls  467
+settlement_close (6 tiles)      11.91 ms ( 84 fps)  primitives  2411207  draw calls  195
+region_overview (whole map)     26.27 ms ( 38 fps)  primitives  4413664  draw calls  700
+build stats { &"trees": 14012, &"figures": 572, &"animals": 1352, &"instances": 110575, &"ms_terrain": 468, &"ms_rivers_borders": 62, &"ms_vegetation": 895, &"ms_people": 88, &"ms_multimesh": 34 }

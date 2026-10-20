@@ -18,3 +18,6 @@ Code-made flat vector (free, consistent, recolourable); CC0 packs such as Kenney
 
 ## Recommendation
 Build M7a on look **B** (it is A plus shaders, so A remains available as the low-end fallback), keep C as a switchable skin to test with players, and decide after the M9 playtest.
+
+## Decision (2026-10-20)
+Three Godot/Python prototypes now exist in [game/prototypes](../../game/prototypes/README.md): **low-poly 3D diorama**, **painted illustrated map** and **retro pixel art**, each drawing the same real match frames. **Low-poly 3D is the primary look for M7a** (best colour and contrast); all three are kept so that player tests can compare them. The earlier flat 2D sprite kit and the three 2D mocks above were rejected as too weak and remain only as the sprite manifest and the frame-dump tooling.
