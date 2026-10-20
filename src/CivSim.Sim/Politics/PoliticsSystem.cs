@@ -659,9 +659,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         bool palisade = _research.IsDone(civ, _p.Def03) && _season - SeasonOf(_research.CompletedTick(civ, _p.Def03)) >= 2;
         bool watchers = _research.IsDone(civ, _p.Def02) || _economy.DefenseStructures(settlement, lookout: true) > 0;
         bool thorn = _economy.DefenseStructures(settlement, lookout: false) > 0;
-        return new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
+        return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
             _research.IsDone(civ, _p.Com01), HillSite: false, _research.IsDone(civ, _p.War03), Night: false,
-            RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4);
+            RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4));
     }
 
     private static int SeasonOf(long tick) => checked((int)(tick / ResearchSystem.SeasonTicks)) + 1;

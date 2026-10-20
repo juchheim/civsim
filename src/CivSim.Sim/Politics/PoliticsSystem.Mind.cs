@@ -473,6 +473,8 @@ public sealed partial class PoliticsSystem
     {
         int c = e.Civ, o = e.TargetCiv;
         if (!TargetStillThere(e)) return;
+        // Peace made while the army was on the road calls it off (docs/MVP/13 §8.1).
+        if (!_dip.AtWar(c, o)) return;
         List<Fighter> attackers = AliveFighters(e, out _);
         if (attackers.Count < Captures.MinHolders) return;
         List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _);
