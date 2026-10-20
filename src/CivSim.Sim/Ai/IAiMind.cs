@@ -35,7 +35,7 @@ public sealed class AiContext
     public ResearchCatalog Catalog { get; internal set; } = null!;
     public AiLog Log { get; internal set; } = null!;
     /// <summary>A random stream for this civilization, part and season, never shared (docs/MVP/15 rule D3).</summary>
-    public Pcg32 Stream(ulong part, ulong entity = 0) => Pcg32.ForStream(MatchSeed, part ^ (ulong)Civ * 0x9E3779B97F4A7C15UL, entity, Season);
+    public Pcg32 Stream(ulong part, ulong entity = 0) => Pcg32.ForStream(MatchSeed, unchecked(part ^ (ulong)Civ * 0x9E3779B97F4A7C15UL), entity, Season);
     public void Note(string layer, string kind, int subject, int other, Numerics.Fix64 score, string reason)
         => Log.Add(new AiDecision(Tick, Season, Civ, layer, kind, subject, other, score, reason));
 }

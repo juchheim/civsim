@@ -162,6 +162,7 @@ internal static class Tournament
         public double SettlementsLostA, SettlementsLostB;
         public int MatchesWithLossA, MatchesWithLossB;
         public double LegacyA, LegacyB;
+        public int RaidsA, RaidsB;
         public int KeystoneStallsA, IdleSlotSeasonsA, MaxPlanSwitchesA;
         public int PlanDitherMatchesA;
         public double MeanKey1A = double.NaN, MeanKey1B = double.NaN;
@@ -193,7 +194,7 @@ internal static class Tournament
             foreach (int s in aSeats)
             {
                 CivOutcome c = m.Civs[s];
-                la += c.Legacy; lostA += c.SettlementsLost;
+                la += c.Legacy; lostA += c.SettlementsLost; r.RaidsA += c.RaidsLaunched;
                 r.KeystoneStallsA += c.KeystoneStalls; r.IdleSlotSeasonsA += c.IdleSlotSeasons;
                 r.MaxPlanSwitchesA = Math.Max(r.MaxPlanSwitchesA, c.PlanSwitchesInThreeYears);
                 if (c.PlanSwitchesInThreeYears > 2) r.PlanDitherMatchesA++;
@@ -202,7 +203,7 @@ internal static class Tournament
             foreach (int s in bSeats)
             {
                 CivOutcome c = m.Civs[s];
-                lb += c.Legacy; lostB += c.SettlementsLost;
+                lb += c.Legacy; lostB += c.SettlementsLost; r.RaidsB += c.RaidsLaunched;
                 if (!double.IsNaN(c.KeyMinutes[0])) { key1B += c.KeyMinutes[0]; nB++; }
             }
             r.Matches++;
