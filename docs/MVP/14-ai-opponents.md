@@ -397,11 +397,11 @@ The mean Legacy over all archetypes is 2,003, against 2,032 before (Sage's free 
 | A3 vs Rusher | loses no settlement in ≥ 80%, wins ≥ 70% | 100% clean matches, 94% wins |
 | A4 Chieftain vs Warlord | 25–40% | 31% |
 | A5 archetype balance (24 seeds, 120 free-for-alls) | no archetype > 30% | 21.9–28.1% (see §17) |
-| A6 exploit searcher | no fixed policy > 55% | best of 97 evaluations: 17% |
+| A6 exploit searcher | no fixed policy > 55% | best of 961 evaluations (40 generations × 24 children, 3 mirrored seeds): 25% on fresh seeds |
 | A7 blunders (Warlord vs Council) | keystone stalls 0, dithering 0 | 0, 0 |
 | A8 fog fairness | decisions unchanged when unseen state is perturbed | `FogFairnessTests` pass at three checkpoints |
 
-Deferred with the later eras: Legend vs Warlord ≥ 65% (Legend ties Warlord within noise at E0–E2, its extra beam width has little to find) and the Dominion-victory frequency. `civsim-harness ai --exploit` currently runs 97 evaluations (8 generations × 12 children, 2 mirrored seeds each) with a fitness of win rate plus Legacy share; the scheduled workflow runs it weekly, and the full 10,000-evaluation target is a longer offline run.
+Deferred with the later eras: Legend vs Warlord ≥ 65% (Legend ties Warlord within noise at E0–E2, its extra beam width has little to find) and the Dominion-victory frequency. `civsim-harness ai --exploit` uses a fitness of win rate plus Legacy share. The scheduled workflow runs 97 evaluations weekly; a 961-evaluation run found a research-only policy (GOV>SOC>FOD>COM, no raids) winning 25% and stopped improving after generation 12. The full 10,000-evaluation target is a longer offline run.
 
 **Spark** (`Ai/Forecast`, `Ai/Spark`). A deterministic mean-field forecast of one civilization (Insight, slots, Know-how, eras, Firsts and Mastery Legacy; fidelity against live matches: KEY-1/2/3 within 15%, median 4.5%) feeds a beam search over the next six projects, started from the Council's scores. A ready keystone always goes to Primary; no slots are held for the critical path (holding even one cost 6–10 points of A1 because Firsts decide matches). The plan is kept unless a new one wins by a margin. Events: a keystone becoming Available is promoted within a research step (Warlord and Legend, `AiSystem.AfterResearchStep`); a jump of 0.25 in the Strategist's defense or attack reading lifts plan commitment, and the urgency bonus fades over 8 seasons. Settler and Chieftain take 20% and 5% of picks from the Council prior on a deterministic stream. About 220 rollouts per Warlord decision.
 
