@@ -56,22 +56,32 @@ public class SparkPlannerTests
         // 14 §6.4: when the Strategist reads a threat, DEF and WAR projects jump in priority. Two identical matches reach the
         // same season end (the real Strategist and Spark have decided); the Spark then re-plans once with the threat reading
         // the Strategist would hand it, calm in one copy and urgent in the other.
-        int MilitaryPlanned(Sim.Numerics.Fix64 urgency, out bool reasoned)
+        (int First, int Count, bool Reasoned, string Plan) Planned(Sim.Numerics.Fix64 urgency)
         {
             MatchModel match = ForecastTestKit.Match(777, Warlord, CivControl.Council, CivControl.Council, CivControl.Council);
             new SimRunner(match).Advance(8 * ForecastTestKit.TicksPerMinute);
             AiSeat seat = match.Ai!.SeatOf(0)!;
+            long tick = match.Research.Tick;
             seat.Context.Intent.DefenseUrgency = urgency;
             seat.Spark.Decide(seat.Context);
             ResearchCatalog cat = match.Research.Catalog;
+            bool Military(int p) => cat.Projects[p].Lineage >= 0 && cat.LineageCodes[cat.Projects[p].Lineage] is "DEF" or "WAR";
             var plan = ((ResearchSpark)seat.Spark).LastPlan;
-            reasoned = match.Ai.Log.Entries.Any(e => e.Civ == 0 && e.Layer == "Spark" && e.Reason == "threat: defense first");
-            return plan.Count(p => cat.Projects[p].Lineage >= 0 && cat.LineageCodes[cat.Projects[p].Lineage] is "DEF" or "WAR");
+            int first = -1;
+            for (int i = 0; i < plan.Count && first < 0; i++) if (Military(plan[i])) first = i;
+            bool slotted = Enumerable.Range(0, CivResearch.SlotCount).Any(s => match.Research.Slot(0, s) is int q && q >= 0 && Military(q));
+            // Reasons are logged for the slots a decision changed (14 §11): a slotted defense pick must say why.
+            bool reasoned = !slotted || match.Ai.Log.Entries.Any(e => e.Civ == 0 && e.Tick >= tick && e.Layer == "Spark" && e.Reason == "threat: defense first");
+            return (first, plan.Count(Military), reasoned, string.Join(" ", plan.Select(q => cat.Projects[q].Id)));
         }
-        int calm = MilitaryPlanned(Sim.Numerics.Fix64.Zero, out _);
-        int threatened = MilitaryPlanned(Sim.Numerics.Fix64.One, out bool reasoned);
-        Assert.True(threatened > calm, $"DEF/WAR projects in the plan: threatened {threatened}, calm {calm}");
-        Assert.True(reasoned, "a defense pick logs its reason");
+        var calm = Planned(Sim.Numerics.Fix64.Zero);
+        var threatened = Planned(Sim.Numerics.Fix64.One);
+        // Urgent: a DEF/WAR project among the first three of the plan (behind at most its own missing prerequisite, which
+        // the plan researches first), more of them than when calm, and none or later when calm.
+        Assert.InRange(threatened.First, 0, 2);
+        Assert.True(threatened.Count > calm.Count, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
+        Assert.True(calm.First < 0 || calm.First > threatened.First, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
+        Assert.True(threatened.Reasoned, "a slotted defense pick logs its reason");
     }
 
     [Fact]

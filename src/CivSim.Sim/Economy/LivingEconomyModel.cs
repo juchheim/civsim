@@ -4333,6 +4333,17 @@ public sealed partial class LivingEconomyModel : ISimModel
         foreach (Fix64 hazard in _lastExpectedHazardsByCauseAndAgeBand) writer.Write(hazard.Raw);
         foreach (Fix64 hazard in _lastExpectedHazardsByExactAgeAndCause) writer.Write(hazard.Raw);
         foreach (Fix64 hazard in _lastExpectedWinterShortfallByExactAge) writer.Write(hazard.Raw);
+        // Last season's deaths, which research reads as the disease signal until the next season end: without them a
+        // resumed match's Council picks differently for the rest of the season.
+        writer.Write(_lastDeathEvents.Count);
+        foreach (EconomyDeathEvent d in _lastDeathEvents)
+        {
+            writer.Write(d.FigureId); writer.Write(d.Civilization); writer.Write(d.SettlementId); writer.Write(d.Age);
+            writer.Write(d.Female); writer.Write(d.PregnancySeasons); writer.Write((int)d.Cause);
+            writer.Write(d.TotalHazard.Raw); writer.Write(d.EndemicHazard.Raw); writer.Write(d.EpidemicHazard.Raw);
+            writer.Write(d.StarvationHazard.Raw); writer.Write(d.ExposureHazard.Raw); writer.Write(d.InjuryHazard.Raw);
+            writer.Write(d.PredatorsHazard.Raw); writer.Write(d.ViolenceHazard.Raw); writer.Write(d.SenescenceHazard.Raw);
+        }
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -4451,6 +4462,18 @@ public sealed partial class LivingEconomyModel : ISimModel
             _lastExpectedHazardsByExactAgeAndCause[i] = Fix64.FromRaw(reader.ReadInt64());
         for (int i = 0; i < _lastExpectedWinterShortfallByExactAge.Length; i++)
             _lastExpectedWinterShortfallByExactAge[i] = Fix64.FromRaw(reader.ReadInt64());
+        _lastDeathEvents.Clear();
+        int deathEvents = ReadCount(reader, 1_000_000);
+        for (int i = 0; i < deathEvents; i++)
+        {
+            long id = reader.ReadInt64(); int civ = reader.ReadInt32(), settlement = reader.ReadInt32(), age = reader.ReadInt32();
+            bool female = reader.ReadBoolean(); byte pregnancy = reader.ReadByte(); var cause = (EconomyDeathCause)reader.ReadInt32();
+            Fix64 F() => Fix64.FromRaw(reader.ReadInt64());
+            Fix64 total = F(), endemic = F(), epidemic = F(), starvation = F(), exposure = F(), injury = F(), predators = F(),
+                violence = F(), senescence = F();
+            _lastDeathEvents.Add(new EconomyDeathEvent(id, civ, settlement, age, female, pregnancy, cause, total, endemic, epidemic,
+                starvation, exposure, injury, predators, violence, senescence));
+        }
         RebuildWeirOwnership();
         ValidateSnapshotState();
     }
@@ -4665,6 +4688,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             _lastExpectedHazardsByExactAgeAndCause.Length);
         Array.Copy(source._lastExpectedWinterShortfallByExactAge, _lastExpectedWinterShortfallByExactAge,
             _lastExpectedWinterShortfallByExactAge.Length);
+        _lastDeathEvents.Clear();
+        _lastDeathEvents.AddRange(source._lastDeathEvents);
     }
 
     private static FigureState CloneFigure(FigureState source) => new()

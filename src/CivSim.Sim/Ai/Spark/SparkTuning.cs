@@ -63,7 +63,7 @@ public static class SparkTuning
     public static readonly Fix64 AttackBonus = Fix64.FromInt(30);
     public static readonly Fix64 FrontierBonus = Fix64.FromInt(8);
     /// <summary>The Strategist's readings are worth their full bonus only if answered at once, nothing after this many seasons.</summary>
-    public const int UrgencySeasons = 16;
+    public const int UrgencySeasons = 8;
     /// <summary>Option value (14 §4.1) per project that transitively needs this one (hub emphasis, 03 §4.3), in Legacy points.</summary>
     public static readonly Fix64 HubBonus = Fix64.FromRatio(1, 10);
     /// <summary>Option value of a project on the next keystone's closure: forced, so done early is never wasted (07 F8).</summary>
