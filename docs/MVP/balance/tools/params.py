@@ -285,6 +285,9 @@ CAPS = [
 ]
 
 # ---- archetype profile (multipliers and threshold adjustments) -----------------------
+# These drive the single-civilization arc model. The live sim re-fits Insight/Roles/KH for the competitive Legacy race
+# and drops the Warlord's AdultMort 1.3 (war deaths are simulated since M5); it has no Territory or Diffusion
+# multiplier. See docs/MVP/14 §17 and CivSim.Sim.Economy.ArchetypeResearch.
 ARCH_FIELDS = ["Fertility", "FoodCap", "Territory", "Insight", "Roles", "KH", "AdultMort", "Diffusion", "LeanShareAdjustment"]
 ARCHETYPES = {
     "Balanced": [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.00],

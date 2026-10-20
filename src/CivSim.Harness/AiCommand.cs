@@ -95,12 +95,40 @@ internal static class AiCommand
 
     private static int FreeForAll(ContentPack pack, string level, int seeds, int minutes)
     {
-        string[] names = { "Builder", "Grower", "Wanderer", "Warlord", "Sage" };
-        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes);
+        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes, out var civs);
         Console.WriteLine($"Free-for-all at {level}: win rate per appearance (25% is fair)");
-        for (int i = 0; i < 5; i++) Console.WriteLine($"  {names[i],-9} {wins[i]:F0}/{apps[i]} = {100.0 * wins[i] / Math.Max(1, apps[i]),5:F1}%");
+        for (int i = 0; i < 5; i++) Console.WriteLine($"  {FfaNames[i],-9} {wins[i]:F0}/{apps[i]} = {100.0 * wins[i] / Math.Max(1, apps[i]),5:F1}%");
+        PrintArchetypeMeans(civs);
         return 0;
     }
+
+    private static readonly string[] FfaNames = { "Builder", "Grower", "Wanderer", "Warlord", "Sage" };
+
+    /// <summary>Per-archetype means at the end of the match: where each style's Legacy comes from (docs/MVP/14 §17).</summary>
+    private static void PrintArchetypeMeans(List<(EconomyArchetype Archetype, CivOutcome Outcome, bool Won)> civs)
+    {
+        Console.WriteLine("  archetype   Legacy Dominion Mastery  Firsts  Settl  Projs  KEY-1  KEY-2  Raids  Capt  Lost");
+        foreach (string name in FfaNames)
+        {
+            var a = Enum.Parse<EconomyArchetype>(name);
+            double n = 0, leg = 0, dom = 0, mas = 0, fir = 0, set = 0, proj = 0, k1 = 0, k2 = 0, raids = 0, capt = 0, lost = 0;
+            int n1 = 0, n2 = 0;
+            foreach (var (arch, o, _) in civs)
+            {
+                if (arch != a) continue;
+                n++; leg += o.Legacy; dom += o.Dominion; mas += o.Mastery; fir += o.Firsts; set += o.Settlements; proj += o.Projects;
+                raids += o.RaidsLaunched; capt += o.SettlementsCaptured; lost += o.SettlementsLost;
+                if (!double.IsNaN(o.KeyMinutes[0])) { k1 += o.KeyMinutes[0]; n1++; }
+                if (!double.IsNaN(o.KeyMinutes[1])) { k2 += o.KeyMinutes[1]; n2++; }
+            }
+            if (n == 0) continue;
+            Console.WriteLine($"  {name,-9} {leg / n,8:F0} {dom / n,8:F0} {mas / n,7:F0} {fir / n,7:F0} {set / n,6:F1} {proj / n,6:F1} " +
+                $"{(n1 > 0 ? k1 / n1 : double.NaN),6:F1} {(n2 > 0 ? k2 / n2 : double.NaN),6:F1} {raids / n,6:F1} {capt / n,5:F2} {lost / n,5:F2}");
+        }
+    }
+
+    /// <summary>Free-for-all seeds of the A5 gate per --seeds (five rotations each).</summary>
+    private const int FfaSeedsPerSeed = 3;
 
     /// <summary>The M6 acceptance gates A1 to A7 that need matches (docs/MVP/17 §4.3). A8 is the unit test FogFairnessTests.</summary>
     private static int CheckM6(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype)
@@ -134,10 +162,13 @@ internal static class AiCommand
         Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", seeds, minutes, archetype);
         Gate("A4", a4.WinRateA >= 0.25 && a4.WinRateA <= 0.40, $"{a4.WinRateA * 100:F0}% over {a4.Matches} matches");
 
-        Console.WriteLine("== A5: archetype balance in four-AI free-for-alls, no archetype wins > 30%");
-        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, "warlord", Math.Max(2, seeds / 2), minutes);
-        string[] names = { "Builder", "Grower", "Wanderer", "Warlord", "Sage" };
-        for (int i = 0; i < 5; i++) Gate("A5 " + names[i], wins[i] / Math.Max(1, apps[i]) <= 0.30, $"{100.0 * wins[i] / Math.Max(1, apps[i]):F1}% ({wins[i]:F0}/{apps[i]})");
+        // Three free-for-all seeds per duel seed (24 seeds, 120 matches at --seeds 8): at 25% the binomial error of a win
+        // share is 11% over the 16 appearances of 4 seeds, so the 30% line would fail most balanced builds (14 §17).
+        int ffaSeeds = Math.Max(2, seeds * FfaSeedsPerSeed);
+        Console.WriteLine($"== A5: archetype balance in four-AI free-for-alls ({ffaSeeds} seeds), no archetype wins > 30%");
+        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, "warlord", ffaSeeds, minutes, out var civs);
+        for (int i = 0; i < 5; i++) Gate("A5 " + FfaNames[i], wins[i] / Math.Max(1, apps[i]) <= 0.30, $"{100.0 * wins[i] / Math.Max(1, apps[i]):F1}% ({wins[i]:F0}/{apps[i]})");
+        PrintArchetypeMeans(civs);
 
         Console.WriteLine("== A7: blunder detectors (Warlord vs Council)");
         Gate("A7 keystone stalls", a1.KeystoneStallsA == 0, $"{a1.KeystoneStallsA}");

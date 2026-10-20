@@ -233,16 +233,12 @@ public sealed class LivingEconomySource : IResearchSource
         };
     }
 
-    /// <summary>Archetype multipliers on Insight, specialist output and Know-how (docs/MVP/07, params.ARCHETYPES).</summary>
-    private static (Fix64 Insight, Fix64 Roles, Fix64 KnowHow) ArchetypeScales(EconomyArchetype a) => a switch
+    /// <summary>Archetype multipliers on Insight, specialist output and Know-how (docs/MVP/14 §17, <see cref="ArchetypeResearch"/>).</summary>
+    private static (Fix64 Insight, Fix64 Roles, Fix64 KnowHow) ArchetypeScales(EconomyArchetype a)
     {
-        EconomyArchetype.Grower => (Fix64.One, Fix64.FromRatio(9, 10), Fix64.FromRatio(95, 100)),
-        EconomyArchetype.Builder => (Fix64.One, Fix64.One, Fix64.FromRatio(13, 10)),
-        EconomyArchetype.Wanderer => (Fix64.FromRatio(95, 100), Fix64.FromRatio(95, 100), Fix64.FromRatio(11, 10)),
-        EconomyArchetype.Warlord => (Fix64.FromRatio(9, 10), Fix64.FromRatio(9, 10), Fix64.One),
-        EconomyArchetype.Sage => (Fix64.FromRatio(11, 10), Fix64.FromRatio(14, 10), Fix64.One),
-        _ => (Fix64.One, Fix64.One, Fix64.One),
-    };
+        ArchetypeResearch.Scales s = ArchetypeResearch.Of(a);
+        return (s.Insight, s.Roles, s.KnowHow);
+    }
 
     /// <summary>
     /// Practice that is not an economy job, per adult per season in work-seasons, once its enabling project is done

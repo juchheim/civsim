@@ -2641,12 +2641,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         return eraMultiplier * Profile(civ).Fertility;
     }
 
+    // The Warlord's adult mortality is ×1.0, not 07's ×1.3: the balance model had no war and stood war deaths in with
+    // mortality; since M5 raids and assaults kill fighters in the simulation itself (docs/MVP/14 §17).
     private ArchetypeProfile Profile(int civ) => _archetypes[civ] switch
     {
         EconomyArchetype.Grower => new ArchetypeProfile(Fix64.Parse("1.3"), Fix64.Parse("1.11"), Fix64.One, Fix64.Zero),
         EconomyArchetype.Builder => new ArchetypeProfile(Fix64.Parse("1.10"), Fix64.Parse("1.07"), Fix64.One, Fix64.Parse("-0.02")),
         EconomyArchetype.Wanderer => new ArchetypeProfile(Fix64.One, Fix64.Parse("0.95"), Fix64.Parse("1.05"), Fix64.Zero),
-        EconomyArchetype.Warlord => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.Parse("1.3"), Fix64.Zero),
+        EconomyArchetype.Warlord => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         EconomyArchetype.Sage => new ArchetypeProfile(Fix64.Parse("0.95"), Fix64.Parse("0.95"), Fix64.Parse("0.95"), Fix64.Zero),
         _ => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
     };
@@ -4522,8 +4524,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             SettlementState s = _settlements[i];
             if (s.Id != i || s.Civilization < 0 || s.Civilization >= CivilizationCount ||
-                s.SiteTile < 0 || s.SiteTile >= _world.TileCount || settlementSites[s.SiteTile] ||
-                (i < CivilizationCount && s.Civilization != i))
+                // A founding settlement may belong to another civilization: capitals can be captured (docs/MVP/13 §8.3).
+                s.SiteTile < 0 || s.SiteTile >= _world.TileCount || settlementSites[s.SiteTile])
                 throw new InvalidDataException("Snapshot contains an invalid settlement identity or reference.");
             settlementSites[s.SiteTile] = true;
             if (s.Fissions < 0 || s.BuildProgress < Fix64.Zero || s.DryingMudbrick < Fix64.Zero || s.FarmWorkThisYear < Fix64.Zero ||

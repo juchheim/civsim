@@ -227,6 +227,11 @@ internal static class Tournament
     /// not decide. Returns wins and appearances per archetype (docs/MVP/14 §10.3 archetype balance).
     /// </summary>
     public static (double[] Wins, int[] Appearances) FreeForAll(ContentPack pack, string level, int seeds, int minutes, ulong firstSeed = BaseSeed)
+        => FreeForAll(pack, level, seeds, minutes, out _, firstSeed);
+
+    /// <summary>The free-for-all, also returning every civilization's outcome with its archetype for the per-archetype report.</summary>
+    public static (double[] Wins, int[] Appearances) FreeForAll(ContentPack pack, string level, int seeds, int minutes,
+        out List<(EconomyArchetype Archetype, CivOutcome Outcome, bool Won)> civs, ulong firstSeed = BaseSeed)
     {
         EconomyArchetype[] all = { EconomyArchetype.Builder, EconomyArchetype.Grower, EconomyArchetype.Wanderer, EconomyArchetype.Warlord, EconomyArchetype.Sage };
         var jobs = new List<(ulong Seed, int Rotation)>();
@@ -245,12 +250,14 @@ internal static class Tournament
         });
         var wins = new double[5];
         var apps = new int[5];
+        civs = new List<(EconomyArchetype, CivOutcome, bool)>();
         foreach ((MatchOutcome m, EconomyArchetype[] seating) in outcomes)
         {
             double best = double.MinValue; int bestSeat = 0;
             for (int s = 0; s < 4; s++) if (m.Civs[s].Legacy > best) { best = m.Civs[s].Legacy; bestSeat = s; }
             for (int s = 0; s < 4; s++) apps[Array.IndexOf(all, seating[s])]++;
             wins[Array.IndexOf(all, seating[bestSeat])]++;
+            for (int s = 0; s < 4; s++) civs.Add((seating[s], m.Civs[s], s == bestSeat));
         }
         return (wins, apps);
     }
