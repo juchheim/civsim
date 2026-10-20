@@ -119,7 +119,10 @@ internal static class Tournament
         {
             if (e.Kind == PoliticsEventKind.Captured)
             {
-                if (e.Other >= 0 && e.Other < civs && e.Other != e.Civ) { outcome.Civs[e.Other].SettlementsLost++; outcome.Civs[e.Civ].SettlementsCaptured++; }
+                // Each capture is logged twice: the captor's event has B >= 0, the loser's B <= 0 (both 0 if nobody stayed, so
+                // the final owner decides that case).
+                bool captor = e.B > 0 || e.B == 0 && pol.SettlementCivOf(e.A) == e.Civ;
+                if (captor && e.Other >= 0 && e.Other < civs && e.Other != e.Civ) { outcome.Civs[e.Other].SettlementsLost++; outcome.Civs[e.Civ].SettlementsCaptured++; }
             }
             else if (e.Kind == PoliticsEventKind.RaidLaunched) outcome.Civs[e.Civ].RaidsLaunched++;
             else if (e.Kind == PoliticsEventKind.RaidResolved && e.A == 1) outcome.Civs[e.Civ].RaidsWon++;
