@@ -258,7 +258,29 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     }
                     break;
                 case CommandKind.RemoveBeacon:
-                    if ((uint)command.A < (uint)_beacons[civ].Count) _beacons[civ].RemoveAt(command.A);
+                    if (command.A >= 0 && command.A < _beacons[civ].Count) _beacons[civ].RemoveAt(command.A);
+                    break;
+                // A human player's politics orders: the AI's Order* rules, checked here (docs/MVP/18 §7).
+                case CommandKind.SendGift:
+                    if (command.A >= 0 && command.A < _civs) OrderGift(civ, command.A);
+                    break;
+                case CommandKind.SendBarter:
+                    if (command.A >= 0 && command.A < _civs) OrderBarter(civ, command.A);
+                    break;
+                case CommandKind.LaunchRaid:
+                    if (command.A >= 0) OrderRaid(civ, command.A, command.B);
+                    break;
+                case CommandKind.LaunchAssault:
+                    if (command.A >= 0) OrderAssault(civ, command.A);
+                    break;
+                case CommandKind.DeclareWar:
+                    if (command.A >= 0 && command.A < _civs) OrderWar(civ, command.A);
+                    break;
+                case CommandKind.MakePeace:
+                    if (command.A >= 0 && command.A < _civs) OrderPeace(civ, command.A);
+                    break;
+                case CommandKind.FormAlliance:
+                    if (command.A >= 0 && command.A < _civs) OrderAlliance(civ, command.A);
                     break;
             }
         }

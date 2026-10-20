@@ -26,6 +26,23 @@ public enum CommandKind : ushort
     CompleteProject = 8,
     /// <summary>A = 1 to let the Council of Elders fill empty focus slots, 0 to leave them empty.</summary>
     SetCouncil = 9,
+
+    // Politics orders for a human player (docs/MVP/18 §7): the same rules as the AI's orders (PoliticsSystem.Order*),
+    // applied in PoliticsSystem.Step. An order the rules refuse does nothing.
+    /// <summary>A = recipient civilization: send a gift party (TRD-01, contact, food to spare).</summary>
+    SendGift = 10,
+    /// <summary>A = partner civilization: send a barter trip (TRD-02 on both sides, Relations above zero).</summary>
+    SendBarter = 11,
+    /// <summary>A = target settlement index, B = party size (at least 4): a raid (WAR-02, contact, no alliance or truce).</summary>
+    LaunchRaid = 12,
+    /// <summary>A = target settlement index: the field army assaults it (at war with its owner).</summary>
+    LaunchAssault = 13,
+    /// <summary>A = civilization (contacted, not allied).</summary>
+    DeclareWar = 14,
+    /// <summary>A = civilization at war with us (no occupation between the two pending).</summary>
+    MakePeace = 15,
+    /// <summary>A = civilization (DIP-03 on both sides, Relations above 40).</summary>
+    FormAlliance = 16,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>
