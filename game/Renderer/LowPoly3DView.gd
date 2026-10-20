@@ -148,7 +148,7 @@ func _update_overlay_texture() -> void:
 		data[o] = world.food_overlay[t] if t < world.food_overlay.size() else 0
 		data[o + 1] = world.forecast_overlay[t] if t < world.forecast_overlay.size() else 0
 		data[o + 2] = world.method_overlay[t] if t < world.method_overlay.size() else 0
-		data[o + 3] = 255
+		data[o + 3] = world.method_fallback_overlay[t] if t < world.method_fallback_overlay.size() else 0
 	overlay_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, data)
 	overlay_texture.update(overlay_image)
 	if mats.has("terrain"):

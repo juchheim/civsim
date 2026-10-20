@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using CivSim.Sim.Core;
 using CivSim.Sim.Content;
@@ -70,6 +71,10 @@ public partial class Game : Node3D
     private Button? _claimsOverlayButton, _foodOverlayButton, _methodsOverlayButton;
     private Button? _resourcesOverlayButton;
     private Label? _overlayLegendLabel;
+    private PanelContainer? _tileHoverPanel;
+    private RichTextLabel? _tileHoverLabel;
+    private Label? _tileHoverTitle;
+    private int _hoveredTile = -1;
     private PanelContainer? _politicsPanel;
     private Label? _politicsNote;
     private OptionButton? _politicsCivPicker, _targetSettlementPicker, _recallPartyPicker;
@@ -103,6 +108,10 @@ public partial class Game : Node3D
     private float _screenshotTimer;
     private int _benchmarkSeconds;
     private bool _benchmarkConfigured;
+    private bool _benchmarkMatrix;
+    private string[] _benchmarkOverlays = Array.Empty<string>();
+    private int _benchmarkCaseIndex;
+    private string _benchmarkOverlay = "none";
     private double _benchmarkWarmupRemaining;
     private readonly Stopwatch _benchmarkWatch = new();
     private readonly Stopwatch _benchmarkWindowWatch = new();
@@ -182,13 +191,27 @@ public partial class Game : Node3D
             {
                 _session.SetPaused(false);
                 _session.SetSpeedIndex(1);
-                _benchmarkStartTick = _session.Tick;
                 DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
-                int zoomLevel = ReadBenchmarkZoom();
-                SetZoom(zoomLevel switch { 0 => 5.0f, 1 => 12.0f, 2 => 40.0f, _ => 90.0f });
-                _benchmarkWarmupRemaining = 2.0;
-                GD.Print($"M7A benchmark ready: Z{zoomLevel}, {_current?.FigureCount ?? 0} figures, " +
-                         $"live 1x simulation (paused={_session.Paused}), 2s warm-up + {_benchmarkSeconds}s measurement.");
+                _benchmarkOverlays = ReadBenchmarkMatrix();
+                _benchmarkMatrix = _benchmarkOverlays.Length > 0;
+                if (_benchmarkMatrix)
+                {
+                    _benchmarkCaseIndex = 0;
+                    ConfigureBenchmarkCase();
+                    _benchmarkWarmupRemaining = 1.0;
+                    GD.Print($"M7A benchmark matrix ready: {3 * _benchmarkOverlays.Length} cases, " +
+                             $"{_current?.FigureCount ?? 0} figures, live 1x simulation, 1s warm-up + {_benchmarkSeconds}s per case.");
+                }
+                else
+                {
+                    int zoomLevel = ReadBenchmarkZoom();
+                    _benchmarkOverlay = ReadOverlayName();
+                    _benchmarkStartTick = _session.Tick;
+                    SetZoom(zoomLevel switch { 0 => 5.0f, 1 => 12.0f, 2 => 40.0f, _ => 90.0f });
+                    _benchmarkWarmupRemaining = 2.0;
+                    GD.Print($"M7A benchmark ready: Z{zoomLevel}, overlay={_benchmarkOverlay}, {_current?.FigureCount ?? 0} figures, " +
+                             $"live 1x simulation (paused={_session.Paused}), 2s warm-up + {_benchmarkSeconds}s measurement.");
+                }
             }
         }
         catch (Exception ex)
@@ -271,11 +294,15 @@ public partial class Game : Node3D
             else if (button.ButtonIndex == MouseButton.Right && button.Pressed) PlaceBeacon(button.Position);
             else if (button.ButtonIndex is MouseButton.Left or MouseButton.Middle) _dragging = button.Pressed;
         }
-        else if (input is InputEventMouseMotion motion && _dragging)
+        else if (input is InputEventMouseMotion motion)
         {
-            _yaw -= motion.Relative.X * 0.006f;
-            _pitch = Mathf.Clamp(_pitch + motion.Relative.Y * 0.004f, Mathf.DegToRad(18), Mathf.DegToRad(83));
-            UpdateCamera();
+            if (_dragging)
+            {
+                _yaw -= motion.Relative.X * 0.006f;
+                _pitch = Mathf.Clamp(_pitch + motion.Relative.Y * 0.004f, Mathf.DegToRad(18), Mathf.DegToRad(83));
+                UpdateCamera();
+            }
+            else UpdateTileHover(motion.Position);
         }
         else if (input is InputEventKey key && key.Pressed && !key.Echo)
         {
@@ -305,6 +332,7 @@ public partial class Game : Node3D
                     _resourcesVisible = !_resourcesVisible;
                     if (_resourcesOverlayButton is not null) _resourcesOverlayButton.ButtonPressed = _resourcesVisible;
                     if (_current is not null) UpdateKnownResources(_current);
+                    RefreshOverlayButtons();
                     break;
                 case Key.D:
                     _politicsVisible = !_politicsVisible;
@@ -396,6 +424,32 @@ public partial class Game : Node3D
         return 0;
     }
 
+    private static string[] ReadBenchmarkMatrix()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--benchmark-matrix=", StringComparison.Ordinal))
+            {
+                string value = arg.Substring("--benchmark-matrix=".Length).ToLowerInvariant();
+                if (value == "all") return new[] { "claims", "food", "methods", "resources" };
+                return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(value => value is "claims" or "food" or "methods" or "resources")
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+            }
+        return Array.Empty<string>();
+    }
+
+    private static string ReadOverlayName()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--overlay=", StringComparison.Ordinal))
+            {
+                string overlay = arg.Substring("--overlay=".Length).ToLowerInvariant();
+                return overlay is "claims" or "food" or "methods" or "resources" ? overlay : "none";
+            }
+        return "none";
+    }
+
     private void ReadOverlayArgument()
     {
         foreach (string arg in OS.GetCmdlineUserArgs())
@@ -465,6 +519,7 @@ public partial class Game : Node3D
         byte[] foodOverlay = BuildFoodOverlay(frame);
         byte[] forecastOverlay = BuildFoodForecastOverlay(frame);
         byte[] methodOverlay = BuildMethodOverlay(frame);
+        byte[] methodFallbackOverlay = BuildMethodFallbackOverlay(frame);
 
         var owners = new int[tiles];
         for (int i = 0; i < tiles; i++) owners[i] = frame.Owner[i];
@@ -491,6 +546,7 @@ public partial class Game : Node3D
             ["foodOverlay"] = foodOverlay,
             ["forecastOverlay"] = forecastOverlay,
             ["methodOverlay"] = methodOverlay,
+            ["methodFallbackOverlay"] = methodFallbackOverlay,
         };
         if (includeWorld)
         {
@@ -549,7 +605,7 @@ public partial class Game : Node3D
         int renderPrimitives = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame);
         int renderDrawCalls = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
         int zoom = _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
-        GD.Print($"M7A_PERF zoom=Z{zoom} figures={_current?.FigureCount ?? 0} " +
+        GD.Print($"M7A_PERF zoom=Z{zoom} overlay={_benchmarkOverlay} sample={_benchmarkCaseIndex + 1} figures={_current?.FigureCount ?? 0} " +
                  $"simulation_paused={simulationPaused} tick_advance={simulationTicks} " +
                  $"seconds={elapsed:F2} frames={_benchmarkFrames} avg_fps={averageFps:F1} " +
                  $"min_1s_fps={_benchmarkMinWindowFps:F1} " +
@@ -561,6 +617,12 @@ public partial class Game : Node3D
         {
             Error result = SaveScreenshot(_screenshotPath);
             GD.Print($"Screenshot {result}: {_screenshotPath}");
+        }
+        if (_benchmarkMatrix && _benchmarkCaseIndex + 1 < 3 * _benchmarkOverlays.Length)
+        {
+            _benchmarkCaseIndex++;
+            ConfigureBenchmarkCase();
+            return;
         }
         _benchmarkSeconds = 0;
         GetTree().Quit();
@@ -825,6 +887,30 @@ public partial class Game : Node3D
             _structureNodes[kind] = CreateMultiMeshNode(_structureModels[kind], $"Structure_{kind}", _look.LitVertexMaterial());
             _structureMeshes[kind] = _structureNodes[kind]!.Multimesh!;
         }
+    }
+
+    private void ConfigureBenchmarkCase()
+    {
+        if (_session is null || _current is null || !_benchmarkMatrix || _benchmarkOverlays.Length == 0) return;
+        int zoom = _benchmarkCaseIndex / _benchmarkOverlays.Length;
+        _benchmarkOverlay = _benchmarkOverlays[_benchmarkCaseIndex % _benchmarkOverlays.Length];
+        _mapOverlay = _benchmarkOverlay switch { "claims" => 1, "food" => 2, "methods" => 3, _ => 0 };
+        _resourcesVisible = _benchmarkOverlay == "resources";
+        _visualRenderer?.Call("set_overlay", _mapOverlay);
+        if (_resourcesOverlayButton is not null) _resourcesOverlayButton.ButtonPressed = _resourcesVisible;
+        RefreshOverlayButtons();
+        UpdateKnownResources(_current);
+        SetZoom(zoom switch { 0 => 5.0f, 1 => 12.0f, _ => 40.0f });
+        _benchmarkStartTick = _session.Tick;
+        _benchmarkFrames = 0;
+        _benchmarkWindowFrames = 0;
+        _benchmarkFrameUpdateMs = 0;
+        _benchmarkMaxFrameUpdateMs = 0;
+        _benchmarkFrameUpdates = 0;
+        _benchmarkMinWindowFps = double.MaxValue;
+        _benchmarkWatch.Reset();
+        _benchmarkWindowWatch.Reset();
+        _benchmarkWarmupRemaining = 1.0;
     }
 
     private void CreateHud(ulong seed)
@@ -1574,6 +1660,7 @@ public partial class Game : Node3D
                             (_alertTimer > 0 && _alertMessage is not null ? $"\n{_alertMessage}" : "");
         UpdateResearchHud(_current);
         UpdateM7cHud(_current);
+        if (_hoveredTile >= 0) RefreshTileHover();
     }
 
     private void ApplySeasonLight(int season)

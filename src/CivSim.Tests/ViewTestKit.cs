@@ -45,12 +45,19 @@ internal static class ViewKit
         h.Add(f.Sequence); h.Add(f.Tick); h.Add(f.Season); h.Add(f.SeasonOfYear); h.Add(f.Year); h.Add(f.TickInSeason);
         h.Add(f.LastWinterHarsh); h.Add(f.ViewerCiv); h.Add(f.Width); h.Add(f.Height);
         if (includeTotals) h.Add(f.TotalFigures);
-        for (int t = 0; t < f.Visibility.Length; t++) { h.Add(f.Visibility[t]); h.Add(f.Owner[t]); h.Add(f.Claim[t]); h.Add(f.Claimant[t]); h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]); }
+        for (int t = 0; t < f.Visibility.Length; t++)
+        {
+            h.Add(f.Visibility[t]); h.Add(f.Owner[t]); h.Add(f.Claim[t]); h.Add(f.Claimant[t]);
+            h.Add(f.Claim2[t]); h.Add(f.Claimant2[t]); h.Add(f.Claim3[t]); h.Add(f.Claimant3[t]);
+            h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]);
+        }
         h.Add(f.FigureCount);
         for (int i = 0; i < f.FigureCount; i++)
         {
             h.Add(f.FigureId[i]); h.Add(f.FigureCiv[i]); h.Add(f.FigureSettlement[i]); h.Add(f.FigureTile[i]); h.Add(f.FigureX[i]); h.Add(f.FigureY[i]);
-            h.Add(f.FigureActivity[i]); h.Add(f.FigureAge[i]); h.Add(f.FigureHealth[i]); h.Add(f.FigureFlags[i]); h.Add(f.FigureToolRung[i]); h.Add(f.FigureCarry[i]);
+            h.Add(f.FigureActivity[i]); h.Add(f.FigureAge[i]); h.Add(f.FigureHealth[i]); h.Add(f.FigureFlags[i]); h.Add(f.FigureToolRung[i]);
+            h.Add(f.FigureKnownToolRung[i]); h.Add(f.FigureMethodEfficiencyPermille[i]); h.Add(f.FigureMethodFallback[i]);
+            h.Add(f.FigureMethodFallbackTool[i]); h.Add(f.FigureCarry[i]);
         }
         h.Add(f.HerdCount);
         for (int i = 0; i < f.HerdCount; i++)

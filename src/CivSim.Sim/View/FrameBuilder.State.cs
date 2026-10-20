@@ -11,7 +11,7 @@ namespace CivSim.Sim.View;
 public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
-    private const int StateVersion = 1;
+    private const int StateVersion = 2;
 
     public void WriteState(BinaryWriter w)
     {
@@ -49,7 +49,11 @@ public sealed partial class FrameBuilder
         // end), so a loaded match would show no claim strength until then without this copy.
         w.Write(_claimSeason);
         if (_claimSeason >= 0)
-            for (int t = 0; t < _tileCount; t++) { w.Write(_topClaim[t]); w.Write(_topCiv[t]); w.Write(_contested[t]); }
+            for (int t = 0; t < _tileCount; t++)
+            {
+                w.Write(_topClaim[t]); w.Write(_topCiv[t]); w.Write(_contested[t]);
+                w.Write(_secondClaim[t]); w.Write(_secondCiv[t]); w.Write(_thirdClaim[t]); w.Write(_thirdCiv[t]);
+            }
     }
 
     /// <summary>
@@ -59,7 +63,9 @@ public sealed partial class FrameBuilder
     public void ReadState(BinaryReader r)
     {
         ArgumentNullException.ThrowIfNull(r);
-        if (r.ReadUInt32() != StateMagic || r.ReadInt32() != StateVersion) throw new InvalidDataException("Unsupported view state.");
+        if (r.ReadUInt32() != StateMagic) throw new InvalidDataException("Unsupported view state.");
+        int version = r.ReadInt32();
+        if (version is < 1 or > StateVersion) throw new InvalidDataException("Unsupported view state.");
         if (r.ReadInt32() != _tileCount) throw new InvalidDataException("View state is for another map.");
         int viewer = r.ReadInt32();
         if (viewer < -1 || viewer >= _civs) throw new InvalidDataException("View state viewer out of range.");
@@ -114,7 +120,20 @@ public sealed partial class FrameBuilder
         for (int i = 0; i < announced; i++) { _announcedKey[i] = r.ReadInt32(); _announcedArrive[i] = r.ReadInt32(); }
         _claimSeason = r.ReadInt32();
         if (_claimSeason >= 0)
-            for (int t = 0; t < _tileCount; t++) { _topClaim[t] = r.ReadByte(); _topCiv[t] = r.ReadSByte(); _contested[t] = r.ReadBoolean(); }
+            for (int t = 0; t < _tileCount; t++)
+            {
+                _topClaim[t] = r.ReadByte(); _topCiv[t] = r.ReadSByte(); _contested[t] = r.ReadBoolean();
+                if (version >= 2)
+                {
+                    _secondClaim[t] = r.ReadByte(); _secondCiv[t] = r.ReadSByte();
+                    _thirdClaim[t] = r.ReadByte(); _thirdCiv[t] = r.ReadSByte();
+                }
+                else
+                {
+                    _secondClaim[t] = _thirdClaim[t] = 0;
+                    _secondCiv[t] = _thirdCiv[t] = -1;
+                }
+            }
         _researchCursor = 0;
         _politicsCursor = 0;
     }

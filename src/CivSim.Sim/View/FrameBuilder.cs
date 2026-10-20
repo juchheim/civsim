@@ -89,6 +89,8 @@ public sealed partial class FrameBuilder
     private int _claimSeason = -1;
     private readonly byte[] _topClaim;
     private readonly sbyte[] _topCiv;
+    private readonly byte[] _secondClaim, _thirdClaim;
+    private readonly sbyte[] _secondCiv, _thirdCiv;
     private readonly bool[] _contested;
     private readonly int[] _walkFrom = new int[64], _walkTo = new int[64], _walkTiles = new int[64];
     private int _walkCount, _walkNext;
@@ -117,6 +119,9 @@ public sealed partial class FrameBuilder
         _stamp = new int[_tileCount];
         _topClaim = new byte[_tileCount];
         _topCiv = new sbyte[_tileCount];
+        _secondClaim = new byte[_tileCount]; _thirdClaim = new byte[_tileCount];
+        _secondCiv = new sbyte[_tileCount]; _thirdCiv = new sbyte[_tileCount];
+        Array.Fill(_secondCiv, (sbyte)-1); Array.Fill(_thirdCiv, (sbyte)-1);
         _contested = new bool[_tileCount];
         _bfsDistance = new int[_tileCount];
         _bfsQueue = new int[_tileCount];
@@ -351,15 +356,29 @@ public sealed partial class FrameBuilder
         Territory territory = pol.Territory;
         for (int t = 0; t < _tileCount; t++)
         {
-            int best = 0, second = 0, who = -1;
+            int best = 0, second = 0, third = 0, who = -1, secondWho = -1, thirdWho = -1;
             for (int c = 0; c < _civs; c++)
             {
                 int claim = territory.ClaimOf(c, t);
-                if (claim > best) { second = best; best = claim; who = c; }
-                else if (claim > second) second = claim;
+                if (claim > best)
+                {
+                    third = second; thirdWho = secondWho;
+                    second = best; secondWho = who;
+                    best = claim; who = c;
+                }
+                else if (claim > second)
+                {
+                    third = second; thirdWho = secondWho;
+                    second = claim; secondWho = c;
+                }
+                else if (claim > third) { third = claim; thirdWho = c; }
             }
             _topClaim[t] = (byte)Math.Min(255, best / 10);
             _topCiv[t] = (sbyte)(best > 0 ? who : -1);
+            _secondClaim[t] = (byte)Math.Min(255, second / 10);
+            _secondCiv[t] = (sbyte)(second > 0 ? secondWho : -1);
+            _thirdClaim[t] = (byte)Math.Min(255, third / 10);
+            _thirdCiv[t] = (sbyte)(third > 0 ? thirdWho : -1);
             _contested[t] = second >= Territory.OwnThresholdMilli;
         }
     }
@@ -485,8 +504,9 @@ public sealed partial class FrameBuilder
     {
         target.EnsureTiles(_tileCount);
         Territory territory = pol.Territory;
-        byte[] vis = target.Visibility, claim = target.Claim, flags = target.TileFlags, knownDeposits = target.KnownDeposits;
-        sbyte[] owner = target.Owner, claimant = target.Claimant;
+        byte[] vis = target.Visibility, claim = target.Claim, claim2 = target.Claim2, claim3 = target.Claim3,
+            flags = target.TileFlags, knownDeposits = target.KnownDeposits;
+        sbyte[] owner = target.Owner, claimant = target.Claimant, claimant2 = target.Claimant2, claimant3 = target.Claimant3;
         for (int t = 0; t < _tileCount; t++)
         {
             if (Visible(t))
@@ -496,6 +516,8 @@ public sealed partial class FrameBuilder
                 owner[t] = now;
                 claim[t] = _topClaim[t];
                 claimant[t] = _topCiv[t];
+                claim2[t] = _secondClaim[t]; claimant2[t] = _secondCiv[t];
+                claim3[t] = _thirdClaim[t]; claimant3[t] = _thirdCiv[t];
                 flags[t] = _contested[t] ? (byte)TileViewFlags.Contested : (byte)0;
                 if (!_omniscient) { _explored[t] = 1; _rememberedOwner[t] = now; }
             }
@@ -506,6 +528,8 @@ public sealed partial class FrameBuilder
                 owner[t] = known ? _rememberedOwner[t] : (sbyte)-1;
                 claim[t] = 0;
                 claimant[t] = -1;
+                claim2[t] = 0; claimant2[t] = -1;
+                claim3[t] = 0; claimant3[t] = -1;
                 flags[t] = 0;
             }
             knownDeposits[t] = _tiles[t].Deposit != DepositKind.None && (_omniscient || _explored[t] != 0)
@@ -717,6 +741,13 @@ public sealed partial class FrameBuilder
             target.FigureFlags[w] = (ushort)flags;
             int rungJob = (int)f.Job;
             target.FigureToolRung[w] = activity <= FigureActivity.Herd && rungJob < JobKinds ? _rung[s * JobKinds + rungJob] : (sbyte)-1;
+            MethodReadout method = activity is > FigureActivity.Idle and <= FigureActivity.Herd
+                ? eco.MethodReadout(s, (EconomyJob)activity)
+                : new MethodReadout(target.FigureToolRung[w], target.FigureToolRung[w], 1000, MethodFallbackReason.None, MethodToolId.None);
+            target.FigureKnownToolRung[w] = (sbyte)Math.Clamp(method.KnownRung, -1, 100);
+            target.FigureMethodEfficiencyPermille[w] = (short)Math.Clamp(method.EfficiencyPermille, 0, 1000);
+            target.FigureMethodFallback[w] = (byte)method.Reason;
+            target.FigureMethodFallbackTool[w] = (byte)method.RequiredTool;
             target.FigureCarry[w] = (byte)carry;
         }
         target.FigureCount = written;

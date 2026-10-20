@@ -11,6 +11,19 @@ public readonly record struct FigureLook(
     long Id, int Civilization, int SettlementId, int Age, bool Female, Fix64 Health, Fix64 Hunger, Fix64 Warmth,
     EconomyJob Job, byte IllnessSeasons, byte WoundSeasons, byte PregnancySeasons);
 
+/// <summary>Why a researched method rung cannot currently be used at a settlement.</summary>
+public enum MethodFallbackReason : byte { None, MissingTool, HuntParty }
+
+/// <summary>Stable, presentation-facing ids for the tools that can block a method rung.</summary>
+public enum MethodToolId : byte
+{
+    None, Stick, Club, Spear, Tool1, Tool2, Tool4, Tool7, SpearThrower, Bow, Harpoon, FishingKit, Net, Basket, Sickle
+}
+
+/// <summary>Read-only efficiency information for one job at one settlement.</summary>
+public readonly record struct MethodReadout(
+    int EffectiveRung, int KnownRung, int EfficiencyPermille, MethodFallbackReason Reason, MethodToolId RequiredTool);
+
 /// <summary>
 /// Read-only accessors for the view layer (docs/MVP/18). None of them changes state, consumes randomness or allocates,
 /// so building frames cannot change a checksum.
@@ -73,5 +86,146 @@ public sealed partial class LivingEconomyModel
             _ => null,
         };
         return action is null ? -1 : BestActionRung(_settlements[settlementIndex], action, 3);
+    }
+
+    /// <summary>
+    /// Describes the best currently usable and highest researched method for a job. Efficiency is the active method's
+    /// base output rate as a permille of the researched method's rate; tool quality and unrelated modifiers are omitted.
+    /// For hunting, method requirements are evaluated for the three-person display party used by <see cref="MethodRung"/>.
+    /// </summary>
+    public MethodReadout MethodReadout(int settlementIndex, EconomyJob job)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        string? action = job switch
+        {
+            EconomyJob.Forage => "forage",
+            EconomyJob.Hunt => "hunt",
+            EconomyJob.Fish => "fish",
+            EconomyJob.Chop or EconomyJob.Gather => "chop",
+            _ => null,
+        };
+        int effective = MethodRung(settlementIndex, job);
+        if (action is null) return new MethodReadout(effective, effective, 1000, MethodFallbackReason.None, MethodToolId.None);
+
+        int known = effective;
+        MethodFallbackReason reason = MethodFallbackReason.None;
+        MethodToolId requiredTool = MethodToolId.None;
+        ReadOnlySpan<EconomyEffect> effects = _content.Effects;
+        for (int i = 0; i < effects.Length; i++)
+        {
+            EconomyEffect effect = effects[i];
+            if (effect.Kind != "method" || effect.Action != action || effect.Rung is not { } rung || rung <= known ||
+                !_completedProjects[settlement.Civilization][effect.ProjectIndex]) continue;
+            known = rung;
+            if (!HuntPartyMatches(action, rung, 3))
+            {
+                reason = MethodFallbackReason.HuntParty;
+                requiredTool = MethodToolId.None;
+            }
+            else if (!HasRequiredTool(settlement, action, rung))
+            {
+                reason = MethodFallbackReason.MissingTool;
+                requiredTool = MissingMethodTool(settlement, action, rung);
+            }
+            else
+            {
+                // A usable higher rung should already be reflected by MethodRung. Keep this readout consistent if a
+                // future method gains a requirement outside the tool/party checks used by the economy.
+                reason = MethodFallbackReason.None;
+                requiredTool = MethodToolId.None;
+            }
+        }
+        if (known <= effective || reason == MethodFallbackReason.None)
+            return new MethodReadout(effective, Math.Max(effective, known), 1000, MethodFallbackReason.None, MethodToolId.None);
+
+        Fix64 baseline = JobBaseRate(job);
+        Fix64 activeRate = MethodRate(settlement.Civilization, action, effective, baseline);
+        Fix64 knownRate = MethodRate(settlement.Civilization, action, known, baseline);
+        int efficiency = knownRate <= Fix64.Zero
+            ? 0
+            : Math.Clamp((activeRate * Fix64.FromInt(1000) / knownRate).FloorToInt(), 0, 1000);
+        return new MethodReadout(effective, known, efficiency, reason, requiredTool);
+    }
+
+    private Fix64 JobBaseRate(EconomyJob job)
+    {
+        string id = job switch
+        {
+            EconomyJob.Forage => "forage",
+            EconomyJob.Hunt => "hunt",
+            EconomyJob.Fish => "fish",
+            EconomyJob.Chop or EconomyJob.Gather => "chop",
+            _ => "",
+        };
+        Fix64 fallback = job switch
+        {
+            EconomyJob.Forage => Fix64.FromRatio(16, 5),
+            EconomyJob.Hunt => Fix64.FromRatio(9, 10),
+            EconomyJob.Fish => Fix64.One,
+            EconomyJob.Chop or EconomyJob.Gather => Fix64.FromInt(2),
+            _ => Fix64.One,
+        };
+        ReadOnlySpan<EconomyAction> actions = _content.Actions;
+        for (int i = 0; i < actions.Length; i++)
+            if (actions[i].Id == id && actions[i].BaseRate is { } rate) return rate;
+        return fallback;
+    }
+
+    private Fix64 MethodRate(int civilization, string action, int rung, Fix64 baseline)
+    {
+        if (rung < 0) return baseline;
+        ReadOnlySpan<EconomyEffect> effects = _content.Effects;
+        for (int i = 0; i < effects.Length; i++)
+        {
+            EconomyEffect effect = effects[i];
+            if (effect.Kind != "method" || effect.Action != action || effect.Rung != rung ||
+                !_completedProjects[civilization][effect.ProjectIndex]) continue;
+            return effect.Rate ?? (effect.Mult is { } mult ? baseline * mult : baseline);
+        }
+        return baseline;
+    }
+
+    private MethodToolId MissingMethodTool(SettlementState settlement, string action, int rung)
+    {
+        if (action == "fish" && rung == 2)
+        {
+            if (!HasGood(settlement, "G-FISHKIT")) return MethodToolId.FishingKit;
+            if (!HasGood(settlement, "G-NET")) return MethodToolId.Net;
+            return MethodToolId.None;
+        }
+        string? id = action switch
+        {
+            "forage" when rung == 1 => "G-STICK",
+            "forage" when rung == 2 => "G-BASKET",
+            "forage" when rung == 3 => "G-SICKLE",
+            "scavenge" when rung == 1 => "G-CLUB",
+            "hunt" when rung == 1 => "G-SPEAR",
+            "hunt" when rung is 2 or 3 => "G-TOOL4",
+            "hunt" when rung == 4 => "G-ATLATL",
+            "hunt" when rung == 5 => "G-BOW",
+            "fish" when rung == 1 => "G-HARPOON",
+            "chop" when rung == 1 => "G-TOOL1",
+            "chop" when rung == 2 => "G-TOOL2",
+            "chop" when rung == 3 => "G-TOOL4",
+            "chop" when rung == 4 => "G-TOOL7",
+            _ => null,
+        };
+        if (id is null || HasGood(settlement, id)) return MethodToolId.None;
+        return id switch
+        {
+            "G-STICK" => MethodToolId.Stick,
+            "G-CLUB" => MethodToolId.Club,
+            "G-SPEAR" => MethodToolId.Spear,
+            "G-TOOL1" => MethodToolId.Tool1,
+            "G-TOOL2" => MethodToolId.Tool2,
+            "G-TOOL4" => MethodToolId.Tool4,
+            "G-TOOL7" => MethodToolId.Tool7,
+            "G-ATLATL" => MethodToolId.SpearThrower,
+            "G-BOW" => MethodToolId.Bow,
+            "G-HARPOON" => MethodToolId.Harpoon,
+            "G-BASKET" => MethodToolId.Basket,
+            "G-SICKLE" => MethodToolId.Sickle,
+            _ => MethodToolId.None,
+        };
     }
 }

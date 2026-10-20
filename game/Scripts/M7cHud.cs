@@ -4,6 +4,7 @@ using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
+using CivSim.Sim.World;
 using Godot;
 
 namespace CivSim.Game;
@@ -33,11 +34,12 @@ public partial class Game
             _resourcesVisible = !_resourcesVisible;
             _resourcesOverlayButton.ButtonPressed = _resourcesVisible;
             if (_current is not null) UpdateKnownResources(_current);
+            RefreshOverlayButtons();
         };
         overlayColumn.AddChild(_resourcesOverlayButton);
         _overlayLegendLabel = new Label
         {
-            Text = "Territory tint is always visible.",
+            Text = "Territory tint is always visible. Methods: purple rung; amber means a better rung is blocked.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             CustomMinimumSize = new Vector2(0, 48),
         };
@@ -46,6 +48,41 @@ public partial class Game
         overlayColumn.AddChild(_overlayLegendLabel);
         overlays.AddChild(overlayColumn);
         layer.AddChild(overlays);
+
+        var hoverPanel = new PanelContainer
+        {
+            Name = "TileHoverCard",
+            CustomMinimumSize = new Vector2(340, 0),
+            Visible = false,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        var hoverMargin = new MarginContainer();
+        hoverMargin.AddThemeConstantOverride("margin_left", 10);
+        hoverMargin.AddThemeConstantOverride("margin_right", 10);
+        hoverMargin.AddThemeConstantOverride("margin_top", 7);
+        hoverMargin.AddThemeConstantOverride("margin_bottom", 7);
+        var hoverColumn = new VBoxContainer();
+        hoverColumn.AddThemeConstantOverride("separation", 3);
+        _tileHoverTitle = new Label { Name = "TileTitle", Text = "Tile", MouseFilter = Control.MouseFilterEnum.Ignore };
+        _tileHoverTitle.AddThemeFontSizeOverride("font_size", 15);
+        _tileHoverLabel = new RichTextLabel
+        {
+            Name = "TileDetails",
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            CustomMinimumSize = new Vector2(320, 0),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _tileHoverLabel.AddThemeFontSizeOverride("normal_font_size", 12);
+        _tileHoverLabel.AddThemeColorOverride("default_color", new Color("#e8e4d5"));
+        hoverColumn.AddChild(_tileHoverTitle);
+        hoverColumn.AddChild(_tileHoverLabel);
+        hoverMargin.AddChild(hoverColumn);
+        hoverPanel.AddChild(hoverMargin);
+        layer.AddChild(hoverPanel);
+        _tileHoverPanel = hoverPanel;
 
         _chroniclePanel = new PanelContainer
         {
@@ -144,13 +181,15 @@ public partial class Game
         if (_foodOverlayButton is not null) _foodOverlayButton.ButtonPressed = _mapOverlay == 2;
         if (_methodsOverlayButton is not null) _methodsOverlayButton.ButtonPressed = _mapOverlay == 3;
         if (_overlayLegendLabel is not null)
-            _overlayLegendLabel.Text = _mapOverlay switch
-            {
-                1 => "Visible claim strength · richer tint means a stronger claim.",
-                2 => "Settlement food band · autumn and winter show the winter forecast.",
-                3 => "Best method rung held by workers on visible tiles.",
-                _ => "Territory tint is always visible.",
-            };
+            _overlayLegendLabel.Text = _resourcesVisible
+                ? "Known resource deposits on explored tiles."
+                : _mapOverlay switch
+                {
+                    1 => "Visible claim strength · richer tint means a stronger claim.",
+                    2 => "Settlement food band · autumn and winter show the winter forecast.",
+                    3 => "Purple: usable method rung · amber: a better rung is blocked.",
+                    _ => "Territory tint is always visible.",
+                };
     }
 
     private void ToggleChronicle()
@@ -357,6 +396,160 @@ public partial class Game
         }
         : "a visible change";
 
+    private void UpdateTileHover(Vector2 screenPosition)
+    {
+        if (_camera is null || _current is null || _session is null || _tileHoverPanel is null || _tileHoverLabel is null || _dragging)
+        {
+            HideTileHover();
+            return;
+        }
+        Vector3 origin = _camera.ProjectRayOrigin(screenPosition);
+        Vector3 ray = _camera.ProjectRayNormal(screenPosition);
+        if (Mathf.Abs(ray.Y) < 0.0001f)
+        {
+            HideTileHover();
+            return;
+        }
+        float distance = -origin.Y / ray.Y;
+        if (distance < 0)
+        {
+            HideTileHover();
+            return;
+        }
+        Vector3 hit = origin + ray * distance;
+        int tile = -1;
+        for (int pass = 0; pass < 3; pass++)
+        {
+            tile = HexLayout.NearestTile((int)(hit.X * MapUnit), (int)(hit.Z / RowSpacing * MapUnit), _current.Width, _current.Height);
+            if (tile < 0 || tile >= _terrainHeights.Length) break;
+            distance = (_terrainHeights[tile] - origin.Y) / ray.Y;
+            if (distance < 0) { tile = -1; break; }
+            hit = origin + ray * distance;
+        }
+        if (tile < 0 || tile >= _current.Width * _current.Height)
+        {
+            HideTileHover();
+            return;
+        }
+        _hoveredTile = tile;
+        RefreshTileHover();
+        _tileHoverPanel.Visible = true;
+        Vector2 size = _tileHoverPanel.Size.X > 0 ? _tileHoverPanel.Size : new Vector2(340, 132);
+        Vector2 viewport = GetViewport().GetVisibleRect().Size;
+        Vector2 position = screenPosition + new Vector2(18, 20);
+        if (position.X + size.X > viewport.X - 8) position.X = screenPosition.X - size.X - 18;
+        if (position.Y + size.Y > viewport.Y - 8) position.Y = screenPosition.Y - size.Y - 20;
+        _tileHoverPanel.Position = new Vector2(Mathf.Clamp(position.X, 8, Mathf.Max(8, viewport.X - size.X - 8)),
+            Mathf.Clamp(position.Y, 8, Mathf.Max(8, viewport.Y - size.Y - 8)));
+    }
+
+    private void HideTileHover()
+    {
+        _hoveredTile = -1;
+        if (_tileHoverPanel is not null) _tileHoverPanel.Visible = false;
+    }
+
+    private void RefreshTileHover()
+    {
+        if (_current is null || _session is null || _hoveredTile < 0 || _tileHoverLabel is null) return;
+        int tile = _hoveredTile;
+        MatchFrame frame = _current;
+        WorldView world = _session.WorldView;
+        TileVisibility visibility = (TileVisibility)frame.Visibility[tile];
+        string terrain = TerrainName((Biome)world.Biome[tile]);
+        string owner = visibility == TileVisibility.Unknown
+            ? "Unknown"
+            : frame.Owner[tile] < 0
+                ? visibility == TileVisibility.Explored ? "Unclaimed when last seen" : "Unclaimed"
+                : CivName(frame.Owner[tile], frame.ViewerCiv);
+        string claims = visibility == TileVisibility.Visible
+            ? $"{ClaimText(frame.Claimant[tile], frame.Claim[tile], frame.ViewerCiv)} · " +
+              $"{ClaimText(frame.Claimant2[tile], frame.Claim2[tile], frame.ViewerCiv)} · " +
+              ClaimText(frame.Claimant3[tile], frame.Claim3[tile], frame.ViewerCiv)
+            : visibility == TileVisibility.Explored ? "last seen only" : "beyond sight";
+        string water = visibility != TileVisibility.Unknown
+            ? world.HasRiver(tile) ? " · river" : world.HasLake(tile) ? " · lake" : ""
+            : "";
+        string resource = frame.KnownDeposits[tile] != 0 && world.Deposit[tile] != (byte)DepositKind.None
+            ? $"{((DepositKind)world.Deposit[tile])} deposit · size {world.DepositAmount[tile]}"
+            : visibility == TileVisibility.Unknown ? "Resources undiscovered" : "No known deposit";
+        string workers = visibility == TileVisibility.Visible ? DescribeTileWorkers(frame, tile) : "Current workers: out of sight";
+        if (_tileHoverTitle is not null)
+            _tileHoverTitle.Text = visibility == TileVisibility.Unknown
+                ? "Unexplored tile"
+                : $"{terrain} · elevation {world.Elevation[tile]} · {owner}";
+        _tileHoverLabel.Text = $"Claims: {claims}{water}\nResources: {resource}\n{workers}";
+    }
+
+    private static string DescribeTileWorkers(MatchFrame frame, int tile)
+    {
+        Span<int> jobs = stackalloc int[13];
+        int workers = 0, fallbacks = 0;
+        string firstFallback = "";
+        for (int i = 0; i < frame.FigureCount; i++)
+        {
+            if (frame.FigureTile[i] != tile || frame.FigureActivity[i] == (byte)FigureActivity.Idle ||
+                frame.FigureActivity[i] > (byte)FigureActivity.Herd) continue;
+            int job = frame.FigureActivity[i];
+            jobs[job]++;
+            workers++;
+            MethodFallbackReason reason = (MethodFallbackReason)frame.FigureMethodFallback[i];
+            if (reason == MethodFallbackReason.None) continue;
+            fallbacks++;
+            if (firstFallback.Length != 0) continue;
+            string requirement = reason switch
+            {
+                MethodFallbackReason.MissingTool => $"needs {ToolName((MethodToolId)frame.FigureMethodFallbackTool[i])}",
+                MethodFallbackReason.HuntParty => HuntPartyRequirement(frame.FigureKnownToolRung[i]),
+                _ => "blocked",
+            };
+            firstFallback = $"{ActivityName((FigureActivity)job)} R{frame.FigureToolRung[i]} → R{frame.FigureKnownToolRung[i]} · {requirement} · {frame.FigureMethodEfficiencyPermille[i] / 10}%";
+        }
+        if (workers == 0) return "Workers: none on this tile";
+        var rows = new List<string>(3);
+        for (int i = 1; i < jobs.Length; i++)
+            if (jobs[i] > 0) rows.Add($"{ActivityName((FigureActivity)i)} {jobs[i]}");
+        string result = $"Workers: {workers} · {string.Join(", ", rows)}";
+        if (fallbacks > 0) result += $"\n[color=#ffbd52]FALLBACK ×{fallbacks} · {firstFallback}[/color]";
+        return result;
+    }
+
+    private static string ClaimText(int civ, byte strength, int viewer)
+        => civ < 0 || strength == 0 ? "—" : $"{CivName(civ, viewer)} {strength}%";
+
+    private static string CivName(int civ, int viewer) => civ == viewer ? "You" : $"Civ {civ + 1}";
+
+    private static string TerrainName(Biome biome) => biome switch
+    {
+        Biome.GrasslandSteppe => "Grassland / steppe",
+        Biome.OpenWoodland => "Open woodland",
+        Biome.TemperateForest => "Temperate forest",
+        Biome.TropicalForest => "Tropical forest",
+        _ => biome.ToString(),
+    };
+
+    private static string ActivityName(FigureActivity activity) => activity switch
+    {
+        FigureActivity.Forage => "Forage", FigureActivity.Hunt => "Hunt", FigureActivity.Fish => "Fish",
+        FigureActivity.Farm => "Farm", FigureActivity.Chop => "Chop", FigureActivity.Gather => "Gather",
+        FigureActivity.Craft => "Craft", FigureActivity.Build => "Build", FigureActivity.Preserve => "Preserve",
+        FigureActivity.Rest => "Rest", FigureActivity.TendFire => "Fire", FigureActivity.Herd => "Herd", _ => activity.ToString(),
+    };
+
+    private static string ToolName(MethodToolId tool) => tool switch
+    {
+        MethodToolId.Tool1 => "a stone chopper", MethodToolId.Tool2 => "a hand axe", MethodToolId.Tool4 => "a hafted axe",
+        MethodToolId.Tool7 => "a polished axe", MethodToolId.SpearThrower => "a spear-thrower",
+        MethodToolId.FishingKit => "a fishing kit", _ => tool.ToString().ToLowerInvariant(),
+    };
+
+    private static string HuntPartyRequirement(sbyte rung) => rung switch
+    {
+        3 => "needs a 6+ person hunting party",
+        5 => "needs a 1–2 person hunting party",
+        _ => "needs a compatible hunting party",
+    };
+
     private static string RefusalText(ViewEvent item)
     {
         string command = item.A >= (int)CommandKind.None && item.A <= (int)CommandKind.RecallParty
@@ -410,8 +603,22 @@ public partial class Game
         {
             int rung = frame.FigureToolRung[i];
             int tile = frame.FigureTile[i];
-            if (rung < 0 || (uint)tile >= (uint)tiles) continue;
+            bool fallback = frame.FigureMethodFallback[i] != (byte)MethodFallbackReason.None;
+            if ((rung < 0 && !fallback) || (uint)tile >= (uint)tiles) continue;
             result[tile] = (byte)Math.Max(result[tile], Math.Clamp(rung + 1, 1, 255));
+        }
+        return result;
+    }
+
+    private static byte[] BuildMethodFallbackOverlay(MatchFrame frame)
+    {
+        int tiles = frame.Width * frame.Height;
+        var result = new byte[tiles];
+        for (int i = 0; i < frame.FigureCount; i++)
+        {
+            if (frame.FigureMethodFallback[i] == (byte)MethodFallbackReason.None) continue;
+            int tile = frame.FigureTile[i];
+            if ((uint)tile < (uint)tiles && frame.Visibility[tile] == (byte)TileVisibility.Visible) result[tile] = 255;
         }
         return result;
     }

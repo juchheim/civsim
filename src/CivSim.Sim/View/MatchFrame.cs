@@ -44,6 +44,12 @@ public sealed class MatchFrame
     public byte[] Claim = Array.Empty<byte>();
     /// <summary>The civilization holding that strongest claim (-1 none).</summary>
     public sbyte[] Claimant = Array.Empty<sbyte>();
+    /// <summary>Second strongest claim and its civilization; visible tiles only, ties favor the lower civilization id.</summary>
+    public byte[] Claim2 = Array.Empty<byte>();
+    public sbyte[] Claimant2 = Array.Empty<sbyte>();
+    /// <summary>Third strongest claim and its civilization; visible tiles only.</summary>
+    public byte[] Claim3 = Array.Empty<byte>();
+    public sbyte[] Claimant3 = Array.Empty<sbyte>();
     /// <summary><see cref="TileViewFlags"/> per tile.</summary>
     public byte[] TileFlags = Array.Empty<byte>();
     /// <summary>1 when the viewer has discovered a deposit on this tile; 0 otherwise. Read WorldView.Deposit only when set.</summary>
@@ -68,6 +74,14 @@ public sealed class MatchFrame
     public ushort[] FigureFlags = Array.Empty<ushort>();
     /// <summary>Best method rung for the figure's job at its settlement (-1 none): the held-tool sprite and tint.</summary>
     public sbyte[] FigureToolRung = Array.Empty<sbyte>();
+    /// <summary>Highest researched method rung for its job, even when a tool or crew requirement blocks it.</summary>
+    public sbyte[] FigureKnownToolRung = Array.Empty<sbyte>();
+    /// <summary>Effective method output as permille of the highest researched method (1000 means no fallback).</summary>
+    public short[] FigureMethodEfficiencyPermille = Array.Empty<short>();
+    /// <summary><see cref="Economy.MethodFallbackReason"/> for a better researched method that is currently blocked.</summary>
+    public byte[] FigureMethodFallback = Array.Empty<byte>();
+    /// <summary><see cref="Economy.MethodToolId"/> required by the blocked method, or None.</summary>
+    public byte[] FigureMethodFallbackTool = Array.Empty<byte>();
     /// <summary><see cref="CarryKind"/>.</summary>
     public byte[] FigureCarry = Array.Empty<byte>();
 
@@ -235,6 +249,10 @@ public sealed class MatchFrame
         if (Owner.Length != count) Owner = new sbyte[count];
         if (Claim.Length != count) Claim = new byte[count];
         if (Claimant.Length != count) Claimant = new sbyte[count];
+        if (Claim2.Length != count) Claim2 = new byte[count];
+        if (Claimant2.Length != count) Claimant2 = new sbyte[count];
+        if (Claim3.Length != count) Claim3 = new byte[count];
+        if (Claimant3.Length != count) Claimant3 = new sbyte[count];
         if (TileFlags.Length != count) TileFlags = new byte[count];
         if (KnownDeposits.Length != count) KnownDeposits = new byte[count];
     }
@@ -245,6 +263,8 @@ public sealed class MatchFrame
         Ensure(ref FigureId, n); Ensure(ref FigureCiv, n); Ensure(ref FigureSettlement, n); Ensure(ref FigureTile, n);
         Ensure(ref FigureX, n); Ensure(ref FigureY, n); Ensure(ref FigureActivity, n); Ensure(ref FigureAge, n);
         Ensure(ref FigureHealth, n); Ensure(ref FigureFlags, n); Ensure(ref FigureToolRung, n); Ensure(ref FigureCarry, n);
+        Ensure(ref FigureKnownToolRung, n); Ensure(ref FigureMethodEfficiencyPermille, n);
+        Ensure(ref FigureMethodFallback, n); Ensure(ref FigureMethodFallbackTool, n);
     }
 
     internal void EnsureHerds(int n)

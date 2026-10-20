@@ -81,8 +81,11 @@ public sealed class EffectDef
         EffectKind.Claim or EffectKind.Reach or EffectKind.Reveal or EffectKind.Show or EffectKind.Highlight
             or EffectKind.Presence or EffectKind.Lever => VisibleChange.Overlay,
         EffectKind.EraAdvance => VisibleChange.EraCelebration,
+        EffectKind.Mod or EffectKind.Cap or EffectKind.Hazard or EffectKind.Cohesion or EffectKind.Adopt
+            or EffectKind.Unlock or EffectKind.Rule or EffectKind.Planner or EffectKind.Diplo or EffectKind.Relations
+            or EffectKind.Combat or EffectKind.Defense or EffectKind.KnowHow or EffectKind.Event => VisibleChange.Behavior,
         EffectKind.Gate or EffectKind.Risk or EffectKind.Need or EffectKind.Legacy or EffectKind.Prose => VisibleChange.None,
-        _ => VisibleChange.Behavior,
+        _ => VisibleChange.None,
     };
 }
 

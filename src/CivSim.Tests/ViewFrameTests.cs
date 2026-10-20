@@ -36,6 +36,10 @@ public class ViewFrameTests
             Assert.Equal(truth.Age < 14 ? AgeBand.Child : truth.Age < 45 ? AgeBand.Adult : AgeBand.Elder, (AgeBand)f.FigureAge[i]);
             Assert.Equal(truth.Female, ((FigureFlags)f.FigureFlags[i] & FigureFlags.Female) != 0);
             Assert.Equal(truth.WoundSeasons > 0, ((FigureFlags)f.FigureFlags[i] & FigureFlags.Wounded) != 0);
+            Assert.True(f.FigureKnownToolRung[i] >= f.FigureToolRung[i]);
+            Assert.InRange(f.FigureMethodEfficiencyPermille[i], (short)0, (short)1000);
+            if (f.FigureMethodFallback[i] != (byte)MethodFallbackReason.None)
+                Assert.True(f.FigureKnownToolRung[i] > f.FigureToolRung[i]);
             Assert.Equal(f.FigureId[i], f.FigureId[f.IndexOfFigure(truth.Id)]);
             // A figure stands on (or, while walking or with a party, near) its tile.
             Assert.InRange(f.FigureX[i], 0, width * HexLayout.Unit + HexLayout.Unit);
@@ -177,6 +181,30 @@ public class ViewFrameTests
             bool seen = viewer.Visibility[tile] != (byte)TileVisibility.Unknown;
             Assert.Equal(hasDeposit && seen, viewer.KnownDeposits[tile] != 0);
             Assert.Equal(hasDeposit, omniscient.KnownDeposits[tile] != 0);
+        }
+    }
+
+    [Fact]
+    public void Tile_claim_top_three_are_ordered_and_filtered_by_visibility()
+    {
+        WatchedMatch w = ViewKit.Watched.Value;
+        MatchFrame viewer = w.ViewerFrame, omniscient = w.OmniFrame;
+        for (int tile = 0; tile < viewer.Width * viewer.Height; tile++)
+        {
+            if (viewer.Visibility[tile] != (byte)TileVisibility.Visible)
+            {
+                Assert.Equal(0, viewer.Claim[tile]); Assert.Equal(-1, viewer.Claimant[tile]);
+                Assert.Equal(0, viewer.Claim2[tile]); Assert.Equal(-1, viewer.Claimant2[tile]);
+                Assert.Equal(0, viewer.Claim3[tile]); Assert.Equal(-1, viewer.Claimant3[tile]);
+                continue;
+            }
+            Assert.Equal(omniscient.Claim[tile], viewer.Claim[tile]);
+            Assert.Equal(omniscient.Claimant[tile], viewer.Claimant[tile]);
+            Assert.Equal(omniscient.Claim2[tile], viewer.Claim2[tile]);
+            Assert.Equal(omniscient.Claimant2[tile], viewer.Claimant2[tile]);
+            Assert.Equal(omniscient.Claim3[tile], viewer.Claim3[tile]);
+            Assert.Equal(omniscient.Claimant3[tile], viewer.Claimant3[tile]);
+            Assert.True(viewer.Claim[tile] >= viewer.Claim2[tile] && viewer.Claim2[tile] >= viewer.Claim3[tile]);
         }
     }
 

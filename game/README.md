@@ -76,6 +76,14 @@ tick advance, plus the mean and peak main-thread frame refresh time. Pass
 `--screenshot=/tmp/civsim-m7a-z0.png` to save a capture at the end. Run the
 command with zoom values 0, 1 and 2 for the M7a performance gate.
 
+To sample every map layer at Z0–Z2 in one live simulation, use:
+
+```bash
+godot-mono --path game -- --start-minute=70 --viewer=-1 --benchmark-seconds=4 --benchmark-matrix=all
+```
+
+The matrix covers Claims, Food, Methods and Resources at each zoom, with a one-second warm-up before each sample. It prints one `M7A_PERF` line per case, including its zoom, overlay and lowest complete one-second FPS window.
+
 The current M7a view is the low-poly 3D renderer at
 `Renderer/LowPoly3DView.gd`; its terrain, settlement, vegetation and actor assets
 live under `Renderer/LowPoly3D/`. The renderer script path is selected by
@@ -89,15 +97,25 @@ shadows and limits trampled-earth washes to the nearest six settlements. It also
 renders the 3D buffer at 75% scale with FSR upscaling; the HUD remains at native
 resolution. Close zooms retain the detailed meshes and full-resolution rendering.
 
-Latest local M7a gate on an Apple M4, Godot 4.7.2, 1600×900, 2-second warm-up and
-8-second samples:
+Latest M7a overlay gate on an Apple M4, Godot 4.7.2, 1600×900. The matrix used a
+one-second warm-up and four-second sample for every overlay/zoom pair, with the
+simulation running unpaused at 1×. It began at 2,731 figures and ended at 2,833.
 
-| Zoom | Average FPS | Minimum 1-second FPS | Figures | Tick advance | Primitives | Draw calls |
-|------|------------:|--------------------:|--------:|-------------:|-----------:|-----------:|
-| Z0 | 60.5 | 59.9 | 2,731 | 110 | 1.93M | 226 |
-| Z1 | 60.0 | 59.9 | 2,731 | 110 | 1.58M | 209 |
-| Z2 | 60.4 | 58.4 | 2,731 | 110 | 1.82M | 299 |
+| Zoom | Overlay | Average FPS | Minimum 1-second FPS | Figures | Tick advance |
+|------|---------|------------:|--------------------:|--------:|-------------:|
+| Z0 | Claims | 137.4 | 136.7 | 2,731 | 60 |
+| Z0 | Food | 138.0 | 138.0 | 2,731 | 50 |
+| Z0 | Methods | 129.9 | 115.9 | 2,745 | 50 |
+| Z0 | Resources | 137.6 | 136.5 | 2,745 | 50 |
+| Z1 | Claims | 138.0 | 138.0 | 2,745 | 50 |
+| Z1 | Food | 134.4 | 125.7 | 2,780 | 50 |
+| Z1 | Methods | 137.9 | 137.7 | 2,780 | 50 |
+| Z1 | Resources | 137.6 | 137.3 | 2,780 | 50 |
+| Z2 | Claims | 129.9 | 115.6 | 2,817 | 50 |
+| Z2 | Food | 140.0 | 139.7 | 2,817 | 50 |
+| Z2 | Methods | 139.5 | 138.8 | 2,817 | 50 |
+| Z2 | Resources | 132.3 | 124.8 | 2,833 | 50 |
 
-All samples ran the simulation unpaused at 1×. Average FPS clears 60 at Z0–Z2;
-the minimum one-second window dipped slightly below 60 at each zoom, so repeat the
-gate on the target Mac when making later renderer changes.
+All 12 cases cleared the 60 FPS target, including the slowest one-second window
+at 115.6 FPS in Z2 Claims. Frame refreshes peaked at 159.37 ms in Z0 Methods;
+the simulation continued advancing during every sample.

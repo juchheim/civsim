@@ -105,7 +105,7 @@ void fragment() {
 				tint = band < 0.5 ? vec3(0.20, 0.55, 0.22) : band < 1.5 ? vec3(0.78, 0.62, 0.16) : band < 2.5 ? vec3(0.83, 0.33, 0.12) : vec3(0.65, 0.08, 0.10);
 			} else {
 				float rung = clamp((code * 255.0 - 1.0) / 7.0, 0.0, 1.0);
-				tint = mix(vec3(0.12, 0.42, 0.61), vec3(0.57, 0.25, 0.70), rung);
+				tint = overlay.a > 0.5 ? vec3(1.0, 0.54, 0.10) : mix(vec3(0.12, 0.42, 0.61), vec3(0.57, 0.25, 0.70), rung);
 			}
 			c = mix(c, tint, 0.43);
 		}

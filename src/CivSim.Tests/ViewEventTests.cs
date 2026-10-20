@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -75,6 +76,67 @@ public class ViewEventTests
         {
             Assert.Equal(completions[i].Project, moments[i].Project);
             Assert.Equal(completions[i].Figure, moments[i].Figure);
+        }
+    }
+
+    [Fact]
+    public void Moments_and_visible_changes_cover_the_E0_to_E2_research_catalog()
+    {
+        ResearchCatalog catalog = TestPack.Catalog;
+        foreach (ProjectDef project in catalog.Projects)
+            if (project.Numeric && project.Era <= 2)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(project.Moment), $"{project.Id} has no Moment text");
+                Assert.False(string.IsNullOrWhiteSpace(project.Flavor), $"{project.Id} has no Moment Flavor text");
+            }
+
+        WatchedMatch w = ViewKit.Watched.Value;
+        List<ViewEvent> completions = w.AllViewerEvents.Where(e => e.Kind == ViewEventKind.ProjectCompleted).ToList();
+        for (int completedIndex = 0; completedIndex < completions.Count; completedIndex++)
+        {
+            ViewEvent completed = completions[completedIndex];
+            long nextCompletion = completedIndex + 1 < completions.Count ? completions[completedIndex + 1].Sequence : long.MaxValue;
+            ProjectDef project = catalog.Projects[completed.Project];
+            int[] expectedEffects = project.Effects
+                .Select((effect, index) => (effect, index))
+                .Where(pair => pair.effect.Visual != VisibleChange.None)
+                .Select(pair => pair.index)
+                .ToArray();
+            ViewEvent[] changes = w.AllViewerEvents
+                .Where(e => e.Sequence > completed.Sequence && e.Sequence < nextCompletion &&
+                    e.Kind == ViewEventKind.VisibleChange && e.Project == completed.Project && e.Tick == completed.Tick)
+                .ToArray();
+            Assert.Equal(expectedEffects, changes.Select(e => e.B).ToArray());
+            int firstVisual = expectedEffects.Length == 0 ? (int)VisibleChange.None : (int)project.Effects[expectedEffects[0]].Visual;
+            Assert.Equal(firstVisual, completed.A);
+            Assert.Contains(w.AllViewerEvents, e => e.Sequence > completed.Sequence && e.Sequence < nextCompletion &&
+                e.Kind == ViewEventKind.Moment && e.Project == completed.Project && e.Tick == completed.Tick);
+        }
+    }
+
+    [Fact]
+    public void Every_effect_kind_has_an_explicit_visible_change_classification()
+    {
+        foreach (EffectKind kind in Enum.GetValues<EffectKind>())
+        {
+            VisibleChange expected = kind switch
+            {
+                EffectKind.UnlockAction => VisibleChange.NewAction,
+                EffectKind.Method => VisibleChange.ToolOrMethod,
+                EffectKind.Good => VisibleChange.Good,
+                EffectKind.Build or EffectKind.Wonder => VisibleChange.Structure,
+                EffectKind.Role => VisibleChange.Role,
+                EffectKind.Tier => VisibleChange.Tier,
+                EffectKind.Claim or EffectKind.Reach or EffectKind.Reveal or EffectKind.Show or EffectKind.Highlight
+                    or EffectKind.Presence or EffectKind.Lever => VisibleChange.Overlay,
+                EffectKind.EraAdvance => VisibleChange.EraCelebration,
+                EffectKind.Gate or EffectKind.Risk or EffectKind.Need or EffectKind.Legacy or EffectKind.Prose => VisibleChange.None,
+                EffectKind.Mod or EffectKind.Cap or EffectKind.Hazard or EffectKind.Cohesion or EffectKind.Adopt
+                    or EffectKind.Unlock or EffectKind.Rule or EffectKind.Planner or EffectKind.Diplo or EffectKind.Relations
+                    or EffectKind.Combat or EffectKind.Defense or EffectKind.KnowHow or EffectKind.Event => VisibleChange.Behavior,
+                _ => throw new Xunit.Sdk.XunitException($"{kind} has no visible-change audit mapping"),
+            };
+            Assert.Equal(expected, new EffectDef { Kind = kind }.Visual);
         }
     }
 
