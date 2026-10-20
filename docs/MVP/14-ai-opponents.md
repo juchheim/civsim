@@ -385,3 +385,32 @@ The mean Legacy over all archetypes is 2,003, against 2,032 before (Sage's free 
 - Wins rest almost entirely on the Firsts race, so outcomes are high-variance. The Sage has the lowest mean Legacy but wins in streaks.
 - The Warlord's conquest windows almost never open between Warlord-level AIs: fewer than 0.01 captures per civilization and match. Its style earns Legacy through research, not war. A Territory or Dominion channel for Wanderer and Warlord (wider claim radius, overseas claims) is left for the balance pass that brings E3+.
 - Firsts are about half of all Legacy at minute 33, against ~15% in 01 §7.1. Re-weighting them is a scoring change for every gate and is not made here.
+
+## 18. M6 as built: Spark, Strategist, bots and harness (2026-10-20)
+
+**Acceptance (`civsim-harness ai --pack civsim.pack --check-m6 --seeds 8`, 33 minutes, mirrored seats, Legacy = Dominion + Mastery + Firsts).**
+
+| Gate | Target | Result |
+|------|--------|--------|
+| A1 Warlord vs Council bot | ≥ 85% | 94% (16 matches) |
+| A2 vs Grower / Builder / Wanderer openings | ≥ 70% each | 88% / 100% / 100% |
+| A3 vs Rusher | loses no settlement in ≥ 80%, wins ≥ 70% | 100% clean matches, 94% wins |
+| A4 Chieftain vs Warlord | 25–40% | 31% |
+| A5 archetype balance (24 seeds, 120 free-for-alls) | no archetype > 30% | 21.9–28.1% (see §17) |
+| A6 exploit searcher | no fixed policy > 55% | best of 97 evaluations: 17% |
+| A7 blunders (Warlord vs Council) | keystone stalls 0, dithering 0 | 0, 0 |
+| A8 fog fairness | decisions unchanged when unseen state is perturbed | `FogFairnessTests` pass at three checkpoints |
+
+Deferred with the later eras: Legend vs Warlord ≥ 65% (Legend ties Warlord within noise at E0–E2, its extra beam width has little to find) and the Dominion-victory frequency. `civsim-harness ai --exploit` currently runs 97 evaluations (8 generations × 12 children, 2 mirrored seeds each) with a fitness of win rate plus Legacy share; the scheduled workflow runs it weekly, and the full 10,000-evaluation target is a longer offline run.
+
+**Spark** (`Ai/Forecast`, `Ai/Spark`). A deterministic mean-field forecast of one civilization (Insight, slots, Know-how, eras, Firsts and Mastery Legacy; fidelity against live matches: KEY-1/2/3 within 15%, median 4.5%) feeds a beam search over the next six projects, started from the Council's scores. A ready keystone always goes to Primary; no slots are held for the critical path (holding even one cost 6–10 points of A1 because Firsts decide matches). The plan is kept unless a new one wins by a margin. Events: a keystone becoming Available is promoted within a research step (Warlord and Legend, `AiSystem.AfterResearchStep`); a jump of 0.25 in the Strategist's defense or attack reading lifts plan commitment, and the urgency bonus fades over 8 seasons. Settler and Chieftain take 20% and 5% of picks from the Council prior on a deterministic stream. About 220 rollouts per Warlord decision.
+
+**Strategist** (`Ai/Strategist`). Reads only `StrategistView` and acts only through `IStrategistActions`. Grand plan re-scored each season (10% switching penalty, hard events waive it, plans dwell 4 seasons, at most 2 changes per 12). Raids by Monte Carlo of `Raids.Resolve` on believed defenses (never below 30% success, never on a sighting older than 2 seasons, never into a winter it cannot feed). Wars need a force ratio ≥ 1.5 (2.0 against a palisade) with relief from sister settlements counted; peace when objectives are met or the war is lost. Gifts, barter, alliances, Posture (Fortify now adds watchers and the alarm, so it defends) and Beacons. Constants are in `StrategistTuning.cs`.
+
+**Bots** (`Ai/Bots`). Random, the three openings, Rusher, Turtle and the fixed-policy bot of the exploit searcher use the same three interfaces and the real belief builder.
+
+**Harness** (`civsim-harness ai`). `--duel A B`, `--ladder`, `--ffa LEVEL`, `--check-m6`, `--exploit`; team A in seats 0 and 3, team B in 1 and 2, then swapped, per-match blunder counts (keystone stalls, idle slots, plan dithering, captures).
+
+**Found by the fog test.** Killing people in an unseen rival settlement shifted a global figure index in the economy's material-job rotation and reshuffled other civilizations' jobs and Know-how; the rotation is now keyed on the figure id (research and politics goldens refreshed). The economy snapshot also dropped last season's death events, which the Council reads as its disease signal; they are now saved.
+
+**Known limits.** Firsts are about half of Legacy in these matches (doc 01 §7.1 expects ~15%), so results hinge on the Firsts race; conquest between Warlord-level AIs is almost absent; full AI stack adds about 4 s to a 40-minute four-AI match (over the 3 s the parts were budgeted, far inside the 20 s budget).
