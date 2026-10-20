@@ -5,7 +5,11 @@ render_mode blend_mix, cull_back, diffuse_burley, specular_schlick_ggx;
 
 uniform vec3 civ_col[8];
 uniform sampler2D tile_state : filter_nearest;
+uniform sampler2D overlay_state : filter_nearest;
 uniform float territory_strength = 1.0;
+uniform float claim_overlay_strength = 0.0;
+uniform float overlay_forecast = 0.0;
+uniform int overlay_mode = 0; // 0 none, 1 claim strength, 2 food security, 3 methods
 uniform float terrain_detail = 1.0;
 uniform vec4 villages[48];      // x, z, radius
 uniform int village_count = 0;
@@ -26,6 +30,7 @@ void fragment() {
 	vec3 c = COLOR.rgb;
 	vec4 state = texture(tile_state, tile_uv);
 	int owner = int(state.r * 255.0 + 0.5) - 1;
+	int claimant = int(state.a * 255.0 + 0.5) - 1;
 	float claim = state.g;
 	float visibility = state.b;
 	bool wall = tuv.x < -0.5;
@@ -84,6 +89,26 @@ void fragment() {
 		vec3 cc = civ_col[owner];
 		float k = territory_strength * (0.05 + 0.13 * claim) * (wall ? 0.4 : 1.0);
 		c = mix(c, cc * (0.55 + 0.9 * luma(c) / max(luma(cc), 0.05)) , k);
+	}
+	if (overlay_mode == 1 && claimant >= 0 && claimant < 8 && claim > 0.001 && wpos.y > -0.05) {
+		vec3 cc = civ_col[claimant];
+		float k = min(0.72, claim_overlay_strength * claim * 0.66) * (wall ? 0.4 : 1.0);
+		c = mix(c, cc * (0.55 + 0.9 * luma(c) / max(luma(cc), 0.05)), k);
+	}
+	if (overlay_mode == 2 || overlay_mode == 3) {
+		vec4 overlay = texture(overlay_state, tile_uv);
+		float code = overlay_mode == 2 ? mix(overlay.r, overlay.g, overlay_forecast) : overlay.b;
+		if (code > 0.001 && visibility > 0.9 && !wall) {
+			vec3 tint;
+			if (overlay_mode == 2) {
+				float band = floor(code * 255.0 + 0.5) - 1.0;
+				tint = band < 0.5 ? vec3(0.20, 0.55, 0.22) : band < 1.5 ? vec3(0.78, 0.62, 0.16) : band < 2.5 ? vec3(0.83, 0.33, 0.12) : vec3(0.65, 0.08, 0.10);
+			} else {
+				float rung = clamp((code * 255.0 - 1.0) / 7.0, 0.0, 1.0);
+				tint = mix(vec3(0.12, 0.42, 0.61), vec3(0.57, 0.25, 0.70), rung);
+			}
+			c = mix(c, tint, 0.43);
+		}
 	}
 	// Keep the whole landform legible while suppressing details on unknown and explored tiles.
 	if (visibility < 0.1) {

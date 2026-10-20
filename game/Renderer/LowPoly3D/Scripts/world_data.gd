@@ -32,6 +32,7 @@ var biome := PackedByteArray()
 var elevation := PackedByteArray()
 var flags := PackedInt32Array()
 var owner := PackedInt32Array()
+var claimant := PackedInt32Array()
 var claim := PackedByteArray()
 var visibility := PackedByteArray() # 0 unknown, 1 explored, 2 visible
 var heights := PackedFloat32Array()
@@ -43,6 +44,9 @@ var settlements: Array = []
 var plots := PackedInt32Array() # flat [tile, kind] pairs
 var plot_kind := PackedInt32Array()   # -1 none, 0 field, 1 orchard
 var reserved := PackedByteArray()     # tiles where wild vegetation is suppressed (settlements, plots)
+var food_overlay := PackedByteArray() # 0 unknown/non-settlement, 1..4 food band
+var forecast_overlay := PackedByteArray()
+var method_overlay := PackedByteArray() # 0 none, 1+ best rung held by a visible/own worker
 
 static func civ_color(civ: int) -> Color:
 	if civ < 0:
@@ -78,12 +82,16 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	tick = int(d.tick)
 	year = int(d.year)
 	season = int(d.seasonOfYear)
+	food_overlay = _byte_array(d.foodOverlay) if d.has("foodOverlay") else PackedByteArray()
+	forecast_overlay = _byte_array(d.forecastOverlay) if d.has("forecastOverlay") else PackedByteArray()
+	method_overlay = _byte_array(d.methodOverlay) if d.has("methodOverlay") else PackedByteArray()
 	claim = _byte_array(d.claim)
 	visibility = _byte_array(d.visibility) if d.has("visibility") else PackedByteArray()
 	if visibility.is_empty():
 		visibility.resize(width * height)
 		visibility.fill(2)
 	owner = _int_array(d.owner)
+	claimant = _int_array(d.claimant) if d.has("claimant") else owner.duplicate()
 	if claim.size() != width * height or visibility.size() != width * height:
 		push_error("MatchFrame tile arrays have the wrong size")
 		return false

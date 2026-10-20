@@ -63,6 +63,13 @@ public partial class Game : Node3D
     private MultiMesh[] _structureMeshes = Array.Empty<MultiMesh>();
     private Mesh[] _structureModels = Array.Empty<Mesh>();
     private Label? _statusLabel;
+    private Label? _momentLabel;
+    private VBoxContainer? _chronicleList;
+    private PanelContainer? _chroniclePanel;
+    private Button? _chronicleToggle;
+    private Button? _claimsOverlayButton, _foodOverlayButton, _methodsOverlayButton;
+    private Button? _resourcesOverlayButton;
+    private Label? _overlayLegendLabel;
     private PanelContainer? _politicsPanel;
     private Label? _politicsNote;
     private OptionButton? _politicsCivPicker, _targetSettlementPicker, _recallPartyPicker;
@@ -108,6 +115,11 @@ public partial class Game : Node3D
     private double _benchmarkMinWindowFps = double.MaxValue;
     private int _lastSeason = -1;
     private bool _resourcesVisible;
+    private int _mapOverlay;
+    private bool _chronicleVisible = true;
+    private readonly List<string> _chronicleEntries = new(8);
+    private readonly List<ViewEvent> _chronicleSubjects = new(8);
+    private float _momentTimer;
     private string? _alertMessage;
     private float _alertTimer;
 
@@ -159,6 +171,7 @@ public partial class Game : Node3D
             _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
             _resourceNode = CreateMultiMeshNode(_look.CreateSphere(), "KnownResourceDeposits", _look.LitVertexMaterial());
             _resourceNode.Visible = false;
+            ReadOverlayArgument();
             CreateHud(seed);
             UpdateKnownResources(_current);
             FrameCapital();
@@ -221,6 +234,7 @@ public partial class Game : Node3D
         if (!_session.Paused)
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
         if (_alertTimer > 0) _alertTimer = Math.Max(0, _alertTimer - (float)delta);
+        if (_momentTimer > 0) _momentTimer = Math.Max(0, _momentTimer - (float)delta);
         float alpha = FrameAlpha(_renderTick);
         UpdateActors(alpha);
         if (_benchmarkSeconds > 0)
@@ -249,6 +263,7 @@ public partial class Game : Node3D
     {
         if (_session is null) return;
         if (HandleResearchInput(input)) return;
+        if (HandleM7cInput(input)) return;
         if (input is InputEventMouseButton button)
         {
             if (button.ButtonIndex == MouseButton.WheelUp && button.Pressed) SetZoom(_zoom * 0.88f);
@@ -288,6 +303,7 @@ public partial class Game : Node3D
                     break;
                 case Key.R:
                     _resourcesVisible = !_resourcesVisible;
+                    if (_resourcesOverlayButton is not null) _resourcesOverlayButton.ButtonPressed = _resourcesVisible;
                     if (_current is not null) UpdateKnownResources(_current);
                     break;
                 case Key.D:
@@ -380,6 +396,19 @@ public partial class Game : Node3D
         return 0;
     }
 
+    private void ReadOverlayArgument()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--overlay=", StringComparison.Ordinal))
+            {
+                string overlay = arg.Substring("--overlay=".Length).ToLowerInvariant();
+                _mapOverlay = overlay switch { "claims" => 1, "food" => 2, "methods" => 3, _ => 0 };
+                _resourcesVisible = overlay == "resources";
+                _visualRenderer?.Call("set_overlay", _mapOverlay);
+                break;
+            }
+    }
+
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld)
     {
         int tiles = frame.Width * frame.Height;
@@ -433,8 +462,13 @@ public partial class Game : Node3D
             plots[i * 2 + 1] = frame.PlotKind[i];
         }
 
+        byte[] foodOverlay = BuildFoodOverlay(frame);
+        byte[] forecastOverlay = BuildFoodForecastOverlay(frame);
+        byte[] methodOverlay = BuildMethodOverlay(frame);
+
         var owners = new int[tiles];
         for (int i = 0; i < tiles; i++) owners[i] = frame.Owner[i];
+        var claimants = ToIntArray(frame.Claimant, tiles);
         var payload = new Godot.Collections.Dictionary
         {
             ["width"] = frame.Width,
@@ -443,6 +477,7 @@ public partial class Game : Node3D
             ["year"] = frame.Year,
             ["seasonOfYear"] = frame.SeasonOfYear,
             ["owner"] = owners,
+            ["claimant"] = claimants,
             ["claim"] = Slice(frame.Claim, tiles),
             ["visibility"] = Slice(frame.Visibility, tiles),
             ["camps"] = Slice(frame.CampTile, frame.CampCount),
@@ -453,6 +488,9 @@ public partial class Game : Node3D
             ["herds"] = herds,
             ["settlements"] = settlements,
             ["plots"] = plots,
+            ["foodOverlay"] = foodOverlay,
+            ["forecastOverlay"] = forecastOverlay,
+            ["methodOverlay"] = methodOverlay,
         };
         if (includeWorld)
         {
@@ -826,7 +864,7 @@ public partial class Game : Node3D
             AnchorRight = 0,
             AnchorBottom = 1,
             Position = new Vector2(16, -14),
-            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · T research · R resources · D orders · right-click beacon · Space pause · [ ] speed · F capital",
+            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · map layers left · C Chronicle · T research · R resources · D orders · right-click beacon · Space pause · [ ] speed · F capital",
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         help.AddThemeFontSizeOverride("font_size", 14);
@@ -836,6 +874,7 @@ public partial class Game : Node3D
         help.AddThemeConstantOverride("shadow_offset_y", 1);
         layer.AddChild(help);
         CreatePoliticsPanel(layer);
+        CreateM7cHud(layer);
         CreateResearchHud(layer);
         if (ReadResearchWebArgument() || ReadResearchOverviewArgument()) SetResearchWebVisible(true);
         if (ReadResearchOverviewArgument()) SetResearchOverviewMode(true);
@@ -1191,7 +1230,7 @@ public partial class Game : Node3D
                 GD.Print($"M7A_FRAME_HOST payload={payloadMs:F2}ms figures={frame.FigureCount} herds={frame.HerdCount}");
         }
         UpdateKnownResources(frame);
-        ReadEvents(frame);
+        ProcessViewEvents(frame);
     }
 
     private void UpdateTileState(MatchFrame frame)
@@ -1232,27 +1271,6 @@ public partial class Game : Node3D
             }
         }
         SetInstances(_resourceNode.Multimesh, transforms, colors);
-    }
-
-    private void ReadEvents(MatchFrame frame)
-    {
-        for (int i = 0; i < frame.EventCount; i++)
-        {
-            ViewEvent item = frame.Events[i];
-            if (item.Sequence <= _lastEventSequence) continue;
-            _lastEventSequence = item.Sequence;
-            if (item.Civ != 0 || item.Kind != ViewEventKind.OrderRefused) continue;
-            string command = Enum.GetName((CommandKind)item.A) ?? "Order";
-            string reason = item.B switch
-            {
-                1 => "invalid target",
-                2 => "requirements not met",
-                3 => "not available now",
-                _ => "refused",
-            };
-            _alertMessage = $"{command} refused — {reason}";
-            _alertTimer = 5.0f;
-        }
     }
 
     private void PlaceBeacon(Vector2 screenPosition)
@@ -1555,6 +1573,7 @@ public partial class Game : Node3D
                             $"{Engine.GetFramesPerSecond()} fps" +
                             (_alertTimer > 0 && _alertMessage is not null ? $"\n{_alertMessage}" : "");
         UpdateResearchHud(_current);
+        UpdateM7cHud(_current);
     }
 
     private void ApplySeasonLight(int season)

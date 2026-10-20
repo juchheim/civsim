@@ -17,6 +17,9 @@ var environment: Environment
 var camera_attributes: CameraAttributesPractical
 var state_image: Image
 var state_texture: ImageTexture
+var overlay_image: Image
+var overlay_texture: ImageTexture
+var overlay_mode := 0 # 0 none, 1 claim strength, 2 food security, 3 methods
 var fire_lights: Array[OmniLight3D] = []
 var smoke_nodes: Array[Node3D] = []
 var last_season := -1
@@ -32,6 +35,7 @@ func setup_frame(frame_data: Dictionary) -> void:
 		return
 	kit = M7MeshKit.new()
 	_make_state_texture()
+	_make_overlay_texture()
 	_make_materials()
 	_make_environment()
 	_make_camera()
@@ -51,8 +55,11 @@ func update_frame(frame_data: Dictionary) -> void:
 		return
 	var loaded := Time.get_ticks_usec()
 	_update_state_texture()
+	_update_overlay_texture()
 	var tile_state := Time.get_ticks_usec()
 	_apply_season(world.season)
+	if mats.has("terrain"):
+		mats.terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	var structures_changed := builder.update_frame()
 	var built := Time.get_ticks_usec()
 	_set_villages()
@@ -66,6 +73,14 @@ func update_frame(frame_data: Dictionary) -> void:
 
 func set_season(season: int) -> void:
 	_apply_season(season)
+	if mats.has("terrain"):
+		mats.terrain.set_shader_parameter("overlay_forecast", 1.0 if season >= 2 else 0.0)
+
+func set_overlay(mode: int) -> void:
+	overlay_mode = clampi(mode, 0, 3)
+	if mats.has("terrain"):
+		mats.terrain.set_shader_parameter("overlay_mode", overlay_mode)
+		mats.terrain.set_shader_parameter("claim_overlay_strength", 1.35 if overlay_mode == 1 else 0.0)
 
 func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> void:
 	if camera == null:
@@ -116,11 +131,35 @@ func _make_state_texture() -> void:
 	state_texture = ImageTexture.create_from_image(state_image)
 	_update_state_texture()
 
+func _make_overlay_texture() -> void:
+	var data := PackedByteArray()
+	data.resize(world.width * world.height * 4)
+	overlay_image = Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, data)
+	overlay_texture = ImageTexture.create_from_image(overlay_image)
+	_update_overlay_texture()
+
+func _update_overlay_texture() -> void:
+	if overlay_image == null or world == null:
+		return
+	var data := PackedByteArray()
+	data.resize(world.width * world.height * 4)
+	for t in world.width * world.height:
+		var o := t * 4
+		data[o] = world.food_overlay[t] if t < world.food_overlay.size() else 0
+		data[o + 1] = world.forecast_overlay[t] if t < world.forecast_overlay.size() else 0
+		data[o + 2] = world.method_overlay[t] if t < world.method_overlay.size() else 0
+		data[o + 3] = 255
+	overlay_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, data)
+	overlay_texture.update(overlay_image)
+	if mats.has("terrain"):
+		mats.terrain.set_shader_parameter("overlay_state", overlay_texture)
+
 func _update_state_texture() -> void:
 	for t in world.width * world.height:
 		var owner_code := clampi(world.owner[t] + 1, 0, 255)
 		state_image.set_pixel(t % world.width, t / world.width,
-			Color(owner_code / 255.0, world.claim[t] / 255.0, world.visibility[t] * 0.5, 1.0))
+			Color(owner_code / 255.0, world.claim[t] / 255.0, world.visibility[t] * 0.5,
+				clampi(world.claimant[t] + 1, 0, 255) / 255.0))
 	state_texture.update(state_image)
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("tile_state", state_texture)
@@ -134,7 +173,10 @@ func _make_materials() -> void:
 	terrain.shader = load("res://Renderer/LowPoly3D/Shaders/terrain.gdshader")
 	terrain.set_shader_parameter("civ_col", civ_colors)
 	terrain.set_shader_parameter("tile_state", state_texture)
+	terrain.set_shader_parameter("overlay_state", overlay_texture)
+	terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	mats.terrain = terrain
+	set_overlay(overlay_mode)
 	var water := ShaderMaterial.new()
 	water.shader = load("res://Renderer/LowPoly3D/Shaders/water.gdshader")
 	mats.water = water
