@@ -203,7 +203,28 @@ public sealed partial class FrameBuilder
         FillOccupations(pol, target);
         FillCivs(match, target);
         FillFocus(match, target);
+        FillAiWhy(match, target);
         CollectEvents(match, target, season);
+    }
+
+    private static void FillAiWhy(MatchModel match, MatchFrame target)
+    {
+        if (match.Ai is null)
+        {
+            target.AiWhyCount = 0;
+            return;
+        }
+
+        var decisions = match.Ai.Log.Entries;
+        int count = Math.Min(target.AiWhyEntries.Length, decisions.Count);
+        int first = decisions.Count - count;
+        for (int i = 0; i < count; i++)
+        {
+            AiDecision decision = decisions[first + i];
+            target.AiWhyEntries[i] = new AiWhyEntry(decision.Tick, (byte)decision.Civ,
+                decision.Layer, decision.Kind, decision.Score.Raw, decision.Reason);
+        }
+        target.AiWhyCount = count;
     }
 
     private GeneratedWorld? _checkedWorld;

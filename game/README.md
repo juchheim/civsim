@@ -1,4 +1,4 @@
-# CivSim Godot front end (M7a–M7b)
+# CivSim Godot front end (M7a–M7d)
 
 The project is the presentation layer for `CivSim.Sim`. It reads the viewer-filtered
 `MatchFrame` through `FrameStore`, renders the low-poly 3D map, and queues plain
@@ -26,6 +26,21 @@ orders that the current frame shows as unavailable are disabled. Gift and barter
 can use a selected visible destination or choose the closest settlement pair. A
 refused order appears in the status panel. If Godot cannot
 find the .NET runtime on macOS, set `DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec`.
+
+The first launch opens a short Spark introduction. Context tips appear when their
+events happen; press **H** or choose **Help / tips** to review tips already seen.
+The top toolbar has a quick-save slot, load, replay recording, replay playback, and
+the help panel. Saves and the latest replay are stored under Godot's user-data
+directory in `saves/quicksave.civsave` and `replays/latest.csr`. Saves include the
+versioned simulation snapshot, fog memory, pending player orders, command history,
+checksums, AI explanations, and onboarding progress. Replays start from the seed
+and recorded player orders; the viewer reports whether periodic checksums match.
+The match pauses at the first KEY-3 completion or at 40 simulated minutes and shows
+Legacy standings, the Keystone timeline, and the AI's recent decision reasons.
+
+The standard game uses Gentle start: the first three winters are mild, and the
+human civilization cannot make rival contact before KEY-1. To capture the first-run
+intro in a development screenshot, pass `--show-onboarding` with `--screenshot`.
 Build the C# project with `dotnet build game/CivSim.Game.csproj -c Debug` before
 the normal Godot launch; Godot loads the Debug assembly by default. A screenshot
 can be captured after startup with:

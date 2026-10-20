@@ -37,6 +37,7 @@ public partial class Game : Node3D
     };
 
     private SimulationSession? _session;
+    private ContentPack? _contentPack;
     private IGameLook _look = null!;
     private Node3D? _visualRenderer;
     private Camera3D? _camera;
@@ -147,6 +148,7 @@ public partial class Game : Node3D
         {
             ulong seed = ReadSeed();
             ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
+            _contentPack = pack;
             _catalog = new ResearchCatalog(pack);
             _war02 = _catalog.IndexOf("WAR-02");
             _trd01 = _catalog.IndexOf("TRD-01");
@@ -169,15 +171,7 @@ public partial class Game : Node3D
                 }
             }
             if (_current is null) throw new InvalidOperationException("Simulation did not publish its initial MatchFrame.");
-            string rendererPath = ProjectSettings.GetSetting(
-                "civsim/renderer_script", "res://Renderer/LowPoly3DView.gd").AsString();
-            var rendererScript = GD.Load<GDScript>(rendererPath)
-                ?? throw new InvalidOperationException($"Could not load renderer script '{rendererPath}'.");
-            _visualRenderer = rendererScript.New().AsGodotObject() as Node3D
-                ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
-            AddChild(_visualRenderer);
-            _visualRenderer.Call("setup_frame", BuildFramePayload(_current, _session.WorldView, includeWorld: true));
-            _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
+            RebuildVisualRenderer(_current, _session);
             _resourceNode = CreateMultiMeshNode(_look.CreateSphere(), "KnownResourceDeposits", _look.LitVertexMaterial());
             _resourceNode.Visible = false;
             ReadOverlayArgument();
@@ -254,6 +248,8 @@ public partial class Game : Node3D
             }
         }
 
+        UpdateM7d(delta);
+
         if (!_session.Paused)
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
         if (_alertTimer > 0) _alertTimer = Math.Max(0, _alertTimer - (float)delta);
@@ -285,6 +281,7 @@ public partial class Game : Node3D
     public override void _UnhandledInput(InputEvent input)
     {
         if (_session is null) return;
+        if (HandleM7dInput(input)) return;
         if (HandleResearchInput(input)) return;
         if (HandleM7cInput(input)) return;
         if (input is InputEventMouseButton button)
@@ -967,6 +964,7 @@ public partial class Game : Node3D
         if (ReadResearchWebArgument() || ReadResearchOverviewArgument() || firstResearchChoice) SetResearchWebVisible(true);
         if (ReadResearchOverviewArgument()) SetResearchOverviewMode(true);
         if (_current is not null) UpdatePoliticsControls(_current);
+        CreateM7dHud(layer, seed);
     }
 
     private void CreatePoliticsPanel(CanvasLayer layer)
@@ -1319,6 +1317,25 @@ public partial class Game : Node3D
         }
         UpdateKnownResources(frame);
         ProcessViewEvents(frame);
+        ProcessM7dFrame(frame);
+    }
+
+    private void RebuildVisualRenderer(MatchFrame frame, SimulationSession session)
+    {
+        if (_visualRenderer is not null)
+        {
+            RemoveChild(_visualRenderer);
+            _visualRenderer.QueueFree();
+        }
+        string rendererPath = ProjectSettings.GetSetting(
+            "civsim/renderer_script", "res://Renderer/LowPoly3DView.gd").AsString();
+        var rendererScript = GD.Load<GDScript>(rendererPath)
+            ?? throw new InvalidOperationException($"Could not load renderer script '{rendererPath}'.");
+        _visualRenderer = rendererScript.New().AsGodotObject() as Node3D
+            ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
+        AddChild(_visualRenderer);
+        _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true));
+        _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
     }
 
     private void UpdateTileState(MatchFrame frame)

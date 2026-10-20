@@ -24,9 +24,10 @@ public sealed class FrameStore
     private bool _hasCurrent, _hasPrevious;   // reader-owned
 
     /// <summary>Grows all four frames (and the id links) up front; see <see cref="MatchFrame.Reserve"/>. Call before handing the store to two threads.</summary>
-    public void Reserve(int figures, int settlements, int herds, int parties = 64, int plots = 4096, int events = FrameBuilder.DefaultEventWindow)
+    public void Reserve(int figures, int settlements, int herds, int parties = 64, int plots = 4096,
+        int events = FrameBuilder.DefaultEventWindow, int aiWhy = 32)
     {
-        foreach (MatchFrame frame in _frames) frame.Reserve(figures, settlements, herds, parties, plots, events);
+        foreach (MatchFrame frame in _frames) frame.Reserve(figures, settlements, herds, parties, plots, events, aiWhy);
         Figures.Reserve(figures);
         Herds.Reserve(herds);
     }

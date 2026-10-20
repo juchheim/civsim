@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
@@ -80,6 +81,36 @@ public class MatchModelTests
         var resumedRunner = new SimRunner(resumed, 50, startTick: 600);
         resumedRunner.Advance(600);
         Assert.Equal(straight.ComputeChecksum(), resumed.ComputeChecksum());
+    }
+
+    [Fact]
+    public void Gentle_start_protects_three_winters_and_defers_player_contact_until_KEY1()
+    {
+        var balanced = new[]
+        {
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+        };
+        var councils = new[]
+        {
+            CivControl.Council, CivControl.Council, CivControl.Council, CivControl.Council,
+        };
+        MatchModel match = MatchModel.Create(Seed, TestPack.Pack, World.Value, balanced, councils,
+            playerCouncil: true, gentleStart: true);
+        var runner = new SimRunner(match);
+        for (int season = 0; season < 12; season++)
+        {
+            runner.Advance(ResearchSystem.SeasonTicks);
+            if (season % 4 == 3) Assert.False(match.Economy.LastWinterWasHarsh, $"winter in season {season} was harsh");
+        }
+
+        int key1 = match.Research.Catalog.IndexOf("KEY-1");
+        while (!match.Research.IsDone(0, key1) && runner.Tick < 5_700)
+            runner.Advance(ResearchSystem.SeasonTicks);
+        Assert.True(match.Research.IsDone(0, key1));
+        long key1Tick = match.Research.CompletedTick(0, key1);
+        Assert.DoesNotContain(match.Politics.Events, e => e.Kind == CivSim.Sim.Politics.PoliticsEventKind.Contact &&
+            (e.Civ == 0 || e.Other == 0) && e.Tick < key1Tick);
     }
 
     [Fact]

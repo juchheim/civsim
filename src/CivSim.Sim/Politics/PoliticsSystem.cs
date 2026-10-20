@@ -101,6 +101,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly GeneratedWorld _generated;
     private readonly int _width, _height, _civs;
     private readonly ulong _seed;
+    private readonly bool _gentleStart;
     private readonly bool[] _passable;
     private readonly WorldTile[] _tileArray;
     private readonly EconomyArchetype[] _archetypes;
@@ -156,7 +157,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     }
 
     public PoliticsSystem(LivingEconomyModel economy, ResearchSystem research, GeneratedWorld generated,
-        ReadOnlySpan<EconomyArchetype> archetypes, ulong seed)
+        ReadOnlySpan<EconomyArchetype> archetypes, ulong seed, bool gentleStart = false)
     {
         _economy = economy;
         _research = research;
@@ -166,6 +167,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _height = generated.Height;
         _civs = economy.CivilizationCount;
         _seed = seed;
+        _gentleStart = gentleStart;
         _archetypes = archetypes.ToArray();
         if (_archetypes.Length != _civs) throw new ArgumentException("One archetype per civilization.", nameof(archetypes));
         _p = new P(_catalog);
@@ -548,6 +550,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             for (int b = a + 1; b < _civs; b++)
             {
                 if (_dip.Contacted(a, b)) continue;
+                if (_gentleStart && (a == 0 || b == 0) && _research.Era(0) < 1) continue;
                 // Reach is counted in the terrain-weighted tiles the start pairs are placed by, with a tenth added for trails.
                 int sight = (ReachOf(a) + ReachOf(b)) * 11 / 10;
                 int d = WalkingTilesBetween(a, b, sight + 3);
@@ -748,6 +751,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
 
     public void Hash(ref StateHasher h)
     {
+        if (_gentleStart) h.Add(0x47454E544C455354UL);
         h.Add(_season);
         _territory.Hash(ref h);
         _dip.Hash(ref h);

@@ -60,7 +60,8 @@ public sealed class MatchModel : ISimModel
     /// (docs/MVP/14 §10.2). An AI civilization's archetype is its personality and replaces the economy archetype given.
     /// </summary>
     public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
-        ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls, bool playerCouncil = true)
+        ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls, bool playerCouncil = true,
+        bool gentleStart = false)
     {
         var catalog = new ResearchCatalog(pack);
         WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -69,7 +70,7 @@ public sealed class MatchModel : ISimModel
         if (!controls.IsEmpty && controls.Length != profiles.Length) throw new ArgumentException("One control per civilization.", nameof(controls));
         for (int c = 0; c < controls.Length; c++)
             if (controls[c].Kind == ControlKind.Ai) profiles[c] = controls[c].Spec.Archetype;
-        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles);
+        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart);
         var source = new LivingEconomySource(economy, world, generated, catalog, profiles);
         var setups = new ResearchCivSetup[profiles.Length];
         for (int c = 0; c < setups.Length; c++)
@@ -78,7 +79,7 @@ public sealed class MatchModel : ISimModel
             setups[c] = c == 0 ? ResearchCivSetup.Player(craft, kin, reach, playerCouncil) : ResearchCivSetup.Ai(craft, kin, reach);
         }
         var research = new ResearchSystem(catalog, source, seed, setups);
-        var politics = new PoliticsSystem(economy, research, generated, profiles, seed);
+        var politics = new PoliticsSystem(economy, research, generated, profiles, seed, gentleStart);
         AiSystem? ai = null;
         foreach (CivControl control in controls)
             if (control.Kind != ControlKind.Council) { ai = new AiSystem(economy, research, politics, generated, pack, seed, controls); break; }

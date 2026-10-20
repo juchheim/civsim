@@ -217,11 +217,16 @@ public sealed class MatchFrame
     /// <summary>Sequence of the newest event logged so far (0 none); a gap before Events[0] means the reader fell behind.</summary>
     public long LatestEventSequence;
 
+    /// <summary>Recent AI explanations for the post-match "why" panel; presentation data, not simulation state.</summary>
+    public int AiWhyCount;
+    public AiWhyEntry[] AiWhyEntries = Array.Empty<AiWhyEntry>();
+
     /// <summary>
     /// Grows the buffers to hold this much up front, so a long match never allocates while frames are built (a front end
     /// calls it once with the MVP's budgets: about 2,400 figures, 600 per civilization).
     /// </summary>
-    public void Reserve(int figures, int settlements, int herds, int parties = 64, int plots = 4096, int events = FrameBuilder.DefaultEventWindow)
+    public void Reserve(int figures, int settlements, int herds, int parties = 64, int plots = 4096,
+        int events = FrameBuilder.DefaultEventWindow, int aiWhy = 32)
     {
         EnsureFigures(figures);
         EnsureSettlements(settlements);
@@ -233,6 +238,7 @@ public sealed class MatchFrame
         EnsureCamps(settlements * 4);
         EnsureBeacons(64);
         Ensure(ref Events, events);
+        Ensure(ref AiWhyEntries, aiWhy);
         Ensure(ref FocusProjectState, 1024);
     }
 

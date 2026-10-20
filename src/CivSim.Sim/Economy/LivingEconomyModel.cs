@@ -16,7 +16,7 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 14;
+    public const int SnapshotVersion = 15;
     private const int Radius = 3;
     private const int MaxEra = 2;
 
@@ -198,6 +198,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly int[] _weirOwner;
     private readonly bool[][] _completedProjects;
     private readonly EconomyArchetype[] _archetypes;
+    private readonly bool _gentleStart;
     private readonly List<SettlementState> _settlements = new();
     private readonly List<FigureState> _figures = new();
     private readonly int[] _lastDeathsByCause = new int[DeathCauseCount];
@@ -218,7 +219,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     public LivingEconomyModel(ulong seed, EconomyContent content, WorldEconomyInput world,
-        ReadOnlySpan<EconomyArchetype> archetypes)
+        ReadOnlySpan<EconomyArchetype> archetypes, bool gentleStart = false)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(world);
@@ -228,6 +229,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             throw new ArgumentException("An archetype must be supplied for each civilization.", nameof(archetypes));
 
         _seed = seed;
+        _gentleStart = gentleStart;
         _content = content;
         _world = world;
         _archetypes = new EconomyArchetype[world.CivilizationCount];
@@ -629,8 +631,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             Pcg32 climate = Pcg32.ForStream(_seed, ClimateStream, 0, season);
             uint roll = climate.NextBelow(100);
-            _lastWinterWasHarsh = roll < 30;
-            _winterForageMultiplier = _lastWinterWasHarsh ? Fix64.Parse("0.6") :
+            bool protectedWinter = _gentleStart && season < 12;
+            _lastWinterWasHarsh = !protectedWinter && roll < 30;
+            _winterForageMultiplier = protectedWinter ? Fix64.Parse("1.08") : _lastWinterWasHarsh ? Fix64.Parse("0.6") :
                 roll < 55 ? Fix64.Parse("1.15") : Fix64.Parse("1.08");
         }
 
@@ -4214,6 +4217,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public ulong ComputeChecksum()
     {
         var hash = new StateHasher();
+        if (_gentleStart) hash.Add(0x47454E544C455354UL); // Keep the legacy default-false checksum stream unchanged.
         hash.Add(_seed); hash.Add(_tick); hash.Add(_seasonsCompleted); hash.Add(_nextFigureId);
         hash.Add(_world.Fingerprint); hash.Add(_contentFingerprint); hash.Add(_lastWinterWasHarsh); hash.Add(_winterForageMultiplier);
         hash.Add(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) hash.Add((byte)archetype);
@@ -4272,6 +4276,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         writer.Write(0x45434F4E); writer.Write(SnapshotVersion); writer.Write(_seed);
         writer.Write(_world.Fingerprint); writer.Write(_contentFingerprint);
+        writer.Write(_gentleStart);
         writer.Write(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) writer.Write((byte)archetype);
         writer.Write(_tick);
         writer.Write(_seasonsCompleted); writer.Write(_nextFigureId); writer.Write(_lastWinterWasHarsh); writer.Write(_winterForageMultiplier.Raw);
@@ -4351,7 +4356,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes);
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart);
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }
@@ -4362,6 +4367,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (reader.ReadUInt64() != _seed || reader.ReadUInt64() != _world.Fingerprint || reader.ReadUInt64() != _contentFingerprint)
             throw new InvalidDataException("Snapshot seed, world or content does not match this model.");
+        if (reader.ReadBoolean() != _gentleStart) throw new InvalidDataException("Snapshot start settings differ.");
         if (reader.ReadInt32() != _archetypes.Length) throw new InvalidDataException("Snapshot archetype count differs.");
         for (int i = 0; i < _archetypes.Length; i++)
             if (reader.ReadByte() != (byte)_archetypes[i]) throw new InvalidDataException("Snapshot archetypes differ.");

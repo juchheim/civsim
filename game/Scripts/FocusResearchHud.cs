@@ -45,6 +45,7 @@ public partial class Game
     private Button? _researchOverviewButton, _researchLanesButton;
     private CheckButton? _researchHubEmphasis;
     private Button? _researchQueueButton, _researchRemoveQueueButton;
+    private Label? _researchActionHint;
     private Button?[] _researchSlotButtons = new Button?[3];
     private VBoxContainer? _researchRows, _researchOverviewRows;
     private ScrollContainer? _researchScroll;
@@ -301,7 +302,7 @@ public partial class Game
         contents.AddChild(body);
         _researchWebMessage = new Label
         {
-            Text = "Choose a project, then assign it: Primary gets 4/7 of Insight, Secondary 2/7, and Tertiary 1/7. You can change these choices any time.",
+            Text = "Choose an Available project and set it as Primary for 4/7 of Insight. Glimpsed projects can be queued until their prerequisites are met. You can change focus any time.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         contents.AddChild(_researchWebMessage);
@@ -523,7 +524,33 @@ public partial class Game
         _researchSelectionTitle = new Label { Text = "Choose a project", AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _researchSelectionTitle.AddThemeFontSizeOverride("font_size", 17);
         contents.AddChild(_researchSelectionTitle);
-        _researchSelectionText = new Label { Text = "Available nodes can go straight into a focus slot. Glimpsed nodes can be queued while you meet their last requirement.", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        var primaryButton = new Button { Text = "Set as Primary · 4/7", CustomMinimumSize = new Vector2(0, 36), TooltipText = "Give this project the largest share of your civilization's Insight." };
+        primaryButton.AddThemeColorOverride("font_color", new Color("#f4d58d"));
+        primaryButton.Pressed += () => AssignSelectedResearch(0);
+        contents.AddChild(primaryButton);
+        _researchSlotButtons[0] = primaryButton;
+        var secondaryTertiary = new HBoxContainer();
+        secondaryTertiary.AddThemeConstantOverride("separation", 6);
+        string[] labels = { "", "Secondary · 2/7", "Tertiary · 1/7" };
+        for (int slot = 1; slot < 3; slot++)
+        {
+            int captured = slot;
+            var button = new Button { Text = labels[slot], SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            button.Pressed += () => AssignSelectedResearch(captured);
+            secondaryTertiary.AddChild(button);
+            _researchSlotButtons[slot] = button;
+        }
+        contents.AddChild(secondaryTertiary);
+        _researchActionHint = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        _researchActionHint.AddThemeFontSizeOverride("font_size", 11);
+        contents.AddChild(_researchActionHint);
+        _researchQueueButton = new Button { Text = "Queue for later", TooltipText = "Keep this idea in line for a future open focus slot." };
+        _researchQueueButton.Pressed += QueueSelectedResearch;
+        contents.AddChild(_researchQueueButton);
+        _researchRemoveQueueButton = new Button { Text = "Remove from queue" };
+        _researchRemoveQueueButton.Pressed += RemoveSelectedResearchFromQueue;
+        contents.AddChild(_researchRemoveQueueButton);
+        _researchSelectionText = new Label { Text = "Available nodes can go straight into a focus slot. Glimpsed nodes can be queued until their prerequisites are met.", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         _researchSelectionText.AddThemeFontSizeOverride("font_size", 12);
         contents.AddChild(_researchSelectionText);
         contents.AddChild(new Label { Text = "Prerequisite path" });
@@ -532,21 +559,6 @@ public partial class Game
         contents.AddChild(new Label { Text = "Known projects unlocked" });
         _researchUnlockLinks = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         contents.AddChild(_researchUnlockLinks);
-        _researchQueueButton = new Button { Text = "Add to queue" };
-        _researchQueueButton.Pressed += QueueSelectedResearch;
-        contents.AddChild(_researchQueueButton);
-        _researchRemoveQueueButton = new Button { Text = "Remove from queue" };
-        _researchRemoveQueueButton.Pressed += RemoveSelectedResearchFromQueue;
-        contents.AddChild(_researchRemoveQueueButton);
-        for (int slot = 0; slot < 3; slot++)
-        {
-            int captured = slot;
-            string[] labels = { "Set as Primary", "Set as Secondary", "Set as Tertiary" };
-            var button = new Button { Text = labels[slot] };
-            button.Pressed += () => AssignSelectedResearch(captured);
-            contents.AddChild(button);
-            _researchSlotButtons[slot] = button;
-        }
         return inspector;
     }
 
@@ -860,6 +872,7 @@ public partial class Game
         {
             _researchSelectionTitle.Text = "Choose a project";
             _researchSelectionText.Text = "Hidden projects stay outside the viewer's web. Select a visible node to review its prerequisites and expected changes.";
+            if (_researchActionHint is not null) _researchActionHint.Text = "Select an Available project to set a focus slot.";
             ClearResearchLinks(_researchPrerequisiteLinks);
             ClearResearchLinks(_researchUnlockLinks);
             SetResearchActionAvailability(false, false, false);
@@ -869,6 +882,14 @@ public partial class Game
         ProjectDef def = _catalog.Projects[project];
         ProjectState state = (ProjectState)_current.FocusProjectState[project];
         _researchSelectionTitle.Text = $"{def.Id} · {def.Name}";
+        if (_researchActionHint is not null)
+            _researchActionHint.Text = state switch
+            {
+                ProjectState.Available => "Available now — set it as Primary for the largest share of Insight.",
+                ProjectState.Slotted => "Already in a focus slot. Choose another rank here to move it.",
+                ProjectState.Glimpsed => "Not ready for a focus slot yet. Complete its prerequisites; queue it to wait for an open slot.",
+                _ => "This project cannot be assigned to a focus slot right now.",
+            };
         var text = new StringBuilder();
         text.Append(ResearchThemeNames[(int)def.Theme]).Append(" · ").Append(def.Type).Append(" · E").Append(def.Era).Append(" · ").Append(ResearchStateNames[(int)state]);
         if (def.Lineage >= 0) text.Append("\nLineage: ").Append(_catalog.LineageCodes[def.Lineage]);
@@ -1074,7 +1095,14 @@ public partial class Game
     {
         if (_researchQueueButton is not null) _researchQueueButton.Disabled = !queueable || queued || (_current?.FocusQueueCount ?? 0) >= 8;
         if (_researchRemoveQueueButton is not null) _researchRemoveQueueButton.Disabled = !queued;
-        for (int slot = 0; slot < 3; slot++) if (_researchSlotButtons[slot] is not null) _researchSlotButtons[slot]!.Disabled = !assignable;
+        for (int slot = 0; slot < 3; slot++)
+            if (_researchSlotButtons[slot] is not null)
+            {
+                _researchSlotButtons[slot]!.Disabled = !assignable;
+                _researchSlotButtons[slot]!.TooltipText = assignable
+                    ? $"Assign this project to the {(slot == 0 ? "Primary" : slot == 1 ? "Secondary" : "Tertiary")} focus slot."
+                    : "Only Available or already slotted projects can be assigned to a focus slot.";
+            }
     }
 
     private void UpdateResearchHudActions()

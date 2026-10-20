@@ -328,3 +328,6 @@ public struct ViewEvent
     /// <summary>The other civilization involved, or -1.</summary>
     public sbyte Other;
 }
+
+/// <summary>A compact public explanation from a rival civilization's AI, retained for the match end screen.</summary>
+public readonly record struct AiWhyEntry(long Tick, byte Civ, string Layer, string Kind, long ScoreRaw, string Reason);
