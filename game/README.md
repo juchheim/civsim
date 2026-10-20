@@ -34,6 +34,10 @@ can be captured after startup with:
 godot-mono --path game -- --screenshot=/tmp/civsim-m7a.png
 ```
 
+A new match starts with the human player's Council off and opens the research web
+to the first available E0 choices. This gives the player the opening assignment;
+the Council toggle remains available if they want later slots automated.
+
 The M7b first pass keeps a 4:2:1 focus bar on screen with slot progress, a sampled ETA,
 queue peek, Insight/year and the Council toggle. Leaning opens three sliders whose
 shares are normalized to 100% when applied. In the research web, select a visible

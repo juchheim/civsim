@@ -164,6 +164,18 @@ public class ResearchAdoptionTests
 public class ResearchCouncilTests
 {
     [Fact]
+    public void A_manual_player_setup_keeps_empty_slots_available_for_the_opening_choice()
+    {
+        ResearchCatalog catalog = TestPack.Catalog;
+        ResearchCivSetup player = ResearchCivSetup.Player(34, 33, 33, council: false);
+        var research = new ResearchSystem(catalog, new FixedSource(catalog), 1, new[] { player });
+
+        Assert.False(research.CouncilOn(0));
+        for (int tick = 0; tick < 300; tick++) research.Step(tick, ReadOnlySpan<Command>.Empty);
+        for (int slot = 0; slot < 3; slot++) Assert.Equal(-1, research.Slot(0, slot));
+    }
+
+    [Fact]
     public void An_AI_Council_fills_every_empty_slot_at_once_on_the_keystone_path()
     {
         var rig = new ResearchRig(council: true);

@@ -8,12 +8,13 @@ namespace CivSim.Sim.Research;
 
 /// <summary>How one civilization is controlled and tuned at the start of a match.</summary>
 /// <param name="Leaning">Craft, Kin and Reach weights in percent.</param>
-/// <param name="Council">The Council of Elders fills empty slots (always for AI).</param>
+/// <param name="Council">The Council of Elders fills empty slots (always for AI; configurable for the human seat).</param>
 /// <param name="CouncilDelayTicks">How long an empty slot waits for the Council: 0 for AI, 150 (one season) for the player.</param>
 public readonly record struct ResearchCivSetup(int LeaningCraft, int LeaningKin, int LeaningReach, bool Council, int CouncilDelayTicks)
 {
     public static ResearchCivSetup Ai(int craft, int kin, int reach) => new(craft, kin, reach, true, 0);
-    public static ResearchCivSetup Player(int craft, int kin, int reach) => new(craft, kin, reach, true, ResearchSystem.SeasonTicks);
+    public static ResearchCivSetup Player(int craft, int kin, int reach, bool council = true)
+        => new(craft, kin, reach, council, ResearchSystem.SeasonTicks);
 }
 
 /// <summary>

@@ -48,7 +48,7 @@ public sealed class SimulationSession : IDisposable
             CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Builder),
             CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Wanderer),
         };
-        _match = MatchModel.Create(seed, pack, World, archetypes, controls);
+        _match = MatchModel.Create(seed, pack, World, archetypes, controls, playerCouncil: false);
         // Civilization 0 is the human seat: political orders come from the front end.
         _match.Politics.SetExternalMind(0, true);
         _runner = new SimRunner(_match);

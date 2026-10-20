@@ -43,7 +43,7 @@ public sealed class MatchModel : ISimModel
 
     /// <summary>
     /// A standard four-civilization match on the world generated from <paramref name="seed"/>. Civilization 0 is the
-    /// player (the Council fills an empty slot after one season); the others are AI with their archetype's Leaning.
+    /// player (the Council may fill an empty slot after one season); the others are AI with their archetype's Leaning.
     /// </summary>
     public static MatchModel Create(ulong seed, ContentPack pack, ReadOnlySpan<EconomyArchetype> archetypes = default)
     {
@@ -60,7 +60,7 @@ public sealed class MatchModel : ISimModel
     /// (docs/MVP/14 §10.2). An AI civilization's archetype is its personality and replaces the economy archetype given.
     /// </summary>
     public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
-        ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls)
+        ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls, bool playerCouncil = true)
     {
         var catalog = new ResearchCatalog(pack);
         WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -75,7 +75,7 @@ public sealed class MatchModel : ISimModel
         for (int c = 0; c < setups.Length; c++)
         {
             (int craft, int kin, int reach) = Leaning(pack, profiles[c]);
-            setups[c] = c == 0 ? ResearchCivSetup.Player(craft, kin, reach) : ResearchCivSetup.Ai(craft, kin, reach);
+            setups[c] = c == 0 ? ResearchCivSetup.Player(craft, kin, reach, playerCouncil) : ResearchCivSetup.Ai(craft, kin, reach);
         }
         var research = new ResearchSystem(catalog, source, seed, setups);
         var politics = new PoliticsSystem(economy, research, generated, profiles, seed);

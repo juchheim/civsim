@@ -962,7 +962,9 @@ public partial class Game : Node3D
         CreatePoliticsPanel(layer);
         CreateM7cHud(layer);
         CreateResearchHud(layer);
-        if (ReadResearchWebArgument() || ReadResearchOverviewArgument()) SetResearchWebVisible(true);
+        bool firstResearchChoice = _session is { Tick: 0 } && _current is { FocusCiv: 0, FocusCouncil: false } &&
+            _current.FocusSlotProject[0] < 0 && _current.FocusSlotProject[1] < 0 && _current.FocusSlotProject[2] < 0;
+        if (ReadResearchWebArgument() || ReadResearchOverviewArgument() || firstResearchChoice) SetResearchWebVisible(true);
         if (ReadResearchOverviewArgument()) SetResearchOverviewMode(true);
         if (_current is not null) UpdatePoliticsControls(_current);
     }

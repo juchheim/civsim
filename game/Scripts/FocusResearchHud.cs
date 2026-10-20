@@ -299,7 +299,11 @@ public partial class Game
         body.AddChild(_researchScroll);
         body.AddChild(BuildResearchInspector());
         contents.AddChild(body);
-        _researchWebMessage = new Label { Text = "Select a node to review it and assign a slot.", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        _researchWebMessage = new Label
+        {
+            Text = "Choose a project, then assign it: Primary gets 4/7 of Insight, Secondary 2/7, and Tertiary 1/7. You can change these choices any time.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
         contents.AddChild(_researchWebMessage);
         layer.AddChild(_researchWebPanel);
         SetResearchOverviewMode(false);
