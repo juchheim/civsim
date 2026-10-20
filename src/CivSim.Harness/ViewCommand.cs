@@ -12,7 +12,7 @@ namespace CivSim.Harness;
 
 /// <summary>
 /// <code>
-/// civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]
+/// civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare] [--dump-frame FILE.json]
 /// </code>
 /// Plays a match on the Council, builds a frame for the viewer every few ticks the way the front end's sim thread would
 /// (through a <see cref="FrameStore"/>), and prints frame contents, build times and allocations (docs/MVP/18 §9). With
@@ -26,6 +26,7 @@ internal static class ViewCommand
         ulong seed = ResearchCommand.GoldenSeed;
         int minutes = 40, viewer = 0, every = 10;
         bool compare = false;
+        string? dumpFrame = null;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -36,6 +37,7 @@ internal static class ViewCommand
                 case "--viewer": viewer = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--every": every = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--compare": compare = true; break;
+                case "--dump-frame": dumpFrame = args[++i]; break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
@@ -102,6 +104,8 @@ internal static class ViewCommand
         omni.Build(match, all);
         watch.Stop();
         Console.WriteLine($"omniscient frame: {all.FigureCount} figures, {all.SettlementCount} settlements, {all.HerdCount} herds, first build {ms(watch.ElapsedTicks):F3} ms");
+
+        if (dumpFrame is not null) FrameDump.Write(dumpFrame, seed, all, runner.Tick);
 
         if (compare)
         {
