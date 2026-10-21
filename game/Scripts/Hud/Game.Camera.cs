@@ -355,14 +355,14 @@ public partial class Game
                 if (Mathf.Abs(pan.Delta.Y) > 0.0001f)
                 {
                     _uiSettings.TrackpadSeen = true;
-                    ZoomStep(Mathf.Pow(1.15f, pan.Delta.Y), GetViewport().GetMousePosition());
+                    ZoomStep(Mathf.Pow(1.15f, pan.Delta.Y * 0.35f), GetViewport().GetMousePosition());
                 }
                 break;
             case InputEventMagnifyGesture magnify:
                 if (magnify.Factor > 0 && Mathf.Abs(magnify.Factor - 1.0f) > 0.0001f)
                 {
                     _uiSettings.TrackpadSeen = true;
-                    ZoomStep(1.0f / Mathf.Clamp(magnify.Factor, 0.8f, 1.25f), magnify.Position);
+                    ZoomStep(1.0f / Mathf.Pow(Mathf.Clamp(magnify.Factor, 0.8f, 1.25f), 0.6f), magnify.Position);
                 }
                 break;
             case InputEventMouseMotion motion:
@@ -374,8 +374,8 @@ public partial class Game
     private void HandleMouseButton(InputEventMouseButton button)
     {
         Vector2 position = button.Position;
-        if (button.ButtonIndex == MouseButton.WheelUp && button.Pressed) { ZoomStep(1.0f / 1.15f, position); return; }
-        if (button.ButtonIndex == MouseButton.WheelDown && button.Pressed) { ZoomStep(1.15f, position); return; }
+        if (button.ButtonIndex == MouseButton.WheelUp && button.Pressed) { ZoomStep(1.0f / 1.1f, position); return; }
+        if (button.ButtonIndex == MouseButton.WheelDown && button.Pressed) { ZoomStep(1.1f, position); return; }
         switch (button.ButtonIndex)
         {
             case MouseButton.Left:
