@@ -39,6 +39,8 @@ var heights := PackedFloat32Array()
 var camps: Array = []          # [tile, civ]
 var beacons: Array = []        # [tile, civ]
 var monuments := PackedInt32Array()     # stride 5: tile, civ, tick learned, population, id
+var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
+var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
 var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibility (0/128/255), claimant+1
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
@@ -113,6 +115,8 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 		for i in bt.size():
 			beacons.append([int(bt[i]), int(bc[i])])
 	monuments = _int_data(d.monuments, 5) if d.has("monuments") else PackedInt32Array()
+	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
+	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)
 	ghosts = _int_data(d.ghosts, 8) if d.has("ghosts") else PackedInt32Array()
 	state_bytes = d.stateBytes if d.has("stateBytes") else PackedByteArray()

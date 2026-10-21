@@ -448,6 +448,17 @@ public partial class Game : Node3D
             monuments[i * 5 + 4] = i;
         }
 
+        // worn trails: per trail (level, civ, trade, start, length), and one flat list of tiles (-1 = gap)
+        var trailMeta = new int[frame.TrailCount * 5];
+        for (int i = 0; i < frame.TrailCount; i++)
+        {
+            trailMeta[i * 5] = frame.TrailLevel[i];
+            trailMeta[i * 5 + 1] = frame.TrailCiv[i];
+            trailMeta[i * 5 + 2] = frame.TrailTrade[i] ? 1 : 0;
+            trailMeta[i * 5 + 3] = frame.TrailStart[i];
+            trailMeta[i * 5 + 4] = frame.TrailLength[i];
+        }
+
         var plots = new int[frame.PlotCount * 2];
         for (int i = 0; i < frame.PlotCount; i++)
         {
@@ -500,6 +511,8 @@ public partial class Game : Node3D
             ["herds"] = herds,
             ["settlements"] = settlements,
             ["monuments"] = monuments,
+            ["trailMeta"] = trailMeta,
+            ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,
             ["foodOverlay"] = foodOverlay,
             ["forecastOverlay"] = forecastOverlay,

@@ -262,6 +262,23 @@ public partial class Game
                 Step(() => ZoomTo(7.0f), 0.8f);
                 Shot("mega-wide");
                 break;
+            case "trails":
+                Step(() => { _session!.SetSpeedIndex(0); _target = (Vector3)_visualRenderer!.Call("trail_focus"); ZoomTo(7.0f); }, 1.5f);
+                Shot("trail-a");
+                Step(() => { ZoomTo(14.0f); }, 1.0f);
+                Shot("trail-b");
+                Step(() => { ZoomTo(4.0f); }, 1.0f);
+                Shot("trail-close");
+                Step(() =>
+                {
+                    GrantProject(FindProjectByName("Landmarks & Trails"));
+                    GrantProject(FindProjectByName("Exchange Networks"));
+                    ZoomTo(7.0f);
+                }, 2.5f);
+                Shot("trail-worn");
+                Step(() => ZoomTo(26.0f), 1.5f);
+                Shot("trail-wide");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);

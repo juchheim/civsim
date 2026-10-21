@@ -83,6 +83,18 @@ func monument_focus() -> Vector3:
 	var c: Vector2 = builder.rig.sites[0].center
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
+## Dev aid for scenarios: the middle of the first trail, or the origin when there is none.
+func trail_focus() -> Vector3:
+	if world == null or world.trail_meta.size() < 5:
+		return Vector3.ZERO
+	var start := world.trail_meta[3]
+	var length := world.trail_meta[4]
+	var tile := world.trail_tiles[start + length / 2]
+	if tile < 0:
+		return Vector3.ZERO
+	var c: Vector2 = world.tile_center(tile)
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
 func _process(_delta: float) -> void:
 	if builder != null:
 		builder.update_herds()

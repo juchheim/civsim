@@ -40,6 +40,8 @@ var borders_far_node: MeshInstance3D
 var river_node: MeshInstance3D
 var structure_signature := -1
 var rig: M7MonumentRig
+var trail_node: MeshInstance3D
+var trail_signature := -1
 var border_signature := -1
 var river_visibility_signature := -1
 var regional_lod := false
@@ -140,6 +142,12 @@ func build() -> Node3D:
 	structure_signature = _structure_digest()
 	rig = M7MonumentRig.new(self)
 	rig.set_monuments(w.monuments, structure_signature)
+	trail_node = MeshInstance3D.new()
+	trail_node.name = "Trails"
+	trail_node.material_override = M7TrailBuilder.make_material()
+	trail_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(trail_node)
+	_update_trails()
 	props = M7Batcher.new()
 	_figures()
 	actor_props = _build_props_node("Actors", props)
@@ -172,6 +180,7 @@ func update_frame() -> bool:
 		border_signature = new_border_signature
 		border_node.mesh = terrain_builder.build_borders(1.0)
 		borders_far_node.mesh = terrain_builder.build_borders(3.2)
+	_update_trails()
 	var geometry_updated := Time.get_ticks_usec()
 	var signature := _structure_digest()
 	var structures_changed := signature != structure_signature
@@ -271,6 +280,14 @@ func _replace_props_node(previous: Node3D, node_name: String, batcher: M7Batcher
 		settlement_props = node
 	else:
 		actor_props = node
+
+## Rebuilds the trail ribbons when the routes, their wear or what is explored along them changes.
+func _update_trails() -> void:
+	var sig := hash(w.trail_meta) * 31 + hash(w.trail_tiles)
+	if sig == trail_signature:
+		return
+	trail_signature = sig
+	trail_node.mesh = M7TrailBuilder.build(w)
 
 func _structure_digest() -> int:
 	var h := 17

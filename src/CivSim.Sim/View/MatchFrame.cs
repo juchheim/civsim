@@ -152,6 +152,15 @@ public sealed class MatchFrame
     public long[] MonumentTick = Array.Empty<long>();
     /// <summary>Population of the village that raises it (the size of the hauling crew).</summary>
     public int[] MonumentPopulation = Array.Empty<int>();
+    // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
+    public int TrailCount;
+    /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>
+    public byte[] TrailLevel = Array.Empty<byte>();
+    public sbyte[] TrailCiv = Array.Empty<sbyte>();
+    public bool[] TrailTrade = Array.Empty<bool>();
+    public int[] TrailStart = Array.Empty<int>(), TrailLength = Array.Empty<int>();
+    public int TrailTileCount;
+    public int[] TrailTiles = Array.Empty<int>();
     public int BeaconCount;
     public int[] BeaconTile = Array.Empty<int>();
     public sbyte[] BeaconCiv = Array.Empty<sbyte>();
@@ -314,6 +323,14 @@ public sealed class MatchFrame
     }
 
     internal void EnsureCamps(int n) { if (CampTile.Length < n) { Ensure(ref CampTile, n); Ensure(ref CampCiv, n); } }
+
+    internal void EnsureTrails(int n)
+    {
+        if (TrailLevel.Length >= n) return;
+        Ensure(ref TrailLevel, n); Ensure(ref TrailCiv, n); Ensure(ref TrailTrade, n); Ensure(ref TrailStart, n); Ensure(ref TrailLength, n);
+    }
+
+    internal void EnsureTrailTiles(int n) { if (TrailTiles.Length < n) Ensure(ref TrailTiles, Math.Max(n, TrailTiles.Length * 2)); }
 
     internal void EnsureMonuments(int n)
     {

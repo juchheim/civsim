@@ -204,6 +204,7 @@ public sealed partial class FrameBuilder
         FillSettlements(eco, match.Research, target, season);
         FillPlotsCampsBeacons(eco, pol, target);
         FillMonuments(match.Research, target);
+        FillTrails(match, target);
         FillHerdsAndPredators(eco, target);
         FillParties(target);
         FillOccupations(pol, target);
