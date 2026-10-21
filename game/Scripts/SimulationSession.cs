@@ -9,6 +9,7 @@ using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
@@ -118,6 +119,9 @@ public sealed class SimulationSession : IDisposable
             else if (startMinute > 0)
             {
                 _runner.Advance((long)startMinute * 60 * TicksPerSecond);
+#if DEBUG
+                if (Array.IndexOf(Godot.OS.GetCmdlineUserArgs(), "--dev-island-colony") >= 0) DevIslandColony();
+#endif
             }
         }
 
@@ -149,6 +153,46 @@ public sealed class SimulationSession : IDisposable
     public GeneratedWorld World { get; }
     public WorldView WorldView { get; }
     public FrameStore Frames { get; }
+#if DEBUG
+    /// <summary>Dev only: the index of the rival village the island colony targets (-1 until <c>--dev-island-colony</c> has run).</summary>
+    public int DevRivalSettlement { get; private set; } = -1;
+
+    /// <summary>
+    /// Dev only (<c>--dev-island-colony</c>, debug builds): moves civilization 0's fighting-age people to the island nearest a
+    /// rival village and gives them the outrigger, so a party can be seen sailing (docs/MVP/21). It writes the economy directly,
+    /// outside the command path, so a match started this way is never a valid replay; it exists for screenshots.
+    /// </summary>
+    private void DevIslandColony()
+    {
+        PoliticsSystem politics = _match.Politics;
+        var probe = new FrameBuilder(_match, -1);
+        var frame = new MatchFrame();
+        probe.Build(_match, frame);
+        int home = -1, rivalTile = -1;
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            if (home < 0 && frame.SettlementCiv[i] == 0) home = frame.SettlementTile[i];
+            if (rivalTile < 0 && frame.SettlementCiv[i] == 1) { rivalTile = frame.SettlementTile[i]; DevRivalSettlement = frame.SettlementIndex[i]; }
+        }
+        if (home < 0 || rivalTile < 0) { Godot.GD.Print($"DEV island colony: no home/rival (home {home}, rival {rivalTile})"); return; }
+        foreach (string project in new[] { "SEA-04", "WAR-02" })
+            _runner.Submit(new Command(_runner.Tick, 0, CommandKind.CompleteProject, _match.Research.Catalog.IndexOf(project), 0, 0));
+        _runner.Advance(2);
+        int island = -1, best = int.MaxValue;
+        for (int t = 0; t < frame.Width * frame.Height; t++)
+            if (politics.IsIsland(t) && politics.CanReach(0, home, t) && HexGrid.Distance(t, rivalTile, frame.Width) < best)
+            { best = HexGrid.Distance(t, rivalTile, frame.Width); island = t; }
+        if (island < 0) { Godot.GD.Print("DEV island colony: no reachable island"); return; }
+        var people = new List<long>();
+        for (int i = 0; i < frame.FigureCount; i++)
+            if (frame.FigureCiv[i] == 0 || frame.FigureCiv[i] is 2 or 3 && i % 2 == 0) people.Add(frame.FigureId[i]);   // plenty of fighters; half of the far civilizations stay put
+        _match.Economy.FoundSettlement(0, island, people);
+        politics.ForceContact(0, 1);
+        _runner.Advance(160);
+        Godot.GD.Print($"DEV island colony: {people.Count} people moved to island tile {island} (rival at {rivalTile}, home {home}); sail={politics.CanSail(0)}");
+    }
+#endif
+
     public long Tick => Interlocked.Read(ref _publishedTick);
     public bool Paused => Volatile.Read(ref _paused) != 0;
     public double Speed => SpeedAt(Volatile.Read(ref _speedIndex));

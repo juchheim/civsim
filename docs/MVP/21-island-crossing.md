@@ -1,7 +1,7 @@
 # 21 — Island crossing: boats that carry parties and settlers
 
-> Status: **decided**, 2026-10-21 (scope, range and AI use were settled with the owner; numbers below are first values to tune in
-> Phase 5). Implements the one use of boats the MVP map actually has: reaching the islands. It changes simulation code
+> Status: **decided and implemented** (phases 1 to 5), 2026-10-21 (scope, range and AI use were settled with the owner; numbers
+> below are first values, checked in §7). Implements the one use of boats the MVP map actually has: reaching the islands. It changes simulation code
 > (travel, contact and daughter-village siting for civilizations that know SEA-04) and **appends** event kinds; it changes no
 > command, no replay format and no existing numbering. Sources checked: 05 §6.5 and §9.4, 12 §3.1 and §9.3, 13 §3 to §5, 14 §8,
 > `PoliticsSystem*.cs`, `LivingEconomyModel.cs` (`ChooseFissionSite`), `HexGrid.cs`, `FrameBuilder.cs`.
@@ -103,3 +103,35 @@ No `Command`, no replay field and no snapshot layout changes: the fate of a voya
   snowballs, lower the bonus or raise the risk (Phase 5).
 - **Fog.** The AI sees only its own view; siting uses the true world, as it already does for land. Revisit if fairness tests object.
 - **Free Folk.** A civilization's island village can later become Free Folk like any other; no special case.
+
+## 7. As built, and Phase 5 results (2026-10-21)
+
+**As built.** All five phases. Differences from the plan above, decided while building:
+
+- Islands are **realms**, not stepping stones (§3): the first version let a civilization hop continent to continent through an
+  island 13 tiles from the far shore, which a test caught.
+- Only the **outbound** leg of a trip rolls for shipwreck; a barter party's return leg does not.
+- Settlers' crossing is **instant**, like every daughter band (the economy moves them when the band is founded); only the
+  shipwreck roll and the new village are visible, plus the flotilla of boats the fleet shows at the island village. Parties
+  (gift, barter, raid, assault) really travel, and are drawn in outriggers on open water.
+- The `VoyageLost` view event and an `IslandSettled` founding flag feed the Chronicle and two toasts.
+
+**Balance check.** Eight seeds, 35 minutes, four civilizations (the player's council plus three AI):
+
+| Condition | Island villages found (8 seeds) | Most held by one civilization | Voyages lost |
+|-----------|---------------------------------|-------------------------------|--------------|
+| SEA-04 given to everyone at the start | 20 in four seeds | 3 of 12 islands | 3 |
+| No grant (the AI learns it when it learns it) | 4 (AI civilizations, in four seeds) | 1 | 1 |
+
+Totals of population by civilization stay in the same range with and without the grant, so islands are a prize, not a
+runaway. The shipwreck rate matches the formula in a 4,000-roll test. First values to revisit after human playtests: the x1.5
+siting bonus and the 12 to 20 % risk.
+
+**Gates.** Goldens `toy-v1`, `research-v1` and `politics-v1` unchanged; `content-pack.txt` refreshed (SEA-04's note). Tests
+(`IslandCrossingTests`): islands reachable only by outrigger; the other continent never; walkable routes keep their length; the
+risk formula and reproducible rolls; no island village without a civilization that sails; and a raid from an island colony is seen
+on water tiles in the frame.
+
+**Dev aid.** `--start-minute=25 --dev-island-colony --scenario=voyage` (debug builds only) puts a large colony on an island and
+sends a raid at a rival, to look at a sailing party. It writes the economy directly, outside the command path, so such a match is
+never a valid replay.

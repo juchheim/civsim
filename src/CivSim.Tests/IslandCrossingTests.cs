@@ -4,6 +4,7 @@ using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
+using CivSim.Sim.View;
 using CivSim.Sim.World;
 
 namespace CivSim.Tests;
@@ -133,5 +134,51 @@ public class IslandCrossingTests
             if (frame.SettlementPopulation[i] <= 0 || frame.SettlementCiv[i] < 0) continue;
             if (land.IsIsland(frame.SettlementTile[i])) Assert.True(pol.CanSail(frame.SettlementCiv[i]), "an island village needs a civilization that sails");
         }
+    }
+
+    [Fact]
+    public void A_party_from_an_island_colony_crosses_the_water_and_shows_on_it()
+    {
+        var (match, runner, home, land) = Start();
+        runner.Advance(15000); // a band big enough to spare a party
+        PoliticsSystem pol = match.Politics;
+        var builder = new CivSim.Sim.View.FrameBuilder(match, -1);
+        var frame = new CivSim.Sim.View.MatchFrame();
+        builder.Build(match, frame);
+        // a rival's village on civilization 0's continent, and the reachable island nearest to it
+        int rival = -1;
+        for (int i = 0; i < frame.SettlementCount && rival < 0; i++)
+            if (frame.SettlementCiv[i] == 1 && land.Id[frame.SettlementTile[i]] == land.Id[home]) rival = frame.SettlementIndex[i];
+        Assert.True(rival >= 0, "civilization 1 should share civilization 0's continent");
+        int rivalTile = frame.SettlementTile[frame.IndexOfSettlement(rival)];
+        Learn(match, runner, 0, "SEA-04");
+        Learn(match, runner, 0, "WAR-02");
+        int island = Enumerable.Range(0, land.Id.Length).Where(t => land.IsIsland(t) && pol.CanReach(0, home, t))
+            .OrderBy(t => HexGrid.Distance(t, rivalTile, frame.Width)).First();
+        var people = new List<long>();
+        for (int i = 0; i < frame.FigureCount; i++)  // everyone of fighting age moves out, so the colony is the only village that can send a party
+            if (frame.FigureCiv[i] == 0 && frame.FigureAge[i] == (byte)CivSim.Sim.View.AgeBand.Adult) people.Add(frame.FigureId[i]);
+        int colony = match.Economy.FoundSettlement(0, island, people);
+        pol.ForceContact(0, 1);
+        runner.Advance(160); // politics refreshes its settlement list at season end
+        Assert.True(pol.CanReach(0, island, rivalTile));
+        Assert.True(pol.SeaTilesOnRoute(0, island, rivalTile) > 0);
+        var trace = new List<string>();
+        pol.Trace = trace.Add;
+        bool sent = pol.OrderRaid(0, rival, 8);
+        pol.Trace = null;
+        Assert.True(sent, "the colony should be able to send a raid: " + string.Join("; ", trace));
+        Assert.Contains(pol.Expeditions, e => e.Civ == 0 && e.Kind == ExpeditionKind.Raid && e.FromSettlement == colony);
+
+        WorldTile[] tiles = ViewKit.World.Value.Tiles.ToArray();
+        bool onWater = false;
+        for (int step = 0; step < 40 && !onWater; step++)
+        {
+            runner.Advance(60);
+            builder.Build(match, frame);
+            for (int i = 0; i < frame.FigureCount; i++)
+                if (frame.FigureActivity[i] == (byte)CivSim.Sim.View.FigureActivity.OnRaid && !tiles[frame.FigureTile[i]].IsLand) onWater = true;
+        }
+        Assert.True(onWater, "raiders sailing from the island should be seen on water tiles");
     }
 }

@@ -290,6 +290,34 @@ public partial class Game
                 Step(() => ZoomTo(2.4f), 1.0f);
                 Shot("boats-close");
                 break;
+            case "voyage":
+                // needs: --start-minute=15 --dev-island-colony (debug builds): civ 0's fighters now live on an island
+                Step(() =>
+                {
+                    _session!.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _session.DevRivalSettlement, 8));
+                    _session.SetSpeedIndex(2);
+                }, 1.0f);
+                for (int i = 0; i < 30; i++)
+                    Step(() =>
+                    {
+                        if (_voyageFound || _current is null) return;
+                        for (int f = 0; f < _current.FigureCount; f++)
+                        {
+                            int tile = _current.FigureTile[f];
+                            if (_current.FigureActivity[f] != (byte)FigureActivity.OnRaid || _session!.World.Tiles[tile].IsLand) continue;
+                            _voyageFound = true;
+                            int width = _current.Width;
+                            Vector3 c = TileCenter(tile % width, tile / width);
+                            MoveCameraTo(new Vector3(c.X, 0, c.Z), 3.4f, instant: true);
+                            _session.SetPaused(true);
+                            break;
+                        }
+                    }, 0.45f);
+                Step(() => { }, 0.6f);
+                Shot("voyage-a");
+                Step(() => { _session!.SetPaused(false); _session.SetSpeedIndex(0); }, 1.5f);
+                Shot("voyage-b");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);
@@ -382,6 +410,8 @@ public partial class Game
     }
 
     /// <summary>Test grant through the normal command path (CommandKind.CompleteProject).</summary>
+    private bool _voyageFound;
+
     private void GrantProject(int project)
     {
         if (_session is null || project < 0) return;

@@ -1060,6 +1060,7 @@ func _figures() -> void:
 		# fishers who know a boat take to it near a river or shore (not while still at home)
 		var boat_tier := 0
 		var boat_strength := 0.0
+		var boat_heading_set := false
 		if (act == 3 or BOAT_DEBUG) and age == 1 and not regional_lod and civ >= 0 and civ < w.sea_tier.size():
 			boat_tier = _debug_boat_tier(fi) if BOAT_DEBUG else w.sea_tier[civ]
 			if boat_tier > 0 and (BOAT_DEBUG or (home >= 0 and home < w.settlements.size() and w.tile_at(p) != int(w.settlements[home].tile))):
@@ -1069,6 +1070,13 @@ func _figures() -> void:
 					p = p.lerp(spot[0], boat_strength)
 					if (spot[1] as Vector2) != Vector2.ZERO:
 						face = atan2((spot[1] as Vector2).x, (spot[1] as Vector2).y)
+						boat_heading_set = true
+		# anyone standing on open water (a party under way to an island) is in a boat of their civilization's best kind
+		if boat_strength < 1.0 and not regional_lod and civ >= 0 and civ < w.sea_tier.size() and w.sea_tier[civ] > 0:
+			var here: int = w.tile_at(p)
+			if here >= 0 and w.is_water(here):
+				boat_strength = 1.0
+				boat_tier = w.sea_tier[civ]
 		var y := maxf(w.height_at(p), 0.0)
 		if boat_strength > 0.0:
 			y += 0.006 * boat_strength
@@ -1081,7 +1089,7 @@ func _figures() -> void:
 				pp = pp.lerp(prev_spot[0], prev_spot[2])
 			offset = pp - p
 			dy = maxf(w.height_at(pp), 0.0) - y
-			if offset.length() > 0.004 and boat_strength < 0.5:
+			if offset.length() > 0.004 and not boat_heading_set:
 				face = atan2(-offset.x, -offset.y)     # walking from pp to p
 		var custom := _glide_custom(tint, mode_offset, seed, dy, offset)
 		if regional_lod:

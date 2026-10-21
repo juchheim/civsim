@@ -793,9 +793,11 @@ public partial class Game
                 break;
             case ViewEventKind.SettlementFounded:
                 {
-                    string text = item.A == 1 ? "Free Folk founded a camp." : "Your people founded a new settlement.";
+                    bool island = item.C == 1;
+                    string text = item.A == 1 ? "Free Folk founded a camp." : island ? "Your people crossed the sea and settled an island." : "Your people founded a new settlement.";
                     AddChronicle(item, text, ChronicleClass.People, true);
-                    if (item.A != 1) ShowToast("A new settlement", ToastKind.Info, "Your people have split and spread out.", item.Tile);
+                    if (island) ShowToast("A village on an island", ToastKind.Milestone, "Outriggers carried a band across the water.", item.Tile, key: "island-settled");
+                    else if (item.A != 1) ShowToast("A new settlement", ToastKind.Info, "Your people have split and spread out.", item.Tile);
                     break;
                 }
             case ViewEventKind.StructureBuilt:
@@ -966,6 +968,13 @@ public partial class Game
             case ViewEventKind.BeaconPlaced:
                 AddChronicle(item, "You placed a Beacon.", ChronicleClass.People, true);
                 break;
+            case ViewEventKind.VoyageLost:
+                {
+                    string what = item.B switch { 0 => "gift party", 1 => "trade party", 2 => "raiding party", 3 => "war party", _ => "band of settlers" };
+                    AddChronicle(item, $"Your {what} turned back at sea.", ChronicleClass.Danger, true);
+                    ShowToast("A voyage turned back", ToastKind.Warning, $"The sea was too rough; your {what} came home.", key: "voyage-lost");
+                    break;
+                }
             case ViewEventKind.OrderRefused:
                 {
                     string text = $"{UiText.OrderNoun(item.A)} didn't happen: {UiText.RefusalReason(item.B)}.";

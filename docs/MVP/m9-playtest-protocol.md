@@ -43,6 +43,12 @@ Use an anonymous participant code. Record behavior and verbatim answers; do not 
 | Most confusing point / exact observed behavior | |
 | Most engaging point / exact observed behavior | |
 
+## Optional island check (docs/MVP/21)
+
+Only for sessions that run past the Outriggers project: did the participant notice a village on an island, or a party in boats,
+and could they say how it got there? Note the toast ("A village on an island") and whether the boats under the party were read as
+boats. Do not prompt.
+
 ## UI measures to add to each record
 
 The redesign in [20-ui-design-spec.md](20-ui-design-spec.md) §7.2 lists the observable UI measures (time to first assignment and how it was made, first pause and how, first zoom and input device, accidental Beacons (target 0), Esc success, whether the player can say why an Almost-ready project cannot start, Moment engagement, whether they use a civ name when explaining an AI action). Record them next to the P9 questions.
