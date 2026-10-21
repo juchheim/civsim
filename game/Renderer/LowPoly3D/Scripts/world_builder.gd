@@ -801,6 +801,9 @@ func _camps() -> void:
 
 # ------------------------------------------------------------------ people
 
+## `--tier-debug` gives every adult a tool and cycles the tier by figure index so all four looks can be seen at once.
+var TIER_DEBUG: bool = "--tier-debug" in OS.get_cmdline_user_args()
+
 const TOOL_BY_ACTIVITY := {
 	0: "plain", 1: "basket", 2: "spear", 3: "pole", 4: "hoe", 5: "axe", 6: "basket", 7: "hammer", 8: "hammer",
 	9: "plain", 10: "plain", 11: "plain", 12: "plain", 15: "bundle", 16: "bundle", 17: "spear", 18: "spear", 19: "spear",
@@ -844,6 +847,7 @@ func _figures() -> void:
 		var age := w.figures[fi + 3]
 		var act := w.figures[fi + 4]
 		var fl := w.figures[fi + 5]
+		var rung := w.figures[fi + 6]
 		var home := w.figures[fi + 7]
 		var id := w.figures[fi + 8]
 		var pmx := w.figures[fi + 9]
@@ -879,6 +883,14 @@ func _figures() -> void:
 			mesh = "person_" + str(TOOL_BY_ACTIVITY.get(act, "plain"))
 			if fl & 256:
 				mesh = "person_spear"
+			# bladed and headed tools show the tier of the method in use: stone, polished stone, copper, bronze
+			var tier := M7MeshKit.tool_tier_for_rung(rung) if rung >= 0 else 0
+			if TIER_DEBUG:
+				var idx := fi / 11
+				mesh = ["person_spear", "person_axe", "person_hoe", "person_hammer"][idx % 4]
+				tier = (idx / 3) % M7MeshKit.TOOL_TIERS
+			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer"]:
+				mesh += "_t" + str(tier)
 		props.add(mesh, _xf(p, y, face, 1.0), custom)
 		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 1.0), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
 		n += 1

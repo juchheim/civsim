@@ -227,6 +227,11 @@ public partial class Game
                     Step(() => TakeScenarioShot($"glide-{n}"), 0.2f);
                 }
                 break;
+            case "tools":
+                Step(() => { FrameCapital(); ZoomTo(2.0f); }, 2.0f);
+                Step(() => _session!.SetPaused(true), 0.3f);
+                Shot("tools-a");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);

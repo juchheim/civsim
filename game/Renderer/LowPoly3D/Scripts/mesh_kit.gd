@@ -575,8 +575,25 @@ static func _flag_z(x: float, xs: Array, zs: Array) -> float:
 # ------------------------------------------------------------------ people
 
 ## Adult figure, ~0.1 tall, facing +Z. tool: "", spear, basket, axe, hoe, pole, hammer, stick
-func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false) -> ArrayMesh:
+## Tool-head colour by tier: 0 flaked stone (the base colour), 1 ground and polished stone, 2 copper, 3 bronze.
+const TOOL_TIER_COLORS := [Color("#6c675f"), Color("#a79f8e"), Color("#b4673a"), Color("#c9973c")]
+## Tool tiers a figure can carry: the sim's method rung (0 .. 6+) folded into four looks.
+const TOOL_TIERS := 4
+
+static func tool_tier_for_rung(rung: int) -> int:
+	if rung <= 1:
+		return 0
+	if rung <= 3:
+		return 1
+	if rung <= 5:
+		return 2
+	return 3
+
+func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, tier: int = 0) -> ArrayMesh:
 	var b := _b(seed)
+	# heads grow a little with each tier (a longer blade, a heavier head) so the step reads at a distance
+	var grow := 1.0 + 0.18 * tier
+	var head_color: Color = TOOL_TIER_COLORS[tier]
 	var legc := Color("#4a3a2a")
 	# legs
 	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
@@ -604,20 +621,20 @@ func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false) -
 	match tool:
 		"spear":
 			b.pole(hand + Vector3(0, -0.035, -0.01), hand + Vector3(0.004, 0.07, 0.012), 0.0028, WOOD_LIGHT)
-			b.prism(hand + Vector3(0.004, 0.07, 0.012), 0.005, 0.0, 0.016, 4, STONE_DARK, STONE_DARK)
+			b.prism(hand + Vector3(0.004, 0.07, 0.012), 0.005, 0.0, 0.016 * grow, 4, head_color, head_color)
 		"basket":
 			b.prism(Vector3(-0.026, -0.012, 0.004), 0.011, 0.014, 0.016, 6, Color("#b08a4e"), Color("#5a7a2c"))
 		"axe":
 			b.pole(hand, hand + Vector3(0.006, 0.045, 0.014), 0.0026, WOOD_LIGHT)
-			b.box(hand + Vector3(0.012, 0.043, 0.014), Vector3(0.014, 0.01, 0.005), STONE_DARK)
+			b.box(hand + Vector3(0.012, 0.043, 0.014), Vector3(0.014 * grow, 0.01 * grow, 0.005), head_color)
 		"hoe":
 			b.pole(hand + Vector3(0, -0.03, -0.006), hand + Vector3(0.002, 0.05, 0.01), 0.0026, WOOD_LIGHT)
-			b.box(hand + Vector3(0.002, -0.032, 0.0), Vector3(0.006, 0.006, 0.016), STONE_DARK)
+			b.box(hand + Vector3(0.002, -0.032, 0.0), Vector3(0.006, 0.006, 0.016 * grow), head_color)
 		"pole":
 			b.pole(hand, hand + Vector3(0.01, 0.06, 0.07), 0.0022, WOOD_LIGHT)
 		"hammer":
 			b.pole(hand, hand + Vector3(0.0, 0.03, 0.012), 0.0026, WOOD_LIGHT)
-			b.box(hand + Vector3(0.0, 0.032, 0.012), Vector3(0.014, 0.01, 0.01), STONE)
+			b.box(hand + Vector3(0.0, 0.032, 0.012), Vector3(0.014 * grow, 0.01 * grow, 0.01), STONE if tier == 0 else head_color)
 		"bundle":
 			b.box(Vector3(0, 0.02, -0.022), Vector3(0.026, 0.026, 0.016), Color("#a5814f"))
 	b.xf = save
@@ -628,6 +645,9 @@ func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false) -
 func _people() -> void:
 	for t in ["", "spear", "basket", "axe", "hoe", "pole", "hammer", "bundle"]:
 		meshes["person_" + (t if t != "" else "plain")] = _person(500 + t.length(), t)
+		if t in ["spear", "axe", "hoe", "hammer"]:
+			for tier in range(1, TOOL_TIERS):
+				meshes["person_%s_t%d" % [t, tier]] = _person(500 + t.length(), t, 0.0, false, tier)
 	meshes["person_elder"] = _person(551, "stick", 0.3, true)
 	# child: scaled-down proportions with a larger head
 	var b := _b(561)
