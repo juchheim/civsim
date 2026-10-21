@@ -43,6 +43,20 @@ Use an anonymous participant code. Record behavior and verbatim answers; do not 
 | Most confusing point / exact observed behavior | |
 | Most engaging point / exact observed behavior | |
 
+## UI measures to add to each record
+
+The redesign in [20-ui-design-spec.md](20-ui-design-spec.md) §7.2 lists the observable UI measures (time to first assignment and how it was made, first pause and how, first zoom and input device, accidental Beacons (target 0), Esc success, whether the player can say why an Almost-ready project cannot start, Moment engagement, whether they use a civ name when explaining an AI action). Record them next to the P9 questions.
+
 ## Result
 
 Report the number of first-time participants, the median and range for time to first assignment, how many completed the first 10 minutes without help, and the count who both want to continue and explain an AI action. P9 passes at **5 or more combined successes** in a group of 5–8; preserve the denominator and individual anonymous records. Summarize the three most repeated confusions and the changes they suggest.
+
+### Early pilot · 2026-10-21
+
+One first-time player reached 10:00 in an uncoached run. This is an early usability observation, not a P9 result; the match was not continued to its end screen.
+
+| Participant | First assignment | Action | Reached 10:00 | Slot explanation | End-screen questions |
+|---|---:|---|---|---|---|
+| P01 | Estimated 5–8 seconds | Set as Primary | Yes | Primary is most critical; Secondary next; Tertiary is less time-sensitive | Continue intent and AI action explanation not assessed |
+
+The player reported that open slots were easy to miss, project prerequisites were hard to read, repeat slot choices felt tiring, Pause was not discoverable, project IDs were less helpful than names, the drag instruction was confusing, and Escape did not close the web. These findings are being addressed in the M7d usability follow-up. The first ten-minute run is complete; the post-fix confirmation and the remaining 4–7 first-time players are still needed for M7d/M9 closure.

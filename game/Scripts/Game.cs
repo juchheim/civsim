@@ -22,7 +22,6 @@ public partial class Game : Node3D
     private const float RowSpacing = 0.8660254f;
     private const float HexRadius = 0.5773503f;
     private const float MapUnit = HexLayout.Unit;
-    private const int AutomaticDestinationItemId = int.MinValue;
 
     private static readonly Color[] CivColors =
     {
@@ -64,26 +63,7 @@ public partial class Game : Node3D
     private MultiMeshInstance3D?[] _structureNodes = Array.Empty<MultiMeshInstance3D?>();
     private MultiMesh[] _structureMeshes = Array.Empty<MultiMesh>();
     private Mesh[] _structureModels = Array.Empty<Mesh>();
-    private Label? _statusLabel;
-    private Label? _momentLabel;
-    private VBoxContainer? _chronicleList;
-    private PanelContainer? _chroniclePanel;
-    private Button? _chronicleToggle;
-    private Button? _claimsOverlayButton, _foodOverlayButton, _methodsOverlayButton;
-    private Button? _resourcesOverlayButton;
-    private Label? _overlayLegendLabel;
-    private PanelContainer? _tileHoverPanel;
-    private RichTextLabel? _tileHoverLabel;
-    private Label? _tileHoverTitle;
-    private int _hoveredTile = -1;
-    private PanelContainer? _politicsPanel;
-    private Label? _politicsNote;
-    private OptionButton? _politicsCivPicker, _targetSettlementPicker, _recallPartyPicker;
-    private Button? _giftButton, _barterButton, _warButton, _peaceButton, _allianceButton, _raidButton, _assaultButton, _recallButton;
     private ResearchCatalog? _catalog;
-    private int _war02 = -1, _trd01 = -1, _trd02 = -1, _dip03 = -1;
-    private int _selectedPoliticsCiv = -1, _selectedTargetSettlement = -1, _selectedRecallParty = -1;
-    private bool _politicsVisible, _updatingPoliticsOptions;
     private readonly Dictionary<MultiMesh, float[]> _instanceBuffers = new();
     private readonly List<Transform3D> _bodyTransforms = new(4096), _headTransforms = new(4096), _carryTransforms = new(4096);
     private readonly List<Color> _bodyColors = new(4096), _headColors = new(4096), _carryColors = new(4096);
@@ -93,7 +73,6 @@ public partial class Game : Node3D
     private MatchFrame? _current;
     private MatchFrame? _previous;
     private long _currentSequence;
-    private long _lastEventSequence;
     private int _structureSignature = int.MinValue;
     private int _width;
     private int _height;
@@ -102,8 +81,6 @@ public partial class Game : Node3D
     private float _zoom = 20.0f;
     private float _yaw = -0.6f;
     private float _pitch = Mathf.DegToRad(45.0f);
-    private bool _dragging;
-    private float _hudTime;
     private double _renderTick;
     private string? _screenshotPath;
     private float _screenshotTimer;
@@ -124,14 +101,9 @@ public partial class Game : Node3D
     private int _benchmarkFrameUpdates;
     private double _benchmarkMinWindowFps = double.MaxValue;
     private int _lastSeason = -1;
+    private double _hudRefreshMs, _benchmarkHudMs;
     private bool _resourcesVisible;
     private int _mapOverlay;
-    private bool _chronicleVisible = true;
-    private readonly List<string> _chronicleEntries = new(8);
-    private readonly List<ViewEvent> _chronicleSubjects = new(8);
-    private float _momentTimer;
-    private string? _alertMessage;
-    private float _alertTimer;
 
     public override void _Ready()
     {
@@ -150,10 +122,6 @@ public partial class Game : Node3D
             ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
             _contentPack = pack;
             _catalog = new ResearchCatalog(pack);
-            _war02 = _catalog.IndexOf("WAR-02");
-            _trd01 = _catalog.IndexOf("TRD-01");
-            _trd02 = _catalog.IndexOf("TRD-02");
-            _dip03 = _catalog.IndexOf("DIP-03");
             int startMinute = ReadStartMinute();
             int viewerCiv = ReadViewerCiv();
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv);
@@ -224,8 +192,6 @@ public partial class Game : Node3D
     public override void _Process(double delta)
     {
         if (_session is null || _current is null) return;
-        PanCamera(delta);
-
         if (_session.Frames.TryAcquire())
         {
             MatchFrame? newest = _session.Frames.Current;
@@ -237,7 +203,6 @@ public partial class Game : Node3D
                 _renderTick = _previous?.Tick ?? newest.Tick;
                 long frameUpdateStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
                 ApplyNewFrame(newest);
-                if (_politicsVisible) UpdatePoliticsControls(newest);
                 if (_benchmarkSeconds > 0)
                 {
                     double updateMs = (Stopwatch.GetTimestamp() - frameUpdateStarted) * 1000.0 / Stopwatch.Frequency;
@@ -248,24 +213,19 @@ public partial class Game : Node3D
             }
         }
 
-        UpdateM7d(delta);
+        UpdateSessionState();
 
         if (!_session.Paused)
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
-        if (_alertTimer > 0) _alertTimer = Math.Max(0, _alertTimer - (float)delta);
-        if (_momentTimer > 0) _momentTimer = Math.Max(0, _momentTimer - (float)delta);
         float alpha = FrameAlpha(_renderTick);
         UpdateActors(alpha);
         if (_benchmarkSeconds > 0)
             RecordBenchmarkFrame(delta);
-        _hudTime += (float)delta;
-        if (_hudTime >= 0.2f)
-        {
-            _hudTime = 0;
-            UpdateHud();
-        }
+        long hudStarted = Stopwatch.GetTimestamp();
+        TickHud(delta);
+        _uiUpdateMs = _uiUpdateMs * 0.95 + (Stopwatch.GetTimestamp() - hudStarted) * 1000.0 / Stopwatch.Frequency * 0.05;
 
-        if (_screenshotPath is not null && !_benchmarkConfigured)
+        if (_screenshotPath is not null && !_benchmarkConfigured && !_scenarioActive)
         {
             _screenshotTimer += (float)delta;
             if (_screenshotTimer >= 3.0f)
@@ -274,80 +234,6 @@ public partial class Game : Node3D
                 GD.Print($"Screenshot {result}: {_screenshotPath}");
                 _screenshotPath = null;
                 GetTree().Quit();
-            }
-        }
-    }
-
-    public override void _UnhandledInput(InputEvent input)
-    {
-        if (_session is null) return;
-        if (HandleM7dInput(input)) return;
-        if (HandleResearchInput(input)) return;
-        if (HandleM7cInput(input)) return;
-        if (input is InputEventMouseButton button)
-        {
-            if (button.ButtonIndex == MouseButton.WheelUp && button.Pressed) SetZoom(_zoom * 0.88f);
-            else if (button.ButtonIndex == MouseButton.WheelDown && button.Pressed) SetZoom(_zoom * 1.14f);
-            else if (button.ButtonIndex == MouseButton.Right && button.Pressed) PlaceBeacon(button.Position);
-            else if (button.ButtonIndex is MouseButton.Left or MouseButton.Middle) _dragging = button.Pressed;
-        }
-        else if (input is InputEventMouseMotion motion)
-        {
-            if (_dragging)
-            {
-                _yaw -= motion.Relative.X * 0.006f;
-                _pitch = Mathf.Clamp(_pitch + motion.Relative.Y * 0.004f, Mathf.DegToRad(18), Mathf.DegToRad(83));
-                UpdateCamera();
-            }
-            else UpdateTileHover(motion.Position);
-        }
-        else if (input is InputEventKey key && key.Pressed && !key.Echo)
-        {
-            switch (key.Keycode)
-            {
-                case Key.Space:
-                    _session.TogglePaused();
-                    break;
-                case Key.Bracketleft:
-                    _session.ChangeSpeed(-1);
-                    break;
-                case Key.Bracketright:
-                    _session.ChangeSpeed(1);
-                    break;
-                case Key.Q:
-                    _yaw -= Mathf.Pi * 0.5f;
-                    UpdateCamera();
-                    break;
-                case Key.E:
-                    _yaw += Mathf.Pi * 0.5f;
-                    UpdateCamera();
-                    break;
-                case Key.F:
-                    FrameCapital();
-                    break;
-                case Key.R:
-                    _resourcesVisible = !_resourcesVisible;
-                    if (_resourcesOverlayButton is not null) _resourcesOverlayButton.ButtonPressed = _resourcesVisible;
-                    if (_current is not null) UpdateKnownResources(_current);
-                    RefreshOverlayButtons();
-                    break;
-                case Key.D:
-                    _politicsVisible = !_politicsVisible;
-                    if (_politicsPanel is not null) _politicsPanel.Visible = _politicsVisible;
-                    if (_current is not null) UpdatePoliticsControls(_current);
-                    break;
-                case Key.Key0:
-                    SetZoom(5.0f);
-                    break;
-                case Key.Key1:
-                    SetZoom(12.0f);
-                    break;
-                case Key.Key2:
-                    SetZoom(40.0f);
-                    break;
-                case Key.Key3:
-                    SetZoom(90.0f);
-                    break;
             }
         }
     }
@@ -438,26 +324,8 @@ public partial class Game : Node3D
 
     private static string ReadOverlayName()
     {
-        foreach (string arg in OS.GetCmdlineUserArgs())
-            if (arg.StartsWith("--overlay=", StringComparison.Ordinal))
-            {
-                string overlay = arg.Substring("--overlay=".Length).ToLowerInvariant();
-                return overlay is "claims" or "food" or "methods" or "resources" ? overlay : "none";
-            }
-        return "none";
-    }
-
-    private void ReadOverlayArgument()
-    {
-        foreach (string arg in OS.GetCmdlineUserArgs())
-            if (arg.StartsWith("--overlay=", StringComparison.Ordinal))
-            {
-                string overlay = arg.Substring("--overlay=".Length).ToLowerInvariant();
-                _mapOverlay = overlay switch { "claims" => 1, "food" => 2, "methods" => 3, _ => 0 };
-                _resourcesVisible = overlay == "resources";
-                _visualRenderer?.Call("set_overlay", _mapOverlay);
-                break;
-            }
+        string overlay = ArgumentValue("--overlay=")?.ToLowerInvariant() ?? "none";
+        return overlay is "claims" or "food" or "methods" or "resources" ? overlay : "none";
     }
 
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld)
@@ -894,8 +762,7 @@ public partial class Game : Node3D
         _mapOverlay = _benchmarkOverlay switch { "claims" => 1, "food" => 2, "methods" => 3, _ => 0 };
         _resourcesVisible = _benchmarkOverlay == "resources";
         _visualRenderer?.Call("set_overlay", _mapOverlay);
-        if (_resourcesOverlayButton is not null) _resourcesOverlayButton.ButtonPressed = _resourcesVisible;
-        RefreshOverlayButtons();
+        RefreshOverlayState();
         UpdateKnownResources(_current);
         SetZoom(zoom switch { 0 => 5.0f, 1 => 12.0f, _ => 40.0f });
         _benchmarkStartTick = _session.Tick;
@@ -910,400 +777,6 @@ public partial class Game : Node3D
         _benchmarkWarmupRemaining = 1.0;
     }
 
-    private void CreateHud(ulong seed)
-    {
-        var layer = new CanvasLayer { Layer = 10 };
-        AddChild(layer);
-        var panel = new PanelContainer
-        {
-            Position = new Vector2(14, 12),
-            Size = new Vector2(680, 96),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left", 14);
-        margin.AddThemeConstantOverride("margin_top", 8);
-        margin.AddThemeConstantOverride("margin_right", 14);
-        margin.AddThemeConstantOverride("margin_bottom", 8);
-        _statusLabel = new Label
-        {
-            Name = "Status",
-            Text = $"CivSim  ·  seed {seed}\nStarting simulation…",
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        _statusLabel.AddThemeFontSizeOverride("font_size", 16);
-        _statusLabel.AddThemeColorOverride("font_color", new Color("#f5f2e9"));
-        _statusLabel.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.65f));
-        _statusLabel.AddThemeConstantOverride("shadow_offset_x", 1);
-        _statusLabel.AddThemeConstantOverride("shadow_offset_y", 1);
-        margin.AddChild(_statusLabel);
-        panel.AddChild(margin);
-        layer.AddChild(panel);
-
-        var help = new Label
-        {
-            AnchorLeft = 0,
-            AnchorTop = 1,
-            AnchorRight = 0,
-            AnchorBottom = 1,
-            Position = new Vector2(16, -14),
-            Text = "Wheel zoom · drag orbit · WASD pan · Q/E rotate · 0–3 zoom · map layers left · C Chronicle · T research · R resources · D orders · right-click beacon · Space pause · [ ] speed · F capital",
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        help.AddThemeFontSizeOverride("font_size", 14);
-        help.AddThemeColorOverride("font_color", new Color("#f5f2e9"));
-        help.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.9f));
-        help.AddThemeConstantOverride("shadow_offset_x", 1);
-        help.AddThemeConstantOverride("shadow_offset_y", 1);
-        layer.AddChild(help);
-        CreatePoliticsPanel(layer);
-        CreateM7cHud(layer);
-        CreateResearchHud(layer);
-        bool firstResearchChoice = _session is { Tick: 0 } && _current is { FocusCiv: 0, FocusCouncil: false } &&
-            _current.FocusSlotProject[0] < 0 && _current.FocusSlotProject[1] < 0 && _current.FocusSlotProject[2] < 0;
-        if (ReadResearchWebArgument() || ReadResearchOverviewArgument() || firstResearchChoice) SetResearchWebVisible(true);
-        if (ReadResearchOverviewArgument()) SetResearchOverviewMode(true);
-        if (_current is not null) UpdatePoliticsControls(_current);
-        CreateM7dHud(layer, seed);
-    }
-
-    private void CreatePoliticsPanel(CanvasLayer layer)
-    {
-        _politicsPanel = new PanelContainer
-        {
-            Name = "PoliticsOrders",
-            AnchorLeft = 1,
-            AnchorRight = 1,
-            AnchorTop = 0,
-            AnchorBottom = 0,
-            OffsetLeft = -366,
-            OffsetRight = -14,
-            OffsetTop = 14,
-            OffsetBottom = 355,
-            Visible = _politicsVisible,
-        };
-        var contents = new VBoxContainer();
-        contents.AddThemeConstantOverride("separation", 7);
-        _politicsPanel.AddChild(contents);
-        var title = new Label { Text = "Diplomacy & orders" };
-        title.AddThemeFontSizeOverride("font_size", 18);
-        contents.AddChild(title);
-
-        _politicsCivPicker = NewPicker("Choose a civilization");
-        _politicsCivPicker.ItemSelected += index =>
-        {
-            if (_updatingPoliticsOptions) return;
-            _selectedPoliticsCiv = _politicsCivPicker.GetItemId((int)index);
-            _selectedTargetSettlement = -1;
-            if (_current is not null) UpdatePoliticsControls(_current);
-        };
-        contents.AddChild(_politicsCivPicker);
-
-        _targetSettlementPicker = NewPicker("Choose a destination or use the closest pair");
-        _targetSettlementPicker.ItemSelected += index =>
-        {
-            if (_updatingPoliticsOptions) return;
-            int id = _targetSettlementPicker.GetItemId((int)index);
-            _selectedTargetSettlement = id == AutomaticDestinationItemId ? -1 : id;
-            if (_current is not null) UpdatePoliticsButtons(_current);
-        };
-        contents.AddChild(_targetSettlementPicker);
-
-        var tradeRow = new HBoxContainer();
-        _giftButton = NewOrderButton("Send gift", QueueGift);
-        _barterButton = NewOrderButton("Send barter", QueueBarter);
-        tradeRow.AddChild(_giftButton);
-        tradeRow.AddChild(_barterButton);
-        contents.AddChild(tradeRow);
-
-        var diplomacyRow = new HBoxContainer();
-        _warButton = NewOrderButton("Declare war", () => QueueDiplomacyOrder(PlayerCommands.DeclareWar));
-        _peaceButton = NewOrderButton("Make peace", () => QueueDiplomacyOrder(PlayerCommands.MakePeace));
-        _allianceButton = NewOrderButton("Alliance", () => QueueDiplomacyOrder(PlayerCommands.FormAlliance));
-        diplomacyRow.AddChild(_warButton);
-        diplomacyRow.AddChild(_peaceButton);
-        diplomacyRow.AddChild(_allianceButton);
-        contents.AddChild(diplomacyRow);
-
-        var militaryRow = new HBoxContainer();
-        _raidButton = NewOrderButton("Raid settlement", QueueRaid);
-        _assaultButton = NewOrderButton("Assault settlement", QueueAssault);
-        militaryRow.AddChild(_raidButton);
-        militaryRow.AddChild(_assaultButton);
-        contents.AddChild(militaryRow);
-
-        var partyRow = new HBoxContainer();
-        _recallPartyPicker = NewPicker("Choose your party");
-        _recallPartyPicker.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _recallPartyPicker.ItemSelected += index =>
-        {
-            if (_updatingPoliticsOptions) return;
-            _selectedRecallParty = _recallPartyPicker.GetItemId((int)index);
-            if (_current is not null) UpdatePoliticsButtons(_current);
-        };
-        _recallButton = NewOrderButton("Recall", QueueRecall);
-        partyRow.AddChild(_recallPartyPicker);
-        partyRow.AddChild(_recallButton);
-        contents.AddChild(partyRow);
-
-        _politicsNote = new Label
-        {
-            Text = "Choose a visible destination, or use the closest settlement pair. Orders are checked by the simulation.",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(320, 36),
-        };
-        _politicsNote.AddThemeFontSizeOverride("font_size", 12);
-        contents.AddChild(_politicsNote);
-        layer.AddChild(_politicsPanel);
-    }
-
-    private static OptionButton NewPicker(string placeholder)
-    {
-        var picker = new OptionButton
-        {
-            CustomMinimumSize = new Vector2(322, 30),
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            TooltipText = placeholder,
-        };
-        return picker;
-    }
-
-    private static Button NewOrderButton(string text, Action pressed)
-    {
-        var button = new Button
-        {
-            Text = text,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(82, 30),
-        };
-        button.Pressed += pressed;
-        return button;
-    }
-
-    private void UpdatePoliticsControls(MatchFrame frame)
-    {
-        if (_politicsCivPicker is null || _targetSettlementPicker is null || _recallPartyPicker is null) return;
-        if (frame.ViewerCiv != 0)
-        {
-            _updatingPoliticsOptions = true;
-            _politicsCivPicker.Clear();
-            _targetSettlementPicker.Clear();
-            _recallPartyPicker.Clear();
-            _selectedPoliticsCiv = _selectedTargetSettlement = _selectedRecallParty = -1;
-            _updatingPoliticsOptions = false;
-            if (_politicsNote is not null) _politicsNote.Text = "Player orders are available when viewing civilization 1.";
-            UpdatePoliticsButtons(frame);
-            return;
-        }
-        if (_politicsNote is not null)
-            _politicsNote.Text = "Choose a visible destination, or use the closest settlement pair. Orders are checked by the simulation.";
-        _updatingPoliticsOptions = true;
-        try
-        {
-            int priorCiv = _selectedPoliticsCiv;
-            _politicsCivPicker.Clear();
-            bool civStillAvailable = false;
-            for (int civ = 0; civ < frame.CivCount; civ++)
-            {
-                if (civ == 0 || (frame.CivFlags[civ] & (ushort)CivViewFlags.Aware) == 0) continue;
-                CivViewFlags flags = (CivViewFlags)frame.CivFlags[civ];
-                string state = (flags & CivViewFlags.AtWar) != 0 ? " · at war" :
-                    (flags & CivViewFlags.Allied) != 0 ? " · allied" :
-                    (flags & CivViewFlags.Contacted) != 0 ? " · contacted" : " · known";
-                _politicsCivPicker.AddItem($"Civilization {civ + 1}{state}", civ);
-                if (civ == priorCiv) civStillAvailable = true;
-            }
-            if (!civStillAvailable)
-                _selectedPoliticsCiv = _politicsCivPicker.ItemCount > 0 ? _politicsCivPicker.GetItemId(0) : -1;
-            SelectItemId(_politicsCivPicker, _selectedPoliticsCiv);
-
-            int priorSettlement = _selectedTargetSettlement;
-            _targetSettlementPicker.Clear();
-            _targetSettlementPicker.AddItem("Automatic · closest settlement pair", AutomaticDestinationItemId);
-            bool settlementStillAvailable = priorSettlement < 0;
-            if (_selectedPoliticsCiv >= 0)
-            {
-                for (int i = 0; i < frame.SettlementCount; i++)
-                {
-                    if (frame.SettlementCiv[i] != _selectedPoliticsCiv) continue;
-                    SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[i];
-                    if ((flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
-                    int settlement = frame.SettlementIndex[i];
-                    _targetSettlementPicker.AddItem($"Settlement {settlement + 1} · {frame.SettlementPopulation[i]} people", settlement);
-                    if (settlement == priorSettlement) settlementStillAvailable = true;
-                }
-            }
-            if (!settlementStillAvailable)
-                _selectedTargetSettlement = -1;
-            SelectItemId(_targetSettlementPicker, _selectedTargetSettlement < 0 ? AutomaticDestinationItemId : _selectedTargetSettlement);
-
-            int priorParty = _selectedRecallParty;
-            _recallPartyPicker.Clear();
-            bool partyStillAvailable = false;
-            int ownOrdinal = 0;
-            for (int i = 0; i < frame.PartyCount; i++)
-            {
-                if (frame.PartyCiv[i] != 0) continue;
-                string kind = ((PartyKind)frame.PartyKind[i]) switch
-                {
-                    PartyKind.Gift => "Gift",
-                    PartyKind.Barter => "Barter",
-                    PartyKind.Raid => "Raid",
-                    _ => "Assault",
-                };
-                _recallPartyPicker.AddItem($"{kind} · {frame.PartyMembers[i]} people · {frame.PartyProgress[i]}‰", ownOrdinal);
-                if (ownOrdinal == priorParty) partyStillAvailable = true;
-                ownOrdinal++;
-            }
-            if (!partyStillAvailable)
-                _selectedRecallParty = _recallPartyPicker.ItemCount > 0 ? _recallPartyPicker.GetItemId(0) : -1;
-            SelectItemId(_recallPartyPicker, _selectedRecallParty);
-        }
-        finally
-        {
-            _updatingPoliticsOptions = false;
-        }
-        UpdatePoliticsButtons(frame);
-    }
-
-    private static void SelectItemId(OptionButton picker, int id)
-    {
-        picker.Select(-1);
-        for (int i = 0; i < picker.ItemCount; i++)
-            if (picker.GetItemId(i) == id) { picker.Select(i); return; }
-    }
-
-    private void UpdatePoliticsButtons(MatchFrame frame)
-    {
-        if (_giftButton is null || _barterButton is null || _warButton is null || _peaceButton is null ||
-            _allianceButton is null || _raidButton is null || _assaultButton is null || _recallButton is null) return;
-        int civ = _selectedPoliticsCiv;
-        bool validCiv = frame.ViewerCiv == 0 && civ > 0 && civ < frame.CivCount;
-        CivViewFlags relation = validCiv ? (CivViewFlags)frame.CivFlags[civ] : CivViewFlags.None;
-        bool contacted = (relation & CivViewFlags.Contacted) != 0;
-        bool atWar = (relation & CivViewFlags.AtWar) != 0;
-        bool allied = (relation & CivViewFlags.Allied) != 0;
-        bool inTruce = (relation & CivViewFlags.InTruce) != 0;
-        bool hasTrd01 = HasProject(frame, _trd01);
-        bool hasTrd02 = HasProject(frame, _trd02);
-        bool hasWar02 = HasProject(frame, _war02);
-        bool hasDip03 = HasProject(frame, _dip03);
-        bool ownBarterInFlight = false;
-        for (int i = 0; i < frame.PartyCount; i++)
-            if (frame.PartyCiv[i] == 0 && frame.PartyTargetCiv[i] == civ && frame.PartyKind[i] == (byte)PartyKind.Barter)
-                ownBarterInFlight = true;
-        bool targetValid = TryGetTargetSettlement(frame, civ, out _);
-        bool destinationValid = _selectedTargetSettlement < 0 || targetValid;
-        string destinationHint = destinationValid ? "" : "Choose a visible settlement of this civilization.";
-
-        SetOrderButton(_giftButton, validCiv && contacted && !atWar && hasTrd01 && destinationValid,
-            !hasTrd01 ? "Requires TRD-01." : !contacted ? "Requires first contact." : atWar ? "Unavailable during war." :
-            !destinationValid ? destinationHint : "Send a food gift to this civilization.");
-        SetOrderButton(_barterButton, validCiv && contacted && !atWar && hasTrd02 && frame.CivRelations[civ] > 0 && !ownBarterInFlight && destinationValid,
-            !hasTrd02 ? "Requires TRD-02 for your civilization." : !contacted ? "Requires first contact." : atWar ? "Unavailable during war." :
-            frame.CivRelations[civ] <= 0 ? "Requires positive relations." : ownBarterInFlight ? "A barter trip is already underway." :
-            !destinationValid ? destinationHint : "Trade with this civilization.");
-        SetOrderButton(_warButton, validCiv && contacted && !atWar && !allied,
-            !contacted ? "Requires first contact." : atWar ? "Already at war." : allied ? "End the alliance before declaring war." : "Declare war; breaking a truce harms reputation.");
-        bool occupationHeld = false;
-        for (int i = 0; i < frame.OccupationCount; i++)
-        {
-            for (int s = 0; s < frame.SettlementCount; s++)
-                if (frame.SettlementIndex[s] == frame.OccupationSettlement[i] &&
-                    (frame.OccupationCiv[i] == 0 && frame.SettlementCiv[s] == civ ||
-                     frame.OccupationCiv[i] == civ && frame.SettlementCiv[s] == 0))
-                    occupationHeld = true;
-        }
-        SetOrderButton(_peaceButton, validCiv && atWar && !occupationHeld,
-            !atWar ? "You are not at war with this civilization." : occupationHeld ? "Peace is unavailable while you occupy one of its settlements." : "Make peace.");
-        bool relationEnough = validCiv && frame.CivRelations[civ] > 40;
-        SetOrderButton(_allianceButton, validCiv && contacted && !atWar && !allied && relationEnough && hasDip03,
-            !hasDip03 ? "Requires DIP-03 for your civilization and the other side." : !contacted ? "Requires first contact." :
-            atWar ? "Unavailable during war." : allied ? "Already allied." : !relationEnough ? "Requires relations above 40." : "Form an alliance.");
-
-        SetOrderButton(_raidButton, targetValid && contacted && hasWar02 && !allied && !inTruce,
-            !hasWar02 ? "Requires WAR-02." : !contacted ? "Requires first contact." : allied ? "Cannot raid an ally." :
-            inTruce ? "Unavailable during a truce." : !targetValid ? "Choose a visible settlement of this civilization." : "Launch a raid against the selected settlement.");
-        SetOrderButton(_assaultButton, targetValid && atWar,
-            !atWar ? "Declare war before assaulting." : !targetValid ? "Choose a visible settlement of the civilization you are at war with." : "Assault the selected settlement.");
-        bool recallValid = frame.ViewerCiv == 0 && _selectedRecallParty >= 0 && _selectedRecallParty < CountOwnParties(frame);
-        SetOrderButton(_recallButton, recallValid,
-            recallValid ? "Recall this party; surviving members return home next frame." : "You have no parties on the road.");
-        if (_politicsCivPicker is not null) _politicsCivPicker.Disabled = _politicsCivPicker.ItemCount == 0;
-        if (_targetSettlementPicker is not null)
-            _targetSettlementPicker.Disabled = _selectedPoliticsCiv < 0 || _targetSettlementPicker.ItemCount == 0;
-        if (_recallPartyPicker is not null) _recallPartyPicker.Disabled = _recallPartyPicker.ItemCount == 0;
-    }
-
-    private bool TryGetTargetSettlement(MatchFrame frame, int civ, out int settlement)
-    {
-        settlement = _selectedTargetSettlement;
-        if (civ <= 0 || civ >= frame.CivCount || settlement < 0) return false;
-        for (int i = 0; i < frame.SettlementCount; i++)
-        {
-            if (frame.SettlementIndex[i] != settlement || frame.SettlementCiv[i] != civ) continue;
-            SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[i];
-            return (flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) == 0;
-        }
-        return false;
-    }
-
-    private static int CountOwnParties(MatchFrame frame)
-    {
-        int count = 0;
-        for (int i = 0; i < frame.PartyCount; i++) if (frame.PartyCiv[i] == 0) count++;
-        return count;
-    }
-
-    private static bool HasProject(MatchFrame frame, int project)
-    {
-        if (project < 0 || project >= frame.FocusProjectCount) return false;
-        ProjectState state = (ProjectState)frame.FocusProjectState[project];
-        return state is ProjectState.Completed or ProjectState.Dormant;
-    }
-
-    private static void SetOrderButton(Button button, bool enabled, string tooltip)
-    {
-        button.Disabled = !enabled;
-        button.TooltipText = tooltip;
-    }
-
-    private void QueueDiplomacyOrder(Func<long, int, int, Command> create)
-    {
-        if (_session is null || _selectedPoliticsCiv <= 0) return;
-        _session.Queue(create(_session.Tick, 0, _selectedPoliticsCiv));
-    }
-
-    private void QueueGift()
-    {
-        if (_session is null || _selectedPoliticsCiv <= 0) return;
-        _session.Queue(PlayerCommands.SendGift(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
-    }
-
-    private void QueueBarter()
-    {
-        if (_session is null || _selectedPoliticsCiv <= 0) return;
-        _session.Queue(PlayerCommands.SendBarter(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
-    }
-
-    private void QueueRaid()
-    {
-        if (_session is null || _selectedTargetSettlement < 0) return;
-        _session.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _selectedTargetSettlement, 4));
-    }
-
-    private void QueueAssault()
-    {
-        if (_session is null || _selectedTargetSettlement < 0) return;
-        _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, _selectedTargetSettlement));
-    }
-
-    private void QueueRecall()
-    {
-        if (_session is null || _selectedRecallParty < 0) return;
-        _session.Queue(PlayerCommands.RecallParty(_session.Tick, 0, _selectedRecallParty));
-    }
-
     private void ApplyNewFrame(MatchFrame frame)
     {
         if (_visualRenderer is not null && _session is not null)
@@ -1316,8 +789,11 @@ public partial class Game : Node3D
                 GD.Print($"M7A_FRAME_HOST payload={payloadMs:F2}ms figures={frame.FigureCount} herds={frame.HerdCount}");
         }
         UpdateKnownResources(frame);
-        ProcessViewEvents(frame);
-        ProcessM7dFrame(frame);
+        ProcessEndTimeline(frame);
+        long hudRefreshStarted = Stopwatch.GetTimestamp();
+        RefreshHud(frame);
+        _hudRefreshMs = (Stopwatch.GetTimestamp() - hudRefreshStarted) * 1000.0 / Stopwatch.Frequency;
+        if (_benchmarkSeconds > 0) _benchmarkHudMs = Math.Max(_benchmarkHudMs, _hudRefreshMs);
     }
 
     private void RebuildVisualRenderer(MatchFrame frame, SimulationSession session)
@@ -1376,19 +852,6 @@ public partial class Game : Node3D
             }
         }
         SetInstances(_resourceNode.Multimesh, transforms, colors);
-    }
-
-    private void PlaceBeacon(Vector2 screenPosition)
-    {
-        if (_session is null || _camera is null) return;
-        Vector3 origin = _camera.ProjectRayOrigin(screenPosition);
-        Vector3 ray = _camera.ProjectRayNormal(screenPosition);
-        if (Math.Abs(ray.Y) < 0.0001f) return;
-        float distance = -origin.Y / ray.Y;
-        if (distance < 0) return;
-        Vector3 hit = origin + ray * distance;
-        int tile = HexLayout.NearestTile((int)(hit.X * MapUnit), (int)(hit.Z / RowSpacing * MapUnit), _width, _height);
-        if (tile >= 0) _session.Queue(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width));
     }
 
     private static Color DepositColor(DepositKind kind) => kind switch
@@ -1666,22 +1129,6 @@ public partial class Game : Node3D
         return Mathf.Clamp((float)((renderTick - _previous.Tick) / (_current.Tick - _previous.Tick)), 0, 1);
     }
 
-    private void UpdateHud()
-    {
-        if (_current is null || _session is null || _statusLabel is null) return;
-        int civ = Math.Clamp(_current.ViewerCiv, 0, _current.CivCount - 1);
-        float zoom = _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
-        string[] seasons = { "Spring", "Summer", "Autumn", "Winter" };
-        _statusLabel.Text = $"CivSim  ·  Year {_current.Year}  ·  {seasons[_current.SeasonOfYear]}  ·  " +
-                            $"People {_current.CivPopulation[civ]:N0}  ·  Figures {_current.FigureCount:N0}  ·  " +
-                            $"Z{zoom:0}  ·  {(_session.Paused ? "Paused" : $"{_session.Speed:0.0}×")}  ·  " +
-                            $"{Engine.GetFramesPerSecond()} fps" +
-                            (_alertTimer > 0 && _alertMessage is not null ? $"\n{_alertMessage}" : "");
-        UpdateResearchHud(_current);
-        UpdateM7cHud(_current);
-        if (_hoveredTile >= 0) RefreshTileHover();
-    }
-
     private void ApplySeasonLight(int season)
     {
         if (_visualRenderer is not null)
@@ -1709,75 +1156,6 @@ public partial class Game : Node3D
         AddChild(_borderNode);
     }
 
-    private void FrameCapital()
-    {
-        if (_current is null || _camera is null) return;
-        int selected = -1;
-        int population = -1;
-        for (int i = 0; i < _current.SettlementCount; i++)
-            if (_current.SettlementCiv[i] == 0 && (_current.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0)
-            {
-                if (_current.SettlementPopulation[i] > population)
-                {
-                    selected = i;
-                    population = _current.SettlementPopulation[i];
-                }
-            }
-        if (selected < 0 && _current.SettlementCount > 0) selected = 0;
-        if (selected < 0) return;
-        int tile = _current.SettlementTile[selected];
-        Vector3 center = TileCenter(tile % _current.Width, tile / _current.Width);
-        _target = new Vector3(center.X + 0.3f, _terrainHeights[tile], center.Z + 0.2f);
-        _yaw = Mathf.DegToRad(30.0f);
-        _pitch = Mathf.DegToRad(40.0f);
-        SetZoom(5.0f);
-        UpdateCamera();
-    }
-
-    private void SetZoom(float value)
-    {
-        _zoom = Mathf.Clamp(value, 2.7f, 120.0f);
-        UpdateCamera();
-    }
-
-    private void UpdateCamera()
-    {
-        if (_visualRenderer is not null)
-        {
-            _visualRenderer.Call("set_camera", _target, _yaw, _pitch, _zoom);
-            return;
-        }
-        if (_camera is null) return;
-        _camera.Size = _zoom;
-        float distance = _zoom * 1.65f + 4.0f;
-        var offset = new Vector3(Mathf.Sin(_yaw) * Mathf.Cos(_pitch), Mathf.Sin(_pitch), Mathf.Cos(_yaw) * Mathf.Cos(_pitch)) * distance;
-        _camera.Position = _target + offset;
-        _camera.LookAt(_target, Vector3.Up);
-        if (_sun is not null)
-        {
-            _sun.DirectionalShadowMaxDistance = Mathf.Clamp(_zoom * 2.0f, 28.0f, 180.0f);
-            _sun.DirectionalShadowMode = _zoom < 38.0f
-                ? DirectionalLight3D.ShadowMode.Parallel4Splits
-                : DirectionalLight3D.ShadowMode.Parallel2Splits;
-        }
-    }
-
-    private void PanCamera(double delta)
-    {
-        if (_camera is null) return;
-        Vector2 move = Vector2.Zero;
-        if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up)) move.Y -= 1;
-        if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down)) move.Y += 1;
-        if (Input.IsKeyPressed(Key.A) || Input.IsKeyPressed(Key.Left)) move.X -= 1;
-        if (Input.IsKeyPressed(Key.D) || Input.IsKeyPressed(Key.Right)) move.X += 1;
-        if (move == Vector2.Zero) return;
-        Vector3 right = new(Mathf.Cos(_yaw), 0, -Mathf.Sin(_yaw));
-        Vector3 forward = new(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw));
-        _target += (right * move.X - forward * move.Y) * _zoom * (float)delta * 0.85f;
-        _target.X = Mathf.Clamp(_target.X, -5, _width + 5);
-        _target.Z = Mathf.Clamp(_target.Z, -5, _height * RowSpacing + 5);
-        UpdateCamera();
-    }
 
     private static float[] MakeHeights(WorldView world)
     {

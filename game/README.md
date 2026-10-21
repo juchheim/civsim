@@ -1,4 +1,4 @@
-# CivSim Godot front end (M7a–M7d)
+# CivSim Godot front end (M7a–M7d, UI redesign)
 
 The project is the presentation layer for `CivSim.Sim`. It reads the viewer-filtered
 `MatchFrame` through `FrameStore`, renders the low-poly 3D map, and queues plain
@@ -14,29 +14,38 @@ dotnet run --project src/CivSim.Cli -c Release -- build-pack --out civsim.pack
 godot-mono --path game
 ```
 
-The window defaults to civilization 0 and seed `20261019`. Use the mouse wheel to
-zoom through Z0–Z3, drag to orbit, WASD/arrows to pan, Q/E to rotate, Space to pause,
-and `[` / `]` to change speed. Press F to refocus the capital, R to show deposits
-the viewer has discovered, T to open the research web, and right-click a tile to
-place a Beacon through the normal command queue. Press D to open the politics panel:
-choose a known civilization and, for military orders, one of its visible settlements.
-The panel offers gifts,
-barter, war, peace, alliance, raids, assaults and recall for parties on the road;
-orders that the current frame shows as unavailable are disabled. Gift and barter
-can use a selected visible destination or choose the closest settlement pair. A
-refused order appears in the status panel. If Godot cannot
-find the .NET runtime on macOS, set `DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec`.
+The window defaults to civilization 0 and seed `20261019`. The UI follows
+[docs/MVP/20-ui-design-spec.md](../docs/MVP/20-ui-design-spec.md): one theme, one type scale, warm ink-glass
+panels and an ochre accent. If Godot cannot find the .NET runtime on macOS, set
+`DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec`.
 
-The first launch opens a short Spark introduction. Context tips appear when their
-events happen; press **H** or choose **Help / tips** to review tips already seen.
-The top toolbar has a quick-save slot, load, replay recording, replay playback, and
-the help panel. Saves and the latest replay are stored under Godot's user-data
-directory in `saves/quicksave.civsave` and `replays/latest.csr`. Saves include the
-versioned simulation snapshot, fog memory, pending player orders, command history,
-checksums, AI explanations, and onboarding progress. Replays start from the seed
-and recorded player orders; the viewer reports whether periodic checksums match.
-The match pauses at the first KEY-3 completion or at 40 simulated minutes and shows
-Legacy standings, the Keystone timeline, and the AI's recent decision reasons.
+**Camera.** Drag to move the map, right-drag (or Option/Alt-drag) to turn and tilt,
+scroll or pinch to zoom toward the cursor (the same two-finger scroll on a trackpad),
+`WASD`/arrows to pan, `Q`/`E` to turn, `0`–`3` or `−`/`=` to zoom, `F` to frame your
+settlement. The left rail has +/−, a Z0–Z3 zoom ladder, a compass (click for north)
+and the map layers (Claims, Food, Methods, Resources) with a legend.
+
+**Keys.** `Space` or `P` pause from anywhere (also inside the research web), `[` `]`
+speed, `T` research, `O` diplomacy, `C` Chronicle, `H`/`F1` help, `B` Beacon mode
+(right-click never places anything), `R` resources layer, `F5`/`F9` quick save/load,
+`F3` developer overlay (fps, figures, UI timings, project IDs in tooltips). `Esc`
+closes the topmost layer (popover, drawer, web, modal); with nothing open it opens the
+game menu. Typing in the search field never moves the camera.
+
+**Time.** The top band shows the date, a dominant Pause/Resume button and ½×/1×/2×/4×.
+While paused the Resume button turns gold, a "PAUSED" pill appears, and the viewport
+gets a gold frame and a light scrim. A new match starts paused ("opening hold") until
+the first research choice. Orders given while paused show as *pending*.
+
+**Menu.** Save, load, replay save/watch, settings (UI size 100/115/130 %, reduce
+motion, hints, tips, pause in web, pause on danger), help, new match and quit.
+Saves and the latest replay are stored under Godot's user-data directory in
+`saves/quicksave.civsave` and `replays/latest.csr`. Saves include the versioned
+simulation snapshot, fog memory, pending player orders, command history, checksums,
+AI explanations, and onboarding progress. Replays start from the seed and recorded
+player orders; the viewer reports whether periodic checksums match. The match pauses
+at the first KEY-3 completion or at 40 simulated minutes and shows standings, the
+turning-point timeline and what the rival AIs were thinking.
 
 The standard game uses Gentle start: its first three winters are protected from
 harsh conditions, and the human civilization cannot make rival contact before
@@ -50,31 +59,30 @@ can be captured after startup with:
 godot-mono --path game -- --screenshot=/tmp/civsim-m7a.png
 ```
 
-A new match starts with the human player's Council off and opens the research web
-to the first available E0 choices. This gives the player the opening assignment;
-the Council toggle remains available if they want later slots automated.
+A new match starts with the human player's Auto-fill (the Council) off and opens the
+research web to what is ready now. The focus bar is always on screen: three cards sized
+1 : 0.618 : 0.382 (Primary, Secondary, Tertiary) with live share, progress and ETA; an
+open slot is a pulsing dashed card with "+ Choose a project". In the web, **Choose**
+shows ready projects in Craft/Kin/Reach columns, then "Almost ready" projects with the
+one thing each still needs; **Map** shows every known field by age. Click a project to
+read it; the big button starts it in the first open slot (or asks which slot to
+replace); double-click, `Enter` and `1`–`3` do the same. Prerequisites read "All of
+these" / "Any one of these" with each one's state, and an unavailable project says why.
+Project codes appear only with F3 on. Project names, lineage names and effects are
+phrased in plain English from the content pack (`Ui/UiText.cs`).
 
-The M7b first pass keeps a 4:2:1 focus bar on screen with slot progress, a sampled ETA,
-queue peek, Insight/year and the Council toggle. Leaning opens three sliders whose
-shares are normalized to 100% when applied. In the research web, select a visible
-project and use the inspector to set Primary/Secondary/Tertiary, enqueue it, or
-remove it from the queue. Keys `1`–`3` assign the selected project while the web is
-open; `Esc` closes it. Search covers project IDs, names, lineages, effect terms and
-gate targets. Hidden projects remain absent from search. **W1 Overview** summarizes
-known completed, available/slotted and glimpsed projects by lineage and era without
-counting hidden projects; clicking a cell drills into its lane. **W2 Lanes** shows
-the individual nodes, with optional size emphasis based only on known dependents.
-The inspector's visible prerequisite and unlock buttons navigate between lanes.
-Method previews include how many of your current figures perform the action and how
-many are below the new rung at their settlement.
-A research node can be dragged onto a focus slot, and dragging a slotted project to
-another slot changes its rank without losing progress.
-A development capture can open the web on launch with:
+Development captures (UI only; none of these touch simulation state):
 
 ```bash
-godot-mono --path game -- --research-web --screenshot=/tmp/civsim-m7b-web.png
-godot-mono --path game -- --research-overview --screenshot=/tmp/civsim-m7b-overview.png
+godot-mono --path game --resolution 1600x900 -- --screenshot=/tmp/civsim-ui.png [--ui-open=web|map|inspector-almost|replace|diplomacy|chronicle|help|settings|menu|end|intro]
+godot-mono --path game --resolution 1280x720 -- --scenario=assign --shots=/tmp/civsim-shots   # scripted walk-through, one PNG per step
 ```
+
+Scenarios live in `Scripts/Hud/Game.Scenarios.cs` (`assign`, `paused-assign`, `replace`,
+`almost`, `map`, `overlays`, `moments`, `toasts`, `menu`, `diplomacy`, `tile`, `end`, `zoom`,
+`popovers`, `session`, `input`, `dev`). Other options: `--opening-hold` (use the paused
+start in a capture), `--paused`, `--ui-scale=1.3`, `--reduce-motion`, `--research-map`,
+`--ui-debug`.
 
 For renderer checks, `--start-minute=70 --viewer=-1` advances the deterministic
 match to a mature omniscient frame before drawing; the HUD reports the number of
