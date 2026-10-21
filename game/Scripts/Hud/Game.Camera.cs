@@ -453,8 +453,7 @@ public partial class Game
     {
         if (_beaconMode)
         {
-            PlaceBeacon(position);
-            SetBeaconMode(false);
+            ManageBeaconAt(position);
             return;
         }
         if (TryPickTile(position, out int tile))
@@ -480,7 +479,7 @@ public partial class Game
 
     private void SetBeaconMode(bool on)
     {
-        if (on && !(_current is { FocusBeaconsAllowed: > 0 } f && f.FocusBeaconsPlaced < f.FocusBeaconsAllowed))
+        if (on && !(_current is { FocusBeaconsAllowed: > 0 }))
         {
             ShowToast("No Beacons yet", ToastKind.Info, "A Beacon is a suggestion that draws scouts and settlers to a spot. Learn Songlines to unlock them.", key: "beacon-locked");
             return;
@@ -496,11 +495,57 @@ public partial class Game
         Input.SetDefaultCursorShape(on ? Input.CursorShape.Cross : Input.CursorShape.Arrow);
     }
 
-    private void PlaceBeacon(Vector2 screenPosition)
+    private void ManageBeaconAt(Vector2 screenPosition)
     {
-        if (_session is null || _camera is null || !_session.CanIssueCommands) return;
-        if (TryPickTile(screenPosition, out int tile))
+        if (_session is null || _camera is null || _current is null || !_session.CanIssueCommands)
+        {
+            SetBeaconMode(false);
+            return;
+        }
+        if (!TryPickTile(screenPosition, out int tile))
+        {
+            SetBeaconMode(false);
+            return;
+        }
+
+        if (TryGetOwnBeaconIndex(tile, out int beaconIndex))
+        {
+            _session.Queue(PlayerCommands.RemoveBeacon(_session.Tick, 0, beaconIndex));
+            SetBeaconMode(false);
+            string nextStep = _session.Paused
+                ? "The removal starts when you resume. Press B after it takes effect to place a replacement."
+                : "Its slot is free. Press B to place a replacement.";
+            ShowToast("Beacon removed", ToastKind.Info, nextStep, tile, key: "beacon-removed");
+            return;
+        }
+
+        if (_current.FocusBeaconsAllowed > _current.FocusBeaconsPlaced)
+        {
             _session.Queue(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width));
+            SetBeaconMode(false);
+            return;
+        }
+
+        SetBeaconMode(false);
+        ShowToast("Beacon limit reached", ToastKind.Info, "Click one of your Beacons in Beacon mode to remove it before placing another.", tile, key: "beacon-limit");
+    }
+
+    private bool TryGetOwnBeaconIndex(int tile, out int beaconIndex)
+    {
+        beaconIndex = 0;
+        if (_current is null) return false;
+        int ownIndex = 0;
+        for (int i = 0; i < _current.BeaconCount; i++)
+        {
+            if (_current.BeaconCiv[i] != _current.FocusCiv) continue;
+            if (_current.BeaconTile[i] == tile)
+            {
+                beaconIndex = ownIndex;
+                return true;
+            }
+            ownIndex++;
+        }
+        return false;
     }
 
     private UiLayer? _pinLayer;

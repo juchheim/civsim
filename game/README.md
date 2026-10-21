@@ -27,7 +27,7 @@ and the map layers (Claims, Food, Methods, Resources) with a legend.
 
 **Keys.** `Space` or `P` pause from anywhere (also inside the research web), `[` `]`
 speed, `T` research, `O` diplomacy, `C` Chronicle, `H`/`F1` help, `B` Beacon mode
-(right-click never places anything), `R` resources layer, `F5`/`F9` quick save/load,
+(click an owned Beacon in that mode to remove it), `R` resources layer, `F5`/`F9` quick save/load,
 `F3` developer overlay (fps, figures, UI timings, project IDs in tooltips). `Esc`
 closes the topmost layer (popover, drawer, web, modal); with nothing open it opens the
 game menu. Typing in the search field never moves the camera.

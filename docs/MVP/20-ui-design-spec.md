@@ -552,7 +552,7 @@ Vertical: padding 21 · header 55 · 13 · slot strip 55 · 13 · body (flex; ba
 
 ### 3.5 Map-tools rail (89 wide, HudPanel)
 
-Top to bottom: Icon "+" (42) · **zoom ladder**: four stop buttons 89×30 labelled "Z0" … "Z3" (Caption; selected = Accent text + 2 px Accent left bar) on a 2 px vertical track with an Accent triangle marker at the continuous log position of the zoom (2.7 at top … 120 at bottom) · Icon "−" (42) · caption with the current level name ("Hearth", "Settlement", "Region", "Continent") · compass rose 42 (rotates with yaw; click = turn to north over `CameraTurn`; tooltip "Turn: Q / E · click for north") · divider · Eyebrow "LAYERS" · Claims / Food / Methods (89×55 each: icon 26 over Caption label; exclusive: clicking the active one turns it off) · 8 px gap · Resources (same size, add-on toggle with a small "+" corner mark; key R) · when `FocusBeaconsAllowed > 0`: divider + Beacon button "Beacon · 2 left" (B).
+Top to bottom: Icon "+" (42) · **zoom ladder**: four stop buttons 89×30 labelled "Z0" … "Z3" (Caption; selected = Accent text + 2 px Accent left bar) on a 2 px vertical track with an Accent triangle marker at the continuous log position of the zoom (2.7 at top … 120 at bottom) · Icon "−" (42) · caption with the current level name ("Hearth", "Settlement", "Region", "Continent") · compass rose 42 (rotates with yaw; click = turn to north over `CameraTurn`; tooltip "Turn: Q / E · click for north") · divider · Eyebrow "LAYERS" · Claims / Food / Methods (89×55 each: icon 26 over Caption label; exclusive: clicking the active one turns it off) · 8 px gap · Resources (same size, add-on toggle with a small "+" corner mark; key R) · when `FocusBeaconsAllowed > 0`: divider + Beacon button showing slots left, or "Beacon · replace" when full (B). In Beacon mode, clicking an own Beacon removes it and frees a slot for a replacement.
 
 **Legend card (233, CardPanel)**, shown while a layer is active, beside the rail aligned with that layer's button:
 
@@ -634,7 +634,7 @@ Auto-pause: setting "Pause on danger" (default **off**) pauses on any Critical t
 - **End screen** (modal 987×610, pauses as today): Title (`Display`), subtitle (Body), then two columns split 61.8 / 38.2: left **Standings** table (rank, emblem, name, Legacy, Firsts, Land %) and **Turning points** list (Year · civ · age · project); right **What your rivals were thinking** (grouped by civ, newest 4 each, "Year {n} · {Reason}"). Actions: Ghost "Save replay", Ghost "Watch replay", Secondary "New match", Primary "Keep watching". One-line explanation under the table: "Legacy = points for knowledge mastered plus world firsts. Land % = share of claimed land."
 - **Coach tips** (non-modal): one card 610 (CardPanel) at the coach slot: info glyph, title `BodyStrong`, body Body 16, Primary 36 "Got it", Ghost "Turn off tips". Auto-hide 30 s (hover pauses); ≥ 45 s between tips (except the first two); queue max 2 (drop the oldest). Never shown while a modal is open.
 - **Hint pill** (non-modal, MouseFilter Ignore): one line Caption on Surface1, context text §5.11. Visible until the player has panned, zoomed and turned at least once each (stored in `user://settings.cfg`), then only for special modes (Beacon mode, pinned tile) and while the "Show control hints" setting is on.
-- **Beacon mode** (B or the rail button): cursor shows a hex ghost under the pointer (renderer-independent: a 2D outline drawn at the projected tile corners on the HUD layer), hint pill "Click a tile to place a Beacon · Right-click or Esc to cancel", left click places (`PlaceBeacon`) and exits; Esc/right-click exits. The rail button shows Accent fill while active.
+- **Beacon mode** (B or the rail button): clicking an empty tile places a Beacon (`PlaceBeacon`); clicking one of your Beacon tiles removes it (`RemoveBeacon`). The mode exits after either order; press B again to place a replacement after removing one. The hint pill explains which action is available and that right-click or Esc cancels. The rail button stays available when all slots are used so the player can remove a Beacon.
 
 ### 3.12 Developer overlay (F3, also `--perf-debug`)
 
@@ -656,7 +656,7 @@ Caption `NumRegular` lines on HudPanel 233 wide: "60 fps", "Figures 2,412 (all 2
 | **C** | Open / close Chronicle | Global |
 | **H** or **F1** | Help | Global |
 | **R** | Resources layer on/off | Map |
-| **B** | Beacon mode | Map, only when Beacons are available |
+| **B** | Beacon mode | Map, only when Beacons are available; click an empty tile to place or an own Beacon to remove |
 | **F** or **Home** | Frame your largest settlement (`CameraMove`, Z0) | Map |
 | **Q** / **E** | Turn 90° left / right (`CameraTurn`) | Map |
 | **W A S D** / **arrows** | Pan (0.85 × zoom units/s; **Shift** × 2.5) | Map only: ignored while the web, a modal, the menu or any text field has focus. **No letter in WASD toggles anything.** |
@@ -670,10 +670,10 @@ Caption `NumRegular` lines on HudPanel 233 wide: "60 fps", "Figures 2,412 (all 2
 | **F3** | Developer overlay | Global |
 | **F5** / **F9** | Quick save / quick load (confirm) | Global, live matches only |
 | Left-drag (≥ 6 px) | **Pan**: the ground point under the cursor stays under the cursor | Map |
-| Left-click (< 6 px movement) | Pin the tile card; in Beacon mode: place Beacon | Map |
+| Left-click (< 6 px movement) | Pin the tile card; in Beacon mode: place on an empty tile or remove an own Beacon | Map |
 | Right-drag / Middle-drag | **Turn and tilt** (yaw −0.006 rad/px, pitch +0.004 rad/px, pitch 25°–80°) | Map |
 | Option/Alt + left-drag | Turn and tilt (trackpad-friendly) | Map |
-| Right-click (no drag) | Unpin tile card / cancel Beacon mode; **never places anything** | Map |
+| Right-click (no drag) | Unpin tile card / cancel Beacon mode; **never places or removes anything** | Map |
 | Mouse wheel | Zoom toward the cursor, ×1.15 per notch | Map |
 | Trackpad two-finger scroll (`InputEventPanGesture`, vertical) | Zoom toward the cursor, `target *= 1.15^(Δy × 0.5)`, same direction as the wheel; horizontal component ignored | Map (tune the 0.5 on device) |
 | Trackpad pinch (`InputEventMagnifyGesture`) | Zoom toward the gesture centre, `target /= clamp(factor, 0.8, 1.25)` | Map |
@@ -790,7 +790,7 @@ Rules: plain English, second person, sentence case (caps only for Eyebrows), no 
 | Focus summary | "Research web" "T" · "Auto-fill" · "63 Insight/yr" | Web: "See every project and choose what to learn (T)". Auto-fill: "When a slot opens, the elders pick a project after one season. Your own choices stay." Insight: "Insight is your research speed. More people, elders and learning raise it." |
 | Slot (working) | "(1) PRIMARY · 57%" | "Primary gets 4 of every 7 research points (57% now). Empty slots pass their share to the others. Right-click for more." |
 | Slot (open) | "+ Choose a project" | "This slot is open. Its share goes to the other slots until you choose." |
-| Rail | "+", "−", "Z0"–"Z3", level name, compass, "LAYERS", "Claims", "Food", "Methods", "Resources", "Beacon · 2 left" | "Zoom in · scroll up or =" · "Zoom out · scroll down or −" · "Hearth — faces and tools (0)" · "Settlement — the whole camp (1)" · "Region — several settlements (2)" · "Continent — the whole land (3)" · "Turn: Q / E · click for north" · "Who holds the land, and how firmly" · "Which settlements have enough food" · "How good your people's tools are" · "Deposits you have found (R)" · "A Beacon draws scouts and settlers toward a spot. It's a suggestion, not an order. (B)" |
+| Rail | "+", "−", "Z0"–"Z3", level name, compass, "LAYERS", "Claims", "Food", "Methods", "Resources", Beacon slots left / "Beacon · replace" | "Zoom in · scroll up or =" · "Zoom out · scroll down or −" · "Hearth — faces and tools (0)" · "Settlement — the whole camp (1)" · "Region — several settlements (2)" · "Continent — the whole land (3)" · "Turn: Q / E · click for north" · "Who holds the land, and how firmly" · "Which settlements have enough food" · "How good your people's tools are" · "Deposits you have found (R)" · "A Beacon draws scouts and settlers toward a spot. Click an own Beacon in Beacon mode to remove it. (B)" |
 
 ### 5.3 Research web
 
@@ -944,7 +944,7 @@ Buttons: "Got it" · "Turn off tips".
 - Mouse: "Drag to move · Scroll to zoom · Right-drag to turn · Space to pause"
 - Trackpad (macOS): "Drag to move · Pinch or two-finger scroll to zoom · Option-drag to turn · Space to pause"
 - Windows trackpad wording uses "Alt-drag".
-- Beacon mode: "Click a tile to place a Beacon · Right-click or Esc to cancel"
+- Beacon mode: "Empty tile: place · Your Beacon: remove · Right-click/Esc: cancel" (when full: "Your Beacon: remove · Right-click/Esc: cancel")
 - Pinned tile: "Esc or right-click to unpin"
 - Web footer (see §5.3).
 
