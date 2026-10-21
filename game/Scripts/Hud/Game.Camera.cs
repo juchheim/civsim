@@ -328,9 +328,23 @@ public partial class Game
         return false;
     }
 
+    /// <summary>The map is frozen while the research web, a modal, the menu or a popover is open: no zoom, pan, turn or pick.</summary>
+    private bool MapInputLocked
+        => _researchWebVisible || _ui.AnyModal || _gameMenuOpen || _queueLayer is not null || _leaningLayer is not null || _slotMenuLayer is not null;
+
     public override void _UnhandledInput(InputEvent input)
     {
         if (_session is null) return;
+        if (MapInputLocked)
+        {
+            // Scroll and pinch gestures are not consumed by every control; swallow them here so they never reach the map.
+            if (input is InputEventPanGesture or InputEventMagnifyGesture or InputEventMouseButton or InputEventMouseMotion)
+            {
+                _leftDown = _rightDown = _middleDown = false;
+                GetViewport().SetInputAsHandled();
+            }
+            return;
+        }
         switch (input)
         {
             case InputEventMouseButton button:

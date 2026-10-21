@@ -145,6 +145,8 @@ public partial class Game
                 Step(() => GD.Print($"SCN after Space paused={_session!.Paused}"));
                 Step(() => InjectKey(Key.T));
                 Step(() => GD.Print($"SCN after T web={_researchWebVisible}"));
+                Step(() => { GD.Print($"SCN lock before zoomTarget={_zoomTarget:0.00}"); InjectWheel(new Vector2(150, 500), true); InjectWheel(new Vector2(150, 500), true); Input.ParseInputEvent(new InputEventMagnifyGesture { Position = new Vector2(150, 500), Factor = 1.2f }); Input.ParseInputEvent(new InputEventPanGesture { Position = new Vector2(150, 500), Delta = new Vector2(0, -3) }); });
+                Step(() => GD.Print($"SCN lock after wheel/pinch/scroll over web zoomTarget={_zoomTarget:0.00}"));
                 Step(() => InjectKey(Key.Space));
                 Step(() => GD.Print($"SCN Space inside web paused={_session!.Paused}"));
                 Step(() => InjectKey(Key.Key1));
