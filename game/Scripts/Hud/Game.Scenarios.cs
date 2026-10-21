@@ -244,6 +244,41 @@ public partial class Game
                 Step(() => { ZoomTo(3.0f); }, 1.2f);
                 Shot("decor-b");
                 break;
+            case "megalith":
+                Step(() => { GrantProject(FindProjectByName("Megalith Raising")); _session!.SetSpeedIndex(2); }, 1.2f);
+                Step(() => { _target = (Vector3)_visualRenderer!.Call("monument_focus"); ZoomTo(4.2f); }, 0.2f);
+                for (int i = 0; i < 7; i++)
+                {
+                    int n = i;
+                    Shot($"mega-haul-{n}");
+                    Step(() => { }, 0.9f);
+                }
+                Step(() => _session!.SetSpeedIndex(3), 20.0f);
+                Shot("mega-mid");
+                Step(() => { }, 14.0f);
+                Shot("mega-lintel");
+                Step(() => { }, 16.0f);
+                Shot("mega-final");
+                Step(() => ZoomTo(7.0f), 0.8f);
+                Shot("mega-wide");
+                break;
+            case "trails":
+                Step(() => { _session!.SetSpeedIndex(0); _target = (Vector3)_visualRenderer!.Call("trail_focus"); ZoomTo(7.0f); }, 1.5f);
+                Shot("trail-a");
+                Step(() => { ZoomTo(14.0f); }, 1.0f);
+                Shot("trail-b");
+                Step(() => { ZoomTo(4.0f); }, 1.0f);
+                Shot("trail-close");
+                Step(() =>
+                {
+                    GrantProject(FindProjectByName("Landmarks & Trails"));
+                    GrantProject(FindProjectByName("Exchange Networks"));
+                    ZoomTo(7.0f);
+                }, 2.5f);
+                Shot("trail-worn");
+                Step(() => ZoomTo(26.0f), 1.5f);
+                Shot("trail-wide");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);

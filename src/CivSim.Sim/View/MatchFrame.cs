@@ -144,6 +144,23 @@ public sealed class MatchFrame
     public int CampCount;
     public int[] CampTile = Array.Empty<int>();
     public sbyte[] CampCiv = Array.Empty<sbyte>();
+    // ---- monuments: the megalith a civilization raised (docs/MVP/02, STN-10); the front end plays the raising from the tick ----
+    public int MonumentCount;
+    public int[] MonumentTile = Array.Empty<int>();
+    public sbyte[] MonumentCiv = Array.Empty<sbyte>();
+    /// <summary>The tick the project was learned; the raising runs from here.</summary>
+    public long[] MonumentTick = Array.Empty<long>();
+    /// <summary>Population of the village that raises it (the size of the hauling crew).</summary>
+    public int[] MonumentPopulation = Array.Empty<int>();
+    // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
+    public int TrailCount;
+    /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>
+    public byte[] TrailLevel = Array.Empty<byte>();
+    public sbyte[] TrailCiv = Array.Empty<sbyte>();
+    public bool[] TrailTrade = Array.Empty<bool>();
+    public int[] TrailStart = Array.Empty<int>(), TrailLength = Array.Empty<int>();
+    public int TrailTileCount;
+    public int[] TrailTiles = Array.Empty<int>();
     public int BeaconCount;
     public int[] BeaconTile = Array.Empty<int>();
     public sbyte[] BeaconCiv = Array.Empty<sbyte>();
@@ -306,6 +323,20 @@ public sealed class MatchFrame
     }
 
     internal void EnsureCamps(int n) { if (CampTile.Length < n) { Ensure(ref CampTile, n); Ensure(ref CampCiv, n); } }
+
+    internal void EnsureTrails(int n)
+    {
+        if (TrailLevel.Length >= n) return;
+        Ensure(ref TrailLevel, n); Ensure(ref TrailCiv, n); Ensure(ref TrailTrade, n); Ensure(ref TrailStart, n); Ensure(ref TrailLength, n);
+    }
+
+    internal void EnsureTrailTiles(int n) { if (TrailTiles.Length < n) Ensure(ref TrailTiles, Math.Max(n, TrailTiles.Length * 2)); }
+
+    internal void EnsureMonuments(int n)
+    {
+        if (MonumentTile.Length >= n) return;
+        Ensure(ref MonumentTile, n); Ensure(ref MonumentCiv, n); Ensure(ref MonumentTick, n); Ensure(ref MonumentPopulation, n);
+    }
 
     internal void EnsureBeacons(int n) { if (BeaconTile.Length < n) { Ensure(ref BeaconTile, n); Ensure(ref BeaconCiv, n); } }
 

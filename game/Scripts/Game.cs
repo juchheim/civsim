@@ -220,7 +220,11 @@ public partial class Game : Node3D
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
         float alpha = FrameAlpha(_renderTick);
         UpdateActors(alpha);
-        if (_visualRenderer is not null) RenderingServer.GlobalShaderParameterSet("fig_lerp", _lerpOverride >= 0 ? _lerpOverride : alpha);
+        if (_visualRenderer is not null)
+        {
+            RenderingServer.GlobalShaderParameterSet("fig_lerp", _lerpOverride >= 0 ? _lerpOverride : alpha);
+            _visualRenderer.Call("set_render_tick", (float)_renderTick);
+        }
         if (_benchmarkSeconds > 0)
             RecordBenchmarkFrame(delta);
         long hudStarted = Stopwatch.GetTimestamp();
@@ -434,6 +438,27 @@ public partial class Game : Node3D
             settlements.Add(settlement);
         }
 
+        var monuments = new int[frame.MonumentCount * 5];
+        for (int i = 0; i < frame.MonumentCount; i++)
+        {
+            monuments[i * 5] = frame.MonumentTile[i];
+            monuments[i * 5 + 1] = frame.MonumentCiv[i];
+            monuments[i * 5 + 2] = (int)frame.MonumentTick[i];
+            monuments[i * 5 + 3] = frame.MonumentPopulation[i];
+            monuments[i * 5 + 4] = i;
+        }
+
+        // worn trails: per trail (level, civ, trade, start, length), and one flat list of tiles (-1 = gap)
+        var trailMeta = new int[frame.TrailCount * 5];
+        for (int i = 0; i < frame.TrailCount; i++)
+        {
+            trailMeta[i * 5] = frame.TrailLevel[i];
+            trailMeta[i * 5 + 1] = frame.TrailCiv[i];
+            trailMeta[i * 5 + 2] = frame.TrailTrade[i] ? 1 : 0;
+            trailMeta[i * 5 + 3] = frame.TrailStart[i];
+            trailMeta[i * 5 + 4] = frame.TrailLength[i];
+        }
+
         var plots = new int[frame.PlotCount * 2];
         for (int i = 0; i < frame.PlotCount; i++)
         {
@@ -485,6 +510,9 @@ public partial class Game : Node3D
             ["ghosts"] = ghosts,
             ["herds"] = herds,
             ["settlements"] = settlements,
+            ["monuments"] = monuments,
+            ["trailMeta"] = trailMeta,
+            ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,
             ["foodOverlay"] = foodOverlay,
             ["forecastOverlay"] = forecastOverlay,

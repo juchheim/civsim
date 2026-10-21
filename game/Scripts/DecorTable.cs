@@ -12,16 +12,15 @@ namespace CivSim.Game;
 /// </summary>
 public static class DecorTable
 {
-    public const int Totem = 0, Cairn = 1, Megalith = 2, HideFrame = 3, Pots = 4, Loom = 5, Shrine = 6, Signal = 7, Charcoal = 8,
-        Furnace = 9, Canoe = 10, Sledge = 11, Palisade = 12, SpearRack = 13, Grave = 14, Council = 15, Quarry = 16,
-        SkyPole = 17, Bricks = 18, Baskets = 19, Woodwork = 20;
+    public const int Totem = 0, Cairn = 1, HideFrame = 2, Pots = 3, Loom = 4, Shrine = 5, Signal = 6, Charcoal = 7,
+        Furnace = 8, Canoe = 9, Sledge = 10, Palisade = 11, SpearRack = 12, Grave = 13, Council = 14, Quarry = 15,
+        SkyPole = 16, Bricks = 17, Baskets = 18, Woodwork = 19;
 
     /// <summary>Project id to the prop it leaves in the village. Several projects may share a prop.</summary>
     private static readonly (string Project, int Decor)[] Rows =
     {
         ("BEL-02", Totem), ("SOC-04", Totem),
         ("TER-03", Cairn), ("WAY-01", Cairn),
-        ("STN-10", Megalith),
         ("FIB-02", HideFrame), ("FIB-03", HideFrame),
         ("CER-02", Pots), ("CER-03", Pots), ("FOD-05", Pots),
         ("FIB-06", Loom), ("FIB-07", Loom),

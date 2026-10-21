@@ -81,6 +81,14 @@ internal static class ViewKit
         for (int i = 0; i < f.PlotCount; i++) { h.Add(f.PlotTile[i]); h.Add(f.PlotSettlement[i]); h.Add(f.PlotKind[i]); }
         h.Add(f.CampCount);
         for (int i = 0; i < f.CampCount; i++) { h.Add(f.CampTile[i]); h.Add(f.CampCiv[i]); }
+        h.Add(f.TrailCount);
+        for (int i = 0; i < f.TrailCount; i++)
+        {
+            h.Add(f.TrailLevel[i]); h.Add(f.TrailCiv[i]); h.Add(f.TrailTrade[i]); h.Add(f.TrailLength[i]);
+            for (int j = 0; j < f.TrailLength[i]; j++) h.Add(f.TrailTiles[f.TrailStart[i] + j]);
+        }
+        h.Add(f.MonumentCount);
+        for (int i = 0; i < f.MonumentCount; i++) { h.Add(f.MonumentTile[i]); h.Add(f.MonumentCiv[i]); h.Add(f.MonumentTick[i]); h.Add(f.MonumentPopulation[i]); }
         h.Add(f.BeaconCount);
         for (int i = 0; i < f.BeaconCount; i++) { h.Add(f.BeaconTile[i]); h.Add(f.BeaconCiv[i]); }
         h.Add(f.PartyCount);
