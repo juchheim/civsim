@@ -38,8 +38,11 @@ var visibility := PackedByteArray() # 0 unknown, 1 explored, 2 visible
 var heights := PackedFloat32Array()
 var camps: Array = []          # [tile, civ]
 var beacons: Array = []        # [tile, civ]
-var figures := PackedInt32Array()
-var herds := PackedInt32Array()
+var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
+var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibility (0/128/255), claimant+1
+var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
+var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood
+var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
 var plots := PackedInt32Array() # flat [tile, kind] pairs
 var plot_kind := PackedInt32Array()   # -1 none, 0 field, 1 orchard
@@ -108,8 +111,11 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 		var bc: PackedInt32Array = _int_array(d.beaconCiv)
 		for i in bt.size():
 			beacons.append([int(bt[i]), int(bc[i])])
-	figures = _int_data(d.figures, 8)
-	herds = _int_data(d.herds, 4)
+	figures = _int_data(d.figures, 11)
+	ghosts = _int_data(d.ghosts, 8) if d.has("ghosts") else PackedInt32Array()
+	state_bytes = d.stateBytes if d.has("stateBytes") else PackedByteArray()
+	overlay_bytes = d.overlayBytes if d.has("overlayBytes") else PackedByteArray()
+	herds = _int_data(d.herds, 7)
 	settlements = d.settlements
 	plots = _int_data(d.plots, 2)
 	plot_kind.fill(-1)

@@ -71,6 +71,10 @@ func update_frame(frame_data: Dictionary) -> void:
 			" scene=", (built - tile_state) / 1000.0,
 			" rest=", (Time.get_ticks_usec() - built) / 1000.0)
 
+func _process(_delta: float) -> void:
+	if builder != null:
+		builder.update_herds()
+
 func set_season(season: int) -> void:
 	_apply_season(season)
 	if mats.has("terrain"):
@@ -141,6 +145,12 @@ func _make_overlay_texture() -> void:
 func _update_overlay_texture() -> void:
 	if overlay_image == null or world == null:
 		return
+	if world.overlay_bytes.size() == world.width * world.height * 4:
+		overlay_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, world.overlay_bytes)
+		overlay_texture.update(overlay_image)
+		if mats.has("terrain"):
+			mats.terrain.set_shader_parameter("overlay_state", overlay_texture)
+		return
 	var data := PackedByteArray()
 	data.resize(world.width * world.height * 4)
 	for t in world.width * world.height:
@@ -155,6 +165,12 @@ func _update_overlay_texture() -> void:
 		mats.terrain.set_shader_parameter("overlay_state", overlay_texture)
 
 func _update_state_texture() -> void:
+	if world.state_bytes.size() == world.width * world.height * 4:
+		state_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, world.state_bytes)
+		state_texture.update(state_image)
+		if mats.has("terrain"):
+			mats.terrain.set_shader_parameter("tile_state", state_texture)
+		return
 	for t in world.width * world.height:
 		var owner_code := clampi(world.owner[t] + 1, 0, 255)
 		state_image.set_pixel(t % world.width, t / world.width,
@@ -203,7 +219,28 @@ func _make_materials() -> void:
 	var figure := ShaderMaterial.new()
 	figure.shader = prop.shader
 	figure.set_shader_parameter("is_figure", true)
+	var figure_tints := PackedVector3Array()
+	for civ in 8:
+		var lin := M7WorldData.civ_color(civ).srgb_to_linear()
+		figure_tints.append(Vector3(lin.r, lin.g, lin.b))
+	var free_folk := Color("#9a9a9a").srgb_to_linear()
+	figure_tints.append(Vector3(free_folk.r, free_folk.g, free_folk.b))
+	figure_tints.append(Vector3.ZERO)
+	figure.set_shader_parameter("fig_tints", figure_tints)
 	mats.figure = figure
+	var animal := ShaderMaterial.new()
+	animal.shader = prop.shader
+	animal.set_shader_parameter("is_animal", true)
+	var animal_tints := PackedVector3Array()
+	for sp in M7WorldBuilder.SPECIES.size():
+		for bin in 8:
+			var hv := (bin + 0.5) / 8.0
+			var lin := M7MeshBuilder.lin(Color(M7WorldBuilder.SPECIES[sp][1]).lightened(0.12 * (hv - 0.5)), 0.5)
+			animal_tints.append(Vector3(lin.r, lin.g, lin.b))
+	while animal_tints.size() < 80:
+		animal_tints.append(Vector3.ZERO)
+	animal.set_shader_parameter("animal_tints", animal_tints)
+	mats.animal = animal
 	var fire := ShaderMaterial.new()
 	fire.shader = load("res://Renderer/LowPoly3D/Shaders/fire.gdshader")
 	mats.fire = fire

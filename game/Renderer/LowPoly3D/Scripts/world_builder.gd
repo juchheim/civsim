@@ -32,6 +32,9 @@ var settlement_props: Node3D
 var actor_props: Node3D
 var vegetation_props: Node3D
 var actor_multimeshes := {}
+var herd_props: Node3D
+var herd_multimeshes := {}
+var herds_dirty := false   # herds and beacons rebuild one frame after people, so a publish never costs two frames' worth
 var border_node: MeshInstance3D
 var borders_far_node: MeshInstance3D
 var river_node: MeshInstance3D
@@ -135,9 +138,11 @@ func build() -> Node3D:
 	structure_signature = _structure_digest()
 	props = M7Batcher.new()
 	_figures()
+	actor_props = _build_props_node("Actors", props)
+	props = M7Batcher.new()
 	_herds()
 	_beacons()
-	actor_props = _build_props_node("Actors", props)
+	herd_props = _build_props_node("Herds", props)
 	props = M7Batcher.new()
 	var t4 := Time.get_ticks_msec()
 	var t5 := Time.get_ticks_msec()
@@ -182,13 +187,12 @@ func update_frame() -> bool:
 	var people_started := Time.get_ticks_usec()
 	_figures()
 	var people_finished := Time.get_ticks_usec()
-	_herds()
-	var herds_finished := Time.get_ticks_usec()
-	_beacons()
+	var herds_finished := people_finished
 	var actors_batched := Time.get_ticks_usec()
 	actor_multimeshes = props.update_existing(actor_props, kit, _material_for, actor_multimeshes)
 	var actors_uploaded := Time.get_ticks_usec()
 	props = M7Batcher.new()
+	herds_dirty = true
 	if "--perf-debug" in OS.get_cmdline_user_args():
 		print("M7A_FRAME_SCENE geometry=", (geometry_updated - started) / 1000.0,
 			" settlements=", (settlements_updated - geometry_updated) / 1000.0,
@@ -218,10 +222,24 @@ func set_regional_lod(enabled: bool) -> void:
 				else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	props = M7Batcher.new()
 	_figures()
-	_herds()
-	_beacons()
 	actor_multimeshes = props.update_existing(actor_props, kit, _material_for, actor_multimeshes)
 	props = M7Batcher.new()
+	herds_dirty = true
+	update_herds()
+
+## Rebuilds herds and beacons; called a frame after the people so the work is split across two frames.
+func update_herds() -> void:
+	if not herds_dirty:
+		return
+	herds_dirty = false
+	var started := Time.get_ticks_usec()
+	props = M7Batcher.new()
+	_herds()
+	_beacons()
+	herd_multimeshes = props.update_existing(herd_props, kit, _material_for, herd_multimeshes)
+	props = M7Batcher.new()
+	if "--perf-debug" in OS.get_cmdline_user_args():
+		print("M7A_FRAME_HERDS ms=", (Time.get_ticks_usec() - started) / 1000.0)
 
 func _build_props_node(node_name: String, batcher: M7Batcher) -> Node3D:
 	var node := Node3D.new()
@@ -230,6 +248,9 @@ func _build_props_node(node_name: String, batcher: M7Batcher) -> Node3D:
 	var count: int
 	if node_name == "Actors":
 		actor_multimeshes = batcher.update_existing(node, kit, _material_for, {})
+		count = batcher.instance_count
+	elif node_name == "Herds":
+		herd_multimeshes = batcher.update_existing(node, kit, _material_for, {})
 		count = batcher.instance_count
 	else:
 		count = batcher.build(node, kit, _material_for)
@@ -279,6 +300,8 @@ func _material_for(mesh_name: String) -> Material:
 		return mats.figure
 	if mesh_name == "shadow_disc":
 		return mats.shadow_disc
+	if mesh_name.begins_with("animal_"):
+		return mats.animal
 	if mesh_name.begins_with("banner"):
 		return mats.banner
 	if mesh_name.begins_with("detail_"):
@@ -756,7 +779,7 @@ func _settlements() -> void:
 				for j in 4:
 					var q := pc + Vector2(cos(j * 1.7 + seed), sin(j * 1.7 + seed)) * (0.06 + 0.04 * j)
 					var col := M7MeshBuilder.lin(Color("#e8dfcc") if j != 2 else Color("#6e5a48"), 0.5)
-					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.0), Color(col.r, col.g, col.b, 0.5))
+					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.0), _glide_custom((6 * 8 + 4) if j != 2 else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
 				break
 
 func _camps() -> void:
@@ -783,9 +806,38 @@ const TOOL_BY_ACTIVITY := {
 	9: "plain", 10: "plain", 11: "plain", 12: "plain", 15: "bundle", 16: "bundle", 17: "spear", 18: "spear", 19: "spear",
 }
 
+## Where a figure stands on a given map position: people at home gather around the hearth, away from the river.
+## Returns [world position, facing].
+func _place_figure(mx: int, my: int, home: int, face: float) -> Array:
+	var p := w.map_to_world2(float(mx), float(my))
+	if home >= 0 and home < hearths.size():
+		var hc: Vector3 = hearths[home]
+		var h2 := Vector2(hc.x, hc.z)
+		var d := p - h2
+		if d.length() < 0.45:
+			var r := d.length()
+			var dir := d / r if r > 0.0001 else Vector2(cos(face), sin(face))
+			var nr := 0.07 + r * 0.55
+			p = h2 + dir * nr
+			# keep people out of the river that runs past the hearth
+			var tries := 0
+			while _river_dist(p) < 0.07 and tries < 12:
+				dir = dir.rotated(0.5)
+				p = h2 + dir * nr
+				tries += 1
+			var to := h2 - p
+			face = atan2(to.x, to.y) + (face / TAU - 0.5) * 1.2
+	return [p, face]
+
+## Per-instance custom data for gliding actors (see prop.gdshader):
+## r = palette index + mode * stride + seed fraction, g = height offset, b/a = ground offset from where it stands now to
+## where it was one publish ago. The shader eases that offset away with the global fig_lerp.
+static func _glide_custom(palette: int, mode_offset: int, seed: float, dy: float, offset: Vector2) -> Color:
+	return Color(float(palette + mode_offset) + seed * 0.98, dy, offset.x, offset.y)
+
 func _figures() -> void:
 	var n := 0
-	for fi in range(0, w.figures.size(), 8):
+	for fi in range(0, w.figures.size(), 11):
 		var mx := w.figures[fi]
 		var my := w.figures[fi + 1]
 		var civ := w.figures[fi + 2]
@@ -793,33 +845,29 @@ func _figures() -> void:
 		var act := w.figures[fi + 4]
 		var fl := w.figures[fi + 5]
 		var home := w.figures[fi + 7]
-		var p := w.map_to_world2(float(mx), float(my))
-		var seed := M7WorldData.hash01(mx, my, n)
-		var cc: Color = freefolk_tint if (fl & 1024) else figure_tints[civ % figure_tints.size()]
+		var id := w.figures[fi + 8]
+		var pmx := w.figures[fi + 9]
+		var pmy := w.figures[fi + 10]
+		var seed := M7WorldData.hash01(id & 0xffff, (id >> 16) & 0x3fff, 7)
+		var tint := 8 if (fl & 1024) else civ % 8
+		var mode_offset := 16 if pmx < 0 else 0     # new this publish: grow in
+		var placed := _place_figure(mx, my, home, seed * TAU)
+		var p: Vector2 = placed[0]
+		var face: float = placed[1]
+		var y := maxf(w.height_at(p), 0.0)
+		var offset := Vector2.ZERO
+		var dy := 0.0
+		if pmx >= 0 and (pmx != mx or pmy != my):
+			var pp: Vector2 = _place_figure(pmx, pmy, home, seed * TAU)[0]
+			offset = pp - p
+			dy = maxf(w.height_at(pp), 0.0) - y
+			if offset.length() > 0.004:
+				face = atan2(-offset.x, -offset.y)     # walking from pp to p
+		var custom := _glide_custom(tint, mode_offset, seed, dy, offset)
 		if regional_lod:
-			var y := w.height_at(p)
-			props.add("person_far", _xf(p, y, 0.0, 1.0), Color(cc.r, cc.g, cc.b, seed))
+			props.add("person_far", _xf(p, y, 0.0, 1.0), custom)
 			n += 1
 			continue
-		var face := seed * TAU
-		# people at home gather around the hearth (the sim keeps them within ~0.3 tiles of the centre)
-		if home >= 0 and home < hearths.size():
-			var hc: Vector3 = hearths[home]
-			var h2 := Vector2(hc.x, hc.z)
-			var d := p - h2
-			if d.length() < 0.45:
-				var r := d.length()
-				var dir := d / r if r > 0.0001 else Vector2(cos(face), sin(face))
-				var nr := 0.07 + r * 0.55
-				p = h2 + dir * nr
-				# keep people out of the river that runs past the hearth
-				var tries := 0
-				while _river_dist(p) < 0.07 and tries < 12:
-					dir = dir.rotated(0.5)
-					p = h2 + dir * nr
-					tries += 1
-				var to := h2 - p
-				face = atan2(to.x, to.y) + (seed - 0.5) * 1.2
 		var mesh := "person_plain"
 		if act == 14:
 			mesh = "person_lying"
@@ -831,33 +879,75 @@ func _figures() -> void:
 			mesh = "person_" + str(TOOL_BY_ACTIVITY.get(act, "plain"))
 			if fl & 256:
 				mesh = "person_spear"
-		var y := maxf(w.height_at(p), 0.0)
-		props.add(mesh, _xf(p, y, face, 1.0), Color(cc.r, cc.g, cc.b, seed))
-		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 1.0), Color(1, 1, 1, seed))
+		props.add(mesh, _xf(p, y, face, 1.0), custom)
+		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 1.0), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
 		n += 1
+	# people who just left: stay where they stood for one glide and fade out
+	if not regional_lod:
+		for gi in range(0, w.ghosts.size(), 8):
+			var gmx := w.ghosts[gi]
+			var gmy := w.ghosts[gi + 1]
+			var gcivv := w.ghosts[gi + 2]
+			var gfl := w.ghosts[gi + 5]
+			var ghome := w.ghosts[gi + 6]
+			var gid := w.ghosts[gi + 7]
+			var gseed := M7WorldData.hash01(gid & 0xffff, (gid >> 16) & 0x3fff, 7)
+			var gp: Vector2 = _place_figure(gmx, gmy, ghome, gseed * TAU)[0]
+			var gy := maxf(w.height_at(gp), 0.0)
+			var gtint := 8 if (gfl & 1024) else gcivv % 8
+			props.add("person_plain", _xf(gp, gy, gseed * TAU, 1.0), _glide_custom(gtint, 32, gseed, 0.0, Vector2.ZERO))
+			props.add("shadow_disc", _xf(gp, gy + 0.001, 0.0, 1.0), Color(0.0, 0.0, 0.0, 2.0))
 	stats.figures = n
+	if "--perf-debug" in OS.get_cmdline_user_args():
+		var moved := 0
+		var added := 0
+		var maxd := 0.0
+		for fi in range(0, w.figures.size(), 11):
+			if w.figures[fi + 9] < 0:
+				added += 1
+			elif w.figures[fi + 9] != w.figures[fi] or w.figures[fi + 10] != w.figures[fi + 1]:
+				moved += 1
+				maxd = maxf(maxd, Vector2(w.figures[fi + 9] - w.figures[fi], w.figures[fi + 10] - w.figures[fi + 1]).length() / w.MAP_UNITS)
+		print("GLIDE figures=", n, " moved=", moved, " new=", added, " ghosts=", w.ghosts.size() / 8, " max_tiles=", snappedf(maxd, 0.01))
 
 func _herds() -> void:
 	var n := 0
-	for hi in range(0, w.herds.size(), 4):
+	for hi in range(0, w.herds.size(), 7):
 		var mx := w.herds[hi]
 		var my := w.herds[hi + 1]
 		var sp := clampi(w.herds[hi + 2], 0, SPECIES.size() - 1)
 		var animals := w.herds[hi + 3]
+		var id := w.herds[hi + 4]
+		var pmx := w.herds[hi + 5]
+		var pmy := w.herds[hi + 6]
 		var p := w.map_to_world2(float(mx), float(my))
+		var pp := p
+		var moved := pmx >= 0 and (pmx != mx or pmy != my)
+		if moved:
+			pp = w.map_to_world2(float(pmx), float(pmy))
 		var cfg: Array = SPECIES[sp]
 		var cnt := clampi(int(round(animals / 7.0)), 2, 7)
-		var heading := M7WorldData.hash01(mx, my, 1) * TAU
+		var heading := M7WorldData.hash01(id, 0, 1) * TAU
+		if moved and (p - pp).length() > 0.004:
+			heading = atan2(p.x - pp.x, p.y - pp.y)
+		var mode_offset := 128 if pmx < 0 else 0
 		for i in cnt:
-			var a := i * 2.39996 + heading
+			var a := i * 2.39996 + M7WorldData.hash01(id, 0, 1) * TAU
 			var r := 0.055 * sqrt(i + 0.5) * float(cfg[2])
 			var q := p + Vector2(cos(a), sin(a)) * r
 			var t := w.tile_at(q)
 			if t < 0 or not w.is_land(t):
 				continue
-			var hv := M7WorldData.hash01(mx + i, my, 2)
-			var col := M7MeshBuilder.lin(Color(cfg[1]).lightened(0.12 * (hv - 0.5)), 0.5)
-			props.add(cfg[0], _xf(q, w.heights[t], heading + (hv - 0.5) * 1.4, float(cfg[2]) * (0.85 + 0.25 * hv)), Color(col.r, col.g, col.b, hv))
+			var hv := M7WorldData.hash01(id + i, 0, 2)
+			var offset := pp - p
+			var dy := 0.0
+			if moved:
+				dy = maxf(w.height_at(q + offset), 0.0) - w.heights[t]
+			else:
+				offset = Vector2.ZERO
+			var bin := clampi(int(hv * 8.0), 0, 7)
+			props.add(cfg[0], _xf(q, w.heights[t], heading + (hv - 0.5) * 1.4, float(cfg[2]) * (0.85 + 0.25 * hv)),
+				_glide_custom(sp * 8 + bin, mode_offset, hv, dy, offset))
 			n += 1
 	stats.animals = n
 

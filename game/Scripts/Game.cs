@@ -102,6 +102,7 @@ public partial class Game : Node3D
     private double _benchmarkMinWindowFps = double.MaxValue;
     private int _lastSeason = -1;
     private double _hudRefreshMs, _benchmarkHudMs;
+    private float _lerpOverride = -1f;
     private bool _resourcesVisible;
     private int _mapOverlay;
 
@@ -219,6 +220,7 @@ public partial class Game : Node3D
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
         float alpha = FrameAlpha(_renderTick);
         UpdateActors(alpha);
+        if (_visualRenderer is not null) RenderingServer.GlobalShaderParameterSet("fig_lerp", _lerpOverride >= 0 ? _lerpOverride : alpha);
         if (_benchmarkSeconds > 0)
             RecordBenchmarkFrame(delta);
         long hudStarted = Stopwatch.GetTimestamp();
@@ -328,13 +330,21 @@ public partial class Game : Node3D
         return overlay is "claims" or "food" or "methods" or "resources" ? overlay : "none";
     }
 
-    private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld)
+    /// <summary>Largest per-publish move (in tiles) a figure or herd glides across (walkers cover up to ~4 tiles a second). A farther jump is a relocation: fade out where it was, fade in where it is.</summary>
+    private const float MaxGlideTiles = 4.5f;
+
+    private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
+        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null)
     {
         int tiles = frame.Width * frame.Height;
-        var figures = new int[frame.FigureCount * 8];
+        const int figureStride = 11, herdStride = 7;
+        long maxGlide = (long)(MaxGlideTiles * MapUnit);
+        long maxGlideSquared = maxGlide * maxGlide;
+        var relocated = new List<int>();
+        var figures = new int[frame.FigureCount * figureStride];
         for (int i = 0; i < frame.FigureCount; i++)
         {
-            int o = i * 8;
+            int o = i * figureStride;
             figures[o] = frame.FigureX[i];
             figures[o + 1] = frame.FigureY[i];
             figures[o + 2] = frame.FigureCiv[i];
@@ -343,16 +353,64 @@ public partial class Game : Node3D
             figures[o + 5] = frame.FigureFlags[i];
             figures[o + 6] = frame.FigureToolRung[i];
             figures[o + 7] = frame.FigureSettlement[i];
+            figures[o + 8] = (int)(frame.FigureId[i] & 0x3fffffff);
+            // Previous position for gliding: -1 = new this publish (fade in); equal to the current one = no glide.
+            int px = frame.FigureX[i], py = frame.FigureY[i];
+            if (previous is not null && figureLink is not null && i < figureLink.Count)
+            {
+                int prev = figureLink.PreviousIndex(i);
+                if (prev < 0) { px = -1; py = -1; }
+                else
+                {
+                    long dx = previous.FigureX[prev] - frame.FigureX[i], dy = previous.FigureY[prev] - frame.FigureY[i];
+                    if (dx * dx + dy * dy <= maxGlideSquared) { px = previous.FigureX[prev]; py = previous.FigureY[prev]; }
+                    else { px = -1; py = -1; relocated.Add(prev); }
+                }
+            }
+            figures[o + 9] = px;
+            figures[o + 10] = py;
         }
 
-        var herds = new int[frame.HerdCount * 4];
+        // People who left (or relocated) this publish stay where they stood for one glide and fade out.
+        int removedCount = previous is not null && figureLink is not null ? figureLink.RemovedCount : 0;
+        int ghostCount = Math.Min(160, removedCount + relocated.Count);
+        var ghosts = new int[ghostCount * 8];
+        for (int g = 0; g < ghostCount; g++)
+        {
+            int i = g < relocated.Count ? relocated[g] : figureLink!.Removed(g - relocated.Count);
+            int o = g * 8;
+            ghosts[o] = previous!.FigureX[i];
+            ghosts[o + 1] = previous.FigureY[i];
+            ghosts[o + 2] = previous.FigureCiv[i];
+            ghosts[o + 3] = previous.FigureAge[i];
+            ghosts[o + 4] = previous.FigureActivity[i];
+            ghosts[o + 5] = previous.FigureFlags[i];
+            ghosts[o + 6] = previous.FigureSettlement[i];
+            ghosts[o + 7] = (int)(previous.FigureId[i] & 0x3fffffff);
+        }
+
+        var herds = new int[frame.HerdCount * herdStride];
         for (int i = 0; i < frame.HerdCount; i++)
         {
-            int o = i * 4;
+            int o = i * herdStride;
             herds[o] = frame.HerdX[i];
             herds[o + 1] = frame.HerdY[i];
             herds[o + 2] = frame.HerdSpecies[i];
             herds[o + 3] = frame.HerdAnimals[i];
+            herds[o + 4] = frame.HerdId[i];
+            int px = frame.HerdX[i], py = frame.HerdY[i];
+            if (previous is not null && herdLink is not null && i < herdLink.Count)
+            {
+                int prev = herdLink.PreviousIndex(i);
+                if (prev < 0) { px = -1; py = -1; }
+                else
+                {
+                    long dx = previous.HerdX[prev] - frame.HerdX[i], dy = previous.HerdY[prev] - frame.HerdY[i];
+                    if (dx * dx + dy * dy <= maxGlideSquared) { px = previous.HerdX[prev]; py = previous.HerdY[prev]; }
+                }
+            }
+            herds[o + 5] = px;
+            herds[o + 6] = py;
         }
 
         var settlements = new Godot.Collections.Array();
@@ -386,6 +444,21 @@ public partial class Game : Node3D
         byte[] methodOverlay = BuildMethodOverlay(frame);
         byte[] methodFallbackOverlay = BuildMethodFallbackOverlay(frame);
 
+        // Texture bytes are built here (fast) instead of pixel by pixel in the renderer's script.
+        var stateBytes = new byte[tiles * 4];
+        var overlayBytes = new byte[tiles * 4];
+        for (int i = 0; i < tiles; i++)
+        {
+            int o = i * 4;
+            stateBytes[o] = (byte)Math.Clamp(frame.Owner[i] + 1, 0, 255);
+            stateBytes[o + 1] = frame.Claim[i];
+            stateBytes[o + 2] = frame.Visibility[i] switch { 0 => (byte)0, 1 => (byte)128, _ => (byte)255 };
+            stateBytes[o + 3] = (byte)Math.Clamp(frame.Claimant[i] + 1, 0, 255);
+            overlayBytes[o] = foodOverlay[i];
+            overlayBytes[o + 1] = forecastOverlay[i];
+            overlayBytes[o + 2] = methodOverlay[i];
+            overlayBytes[o + 3] = methodFallbackOverlay[i];
+        }
         var owners = new int[tiles];
         for (int i = 0; i < tiles; i++) owners[i] = frame.Owner[i];
         var claimants = ToIntArray(frame.Claimant, tiles);
@@ -404,7 +477,10 @@ public partial class Game : Node3D
             ["campCiv"] = ToIntArray(frame.CampCiv, frame.CampCount),
             ["beacons"] = Slice(frame.BeaconTile, frame.BeaconCount),
             ["beaconCiv"] = ToIntArray(frame.BeaconCiv, frame.BeaconCount),
+            ["stateBytes"] = stateBytes,
+            ["overlayBytes"] = overlayBytes,
             ["figures"] = figures,
+            ["ghosts"] = ghosts,
             ["herds"] = herds,
             ["settlements"] = settlements,
             ["plots"] = plots,
@@ -782,7 +858,7 @@ public partial class Game : Node3D
         if (_visualRenderer is not null && _session is not null)
         {
             long started = Stopwatch.GetTimestamp();
-            var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false);
+            var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds);
             double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _visualRenderer.Call("update_frame", payload);
             if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))

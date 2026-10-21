@@ -76,6 +76,9 @@ func update_existing(parent: Node3D, kit: M7MeshKit, material_for: Callable, pre
 	return active
 
 func _configure_node(node: MultiMeshInstance3D, mesh_name: String) -> void:
+	# Actors glide on the GPU by up to ~1.5 tiles from where their instance sits; keep them from being culled early.
+	if mesh_name.begins_with("person") or mesh_name.begins_with("animal_") or mesh_name == "shadow_disc":
+		node.extra_cull_margin = 2.5
 	if mesh_name == "person_far" or mesh_name.begins_with("tuft") or mesh_name.begins_with("tallgrass") or mesh_name == "reeds" \
 		or mesh_name == "shadow_disc" or mesh_name == "field" or mesh_name == "flame" or mesh_name.begins_with("banner"):
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

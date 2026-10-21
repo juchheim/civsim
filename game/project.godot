@@ -82,3 +82,7 @@ fig_scale={
 "type": "float",
 "value": 1.0
 }
+fig_lerp={
+"type": "float",
+"value": 1.0
+}

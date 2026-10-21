@@ -6,6 +6,10 @@ render_mode blend_mix, cull_disabled, diffuse_burley, specular_schlick_ggx;
 #include "res://Renderer/LowPoly3D/Shaders/common.gdshaderinc"
 
 global uniform float fig_scale;
+global uniform float fig_lerp;       // 0 just published .. 1 settled: eases gliding actors from their previous spot
+uniform vec3 fig_tints[10];
+uniform vec3 animal_tints[80];
+uniform bool is_animal = false;
 uniform float wind = 0.0;
 uniform bool is_figure = false;
 uniform float lod_grow = 0.0;
@@ -21,8 +25,41 @@ void vertex() {
 	custom = INSTANCE_CUSTOM;
 	tagv = COLOR.a;
 	opos = VERTEX;
+	// Gliding actors: custom = (palette index + mode*stride + seed fraction, height offset, ground offset x, z). The offset
+	// points from where the instance stands now to where it stood one publish ago and eases away as fig_lerp goes 0 -> 1.
+	vec3 glide = vec3(0.0);
+	float grow = 1.0;
+	float walk = 0.0;
+	float walk_seed = 0.0;
+	if (is_figure || is_animal) {
+		vec4 ic = INSTANCE_CUSTOM;
+		float m = floor(ic.r + 0.001);
+		float seedv = clamp(fract(ic.r) / 0.98, 0.0, 1.0);
+		float mode = 0.0;
+		if (is_figure) {
+			mode = floor(m / 16.0);
+			custom = vec4(fig_tints[int(m - mode * 16.0)], seedv);
+		} else {
+			mode = floor(m / 128.0);
+			custom = vec4(animal_tints[int(m - mode * 128.0)], seedv);
+		}
+		float t = clamp(fig_lerp, 0.0, 1.0);
+		glide = vec3(ic.b, ic.g, ic.a) * (1.0 - t);
+		if (mode == 1.0) {
+			grow = smoothstep(0.0, 0.5, t);
+		} else if (mode == 2.0) {
+			grow = 1.0 - smoothstep(0.0, 0.5, t);
+		}
+		walk = step(0.003, length(vec2(ic.b, ic.a))) * (1.0 - smoothstep(0.88, 1.0, t));
+		walk_seed = seedv;
+	}
 	if (is_figure) {
 		VERTEX *= fig_scale;
+	}
+	VERTEX *= grow;
+	if (walk > 0.0) {
+		// a little hop per step so gliding people read as walking
+		VERTEX.y += walk * abs(sin(TIME * 10.0 + walk_seed * 31.0)) * (is_figure ? 0.006 * fig_scale : 0.004);
 	}
 	VERTEX *= 1.0 + max(fig_scale - 1.25, 0.0) * lod_grow;
 	if (billboard_y) {
@@ -43,6 +80,10 @@ void vertex() {
 		float k = VERTEX.y * VERTEX.y * wind;
 		VERTEX.x += sin(ph) * k;
 		VERTEX.z += cos(ph * 0.83) * k * 0.6;
+	}
+	if (is_figure || is_animal) {
+		mat3 m3 = mat3(MODEL_MATRIX[0].xyz, MODEL_MATRIX[1].xyz, MODEL_MATRIX[2].xyz);
+		VERTEX += (transpose(m3) * glide) / max(dot(m3[0], m3[0]), 0.0001);
 	}
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);

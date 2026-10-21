@@ -218,6 +218,24 @@ public partial class Game
                 Step(() => ZoomTo(ZoomPresets[1]), 1.0f);
                 Shot("beacon-z1");
                 break;
+            case "glide":
+                Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(9.0f); }, 1.6f);
+                for (int i = 0; i < 6; i++)
+                {
+                    int n = i;
+                    Step(() => GD.Print($"SCN glide {n} alpha={FrameAlpha(_renderTick):0.00} tick={_renderTick:0.0}"), 0.0f);
+                    Step(() => TakeScenarioShot($"glide-{n}"), 0.2f);
+                }
+                break;
+            case "glide-fixed":
+                Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
+                Step(() => _lerpOverride = 0.0f, 0.4f);
+                Shot("fixed-0");
+                Step(() => _lerpOverride = 0.5f, 0.4f);
+                Shot("fixed-5");
+                Step(() => _lerpOverride = 1.0f, 0.4f);
+                Shot("fixed-10");
+                break;
             case "dev":
                 Step(ToggleDevOverlay);
                 Step(() => OpenResearchWeb(-1), 3.0f);
