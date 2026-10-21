@@ -13,6 +13,12 @@ public interface IFissionSiteAdvisor
     bool Allows(int civ, int tile);
     /// <summary>Multiplier on the site's food score, 1 when neutral.</summary>
     Fix64 Multiplier(int civ, int tile);
+    /// <summary>The farthest (hex distance) a daughter band may settle from its parent: on foot, or by boat once the civilization has one (docs/MVP/21).</summary>
+    int SettleReach(int civ);
+    /// <summary>Whether the band can actually get from the parent's village to the site.</summary>
+    bool Reachable(int civ, int fromTile, int toTile);
+    /// <summary>True if the band's voyage turns back (shipwreck); it then stays home this season.</summary>
+    bool VoyageLost(int civ, int fromTile, int toTile, int season);
 }
 
 /// <summary>What conflict and trade take from or add to a settlement's goods (docs/MVP/13 §4, §5.4).</summary>

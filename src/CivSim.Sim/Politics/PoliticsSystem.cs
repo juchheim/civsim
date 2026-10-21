@@ -40,6 +40,8 @@ public enum PoliticsEventKind : byte
     BeaconPlaced,
     /// <summary>A player order was refused. Other = target, A = command kind, B = refusal reason.</summary>
     OrderRefused,
+    /// <summary>A voyage turned back (docs/MVP/21 §3). Other = target civilization or -1, A = open-sea tiles on the route, B = what sailed: 0 gift, 1 barter, 2 raid, 3 assault, 4 settlers.</summary>
+    VoyageLost,
 }
 
 /// <summary>Stable reason codes for a rejected player order.</summary>
@@ -142,7 +144,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly struct P
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
-            Def01, Def02, Def03, Hus01, War01, War02, War03, War04, Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01;
+            Def01, Def02, Def03, Hus01, War01, War02, War03, War04, Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04;
 
         public P(ResearchCatalog c)
         {
@@ -153,6 +155,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             War01 = c.IndexOf("WAR-01"); War02 = c.IndexOf("WAR-02"); War03 = c.IndexOf("WAR-03"); War04 = c.IndexOf("WAR-04");
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
+            Sea04 = c.IndexOf("SEA-04");
         }
     }
 
@@ -173,6 +176,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _p = new P(_catalog);
         _tileArray = generated.Tiles.ToArray();
         _passable = HexGrid.BuildWalkingPassability(_tileArray, _width, _height);
+        InitVoyages();
         _territory = new Territory(generated, _civs);
         _dip = new Diplomacy(_civs);
         _posture = new byte[_civs];
@@ -382,6 +386,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         }
         if (nearestRival < RivalPressureRange)
             factor = factor * (Fix64.Half + Fix64.FromRatio(nearestRival, 2 * RivalPressureRange));
+        // an island nobody of ours holds yet is an early-reach prize (docs/MVP/12 §3.1, 21 §3)
+        if (IsIsland(tile) && !HasVillageOnLandmass(civ, tile)) factor = factor * Fix64.FromRatio(3, 2);
         return factor;
     }
 
@@ -554,6 +560,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 // Reach is counted in the terrain-weighted tiles the start pairs are placed by, with a tenth added for trails.
                 int sight = (ReachOf(a) + ReachOf(b)) * 11 / 10;
                 int d = WalkingTilesBetween(a, b, sight + 3);
+                if (d == int.MaxValue && (CanSail(a) || CanSail(b))) d = SailTilesBetween(a, b, sight + 3);
                 Trace?.Invoke($"season {_season}: civ{a}-civ{b} walking {d} sight {sight} eraA {_research.Era(a)}");
                 if (d == int.MaxValue) continue;
                 if (!_dip.Aware(a, b) && d <= sight + 3)

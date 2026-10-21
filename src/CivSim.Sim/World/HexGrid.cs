@@ -120,12 +120,101 @@ public static class HexGrid
         return distance;
     }
 
+    /// <summary>Cost in tenths of a tile of one step over open water by outrigger (method multiplier 2.5 against 10 on foot; docs/MVP/21 §3).</summary>
+    public const int SeaCostTenths = 4;
+
+    /// <summary>
+    /// The realm of every land tile: a continent (a landmass of more than <paramref name="islandMaxTiles"/> tiles) is its own realm
+    /// and an island belongs to the realm of the nearest continent. 0 on water.
+    /// </summary>
+    public static int[] LandRealms(WorldTile[] tiles, int width, int height, int islandMaxTiles)
+    {
+        int n = tiles.Length;
+        var landmass = new int[n];
+        var sizes = new List<int> { 0 };
+        var queue = new int[n];
+        Span<int> neighbors = stackalloc int[6];
+        for (int t = 0; t < n; t++)
+        {
+            if (!tiles[t].IsLand || landmass[t] != 0) continue;
+            int id = sizes.Count, head = 0, tail = 0, size = 0;
+            landmass[t] = id; queue[tail++] = t;
+            while (head < tail)
+            {
+                int tile = queue[head++]; size++;
+                int count = Neighbors(tile, width, height, neighbors);
+                for (int k = 0; k < count; k++)
+                    if (tiles[neighbors[k]].IsLand && landmass[neighbors[k]] == 0) { landmass[neighbors[k]] = id; queue[tail++] = neighbors[k]; }
+            }
+            sizes.Add(size);
+        }
+        // label every tile with the continent nearest to it (multi-source breadth-first, ties by tile order)
+        var label = new int[n];
+        var distance = new int[n];
+        Array.Fill(distance, int.MaxValue);
+        int h2 = 0, t2 = 0;
+        for (int t = 0; t < n; t++)
+            if (tiles[t].IsLand && sizes[landmass[t]] > islandMaxTiles) { label[t] = landmass[t]; distance[t] = 0; queue[t2++] = t; }
+        while (h2 < t2)
+        {
+            int tile = queue[h2++];
+            int count = Neighbors(tile, width, height, neighbors);
+            for (int k = 0; k < count; k++)
+            {
+                int next = neighbors[k];
+                if (distance[next] != int.MaxValue) continue;
+                distance[next] = distance[tile] + 1; label[next] = label[tile]; queue[t2++] = next;
+            }
+        }
+        var realm = new int[n];
+        var islandRealm = new int[sizes.Count];
+        for (int t = 0; t < n; t++)
+        {
+            if (!tiles[t].IsLand) continue;
+            int id = landmass[t];
+            if (sizes[id] > islandMaxTiles) realm[t] = id;
+            else
+            {
+                if (islandRealm[id] == 0) islandRealm[id] = label[t];
+                realm[t] = islandRealm[id];
+            }
+        }
+        return realm;
+    }
+
+    /// <summary>Hex distance from every tile to the nearest land tile (0 on land).</summary>
+    public static int[] LandDistances(WorldTile[] tiles, int width, int height)
+    {
+        int[] distance = new int[tiles.Length];
+        Array.Fill(distance, int.MaxValue);
+        int[] queue = new int[tiles.Length];
+        int head = 0, tail = 0;
+        for (int t = 0; t < tiles.Length; t++)
+            if (tiles[t].IsLand) { distance[t] = 0; queue[tail++] = t; }
+        Span<int> neighbors = stackalloc int[6];
+        while (head < tail)
+        {
+            int tile = queue[head++];
+            int count = Neighbors(tile, width, height, neighbors);
+            for (int n = 0; n < count; n++)
+            {
+                int next = neighbors[n];
+                if (distance[next] != int.MaxValue) continue;
+                distance[next] = distance[tile] + 1;
+                queue[tail++] = next;
+            }
+        }
+        return distance;
+    }
+
     /// <summary>
     /// Dijkstra costs in tenths of a tile using the biome movement costs in 12 §4. A single
-    /// shallow-water tile may connect shores, but a path cannot chain water tiles together.
+    /// shallow-water tile may connect shores, but a path cannot chain water tiles together. With
+    /// <paramref name="landDistance"/> (see <see cref="LandDistances"/>) and <paramref name="seaReach"/> the walker also has a
+    /// boat: any water tile within that many tiles of land is enterable at <see cref="SeaCostTenths"/>.
     /// </summary>
     public static int[] WalkingCostsFrom(WorldTile[] tiles, int width, int height, int start,
-        int maximumCost = int.MaxValue)
+        int maximumCost = int.MaxValue, int[]? landDistance = null, int seaReach = 0, int[]? realm = null)
     {
         int[] distance = new int[tiles.Length];
         Array.Fill(distance, int.MaxValue);
@@ -149,6 +238,8 @@ public static class HexGrid
                 if (nextTile.IsLand)
                 {
                     if (nextTile.Biome == Biome.Peak) continue;
+                    // a boat may land only in the traveller's own realm: its continent and that continent's islands (docs/MVP/21 §3)
+                    if (realm is not null && !tiles[tile].IsLand && realm[next] != realm[start]) continue;
                     moveCost = nextTile.Biome switch
                     {
                         Biome.TemperateForest or Biome.Taiga => 15,
@@ -162,6 +253,11 @@ public static class HexGrid
                         Biome.Ice => 30,
                         _ => 10
                     };
+                }
+                else if (landDistance is not null && landDistance[next] <= seaReach)
+                {
+                    // Open water by boat (docs/MVP/21): enterable from anywhere while the tile is within reach of land.
+                    moveCost = SeaCostTenths;
                 }
                 else
                 {

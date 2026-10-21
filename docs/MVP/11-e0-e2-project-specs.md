@@ -302,7 +302,7 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 | WAY-04 | Sketch Maps | D | 75 | WAY-03, ART-03 | Rule(explored terrain stays revealed for the whole civilization) · Planner(settler site choice +) | scout |
 | TRN-04 | Pack Animals | M | 75 | TRN-02, HUS-03 | Mod(Carry, +3 L per pack animal) | haul, herd |
 | SEA-03 | Dugout Canoes | M | 75 | SEA-02, WOD-03 | Method(Paddle, r2 Dugout: coastal water within 2 tiles; 4 L) · Mod(Fishing offshore, +50%) | paddle, chop |
-| SEA-04 | Outriggers | M | 75 | SEA-03, WAY-03 | Method(Paddle, r3 Outrigger: open-sea hops of up to 3 tiles) | paddle |
+| SEA-04 | Outriggers | M | 75 | SEA-03, WAY-03 | Method(Paddle, r3 Outrigger: open-sea voyages within 11 tiles of land; see 21) | paddle |
 | TRD-03 | Exchange Networks | I | 113 | TRD-02, WAY-04 | Rule(persistent trade routes; diffusion along routes; luxuries flow) · Mod(Luxury Cohesion, ×1.5) | trade, haul |
 | COM-04 | Signal Fires & Drums | M | 75 | COM-03, FIR-03 | Build(Signal post) · Mod(Defense response time, −70%) · Rule(raid warnings reach all settlements within 20 tiles at once) | guard |
 | NUM-03 | Clay Tokens | D | 75 | NUM-02, CER-02 | Mod(Storage losses to mismanagement, −50%) · Rule(trade debts tracked: barter over several seasons) | count stores, trade |

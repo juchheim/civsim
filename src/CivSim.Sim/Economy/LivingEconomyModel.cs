@@ -2722,6 +2722,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (daughterCount < 6) { parent.FissionPending = false; continue; }
             int site = ChooseFissionSite(parent);
             if (site < 0) continue;
+            if (SiteAdvisor is not null && SiteAdvisor.VoyageLost(parent.Civilization, parent.SiteTile, site, season)) { parent.FissionPending = false; continue; }
 
             var candidates = new List<int>();
             for (int i = 0; i < _figures.Count; i++)
@@ -2858,16 +2859,18 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int best = -1;
         Fix64 bestScore = Fix64.MinValue;
+        int reach = Math.Max(14, SiteAdvisor?.SettleReach(parent.Civilization) ?? 14);
         for (int tile = 0; tile < _world.TileCount; tile++)
         {
             if (!IsHabitable(tile)) continue;
             int parentDistance = HexGrid.Distance(tile, parent.SiteTile, _world.Width);
-            if (parentDistance < Radius * 2 + 1 || parentDistance > 14) continue;
+            if (parentDistance < Radius * 2 + 1 || parentDistance > reach) continue;
             bool farEnough = true;
             for (int s = 0; s < _settlements.Count; s++)
                 if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
                 { farEnough = false; break; }
             if (!farEnough) continue;
+            if (SiteAdvisor is not null && !SiteAdvisor.Reachable(parent.Civilization, parent.SiteTile, tile)) continue;
             if (SiteAdvisor is not null && !SiteAdvisor.Allows(parent.Civilization, tile)) continue;
             Fix64 score = _siteFoodScores[tile];
             if (SiteAdvisor is not null) score *= SiteAdvisor.Multiplier(parent.Civilization, tile);

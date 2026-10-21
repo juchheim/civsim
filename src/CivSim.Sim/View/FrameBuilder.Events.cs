@@ -325,6 +325,9 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.BeaconPlaced; e.Text = ChronicleKey.BeaconPlaced;
                     e.Tile = HexLayout.TileAt(p.A, p.B, _width, _height);
                     break;
+                case PoliticsEventKind.VoyageLost:
+                    e.Kind = ViewEventKind.VoyageLost; e.Text = ChronicleKey.VoyageLost;
+                    break;
                 case PoliticsEventKind.OrderRefused:
                     e.Kind = ViewEventKind.OrderRefused; e.Text = ChronicleKey.OrderRefused;
                     e.Tier = ViewEventTier.Info; e.A = p.A; e.B = p.B;
@@ -397,9 +400,10 @@ public sealed partial class FrameBuilder
             {
                 if (primed && (_omniscient || _sCiv[s] == _viewer))
                 {
+                    bool island = !_sFree[s] && match.Politics.IsIsland(_sTile[s]);
                     ViewEvent founded = New(tick, ViewEventKind.SettlementFounded,
-                        _sFree[s] ? ChronicleKey.FreeFolkCampFounded : ChronicleKey.SettlementFounded, ViewEventTier.Info, _sCiv[s], -1);
-                    founded.Settlement = s; founded.Tile = _sTile[s]; founded.A = _sFree[s] ? 1 : 0;
+                        _sFree[s] ? ChronicleKey.FreeFolkCampFounded : island ? ChronicleKey.IslandSettled : ChronicleKey.SettlementFounded, ViewEventTier.Info, _sCiv[s], -1);
+                    founded.Settlement = s; founded.Tile = _sTile[s]; founded.A = _sFree[s] ? 1 : 0; founded.C = island ? 1 : 0;
                     Append(founded);
                 }
             }

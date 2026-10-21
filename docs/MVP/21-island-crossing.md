@@ -38,7 +38,7 @@ became barriers, which is a larger design change and **out of scope** here (deci
 **Outrigger voyages (SEA-04).** A civilization that knows SEA-04 can travel over open water. A water tile is enterable by sea if it is
 at most `OpenSeaReach = 11` tiles from the nearest land (hex distance). The farthest island is 21 tiles from a continent, so its
 midpoint is 10.5 from land: reachable. Between the continents the midpoint is 16.5: **not** reachable, so nobody crosses to the
-other continent before Sail. In the cost graph (`HexGrid.WalkingCostsFrom`, tenths of a tile) a sea tile costs
+other continent before Sail. Islands must not become stepping stones (an island 20 tiles from one continent can sit 13 from the other, and the first version of this rule did hop across), so each island belongs to the **realm** of its nearest continent and **a boat lands only in its own realm**: its continent and that continent's islands. In the cost graph (`HexGrid.WalkingCostsFrom`, tenths of a tile) a sea tile costs
 `SeaCostTenths = 4` (outrigger method multiplier 2.5), against 10 to 40 for land. Everything is integer and deterministic.
 
 **Walking stays the default.** A route is first looked up on the existing walking graph; the sea graph is used **only when that

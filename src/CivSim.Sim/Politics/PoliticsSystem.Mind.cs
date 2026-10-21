@@ -73,11 +73,7 @@ public sealed partial class PoliticsSystem
     }
 
     /// <summary>Walking distance in tiles between two tiles, or int.MaxValue when there is no way.</summary>
-    private int Walk(int from, int to)
-    {
-        int[] d = HexGrid.WalkingDistancesFrom(_width, _height, _passable, from);
-        return d[to];
-    }
+    private int Walk(int from, int to) => WalkFrom(from)[to];
 
     private static int SeasonsFor(int tiles) => Math.Max(1, (tiles + TilesPerSeason - 1) / TilesPerSeason);
 
@@ -146,7 +142,7 @@ public sealed partial class PoliticsSystem
         if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _season - _dip.LastGift(c, o) < 2) return false;
         (int origin, int target) = ClosestPair(c, o, targetSettlement);
         if (origin < 0) return false;
-        int travel = Walk(_sTile[origin], _sTile[target]);
+        int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue) return false;
         if (_economy.FoodStores(origin) < GiftValue * 4) return false;
         List<Fighter> party = PickParty(origin, c, 3, attacking: true, out List<long> ids);
@@ -177,7 +173,7 @@ public sealed partial class PoliticsSystem
             if (e.Kind == ExpeditionKind.Barter && (e.Civ == a && e.TargetCiv == b || e.Civ == b && e.TargetCiv == a)) return false;
         (int origin, int target) = ClosestPair(a, b, targetSettlement);
         if (origin < 0) return false;
-        int travel = Walk(_sTile[origin], _sTile[target]);
+        int travel = Travel(a, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue) return false;
         if (_economy.FoodStores(origin) < BarterValue * 4) return false;
         List<Fighter> party = PickParty(origin, a, 3, attacking: true, out List<long> ids);
@@ -243,7 +239,7 @@ public sealed partial class PoliticsSystem
     /// <summary>Sends a raid party of up to <paramref name="size"/> from <paramref name="origin"/> to a chosen settlement.</summary>
     private bool SendRaid(int c, int o, int origin, int target, int size, bool forecast)
     {
-        int travel = Walk(_sTile[origin], _sTile[target]);
+        int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (forecast && travel > ReachOf(c) * 3)) { Trace?.Invoke($"raid: travel {travel}"); return false; }
         List<Fighter> party = PickParty(origin, c, size, attacking: true, out List<long> ids);
         if (party.Count < 4) { Trace?.Invoke($"raid: party {party.Count}"); return false; }
@@ -335,7 +331,7 @@ public sealed partial class PoliticsSystem
         foreach (Occupation occ in _occupations) if (occ.Civ == c && _sCiv[occ.Settlement] == o) return false;
         int origin = BestOrigin(c, _sTile[target]);
         if (origin < 0) return false;
-        int travel = Walk(_sTile[origin], _sTile[target]);
+        int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (requireOdds && travel > ReachOf(c) * 3)) return false;
 
         // The field army: up to 60% of the fighters in every own settlement within ten tiles of the origin.
@@ -389,6 +385,7 @@ public sealed partial class PoliticsSystem
         foreach (Expedition e in arriving)
         {
             _expeditions.Remove(e);
+            if (TurnedBackAtSea(e)) continue;
             switch (e.Kind)
             {
                 case ExpeditionKind.Gift: ArriveGift(e); break;
@@ -439,7 +436,7 @@ public sealed partial class PoliticsSystem
             _research.AddSeen(e.TargetCiv, _research.SeenMask(e.Civ) & goods);
             e.Leg = 1;
             e.Value = back;
-            e.ArriveSeason = _season + Math.Max(1, SeasonsFor(Walk(_sTile[e.ToSettlement], _sTile[e.FromSettlement])));
+            e.ArriveSeason = _season + Math.Max(1, SeasonsFor(Travel(e.Civ, _sTile[e.ToSettlement], _sTile[e.FromSettlement])));
             _expeditions.Add(e);
             return;
         }

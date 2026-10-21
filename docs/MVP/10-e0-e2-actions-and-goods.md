@@ -252,7 +252,7 @@ Housing is **build-limited** (09 §6.3): the planner builds ahead of demand when
 | Raft | SEA-01 | 3 L / 3 people | ×0.7 | Rivers, lakes, straits of 1 tile |
 | Bark/hide canoe | SEA-02 | 2 L / 2 people | ×2 on rivers | Rivers, lakes |
 | Dugout | SEA-03 | 4 L / 4 people | ×2 | + coastal water within 2 tiles of land |
-| Outrigger | SEA-04 | 4 L / 4 people | ×2.5 | + open sea hops of up to 3 tiles |
+| Outrigger | SEA-04 | 4 L / 4 people | ×2.5 | + open-sea voyages: water within 11 tiles of land, islands up to 22 tiles across, shipwreck risk (21) |
 
 ## 8. People actions (heal, teach, ritual, govern, scout)
 

@@ -45,7 +45,7 @@ projects:
     status: numeric
     requires: [SEA-03, WAY-03]
     effects:
-      - {kind: method, action: paddle, rung: 3, name: Outrigger, mult: 2.5, note: open-sea hops of up to 3 tiles}
+      - {kind: method, action: paddle, rung: 3, name: Outrigger, mult: 2.5, note: "open-sea voyages: any water within 11 tiles of land (islands up to 22 tiles across), shipwreck risk"}
     practice: [{action: paddle, share: 100}]
     flavor: "Beyond the horizon, more land."
     moment: An outrigger rides a swell toward a distant island

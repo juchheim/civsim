@@ -431,7 +431,8 @@ public sealed partial class FrameBuilder
             bool back = e.Kind == ExpeditionKind.Barter && e.Leg == 1;
             int from = back ? e.ToSettlement : e.FromSettlement, to = back ? e.FromSettlement : e.ToSettlement;
             int fromTile = _sTile[from], toTile = _sTile[to];
-            int seasons = Math.Max(1, (WalkTiles(fromTile, toTile) + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
+            int seasons = match.Politics.TravelSeasons(e.Civ, fromTile, toTile);
+            if (seasons == int.MaxValue) seasons = Math.Max(1, (WalkTiles(fromTile, toTile) + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
             long leftAt = (long)(e.ArriveSeason - seasons) * LivingEconomyModel.SeasonTicks;
             long total = (long)seasons * LivingEconomyModel.SeasonTicks;
             int progress = (int)Math.Clamp((tick - leftAt) * 1000 / total, 0, 1000);

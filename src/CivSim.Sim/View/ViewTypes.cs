@@ -206,6 +206,8 @@ public enum ViewEventKind : ushort
     BeaconPlaced = 55,
     /// <summary>A player command was rejected. A = command kind, B = refusal reason code.</summary>
     OrderRefused = 56,
+    /// <summary>A voyage turned back at sea (docs/MVP/21). A = open-sea tiles, B = what sailed (0 gift, 1 barter, 2 raid, 3 assault, 4 settlers).</summary>
+    VoyageLost = 57,
 }
 
 /// <summary>
@@ -229,6 +231,7 @@ public enum ChronicleKey : ushort
     WarDeclaredByUs = 72, WarDeclaredOnUs = 73, PeaceMade = 74, AssaultWon = 75, AssaultLost = 76, SettlementFell = 77,
     SettlementHeld = 78, Occupied = 79, OccupationBroken = 80, OccupationAbandoned = 81, SettlementCaptured = 82,
     SettlementLost = 83, FreeFolkFounded = 84, AllianceFormed = 85, BeaconPlaced = 86, OrderRefused = 87,
+    VoyageLost = 88, IslandSettled = 89,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -297,6 +300,8 @@ public static class ViewText
         ChronicleKey.AllianceFormed => "chronicle.alliance.formed",
         ChronicleKey.BeaconPlaced => "chronicle.beacon.placed",
         ChronicleKey.OrderRefused => "alert.order.refused",
+        ChronicleKey.VoyageLost => "chronicle.voyage.lost",
+        ChronicleKey.IslandSettled => "chronicle.settlement.island",
         _ => "",
     };
 }
