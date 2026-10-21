@@ -38,9 +38,10 @@ and recorded player orders; the viewer reports whether periodic checksums match.
 The match pauses at the first KEY-3 completion or at 40 simulated minutes and shows
 Legacy standings, the Keystone timeline, and the AI's recent decision reasons.
 
-The standard game uses Gentle start: the first three winters are mild, and the
-human civilization cannot make rival contact before KEY-1. To capture the first-run
-intro in a development screenshot, pass `--show-onboarding` with `--screenshot`.
+The standard game uses Gentle start: its first three winters are protected from
+harsh conditions, and the human civilization cannot make rival contact before
+KEY-1. To capture the first-run intro in a development screenshot, pass
+`--show-onboarding` with `--screenshot`.
 Build the C# project with `dotnet build game/CivSim.Game.csproj -c Debug` before
 the normal Godot launch; Godot loads the Debug assembly by default. A screenshot
 can be captured after startup with:

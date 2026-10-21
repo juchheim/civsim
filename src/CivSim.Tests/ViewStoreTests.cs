@@ -9,7 +9,13 @@ using CivSim.Sim.View;
 
 namespace CivSim.Tests;
 
+// This class contains a wall-clock performance gate. Keep it off other concurrent test collections so
+// unrelated simulation tests cannot consume the same cores and turn scheduler noise into a failure.
+[CollectionDefinition("Frame timing", DisableParallelization = true)]
+public sealed class FrameTimingCollection { }
+
 /// <summary>Handing frames to the render thread (docs/MVP/18 §5): matching by id, the lock-free swap, no allocation, the time budget.</summary>
+[Collection("Frame timing")]
 public class ViewStoreTests
 {
     [Fact]

@@ -118,11 +118,11 @@ What still needs real people: **UX testing** of the focus bar, research web and 
 A first playable is "right" when:
 1. A new player understands the three slots within **2 minutes** and makes a first meaningful choice within **30 seconds**.
 2. Completing a project visibly changes figure behavior within **one season** (a Moment, then spreading adoption).
-3. The first **winter** is a felt threat in at least half of new games unless food-storage projects are chosen.
+3. Winter becomes a felt threat in at least half of new games unless food-storage projects are chosen. The first-play match protects its first three winters; check the harsh-winter rate over its first two full-strength winters and surface a Critical food warning when the forecast is in the famine band.
 4. **Fission** produces a second camp by ~minute 6–10, and territory visibly grows thereafter.
 5. **First contact** with a rival happens in E1–E2 on the standard map.
 6. KEY-1 at ~minutes 7–9 and KEY-2 at ~16–20 (Standard pace), ±25%.
-7. A fully hands-off run (Council auto-picks only) loses to a moderately engaged player most of the time. Choices matter.
+7. A fully hands-off run (Council auto-picks only) loses to a moderately engaged player most of the time. For a repeatable automated proxy, use the Settler (learning) AI in paired matches; validate actual player experience separately in M9.
 8. The sim is **bit-identical** across two runs with the same seed and command log.
 
 ## 7. Risks and mitigations

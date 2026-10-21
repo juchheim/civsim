@@ -399,7 +399,7 @@ When the window regains focus after more than 2 minutes, a card summarizes what 
 
 ## 12. Onboarding: the first 10 minutes
 
-The first match uses **Gentle start**: no rival contact before KEY-1, and the first three winters are mild. Tips are contextual one-liners; only the very first is modal. Every tip fires **on its trigger**, not at a fixed time, so the sequence holds even when a run deviates.
+The first match uses **Gentle start**: no rival contact before KEY-1, and the first three winters are protected from harsh conditions. Tips are contextual one-liners; only the very first is modal. Every tip fires **on its trigger**, not at a fixed time, so the sequence holds even when a run deviates.
 
 > **Timings come from the tuned balance run** ([07 §6](07-balance-findings.md#6-tuned-run), Standard pace): a starter project completes in about 0.75 min, the first fission comes at about 7.0 min, and KEY-1 lands at about 7.5 min, inside the 7–9 min target in [02 §8.3](02-research-structure.md#83-cost-formula) and [06 §6](06-next-steps.md#6-vertical-slice-acceptance-criteria-draft-for-d4). A year is 60 s at Standard, so winter arrives at 0:45 and recurs every minute. **First fission is a knife-edge:** across archetypes it lands anywhere from minute 6 to 13 ([07 F5](07-balance-findings.md#f5--no-fission-before-minute-77-demography-needs-to-run-faster)), so the fission tip must not assume it comes before KEY-1.
 
@@ -408,11 +408,11 @@ The first match uses **Gentle start**: no rival contact before KEY-1, and the fi
 | 0:00 | Camera opens at Z0 on twelve people around an ember. One line: *"You are their curiosity. Choose what they learn."* | The Spark role |
 | 0:10 | The focus bar is pre-filled with the Council's picks: **FOR-01, SOC-01, FIR-01**. Prompt: "Swap any of these, or let the elders choose." | 3 slots, 4:2:1, the Council (acceptance: first meaningful choice ≤ 30 s, [06 §6](06-next-steps.md#6-vertical-slice-acceptance-criteria-draft-for-d4)) |
 | ~0:45 | **First Moment:** an innovator tries the new method; a PiP vignette plays; adoption dots spread | Projects change behavior; adoption |
-| 0:45–1:00 | **First (mild) winter:** the palette turns to snow and figures gather at the fire. Tip: "Seasons turn every 15 seconds. Winter is when stores matter." | Seasons; the calendar |
+| 0:45–1:00 | **First protected winter:** the palette turns to snow and figures gather at the fire. Tip: "Seasons turn every 15 seconds. Winter is when stores matter." | Seasons; the calendar |
 | 1:00–2:00 | Glimpsed nodes appear; tip: "Open the research web (R) to see what's next" | Glimpse fog; web navigation |
 | 2:00–3:00 | Efficiency overlay tip on a job site badge: "Chop ×1.5 → ×2.0" | Method ladders |
-| ~3:30 | **Autumn of year 4:** the food overlay pulses; tip: "This winter will be hard. Storage and shelter matter." | Food security; urgency |
-| 3:45–4:00 | **First full-strength winter:** figures huddle; if stores are low, a Critical alert appears | Threat and recovery |
+| ~3:30 | **Autumn of year 4:** if the forecast reaches famine risk, the food overlay pulses and a Critical alert warns the player to prepare stores and shelter | Food security; urgency |
+| 3:45–4:00 | **First full-strength winter:** the climate can now turn harsh; if stores are low, the forecast warning and hungry spell make the threat visible | Threat and recovery |
 | ~4:00–6:00 | The keystone strip lights up once half of KEY-1's named prerequisites are done: "Symbolic Mind: 8/13 · ●●○○" | Eras and keystones |
 | ~6:00–7:00 (6–13) | **First fission** (on trigger): a daughter band leaves; territory tint expands; tip on claims | Fission, territory, Dominion |
 | ~7:30 | KEY-1 completes: era-transition banner; Hunters-era nodes emerge from the fog | Era progression |
