@@ -46,7 +46,9 @@ public sealed partial class FrameBuilder
     private readonly int _width, _height, _tileCount, _civs;
     private readonly bool[] _passable;
     private readonly ResearchCatalog _catalog;
-    private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03;
+    private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03, _stn10;
+    /// <summary>Per civilization: the tile and village its megalith stands at (-1 until the project is done). View-only, not part of the saved view state: a loaded game picks it again.</summary>
+    private readonly int[] _monumentTile, _monumentSettlement;
 
     // ---- memory: saved by WriteState ---------------------------------------------------------
     private int _viewer;
@@ -113,6 +115,9 @@ public sealed partial class FrameBuilder
         _war01 = _catalog.IndexOf("WAR-01"); _war04 = _catalog.IndexOf("WAR-04"); _hnt02 = _catalog.IndexOf("HNT-02");
         _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06");
         _def03 = _catalog.IndexOf("DEF-03");
+        _stn10 = _catalog.IndexOf("STN-10");
+        _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
+        Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
         _explored = new byte[_tileCount];
         _rememberedOwner = new sbyte[_tileCount];
         Array.Fill(_rememberedOwner, (sbyte)-1);
@@ -198,6 +203,7 @@ public sealed partial class FrameBuilder
         FillFigures(eco, match.Research, target, season);
         FillSettlements(eco, match.Research, target, season);
         FillPlotsCampsBeacons(eco, pol, target);
+        FillMonuments(match.Research, target);
         FillHerdsAndPredators(eco, target);
         FillParties(target);
         FillOccupations(pol, target);
@@ -938,6 +944,31 @@ public sealed partial class FrameBuilder
     }
 
     // ---- herds, predators, parties, occupations -------------------------------------------------
+
+    /// <summary>
+    /// The megalith a civilization raised stands at its oldest living village from the moment the project is learned, and stays
+    /// there. Only the tile, the learning tick and the village size go out; the front end plays the hauling from them.
+    /// </summary>
+    private void FillMonuments(ResearchSystem research, MatchFrame target)
+    {
+        target.EnsureMonuments(_civs);
+        int w = 0;
+        for (int c = 0; c < _civs && _stn10 >= 0; c++)
+        {
+            if (!research.IsDone(c, _stn10)) continue;
+            if (_monumentTile[c] < 0)
+                for (int s = 0; s < _settlementCount; s++)
+                    if (!_sFree[s] && _sCiv[s] == c && _sPop[s] > 0) { _monumentTile[c] = _sTile[s]; _monumentSettlement[c] = s; break; }
+            int tile = _monumentTile[c];
+            if (tile < 0 || !(_omniscient || c == _viewer || Visible(tile))) continue;
+            int home = _monumentSettlement[c];
+            target.MonumentTile[w] = tile;
+            target.MonumentCiv[w] = (sbyte)c;
+            target.MonumentTick[w] = research.CompletedTick(c, _stn10);
+            target.MonumentPopulation[w++] = (uint)home < (uint)_settlementCount ? _sPop[home] : 8;
+        }
+        target.MonumentCount = w;
+    }
 
     private void FillHerdsAndPredators(LivingEconomyModel eco, MatchFrame target)
     {

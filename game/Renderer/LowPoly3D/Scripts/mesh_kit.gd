@@ -43,6 +43,7 @@ func _init() -> void:
 	_mountains()
 	_structures()
 	_decor()
+	_monument()
 	_people()
 	_animals()
 
@@ -782,7 +783,7 @@ func _animals() -> void:
 # ------------------------------------------------------------------ village decor (see game/Scripts/DecorTable.cs)
 
 ## Index = the decor kind the host sends; mesh name = "decor_" + name.
-const DECOR_NAMES := ["totem", "cairn", "megalith", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",
+const DECOR_NAMES := ["totem", "cairn", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",
 	"canoe", "sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork"]
 
 func _decor() -> void:
@@ -804,13 +805,6 @@ func _decor() -> void:
 	b.blob(Vector3(0.002, 0.024, 0), Vector3(0.022, 0.011, 0.02), 6, 3, ROCK_HI, 0.1, STONE)
 	b.blob(Vector3(-0.001, 0.036, 0.001), Vector3(0.013, 0.009, 0.013), 5, 3, STONE, 0.1)
 	meshes["decor_cairn"] = b.commit()
-
-	# megalith: a standing stone with the rollers it came on
-	b = _b(702)
-	b.prism(Vector3.ZERO, 0.03, 0.017, 0.15, 5, ROCK, ROCK_HI, 0.0, 0.12)
-	b.pole(Vector3(-0.055, 0.006, 0.03), Vector3(0.055, 0.006, 0.042), 0.006, WOOD)
-	b.pole(Vector3(-0.05, 0.006, 0.058), Vector3(0.05, 0.006, 0.066), 0.006, WOOD_LIGHT)
-	meshes["decor_megalith"] = b.commit()
 
 	# hide frame: a stretched hide laced into a pole frame
 	b = _b(703)
@@ -984,3 +978,36 @@ func _decor() -> void:
 	for i in 4:
 		b.pole(Vector3(0.03 + i * 0.006, 0, -0.03), Vector3(0.032 + i * 0.006, 0.07, -0.034), 0.0028, WOOD if i % 2 == 0 else WOOD_LIGHT)
 	meshes["decor_woodwork"] = b.commit()
+
+
+# ------------------------------------------------------------------ megalith pieces (see monument_rig.gd)
+
+func _monument() -> void:
+	# a standing stone, foot at the origin, 0.17 tall: rough, tapering, with a band of red ochre
+	var b := _b(730)
+	b.prism(Vector3.ZERO, 0.034, 0.03, 0.11, 6, ROCK, ROCK_HI, 0.0, 0.1)
+	b.prism(Vector3(0, 0.11, 0), 0.03, 0.019, 0.06, 6, ROCK_HI, ROCK_HI.lightened(0.08), 0.3, 0.1)
+	b.prism(Vector3(0, 0.07, 0), 0.0345, 0.0345, 0.008, 6, Color("#a4452c"), Color("#a4452c"))
+	meshes["monument_menhir"] = b.commit()
+	# a lintel, centred, long axis along X
+	b = _b(731)
+	b.box(Vector3.ZERO, Vector3(0.26, 0.04, 0.06), ROCK_HI, ROCK_HI.lightened(0.1))
+	b.box(Vector3(0, -0.012, 0), Vector3(0.262, 0.008, 0.062), Color("#a4452c"))
+	meshes["monument_lintel"] = b.commit()
+	# a drag sledge, centred, long axis along Z: two runners and cross boards
+	b = _b(732)
+	b.pole(Vector3(-0.03, 0.006, -0.1), Vector3(-0.03, 0.006, 0.09), 0.0045, WOOD)
+	b.pole(Vector3(0.03, 0.006, -0.1), Vector3(0.03, 0.006, 0.09), 0.0045, WOOD)
+	b.pole(Vector3(-0.03, 0.006, 0.09), Vector3(-0.03, 0.02, 0.112), 0.0045, WOOD)
+	b.pole(Vector3(0.03, 0.006, 0.09), Vector3(0.03, 0.02, 0.112), 0.0045, WOOD)
+	for z in [-0.08, -0.03, 0.02, 0.07]:
+		b.box(Vector3(0, 0.014, z), Vector3(0.08, 0.008, 0.014), WOOD_LIGHT)
+	meshes["monument_sledge"] = b.commit()
+	# a roller log, axis along X
+	b = _b(733)
+	b.pole(Vector3(-0.045, 0.0, 0), Vector3(0.045, 0.0, 0), 0.0075, WOOD_LIGHT, 6)
+	meshes["monument_roller"] = b.commit()
+	# a drag rope, one unit long along +Z from the origin
+	b = _b(734)
+	b.box(Vector3(0, 0, 0.5), Vector3(0.004, 0.004, 1.0), Color("#b9a68a"))
+	meshes["monument_rope"] = b.commit()

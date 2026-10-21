@@ -39,6 +39,7 @@ var border_node: MeshInstance3D
 var borders_far_node: MeshInstance3D
 var river_node: MeshInstance3D
 var structure_signature := -1
+var rig: M7MonumentRig
 var border_signature := -1
 var river_visibility_signature := -1
 var regional_lod := false
@@ -46,6 +47,7 @@ var figure_tints := PackedColorArray()
 var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
+var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
@@ -136,6 +138,8 @@ func build() -> Node3D:
 	_camps()
 	settlement_props = _build_props_node("SettlementProps", props)
 	structure_signature = _structure_digest()
+	rig = M7MonumentRig.new(self)
+	rig.set_monuments(w.monuments, structure_signature)
 	props = M7Batcher.new()
 	_figures()
 	actor_props = _build_props_node("Actors", props)
@@ -182,6 +186,7 @@ func update_frame() -> bool:
 		_camps()
 		_replace_props_node(settlement_props, "SettlementProps", props)
 		props = M7Batcher.new()
+	rig.set_monuments(w.monuments, structure_signature)
 	var settlements_updated := Time.get_ticks_usec()
 	props = M7Batcher.new()
 	var people_started := Time.get_ticks_usec()
@@ -374,6 +379,7 @@ func _rand_in_hex(t: int, k: int, r: float) -> Vector2:
 	return c
 
 func _vegetation() -> void:
+	tree_points.clear()
 	var B := M7WorldData.Biome
 	var count := 0
 	for t in w.width * w.height:
@@ -493,6 +499,7 @@ func _vegetation() -> void:
 			var s := 0.8 + 0.45 * M7WorldData.hash01(xy.x, xy.y + i, 63)
 			var y := w.height_at(p)
 			props.add(name, _xf(p, y, hv * TAU, s), _tint(M7WorldData.hash01(xy.x + i, xy.y, 64)))
+			tree_points.append(p)
 			count += 1
 		for i in bushes:
 			var p := _rand_in_hex(t, k, 0.9)
@@ -788,7 +795,7 @@ func _settlements() -> void:
 				break
 
 ## Kinds that sit on the village edge rather than among the houses.
-const DECOR_FAR := [1, 2, 6, 7, 8, 14, 16, 17]
+const DECOR_FAR := ["cairn", "shrine", "signal", "charcoal", "grave", "quarry", "skypole"]
 
 ## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
 ## palisade rings the village, the canoe lies on the shore. `placed` holds the house spots so nothing overlaps.
@@ -801,15 +808,16 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		var kind_i := int(kind)
 		if kind_i < 0 or kind_i >= M7MeshKit.DECOR_NAMES.size():
 			continue
-		var mesh_name := "decor_" + String(M7MeshKit.DECOR_NAMES[kind_i])
+		var decor_name := String(M7MeshKit.DECOR_NAMES[kind_i])
+		var mesh_name := "decor_" + decor_name
 		var tint := Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, kind_i, 11))
-		if kind_i == 12:
+		if decor_name == "palisade":
 			_decor_palisade(t, c, seed, rmax + (0.2 if has_thorns else 0.13), tint)
 			continue
-		if kind_i == 10:
+		if decor_name == "canoe":
 			_decor_canoe(t, c, c0, seed, tint)
 			continue
-		var base := far_r if DECOR_FAR.has(kind_i) else near_r
+		var base := far_r if DECOR_FAR.has(decor_name) else near_r
 		var found := false
 		var p := Vector2.ZERO
 		for k in 40:
@@ -835,7 +843,7 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		var sc := VS * (0.95 + 0.12 * M7WorldData.hash01(t, kind_i, 12))
 		var y := w.height_at(p)
 		props.add(mesh_name, _xf(p, y, ang, sc), tint)
-		if kind_i == 7:
+		if decor_name == "signal":
 			props.add("flame", _xf(p, y + 0.05 * sc, ang, 0.8), Color(1, 1, 1, seed))
 
 ## A ring of palisade segments with a gate, outside the houses (and the thorn hedge if there is one).

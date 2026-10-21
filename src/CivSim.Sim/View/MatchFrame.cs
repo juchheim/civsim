@@ -144,6 +144,14 @@ public sealed class MatchFrame
     public int CampCount;
     public int[] CampTile = Array.Empty<int>();
     public sbyte[] CampCiv = Array.Empty<sbyte>();
+    // ---- monuments: the megalith a civilization raised (docs/MVP/02, STN-10); the front end plays the raising from the tick ----
+    public int MonumentCount;
+    public int[] MonumentTile = Array.Empty<int>();
+    public sbyte[] MonumentCiv = Array.Empty<sbyte>();
+    /// <summary>The tick the project was learned; the raising runs from here.</summary>
+    public long[] MonumentTick = Array.Empty<long>();
+    /// <summary>Population of the village that raises it (the size of the hauling crew).</summary>
+    public int[] MonumentPopulation = Array.Empty<int>();
     public int BeaconCount;
     public int[] BeaconTile = Array.Empty<int>();
     public sbyte[] BeaconCiv = Array.Empty<sbyte>();
@@ -306,6 +314,12 @@ public sealed class MatchFrame
     }
 
     internal void EnsureCamps(int n) { if (CampTile.Length < n) { Ensure(ref CampTile, n); Ensure(ref CampCiv, n); } }
+
+    internal void EnsureMonuments(int n)
+    {
+        if (MonumentTile.Length >= n) return;
+        Ensure(ref MonumentTile, n); Ensure(ref MonumentCiv, n); Ensure(ref MonumentTick, n); Ensure(ref MonumentPopulation, n);
+    }
 
     internal void EnsureBeacons(int n) { if (BeaconTile.Length < n) { Ensure(ref BeaconTile, n); Ensure(ref BeaconCiv, n); } }
 

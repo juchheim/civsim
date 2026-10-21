@@ -71,6 +71,18 @@ func update_frame(frame_data: Dictionary) -> void:
 			" scene=", (built - tile_state) / 1000.0,
 			" rest=", (Time.get_ticks_usec() - built) / 1000.0)
 
+## The host's smooth simulation tick, every frame: the megalith's raising is played from it.
+func set_render_tick(tick: float) -> void:
+	if builder != null and builder.rig != null:
+		builder.rig.update(tick)
+
+## Dev aid for scenarios: the first monument's ring centre in world coordinates (or the origin when there is none).
+func monument_focus() -> Vector3:
+	if builder == null or builder.rig == null or builder.rig.sites.is_empty():
+		return Vector3.ZERO
+	var c: Vector2 = builder.rig.sites[0].center
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
 func _process(_delta: float) -> void:
 	if builder != null:
 		builder.update_herds()
