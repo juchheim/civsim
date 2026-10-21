@@ -31,6 +31,7 @@
 | 16 | [Catalog Format & Tooling](16-catalog-format-and-tooling.md) | YAML schema for projects and registries, content pack and hash, the 18-check validator and CLI, migration from markdown, golden numbers |
 | 17 | [Vertical Slice](17-vertical-slice.md) | First-playable scope (E0–E2, one player vs. three AI), what is stubbed or cut, milestones M0–M9 with gates, the consolidated acceptance checklist, a demo script |
 | 18 | [View Layer](18-view-layer.md) | The sim-to-renderer contract: frame fields and units, fog and memory for the viewer, figure layout, the lock-free hand-off and interpolation, the event stream and text keys, player commands, budgets, using it from Godot |
+| 21 | [Island Crossing](21-island-crossing.md) | Boats that carry parties and settlers to the islands: measured gap in the sim, decisions, outrigger range and shipwreck rules, phases, risks |
 
 ## The game in ten lines
 1. Every player starts as a band of **12 people** in the Paleolithic.
