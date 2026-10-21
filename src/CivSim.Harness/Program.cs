@@ -47,6 +47,7 @@ public static class Program
                 "politics" => PoliticsCommand.Run(args[1..]),
                 "ai" => AiCommand.Run(args[1..]),
                 "view" => ViewCommand.Run(args[1..]),
+                "acceptance" => AcceptanceCommand.Run(args[1..]),
                 "worldgen" => RunWorldGen(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2..]),
                 _ => Usage(),
@@ -68,6 +69,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6) [--seeds N] [--minutes N] [--archetype X]");
         Console.Error.WriteLine("       civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none] [--archetypes a,b,c,d] [--trace] [--record FILE] [--check-golden FILE | --write-golden FILE] [--check-c5]");
         Console.Error.WriteLine("       civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]");
+        Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");
         return 2;
     }
