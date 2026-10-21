@@ -511,6 +511,7 @@ public partial class Game : Node3D
             ["herds"] = herds,
             ["settlements"] = settlements,
             ["monuments"] = monuments,
+            ["seaTier"] = ToIntArray(frame.CivSeaTier, frame.CivSeaTier.Length),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,
@@ -534,6 +535,13 @@ public partial class Game : Node3D
     {
         var result = new T[count];
         Array.Copy(values, result, count);
+        return result;
+    }
+
+    private static int[] ToIntArray(byte[] values, int count)
+    {
+        var result = new int[count];
+        for (int i = 0; i < count; i++) result[i] = values[i];
         return result;
     }
 

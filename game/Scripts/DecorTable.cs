@@ -6,15 +6,15 @@ using CivSim.Sim.View;
 namespace CivSim.Game;
 
 /// <summary>
-/// Cosmetic props a settlement grows when its people learn a project: a totem post, a cairn, a loom, a canoe on the shore.
+/// Cosmetic props a settlement grows when its people learn a project: a totem post, a cairn, a loom, a stone quarry. Boats are separate (a moored fleet by tier, from the frame's sea tier).
 /// Purely a view of what the focus civilization knows (the same completed set the research web shows); nothing here feeds
 /// back into the simulation. The numbers are the renderer's decor kinds (<c>M7MeshKit.DECOR_NAMES</c> in mesh_kit.gd).
 /// </summary>
 public static class DecorTable
 {
     public const int Totem = 0, Cairn = 1, HideFrame = 2, Pots = 3, Loom = 4, Shrine = 5, Signal = 6, Charcoal = 7,
-        Furnace = 8, Canoe = 9, Sledge = 10, Palisade = 11, SpearRack = 12, Grave = 13, Council = 14, Quarry = 15,
-        SkyPole = 16, Bricks = 17, Baskets = 18, Woodwork = 19;
+        Furnace = 8, Sledge = 9, Palisade = 10, SpearRack = 11, Grave = 12, Council = 13, Quarry = 14,
+        SkyPole = 15, Bricks = 16, Baskets = 17, Woodwork = 18;
 
     /// <summary>Project id to the prop it leaves in the village. Several projects may share a prop.</summary>
     private static readonly (string Project, int Decor)[] Rows =
@@ -28,7 +28,6 @@ public static class DecorTable
         ("COM-04", Signal),
         ("FIR-08", Charcoal),
         ("MET-01", Furnace), ("MET-02", Furnace),
-        ("SEA-01", Canoe), ("SEA-02", Canoe), ("SEA-03", Canoe), ("SEA-04", Canoe),
         ("MEC-02", Sledge), ("TRN-02", Sledge), ("NRG-01", Sledge),
         ("DEF-03", Palisade),
         ("HNT-03", SpearRack), ("HNT-04", SpearRack), ("HNT-05", SpearRack), ("HNT-06", SpearRack),

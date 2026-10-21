@@ -44,6 +44,7 @@ func _init() -> void:
 	_structures()
 	_decor()
 	_monument()
+	_boats()
 	_people()
 	_animals()
 
@@ -784,7 +785,7 @@ func _animals() -> void:
 
 ## Index = the decor kind the host sends; mesh name = "decor_" + name.
 const DECOR_NAMES := ["totem", "cairn", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",
-	"canoe", "sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork"]
+	"sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork"]
 
 func _decor() -> void:
 	var b := _b(700)
@@ -874,14 +875,6 @@ func _decor() -> void:
 	b.tag = M7MeshBuilder.TAG_EMISSIVE
 	b.box(Vector3(0, 0.012, 0.03), Vector3(0.016, 0.014, 0.004), Color("#ff6a20"))
 	meshes["decor_furnace"] = b.commit()
-
-	# canoe: a hollowed log (long axis on local Z) and its paddle
-	b = _b(710)
-	b.blob(Vector3(0, 0.01, 0), Vector3(0.022, 0.012, 0.085), 8, 3, WOOD_LIGHT, 0.0, WOOD)
-	b.blob(Vector3(0, 0.017, 0), Vector3(0.014, 0.006, 0.07), 8, 3, Color("#3a2c1f"))
-	b.pole(Vector3(0.032, 0.002, 0.02), Vector3(0.044, 0.034, 0.004), 0.0024, WOOD)
-	b.box(Vector3(0.046, 0.038, 0.0), Vector3(0.008, 0.014, 0.003), WOOD_LIGHT)
-	meshes["decor_canoe"] = b.commit()
 
 	# sledge: runners and cross boards under a stone block
 	b = _b(711)
@@ -1011,3 +1004,42 @@ func _monument() -> void:
 	b = _b(734)
 	b.box(Vector3(0, 0, 0.5), Vector3(0.004, 0.004, 1.0), Color("#b9a68a"))
 	meshes["monument_rope"] = b.commit()
+
+
+# ------------------------------------------------------------------ boats under fishers (named person_* so they glide with them)
+
+## Hulls lie along +Z, origin at the waterline, about 0.2 long. Tiers: 1 raft, 2 bark canoe, 3 dugout, 4 outrigger.
+func _boats() -> void:
+	var cord := Color("#b9a68a")
+	var b := _b(740)
+	for i in 5:
+		var x := -0.044 + i * 0.022
+		b.pole(Vector3(x, 0.006, -0.095), Vector3(x, 0.006, 0.095), 0.0115, WOOD_LIGHT if i % 2 == 0 else WOOD, 6)
+	for z in [-0.045, 0.045]:
+		b.box(Vector3(0, 0.0165, z), Vector3(0.112, 0.004, 0.007), cord)
+	meshes["person_boat_1"] = b.commit()
+
+	b = _b(741)
+	b.blob(Vector3(0, 0.008, 0), Vector3(0.027, 0.014, 0.105), 8, 3, Color("#b88a56"), 0.0, Color("#8a6238"))
+	b.blob(Vector3(0, 0.014, 0), Vector3(0.017, 0.007, 0.09), 8, 3, Color("#4a3322"))
+	b.prism(Vector3(0, 0.01, 0.1), 0.008, 0.0, 0.03, 4, Color("#b88a56"), Color("#b88a56"))
+	b.prism(Vector3(0, 0.01, -0.1), 0.008, 0.0, 0.03, 4, Color("#b88a56"), Color("#b88a56"))
+	meshes["person_boat_2"] = b.commit()
+
+	b = _b(742)
+	b.blob(Vector3(0, 0.01, 0), Vector3(0.034, 0.017, 0.125), 8, 3, WOOD_LIGHT, 0.0, WOOD)
+	b.blob(Vector3(0, 0.017, 0), Vector3(0.022, 0.008, 0.105), 8, 3, Color("#3a2c1f"))
+	for z in [-0.045, 0.0, 0.045]:
+		b.box(Vector3(0, 0.02, z), Vector3(0.06, 0.004, 0.008), WOOD)
+	meshes["person_boat_3"] = b.commit()
+
+	b = _b(743)
+	b.blob(Vector3(0, 0.009, 0), Vector3(0.026, 0.015, 0.13), 8, 3, WOOD_LIGHT, 0.0, WOOD)
+	b.blob(Vector3(0, 0.015, 0), Vector3(0.016, 0.007, 0.11), 8, 3, Color("#3a2c1f"))
+	b.pole(Vector3(0.066, 0.008, -0.085), Vector3(0.066, 0.008, 0.085), 0.0075, WOOD_LIGHT, 6)
+	for z in [-0.045, 0.045]:
+		b.pole(Vector3(0.012, 0.016, z), Vector3(0.066, 0.012, z), 0.0028, WOOD)
+	meshes["person_boat_4"] = b.commit()
+	# the same hulls for boats at rest (plain props, not figures)
+	for tier in range(1, 5):
+		meshes["boat_%d" % tier] = meshes["person_boat_%d" % tier]

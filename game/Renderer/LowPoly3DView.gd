@@ -95,6 +95,13 @@ func trail_focus() -> Vector3:
 	var c: Vector2 = world.tile_center(tile)
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
+## Dev aid for scenarios: where the last boat was placed (the origin when none).
+func boat_focus() -> Vector3:
+	if builder == null or builder.boat_probe == Vector2.ZERO:
+		return Vector3.ZERO
+	var c: Vector2 = builder.boat_probe
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
 func _process(_delta: float) -> void:
 	if builder != null:
 		builder.update_herds()

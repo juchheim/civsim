@@ -47,6 +47,7 @@ public sealed partial class FrameBuilder
     private readonly bool[] _passable;
     private readonly ResearchCatalog _catalog;
     private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03, _stn10;
+    private readonly int[] _boatProjects;
     /// <summary>Per civilization: the tile and village its megalith stands at (-1 until the project is done). View-only, not part of the saved view state: a loaded game picks it again.</summary>
     private readonly int[] _monumentTile, _monumentSettlement;
 
@@ -116,6 +117,7 @@ public sealed partial class FrameBuilder
         _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06");
         _def03 = _catalog.IndexOf("DEF-03");
         _stn10 = _catalog.IndexOf("STN-10");
+        _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04") };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
         _explored = new byte[_tileCount];
@@ -205,6 +207,7 @@ public sealed partial class FrameBuilder
         FillPlotsCampsBeacons(eco, pol, target);
         FillMonuments(match.Research, target);
         FillTrails(match, target);
+        FillSeafaring(match.Research, target);
         FillHerdsAndPredators(eco, target);
         FillParties(target);
         FillOccupations(pol, target);
@@ -945,6 +948,19 @@ public sealed partial class FrameBuilder
     }
 
     // ---- herds, predators, parties, occupations -------------------------------------------------
+
+    /// <summary>The best boat each civilization knows; the front end puts it under fishers working a shore or a river.</summary>
+    private void FillSeafaring(ResearchSystem research, MatchFrame target)
+    {
+        if (target.CivSeaTier.Length < _civs) target.CivSeaTier = new byte[_civs];
+        for (int c = 0; c < _civs; c++)
+        {
+            int tier = 0;
+            for (int i = 0; i < _boatProjects.Length; i++)
+                if (_boatProjects[i] >= 0 && research.IsDone(c, _boatProjects[i])) tier = i + 1;
+            target.CivSeaTier[c] = (byte)tier;
+        }
+    }
 
     /// <summary>
     /// The megalith a civilization raised stands at its oldest living village from the moment the project is learned, and stays

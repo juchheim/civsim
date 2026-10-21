@@ -279,6 +279,17 @@ public partial class Game
                 Step(() => ZoomTo(26.0f), 1.5f);
                 Shot("trail-wide");
                 break;
+            case "boats":
+                Step(() => { FrameCapital(); ZoomTo(3.8f); _session!.SetSpeedIndex(1); }, 1.0f);
+                foreach (string boat in new[] { "Floats & Rafts", "Bark & Hide Canoes", "Dugout Canoes", "Outriggers" })
+                {
+                    string boatName = boat;
+                    Step(() => GrantProject(FindProjectByName(boatName)), 2.2f);
+                    Shot("boats-" + boatName.Split(' ')[0].ToLowerInvariant());
+                }
+                Step(() => ZoomTo(2.4f), 1.0f);
+                Shot("boats-close");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);

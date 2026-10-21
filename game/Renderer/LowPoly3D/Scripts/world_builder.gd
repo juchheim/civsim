@@ -40,6 +40,7 @@ var borders_far_node: MeshInstance3D
 var river_node: MeshInstance3D
 var structure_signature := -1
 var rig: M7MonumentRig
+var boat_probe := Vector2.ZERO          # the last boat placed (dev scenarios aim the camera at it)
 var trail_node: MeshInstance3D
 var trail_signature := -1
 var border_signature := -1
@@ -294,7 +295,8 @@ func _structure_digest() -> int:
 	for s in w.settlements:
 		h = h * 31 + int(s.tile)
 		h = h * 31 + int(s.civ)
-		h = h * 31 + int(s.population)
+		h = h * 31 + int(s.population / 8)           # the fleet's size steps with it
+		h = h * 31 + (w.sea_tier[int(s.civ)] if int(s.civ) >= 0 and int(s.civ) < w.sea_tier.size() else 0)
 		for n in s.structures:
 			h = h * 31 + int(n)
 		for n in s.get("decor", PackedInt32Array()):
@@ -365,6 +367,55 @@ func _collect_river_segments(paths: Array) -> void:
 					if not river_grid.has(key):
 						river_grid[key] = []
 					river_grid[key].append(segment_index)
+
+## The nearest point on a river to p, as [distance, point, flow direction]; distance is huge when there is none in reach.
+func _river_near(p: Vector2) -> Array:
+	var best_squared := 1e18
+	var best_point := p
+	var best_dir := Vector2.ZERO
+	var key := Vector2i(int(floor(p.x / RIVER_GRID_SIZE)), int(floor(p.y / RIVER_GRID_SIZE)))
+	for segment_index in river_grid.get(key, []):
+		var s: Array = river_segs[segment_index]
+		var a: Vector2 = s[0]
+		var ab: Vector2 = s[1] - a
+		var length_squared := ab.length_squared()
+		var along := clampf((p - a).dot(ab) / length_squared, 0.0, 1.0) if length_squared > 0.000001 else 0.0
+		var at := a + ab * along
+		var d := (p - at).length_squared()
+		if d < best_squared:
+			best_squared = d
+			best_point = at
+			best_dir = ab.normalized() if length_squared > 0.000001 else Vector2.ZERO
+	return [sqrt(best_squared), best_point, best_dir]
+
+const BOAT_REACH := 0.6      # a fisher this close to water takes to a boat; closer still and the boat is fully under them
+const BOAT_NEAR := 0.1
+
+## Where a fisher at p would float: the nearest river point or just off the nearest shore, with the boat's heading and how
+## fully it has taken them (0 out of reach .. 1 afloat). Returns [point, heading, strength].
+func _boat_spot(p: Vector2) -> Array:
+	var best := BOAT_REACH
+	var point := p
+	var heading := Vector2.ZERO
+	var river := _river_near(p)
+	if float(river[0]) < best:
+		best = river[0]
+		point = river[1]
+		heading = river[2]
+	var t: int = w.tile_at(p)
+	if t >= 0:
+		var c: Vector2 = w.tile_center(t)
+		for i in 6:
+			var nb: int = w.neighbour(t, i)
+			if nb >= 0 and w.is_water(nb):
+				var wc: Vector2 = w.tile_center(nb)
+				var q := c.lerp(wc, 0.62)
+				var d := p.distance_to(q)
+				if d < best:
+					best = d
+					point = q
+					heading = (wc - c).normalized().rotated(PI * 0.5)
+	return [point, heading, 1.0 - smoothstep(BOAT_NEAR, BOAT_REACH, best)]
 
 func _river_dist(p: Vector2) -> float:
 	var best_squared := 1e18
@@ -735,6 +786,9 @@ func _settlements() -> void:
 			var sc := VS * (0.95 + 0.15 * M7WorldData.hash01(t, placed.size(), 5))
 			props.add(it, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
+		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
+		if sea > 0:
+			_moor_fleet(t, c0, seed, sea, int(s.population))
 		var decor = s.get("decor", PackedInt32Array())
 		if decor.size() > 0:
 			_place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0)
@@ -815,7 +869,7 @@ func _settlements() -> void:
 const DECOR_FAR := ["cairn", "shrine", "signal", "charcoal", "grave", "quarry", "skypole"]
 
 ## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
-## palisade rings the village, the canoe lies on the shore. `placed` holds the house spots so nothing overlaps.
+## palisade rings the village, `placed` holds the house spots so nothing overlaps.
 func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float, rmax: float, placed: Array, cc: Color,
 		has_thorns: bool) -> void:
 	var near_r := rmax + 0.17
@@ -830,9 +884,6 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		var tint := Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, kind_i, 11))
 		if decor_name == "palisade":
 			_decor_palisade(t, c, seed, rmax + (0.2 if has_thorns else 0.13), tint)
-			continue
-		if decor_name == "canoe":
-			_decor_canoe(t, c, c0, seed, tint)
 			continue
 		var base := far_r if DECOR_FAR.has(decor_name) else near_r
 		var found := false
@@ -878,28 +929,51 @@ func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) 
 		var tang := a + PI * 0.5
 		props.add("decor_palisade", _xf(q, w.height_at(q), -tang, 1.1), tint)
 
-## A canoe drawn up on the nearest shore: a neighbouring water tile, else the river bank.
-func _decor_canoe(t: int, c: Vector2, c0: Vector2, seed: float, tint: Color) -> void:
+## The boats a village keeps: one to four (by population) moored along the nearest shore or river bank, of the best kind its
+## civilization knows (1 raft .. 4 outrigger). Nothing happens if there is no water within a short walk.
+func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int) -> void:
+	var count := clampi(population / 8, 1, 4)
+	var mesh_name := "boat_%d" % tier
+	var anchor := Vector2.ZERO
+	var along := Vector2.ZERO
+	var level := 0.0
+	var found := false
 	for i in 6:
-		var nb := w.neighbour(t, (i + int(seed * 6.0)) % 6)
+		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
 		if nb >= 0 and w.is_water(nb):
-			var dir := w.tile_center(nb) - c0
-			var q := c0 + dir * 0.46
-			props.add("decor_canoe", _xf(q, maxf(w.height_at(q), 0.0) + 0.004, atan2(dir.x, dir.y) + PI * 0.5, 1.25), tint)
-			return
-	var best := 1e9
-	var bq := Vector2.ZERO
-	var bd := Vector2.ZERO
-	for sgi in river_segs:
-		var a2: Vector2 = sgi[0]
-		var dd := absf(a2.distance_to(c) - 0.5)
-		if a2.distance_to(c) > 0.9 or dd >= best:
+			var dir: Vector2 = w.tile_center(nb) - c0
+			anchor = c0 + dir * 0.6
+			along = dir.normalized().rotated(PI * 0.5)
+			level = 0.004
+			found = true
+			break
+	if not found:
+		# the river bank about a short walk from the hearth, not under the houses
+		var best := 1e9
+		for sgi in river_segs:
+			var a2: Vector2 = sgi[0]
+			var dist := a2.distance_to(c0)
+			if dist > 1.2:
+				continue
+			var gap := absf(dist - 0.7)
+			if gap < best:
+				best = gap
+				anchor = a2
+				along = ((sgi[1] as Vector2) - a2).normalized()
+				level = -1.0
+				found = true
+	if not found or along == Vector2.ZERO:
+		return
+	for k in count:
+		var off := (k - (count - 1) * 0.5) * 0.2
+		var q := anchor + along * off
+		var tq := w.tile_at(q)
+		if tq < 0:
 			continue
-		best = dd
-		bq = a2
-		bd = (sgi[1] as Vector2) - a2
-	if best < 0.3:
-		props.add("decor_canoe", _xf(bq, w.height_at(bq) + 0.012, atan2(bd.x, bd.y), 1.25), tint)
+		var y := (maxf(w.height_at(q), 0.0) + 0.012) if level < 0.0 else level
+		var hv := M7WorldData.hash01(t, k, 31)
+		var yaw := atan2(along.x, along.y) + (hv - 0.5) * 0.35
+		props.add(mesh_name, _xf(q, y, yaw, 1.0), Color(1, 1, 1, hv))
 
 func _camps() -> void:
 	for cp in w.camps:
@@ -919,6 +993,12 @@ func _camps() -> void:
 		props.add("banner_small%d" % civ, _xf(c + Vector2(-0.07, -0.02), h, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
 
 # ------------------------------------------------------------------ people
+
+## `--boat-debug` puts every adult near water in a boat, tier 1 to 4 by figure index.
+var BOAT_DEBUG: bool = "--boat-debug" in OS.get_cmdline_user_args()
+
+func _debug_boat_tier(fi: int) -> int:
+	return 1 + (fi / 11) % 4
 
 ## `--tier-debug` gives every adult a tool and cycles the tier by figure index so all four looks can be seen at once.
 var TIER_DEBUG: bool = "--tier-debug" in OS.get_cmdline_user_args()
@@ -977,14 +1057,31 @@ func _figures() -> void:
 		var placed := _place_figure(mx, my, home, seed * TAU)
 		var p: Vector2 = placed[0]
 		var face: float = placed[1]
+		# fishers who know a boat take to it near a river or shore (not while still at home)
+		var boat_tier := 0
+		var boat_strength := 0.0
+		if (act == 3 or BOAT_DEBUG) and age == 1 and not regional_lod and civ >= 0 and civ < w.sea_tier.size():
+			boat_tier = _debug_boat_tier(fi) if BOAT_DEBUG else w.sea_tier[civ]
+			if boat_tier > 0 and (BOAT_DEBUG or (home >= 0 and home < w.settlements.size() and w.tile_at(p) != int(w.settlements[home].tile))):
+				var spot := _boat_spot(p)
+				boat_strength = spot[2]
+				if boat_strength > 0.0:
+					p = p.lerp(spot[0], boat_strength)
+					if (spot[1] as Vector2) != Vector2.ZERO:
+						face = atan2((spot[1] as Vector2).x, (spot[1] as Vector2).y)
 		var y := maxf(w.height_at(p), 0.0)
+		if boat_strength > 0.0:
+			y += 0.006 * boat_strength
 		var offset := Vector2.ZERO
 		var dy := 0.0
 		if pmx >= 0 and (pmx != mx or pmy != my):
 			var pp: Vector2 = _place_figure(pmx, pmy, home, seed * TAU)[0]
+			if boat_strength > 0.0:
+				var prev_spot := _boat_spot(pp)
+				pp = pp.lerp(prev_spot[0], prev_spot[2])
 			offset = pp - p
 			dy = maxf(w.height_at(pp), 0.0) - y
-			if offset.length() > 0.004:
+			if offset.length() > 0.004 and boat_strength < 0.5:
 				face = atan2(-offset.x, -offset.y)     # walking from pp to p
 		var custom := _glide_custom(tint, mode_offset, seed, dy, offset)
 		if regional_lod:
@@ -1010,6 +1107,11 @@ func _figures() -> void:
 				tier = (idx / 3) % M7MeshKit.TOOL_TIERS
 			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer"]:
 				mesh += "_t" + str(tier)
+		if boat_strength > 0.0:
+			# the fisher stands in the boat; the hull shrinks away as they leave the water
+			props.add("person_boat_%d" % boat_tier, _xf(p, y - 0.006 * boat_strength, face, boat_strength), custom)
+			y += 0.014 * boat_strength
+			boat_probe = p
 		props.add(mesh, _xf(p, y, face, 1.0), custom)
 		var carry := (fl >> 16) & 15
 		if TIER_DEBUG and carry == 0:

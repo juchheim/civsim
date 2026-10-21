@@ -53,4 +53,23 @@ public class ViewMonumentTests
         Assert.Equal(1, omniscient.MonumentCount);
         Assert.Equal(3, omniscient.MonumentCiv[0]);
     }
+
+    [Fact]
+    public void Each_civilization_reports_the_best_boat_its_people_know()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(10);
+        var builder = new FrameBuilder(match, -1);
+        var frame = new MatchFrame();
+        builder.Build(match, frame);
+        for (int c = 0; c < frame.CivSeaTier.Length; c++) Assert.Equal(0, frame.CivSeaTier[c]);
+
+        runner.Submit(new Command(runner.Tick, 1, CommandKind.CompleteProject, match.Research.Catalog.IndexOf("SEA-01"), 0, 0));
+        runner.Submit(new Command(runner.Tick, 1, CommandKind.CompleteProject, match.Research.Catalog.IndexOf("SEA-03"), 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(3, frame.CivSeaTier[1]);
+        Assert.Equal(0, frame.CivSeaTier[0]);
+    }
 }

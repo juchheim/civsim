@@ -152,6 +152,9 @@ public sealed class MatchFrame
     public long[] MonumentTick = Array.Empty<long>();
     /// <summary>Population of the village that raises it (the size of the hauling crew).</summary>
     public int[] MonumentPopulation = Array.Empty<int>();
+    // ---- seafaring: per civilization, the best boat its people know (0 none, 1 raft SEA-01, 2 bark canoe, 3 dugout, 4 outrigger) ----
+    public byte[] CivSeaTier = Array.Empty<byte>();
+
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;
     /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>
