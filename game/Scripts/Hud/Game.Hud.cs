@@ -200,6 +200,7 @@ public partial class Game
         TickFocusBar((float)delta);
         TickTileCard((float)delta);
         TickCamera((float)delta);
+        TickPulses((float)delta);
         TickHint((float)delta);
         _devTimer += (float)delta;
         if (_devTimer >= 0.25f)

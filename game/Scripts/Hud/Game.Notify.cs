@@ -839,6 +839,8 @@ public partial class Game
             case ViewEventKind.ProjectCompleted:
                 AddChronicle(item, $"Your people learned {project}.", ChronicleClass.Research, true);
                 QueueMoment(item.Project, item.Tile);
+                if (mine && item.Tile >= 0)
+                    StartPulse(item.Tile, _catalog is not null && (uint)item.Project < (uint)_catalog.Projects.Count && _catalog.Projects[item.Project].IsKeystone);
                 OnResearchProjectCompleted(item.Project);
                 break;
             case ViewEventKind.FirstClaimed:
