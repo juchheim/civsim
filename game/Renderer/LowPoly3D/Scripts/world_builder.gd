@@ -892,6 +892,11 @@ func _figures() -> void:
 			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer"]:
 				mesh += "_t" + str(tier)
 		props.add(mesh, _xf(p, y, face, 1.0), custom)
+		var carry := (fl >> 16) & 15
+		if TIER_DEBUG and carry == 0:
+			carry = 1 + (fi / 11) % 8
+		if carry > 0 and carry < M7MeshKit.CARRY_NAMES.size() and age == 1 and act != 13 and act != 14:
+			props.add("person_carry_" + M7MeshKit.CARRY_NAMES[carry], _xf(p, y, face, 1.0), custom)
 		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 1.0), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
 		n += 1
 	# people who just left: stay where they stood for one glide and fade out

@@ -350,7 +350,7 @@ public partial class Game : Node3D
             figures[o + 2] = frame.FigureCiv[i];
             figures[o + 3] = frame.FigureAge[i];
             figures[o + 4] = frame.FigureActivity[i];
-            figures[o + 5] = frame.FigureFlags[i];
+            figures[o + 5] = frame.FigureFlags[i] | (frame.FigureCarry[i] << 16);   // what is carried rides in the high bits
             figures[o + 6] = frame.FigureToolRung[i];
             figures[o + 7] = frame.FigureSettlement[i];
             figures[o + 8] = (int)(frame.FigureId[i] & 0x3fffffff);

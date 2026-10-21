@@ -642,7 +642,48 @@ func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, t
 		b.pole(Vector3(0.03, 0, 0.02), Vector3(0.026, 0.06, 0.016), 0.0026, WOOD_LIGHT)
 	return b.commit()
 
+## Loads carried home on a person's back or in a hand, in the person's local frame (+Y up, the back is -Z). Index = the sim's
+## CarryKind (1 plants, 2 meat, 3 fish, 4 wood, 5 stone, 6 grain, 7 goods, 8 loot).
+const CARRY_NAMES := ["", "plants", "meat", "fish", "wood", "stone", "grain", "goods", "loot"]
+
+func _carry_meshes() -> void:
+	for kind in range(1, CARRY_NAMES.size()):
+		var b := _b(600 + kind)
+		match kind:
+			1:   # a pack basket of roots and greens
+				b.prism(Vector3(0, 0.02, -0.027), 0.012, 0.015, 0.022, 6, Color("#b08a4e"), Color("#5a7a2c"))
+				b.blob(Vector3(-0.004, 0.047, -0.027), Vector3(0.008, 0.006, 0.008), 5, 3, Color("#6f9a34"))
+				b.blob(Vector3(0.006, 0.045, -0.025), Vector3(0.006, 0.005, 0.006), 5, 3, Color("#d6ae43"))
+			2:   # a carcass slung over the shoulders
+				b.blob(Vector3(0.0, 0.052, -0.022), Vector3(0.024, 0.011, 0.013), 6, 3, Color("#a34431"), 0.0, Color("#7a2f22"))
+				b.pole(Vector3(-0.02, 0.046, -0.026), Vector3(-0.034, 0.03, -0.03), 0.0032, Color("#8f7354"))
+				b.pole(Vector3(0.02, 0.046, -0.026), Vector3(0.034, 0.03, -0.03), 0.0032, Color("#8f7354"))
+			3:   # fish on a string from the left hand
+				for i in 3:
+					var x := -0.028 - 0.004 * i
+					b.blob(Vector3(x, 0.002 - 0.011 * i, 0.008), Vector3(0.004, 0.009, 0.0026), 5, 3, Color("#7fb0b8"), 0.0, Color("#d8e6e4"))
+				b.pole(Vector3(-0.026, 0.008, 0.006), Vector3(-0.034, -0.03, 0.008), 0.0012, Color("#6b5a40"))
+			4:   # sticks and branches bundled upright
+				b.pole(Vector3(-0.012, 0.014, -0.026), Vector3(-0.006, 0.086, -0.03), 0.0032, WOOD_LIGHT)
+				b.pole(Vector3(0.0, 0.012, -0.027), Vector3(0.01, 0.092, -0.026), 0.0032, Color("#6e5238"))
+				b.pole(Vector3(0.012, 0.014, -0.026), Vector3(0.02, 0.08, -0.032), 0.0032, WOOD_LIGHT)
+				b.pole(Vector3(-0.02, 0.016, -0.025), Vector3(-0.022, 0.07, -0.02), 0.0028, Color("#6e5238"))
+			5:   # a stone on the shoulder
+				b.blob(Vector3(0.0, 0.034, -0.026), Vector3(0.016, 0.013, 0.013), 6, 3, STONE, 0.1, STONE_DARK)
+				b.blob(Vector3(0.012, 0.024, -0.024), Vector3(0.009, 0.007, 0.008), 5, 3, STONE_DARK, 0.1)
+			6:   # a sheaf of grain
+				b.prism(Vector3(0, 0.012, -0.026), 0.006, 0.017, 0.05, 6, Color("#d6ae43"), Color("#e4c25a"))
+				b.pole(Vector3(-0.017, 0.032, -0.026), Vector3(0.017, 0.032, -0.026), 0.0022, Color("#8a6a3a"))
+			7:   # a wrapped bundle for a gift or barter
+				b.box(Vector3(0, 0.036, -0.028), Vector3(0.03, 0.03, 0.02), Color("#bf8c58"), Color("#d2a26e"))
+				b.box(Vector3(0, 0.036, -0.0285), Vector3(0.006, 0.032, 0.021), Color("#7a5a3a"))
+			8:   # a loot sack
+				b.blob(Vector3(0.0, 0.034, -0.028), Vector3(0.017, 0.018, 0.014), 6, 4, Color("#8a6a45"), 0.06, Color("#6e5238"))
+				b.pole(Vector3(-0.006, 0.05, -0.028), Vector3(0.006, 0.05, -0.028), 0.0026, Color("#4a3a2a"))
+		meshes["person_carry_" + CARRY_NAMES[kind]] = b.commit()
+
 func _people() -> void:
+	_carry_meshes()
 	for t in ["", "spear", "basket", "axe", "hoe", "pole", "hammer", "bundle"]:
 		meshes["person_" + (t if t != "" else "plain")] = _person(500 + t.length(), t)
 		if t in ["spear", "axe", "hoe", "hammer"]:
