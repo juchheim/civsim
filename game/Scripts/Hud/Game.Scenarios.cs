@@ -126,6 +126,8 @@ public partial class Game
                 Shot("tile-hover");
                 Step(() => { _pinnedTile = _hoverTile; RefreshTileCardNow(_hoverScreen); });
                 Shot("tile-pinned");
+                Step(() => ZoomTo(ZoomPresets[2]), 1.2f);
+                Shot("tile-pinned-z2");
                 break;
             case "end":
                 Step(ShowEndScreen);
@@ -204,6 +206,17 @@ public partial class Game
                 Shot("session-loaded");
                 Step(() => StartNewMatch(unchecked(_matchSeed + 1)), 1.5f);
                 Shot("session-newmatch");
+                break;
+            case "beacon":
+                Step(() => GrantProject(FindProjectByName("Songlines")), 1.5f);
+                Step(() => GD.Print($"SCN beacons allowed={_current!.FocusBeaconsAllowed} placed={_current.FocusBeaconsPlaced}"));
+                Step(() => InjectKey(Key.B));
+                Step(() => GD.Print($"SCN beaconMode={_beaconMode}"));
+                Step(() => InjectClick(new Vector2(900, 380), MouseButton.Left), 2.0f);
+                Step(() => { TryPickTile(new Vector2(900, 380), out int pt); GD.Print($"SCN after click placed={_current!.FocusBeaconsPlaced} count={_current.BeaconCount} beaconTile={(_current.BeaconCount > 0 ? _current.BeaconTile[0] : -1)} pickedTile={pt} settlementTile={_current.SettlementTile[0]} w={_width}"); });
+                Shot("beacon-placed");
+                Step(() => ZoomTo(ZoomPresets[1]), 1.0f);
+                Shot("beacon-z1");
                 break;
             case "dev":
                 Step(ToggleDevOverlay);

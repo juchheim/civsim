@@ -85,6 +85,7 @@ public partial class Game
 
     private void TickTileCard(float delta)
     {
+        UpdatePinMarker();
         if (_tileCard is null || _current is null) return;
         if (_pinnedTile >= 0)
         {

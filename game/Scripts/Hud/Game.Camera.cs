@@ -482,7 +482,7 @@ public partial class Game
     {
         if (on && !(_current is { FocusBeaconsAllowed: > 0 } f && f.FocusBeaconsPlaced < f.FocusBeaconsAllowed))
         {
-            ShowToast("No Beacons yet", ToastKind.Info, "A Beacon is a suggestion that draws scouts and settlers to a spot. Learn Landmarks & Trails to unlock them.", key: "beacon-locked");
+            ShowToast("No Beacons yet", ToastKind.Info, "A Beacon is a suggestion that draws scouts and settlers to a spot. Learn Songlines to unlock them.", key: "beacon-locked");
             return;
         }
         _beaconMode = on;
