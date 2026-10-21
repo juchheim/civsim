@@ -334,7 +334,7 @@ public partial class Game : Node3D
     private const float MaxGlideTiles = 4.5f;
 
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
-        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null)
+        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null)
     {
         int tiles = frame.Width * frame.Height;
         const int figureStride = 11, herdStride = 7;
@@ -429,6 +429,8 @@ public partial class Game : Node3D
                 ["structures"] = structures,
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
             };
+            // Props the focus civilization's knowledge leaves in its own villages (DecorTable); rivals' settlements show none.
+            if (decor is { Length: > 0 } && frame.SettlementCiv[i] == frame.FocusCiv) settlement["decor"] = decor;
             settlements.Add(settlement);
         }
 
@@ -858,7 +860,8 @@ public partial class Game : Node3D
         if (_visualRenderer is not null && _session is not null)
         {
             long started = Stopwatch.GetTimestamp();
-            var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds);
+            var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds,
+                DecorTable.Known(frame, _catalog));
             double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _visualRenderer.Call("update_frame", payload);
             if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))
@@ -886,7 +889,7 @@ public partial class Game : Node3D
         _visualRenderer = rendererScript.New().AsGodotObject() as Node3D
             ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
         AddChild(_visualRenderer);
-        _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true));
+        _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true, decor: DecorTable.Known(frame, _catalog)));
         _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
     }
 

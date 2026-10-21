@@ -275,6 +275,8 @@ func _structure_digest() -> int:
 		h = h * 31 + int(s.population)
 		for n in s.structures:
 			h = h * 31 + int(n)
+		for n in s.get("decor", PackedInt32Array()):
+			h = h * 31 + int(n) + 1
 	for i in range(0, w.plots.size(), 2):
 		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1]
 	for c in w.camps:
@@ -709,6 +711,9 @@ func _settlements() -> void:
 			var sc := VS * (0.95 + 0.15 * M7WorldData.hash01(t, placed.size(), 5))
 			props.add(it, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
+		var decor = s.get("decor", PackedInt32Array())
+		if decor.size() > 0:
+			_place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0)
 		# lookout tower with a big banner at the edge
 		if st[K.LOOKOUT] > 0:
 			for i in 12:
@@ -781,6 +786,95 @@ func _settlements() -> void:
 					var col := M7MeshBuilder.lin(Color("#e8dfcc") if j != 2 else Color("#6e5a48"), 0.5)
 					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.0), _glide_custom((6 * 8 + 4) if j != 2 else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
 				break
+
+## Kinds that sit on the village edge rather than among the houses.
+const DECOR_FAR := [1, 2, 6, 7, 8, 14, 16, 17]
+
+## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
+## palisade rings the village, the canoe lies on the shore. `placed` holds the house spots so nothing overlaps.
+func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float, rmax: float, placed: Array, cc: Color,
+		has_thorns: bool) -> void:
+	var near_r := rmax + 0.17
+	var far_r := rmax + 0.3
+	var slot := 0
+	for kind in decor:
+		var kind_i := int(kind)
+		if kind_i < 0 or kind_i >= M7MeshKit.DECOR_NAMES.size():
+			continue
+		var mesh_name := "decor_" + String(M7MeshKit.DECOR_NAMES[kind_i])
+		var tint := Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, kind_i, 11))
+		if kind_i == 12:
+			_decor_palisade(t, c, seed, rmax + (0.2 if has_thorns else 0.13), tint)
+			continue
+		if kind_i == 10:
+			_decor_canoe(t, c, c0, seed, tint)
+			continue
+		var base := far_r if DECOR_FAR.has(kind_i) else near_r
+		var found := false
+		var p := Vector2.ZERO
+		for k in 40:
+			var a := seed * TAU + (slot + k) * 2.39996
+			var q := c + Vector2(cos(a), sin(a)) * (base + 0.035 * (k / 8))
+			if not _ok_site(q, h0):
+				continue
+			var clear := true
+			for pp in placed:
+				if (pp as Vector2).distance_to(q) < 0.17:
+					clear = false
+					break
+			if clear:
+				p = q
+				found = true
+				break
+		slot += 3
+		if not found:
+			continue
+		placed.append(p)
+		var d := c - p
+		var ang := atan2(d.x, d.y)
+		var sc := VS * (0.95 + 0.12 * M7WorldData.hash01(t, kind_i, 12))
+		var y := w.height_at(p)
+		props.add(mesh_name, _xf(p, y, ang, sc), tint)
+		if kind_i == 7:
+			props.add("flame", _xf(p, y + 0.05 * sc, ang, 0.8), Color(1, 1, 1, seed))
+
+## A ring of palisade segments with a gate, outside the houses (and the thorn hedge if there is one).
+func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) -> void:
+	var nseg := int(ceil(TAU * ring / 0.13))
+	var gate := int(seed * nseg)
+	for i in nseg:
+		if i == gate or i == (gate + 1) % nseg:
+			continue
+		var a := TAU * (i + 0.5) / nseg
+		var q := c + Vector2(cos(a), sin(a)) * ring * (1.0 + 0.05 * sin(a * 3.0 + seed * 7.0))
+		var tq := w.tile_at(q)
+		if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.08:
+			continue
+		var tang := a + PI * 0.5
+		props.add("decor_palisade", _xf(q, w.height_at(q), -tang, 1.1), tint)
+
+## A canoe drawn up on the nearest shore: a neighbouring water tile, else the river bank.
+func _decor_canoe(t: int, c: Vector2, c0: Vector2, seed: float, tint: Color) -> void:
+	for i in 6:
+		var nb := w.neighbour(t, (i + int(seed * 6.0)) % 6)
+		if nb >= 0 and w.is_water(nb):
+			var dir := w.tile_center(nb) - c0
+			var q := c0 + dir * 0.46
+			props.add("decor_canoe", _xf(q, maxf(w.height_at(q), 0.0) + 0.004, atan2(dir.x, dir.y) + PI * 0.5, 1.25), tint)
+			return
+	var best := 1e9
+	var bq := Vector2.ZERO
+	var bd := Vector2.ZERO
+	for sgi in river_segs:
+		var a2: Vector2 = sgi[0]
+		var dd := absf(a2.distance_to(c) - 0.5)
+		if a2.distance_to(c) > 0.9 or dd >= best:
+			continue
+		best = dd
+		bq = a2
+		bd = (sgi[1] as Vector2) - a2
+	if best < 0.3:
+		props.add("decor_canoe", _xf(bq, w.height_at(bq) + 0.012, atan2(bd.x, bd.y), 1.25), tint)
 
 func _camps() -> void:
 	for cp in w.camps:

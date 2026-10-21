@@ -232,6 +232,18 @@ public partial class Game
                 Step(() => _session!.SetPaused(true), 0.3f);
                 Shot("tools-a");
                 break;
+            case "decor":
+                Step(() =>
+                {
+                    foreach (string id in new[] { "BEL-02", "TER-03", "STN-10", "FIB-02", "CER-02", "FIB-07", "BEL-05", "COM-04", "FIR-08", "MET-02",
+                        "SEA-03", "MEC-02", "DEF-03", "HNT-05", "BEL-01", "GOV-01", "MIN-03", "INQ-02", "BLD-05", "FIB-05", "WOD-03" })
+                        GrantProject(_catalog!.IndexOf(id));
+                }, 4.0f);
+                Step(() => { FrameCapital(); ZoomTo(4.5f); }, 1.5f);
+                Shot("decor-a");
+                Step(() => { ZoomTo(3.0f); }, 1.2f);
+                Shot("decor-b");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);

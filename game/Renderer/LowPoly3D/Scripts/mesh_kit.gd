@@ -42,6 +42,7 @@ func _init() -> void:
 	_ground_cover()
 	_mountains()
 	_structures()
+	_decor()
 	_people()
 	_animals()
 
@@ -776,3 +777,210 @@ func _animals() -> void:
 	b.pole(Vector3(0.016, 0.025, -0.003), Vector3(0.012, 0.04, -0.004), 0.002, Color("#b9a68a"))
 	b.pole(Vector3(0.016, 0.025, 0.003), Vector3(0.012, 0.04, 0.004), 0.002, Color("#b9a68a"))
 	meshes["animal_small"] = b.commit()
+
+
+# ------------------------------------------------------------------ village decor (see game/Scripts/DecorTable.cs)
+
+## Index = the decor kind the host sends; mesh name = "decor_" + name.
+const DECOR_NAMES := ["totem", "cairn", "megalith", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",
+	"canoe", "sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork"]
+
+func _decor() -> void:
+	var b := _b(700)
+	# totem: a carved post, a civ-coloured band, a beaked head and spread wings
+	b.pole(Vector3(0, 0, 0), Vector3(0, 0.12, 0), 0.009, WOOD)
+	b.box(Vector3(0, 0.032, 0), Vector3(0.03, 0.028, 0.03), Color("#a6603a"))
+	b.tag = M7MeshBuilder.TAG_CIV
+	b.box(Vector3(0, 0.066, 0), Vector3(0.034, 0.012, 0.034), Color.WHITE)
+	b.tag = M7MeshBuilder.TAG_PLAIN
+	b.box(Vector3(0, 0.088, 0), Vector3(0.07, 0.008, 0.012), WOOD_LIGHT)
+	b.box(Vector3(0, 0.106, 0.004), Vector3(0.026, 0.022, 0.028), Color("#d8c08a"))
+	b.box(Vector3(0, 0.102, 0.022), Vector3(0.01, 0.01, 0.016), Color("#c9973c"))
+	meshes["decor_totem"] = b.commit()
+
+	# cairn: three stacked stones
+	b = _b(701)
+	b.blob(Vector3(0, 0.008, 0), Vector3(0.032, 0.014, 0.03), 6, 3, STONE, 0.1, STONE_DARK)
+	b.blob(Vector3(0.002, 0.024, 0), Vector3(0.022, 0.011, 0.02), 6, 3, ROCK_HI, 0.1, STONE)
+	b.blob(Vector3(-0.001, 0.036, 0.001), Vector3(0.013, 0.009, 0.013), 5, 3, STONE, 0.1)
+	meshes["decor_cairn"] = b.commit()
+
+	# megalith: a standing stone with the rollers it came on
+	b = _b(702)
+	b.prism(Vector3.ZERO, 0.03, 0.017, 0.15, 5, ROCK, ROCK_HI, 0.0, 0.12)
+	b.pole(Vector3(-0.055, 0.006, 0.03), Vector3(0.055, 0.006, 0.042), 0.006, WOOD)
+	b.pole(Vector3(-0.05, 0.006, 0.058), Vector3(0.05, 0.006, 0.066), 0.006, WOOD_LIGHT)
+	meshes["decor_megalith"] = b.commit()
+
+	# hide frame: a stretched hide laced into a pole frame
+	b = _b(703)
+	b.pole(Vector3(-0.034, 0, 0), Vector3(-0.034, 0.07, 0), 0.0036, WOOD)
+	b.pole(Vector3(0.034, 0, 0), Vector3(0.034, 0.07, 0), 0.0036, WOOD)
+	b.pole(Vector3(-0.036, 0.067, 0), Vector3(0.036, 0.067, 0), 0.0032, WOOD)
+	b.pole(Vector3(-0.036, 0.012, 0), Vector3(0.036, 0.012, 0), 0.0032, WOOD)
+	b.box(Vector3(0, 0.04, 0), Vector3(0.062, 0.05, 0.003), HIDE, HIDE_DARK)
+	meshes["decor_hideframe"] = b.commit()
+
+	# pots: three fired clay pots
+	b = _b(704)
+	for pot in [[Vector3(0, 0.012, 0), 0.015, Color("#b5603c")], [Vector3(0.032, 0.009, 0.012), 0.011, Color("#c27a4a")],
+			[Vector3(-0.028, 0.01, 0.016), 0.012, Color("#a4532f")]]:
+		var pp: Vector3 = pot[0]
+		var pr: float = pot[1]
+		b.blob(pp, Vector3(pr, pr * 0.95, pr), 7, 4, pot[2], 0.0, pot[2].darkened(0.2))
+		b.prism(pp + Vector3(0, pr * 0.8, 0), pr * 0.6, pr * 0.6, 0.003, 7, Color("#2a1c12"), Color("#2a1c12"))
+	meshes["decor_pots"] = b.commit()
+
+	# loom: warp-weighted, a striped cloth growing
+	b = _b(705)
+	b.pole(Vector3(-0.034, 0, 0), Vector3(-0.034, 0.1, 0), 0.0036, WOOD)
+	b.pole(Vector3(0.034, 0, 0), Vector3(0.034, 0.1, 0), 0.0036, WOOD)
+	b.pole(Vector3(-0.038, 0.096, 0), Vector3(0.038, 0.096, 0), 0.0032, WOOD_LIGHT)
+	for i in 7:
+		var x := -0.027 + i * 0.009
+		b.box(Vector3(x, 0.072, 0), Vector3(0.006, 0.04, 0.002), Color("#9c4a32") if i % 3 == 0 else (Color("#e4d6b8") if i % 3 == 1 else Color("#3f5a7a")))
+		b.box(Vector3(x, 0.036, 0), Vector3(0.0014, 0.032, 0.0014), Color("#cdbd9a"))
+		b.blob(Vector3(x, 0.016, 0), Vector3(0.0042, 0.0045, 0.0042), 4, 3, STONE_DARK)
+	meshes["decor_loom"] = b.commit()
+
+	# shrine: a stone platform, two uprights and a lintel, an offering lamp
+	b = _b(706)
+	b.prism(Vector3.ZERO, 0.052, 0.048, 0.01, 6, STONE, STONE.lightened(0.1))
+	b.pole(Vector3(-0.026, 0.01, 0), Vector3(-0.026, 0.075, 0), 0.0065, STONE)
+	b.pole(Vector3(0.026, 0.01, 0), Vector3(0.026, 0.075, 0), 0.0065, STONE)
+	b.box(Vector3(0, 0.08, 0), Vector3(0.07, 0.01, 0.016), ROCK_HI)
+	b.blob(Vector3(0, 0.016, 0.012), Vector3(0.008, 0.005, 0.008), 5, 3, Color("#7a5a3a"))
+	b.tag = M7MeshBuilder.TAG_EMISSIVE
+	b.box(Vector3(0, 0.024, 0.012), Vector3(0.006, 0.008, 0.006), Color("#ffb347"))
+	meshes["decor_shrine"] = b.commit()
+
+	# signal fire: a stacked pyre on a stone ring (the flame is added by the builder)
+	b = _b(707)
+	b.prism(Vector3.ZERO, 0.036, 0.034, 0.008, 7, STONE, STONE)
+	b.pole(Vector3(-0.022, 0.008, 0.0), Vector3(0.0, 0.07, 0.0), 0.004, WOOD)
+	b.pole(Vector3(0.022, 0.008, 0.004), Vector3(0.0, 0.07, 0.0), 0.004, BARK)
+	b.pole(Vector3(0.0, 0.008, -0.022), Vector3(0.0, 0.07, 0.0), 0.004, WOOD_LIGHT)
+	b.pole(Vector3(0.004, 0.008, 0.022), Vector3(0.0, 0.07, 0.0), 0.004, BARK)
+	meshes["decor_signal"] = b.commit()
+
+	# charcoal mound: earth-covered and smoking
+	b = _b(708)
+	b.blob(Vector3(0, 0.0, 0), Vector3(0.05, 0.034, 0.05), 8, 4, Color("#2d261f"), 0.08, Color("#1d1814"))
+	b.prism(Vector3(0, 0.03, 0), 0.008, 0.005, 0.012, 6, Color("#15110d"), Color("#15110d"))
+	b.pole(Vector3(0.05, 0, 0.0), Vector3(0.036, 0.03, 0.0), 0.003, WOOD)
+	b.pole(Vector3(-0.05, 0, 0.0), Vector3(-0.036, 0.03, 0.0), 0.003, WOOD)
+	meshes["decor_charcoal"] = b.commit()
+
+	# furnace: a clay dome with a bellows pipe, ore and a bar of copper beside it
+	b = _b(709)
+	b.blob(Vector3(0, 0.0, 0), Vector3(0.032, 0.046, 0.032), 7, 4, Color("#9a5a3a"), 0.05, Color("#7a4a30"))
+	b.pole(Vector3(0.018, 0.01, 0.026), Vector3(0.052, 0.006, 0.06), 0.004, Color("#3a2c1f"))
+	b.blob(Vector3(-0.046, 0.004, 0.02), Vector3(0.014, 0.008, 0.014), 5, 3, Color("#4f8f6a"), 0.1)
+	b.box(Vector3(-0.03, 0.003, 0.05), Vector3(0.022, 0.005, 0.008), Color("#c0683a"))
+	b.tag = M7MeshBuilder.TAG_EMISSIVE
+	b.box(Vector3(0, 0.012, 0.03), Vector3(0.016, 0.014, 0.004), Color("#ff6a20"))
+	meshes["decor_furnace"] = b.commit()
+
+	# canoe: a hollowed log (long axis on local Z) and its paddle
+	b = _b(710)
+	b.blob(Vector3(0, 0.01, 0), Vector3(0.022, 0.012, 0.085), 8, 3, WOOD_LIGHT, 0.0, WOOD)
+	b.blob(Vector3(0, 0.017, 0), Vector3(0.014, 0.006, 0.07), 8, 3, Color("#3a2c1f"))
+	b.pole(Vector3(0.032, 0.002, 0.02), Vector3(0.044, 0.034, 0.004), 0.0024, WOOD)
+	b.box(Vector3(0.046, 0.038, 0.0), Vector3(0.008, 0.014, 0.003), WOOD_LIGHT)
+	meshes["decor_canoe"] = b.commit()
+
+	# sledge: runners and cross boards under a stone block
+	b = _b(711)
+	b.pole(Vector3(-0.03, 0.004, -0.055), Vector3(-0.03, 0.01, 0.065), 0.004, WOOD)
+	b.pole(Vector3(0.03, 0.004, -0.055), Vector3(0.03, 0.01, 0.065), 0.004, WOOD)
+	for z in [-0.04, 0.0, 0.04]:
+		b.pole(Vector3(-0.036, 0.012, z), Vector3(0.036, 0.012, z), 0.0034, WOOD_LIGHT)
+	b.box(Vector3(0, 0.026, 0), Vector3(0.05, 0.022, 0.06), ROCK, ROCK_HI)
+	b.pole(Vector3(-0.03, 0.006, -0.055), Vector3(0.0, 0.03, -0.1), 0.0016, Color("#b9a68a"))
+	meshes["decor_sledge"] = b.commit()
+
+	# palisade segment (along local X, ~0.12 long): sharpened stakes and a rail
+	b = _b(712)
+	for i in 6:
+		var x := -0.055 + i * 0.022
+		b.prism(Vector3(x, 0, 0), 0.0075, 0.0075, 0.082, 5, WOOD if i % 2 == 0 else BARK, WOOD)
+		b.prism(Vector3(x, 0.082, 0), 0.0075, 0.0, 0.018, 5, WOOD_LIGHT, WOOD_LIGHT)
+	b.pole(Vector3(-0.06, 0.04, 0.007), Vector3(0.06, 0.04, 0.007), 0.0028, WOOD_LIGHT)
+	meshes["decor_palisade"] = b.commit()
+
+	# spear rack: a bar between two posts with spears leaning against it
+	b = _b(713)
+	b.pole(Vector3(-0.04, 0, 0), Vector3(-0.04, 0.05, 0), 0.0042, WOOD)
+	b.pole(Vector3(0.04, 0, 0), Vector3(0.04, 0.05, 0), 0.0042, WOOD)
+	b.pole(Vector3(-0.044, 0.046, 0), Vector3(0.044, 0.046, 0), 0.003, WOOD_LIGHT)
+	for i in 5:
+		var x := -0.03 + i * 0.015
+		b.pole(Vector3(x, 0, 0.022), Vector3(x * 0.8, 0.095, 0.002), 0.0022, WOOD_LIGHT)
+		b.prism(Vector3(x * 0.8, 0.095, 0.002), 0.004, 0.0, 0.014, 4, STONE_DARK, STONE_DARK)
+	meshes["decor_spearrack"] = b.commit()
+
+	# grave: a low mound with a stone at the head and a smear of red ochre
+	b = _b(714)
+	b.blob(Vector3(0, 0, 0), Vector3(0.04, 0.014, 0.025), 6, 3, EARTH, 0.05, EARTH)
+	b.box(Vector3(0, 0.013, 0.0), Vector3(0.02, 0.002, 0.03), Color("#9c3a22"))
+	b.prism(Vector3(0, 0, -0.032), 0.009, 0.006, 0.032, 5, STONE, STONE.lightened(0.1))
+	meshes["decor_grave"] = b.commit()
+
+	# council circle: log seats round a chief's staff with a civ pennant
+	b = _b(715)
+	for i in 6:
+		var a := TAU * i / 6.0
+		b.prism(Vector3(cos(a) * 0.045, 0, sin(a) * 0.045), 0.012, 0.012, 0.014, 6, WOOD_LIGHT, WOOD_LIGHT.lightened(0.12))
+	b.pole(Vector3.ZERO, Vector3(0, 0.08, 0), 0.0028, WOOD)
+	b.tag = M7MeshBuilder.TAG_CIV
+	b.box(Vector3(0.012, 0.072, 0), Vector3(0.024, 0.014, 0.002), Color.WHITE)
+	meshes["decor_council"] = b.commit()
+
+	# quarry: cut blocks, rubble and a wedge and pick
+	b = _b(716)
+	b.box(Vector3(-0.022, 0.012, 0), Vector3(0.04, 0.024, 0.03), STONE, STONE.lightened(0.1))
+	b.box(Vector3(0.022, 0.01, 0.012), Vector3(0.03, 0.02, 0.03), STONE_DARK, STONE)
+	b.box(Vector3(-0.004, 0.034, 0.002), Vector3(0.036, 0.02, 0.03), ROCK_HI, ROCK_HI.lightened(0.1))
+	b.blob(Vector3(0.04, 0.004, -0.03), Vector3(0.012, 0.007, 0.012), 5, 3, ROCK, 0.1)
+	b.blob(Vector3(-0.04, 0.004, -0.028), Vector3(0.01, 0.006, 0.01), 5, 3, ROCK, 0.1)
+	b.pole(Vector3(0.012, 0, -0.04), Vector3(0.03, 0.036, -0.036), 0.003, WOOD_LIGHT)
+	b.box(Vector3(0.03, 0.038, -0.036), Vector3(0.016, 0.006, 0.006), STONE_DARK)
+	meshes["decor_quarry"] = b.commit()
+
+	# sky pole: a gnomon in a ring of small stones, a gold sun disc on top
+	b = _b(717)
+	b.pole(Vector3.ZERO, Vector3(0, 0.1, 0), 0.0048, WOOD_LIGHT)
+	for i in 8:
+		var a := TAU * i / 8.0
+		b.blob(Vector3(cos(a) * 0.06, 0.004, sin(a) * 0.06), Vector3(0.008, 0.007, 0.008), 5, 3, STONE, 0.1)
+	b.box(Vector3(0, 0.106, 0), Vector3(0.022, 0.006, 0.022), Color("#c9973c"))
+	meshes["decor_skypole"] = b.commit()
+
+	# mudbricks drying in rows
+	b = _b(718)
+	for row in 3:
+		for i in 4:
+			var tone := 0.04 * ((row * 4 + i) % 3 - 1)
+			b.box(Vector3(-0.03 + i * 0.02, 0.004 + (row % 2) * 0.0, -0.02 + row * 0.02), Vector3(0.017, 0.008, 0.009), MUD.lightened(tone))
+	b.box(Vector3(0.0, 0.012, -0.012), Vector3(0.017, 0.008, 0.009), MUD.darkened(0.05))
+	b.box(Vector3(0.02, 0.012, -0.012), Vector3(0.017, 0.008, 0.009), MUD.lightened(0.05))
+	meshes["decor_bricks"] = b.commit()
+
+	# baskets of nuts and seed
+	b = _b(719)
+	for bk in [[Vector3(-0.022, 0, 0), 0.0], [Vector3(0.016, 0, 0.012), 1.0], [Vector3(0.0, 0, -0.026), 2.0]]:
+		var bp: Vector3 = bk[0]
+		b.prism(bp, 0.012, 0.016, 0.018, 6, Color("#b08a4e"), Color("#7a5a2c"))
+		b.blob(bp + Vector3(0, 0.019, 0), Vector3(0.012, 0.006, 0.012), 5, 3, Color("#7a5a30") if bk[1] != 1.0 else Color("#d6ae43"))
+	meshes["decor_baskets"] = b.commit()
+
+	# woodwork: a chopping block with an adze, planks and a stack of coppiced poles
+	b = _b(720)
+	b.prism(Vector3.ZERO, 0.02, 0.02, 0.02, 7, WOOD_LIGHT, WOOD_LIGHT.lightened(0.15))
+	b.pole(Vector3(0.006, 0.02, 0.004), Vector3(0.03, 0.036, 0.012), 0.0024, WOOD)
+	b.box(Vector3(0.032, 0.037, 0.012), Vector3(0.012, 0.005, 0.008), STONE_DARK)
+	b.box(Vector3(-0.045, 0.004, 0.02), Vector3(0.05, 0.008, 0.012), WOOD_LIGHT.lightened(0.1))
+	b.box(Vector3(-0.045, 0.012, 0.02), Vector3(0.05, 0.008, 0.012), WOOD_LIGHT)
+	for i in 4:
+		b.pole(Vector3(0.03 + i * 0.006, 0, -0.03), Vector3(0.032 + i * 0.006, 0.07, -0.034), 0.0028, WOOD if i % 2 == 0 else WOOD_LIGHT)
+	meshes["decor_woodwork"] = b.commit()
