@@ -43,7 +43,8 @@ internal sealed class CivOutcome
     public int Settlements, SettlementsLost, SettlementsCaptured, Projects;
     public readonly double[] KeyMinutes = { double.NaN, double.NaN, double.NaN };
     public int RaidsLaunched, RaidsWon;
-    public int RaidsResolved, RaidPredictions, AssaultsLaunched, AssaultsResolved, AssaultsHeld;
+    public int RaidsResolved, RaidExpeditionsPending, RaidPredictions;
+    public int AssaultsLaunched, AssaultsResolved, AssaultsHeld, AssaultExpeditionsPending;
     public int OccupationsBroken, OccupationsPending, AssaultPredictions;
     public double PredictedRaidSuccess, PredictedCaptureSuccess;
     // Blunders sampled once a season.
@@ -127,7 +128,9 @@ internal static class Tournament
                 bool captor = e.B > 0 || e.B == 0 && pol.SettlementCivOf(e.A) == e.Civ;
                 if (captor && e.Other >= 0 && e.Other < civs && e.Other != e.Civ) { outcome.Civs[e.Other].SettlementsLost++; outcome.Civs[e.Civ].SettlementsCaptured++; }
             }
-            else if (e.Kind == PoliticsEventKind.RaidLaunched) outcome.Civs[e.Civ].RaidsLaunched++;
+            // The politics event kind is also used for assault launches; AI decision notes distinguish them below.
+            else if (e.Kind == PoliticsEventKind.RaidLaunched && seats[e.Civ].Control.Kind != ControlKind.Ai)
+                outcome.Civs[e.Civ].RaidsLaunched++;
             else if (e.Kind == PoliticsEventKind.RaidResolved && (e.A == 0 || e.A == 1))
             {
                 outcome.Civs[e.Civ].RaidsResolved++;
@@ -146,9 +149,20 @@ internal static class Tournament
             {
                 if ((uint)d.Civ >= (uint)civs || seats[d.Civ].Control.Kind != ControlKind.Ai) continue;
                 CivOutcome c = outcome.Civs[d.Civ];
-                if (d.Kind == "Raid") { c.RaidPredictions++; c.PredictedRaidSuccess += d.Score.ToDoubleForDisplay(); }
+                if (d.Kind == "Raid")
+                {
+                    c.RaidsLaunched++;
+                    c.RaidPredictions++;
+                    c.PredictedRaidSuccess += d.Score.ToDoubleForDisplay();
+                }
                 else if (d.Kind == "Assault") { c.AssaultPredictions++; c.PredictedCaptureSuccess += d.Score.ToDoubleForDisplay(); c.AssaultsLaunched++; }
             }
+        foreach (Expedition expedition in pol.Expeditions)
+        {
+            if ((uint)expedition.Civ >= (uint)civs) continue;
+            if (expedition.Kind == ExpeditionKind.Raid) outcome.Civs[expedition.Civ].RaidExpeditionsPending++;
+            else if (expedition.Kind == ExpeditionKind.Assault) outcome.Civs[expedition.Civ].AssaultExpeditionsPending++;
+        }
         foreach (Occupation occupation in pol.Occupations)
             if ((uint)occupation.Civ < (uint)civs) outcome.Civs[occupation.Civ].OccupationsPending++;
         for (int i = 0; i < match.Economy.SettlementCount; i++)

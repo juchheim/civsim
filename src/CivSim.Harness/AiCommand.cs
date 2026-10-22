@@ -125,30 +125,32 @@ internal static class AiCommand
             Console.WriteLine($"  {name,-9} {leg / n,8:F0} {dom / n,8:F0} {mas / n,7:F0} {fir / n,7:F0} {set / n,6:F1} {proj / n,6:F1} " +
                 $"{(n1 > 0 ? k1 / n1 : double.NaN),6:F1} {(n2 > 0 ? k2 / n2 : double.NaN),6:F1} {raids / n,6:F1} {capt / n,5:F2} {lost / n,5:F2}");
         }
-        Console.WriteLine("  combat by archetype: launches/resolved/wins; mean forecast P / observed rate; pending occupations are right-censored at match end");
-        Console.WriteLine("  archetype  raids L/R/W  forecast/actual  assaults L/R/held  broken/pending/captured  forecast/actual-capture");
+        Console.WriteLine("  combat by archetype: L=launches, R=resolved, P=in transit; mean forecast probability / observed rate");
+        Console.WriteLine("  assault columns also show held assaults, broken/pending occupations, and captures (match-end censored)");
         foreach (string name in FfaNames)
         {
             EconomyArchetype a = Enum.Parse<EconomyArchetype>(name);
-            int n = 0, raidL = 0, raidR = 0, raidW = 0, raidP = 0, assaultL = 0, assaultR = 0, assaultHeld = 0;
-            int broken = 0, pending = 0, captured = 0, assaultP = 0;
+            int n = 0, raidL = 0, raidR = 0, raidPending = 0, raidW = 0, raidForecastCount = 0;
+            int assaultL = 0, assaultR = 0, assaultPending = 0, assaultHeld = 0;
+            int broken = 0, pending = 0, captured = 0, assaultForecastCount = 0;
             double expectedRaid = 0, expectedCapture = 0;
             foreach (var (arch, o, _) in civs)
             {
                 if (arch != a) continue;
                 n++;
-                raidL += o.RaidsLaunched; raidR += o.RaidsResolved; raidW += o.RaidsWon;
-                expectedRaid += o.PredictedRaidSuccess; raidP += o.RaidPredictions;
-                assaultL += o.AssaultsLaunched; assaultR += o.AssaultsResolved; assaultHeld += o.AssaultsHeld;
+                raidL += o.RaidsLaunched; raidR += o.RaidsResolved; raidPending += o.RaidExpeditionsPending; raidW += o.RaidsWon;
+                expectedRaid += o.PredictedRaidSuccess; raidForecastCount += o.RaidPredictions;
+                assaultL += o.AssaultsLaunched; assaultR += o.AssaultsResolved; assaultPending += o.AssaultExpeditionsPending; assaultHeld += o.AssaultsHeld;
                 broken += o.OccupationsBroken; pending += o.OccupationsPending; captured += o.SettlementsCaptured;
-                expectedCapture += o.PredictedCaptureSuccess; assaultP += o.AssaultPredictions;
+                expectedCapture += o.PredictedCaptureSuccess; assaultForecastCount += o.AssaultPredictions;
             }
-            double forecastRaid = raidP > 0 ? expectedRaid / raidP : double.NaN;
+            double forecastRaid = raidForecastCount > 0 ? expectedRaid / raidForecastCount : double.NaN;
             double actualRaid = raidR > 0 ? (double)raidW / raidR : double.NaN;
-            double forecastCapture = assaultP > 0 ? expectedCapture / assaultP : double.NaN;
+            double forecastCapture = assaultForecastCount > 0 ? expectedCapture / assaultForecastCount : double.NaN;
             double actualCapture = assaultR > 0 ? (double)captured / assaultR : double.NaN;
-            Console.WriteLine($"  {name,-9} {raidL,2}/{raidR,2}/{raidW,2}  {forecastRaid,5:P0}/{actualRaid,5:P0}  " +
-                              $"{assaultL,2}/{assaultR,2}/{assaultHeld,2}  {broken,2}/{pending,2}/{captured,2}  {forecastCapture,5:P0}/{actualCapture,5:P0}  ({n} seats)");
+            Console.WriteLine($"  {name,-9} {raidL,2}/{raidR,2}/{raidPending,2}/{raidW,2}  {forecastRaid,5:P0}/{actualRaid,5:P0}  " +
+                              $"{assaultL,2}/{assaultR,2}/{assaultPending,2}/{assaultHeld,2}  {broken,2}/{pending,2}/{captured,2}  " +
+                              $"{forecastCapture,5:P0}/{actualCapture,5:P0}  ({n} seats)");
         }
     }
 
