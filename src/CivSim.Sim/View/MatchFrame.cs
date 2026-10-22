@@ -155,6 +155,9 @@ public sealed class MatchFrame
     // ---- seafaring: per civilization, the best boat its people know (0 none, 1 raft SEA-01, 2 bark canoe, 3 dugout, 4 outrigger) ----
     public byte[] CivSeaTier = Array.Empty<byte>();
 
+    // ---- signal fires (COM-04): per civilization, 1 when its people keep signal posts on the hills between their villages ----
+    public byte[] CivSignals = Array.Empty<byte>();
+
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;
     /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>

@@ -40,6 +40,7 @@ var camps: Array = []          # [tile, civ]
 var beacons: Array = []        # [tile, civ]
 var monuments := PackedInt32Array()     # stride 5: tile, civ, tick learned, population, id
 var sea_tier := PackedInt32Array()       # per civilization: best boat known (0 none .. 4 outrigger)
+var signal_civs := PackedInt32Array()    # per civilization: 1 when it keeps signal fires (COM-04)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
@@ -117,6 +118,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 			beacons.append([int(bt[i]), int(bc[i])])
 	monuments = _int_data(d.monuments, 5) if d.has("monuments") else PackedInt32Array()
 	sea_tier = _int_data(d.seaTier, 1) if d.has("seaTier") else PackedInt32Array()
+	signal_civs = _int_data(d.signalCivs, 1) if d.has("signalCivs") else PackedInt32Array()
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

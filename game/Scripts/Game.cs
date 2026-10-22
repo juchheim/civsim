@@ -512,6 +512,7 @@ public partial class Game : Node3D
             ["settlements"] = settlements,
             ["monuments"] = monuments,
             ["seaTier"] = ToIntArray(frame.CivSeaTier, frame.CivSeaTier.Length),
+            ["signalCivs"] = ToIntArray(frame.CivSignals, frame.CivSignals.Length),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,

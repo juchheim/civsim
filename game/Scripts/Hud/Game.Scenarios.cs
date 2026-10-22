@@ -318,6 +318,20 @@ public partial class Game
                 Step(() => { _session!.SetPaused(false); _session.SetSpeedIndex(0); }, 1.5f);
                 Shot("voyage-b");
                 break;
+            case "signals":
+                Step(() => { _session!.SetSpeedIndex(0); GrantProject(FindProjectByName("Signal Fires & Drums")); }, 2.0f);
+                Step(() => { GD.Print($"SCN signals posts={(int)_visualRenderer!.Call("signal_count")}"); _target = (Vector3)_visualRenderer!.Call("signal_focus"); ZoomTo(7.0f); }, 1.0f);
+                for (int i = 0; i < 4; i++)
+                {
+                    int n = i;
+                    Shot($"signals-{n}");
+                    Step(() => { }, 1.7f);
+                }
+                Step(() => ZoomTo(2.8f), 1.0f);
+                Shot("signals-close");
+                Step(() => ZoomTo(26.0f), 1.2f);
+                Shot("signals-wide");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);

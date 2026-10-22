@@ -23,6 +23,7 @@ var overlay_mode := 0 # 0 none, 1 claim strength, 2 food security, 3 methods
 var fire_lights: Array[OmniLight3D] = []
 var smoke_nodes: Array[Node3D] = []
 var last_season := -1
+var signal_rig: M7SignalRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -44,6 +45,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	builder = M7WorldBuilder.new(world, kit, mats)
 	world_root = builder.build()
 	add_child(world_root)
+	signal_rig = M7SignalRig.new(builder, world_root, Callable(self, "_make_smoke"))
+	signal_rig.sync()
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -61,6 +64,7 @@ func update_frame(frame_data: Dictionary) -> void:
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	var structures_changed := builder.update_frame()
+	signal_rig.sync()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
@@ -102,9 +106,21 @@ func boat_focus() -> Vector3:
 	var c: Vector2 = builder.boat_probe
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
+## Dev aids for scenarios: how many signal posts stand, and where the first one is (the origin when none).
+func signal_count() -> int:
+	return signal_rig.posts.size() if signal_rig != null else 0
+
+func signal_focus() -> Vector3:
+	if signal_rig == null or signal_rig.posts.is_empty():
+		return Vector3.ZERO
+	var p: Vector2 = signal_rig.posts[0].pos
+	return Vector3(p.x, maxf(world.height_at(p), 0.0), p.y)
+
 func _process(_delta: float) -> void:
 	if builder != null:
 		builder.update_herds()
+	if signal_rig != null:
+		signal_rig.update(Time.get_ticks_msec() / 1000.0)
 
 func set_season(season: int) -> void:
 	_apply_season(season)
