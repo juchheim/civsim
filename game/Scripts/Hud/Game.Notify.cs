@@ -557,8 +557,8 @@ public partial class Game
         {
             int free = _current is null ? 0 : Math.Max(0, _current.FocusBeaconsAllowed - _current.FocusBeaconsPlaced);
             text = free > 0
-                ? "Empty tile: place · Your Beacon: remove · Right-click/Esc: cancel"
-                : "Your Beacon: remove · Right-click/Esc: cancel";
+                ? "Empty tile: place or replace · Your Beacon: remove · Right-click/Esc: cancel"
+                : "Empty tile: replace nearest · Your Beacon: remove · Right-click/Esc: cancel";
         }
         else if (_pinnedTile >= 0) text = "Esc or right-click to unpin";
         else if (_uiSettings.ShowHints && !(_uiSettings.HintsPanned && _uiSettings.HintsZoomed && _uiSettings.HintsTurned))

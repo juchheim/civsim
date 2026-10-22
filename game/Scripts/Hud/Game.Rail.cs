@@ -45,7 +45,7 @@ public partial class Game
         column.AddChild(_foodButton);
         column.AddChild(_methodsButton);
         column.AddChild(_resourcesButton);
-        _beaconButton = RailToggle("Beacon", UiGlyph.Beacon, "A Beacon draws scouts and settlers toward a spot. Beacon mode (B) can place or remove your Beacons.", ToggleBeaconMode);
+        _beaconButton = RailToggle("Beacon", UiGlyph.Beacon, "A Beacon draws scouts and settlers toward a spot. Beacon mode (B) can place, move, or remove your Beacons.", ToggleBeaconMode);
         _beaconButton.Visible = false;
         column.AddChild(_beaconButton);
         _rail.AddChild(column);
@@ -189,8 +189,8 @@ public partial class Game
             int left = Math.Max(0, frame.FocusBeaconsAllowed - frame.FocusBeaconsPlaced);
             if (!_compact) UiKit.SetText(_beaconButton, left > 0 ? $"Beacon · {left} left" : "Beacon · replace");
             _beaconButton.TooltipText = left > 0
-                ? "Beacon mode (B): click an empty tile to place, or one of your Beacons to remove."
-                : "Beacon slots are full. Beacon mode (B): click one of your Beacons to remove it, then place a replacement.";
+                ? "Beacon mode (B): click an empty tile to place (or replace the nearest if full), or one of your Beacons to remove."
+                : "Beacon slots are full. Beacon mode (B): click an empty tile to move the nearest Beacon, or one of your Beacons to remove.";
             _beaconButton.SetPressedNoSignal(_beaconMode);
             _beaconButton.Disabled = false;
         }

@@ -16,7 +16,7 @@ public enum CommandKind : ushort
     DequeueProject = 3,
     /// <summary>A = theme (0 craft, 1 kin, 2 reach), B = weight in percent.</summary>
     SetLeaning = 4,
-    /// <summary>A = tile x, B = tile y.</summary>
+    /// <summary>A = tile x, B = tile y, C = 1 to replace the nearest Beacon when at capacity.</summary>
     PlaceBeacon = 5,
     /// <summary>A = beacon index.</summary>
     RemoveBeacon = 6,

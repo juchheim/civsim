@@ -261,13 +261,31 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     }
                     break;
                 case CommandKind.PlaceBeacon:
-                    if (command.A >= 0 && command.A < _width && command.B >= 0 && command.B < _height &&
-                        _beacons[civ].Count < BeaconAllowance(civ))
+                {
+                    if (command.A < 0 || command.A >= _width || command.B < 0 || command.B >= _height) break;
+                    int beaconTile = command.B * _width + command.A;
+                    List<int> beacons = _beacons[civ];
+                    if (beacons.Count < BeaconAllowance(civ))
                     {
-                        _beacons[civ].Add(command.B * _width + command.A);
-                        _events.Add(new PoliticsEvent(tick, (byte)civ, PoliticsEventKind.BeaconPlaced, -1, command.A, command.B));
+                        beacons.Add(beaconTile);
                     }
+                    else if (command.C == 1 && beacons.Count > 0)
+                    {
+                        int nearest = 0;
+                        int nearestDistance = HexGrid.Distance(beacons[0], beaconTile, _width);
+                        for (int i = 1; i < beacons.Count; i++)
+                        {
+                            int distance = HexGrid.Distance(beacons[i], beaconTile, _width);
+                            if (distance >= nearestDistance) continue;
+                            nearest = i;
+                            nearestDistance = distance;
+                        }
+                        beacons[nearest] = beaconTile;
+                    }
+                    else break;
+                    _events.Add(new PoliticsEvent(tick, (byte)civ, PoliticsEventKind.BeaconPlaced, -1, command.A, command.B));
                     break;
+                }
                 case CommandKind.RemoveBeacon:
                     if (command.A >= 0 && command.A < _beacons[civ].Count) _beacons[civ].RemoveAt(command.A);
                     break;
