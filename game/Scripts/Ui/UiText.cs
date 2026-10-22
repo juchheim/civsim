@@ -30,6 +30,8 @@ public static class UiText
 
     private static string[] _ageNames = { "Dawn", "Hunters", "Roots", "Bronze", "Iron", "Faith & Fief", "Discovery", "Industry", "Modern", "Information" };
     private static readonly Dictionary<string, string> FieldFull = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> GoodNames = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> StructureNames = new(StringComparer.Ordinal);
     private static string?[][] _methodNames = Array.Empty<string?[]>();
 
     private static readonly Dictionary<string, string> FieldShort = new(StringComparer.Ordinal)
@@ -56,6 +58,10 @@ public static class UiText
             foreach (ContentValue lineage in pack.List("lineages"))
                 if (lineage.GetString("code") is { } code && lineage.GetString("name") is { } name) FieldFull[code] = name;
 
+            ContentValue? registries = pack.Root.Get("registries");
+            LoadNames(registries?.Get("goods"), GoodNames);
+            LoadNames(registries?.Get("structures"), StructureNames);
+
             IReadOnlyList<ContentValue> raw = pack.List("projects");
             _methodNames = new string?[raw.Count][];
             for (int p = 0; p < raw.Count; p++)
@@ -68,6 +74,15 @@ public static class UiText
             }
         }
         catch (Exception ex) { Godot.GD.PushWarning($"UiText init fell back to defaults: {ex.Message}"); }
+    }
+
+    private static void LoadNames(ContentValue? records, Dictionary<string, string> into)
+    {
+        into.Clear();
+        if (records is not { Kind: ValueKind.List }) return;
+        foreach (ContentValue record in records.Items)
+            if (record.GetString("id") is { } id && record.GetString("name") is { } name)
+                into[id] = name;
     }
 
     public static string AgeName(int era) => (uint)era < (uint)_ageNames.Length ? _ageNames[era] : $"Age {era + 1}";
@@ -170,13 +185,39 @@ public static class UiText
                 };
             case EffectKind.Cohesion:
                 return "People hold together better";
+            case EffectKind.Adopt:
+                return $"Skill spread speed ×{F(value)}";
+            case EffectKind.KnowHow:
+                {
+                    string text = e.Text?.Trim() ?? "";
+                    int comma = text.IndexOf(',');
+                    if (comma > 0)
+                    {
+                        string code = text[..comma].Trim();
+                        string lineage = FieldShort.TryGetValue(code, out string? shortName) ? shortName : FieldFull.GetValueOrDefault(code, code);
+                        return $"{lineage} know-how {text[(comma + 1)..].Trim()}";
+                    }
+                    return text.Length > 0 ? $"Know-how from practice {text}" : "More know-how from practice";
+                }
+            case EffectKind.Tier:
+                return e.Text is { Length: > 0 } tier ? $"Settlement tier: {Sentence(tier)}" : null;
             case EffectKind.UnlockAction:
                 return $"People start to {(e.Action ?? e.Id ?? "do something new").Replace('_', ' ')}";
             case EffectKind.Good:
-                return e.Note is { Length: > 0 } good ? $"Adds {Clean(good)}" : null;
+                {
+                    string? name = e.Id is not null && GoodNames.TryGetValue(e.Id, out string? goodName) ? goodName : null;
+                    string? detail = e.Note is { Length: > 0 } goodNote ? Clean(goodNote) : null;
+                    if (name is not null) return detail is null ? $"Unlocks {name}" : $"Unlocks {name} — {detail}";
+                    return detail is not null ? $"Unlocks {detail}" : null;
+                }
             case EffectKind.Build:
             case EffectKind.Wonder:
-                return e.Note is { Length: > 0 } build ? $"Lets them build {Clean(build)}" : "Lets them build something new";
+                {
+                    string? name = e.Id is not null && StructureNames.TryGetValue(e.Id, out string? structureName) ? structureName : null;
+                    string? detail = e.Note is { Length: > 0 } buildNote ? Clean(buildNote) : null;
+                    if (name is not null) return detail is null ? $"Can build: {name}" : $"Can build: {name} — {detail}";
+                    return detail is not null ? $"Can build: {detail}" : "Unlocks a new building";
+                }
             case EffectKind.Role:
                 return $"A new role: {Humanize(e.Id ?? e.Text)}";
             case EffectKind.Risk:
