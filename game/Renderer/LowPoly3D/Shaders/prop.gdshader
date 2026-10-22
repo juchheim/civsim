@@ -14,6 +14,7 @@ uniform float wind = 0.0;
 uniform bool is_figure = false;
 uniform float lod_grow = 0.0;
 uniform bool billboard_y = false;
+uniform int burn_hide = 0;          // 1 grass and low plants vanish from burnt ground, 2 trees do (burn_map G / B)
 
 varying vec3 wpos;
 varying vec3 wnorm;
@@ -57,6 +58,12 @@ void vertex() {
 		VERTEX *= fig_scale;
 	}
 	VERTEX *= grow;
+	if (burn_hide > 0) {
+		vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+		vec4 bm = burn_at(origin.xz);
+		float gone = burn_hide == 1 ? bm.g : bm.b;
+		VERTEX *= 1.0 - smoothstep(0.3, 0.8, gone);
+	}
 	if (walk > 0.0) {
 		// a little hop per step so gliding people read as walking
 		VERTEX.y += walk * abs(sin(TIME * 10.0 + walk_seed * 31.0)) * (is_figure ? 0.006 * fig_scale : 0.004);

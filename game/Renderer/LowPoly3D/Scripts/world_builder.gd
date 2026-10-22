@@ -330,10 +330,10 @@ func _material_for(mesh_name: String) -> Material:
 		return mats.animal
 	if mesh_name.begins_with("banner"):
 		return mats.banner
-	if mesh_name.begins_with("detail_"):
-		return mats.prop_wind
+	if mesh_name.begins_with("detail_") or mesh_name.begins_with("tuft") or mesh_name == "reeds" or mesh_name.begins_with("tallgrass"):
+		return mats.grass_wind
 	if mesh_name.begins_with("conifer") or mesh_name.begins_with("broadleaf") or mesh_name.begins_with("acacia") \
-			or mesh_name.begins_with("jungle") or mesh_name.begins_with("tuft") or mesh_name == "reeds" or mesh_name.begins_with("tallgrass"):
+			or mesh_name.begins_with("jungle"):
 		return mats.prop_wind
 	return mats.prop
 

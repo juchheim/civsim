@@ -332,6 +332,29 @@ public partial class Game
                 Step(() => ZoomTo(26.0f), 1.2f);
                 Shot("signals-wide");
                 break;
+            case "burn":
+                // --start-minute=14: learn both projects, run fast until the first fire, then watch it at half speed and the years after
+                Step(() => { FrameCapital(); ZoomTo(6.0f); GrantProject(FindProjectByName("Landscape Burning")); GrantProject(FindProjectByName("Slash-and-Burn")); _session!.SetSpeedIndex(3); }, 0.5f);
+                for (int i = 0; i < 260; i++)
+                    Step(() =>
+                    {
+                        if (_burnSeen) return;
+                        var f = (Vector3)_visualRenderer!.Call("burn_focus");
+                        if (f != Vector3.Zero) { _burnSeen = true; _target = f; ZoomTo(3.4f); _session!.SetSpeedIndex(0); }
+                    }, 0.05f);
+                for (int i = 0; i < 7; i++)
+                {
+                    int n = i;
+                    Shot($"burn-{n}");
+                    Step(() => { }, 2.2f);
+                }
+                Step(() => { _session!.SetSpeedIndex(3); ZoomTo(4.6f); }, 6.0f);
+                Shot("burn-after");
+                Step(() => { }, 20.0f);
+                Shot("burn-later");
+                Step(() => { }, 40.0f);
+                Shot("burn-regrown");
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);
@@ -424,7 +447,7 @@ public partial class Game
     }
 
     /// <summary>Test grant through the normal command path (CommandKind.CompleteProject).</summary>
-    private bool _voyageFound;
+    private bool _voyageFound, _burnSeen;
 
     private void GrantProject(int project)
     {

@@ -70,11 +70,24 @@ void fragment() {
 		float band = vnoise(vec2(wpos.y * 18.0, (wpos.x + wpos.z) * 2.0));
 		c *= 0.85 + 0.25 * band;
 	}
+	// burnt ground: a char scar with ragged edges, embers while it is fresh, a green flush as it recovers
+	float ember = 0.0;
+	float scarred = 0.0;
+	if (!wall) {
+		vec4 bm = burn_at(wpos.xz);
+		float scar = smoothstep(0.2, 0.5, bm.r + (n2 - 0.5) * 0.4 + (n3 - 0.5) * 0.1);
+		scarred = scar;
+		vec3 ash = mix(vec3(0.02, 0.018, 0.017), vec3(0.17, 0.155, 0.14), clamp(n1 * 0.9 + (1.0 - bm.r) * 0.6, 0.0, 1.0));
+		c = mix(c, ash, scar * 0.96);
+		float flush = bm.a <= 0.5 ? bm.a * 2.0 : 0.0;
+		c = mix(c, c * vec3(0.78, 1.18, 0.66), clamp(flush, 0.0, 1.0) * 0.7 * veg * (1.0 - scar));
+		ember = bm.a > 0.5 ? (bm.a - 0.5) * 2.0 * scar * scar : 0.0;
+	}
 	// snow
 	if (wpos.y > -0.02) {
 		float sn = 0.0;
 		if (season_snow > 0.001) {
-			sn = snow_amount(wpos, wall ? 0.0 : wnorm.y, n2);
+			sn = snow_amount(wpos, wall ? 0.0 : wnorm.y, n2) * (1.0 - 0.9 * scarred);
 		}
 		sn = max(sn, wall ? 0.0 : smoothstep(0.98, 1.06, wpos.y) * smoothstep(0.6, 0.9, wnorm.y));
 		if (sn > 0.001) {
@@ -117,6 +130,7 @@ void fragment() {
 		c *= 0.78;
 	}
 	ALBEDO = c * cloud_shadow(wpos, TIME);
+	EMISSION = vec3(1.0, 0.3, 0.04) * ember * 0.7 * (0.5 + 0.5 * vnoise(wpos.xz * 14.0 + TIME * 3.0));
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 }

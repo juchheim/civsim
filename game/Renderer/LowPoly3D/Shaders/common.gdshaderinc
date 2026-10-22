@@ -5,6 +5,13 @@ global uniform float season_snow;
 global uniform float season_dry;
 global uniform float snow_line;
 global uniform vec2 map_lat;
+// Burnt ground (burn_rig.gd): a world-space map. R char, G grass gone, B trees gone, A = 0.5 + 0.5 * ember glow, or 0.5 * green flush.
+global uniform sampler2D burn_map;
+global uniform vec4 burn_rect;   // x0, z0, 1/width, 1/depth in world units
+
+vec4 burn_at(vec2 xz) {
+	return textureLod(burn_map, (xz - burn_rect.xy) * burn_rect.zw, 0.0);
+}
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);

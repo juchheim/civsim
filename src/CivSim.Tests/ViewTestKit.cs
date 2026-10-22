@@ -83,6 +83,7 @@ internal static class ViewKit
         for (int i = 0; i < f.CampCount; i++) { h.Add(f.CampTile[i]); h.Add(f.CampCiv[i]); }
         for (int c = 0; c < f.CivSeaTier.Length; c++) h.Add(f.CivSeaTier[c]);
         for (int c = 0; c < f.CivSignals.Length; c++) h.Add(f.CivSignals[c]);
+        for (int c = 0; c < f.CivBurnLearned.Length; c++) h.Add(f.CivBurnLearned[c]);
         h.Add(f.TrailCount);
         for (int i = 0; i < f.TrailCount; i++)
         {

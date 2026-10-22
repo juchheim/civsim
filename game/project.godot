@@ -86,3 +86,11 @@ fig_lerp={
 "type": "float",
 "value": 1.0
 }
+burn_rect={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 1)
+}
+burn_map={
+"type": "sampler2D",
+"value": ""
+}

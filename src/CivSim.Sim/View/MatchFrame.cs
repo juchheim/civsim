@@ -158,6 +158,9 @@ public sealed class MatchFrame
     // ---- signal fires (COM-04): per civilization, 1 when its people keep signal posts on the hills between their villages ----
     public byte[] CivSignals = Array.Empty<byte>();
 
+    // ---- burning (FIR-05 Landscape Burning, AGR-04 Slash-and-Burn): per civilization, the tick each was learned, or -1; two per civilization ----
+    public long[] CivBurnLearned = Array.Empty<long>();
+
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;
     /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>

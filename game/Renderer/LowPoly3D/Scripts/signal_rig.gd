@@ -125,14 +125,19 @@ func _make_post(p: Vector2, chain_id: int, index: int, seed: float) -> void:
 	light.position = Vector3(p.x, y + 0.14 * POST_SCALE, p.y)
 	holder.add_child(light)
 	var smoke: GPUParticles3D = smoke_factory.call()
-	# a thin, tall thread of smoke that reads from far away
+	thicken_smoke(smoke, 0.19, 40, 9.0)
+	smoke.position = Vector3(p.x, y + 0.13 * POST_SCALE, p.y)
+	holder.add_child(smoke)
+	posts.append({"pos": p, "chain": chain_id, "index": index, "flame": flame, "light": light, "smoke": smoke, "seed": seed})
+
+## Turns a hearth's smoke into a darker, denser, taller column (signal posts, grass fires): lift = how fast it climbs.
+static func thicken_smoke(smoke: GPUParticles3D, lift: float, amount: int, lifetime: float) -> void:
 	var pm := (smoke.process_material as ParticleProcessMaterial).duplicate() as ParticleProcessMaterial
-	pm.initial_velocity_min = 0.16
-	pm.initial_velocity_max = 0.22
+	pm.initial_velocity_min = lift * 0.85
+	pm.initial_velocity_max = lift * 1.15
 	pm.spread = 4.0
 	pm.scale_min = 1.6
 	pm.scale_max = 2.4
-	# darker and denser than a hearth's, so it reads as a column from far off
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(0.42, 0.40, 0.38, 0.0))
 	ramp.set_color(1, Color(0.5, 0.48, 0.46, 0.0))
@@ -142,14 +147,11 @@ func _make_post(p: Vector2, chain_id: int, index: int, seed: float) -> void:
 	ramp_texture.gradient = ramp
 	pm.color_ramp = ramp_texture
 	smoke.process_material = pm
-	smoke.lifetime = 9.0
-	smoke.preprocess = 9.0
-	smoke.amount = 40
+	smoke.lifetime = lifetime
+	smoke.preprocess = lifetime
+	smoke.amount = amount
 	(smoke.draw_pass_1 as QuadMesh).size = Vector2(0.2, 0.2)
 	smoke.visibility_aabb = AABB(Vector3(-2, -0.5, -2), Vector3(4, 5, 4))
-	smoke.position = Vector3(p.x, y + 0.13 * POST_SCALE, p.y)
-	holder.add_child(smoke)
-	posts.append({"pos": p, "chain": chain_id, "index": index, "flame": flame, "light": light, "smoke": smoke, "seed": seed})
 
 ## 0 resting .. 1 flared, for the post at `index` in its chain: a bell that runs down the chain once every PERIOD seconds.
 static func flare_at(time: float, chain_id: int, index: int) -> float:

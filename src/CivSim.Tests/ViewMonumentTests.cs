@@ -90,4 +90,24 @@ public class ViewMonumentTests
         Assert.Equal(1, frame.CivSignals[2]);
         Assert.Equal(0, frame.CivSignals[0]);
     }
+
+    [Fact]
+    public void Each_civilization_reports_when_it_learned_to_burn_the_land()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(10);
+        var builder = new FrameBuilder(match, -1);
+        var frame = new MatchFrame();
+        builder.Build(match, frame);
+        for (int i = 0; i < frame.CivBurnLearned.Length; i++) Assert.Equal(-1, frame.CivBurnLearned[i]);
+
+        int fire = match.Research.Catalog.IndexOf("FIR-05");
+        runner.Submit(new Command(runner.Tick, 1, CommandKind.CompleteProject, fire, 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(match.Research.CompletedTick(1, fire), frame.CivBurnLearned[2]);
+        Assert.Equal(-1, frame.CivBurnLearned[3]);
+        Assert.Equal(-1, frame.CivBurnLearned[0]);
+    }
 }

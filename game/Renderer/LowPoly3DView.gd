@@ -24,12 +24,14 @@ var fire_lights: Array[OmniLight3D] = []
 var smoke_nodes: Array[Node3D] = []
 var last_season := -1
 var signal_rig: M7SignalRig
+var burn_rig: M7BurnRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
 var regional_render_scale_active := false
 
 func setup_frame(frame_data: Dictionary) -> void:
+	M7BurnRig.install_empty()
 	world = M7WorldData.new()
 	if not world.load_frame_data(frame_data, true):
 		push_error("Could not read initial MatchFrame")
@@ -47,6 +49,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	add_child(world_root)
 	signal_rig = M7SignalRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	signal_rig.sync()
+	burn_rig = M7BurnRig.new(builder, world_root, Callable(self, "_make_smoke"))
+	burn_rig.sync(float(world.tick))
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -79,6 +83,9 @@ func update_frame(frame_data: Dictionary) -> void:
 func set_render_tick(tick: float) -> void:
 	if builder != null and builder.rig != null:
 		builder.rig.update(tick)
+	if burn_rig != null:
+		burn_rig.sync(tick)
+		burn_rig.update(tick)
 
 ## Dev aid for scenarios: the first monument's ring centre in world coordinates (or the origin when there is none).
 func monument_focus() -> Vector3:
@@ -115,6 +122,13 @@ func signal_focus() -> Vector3:
 		return Vector3.ZERO
 	var p: Vector2 = signal_rig.posts[0].pos
 	return Vector3(p.x, maxf(world.height_at(p), 0.0), p.y)
+
+## Dev aid for scenarios: where a fire is burning now (the origin when none).
+func burn_focus() -> Vector3:
+	if burn_rig == null or not burn_rig.fx_active:
+		return Vector3.ZERO
+	var c: Vector2 = burn_rig.fx_focus
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
 func _process(_delta: float) -> void:
 	if builder != null:
@@ -256,7 +270,13 @@ func _make_materials() -> void:
 	var prop_wind := ShaderMaterial.new()
 	prop_wind.shader = prop.shader
 	prop_wind.set_shader_parameter("wind", 0.35)
+	prop_wind.set_shader_parameter("burn_hide", 2)      # trees burn away
 	mats.prop_wind = prop_wind
+	var grass_wind := ShaderMaterial.new()
+	grass_wind.shader = prop.shader
+	grass_wind.set_shader_parameter("wind", 0.35)
+	grass_wind.set_shader_parameter("burn_hide", 1)     # grass and low plants burn away
+	mats.grass_wind = grass_wind
 	var banner := ShaderMaterial.new()
 	banner.shader = prop.shader
 	banner.set_shader_parameter("wind", 0.25)
