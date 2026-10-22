@@ -75,6 +75,15 @@ public class StrategistDecisionTests
             return b;
         }
 
+        /// <summary>A village seen only as a head count, as below the Full opponent model: no fighters, no strength, no defences.</summary>
+        public BeliefSettlement BlindSite(int civ, int settlement, int tile, int population)
+        {
+            var b = new BeliefSettlement { Settlement = settlement, Tile = tile, LastSeenSeason = Season, PopulationEstimate = population };
+            Belief.Rivals[civ].Settlements.Add(b);
+            Belief.Rivals[civ].PopulationLow = Belief.Rivals[civ].PopulationHigh = Belief.Rivals[civ].Settlements.Sum(x => x.PopulationEstimate);
+            return b;
+        }
+
         public StrategistView View() => new()
         {
             Civ = 0, Season = Season, Tick = Season * 150L, MatchSeed = 7, Spec = new AiSpec(Level, Archetype),
@@ -114,6 +123,41 @@ public class StrategistDecisionTests
         AiDecision rejected = Assert.Single(walled.Notes("RaidRejected"));
         Assert.Contains("palisade seen", rejected.Reason);
         Assert.True(rejected.Score < Fix64.FromRatio(45, 100) || rejected.Reason.Contains("below the margin"), rejected.Reason);
+    }
+
+    [Fact]
+    public void A_blind_Chieftain_estimates_a_villages_defenders_from_its_head_count()
+    {
+        // Seen only as a head count (no fighters, no strength), a village of 18 is worth raiding: six fighters believed as strong
+        // as ours (times 1.3) against our seven. It used to read "no defenders" and a success of exactly 0.
+        var medium = new Scene { Level = Difficulty.Chieftain };
+        medium.BlindSite(1, settlement: 6, tile: T(28, 40), population: 18);
+        (_, ActionRecorder act) = Decide(medium);
+        Assert.Contains(act.Orders, o => o.StartsWith("raid 6 ", StringComparison.Ordinal));
+        AiDecision note = Assert.Single(medium.Notes("Raid"));
+        Assert.True(note.Score >= Fix64.FromRatio(45, 100), note.Reason);
+
+        // A tiny one does not pay for the risk...
+        var tiny = new Scene { Level = Difficulty.Chieftain };
+        tiny.BlindSite(1, settlement: 6, tile: T(28, 40), population: 9);
+        Assert.DoesNotContain(Decide(tiny).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        Assert.Contains(tiny.Notes("RaidRejected"), n => n.Reason.Contains("below the margin"));
+
+        // ...and a big one cannot be beaten: a third of 60 people is 20 fighters against our five or seven.
+        var big = new Scene { Level = Difficulty.Chieftain };
+        big.BlindSite(1, settlement: 6, tile: T(28, 40), population: 60);
+        Assert.DoesNotContain(Decide(big).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        Assert.Contains(big.Notes("RaidRejected"), n => n.Reason.Contains("believed success"));
+    }
+
+    [Fact]
+    public void The_head_count_estimate_is_only_for_levels_that_cannot_see_fighters()
+    {
+        // At Full, a village believed to have no fighters is believed to have none: the old reading is unchanged there.
+        var scene = new Scene { Level = Difficulty.Warlord };
+        scene.BlindSite(1, settlement: 6, tile: T(28, 40), population: 9);
+        Assert.DoesNotContain(Decide(scene).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        Assert.Contains(scene.Notes("RaidRejected"), n => n.Reason.Contains("success 0.00"));
     }
 
     [Fact]

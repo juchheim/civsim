@@ -95,6 +95,18 @@ public static class StrategistTuning
     /// <summary>Stores by the season a raid lands (0 spring .. 3 winter): they peak after the autumn harvest (14 §6.1).</summary>
     public static readonly Fix64[] SeasonalStores =
         { Fix64.FromRatio(60, 100), Fix64.FromRatio(70, 100), Fix64.One, Fix64.FromRatio(90, 100) };
+    /// <summary>
+    /// Below the Full opponent model a rival village's fighters and defending strength are not seen, only its head count
+    /// (14 §16.3), so a third of its people are assumed to fight (0.33 fighters a head in the accurate beliefs of Warlord, and the
+    /// rule the threat estimate already uses for a rival whose villages are unplaced).
+    /// </summary>
+    public static readonly Fix64 UnseenFighterShare = Fix64.FromRatio(1, 3);
+    /// <summary>
+    /// ...and each is believed as strong as one of our own fighters times this. With accurate beliefs defenders measure about 0.56
+    /// of our raiders, so 1.3 is deliberately cautious: a blind Chieftain raids about as often as a Warlord (a few times in an
+    /// 80-minute game) rather than never (the old guess of 0.36 left the raid simulation with no defenders, and a success of 0).
+    /// </summary>
+    public static readonly Fix64 UnseenDefenderStrength = Fix64.FromRatio(13, 10);
     /// <summary>Raiders are the strongest fighters: party strength per raider vs the settlement's average.</summary>
     public static readonly Fix64 PartyPickBonus = Fix64.FromRatio(115, 100);
     /// <summary>Party sizes tried, as shares of the origin's fighters (13 §5.2: 15-30%, more with warriors).</summary>

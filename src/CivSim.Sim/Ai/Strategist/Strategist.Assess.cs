@@ -58,10 +58,22 @@ public sealed partial class Strategist
             // Pessimistic head count: the ±25% band, and more the older the sighting.
             Fix64 grow = StrategistTuning.BeliefPessimism * (Fix64.One + StrategistTuning.StaleGrowth * (Fix64.One - fresh));
             int fighters = Math.Max(b.FightersEstimate, 0);
+            // Below Full the village's fighters and strength are not seen, only its head count: assume a share of the people fight
+            // and that each is as strong as ours (times a margin), rather than reading "no defenders" and a certain failure.
+            bool blind = v.Profile.Opponent < OpponentModel.Full && fighters == 0 && b.PopulationEstimate > 0;
+            if (blind)
+                fighters = (Fix64.FromInt(b.PopulationEstimate) * StrategistTuning.UnseenFighterShare - Fix64.FromRatio(1, 1000)).FloorToInt() + 1;
             int counted = fighters == 0 ? 0 : (Fix64.FromInt(fighters) * grow - Fix64.FromRatio(1, 1000)).FloorToInt() + 1;
             Fix64 perDefend = b.DefendingStrengthEstimate > Fix64.Zero && fighters > 0
                 ? b.DefendingStrengthEstimate / fighters
                 : Fix64.FromRatio(6, 10) * weapon;
+            if (blind)
+            {
+                Fix64 ownStrength = Fix64.Zero;
+                int ownFighters = 0;
+                foreach (OwnSettlement own in v.Own.Settlements) { ownStrength += own.AttackingStrength; ownFighters += own.Fighters; }
+                if (ownFighters > 0) perDefend = ownStrength / ownFighters * StrategistTuning.UnseenDefenderStrength;
+            }
             var defenses = new Defenses(
                 ThornBarrier: b.ThornBarrierSeen,
                 Palisade: b.PalisadeSeen || Believed(r, _def03),

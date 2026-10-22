@@ -334,6 +334,21 @@ Nothing is seen of a civilization before the observer is Aware of it. A seen set
 ### 16.3 Difficulty
 `None` (Settler): diplomacy, the public record and the map; uniform posterior; threat from diplomacy alone. `ArchetypePosterior` (Chieftain): adds settlements (place, head count, distress), the posterior and the public tech closure, but no weapons, warriors, fighters, defenses or sighted tech. `Full` and `FullCoalition`: everything.
 
+### 16.3a A blind Chieftain estimates a village's defenders (2026-10-22)
+
+A defect found while checking why no one in the game ever raided or fought: at Chieftain the belief leaves a rival village's fighters and strength at zero (§16.3), and `ReadSites` read that as **"no defenders"**. The raid Monte Carlo then ran against nobody and returned a believed success of exactly **0.00 in all 307 raid decisions** logged over four 60-minute games, so Chieftain, the default level, never raided, declared no war, and never attacked (Warlord, with the same party sizes of 4 to 6, believed 0.43 on average). The fallback it used for a defender's strength, 0.36, was also about five times too weak.
+
+Below the Full opponent model the Strategist now **estimates** instead (`StrategistTuning.UnseenFighterShare`, `UnseenDefenderStrength`): a third of the village's head count is assumed to be able to fight (0.33 fighters a head in Warlord's accurate beliefs, and the rule the threat estimate already uses), each believed as strong as one of our own fighters **times 1.3** (accurate beliefs give about 0.56, so 1.3 is deliberately cautious). At Full the old reading stands. The value of 1.3 was chosen by sweeping the multiple over six seeds of 80-minute games (Chieftain AIs, 36 games per setting, with and without outriggers):
+
+| Defender strength (× our own) | Raids per game (won) | Wars per game | Assaults / captures (6 games) |
+|---|---|---|---|
+| 0.56 (accurate) | 22 to 24 (23 to 26 %) | 3 to 4 | 4 to 10 / 2 to 8 |
+| 1.0 | 7 to 10 (8 to 22 %) | 3 to 4 | 0 to 6 / 0 to 4 |
+| **1.3 (chosen)** | **1.5 to 6.5 (15 to 22 %)** | **1 to 1.7** | **0 to 2 / 0 to 2** |
+| 1.6 | 1 to 2 (21 to 33 %) | 0 to 0.3 | 0 to 2 / 0 to 2 |
+
+Before the change: Chieftain 0 raids; Warlord about 1.3 raids and 1 war a game. With 1.3, a Chieftain with only head counts raids villages of about 15 to 30 people (believed success 0.69 to 1.0), skips tiny ones that do not pay for the risk and big ones it cannot beat. The AI still launches raids at a believed success of 45 to 60 % that win only 15 to 25 % of the time: the same calibration gap as at Warlord, left for a separate pass.
+
 ### 16.4 Results
 - **A8 fog fairness:** a match is cloned by snapshot at season 40 (before contact), three seasons after first contact (season 98) and at season 120 (mid E2); in the copy, people are killed and wounded, stores taken and Cohesion lowered in every rival settlement at least 8 tiles beyond sight, and research is granted to never-contacted rivals out of figure sight (no Firsts, no era change). After the season-end step the observer's belief (field by field and hash), own view, research slots, queue, Leaning, posture, Beacons and decision log are identical. Killing people in a settlement in sight, or handing a rival in figure sight a better weapon, changes the belief. A builder that reads every settlement fails the test.
 - **Cost:** 0.19 ms per civilization per season at mid E2 (target < 2 ms).
