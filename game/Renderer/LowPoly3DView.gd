@@ -25,6 +25,7 @@ var smoke_nodes: Array[Node3D] = []
 var last_season := -1
 var signal_rig: M7SignalRig
 var burn_rig: M7BurnRig
+var feast_rig: M7FeastRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -51,6 +52,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	signal_rig.sync()
 	burn_rig = M7BurnRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	burn_rig.sync(float(world.tick))
+	feast_rig = M7FeastRig.new(builder, world_root)
+	feast_rig.sync(float(world.tick))
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -86,6 +89,9 @@ func set_render_tick(tick: float) -> void:
 	if burn_rig != null:
 		burn_rig.sync(tick)
 		burn_rig.update(tick)
+	if feast_rig != null:
+		feast_rig.sync(tick)
+		feast_rig.update(tick)
 
 ## Dev aid for scenarios: the first monument's ring centre in world coordinates (or the origin when there is none).
 func monument_focus() -> Vector3:
@@ -129,6 +135,16 @@ func burn_focus() -> Vector3:
 		return Vector3.ZERO
 	var c: Vector2 = burn_rig.fx_focus
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
+## Dev aid for scenarios: where a feast is under way now (the origin when none).
+func feast_focus() -> Vector3:
+	if feast_rig == null:
+		return Vector3.ZERO
+	for site in feast_rig.sites:
+		if site.shown:
+			var c: Vector2 = site.centre
+			return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+	return Vector3.ZERO
 
 func _process(_delta: float) -> void:
 	if builder != null:

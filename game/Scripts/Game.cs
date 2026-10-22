@@ -514,6 +514,7 @@ public partial class Game : Node3D
             ["seaTier"] = ToIntArray(frame.CivSeaTier, frame.CivSeaTier.Length),
             ["signalCivs"] = ToIntArray(frame.CivSignals, frame.CivSignals.Length),
             ["burnLearned"] = BurnLearnedTicks(frame),
+            ["feastLearned"] = LearnedTicks(frame.CivFeastLearned),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,
@@ -540,10 +541,13 @@ public partial class Game : Node3D
         return result;
     }
 
-    private static int[] BurnLearnedTicks(MatchFrame frame)
+    private static int[] BurnLearnedTicks(MatchFrame frame) => LearnedTicks(frame.CivBurnLearned);
+
+    /// <summary>Ticks as ints for the renderer, -1 where not yet learned.</summary>
+    private static int[] LearnedTicks(long[] ticks)
     {
-        var result = new int[frame.CivBurnLearned.Length];
-        for (int i = 0; i < result.Length; i++) result[i] = frame.CivBurnLearned[i] < 0 ? -1 : (int)Math.Min(frame.CivBurnLearned[i], int.MaxValue);
+        var result = new int[ticks.Length];
+        for (int i = 0; i < result.Length; i++) result[i] = ticks[i] < 0 ? -1 : (int)Math.Min(ticks[i], int.MaxValue);
         return result;
     }
 

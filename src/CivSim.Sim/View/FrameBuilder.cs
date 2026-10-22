@@ -48,7 +48,7 @@ public sealed partial class FrameBuilder
     private readonly ResearchCatalog _catalog;
     private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03, _stn10;
     private readonly int[] _boatProjects;
-    private readonly int _com04, _fir05, _agr04;
+    private readonly int _com04, _fir05, _agr04, _soc05;
     /// <summary>Per civilization: the tile and village its megalith stands at (-1 until the project is done). View-only, not part of the saved view state: a loaded game picks it again.</summary>
     private readonly int[] _monumentTile, _monumentSettlement;
 
@@ -119,7 +119,7 @@ public sealed partial class FrameBuilder
         _def03 = _catalog.IndexOf("DEF-03");
         _stn10 = _catalog.IndexOf("STN-10");
         _com04 = _catalog.IndexOf("COM-04");
-        _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04");
+        _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
         _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04") };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
@@ -972,6 +972,9 @@ public sealed partial class FrameBuilder
             target.CivBurnLearned[c * 2] = _fir05 >= 0 && research.IsDone(c, _fir05) ? research.CompletedTick(c, _fir05) : -1;
             target.CivBurnLearned[c * 2 + 1] = _agr04 >= 0 && research.IsDone(c, _agr04) ? research.CompletedTick(c, _agr04) : -1;
         }
+        if (target.CivFeastLearned.Length < _civs) target.CivFeastLearned = new long[_civs];
+        for (int c = 0; c < _civs; c++)
+            target.CivFeastLearned[c] = _soc05 >= 0 && research.IsDone(c, _soc05) ? research.CompletedTick(c, _soc05) : -1;
     }
 
     /// <summary>

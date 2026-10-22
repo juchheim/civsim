@@ -355,6 +355,23 @@ public partial class Game
                 Step(() => { }, 40.0f);
                 Shot("burn-regrown");
                 break;
+            case "feast":
+                // --start-minute=14: learn Feasting, run fast until the first feast, then watch it at half speed
+                Step(() => { FrameCapital(); ZoomTo(6.0f); GrantProject(FindProjectByName("Feasting")); _session!.SetSpeedIndex(3); }, 0.5f);
+                for (int i = 0; i < 260; i++)
+                    Step(() =>
+                    {
+                        if (_feastSeen) return;
+                        var f = (Vector3)_visualRenderer!.Call("feast_focus");
+                        if (f != Vector3.Zero) { _feastSeen = true; _target = f; ZoomTo(3.3f); _session!.SetSpeedIndex(0); }
+                    }, 0.05f);
+                for (int i = 0; i < 8; i++)
+                {
+                    int n = i;
+                    Shot($"feast-{n}");
+                    Step(() => { }, 3.0f);
+                }
+                break;
             case "glide-fixed":
                 Step(() => { FrameCapital(); _target += new Vector3(1.5f, 0, 1.0f); ZoomTo(5.0f); _session!.SetPaused(true); }, 1.6f);
                 Step(() => _lerpOverride = 0.0f, 0.4f);
@@ -447,7 +464,7 @@ public partial class Game
     }
 
     /// <summary>Test grant through the normal command path (CommandKind.CompleteProject).</summary>
-    private bool _voyageFound, _burnSeen;
+    private bool _voyageFound, _burnSeen, _feastSeen;
 
     private void GrantProject(int project)
     {

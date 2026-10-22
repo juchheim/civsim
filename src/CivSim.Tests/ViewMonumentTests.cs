@@ -110,4 +110,23 @@ public class ViewMonumentTests
         Assert.Equal(-1, frame.CivBurnLearned[3]);
         Assert.Equal(-1, frame.CivBurnLearned[0]);
     }
+
+    [Fact]
+    public void Each_civilization_reports_when_it_learned_to_feast()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(10);
+        var builder = new FrameBuilder(match, -1);
+        var frame = new MatchFrame();
+        builder.Build(match, frame);
+        for (int c = 0; c < frame.CivFeastLearned.Length; c++) Assert.Equal(-1, frame.CivFeastLearned[c]);
+
+        int feast = match.Research.Catalog.IndexOf("SOC-05");
+        runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, feast, 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(match.Research.CompletedTick(3, feast), frame.CivFeastLearned[3]);
+        Assert.Equal(-1, frame.CivFeastLearned[0]);
+    }
 }

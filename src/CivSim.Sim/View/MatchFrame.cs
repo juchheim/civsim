@@ -161,6 +161,9 @@ public sealed class MatchFrame
     // ---- burning (FIR-05 Landscape Burning, AGR-04 Slash-and-Burn): per civilization, the tick each was learned, or -1; two per civilization ----
     public long[] CivBurnLearned = Array.Empty<long>();
 
+    // ---- feasting (SOC-05): per civilization, the tick it was learned, or -1 ----
+    public long[] CivFeastLearned = Array.Empty<long>();
+
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;
     /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>

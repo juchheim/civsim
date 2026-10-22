@@ -45,6 +45,7 @@ func _init() -> void:
 	_decor()
 	_monument()
 	_boats()
+	_feast()
 	_people()
 	_animals()
 
@@ -1043,3 +1044,65 @@ func _boats() -> void:
 	# the same hulls for boats at rest (plain props, not figures)
 	for tier in range(1, 5):
 		meshes["boat_%d" % tier] = meshes["person_boat_%d" % tier]
+
+
+# ------------------------------------------------------------------ the feast (see feast_rig.gd)
+
+## One guest at a feast, local frame like the other people (+Y up, forward +Z). pose: "seated" cross-legged with a bowl, "cheer"
+## standing with arms raised, "host" standing with arms flung wide and a cup.
+func _feaster(seed: int, pose: String) -> ArrayMesh:
+	var b := _b(seed)
+	var legc := Color("#4a3a2a")
+	var save := b.xf
+	if pose == "seated":
+		# knees up in front, the body sitting on the ground
+		b.pole(Vector3(-0.009, 0.007, 0.0), Vector3(-0.014, 0.007, 0.034), 0.0065, legc)
+		b.pole(Vector3(0.009, 0.007, 0.0), Vector3(0.014, 0.007, 0.034), 0.0065, legc)
+		b.xf = b.xf * Transform3D(Basis(), Vector3(0, -0.02, 0))
+	else:
+		b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+		b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+		b.xf = b.xf * Transform3D(Basis(), Vector3(0, 0.034, 0))
+	b.tag = M7MeshBuilder.TAG_CLOTH
+	b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, Color("#8a6a48"), Color("#8a6a48"))
+	b.tag = M7MeshBuilder.TAG_CIV
+	b.prism(Vector3(0, 0.02, 0), 0.0215, 0.009, 0.022, 7, Color.WHITE, Color.WHITE)
+	b.prism(Vector3(0, 0.002, 0), 0.0188, 0.0185, 0.007, 7, Color.WHITE, Color.WHITE)
+	b.tag = M7MeshBuilder.TAG_PLAIN
+	match pose:
+		"seated":
+			b.pole(Vector3(-0.02, 0.03, 0), Vector3(-0.012, 0.012, 0.026), 0.0045, SKIN)
+			b.pole(Vector3(0.02, 0.03, 0), Vector3(0.012, 0.012, 0.026), 0.0045, SKIN)
+			b.prism(Vector3(0, 0.004, 0.028), 0.011, 0.014, 0.011, 6, Color("#b5603c"), Color("#7a3a20"))
+		"cheer":
+			b.pole(Vector3(-0.02, 0.03, 0), Vector3(-0.032, 0.074, 0.004), 0.0045, SKIN)
+			b.pole(Vector3(0.02, 0.03, 0), Vector3(0.032, 0.074, 0.004), 0.0045, SKIN)
+		"host":
+			b.pole(Vector3(-0.02, 0.032, 0), Vector3(-0.062, 0.05, 0.0), 0.0048, SKIN)
+			b.pole(Vector3(0.02, 0.032, 0), Vector3(0.062, 0.05, 0.0), 0.0048, SKIN)
+			b.prism(Vector3(0.062, 0.05, 0.0), 0.0075, 0.0095, 0.012, 6, Color("#c9973c"), Color("#c9973c"))
+	b.blob(Vector3(0, 0.05, 0), Vector3(0.0125, 0.013, 0.0125), 7, 4, SKIN, 0.0)
+	b.blob(Vector3(0, 0.055, -0.003), Vector3(0.0128, 0.009, 0.012), 7, 3, HAIR, 0.0)
+	b.xf = save
+	return b.commit()
+
+func _feast() -> void:
+	meshes["person_feast_seated"] = _feaster(750, "seated")
+	meshes["person_feast_cheer"] = _feaster(751, "cheer")
+	meshes["person_feast_host"] = _feaster(752, "host")
+	# the long mat, laid out along X: bowls, jars, a roast on a spit, and a ring of stones for the fire at the -X end
+	var b := _b(753)
+	b.box(Vector3(0, 0.002, 0), Vector3(0.3, 0.004, 0.085), Color("#d7c29a"), Color("#e4d2ac"))
+	b.box(Vector3(0, 0.0035, 0), Vector3(0.3, 0.001, 0.012), Color("#9c4a32"))
+	for i in 6:
+		var x := -0.09 + i * 0.036
+		var z := 0.022 if i % 2 == 0 else -0.022
+		b.prism(Vector3(x, 0.004, z), 0.0085, 0.011, 0.009, 6, Color("#b5603c") if i % 3 else Color("#c27a4a"), Color("#6e3a22"))
+	for jar in [[0.02, 0.0], [0.065, 0.0], [-0.04, 0.0]]:
+		b.blob(Vector3(jar[0], 0.012, jar[1]), Vector3(0.011, 0.013, 0.011), 7, 4, Color("#a4532f"), 0.0, Color("#7a3a20"))
+	b.pole(Vector3(0.1, 0.014, -0.032), Vector3(0.1, 0.014, 0.032), 0.0016, WOOD)
+	b.blob(Vector3(0.1, 0.018, 0.0), Vector3(0.012, 0.01, 0.026), 6, 3, Color("#8a4a2a"), 0.0, Color("#5a2f1a"))
+	for i in 7:
+		var a := TAU * i / 7.0
+		b.blob(Vector3(-0.135 + cos(a) * 0.026, 0.006, sin(a) * 0.026), Vector3(0.008, 0.007, 0.008), 5, 3, STONE, 0.1)
+	meshes["feast_mat"] = b.commit()
