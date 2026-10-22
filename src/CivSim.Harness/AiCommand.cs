@@ -127,8 +127,9 @@ internal static class AiCommand
             Console.WriteLine($"  {name,-9} {leg / n,8:F0} {dom / n,8:F0} {mas / n,7:F0} {fir / n,7:F0} {set / n,6:F1} {proj / n,6:F1} " +
                 $"{(n1 > 0 ? k1 / n1 : double.NaN),6:F1} {(n2 > 0 ? k2 / n2 : double.NaN),6:F1} {raids / n,6:F1} {capt / n,5:F2} {lost / n,5:F2}");
         }
-        Console.WriteLine("  combat by archetype: L=launches, R=resolved, P=in transit; mean forecast probability / observed rate");
-        Console.WriteLine("  assault columns also show held assaults, broken/pending occupations, and captures (match-end censored)");
+        Console.WriteLine("  raids: L=launched, R=resolved, P=in transit at match end, W=won; forecast averages all launches / win rate uses resolved raids");
+        Console.WriteLine("  assaults: launched/resolved/in transit/held; then occupations broken/pending/captured; later outcomes are censored at match end");
+        Console.WriteLine("  capture forecast averages all assault launches / capture rate uses resolved assaults");
         foreach (string name in FfaNames)
         {
             EconomyArchetype a = Enum.Parse<EconomyArchetype>(name);
