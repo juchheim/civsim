@@ -104,6 +104,7 @@ U    = E[Legacy over horizon H]                      # Dominion + Mastery + Firs
 ```
 - **Horizon H:** 3–4 era-lengths of projects, but at least 2 years of sim time.
 - **Option value:** each project gets a bonus for the number of high-value projects it enables (hub emphasis from [03 §4.3](03-research-catalog.md#43-hub-projects-most-required-by-other-projects)) and for being on the **next keystone's closure** ([07](07-balance-findings.md) §5 #12).
+- **As built:** alongside forecast utility, Spark applies current-need and strategic-intent signals to projects by the capabilities in their structured effects: food security, lean-season survival, cohesion, combat, defense and reach. Signals come from effect kinds and stat/action fields, not project IDs, so future-era projects can participate by declaring the matching effects. New effect vocabularies need a capability mapping; effect prose is not parsed. These Spark bonuses are separate from the Council's auto-pick urgency scorer (02 §15).
 
 ### 4.2 Plan search
 1. **Candidates:** all Available projects, plus Glimpsed ones one step away.
@@ -149,37 +150,39 @@ EV(raid on s) = P(success | believed defenses) × loot value(s)
               − Relations and reputation cost (with the target and with third parties who'd learn of it)
               − P(retaliation) × expected retaliation loss
 ```
-- P(success) and the casualty expectations come from the [13 §5.5](13-contact-and-conflict.md#55-expected-results-tuning-targets) table, applied to **believed** defenses. If the belief is stale (> 2 seasons), the AI **scouts first**.
+- P(success) and the casualty expectations come from the [13 §5.5](13-contact-and-conflict.md#55-expected-results-tuning-targets) table, applied to **believed** defenses. If the belief is stale (> 2 seasons), the Strategist declines to raid blind and records that a fresh sighting is needed.
 - **Timing:** target stores peak in early winter after harvest; raid when the target's adults are dispersed (hunting drives, seasonal round); avoid raiding into a winter that the AI's own band can't survive with losses.
+- The Strategist picks the best-valued party size and uses its actual ranged-weapon state in the raid simulation. Before launch, it checks the known counter-threat against its own settlements after accounting for the fighters this raid would send; an exposed settlement can veto an otherwise profitable raid.
 - A raid is launched only if EV > 0 by a margin set by personality (Warlord low, Grower high).
 
 ### 6.2 War of conquest
 - **Value:** forecast Legacy with the war (capturing settlements per [13 §8](13-contact-and-conflict.md#8-war-and-the-capture-of-settlements-all-eras): land, Dominion, deposits such as coal and tin, removing a rival's Firsts race) minus the forecast without it (Cohesion costs, deaths, third-party reactions, a truce lock-in).
-- **Feasibility:** projected force ratio at arrival ≥ **1.5** on the target settlement (≥ 2.0 against walls), including believed reinforcements within relief range.
+- **Feasibility:** projected force ratio at arrival ≥ **1.5** against the target settlement's defenders (≥ 2.0 against walls). Nearby settlements do not inflate the initial assault ratio; their believed relief force is simulated during the occupation hold.
+- **Launch safety:** separately from tactical viability, the Strategist checks whether this campaign's departures leave a settlement exposed to a known third-party threat or to the target's counterattack. A blocked launch does not make a tactically winnable active war unwinnable for peace-planning purposes.
 - **Windows:** declares when the ratio will *decrease* if it waits (the rival's walls, bronze or alliance are coming), or when the rival is distracted (war with a third civilization, epidemic, famine).
 - **The Dominion endgame:** the Strategist tracks every civilization's path to the 50%-and-2× victory (D13) and, when it leads, plans the sequence of conquests that reaches it, earliest ~minute 113 (07b T2). When it doesn't lead, it plans to stop whoever does (§7.3).
 
 ### 6.3 Campaign planning
 1. **Target:** the most valuable settlement it can take and hold: weakly defended, high land or resource value, close to own supply, not at the rival's core first (unless a decapitation wins the war).
-2. **Concentrate:** one strike force, never split below the feasibility ratio.
+2. **Concentrate:** one strike force gathered from nearby settlements (currently within `ArmyGatherRange`, 10 tiles); at most 60% of each settlement's fighters leave, with at least four held back. Candidate safety is checked against the departures for that target.
 3. **Supply:** forces carry preserved food (FOD-02/07); campaigns start after harvest.
 4. **Hold:** after capture, garrison and pacify (Cohesion recovery projects: GOV, BEL, ART) before the next target.
 5. **Stop:** offer peace when objectives are met, when the force ratio falls below 1.0, or when a coalition forms against it.
 
 ### 6.4 Defense
-- **Garrisons** are allocated across settlements by Threat (§5.4) × value, so the AI never leaves the village nearest a known raider undefended.
+- **Departure safety:** raid and campaign plans are checked against residual settlement defense after their proposed fighters leave; nearby sister settlements can count as relief if their remaining force can cover the threatened settlement.
 - **Researches defense on time:** if a rival's forecast bronze or warrior ETA falls before its own palisade's ETA, DEF and WAR projects jump in priority (this is A1 in practice).
 - **Signal networks** (COM-04) and lookouts on the border facing the threat.
 - **Defensive alliances** with anyone else the threat also threatens.
 
 ## 7. Diplomacy intelligence
 
-### 7.1 First contact (13 §3)
-- If the neighbour is believed stronger, or the AI wants trade and diffusion: send a **gift party** first (+20% friendly).
+### 7.1 First contact and gifts (13 §3)
+- Contact itself follows the rules in §13. After contact and Gift Giving research, rank gift opportunities by purpose: appease a threatening neighbor, build toward a needed alliance, maintain relations with a peaceful neighbor, or make a first gift to a stronger neighbor (or any peaceful neighbor other than a Warlord). Gifts are sent to a fresh, known settlement when a viable route and food reserve exist.
 - If it plans to raid soon: stay unseen as long as possible (scouts avoid contact), so first contact happens on its terms.
 
 ### 7.2 Alliances, trade and promises
-- **Trade** when both sides gain (13 §4.2): the AI uses trade to satisfy `[Seen]` and `[Has]` gates it lacks (tin!).
+- **Trade** when both sides gain (13 §4.2): barter requires research on both sides, positive relations, a fresh known destination, a viable route and food reserve, and a positive distance-adjusted benefit estimate. The Strategist sends at most one successful barter order per season; it does not assume unseen knowledge or goods. Trade can satisfy `[Seen]` and `[Has]` gates it lacks (tin!).
 - **Alliances** when a shared threat exists or to secure a flank before a war elsewhere.
 - **Reputation as an asset:** the AI breaks a pact only if the forecast gain exceeds the reputation cost (13 §3.3) by a wide margin. Smart AIs are mostly trustworthy, which makes their rare betrayals meaningful.
 - **Peace acceptance:** accepts when the forecast with peace beats continued war (§6.3 stop rules apply symmetrically).
@@ -418,9 +421,9 @@ The mean Legacy over all archetypes is 2,003, against 2,032 before (Sage's free 
 
 Deferred with the later eras: Legend vs Warlord ≥ 65% (Legend ties Warlord within noise at E0–E2, its extra beam width has little to find) and the Dominion-victory frequency. `civsim-harness ai --exploit` uses a fitness of win rate plus Legacy share. The scheduled workflow runs 97 evaluations weekly; a 961-evaluation run found a research-only policy (GOV>SOC>FOD>COM, no raids) winning 25% and stopped improving after generation 12. The full 10,000-evaluation target is a longer offline run.
 
-**Spark** (`Ai/Forecast`, `Ai/Spark`). A deterministic mean-field forecast of one civilization (Insight, slots, Know-how, eras, Firsts and Mastery Legacy; fidelity against live matches: KEY-1/2/3 within 15%, median 4.5%) feeds a beam search over the next six projects, started from the Council's scores. A ready keystone always goes to Primary; no slots are held for the critical path (holding even one cost 6–10 points of A1 because Firsts decide matches). The plan is kept unless a new one wins by a margin. Events: a keystone becoming Available is promoted within a research step (Warlord and Legend, `AiSystem.AfterResearchStep`); a jump of 0.25 in the Strategist's defense or attack reading lifts plan commitment, and the urgency bonus fades over 8 seasons. Settler and Chieftain take 20% and 5% of picks from the Council prior on a deterministic stream. About 220 rollouts per Warlord decision.
+**Spark** (`Ai/Forecast`, `Ai/Spark`). A deterministic mean-field forecast of one civilization (Insight, slots, Know-how, eras, Firsts and Mastery Legacy; fidelity against live matches: KEY-1/2/3 within 15%, median 4.5%) feeds a beam search over the next six projects, started from the Council's scores. The forecast follows every era in the catalog rather than stopping after four era advances, and the Firsts frontier uses catalog keystone ETAs. A ready keystone always goes to Primary; no slots are held for the critical path (holding even one cost 6–10 points of A1 because Firsts decide matches). The plan is kept unless a new one wins by a margin. Events: a keystone becoming Available is promoted within a research step (Warlord and Legend, `AiSystem.AfterResearchStep`); a jump of 0.25 in the Strategist's defense or attack reading lifts plan commitment, and the urgency bonus fades over 8 seasons. In addition to forecast value, need and intent bonuses follow typed effect capabilities (food, lean-season survival, cohesion, combat, defense and reach), allowing catalog additions to gain relevant value without lineage-specific rules. Settler and Chieftain take 20% and 5% of picks from the Council prior on a deterministic stream. About 220 rollouts per Warlord decision.
 
-**Strategist** (`Ai/Strategist`). Reads only `StrategistView` and acts only through `IStrategistActions`. Grand plan re-scored each season (10% switching penalty, hard events waive it, plans dwell 4 seasons, at most 2 changes per 12). Raids by Monte Carlo of `Raids.Resolve` on believed defenses (never below 30% success, never on a sighting older than 2 seasons, never into a winter it cannot feed). Wars need a force ratio ≥ 1.5 (2.0 against a palisade) with relief from sister settlements counted; peace when objectives are met or the war is lost. Gifts, barter, alliances, Posture (Fortify now adds watchers and the alarm, so it defends) and Beacons. Constants are in `StrategistTuning.cs`.
+**Strategist** (`Ai/Strategist`). Reads only `StrategistView` and acts only through `IStrategistActions`. Grand plan re-scored each season (10% switching penalty, hard events waive it, plans dwell 4 seasons, at most 2 changes per 12). Raids use Monte Carlo of `Raids.Resolve` on believed defenses (never below 30% success, never on a sighting older than 2 seasons, never into a winter it cannot feed), and include post-departure counter-threat checks. War assault ratios use the target's defenses; occupation-hold simulations include nearby relief. Separate launch checks account for the home force left by the proposed campaign. Peace planning distinguishes tactical viability from whether a new campaign is safe to launch. Gifts are prioritized by diplomatic need and sent to a known fresh settlement; barter requires a positive route estimate and reserves, with at most one successful barter order per season. Alliances, Posture (Fortify now adds watchers and the alarm, so it defends) and Beacons remain. Constants are in `StrategistTuning.cs`.
 
 **Bots** (`Ai/Bots`). Random, the three openings, Rusher, Turtle and the fixed-policy bot of the exploit searcher use the same three interfaces and the real belief builder.
 
@@ -437,3 +440,14 @@ At minute 33 Firsts are about half of Legacy (Dominion ~800, Mastery ~220, First
 - **Within E0–E2 it is consistent with the design.** Dominion is back-loaded on purpose (07b R8: 2.7% of Dominion in E0–E3 under habitable-land scoring, 24% under claimed-land scoring), so the early mix cannot show the full-game 50/30/15 split. A First is `EraBase × 0.5` (`×3` for Keystones and Wonders), which at E0–E2 is 11–37 points (33–112 for Keystones), against 1–3 for a Mastery project.
 - **It will not scale to later eras as written.** `EraBase` grows from 22 (E0) to 3,800,000 (E9) because it is an Insight cost, while Mastery is `(era + 1)` per project and Dominion is 100 points a year times land share. A First in E7 would be worth 65,000 points and one in E9 about 1.9 million, so Firsts would swamp Dominion and Mastery completely and the 50/30/15 split would be impossible. This is a scoring-scale decision for the milestone that builds E3 and later (a Legacy scale per era, for example a fixed Legacy base per era like `10 × (era + 1)²` for Firsts and Mastery scaled to match); it is not something to tune with E0–E2 data alone, and changing it now would move every gate for no gain.
 - **Decision:** leave the E0–E2 weights as they are; carry the scale problem as a risk for the later-era milestone (17 §9). The A1–A5 results are insensitive to it because every civilization sees the same scale.
+
+### 18.2 Decision-model update (2026-10-22)
+
+- **Research forecasts cover the catalog.** Forecast ordering, costs and rival keystone estimates advance through the full catalog era range, with no fixed four-era planning cap. This keeps Firsts timing and plan utility usable as later eras are added.
+- **Research value follows capabilities.** Spark caches generic capability signals from structured project effects (food, lean-season survival, cohesion, combat, defense and reach), then combines them with settlement needs and strategic intent. Catalog additions can influence the corresponding need or plan without adding a project-ID rule. Add a capability mapping when a future effect uses new stat/action vocabulary; prose alone has no effect on the scorer.
+- **Combat remains shared with the rules model.** The Strategist reads strength and weapon state and evaluates fights through the politics/combat rules. New-era unit or weapon mechanics should be exposed through those shared rules and the belief model, rather than added as project-name exceptions in AI decisions.
+- **Raids and campaigns account for departures.** Before a raid or campaign, the Strategist evaluates its own residual defense after the proposed force leaves. Campaign departures gather from settlements within 10 tiles, subject to the per-settlement fighter limit. The check considers known credible counter-threats and remaining nearby relief.
+- **Assault and occupation are distinct.** The launch ratio is against the target's believed defenders and defenses. Nearby defenders are modeled as relief during the occupation hold, including cumulative deaths and wounds across that hold. Safety blockers are applied after tactical assessment so peace decisions can still recognize a tactically viable war.
+- **Diplomacy orders are ranked and constrained.** Gift opportunities are ranked by appeasement, alliance-building, relation maintenance and first-contact value; destinations must be fresh and known, and routes must preserve food and fighters. Barter uses a conservative distance-adjusted benefit estimate and allows at most one successful order per season.
+
+The decision-model changes compiled with `dotnet build CivSim.slnx` (0 warnings, 0 errors). No new match tournament or balance measurements were run for this update; the existing acceptance figures above remain the 2026-10-20 results.

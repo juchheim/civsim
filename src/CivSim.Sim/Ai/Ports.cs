@@ -77,7 +77,9 @@ public sealed class AiOrders
     }
 
     public bool Gift(int toCiv) => _politics.OrderGift(_civ, toCiv);
+    public bool Gift(int toCiv, int targetSettlement) => _politics.OrderGift(_civ, toCiv, targetSettlement);
     public bool Barter(int withCiv) => _politics.OrderBarter(_civ, withCiv);
+    public bool Barter(int withCiv, int targetSettlement) => _politics.OrderBarter(_civ, withCiv, targetSettlement);
     public bool Raid(int targetSettlement, int partySize) => _politics.OrderRaid(_civ, targetSettlement, partySize);
     public bool Assault(int targetSettlement) => _politics.OrderAssault(_civ, targetSettlement);
     public bool DeclareWar(int civ) => _politics.OrderWar(_civ, civ);

@@ -162,6 +162,8 @@ public static class StrategistTuning
     public static readonly Fix64 TruceBreakLegacy = Fix64.FromInt(20);
     /// <summary>Floor of the value of a life in Legacy points.</summary>
     public static readonly Fix64 MinLifeLegacy = Fix64.FromRatio(1, 2);
+    /// <summary>A fighter wounded for two seasons costs less than a life lost in the war valuation.</summary>
+    public static readonly Fix64 WoundedLifeShare = Fix64.FromRatio(1, 4);
 
     // ---- diplomacy (14 §7) ----------------------------------------------------------------
 

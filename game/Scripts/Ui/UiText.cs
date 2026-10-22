@@ -189,15 +189,15 @@ public static class UiText
                 return $"Skill spread speed ×{F(value)}";
             case EffectKind.KnowHow:
                 {
-                    string text = e.Text?.Trim() ?? "";
-                    int comma = text.IndexOf(',');
+                    string knowHowText = e.Text?.Trim() ?? "";
+                    int comma = knowHowText.IndexOf(',');
                     if (comma > 0)
                     {
-                        string code = text[..comma].Trim();
+                        string code = knowHowText[..comma].Trim();
                         string lineage = FieldShort.TryGetValue(code, out string? shortName) ? shortName : FieldFull.GetValueOrDefault(code, code);
-                        return $"{lineage} know-how {text[(comma + 1)..].Trim()}";
+                        return $"{lineage} know-how {knowHowText[(comma + 1)..].Trim()}";
                     }
-                    return text.Length > 0 ? $"Know-how from practice {text}" : "More know-how from practice";
+                    return knowHowText.Length > 0 ? $"Know-how from practice {knowHowText}" : "More know-how from practice";
                 }
             case EffectKind.Tier:
                 return e.Text is { Length: > 0 } tier ? $"Settlement tier: {Sentence(tier)}" : null;

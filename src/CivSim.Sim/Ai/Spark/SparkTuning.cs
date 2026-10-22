@@ -62,6 +62,13 @@ public static class SparkTuning
     public static readonly Fix64 DefenseBonus = Fix64.FromInt(40);
     public static readonly Fix64 AttackBonus = Fix64.FromInt(30);
     public static readonly Fix64 FrontierBonus = Fix64.FromInt(8);
+    /// <summary>Modest value for food and lean-season capabilities while settlements are food insecure.</summary>
+    public static readonly Fix64 FoodNeedBonus = Fix64.FromInt(10);
+    public static readonly Fix64 LeanNeedBonus = Fix64.FromInt(12);
+    /// <summary>Modest value for cohesion effects while a settlement is strained.</summary>
+    public static readonly Fix64 CohesionNeedBonus = Fix64.FromInt(8);
+    /// <summary>Urgent projects receive this additional value only while the corresponding need is acute.</summary>
+    public static readonly Fix64 NeedUrgencyBonus = Fix64.FromInt(8);
     /// <summary>The Strategist's readings are worth their full bonus only if answered at once, nothing after this many seasons.</summary>
     public const int UrgencySeasons = 8;
     /// <summary>Option value (14 §4.1) per project that transitively needs this one (hub emphasis, 03 §4.3), in Legacy points.</summary>

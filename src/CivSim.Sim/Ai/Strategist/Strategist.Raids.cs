@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
@@ -32,7 +33,7 @@ public sealed partial class Strategist
         }
         int width = v.Belief.Map.Width;
         int trials = StrategistTuning.Trials(v.Profile);
-        bool ranged = Done(v, _hnt05) || Done(v, _hnt06);
+        bool ranged = v.Own.RangedWeapon;
         RaidCandidate? best = null, bestRejected = null;
         int bestRejectedCiv = -1;
         for (int o = 0; o < _civs; o++)
@@ -56,7 +57,7 @@ public sealed partial class Strategist
                 considered++;
                 foreach (Fix64 share in StrategistTuning.RaidPartyShares)
                 {
-                    RaidCandidate c = EvaluateRaid(v, read, p, site, origin, distance, share, ranged, trials);
+                    RaidCandidate c = EvaluateRaid(v, s, read, p, site, origin, distance, share, ranged, trials);
                     if (c.Party < 4) continue;
                     if (local is null || Better(c, local)) local = c;
                 }
@@ -116,7 +117,7 @@ public sealed partial class Strategist
            $"{what} on settlement {c.Settlement} of civ {c.Civ} with {c.Party}: success {F2(c.P)}, loot {F1(c.Loot)}, deaths {F2(c.Deaths)}" +
            $"{(c.Palisade ? ", palisade seen" : "")}{(c.Watchers ? ", watchers seen" : "")}";
 
-    private RaidCandidate EvaluateRaid(StrategistView v, RivalRead read, PairView p, Site site, OwnSettlement origin, int distance,
+    private RaidCandidate EvaluateRaid(StrategistView v, SeasonRead s, RivalRead read, PairView p, Site site, OwnSettlement origin, int distance,
         Fix64 share, bool ranged, int trials)
     {
         var c = new RaidCandidate
@@ -151,10 +152,28 @@ public sealed partial class Strategist
         Fix64 retaliation = answer * capability * read.ExpectedLoss;
         c.Value = c.P * c.Loot - c.Deaths * StrategistTuning.LifeValue - relations - reputation - retaliation;
 
+        string? counterExposure = null;
+        IReadOnlyDictionary<int, int> departures = RaidDepartures(origin, party);
+        for (int other = 0; other < _civs; other++)
+        {
+            if (other == v.Civ) continue;
+            PairView relation = v.Own.Others[other];
+            RivalRead rival = s.Rivals[other];
+            RivalBelief belief = v.Belief.Rivals[other];
+            bool credibleCounterThreat = relation.AtWar || rival.EffectiveThreat >= StrategistTuning.ThreatNoticeAt;
+            if (!credibleCounterThreat || !relation.Contacted || relation.Allied || (relation.InTruce && !relation.AtWar) || rival.Sites.Count == 0 ||
+                (!rival.Capable && belief.Era < 2)) continue;
+            (Fix64 army, OwnSettlement? exposed) = CounterThreat(v, rival, v.Belief.Map.Width, departures);
+            if (exposed is null) continue;
+            counterExposure = $"civ {other}'s field army ({F1(army)}) could take settlement {exposed.Index} after the raid party leaves";
+            break;
+        }
+
         if (c.P < _minRaidSuccess) c.Blocker = $"believed success {F2(c.P)} below {F2(_minRaidSuccess)}";
         else if (c.Value < _minRaidValue) c.Blocker = $"expected value {F1(c.Value)} below the margin {F1(_minRaidValue)}";
         else if (c.LandsSeason >= 2 && origin.LateWinterForecast < StrategistTuning.WinterFoodFloor)
             c.Blocker = $"lands in {(c.LandsSeason == 2 ? "autumn" : "winter")} and our late-winter food is {F2(origin.LateWinterForecast)}";
+        else if (counterExposure is not null) c.Blocker = counterExposure;
         return c;
     }
 }

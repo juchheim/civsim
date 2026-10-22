@@ -99,12 +99,15 @@ internal sealed class Site
     public Fix64 DefendStrength => PerDefend * Fighters;
 }
 
-/// <summary>A possible war target: the best settlement of one rival and how an assault on it would go.</summary>
+/// <summary>A possible war target with predicted tactical outcome and a separate safe-to-launch result.</summary>
 internal sealed class WarOption
 {
-    public int Civ, Settlement, Travel, Attackers, LandsSeason;
+    public int Civ, Settlement, Tile, Travel, Attackers, LandsSeason;
     public Fix64 OriginWinter;
-    public Fix64 Ratio, Required, CaptureChance, Deaths, Value, Window;
+    public Fix64 Ratio, Required, CaptureChance, Deaths, Wounded, Casualties, Value, Window;
+    /// <summary>Tactical, value, and supply checks pass before strategic launch blockers are applied.</summary>
+    public bool TacticallyViable;
+    /// <summary>Safe to launch now after tactical checks and current strategic/political blockers.</summary>
     public bool Feasible, Palisade;
     public string Why = "";
 }
