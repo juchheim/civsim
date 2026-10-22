@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.View;
 
@@ -11,6 +12,8 @@ internal sealed class GameSaveData
 {
     public ulong Seed;
     public int ViewerCiv;
+    /// <summary>Rival difficulty; version 1 saves were all played at Chieftain.</summary>
+    public Difficulty Difficulty = Difficulty.Chieftain;
     public long Tick;
     public int ChecksumInterval;
     public int SpeedIndex;
@@ -40,12 +43,43 @@ internal sealed class GameSaveData
 internal static class GameSave
 {
     private const uint Magic = 0x53475343; // "CSGS", little-endian
-    private const uint Version = 1;
+    private const uint Version = 2;
+    private const uint FirstVersionWithDifficulty = 2;
     private const int MaxSnapshotBytes = 512 * 1024 * 1024;
     private const int MaxLogEntries = 10_000_000;
 
     public static string QuickSavePath => Path.Combine(Godot.OS.GetUserDataDir(), "saves", "quicksave.civsave");
     public static string LatestReplayPath => Path.Combine(Godot.OS.GetUserDataDir(), "replays", "latest.csr");
+
+    private const uint ReplayDifficultyMagic = 0x46444943; // "CIDF", little-endian
+
+    /// <summary>
+    /// A replay file is the sim's <see cref="Replay"/> followed by a small footer naming the rival difficulty, which the
+    /// replay format itself does not carry but a faithful re-run needs. Files without a footer were played at Chieftain.
+    /// </summary>
+    public static void WriteReplay(Stream stream, Replay replay, Difficulty difficulty)
+    {
+        replay.Write(stream);
+        using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+        writer.Write(ReplayDifficultyMagic);
+        writer.Write((byte)difficulty);
+    }
+
+    public static Replay ReadReplay(Stream stream, out Difficulty difficulty)
+    {
+        Replay replay = Replay.Read(stream);
+        difficulty = Difficulty.Chieftain;
+        if (stream.Length - stream.Position >= 5)
+        {
+            using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+            if (reader.ReadUInt32() == ReplayDifficultyMagic)
+            {
+                byte level = reader.ReadByte();
+                if (Enum.IsDefined(typeof(Difficulty), level)) difficulty = (Difficulty)level;
+            }
+        }
+        return replay;
+    }
 
     public static void Write(string path, GameSaveData data)
     {
@@ -87,6 +121,7 @@ internal static class GameSave
                 }
                 writer.Write(data.OnboardingSeen);
                 writer.Write(data.IntroDismissed);
+                writer.Write((byte)data.Difficulty);
                 writer.Flush();
                 stream.Flush(flushToDisk: true);
             }
@@ -103,8 +138,9 @@ internal static class GameSave
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
-        if (reader.ReadUInt32() != Magic || reader.ReadUInt32() != Version)
-            throw new InvalidDataException("Unsupported CivSim save file.");
+        if (reader.ReadUInt32() != Magic) throw new InvalidDataException("Unsupported CivSim save file.");
+        uint version = reader.ReadUInt32();
+        if (version is < 1 or > Version) throw new InvalidDataException("Unsupported CivSim save file.");
 
         var data = new GameSaveData
         {
@@ -125,6 +161,12 @@ internal static class GameSave
             OnboardingSeen = reader.ReadUInt64(),
             IntroDismissed = reader.ReadBoolean(),
         };
+        if (version >= FirstVersionWithDifficulty)
+        {
+            byte level = reader.ReadByte();
+            if (!Enum.IsDefined(typeof(Difficulty), level)) throw new InvalidDataException("Invalid saved difficulty.");
+            data.Difficulty = (Difficulty)level;
+        }
         if (!data.PackHash.AsSpan().SequenceEqual(expectedPackHash))
             throw new InvalidDataException("Save content hash differs from the loaded content pack.");
         if (data.Tick < 0 || data.ChecksumInterval <= 0 || data.SpeedIndex is < 0 or > 3 ||

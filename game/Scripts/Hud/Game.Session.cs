@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using CivSim.Game.Ui;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.View;
 using Godot;
@@ -48,7 +49,7 @@ public partial class Game
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             string temporary = path + ".tmp";
             using (var stream = new FileStream(temporary, FileMode.Create, System.IO.FileAccess.Write, FileShare.None))
-                _session.CreateReplay().Write(stream);
+                GameSave.WriteReplay(stream, _session.CreateReplay(), _session.Difficulty);
             File.Move(temporary, path, overwrite: true);
             ShowToast("Replay saved", ToastKind.Info, "", key: "replay-saved");
         }
@@ -61,8 +62,8 @@ public partial class Game
         {
             if (_contentPack is null) throw new InvalidOperationException("The content pack is not loaded.");
             using var stream = new FileStream(GameSave.LatestReplayPath, FileMode.Open, System.IO.FileAccess.Read, FileShare.Read);
-            Replay replay = Replay.Read(stream);
-            SimulationSession watcher = SimulationSession.Watch(replay, _contentPack, 0);
+            Replay replay = GameSave.ReadReplay(stream, out Difficulty difficulty);
+            SimulationSession watcher = SimulationSession.Watch(replay, _contentPack, difficulty, 0);
             _onboardingSeen = 0;
             HideEndScreen();
             ReplaceSession(watcher);
@@ -97,6 +98,7 @@ public partial class Game
         for (int s = 0; s < 3; s++) { _pendingProject[s] = -2; _lastSlotProject[s] = -2; _slotCards[s].Mode = SlotMode.Open; _slotCards[s].Project = -2; _slotCards[s].DoneTimer = 0; }
         foreach (ToastView toast in _toasts) DismissToast(toast);
         _endScreenShown = false;
+        _endScreenDismissed = false;
         _openingHold = false;
         _pinnedTile = -1;
         _selectedResearchProject = -1;
@@ -108,26 +110,28 @@ public partial class Game
         if (_chronicleOpen) RefreshChronicleRows();
     }
 
-    private void StartNewMatch(ulong seed)
+    private void StartNewMatch(ulong seed) => StartNewMatch(seed, _uiSettings.Difficulty);
+
+    private void StartNewMatch(ulong seed, Difficulty difficulty)
     {
         if (_contentPack is null) return;
         _onboardingSeen = 0;
         _matchSeed = seed;
         HideEndScreen();
-        ReplaceSession(new SimulationSession(seed, _contentPack));
+        ReplaceSession(new SimulationSession(seed, _contentPack, 0, 0, difficulty));
         if (_current is { FocusSlotProject: var slots } && slots[0] < 0 && slots[1] < 0 && slots[2] < 0)
         {
             BeginOpeningHold();
             OpenResearchWeb(-1);
         }
-        ShowToast("New match", ToastKind.Info, $"Seed {seed}.", key: "new-match");
+        ShowToast("New match", ToastKind.Info, $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>
     private void UpdateSessionState()
     {
         if (_session is null) return;
-        if (_session.MatchEnded && !_endScreenShown && _benchmarkSeconds == 0) ShowEndScreen();
+        if (_session.MatchEnded && !_endScreenShown && !_endScreenDismissed && _benchmarkSeconds == 0) ShowEndScreen();
         if (_session.IsReplay && _session.ReplayFinished && !_replayFinishedShown)
         {
             _replayFinishedShown = true;
