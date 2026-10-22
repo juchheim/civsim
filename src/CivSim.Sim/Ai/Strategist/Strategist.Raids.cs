@@ -15,6 +15,13 @@ public sealed partial class Strategist
         public Fix64 P, Deaths, Loot, Value, OriginWinter;
         public bool Palisade, Watchers;
         public string Blocker = "";
+        // What the candidate was judged from, so the choice can be played again with more trials before it is acted on.
+        public Site Site = null!;
+        public OwnSettlement Origin = null!;
+        public RivalRead Read = null!;
+        public PairView Pair = null!;
+        public int Distance;
+        public Fix64 Share;
     }
 
     /// <summary>
@@ -89,6 +96,22 @@ public sealed partial class Strategist
         }
         if (best is not null)
         {
+            // A few trials per candidate, tried every season for every village, will throw up a lucky 0.7 for a raid that is
+            // really 0.2 (the best of many noisy estimates is biased high). Before sending anyone, play the chosen raid again
+            // with many more trials on a fresh stream and hold it to the same margins.
+            RaidCandidate sure = EvaluateRaid(v, best.Read, best.Pair, best.Site, best.Origin, best.Distance, best.Share, ranged,
+                StrategistTuning.RaidConfirmTrials, confirm: true);
+            if (sure.Blocker.Length > 0)
+            {
+                sure.Blocker = "on a second look: " + sure.Blocker;
+                if (v.Season - _memory[sure.Civ].LastRejectNote >= 4)
+                {
+                    _memory[sure.Civ].LastRejectNote = v.Season;
+                    v.Note("RaidRejected", sure.Settlement, sure.Civ, sure.P, RaidReason(sure, "rejected: " + sure.Blocker));
+                }
+                return;
+            }
+            best = sure;
             if (act.Raid(best.Settlement, best.Party))
             {
                 s.OrderedLaunch = true;
@@ -117,10 +140,11 @@ public sealed partial class Strategist
            $"{(c.Palisade ? ", palisade seen" : "")}{(c.Watchers ? ", watchers seen" : "")}";
 
     private RaidCandidate EvaluateRaid(StrategistView v, RivalRead read, PairView p, Site site, OwnSettlement origin, int distance,
-        Fix64 share, bool ranged, int trials)
+        Fix64 share, bool ranged, int trials, bool confirm = false)
     {
         var c = new RaidCandidate
         {
+            Site = site, Origin = origin, Read = read, Pair = p, Distance = distance, Share = share,
             Civ = read.Civ, Settlement = site.Settlement, Stale = site.Stale, Palisade = site.Defenses.Palisade,
             Watchers = site.Defenses.Watchers, OriginWinter = origin.LateWinterForecast,
         };
@@ -132,6 +156,7 @@ public sealed partial class Strategist
         Uniform(_a, party, each, 1_000_000);
         Uniform(_b, site.Fighters, site.PerDefend, 0);
         ulong stream = Hash64.Combine(Hash64.Combine(RaidStream, (ulong)(v.Civ * 64 + read.Civ)), (ulong)(site.Settlement * 16 + party));
+        if (confirm) stream = Hash64.Combine(stream, ConfirmStream);
         (c.P, c.Deaths, Fix64 carriers, Fix64 defDeaths) = SimulateRaid(_a, _b, site.Defenses, ranged, v.MatchSeed, stream, v.Season, trials);
 
         int seasons = Math.Max(1, (distance + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);

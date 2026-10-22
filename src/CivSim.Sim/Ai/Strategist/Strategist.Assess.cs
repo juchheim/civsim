@@ -11,6 +11,7 @@ public sealed partial class Strategist
 {
     private static readonly ulong ThreatStream = Hash64.OfString("strategist.threat");
     private static readonly ulong RaidStream = Hash64.OfString("strategist.raid");
+    private static readonly ulong ConfirmStream = Hash64.OfString("strategist.raid.confirm");
     private static readonly ulong AssaultStream = Hash64.OfString("strategist.assault");
 
     private readonly List<Fighter> _a = new(), _b = new();
@@ -59,7 +60,7 @@ public sealed partial class Strategist
             Fix64 grow = StrategistTuning.BeliefPessimism * (Fix64.One + StrategistTuning.StaleGrowth * (Fix64.One - fresh));
             int fighters = Math.Max(b.FightersEstimate, 0);
             // Below Full the village's fighters and strength are not seen, only its head count: assume a share of the people fight
-            // and that each is as strong as ours (times a margin), rather than reading "no defenders" and a certain failure.
+            // and that each is as strong as ours (times 0.6, measured), rather than reading "no defenders" and a certain failure.
             bool blind = v.Profile.Opponent < OpponentModel.Full && fighters == 0 && b.PopulationEstimate > 0;
             if (blind)
                 fighters = (Fix64.FromInt(b.PopulationEstimate) * StrategistTuning.UnseenFighterShare - Fix64.FromRatio(1, 1000)).FloorToInt() + 1;
@@ -74,12 +75,17 @@ public sealed partial class Strategist
                 foreach (OwnSettlement own in v.Own.Settlements) { ownStrength += own.AttackingStrength; ownFighters += own.Fighters; }
                 if (ownFighters > 0) perDefend = ownStrength / ownFighters * StrategistTuning.UnseenDefenderStrength;
             }
+            // A blind observer cannot see the thorn hedge or the stockade, but it knows the rival's era (public), and by then a
+            // village has them: assume the era-typical defences rather than none (14 §16.3a).
+            bool typicalWorks = blind && r.Era >= StrategistTuning.UnseenWorksEra;
+            bool typicalPalisade = blind && r.Era >= StrategistTuning.UnseenPalisadeEra;
             var defenses = new Defenses(
-                ThornBarrier: b.ThornBarrierSeen,
-                Palisade: b.PalisadeSeen || Believed(r, _def03),
-                Watchers: b.WatchersSeen || Believed(r, _def02),
-                Dogs: Believed(r, _hus01), SignalFires: Believed(r, _com04), AlarmCalls: Believed(r, _com01), HillSite: false,
-                Archery: Believed(r, _war03), Night: false, RaidedRecently: raidedRecently);
+                ThornBarrier: b.ThornBarrierSeen || typicalWorks,
+                Palisade: b.PalisadeSeen || Believed(r, _def03) || typicalPalisade,
+                Watchers: b.WatchersSeen || Believed(r, _def02) || typicalWorks,
+                Dogs: Believed(r, _hus01) || typicalWorks, SignalFires: Believed(r, _com04) || typicalPalisade,
+                AlarmCalls: Believed(r, _com01), HillSite: false,
+                Archery: Believed(r, _war03) || typicalPalisade, Night: false, RaidedRecently: raidedRecently);
             var site = new Site
             {
                 Settlement = b.Settlement, Tile = b.Tile, Stale = stale, Population = b.PopulationEstimate, Fighters = counted,

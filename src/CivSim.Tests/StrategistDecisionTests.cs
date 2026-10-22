@@ -107,7 +107,8 @@ public class StrategistDecisionTests
     {
         var scene = new Scene();
         scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 22, palisade: true, watchers: true);
-        scene.Site(1, settlement: 6, tile: T(28, 40), fighters: 6);
+        // Rich enough that the raid still pays on the second look (64 trials), not only on a lucky first one.
+        scene.Site(1, settlement: 6, tile: T(28, 40), fighters: 7);
         (_, ActionRecorder act) = Decide(scene);
         string raid = Assert.Single(act.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
         Assert.StartsWith("raid 6 ", raid);
@@ -129,7 +130,7 @@ public class StrategistDecisionTests
     public void A_blind_Chieftain_estimates_a_villages_defenders_from_its_head_count()
     {
         // Seen only as a head count (no fighters, no strength), a village of 18 is worth raiding: six fighters believed as strong
-        // as ours (times 1.3) against our seven. It used to read "no defenders" and a success of exactly 0.
+        // as ours (times 0.6) against our seven. It used to read "no defenders" and a success of exactly 0.
         var medium = new Scene { Level = Difficulty.Chieftain };
         medium.BlindSite(1, settlement: 6, tile: T(28, 40), population: 18);
         (_, ActionRecorder act) = Decide(medium);
@@ -147,7 +148,26 @@ public class StrategistDecisionTests
         var big = new Scene { Level = Difficulty.Chieftain };
         big.BlindSite(1, settlement: 6, tile: T(28, 40), population: 60);
         Assert.DoesNotContain(Decide(big).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
-        Assert.Contains(big.Notes("RaidRejected"), n => n.Reason.Contains("believed success"));
+        Assert.Contains(big.Notes("RaidRejected"), n => n.Reason.Contains("rejected"));
+    }
+
+    [Fact]
+    public void A_blind_Chieftain_assumes_a_late_era_village_has_works_it_cannot_see()
+    {
+        // The rival's era is public. A village of 18 that is worth raiding in an early era is not once it is believed to have
+        // a thorn hedge, lookouts and a palisade: the same head count, the same fighters, a lower success.
+        var early = new Scene { Level = Difficulty.Chieftain };
+        early.BlindSite(1, settlement: 6, tile: T(28, 40), population: 18);
+        early.Belief.Rivals[1].Era = 1;
+        Decide(early);
+        var late = new Scene { Level = Difficulty.Chieftain };
+        late.BlindSite(1, settlement: 6, tile: T(28, 40), population: 18);
+        late.Belief.Rivals[1].Era = 3;
+        (_, ActionRecorder act) = Decide(late);
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        Assert.Contains(late.Notes("RaidRejected"), n => n.Reason.Contains("rejected"));
+        Fix64 earlyP = Assert.Single(early.Notes("Raid")).Score;
+        Assert.True(late.Notes("RaidRejected").Max(n => n.Score) < earlyP);
     }
 
     [Fact]
