@@ -50,8 +50,8 @@ flowchart TD
 
 ### 3.1 Landmasses
 - Place *C* continent seeds (2 for 4 players) on the half-map, then mirror them.
-- Grow land by noise-weighted flood fill until 40% of tiles are land. Continents are separated by ≥ 6 ocean tiles (so E0–E3 crossing is impossible and E4 Sail is needed). Coastal **straits** (1-tile water gaps) are allowed within a continent.
-- Add 3–6 small islands per half-map (≤ 40 tiles each) reachable by outriggers (SEA-04, E2): early-reach prizes. As generated they are 7 tiles each and lie 12 to 21 tiles off the nearest continent, so SEA-04's range is measured from land (any water within 11 tiles of it; 21 §3), not in 3-tile hops; the two continents, 33 tiles apart, stay out of reach until Sail.
+- Grow land by noise-weighted flood fill until 40% of tiles are land. Continents are separated by ≥ 6 ocean tiles (as generated: 33). On foot they cannot be crossed; an outrigger (SEA-04, E2) crosses through the islands (21). Coastal **straits** (1-tile water gaps) are allowed within a continent.
+- Add 3–6 small islands per half-map (≤ 40 tiles each) reachable by outriggers (SEA-04, E2): early-reach prizes. As generated they are 7 tiles each and lie 12 to 21 tiles off the nearest continent, so SEA-04's range is measured from land (any water within 11 tiles of it; 21 §3), not in 3-tile hops; the two continents, 33 tiles apart, are crossed in two or three legs through the islands, which act as stepping stones (21 §3).
 
 ### 3.2 Elevation
 - 1–2 **mountain ridges** per continent, along an invented plate seam: peaks (impassable), mountains, then hills on both flanks.

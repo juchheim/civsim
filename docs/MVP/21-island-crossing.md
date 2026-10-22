@@ -19,7 +19,7 @@ What the sim does today, measured over five seeds and 20 to 30 minutes of play:
   fishers per game, all on river tiles) and the economy does not simulate paddling.
 - `ChooseFissionSite` filters daughter-village sites by habitability and a hex distance of 14, with **no reachability test**. It
   has never put a village across water only because the islands are too far and too poor; the code allows it.
-- The match ends at era 3, before Sail (E4), so crossing between continents never matters in the MVP. 12 §3.1 promised that
+- The match ends at era 3, before Sail (E4), so no one crosses by Sail in the MVP. 12 §3.1 promised that
   islands are "reachable by outriggers (SEA-04, E2)", but SEA-04 allowed "hops of up to 3 tiles" and the nearest island is 12 away.
 
 So in the MVP, **ferrying has exactly one job: the islands.** Rafts and canoes would only matter for rivers and straits if rivers
@@ -32,13 +32,18 @@ became barriers, which is a larger design change and **out of scope** here (deci
    balance number. SEA-04 changes from "hops of up to 3 tiles" to a **range measured from land** (§3), with a shipwreck risk.
 3. **AI uses boats.** Not by a separate AI layer: every civilization's daughter bands go through the same fission siting, so a
    civilization that knows SEA-04 colonizes islands (the player's too, as bands already settle automatically).
+4. **No carve-outs.** If boats can cross, they cross for everything: gifts, barter, raids, assaults and capture, first contact and
+   settlers alike, from island to island and on to the other continent. A first version kept the continents apart with a "realm"
+   rule (a boat may land only on its own continent and that continent's islands); the owner rejected it as a rule that breaks
+   logic to preserve a status quo, and it was removed. What the game does with the extra reach is measured in §7, not prevented.
 
 ## 3. Rules
 
 **Outrigger voyages (SEA-04).** A civilization that knows SEA-04 can travel over open water. A water tile is enterable by sea if it is
 at most `OpenSeaReach = 11` tiles from the nearest land (hex distance). The farthest island is 21 tiles from a continent, so its
-midpoint is 10.5 from land: reachable. Between the continents the midpoint is 16.5: **not** reachable, so nobody crosses to the
-other continent before Sail. Islands must not become stepping stones (an island 20 tiles from one continent can sit 13 from the other, and the first version of this rule did hop across), so each island belongs to the **realm** of its nearest continent and **a boat lands only in its own realm**: its continent and that continent's islands. In the cost graph (`HexGrid.WalkingCostsFrom`, tenths of a tile) a sea tile costs
+midpoint is 10.5 from land: reachable. The 33-tile gap between the continents is not crossable in one leg (its midpoint is 16.5
+from land), but islands are land too, and an island 20 tiles from one continent can sit 13 from the other: **islands are ordinary
+stepping stones**, and a boat that can sail there can sail on. There is **no special rule** for them (see decision 4). In the cost graph (`HexGrid.WalkingCostsFrom`, tenths of a tile) a sea tile costs
 `SeaCostTenths = 4` (outrigger method multiplier 2.5), against 10 to 40 for land. Everything is integer and deterministic.
 
 **Walking stays the default.** A route is first looked up on the existing walking graph; the sea graph is used **only when that
@@ -86,7 +91,7 @@ No `Command`, no replay field and no snapshot layout changes: the fate of a voya
 1. **Reachability honesty.** A route function and a reachability check for daughter sites and parties; no gameplay change. Gate:
    all goldens unchanged, a test that nothing is settled or sent somewhere unreachable.
 2. **Crossing by sea.** Sea cost graph, `Travel`, hazard, contact over sea. Gate: islands reachable only with SEA-04; the other
-   continent never; walking routes unchanged; shipwreck rate matches the formula.
+   continent only through the islands; walking routes unchanged; shipwreck rate matches the formula.
 3. **Use it.** Island siting bonus, `SettleReach`, events. Gate: with SEA-04, a civilization founds island villages; without it
    none ever does.
 4. **View.** Party boat, Chronicle texts, island flag on the founding event. Gate: scripted screenshots of a voyage and an island
@@ -108,8 +113,8 @@ No `Command`, no replay field and no snapshot layout changes: the fate of a voya
 
 **As built.** All five phases. Differences from the plan above, decided while building:
 
-- Islands are **realms**, not stepping stones (§3): the first version let a civilization hop continent to continent through an
-  island 13 tiles from the far shore, which a test caught.
+- Islands are ordinary **stepping stones** (decision 4). The first version had a realm rule against hopping continent to continent
+  through an island 13 tiles from the far shore; it was removed, and a test now asserts the opposite.
 - Only the **outbound** leg of a trip rolls for shipwreck; a barter party's return leg does not.
 - Settlers' crossing is **instant**, like every daughter band (the economy moves them when the band is founded); only the
   shipwreck roll and the new village are visible, plus the flotilla of boats the fleet shows at the island village. Parties
@@ -128,10 +133,28 @@ runaway. The shipwreck rate matches the formula in a 4,000-roll test. First valu
 siting bonus and the 12 to 20 % risk.
 
 **Gates.** Goldens `toy-v1`, `research-v1` and `politics-v1` unchanged; `content-pack.txt` refreshed (SEA-04's note). Tests
-(`IslandCrossingTests`): islands reachable only by outrigger; the other continent never; walkable routes keep their length; the
+(`IslandCrossingTests`): islands, and through them the other continent, reachable only by outrigger; walkable routes keep their length; the
 risk formula and reproducible rolls; no island village without a civilization that sails; and a raid from an island colony is seen
 on water tiles in the frame.
 
 **Dev aid.** `--start-minute=25 --dev-island-colony --scenario=voyage` (debug builds only) puts a large colony on an island and
 sends a raid at a rival, to look at a sailing party. It writes the economy directly, outside the command path, so such a match is
 never a valid replay.
+
+**Free crossing between continents (decision 4), measured.** Eight seeds, 35 minutes, the same four civilizations, compared with the
+version that had the realm rule:
+
+| | Realm rule | Free crossing | Free crossing, SEA-04 given to everyone |
+|---|---|---|---|
+| Cross-continent contacts (of 32 possible pairs) | 0 | 7, first at season 123 to 140 | 8, first at season 31 to 134 |
+| Gifts / barter trips (8 games) | 49 / 53 | 55 / 53 | 86 / 68 |
+| Raids, wars, captures | 0 | 0 | 0 |
+| Villages on a foreign continent | 0 | 0 | 0 |
+| Voyages lost | 1 | 2 | 20 |
+
+In a normal game the AI learns SEA-04 late, so the continents meet around minute 31 to 35, too late for anything to happen:
+no raid, war or capture occurred in any run, including on the shared continent. Given outriggers at the start, contact comes
+earlier (season 31 at best) and brings more trade and more lost voyages, still without conflict. No civilization settled the
+far continent in 35 minutes (bands settle at most 24 tiles from a parent). Raids and wars are rare in 35-minute games of this
+kind generally, so this says the extra reach costs nothing visible, not that conflict across the sea has been exercised; the
+Phase 5 replay corpus should add a long game with SEA-04 given early and war ordered.

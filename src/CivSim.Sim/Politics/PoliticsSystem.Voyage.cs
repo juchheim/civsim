@@ -12,7 +12,7 @@ namespace CivSim.Sim.Politics;
 /// </summary>
 public sealed partial class PoliticsSystem
 {
-    /// <summary>A water tile is open to boats while it is at most this many tiles from land: islands up to 22 tiles from a shore, never the 33-tile gap between continents.</summary>
+    /// <summary>A water tile is open to boats while it is at most this many tiles from land (any land: islands are stepping stones, so the 33-tile gap between the continents is crossed in two or three legs).</summary>
     public const int OpenSeaReach = 11;
     /// <summary>Shipwreck risk in permille: base plus a step per open-sea tile on the route, capped.</summary>
     public const int VoyageBaseRiskPermille = 30, VoyageRiskPerSeaTile = 8, VoyageMaxRiskPermille = 400;
@@ -24,7 +24,6 @@ public sealed partial class PoliticsSystem
     private static readonly ulong VoyageStream = Hash64.OfString("politics.voyage");
 
     private int[] _landDistance = Array.Empty<int>();
-    private int[] _realm = Array.Empty<int>();         // continent, or an island's nearest continent; 0 on water
     private int[] _landmass = Array.Empty<int>();      // 0 water, 1.. landmass id
     private int[] _landmassSize = Array.Empty<int>();
     private int[]?[] _walkFrom = Array.Empty<int[]?>();
@@ -34,7 +33,6 @@ public sealed partial class PoliticsSystem
     {
         int n = _tileArray.Length;
         _landDistance = HexGrid.LandDistances(_tileArray, _width, _height);
-        _realm = HexGrid.LandRealms(_tileArray, _width, _height, IslandMaxTiles);
         _landmass = new int[n];
         var sizes = new System.Collections.Generic.List<int> { 0 };
         var queue = new int[n];
@@ -63,7 +61,7 @@ public sealed partial class PoliticsSystem
 
     private int[] WalkFrom(int tile) => _walkFrom[tile] ??= HexGrid.WalkingDistancesFrom(_width, _height, _passable, tile);
 
-    private int[] SailFrom(int tile) => _sailFrom[tile] ??= HexGrid.WalkingCostsFrom(_tileArray, _width, _height, tile, int.MaxValue, _landDistance, OpenSeaReach, _realm);
+    private int[] SailFrom(int tile) => _sailFrom[tile] ??= HexGrid.WalkingCostsFrom(_tileArray, _width, _height, tile, int.MaxValue, _landDistance, OpenSeaReach);
 
     /// <summary>Tiles from one tile to another for this civilization: on foot, else by sea if it can sail; int.MaxValue when there is no way.</summary>
     private int Travel(int civ, int from, int to)
@@ -148,7 +146,7 @@ public sealed partial class PoliticsSystem
         for (int s = 0; s < _sCount; s++)
         {
             if (_sCiv[s] != a || _free[s]) continue;
-            int[] cost = HexGrid.WalkingCostsFrom(_tileArray, _width, _height, _sTile[s], limit * 10, _landDistance, OpenSeaReach, _realm);
+            int[] cost = HexGrid.WalkingCostsFrom(_tileArray, _width, _height, _sTile[s], limit * 10, _landDistance, OpenSeaReach);
             foreach (int tile in targets)
                 if (cost[tile] != int.MaxValue) best = Math.Min(best, (cost[tile] + 9) / 10);
         }

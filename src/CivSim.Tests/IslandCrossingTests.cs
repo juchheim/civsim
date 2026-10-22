@@ -9,7 +9,7 @@ using CivSim.Sim.World;
 
 namespace CivSim.Tests;
 
-/// <summary>Island crossing (docs/MVP/21): outrigger voyages reach the islands, walkers do not, and nothing else moves.</summary>
+/// <summary>Island crossing (docs/MVP/21): outrigger voyages cross open water, walkers do not, and nothing else moves.</summary>
 public class IslandCrossingTests
 {
     private sealed class Landmasses
@@ -60,7 +60,7 @@ public class IslandCrossingTests
     }
 
     [Fact]
-    public void Islands_are_reachable_only_by_outrigger_and_the_other_continent_never()
+    public void Islands_and_through_them_the_other_continent_are_reachable_only_by_outrigger()
     {
         var (match, runner, home, land) = Start();
         PoliticsSystem pol = match.Politics;
@@ -69,14 +69,16 @@ public class IslandCrossingTests
         int other = Enumerable.Range(0, land.Id.Length).First(t => land.Id[t] > 0 && land.Id[t] != land.Id[home] && land.Size[land.Id[t]] > 100);
 
         foreach (int tile in islands) Assert.False(pol.CanReach(0, home, tile), "walkers must not reach an island");
-        Assert.False(pol.CanReach(0, home, other));
+        Assert.False(pol.CanReach(0, home, other), "walkers cannot reach the other continent");
         Assert.Equal(PoliticsSystem.LandSettleReach, pol.SettleReach(0));
 
         Learn(match, runner, 0, "SEA-04");
         Assert.True(pol.CanSail(0));
         Assert.Equal(PoliticsSystem.SailSettleReach, pol.SettleReach(0));
         Assert.Contains(islands, tile => pol.CanReach(0, home, tile));
-        Assert.False(pol.CanReach(0, home, other), "the 33-tile gap between continents is out of reach until Sail");
+        Assert.True(pol.CanReach(0, home, other), "boats cross for everything: islands are stepping stones to the other continent");
+        Assert.True(pol.SeaTilesOnRoute(0, home, other) > 0);
+        Assert.False(pol.CanReach(1, home, other), "a civilization without the outrigger still cannot");
         foreach (int tile in islands)
             if (pol.CanReach(0, home, tile)) Assert.True(pol.SeaTilesOnRoute(0, home, tile) > 0);
     }
