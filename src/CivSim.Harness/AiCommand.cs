@@ -13,7 +13,7 @@ namespace CivSim.Harness;
 /// <code>
 /// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
-/// civsim-harness ai --pack FILE --ffa warlord [--seeds N]
+/// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --exploit [--generations N] [--children N] [--seeds N]
 /// </code>
@@ -27,6 +27,7 @@ internal static class AiCommand
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
         bool check = false, exploit = false;
         int seeds = 8, minutes = 33, generations = 6, children = 12;
+        ulong firstSeed = Tournament.BaseSeed;
         var archetype = EconomyArchetype.Balanced;
         for (int i = 0; i < args.Length; i++)
         {
@@ -41,6 +42,7 @@ internal static class AiCommand
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--first-seed": firstSeed = ulong.Parse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture); break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--archetype": archetype = Enum.Parse<EconomyArchetype>(args[++i], true); break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
@@ -48,13 +50,13 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype)); return 0; }
-        if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype);
-        if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes);
-        if (check) return CheckM6(pack, seeds, minutes, archetype);
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed)); return 0; }
+        if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
+        if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
+        if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed);
         if (exploit)
         {
-            (BotPolicy best, double rate, int evaluations) = ExploitSearch.Search(pack, generations, children, seeds, minutes, 20261019);
+            (BotPolicy best, double rate, int evaluations) = ExploitSearch.Search(pack, generations, children, seeds, minutes, firstSeed);
             Console.WriteLine($"Best fixed policy after {evaluations} evaluations: {rate * 100:F0}% against Warlord (confirmed on fresh seeds)\n  {best}");
             Console.WriteLine(rate <= 0.55 ? "EXPLOIT SEARCH PASSED (<= 55%)" : "EXPLOIT FOUND (> 55%): a bug in the AI");
             return rate <= 0.55 ? 0 : 1;
@@ -71,7 +73,7 @@ internal static class AiCommand
         Console.WriteLine($"  blunders ({a}): keystone stalls {r.KeystoneStallsA}, idle slot seasons {r.IdleSlotSeasonsA}, dithering matches {r.PlanDitherMatchesA}");
     }
 
-    private static int Ladder(ContentPack pack, string[] names, int seeds, int minutes, EconomyArchetype archetype)
+    private static int Ladder(ContentPack pack, string[] names, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
     {
         int n = names.Length;
         var win = new double[n, n];
@@ -79,7 +81,7 @@ internal static class AiCommand
         for (int a = 0; a < n; a++)
             for (int b = a + 1; b < n; b++)
             {
-                Tournament.DuelResult r = Tournament.Duel(pack, names[a], names[b], seeds, minutes, archetype);
+                Tournament.DuelResult r = Tournament.Duel(pack, names[a], names[b], seeds, minutes, archetype, firstSeed);
                 win[a, b] = r.WinRateA;
                 games[a, b] = r.Matches;
                 Console.WriteLine($"  {names[a],-10} v {names[b],-10} {r.WinRateA * 100,5:F0}% over {r.Matches} matches");
@@ -93,9 +95,9 @@ internal static class AiCommand
         return 0;
     }
 
-    private static int FreeForAll(ContentPack pack, string level, int seeds, int minutes)
+    private static int FreeForAll(ContentPack pack, string level, int seeds, int minutes, ulong firstSeed)
     {
-        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes, out var civs);
+        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes, out var civs, firstSeed);
         Console.WriteLine($"Free-for-all at {level}: win rate per appearance (25% is fair)");
         for (int i = 0; i < 5; i++) Console.WriteLine($"  {FfaNames[i],-9} {wins[i]:F0}/{apps[i]} = {100.0 * wins[i] / Math.Max(1, apps[i]),5:F1}%");
         PrintArchetypeMeans(civs);
@@ -158,7 +160,7 @@ internal static class AiCommand
     private const int FfaSeedsPerSeed = 3;
 
     /// <summary>The M6 acceptance gates A1 to A7 that need matches (docs/MVP/17 §4.3). A8 is the unit test FogFairnessTests.</summary>
-    private static int CheckM6(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype)
+    private static int CheckM6(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
     {
         bool pass = true;
         bool Gate(string name, bool ok, string detail)
@@ -169,31 +171,31 @@ internal static class AiCommand
         }
 
         Console.WriteLine("== A1: Warlord AI vs the Council bot (mirrored seeds), >= 85% on Legacy");
-        Tournament.DuelResult a1 = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype);
+        Tournament.DuelResult a1 = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed);
         Gate("A1", a1.WinRateA >= 0.85, $"{a1.WinRateA * 100:F0}% over {a1.Matches} matches");
 
         Console.WriteLine("== A2: Warlord AI vs each opening script, >= 70%");
         foreach (string opening in new[] { "grower", "builder", "wanderer" })
         {
-            Tournament.DuelResult r = Tournament.Duel(pack, "warlord", opening, seeds, minutes, archetype);
+            Tournament.DuelResult r = Tournament.Duel(pack, "warlord", opening, seeds, minutes, archetype, firstSeed);
             Gate("A2 " + opening, r.WinRateA >= 0.70, $"{r.WinRateA * 100:F0}% over {r.Matches} matches");
         }
 
         Console.WriteLine("== A3: Warlord AI vs Rusher: loses no settlement in >= 80% of matches, wins >= 70%");
-        Tournament.DuelResult a3 = Tournament.Duel(pack, "warlord", "rusher", seeds, minutes, archetype);
+        Tournament.DuelResult a3 = Tournament.Duel(pack, "warlord", "rusher", seeds, minutes, archetype, firstSeed);
         double clean = 1.0 - (double)a3.MatchesWithLossA / a3.Matches;
         Gate("A3 survive", clean >= 0.80, $"{clean * 100:F0}% of matches without a lost settlement");
         Gate("A3 win", a3.WinRateA >= 0.70, $"{a3.WinRateA * 100:F0}%");
 
         Console.WriteLine("== A4: Chieftain vs Warlord, Chieftain wins 25-40%");
-        Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", seeds, minutes, archetype);
+        Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", seeds, minutes, archetype, firstSeed);
         Gate("A4", a4.WinRateA >= 0.25 && a4.WinRateA <= 0.40, $"{a4.WinRateA * 100:F0}% over {a4.Matches} matches");
 
         // Three free-for-all seeds per duel seed (24 seeds, 120 matches at --seeds 8): at 25% the binomial error of a win
         // share is 11% over the 16 appearances of 4 seeds, so the 30% line would fail most balanced builds (14 §17).
         int ffaSeeds = Math.Max(2, seeds * FfaSeedsPerSeed);
         Console.WriteLine($"== A5: archetype balance in four-AI free-for-alls ({ffaSeeds} seeds), no archetype wins > 30%");
-        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, "warlord", ffaSeeds, minutes, out var civs);
+        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, "warlord", ffaSeeds, minutes, out var civs, firstSeed);
         for (int i = 0; i < 5; i++) Gate("A5 " + FfaNames[i], wins[i] / Math.Max(1, apps[i]) <= 0.30, $"{100.0 * wins[i] / Math.Max(1, apps[i]):F1}% ({wins[i]:F0}/{apps[i]})");
         PrintArchetypeMeans(civs);
 
