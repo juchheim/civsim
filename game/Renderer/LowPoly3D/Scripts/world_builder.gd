@@ -43,6 +43,8 @@ var rig: M7MonumentRig
 var boat_probe := Vector2.ZERO          # the last boat placed (dev scenarios aim the camera at it)
 var trail_node: MeshInstance3D
 var trail_signature := -1
+var trail_polys: Array = []              # centre lines of the trail ribbons (trees are cleared along them)
+var trails_changed := false
 var border_signature := -1
 var river_visibility_signature := -1
 var regional_lod := false
@@ -288,7 +290,9 @@ func _update_trails() -> void:
 	if sig == trail_signature:
 		return
 	trail_signature = sig
-	trail_node.mesh = M7TrailBuilder.build(w)
+	trail_polys = []
+	trail_node.mesh = M7TrailBuilder.build(w, trail_polys)
+	trails_changed = true
 
 func _structure_digest() -> int:
 	var h := 17

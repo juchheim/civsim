@@ -12,14 +12,9 @@ const ALPHA := [0.0, 0.62, 0.72, 0.82]
 const TINT := [Color.BLACK, Color("#94805a"), Color("#9c8156"), Color("#a78a5c")]
 const LIFT := 0.012
 
-static func make_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.vertex_color_is_srgb = true
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 1.0
-	m.metallic_specular = 0.0
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+static func make_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://Renderer/LowPoly3D/Shaders/trail.gdshader")
 	return m
 
 static func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
@@ -50,11 +45,12 @@ static func _length(pts: PackedVector2Array) -> float:
 		total += pts[i].distance_to(pts[i + 1])
 	return total
 
-## Builds one mesh for every trail in the frame.
-static func build(w: M7WorldData) -> ArrayMesh:
+## Builds one mesh for every trail in the frame. `polys` receives each ribbon's centre line (so trees can be kept off the track).
+static func build(w: M7WorldData, polys: Array = []) -> ArrayMesh:
 	var V := PackedVector3Array()
 	var C := PackedColorArray()
 	var N := PackedVector3Array()
+	var U := PackedVector2Array()
 	var I := PackedInt32Array()
 	for ti in range(0, w.trail_meta.size(), 5):
 		var level := clampi(w.trail_meta[ti], 1, 3)
@@ -69,7 +65,7 @@ static func build(w: M7WorldData) -> ArrayMesh:
 			if (tile < 0 or j == length - 1) and run.size() >= 2:
 				var begins_at_village := run_first and w.trail_tiles[start] >= 0
 				var ends_at_village := j == length - 1 and tile >= 0
-				_ribbon(w, run, level, begins_at_village, ends_at_village, ti * 31 + start, V, C, N, I)
+				_ribbon(w, run, level, begins_at_village, ends_at_village, ti * 31 + start, V, C, N, U, I, polys)
 				run = PackedInt32Array()
 			elif tile < 0:
 				run = PackedInt32Array()
@@ -83,12 +79,14 @@ static func build(w: M7WorldData) -> ArrayMesh:
 	arr[Mesh.ARRAY_VERTEX] = V
 	arr[Mesh.ARRAY_COLOR] = C
 	arr[Mesh.ARRAY_NORMAL] = N
+	arr[Mesh.ARRAY_TEX_UV] = U       # each vertex's offset from the centre line: the shader widens the track with zoom
 	arr[Mesh.ARRAY_INDEX] = I
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	return mesh
 
 static func _ribbon(w: M7WorldData, run: PackedInt32Array, level: int, trim_start: bool, trim_end: bool, salt: int,
-		V: PackedVector3Array, C: PackedColorArray, N: PackedVector3Array, I: PackedInt32Array) -> void:
+		V: PackedVector3Array, C: PackedColorArray, N: PackedVector3Array, U: PackedVector2Array, I: PackedInt32Array,
+		polys: Array) -> void:
 	var pts := _smooth(w, run)
 	var total := _length(pts)
 	var from_d := TRIM if trim_start else 0.0
@@ -99,6 +97,7 @@ static func _ribbon(w: M7WorldData, run: PackedInt32Array, level: int, trim_star
 	var tint: Color = TINT[level]
 	var peak: float = ALPHA[level]
 	var base := V.size()
+	var line := PackedVector2Array()
 	var acc := 0.0
 	var columns := 4
 	var rows := 0
@@ -129,9 +128,11 @@ static func _ribbon(w: M7WorldData, run: PackedInt32Array, level: int, trim_star
 			var p2: Vector2 = pos[k]
 			V.append(Vector3(p2.x, hs + LIFT, p2.y))
 			N.append(Vector3.UP)
-			var col := tint
+			U.append(p2 - centre)
+			var col := tint.srgb_to_linear()
 			col.a = peak * float(alphas[k]) * fade
 			C.append(col)
+		line.append(centre)
 		rows += 1
 	for r in rows - 1:
 		for k in columns - 1:
@@ -140,3 +141,5 @@ static func _ribbon(w: M7WorldData, run: PackedInt32Array, level: int, trim_star
 			var i2 := i0 + columns
 			var i3 := i2 + 1
 			I.append_array([i0, i2, i1, i1, i2, i3])
+	if line.size() > 1:
+		polys.append(line)

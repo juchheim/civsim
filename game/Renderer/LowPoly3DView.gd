@@ -52,6 +52,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	signal_rig.sync()
 	burn_rig = M7BurnRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	burn_rig.sync(float(world.tick))
+	burn_rig.set_corridors(builder.trail_polys)
+	builder.trails_changed = false
 	feast_rig = M7FeastRig.new(builder, world_root)
 	feast_rig.sync(float(world.tick))
 	_apply_season(world.season)
@@ -71,6 +73,9 @@ func update_frame(frame_data: Dictionary) -> void:
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	var structures_changed := builder.update_frame()
+	if builder.trails_changed:
+		builder.trails_changed = false
+		burn_rig.set_corridors(builder.trail_polys)
 	signal_rig.sync()
 	var built := Time.get_ticks_usec()
 	_set_villages()
@@ -168,6 +173,9 @@ func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> v
 		return
 	camera_focus = target
 	camera_distance = distance
+	if builder != null and builder.trail_node != null:
+		# tracks widen as the camera pulls back, so a footpath is still there at region zoom
+		(builder.trail_node.material_override as ShaderMaterial).set_shader_parameter("width_boost", clampf(distance / 16.0, 1.0, 3.6))
 	var regional := distance > 38.0
 	if builder != null:
 		builder.set_regional_lod(regional)

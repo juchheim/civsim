@@ -43,7 +43,10 @@ var signature := -1
 
 var image: Image
 var texture: ImageTexture
-var data := PackedByteArray()
+var data := PackedByteArray()        # what the shaders read
+var base_data := PackedByteArray()   # the same from the burns alone; trail corridors are laid over its trees channel
+var corridor := PackedByteArray()    # one byte per texel: 255 along a trail, where trees are cleared
+var corr_cells := PackedInt32Array() # which texels are in the corridor
 var tex_w := 1
 var tex_h := 1
 var fx_focus := Vector2.ZERO        # where the fire is now (dev scenarios aim the camera at it)
@@ -71,6 +74,9 @@ func _init(builder, parent_node: Node3D, smoke_maker: Callable) -> void:
 	tex_h = int(ceil(span.y * TEXELS))
 	image = Image.create(tex_w, tex_h, false, Image.FORMAT_RGBA8)
 	data = image.get_data()
+	base_data = data.duplicate()
+	corridor.resize(tex_w * tex_h)
+	corridor.fill(0)
 	texture = ImageTexture.create_from_image(image)
 	RenderingServer.global_shader_parameter_set("burn_map", texture)
 	RenderingServer.global_shader_parameter_set("burn_rect", Vector4(0, 0, 1.0 / span.x, 1.0 / span.y))
@@ -209,7 +215,9 @@ func sync(tick: float) -> void:
 	signature = sig
 	_rebuild(year_now)
 	data.fill(0)
+	base_data.fill(0)
 	cur.clear()
+	_recompose()
 	_push()
 
 # ------------------------------------------------------------------ the state of the ground at a given time
@@ -314,10 +322,42 @@ func _repaint(tile: int) -> void:
 					flush = maxf(flush, v.w * 2.0 * weight)
 			var enc := 0.5 + 0.5 * glow if glow > 0.02 else 0.5 * flush
 			var o := (ty * tex_w + tx) * 4
+			base_data[o + 2] = int(acc.z * 255.0)
 			data[o] = int(acc.x * 255.0)
 			data[o + 1] = int(acc.y * 255.0)
-			data[o + 2] = int(acc.z * 255.0)
+			data[o + 2] = maxi(base_data[o + 2], corridor[ty * tex_w + tx])
 			data[o + 3] = int(enc * 255.0)
+
+## Clears trees along the trails' centre lines (the corridor lives in the trees channel of the same map). Only the texels that
+## change are touched, so a trail growing as the map is explored costs next to nothing.
+func set_corridors(polys: Array) -> void:
+	for idx in corr_cells:
+		corridor[idx] = 0
+		data[idx * 4 + 2] = base_data[idx * 4 + 2]
+	corr_cells = PackedInt32Array()
+	for poly in polys:
+		var pts: PackedVector2Array = poly
+		for i in pts.size() - 1:
+			var a := pts[i]
+			var d := pts[i + 1] - a
+			var steps := maxi(int(ceil(d.length() / 0.1)), 1)
+			for k in steps + 1:
+				var p := a + d * (float(k) / steps)
+				var tx := int(p.x * TEXELS)
+				var ty := int(p.y * TEXELS)
+				for dy in range(-1, 2):
+					for dx in range(-1, 2):
+						var x := tx + dx
+						var y := ty + dy
+						if x >= 0 and x < tex_w and y >= 0 and y < tex_h and corridor[y * tex_w + x] == 0:
+							corridor[y * tex_w + x] = 255
+							corr_cells.append(y * tex_w + x)
+							data[(y * tex_w + x) * 4 + 2] = 255
+	_push()
+
+func _recompose() -> void:
+	for idx in corr_cells:
+		data[idx * 4 + 2] = maxi(base_data[idx * 4 + 2], corridor[idx])
 
 func _push() -> void:
 	image.set_data(tex_w, tex_h, false, Image.FORMAT_RGBA8, data)
