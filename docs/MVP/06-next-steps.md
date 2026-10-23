@@ -101,7 +101,7 @@ flowchart LR
 ```
 
 - **D1 — Decisions review (you):** go through §2, keep or override. Short.
-- **D2 — Balance model:** the single most important de-risking step. It proves (or breaks) the 3-hour arc, the 4:2:1 split, and the "20–40% of an era" choice rate. **WS-A part 1 done** ([07](07-balance-findings.md)): v0.1 ran a 350 min, inverted arc; the tuned constants hit every era target at 171.5 min Standard. Demography is the biggest pacing driver, so WS-H locks fertility, mortality and caps before WS-B numbers the effects (07 F11).
+- **D2 — Balance model:** the single most important de-risking step. It proves (or breaks) the 3-hour arc, the 4:2:1 split, and the "20–40% of an era" choice rate. **WS-A part 1 done** ([07](07-balance-findings.md)): v0.1 ran a 350 min, inverted arc; its tuned constants hit every era target at 171.5 min Standard. After the WS-H demographic fit and Roots cadence follow-up, the current model arc is 173.5 min ([07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22)). Demography is the biggest pacing driver, so WS-H locks fertility, mortality and caps before WS-B numbers the effects (07 F11).
 - **D3 — Deep spec for E0–E2:** the eras that define first impressions and the core loop (fission, winter, storage, first contact). Fully number every one of the 145 projects, every ladder rung and every planner rule for these eras.
 - **D4 — Vertical-slice package:** scope list, wireframes and style frames. This is the hand-off to implementation.
 - **D5 — Architecture decision:** last, so it's chosen against concrete budgets and scope.

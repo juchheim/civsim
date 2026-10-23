@@ -20,7 +20,7 @@
 
 ### 2.1 The match
 - **One human against three AI civilizations** ([D14](06-next-steps.md#2-decisions-i-made-that-you-may-want-to-override)) on the 160 × 100 map in neighbour pairs ([12 §9](12-world-generation.md#9-start-placement)). Seed is selectable; a daily seed is a stretch.
-- **Standard pace**, about 30 minutes: first Moment at ~0:45, first fission at ~7 min, KEY-1 at ~7.5, KEY-2 at ~17.5, first contact at ~18, KEY-3 at ~29.5 ([07 §6](07-balance-findings.md#6-tuned-run), [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18)). Quick pace is available for testing.
+- **Standard pace**, about 31 minutes: first Moment at ~0:45, first fission at ~7 min, KEY-1 at ~8, KEY-2 at ~18, first contact at ~18, KEY-3 at ~31 ([07 §6](07-balance-findings.md#6-tuned-run), [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18), [07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22)). Quick pace is available for testing.
 - **The match ends when the first civilization completes KEY-3** (the Age of Metal), or at a 40-minute cap. The **end screen** shows Legacy standings (claimed-land Dominion, Mastery, Firsts), a timeline of each civilization's Keystones, and the AI's own "why" log ([14 §11](14-ai-opponents.md#11-explainability)). Dominion victory is off (it needs E7).
 
 ### 2.2 Built (in scope)
