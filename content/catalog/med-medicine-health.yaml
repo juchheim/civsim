@@ -42,10 +42,14 @@ projects:
     name: "Surgery & Trepanation"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [MED-03, MET-03]
     effects:
-      - {kind: prose, text: "Metal blades: trauma survival +25%."}
+      - {kind: hazard, cause: injury, mult: 0.92}
+      - {kind: rule, text: "combat wounded die 32% instead of 40%"}
+    practice: [{action: heal, share: 100}]
+    flavor: "A copper blade, a steady hand, and the wound closes."
+    moment: "A healer scrapes a neat circle in a skull; days later the patient sits up"
   - id: MED-05
     name: Medical Texts
     era: 4

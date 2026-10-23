@@ -54,19 +54,30 @@ projects:
     name: "Bronze Arms & Shields"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [WAR-04]
     requires_any: [MET-04, MET-05]
     effects:
-      - {kind: prose, text: "Combat ×1.5; casualties −30%."}
+      - {kind: good, id: G-ARMS2A, note: "0.3 L arsenical bronze, weapon 2.1, shield"}
+      - {kind: good, id: G-ARMS2T, note: "0.3 L tin bronze, weapon 2.3, shield"}
+      - {kind: combat, text: "shields: casualties taken ×(1 − 0.3 × share of the side's fighters with an ARMS2 kit)"}
+      - {kind: rule, text: "militia carry the settlement's spare arms kits, then its best stocked spear (spares: 2, or 25% of adults under Fortify)"}
+    practice: [{action: fight, share: 50}, {action: smelt, share: 50}]
+    flavor: "Bronze in the hand, the shield on the arm."
+    moment: "A line of warriors locks shields; spear points gleam gold above them"
   - id: WAR-06
     name: Chariots
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [WAR-05, TRN-05, HUS-07]
     effects:
-      - {kind: prose, text: "Shock and mobility on open terrain ×2."}
+      - {kind: good, id: G-CHARIOT, note: "2 horses, 2 wheels, 2 L wood, 0.2 L bronze"}
+      - {kind: combat, text: "chariot crew ×2 strength on open terrain, crew casualties ×0.5; no effect against walls or hillforts"}
+      - {kind: rule, text: "raids with chariots: surprise +10 points, travel ×1.5"}
+    practice: [{action: fight, share: 50}, {action: ride, share: 50}]
+    flavor: "Thunder on the open plain."
+    moment: "A chariot wheels across the plain, the archer braced as the driver lashes the horses"
   - id: WAR-07
     name: Professional Armies
     era: 4

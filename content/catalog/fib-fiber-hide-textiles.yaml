@@ -96,19 +96,29 @@ projects:
     name: Dyed Cloth
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [FIB-07, CHM-04]
     effects:
-      - {kind: prose, text: "Good: Dyed cloth (luxury). Trade value ×2; +Prestige for chiefs."}
+      - {kind: good, id: G-DYEDCLOTH, note: "luxury, barter 8"}
+      - {kind: cohesion, value: 2, scope: capital}
+    practice: [{action: fiber, share: 100}]
+    flavor: "Red for the chief, blue for the gods."
+    moment: "A chief walks through the market in a striped red and blue robe"
   - id: FIB-09
     name: Silk
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [FIB-07, HUS-03]
     gates: [{kind: seen, target: Silk moths}]
     effects:
-      - {kind: prose, text: "Good: Silk, a premium trade good. Trade routes to silk-holders gain priority."}
+      - {kind: unlock_action, action: reel_silk}
+      - {kind: good, id: G-SILK, note: "luxury, barter 25"}
+      - {kind: rule, text: "importers value silk ×1.5 in compacts"}
+      - {kind: gate, text: "[Seen: Silk moths]"}
+    practice: [{action: fiber, share: 100}]
+    flavor: "Cloth spun by worms, lighter than air."
+    moment: "A girl unwinds a single shining thread from a cocoon in a bowl of hot water"
   - id: FIB-10
     name: Treadle Loom
     era: 5

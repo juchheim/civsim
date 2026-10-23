@@ -42,15 +42,47 @@ public enum PoliticsEventKind : byte
     OrderRefused,
     /// <summary>A voyage turned back (docs/MVP/21 §3). Other = target civilization or -1, A = open-sea tiles on the route, B = what sailed: 0 gift, 1 barter, 2 raid, 3 assault, 4 settlers.</summary>
     VoyageLost,
+    /// <summary>A settlement seceded and became Free Folk (docs/MVP/22 §8.3). Other = -1, A = settlement, B = its people.</summary>
+    Seceded,
+
+    // ---- Bronze: Decrees and trade (docs/MVP/22 §4, §6; WP8a). Append only. ----
+    /// <summary>A Decree was carried out. Other = civilization concerned or -1, A = <see cref="DecreeKind"/>, B = subject (Found: new settlement; Expedition and Mine: tile; Levy: target settlement; Corvée: settlement; Compact: compact id or -1 for a pact or treaty).</summary>
+    DecreeResolved,
+    /// <summary>A Decree was refused (nothing spent). Other = civilization concerned or -1, A = <see cref="DecreeKind"/>, B = <see cref="OrderRefusalReason"/>.</summary>
+    DecreeRefused,
+    /// <summary>An expedition came home (or reported, with WAY-04). Other = -1, A = tiles revealed, B = target tile.</summary>
+    ExpeditionReturned,
+    /// <summary>A compact began. Other = partner civilization or -1 (a Free Folk village), A = compact id, B = <see cref="TradeGood"/> (+100 when this side sells).</summary>
+    CompactSigned,
+    /// <summary>A compact ended. Other = partner or -1, A = compact id, B = <see cref="CompactEndReason"/>.</summary>
+    CompactEnded,
+    /// <summary>An embargo was set or lifted. Other = the civilization embargoed (or embargoing, on its record), A = <see cref="TradeGood"/>, B = 1 on, 0 off.</summary>
+    EmbargoSet,
+    /// <summary>A caravan was raided. Other = the raider (on the traders' records) or the seller (on the raider's), A = compact id, B = loot in the good's unit, permille.</summary>
+    CaravanRaided,
+    /// <summary>Tin Folk appeared (docs/MVP/22 §6.4). Other = -1, A = settlement, B = the placer tile. One record per civilization.</summary>
+    TinFolkAppeared,
+    /// <summary>A non-aggression pact or border treaty was signed. Other = partner, A = <see cref="CompactVariant"/>, B = seasons it runs.</summary>
+    PactSigned,
+    /// <summary>A pact was broken by war. Other = partner, A = <see cref="CompactVariant"/>, B = 1 on the breaker's record.</summary>
+    PactBroken,
+    /// <summary>A Free Folk village accepted an Invite and joined. Other = -1, A = settlement, B = people.</summary>
+    VillageJoined,
 }
 
 /// <summary>Stable reason codes for a rejected player order.</summary>
-public enum OrderRefusalReason : byte { InvalidTarget = 1, RequirementsNotMet = 2, InvalidState = 3 }
+public enum OrderRefusalReason : byte
+{
+    InvalidTarget = 1, RequirementsNotMet = 2, InvalidState = 3,
+    // Decrees (docs/MVP/22 §4.5); append only.
+    NoMandate = 4, NoDonor = 5, NoSite = 6, OutOfReach = 7, Rejected = 8,
+}
 
 /// <summary>Something that happened between civilizations, for the Chronicle (docs/MVP/13 §10).</summary>
 public readonly record struct PoliticsEvent(long Tick, byte Civ, PoliticsEventKind Kind, int Other, int A, int B);
 
-public enum ExpeditionKind : byte { Gift, Barter, Raid, Assault }
+/// <summary>What a party on the road is doing. Explore is the Expedition Decree, Caravan a compact delivery (docs/MVP/22 §4.3, §6.3). Append only.</summary>
+public enum ExpeditionKind : byte { Gift, Barter, Raid, Assault, Explore, Caravan }
 
 /// <summary>A party on the road: it arrives at <see cref="ArriveSeason"/>.</summary>
 public sealed class Expedition
@@ -66,6 +98,26 @@ public sealed class Expedition
     public Fix64 Value;
     public readonly List<long> Members = new();
     public readonly List<Fix64> Strengths = new();
+
+    // Bronze fields (WP8a): default for the M5 kinds, so their hash and replay are unchanged.
+    /// <summary>A stable id for caravans and explorers (-1 for the M5 kinds), what a raid on a caravan targets.</summary>
+    public int Id = -1;
+    /// <summary>An explorer's target tile, or the caravan a raid hunts (its id), else -1.</summary>
+    public int TargetTile = -1;
+    /// <summary>A raid on a caravan: the caravan's id (-1 for a raid on a settlement).</summary>
+    public int TargetParty = -1;
+    /// <summary>Goods carried: a caravan's or a goods-barter load (<see cref="TradeGood"/>), with <see cref="Cargo"/> in the good's unit.</summary>
+    public TradeGood Good;
+    public Fix64 Cargo;
+    /// <summary>The compact a caravan serves, else -1.</summary>
+    public int CompactId = -1;
+    /// <summary>A Free Folk village that sent the caravan (its seller), else -1; the buyer's village is <see cref="ToSettlement"/>.</summary>
+    public int FolkSeller = -1;
+    /// <summary>Tiles an explorer has seen and will report on its return (sorted).</summary>
+    public readonly List<int> Revealed = new();
+
+    internal bool HasBronzeFields => Id >= 0 || TargetTile >= 0 || TargetParty >= 0 || Good != TradeGood.None || Cargo != Fix64.Zero ||
+                                     CompactId >= 0 || FolkSeller >= 0 || Revealed.Count > 0;
 }
 
 /// <summary>Attackers holding a taken settlement tile until it is theirs (docs/MVP/13 §8.2).</summary>
@@ -85,7 +137,7 @@ public sealed class Occupation
 /// Mind (a plain rule set until M6) choose gifts, barter, raids and wars. The same rules run for every civilization;
 /// the player steers with Posture and Beacons.
 /// </summary>
-public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry
+public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus
 {
     private static readonly ulong ContactStream = Hash64.OfString("politics.contact");
     private static readonly ulong SkirmishStream = Hash64.OfString("politics.skirmish");
@@ -200,6 +252,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         for (int c = 0; c < _civs; c++) _raidMargin[c] = MarginFor(_archetypes[c]);
 
         economy.SiteAdvisor = this;
+        economy.TileOwnership = this;
+        economy.FreeFolkStatus = this;
+        InitDecrees();
         RefreshSettlements();
         ApplyEconomyInputs();
     }
@@ -309,7 +364,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     break;
                 }
                 case CommandKind.LaunchRaid:
-                    if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    // A < 0 targets a caravan: −(caravan id + 1) (docs/MVP/22 §6.3).
+                    if (command.A < 0 && _economy.BronzeActive)
+                    {
+                        if (!OrderRaidCaravan(civ, -command.A - 1, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    }
+                    else if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderRaid(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.LaunchAssault:
@@ -330,6 +390,13 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     break;
                 case CommandKind.RecallParty:
                     OrderRecallCommand(civ, command.A, command);
+                    break;
+                case CommandKind.IssueDecree:
+                    QueueDecreeCommand(command);
+                    break;
+                case CommandKind.SetEmbargo:
+                    if (!OrderEmbargo(civ, command.A, (TradeGood)Math.Clamp(command.B, 0, 255), command.C != 0))
+                        Refused(command, command.A, command.A < 0 || command.A >= _civs || command.A == civ ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
             }
         }
@@ -354,6 +421,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// beyond what two E1 reaches span: bands settle where they can hold a claim, not on a neighbour's doorstep
     /// (docs/MVP/05 §9.4, 07b fission sites), and contact comes from reach, not from a daughter band wandering over.
     /// </summary>
+    /// <summary>The owner of a tile for the economy's camp planner (docs/MVP/23 §7.2), -1 when unowned.</summary>
+    int ITileOwnership.OwnerOf(int tile) => _tinFolk.Count > 0 && FreeFolkOwns(tile) ? -2 : _territory.OwnerOf(tile);
+
     public bool Allows(int civ, int tile)
     {
         int owner = _territory.OwnerOf(tile);
@@ -363,6 +433,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             if (_sCiv[s] == civ || _free[s]) continue;
             if (RivalCost(s)[tile] < MinRivalCostTenths) return false;
         }
+        // Tin Folk land is theirs: daughters keep the founding distance from a free village (docs/MVP/22 §4.3, §6.4).
+        foreach (TinFolkVillage v in _tinFolk)
+            if (v.Joined < 0 && (uint)v.Settlement < (uint)_sCount && _free[v.Settlement] &&
+                HexGrid.Distance(_sTile[v.Settlement], tile, _width) < _rules.RivalMinDist) return false;
         return true;
     }
 
@@ -419,6 +493,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _tick = tick;
         _season = checked((int)_economy.SeasonsCompleted);
         RefreshSettlements();
+        TakeSecessions();
+        SpawnTinFolk();
         PlaceCamps();
         UpdateTerritory();
         if (_season % 4 == 0)
@@ -431,6 +507,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         AdvanceOccupations();
         RecoverCohesion();
         RunCivMinds();
+        RunTrade();
+        ResolveDecrees();
         DriftOverlap();
         ApplyEconomyInputs();
     }
@@ -502,7 +580,15 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         {
             if (_free[s]) continue;
             int civ = _sCiv[s];
-            settlements.Add(new ClaimSource(civ, _sTile[s], _eraRadius[Math.Min(_research.Era(civ), _eraRadius.Length - 1)], EmissionOf(s)));
+            // Towns claim radius 5, Cities 6, a Palace capital ×1.25, a City's hinterland ring 7 at half (docs/MVP/22 §8.1, §11).
+            int eraRadius = _eraRadius[Math.Min(_research.Era(civ), _eraRadius.Length - 1)];
+            Fix64 emission = EmissionOf(s);
+            Fix64 mult = _economy.ClaimMultiplier(s);
+            // A village founded by Decree claims ×1.5 for two years (TER-05, docs/MVP/22 §4.3).
+            if (_foundBoost.Count > 0) mult *= FoundBoost(s);
+            settlements.Add(new ClaimSource(civ, _sTile[s], _economy.ClaimRadius(s, eraRadius), mult == Fix64.One ? emission : emission * mult));
+            (int ring, Fix64 share) = _economy.Hinterland(s);
+            if (ring > 0) settlements.Add(new ClaimSource(civ, _sTile[s], ring, emission * share));
         }
         foreach ((int tile, int settlement, int civ) in _camps)
         {
@@ -510,6 +596,13 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             // A band's seasonal camp claims at half its emission, three quarters with Camp Circuits (07b §9.4).
             Fix64 share = _research.IsDone(civ, _p.Ter02) ? Fix64.FromRatio(3, 4) : Fix64.Half;
             camps.Add(new ClaimSource(civ, tile, Territory.CampRadius, EmissionOf(settlement) * share));
+        }
+        // Mining camps claim radius 1 (2 with TER-06) at 75% of a six-person band's emission (docs/MVP/22 §5.2).
+        for (int i = 0; i < _economy.MiningCampCount; i++)
+        {
+            MiningCampView camp = _economy.MiningCamp(i);
+            if (camp.ParentSettlementIndex >= _sCount || _free[camp.ParentSettlementIndex]) continue;
+            camps.Add(new ClaimSource(camp.Civilization, camp.Tile, camp.ClaimRadius, camp.ClaimEmission));
         }
         _territory.Update(settlements, camps);
     }
@@ -691,6 +784,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int adults = 0;
         foreach (var r in records) if (r.Age < 45) adults++;
         int warriorSlots = warriors ? adults / 5 : 0;
+        // Tin Folk defend at 0.8 strength (docs/MVP/22 §6.4).
+        bool tinFolk = _tinFolk.Count > 0 && IsTinFolk(settlement);
         var list = new List<Fighter>();
         ids = new List<long>();
         foreach (var r in records)
@@ -704,6 +799,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 strength = Fix64.One * weapon * Fix64.FromRatio(13, 10);
             }
             else strength = (attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weapon;
+            if (tinFolk) strength *= _trade.FolkDefense;
             list.Add(new Fighter(r.Id, strength));
             ids.Add(r.Id);
         }
@@ -731,7 +827,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private Defenses DefensesOf(int settlement)
     {
         int civ = _sCiv[settlement];
-        bool palisade = _research.IsDone(civ, _p.Def03) && _season - SeasonOf(_research.CompletedTick(civ, _p.Def03)) >= 2;
+        bool palisade = _research.IsDone(civ, _p.Def03) && _season - SeasonOf(_research.CompletedTick(civ, _p.Def03)) >= 2 ||
+                        _tinFolk.Count > 0 && IsTinFolk(settlement);
         bool watchers = _research.IsDone(civ, _p.Def02) || _economy.DefenseStructures(settlement, lookout: true) > 0;
         bool thorn = _economy.DefenseStructures(settlement, lookout: false) > 0;
         return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
@@ -756,9 +853,41 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             for (int b = a + 1; b < _civs; b++)
             {
                 if (!_dip.Contacted(a, b) || _dip.Allied(a, b)) continue;
+                // A border treaty fixes the line: claims across it do not sour Relations (DIP-05).
+                if (_pacts.Count > 0 && HasTreaty(a, b)) continue;
                 int overlap = ContestedOverlapTiles(a, b);
                 if (overlap >= 5) _dip.Shift(a, b, -2 * (overlap / 5));
             }
+    }
+
+    /// <summary>
+    /// Settlements the economy reports as seceded (docs/MVP/22 §8.3) become Free Folk. WP8 owns what Free Folk do (claims,
+    /// barter, Relations +20 with the old civilization, re-absorption); here they only leave their civilization.
+    /// </summary>
+    private readonly List<int> _secededScratch = new();
+
+    private void TakeSecessions()
+    {
+        _secededScratch.Clear();
+        _economy.DrainSecessions(_secededScratch);
+        foreach (int s in _secededScratch)
+        {
+            if ((uint)s >= (uint)_sCount || _free[s]) continue;
+            _free[s] = true;
+            _cohesionDebt[s] = Fix64.Zero;
+            _events.Add(new PoliticsEvent(_tick, (byte)_sCiv[s], PoliticsEventKind.Seceded, -1, s, _sPop[s]));
+        }
+    }
+
+    /// <summary>Settlements that seceded in the match (docs/MVP/22 §15 T25), read from the economy's state.</summary>
+    public int Secessions
+    {
+        get
+        {
+            int n = 0;
+            for (int i = 0; i < _economy.SettlementCount; i++) if (_economy.Civic(i).Seceded) n++;
+            return n;
+        }
     }
 
     private void RecoverCohesion()
@@ -784,7 +913,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         for (int c = 0; c < _civs; c++) { h.Add(_beacons[c].Count); foreach (int b in _beacons[c]) h.Add(b); }
         h.Add(_camps.Count);
         foreach ((int tile, int settlement, int civ) in _camps) { h.Add(tile); h.Add(settlement); h.Add(civ); }
-        for (int i = 0; i < _free.Count; i++) { h.Add(_free[i]); h.Add(i < _campsPlaced.Count && _campsPlaced[i]); h.Add(i < _cohesionDebt.Count ? _cohesionDebt[i] : Fix64.Zero); }
+        // The per-settlement lists lag the economy until the next RefreshSettlements; a restore refreshes them at once, so
+        // hash and snapshot both cover every settlement the economy has, with the defaults a refresh would add.
+        int tracked = Math.Max(_free.Count, _economy.SettlementCount);
+        for (int i = 0; i < tracked; i++) { h.Add(i < _free.Count && _free[i]); h.Add(i < _campsPlaced.Count && _campsPlaced[i]); h.Add(i < _cohesionDebt.Count ? _cohesionDebt[i] : Fix64.Zero); }
         h.Add(_expeditions.Count);
         foreach (Expedition e in _expeditions)
         {
@@ -792,6 +924,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             h.Add(e.ArriveSeason); h.Add(e.Leg); h.Add(e.Value);
             foreach (long m in e.Members) h.Add(m);
             foreach (Fix64 s in e.Strengths) h.Add(s);
+            if (e.HasBronzeFields) HashExpeditionBronze(ref h, e);
         }
         h.Add(_occupations.Count);
         foreach (Occupation o in _occupations)
@@ -803,6 +936,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (int v in _failedCampaigns) h.Add(v);
         foreach (int v in _warSince) h.Add(v);
         h.Add(RaidCount); h.Add(RaidsSucceeded); h.Add(Gifts); h.Add(BarterTrips); h.Add(CaptureCount); h.Add(Skirmishes); h.Add(Wars);
+        HashBronze(ref h);
     }
 
     public void WriteSnapshot(BinaryWriter w)
@@ -815,10 +949,11 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         for (int c = 0; c < _civs; c++) { w.Write(_beacons[c].Count); foreach (int b in _beacons[c]) w.Write(b); }
         w.Write(_camps.Count);
         foreach ((int tile, int settlement, int civ) in _camps) { w.Write(tile); w.Write(settlement); w.Write(civ); }
-        w.Write(_free.Count);
-        for (int i = 0; i < _free.Count; i++)
+        int tracked = Math.Max(_free.Count, _economy.SettlementCount);
+        w.Write(tracked);
+        for (int i = 0; i < tracked; i++)
         {
-            w.Write(_free[i]);
+            w.Write(i < _free.Count && _free[i]);
             w.Write(i < _campsPlaced.Count && _campsPlaced[i]);
             w.Write((i < _cohesionDebt.Count ? _cohesionDebt[i] : Fix64.Zero).Raw);
         }
@@ -840,6 +975,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (int v in _failedCampaigns) w.Write(v);
         foreach (int v in _warSince) w.Write(v);
         w.Write(RaidCount); w.Write(RaidsSucceeded); w.Write(Gifts); w.Write(BarterTrips); w.Write(CaptureCount); w.Write(Skirmishes); w.Write(Wars);
+        WriteBronze(w);
     }
 
     public void ReadSnapshot(BinaryReader r)
@@ -893,6 +1029,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         for (int i = 0; i < _warSince.Length; i++) _warSince[i] = r.ReadInt32();
         RaidCount = r.ReadInt32(); RaidsSucceeded = r.ReadInt32(); Gifts = r.ReadInt32(); BarterTrips = r.ReadInt32();
         CaptureCount = r.ReadInt32(); Skirmishes = r.ReadInt32(); Wars = r.ReadInt32();
+        ReadBronze(r);
         _events.Clear();
         RefreshSettlements();
         ApplyEconomyInputs();

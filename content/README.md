@@ -8,7 +8,7 @@ only a design record.
 content/
 ├─ catalog/        one file per lineage (33) plus keystones.yaml: 509 projects + 10 keystones
 ├─ registries/     eras, actions, practice, goods, structures, tools, roles, biomes, fauna, deposits,
-│                  archetypes, difficulty, guarantees, openings
+│                  archetypes, difficulty, guarantees, openings, recipes
 └─ constants/      balance.yaml (tuned constants and the project type multipliers)
 ```
 

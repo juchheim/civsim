@@ -85,18 +85,30 @@ projects:
     name: Post-and-Lintel
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [BLD-05, STN-11]
     effects:
-      - {kind: prose, text: "Public buildings: temples, palaces, halls."}
+      - {kind: build, structure: hall, note: "houses 30; the post-and-lintel frame temples and palaces use"}
+      - {kind: cap, cap: housing, mult: 1.2}
+      - {kind: unlock, text: "Temple (BEL-06) and Palace (GOV-05) frames"}
+    practice: [{action: build, share: 100}]
+    flavor: "Two posts and a beam: a door for giants."
+    moment: "A great beam is lowered onto two stone pillars and the crowd walks under it"
   - id: BLD-08
     name: Stepped Pyramid
     era: 3
     type: W
-    status: draft
+    status: numeric
     requires: [BLD-07, BEL-06]
     effects:
-      - {kind: prose, text: "Wonder: Ziggurat or stepped pyramid. Huge Cohesion and claim radius +4 around it."}
+      - {kind: wonder, structure: ziggurat, note: "at a City: 200 ws, cut stone 80 L, mudbrick 400"}
+      - {kind: cohesion, value: 15, scope: radius, radius: 8, note: "the Wonder term of 22 §8.3 (×1.25 with ART-06)"}
+      - {kind: cohesion, value: 5, scope: all}
+      - {kind: claim, text: "+1.5, radius 8"}
+      - {kind: legacy, text: "Wonder: First 48, built 100 (22 §3.3)"}
+    practice: [{action: build, share: 50}, {action: ritual, share: 50}]
+    flavor: "A mountain made by hands, so the gods could come down."
+    moment: "Lines of carriers climb the terraces at dawn and a fire is lit in the shrine on the summit"
   - id: BLD-09
     name: "True Arch & Vault"
     era: 4

@@ -8,6 +8,7 @@ Prints raw fitted values; the recommended constants are these rounded to
 
     python fit.py              # fit k, then EraBase E1..E9 (as WS-A did)
     python fit.py Standard base   # keep the tuned Insight scale; fit EraBase E0..E9
+    python fit.py live            # E3 on the live-mode model (07d §3): EraBase[3] for a 13-min E3, both housing regimes
 """
 import sys
 from pathlib import Path
@@ -53,7 +54,22 @@ def fit_base(pace="Standard"):
     return s["era"]["EraBase"]
 
 
+def fit_live(target=13.0):
+    """22 §15 T4: re-fit EraBase[3] on balance_sim's live mode (live demography, InsightCalibration 1.6, E3 roles by
+    structure, the Council's measured overhead). Prints raw and rounded values for both housing regimes."""
+    out = {}
+    for regime in ("village", "towns"):
+        raw = B.fit_live_erabase(dict(Regime=regime), target)
+        out[regime] = raw
+        r = B.live_summary(*B.run_live(dict(Regime=regime, EraBase=[22, 50, 75, round(raw / 10) * 10]), minutes=75))
+        print(f"EraBase E3 ({regime:7s} housing) = {raw:6.1f} -> {int(round(raw / 10) * 10)}: E3 {r['e3']:.2f} min, "
+              f"KEY-3 {r['k3']:.2f}, KEY-4 {r['k4']:.2f}")
+    return out
+
+
 def fit(pace="Standard", mode="k"):
+    if pace == "live":
+        return fit_live()
     if mode == "base":
         return fit_base(pace)
     s = P.scenario("tuned", pace)

@@ -38,11 +38,15 @@ public sealed partial class ResearchSystem
     private CouncilContext BuildCouncilContext(int c)
     {
         CivResearch civ = _civs[c];
+        // Past the last researchable keystone (KEY-4's Iron threshold) there is no keystone path to chase: the Council
+        // works through the leftovers on cost, Leaning and urgency alone.
+        int keystone = _catalog.KeystoneLeaving(civ.Era);
+        bool chase = keystone >= 0 && _catalog.Projects[keystone].Numeric && civ.Era <= LastResearchEra;
         var ctx = new CouncilContext
         {
             Signals = _source.GetSignals(c),
-            Closure = _catalog.ClosureOf(civ.Era),
-            Keystone = _catalog.KeystoneLeaving(civ.Era),
+            Closure = chase ? _catalog.ClosureOf(civ.Era) : null,
+            Keystone = chase ? keystone : -1,
             Inputs = _source.GetInsightInputs(c),
         };
         ctx.BreadthShort = ctx.Keystone >= 0 &&

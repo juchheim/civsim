@@ -59,10 +59,14 @@ projects:
     name: Celestial Navigation
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [WAY-04, NUM-06]
     effects:
-      - {kind: prose, text: "Sea voyages out of sight of land (open-sea hops ×2 distance)."}
+      - {kind: mod, stat: open_sea_reach, op: mult, value: 2, note: "11 → 22 tiles from land; with Sail 15 → 30"}
+      - {kind: mod, stat: shipwreck_risk, op: mult, value: 0.7}
+    practice: [{action: sail, share: 50}, {action: scout, share: 50}]
+    flavor: "The stars do not wander; steer by them."
+    moment: "A navigator lies on the deck at night and measures a star against her outstretched hand"
   - id: WAY-06
     name: "Periplus & Itineraries"
     era: 4

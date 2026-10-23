@@ -59,6 +59,7 @@ public static class WorldGenerator
             startScores[i] = StartScore(work, starts[i], coastDistance[starts[i]],
                 AverageForageWithin(work, starts[i], 3));
         ApplyStartGuarantees(work, starts, coastDistance);
+        PlaceBronzeGeography(work, starts);
         ApplyContinentalGuarantees(work);
         SortFauna(work);
 
@@ -332,7 +333,6 @@ public static class WorldGenerator
         PlaceDepositType(w, DepositKind.NativeCopper, 3, 1, 1, static t => t.Elevation >= 140);
         PlaceDepositType(w, DepositKind.CopperOre, 6, 1, 2, static t => t.Elevation >= 150);
         PlaceDepositType(w, DepositKind.ArsenicalCopper, 3, 2, 2, static t => t.Elevation >= 175);
-        PlaceDepositType(w, DepositKind.Tin, 1, 1, 2, static t => t.Elevation >= 160);
         PlaceDepositType(w, DepositKind.Gold, 2, 1, 2, static t => t.Elevation >= 145);
         PlaceDepositType(w, DepositKind.Silver, 1, 1, 2, static t => t.Elevation >= 145);
         PlaceDepositType(w, DepositKind.Iron, 10, 1, 2, static t => t.Elevation >= 105);
@@ -750,22 +750,147 @@ public static class WorldGenerator
         }
     }
 
+    // Quantity tiers for tin (the economy maps a tier to litres of ore, 22 §5.1): 1 = 100 L far placer or island,
+    // 2 = 150 L middle-field placer, 3 = 600 L middle-field lode.
+    private const byte TinFarPlacer = 1, TinMiddlePlacer = 2, TinMiddleLode = 3;
+
+    /// <summary>
+    /// E3 metal geography (22 §5.1): a contested tin field between each neighbour pair, two far placers on the
+    /// outer flanks, one island placer, and start guarantees for arsenical copper, depth-1 copper and iron.
+    /// All placements are made on the west continent and point-mirrored, so the fairness of 12 §2 holds.
+    /// </summary>
+    private static void PlaceBronzeGeography(Work w, int[] starts)
+    {
+        int[] toFirst = HexGrid.WalkingCostsFrom(w.Tiles, w.Width, w.Height, starts[0], 400);
+        int[] toSecond = HexGrid.WalkingCostsFrom(w.Tiles, w.Width, w.Height, starts[1], 400);
+
+        PlaceTinMiddleField(w, starts[0], starts[1], toFirst, toSecond);
+        PlaceTinFarPlacers(w, toFirst, toSecond);
+        PlaceTinIsland(w);
+
+        for (int s = 0; s < 2; s++)
+        {
+            EnsureDepositNear(w, starts[s], DepositKind.ArsenicalCopper, 25, 2, 3);
+            EnsureDepositNear(w, starts[s], DepositKind.CopperOre, 15, 1, 2, maxDepth: 1);
+            EnsureDepositNear(w, starts[s], DepositKind.Iron, 20, 1, 2);
+        }
+    }
+
+    private static bool TinSiteOpen(Work w, int i, bool river)
+    {
+        WorldTile t = w.Tiles[i];
+        if (!t.IsLand || t.Continent != 0 || t.Deposit != DepositKind.None || t.Biome == Biome.Peak) return false;
+        if (t.Biome == Biome.Ice) return false;
+        // Any open ground can hold a placer (streambeds and foothills are preferred by the score); a lode sits beside it.
+        return t.Biome != Biome.Desert && (!river || t.Biome != Biome.Mountain);
+    }
+
+    private static int TinTie(Work w, int i, string label)
+        => (int)(Hash64.Mix(Hash64.Combine(w.Seed, Hash64.OfString(label)) ^ (ulong)i) & 63);
+
+    private static void PlaceTinMiddleField(Work w, int first, int second, int[] toFirst, int[] toSecond)
+    {
+        // Costs are tenths of a walking tile. Strict band first (12-16 tiles from both, within 2 of each other),
+        // then progressively relaxed so a world is never left without its flashpoint.
+        ReadOnlySpan<(int Low, int High, int Gap)> bands = stackalloc (int, int, int)[]
+            { (120, 160, 20), (100, 190, 30), (80, 240, 50), (0, 1_000, 1_000) };
+        Span<int> neighbors = stackalloc int[6];
+        foreach ((int low, int high, int gap) in bands)
+        {
+            int bestPlacer = -1, bestLode = -1, bestScore = int.MaxValue;
+            for (int i = 0; i < w.Count; i++)
+            {
+                if (i % w.Width >= w.Width / 2 || !TinSiteOpen(w, i, river: true)) continue;
+                int a = toFirst[i], b = toSecond[i];
+                if (a == int.MaxValue || b == int.MaxValue || a < low || a > high || b < low || b > high) continue;
+                if (Math.Abs(a - b) > gap) continue;
+                if (HexGrid.Distance(first, i, w.Width) < 9 || HexGrid.Distance(second, i, w.Width) < 9) continue;
+                int count = HexGrid.Neighbors(i, w.Width, w.Height, neighbors);
+                for (int n = 0; n < count; n++)
+                {
+                    int l = neighbors[n];
+                    if (l % w.Width >= w.Width / 2 || !TinSiteOpen(w, l, river: false)) continue;
+                    int mid = (a + b) / 2;
+                    int score = Math.Abs(a - b) * 8 + Math.Abs(mid - 140) * 2 - w.Tiles[l].Elevation / 8 -
+                                ((w.Tiles[i].Flags & TileFlags.River) != 0 ? 40 : 0) + TinTie(w, i * 7 + n, "tin.middle");
+                    if (score < bestScore) { bestScore = score; bestPlacer = i; bestLode = l; }
+                }
+            }
+            if (bestPlacer < 0) continue;
+            PlaceDepositPointSymmetric(w, bestPlacer, DepositKind.Tin, TinMiddlePlacer, 1);
+            PlaceDepositPointSymmetric(w, bestLode, DepositKind.Tin, TinMiddleLode, 2);
+            if (low != 120) w.Repairs++;
+            return;
+        }
+    }
+
+    private static void PlaceTinFarPlacers(Work w, int[] toFirst, int[] toSecond)
+    {
+        // One river placer on each start's outer flank, 22-32 tiles from its nearer start, and clearly nearer
+        // to that start than to its neighbour. The pair of nearer distances differs by at most 3 tiles.
+        ReadOnlySpan<(int Low, int High, int Gap)> bands = stackalloc (int, int, int)[]
+            { (220, 320, 30), (180, 360, 50), (100, 400, 100) };
+        var firstSide = new List<int>();
+        var secondSide = new List<int>();
+        foreach ((int low, int high, int gap) in bands)
+        {
+            firstSide.Clear();
+            secondSide.Clear();
+            for (int i = 0; i < w.Count; i++)
+            {
+                if (i % w.Width >= w.Width / 2 || !TinSiteOpen(w, i, river: true)) continue;
+                int a = toFirst[i], b = toSecond[i];
+                if (a != int.MaxValue && a >= low && a <= high && (b == int.MaxValue || b - a >= 100)) firstSide.Add(i);
+                if (b != int.MaxValue && b >= low && b <= high && (a == int.MaxValue || a - b >= 100)) secondSide.Add(i);
+            }
+            int bestFirst = -1, bestSecond = -1, bestScore = int.MaxValue;
+            foreach (int f in firstSide)
+            foreach (int s in secondSide)
+            {
+                int diff = Math.Abs(toFirst[f] - toSecond[s]);
+                if (diff > gap) continue;
+                int score = diff * 8 + Math.Abs(toFirst[f] - 270) + Math.Abs(toSecond[s] - 270) -
+                            ((w.Tiles[f].Flags & TileFlags.River) != 0 ? 30 : 0) - ((w.Tiles[s].Flags & TileFlags.River) != 0 ? 30 : 0) +
+                            TinTie(w, f, "tin.far.first") + TinTie(w, s, "tin.far.second");
+                if (score < bestScore) { bestScore = score; bestFirst = f; bestSecond = s; }
+            }
+            if (bestFirst < 0) continue;
+            PlaceDepositPointSymmetric(w, bestFirst, DepositKind.Tin, TinFarPlacer, 1);
+            PlaceDepositPointSymmetric(w, bestSecond, DepositKind.Tin, TinFarPlacer, 1);
+            if (low != 220) w.Repairs++;
+            return;
+        }
+    }
+
+    private static void PlaceTinIsland(Work w)
+    {
+        int best = -1, bestScore = int.MaxValue;
+        for (int i = 0; i < w.Count; i++)
+        {
+            WorldTile t = w.Tiles[i];
+            if (i % w.Width >= w.Width / 2 || !t.IsLand || t.Continent != 2 || t.Deposit != DepositKind.None) continue;
+            int score = TinTie(w, i, "tin.island");
+            if (score < bestScore) { bestScore = score; best = i; }
+        }
+        if (best >= 0) PlaceDepositPointSymmetric(w, best, DepositKind.Tin, TinFarPlacer, 1);
+    }
+
     private static void ApplyContinentalGuarantees(Work w)
     {
         EnsureContinentDeposit(w, DepositKind.Gold, DepositKind.Silver, 1);
         EnsureContinentDeposit(w, DepositKind.Coal, DepositKind.Coal, 1);
         EnsureContinentDeposit(w, DepositKind.Oil, DepositKind.Oil, 1);
-        EnsureContinentDeposit(w, DepositKind.Tin, DepositKind.Tin, 1);
         EnsureContinentDeposit(w, DepositKind.Iron, DepositKind.Iron, 2);
         EnsureContinentDeposit(w, DepositKind.Salt, DepositKind.Salt, 1);
     }
 
-    private static void EnsureDepositNear(Work w, int start, DepositKind kind, int radius, byte depth)
+    private static void EnsureDepositNear(Work w, int start, DepositKind kind, int radius, byte depth,
+        byte amount = 1, byte maxDepth = byte.MaxValue)
     {
-        if (DepositWithin(w, start, kind, radius)) return;
+        if (DepositWithin(w, start, kind, radius, maxDepth)) return;
         int tile = FindSymmetricSite(w, start, Math.Max(1, radius - 2),
             t => t.IsLand && t.Continent == 0 && t.Deposit == DepositKind.None, false);
-        PlaceDepositPointSymmetric(w, tile, kind, 1, depth);
+        PlaceDepositPointSymmetric(w, tile, kind, amount, depth);
         w.Repairs++;
     }
 
@@ -1041,14 +1166,15 @@ public static class WorldGenerator
         return count;
     }
 
-    private static bool DepositWithin(Work w, int center, DepositKind kind, int radius)
+    private static bool DepositWithin(Work w, int center, DepositKind kind, int radius, byte maxDepth = byte.MaxValue)
     {
         int x = center % w.Width, y = center / w.Width;
         for (int ny = Math.Max(0, y - radius); ny <= Math.Min(w.Height - 1, y + radius); ny++)
         for (int nx = Math.Max(0, x - radius - 1); nx <= Math.Min(w.Width - 1, x + radius + 1); nx++)
         {
             int i = ny * w.Width + nx;
-            if (w.Tiles[i].Deposit == kind && HexGrid.Distance(center, i, w.Width) <= radius) return true;
+            if (w.Tiles[i].Deposit == kind && w.Tiles[i].DepositDepth <= maxDepth &&
+                HexGrid.Distance(center, i, w.Width) <= radius) return true;
         }
         return false;
     }

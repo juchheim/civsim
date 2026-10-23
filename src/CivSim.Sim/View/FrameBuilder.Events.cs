@@ -332,6 +332,57 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.OrderRefused; e.Text = ChronicleKey.OrderRefused;
                     e.Tier = ViewEventTier.Info; e.A = p.A; e.B = p.B;
                     break;
+                case PoliticsEventKind.DecreeResolved:
+                    e.Kind = ViewEventKind.DecreeResolved; e.Tier = ViewEventTier.Milestone;
+                    e.Text = (DecreeKind)p.A switch
+                    {
+                        DecreeKind.Found => ChronicleKey.DecreeFound, DecreeKind.Expedition => ChronicleKey.DecreeExpedition,
+                        DecreeKind.Mine => ChronicleKey.DecreeMine, DecreeKind.Levy => ChronicleKey.DecreeLevy,
+                        DecreeKind.Corvee => ChronicleKey.DecreeCorvee, _ => p.B < 0 ? ChronicleKey.DecreePact : ChronicleKey.DecreeCompact,
+                    };
+                    if ((DecreeKind)p.A is DecreeKind.Found or DecreeKind.Levy or DecreeKind.Corvee) { e.Settlement = p.B; e.Tile = TileOf(p.B); }
+                    else if ((DecreeKind)p.A is DecreeKind.Expedition or DecreeKind.Mine) e.Tile = p.B;
+                    break;
+                case PoliticsEventKind.DecreeRefused:
+                    e.Kind = ViewEventKind.DecreeRefused; e.Text = ChronicleKey.DecreeRefused;
+                    break;
+                case PoliticsEventKind.ExpeditionReturned:
+                    e.Kind = ViewEventKind.ExpeditionReturned; e.Text = ChronicleKey.ExpeditionReturned; e.Tile = p.B;
+                    break;
+                case PoliticsEventKind.CompactSigned:
+                    e.Kind = ViewEventKind.CompactSigned; e.Text = ChronicleKey.CompactSigned; e.Tier = ViewEventTier.Milestone;
+                    break;
+                case PoliticsEventKind.CompactEnded:
+                    e.Kind = ViewEventKind.CompactEnded; e.Text = ChronicleKey.CompactEnded; e.Tier = ViewEventTier.Milestone;
+                    break;
+                case PoliticsEventKind.EmbargoSet:
+                    e.Kind = ViewEventKind.EmbargoSet;
+                    (e.Text, e.Tier) = p.B switch
+                    {
+                        1 => (ChronicleKey.EmbargoSet, ViewEventTier.Info),
+                        3 => (ChronicleKey.EmbargoOnUs, ViewEventTier.Critical),
+                        _ => (ChronicleKey.EmbargoLifted, ViewEventTier.Info),
+                    };
+                    break;
+                case PoliticsEventKind.CaravanRaided:
+                    e.Kind = ViewEventKind.CaravanRaided; e.Tier = ViewEventTier.Milestone;
+                    e.Text = p.B < 0 ? ChronicleKey.CaravanRaidFailed : ChronicleKey.CaravanRaided;
+                    break;
+                case PoliticsEventKind.TinFolkAppeared:
+                    e.Kind = ViewEventKind.TinFolkAppeared; e.Text = ChronicleKey.TinFolkAppeared; e.Tier = ViewEventTier.Moment;
+                    e.Settlement = p.A; e.Tile = p.B;
+                    break;
+                case PoliticsEventKind.PactSigned:
+                    e.Kind = ViewEventKind.PactSigned; e.Tier = ViewEventTier.Milestone;
+                    e.Text = (CompactVariant)p.A == CompactVariant.Treaty ? ChronicleKey.TreatySigned : ChronicleKey.PactSigned;
+                    break;
+                case PoliticsEventKind.PactBroken:
+                    e.Kind = ViewEventKind.PactBroken; e.Text = ChronicleKey.PactBroken; e.Tier = ViewEventTier.Critical;
+                    break;
+                case PoliticsEventKind.VillageJoined:
+                    e.Kind = ViewEventKind.VillageJoined; e.Text = ChronicleKey.VillageJoined; e.Tier = ViewEventTier.Milestone;
+                    e.Settlement = p.A; e.Tile = TileOf(p.A); e.A = p.B; e.B = 0;
+                    break;
                 default:
                     continue;
             }

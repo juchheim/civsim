@@ -3,8 +3,8 @@ schema: 1
 eras:
   - {id: 0, name: Dawn, base_cost: 22, breadth: 13, rep_scale: 1, claim_radius: 3, reach: 6, sea_level: 0, claim_mult: 1, winter_mult: 2, fert_mult: 1, mort_child: 0.036, mort_adult: 0.012, mort_elder: 0.053, cost_mod: 1}
   - {id: 1, name: Hunters, base_cost: 50, breadth: 14, rep_scale: 1, claim_radius: 3, reach: 9, sea_level: 0, claim_mult: 1.15, winter_mult: 1.7, fert_mult: 1.15, mort_child: 0.033, mort_adult: 0.011, mort_elder: 0.053, cost_mod: 1}
-  - {id: 2, name: Roots, base_cost: 90, breadth: 20, rep_scale: 1, claim_radius: 4, reach: 12, sea_level: 1, claim_mult: 1.3, winter_mult: 1.4, fert_mult: 1.3, mort_child: 0.035, mort_adult: 0.012, mort_elder: 0.057, cost_mod: 1}
-  - {id: 3, name: Bronze, base_cost: 180, breadth: 21, rep_scale: 1, claim_radius: 4, reach: 15, sea_level: 1, claim_mult: 1.3, winter_mult: 1.25, fert_mult: 1.25, mort_child: 0.034, mort_adult: 0.011, mort_elder: 0.055, cost_mod: 1}
+  - {id: 2, name: Roots, base_cost: 75, breadth: 20, rep_scale: 1, claim_radius: 4, reach: 12, sea_level: 1, claim_mult: 1.3, winter_mult: 1.4, fert_mult: 1.3, mort_child: 0.035, mort_adult: 0.012, mort_elder: 0.057, cost_mod: 1}
+  - {id: 3, name: Bronze, base_cost: 160, breadth: 21, rep_scale: 1, claim_radius: 4, reach: 15, sea_level: 1, claim_mult: 1.3, winter_mult: 1.25, fert_mult: 1.25, mort_child: 0.034, mort_adult: 0.011, mort_elder: 0.055, cost_mod: 1}
   - {id: 4, name: Iron, base_cost: 550, breadth: 21, rep_scale: 2, claim_radius: 5, reach: 20, sea_level: 2, claim_mult: 1.3, winter_mult: 1.2, fert_mult: 1.2, mort_child: 0.03, mort_adult: 0.0105, mort_elder: 0.053, cost_mod: 1}
   - {id: 5, name: "Faith & Fief", base_cost: 3000, breadth: 16, rep_scale: 5, claim_radius: 5, reach: 25, sea_level: 2, claim_mult: 1.3, winter_mult: 1.15, fert_mult: 1.1, mort_child: 0.029, mort_adult: 0.0105, mort_elder: 0.051, cost_mod: 1}
   - {id: 6, name: Discovery, base_cost: 15000, breadth: 14, rep_scale: 25, claim_radius: 5, reach: 35, sea_level: 2, claim_mult: 1.3, winter_mult: 1.1, fert_mult: 1.1, mort_child: 0.025, mort_adult: 0.0095, mort_elder: 0.049, cost_mod: 1}

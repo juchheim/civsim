@@ -128,11 +128,16 @@ projects:
     name: "Seal & Whale Hunting"
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [HNT-09, SEA-04]
     gates: [{kind: near, target: Coast}]
     effects:
-      - {kind: prose, text: "+Action: Marine hunt. Blubber, oil and bone; high food per trip."}
+      - {kind: unlock_action, action: marine_hunt, note: "4 R/ws within 2 tiles of shore; injury 1.5%/ws"}
+      - {kind: good, id: G-OIL, note: "1 L per 10 R caught; 1 L = 3 L of hearth wood"}
+      - {kind: gate, text: "[Near: Coast]"}
+    practice: [{action: hunt, share: 50}, {action: paddle, share: 50}]
+    flavor: "The sea's great beasts kept our lamps burning."
+    moment: "Paddlers close on a basking seal and the harpoon line snaps taut"
   - id: HNT-11
     name: "Game Reserves & Falconry"
     era: 5

@@ -45,6 +45,16 @@ public enum CommandKind : ushort
     FormAlliance = 16,
     /// <summary>A = expedition index: recall the selected party to its origin settlement.</summary>
     RecallParty = 17,
+
+    // Bronze levers (docs/MVP/22 §4.5): applied in PoliticsSystem.Step, resolved at the end of the season.
+    /// <summary>
+    /// A = Decree kind 1–6 (Found, Expedition, Mine, Levy, Corvée, Compact); B = target tile index, settlement index or civilization
+    /// (a Free Folk village as −(settlement + 1)); C = packed extra (Compact: good | direction &lt;&lt; 8 | variant &lt;&lt; 9; Corvée: the
+    /// structure). Mandate is spent only if it succeeds; it resolves in the politics step at the end of the season.
+    /// </summary>
+    IssueDecree = 18,
+    /// <summary>A = civilization, B = good (<c>TradeGood</c>), C = 1 to stop selling it to them, 0 to lift the embargo. Free.</summary>
+    SetEmbargo = 19,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>

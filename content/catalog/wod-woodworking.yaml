@@ -54,18 +54,27 @@ projects:
     name: Joinery
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [WOD-03, MET-03]
     effects:
-      - {kind: prose, text: "Mortise and tenon. ▸ Build (timber) +40%. Enables plank boats and wheels."}
+      - {kind: mod, stat: timber_building_labor, op: mult, value: 0.7, note: "timber building labor −30%"}
+      - {kind: cap, cap: housing, mult: 1.05, note: "housing is build-limited (09 §6.3): produced by the faster building"}
+      - {kind: unlock, text: "plank boats (SEA-05), wheels (MEC-03)"}
+    practice: [{action: build, share: 50}, {action: chop, share: 50}]
+    flavor: "No cord, no peg: the wood holds itself."
+    moment: "A tenon slides into its mortise and the frame stands without a single lashing"
   - id: WOD-06
     name: Bow Lathe
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [WOD-05, MEC-03]
     effects:
-      - {kind: prose, text: "Good: Turned goods (hubs, bowls, furniture legs). +Trade goods."}
+      - {kind: good, id: G-TURNED}
+      - {kind: mod, stat: wheel_and_cart_labor, op: mult, value: 0.7, note: "wheel, cart and chariot making −30%"}
+    practice: [{action: craft, share: 50}, {action: chop, share: 50}]
+    flavor: "The wood spins, and the shape is already inside it."
+    moment: "A bow saws back and forth and a spinning chair leg curls shavings onto the turner's feet"
   - id: WOD-07
     name: Cooperage
     era: 4

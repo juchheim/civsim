@@ -32,6 +32,7 @@
 | 17 | [Vertical Slice](17-vertical-slice.md) | First-playable scope (E0–E2, one player vs. three AI), what is stubbed or cut, milestones M0–M9 with gates, the consolidated acceptance checklist, a demo script |
 | 18 | [View Layer](18-view-layer.md) | The sim-to-renderer contract: frame fields and units, fog and memory for the viewer, figure layout, the lock-free hand-off and interpolation, the event stream and text keys, player commands, budgets, using it from Godot |
 | 21 | [Island Crossing](21-island-crossing.md) | Boats that carry parties and settlers to the islands: measured gap in the sim, decisions, outrigger range and shipwreck rules, phases, risks |
+| 22 | [Bronze Age](22-bronze-age.md) | E3 Bronze, the first era past the slice: the Bronze chapter and its end rule, per-era Legacy units, Mandate and Decrees, ore and tin geography, the metal chain and charcoal pressure, tin compacts, bronze war, walls and investment, live Cohesion and the early state, all 65 E3 projects and KEY-4, AI and view changes, balance targets, M10 gates and work breakdown |
 
 ## The game in ten lines
 1. Every player starts as a band of **12 people** in the Paleolithic.
@@ -70,6 +71,9 @@
 | **Firsts** | Bonus for being first in the world to complete a project |
 | **Diffusion** | Cost discount for projects already known by civilizations you've contacted |
 | **Beacon** | Player-placed marker that biases expansion and scouting |
+| **Mandate** | From KEY-3, a small, research-grown budget that pays for Decrees ([22 §4](22-bronze-age.md#4-agency-mandate-and-decrees)) |
+| **Decree** | A rare player call carried out by the planners: found a village, send an expedition, open a mine, raise the levy, corvée, offer a compact |
+| **Compact** | A standing trade route for one good (tin above all), proposed by one side and accepted by the other's Strategist |
 | **Posture** | Civilization-wide stance: Expand / Prosper / Fortify / Raid |
 | **Council of Elders** | Auto-pick that fills empty slots using the player's Leaning |
 | **Civ Mind / Settlement Planner** | The AI layers that run every civilization below the research level |

@@ -28,3 +28,13 @@ actions:
   - {id: collect_native_copper, name: Collect native copper, class: activity, base_rate: 0.2, unit: L/ws}
   - {id: draft_oxen, name: Draft oxen, class: activity}
   - {id: feast, name: Feast, class: activity}
+  # E3 Bronze actions (docs/MVP/23 §6.1)
+  - {id: mine, name: Mine ore, class: family, base_rate: 1, unit: L/ws}
+  - {id: pottery, name: Make pottery, class: family, base_rate: 13.3, unit: pots/ws}
+  - {id: haul, name: Haul, class: family, base_rate: 40, unit: "L·tiles/ws"}
+  - {id: dress_stone, name: Dress stone, class: activity, base_rate: 2, unit: L/ws}
+  - {id: salt, name: Make salt, class: activity, base_rate: 1, unit: L/ws}
+  - {id: pan_gold, name: Work gold and silver, class: activity, base_rate: 0.1, unit: L/ws}
+  - {id: marine_hunt, name: Marine hunt, class: activity, base_rate: 4, unit: R/ws}
+  - {id: tame_horses, name: Tame horses, class: activity, base_rate: 1, unit: animals/ws}
+  - {id: reel_silk, name: Reel silk, class: activity, base_rate: 0.1, unit: L/ws}

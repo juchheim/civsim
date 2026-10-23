@@ -41,18 +41,28 @@ projects:
     name: "Mordants & Dyes"
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [CHM-01, FIB-07]
     effects:
-      - {kind: prose, text: "Fast colors in cloth: enables FIB-08."}
+      - {kind: good, id: G-DYE}
+      - {kind: unlock, text: "dyed cloth (FIB-08)", project: FIB-08}
+    practice: [{action: craft, share: 100}]
+    flavor: "The colour holds, wash after wash."
+    moment: "Cloth is lifted dripping from a vat, deep red, and the colour does not run"
   - id: CHM-05
     name: "Soap & Natron"
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [CHM-03, FOD-05]
     effects:
-      - {kind: prose, text: "Good: Soap. Disease −10%, wound infection −15%."}
+      - {kind: good, id: G-SOAP}
+      - {kind: sanitation, value: 0.10}
+      - {kind: hazard, cause: endemic, mult: 0.96}
+      - {kind: hazard, cause: injury, mult: 0.97, note: "wound infection"}
+    practice: [{action: craft, share: 50}, {action: heal, share: 50}]
+    flavor: "Clean hands, fewer fevers."
+    moment: "A woman stirs ash and fat in a pot until foam spills over the rim"
   - id: CHM-06
     name: Distillation
     era: 5

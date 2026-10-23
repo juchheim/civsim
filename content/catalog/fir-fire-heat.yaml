@@ -111,10 +111,16 @@ projects:
     name: "Bellows & Tuyères"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [FIR-08, FIB-03]
     effects:
-      - {kind: prose, text: "Forced air: furnace temperature tier 2. Smelting yield +40%; required for iron and glass."}
+      - {kind: build, structure: smelter}
+      - {kind: mod, stat: smelt_yield, op: mult, value: 1.4, note: "bellows recipes at a Smelter: copper and arsenical 0.5 → 0.7 L per 2 L ore"}
+      - {kind: mod, stat: charcoal_per_smelt, op: mult, value: 0.8, note: "bellows recipes: 2 → 1.6 L charcoal"}
+      - {kind: unlock, text: "bloomery iron (MET-08) and glass (CER-06) need a Smelter"}
+    practice: [{action: smelt, share: 50}, {action: tend_fire, share: 50}]
+    flavor: "The fire learned to breathe."
+    moment: "Two boys work leather bellows in turn; the clay pipe at the furnace mouth glows white"
   - id: FIR-10
     name: "Chimneys & Flues"
     era: 5

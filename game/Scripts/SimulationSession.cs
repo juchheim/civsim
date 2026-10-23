@@ -21,10 +21,8 @@ public sealed class SimulationSession : IDisposable
 {
     private const int TicksPerSecond = 10;
     private const int PublishEveryTicks = 10;
-    /// <summary>A match ends when the human's people reach Bronze or after this many years, whichever comes first.
-    /// A rival reaching Bronze first does not end it: an experimental opening still gets to play out.</summary>
-    public const int MatchYears = 60;
-    private const long MatchTimeCapTicks = (long)MatchYears * 60 * TicksPerSecond;
+    // The Bronze chapter (docs/MVP/22 §3.1) ends the match at the end of the season in which the human completes KEY-4, 12 seasons
+    // after the first rival does, or at Year 64. The rule lives in the sim (MatchEnd) so replays and saves agree on it.
 
     private readonly MatchModel _match;
     private readonly SimRunner _runner;
@@ -39,6 +37,8 @@ public sealed class SimulationSession : IDisposable
     private readonly ulong _seed;
     private readonly byte[] _packHash;
     private readonly int _viewerCiv;
+    /// <summary>The human's civilization for the chapter's first clause, or -1 when watching with no seat.</summary>
+    private readonly int _humanSeat;
     private readonly Difficulty _difficulty;
     private readonly bool _replayMode;
     private readonly long _replayTargetTick;
@@ -49,6 +49,8 @@ public sealed class SimulationSession : IDisposable
     private int _replayChecksumsMatched;
     private long _publishedTick;
     private int _matchEnded;
+    private int _chapterSeasonsLeft = -1;
+    private int _endReason;
     private int _replayFinished;
     private int _initialStartMinute;
     private string? _replayStatus;
@@ -68,6 +70,7 @@ public sealed class SimulationSession : IDisposable
         _seed = seed;
         _packHash = (byte[])pack.Hash.Clone();
         _viewerCiv = viewerCiv;
+        _humanSeat = viewerCiv;
         _difficulty = difficulty;
         _replayMode = replay is not null;
         _replayTargetTick = replay?.TotalTicks ?? 0;
@@ -131,6 +134,7 @@ public sealed class SimulationSession : IDisposable
             }
         }
 
+        MatchYears = _match.Research.Catalog.ChapterCapYear;
         _builder = new FrameBuilder(_match, viewerCiv);
         if (saveData is not null)
         {
@@ -145,6 +149,7 @@ public sealed class SimulationSession : IDisposable
             parties: 128, plots: 4096, aiWhy: 32);
         Frames.BuildAndPublish(_builder, _match);
         _publishedTick = _runner.Tick;
+        UpdateChapter();
         if (!_replayMode && IsMatchOver()) _matchEnded = 1;
 
         _thread = new Thread(Run)
@@ -203,6 +208,15 @@ public sealed class SimulationSession : IDisposable
     public bool Paused => Volatile.Read(ref _paused) != 0;
     public double Speed => SpeedAt(Volatile.Read(ref _speedIndex));
     public bool MatchEnded => Volatile.Read(ref _matchEnded) != 0;
+    /// <summary>The hard cap of the chapter in years (ChapterCapYear).</summary>
+    public int MatchYears { get; }
+    /// <summary>
+    /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (3 years = 12 seasons at the start), or -1 while no
+    /// countdown runs. Published by the simulation thread with every frame; the human completing KEY-4 ends the match sooner.
+    /// </summary>
+    public int ChapterSeasonsLeft => Volatile.Read(ref _chapterSeasonsLeft);
+    /// <summary>Why the match ended (a <see cref="MatchEndReason"/>), or 0 while it runs.</summary>
+    public MatchEndReason EndReason => (MatchEndReason)Volatile.Read(ref _endReason);
     /// <summary>How hard the rival peoples think. It decides their behaviour, so saves and replays must carry it.</summary>
     public Difficulty Difficulty => _difficulty;
     public bool IsReplay => _replayMode;
@@ -354,6 +368,7 @@ public sealed class SimulationSession : IDisposable
                     }
                 }
                 Frames.BuildAndPublish(_builder, _match);
+                UpdateChapter();
                 Interlocked.Exchange(ref _publishedTick, _runner.Tick);
             }
 
@@ -400,13 +415,16 @@ public sealed class SimulationSession : IDisposable
         Volatile.Write(ref _replayFinished, 1);
     }
 
-    private bool IsMatchOver()
+    private MatchEnd Chapter() => _match.EndOfMatch(_humanSeat >= 0 ? _humanSeat : -1);
+
+    private bool IsMatchOver() => Chapter().IsOver(_runner.Tick);
+
+    /// <summary>Publishes the countdown and the end reason for the front end (called on the simulation thread).</summary>
+    private void UpdateChapter()
     {
-        if (_runner.Tick >= MatchTimeCapTicks) return true;
-        if (_viewerCiv >= 0) return _match.Research.Era(_viewerCiv) >= 3;
-        for (int civ = 0; civ < 4; civ++)
-            if (_match.Research.Era(civ) >= 3) return true;
-        return false;
+        MatchEnd end = Chapter();
+        Volatile.Write(ref _chapterSeasonsLeft, end.CountdownRunning ? end.SeasonsLeft(_runner.Tick) : -1);
+        Volatile.Write(ref _endReason, end.IsOver(_runner.Tick) ? (int)end.Reason : 0);
     }
 
     private static EconomyArchetype[] StandardArchetypes() => new[]

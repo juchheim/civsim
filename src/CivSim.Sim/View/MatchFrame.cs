@@ -194,6 +194,24 @@ public sealed class MatchFrame
     public int[] PartyArriveSeason = Array.Empty<int>();
     /// <summary>0 outbound, 1 returning (barter).</summary>
     public byte[] PartyLeg = Array.Empty<byte>();
+    /// <summary>Caravans and goods-barter loads: the <see cref="Politics.TradeGood"/> carried and the load in thousandths of its unit; 0 for other parties.</summary>
+    public byte[] PartyGood = Array.Empty<byte>();
+    public int[] PartyCargoPermille = Array.Empty<int>();
+    /// <summary>A caravan's or explorer's stable id (-1 for other parties): what a raid on a caravan targets (command 12, A = −(id + 1)).</summary>
+    public int[] PartyId = Array.Empty<int>();
+
+    // ---- trade routes: the viewer's compacts (every compact in omniscient mode), docs/MVP/22 §6.2, §14 ----
+    public int RouteCount;
+    public int[] RouteCompact = Array.Empty<int>();
+    /// <summary>Seller and buyer civilizations (-1 for a Free Folk village, whose settlement is in RouteSellerSettlement / RouteBuyerSettlement).</summary>
+    public sbyte[] RouteSellerCiv = Array.Empty<sbyte>(), RouteBuyerCiv = Array.Empty<sbyte>();
+    public int[] RouteSellerSettlement = Array.Empty<int>(), RouteBuyerSettlement = Array.Empty<int>();
+    public int[] RouteFromTile = Array.Empty<int>(), RouteToTile = Array.Empty<int>();
+    /// <summary><see cref="Politics.TradeGood"/>.</summary>
+    public byte[] RouteGood = Array.Empty<byte>();
+    /// <summary>The last delivery, in thousandths of the good's unit (food in thousandths of a ration).</summary>
+    public int[] RouteVolumePermille = Array.Empty<int>();
+    public int[] RouteDeliveries = Array.Empty<int>(), RouteSinceSeason = Array.Empty<int>();
 
     // ---- occupations --------------------------------------------------------------------------
     public int OccupationCount;
@@ -221,6 +239,13 @@ public sealed class MatchFrame
     /// <summary>Private (zero unless <see cref="CivViewFlags.Detailed"/>): people, settlements, Insight per year (Fix64 raw), projects done.</summary>
     public int[] CivPopulation = Array.Empty<int>(), CivSettlements = Array.Empty<int>(), CivProjectsDone = Array.Empty<int>();
     public long[] CivInsightPerYear = Array.Empty<long>();
+    /// <summary>
+    /// Private (zero unless <see cref="CivViewFlags.Detailed"/>): Mandate in hand, its cap and the seasons until the next point
+    /// (0 when full or not yet unlocked), docs/MVP/22 §4.2. The top bar draws pips from these.
+    /// </summary>
+    public byte[] CivMandate = Array.Empty<byte>(), CivMandateCap = Array.Empty<byte>(), CivMandateNext = Array.Empty<byte>();
+    /// <summary>Embargo masks over <see cref="Politics.TradeGood"/> bits: what the viewer stops selling to each civilization, and what each stops selling to the viewer.</summary>
+    public byte[] CivEmbargoByViewer = Array.Empty<byte>(), CivEmbargoOnViewer = Array.Empty<byte>();
 
     // ---- the focus bar of one civilization (the viewer; civilization 0 in omniscient mode) ---
     public int FocusCiv;
@@ -238,6 +263,17 @@ public sealed class MatchFrame
     /// <summary><see cref="Research.ProjectState"/> of every project (dense pack index) for the focus civilization: the research web's node states (08 §8.2).</summary>
     public int FocusProjectCount;
     public byte[] FocusProjectState = Array.Empty<byte>();
+    /// <summary>Mandate pips (docs/MVP/22 §4.2): in hand, the cap, seasons to the next point (0 when full or locked), and whether Decrees are unlocked.</summary>
+    public int FocusMandate, FocusMandateCap, FocusMandateNextSeason;
+    public bool FocusMandateUnlocked;
+    /// <summary>What each Decree costs now, indexed by <see cref="Politics.DecreeKind"/> (0 unused).</summary>
+    public readonly byte[] FocusDecreeCost = new byte[7];
+    /// <summary>Decrees issued this season that resolve at its end.</summary>
+    public int FocusPendingDecrees;
+    /// <summary>The standing levy host: its target settlement (-1 none), size and last season.</summary>
+    public int FocusLevyTarget = -1, FocusLevyHost, FocusLevyUntilSeason;
+    /// <summary>Decrees carried out and seasons at the Mandate cap so far (the end screen; 22 §15 T27).</summary>
+    public int FocusDecreesDone, FocusSeasonsAtCap;
 
     // ---- events -------------------------------------------------------------------------------
     /// <summary>The newest events (up to the builder's window), oldest first. Show those with a Sequence above the last one shown.</summary>
@@ -262,6 +298,7 @@ public sealed class MatchFrame
         EnsureHerds(herds);
         EnsurePredators(herds);
         EnsureParties(parties);
+        EnsureRoutes(parties);
         EnsureOccupations(parties);
         EnsurePlots(plots);
         EnsureCamps(settlements * 4);
@@ -358,6 +395,15 @@ public sealed class MatchFrame
         Ensure(ref PartyKind, n); Ensure(ref PartyCiv, n); Ensure(ref PartyTargetCiv, n); Ensure(ref PartyFrom, n); Ensure(ref PartyTo, n);
         Ensure(ref PartyFromTile, n); Ensure(ref PartyToTile, n); Ensure(ref PartyX, n); Ensure(ref PartyY, n);
         Ensure(ref PartyProgress, n); Ensure(ref PartyMembers, n); Ensure(ref PartyArriveSeason, n); Ensure(ref PartyLeg, n);
+        Ensure(ref PartyGood, n); Ensure(ref PartyCargoPermille, n); Ensure(ref PartyId, n);
+    }
+
+    internal void EnsureRoutes(int n)
+    {
+        if (RouteCompact.Length >= n) return;
+        Ensure(ref RouteCompact, n); Ensure(ref RouteSellerCiv, n); Ensure(ref RouteBuyerCiv, n); Ensure(ref RouteSellerSettlement, n);
+        Ensure(ref RouteBuyerSettlement, n); Ensure(ref RouteFromTile, n); Ensure(ref RouteToTile, n); Ensure(ref RouteGood, n);
+        Ensure(ref RouteVolumePermille, n); Ensure(ref RouteDeliveries, n); Ensure(ref RouteSinceSeason, n);
     }
 
     internal void EnsureOccupations(int n)
@@ -374,6 +420,8 @@ public sealed class MatchFrame
         CivLegacy = new long[n]; CivFirstsLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
         CivPosture = new byte[n]; CivRelations = new short[n]; CivWeaponTier = new byte[n]; CivPopulation = new int[n];
         CivSettlements = new int[n]; CivProjectsDone = new int[n]; CivInsightPerYear = new long[n];
+        CivMandate = new byte[n]; CivMandateCap = new byte[n]; CivMandateNext = new byte[n];
+        CivEmbargoByViewer = new byte[n]; CivEmbargoOnViewer = new byte[n];
     }
 
     /// <summary>The index of a figure id in this frame (binary search), or -1 when it is not in the frame.</summary>

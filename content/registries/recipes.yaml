@@ -1,0 +1,36 @@
+# Recipes (docs/MVP/23 §5): the metal chain and the other E3 crafts. The planner runs them in ascending `order`, then id.
+# `inputs`/`outputs` map good -> quantity; an input key "A|B" takes A first, then B.
+schema: 1
+recipes:
+  - {id: burn_charcoal, name: Burn charcoal, unlocked_by: [FIR-08], inputs: {G-WOOD: 6}, outputs: {G-CHAR: 1}, labor: 0.4, order: 10, practice: burn_charcoal, note: "wood from the standing stock of one forest tile in range or at a mining camp (23 §7.4)"}
+  - {id: smelt_copper, name: Smelt copper, unlocked_by: [MET-02], structure: [kiln, smelter], inputs: {G-CUORE: 2, G-CHAR: 2}, outputs: {G-COPPER: 0.5}, labor: 0.5, order: 20, practice: smelt, bellows: true}
+  - {id: cosmelt_arsenical, name: Co-smelt arsenical bronze, unlocked_by: [MET-04], structure: [kiln, smelter], inputs: {G-ASORE: 2, G-CHAR: 2}, outputs: {G-ABRONZE: 0.5}, labor: 0.5, order: 20, practice: smelt, bellows: true}
+  - {id: smelt_tin, name: Smelt tin, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-TINORE: 1, G-CHAR: 1}, outputs: {G-TIN: 0.5}, labor: 0.3, order: 20, practice: smelt}
+  - {id: bloomery, name: Bloomery iron, unlocked_by: [MET-08], structure: [smelter], inputs: {G-IRONORE: 2, G-CHAR: 3}, outputs: {G-IRON: 0.5}, labor: 0.8, order: 20, practice: smelt}
+  - {id: alloy_bronze, name: Alloy tin bronze, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-COPPER: 0.9, G-TIN: 0.1, G-CHAR: 0.5}, outputs: {G-BRONZE: 1}, labor: 0.2, order: 30, practice: smelt}
+  - {id: cast_t8, name: Cast copper kit, unlocked_by: [MET-03], structure: [forge], inputs: {G-COPPER: 0.12}, outputs: {G-TOOL8: 1}, labor: 0.1, order: 40, practice: smelt}
+  - {id: cast_t9, name: Cast arsenical bronze kit, unlocked_by: [MET-04], structure: [forge], inputs: {G-ABRONZE: 0.15}, outputs: {G-TOOL9: 1}, labor: 0.1, order: 40, practice: smelt}
+  - {id: cast_t10, name: Cast tin bronze kit, unlocked_by: [MET-05], structure: [forge], inputs: {G-BRONZE: 0.15}, outputs: {G-TOOL10: 1}, labor: 0.1, order: 40, practice: smelt}
+  - {id: cast_arms1, name: Cast copper spear and dagger, unlocked_by: [MET-03], structure: [forge], inputs: {G-COPPER: 0.2, G-WOOD: 0.5}, outputs: {G-ARMS1: 1}, labor: 0.2, order: 40, practice: smelt}
+  - {id: cast_arms2a, name: Cast arsenical bronze arms, unlocked_by: [WAR-05], structure: [forge], inputs: {G-ABRONZE: 0.3, G-WOOD: 1, "G-LEATHER|G-HIDE": 1}, outputs: {G-ARMS2A: 1}, labor: 0.3, order: 40, practice: smelt}
+  - {id: cast_arms2t, name: Cast tin bronze arms, unlocked_by: [WAR-05], structure: [forge], inputs: {G-BRONZE: 0.3, G-WOOD: 1, "G-LEATHER|G-HIDE": 1}, outputs: {G-ARMS2T: 1}, labor: 0.3, order: 40, practice: smelt}
+  - {id: fine_bronze, name: Lost-wax casting, unlocked_by: [MET-06], structure: [forge], inputs: {"G-BRONZE|G-ABRONZE": 0.2, G-CLAY: 0.2, G-CHAR: 0.3}, outputs: {G-FINEBRONZE: 1}, labor: 0.5, order: 40, practice: craft}
+  - {id: dress_stone, name: Dress stone, unlocked_by: [STN-11], inputs: {G-BLOCK: 1}, outputs: {G-ASHLAR: 1}, labor: 0.5, order: 50, practice: knap, note: "1.0 ws without a T8+ kit"}
+  - {id: make_wheel, name: Make a wheel, unlocked_by: [MEC-03], inputs: {G-WOOD: 1}, outputs: {G-WHEEL: 1}, labor: 1, order: 50, practice: craft, note: "×0.7 labor with WOD-06"}
+  - {id: build_cart, name: Build an ox cart, unlocked_by: [TRN-05], inputs: {G-WHEEL: 2, G-WOOD: 2}, outputs: {G-CART: 1}, labor: 1, order: 50, practice: craft, note: "×0.7 labor with WOD-06"}
+  - {id: build_chariot, name: Build a chariot, unlocked_by: [WAR-06], structure: [forge], inputs: {G-WHEEL: 2, G-WOOD: 2, "G-BRONZE|G-ABRONZE": 0.2, "G-LEATHER|G-HIDE": 1}, outputs: {G-CHARIOT: 1}, labor: 2, order: 50, practice: craft}
+  - {id: turned_goods, name: Turn wood, unlocked_by: [WOD-06], inputs: {G-WOOD: 0.5}, outputs: {G-TURNED: 1}, labor: 0.2, order: 50, practice: craft}
+  - {id: faience, name: Glaze faience, unlocked_by: [CER-05], structure: [kiln], inputs: {G-STONE: 0.5, G-LIME: 0.2, G-COPPER: 0.02, G-CHAR: 0.5}, outputs: {G-FAIENCE: 1}, labor: 0.3, order: 50, practice: clay}
+  - {id: glass, name: Make glass, unlocked_by: [CER-06], structure: [smelter], inputs: {G-STONE: 0.5, G-LIME: 0.2, G-CHAR: 1}, outputs: {G-GLASS: 1}, labor: 0.4, order: 50, practice: craft}
+  - {id: dye, name: Make dye, unlocked_by: [CHM-04], inputs: {G-FIBER: 0.5, G-PIGMENT: 0.1}, outputs: {G-DYE: 1}, labor: 0.1, order: 50, practice: craft}
+  - {id: dyed_cloth, name: Dye cloth, unlocked_by: [FIB-08], inputs: {G-CLOTH: 1, G-DYE: 1}, outputs: {G-DYEDCLOTH: 1}, labor: 0.2, order: 50, practice: fiber}
+  - {id: soap, name: Make soap, unlocked_by: [CHM-05], inputs: {G-LIME: 0.2, G-MEAT: 0.2}, outputs: {G-SOAP: 1}, labor: 0.1, order: 50, practice: craft}
+  - {id: cheese, name: Make cheese, unlocked_by: [HUS-05], inputs: {G-MILK: 6}, outputs: {G-CHEESE: 4}, labor: 0.05, order: 50, practice: preserve}
+  - {id: salt_food, name: Salt food, unlocked_by: [FOD-07], inputs: {"G-MEAT|G-FISH|G-ROOT": 4, G-SALT: 0.1}, outputs: {G-SALTED: 4}, labor: 0.05, order: 50, practice: preserve}
+  - {id: wool_garment, name: Make a wool garment, unlocked_by: [HUS-06], inputs: {G-YARN: 2}, outputs: {G-WOOLGARMENT: 1}, labor: 0.5, order: 50, practice: fiber}
+  # Supply crafts of docs/MVP/10 §5.3 (E2) that the E3 recipes above consume. The E0–E2 economy never stocked lime, pigment,
+  # yarn or cloth, so the craft step runs these only for civilizations past KEY-3 (docs/MVP/07d "WP6 live results").
+  - {id: burn_lime, name: Burn lime, unlocked_by: [CHM-03], structure: [kiln], inputs: {G-STONE: 1, G-WOOD: 2}, outputs: {G-LIME: 1}, labor: 0.3, order: 45, practice: craft, note: "docs/MVP/10 §5.3"}
+  - {id: grind_pigment, name: Grind pigment, unlocked_by: [CHM-01], inputs: {G-OCHRE: 0.2}, outputs: {G-PIGMENT: 1}, labor: 0.05, order: 45, practice: craft, note: "docs/MVP/10 §5.3; ochre from surface outcrops (MIN-01, 0.5 L/ws)"}
+  - {id: spin_yarn, name: Spin yarn, unlocked_by: [FIB-06], inputs: {"G-WOOL|G-FIBER": 0.5}, outputs: {G-YARN: 1}, labor: 0.3, order: 45, practice: fiber, note: "docs/MVP/10 §5.3"}
+  - {id: weave_cloth, name: Weave cloth, unlocked_by: [FIB-07], inputs: {G-YARN: 2}, outputs: {G-CLOTH: 1}, labor: 0.5, order: 45, practice: fiber, note: "docs/MVP/10 §5.3"}

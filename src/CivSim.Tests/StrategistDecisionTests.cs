@@ -331,7 +331,10 @@ public class StrategistDecisionTests
         int own = scene.Own.Settlements[0].Tile;
         Assert.InRange(HexGrid.Distance(own, tile, W), StrategistTuning.BeaconMinDistance, StrategistTuning.BeaconMaxDistance);
         Assert.True(HexGrid.Distance(rival, tile, W) >= StrategistTuning.BeaconRivalKeepOff);
-        Assert.True(HexGrid.Distance(rival, tile, W) < HexGrid.Distance(rival, own, W), "the Beacon leans toward the rival");
+        // A useful deposit (tin on the contested midline, since E3) may pull the Beacon elsewhere; otherwise it leans toward the rival.
+        bool onDeposit = World.Value.TileAt(tile).Deposit is DepositKind.Tin or DepositKind.NativeCopper or DepositKind.CopperOre
+            or DepositKind.Coal or DepositKind.Salt or DepositKind.Flint;
+        Assert.True(onDeposit || HexGrid.Distance(rival, tile, W) < HexGrid.Distance(rival, own, W), "the Beacon leans toward the rival");
         Assert.Single(scene.Notes("Beacon"));
     }
 

@@ -119,6 +119,12 @@ public interface IResearchSource
     long ChooseInnovator(int civ, int project, int primaryPractice);
     /// <summary>Bit i set when the civilization has seen gate target i (an index into <see cref="ResearchCatalog.GateTargets"/>). Reads completed projects through <paramref name="view"/>.</summary>
     ulong SeenMask(int civ, IResearchView view);
+    /// <summary>
+    /// Access gates the source decides this season (docs/MVP/22 §5.7): bits in <paramref name="decided"/> are set to their
+    /// value in <paramref name="available"/>; other bits keep what <see cref="ResearchSystem.SetAccess"/> gave them. Returns false
+    /// when the source decides nothing (the default).
+    /// </summary>
+    bool AccessMask(int civ, out ulong decided, out ulong available) { decided = 0; available = 0; return false; }
     /// <summary>Gate-target index of the civilization's home climate band, or -1.</summary>
     int ClimateTarget(int civ);
     /// <summary>Settlements founded by a split since the last call, as (parent, daughter) indices within the civilization.</summary>

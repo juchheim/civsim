@@ -28,7 +28,17 @@ public readonly record struct EconomyEffect(
     Fix64? Mult,
     Fix64? Take,
     Fix64? Rate,
-    string? Unit);
+    string? Unit,
+    // E3 fields (docs/MVP/23 §1.2): `admin` span and Overreach reduction, `tier` tier/min_pop/needs/radius/claim_mult,
+    // `cohesion` radius, and a `role`'s id. Hashed in the Bronze fingerprint only, so E0-E2 checksums do not see them.
+    int? Span = null,
+    Fix64? Overreach = null,
+    int? Radius = null,
+    string? Tier = null,
+    int? MinPop = null,
+    string[]? Needs = null,
+    Fix64? ClaimMult = null,
+    string? RoleId = null);
 
 /// <summary>An action's optional base rate; many activities acquire a rate from a method instead.</summary>
 public readonly record struct EconomyAction(string Id, Fix64? BaseRate, string? Unit);
@@ -41,7 +51,7 @@ public readonly record struct EconomyGood(string Id, Fix64 Spoilage);
 /// is retained exactly, including definitions beyond E2; callers decide which eras and effects to use.
 /// This object holds definitions only and never reads source content or evaluates prose rules.
 /// </summary>
-public sealed class EconomyContent
+public sealed partial class EconomyContent
 {
     private readonly EconomyProject[] _projects;
     private readonly EconomyEffect[] _effects;
@@ -94,7 +104,15 @@ public sealed class EconomyContent
                     effect.GetFix("mult"),
                     effect.GetFix("take"),
                     effect.GetFix("rate"),
-                    effect.GetString("unit")));
+                    effect.GetString("unit"),
+                    OptionalInt(effect, "span"),
+                    effect.GetFix("overreach"),
+                    OptionalInt(effect, "radius"),
+                    effect.GetString("tier"),
+                    OptionalInt(effect, "min_pop"),
+                    kind == "tier" ? ToArray(effect.GetStringList("needs")) : null,
+                    effect.GetFix("claim_mult"),
+                    kind == "role" ? effect.GetString("id") : null));
             }
             projects[i] = new EconomyProject(index, id, era, OptionalInt(project, "enters") ?? era,
                 start, effects.Count - start);
@@ -118,7 +136,16 @@ public sealed class EconomyContent
             goods[i] = new EconomyGood(RequiredString(good, "id"), good.GetFix("spoilage") ?? Fix64.Zero);
         }
 
-        return new EconomyContent(projects, effects.ToArray(), actions, goods);
+        var content = new EconomyContent(projects, effects.ToArray(), actions, goods);
+        content.LoadBronze(pack);
+        return content;
+    }
+
+    private static string[] ToArray(IReadOnlyList<string> list)
+    {
+        var a = new string[list.Count];
+        for (int i = 0; i < a.Length; i++) a[i] = list[i];
+        return a;
     }
 
     private static IReadOnlyList<ContentValue> List(ContentValue? parent, string field)

@@ -145,6 +145,7 @@ public class ViewFrameTests
             Assert.Equal(0, f.CivFlags[c] & (ushort)CivViewFlags.Detailed);
             Assert.Equal(0, f.CivPopulation[c]);
             Assert.Equal(0L, f.CivInsightPerYear[c]);
+            Assert.Equal((0, 0, 0), (f.CivMandate[c], f.CivMandateCap[c], f.CivMandateNext[c]));
             Assert.Equal(all.CivEra[c], f.CivEra[c]);
             Assert.Equal(all.CivLegacy[c], f.CivLegacy[c]);
         }

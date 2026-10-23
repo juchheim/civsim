@@ -59,7 +59,11 @@ The design deliberately keeps the decision surface small.
 - Unlocked by **Chieftainship** (GOV lineage). Before that, the band behaves on instinct (balanced).
 
 ### 5.5 What the player does **not** control
-Individual people; job assignment; building placement; where a settlement is founded; when to fight. These all come from the simulation and its planners, which use the knowledge the player chose to research.
+Individual people; job assignment; building placement; the routine of founding settlements and fighting. These all come from the simulation and its planners, which use the knowledge the player chose to research. The exceptions are the deliberate, rare calls of §5.6 and the politics orders (gift, barter, raid, war, peace, alliance; [18 §7](18-view-layer.md#7-player-commands)), which the same planners carry out under their own rules.
+
+### 5.6 Decrees (Bronze age on, unlocked by KEY-3)
+- From the Bronze age the player holds a little **Mandate** (1–4 points, regained every few years; more from Kingship, Law and Writing) and spends it on **Decrees**: *found a village there*, *send an expedition there*, *open that mine*, *raise the levy against that town*, *build the walls now* (corvée), *offer a tin compact*. Each one names a place or a moment and is executed by the planners, who may refuse it with a reason.
+- About five to eight Decrees an era: decisions of *where* and *when* that the playtest asked for, without unit control. Rival AIs earn and spend Mandate the same way. Full rules: [22 §4](22-bronze-age.md#4-agency-mandate-and-decrees).
 
 > **Attention cadence target:** a meaningful decision roughly every 1–3 minutes of real time, plus plenty of spare attention for watching. It should be fine to alt-tab for five minutes without losing.
 
@@ -77,7 +81,7 @@ Individual people; job assignment; building placement; where a settlement is fou
 - The simulation calendar is **abstract**: *"Year 37 of the Folk"*, not 37 BCE. Eras carry historical names, but calendar time is compressed, because a match would otherwise need 2 million years.
 - At 1× speed and Standard pace: **1 season = 15 s**, **1 year = 60 s**.
 - **Pace scales the calendar, not research costs.** A season lasts **7.5 s at Quick, 15 s at Standard and 26 s at Epic**, and costs are ×1 at every pace. Population runs on the calendar, so scaling only costs can't shorten a match: Quick at costs ×0.5 still ran 148 min against a 90 min target ([07-balance-findings.md](07-balance-findings.md) F7). Scaling the season plays the same match faster or slower.
-- Match length for the full E0 → E9 arc: **Quick ≈ 90 min**, **Standard ≈ 3 h** (about 180 years), **Epic ≈ 5 h**. The current balance model gives 87 / 173.5 / 301 min after the Roots cadence follow-up ([07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22)). Single-player games autosave and can be resumed. Early eras are short and late eras long, because there is much more to do and watch late.
+- Match length for the full E0 → E9 arc: **Quick ≈ 90 min**, **Standard ≈ 3 h** (about 180 years), **Epic ≈ 5 h**. The balance model's tuned run gives 86 / 171.5 / 297 min. Single-player games autosave and can be resumed. Early eras are short and late eras long, because there is much more to do and watch late.
 - Single-player has 0.5×, 1×, 2× and 4× speeds plus pause. Multiplayer runs at 1× (Quick pace by default) and has a limited pause budget per player.
 - People age one year per in-game year: adulthood at 14, elderhood at 45. Lifespan is a function of Medicine research. Generational turnover happens within one match, so Legends can be born, rise and die while you watch.
 
@@ -93,7 +97,7 @@ Legacy accumulates throughout the match:
 | **Firsts** | Bonus Legacy for being the **first** civilization in the world to complete a project. Bigger bonuses go to Keystones and Wonders. | ~15% |
 | **Wonders** | Physically built great works (megaliths, ziggurats, lighthouses, cathedrals …). | ~5% |
 
-"Complete their projects in the most optimal way possible" is rewarded through **Firsts** (speed), **Mastery** (breadth) and the **efficiency** that research gives your simulation, which feeds back into Dominion.
+"Complete their projects in the most optimal way possible" is rewarded through **Firsts** (speed), **Mastery** (breadth) and the **efficiency** that research gives your simulation, which feeds back into Dominion. Mastery and Firsts are counted in **Legacy units per era** (Mastery `2 × (era + 1)` per project, a First `3 × (era + 1)`, ×4 for Keystones and Wonders), so the split holds in every era ([22 §3.3](22-bronze-age.md#33-legacy-units-per-era)).
 
 ### 7.2 Dominion victory (early end)
 Hold **≥ 50% of all habitable land *and* at least twice the runner-up's share, for 5 consecutive years**. A warning is broadcast to all players when someone crosses 40%.
@@ -192,7 +196,7 @@ Each theme has **11 lineages** (33 in total). Projects regularly require prerequ
 | Eras playable | **All ten, E0–E9 (Dawn → Information)**, plus the Apex | Same, plus "Chapter" modes (partial-arc matches, later-era starts) |
 | Research projects playable | The full catalog (509 projects + 10 Keystones). E0–E4 get bespoke "Moments" and sprites; E5–E9 use generic visual treatments where needed | All bespoke |
 | Civs per match | 4 (1 human + 3 AI) | 2–8, online multiplayer |
-| Player levers | Focus slots, queues, Leaning, Beacons, Posture | + Era Charters, diplomacy offers |
+| Player levers | Focus slots, queues, Leaning, Beacons, Posture, politics orders; from E3 Mandate and Decrees, Compacts and Embargo ([22](22-bronze-age.md)) | + Era Charters, negotiated treaties |
 | Map | Continents type, sized ~4,000 tiles per civilization (160 × 100 for 4); starts in **neighbour pairs ~25 tiles apart** so your first rival appears in E1–E2 ([07b](07b-territory-findings.md) T1, T7) | Multiple types; 2–8 player sizes |
 | Victory | Legacy, Dominion, Apex | Same |
 | Multiplayer | Local AI only; deterministic sim built for lockstep from day one | Online lockstep multiplayer |

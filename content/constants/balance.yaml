@@ -61,3 +61,175 @@ constants:
   - {id: BandStart, value: 12, unit: people, source: "05 §20"}
   - {id: DiffusionStep, value: 0.1, unit: share per contacted civ, source: "02 §8.3"}
   - {id: DiffusionFloor, value: 0.5, unit: share, source: "02 §8.3"}
+  # E3 Bronze constants (docs/MVP/23 §12)
+  - {id: LegacyMasteryPerEra, value: 2, unit: "× (era + 1) per project", source: "22 §3.3"}
+  - {id: LegacyFirstPerEra, value: 3, unit: "× (era + 1)", source: "22 §3.3"}
+  - {id: LegacyFirstKeystoneMult, value: 4, unit: "× First", source: "22 §3.3 (Keystones and Wonders)"}
+  - {id: LegacyWonderBuiltPerEra, value: 25, unit: "× (era + 1)", source: "22 §3.3"}
+  - {id: ChapterCountdownSeasons, value: 12, unit: seasons, source: "22 §3.1"}
+  - {id: ChapterCapYear, value: 64, unit: year, source: "22 §3.1"}
+  - {id: OutCity, value: 1, unit: "Insight/yr (× RoleScale 8 = 8)", source: "22 §8.1 (SOC-09)"}
+  - {id: MandateRechargeMin, value: 4, unit: seasons, source: "22 §4.2"}
+  - {id: DecreeCostFound, value: 2, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}
+  - {id: DecreeCostExpedition, value: 1, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}
+  - {id: DecreeCostMine, value: 1, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}
+  - {id: DecreeCostLevy, value: 1, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}
+  - {id: DecreeCostCorvee, value: 1, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}
+  - {id: DecreeCostCompact, value: 1, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}
+  - {id: FoundDonorMinPop, value: 20, unit: people, source: "22 §4.3"}
+  - {id: FoundDonorMinFill, value: 0.6, unit: "× EffectivePopCap", source: "22 §4.3"}
+  - {id: FoundShare, value: 0.4, unit: share, source: "22 §4.3"}
+  - {id: FoundMinDaughter, value: 8, unit: people, source: "22 §4.3"}
+  - {id: SettleReach, value: 14, unit: tiles, source: "22 §4.3, 21 §3"}
+  - {id: SettleReachCartBonus, value: 6, unit: tiles, source: "22 §4.3, 21 §3"}
+  - {id: SettleReachSea, value: 24, unit: tiles, source: "22 §4.3, 21 §3"}
+  - {id: FoundOwnMinDist, value: 1, unit: "tiles beyond the claim radius r (minimum distance r + 1)", source: "22 §4.3"}
+  - {id: FoundRivalMinDist, value: 9, unit: tiles, source: "22 §4.3"}
+  - {id: FoundClaimBoost, value: 1.5, unit: "×", source: "22 §4.3 (TER-05)"}
+  - {id: FoundClaimBoostYears, value: 2, unit: years, source: "22 §4.3 (TER-05)"}
+  - {id: FoundStartCohesion, value: 60, unit: C, source: "22 §4.3 (TER-05)"}
+  - {id: ExpeditionSize, value: 4, unit: adults, source: "22 §4.3 (Reach E3 15)"}
+  - {id: ExpeditionRangeMult, value: 2, unit: "× Reach", source: "22 §4.3 (Reach E3 15)"}
+  - {id: ExpeditionSight, value: 3, unit: "tiles (+1 riding)", source: "22 §4.3"}
+  - {id: ExpeditionRevealRadius, value: 5, unit: tiles, source: "22 §4.3"}
+  - {id: ExpeditionContactRadius, value: 2, unit: tiles, source: "22 §4.3"}
+  - {id: RidingSpeedMult, value: 2, unit: "×", source: "22 §4.3, TRN-06"}
+  - {id: RidingRangeMult, value: 1.5, unit: "×", source: "22 §4.3, TRN-06"}
+  - {id: MineReach, value: 8, unit: walking tiles, source: "22 §4.3"}
+  - {id: MineReachCarts, value: 12, unit: walking tiles, source: "22 §4.3"}
+  - {id: MineReachWater, value: 16, unit: walking tiles, source: "22 §4.3"}
+  - {id: LevySeasons, value: 2, unit: seasons, source: "22 §4.3"}
+  - {id: LevyOtherAdultsShare, value: 0.5, unit: share, source: "22 §4.3"}
+  - {id: LevyTravelSeasons, value: 2, unit: seasons, source: "22 §4.3"}
+  - {id: CorveeSeasons, value: 2, unit: seasons, source: "22 §4.3"}
+  - {id: CorveeLaborMult, value: 1.5, unit: "×", source: "22 §4.3"}
+  - {id: CorveeCohesion, value: -3, unit: C, source: "22 §4.3"}
+  - {id: MiningCampCrew, value: 4, unit: miners, source: "22 §5.2"}
+  - {id: MiningCampCrewShaft, value: 6, unit: miners, source: "22 §5.2"}
+  - {id: MiningCampMinCrew, value: 2, unit: miners, source: "22 §5.2"}
+  - {id: MiningCampBand, value: 6, unit: people, source: "22 §5.2"}
+  - {id: MiningCampEmit, value: 0.75, unit: "×", source: "22 §5.2"}
+  - {id: MiningCampRadius, value: 1, unit: "tiles (2 with TER-06)", source: "22 §5.2"}
+  - {id: HaulWaterDiv, value: 3, unit: "÷ haul labor on water", source: "22 §5.2 (SEA-05)"}
+  - {id: MetalAccessMin, value: 0.05, unit: L, source: "22 §5.7"}
+  - {id: AccessShareReach, value: 15, unit: tiles, source: "22 §5.7"}
+  - {id: AccessShareReachGOV04, value: 20, unit: tiles, source: "22 §5.7"}
+  - {id: KitReplaceQuality, value: 0.7, unit: ToolQuality, source: "10 §3; §4.1"}
+  - {id: KitBreakQuality, value: 0.5, unit: ToolQuality, source: "10 §3; §4.1"}
+  - {id: UpgradeRemeltShare, value: 0.5, unit: share of kit metal, source: "§4.1 (decided here)"}
+  - {id: MetalPushLaborCap, value: 0.10, unit: share of labor, source: "§7.3 (decided here)"}
+  - {id: WarriorSpareKits, value: 2, unit: kits, source: "§4.2 (decided here)"}
+  - {id: MilitiaArmsShareFortify, value: 0.25, unit: "× adults", source: "§4.2 (decided here)"}
+  - {id: FireSettingWoodPerL, value: 0.5, unit: L wood per L ore, source: "22 §5.2"}
+  - {id: ForestStock, value: 30, unit: L, source: "10 §5.1"}
+  - {id: ForestRegrowth, value: 0.5, unit: L/season, source: "10 §5.1"}
+  - {id: ForestClearedBelow, value: 5, unit: L, source: "22 §5.5; §7.4"}
+  - {id: ForestGrassBelow, value: 1, unit: L, source: "22 §5.5; §7.4"}
+  - {id: ForestGrassSeasons, value: 4, unit: seasons, source: "22 §5.5; §7.4"}
+  - {id: ForestRestoreAt, value: 15, unit: L, source: "22 §5.5; §7.4"}
+  - {id: CharcoalReach, value: 8, unit: tiles, source: "22 §5.5"}
+  - {id: CharcoalReachCarts, value: 12, unit: tiles, source: "22 §5.5"}
+  - {id: OilWoodEquiv, value: 3, unit: L wood per L, source: "22 §12 (HNT-10)"}
+  - {id: OilPerR, value: 0.1, unit: L oil per R, source: "22 §12 (HNT-10)"}
+  - {id: ArdFieldsPerPair, value: 4, unit: fields per ox pair, source: "22 §9; NRG-02"}
+  - {id: ArdFieldsPerPairNRG02, value: 6, unit: fields per ox pair, source: "22 §9; NRG-02"}
+  - {id: CanalRiverDist, value: 2, unit: tiles, source: "22 §9"}
+  - {id: CanalLabor, value: 1, unit: ws per tile, source: "22 §9"}
+  - {id: ManureCattlePer4, value: 2, unit: animals per 4 fields, source: "22 §9"}
+  - {id: ManureSheepPer4, value: 6, unit: animals per 4 fields, source: "22 §9"}
+  - {id: MarketTownFoodCap, value: 1.25, unit: "×", source: "22 §8.5 (TRD-05)"}
+  - {id: MarketTownRoutes, value: 2, unit: routes, source: "22 §8.5 (TRD-05)"}
+  - {id: BakeryGrainValue, value: 0.2, unit: share, source: "22 §12 (FOD-08)"}
+  - {id: BakeryPeople, value: 40, unit: people, source: "22 §12 (FOD-08)"}
+  - {id: HorseTameShare, value: 0.15, unit: per year, source: "22 §12 (HUS-07)"}
+  - {id: HorsePerPasture, value: 2, unit: per tile, source: "22 §12 (HUS-07)"}
+  - {id: HorseTameLabor, value: 1, unit: ws, source: "22 §12 (HUS-07)"}
+  - {id: MarineHuntShore, value: 2, unit: tiles, source: "22 §12 (HNT-10)"}
+  - {id: MarineHuntInjury, value: 0.015, unit: per ws, source: "22 §12 (HNT-10)"}
+  - {id: PartySupplySeasons, value: 1, unit: "seasons (2 with FOD-07)", source: "22 §7.4, §21 C4"}
+  - {id: CohesionBase, value: 60, unit: C, source: "22 §8.3"}
+  - {id: CohesionStep, value: 0.25, unit: share per season, source: "22 §8.3"}
+  - {id: CohesionWorkMid, value: 65, unit: C, source: "22 §8.3 (clamped 0.85–1.15)"}
+  - {id: CohesionWorkRange, value: 35, unit: C, source: "22 §8.3 (clamped 0.85–1.15)"}
+  - {id: CohesionWorkSlope, value: 0.15, unit: "×", source: "22 §8.3 (clamped 0.85–1.15)"}
+  - {id: CohesionFissionBelow, value: 35, unit: C, source: "22 §8.3"}
+  - {id: CohesionFissionTrigger, value: 0.75, unit: "× cap", source: "22 §8.3"}
+  - {id: SecessionBelow, value: 15, unit: C, source: "22 §8.3"}
+  - {id: SecessionSeasons, value: 8, unit: seasons, source: "22 §8.3"}
+  - {id: SecessionRelations, value: 20, unit: Relations, source: "22 §8.3"}
+  - {id: CohesionRaided, value: -10, unit: C, source: "22 §8.3"}
+  - {id: CohesionRaidedBEL01, value: -5, unit: C, source: "22 §8.3"}
+  - {id: CohesionRaidYears, value: 2, unit: years, source: "22 §8.3"}
+  - {id: CohesionFamine, value: -20, unit: C per unit, source: "22 §8.3"}
+  - {id: CohesionLossPer2Pct, value: -1, unit: C per unit, source: "22 §8.3"}
+  - {id: CohesionCrowding, value: -10, unit: C per unit, source: "22 §8.3"}
+  - {id: OverreachFreeTiles, value: 8, unit: tiles, source: "22 §8.2–8.3"}
+  - {id: OverreachDivisor, value: 2, unit: "÷", source: "22 §8.2–8.3"}
+  - {id: SpanPenalty, value: 3, unit: C per settlement, source: "22 §8.2–8.3"}
+  - {id: ConqueredCohesion, value: -35, unit: C, source: "07d R7 (§10): the conquered term; 13 §8.3 and 22 §7.4 had -20"}
+  - {id: ConqueredRecovery, value: 1, unit: C/season, source: "07d R7 (§10): +1 a season; 13 §8.3 had +2"}
+  - {id: ConqueredStartCohesion, value: 25, unit: C, source: "07d R7 (§10): a captured settlement starts at C 25"}
+  - {id: CaptureAssimilationSiege, value: -0.10, unit: share, source: "13 §8.3, 22 §7.4"}
+  - {id: TownMinPop, value: 60, unit: people, source: "22 §8.1; §1.2"}
+  - {id: CityMinPop, value: 90, unit: people, source: "07d §10 (22 §8.1 said 120)"}
+  - {id: TierDemoteShare, value: 0.85, unit: "×", source: "22 §8.1; §1.2"}
+  - {id: TierDemoteSeasons, value: 4, unit: seasons, source: "22 §8.1; §1.2"}
+  - {id: HinterlandRadius, value: 7, unit: tiles, source: "22 §8.1"}
+  - {id: HinterlandEmit, value: 0.5, unit: "×", source: "22 §8.1"}
+  - {id: CapitalClaimMult, value: 1.25, unit: "×", source: "22 §8.1"}
+  - {id: SpecialistRateMult, value: 1.3, unit: "×", source: "22 §8.5 (SOC-08)"}
+  - {id: WoundedDeathShareMED04, value: 0.32, unit: share, source: "22 §7.1 (base 0.40, 13 §7.2)"}
+  - {id: HillfortSiteWithin, value: 4, unit: tiles, source: "22 §7.2"}
+  - {id: HillfortRefugeRadius, value: 6, unit: tiles, source: "22 §7.2"}
+  - {id: RefugeLootMult, value: 0.25, unit: "×", source: "22 §7.2"}
+  - {id: ChariotSurprise, value: 10, unit: points, source: "22 §7.1"}
+  - {id: ChariotTravel, value: 1.5, unit: "×", source: "22 §7.1"}
+  - {id: InvestRatio, value: 1.2, unit: "×", source: "22 §7.4"}
+  - {id: InvestCapitulateLow, value: 0.35, unit: per season, source: "22 §7.4"}
+  - {id: InvestCapitulateZero, value: 0.70, unit: per season, source: "22 §7.4"}
+  - {id: InvestCohesionTarget, value: -5, unit: C per season, source: "22 §7.4"}
+  - {id: InvestCohesionHome, value: -2, unit: C per season, source: "22 §7.4"}
+  - {id: SallyDefMult, value: 1.1, unit: "×", source: "22 §7.4"}
+  - {id: SallyThreshold, value: 0.8, unit: "× besiegers", source: "22 §7.4"}
+  - {id: SiegeForageShare, value: 0.5, unit: share, source: "22 §7.4"}
+  - {id: SiegeDesertion, value: 0.10, unit: per season, source: "22 §7.4"}
+  - {id: SiegeSupplyTiles, value: 8, unit: tiles, source: "22 §7.4"}
+  - {id: RaidPartyMin, value: 4, unit: figures, source: "22 §7.5"}
+  - {id: RaidPartyShareMin, value: 0.15, unit: "× adults", source: "22 §7.5"}
+  - {id: RaidPartyShareMax, value: 0.30, unit: "× adults", source: "22 §7.5"}
+  - {id: BarterGain, value: 0.10, unit: "share (0.05 with NUM-04)", source: "13 §4.2"}
+  - {id: ScarcityClampLow, value: 0.5, unit: "×", source: "13 §4.2"}
+  - {id: ScarcityClampHigh, value: 3, unit: "×", source: "13 §4.2"}
+  - {id: CompactHorizonSeasons, value: 4, unit: seasons, source: "22 §6.2"}
+  - {id: CompactMinRelations, value: 0, unit: "Relations (−30 with DIP-05)", source: "22 §6.2"}
+  - {id: EmbargoRelations, value: -10, unit: Relations, source: "22 §4.3"}
+  - {id: InviteSeasons, value: 8, unit: seasons, source: "22 §4.3"}
+  - {id: InviteRelations, value: 30, unit: Relations, source: "22 §4.3"}
+  - {id: InviteGift, value: 10, unit: value, source: "22 §4.3"}
+  - {id: CaravanRaidRelations, value: -30, unit: Relations, source: "22 §6.3"}
+  - {id: CaravanRaidReputation, value: -10, unit: reputation, source: "22 §6.3"}
+  - {id: CaravanEscort, value: 2, unit: warriors, source: "22 §6.3"}
+  - {id: PactYears, value: 8, unit: years, source: "22 §12 (DIP-04, DIP-05)"}
+  - {id: PactBreakRelations, value: -60, unit: Relations, source: "22 §12 (DIP-04, DIP-05)"}
+  - {id: PactBreakReputation, value: -30, unit: reputation, source: "22 §12 (DIP-04, DIP-05)"}
+  - {id: TreatyYears, value: 10, unit: years, source: "22 §12 (DIP-04, DIP-05)"}
+  - {id: TinFolkAdults, value: 9, unit: people, source: "22 §6.4"}
+  - {id: TinFolkElders, value: 2, unit: people, source: "22 §6.4"}
+  - {id: TinFolkChildren, value: 13, unit: people, source: "22 §6.4"}
+  - {id: TinFolkRadius, value: 3, unit: tiles, source: "22 §6.4, §11"}
+  - {id: TinFolkMinDist, value: 8, unit: tiles, source: "22 §6.4, §11"}
+  - {id: FreeFolkDefense, value: 0.8, unit: "×", source: "22 §6.4, §11"}
+  - {id: TinFolkRaidReputation, value: -5, unit: reputation, source: "22 §6.4"}
+  - {id: TinFolkCaptureReputation, value: -10, unit: reputation, source: "22 §6.4"}
+  - {id: TinFolkTraderRelations, value: -20, unit: Relations, source: "22 §6.4"}
+  - {id: PlagueR0, value: 2.0, unit: R0, source: "22 §10, 09 §10"}
+  - {id: PlagueCFR, value: 0.35, unit: share, source: "22 §10, 09 §10"}
+  - {id: PoxEndemicPop, value: 1000, unit: people in one settlement, source: "22 §10"}
+  # WP7 (docs/MVP/07d "WP7 live results"): planner and demand constants the specs imply but do not number.
+  - {id: CivicLaborShare, value: 0.10, unit: share of labor, source: "07d WP7: civic construction (canals, Market, Temple, Palace, School, Bakery, Hall, Ziggurat) takes at most this share of a settlement's work, as the metal build of WP6"}
+  - {id: MarketEvery, value: 4, unit: settlements, source: "07d §3 (balance_sim live MarketEvery): a Market in the largest settlement, one more per 4 settlements"}
+  - {id: EpidemicInflowE3, value: 0.2, unit: share, source: "09 §10.1 inflow, E3 between E2 0.1 and E4 0.3; routes add to it (WP8)"}
+  - {id: HearthPeople, value: 35, unit: people per hearth, source: "metal_sim.py hearth_per (10 §5): one hearth, 1.5 L a season and 3 in Winter, per 35 people"}
+  - {id: KilnWoodPerPerson, value: 0.2, unit: L/person/yr, source: "metal_sim.py kiln_wood (10 §5: pottery and lime firing)"}
+  - {id: BuildWoodPerPerson, value: 0.05, unit: L/person/yr, source: "metal_sim.py build_wood is 0.15 for dwellings, stores and repairs; the live planner already fells the timber of every dwelling and store it builds, so only repairs (a third) are added here (07d WP7)"}
+  - {id: DeadwoodPerTile, value: 2, unit: L/forest tile/yr, source: "10 §5.1, 23 §7.4: deadwood feeds hearths and kilns, never charcoal"}

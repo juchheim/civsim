@@ -59,3 +59,40 @@ goods:
   - {id: G-COPORN, name: Copper ornament, category: luxury, first_from: [MET-01], durability: durable, load: 0.05, barter: 25}
   - {id: G-TENT, name: Tent kit, category: shelter, first_from: [BLD-02], durability: "30 seasons", load: 1, barter: 6}
   - {id: G-DOG, name: Dog, category: animal, first_from: [HUS-01], durability: eats 0.3 R/season, load: 0, barter: 3}
+  # E3 Bronze goods (docs/MVP/23 §3)
+  - {id: G-CUORE, name: Copper ore, category: ore, first_from: [KEY-3], durability: durable, load: 1, barter: 2}
+  - {id: G-ASORE, name: Arsenical copper ore, category: ore, first_from: [MET-04], durability: durable, load: 1, barter: 3}
+  - {id: G-TINORE, name: Tin ore, category: ore, first_from: [MET-05], durability: durable, load: 1, barter: 15}
+  - {id: G-IRONORE, name: Iron ore, category: ore, first_from: [MET-08], durability: durable, load: 1, barter: 1}
+  - {id: G-BLOCK, name: Stone blocks, category: material, first_from: [MIN-03], durability: durable, load: 1, barter: 0.5}
+  - {id: G-ASHLAR, name: Cut stone, category: processed, first_from: [STN-11], durability: durable, load: 1, barter: 1}
+  - {id: G-SALT, name: Salt, category: material, first_from: [MIN-06], durability: durable, load: 1, barter: 6}
+  - {id: G-ABRONZE, name: Arsenical bronze, category: metal, first_from: [MET-04], durability: durable, load: 1, barter: 25}
+  - {id: G-TIN, name: Tin, category: metal, first_from: [MET-05], durability: durable, load: 1, barter: 40}
+  - {id: G-BRONZE, name: Tin bronze, category: metal, first_from: [MET-05], durability: durable, load: 1, barter: 30}
+  - {id: G-IRON, name: Iron bloom, category: metal, first_from: [MET-08], durability: durable, load: 1, barter: 15}
+  - {id: G-GOLD, name: Gold and silver, category: luxury, first_from: [MET-07], durability: durable, load: 1, barter: 40}
+  - {id: G-OIL, name: Blubber oil, category: fuel, first_from: [HNT-10], durability: durable, load: 1, barter: 2}
+  - {id: G-MILK, name: Milk, category: food, first_from: [HUS-05], spoilage: 0.5, load: 0.5, barter: 0.8}
+  - {id: G-CHEESE, name: Cheese, category: food, first_from: [HUS-05], spoilage: 0.05, load: 0.4, barter: 2}
+  - {id: G-SALTED, name: Salted meat and fish, category: food, first_from: [FOD-07], spoilage: 0.03, load: 0.4, barter: 2}
+  - {id: G-WOOL, name: Wool, category: material, first_from: [HUS-06], durability: durable, load: 1, barter: 1}
+  - {id: G-WOOLGARMENT, name: Wool garment, category: clothing, first_from: [HUS-06], durability: "16 seasons", load: 0.3, barter: 6}
+  - {id: G-DYE, name: Dye, category: processed, first_from: [CHM-04], durability: durable, load: 0.1, barter: 2}
+  - {id: G-SOAP, name: Soap, category: processed, first_from: [CHM-05], durability: durable, load: 0.1, barter: 1}
+  - {id: G-WHEEL, name: Wheel, category: processed, first_from: [MEC-03], durability: durable, load: 1, barter: 3}
+  - {id: G-CART, name: Ox cart, category: tool, first_from: [TRN-05], durability: "40 seasons", load: 0, barter: 10}
+  - {id: G-HORSE, name: Horse, category: animal, first_from: [HUS-07], durability: "grazes; a pasture tile carries 2", load: 0, barter: 15}
+  - {id: G-TOOL8, name: Copper kit (T8), category: tool, first_from: [MET-03], durability: "12 ws", load: 0.3, barter: 6}
+  - {id: G-TOOL9, name: Arsenical bronze kit (T9), category: tool, first_from: [MET-04], durability: "16 ws", load: 0.3, barter: 8}
+  - {id: G-TOOL10, name: Tin bronze kit (T10), category: tool, first_from: [MET-05], durability: "24 ws", load: 0.3, barter: 10}
+  - {id: G-ARMS1, name: Copper spear and dagger, category: arms, first_from: [MET-03], durability: "24 seasons", load: 0.3, barter: 6}
+  - {id: G-ARMS2A, name: Arsenical bronze arms and shield, category: arms, first_from: [WAR-05], durability: "24 seasons", load: 0.5, barter: 12}
+  - {id: G-ARMS2T, name: Tin bronze arms and shield, category: arms, first_from: [WAR-05], durability: "24 seasons", load: 0.5, barter: 14}
+  - {id: G-CHARIOT, name: Chariot, category: arms, first_from: [WAR-06], durability: "40 seasons", load: 0, barter: 40}
+  - {id: G-TURNED, name: Turned goods, category: luxury, first_from: [WOD-06], durability: durable, load: 0.2, barter: 3}
+  - {id: G-FAIENCE, name: Faience, category: luxury, first_from: [CER-05], durability: durable, load: 0.05, barter: 8}
+  - {id: G-GLASS, name: Glass beads and vessels, category: luxury, first_from: [CER-06], durability: durable, load: 0.1, barter: 12}
+  - {id: G-DYEDCLOTH, name: Dyed cloth, category: luxury, first_from: [FIB-08], durability: durable, load: 0.2, barter: 8}
+  - {id: G-SILK, name: Silk, category: luxury, first_from: [FIB-09], durability: durable, load: 0.1, barter: 25}
+  - {id: G-FINEBRONZE, name: Fine bronze, category: luxury, first_from: [MET-06], durability: durable, load: 0.3, barter: 30}

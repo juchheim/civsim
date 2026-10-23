@@ -57,27 +57,43 @@ projects:
     name: Ard Plough
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [AGR-02, NRG-01]
     effects:
-      - {kind: prose, text: "▸ Till: Ard (ox-drawn) ×2."}
+      - {kind: method, action: farm, rung: 3, name: Ard plough, rate: 8, unit: R/tile/yr, note: "field labor ×0.5 with one ox pair per 4 fields; yield unchanged"}
+      - {kind: mod, stat: field_limit, op: set, value: 0.40, note: "field limit 25% → 40% of range tiles (07d §10)"}
+      - {kind: cap, cap: food, mult: 1.17}
+    practice: [{action: farm, share: 50}, {action: herd, share: 50}]
+    flavor: "The ox breaks the ground the hoe could not."
+    moment: "A pair of oxen drag a crooked wooden ard and a straight furrow opens behind them"
   - id: AGR-06
     name: Irrigation Canals
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [AGR-05, NUM-04]
     gates: [{kind: near, target: River}]
     effects:
-      - {kind: prose, text: "Build: Canal network. Arid and floodplain fields ×2; supports cities."}
+      - {kind: build, structure: canal}
+      - {kind: mod, stat: irrigated_yield, op: mult, value: 1.5, note: "×2 on Arid and Desert tiles, where soil counts 100"}
+      - {kind: mod, stat: flood_loss, op: mult, value: 0.5}
+      - {kind: cap, cap: food, mult: 1.17}
+      - {kind: gate, text: "[Near: River]"}
+    practice: [{action: farm, share: 50}, {action: build, share: 50}]
+    flavor: "We led the river to the fields."
+    moment: "A reed dam is cut and water runs down a new ditch into dry furrows"
   - id: AGR-07
     name: "Fallow & Manuring"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [AGR-05, HUS-04]
     effects:
-      - {kind: prose, text: "Soil exhaustion −60%; integrates herds with fields."}
+      - {kind: mod, stat: soil_fertility_loss, op: mult, value: 0.4, note: "per harvest 6 → 2.4 on fields with 2 cattle or 6 sheep per 4 fields (with AGR-03: 3 → 1.2)"}
+      - {kind: cap, cap: food, mult: 1.10, take: 0.6}
+    practice: [{action: farm, share: 50}, {action: herd, share: 50}]
+    flavor: "The herds feed the fields that feed the herds."
+    moment: "Cattle graze a resting field while a boy spreads dung along last year's furrows"
   - id: AGR-08
     name: Terracing
     era: 4

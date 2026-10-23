@@ -41,18 +41,27 @@ projects:
     name: "Envoys & Oaths"
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-03, GOV-04]
     effects:
-      - {kind: prose, text: "Diplo: Non-aggression pact; Role: Envoy."}
+      - {kind: diplo, text: "non-aggression pact: 8 years; breaking it costs −60 Relations and reputation −30"}
+      - {kind: role, id: envoy}
+      - {kind: mandate, decree: compact, cost: 0}
+    practice: [{action: meet_strangers, share: 100}]
+    flavor: "We swore by both our gods, and the oath held."
+    moment: "Two envoys clasp hands over an offering while the kings' words are spoken"
   - id: DIP-05
     name: Written Treaties
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-04, COM-05]
     effects:
-      - {kind: prose, text: "Diplo: Border treaty (fixes a border line; neither side's claims flip across it)."}
+      - {kind: diplo, text: "border treaty: the current line is fixed for 10 years; claims across it do not count"}
+      - {kind: rule, text: "compacts survive Relations down to −30"}
+    practice: [{action: meet_strangers, share: 50}, {action: scribe, share: 50}]
+    flavor: "The border is written in two hands, and both say the same."
+    moment: "Two scribes copy the treaty onto twin tablets, one for each king"
   - id: DIP-06
     name: Tributary States
     era: 4

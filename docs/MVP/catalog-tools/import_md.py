@@ -22,7 +22,7 @@ OUT = os.path.join(REPO, "content")
 if "--out" in sys.argv:
     OUT = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
 
-ERA_BASE = [22, 50, 90, 180, 550, 3000, 15000, 130000, 750000, 3800000]
+ERA_BASE = [22, 50, 75, 180, 550, 3000, 15000, 130000, 750000, 3800000]
 TYPE_MULT = {"D": 1.0, "M": 1.0, "S": 1.2, "R": 0.8, "I": 1.5, "W": 2.0, "K": 2.5}
 THEME_BY_FILE = {"03a-research-craft.md": "craft", "03b-research-kin.md": "kin", "03c-research-reach.md": "reach"}
 MINUS = "−"

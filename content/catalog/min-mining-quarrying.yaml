@@ -42,27 +42,42 @@ projects:
     name: Shaft Mining
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [MIN-03, MET-03, SOC-07]
     effects:
-      - {kind: prose, text: "▸ Mine: Shaft. Reach deep deposits; ore yield +50%. Role: Miner."}
+      - {kind: method, action: mine, rung: 1, name: Shaft, mult: 1.5, note: "opens depth-2 deposits; needs a Mine head"}
+      - {kind: role, id: miner}
+      - {kind: build, structure: mine_head}
+      - {kind: mod, stat: mining_camp_crew, op: set, value: 6, note: "Open a mine sends 6 miners"}
+    practice: [{action: mine, share: 100}]
+    flavor: "We followed the green vein into the dark."
+    moment: "A miner is lowered on a rope into a timbered shaft, a lamp glowing below him"
   - id: MIN-05
     name: Fire-Setting
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [MIN-04, FIR-08]
     effects:
-      - {kind: prose, text: "Crack hard rock with fire: ▸ Mine ×1.5."}
+      - {kind: method, action: mine, rung: 2, name: Fire-setting, mult: 2.25, note: "×1.5 on Shaft; 0.5 L wood per L ore"}
+    practice: [{action: mine, share: 50}, {action: tend_fire, share: 50}]
+    flavor: "Fire cracks what picks cannot."
+    moment: "A fire roars against a rock face; water is thrown on it and the stone splits with a crack"
   - id: MIN-06
     name: Salt Works
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [MIN-03, FOD-02]
     gates: [{kind: seen, target: Salt}]
     effects:
-      - {kind: prose, text: "Good: Salt (mines or evaporation pans). Enables salting (FOD-07); high trade value."}
+      - {kind: unlock_action, action: salt, note: "1 L/ws at salt deposits; coastal pans in Summer"}
+      - {kind: good, id: G-SALT}
+      - {kind: unlock, text: "salting (FOD-07)", project: FOD-07}
+      - {kind: gate, text: "[Seen: Salt]"}
+    practice: [{action: mine, share: 100}]
+    flavor: "White gold from the earth and the sea."
+    moment: "Women rake white crystals from a shallow pan as the last of the water dries"
   - id: MIN-07
     name: Mine Drainage
     era: 4

@@ -43,18 +43,26 @@ projects:
     name: "Earthworks & Hillforts"
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-03, MIN-03]
     effects:
-      - {kind: prose, text: "Build: Hillfort (refuge for the whole hinterland)."}
+      - {kind: build, structure: hillfort}
+      - {kind: defense, structure: hillfort, mult: 2.5, loot: 0.25, refuge_radius: 6, site_within: 4, text: "replaces the palisade; non-combatants and stores of own settlements within 6 take refuge"}
+    practice: [{action: build, share: 50}, {action: guard, share: 50}]
+    flavor: "When raiders come, the whole valley climbs the hill."
+    moment: "Families drive cattle up through the gate of an earth-ringed hilltop"
   - id: DEF-05
     name: Stone Walls
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-04, STN-11]
     effects:
-      - {kind: prose, text: "Build: City walls. Defense ×3; besiegers need siege engines."}
+      - {kind: build, structure: stone_walls}
+      - {kind: defense, structure: stone_walls, mult: 3.0, loot: 0.25, assault: false, text: "cannot be assaulted in E3: investment only (22 §7.4); raiders loot outside the walls"}
+    practice: [{action: build, share: 50}, {action: guard, share: 50}]
+    flavor: "Let them come. The walls will still be here."
+    moment: "The last stone is set atop a gate tower and people cheer from the ramparts"
   - id: DEF-06
     name: "Towers & Gatehouses"
     era: 4

@@ -177,6 +177,8 @@ public sealed partial class LivingEconomyModel
             {
                 _figures[i].SettlementId = to.Id;
                 _figures[i].Civilization = to.Civilization;
+                _figures[i].Role = 0;
+                _figures[i].Camp = -1;
                 return;
             }
     }
@@ -191,7 +193,8 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         s.Civilization = newCiv;
         for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == s.Id) _figures[i].Civilization = newCiv;
+            if (_figures[i].SettlementId == s.Id) { _figures[i].Civilization = newCiv; _figures[i].Role = 0; }
+        if (s.Civic is { } civic) civic.BuildKind = CivicBuild.None;
         s.FissionPending = false;
     }
 
@@ -203,6 +206,8 @@ public sealed partial class LivingEconomyModel
             if (_figures[i].SettlementId == s.Id) _figures.RemoveAt(i);
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
+        if (s.Metal is { } metal) { Array.Clear(metal.Goods); metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear(); }
+        if (s.Civic is not null) s.Civic = new CivicState { Seceded = s.Civic.Seceded };
         s.FissionPending = false;
         s.FireLit = false;
     }

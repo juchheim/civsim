@@ -53,12 +53,19 @@ public readonly record struct WorldHerd(
     int InitialAnimalCount,
     byte AnnualGrowthPercent);
 
+/// <summary>
+/// A mineral deposit on a tile as world generation placed it (docs/MVP/12 §8, 22 §5.1): the kind, the quantity tier and the
+/// depth (1 surface, 2 needs Shaft Mining). The economy maps kind, tier and depth to litres of ore (docs/MVP/22 §5.1 "As built").
+/// </summary>
+public readonly record struct WorldDeposit(DepositKind Kind, byte Tier, byte Depth);
+
 /// <summary>Stable, ordered world data passed from M2 into the M3 simulation.</summary>
 public sealed class WorldEconomyInput
 {
     private readonly WorldEconomyTile[] _tiles;
     private readonly int[] _startingTiles;
     private readonly WorldHerd[] _herds;
+    private readonly WorldDeposit[] _deposits;
 
     public WorldEconomyInput(int width, int height, ReadOnlySpan<WorldEconomyTile> tiles,
         ReadOnlySpan<int> startingTileByCiv)
@@ -68,6 +75,13 @@ public sealed class WorldEconomyInput
 
     public WorldEconomyInput(int width, int height, ReadOnlySpan<WorldEconomyTile> tiles,
         ReadOnlySpan<int> startingTileByCiv, ReadOnlySpan<WorldHerd> herds)
+        : this(width, height, tiles, startingTileByCiv, herds, ReadOnlySpan<WorldDeposit>.Empty)
+    {
+    }
+
+    /// <param name="deposits">One entry per tile, or empty for a world without minerals (E0–E2 fixtures).</param>
+    public WorldEconomyInput(int width, int height, ReadOnlySpan<WorldEconomyTile> tiles,
+        ReadOnlySpan<int> startingTileByCiv, ReadOnlySpan<WorldHerd> herds, ReadOnlySpan<WorldDeposit> deposits)
     {
         if (width <= 0 || height <= 0 || (long)width * height != tiles.Length)
             throw new ArgumentOutOfRangeException(nameof(width), "Width and height must match the tile array.");
@@ -77,6 +91,9 @@ public sealed class WorldEconomyInput
         _tiles = tiles.ToArray();
         _startingTiles = startingTileByCiv.ToArray();
         _herds = herds.ToArray();
+        if (!deposits.IsEmpty && deposits.Length != tiles.Length)
+            throw new ArgumentException("Deposits must be given for every tile or not at all.", nameof(deposits));
+        _deposits = deposits.IsEmpty ? new WorldDeposit[tiles.Length] : deposits.ToArray();
         Width = width;
         Height = height;
         for (int i = 0; i < _startingTiles.Length; i++)
@@ -110,6 +127,7 @@ public sealed class WorldEconomyInput
                     throw new ArgumentException($"Herd id {herd.Id} is duplicated.", nameof(herds));
         }
         Fingerprint = ComputeFingerprint();
+        DepositFingerprint = ComputeDepositFingerprint();
     }
 
     public int TileCount => _tiles.Length;
@@ -117,6 +135,13 @@ public sealed class WorldEconomyInput
     public int Width { get; }
     public int Height { get; }
     public ulong Fingerprint { get; }
+    /// <summary>
+    /// Fingerprint of the mineral deposits, kept apart from <see cref="Fingerprint"/> so that matches which never reach the
+    /// Bronze Age (where deposits first matter) keep the checksums they had before deposits reached the economy.
+    /// </summary>
+    public ulong DepositFingerprint { get; }
+    /// <summary>The deposit on a tile; <see cref="DepositKind.None"/> where there is none.</summary>
+    public WorldDeposit Deposit(int tile) => _deposits[tile];
     /// <summary>The ordered per-herd records retained from world generation.</summary>
     public ReadOnlySpan<WorldHerd> Herds => _herds;
     public WorldEconomyTile Tile(int index) => _tiles[index];
@@ -129,6 +154,7 @@ public sealed class WorldEconomyInput
         ArgumentNullException.ThrowIfNull(world);
         WorldEconomyTile[] tiles = new WorldEconomyTile[world.TileCount];
         WorldHerd[] herds = new WorldHerd[world.Herds.Length];
+        var deposits = new WorldDeposit[world.TileCount];
         Fix64[] herdGrowthByTile = new Fix64[world.TileCount];
         Fix64[] herdInitialByTile = new Fix64[world.TileCount];
         for (int i = 0; i < world.Herds.Length; i++)
@@ -147,6 +173,7 @@ public sealed class WorldEconomyInput
         for (int i = 0; i < tiles.Length; i++)
         {
             WorldTile source = world.TileAt(i);
+            deposits[i] = new WorldDeposit(source.Deposit, source.DepositAmount, source.DepositDepth);
             Fix64 forageMultiplier = ForageMultiplier(source.Biome);
             (Fix64 spring, Fix64 summer, Fix64 autumn, Fix64 winter) = SeasonalProfile(source.Climate);
             Fix64 springYield = spring * forageMultiplier;
@@ -180,7 +207,7 @@ public sealed class WorldEconomyInput
 
         int[] starts = new int[world.Starts.Length];
         for (int i = 0; i < world.Starts.Length; i++) starts[world.Starts[i].Civilization] = world.Starts[i].Tile;
-        return new WorldEconomyInput(world.Width, world.Height, tiles, starts, herds);
+        return new WorldEconomyInput(world.Width, world.Height, tiles, starts, herds, deposits);
     }
 
     private static bool[] CoastalWaterWithinTwoTiles(GeneratedWorld world)
@@ -250,6 +277,22 @@ public sealed class WorldEconomyInput
         hash.Add(Width); hash.Add(Height);
         return hash.Finish();
     }
+
+    private ulong ComputeDepositFingerprint()
+    {
+        var hash = new StateHasher();
+        hash.Add(_deposits.Length);
+        for (int i = 0; i < _deposits.Length; i++)
+        {
+            WorldDeposit d = _deposits[i];
+            if (d.Kind == DepositKind.None) continue;
+            hash.Add(i); hash.Add((byte)d.Kind); hash.Add(d.Tier); hash.Add(d.Depth);
+        }
+        return hash.Finish();
+    }
+
+    /// <summary>Forage multiplier of a biome (for a forest tile cleared to open woodland or grassland, docs/MVP/23 §7.4).</summary>
+    internal static Fix64 ForageMultiplierOf(Biome biome) => ForageMultiplier(biome);
 
     private static Fix64 ForageMultiplier(Biome biome) => biome switch
     {

@@ -157,9 +157,9 @@ Cost = EraBase[era] × TypeMult[type] × DiffusionMult × EraLagMult × GateMult
 
 | Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
 |-----|----|----|----|----|----|----|----|----|----|----|
-| **EraBase** | 22 | 50 | 90 | 180 | 550 | 3,000 | 15,000 | 130,000 | 750,000 | 3,800,000 |
+| **EraBase** | 22 | 50 | 75 | 180 | 550 | 3,000 | 15,000 | 130,000 | 750,000 | 3,800,000 |
 
-*EraBase follows the WS-H re-fit ([09 §11.1](09-population-and-health.md#111-re-fit)), which superseded 07 §5 #5. Roots was later raised from 75 to 90 after play feedback that its projects completed too quickly; the balance model now places E2 at the 13-minute upper edge of its target. See [07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22).*
+*EraBase is the WS-H re-fit ([09 §11.1](09-population-and-health.md#111-re-fit)), which supersedes 07 §5 #5.*
 
 EraBase is fitted era by era to the pacing targets below ([07](07-balance-findings.md) F2), not a flat ratio. v0.1's flat ×2.5 per era (20 · 50 · 125 · … · 75,000) ran the early eras 4–7× too long and the late eras 1.4–2× too short, because Insight compounds faster than ×2.5 once population growth and the late LRN multipliers stack. The uneven steps are real: E2 is low because it carries the heaviest backfill load, and E7 is high because of the Industrial population boom and schooling multipliers. Re-fit with `balance/tools/fit.py` whenever the Insight multipliers or demography change.
 
@@ -185,7 +185,7 @@ EraBase is fitted era by era to the pacing targets below ([07](07-balance-findin
 
 "Visible" means projects of eras up to the current one (not all of them Glimpsed yet). Catalog sizes per era are in [03-research-catalog.md](03-research-catalog.md).
 
-Standard pace totals ≈ 3 hours for the full arc (Quick ≈ 90 min); the balance model's tuned run is 173.5 min (Quick 87, Epic 301). Pace changes the season length, not these costs ([01](01-game-structure.md) §6). Later eras run longer on purpose: their maps are busier and their projects interact more.
+Standard pace totals ≈ 3 hours for the full arc (Quick ≈ 90 min); the balance model's tuned run is 171.5 min (Quick 86, Epic 297). Pace changes the season length, not these costs ([01](01-game-structure.md) §6). Later eras run longer on purpose: their maps are busier and their projects interact more.
 
 So a civilization completes roughly **30–40% of each era's projects** (each era offers 34–65) before moving on. That is the source of meaningful choice and divergent civilizations. The EraLag discount makes backfilling attractive later.
 

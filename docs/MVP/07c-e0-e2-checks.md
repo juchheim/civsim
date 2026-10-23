@@ -261,7 +261,7 @@ Then update 11 §2's sums (×1.10, ×1.11, ×1.07). I didn't edit the column bec
 **Adopted: `InsightCalibration` = 1.6** (`content/constants/balance.yaml`, applied to the whole formula, as ×8 was in 07 F1). It is a re-fit to the live demography, not a design change to 02 §8.1. 1.7 centers KEY-2 and KEY-3 better but puts KEY-1 at the edge of its window; 1.6 keeps all three inside on both seeds.
 
 **Consequences and limits.**
-- M4 did not change the Python balance model (`params.py`); it still describes smoothed demography, so its original E0–E2 durations (7.8 / 10.0 / 11.8 min) do not directly predict the live sim, in the same way the exact-age reference superseded the `C / 56` comparison for population (§6). E2's cost was subsequently retuned in §10. EraBase for E3 and later was fit with the balance model's Insight; re-fit it when those eras run live (M8).
+- The Python balance model (`params.py`) is **not** changed. It still describes the smoothed demography, so its E0–E2 durations (7.8 / 10.0 / 11.8 min) no longer predict the live sim, in the same way the exact-age reference superseded the `C / 56` comparison for population (§6). EraBase for E3 and later was fit with the balance model's Insight; re-fit it when those eras run live (M8).
 - **Stand-ins until their systems exist:** practice that is not an M3 job (talk, ritual, teaching, counting, marking; `AmbientPractice` in `LivingEconomySource`) is a flat background of work-seasons per adult; resource exposure for `[Seen]` gates is "within routine reach of a settlement" (6 / 9 / 12 tiles by era, ×1.5 with WAY-01, ores within 25 with INQ-03) because M3 figures have no line of sight; Elder and Shaman holders are one per settlement with an elder or six adults; contact is not simulated (M5 calls `RecordContact`).
 - **The 04 openings carry more picks before KEY-1 than the breadth rule needs** (Grower 19, Builder 16, Wanderer 15; costs 521 / 438 / 418 including the keystone, against 363 for the cheapest route: KEY-1's 11 closure projects and the keystone cost 319, and two more free picks reach the breadth of 13). They pass because Know-how and the cascade make up the difference.
 - **P8** (a Council-only player loses to an engaged one in ≥ 65% of paired matches) uses the Settler (learning) AI as its reproducible moderate-engagement proxy. It wins 53/64 mirrored Council matches (83%) over 32 seeds at 40 minutes, passing the target. The simpler scripted Grower policy wins 39/64 (61%) and is too weak; Chieftain wins 94% and is too strong for this proxy. This is a simulation balance gate, not a human-playtest result; P9 measures actual players.
@@ -278,7 +278,7 @@ Then update 11 §2's sums (×1.10, ×1.11, ×1.07). I didn't edit the column bec
 | 5 | 09 §6.2 | Note that lean ≥ 0.85 means winter no longer binds; 1.0 is the model's shorthand | recommended |
 | 6 | 11 §3–§5 | Hazard multipliers to population-average values (§5 table) *or* a coverage rule | recommended (design choice) |
 | 7 | 11 KEY-2 | Add Hazard(endemic, ×1.30) and "epidemics begin" | recommended |
-| 8 | 02 §8.3, 11 §2 and cost column | EraBase 22 / 50 / 75 (09 §12 #1), then rescale 11's costs | applied at M4; Roots later retuned in §10 |
+| 8 | 02 §8.3, 11 §2 and cost column | EraBase 22 / 50 / 75 (09 §12 #1), then rescale 11's costs | recommended |
 | 9 | 11 FOD-04, FOD-05 | Optional: narrow the grain food-value stack; if so, raise the E2 field limit to ~34% | optional |
 | 10 | [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18) | Re-run the territory model on the R6 trajectory (9 metropolises in E8–E9) | ✅ done: recommendations hold; early map emptier (07b §9.3 L2) |
 | 12 | 02 §8.1, §8.2, §15; `balance.yaml` | M4: `InsightCalibration` 1.6; the slot cascade; Council critical-path depth, Insight gain, AI re-rank (§7a) | ✅ applied |
@@ -291,9 +291,3 @@ python docs/MVP/balance/tools/check_e0e2.py --fixed   # with the fixes above
 uv run --no-project --with numpy python docs/MVP/balance/tools/exact_age_sensitivity.py # ideal-food/health expected-demography baseline
 python docs/MVP/balance/tools/sensitivity.py final    # R6 arc, archetypes × paces
 ```
-
-## 10. Roots cadence follow-up (2026-10-22)
-
-Play feedback reported that research projects completed too quickly in Roots (E2). Raise its `EraBase` from 75 to 90, a 20% increase in the list cost of each E2 project. No other era's base cost or the Insight formula changed.
-
-The tuned season-by-season model puts E2 at **13.0 minutes**, the upper edge of the 11–13 minute target, with the first three eras' keystone proxy at **30.8 minutes** (previously 29.5). This gives Roots projects more room to play out while keeping the existing KEY-3 timing window. The tuned E2 base is updated in `balance/tools/params.py`; repeat the live C5 acceptance run before treating the resulting keystone timing as measured.

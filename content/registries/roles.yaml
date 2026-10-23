@@ -3,13 +3,19 @@ schema: 1
 roles:
   - {id: elder, name: Elder, insight: 8, unlocked_by: GOV-01}
   - {id: shaman, name: Shaman, insight: 12, unlocked_by: BEL-03}
-  - {id: priest, name: Priest, insight: 16, unlocked_by: BEL-06}
-  - {id: scribe, name: Scribe, insight: 24, unlocked_by: LRN-04}
+  - {id: priest, name: Priest, insight: 16, unlocked_by: BEL-06, staffing: "1 per temple"}
+  - {id: scribe, name: Scribe, insight: 24, unlocked_by: COM-05, staffing: "1 at the capital; 2 per school"}
   - {id: scholar, name: Scholar, insight: 48, unlocked_by: LRN-05}
   - {id: researcher, name: Researcher, insight: 120, unlocked_by: LRN-12}
   - {id: watcher, name: Watcher, insight: 0, unlocked_by: DEF-02}
-  - {id: collier, name: Collier, insight: 0, unlocked_by: FIR-08}
-  - {id: smith, name: Smith, insight: 0, unlocked_by: MET-02}
+  - {id: collier, name: Collier, insight: 0, unlocked_by: FIR-08, staffing: "1 per settlement burning charcoal"}
+  - {id: smith, name: Smith, insight: 0, unlocked_by: MET-02, staffing: "1 per forge"}
   - {id: midwife, name: Midwife, insight: 0, unlocked_by: MED-03}
   - {id: chief, name: Chief, insight: 0, unlocked_by: GOV-02}
   - {id: warrior, name: Warrior, insight: 0, unlocked_by: WAR-04}
+  - {id: miner, name: Miner, insight: 0, unlocked_by: MIN-04, staffing: "every worker on a mine job"}
+  - {id: potter, name: Potter, insight: 0, unlocked_by: CER-04, staffing: "1 per potter's workshop"}
+  - {id: king, name: King, insight: 0, unlocked_by: GOV-05, staffing: "1 at the capital"}
+  - {id: trader, name: Trader, insight: 0, unlocked_by: TRD-04, staffing: "1 per market"}
+  - {id: baker, name: Baker, insight: 0, unlocked_by: FOD-08, staffing: "1 per bakery"}
+  - {id: envoy, name: Envoy, insight: 0, unlocked_by: DIP-04, staffing: "1 per civilization, at the capital"}

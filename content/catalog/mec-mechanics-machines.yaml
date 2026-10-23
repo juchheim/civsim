@@ -30,10 +30,14 @@ projects:
     name: The Wheel
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [MEC-02, WOD-05]
     effects:
-      - {kind: prose, text: "Good: Wheel. Enables carts (TRN-05), potter's wheel, lathe."}
+      - {kind: good, id: G-WHEEL}
+      - {kind: unlock, text: "carts (TRN-05), potter's wheel (CER-04), lathe (WOD-06), chariots (WAR-06)"}
+    practice: [{action: build, share: 50}, {action: haul, share: 50}]
+    flavor: "Roll it; do not drag it."
+    moment: "A solid wooden disc on an axle rolls downhill while children chase it"
   - id: MEC-04
     name: "Pulley & Windlass"
     era: 4

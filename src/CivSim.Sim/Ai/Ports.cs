@@ -88,4 +88,14 @@ public sealed class AiOrders
     public bool SetPosture(Posture posture) => _politics.OrderPosture(_civ, posture);
     public bool PlaceBeacon(int tile) => _politics.OrderBeacon(_civ, tile);
     public void RemoveBeacon(int index) => _politics.OrderRemoveBeacon(_civ, index);
+
+    // ---- the Bronze levers (docs/MVP/22 §4.6): the same Decree path as a player's command 18 ----
+    public int Mandate => _politics.DecreeResearch.Mandate(_civ);
+    public int MandateCap => _politics.DecreeResearch.MandateCap(_civ);
+    public int DecreeCost(DecreeKind kind) => _politics.DecreeCost(_civ, kind);
+    public bool IssueDecree(DecreeKind kind, int target, int extra) => _politics.IssueDecree(_civ, kind, target, extra, DecreeOrigin.Strategist);
+    public bool SetEmbargo(int civ, TradeGood good, bool on) => _politics.OrderEmbargo(_civ, civ, good, on);
+    public bool RaidCaravan(int caravanId, int partySize) => _politics.OrderRaidCaravan(_civ, caravanId, partySize);
+    public void UseCouncilDecrees(bool on) => _politics.SetDecreePolicy(_civ, on ? new CouncilDecreePolicy() : null);
 }
+

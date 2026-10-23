@@ -135,10 +135,16 @@ projects:
     name: Dressed Masonry
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [STN-08, MIN-03]
     effects:
-      - {kind: prose, text: "Good: Cut stone. ▸ Build (stone structures). Unlocks stone walls, temples, roads."}
+      - {kind: good, id: G-ASHLAR, note: "1 L stone blocks + 0.5 ws with a T8+ kit (1.0 ws with stone tools)"}
+      - {kind: unlock_action, action: dress_stone}
+      - {kind: mod, stat: stone_building_labor, op: mult, value: 0.75, note: "stone building labor −25%"}
+      - {kind: unlock, text: "stone walls (DEF-05); the hall, temple, palace and ziggurat masonry"}
+    practice: [{action: build, share: 50}, {action: mine, share: 50}]
+    flavor: "Every face square, every joint tight."
+    moment: "A mason draws a copper chisel along a scored line and the block's face comes away flat as still water"
   - id: STN-12
     name: "Ashlar & Columns"
     era: 4
