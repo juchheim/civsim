@@ -85,7 +85,7 @@ public sealed partial class Strategist
                 return;
             }
         // Evaluate the counterattack against the home army left by this exact target's proposed campaign.
-        IReadOnlyDictionary<int, int> departures = CampaignDepartures(v, option.Tile, width);
+        IReadOnlyList<KeyValuePair<int, int>> departures = CampaignDepartures(v, option.Tile, width);
         (Fix64 reply, OwnSettlement? exposed) = CounterThreat(v, read, width, departures);
         if (exposed is not null)
         {
@@ -106,37 +106,44 @@ public sealed partial class Strategist
     /// The rival's believed field army (up to 60% of each settlement's fighters, never fewer than four left at home) and
     /// the weakest post-departure own settlement in its reach that it could storm at 1.5 ratio after nearby relief, or null.
     /// </summary>
-    private static Dictionary<int, int> CampaignDepartures(StrategistView v, int targetTile, int width)
+    private static List<KeyValuePair<int, int>> CampaignDepartures(StrategistView v, int targetTile, int width)
     {
-        var departures = new Dictionary<int, int>();
+        var departures = new List<KeyValuePair<int, int>>();
         OwnSettlement? origin = BestOrigin(v, targetTile, width);
         if (origin is null) return departures;
         foreach (OwnSettlement settlement in v.Own.Settlements)
         {
             if (HexGrid.Distance(settlement.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange) continue;
             int allowed = Math.Max(0, Math.Min(settlement.Fighters - 4, settlement.Fighters * 6 / 10));
-            if (allowed > 0) departures[settlement.Index] = allowed;
+            if (allowed > 0) departures.Add(new KeyValuePair<int, int>(settlement.Index, allowed));
         }
         return departures;
     }
 
-    private static Dictionary<int, int> RaidDepartures(OwnSettlement origin, int partySize)
-        => new() { [origin.Index] = Math.Min(Math.Max(0, origin.Fighters - 4), Math.Max(0, partySize)) };
+    private static List<KeyValuePair<int, int>> RaidDepartures(OwnSettlement origin, int partySize)
+        => new() { new KeyValuePair<int, int>(origin.Index, Math.Min(Math.Max(0, origin.Fighters - 4), Math.Max(0, partySize))) };
 
-    private static Fix64 ResidualDefense(OwnSettlement settlement, IReadOnlyDictionary<int, int> departures)
+    private static int DepartingFighters(int settlementIndex, IReadOnlyList<KeyValuePair<int, int>> departures)
     {
-        departures.TryGetValue(settlement.Index, out int leaving);
+        foreach (KeyValuePair<int, int> departure in departures)
+            if (departure.Key == settlementIndex) return departure.Value;
+        return 0;
+    }
+
+    private static Fix64 ResidualDefense(OwnSettlement settlement, IReadOnlyList<KeyValuePair<int, int>> departures)
+    {
+        int leaving = DepartingFighters(settlement.Index, departures);
         if (settlement.Fighters <= 0 || leaving <= 0) return settlement.DefendingStrength;
-        // OwnView exposes aggregate strength rather than individual fighter strengths. The proportional estimate is
-        // deliberately simple and deterministic; using attacking strength keeps the estimate cautious when the
-        // strongest campaign fighters leave first.
-        Fix64 leavingStrength = settlement.AttackingStrength * Fix64.FromRatio(leaving, settlement.Fighters)
-            * StrategistTuning.PartyPickBonus;
+        // OwnView exposes aggregate defense rather than per-fighter defense. Estimate the departing share from that
+        // aggregate; using attacking strength here can erase the whole garrison when attack ratings exceed defense.
+        Fix64 leavingShare = Fix64.Min(Fix64.One,
+            Fix64.FromRatio(leaving, settlement.Fighters) * StrategistTuning.PartyPickBonus);
+        Fix64 leavingStrength = settlement.DefendingStrength * leavingShare;
         return Fix64.Max(Fix64.Zero, settlement.DefendingStrength - leavingStrength);
     }
 
     private (Fix64 Army, OwnSettlement? Exposed) CounterThreat(StrategistView v, RivalRead read, int width,
-        IReadOnlyDictionary<int, int> departures)
+        IReadOnlyList<KeyValuePair<int, int>> departures)
     {
         Fix64 army = Fix64.Zero;
         foreach (Site site in read.Sites)
@@ -158,7 +165,7 @@ public sealed partial class Strategist
             foreach (OwnSettlement sister in v.Own.Settlements)
             {
                 if (ReferenceEquals(sister, o) || sister.Fighters <= 0 || HexGrid.Distance(sister.Tile, o.Tile, width) > StrategistTuning.ReliefRange) continue;
-                departures.TryGetValue(sister.Index, out int sent);
+                int sent = DepartingFighters(sister.Index, departures);
                 int remaining = Math.Max(0, sister.Fighters - sent);
                 int available = Math.Max(0, Math.Min(remaining - 2, remaining * 6 / 10));
                 relief += sister.AttackingStrength * available / sister.Fighters * StrategistTuning.PartyPickBonus;

@@ -153,7 +153,7 @@ public sealed partial class Strategist
         c.Value = c.P * c.Loot - c.Deaths * StrategistTuning.LifeValue - relations - reputation - retaliation;
 
         string? counterExposure = null;
-        IReadOnlyDictionary<int, int> departures = RaidDepartures(origin, party);
+        IReadOnlyList<KeyValuePair<int, int>> departures = RaidDepartures(origin, party);
         for (int other = 0; other < _civs; other++)
         {
             if (other == v.Civ) continue;

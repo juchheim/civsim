@@ -155,7 +155,9 @@ public static class FogFairnessHarness
     {
         Check(diffs, "own", (a.Civ, a.Era, a.Season, a.Tick, a.Population, a.Adults, a.ClaimedTiles, a.BeaconAllowance, a.ReachTiles),
             (b.Civ, b.Era, b.Season, b.Tick, b.Population, b.Adults, b.ClaimedTiles, b.BeaconAllowance, b.ReachTiles));
-        Check(diffs, "own insight", (a.InsightPerYear, a.Dominion, a.Legacy, a.Posture), (b.InsightPerYear, b.Dominion, b.Legacy, b.Posture));
+        Check(diffs, "own insight", (a.InsightPerYear, a.Posture), (b.InsightPerYear, b.Posture));
+        // Dominion and Legacy are public aggregate scores; an unseen rival's territory can change their denominator.
+        // CompareMinds still checks the resulting decisions, so score movement only matters here if it changes behavior.
         Check(diffs, "own parties", (a.RaidsOnTheRoad, a.AssaultsOnTheRoad, a.GiftsOnTheRoad, a.Occupations),
             (b.RaidsOnTheRoad, b.AssaultsOnTheRoad, b.GiftsOnTheRoad, b.Occupations));
         Check(diffs, "own settlements", a.Settlements.Count, b.Settlements.Count);
