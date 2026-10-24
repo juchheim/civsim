@@ -79,15 +79,15 @@ internal static class ResearchDecrees
             text.Append(r.Log);
         }
         text.AppendLine();
-        text.AppendLine($"Timing: KEY-4 median {F(Median(k4))} (43, 07d 43-47), E3 duration median {F(Median(e3))} (11.5-14.5)");
-        text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (target 7, 5-10)");
-        text.AppendLine($"T14 claimed land at KEY-4: median {P(Median(claimed))} (target 30-42%)");
-        text.AppendLine($"T15 paired borders touching at KEY-4: {touch}/{pairs} (target >= 75%)");
-        text.AppendLine($"T16 E3 foundings by Decree: median share {P(Median(share))} over {share.Count} civs (target 25-50%)");
-        text.AppendLine($"T20 civs with tin by KEY-4: {tin}/{civs} (target >= 50%); with some bronze (tin or arsenic): {bronze}/{civs} (>= 90%)");
+        text.AppendLine($"Timing: KEY-4 median {F(Median(k4))} (current projection 61.25; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
+        text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (historical target 7, 5-10; rebaseline at current cadence)");
+        text.AppendLine($"T14 claimed land at KEY-4: median {P(Median(claimed))} (historical target 30-42%; rebaseline at current cadence)");
+        text.AppendLine($"T15 paired borders touching at KEY-4: {touch}/{pairs} (historical target >= 75%; rebaseline at current cadence)");
+        text.AppendLine($"T16 E3 foundings by Decree: median share {P(Median(share))} over {share.Count} civs (historical target 25-50%; review with the longer Mandate window)");
+        text.AppendLine($"T20 civs with tin by KEY-4: {tin}/{civs} (historical target >= 50%); with some bronze (tin or arsenic): {bronze}/{civs} (>= 90%; rebaseline at current cadence)");
         int folk = 0; foreach (Result r in results) folk += r.TinFolk;
         text.AppendLine($"T26 Tin Folk per map: {string.Join(", ", Array.ConvertAll(results, r => r.TinFolk))} (target 3-6); matches with a Tin Folk compact {folkMatches}/{results.Length} (target >= 50%)");
-        text.AppendLine($"T27 Mandate earned per E3 median {F(Median(earned))} (7-9), Decrees median {F(Median(decrees))} (5-8), seasons at the cap median {P(Median(atCap))} (< 25% for an AI)");
+        text.AppendLine($"T27 Mandate earned per E3 median {F(Median(earned))} (historical 7-9); Decrees median {F(Median(decrees))} (historical 5-8); current budget needs review for a ~20-minute E3");
         Console.Write(text.ToString());
         return 0;
     }

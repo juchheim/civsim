@@ -94,9 +94,9 @@ public class ContentGoldenTests
     {
         Assert.Equal(Fix64.FromInt(22), Set.CostOf(Set.ById["STN-01"]));                 // E0, M
         Assert.Equal(Fix64.FromInt(22) * Set.TypeMult("S")!.Value, Set.CostOf(Set.ById["BLD-01"])); // E0, S (1.2)
-        Assert.Equal(Fix64.FromInt(100) * Set.TypeMult("I")!.Value, Set.CostOf(Set.ById["SOC-06"])); // E2, I (1.5)
+        Assert.Equal(Fix64.FromInt(150) * Set.TypeMult("I")!.Value, Set.CostOf(Set.ById["SOC-06"])); // E2, I (1.5)
         Assert.Equal(Fix64.FromInt(55), Set.CostOf(Set.ById["KEY-1"]));                  // E0 keystone, 2.5 x 22
-        Assert.Equal(Fix64.FromInt(250), Set.CostOf(Set.ById["KEY-3"]));                  // 2.5 x 100 = 250
+        Assert.Equal(Fix64.FromInt(375), Set.CostOf(Set.ById["KEY-3"]));                  // 2.5 x 150 = 375
     }
 
     [Fact]

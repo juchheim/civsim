@@ -76,7 +76,7 @@ def same(v):
 ERA = {
     # research
     "EraBase": {"v01":   [20, 50, 125, 300, 750, 1900, 4700, 12000, 30000, 75000],
-                "tuned": [22, 50, 100, 160, 660, 3750, 19500, 175000, 1050000, 5500000]},  # progressive cadence; E3 stays at the Bronze live fit (07c §10)
+                "tuned": [22, 50, 150, 400, 1200, 6000, 32000, 280000, 1700000, 9000000]},  # longer Primary intervals in E2+ (07c §10.1)
     "BreadthN": {"v01":  [13, 14, 20, 22, 21, 16, 14, 14, 18, 17],
                  "tuned": [13, 14, 20, 21, 21, 16, 14, 14, 18, 17]},
     "CostMod": same([1, 1, 1, 1, 1, 1, 1, 0.9, 0.9, 0.9]),   # INQ-08 Scientific Method −10% from E7

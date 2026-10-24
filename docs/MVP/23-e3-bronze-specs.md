@@ -1,9 +1,10 @@
 # 23 — Bronze Age (E3) Specs: Registries, Ladders, Constants and the 66 Project Specs (WP1)
 
+> **Current cadence update (2026-10-24):** the original provisional EraBase 200 and the later live fit of 150 are historical. Current Bronze EraBase is **400**; list costs below are doubled to match [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24). The longer timing is projected, not freshly accepted in the live harness.
 > The build-ready content spec for **E3 Bronze**: every new good, tool tier, arms kit, recipe, structure, role, action, ladder rung, practice split and constant the sim needs, and **all 65 E3 projects plus KEY-4** with typed effects, cost, practice, Moment, flavor and visible change. It is the E3 counterpart of [10](10-e0-e2-actions-and-goods.md) (actions and goods) and [11](11-e0-e2-project-specs.md) (project specs), and work package **WP1** of [22 §20](22-bronze-age.md#20-work-breakdown).
 > The design is [22](22-bronze-age.md); its §5–§12 and §15 are binding here, and its §19 questions are taken as resolved (Tin Folk appear at the first KEY-3 in the world; the faster live map fill is accepted; art starts as placeholders). Where this document has to fix or extend 22, it says so in place and lists every case in §21.
-> Everything below is written so WP3 can transcribe it into `content/` without design decisions: registry entries and project effects are given as the YAML lines they become. Numbers marked *provisional* inherit 22's provisional status (EraBase 200, §15 T4).
-> Design only. Nothing in `src/` or `content/` has changed.
+> Everything below is written so WP3 can transcribe it into `content/` without design decisions: registry entries and project effects are given as the YAML lines they become. Other *provisional* design values still inherit 22's status; the current research costs are the updated values in §14.
+> Bronze project and system implementation remains pending; the EraBase registry cost was updated to the current cadence above.
 
 ---
 
@@ -623,7 +624,7 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 | `catalog/keystones.yaml` KEY-3 | **append effects** (below) | E3's state switches on at each civilization's KEY-3 (22 §4.2, §5.2, §8.2–8.3, §6.4, §10). KEY-3 completes near minute 30, so the 12- and 24-minute goldens are untouched |
 | `catalog/keystones.yaml` KEY-4 | status `draft → numeric`, effects §17 | 22 §3.1 |
 | 65 E3 projects | status `draft → numeric`; replace the `prose` effect by §15–§17's effects, add `practice`, `flavor`, `moment` | B25 |
-| `registries/eras.yaml` | E3 `base_cost 200` | 22 §15 T4 |
+| `registries/eras.yaml` | E3 `base_cost 400` | current cadence, 07c §10.1 |
 | `registries/roles.yaml` | `scribe.unlocked_by LRN-04 → COM-05`; staffing; new roles | §9 |
 | `registries/deposits.yaml` | `has_gate` on `arsenical_copper` and `tin` | §7.1 |
 | goods, tools, actions, structures, practice, constants | appends (§3–§12) | — |
@@ -647,17 +648,17 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 
 ## 14. Costs
 
-`Cost = EraBase × TypeMult` (02 §8.3), **EraBase E3 = 200** (*P*): D/M **200**, S **240**, R 160, I **300**, W **400**, K **500**. **No overrides** (no `cost_reason` needed). List costs; play reduces them by Diffusion, EraLag and Know-how.
+`Cost = EraBase × TypeMult` (02 §8.3), current **EraBase E3 = 400**: D/M **400**, S **480**, R **320**, I **600**, W **800**, K **1,000**. **No overrides** (no `cost_reason` needed). List costs; play reduces them by Diffusion, EraLag and Know-how.
 
 | Theme | Projects | M | D | S | I | W | Sum of list costs |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Craft | 24 | 15 | 8 | 0 | 0 | 1 | 5,000 |
-| Kin | 21 | 7 | 2 | 4 | 8 | 0 | 5,160 |
-| Reach | 20 | 11 | 1 | 3 | 5 | 0 | 4,620 |
-| **E3** | **65** | **33** | **11** | **7** | **13** | **1** | **14,780** (average 227.4) |
-| KEY-4 | 1 | | | | | | 500 |
+| Craft | 24 | 15 | 8 | 0 | 0 | 1 | 10,000 |
+| Kin | 21 | 7 | 2 | 4 | 8 | 0 | 10,320 |
+| Reach | 20 | 11 | 1 | 3 | 5 | 0 | 9,240 |
+| **E3** | **65** | **33** | **11** | **7** | **13** | **1** | **29,560** (average 454.8) |
+| KEY-4 | 1 | | | | | | 1,000 |
 
-Against [11 §2](11-e0-e2-project-specs.md#2-costs): E2 52 projects, 4,468, average 85.9. KEY-4's closure costs **4,280** (18 projects) + 500.
+Against [11 §2](11-e0-e2-project-specs.md#2-costs): current E2 is 52 projects, 8,925 list cost, average 171.6. KEY-4's closure costs **8,560** (18 projects) + 1,000 at current list prices.
 
 ---
 
@@ -1414,7 +1415,7 @@ Progress an average civilization needs from its KEY-3 to its KEY-4:
 | 435 | the same + E3 roles ramping to 12–20% (§20.9) | **12.4 min** |
 | 528 | T5's linear ramp 330 → 725 | 10.2 min |
 
-The leader-equivalent estimate is **12.4 min**, inside T2's median band (11.5–14.5); followers' Diffusion (×0.8–0.9 on most E3 projects once contacted rivals know them) pulls the Council median to **~11.5–12 min**, the band's low edge. T5's ramp and §1.4's measured mean disagree by ~25% on the same window; if T5 holds, the median runs ~10.5 min and **T4's re-fit rule raises EraBase to ~240**. EraBase 200 stays (*P*) until WP2's live-mode fit. A typical civilization completes 22.7 of 65 E3 projects (35%), inside 02 §8.3's 30–40%.
+The 12.4-minute leader estimate and ~11.5–12-minute Council estimate are historical results at the earlier cost assumptions. The current model projects an E3 of about 19.75 minutes at EraBase 400; the new cadence needs live acceptance before replacing the provisional timing gates. A typical civilization completes 22.7 of 65 E3 projects (35%) in the historical run; recompute this at the new cadence.
 
 ### 20.5 Ladders (V11)
 chop 0–6 (rung 6 shared by the alternate rule) · mine 0–2 · farm 1–3 (3 equal in rate to 2) · paddle 1–5 (4 equal to 3) · pottery 0–1 · haul 0–1. No skip, no ladder starting above 1, no duplicate outside the alternate rule.
@@ -1425,7 +1426,7 @@ chop 0–6 (rung 6 shared by the alternate rule) · mine 0–2 · farm 1–3 (3 
 ### 20.7 Administration and Mandate sums
 - **Admin span:** 4 (KEY-3) + 2 GOV-04 + 3 GOV-05 + 2 COM-05 + 2 NUM-05 + 2 GOV-06 = **15**; KEY-4's closure alone 4 + 2 + 3 + 2 + 2 = **13** ✓ 22 §8.2.
 - **AdminReduction:** closure (GOV-04 0.10, COM-05 0.20, GOV-06 0.15, TRN-05 0.10) = 1 − 0.9 × 0.8 × 0.85 × 0.9 = **0.449**; a colony 24 tiles out loses (24 − 8) ÷ 2 × 0.551 = **4.4** ✓ 22 §8.3. All nine = 0.711.
-- **Mandate:** cap 2 + GOV-05 + GOV-06 = **4**; recharge 8 − 2 COM-05 − 1 COM-06 − 1 BEL-07 = **4** = the floor ✓ 22 §4.2. With COM-05 around mid-era: 52 seasons give ≈ 7–8 Mandate ✓ T27.
+- **Mandate:** cap 2 + GOV-05 + GOV-06 = **4**; recharge 8 − 2 COM-05 − 1 COM-06 − 1 BEL-07 = **4** = the floor ✓ 22 §4.2. The 52-season / 7–8 Mandate estimate was for the earlier 13-minute cadence; the current 19.75-minute projection gives about 13.2 and needs a budget review (07c §10.1).
 
 ### 20.8 Metal and fuel (T17–T19)
 - **Steady state** reproduces 22 §5.6 by construction (service life §4.1): tools 92 ws/yr ÷ 24 × 0.15 = 0.58 L (tin), ÷ 16 = 0.86 L (arsenical); arms 0.15 L; ≈ 0.85 L bronze per 100 people a year.
@@ -1469,7 +1470,7 @@ Per civilization at KEY-4: the capital's Scribe 24 × 1.6 = 38; ~2 Temples' Prie
 ---
 
 ## 22. Open issues
-1. **Insight ramp (T5) vs. measured mean (§1.4)** disagree by ~25% over the E3 window, which is the difference between a 12.4- and a 10.2-minute E3 (§20.4). WP2's live-mode fit decides EraBase (200 or ~240).
+1. **Historical Insight ramp (T5) vs. measured mean (§1.4)** disagreed by ~25% over the earlier E3 window. Current EraBase is 400 by the cadence follow-up; rerun the live-mode fit and T5 checks against the new timing projection.
 2. **The re-kit dominates fuel** (§20.8): T19 may exceed 50% drawdown without WOD-04. If metal_sim confirms, the levers are a larger remelt share (0.5 → 0.7) or slower adoption (T18's 12 seasons → 16), not durability (which T17 fixes).
 3. **Floods are not simulated yet** (12 §7 lists them as a living-world event). AGR-06's and NUM-06's `flood_loss ×0.5` do nothing until WP7 adds the 5%-a-year river flood; the food-cap targets do not depend on it.
 4. **AGR-06's ×1.17 target** assumes ~64% of all fields are irrigated (§20.6); if check_e3 measures fewer river settlements, C1-E3 lands near 180 and the shortfall belongs to geography (22's intended river fork), not a tuning bug. Re-state the target per river share rather than raise the number.

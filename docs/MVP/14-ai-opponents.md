@@ -438,7 +438,7 @@ Deferred with the later eras: Legend vs Warlord ≥ 65% (Legend ties Warlord wit
 At minute 33 Firsts are about half of Legacy (Dominion ~800, Mastery ~220, Firsts ~950 per civilization). I checked whether that is a bug before touching the weights. Findings:
 
 - **Within E0–E2 it is consistent with the design.** Dominion is back-loaded on purpose (07b R8: 2.7% of Dominion in E0–E3 under habitable-land scoring, 24% under claimed-land scoring), so the early mix cannot show the full-game 50/30/15 split. A First is `EraBase × 0.5` (`×3` for Keystones and Wonders), which at E0–E2 is 11–37 points (33–112 for Keystones), against 1–3 for a Mastery project.
-- **Historical pre-M10 rule (resolved).** With the progressive research curve, `EraBase` now grows from 22 (E0) to 5,500,000 (E9). Under the former `First = EraBase × 0.5` rule, an E9 First would have been 2.75 million Legacy; M10 replaced that cost-linked scoring with per-era Legacy units, so Firsts no longer inherit EraBase growth. Keep this note as the history of the scoring-scale issue, not a current behavior claim.
+- **Historical pre-M10 rule (resolved).** The former research curve grew from 22 (E0) to 5,500,000 (E9). Under the former `First = EraBase × 0.5` rule, an E9 First would have been 2.75 million Legacy; M10 replaced that cost-linked scoring with per-era Legacy units, so Firsts no longer inherit EraBase growth. Keep this note as the history of the scoring-scale issue, not a current behavior claim.
 - **Decision:** leave the E0–E2 weights as they are; carry the scale problem as a risk for the later-era milestone (17 §9). The A1–A5 results are insensitive to it because every civilization sees the same scale.
 
 ### 18.2 Decision-model update (2026-10-22)

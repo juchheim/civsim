@@ -247,11 +247,11 @@ def report(name="tuned", pace="Standard", arch="Balanced", **kw):
 LIVE = dict(
     InsightCalibration=1.6,        # content/constants/balance.yaml (07c §7a)
     KHOfCommons=0.314,             # Know-how per calibrated Commons Insight: live share 17.6% (07d §2)
-    # Requirement multiplier per era. E0–E2 overheads fit the pre-cadence live baseline; E2 now costs more, so
-    # KEY-3 is intentionally later. E3: the measured live E2 spend ÷ oracle
-    # requirement (1.20: the Council's extra picks) × the model's progress ÷ Insight (1.21) ÷ the live one (1.16).
+    # Requirement multiplier per era. E0–E2 overheads fit the pre-cadence live baseline; the current cadence raises
+    # KEY-3 and KEY-4. E3's overhead uses the measured live E2 spend ÷ oracle requirement (1.20: extra Council picks)
+    # × model progress ÷ Insight (1.21) ÷ live progress ÷ Insight (1.16).
     Overhead=[1.422, 1.398, 1.328, 1.25],
-    EraBase=[22, 50, 100, 160],    # 07c §10: E2 cadence raised; E3 stays near 13 min in the updated live projection
+    EraBase=[22, 50, 150, 400],   # 07c §10.1: current cadence; projected E3 ~20 min, KEY-4 ~61
     BackfillOverlap=0.30,
     FoodFactor=1.35,               # live FoodCap ÷ 09 target (median 120 vs 88 at E2 end, 07d §2)
     Dwelling=[4, 6, 8, 8],         # capacity of the dwelling the planner builds, by era (lean-to, pit house, wattle, mudbrick)
@@ -270,6 +270,7 @@ LIVE = dict(
     HazardMult=1.07,
     E3InsightMult=1.0,             # sensitivity only: Insight × this from KEY-3 on               # live excess mortality (ecology, shortfalls, epidemics) on every hazard
 )
+LIVE_VALIDATION_BASELINE = [22, 50, 75, 150]  # costs used by the measured CSV; preserve historical model-vs-live comparison
 # E3 (and KEY-4 backfill) projects by research position: (id, at, take probability). Cap projects keep 09's
 # placement (params.CAPS); these are the structure and role projects (doc 22 §12, closure = prob 1).
 LIVE_E3 = {"TRD-04": (0.30, 1.0), "COM-05": (0.40, 1.0), "SOC-08": (0.45, 1.0), "SOC-09": (0.60, 1.0),
@@ -469,9 +470,9 @@ def live_summary(rows, done_at, req):
     return out
 
 
-def fit_live_erabase(cfg=None, target=13.0):
+def fit_live_erabase(cfg=None, target=20.0):
     """Bisect EraBase[3] so the live-mode E3 duration (own KEY-3 -> own KEY-4) equals `target` minutes."""
-    lo, hi = 120.0, 320.0
+    lo, hi = 120.0, 700.0
     for _ in range(14):
         mid = (lo + hi) / 2
         c = dict(LIVE, **(cfg or {}))
@@ -488,6 +489,7 @@ def fit_live_erabase(cfg=None, target=13.0):
 def fit_live_overhead(cfg=None, targets=(6.6, 20.8, 34.0)):
     """Fit Overhead[0..2] so live-mode KEY-1/2/3 land on the live medians (tools/live_data.py); E3 takes E2's."""
     c = dict(LIVE, **(cfg or {}))
+    c["EraBase"] = list(LIVE_VALIDATION_BASELINE)
     ov = list(c["Overhead"])
     for e in range(3):
         lo, hi = 0.7, 2.0
@@ -511,7 +513,7 @@ def live_validate(out=print):
     import statistics as st
     live = L.load()
     ks = L.keystones(live)
-    rows, done_at, _ = run_live(dict(E3=False), minutes=64)
+    rows, done_at, _ = run_live(dict(E3=False, EraBase=LIVE_VALIDATION_BASELINE), minutes=64)
     out("Live mode vs the live sim (E2 economy; live = 8 seeds × 4 civs mean):")
     out(f"  KEY-1/2/3: model {done_at.get(1):.1f} / {done_at.get(2):.1f} / {done_at.get(3):.1f};"
         f" live median {st.median(ks['k1']):.1f} / {st.median(ks['k2']):.1f} / {st.median(ks['k3']):.1f}")
@@ -550,38 +552,36 @@ def live_targets(cfg, out=print, label=""):
     backfills = 20 * (1 - LIVE["BackfillOverlap"])
     m = mandate_earned(r["e3"])
     rows = [
-        ("T1", "KEY-3 (min)", f"{r['k3']:.1f}", "29 ±25% (21.8–36.2)", 21.75 <= r["k3"] <= 36.25),
-        ("T2", "E3 duration (min)", f"{r['e3']:.2f}", "13.0; median 11.5–14.5", 11.5 <= r["e3"] <= 14.5),
-        ("T3", "KEY-4 (min)", f"{r['k4']:.1f}", "43 ±25% (32.3–53.8)", 32.25 <= r["k4"] <= 53.75),
-        ("T5", "Insight/min at KEY-3 -> KEY-4", f"{r['ins_k3']:.0f} -> {r['ins_k4']:.0f}", "~330 -> 650–800 ±20%",
-         abs(r["ins_k3"] / 330 - 1) <= 0.2 and 520 <= r["ins_k4"] <= 960),
+        ("T1", "KEY-3 (min)", f"{r['k3']:.1f}", "~42 projection; live C5 rerun pending", None),
+        ("T2", "E3 duration (min)", f"{r['e3']:.2f}", "~20 projection; live M10 rerun pending", None),
+        ("T3", "KEY-4 (min)", f"{r['k4']:.1f}", "~61 projection; check year-64 headroom", None),
+        ("T5", "Insight/min at KEY-3 -> KEY-4", f"{r['ins_k3']:.0f} -> {r['ins_k4']:.0f}", "older 13-min target; reset after M10 rerun", None),
         ("T6", "Know-how share", f"{100 * r['kh_share']:.1f}%", "13–20%", 0.13 <= r["kh_share"] <= 0.20),
-        ("T7", "E3 roles share of Insight at KEY-4", f"{100 * r['e3_roles_share']:.1f}%", "12–20%",
-         0.12 <= r["e3_roles_share"] <= 0.20),
-        ("T8", "in-era completions / backfills", f"{n_done:.1f} / {backfills:.1f}", "22–25 / 11–20",
-         22 <= n_done <= 25 and 11 <= backfills <= 20),
+        ("T7", "E3 roles share of Insight at KEY-4", f"{100 * r['e3_roles_share']:.1f}%", "recheck roles at the longer E3 duration", None),
+        ("T8", "in-era completions / backfills", f"{n_done:.1f} / {backfills:.1f}", "recheck counts at the longer E3 duration", None),
         ("T9", "s per in-era completion (07 F10); Mandate", f"{r['e3'] * 60 / n_done:.0f} s ({r['e3'] * 60 / (n_done + backfills):.0f} "
-         f"with backfills); {m:.1f}", "25–35 s; 7–9 per E3", 25 <= r["e3"] * 60 / n_done <= 35 and 7 <= m <= 9),
-        ("T10", "people per civ at KEY-4", f"{r['pop_k4']:.0f}", "220 (170–300)", 170 <= r["pop_k4"] <= 300),
+         f"with backfills); {m:.1f}", "Primary ~71s in mean-field; review Mandate budget", None),
+        ("T10", "people per civ at KEY-4", f"{r['pop_k4']:.0f}", "rebaseline for the longer E3", None),
         ("T11", "settlements per civ at KEY-4", f"{r['S_k4']} (biggest {r['biggest_k4']:.0f}; towns {r['towns_k4']}, "
-         f"cities {r['cities_k4']})", "7 (5–10)", 5 <= r["S_k4"] <= 10),
+         f"cities {r['cities_k4']})", "rebaseline for the longer E3", None),
     ]
     out(f"  -- {label}")
     for tid, name, got, tgt, ok in rows:
-        out(f"  {tid:4s} {name:38s} {got:34s} target {tgt:28s} {'ok' if ok else 'MISS'}")
+        status = "pending" if ok is None else ("ok" if ok else "MISS")
+        out(f"  {tid:4s} {name:38s} {got:34s} target {tgt:40s} {status}")
     return r, rows
 
 
 def live_report(out=print):
     out("== balance_sim live mode: E3 at Standard pace, four Balanced civs (doc 22 §15.1 T1–T11)")
     for regime in ("village", "towns"):
-        for eb in (160, 200):
+        for eb in (400, 500):
             r = live_summary(*run_live(dict(Regime=regime, EraBase=LIVE["EraBase"][:3] + [eb]), minutes=75))
             out(f"  {regime:7s} EraBase {eb}: E3 {r['e3']:.2f} min (KEY-3 {r['k3']:.2f}, KEY-4 {r['k4']:.2f})")
     fits = {}
     for reg in ("village", "towns"):
         fits[reg] = fit_live_erabase(dict(Regime=reg))
-        out(f"  fitted EraBase[3] for a 13.0-min E3 ({reg} housing): {fits[reg]:.1f} -> {int(round(fits[reg] / 10) * 10)}")
+        out(f"  fitted EraBase[3] for a 20.0-min E3 ({reg} housing): {fits[reg]:.1f} -> {int(round(fits[reg] / 10) * 10)}")
     eb = LIVE["EraBase"][3]  # current cadence projection after raising E2's EraBase
     out(f"\n  T-table at EraBase[3] {eb}:")
     tabs = {}
@@ -610,10 +610,8 @@ def live_check():
             assert 0.60 <= rS <= 1.50, (m, "settlements", rS)
             assert 0.75 <= ri <= 1.30, (m, "insight", ri)
     assert abs(done_at[3] - st.median(ks["k3"])) <= 3.0, done_at
-    r = live_summary(*run_live(dict(Regime="towns", EraBase=LIVE["EraBase"][:3] + [140]), minutes=75))
-    assert 11.5 <= r["e3"] <= 14.5, r
-    r200 = live_summary(*run_live(dict(Regime="towns", EraBase=LIVE["EraBase"][:3] + [200]), minutes=80))
-    assert r200["e3"] > 14.5, ("EraBase 200 is too slow in live mode", r200)
+    r = live_summary(*run_live(dict(Regime="towns", EraBase=LIVE["EraBase"]), minutes=80))
+    assert abs(r["k3"] - 41.5) <= 1.0 and abs(r["k4"] - 61.25) <= 1.5 and abs(r["e3"] - 19.75) <= 1.0, r
     assert 0.13 <= r["kh_share"] <= 0.20, r
     print("balance_sim live check passed")
 

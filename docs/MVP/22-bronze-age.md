@@ -2,7 +2,7 @@
 
 > The design of the fourth era, **E3 Bronze**, from KEY-3 *Age of Metal* to the moment KEY-4 *Iron & Law* is the next keystone. **The first cut of Bronze is all of Bronze:** the 65 E3 projects and KEY-4 ship together in milestone M10 ([17 §3](17-vertical-slice.md#3-milestones)). The match no longer ends at KEY-3.
 > Built on [01](01-game-structure.md), [02](02-research-structure.md), the E3 rows of [03a](03a-research-craft.md)/[03b](03b-research-kin.md)/[03c](03c-research-reach.md), [04 §5.1](04-research-paths.md#51-e3-bronze--key-4-iron--law), [05](05-simulation-structure.md), [07](07-balance-findings.md)/[07b](07b-territory-findings.md)/[07c](07c-e0-e2-checks.md), [09](09-population-and-health.md)–[14](14-ai-opponents.md), [18](18-view-layer.md)–[21](21-island-crossing.md), `content/catalog/`, the balance oracle in [balance/tools](balance/tools/) and measurements of the live sim (§1.4).
-> Decided under full design autonomy. Where a decision overrides an earlier one, §1.3 says so and why. **Design only:** nothing in `src/` or `content/` has changed; §18 lists the follow-up edits to other documents.
+> Decided under full design autonomy. Where a decision overrides an earlier one, §1.3 says so and why. **Bronze feature implementation remains pending;** the era research-cost update is in `content/registries/eras.yaml`, and §18 lists the feature follow-up edits to other documents.
 > **Node count.** E3 is **65 projects** (24 Craft, 21 Kin, 20 Reach, as in [03 §4.1](03-research-catalog.md#41-projects-per-era-and-theme)) **plus KEY-4** = 66 nodes, all `status: draft` today. A text search for `era: 3` finds 68 lines because KEY-3's `era_advance` and KEY-4's `breadth` also carry the field.
 
 ---
@@ -17,7 +17,7 @@ Roots ends with villages, fields and a chief. Bronze is **the age of metal, wall
 | # | Decision | Section |
 |---|----------|---------|
 | B-D1 | **The Bronze chapter:** the match ends when the human completes KEY-4, or 3 years after the first rival does, or at Year 64. Legacy decides. Harness matches use the same rule without the human clause | §3.1 |
-| B-D2 | **E3 lasts 13 min** (KEY-3 ≈ 29–32 → KEY-4 ≈ 43 at Standard, ±25%), **EraBase E3 180 → 160** (07d fit 150, re-fitted after WP7; re-fit again after WP8/WP9) | §3.2, §15 |
+| B-D2 | **Current cadence projection:** KEY-3 ≈ 41.5 → KEY-4 ≈ 61.25 at Standard, E3 ≈ 19.75 min; EraBase E2/E3 = **150/400**. These are model projections; fresh live acceptance and Year-64 headroom checks are pending | §3.2, §15, 07c §10.1 |
 | B-D3 | **Legacy units per era** replace `First = EraBase × 0.5`: Mastery `2 × (era + 1)`, First `3 × (era + 1)` (×4 Keystones and Wonders), built Wonder `25 × (era + 1)`. Dominion unchanged. Restores the 50/30/15/5 split | §3.3 |
 | B-D4 | **Mandate and six Decrees**, unlocked at KEY-3 and grown by GOV/COM/BEL research; the AI uses the same levers | §4 |
 | B-D5 | **Tin is scarce and placed on purpose:** per continent one contested middle field between the pair, two far placers and one island placer; **arsenical copper is guaranteed** within 25 tiles but deep (Shaft Mining). Bronze is always possible; *good* bronze is a strategic question | §5.1 |
@@ -45,7 +45,9 @@ Roots ends with villages, fields and a chief. Bronze is **the age of metal, wall
 | DEF-05 "besiegers need siege engines" with no siege rule; capture by assault only | 03c, 13 §8.2 | **Investment** (§7.4) | Walls must buy time, not invulnerability |
 | **Not overridden:** the 4 : 2 : 1 slot model (D3), breadth N 21 for KEY-4, Dominion victory (D13, left on and unreachable in E3), representation scale, the determinism rules D1–D10 | — | — | The slots are the core decision and tested (P1, P2); Decrees add a second, slower decision without diluting it |
 
-### 1.4 What the live sim says today (measured 2026-10-22)
+### 1.4 Historical live baseline (measured 2026-10-22)
+
+These measurements predate the 2026-10-24 research-cost changes. They remain the baseline for population and territory comparisons; timing and downstream T-values need fresh acceptance at the current cadence in §15.
 
 Release build of `main`, `civsim.pack`, Standard pace, four Balanced civilizations on the Council (E3 projects cannot complete yet: `LivingEconomyModel.MaxEra = 2`).
 
@@ -60,7 +62,7 @@ Release build of `main`, `civsim.pack`, Standard pace, four Balanced civilizatio
 | Raids, wars, captures in 50 minutes (Council politics) | 0, 0, 0 (55 gifts, 29 barter trips) | — | — |
 
 **Findings that shape this design:**
-1. **Insight pace is on the oracle's track** (live E3-window mean ≈ 400/min against 371, Know-how 17–18% against 16%), so E3's length is governed by EraBase. With E3 roles the live sim would run ~11–12 min at EraBase 180, which is why B-D2 raises it to 200.
+1. **Historical Insight pace was on the earlier oracle track** (live E3-window mean ≈ 400/min against 371, Know-how 17–18% against 16%), so E3's length was governed by EraBase. Current cost pacing is updated in §15 and 07c §10.1.
 2. **Live population trails the oracle by ~35%** in E3 (exact ages, 07c §7a), so population targets are set on the live sim, not on `balance_sim.py`.
 3. **The live map fills 2–3× faster than 07b predicts:** 7–10 settlements per civ and ~29% of land claimed at minute 45, against 2 and ~13%. Uneven settlements split again sooner than the mean-field "average settlement". **The frontier closes during E3, not in E5–E7.** Bronze is therefore designed as the age when borders first meet, and the oracle must be re-anchored (§15.2).
 4. **Without purpose, nobody fights:** zero raids in 50 Council minutes; Chieftain AIs raid 1.5–6.5 times in 80 minutes (14 §16.3a). E3 gives conflict an object (tin, mines, caravans, the midline) and gives the player the timing (§4).
@@ -111,12 +113,12 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 
 | Moment | Oracle | Live today | **Target** | Gate tolerance |
 |---|---:|---:|---:|---|
-| KEY-3 | 29.5 | 30.1–35.0 (median 32.0) | **29** (C5) | ±25% (21.8–36.2) |
-| E3 duration (own KEY-3 → own KEY-4) | 13.0 | — (≈ 11 projected at EraBase 180) | **13.0** | ±25% (9.75–16.25), median in 11.5–14.5 |
-| KEY-4, Council median | 42.5 | — | **43** | ±25% (32.3–53.8) |
-| First KEY-4 in the world | — | — | **≈ 40** | — |
-| Chapter end, median | — | — | **44–48** | ≤ 10% of Balanced matches reach Year 64 |
-| Decision cadence | 34 s per in-era completion (07 F10) | — | **25–35 s per completion, a Decree every ~2 min** | — |
+| KEY-3 | 41.5 | 30.1–35.0 measured before cadence updates | **41.5 projection** | rerun live C5 |
+| E3 duration (own KEY-3 → own KEY-4) | 19.75 | — | **19.75 projection** | rerun live M10 |
+| KEY-4, Council median | 61.25 | — | **61.25 projection** | complete before the Year-64 cap; rerun M10 |
+| First KEY-4 in the world | — | — | earlier than Year 64; timing projection pending | fresh M10 run |
+| Chapter end, median | — | — | countdown after first KEY-4 or Year 64 cap | reevaluate Year-64 share |
+| Decision cadence | historical 34 s per in-era completion (07 F10) | — | current live acceptance pending; mean-field Primary interval is ~71 s | — |
 
 ### 3.3 Legacy units per era
 `L(e) = e + 1` for a project of era *e*.
@@ -129,12 +131,12 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 | **Wonder built** (new) | `25 × L(e)` | — | — | 75 (Megalith) | 100 (Ziggurat) |
 | **Dominion** | 100 × share of claimed land per year (unchanged, 07b R8) | | | | |
 
-**Check (per civilization, four civs).** At minute 33 (the E0–E2 horizon of 14 §17.3: Dominion ~800, ~112 projects) the new units give Mastery ~440 and Firsts ~260: **53% / 29% / 17%**. At a chapter end near minute 46 (Dominion ~1,150, ~165 projects, ~45 E3 Firsts in the world): Mastery ~780, Firsts ~420, Wonders ~40: **48% / 33% / 18% / 2%**. Under the old rule the same match is about Dominion 30%, Mastery 10%, **Firsts 60%**. The units are era-proportional and do not grow with EraBase, so they stay sane through E9 (projects per era fall as eras lengthen; Dominion accrues per year).
+**Historical check (per civilization, four civs).** At minute 33 the earlier-fit units gave Mastery ~440 and Firsts ~260: **53% / 29% / 17%**. At the earlier chapter end near minute 46 they gave Mastery ~780, Firsts ~420, Wonders ~40: **48% / 33% / 18% / 2%**. Under the old rule that match was about Dominion 30%, Mastery 10%, **Firsts 60%**. These scores need a fresh run for the current ~61-minute KEY-4 projection. The units remain era-proportional and do not grow with EraBase.
 
 Every A-gate (A1–A6) must be re-measured under the new units in M10 (§16); A5's archetype fit is expected to move because wins no longer hinge on the Firsts race.
 
 ### 3.4 Representation and budgets
-- **1 figure = 1 person** through E3 (01 §8, 07 F6). Target people per civ at KEY-4: **170–300** (§15); four civs ≈ 700–1,200 figures, ≤ ~1,600 at the Year-64 cap, inside the 2,400-figure render gate (S14).
+- **1 figure = 1 person** through E3 (01 §8, 07 F6). The current live-mode projection is about **375 people per civ at KEY-4** (§15), or ~1,500 figures for four civs; rerun the Year-64 peak and render-budget checks before M10 acceptance.
 - Headless chapter (to Year 64, four AIs): **≤ 30 s**; tick ≤ 4 ms mean, no GC pause over 16 ms (S12/S13 extended).
 
 ---
@@ -147,7 +149,7 @@ Playtesters found the game interesting but wanted to decide **when to form settl
 ### 4.2 Mandate
 - **Unlocked by KEY-3** for every civilization ("the chief's word carries"). Integer, starts at **1**, cap **2**; **GOV-05** +1 and **GOV-06** +1 (max 4).
 - **Recharge:** +1 every *R* seasons, `R = 8 − 2 (COM-05) − 1 (COM-06) − 1 (BEL-07)`, minimum 4. A civilization with a full Mandate does not accumulate.
-- Over a 13-minute E3 (52 seasons) a civilization earns about **7–9 Mandate** and issues **5–8 Decrees**: one every ~2 minutes, on top of a research completion every ~30 s (01 §5 cadence).
+- **Historical 13-minute fit:** 52 seasons yielded about **7–9 Mandate** and **5–8 Decrees**. At the current 19.75-minute projection, the model yields about 13.2 Mandate; review the recharge or cap before accepting the longer cadence. Mean-field Primary intervals are about 71 s in Bronze rather than the earlier ~30 s completion cadence.
 - Shown as pips in the top bar with "next in 3 seasons".
 
 ### 4.3 The six Decrees
@@ -436,7 +438,7 @@ The E3 product of 09 §5.2's steps is **×2.16** on an average settlement's food
 
 ## 12. The 65 projects and KEY-4
 
-Effect primitives as in [11 §1](11-e0-e2-project-specs.md#1-effect-primitives-syntax-used-in-the-tables), plus four new kinds: `Admin(span, overreach)`, `Mandate(cap, recharge)`, `Sanitation(s)` and `Defense(×, rule)`. Costs at **EraBase 200**: D/M **200**, S **240**, R 160, I **300**, W **400**, K **500**. `Cap(…)` values are 09 §5.2's targets. Moments, flavor and the exact registry entries (goods, tools, structures, roles, actions, practice) are work package WP1 (§20); the numbers below are binding for it.
+Effect primitives as in [11 §1](11-e0-e2-project-specs.md#1-effect-primitives-syntax-used-in-the-tables), plus four new kinds: `Admin(span, overreach)`, `Mandate(cap, recharge)`, `Sanitation(s)` and `Defense(×, rule)`. Current costs at **EraBase 400**: D/M **400**, S **480**, R **320**, I **600**, W **800**, K **1,000**. `Cap(…)` values are 09 §5.2's targets. Moments, flavor and the exact registry entries (goods, tools, structures, roles, actions, practice) are work package WP1 (§20); the numbers below are binding for it.
 
 ### 12.1 CRAFT (24)
 
@@ -573,23 +575,23 @@ Budgets: 60 fps at Z0–Z2 with 1,600 figures, the new structures and all overla
 
 ## 15. Balance targets
 
-> **Amended 2026-10-22 by the oracle extension ([07d](07d-e3-balance-findings.md) §10–§11).** The live Council spends about 1.20× the oracle's research requirement in every era and KEY-3 lands near minute 34, so **EraBase E3 is 160, not 200** (07d fitted 150; WP7's live run on the town and Cohesion economy applied the T4 re-fit rule to 160; costs D/M 160 · S 192 · R 128 · I 240 · W 320 · K 400; E3 median 12.0 min with the earlier E2 cost of 75). The cadence follow-up raises E2 to 100; the live-mode oracle now projects KEY-3 at 36.75, KEY-4 at 49.75 and E3 at 13.0 min ([07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24)). This is not a fresh live acceptance run. Other changes: T5 about 270 → 550 Insight a year; T10 170 people at KEY-4 (120–230); City tier at 90 people, so B17 reads Town in ≥ 75% of civs and City in ≥ 25%; T12 reaches 190 only with a 40% ard field limit and canals over fields within 2 tiles of a river; T16 25–50% of foundings by Decree; T19 is measured on towns of 80–100 (25–70% wood loss without WOD-04, under 5% with it); T21's cells move as in 07d §6; T22 needs rationing (an invested town eats 0.75 of need); T25 reads 60–80 with 0.03–0.08 secessions per civ (captured towns); B12 reads "at least 10% of rung-6 workers fall back within 12 seasons, half within about 9 years". The finding that **live settlements are housing-bound, not food-bound**, makes Market towns build housing ahead (07d F2). Where the table below disagrees with 07d §10, 07d wins.
+> **Historical amendment (2026-10-22 and earlier 2026-10-24):** the live Council and oracle fit moved EraBase E3 from 200 to 150, then the first cadence follow-up set E2/E3 to 100/160. Those projections and costs are superseded by [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24). The current model projection uses E2/E3 150/400, puts KEY-3 at 41.5, KEY-4 at 61.25, and E3 at 19.75 minutes. It has not been confirmed by a fresh live acceptance run; the existing Year-64 cap leaves little projected headroom. T5/T10 and other downstream balance targets below also need reevaluation with the slower schedule. The finding that **live settlements are housing-bound, not food-bound**, makes Market towns build housing ahead (07d F2).
 
 ### 15.1 Target table (Standard pace, four civilizations, Balanced unless stated)
 
 | # | Quantity | Target | Tolerance | Reasoning | Oracle |
 |---|---|---|---|---|---|
-| T1 | KEY-3 | 29 min | ±25% (C5) | live median 32.0 today, inside | existing |
-| T2 | **E3 duration** (own KEY-3 → own KEY-4) | **13.0 min** | gate ±25%; median 11.5–14.5 | 02 §8.3 band 12–14; oracle 13.0 (09 §11.2) | balance_sim ✓ |
-| T3 | **KEY-4** (Council median) | **43 min** | ±25% (32.3–53.8) | KEY-3 ≈ 30 + 13 | balance_sim live mode (needs extension) |
-| T4 | **EraBase E3** | **200** (D/M 200, S 240, I 300, W 400, K 500) | re-fit: `200 × 13 ÷ measured median`, rounded to 10, if T2's median leaves 11.5–14.5 | live E3-window Insight ≈ 1.08× oracle and Know-how 17–18% vs 16% ⇒ 180 runs ~11.8 min live; 200 restores ~13 | fit.py on live mode (extension) |
+| T1 | KEY-3 | 41.5 min (projection) | live C5 rerun pending | updated live-mode oracle | balance_sim projection |
+| T2 | **E3 duration** (own KEY-3 → own KEY-4) | **19.75 min (projection)** | live M10 rerun pending | current EraBase E3=400 projection | balance_sim projection |
+| T3 | **KEY-4** (Council median) | **61.25 min (projection)** | confirm completion before Year 64 | current KEY-3 + E3 projection | balance_sim projection |
+| T4 | **EraBase E3** | **400** (D/M 400, S 480, R 320, I 600, W 800, K 1,000) | fresh live fit after M10 acceptance | tuned to slow Bronze; replaces the earlier 150 live fit | fit.py projection; acceptance pending |
 | T5 | Insight per minute | ~330 at KEY-3 → 650–800 at KEY-4 | ±20% | live 300–440 at minute 35 (E2 tech) + E3 roles | live |
 | T6 | Know-how share of progress | 13–20% | — | 07 F4; live 17–18% | existing |
 | T7 | E3 roles' share of Insight | 12–20% | — | oracle 15% (07 §6); roles per structure (§8.4) | balance_sim (roles by structure: extension) |
 | T8 | In-era completions / backfills | 22–25 / 11–20 | — | N 21 + 1.7 (07 F9); 20 forced backfills, ~30–40% pre-taken | balance_sim ✓ |
-| T9 | Seconds per completion | 25–35 s; a Decree every ~2 min | — | 07 F10 (34 s); §4.2 | balance_sim ✓ |
-| T10 | **People per civ at KEY-4** | **220** (170–300) | — | live 135–226 at minute 45 with E2 caps; E3 caps ×2.16; oracle 287 trails live by 35% the other way | exact_age_sensitivity (extend to E3) |
-| T11 | **Settlements per civ at KEY-4** | **7** (5–10) | — | live 7–10 at minute 45 (no E3 caps; larger caps slow fission) | territory_sim on live trajectories (extension) |
+| T9 | Primary interval and Mandate | Primary ~71 s in mean-field; fresh live acceptance and Mandate budget review pending | — | Current EraBase model; old per-completion gate used the 13-minute E3 | balance_sim projection |
+| T10 | **People per civ at KEY-4** | current model projection 374–378; live rebaseline pending (historical target 220, 170–300) | — | live-mode model at E2/E3 EraBase 150/400; earlier data were measured by minute 45 | exact_age_sensitivity (rerun for current cadence) |
+| T11 | **Settlements per civ at KEY-4** | current model projection 10–13; live rebaseline pending (historical target 7, 5–10) | — | village/towns housing projections at E3 EraBase 400 | territory_sim on current live trajectory |
 | T12 | FoodCap per average settlement | 88 → 190 | ±10% (C1-E3) | 09 §5.3; §9 mechanism check | check_e0e2 → check_e3 (extension) |
 | T13 | Hazards E3/E0, e45 | 09 §4.1 ratios; e45 17 | ±10% (C3-E3) | 09 | check_e3 + harness (extension) |
 | T14 | **Claimed land at KEY-4** | **30–42%** | — | live 28.7% at minute 45 (radius 4); town 5, city 6, hinterland 7 | territory_sim (extension) |
@@ -605,7 +607,7 @@ Budgets: 60 fps at Z0–Z2 with 1,600 figures, the new structures and all overla
 | T24 | **Legacy split at chapter end** | Dominion 45–55%, Mastery 25–35%, Firsts 12–20%, Wonders 0–8% | — | §3.3 | legacy_scale (new) |
 | T25 | Cohesion | settlements 55–70 typical; 0.1–0.5 secessions per civ per E3; > 2 in one civ within 2 years in < 2% of matches | — | §8.3 | cohesion_sim (new) |
 | T26 | Tin Folk | 3–6 per map at the first KEY-3; ≥ 1 compact with one in ≥ 50% of matches | — | §6.4 | harness |
-| T27 | Mandate | 7–9 earned and 5–8 Decrees per E3; < 25% of E3 seasons at the cap for an AI | — | §4.2 | harness |
+| T27 | Mandate | Historical 7–9 earned and 5–8 Decrees over 13 minutes; current projection ≈13 earned over 19.75 minutes, budget review pending | — | §4.2 | live harness rerun |
 | T28 | Figures and tick | ≤ 1,600 figures at Year 64; tick ≤ 4 ms mean | — | §3.4 | harness |
 
 ### 15.2 What the Python oracle must be extended to model
@@ -685,7 +687,7 @@ For whoever owns each document; this design only edits 17, 01 and the README.
 
 | # | Doc § | Change |
 |---|---|---|
-| 1 | 02 §8.3 | EraBase E3 180 → **200** (provisional, §15 T4) |
+| 1 | 02 §8.3 | Current EraBase E2/E3 **150/400** (07c §10.1); earlier E3 fits are historical |
 | 2 | 02 §14 | Firsts: `3 × (era + 1)`, ×4 Keystones and Wonders; Mastery `2 × (era + 1)`; built Wonder `25 × (era + 1)` (§3.3) |
 | 3 | 02 §12 | Chop rung 5 Copper axe (MET-03), rung 6 Bronze axe (MET-04 or MET-05): unchanged; note tin's durability edge |
 | 4 | 05 §9.5, §10, §12.2 | Game-scale tiers (§8.1); Cohesion model and Admin span (§8.2–8.3); diplomacy: Compacts, Embargo, Pacts, Treaties (§6) |

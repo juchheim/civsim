@@ -7,7 +7,7 @@
 
 ## 1. Summary
 
-**Demography still drives pacing.** With the progressive cadence update, the current mean-field Standard arc runs **195 min** (Quick 97.5, Epic 338). E2 and E4–E9 now exceed the earlier 02 §8.3 windows by design; the full-arc target is about three hours, and the new model runs about 3 hours 15 minutes. Fertility ±15% moves the arc to 210.75 / 182 min, so demography remains a major pacing driver.
+**Demography still drives pacing.** With the current cadence ([07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)), the mean-field Standard arc runs **241.75 min** (Quick 120.88, Epic 419.03). Later-era projects take longer by design; this is a model projection and needs live validation. In the model, ±15% fertility moves the arc to 257.75 / 228.5 min, so demography remains a major pacing driver.
 
 **The mean-field balance model puts first fission at minute 7–9 for every archetype** (WS-A: 6–13). A late-winter food check splits the band when its lean-season food runs short (§7.2). The timing depends on the population clock, not on research speed: Insight ±20–25% moves it by at most one year. Live-simulation timing remains an open integration gate; see [07c §6](07c-e0-e2-checks.md#6-c4--first-fission).
 
@@ -21,7 +21,7 @@
 | Mortality | ASSUMED | life-table anchors per era (§4.1): child q(14) 47% → 1%, e45 15 → 37 years |
 | Winter multiplier | 2.0 … 1.0 | **2.0 · 1.7 · 1.4 · 1.25 · 1.2 · 1.15 · 1.1 · 1.08 · 1.05 · 1.05** (§4.3) |
 | Crowding | counts the group cap | **food and housing only** (social size splits a group; it doesn't starve it) |
-| EraBase E0…E9 (02 §8.3) | 20 · 45 · 70 · 180 · 600 · 3,400 · 18k · 160k · 1.0M · 4.8M | **22 · 50 · 100 · 160 · 660 · 3,750 · 19.5k · 175k · 1.05M · 5.5M** (progressive cadence, [07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24)) |
+| EraBase E0…E9 (02 §8.3) | 20 · 45 · 70 · 180 · 600 · 3,400 · 18k · 160k · 1.0M · 4.8M | **22 · 50 · 150 · 400 · 1,200 · 6,000 · 32k · 280k · 1.7M · 9M** (current cadence, [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)) |
 | Disease | not specified | 4 outbreak classes, density pressure, SIR-lite final size, novel-disease shock (§10) |
 
 Unchanged: Insight scale (Commons 4.8, roles ×8), breadth N, representation scale, claim radii, territory and specialist shares (justified in §8–§9).
@@ -432,7 +432,7 @@ For whoever owns each document. Nothing outside this file and `balance/` was edi
 
 | # | Doc § | Change |
 |---|---|---|
-| 1 | 02 §8.3 | EraBase → **22 · 50 · 100 · 160 · 660 · 3,750 · 19,500 · 175,000 · 1,050,000 · 5,500,000** (progressive cadence, 07c §10); E3 remains at the Bronze live fit |
+| 1 | 02 §8.3 | EraBase → **22 · 50 · 150 · 400 · 1,200 · 6,000 · 32,000 · 280,000 · 1,700,000 · 9,000,000** (current cadence, 07c §10.1); live acceptance pending |
 | 2 | 05 §9.1 | Caps: FoodBase 20, HousingBase 40, GroupBase 25, each raised project by project (§5); GroupCap ladder gains SOC-10 → 50,000 and GOV-12 → unbounded |
 | 3 | 05 §9.2 | Define Crowding = (Pop / MIN(Food, Housing))^6; FertMult table (§3.3); per-figure conception rule |
 | 4 | 05 §9.3 | Hazard tables (§4.1), Gompertz elders, cause shares (§4.2), winter channels (§4.3) |
