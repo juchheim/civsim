@@ -8,7 +8,7 @@ public enum UiGlyph
 {
     None, Pause, Play, Plus, Minus, Close, ChevronRight, ChevronDown, ChevronUp, Check, CheckBadge, BlockedBadge, Ring, HalfRing,
     Lock, Queue, ClockRing, Warning, Danger, Info, Hammer, Hearth, Compass, Gem, People, Hut, Flags, Scroll, Menu, Spark, Globe,
-    Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot,
+    Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star,
     EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler,
 }
 
@@ -238,6 +238,18 @@ public static class UiDraw
             case UiGlyph.Dot:
                 ci.DrawCircle(C, Q(0.18f), color);
                 break;
+            case UiGlyph.Star:
+                {
+                    var pts = new Vector2[10];
+                    for (int i = 0; i < 10; i++)
+                    {
+                        float r = (i % 2 == 0 ? 0.46f : 0.2f) * s;
+                        float a = -Mathf.Pi / 2 + i * Mathf.Pi / 5;
+                        pts[i] = C + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                    }
+                    ci.DrawColoredPolygon(pts, color);
+                    break;
+                }
             default:
                 if (glyph >= UiGlyph.EmblemSun) DrawEmblemShape(ci, glyph, o, s, color, line);
                 break;

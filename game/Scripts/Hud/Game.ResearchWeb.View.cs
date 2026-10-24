@@ -52,6 +52,7 @@ public partial class Game
     {
         if (!_researchWebVisible || _current is null || _catalog is null) return;
         MatchFrame frame = _current;
+        UpdateAgePath(frame);
         UpdateStrip(frame);
         UpdateQueueChip(frame);
         _updatingFocusBar = true;
@@ -179,6 +180,7 @@ public partial class Game
             QueueIndex = QueueIndexOf(def.Index),
             Progress = slot >= 0 && _pendingProject[slot] == -2 ? frame.FocusSlotPermille[slot] / 1000f : 0,
             Selected = def.Index == _selectedResearchProject,
+            OnAgePath = (uint)def.Index < (uint)_agePath.Length && _agePath[def.Index],
             Line2 = "",
             Line3 = "",
             Sub = "",
@@ -191,6 +193,68 @@ public partial class Game
             look.Line3 = est.Length > 0 ? $"{est} · {UiText.TypeNames[(int)def.Type]}" : UiText.TypeNames[(int)def.Type];
         }
         return look;
+    }
+
+    /// <summary>Marks unfinished prerequisites of the current age's turning point.</summary>
+    private void UpdateAgePath(MatchFrame frame)
+    {
+        if (_catalog is null) return;
+        _agePath = new bool[_catalog.Count];
+        int civ = frame.FocusCiv;
+        int era = frame.FocusEra;
+        if ((uint)civ >= (uint)frame.CivCount || era < 0) return;
+
+        ProjectDef? turningPoint = null;
+        foreach (ProjectDef def in _catalog.Projects)
+        {
+            if (def.IsKeystone && def.Numeric && def.BreadthEra == era)
+            {
+                turningPoint = def;
+                break;
+            }
+        }
+        if (turningPoint is null) return;
+
+        var visiting = new bool[_catalog.Count];
+        var processed = new bool[_catalog.Count];
+        MarkAgePathPrerequisites(turningPoint, visiting, processed);
+    }
+
+    private void MarkAgePathProject(int project, bool[] visiting, bool[] processed)
+    {
+        if (_catalog is null || (uint)project >= (uint)_catalog.Count) return;
+        ProjectState state = StateOf(project);
+        if (state is ProjectState.Completed or ProjectState.Dormant) return;
+        _agePath[project] = true;
+        if (processed[project]) return;
+        if (visiting[project]) return;
+        visiting[project] = true;
+
+        ProjectDef def = _catalog.Projects[project];
+        MarkAgePathPrerequisites(def, visiting, processed);
+        visiting[project] = false;
+        processed[project] = true;
+    }
+
+    private void MarkAgePathPrerequisites(ProjectDef def, bool[] visiting, bool[] processed)
+    {
+        foreach (int required in def.Requires)
+            if (StateOf(required) is not (ProjectState.Completed or ProjectState.Dormant))
+                MarkAgePathProject(required, visiting, processed);
+
+        if (def.RequiresAny.Length > 0)
+        {
+            bool anyDone = false;
+            foreach (int alternative in def.RequiresAny)
+                if (StateOf(alternative) is ProjectState.Completed or ProjectState.Dormant)
+                {
+                    anyDone = true;
+                    break;
+                }
+            if (!anyDone)
+                foreach (int alternative in def.RequiresAny)
+                    MarkAgePathProject(alternative, visiting, processed);
+        }
     }
 
     // ---- Choose view -------------------------------------------------------------------------
@@ -492,7 +556,8 @@ public partial class Game
                 look.HiddenPrerequisite = hidden;
             }
             chip.Bind(def, look);
-            chip.TooltipText = $"{def.Name} · {StateWord(state)}" + (state == ProjectState.Glimpsed ? $" — {AlmostSub(def)}" : "") +
+            chip.TooltipText = $"{def.Name} · {StateWord(state)}" + (look.OnAgePath ? " · prerequisite for the next age" : "") +
+                               (state == ProjectState.Glimpsed ? $" — {AlmostSub(def)}" : "") +
                                (_devVisible ? $"\n{def.Id}" : "");
             _navCards.Add(chip);
             if (def.Era <= 2) eraVisible[def.Era] = true;
