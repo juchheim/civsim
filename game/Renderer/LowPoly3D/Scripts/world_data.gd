@@ -42,6 +42,7 @@ var monuments := PackedInt32Array()     # stride 5: tile, civ, tick learned, pop
 var sea_tier := PackedInt32Array()       # per civilization: best boat known (0 none .. 4 outrigger)
 var signal_civs := PackedInt32Array()    # per civilization: 1 when it keeps signal fires (COM-04)
 var burn_learned := PackedInt32Array()   # per civilization: tick FIR-05 was learned, tick AGR-04 was learned (-1 = not yet)
+var dog_civs := PackedInt32Array()      # per civilization: 0 no dogs, 1 dogs in the villages, 2 dogs also haul travois
 var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was learned (-1 = not yet)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
@@ -126,6 +127,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	signal_civs = _int_data(d.signalCivs, 1) if d.has("signalCivs") else PackedInt32Array()
 	burn_learned = _int_data(d.burnLearned, 1) if d.has("burnLearned") else PackedInt32Array()
 	feast_learned = _int_data(d.feastLearned, 1) if d.has("feastLearned") else PackedInt32Array()
+	dog_civs = _int_data(d.dogCivs, 1) if d.has("dogCivs") else PackedInt32Array()
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

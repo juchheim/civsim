@@ -184,6 +184,9 @@ public sealed class MatchFrame
     // ---- feasting (SOC-05): per civilization, the tick it was learned, or -1 ----
     public long[] CivFeastLearned = Array.Empty<long>();
 
+    // ---- dogs (HUS-01 Wolf Companions, TRN-02 Travois & Sledges): per civilization, 0 none, 1 dogs about the villages, 2 dogs also haul travois on the trails ----
+    public byte[] CivDogs = Array.Empty<byte>();
+
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;
     /// <summary>1 footpath, 2 marked trail, 3 beaten road.</summary>

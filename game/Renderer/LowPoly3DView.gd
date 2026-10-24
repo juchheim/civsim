@@ -30,6 +30,7 @@ var last_season := -1
 var signal_rig: M7SignalRig
 var burn_rig: M7BurnRig
 var feast_rig: M7FeastRig
+var dog_rig: M7DogRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -60,6 +61,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	builder.trails_changed = false
 	feast_rig = M7FeastRig.new(builder, world_root)
 	feast_rig.sync(float(world.tick))
+	dog_rig = M7DogRig.new(builder, world_root)
+	dog_rig.sync()
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -83,6 +86,7 @@ func update_frame(frame_data: Dictionary) -> void:
 		builder.trails_changed = false
 		burn_rig.set_corridors(builder.trail_polys)
 	signal_rig.sync()
+	dog_rig.sync()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
@@ -103,6 +107,8 @@ func set_render_tick(tick: float) -> void:
 	if feast_rig != null:
 		feast_rig.sync(tick)
 		feast_rig.update(tick)
+	if dog_rig != null:
+		dog_rig.update(tick)
 
 ## Dev aid for scenarios: the first monument's ring centre in world coordinates (or the origin when there is none).
 func monument_focus() -> Vector3:
@@ -146,6 +152,16 @@ func burn_focus() -> Vector3:
 		return Vector3.ZERO
 	var c: Vector2 = burn_rig.fx_focus
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
+## Dev aids for scenarios: where a village dog is, and the middle of the first track a dog hauls along (the origin when none).
+func dog_count() -> Vector2i:
+	return Vector2i(dog_rig.dogs.size(), dog_rig.haulers.size()) if dog_rig != null else Vector2i.ZERO
+
+func dog_focus() -> Vector3:
+	return dog_rig.focus() if dog_rig != null else Vector3.ZERO
+
+func haul_focus() -> Vector3:
+	return dog_rig.haul_focus() if dog_rig != null else Vector3.ZERO
 
 ## Dev aid for scenarios: where a feast is under way now (the origin when none).
 func feast_focus() -> Vector3:

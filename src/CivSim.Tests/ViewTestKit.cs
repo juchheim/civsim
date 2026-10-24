@@ -90,6 +90,7 @@ internal static class ViewKit
         for (int c = 0; c < f.CivSignals.Length; c++) h.Add(f.CivSignals[c]);
         for (int c = 0; c < f.CivBurnLearned.Length; c++) h.Add(f.CivBurnLearned[c]);
         for (int c = 0; c < f.CivFeastLearned.Length; c++) h.Add(f.CivFeastLearned[c]);
+        for (int c = 0; c < f.CivDogs.Length; c++) h.Add(f.CivDogs[c]);
         h.Add(f.TrailCount);
         for (int i = 0; i < f.TrailCount; i++)
         {

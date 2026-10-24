@@ -532,6 +532,7 @@ public partial class Game : Node3D
             ["signalCivs"] = ToIntArray(frame.CivSignals, frame.CivSignals.Length),
             ["burnLearned"] = BurnLearnedTicks(frame),
             ["feastLearned"] = LearnedTicks(frame.CivFeastLearned),
+            ["dogCivs"] = ToIntArray(frame.CivDogs, frame.CivDogs.Length),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,

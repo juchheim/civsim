@@ -332,6 +332,26 @@ public partial class Game
                 Step(() => ZoomTo(26.0f), 1.2f);
                 Shot("signals-wide");
                 break;
+            case "dogs":
+                // --start-minute=14: learn Wolf Companions and Travois & Sledges, then follow a village dog and a dog hauling along a trail
+                Step(() => { FrameCapital(); ZoomTo(9.0f); GrantProject(FindProjectByName("Wolf Companions")); GrantProject(FindProjectByName("Travois & Sledges")); _session!.SetPaused(false); _session.SetSpeedIndex(1); }, 3.0f);
+                Step(() => { _target = (Vector3)_visualRenderer!.Call("dog_focus"); ZoomTo(1.7f); _session!.SetPaused(false); _session.SetSpeedIndex(1); }, 0.5f);
+                for (int i = 0; i < 5; i++)
+                {
+                    int n = i;
+                    Step(() => _target = (Vector3)_visualRenderer!.Call("dog_focus"), 1.2f);
+                    Shot($"dogs-village-{n}");
+                    Step(() => { }, 2.5f);
+                }
+                Step(() => { _target = (Vector3)_visualRenderer!.Call("haul_focus"); ZoomTo(1.7f); }, 0.5f);
+                for (int i = 0; i < 5; i++)
+                {
+                    int n = i;
+                    Step(() => { _target = (Vector3)_visualRenderer!.Call("haul_focus"); }, 1.2f);
+                    Shot($"dogs-haul-{n}");
+                    Step(() => { }, 2.5f);
+                }
+                break;
             case "burn":
                 // --start-minute=14: learn both projects, run fast until the first fire, then watch it at half speed and the years after
                 Step(() => { FrameCapital(); ZoomTo(6.0f); GrantProject(FindProjectByName("Landscape Burning")); GrantProject(FindProjectByName("Slash-and-Burn")); _session!.SetSpeedIndex(3); }, 0.5f);

@@ -129,4 +129,29 @@ public class ViewMonumentTests
         Assert.Equal(match.Research.CompletedTick(3, feast), frame.CivFeastLearned[3]);
         Assert.Equal(-1, frame.CivFeastLearned[0]);
     }
+
+    [Fact]
+    public void Each_civilization_reports_how_far_its_dogs_have_come()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(10);
+        var builder = new FrameBuilder(match, -1);
+        var frame = new MatchFrame();
+        builder.Build(match, frame);
+        for (int c = 0; c < frame.CivDogs.Length; c++) Assert.Equal(0, frame.CivDogs[c]);
+
+        int dogs = match.Research.Catalog.IndexOf("HUS-01");
+        runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, dogs, 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(1, frame.CivDogs[3]);
+        Assert.Equal(0, frame.CivDogs[0]);
+
+        int travois = match.Research.Catalog.IndexOf("TRN-02");
+        runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, travois, 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(2, frame.CivDogs[3]);
+    }
 }

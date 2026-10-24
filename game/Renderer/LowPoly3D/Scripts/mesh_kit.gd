@@ -46,6 +46,7 @@ func _init() -> void:
 	_monument()
 	_boats()
 	_feast()
+	_dogs()
 	_people()
 	_animals()
 
@@ -878,6 +879,96 @@ func _animals() -> void:
 	b.pole(Vector3(0.016, 0.025, -0.003), Vector3(0.012, 0.04, -0.004), 0.002, Color("#b9a68a"))
 	b.pole(Vector3(0.016, 0.025, 0.003), Vector3(0.012, 0.04, 0.004), 0.002, Color("#b9a68a"))
 	meshes["animal_small"] = b.commit()
+
+
+# ------------------------------------------------------------------ dogs (HUS-01, TRN-02; see dog_rig.gd)
+# Facing +X like the animals, about 0.05 long. Coats: 0 tan, 1 dark, 2 pale. Poses: trot_a / trot_b (legs swapped, played by
+# distance walked), stand, sit, lie. A collar in the civ colour keeps them readable and says whose they are.
+
+const DOG_COATS := [
+	[Color("#a56a2c"), Color("#d8b98a"), Color("#5a3a1e")],    # tan: coat, belly and muzzle, ears
+	[Color("#3d342d"), Color("#6a5d52"), Color("#241d18")],    # dark
+	[Color("#b9a67c"), Color("#e2d6b8"), Color("#8a7450")],    # pale
+]
+
+func _dog(seed: int, coat: int, pose: String) -> ArrayMesh:
+	var b := _b(seed)
+	var c: Color = DOG_COATS[coat][0]
+	var belly: Color = DOG_COATS[coat][1]
+	var dark: Color = DOG_COATS[coat][2]
+	b.tag = M7MeshBuilder.TAG_PLAIN
+	match pose:
+		"sit":
+			# haunches on the ground, chest and head lifted, forelegs straight
+			b.blob(Vector3(-0.012, 0.011, 0.0), Vector3(0.016, 0.012, 0.012), 6, 3, c, 0.05)
+			b.blob(Vector3(-0.002, 0.022, 0.0), Vector3(0.012, 0.016, 0.0105), 6, 3, c, 0.05)
+			b.blob(Vector3(0.0, 0.018, 0.0), Vector3(0.0075, 0.012, 0.0085), 6, 3, belly, 0.0)
+			b.pole(Vector3(0.008, 0.026, -0.005), Vector3(0.011, 0.0, -0.005), 0.0028, c)
+			b.pole(Vector3(0.008, 0.026, 0.005), Vector3(0.011, 0.0, 0.005), 0.0028, c)
+			b.blob(Vector3(-0.024, 0.0035, -0.0105), Vector3(0.012, 0.0035, 0.0045), 5, 2, c, 0.0)
+			b.blob(Vector3(-0.024, 0.0035, 0.0105), Vector3(0.012, 0.0035, 0.0045), 5, 2, c, 0.0)
+			b.pole(Vector3(-0.026, 0.006, 0.0), Vector3(-0.043, 0.004, 0.004), 0.0028, c)
+			_dog_head(b, Vector3(0.006, 0.039, 0.0), c, belly, dark, 0.0)
+			_dog_collar(b, Vector3(0.002, 0.0325, 0.0), 0.0075)
+		"lie":
+			b.blob(Vector3(0.0, 0.0095, 0.0), Vector3(0.022, 0.0095, 0.0115), 6, 3, c, 0.05)
+			b.blob(Vector3(0.003, 0.0035, 0.0), Vector3(0.017, 0.004, 0.0095), 5, 2, belly, 0.0)
+			b.pole(Vector3(0.015, 0.003, -0.006), Vector3(0.036, 0.0025, -0.006), 0.0028, c)
+			b.pole(Vector3(0.015, 0.003, 0.006), Vector3(0.036, 0.0025, 0.006), 0.0028, c)
+			b.pole(Vector3(-0.021, 0.008, 0.004), Vector3(-0.035, 0.004, 0.012), 0.003, c)
+			_dog_head(b, Vector3(0.027, 0.0165, 0.0), c, belly, dark, 0.35)
+			_dog_collar(b, Vector3(0.0185, 0.0125, 0.0), 0.0072)
+		_:
+			var swing := 0.0
+			if pose == "trot_a":
+				swing = 0.009
+			elif pose == "trot_b":
+				swing = -0.009
+			# a diagonal pair swings together: front left with back right
+			for leg in [[0.0145, -0.0055, 1.0], [0.0145, 0.0055, -1.0], [-0.0145, -0.0055, -1.0], [-0.0145, 0.0055, 1.0]]:
+				var dx: float = float(leg[2]) * swing
+				var lift := 0.0035 if (dx > 0.0) else 0.0
+				b.pole(Vector3(leg[0], 0.0235, leg[1]), Vector3(leg[0] + dx, lift, leg[1]), 0.0028, c)
+			b.blob(Vector3(0.0, 0.0275, 0.0), Vector3(0.0235, 0.0115, 0.0105), 7, 3, c, 0.05)
+			b.blob(Vector3(0.0, 0.0225, 0.0), Vector3(0.0185, 0.0075, 0.0085), 6, 3, belly, 0.0)
+			b.blob(Vector3(0.0115, 0.0295, 0.0), Vector3(0.0105, 0.0115, 0.0108), 6, 3, c, 0.04)    # deep chest
+			b.pole(Vector3(-0.021, 0.0285, 0.0), Vector3(-0.0385, 0.0415 if pose != "stand" else 0.037, 0.0), 0.0026, c)
+			b.blob(Vector3(-0.0395, 0.0425 if pose != "stand" else 0.038, 0.0), Vector3(0.0035, 0.0025, 0.0028), 4, 2, dark, 0.0)
+			_dog_head(b, Vector3(0.0275, 0.0385, 0.0), c, belly, dark, 0.0)
+			_dog_collar(b, Vector3(0.0205, 0.0345, 0.0), 0.0078)
+	return b.commit()
+
+func _dog_head(b: M7MeshBuilder, p: Vector3, c: Color, belly: Color, dark: Color, droop: float) -> void:
+	b.blob(p, Vector3(0.0085, 0.0078, 0.0075), 6, 3, c, 0.03)
+	b.blob(p + Vector3(0.0085, -0.0025 - droop * 0.004, 0.0), Vector3(0.0075, 0.0042, 0.0042), 5, 2, belly, 0.0)    # muzzle
+	b.blob(p + Vector3(0.0155, -0.0016 - droop * 0.005, 0.0), Vector3(0.0026, 0.0024, 0.0026), 4, 2, dark, 0.0)      # nose
+	b.tri(p + Vector3(-0.002, 0.005, -0.0045), p + Vector3(-0.005, 0.0105 - droop * 0.007, -0.0085), p + Vector3(0.0025, 0.0075, -0.003), dark, p)
+	b.tri(p + Vector3(-0.002, 0.005, 0.0045), p + Vector3(-0.005, 0.0105 - droop * 0.007, 0.0085), p + Vector3(0.0025, 0.0075, 0.003), dark, p)
+
+func _dog_collar(b: M7MeshBuilder, p: Vector3, r: float) -> void:
+	b.tag = M7MeshBuilder.TAG_CIV
+	b.prism(p + Vector3(0, -0.0016, 0), r, r, 0.0034, 6, Color.WHITE, Color.WHITE)
+	b.tag = M7MeshBuilder.TAG_PLAIN
+
+func _dogs() -> void:
+	for coat in 3:
+		for pose in ["trot_a", "trot_b", "stand", "sit", "lie"]:
+			meshes["dog_%d_%s" % [coat, pose]] = _dog(900 + coat * 10 + ["trot_a", "trot_b", "stand", "sit", "lie"].find(pose), coat, pose)
+	# the travois a dog drags (TRN-02): a strap across the chest, two poles trailing to the ground behind, a lashed load
+	var b := _b(940)
+	var strap := Color("#7a5a3a")
+	b.pole(Vector3(0.0, 0.0345, -0.0075), Vector3(0.0, 0.0345, 0.0075), 0.0022, strap)
+	b.pole(Vector3(0.002, 0.034, -0.0075), Vector3(-0.012, 0.0275, -0.0125), 0.0018, strap)
+	b.pole(Vector3(0.002, 0.034, 0.0075), Vector3(-0.012, 0.0275, 0.0125), 0.0018, strap)
+	b.pole(Vector3(-0.012, 0.0275, -0.0125), Vector3(-0.115, 0.0015, -0.0165), 0.0026, WOOD_LIGHT)
+	b.pole(Vector3(-0.012, 0.0275, 0.0125), Vector3(-0.115, 0.0015, 0.0165), 0.0026, WOOD_LIGHT)
+	b.pole(Vector3(-0.05, 0.0155, -0.0145), Vector3(-0.05, 0.0155, 0.0145), 0.0022, WOOD)
+	b.pole(Vector3(-0.085, 0.0075, -0.0158), Vector3(-0.085, 0.0075, 0.0158), 0.0022, WOOD)
+	b.box(Vector3(-0.066, 0.0165, 0.0), Vector3(0.05, 0.0085, 0.024), HIDE_DARK, HIDE)
+	b.box(Vector3(-0.066, 0.0225, 0.0), Vector3(0.036, 0.006, 0.018), Color("#a98a5e"), Color("#c0a374"))
+	b.pole(Vector3(-0.055, 0.0165, -0.0125), Vector3(-0.055, 0.0275, 0.0125), 0.0012, strap)
+	b.pole(Vector3(-0.077, 0.0165, -0.0125), Vector3(-0.077, 0.0275, 0.0125), 0.0012, strap)
+	meshes["dog_travois"] = b.commit()
 
 
 # ------------------------------------------------------------------ village decor (see game/Scripts/DecorTable.cs)
