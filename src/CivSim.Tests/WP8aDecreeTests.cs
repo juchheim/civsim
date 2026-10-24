@@ -142,4 +142,32 @@ public sealed class WP8aDecreeTests
         ReplayVerification verification = loaded.Verify(TestPack.Pack);
         Assert.True(verification.Ok, verification.Message);
     }
+
+    [Fact]
+    public void Successful_embargo_command_round_trips_through_binary_match_replay()
+    {
+        MatchModel match = MatchModel.Create(Seed, TestPack.Pack, World.Value, Balanced);
+        var runner = new SimRunner(match, checksumInterval: 1);
+        runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject,
+            TestPack.Catalog.IndexOf("KEY-3"), 0, 0));
+        runner.Advance(1);
+        Assert.True(match.Research.MandateUnlocked(0));
+
+        runner.Submit(new Command(runner.Tick, 0, CommandKind.SetEmbargo, 1, (int)TradeGood.Tin, 1));
+        runner.Advance(1);
+        Assert.True(match.Politics.Embargoes(0, 1, TradeGood.Tin));
+        Assert.Contains(match.Politics.Events, e => e.Kind == PoliticsEventKind.EmbargoSet &&
+            e.Civ == 0 && e.Other == 1 && e.A == (int)TradeGood.Tin && e.B == 1);
+
+        MatchReplay replay = MatchReplay.FromRun(Seed, TestPack.Pack, Balanced, runner,
+            WorldEconomyInput.FromGeneratedWorld(World.Value).Fingerprint);
+        using var replayStream = new MemoryStream();
+        replay.Write(replayStream);
+        replayStream.Position = 0;
+        MatchReplay loaded = MatchReplay.Read(replayStream);
+        Assert.Equal(new[] { CommandKind.CompleteProject, CommandKind.SetEmbargo },
+            loaded.Replay.Commands.Select(c => c.Kind));
+        ReplayVerification verification = loaded.Verify(TestPack.Pack);
+        Assert.True(verification.Ok, verification.Message);
+    }
 }
