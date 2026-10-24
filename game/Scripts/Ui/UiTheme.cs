@@ -268,7 +268,11 @@ public static class UiTheme
             UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled,
             Box(UiTokens.WithAlpha(UiTokens.Accent, 0.26f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), UiTokens.Accent);
         foreach (string state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled" })
-            ((StyleBoxFlat)theme.GetStylebox(state, "ChipButtonIcon")).ContentMarginLeft = UiTokens.Sp4 + 16 + UiTokens.Sp1;
+        {
+            StyleBoxFlat style = (StyleBoxFlat)theme.GetStylebox(state, "ChipButtonIcon");
+            style.ContentMarginLeft = UiTokens.Sp3 + 16 + UiTokens.Sp1;
+            style.ContentMarginRight = UiTokens.Sp3 + UiTokens.Sp1;
+        }
 
         // Rows (lists): hover fill only
         ButtonStyle("RowButton", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, UiTokens.Sp3, 4), Box(UiTokens.Hover, UiTokens.R1, null, 0, UiTokens.Sp3, 4),
