@@ -58,6 +58,30 @@ public sealed class M10B30TelemetryTests
     }
 
     [Fact]
+    public void Overflow_streak_requires_nine_consecutive_cap_seasons_with_a_positive_paid_candidate()
+    {
+        int streak = 0;
+        for (int season = 1; season <= 8; season++)
+        {
+            streak = M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 4, cap: 4);
+            Assert.Equal(season, streak);
+            Assert.False(streak > 8);
+        }
+
+        streak = M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 4, cap: 4);
+        Assert.Equal(9, streak);
+        Assert.True(streak > 8);
+
+        // Either losing the positive-EV option or spending below the cap breaks consecutiveness.
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: false, mandate: 4, cap: 4));
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 3, cap: 4));
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 4, cap: 0));
+
+        streak = M10B30Rules.AdvanceMandateOverflowStreak(0, positiveDecreeCandidate: true, mandate: 4, cap: 4);
+        Assert.Equal(1, streak);
+    }
+
+    [Fact]
     public void Naked_caravan_requires_hostile_route_and_fewer_than_two_escorts()
     {
         Assert.False(M10B30Rules.IsNakedCaravan(TradeGood.Tin, false, 0));

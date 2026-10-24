@@ -27,6 +27,59 @@ public sealed class AcceptanceSampleStatusTests
     }
 
     [Theory]
+    [InlineData(1, true)]
+    [InlineData(63, true)]
+    [InlineData(64, false)]
+    [InlineData(65, false)]
+    public void S15HorizonClassificationUsesSixtyFourMinuteAcceptanceMinimum(int minutes, bool diagnostic)
+    {
+        Assert.Equal(diagnostic, AcceptanceCommand.IsDiagnosticSoakSample(minutes));
+    }
+
+    [Fact]
+    public void ShortS15HorizonIsDiagnosticAndMakesOverallResultIncomplete()
+    {
+        Assert.Equal("S15 DIAGNOSTIC (horizon shorter than 64-minute acceptance window)",
+            AcceptanceCommand.GetS15StatusLine(diagnostic: true, passed: true));
+
+        AcceptanceCommand.OverallStatus status = AcceptanceCommand.GetOverallStatus(
+            gatesPassed: true, hasDiagnosticS13: false, hasDiagnosticS15: true);
+        Assert.Equal(AcceptanceCommand.OverallStatus.Incomplete, status);
+        Assert.Equal("ACCEPTANCE INCOMPLETE", AcceptanceCommand.GetOverallStatusLine(status));
+        Assert.Equal(2, AcceptanceCommand.GetExitCode(status));
+    }
+
+    [Fact]
+    public void ShortS15HorizonSkipsSoakExecution()
+    {
+        bool soakExecuted = false;
+
+        bool passed = AcceptanceCommand.RunSoakGateForHorizon(10, () =>
+        {
+            soakExecuted = true;
+            return false;
+        }, out bool diagnostic);
+
+        Assert.True(diagnostic);
+        Assert.True(passed);
+        Assert.False(soakExecuted);
+    }
+
+    [Theory]
+    [InlineData(true, "S15 PASS")]
+    [InlineData(false, "S15 FAIL")]
+    public void FullS15HorizonKeepsAcceptanceStatus(bool passed, string expectedLine)
+    {
+        Assert.Equal(expectedLine, AcceptanceCommand.GetS15StatusLine(diagnostic: false, passed));
+
+        AcceptanceCommand.OverallStatus status = AcceptanceCommand.GetOverallStatus(
+            gatesPassed: passed, hasDiagnosticS13: false, hasDiagnosticS15: false);
+        Assert.Equal(passed ? "ACCEPTANCE GATES PASSED" : "ACCEPTANCE GATES FAILED",
+            AcceptanceCommand.GetOverallStatusLine(status));
+        Assert.Equal(passed ? 0 : 1, AcceptanceCommand.GetExitCode(status));
+    }
+
+    [Theory]
     [InlineData(true, "S13 PASS")]
     [InlineData(false, "S13 FAIL")]
     public void FullS13SampleKeepsAcceptanceStatus(bool passed, string expectedLine)

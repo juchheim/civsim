@@ -404,9 +404,8 @@ internal static class Tournament
                     }
 
                     o.MandateSeasonsAtCap = match.Politics.MandateSeasonsAtCap(c);
-                    bool capAndPositiveCandidate = M10B30Rules.IsMandateOverflowSeason(positiveDecreeCandidate[c],
-                        match.Research.Mandate(c), match.Research.MandateCap(c));
-                    mandateOverflowStreak[c] = capAndPositiveCandidate ? mandateOverflowStreak[c] + 1 : 0;
+                    mandateOverflowStreak[c] = M10B30Rules.AdvanceMandateOverflowStreak(mandateOverflowStreak[c],
+                        positiveDecreeCandidate[c], match.Research.Mandate(c), match.Research.MandateCap(c));
                     if (mandateOverflowStreak[c] > 8 && !mandateOverflowReported[c])
                     {
                         o.MandateOverflowBlunders++;

@@ -11,6 +11,10 @@ internal static class M10B30Rules
     public static bool IsMandateOverflowSeason(bool positiveDecreeCandidate, int mandate, int cap)
         => positiveDecreeCandidate && cap > 0 && mandate >= cap;
 
+    /// <summary>Advances the consecutive B30 overflow streak, resetting it as soon as any season fails the gate.</summary>
+    public static int AdvanceMandateOverflowStreak(int currentStreak, bool positiveDecreeCandidate, int mandate, int cap)
+        => IsMandateOverflowSeason(positiveDecreeCandidate, mandate, cap) ? currentStreak + 1 : 0;
+
     public static bool IsPositivePaidDecreeCandidate(bool positiveEv, int mandateCost)
         => positiveEv && mandateCost > 0;
 }

@@ -18,6 +18,7 @@ namespace CivSim.Harness;
 internal static class AcceptanceCommand
 {
     internal const int MinimumAcceptanceSampleMinutes = 10;
+    internal const int MinimumSoakAcceptanceMinutes = 64;
 
     internal enum OverallStatus
     {
@@ -67,16 +68,31 @@ internal static class AcceptanceCommand
         if (s1) pass &= RunReplayGate(pack, matches, minutes);
         if (s12) pass &= RunChapterGate(pack);
         if (s13) pass &= RunTickGate(pack, sampleMinutes);
-        if (s15) pass &= RunSoakGate(pack, matches, minutes);
-        OverallStatus status = GetOverallStatus(pass, s13 && IsDiagnosticSample(sampleMinutes));
+        if (s15)
+        {
+            bool s15Passed = RunSoakGateForHorizon(minutes, () => RunSoakGate(pack, matches, minutes), out bool diagnostic);
+            pass &= s15Passed;
+            Console.WriteLine(GetS15StatusLine(diagnostic, s15Passed));
+        }
+        OverallStatus status = GetOverallStatus(pass,
+            hasDiagnosticS13: s13 && IsDiagnosticSample(sampleMinutes),
+            hasDiagnosticS15: s15 && IsDiagnosticSoakSample(minutes));
         Console.WriteLine(GetOverallStatusLine(status));
         return GetExitCode(status);
     }
 
     internal static bool IsDiagnosticSample(int sampleMinutes) => sampleMinutes < MinimumAcceptanceSampleMinutes;
 
-    internal static OverallStatus GetOverallStatus(bool gatesPassed, bool hasDiagnosticS13) =>
-        hasDiagnosticS13 ? OverallStatus.Incomplete : gatesPassed ? OverallStatus.Passed : OverallStatus.Failed;
+    internal static bool IsDiagnosticSoakSample(int minutes) => minutes < MinimumSoakAcceptanceMinutes;
+
+    internal static bool RunSoakGateForHorizon(int minutes, Func<bool> runSoakGate, out bool diagnostic)
+    {
+        diagnostic = IsDiagnosticSoakSample(minutes);
+        return diagnostic || runSoakGate();
+    }
+
+    internal static OverallStatus GetOverallStatus(bool gatesPassed, bool hasDiagnosticS13, bool hasDiagnosticS15 = false) =>
+        hasDiagnosticS13 || hasDiagnosticS15 ? OverallStatus.Incomplete : gatesPassed ? OverallStatus.Passed : OverallStatus.Failed;
 
     internal static string GetOverallStatusLine(OverallStatus status) => status switch
     {
@@ -95,6 +111,10 @@ internal static class AcceptanceCommand
     internal static string GetS13StatusLine(bool diagnostic, bool passed) => diagnostic
         ? "S13 DIAGNOSTIC (sample shorter than 10-minute acceptance window)"
         : passed ? "S13 PASS" : "S13 FAIL";
+
+    internal static string GetS15StatusLine(bool diagnostic, bool passed) => diagnostic
+        ? "S15 DIAGNOSTIC (horizon shorter than 64-minute acceptance window)"
+        : passed ? "S15 PASS" : "S15 FAIL";
 
     private static bool RunChapterGate(ContentPack pack)
     {

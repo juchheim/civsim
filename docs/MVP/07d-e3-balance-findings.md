@@ -509,3 +509,14 @@ checks that tin recovery uses tin-poor eligible seats as its denominator while d
 focused harness regression classes passed 5/5 in 4 s, and the Release solution build passed again with 0 warnings/errors.
 After the M10 short-sample diagnostic guard, the Release build again passed with 0 warnings/errors and focused AI/harness
 telemetry and acceptance-status tests passed 61/61 in 4 s. No long AI tournament or full suite was run.
+
+After integrating M10 with `main` (merge commit `df523c9`), the combined `ResearchSpark` and Strategist behavior changed the
+24-minute politics checksum. The refreshed `politics-v1` golden (`final=3b0097a2348e3076`, `digest=a3b5667993f4fdc0`)
+reproduced on two consecutive runs. The conflict-sensitive focused set passed 77/77 in 10 s, and the Release test build
+completed successfully. This integration did not run the full suite or any long AI acceptance tournament.
+
+The S15/B24 acceptance command now treats horizons under 64 minutes as diagnostic and skips the soak entirely, so a short
+request cannot spend hours running the default 1,000 matches and then claim acceptance. A bounded smoke using
+`--s15 --minutes 10` returned `ACCEPTANCE INCOMPLETE` without entering the soak. The B30 overflow-streak transition now has
+focused coverage for the ninth qualifying season and resets when eligibility or the Mandate cap ends. The combined status
+and B30 tests passed 25/25 (93 ms test runtime); no tournament or soak ran.
