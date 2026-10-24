@@ -874,6 +874,7 @@ public sealed partial class FrameBuilder
                 target.SettlementSmallStock[w] = 0; target.SettlementCattle[w] = 0; target.SettlementPigs[w] = 0;
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
+                target.SettlementHalls[w] = 0;
                 continue;
             }
             var lite = eco.SettlementLite(s);
@@ -891,6 +892,7 @@ public sealed partial class FrameBuilder
             if (own) flags |= SettlementViewFlags.Own;
             for (int k = 0; k < kinds; k++)
                 target.SettlementStructures[structureBase + k] = (byte)Math.Min(255, eco.StructureCount(s, k));
+            target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
             if (eco.DefenseStructures(s, lookout: false) > 0) flags |= SettlementViewFlags.ThornBarrier;
             if (eco.DefenseStructures(s, lookout: true) > 0) flags |= SettlementViewFlags.Lookout;
             if (!_sFree[s] && _def03 >= 0 && (_sCiv[s] >= 0 && _sCiv[s] < _civs) && research.IsDone(_sCiv[s], _def03))

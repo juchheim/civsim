@@ -132,6 +132,8 @@ public sealed class MatchFrame
     public int[] SettlementSeenSeason = Array.Empty<int>();
     /// <summary>Structure counts, <see cref="StructureKinds"/> per settlement: [i × StructureKinds + kind] (kind names: LivingEconomyModel.StructureName). Zero for remembered settlements.</summary>
     public byte[] SettlementStructures = Array.Empty<byte>();
+    /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
+    public byte[] SettlementHalls = Array.Empty<byte>();
 
     // ---- fields and orchards ------------------------------------------------------------------
     public int PlotCount;
@@ -360,7 +362,7 @@ public sealed class MatchFrame
             Ensure(ref SettlementFood, n); Ensure(ref SettlementWinterForecast, n); Ensure(ref SettlementCohesion, n);
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
-            Ensure(ref SettlementSeenSeason, n);
+            Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
     }

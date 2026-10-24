@@ -14,4 +14,7 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>How many structures of a kind stand at a settlement.</summary>
     public int StructureCount(int settlementIndex, int kind) => _settlements[settlementIndex].Structures[kind];
+
+    /// <summary>How many Halls (a Bronze-age civic dwelling, housing 30) stand at a settlement.</summary>
+    public int HallCount(int settlementIndex) => _settlements[settlementIndex].Civic?.Halls ?? 0;
 }
