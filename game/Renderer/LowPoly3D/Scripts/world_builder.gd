@@ -731,23 +731,7 @@ func _settlements() -> void:
 		props.add("banner%d" % civ, _xf(c + Vector2(0.09, -0.07), h0, -0.4, VS), Color(cc.r, cc.g, cc.b, seed))
 
 		# items to lay out on a sunflower spiral around the hearth
-		var items := []
-		var dwell_kinds := [[K.LEAN_TO, "leanto"], [K.HIDE_TENT, "tent"], [K.PIT_HOUSE, "pithouse"],
-			[K.WATTLE_HOUSE, "wattle"], [K.MUDBRICK_HOUSE, "mudbrick"], [K.LONGHOUSE, "longhouse"]]
-		var present := []
-		var dsum := 0
-		for dk in dwell_kinds:
-			if int(st[dk[0]]) > 0:
-				present.append(dk)
-				dsum += int(st[dk[0]])
-		if present.is_empty():
-			present.append([K.LEAN_TO, "leanto"])
-		# households scale with population; the kinds come from the structure counts
-		var households := maxi(dsum, int(ceil(float(s.population) / 5.0)))
-		for i in households:
-			# better houses first (they are the most recent tech), weighted by count
-			var dk = present[present.size() - 1 - (i % present.size())]
-			items.append(dk[1])
+		var items := _dwellings(st, int(s.get("halls", 0)), int(s.population))
 		var extras := [[K.STORAGE_PIT, "storagepit", 3], [K.DRYING_RACK, "dryingrack", 2], [K.GRANARY, "granary", 2],
 			[K.KILN, "kiln", 1], [K.QUERN, "quern", 2]]
 		var ins := 2
@@ -759,12 +743,14 @@ func _settlements() -> void:
 				items.insert(mini(ins, items.size()), ex[1])
 				ins += 3
 		var placed := []
+		var placed_r := []
 		var slot := 0
 		var rmax := 0.0
 		for it in items:
 			var p := Vector2.ZERO
 			var found := false
-			while slot < 80:
+			var ri := _item_radius(it)
+			while slot < 160:
 				var a := slot * 2.39996 + seed * TAU
 				var r := 0.112 * VS * sqrt(slot + 3.2)
 				slot += 1
@@ -772,8 +758,8 @@ func _settlements() -> void:
 				if not _ok_site(q, h0):
 					continue
 				var clear := true
-				for pp in placed:
-					if (pp as Vector2).distance_to(q) < 0.15 * VS:
+				for k in placed.size():
+					if (placed[k] as Vector2).distance_to(q) < (placed_r[k] + ri) * VS:
 						clear = false
 						break
 				if not clear:
@@ -784,6 +770,7 @@ func _settlements() -> void:
 			if not found:
 				break
 			placed.append(p)
+			placed_r.append(ri)
 			rmax = maxf(rmax, p.distance_to(c))
 			var d := c - p
 			var ang := atan2(d.x, d.y)
@@ -868,6 +855,57 @@ func _settlements() -> void:
 					var col := M7MeshBuilder.lin(Color("#e8dfcc") if j != 2 else Color("#6e5a48"), 0.5)
 					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.0), _glide_custom((6 * 8 + 4) if j != 2 else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
 				break
+
+## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
+## (lean-tos and tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
+## do not cover live in the best small house the village knows (or in more longhouses when that is all it has).
+const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
+const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2}
+const DWELL_MAX_EACH := 10
+const DWELL_MAX_TOTAL := 36
+
+func _item_radius(mesh_name: String) -> float:
+	return DWELL_RADIUS.get(mesh_name, 0.075)
+
+func _dwellings(st: Array, halls: int, pop: int) -> Array:
+	var K := M7WorldData.Kind
+	var built := {
+		"leanto": int(st[K.LEAN_TO]), "tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
+		"wattle": int(st[K.WATTLE_HOUSE]), "mudbrick": int(st[K.MUDBRICK_HOUSE]), "longhouse": int(st[K.LONGHOUSE]),
+		"hall": halls}
+	var filler := "leanto"
+	for nm in ["leanto", "tent", "pithouse", "wattle", "mudbrick"]:
+		if built[nm] > 0:
+			filler = nm
+	var shown := {}
+	for nm in built:
+		shown[nm] = mini(int(built[nm]), DWELL_MAX_EACH)
+	if built.pithouse + built.wattle + built.mudbrick + built.longhouse > 0:
+		shown.leanto = 0
+		shown.tent = 0
+	if built.wattle + built.mudbrick + built.longhouse > 0:
+		shown.pithouse = 0
+	if built.mudbrick + built.longhouse > 0:
+		shown.wattle = 0
+	var covered := 0
+	for nm in shown:
+		covered += int(shown[nm]) * int(DWELL_CAPACITY[nm])
+	var short := maxi(0, pop - covered)
+	var out := []
+	for nm in ["hall", "longhouse", "mudbrick", "wattle", "pithouse", "tent", "leanto"]:
+		for i in int(shown[nm]):
+			out.append(nm)
+	if short > 0:
+		if filler == "leanto" and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
+			filler = "longhouse"
+		var more := ceili(float(short) / float(DWELL_CAPACITY[filler]))
+		for i in more:
+			if out.size() >= DWELL_MAX_TOTAL:
+				break
+			out.append(filler)
+	if out.is_empty() and pop > 0:
+		out.append("leanto")
+	return out
 
 ## Kinds that sit on the village edge rather than among the houses.
 const DECOR_FAR := ["cairn", "shrine", "signal", "charcoal", "grave", "quarry", "skypole"]

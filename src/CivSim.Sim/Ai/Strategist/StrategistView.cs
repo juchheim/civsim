@@ -1,5 +1,6 @@
 using System;
 using CivSim.Sim.Core;
+using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 
 namespace CivSim.Sim.Ai;
@@ -22,6 +23,26 @@ public interface IStrategistActions
     bool SetPosture(Posture posture);
     bool PlaceBeacon(int tile);
     void RemoveBeacon(int index);
+
+    // ---- the Bronze levers (docs/MVP/22 §4.6, §13.3; WP8a). Defaults keep test recorders compiling: they refuse. ----
+    /// <summary>Mandate in hand and its cap (the civilization's own research state).</summary>
+    int Mandate => 0;
+    int MandateCap => 0;
+    int DecreeCost(DecreeKind kind) => int.MaxValue;
+    /// <summary>
+    /// Queues a Decree through the same path as a player's command 18: it resolves at the end of the season, Mandate is spent only
+    /// on success, and a refusal is a <c>DecreeRefused</c> event. The AI is never given Mandate it did not earn.
+    /// </summary>
+    bool IssueDecree(DecreeKind kind, int target, int extra) => false;
+    /// <summary>The Embargo toggle (command 19's rule).</summary>
+    bool SetEmbargo(int civ, TradeGood good, bool on) => false;
+    /// <summary>A raid on a caravan on the road (command 12 with a caravan target).</summary>
+    bool RaidCaravan(int caravanId, int partySize) => false;
+    /// <summary>
+    /// Whether the Council's Decree policy keeps issuing for this civilization (the default until the AI plans Decrees itself; the AI
+    /// work package turns it off when its Strategist takes over).
+    /// </summary>
+    void UseCouncilDecrees(bool on) { }
 }
 
 /// <summary>
@@ -74,4 +95,11 @@ public sealed class OrdersActions : IStrategistActions
     public bool SetPosture(Posture posture) => _orders.SetPosture(posture);
     public bool PlaceBeacon(int tile) => _orders.PlaceBeacon(tile);
     public void RemoveBeacon(int index) => _orders.RemoveBeacon(index);
+    public int Mandate => _orders.Mandate;
+    public int MandateCap => _orders.MandateCap;
+    public int DecreeCost(DecreeKind kind) => _orders.DecreeCost(kind);
+    public bool IssueDecree(DecreeKind kind, int target, int extra) => _orders.IssueDecree(kind, target, extra);
+    public bool SetEmbargo(int civ, TradeGood good, bool on) => _orders.SetEmbargo(civ, good, on);
+    public bool RaidCaravan(int caravanId, int partySize) => _orders.RaidCaravan(caravanId, partySize);
+    public void UseCouncilDecrees(bool on) => _orders.UseCouncilDecrees(on);
 }

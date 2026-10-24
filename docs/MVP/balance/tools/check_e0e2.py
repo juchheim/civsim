@@ -382,7 +382,7 @@ def check_c4():
 if __name__ == "__main__":
     print("Mode:", "with 07c fixes" if FIXED else "as specified in 10/11")
     check_c3(FIXED)
-    rows, s = check_c5(s_base := P.ERA["EraBase"]["tuned"], "model EraBase 22/50/90")
+    rows, s = check_c5(s_base := P.ERA["EraBase"]["tuned"], "model EraBase 22/50/150")
     check_c5([20, 45, 70], "doc 11 EraBase 20/45/70")
     check_c1(rows, FIXED)
     check_c2(FIXED)

@@ -36,6 +36,7 @@ public static class WorldAcceptance
         }
         CheckSpacing(world, failures);
         CheckContinents(world, failures);
+        CheckBronzeGeography(world, failures);
         if (!E7Fair(world.Report.E7SharesBasisPoints.Span)) failures.Add("E7 simulated shares exceed the ±15% mean tolerance");
         if (world.Report.BlockedSeasons > 8) failures.Add($"settlement expansion was blocked for {world.Report.BlockedSeasons} seasons");
         if (!ContactSeasonIsInStandardWindow(world.Report.FirstContactSeason))
@@ -208,6 +209,69 @@ public static class WorldAcceptance
             if (iron < 2) failures.Add($"continent {continent} has fewer than two iron deposits");
             if (!salt) failures.Add($"continent {continent} lacks salt");
         }
+    }
+
+
+    /// <summary>The E3 metal geography of 22 §5.1, checked for both neighbour pairs (the east pair mirrors the west).</summary>
+    private static void CheckBronzeGeography(GeneratedWorld world, List<string> failures)
+    {
+        WorldTile[] tiles = world.Tiles.ToArray();
+        for (int pair = 0; pair < 2; pair++)
+        {
+            string side = pair == 0 ? "west" : "east";
+            int first = world.Starts[pair * 2].Tile, second = world.Starts[pair * 2 + 1].Tile;
+            int[] toFirst = HexGrid.WalkingCostsFrom(tiles, world.Width, world.Height, first, 400);
+            int[] toSecond = HexGrid.WalkingCostsFrom(tiles, world.Width, world.Height, second, 400);
+            byte continent = world.TileAt(first).Continent;
+            var middle = new List<int>();
+            var farFirst = new List<int>();
+            var farSecond = new List<int>();
+            int islandTin = 0, lodes = 0;
+            for (int i = 0; i < world.TileCount; i++)
+            {
+                WorldTile t = tiles[i];
+                if (t.Deposit != DepositKind.Tin) continue;
+                if (t.Continent == continent)
+                {
+                    if (t.DepositAmount == 2) middle.Add(i);
+                    else if (t.DepositAmount == 3) lodes++;
+                    else if (toFirst[i] < toSecond[i]) farFirst.Add(i);
+                    else farSecond.Add(i);
+                }
+                else if (t.Continent == (continent == 0 ? 2 : 3)) islandTin++;
+            }
+            if (middle.Count != 1 || lodes != 1) failures.Add($"{side} continent has {middle.Count} middle-field placers and {lodes} lodes, expected 1 and 1");
+            foreach (int i in middle)
+            {
+                if (toFirst[i] is < 80 or > 240 || toSecond[i] is < 80 or > 240 || Math.Abs(toFirst[i] - toSecond[i]) > 50)
+                    failures.Add($"{side} middle-field tin is {toFirst[i] / 10.0:0.#}/{toSecond[i] / 10.0:0.#} tiles from the pair, outside 8–24 and within 5 (the forced-relaxation limit; most worlds are 12–16 within 2)");
+                if (HexGrid.Distance(first, i, world.Width) < 8 || HexGrid.Distance(second, i, world.Width) < 8)
+                    failures.Add($"{side} middle-field tin lies inside a start's early territory");
+            }
+            if (farFirst.Count != 1 || farSecond.Count != 1)
+                failures.Add($"{side} continent has {farFirst.Count}+{farSecond.Count} far tin placers, expected 1+1");
+            else if (Math.Abs(toFirst[farFirst[0]] - toSecond[farSecond[0]]) > 50 ||
+                     toFirst[farFirst[0]] is < 180 or > 360 || toSecond[farSecond[0]] is < 180 or > 360)
+                failures.Add($"{side} far tin placers are unfair ({toFirst[farFirst[0]] / 10.0:0.#} vs {toSecond[farSecond[0]] / 10.0:0.#} tiles)");
+            if (islandTin != 1) failures.Add($"{side} half-map has {islandTin} island tin placers, expected 1");
+            foreach (int start in new[] { first, second })
+            {
+                if (!HasDeposit(world, start, DepositKind.ArsenicalCopper, 25)) failures.Add($"civ start {start} has no arsenical copper within 25 tiles");
+                if (!HasShallowCopper(world, start, 15)) failures.Add($"civ start {start} has no depth-1 copper ore within 15 tiles");
+                if (!HasDeposit(world, start, DepositKind.Iron, 20)) failures.Add($"civ start {start} has no iron within 20 tiles");
+            }
+        }
+    }
+
+    private static bool HasShallowCopper(GeneratedWorld world, int center, int radius)
+    {
+        for (int i = 0; i < world.TileCount; i++)
+        {
+            WorldTile t = world.TileAt(i);
+            if (t.Deposit == DepositKind.CopperOre && t.DepositDepth <= 1 &&
+                HexGrid.Distance(center, i, world.Width) <= radius) return true;
+        }
+        return false;
     }
 
     private static bool E7Fair(ReadOnlySpan<int> shares)

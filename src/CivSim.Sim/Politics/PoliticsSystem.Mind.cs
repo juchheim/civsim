@@ -214,6 +214,7 @@ public sealed partial class PoliticsSystem
         Posture posture = (Posture)_posture[c];
         if (posture is Posture.Fortify or Posture.Prosper) return false;
         if (_dip.InTruce(c, o, _season) || _season - _dip.LastRaidBy(c, o) < RaidCooldownSeasons) return false;
+        if (_pacts.Count > 0 && HasPact(c, o)) return false;
         bool wants = posture == Posture.Raid || _dip.Relations(c, o) < Diplomacy.HostileBelow ||
                      (_archetypes[c] == EconomyArchetype.Warlord && Hungry(c) && _dip.Relations(c, o) < 10);
         if (!wants) return false;
@@ -297,6 +298,7 @@ public sealed partial class PoliticsSystem
     private void ConsiderWar(int c, int o)
     {
         if (_dip.AtWar(c, o) || _dip.Allied(c, o) || _dip.InTruce(c, o, _season)) return;
+        if (_pacts.Count > 0 && HasPact(c, o)) return;
         if (!_research.IsDone(c, _p.War02)) return;
         Posture posture = (Posture)_posture[c];
         if (posture is Posture.Fortify or Posture.Prosper) return;
@@ -382,9 +384,16 @@ public sealed partial class PoliticsSystem
     {
         var arriving = new List<Expedition>();
         foreach (Expedition e in _expeditions) if (e.ArriveSeason <= _season) arriving.Add(e);
+        // Raids on caravans meet them on the road, before any caravan unloads this season (docs/MVP/22 §6.3).
         foreach (Expedition e in arriving)
         {
-            _expeditions.Remove(e);
+            if (e.Kind != ExpeditionKind.Raid || e.TargetParty < 0 || !_expeditions.Remove(e)) continue;
+            ArriveCaravanRaid(e);
+        }
+        foreach (Expedition e in arriving)
+        {
+            if (e.Kind == ExpeditionKind.Raid && e.TargetParty >= 0) continue;
+            if (!_expeditions.Remove(e)) continue;
             if (TurnedBackAtSea(e)) continue;
             switch (e.Kind)
             {
@@ -392,6 +401,8 @@ public sealed partial class PoliticsSystem
                 case ExpeditionKind.Barter: ArriveBarter(e); break;
                 case ExpeditionKind.Raid: ArriveRaid(e); break;
                 case ExpeditionKind.Assault: ArriveAssault(e); break;
+                case ExpeditionKind.Explore: ArriveExplore(e); break;
+                case ExpeditionKind.Caravan: ArriveCaravan(e); break;
             }
         }
     }
@@ -428,6 +439,21 @@ public sealed partial class PoliticsSystem
         if (e.Leg == 0)
         {
             if (!TargetStillThere(e)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
+            // In the Bronze Age the partner answers with trade goods valued by scarcity (docs/MVP/22 §6.1), else food for food.
+            (TradeGood good, Fix64 quantity) = ChooseBarterGood(e.Civ, e.FromSettlement, e.ToSettlement, e.Value);
+            if (good != TradeGood.None)
+            {
+                _economy.GiveGoods(e.ToSettlement, e.Value);
+                ulong traded = TradedGoodsMask();
+                _research.AddSeen(e.Civ, _research.SeenMask(e.TargetCiv) & traded);
+                _research.AddSeen(e.TargetCiv, _research.SeenMask(e.Civ) & traded);
+                e.Leg = 1;
+                e.Good = good;
+                e.Cargo = quantity;
+                e.ArriveSeason = _season + Math.Max(1, SeasonsFor(Travel(e.Civ, _sTile[e.ToSettlement], _sTile[e.FromSettlement])));
+                _expeditions.Add(e);
+                return;
+            }
             // Both sides gain at least 10% in value (13 §4.2): the partner gets our goods and loads theirs for the way back.
             _economy.GiveGoods(e.ToSettlement, e.Value * TradeGain);
             Fix64 back = _economy.TakeGoods(e.ToSettlement, e.Value, LootPreference.FoodOnly);
@@ -440,7 +466,8 @@ public sealed partial class PoliticsSystem
             _expeditions.Add(e);
             return;
         }
-        _economy.GiveGoods(e.FromSettlement, e.Value * TradeGain);
+        if (e.Good != TradeGood.None) Unload(e.FromSettlement, e.Good, e.Cargo);
+        else _economy.GiveGoods(e.FromSettlement, e.Value * TradeGain);
         _dip.Shift(e.Civ, e.TargetCiv, 3);
         BarterTrips++;
         _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.Barter, e.TargetCiv, e.Value.FloorToInt(), 0));
@@ -472,6 +499,7 @@ public sealed partial class PoliticsSystem
         bool deaths = outcome.Battle.DefenderDead.Count > 0;
         // Target Cohesion -10 (-5 with burial rites); the raiders +5 on success and -10 on failure (13 §5.4).
         _economy.AdjustCohesion(e.ToSettlement, Fix64.FromRatio(_research.IsDone(o, _p.Bel01) ? -5 : -10, 100));
+        _economy.NoteRaided(e.ToSettlement);
         if (e.FromSettlement < _sCount) _economy.AdjustCohesion(e.FromSettlement, Fix64.FromRatio(outcome.Success ? 5 : -10, 100));
         _dip.Shift(c, o, deaths ? -50 : -30);
         if (peaceful && !atWar) _dip.AdjustReputation(c, -10);
@@ -602,10 +630,14 @@ public sealed partial class PoliticsSystem
         }
         _economy.TransferSettlement(s, captor);
         RefreshSettlements();
-        // Taken people carry a Cohesion debt of 20 points that recovers at 2 a season (13 §8.3).
-        Fix64 debt = Fix64.FromRatio(20, 100);
-        _economy.AdjustCohesion(s, -debt);
-        _cohesionDebt[s] = debt;
+        // Taken people carry a Cohesion debt of 20 points that recovers at 2 a season (13 §8.3); from the captor's KEY-3 the
+        // economy's live Cohesion holds it instead (07d R7: C 25, a conquered term of −35 recovering 1 a season).
+        if (!_economy.NoteCaptured(s))
+        {
+            Fix64 debt = Fix64.FromRatio(20, 100);
+            _economy.AdjustCohesion(s, -debt);
+            _cohesionDebt[s] = debt;
+        }
         _dip.Shift(captor, loser, -70);
         CaptureCount++;
         _events.Add(new PoliticsEvent(_tick, (byte)captor, PoliticsEventKind.Captured, loser, s, staying));

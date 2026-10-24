@@ -21,6 +21,8 @@ public enum EffectKind : byte
     Method, Mod, Cap, Hazard, Good, Build, Wonder, Role, UnlockAction, Cohesion, Adopt, EraAdvance, Tier, Unlock, Prose,
     Rule, Claim, Reach, Reveal, Show, Planner, Risk, Gate, Diplo, Relations, Combat, Defense, Lever, KnowHow, Legacy,
     Presence, Need, Event, Highlight,
+    // Appended for E3 (docs/MVP/23 §1.2); numbering of the kinds above never changes.
+    Admin, Mandate, Sanitation,
 }
 
 public enum CapKind : byte { Food = 0, Lean = 1, Housing = 2, Group = 3 }
@@ -69,6 +71,16 @@ public sealed class EffectDef
     public string? Action { get; init; }
     public string? Note { get; init; }
     public long Int { get; init; }
+    /// <summary>`mandate` effect (docs/MVP/23 §1.2): deltas summed from zero over completed projects.</summary>
+    public int MandateStart { get; init; }
+    public int MandateCap { get; init; }
+    public int MandateRecharge { get; init; }
+    /// <summary>`mandate` effect: the Decree whose Mandate cost <see cref="DecreeCost"/> sets (empty when none).</summary>
+    public string? Decree { get; init; }
+    public int DecreeCost { get; init; }
+    /// <summary>`admin` effect: Admin span delta, and the Overreach reduction this effect contributes (0 to 1).</summary>
+    public int AdminSpan { get; init; }
+    public Fix64 AdminOverreach { get; init; }
 
     public VisibleChange Visual => Kind switch
     {
@@ -79,8 +91,9 @@ public sealed class EffectDef
         EffectKind.Role => VisibleChange.Role,
         EffectKind.Tier => VisibleChange.Tier,
         EffectKind.Claim or EffectKind.Reach or EffectKind.Reveal or EffectKind.Show or EffectKind.Highlight
-            or EffectKind.Presence or EffectKind.Lever => VisibleChange.Overlay,
+            or EffectKind.Presence or EffectKind.Lever or EffectKind.Admin or EffectKind.Mandate => VisibleChange.Overlay,
         EffectKind.EraAdvance => VisibleChange.EraCelebration,
+        EffectKind.Sanitation => VisibleChange.Behavior,
         EffectKind.Mod or EffectKind.Cap or EffectKind.Hazard or EffectKind.Cohesion or EffectKind.Adopt
             or EffectKind.Unlock or EffectKind.Rule or EffectKind.Planner or EffectKind.Diplo or EffectKind.Relations
             or EffectKind.Combat or EffectKind.Defense or EffectKind.KnowHow or EffectKind.Event => VisibleChange.Behavior,
@@ -243,7 +256,45 @@ public sealed class ResearchCatalog
         Roles = roles;
 
         _constants = root.Get("balance")?.Get("constants") ?? ContentValue.ListOf(Array.Empty<ContentValue>());
+
+        // Legacy units per era and the chapter rule (docs/MVP/22 §3, 23 §12). Required: a pack without them would silently
+        // fall back to the pre-Bronze scoring, which is exactly what must never happen by accident.
+        LegacyMasteryPerEra = Constant("LegacyMasteryPerEra").FloorToInt();
+        LegacyFirstPerEra = Constant("LegacyFirstPerEra").FloorToInt();
+        LegacyFirstKeystoneMult = Constant("LegacyFirstKeystoneMult").FloorToInt();
+        LegacyWonderBuiltPerEra = Constant("LegacyWonderBuiltPerEra").FloorToInt();
+        ChapterCountdownSeasons = Constant("ChapterCountdownSeasons").FloorToInt();
+        ChapterCapYear = Constant("ChapterCapYear").FloorToInt();
+        MandateRechargeMin = Constant("MandateRechargeMin").FloorToInt();
     }
+
+    // ---- Legacy units (docs/MVP/22 §3.3) ----------------------------------------------------
+
+    /// <summary>Mastery points per completed project per (era + 1); the pack's LegacyMasteryPerEra.</summary>
+    public int LegacyMasteryPerEra { get; }
+    public int LegacyFirstPerEra { get; }
+    /// <summary>Multiplier on a First for a Keystone or a Wonder.</summary>
+    public int LegacyFirstKeystoneMult { get; }
+    public int LegacyWonderBuiltPerEra { get; }
+    /// <summary>Seasons between the first rival's last keystone and the end of the chapter (docs/MVP/22 §3.1).</summary>
+    public int ChapterCountdownSeasons { get; }
+    /// <summary>The hard cap of the chapter, in years of 600 ticks.</summary>
+    public int ChapterCapYear { get; }
+    public int MandateRechargeMin { get; }
+
+    /// <summary>Mastery Legacy for completing a project: <c>2 × (era + 1)</c>.</summary>
+    public Fix64 MasteryUnits(ProjectDef def) => Fix64.FromInt(LegacyMasteryPerEra * (def.Era + 1));
+
+    /// <summary>First Legacy for being first in the world: <c>3 × (era + 1)</c>, four times that for a Keystone or a Wonder.</summary>
+    public Fix64 FirstUnits(ProjectDef def)
+    {
+        int units = LegacyFirstPerEra * (def.Era + 1);
+        if (def.IsKeystone || def.Type == ProjectType.Wonder) units *= LegacyFirstKeystoneMult;
+        return Fix64.FromInt(units);
+    }
+
+    /// <summary>Legacy for a Wonder that stands built: <c>25 × (era + 1)</c>.</summary>
+    public Fix64 WonderBuiltUnits(ProjectDef def) => Fix64.FromInt(LegacyWonderBuiltPerEra * (def.Era + 1));
 
     private static IReadOnlyList<ContentValue> Registry(ContentValue registries, string name)
         => registries.Get(name) is { Kind: ValueKind.List } v ? v.Items : Array.Empty<ContentValue>();
@@ -296,7 +347,8 @@ public sealed class ResearchCatalog
         ("reach", EffectKind.Reach), ("relations", EffectKind.Relations), ("reveal", EffectKind.Reveal),
         ("risk", EffectKind.Risk), ("role", EffectKind.Role), ("rule", EffectKind.Rule), ("show", EffectKind.Show),
         ("tier", EffectKind.Tier), ("unlock", EffectKind.Unlock), ("unlock_action", EffectKind.UnlockAction),
-        ("wonder", EffectKind.Wonder),
+        ("wonder", EffectKind.Wonder), ("admin", EffectKind.Admin), ("mandate", EffectKind.Mandate),
+        ("sanitation", EffectKind.Sanitation),
     };
 
     private static EffectKind ParseEffectKind(string? name)
@@ -419,6 +471,13 @@ public sealed class ResearchCatalog
             Action = e.GetString("action"),
             Note = e.GetString("note"),
             Int = e.GetInt("era") ?? e.GetInt("rung") ?? 0,
+            MandateStart = kind == EffectKind.Mandate ? (int)(e.GetInt("start") ?? 0) : 0,
+            MandateCap = kind == EffectKind.Mandate ? (int)(e.GetInt("cap") ?? 0) : 0,
+            MandateRecharge = kind == EffectKind.Mandate ? (int)(e.GetInt("recharge") ?? 0) : 0,
+            Decree = kind == EffectKind.Mandate ? e.GetString("decree") : null,
+            DecreeCost = kind == EffectKind.Mandate ? (int)(e.GetInt("cost") ?? 0) : 0,
+            AdminSpan = kind == EffectKind.Admin ? (int)(e.GetInt("span") ?? 0) : 0,
+            AdminOverreach = kind == EffectKind.Admin ? e.GetFix("overreach") ?? Fix64.Zero : Fix64.Zero,
         };
     }
 

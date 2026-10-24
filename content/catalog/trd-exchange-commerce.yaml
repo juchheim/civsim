@@ -43,18 +43,30 @@ projects:
     name: Marketplaces
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [TRD-03, SOC-07]
     effects:
-      - {kind: prose, text: "Build: Market. Internal goods distribution +30%; Role: Trader."}
+      - {kind: build, structure: market}
+      - {kind: role, id: trader}
+      - {kind: tier, tier: town, min_pop: 60, needs: [market], radius: 5}
+      - {kind: mod, stat: internal_distribution, op: pct, value: 0.3}
+    practice: [{action: trade, share: 100}]
+    flavor: "Bring what you have, find what you need."
+    moment: "Stalls fill a square at dawn; a woman trades a jar of oil for copper beads"
   - id: TRD-05
     name: Market Towns
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [TRD-04, TRN-05]
     effects:
-      - {kind: prose, text: "Towns specialize in trade: settlements at route crossroads grow +25%. *KEY-4 prerequisite.*"}
+      - {kind: build, structure: caravanserai}
+      - {kind: rule, text: "a Town on 2 or more trade routes: food cap +25%"}
+      - {kind: mod, stat: route_capacity, op: mult, value: 2}
+      - {kind: cap, cap: food, mult: 1.05}
+    practice: [{action: trade, share: 50}, {action: haul, share: 50}]
+    flavor: "Where roads meet, a town grows."
+    moment: "Caravans from three directions unload in a walled yard beside the market"
   - id: TRD-06
     name: Coinage
     era: 4

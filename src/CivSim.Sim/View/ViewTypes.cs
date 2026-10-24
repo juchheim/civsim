@@ -17,6 +17,10 @@ public enum FigureActivity : byte
     OnGift = 15, OnBarter = 16, OnRaid = 17, OnAssault = 18,
     /// <summary>Holding a taken settlement until it changes hands (docs/MVP/13 §8.2).</summary>
     Occupying = 19,
+    /// <summary>With an Expedition Decree's party (docs/MVP/22 §4.3).</summary>
+    OnExpedition = 20,
+    /// <summary>Carrying a compact's goods (docs/MVP/22 §6.3).</summary>
+    OnCaravan = 21,
 }
 
 /// <summary>Bits of <see cref="MatchFrame.FigureFlags"/>.</summary>
@@ -102,6 +106,12 @@ public enum SettlementViewFlags : ushort
     Lookout = 256,
     /// <summary>One of the viewer's own settlements.</summary>
     Own = 512,
+    /// <summary>A Tin Folk village (docs/MVP/22 §6.4).</summary>
+    TinFolk = 1024,
+    /// <summary>A Corvée drives its public work now (docs/MVP/22 §4.3; own settlements only).</summary>
+    Corvee = 2048,
+    /// <summary>The viewer's levy host stands against it.</summary>
+    LevyTarget = 4096,
 }
 
 /// <summary>Bits of <see cref="MatchFrame.CivFlags"/>: the viewer's relation to a civilization.</summary>
@@ -118,10 +128,14 @@ public enum CivViewFlags : ushort
     AtWar = 16,
     Allied = 32,
     InTruce = 64,
+    /// <summary>A non-aggression pact with the viewer stands (DIP-04).</summary>
+    Pact = 128,
+    /// <summary>A border treaty with the viewer stands (DIP-05).</summary>
+    Treaty = 256,
 }
 
 /// <summary>A party on the road (docs/MVP/13 §4 to §8).</summary>
-public enum PartyKind : byte { Gift = 0, Barter = 1, Raid = 2, Assault = 3 }
+public enum PartyKind : byte { Gift = 0, Barter = 1, Raid = 2, Assault = 3, Explore = 4, Caravan = 5 }
 
 /// <summary>How loudly the front end should present an event (docs/MVP/08 §10.1).</summary>
 public enum ViewEventTier : byte { Ambient = 0, Info = 1, Milestone = 2, Moment = 3, Critical = 4 }
@@ -208,6 +222,30 @@ public enum ViewEventKind : ushort
     OrderRefused = 56,
     /// <summary>A voyage turned back at sea (docs/MVP/21). A = open-sea tiles, B = what sailed (0 gift, 1 barter, 2 raid, 3 assault, 4 settlers).</summary>
     VoyageLost = 57,
+
+    // ---- Bronze: Decrees and trade (docs/MVP/22 §14; PoliticsSystem events, one record per side) ----
+    /// <summary>A Decree was carried out. A = <see cref="Politics.DecreeKind"/>, B = subject (see PoliticsEventKind.DecreeResolved); Settlement/Tile set where it has one.</summary>
+    DecreeResolved = 58,
+    /// <summary>A Decree was refused, nothing spent. A = <see cref="Politics.DecreeKind"/>, B = <see cref="Politics.OrderRefusalReason"/>.</summary>
+    DecreeRefused = 59,
+    /// <summary>An expedition reported. A = tiles revealed; Tile = its target.</summary>
+    ExpeditionReturned = 60,
+    /// <summary>A compact began. A = compact id, B = <see cref="Politics.TradeGood"/> (+100 when this side sells).</summary>
+    CompactSigned = 61,
+    /// <summary>A compact ended. A = compact id, B = <see cref="Politics.CompactEndReason"/>.</summary>
+    CompactEnded = 62,
+    /// <summary>An embargo. A = <see cref="Politics.TradeGood"/>, B = 1 we set it, 0 we lifted it, 3 set on us, 2 lifted on us.</summary>
+    EmbargoSet = 63,
+    /// <summary>A caravan was raided. A = compact id, B = loot (permille of the good's unit; -1 the raid failed).</summary>
+    CaravanRaided = 64,
+    /// <summary>Tin Folk appeared. Settlement = the village, Tile = its placer.</summary>
+    TinFolkAppeared = 65,
+    /// <summary>A pact or treaty was signed. A = <see cref="Politics.CompactVariant"/>, B = seasons.</summary>
+    PactSigned = 66,
+    /// <summary>A pact was broken by war. A = <see cref="Politics.CompactVariant"/>, B = 1 we broke it.</summary>
+    PactBroken = 67,
+    /// <summary>A Free Folk village joined by Invite. Settlement = it, A = people.</summary>
+    VillageJoined = 68,
 }
 
 /// <summary>
@@ -232,6 +270,11 @@ public enum ChronicleKey : ushort
     SettlementHeld = 78, Occupied = 79, OccupationBroken = 80, OccupationAbandoned = 81, SettlementCaptured = 82,
     SettlementLost = 83, FreeFolkFounded = 84, AllianceFormed = 85, BeaconPlaced = 86, OrderRefused = 87,
     VoyageLost = 88, IslandSettled = 89,
+
+    DecreeFound = 90, DecreeExpedition = 91, DecreeMine = 92, DecreeLevy = 93, DecreeCorvee = 94, DecreeCompact = 95,
+    DecreeRefused = 96, ExpeditionReturned = 97, CompactSigned = 98, CompactEnded = 99, EmbargoSet = 100, EmbargoLifted = 101,
+    CaravanRaided = 102, CaravanRaidFailed = 103, TinFolkAppeared = 104, PactSigned = 105, TreatySigned = 106, PactBroken = 107,
+    VillageJoined = 108, EmbargoOnUs = 109, DecreePact = 110,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -302,6 +345,27 @@ public static class ViewText
         ChronicleKey.OrderRefused => "alert.order.refused",
         ChronicleKey.VoyageLost => "chronicle.voyage.lost",
         ChronicleKey.IslandSettled => "chronicle.settlement.island",
+        ChronicleKey.DecreeFound => "chronicle.decree.found",
+        ChronicleKey.DecreeExpedition => "chronicle.decree.expedition",
+        ChronicleKey.DecreeMine => "chronicle.decree.mine",
+        ChronicleKey.DecreeLevy => "chronicle.decree.levy",
+        ChronicleKey.DecreeCorvee => "chronicle.decree.corvee",
+        ChronicleKey.DecreeCompact => "chronicle.decree.compact",
+        ChronicleKey.DecreePact => "chronicle.decree.pact",
+        ChronicleKey.DecreeRefused => "alert.decree.refused",
+        ChronicleKey.ExpeditionReturned => "chronicle.expedition.returned",
+        ChronicleKey.CompactSigned => "chronicle.compact.signed",
+        ChronicleKey.CompactEnded => "chronicle.compact.ended",
+        ChronicleKey.EmbargoSet => "chronicle.embargo.set",
+        ChronicleKey.EmbargoLifted => "chronicle.embargo.lifted",
+        ChronicleKey.EmbargoOnUs => "alert.embargo.on_us",
+        ChronicleKey.CaravanRaided => "chronicle.caravan.raided",
+        ChronicleKey.CaravanRaidFailed => "chronicle.caravan.raid_failed",
+        ChronicleKey.TinFolkAppeared => "banner.tin_folk.appeared",
+        ChronicleKey.PactSigned => "chronicle.pact.signed",
+        ChronicleKey.TreatySigned => "chronicle.treaty.signed",
+        ChronicleKey.PactBroken => "chronicle.pact.broken",
+        ChronicleKey.VillageJoined => "chronicle.settlement.joined",
         _ => "",
     };
 }

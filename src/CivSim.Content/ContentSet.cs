@@ -109,7 +109,7 @@ public sealed class ContentSet
     public static readonly string[] RegistryNames =
     {
         "eras", "actions", "practice", "goods", "structures", "tools", "roles", "biomes", "fauna", "deposits",
-        "archetypes", "difficulty", "guarantees", "openings",
+        "archetypes", "difficulty", "guarantees", "openings", "recipes",
     };
 
     public List<Lineage> Lineages { get; } = new();
@@ -265,13 +265,19 @@ public sealed class ContentSet
             .Req("cost_mod", S.Num("0", "10", true)),
         "actions" => Rec().Req("class", S.Enum("family", "activity")).Opt("base_rate", S.Num("0", null, true)).Opt("unit", S.Str()),
         "practice" => S.Obj().Req("id", S.Str()).Req("knowhow", S.Map(S.Int(1, 100))).Opt("knowhow_from_era2", S.Map(S.Int(1, 100))).Opt("note", S.Str()),
-        "goods" => Rec().Req("category", S.Enum("food", "food_feast", "material", "processed", "fuel", "metal", "tool", "container", "clothing", "luxury", "shelter", "animal"))
+        "goods" => Rec().Req("category", S.Enum("food", "food_feast", "material", "processed", "fuel", "metal", "tool", "container", "clothing", "luxury", "shelter", "animal", "ore", "arms"))
             .Req("first_from", S.List(S.Str())).Opt("spoilage", S.Num("0", "1")).Opt("durability", S.Str()).Req("load", S.Num("0", "100")).Opt("per", S.Int(1, 1000))
             .Req("barter", S.Num("0", "10000")),
         "structures" => Rec().Req("class", S.Enum("structure", "wonder")).Req("unlocked_by", S.Str()).Opt("labor", S.Num("0")).Opt("labor_note", S.Str())
             .Opt("materials", S.Str()).Opt("effect", S.Str()).Opt("upkeep", S.Str()),
-        "tools" => Rec().Req("unlocked_by", S.List(S.Str())).Opt("make_time", S.Num("0")).Opt("inputs", S.Str()).Opt("durability", S.Str()).Opt("enables", S.Str()),
-        "roles" => Rec().Req("insight", S.Int(0, 100000)).Req("unlocked_by", S.Str()),
+        "tools" => Rec().Req("unlocked_by", S.List(S.Str())).Opt("make_time", S.Num("0")).Opt("inputs", S.Str()).Opt("durability", S.Str()).Opt("enables", S.Str())
+            .Opt("metal", S.Str()).Opt("metal_per_kit", S.Num("0", "10", true)).Opt("service_ws", S.Num("0", "1000", true))
+            .Opt("mods", S.Map(S.Num("0", "100", true))).Opt("strength", S.Num("0", "100", true))
+            .Opt("casualties_taken", S.Num("0", "1", true)).Opt("open_terrain_mult", S.Num("1", "10")).Opt("crew", S.Int(1, 100)).Opt("horses", S.Int(0, 100)),
+        "roles" => Rec().Req("insight", S.Int(0, 100000)).Req("unlocked_by", S.Str()).Opt("staffing", S.Str()),
+        "recipes" => Rec().Req("unlocked_by", S.List(S.Str())).Opt("structure", S.List(S.Str()))
+            .Req("inputs", S.Map(S.Num("0", "1000", true))).Req("outputs", S.Map(S.Num("0", "1000", true)))
+            .Req("labor", S.Num("0", "100", true)).Req("order", S.Int(0, 100)).Req("practice", S.Str()).Opt("bellows", S.Bool()).Opt("note", S.Str()),
         "guarantees" => S.Obj().Req("id", S.Str()).Req("scope", S.Enum("start", "continental")).Opt("radius", S.Int(1, 1000)).Req("gate", S.Str()),
         "archetypes" => Rec().Req("leaning", S.Map(S.Num("0", "1"))).Req("raid_margin", S.Str()).Req("expansion", S.Str()).Req("diplomacy", S.Str()).Req("signature", S.Str()),
         "difficulty" => Rec().Req("horizon_eras", S.Int(1, 10)).Req("beam_width", S.Int(1, 1000)).Req("opponent_model", S.Str()).Req("replan", S.Str())

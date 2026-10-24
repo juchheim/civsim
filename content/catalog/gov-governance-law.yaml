@@ -42,26 +42,45 @@ projects:
     name: "Tribute & Redistribution"
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-02, FOD-06]
     effects:
-      - {kind: prose, text: "Central stores redistribute food across settlements: local famines −50%."}
+      - {kind: rule, text: "stores rebalance between own settlements within 20 tiles each season (SOC-07: 15); local famine deaths −50%"}
+      - {kind: admin, span: 2, overreach: 0.10}
+      - {kind: cap, cap: food, mult: 1.04}
+    practice: [{action: council, share: 50}, {action: haul, share: 50}]
+    flavor: "The granary of one is the granary of all."
+    moment: "Carriers bring grain sacks to the chief's storehouse and a tally is cut for each"
   - id: GOV-05
     name: "Kingship & Palace"
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-04, SOC-09]
     effects:
-      - {kind: prose, text: "Build: Palace. Claim strength +25% within capital radius; Wonder build +20%."}
+      - {kind: build, structure: palace, note: "the capital: 30 ws, mudbrick 200, stone blocks or cut stone 20 L"}
+      - {kind: role, id: king}
+      - {kind: tier, tier: capital, needs: [palace], claim_mult: 1.25, note: "claim +25% within the capital's radius"}
+      - {kind: mod, stat: wonder_build_rate, op: pct, value: 0.2}
+      - {kind: admin, span: 3}
+      - {kind: mandate, cap: 1}
+    practice: [{action: council, share: 50}, {action: build, share: 50}]
+    flavor: "One house above all houses."
+    moment: "A king is seated on a raised throne in a pillared hall while envoys bow"
   - id: GOV-06
     name: Code of Law
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-05, COM-05]
     effects:
-      - {kind: prose, text: "Written law: Cohesion +10%; crime events −; Overreach −15%. *KEY-4 prerequisite.*"}
+      - {kind: cohesion, value: 5, scope: all}
+      - {kind: hazard, cause: violence, mult: 0.85}
+      - {kind: admin, span: 2, overreach: 0.15}
+      - {kind: mandate, cap: 1}
+    practice: [{action: council, share: 50}, {action: scribe, share: 50}]
+    flavor: "The law is written, so the judge cannot forget."
+    moment: "A stone stele is raised in the square, the laws carved beneath the king's image"
   - id: GOV-07
     name: "Bureaucracy & Census"
     era: 4

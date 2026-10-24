@@ -7,7 +7,7 @@
 
 ## 1. Summary
 
-**Demography still drives pacing, and the arc still lands.** With the current Roots cadence follow-up, the Standard arc runs **173.5 min** (Quick 87, Epic 301; [07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22)). Every era is inside its 02 §8.3 window. Fertility ±15% still moves the arc −8% / +11%, so demography is the lever WS-B must not disturb.
+**Demography still drives pacing.** With the current cadence ([07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)), the mean-field Standard arc runs **241.75 min** (Quick 120.88, Epic 419.03). Later-era projects take longer by design; this is a model projection and needs live validation. In the model, ±15% fertility moves the arc to 257.75 / 228.5 min, so demography remains a major pacing driver.
 
 **The mean-field balance model puts first fission at minute 7–9 for every archetype** (WS-A: 6–13). A late-winter food check splits the band when its lean-season food runs short (§7.2). The timing depends on the population clock, not on research speed: Insight ±20–25% moves it by at most one year. Live-simulation timing remains an open integration gate; see [07c §6](07c-e0-e2-checks.md#6-c4--first-fission).
 
@@ -21,7 +21,7 @@
 | Mortality | ASSUMED | life-table anchors per era (§4.1): child q(14) 47% → 1%, e45 15 → 37 years |
 | Winter multiplier | 2.0 … 1.0 | **2.0 · 1.7 · 1.4 · 1.25 · 1.2 · 1.15 · 1.1 · 1.08 · 1.05 · 1.05** (§4.3) |
 | Crowding | counts the group cap | **food and housing only** (social size splits a group; it doesn't starve it) |
-| EraBase E0…E9 (02 §8.3) | 20 · 45 · 70 · 180 · 600 · 3,400 · 18k · 160k · 1.0M · 4.8M | **22 · 50 · 90 · 180 · 550 · 3,000 · 15k · 130k · 750k · 3.8M** (WS-H re-fit, §11; Roots follow-up, [07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22)) |
+| EraBase E0…E9 (02 §8.3) | 20 · 45 · 70 · 180 · 600 · 3,400 · 18k · 160k · 1.0M · 4.8M | **22 · 50 · 150 · 400 · 1,200 · 6,000 · 32k · 280k · 1.7M · 9M** (current cadence, [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)) |
 | Disease | not specified | 4 outbreak classes, density pressure, SIR-lite final size, novel-disease shock (§10) |
 
 Unchanged: Insight scale (Commons 4.8, roles ×8), breadth N, representation scale, claim radii, territory and specialist shares (justified in §8–§9).
@@ -384,49 +384,47 @@ Per settlement, a pre-modern town sees an outbreak about every 20 years. A plagu
 ## 11. Results
 
 ### 11.1 Re-fit
-The new demography makes E0 faster (elders live longer: e45 15 years instead of WS-A's 8) and E8–E9 slower (steeper fertility transition). I kept the Insight formula as 02 §8.1 has it (Commons 4.8, roles ×8) and re-fit only EraBase (`fit.py Standard base`, then rounded):
+The original WS-H fit below predates the progressive cadence update. It made E0 faster (elders live longer: e45 15 years instead of WS-A's 8) and E8–E9 slower (steeper fertility transition). It kept the Insight formula as 02 §8.1 has it (Commons 4.8, roles ×8) and re-fit only EraBase (`fit.py Standard base`, then rounded):
 
 | | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | EraBase, WS-A | 20 | 45 | 70 | 180 | 600 | 3,400 | 18,000 | 160,000 | 1,000,000 | 4,800,000 |
 | Fitted raw | 22.3 | 49.4 | 76.9 | 180.4 | 560 | 3,057 | 14,899 | 132,311 | 736,826 | 3,786,285 |
 | **EraBase, WS-H** | **22** | **50** | **75** | **180** | **550** | **3,000** | **15,000** | **130,000** | **750,000** | **3,800,000** |
-| Avg in-era project / keystone | 24 / 55 | 55 / 125 | 103 / 225 | 214 / 450 | 668 / 1,375 | 3.4k / 7.5k | 17.7k / 37.5k | 123k / 293k | 773k / 1.69M | 3.93M / 8.55M |
+| Avg in-era project / keystone | 24 / 55 | 55 / 125 | 87 / 188 | 214 / 450 | 668 / 1,375 | 3.4k / 7.5k | 17.7k / 37.5k | 123k / 293k | 773k / 1.69M | 3.93M / 8.55M |
 
-The Roots value was later raised from 75 to 90 after play feedback that E2 projects were completing too quickly. The follow-up balance run and rationale are in [07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22); the WS-H row above records the original fit.
-
-At the original WS-H values, ratios per era were ×2.3, 1.5, 2.4, 3.1, 5.5, 5.0, 8.7, 5.8, 5.1, the same shape as WS-A's (07 F2). Roots' later cadence adjustment is documented in 07c §10. For comparison, the default `fit.py` (which also re-fits the Insight scale) asks for k = 7.9, essentially the published 8.
+Ratios per era are now ×2.3, 1.5, 2.4, 3.1, 5.5, 5.0, 8.7, 5.8, 5.1, the same shape as WS-A's (07 F2). For comparison, the default `fit.py` (which also re-fits the Insight scale) asks for k = 7.9, essentially the published 8.
 
 ### 11.2 Tuned run (Standard, Balanced)
 | Era | Start | Minutes | Target | Pop at end | WS-A pop | Settl. | Figures | Insight/min | Know-how | Roles |
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|
-| E0 | 0.0 | 7.8 | 7–9 | 22 | 20 | 2 | 22 | 43 | 20% | 0% |
-| E1 | 7.8 | 10.0 | 9–11 | 46 | 43 | 2 | 46 | 93 | 15% | 24% |
-| E2 | 17.8 | 13.0 | 11–13 | 125 | 106 | 2 | 125 | 198 | 15% | 26% |
-| E3 | 30.8 | 12.8 | 12–14 | 296 | 295 | 2 | 296 | 388 | 16% | 14% |
-| E4 | 43.5 | 14.2 | 14–16 | 798 | 848 | 3 | 399 | 1,050 | 16% | 13% |
-| E5 | 57.8 | 16.5 | 16–18 | 2,230 | 2,553 | 5 | 446 | 3,656 | 15% | 16% |
-| E6 | 74.2 | 19.0 | 18–20 | 7,499 | 9,028 | 9 | 300 | 15,391 | 14% | 22% |
-| E7 | 93.2 | 22.5 | 22–24 | 33,351 | 40,315 | 15 | 334 | 90,275 | 14% | 24% |
-| E8 | 115.8 | 27.5 | 26–28 | 84,039 | 88,107 | 9 | 336 | 558,660 | 13% | 23% |
-| E9 | 143.2 | 30.2 | 28–32 | 140,135 | 175,386 | 9 | 280 | 2.49M | 13% | 24% |
-| **Arc** | | **173.5** | ≈ 180 | | | | | | | |
+| E0 | 0.0 | 7.75 | 7–9 | 22 | 20 | 2 | 22 | 43 | 20% | 0% |
+| E1 | 7.75 | 10.0 | 9–11 | 46 | 43 | 2 | 46 | 93 | 15% | 24% |
+| E2 | 17.75 | 14.0 | 11–13 | 132 | 106 | 2 | 132 | 203 | 15% | 25% |
+| E3 | 31.75 | 11.25 | 12–14 | 284 | 295 | 2 | 284 | 389 | 16% | 14% |
+| E4 | 43.0 | 16.5 | 14–16 | 861 | 848 | 3 | 430 | 1,080 | 16% | 12% |
+| E5 | 59.5 | 18.25 | 16–18 | 2,559 | 2,553 | 5 | 512 | 4,123 | 15% | 16% |
+| E6 | 77.75 | 20.25 | 18–20 | 9,602 | 9,028 | 12 | 384 | 18,440 | 14% | 22% |
+| E7 | 98.0 | 24.75 | 22–24 | 41,431 | 40,315 | 15 | 414 | 111,659 | 13% | 24% |
+| E8 | 122.75 | 33.0 | 26–28 | 92,150 | 88,107 | 9 | 369 | 645,570 | 14% | 22% |
+| E9 | 155.75 | 39.25 | 28–32 | 145,163 | 175,386 | 9 | 290 | 2.77M | 13% | 22% |
+| **Arc** | | **195.0** | ≈ 180 | | | | | | | |
 
-- KEY-1 is reached at 7.8 min, KEY-2 at 17.8 and the KEY-3 proxy at 30.8 (targets 7–9, 16–20 and 29 ±25%). First fission comes at 7.0.
-- **Rendered figures stay at 280–446 from E3 on**, so the representation scale (07 F6) holds unchanged.
-- The peak is ~140,000 people rather than 175,000, still "hundreds of thousands" (01 §8).
+- KEY-1 is reached at 7.75 min and KEY-2 at 17.75 (targets 7–9 and 16–20). First fission comes at 7.0.
+- **Rendered figures stay at 284–512 from E3 on**, so the representation scale (07 F6) holds unchanged.
+- The peak is ~145,000 people rather than 175,000, still "hundreds of thousands" (01 §8).
 - Population grows 7–8% a year through E4, 6.5% through E7, then 3.6% (E8) and 1.8% (E9) as the transition bites.
 
 ### 11.3 Archetypes, paces and sensitivity
-| Variation | Arc (min) | vs. 173.5 | Eras in window |
+| Variation | Arc (min) | vs. 195 | Eras in old window |
 |---|---:|---:|---|
-| Balanced / Grower / Builder / Wanderer / Warlord / Sage | 173.5 / 154.25 / 177.5 / 165.25 / 173.75 / 172.75 | −11% … +2% | 10 / 3 / 9 / 8 / 10 / 9 |
-| Quick / Epic (Balanced) | 86.75 / 300.73 | target 90 / 300 | |
-| Fertility ×0.85 / ×1.15 | 192 / 160 | +11% / −8% | |
-| CohesionFactor 0.8 | 173.5 | 0% | |
+| Balanced / Grower / Builder / Wanderer / Warlord / Sage | 195 / 172.5 / 198.75 / 178.5 / 191.25 / 192.5 | −12% … +2% | 2 / 3 / 2 / 5 / 3 / 1 |
+| Quick / Epic (Balanced) | 97.5 / 338 | target 90 / 300 | |
+| Fertility ×0.85 / ×1.15 | 210.75 / 182 | +8% / −7% | |
+| CohesionFactor 0.8 | 195 | 0% | |
 
-- **Every archetype stays within ±15% of every era midpoint**, well inside the ±25% tolerance (06 §6). The worst cases are the Grower (8–14% fast from E3) and the Wanderer's E8–E9 (25.75 and 25.5 min).
-- The pattern matches WS-A's (07 F11). It is a property of the archetype multipliers, which are WS-E's to set, not of demography.
+- The older target windows are no longer the fit objective for this curve; the pace/archetype sweep is a comparative model output, not a claim that every era is within the original windows.
+- First fission remains at minute 7 in the Balanced run. The later slowdown comes from research costs, not a population-parameter change.
 - The Sweeps sheet has every pace × archetype.
 
 ## 12. Change list for other documents
@@ -434,7 +432,7 @@ For whoever owns each document. Nothing outside this file and `balance/` was edi
 
 | # | Doc § | Change |
 |---|---|---|
-| 1 | 02 §8.3 | EraBase → **22 · 50 · 90 · 180 · 550 · 3,000 · 15,000 · 130,000 · 750,000 · 3,800,000**; Roots follow-up in 07c §10 |
+| 1 | 02 §8.3 | EraBase → **22 · 50 · 150 · 400 · 1,200 · 6,000 · 32,000 · 280,000 · 1,700,000 · 9,000,000** (current cadence, 07c §10.1); live acceptance pending |
 | 2 | 05 §9.1 | Caps: FoodBase 20, HousingBase 40, GroupBase 25, each raised project by project (§5); GroupCap ladder gains SOC-10 → 50,000 and GOV-12 → unbounded |
 | 3 | 05 §9.2 | Define Crowding = (Pop / MIN(Food, Housing))^6; FertMult table (§3.3); per-figure conception rule |
 | 4 | 05 §9.3 | Hazard tables (§4.1), Gompertz elders, cause shares (§4.2), winter channels (§4.3) |

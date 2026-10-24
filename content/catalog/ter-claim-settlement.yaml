@@ -65,18 +65,26 @@ projects:
     name: "Boundary Stones & Land Rights"
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [TER-05, GOV-03]
     effects:
-      - {kind: prose, text: "Claimed tiles resist rival pressure: −30% flip rate."}
+      - {kind: rule, text: "own tiles flip only after a challenger leads by 30% for 2 seasons"}
+      - {kind: admin, overreach: 0.10}
+      - {kind: claim, text: "mining camps radius 2"}
+    practice: [{action: mark, share: 100}]
+    flavor: "This stone says whose field it is, and the king agrees."
+    moment: "A carved boundary stone is set at a field's corner before witnesses"
   - id: TER-07
     name: "City-States & Hinterlands"
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [TER-06, SOC-09]
     effects:
-      - {kind: prose, text: Cities project claim radius 7 over their hinterland.}
+      - {kind: claim, text: "each City: a hinterland ring to radius 7 at 50% emission"}
+    practice: [{action: mark, share: 100}]
+    flavor: "The city's fields reach as far as its towers can see."
+    moment: "Villages around a city bring the first harvest to its gate"
   - id: TER-08
     name: "Provinces & Governors"
     era: 4

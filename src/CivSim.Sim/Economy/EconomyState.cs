@@ -15,7 +15,11 @@ public enum EconomyJob : byte
 public readonly record struct FigureView(
     long Id, int Civilization, int SettlementId, int Age, bool Female, Fix64 Health,
     Fix64 Hunger, Fix64 Warmth, Fix64 Rest, Fix64 Belonging, byte PregnancySeasons,
-    EconomyJob Job, Fix64 WorkThisSeason);
+    EconomyJob Job, Fix64 WorkThisSeason, byte Task = 0)
+{
+    /// <summary>The practice id of the figure's metal or craft task this season (docs/MVP/23 §10), or null when its job is its practice.</summary>
+    public string? TaskPractice => LivingEconomyModel.TaskPractice(Task);
+}
 
 public enum EconomyDeathCause : byte
 {

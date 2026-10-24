@@ -132,7 +132,7 @@ Insight/yr = Commons + Roles + Structures
 ```
 
 - **Scale:** the starting band of 12 (8 adults, 2 elders) makes about 40 Insight per year, enough to finish E0 in 7–9 minutes. v0.1 used a coefficient of 0.6 and role outputs one-eighth of these, which made E0 take ~58 minutes. Every output was scaled ×8 together, so the commons-vs-specialist ratios are unchanged ([07](07-balance-findings.md) F1).
-- **Live calibration (M4).** The whole formula (Commons, roles and structures together) is multiplied by `InsightCalibration` = **1.6** in `content/constants/balance.yaml`. With exact ages the first children reach adulthood only at minute 14, so the live adult stock through E1 trails the balance model's smoothed one by 30–40%, and the 7.5 / 17.5 / 29 minute Keystone targets need the factor ([07c §7a](07c-e0-e2-checks.md#7a-c5-in-the-live-sim-m4-2026-10-19)). It is the same kind of change as the ×8 above. EraBase for E3 and later is untouched; re-fit it when those eras run live (M8).
+- **Live calibration (M4).** The whole formula (Commons, roles and structures together) is multiplied by `InsightCalibration` = **1.6** in `content/constants/balance.yaml`. With exact ages the first children reach adulthood only at minute 14, so the live adult stock through E1 trails the balance model's smoothed one by 30–40%, and the 7.5 / 17.5 / 29 minute Keystone targets needed the factor ([07c §7a](07c-e0-e2-checks.md#7a-c5-in-the-live-sim-m4-2026-10-19)). It is the same kind of change as the ×8 above. E3+ EraBase has since changed under the cadence follow-up; validate the new E2+ timing in a fresh live acceptance run ([07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)).
 - The sublinear population exponent (0.85) keeps huge empires from researching at absurd speed. Specialists and institutions are how large civilizations stay ahead. The balance model found that lowering the exponent changes little ([07](07-balance-findings.md) F3), so it stays at 0.85.
 - Children contribute nothing. Elders contribute double Commons (wisdom), which makes keeping elders alive (MED, FOD) a research strategy.
 
@@ -157,11 +157,11 @@ Cost = EraBase[era] × TypeMult[type] × DiffusionMult × EraLagMult × GateMult
 
 | Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
 |-----|----|----|----|----|----|----|----|----|----|----|
-| **EraBase** | 22 | 50 | 90 | 180 | 550 | 3,000 | 15,000 | 130,000 | 750,000 | 3,800,000 |
+| **EraBase** | 22 | 50 | **150** | **400** | **1,200** | **6,000** | **32,000** | **280,000** | **1,700,000** | **9,000,000** |
 
-*EraBase follows the WS-H re-fit ([09 §11.1](09-population-and-health.md#111-re-fit)), which superseded 07 §5 #5. Roots was later raised from 75 to 90 after play feedback that its projects completed too quickly; the balance model now places E2 at the 13-minute upper edge of its target. See [07c §10](07c-e0-e2-checks.md#10-roots-cadence-follow-up-2026-10-22).*
+*The WS-H fit ([09 §11.1](09-population-and-health.md#111-re-fit)) is historical. The current cadence for E2–E9 is the follow-up in [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24); those longer-era projections still need fresh live acceptance runs.*
 
-EraBase is fitted era by era to the pacing targets below ([07](07-balance-findings.md) F2), not a flat ratio. v0.1's flat ×2.5 per era (20 · 50 · 125 · … · 75,000) ran the early eras 4–7× too long and the late eras 1.4–2× too short, because Insight compounds faster than ×2.5 once population growth and the late LRN multipliers stack. The uneven steps are real: E2 is low because it carries the heaviest backfill load, and E7 is high because of the Industrial population boom and schooling multipliers. Re-fit with `balance/tools/fit.py` whenever the Insight multipliers or demography change.
+The original EraBase fit was done era by era to the pacing targets below ([07](07-balance-findings.md) F2), not as a flat ratio. v0.1's flat ×2.5 per era (20 · 50 · 125 · … · 75,000) ran the early eras 4–7× too long and the late eras 1.4–2× too short, because Insight compounds faster than ×2.5 once population growth and the late LRN multipliers stack. The current curve deliberately exceeds several earlier per-era windows to slow project cadence, especially from Roots onward. Re-fit with `balance/tools/fit.py` whenever the Insight multipliers or demography change.
 
 - **DiffusionMult** = 1 − 0.10 × (number of *contacted* civs that know it), with a floor of 0.5.
 - **EraLagMult** = 0.7 ^ (current era − project era). Backfilling old projects is cheap, so neglecting a lineage is recoverable.
@@ -185,7 +185,7 @@ EraBase is fitted era by era to the pacing targets below ([07](07-balance-findin
 
 "Visible" means projects of eras up to the current one (not all of them Glimpsed yet). Catalog sizes per era are in [03-research-catalog.md](03-research-catalog.md).
 
-Standard pace totals ≈ 3 hours for the full arc (Quick ≈ 90 min); the balance model's tuned run is 173.5 min (Quick 87, Epic 301). Pace changes the season length, not these costs ([01](01-game-structure.md) §6). Later eras run longer on purpose: their maps are busier and their projects interact more.
+The original target was ≈ 3 hours for the full arc at Standard (Quick ≈ 90 min). The progressive cadence model runs 195 min Standard (Quick 97.5, Epic 338; [07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24)). Pace changes the season length, not these costs ([01](01-game-structure.md) §6). The added cost grows in later eras so their projects take longer to complete.
 
 So a civilization completes roughly **30–40% of each era's projects** (each era offers 34–65) before moving on. That is the source of meaningful choice and divergent civilizations. The EraLag discount makes backfilling attractive later.
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CivSim.Game.Ui;
 using CivSim.Sim.Ai;
+using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using Godot;
 
@@ -498,7 +499,10 @@ public partial class Game
         var order = new int[frame.CivCount];
         for (int i = 0; i < order.Length; i++) order[i] = i;
         Array.Sort(order, (a, b) => frame.CivLegacy[b].CompareTo(frame.CivLegacy[a]));
-        _endModal.Title.Text = frame.CivEra[viewer] >= 3 ? "Your people reached the Bronze age" : $"{SimulationSession.MatchYears} years have passed";
+        _endModal.Title.Text = _session?.EndReason == MatchEndReason.HumanKeystone || frame.CivEra[viewer] >= 4
+            ? "The Iron Age dawns"
+            : _session?.EndReason == MatchEndReason.RivalCountdown ? "The Iron Age has come"
+            : $"{_session?.MatchYears ?? 64} years have passed";
         int myRank = Array.IndexOf(order, viewer) + 1;
         string leader = order[0] == viewer ? "Your people lead" : $"The {UiText.CivName(order[0])} lead";
         _endModal.Subtitle.Text = $"{leader} the world in Legacy. Your people finished {myRank} of {frame.CivCount}.";
@@ -590,9 +594,11 @@ public partial class Game
             _endTimelineSequence = item.Sequence;
             if (item.Kind is ViewEventKind.EraAdvanced)
             {
-                if (item.A >= 3 && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
-                    ShowToast($"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age", ToastKind.Info,
-                        $"The match runs until your people get there or Year {SimulationSession.MatchYears}.", key: $"rival-era-{item.Civ}-{item.A}");
+                // A rival completing KEY-4 starts the Iron Age countdown (docs/MVP/22 §3.1): 3 years to finish or the age closes.
+                if (item.A >= 4 && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
+                    ShowToast($"The Iron Age is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
+                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or in 3 years, or at Year {_session.MatchYears}.",
+                        key: $"rival-era-{item.Civ}-{item.A}");
                 _endTimeline.Add(item);
                 if (_endTimeline.Count > 64) _endTimeline.RemoveAt(0);
             }

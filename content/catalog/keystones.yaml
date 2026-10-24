@@ -46,6 +46,15 @@ keystones:
       - {kind: era_advance, era: 3}
       - {kind: highlight, text: ore deposits on the map}
       - {kind: legacy, text: Keystone}
+      - {kind: mandate, start: 1, cap: 2, recharge: 8, note: "Mandate and the six Decrees, plus the Embargo toggle (22 §4)"}
+      - {kind: admin, span: 4, note: "Admin span base: many villages, one voice (22 §8.2)"}
+      - {kind: unlock_action, action: mine}
+      - {kind: good, id: G-CUORE}
+      - {kind: good, id: G-BLOCK, note: "quarried blocks become their own good (MIN-03's output; the E2 economy books them as stone)"}
+      - {kind: build, structure: mining_camp}
+      - {kind: rule, text: "Cohesion becomes live for this civilization: target-seeking, Overreach and Admin span apply (22 §8.3)"}
+      - {kind: rule, text: "plague becomes possible (R0 2.0, CFR 35%, 09 §10); compacts and caravans carry it"}
+      - {kind: event, text: "at the first KEY-3 in the world, Tin Folk appear on free far and island tin placers (22 §6.4)"}
     flavor: The Age of Metal begins.
     moment: "Copper glints in a chief's hand as villages gather"
   - id: KEY-4
@@ -53,11 +62,16 @@ keystones:
     era: 3
     enters: 4
     type: K
-    status: draft
+    status: numeric
     requires: [MET-08, COM-05, GOV-06, TRD-05]
     breadth: {era: 3, min: 21}
     effects:
-      - {kind: prose, text: "Iron era; representation scale 1:2; provinces possible."}
+      - {kind: era_advance, era: 4}
+      - {kind: legacy, text: "Keystone: First 48 (22 §3.3)"}
+      - {kind: rule, text: "Iron threshold: E4 projects stay Hidden; E0–E3 leftovers at EraLag 0.7; Dominion and Mastery keep scoring (22 §3.1)"}
+      - {kind: rule, text: "chapter end: the human's KEY-4 ends the match at the end of the season; the first rival KEY-4 starts the 12-season countdown (22 §3.1)"}
+    flavor: "Iron in the furnace, law on the stone: the Bronze Age is ending."
+    moment: "A smith hands a dark iron blade to a king standing before the law stele"
   - id: KEY-5
     name: Feudal Order
     era: 4

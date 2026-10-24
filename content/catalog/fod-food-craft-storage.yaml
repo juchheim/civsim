@@ -84,18 +84,27 @@ projects:
     name: "Salting & Pickling"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [FOD-06, MIN-06]
     effects:
-      - {kind: prose, text: "Long-life food: expeditions, armies and sea voyages range ×2."}
+      - {kind: good, id: G-SALTED, note: "3% spoilage; recipe salt_food"}
+      - {kind: mod, stat: party_supply_seasons, op: set, value: 2, note: "raids, levies, expeditions and investments carry 2 seasons of food"}
+      - {kind: cap, cap: lean, mult: 1.05}
+    practice: [{action: preserve, share: 100}]
+    flavor: "Salt keeps what the season gives."
+    moment: "Fish are packed in layers of salt in a tall jar and the lid is sealed with clay"
   - id: FOD-08
     name: "Ovens & Bakeries"
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [FOD-05, FIR-07]
     effects:
-      - {kind: prose, text: "Build: Bakery. Role: Baker. Grain food value +20% in towns."}
+      - {kind: build, structure: bakery, note: "Towns and Cities: grain food value +20% for 40 people"}
+      - {kind: role, id: baker}
+    practice: [{action: cook, share: 50}, {action: build, share: 50}]
+    flavor: "Bread for the whole street from one oven."
+    moment: "A baker slides flat loaves out of a domed oven on a long paddle"
   - id: FOD-09
     name: Public Grain Supply
     era: 4

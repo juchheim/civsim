@@ -63,6 +63,7 @@ public class ViewFrameTests
             Assert.Equal(pol.IsFreeFolk(s), (f.SettlementFlags[s] & (ushort)SettlementViewFlags.FreeFolk) != 0);
             for (int k = 0; k < MatchFrame.StructureKinds; k++)
                 Assert.Equal(Math.Min(255, eco.StructureCount(s, k)), f.SettlementStructures[s * MatchFrame.StructureKinds + k]);
+            Assert.Equal(Math.Min(255, eco.HallCount(s)), f.SettlementHalls[s]);
         }
 
         for (int t = 0; t < f.Visibility.Length; t++)
@@ -138,6 +139,7 @@ public class ViewFrameTests
             if (index < 0) continue;
             Assert.NotEqual(0, f.SettlementFlags[index] & (ushort)SettlementViewFlags.Remembered);
             for (int k = 0; k < MatchFrame.StructureKinds; k++) Assert.Equal(0, f.SettlementStructures[index * MatchFrame.StructureKinds + k]);
+            Assert.Equal(0, f.SettlementHalls[index]);
         }
         // A rival's private numbers are not in the frame; public ones are.
         for (int c = 1; c < f.CivCount; c++)
@@ -145,6 +147,7 @@ public class ViewFrameTests
             Assert.Equal(0, f.CivFlags[c] & (ushort)CivViewFlags.Detailed);
             Assert.Equal(0, f.CivPopulation[c]);
             Assert.Equal(0L, f.CivInsightPerYear[c]);
+            Assert.Equal((0, 0, 0), (f.CivMandate[c], f.CivMandateCap[c], f.CivMandateNext[c]));
             Assert.Equal(all.CivEra[c], f.CivEra[c]);
             Assert.Equal(all.CivLegacy[c], f.CivLegacy[c]);
         }

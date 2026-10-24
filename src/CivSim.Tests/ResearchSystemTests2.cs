@@ -69,16 +69,16 @@ public class ResearchDiffusionTests
         Assert.Equal(0, rig.Research.FirstBy(rig.P("FIR-03")));
         Assert.True(rig.Research.IsPioneer(0, rig.P("FIR-03")));
         Assert.False(rig.Research.IsPioneer(1, rig.P("FIR-03")));
-        Assert.Equal(Fix64.FromInt(11), rig.Research.FirstsLegacy(0)); // era base 22 x 0.5
+        Assert.Equal(Fix64.FromInt(3), rig.Research.FirstsLegacy(0)); // First = 3 x (era + 1) (docs/MVP/22 §3.3)
         Assert.Equal(Fix64.Zero, rig.Research.FirstsLegacy(1));
         // Pioneer: +10% to the project's own modifiers, for that civilization only (Commons +10% becomes +11%)
         Close(Fix64.Parse("1.11"), rig.Research.ModifierMultiplier(0, "commons_insight"));
         Close(Fix64.Parse("1.1"), rig.Research.ModifierMultiplier(1, "commons_insight"));
         Assert.Single(rig.Events(ResearchEventKind.FirstClaimed, "FIR-03"));
-        // Keystones are worth triple (docs/MVP/02 §14)
+        // Keystones are worth four times a First (docs/MVP/22 §3.3): 13 era-0 projects at 3 plus KEY-1 at 12
         var keys = new ResearchRig();
         ResearchInsightTests.GrantEraOne(keys);
-        Assert.True(keys.Research.FirstsLegacy(0) >= Fix64.FromInt(33));
+        Assert.Equal(Fix64.FromInt(13 * 3 + 12), keys.Research.FirstsLegacy(0));
     }
 }
 
@@ -364,7 +364,7 @@ public class ResearchVisibleChangeTests
         var rig = new ResearchRig();
         ResearchCatalog catalog = rig.Catalog;
         var numeric = catalog.Projects.Where(p => p.Numeric).ToList();
-        Assert.Equal(148, numeric.Count);
+        Assert.Equal(214, numeric.Count);
         foreach (ProjectDef p in numeric) rig.Do(rig.Grant(0, p.Id));
 
         var missing = new List<string>();

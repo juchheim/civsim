@@ -20,8 +20,13 @@ public static class EffectSpecs
     private static readonly string[] TextKinds =
     {
         "rule", "claim", "reach", "reveal", "show", "planner", "risk", "gate", "diplo", "relations", "combat",
-        "defense", "lever", "know_how", "legacy", "presence", "need", "event", "highlight",
+        "lever", "know_how", "legacy", "presence", "need", "event", "highlight",
     };
+
+    /// <summary>The six Decrees a Mandate effect may price (docs/MVP/23 §1.2, 22 §4.3).</summary>
+    public static readonly string[] Decrees = { "found", "expedition", "mine", "levy", "corvee", "compact" };
+
+    public static readonly string[] CohesionScopes = { "all", "here", "radius", "capital" };
 
     private static readonly List<KeyValuePair<string, ObjType>> Specs = Build();
 
@@ -43,10 +48,19 @@ public static class EffectSpecs
         Add("wonder", S.Obj().Req("structure", S.Str()).Opt("note", S.Str()));
         Add("role", S.Obj().Req("id", S.Str()).Opt("insight", S.Int(0, 10_000)).Opt("note", S.Str()));
         Add("unlock_action", S.Obj().Req("action", S.Str()).Opt("note", S.Str()));
-        Add("cohesion", S.Obj().Req("value", S.Int(-50, 50)).Opt("note", S.Str()));
+        Add("cohesion", S.Obj().Req("value", S.Int(-50, 50)).Opt("scope", S.Enum(CohesionScopes)).Opt("radius", S.Int(1, 50)).Opt("note", S.Str()));
         Add("adopt", S.Obj().Req("mult", S.Num("0", "20", minExclusive: true)));
         Add("era_advance", S.Obj().Req("era", S.Int(1, 9)));
-        Add("tier", S.Obj().Req("tier", S.Str()));
+        Add("tier", S.Obj().Req("tier", S.Str()).Opt("min_pop", S.Int(1, 1_000_000)).Opt("needs", S.List(S.Str())).Opt("radius", S.Int(1, 50))
+            .Opt("claim_mult", S.Num("0", "10", minExclusive: true)).Opt("note", S.Str()));
+        Add("admin", S.Obj().Opt("span", S.Int(0, 20)).Opt("overreach", S.Num("0", "1")).Opt("note", S.Str()));
+        // decree is checked by the validator (V19) so an unknown Decree is named as such; a mandate effect carries deltas
+        Add("mandate", S.Obj().Opt("start", S.Int(0, 10)).Opt("cap", S.Int(-5, 10)).Opt("recharge", S.Int(-10, 10))
+            .Opt("decree", S.Str()).Opt("cost", S.Int(0, 5)).Opt("note", S.Str()));
+        Add("sanitation", S.Obj().Req("value", S.Num("0", "1")).Opt("note", S.Str()));
+        // text-only defense (WAR-03) stays valid; a typed one names its structure and multiplier
+        Add("defense", S.Obj().Opt("structure", S.Str()).Opt("mult", S.Num("1", "10")).Opt("loot", S.Num("0", "1"))
+            .Opt("refuge_radius", S.Int(1, 50)).Opt("site_within", S.Int(1, 50)).Opt("assault", S.Bool()).Opt("text", S.Str()));
         Add("unlock", S.Obj().Req("text", S.Str()).Opt("project", S.Str()));
         Add(Prose, S.Obj().Req("text", S.Str()));
         foreach (string kind in TextKinds) Add(kind, S.Obj().Req("text", S.Str()));
@@ -90,6 +104,28 @@ public static class EffectSpecs
                 break;
             case "method" when effect.Has("rate") && !effect.Has("unit"):
                 report.Error("V10", where, $"{projectId}: a method with a 'rate' needs a 'unit'");
+                break;
+            case "cohesion" when effect.GetString("scope") == "radius" && !effect.Has("radius"):
+                report.Error("V10", where, $"{projectId}: a cohesion with scope 'radius' needs a 'radius'");
+                break;
+            case "cohesion" when effect.Has("radius") && effect.GetString("scope") != "radius":
+                report.Error("V10", where, $"{projectId}: a cohesion 'radius' only applies with scope 'radius'");
+                break;
+            case "admin" when !effect.Has("span") && !effect.Has("overreach"):
+                report.Error("V10", where, $"{projectId}: an admin effect needs 'span' or 'overreach'");
+                break;
+            case "mandate" when !(effect.Has("start") || effect.Has("cap") || effect.Has("recharge") || effect.Has("decree") || effect.Has("cost")):
+                report.Error("V10", where, $"{projectId}: a mandate effect needs at least one of start, cap, recharge, decree or cost");
+                break;
+            case "mandate" when effect.Has("decree") != effect.Has("cost"):
+                report.Error("V10", where, $"{projectId}: a mandate 'decree' and its 'cost' go together");
+                break;
+            case "defense" when !effect.Has("text") && !(effect.Has("structure") && effect.Has("mult")):
+                report.Error("V10", where, $"{projectId}: a defense is either text-only or names a 'structure' and a 'mult'");
+                break;
+            case "defense" when effect.Has("structure") != effect.Has("mult")
+                || (!effect.Has("structure") && (effect.Has("loot") || effect.Has("refuge_radius") || effect.Has("site_within") || effect.Has("assault"))):
+                report.Error("V10", where, $"{projectId}: a typed defense names a 'structure' and a 'mult' together");
                 break;
             case "cap":
                 bool hasMult = effect.Has("mult"), hasValue = effect.Has("value");

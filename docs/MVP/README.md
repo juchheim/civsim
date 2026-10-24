@@ -19,7 +19,7 @@
 | 06 | [Next Steps](06-next-steps.md) | Status, decisions to review, remaining design workstreams, milestones, paper prototypes, acceptance criteria, risks, definition of done |
 | 07 | [Balance Findings](07-balance-findings.md) | WS-A single-civ balance model: v0.1 pacing failures, the tuned constants (Insight scale, EraBase, Know-how, pace, fertility, fission, representation scale) and the change list applied to 01–06; workbook and tools in [balance/](balance/balance-model.xlsx) |
 | 07b | [Territory Findings](07b-territory-findings.md) | WS-A part 2: 4-civ spatial model of claims, first contact, Dominion share and map fill; recommended start placement, map sizes, claim radii, ownership threshold and Dominion rules |
-| 07c | [E0–E2 Checks](07c-e0-e2-checks.md) | 07b R6 adopted in the balance model (arc 173.5 min); 11 §6 checks C1–C5 against docs 10 and 11, with fixes: range and stock limits, late-winter share, hazard scaling, EraBase alignment |
+| 07c | [E0–E2 Checks](07c-e0-e2-checks.md) | C1–C5 checks and the progressive cadence follow-up: current mean-field arc 195 min, with higher Roots and later-era costs; Bronze E3 stays at its separate live calibration |
 | 08 | [UI & World Display](08-ui-and-world-display.md) | Camera and zoom levels, figure readability, the look of each era, territory and palette, overlays, the main HUD, focus bar and research-web wireframes, notifications, follow cam and Legends, onboarding, Director mode, the late-era generic visual kit |
 | 09 | [Population & Health](09-population-and-health.md) | WS-H demography spec: cohorts, births and deaths per era, winter, the three population caps by project, fission, disease constants; feeds the balance model |
 | 10 | [E0–E2 Actions & Goods](10-e0-e2-actions-and-goods.md) | Units, every method ladder for the first three eras (forage, hunt, fish, farm, herd, chop, knap, build, haul…), tool tiers, structures, warmth, goods registry, Know-how mapping |
@@ -32,6 +32,7 @@
 | 17 | [Vertical Slice](17-vertical-slice.md) | First-playable scope (E0–E2, one player vs. three AI), what is stubbed or cut, milestones M0–M9 with gates, the consolidated acceptance checklist, a demo script |
 | 18 | [View Layer](18-view-layer.md) | The sim-to-renderer contract: frame fields and units, fog and memory for the viewer, figure layout, the lock-free hand-off and interpolation, the event stream and text keys, player commands, budgets, using it from Godot |
 | 21 | [Island Crossing](21-island-crossing.md) | Boats that carry parties and settlers to the islands: measured gap in the sim, decisions, outrigger range and shipwreck rules, phases, risks |
+| 22 | [Bronze Age](22-bronze-age.md) | E3 Bronze, the first era past the slice: the Bronze chapter and its end rule, per-era Legacy units, Mandate and Decrees, ore and tin geography, the metal chain and charcoal pressure, tin compacts, bronze war, walls and investment, live Cohesion and the early state, all 65 E3 projects and KEY-4, AI and view changes, balance targets, M10 gates and work breakdown |
 
 ## The game in ten lines
 1. Every player starts as a band of **12 people** in the Paleolithic.
@@ -70,6 +71,9 @@
 | **Firsts** | Bonus for being first in the world to complete a project |
 | **Diffusion** | Cost discount for projects already known by civilizations you've contacted |
 | **Beacon** | Player-placed marker that biases expansion and scouting |
+| **Mandate** | From KEY-3, a small, research-grown budget that pays for Decrees ([22 §4](22-bronze-age.md#4-agency-mandate-and-decrees)) |
+| **Decree** | A rare player call carried out by the planners: found a village, send an expedition, open a mine, raise the levy, corvée, offer a compact |
+| **Compact** | A standing trade route for one good (tin above all), proposed by one side and accepted by the other's Strategist |
 | **Posture** | Civilization-wide stance: Expand / Prosper / Fortify / Raid |
 | **Council of Elders** | Auto-pick that fills empty slots using the player's Leaning |
 | **Civ Mind / Settlement Planner** | The AI layers that run every civilization below the research level |

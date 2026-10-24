@@ -107,6 +107,10 @@ public sealed class BeliefBuilder : IBeliefBuilder
         bool details = model >= OpponentModel.Full;
         belief.Season = season;
         EnsureBuffers(total, belief.Map.TileCount, civs);
+        // An expedition's report is sight (docs/MVP/22 §4.3): the tiles it revealed are explored.
+        if (pol.HasRevealed(civ))
+            for (int t = 0; t < belief.Map.TileCount; t++)
+                if (!belief.Map.IsExplored(t) && pol.IsRevealed(civ, t)) belief.Map.MarkExplored(t);
 
         // ---- own settlements, sight ranges, own parties that arrived --------------------------------------
         _own.Clear();

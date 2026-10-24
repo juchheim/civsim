@@ -93,6 +93,7 @@ public sealed partial class PoliticsSystem
         int o = _sCiv[targetSettlement];
         if (o == c || !_research.IsDone(c, _p.War02) || !_dip.Contacted(c, o) || _dip.Allied(c, o)) return false;
         if (_dip.InTruce(c, o, _season)) return false;
+        if (_pacts.Count > 0 && HasPact(c, o)) return false;
         int origin = BestOrigin(c, _sTile[targetSettlement]);
         return origin >= 0 && SendRaid(c, o, origin, targetSettlement, Math.Max(4, partySize), forecast: false);
     }
@@ -110,6 +111,8 @@ public sealed partial class PoliticsSystem
         if (c == o || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _dip.Allied(c, o)) return false;
         // Breaking a truce is a reputation event (13 §8.1).
         if (_dip.InTruce(c, o, _season)) _dip.AdjustReputation(c, -40);
+        // War breaks a non-aggression pact: Relations −60, reputation −30 (DIP-04).
+        if (_pacts.Count > 0) BreakPacts(c, o);
         SetWar(c, o, true);
         _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.WarDeclared, o, 0, 0));
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.WarDeclared, c, 1, 0));

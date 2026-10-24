@@ -48,7 +48,8 @@ public static class FogFairnessHarness
     /// Copies <paramref name="baseline"/> at <paramref name="tick"/>, lets <paramref name="perturb"/> change the copy (it may
     /// submit commands to the copy's runner for this tick), then steps both <paramref name="ticks"/> ticks. With the tick
     /// one before a season end and one step, both run exactly one season-end pass: politics, then every AI seat's own view,
-    /// belief, Strategist and Spark. Returns both matches; the baseline is the same object, advanced.
+    /// belief, Strategist and Spark. Returns both matches; the baseline is the same object, advanced (a restored match now
+    /// runs on exactly as the live one, since research's season caches travel in the snapshot).
     /// </summary>
     public static (MatchModel Baseline, MatchModel Perturbed) RunPair(MatchModel baseline, long tick, CivControl[] controls,
         Action<MatchModel, SimRunner> perturb, long ticks = 1)

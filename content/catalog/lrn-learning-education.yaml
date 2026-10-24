@@ -41,10 +41,14 @@ projects:
     name: Scribal Schools
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [LRN-03, COM-05]
     effects:
-      - {kind: prose, text: "Build: School. Role: Scribe (Insight 3)."}
+      - {kind: build, structure: school, note: "two Scribes"}
+      - {kind: adopt, mult: 1.25}
+    practice: [{action: teach, share: 50}, {action: scribe, share: 50}]
+    flavor: "The tablet house makes scribes of farmers' sons."
+    moment: "Rows of boys copy signs onto clay tablets while a master corrects them"
   - id: LRN-05
     name: Academies
     era: 4

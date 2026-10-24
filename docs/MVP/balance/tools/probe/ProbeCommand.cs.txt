@@ -1,0 +1,89 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using CivSim.Sim.Content;
+using CivSim.Sim.Core;
+using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
+using CivSim.Sim.Research;
+
+namespace CivSim.Harness;
+
+/// <summary>Scratch-only probe for the E3 balance oracle (07d): one line per civ per minute.</summary>
+internal static class ProbeCommand
+{
+    public static int Run(string[] args)
+    {
+        string? packPath = null;
+        ulong seed = 20261019;
+        int minutes = 55;
+        var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--pack": packPath = args[++i]; break;
+                case "--seed": seed = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--archetypes": archetypes = Array.ConvertAll(args[++i].Split(','), t => Enum.Parse<EconomyArchetype>(t, true)); break;
+                default: throw new ArgumentException($"Unknown option {args[i]}.");
+            }
+        }
+        ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath!));
+        var match = MatchModel.Create(seed, pack, archetypes);
+        var runner = new SimRunner(match);
+        ResearchSystem r = match.Research;
+        ResearchCatalog catalog = r.Catalog;
+        int n = r.CivCount;
+        var ic = CultureInfo.InvariantCulture;
+        for (int minute = 1; minute <= minutes; minute++)
+        {
+            runner.Advance(600);
+            var pol = match.Politics;
+            for (int c = 0; c < n; c++)
+            {
+                int ch = 0, ad = 0, el = 0;
+                for (int f = 0; f < match.Economy.FigureCount; f++)
+                {
+                    FigureView fig = match.Economy.Figure(f);
+                    if (fig.Civilization != c) continue;
+                    if (fig.Age >= 45) el++; else if (fig.Age >= 14) ad++; else ch++;
+                }
+                var pops = new List<string>();
+                var caps = new List<string>();
+                for (int s = 0; s < match.Economy.SettlementCount; s++)
+                {
+                    SettlementView v = match.Economy.Settlement(s);
+                    if (v.Civilization != c) continue;
+                    pops.Add(v.Population.ToString(ic));
+                    caps.Add(v.EffectivePopulationCap.ToDoubleForDisplay().ToString("F0", ic) + "/" + v.FoodCap.ToDoubleForDisplay().ToString("F0", ic));
+                }
+                Fix64 khApplied = Fix64.Zero, spent = Fix64.Zero;
+                for (int p = 0; p < catalog.Count; p++) { khApplied += r.KnowHowApplied(c, p); spent += r.Progress(c, p); }
+                InsightInputs ii = r.ForecastInsightInputs(c);
+                double roleHeads = 0;
+                if (ii.RoleHeads != null) foreach (Fix64 h in ii.RoleHeads) roleHeads += h.ToDoubleForDisplay();
+                string K(int key)
+                {
+                    int p = catalog.IndexOf($"KEY-{key}");
+                    return p >= 0 && r.IsDone(c, p) ? (r.CompletedTick(c, p) / 600.0).ToString("F2", ic) : "-";
+                }
+                Console.WriteLine(string.Join(' ',
+                    $"min={minute}", $"civ={c}", $"era={r.Era(c)}", $"done={r.DoneCount(c)}",
+                    $"pop={ch + ad + el}", $"ch={ch}", $"ad={ad}", $"el={el}",
+                    $"S={pops.Count}", $"pops={string.Join(',', pops)}", $"caps={string.Join(',', caps)}",
+                    $"ins={r.InsightPerYear(c).ToDoubleForDisplay().ToString("F1", ic)}",
+                    $"com={r.CommonsPerYear(c).ToDoubleForDisplay().ToString("F1", ic)}",
+                    $"roles={roleHeads.ToString("F1", ic)}",
+                    $"spent={spent.ToDoubleForDisplay().ToString("F0", ic)}",
+                    $"kh={khApplied.ToDoubleForDisplay().ToString("F0", ic)}",
+                    $"claimed={(pol.Territory.ClaimedBasisPoints() / 100.0).ToString("F2", ic)}",
+                    $"share={(pol.Territory.ShareBasisPoints(c) / 100.0).ToString("F2", ic)}",
+                    $"k1={K(1)}", $"k2={K(2)}", $"k3={K(3)}"));
+            }
+        }
+        Console.WriteLine($"raids={match.Politics.RaidCount} wars={match.Politics.Wars} captures={match.Politics.CaptureCount}");
+        return 0;
+    }
+}

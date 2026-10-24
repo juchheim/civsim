@@ -43,6 +43,8 @@ public sealed class LivingEconomySource : IResearchSource
     private readonly int[][] _targetTiles;
     private readonly bool[] _oreTarget;
     private readonly int[] _jobPractice = new int[Enum.GetValues<EconomyJob>().Length];
+    private readonly int _tinTarget, _arsenicTarget;
+    private readonly int[] _taskPractice = new int[16];
 
     // Per-civilization caches rebuilt each season.
     private readonly List<int>[] _settlementIndices;
@@ -50,6 +52,12 @@ public sealed class LivingEconomySource : IResearchSource
     private readonly Fix64[][] _elders;
     private readonly Fix64[][] _people;
     private readonly bool[][] _hearth;
+    // E3 roles by structure (docs/MVP/22 §8.4), read at the season start like the head counts: Priests, Scribes, Cities, and
+    // the settlements with a Scribe (literacy: they adopt from the capital without the distance lag).
+    private readonly Fix64[] _priests, _scribes, _cities;
+    private readonly bool[][] _scribeAt;
+    private readonly Fix64 _cityInsight;
+    private readonly int _com05;
     private readonly int[] _lastSettlementCount;
     private readonly int[][] _lastFissions;
     private readonly List<(int Parent, int Daughter)>[] _pendingFissions;
@@ -91,6 +99,9 @@ public sealed class LivingEconomySource : IResearchSource
                     "Salt" => tile.Deposit == DepositKind.Salt,
                     "Tin" => tile.Deposit == DepositKind.Tin,
                     "Coal" => tile.Deposit == DepositKind.Coal,
+                    // E3 [Seen] gates (docs/MVP/23 §15-§17): gold glints for MET-07, silk moths for FIB-09.
+                    "Gold or Silver" => tile.Deposit is DepositKind.Gold or DepositKind.Silver,
+                    "Silk moths" => tile.Deposit == DepositKind.SilkMoths,
                     _ => false,
                 };
                 if (match) tiles.Add(i);
@@ -99,6 +110,10 @@ public sealed class LivingEconomySource : IResearchSource
                 foreach (PredatorPack pack in generated.Predators) if (pack.Species == PredatorSpecies.Wolves) tiles.Add(pack.Tile);
             if (name == "Wild goats or sheep")
                 foreach (Herd herd in generated.Herds) if (herd.Species is HerdSpecies.WildGoatSheep or HerdSpecies.CamelLlama) tiles.Add(herd.Tile);
+            if (name == "Wild horses")
+                foreach (Herd herd in generated.Herds) if (herd.Species == HerdSpecies.Horse) tiles.Add(herd.Tile);
+            if (name == "Camels or Llamas")
+                foreach (Herd herd in generated.Herds) if (herd.Species == HerdSpecies.CamelLlama) tiles.Add(herd.Tile);
             _targetTiles[t] = tiles.ToArray();
             _oreTarget[t] = name is "Native copper" or "Tin" or "Gold or Silver";
         }
@@ -119,6 +134,10 @@ public sealed class LivingEconomySource : IResearchSource
         _jobPractice[(int)EconomyJob.Preserve] = catalog.PracticeIndex("preserve");
         _jobPractice[(int)EconomyJob.TendFire] = catalog.PracticeIndex("tend_fire");
         _jobPractice[(int)EconomyJob.Herd] = catalog.PracticeIndex("herd");
+        for (int t = 0; t < _taskPractice.Length; t++)
+            _taskPractice[t] = LivingEconomyModel.TaskPractice((byte)t) is { } id ? catalog.PracticeIndex(id) : -1;
+        _tinTarget = catalog.GateTargetIndex("Tin");
+        _arsenicTarget = catalog.GateTargetIndex("Arsenic ore");
 
         _settlementIndices = new List<int>[civs];
         _adults = new Fix64[civs][];
@@ -129,6 +148,14 @@ public sealed class LivingEconomySource : IResearchSource
         _lastFissions = new int[civs][];
         _pendingFissions = new List<(int, int)>[civs];
         _lag = new int[CivResearch.MaxSettlements];
+        _priests = new Fix64[civs];
+        _scribes = new Fix64[civs];
+        _cities = new Fix64[civs];
+        _scribeAt = new bool[civs][];
+        for (int c = 0; c < civs; c++) _scribeAt[c] = new bool[CivResearch.MaxSettlements];
+        // +8 Insight a year per City: OutCity × RoleScale (docs/MVP/23 §12), then InsightCalibration as all Insight.
+        _cityInsight = catalog.Constant("OutCity") * catalog.Constant("RoleScale");
+        _com05 = catalog.IndexOf("COM-05");
         for (int c = 0; c < civs; c++)
         {
             _settlementIndices[c] = new List<int>();
@@ -156,6 +183,8 @@ public sealed class LivingEconomySource : IResearchSource
             Array.Clear(_elders[c]);
             Array.Clear(_people[c]);
             Array.Clear(_hearth[c]);
+            Array.Clear(_scribeAt[c]);
+            _priests[c] = Fix64.Zero; _scribes[c] = Fix64.Zero; _cities[c] = Fix64.Zero;
         }
         for (int i = 0; i < _economy.SettlementCount; i++)
         {
@@ -175,6 +204,12 @@ public sealed class LivingEconomySource : IResearchSource
                 var view = _economy.SettlementLite(_settlementIndices[c][s]);
                 localById[view.Id] = s;
                 _hearth[c][s] = _economy.HearthCount(_settlementIndices[c][s]) > 0;
+                if (!_economy.BronzeActive) continue;
+                (int priests, int scribes) = _economy.RoleHeads(_settlementIndices[c][s]);
+                _priests[c] += Fix64.FromInt(priests);
+                _scribes[c] += Fix64.FromInt(scribes);
+                _scribeAt[c][s] = scribes > 0;
+                if (_economy.Tier(_settlementIndices[c][s]) == SettlementTier.City) _cities[c] += Fix64.One;
             }
         for (int f = 0; f < _economy.FigureCount; f++)
         {
@@ -217,6 +252,9 @@ public sealed class LivingEconomySource : IResearchSource
             if (elderRole >= 0 && _elders[civ][s] > Fix64.Zero) heads[elderRole] += Fix64.One;
             if (shamanRole >= 0 && _adults[civ][s] >= Fix64.FromInt(6)) heads[shamanRole] += Fix64.One;
         }
+        int priestRole = _catalog.RoleIndex("priest"), scribeRole = _catalog.RoleIndex("scribe");
+        if (priestRole >= 0) heads[priestRole] += _priests[civ];
+        if (scribeRole >= 0) heads[scribeRole] += _scribes[civ];
         Fix64 workers = adults + elders;
         (Fix64 insight, Fix64 roles, Fix64 knowHow) = ArchetypeScales(_archetypes[civ]);
         return new InsightInputs
@@ -225,7 +263,7 @@ public sealed class LivingEconomySource : IResearchSource
             Elders = elders,
             Settlements = settlements,
             RoleHeads = heads,
-            StructureOutput = Fix64.Zero,
+            StructureOutput = _cities[civ] * _cityInsight,
             HearthShare = workers.Raw == 0 ? Fix64.Zero : hearthAdults / workers,
             InsightScale = insight,
             RolesScale = roles,
@@ -251,6 +289,11 @@ public sealed class LivingEconomySource : IResearchSource
         ("tell_stories", "ART-02", 15), ("teach", "LRN-01", 10), ("ritual", "BEL-01", 10), ("council", "GOV-01", 5),
         ("count_stores", "NUM-01", 5), ("mark", "TER-01", 5), ("guard", "DEF-02", 5), ("feast", "SOC-05", 10),
         ("heal", "MED-01", 5), ("fight", "WAR-01", 5), ("paddle", "SEA-01", 5), ("trade", "TRD-01", 5),
+        // E3 practice with no economy job yet (docs/MVP/23 §10): the jobs arrive with the metal chain, scribes, horses and
+        // sail; until then the enabling project starts the standing activity so the lineages those projects feed fill.
+        // Smelting and charcoal burning are economy jobs since the metal chain (WP6), read from each figure's task.
+        ("scribe", "COM-05", 5), ("ride", "TRN-06", 5),
+        ("sail", "SEA-06", 5),
     };
 
     public void GetPractice(int civ, IResearchView view, Span<Fix64> workByPracticeIndex, out Fix64 practisingShare)
@@ -260,11 +303,13 @@ public sealed class LivingEconomySource : IResearchSource
         {
             FigureView figure = _economy.Figure(f);
             if (figure.Civilization != civ || figure.Age < 14) continue;
+            // Free Folk (refugees, seceded towns, Tin Folk) carry a civilization's id but practise for no one.
+            if (FreeFolk is not null && FreeFolk.IsFreeFolk(figure.SettlementId)) continue;
             Fix64 weight = figure.Age >= 45 ? Fix64.FromInt(2) : Fix64.One;
             weights += weight;
             adults += Fix64.One;
             Fix64 work = Fix64.Min(Fix64.One, figure.WorkThisSeason);
-            int practice = _jobPractice[(int)figure.Job];
+            int practice = figure.Task is > 0 and < 16 && _taskPractice[figure.Task] >= 0 ? _taskPractice[figure.Task] : _jobPractice[(int)figure.Job];
             if (work.Raw <= 0 || practice < 0) continue;
             workByPracticeIndex[practice] += work;
             weighted += work * weight;
@@ -299,7 +344,22 @@ public sealed class LivingEconomySource : IResearchSource
         Fix64 people = Fix64.Zero;
         for (int s = 0; s < _settlementIndices[civ].Count; s++) people += _people[civ][s];
         Fix64 disease = people.Raw == 0 ? Fix64.Zero : Fix64.Clamp(Fix64.FromInt(illDeaths) * 8 / people, Fix64.Zero, Fix64.One);
-        return new UrgencySignals(famine, Fix64.Zero, disease, Fix64.Zero);
+        // From KEY-3: the share of the civilization's settlements whose live Cohesion is below 40 (docs/MVP/22 §8.3), which the
+        // Council answers with Kin institutions; zero before KEY-3, so E0-E2 picks are unchanged.
+        Fix64 cohesion = Fix64.Zero;
+        if (_economy.BronzeActive)
+        {
+            int live = 0, low = 0;
+            foreach (int index in _settlementIndices[civ])
+            {
+                CivicReadout r = _economy.Civic(index);
+                if (!r.CohesionLive) continue;
+                live++;
+                if (r.Cohesion < 40) low++;
+            }
+            if (live > 0) cohesion = Fix64.FromInt(low) / live;
+        }
+        return new UrgencySignals(famine, Fix64.Zero, disease, cohesion);
     }
 
     public int SettlementCount(int civ) => _settlementIndices[civ].Count;
@@ -308,6 +368,8 @@ public sealed class LivingEconomySource : IResearchSource
     public int AdoptionLagSeasons(int civ, int settlement)
     {
         if (settlement == 0 || settlement >= _settlementIndices[civ].Count) return 0;
+        // Literacy (COM-05): a settlement with a Scribe adopts new methods from the capital without the distance lag (docs/MVP/22 §8.4).
+        if (_scribeAt[civ][settlement] && _com05 >= 0) return 0;
         int home = _economy.SettlementLite(_settlementIndices[civ][0]).SiteTile;
         int there = _economy.SettlementLite(_settlementIndices[civ][settlement]).SiteTile;
         return HexGrid.Distance(home, there, _world.Width) / 6;
@@ -321,6 +383,7 @@ public sealed class LivingEconomySource : IResearchSource
         {
             FigureView figure = _economy.Figure(f);
             if (figure.Civilization != civ || figure.Age < 14) continue;
+            if (FreeFolk is not null && FreeFolk.IsFreeFolk(figure.SettlementId)) continue;
             if (fallback < 0 || figure.Id < fallback) fallback = figure.Id;
             if (primaryPractice < 0 || _jobPractice[(int)figure.Job] != primaryPractice) continue;
             if (best < 0 || figure.WorkThisSeason > bestWork || (figure.WorkThisSeason == bestWork && figure.Id < best))
@@ -361,6 +424,28 @@ public sealed class LivingEconomySource : IResearchSource
 
     public int ClimateTarget(int civ) => _climateTarget[civ];
 
+    /// <summary>
+    /// [Has: Tin] and [Has: Arsenic ore] from the economy (docs/MVP/23 §7.3): MET-05 and MET-04 go Dormant while no own
+    /// settlement has the metal in hand. Decided only once the Bronze Age has begun, so earlier checksums are unchanged.
+    /// </summary>
+    public bool AccessMask(int civ, out ulong decided, out ulong available)
+    {
+        decided = 0;
+        available = 0;
+        if (!_economy.BronzeActive) return false;
+        if (_tinTarget is >= 0 and < 64)
+        {
+            decided |= 1UL << _tinTarget;
+            if (_economy.CivHasMetalAccess(civ, MetalAccessKind.Tin)) available |= 1UL << _tinTarget;
+        }
+        if (_arsenicTarget is >= 0 and < 64)
+        {
+            decided |= 1UL << _arsenicTarget;
+            if (_economy.CivHasMetalAccess(civ, MetalAccessKind.Arsenic)) available |= 1UL << _arsenicTarget;
+        }
+        return decided != 0;
+    }
+
     public void DrainFissions(int civ, List<(int Parent, int Daughter)> into)
     {
         into.AddRange(_pendingFissions[civ]);
@@ -387,6 +472,21 @@ public sealed class LivingEconomySource : IResearchSource
             writer.Write(_pendingFissions[c].Count);
             foreach ((int p, int d) in _pendingFissions[c]) { writer.Write(p); writer.Write(d); }
         }
+        // The season's caches as research last read them (docs/MVP/15 §6 D9): Insight, people and practice come from the
+        // economy as it stood at the season's start, not as it stands now. Fissions resolved since then, and figures that
+        // politics moved or killed, change the economy mid-season; re-deriving the caches on restore made a restored match
+        // diverge from the live one within a tick.
+        for (int c = 0; c < CivCount; c++)
+        {
+            writer.Write(_settlementIndices[c].Count);
+            foreach (int i in _settlementIndices[c]) writer.Write(i);
+            for (int s = 0; s < CivResearch.MaxSettlements; s++)
+            {
+                writer.Write(_adults[c][s].Raw); writer.Write(_elders[c][s].Raw); writer.Write(_people[c][s].Raw); writer.Write(_hearth[c][s]);
+                writer.Write(_scribeAt[c][s]);
+            }
+            writer.Write(_priests[c].Raw); writer.Write(_scribes[c].Raw); writer.Write(_cities[c].Raw);
+        }
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -399,6 +499,19 @@ public sealed class LivingEconomySource : IResearchSource
             _pendingFissions[c].Clear();
             for (int i = 0; i < pending; i++) _pendingFissions[c].Add((reader.ReadInt32(), reader.ReadInt32()));
         }
-        Refresh(detectFissions: false);
+        for (int c = 0; c < CivCount; c++)
+        {
+            int count = reader.ReadInt32();
+            if (count < 0 || count > CivResearch.MaxSettlements) throw new InvalidDataException("Snapshot settlement cache is invalid.");
+            _settlementIndices[c].Clear();
+            for (int i = 0; i < count; i++) _settlementIndices[c].Add(reader.ReadInt32());
+            for (int s = 0; s < CivResearch.MaxSettlements; s++)
+            {
+                _adults[c][s] = Fix64.FromRaw(reader.ReadInt64()); _elders[c][s] = Fix64.FromRaw(reader.ReadInt64());
+                _people[c][s] = Fix64.FromRaw(reader.ReadInt64()); _hearth[c][s] = reader.ReadBoolean();
+                _scribeAt[c][s] = reader.ReadBoolean();
+            }
+            _priests[c] = Fix64.FromRaw(reader.ReadInt64()); _scribes[c] = Fix64.FromRaw(reader.ReadInt64()); _cities[c] = Fix64.FromRaw(reader.ReadInt64());
+        }
     }
 }

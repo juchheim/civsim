@@ -12,10 +12,6 @@ namespace CivSim.Sim.Ai.Forecast;
 /// </summary>
 public sealed class ForecastCatalog
 {
-    /// <summary>docs/MVP/02 §14: a First is worth EraBase × 0.5, three times that for a Keystone or a Wonder.</summary>
-    private static readonly Fix64 FirstShare = Fix64.Half;
-    private static readonly Fix64 KeystoneFirstMult = Fix64.FromInt(3);
-
     public ResearchCatalog Catalog { get; }
     public int Count { get; }
     /// <summary>Numeric projects in index order: the only ones research can complete.</summary>
@@ -38,7 +34,7 @@ public sealed class ForecastCatalog
     public int[] KeystoneByBreadthEra { get; }
     /// <summary>Numeric projects by era, for the era gate.</summary>
     public int[][] ByEra { get; }
-    /// <summary>Mastery Legacy for completing the project: its era + 1 (docs/MVP/01 §7.1).</summary>
+    /// <summary>Mastery Legacy for completing the project: 2 × (era + 1) (docs/MVP/22 §3.3).</summary>
     public int[] Mastery { get; }
     /// <summary>Firsts Legacy if this civilization is the first in the world to complete it.</summary>
     public Fix64[] FirstPoints { get; }
@@ -147,10 +143,8 @@ public sealed class ForecastCatalog
             Enters[p] = def.Enters;
             Requires[p] = def.Requires;
             RequiresAny[p] = def.RequiresAny;
-            Mastery[p] = def.Era + 1;
-            Fix64 first = catalog.EraBase[def.Era] * FirstShare;
-            if (def.IsKeystone || def.Type == ProjectType.Wonder) first = first * KeystoneFirstMult;
-            FirstPoints[p] = first;
+            Mastery[p] = catalog.MasteryUnits(def).FloorToInt();
+            FirstPoints[p] = catalog.FirstUnits(def);
             ElderMult[p] = Fix64.One;
             RoleOf[p] = -1;
             KnowHowGainAll[p] = Fix64.One;

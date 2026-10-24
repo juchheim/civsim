@@ -68,18 +68,28 @@ projects:
     name: Monumental Reliefs
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [ART-03, STN-11]
     effects:
-      - {kind: prose, text: "Carved stone art: Wonders give +25% Cohesion; Legends commemorated (Legend effects persist after death)."}
+      - {kind: mod, stat: wonder_cohesion, op: mult, value: 1.25}
+      - {kind: mod, stat: wonder_radius, op: mult, value: 1.25, note: "Wonder Cohesion radius 8 → 10"}
+      - {kind: rule, text: "one Legend per settlement keeps its bonus after death (a carved relief)"}
+    practice: [{action: craft, share: 50}, {action: ritual, share: 50}]
+    flavor: "Carved in stone, the deed outlives the doer."
+    moment: "A sculptor chisels a lion hunt along a palace wall; the hunter has the king's face"
   - id: ART-07
     name: Epic Poetry
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [ART-04, COM-05]
     effects:
-      - {kind: prose, text: "Shared epics: Cohesion across all your settlements +10%; Lever: Beacon +1."}
+      - {kind: cohesion, value: 5, scope: all}
+      - {kind: lever, text: "Beacon +1"}
+      - {kind: know_how, text: "storytelling Know-how +10%"}
+    practice: [{action: teach, share: 100}]
+    flavor: "The hero's name is sung in every village."
+    moment: "A bard recites the founder's deeds to a silent hall, the fire burning low"
   - id: ART-08
     name: "Theatre & Arena"
     era: 4

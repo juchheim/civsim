@@ -81,6 +81,31 @@ public sealed class WorldGenerationTests
         }
     }
 
+    [Theory]
+    [InlineData(42UL)]
+    [InlineData(101UL)]
+    [InlineData(777UL)]
+    public void Bronze_geography_places_a_contested_tin_field_far_placers_and_island_tin(ulong seed)
+    {
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        WorldTile[] tiles = world.Tiles.ToArray();
+        foreach (byte continent in new byte[] { 0, 1 })
+        {
+            Assert.Equal(1, tiles.Count(t => t.Continent == continent && t.Deposit == DepositKind.Tin && t.DepositAmount == 2));
+            Assert.Equal(1, tiles.Count(t => t.Continent == continent && t.Deposit == DepositKind.Tin && t.DepositAmount == 3));
+            Assert.Equal(2, tiles.Count(t => t.Continent == continent && t.Deposit == DepositKind.Tin && t.DepositAmount == 1));
+            Assert.Equal(1, tiles.Count(t => t.Continent == continent + 2 && t.Deposit == DepositKind.Tin));
+        }
+        // Nobody starts with tin in the early territory, and every start has the arsenical route.
+        foreach (WorldStart start in world.Starts)
+        {
+            for (int i = 0; i < world.TileCount; i++)
+                if (tiles[i].Deposit == DepositKind.Tin) Assert.True(HexGrid.Distance(start.Tile, i, world.Width) >= 8);
+            Assert.Contains(Enumerable.Range(0, world.TileCount), i =>
+                tiles[i].Deposit == DepositKind.ArsenicalCopper && HexGrid.Distance(start.Tile, i, world.Width) <= 25);
+        }
+    }
+
     [Fact]
     public void Seed_42_matches_world_generation_fingerprint_golden()
     {

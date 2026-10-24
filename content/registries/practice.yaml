@@ -37,3 +37,8 @@ practice:
   - {id: count_stores, knowhow: {NUM: 100}}
   - {id: craft, knowhow: {STN: 25, FIB: 15, CER: 15, ART: 20, CHM: 15, MET: 10}, note: "Added in M1: 10 §11 has no generic craft row; split chosen so craft-based E0-E2 projects feed their own lineage."}
   - {id: work_animals, knowhow: {NRG: 60, HUS: 40}, note: "Added in M1: no E0-E2 activity fed the NRG lineage (found by check V14)."}
+  # E3 Bronze practice (docs/MVP/23 §10)
+  - {id: scribe, knowhow: {COM: 60, NUM: 20, LRN: 20}}
+  - {id: sail, knowhow: {SEA: 70, WAY: 30}}
+  - {id: ride, knowhow: {TRN: 60, HUS: 30, WAR: 10}}
+  - {id: burn_charcoal, knowhow: {FIR: 60, WOD: 40}}

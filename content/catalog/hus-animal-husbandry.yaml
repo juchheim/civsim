@@ -62,35 +62,59 @@ projects:
     name: Dairying
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [HUS-04, CER-03]
     effects:
-      - {kind: prose, text: "Milk, cheese and butter: herd food yield ×1.5 without slaughter; famine buffer."}
+      - {kind: mod, stat: herd_food_without_slaughter, op: mult, value: 1.5, note: "half the herd's food comes as milk"}
+      - {kind: good, id: G-MILK}
+      - {kind: good, id: G-CHEESE, note: "5% spoilage"}
+      - {kind: cap, cap: food, mult: 1.08, take: 0.5}
+      - {kind: cap, cap: lean, mult: 1.05}
+    practice: [{action: herd, share: 50}, {action: preserve, share: 50}]
+    flavor: "Food from the living herd, every day."
+    moment: "A woman milks a goat into a clay jar while cheeses hang drying in cloth"
   - id: HUS-06
     name: Wool Breeds
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [HUS-03, FIB-06]
     effects:
-      - {kind: prose, text: "Good: Wool. Textile output ×1.5; cold-climate clothing."}
+      - {kind: good, id: G-WOOL, note: "0.5 L per sheep a year by shearing"}
+      - {kind: good, id: G-WOOLGARMENT}
+      - {kind: mod, stat: yarn_output, op: mult, value: 1.5}
+      - {kind: rule, text: "a wool garment (warmth +1) stacks with a hide wrap or tailored clothing in Cold climates (clothing at most +3)"}
+    practice: [{action: herd, share: 50}, {action: fiber, share: 50}]
+    flavor: "The sheep grew coats for us."
+    moment: "Shears flash and a whole fleece falls away in one piece"
   - id: HUS-07
     name: Horse Taming
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [HUS-04]
     gates: [{kind: seen, target: Wild horses}]
     effects:
-      - {kind: prose, text: "Good: Horses. Enables riding, chariots, horse collar."}
+      - {kind: unlock_action, action: tame_horses, note: "1 ws an animal, at most 15% of a wild herd a year; a pasture carries 2"}
+      - {kind: good, id: G-HORSE}
+      - {kind: unlock, text: "riding (TRN-06), chariots (WAR-06)"}
+      - {kind: gate, text: "[Seen: Wild horses]"}
+    practice: [{action: herd, share: 100}]
+    flavor: "The fastest animal on the plain came when we called."
+    moment: "A youth clings to the mane of a half-wild horse circling a corral"
   - id: HUS-08
     name: Pastoral Nomadism
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [HUS-07, TER-05]
     effects:
-      - {kind: prose, text: "Mobile herding societies: grassland claim radius ×2; camps move with herds without losing claims."}
+      - {kind: claim, text: "+1 radius on grassland, steppe and savanna tiles"}
+      - {kind: rule, text: "seasonal camps follow the herds each season (best pasture within r+3) and claim at 75%"}
+      - {kind: rule, text: "settlements whose range is at least half grassland, steppe or savanna pay half Overreach"}
+    practice: [{action: herd, share: 50}, {action: mark, share: 50}]
+    flavor: "Where the grass is, there is our home."
+    moment: "A whole camp moves across the steppe behind its herds, tents lashed to horses"
   - id: HUS-09
     name: "Camels & Caravan Animals"
     era: 4

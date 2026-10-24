@@ -40,6 +40,7 @@ public static class Validator
         CheckText(set, report);
         CheckCapTargets(set, report);
         CheckHazardCoverage(set, report);
+        CheckHasGatesAndDecrees(set, report);
 
         if (cycle is null && !report.HasErrorsOf("V2"))
         {
@@ -357,7 +358,7 @@ public static class Validator
                 report.Error("V11", $"{actions.File}:{def.Line}", $"'{action}' has method rungs but is declared an activity, not a family");
 
             for (int i = 1; i < rungs.Count; i++)
-                if (rungs[i].Rung == rungs[i - 1].Rung)
+                if (rungs[i].Rung == rungs[i - 1].Rung && !IsAlternateRoute(set, rungs[i - 1], rungs[i]))
                     report.Error("V11", At(rungs[i].Project), $"ladder '{action}': rung {rungs[i].Rung} is defined by both {rungs[i - 1].Project.Id} and {rungs[i].Project.Id}");
             int first = rungs[0].Rung;
             if (first > 1) report.Error("V11", At(rungs[0].Project), $"ladder '{action}' starts at rung {first}; it must start at 0 or 1");
@@ -378,6 +379,38 @@ public static class Validator
                 prevMeasure = measure;
             }
         }
+    }
+
+    /// <summary>
+    /// The alternate-route rule of V11 (docs/MVP/23 §6.2): two projects may define the same rung when neither
+    /// requires the other, some project lists both in one <c>requires_any</c>, and the rungs agree in mult or rate.
+    /// </summary>
+    private static bool IsAlternateRoute(ContentSet set, (int Rung, Project Project, Effect Effect) a, (int Rung, Project Project, Effect Effect) b)
+    {
+        if (a.Project.Id == b.Project.Id) return false;
+        if (DependsOn(set, a.Project, b.Project.Id) || DependsOn(set, b.Project, a.Project.Id)) return false;
+        bool listedTogether = false;
+        foreach (Project p in set.Projects)
+            if (p.RequiresAny.Contains(a.Project.Id) && p.RequiresAny.Contains(b.Project.Id)) { listedTogether = true; break; }
+        if (!listedTogether) return false;
+        return a.Effect.Has("rate") == b.Effect.Has("rate") && a.Effect.Num("mult") == b.Effect.Num("mult") && a.Effect.Num("rate") == b.Effect.Num("rate");
+    }
+
+    private static bool DependsOn(ContentSet set, Project from, string target)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<Project>();
+        stack.Push(from);
+        while (stack.Count > 0)
+        {
+            Project p = stack.Pop();
+            foreach (string r in p.AllRequirements())
+            {
+                if (r == target) return true;
+                if (seen.Add(r) && set.ById.TryGetValue(r, out Project? q)) stack.Push(q);
+            }
+        }
+        return false;
     }
 
     // ---- V12 registry completeness ----------------------------------------------------------------
@@ -404,6 +437,10 @@ public static class Validator
                     case "good": Need(goods, usedGoods, "good", e.Str("id")); break;
                     case "build": case "wonder": Need(structures, usedStructures, "structure", e.Str("structure")); break;
                     case "role": Need(roles, usedRoles, "role", e.Str("id")); break;
+                    case "defense": Need(structures, usedStructures, "structure", e.Str("structure")); break;
+                    case "tier":
+                        foreach (string need in e.Map.GetStringList("needs")) Need(structures, usedStructures, "structure", need);
+                        break;
                     case "unlock_action": case "method": Need(actions, usedActions, "action", e.Str("action")); break;
                     case "unlock":
                         if (e.Str("project") is { } pid && !set.ById.ContainsKey(pid)) report.Error("V2", at, $"{p.Id}: unlock refers to unknown project {pid}");
@@ -426,6 +463,8 @@ public static class Validator
         Unused("roles", usedRoles, r => NumericOwner(r.GetString("unlocked_by")));
         Unused("actions", usedActions, r => r.GetString("class") == "activity");
 
+        CheckRecipes(set, report, goods, structures);
+
         // a structure's unlocking project should actually build or wonder it
         foreach (ContentValue s in set.Reg("structures").Records)
         {
@@ -433,6 +472,50 @@ public static class Validator
             if (set.ById.TryGetValue(s.GetString("unlocked_by") ?? "", out Project? owner) && owner.Status != "draft"
                 && !owner.Effects.Any(e => (e.Kind is "build" or "wonder") && e.Str("structure") == id))
                 report.Warning("V12", $"{set.Reg("structures").File}:{s.Line}", $"structure '{id}' says {owner.Id} unlocks it, but {owner.Id} has no build effect for it");
+        }
+    }
+
+    // ---- recipes registry (docs/MVP/23 §5) ---------------------------------------------------------
+    private static void CheckRecipes(ContentSet set, Report report, HashSet<string> goods, HashSet<string> structures)
+    {
+        Registry reg = set.Reg("recipes");
+        HashSet<string> practice = set.Reg("practice").Ids();
+        foreach (ContentValue r in reg.Records)
+        {
+            string id = r.GetString("id") ?? "?";
+            string at = $"{reg.File}:{r.Line}";
+            foreach (string pid in r.GetStringList("unlocked_by"))
+                if (!set.ById.ContainsKey(pid)) report.Error("V2", at, $"recipe {id}: unlocked_by refers to unknown project {pid}");
+            foreach (string sid in r.GetStringList("structure"))
+                if (!structures.Contains(sid)) report.Error("V12", at, $"recipe {id}: structure '{sid}' is not in the registry");
+            if (r.Get("practice")?.ToString() is { } pr && !practice.Contains(pr))
+                report.Error("V14", at, $"recipe {id}: practice '{pr}' is not in the practice registry");
+            foreach (string side in new[] { "inputs", "outputs" })
+            {
+                if (r.Get(side) is not { Kind: ValueKind.Map } map) continue;
+                foreach (KeyValuePair<string, ContentValue> entry in map.Entries)
+                    foreach (string good in entry.Key.Split('|'))
+                        if (!goods.Contains(good)) report.Error("V12", at, $"recipe {id}: {side} refers to good '{good}', which is not in the registry");
+            }
+        }
+    }
+
+    // ---- V19 [Has] gates, V20 mandate decrees -----------------------------------------------------
+    // A [Has: X] gate blocks use per settlement, so X must be something the world can place: a deposit that
+    // declares `has_gate: X` (docs/MVP/23 §7.1).
+    private static void CheckHasGatesAndDecrees(ContentSet set, Report report)
+    {
+        var mapped = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ContentValue d in set.Reg("deposits").Records)
+            if (d.GetString("has_gate") is { } g) mapped.Add(Graph.Normalize(g));
+        foreach (Project p in set.Projects)
+        {
+            foreach (Gate g in p.Gates)
+                if (g.Kind == "has" && !mapped.Contains(Graph.Normalize(g.Target)))
+                    report.Error("V19", At(p), $"{p.Id}: [Has: {g.Target}] maps to no deposit; give the deposit a has_gate in registries/deposits.yaml");
+            foreach (Effect e in p.Effects)
+                if (e.Kind == "mandate" && e.Str("decree") is { } decree && Array.IndexOf(EffectSpecs.Decrees, decree) < 0)
+                    report.Error("V20", $"{p.File}:{e.Line}", $"{p.Id}: mandate decree '{decree}' is not a known Decree (one of {string.Join(", ", EffectSpecs.Decrees)})");
         }
     }
 

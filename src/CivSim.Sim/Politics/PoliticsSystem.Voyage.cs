@@ -126,7 +126,7 @@ public sealed partial class PoliticsSystem
     private bool TurnedBackAtSea(Expedition e)
     {
         if (e.Kind == ExpeditionKind.Barter && e.Leg == 1) return false;
-        if ((uint)e.FromSettlement >= (uint)_sCount || (uint)e.ToSettlement >= (uint)_sCount) return false;
+        if (e.FromSettlement < 0 || e.ToSettlement < 0 || e.FromSettlement >= _sCount || e.ToSettlement >= _sCount) return false;
         int from = _sTile[e.FromSettlement], to = _sTile[e.ToSettlement];
         int sea = SeaTilesOnRoute(e.Civ, from, to);
         if (sea <= 0) return false;
@@ -135,6 +135,7 @@ public sealed partial class PoliticsSystem
         if (!RollVoyageLost(risk, entity, _season)) return false;
         _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.VoyageLost, e.TargetCiv, sea, (int)e.Kind));
         if (e.Kind is ExpeditionKind.Gift or ExpeditionKind.Barter) _economy.GiveGoods(e.FromSettlement, e.Value);
+        else if (e.Kind == ExpeditionKind.Caravan) Unload(e.FromSettlement, e.Good, e.Cargo);
         return true;
     }
 

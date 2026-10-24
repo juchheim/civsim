@@ -50,6 +50,29 @@ public sealed class CivResearch
     public int BeaconBoons;
     public Fix64 MasteryLegacy;
     public Fix64 FirstsLegacy;
+    /// <summary>Legacy for Wonders that stand built (docs/MVP/22 §3.3), and the Wonder projects already paid for.</summary>
+    public Fix64 WondersLegacy;
+    public readonly List<int> WondersBuilt = new();
+
+    // Mandate (docs/MVP/22 §4.2): the stored state is the current Mandate and the recharge counter; cap, recharge and the
+    // Admin figures below are derived from the completed projects (RebuildDerived) and need no snapshot of their own.
+    /// <summary>Mandate in hand, 0 until KEY-3 grants it.</summary>
+    public int Mandate;
+    /// <summary>Seasons counted toward the next point of Mandate; never counts while the Mandate is full.</summary>
+    public int MandateCounter;
+    /// <summary>Mandate earned by recharge so far (statistics for T27 and the Mandate-overflow detector).</summary>
+    public int MandateEarned;
+    /// <summary>Mandate spent on Decrees so far.</summary>
+    public int MandateSpent;
+    /// <summary>True once any completed project carries a `mandate` effect (KEY-3).</summary>
+    public bool MandateUnlocked;
+    public int MandateCap;
+    /// <summary>Seasons per point of Mandate, floored at MandateRechargeMin; meaningful only while <see cref="MandateUnlocked"/>.</summary>
+    public int MandateRecharge;
+    /// <summary>Admin span: settlements held without strain (docs/MVP/22 §8.2).</summary>
+    public int AdminSpan;
+    /// <summary>Product of (1 - r) over every completed `admin` effect; Overreach reduction is 1 - this (docs/MVP/22 §8.3).</summary>
+    public Fix64 AdminKeep = Fix64.One;
 
     // Adoption: per project, the fraction of each settlement's people who know it.
     public readonly Fix64[]?[] Adoption;
@@ -124,6 +147,9 @@ public sealed class CivResearch
         h.Add(BeaconBoons);
         h.Add(MasteryLegacy);
         h.Add(FirstsLegacy);
+        // Bronze state only once it exists, so matches that never reach KEY-3 or build a Wonder keep their checksums.
+        if (WondersBuilt.Count > 0) { h.Add(WondersLegacy); h.Add(WondersBuilt.Count); foreach (int w in WondersBuilt) h.Add(w); }
+        if (MandateUnlocked) { h.Add(0x4D414E44415445UL); h.Add(Mandate); h.Add(MandateCounter); h.Add(MandateEarned); h.Add(MandateSpent); }
         for (int p = 0; p < Adoption.Length; p++)
         {
             if (Adoption[p] is not { } a) continue;
@@ -147,6 +173,13 @@ public sealed class CivResearch
         w.Write(BeaconBoons);
         w.Write(MasteryLegacy.Raw);
         w.Write(FirstsLegacy.Raw);
+        w.Write(WondersLegacy.Raw);
+        w.Write(WondersBuilt.Count);
+        foreach (int wonder in WondersBuilt) w.Write(wonder);
+        w.Write(Mandate);
+        w.Write(MandateCounter);
+        w.Write(MandateEarned);
+        w.Write(MandateSpent);
         for (int i = 0; i < Done.Length; i++)
         {
             w.Write(Done[i]);
@@ -189,6 +222,14 @@ public sealed class CivResearch
         BeaconBoons = r.ReadInt32();
         MasteryLegacy = Fix64.FromRaw(r.ReadInt64());
         FirstsLegacy = Fix64.FromRaw(r.ReadInt64());
+        WondersLegacy = Fix64.FromRaw(r.ReadInt64());
+        int wonders = r.ReadInt32();
+        WondersBuilt.Clear();
+        for (int i = 0; i < wonders; i++) WondersBuilt.Add(r.ReadInt32());
+        Mandate = r.ReadInt32();
+        MandateCounter = r.ReadInt32();
+        MandateEarned = r.ReadInt32();
+        MandateSpent = r.ReadInt32();
         for (int i = 0; i < Done.Length; i++)
         {
             Done[i] = r.ReadBoolean();

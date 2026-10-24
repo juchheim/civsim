@@ -18,10 +18,13 @@ projects:
     name: "Harness & Yoke"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [NRG-01, FIB-03]
     effects:
-      - {kind: prose, text: "Animal power ×1.5."}
+      - {kind: mod, stat: draft_animal_work, op: mult, value: 1.5, note: "ard: one ox pair per 6 fields instead of 4; cart load 6 → 9 L"}
+    practice: [{action: work_animals, share: 50}, {action: farm, share: 50}]
+    flavor: "The yoke shares the load across two necks."
+    moment: "A wooden yoke is fitted across two oxen and the ard bites deeper"
   - id: NRG-03
     name: Water Wheel
     era: 4

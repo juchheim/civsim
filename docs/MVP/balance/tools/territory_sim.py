@@ -363,8 +363,11 @@ def run(m, starts, trajs, t=None, captures=(), max_seasons=None, snaps=()):
         e2 = next((i for i, r in enumerate(tr["rows"]) if r["era"] >= 2), None)
         camp_from.append((e1 + e2) // 2 if e1 is not None and e2 is not None else 10 ** 9)
     snap_out = {}
+    hk = t.get("hooks")                 # E3 extension (07d §7); None = the 07b model unchanged
     for step in range(1, end + 1):
         minute = step * ss / 60
+        if hk:
+            hk.step(step, minute, civs, owner, claim, m)
         rows = [cv.traj["rows"][min(step, len(cv.traj["rows"]) - 1)] for cv in civs]
         eras = [min(9, r["era"]) for r in rows]
         for ci, ev in enumerate(captures):
@@ -388,9 +391,9 @@ def run(m, starts, trajs, t=None, captures=(), max_seasons=None, snaps=()):
         snap = [list(cv.setts) for cv in civs]
         props = []
         for c, cv in enumerate(civs):
-            if cv.lost_frac >= 0.999:
-                continue  # eliminated
-            target = max(1, rows[c]["S"] - cv.lost_k) + sum(k for _, k, _ in cv.gains)
+            if cv.lost_frac >= 0.999 or (hk and hk.skip(c)):
+                continue  # eliminated, or a neutral with a fixed site
+            target = max(1, rows[c]["S"] - cv.lost_k) + sum(k for _, k, _ in cv.gains) + (hk.target_add(c) if hk else 0)
             while len(cv.setts) > target:
                 # a merge absorbs the settlement whose own claim area overlaps its
                 # neighbours most (an interior town folds into a city); the start stays
@@ -402,8 +405,16 @@ def run(m, starts, trajs, t=None, captures=(), max_seasons=None, snaps=()):
                 k = -min(uniq[1:])[1]
                 cv.setts.pop(k)
             own = list(cv.setts)
+            if hk:
+                for site in hk.decree_sites(c, cv, own, [snap[o] for o in range(nc) if o != c and not hk.skip(o)], owner,
+                                            claim, eras[c], minute):
+                    own.append(site)
+                    props.append((1e6, c, site))
             for _ in range(min(3, target - len(own))):
-                got = pick_site(m, c, own, [snap[o] for o in range(nc) if o != c], starts, owner, claim, eras[c], t)
+                if hk and hasattr(hk, "pick"):
+                    got = hk.pick(m, c, own, [snap[o] for o in range(nc) if o != c], starts, owner, claim, eras[c], t)
+                else:
+                    got = pick_site(m, c, own, [snap[o] for o in range(nc) if o != c], starts, owner, claim, eras[c], t)
                 if got is None:
                     cv.blocked += 1
                     break
@@ -426,9 +437,14 @@ def run(m, starts, trajs, t=None, captures=(), max_seasons=None, snaps=()):
             r = t["Radius"][e]
             per = pops[c] / len(cv.setts)  # mean-field, as in balance_sim
             emit = math.sqrt(per) * 1.0 * t["ClaimMult"][e]  # × CohesionFactor (1.0)
-            for s_i in cv.setts:
-                js, dd = disk(m, s_i, r + int(math.ceil(t["FalloffTail"])))
-                claim[c, js] += emit * np.maximum(0.0, 1 - dd / (r + t["FalloffTail"]))
+            for k_i, s_i in enumerate(cv.setts):
+                rr, em = (r, emit) if not hk else hk.settlement_claim(c, k_i, cv, e, pops[c], r, emit, minute)
+                js, dd = disk(m, s_i, rr + int(math.ceil(t["FalloffTail"])))
+                claim[c, js] += em * np.maximum(0.0, 1 - dd / (rr + t["FalloffTail"]))
+            if hk:
+                for x, rr, em in hk.extra(c, cv, emit, owner, minute, m):
+                    js, dd = disk(m, x, rr + int(math.ceil(t["FalloffTail"])))
+                    claim[c, js] += em * np.maximum(0.0, 1 - dd / (rr + t["FalloffTail"]))
             if t["Camps"] and step >= camp_from[c]:
                 # camps are placed once per settlement founded up to CampLastEra and then stay
                 # (satellite fishing, herding and hunting camps); they go with their settlement
@@ -484,6 +500,8 @@ def run(m, starts, trajs, t=None, captures=(), max_seasons=None, snaps=()):
         # --- contact ---
         for a in range(nc):
             for b in range(a + 1, nc):
+                if hk and (hk.skip(a) or hk.skip(b)):
+                    continue
                 rec = contact.setdefault((a, b), {})
                 if ("contact" in rec and "border" in rec) or not civs[a].setts or not civs[b].setts:
                     continue
@@ -559,8 +577,9 @@ def place_camps(m, cid, setts, rival_setts, owner, era, t, only=None, existing=(
 
 def pick_site(m, cid, own, rival_setts, starts, owner, claim, era, t):
     """Civ Mind site choice (05 §9.4): new land gained × distance fit, never on rival land.
-    Returns (tile, score) or None."""
-    r = t["Radius"][era]
+    Returns (tile, score) or None. t["SiteRadius"] (E3 live calibration, 07d §7) spaces sites by a smaller radius
+    than the claim radius, as the live planner does (≥ 2 × range radius + 1 = 7 tiles from any settlement)."""
+    r = (t.get("SiteRadius") or t["Radius"])[era]
     dstar = 2 * r + 1
     sigma = max(1.0, t["SiteSigma"] * r)
     near = np.min([m.dist_from(x) for x in own], axis=0)
@@ -690,5 +709,365 @@ def summary(res, out=print):
     out(f"   40% warning: {w40}   Dominion win (50% × 5 yr): {w50}   blocked fissions: {[c.blocked for c in res['civs']]}")
 
 
+# =====================================================================================
+# E3 extension (docs/MVP/22 §5.1, §5.2, §6.4, §8.1, §11; §15.2 item 5; findings in 07d §7)
+#
+# Live trajectories (tools/live_data.py: population and settlement count per civ per minute, 8 seeds), the
+# 07b recommended rules (paired starts 25 apart, T 0.7, radii 3·3·4·4, seasonal camps), and from each
+# civilization's own KEY-3: the Town tier on the capital (radius 5, from TRD-04 at E3 0.30) and City
+# (radius 6 at pop >= 120 with SOC-09), the capital's +25% (GOV-05), mining camps on deposits (radius 1 at
+# 0.75 × √6), Found decrees toward unclaimed tin, and Tin Folk villages on far placers at the world's first KEY-3.
+#
+#   python territory_sim.py e3            # T11, T14–T16, T20 over 8 live seeds, both housing regimes
+#   python territory_sim.py e3 --check    # assertions
+# =====================================================================================
+E3T = dict(E3Minutes=13.0, TownAt=0.30, CityAt=0.60, CityPop=120, PalaceAt=0.75, CapShare={"village": None, "towns": 0.41},
+           MineEmit=0.75 * math.sqrt(6), MineRadius=1, MineReach=8, CartReach=12, CartAt=0.40, CopperAt=0.20,
+           TinAt=0.40, ArsenicAt=0.50, FoundAt=(0.25, 0.60), SettleReach=14, TinFolkPop=24, TinFolkRadius=3,
+           TinFolkGap=8, CompactReach=30)
+
+
+def live_trajs(seed, regime="village"):
+    """Per-civ trajectories (one row per season) from the live CSV; 'towns' scales the settlement count from KEY-3 by
+    balance_sim live mode's towns ÷ village ratio (07d §3)."""
+    import live_data as L
+    rows = [r for r in L.load() if r["seed"] == seed]
+    ratio = None
+    if regime == "towns":
+        rv, _, _ = B.run_live(dict(Regime="village", EraBase=[22, 50, 75, 140]), 70)
+        rt, _, _ = B.run_live(dict(Regime="towns", EraBase=[22, 50, 75, 140]), 70)
+        ratio = [(a["minute"], b["S"] / max(1, a["S"])) for a, b in zip(rv, rt)]
+    out = []
+    for c in range(4):
+        rc = {r["minute"]: r for r in rows if r["civ"] == c}
+        last = rc[max(rc)]
+        ks = [last["k1"], last["k2"], last["k3"]]
+        seq = [dict(pop=12.0, S=1, era=0)]
+        for step in range(1, 4 * 64 + 1):
+            mi = min(64, max(1, math.ceil(step / 4)))
+            r = rc[mi]
+            minute = step / 4
+            era = sum(1 for k in ks if k is not None and k <= minute)
+            S = r["S"]
+            if ratio and ks[2] is not None and minute >= ks[2]:
+                f = min(ratio, key=lambda x: abs(x[0] - minute))[1]
+                S = max(1, int(round(S * f)))
+            seq.append(dict(pop=float(r["pop"]), S=S, era=era))
+        out.append(dict(arch="Balanced", rows=seq, end=len(seq) - 1, season_s=15, k3=ks[2]))
+    return out
+
+
+def neutral_traj(pop=24.0, seasons=400):
+    rows = [dict(pop=pop * 1.0075 ** k, S=1, era=1) for k in range(seasons)]
+    return dict(arch="TinFolk", rows=rows, end=seasons - 1, season_s=15, k3=None)
+
+
+def place_deposits(m, starts):
+    """22 §5.1 on the point-symmetric map: per pair a middle tin field (2 tiles, 12–16 from both starts, distances
+    within 2), a far placer on each start's outer flank (22–32 tiles), arsenical copper (mountain, 15–25 tiles,
+    depth 2) and depth-1 copper (8–15 tiles) per start. The second pair gets the mirror images."""
+    land = m.land & (m.biome != PEAK) & (m.hab > 0)
+    a, b = starts[0], starts[1]
+    da, db = m.walk_dist([a], 0, 60), m.walk_dist([b], 0, 60)
+    idx = np.arange(m.N)
+    ok = land & (da >= 12) & (da <= 16) & (db >= 12) & (db <= 16) & (np.abs(da - db) <= 2)
+    cand = np.flatnonzero(ok)
+    if len(cand) == 0:   # injected (22 §5.1 "injected if needed"): best compromise
+        cand = np.flatnonzero(land & (da < 10 ** 5) & (db < 10 ** 5))
+        cand = cand[np.argsort(np.abs(da[cand] - db[cand]) * 10 + np.abs(da[cand] + db[cand] - 28), kind="stable")][:1]
+    mid = int(min(cand, key=lambda i: (abs(int(da[i]) - int(db[i])), int(da[i] + db[i]), i)))
+    lode = next((j for j in m._nbrs[mid] if land[j]), mid)
+    dep = {"tin_mid": [mid, lode]}
+    far, ars, cu = [], [], []
+    for s_, d_own, d_oth in ((a, da, db), (b, db, da)):
+        okf = land & (d_own >= 22) & (d_own <= 32) & (d_oth - d_own >= 6)
+        cf = np.flatnonzero(okf)
+        if len(cf) == 0:
+            cf = np.flatnonzero(land & (d_own >= 18) & (d_own < 10 ** 5))
+        far.append(int(min(cf, key=lambda i: (-(int(d_oth[i]) - int(d_own[i])), abs(int(d_own[i]) - 27), i))))
+        oka = (m.biome == MOUNTAIN) & (d_own >= 15) & (d_own <= 25)
+        ca = np.flatnonzero(oka) if oka.any() else np.flatnonzero(land & (d_own >= 15) & (d_own <= 25))
+        ars.append(int(min(ca, key=lambda i: (abs(int(d_own[i]) - 20), i))))
+        okc = land & (d_own >= 8) & (d_own <= 15) & ((m.biome == MOUNTAIN) | (m.biome == OPEN))
+        cc = np.flatnonzero(okc & (m.biome == MOUNTAIN)) if (okc & (m.biome == MOUNTAIN)).any() else np.flatnonzero(okc)
+        cu.append(int(min(cc, key=lambda i: (abs(int(d_own[i]) - 12), i))))
+    mir = lambda i: m.N - 1 - i  # noqa: E731
+    dep["tin_mid"] += [mir(x) for x in dep["tin_mid"]]
+    dep["tin_far"] = far + [mir(x) for x in far]
+    dep["arsenic"] = ars + [mir(x) for x in ars]
+    dep["copper"] = cu + [mir(x) for x in cu]
+    dist = {k: [[int(m.walk_dist([s_], 0, 60)[x]) for x in v] for s_ in starts] for k, v in dep.items()}
+    return dep, dist
+
+
+class E3Hooks:
+    def __init__(self, m, starts, trajs, nreal, regime, dep, cfg=None, found=True):
+        self.m, self.starts, self.nreal, self.regime, self.dep = m, starts, nreal, regime, dep
+        self.c = dict(E3T, **(cfg or {}))
+        self.k3 = [tr["k3"] for tr in trajs[:nreal]]
+        self.founds = [0] * nreal
+        self.found_done = [set() for _ in range(nreal)]
+        self.mines = [[] for _ in range(nreal)]
+        self.tin_at = [None] * nreal          # first minute with own tin (mine)
+        self.compact_at = [None] * nreal      # first minute a Tin Folk compact is in reach
+        self.arsenic_at = [None] * nreal
+        self.tinfolk = []                     # (neutral civ index, tile)
+        self.spawned = False
+        self.found = found
+        self.walk = {}
+        self.neutral_slots = list(range(nreal, len(trajs)))
+        self.live_sites = (cfg or {}).get("LiveSites", True)
+        self.turn = [0] * len(trajs)
+        self.food = None
+
+    def x(self, c, minute):
+        k3 = self.k3[c]
+        return None if k3 is None or minute < k3 else (minute - k3) / self.c["E3Minutes"]
+
+    def skip(self, c):
+        return c >= self.nreal
+
+    def target_add(self, c):
+        return self.founds[c] if c < self.nreal else 0
+
+    def _walk(self, setts, limit):
+        key = (tuple(setts), limit)
+        if key not in self.walk:
+            if len(self.walk) > 400:
+                self.walk.clear()
+            self.walk[key] = self.m.walk_dist(setts, 0, limit)
+        return self.walk[key]
+
+    def step(self, step, minute, civs, owner, claim, m):
+        if step == 1:
+            for k in self.neutral_slots:
+                civs[k].setts = []
+        first_k3 = min(k for k in self.k3 if k is not None)
+        if not self.spawned and minute >= first_k3:
+            self.spawned = True
+            allsett = [x for cv in civs for x in cv.setts]
+            near = np.min([m.dist_from(x) for x in allsett], axis=0) if allsett else np.full(m.N, 10 ** 6)
+            slots = iter(self.neutral_slots)
+            for tile in self.dep["tin_far"]:
+                if owner[tile] < 0 and near[tile] >= self.c["TinFolkGap"]:
+                    k = next(slots, None)
+                    if k is None:
+                        break
+                    civs[k].setts = [tile]
+                    self.tinfolk.append((k, tile))
+        for c in range(self.nreal):
+            xc = self.x(c, minute)
+            cv = civs[c]
+            if xc is None or not cv.setts:
+                continue
+            reach = self.c["CartReach"] if xc >= self.c["CartAt"] else self.c["MineReach"]
+            wd = self._walk(cv.setts, self.c["CompactReach"] + 2)
+            taken = {t_ for o in range(self.nreal) for t_ in self.mines[o]}
+            # the planner (and the Open-a-mine decree) opens camps on deposits in reach, not rival-owned
+            kinds = [("copper", self.c["CopperAt"]), ("tin_mid", self.c["TinAt"]), ("tin_far", self.c["TinAt"])]
+            if self.tin_at[c] is None and self.compact_at[c] is None:
+                kinds.append(("arsenic", self.c["ArsenicAt"]))   # the arsenical route when tin is missing (MIN-04)
+            for kind, at in kinds:
+                if xc < at:
+                    continue
+                for tile in self.dep[kind]:
+                    if tile in taken or owner[tile] not in (-1, c) or wd[tile] > reach:
+                        continue
+                    if any(tile == t_ for k_, t_ in self.tinfolk):
+                        continue
+                    self.mines[c].append(tile)
+                    taken.add(tile)
+                    if kind.startswith("tin") and self.tin_at[c] is None:
+                        self.tin_at[c] = minute
+                    if kind == "arsenic" and self.arsenic_at[c] is None:
+                        self.arsenic_at[c] = minute
+                    break
+            # tin already mined by c keeps counting while it holds the tile
+            if self.compact_at[c] is None and xc >= 0.1:
+                for k_, tile in self.tinfolk:
+                    if wd[tile] <= self.c["CompactReach"]:
+                        self.compact_at[c] = minute
+                        break
+        # mines are lost when a rival owns the tile
+        for c in range(self.nreal):
+            self.mines[c] = [t_ for t_ in self.mines[c] if owner[t_] in (-1, c)]
+
+    def settlement_claim(self, c, k, cv, era, pop, r, emit, minute):
+        if c >= self.nreal:
+            return self.c["TinFolkRadius"], emit
+        xc = self.x(c, minute)
+        if xc is None:
+            return r, emit
+        share = self.c["CapShare"][self.regime]
+        S = len(cv.setts)
+        rr = r
+        if share is not None and S > 1:
+            emit = math.sqrt((share if k == 0 else (1 - share) / (S - 1)) * pop) * emit / math.sqrt(pop / S)
+        if k == 0 and self.regime == "towns" and xc >= self.c["TownAt"]:
+            rr = 5
+            if xc >= self.c["CityAt"] and (share or 0) * pop >= self.c["CityPop"]:
+                rr = 6
+            if xc >= self.c["PalaceAt"]:
+                emit *= 1.25
+        return rr, emit
+
+    def extra(self, c, cv, emit, owner, minute, m):
+        if c >= self.nreal:
+            return []
+        return [(t_, self.c["MineRadius"], self.c["MineEmit"]) for t_ in self.mines[c]]
+
+    def pick(self, m, c, own, rivals, starts, owner, claim, era, t):
+        """The live planner's fission site (LivingEconomyModel.ChooseFissionSite): the best food site 7–14 tiles
+        from the parent, at least 7 from any settlement, not on rival land. Food score ≈ habitable weight within
+        the radius-3 range; parents take turns, oldest first."""
+        if not self.live_sites:
+            return pick_site(m, c, own, rivals, starts, owner, claim, era, t)
+        parent = own[self.turn[c] % len(own)]
+        self.turn[c] += 1
+        allsett = own + [x for lst in rivals for x in lst]
+        near = np.min([m.dist_from(x) for x in allsett], axis=0)
+        dp = m.dist_from(parent)
+        ok = (m.hab > 0) & (m.biome != PEAK) & (dp >= 7) & (dp <= 14) & (near >= 7) & ((owner == -1) | (owner == c))
+        ok &= m.mass == m.mass[parent]
+        cand = np.flatnonzero(ok)
+        if len(cand) == 0:
+            return None
+        if self.food is None:
+            self.food = np.array([m.hab[disk(m, i, 3)[0]].sum() for i in range(m.N)])
+        flip = starts[c] >= m.N / 2
+        best = max(cand, key=lambda i: (round(float(self.food[i]), 6), -(m.N - 1 - i if flip else i)))
+        return int(best), float(self.food[best])
+
+    def decree_sites(self, c, cv, own, rivals, owner, claim, era, minute):
+        xc = self.x(c, minute)
+        if not self.found or xc is None:
+            return []
+        out = []
+        for at in self.c["FoundAt"]:
+            if xc < at or at in self.found_done[c]:
+                continue
+            self.found_done[c].add(at)
+            m = self.m
+            r = 4
+            near = np.min([m.dist_from(x) for x in own], axis=0)
+            rs = [x for lst in rivals for x in lst] + [t_ for _, t_ in self.tinfolk]
+            rnear = np.min([m.dist_from(x) for x in rs], axis=0) if rs else np.full(m.N, 10 ** 6)
+            ok = (m.hab > 0) & (m.biome != MOUNTAIN) & (near >= r + 1) & (rnear >= 9) & ((owner == -1) | (owner == c))
+            wd = self._walk(own, self.c["SettleReach"] + 4)
+            ok &= wd <= self.c["SettleReach"]
+            targets = [t_ for t_ in self.dep["tin_mid"] + self.dep["tin_far"] if owner[t_] in (-1, c)
+                       and all(t_ not in mm for mm in self.mines)]
+            site = None
+            for tgt in sorted(targets, key=lambda t_: (int(wd[t_]), t_)):
+                d = m.dist_from(tgt)
+                cand = np.flatnonzero(ok & (d <= 3))
+                if len(cand):
+                    site = int(min(cand, key=lambda i: (int(d[i]), -int(near[i]), i)))
+                    break
+            if site is None:   # no tin target: the frontier site with the most free land
+                got = pick_site(m, c, own, rivals, self.starts, owner, claim, era, tp(Radius=[3, 3, 4, 4, 5, 5, 5, 7, 9, 9], T=0.7))
+                site = got[0] if got else None
+            if site is not None:
+                self.founds[c] += 1
+                out.append(site)
+                own = own + [site]
+        return out
+
+
+def run_e3(seed_live, map_seed, regime="village", found=True, cfg=None, minutes=64, site_radius=3, claim_mult=None):
+    t = tp(Radius=[3, 3, 4, 4, 5, 5, 5, 7, 9, 9], T=0.7, Camps=1)
+    if claim_mult is not None:
+        t["ClaimMult"] = [1.0, 1.15, claim_mult, claim_mult, 1.3, 1.3, 1.3, 1.56, 1.56, 1.56]
+    if site_radius:
+        t["SiteRadius"] = [3, 3, site_radius, site_radius, 5, 5, 5, 7, 9, 9]
+    m = make_map(160, 100, t["LandFrac"], map_seed, "continents", True)
+    starts = place_starts(m, 4, 25, 0)
+    trajs = live_trajs(seed_live, regime)
+    dep, dist = place_deposits(m, starts)
+    n_neutral = len(dep["tin_far"])
+    trajs_all = trajs + [neutral_traj() for _ in range(n_neutral)]
+    starts_all = list(starts) + [starts[0]] * n_neutral   # placeholders; cleared at step 1
+    hk = E3Hooks(m, starts_all, trajs_all, 4, regime, dep, cfg, found)
+    t["hooks"] = hk
+    res = run(m, starts_all, trajs_all, t, max_seasons=minutes * 4)
+    res["hooks"], res["dep"], res["dist"], res["trajs"] = hk, dep, dist, trajs
+    return res
+
+
+def e3_metrics(res):
+    hk, rows, trajs = res["hooks"], res["rows"], res["trajs"]
+    out = []
+    for c in range(4):
+        k3 = trajs[c]["k3"]
+        if k3 is None:
+            continue
+        k4 = k3 + hk.c["E3Minutes"]
+        r4 = min(rows, key=lambda r: abs(r["minute"] - k4))
+        r3 = min(rows, key=lambda r: abs(r["minute"] - k3))
+        partner = c ^ 1
+        border = res["contact"].get((min(c, partner), max(c, partner)), {}).get("border")
+        natural = max(0, r4["S_target"][c] - r3["S_target"][c])
+        out.append(dict(civ=c, k3=k3, k4=k4, S=r4["S"][c], claimed=r4["claimed"], share=r4["share"][c],
+                        border=border, touch=border is not None and border <= k4, founds=hk.founds[c],
+                        found_share=hk.founds[c] / max(1, natural + hk.founds[c]),
+                        tin=hk.tin_at[c] is not None and hk.tin_at[c] <= k4,
+                        compact=hk.compact_at[c] is not None and hk.compact_at[c] <= k4,
+                        arsenic=hk.arsenic_at[c] is not None and hk.arsenic_at[c] <= k4,
+                        mines=len(hk.mines[c]), tinfolk=len(hk.tinfolk)))
+    return out
+
+
+def e3_report(out=print, seeds=None, check=False):
+    import live_data as L
+    import statistics as st
+    seeds = seeds or sorted({r["seed"] for r in L.load()})
+    maps = [1, 3, 4, 6]
+    live = L.load()
+    results = {}
+    for regime, found in (("village", False), ("village", True), ("towns", True)):
+        ms = []
+        val = []
+        for i, sd in enumerate(seeds):
+            res = run_e3(sd, maps[i % len(maps)], regime, found)
+            ms += e3_metrics(res)
+            if regime == "village" and not found:
+                for mi in (30, 35, 40, 45, 50):
+                    r = min(res["rows"], key=lambda x: abs(x["minute"] - mi))
+                    lv = st.mean(x["claimed"] for x in L.by_minute(live, mi) if x["seed"] == sd)
+                    val.append((mi, 100 * r["claimed"], lv))
+        results[(regime, found)] = ms
+        lab = f"{regime} housing, {'Found decrees at E3 0.25 and 0.60' if found else 'no decrees'}"
+        out(f"== {lab} ({len(ms)} civs, {len(seeds)} seeds)")
+        if val:
+            out("  validation, claimed % of habitable land (model / live, mean over seeds):  " + "  ".join(
+                f"min {mi}: {st.mean(v[1] for v in val if v[0] == mi):.1f}/{st.mean(v[2] for v in val if v[0] == mi):.1f}"
+                for mi in (30, 35, 40, 45, 50)))
+        S = [x["S"] for x in ms]
+        cl = [100 * x["claimed"] for x in ms]
+        touch_pairs = {}
+        for i, sd in enumerate(seeds):
+            pass
+        out(f"  T11 settlements per civ at KEY-4: median {st.median(S)} (p10 {L.q(S, .1):.0f}, p90 {L.q(S, .9):.0f})  [target 7 (5–10)]")
+        out(f"  T14 claimed land at KEY-4: median {st.median(cl):.1f}% (p10 {L.q(cl, .1):.1f}, p90 {L.q(cl, .9):.1f})  [30–42%]")
+        out(f"  T15 paired borders touch by own KEY-4: {100 * sum(x['touch'] for x in ms) / len(ms):.0f}% of civs; median first touch "
+            f"{st.median([x['border'] for x in ms if x['border']]) if any(x['border'] for x in ms) else '-'} min  [≥ 75% of seeds]")
+        if found:
+            out(f"  T16 E3 foundings by decree: {100 * st.mean(x['found_share'] for x in ms):.0f}% ({st.mean(x['founds'] for x in ms):.1f} a civ)  [20–40%]")
+        out(f"  T20 tin by KEY-4: own mine {100 * st.mean(x['tin'] for x in ms):.0f}%, Tin Folk compact in reach "
+            f"{100 * st.mean(x['compact'] for x in ms):.0f}%, either {100 * st.mean(x['tin'] or x['compact'] for x in ms):.0f}%; "
+            f"arsenical mine instead {100 * st.mean(x['arsenic'] for x in ms):.0f}%; some bronze "
+            f"{100 * st.mean(x['tin'] or x['compact'] or x['arsenic'] for x in ms):.0f}%  [≥ 50% tin; ≥ 90% some bronze]")
+        out(f"  Tin Folk villages per map: {st.mean(x['tinfolk'] for x in ms):.1f} (of 4 far placers)  [3–6 incl. islands]")
+    if check:
+        ms = results[("village", True)]
+        assert st.median([x["S"] for x in ms]) >= 4
+        assert st.median([100 * x["claimed"] for x in ms]) >= 25
+        print("territory_sim e3 check passed")
+    return results
+
+
 if __name__ == "__main__":
-    summary(scenario("standard, 4x Balanced, max-spread starts"))
+    if sys.argv[1:2] == ["e3"]:
+        e3_report(check="--check" in sys.argv)
+    else:
+        summary(scenario("standard, 4x Balanced, max-spread starts"))

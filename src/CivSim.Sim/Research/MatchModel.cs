@@ -22,6 +22,7 @@ public sealed class MatchModel : ISimModel
 {
     private readonly List<Command> _economyCommands = new();
     private readonly List<(int Civ, int Project)> _completions = new();
+    private readonly List<(int Civ, string Project)> _wonders = new();
 
     public MatchModel(LivingEconomyModel economy, ResearchSystem research, LivingEconomySource source, PoliticsSystem politics,
         AiSystem? ai = null)
@@ -100,6 +101,13 @@ public sealed class MatchModel : ISimModel
 
     private static int ToPercent(Fix64? share) => share is { } s ? (s * 100).RoundToInt() : 33;
 
+    /// <summary>
+    /// When the Bronze chapter ends as things stand (docs/MVP/22 §3.1): at the end of the season in which the human completes
+    /// KEY-4, 12 seasons after the first rival does, or at Year 64. Pass the human's civilization, or -1 for a headless match.
+    /// A pure function of the checksummed research state, so every replay and restore agrees on it.
+    /// </summary>
+    public MatchEnd EndOfMatch(int humanSeat = -1) => MatchEnd.Evaluate(Research, humanSeat);
+
     public void Step(long tick, ReadOnlySpan<Command> commands)
     {
         Research.Step(tick, commands);
@@ -116,6 +124,10 @@ public sealed class MatchModel : ISimModel
         if ((tick + 1) % ResearchSystem.SeasonTicks == 0)
         {
             Source.BeginSeason(tick);
+            // A Wonder the economy finished this season earns its Legacy (docs/MVP/22 §3.3).
+            _wonders.Clear();
+            Economy.DrainWondersBuilt(_wonders);
+            foreach ((int civ, string project) in _wonders) Research.AwardWonderBuilt(civ, Research.Catalog.IndexOf(project));
             Research.OnSeasonEnd(tick);
             Politics.OnSeasonEnd(tick);
             Ai?.OnSeasonEnd(tick);

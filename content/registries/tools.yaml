@@ -11,3 +11,12 @@ tools:
   - {id: t7, name: Polished axe, unlocked_by: [STN-08], make_time: 0.3, inputs: stone 0.4 L, durability: "10", enables: "chop 4, clearing"}
   - {id: bone_set, name: "Bone & antler set (needles, awls, harpoons, flutes)", unlocked_by: [STN-07], make_time: 0.1, inputs: bone/antler 0.3 L, durability: "6", enables: "tailoring, harpoons, flutes"}
   - {id: copper_awls, name: "Copper awls & ornaments", unlocked_by: [MET-01, MET-02], make_time: 0.2, inputs: copper 0.1 L, durability: "8 (awl)", enables: "prestige, trade"}
+  # E3 Bronze tool tiers and arms kits (docs/MVP/23 §4)
+  - {id: t8, name: Copper kit, unlocked_by: [MET-03], make_time: 0.1, inputs: copper 0.12 L, durability: "12", enables: "chop 5", metal: G-COPPER, metal_per_kit: 0.12, service_ws: 12, mods: {quarry: 1.1, mine: 1.1, timber_build_labor: 0.95}}
+  - {id: t9, name: Arsenical bronze kit, unlocked_by: [MET-04], make_time: 0.1, inputs: arsenical bronze 0.15 L, durability: "16", enables: "chop 6", metal: G-ABRONZE, metal_per_kit: 0.15, service_ws: 16, mods: {quarry: 1.3, mine: 1.3, timber_build_labor: 0.85, harvest_labor: 0.8, clearing_labor: 0.8}}
+  - {id: t10, name: Tin bronze kit, unlocked_by: [MET-05], make_time: 0.1, inputs: tin bronze 0.15 L, durability: "24", enables: "chop 6", metal: G-BRONZE, metal_per_kit: 0.15, service_ws: 24, mods: {quarry: 1.3, mine: 1.3, timber_build_labor: 0.85, harvest_labor: 0.8, clearing_labor: 0.8}}
+  - {id: arms1, name: Copper spear and dagger, unlocked_by: [MET-03], make_time: 0.2, inputs: "copper 0.2 L, wood 0.5 L", durability: "24 seasons", enables: "weapon 1.8", strength: 1.8}
+  - {id: arms2a, name: Arsenical bronze arms and shield, unlocked_by: [WAR-05], make_time: 0.3, inputs: "arsenical bronze 0.3 L, wood 1 L, leather or hide 1", durability: "24 seasons", enables: "weapon 2.1, shield", strength: 2.1, casualties_taken: 0.7}
+  - {id: arms2t, name: Tin bronze arms and shield, unlocked_by: [WAR-05], make_time: 0.3, inputs: "tin bronze 0.3 L, wood 1 L, leather or hide 1", durability: "24 seasons", enables: "weapon 2.3, shield", strength: 2.3, casualties_taken: 0.7}
+  - {id: chariot, name: Chariot, unlocked_by: [WAR-06], make_time: 2, inputs: "2 wheels, wood 2 L, bronze 0.2 L, leather or hide 1; 2 horses", durability: "40 seasons", enables: "crew ×2 on open terrain", open_terrain_mult: 2, casualties_taken: 0.5, crew: 2, horses: 2}
+  - {id: ox_cart, name: Ox cart, unlocked_by: [TRN-05], make_time: 1, inputs: "2 wheels, wood 2 L; 1 ox pair", durability: "40 seasons", enables: "haul 1 (×5 on flat and trail tiles), 6 L"}

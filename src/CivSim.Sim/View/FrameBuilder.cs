@@ -79,6 +79,10 @@ public sealed partial class FrameBuilder
     private int[] _pFrom = Array.Empty<int>(), _pTo = Array.Empty<int>(), _pFromTile = Array.Empty<int>(), _pToTile = Array.Empty<int>();
     private int[] _pX = Array.Empty<int>(), _pY = Array.Empty<int>(), _pTile = Array.Empty<int>(), _pMembers = Array.Empty<int>(), _pArrive = Array.Empty<int>();
     private short[] _pProgress = Array.Empty<short>();
+    private byte[] _pGood = Array.Empty<byte>();
+    /// <summary>The politics of the match being built (a reference for this build only, not view state).</summary>
+    private PoliticsSystem? _politics;
+    private int[] _pCargo = Array.Empty<int>(), _pId = Array.Empty<int>();
 
     // Party and occupation members by figure id: slot >= 0 a party, < 0 occupation -(slot + 1).
     private int _memberCount;
@@ -198,6 +202,7 @@ public sealed partial class FrameBuilder
         target.Height = _height;
         target.TotalFigures = eco.FigureCount;
 
+        _politics = pol;
         ReadSettlements(eco, pol);
         RefreshLayout(eco, season);
         RefreshClaims(pol);
@@ -213,6 +218,7 @@ public sealed partial class FrameBuilder
         FillSeafaring(match.Research, target);
         FillHerdsAndPredators(eco, target);
         FillParties(target);
+        FillRoutes(pol, target);
         FillOccupations(pol, target);
         FillCivs(match, target);
         FillFocus(match, target);
@@ -429,11 +435,12 @@ public sealed partial class FrameBuilder
         for (int i = 0; i < n; i++)
         {
             Expedition e = pol.Expeditions[i];
-            if ((e.FromSettlement < 0 || e.FromSettlement >= _settlementCount) || (e.ToSettlement < 0 || e.ToSettlement >= _settlementCount)) continue;
+            if (!PartyShown(e)) continue;
             int p = _partyCount++;
-            bool back = e.Kind == ExpeditionKind.Barter && e.Leg == 1;
+            bool back = e.Kind == ExpeditionKind.Barter && e.Leg == 1 || e.Kind == ExpeditionKind.Explore && e.Leg == 1;
+            // Explorers and raids on caravans head for a tile, not a settlement (docs/MVP/22 §4.3, §6.3).
             int from = back ? e.ToSettlement : e.FromSettlement, to = back ? e.FromSettlement : e.ToSettlement;
-            int fromTile = _sTile[from], toTile = _sTile[to];
+            int fromTile = from >= 0 ? _sTile[from] : e.TargetTile, toTile = to >= 0 ? _sTile[to] : e.TargetTile;
             int seasons = match.Politics.TravelSeasons(e.Civ, fromTile, toTile);
             if (seasons == int.MaxValue) seasons = Math.Max(1, (WalkTiles(fromTile, toTile) + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
             long leftAt = (long)(e.ArriveSeason - seasons) * LivingEconomyModel.SeasonTicks;
@@ -452,6 +459,9 @@ public sealed partial class FrameBuilder
             _pProgress[p] = (short)progress;
             _pMembers[p] = e.Members.Count;
             _pArrive[p] = e.ArriveSeason;
+            _pGood[p] = (byte)e.Good;
+            _pCargo[p] = (int)Math.Clamp((e.Cargo * 1000).FloorToInt(), 0, int.MaxValue);
+            _pId[p] = e.Id;
         }
     }
 
@@ -463,7 +473,13 @@ public sealed partial class FrameBuilder
         Array.Resize(ref _pFrom, size); Array.Resize(ref _pTo, size); Array.Resize(ref _pFromTile, size); Array.Resize(ref _pToTile, size);
         Array.Resize(ref _pX, size); Array.Resize(ref _pY, size); Array.Resize(ref _pTile, size); Array.Resize(ref _pMembers, size);
         Array.Resize(ref _pArrive, size); Array.Resize(ref _pProgress, size);
+        Array.Resize(ref _pGood, size); Array.Resize(ref _pCargo, size); Array.Resize(ref _pId, size);
     }
+
+    /// <summary>A party the frame can place: from a known settlement to a settlement, or to a tile (explorers, raids on caravans).</summary>
+    private bool PartyShown(Expedition e)
+        => e.FromSettlement >= 0 && e.FromSettlement < _settlementCount &&
+           (e.ToSettlement >= 0 && e.ToSettlement < _settlementCount || e.ToSettlement < 0 && e.TargetTile >= 0 && e.TargetTile < _tileCount);
 
     /// <summary>Walking tiles between two tiles on the parties' graph (as PoliticsSystem.Walk), cached for 64 pairs.</summary>
     private int WalkTiles(int from, int to)
@@ -558,6 +574,8 @@ public sealed partial class FrameBuilder
             }
             else
             {
+                // An expedition's report reveals terrain to the whole civilization (docs/MVP/22 §4.3).
+                if (!_omniscient && _explored[t] == 0 && pol.IsRevealed(_viewer, t)) _explored[t] = 1;
                 bool known = _explored[t] != 0;
                 vis[t] = known ? (byte)TileVisibility.Explored : (byte)TileVisibility.Unknown;
                 owner[t] = known ? _rememberedOwner[t] : (sbyte)-1;
@@ -602,7 +620,7 @@ public sealed partial class FrameBuilder
         for (int i = 0; i < pol.Expeditions.Count; i++)
         {
             Expedition e = pol.Expeditions[i];
-            if ((e.FromSettlement < 0 || e.FromSettlement >= _settlementCount) || (e.ToSettlement < 0 || e.ToSettlement >= _settlementCount)) continue;
+            if (!PartyShown(e)) continue;
             for (int m = 0; m < e.Members.Count; m++) { _memberId[_memberCount] = e.Members[m]; _memberSlot[_memberCount++] = party; }
             party++;
         }
@@ -682,6 +700,8 @@ public sealed partial class FrameBuilder
                     ExpeditionKind.Gift => FigureActivity.OnGift,
                     ExpeditionKind.Barter => FigureActivity.OnBarter,
                     ExpeditionKind.Raid => FigureActivity.OnRaid,
+                    ExpeditionKind.Explore => FigureActivity.OnExpedition,
+                    ExpeditionKind.Caravan => FigureActivity.OnCaravan,
                     _ => FigureActivity.OnAssault,
                 };
                 flags |= FigureFlags.Away;
@@ -854,6 +874,7 @@ public sealed partial class FrameBuilder
                 target.SettlementSmallStock[w] = 0; target.SettlementCattle[w] = 0; target.SettlementPigs[w] = 0;
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
+                target.SettlementHalls[w] = 0;
                 continue;
             }
             var lite = eco.SettlementLite(s);
@@ -871,10 +892,14 @@ public sealed partial class FrameBuilder
             if (own) flags |= SettlementViewFlags.Own;
             for (int k = 0; k < kinds; k++)
                 target.SettlementStructures[structureBase + k] = (byte)Math.Min(255, eco.StructureCount(s, k));
+            target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
             if (eco.DefenseStructures(s, lookout: false) > 0) flags |= SettlementViewFlags.ThornBarrier;
             if (eco.DefenseStructures(s, lookout: true) > 0) flags |= SettlementViewFlags.Lookout;
             if (!_sFree[s] && _def03 >= 0 && (_sCiv[s] >= 0 && _sCiv[s] < _civs) && research.IsDone(_sCiv[s], _def03))
                 flags |= SettlementViewFlags.Palisade;
+            if (_politics is { } pol && pol.TinFolk.Count > 0 && pol.IsTinFolk(s)) flags |= SettlementViewFlags.TinFolk | SettlementViewFlags.Palisade;
+            if (own && eco.CorveeAt(s) >= 0) flags |= SettlementViewFlags.Corvee;
+            if (_politics is { } lp && !_omniscient && lp.LevyFor(_viewer, s) is not null) flags |= SettlementViewFlags.LevyTarget;
             target.SettlementFlags[w] = (ushort)flags;
             (int kind, Fix64 share) = eco.SettlementBuild(s);
             target.SettlementBuildKind[w] = (sbyte)kind;
@@ -1051,9 +1076,34 @@ public sealed partial class FrameBuilder
             target.PartyFrom[w] = _pFrom[p]; target.PartyTo[w] = _pTo[p];
             target.PartyFromTile[w] = _pFromTile[p]; target.PartyToTile[w] = _pToTile[p];
             target.PartyX[w] = _pX[p]; target.PartyY[w] = _pY[p]; target.PartyProgress[w] = _pProgress[p];
-            target.PartyMembers[w] = _pMembers[p]; target.PartyArriveSeason[w] = _pArrive[p]; target.PartyLeg[w++] = _pLeg[p];
+            target.PartyMembers[w] = _pMembers[p]; target.PartyArriveSeason[w] = _pArrive[p];
+            target.PartyGood[w] = _pGood[p]; target.PartyCargoPermille[w] = _pCargo[p]; target.PartyId[w] = _pId[p];
+            target.PartyLeg[w++] = _pLeg[p];
         }
         target.PartyCount = w;
+    }
+
+    /// <summary>The viewer's compacts as routes (every compact in omniscient mode), docs/MVP/22 §6.2 and §14.</summary>
+    private void FillRoutes(PoliticsSystem pol, MatchFrame target)
+    {
+        int n = 0;
+        foreach (Compact c in pol.Compacts) if (c.Active) n++;
+        target.EnsureRoutes(n);
+        int w = 0;
+        foreach (Compact c in pol.Compacts)
+        {
+            if (!c.Active || !_omniscient && !c.Involves(_viewer)) continue;
+            int from = c.LastSeller >= 0 ? c.LastSeller : c.SellerFolk, to = c.LastBuyer >= 0 ? c.LastBuyer : c.BuyerFolk;
+            target.RouteCompact[w] = c.Id;
+            target.RouteSellerCiv[w] = (sbyte)c.SellerCiv; target.RouteBuyerCiv[w] = (sbyte)c.BuyerCiv;
+            target.RouteSellerSettlement[w] = from; target.RouteBuyerSettlement[w] = to;
+            target.RouteFromTile[w] = from >= 0 && from < _settlementCount ? _sTile[from] : -1;
+            target.RouteToTile[w] = to >= 0 && to < _settlementCount ? _sTile[to] : -1;
+            target.RouteGood[w] = (byte)c.Good;
+            target.RouteVolumePermille[w] = (int)Math.Clamp((c.LastVolume * 1000).FloorToInt(), 0, int.MaxValue);
+            target.RouteDeliveries[w] = c.Deliveries; target.RouteSinceSeason[w++] = c.SinceSeason;
+        }
+        target.RouteCount = w;
     }
 
     private void FillOccupations(PoliticsSystem pol, MatchFrame target)
@@ -1094,7 +1144,11 @@ public sealed partial class FrameBuilder
                 if (dip.AtWar(_viewer, c)) flags |= CivViewFlags.AtWar;
                 if (dip.Allied(_viewer, c)) flags |= CivViewFlags.Allied;
                 if (dip.InTruce(_viewer, c, pol.Season)) flags |= CivViewFlags.InTruce;
+                if (pol.HasPact(_viewer, c)) flags |= CivViewFlags.Pact;
+                if (pol.HasTreaty(_viewer, c)) flags |= CivViewFlags.Treaty;
             }
+            target.CivEmbargoByViewer[c] = (byte)(_omniscient || c == _viewer ? 0 : pol.EmbargoMask(_viewer, c));
+            target.CivEmbargoOnViewer[c] = (byte)(_omniscient || c == _viewer ? 0 : pol.EmbargoMask(c, _viewer));
             target.CivFlags[c] = (ushort)flags;
             int era = research.Era(c);
             target.CivEra[c] = (byte)era;
@@ -1116,10 +1170,14 @@ public sealed partial class FrameBuilder
                 target.CivSettlements[c] = settlements;
                 target.CivProjectsDone[c] = research.DoneCount(c);
                 target.CivInsightPerYear[c] = research.InsightPerYear(c).Raw;
+                target.CivMandate[c] = (byte)Math.Clamp(research.Mandate(c), 0, 255);
+                target.CivMandateCap[c] = (byte)Math.Clamp(research.MandateCap(c), 0, 255);
+                target.CivMandateNext[c] = (byte)Math.Clamp(research.MandateSeasonsToNext(c), 0, 255);
             }
             else
             {
                 target.CivPopulation[c] = 0; target.CivSettlements[c] = 0; target.CivProjectsDone[c] = 0; target.CivInsightPerYear[c] = 0;
+                target.CivMandate[c] = 0; target.CivMandateCap[c] = 0; target.CivMandateNext[c] = 0;
             }
         }
     }
@@ -1167,5 +1225,21 @@ public sealed partial class FrameBuilder
         MatchFrame.Ensure(ref target.FocusProjectState, projects);
         for (int p = 0; p < projects; p++) target.FocusProjectState[p] = (byte)research.State(civ, p);
         target.FocusProjectCount = projects;
+        PoliticsSystem pol = match.Politics;
+        target.FocusMandateUnlocked = research.MandateUnlocked(civ);
+        target.FocusMandate = research.Mandate(civ);
+        target.FocusMandateCap = research.MandateCap(civ);
+        target.FocusMandateNextSeason = research.MandateSeasonsToNext(civ);
+        for (int k = 1; k <= (int)DecreeKind.Compact; k++)
+            target.FocusDecreeCost[k] = (byte)Math.Clamp(target.FocusMandateUnlocked ? pol.DecreeCost(civ, (DecreeKind)k) : 0, 0, 255);
+        int pending = 0;
+        foreach (PendingDecree d in pol.PendingDecrees) if (d.Civ == civ) pending++;
+        target.FocusPendingDecrees = pending;
+        target.FocusLevyTarget = -1; target.FocusLevyHost = 0; target.FocusLevyUntilSeason = 0;
+        foreach (Levy l in pol.Levies)
+            if (l.Civ == civ && l.UntilSeason > pol.Season)
+            { target.FocusLevyTarget = l.TargetSettlement; target.FocusLevyHost = l.Members.Count; target.FocusLevyUntilSeason = l.UntilSeason; }
+        target.FocusDecreesDone = pol.DecreesDone(civ);
+        target.FocusSeasonsAtCap = pol.MandateSeasonsAtCap(civ);
     }
 }

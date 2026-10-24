@@ -94,18 +94,29 @@ projects:
     name: Craft Specialization
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [SOC-07, TRD-04]
     effects:
-      - {kind: prose, text: "Full-time specialists: Role output +30%; inequality (−5% Cohesion)."}
+      - {kind: rule, text: "full-time Smith, Potter, Miner and Trader in each Town and City: their work rates +30%"}
+      - {kind: mod, stat: role_insight, op: pct, value: 0.1}
+      - {kind: cohesion, value: -5, scope: all, note: inequality}
+    practice: [{action: craft, share: 34}, {action: trade, share: 33}, {action: socialize, share: 33}]
+    flavor: "Each to their craft, and all are fed."
+    moment: "A street of workshops: a smith, a potter and a weaver, each at a separate door"
   - id: SOC-09
     name: Urbanism
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [SOC-08, AGR-06]
     effects:
-      - {kind: prose, text: "Settlement tier: City. Cap: 10,000. Cities radiate claim and Insight."}
+      - {kind: tier, tier: city, min_pop: 90, needs: [temple, palace], radius: 6}
+      - {kind: cap, cap: group, value: 10000}
+      - {kind: cap, cap: housing, mult: 1.6, note: "dense dwellings: mudbrick houses and halls in Towns and Cities house ×1.6"}
+      - {kind: rule, text: "+8 Insight a year per City (OutCity × RoleScale, then InsightCalibration)"}
+    practice: [{action: socialize, share: 50}, {action: build, share: 50}]
+    flavor: "Strangers became neighbours behind one wall."
+    moment: "Streets cross in a grid and a crowd fills a square before the temple steps"
   - id: SOC-10
     name: Citizenship
     era: 4

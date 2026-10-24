@@ -57,18 +57,30 @@ projects:
     name: Writing
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [COM-03, NUM-03]
     effects:
-      - {kind: prose, text: "Role: Scribe. Records: knowledge not lost; admin capacity +. *KEY-4 prerequisite.*"}
+      - {kind: role, id: scribe, insight: 24, note: "one at the capital (the Palace's scribe once it stands); two per School"}
+      - {kind: admin, span: 2, overreach: 0.20}
+      - {kind: mandate, recharge: -2}
+      - {kind: rule, text: "written compacts and pacts: Relations decay between the partners is halved"}
+      - {kind: rule, text: "a settlement with a Scribe adopts new methods from the capital without the distance lag"}
+    practice: [{action: scribe, share: 50}, {action: count_stores, share: 50}]
+    flavor: "Words that stay when the speaker is gone."
+    moment: "A stylus presses wedges into wet clay: a count of oil jars, and a name"
   - id: COM-06
     name: "Papyrus & Parchment"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [COM-05, FIB-03]
     effects:
-      - {kind: prose, text: "Portable writing: scribe output ×2; letters travel."}
+      - {kind: mod, stat: scribe_output, op: mult, value: 1.5}
+      - {kind: admin, overreach: 0.10}
+      - {kind: mandate, recharge: -1}
+    practice: [{action: scribe, share: 100}]
+    flavor: "Writing that travels."
+    moment: "A runner tucks a rolled sheet under his arm and sets off from the palace gate"
   - id: COM-07
     name: Alphabet
     era: 4

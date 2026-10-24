@@ -46,26 +46,37 @@ projects:
     name: "Potter's Wheel"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [CER-03, MEC-03]
     effects:
-      - {kind: prose, text: "▸ Pottery: Wheel ×3. Role: Potter."}
+      - {kind: method, action: pottery, rung: 1, name: "Potter's wheel", mult: 3, note: "by a Potter at a Potter's workshop"}
+      - {kind: role, id: potter}
+      - {kind: build, structure: potters_workshop}
+    practice: [{action: clay, share: 100}]
+    flavor: "Clay rises between turning hands."
+    moment: "A lump of clay climbs into a tall jar on a wheel that a child keeps turning"
   - id: CER-05
     name: "Glazes & Faience"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [CER-04, CHM-03]
     effects:
-      - {kind: prose, text: "Good: Glazed wares, faience beads (luxury trade)."}
+      - {kind: good, id: G-FAIENCE, note: "luxury, barter 8; recipe faience at a Kiln"}
+    practice: [{action: clay, share: 50}, {action: tend_fire, share: 50}]
+    flavor: "Blue as the river at noon, and it never fades."
+    moment: "A tray of beads comes out of the kiln glazed a bright turquoise"
   - id: CER-06
     name: Glassmaking
     era: 3
     type: D
-    status: draft
+    status: numeric
     requires: [CER-05, FIR-09]
     effects:
-      - {kind: prose, text: "Good: Glass beads and core-formed vessels (luxury)."}
+      - {kind: good, id: G-GLASS, note: "luxury, barter 12; needs a Smelter"}
+    practice: [{action: tend_fire, share: 50}, {action: craft, share: 50}]
+    flavor: "Sand and fire made a stone you can see through."
+    moment: "A glassworker winds a thread of hot blue glass around a clay core"
   - id: CER-07
     name: Glassblowing
     era: 4

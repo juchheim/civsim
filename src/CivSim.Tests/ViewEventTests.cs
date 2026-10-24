@@ -128,7 +128,8 @@ public class ViewEventTests
                 EffectKind.Role => VisibleChange.Role,
                 EffectKind.Tier => VisibleChange.Tier,
                 EffectKind.Claim or EffectKind.Reach or EffectKind.Reveal or EffectKind.Show or EffectKind.Highlight
-                    or EffectKind.Presence or EffectKind.Lever => VisibleChange.Overlay,
+                    or EffectKind.Presence or EffectKind.Lever or EffectKind.Admin or EffectKind.Mandate => VisibleChange.Overlay,
+                EffectKind.Sanitation => VisibleChange.Behavior,
                 EffectKind.EraAdvance => VisibleChange.EraCelebration,
                 EffectKind.Gate or EffectKind.Risk or EffectKind.Need or EffectKind.Legacy or EffectKind.Prose => VisibleChange.None,
                 EffectKind.Mod or EffectKind.Cap or EffectKind.Hazard or EffectKind.Cohesion or EffectKind.Adopt

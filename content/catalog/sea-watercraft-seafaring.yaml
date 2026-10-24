@@ -53,18 +53,30 @@ projects:
     name: Plank Boats
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-04, WOD-05]
     effects:
-      - {kind: prose, text: "Cargo boats: water haul ×3."}
+      - {kind: method, action: paddle, rung: 4, name: Plank boat, mult: 2.5, note: "cargo 12 L"}
+      - {kind: mod, stat: water_route_capacity, op: mult, value: 3}
+      - {kind: mod, stat: mining_reach_water, op: set, value: 16, note: "mining reach along rivers and coasts"}
+      - {kind: mod, stat: fishing, op: pct, value: 0.25}
+    practice: [{action: paddle, share: 50}, {action: build, share: 50}]
+    flavor: "A hull of fitted planks, and cargo for a whole village."
+    moment: "A sewn-plank boat slides down log rollers into the river"
   - id: SEA-06
     name: Sail
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-05, FIB-07]
     effects:
-      - {kind: prose, text: "▸ Sail: Square sail. Sea speed ×2; coastal trade routes."}
+      - {kind: method, action: paddle, rung: 5, name: Square sail, mult: 5, note: "sea speed ×2 (SeaCostTenths 4 → 2)"}
+      - {kind: mod, stat: open_sea_reach, op: flat, value: 4, note: "11 → 15 tiles from land"}
+      - {kind: mod, stat: shipwreck_risk, op: mult, value: 0.7}
+      - {kind: rule, text: "sea routes up to 40 tiles"}
+    practice: [{action: sail, share: 100}]
+    flavor: "The wind became our oarsmen."
+    moment: "A square sail fills; the rowers ship their oars and laugh"
   - id: SEA-07
     name: Harbors
     era: 4

@@ -21,6 +21,8 @@
 
 ## 2. R6 in the balance model
 
+The R6 results in this section are the historical 173.5-minute arc before the later research-cost follow-ups in §10 and §10.1.
+
 **What changed** in [tools/params.py](balance/tools/params.py), tuned scenario:
 - **Territory:** 60 · 200 · 500 · 900 · 1,400 · **1,600 · 1,600 · 1,600 · 1,600 · 1,600**. The map's room per civilization holds from E5 on (07b T6).
 - **Late per-settlement caps ×1.6, in project-sized steps.** 07b states R6 as per-era caps (food 4,000 / 9,600 / 19,200, housing 6,400 / 16,000 / 32,000). That was written against WS-A's per-era tables. Since 09, caps rise project by project, so the same ×1.6 is carried by two E7 closure projects (`params.CAPS`):
@@ -261,7 +263,7 @@ Then update 11 §2's sums (×1.10, ×1.11, ×1.07). I didn't edit the column bec
 **Adopted: `InsightCalibration` = 1.6** (`content/constants/balance.yaml`, applied to the whole formula, as ×8 was in 07 F1). It is a re-fit to the live demography, not a design change to 02 §8.1. 1.7 centers KEY-2 and KEY-3 better but puts KEY-1 at the edge of its window; 1.6 keeps all three inside on both seeds.
 
 **Consequences and limits.**
-- M4 did not change the Python balance model (`params.py`); it still describes smoothed demography, so its original E0–E2 durations (7.8 / 10.0 / 11.8 min) do not directly predict the live sim, in the same way the exact-age reference superseded the `C / 56` comparison for population (§6). E2's cost was subsequently retuned in §10. EraBase for E3 and later was fit with the balance model's Insight; re-fit it when those eras run live (M8).
+- The Python balance model (`params.py`) is **not** changed. It still describes the smoothed demography, so its E0–E2 durations (7.8 / 10.0 / 11.8 min) no longer predict the live sim, in the same way the exact-age reference superseded the `C / 56` comparison for population (§6). EraBase for E3 and later was fit with the balance model's Insight; re-fit it when those eras run live (M8).
 - **Stand-ins until their systems exist:** practice that is not an M3 job (talk, ritual, teaching, counting, marking; `AmbientPractice` in `LivingEconomySource`) is a flat background of work-seasons per adult; resource exposure for `[Seen]` gates is "within routine reach of a settlement" (6 / 9 / 12 tiles by era, ×1.5 with WAY-01, ores within 25 with INQ-03) because M3 figures have no line of sight; Elder and Shaman holders are one per settlement with an elder or six adults; contact is not simulated (M5 calls `RecordContact`).
 - **The 04 openings carry more picks before KEY-1 than the breadth rule needs** (Grower 19, Builder 16, Wanderer 15; costs 521 / 438 / 418 including the keystone, against 363 for the cheapest route: KEY-1's 11 closure projects and the keystone cost 319, and two more free picks reach the breadth of 13). They pass because Know-how and the cascade make up the difference.
 - **P8** (a Council-only player loses to an engaged one in ≥ 65% of paired matches) uses the Settler (learning) AI as its reproducible moderate-engagement proxy. It wins 53/64 mirrored Council matches (83%) over 32 seeds at 40 minutes, passing the target. The simpler scripted Grower policy wins 39/64 (61%) and is too weak; Chieftain wins 94% and is too strong for this proxy. This is a simulation balance gate, not a human-playtest result; P9 measures actual players.
@@ -278,7 +280,7 @@ Then update 11 §2's sums (×1.10, ×1.11, ×1.07). I didn't edit the column bec
 | 5 | 09 §6.2 | Note that lean ≥ 0.85 means winter no longer binds; 1.0 is the model's shorthand | recommended |
 | 6 | 11 §3–§5 | Hazard multipliers to population-average values (§5 table) *or* a coverage rule | recommended (design choice) |
 | 7 | 11 KEY-2 | Add Hazard(endemic, ×1.30) and "epidemics begin" | recommended |
-| 8 | 02 §8.3, 11 §2 and cost column | EraBase 22 / 50 / 75 (09 §12 #1), then rescale 11's costs | applied at M4; Roots later retuned in §10 |
+| 8 | 02 §8.3, 11 §2 and cost column | EraBase 22 / 50 / 75 (09 §12 #1), then rescale 11's costs | recommended |
 | 9 | 11 FOD-04, FOD-05 | Optional: narrow the grain food-value stack; if so, raise the E2 field limit to ~34% | optional |
 | 10 | [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18) | Re-run the territory model on the R6 trajectory (9 metropolises in E8–E9) | ✅ done: recommendations hold; early map emptier (07b §9.3 L2) |
 | 12 | 02 §8.1, §8.2, §15; `balance.yaml` | M4: `InsightCalibration` 1.6; the slot cascade; Council critical-path depth, Insight gain, AI re-rank (§7a) | ✅ applied |
@@ -292,8 +294,34 @@ uv run --no-project --with numpy python docs/MVP/balance/tools/exact_age_sensiti
 python docs/MVP/balance/tools/sensitivity.py final    # R6 arc, archetypes × paces
 ```
 
-## 10. Roots cadence follow-up (2026-10-22)
+## 10. Progressive research cadence follow-up (2026-10-24; superseded by §10.1)
 
-Play feedback reported that research projects completed too quickly in Roots (E2). Raise its `EraBase` from 75 to 90, a 20% increase in the list cost of each E2 project. No other era's base cost or the Insight formula changed.
+Play feedback says Roots projects still complete too quickly. Raise E2 `EraBase` from 75 to 100 (+33%). Keep E3 at 160, the Bronze live fit from [07d](07d-e3-balance-findings.md), and steepen costs progressively from Iron onward:
 
-The tuned season-by-season model puts E2 at **13.0 minutes**, the upper edge of the 11–13 minute target, with the first three eras' keystone proxy at **30.8 minutes** (previously 29.5). This gives Roots projects more room to play out while keeping the existing KEY-3 timing window. The tuned E2 base is updated in `balance/tools/params.py`; repeat the live C5 acceptance run before treating the resulting keystone timing as measured.
+| Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Previous base | 22 | 50 | 75 | 160 | 550 | 3,000 | 15,000 | 130,000 | 750,000 | 3,800,000 |
+| Current base | 22 | 50 | **100** | **160** | **660** | **3,750** | **19,500** | **175,000** | **1,050,000** | **5,500,000** |
+| Change | — | — | **+33%** | — | **+20%** | **+25%** | **+30%** | **+35%** | **+40%** | **+45%** |
+
+The single-civilization mean-field model projects a **195-minute Standard arc** (Quick 97.5, Epic 338), versus 172.5 minutes on the previous curve. Its Balanced Standard era durations are 7.75 / 10 / **14** / 11.25 / **16.5** / **18.25** / **20.25** / **24.75** / **33** / **39.25** minutes. Roots and E4–E9 exceed the earlier per-era windows; that is the requested back-loading. First fission remains at minute 7, so population settings are unchanged.
+
+The updated live-mode oracle with `[22, 50, 100, 160]` projects KEY-1 at 6.5, KEY-2 at 20.75, KEY-3 at **36.75**, KEY-4 at **49.75**, and a 13-minute E3. Before the cadence change it projected KEY-3 at 33.75 and KEY-4 at 47.75. KEY-3 is just beyond the earlier C5 ±25% upper bound of 36.2, so repeat the live C5 and M10 acceptance runs before treating these timings as measured gameplay. The existing 07d live baseline and derived E3 tables use the previous E2 cost and remain historical until those runs are repeated.
+
+The updated tuned EraBase is synchronized across `eras.yaml`, `params.py`, the catalog importer, project costs in doc 11 and the balance workbook. The workbook Sweeps sheet remains a static Python-model snapshot; Results and Charts recalculate from the live Params inputs.
+
+## 10.1. Roots and Bronze still finish too quickly (2026-10-24)
+
+Play feedback after §10 was that late Roots and Bronze Primary projects still finished in under a minute. Raise E2 and E3 further, and continue increasing the costs through later eras:
+
+| Era | E0 | E1 | E2 Roots | E3 Bronze | E4 Iron | E5 | E6 | E7 | E8 | E9 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Previous base (§10) | 22 | 50 | 100 | 160 | 660 | 3,750 | 19,500 | 175,000 | 1,050,000 | 5,500,000 |
+| **Current base** | **22** | **50** | **150** | **400** | **1,200** | **6,000** | **32,000** | **280,000** | **1,700,000** | **9,000,000** |
+| Change from §10 | — | — | **+50%** | **+150%** | **+82%** | **+60%** | **+64%** | **+60%** | **+62%** | **+64%** |
+
+The balanced mean-field model now estimates **1.15 minutes per Primary in Roots** and **1.18 minutes in Bronze**, versus 0.85 and 0.72 before this follow-up. The interval grows to 1.39 in E5, 1.79 in E6, 2.71 in E7, 3.63 in E8 and 4.61 in E9. These are model averages; actual project types, progress income and Know-how vary within each era.
+
+The resulting balanced Standard arc projects at **241.75 minutes** (Quick 120.88, Epic 419.03). Standard era durations are 7.75 / 10 / 18 / 18 / 17 / 16.75 / 19.5 / 29.5 / 47 / 58.25 minutes. First fission remains at minute 7. The live-mode projection with `[22, 50, 150, 400]` puts KEY-3 at 41.5, KEY-4 at 61.25, and the E3 interval at 19.75 minutes. KEY-4 is close to the existing year-64 chapter cap; fresh C5/M10 live runs are needed to confirm timing and cap headroom. These figures are projections, not measured gameplay.
+
+The tuned constants, era registry, catalog importer, E2/E3 list costs and balance workbook are synchronized to this vector. Historical live measurements and the earlier E3 fit remain labeled as such; their acceptance gates need to be rerun with the new cadence.

@@ -68,18 +68,29 @@ projects:
     name: "Temples & Priesthood"
     era: 3
     type: S
-    status: draft
+    status: numeric
     requires: [BEL-05, BLD-07]
     effects:
-      - {kind: prose, text: "Build: Temple. Role: Priest (Insight 2, calendar keeping). Cohesion ++."}
+      - {kind: build, structure: temple, note: "Towns and Cities: 20 ws, mudbrick 120, cut stone 10 L"}
+      - {kind: role, id: priest, insight: 16, note: "one per Temple"}
+      - {kind: cohesion, value: 6, scope: here}
+      - {kind: cohesion, value: 2, scope: radius, radius: 10}
+    practice: [{action: ritual, share: 50}, {action: build, share: 50}]
+    flavor: "A house for the god at the heart of the town."
+    moment: "Priests in tall hats carry offerings up the steps of a new temple"
   - id: BEL-07
     name: State Cult
     era: 3
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-06, GOV-05]
     effects:
-      - {kind: prose, text: "Gods of the city: Cohesion shared across all cities; ruler legitimacy (Overreach −10%)."}
+      - {kind: cohesion, value: 4, scope: all}
+      - {kind: admin, overreach: 0.10}
+      - {kind: mandate, recharge: -1}
+    practice: [{action: ritual, share: 50}, {action: council, share: 50}]
+    flavor: "The king speaks for the gods, and the gods for the king."
+    moment: "The king leads the New Year procession from the palace to the temple"
   - id: BEL-08
     name: "Philosophy & Ethics"
     era: 4

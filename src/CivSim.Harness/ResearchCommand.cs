@@ -14,6 +14,10 @@ namespace CivSim.Harness;
 /// <code>
 /// civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none]
 ///                         [--archetypes a,b,c,d] [--record FILE] [--check-golden FILE | --write-golden FILE]
+/// civsim-harness research --pack FILE --check-m10 [--seed N | --seeds a,b,c] [--minutes N] [--human-seat N]
+/// civsim-harness research --pack FILE --report-metal [--decree-mines] [--seed N | --seeds a,b,c] [--minutes N]
+/// civsim-harness research --pack FILE --report-e3 [--seed N | --seeds a,b,c] [--minutes N]
+/// civsim-harness research --pack FILE --report-decrees [--seed N | --seeds a,b,c] [--minutes N]
 /// </code>
 /// Runs a four-civilization match (the living economy plus research). Civilization 0 plays the chosen scripted opening
 /// (docs/MVP/04 §7) unless <c>--bot none</c>; the others are AI on the Council. Prints Keystone times for C5.
@@ -28,7 +32,9 @@ internal static class ResearchCommand
         string? packPath = null, record = null, checkGolden = null, writeGolden = null;
         bool trace = false;
         int traceCiv = 0;
-        bool checkC5 = false;
+        bool checkC5 = false, checkM10 = false, reportMetal = false, reportE3 = false, reportDecrees = false, c1e3 = false, decreeMines = false, metalFixture = false, minutesGiven = false, seedGiven = false;
+        int humanSeat = -1;
+        List<ulong>? seeds = null;
         string bot = "grower";
         ulong seed = GoldenSeed;
         int minutes = GoldenMinutes;
@@ -38,8 +44,20 @@ internal static class ResearchCommand
             switch (args[i])
             {
                 case "--pack": packPath = Next(args, ref i); break;
-                case "--seed": seed = ulong.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
-                case "--minutes": minutes = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
+                case "--seed": seed = ulong.Parse(Next(args, ref i), CultureInfo.InvariantCulture); seedGiven = true; break;
+                case "--seeds":
+                    seeds = new List<ulong>();
+                    foreach (string part in Next(args, ref i).Split(',')) seeds.Add(ulong.Parse(part, CultureInfo.InvariantCulture));
+                    break;
+                case "--minutes": minutes = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); minutesGiven = true; break;
+                case "--check-m10": checkM10 = true; break;
+                case "--report-metal": reportMetal = true; break;
+                case "--report-e3": reportE3 = true; break;
+                case "--report-decrees": reportDecrees = true; break;
+                case "--c1-e3": c1e3 = true; break;
+                case "--decree-mines": decreeMines = true; break;
+                case "--metal-fixture": metalFixture = true; break;
+                case "--human-seat": humanSeat = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
                 case "--bot": bot = Next(args, ref i); break;
                 case "--archetypes": archetypes = ParseArchetypes(Next(args, ref i)); break;
                 case "--trace": trace = true; break;
@@ -52,6 +70,36 @@ internal static class ResearchCommand
             }
         }
         if (packPath is null) throw new ArgumentException("research needs --pack FILE (civsim build-pack --out FILE).");
+        if (checkM10)
+        {
+            // B5 and B6 (docs/MVP/22 §16): play to the end of the Bronze chapter; --minutes only bounds a runaway match.
+            ContentPack m10Pack = ContentPack.Load(File.ReadAllBytes(packPath));
+            if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
+            return ResearchM10.Execute(m10Pack, seeds, minutesGiven ? minutes : 70, humanSeat);
+        }
+        if (reportDecrees)
+        {
+            // T11, T14-T16, T20, T26, T27 (docs/MVP/22 §15): Decrees, compacts and Tin Folk under the Council's Decree policy (WP8a).
+            ContentPack decreePack = ContentPack.Load(File.ReadAllBytes(packPath));
+            if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
+            return ResearchDecrees.Execute(decreePack, seeds, minutesGiven ? minutes : 64);
+        }
+        if (c1e3) return C1E3Report.Execute(ContentPack.Load(File.ReadAllBytes(packPath)), seed);
+        if (reportE3)
+        {
+            // T7, T10-T16, T25 and C3-E3 (docs/MVP/22 §15, 07d §10-§11): the early state measured on four Balanced Council civilizations.
+            ContentPack e3Pack = ContentPack.Load(File.ReadAllBytes(packPath));
+            if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
+            return ResearchE3.Execute(e3Pack, seeds, minutesGiven ? minutes : 64);
+        }
+        if (metalFixture) return MetalFixtureReport.Execute(ContentPack.Load(File.ReadAllBytes(packPath)), seed);
+        if (reportMetal)
+        {
+            // T17-T19 and B11 (docs/MVP/22 §15-§16): the metal and fuel economy measured on four Balanced Council civilizations.
+            ContentPack metalPack = ContentPack.Load(File.ReadAllBytes(packPath));
+            if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
+            return ResearchMetal.Execute(metalPack, seeds, minutesGiven ? minutes : 64, decreeMines);
+        }
         if (checkC5)
         {
             // C5 measures the balance model's reference civilization: four Balanced civilizations on the Council,
@@ -141,12 +189,12 @@ internal static class ResearchCommand
     }
 
     /// <summary>
-    /// C5 (docs/MVP/11 §6): KEY-1, KEY-2 and KEY-3 at about 7.5, 17.5 and 29 minutes, Standard pace, ±25%. The median of the
-    /// four civilizations must land in the window and none may stray beyond ±40% or miss the keystone altogether.
+    /// C5 (docs/MVP/11 §6): KEY-1/2 retain 7.5/17.5-minute targets; the current cadence projects KEY-3 at 41.5 minutes
+    /// (07c §10.1). The median of the four civilizations must land in the window and none may stray beyond ±40% or miss it.
     /// </summary>
     private static bool ReportC5(ResearchSystem research)
     {
-        double[] target = { 7.5, 17.5, 29.0 };
+        double[] target = { 7.5, 17.5, 41.5 };
         bool pass = true;
         Console.WriteLine("C5 keystone timing (minutes, Standard pace):");
         for (int key = 1; key <= 3; key++)

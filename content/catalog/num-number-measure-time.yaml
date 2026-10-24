@@ -41,26 +41,38 @@ projects:
     name: "Standard Weights & Measures"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-03, TRD-04]
     effects:
-      - {kind: prose, text: "Fair trade: trade friction −20%; construction precision (+10% build)."}
+      - {kind: mod, stat: trade_gain_threshold, op: set, value: 0.05, note: "barter and compacts need 5% gain instead of 10%"}
+      - {kind: mod, stat: construction_labor, op: mult, value: 0.9}
+    practice: [{action: trade, share: 50}, {action: count_stores, share: 50}]
+    flavor: "One stone weight, the same in every market."
+    moment: "A merchant's bronze weight balances the inspector's on a pair of scales"
   - id: NUM-05
     name: Place-Value Arithmetic
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-04, COM-05]
     effects:
-      - {kind: prose, text: "Large-number administration: admin capacity +25%."}
+      - {kind: admin, span: 2, overreach: 0.20}
+    practice: [{action: count_stores, share: 50}, {action: scribe, share: 50}]
+    flavor: "Sixty, and sixty times sixty: the tablet holds them all."
+    moment: "A scribe totals a whole province's barley on a single tablet"
   - id: NUM-06
     name: "Solar Calendar & Astronomy"
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-05, BEL-06]
     effects:
-      - {kind: prose, text: "Accurate year: farm yields +10%; flood prediction."}
+      - {kind: mod, stat: field_yield, op: pct, value: 0.1}
+      - {kind: mod, stat: flood_loss, op: mult, value: 0.5}
+      - {kind: mod, stat: priest_insight, op: flat, value: 4}
+    practice: [{action: count_stores, share: 50}, {action: ritual, share: 50}]
+    flavor: "The sun rose behind the marker peak, and we sowed."
+    moment: "Priests on the temple roof watch the sun rise exactly behind a distant peak"
   - id: NUM-07
     name: "Geometry & Surveying"
     era: 4

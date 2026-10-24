@@ -12,12 +12,25 @@ public readonly record struct FigureLook(
     EconomyJob Job, byte IllnessSeasons, byte WoundSeasons, byte PregnancySeasons);
 
 /// <summary>Why a researched method rung cannot currently be used at a settlement.</summary>
-public enum MethodFallbackReason : byte { None, MissingTool, HuntParty }
+public enum MethodFallbackReason : byte
+{
+    None, MissingTool, HuntParty,
+    /// <summary>The settlement cannot cast tin-bronze kits: no tin in hand, from a sister settlement or a workable deposit (docs/MVP/22 §5.7).</summary>
+    NoTin,
+    /// <summary>No arsenical ore for arsenical-bronze kits.</summary>
+    NoArsenic,
+    /// <summary>No copper ore for any metal kit.</summary>
+    NoOre,
+    /// <summary>Charcoal fell short for want of wood (docs/MVP/22 §5.5).</summary>
+    NoFuel,
+}
 
 /// <summary>Stable, presentation-facing ids for the tools that can block a method rung.</summary>
 public enum MethodToolId : byte
 {
-    None, Stick, Club, Spear, Tool1, Tool2, Tool4, Tool7, SpearThrower, Bow, Harpoon, FishingKit, Net, Basket, Sickle
+    None, Stick, Club, Spear, Tool1, Tool2, Tool4, Tool7, SpearThrower, Bow, Harpoon, FishingKit, Net, Basket, Sickle,
+    /// <summary>Metal kits of tiers T8–T10 (docs/MVP/23 §4.1).</summary>
+    CopperKit, ArsenicalKit, TinBronzeKit,
 }
 
 /// <summary>Read-only efficiency information for one job at one settlement.</summary>
@@ -85,7 +98,31 @@ public sealed partial class LivingEconomyModel
             EconomyJob.Chop or EconomyJob.Gather => "chop",
             _ => null,
         };
-        return action is null ? -1 : BestActionRung(_settlements[settlementIndex], action, 3);
+        if (action is null) return -1;
+        SettlementState s = _settlements[settlementIndex];
+        int rung = BestActionRung(s, action, 3);
+        return job == EconomyJob.Chop && s.Metal is not null ? Math.Max(rung, KitRungOfMost(s)) : rung;
+    }
+
+    /// <summary>
+    /// The Chop rung most adults' kits give (docs/MVP/23 §6.2): 6 when at least half carry bronze, 5 when at least half
+    /// carry copper or better, else -1. Kits are per figure, so the settlement's badge is its majority.
+    /// </summary>
+    private int KitRungOfMost(SettlementState s)
+    {
+        int adults = 0, bronze = 0, copper = 0;
+        foreach (FigureState f in _figures)
+        {
+            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            adults++;
+            int rung = KitChopRung(f);
+            if (rung == 6) bronze++;
+            else if (rung == 5) copper++;
+        }
+        if (adults == 0) return -1;
+        if (bronze * 2 >= adults) return 6;
+        if ((bronze + copper) * 2 >= adults) return 5;
+        return -1;
     }
 
     /// <summary>
@@ -121,6 +158,15 @@ public sealed partial class LivingEconomyModel
             {
                 reason = MethodFallbackReason.HuntParty;
                 requiredTool = MethodToolId.None;
+            }
+            else if (action == "chop" && rung >= 5)
+            {
+                // Metal axes are per-figure kits: the reason is the settlement's metal access ("no tin"), else the kit.
+                reason = settlement.Metal is { Reason: not MethodFallbackReason.None } metal && rung > effective
+                    ? metal.Reason : MethodFallbackReason.MissingTool;
+                requiredTool = rung == 5 ? MethodToolId.CopperKit
+                    : HasProject(settlement.Civilization, "MET-05") ? MethodToolId.TinBronzeKit : MethodToolId.ArsenicalKit;
+                if (rung <= effective) { reason = MethodFallbackReason.None; requiredTool = MethodToolId.None; }
             }
             else if (!HasRequiredTool(settlement, action, rung))
             {

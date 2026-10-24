@@ -53,18 +53,31 @@ projects:
     name: Wheeled Carts
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [TRN-04, MEC-03, NRG-01]
     effects:
-      - {kind: prose, text: "▸ Haul: Ox cart ×5 on flat or road tiles."}
+      - {kind: method, action: haul, rung: 1, name: Ox cart, mult: 5, note: "6 L a cart; on flat and trail tiles; needs a cart and an ox pair"}
+      - {kind: good, id: G-CART, note: "recipe build_cart"}
+      - {kind: mod, stat: mining_reach, op: set, value: 12, note: "mining and charcoal reach 8 → 12"}
+      - {kind: mod, stat: settle_reach, op: flat, value: 6, note: "Found a village: 14 → 20 on land"}
+      - {kind: admin, overreach: 0.10}
+      - {kind: cap, cap: food, mult: 1.06}
+    practice: [{action: haul, share: 100}]
+    flavor: "The road remembers the wheel."
+    moment: "An ox cart piled with grain creaks into the village, children riding on top"
   - id: TRN-06
     name: Horseback Riding
     era: 3
     type: M
-    status: draft
+    status: numeric
     requires: [TRN-04, HUS-07]
     effects:
-      - {kind: prose, text: "▸ Travel: Riding ×2 for scouts, messengers and herders."}
+      - {kind: reach, text: "scouts and expeditions: speed ×2, range ×1.5; expedition sight +1"}
+      - {kind: admin, overreach: 0.10}
+      - {kind: mod, stat: herders_handle, op: mult, value: 1.5}
+    practice: [{action: ride, share: 50}, {action: herd, share: 50}]
+    flavor: "The horizon came closer."
+    moment: "A rider gallops over a rise and back before the dust has settled"
   - id: TRN-07
     name: Paved Roads
     era: 4

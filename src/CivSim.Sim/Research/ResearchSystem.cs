@@ -36,10 +36,13 @@ public sealed partial class ResearchSystem : IResearchView
     private static readonly Fix64 KnowHowCostShare = Fix64.Half;
     private static readonly Fix64 ClimateDiscount = Fix64.FromRatio(7, 10);
     private static readonly Fix64 PioneerBonus = Fix64.FromRatio(11, 10);
-    private static readonly Fix64 LegacyFirstShare = Fix64.Half;
-    private static readonly Fix64 KeystoneLegacyMult = Fix64.FromInt(3);
     private const int MixingNeighbours = 12;
-    private const int MasteryPerEra = 1;
+
+    /// <summary>
+    /// The last era whose projects can be researched (docs/MVP/22 §3.1): Bronze. KEY-4 still completes and the civilization
+    /// enters the Iron threshold (era 4), but E4 and later projects stay Hidden even if their content is made numeric.
+    /// </summary>
+    public const int LastResearchEra = 3;
 
     private readonly ResearchCatalog _catalog;
     private readonly IResearchSource _source;
@@ -56,7 +59,7 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
-    private readonly int _statCommons, _statElder, _roleElder;
+    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight;
     private readonly int _soc03;
     private long _tick;
 
@@ -84,6 +87,11 @@ public sealed partial class ResearchSystem : IResearchView
         _statCommons = catalog.StatIndex("commons_insight");
         _statElder = catalog.StatIndex("elder_insight");
         _roleElder = catalog.RoleIndex("elder");
+        _rolePriest = catalog.RoleIndex("priest");
+        _roleScribe = catalog.RoleIndex("scribe");
+        _statScribe = catalog.StatIndex("scribe_output");
+        _statPriest = catalog.StatIndex("priest_insight");
+        _statRoleInsight = catalog.StatIndex("role_insight");
         _soc03 = catalog.IndexOf("SOC-03");
 
         int civs = source.CivCount;
@@ -141,7 +149,8 @@ public sealed partial class ResearchSystem : IResearchView
     public bool IsPioneer(int civ, int project) => _civs[civ].Pioneer[project];
     public int FirstBy(int project) => _firstBy[project];
     public long CompletedTick(int civ, int project) => _civs[civ].DoneTick[project];
-    public Fix64 Legacy(int civ) => _civs[civ].MasteryLegacy + _civs[civ].FirstsLegacy;
+    public Fix64 Legacy(int civ) => _civs[civ].MasteryLegacy + _civs[civ].FirstsLegacy + _civs[civ].WondersLegacy;
+    public Fix64 WondersLegacy(int civ) => _civs[civ].WondersLegacy;
     public Fix64 FirstsLegacy(int civ) => _civs[civ].FirstsLegacy;
     public Fix64 MasteryLegacy(int civ) => _civs[civ].MasteryLegacy;
     public int BeaconBoons(int civ) => _civs[civ].BeaconBoons;
@@ -298,11 +307,29 @@ public sealed partial class ResearchSystem : IResearchView
                     if ((fresh & (1UL << t)) != 0) Emit((byte)c, ResearchEventKind.SeenResource, -1, t, 0);
             }
             civ.ClimateTarget = _source.ClimateTarget(c);
+            if (_source.AccessMask(c, out ulong decided, out ulong available))
+                civ.HasMask = (civ.HasMask & ~decided) | (available & decided);
             RebuildDerived(c);
+            RechargeMandate(civ);
             RefreshInsight(c);
             RefreshStates(c, announce: true);
             FillEmptySlots(c, tick);
         }
+    }
+
+    /// <summary>
+    /// One season of Mandate recharge (docs/MVP/22 §4.2): +1 every R seasons, R = 8 less what COM-05, COM-06 and BEL-07 give,
+    /// never below MandateRechargeMin. A full Mandate does not accumulate: the counter waits at zero until a point is spent.
+    /// </summary>
+    private static void RechargeMandate(CivResearch civ)
+    {
+        if (!civ.MandateUnlocked) return;
+        if (civ.Mandate >= civ.MandateCap) { civ.MandateCounter = 0; return; }
+        civ.MandateCounter++;
+        if (civ.MandateCounter < civ.MandateRecharge) return;
+        civ.MandateCounter = 0;
+        civ.Mandate++;
+        civ.MandateEarned++;
     }
 
     private void Apply(Command command, long tick)
@@ -507,13 +534,13 @@ public sealed partial class ResearchSystem : IResearchView
             if (visual != VisibleChange.None) Emit((byte)c, ResearchEventKind.VisibleChange, p, (int)visual, e);
         }
 
-        civ.MasteryLegacy += Fix64.FromInt((def.Era + 1) * MasteryPerEra);
+        // Legacy units per era (docs/MVP/22 §3.3): Mastery 2 x (era + 1), First 3 x (era + 1), four times that for a Keystone or Wonder.
+        civ.MasteryLegacy += _catalog.MasteryUnits(def);
         if (_firstBy[p] < 0)
         {
             _firstBy[p] = c;
             civ.Pioneer[p] = true;
-            Fix64 points = _catalog.EraBase[def.Era] * LegacyFirstShare;
-            if (def.IsKeystone || def.Type == ProjectType.Wonder) points = points * KeystoneLegacyMult;
+            Fix64 points = _catalog.FirstUnits(def);
             civ.FirstsLegacy += points;
             Emit((byte)c, ResearchEventKind.FirstClaimed, p, points.FloorToInt(), 0);
         }
@@ -537,6 +564,11 @@ public sealed partial class ResearchSystem : IResearchView
         if (def.IsKeystone) AdvanceEra(c, p, def);
         if (forwardToEconomy) _completions.Add((c, p));
         RebuildDerived(c);
+        // A `mandate` effect's `start` is a one-off grant when the project completes (KEY-3 gives the first point).
+        int startGrant = 0;
+        foreach (EffectDef e in def.Effects)
+            if (e.Kind == EffectKind.Mandate) startGrant += e.MandateStart;
+        if (startGrant != 0) civ.Mandate = Math.Clamp(civ.Mandate + startGrant, 0, Math.Max(0, civ.MandateCap));
         civ.InsightDirty = true;
         RefreshStates(c, announce: true);
     }
@@ -575,7 +607,7 @@ public sealed partial class ResearchSystem : IResearchView
     {
         int p = def.Index;
         if (civ.Done[p]) return AccessSatisfied(civ, def) ? ProjectState.Completed : ProjectState.Dormant;
-        if (!def.Numeric || def.Era > civ.Era) return ProjectState.Hidden;
+        if (!def.Numeric || def.Era > civ.Era || def.Era > LastResearchEra) return ProjectState.Hidden;
         if (!SeenSatisfied(civ, def)) return ProjectState.Hidden;
         int missing = 0;
         foreach (int r in def.Requires) if (!civ.Done[r]) missing++;
@@ -643,6 +675,10 @@ public sealed partial class ResearchSystem : IResearchView
             Fix64 heads = inputs.RoleHeads is { } h && r < h.Length ? h[r] : Fix64.Zero;
             Fix64 output = heads * role.Insight;
             if (r == _roleElder) output = output * lmElder;
+            // E3 roles by structure (docs/MVP/22 §8.4): COM-06 ×1.5 scribe output, NUM-06 +4 a Priest, SOC-08 +10% role Insight.
+            if (r == _roleScribe && _statScribe >= 0) output = output * civ.ModMult[_statScribe];
+            if (r == _rolePriest && _statPriest >= 0) output = output + heads * civ.ModFlat[_statPriest];
+            if ((r == _roleScribe || r == _rolePriest) && _statRoleInsight >= 0) output = output * civ.ModMult[_statRoleInsight];
             roles += output;
         }
         // InsightCalibration re-fits the whole formula to the live demography (docs/MVP/07c §7).
@@ -688,6 +724,10 @@ public sealed partial class ResearchSystem : IResearchView
         civ.AdoptMult = Fix64.One;
         civ.KnowHowGain = Fix64.One;
         civ.GroupCapValue = Fix64.Zero;
+        civ.MandateUnlocked = false;
+        civ.AdminSpan = 0;
+        civ.AdminKeep = Fix64.One;
+        int mandateCap = 0, mandateRecharge = 0;
         for (int p = 0; p < _catalog.Count; p++)
         {
             if (!civ.Done[p]) continue;
@@ -726,9 +766,22 @@ public sealed partial class ResearchSystem : IResearchView
                     case EffectKind.KnowHow when e.Text is not null:
                         ApplyKnowHow(civ, e.Text);
                         break;
+                    case EffectKind.Mandate:
+                        // Deltas summed from zero over completed projects (docs/MVP/23 §1.2); institutions, so no adoption scaling.
+                        if (e.MandateStart != 0 || e.MandateCap != 0 || e.MandateRecharge != 0) civ.MandateUnlocked = true; // a Decree cost alone (DIP-04) unlocks nothing
+                        mandateCap += e.MandateCap;
+                        mandateRecharge += e.MandateRecharge;
+                        break;
+                    case EffectKind.Admin:
+                        civ.AdminSpan += e.AdminSpan;
+                        if (e.AdminOverreach.Raw > 0) civ.AdminKeep = civ.AdminKeep * (Fix64.One - Fix64.Min(Fix64.One, e.AdminOverreach));
+                        break;
                 }
             }
         }
+        civ.MandateCap = Math.Max(0, mandateCap);
+        civ.MandateRecharge = Math.Max(_catalog.MandateRechargeMin, mandateRecharge);
+        if (civ.Mandate > civ.MandateCap) civ.Mandate = civ.MandateCap;
         civ.InsightDirty = true;
     }
 
