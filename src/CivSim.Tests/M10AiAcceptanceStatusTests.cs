@@ -19,6 +19,15 @@ public sealed class M10AiAcceptanceStatusTests
     }
 
     [Fact]
+    public void Core_check_summary_uses_the_invoking_gate_name()
+    {
+        Assert.Equal("M10 AI CORE CHECK DIAGNOSTIC ONLY",
+            AiCommand.FormatCoreCheckSummary("M10 AI CORE", diagnostic: true, pass: false));
+        Assert.Equal("M6 CHECK PASSED",
+            AiCommand.FormatCoreCheckSummary("M6", diagnostic: false, pass: true));
+    }
+
+    [Fact]
     public void Fewer_than_eight_seeds_are_diagnostic_even_if_metrics_pass()
     {
         Assert.Equal(M10AiAcceptanceStatus.Result.Diagnostic, M10AiAcceptanceStatus.Classify(7, 64));

@@ -250,7 +250,8 @@ internal static class AiCommand
     {
         bool diagnostic = M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic;
         Console.WriteLine("== M10 AI core: legacy A1-A5/A7 checks at the chapter horizon");
-        int core = CheckM6(pack, seeds, minutes, archetype, firstSeed, out Tournament.DuelResult baseline, diagnostic);
+        int core = CheckM6(pack, seeds, minutes, archetype, firstSeed, out Tournament.DuelResult baseline, diagnostic,
+            checkName: "M10 AI CORE");
 
         Console.WriteLine("== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3)");
         (List<B29ForecastDiagnostic.Observation> observations, int attempts) =
@@ -322,7 +323,7 @@ internal static class AiCommand
 
     /// <summary>The M6 acceptance gates A1 to A7 that need matches (docs/MVP/17 §4.3). A8 is the unit test FogFairnessTests.</summary>
     private static int CheckM6(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed,
-        out Tournament.DuelResult a1, bool diagnostic = false)
+        out Tournament.DuelResult a1, bool diagnostic = false, string checkName = "M6")
     {
         bool pass = true;
         bool Gate(string name, bool ok, string detail)
@@ -363,7 +364,10 @@ internal static class AiCommand
 
         pass &= ReportA7(a1, diagnostic);
 
-        Console.WriteLine(diagnostic ? "M6 CHECK DIAGNOSTIC ONLY" : pass ? "M6 CHECK PASSED" : "M6 CHECK FAILED");
+        Console.WriteLine(FormatCoreCheckSummary(checkName, diagnostic, pass));
         return pass ? 0 : 1;
     }
+
+    internal static string FormatCoreCheckSummary(string checkName, bool diagnostic, bool pass) =>
+        $"{checkName} CHECK {(diagnostic ? "DIAGNOSTIC ONLY" : pass ? "PASSED" : "FAILED")}";
 }
