@@ -4,7 +4,7 @@
 > The build-ready content spec for **E3 Bronze**: every new good, tool tier, arms kit, recipe, structure, role, action, ladder rung, practice split and constant the sim needs, and **all 65 E3 projects plus KEY-4** with typed effects, cost, practice, Moment, flavor and visible change. It is the E3 counterpart of [10](10-e0-e2-actions-and-goods.md) (actions and goods) and [11](11-e0-e2-project-specs.md) (project specs), and work package **WP1** of [22 §20](22-bronze-age.md#20-work-breakdown).
 > The design is [22](22-bronze-age.md); its §5–§12 and §15 are binding here, and its §19 questions are taken as resolved (Tin Folk appear at the first KEY-3 in the world; the faster live map fill is accepted; art starts as placeholders). Where this document has to fix or extend 22, it says so in place and lists every case in §21.
 > Everything below is written so WP3 can transcribe it into `content/` without design decisions: registry entries and project effects are given as the YAML lines they become. Other *provisional* design values still inherit 22's status; the current research costs are the updated values in §14.
-> Bronze project and system implementation remains pending; the EraBase registry cost was updated to the current cadence above.
+> Bronze projects and supporting systems are implemented in the tree. The updated EraBase cost reflects the current cadence above; WP11 acceptance and WP12 balance/playtests remain open (see [17 §3](17-vertical-slice.md#3-milestones) and [07d](07d-e3-balance-findings.md)).
 
 ---
 
