@@ -537,3 +537,5 @@ S13 now follows the same short-horizon safeguard: `acceptance --s13 --sample-min
 the tick gate runs normally and keeps its pass/fail output. Pure callback tests cover 1- and 9-minute skips and the
 10-minute execution boundary. The `--s13 --sample-minutes 1` smoke returned `ACCEPTANCE INCOMPLETE` without warm-up;
 the combined status and B30 tests passed 35/35 in 42 ms. No S13 simulation or full suite was run.
+
+WP11 now has a bounded command-driven `MatchReplay` round-trip through first KEY-3 and Tin Folk emergence (`WP8aLifecycleTests.Tin_Folk_emergence_is_preserved_by_a_binary_match_replay`). The requested siege, embargo, secession, and Tin Folk capture replay corpus remains open.

@@ -53,4 +53,27 @@ public sealed class WP8aLifecycleTests
         Assert.Equal(match.ComputeChecksum(), resumed.ComputeChecksum());
     }
 
+    [Fact]
+    public void Tin_Folk_emergence_is_preserved_by_a_binary_match_replay()
+    {
+        MatchModel match = MatchModel.Create(Seed, TestPack.Pack, World.Value, Balanced);
+        var runner = new SimRunner(match);
+        for (int civ = 0; civ < 4; civ++)
+            runner.Submit(new Command(runner.Tick, (byte)civ, CommandKind.CompleteProject,
+                TestPack.Catalog.IndexOf("KEY-3"), 0, 0));
+        runner.Advance(150);
+
+        Assert.True(match.Politics.TinFolkSpawned);
+        MatchReplay replay = MatchReplay.FromRun(Seed, TestPack.Pack, Balanced, runner,
+            WorldEconomyInput.FromGeneratedWorld(World.Value).Fingerprint);
+        using var stream = new MemoryStream();
+        replay.Write(stream);
+        stream.Position = 0;
+
+        MatchReplay loaded = MatchReplay.Read(stream);
+        Assert.Equal(4, loaded.Replay.Commands.Count);
+        ReplayVerification verification = loaded.Verify(TestPack.Pack);
+        Assert.True(verification.Ok, verification.Message);
+    }
+
 }
