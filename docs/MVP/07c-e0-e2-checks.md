@@ -291,3 +291,19 @@ python docs/MVP/balance/tools/check_e0e2.py --fixed   # with the fixes above
 uv run --no-project --with numpy python docs/MVP/balance/tools/exact_age_sensitivity.py # ideal-food/health expected-demography baseline
 python docs/MVP/balance/tools/sensitivity.py final    # R6 arc, archetypes × paces
 ```
+
+## 10. Progressive research cadence follow-up (2026-10-24)
+
+Play feedback says Roots projects still complete too quickly. Raise E2 `EraBase` from 75 to 100 (+33%). Keep E3 at 160, the Bronze live fit from [07d](07d-e3-balance-findings.md), and steepen costs progressively from Iron onward:
+
+| Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Previous base | 22 | 50 | 75 | 160 | 550 | 3,000 | 15,000 | 130,000 | 750,000 | 3,800,000 |
+| Current base | 22 | 50 | **100** | **160** | **660** | **3,750** | **19,500** | **175,000** | **1,050,000** | **5,500,000** |
+| Change | — | — | **+33%** | — | **+20%** | **+25%** | **+30%** | **+35%** | **+40%** | **+45%** |
+
+The single-civilization mean-field model projects a **195-minute Standard arc** (Quick 97.5, Epic 338), versus 172.5 minutes on the previous curve. Its Balanced Standard era durations are 7.75 / 10 / **14** / 11.25 / **16.5** / **18.25** / **20.25** / **24.75** / **33** / **39.25** minutes. Roots and E4–E9 exceed the earlier per-era windows; that is the requested back-loading. First fission remains at minute 7, so population settings are unchanged.
+
+The updated live-mode oracle with `[22, 50, 100, 160]` projects KEY-1 at 6.5, KEY-2 at 20.75, KEY-3 at **36.75**, KEY-4 at **49.75**, and a 13-minute E3. Before the cadence change it projected KEY-3 at 33.75 and KEY-4 at 47.75. KEY-3 is just beyond the earlier C5 ±25% upper bound of 36.2, so repeat the live C5 and M10 acceptance runs before treating these timings as measured gameplay. The existing 07d live baseline and derived E3 tables use the previous E2 cost and remain historical until those runs are repeated.
+
+The updated tuned EraBase is synchronized across `eras.yaml`, `params.py`, the catalog importer, project costs in doc 11 and the balance workbook. The workbook Sweeps sheet remains a static Python-model snapshot; Results and Charts recalculate from the live Params inputs.

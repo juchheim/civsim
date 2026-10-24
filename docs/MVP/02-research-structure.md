@@ -157,11 +157,11 @@ Cost = EraBase[era] × TypeMult[type] × DiffusionMult × EraLagMult × GateMult
 
 | Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
 |-----|----|----|----|----|----|----|----|----|----|----|
-| **EraBase** | 22 | 50 | 75 | 180 | 550 | 3,000 | 15,000 | 130,000 | 750,000 | 3,800,000 |
+| **EraBase** | 22 | 50 | 100 | 160 | 660 | 3,750 | 19,500 | 175,000 | 1,050,000 | 5,500,000 |
 
-*EraBase is the WS-H re-fit ([09 §11.1](09-population-and-health.md#111-re-fit)), which supersedes 07 §5 #5.*
+*The WS-H fit ([09 §11.1](09-population-and-health.md#111-re-fit)) is the historical baseline. Roots and E4–E9 now use the progressive cadence update ([07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24)); E3 stays at the Bronze live fit of 160 ([07d](07d-e3-balance-findings.md)).*
 
-EraBase is fitted era by era to the pacing targets below ([07](07-balance-findings.md) F2), not a flat ratio. v0.1's flat ×2.5 per era (20 · 50 · 125 · … · 75,000) ran the early eras 4–7× too long and the late eras 1.4–2× too short, because Insight compounds faster than ×2.5 once population growth and the late LRN multipliers stack. The uneven steps are real: E2 is low because it carries the heaviest backfill load, and E7 is high because of the Industrial population boom and schooling multipliers. Re-fit with `balance/tools/fit.py` whenever the Insight multipliers or demography change.
+The original EraBase fit was done era by era to the pacing targets below ([07](07-balance-findings.md) F2), not as a flat ratio. v0.1's flat ×2.5 per era (20 · 50 · 125 · … · 75,000) ran the early eras 4–7× too long and the late eras 1.4–2× too short, because Insight compounds faster than ×2.5 once population growth and the late LRN multipliers stack. The progressive curve deliberately exceeds several earlier per-era windows; E3 stays at the separately calibrated live fit. Re-fit with `balance/tools/fit.py` whenever the Insight multipliers or demography change.
 
 - **DiffusionMult** = 1 − 0.10 × (number of *contacted* civs that know it), with a floor of 0.5.
 - **EraLagMult** = 0.7 ^ (current era − project era). Backfilling old projects is cheap, so neglecting a lineage is recoverable.
@@ -185,7 +185,7 @@ EraBase is fitted era by era to the pacing targets below ([07](07-balance-findin
 
 "Visible" means projects of eras up to the current one (not all of them Glimpsed yet). Catalog sizes per era are in [03-research-catalog.md](03-research-catalog.md).
 
-Standard pace totals ≈ 3 hours for the full arc (Quick ≈ 90 min); the balance model's tuned run is 171.5 min (Quick 86, Epic 297). Pace changes the season length, not these costs ([01](01-game-structure.md) §6). Later eras run longer on purpose: their maps are busier and their projects interact more.
+The original target was ≈ 3 hours for the full arc at Standard (Quick ≈ 90 min). The progressive cadence model runs 195 min Standard (Quick 97.5, Epic 338; [07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24)). Pace changes the season length, not these costs ([01](01-game-structure.md) §6). The added cost grows in later eras so their projects take longer to complete.
 
 So a civilization completes roughly **30–40% of each era's projects** (each era offers 34–65) before moving on. That is the source of meaningful choice and divergent civilizations. The EraLag discount makes backfilling attractive later.
 

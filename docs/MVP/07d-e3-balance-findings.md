@@ -2,6 +2,8 @@
 
 > Work package WP2 of [22 §20](22-bronze-age.md#20-work-breakdown): the Python oracle extended through E3 (22 §15.2 items 1–7), the open parameters fitted, and every §15.1 target T1–T28 that an oracle can reach reproduced or flagged. Reconciled with [23](23-e3-bronze-specs.md) (WP1, the E3 registries and project specs).
 > In the style of [07](07-balance-findings.md), [07b](07b-territory-findings.md) and [07c](07c-e0-e2-checks.md). Design and tooling only: nothing in `src/`, `content/` or docs 22/23 was edited. Live measurements were taken from a scratch copy of commit 4cb188d (the main checkout's `src/` was being edited), §9.
+>
+> **Cadence follow-up (2026-10-24):** the research-cost update raises E2 `EraBase` from 75 to 100 and keeps E3 at 160. The live-mode oracle now projects KEY-3 at 36.75, KEY-4 at 49.75 and E3 at 13.0 minutes. This is a model projection; the measured baseline and the downstream E3 results below were produced with E2=75 and need fresh live acceptance runs. See [07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24).
 
 ---
 

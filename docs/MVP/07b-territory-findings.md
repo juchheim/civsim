@@ -283,7 +283,7 @@ All recommended constants together: paired starts at 25 tiles, T 0.7, radii 3 ·
 §6's recommended run used the **WS-A part-1** trajectory with R6 forced in as per-era cap tables (`COUPLED`). The live balance model has since moved on:
 - **WS-H demography** ([09](09-population-and-health.md)): new fertility, mortality and the late-winter fission trigger. The third settlement now waits until about minute 45 (09 §7.4).
 - **R6 adopted as per-project steps** ([07c](07c-e0-e2-checks.md#2-r6-in-the-balance-model) §2): Territory 1,600 from E5; ×1.6 late density carried on NRG-07 and TRN-12.
-- **Arc** 173.5 min.
+- **Arc** 173.5 min on the earlier research curve. The current progressive single-civ arc is 195 min ([07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24)); the four-civ territory run still uses the earlier trajectory.
 
 This re-run uses §6's recommended rules (paired starts at 25 tiles, T 0.7, radii 3 · 3 · 4 · 4 · 5 · 5 · 5 · 7 · 9 · 9) on the **live trajectory with no overrides**. `COUPLED` would now double-apply the late caps; `recommended()` is guarded against that. Four map seeds, 4× Balanced, Standard pace.
 

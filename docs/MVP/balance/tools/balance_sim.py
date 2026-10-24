@@ -247,11 +247,11 @@ def report(name="tuned", pace="Standard", arch="Balanced", **kw):
 LIVE = dict(
     InsightCalibration=1.6,        # content/constants/balance.yaml (07c §7a)
     KHOfCommons=0.314,             # Know-how per calibrated Commons Insight: live share 17.6% (07d §2)
-    # Requirement multiplier per era. E0–E2: fitted so live-mode KEY-1/2/3 land on the live medians 6.6 / 20.8 / 34.0
-    # (fit_live_overhead; it absorbs the model's early Insight surplus). E3: the measured live E2 spend ÷ oracle
+    # Requirement multiplier per era. E0–E2 overheads fit the pre-cadence live baseline; E2 now costs more, so
+    # KEY-3 is intentionally later. E3: the measured live E2 spend ÷ oracle
     # requirement (1.20: the Council's extra picks) × the model's progress ÷ Insight (1.21) ÷ the live one (1.16).
     Overhead=[1.422, 1.398, 1.328, 1.25],
-    EraBase=[22, 50, 75, 150],     # 07d F1: fitted 143–146 for a 13.0-min E3; 200 gives 16.5
+    EraBase=[22, 50, 100, 160],    # 07c §10: E2 cadence raised; E3 stays near 13 min in the updated live projection
     BackfillOverlap=0.30,
     FoodFactor=1.35,               # live FoodCap ÷ 09 target (median 120 vs 88 at E2 end, 07d §2)
     Dwelling=[4, 6, 8, 8],         # capacity of the dwelling the planner builds, by era (lean-to, pit house, wattle, mudbrick)
@@ -474,8 +474,9 @@ def fit_live_erabase(cfg=None, target=13.0):
     lo, hi = 120.0, 320.0
     for _ in range(14):
         mid = (lo + hi) / 2
-        c = dict(cfg or {})
-        c["EraBase"] = [22, 50, 75, mid]
+        c = dict(LIVE, **(cfg or {}))
+        c["EraBase"] = list(c["EraBase"])
+        c["EraBase"][3] = mid
         r = live_summary(*run_live(c, minutes=75))
         if r["e3"] is None or r["e3"] > target:
             hi = mid
@@ -574,28 +575,28 @@ def live_targets(cfg, out=print, label=""):
 def live_report(out=print):
     out("== balance_sim live mode: E3 at Standard pace, four Balanced civs (doc 22 §15.1 T1–T11)")
     for regime in ("village", "towns"):
-        for eb in (180, 200):
-            r = live_summary(*run_live(dict(Regime=regime, EraBase=[22, 50, 75, eb]), minutes=75))
+        for eb in (160, 200):
+            r = live_summary(*run_live(dict(Regime=regime, EraBase=LIVE["EraBase"][:3] + [eb]), minutes=75))
             out(f"  {regime:7s} EraBase {eb}: E3 {r['e3']:.2f} min (KEY-3 {r['k3']:.2f}, KEY-4 {r['k4']:.2f})")
     fits = {}
     for reg in ("village", "towns"):
         fits[reg] = fit_live_erabase(dict(Regime=reg))
         out(f"  fitted EraBase[3] for a 13.0-min E3 ({reg} housing): {fits[reg]:.1f} -> {int(round(fits[reg] / 10) * 10)}")
-    eb = 150  # 07d §3: the recommended value (fits 143 towns, 146 villages)
+    eb = LIVE["EraBase"][3]  # current cadence projection after raising E2's EraBase
     out(f"\n  T-table at EraBase[3] {eb}:")
     tabs = {}
     for reg in ("village", "towns"):
-        tabs[reg] = live_targets(dict(Regime=reg, EraBase=[22, 50, 75, eb]), out,
+        tabs[reg] = live_targets(dict(Regime=reg, EraBase=LIVE["EraBase"][:3] + [eb]), out,
                                  f"{reg} housing ({'live planner today' if reg == 'village' else 'R2: Market towns build ahead'})")
     out("\n  Sensitivity of the E3 duration to a 20% error (towns housing, EraBase " + str(eb) + "):")
-    base = live_summary(*run_live(dict(Regime="towns", EraBase=[22, 50, 75, eb]), minutes=75))["e3"]
+    base = live_summary(*run_live(dict(Regime="towns", EraBase=LIVE["EraBase"][:3] + [eb]), minutes=75))["e3"]
     for name, c in (("E3-window Insight ×0.8", dict(E3InsightMult=0.8)), ("E3-window Insight ×1.2", dict(E3InsightMult=1.2)),
                     ("all Insight ×0.8 (KEY-3 moves too)", dict(CommonsMult=LIVE["CommonsMult"] * 0.8)),
                     ("Council overhead 1.0 (no extra picks)", dict(Overhead=LIVE["Overhead"][:3] + [1.0 * 1.21 / 1.16])),
                     ("Council overhead +20%", dict(Overhead=LIVE["Overhead"][:3] + [1.5])),
                     ("Fertility ×0.8", dict(Fertility=0.104)), ("Fertility ×1.2", dict(Fertility=0.156)),
                     ("E3 roles off", dict(E3=False))):
-        r = live_summary(*run_live(dict(dict(Regime="towns", EraBase=[22, 50, 75, eb]), **c), minutes=80))
+        r = live_summary(*run_live(dict(dict(Regime="towns", EraBase=LIVE["EraBase"][:3] + [eb]), **c), minutes=80))
         out(f"    {name:40s} E3 {r['e3']:.2f} min ({100 * (r['e3'] / base - 1):+.0f}%), KEY-3 {r['k3']:.2f}, people {r['pop_k4']:.0f}")
     return tabs, fits
 
@@ -609,9 +610,9 @@ def live_check():
             assert 0.60 <= rS <= 1.50, (m, "settlements", rS)
             assert 0.75 <= ri <= 1.30, (m, "insight", ri)
     assert abs(done_at[3] - st.median(ks["k3"])) <= 3.0, done_at
-    r = live_summary(*run_live(dict(Regime="towns", EraBase=[22, 50, 75, 140]), minutes=75))
+    r = live_summary(*run_live(dict(Regime="towns", EraBase=LIVE["EraBase"][:3] + [140]), minutes=75))
     assert 11.5 <= r["e3"] <= 14.5, r
-    r200 = live_summary(*run_live(dict(Regime="towns", EraBase=[22, 50, 75, 200]), minutes=80))
+    r200 = live_summary(*run_live(dict(Regime="towns", EraBase=LIVE["EraBase"][:3] + [200]), minutes=80))
     assert r200["e3"] > 14.5, ("EraBase 200 is too slow in live mode", r200)
     assert 0.13 <= r["kh_share"] <= 0.20, r
     print("balance_sim live check passed")

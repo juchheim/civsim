@@ -20,7 +20,7 @@
 
 ### 2.1 The match
 - **One human against three AI civilizations** ([D14](06-next-steps.md#2-decisions-i-made-that-you-may-want-to-override)) on the 160 × 100 map in neighbour pairs ([12 §9](12-world-generation.md#9-start-placement)). Seed is selectable; a daily seed is a stretch.
-- **Standard pace**, about 30 minutes: first Moment at ~0:45, first fission at ~7 min, KEY-1 at ~7.5, KEY-2 at ~17.5, first contact at ~18, KEY-3 at ~29.5 ([07 §6](07-balance-findings.md#6-tuned-run), [07b §9](07b-territory-findings.md#9-re-run-on-the-live-trajectory-07c-follow-up-2026-10-18)). Quick pace is available for testing.
+- **Standard pace**, about 50 minutes through KEY-4: first Moment at ~0:45, first fission at ~7 min, KEY-1 at ~6.5, KEY-2 at ~20.75, KEY-3 at ~36.75, then about 13 minutes for E3 ([07c §10](07c-e0-e2-checks.md#10-progressive-research-cadence-follow-up-2026-10-24), [07d](07d-e3-balance-findings.md)). These are model projections; repeat live acceptance runs after changing EraBase. Quick pace is available for testing.
 - **The match ends when the first civilization completes KEY-3** (the Age of Metal), or at a 40-minute cap. The **end screen** shows Legacy standings (claimed-land Dominion, Mastery, Firsts), a timeline of each civilization's Keystones, and the AI's own "why" log ([14 §11](14-ai-opponents.md#11-explainability)). Dominion victory is off (it needs E7).
 - **Superseded from M10 (Bronze):** the match runs through E3 and ends when the human completes KEY-4, 3 years after the first rival does, or at Year 64, scored with per-era Legacy units ([22 §3](22-bronze-age.md#3-match-structure)).
 
@@ -266,7 +266,7 @@ In order of what to drop first. **Never cut** the items at the bottom.
 | The AI is smart in the harness but opaque to a human | Players feel cheated or bored | The "why" log, visible cues (palisades, warpaint, gift parties), and the human playtest P9 |
 | Presentation lags behind the sim | Late discovery of UX problems | Start M7a as soon as M3's snapshots are stable; test the focus bar with real people at M7b |
 | Scope creep from E3+ | The slice never ships | Era gating hides everything past KEY-3 (past KEY-4 from M10); the cut lists of §8 and [22 §17](22-bronze-age.md#17-risks) are the guard |
-| Firsts Legacy does not scale past E2 | In later eras a First (`EraBase × 0.5`, E9 about 1.9 million) swamps Dominion and Mastery, so the 50/30/15 split of 01 §7.1 is impossible | **Resolved for M10:** per-era Legacy units, Mastery `2 × (era + 1)`, Firsts `3 × (era + 1)` (×4 Keystones and Wonders), checked by B18 ([22 §3.3](22-bronze-age.md#33-legacy-units-per-era), [14 §18.1](14-ai-opponents.md#181-follow-up-analysis-firsts-against-the-15-target-2026-10-20)) |
+| Firsts Legacy does not scale past E2 | Under the former `EraBase × 0.5` rule, the updated E9 base of 5.5 million would have made a First worth 2.75 million, overwhelming Dominion and Mastery | **Resolved for M10:** per-era Legacy units, Mastery `2 × (era + 1)`, Firsts `3 × (era + 1)` (×4 Keystones and Wonders), checked by B18 ([22 §3.3](22-bronze-age.md#33-legacy-units-per-era), [14 §18.1](14-ai-opponents.md#181-follow-up-analysis-firsts-against-the-15-target-2026-10-20)) |
 | Art becomes the critical path | Ugly or blocked build | Placeholders first (§6); decide the art source before M7c |
 
 ## 10. Definition of done for the slice

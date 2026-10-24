@@ -25,7 +25,7 @@ WONDERS = {2: "STN-10", 3: "BLD-08"}
 E3_DONE = 24.0          # in-era E3 completions at KEY-4 (balance_sim live: N 21 + 1.6 from the keystone phase)
 E3_AFTER_PER_MIN = 0.8  # E3 leftovers per minute in the Iron threshold (EraLag 0.7 picks; 30 s a pick at half speed)
 WONDER_BUILT = {2: 0.5, 3: 0.25}   # share of civs that build the Megalith / the Ziggurat by the chapter end (ASSUMED)
-ERABASE = [22, 50, 75, 140]
+ERABASE = [22, 50, 75, 140]  # historical live baseline used by the pre-M10 comparison in 07d
 
 
 def units(new=True):
