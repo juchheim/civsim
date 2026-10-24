@@ -538,4 +538,4 @@ the tick gate runs normally and keeps its pass/fail output. Pure callback tests 
 10-minute execution boundary. The `--s13 --sample-minutes 1` smoke returned `ACCEPTANCE INCOMPLETE` without warm-up;
 the combined status and B30 tests passed 35/35 in 42 ms. No S13 simulation or full suite was run.
 
-WP11 now has a bounded command-driven `MatchReplay` round-trip through first KEY-3 and Tin Folk emergence (`WP8aLifecycleTests.Tin_Folk_emergence_is_preserved_by_a_binary_match_replay`). The requested siege, embargo, secession, and Tin Folk capture replay corpus remains open.
+WP11 now has bounded command-driven binary `MatchReplay` round-trips through first KEY-3 and Tin Folk emergence (`WP8aLifecycleTests.Tin_Folk_emergence_is_preserved_by_a_binary_match_replay`) and queued refusals for commands 18–19, `IssueDecree` and `SetEmbargo` (`WP8aDecreeTests.Snapshot_and_match_replay_after_18_and_19_commands_reproduce_queued_refusals`). The refused-command replay does not cover a successful embargo; the siege, successful embargo, secession, and Tin Folk capture replay corpus remains open.

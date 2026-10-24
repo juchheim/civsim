@@ -108,7 +108,7 @@ public sealed class WP8aDecreeTests
     }
 
     [Fact]
-    public void Snapshot_after_18_and_19_commands_replays_the_queued_refusals_identically()
+    public void Snapshot_and_match_replay_after_18_and_19_commands_reproduce_queued_refusals()
     {
         var first = new Rig();
         first.Runner.Advance(149);
@@ -129,5 +129,17 @@ public sealed class WP8aDecreeTests
         var resumedRunner = new SimRunner(resumed, 50, first.Runner.Tick - 150);
         resumedRunner.Advance(150);
         Assert.Equal(first.Match.ComputeChecksum(), resumed.ComputeChecksum());
+
+        MatchReplay replay = MatchReplay.FromRun(Seed, TestPack.Pack, Balanced, first.Runner,
+            WorldEconomyInput.FromGeneratedWorld(World.Value).Fingerprint);
+        using var replayStream = new MemoryStream();
+        replay.Write(replayStream);
+        replayStream.Position = 0;
+        MatchReplay loaded = MatchReplay.Read(replayStream);
+        Assert.Equal(
+            new[] { CommandKind.IssueDecree, CommandKind.SetEmbargo },
+            loaded.Replay.Commands.Select(c => c.Kind));
+        ReplayVerification verification = loaded.Verify(TestPack.Pack);
+        Assert.True(verification.Ok, verification.Message);
     }
 }
