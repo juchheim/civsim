@@ -74,6 +74,7 @@ public partial class Game
 
     private void ReplaceSession(SimulationSession replacement)
     {
+        if (_peopleOpen) ClosePeoplePanel();
         _session?.Dispose();
         _session = replacement;
         if (!_session.Frames.TryAcquire() || _session.Frames.Current is null)

@@ -72,6 +72,8 @@ public sealed class MatchFrame
     public int[] FigureY = Array.Empty<int>();
     /// <summary><see cref="FigureActivity"/>.</summary>
     public byte[] FigureActivity = Array.Empty<byte>();
+    /// <summary>Current specialist role: 1 Priest, 2 Scribe, 0 none.</summary>
+    public byte[] FigureRole = Array.Empty<byte>();
     /// <summary><see cref="AgeBand"/>.</summary>
     public byte[] FigureAge = Array.Empty<byte>();
     /// <summary><see cref="HealthBand"/>.</summary>
@@ -286,6 +288,9 @@ public sealed class MatchFrame
     /// <summary><see cref="Research.ProjectState"/> of every project (dense pack index) for the focus civilization: the research web's node states (08 §8.2).</summary>
     public int FocusProjectCount;
     public byte[] FocusProjectState = Array.Empty<byte>();
+    /// <summary>Current Know-how stock by research field (lineage), fixed-point raw values.</summary>
+    public long[] FocusKnowHow = Array.Empty<long>();
+    public int FocusKnowHowCount;
     /// <summary>Mandate pips (docs/MVP/22 §4.2): in hand, the cap, seasons to the next point (0 when full or locked), and whether Decrees are unlocked.</summary>
     public int FocusMandate, FocusMandateCap, FocusMandateNextSeason;
     public bool FocusMandateUnlocked;
@@ -359,7 +364,7 @@ public sealed class MatchFrame
     {
         if (FigureId.Length >= n) return;
         Ensure(ref FigureId, n); Ensure(ref FigureCiv, n); Ensure(ref FigureSettlement, n); Ensure(ref FigureTile, n);
-        Ensure(ref FigureX, n); Ensure(ref FigureY, n); Ensure(ref FigureActivity, n); Ensure(ref FigureAge, n);
+        Ensure(ref FigureX, n); Ensure(ref FigureY, n); Ensure(ref FigureActivity, n); Ensure(ref FigureRole, n); Ensure(ref FigureAge, n);
         Ensure(ref FigureHealth, n); Ensure(ref FigureFlags, n); Ensure(ref FigureToolRung, n); Ensure(ref FigureCarry, n);
         Ensure(ref FigureKnownToolRung, n); Ensure(ref FigureMethodEfficiencyPermille, n);
         Ensure(ref FigureMethodFallback, n); Ensure(ref FigureMethodFallbackTool, n);

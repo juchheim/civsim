@@ -77,6 +77,7 @@ public partial class Game
         CreateDiplomacyDrawer();
         CreateDecreePanel();
         CreateResearchWeb();
+        CreatePeoplePanel();
         // The time controls stay usable above the research web's scrim (spec §3.4).
         foreach (Control? top in new Control?[] { _civCard, _timeCluster, _pausedPill, _topRight })
             if (top is not null) _hudRoot.MoveChild(top, _hudRoot.GetChildCount() - 1);
@@ -134,6 +135,7 @@ public partial class Game
             case "help": ToggleHelp(true); break;
             case "settings": OpenSettings(); break;
             case "menu": ToggleGameMenu(true); break;
+            case "people": OpenPeoplePanel(); break;
             case "end": ShowEndScreen(); break;
             case "intro": ShowIntroModal(true); break;
         }
@@ -173,6 +175,7 @@ public partial class Game
         LayoutNotifications();
         LayoutDrawers();
         LayoutResearchWeb();
+        LayoutPeoplePanel();
         LayoutModals();
         if (_devOverlay is not null)
         {
@@ -187,6 +190,7 @@ public partial class Game
         RefreshFocusBar(frame);
         RefreshRail(frame);
         RefreshResearchWeb(frame);
+        RefreshPeoplePanel(frame);
         RefreshDiplomacy(frame);
         RefreshDecrees(frame);
         RefreshNotifications(frame);

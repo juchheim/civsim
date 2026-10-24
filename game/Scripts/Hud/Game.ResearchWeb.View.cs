@@ -733,6 +733,7 @@ public partial class Game
             foreach (int r in def.RequiresAny) hash.Add(StateOf(r));
             if (def.Index < _dependents.Length) foreach (int d in _dependents[def.Index]) hash.Add(StateOf(d));
             hash.Add(frame.CivBreadthDone[Math.Max(0, frame.FocusCiv)]);
+            hash.Add(ProjectPeopleContextLine(frame, def));
         }
         return hash.ToHashCode();
     }
@@ -749,7 +750,7 @@ public partial class Game
         _inspSignature = signature;
 
         UiKit.SetVisible(_inspEmpty!, !known);
-        foreach (Control? c in new Control?[] { _inspectorChips, _inspName, _inspState, _ctaButton, _inspWhy, _inspEstimate, _orRow, _changesBlock, _seeBlock, _needsBlock, _leadsBlock })
+        foreach (Control? c in new Control?[] { _inspectorChips, _inspName, _inspState, _ctaButton, _inspWhy, _inspEstimate, _orRow, _changesBlock, _peopleProjectContext, _seeBlock, _needsBlock, _leadsBlock })
             if (c is not null) UiKit.SetVisible(c, known);
         if (!known || def is null)
         {
@@ -815,13 +816,14 @@ public partial class Game
 
         // what changes
         List<string> changes = UiText.DescribeEffects(def, 4);
-        string impact = MethodImpactLine(def);
         var text = new StringBuilder();
         foreach (string line in changes) text.Append("• ").Append(line).Append('\n');
-        if (impact.Length > 0) text.Append(impact);
         string changesText = text.ToString().TrimEnd('\n');
         UiKit.SetVisible(_changesBlock!, changesText.Length > 0);
         UiKit.SetText(_inspChanges!, changesText);
+        string peopleContext = ProjectPeopleContextLine(frame, def);
+        UiKit.SetVisible(_peopleProjectContext!, peopleContext.Length > 0);
+        UiKit.SetText(_peopleProjectContextText!, peopleContext);
         UiKit.SetVisible(_seeBlock!, def.Moment.Length > 0 || def.Flavor.Length > 0);
         UiKit.SetText(_inspSeeText!, def.Moment);
         UiKit.SetText(_inspFlavor!, def.Flavor.Length > 0 ? $"“{def.Flavor}”" : "");
@@ -982,25 +984,57 @@ public partial class Game
 
     private readonly Action?[] _orActions = new Action?[3];
 
-    private string MethodImpactLine(ProjectDef def)
+    private string ProjectPeopleContextLine(MatchFrame frame, ProjectDef def)
     {
-        if (_current is null) return "";
+        var context = new StringBuilder();
+        string impact = MethodImpactLine(frame, def);
+        if (impact.Length > 0) context.Append(impact);
+        if (def.Lineage >= 0 && def.Lineage < frame.FocusKnowHowCount && _catalog is not null)
+        {
+            if (context.Length > 0) context.Append('\n');
+            string field = UiText.FieldName(_catalog, def.Lineage, false);
+            long stored = frame.FocusKnowHow[def.Lineage];
+            context.Append(stored > 0
+                ? $"Your people have banked {FormatFixed(stored)} Know-how in {field}; matching projects can spend it on up to half their cost."
+                : $"No Know-how is stored in {field} yet. Practising related work builds it for matching projects.");
+        }
+        return context.ToString();
+    }
+
+    private static string MethodImpactLine(MatchFrame frame, ProjectDef def)
+    {
         foreach (EffectDef effect in def.Effects)
         {
             if (effect.Kind != EffectKind.Method || !TryGetActivity(effect.Action ?? "", out FigureActivity activity)) continue;
             int rung = (int)effect.Int, people = 0, below = 0;
-            for (int i = 0; i < _current.FigureCount; i++)
+            for (int i = 0; i < frame.FigureCount; i++)
             {
-                if (_current.FigureCiv[i] != _current.FocusCiv || (FigureActivity)_current.FigureActivity[i] != activity) continue;
+                if (frame.FigureCiv[i] != frame.FocusCiv || (FigureActivity)frame.FigureActivity[i] != activity ||
+                    (((FigureFlags)frame.FigureFlags[i]) & FigureFlags.FreeFolk) != 0) continue;
                 people++;
-                if (_current.FigureToolRung[i] < rung) below++;
+                if (frame.FigureToolRung[i] < rung) below++;
             }
-            string verb = (effect.Action ?? "work").Replace('_', ' ');
-            if (people == 0) return $"No one is {verb}ing yet.";
-            return below > 0 ? $"{people} of your people {verb} today; {below} still use older tools." : $"{people} of your people {verb} today.";
+            string workers = WorkPeopleName(effect.Action ?? "");
+            if (people == 0) return $"No one is assigned to {WorkPeopleAction(effect.Action ?? "")} this season.";
+            string assigned = people == 1 ? "1 person is assigned" : $"{people} {workers} are assigned";
+            return below > 0 ? $"{assigned} this season; {below} {(below == 1 ? "person still uses" : "still use")} older tools." : $"{assigned} this season.";
         }
         return "";
     }
+
+    private static string WorkPeopleName(string action) => action switch
+    {
+        "forage" => "foragers", "hunt" => "hunters", "fish" => "fishers", "farm" => "farmers", "chop" => "woodcutters",
+        "gather" => "gatherers", "craft" => "crafters", "build" => "builders", "preserve" => "food preservers",
+        "tend_fire" => "fire tenders", "herd" => "herders", _ => "workers",
+    };
+
+    private static string WorkPeopleAction(string action) => action switch
+    {
+        "forage" => "foraging", "hunt" => "hunting", "fish" => "fishing", "farm" => "farming", "chop" => "woodcutting",
+        "gather" => "gathering", "craft" => "crafting", "build" => "building", "preserve" => "food preserving",
+        "tend_fire" => "tending the fire", "herd" => "herding", _ => "this work",
+    };
 
     private static bool TryGetActivity(string action, out FigureActivity activity)
     {

@@ -11,6 +11,7 @@ public partial class Game
     private PanelContainer? _civCard, _timeCluster, _topRight, _pausedPill, _replayChip;
     private Label? _civNameLabel, _civPeopleLabel, _civSettlementsLabel, _ageLabel, _ageCountLabel, _yearLabel, _seasonLabel, _pausedPillLabel;
     private UiEmblem? _civEmblem;
+    private UiButton? _peopleTopButton;
     private UiProgressBar? _ageBar;
     private UiSeasonDial? _seasonDial;
     private UiButton? _pauseButton;
@@ -40,8 +41,15 @@ public partial class Game
         cardRow.AddChild(_civEmblem);
         _civStatsBlock = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         _civStatsBlock.AddThemeConstantOverride("separation", 0);
-        _civNameLabel = UiKit.Text("YOUR PEOPLE", "Eyebrow");
-        _civStatsBlock.AddChild(_civNameLabel);
+        var nameRow = UiKit.Row(UiTokens.Sp1);
+        _civNameLabel = UiKit.Text("YOUR PEOPLE", "Eyebrow", ellipsis: true);
+        _civNameLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        nameRow.AddChild(_civNameLabel);
+        _peopleTopButton = UiKit.IconButton(UiGlyph.People, "People, work and research context", OpenPeoplePanel, 30, 16);
+        _peopleTopButton.FocusMode = Control.FocusModeEnum.All;
+        _peopleTopButton.CustomMinimumSize = new Vector2(30, 26);
+        nameRow.AddChild(_peopleTopButton);
+        _civStatsBlock.AddChild(nameRow);
         var stats = UiKit.Row(UiTokens.Sp1);
         stats.MouseFilter = Control.MouseFilterEnum.Ignore;
         _civPeopleLabel = UiKit.Text("12", "NumStrong");

@@ -1015,6 +1015,7 @@ public partial class Game
 
     private void CloseDrawersAndMenus()
     {
+        if (_peopleOpen) ClosePeoplePanel();
         if (_chronicleOpen) ToggleChronicle(false);
         if (_diplomacyOpen) ToggleDiplomacy(false);
         ToggleGameMenu(false);

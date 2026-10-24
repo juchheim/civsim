@@ -814,6 +814,7 @@ public sealed partial class FrameBuilder
             target.FigureX[w] = x;
             target.FigureY[w] = y;
             target.FigureActivity[w] = (byte)activity;
+            target.FigureRole[w] = f.Role;
             target.FigureAge[w] = (byte)(f.Age < 14 ? AgeBand.Child : f.Age < 45 ? AgeBand.Adult : AgeBand.Elder);
             target.FigureHealth[w] = (byte)HealthOf(f.Health);
             target.FigureFlags[w] = (ushort)flags;
@@ -1272,6 +1273,11 @@ public sealed partial class FrameBuilder
         target.FocusBeaconsAllowed = match.Politics.BeaconAllowance(civ);
         target.FocusBeaconsPlaced = match.Politics.BeaconsOf(civ).Count;
         target.FocusEra = research.Era(civ);
+        int lineages = _catalog.LineageCodes.Count;
+        MatchFrame.Ensure(ref target.FocusKnowHow, lineages);
+        target.FocusKnowHowCount = lineages;
+        for (int lineage = 0; lineage < lineages; lineage++)
+            target.FocusKnowHow[lineage] = research.KnowHow(civ, lineage).Raw;
         int projects = _catalog.Count;
         MatchFrame.Ensure(ref target.FocusProjectState, projects);
         for (int p = 0; p < projects; p++) target.FocusProjectState[p] = (byte)research.State(civ, p);
