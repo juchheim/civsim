@@ -58,6 +58,7 @@ public partial class Game
     private VBoxContainer? _almostList, _searchList, _readyBlock;
     private bool _showAllAlmostRows;
     private readonly List<UiProjectCard> _navCards = new();
+    private bool[] _agePath = Array.Empty<bool>();
 
     // map view
     private bool _mapBuilt;
@@ -220,7 +221,7 @@ public partial class Game
         _webAutoFill.ThemeTypeVariation = "ToggleRowCompact";
         footer.AddChild(_webAutoFill);
         footer.AddChild(UiKit.Ghost("Elders' leaning…", ToggleLeaningPopover, "Which themes the elders favour when Auto-fill picks"));
-        _footerNote = UiKit.Text("Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot", "CaptionTertiary", right: true, ellipsis: true);
+        _footerNote = UiKit.Text("★ Turning point prerequisite · Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
         footer.AddChild(_footerNote);
         root.AddChild(footer);
