@@ -66,6 +66,53 @@ public sealed class AcceptanceSampleStatusTests
     }
 
     [Theory]
+    [InlineData(999, 64, true)]
+    [InlineData(1_000, 63, true)]
+    [InlineData(1_000, 64, false)]
+    [InlineData(1_001, 64, true)]
+    public void S1RequiresExactlyOneThousandMatchesAndSixtyFourMinuteHorizon(int matches, int minutes, bool diagnostic)
+    {
+        Assert.Equal(diagnostic, AcceptanceCommand.IsDiagnosticReplaySample(matches, minutes));
+    }
+
+    [Fact]
+    public void DiagnosticS1MakesOverallAcceptanceIncomplete()
+    {
+        AcceptanceCommand.OverallStatus status = AcceptanceCommand.GetOverallStatus(
+            gatesPassed: true, hasDiagnosticS13: false, hasDiagnosticS1: true);
+
+        Assert.Equal(AcceptanceCommand.OverallStatus.Incomplete, status);
+        Assert.Equal("ACCEPTANCE INCOMPLETE", AcceptanceCommand.GetOverallStatusLine(status));
+        Assert.Equal(2, AcceptanceCommand.GetExitCode(status));
+    }
+
+    [Fact]
+    public void UndersizedS1RequestSkipsReplayWork()
+    {
+        bool replayExecuted = false;
+        bool passed = AcceptanceCommand.RunReplayGateForHorizon(999, 64, () =>
+        {
+            replayExecuted = true;
+            return false;
+        }, out bool diagnostic);
+
+        Assert.True(diagnostic);
+        Assert.True(passed);
+        Assert.False(replayExecuted);
+    }
+
+    [Fact]
+    public void ChapterReplayMustStopAtExactEndTick()
+    {
+        var end = new CivSim.Sim.Research.MatchEnd(
+            CivSim.Sim.Research.MatchEndReason.RivalCountdown, 10, 1, 0, 1);
+
+        Assert.True(AcceptanceCommand.IsExactChapterEnd(end.EndTick, end));
+        Assert.False(AcceptanceCommand.IsExactChapterEnd(end.EndTick - 1, end));
+        Assert.False(AcceptanceCommand.IsExactChapterEnd(end.EndTick + 1, end));
+    }
+
+    [Theory]
     [InlineData(true, "S15 PASS")]
     [InlineData(false, "S15 FAIL")]
     public void FullS15HorizonKeepsAcceptanceStatus(bool passed, string expectedLine)

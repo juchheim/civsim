@@ -19,6 +19,7 @@ internal static class AcceptanceCommand
 {
     internal const int MinimumAcceptanceSampleMinutes = 10;
     internal const int MinimumSoakAcceptanceMinutes = 64;
+    internal const int RequiredReplayMatches = 1_000;
 
     internal enum OverallStatus
     {
@@ -65,7 +66,12 @@ internal static class AcceptanceCommand
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
 
         bool pass = true;
-        if (s1) pass &= RunReplayGate(pack, matches, minutes);
+        bool diagnosticS1 = false;
+        if (s1)
+        {
+            bool replayPassed = RunReplayGateForHorizon(matches, minutes, () => RunReplayGate(pack, matches, minutes), out diagnosticS1);
+            pass &= replayPassed;
+        }
         if (s12) pass &= RunChapterGate(pack);
         if (s13) pass &= RunTickGate(pack, sampleMinutes);
         if (s15)
@@ -76,7 +82,8 @@ internal static class AcceptanceCommand
         }
         OverallStatus status = GetOverallStatus(pass,
             hasDiagnosticS13: s13 && IsDiagnosticSample(sampleMinutes),
-            hasDiagnosticS15: s15 && IsDiagnosticSoakSample(minutes));
+            hasDiagnosticS15: s15 && IsDiagnosticSoakSample(minutes),
+            hasDiagnosticS1: diagnosticS1);
         Console.WriteLine(GetOverallStatusLine(status));
         return GetExitCode(status);
     }
@@ -85,14 +92,29 @@ internal static class AcceptanceCommand
 
     internal static bool IsDiagnosticSoakSample(int minutes) => minutes < MinimumSoakAcceptanceMinutes;
 
+    internal static bool IsDiagnosticReplaySample(int matches, int minutes) =>
+        matches != RequiredReplayMatches || minutes < MinimumSoakAcceptanceMinutes;
+
+    internal static bool RunReplayGateForHorizon(int matches, int minutes, Func<bool> runReplayGate, out bool diagnostic)
+    {
+        diagnostic = IsDiagnosticReplaySample(matches, minutes);
+        if (diagnostic)
+        {
+            Console.WriteLine($"S1 DIAGNOSTIC (requires {RequiredReplayMatches} matches and at least {MinimumSoakAcceptanceMinutes} minutes; requested {matches} matches and {minutes} minutes)");
+            return true;
+        }
+        return runReplayGate();
+    }
+
     internal static bool RunSoakGateForHorizon(int minutes, Func<bool> runSoakGate, out bool diagnostic)
     {
         diagnostic = IsDiagnosticSoakSample(minutes);
         return diagnostic || runSoakGate();
     }
 
-    internal static OverallStatus GetOverallStatus(bool gatesPassed, bool hasDiagnosticS13, bool hasDiagnosticS15 = false) =>
-        hasDiagnosticS13 || hasDiagnosticS15 ? OverallStatus.Incomplete : gatesPassed ? OverallStatus.Passed : OverallStatus.Failed;
+    internal static OverallStatus GetOverallStatus(bool gatesPassed, bool hasDiagnosticS13, bool hasDiagnosticS15 = false,
+        bool hasDiagnosticS1 = false) =>
+        hasDiagnosticS13 || hasDiagnosticS15 || hasDiagnosticS1 ? OverallStatus.Incomplete : gatesPassed ? OverallStatus.Passed : OverallStatus.Failed;
 
     internal static string GetOverallStatusLine(OverallStatus status) => status switch
     {
@@ -115,6 +137,8 @@ internal static class AcceptanceCommand
     internal static string GetS15StatusLine(bool diagnostic, bool passed) => diagnostic
         ? "S15 DIAGNOSTIC (horizon shorter than 64-minute acceptance window)"
         : passed ? "S15 PASS" : "S15 FAIL";
+
+    internal static bool IsExactChapterEnd(long tick, MatchEnd end) => end.IsOver(tick) && tick == end.EndTick;
 
     private static bool RunChapterGate(ContentPack pack)
     {
@@ -163,8 +187,8 @@ internal static class AcceptanceCommand
 
     private static bool RunReplayGate(ContentPack pack, int matches, int minutes)
     {
-        long ticks = checked((long)minutes * 600);
-        Console.WriteLine($"S1 replay determinism: {matches} matches, {minutes} minutes each, binary replay round trip + every checksum");
+        long capTicks = checked((long)minutes * 600);
+        Console.WriteLine($"S1 replay determinism: {matches} chapter matches, up to {minutes} minutes each, binary replay round trip + every checksum");
         var failures = new ConcurrentQueue<string>();
         int completed = 0;
         var timer = Stopwatch.StartNew();
@@ -176,8 +200,16 @@ internal static class AcceptanceCommand
                 var archetypes = ArchetypesFor(index);
                 MatchModel model = MatchModel.Create(seed, pack, archetypes);
                 var runner = new SimRunner(model);
-                foreach (Command command in ReplayCommands(ticks, pack)) runner.Submit(command);
-                runner.Advance(ticks);
+                foreach (Command command in ReplayCommands(capTicks, pack)) runner.Submit(command);
+                MatchEnd end = model.EndOfMatch();
+                while (!end.IsOver(runner.Tick) && runner.Tick < capTicks)
+                {
+                    long remaining = capTicks - runner.Tick;
+                    runner.Advance((int)Math.Min(ResearchSystem.SeasonTicks, remaining));
+                    end = model.EndOfMatch();
+                }
+                if (!IsExactChapterEnd(runner.Tick, end))
+                    throw new InvalidDataException($"Chapter did not end exactly within the {minutes}-minute horizon (tick {runner.Tick}, rule end tick {end.EndTick}, reason {end.Reason}).");
 
                 ulong recordedFinal = runner.CurrentChecksum;
                 MatchReplay recorded = MatchReplay.FromRun(seed, pack, archetypes, runner,
@@ -203,7 +235,7 @@ internal static class AcceptanceCommand
         timer.Stop();
         Console.WriteLine($"S1 result: {matches - failures.Count}/{matches} replay checks matched; elapsed {timer.Elapsed:hh\\:mm\\:ss}");
         foreach (string failure in failures) Console.WriteLine("  FAIL " + failure);
-        return failures.IsEmpty && matches == 1_000;
+        return failures.IsEmpty && matches == RequiredReplayMatches;
     }
 
     private static Command[] ReplayCommands(long ticks, ContentPack pack)

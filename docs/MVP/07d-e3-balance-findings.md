@@ -520,3 +520,9 @@ request cannot spend hours running the default 1,000 matches and then claim acce
 `--s15 --minutes 10` returned `ACCEPTANCE INCOMPLETE` without entering the soak. The B30 overflow-streak transition now has
 focused coverage for the ninth qualifying season and resets when eligibility or the Mandate cap ends. The combined status
 and B30 tests passed 25/25 (93 ms test runtime); no tournament or soak ran.
+
+The same review found S1 could accept 1,000 ten-minute replays as the B22 chapter-replay gate. S1 now accepts only
+exactly 1,000 matches on a horizon of at least 64 minutes. It stops each replay at the exact `MatchEnd.EndTick` and fails
+a match that does not reach that endpoint. Smaller requests skip replay work and report diagnostic-only. The `--s1 --minutes 10`
+smoke returned `ACCEPTANCE INCOMPLETE` without starting replays; the combined S1/S15/B30 focused tests passed 32/32 in
+24 ms. No chapter replay corpus was run.
