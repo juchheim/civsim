@@ -461,8 +461,10 @@ three-minute request and exercise the real KEY-4 countdown with a cheap research
 A6 now reports underspecified searches as `INCOMPLETE` regardless of observed win rate; only
 at least 10,000 policy evaluations at a 64-minute chapter horizon can pass or report an exploit. Bare `ai --exploit`
 defaults to a two-minute, one-seed, two-policy diagnostic; explicit search options are preserved. Focused tests cover
-chapter-end scoring, short high-rate classification, acceptance thresholds, and option defaults. The bare-command smoke
-completed in under 30 seconds and returned `INCOMPLETE` at 2 evaluations/2 minutes; no A6 acceptance search was run.
+chapter-end scoring, short high-rate classification, acceptance thresholds, and option defaults. A fresh bare-command
+smoke completed in 11.3 s; after two evaluations its candidate showed 50% against Warlord, then returned `INCOMPLETE`
+because A6 requires 10,000 evaluations and a 64-minute horizon. This tiny diagnostic is not acceptance evidence; no A6
+acceptance search was run.
 `ai --check-m10` labels every individual gate and the aggregate diagnostic-only unless the sample has at least 8 seeds
 and a 64-minute horizon. Its safe defaults are 1 seed and 2 minutes; if either option is omitted, that dimension uses
 its diagnostic default while the explicitly supplied dimension is preserved. Run the full sample with
@@ -529,8 +531,9 @@ and B30 tests passed 25/25 (93 ms test runtime); no tournament or soak ran.
 The same review found S1 could accept 1,000 ten-minute replays as the B22 chapter-replay gate. S1 now accepts only
 exactly 1,000 matches on a horizon of at least 64 minutes. It stops each replay at the exact `MatchEnd.EndTick` and fails
 a match that does not reach that endpoint. Smaller requests skip replay work and report diagnostic-only. The `--s1 --minutes 10`
-smoke returned `ACCEPTANCE INCOMPLETE` without starting replays; the combined S1/S15/B30 focused tests passed 32/32 in
-24 ms. No chapter replay corpus was run.
+smoke returned `ACCEPTANCE INCOMPLETE` without starting replays; `AcceptanceSampleStatusTests.FullS1RequestInvokesReplayGateCallback`
+also verifies that exactly 1,000 matches at 64 minutes enters the replay callback and propagates its result. This is a
+boundary test only; no chapter replay corpus was run. The combined S1/S15/B30 focused tests passed 32/32 in 24 ms.
 
 S13 now follows the same short-horizon safeguard: `acceptance --s13 --sample-minutes N` skips the tick gate when
 `N < 10`, prints the existing S13 diagnostic line, and leaves overall acceptance INCOMPLETE. At 10 minutes or more,

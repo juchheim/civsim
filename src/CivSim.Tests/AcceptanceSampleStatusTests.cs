@@ -149,6 +149,22 @@ public sealed class AcceptanceSampleStatusTests
     }
 
     [Fact]
+    public void FullS1RequestInvokesReplayGateCallback()
+    {
+        bool replayExecuted = false;
+
+        bool passed = AcceptanceCommand.RunReplayGateForHorizon(1_000, 64, () =>
+        {
+            replayExecuted = true;
+            return false;
+        }, out bool diagnostic);
+
+        Assert.False(diagnostic);
+        Assert.False(passed);
+        Assert.True(replayExecuted);
+    }
+
+    [Fact]
     public void ChapterReplayMustStopAtExactEndTick()
     {
         var end = new CivSim.Sim.Research.MatchEnd(
