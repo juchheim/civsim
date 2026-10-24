@@ -323,13 +323,13 @@ All components live in `game/Scripts/Ui/`. Sizes are base (1600×900).
 - Click anywhere on the toast = its primary action (jump camera if the event has a tile) and dismiss.
 
 ### 2.9 Moment card
-- 377×144 (compact 320×120), `CardPanel`, 3 px left bar in the project's theme colour.
+- 320×128 (compact 280×112), compact `MomentCard` panel, 3 px left bar in the project's theme colour.
 ```
 NEW KNOWLEDGE                                          ×
 [hammer] Pebble Choppers                                    Heading 20
-An elder cracks a river cobble; the flake opens a bone…     Body 16 secondary, 2 lines max
+An elder cracks a river cobble; the flake opens a bone…     Body 16 secondary, 1 line max; full text in tooltip
 Chopping is now ×1.5 faster as the skill spreads.           Caption (first "What changes" line)
-[ Show me ]   [ Pick next ▸ ]                               Secondary 36 / Primary 36
+[ Show me ]   [ Pick next ▸ ]                               Secondary 30 / Primary 30
 ```
 - "Pick next" shows only if a slot is open and Auto-fill is off; otherwise the line reads "The elders will pick the next one." (Auto-fill on) or nothing.
 - Turning points use eyebrow "A NEW AGE" and also trigger the age banner (§3.1).
@@ -413,9 +413,10 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 │ │LAYERS │                                                               ┌Toast stack 377───────┐ │ ≥529
 │ │Claims │                                                               │ toast 72             │ │
 │ │Food   │                                                               │ toast 72             │ │
-│ │Methods│ ┌Moment card 377×144─┐                                        │ toast 72             │ │
-│ │Resourc│ │ NEW KNOWLEDGE      │   [ Drag to move · Scroll to zoom … ]  └──────────────────────┘ │ 761
-│ └───────┘ └────────────────────┘          hint pill y 727 h 34                                   │
+│ │Methods│                                                               │ toast 72             │ │
+│ │Resourc│                                                               └──────────────────────┘ │
+│ └───────┘ ┌Moment card 320×128─┐                                                hint pill y 727 h 34 │
+│           └────────────────────┘  [ Drag to move · Scroll to zoom … ]                               │ 761
 │ ┌Focus bar 1508×105 (x 46, y 774)────────────────────────────────────────────────────────────┐  │ 774
 │ │[Research web T •3][Primary 610            ][Secondary 377      ][Tertiary 233  ]           │  │
 │ │[Auto-fill ○ 63/yr]                                                                          │  │
@@ -434,7 +435,7 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 | Coach tip / age banner slot | centred, 131, 610, ≤ 110 | top-centre (one at a time; banner wins) |
 | Right drawer | W−21−w, 97; Chronicle w 377 h ≤ 377; Diplomacy w 610 h ≤ 664 | top-right; only one drawer open at a time |
 | Toast stack | W−21−377, bottom at 761, 377, cards 72, max 3, gap 8 | bottom-right, stacks upward |
-| Moment card | 21, 617, 377, 144 | bottom-left, above focus bar |
+| Moment card | 21, 633, 320, 128 | bottom-left, above focus bar |
 | Hint pill | centred, 727, auto ≤ 610, 34 | bottom-centre, above focus bar |
 | Focus bar | centred, 774, 1508, 105 | bottom-centre |
 | Tile card | floating, 320 wide | near cursor |
@@ -460,7 +461,7 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 | Top-right | icon-only 42×42 ×4 (tooltips carry names + keys), 208 wide | as base |
 | Rail | 55 wide, icons only (36×36), zoom ladder stops 26 high, legend card at x = 13+55+8 | as base |
 | Focus bar | summary column 199; cards: Tertiary = max(200, 0.191·A), Secondary = max(233, 0.309·A), Primary = rest, where A = W − 2M − 16 − 199 − 13 − 26 (e.g. 1231: 457/294/200; 1422: 571/353/218) | fixed 1508 centred |
-| Toasts / Moment | 320 wide; toasts 64 high; Moment 320×120 | as base |
+| Toasts / Moment | Toasts 320×64; Moment 280×112 at x=76 beside the 55 px rail | as base |
 | Chronicle drawer | 320 × ≤ 233 | 377 × ≤ 377 |
 | Diplomacy drawer | 520 (civ list 160 + detail 347) | 610 |
 | Research web | inset 13, top 76, same φ split; Choose view keeps 3 columns (≥ 221 each) | max width 1597 centred |

@@ -93,34 +93,34 @@ public partial class Game
         _hudRoot!.AddChild(_toastStack);
 
         // Moment card (bottom-left)
-        var momentPanel = UiKit.Panel("CardPanel", "MomentCard");
+        var momentPanel = UiKit.Panel("MomentCard", "MomentCard");
         _momentPanel = momentPanel;
-        _momentCard = UiKit.WrapOverlay(momentPanel, new Vector2(377, 144));
+        _momentCard = UiKit.WrapOverlay(momentPanel, new Vector2(320, 128));
         _momentCard.Visible = false;
         _momentCard.MouseEntered += () => _momentHover = true;
         _momentCard.MouseExited += () => _momentHover = false;
-        var column = UiKit.Column(UiTokens.Sp1);
-        var top = UiKit.Row(UiTokens.Sp2);
+        var column = UiKit.Column(1);
+        var top = UiKit.Row(UiTokens.Sp1);
         _momentEyebrow = UiKit.Text("NEW KNOWLEDGE", "EyebrowAccent", ellipsis: true);
         top.AddChild(_momentEyebrow);
-        _momentClose = UiKit.IconButton(UiGlyph.Close, "Dismiss", CloseMoment, 30, 16);
+        _momentClose = UiKit.IconButton(UiGlyph.Close, "Dismiss", CloseMoment, 24, 14);
         top.AddChild(_momentClose);
         column.AddChild(top);
-        var nameRow = UiKit.Row(UiTokens.Sp2);
+        var nameRow = UiKit.Row(UiTokens.Sp1);
         _momentIcon = new UiIcon(UiGlyph.Hammer, 16, UiTokens.TextPrimary);
         nameRow.AddChild(_momentIcon);
         _momentName = UiKit.Text("", "Heading", ellipsis: true);
         nameRow.AddChild(_momentName);
         column.AddChild(nameRow);
         _momentText = UiKit.Text("", "BodySecondary", wrap: true);
-        _momentText.MaxLinesVisible = 2;
+        _momentText.MaxLinesVisible = 1;
         _momentText.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         column.AddChild(_momentText);
         _momentChange = UiKit.Text("", "CaptionTertiary", ellipsis: true);
         column.AddChild(_momentChange);
-        var buttons = UiKit.Row(UiTokens.Sp2);
-        _momentShow = UiKit.Secondary("Show me", ShowMomentOnMap, "Jump to where it happened", UiGlyph.None, UiTokens.ControlS);
-        _momentPick = UiKit.Primary("Pick next", () => { CloseMoment(); OpenResearchWeb(FirstOpenSlot()); }, "Choose what your people learn next", UiGlyph.None, UiTokens.ControlS);
+        var buttons = UiKit.Row(UiTokens.Sp1);
+        _momentShow = UiKit.Secondary("Show me", ShowMomentOnMap, "Jump to where it happened", UiGlyph.None, 30);
+        _momentPick = UiKit.Primary("Pick next", () => { CloseMoment(); OpenResearchWeb(FirstOpenSlot()); }, "Choose what your people learn next", UiGlyph.None, 30);
         buttons.AddChild(_momentShow);
         buttons.AddChild(_momentPick);
         column.AddChild(buttons);
@@ -219,10 +219,11 @@ public partial class Game
         float toastWidth = _compact ? 320 : 377;
         foreach (ToastView view in _toasts) view.Root.CustomMinimumSize = new Vector2(toastWidth, _compact ? 64 : 72);
         AnchorTo(_toastStack, 1, 1, 1, 1, -m - toastWidth, -bottom - 3 * 80, -m, -bottom, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
-        float momentWidth = _compact ? 320 : 377;
-        float railRight = m + (_compact ? 55 : 89) + 8;
-        AnchorTo(_momentCard, 0, 1, 0, 1, railRight, -bottom - 144, railRight + momentWidth, -bottom, Control.GrowDirection.End, Control.GrowDirection.Begin);
-        _momentCard.CustomMinimumSize = new Vector2(momentWidth, _compact ? 120 : 144);
+        float momentWidth = _compact ? 280 : 320;
+        float momentHeight = _compact ? 112 : 128;
+        float momentLeft = m + (_compact ? 63 : 0);
+        AnchorTo(_momentCard, 0, 1, 0, 1, momentLeft, -bottom - momentHeight, momentLeft + momentWidth, -bottom, Control.GrowDirection.End, Control.GrowDirection.Begin);
+        _momentCard.CustomMinimumSize = new Vector2(momentWidth, momentHeight);
         float coachWidth = _compact ? 466 : 610;
         float slotTop = m + TopBandHeight + 8 + 44;
         AnchorTo(_coachCard, 0.5f, 0, 0.5f, 0, -coachWidth / 2, slotTop, coachWidth / 2, slotTop + 110, Control.GrowDirection.Both);
@@ -366,7 +367,9 @@ public partial class Game
             UiKit.SetText(_momentEyebrow!, "NEW KNOWLEDGE");
             UiKit.SetText(_momentName!, $"{count} projects finished");
             UiKit.SetText(_momentText!, string.Join(", ", names));
+            _momentText!.TooltipText = string.Join(", ", names);
             UiKit.SetText(_momentChange!, "");
+            _momentChange!.TooltipText = "";
             _momentIcon!.Glyph = UiGlyph.Spark;
             _momentIcon.Tint = UiTokens.Accent;
             _momentBar!.Color = UiTokens.Accent;
@@ -386,7 +389,10 @@ public partial class Game
         UiKit.SetText(_momentEyebrow!, def.IsKeystone ? "A NEW AGE" : "NEW KNOWLEDGE");
         UiKit.SetText(_momentName!, def.Name);
         UiKit.SetText(_momentText!, def.Moment.Length > 0 ? def.Moment : def.Flavor);
-        UiKit.SetText(_momentChange!, UiText.FirstChangeLine(def));
+        _momentText!.TooltipText = def.Moment.Length > 0 ? def.Moment : def.Flavor;
+        string change = UiText.FirstChangeLine(def);
+        UiKit.SetText(_momentChange!, change);
+        _momentChange!.TooltipText = change;
         _momentIcon!.Glyph = UiDraw.ThemeGlyph(def.Theme);
         _momentIcon.Tint = UiTokens.ThemeText(def.Theme);
         _momentBar!.Color = UiTokens.ThemeColor(def.Theme);
@@ -402,10 +408,10 @@ public partial class Game
         if (_momentCard is null || _momentPanel is null) return;
         float m = Margin;
         float bottom = m + FocusBarHeight + UiTokens.Sp3;
-        float width = _compact ? 320 : 377;
-        float height = Math.Max(_compact ? 120 : 144, _momentPanel.GetCombinedMinimumSize().Y);
-        float railRight = m + (_compact ? 55 : 89) + 8;
-        AnchorTo(_momentCard, 0, 1, 0, 1, railRight, -bottom - height, railRight + width, -bottom, Control.GrowDirection.End, Control.GrowDirection.Begin);
+        float width = _compact ? 280 : 320;
+        float height = Math.Max(_compact ? 112 : 128, _momentPanel.GetCombinedMinimumSize().Y);
+        float left = m + (_compact ? 63 : 0);
+        AnchorTo(_momentCard, 0, 1, 0, 1, left, -bottom - height, left + width, -bottom, Control.GrowDirection.End, Control.GrowDirection.Begin);
         _momentCard.CustomMinimumSize = new Vector2(width, height);
     }
 
