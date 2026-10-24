@@ -40,6 +40,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private ForecastValuation _value = null!;
     private Fix64[] _prior = Array.Empty<Fix64>();
     private Fix64[] _rank = Array.Empty<Fix64>();
+    // Generic strategic capabilities inferred once from typed project effects.
+    private Fix64[] _foodCapability = Array.Empty<Fix64>(), _leanCapability = Array.Empty<Fix64>();
+    private Fix64[] _cohesionCapability = Array.Empty<Fix64>(), _combatCapability = Array.Empty<Fix64>();
+    private Fix64[] _defenseCapability = Array.Empty<Fix64>(), _reachCapability = Array.Empty<Fix64>();
+    private bool[] _militaryPath = Array.Empty<bool>();
     private ProjectState[] _state = Array.Empty<ProjectState>();
     private string[] _lineageCode = Array.Empty<string>();
     private readonly List<int> _candidates = new();
@@ -100,10 +105,18 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _value = new ForecastValuation(_fc.Count);
         _prior = new Fix64[_fc.Count];
         _rank = new Fix64[_fc.Count];
+        _foodCapability = new Fix64[_fc.Count];
+        _leanCapability = new Fix64[_fc.Count];
+        _cohesionCapability = new Fix64[_fc.Count];
+        _combatCapability = new Fix64[_fc.Count];
+        _defenseCapability = new Fix64[_fc.Count];
+        _reachCapability = new Fix64[_fc.Count];
+        _militaryPath = new bool[_fc.Count];
         _state = new ProjectState[_fc.Count];
         _depth = new int[_fc.Count];
         _lineageCode = new string[_fc.Count];
         for (int p = 0; p < _fc.Count; p++) _lineageCode[p] = _fc.Lineage[p] >= 0 ? catalog.LineageCodes[_fc.Lineage[p]] : "";
+        CacheCapabilities(catalog);
     }
 
     /// <summary>The archetype's Leaning (14 §9.1, the archetypes registry): style, and which Era Boon the civilization takes.</summary>
@@ -135,7 +148,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Fix64 pace = Fix64.One;
         if (model)
         {
-            ForecastResult mine = _forecast.Run(ReadOnlySpan<int>.Empty, null, promoteKeystone: true);
+            _forecast.Run(ReadOnlySpan<int>.Empty, null, promoteKeystone: true);
             foreach (RivalBelief r in ctx.Belief.Rivals)
             {
                 if (r.Civ == ctx.Civ) continue;
@@ -146,8 +159,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                 int ours = EraSeason(ctx.Civ, era);
                 if (ours < 0)
                 {
-                    int key = era == 1 ? mine.Key1 : era == 2 ? mine.Key2 : era == 3 ? mine.Key3 : -1;
-                    ours = key >= 0 ? s.Season + key / _forecast.StepsPerSeason : s.Season + horizon;
+                    int key = fc.Catalog.KeystoneLeaving(era - 1);
+                    int projectEta = key >= 0 ? _forecast.DoneAt[key] : -1;
+                    ours = projectEta >= 0 ? s.Season + projectEta / _forecast.StepsPerSeason : s.Season + horizon;
                 }
                 if (theirs <= 0) continue;
                 Fix64 ratio = Fix64.FromRatio(Math.Max(1, ours), theirs);
@@ -231,6 +245,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Fix64 defense = Fix64.Clamp(intent.DefenseUrgency, Fix64.Zero, Fix64.One) * SparkTuning.DefenseBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
         Fix64 frontier = Fix64.Clamp(intent.FrontierValue, Fix64.Zero, Fix64.One) * SparkTuning.FrontierBonus;
+        MarkMilitaryPath(_start.Era);
+        GetSettlementNeeds(ctx.Own, out Fix64 foodNeed, out Fix64 leanNeed, out Fix64 cohesionNeed);
         _value.MarginSteps = SparkTuning.FirstMarginSeasons * _forecast.StepsPerSeason;
         _value.EtaUncertainty = SparkTuning.RivalEtaUncertainty;
         _value.KeystoneTempo = SparkTuning.KeystoneTempo;
@@ -243,15 +259,155 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             Fix64 bonus = SparkTuning.HubBonus * fc.HubWeight[p];
             if (closure is not null && closure[p] && !_start.Done[p]) bonus += SparkTuning.ClosureBonus;
             string code = _lineageCode[p];
-            Fix64 urgent = Fix64.Zero;
-            if (code is "DEF" or "WAR") urgent += defense;
-            if (code == "WAR") urgent += attack;
-            _value.Urgent[p] = urgent;
-            // Open land is a standing aim, not an emergency: a flat value, collected whenever the project lands.
-            if (code is "TER" or "WAY" or "SOC") bonus += frontier;
+            Fix64 foodValue = foodNeed * _foodCapability[p] * SparkTuning.FoodNeedBonus;
+            Fix64 leanValue = leanNeed * _leanCapability[p] * SparkTuning.LeanNeedBonus;
+            Fix64 cohesionValue = cohesionNeed * _cohesionCapability[p] * SparkTuning.CohesionNeedBonus;
+            bonus += foodValue + leanValue + cohesionValue;
+            // Intent values follow structured capabilities, so later catalogs can add relevant projects without teaching
+            // the Spark new lineage codes. Reach is a standing aim; military and acute needs are time-sensitive.
+            bonus += frontier * _reachCapability[p];
+            Fix64 militaryPath = _militaryPath[p] ? (defense + attack) * Fix64.Half : Fix64.Zero;
+            _value.Urgent[p] = defense * _defenseCapability[p] + attack * _combatCapability[p] + militaryPath
+                + (foodNeed * _foodCapability[p] + leanNeed * _leanCapability[p]
+                    + cohesionNeed * _cohesionCapability[p]) * SparkTuning.NeedUrgencyBonus;
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
             _value.Bonus[p] = bonus;
         }
+    }
+
+    /// <summary>Cache capability classes from structured effect fields; effect prose is deliberately not interpreted.</summary>
+    private void CacheCapabilities(ResearchCatalog catalog)
+    {
+        Array.Clear(_foodCapability);
+        Array.Clear(_leanCapability);
+        Array.Clear(_cohesionCapability);
+        Array.Clear(_combatCapability);
+        Array.Clear(_defenseCapability);
+        Array.Clear(_reachCapability);
+        Array.Clear(_militaryPath);
+        foreach (int p in _fc!.Numeric)
+        {
+            foreach (EffectDef effect in catalog.Projects[p].Effects)
+            {
+                switch (effect.Kind)
+                {
+                    case EffectKind.Cap when effect.Cap == CapKind.Food:
+                        AddCapability(_foodCapability, p, Fix64.Clamp((effect.Value - Fix64.One) * 2, Fix64.Zero, Fix64.One) * effect.Take);
+                        break;
+                    case EffectKind.Cap when effect.Cap == CapKind.Lean:
+                        AddCapability(_leanCapability, p, Fix64.Clamp((effect.Value - Fix64.One) * 2, Fix64.Zero, Fix64.One) * effect.Take);
+                        break;
+                    case EffectKind.Hazard:
+                    {
+                        Fix64 relief = Fix64.Clamp((Fix64.One - effect.Value) * 3, Fix64.Zero, Fix64.One);
+                        if (effect.Cause is "starvation") AddCapability(_foodCapability, p, relief);
+                        else if (effect.Cause is "exposure") AddCapability(_leanCapability, p, relief);
+                        else if (effect.Cause is "predators" or "violence" or "injury")
+                            AddCapability(_defenseCapability, p, relief);
+                        break;
+                    }
+                    case EffectKind.Cohesion:
+                        AddCapability(_cohesionCapability, p, Fix64.Clamp(effect.Value / 10, Fix64.Zero, Fix64.One));
+                        break;
+                    case EffectKind.Combat:
+                        AddCapability(_combatCapability, p, Fix64.One);
+                        break;
+                    case EffectKind.Defense:
+                        AddCapability(_defenseCapability, p, Fix64.One);
+                        break;
+                    case EffectKind.Reach:
+                        AddCapability(_reachCapability, p, Fix64.One);
+                        break;
+                    case EffectKind.Mod:
+                        CacheModCapability(p, effect);
+                        break;
+                    case EffectKind.UnlockAction:
+                        CacheActionCapability(p, effect.Action);
+                        break;
+                }
+            }
+        }
+    }
+
+    /// <summary>Carry urgency to prerequisites of military projects in the current era, so hidden options can be unlocked.</summary>
+    private void MarkMilitaryPath(int era)
+    {
+        ForecastCatalog fc = _fc!;
+        Array.Clear(_militaryPath);
+        var pending = new Stack<int>();
+        foreach (int p in fc.Numeric)
+        {
+            if (fc.Era[p] > era || _start.Done[p]) continue;
+            if (_combatCapability[p] <= Fix64.Zero && _defenseCapability[p] <= Fix64.Zero) continue;
+            foreach (int required in fc.Requires[p]) pending.Push(required);
+            foreach (int required in fc.RequiresAny[p]) pending.Push(required);
+        }
+        while (pending.Count > 0)
+        {
+            int p = pending.Pop();
+            if (_militaryPath[p]) continue;
+            _militaryPath[p] = true;
+            foreach (int required in fc.Requires[p]) pending.Push(required);
+            foreach (int required in fc.RequiresAny[p]) pending.Push(required);
+        }
+    }
+
+    private void CacheModCapability(int project, EffectDef effect)
+    {
+        string? stat = effect.Stat;
+        if (HasAny(stat, "food", "farm", "forage", "hunt", "fish", "harvest", "spoilage"))
+            AddCapability(_foodCapability, project, ModSignal(effect));
+        if (HasAny(stat, "lean", "winter", "preserv", "storage"))
+            AddCapability(_leanCapability, project, ModSignal(effect));
+        if (HasAny(stat, "cohesion"))
+            AddCapability(_cohesionCapability, project, ModSignal(effect));
+        if (HasAny(stat, "combat", "raid", "weapon", "warrior", "fight"))
+            AddCapability(_combatCapability, project, ModSignal(effect));
+        if (HasAny(stat, "defense", "barrier", "wall", "guard", "raider"))
+            AddCapability(_defenseCapability, project, ModSignal(effect));
+        if (HasAny(stat, "reach", "scout", "explor", "claim", "travel", "camp_move"))
+            AddCapability(_reachCapability, project, ModSignal(effect));
+    }
+
+    private void CacheActionCapability(int project, string? action)
+    {
+        if (HasAny(action, "farm", "forage", "hunt", "fish", "herd", "preserv"))
+            AddCapability(_foodCapability, project, Fix64.Half);
+        if (HasAny(action, "preserv", "store")) AddCapability(_leanCapability, project, Fix64.Half);
+        if (HasAny(action, "raid", "fight", "warrior")) AddCapability(_combatCapability, project, Fix64.Half);
+        if (HasAny(action, "guard", "defend", "fortif")) AddCapability(_defenseCapability, project, Fix64.Half);
+        if (HasAny(action, "scout", "explor", "claim", "expand", "settle", "raft", "cross"))
+            AddCapability(_reachCapability, project, Fix64.Half);
+    }
+
+    private static Fix64 ModSignal(EffectDef effect)
+        => Fix64.Half + Fix64.Clamp(Fix64.Abs(effect.Value), Fix64.Zero, Fix64.One) / 2;
+
+    private static bool HasAny(string? value, params string[] terms)
+    {
+        if (value is null) return false;
+        foreach (string term in terms)
+            if (value.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private static void AddCapability(Fix64[] values, int project, Fix64 amount)
+        => values[project] = Fix64.Min(Fix64.One, values[project] + amount);
+
+    private static void GetSettlementNeeds(OwnView own, out Fix64 food, out Fix64 lean, out Fix64 cohesion)
+    {
+        food = lean = cohesion = Fix64.Zero;
+        if (own.Settlements.Count == 0) return;
+        foreach (OwnSettlement settlement in own.Settlements)
+        {
+            food += Fix64.Clamp((Fix64.FromRatio(9, 10) - settlement.FoodSecurity) * 3, Fix64.Zero, Fix64.One);
+            lean += Fix64.Clamp((Fix64.FromRatio(9, 10) - settlement.LateWinterForecast) * 3, Fix64.Zero, Fix64.One);
+            cohesion += Fix64.Clamp((Fix64.FromRatio(9, 10) - settlement.Cohesion) * 2, Fix64.Zero, Fix64.One);
+        }
+        Fix64 count = Fix64.FromInt(own.Settlements.Count);
+        food /= count;
+        lean /= count;
+        cohesion /= count;
     }
 
     /// <summary>The lineages that carry an archetype's signature (docs/MVP/14 §9.1).</summary>
@@ -533,6 +689,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         if (fc.IsKeystone[p] || (closure is not null && closure[p])) return "keystone path";
         if (_lineageCode[p] is "DEF" or "WAR" && _value.Urgent[p] >= SparkTuning.DefenseBonus / 4)
             return "threat: defense first";
+        if (_militaryPath[p] && _value.Urgent[p] >= SparkTuning.DefenseBonus / 4)
+            return "threat: defense prerequisite";
         if (_forecast.InsightGain(p, _start).Raw > 0) return "insight gain";
         if (_start.FirstBy[p] < 0)
         {

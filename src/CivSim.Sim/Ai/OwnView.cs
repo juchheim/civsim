@@ -31,6 +31,7 @@ public sealed class OwnView
     public int Civ, Era, Season;
     public long Tick;
     public int Population, Adults, ClaimedTiles, BeaconAllowance, ReachTiles;
+    public bool RangedWeapon;
     public Fix64 InsightPerYear, Dominion, Legacy;
     public Posture Posture;
     public readonly List<OwnSettlement> Settlements = new();
@@ -58,6 +59,7 @@ internal static class OwnViewBuilder
         view.Posture = politics.PostureOf(civ);
         view.BeaconAllowance = politics.BeaconAllowance(civ);
         view.ReachTiles = politics.ReachOf(civ);
+        politics.WeaponOf(civ, out view.RangedWeapon);
         view.InsightPerYear = research.InsightPerYear(civ);
         view.Legacy = research.Legacy(civ) + politics.Territory.Dominion(civ);
         view.Dominion = politics.Territory.Dominion(civ);

@@ -73,8 +73,6 @@ public sealed class ResearchForecast
     private static readonly Fix64 BreadthBoost = Fix64.FromInt(2);
     private static readonly Fix64 MinLeaning = Fix64.FromRatio(1, 100);
     private static readonly Fix64 TerminalShare = Fix64.Half;
-    private const int MaxEraOrders = 4;
-
     private readonly ForecastCatalog _c;
     private readonly int _sps;
     private readonly int _n;
@@ -92,9 +90,10 @@ public sealed class ResearchForecast
     private Fix64 _fudge = Fix64.One;
     private Fix64 _commons0 = Fix64.One, _invCommons0 = Fix64.One;
     private Fix64 _gainAll0 = Fix64.One;
-    private readonly Fix64[][] _costByEra = new Fix64[MaxEraOrders][];
-    private readonly int[][] _fallback = new int[MaxEraOrders][];
-    private readonly int[][] _rankPos = new int[MaxEraOrders][];
+    // Indexed by era advancement from the start, through every era in the catalog.
+    private readonly Fix64[][] _costByEra = new Fix64[ResearchCatalog.EraCount][];
+    private readonly int[][] _fallback = new int[ResearchCatalog.EraCount][];
+    private readonly int[][] _rankPos = new int[ResearchCatalog.EraCount][];
     // Available, unslotted projects as bits over the current era's fallback order: the Council's pick is the lowest bit.
     private ulong[] _avail = Array.Empty<ulong>();
     private int _order;
@@ -195,7 +194,7 @@ public sealed class ResearchForecast
         _powKeys = 0;
 
         // Costs by era: research charges EraLag^(era − project era) on top of the list cost.
-        for (int k = 0; k < MaxEraOrders; k++)
+        for (int k = 0; k < _costByEra.Length; k++)
         {
             Fix64[] cost = _costByEra[k] ??= new Fix64[_n];
             int era = Math.Min(start.Era + k, ResearchCatalog.EraCount - 1);
@@ -275,7 +274,7 @@ public sealed class ResearchForecast
     {
         var scores = new Fix64[_n];
         var depth = new int[_n];
-        for (int k = 0; k < MaxEraOrders; k++)
+        for (int k = 0; k < _fallback.Length; k++)
         {
             int era = Math.Min(start.Era + k, ResearchCatalog.EraCount - 1);
             Fix64[] cost = _costByEra[k];
@@ -567,7 +566,7 @@ public sealed class ResearchForecast
         return v;
     }
 
-    private Fix64 Cost(int p) => _costByEra[Math.Min(_era - _start.Era, MaxEraOrders - 1)][p];
+    private Fix64 Cost(int p) => _costByEra[Math.Min(_era - _start.Era, _costByEra.Length - 1)][p];
 
     private void Step()
     {
@@ -825,7 +824,7 @@ public sealed class ResearchForecast
                 foreach (int q in _c.ByEra[e]) _blockers[q]--;
             _era = Math.Max(_era, enters);
             if (!_start.BoonIsBeacon) { _boon = _boon * (Fix64.One + _c.EraBoon); _insightDirty = true; }
-            _order = Math.Min(_era - _start.Era, MaxEraOrders - 1);
+            _order = Math.Min(_era - _start.Era, _fallback.Length - 1);
             RebuildAvailable();
         }
         else

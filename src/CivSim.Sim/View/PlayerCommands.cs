@@ -21,8 +21,9 @@ public static class PlayerCommands
 
     // ---- levers (PoliticsSystem.Step) ----
     public static Command SetPosture(long tick, int civ, Posture posture) => new(tick, (byte)civ, CommandKind.SetPosture, (int)posture, 0, 0);
-    /// <summary>A Beacon on a tile (the command carries offset x and y).</summary>
-    public static Command PlaceBeacon(long tick, int civ, int tile, int width) => new(tick, (byte)civ, CommandKind.PlaceBeacon, tile % width, tile / width, 0);
+    /// <summary>A Beacon on a tile; replace the nearest existing Beacon if at capacity when requested.</summary>
+    public static Command PlaceBeacon(long tick, int civ, int tile, int width, bool replaceIfFull = false)
+        => new(tick, (byte)civ, CommandKind.PlaceBeacon, tile % width, tile / width, replaceIfFull ? 1 : 0);
     public static Command RemoveBeacon(long tick, int civ, int beaconIndex) => new(tick, (byte)civ, CommandKind.RemoveBeacon, beaconIndex, 0, 0);
 
     // ---- politics orders (PoliticsSystem.Step, CommandKind 10 to 17) ----

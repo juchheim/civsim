@@ -309,7 +309,8 @@ public class StrategistDecisionTests
     {
         var scene = new Scene();
         scene.Done.AddRange(new[] { "TRD-01", "TRD-02" });
-        scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = 10;
+        scene.Own.Settlements[0].FoodStores = Fix64.FromInt(45); // enough for the gift and a full barter cargo
+        scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = 30;
         scene.Belief.Rivals[1].ProjectBelieved[TestPack.Catalog.IndexOf("TRD-02")] = true;
         scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 25);
         (_, ActionRecorder act) = Decide(scene);

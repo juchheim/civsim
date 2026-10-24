@@ -25,7 +25,7 @@ public sealed partial class Strategist : IStrategist
 
     // ---- derived once from the catalog (not state) --------------------------------------
     private bool _resolved;
-    private int _war02, _war03, _gov02, _trd01, _trd02, _dip03, _def02, _def03, _hus01, _com01, _com04, _hnt05, _hnt06;
+    private int _war02, _war03, _gov02, _trd01, _trd02, _dip03, _def02, _def03, _hus01, _com01, _com04;
     private int[] _eraReach = Array.Empty<int>();
     private Fix64 _minRaidSuccess, _minRaidValue;
 
@@ -87,8 +87,7 @@ public sealed partial class Strategist : IStrategist
         if (_resolved) return;
         _war02 = c.IndexOf("WAR-02"); _war03 = c.IndexOf("WAR-03"); _gov02 = c.IndexOf("GOV-02"); _trd01 = c.IndexOf("TRD-01");
         _trd02 = c.IndexOf("TRD-02"); _dip03 = c.IndexOf("DIP-03"); _def02 = c.IndexOf("DEF-02"); _def03 = c.IndexOf("DEF-03");
-        _hus01 = c.IndexOf("HUS-01"); _com01 = c.IndexOf("COM-01"); _com04 = c.IndexOf("COM-04"); _hnt05 = c.IndexOf("HNT-05");
-        _hnt06 = c.IndexOf("HNT-06");
+        _hus01 = c.IndexOf("HUS-01"); _com01 = c.IndexOf("COM-01"); _com04 = c.IndexOf("COM-04");
         var reach = new List<int>();
         foreach (ContentValue era in c.Pack.Root.Get("registries")!.Get("eras")!.Items) reach.Add((int)era.GetInt("reach")!);
         _eraReach = reach.ToArray();

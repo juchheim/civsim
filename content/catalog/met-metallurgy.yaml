@@ -15,7 +15,7 @@ projects:
       - {kind: gate, text: "[Seen: Native copper]"}
     practice: [{action: mine, share: 50}, {action: craft, share: 50}]
     flavor: A stone that bends.
-    moment: "Green-streaked stone, hammered into a bright bead"
+    moment: "A green-patinated copper nugget, hammered into a bright bead"
   - id: MET-02
     name: Copper Smelting
     era: 2

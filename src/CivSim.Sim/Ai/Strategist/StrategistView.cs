@@ -11,7 +11,9 @@ namespace CivSim.Sim.Ai;
 public interface IStrategistActions
 {
     bool Gift(int toCiv);
+    bool Gift(int toCiv, int targetSettlement) => Gift(toCiv);
     bool Barter(int withCiv);
+    bool Barter(int withCiv, int targetSettlement) => Barter(withCiv);
     bool Raid(int targetSettlement, int partySize);
     bool Assault(int targetSettlement);
     bool DeclareWar(int civ);
@@ -61,7 +63,9 @@ public sealed class OrdersActions : IStrategistActions
     private readonly AiOrders _orders;
     public OrdersActions(AiOrders orders) { _orders = orders; }
     public bool Gift(int toCiv) => _orders.Gift(toCiv);
+    public bool Gift(int toCiv, int targetSettlement) => _orders.Gift(toCiv, targetSettlement);
     public bool Barter(int withCiv) => _orders.Barter(withCiv);
+    public bool Barter(int withCiv, int targetSettlement) => _orders.Barter(withCiv, targetSettlement);
     public bool Raid(int targetSettlement, int partySize) => _orders.Raid(targetSettlement, partySize);
     public bool Assault(int targetSettlement) => _orders.Assault(targetSettlement);
     public bool DeclareWar(int civ) => _orders.DeclareWar(civ);

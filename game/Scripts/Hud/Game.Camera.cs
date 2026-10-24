@@ -519,15 +519,9 @@ public partial class Game
             return;
         }
 
-        if (_current.FocusBeaconsAllowed > _current.FocusBeaconsPlaced)
-        {
-            _session.Queue(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width));
-            SetBeaconMode(false);
-            return;
-        }
-
+        _session.Queue(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width, replaceIfFull: true));
         SetBeaconMode(false);
-        ShowToast("Beacon limit reached", ToastKind.Info, "Click one of your Beacons in Beacon mode to remove it before placing another.", tile, key: "beacon-limit");
+        ShowToast("Beacon placed", ToastKind.Info, "If all Beacon slots were used, your nearest Beacon moved here.", tile, key: $"beacon-placed-{tile}");
     }
 
     private bool TryGetOwnBeaconIndex(int tile, out int beaconIndex)

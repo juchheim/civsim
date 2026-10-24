@@ -125,7 +125,7 @@ public partial class Game : Node3D
             _catalog = new ResearchCatalog(pack);
             int startMinute = ReadStartMinute();
             int viewerCiv = ReadViewerCiv();
-            _session = new SimulationSession(seed, pack, startMinute, viewerCiv);
+            _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty);
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);

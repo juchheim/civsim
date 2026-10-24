@@ -21,7 +21,10 @@ public sealed class SimulationSession : IDisposable
 {
     private const int TicksPerSecond = 10;
     private const int PublishEveryTicks = 10;
-    private const long MatchTimeCapTicks = 40L * 60 * TicksPerSecond;
+    /// <summary>A match ends when the human's people reach Bronze or after this many years, whichever comes first.
+    /// A rival reaching Bronze first does not end it: an experimental opening still gets to play out.</summary>
+    public const int MatchYears = 60;
+    private const long MatchTimeCapTicks = (long)MatchYears * 60 * TicksPerSecond;
 
     private readonly MatchModel _match;
     private readonly SimRunner _runner;
@@ -36,6 +39,7 @@ public sealed class SimulationSession : IDisposable
     private readonly ulong _seed;
     private readonly byte[] _packHash;
     private readonly int _viewerCiv;
+    private readonly Difficulty _difficulty;
     private readonly bool _replayMode;
     private readonly long _replayTargetTick;
     private volatile bool _running = true;
@@ -49,12 +53,13 @@ public sealed class SimulationSession : IDisposable
     private int _initialStartMinute;
     private string? _replayStatus;
 
-    public SimulationSession(ulong seed, ContentPack pack, int startMinute = 0, int viewerCiv = 0)
-        : this(seed, pack, startMinute, viewerCiv, null, null)
+    public SimulationSession(ulong seed, ContentPack pack, int startMinute = 0, int viewerCiv = 0,
+        Difficulty difficulty = Difficulty.Chieftain)
+        : this(seed, pack, startMinute, viewerCiv, difficulty, null, null)
     {
     }
 
-    private SimulationSession(ulong seed, ContentPack pack, int startMinute, int viewerCiv,
+    private SimulationSession(ulong seed, ContentPack pack, int startMinute, int viewerCiv, Difficulty difficulty,
         GameSaveData? saveData, Replay? replay)
     {
         if (startMinute < 0) throw new ArgumentOutOfRangeException(nameof(startMinute));
@@ -63,6 +68,7 @@ public sealed class SimulationSession : IDisposable
         _seed = seed;
         _packHash = (byte[])pack.Hash.Clone();
         _viewerCiv = viewerCiv;
+        _difficulty = difficulty;
         _replayMode = replay is not null;
         _replayTargetTick = replay?.TotalTicks ?? 0;
         _initialStartMinute = startMinute;
@@ -70,7 +76,7 @@ public sealed class SimulationSession : IDisposable
         World = WorldGenerator.Generate(seed);
         WorldView = CivSim.Sim.View.WorldView.FromGenerated(World);
         var archetypes = StandardArchetypes();
-        var controls = StandardControls();
+        var controls = StandardControls(difficulty);
         _match = MatchModel.Create(seed, pack, World, archetypes, controls, playerCouncil: false, gentleStart: true);
         // Civilization 0 is the human seat: political orders come from the front end.
         _match.Politics.SetExternalMind(0, true);
@@ -197,6 +203,8 @@ public sealed class SimulationSession : IDisposable
     public bool Paused => Volatile.Read(ref _paused) != 0;
     public double Speed => SpeedAt(Volatile.Read(ref _speedIndex));
     public bool MatchEnded => Volatile.Read(ref _matchEnded) != 0;
+    /// <summary>How hard the rival peoples think. It decides their behaviour, so saves and replays must carry it.</summary>
+    public Difficulty Difficulty => _difficulty;
     public bool IsReplay => _replayMode;
     public bool ReplayFinished => Volatile.Read(ref _replayFinished) != 0;
     public string ReplayStatus => Volatile.Read(ref _replayStatus) ?? "Replay is playing.";
@@ -204,10 +212,10 @@ public sealed class SimulationSession : IDisposable
     public bool CanIssueCommands => !_replayMode && !MatchEnded;
 
     internal static SimulationSession Restore(GameSaveData save, ContentPack pack)
-        => new(save.Seed, pack, 0, save.ViewerCiv, save, null);
+        => new(save.Seed, pack, 0, save.ViewerCiv, save.Difficulty, save, null);
 
-    internal static SimulationSession Watch(Replay replay, ContentPack pack, int viewerCiv = 0)
-        => new(replay.MatchSeed, pack, 0, viewerCiv, null, replay);
+    internal static SimulationSession Watch(Replay replay, ContentPack pack, Difficulty difficulty, int viewerCiv = 0)
+        => new(replay.MatchSeed, pack, 0, viewerCiv, difficulty, null, replay);
 
     public void SetPaused(bool paused)
     {
@@ -261,6 +269,7 @@ public sealed class SimulationSession : IDisposable
             {
                 Seed = _seed,
                 ViewerCiv = _viewerCiv,
+                Difficulty = _difficulty,
                 Tick = _runner.Tick,
                 ChecksumInterval = _runner.ChecksumInterval,
                 SpeedIndex = Volatile.Read(ref _speedIndex),
@@ -394,6 +403,7 @@ public sealed class SimulationSession : IDisposable
     private bool IsMatchOver()
     {
         if (_runner.Tick >= MatchTimeCapTicks) return true;
+        if (_viewerCiv >= 0) return _match.Research.Era(_viewerCiv) >= 3;
         for (int civ = 0; civ < 4; civ++)
             if (_match.Research.Era(civ) >= 3) return true;
         return false;
@@ -405,12 +415,12 @@ public sealed class SimulationSession : IDisposable
         EconomyArchetype.Builder, EconomyArchetype.Wanderer,
     };
 
-    private static CivControl[] StandardControls() => new[]
+    private static CivControl[] StandardControls(Difficulty difficulty) => new[]
     {
         CivControl.Council,
-        CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Grower),
-        CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Builder),
-        CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Wanderer),
+        CivControl.Ai(difficulty, EconomyArchetype.Grower),
+        CivControl.Ai(difficulty, EconomyArchetype.Builder),
+        CivControl.Ai(difficulty, EconomyArchetype.Wanderer),
     };
 
     private static double SpeedAt(int index) => index switch

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using CivSim.Game.Ui;
+using CivSim.Sim.Ai;
 using CivSim.Sim.View;
 using Godot;
 
@@ -23,8 +24,8 @@ public partial class Game
         public bool Open;
     }
 
-    private ModalView? _introModal, _helpModal, _settingsModal, _confirmModal, _endModal;
-    private bool _introPanelVisible, _helpOpen, _gameMenuOpen, _endScreenShown, _introDismissed;
+    private ModalView? _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal;
+    private bool _introPanelVisible, _helpOpen, _gameMenuOpen, _endScreenShown, _endScreenDismissed, _introDismissed;
     private UiPopover? _gameMenu;
     private UiLayer? _gameMenuLayer;
     private UiSegmented? _helpTabs, _uiSizeSegments;
@@ -94,7 +95,7 @@ public partial class Game
 
     private void LayoutModals()
     {
-        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal })
+        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal })
         {
             if (view is null) continue;
             float w = Math.Min(view.Width, _logicalSize.X - 2 * Margin);
@@ -117,6 +118,7 @@ public partial class Game
         BuildHelp();
         BuildSettings();
         BuildConfirm();
+        BuildNewMatch();
         BuildEndScreen(seed);
         BuildGameMenu();
         if (!_introDismissed && (!IsDevelopmentPresentationRun() || forceIntro)) ShowIntroModal(false);
@@ -360,6 +362,61 @@ public partial class Game
         ShowConfirm("Load the quick-save?", "Anything since that save will be lost.", "Load", LoadQuickMatch);
     }
 
+    // ---- new match ------------------------------------------------------------------------------
+
+    private static readonly Difficulty[] DifficultyLevels = { Difficulty.Settler, Difficulty.Chieftain, Difficulty.Warlord, Difficulty.Legend };
+    private UiSegmented? _difficultySegments;
+    private Label? _difficultyBlurb;
+    private Difficulty _newMatchDifficulty = Difficulty.Settler;
+
+    private static string DifficultyName(Difficulty level) => level.ToString();
+
+    private static string DifficultyBlurb(Difficulty level) => level switch
+    {
+        Difficulty.Settler => "The gentlest rivals. They plan one era ahead, react late to threats and sometimes pick from a simple list. Good for learning and for trying odd research paths.",
+        Difficulty.Chieftain => "A real race. Rivals plan two eras ahead and re-plan every season. Experimenting will cost you.",
+        Difficulty.Warlord => "Rivals plan three eras ahead, read your moves fully and re-plan the moment something happens. Expect to lose without a tight path.",
+        _ => "The sharpest rivals. They plan four eras ahead and time their moves against the leader. For experts.",
+    };
+
+    private void BuildNewMatch()
+    {
+        _newMatchModal = MakeModal("newmatch", 610, 330, "New match", "Rivals think harder at higher levels. They never get extra resources or research, at any level.", () => { CloseModal(_newMatchModal!); return true; });
+        var column = UiKit.Column(UiTokens.Sp3);
+        var row = UiKit.Row(UiTokens.Sp3);
+        row.AddChild(UiKit.Text("Rivals", "BodyStrong", minWidth: 80));
+        _difficultySegments = new UiSegmented(new[] { "Settler", "Chieftain", "Warlord", "Legend" }, 0, index =>
+        {
+            _newMatchDifficulty = DifficultyLevels[index];
+            UiKit.SetText(_difficultyBlurb!, DifficultyBlurb(_newMatchDifficulty));
+        }, 96);
+        row.AddChild(_difficultySegments);
+        column.AddChild(row);
+        _difficultyBlurb = UiKit.Text(DifficultyBlurb(Difficulty.Settler), "Body", wrap: true);
+        column.AddChild(_difficultyBlurb);
+        column.AddChild(UiKit.Text("This match ends when you start the new one. Save first if you want to come back.", "CaptionTertiary", wrap: true));
+        _newMatchModal.Body.AddChild(column);
+        _newMatchModal.Actions.AddChild(UiKit.Ghost("Cancel", () => CloseModal(_newMatchModal), null, UiGlyph.None, UiTokens.ControlM));
+        _newMatchModal.Actions.AddChild(UiKit.Primary("Start", () =>
+        {
+            _uiSettings.Difficulty = _newMatchDifficulty;
+            _uiSettings.Save();
+            CloseModal(_newMatchModal);
+            StartNewMatch(unchecked(_matchSeed + 1), _newMatchDifficulty);
+        }, null, UiGlyph.None, UiTokens.ControlM, true));
+    }
+
+    private void OpenNewMatch()
+    {
+        if (_newMatchModal is null) return;
+        ToggleGameMenu(false);
+        if (_endModal is { Open: true }) HideEndScreen();
+        _newMatchDifficulty = _uiSettings.Difficulty;
+        int index = Array.IndexOf(DifficultyLevels, _newMatchDifficulty);
+        _difficultySegments!.Select(Math.Max(0, index), true);
+        OpenModal(_newMatchModal);
+    }
+
     // ---- game menu ------------------------------------------------------------------------------
 
     private void BuildGameMenu()
@@ -406,7 +463,7 @@ public partial class Game
         Row("Settings…", OpenSettings);
         Row("Help", () => ToggleHelp(true), true, null, "H");
         column.AddChild(UiKit.Divider());
-        Row("New match…", () => ShowConfirm("Start a new match?", "This match ends. Save first if you want to come back.", "New match", () => StartNewMatch(unchecked(_matchSeed + 1))));
+        Row("New match…", OpenNewMatch);
         Row("Quit…", () => ShowConfirm("Quit CivSim?", "Unsaved progress will be lost.", "Quit", () => GetTree().Quit()));
         _gameMenu.Body.AddChild(column);
         Vector2 pos = _btnMenu.GlobalPosition;
@@ -424,7 +481,7 @@ public partial class Game
         _endModal.Body.AddChild(UiKit.Scroll(_endContent));
         _endModal.Actions.AddChild(UiKit.Ghost("Save replay", SaveLatestReplay, null, UiGlyph.None, UiTokens.ControlM));
         _endModal.Actions.AddChild(UiKit.Ghost("Watch replay", WatchLatestReplay, null, UiGlyph.None, UiTokens.ControlM));
-        _endModal.Actions.AddChild(UiKit.Secondary("New match", () => StartNewMatch(unchecked(_matchSeed + 1)), null, UiGlyph.None, UiTokens.ControlM, true));
+        _endModal.Actions.AddChild(UiKit.Secondary("New match", OpenNewMatch, null, UiGlyph.None, UiTokens.ControlM, true));
         _endModal.Actions.AddChild(UiKit.Primary("Keep watching", HideEndScreen, null, UiGlyph.None, UiTokens.ControlM, true));
     }
 
@@ -441,9 +498,7 @@ public partial class Game
         var order = new int[frame.CivCount];
         for (int i = 0; i < order.Length; i++) order[i] = i;
         Array.Sort(order, (a, b) => frame.CivLegacy[b].CompareTo(frame.CivLegacy[a]));
-        bool agedUp = false;
-        for (int civ = 0; civ < frame.CivCount; civ++) agedUp |= frame.CivEra[civ] >= 3;
-        _endModal.Title.Text = agedUp ? "The Bronze age has begun" : "Forty years have passed";
+        _endModal.Title.Text = frame.CivEra[viewer] >= 3 ? "Your people reached the Bronze age" : $"{SimulationSession.MatchYears} years have passed";
         int myRank = Array.IndexOf(order, viewer) + 1;
         string leader = order[0] == viewer ? "Your people lead" : $"The {UiText.CivName(order[0])} lead";
         _endModal.Subtitle.Text = $"{leader} the world in Legacy. Your people finished {myRank} of {frame.CivCount}.";
@@ -477,6 +532,8 @@ public partial class Game
         }
         left.AddChild(grid);
         left.AddChild(UiKit.Text("Legacy = points for knowledge mastered plus world firsts. Land = share of claimed land.", "CaptionTertiary", wrap: true));
+        if (_session is not null)
+            left.AddChild(UiKit.Text($"Rivals played at {DifficultyName(_session.Difficulty)}.", "CaptionTertiary", wrap: true));
 
         left.AddChild(UiKit.Text("TURNING POINTS", "EyebrowTertiary"));
         int turning = 0;
@@ -520,6 +577,7 @@ public partial class Game
     private void HideEndScreen()
     {
         _endScreenShown = false;
+        _endScreenDismissed = true;
         if (_endModal is not null) CloseModal(_endModal);
     }
 
@@ -532,6 +590,9 @@ public partial class Game
             _endTimelineSequence = item.Sequence;
             if (item.Kind is ViewEventKind.EraAdvanced)
             {
+                if (item.A >= 3 && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
+                    ShowToast($"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age", ToastKind.Info,
+                        $"The match runs until your people get there or Year {SimulationSession.MatchYears}.", key: $"rival-era-{item.Civ}-{item.A}");
                 _endTimeline.Add(item);
                 if (_endTimeline.Count > 64) _endTimeline.RemoveAt(0);
             }

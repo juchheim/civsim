@@ -76,7 +76,7 @@ def same(v):
 ERA = {
     # research
     "EraBase": {"v01":   [20, 50, 125, 300, 750, 1900, 4700, 12000, 30000, 75000],
-                "tuned": [22, 50, 75, 180, 550, 3000, 15000, 130000, 750000, 3800000]},  # re-fit by WS-H (09 §11)
+                "tuned": [22, 50, 90, 180, 550, 3000, 15000, 130000, 750000, 3800000]},  # E2 retuned after Roots cadence feedback; others re-fit by WS-H (09 §11)
     "BreadthN": {"v01":  [13, 14, 20, 22, 21, 16, 14, 14, 18, 17],
                  "tuned": [13, 14, 20, 21, 21, 16, 14, 14, 18, 17]},
     "CostMod": same([1, 1, 1, 1, 1, 1, 1, 0.9, 0.9, 0.9]),   # INQ-08 Scientific Method −10% from E7

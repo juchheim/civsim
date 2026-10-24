@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.World;
@@ -7,6 +9,8 @@ namespace CivSim.Sim.Ai;
 
 public sealed partial class Strategist
 {
+    private readonly record struct TradeRoute(OwnSettlement Origin, int TargetSettlement, int Distance);
+
     /// <summary>
     /// Gifts, barter and alliances (14 §7): gift a stronger neighbour at first contact and keep Relations comfortable
     /// with anyone we do not mean to fight (appease a threatening one sooner); barter when both sides gain and Relations
@@ -16,10 +20,82 @@ public sealed partial class Strategist
     private void DecideDiplomacy(StrategistView v, SeasonRead s, IStrategistActions act)
     {
         if (v.Own.Settlements.Count == 0) return;
-        Fix64 stores = Fix64.Zero;
-        foreach (OwnSettlement o in v.Own.Settlements) stores = Fix64.Max(stores, o.FoodStores);
-        bool spare = stores >= StrategistTuning.SpareFood;
-        bool gifted = false;
+        var gifts = new List<(int Civ, TradeRoute Route, string Reason, Fix64 Score)>();
+        if (Done(v, _trd01))
+        {
+            for (int o = 0; o < _civs; o++)
+            {
+                if (o == v.Civ) continue;
+                PairView p = v.Own.Others[o];
+                RivalRead read = s.Rivals[o];
+                RivalMemory m = _memory[o];
+                if (!p.Contacted || p.AtWar) continue;
+                bool hostileIntent = ((_plan is GrandPlan.Conquer or GrandPlan.CoalitionAgainstLeader) && _planTarget == o)
+                                     || v.Season - m.LastRaidOrder < 8;
+                bool embargo = s.Leader == o && _plan == GrandPlan.CoalitionAgainstLeader;
+                if (hostileIntent || embargo) continue;
+
+                TradeRoute? route = FindTradeRoute(v, read, StrategistTuning.SpareFood);
+                if (route is null) continue;
+                int since = v.Season - Math.Max(p.LastGiftSeason, m.LastGiftOrder);
+                bool never = p.LastGiftSeason < 0 && m.LastGiftOrder < 0;
+                bool stronger = read.Field > s.OwnField * StrategistTuning.StrongerBy;
+                bool threatened = read.EffectiveThreat >= StrategistTuning.ThreatNoticeAt || m.ThreatSince >= 0;
+                string? reason = null;
+                Fix64 score = Fix64.Zero;
+
+                if (threatened && p.Relations < 20 && since >= StrategistTuning.AppeaseIntervalSeasons)
+                {
+                    score = Fix64.FromInt(100) + read.EffectiveThreat * Fix64.FromInt(20) + Fix64.FromInt(20 - p.Relations);
+                    reason = $"appease threat (threat {F2(read.EffectiveThreat)}, Relations {p.Relations})";
+                }
+                else if (AllianceReason(v, s, o) is not null && Done(v, _dip03) && Believed(v.Belief.Rivals[o], _dip03) && !p.Allied &&
+                         p.Relations <= Diplomacy.AllianceAbove && since >= StrategistTuning.AppeaseIntervalSeasons)
+                {
+                    score = Fix64.FromInt(80 + Diplomacy.AllianceAbove - p.Relations);
+                    reason = $"build toward alliance (Relations {p.Relations})";
+                }
+                else if (p.Relations < StrategistTuning.GiftKeepAbove && since >= StrategistTuning.GiftIntervalSeasons)
+                {
+                    score = Fix64.FromInt(40 + StrategistTuning.GiftKeepAbove - p.Relations);
+                    reason = $"maintain relations (Relations {p.Relations})";
+                }
+                else if (never && (stronger || _spec.Archetype != EconomyArchetype.Warlord))
+                {
+                    Fix64 imbalance = s.OwnField > Fix64.Zero ? Fix64.Max(Fix64.Zero, read.Field / s.OwnField - Fix64.One) : Fix64.Zero;
+                    score = Fix64.FromInt(60) + Fix64.Min(Fix64.FromInt(20), imbalance * Fix64.FromInt(20));
+                    reason = stronger ? $"first contact with stronger rival ({F1(read.Field)} vs {F1(s.OwnField)})" : "first contact with a peaceful neighbour";
+                }
+
+                if (reason is null) continue;
+                Fix64 distancePenalty = Fix64.Min(Fix64.FromInt(10), Fix64.FromRatio(route.Value.Distance, 2));
+                score = Fix64.Max(Fix64.Zero, score - distancePenalty);
+                gifts.Add((o, route.Value, reason, score));
+            }
+        }
+
+        gifts.Sort((a, b) =>
+        {
+            int scoreOrder = b.Score.CompareTo(a.Score);
+            return scoreOrder != 0 ? scoreOrder : a.Civ.CompareTo(b.Civ);
+        });
+        OwnSettlement? giftOrigin = null;
+        foreach (var candidate in gifts)
+        {
+            if (!act.Gift(candidate.Civ, candidate.Route.TargetSettlement)) continue;
+            giftOrigin = candidate.Route.Origin;
+            RivalMemory m = _memory[candidate.Civ];
+            m.LastGiftOrder = v.Season;
+            RivalRead read = s.Rivals[candidate.Civ];
+            bool threatened = read.EffectiveThreat >= StrategistTuning.ThreatNoticeAt || m.ThreatSince >= 0;
+            v.Note("Gift", candidate.Civ, -1, candidate.Score,
+                $"{candidate.Reason}; origin {candidate.Route.Origin.Index} has food {F1(candidate.Route.Origin.FoodStores)}, " +
+                $"target {candidate.Route.TargetSettlement}, distance {candidate.Route.Distance}");
+            if (threatened) s.Respond(candidate.Civ, "appeasement gift");
+            break;
+        }
+
+        bool bartered = false;
         for (int o = 0; o < _civs; o++)
         {
             if (o == v.Civ) continue;
@@ -43,40 +119,71 @@ public sealed partial class Strategist
                 }
             }
 
-            // Gifts (14 §7.1, 13 §4.1).
-            if (!gifted && spare && Done(v, _trd01) && !hostileIntent && !embargo)
+            // Barter only when the nearby origin can spare a full cargo and the conservative trade estimate is positive.
+            Fix64 reserve = StrategistTuning.SpareFood + Fix64.FromInt(6);
+            TradeRoute? tradeRoute = FindTradeRoute(v, s.Rivals[o], reserve);
+            if (giftOrigin is not null && tradeRoute is { } currentRoute && currentRoute.Origin.Index == giftOrigin.Index &&
+                currentRoute.Origin.FoodStores < reserve + Fix64.FromInt(5))
             {
-                int since = v.Season - Math.Max(p.LastGiftSeason, m.LastGiftOrder);
-                bool never = p.LastGiftSeason < 0 && m.LastGiftOrder < 0;
-                bool stronger = read.Field > s.OwnField * StrategistTuning.StrongerBy;
-                bool friendlyArchetype = _spec.Archetype != Economy.EconomyArchetype.Warlord;
-                bool threatened = read.EffectiveThreat >= StrategistTuning.ThreatNoticeAt || m.ThreatSince >= 0;
-                string? why = null;
-                if (never && (stronger || friendlyArchetype))
-                    why = stronger ? $"first contact: civ {o} is believed stronger ({F1(read.Field)} vs {F1(s.OwnField)})" : "first contact: a peaceful neighbour is worth more than prey";
-                else if (threatened && p.Relations < 20 && since >= StrategistTuning.AppeaseIntervalSeasons)
-                    why = $"appease a threat (threat {F2(read.EffectiveThreat)}, Relations {p.Relations})";
-                else if (p.Relations < StrategistTuning.GiftKeepAbove && since >= StrategistTuning.GiftIntervalSeasons)
-                    why = $"keep Relations up ({p.Relations})";
-                else if (AllianceReason(v, s, o) is not null && Done(v, _dip03) && Believed(r, _dip03) && !p.Allied &&
-                         p.Relations <= Diplomacy.AllianceAbove && since >= StrategistTuning.AppeaseIntervalSeasons)
-                    why = $"raise Relations ({p.Relations}) toward an alliance";
-                if (why is not null && act.Gift(o))
-                {
-                    gifted = true;
-                    m.LastGiftOrder = v.Season;
-                    v.Note("Gift", o, -1, Fix64.FromInt(p.Relations), why);
-                    if (threatened) s.Respond(o, "appeasement gift");
-                }
+                reserve += Fix64.FromInt(5);
+                tradeRoute = FindTradeRoute(v, s.Rivals[o], reserve);
             }
-
-            // Barter (13 §4.2): both sides gain 10%, and traded materials pass [Seen] knowledge both ways.
-            if (spare && Done(v, _trd02) && Believed(r, _trd02) && p.Relations > 0 && !hostileIntent && !embargo &&
+            if (giftOrigin is not null && tradeRoute is { } finalRoute && finalRoute.Origin.Index == giftOrigin.Index) reserve += Fix64.FromInt(5);
+            Fix64 barterScore = tradeRoute is null ? Fix64.Zero : EstimateBarterBenefit(p, tradeRoute.Value);
+            if (!bartered && tradeRoute is not null && tradeRoute.Value.Origin.FoodStores >= reserve && barterScore > Fix64.Zero &&
+                Done(v, _trd02) && Believed(r, _trd02) && p.Relations > 0 && !hostileIntent && !embargo &&
                 v.Season - p.LastBarterSeason >= StrategistTuning.BarterIntervalSeasons)
             {
-                if (act.Barter(o)) v.Note("Barter", o, -1, Fix64.FromInt(p.Relations), $"barter with civ {o}: both gain, Relations {p.Relations}");
+                if (act.Barter(o, tradeRoute.Value.TargetSettlement))
+                {
+                    bartered = true;
+                    v.Note("Barter", o, -1, barterScore,
+                        $"estimated benefit {F2(barterScore)}; origin {tradeRoute.Value.Origin.Index} has food " +
+                        $"{F1(tradeRoute.Value.Origin.FoodStores)}, target {tradeRoute.Value.TargetSettlement}, Relations {p.Relations}");
+                }
             }
         }
+    }
+
+    private static TradeRoute? FindTradeRoute(StrategistView v, RivalRead rival, Fix64 minFood)
+    {
+        TradeRoute? best = null;
+        int bestDistance = int.MaxValue;
+        int width = v.Belief.Map.Width;
+        foreach (Site site in rival.Sites)
+        {
+            if (site.Stale > StrategistTuning.StaleSeasons) continue;
+            OwnSettlement? origin = null;
+            int originDistance = int.MaxValue;
+            foreach (OwnSettlement own in v.Own.Settlements)
+            {
+                int distance = HexGrid.Distance(own.Tile, site.Tile, width);
+                if (distance < originDistance || (distance == originDistance && (origin is null || own.Index < origin.Index)))
+                {
+                    origin = own;
+                    originDistance = distance;
+                }
+            }
+            // Gift and barter parties leave four fighters behind and need a four-cargo food reserve.
+            if (origin is null || origin.Fighters < 6 || origin.FoodStores < minFood) continue;
+            if (best is null || originDistance < bestDistance ||
+                (originDistance == bestDistance && site.Settlement < best.Value.TargetSettlement))
+            {
+                best = new TradeRoute(origin, site.Settlement, originDistance);
+                bestDistance = originDistance;
+            }
+        }
+        return best;
+    }
+
+    private static Fix64 EstimateBarterBenefit(PairView pair, TradeRoute route)
+    {
+        // Nominal economic uplift assumes a full return cargo: both sides gain 10%. Add modest diplomatic value,
+        // then charge for distance as time and party commitment; unseen knowledge is deliberately not assumed.
+        Fix64 tradeUplift = Fix64.FromRatio(12, 10);
+        Fix64 relationshipValue = pair.Relations < StrategistTuning.GiftKeepAbove ? Fix64.FromRatio(1, 2) : Fix64.FromRatio(1, 10);
+        Fix64 travelCost = Fix64.FromRatio(route.Distance, 40);
+        return tradeUplift + relationshipValue - travelCost;
     }
 
     private string? AllianceReason(StrategistView v, SeasonRead s, int partner)

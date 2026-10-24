@@ -66,7 +66,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE");
         Console.Error.WriteLine("       civsim-harness economy --pack FILE [--seed N] [--ticks N] [--checksum-every N] [--archetypes Balanced,Grower,Builder,Wanderer] [--complete TICK:CIV:PROJECT] [--record FILE] [--check-golden FILE | --write-golden FILE] [--report-economy] [--report-balance-reference] [--report-c1-reference] [--report-c3-midpoints] [--trace-demography]");
-        Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6) [--seeds N] [--minutes N] [--archetype X]");
+        Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6) [--seeds N] [--first-seed N] [--minutes N] [--archetype X]");
         Console.Error.WriteLine("       civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none] [--archetypes a,b,c,d] [--trace] [--record FILE] [--check-golden FILE | --write-golden FILE] [--check-c5]");
         Console.Error.WriteLine("       civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]");
         Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");

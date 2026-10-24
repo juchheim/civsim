@@ -19,6 +19,8 @@ public sealed class UiSettings
     public bool PlayedBefore;
     public bool HintsPanned, HintsZoomed, HintsTurned;
     public bool TrackpadSeen;
+    /// <summary>The rival level chosen for the next new match. New players start on Settler, the gentlest.</summary>
+    public CivSim.Sim.Ai.Difficulty Difficulty = CivSim.Sim.Ai.Difficulty.Settler;
 
     public static UiSettings Load()
     {
@@ -39,6 +41,9 @@ public sealed class UiSettings
                 settings.HintsZoomed = file.GetValue(Section, "hint_zoomed", false).AsBool();
                 settings.HintsTurned = file.GetValue(Section, "hint_turned", false).AsBool();
                 settings.TrackpadSeen = file.GetValue(Section, "trackpad_seen", false).AsBool();
+                int level = file.GetValue(Section, "difficulty", (int)CivSim.Sim.Ai.Difficulty.Settler).AsInt32();
+                settings.Difficulty = System.Enum.IsDefined(typeof(CivSim.Sim.Ai.Difficulty), (byte)level)
+                    ? (CivSim.Sim.Ai.Difficulty)level : CivSim.Sim.Ai.Difficulty.Settler;
             }
         }
         catch (System.Exception ex) { GD.PushWarning($"Could not read UI settings: {ex.Message}"); }
@@ -62,6 +67,7 @@ public sealed class UiSettings
             file.SetValue(Section, "hint_zoomed", HintsZoomed);
             file.SetValue(Section, "hint_turned", HintsTurned);
             file.SetValue(Section, "trackpad_seen", TrackpadSeen);
+            file.SetValue(Section, "difficulty", (int)Difficulty);
             file.Save(Path);
         }
         catch (System.Exception ex) { GD.PushWarning($"Could not save UI settings: {ex.Message}"); }
