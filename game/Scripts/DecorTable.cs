@@ -8,7 +8,8 @@ namespace CivSim.Game;
 /// <summary>
 /// Cosmetic props a settlement grows when its people learn a project: a totem post, a cairn, a loom, a stone quarry. Boats are separate (a moored fleet by tier, from the frame's sea tier).
 /// Purely a view of what the focus civilization knows (the same completed set the research web shows); nothing here feeds
-/// back into the simulation. The numbers are the renderer's decor kinds (<c>M7MeshKit.DECOR_NAMES</c> in mesh_kit.gd).
+/// back into the simulation. The numbers are the renderer's decor kinds (<c>M7MeshKit.DECOR_NAMES</c> in mesh_kit.gd). The last four
+/// kinds there (temple, chief's hall, fleece bales, chariot) are not in this table: they follow any civilization's <c>CivLooks</c>.
 /// </summary>
 public static class DecorTable
 {

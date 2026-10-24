@@ -352,6 +352,109 @@ public partial class Game
                     Step(() => { }, 2.5f);
                 }
                 break;
+            case "looks":
+                // --start-minute=30 --viewer=-1 --looks-grant: give every civilization the projects of the first three ages (but the
+                // keystones, which end the match), let them settle in at speed, then tour what the looks leave on the map: a village with
+                // its temple and chief's hall, the people, an ard team and the resting fields, a cart on its trail, the ships, a chariot.
+                // Without --looks-grant the tour shows whatever the civilizations have learned by themselves; --looks-debug forces every
+                // look on instead. The sim ends the match at year 64, so start before that.
+                if (HasArgument("--looks-grant"))
+                {
+                    Step(() =>
+                    {
+                        for (int civ = 0; civ < 4; civ++)
+                            foreach (var def in _catalog!.Projects)
+                                if (def.Numeric && def.Era <= 3 && !def.Id.StartsWith("KEY-", StringComparison.Ordinal))
+                                    _session!.Queue(new Command(_session.Tick, (byte)civ, CommandKind.CompleteProject, def.Index, 0, 0));
+                        _session!.SetPaused(false);
+                        _session.SetSpeedIndex(3);
+                    }, 100.0f);
+                }
+                void Look(string focus, float zoom, string? kind = null)
+                {
+                    Vector3 at = kind is null ? (Vector3)_visualRenderer!.Call(focus) : (Vector3)_visualRenderer!.Call(focus, kind);
+                    if (at != Vector3.Zero) { _target = at; ZoomTo(zoom); UpdateCamera(); }
+                }
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(false);
+                    _session.SetSpeedIndex(1);
+                    FrameCapital();
+                    Look("landmark_focus", 5.0f, "temple");
+                }, 3.0f);
+                Shot("looks-village");
+                Step(() => ZoomTo(3.0f), 1.2f);
+                Shot("looks-village-close");
+                Step(() => Look("landmark_focus", 2.0f, "chiefhall"), 1.2f);
+                Shot("looks-hall");
+                for (int i = 0; i < 4; i++)
+                {
+                    int n = i;
+                    Step(() => Look("team_focus", 1.7f), 1.0f);
+                    Shot($"looks-ard-{n}");
+                    Step(() => { }, 3.0f);
+                }
+                Step(() => Look("graze_focus", 2.4f), 1.0f);
+                Shot("looks-fallow");
+                for (int i = 0; i < 3; i++)
+                {
+                    int n = i;
+                    Step(() => Look("cart_focus", 1.7f), 1.0f);
+                    Shot($"looks-cart-{n}");
+                    Step(() => { }, 3.0f);
+                }
+                Step(() => Look("boat_focus", 1.8f), 1.0f);
+                Shot("looks-boat");
+                Step(() => Look("chariot_focus", 1.7f), 1.0f);
+                Shot("looks-chariot");
+                Step(() => Look("landmark_focus", 12.0f, "temple"), 1.2f);
+                Shot("looks-wide");
+                break;
+            case "looks-gallery":
+                // lays the meshes of the looks projects out in rows on a stage above the map and photographs them row by row
+                Vector3 galleryOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital();
+                }, 1.5f);
+                Step(() =>
+                {
+                    Vector3 at = (Vector3)_visualRenderer!.Call("show_gallery");
+                    galleryOrigin = at;
+                    _target = at;
+                    _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                    _pitch = Mathf.DegToRad(52.0f);
+                    ZoomTo(9.0f);
+                    UpdateCamera();
+                }, 1.5f);
+                Shot("gallery-all");
+                // (name, x, z across the stage, zoom): the rows are laid out in LowPoly3DView.show_gallery
+                foreach (var (item, dx, dz, zoom) in new[]
+                {
+                    ("people", 0.0f, 2.8f, 2.7f), ("temple", -1.25f, 1.5f, 2.7f), ("chiefhall", -0.45f, 1.5f, 2.7f), ("wool-chariot", 0.5f, 1.5f, 2.7f),
+                    ("ships", 0.25f, 0.3f, 2.7f), ("raider", 1.1f, 0.3f, 2.7f), ("ard", -0.65f, -0.9f, 2.7f), ("cart", 0.6f, -0.9f, 2.7f),
+                    ("fields", 0.0f, -2.3f, 3.6f),
+                })
+                {
+                    string itemName = item;
+                    float x = dx, z = dz, zm = zoom;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(itemName == "fields" ? 55.0f : 38.0f);
+                        _target = new Vector3(galleryOrigin.X + x, galleryOrigin.Y, galleryOrigin.Z + z);
+                        ZoomTo(zm);
+                        UpdateCamera();
+                    }, 1.4f);
+                    Shot($"gallery-{itemName}");
+                }
+                break;
             case "burn":
                 // --start-minute=14: learn both projects, run fast until the first fire, then watch it at half speed and the years after
                 Step(() => { FrameCapital(); ZoomTo(6.0f); GrantProject(FindProjectByName("Landscape Burning")); GrantProject(FindProjectByName("Slash-and-Burn")); _session!.SetSpeedIndex(3); }, 0.5f);

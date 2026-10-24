@@ -65,7 +65,7 @@ static func _smooth(x: float) -> float:
 ## Rebuilds the pack when who has dogs, the villages or the trails change.
 func sync() -> void:
 	var w: M7WorldData = b.w
-	var sig := hash(w.dog_civs) * 31 + hash(w.trail_meta) * 17 + hash(w.trail_tiles)
+	var sig := hash(w.dog_civs) * 31 + hash(w.trail_meta) * 17 + hash(w.trail_tiles) + hash(w.civ_looks) * 13
 	for s in w.settlements:
 		sig = sig * 31 + int(s.tile) * 7 + int(s.civ) + (1 if int(s.population) > 0 and not bool(s.get("remembered")) else 0) + int(s.population / 4) * 3
 	if sig == signature:
@@ -134,7 +134,8 @@ func _find_haulers() -> void:
 	var w: M7WorldData = b.w
 	for ti in range(0, w.trail_meta.size(), 5):
 		var civ := w.trail_meta[ti + 1]
-		if civ < 0 or civ >= w.dog_civs.size() or w.dog_civs[civ] < 2:
+		# once the oxen can draw a cart (TRN-05) the dogs and their travois leave the trails to it (see farm_rig.gd)
+		if civ < 0 or civ >= w.dog_civs.size() or w.dog_civs[civ] < 2 or w.has_look(civ, M7WorldData.LOOK_CARTS):
 			continue
 		var start := w.trail_meta[ti + 3]
 		var length := w.trail_meta[ti + 4]

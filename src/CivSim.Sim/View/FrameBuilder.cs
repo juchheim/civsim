@@ -48,6 +48,7 @@ public sealed partial class FrameBuilder
     private readonly ResearchCatalog _catalog;
     private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03, _stn10;
     private readonly int[] _boatProjects;
+    private readonly (int Project, CivLook Look)[] _lookProjects;
     private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
     /// <summary>Per civilization: the tile and village its megalith stands at (-1 until the project is done). View-only, not part of the saved view state: a loaded game picks it again.</summary>
     private readonly int[] _monumentTile, _monumentSettlement;
@@ -125,7 +126,16 @@ public sealed partial class FrameBuilder
         _com04 = _catalog.IndexOf("COM-04");
         _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
         _hus01 = _catalog.IndexOf("HUS-01"); _travois = _catalog.IndexOf("TRN-02");
-        _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04") };
+        _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04"),
+            _catalog.IndexOf("SEA-05"), _catalog.IndexOf("SEA-06") };
+        _lookProjects = new[]
+        {
+            (_catalog.IndexOf("AGR-05"), CivLook.ArdPlough), (_catalog.IndexOf("AGR-07"), CivLook.Fallow),
+            (_catalog.IndexOf("HUS-02"), CivLook.HerdFollowing), (_catalog.IndexOf("HUS-06"), CivLook.WoolBreeds),
+            (_catalog.IndexOf("TRN-05"), CivLook.Carts), (_catalog.IndexOf("WAR-06"), CivLook.Chariots),
+            (_catalog.IndexOf("BEL-07"), CivLook.StateCult), (_catalog.IndexOf("SOC-07"), CivLook.Chiefdom),
+            (_catalog.IndexOf("FIB-04"), CivLook.TailoredClothing),
+        };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
         _explored = new byte[_tileCount];
@@ -1051,6 +1061,14 @@ public sealed partial class FrameBuilder
         {
             bool dogs = _hus01 >= 0 && research.IsDone(c, _hus01);
             target.CivDogs[c] = (byte)(!dogs ? 0 : _travois >= 0 && research.IsDone(c, _travois) ? 2 : 1);
+        }
+        if (target.CivLooks.Length < _civs) target.CivLooks = new ushort[_civs];
+        for (int c = 0; c < _civs; c++)
+        {
+            CivLook looks = CivLook.None;
+            foreach ((int project, CivLook look) in _lookProjects)
+                if (project >= 0 && research.IsDone(c, project)) looks |= look;
+            target.CivLooks[c] = (ushort)looks;
         }
     }
 

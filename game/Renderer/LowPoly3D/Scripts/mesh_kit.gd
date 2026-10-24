@@ -45,6 +45,7 @@ func _init() -> void:
 	_decor()
 	_monument()
 	_boats()
+	M7LooksKit.build(self)
 	_feast()
 	_dogs()
 	_people()
@@ -692,33 +693,61 @@ static func tool_tier_for_rung(rung: int) -> int:
 		return 2
 	return 3
 
-func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, tier: int = 0) -> ArrayMesh:
+## `garment` (FIB-04 Tailored Clothing): a fitted parka with a fur hem and hood, sleeves and mittens, leggings and boots, instead
+## of the short tunic and bare legs and arms.
+func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, tier: int = 0, garment: bool = false) -> ArrayMesh:
 	var b := _b(seed)
 	# heads grow a little with each tier (a longer blade, a heavier head) so the step reads at a distance
 	var grow := 1.0 + 0.18 * tier
 	var head_color: Color = TOOL_TIER_COLORS[tier]
-	var legc := Color("#4a3a2a")
+	var legc := M7LooksKit.LEGGING if garment else Color("#4a3a2a")
 	# legs
 	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
 	b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+	if garment:
+		for sx in [-0.0075, 0.0075]:
+			b.prism(Vector3(sx, 0, 0), 0.0075, 0.0072, 0.011, 5, M7LooksKit.BOOT, M7LooksKit.BOOT)
+			b.prism(Vector3(sx, 0.0105, 0), 0.0079, 0.0079, 0.003, 5, M7LooksKit.FUR, M7LooksKit.FUR)
 	var save := b.xf
 	b.xf = b.xf * Transform3D(Basis(Vector3.RIGHT, stoop), Vector3(0, 0.034, 0))
 	# torso (hide tunic, toned per instance)
 	b.tag = M7MeshBuilder.TAG_CLOTH
-	b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, Color("#8a6a48"), Color("#8a6a48"))
+	if garment:
+		b.prism(Vector3(0, -0.013, 0), 0.0235, 0.0155, 0.049, 7, M7LooksKit.PARKA, M7LooksKit.PARKA)
+		b.tag = M7MeshBuilder.TAG_PLAIN
+		b.prism(Vector3(0, -0.013, 0), 0.0243, 0.0237, 0.005, 7, M7LooksKit.FUR, M7LooksKit.FUR)
+		b.prism(Vector3(0, 0.009, 0), 0.0188, 0.0183, 0.004, 7, M7LooksKit.BOOT, M7LooksKit.BOOT)
+	else:
+		b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, Color("#8a6a48"), Color("#8a6a48"))
 	# civ mantle over the shoulders: the main identity read from above
 	b.tag = M7MeshBuilder.TAG_CIV
 	b.prism(Vector3(0, 0.02, 0), 0.0215, 0.009, 0.022, 7, Color.WHITE, Color.WHITE)
 	# sash diagonal band
-	b.prism(Vector3(0, 0.002, 0), 0.0188, 0.0185, 0.007, 7, Color.WHITE, Color.WHITE)
+	if not garment:
+		b.prism(Vector3(0, 0.002, 0), 0.0188, 0.0185, 0.007, 7, Color.WHITE, Color.WHITE)
 	# arms
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	b.pole(Vector3(-0.02, 0.03, 0), Vector3(-0.024, 0.006, 0.006), 0.0045, SKIN)
-	b.pole(Vector3(0.02, 0.03, 0), Vector3(0.026, 0.008, 0.01), 0.0045, SKIN)
+	if garment:
+		b.tag = M7MeshBuilder.TAG_CLOTH
+		b.pole(Vector3(-0.02, 0.03, 0), Vector3(-0.024, 0.006, 0.006), 0.0058, M7LooksKit.PARKA)
+		b.pole(Vector3(0.02, 0.03, 0), Vector3(0.026, 0.008, 0.01), 0.0058, M7LooksKit.PARKA)
+		b.tag = M7MeshBuilder.TAG_PLAIN
+		b.blob(Vector3(-0.0245, 0.004, 0.0065), Vector3(0.0058, 0.0058, 0.0058), 5, 3, M7LooksKit.FUR)
+		b.blob(Vector3(0.0265, 0.006, 0.0105), Vector3(0.0058, 0.0058, 0.0058), 5, 3, M7LooksKit.FUR)
+	else:
+		b.tag = M7MeshBuilder.TAG_PLAIN
+		b.pole(Vector3(-0.02, 0.03, 0), Vector3(-0.024, 0.006, 0.006), 0.0045, SKIN)
+		b.pole(Vector3(0.02, 0.03, 0), Vector3(0.026, 0.008, 0.01), 0.0045, SKIN)
 	# head and hair
+	b.tag = M7MeshBuilder.TAG_PLAIN
 	b.blob(Vector3(0, 0.05, 0), Vector3(0.0125, 0.013, 0.0125), 7, 4, SKIN, 0.0)
 	var hc := Color("#cfcac0") if elder else HAIR
 	b.blob(Vector3(0, 0.055, -0.003), Vector3(0.0128, 0.009, 0.012), 7, 3, hc, 0.0)
+	if garment:
+		# fur-trimmed hood around the back and sides of the head
+		b.blob(Vector3(0, 0.048, -0.004), Vector3(0.0158, 0.0152, 0.0125), 7, 3, M7LooksKit.FUR, 0.0)
+		b.tag = M7MeshBuilder.TAG_CLOTH
+		b.blob(Vector3(0, 0.052, -0.009), Vector3(0.0152, 0.0145, 0.0112), 7, 3, M7LooksKit.PARKA, 0.0)
+		b.tag = M7MeshBuilder.TAG_PLAIN
 	# tools in the right hand (x+)
 	var hand := Vector3(0.026, 0.008, 0.012)
 	match tool:
@@ -735,6 +764,11 @@ func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, t
 			b.box(hand + Vector3(0.002, -0.032, 0.0), Vector3(0.006, 0.006, 0.016 * grow), head_color)
 		"pole":
 			b.pole(hand, hand + Vector3(0.01, 0.06, 0.07), 0.0022, WOOD_LIGHT)
+		"crook":
+			# a herder's staff, crooked at the top
+			b.pole(hand + Vector3(0, -0.03, -0.006), hand + Vector3(0.002, 0.066, 0.01), 0.0026, WOOD_LIGHT)
+			b.pole(hand + Vector3(0.002, 0.066, 0.01), hand + Vector3(-0.012, 0.074, 0.012), 0.0024, WOOD_LIGHT)
+			b.pole(hand + Vector3(-0.012, 0.074, 0.012), hand + Vector3(-0.016, 0.062, 0.012), 0.0022, WOOD_LIGHT)
 		"hammer":
 			b.pole(hand, hand + Vector3(0.0, 0.03, 0.012), 0.0026, WOOD_LIGHT)
 			b.box(hand + Vector3(0.0, 0.032, 0.012), Vector3(0.014 * grow, 0.01 * grow, 0.01), STONE if tier == 0 else head_color)
@@ -785,29 +819,41 @@ func _carry_meshes() -> void:
 				b.pole(Vector3(-0.006, 0.05, -0.028), Vector3(0.006, 0.05, -0.028), 0.0026, Color("#4a3a2a"))
 		meshes["person_carry_" + CARRY_NAMES[kind]] = b.commit()
 
-func _people() -> void:
-	_carry_meshes()
-	for t in ["", "spear", "basket", "axe", "hoe", "pole", "hammer", "bundle"]:
-		meshes["person_" + (t if t != "" else "plain")] = _person(500 + t.length(), t)
-		if t in ["spear", "axe", "hoe", "hammer"]:
-			for tier in range(1, TOOL_TIERS):
-				meshes["person_%s_t%d" % [t, tier]] = _person(500 + t.length(), t, 0.0, false, tier)
-	meshes["person_elder"] = _person(551, "stick", 0.3, true)
-	# child: scaled-down proportions with a larger head
+## A child: scaled-down proportions with a larger head.
+func _child(garment: bool) -> ArrayMesh:
 	var b := _b(561)
-	var legc := Color("#4a3a2a")
+	var legc := M7LooksKit.LEGGING if garment else Color("#4a3a2a")
 	b.prism(Vector3(-0.005, 0, 0), 0.0045, 0.005, 0.02, 5, legc, legc)
 	b.prism(Vector3(0.005, 0, 0), 0.0045, 0.005, 0.02, 5, legc, legc)
 	b.tag = M7MeshBuilder.TAG_CLOTH
-	b.prism(Vector3(0, 0.019, 0), 0.012, 0.0105, 0.024, 7, Color("#9a7a55"), Color("#9a7a55"))
+	if garment:
+		b.prism(Vector3(0, 0.008, 0), 0.0155, 0.0105, 0.035, 7, M7LooksKit.PARKA, M7LooksKit.PARKA)
+		b.tag = M7MeshBuilder.TAG_PLAIN
+		b.prism(Vector3(0, 0.008, 0), 0.0162, 0.0158, 0.004, 7, M7LooksKit.FUR, M7LooksKit.FUR)
+	else:
+		b.prism(Vector3(0, 0.019, 0), 0.012, 0.0105, 0.024, 7, Color("#9a7a55"), Color("#9a7a55"))
 	b.tag = M7MeshBuilder.TAG_CIV
 	b.prism(Vector3(0, 0.032, 0), 0.0135, 0.007, 0.012, 7, Color.WHITE, Color.WHITE)
 	b.tag = M7MeshBuilder.TAG_PLAIN
 	b.blob(Vector3(0, 0.05, 0), Vector3(0.011, 0.0115, 0.011), 7, 4, SKIN, 0.0)
 	b.blob(Vector3(0, 0.054, -0.003), Vector3(0.0112, 0.008, 0.0105), 7, 3, HAIR, 0.0)
-	meshes["person_child"] = b.commit()
+	if garment:
+		b.blob(Vector3(0, 0.048, -0.004), Vector3(0.0138, 0.0132, 0.0112), 7, 3, M7LooksKit.FUR, 0.0)
+	return b.commit()
+
+func _people() -> void:
+	_carry_meshes()
+	for garment in [false, true]:
+		var sfx := "_g" if garment else ""
+		for t in ["", "spear", "basket", "axe", "hoe", "pole", "crook", "hammer", "bundle"]:
+			meshes["person_" + (t if t != "" else "plain") + sfx] = _person(500 + t.length(), t, 0.0, false, 0, garment)
+			if t in ["spear", "axe", "hoe", "hammer"]:
+				for tier in range(1, TOOL_TIERS):
+					meshes["person_%s_t%d%s" % [t, tier, sfx]] = _person(500 + t.length(), t, 0.0, false, tier, garment)
+		meshes["person_elder" + sfx] = _person(551, "stick", 0.3, true, 0, garment)
+		meshes["person_child" + sfx] = _child(garment)
 	# lying figure on a hide mat (convalescing)
-	b = _b(571)
+	var b := _b(571)
 	b.box(Vector3(0, 0.003, 0), Vector3(0.05, 0.004, 0.1), HIDE_DARK)
 	b.tag = M7MeshBuilder.TAG_CLOTH
 	b.blob(Vector3(0, 0.012, 0.0), Vector3(0.016, 0.01, 0.04), 6, 3, Color("#8a6a48"))
@@ -975,7 +1021,8 @@ func _dogs() -> void:
 
 ## Index = the decor kind the host sends; mesh name = "decor_" + name.
 const DECOR_NAMES := ["totem", "cairn", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",
-	"sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork"]
+	"sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork",
+	"temple", "chiefhall", "woolbales", "chariot"]
 
 func _decor() -> void:
 	var b := _b(700)

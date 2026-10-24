@@ -82,7 +82,7 @@ godot-mono --path game --resolution 1280x720 -- --scenario=assign --shots=/tmp/c
 
 Scenarios live in `Scripts/Hud/Game.Scenarios.cs` (`assign`, `paused-assign`, `replace`,
 `almost`, `map`, `overlays`, `moments`, `toasts`, `menu`, `diplomacy`, `tile`, `end`, `zoom`,
-`popovers`, `session`, `input`, `dev`). Other options: `--opening-hold` (use the paused
+`popovers`, `session`, `input`, `dev`, `looks`, `looks-gallery`). Other options: `--opening-hold` (use the paused
 start in a capture), `--paused`, `--ui-scale=1.3`, `--reduce-motion`, `--research-map`,
 `--ui-debug`.
 
@@ -90,6 +90,14 @@ For renderer checks, `--start-minute=70 --viewer=-1` advances the deterministic
 match to a mature omniscient frame before drawing; the HUD reports the number of
 figures in that frame. This development option defaults to minute 0 and viewer
 civilization 0. Long fast-forwards can take a while in Godot's Debug configuration.
+
+The projects that change how land and people look (ard plough and fallow fields, herders, wool flocks,
+ox carts, chariots, the temple, the chief's hall, tailored clothing, plank boats and sails) reach the
+renderer as per-civilization `CivLooks` bits (`CivLook` in `src/CivSim.Sim/View/ViewTypes.cs`) and the
+boat tier. Two scenarios photograph them: `looks-gallery` lays every mesh out on a stage off the map's
+west edge, and `looks` tours the map (`--start-minute=30 --viewer=-1 --looks-grant` gives every
+civilization the projects of the first three ages, keystones aside, and lets them settle in first;
+`--looks-debug` forces every look on instead). The simulation ends the match at year 64, so start before it.
 
 For a sustained renderer sample, build optimized managed assemblies and run one
 zoom level at a time:

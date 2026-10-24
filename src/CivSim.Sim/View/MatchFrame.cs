@@ -174,7 +174,7 @@ public sealed class MatchFrame
     public long[] MonumentTick = Array.Empty<long>();
     /// <summary>Population of the village that raises it (the size of the hauling crew).</summary>
     public int[] MonumentPopulation = Array.Empty<int>();
-    // ---- seafaring: per civilization, the best boat its people know (0 none, 1 raft SEA-01, 2 bark canoe, 3 dugout, 4 outrigger) ----
+    // ---- seafaring: per civilization, the best boat its people know (0 none, 1 raft SEA-01, 2 bark canoe, 3 dugout, 4 outrigger, 5 plank boat SEA-05, 6 sail SEA-06) ----
     public byte[] CivSeaTier = Array.Empty<byte>();
 
     // ---- signal fires (COM-04): per civilization, 1 when its people keep signal posts on the hills between their villages ----
@@ -188,6 +188,9 @@ public sealed class MatchFrame
 
     // ---- dogs (HUS-01 Wolf Companions, TRN-02 Travois & Sledges): per civilization, 0 none, 1 dogs about the villages, 2 dogs also haul travois on the trails ----
     public byte[] CivDogs = Array.Empty<byte>();
+
+    // ---- looks (CivLook bits): per civilization, which of the projects that change fields, flocks, carts, chariots, temples and clothes it knows ----
+    public ushort[] CivLooks = Array.Empty<ushort>();
 
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;

@@ -41,6 +41,8 @@ var river_node: MeshInstance3D
 var structure_signature := -1
 var rig: M7MonumentRig
 var boat_probe := Vector2.ZERO          # the last boat placed (dev scenarios aim the camera at it)
+var chariot_probe := Vector2.ZERO       # the last chariot placed (dev scenarios aim the camera at it)
+var decor_spots := {}                   # decor name -> where the last one was placed (dev scenarios aim the camera at it)
 var trail_node: MeshInstance3D
 var trail_signature := -1
 var trail_polys: Array = []              # centre lines of the trail ribbons (trees are cleared along them)
@@ -294,6 +296,23 @@ func _update_trails() -> void:
 	trail_node.mesh = M7TrailBuilder.build(w, trail_polys)
 	trails_changed = true
 
+## Which field a plot tile shows: 0 the hoed field, 1 ploughed with the ard (AGR-05), 2 resting under fallow (AGR-07). A third of the
+## fields of a fallow-keeping civilization rest at a time, and which ones changes every other year.
+func field_kind(t: int) -> int:
+	var civ: int = w.owner[t]
+	if w.has_look(civ, M7WorldData.LOOK_FALLOW):
+		var xy := w.tile_xy(t)
+		if M7WorldData.hash01(xy.x, xy.y, 313 + w.year / 2) < 0.34:
+			return 2
+	return 1 if w.has_look(civ, M7WorldData.LOOK_ARD) else 0
+
+## Angle of a field's furrows (the field meshes run their rows along local X).
+func field_angle(t: int) -> float:
+	var xy := w.tile_xy(t)
+	return PI / 3.0 * int(M7WorldData.hash01(xy.x, xy.y, 301) * 3.0)
+
+const FIELD_MESHES := ["field", "field_ard", "field_fallow"]
+
 func _structure_digest() -> int:
 	var h := 17
 	for s in w.settlements:
@@ -301,12 +320,13 @@ func _structure_digest() -> int:
 		h = h * 31 + int(s.civ)
 		h = h * 31 + int(s.population / 8)           # the fleet's size steps with it
 		h = h * 31 + (w.sea_tier[int(s.civ)] if int(s.civ) >= 0 and int(s.civ) < w.sea_tier.size() else 0)
+		h = h * 31 + (w.civ_looks[int(s.civ)] if int(s.civ) >= 0 and int(s.civ) < w.civ_looks.size() else 0)
 		for n in s.structures:
 			h = h * 31 + int(n)
 		for n in s.get("decor", PackedInt32Array()):
 			h = h * 31 + int(n) + 1
 	for i in range(0, w.plots.size(), 2):
-		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1]
+		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1] + (field_kind(w.plots[i]) * 3 if w.plots[i + 1] == 0 else 0)
 	for c in w.camps:
 		h = h * 31 + int(c[0]) * 7 + int(c[1])
 	return h
@@ -693,7 +713,7 @@ func _settlements() -> void:
 		var hv := M7WorldData.hash01(xy.x, xy.y, 301)
 		var h: float = w.heights[t]
 		if w.plots[pi + 1] == 0:
-			props.add("field", _xf(c, h, PI / 3.0 * int(hv * 3.0) + PI / 6.0 * 0.0, 1.0), Color(1, 1, 1, hv))
+			props.add(FIELD_MESHES[field_kind(t)], _xf(c, h, PI / 3.0 * int(hv * 3.0) + PI / 6.0 * 0.0, 1.0), Color(1, 1, 1, hv))
 		else:
 			for i in 7:
 				var p := c if i == 6 else c + Vector2(cos(TAU * i / 6.0), sin(TAU * i / 6.0)) * 0.27
@@ -703,6 +723,7 @@ func _settlements() -> void:
 				var p := _rand_in_hex(t, 40 + i, 0.9)
 				props.add("tuft0", _xf(p, h, i * 1.3, 1.0), _tint(0.5))
 
+	var flagship := _flagships()
 	for si in w.settlements.size():
 		var s: Dictionary = w.settlements[si]
 		var t := int(s.tile)
@@ -779,8 +800,8 @@ func _settlements() -> void:
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
 		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
 		if sea > 0:
-			_moor_fleet(t, c0, seed, sea, int(s.population))
-		var decor = s.get("decor", PackedInt32Array())
+			_moor_fleet(t, c0, seed, sea, int(s.population), cc)
+		var decor := _village_decor(s.get("decor", PackedInt32Array()), civ, si, flagship)
 		if decor.size() > 0:
 			_place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0)
 		# lookout tower with a big banner at the edge
@@ -850,10 +871,15 @@ func _settlements() -> void:
 						var q := pc + a0.lerp(a1, 0.25 + 0.5 * half)
 						var dd := a1 - a0
 						props.add("fence", _xf(q, ph, -atan2(dd.y, dd.x), 1.15), Color(1, 1, 1, 0.5))
-				for j in 4:
+				# wool breeds (HUS-06) fill the paddock: a bigger flock of fuller fleeces
+				var wool := w.has_look(civ, M7WorldData.LOOK_WOOL)
+				for j in (10 if wool else 4):
 					var q := pc + Vector2(cos(j * 1.7 + seed), sin(j * 1.7 + seed)) * (0.06 + 0.04 * j)
-					var col := M7MeshBuilder.lin(Color("#e8dfcc") if j != 2 else Color("#6e5a48"), 0.5)
-					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.0), _glide_custom((6 * 8 + 4) if j != 2 else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
+					if wool:
+						q = pc + Vector2(cos(j * 2.39996 + seed), sin(j * 2.39996 + seed)) * (0.045 * sqrt(j + 0.6))
+					var dark := j == 2 or (wool and j == 7)
+					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.14 if wool else 1.0),
+						_glide_custom((6 * 8 + 4) if not dark else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
 				break
 
 ## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
@@ -909,6 +935,39 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 
 ## Kinds that sit on the village edge rather than among the houses.
 const DECOR_FAR := ["cairn", "shrine", "signal", "charcoal", "grave", "quarry", "skypole"]
+## Landmarks need room: the clear distance their spot keeps from every house and prop.
+const DECOR_CLEAR := {"temple": 0.42, "chiefhall": 0.42}
+
+## The greatest village of each civilization (by people, then by tile): where its temple and chief's hall stand.
+func _flagships() -> Dictionary:
+	var best := {}
+	for si in w.settlements.size():
+		var s: Dictionary = w.settlements[si]
+		if bool(s.get("remembered")) or int(s.population) <= 0 or int(s.civ) < 0:
+			continue
+		var civ := int(s.civ)
+		if not best.has(civ) or int(s.population) > int(w.settlements[best[civ]].population):
+			best[civ] = si
+	return best
+
+## The props a village shows: what the focus civilization's knowledge earned (DecorTable.cs, passed from the host) and what any
+## civilization's looks add (CivLook bits): fleece bales (HUS-06), a parked chariot (WAR-06) and, in its greatest village, the
+## stepped temple (BEL-07) and the chief's hall (SOC-07). Landmarks come first so they get the best ground.
+func _village_decor(host_decor, civ: int, si: int, flagship: Dictionary) -> Array:
+	var out := []
+	var names: Array = M7MeshKit.DECOR_NAMES
+	if int(flagship.get(civ, -1)) == si:
+		if w.has_look(civ, M7WorldData.LOOK_STATE_CULT):
+			out.append(names.find("temple"))
+		if w.has_look(civ, M7WorldData.LOOK_CHIEFDOM):
+			out.append(names.find("chiefhall"))
+	for k in host_decor:
+		out.append(int(k))
+	if w.has_look(civ, M7WorldData.LOOK_WOOL):
+		out.append(names.find("woolbales"))
+	if w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
+		out.append(names.find("chariot"))
+	return out
 
 ## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
 ## palisade rings the village, `placed` holds the house spots so nothing overlaps.
@@ -917,6 +976,7 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 	var near_r := rmax + 0.17
 	var far_r := rmax + 0.3
 	var slot := 0
+	var landmarks := []        # [spot, clear distance] of the big buildings placed so far
 	for kind in decor:
 		var kind_i := int(kind)
 		if kind_i < 0 or kind_i >= M7MeshKit.DECOR_NAMES.size():
@@ -928,6 +988,9 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 			_decor_palisade(t, c, seed, rmax + (0.2 if has_thorns else 0.13), tint)
 			continue
 		var base := far_r if DECOR_FAR.has(decor_name) else near_r
+		var need: float = DECOR_CLEAR.get(decor_name, 0.17)
+		if need > 0.2:
+			base = rmax + need * 0.55
 		var found := false
 		var p := Vector2.ZERO
 		for k in 40:
@@ -937,7 +1000,11 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 				continue
 			var clear := true
 			for pp in placed:
-				if (pp as Vector2).distance_to(q) < 0.17:
+				if (pp as Vector2).distance_to(q) < need:
+					clear = false
+					break
+			for lm in landmarks:
+				if (lm[0] as Vector2).distance_to(q) < maxf(need, float(lm[1]) * 0.8):
 					clear = false
 					break
 			if clear:
@@ -947,7 +1014,10 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		slot += 3
 		if not found:
 			continue
+		if need > 0.2:
+			landmarks.append([p, need])
 		placed.append(p)
+		decor_spots[decor_name] = p
 		var d := c - p
 		var ang := atan2(d.x, d.y)
 		var sc := VS * (0.95 + 0.12 * M7WorldData.hash01(t, kind_i, 12))
@@ -973,7 +1043,7 @@ func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) 
 
 ## The boats a village keeps: one to four (by population) moored along the nearest shore or river bank, of the best kind its
 ## civilization knows (1 raft .. 4 outrigger). Nothing happens if there is no water within a short walk.
-func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int) -> void:
+func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, cc: Color) -> void:
 	var count := clampi(population / 8, 1, 4)
 	var mesh_name := "boat_%d" % tier
 	var anchor := Vector2.ZERO
@@ -1007,7 +1077,7 @@ func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int) -
 	if not found or along == Vector2.ZERO:
 		return
 	for k in count:
-		var off := (k - (count - 1) * 0.5) * 0.2
+		var off := (k - (count - 1) * 0.5) * (0.2 if tier < 5 else 0.36)
 		var q := anchor + along * off
 		var tq := w.tile_at(q)
 		if tq < 0:
@@ -1015,7 +1085,7 @@ func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int) -
 		var y := (maxf(w.height_at(q), 0.0) + 0.012) if level < 0.0 else level
 		var hv := M7WorldData.hash01(t, k, 31)
 		var yaw := atan2(along.x, along.y) + (hv - 0.5) * 0.35
-		props.add(mesh_name, _xf(q, y, yaw, 1.0), Color(1, 1, 1, hv))
+		props.add(mesh_name, _xf(q, y, yaw, 1.0), Color(cc.r, cc.g, cc.b, hv))
 
 func _camps() -> void:
 	for cp in w.camps:
@@ -1040,7 +1110,7 @@ func _camps() -> void:
 var BOAT_DEBUG: bool = "--boat-debug" in OS.get_cmdline_user_args()
 
 func _debug_boat_tier(fi: int) -> int:
-	return 1 + (fi / 11) % 4
+	return 1 + (fi / 11) % 6
 
 ## `--tier-debug` gives every adult a tool and cycles the tier by figure index so all four looks can be seen at once.
 var TIER_DEBUG: bool = "--tier-debug" in OS.get_cmdline_user_args()
@@ -1138,6 +1208,17 @@ func _figures() -> void:
 			props.add("person_far", _xf(p, y, 0.0, 1.0), custom)
 			n += 1
 			continue
+		# raiders of a civilization with chariots (WAR-06) ride them over open ground
+		if boat_strength <= 0.0 and age == 1 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
+			var raiding := act == 17 or act == 18 or act == 19
+			var on_wheels := (raiding and seed < 0.7) or (M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 0)
+			var here_tile: int = w.tile_at(p)
+			if on_wheels and here_tile >= 0 and _open_ground(here_tile):
+				props.add("person_chariot", _xf(p, y, face, 1.0), custom)
+				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
+				chariot_probe = p
+				n += 1
+				continue
 		var mesh := "person_plain"
 		if act == 14:
 			mesh = "person_lying"
@@ -1147,6 +1228,8 @@ func _figures() -> void:
 			mesh = "person_elder"
 		else:
 			mesh = "person_" + str(TOOL_BY_ACTIVITY.get(act, "plain"))
+			if act == 12 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_HERD_FOLLOWING):
+				mesh = "person_crook"     # herders walk with a crook once they follow the herds (HUS-02)
 			if fl & 256:
 				mesh = "person_spear"
 			# bladed and headed tools show the tier of the method in use: stone, polished stone, copper, bronze
@@ -1157,6 +1240,8 @@ func _figures() -> void:
 				tier = (idx / 3) % M7MeshKit.TOOL_TIERS
 			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer"]:
 				mesh += "_t" + str(tier)
+		if civ >= 0 and act != 14 and w.has_look(civ, M7WorldData.LOOK_TAILORED):
+			mesh += "_g"                   # fitted parkas, sleeves, leggings and boots (FIB-04)
 		if boat_strength > 0.0:
 			# the fisher stands in the boat; the hull shrinks away as they leave the water
 			props.add("person_boat_%d" % boat_tier, _xf(p, y - 0.006 * boat_strength, face, boat_strength), custom)
@@ -1198,6 +1283,12 @@ func _figures() -> void:
 				maxd = maxf(maxd, Vector2(w.figures[fi + 9] - w.figures[fi], w.figures[fi + 10] - w.figures[fi + 1]).length() / w.MAP_UNITS)
 		print("GLIDE figures=", n, " moved=", moved, " new=", added, " ghosts=", w.ghosts.size() / 8, " max_tiles=", snappedf(maxd, 0.01))
 
+## Ground a chariot can run on: no forest, wetland or mountain.
+func _open_ground(t: int) -> bool:
+	var B := M7WorldData.Biome
+	var b := int(w.biome[t])
+	return b == B.TUNDRA or b == B.GRASSLAND or b == B.SAVANNA or b == B.OPEN_WOODLAND or b == B.DESERT
+
 func _herds() -> void:
 	var n := 0
 	for hi in range(0, w.herds.size(), 7):
@@ -1237,7 +1328,33 @@ func _herds() -> void:
 			props.add(cfg[0], _xf(q, w.heights[t], heading + (hv - 0.5) * 1.4, float(cfg[2]) * (0.85 + 0.25 * hv)),
 				_glide_custom(sp * 8 + bin, mode_offset, hv, dy, offset))
 			n += 1
+		_herders(p, pp, moved, heading, cnt, id, pmx < 0)
 	stats.animals = n
+
+## Herd following (HUS-02): one or two herders walk beside a wild herd on the land of a civilization that knows it, one on each
+## flank, moving with it. They glide like any other figure.
+func _herders(p: Vector2, pp: Vector2, moved: bool, heading: float, animals: int, id: int, fresh: bool) -> void:
+	var here: int = w.tile_at(p)
+	var keeper: int = w.owner[here] if here >= 0 else -1
+	if keeper < 0 or animals < 3 or not w.has_look(keeper, M7WorldData.LOOK_HERD_FOLLOWING):
+		return
+	var travel := Vector2(sin(heading), cos(heading))
+	var side := Vector2(cos(heading), -sin(heading))
+	var mesh := "person_crook_g" if w.has_look(keeper, M7WorldData.LOOK_TAILORED) else "person_crook"
+	for i in (2 if animals >= 5 else 1):
+		var q := p + side * (0.11 if i == 0 else -0.12) - travel * (0.0 if i == 0 else 0.06)
+		var tile := w.tile_at(q)
+		if tile < 0 or not w.is_land(tile):
+			continue
+		var hv := M7WorldData.hash01(id + i, 0, 3)
+		var offset := Vector2.ZERO
+		var dy := 0.0
+		if moved:
+			offset = pp - p
+			dy = maxf(w.height_at(q + offset), 0.0) - w.heights[tile]
+		var custom := _glide_custom(keeper % 8, 16 if fresh else 0, hv, dy, offset)
+		props.add(mesh, _xf(q, w.heights[tile], heading, 1.0), custom)
+		props.add("shadow_disc", _xf(q, w.heights[tile] + 0.001, 0.0, 1.0), Color(offset.x, dy, offset.y, float(16 / 16 if fresh else 0)))
 
 func _beacons() -> void:
 	for beacon in w.beacons:
