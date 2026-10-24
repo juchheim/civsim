@@ -31,7 +31,13 @@ internal static class FrameDump
         {
             width = f.Width, height = f.Height, tick, year = f.Year, seasonOfYear = f.SeasonOfYear,
             biome = w.Biome, elevation = w.Elevation, flags = w.Flags, owner = f.Owner, claim = f.Claim,
-            camps = Slice(f.CampTile, f.CampCount), campCiv = Slice(f.CampCiv, f.CampCount), beacons = Slice(f.BeaconTile, f.BeaconCount),
+            forestBand = Slice(f.ForestBand, f.ForestBand.Length), depositWorked = Slice(f.DepositWorked, f.DepositWorked.Length),
+            miningReach = Slice(f.MiningReach, f.MiningReach.Length),
+            camps = Slice(f.CampTile, f.CampCount), campCiv = Slice(f.CampCiv, f.CampCount),
+            campKind = Slice(f.CampKind, f.CampCount), campParent = Slice(f.CampParent, f.CampCount),
+            campDeposit = Slice(f.CampDeposit, f.CampCount), campCrew = Slice(f.CampCrew, f.CampCount),
+            campBuilt = Slice(f.CampBuilt, f.CampCount), campMineHead = Slice(f.CampMineHead, f.CampCount),
+            beacons = Slice(f.BeaconTile, f.BeaconCount),
             figures, herds, settlements, plots,
         };
         File.WriteAllText(path, JsonSerializer.Serialize(doc));

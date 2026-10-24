@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using CivSim.Game.Ui;
 using CivSim.Sim.Ai;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
+using CivSim.Sim.World;
 using Godot;
 
 namespace CivSim.Game;
@@ -539,6 +541,8 @@ public partial class Game
         if (_session is not null)
             left.AddChild(UiKit.Text($"Rivals played at {DifficultyName(_session.Difficulty)}.", "CaptionTertiary", wrap: true));
 
+        AddBronzeSummary(left, frame, viewer);
+
         left.AddChild(UiKit.Text("TURNING POINTS", "EyebrowTertiary"));
         int turning = 0;
         foreach (ViewEvent item in _endTimeline)
@@ -574,6 +578,41 @@ public partial class Game
 
         OpenModal(_endModal);
         _session?.SetPaused(true);
+    }
+
+    private void AddBronzeSummary(VBoxContainer column, MatchFrame frame, int viewer)
+    {
+        int knownTin = 0, heldTin = 0;
+        WorldView? world = _session?.WorldView;
+        if (world is not null)
+        {
+            for (int tile = 0; tile < frame.KnownDeposits.Length; tile++)
+            {
+                if (frame.KnownDeposits[tile] == 0 || world.Deposit[tile] != (byte)DepositKind.Tin) continue;
+                knownTin++;
+                if (frame.Owner[tile] == viewer) heldTin++;
+            }
+        }
+
+        int wallKind = LivingEconomyModel.StructureIndex("stone_walls");
+        int walls = 0, largest = 0;
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            if (frame.SettlementCiv[i] != viewer || (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+            largest = Math.Max(largest, frame.SettlementPopulation[i]);
+            if (wallKind >= 0 && wallKind < MatchFrame.StructureKinds)
+                walls += frame.SettlementStructures[i * MatchFrame.StructureKinds + wallKind];
+        }
+        int compacts = frame.RouteCount;
+        int wars = 0;
+        for (int civ = 0; civ < frame.CivCount; civ++)
+            if (civ != viewer && ((CivViewFlags)frame.CivFlags[civ] & CivViewFlags.AtWar) != 0) wars++;
+
+        column.AddChild(UiKit.Text("BRONZE RECORD", "EyebrowTertiary"));
+        string tin = world is null ? "Tin sources · unavailable" : $"Tin sources · {knownTin} known, {heldTin} held";
+        string largestLabel = largest >= 90 ? "largest city" : "largest settlement";
+        column.AddChild(UiKit.Text($"{tin} · {walls} wall rings · {compacts} active compacts · {wars} current wars · {largestLabel} {largest:N0}",
+            "BodySecondary", wrap: true));
     }
 
     private static string FormatFixed(long raw) => (raw / 4294967296.0).ToString("N1", System.Globalization.CultureInfo.InvariantCulture);

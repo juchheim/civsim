@@ -9,10 +9,10 @@ namespace CivSim.Game;
 public partial class Game
 {
     private PanelContainer? _rail, _legendCard;
-    private UiButton? _zoomInButton, _zoomOutButton, _compassButton, _claimsButton, _foodButton, _methodsButton, _resourcesButton, _beaconButton;
+    private UiButton? _zoomInButton, _zoomOutButton, _compassButton, _claimsButton, _foodButton, _methodsButton, _resourcesButton, _depositsButton, _tradeButton, _cohesionButton, _forestButton, _beaconButton;
     private UiZoomLadder? _zoomLadder;
     private Label? _zoomNameLabel, _layersLabel;
-    private Control? _legendClaims, _legendFood, _legendMethods, _legendResources;
+    private Control? _legendClaims, _legendFood, _legendMethods, _legendResources, _legendDeposits, _legendTrade, _legendCohesion, _legendForest;
     private Control? _railDivider;
 
     private void CreateRail()
@@ -41,10 +41,18 @@ public partial class Game
         _foodButton = RailToggle("Food", UiGlyph.LayerFood, "Which settlements have enough food", () => SetMapOverlay(2));
         _methodsButton = RailToggle("Methods", UiGlyph.LayerMethods, "How good your people's tools are", () => SetMapOverlay(3));
         _resourcesButton = RailToggle("Resources", UiGlyph.LayerResources, "Deposits you have found (R)", () => SetResourcesVisible(!_resourcesVisible));
+        _depositsButton = RailToggle("Deposits", UiGlyph.LayerResources, "Known deposits, including tin and copper.", () => SetMapOverlay(4));
+        _tradeButton = RailToggle("Trade", UiGlyph.Flags, "Active compact routes; tin routes are highlighted.", () => SetMapOverlay(5));
+        _cohesionButton = RailToggle("Cohesion", UiGlyph.People, "Settlement Cohesion bands.", () => SetMapOverlay(6));
+        _forestButton = RailToggle("Forest", UiGlyph.LayerFood, "Visible forest stock bands.", () => SetMapOverlay(7));
         column.AddChild(_claimsButton);
         column.AddChild(_foodButton);
         column.AddChild(_methodsButton);
         column.AddChild(_resourcesButton);
+        column.AddChild(_depositsButton);
+        column.AddChild(_tradeButton);
+        column.AddChild(_cohesionButton);
+        column.AddChild(_forestButton);
         _beaconButton = RailToggle("Beacon", UiGlyph.Beacon, "A Beacon draws scouts and settlers toward a spot. Beacon mode (B) can place, move, or remove your Beacons.", ToggleBeaconMode);
         _beaconButton.Visible = false;
         column.AddChild(_beaconButton);
@@ -82,7 +90,9 @@ public partial class Game
 
         VBoxContainer Block() { var v = UiKit.Column(UiTokens.Sp2); v.Visible = false; host.AddChild(v); return v; }
         VBoxContainer claims = Block(), food = Block(), methods = Block(), resources = Block();
+        VBoxContainer deposits = Block(), trade = Block(), cohesion = Block(), forest = Block();
         _legendClaims = claims; _legendFood = food; _legendMethods = methods; _legendResources = resources;
+        _legendDeposits = deposits; _legendTrade = trade; _legendCohesion = cohesion; _legendForest = forest;
 
         claims.AddChild(UiKit.Text("CLAIMS", "EyebrowTertiary"));
         claims.AddChild(GradientBar(new Color(0.5f, 0.5f, 0.45f, 0.25f), UiTokens.Accent));
@@ -111,6 +121,32 @@ public partial class Game
 
         resources.AddChild(UiKit.Text("RESOURCES", "EyebrowTertiary"));
         resources.AddChild(UiKit.Text("Coloured stones mark deposits you have found. Hover a tile for the type.", "Caption", wrap: true, minWidth: 207));
+
+        deposits.AddChild(UiKit.Text("DEPOSITS & MINES", "EyebrowTertiary"));
+        AddSwatch(deposits, new Color("#f2ad1e"), "Tin");
+        AddSwatch(deposits, new Color("#dc6e33"), "Copper ores");
+        AddSwatch(deposits, new Color("#ad70c8"), "Arsenical copper");
+        AddSwatch(deposits, new Color("#f5e17a"), "Worked deposit");
+        AddSwatch(deposits, new Color("#3de8ad"), "Within mining reach");
+        deposits.AddChild(UiKit.Text("Only known deposits and visible/owned mining capability are shown.", "CaptionTertiary", wrap: true, minWidth: 207));
+
+        trade.AddChild(UiKit.Text("TRADE", "EyebrowTertiary"));
+        AddSwatch(trade, new Color("#34c7d1"), "Compact route");
+        AddSwatch(trade, new Color("#f2ad1e"), "Tin route or caravan");
+
+        cohesion.AddChild(UiKit.Text("COHESION", "EyebrowTertiary"));
+        AddSwatch(cohesion, new Color("#338C38"), "Strong");
+        AddSwatch(cohesion, new Color("#C79E29"), "Steady");
+        AddSwatch(cohesion, new Color("#D4541F"), "Strained");
+        AddSwatch(cohesion, new Color("#A6141A"), "Fraying");
+        cohesion.AddChild(UiKit.Text("Hover a settlement for band, overreach, and span strain.", "CaptionTertiary", wrap: true, minWidth: 207));
+
+        forest.AddChild(UiKit.Text("FOREST", "EyebrowTertiary"));
+        AddSwatch(forest, new Color("#c9b86b"), "Depleted (<5 L)");
+        AddSwatch(forest, new Color("#65ab4d"), "Low (5–14 L)");
+        AddSwatch(forest, new Color("#2e8747"), "Medium (15–24 L)");
+        AddSwatch(forest, new Color("#145f38"), "Dense");
+        forest.AddChild(UiKit.Text("Bands appear only on tiles in current sight.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         _legendCard.AddChild(host);
         _hudRoot!.AddChild(_legendCard);
@@ -150,7 +186,7 @@ public partial class Game
         AnchorTo(_rail, 0, 0, 0, 0, m, top + (_devVisible ? 110 : 0), m + width, top + (_devVisible ? 110 : 0));
         _rail.CustomMinimumSize = new Vector2(width, 0);
         _rail.Size = new Vector2(width, 0);
-        foreach (UiButton? button in new[] { _claimsButton, _foodButton, _methodsButton, _resourcesButton, _beaconButton })
+        foreach (UiButton? button in new[] { _claimsButton, _foodButton, _methodsButton, _resourcesButton, _depositsButton, _tradeButton, _cohesionButton, _forestButton, _beaconButton })
         {
             if (button is null) continue;
             if (_compact)
@@ -164,7 +200,8 @@ public partial class Game
             else
             {
                 button.GlyphTop = true;
-                button.Text = button == _claimsButton ? "Claims" : button == _foodButton ? "Food" : button == _methodsButton ? "Methods" : button == _resourcesButton ? "Resources" : "Beacon";
+                button.Text = button == _claimsButton ? "Claims" : button == _foodButton ? "Food" : button == _methodsButton ? "Methods" : button == _resourcesButton ? "Resources"
+                    : button == _depositsButton ? "Deposits" : button == _tradeButton ? "Trade" : button == _cohesionButton ? "Cohesion" : button == _forestButton ? "Forest" : "Beacon";
                 button.ThemeTypeVariation = "RailButtonTall";
                 button.CustomMinimumSize = new Vector2(73, 54);
             }
@@ -241,11 +278,19 @@ public partial class Game
         _foodButton!.SetPressedNoSignal(_mapOverlay == 2);
         _methodsButton!.SetPressedNoSignal(_mapOverlay == 3);
         _resourcesButton!.SetPressedNoSignal(_resourcesVisible);
+        _depositsButton!.SetPressedNoSignal(_mapOverlay == 4);
+        _tradeButton!.SetPressedNoSignal(_mapOverlay == 5);
+        _cohesionButton!.SetPressedNoSignal(_mapOverlay == 6);
+        _forestButton!.SetPressedNoSignal(_mapOverlay == 7);
         if (_legendCard is null) return;
-        UiButton? anchor = _mapOverlay switch { 1 => _claimsButton, 2 => _foodButton, 3 => _methodsButton, _ => _resourcesVisible ? _resourcesButton : null };
+        UiButton? anchor = OverlayButton(_mapOverlay);
         _legendClaims!.Visible = _mapOverlay == 1 && !_resourcesVisible;
         _legendFood!.Visible = _mapOverlay == 2 && !_resourcesVisible;
         _legendMethods!.Visible = _mapOverlay == 3 && !_resourcesVisible;
+        _legendDeposits!.Visible = _mapOverlay == 4 && !_resourcesVisible;
+        _legendTrade!.Visible = _mapOverlay == 5 && !_resourcesVisible;
+        _legendCohesion!.Visible = _mapOverlay == 6 && !_resourcesVisible;
+        _legendForest!.Visible = _mapOverlay == 7 && !_resourcesVisible;
         _legendResources!.Visible = _resourcesVisible;
         _legendCard.Visible = anchor is not null;
         if (anchor is not null) CallDeferred(nameof(PositionLegend));
@@ -254,18 +299,25 @@ public partial class Game
     private void PositionLegend()
     {
         if (_legendCard is null || _rail is null) return;
-        UiButton? anchor = _mapOverlay switch { 1 => _claimsButton, 2 => _foodButton, 3 => _methodsButton, _ => _resourcesVisible ? _resourcesButton : null };
+        UiButton? anchor = OverlayButton(_mapOverlay);
         if (_resourcesVisible) anchor = _resourcesButton;
         if (anchor is null) return;
         _legendCard.Position = new Vector2(_rail.Position.X + _rail.Size.X + 8, anchor.GlobalPosition.Y);
     }
 
+    private UiButton? OverlayButton(int mode) => mode switch
+    {
+        1 => _claimsButton, 2 => _foodButton, 3 => _methodsButton, 4 => _depositsButton, 5 => _tradeButton, 6 => _cohesionButton, 7 => _forestButton,
+        _ => _resourcesVisible ? _resourcesButton : null,
+    };
+
     private void ReadOverlayArgument()
     {
         string? overlay = ArgumentValue("--overlay=")?.ToLowerInvariant();
         if (overlay is null) return;
-        _mapOverlay = overlay switch { "claims" => 1, "food" => 2, "methods" => 3, _ => 0 };
+        _mapOverlay = overlay switch { "claims" => 1, "food" => 2, "methods" => 3, "deposits" => 4, "trade" => 5, "cohesion" => 6, "forest" => 7, _ => 0 };
         _resourcesVisible = overlay == "resources";
         _visualRenderer?.Call("set_overlay", _mapOverlay);
+        RefreshOverlayState();
     }
 }

@@ -19,7 +19,11 @@ var state_image: Image
 var state_texture: ImageTexture
 var overlay_image: Image
 var overlay_texture: ImageTexture
-var overlay_mode := 0 # 0 none, 1 claim strength, 2 food security, 3 methods
+var e3_overlay_image: Image
+var e3_overlay_texture: ImageTexture
+var forest_overlay_image: Image
+var forest_overlay_texture: ImageTexture
+var overlay_mode := 0 # 0 none, 1 claims, 2 food, 3 methods, 4 deposits, 5 trade, 6 cohesion, 7 forest
 var fire_lights: Array[OmniLight3D] = []
 var smoke_nodes: Array[Node3D] = []
 var last_season := -1
@@ -68,6 +72,8 @@ func update_frame(frame_data: Dictionary) -> void:
 	var loaded := Time.get_ticks_usec()
 	_update_state_texture()
 	_update_overlay_texture()
+	_update_e3_overlay_texture()
+	_update_forest_overlay_texture()
 	var tile_state := Time.get_ticks_usec()
 	_apply_season(world.season)
 	if mats.has("terrain"):
@@ -163,7 +169,7 @@ func set_season(season: int) -> void:
 		mats.terrain.set_shader_parameter("overlay_forecast", 1.0 if season >= 2 else 0.0)
 
 func set_overlay(mode: int) -> void:
-	overlay_mode = clampi(mode, 0, 3)
+	overlay_mode = clampi(mode, 0, 7)
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("overlay_mode", overlay_mode)
 		mats.terrain.set_shader_parameter("claim_overlay_strength", 1.35 if overlay_mode == 1 else 0.0)
@@ -225,7 +231,13 @@ func _make_overlay_texture() -> void:
 	data.resize(world.width * world.height * 4)
 	overlay_image = Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, data)
 	overlay_texture = ImageTexture.create_from_image(overlay_image)
+	e3_overlay_image = Image.create(world.width, world.height, false, Image.FORMAT_RGBA8)
+	e3_overlay_texture = ImageTexture.create_from_image(e3_overlay_image)
+	forest_overlay_image = Image.create(world.width, world.height, false, Image.FORMAT_RGBA8)
+	forest_overlay_texture = ImageTexture.create_from_image(forest_overlay_image)
 	_update_overlay_texture()
+	_update_e3_overlay_texture()
+	_update_forest_overlay_texture()
 
 func _update_overlay_texture() -> void:
 	if overlay_image == null or world == null:
@@ -248,6 +260,35 @@ func _update_overlay_texture() -> void:
 	overlay_texture.update(overlay_image)
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("overlay_state", overlay_texture)
+
+func _update_e3_overlay_texture() -> void:
+	if e3_overlay_image == null or world == null:
+		return
+	if world.e3_overlay_bytes.size() == world.width * world.height * 4:
+		e3_overlay_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, world.e3_overlay_bytes)
+		e3_overlay_texture.update(e3_overlay_image)
+		if mats.has("terrain"):
+			mats.terrain.set_shader_parameter("e3_overlay_state", e3_overlay_texture)
+	elif e3_overlay_texture != null:
+		var blank := PackedByteArray()
+		blank.resize(world.width * world.height * 4)
+		e3_overlay_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, blank)
+		e3_overlay_texture.update(e3_overlay_image)
+
+func _update_forest_overlay_texture() -> void:
+	if forest_overlay_image == null or world == null:
+		return
+	var data := PackedByteArray()
+	data.resize(world.width * world.height * 4)
+	for t in range(world.width * world.height):
+		var o := t * 4
+		var band: int = world.forest_overlay[t] if t < world.forest_overlay.size() else 0
+		data[o] = band
+		data[o + 3] = 255
+	forest_overlay_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, data)
+	forest_overlay_texture.update(forest_overlay_image)
+	if mats.has("terrain"):
+		mats.terrain.set_shader_parameter("forest_overlay_state", forest_overlay_texture)
 
 func _update_state_texture() -> void:
 	if world.state_bytes.size() == world.width * world.height * 4:
@@ -275,6 +316,8 @@ func _make_materials() -> void:
 	terrain.set_shader_parameter("civ_col", civ_colors)
 	terrain.set_shader_parameter("tile_state", state_texture)
 	terrain.set_shader_parameter("overlay_state", overlay_texture)
+	terrain.set_shader_parameter("e3_overlay_state", e3_overlay_texture)
+	terrain.set_shader_parameter("forest_overlay_state", forest_overlay_texture)
 	terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	mats.terrain = terrain
 	set_overlay(overlay_mode)

@@ -20,6 +20,18 @@ public sealed partial class Strategist
     private void DecideDiplomacy(StrategistView v, SeasonRead s, IStrategistActions act)
     {
         if (v.Own.Settlements.Count == 0) return;
+        // The coalition's economic pressure is limited to tin and only targets the leader we currently
+        // identify from explored territory. No foreign stock or trade inventory is consulted.
+        int key3 = v.Catalog.IndexOf("KEY-3");
+        bool leaderTinRouteKnown = _planTarget >= 0 && _planTarget < v.Belief.Rivals.Length &&
+            (v.Belief.Rivals[_planTarget].TinAccessSeen || (v.Belief.Rivals[_planTarget].SeenFlags & SeenFlag.TinMineCamp) != 0);
+        if (_plan == GrandPlan.CoalitionAgainstLeader && _planTarget >= 0 && _planTarget == s.Leader && leaderTinRouteKnown &&
+            Done(v, key3) && v.Own.Others[_planTarget].Contacted && !v.Own.Others[_planTarget].TinEmbargoed &&
+            act.SetEmbargo(_planTarget, TradeGood.Tin, on: true))
+        {
+            v.Note("Embargo", _planTarget, (int)TradeGood.Tin, Fix64.One,
+                $"coalition against the forecast leader; tin embargo after KEY-3");
+        }
         var gifts = new List<(int Civ, TradeRoute Route, string Reason, Fix64 Score)>();
         if (Done(v, _trd01))
         {
@@ -55,16 +67,16 @@ public sealed partial class Strategist
                     score = Fix64.FromInt(80 + Diplomacy.AllianceAbove - p.Relations);
                     reason = $"build toward alliance (Relations {p.Relations})";
                 }
-                else if (p.Relations < StrategistTuning.GiftKeepAbove && since >= StrategistTuning.GiftIntervalSeasons)
-                {
-                    score = Fix64.FromInt(40 + StrategistTuning.GiftKeepAbove - p.Relations);
-                    reason = $"maintain relations (Relations {p.Relations})";
-                }
                 else if (never && (stronger || _spec.Archetype != EconomyArchetype.Warlord))
                 {
                     Fix64 imbalance = s.OwnField > Fix64.Zero ? Fix64.Max(Fix64.Zero, read.Field / s.OwnField - Fix64.One) : Fix64.Zero;
                     score = Fix64.FromInt(60) + Fix64.Min(Fix64.FromInt(20), imbalance * Fix64.FromInt(20));
                     reason = stronger ? $"first contact with stronger rival ({F1(read.Field)} vs {F1(s.OwnField)})" : "first contact with a peaceful neighbour";
+                }
+                else if (p.Relations < StrategistTuning.GiftKeepAbove && since >= StrategistTuning.GiftIntervalSeasons)
+                {
+                    score = Fix64.FromInt(40 + StrategistTuning.GiftKeepAbove - p.Relations);
+                    reason = $"maintain relations (Relations {p.Relations})";
                 }
 
                 if (reason is null) continue;
@@ -120,7 +132,9 @@ public sealed partial class Strategist
             }
 
             // Barter only when the nearby origin can spare a full cargo and the conservative trade estimate is positive.
-            Fix64 reserve = StrategistTuning.SpareFood + Fix64.FromInt(6);
+            // A barter cargo is funded from the spare-food reserve. Keep the extra five-food
+            // cushion below for a simultaneous gift, but do not add a second cargo margin here.
+            Fix64 reserve = StrategistTuning.SpareFood;
             TradeRoute? tradeRoute = FindTradeRoute(v, s.Rivals[o], reserve);
             if (giftOrigin is not null && tradeRoute is { } currentRoute && currentRoute.Origin.Index == giftOrigin.Index &&
                 currentRoute.Origin.FoodStores < reserve + Fix64.FromInt(5))
@@ -325,9 +339,16 @@ public sealed partial class Strategist
         Fix64 deposit = t.Deposit is World.DepositKind.Tin or World.DepositKind.NativeCopper or World.DepositKind.CopperOre
             or World.DepositKind.Coal or World.DepositKind.Salt or World.DepositKind.Flint
             ? StrategistTuning.BeaconDepositBonus : Fix64.Zero;
+        // The E3 Beacon bonus is about securing a source, not owning the MET-05 project while it is still dormant.
+        Fix64 tinRoute = BronzeTinBeaconBonus(Done(v, _met03), v.Own.TinAccess, t.Deposit);
+        deposit += tinRoute;
         Fix64 score = quality * fit * (Fix64.One + frontier) + deposit;
         if (explain)
-            _beaconWhy = $" (ground {F2(quality)}, {ownD} tiles out{(frontier > Fix64.Zero ? $", toward civ's frontier +{F2(frontier)}" : "")}{(deposit > Fix64.Zero ? $", {t.Deposit} deposit" : "")})";
+            _beaconWhy = $" (ground {F2(quality)}, {ownD} tiles out{(frontier > Fix64.Zero ? $", toward civ's frontier +{F2(frontier)}" : "")}{(deposit > Fix64.Zero ? $", {t.Deposit} deposit" : "")}{(tinRoute > Fix64.Zero ? ", securing tin" : "")})";
         return score;
     }
+
+    internal static Fix64 BronzeTinBeaconBonus(bool hasBronzeTools, bool hasTinBronze, World.DepositKind deposit)
+        => hasBronzeTools && !hasTinBronze && deposit == World.DepositKind.Tin
+            ? StrategistTuning.BeaconTinRouteBonus : Fix64.Zero;
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using CivSim.Game.Ui;
 using CivSim.Sim.Core;
+using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using Godot;
@@ -31,6 +32,9 @@ public partial class Game
     private Control? _diplomacyDetail, _diplomacyEmpty, _friendlyBlock, _hostileBlock, _partiesBlock;
     private Label? _diploEmptyLabel, _diploName, _diploMeta, _diploAi, _diploNoParties;
     private UiEmblem? _diploEmblem;
+    private OptionButton? _diploCompactGood;
+    private CheckButton? _diploCompactSell;
+    private UiButton? _diploCompactAction, _diploEmbargoAction;
     private PanelContainer? _diploStatusChip, _diploRelationChip, _diploAgeChip;
     private HFlowContainer? _destinationChips;
     private readonly List<UiButton> _destinationPool = new();
@@ -112,6 +116,18 @@ public partial class Game
         _allianceRow = NewOrderRow("Form alliance", () => QueueDiplomacyOrder(PlayerCommands.FormAlliance), false, "");
         _peaceRow = NewOrderRow("Make peace", () => QueueDiplomacyOrder(PlayerCommands.MakePeace), false, "");
         foreach (OrderRow row in new[] { _giftRow, _barterRow, _allianceRow, _peaceRow }) friendly.AddChild(row.Root);
+        var compactControls = UiKit.Row(UiTokens.Sp2);
+        _diploCompactGood = new OptionButton { CustomMinimumSize = new Vector2(130, UiTokens.ControlM) };
+        foreach (TradeGood good in new[] { TradeGood.Tin, TradeGood.Copper, TradeGood.Bronze, TradeGood.Salt, TradeGood.Gold, TradeGood.Food, TradeGood.Luxury })
+            _diploCompactGood.AddItem(good.ToString(), (int)good);
+        _diploCompactSell = new CheckButton { Text = "Sell", TooltipText = "Off: buy this good · On: sell this good" };
+        _diploCompactAction = UiKit.Secondary("Compact", QueueSelectedCompact, "Offer a standing goods route to this people.");
+        compactControls.AddChild(_diploCompactGood); compactControls.AddChild(_diploCompactSell); compactControls.AddChild(_diploCompactAction);
+        friendly.AddChild(compactControls);
+        var embargoControls = UiKit.Row(UiTokens.Sp2);
+        _diploEmbargoAction = UiKit.Secondary("Toggle embargo", ToggleSelectedEmbargo, "Stop or resume selling the selected good to this people.");
+        embargoControls.AddChild(_diploEmbargoAction);
+        friendly.AddChild(embargoControls);
         detail.AddChild(friendly);
         _friendlyBlock = friendly;
 
@@ -233,7 +249,7 @@ public partial class Game
     {
         if (!_diplomacyOpen || _civList is null || _catalog is null) return;
         int viewer = Math.Max(0, frame.ViewerCiv);
-        bool own = frame.ViewerCiv == 0;
+        bool own = frame.ViewerCiv >= 0;
 
         _civOrder.Clear();
         for (int civ = 0; civ < frame.CivCount; civ++)
@@ -273,6 +289,10 @@ public partial class Game
         CivViewFlags flags = (CivViewFlags)frame.CivFlags[target];
         bool contacted = (flags & CivViewFlags.Contacted) != 0, atWar = (flags & CivViewFlags.AtWar) != 0;
         bool allied = (flags & CivViewFlags.Allied) != 0, truce = (flags & CivViewFlags.InTruce) != 0;
+        if (_diploCompactAction is not null)
+            _diploCompactAction.Disabled = !(_session?.CanIssueCommands ?? false) || !frame.FocusMandateUnlocked || atWar || !contacted;
+        if (_diploEmbargoAction is not null)
+            _diploEmbargoAction.Disabled = !(_session?.CanIssueCommands ?? false) || !contacted;
         _diploEmblem!.Civ = target;
         UiKit.SetText(_diploName!, UiText.CivName(target));
         (string status, string variation) = atWar ? ("AT WAR", "ChipPanelDanger") : allied ? ("ALLIED", "ChipPanelSuccess") : truce ? ("IN TRUCE", "ChipPanelInfo") : contacted ? ("CONTACTED", "ChipPanel") : ("KNOWN ONLY", "ChipPanel");
@@ -400,6 +420,7 @@ public partial class Game
         int destination = ResolveDestination(frame, civ);
         bool hasDestination = destination >= 0;
         bool can = _session?.CanIssueCommands ?? false;
+        if (_diploCompactAction is not null) _diploCompactAction.TooltipText = CompactAcceptanceHint(frame.ViewerCiv, civ);
 
         SetOrder(_giftRow!, true, can && contacted && !atWar && trd01,
             !trd01 ? $"Needs {NeedsName(_trd01)} (research)." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." : "Carries food to them. Improves relations.");

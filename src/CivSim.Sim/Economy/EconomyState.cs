@@ -45,7 +45,10 @@ public readonly record struct SettlementView(
 
 public readonly record struct WildHerdView(
     int Id, CivSim.Sim.World.HerdSpecies Species, int HomeTile, int CurrentTile,
-    Fix64 AnimalCount, Fix64 Fear, int AwaySeasons);
+    Fix64 AnimalCount, Fix64 Fear, int AwaySeasons, int HuntedToExtinctionByCiv)
+{
+    public int LastHuntCrashCivilization => HuntedToExtinctionByCiv;
+}
 
 public readonly record struct DomesticHerdView(Fix64 SmallStock, Fix64 Cattle, Fix64 Pigs);
 

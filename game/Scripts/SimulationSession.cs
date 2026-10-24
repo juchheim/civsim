@@ -255,6 +255,13 @@ public sealed class SimulationSession : IDisposable
         _wake.Set();
     }
 
+    /// <summary>Fog-fair player preview, read on the simulation lock and with no rival belief supplied.</summary>
+    public DecreeForecast PreviewDecree(int civ, DecreeKind kind, int target, int extra)
+    {
+        lock (_stateLock)
+            return DecreeForecaster.Forecast(_match.Politics, civ, kind, target, extra, belief: null);
+    }
+
     internal GameSaveData CaptureSave(ulong onboardingSeen, bool introDismissed)
     {
         if (!CanSave) throw new InvalidOperationException("Development fast-forward sessions cannot be saved.");

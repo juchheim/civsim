@@ -207,8 +207,8 @@ public sealed partial class FrameBuilder
         RefreshLayout(eco, season);
         RefreshClaims(pol);
         ReadParties(match);
-        MarkVisibility(pol);
-        FillTiles(pol, target);
+        MarkVisibility(eco, pol);
+        FillTiles(eco, pol, target);
         ReadMembers(pol);
         FillFigures(eco, match.Research, target, season);
         FillSettlements(eco, match.Research, target, season);
@@ -515,7 +515,7 @@ public sealed partial class FrameBuilder
 
     // ---- visibility ----------------------------------------------------------------------------
 
-    private void MarkVisibility(PoliticsSystem pol)
+    private void MarkVisibility(LivingEconomyModel eco, PoliticsSystem pol)
     {
         _stampValue = _stampValue == int.MaxValue ? 1 : _stampValue + 1;
         if (_stampValue == 1) Array.Clear(_stamp);
@@ -528,6 +528,11 @@ public sealed partial class FrameBuilder
             var camp = pol.Camp(i);
             if (camp.Civ == _viewer && (camp.Settlement >= 0 && camp.Settlement < _settlementCount) && IsOwn(camp.Settlement))
                 MarkDisk(camp.Tile, Territory.CampRadius + BeliefRules.SightRadius);
+        }
+        for (int i = 0; i < eco.MiningCampCount; i++)
+        {
+            MiningCampView camp = eco.MiningCamp(i);
+            if (camp.Civilization == _viewer) MarkDisk(camp.Tile, camp.ClaimRadius + BeliefRules.SightRadius);
         }
         for (int p = 0; p < _partyCount; p++)
             if (_pCiv[p] == _viewer) MarkDisk(_pTile[p], BeliefRules.SightRadius);
@@ -551,13 +556,15 @@ public sealed partial class FrameBuilder
 
     private bool Visible(int tile) => _omniscient || (tile >= 0 && tile < _tileCount) && _stamp[tile] == _stampValue;
 
-    private void FillTiles(PoliticsSystem pol, MatchFrame target)
+    private void FillTiles(LivingEconomyModel eco, PoliticsSystem pol, MatchFrame target)
     {
         target.EnsureTiles(_tileCount);
         Territory territory = pol.Territory;
         byte[] vis = target.Visibility, claim = target.Claim, claim2 = target.Claim2, claim3 = target.Claim3,
-            flags = target.TileFlags, knownDeposits = target.KnownDeposits;
+            flags = target.TileFlags, knownDeposits = target.KnownDeposits, forest = target.ForestBand,
+            worked = target.DepositWorked, miningReach = target.MiningReach;
         sbyte[] owner = target.Owner, claimant = target.Claimant, claimant2 = target.Claimant2, claimant3 = target.Claimant3;
+        bool reachEnabled = _omniscient ? eco.BronzeActive : eco.IsBronzeCivilization(_viewer);
         for (int t = 0; t < _tileCount; t++)
         {
             if (Visible(t))
@@ -588,6 +595,21 @@ public sealed partial class FrameBuilder
             knownDeposits[t] = _tiles[t].Deposit != DepositKind.None && (_omniscient || _explored[t] != 0)
                 ? (byte)1
                 : (byte)0;
+            forest[t] = Visible(t) ? (byte)eco.ForestBand(t) : (byte)0;
+            worked[t] = Visible(t) && eco.DepositWorked(t) ? (byte)1 : (byte)0;
+            miningReach[t] = 0;
+            if ((_omniscient || _explored[t] != 0) && reachEnabled)
+            {
+                for (int s = 0; s < _settlementCount; s++)
+                {
+                    if (_sPop[s] == 0 || _sFree[s] || (!_omniscient && _sCiv[s] != _viewer)) continue;
+                    if (HexGrid.Distance(_sTile[s], t, _width) <= eco.MiningReachFrom(s))
+                    {
+                        miningReach[t] = 1;
+                        break;
+                    }
+                }
+            }
         }
         if (_omniscient) return;
         // The home range hatch: half the scouting reach around the viewer's settlements (08 §4.1).
@@ -866,6 +888,7 @@ public sealed partial class FrameBuilder
                 target.SettlementCiv[w] = _seenCiv[s];
                 target.SettlementPopulation[w] = _seenPopulation[s];
                 target.SettlementFood[w] = 0; target.SettlementWinterForecast[w] = 0; target.SettlementCohesion[w] = 0;
+                target.SettlementOverreach[w] = 0; target.SettlementSpanPenalty[w] = 0;
                 SettlementViewFlags remembered = SettlementViewFlags.Remembered;
                 if (_seenFree[s]) remembered |= SettlementViewFlags.FreeFolk;
                 if (_seenPopulation[s] == 0) remembered |= SettlementViewFlags.Empty;
@@ -882,6 +905,13 @@ public sealed partial class FrameBuilder
             target.SettlementFood[w] = (byte)FoodBandOf(lite.LastFoodSecurity);
             target.SettlementWinterForecast[w] = (byte)FoodBandOf(lite.LateWinterFoodForecast);
             target.SettlementCohesion[w] = (byte)CohesionOf(eco.SettlementCohesion(s));
+            if (own)
+            {
+                (int overreach, int spanPenalty) = eco.CohesionPressures(s);
+                target.SettlementOverreach[w] = (short)Math.Clamp(overreach, 0, short.MaxValue);
+                target.SettlementSpanPenalty[w] = (short)Math.Clamp(spanPenalty, 0, short.MaxValue);
+            }
+            else { target.SettlementOverreach[w] = 0; target.SettlementSpanPenalty[w] = 0; }
             SettlementViewFlags flags = SettlementViewFlags.None;
             if (_sFree[s]) flags |= SettlementViewFlags.FreeFolk;
             if (eco.SettlementFireLit(s)) flags |= SettlementViewFlags.FireLit;
@@ -941,7 +971,7 @@ public sealed partial class FrameBuilder
         }
         target.PlotCount = w;
 
-        target.EnsureCamps(pol.CampCount);
+        target.EnsureCamps(pol.CampCount + eco.MiningCampCount);
         w = 0;
         for (int i = 0; i < pol.CampCount; i++)
         {
@@ -949,7 +979,21 @@ public sealed partial class FrameBuilder
             if ((camp.Settlement < 0 || camp.Settlement >= _settlementCount) || _sFree[camp.Settlement] || _sCiv[camp.Settlement] != camp.Civ) continue;
             bool own = !_omniscient && camp.Civ == _viewer;
             if (!own && !Visible(camp.Tile)) continue;
-            target.CampTile[w] = camp.Tile; target.CampCiv[w++] = (sbyte)camp.Civ;
+            target.CampTile[w] = camp.Tile; target.CampCiv[w] = (sbyte)camp.Civ;
+            target.CampKind[w] = (byte)CampKind.Seasonal; target.CampParent[w] = camp.Settlement;
+            target.CampDeposit[w] = (byte)DepositKind.None; target.CampCrew[w] = 0;
+            target.CampBuilt[w] = 1; target.CampMineHead[w] = 0; w++;
+            target.TileFlags[camp.Tile] |= (byte)TileViewFlags.Camp;
+        }
+        for (int i = 0; i < eco.MiningCampCount; i++)
+        {
+            MiningCampView camp = eco.MiningCamp(i);
+            bool own = !_omniscient && camp.Civilization == _viewer;
+            if (!own && !Visible(camp.Tile)) continue;
+            target.CampTile[w] = camp.Tile; target.CampCiv[w] = (sbyte)camp.Civilization;
+            target.CampKind[w] = (byte)CampKind.Mining; target.CampParent[w] = camp.ParentSettlementIndex;
+            target.CampDeposit[w] = (byte)camp.Deposit; target.CampCrew[w] = (short)Math.Clamp(camp.Crew, 0, short.MaxValue);
+            target.CampBuilt[w] = camp.Built ? (byte)1 : (byte)0; target.CampMineHead[w] = camp.MineHead ? (byte)1 : (byte)0; w++;
             target.TileFlags[camp.Tile] |= (byte)TileViewFlags.Camp;
         }
         target.CampCount = w;

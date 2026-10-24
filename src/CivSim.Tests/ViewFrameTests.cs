@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -12,6 +14,61 @@ namespace CivSim.Tests;
 /// <summary>What a frame shows (docs/MVP/18 §3 to §4): the truth in omniscient mode, and only what the viewer's people see otherwise.</summary>
 public class ViewFrameTests
 {
+    [Fact]
+    public void Bronze_frame_carries_live_forest_mining_and_cohesion_data_without_revealing_unseen_tiles()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        for (int civ = 0; civ < 4; civ++) match.Politics.SetDecreePolicy(civ, null);
+        runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, TestPack.Catalog.IndexOf("KEY-3"), 0, 0));
+        runner.Advance(1);
+
+        LivingEconomyModel eco = match.Economy;
+        GeneratedWorld world = ViewKit.World.Value;
+        int home = Enumerable.Range(0, eco.SettlementCount)
+            .First(s => eco.SettlementLite(s).Civilization == 0 && !match.Politics.IsFreeFolk(s));
+        int homeTile = eco.SettlementLite(home).SiteTile;
+        eco.FixtureAddPeople(home, 80, 24);
+        int forestTile = Enumerable.Range(0, world.TileCount).First(tile =>
+            HexGrid.Distance(homeTile, tile, world.Width) <= 8 &&
+            world.TileAt(tile).Biome is Biome.TemperateForest or Biome.TropicalForest or Biome.OpenWoodland);
+        eco.FixtureSetWood(forestTile, Fix64.FromInt(20));
+
+        int campTile = Enumerable.Range(0, world.TileCount).First(tile =>
+            world.TileAt(tile).Deposit is DepositKind.CopperOre or DepositKind.ArsenicalCopper or DepositKind.Tin);
+        eco.FixtureAddMiningCamp(home, campTile, crew: 4, built: true, mineHead: true);
+        eco.FixtureExhaust(campTile); // A worked marker means ore has actually been removed from this deposit.
+
+        int hiddenTile = Enumerable.Range(0, world.TileCount).First(tile =>
+            tile != campTile && HexGrid.Distance(homeTile, tile, world.Width) > 20 && HexGrid.Distance(campTile, tile, world.Width) > 10);
+        eco.FixtureSetWood(hiddenTile, Fix64.FromInt(30));
+        eco.FixtureExhaust(hiddenTile);
+
+        var frame = new MatchFrame();
+        new FrameBuilder(match, 0).Build(match, frame);
+
+        Assert.Equal((byte)2, frame.ForestBand[forestTile]);
+        Assert.Equal((byte)1, frame.DepositWorked[campTile]);
+        Assert.Equal((byte)1, frame.MiningReach[homeTile]);
+        Assert.Equal((byte)0, frame.ForestBand[hiddenTile]);
+        Assert.Equal((byte)0, frame.DepositWorked[hiddenTile]);
+        Assert.Equal((byte)0, frame.MiningReach[hiddenTile]);
+        Assert.Equal((byte)TileVisibility.Unknown, frame.Visibility[hiddenTile]);
+
+        int camp = Enumerable.Range(0, frame.CampCount).First(i => frame.CampTile[i] == campTile);
+        Assert.Equal((byte)CampKind.Mining, frame.CampKind[camp]);
+        Assert.Equal(home, frame.CampParent[camp]);
+        Assert.Equal((byte)world.TileAt(campTile).Deposit, frame.CampDeposit[camp]);
+        Assert.Equal(4, frame.CampCrew[camp]);
+        Assert.Equal((byte)1, frame.CampBuilt[camp]);
+        Assert.Equal((byte)1, frame.CampMineHead[camp]);
+
+        int homeFrame = frame.IndexOfSettlement(home);
+        (int overreach, int spanPenalty) = eco.CohesionPressures(home);
+        Assert.Equal(overreach, frame.SettlementOverreach[homeFrame]);
+        Assert.Equal(spanPenalty, frame.SettlementSpanPenalty[homeFrame]);
+    }
+
     [Fact]
     public void An_omniscient_frame_matches_the_true_state()
     {

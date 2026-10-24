@@ -6,7 +6,11 @@ using CivSim.Sim.Randomness;
 namespace CivSim.Sim.Politics;
 
 /// <summary>One person in a fight: who, and how much they count (docs/MVP/13 §7.1, before group multipliers).</summary>
-public readonly record struct Fighter(long Id, Fix64 Strength);
+public readonly record struct Fighter(long Id, Fix64 Strength)
+{
+    /// <summary>Individual multiplier for shield and chariot crew casualty reduction.</summary>
+    public Fix64 CasualtiesTaken { get; init; } = Fix64.One;
+}
 
 /// <summary>The conditions of one engagement.</summary>
 /// <param name="AttackerMult">Weapon, training and terrain already folded into each <see cref="Fighter"/>; this is a group multiplier.</param>
@@ -18,7 +22,12 @@ public readonly record struct Fighter(long Id, Fix64 Strength);
 /// <param name="AttackerRangedFirst">The attackers shoot first, unanswered, for one round.</param>
 public readonly record struct BattleSetup(
     Fix64 AttackerMult, Fix64 DefenderMult, bool DefendersSurprised, Fix64 AttackerBreak, Fix64 DefenderBreak,
-    int MaxRounds, bool AttackerRangedFirst);
+    int MaxRounds, bool AttackerRangedFirst)
+{
+    /// <summary>Casualty factors from shields and chariot crews (docs/MVP/22 §7.1).</summary>
+    public Fix64 AttackerCasualtiesTaken { get; init; } = Fix64.One;
+    public Fix64 DefenderCasualtiesTaken { get; init; } = Fix64.One;
+}
 
 public enum BattleWinner : byte { Attacker, Defender, StandOff }
 
@@ -46,6 +55,31 @@ public static class Combat
     public static readonly Fix64 K = Fix64.FromRatio(6, 100);
     public static readonly Fix64 DeathShare = Fix64.FromRatio(4, 10);
 
+    /// <summary>Weapon and formation values from docs/MVP/22 §7.1.</summary>
+    public static Fix64 E3WeaponStrength(string weapon) => weapon switch
+    {
+        "bare" => Fix64.FromRatio(6, 10), "club" => Fix64.One, "wood" => Fix64.FromRatio(13, 10),
+        "stone" => Fix64.FromRatio(16, 10), "copper" => Fix64.FromRatio(18, 10),
+        "arsenical" => Fix64.FromRatio(21, 10), "bronze" => Fix64.FromRatio(22, 10),
+        "tin" => Fix64.FromRatio(23, 10), _ => throw new ArgumentOutOfRangeException(nameof(weapon))
+    };
+
+    public static Fix64 TrainedWarriorStrength(string weapon, bool chariotOnOpenTerrain = false)
+    {
+        Fix64 strength = E3WeaponStrength(weapon) * Fix64.FromRatio(13, 10);
+        return chariotOnOpenTerrain ? strength * Fix64.FromInt(2) : strength;
+    }
+
+    public static Fix64 MilitiaStrength(string weapon) => E3WeaponStrength(weapon) * Fix64.FromRatio(6, 10);
+    public static Fix64 ShieldCasualtyFactor(Fix64 shieldedShare)
+        => Fix64.One - Fix64.FromRatio(3, 10) * Fix64.Clamp(shieldedShare, Fix64.Zero, Fix64.One);
+    public static readonly Fix64 ChariotCasualtyFactor = Fix64.Half;
+    /// <summary>Factors multiply, so shielded chariot crew take 0.7 × 0.5 casualties (07d §6, F5).</summary>
+    public static Fix64 E3CasualtyFactor(Fix64 shieldedShare, Fix64 chariotCrewShare = default)
+        => ShieldCasualtyFactor(shieldedShare) * (chariotCrewShare.Raw > 0
+            ? Fix64.One - Fix64.FromRatio(1, 2) * Fix64.Clamp(chariotCrewShare, Fix64.Zero, Fix64.One)
+            : Fix64.One);
+
     public static BattleResult Fight(IReadOnlyList<Fighter> attackers, IReadOnlyList<Fighter> defenders, in BattleSetup setup, ulong seed, ulong stream)
     {
         var a = new Side(attackers);
@@ -57,7 +91,8 @@ public static class Combat
 
         if (setup.AttackerRangedFirst && !a.Empty && !d.Empty)
         {
-            Fix64 shot = Casualties(a.Strength * setup.AttackerMult, d.Strength * setup.DefenderMult * Fix64.Half);
+            Fix64 shot = Casualties(a.Strength * setup.AttackerMult, d.Strength * setup.DefenderMult * Fix64.Half)
+                * d.CasualtiesTaken * setup.DefenderCasualtiesTaken;
             Hit(d, shot, ref rng, dead.DefenderDead, dead.DefenderWounded);
         }
 
@@ -68,8 +103,8 @@ public static class Combat
             Fix64 defend = d.Strength * setup.DefenderMult;
             if (setup.DefendersSurprised && rounds == 1) defend = defend * Fix64.Half;
             // Both sides take their casualties from the strengths at the start of the round.
-            Fix64 onDefenders = Casualties(attack, defend);
-            Fix64 onAttackers = Casualties(defend, attack);
+            Fix64 onDefenders = Casualties(attack, defend) * d.CasualtiesTaken * setup.DefenderCasualtiesTaken;
+            Fix64 onAttackers = Casualties(defend, attack) * a.CasualtiesTaken * setup.AttackerCasualtiesTaken;
             Hit(d, onDefenders, ref rng, dead.DefenderDead, dead.DefenderWounded);
             Hit(a, onAttackers, ref rng, dead.AttackerDead, dead.AttackerWounded);
             bool defendersBroke = d.Empty || d.Lost >= setup.DefenderBreak;
@@ -129,6 +164,16 @@ public static class Combat
         public int Alive { get; private set; }
         public bool Empty => Alive == 0;
         public Fix64 Strength { get; private set; }
+        public Fix64 CasualtiesTaken
+        {
+            get
+            {
+                if (Alive == 0) return Fix64.One;
+                Fix64 factor = Fix64.Zero;
+                for (int i = 0; i < _fighters.Count; i++) if (!_down[i]) factor += _fighters[i].CasualtiesTaken;
+                return factor / Alive;
+            }
+        }
         public Fix64 Lost => _start.Raw == 0 ? Fix64.One : (_start - Strength) / _start;
 
         /// <summary>The n-th fighter still standing, in the order they were listed.</summary>

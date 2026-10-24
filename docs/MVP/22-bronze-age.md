@@ -311,11 +311,11 @@ Walls are a two-year project for a village (about 90 ws with quarrying and dress
 
 ### 7.4 Investment (the Bronze Age siege)
 - An assault order (or a levy) against a **walled** settlement becomes an **investment** if the force's strength is ≥ **1.2 ×** the defenders' strength *without* the wall multiplier (home ground ×1.1 applies). Otherwise it is refused (`RequirementsNotMet`).
-- **Each season of investment:** the target's fields and pastures yield nothing, one structure outside the walls burns, routes to it are cut, it eats its stores; Cohesion −5 there and −2 at the besiegers' home.
-- **Capitulation:** while stores ≥ one season of need, none. Below that, **35%** a season; at zero stores, the winter-shortfall starvation hazard applies (09 §4.3) and capitulation is **70%** a season (stream `politics.siege`, keyed by settlement and season). On capitulation the town is captured (13 §8.3) with assimilation −10% (bitterness).
+- **Each season of investment:** the target's fields and pastures yield nothing, routes to it are cut, its food need is rationed to **75%** (R5), and Cohesion falls −5 there and −2 at the besiegers' home. One flammable structure burns; structures do not yet have inside/outside positions, so the sim chooses from the settlement's flammable structures.
+- **Capitulation:** while stores ≥ one season of normal need, none. Below that, **35%** a season; at zero stores, the settlement's ordinary winter-shortfall mortality applies (09 §4.3) and capitulation is **70%** a season (stream `politics.siege`, keyed by settlement and season). On capitulation the town is captured (13 §8.3) with assimilation −10% (bitterness).
 - **Sally:** if the defenders' strength × 1.1 exceeds 0.8 × the besiegers', they sally and fight in the open (no walls).
 - **Relief:** any force of the owner or an ally that arrives fights the besiegers in the open.
-- **Supply:** besiegers carry 1 season of food (2 with FOD-02 or FOD-07); then they feed from the target's range for 50% of their number and lose 10% a season to desertion, unless an own settlement lies within 8 walking tiles (full supply).
+- **Supply:** besiegers carry 1 season of food; FOD-07 extends this to 2 (FOD-02 is the baseline and does not add a season; 23 §21.1 C4). An own settlement within 8 walking tiles supplies them fully. Otherwise they lose 10% of strength a season to desertion after their carried food is gone. Range-foraging has no numeric rule in the spec and is not modeled yet.
 - **Target:** a town with 2–3 seasons of stores falls in **3–6 seasons** to an unrelieved, supplied investment in ≥ 50% of trials (gate B16). Walls buy a year, which is what relief, alliances and peace need.
 
 ### 7.5 Raids in E3 and the E3 raid table
@@ -328,9 +328,10 @@ Raid parties are 15–30% of the raiding settlements' adults (min 4), or the lev
 | none, stone-armed militia | **93%** | 9% | 24% | +33 |
 | palisade + watchers, stone militia | **13%** | 39% | 8% | −16 |
 | palisade + watchers, bronze militia with shields | **2%** | 45% | 3% | −23 |
-| palisade + watchers + 8 bronze warriors | **0%** | 95% | 2% | −43 |
-| hillfort or walls + watchers + 8 warriors | **0%** | 93% | 1% | −42 |
-| (the same 12 with stone spears, no shields, vs none) | 53% | 21% | 16% | +9 |
+| palisade + watchers + 8 bronze warriors | **1%** | 60% | 3% | −29 |
+| hillfort + watchers + 8 warriors | **0%** | 83% | 2% | −38 |
+| walls + watchers + 8 warriors | **0%** | 93% | 2% | −42 |
+| (the same 12 with stone spears, no shields, vs none) | 63% | 18% | 17% | +15 |
 
 **A bronze warband of 8** against soft targets:
 
@@ -341,7 +342,7 @@ Raid parties are 15–30% of the raiding settlements' adults (min 4), or the lev
 | hamlet of 15 adults, stone, no palisade | **100%** | 1% | 37% | +25 |
 | hamlet of 15 adults, bronze, thorn barrier + watch | **89%** | 11% | 26% | +17 |
 
-**Field battles:** 20 bronze-and-shield warriors beat 20 stone-armed 100% of the time and 28 of them 33%; 12 chariot crew against 24 bronze infantry on open ground win 39%, against 18 win 100%.
+**Field battles:** 20 bronze-and-shield warriors beat 20 stone-armed 100% of the time and 28 of them **18%**; 12 chariot crew against 24 bronze infantry on open ground win **37%**, against 18 win 100%. Chariot crew's shield and chariot casualty reductions multiply (×0.7 ×0.5).
 
 **Reading the table.** Bronze makes unwalled villages and every camp prey, and makes a palisade with bronze militia a wall raiders cannot pass. So E3's raids are **frontier raids**: on mines, caravans, new colonies and Tin Folk. Two guards do not save a mine; deterrence does (retaliation, reputation, pacts, the levy). This is the arms race the age needs: bronze for attack, walls and bronze militia for defense.
 
@@ -549,6 +550,7 @@ New evidence by sight: copper and bronze tool tints (MET-03; MET-04 or MET-05), 
 
 ### 13.5 Archetype balance and blunders
 - **A5 re-fit** at the chapter end under the new Legacy units; expect the `ArchetypeResearch` table to move (the Firsts edge that made Sage and Grower win is smaller).
+- **Raid calibration:** multiply the simulated success probability by **3/4**, fitted to the prior 8-seed, 64-minute baseline (66/84 resolved raids: 75% predicted, 56% observed). The AI uses this calibrated probability for raid EV, the launch threshold and its decision log; rerun the final 8-seed check before treating the fit as accepted.
 - **New blunder detectors (14 §10.4):** *Dormant bronze* (MET-04/05 done, no access for > 8 seasons while a compact, mine or arsenical option existed), *Unwalled frontier* (rival bronze warriors seen within reach and no defensive response in 4 seasons), *Siege without supply* (besiegers lose > 30% to desertion), *Mandate overflow* (> 8 seasons at the cap with a positive-EV Decree available), *Naked caravan* (tin caravan through hostile land without escort).
 
 ---
@@ -639,7 +641,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B12 | **Metal chain** | T18; after tin is cut, rung 6 falls back within 12 seasons with a "no tin" reason; no smelting without charcoal | economy fixtures | Auto |
 | B13 | **Fuel pressure** | T19 | economy fixtures + metal_sim | Auto |
 | B14 | **Tin geography** | §5.1 rules in 100% of 10,000 worlds; determinism; < 5 s per world | `worldgen --audit-seeds` | Auto |
-| B15 | **E3 raid table** | every §7.5 cell ±10 points | `politics --report-combat` E3 rows | Auto |
+| B15 | **E3 raid table** | every §7.5 table value within ±10 of the oracle-corrected values in 07d §6; includes success, both sides hurt, net and the field rows | `combat_e3.py` plus `politics --report-combat` E3 rows | Auto |
 | B16 | **Capture and siege** | T22; no assault ever succeeds against stone walls | combat tables + fixture | Auto |
 | B17 | **Territory** | T11, T14, T15; ≥ 1 Town and ≥ 1 City in ≥ 75% of civs at KEY-4 | `politics --check-m10`, 24 seeds | Auto |
 | B18 | **Legacy split** | T24 | Chieftain 4-AI, 24 seeds | Auto |
@@ -647,7 +649,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B20 | **Conflict exists** | T23 | Chieftain 4-AI, 24 seeds | Auto |
 | B21 | **Tin Folk and compacts** | T26 | harness | Auto |
 | B22 | Determinism | S1 (1,000 chapter replays) and S2 (macOS arm64 = Windows x64) on a new `tests/golden/bronze-v1.txt` | CI | Auto |
-| B23 | Performance | headless chapter ≤ 30 s; tick ≤ 4 ms mean, no GC pause > 16 ms; 60 fps with 1,600 figures and E3 structures at Z0–Z2 | `acceptance --s12 --s13`, Godot render gate | Auto |
+| B23 | Performance | headless chapter ≤ 30 s; tick ≤ 4 ms mean over the 10-minute S13 sample, no GC pause > 16 ms; 60 fps with 1,600 figures and E3 structures at Z0–Z2 | `acceptance --s12 --s13`, Godot render gate (shorter S13 samples are diagnostic only) | Auto |
 | B24 | Robustness | 0 crashes, desyncs or invalid states in 1,000 chapter matches, all archetypes and levels | `acceptance --s15 --minutes 64` | Auto |
 | B25 | Content | 66 E3 nodes `numeric`; validator 0 errors; pack golden refreshed | `civsim validate --strict` | Auto |
 | B26 | **AI gates at the chapter end** | A1–A8 targets of 14 §10.3 under the new Legacy units | `ai --check-m10 --seeds 8` | Auto |
@@ -656,6 +658,8 @@ The milestone is done when every automated row passes in the nightly report and 
 | B29 | Forecast fidelity | KEY-4 within 15%, median ≤ 6% | harness | Auto |
 | B30 | New blunders | Mandate overflow < 0.3, siege without supply 0, suicide raid 0, naked caravan < 0.5 per match | blunder detectors | Auto |
 | B31 | Legend vs Warlord | ≥ 60% (the 65% of 14 §10.3 moves to E4) | ladder | Auto |
+
+`ai --check-m10` covers A1–A5/A7 and B27–B31; A6 uses `ai --exploit` and A8 uses the fog-fairness suite, so the combined B26 gate remains open until those separate checks pass.
 
 ---
 

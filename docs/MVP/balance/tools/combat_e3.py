@@ -271,7 +271,8 @@ W = {"bare": fx(6, 10), "club": ONE, "wood": fx(13, 10), "stone": fx(16, 10), "c
 TRAIN = fx(13, 10)
 MILITIA = fx(6, 10)
 SHIELD = fx(7, 10)
-CHARIOT_CAS = HALF
+# Crew carry shields: the two reductions stack (0.5 × 0.7 = 0.35; 07d §6, F5).
+CHARIOT_CAS = fmul(HALF, SHIELD)
 
 
 def warriors(n, weapon, first_id=1000, chariot=False):
@@ -341,9 +342,9 @@ TABLE1 = [
     ("none, stone-armed militia", {}, "stone", 0, False, (93, 9, 24, 33)),
     ("palisade + watchers, stone militia", dict(barrier="palisade", watchers=True), "stone", 0, False, (13, 39, 8, -16)),
     ("palisade + watchers, bronze militia + shields", dict(barrier="palisade", watchers=True), "bronze", 0, True, (2, 45, 3, -23)),
-    ("palisade + watchers + 8 bronze warriors", dict(barrier="palisade", watchers=True), "bronze", 8, True, (0, 95, 2, -43)),
-    ("hillfort + watchers + 8 warriors", dict(barrier="hillfort", watchers=True), "bronze", 8, True, (0, 93, 1, -42)),
-    ("walls + watchers + 8 warriors", dict(barrier="walls", watchers=True), "bronze", 8, True, (0, 93, 1, -42)),
+    ("palisade + watchers + 8 bronze warriors", dict(barrier="palisade", watchers=True), "bronze", 8, True, (1, 60, 3, -29)),
+    ("hillfort + watchers + 8 warriors", dict(barrier="hillfort", watchers=True), "bronze", 8, True, (0, 83, 2, -38)),
+    ("walls + watchers + 8 warriors", dict(barrier="walls", watchers=True), "bronze", 8, True, (0, 93, 2, -42)),
 ]
 # §7.5 table 2: a bronze warband of 8 against soft targets
 TABLE2 = [
@@ -386,7 +387,7 @@ def field_battles(trials):
     sh = fx(7, 10)
     res = []
     res.append(("20 bronze+shield vs 20 stone warriors", field(warriors(20, "bronze"), warriors(20, "stone", 5000), trials, sh, None), 100))
-    res.append(("20 bronze+shield vs 28 stone warriors", field(warriors(20, "bronze"), warriors(28, "stone", 5000), trials, sh, None), 33))
+    res.append(("20 bronze+shield vs 28 stone warriors", field(warriors(20, "bronze"), warriors(28, "stone", 5000), trials, sh, None), 18))
     for n, doc in ((24, 39), (18, 100), (20, None), (22, None)):
         res.append((f"12 chariot crew vs {n} bronze+shield infantry",
                     field(warriors(12, "bronze", chariot=True), warriors(n, "bronze", 5000), trials, CHARIOT_CAS, sh), doc))
@@ -489,18 +490,24 @@ def main(trials=4000):
     print(f"\n== T21 §7.5 table 1: bronze warband of 12 (2.2 × 1.3, shields) vs a village of 120 (42 adults); doc 22 in brackets")
     for name, r, doc in table1(trials):
         d_s = r["success"] - doc[0]
-        mark = "" if abs(d_s) <= 10 and abs(r["raiders_hurt"] - doc[1]) <= 10 and abs(r["def_hurt"] - doc[2]) <= 10 else "  << moves"
+        mark = "" if all(abs(actual - expected) <= 10 for actual, expected in zip(
+            (r["success"], r["raiders_hurt"], r["def_hurt"], r["net"]), doc)) else "  << moves"
         if mark:
             flags.append(("T21 t1", name, r, doc))
         print(f"  {name:46s} success {pct(r['success'])} [{doc[0]:3d}]  raiders hurt {pct(r['raiders_hurt'])} [{doc[1]:3d}]"
               f"  defenders hurt {pct(r['def_hurt'])} [{doc[2]:3d}]  net {r['net']:6.1f} [{doc[3]:4d}]{mark}")
     stone = table1(trials, raider_weapon="stone", shields=False)[0][1]
-    print(f"  {'(the 12 with stone spears, no shields, vs none)':46s} success {pct(stone['success'])} [ 53]  raiders hurt "
-          f"{pct(stone['raiders_hurt'])} [ 21]  defenders hurt {pct(stone['def_hurt'])} [ 16]  net {stone['net']:6.1f} [   9]")
+    stone_doc = (63, 18, 17, 15)
+    if any(abs(actual - expected) > 10 for actual, expected in zip(
+            (stone["success"], stone["raiders_hurt"], stone["def_hurt"], stone["net"]), stone_doc)):
+        flags.append(("T21 stone", "the 12 with stone spears, no shields, vs none", stone, stone_doc))
+    print(f"  {'(the 12 with stone spears, no shields, vs none)':46s} success {pct(stone['success'])} [{stone_doc[0]:3d}]  raiders hurt "
+          f"{pct(stone['raiders_hurt'])} [{stone_doc[1]:3d}]  defenders hurt {pct(stone['def_hurt'])} [{stone_doc[2]:3d}]  net {stone['net']:6.1f} [{stone_doc[3]:4d}]")
 
     print(f"\n== T21 §7.5 table 2: bronze warband of 8 vs soft targets")
     for name, r, doc in table2(trials):
-        mark = "" if abs(r["success"] - doc[0]) <= 10 and abs(r["raiders_hurt"] - doc[1]) <= 10 and abs(r["def_hurt"] - doc[2]) <= 10 else "  << moves"
+        mark = "" if all(abs(actual - expected) <= 10 for actual, expected in zip(
+            (r["success"], r["raiders_hurt"], r["def_hurt"], r["net"]), doc)) else "  << moves"
         if mark:
             flags.append(("T21 t2", name, r, doc))
         print(f"  {name:46s} success {pct(r['success'])} [{doc[0]:3d}]  raiders hurt {pct(r['raiders_hurt'])} [{doc[1]:3d}]"
@@ -509,6 +516,8 @@ def main(trials=4000):
     print("\n== Field battles (open ground, break 40% both)")
     res, worth = field_battles(trials // 2)
     for name, v, doc in res:
+        if doc is not None and abs(v - doc) > 10:
+            flags.append(("T21 field", name, {"success": v, "raiders_hurt": 0, "def_hurt": 0, "net": 0}, (doc, 0, 0, 0)))
         print(f"  {name:46s} win {pct(v)}" + (f" [{doc}]" if doc is not None else ""))
     print(f"  a bronze-and-shield warrior is worth {worth:.2f} stone-armed warriors (doc 22 §7.1: 1.35-1.4)")
 
@@ -545,10 +554,10 @@ def main(trials=4000):
         print(f"   alternative 0.25/0.50, stores {st}: in 3-6 {100 * w:.1f}%, by 2 {100 * b2:.1f}%, median {med}")
 
     if flags:
-        print("\nCells outside ±10 points of doc 22 §7.5 (the port is the oracle; the doc's cells move):")
+        print("\nCells outside ±10 of the corrected doc 22 §7.5 values (the port is the oracle):")
         for tab, name, r, doc in flags:
             print(f"  {tab}: {name}: success {r['success']:.0f} vs {doc[0]}, raiders hurt {r['raiders_hurt']:.0f} vs {doc[1]},"
-                  f" defenders hurt {r['def_hurt']:.0f} vs {doc[2]}")
+                  f" defenders hurt {r['def_hurt']:.0f} vs {doc[2]}, net {r['net']:.1f} vs {doc[3]}")
     return flags
 
 
@@ -567,10 +576,19 @@ def selftest():
     for (s, _, _), pub in zip(got, (83, 37, 12, 4.5)):
         assert abs(s - pub) < 1.0, (s, pub)
     t1 = table1(1000)
+    assert all(all(abs(actual - expected) <= 10 for actual, expected in zip(
+        (r["success"], r["raiders_hurt"], r["def_hurt"], r["net"]), doc)) for _, r, doc in t1), "T21 table 1 outside ±10"
     assert t1[0][1]["success"] > 80 and t1[2][1]["success"] < 15, "bronze makes unwalled villages prey, palisade+bronze safe"
     assert all(r["success"] < 2.5 for _, r, _ in t1[3:]), "8 bronze warriors behind a barrier stop a raid of 12"
     t2 = table2(1000)
+    assert all(all(abs(actual - expected) <= 10 for actual, expected in zip(
+        (r["success"], r["raiders_hurt"], r["def_hurt"], r["net"]), doc)) for _, r, doc in t2), "T21 table 2 outside ±10"
     assert t2[0][1]["success"] > 85, "mining camps are prey"
+    stone = table1(1000, raider_weapon="stone", shields=False)[0][1]
+    assert all(abs(actual - expected) <= 10 for actual, expected in zip(
+        (stone["success"], stone["raiders_hurt"], stone["def_hurt"], stone["net"]), (63, 18, 17, 15))), "T21 stone-warband row outside ±10"
+    battle_rows, _ = field_battles(1000)
+    assert all(doc is None or abs(actual - doc) <= 10 for _, actual, doc in battle_rows), "T21 field-battle row outside ±10"
     p, _ = capture_percent(fparse("1.5"), "palisade", "bronze", 300)
     assert p >= 60, p
     w, *_ = siege_summary(invest(2.5, 2.0, 1.0, 1000))
@@ -584,4 +602,5 @@ if __name__ == "__main__":
         selftest()
     else:
         n = int(args[args.index("--trials") + 1]) if "--trials" in args else 4000
-        main(n)
+        if main(n):
+            raise SystemExit("combat_e3 oracle reported a T21 row outside tolerance")

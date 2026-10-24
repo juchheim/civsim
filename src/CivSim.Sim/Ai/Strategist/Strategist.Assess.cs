@@ -79,7 +79,8 @@ public sealed partial class Strategist
                 Palisade: b.PalisadeSeen || Believed(r, _def03),
                 Watchers: b.WatchersSeen || Believed(r, _def02),
                 Dogs: Believed(r, _hus01), SignalFires: Believed(r, _com04), AlarmCalls: Believed(r, _com01), HillSite: false,
-                Archery: Believed(r, _war03), Night: false, RaidedRecently: raidedRecently);
+                Archery: Believed(r, _war03), Night: false, RaidedRecently: raidedRecently,
+                Hillfort: b.HillfortSeen, StoneWalls: b.StoneWallsSeen, BronzeRules: r.Era >= 3);
             var site = new Site
             {
                 Settlement = b.Settlement, Tile = b.Tile, Stale = stale, Population = b.PopulationEstimate, Fighters = counted,

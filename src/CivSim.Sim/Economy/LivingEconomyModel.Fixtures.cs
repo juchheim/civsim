@@ -56,8 +56,36 @@ public sealed partial class LivingEconomyModel
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
     internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
 
+    /// <summary>Adds a populated mining camp at a chosen deposit for view and lifecycle fixtures.</summary>
+    internal void FixtureAddMiningCamp(int parentSettlementIndex, int tile, int crew = 4, bool built = true, bool mineHead = false)
+    {
+        SettlementState parent = _settlements[parentSettlementIndex];
+        var camp = new MiningCampState
+        {
+            Id = _nextCampId++, Parent = parentSettlementIndex, Tile = tile, Opened = checked((int)_seasonsCompleted),
+            Target = Math.Max(2, crew), Built = built, MineHead = mineHead,
+        };
+        _camps.Add(camp);
+        int assigned = 0;
+        foreach (FigureState f in _figures)
+        {
+            if (assigned >= crew) break;
+            if (f.SettlementId != parent.Id || f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
+            f.Camp = camp.Id;
+            assigned++;
+        }
+    }
+
     /// <summary>Sets a tile's standing wood (a forest burned off, or a clearing).</summary>
     internal void FixtureSetWood(int tile, Fix64 litres) => _woodStock[tile] = litres;
+
+    /// <summary>Builds one registered structure outright for a deterministic politics fixture.</summary>
+    internal void FixtureBuildStructure(int settlementIndex, string structure)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        _settlements[settlementIndex].Structures[kind]++;
+    }
 
     /// <summary>Builds a metal structure outright: "forge", "smelter", "kiln" or "mine_head" (at <paramref name="tile"/>).</summary>
     internal void FixtureBuild(int settlementIndex, string structure, int tile = -1)
@@ -145,6 +173,32 @@ public sealed partial class LivingEconomyModel
         }
         return (s.FieldTiles.Count, canals);
     }
+
+    /// <summary>Runs the winter-production forecast for the selected settlement (regression coverage only).</summary>
+    internal Fix64 FixtureForecastWinterProduction(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return ForecastWinterProduction(s, Fix64.Zero, FoodNeed(s, true));
+    }
+
+    internal Fix64 FixtureDomesticHerdWorkNeed(int settlementIndex)
+        => DomesticHerdWorkNeed(_settlements[settlementIndex]);
+
+    internal bool FixtureCanTameFromRange(int settlementIndex) => CanTameFromRange(_settlements[settlementIndex]);
+
+    internal void FixtureSetWildHerd(int herdIndex, int tile, Fix64 animals)
+    {
+        WildHerdState herd = _wildHerds[herdIndex];
+        herd.CurrentTile = tile;
+        herd.CurrentAnimals = animals;
+        if (_hasIndividualHerds) RebuildWildHerdFoodStock();
+    }
+
+    internal Fix64 FixtureHuntWildHerd(int settlementIndex, Fix64 work, Fix64 rate)
+        => HuntIndividualHerds(_settlements[settlementIndex], work, rate, (int)_seasonsCompleted, cooperativeDrive: false);
+
+    internal void FixtureApplyNaturalHerdCrash(int herdIndex)
+        => _wildHerds[herdIndex].CurrentAnimals *= Fix64.Half;
 
     /// <summary>Raises a civic structure outright: "market", "temple", "palace", "school", "bakery", "hall" or "ziggurat".</summary>
     internal void FixtureCivic(int settlementIndex, string structure)

@@ -6,7 +6,8 @@ using CivSim.Sim.Research;
 namespace CivSim.Sim.Ai.Forecast;
 
 /// <summary>One season of a forecast (docs/MVP/14 §3.2 "outputs per season").</summary>
-public readonly record struct ForecastSeason(int Season, Fix64 InsightPerYear, Fix64 Adults, int Completed, int Era, Fix64 Mastery, Fix64 Firsts, Fix64 Utility);
+public readonly record struct ForecastSeason(int Season, Fix64 InsightPerYear, Fix64 Adults, int Completed, int Era, Fix64 Mastery, Fix64 Firsts, Fix64 Utility,
+    ForecastBronzeSeason Bronze);
 
 /// <summary>The summary of one rollout.</summary>
 public struct ForecastResult
@@ -18,9 +19,11 @@ public struct ForecastResult
     public Fix64 Firsts;
     public int Completed;
     public int Era;
-    /// <summary>Forecast steps (<see cref="ForecastTuning.StepsPerSeason"/> a season) at which KEY-1, KEY-2, KEY-3 complete; -1 if not within the horizon or already done.</summary>
-    public int Key1, Key2, Key3;
+    /// <summary>Forecast steps (<see cref="ForecastTuning.StepsPerSeason"/> a season) at which KEY-1 through KEY-4 complete; -1 if not within the horizon or already done.</summary>
+    public int Key1, Key2, Key3, Key4;
     public int Steps;
+    /// <summary>The last season's coarse own-only E3 state, including deterministic Mandate and Admin progression.</summary>
+    public ForecastBronzeSeason Bronze;
 }
 
 /// <summary>What a completion is worth to the caller beyond Mastery: the Firsts race and per-project bonuses.</summary>
@@ -141,6 +144,7 @@ public sealed class ResearchForecast
     private bool _seenOpen;
     private bool _promote;
     private Fix64 _khUsed;
+    private ForecastBronzeRollout? _bronze;
     /// <summary>Know-how drained into projects during the last run.</summary>
     public Fix64 KnowHowUsed => _khUsed;
 
@@ -486,6 +490,7 @@ public sealed class ResearchForecast
         _step = 0;
         _seenOpen = false;
         _khUsed = Fix64.Zero;
+        _bronze = new ForecastBronzeRollout(_start.Bronze, _c.Catalog);
         _extraWork = Fix64.Zero;
         Array.Clear(_extraLineage);
         _genDirty = true;
@@ -509,7 +514,7 @@ public sealed class ResearchForecast
         RebuildAvailable();
         Fill();
 
-        var result = new ForecastResult { Key1 = -1, Key2 = -1, Key3 = -1 };
+        var result = new ForecastResult { Key1 = -1, Key2 = -1, Key3 = -1, Key4 = -1 };
         Fix64 perStep = Fix64.Zero;
         _insightDirty = true;
         for (int season = 0; season < _horizon; season++)
@@ -530,9 +535,11 @@ public sealed class ResearchForecast
             if (_insightDirty) InsightAt(season, out commons); // a completion in the last step changed it
             _insightDirty = true;                              // the next season brings new people
             GenerateKnowHow(commons);
+            _bronze.EndSeason();
+            ForecastBronzeSeason bronzeSeason = _bronze.Snapshot(season + 1);
             if (trace is not null)
                 trace.Add(new ForecastSeason(season + 1, InsightAt(Math.Min(season + 1, _horizon), out _), _adults[Math.Min(season + 1, _horizon)],
-                    _completed, _era, _mastery, _firsts, _utility));
+                    _completed, _era, _mastery, _firsts, _utility, bronzeSeason));
             if (_slots[0] < 0 && _slots[1] < 0 && _slots[2] < 0) break; // nothing left that can be researched
         }
 
@@ -543,10 +550,12 @@ public sealed class ResearchForecast
         result.Completed = _completed;
         result.Era = _era;
         result.Steps = _step;
-        int k1 = _c.Catalog.KeystoneLeaving(0), k2 = _c.Catalog.KeystoneLeaving(1), k3 = _c.Catalog.KeystoneLeaving(2);
+        result.Bronze = _bronze.Snapshot(Math.Min(_horizon, Math.Max(1, (_step + _sps - 1) / _sps)));
+        int k1 = _c.Catalog.KeystoneLeaving(0), k2 = _c.Catalog.KeystoneLeaving(1), k3 = _c.Catalog.KeystoneLeaving(2), k4 = _c.Catalog.KeystoneLeaving(3);
         if (k1 >= 0) result.Key1 = DoneAt[k1];
         if (k2 >= 0) result.Key2 = DoneAt[k2];
         if (k3 >= 0) result.Key3 = DoneAt[k3];
+        if (k4 >= 0) result.Key4 = DoneAt[k4];
         return result;
     }
 
@@ -762,6 +771,7 @@ public sealed class ResearchForecast
 
     private void Complete(int p)
     {
+        _bronze?.OnProjectCompleted(p);
         _done[p] = true;
         DoneAt[p] = _step;
         CompletionOrder[_completed++] = p;

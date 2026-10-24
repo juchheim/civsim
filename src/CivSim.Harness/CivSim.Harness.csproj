@@ -10,4 +10,8 @@
     <ProjectReference Include="..\CivSim.Sim\CivSim.Sim.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CivSim.Tests" />
+  </ItemGroup>
+
 </Project>

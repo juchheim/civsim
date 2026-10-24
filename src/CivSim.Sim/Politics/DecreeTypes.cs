@@ -161,4 +161,6 @@ public sealed class TinFolkVillage
 /// </summary>
 public readonly record struct DecreeForecast(
     DecreeKind Kind, bool Allowed, OrderRefusalReason LikelyRefusal, int Cost, int MandateAfter, int SuccessPermille,
-    int People, int Tiles, Fix64 Goods, int RelationsDelta, int Seasons);
+    int People, int Tiles, Fix64 Goods, int RelationsDelta, int Seasons,
+    Fix64 LandWeight = default, Fix64 Dominion = default, Fix64 Information = default,
+    Fix64 MetalValue = default, Fix64 WallEtaSeasons = default, int ThreatEtaSeasons = -1, Fix64 ThreatMarginSeasons = default);

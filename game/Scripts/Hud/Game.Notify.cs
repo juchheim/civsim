@@ -462,6 +462,7 @@ public partial class Game
     {
         "Your research slots", "New knowledge", "Winter", "Tools and methods", "A growing people", "A new age", "First contact", "Food warning",
         "Look around", "An open slot",
+        "Mandate and Decrees", "Tin bronze tools",
     };
 
     private static string[] CoachBodies => new[]
@@ -476,6 +477,8 @@ public partial class Game
         "A settlement may go hungry this winter. Turn on Food to see where.",
         "Drag to move. Scroll or pinch to zoom. Right-drag (or Option-drag) to turn.",
         "A slot is open. Its share goes to the others until you choose — or turn on Auto-fill.",
+        "KEY-3 unlocked Mandate. Decrees let you choose where to found, explore and mine; open Decrees to preview a call before issuing it.",
+        "Tin bronze is stronger, but it needs tin. When access runs short, workers fall back to arsenical bronze or copper kits; use the Methods layer to spot the change.",
     };
 
     private bool TipSeen(int index) => (_onboardingSeen & (1UL << index)) != 0;
@@ -523,13 +526,14 @@ public partial class Game
     private void ProcessCoachTriggers(MatchFrame frame)
     {
         if (_ui.AnyModal) return;
+        int viewer = Math.Max(0, frame.ViewerCiv);
         int tip = -1;
         for (int i = 0; i < frame.EventCount; i++)
         {
             ViewEvent item = frame.Events[i];
             if (item.Sequence <= _lastOnboardingEventSequence) continue;
             _lastOnboardingEventSequence = item.Sequence;
-            if (item.Civ != 0) continue;
+            if (item.Civ != viewer) continue;
             if (item.Kind == ViewEventKind.SeasonBegan && item.A == 3 && tip < 0) tip = 2;
             else if (item.Kind == ViewEventKind.Moment && tip < 0) tip = 1;
             else if (item.Kind == ViewEventKind.VisibleChange && tip < 0) tip = 3;
@@ -537,8 +541,13 @@ public partial class Game
             else if (item.Kind == ViewEventKind.EraAdvanced && tip < 0) tip = 5;
             else if (item.Kind == ViewEventKind.FamineRisk && tip < 0) tip = 7;
         }
-        if (tip < 0 && frame.CivSettlements.Length > 0 && frame.CivSettlements[0] > 1 && !TipSeen(4)) tip = 4;
-        if (tip < 0 && !_researchWebVisible && frame.FocusCiv == 0 && !TipSeen(0) &&
+        if (tip < 0 && viewer < frame.CivSettlements.Length && frame.CivSettlements[viewer] > 1 && !TipSeen(4)) tip = 4;
+        if (tip < 0 && frame.FocusCiv == viewer && frame.FocusMandateUnlocked && !TipSeen(10)) tip = 10;
+        if (tip < 0 && frame.FocusCiv == viewer && viewer < frame.CivEra.Length && frame.CivEra[viewer] >= 3 && !TipSeen(11))
+            for (int i = 0; i < frame.FigureCiv.Length; i++)
+                if (frame.FigureCiv[i] == viewer && (MethodToolId)frame.FigureMethodFallbackTool[i] is MethodToolId.TinBronzeKit or MethodToolId.ArsenicalKit)
+                { tip = 11; break; }
+        if (tip < 0 && !_researchWebVisible && frame.FocusCiv == viewer && !TipSeen(0) &&
             (frame.FocusSlotProject[0] >= 0 || frame.FocusSlotProject[1] >= 0 || frame.FocusSlotProject[2] >= 0)) tip = 0;
         if (tip < 0 && !TipSeen(9) && TipSeen(0) && !frame.FocusCouncil && FirstOpenSlot() >= 0 && !_researchWebVisible) tip = 9;
         if (tip >= 0) RequestCoachTip(tip);

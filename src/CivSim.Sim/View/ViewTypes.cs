@@ -87,6 +87,9 @@ public enum FoodBand : byte { Secure = 0, Tight = 1, Short = 2, Famine = 3 }
 /// <summary>Cohesion bands (docs/MVP/08 §5 "fraying rope"): Cohesion runs 0.6 to 1.2.</summary>
 public enum CohesionBand : byte { Strong = 0, Steady = 1, Strained = 2, Fraying = 3 }
 
+/// <summary>Kind of camp in <see cref="MatchFrame.CampKind"/>.</summary>
+public enum CampKind : byte { Seasonal = 0, Mining = 1 }
+
 /// <summary>Bits of <see cref="MatchFrame.SettlementFlags"/>.</summary>
 [Flags]
 public enum SettlementViewFlags : ushort

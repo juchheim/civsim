@@ -312,6 +312,7 @@ internal sealed class ActionRecorder : IStrategistActions
     public bool DeclareWar(int civ) { Orders.Add($"war {civ}"); return Accept; }
     public bool MakePeace(int civ) { Orders.Add($"peace {civ}"); return Accept; }
     public bool Ally(int civ) { Orders.Add($"ally {civ}"); return Accept; }
+    public bool SetEmbargo(int civ, TradeGood good, bool on) { Orders.Add($"embargo {civ} {good} {on}"); return Accept; }
     public bool SetPosture(Posture posture) { Orders.Add($"posture {posture}"); return Accept; }
     public bool PlaceBeacon(int tile) { Orders.Add($"beacon {tile}"); return Accept; }
     public void RemoveBeacon(int index) => Orders.Add($"unbeacon {index}");

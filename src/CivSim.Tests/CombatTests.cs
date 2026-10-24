@@ -158,4 +158,46 @@ public class CombatTests
         Assert.Equal(1, Captures.OccupationSeasons(150));  // a hamlet
         Assert.Equal(2, Captures.OccupationSeasons(151));  // a village
     }
+
+    [Fact]
+    public void Bronze_weapons_shields_and_chariots_use_the_E3_values()
+    {
+        Same(Fix64.FromRatio(21, 10), Combat.E3WeaponStrength("arsenical"));
+        Same(Fix64.FromRatio(23, 10), Combat.E3WeaponStrength("tin"));
+        Same(Fix64.FromRatio(286, 100), Combat.TrainedWarriorStrength("bronze"));
+        Same(Fix64.FromRatio(572, 100), Combat.TrainedWarriorStrength("bronze", chariotOnOpenTerrain: true));
+        Same(Fix64.FromRatio(7, 10), Combat.ShieldCasualtyFactor(Fix64.One));
+        Same(Fix64.FromRatio(85, 100), Combat.ShieldCasualtyFactor(Fix64.Half));
+        Same(Fix64.Half, Combat.ChariotCasualtyFactor);
+        Same(Fix64.FromRatio(35, 100), Combat.E3CasualtyFactor(Fix64.One, Fix64.One));
+    }
+
+    [Fact]
+    public void Bronze_barriers_replace_each_other_and_walls_cannot_be_assaulted()
+    {
+        var hillfort = Defenses.None with { Hillfort = true };
+        var walls = Defenses.None with { StoneWalls = true };
+        Same(Fix64.FromRatio(275, 100), hillfort.Multiplier()); // ×1.1 home ×2.5 hillfort
+        Same(Fix64.FromRatio(33, 10), walls.Multiplier()); // ×1.1 home ×3 walls
+        Same(Fix64.FromRatio(1, 4), hillfort.LootMultiplier());
+        Assert.False(walls.CanBeAssaulted());
+        BattleResult result = Captures.Assault(Group(30, "2.0"), Group(20, "1.0", 100), walls, true, 1, 2);
+        Assert.Equal(BattleWinner.StandOff, result.Winner);
+        Assert.Empty(result.AttackerDead);
+    }
+
+    [Fact]
+    public void Fighter_shields_and_chariot_crew_reduce_live_battle_casualties()
+    {
+        List<Fighter> plain = Group(30, "1.0", 100);
+        List<Fighter> protectedSide = plain.Select(f => f with { CasualtiesTaken = Fix64.FromRatio(35, 100) }).ToList();
+        var setup = Open();
+        int plainLosses = 0, protectedLosses = 0;
+        for (ulong seed = 0; seed < 100; seed++)
+        {
+            plainLosses += Combat.Fight(Group(30, "1.0"), plain, setup, 17, seed).DefenderDead.Count;
+            protectedLosses += Combat.Fight(Group(30, "1.0"), protectedSide, setup, 17, seed).DefenderDead.Count;
+        }
+        Assert.True(protectedLosses < plainLosses, $"protected {protectedLosses}, plain {plainLosses}");
+    }
 }

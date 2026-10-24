@@ -75,6 +75,7 @@ public partial class Game
         CreateNotifications();
         CreateTileCard();
         CreateDiplomacyDrawer();
+        CreateDecreePanel();
         CreateResearchWeb();
         // The time controls stay usable above the research web's scrim (spec §3.4).
         foreach (Control? top in new Control?[] { _civCard, _timeCluster, _pausedPill, _topRight })
@@ -168,6 +169,7 @@ public partial class Game
         LayoutTopBar();
         LayoutFocusBar();
         LayoutRail();
+        LayoutDecreePanel();
         LayoutNotifications();
         LayoutDrawers();
         LayoutResearchWeb();
@@ -186,6 +188,7 @@ public partial class Game
         RefreshRail(frame);
         RefreshResearchWeb(frame);
         RefreshDiplomacy(frame);
+        RefreshDecrees(frame);
         RefreshNotifications(frame);
         UpdatePausedTreatment();
     }

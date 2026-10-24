@@ -48,6 +48,9 @@ var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or op
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
 var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibility (0/128/255), claimant+1
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
+var e3_overlay_bytes := PackedByteArray() # RGBA8 per tile: deposit, mine marker, cohesion band, compact/caravan
+var forest_overlay := PackedByteArray() # visible ForestBand 0–3, zero elsewhere
+var camp_details := [] # [tile, civ, kind, parent, deposit, crew, built, minehead]
 var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood
 var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
@@ -129,6 +132,18 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	ghosts = _int_data(d.ghosts, 8) if d.has("ghosts") else PackedInt32Array()
 	state_bytes = d.stateBytes if d.has("stateBytes") else PackedByteArray()
 	overlay_bytes = d.overlayBytes if d.has("overlayBytes") else PackedByteArray()
+	e3_overlay_bytes = d.e3OverlayBytes if d.has("e3OverlayBytes") else PackedByteArray()
+	forest_overlay = _byte_array(d.forestOverlay) if d.has("forestOverlay") else PackedByteArray()
+	camp_details.clear()
+	if d.has("campKind"):
+		var ck := _int_array(d.campKind)
+		var cp := _int_array(d.campParent)
+		var cd := _int_array(d.campDeposit)
+		var cr := _int_array(d.campCrew)
+		var cb := _int_array(d.campBuilt)
+		var cm := _int_array(d.campMineHead)
+		for i in camps.size():
+			camp_details.append([int(camps[i][0]), int(camps[i][1]), int(ck[i]), int(cp[i]), int(cd[i]), int(cr[i]), int(cb[i]), int(cm[i])])
 	herds = _int_data(d.herds, 7)
 	settlements = d.settlements
 	plots = _int_data(d.plots, 2)

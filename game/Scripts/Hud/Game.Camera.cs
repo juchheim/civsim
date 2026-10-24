@@ -451,6 +451,11 @@ public partial class Game
 
     private void OnMapClicked(Vector2 position)
     {
+        if (_decreeMapMode)
+        {
+            if (TryPickTile(position, out int decreeTile)) SelectDecreeTile(decreeTile);
+            return;
+        }
         if (_beaconMode)
         {
             ManageBeaconAt(position);
@@ -467,7 +472,13 @@ public partial class Game
 
     private void OnMapRightClicked()
     {
-        if (_beaconMode) SetBeaconMode(false);
+        if (_decreeMapMode)
+        {
+            _decreeMapMode = false;
+            Input.SetDefaultCursorShape(Input.CursorShape.Arrow);
+            if (_decreeHint is not null) UiKit.SetText(_decreeHint, "Map target cancelled.");
+        }
+        else if (_beaconMode) SetBeaconMode(false);
         else if (_pinnedTile >= 0) { _pinnedTile = -1; UpdatePinLayer(); RefreshTileCardNow(GetViewport().GetMousePosition()); }
     }
 

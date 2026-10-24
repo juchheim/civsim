@@ -133,6 +133,10 @@ public sealed class ForecastStart
     public Fix64 RolesScale = Fix64.One;
     public ForecastPeople People;
     public Fix64 Mastery, Firsts;
+    /// <summary>Own-only E3 state captured for the coarse Bronze forecast.</summary>
+    public ForecastBronzeStart Bronze { get; private set; } = new();
+
+    public void CaptureBronze(ForecastBronzeStart ownBronze) => Bronze = ownBronze.Copy();
 
     /// <summary>Copies the research state from a readout. People and Know-how generation are set by the caller.</summary>
     public void CaptureResearch(IResearchReadout r, int civ, EconomyArchetype archetype)

@@ -36,7 +36,8 @@ public readonly record struct WorldEconomyTile(
     bool River = false,
     bool Lake = false,
     bool Coast = false,
-    bool WildGrainStand = false)
+    bool WildGrainStand = false,
+    byte Elevation = 0)
 {
     /// <summary>The extra two ordinary seasons of fish growth delivered by the Autumn salmon run.</summary>
     public Fix64 SalmonAutumnGrowth => SalmonRun ? FishGrowthPerYear / 2 : Fix64.Zero;
@@ -202,7 +203,7 @@ public sealed class WorldEconomyInput
                 source.IsLand ? Fix64.FromInt(2) + (source.Deposit == DepositKind.Stone ? Fix64.FromInt(source.DepositAmount) : Fix64.Zero) : Fix64.Zero,
                 source.Deposit == DepositKind.Clay ? Fix64.FromInt(source.DepositAmount) : Fix64.Zero,
                 source.Deposit == DepositKind.Flint ? Fix64.FromInt(source.DepositAmount) : Fix64.Zero,
-                salmonRun, river, lake, coast, (source.Flags & TileFlags.WildGrain) != 0);
+                salmonRun, river, lake, coast, (source.Flags & TileFlags.WildGrain) != 0, source.Elevation);
         }
 
         int[] starts = new int[world.Starts.Length];

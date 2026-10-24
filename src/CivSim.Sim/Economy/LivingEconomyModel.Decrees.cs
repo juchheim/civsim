@@ -170,7 +170,8 @@ public sealed partial class LivingEconomyModel
             case CorveeTarget.Canal:
                 return CanalCandidates(s) > 0;
             case CorveeTarget.Walls:
-                return false;
+                return CanBuild(s.Civilization, Structure.StoneWalls) &&
+                    s.Structures[(int)Structure.StoneWalls] < (int)Tier(s.Id) + 1;
             default:
                 CivicBuild b = CorveeBuild(target);
                 if (b == CivicBuild.None) return false;
@@ -219,6 +220,11 @@ public sealed partial class LivingEconomyModel
             c.BuildKind = b;
             c.BuildProgress = Fix64.Zero;
         }
+        if (target == CorveeTarget.Walls && s.BuildTarget != Structure.StoneWalls)
+        {
+            s.BuildTarget = Structure.StoneWalls;
+            s.BuildProgress = Fix64.Zero;
+        }
         return true;
     }
 
@@ -233,7 +239,8 @@ public sealed partial class LivingEconomyModel
     private static readonly Fix64 CorveeMult = Fix64.FromRatio(3, 2);
 
     /// <summary>The Corvée's labor multiplier on a settlement's civic construction this season (1 without one).</summary>
-    private Fix64 CorveeLaborMult(SettlementState s) => _corvee.Count > 0 && CorveeAt(s.Id) >= 0 ? CorveeMult : Fix64.One;
+    private Fix64 CorveeLaborMult(SettlementState s)
+        => _corvee.Count > 0 && CorveeAt(s.Id) >= 0 && CorveeAt(s.Id) != CorveeTarget.Walls ? CorveeMult : Fix64.One;
 
     // ---- goods for compacts and caravans ---------------------------------------------------------------
 

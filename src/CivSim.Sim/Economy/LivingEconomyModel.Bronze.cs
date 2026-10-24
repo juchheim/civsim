@@ -41,6 +41,10 @@ public readonly record struct MetalStatistics(
     Fix64 Charcoal, Fix64 CharcoalWood, Fix64 FireSettingWood, Fix64 OreMined, Fix64 Kits8, Fix64 Kits9, Fix64 Kits10,
     Fix64 ArmsCast, Fix64 BronzeArms, Fix64 RemeltCopper, Fix64 ChopWood, Fix64 OtherWood = default);
 
+/// <summary>Gross recipe output in the last completed season, annualized at four seasons per year.</summary>
+public readonly record struct MetalOutputRates(Fix64 Copper, Fix64 Tin, Fix64 Bronze, Fix64 ArsenicalBronze,
+    Fix64 Charcoal, Fix64 Kits8, Fix64 Kits9, Fix64 Kits10, Fix64 ArmsCast, Fix64 BronzeArms);
+
 /// <summary>
 /// The Bronze Age economy's state (docs/MVP/22 §5, 23 §3–§8): deposits as ore stocks, mining camps, forests that recede and
 /// regrow, per-settlement metal stores and structures, per-figure tool kits. Everything here is dormant, unhashed and
@@ -211,6 +215,9 @@ public sealed partial class LivingEconomyModel
     private readonly List<MiningCampState> _camps = new();
     private int _nextCampId;
     private Fix64[] _metalStats = Array.Empty<Fix64>();
+    // Gross production, separate from cumulative T17 totals: current season is rotated at EndSeason.
+    private Fix64[] _metalOutputCurrent = Array.Empty<Fix64>();
+    private Fix64[] _metalOutputLast = Array.Empty<Fix64>();
     private int _key3 = -1;
 
     // Derived, never hashed: recipe slots resolved against the store layout, and per-site tile lists for charcoal reach.
@@ -223,6 +230,9 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>True from the season the first civilization completes KEY-3: deposits, camps, forests and kits are live.</summary>
     public bool BronzeActive => _bronzeActive;
+
+    /// <summary>Whether this civilization has completed KEY-3 and may use Bronze Age mining systems.</summary>
+    public bool IsBronzeCivilization(int civ) => unchecked((uint)civ) < unchecked((uint)_completedProjects.Length) && CivInBronze(civ);
 
     private void InitializeBronze()
     {
@@ -240,6 +250,8 @@ public sealed partial class LivingEconomyModel
             _ore[tile] = OreLitres(d);
         }
         _metalStats = new Fix64[_completedProjects.Length * StatCount];
+        _metalOutputCurrent = new Fix64[_completedProjects.Length * StatCount];
+        _metalOutputLast = new Fix64[_completedProjects.Length * StatCount];
         CompileRecipes();
         InitializeCivic();
         InitializeFood();
@@ -271,12 +283,45 @@ public sealed partial class LivingEconomyModel
     {
         if (amount == Fix64.Zero) return;
         _metalStats[civ * StatCount + stat] += amount;
+        if (IsGrossOutputStat(stat)) _metalOutputCurrent[civ * StatCount + stat] += amount;
+    }
+
+    private static bool IsGrossOutputStat(int stat) => stat is StatBronze or StatArsenicalBronze or StatCopper or StatTin or
+        StatCharcoal or StatKits8 or StatKits9 or StatKits10 or StatArmsCast or StatBronzeArms;
+
+    private void RotateMetalOutputSeason()
+    {
+        for (int civ = 0; civ < _completedProjects.Length; civ++)
+        for (int stat = 0; stat < StatCount; stat++)
+        {
+            int i = civ * StatCount + stat;
+            if (!IsGrossOutputStat(stat)) continue;
+            _metalOutputLast[i] = _metalOutputCurrent[i];
+            _metalOutputCurrent[i] = Fix64.Zero;
+        }
+    }
+
+    /// <summary>Read-only gross output rates from the most recently completed season, annualized ×4.</summary>
+    public MetalOutputRates MetalOutputRate(int civ)
+    {
+        if (unchecked((uint)civ) >= unchecked((uint)_completedProjects.Length)) return default;
+        int o = civ * StatCount;
+        Fix64 Annual(int stat) => _metalOutputLast.Length == 0 ? Fix64.Zero : _metalOutputLast[o + stat] * Fix64.FromInt(4);
+        return new MetalOutputRates(Annual(StatCopper), Annual(StatTin), Annual(StatBronze), Annual(StatArsenicalBronze),
+            Annual(StatCharcoal), Annual(StatKits8), Annual(StatKits9), Annual(StatKits10), Annual(StatArmsCast), Annual(StatBronzeArms));
     }
 
     // ---- public read-only surfaces ---------------------------------------------------------
 
     /// <summary>Ore left in a tile's deposit, in litres.</summary>
     public Fix64 OreRemaining(int tile) => _ore[tile];
+
+    /// <summary>Whether the deposit has produced ore at least once since Bronze became active.</summary>
+    public bool DepositWorked(int tile)
+    {
+        if (!_bronzeActive || unchecked((uint)tile) >= unchecked((uint)_ore.Length)) return false;
+        return _ore[tile] < OreLitres(_world.Deposit(tile));
+    }
 
     /// <summary>The view's forest band of a tile (docs/MVP/23 §7.4): 0 under 5 L, 1 for 5–14, 2 for 15–24, 3 from 25 L.</summary>
     public int ForestBand(int tile)
@@ -498,6 +543,8 @@ public sealed partial class LivingEconomyModel
             hash.Add(c.MineHead); hash.Add(c.HeadProgress); hash.Add(c.Distance); hash.Add(c.Decreed); hash.Add(c.Target);
         }
         hash.Add(_metalStats);
+        hash.Add(_metalOutputCurrent);
+        hash.Add(_metalOutputLast);
         for (int i = 0; i < _settlements.Count; i++)
         {
             if (_settlements[i].Metal is not { } m) continue;
@@ -531,6 +578,8 @@ public sealed partial class LivingEconomyModel
             writer.Write(c.Decreed); writer.Write(c.Target);
         }
         WriteFixArray(writer, _metalStats);
+        WriteFixArray(writer, _metalOutputCurrent);
+        WriteFixArray(writer, _metalOutputLast);
         for (int i = 0; i < _settlements.Count; i++)
         {
             MetalState? m = _settlements[i].Metal;
@@ -576,6 +625,8 @@ public sealed partial class LivingEconomyModel
             });
         }
         ReadFixArray(reader, _metalStats);
+        ReadFixArray(reader, _metalOutputCurrent);
+        ReadFixArray(reader, _metalOutputLast);
         for (int i = 0; i < _settlements.Count; i++)
         {
             if (!reader.ReadBoolean()) { _settlements[i].Metal = null; continue; }
@@ -645,6 +696,8 @@ public sealed partial class LivingEconomyModel
                 MineHead = c.MineHead, HeadProgress = c.HeadProgress, Distance = c.Distance, Decreed = c.Decreed, Target = c.Target,
             });
         Array.Copy(source._metalStats, _metalStats, _metalStats.Length);
+        Array.Copy(source._metalOutputCurrent, _metalOutputCurrent, _metalOutputCurrent.Length);
+        Array.Copy(source._metalOutputLast, _metalOutputLast, _metalOutputLast.Length);
         CopyCivicFrom(source);
         RefreshBronzeActive();
     }

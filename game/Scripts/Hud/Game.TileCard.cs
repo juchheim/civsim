@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CivSim.Game.Ui;
 using CivSim.Sim.Economy;
 using CivSim.Sim.View;
@@ -153,7 +154,11 @@ public partial class Game
         string water = world.HasRiver(tile) ? "River" : world.HasLake(tile) ? "Lake" : "";
         string deposit = frame.KnownDeposits[tile] != 0 && world.Deposit[tile] != (byte)DepositKind.None
             ? $"{SpacedName(((DepositKind)world.Deposit[tile]).ToString())} deposit" : "No known deposit";
-        UiKit.SetText(_tileFeatures!, water.Length > 0 ? $"{water} · {deposit}" : deposit);
+        string liveTile = visibility == TileVisibility.Visible
+            ? $"Forest band {frame.ForestBand[tile]}" : "";
+        if (frame.KnownDeposits[tile] != 0 && frame.DepositWorked[tile] != 0) liveTile = JoinTileDetail(liveTile, "worked");
+        else if (frame.KnownDeposits[tile] != 0 && frame.MiningReach[tile] != 0) liveTile = JoinTileDetail(liveTile, "within mining reach");
+        UiKit.SetText(_tileFeatures!, string.Join(" · ", new[] { water, deposit, liveTile }.Where(s => s.Length > 0)));
 
         _tileWorkers!.Visible = true;
         TileWork work = ScanTileWork(frame, tile, visibility == TileVisibility.Visible);
@@ -169,6 +174,25 @@ public partial class Game
                 : visibility == TileVisibility.Explored ? "last seen only" : "beyond sight";
             string extra = $"Claims: {claims}\nElevation {world.Elevation[tile]}";
             if (work.Fallbacks > 0 && work.FirstDetail.Length > 0) extra += $"\n{work.FirstDetail}";
+            if (visibility == TileVisibility.Visible) extra += $"\nForest stock band {frame.ForestBand[tile]}";
+            if (visibility == TileVisibility.Visible)
+            {
+                for (int camp = 0; camp < frame.CampCount; camp++)
+                {
+                    if (frame.CampTile[camp] != tile || frame.CampKind[camp] != (byte)CampKind.Mining) continue;
+                    string mineral = frame.CampDeposit[camp] == 0 ? "unknown deposit" : SpacedName(((DepositKind)frame.CampDeposit[camp]).ToString());
+                    extra += $"\nMining camp: {mineral} · crew {frame.CampCrew[camp]} · {(frame.CampBuilt[camp] != 0 ? "built" : "work camp")}{(frame.CampMineHead[camp] != 0 ? " · minehead" : "")}";
+                }
+            }
+            for (int s = 0; s < frame.SettlementCount; s++)
+            {
+                if (frame.SettlementTile[s] != tile || (frame.SettlementFlags[s] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+                bool own = frame.SettlementCiv[s] == frame.ViewerCiv;
+                if (!own && visibility != TileVisibility.Visible) continue;
+                extra += $"\nCohesion: {CohesionName(frame.SettlementCohesion[s])}";
+                if (own && (frame.SettlementOverreach[s] != 0 || frame.SettlementSpanPenalty[s] != 0))
+                    extra += $" · overreach {frame.SettlementOverreach[s]} · span strain {frame.SettlementSpanPenalty[s]}";
+            }
             UiKit.SetText(_tileExtra, extra);
         }
         bool showHint = !pinned && !shift && _tileHintsShown < 12;
@@ -176,6 +200,10 @@ public partial class Game
         if (showHint) { UiKit.SetText(_tileHint, "Hold Shift for more · Click to pin"); if (_cardTile != tile) _tileHintsShown++; }
         PositionTileCard(screen);
     }
+
+    private static string JoinTileDetail(string current, string detail) => current.Length == 0 ? detail : $"{current} · {detail}";
+
+    private static string CohesionName(byte band) => band switch { 0 => "strong", 1 => "steady", 2 => "strained", _ => "fraying" };
 
     private void PositionTileCard(Vector2 screen)
     {

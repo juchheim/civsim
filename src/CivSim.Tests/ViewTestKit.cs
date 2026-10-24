@@ -49,7 +49,7 @@ internal static class ViewKit
         {
             h.Add(f.Visibility[t]); h.Add(f.Owner[t]); h.Add(f.Claim[t]); h.Add(f.Claimant[t]);
             h.Add(f.Claim2[t]); h.Add(f.Claimant2[t]); h.Add(f.Claim3[t]); h.Add(f.Claimant3[t]);
-            h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]);
+            h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]); h.Add(f.ForestBand[t]); h.Add(f.DepositWorked[t]); h.Add(f.MiningReach[t]);
         }
         h.Add(f.FigureCount);
         for (int i = 0; i < f.FigureCount; i++)
@@ -72,7 +72,8 @@ internal static class ViewKit
         for (int i = 0; i < f.SettlementCount; i++)
         {
             h.Add(f.SettlementIndex[i]); h.Add(f.SettlementCiv[i]); h.Add(f.SettlementTile[i]); h.Add(f.SettlementPopulation[i]);
-            h.Add(f.SettlementFood[i]); h.Add(f.SettlementWinterForecast[i]); h.Add(f.SettlementCohesion[i]); h.Add(f.SettlementFlags[i]);
+            h.Add(f.SettlementFood[i]); h.Add(f.SettlementWinterForecast[i]); h.Add(f.SettlementCohesion[i]);
+            h.Add(f.SettlementOverreach[i]); h.Add(f.SettlementSpanPenalty[i]); h.Add(f.SettlementFlags[i]);
             h.Add(f.SettlementBuildKind[i]); h.Add(f.SettlementBuildPermille[i]); h.Add(f.SettlementSmallStock[i]); h.Add(f.SettlementCattle[i]);
             h.Add(f.SettlementPigs[i]); h.Add(f.SettlementSeenSeason[i]);
             for (int k = 0; k < kinds; k++) h.Add(f.SettlementStructures[i * kinds + k]);
@@ -80,7 +81,11 @@ internal static class ViewKit
         h.Add(f.PlotCount);
         for (int i = 0; i < f.PlotCount; i++) { h.Add(f.PlotTile[i]); h.Add(f.PlotSettlement[i]); h.Add(f.PlotKind[i]); }
         h.Add(f.CampCount);
-        for (int i = 0; i < f.CampCount; i++) { h.Add(f.CampTile[i]); h.Add(f.CampCiv[i]); }
+        for (int i = 0; i < f.CampCount; i++)
+        {
+            h.Add(f.CampTile[i]); h.Add(f.CampCiv[i]); h.Add(f.CampKind[i]); h.Add(f.CampParent[i]); h.Add(f.CampDeposit[i]);
+            h.Add(f.CampCrew[i]); h.Add(f.CampBuilt[i]); h.Add(f.CampMineHead[i]);
+        }
         for (int c = 0; c < f.CivSeaTier.Length; c++) h.Add(f.CivSeaTier[c]);
         for (int c = 0; c < f.CivSignals.Length; c++) h.Add(f.CivSignals[c]);
         for (int c = 0; c < f.CivBurnLearned.Length; c++) h.Add(f.CivBurnLearned[c]);

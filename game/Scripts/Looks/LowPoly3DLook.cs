@@ -82,6 +82,8 @@ public sealed class LowPoly3DLook : IGameLook
         15 => CreateBox(new Vector3(0.55f, 0.025f, 0.42f)),
         16 => CreateCylinder(0.22f, 0.27f, 0.08f, 7),
         17 => CreateCylinder(0.035f, 0.05f, 0.32f, 5),
+        18 => CreateCylinder(0.18f, 0.29f, 0.20f, 8),
+        19 => CreateCylinder(0.28f, 0.34f, 0.38f, 8),
         _ => CreateBox(new Vector3(0.26f, 0.20f, 0.26f)),
     };
 }

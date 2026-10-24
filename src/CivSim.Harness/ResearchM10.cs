@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using CivSim.Sim.Content;
@@ -97,7 +98,51 @@ internal static class ResearchM10
         return pass ? 0 : 1;
     }
 
-    private static Run Play(ulong seed, ContentPack pack, EconomyArchetype[] archetypes, int maxMinutes, int humanSeat)
+    /// <summary>Single-seed full chapter replay canary, separate from the multi-seed balance gate.</summary>
+    public static int ExecuteGolden(ContentPack pack, string path, bool write)
+    {
+        var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
+        const ulong seed = 20261019UL;
+        Run? first = null, replay = null;
+        Parallel.For(0, 2, i =>
+        {
+            Run run = Play(seed, pack, archetypes, 70, -1, stopAtChapterEnd: true);
+            if (i == 0) first = run; else replay = run;
+        });
+        Run initial = first!;
+        Run second = replay!;
+        bool same = initial.End == second.End && initial.Checksum == second.Checksum && initial.Ticks == second.Ticks;
+        if (!same)
+        {
+            Console.Error.WriteLine("BRONZE GOLDEN REPLAY FAILED: fresh full-chapter runs differed.");
+            return 1;
+        }
+        string text = string.Join('\n',
+            "bronze-v1",
+            $"seed={seed}",
+            $"ticks={initial.Ticks}",
+            $"end={initial.End.Reason} endTick={initial.End.EndTick} civ={initial.End.Civ} countdownStartSeason={initial.End.CountdownStartSeason}",
+            $"checksum={initial.Checksum:x16}");
+        if (write)
+        {
+            File.WriteAllText(path, text + "\n");
+            Console.WriteLine($"wrote golden {path}");
+        }
+        else
+        {
+            string expected = File.ReadAllText(path).Replace("\r\n", "\n").Trim();
+            if (expected != text)
+            {
+                Console.Error.WriteLine("BRONZE GOLDEN CHECK FAILED\nexpected:\n" + expected + "\nactual:\n" + text);
+                return 1;
+            }
+            Console.WriteLine("Bronze full-chapter golden check passed (two fresh runs identical).");
+        }
+        Console.WriteLine(text);
+        return 0;
+    }
+
+    private static Run Play(ulong seed, ContentPack pack, EconomyArchetype[] archetypes, int maxMinutes, int humanSeat, bool stopAtChapterEnd = false)
     {
         MatchModel match = MatchModel.Create(seed, pack, archetypes);
         var runner = new SimRunner(match);
@@ -105,12 +150,13 @@ internal static class ResearchM10
         ResearchSystem r = match.Research;
         int civs = r.CivCount;
         int key3 = r.Catalog.IndexOf("KEY-3"), key4 = r.Catalog.IndexOf("KEY-4");
-        // The timing check wants every civilization's KEY-4, so the match keeps running past the chapter end (which is a pure
-        // function of the recorded completion ticks and is read afterwards) until all four finish or the bound is reached.
+        // The timing check wants every civilization's KEY-4, so it keeps running past the chapter end until all four finish
+        // or the bound is reached. The golden path opts out and stops at the exact chapter-ending season instead.
         while (runner.Tick < limit)
         {
             runner.Advance(1);
             if (runner.Tick % ResearchSystem.SeasonTicks != 0) continue;
+            if (stopAtChapterEnd && match.EndOfMatch(humanSeat).IsOver(runner.Tick)) break;
             bool all = true;
             for (int c = 0; c < civs; c++) all &= r.IsDone(c, key4);
             if (all) break;

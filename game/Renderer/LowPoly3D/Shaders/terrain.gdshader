@@ -6,10 +6,12 @@ render_mode blend_mix, cull_back, diffuse_burley, specular_schlick_ggx;
 uniform vec3 civ_col[8];
 uniform sampler2D tile_state : filter_nearest;
 uniform sampler2D overlay_state : filter_nearest;
+uniform sampler2D e3_overlay_state : filter_nearest;
+uniform sampler2D forest_overlay_state : filter_nearest;
 uniform float territory_strength = 1.0;
 uniform float claim_overlay_strength = 0.0;
 uniform float overlay_forecast = 0.0;
-uniform int overlay_mode = 0; // 0 none, 1 claim strength, 2 food security, 3 methods
+uniform int overlay_mode = 0; // 0 none, 1 claims, 2 food, 3 methods, 4 deposits, 5 trade, 6 cohesion, 7 forest
 uniform float terrain_detail = 1.0;
 uniform vec4 villages[48];      // x, z, radius
 uniform int village_count = 0;
@@ -121,6 +123,38 @@ void fragment() {
 				tint = overlay.a > 0.5 ? vec3(1.0, 0.54, 0.10) : mix(vec3(0.12, 0.42, 0.61), vec3(0.57, 0.25, 0.70), rung);
 			}
 			c = mix(c, tint, 0.43);
+		}
+	}
+	if (overlay_mode >= 4 && overlay_mode <= 7 && visibility > 0.9 && !wall) {
+		if (overlay_mode == 7) {
+			float forest = texture(forest_overlay_state, tile_uv).r * 255.0;
+			if (forest > 0.5) {
+				vec3 forest_tint = forest < 1.5 ? vec3(0.73, 0.68, 0.38) : forest < 2.5 ? vec3(0.39, 0.67, 0.30) : forest < 3.5 ? vec3(0.18, 0.54, 0.28) : vec3(0.08, 0.37, 0.22);
+				c = mix(c, forest_tint, 0.62);
+			}
+		} else {
+		vec4 e3 = texture(e3_overlay_state, tile_uv);
+		float code = overlay_mode == 4 ? e3.r : overlay_mode == 5 ? e3.a : e3.b;
+		if (code > 0.001) {
+			vec3 tint = vec3(0.8, 0.8, 0.8);
+			if (overlay_mode == 4) {
+				float deposit = floor(code * 255.0 + 0.5) - 1.0;
+				if (deposit == 8.0) tint = vec3(0.95, 0.68, 0.12);        // tin
+				else if (deposit == 7.0) tint = vec3(0.66, 0.35, 0.78);   // arsenical copper
+				else if (deposit == 5.0 || deposit == 6.0) tint = vec3(0.88, 0.43, 0.20); // copper
+				else tint = vec3(0.40, 0.72, 0.86);
+				float mine = floor(e3.g * 255.0 + 0.5);
+				if (mine > 0.5) tint = mix(tint, mine == 1.0 ? vec3(0.96, 0.88, 0.35) : mine == 2.0 ? vec3(0.24, 0.91, 0.68) : vec3(1.0, 0.97, 0.65), 0.58);
+			} else if (overlay_mode == 5) {
+				float trade = floor(code * 255.0 + 0.5);
+				tint = trade == 2.0 || trade == 4.0 ? vec3(0.98, 0.66, 0.12) : vec3(0.20, 0.78, 0.82);
+			} else {
+				float band = floor(code * 255.0 + 0.5) - 1.0;
+				tint = band < 0.5 ? vec3(0.20, 0.67, 0.31) : band < 1.5 ? vec3(0.77, 0.70, 0.18)
+					: band < 2.5 ? vec3(0.88, 0.42, 0.14) : vec3(0.70, 0.12, 0.16);
+			}
+			c = mix(c, tint, overlay_mode == 6 ? 0.58 : 0.62);
+		}
 		}
 	}
 	// Keep the whole landform legible while suppressing details on unknown and explored tiles.

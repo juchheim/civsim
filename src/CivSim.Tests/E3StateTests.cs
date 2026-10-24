@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
@@ -278,6 +279,29 @@ public class E3StateTests
         Assert.Equal(e.FixtureNearRiverFields(0), canals);
         Assert.True(canals <= fields);
         Assert.Equal(canals, e.Civic(0).Canals);
+    }
+
+    [Fact]
+    public void Winter_forecast_clamps_tiny_positive_herd_maintenance_before_dividing()
+    {
+        BronzeFixture baseline = Fixture(60, State.Concat(new[] { "HUS-03" }).ToArray());
+        LivingEconomyModel baselineEconomy = baseline.Economy;
+        baseline.RunSeasons(1);
+        baselineEconomy.FixtureFood(0, 0, Fix64.Zero, 1, Fix64.Zero, Fix64.Zero, 0);
+        Fix64 baselineProduction = baselineEconomy.FixtureForecastWinterProduction(0);
+
+        BronzeFixture tinyHerd = Fixture(60, State.Concat(new[] { "HUS-03" }).ToArray());
+        LivingEconomyModel e = tinyHerd.Economy;
+        tinyHerd.RunSeasons(1);
+        // 110 raw herd units yield a one-raw-unit maintenance need after the model's
+        // sequential fixed-point divisions. Dividing an ordinary material budget by it overflows.
+        e.FixtureFood(0, 0, Fix64.Zero, 1, Fix64.Zero, Fix64.FromRaw(110), 0);
+        Assert.True(e.FixtureCanTameFromRange(0));
+        Assert.Equal(Fix64.FromRaw(1), e.FixtureDomesticHerdWorkNeed(0));
+
+        Fix64 production = e.FixtureForecastWinterProduction(0);
+
+        Assert.True(production > baselineProduction);
     }
 
     // ---- health ------------------------------------------------------------------------------------

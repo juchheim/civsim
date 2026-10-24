@@ -21,6 +21,7 @@
     <ProjectReference Include="..\CivSim.Sim\CivSim.Sim.csproj" />
     <ProjectReference Include="..\CivSim.Content\CivSim.Content.csproj" />
     <ProjectReference Include="..\CivSim.Cli\CivSim.Cli.csproj" />
+    <ProjectReference Include="..\CivSim.Harness\CivSim.Harness.csproj" />
   </ItemGroup>
 
 </Project>

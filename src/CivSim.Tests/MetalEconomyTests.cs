@@ -117,6 +117,42 @@ public class MetalEconomyTests
     }
 
     [Fact]
+    public void Last_season_gross_metal_output_rates_match_recipe_stats_and_survive_restore()
+    {
+        BronzeFixture f = Fixture();
+        MetalStatistics before = f.Economy.MetalStats(0);
+        f.RunSeasons(1);
+        MetalStatistics after = f.Economy.MetalStats(0);
+        MetalOutputRates rates = f.Economy.MetalOutputRate(0);
+        Fix64 x4 = Fix64.FromInt(4);
+        Assert.Equal((after.Copper - before.Copper) * x4, rates.Copper);
+        Assert.Equal((after.Tin - before.Tin) * x4, rates.Tin);
+        Assert.Equal((after.Bronze - before.Bronze) * x4, rates.Bronze);
+        Assert.Equal((after.ArsenicalBronze - before.ArsenicalBronze) * x4, rates.ArsenicalBronze);
+        Assert.Equal((after.Charcoal - before.Charcoal) * x4, rates.Charcoal);
+        Assert.Equal((after.Kits8 - before.Kits8) * x4, rates.Kits8);
+        Assert.Equal((after.Kits9 - before.Kits9) * x4, rates.Kits9);
+        Assert.Equal((after.Kits10 - before.Kits10) * x4, rates.Kits10);
+        Assert.True(rates.Charcoal > Fix64.Zero || rates.Copper > Fix64.Zero || rates.Tin > Fix64.Zero,
+            "the fixture should exercise gross recipe production");
+
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) f.Economy.WriteSnapshot(writer);
+        stream.Position = 0;
+        BronzeFixture restored = Fixture();
+        using (var reader = new BinaryReader(stream)) restored.Economy.ReadSnapshot(reader);
+        Assert.Equal(rates, restored.Economy.MetalOutputRate(0));
+        Assert.Equal(f.Economy.ComputeChecksum(), restored.Economy.ComputeChecksum());
+        for (int i = 0; i < LivingEconomyModel.SeasonTicks; i++)
+        {
+            f.Economy.Step(f.Economy.Tick, ReadOnlySpan<Command>.Empty);
+            restored.Economy.Step(restored.Economy.Tick, ReadOnlySpan<Command>.Empty);
+        }
+        Assert.Equal(f.Economy.MetalOutputRate(0), restored.Economy.MetalOutputRate(0));
+        Assert.Equal(f.Economy.ComputeChecksum(), restored.Economy.ComputeChecksum());
+    }
+
+    [Fact]
     public void A_mining_camp_takes_its_crew_and_closes_when_the_deposit_is_exhausted()
     {
         BronzeFixture f = Fixture(people: 100);

@@ -206,7 +206,7 @@ public partial class Game
         UiKit.SetText(_insightLabel!, $"{insight} Insight/yr");
         _insightLabel!.TooltipText = "Insight is your research speed. More people, elders and learning raise it." + (frame.FocusQueueCount > 0 ? $" {frame.FocusQueueCount} waiting in the queue." : "");
         _autoFillToggle!.SetPressedNoSignal(frame.FocusCouncil);
-        _autoFillToggle.Disabled = frame.FocusCiv != 0 || _session.IsReplay;
+        _autoFillToggle.Disabled = frame.FocusCiv != frame.ViewerCiv || _session.IsReplay;
 
         int weightSum = 0;
         for (int slot = 0; slot < 3; slot++) if (frame.FocusSlotProject[slot] >= 0) weightSum += UiText.SlotWeight[slot];

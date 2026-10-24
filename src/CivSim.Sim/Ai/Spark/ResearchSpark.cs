@@ -7,6 +7,7 @@ using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Randomness;
 using CivSim.Sim.Research;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Ai;
 
@@ -51,6 +52,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly List<int> _current = new();
     private int[] _depth = Array.Empty<int>();
     private readonly List<int> _critical = new();
+    private int _met03 = -1, _met04 = -1, _met05 = -1, _min04 = -1, _trn05 = -1, _sea05 = -1;
 
     public ResearchSpark(AiSpec spec, DifficultyProfile profile)
     {
@@ -77,6 +79,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         KeepLeaning(ctx);
 
         _start.CaptureResearch(readout, ctx.Civ, ctx.Spec.Archetype);
+        _start.CaptureBronze(ctx.Own.Bronze);
         _start.Season = ctx.Season;
         _start.People = _start.EstimatePeople(ctx.Own.Population, ctx.Own.Adults, ctx.Own.Settlements.Count);
         _tracker.Gain.CopyTo(_start.KnowHowGen);
@@ -114,6 +117,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _depth = new int[_fc.Count];
         _lineageCode = new string[_fc.Count];
         for (int p = 0; p < _fc.Count; p++) _lineageCode[p] = _fc.Lineage[p] >= 0 ? catalog.LineageCodes[_fc.Lineage[p]] : "";
+        _met03 = catalog.IndexOf("MET-03"); _met04 = catalog.IndexOf("MET-04"); _met05 = catalog.IndexOf("MET-05");
+        _min04 = catalog.IndexOf("MIN-04"); _trn05 = catalog.IndexOf("TRN-05"); _sea05 = catalog.IndexOf("SEA-05");
         CacheCapabilities(catalog);
     }
 
@@ -244,6 +249,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
         Fix64 frontier = Fix64.Clamp(intent.FrontierValue, Fix64.Zero, Fix64.One) * SparkTuning.FrontierBonus;
         GetSettlementNeeds(ctx.Own, out Fix64 foodNeed, out Fix64 leanNeed, out Fix64 cohesionNeed);
+        bool met03Done = IsDone(_met03);
+        bool mineReachBoost = IsDone(_trn05);
+        bool waterMineReach = IsDone(_sea05);
+        Fix64 tinAccessProbability = met03Done ? TinAccessProbability(ctx, mineReachBoost, waterMineReach) : Fix64.Zero;
+        bool arsenicAccess = met03Done && IsDone(_min04) && HasKnownMineAccess(ctx, DepositKind.ArsenicalCopper, mineReachBoost, waterMineReach);
         _value.MarginSteps = SparkTuning.FirstMarginSeasons * _forecast.StepsPerSeason;
         _value.EtaUncertainty = SparkTuning.RivalEtaUncertainty;
         _value.KeystoneTempo = SparkTuning.KeystoneTempo;
@@ -267,8 +277,88 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                 + (foodNeed * _foodCapability[p] + leanNeed * _leanCapability[p]
                     + cohesionNeed * _cohesionCapability[p]) * SparkTuning.NeedUrgencyBonus;
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
+            bonus += BronzeForkBonus(p, _met04, _met05, met03Done, IsDone(_min04), tinAccessProbability, arsenicAccess);
             _value.Bonus[p] = bonus;
         }
+    }
+
+    private bool IsDone(int project) => project >= 0 && project < _start.Done.Length && _start.Done[project];
+
+    /// <summary>Values MET-05 by expected tin access and MET-04 only after MIN-04 with a sighted reachable route (22 §13.2).</summary>
+    internal static Fix64 BronzeForkBonus(int project, int met04, int met05, bool met03Done, bool min04Done, bool tinAccess, bool arsenicAccess)
+        => BronzeForkBonus(project, met04, met05, met03Done, min04Done, tinAccess ? Fix64.One : Fix64.Zero, arsenicAccess);
+
+    internal static Fix64 BronzeForkBonus(int project, int met04, int met05, bool met03Done, bool min04Done, Fix64 tinAccessProbability, bool arsenicAccess)
+    {
+        if (!met03Done) return Fix64.Zero;
+        tinAccessProbability = Fix64.Clamp(tinAccessProbability, Fix64.Zero, Fix64.One);
+        if (project == met05 && tinAccessProbability > Fix64.Zero)
+            return SparkTuning.BronzeRouteBonus * tinAccessProbability
+                + (arsenicAccess ? SparkTuning.TinRouteTieBreak * tinAccessProbability : Fix64.Zero);
+        if (project == met04 && min04Done && arsenicAccess) return SparkTuning.BronzeRouteBonus;
+        return Fix64.Zero;
+    }
+
+    /// <summary>
+    /// Expected tin access from exact own access and sight/public evidence (22 §13.2). An open compact offer is not
+    /// represented in Belief; a witnessed tin caravan proves a holder exists, but is not treated as an offer to us.
+    /// </summary>
+    internal static Fix64 TinAccessProbability(AiContext ctx, bool cartReach, bool waterReach)
+    {
+        if (ctx.Own.TinAccess || HasKnownMineAccess(ctx, DepositKind.Tin, cartReach, waterReach)) return Fix64.One;
+
+        Fix64 probability = Fix64.Zero;
+        MapKnowledge map = ctx.Belief.Map;
+        int reach = cartReach ? 12 : 8;
+        foreach (OwnSettlement settlement in ctx.Own.Settlements)
+        {
+            int localReach = reach;
+            if (waterReach && map.TryTile(settlement.Tile, out WorldTile home) &&
+                (home.Flags & (TileFlags.River | TileFlags.CoastAdjacent | TileFlags.Lake)) != 0)
+                localReach = 16;
+            foreach (BeliefTinFolk folk in ctx.Belief.TinFolkSeen)
+                if (ctx.Season - folk.LastSeenSeason <= 12 &&
+                    HexGrid.Distance(settlement.Tile, folk.Tile, map.Width) <= localReach)
+                    probability = Fix64.Max(probability, Fix64.FromRatio(1, 2));
+        }
+
+        // Public sightings of tin kits, camps or caravans identify a holder. A known, contacted holder with open
+        // relations is a plausible route within the horizon; no access is inferred from unobserved compact state.
+        foreach (RivalBelief rival in ctx.Belief.Rivals)
+        {
+            if (rival.Civ == ctx.Civ) continue;
+            bool holder = rival.TinAccessSeen ||
+                (rival.SeenFlags & (SeenFlag.TinMineCamp | SeenFlag.TinBronzeKit)) != 0;
+            if (!holder) continue;
+            PairView pair = (uint)rival.Civ < (uint)ctx.Own.Others.Length ? ctx.Own.Others[rival.Civ] : null!;
+            bool contacted = pair is not null && pair.Contacted || rival.Contacted;
+            int relations = pair is not null && pair.Contacted ? pair.Relations : rival.Relations;
+            bool embargoed = pair is not null && pair.TinEmbargoed;
+            if (contacted && relations >= 0 && !embargoed)
+                probability = Fix64.Max(probability, relations >= 30 ? Fix64.FromRatio(2, 5) : Fix64.FromRatio(1, 4));
+        }
+        return probability;
+    }
+
+    private static bool HasKnownMineAccess(AiContext ctx, DepositKind deposit, bool cartReach, bool waterReach)
+    {
+        MapKnowledge map = ctx.Belief.Map;
+        foreach (OwnSettlement settlement in ctx.Own.Settlements)
+        {
+            int reach = cartReach ? 12 : 8;
+            if (waterReach && map.TryTile(settlement.Tile, out WorldTile home) &&
+                (home.Flags & (TileFlags.River | TileFlags.CoastAdjacent | TileFlags.Lake)) != 0)
+                reach = 16;
+            for (int tile = 0; tile < map.TileCount; tile++)
+            {
+                if (!map.TryTile(tile, out WorldTile seen) || seen.Deposit != deposit) continue;
+                (int owner, int seenSeason) = map.OwnerSeen(tile);
+                if (owner >= 0 && owner != ctx.Civ) continue;
+                if (seenSeason < ctx.Season - 2) continue;
+                if (HexGrid.Distance(settlement.Tile, tile, map.Width) <= reach) return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>Cache capability classes from structured effect fields; effect prose is deliberately not interpreted.</summary>

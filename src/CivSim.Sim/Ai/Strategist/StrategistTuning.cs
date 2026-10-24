@@ -1,3 +1,4 @@
+using System;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Ai;
@@ -24,10 +25,17 @@ public static class StrategistTuning
     public static readonly Fix64 ProsperWeight = Fix64.FromRatio(80, 100);
     public static readonly Fix64 DefendWeight = Fix64.FromRatio(130, 100);
     public static readonly Fix64 ConquerBase = Fix64.FromRatio(45, 100);
-    /// <summary>Conquer X = (base + war value in Legacy ÷ 50, at most +0.8, + window) × archetype aggression.</summary>
-    public const int ConquerValueScale = 50;
+    /// <summary>Conquer X = (base + war value in Legacy ÷ 25, at most +0.8, + window) × archetype aggression.</summary>
+    public const int ConquerValueScale = 25;
     public static readonly Fix64 ConquerValueCap = Fix64.FromRatio(80, 100);
     public static readonly Fix64 CoalitionBase = Fix64.FromRatio(55, 100);
+    /// <summary>After KEY-3, an unmet tin route beats open-land growth when MET-03 has made the MET-05 fork available (22 §13.3).</summary>
+    public static readonly Fix64 SecureTinBase = Fix64.FromRatio(120, 100);
+    /// <summary>Added to forecast gross value only for legal tin mine/compact or arsenical fallback candidates while SecureTin is active.</summary>
+    public static readonly Fix64 SecureTinMineDecreeBonus = Fix64.FromInt(50);
+    public static readonly Fix64 SecureTinCompactDecreeBonus = Fix64.FromInt(50);
+    public static readonly Fix64 SecureTinArsenicalDecreeBonus = Fix64.FromInt(25);
+    public static readonly Fix64 SecureTinLevyDecreeBonus = Fix64.FromInt(50);
     /// <summary>A rival is "the leader" when its believed land leads everyone else's by 25% (14 §7.3)...</summary>
     public static readonly Fix64 LeaderLead = Fix64.FromRatio(125, 100);
     /// <summary>...or it holds a third of the land anyone holds, on the way to the 40% Dominion warning.</summary>
@@ -78,6 +86,17 @@ public static class StrategistTuning
     public static readonly Fix64 FreshnessDecay = Fix64.FromRatio(125, 1000);
 
     // ---- raids (14 §6.1, 13 §5, §11 F4) ---------------------------------------------------
+
+    /// <summary>
+    /// Calibrates the simulated raid win probability to the prior 8-seed, 64-minute baseline (66/84 resolved:
+    /// 75% predicted, 56% observed; observed/predicted ≈ 0.75). Recheck on the final 8-seed run.
+    /// </summary>
+    public static readonly Fix64 RaidSuccessCalibration = Fix64.FromRatio(3, 4);
+    public static Fix64 CalibrateRaidSuccess(Fix64 simulatedProbability)
+        => Fix64.Clamp(simulatedProbability, Fix64.Zero, Fix64.One) * RaidSuccessCalibration;
+
+    public static bool MeetsRaidSuccessThreshold(Fix64 calibratedProbability, Fix64 threshold)
+        => calibratedProbability >= threshold;
 
     /// <summary>Never launch a raid the belief gives less than this chance (14 §10.4 "suicide raid").</summary>
     public static readonly Fix64 MinRaidSuccess = Fix64.FromRatio(30, 100);
@@ -198,13 +217,18 @@ public static class StrategistTuning
     /// <summary>Score bonus of a tile on the midline toward the believed rival (07b R9), and of a strategic deposit.</summary>
     public static readonly Fix64 BeaconMidlineBonus = Fix64.FromRatio(60, 100);
     public static readonly Fix64 BeaconDepositBonus = Fix64.FromRatio(40, 100);
+    /// <summary>Extra Beacon value for an unclaimed tin placer after copper tools, before the tin-bronze route is secured (22 §13.3).</summary>
+    public static readonly Fix64 BeaconTinRouteBonus = Fix64.FromRatio(75, 100);
     /// <summary>A Beacon is re-placed after this long, or at once when its tile is taken.</summary>
     public const int BeaconStaleSeasons = 16;
 
     // ---- budget (14 §12) --------------------------------------------------------------------
 
-    /// <summary>Monte Carlo trials per estimate: 8 + 2 × the level's beam width (12 Settler, 16 Chieftain, 24 Warlord, 40 Legend).</summary>
-    public static int Trials(DifficultyProfile profile) => 8 + 2 * profile.BeamWidth;
+    /// <summary>
+    /// Monte Carlo trials per raid/war estimate. A 32-trial floor limits winner's-curse selection from comparing several
+    /// noisy candidate probabilities; higher beam widths retain the original scaling above the floor.
+    /// </summary>
+    public static int Trials(DifficultyProfile profile) => Math.Max(32, 8 + 2 * profile.BeamWidth);
 
     /// <summary>Raid margins by the archetype registry's raid_margin (14 §9.1): minimum believed success and expected value in rations.</summary>
     public static (Fix64 MinSuccess, Fix64 MinValue) RaidMargin(string margin) => margin switch

@@ -169,6 +169,13 @@ public sealed partial class PoliticsSystem
         return null;
     }
 
+    public bool HasActiveLevy(int civ)
+    {
+        foreach (Levy levy in _levies)
+            if (levy.Civ == civ && levy.UntilSeason > _season) return true;
+        return false;
+    }
+
     /// <summary>
     /// The next raid, assault or investment on the target takes the host (docs/MVP/22 §4.3): returns its living, unwounded members
     /// and dissolves the levy, so they work again. False when no host stands against that target.
@@ -621,7 +628,7 @@ public sealed partial class PoliticsSystem
 
     // ---- hashing and snapshots ----------------------------------------------------------------------
 
-    private bool BronzeStateEmpty => _decreeQueue.Count == 0 && _levies.Count == 0 && _foundBoost.Count == 0 && _nextPartyId == 0 &&
+    private bool BronzeStateEmpty => _decreeQueue.Count == 0 && _levies.Count == 0 && _investments.Count == 0 && _foundBoost.Count == 0 && _nextPartyId == 0 &&
                                      _compacts.Count == 0 && _pacts.Count == 0 && _folkTies.Count == 0 && _tinFolk.Count == 0 &&
                                      !_tinFolkSpawned && !AnyRevealed() && !AnyEmbargo() && !AnyMandate();
 
@@ -634,6 +641,7 @@ public sealed partial class PoliticsSystem
     private void HashExpeditionBronze(ref StateHasher h, Expedition e)
     {
         h.Add(e.Id); h.Add(e.TargetTile); h.Add(e.TargetParty); h.Add((byte)e.Good); h.Add(e.Cargo); h.Add(e.CompactId); h.Add(e.FolkSeller);
+        h.Add(e.EscortCount);
         h.Add(e.Revealed.Count); foreach (int t in e.Revealed) h.Add(t);
     }
 
@@ -668,6 +676,7 @@ public sealed partial class PoliticsSystem
         foreach (int v in _e3Foundings) h.Add(v);
         h.Add(_foundingsSeen);
         HashTrade(ref h);
+        HashInvestments(ref h);
     }
 
     private void WriteBronze(System.IO.BinaryWriter w)
@@ -681,7 +690,7 @@ public sealed partial class PoliticsSystem
             Expedition e = _expeditions[i];
             if (!e.HasBronzeFields) continue;
             w.Write(i); w.Write(e.Id); w.Write(e.TargetTile); w.Write(e.TargetParty); w.Write((byte)e.Good); w.Write(e.Cargo.Raw);
-            w.Write(e.CompactId); w.Write(e.FolkSeller);
+            w.Write(e.CompactId); w.Write(e.FolkSeller); w.Write(e.EscortCount);
             w.Write(e.Revealed.Count); foreach (int t in e.Revealed) w.Write(t);
         }
         w.Write(_decreeQueue.Count);
@@ -710,6 +719,7 @@ public sealed partial class PoliticsSystem
         foreach (int v in _e3Foundings) w.Write(v);
         w.Write(_foundingsSeen);
         WriteTrade(w);
+        WriteInvestments(w);
     }
 
     private void ReadBronze(System.IO.BinaryReader r)
@@ -722,6 +732,7 @@ public sealed partial class PoliticsSystem
             Expedition e = _expeditions[i];
             e.Id = r.ReadInt32(); e.TargetTile = r.ReadInt32(); e.TargetParty = r.ReadInt32(); e.Good = (TradeGood)r.ReadByte();
             e.Cargo = Fix64.FromRaw(r.ReadInt64()); e.CompactId = r.ReadInt32(); e.FolkSeller = r.ReadInt32();
+            e.EscortCount = r.ReadInt32();
             e.Revealed.Clear();
             int n = r.ReadInt32();
             for (int t = 0; t < n; t++) e.Revealed.Add(r.ReadInt32());
@@ -764,6 +775,7 @@ public sealed partial class PoliticsSystem
         for (int i = 0; i < _e3Foundings.Length; i++) _e3Foundings[i] = r.ReadInt32();
         _foundingsSeen = r.ReadInt32();
         ReadTrade(r);
+        ReadInvestments(r);
     }
 }
 

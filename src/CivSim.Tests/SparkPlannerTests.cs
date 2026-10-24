@@ -4,7 +4,9 @@ using System.Linq;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
+using CivSim.Sim.World;
 
 namespace CivSim.Tests;
 
@@ -12,6 +14,80 @@ namespace CivSim.Tests;
 public class SparkPlannerTests
 {
     private static readonly CivControl Warlord = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
+
+    [Fact]
+    public void Bronze_fork_uses_only_feedable_routes_and_breaks_a_two_route_tie_toward_tin()
+    {
+        ResearchCatalog catalog = TestPack.Catalog;
+        int met04 = catalog.IndexOf("MET-04"), met05 = catalog.IndexOf("MET-05");
+
+        Assert.Equal(Fix64.Zero, ResearchSpark.BronzeForkBonus(met05, met04, met05, met03Done: false,
+            min04Done: true, tinAccess: true, arsenicAccess: true));
+        Assert.Equal(Fix64.Zero, ResearchSpark.BronzeForkBonus(met04, met04, met05, met03Done: true,
+            min04Done: false, tinAccess: false, arsenicAccess: true));
+
+        Fix64 tinOnly = ResearchSpark.BronzeForkBonus(met05, met04, met05, met03Done: true,
+            min04Done: false, tinAccess: true, arsenicAccess: false);
+        Fix64 arsenicOnly = ResearchSpark.BronzeForkBonus(met04, met04, met05, met03Done: true,
+            min04Done: true, tinAccess: false, arsenicAccess: true);
+        Assert.Equal(SparkTuning.BronzeRouteBonus, tinOnly);
+        Assert.Equal(SparkTuning.BronzeRouteBonus, arsenicOnly);
+
+        Fix64 bothArsenic = ResearchSpark.BronzeForkBonus(met04, met04, met05, met03Done: true,
+            min04Done: true, tinAccess: true, arsenicAccess: true);
+        Fix64 bothTin = ResearchSpark.BronzeForkBonus(met05, met04, met05, met03Done: true,
+            min04Done: true, tinAccess: true, arsenicAccess: true);
+        Assert.Equal(SparkTuning.TinRouteTieBreak, bothTin - bothArsenic);
+    }
+
+    [Fact]
+    public void Bronze_fork_values_believed_tin_sources_and_keeps_arsenic_behind_MIN_04()
+    {
+        ResearchCatalog catalog = TestPack.Catalog;
+        int met04 = catalog.IndexOf("MET-04"), met05 = catalog.IndexOf("MET-05");
+        var tiles = new WorldTile[100];
+        var map = new MapKnowledge(tiles, 10, 10);
+        var ctx = new AiContext
+        {
+            Civ = 0,
+            Season = 10,
+            Own = new OwnView { Civ = 0, Season = 10, Others = new PairView[2] },
+            Belief = new Belief(0, 2, catalog.Count, map) { Season = 10 },
+        };
+        ctx.Own.Settlements.Add(new OwnSettlement { Tile = 0 });
+
+        // Direct sight of a Tin Folk village in reach supplies a plausible tin route.
+        ctx.Belief.TinFolkSeen.Add(new BeliefTinFolk { Settlement = 5, Tile = 1, LastSeenSeason = 10 });
+        Fix64 tinChance = ResearchSpark.TinAccessProbability(ctx, cartReach: false, waterReach: false);
+        Assert.Equal(Fix64.FromRatio(1, 2), tinChance);
+        Assert.True(ResearchSpark.BronzeForkBonus(met05, met04, met05, met03Done: true,
+            min04Done: false, tinChance, arsenicAccess: false) > Fix64.Zero);
+        Assert.Equal(Fix64.Zero, ResearchSpark.BronzeForkBonus(met04, met04, met05, met03Done: true,
+            min04Done: false, tinChance, arsenicAccess: true));
+    }
+
+    [Fact]
+    public void Spark_tin_access_probability_does_not_read_unseen_deposits()
+    {
+        var tiles = new WorldTile[100];
+        var map = new MapKnowledge(tiles, 10, 10);
+        var ctx = new AiContext
+        {
+            Civ = 0,
+            Season = 10,
+            Own = new OwnView { Civ = 0, Season = 10, Others = new PairView[2] },
+            Belief = new Belief(0, 2, TestPack.Catalog.Count, map) { Season = 10 },
+        };
+        ctx.Own.Settlements.Add(new OwnSettlement { Tile = 0 });
+        Fix64 before = ResearchSpark.TinAccessProbability(ctx, cartReach: false, waterReach: false);
+
+        // Mutate only the underlying truth at a tile the map has never revealed.
+        tiles[55].Deposit = DepositKind.Tin;
+        Fix64 after = ResearchSpark.TinAccessProbability(ctx, cartReach: false, waterReach: false);
+
+        Assert.Equal(Fix64.Zero, before);
+        Assert.Equal(before, after);
+    }
 
     [Fact]
     public void A_ready_keystone_is_in_Primary_after_every_decision_and_slots_never_idle()

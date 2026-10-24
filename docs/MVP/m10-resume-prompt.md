@@ -1,4 +1,6 @@
-# M10 (Bronze, E3) — resume prompt
+# Historical M10 (Bronze, E3) — WP8a handoff prompt (2026-10-23)
+
+> This is the original WP8a handoff snapshot. Its remaining-work list and measurements predate the WP9/WP10 implementation in this checkout and must not be treated as current status. For current evidence, see [07d §§18–20](07d-e3-balance-findings.md#18-wp9-ai-telemetry-checkpoint) and the M10 row in [17 §3](17-vertical-slice.md#3-milestones).
 
 Paste everything below the line into the next AI session (Claude Code or similar) opened in `/Users/ejuchheim/Projects/CivSim/CivSim`.
 

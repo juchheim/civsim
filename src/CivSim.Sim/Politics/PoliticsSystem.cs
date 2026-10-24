@@ -68,6 +68,17 @@ public enum PoliticsEventKind : byte
     PactBroken,
     /// <summary>A Free Folk village accepted an Invite and joined. Other = -1, A = settlement, B = people.</summary>
     VillageJoined,
+    // Siege investment outcomes (docs/MVP/22 §7.4). Append only.
+    InvestmentBegan,
+    InvestmentRelieved,
+    InvestmentCapitulated,
+    InvestmentSally,
+    /// <summary>Some besiegers deserted with no carried food. Other = target civilization, A = settlement, B = remaining members.</summary>
+    InvestmentDeserted,
+    /// <summary>An assault expedition launched. Other = target civilization, A = party size, B = target settlement.</summary>
+    AssaultLaunched,
+    /// <summary>Telemetry baseline for an investment. Other = target civilization, A = settlement, B = initial members.</summary>
+    InvestmentTelemetryStarted,
 }
 
 /// <summary>Stable reason codes for a rejected player order.</summary>
@@ -113,11 +124,13 @@ public sealed class Expedition
     public int CompactId = -1;
     /// <summary>A Free Folk village that sent the caravan (its seller), else -1; the buyer's village is <see cref="ToSettlement"/>.</summary>
     public int FolkSeller = -1;
+    /// <summary>Additional warriors travelling with this caravan as escorts; the first two members are its carriers.</summary>
+    public int EscortCount;
     /// <summary>Tiles an explorer has seen and will report on its return (sorted).</summary>
     public readonly List<int> Revealed = new();
 
     internal bool HasBronzeFields => Id >= 0 || TargetTile >= 0 || TargetParty >= 0 || Good != TradeGood.None || Cargo != Fix64.Zero ||
-                                     CompactId >= 0 || FolkSeller >= 0 || Revealed.Count > 0;
+                                     CompactId >= 0 || FolkSeller >= 0 || EscortCount > 0 || Revealed.Count > 0;
 }
 
 /// <summary>Attackers holding a taken settlement tile until it is theirs (docs/MVP/13 §8.2).</summary>
@@ -196,7 +209,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly struct P
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
-            Def01, Def02, Def03, Hus01, War01, War02, War03, War04, Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04;
+            Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07;
 
         public P(ResearchCatalog c)
         {
@@ -205,9 +219,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Dip03 = c.IndexOf("DIP-03"); Com01 = c.IndexOf("COM-01"); Com02 = c.IndexOf("COM-02"); Com04 = c.IndexOf("COM-04");
             Def01 = c.IndexOf("DEF-01"); Def02 = c.IndexOf("DEF-02"); Def03 = c.IndexOf("DEF-03"); Hus01 = c.IndexOf("HUS-01");
             War01 = c.IndexOf("WAR-01"); War02 = c.IndexOf("WAR-02"); War03 = c.IndexOf("WAR-03"); War04 = c.IndexOf("WAR-04");
+            War05 = c.IndexOf("WAR-05"); War06 = c.IndexOf("WAR-06"); Def04 = c.IndexOf("DEF-04"); Def05 = c.IndexOf("DEF-05");
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
-            Sea04 = c.IndexOf("SEA-04");
+            Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
         }
     }
 
@@ -504,6 +519,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         }
         DetectContacts();
         ResolveExpeditions();
+        AdvanceInvestments();
         AdvanceOccupations();
         RecoverCohesion();
         RunCivMinds();
@@ -765,6 +781,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private Fix64 Weapon(int civ, out bool ranged)
     {
         ranged = false;
+        // Metal arms are locally stocked kits, applied by Fighters below. This is the fallback
+        // for parties that lack cast arms and for ranged weapon technology.
         if (_research.IsDone(civ, _p.Hnt06)) { ranged = true; return Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One); }
         if (_research.IsDone(civ, _p.Hnt05)) { ranged = true; return Fix64.FromRatio(17, 10); }
         if (_research.IsDone(civ, _p.Hnt03)) return Fix64.FromRatio(16, 10);
@@ -774,7 +792,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     }
 
     /// <summary>Fighters a settlement can put up: adults and elders who are not laid up, with warriors first (13 §6.1, §7.1).</summary>
-    private List<Fighter> Fighters(int settlement, bool attacking, out List<long> ids)
+    private List<Fighter> Fighters(int settlement, bool attacking, out List<long> ids, int battleTile = -1)
     {
         int civ = _sCiv[settlement];
         Fix64 weapon = Weapon(civ, out _);
@@ -784,6 +802,13 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int adults = 0;
         foreach (var r in records) if (r.Age < 45) adults++;
         int warriorSlots = warriors ? adults / 5 : 0;
+        int tinArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2T").FloorToInt() : 0;
+        int arsenicalArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2A").FloorToInt() : 0;
+        int copperArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
+        int chariotCrew = _economy.BronzeActive && _research.IsDone(civ, _p.War06)
+            ? _economy.GoodStock(settlement, "G-CHARIOT").FloorToInt() * 2 : 0;
+        bool openTerrain = IsChariotOpenTerrain(battleTile);
+        Defenses targetDefenses = DefensesAtTile(battleTile);
         // Tin Folk defend at 0.8 strength (docs/MVP/22 §6.4).
         bool tinFolk = _tinFolk.Count > 0 && IsTinFolk(settlement);
         var list = new List<Fighter>();
@@ -791,25 +816,49 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (var r in records)
         {
             if (r.Wounded) continue;
+            bool warrior = r.Age < 45 && !r.Female && warriorSlots > 0;
+            if (warrior) warriorSlots--;
+            Fix64 weaponStrength = weapon;
+            Fix64 casualtiesTaken = Fix64.One;
+            if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
+            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
+            else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); }
             Fix64 strength;
-            if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weapon;
-            else if (!r.Female && warriorSlots > 0)
+            if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
+            else if (warrior)
             {
-                warriorSlots--;
-                strength = Fix64.One * weapon * Fix64.FromRatio(13, 10);
+                strength = weaponStrength * Fix64.FromRatio(13, 10);
             }
-            else strength = (attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weapon;
+            else strength = (attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weaponStrength;
+            if (chariotCrew > 0)
+            {
+                chariotCrew--;
+                casualtiesTaken *= Combat.ChariotCasualtyFactor;
+                if (openTerrain && !targetDefenses.Hillfort && !targetDefenses.StoneWalls) strength *= Fix64.FromInt(2);
+            }
             if (tinFolk) strength *= _trade.FolkDefense;
-            list.Add(new Fighter(r.Id, strength));
+            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken });
             ids.Add(r.Id);
         }
         return list;
     }
 
-    /// <summary>The adults who go: warriors and men first, never so many that fewer than four stay home (13 §5.2).</summary>
-    private List<Fighter> PickParty(int settlement, int civ, int size, bool attacking, out List<long> ids, int stayHome = 4)
+    private bool IsChariotOpenTerrain(int tile)
     {
-        List<Fighter> all = Fighters(settlement, attacking, out _);
+        if (unchecked((uint)tile) >= unchecked((uint)_tileArray.Length)) return false;
+        return _tileArray[tile].Biome is Biome.GrasslandSteppe or Biome.Savanna or Biome.Desert;
+    }
+
+    private Defenses DefensesAtTile(int tile)
+    {
+        for (int s = 0; s < _sCount; s++) if (_sTile[s] == tile) return DefensesOf(s);
+        return Defenses.None;
+    }
+
+    /// <summary>The adults who go: warriors and men first, never so many that fewer than four stay home (13 §5.2).</summary>
+    private List<Fighter> PickParty(int settlement, int civ, int size, bool attacking, out List<long> ids, int stayHome = 4, int battleTile = -1)
+    {
+        List<Fighter> all = Fighters(settlement, attacking, out _, battleTile);
         var records = new List<LivingEconomyModel.FighterRecord>();
         _economy.ListFightingAge(settlement, records);
         var party = new List<Fighter>();
@@ -831,9 +880,27 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                         _tinFolk.Count > 0 && IsTinFolk(settlement);
         bool watchers = _research.IsDone(civ, _p.Def02) || _economy.DefenseStructures(settlement, lookout: true) > 0;
         bool thorn = _economy.DefenseStructures(settlement, lookout: false) > 0;
+        int hillfortKind = LivingEconomyModel.StructureIndex("hillfort");
+        int wallsKind = LivingEconomyModel.StructureIndex("stone_walls");
+        bool hillfort = hillfortKind >= 0 && _research.IsDone(civ, _p.Def04) && _economy.StructureCount(settlement, hillfortKind) > 0;
+        bool walls = wallsKind >= 0 && _research.IsDone(civ, _p.Def05) && _economy.StructureCount(settlement, wallsKind) > 0;
+        bool hillfortRefuge = false;
+        if (hillfortKind >= 0 && _research.IsDone(civ, _p.Def04))
+        {
+            for (int other = 0; other < _sCount; other++)
+            {
+                if (_sCiv[other] != civ || _economy.StructureCount(other, hillfortKind) == 0) continue;
+                if (HexGrid.Distance(_sTile[settlement], _sTile[other], _width) <= 6)
+                {
+                    hillfortRefuge = other != settlement;
+                    if (hillfortRefuge) break;
+                }
+            }
+        }
         return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
             _research.IsDone(civ, _p.Com01), HillSite: false, _research.IsDone(civ, _p.War03), Night: false,
-            RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4));
+            RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4, Hillfort: hillfort, StoneWalls: walls,
+            HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive));
     }
 
     private static int SeasonOf(long tick) => checked((int)(tick / ResearchSystem.SeasonTicks)) + 1;

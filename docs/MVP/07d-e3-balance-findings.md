@@ -1,7 +1,7 @@
 # 07d — E3 Bronze Balance Findings (WP2)
 
 > Work package WP2 of [22 §20](22-bronze-age.md#20-work-breakdown): the Python oracle extended through E3 (22 §15.2 items 1–7), the open parameters fitted, and every §15.1 target T1–T28 that an oracle can reach reproduced or flagged. Reconciled with [23](23-e3-bronze-specs.md) (WP1, the E3 registries and project specs).
-> In the style of [07](07-balance-findings.md), [07b](07b-territory-findings.md) and [07c](07c-e0-e2-checks.md). Design and tooling only: nothing in `src/`, `content/` or docs 22/23 was edited. Live measurements were taken from a scratch copy of commit 4cb188d (the main checkout's `src/` was being edited), §9.
+> In the style of [07](07-balance-findings.md), [07b](07b-territory-findings.md) and [07c](07c-e0-e2-checks.md). Historical WP2 scope: at that checkpoint, this was design/tooling work and the live measurements used a scratch copy of commit 4cb188d while the main checkout's `src/` was being edited (§9). Later implementation and measurement updates are recorded in §§16–20.
 
 ---
 
@@ -117,14 +117,16 @@ A **bit-exact port** of `Combat.Fight`, `Raids.Resolve` and `CombatTables` (Fix6
 | 12 bronze vs village, none, stone militia | 93 / 9 / 24 / +33 | 94.5 / 6.9 / 23.9 / +34 | ✅ |
 | palisade + watchers, stone militia | 13 / 39 / 8 / −16 | 16.5 / 37.4 / 8.7 / −14 | ✅ |
 | palisade + watchers, bronze militia + shields | 2 / 45 / 3 / −23 | 2.8 / 44.5 / 3.4 / −22 | ✅ |
-| palisade + watchers + 8 bronze warriors | 0 / **95** / 2 / **−43** | 1.3 / **60** / 2.6 / **−29** | **raiders hurt → 60, net → −29** |
-| hillfort + watchers + 8 warriors | 0 / **93** / 1 / −42 | 0.3 / **83** / 2.0 / −38 | **raiders hurt → 83** |
-| walls + watchers + 8 warriors | 0 / 93 / 1 / −42 | 0.1 / 93 / 1.6 / −42 | ✅ |
-| the 12 with stone spears, vs none | **53** / 21 / 16 / +9 | **63** / 18 / 17 / +15 | **success → 63** (10.2 points) |
+| palisade + watchers + 8 bronze warriors | 1 / **60** / 3 / **−29** | 1.3 / **60.2** / 2.6 / **−28.5** | ✅ corrected in 22 §7.5 |
+| hillfort + watchers + 8 warriors | 0 / **83** / 2 / −38 | 0.3 / **83.3** / 2.0 / −37.9 | ✅ corrected in 22 §7.5 |
+| walls + watchers + 8 warriors | 0 / 93 / 2 / −42 | 0.1 / 92.6 / 1.6 / −41.5 | ✅ corrected in 22 §7.5 |
+| the 12 with stone spears, vs none | **63** / 18 / 17 / +15 | **63.2** / 18.0 / 16.6 / +14.8 | ✅ corrected in 22 §7.5 |
 | 8 bronze vs camp of 6 · + 2 guards + watch | 97 · 99 | 96.5 · 99.5 | ✅ |
 | vs hamlet 15 stone · bronze + thorn + watch | 100 · 89 | 100 · 89.2 | ✅ |
-| 20 bronze+shield vs 20 / **28** stone warriors | 100 / **33** | 100 / **18** (27 ≈ 50%) | **→ 18%**; worth 1.40× ✅ |
-| 12 chariot crew vs 24 / 18 bronze infantry | 39 / 100 | 37 / 100 **only if crew shields stack** (×0.35); 0 / 100 with ×0.5 alone | **rule: shields and chariot casualties multiply** |
+| 20 bronze+shield vs 20 / **28** stone warriors | 100 / **18** | 100 / **18** (27 ≈ 50%) | ✅; worth 1.40× |
+| 12 chariot crew vs 24 / 18 bronze infantry | **37 / 100** | **37 / 100** with crew shields stacking (×0.35) | ✅; shields and chariot casualties multiply |
+
+`combat_e3.py` now checks all four table values (success, both sides' casualties and net value), the separate stone-warband row, and the published field-battle rows against these corrected §7.5 values. The oracle's `--selftest` asserts each row remains within 10; the default run exits nonzero if it does not.
 
 **T22 ✅ with one fix.** Capture within a season at 1.5× (incl. defenses): palisade or hillfort, stone or bronze militia: **100%** (1.0×: 1–86%); a palisaded village of 40 bronze militia needs **61** bronze warriors ✓ 22 §7.3. The levy (220 people, 10% warriors, 80% in reach) raises ~36 figures, strength 84 ≥ 1.2 × 58: investment allowed against a walled village of 40. **Investment as written:** stores 2.0 → in 3–6 seasons only **32%** (68% fall by season 2); 2.5 → 65%; 3.0 → 99%. **R5: an invested town rations to 75% of need** (or equivalently counts gardens and herds inside the walls): 2.0 → 65%, 2.5–3.0 → 98%, median 3–4 ✅. Alternative 0.25 / 0.50 capitulation gives 49–93%. Unsupplied besiegers (10% desertion) lift after ~5 seasons but the town has usually fallen.
 
@@ -202,7 +204,7 @@ Typical C runs 63–80 (22 says 55–70): hearth and feast are on every closure,
 | T12 | 88 → 190 | 190 kept **with R4**; as written 160 | §4 |
 | T16 | 20–40% by Decree | **25–50%** with R2 towns | fewer natural foundings; §7 |
 | T19 | smelting settlements 30–50% | **Towns of 80–100: 25–70% without WOD-04, < 5% with it; villages none** | §5 |
-| T21 | three cells | palisade+8 warriors raiders hurt **60** (net −29); hillfort raiders hurt **83**; stone-12 success **63**; 20 vs 28 stone **18%** | §6 |
+| T21 | §7.5 values corrected | palisade+8 warriors **1 / 60 / 3 / −29**; hillfort **0 / 83 / 2 / −38**; stone-12 **63 / 18 / 17 / +15**; 20 vs 28 stone **18%**; chariot vs 24 **37%** with stacked shield reduction | §6 |
 | T22 | as written | **with R5 rationing** | §6 |
 | T25 | 55–70; 0.1–0.5 | **60–80; 0.03–0.08 (captured towns, R7)** | §9 |
 | B12 | falls back within 12 seasons | ≥ 10% within 12 seasons, half within ~9 years | §5 |
@@ -377,3 +379,131 @@ captures (WP8/WP9 war); a City by the chapter end needs a Temple (BEL-06, rarely
 and 20 L of blocks, researched near minute 42) on a town of 90, which the Council's late GOV-05 does not leave time for; live T19
 with coppicing is above 5% because towns now build. Reproduce: `research --pack civsim.pack --report-e3`, `--c1-e3 --seed S`,
 `--check-m10`, `--metal-fixture`, `--report-metal`.
+
+## 16. WP8a live results (Mandate and Decrees)
+
+`research --pack civsim.pack --report-decrees` on the WP8a tree, default two seeds (20261019, 777), four Balanced civilizations
+on the Council, through KEY-4:
+
+| Measure | Live result | Target / note |
+|---|---:|---|
+| KEY-4 median | 45.8 min (43.0–47.3) | 43 (07d range 43–47) |
+| E3 duration median | 12.0 min (10.9–12.8) | 11.5–14.5 ✅ |
+| T11 settlements at KEY-4 | median 5 | target 7 (5–10) |
+| T14 claimed land at KEY-4 | median 24% | target 30–42% |
+| T15 paired borders touching | 1/4 | target ≥75% |
+| T16 Decree share of E3 foundings | 0% over 7 civs | target 25–50%; the Council did not produce any counted Decree founding in this run |
+| T20 tin by KEY-4 / bronze (tin or arsenic) | 0/8 / 0/8 | targets ≥50% / ≥90% |
+| T26 Tin Folk villages per map | 6, 6 | target 3–6; Tin Folk compact on 1/2 maps |
+| T27 Mandate earned / Decrees / seasons at cap (median) | 8.5 / 5.5 / 1% | targets 7–9 / 5–8 / <25% |
+
+The prior WP8a checkpoint numbers are superseded for these measures. The report confirms the E3 timing and Mandate cadence;
+T11, T14, T15, T16 and T20 remain outside their targets in this small sample, so these are live diagnostics rather than a
+multi-seed acceptance result. `--report-e3` gave KEY-4 median 45.9, E3 median 11.9, people median 167, settlements median 5,
+T14 median 24%, T15 1/4 and T16 natural fissions median 1.5 per civ. B17 Towns: 50% by chapter end (target ≥75%); no City.
+The two-seed `--check-m10` passed: KEY-4 median 45.8, E3 median 12.0, chapter end median 47.2, and replay checksums matched.
+
+The latest two-seed `--report-metal` supersedes the earlier figures: T17 medians are bronze **0.31 L**, tin **0.004 L**,
+charcoal **1.14 L**, wood **7.3 L** per 100 people per year and labor **2.0%** (all below target); T18 rung-6 share is **0%**
+civ-wide and **9%** over 45 settlements with a casting opportunity (4 at ≥70%); T19's current WOD-04 settlements draw down
+wood by a median **27%** at 80–100 people (7 settlements) and **51%** at 101–1,000 (4 settlements), so the under-5% target
+is missed in the current sample. All eight civilizations had WOD-04 by the end, so this run does not estimate the no-WOD-04
+case. The two-seed `--report-e3` also misses T12's live mean FoodCap ratio (1.11 vs target ×2.16), and its expected-hazard
+T13 estimates are outside the child/adult ratio and e45 targets; the measured epidemic share remains 9% within B10's 7–13%.
+These are current-source diagnostics, not acceptance samples; 07d §10's constants were not changed to chase them.
+
+## 17. WP8b combat and siege checkpoint
+
+`python3 docs/MVP/balance/tools/combat_e3.py` and `--selftest` pass against the corrected §7.5 values. The oracle compares all
+four table values, the stone-warband row and the field-battle rows; shield and chariot crew casualty factors now stack at ×0.35.
+T22's 0.75 ration model yields 65.1%, 98.0%, and 98.0% capture in 3–6 seasons for 2.0, 2.5, and 3.0 stores. The focused
+WP8b lifecycle/fortification tests pass, including snapshot resume, deterministic next-season siege results, rationing, and
+relief transition. These tests do not establish the B16 multi-trial C# rate. Relief accepts an already-arrived host because the
+order model has no traveling allied-relief order; range-foraging has no numeric rule and is not modeled; structures have no
+inside/outside positions, so the siege burns the first available flammable structure. B20 conflict rates still need the 24-seed
+Council run; current Council reports show zero raids and captures.
+
+## 18. WP9 AI telemetry checkpoint
+
+The Harness now measures B27 tin-poor recovery and dormant-route blunders, B28 defense before a believed-bronze raid, B29
+KEY-4 forecast fidelity, and all four B30 signals: positive-EV Mandate overflow, suicide raids, unsupplied-siege desertion,
+and naked Tin caravans. Focused detector and regression tests cover these signals. The recorded two-seed, 64-minute
+diagnostic predates the B29 and expanded B30 telemetry, so its counters cannot establish those gates. That historical
+sample had A1 at 100%; A2 at 75% Grower, 100% Builder and 75% Wanderer; A3 survival at 100% but wins at 50%; A4 at 50%;
+A5 Builder at 37.5% and Grower at 50% (both above the 30% cap), Wanderer at 16.7%, Warlord at 12.5%, Sage at 8.3%; and
+A7 with zero keystone stalls but dithering in 2 matches. B31 passed at 75%. Its B27 fallback was 8/8 tin-poor cases, while
+dormant-route blunders occurred in 6/8 AI-matches; B28 defense was 2/2. The old B30 proxy reported zero suicide raids and
+unsupplied-siege desertion blunders, and 0/8 matches above eight seasons at the Mandate cap, but did not measure positive-EV
+decree availability. A7 now also measures avoidable starvation, unanswered captures, directly attributed herd extinctions,
+and idle labor; focused detector/integration tests pass. The herd-crash detector only attributes an extinction when a hunt
+directly reduces a herd to zero, so the natural half-population crash is not misattributed.
+
+On 2026-10-24, the user requested shorter testing. The 8-seed/64-minute gate and a subsequent 2-seed/64-minute
+diagnostic were interrupted because of their runtime. A 1-seed/48-minute diagnostic was also stopped shortly after A1
+began (2 matches, 50%) and A2 started; this tiny sample is not acceptance evidence. No current A1–A5/A7 or B27–B31
+statistical result is claimed. A8 had passed both fog-fairness tests (2/2), including unseen Bronze
+compact/caravan/Mandate perturbations. Short post-change validation passed: Release solution build (0 warnings, 0 errors),
+62 focused WP9 tests, 3/3 source determinism tests, 3/3 view-determinism tests, strict validation (509 projects + 10
+keystones, 0 errors/warnings), and toy, research, politics, and content-pack goldens. Research and politics expected
+checksums were refreshed after the WP9 and checksummed herd-attribution changes. The full suite was capped at 2 minutes
+before that refresh; it reported the old politics checksum and has not been rerun. A6 exploit search remains required
+for B26. A later one-seed current-source `research --check-m10 --seeds 20261019 --minutes 64` diagnostic replayed
+identically: KEY-4 median 44.2 min, E3 median 11.8 min, all four civilizations within the B5 timing bands, and chapter
+end at minute 45.2 (0/1 Year-64 endings). This is a single-seed diagnostic, not B5/B6 multi-seed acceptance evidence.
+
+Harness correctness fixes now protect bounded WP9 work: `Tournament.Play` stops at the evaluated AI chapter end, after
+recording all telemetry for that closing season. Regressions verify the one-year cap at tick 600/four seasons despite a
+three-minute request and exercise the real KEY-4 countdown with a cheap research pack, including terminal-season scoring.
+A6 now reports underspecified searches as `INCOMPLETE` regardless of observed win rate; only
+at least 10,000 policy evaluations at a 64-minute chapter horizon can pass or report an exploit. Bare `ai --exploit`
+defaults to a two-minute, one-seed, two-policy diagnostic; explicit search options are preserved. Focused tests cover
+chapter-end scoring, short high-rate classification, acceptance thresholds, and option defaults. The bare-command smoke
+completed in under 30 seconds and returned `INCOMPLETE` at 2 evaluations/2 minutes; no A6 acceptance search was run.
+`ai --check-m10` now labels every individual gate and the aggregate as diagnostic-only unless the sample has at least
+8 seeds and a 64-minute horizon; the default full-window labels are unchanged. Pure status tests cover both short-sample
+dimensions and full-window pass/fail formatting; no tournament was run for this guard.
+
+WP11 now has a fixed-seed `bronze-v1` chapter-end golden. Its two fresh seed-20261019 runs agree at tick 27,150, with
+RivalCountdown by civilization 3 and checksum `a0360f53f234e87b`; the explicit golden check passed. The S12 Bronze
+chapter gate also passed locally: four Balanced AIs ended at tick 27,150 in 23.952 s against the 30 s budget, with
+the final tick matching the chapter end rule. These close neither B22's 1,000-replay/macOS-Windows requirements nor
+B23's S13 tick and S14 renderer requirements.
+
+## 19. WP10 view checkpoint
+
+The game has the Decrees/forecast panel, compact and embargo controls, countdown and Bronze end summary, the E3 research column,
+four E3 overlays (Deposits, Trade, Cohesion, Forest), figure/tool-tier tinting, Bronze coach tips, and the current-sight tile card
+for mining/forest/cohesion details. The forest command-line overlay name is accepted; compact proposals show a likely/possible/
+unlikely estimate when the view API can compute it and say unknown otherwise. The local S12 Bronze chapter gate passed in
+23.952 s. B23 remains open: the S13 tick/GC and S14 60-fps/1,600-figure renderer measurements are still unrun.
+
+## 20. Combined verification checkpoint
+
+Before the latest A7 detector and herd-attribution changes, the Release solution build passed with 0 warnings/errors, the
+full suite passed **555/555**, strict validation reported 509 projects + 10 keystones in 33 lineages with 0 errors and 0
+warnings, and `toy-v1`, `research-v1`, `politics-v1`, and `content-pack.txt` goldens matched. The historical two-seed AI
+diagnostic above returned INCOMPLETE and surfaced small-sample A3/A4/A5/A7 misses; its B29 and expanded B30 counters
+predate the new telemetry. After the latest changes, the Release solution build passed with 0 warnings/errors; this turn's
+broader WP9-focused set passed 91/91 in 19 s and source/view determinism passed 6/6 in 12 s. The bare-command smoke
+returned `INCOMPLETE` at 2 evaluations/2 minutes in under 30 s. Strict validation reported 509 projects +
+10 keystones with 0 errors/warnings. Toy, research, politics, and content-pack goldens match; research and politics expected
+checksums were refreshed after WP9 and checksummed herd-attribution changes. A full-suite run was capped at 2 minutes
+before the golden refresh and reported the old politics checksum; it has not been rerun. The current Bronze chapter golden
+passed a two-run same-seed check at tick 27,150 (checksum `a0360f53f234e87b`), and the local S12 chapter benchmark passed
+at 23.952 s. The one-seed research diagnostic passed its timing bands but is not multi-seed acceptance. The latest focused A8 fog-fairness
+run passed 2/2. At the user's request, the long AI gates were stopped; current A1–A5/A7 and B27–B31 statistical acceptance
+is still open, as is the A6 exploit search required for B26. The prior `research --check-m10`
+passed with KEY-4 median 45.8, E3 median 12.0, chapter-end median 47.2, and replay-identical checksums. A
+tiny-positive-stock barter ratio overflow found during an earlier run was fixed by clamping before division, with a
+regression test. The final game Debug build had passed with 0 warnings/errors at the earlier checkpoint.
+
+After the short-sample S13 safeguard, `dotnet build CivSim.slnx -c Release --no-restore` passed with 0 warnings/errors,
+and the combined focused set (WP9 harness/AI, determinism, and acceptance sample-status tests) passed 98/98 in 12 s.
+`git diff --check` is clean. These bounded checks do not replace the full suite or the open Bronze statistical,
+cross-platform, performance, robustness, and human-playtest gates.
+
+Since that combined run, a cheap KEY-4 countdown regression and a pure B27 telemetry-summary test were added. The latter
+checks that tin recovery uses tin-poor eligible seats as its denominator while dormant-route blunders use matches; the
+focused harness regression classes passed 5/5 in 4 s, and the Release solution build passed again with 0 warnings/errors.
+After the M10 short-sample diagnostic guard, the Release build again passed with 0 warnings/errors and focused AI/harness
+telemetry and acceptance-status tests passed 61/61 in 4 s. No long AI tournament or full suite was run.

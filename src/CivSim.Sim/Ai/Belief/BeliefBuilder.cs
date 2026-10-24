@@ -26,7 +26,7 @@ namespace CivSim.Sim.Ai;
 /// <item><b>Figures in the field:</b> two settlements whose people range into each other's sight, (r + r') × 1.1 + s
 /// apart (the awareness rule of 13 §12.2), let the observer see the rival's figures: the best weapon they carry,
 /// warriors' paint (WAR-04) and warpaint outfits (Raid posture, 14 §3.1).</item>
-/// <item>Before the observer is Aware of a civilization nothing of it is seen. Free Folk are not modelled.</item>
+/// <item>Before the observer is Aware of a civilization nothing of it is seen. Tin Folk are remembered only after direct sight.</item>
 /// </list>
 /// <para><b>What a seen settlement shows:</b> its tile; head count and fighters times a noise factor uniform in
 /// [0.75, 1.25] drawn from a stream keyed by match seed, observer, settlement and season; warriors (exactly: painted);
@@ -222,11 +222,55 @@ public sealed class BeliefBuilder : IBeliefBuilder
             }
         }
 
+        // Tin Folk are not civilizations and never enter a RivalBelief. Remember only villages whose settlement tile
+        // is visible now; their identity/location may persist, but no population or defense facts are stored.
+        for (int s = 0; s < total; s++)
+        {
+            if (!pol.IsTinFolk(s)) continue;
+            int tile = pol.SettlementTileOf(s);
+            int d = NearestOwn(pol, tile, width);
+            bool inSight = _visited[s] || d <= routine || (AnyAware(belief) && d <= scout);
+            if (!inSight) continue;
+            BeliefTinFolk? known = null;
+            foreach (BeliefTinFolk folk in belief.TinFolkSeen)
+                if (folk.Settlement == s) { known = folk; break; }
+            if (known is null) belief.TinFolkSeen.Add(new BeliefTinFolk { Settlement = s, Tile = tile, LastSeenSeason = season });
+            else { known.Tile = tile; known.LastSeenSeason = season; }
+        }
+
+        // ---- E3 mining camps in sight ------------------------------------------------------------------------
+        // Camps are not settlement structures, so their tile and owner must pass a local sight test before
+        // their deposit can contribute evidence. Do not infer from camps elsewhere in the economy model.
+        if (rivals && details)
+            for (int i = 0; i < eco.MiningCampCount; i++)
+            {
+                MiningCampView camp = eco.MiningCamp(i);
+                if (camp.Civilization == civ || (uint)camp.Civilization >= (uint)civs || !belief.Rivals[camp.Civilization].Aware) continue;
+                int d = NearestOwn(pol, camp.Tile, width);
+                if (d > routine && d > scout) continue;
+                RivalBelief rival = belief.Rivals[camp.Civilization];
+                int flag = camp.Deposit switch
+                {
+                    DepositKind.CopperOre => SeenFlag.CopperMineCamp,
+                    DepositKind.ArsenicalCopper => SeenFlag.ArsenicalMineCamp,
+                    DepositKind.Tin => SeenFlag.TinMineCamp,
+                    _ => 0,
+                };
+                if (flag == 0) continue;
+                rival.SeenFlags |= flag;
+                rival.LastSeenSeason = season;
+            }
+
         // ---- parties on the road ----------------------------------------------------------------------------
         belief.IncomingParties.Clear();
         foreach (Expedition e in pol.Expeditions)
         {
             if (e.Civ == civ || e.Civ < 0 || e.Civ >= civs || !dip.Aware(civ, e.Civ)) continue;
+            if (rivals && e.Kind == ExpeditionKind.Caravan)
+            {
+                int tile = pol.PartyTile(e);
+                RecordVisibleCaravan(belief.Rivals[e.Civ], e, tile, season, pol.KnowsTile(civ, tile));
+            }
             bool originSeen = (e.FromSettlement >= 0 && e.FromSettlement < total) && _seenNow[e.FromSettlement];
             bool targetOwn = (e.ToSettlement >= 0 && e.ToSettlement < total) && pol.SettlementCivOf(e.ToSettlement) == civ && !pol.IsFreeFolk(e.ToSettlement);
             if (targetOwn)
@@ -286,7 +330,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
                     if (gift) ArchetypeModel.Update(post, BeliefEvidence.GiftFromThem);
                     if (r.FirstsAnnounced > wasFirsts[o]) ArchetypeModel.Update(post, BeliefEvidence.FirstAnnounced);
                     if (r.Era > wasEra[o] && r.Era > ownEra) ArchetypeModel.Update(post, BeliefEvidence.EraAhead);
-                    int newDefense = r.SeenFlags & ~wasFlags[o] & (SeenFlag.ThornBarrier | SeenFlag.Palisade);
+                    int newDefense = r.SeenFlags & ~wasFlags[o] & (SeenFlag.ThornBarrier | SeenFlag.Palisade | SeenFlag.Hillfort | SeenFlag.StoneWalls);
                     if (newDefense != 0) ArchetypeModel.Update(post, BeliefEvidence.DefenseSeen);
                     if (_rangedNow[o] && !wasRanged[o]) ArchetypeModel.Update(post, BeliefEvidence.RangedWeapon);
                 }
@@ -304,6 +348,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
                     if ((r.SeenFlags & SeenFlag.Warriors) != 0) tech.AddWarriors(r.ProjectBelieved);
                     if ((r.SeenFlags & SeenFlag.Watchers) != 0) tech.AddWatchers(r.ProjectBelieved);
                     if ((r.SeenFlags & SeenFlag.Palisade) != 0) tech.AddPalisade(r.ProjectBelieved);
+                    AddVisibleBronzeEvidence(tech, r, visible: true);
                     for (int k = 0; k < LivingEconomyModel.StructureKindCount; k++)
                         if ((r.StructureKindsSeen & (1UL << k)) != 0) tech.AddStructure(k, r.ProjectBelieved);
                 }
@@ -324,6 +369,38 @@ public sealed class BeliefBuilder : IBeliefBuilder
     }
 
     private static bool IsDone(ResearchSystem res, int civ, int project) => project >= 0 && res.IsDone(civ, project);
+
+    /// <summary>Applies E3 tech evidence only after a sighted observation; shared by live update and fog tests.</summary>
+    internal static void AddVisibleBronzeEvidence(TechEstimate tech, RivalBelief rival, bool visible)
+    {
+        if (!visible) return;
+        tech.AddBronzeDefense((rival.SeenFlags & SeenFlag.Hillfort) != 0,
+            (rival.SeenFlags & SeenFlag.StoneWalls) != 0, rival.ProjectBelieved);
+        tech.AddMetalKits((rival.SeenFlags & SeenFlag.CopperKit) != 0,
+            (rival.SeenFlags & SeenFlag.ArsenicalKit) != 0, (rival.SeenFlags & SeenFlag.TinBronzeKit) != 0, rival.ProjectBelieved);
+        if ((rival.SeenFlags & SeenFlag.CopperMineCamp) != 0) tech.AddMiningCamp(DepositKind.CopperOre, rival.ProjectBelieved);
+        if ((rival.SeenFlags & SeenFlag.ArsenicalMineCamp) != 0) tech.AddMiningCamp(DepositKind.ArsenicalCopper, rival.ProjectBelieved);
+        if ((rival.SeenFlags & SeenFlag.TinMineCamp) != 0) tech.AddMiningCamp(DepositKind.Tin, rival.ProjectBelieved);
+        tech.AddCivicRoles((rival.SeenFlags & SeenFlag.Scribes) != 0, (rival.SeenFlags & SeenFlag.Priests) != 0, rival.ProjectBelieved);
+    }
+
+    /// <summary>Stores a caravan observation only when its current tile is in the observer's known sight.</summary>
+    internal static bool RecordVisibleCaravan(RivalBelief rival, Expedition expedition, int tile, int season, bool visible)
+    {
+        if (!visible || expedition.Kind != ExpeditionKind.Caravan || expedition.Civ != rival.Civ) return false;
+        int index = -1;
+        for (int i = 0; i < rival.CaravansSeen.Count; i++)
+            if (rival.CaravansSeen[i].Id == expedition.Id) { index = i; break; }
+        var sighting = new BeliefCaravan
+        {
+            Civ = expedition.Civ, Id = expedition.Id, Tile = tile, LastSeenSeason = season,
+            CompactId = expedition.CompactId, Good = expedition.Good, Cargo = expedition.Cargo,
+        };
+        if (index >= 0) rival.CaravansSeen[index] = sighting;
+        else rival.CaravansSeen.Add(sighting);
+        if (expedition.Good == TradeGood.Tin) rival.TinAccessSeen = true;
+        return true;
+    }
 
     private static bool AnyAware(Belief belief)
     {
@@ -393,23 +470,34 @@ public sealed class BeliefBuilder : IBeliefBuilder
         if (m.Defenses.ThornBarrier) r.SeenFlags |= SeenFlag.ThornBarrier;
         if (m.Defenses.Palisade) r.SeenFlags |= SeenFlag.Palisade;
         if (m.Defenses.Watchers) r.SeenFlags |= SeenFlag.Watchers;
+        if (m.Defenses.Hillfort) r.SeenFlags |= SeenFlag.Hillfort;
+        if (m.Defenses.StoneWalls) r.SeenFlags |= SeenFlag.StoneWalls;
         for (int k = 0; k < LivingEconomyModel.StructureKindCount; k++)
             if (eco.StructureCount(s, k) > 0) r.StructureKindsSeen |= 1UL << k;
         if (details)
         {
+            MetalReadout metal = eco.Metal(s);
+            if (metal.Kits8 > 0) r.SeenFlags |= SeenFlag.CopperKit;
+            if (metal.Kits9 > 0) r.SeenFlags |= SeenFlag.ArsenicalKit;
+            if (metal.Kits10 > 0) r.SeenFlags |= SeenFlag.TinBronzeKit;
+            (int priests, int scribes) = eco.RoleHeads(s);
+            if (scribes > 0) r.SeenFlags |= SeenFlag.Scribes;
+            if (priests > 0) r.SeenFlags |= SeenFlag.Priests;
             b.FightersEstimate = BeliefRules.Estimate(m.Fighters, factor);
             b.WarriorsSeen = m.Warriors;
             b.DefendingStrengthEstimate = m.DefendingStrength * factor;
             b.ThornBarrierSeen = m.Defenses.ThornBarrier;
             b.PalisadeSeen = m.Defenses.Palisade;
             b.WatchersSeen = m.Defenses.Watchers;
+            b.HillfortSeen = m.Defenses.Hillfort;
+            b.StoneWallsSeen = m.Defenses.StoneWalls;
         }
         else
         {
             b.FightersEstimate = 0;
             b.WarriorsSeen = 0;
             b.DefendingStrengthEstimate = Fix64.Zero;
-            b.ThornBarrierSeen = b.PalisadeSeen = b.WatchersSeen = false;
+            b.ThornBarrierSeen = b.PalisadeSeen = b.WatchersSeen = b.HillfortSeen = b.StoneWallsSeen = false;
         }
     }
 

@@ -16,7 +16,7 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 18;
+    public const int SnapshotVersion = 20;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;
@@ -74,7 +74,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         Hearth, LeanTo, HideTent, PitHouse, WattleHouse, MudbrickHouse, Longhouse,
         StoragePit, DryingRack, Granary, Kiln, Quern, ThornBarrier, Lookout, Weir,
-        Field, Pasture, Orchard, Count
+        Field, Pasture, Orchard, Hillfort, StoneWalls, Count
     }
 
     private enum SkillFamily : byte { Forage, Hunt, Fish, Farm, Chop, Gather, Herd, Count }
@@ -156,6 +156,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64 DomesticCattle;
         public Fix64 DomesticPigs;
         public bool FissionPending;
+        /// <summary>A walled settlement's field and pasture output is cut while it is under investment (22 §7.4).</summary>
+        public bool UnderInvestment;
         public bool FireLit;
         public long FireKeeperId = -1;
         public byte UnattendedFireTicks;
@@ -174,6 +176,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64 CurrentAnimals;
         public Fix64 Fear;
         public int AwaySeasons;
+        public int LastHuntCrashCivilization = -1;
         public int TamingYear;
         public Fix64 TamingLimitThisYear;
         public Fix64 TamedThisYear;
@@ -207,6 +210,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly WildHerdState[] _wildHerds;
     private readonly bool _hasIndividualHerds;
     private readonly int[][] _rangeTiles;
+    private readonly int[][] _fortificationRangeTiles;
     private readonly Fix64[] _siteFoodScores;
     private readonly int[] _fieldOwner;
     private readonly bool[] _tendedStandYieldBonus;
@@ -299,7 +303,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             _soil[tile] = input.SoilFertility;
         }
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
-        _rangeTiles = BuildRangeTiles(world);
+        _rangeTiles = BuildRangeTiles(world, Radius);
+        _fortificationRangeTiles = BuildRangeTiles(world, 4);
         _siteFoodScores = new Fix64[world.TileCount];
         for (int tile = 0; tile < world.TileCount; tile++) _siteFoodScores[tile] = SiteFoodScore(tile);
 
@@ -399,7 +404,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         WildHerdState herd = _wildHerds[index];
         return new WildHerdView(herd.Id, herd.Species, herd.HomeTile, herd.CurrentTile,
-            herd.CurrentAnimals, herd.Fear, herd.AwaySeasons);
+            herd.CurrentAnimals, herd.Fear, herd.AwaySeasons, herd.LastHuntCrashCivilization);
     }
 
     public DomesticHerdView DomesticHerd(int settlementIndex)
@@ -691,6 +696,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _deadwoodUsed = null;
         for (int s = 0; s < _settlements.Count; s++)
             TryFission(_settlements[s], season);
+        RotateMetalOutputSeason();
     }
 
     private void RegrowResources(int seasonOfYear)
@@ -1194,6 +1200,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 civicAssigned = Fix64.Zero;
         Fix64 upkeepRemaining = upkeepBudget;
         Fix64 need = FoodNeed(settlement, season % 4 == 3);
+        if (settlement.UnderInvestment) need *= Fix64.FromRatio(75, 100);
         Fix64 stores = FoodStores(settlement);
         Fix64 foodShare = stores < need ? Fix64.Parse("0.85") : stores < need * 2 ? Fix64.Parse("0.70") : Fix64.Parse("0.48");
         if (settlement.FoodSecurity < Fix64.Parse("0.8")) foodShare = Fix64.Parse("0.9");
@@ -1446,7 +1453,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             HerdAnimals(settlement, assignedHerdWork, SkillWeightedWork(actionWork, SkillFamily.Herd), season / 4);
             PracticeSkill(actionWork, SkillFamily.Herd);
         }
-        if (assignedBuildWork > Fix64.Zero) settlement.BuildProgress += assignedBuildWork;
+        if (assignedBuildWork > Fix64.Zero)
+        {
+            // A walls Corvée feeds the defensive construction queue (22 §4.3, §7.2); other targets
+            // accelerate civic works in WorkCivic.
+            if (CorveeAt(settlement.Id) == CorveeTarget.Walls) assignedBuildWork *= Fix64.FromRatio(3, 2);
+            settlement.BuildProgress += assignedBuildWork;
+        }
         if (metalPlan is not null && toolWork is not null) RunMetal(settlement, metalPlan, craftLeft, toolWork, season);
         if (civicAssigned > Fix64.Zero) WorkCivic(settlement, civicAssigned, civicCanals, civicHousing);
         if (_deadwoodUsed is not null && settlement.Civic is not null) BurnE3Fuel(settlement, season % 4 == 3, _deadwoodUsed);
@@ -1580,7 +1593,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void HerdAnimals(SettlementState settlement, Fix64 work, Fix64 productiveWork, int year)
     {
-        if (work <= Fix64.Zero || settlement.Structures[(int)Structure.Pasture] <= 0) return;
+        if (work <= Fix64.Zero || settlement.UnderInvestment || settlement.Structures[(int)Structure.Pasture] <= 0) return;
         Fix64 maintenanceNeed = DomesticHerdWorkNeed(settlement);
         Fix64 maintenanceWork = Fix64.Min(work, maintenanceNeed);
         Fix64 maintenanceShare = maintenanceNeed <= Fix64.Zero ? Fix64.Zero : maintenanceWork / maintenanceNeed;
@@ -1745,6 +1758,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 take = Fix64.Min(remainingWork * herdRate, herd.CurrentAnimals * perAnimal);
             Fix64 kills = take / perAnimal;
             herd.CurrentAnimals -= kills;
+            if (herd.CurrentAnimals == Fix64.Zero) herd.LastHuntCrashCivilization = settlement.Civilization;
             Fix64 fearGain = kills * Fix64.Parse("0.1") * (drive ? Fix64.FromInt(3) : Fix64.One);
             herd.Fear = Fix64.Min(Fix64.FromInt(4), herd.Fear + fearGain);
             DisplaceHerdIfAfraid(herd, drive, season, settlement);
@@ -1831,7 +1845,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void HarvestFields(SettlementState settlement, int year)
     {
-        if (settlement.FieldTiles.Count == 0 || !HasProject(settlement.Civilization, "AGR-01")) return;
+        if (settlement.UnderInvestment || settlement.FieldTiles.Count == 0 || !HasProject(settlement.Civilization, "AGR-01")) return;
         Fix64 required = settlement.Civic is not null ? FieldLaborNeed(settlement) : Fix64.FromInt(settlement.FieldTiles.Count);
         Fix64 factor = required <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, settlement.FarmWorkThisYear / required);
         Fix64 yield = Fix64.Zero;
@@ -2102,7 +2116,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             settlement.BuildTarget = Structure.Count;
             return;
         }
-        Fix64 labor = BuildLabor(candidate);
+        Fix64 labor = StructureBuildLabor(settlement, candidate);
         if (settlement.BuildProgress < labor) return;
         if (!CanPayStructure(settlement, candidate)) return;
         PayStructure(settlement, candidate);
@@ -2169,6 +2183,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(2)) return Structure.ThornBarrier;
         if (CanBuild(settlement.Civilization, Structure.Lookout) && settlement.Structures[(int)Structure.Lookout] == 0 &&
             settlement.Stores[(int)Good.Wood] >= Fix64.One) return Structure.Lookout;
+        if (CanBuild(settlement.Civilization, Structure.Hillfort) && settlement.Structures[(int)Structure.Hillfort] == 0 &&
+            HasHillfortSite(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10)) return Structure.Hillfort;
+        if (CanBuild(settlement.Civilization, Structure.StoneWalls) &&
+            settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1)
+            return Structure.StoneWalls;
         if (CanBuild(settlement.Civilization, Structure.Weir) &&
             CanPlaceWeir(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&
             settlement.Stores[(int)Good.Stone] >= Fix64.FromInt(2)) return Structure.Weir;
@@ -2200,7 +2219,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.StoragePit => "storage_pit", Structure.DryingRack => "drying_rack", Structure.Granary => "granary",
         Structure.Kiln => "kiln", Structure.Quern => "quern", Structure.ThornBarrier => "thorn_barrier",
         Structure.Lookout => "lookout_post", Structure.Weir => "weir", Structure.Field => "field",
-        Structure.Pasture => "pasture", Structure.Orchard => "orchard", _ => "",
+        Structure.Pasture => "pasture", Structure.Orchard => "orchard", Structure.Hillfort => "hillfort",
+        Structure.StoneWalls => "stone_walls", _ => "",
     };
 
     private static Fix64 BuildLabor(Structure structure) => structure switch
@@ -2216,7 +2236,25 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Field => Fix64.One, _ => Fix64.One,
     };
 
-    private static bool CanPayStructure(SettlementState s, Structure structure) => structure switch
+    private Fix64 StructureBuildLabor(SettlementState settlement, Structure structure)
+    {
+        if (structure == Structure.StoneWalls) return Fix64.FromInt(30 * ((int)Tier(settlement.Id) + 1));
+        return BuildLabor(structure);
+    }
+
+    /// <summary>DEF-04: a settlement can raise one hillfort when a high, non-mountain tile lies within four hexes.</summary>
+    private bool HasHillfortSite(SettlementState settlement)
+    {
+        foreach (int tile in _fortificationRangeTiles[settlement.SiteTile])
+        {
+            WorldEconomyTile candidate = _world.Tile(tile);
+            if (candidate.Elevation >= 150 && (Biome)candidate.BiomeId is not (Biome.Mountain or Biome.Peak or Biome.Ocean or Biome.Coast))
+                return true;
+        }
+        return false;
+    }
+
+    private bool CanPayStructure(SettlementState s, Structure structure) => structure switch
     {
         Structure.Hearth => s.Stores[(int)Good.Stone] >= Fix64.Half,
         Structure.LeanTo => s.Stores[(int)Good.Wood] >= Fix64.One,
@@ -2233,12 +2271,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.MudbrickHouse => s.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(60),
         Structure.Granary => s.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(80),
         Structure.Orchard => s.Stores[(int)Good.Sapling] >= Fix64.One,
+        Structure.Hillfort => s.Stores[(int)Good.Wood] >= Fix64.FromInt(10),
+        Structure.StoneWalls => CutStoneHeld(s, blocksToo: false) >= Fix64.FromInt(60 * ((int)Tier(s.Id) + 1)),
         Structure.StoragePit or Structure.Field => true,
         Structure.DryingRack => s.Stores[(int)Good.Wood] >= Fix64.Half,
         _ => false,
     };
 
-    private static void PayStructure(SettlementState s, Structure structure)
+    private void PayStructure(SettlementState s, Structure structure)
     {
         switch (structure)
         {
@@ -2262,6 +2302,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             case Structure.MudbrickHouse: s.Stores[(int)Good.Mudbrick] -= Fix64.FromInt(60); break;
             case Structure.Granary: s.Stores[(int)Good.Mudbrick] -= Fix64.FromInt(80); break;
             case Structure.Orchard: s.Stores[(int)Good.Sapling] -= Fix64.One; break;
+            case Structure.Hillfort: s.Stores[(int)Good.Wood] -= Fix64.FromInt(10); break;
+            case Structure.StoneWalls:
+                if (s.Metal is { } metal)
+                    metal.Goods[(int)MetalGood.Ashlar] -= Fix64.FromInt(60 * ((int)Tier(s.Id) + 1));
+                break;
             case Structure.DryingRack: s.Stores[(int)Good.Wood] -= Fix64.Half; break;
         }
     }
@@ -2340,6 +2385,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void ConsumeFood(SettlementState settlement, bool winter, int season)
     {
         Fix64 need = FoodNeed(settlement, winter);
+        if (settlement.UnderInvestment) need *= Fix64.FromRatio(75, 100);
         Fix64 available = FoodStores(settlement);
         Fix64 security = need <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, available / need);
         ConsumeFoodStocks(settlement, Fix64.Min(available, need));
@@ -3547,7 +3593,12 @@ public sealed partial class LivingEconomyModel : ISimModel
                 Fix64.Max(Fix64.Zero, totalWork * (Fix64.One - foodShare) - buildReserve));
             Fix64 herdBudget = CanTameFromRange(settlement) ? materialBudget * Fix64.Half : Fix64.Zero;
             herdBudget = Fix64.Min(materialBudget, Fix64.Max(herdBudget, maintenanceNeed));
-            Fix64 maintenanceShare = Fix64.Min(Fix64.One, herdBudget / maintenanceNeed);
+            // Clamp before dividing. A newly tamed, tiny herd can have a positive maintenance
+            // need close to one raw Q32.32 unit while the budget is ordinary-sized; computing
+            // that ratio first can overflow even though the intended share is simply one.
+            Fix64 maintenanceShare = herdBudget >= maintenanceNeed
+                ? Fix64.One
+                : herdBudget / maintenanceNeed;
             produced += DomesticAnnualMeat(settlement) / Fix64.FromInt(4) *
                 FoodValue(Good.Meat, settlement) * maintenanceShare;
         }
@@ -4331,11 +4382,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         return componentByTile;
     }
 
-    private static int[][] BuildRangeTiles(WorldEconomyInput world)
+    private static int[][] BuildRangeTiles(WorldEconomyInput world, int radius)
     {
         var ranges = new int[world.TileCount][];
         var visited = new int[world.TileCount];
-        int[] queue = new int[1 + 3 * Radius * (Radius + 1)];
+        int[] queue = new int[1 + 3 * radius * (radius + 1)];
         Span<int> neighbors = stackalloc int[6];
         for (int center = 0; center < world.TileCount; center++)
         {
@@ -4346,7 +4397,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             while (head < tail)
             {
                 int tile = queue[head++];
-                if (HexGrid.Distance(center, tile, world.Width) == Radius) continue;
+                if (HexGrid.Distance(center, tile, world.Width) == radius) continue;
                 int count = HexGrid.Neighbors(tile, world.Width, world.Height, neighbors);
                 for (int i = 0; i < count; i++)
                 {
@@ -4427,6 +4478,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             hash.Add(herd.Id); hash.Add((byte)herd.Species); hash.Add(herd.HomeTile); hash.Add(herd.CurrentTile);
             hash.Add(herd.CurrentAnimals); hash.Add(herd.Fear); hash.Add(herd.AwaySeasons);
+            hash.Add(herd.LastHuntCrashCivilization);
             hash.Add(herd.TamingYear); hash.Add(herd.TamingLimitThisYear); hash.Add(herd.TamedThisYear);
         }
         foreach (int owner in _fieldOwner) hash.Add(owner);
@@ -4439,11 +4491,19 @@ public sealed partial class LivingEconomyModel : ISimModel
             SettlementState s = _settlements[i];
             hash.Add(s.Id); hash.Add(s.Civilization); hash.Add(s.SiteTile); hash.Add(s.FoodSecurity);
             hash.Add(s.LateWinterForecast); hash.Add(s.LateWinterFoodShare); hash.Add(s.FarmWorkThisYear);
-            hash.Add(s.BuildProgress); hash.Add(s.DryingMudbrick); hash.Add((byte)s.BuildTarget); hash.Add(s.Fissions); hash.Add(s.LastFissionSeason);
-            hash.Add(s.Cohesion); hash.Add(s.Stores); foreach (int count in s.Structures) hash.Add(count);
+            // Keep the pre-Bronze checksum stream stable. The two fortification slots extend the
+            // structure array, and the appended enum members move Count (the old no-build sentinel).
+            // They are unreachable until KEY-3, so hash them only once the Bronze simulation is live.
+            byte buildTarget = !_bronzeActive && s.BuildTarget == Structure.Count
+                ? (byte)Structure.Hillfort : (byte)s.BuildTarget;
+            hash.Add(s.BuildProgress); hash.Add(s.DryingMudbrick); hash.Add(buildTarget); hash.Add(s.Fissions); hash.Add(s.LastFissionSeason);
+            hash.Add(s.Cohesion); hash.Add(s.Stores);
+            int hashedStructures = _bronzeActive ? s.Structures.Length : (int)Structure.Hillfort;
+            for (int structure = 0; structure < hashedStructures; structure++) hash.Add(s.Structures[structure]);
             hash.Add(s.DomesticSmallStock); hash.Add(s.DomesticCattle); hash.Add(s.DomesticPigs);
             hash.Add(s.ToolRemainingWork);
             hash.Add(s.FissionPending); hash.Add(s.FireLit); hash.Add(s.FireKeeperId); hash.Add(s.UnattendedFireTicks);
+            if (_bronzeActive) hash.Add(s.UnderInvestment);
             hash.Add(s.FieldTiles.Count); foreach (int tile in s.FieldTiles) hash.Add(tile);
             hash.Add(s.OrchardPlots.Count);
             foreach (OrchardPlot orchard in s.OrchardPlots) { hash.Add(orchard.Tile); hash.Add(orchard.AgeSeasons); }
@@ -4490,6 +4550,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             writer.Write(herd.Id); writer.Write((byte)herd.Species); writer.Write(herd.HomeTile); writer.Write(herd.CurrentTile);
             writer.Write(herd.CurrentAnimals.Raw); writer.Write(herd.Fear.Raw); writer.Write(herd.AwaySeasons);
+            writer.Write(herd.LastHuntCrashCivilization);
             writer.Write(herd.TamingYear); writer.Write(herd.TamingLimitThisYear.Raw); writer.Write(herd.TamedThisYear.Raw);
         }
         writer.Write(_fieldOwner.Length); foreach (int owner in _fieldOwner) writer.Write(owner);
@@ -4516,6 +4577,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(s.Fissions); writer.Write(s.LastFissionSeason); writer.Write(s.Cohesion.Raw); writer.Write(s.FissionPending);
             writer.Write(s.DomesticSmallStock.Raw); writer.Write(s.DomesticCattle.Raw); writer.Write(s.DomesticPigs.Raw);
             writer.Write(s.FireLit); writer.Write(s.FireKeeperId); writer.Write(s.UnattendedFireTicks);
+            writer.Write(s.UnderInvestment);
         }
         writer.Write(_figures.Count);
         for (int i = 0; i < _figures.Count; i++)
@@ -4591,12 +4653,14 @@ public sealed partial class LivingEconomyModel : ISimModel
             int id = reader.ReadInt32(); HerdSpecies species = (HerdSpecies)reader.ReadByte();
             int home = reader.ReadInt32(); int current = reader.ReadInt32();
             Fix64 animals = Fix64.FromRaw(reader.ReadInt64()); Fix64 fear = Fix64.FromRaw(reader.ReadInt64());
-            int away = reader.ReadInt32(); int tamingYear = reader.ReadInt32();
+            int away = reader.ReadInt32(); int lastHuntCrashCivilization = reader.ReadInt32();
+            int tamingYear = reader.ReadInt32();
             Fix64 tamingLimit = Fix64.FromRaw(reader.ReadInt64()); Fix64 tamed = Fix64.FromRaw(reader.ReadInt64());
             if (id != herd.Id || species != herd.Species || home != herd.HomeTile)
                 throw new InvalidDataException("Snapshot wild-herd identity differs from world input.");
             herd.CurrentTile = current; herd.CurrentAnimals = animals; herd.Fear = fear;
             herd.AwaySeasons = away; herd.TamingYear = tamingYear;
+            herd.LastHuntCrashCivilization = lastHuntCrashCivilization;
             herd.TamingLimitThisYear = tamingLimit; herd.TamedThisYear = tamed;
         }
         if (reader.ReadInt32() != _fieldOwner.Length) throw new InvalidDataException("Snapshot world tile count differs.");
@@ -4634,6 +4698,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             s.DomesticSmallStock = Fix64.FromRaw(reader.ReadInt64());
             s.DomesticCattle = Fix64.FromRaw(reader.ReadInt64()); s.DomesticPigs = Fix64.FromRaw(reader.ReadInt64());
             s.FireLit = reader.ReadBoolean(); s.FireKeeperId = reader.ReadInt64(); s.UnattendedFireTicks = reader.ReadByte();
+            s.UnderInvestment = reader.ReadBoolean();
             _settlements.Add(s);
         }
         _figures.Clear();
@@ -4711,6 +4776,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 herd.CurrentAnimals < Fix64.Zero || herd.CurrentAnimals > carryingCapacity ||
                 herd.Fear < Fix64.Zero || herd.Fear > Fix64.FromInt(4) ||
                 herd.AwaySeasons is < 0 or > 2 || herd.TamingYear < 0 || herd.TamingYear > _seasonsCompleted / 4 ||
+                herd.LastHuntCrashCivilization < -1 || herd.LastHuntCrashCivilization >= CivilizationCount ||
                 herd.TamingLimitThisYear < Fix64.Zero || herd.TamedThisYear < Fix64.Zero ||
                 herd.TamedThisYear > herd.TamingLimitThisYear)
                 throw new InvalidDataException("Snapshot contains invalid wild-herd state.");
@@ -4927,6 +4993,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         target.Id = source.Id; target.Species = source.Species; target.HomeTile = source.HomeTile;
         target.CurrentTile = source.CurrentTile; target.CurrentAnimals = source.CurrentAnimals;
         target.Fear = source.Fear; target.AwaySeasons = source.AwaySeasons;
+        target.LastHuntCrashCivilization = source.LastHuntCrashCivilization;
         target.TamingYear = source.TamingYear; target.TamingLimitThisYear = source.TamingLimitThisYear;
         target.TamedThisYear = source.TamedThisYear;
     }
@@ -4955,6 +5022,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             FireLit = source.FireLit,
             FireKeeperId = source.FireKeeperId,
             UnattendedFireTicks = source.UnattendedFireTicks,
+            UnderInvestment = source.UnderInvestment,
             Metal = CloneMetal(source.Metal),
             Civic = CloneCivic(source.Civic),
         };

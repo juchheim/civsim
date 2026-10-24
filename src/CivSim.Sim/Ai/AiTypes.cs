@@ -107,8 +107,8 @@ public sealed class AiLog
     public void Clear() => _entries.Clear();
 }
 
-/// <summary>The Strategist's grand plans (docs/MVP/14 §3.3). E0 to E2 use the first five.</summary>
-public enum GrandPlan : byte { FrontierRace, Prosper, Defend, Conquer, CoalitionAgainstLeader, ApexRace }
+/// <summary>The Strategist's grand plans (docs/MVP/14 §3.3, docs/MVP/22 §13.3). Append values: the plan is saved in snapshots.</summary>
+public enum GrandPlan : byte { FrontierRace, Prosper, Defend, Conquer, CoalitionAgainstLeader, ApexRace, SecureTin }
 
 /// <summary>
 /// What the Strategist tells the Spark (docs/MVP/14 §6.4: "if a rival's forecast bronze or warrior ETA falls before its own

@@ -247,6 +247,7 @@ public sealed partial class FrameBuilder
         {
             PoliticsEvent p = events[_politicsCursor];
             if (!_omniscient && p.Civ != _viewer && !(OneSided(p.Kind) && p.Other == _viewer)) continue;
+            if (p.Kind is PoliticsEventKind.InvestmentTelemetryStarted or PoliticsEventKind.InvestmentDeserted) continue;
             bool defender = !_omniscient && p.Civ != _viewer;
             ViewEvent e = New(p.Tick, ViewEventKind.None, ChronicleKey.None, ViewEventTier.Info, p.Civ, p.Other);
             e.A = p.A;
@@ -270,6 +271,10 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.BarterDone; e.Text = ChronicleKey.BarterDone;
                     break;
                 case PoliticsEventKind.RaidLaunched:
+                    e.Kind = ViewEventKind.RaidLaunched; e.Text = ChronicleKey.RaidLaunched;
+                    e.Settlement = p.B; e.Tile = TileOf(p.B);
+                    break;
+                case PoliticsEventKind.AssaultLaunched:
                     e.Kind = ViewEventKind.RaidLaunched; e.Text = ChronicleKey.RaidLaunched;
                     e.Settlement = p.B; e.Tile = TileOf(p.B);
                     break;

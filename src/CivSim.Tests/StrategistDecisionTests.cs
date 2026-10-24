@@ -26,6 +26,7 @@ public class StrategistDecisionTests
     {
         public readonly OwnView Own = new();
         public readonly Belief Belief;
+        public readonly MapKnowledge Map;
         public readonly StrategicIntent Intent = new();
         public readonly AiLog Log = new();
         public readonly List<string> Done = new() { "WAR-01", "WAR-02", "HNT-02", "HNT-03" };
@@ -35,8 +36,8 @@ public class StrategistDecisionTests
 
         public Scene()
         {
-            var map = new MapKnowledge(World.Value.Tiles.ToArray(), W, World.Value.Height);
-            Belief = new Belief(0, 4, TestPack.Catalog.Count, map);
+            Map = new MapKnowledge(World.Value.Tiles.ToArray(), W, World.Value.Height);
+            Belief = new Belief(0, 4, TestPack.Catalog.Count, Map);
             Own.Civ = 0; Own.Era = 1; Own.ReachTiles = 9; Own.Population = 40; Own.Adults = 16; Own.Posture = Posture.Balanced;
             Own.Settlements.Add(new OwnSettlement
             {
@@ -62,13 +63,14 @@ public class StrategistDecisionTests
             r.WeaponStrength = Fix64.FromRatio(13, 10);
         }
 
-        public BeliefSettlement Site(int civ, int settlement, int tile, int fighters, bool palisade = false, bool watchers = false, int seenAgo = 0)
+        public BeliefSettlement Site(int civ, int settlement, int tile, int fighters, bool palisade = false, bool watchers = false,
+            int seenAgo = 0, bool stoneWalls = false, bool distress = false)
         {
             var b = new BeliefSettlement
             {
                 Settlement = settlement, Tile = tile, LastSeenSeason = Season - seenAgo, PopulationEstimate = fighters * 3,
                 FightersEstimate = fighters, DefendingStrengthEstimate = Fix64.FromInt(fighters) * Fix64.FromRatio(78, 100),
-                PalisadeSeen = palisade, WatchersSeen = watchers,
+                PalisadeSeen = palisade, WatchersSeen = watchers, StoneWallsSeen = stoneWalls, DistressSeen = distress,
             };
             Belief.Rivals[civ].Settlements.Add(b);
             Belief.Rivals[civ].PopulationLow = Belief.Rivals[civ].PopulationHigh = Belief.Rivals[civ].Settlements.Sum(s => s.PopulationEstimate);
@@ -103,17 +105,90 @@ public class StrategistDecisionTests
     }
 
     [Fact]
-    public void Refuses_a_raid_on_a_palisaded_watched_target_and_takes_the_undefended_one()
+    public void Coalition_embargoes_only_tin_to_the_believed_leader_after_key3_once()
+    {
+        var scene = new Scene { Season = 120 };
+        scene.Own.Era = 3;
+        scene.Own.ClaimedTiles = 100;
+        scene.Done.Add("KEY-3");
+        scene.Contact(2, relations: 0);
+        scene.Contact(3, relations: 0);
+        // The belief shows civ 1 with 400 known tiles, civ 2 with 150, civ 0 with 100, and civ 3 with 80.
+        for (int tile = 0; tile < scene.Map.TileCount; tile++)
+        {
+            scene.Map.MarkExplored(tile);
+            int owner = tile < 400 ? 1 : tile < 550 ? 2 : tile < 650 ? 0 : tile < 730 ? 3 : 1;
+            scene.Map.RecordOwner(tile, owner, scene.Season);
+        }
+        scene.Belief.Rivals[1].TinAccessSeen = true;
+        scene.Own.Others[1].TinEmbargoed = false;
+
+        (Strategist mind, ActionRecorder first) = Decide(scene);
+        Assert.Equal(GrandPlan.CoalitionAgainstLeader, mind.Plan);
+        Assert.Contains("embargo 1 Tin True", first.Orders);
+        Assert.Contains(scene.Notes("Embargo"), n => n.Subject == 1 && n.Other == (int)TradeGood.Tin);
+
+        // The own-state view records the existing embargo; another season does not reissue or relog it.
+        scene.Own.Others[1].TinEmbargoed = true;
+        (_, ActionRecorder second) = Decide(scene, mind);
+        Assert.DoesNotContain(second.Orders, o => o.StartsWith("embargo", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Coalition_tin_embargo_requires_belief_evidence_of_the_leaders_tin_route()
+    {
+        var scene = new Scene { Season = 120 };
+        scene.Own.Era = 3;
+        scene.Own.ClaimedTiles = 100;
+        scene.Done.Add("KEY-3");
+        scene.Contact(2, relations: 0);
+        scene.Contact(3, relations: 0);
+        for (int tile = 0; tile < scene.Map.TileCount; tile++)
+        {
+            scene.Map.MarkExplored(tile);
+            int owner = tile < 400 ? 1 : tile < 550 ? 2 : tile < 650 ? 0 : tile < 730 ? 3 : 1;
+            scene.Map.RecordOwner(tile, owner, scene.Season);
+        }
+
+        (Strategist mind, ActionRecorder unsupported) = Decide(scene);
+        Assert.Equal(GrandPlan.CoalitionAgainstLeader, mind.Plan);
+        Assert.DoesNotContain(unsupported.Orders, o => o.StartsWith("embargo", StringComparison.Ordinal));
+
+        // A seen tin caravan or sighted tin mine camp makes the route evidence sufficient.
+        scene.Belief.Rivals[1].SeenFlags |= SeenFlag.TinMineCamp;
+        (_, ActionRecorder supported) = Decide(scene, mind);
+        Assert.Contains("embargo 1 Tin True", supported.Orders);
+    }
+
+    [Fact]
+    public void Coalition_does_not_embargo_before_key3_or_without_current_leader_target()
+    {
+        var scene = new Scene { Season = 120 };
+        scene.Own.Era = 3;
+        scene.Own.ClaimedTiles = 100;
+        scene.Contact(2, relations: 0);
+        scene.Contact(3, relations: 0);
+        for (int tile = 0; tile < scene.Map.TileCount; tile++)
+        {
+            scene.Map.MarkExplored(tile);
+            int owner = tile < 400 ? 1 : tile < 550 ? 2 : tile < 650 ? 0 : tile < 730 ? 3 : 1;
+            scene.Map.RecordOwner(tile, owner, scene.Season);
+        }
+
+        (_, ActionRecorder locked) = Decide(scene);
+        Assert.DoesNotContain(locked.Orders, o => o.StartsWith("embargo", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Rejects_a_marginal_raid_after_comparing_it_with_a_palisaded_target()
     {
         var scene = new Scene();
         scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 22, palisade: true, watchers: true);
         scene.Site(1, settlement: 6, tile: T(28, 40), fighters: 6);
         (_, ActionRecorder act) = Decide(scene);
-        string raid = Assert.Single(act.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
-        Assert.StartsWith("raid 6 ", raid);
-        AiDecision note = Assert.Single(scene.Notes("Raid"));
-        Assert.True(note.Score >= Fix64.FromRatio(45, 100), note.Reason); // Balanced: medium margin
-        Assert.Contains("success", note.Reason);
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        AiDecision note = Assert.Single(scene.Notes("RaidRejected"));
+        Assert.Contains("below", note.Reason);
 
         // The palisaded village alone is not raided, and the log says why.
         var walled = new Scene();
@@ -128,14 +203,15 @@ public class StrategistDecisionTests
     [Fact]
     public void A_blind_Chieftain_estimates_a_villages_defenders_from_its_head_count()
     {
-        // Seen only as a head count (no fighters, no strength), a village of 18 is worth raiding: six fighters believed as strong
-        // as ours (times 1.3) against our seven. It used to read "no defenders" and a success of exactly 0.
+        // Seen only as a head count (no fighters, no strength), a village of 18 is modeled with six fighters believed as strong
+        // as ours (times 1.3) against our seven. The calibrated success probability lowers expected loot below the EV margin.
         var medium = new Scene { Level = Difficulty.Chieftain };
         medium.BlindSite(1, settlement: 6, tile: T(28, 40), population: 18);
         (_, ActionRecorder act) = Decide(medium);
-        Assert.Contains(act.Orders, o => o.StartsWith("raid 6 ", StringComparison.Ordinal));
-        AiDecision note = Assert.Single(medium.Notes("Raid"));
-        Assert.True(note.Score >= Fix64.FromRatio(45, 100), note.Reason);
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("raid 6 ", StringComparison.Ordinal));
+        AiDecision note = Assert.Single(medium.Notes("RaidRejected"));
+        Assert.Contains("expected value", note.Reason);
+        Assert.True(note.Score < Fix64.FromRatio(75, 100), note.Reason);
 
         // A tiny one does not pay for the risk...
         var tiny = new Scene { Level = Difficulty.Chieftain };
@@ -148,6 +224,47 @@ public class StrategistDecisionTests
         big.BlindSite(1, settlement: 6, tile: T(28, 40), population: 60);
         Assert.DoesNotContain(Decide(big).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
         Assert.Contains(big.Notes("RaidRejected"), n => n.Reason.Contains("believed success"));
+    }
+
+    [Fact]
+    public void Raid_probability_estimates_use_enough_trials_for_candidate_selection()
+    {
+        foreach (Difficulty level in Enum.GetValues<Difficulty>())
+        {
+            DifficultyProfile profile = DifficultyProfile.From(TestPack.Pack, level);
+            Assert.True(StrategistTuning.Trials(profile) >= 32, $"{level}: {StrategistTuning.Trials(profile)} trials");
+        }
+
+        // The larger fixed sample remains deterministic when the Strategist compares several raid candidates.
+        var first = new Scene();
+        first.Site(1, settlement: 5, tile: T(52, 40), fighters: 22, palisade: true, watchers: true);
+        first.Site(1, settlement: 6, tile: T(28, 40), fighters: 6);
+        var second = new Scene();
+        second.Site(1, settlement: 5, tile: T(52, 40), fighters: 22, palisade: true, watchers: true);
+        second.Site(1, settlement: 6, tile: T(28, 40), fighters: 6);
+        (_, ActionRecorder firstAct) = Decide(first);
+        (_, ActionRecorder secondAct) = Decide(second);
+        Assert.Equal(firstAct.Orders, secondAct.Orders);
+        Assert.Equal(first.Notes("RaidRejected").Single().Score, second.Notes("RaidRejected").Single().Score);
+    }
+
+    [Fact]
+    public void Raid_probability_uses_sighted_E3_walls_and_the_bronze_barrier_rules()
+    {
+        var open = new Scene();
+        open.Belief.Rivals[1].Era = 3;
+        open.Site(1, settlement: 6, tile: T(28, 40), fighters: 6);
+        (_, ActionRecorder openAct) = Decide(open);
+        Assert.Contains(openAct.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        AiDecision openEstimate = Assert.Single(open.Notes("Raid"));
+
+        var walled = new Scene();
+        walled.Belief.Rivals[1].Era = 3;
+        walled.Site(1, settlement: 6, tile: T(28, 40), fighters: 6, stoneWalls: true);
+        (_, ActionRecorder walledAct) = Decide(walled);
+        Assert.DoesNotContain(walledAct.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        AiDecision wallEstimate = Assert.Single(walled.Notes("RaidRejected"));
+        Assert.True(wallEstimate.Score < openEstimate.Score, $"open {openEstimate.Score}; walls {wallEstimate.Score}");
     }
 
     [Fact]
@@ -285,6 +402,48 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Plans_only_supplied_investments_against_seen_distressed_walls_with_margin()
+    {
+        var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+        scene.Own.Settlements[0].Fighters = 30;
+        scene.Own.Settlements[0].Adults = 30;
+        scene.Own.Settlements[0].AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+        scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+        foreach (int tile in Enumerable.Range(0, scene.Map.TileCount)) scene.Map.MarkExplored(tile);
+        BeliefSettlement target = scene.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true, distress: true);
+
+        (_, ActionRecorder act) = Decide(scene);
+        Assert.Contains("assault 6", act.Orders); // The simulation maps this order to an investment at Stone Walls.
+        AiDecision war = Assert.Single(scene.Notes("War"));
+        Assert.Contains("Stone Walls: investment", war.Reason);
+        Assert.Contains("supplied", war.Reason);
+        Assert.Contains("stores are unobserved", war.Reason);
+        Assert.True(war.Score >= Fix64.FromRatio(15, 10), war.Reason);
+        Assert.True(target.StoneWallsSeen);
+
+        var unsupplied = new Scene { Archetype = EconomyArchetype.Warlord };
+        unsupplied.Own.Settlements[0].Fighters = 30;
+        unsupplied.Own.Settlements[0].Adults = 30;
+        unsupplied.Own.Settlements[0].AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+        unsupplied.Own.Others[1].Relations = unsupplied.Belief.Rivals[1].Relations = -60;
+        unsupplied.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true, distress: true);
+        (_, ActionRecorder none) = Decide(unsupplied);
+        Assert.DoesNotContain(none.Orders, o => o.StartsWith("war", StringComparison.Ordinal));
+        Assert.Contains(unsupplied.Notes("WarRejected"), n => n.Reason.Contains("no known supply path"));
+
+        var noDistress = new Scene { Archetype = EconomyArchetype.Warlord };
+        noDistress.Own.Settlements[0].Fighters = 30;
+        noDistress.Own.Settlements[0].Adults = 30;
+        noDistress.Own.Settlements[0].AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+        noDistress.Own.Others[1].Relations = noDistress.Belief.Rivals[1].Relations = -60;
+        foreach (int tile in Enumerable.Range(0, noDistress.Map.TileCount)) noDistress.Map.MarkExplored(tile);
+        noDistress.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
+        (_, ActionRecorder rejected) = Decide(noDistress);
+        Assert.DoesNotContain(rejected.Orders, o => o.StartsWith("war", StringComparison.Ordinal));
+        Assert.Contains(noDistress.Notes("WarRejected"), n => n.Reason.Contains("no distress evidence"));
+    }
+
+    [Fact]
     public void Gifts_a_stronger_neighbour_at_first_contact_and_barters_when_both_gain()
     {
         var scene = new Scene();
@@ -336,6 +495,19 @@ public class StrategistDecisionTests
             or DepositKind.Coal or DepositKind.Salt or DepositKind.Flint;
         Assert.True(onDeposit || HexGrid.Distance(rival, tile, W) < HexGrid.Distance(rival, own, W), "the Beacon leans toward the rival");
         Assert.Single(scene.Notes("Beacon"));
+    }
+
+    [Fact]
+    public void Strategist_prioritizes_a_known_tin_placer_until_the_tin_bronze_route_is_secured()
+    {
+        Assert.Equal(StrategistTuning.BeaconTinRouteBonus,
+            Strategist.BronzeTinBeaconBonus(hasBronzeTools: true, hasTinBronze: false, deposit: DepositKind.Tin));
+        Assert.Equal(Fix64.Zero,
+            Strategist.BronzeTinBeaconBonus(hasBronzeTools: false, hasTinBronze: false, deposit: DepositKind.Tin));
+        Assert.Equal(Fix64.Zero,
+            Strategist.BronzeTinBeaconBonus(hasBronzeTools: true, hasTinBronze: true, deposit: DepositKind.Tin));
+        Assert.Equal(Fix64.Zero,
+            Strategist.BronzeTinBeaconBonus(hasBronzeTools: true, hasTinBronze: false, deposit: DepositKind.CopperOre));
     }
 
     [Fact]

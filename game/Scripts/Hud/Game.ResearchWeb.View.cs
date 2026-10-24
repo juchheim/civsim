@@ -56,7 +56,7 @@ public partial class Game
         UpdateQueueChip(frame);
         _updatingFocusBar = true;
         _webAutoFill?.SetPressedNoSignal(frame.FocusCouncil);
-        if (_webAutoFill is not null) _webAutoFill.Disabled = frame.FocusCiv != 0 || (_session?.IsReplay ?? false);
+        if (_webAutoFill is not null) _webAutoFill.Disabled = frame.FocusCiv != frame.ViewerCiv || (_session?.IsReplay ?? false);
         _updatingFocusBar = false;
         _navCards.Clear();
         if (_webView == ViewChoose) RefreshChooseView(frame);
@@ -384,7 +384,7 @@ public partial class Game
         // era header row
         var eraRow = UiKit.Row(UiTokens.Sp2);
         eraRow.AddChild(UiKit.Spacer(160));
-        for (int era = 0; era < 3; era++)
+        for (int era = 0; era < 4; era++)
         {
             Label header = UiKit.Text(UiText.AgeName(era).ToUpperInvariant() + " AGE", "EyebrowTertiary");
             header.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -400,7 +400,7 @@ public partial class Game
         _mapKeystoneCell.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
         _mapKeystoneCell.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
         foreach (ProjectDef def in _catalog.Projects)
-            if (def.IsKeystone && def.Numeric && def.Era <= 2) _mapKeystoneCell.AddChild(MakeChip(def));
+            if (def.IsKeystone && def.Numeric && def.Era <= 3) _mapKeystoneCell.AddChild(MakeChip(def));
         keyRow.AddChild(_mapKeystoneCell);
         _mapKeystoneRow = keyRow;
         _mapView.AddChild(keyRow);
@@ -431,7 +431,7 @@ public partial class Game
                 label.TooltipText = UiText.FieldName(_catalog, lineage, false);
                 label.MouseFilter = Control.MouseFilterEnum.Stop;
                 row.AddChild(label);
-                for (int era = 0; era < 3; era++)
+                for (int era = 0; era < 4; era++)
                 {
                     var cell = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(233, 0) };
                     cell.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
@@ -475,7 +475,7 @@ public partial class Game
         string query = _webSearch?.Text.Trim() ?? "";
         var visibleRows = new HashSet<Control>();
         int[] visibleByTheme = new int[3];
-        var eraVisible = new bool[3];
+        var eraVisible = new bool[4];
         foreach ((int project, UiProjectCard chip) in _chips)
         {
             ProjectDef def = _catalog!.Projects[project];
@@ -495,7 +495,7 @@ public partial class Game
             chip.TooltipText = $"{def.Name} · {StateWord(state)}" + (state == ProjectState.Glimpsed ? $" — {AlmostSub(def)}" : "") +
                                (_devVisible ? $"\n{def.Id}" : "");
             _navCards.Add(chip);
-            if (def.Era <= 2) eraVisible[def.Era] = true;
+            if (def.Era <= 3) eraVisible[def.Era] = true;
         }
         _navCards.Sort((a, b) => ChipOrder(a).CompareTo(ChipOrder(b)));
         foreach ((HFlowContainer cell, int era, Control row) in _mapCells)
@@ -512,7 +512,7 @@ public partial class Game
             UiKit.SetVisible(row, show);
             if (show) visibleByTheme[theme]++;
         }
-        for (int era = 0; era < 3; era++) UiKit.SetVisible(_mapEraHeaders[era], eraVisible[era] || era <= frame.FocusEra);
+        for (int era = 0; era < 4; era++) UiKit.SetVisible(_mapEraHeaders[era], eraVisible[era] || era <= frame.FocusEra);
         bool anyKey = false;
         foreach (Node child in _mapKeystoneCell!.GetChildren()) if (child is Control { Visible: true }) anyKey = true;
         UiKit.SetVisible(_mapKeystoneRow!, anyKey);

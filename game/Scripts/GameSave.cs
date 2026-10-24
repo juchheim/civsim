@@ -43,10 +43,12 @@ internal sealed class GameSaveData
 internal static class GameSave
 {
     private const uint Magic = 0x53475343; // "CSGS", little-endian
-    private const uint Version = 3;
+    private const uint Version = 4;
     private const uint FirstVersionWithDifficulty = 2;
     /// <summary>Version 3: the sim snapshot carries the Bronze state (Mandate, built Wonders). An older snapshot has a different layout and cannot be restored.</summary>
     private const uint FirstVersionWithBronzeState = 3;
+    /// <summary>Version 4: the serialized AI belief includes Tin Folk and tin-access evidence; older snapshots have a different layout.</summary>
+    private const uint FirstVersionWithTinBelief = 4;
     private const int MaxSnapshotBytes = 512 * 1024 * 1024;
     private const int MaxLogEntries = 10_000_000;
 
@@ -145,6 +147,8 @@ internal static class GameSave
         if (version is < 1 or > Version) throw new InvalidDataException("Unsupported CivSim save file.");
         if (version < FirstVersionWithBronzeState)
             throw new InvalidDataException("This save was made before the Bronze Age update and cannot be loaded; its replay file still can.");
+        if (version < FirstVersionWithTinBelief)
+            throw new InvalidDataException("This save predates the Tin Folk belief update and cannot be loaded; its replay file still can.");
 
         var data = new GameSaveData
         {

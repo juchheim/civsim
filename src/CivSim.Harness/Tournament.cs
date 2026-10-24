@@ -47,8 +47,21 @@ internal sealed class CivOutcome
     public int AssaultsLaunched, AssaultsResolved, AssaultsHeld, AssaultExpeditionsPending;
     public int OccupationsBroken, OccupationsPending, AssaultPredictions;
     public double PredictedRaidSuccess, PredictedCaptureSuccess;
+    public int RaidPredictionsLaunched, RaidResolvedPredictions, RaidObservedSuccesses;
+    public double RaidCalibrationAbsoluteError, RaidResolvedPredictedSuccess;
     // Blunders sampled once a season.
     public int KeystoneStalls, IdleSlotSeasons, PlanSwitchesInThreeYears;
+    public int AvoidableStarvationDeaths, UndefendedLosses, AttributedHerdCrashes, IdleLaborSeasons;
+    public int TinPoorEightSeasonsAfterKey3;
+    public bool TinOrArsenicalRouteByChapterEnd;
+    public int DormantBronzeBlunders;
+    public int UnwalledFrontierBlunders;
+    public bool BelievedBronzeRaidMeasured, DefendedBeforeBelievedBronzeRaid;
+    public int SuicideRaids;
+    public int MandateSeasonsAtCap;
+    public int MandateOverflowBlunders;
+    public int SiegeWithoutSupplyBlunders;
+    public int NakedCaravans;
     public double Legacy => Dominion + Mastery + Firsts;
 }
 
@@ -57,7 +70,10 @@ internal sealed class MatchOutcome
     public ulong Seed;
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
+    public long FinalTick;
+    public int SeasonsProcessed;
     public ulong Checksum;
+    public int A7AiSeatMatches, AvoidableStarvationDeaths, UndefendedLosses, AttributedHerdCrashes, IdleLaborSeasons;
 }
 
 /// <summary>Runs matches headless and scores them. The harness may use doubles and threads; the simulation does not.</summary>
@@ -79,20 +95,324 @@ internal static class Tournament
         for (int c = 0; c < civs; c++) outcome.Civs[c] = new CivOutcome { Civ = c };
         ResearchCatalog catalog = match.Research.Catalog;
         int[] keys = { catalog.IndexOf("KEY-1"), catalog.IndexOf("KEY-2"), catalog.IndexOf("KEY-3") };
+        int met03 = catalog.IndexOf("MET-03"), met04 = catalog.IndexOf("MET-04"), met05 = catalog.IndexOf("MET-05");
+        int min04 = catalog.IndexOf("MIN-04");
         var stalled = new bool[civs * 3];
-        var lastPlan = new int[civs];
-        var switches = new List<int>[civs];
-        for (int c = 0; c < civs; c++) { lastPlan[c] = -1; switches[c] = new List<int>(); }
-
+        var key3Season = new int[civs]; Array.Fill(key3Season, -1);
+        var bronzePoorMeasured = new bool[civs];
+        var dormantOptionSeasons = new int[civs];
+        var dormantReported = new bool[civs];
+        var fallbackRouteAfterTinPoor = new bool[civs];
+        var bronzeRaidBelieved = new bool[civs][];
+        for (int c = 0; c < civs; c++) bronzeRaidBelieved[c] = new bool[civs];
+        var siegeBlunderTracker = new SiegeBlunderTracker();
+        var pendingRaidPredictions = new Dictionary<(int Civ, int Target), Queue<Fix64>>();
+        var nakedTinCaravans = new NakedTinCaravanTracker[civs];
+        for (int c = 0; c < civs; c++) nakedTinCaravans[c] = new NakedTinCaravanTracker();
+        var mandateOverflowStreak = new int[civs];
+        var mandateOverflowReported = new bool[civs];
+        var frontierThreatSeason = new int[civs, world.TileCount];
+        var a7ThreatObservedSeason = new int[civs, world.TileCount];
+        var a7DefenseResponseSeen = new bool[civs, world.TileCount];
+        var frontierResponseSeen = new bool[civs, world.TileCount];
+        var frontierThreatOwnSettlement = new int[civs, world.TileCount];
+        var undefendedLossReported = new bool[civs, world.TileCount];
+        var herdCrashReported = new bool[match.Economy.WildHerdCount];
+        for (int c = 0; c < civs; c++)
+            for (int s = 0; s < world.TileCount; s++)
+            {
+                frontierThreatSeason[c, s] = -1;
+                a7ThreatObservedSeason[c, s] = -1;
+                frontierThreatOwnSettlement[c, s] = -1;
+            }
         long ticks = minutes * 600L;
         int season = 0;
         for (long t = 0; t < ticks; t += 150, season++)
         {
+            // The belief snapshot precedes this season's political step: only evidence observed by the AI before
+            // the incoming raid can qualify for B28.
+            for (int c = 0; c < civs; c++)
+            {
+                AiSeat? seat = match.Ai?.SeatOf(c);
+                if (seat?.Control.Kind != ControlKind.Ai) continue;
+                RivalBelief[] rivals = seat.Belief.Rivals;
+                for (int other = 0; other < civs; other++)
+                {
+                    if (other == c) continue;
+                    bronzeRaidBelieved[c][other] = M10TelemetryRules.BelievesBronze(rivals[other], met04, met05);
+                }
+            }
+            int politicsEventsBefore = match.Politics.Events.Count;
+            int aiLogEntriesBefore = match.Ai?.Log.Entries.Count ?? 0;
+            var foodStoresBeforeAdvance = new Fix64[match.Economy.SettlementCount];
+            var settlementOwnersBeforeAdvance = new int[match.Economy.SettlementCount];
+            var settlementTilesBeforeAdvance = new int[match.Economy.SettlementCount];
+            var settlementIdsBeforeAdvance = new int[match.Economy.SettlementCount];
+            for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
+            {
+                SettlementView view = match.Economy.Settlement(s);
+                foodStoresBeforeAdvance[s] = view.FoodStores;
+                settlementOwnersBeforeAdvance[s] = match.Politics.SettlementCivOf(s);
+                settlementTilesBeforeAdvance[s] = view.SiteTile;
+                settlementIdsBeforeAdvance[s] = view.Id;
+            }
+            var defensesBeforeAdvance = new Defenses[match.Politics.SettlementTotal];
+            for (int s = 0; s < defensesBeforeAdvance.Length; s++)
+                defensesBeforeAdvance[s] = match.Politics.MilitaryOf(s).Defenses;
             runner.Advance(Math.Min(150, ticks - t));
+
+            // A7 starvation uses stores held at the start of the season, before consumption and deaths.
+            // A sister is operationally reachable within 15 hexes (the default inter-settlement sharing
+            // radius), or 20 when GOV-04 has extended food redistribution for that civilization.
+            for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
+            {
+                EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
+                if (death.Cause != EconomyDeathCause.Starvation || (uint)death.Civilization >= (uint)civs ||
+                    seats[death.Civilization].Control.Kind != ControlKind.Ai) continue;
+                int own = -1;
+                for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
+                    if (settlementIdsBeforeAdvance[s] == death.SettlementId) { own = s; break; }
+                bool ownFood = own >= 0 && foodStoresBeforeAdvance[own] > Fix64.Zero;
+                bool sisterFood = false;
+                int reach = match.Research.IsDone(death.Civilization, catalog.IndexOf("GOV-04")) ? 20 : 15;
+                if (own >= 0)
+                    for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
+                        if (s != own && M10TelemetryRules.IsReachableSisterFood(
+                            settlementOwnersBeforeAdvance[s] == death.Civilization,
+                            foodStoresBeforeAdvance[s] > Fix64.Zero,
+                            HexGrid.Distance(settlementTilesBeforeAdvance[s], settlementTilesBeforeAdvance[own], world.Width), reach))
+                        { sisterFood = true; break; }
+                if (M10TelemetryRules.HasReachableFood(ownFood, sisterFood))
+                    outcome.Civs[death.Civilization].AvoidableStarvationDeaths++;
+            }
+
+            // Herd crashes count only with the simulation's direct hunt-to-zero attribution marker.
+            for (int h = 0; h < match.Economy.WildHerdCount; h++)
+            {
+                int hunter = match.Economy.WildHerd(h).HuntedToExtinctionByCiv;
+                if (!herdCrashReported[h] && M10TelemetryRules.IsAttributedHerdCrash(hunter, hunter, civs) &&
+                    seats[hunter].Control.Kind == ControlKind.Ai)
+                {
+                    outcome.Civs[hunter].AttributedHerdCrashes++;
+                    herdCrashReported[h] = true;
+                }
+            }
+
+            // Siege events preserve the launch baseline even when desertion ends the investment in this advance.
+            for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
+            {
+                PoliticsEvent ev = match.Politics.Events[e];
+                if (ev.Kind == PoliticsEventKind.InvestmentTelemetryStarted && ev.Civ < civs &&
+                    seats[ev.Civ].Control.Kind == ControlKind.Ai)
+                    siegeBlunderTracker.BeginFromEvent(ev.Civ, ev.A, ev.B);
+                else if (ev.Kind == PoliticsEventKind.InvestmentDeserted && ev.Civ < civs &&
+                         seats[ev.Civ].Control.Kind == ControlKind.Ai &&
+                         siegeBlunderTracker.ObserveDesertionEvent(ev.Civ, ev.A, ev.B))
+                    outcome.Civs[ev.Civ].SiegeWithoutSupplyBlunders++;
+            }
+
+            // §14 §10.4 unwalled frontier: trigger solely from the AI's current belief snapshot. A threat is
+            // a rival whose bronze route and warriors were sighted within four hexes of one of our settlements.
+            // Once triggered, four seasons without a fortification response counts once for that rival site.
+            if (match.Ai is { } frontierAi)
+                for (int c = 0; c < civs; c++)
+                {
+                    AiSeat? frontierSeat = frontierAi.SeatOf(c);
+                    if (frontierSeat?.Control.Kind != ControlKind.Ai) continue;
+                    foreach (RivalBelief rival in frontierSeat.Belief.Rivals)
+                    {
+                        bool bronzeKnown = M10TelemetryRules.BelievesBronze(rival, met04, met05);
+                        foreach (BeliefSettlement sighting in rival.Settlements)
+                        {
+                            if ((uint)sighting.Settlement >= (uint)world.TileCount) continue;
+                            int site = sighting.Settlement;
+                            int nearestOwn = -1, nearestDistance = int.MaxValue;
+                            for (int own = 0; own < match.Economy.SettlementCount; own++)
+                            {
+                                if (match.Politics.SettlementCivOf(own) != c) continue;
+                                int distance = HexGrid.Distance(sighting.Tile, match.Politics.SettlementTileOf(own), world.Width);
+                                if (distance < nearestDistance) { nearestDistance = distance; nearestOwn = own; }
+                            }
+                            bool withinReach = nearestOwn >= 0 && nearestDistance <= 4;
+                            bool freshlySeen = sighting.LastSeenSeason == match.Politics.Season;
+                            bool threat = freshlySeen && M10TelemetryRules.IsUnwalledFrontierThreat(
+                                bronzeKnown, sighting.WarriorsSeen > 0, withinReach);
+                            if (frontierThreatSeason[c, site] == -1 && threat)
+                            {
+                                Defenses defenses = match.Politics.MilitaryOf(nearestOwn).Defenses;
+                                if (!M10TelemetryRules.HasTimelyDefense(defenses))
+                                {
+                                    frontierThreatSeason[c, site] = match.Politics.Season;
+                                    if (a7ThreatObservedSeason[c, nearestOwn] < 0)
+                                        a7ThreatObservedSeason[c, nearestOwn] = match.Politics.Season;
+                                    frontierThreatOwnSettlement[c, site] = nearestOwn;
+                                }
+                            }
+                            int triggered = frontierThreatSeason[c, site];
+                            if (triggered < 0 || frontierResponseSeen[c, site]) continue;
+                            int target = frontierThreatOwnSettlement[c, site];
+                            if (target >= 0 && target < match.Politics.SettlementTotal &&
+                                match.Politics.SettlementCivOf(target) == c &&
+                                M10TelemetryRules.HasTimelyDefense(match.Politics.MilitaryOf(target).Defenses))
+                            {
+                                frontierResponseSeen[c, site] = true;
+                                a7DefenseResponseSeen[c, target] = true;
+                            }
+                            if (M10TelemetryRules.IsUnwalledFrontierBlunder(true,
+                                    frontierResponseSeen[c, site], match.Politics.Season - triggered))
+                            {
+                                outcome.Civs[c].UnwalledFrontierBlunders++;
+                                frontierThreatSeason[c, site] = -2; // recorded
+                            }
+                        }
+                    }
+                }
+
+            // A7 counts one captured settlement after a known, unanswered threat at least two seasons old.
+            for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
+            {
+                PoliticsEvent ev = match.Politics.Events[e];
+                if (ev.Kind != PoliticsEventKind.Captured || (uint)ev.Civ >= (uint)civs ||
+                    seats[ev.Civ].Control.Kind != ControlKind.Ai || (uint)ev.A >= (uint)world.TileCount ||
+                    match.Politics.SettlementCivOf(ev.A) == ev.Civ || undefendedLossReported[ev.Civ, ev.A]) continue;
+                if (M10TelemetryRules.IsUndefendedLossForSettlement(
+                    a7ThreatObservedSeason, a7DefenseResponseSeen, ev.Civ, ev.A, match.Politics.Season))
+                {
+                    outcome.Civs[ev.Civ].UndefendedLosses++;
+                    undefendedLossReported[ev.Civ, ev.A] = true;
+                }
+            }
+
+            var positiveDecreeCandidate = new bool[civs];
+            var recoveryTinOrder = new bool[civs];
+            var recoveryArsenicOrder = new bool[civs];
+            if (match.Ai is { } aiSystem)
+                for (int i = aiLogEntriesBefore; i < aiSystem.Log.Entries.Count; i++)
+                {
+                    AiDecision decision = aiSystem.Log.Entries[i];
+                    if (decision.Kind == "DecreeCandidate" && (uint)decision.Civ < (uint)civs &&
+                        M10B30Rules.IsPositivePaidDecreeCandidate(decision.Score > Fix64.Zero,
+                            match.Politics.DecreeCost(decision.Civ, (DecreeKind)decision.Subject)))
+                        positiveDecreeCandidate[decision.Civ] = true;
+                    if (decision.Kind != "Decree" || (uint)decision.Civ >= (uint)civs) continue;
+                    DecreeKind kind = (DecreeKind)decision.Subject;
+                    if (kind == DecreeKind.Compact) recoveryTinOrder[decision.Civ] = true; // the current policy's compact is for Tin.
+                    if (kind == DecreeKind.Mine && (uint)decision.Other < (uint)world.TileCount)
+                    {
+                        DepositKind deposit = world.TileAt(decision.Other).Deposit;
+                        if (deposit == DepositKind.Tin) recoveryTinOrder[decision.Civ] = true;
+                        if (deposit == DepositKind.ArsenicalCopper) recoveryArsenicOrder[decision.Civ] = true;
+                    }
+                }
+
+            // B28: first incoming raid by a rival the defender already believed had a bronze route.
+            for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
+            {
+                PoliticsEvent ev = match.Politics.Events[e];
+                if (!M10TelemetryRules.IsSettlementRaidLaunch(ev) || ev.Other < 0 || ev.Other >= civs || ev.Civ >= civs ||
+                    seats[ev.Other].Control.Kind != ControlKind.Ai || seats[ev.Civ].Control.Kind != ControlKind.Ai ||
+                    !M10TelemetryRules.TryMeasureBelievedBronzeRaid(
+                        outcome.Civs[ev.Other].BelievedBronzeRaidMeasured,
+                        bronzeRaidBelieved[ev.Other][ev.Civ], ev.B, defensesBeforeAdvance,
+                        out bool defendedBeforeRaid)) continue;
+                CivOutcome defender = outcome.Civs[ev.Other];
+                defender.BelievedBronzeRaidMeasured = true;
+                defender.DefendedBeforeBelievedBronzeRaid = defendedBeforeRaid;
+            }
+
+            // Pair only actual settlement launches with the AI's launch decision, then score those forecasts
+            // when the corresponding raid resolves. A threshold violation is therefore launch-based, while
+            // calibration is measured independently against the realized result.
+            for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
+            {
+                PoliticsEvent ev = match.Politics.Events[e];
+                if (M10TelemetryRules.IsSettlementRaidLaunch(ev) && ev.Civ < civs &&
+                    seats[ev.Civ].Control.Kind == ControlKind.Ai && match.Ai is { } launchAi)
+                {
+                    for (int i = aiLogEntriesBefore; i < launchAi.Log.Entries.Count; i++)
+                    {
+                        AiDecision decision = launchAi.Log.Entries[i];
+                        if (decision.Kind != "Raid" || decision.Civ != ev.Civ || decision.Other != ev.Other ||
+                            decision.Subject != ev.B) continue;
+                        if (M10TelemetryRules.IsSuicideRaidLaunch(ev, decision)) outcome.Civs[ev.Civ].SuicideRaids++;
+                        var key = (ev.Civ, ev.Other);
+                        if (!pendingRaidPredictions.TryGetValue(key, out Queue<Fix64>? queue))
+                            pendingRaidPredictions.Add(key, queue = new Queue<Fix64>());
+                        queue.Enqueue(decision.Score);
+                        CivOutcome attacker = outcome.Civs[ev.Civ];
+                        attacker.RaidPredictionsLaunched++;
+                        attacker.PredictedRaidSuccess += decision.Score.ToDoubleForDisplay();
+                        break;
+                    }
+                }
+                if (ev.Kind != PoliticsEventKind.RaidResolved || ev.A is not (0 or 1) || ev.Civ >= civs ||
+                    seats[ev.Civ].Control.Kind != ControlKind.Ai) continue;
+                var resolvedKey = (ev.Civ, ev.Other);
+                if (!pendingRaidPredictions.TryGetValue(resolvedKey, out Queue<Fix64>? predictions) || predictions.Count == 0) continue;
+                Fix64 predicted = predictions.Dequeue();
+                CivOutcome resolved = outcome.Civs[ev.Civ];
+                resolved.RaidResolvedPredictions++;
+                resolved.RaidResolvedPredictedSuccess += predicted.ToDoubleForDisplay();
+                if (ev.A == 1) resolved.RaidObservedSuccesses++;
+                Fix64 observed = ev.A == 1 ? Fix64.One : Fix64.Zero;
+                resolved.RaidCalibrationAbsoluteError += Fix64.Abs(predicted - observed).ToDoubleForDisplay();
+            }
+
+            // B30: at first observation, record whether each tin caravan is hostile and has fewer than two escorts.
+            foreach (Expedition caravan in match.Politics.Caravans())
+            {
+                if ((uint)caravan.Civ >= (uint)civs || seats[caravan.Civ].Control.Kind != ControlKind.Ai) continue;
+                if (nakedTinCaravans[caravan.Civ].Observe(caravan.Id, caravan.Good,
+                        match.Politics.CaravanCrossesHostileTerritory(caravan), caravan.EscortCount))
+                    outcome.Civs[caravan.Civ].NakedCaravans++;
+            }
+
             for (int c = 0; c < civs; c++)
             {
                 if (seats[c].Control.Kind == ControlKind.Council) continue;
                 CivOutcome o = outcome.Civs[c];
+                if (seats[c].Control.Kind == ControlKind.Ai)
+                {
+                    if (match.Research.IsDone(c, keys[2]) && key3Season[c] < 0)
+                        key3Season[c] = (int)(match.Research.CompletedTick(c, keys[2]) / 150);
+                    if (key3Season[c] >= 0 && !bronzePoorMeasured[c] && match.Politics.Season >= key3Season[c] + 8)
+                    {
+                        bronzePoorMeasured[c] = true;
+                        o.TinPoorEightSeasonsAfterKey3 = !match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin) ? 1 : 0;
+                    }
+                    fallbackRouteAfterTinPoor[c] = M10TelemetryRules.LatchFallbackRoute(bronzePoorMeasured[c],
+                        fallbackRouteAfterTinPoor[c], match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin),
+                        match.Economy.CivHasMetalAccess(c, MetalAccessKind.Arsenic));
+
+                    bool tinOption = match.Politics.NearestMineSite(c, DepositKind.Tin) >= 0 || match.Politics.TinSellerFor(c) != int.MinValue;
+                    bool arsenicOption = match.Research.IsDone(c, min04) && match.Politics.NearestMineSite(c, DepositKind.ArsenicalCopper) >= 0;
+                    ProjectState met04State = match.Research.State(c, met04);
+                    ProjectState met05State = match.Research.State(c, met05);
+                    bool tinAccess = match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin);
+                    bool arsenicAccess = match.Economy.CivHasMetalAccess(c, MetalAccessKind.Arsenic);
+                    bool hasAnyMetalAccess = tinAccess || arsenicAccess;
+                    bool dormantOption = !hasAnyMetalAccess &&
+                        (met05State == ProjectState.Dormant && tinOption || met04State == ProjectState.Dormant && arsenicOption);
+                    bool recoveryAction = dormantOption &&
+                        (tinOption && recoveryTinOrder[c] || arsenicOption && recoveryArsenicOrder[c]);
+                    dormantOptionSeasons[c] = dormantOption && !recoveryAction ? dormantOptionSeasons[c] + 1 : 0;
+                    if (M10TelemetryRules.IsDormantRouteBlunder(met04State, arsenicOption, met05State, tinOption,
+                            hasAnyMetalAccess, dormantOptionSeasons[c], recoveryAction) && !dormantReported[c])
+                    {
+                        o.DormantBronzeBlunders++;
+                        dormantReported[c] = true;
+                    }
+
+                    o.MandateSeasonsAtCap = match.Politics.MandateSeasonsAtCap(c);
+                    bool capAndPositiveCandidate = M10B30Rules.IsMandateOverflowSeason(positiveDecreeCandidate[c],
+                        match.Research.Mandate(c), match.Research.MandateCap(c));
+                    mandateOverflowStreak[c] = capAndPositiveCandidate ? mandateOverflowStreak[c] + 1 : 0;
+                    if (mandateOverflowStreak[c] > 8 && !mandateOverflowReported[c])
+                    {
+                        o.MandateOverflowBlunders++;
+                        mandateOverflowReported[c] = true;
+                    }
+                }
                 // Keystone stall: breadth met and the keystone Available, but unslotted two seasons running.
                 for (int k = 0; k < 3; k++)
                 {
@@ -105,17 +425,31 @@ internal static class Tournament
                 bool anyEmpty = false;
                 for (int s = 0; s < CivResearch.SlotCount; s++) if (match.Research.Slot(c, s) < 0) anyEmpty = true;
                 if (anyEmpty && HasAvailable(match.Research, catalog, c)) o.IdleSlotSeasons++;
-                AiSeat? seat = match.Ai?.SeatOf(c);
-                if (seat is not null && seat.Control.Kind == ControlKind.Ai)
+
+                if (seats[c].Control.Kind == ControlKind.Ai)
                 {
-                    int plan = (int)seat.Context.Intent.Plan;
-                    if (lastPlan[c] >= 0 && plan != lastPlan[c]) switches[c].Add(season);
-                    lastPlan[c] = plan;
-                    int recent = 0;
-                    foreach (int s in switches[c]) if (s > season - 12) recent++;
-                    o.PlanSwitchesInThreeYears = Math.Max(o.PlanSwitchesInThreeYears, recent);
+                    int adultWorkers = 0, idleAdults = 0;
+                    for (int f = 0; f < match.Economy.FigureCount; f++)
+                    {
+                        FigureView figure = match.Economy.Figure(f);
+                        if (figure.Civilization != c || figure.Age < 14 || figure.Age >= 45) continue;
+                        adultWorkers++;
+                        if (figure.WorkThisSeason <= Fix64.Zero) idleAdults++;
+                    }
+                    bool deficit = false;
+                    for (int s = 0; s < match.Economy.SettlementCount; s++)
+                    {
+                        SettlementView settlement = match.Economy.Settlement(s);
+                        if (settlement.Civilization == c && settlement.LastFoodSecurity < Fix64.One)
+                        { deficit = true; break; }
+                    }
+                    if (M10TelemetryRules.IsIdleLaborBlunder(idleAdults, adultWorkers, deficit)) o.IdleLaborSeasons++;
                 }
             }
+
+            // Stop at the Bronze chapter horizon after recording the closing season's telemetry.
+            outcome.SeasonsProcessed++;
+            if (match.EndOfMatch(humanSeat: -1).IsOver(runner.Tick)) break;
         }
 
         PoliticsSystem pol = match.Politics;
@@ -129,7 +463,7 @@ internal static class Tournament
                 if (captor && e.Other >= 0 && e.Other < civs && e.Other != e.Civ) { outcome.Civs[e.Other].SettlementsLost++; outcome.Civs[e.Civ].SettlementsCaptured++; }
             }
             // The politics event kind is also used for assault launches; AI decision notes distinguish them below.
-            else if (e.Kind == PoliticsEventKind.RaidLaunched && seats[e.Civ].Control.Kind != ControlKind.Ai)
+            else if (M10TelemetryRules.IsSettlementRaidLaunch(e) && seats[e.Civ].Control.Kind != ControlKind.Ai)
                 outcome.Civs[e.Civ].RaidsLaunched++;
             else if (e.Kind == PoliticsEventKind.RaidResolved && (e.A == 0 || e.A == 1))
             {
@@ -145,6 +479,11 @@ internal static class Tournament
             else if (e.Kind == PoliticsEventKind.OccupationBroken) outcome.Civs[e.Civ].OccupationsBroken++;
         }
         if (match.Ai is { } ai)
+        {
+            for (int c = 0; c < civs; c++)
+                if (seats[c].Control.Kind == ControlKind.Ai)
+                    outcome.Civs[c].PlanSwitchesInThreeYears = M10TelemetryRules.MaxOrdinaryPlanSwitchesInThreeYears(ai.Log.Entries, c);
+
             foreach (AiDecision d in ai.Log.Entries)
             {
                 if ((uint)d.Civ >= (uint)civs || seats[d.Civ].Control.Kind != ControlKind.Ai) continue;
@@ -153,10 +492,10 @@ internal static class Tournament
                 {
                     c.RaidsLaunched++;
                     c.RaidPredictions++;
-                    c.PredictedRaidSuccess += d.Score.ToDoubleForDisplay();
                 }
                 else if (d.Kind == "Assault") { c.AssaultPredictions++; c.PredictedCaptureSuccess += d.Score.ToDoubleForDisplay(); c.AssaultsLaunched++; }
             }
+        }
         foreach (Expedition expedition in pol.Expeditions)
         {
             if ((uint)expedition.Civ >= (uint)civs) continue;
@@ -178,9 +517,19 @@ internal static class Tournament
             o.Mastery = s.Mastery.ToDoubleForDisplay();
             o.Firsts = s.Firsts.ToDoubleForDisplay();
             o.Projects = match.Research.DoneCount(c);
+            if (seats[c].Control.Kind == ControlKind.Ai)
+            {
+                outcome.A7AiSeatMatches++;
+                outcome.AvoidableStarvationDeaths += o.AvoidableStarvationDeaths;
+                outcome.UndefendedLosses += o.UndefendedLosses;
+                outcome.AttributedHerdCrashes += o.AttributedHerdCrashes;
+                outcome.IdleLaborSeasons += o.IdleLaborSeasons;
+                o.TinOrArsenicalRouteByChapterEnd = o.TinPoorEightSeasonsAfterKey3 != 0 && fallbackRouteAfterTinPoor[c];
+            }
             for (int k = 0; k < 3; k++)
                 if (match.Research.IsDone(c, keys[k])) o.KeyMinutes[k] = match.Research.CompletedTick(c, keys[k]) / 600.0;
         }
+        outcome.FinalTick = runner.Tick;
         outcome.Checksum = runner.CurrentChecksum;
         return outcome;
     }

@@ -27,7 +27,7 @@ public sealed class BeliefSettlement
     public int WarriorsSeen;
     /// <summary>Believed strength of its defenders, before structures, in the units of docs/MVP/13 §7.1.</summary>
     public Fix64 DefendingStrengthEstimate;
-    public bool ThornBarrierSeen, PalisadeSeen, WatchersSeen;
+    public bool ThornBarrierSeen, PalisadeSeen, WatchersSeen, HillfortSeen, StoneWallsSeen;
     /// <summary>Hungry or sick people were visible on the last sighting.</summary>
     public bool DistressSeen;
 }
@@ -43,12 +43,30 @@ public sealed class IncomingParty
     public int PartySize;
 }
 
+/// <summary>A rival caravan load last observed on a tile in sight.</summary>
+public sealed class BeliefCaravan
+{
+    public int Civ, Id, Tile, LastSeenSeason, CompactId = -1;
+    public TradeGood Good;
+    public Fix64 Cargo;
+}
+
+/// <summary>A Tin Folk village identity and last sighting; it carries no hidden population or defense state.</summary>
+public sealed class BeliefTinFolk
+{
+    public int Settlement, Tile, LastSeenSeason;
+}
+
 /// <summary>Bits of <see cref="RivalBelief.SeenFlags"/>: things ever seen of a rival.</summary>
 public static class SeenFlag
 {
     public const int ThornBarrier = 1, Palisade = 2, Watchers = 4, RangedWeapon = 8, Warriors = 16;
     /// <summary>Warpaint (Raid posture) on the latest sighting of its figures; cleared when seen without.</summary>
     public const int RaidPostureLast = 32;
+    public const int Hillfort = 64, StoneWalls = 128;
+    public const int CopperKit = 256, ArsenicalKit = 512, TinBronzeKit = 1024;
+    public const int CopperMineCamp = 2048, ArsenicalMineCamp = 4096, TinMineCamp = 8192;
+    public const int Scribes = 16384, Priests = 32768;
 }
 
 /// <summary>What one civilization believes about one rival (docs/MVP/14 §3.1, §5).</summary>
@@ -90,7 +108,7 @@ public sealed class RivalBelief
     public int ClaimTilesSeen, ClaimTilesSeenMax;
     /// <summary>Bit k set when a structure of economy kind k was seen at one of its settlements.</summary>
     public ulong StructureKindsSeen;
-    /// <summary>What was ever seen of them, as <see cref="SeenFlag"/> bits: thorn barrier, palisade, watchers, a ranged weapon, warriors.</summary>
+    /// <summary>What was ever seen of them, as <see cref="SeenFlag"/> bits: defenses, weapons, tools, roles and mining camps.</summary>
     public int SeenFlags;
     /// <summary>The most warriors ever seen at once.</summary>
     public int WarriorsSeenMax;
@@ -100,6 +118,10 @@ public sealed class RivalBelief
     public int LastGiftFromSeason = -1000;
     /// <summary>Its people seen away on raids or assaults this season (warriors away, 14 §5.4).</summary>
     public int PartiesAwaySeen;
+    /// <summary>Observed caravans, keyed by stable party id; cargo is only recorded when the party tile was in sight.</summary>
+    public readonly List<BeliefCaravan> CaravansSeen = new();
+    /// <summary>A rival was observed carrying tin in a caravan.</summary>
+    public bool TinAccessSeen;
 }
 
 /// <summary>
@@ -180,6 +202,8 @@ public sealed class Belief
     public int Season { get; set; }
     public RivalBelief[] Rivals { get; }
     public MapKnowledge Map { get; }
+    /// <summary>Tin Folk villages that have been directly sighted, retained as stale knowledge.</summary>
+    public List<BeliefTinFolk> TinFolkSeen { get; } = new();
     /// <summary>Parties of other civilizations seen on their way to our settlements this season.</summary>
     public List<IncomingParty> IncomingParties { get; } = new();
 
@@ -201,6 +225,9 @@ public sealed class Belief
             h.Add(r.SettlementsSeenEver); h.Add(r.ClaimTilesSeen); h.Add(r.ClaimTilesSeenMax); h.Add(r.StructureKindsSeen);
             h.Add(r.SeenFlags); h.Add(r.WarriorsSeenMax); h.Add(r.RaidsOnUs); h.Add(r.LastRaidOnUsSeason);
             h.Add(r.LastGiftFromSeason); h.Add(r.PartiesAwaySeen);
+            h.Add(r.TinAccessSeen); h.Add(r.CaravansSeen.Count);
+            foreach (BeliefCaravan c in r.CaravansSeen)
+            { h.Add(c.Civ); h.Add(c.Id); h.Add(c.Tile); h.Add(c.LastSeenSeason); h.Add(c.CompactId); h.Add((int)c.Good); h.Add(c.Cargo); }
             foreach (Fix64 p in r.ArchetypePosterior) h.Add(p);
             foreach (bool b in r.ProjectBelieved) h.Add(b);
             h.Add(r.Settlements.Count);
@@ -208,9 +235,11 @@ public sealed class Belief
             {
                 h.Add(s.Settlement); h.Add(s.Tile); h.Add(s.LastSeenSeason); h.Add(s.FirstSeenSeason); h.Add(s.PopulationEstimate);
                 h.Add(s.FightersEstimate); h.Add(s.WarriorsSeen); h.Add(s.DefendingStrengthEstimate); h.Add(s.ThornBarrierSeen);
-                h.Add(s.PalisadeSeen); h.Add(s.WatchersSeen); h.Add(s.DistressSeen);
+                h.Add(s.PalisadeSeen); h.Add(s.WatchersSeen); h.Add(s.HillfortSeen); h.Add(s.StoneWallsSeen); h.Add(s.DistressSeen);
             }
         }
+        h.Add(TinFolkSeen.Count);
+        foreach (BeliefTinFolk f in TinFolkSeen) { h.Add(f.Settlement); h.Add(f.Tile); h.Add(f.LastSeenSeason); }
         h.Add(IncomingParties.Count);
         foreach (IncomingParty p in IncomingParties)
         {
@@ -233,6 +262,9 @@ public sealed class Belief
             w.Write(r.SettlementsSeenEver); w.Write(r.ClaimTilesSeen); w.Write(r.ClaimTilesSeenMax); w.Write(r.StructureKindsSeen);
             w.Write(r.SeenFlags); w.Write(r.WarriorsSeenMax); w.Write(r.RaidsOnUs); w.Write(r.LastRaidOnUsSeason);
             w.Write(r.LastGiftFromSeason); w.Write(r.PartiesAwaySeen);
+            w.Write(r.TinAccessSeen); w.Write(r.CaravansSeen.Count);
+            foreach (BeliefCaravan c in r.CaravansSeen)
+            { w.Write(c.Civ); w.Write(c.Id); w.Write(c.Tile); w.Write(c.LastSeenSeason); w.Write(c.CompactId); w.Write((byte)c.Good); w.Write(c.Cargo.Raw); }
             w.Write(r.ArchetypePosterior.Length);
             foreach (Fix64 p in r.ArchetypePosterior) w.Write(p.Raw);
             w.Write(r.ProjectBelieved.Length);
@@ -242,9 +274,12 @@ public sealed class Belief
             {
                 w.Write(s.Settlement); w.Write(s.Tile); w.Write(s.LastSeenSeason); w.Write(s.FirstSeenSeason); w.Write(s.PopulationEstimate);
                 w.Write(s.FightersEstimate); w.Write(s.WarriorsSeen); w.Write(s.DefendingStrengthEstimate.Raw);
-                w.Write(s.ThornBarrierSeen); w.Write(s.PalisadeSeen); w.Write(s.WatchersSeen); w.Write(s.DistressSeen);
+                w.Write(s.ThornBarrierSeen); w.Write(s.PalisadeSeen); w.Write(s.WatchersSeen);
+                w.Write(s.HillfortSeen); w.Write(s.StoneWallsSeen); w.Write(s.DistressSeen);
             }
         }
+        w.Write(TinFolkSeen.Count);
+        foreach (BeliefTinFolk f in TinFolkSeen) { w.Write(f.Settlement); w.Write(f.Tile); w.Write(f.LastSeenSeason); }
         w.Write(IncomingParties.Count);
         foreach (IncomingParty p in IncomingParties)
         {
@@ -270,6 +305,10 @@ public sealed class Belief
             r.StructureKindsSeen = r0.ReadUInt64(); r.SeenFlags = r0.ReadInt32(); r.WarriorsSeenMax = r0.ReadInt32();
             r.RaidsOnUs = r0.ReadInt32(); r.LastRaidOnUsSeason = r0.ReadInt32(); r.LastGiftFromSeason = r0.ReadInt32();
             r.PartiesAwaySeen = r0.ReadInt32();
+            r.TinAccessSeen = r0.ReadBoolean(); r.CaravansSeen.Clear();
+            int caravans = r0.ReadInt32();
+            for (int i = 0; i < caravans; i++) r.CaravansSeen.Add(new BeliefCaravan
+            { Civ = r0.ReadInt32(), Id = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(), CompactId = r0.ReadInt32(), Good = (TradeGood)r0.ReadByte(), Cargo = Fix64.FromRaw(r0.ReadInt64()) });
             int posterior = r0.ReadInt32();
             r.ArchetypePosterior = new Fix64[posterior];
             for (int i = 0; i < posterior; i++) r.ArchetypePosterior[i] = Fix64.FromRaw(r0.ReadInt64());
@@ -284,9 +323,14 @@ public sealed class Belief
                     Settlement = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(), FirstSeenSeason = r0.ReadInt32(),
                     PopulationEstimate = r0.ReadInt32(), FightersEstimate = r0.ReadInt32(), WarriorsSeen = r0.ReadInt32(),
                     DefendingStrengthEstimate = Fix64.FromRaw(r0.ReadInt64()), ThornBarrierSeen = r0.ReadBoolean(),
-                    PalisadeSeen = r0.ReadBoolean(), WatchersSeen = r0.ReadBoolean(), DistressSeen = r0.ReadBoolean(),
+                    PalisadeSeen = r0.ReadBoolean(), WatchersSeen = r0.ReadBoolean(), HillfortSeen = r0.ReadBoolean(),
+                    StoneWallsSeen = r0.ReadBoolean(), DistressSeen = r0.ReadBoolean(),
                 });
         }
+        TinFolkSeen.Clear();
+        int folkCount = r0.ReadInt32();
+        for (int i = 0; i < folkCount; i++) TinFolkSeen.Add(new BeliefTinFolk
+        { Settlement = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32() });
         IncomingParties.Clear();
         int parties = r0.ReadInt32();
         for (int i = 0; i < parties; i++)

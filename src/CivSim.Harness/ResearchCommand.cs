@@ -29,7 +29,7 @@ internal static class ResearchCommand
 
     public static int Run(string[] args)
     {
-        string? packPath = null, record = null, checkGolden = null, writeGolden = null;
+        string? packPath = null, record = null, checkGolden = null, writeGolden = null, checkBronzeGolden = null, writeBronzeGolden = null;
         bool trace = false;
         int traceCiv = 0;
         bool checkC5 = false, checkM10 = false, reportMetal = false, reportE3 = false, reportDecrees = false, c1e3 = false, decreeMines = false, metalFixture = false, minutesGiven = false, seedGiven = false;
@@ -66,10 +66,22 @@ internal static class ResearchCommand
                 case "--record": record = Next(args, ref i); break;
                 case "--check-golden": checkGolden = Next(args, ref i); break;
                 case "--write-golden": writeGolden = Next(args, ref i); break;
+                case "--check-bronze-golden": checkBronzeGolden = Next(args, ref i); break;
+                case "--write-bronze-golden": writeBronzeGolden = Next(args, ref i); break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
         if (packPath is null) throw new ArgumentException("research needs --pack FILE (civsim build-pack --out FILE).");
+        if (checkBronzeGolden is not null || writeBronzeGolden is not null)
+        {
+            if (checkBronzeGolden is not null && writeBronzeGolden is not null) throw new ArgumentException("Choose either --check-bronze-golden or --write-bronze-golden.");
+            foreach (string arg in args)
+            {
+                if (arg.StartsWith("--", StringComparison.Ordinal) && arg is not "--pack" and not "--check-bronze-golden" and not "--write-bronze-golden")
+                    throw new ArgumentException($"{arg} cannot be combined with a Bronze golden option.");
+            }
+            return ResearchM10.ExecuteGolden(ContentPack.Load(File.ReadAllBytes(packPath)), checkBronzeGolden ?? writeBronzeGolden!, writeBronzeGolden is not null);
+        }
         if (checkM10)
         {
             // B5 and B6 (docs/MVP/22 §16): play to the end of the Bronze chapter; --minutes only bounds a runaway match.

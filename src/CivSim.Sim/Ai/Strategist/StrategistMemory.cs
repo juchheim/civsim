@@ -148,6 +148,7 @@ internal sealed class SeasonRead
     public bool HardEvent;
     public string HardWhy = "";
     public bool OrderedLaunch;
+    public Fix64 SecureTinValue;
 
     public void Hard(string why)
     {

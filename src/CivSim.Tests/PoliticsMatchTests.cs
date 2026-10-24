@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
@@ -84,6 +85,19 @@ public class PoliticsMatchTests
         Assert.Equal(0, p.Wars);
         // And the land: claims have grown to something like 07b's end-of-E2 figure (12-13% there; the live trajectory holds a third settlement).
         Assert.InRange(p.Territory.ClaimedBasisPoints(), 900, 1700);
+    }
+
+    [Fact]
+    public void Barter_unit_value_clamps_before_dividing_by_tiny_positive_stock()
+    {
+        var rig = new Rig();
+        int settlement = rig.SettlementOf(0);
+        rig.Economy.FixtureStock(settlement, "G-SALT", -Fix64.FromInt(1_000_000_000));
+        rig.Economy.FixtureStock(settlement, "G-SALT", Fix64.Epsilon);
+
+        Fix64 value = rig.Politics.UnitValue(settlement, TradeGood.Salt);
+
+        Assert.Equal(rig.Economy.GoodBarterValue("G-SALT") * Fix64.FromInt(3), value);
     }
 
     [Fact]
@@ -336,5 +350,30 @@ public class PoliticsMatchTests
         // Each side now has seen at least what the other had seen of the traded goods (13 §4.2).
         Assert.Equal(had1, had1 & now0);
         Assert.Equal(had0, had0 & now1);
+    }
+
+    [Fact]
+    public void Tin_caravan_checks_its_current_tile_when_only_that_tile_is_hostile()
+    {
+        var rig = new Rig();
+        PoliticsSystem politics = rig.Politics;
+        int from = rig.SettlementOf(0), to = rig.SettlementOf(1);
+        var caravan = new Expedition
+        {
+            Kind = ExpeditionKind.Caravan, Civ = 0, FromSettlement = from, ToSettlement = to,
+            // Keep it at the origin so the only hostile tile can be its current position.
+            ArriveSeason = politics.Season + 100, Id = 99001, Good = TradeGood.Tin,
+        };
+        int currentTile = politics.PartyTile(caravan);
+        Assert.Equal(rig.Economy.SettlementLite(from).SiteTile, currentTile);
+
+        var owners = (sbyte[])typeof(Territory)
+            .GetField("_owner", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(politics.Territory)!;
+        Array.Fill(owners, (sbyte)0);
+        owners[currentTile] = 1;
+        politics.Diplomacy.Set(0, 1, -20);
+
+        Assert.True(politics.CaravanCrossesHostileTerritory(caravan));
     }
 }

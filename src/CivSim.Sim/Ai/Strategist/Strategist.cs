@@ -25,7 +25,7 @@ public sealed partial class Strategist : IStrategist
 
     // ---- derived once from the catalog (not state) --------------------------------------
     private bool _resolved;
-    private int _war02, _war03, _gov02, _trd01, _trd02, _dip03, _def02, _def03, _hus01, _com01, _com04;
+    private int _war02, _war03, _gov02, _trd01, _trd02, _dip03, _def02, _def03, _hus01, _com01, _com04, _met03, _met05;
     private int[] _eraReach = Array.Empty<int>();
     private Fix64 _minRaidSuccess, _minRaidValue;
 
@@ -67,6 +67,7 @@ public sealed partial class Strategist : IStrategist
         s.Frontier = FrontierValue(v);
         ReadLeader(v, s);
         ReadWarOptions(v, s);
+        s.SecureTinValue = SecureTinPlanValue(v);
         ChoosePlan(v, s);
 
         DecidePeace(v, s, act);
@@ -88,6 +89,7 @@ public sealed partial class Strategist : IStrategist
         _war02 = c.IndexOf("WAR-02"); _war03 = c.IndexOf("WAR-03"); _gov02 = c.IndexOf("GOV-02"); _trd01 = c.IndexOf("TRD-01");
         _trd02 = c.IndexOf("TRD-02"); _dip03 = c.IndexOf("DIP-03"); _def02 = c.IndexOf("DEF-02"); _def03 = c.IndexOf("DEF-03");
         _hus01 = c.IndexOf("HUS-01"); _com01 = c.IndexOf("COM-01"); _com04 = c.IndexOf("COM-04");
+        _met03 = c.IndexOf("MET-03"); _met05 = c.IndexOf("MET-05");
         var reach = new List<int>();
         foreach (ContentValue era in c.Pack.Root.Get("registries")!.Get("eras")!.Items) reach.Add((int)era.GetInt("reach")!);
         _eraReach = reach.ToArray();
@@ -161,8 +163,12 @@ public sealed partial class Strategist : IStrategist
 
     private void ChoosePlan(StrategistView v, SeasonRead s)
     {
-        Span<Fix64> value = stackalloc Fix64[5];
-        Span<int> target = stackalloc int[5];
+        Span<Fix64> value = stackalloc Fix64[7];
+        Span<int> target = stackalloc int[7];
+        // ApexRace is reserved but not yet scored. Initialize every slot so an unassigned plan cannot inherit
+        // stack contents and make the selected plan vary with call history or runtime layout.
+        value.Clear();
+        target.Fill(-1);
         value[(int)GrandPlan.FrontierRace] = StrategistTuning.FrontierWeight * s.Frontier
             + (v.Own.Era <= 3 ? StrategistTuning.FrontierEarlyBonus : Fix64.Zero);
         target[(int)GrandPlan.FrontierRace] = -1;
@@ -181,13 +187,16 @@ public sealed partial class Strategist : IStrategist
         }
         value[(int)GrandPlan.CoalitionAgainstLeader] = s.CoalitionValue;
         target[(int)GrandPlan.CoalitionAgainstLeader] = s.Leader;
+        value[(int)GrandPlan.SecureTin] = s.SecureTinValue;
+        target[(int)GrandPlan.SecureTin] = -1;
 
         int bestPlan = 0;
-        for (int i = 1; i < 5; i++) if (value[i] > value[bestPlan]) bestPlan = i;
+        for (int i = 1; i < value.Length; i++) if (value[i] > value[bestPlan]) bestPlan = i;
         Fix64 current = value[(int)_plan];
         var why = new System.Text.StringBuilder();
         why.Append("frontier ").Append(F2(value[0])).Append(", prosper ").Append(F2(value[1])).Append(", defend ").Append(F2(value[2]))
-           .Append(", conquer ").Append(F2(value[3])).Append(", coalition ").Append(F2(value[4]));
+           .Append(", conquer ").Append(F2(value[3])).Append(", coalition ").Append(F2(value[4]))
+           .Append(", secure tin ").Append(F2(value[(int)GrandPlan.SecureTin]));
 
         if (!_started)
         {

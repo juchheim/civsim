@@ -85,8 +85,8 @@ public sealed partial class Strategist
                 return;
             }
         // Evaluate the counterattack against the home army left by this exact target's proposed campaign.
-        IReadOnlyDictionary<int, int> departures = CampaignDepartures(v, option.Tile, width);
-        (Fix64 reply, OwnSettlement? exposed) = CounterThreat(v, read, width, departures);
+        IReadOnlyList<SettlementDeparture> departures = CampaignDepartures(v, option.Tile, width);
+        (Fix64 reply, OwnSettlement? exposed) = CounterThreat(v, read, width, departures, option.Settlement);
         if (exposed is not null)
         {
             option.Feasible = false;
@@ -106,26 +106,46 @@ public sealed partial class Strategist
     /// The rival's believed field army (up to 60% of each settlement's fighters, never fewer than four left at home) and
     /// the weakest post-departure own settlement in its reach that it could storm at 1.5 ratio after nearby relief, or null.
     /// </summary>
-    private static Dictionary<int, int> CampaignDepartures(StrategistView v, int targetTile, int width)
+    private static List<SettlementDeparture> CampaignDepartures(StrategistView v, int targetTile, int width)
     {
-        var departures = new Dictionary<int, int>();
+        // OwnViewBuilder appends settlements in ascending settlement id. Keep that order in this
+        // compact list so all lookups are deterministic and do not depend on a hash collection.
+        var departures = new List<SettlementDeparture>(v.Own.Settlements.Count);
         OwnSettlement? origin = BestOrigin(v, targetTile, width);
         if (origin is null) return departures;
         foreach (OwnSettlement settlement in v.Own.Settlements)
         {
             if (HexGrid.Distance(settlement.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange) continue;
             int allowed = Math.Max(0, Math.Min(settlement.Fighters - 4, settlement.Fighters * 6 / 10));
-            if (allowed > 0) departures[settlement.Index] = allowed;
+            if (allowed > 0) departures.Add(new SettlementDeparture(settlement.Index, allowed));
         }
         return departures;
     }
 
-    private static Dictionary<int, int> RaidDepartures(OwnSettlement origin, int partySize)
-        => new() { [origin.Index] = Math.Min(Math.Max(0, origin.Fighters - 4), Math.Max(0, partySize)) };
-
-    private static Fix64 ResidualDefense(OwnSettlement settlement, IReadOnlyDictionary<int, int> departures)
+    private static List<SettlementDeparture> RaidDepartures(OwnSettlement origin, int partySize)
     {
-        departures.TryGetValue(settlement.Index, out int leaving);
+        int leaving = Math.Min(Math.Max(0, origin.Fighters - 4), Math.Max(0, partySize));
+        var departures = new List<SettlementDeparture>(1);
+        if (leaving > 0) departures.Add(new SettlementDeparture(origin.Index, leaving));
+        return departures;
+    }
+
+    private readonly record struct SettlementDeparture(int Settlement, int Fighters);
+
+    private static int DepartingFighters(OwnSettlement settlement, IReadOnlyList<SettlementDeparture> departures)
+    {
+        // The list is ascending by settlement id; stop at the matching id or its insertion point.
+        foreach (SettlementDeparture departure in departures)
+        {
+            if (departure.Settlement == settlement.Index) return departure.Fighters;
+            if (departure.Settlement > settlement.Index) break;
+        }
+        return 0;
+    }
+
+    private static Fix64 ResidualDefense(OwnSettlement settlement, IReadOnlyList<SettlementDeparture> departures)
+    {
+        int leaving = DepartingFighters(settlement, departures);
         if (settlement.Fighters <= 0 || leaving <= 0) return settlement.DefendingStrength;
         // OwnView exposes aggregate strength rather than individual fighter strengths. The proportional estimate is
         // deliberately simple and deterministic; using attacking strength keeps the estimate cautious when the
@@ -136,11 +156,14 @@ public sealed partial class Strategist
     }
 
     private (Fix64 Army, OwnSettlement? Exposed) CounterThreat(StrategistView v, RivalRead read, int width,
-        IReadOnlyDictionary<int, int> departures)
+        IReadOnlyList<SettlementDeparture> departures, int neutralizedSettlement = -1)
     {
         Fix64 army = Fix64.Zero;
         foreach (Site site in read.Sites)
+        {
+            if (site.Settlement == neutralizedSettlement) continue;
             army += site.PerAttack * Math.Max(0, Math.Min(site.Fighters - 4, site.Fighters * 6 / 10));
+        }
         if (army <= Fix64.Zero) return (army, null);
         int range = StrategistTuning.RaidRangeReaches * Math.Max(6, read.Reach);
         OwnSettlement? weakest = null;
@@ -158,7 +181,7 @@ public sealed partial class Strategist
             foreach (OwnSettlement sister in v.Own.Settlements)
             {
                 if (ReferenceEquals(sister, o) || sister.Fighters <= 0 || HexGrid.Distance(sister.Tile, o.Tile, width) > StrategistTuning.ReliefRange) continue;
-                departures.TryGetValue(sister.Index, out int sent);
+                int sent = DepartingFighters(sister, departures);
                 int remaining = Math.Max(0, sister.Fighters - sent);
                 int available = Math.Max(0, Math.Min(remaining - 2, remaining * 6 / 10));
                 relief += sister.AttackingStrength * available / sister.Fighters * StrategistTuning.PartyPickBonus;
@@ -173,6 +196,7 @@ public sealed partial class Strategist
     private WarOption EvaluateAssault(StrategistView v, SeasonRead s, RivalRead read, RivalMemory m, Site site, int width, int trials,
         Fix64 landPerSettlement, int ownAvgPop)
     {
+        bool stoneWalls = StoneWallsSeen(v, read.Civ, site.Settlement);
         var option = new WarOption { Civ = read.Civ, Settlement = site.Settlement, Tile = site.Tile, Palisade = site.Defenses.Palisade };
         option.Required = option.Palisade ? StrategistTuning.WarRatioPalisade : StrategistTuning.WarRatio;
         OwnSettlement? origin = BestOrigin(v, site.Tile, width);
@@ -191,6 +215,14 @@ public sealed partial class Strategist
         }
         option.Attackers = _a.Count;
         if (_a.Count < 6) { option.Why = $"army of {_a.Count} too small"; return option; }
+
+        // E3 stone walls turn an assault order into an investment. A wall sighting belongs to this settlement only;
+        // never infer it from the rival-wide technology/structure evidence. Stores are not in the belief view, so
+        // investment prospects are admitted only for a visibly distressed target, a supplied host, and a force with
+        // a substantial margin over the investment threshold. The resulting value is a conservative planning proxy,
+        // not a claim about the target's stores or a predicted capitulation season.
+        if (stoneWalls)
+            return EvaluateInvestment(v, s, read, site, origin, option, force, width, landPerSettlement);
 
         // Nearby settlements do not join the initial assault defense; their relief forces fight during occupation below.
         Fix64 defense = site.DefendStrength * site.Defenses.Multiplier();
@@ -265,6 +297,72 @@ public sealed partial class Strategist
         option.Why = $"ratio {F2(option.Ratio)} (need {F2(option.Required)}{(option.Palisade ? ", palisade" : "")}), capture {F2(option.CaptureChance)}, " +
                      $"value {F1(option.Value)} Legacy (gain {F1(gain)}, cost {F1(cost)}, expected deaths {F2(option.Deaths)}, wounded {F2(option.Wounded)}){(hungryWinter ? ", winter food short" : "")}";
         return option;
+    }
+
+    private static bool StoneWallsSeen(StrategistView v, int civ, int settlement)
+    {
+        foreach (BeliefSettlement belief in v.Belief.Rivals[civ].Settlements)
+            if (belief.Settlement == settlement) return belief.StoneWallsSeen;
+        return false;
+    }
+
+    private WarOption EvaluateInvestment(StrategistView v, SeasonRead s, RivalRead read, Site site, OwnSettlement origin,
+        WarOption option, Fix64 force, int width, Fix64 landPerSettlement)
+    {
+        int seasons = Math.Max(1, (option.Travel + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
+        option.LandsSeason = (v.Season + seasons - 1) % 4;
+        option.OriginWinter = origin.LateWinterForecast;
+        Fix64 defenders = site.DefendStrength * Fix64.FromRatio(11, 10); // home ground; wall multiplier excluded
+        option.Required = Fix64.FromRatio(15, 10); // margin over the 1.2× hard investment gate
+        option.Ratio = defenders > Fix64.Zero ? force / defenders : Fix64.FromInt(10);
+
+        // Nearby rival forces can relieve an investment. Count their available field strength pessimistically.
+        Fix64 relief = Fix64.Zero;
+        foreach (Site other in read.Sites)
+        {
+            if (ReferenceEquals(other, site) || HexGrid.Distance(other.Tile, site.Tile, width) > StrategistTuning.ReliefRange) continue;
+            int available = Math.Max(0, Math.Min(other.Fighters - 2, other.Fighters * 6 / 10));
+            relief += other.PerAttack * available;
+        }
+        Fix64 relievedDefense = defenders + relief;
+        bool supplied = HasKnownSupplyPath(v, site.Tile, width);
+        bool hungryWinter = option.LandsSeason >= 2 && origin.LateWinterForecast < StrategistTuning.WinterFoodFloor;
+        bool weakReliefMargin = relievedDefense > Fix64.Zero && force < relievedDefense * option.Required;
+        // Without target stores, visible distress is the only settlement-specific evidence of vulnerability.
+        bool favorable = site.Distress;
+        option.CaptureChance = Fix64.Zero; // deliberately unknown until target-store beliefs exist
+        Fix64 conditionalGain = landPerSettlement * s.HorizonYears;
+        Fix64 cost = v.Own.Others[read.Civ].AtWar ? Fix64.Zero : StrategistTuning.WarReputationLegacy;
+        if (v.Own.Others[read.Civ].InTruce) cost += StrategistTuning.TruceBreakLegacy;
+        option.Value = favorable ? conditionalGain - cost : Fix64.Zero;
+        option.TacticallyViable = option.Ratio >= option.Required && supplied && favorable && !weakReliefMargin && !hungryWinter && option.Value > Fix64.Zero;
+        option.Feasible = option.TacticallyViable;
+        option.Why = $"Stone Walls: investment ratio {F2(option.Ratio)} (plan needs {F2(option.Required)}; rules gate {F2(Sieges.MinimumInvestmentRatio)}), " +
+                     $"{(supplied ? "supplied" : "no known supply path within 8 tiles")}, " +
+                     $"{(favorable ? "target distress seen" : "no distress evidence; target stores unknown")}" +
+                     (weakReliefMargin ? $", relief strength {F1(relief)} threatens the host" : "") +
+                     (hungryWinter ? ", winter food short" : "") + "; stores are unobserved, so capitulation timing is unknown";
+        return option;
+    }
+
+    /// <summary>
+    /// Mirrors the simulation's 8-tile walking supply rule using only explored terrain. Unknown tiles are impassable,
+    /// so an incomplete map can reject a route but cannot invent a supply line through fog.
+    /// </summary>
+    private static bool HasKnownSupplyPath(StrategistView v, int target, int width)
+    {
+        MapKnowledge map = v.Belief.Map;
+        var knownTiles = new WorldTile[map.TileCount];
+        var explored = new bool[map.TileCount];
+        for (int tile = 0; tile < map.TileCount; tile++)
+            if (map.TryTile(tile, out WorldTile worldTile)) { knownTiles[tile] = worldTile; explored[tile] = true; }
+        bool[] passable = HexGrid.BuildWalkingPassability(knownTiles, width, map.Height);
+        for (int tile = 0; tile < passable.Length; tile++) passable[tile] &= explored[tile];
+        if (!passable[target]) return false;
+        int[] distance = HexGrid.WalkingDistancesFrom(width, map.Height, passable, target);
+        foreach (OwnSettlement own in v.Own.Settlements)
+            if ((uint)own.Tile < (uint)distance.Length && distance[own.Tile] <= Sieges.SupplyReachTiles) return true;
+        return false;
     }
 
     private static List<Fighter> BuildOccupationRelief(IReadOnlyList<Site> sites, Site target, int width)

@@ -97,6 +97,16 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         return false;
     }
 
+    /// <summary>Whether a sighting record identifies a still-free Tin Folk settlement close enough for a Levy.</summary>
+    public bool CanLevyKnownTinFolk(int civ, int settlement, int lastSeenSeason)
+    {
+        if (unchecked((uint)civ) >= (uint)_civs || lastSeenSeason > _season || _season - lastSeenSeason > 2 ||
+            !IsTinFolk(settlement) || !KnowsFolk(civ, settlement))
+            return false;
+        int home = NearestOwnSettlement(civ, _sTile[settlement]);
+        return home >= 0 && TravelSeasons(civ, _sTile[home], _sTile[settlement]) <= 2;
+    }
+
     /// <summary>Relations between a civilization and a Free Folk village (0 until they trade).</summary>
     public int FolkRelations(int civ, int folk) => FolkTieOf(civ, folk, create: false)?.Relations ?? 0;
 
@@ -156,6 +166,8 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         Fix64 ratio;
         if (need <= Fix64.Zero) ratio = _trade.ClampLow;
         else if (stock <= Fix64.Zero) ratio = _trade.ClampHigh;
+        else if (stock < need / _trade.ClampHigh) ratio = _trade.ClampHigh;
+        else if (stock > need / _trade.ClampLow) ratio = _trade.ClampLow;
         else ratio = Fix64.Clamp(need / stock, _trade.ClampLow, _trade.ClampHigh);
         return basis * ratio;
     }
@@ -270,6 +282,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     /// <summary>A route is blocked when a third civilization at war with either side owns a tile on the straight line between the hubs.</summary>
     private bool RouteBlocked(int sellerCiv, int buyerCiv, int from, int to)
     {
+        if (UnderInvestment(from) || UnderInvestment(to)) return true;
         bool anyWar = false;
         for (int x = 0; x < _civs && !anyWar; x++)
             if (x != sellerCiv && x != buyerCiv && (sellerCiv >= 0 && _dip.AtWar(x, sellerCiv) || buyerCiv >= 0 && _dip.AtWar(x, buyerCiv))) anyWar = true;
@@ -277,7 +290,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         HexGrid.Coordinates(_sTile[from], _width, out int fx, out int fy);
         HexGrid.Coordinates(_sTile[to], _width, out int tx, out int ty);
         int steps = Math.Max(1, HexGrid.Distance(_sTile[from], _sTile[to], _width));
-        for (int k = 1; k < steps; k++)
+        for (int k = 0; k < steps; k++)
         {
             int owner = _territory.OwnerOf(HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _width, _height));
             if (owner < 0 || owner == sellerCiv || owner == buyerCiv) continue;
@@ -442,16 +455,21 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int mover = c.SellerCiv >= 0 ? c.SellerCiv : _sCiv[seller];
         int travel = Travel(c.SellerCiv >= 0 ? c.SellerCiv : c.BuyerCiv, _sTile[seller], _sTile[buyer]);
         if (travel == int.MaxValue) return;
+        bool hostileRoute = c.Good == TradeGood.Tin && RoadCrossesHostileTerritory(mover, seller, buyer);
+        bool canEscort = hostileRoute && CanProvideTwoWarriorEscorts(seller, mover);
+        // Keep the Compact active and its goods at the seller until this route is safe or two escorts can be fielded.
+        if (ShouldWaitForSafeCaravanRoute(hostileRoute, canEscort)) return;
         Fix64 taken = c.Good == TradeGood.Food
             ? _economy.TakeGoods(seller, load, LootPreference.FoodOnly)
             : _economy.TakeGood(seller, DecreeArgs.GoodId(c.Good), load);
         if (taken < MinLoad) { if (taken > Fix64.Zero) Unload(seller, c.Good, taken); return; }
-        List<Fighter> crew = PickParty(seller, mover, 2, attacking: false, out List<long> ids, stayHome: 4);
+        int partySize = canEscort ? 4 : 2;
+        List<Fighter> crew = PickParty(seller, mover, partySize, attacking: false, out List<long> ids, stayHome: 4);
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = mover, TargetCiv = c.BuyerCiv, FromSettlement = seller, ToSettlement = buyer,
             ArriveSeason = _season + SeasonsFor(travel), Id = _nextPartyId++, Good = c.Good, Cargo = taken, CompactId = c.Id,
-            FolkSeller = c.SellerFolk, Value = Fix64.Sqrt(vs * vb),
+            FolkSeller = c.SellerFolk, Value = Fix64.Sqrt(vs * vb), EscortCount = canEscort ? Math.Min(2, Math.Max(0, ids.Count - 2)) : 0,
         };
         for (int i = 0; i < ids.Count; i++) { caravan.Members.Add(ids[i]); caravan.Strengths.Add(crew[i].Strength); }
         _expeditions.Add(caravan);
@@ -534,6 +552,57 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         foreach (Expedition e in _expeditions) if (e.Kind == ExpeditionKind.Caravan) yield return e;
     }
 
+    /// <summary>Whether the caravan's straight road crosses a civilization's territory whose Relations with its mover are negative.</summary>
+    public bool CaravanCrossesHostileTerritory(Expedition caravan)
+    {
+        if (caravan.Kind != ExpeditionKind.Caravan || unchecked((uint)caravan.Civ) >= unchecked((uint)_civs) ||
+            unchecked((uint)caravan.FromSettlement) >= unchecked((uint)_sCount) ||
+            unchecked((uint)caravan.ToSettlement) >= unchecked((uint)_sCount)) return false;
+        int from = PartyTile(caravan);
+        return from >= 0 && RoadSegmentCrossesHostileTerritory(caravan.Civ, from, _sTile[caravan.ToSettlement]);
+    }
+
+    private bool RoadCrossesHostileTerritory(int mover, int fromSettlement, int toSettlement)
+        => RoadSegmentCrossesHostileTerritory(mover, _sTile[fromSettlement], _sTile[toSettlement]);
+
+    private bool RoadSegmentCrossesHostileTerritory(int mover, int from, int to)
+    {
+        HexGrid.Coordinates(from, _width, out int fx, out int fy);
+        HexGrid.Coordinates(to, _width, out int tx, out int ty);
+        int steps = Math.Max(1, HexGrid.Distance(from, to, _width));
+        // Include the party's current tile: it can become hostile while the caravan is en route.
+        for (int k = 0; k < steps; k++)
+        {
+            int tile = HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _width, _height);
+            int owner = _territory.OwnerOf(tile);
+            if (owner >= 0 && owner != mover && _dip.Relations(mover, owner) < 0) return true;
+        }
+        return false;
+    }
+
+    private bool CanProvideTwoWarriorEscorts(int settlement, int civ)
+    {
+        if (unchecked((uint)civ) >= unchecked((uint)_civs) || !Done(civ, _bp.War04)) return false;
+        var records = new List<LivingEconomyModel.FighterRecord>();
+        _economy.ListFightingAge(settlement, records);
+        int adults = 0, available = 0, warriors = 0;
+        foreach (var r in records) if (r.Age < 45 && !r.Wounded) adults++;
+        int slots = adults / 5;
+        foreach (var r in records)
+        {
+            if (r.Wounded) continue;
+            available++;
+            if (r.Age < 45 && !r.Female && slots > 0) { warriors++; slots--; }
+        }
+        return warriors >= 2 && available >= 8;
+    }
+
+    internal static bool ShouldWaitForSafeCaravanRoute(bool hostileRoute, bool canEscort)
+        => hostileRoute && !canEscort;
+
+    public bool CaravanIsNaked(Expedition caravan)
+        => CaravanCrossesHostileTerritory(caravan) && caravan.EscortCount < 2;
+
     /// <summary>Where a party is now (its tile by progress along the straight road), for targeting.</summary>
     public int PartyTile(Expedition e)
     {
@@ -570,7 +639,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         if (origin < 0) return false;
         int travel = Travel(c, _sTile[origin], at);
         if (travel == int.MaxValue || travel > TilesPerSeason * Math.Max(1, target.ArriveSeason - _season)) return false;
-        List<Fighter> party = PickParty(origin, c, Math.Max(4, partySize), attacking: true, out List<long> ids);
+        List<Fighter> party = PickParty(origin, c, Math.Max(4, partySize), attacking: true, out List<long> ids, battleTile: at);
         if (party.Count < 4) return false;
         var raid = new Expedition
         {

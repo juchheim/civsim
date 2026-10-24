@@ -54,6 +54,10 @@ public static class SparkTuning
     public static readonly Fix64 StyleWeight = Fix64.FromRatio(6, 10);
     /// <summary>Signature lineages inside the leaning (Warlord: WAR and DEF; Sage: LRN and BEL), a flat bonus per completion.</summary>
     public static readonly Fix64 SignatureBonus = Fix64.FromInt(3);
+    /// <summary>Research-path value for MET-04/05 when the corresponding ore route is visible and reachable (22 §13.2).</summary>
+    public static readonly Fix64 BronzeRouteBonus = Fix64.FromInt(3);
+    /// <summary>A deterministic preference for the higher-durability tin route when both metal routes are feedable.</summary>
+    public static readonly Fix64 TinRouteTieBreak = Fix64.FromRatio(1, 4);
     /// <summary>
     /// The Strategist's readings turned into research value (14 §6.4: "DEF and WAR projects jump in priority"): Legacy-points
     /// equivalent added to a DEF/WAR project at full DefenseUrgency, to a WAR project at full AttackReadiness, and to a TER,

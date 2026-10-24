@@ -8,20 +8,39 @@ namespace CivSim.Sim.Politics;
 /// <summary>What stands between a raider and the stores (docs/MVP/13 §5.3, §6.2).</summary>
 public readonly record struct Defenses(
     bool ThornBarrier, bool Palisade, bool Watchers, bool Dogs, bool SignalFires, bool AlarmCalls, bool HillSite,
-    bool Archery, bool Night, bool RaidedRecently)
+    bool Archery, bool Night, bool RaidedRecently, bool Hillfort = false, bool StoneWalls = false, bool HillfortRefuge = false,
+    bool BronzeRules = false)
 {
     public static readonly Defenses None = default;
 
-    /// <summary>Product of the stacking defense multipliers on defenders' strength (13 §6.2). Home ground is always ×1.1.</summary>
+    /// <summary>Product of the defense multipliers on defenders' strength (13 §6.2; Bronze barriers replace each other).</summary>
     public Fix64 Multiplier()
     {
         Fix64 m = Fix64.FromRatio(11, 10);
-        if (ThornBarrier) m = m * Fix64.FromRatio(13, 10);
-        if (Palisade) m = m * Fix64.FromInt(2);
+        bool modernBarrier = BronzeRules || Hillfort || StoneWalls;
+        Fix64 barrier = Fix64.One;
+        if (modernBarrier)
+        {
+            if (ThornBarrier) barrier = Fix64.FromRatio(13, 10);
+            if (Palisade) barrier = Fix64.Max(barrier, Fix64.FromInt(2));
+            if (Hillfort) barrier = Fix64.Max(barrier, Fix64.FromRatio(5, 2));
+            if (StoneWalls) barrier = Fix64.Max(barrier, Fix64.FromInt(3));
+        }
+        else
+        {
+            // Preserve the E0–E2 combat model; Bronze barriers replace each other from KEY-3 onward.
+            if (ThornBarrier) m = m * Fix64.FromRatio(13, 10);
+            if (Palisade) m = m * Fix64.FromInt(2);
+        }
+        if (modernBarrier) m = m * barrier;
         if (HillSite) m = m * Fix64.FromRatio(12, 10);
-        if (Archery && (ThornBarrier || Palisade)) m = m * Fix64.FromRatio(5, 4);
+        if (Archery && (modernBarrier ? barrier > Fix64.One : ThornBarrier || Palisade)) m = m * Fix64.FromRatio(5, 4);
         return m;
     }
+
+    /// <summary>Hillforts and walls shelter raided stores; walls cannot be assaulted in E3.</summary>
+    public Fix64 LootMultiplier() => Hillfort || StoneWalls || HillfortRefuge ? Fix64.FromRatio(1, 4) : Fix64.One;
+    public bool CanBeAssaulted() => !StoneWalls;
 }
 
 /// <summary>How a raid went.</summary>
@@ -99,7 +118,7 @@ public static class Raids
             Success = success,
             Surprised = surprised,
             Battle = battle,
-            LootCapacity = success ? CarryPerRaider * carriers : Fix64.Zero,
+            LootCapacity = success ? CarryPerRaider * carriers * defenses.LootMultiplier() : Fix64.Zero,
             StructuresBurned = Math.Min(burned, 3),
         };
     }
@@ -124,6 +143,8 @@ public static class Captures
     public static BattleResult Assault(IReadOnlyList<Fighter> attackers, IReadOnlyList<Fighter> defenders, in Defenses defenses,
         bool childrenInside, ulong seed, ulong stream)
     {
+        // E3 stone walls cannot be assaulted; callers use an investment/siege instead.
+        if (!defenses.CanBeAssaulted()) return new BattleResult { Winner = BattleWinner.StandOff };
         var setup = new BattleSetup(Fix64.One, defenses.Multiplier(), DefendersSurprised: false,
             AttackerBreak: Fix64.FromRatio(4, 10), DefenderBreak: childrenInside ? Raids.DefenderBreakWithChildren : Fix64.FromRatio(4, 10),
             MaxRounds: Raids.MaxRounds, AttackerRangedFirst: false);
@@ -134,4 +155,52 @@ public static class Captures
 
     /// <summary>Seasons the attacker must hold the settlement tile: one for a camp or hamlet, two for a village or larger.</summary>
     public static int OccupationSeasons(int population) => population <= 150 ? 1 : 2;
+}
+
+/// <summary>State and season step for a Bronze investment (docs/MVP/22 §7.4, 07d R5).</summary>
+public readonly record struct SiegeState(Fix64 BesiegerStrength, Fix64 UnwalledDefenderStrength,
+    Fix64 DefenderStrength, Fix64 StoresSeasons, int BesiegerFoodSeasons, int Season);
+
+public enum SiegeResult : byte { Ongoing, Capitulated, Lifted, Sally }
+
+public static class Sieges
+{
+    public static readonly Fix64 MinimumInvestmentRatio = Fix64.FromRatio(12, 10);
+    public static readonly Fix64 WallDefenseMultiplier = Fix64.FromInt(3);
+    public static readonly Fix64 RationNeed = Fix64.FromRatio(75, 100);
+    public static readonly Fix64 LowStoresCapitulationChance = Fix64.FromRatio(35, 100);
+    public static readonly Fix64 EmptyStoresCapitulationChance = Fix64.FromRatio(70, 100);
+    public static readonly Fix64 DesertionPerUnsuppliedSeason = Fix64.FromRatio(10, 100);
+    public static readonly int SupplyReachTiles = 8;
+
+    /// <summary>Investment requires a host at least 1.2× the settlement's unwalled field strength.</summary>
+    public static bool CanInvest(Fix64 besieger, Fix64 unwalledDefenders)
+        => besieger >= unwalledDefenders * MinimumInvestmentRatio;
+
+    /// <summary>
+    /// Advance one season. The settlement rations at 75% of need; supplied besiegers retain strength, while an unsupplied
+    /// host has one season of food then loses 10% each season. Return values distinguish a relief, sally, or capitulation.
+    /// </summary>
+    public static SiegeResult Advance(ref SiegeState state, bool supplied, ulong seed, ulong stream, ulong settlement = 0)
+    {
+        state = state with { Season = state.Season + 1, StoresSeasons = Fix64.Max(Fix64.Zero, state.StoresSeasons - RationNeed) };
+        Fix64 besieger = state.BesiegerStrength;
+        int food = state.BesiegerFoodSeasons;
+        if (!supplied && food <= 0) besieger *= Fix64.One - DesertionPerUnsuppliedSeason;
+        else if (!supplied) food--;
+
+        state = state with { BesiegerStrength = besieger, BesiegerFoodSeasons = food };
+        if (besieger < state.UnwalledDefenderStrength * Fix64.FromRatio(11, 10) * MinimumInvestmentRatio) return SiegeResult.Lifted;
+        if (Fix64.FromRatio(11, 10) * state.UnwalledDefenderStrength > Fix64.FromRatio(8, 10) * besieger)
+            return SiegeResult.Sally;
+
+        Fix64 chance = state.StoresSeasons.Raw == 0 ? EmptyStoresCapitulationChance
+            : state.StoresSeasons < Fix64.One ? LowStoresCapitulationChance : Fix64.Zero;
+        if (chance.Raw > 0)
+        {
+            Pcg32 rng = Pcg32.ForStream(seed, stream, settlement, state.Season);
+            if (rng.NextFix01() < chance) return SiegeResult.Capitulated;
+        }
+        return SiegeResult.Ongoing;
+    }
 }

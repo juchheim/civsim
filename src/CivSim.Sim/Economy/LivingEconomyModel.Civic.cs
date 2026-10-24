@@ -635,7 +635,12 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Cut stone (or quarried blocks, for the Palace before STN-11) a civic structure under way still needs.</summary>
     private int CivicCutStoneWant(SettlementState s)
-        => s.Civic is { BuildKind: not CivicBuild.None } c ? CivicMaterials(c.BuildKind).Cut : 0;
+    {
+        int civicNeed = s.Civic is { BuildKind: not CivicBuild.None } c ? CivicMaterials(c.BuildKind).Cut : 0;
+        if (s.BuildTarget == Structure.StoneWalls)
+            return Math.Max(civicNeed, 60 * ((int)Tier(s.Id) + 1));
+        return civicNeed;
+    }
 
     /// <summary>Mudbrick the settlement keeps in store: 200 (docs/MVP/10), or what the civic structure under way needs.</summary>
     private Fix64 MudbrickTarget(SettlementState s)
@@ -1125,6 +1130,21 @@ public sealed partial class LivingEconomyModel
     public int Capital(int civ) => CapitalOf(civ);
 
     public int AdminSpan(int civ) => AdminSpanOf(civ);
+
+    /// <summary>The Cohesion target penalties from distance to the capital and settlements beyond Admin span (docs/MVP/22 §8.3).</summary>
+    public (int Overreach, int SpanPenalty) CohesionPressures(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        if (!CohesionLive(s)) return (0, 0);
+        int civ = s.Civilization, capital = CapitalOf(s.Civilization);
+        if (capital < 0 || capital == s.Id) return (0, 0);
+        int walk = WalkingTiles(_settlements[capital].SiteTile, s.SiteTile);
+        Fix64 overreach = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) /
+            _civic.OverreachDivisor * (Fix64.One - AdminReductionOf(civ));
+        if (Done(civ, "HUS-08") && MostlyOpenGround(s)) overreach *= Fix64.Half;
+        int spanPenalty = _civic.SpanPenalty * Math.Max(0, MemberCount(civ) - AdminSpanOf(civ));
+        return (Math.Max(0, overreach.RoundToInt()), spanPenalty);
+    }
 
     /// <summary>Priests and Scribes staffed at a settlement this season (research's E3 role Insight, docs/MVP/22 §8.4).</summary>
     public (int Priests, int Scribes) RoleHeads(int settlementIndex)

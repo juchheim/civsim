@@ -133,7 +133,8 @@ public sealed partial class Strategist
         Uniform(_a, party, each, 1_000_000);
         Uniform(_b, site.Fighters, site.PerDefend, 0);
         ulong stream = Hash64.Combine(Hash64.Combine(RaidStream, (ulong)(v.Civ * 64 + read.Civ)), (ulong)(site.Settlement * 16 + party));
-        (c.P, c.Deaths, Fix64 carriers, Fix64 defDeaths) = SimulateRaid(_a, _b, site.Defenses, ranged, v.MatchSeed, stream, v.Season, trials);
+        (Fix64 simulatedP, c.Deaths, Fix64 carriers, Fix64 defDeaths) = SimulateRaid(_a, _b, site.Defenses, ranged, v.MatchSeed, stream, v.Season, trials);
+        c.P = StrategistTuning.CalibrateRaidSuccess(simulatedP);
 
         int seasons = Math.Max(1, (distance + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
         c.LandsSeason = (v.Season + seasons - 1) % 4;
@@ -153,7 +154,7 @@ public sealed partial class Strategist
         c.Value = c.P * c.Loot - c.Deaths * StrategistTuning.LifeValue - relations - reputation - retaliation;
 
         string? counterExposure = null;
-        IReadOnlyDictionary<int, int> departures = RaidDepartures(origin, party);
+        IReadOnlyList<SettlementDeparture> departures = RaidDepartures(origin, party);
         for (int other = 0; other < _civs; other++)
         {
             if (other == v.Civ) continue;
@@ -169,7 +170,7 @@ public sealed partial class Strategist
             break;
         }
 
-        if (c.P < _minRaidSuccess) c.Blocker = $"believed success {F2(c.P)} below {F2(_minRaidSuccess)}";
+        if (!StrategistTuning.MeetsRaidSuccessThreshold(c.P, _minRaidSuccess)) c.Blocker = $"believed success {F2(c.P)} below {F2(_minRaidSuccess)}";
         else if (c.Value < _minRaidValue) c.Blocker = $"expected value {F1(c.Value)} below the margin {F1(_minRaidValue)}";
         else if (c.LandsSeason >= 2 && origin.LateWinterForecast < StrategistTuning.WinterFoodFloor)
             c.Blocker = $"lands in {(c.LandsSeason == 2 ? "autumn" : "winter")} and our late-winter food is {F2(origin.LateWinterForecast)}";

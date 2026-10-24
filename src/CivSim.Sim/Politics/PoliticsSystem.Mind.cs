@@ -242,13 +242,13 @@ public sealed partial class PoliticsSystem
     {
         int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (forecast && travel > ReachOf(c) * 3)) { Trace?.Invoke($"raid: travel {travel}"); return false; }
-        List<Fighter> party = PickParty(origin, c, size, attacking: true, out List<long> ids);
+        List<Fighter> party = PickParty(origin, c, size, attacking: true, out List<long> ids, battleTile: _sTile[target]);
         if (party.Count < 4) { Trace?.Invoke($"raid: party {party.Count}"); return false; }
 
         if (forecast)
         {
             // The Elders' forecast: rehearse the raid against what is there and go if it pays and the odds are good enough.
-            List<Fighter> defenders = Fighters(target, attacking: false, out _);
+            List<Fighter> defenders = Fighters(target, attacking: false, out _, _sTile[target]);
             Defenses defenses = DefensesOf(target);
             Weapon(c, out bool ranged);
             int wins = 0, deaths = 0;
@@ -329,6 +329,8 @@ public sealed partial class PoliticsSystem
 
     private bool SendAssault(int c, int o, int target, bool requireOdds)
     {
+        bool walled = DefensesOf(target).StoneWalls;
+        if (walled && UnderInvestment(target)) return false;
         foreach (Expedition e in _expeditions) if (e.Kind == ExpeditionKind.Assault && e.Civ == c && e.TargetCiv == o) return false;
         foreach (Occupation occ in _occupations) if (occ.Civ == c && _sCiv[occ.Settlement] == o) return false;
         int origin = BestOrigin(c, _sTile[target]);
@@ -343,23 +345,45 @@ public sealed partial class PoliticsSystem
         for (int s = 0; s < _sCount; s++)
         {
             if (_sCiv[s] != c || _free[s] || HexGrid.Distance(_sTile[s], _sTile[origin], _width) > 10) continue;
-            List<Fighter> here = Fighters(s, attacking: true, out List<long> hereIds);
+            List<Fighter> here = Fighters(s, attacking: true, out List<long> hereIds, _sTile[target]);
             int allowed = Math.Max(0, Math.Min(here.Count - 4, here.Count * 6 / 10));
             var ordered = new List<Fighter>(here);
             ordered.Sort((x, y) => x.Strength != y.Strength ? y.Strength.CompareTo(x.Strength) : x.Id.CompareTo(y.Id));
             for (int i = 0; i < allowed; i++) { force.Add(ordered[i]); ids.Add(ordered[i].Id); strength += ordered[i].Strength; }
         }
+        // A raised levy stands against its chosen target and supplies the next assault/investment host.
+        Levy? levy = LevyFor(c, target);
+        if (levy is not null)
+        {
+            force.Clear(); ids.Clear(); strength = Fix64.Zero;
+            for (int i = 0; i < levy.Members.Count; i++)
+            {
+                long id = levy.Members[i];
+                if (!_economy.TryFigure(id, out _) || _economy.IsWounded(id)) continue;
+                force.Add(new Fighter(id, levy.Strengths[i])); ids.Add(id); strength += levy.Strengths[i];
+            }
+        }
         if (force.Count < (requireOdds ? 6 : Captures.MinHolders)) return false;
         Fix64 defence = Fix64.Zero;
-        foreach (Fighter f in Fighters(target, attacking: false, out _)) defence += f.Strength;
-        defence = defence * DefensesOf(target).Multiplier();
-        // Move out only with the odds: 1.5 times the defenders' effective strength (13 §8.4).
-        if (requireOdds && strength < defence * Fix64.FromRatio(15, 10)) return false;
+        foreach (Fighter f in Fighters(target, attacking: false, out _, _sTile[target])) defence += f.Strength;
+        if (walled)
+        {
+            // The 1.2 threshold includes home ground (×1.1), but excludes the ×3 wall multiplier.
+            defence *= Fix64.FromRatio(11, 10);
+            if (!Sieges.CanInvest(strength, defence)) return false;
+        }
+        else
+        {
+            defence = defence * DefensesOf(target).Multiplier();
+            // Move out only with the odds: 1.5 times the defenders' effective strength (13 §8.4).
+            if (requireOdds && strength < defence * Fix64.FromRatio(15, 10)) return false;
+        }
+        if (levy is not null && !TryTakeLevy(c, target, out _)) return false;
         var assault = new Expedition { Kind = ExpeditionKind.Assault, Civ = c, TargetCiv = o, FromSettlement = origin, ToSettlement = target,
             ArriveSeason = _season + SeasonsFor(travel) };
         for (int i = 0; i < ids.Count; i++) { assault.Members.Add(ids[i]); assault.Strengths.Add(force[i].Strength); }
         _expeditions.Add(assault);
-        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidLaunched, o, force.Count, target));
+        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.AssaultLaunched, o, force.Count, target));
         return true;
     }
 
@@ -479,7 +503,7 @@ public sealed partial class PoliticsSystem
         if (!TargetStillThere(e)) return;
         List<Fighter> raiders = AliveFighters(e, out _);
         if (raiders.Count < 3) return;
-        List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _);
+        List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _, _sTile[e.ToSettlement]);
         Defenses defenses = DefensesOf(e.ToSettlement);
         Weapon(c, out bool ranged);
         RaidOutcome outcome = Raids.Resolve(raiders, defenders, defenses, ranged, _seed, RaidStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 104729UL);
@@ -516,7 +540,12 @@ public sealed partial class PoliticsSystem
         if (!_dip.AtWar(c, o)) return;
         List<Fighter> attackers = AliveFighters(e, out _);
         if (attackers.Count < Captures.MinHolders) return;
-        List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _);
+        if (DefensesOf(e.ToSettlement).StoneWalls)
+        {
+            BeginInvestment(e);
+            return;
+        }
+        List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _, _sTile[e.ToSettlement]);
         Defenses defenses = DefensesOf(e.ToSettlement);
         BattleResult result = Captures.Assault(attackers, defenders, defenses, childrenInside: true, _seed, AssaultStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 7907UL);
         ApplyCasualties(result.AttackerDead, result.AttackerWounded);
@@ -603,12 +632,12 @@ public sealed partial class PoliticsSystem
     /// the loser's nearest settlement, or become Free Folk if there is none within reach. Assimilated people are
     /// unsettled until their Cohesion recovers.
     /// </summary>
-    private void Capture(Occupation occ, int loser)
+    private void Capture(Occupation occ, int loser, int assimilationPenalty = 0)
     {
         int s = occ.Settlement, captor = occ.Civ;
         var people = new List<FigureView>();
         _economy.ListFigures(s, people);
-        int staying = AssimilatedShare(captor, loser, people.Count);
+        int staying = AssimilatedShare(captor, loser, people.Count, assimilationPenalty);
         // Who stays is drawn by lot, not by age or sex.
         Pcg32 rng = Pcg32.ForStream(_seed, CaptureStream, (ulong)s, _season);
         var order = new List<long>();
@@ -644,13 +673,13 @@ public sealed partial class PoliticsSystem
         _events.Add(new PoliticsEvent(_tick, (byte)loser, PoliticsEventKind.Captured, captor, s, -staying));
     }
 
-    private int AssimilatedShare(int captor, int loser, int people)
+    private int AssimilatedShare(int captor, int loser, int people, int assimilationPenalty = 0)
     {
         int percent = 50;
         if (_research.IsDone(captor, _p.Gov03)) percent += 10;
         if (_dip.Relations(captor, loser) > Diplomacy.HostileBelow) percent += 10;
         if (_season - _dip.LastRaidBy(captor, loser) <= 8) percent -= 20;
-        return people * Math.Clamp(percent, 0, 100) / 100;
+        return people * Math.Clamp(percent - assimilationPenalty, 0, 100) / 100;
     }
 
     private int NearestRefuge(int loser, int lost)

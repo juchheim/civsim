@@ -319,9 +319,9 @@ public partial class Game : Node3D
             if (arg.StartsWith("--benchmark-matrix=", StringComparison.Ordinal))
             {
                 string value = arg.Substring("--benchmark-matrix=".Length).ToLowerInvariant();
-                if (value == "all") return new[] { "claims", "food", "methods", "resources" };
+                if (value == "all") return new[] { "claims", "food", "methods", "resources", "deposits", "trade", "cohesion", "forest" };
                 return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Where(value => value is "claims" or "food" or "methods" or "resources")
+                    .Where(value => value is "claims" or "food" or "methods" or "resources" or "deposits" or "trade" or "cohesion" or "forest")
                     .Distinct(StringComparer.Ordinal)
                     .ToArray();
             }
@@ -331,7 +331,7 @@ public partial class Game : Node3D
     private static string ReadOverlayName()
     {
         string overlay = ArgumentValue("--overlay=")?.ToLowerInvariant() ?? "none";
-        return overlay is "claims" or "food" or "methods" or "resources" ? overlay : "none";
+        return overlay is "claims" or "food" or "methods" or "resources" or "deposits" or "trade" or "cohesion" or "forest" ? overlay : "none";
     }
 
     /// <summary>Largest per-publish move (in tiles) a figure or herd glides across (walkers cover up to ~4 tiles a second). A farther jump is a relocation: fade out where it was, fade in where it is.</summary>
@@ -432,6 +432,10 @@ public partial class Game : Node3D
                 ["food"] = (int)frame.SettlementFood[i],
                 ["structures"] = structures,
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
+                ["index"] = frame.SettlementIndex[i],
+                ["cohesion"] = frame.SettlementCohesion[i],
+                ["overreach"] = frame.SettlementOverreach[i],
+                ["spanPenalty"] = frame.SettlementSpanPenalty[i],
             };
             // Props the focus civilization's knowledge leaves in its own villages (DecorTable); rivals' settlements show none.
             if (decor is { Length: > 0 } && frame.SettlementCiv[i] == frame.FocusCiv) settlement["decor"] = decor;
@@ -470,6 +474,10 @@ public partial class Game : Node3D
         byte[] forecastOverlay = BuildFoodForecastOverlay(frame);
         byte[] methodOverlay = BuildMethodOverlay(frame);
         byte[] methodFallbackOverlay = BuildMethodFallbackOverlay(frame);
+        byte[] e3OverlayBytes = BuildE3OverlayBytes(frame, world);
+        var forestOverlay = new byte[tiles];
+        for (int tile = 0; tile < tiles; tile++)
+            if (frame.Visibility[tile] == (byte)TileVisibility.Visible) forestOverlay[tile] = (byte)(frame.ForestBand[tile] + 1);
 
         // Texture bytes are built here (fast) instead of pixel by pixel in the renderer's script.
         var stateBytes = new byte[tiles * 4];
@@ -502,10 +510,18 @@ public partial class Game : Node3D
             ["visibility"] = Slice(frame.Visibility, tiles),
             ["camps"] = Slice(frame.CampTile, frame.CampCount),
             ["campCiv"] = ToIntArray(frame.CampCiv, frame.CampCount),
+            ["campKind"] = Slice(frame.CampKind, frame.CampCount),
+            ["campParent"] = Slice(frame.CampParent, frame.CampCount),
+            ["campDeposit"] = Slice(frame.CampDeposit, frame.CampCount),
+            ["campCrew"] = ToIntArray(frame.CampCrew, frame.CampCount),
+            ["campBuilt"] = Slice(frame.CampBuilt, frame.CampCount),
+            ["campMineHead"] = Slice(frame.CampMineHead, frame.CampCount),
             ["beacons"] = Slice(frame.BeaconTile, frame.BeaconCount),
             ["beaconCiv"] = ToIntArray(frame.BeaconCiv, frame.BeaconCount),
             ["stateBytes"] = stateBytes,
             ["overlayBytes"] = overlayBytes,
+            ["e3OverlayBytes"] = e3OverlayBytes,
+            ["forestOverlay"] = forestOverlay,
             ["figures"] = figures,
             ["ghosts"] = ghosts,
             ["herds"] = herds,
@@ -534,6 +550,53 @@ public partial class Game : Node3D
         return payload;
     }
 
+    /// <summary>Viewer-fair E3 map layers: known deposits, mine status, settlement Cohesion bands and compact routes.</summary>
+    private static byte[] BuildE3OverlayBytes(MatchFrame frame, WorldView world)
+    {
+        const int stride = 4;
+        int tiles = frame.Width * frame.Height;
+        var data = new byte[tiles * stride];
+        for (int tile = 0; tile < tiles; tile++)
+        {
+            if (frame.KnownDeposits[tile] != 0 && world.Deposit[tile] != (byte)DepositKind.None)
+                data[tile * stride] = (byte)(world.Deposit[tile] + 1);
+            // G: 0 none, 1 worked, 2 reachable, 3 both.
+            data[tile * stride + 1] = (byte)((frame.DepositWorked[tile] != 0 ? 1 : 0) | (frame.MiningReach[tile] != 0 ? 2 : 0));
+        }
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            int tile = frame.SettlementTile[i];
+            if ((uint)tile >= (uint)tiles || (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+            data[tile * stride + 2] = (byte)(frame.SettlementCohesion[i] + 1);
+        }
+        for (int route = 0; route < frame.RouteCount; route++)
+        {
+            int from = frame.RouteFromTile[route], to = frame.RouteToTile[route];
+            if ((uint)from >= (uint)tiles || (uint)to >= (uint)tiles) continue;
+            int distance = HexLayout.Distance(from, to, frame.Width);
+            int tinCode = frame.RouteGood[route] == 1 ? (byte)2 : (byte)1;
+            for (int step = 0; step <= distance; step++)
+            {
+                int x = distance == 0 ? HexLayout.CenterX(from, frame.Width)
+                    : (HexLayout.CenterX(from, frame.Width) * (distance - step) + HexLayout.CenterX(to, frame.Width) * step) / distance;
+                int y = distance == 0 ? HexLayout.CenterY(from, frame.Width)
+                    : (HexLayout.CenterY(from, frame.Width) * (distance - step) + HexLayout.CenterY(to, frame.Width) * step) / distance;
+                int tile = HexLayout.NearestTile(x, y, frame.Width, frame.Height);
+                if ((uint)tile >= (uint)tiles) continue;
+                int o = tile * stride + 3;
+                if (data[o] == 0 || tinCode == 2) data[o] = (byte)tinCode;
+            }
+        }
+        for (int i = 0; i < frame.PartyCount; i++)
+        {
+            if ((PartyKind)frame.PartyKind[i] != PartyKind.Caravan) continue;
+            int tile = HexLayout.NearestTile(frame.PartyX[i], frame.PartyY[i], frame.Width, frame.Height);
+            if ((uint)tile >= (uint)tiles) continue;
+            data[tile * stride + 3] = frame.PartyGood[i] == 1 ? (byte)4 : (byte)3;
+        }
+        return data;
+    }
+
     private static T[] Slice<T>(T[] values, int count)
     {
         var result = new T[count];
@@ -559,6 +622,13 @@ public partial class Game : Node3D
     }
 
     private static int[] ToIntArray(sbyte[] values, int count)
+    {
+        var result = new int[count];
+        for (int i = 0; i < count; i++) result[i] = values[i];
+        return result;
+    }
+
+    private static int[] ToIntArray(short[] values, int count)
     {
         var result = new int[count];
         for (int i = 0; i < count; i++) result[i] = values[i];

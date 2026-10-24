@@ -17,6 +17,15 @@ namespace CivSim.Harness;
 /// <summary>Runs the long-form deterministic replay, simulation tick, and invalid-state soak gates (MVP 17 §4).</summary>
 internal static class AcceptanceCommand
 {
+    internal const int MinimumAcceptanceSampleMinutes = 10;
+
+    internal enum OverallStatus
+    {
+        Passed,
+        Failed,
+        Incomplete,
+    }
+
     private const ulong FirstSeed = 20261019;
     private static readonly EconomyArchetype[] Archetypes =
     {
@@ -31,7 +40,7 @@ internal static class AcceptanceCommand
     public static int Run(string[] args)
     {
         string? packPath = null;
-        bool s1 = false, s13 = false, s15 = false;
+        bool s1 = false, s12 = false, s13 = false, s15 = false;
         int matches = 1_000, minutes = 10, sampleMinutes = 10;
         for (int i = 0; i < args.Length; i++)
         {
@@ -39,6 +48,7 @@ internal static class AcceptanceCommand
             {
                 case "--pack": packPath = Next(args, ref i); break;
                 case "--s1": s1 = true; break;
+                case "--s12": s12 = true; break;
                 case "--s13": s13 = true; break;
                 case "--s15": s15 = true; break;
                 case "--matches": matches = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
@@ -48,17 +58,87 @@ internal static class AcceptanceCommand
             }
         }
         if (packPath is null) throw new ArgumentException("acceptance needs --pack FILE.");
-        if (!s1 && !s13 && !s15) throw new ArgumentException("Choose at least one of --s1, --s13, or --s15.");
+        if (!s1 && !s12 && !s13 && !s15) throw new ArgumentException("Choose at least one of --s1, --s12, --s13, or --s15.");
         if (matches <= 0 || minutes <= 0 || sampleMinutes <= 0)
             throw new ArgumentOutOfRangeException(nameof(matches), "Match and sample counts must be positive.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
 
         bool pass = true;
         if (s1) pass &= RunReplayGate(pack, matches, minutes);
+        if (s12) pass &= RunChapterGate(pack);
         if (s13) pass &= RunTickGate(pack, sampleMinutes);
         if (s15) pass &= RunSoakGate(pack, matches, minutes);
-        Console.WriteLine(pass ? "ACCEPTANCE GATES PASSED" : "ACCEPTANCE GATES FAILED");
-        return pass ? 0 : 1;
+        OverallStatus status = GetOverallStatus(pass, s13 && IsDiagnosticSample(sampleMinutes));
+        Console.WriteLine(GetOverallStatusLine(status));
+        return GetExitCode(status);
+    }
+
+    internal static bool IsDiagnosticSample(int sampleMinutes) => sampleMinutes < MinimumAcceptanceSampleMinutes;
+
+    internal static OverallStatus GetOverallStatus(bool gatesPassed, bool hasDiagnosticS13) =>
+        hasDiagnosticS13 ? OverallStatus.Incomplete : gatesPassed ? OverallStatus.Passed : OverallStatus.Failed;
+
+    internal static string GetOverallStatusLine(OverallStatus status) => status switch
+    {
+        OverallStatus.Passed => "ACCEPTANCE GATES PASSED",
+        OverallStatus.Failed => "ACCEPTANCE GATES FAILED",
+        _ => "ACCEPTANCE INCOMPLETE",
+    };
+
+    internal static int GetExitCode(OverallStatus status) => status switch
+    {
+        OverallStatus.Passed => 0,
+        OverallStatus.Failed => 1,
+        _ => 2,
+    };
+
+    internal static string GetS13StatusLine(bool diagnostic, bool passed) => diagnostic
+        ? "S13 DIAGNOSTIC (sample shorter than 10-minute acceptance window)"
+        : passed ? "S13 PASS" : "S13 FAIL";
+
+    private static bool RunChapterGate(ContentPack pack)
+    {
+        const double budgetSeconds = 30.0;
+        const long ticksPerYear = ResearchSystem.SeasonTicks * MatchEnd.SeasonsPerYear;
+        var archetypes = new[]
+        {
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+        };
+        int capYear = new ResearchCatalog(pack).ChapterCapYear;
+        if (capYear <= 0) throw new InvalidDataException($"S12 requires a positive chapter cap year; pack has {capYear}.");
+        long capTick = checked((long)capYear * ticksPerYear);
+        MatchModel match = MatchModel.Create(FirstSeed, pack, archetypes);
+        var runner = new SimRunner(match);
+        var timer = Stopwatch.StartNew();
+        MatchEnd end = match.EndOfMatch();
+        bool timedOut = false;
+        while (!end.IsOver(runner.Tick) && runner.Tick < capTick)
+        {
+            if (timer.Elapsed.TotalSeconds >= budgetSeconds)
+            {
+                timedOut = true;
+                break;
+            }
+            long remaining = capTick - runner.Tick;
+            int chunk = (int)Math.Min(ResearchSystem.SeasonTicks, remaining);
+            runner.Advance(chunk);
+            end = match.EndOfMatch();
+        }
+        timer.Stop();
+        double elapsed = timer.Elapsed.TotalSeconds;
+        bool overDeadline = timedOut || elapsed > budgetSeconds;
+        bool endedAtRuleTick = end.IsOver(runner.Tick) && runner.Tick == end.EndTick;
+        bool reachedCap = runner.Tick >= capTick;
+        bool pass = !overDeadline && endedAtRuleTick;
+        Console.WriteLine($"S12 headless Bronze chapter: four Balanced AIs; seed {FirstSeed}; reason {end.Reason}; simulated tick {runner.Tick}, rule end tick {end.EndTick}, cap tick {capTick}; elapsed {elapsed:F3} s (limit {budgetSeconds:F0} s); checksum {runner.CurrentChecksum:x16}");
+        if (overDeadline) Console.WriteLine(timedOut
+            ? $"S12 stopped at tick {runner.Tick}: reached the {budgetSeconds:F0}-second deadline between season advances."
+            : $"S12 exceeded the {budgetSeconds:F0}-second deadline during its final season advance.");
+        else if (reachedCap && !endedAtRuleTick) Console.WriteLine($"S12 stopped at the chapter cap tick {capTick}, but the end rule did not report a completed chapter.");
+        else if (!endedAtRuleTick) Console.WriteLine("S12 failed: simulated tick does not match the chapter end rule.");
+        Console.WriteLine(pass ? "S12 PASS" : "S12 FAIL");
+        return pass;
     }
 
     private static bool RunReplayGate(ContentPack pack, int matches, int minutes)
@@ -203,7 +283,7 @@ internal static class AcceptanceCommand
         bool pass = workloadOk && avgMs <= 4.0 && maxPauseMs <= 16.0;
         Console.WriteLine($"S13 measurements: avg tick {avgMs:F3} ms (limit 4.000); max tick wall {maxWallMs:F3} ms at tick {maxWallAtSimTick}; max GC pause in a tick {maxPauseMs:F3} ms (limit 16.000)");
         Console.WriteLine($"  sample figures {minFigures:N0}–{maxFigures:N0}; sample ticks {sampleTicks:N0}; digest {runner.Digest():x16}; final {runner.CurrentChecksum:x16}");
-        Console.WriteLine(pass ? "S13 PASS" : "S13 FAIL");
+        Console.WriteLine(GetS13StatusLine(IsDiagnosticSample(sampleMinutes), pass));
         return pass;
     }
 

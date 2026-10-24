@@ -5,6 +5,7 @@ using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Ai;
 
@@ -27,11 +28,15 @@ public sealed class TechEstimate
     private readonly (Fix64 Strength, bool Ranged, ulong[] Proves)[] _weapons;
     private readonly ulong[]? _archeryBow;
     private readonly Fix64 _bowStrength;
+    private readonly int _met03, _met04, _met05, _def04, _def05, _com05, _bel06;
 
     public TechEstimate(ResearchCatalog catalog, IReadOnlyList<WeaponRung> weaponLadder, int archeryProject)
     {
         _catalog = catalog;
         _count = catalog.Count;
+        _met03 = catalog.IndexOf("MET-03"); _met04 = catalog.IndexOf("MET-04"); _met05 = catalog.IndexOf("MET-05");
+        _def04 = catalog.IndexOf("DEF-04"); _def05 = catalog.IndexOf("DEF-05");
+        _com05 = catalog.IndexOf("COM-05"); _bel06 = catalog.IndexOf("BEL-06");
         _words = (_count + 63) / 64;
         _closure = new ulong[_count * _words];
         var done = new bool[_count];
@@ -181,6 +186,41 @@ public sealed class TechEstimate
     public void AddWarriors(bool[] believed) { if (_warrior is { } s) OrInto(s, believed); }
     public void AddWatchers(bool[] believed) { if (_watchers is { } s) OrInto(s, believed); }
     public void AddPalisade(bool[] believed) { if (_palisade is { } s) OrInto(s, believed); }
+
+    /// <summary>A visible E3 defense proves its building project.</summary>
+    public void AddBronzeDefense(bool hillfort, bool stoneWalls, bool[] believed)
+    {
+        if (hillfort && _def04 >= 0) AddProject(_def04, believed);
+        if (stoneWalls && _def05 >= 0) AddProject(_def05, believed);
+    }
+
+    /// <summary>A visible metal-tool tint proves only the tool tier's unlocking project.</summary>
+    public void AddMetalKits(bool copper, bool arsenical, bool tinBronze, bool[] believed)
+    {
+        if (copper && _met03 >= 0) AddProject(_met03, believed);
+        if (arsenical && _met04 >= 0) AddProject(_met04, believed);
+        if (tinBronze && _met05 >= 0) AddProject(_met05, believed);
+    }
+
+    /// <summary>A visible mine camp on an ore deposit proves the corresponding accessible mining route.</summary>
+    public void AddMiningCamp(DepositKind deposit, bool[] believed)
+    {
+        int project = deposit switch
+        {
+            DepositKind.CopperOre => _met03,
+            DepositKind.ArsenicalCopper => _met04,
+            DepositKind.Tin => _met05,
+            _ => -1,
+        };
+        if (project >= 0) AddProject(project, believed);
+    }
+
+    /// <summary>Visible E3 specialists prove the project that unlocks their role.</summary>
+    public void AddCivicRoles(bool scribes, bool priests, bool[] believed)
+    {
+        if (scribes && _com05 >= 0) AddProject(_com05, believed);
+        if (priests && _bel06 >= 0) AddProject(_bel06, believed);
+    }
 
     /// <summary>Marks what a weapon of this strength in figures' hands proves; bows above their own strength prove archery warfare too.</summary>
     public void AddWeapon(Fix64 strength, bool ranged, bool[] believed)

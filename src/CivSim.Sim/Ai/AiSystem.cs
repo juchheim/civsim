@@ -72,7 +72,11 @@ public sealed class AiSystem
             };
             _seats[civ] = new AiSeat(civ, control, profile, builder, spark, strategist, belief, context);
             research.SetAiControlled(civ, true);
-            if (strategist.ActsOnPolitics) politics.SetExternalMind(civ, true);
+            if (strategist.ActsOnPolitics)
+            {
+                politics.SetExternalMind(civ, true);
+                if (control.Kind == ControlKind.Ai) politics.SetDecreePolicy(civ, new StrategistDecreePolicy(_log, belief, context.Intent));
+            }
         }
     }
 

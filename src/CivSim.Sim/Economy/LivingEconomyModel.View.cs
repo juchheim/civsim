@@ -65,7 +65,7 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState s = _settlements[settlementIndex];
         if (s.BuildTarget == Structure.Count || s.BuildProgress <= Fix64.Zero) return (-1, Fix64.Zero);
-        Fix64 labor = BuildLabor(s.BuildTarget);
+        Fix64 labor = StructureBuildLabor(s, s.BuildTarget);
         return ((int)s.BuildTarget, labor <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, s.BuildProgress / labor));
     }
 

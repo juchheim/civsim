@@ -54,6 +54,12 @@ public sealed class MatchFrame
     public byte[] TileFlags = Array.Empty<byte>();
     /// <summary>1 when the viewer has discovered a deposit on this tile; 0 otherwise. Read WorldView.Deposit only when set.</summary>
     public byte[] KnownDeposits = Array.Empty<byte>();
+    /// <summary>Standing forest stock band (0–3) on visible tiles; zero elsewhere. See <see cref="Economy.LivingEconomyModel.ForestBand"/>.</summary>
+    public byte[] ForestBand = Array.Empty<byte>();
+    /// <summary>1 when ore from the tile has been mined; current sight is required to reveal it.</summary>
+    public byte[] DepositWorked = Array.Empty<byte>();
+    /// <summary>1 when a known tile is within the viewer's current mining reach (or any civilization in omniscient mode).</summary>
+    public byte[] MiningReach = Array.Empty<byte>();
 
     // ---- figures (ascending id) ---------------------------------------------------------------
     public int FigureCount;
@@ -120,6 +126,10 @@ public sealed class MatchFrame
     public byte[] SettlementWinterForecast = Array.Empty<byte>();
     /// <summary><see cref="CohesionBand"/>.</summary>
     public byte[] SettlementCohesion = Array.Empty<byte>();
+    /// <summary>Current target penalty from distance to the capital, in Cohesion points; own settlements only.</summary>
+    public short[] SettlementOverreach = Array.Empty<short>();
+    /// <summary>Current target penalty from settlements beyond Admin span, in Cohesion points; own settlements only.</summary>
+    public short[] SettlementSpanPenalty = Array.Empty<short>();
     /// <summary><see cref="SettlementViewFlags"/>.</summary>
     public ushort[] SettlementFlags = Array.Empty<ushort>();
     /// <summary>Structure kind under construction, -1 none.</summary>
@@ -144,6 +154,14 @@ public sealed class MatchFrame
     public int CampCount;
     public int[] CampTile = Array.Empty<int>();
     public sbyte[] CampCiv = Array.Empty<sbyte>();
+    /// <summary><see cref="CampKind"/>; seasonal politics camps are 0, mining camps are 1.</summary>
+    public byte[] CampKind = Array.Empty<byte>();
+    /// <summary>Parent settlement index, or -1 when none.</summary>
+    public int[] CampParent = Array.Empty<int>();
+    /// <summary><see cref="World.DepositKind"/> at the camp, or None for seasonal camps.</summary>
+    public byte[] CampDeposit = Array.Empty<byte>();
+    public short[] CampCrew = Array.Empty<short>();
+    public byte[] CampBuilt = Array.Empty<byte>(), CampMineHead = Array.Empty<byte>();
     // ---- monuments: the megalith a civilization raised (docs/MVP/02, STN-10); the front end plays the raising from the tick ----
     public int MonumentCount;
     public int[] MonumentTile = Array.Empty<int>();
@@ -327,6 +345,9 @@ public sealed class MatchFrame
         if (Claimant3.Length != count) Claimant3 = new sbyte[count];
         if (TileFlags.Length != count) TileFlags = new byte[count];
         if (KnownDeposits.Length != count) KnownDeposits = new byte[count];
+        if (ForestBand.Length != count) ForestBand = new byte[count];
+        if (DepositWorked.Length != count) DepositWorked = new byte[count];
+        if (MiningReach.Length != count) MiningReach = new byte[count];
     }
 
     internal void EnsureFigures(int n)
@@ -358,6 +379,7 @@ public sealed class MatchFrame
         {
             Ensure(ref SettlementIndex, n); Ensure(ref SettlementCiv, n); Ensure(ref SettlementTile, n); Ensure(ref SettlementPopulation, n);
             Ensure(ref SettlementFood, n); Ensure(ref SettlementWinterForecast, n); Ensure(ref SettlementCohesion, n);
+            Ensure(ref SettlementOverreach, n); Ensure(ref SettlementSpanPenalty, n);
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n);
@@ -371,7 +393,12 @@ public sealed class MatchFrame
         Ensure(ref PlotTile, n); Ensure(ref PlotSettlement, n); Ensure(ref PlotKind, n);
     }
 
-    internal void EnsureCamps(int n) { if (CampTile.Length < n) { Ensure(ref CampTile, n); Ensure(ref CampCiv, n); } }
+    internal void EnsureCamps(int n)
+    {
+        if (CampTile.Length >= n) return;
+        Ensure(ref CampTile, n); Ensure(ref CampCiv, n); Ensure(ref CampKind, n); Ensure(ref CampParent, n);
+        Ensure(ref CampDeposit, n); Ensure(ref CampCrew, n); Ensure(ref CampBuilt, n); Ensure(ref CampMineHead, n);
+    }
 
     internal void EnsureTrails(int n)
     {
