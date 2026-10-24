@@ -1203,8 +1203,13 @@ public partial class Game
             _uiSettings.PlayedBefore = true;
             _uiSettings.Save();
         }
-        bool wasHold = _openingHold;
-        if (_openingHold) EndOpeningHold();
+        bool wasHold = _openingHold || (_session.Paused && IsFreshUnassignedMatch());
+        if (wasHold)
+        {
+            _openingHold = true;
+            _openingHoldAssignmentPending = true;
+            _session.SetPaused(true);
+        }
         _selectedResearchProject = project;
         _webTarget = -1;
         _replaceRowOpen = false;
@@ -1214,7 +1219,8 @@ public partial class Game
             : displaced >= 0 && displaced != project
                 ? $"{name} started in {UiText.SlotNames[slot]}. {_catalog.Projects[displaced].Name} keeps its progress and waits."
                 : $"{name} started in {UiText.SlotNames[slot]}.";
-        if (_session.Paused && !wasHold) note += " It starts when you resume.";
+        if (wasHold) note += " Time starts when you close the research menu.";
+        else if (_session.Paused) note += " It starts when you resume.";
         ShowFooterNote(note);
         _webSignature = int.MinValue;
         _inspSignature = int.MinValue;

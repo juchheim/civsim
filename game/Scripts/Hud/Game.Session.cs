@@ -101,6 +101,7 @@ public partial class Game
         _endScreenShown = false;
         _endScreenDismissed = false;
         _openingHold = false;
+        _openingHoldAssignmentPending = false;
         _pinnedTile = -1;
         _selectedResearchProject = -1;
         RebuildVisualRenderer(_current, _session);

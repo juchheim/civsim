@@ -94,8 +94,7 @@ public partial class Game
         _hudReady = true;
         if (_current is not null) RefreshHud(_current);
 
-        bool freshStart = _session is { Tick: < 100, IsReplay: false } && _current is { FocusCiv: 0, FocusCouncil: false } &&
-            _current.FocusSlotProject[0] < 0 && _current.FocusSlotProject[1] < 0 && _current.FocusSlotProject[2] < 0;
+        bool freshStart = IsFreshUnassignedMatch();
         if (freshStart && (!IsDevelopmentPresentationRun() || HasArgument("--opening-hold"))) BeginOpeningHold();
         if (ReadResearchWebArgument()) OpenResearchWeb(-1);
         if (HasArgument("--research-map")) { OpenResearchWeb(-1); SetResearchView(1); }
@@ -262,13 +261,15 @@ public partial class Game
 
     private UiLayer RegisterLayer(string name, bool modal, Func<bool> close) => new(name, modal, close);
 
-    /// <summary>Puts the player's attention on the first choice: time holds until the first assignment (spec §4.3).</summary>
+    /// <summary>Puts the player's attention on the first choice: time holds until the web closes after the first assignment (spec §4.3).</summary>
     private bool _openingHold;
+    private bool _openingHoldAssignmentPending;
 
     private void BeginOpeningHold()
     {
         if (_session is null) return;
         _openingHold = true;
+        _openingHoldAssignmentPending = false;
         _session.SetPaused(true);
     }
 
@@ -276,8 +277,13 @@ public partial class Game
     {
         if (!_openingHold) return;
         _openingHold = false;
+        _openingHoldAssignmentPending = false;
         _session?.SetPaused(false);
     }
+
+    private bool IsFreshUnassignedMatch() =>
+        _session is { Tick: < 100, IsReplay: false } && _current is { FocusCiv: 0, FocusCouncil: false } &&
+        _current.FocusSlotProject[0] < 0 && _current.FocusSlotProject[1] < 0 && _current.FocusSlotProject[2] < 0;
 
     private string YearText(MatchFrame frame) => $"Year {frame.Year + 1}";
 }

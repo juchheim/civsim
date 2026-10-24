@@ -253,6 +253,7 @@ public partial class Game
         if (_session is null || _session.MatchEnded || _session.ReplayFinished) return;
         _session.TogglePaused();
         _openingHold = false;
+        _openingHoldAssignmentPending = false;
         UpdatePausedTreatment();
     }
 

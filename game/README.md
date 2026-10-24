@@ -35,8 +35,9 @@ game menu. Typing in the search field never moves the camera.
 
 **Time.** The top band shows the date, a dominant Pause/Resume button and ½×/1×/2×/4×.
 While paused the Resume button turns gold, a "PAUSED" pill appears, and the viewport
-gets a gold frame and a light scrim. A new match starts paused ("opening hold") until
-the first research choice. Orders given while paused show as *pending*.
+gets a gold frame and a light scrim. A new match starts paused ("opening hold") through
+the first research choice, then resumes when the research web closes. Orders given while
+paused show as *pending*.
 
 **Menu.** Save, load, replay save/watch, settings (UI size 100/115/130 %, reduce
 motion, hints, tips, pause in web, pause on danger), help, new match and quit.

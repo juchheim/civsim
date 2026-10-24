@@ -498,6 +498,8 @@ public partial class Game
         if (_peopleOpen) ClosePeoplePanel();
         if (_ui.Contains("menu") || _ui.Contains("diplomacy") || _ui.Contains("chronicle")) CloseDrawersAndMenus();
         bool wasOpen = _researchWebVisible;
+        if (!wasOpen && !_openingHold && _session is { Paused: true } && IsFreshUnassignedMatch())
+            _openingHold = true;
         _researchWebVisible = true;
         _newProjectCount = 0;
         UpdateNewBadge();
@@ -554,7 +556,8 @@ public partial class Game
         if (_webScrim is not null) _webScrim.Visible = false;
         if (_webPanel is not null) UiKit.Fade(_webPanel, false, UiTokens.SlowCloseS);
         if (_webLayer is not null) _ui.Remove(_webLayer);
-        if (_pausedByWeb && _session is { Paused: true } && !_openingHold) _session.SetPaused(false);
+        if (_openingHold && _openingHoldAssignmentPending) EndOpeningHold();
+        else if (_pausedByWeb && _session is { Paused: true } && !_openingHold) _session.SetPaused(false);
         _pausedByWeb = false;
         UpdatePausedTreatment();
         MaybeShowLookAroundTip();
