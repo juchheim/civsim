@@ -146,4 +146,40 @@ public sealed class WP8bSiegeLifecycleTests
         Assert.True(carried.BesiegerStrength >= Fix64.FromRatio(17999, 1000) &&
             carried.BesiegerStrength <= Fix64.FromRatio(18001, 1000));
     }
+
+    [Fact]
+    public void Supplied_investments_match_the_T22_three_to_six_season_collapse_rates()
+    {
+        const int trials = 1_000;
+        var cases = new[]
+        {
+            (Stores: Fix64.FromInt(2), Expected: 0.651, Tolerance: 0.04),
+            (Stores: Fix64.FromRatio(5, 2), Expected: 0.980, Tolerance: 0.03),
+            (Stores: Fix64.FromInt(3), Expected: 0.980, Tolerance: 0.03),
+        };
+
+        foreach (var testCase in cases)
+        {
+            int capitulationsInWindow = 0;
+            for (ulong seed = 1; seed <= trials; seed++)
+            {
+                var state = new SiegeState(Fix64.FromInt(20), Fix64.FromInt(10), Fix64.FromInt(30),
+                    testCase.Stores, 1, 0);
+                SiegeResult result = SiegeResult.Ongoing;
+                for (int season = 1; season <= 6; season++)
+                {
+                    result = Sieges.Advance(ref state, supplied: true, seed, 19, settlement: 7);
+                    if (result != SiegeResult.Ongoing) break;
+                }
+
+                Assert.True(result is SiegeResult.Ongoing or SiegeResult.Capitulated,
+                    $"Supplied 2x-strength investment unexpectedly ended as {result} at season {state.Season}.");
+                if (result == SiegeResult.Capitulated && state.Season is >= 3 and <= 6)
+                    capitulationsInWindow++;
+            }
+
+            double rate = (double)capitulationsInWindow / trials;
+            Assert.InRange(rate, testCase.Expected - testCase.Tolerance, testCase.Expected + testCase.Tolerance);
+        }
+    }
 }

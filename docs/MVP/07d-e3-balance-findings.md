@@ -418,9 +418,11 @@ These are current-source diagnostics, not acceptance samples; 07d §10's constan
 
 `python3 docs/MVP/balance/tools/combat_e3.py` and `--selftest` pass against the corrected §7.5 values. The oracle compares all
 four table values, the stone-warband row and the field-battle rows; shield and chariot crew casualty factors now stack at ×0.35.
-T22's 0.75 ration model yields 65.1%, 98.0%, and 98.0% capture in 3–6 seasons for 2.0, 2.5, and 3.0 stores. The focused
-WP8b lifecycle/fortification tests pass, including snapshot resume, deterministic next-season siege results, rationing, and
-relief transition. These tests do not establish the B16 multi-trial C# rate. Relief accepts an already-arrived host because the
+T22's 0.75 ration model yields 65.1%, 98.0%, and 98.0% capture in 3–6 seasons for 2.0, 2.5, and 3.0 stores. A bounded C#
+test now samples 1,000 fixed seeds per store level through `Sieges.Advance` and checks these three rates with a broad tolerance;
+this measures the helper's stochastic collapse window. The focused WP8b lifecycle/fortification tests also cover snapshot
+resume, deterministic next-season siege results, rationing, and relief transition. The sweep does not exercise live-match
+supply, sally, desertion, or casualty interactions. Relief accepts an already-arrived host because the
 order model has no traveling allied-relief order; range-foraging has no numeric rule and is not modeled; structures have no
 inside/outside positions, so the siege burns the first available flammable structure. B20 conflict rates still need the 24-seed
 Council run; current Council reports show zero raids and captures.
