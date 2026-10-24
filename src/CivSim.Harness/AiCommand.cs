@@ -17,6 +17,8 @@ namespace CivSim.Harness;
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --check-a7 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
+/// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
+/// Full-sample classification requires explicitly supplying both dimensions at acceptance size (at least 8 seeds, 64 minutes).
 /// civsim-harness ai --pack FILE --exploit [--generations N] [--children N] [--seeds N] [--minutes N]
 /// Bare --exploit defaults to a quick diagnostic (1 generation, 1 child, 1 seed, 2 minutes); acceptance requires
 /// at least 10,000 evaluations and a 64-minute horizon.
@@ -62,7 +64,11 @@ internal static class AiCommand
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
         if (checkA7) return CheckA7Only(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
-        if (checkM10) return CheckM10(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
+        if (checkM10)
+        {
+            (int m10Seeds, int m10Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
+            return CheckM10(pack, m10Seeds, m10Minutes, archetype, firstSeed);
+        }
         if (exploit)
         {
             ExploitSearch.Options options = ExploitSearch.ResolveOptions(
@@ -89,6 +95,9 @@ internal static class AiCommand
         }
         throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-m10 or --exploit.");
     }
+
+    internal static (int Seeds, int Minutes) ResolveM10Sample(int? requestedSeeds, int? requestedMinutes) =>
+        (requestedSeeds ?? 1, requestedMinutes ?? 2);
 
     private static void PrintDuel(string a, string b, Tournament.DuelResult r)
     {

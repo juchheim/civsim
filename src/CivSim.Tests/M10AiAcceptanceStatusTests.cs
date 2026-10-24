@@ -5,6 +5,20 @@ namespace CivSim.Tests;
 public sealed class M10AiAcceptanceStatusTests
 {
     [Fact]
+    public void Missing_M10_sample_options_default_each_dimension_to_quick_diagnostic_values()
+    {
+        Assert.Equal((1, 2), AiCommand.ResolveM10Sample(null, null));
+        Assert.Equal((8, 2), AiCommand.ResolveM10Sample(8, null));
+        Assert.Equal((1, 64), AiCommand.ResolveM10Sample(null, 64));
+    }
+
+    [Fact]
+    public void Explicit_M10_sample_options_are_preserved()
+    {
+        Assert.Equal((8, 64), AiCommand.ResolveM10Sample(8, 64));
+    }
+
+    [Fact]
     public void Fewer_than_eight_seeds_are_diagnostic_even_if_metrics_pass()
     {
         Assert.Equal(M10AiAcceptanceStatus.Result.Diagnostic, M10AiAcceptanceStatus.Classify(7, 64));

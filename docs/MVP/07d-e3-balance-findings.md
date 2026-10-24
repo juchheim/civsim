@@ -461,9 +461,12 @@ at least 10,000 policy evaluations at a 64-minute chapter horizon can pass or re
 defaults to a two-minute, one-seed, two-policy diagnostic; explicit search options are preserved. Focused tests cover
 chapter-end scoring, short high-rate classification, acceptance thresholds, and option defaults. The bare-command smoke
 completed in under 30 seconds and returned `INCOMPLETE` at 2 evaluations/2 minutes; no A6 acceptance search was run.
-`ai --check-m10` now labels every individual gate and the aggregate as diagnostic-only unless the sample has at least
-8 seeds and a 64-minute horizon; the default full-window labels are unchanged. Pure status tests cover both short-sample
-dimensions and full-window pass/fail formatting; no tournament was run for this guard.
+`ai --check-m10` labels every individual gate and the aggregate diagnostic-only unless the sample has at least 8 seeds
+and a 64-minute horizon. Its safe defaults are 1 seed and 2 minutes; if either option is omitted, that dimension uses
+its diagnostic default while the explicitly supplied dimension is preserved. Run the full sample with
+`dotnet run --project src/CivSim.Harness -c Release -- ai --pack civsim.pack --check-m10 --seeds 8 --minutes 64`.
+Pure resolver/status tests cover omitted options, each missing dimension, and explicit full-window values. No tournament
+was run for the defaults guard.
 
 WP11 now has a fixed-seed `bronze-v1` chapter-end golden. Its two fresh seed-20261019 runs agree at tick 27,150, with
 RivalCountdown by civilization 3 and checksum `a0360f53f234e87b`; the explicit golden check passed. The S12 Bronze

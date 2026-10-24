@@ -654,7 +654,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B23 | Performance | headless chapter ≤ 30 s; tick ≤ 4 ms mean over the 10-minute S13 sample, no GC pause > 16 ms; 60 fps with 1,600 figures and E3 structures at Z0–Z2 | `acceptance --s12 --s13`, Godot render gate (shorter S13 samples are diagnostic only) | Auto |
 | B24 | Robustness | 0 crashes, desyncs or invalid states in 1,000 chapter matches, all archetypes and levels | `acceptance --s15 --minutes 64` | Auto |
 | B25 | Content | 66 E3 nodes `numeric`; validator 0 errors; pack golden refreshed | `civsim validate --strict` | Auto |
-| B26 | **AI gates at the chapter end** | A1–A8 targets of 14 §10.3 under the new Legacy units | `ai --check-m10 --seeds 8` | Auto |
+| B26 | **AI gates at the chapter end** | A1–A8 targets of 14 §10.3 under the new Legacy units | `ai --check-m10 --seeds 8 --minutes 64` | Auto |
 | B27 | **Tin intelligence** | a tin-poor AI (no tin 8 seasons after KEY-3) gets tin or completes the arsenical route in ≥ 80%; Dormant-bronze blunder < 0.1 per match | harness | Auto |
 | B28 | **Defense timing** | an AI facing a believed bronze-armed neighbour has palisade, hillfort or walls before the first bronze raid on it in ≥ 80% | harness | Auto |
 | B29 | Forecast fidelity | KEY-4 within 15%, median ≤ 6% | harness | Auto |
@@ -662,6 +662,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B31 | Legend vs Warlord | ≥ 60% (the 65% of 14 §10.3 moves to E4) | ladder | Auto |
 
 `ai --check-m10` covers A1–A5/A7 and B27–B31; A6 uses `ai --exploit` and A8 uses the fog-fairness suite, so the combined B26 gate remains open until those separate checks pass.
+The full-sample command is `dotnet run --project src/CivSim.Harness -c Release -- ai --pack civsim.pack --check-m10 --seeds 8 --minutes 64`; omitting either sample dimension defaults that dimension to a quick diagnostic value (1 seed or 2 minutes).
 
 ---
 
