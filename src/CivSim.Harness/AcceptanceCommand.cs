@@ -73,7 +73,7 @@ internal static class AcceptanceCommand
             pass &= replayPassed;
         }
         if (s12) pass &= RunChapterGate(pack);
-        if (s13) pass &= RunTickGate(pack, sampleMinutes);
+        if (s13) pass &= RunTickGateForHorizon(sampleMinutes, () => RunTickGate(pack, sampleMinutes), out _);
         if (s15)
         {
             bool s15Passed = RunSoakGateForHorizon(minutes, () => RunSoakGate(pack, matches, minutes), out bool diagnostic);
@@ -89,6 +89,17 @@ internal static class AcceptanceCommand
     }
 
     internal static bool IsDiagnosticSample(int sampleMinutes) => sampleMinutes < MinimumAcceptanceSampleMinutes;
+
+    internal static bool RunTickGateForHorizon(int sampleMinutes, Func<bool> runTickGate, out bool diagnostic)
+    {
+        diagnostic = IsDiagnosticSample(sampleMinutes);
+        if (diagnostic)
+        {
+            Console.WriteLine(GetS13StatusLine(diagnostic: true, passed: true));
+            return true;
+        }
+        return runTickGate();
+    }
 
     internal static bool IsDiagnosticSoakSample(int minutes) => minutes < MinimumSoakAcceptanceMinutes;
 

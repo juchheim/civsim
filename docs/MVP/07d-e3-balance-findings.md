@@ -526,3 +526,9 @@ exactly 1,000 matches on a horizon of at least 64 minutes. It stops each replay 
 a match that does not reach that endpoint. Smaller requests skip replay work and report diagnostic-only. The `--s1 --minutes 10`
 smoke returned `ACCEPTANCE INCOMPLETE` without starting replays; the combined S1/S15/B30 focused tests passed 32/32 in
 24 ms. No chapter replay corpus was run.
+
+S13 now follows the same short-horizon safeguard: `acceptance --s13 --sample-minutes N` skips the tick gate when
+`N < 10`, prints the existing S13 diagnostic line, and leaves overall acceptance INCOMPLETE. At 10 minutes or more,
+the tick gate runs normally and keeps its pass/fail output. Pure callback tests cover 1- and 9-minute skips and the
+10-minute execution boundary. The `--s13 --sample-minutes 1` smoke returned `ACCEPTANCE INCOMPLETE` without warm-up;
+the combined status and B30 tests passed 35/35 in 42 ms. No S13 simulation or full suite was run.

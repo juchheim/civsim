@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using CivSim.Harness;
 
 namespace CivSim.Tests;
@@ -12,6 +14,51 @@ public sealed class AcceptanceSampleStatusTests
     public void S13SampleClassificationUsesTenMinuteAcceptanceMinimum(int sampleMinutes, bool diagnostic)
     {
         Assert.Equal(diagnostic, AcceptanceCommand.IsDiagnosticSample(sampleMinutes));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(9)]
+    public void ShortS13SampleSkipsTickGateAndReportsDiagnostic(int sampleMinutes)
+    {
+        bool gateExecuted = false;
+        using var output = new StringWriter();
+        TextWriter original = Console.Out;
+        Console.SetOut(output);
+        try
+        {
+            bool passed = AcceptanceCommand.RunTickGateForHorizon(sampleMinutes, () =>
+            {
+                gateExecuted = true;
+                return false;
+            }, out bool diagnostic);
+
+            Assert.True(passed);
+            Assert.True(diagnostic);
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+
+        Assert.False(gateExecuted);
+        Assert.Contains("S13 DIAGNOSTIC (sample shorter than 10-minute acceptance window)", output.ToString());
+    }
+
+    [Fact]
+    public void FullS13SampleExecutesTickGate()
+    {
+        bool gateExecuted = false;
+
+        bool passed = AcceptanceCommand.RunTickGateForHorizon(10, () =>
+        {
+            gateExecuted = true;
+            return false;
+        }, out bool diagnostic);
+
+        Assert.False(passed);
+        Assert.False(diagnostic);
+        Assert.True(gateExecuted);
     }
 
     [Fact]
