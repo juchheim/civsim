@@ -1,3 +1,3 @@
 seed=20261019 ticks=14400 archetypes=Balanced,Balanced,Balanced,Balanced
-final=af5ff789aea1224a
-digest=45a7d2ac575a1995
+final=3b0097a2348e3076
+digest=a3b5667993f4fdc0

@@ -201,12 +201,12 @@ internal static class ResearchCommand
     }
 
     /// <summary>
-    /// C5 (docs/MVP/11 §6): KEY-1, KEY-2 and KEY-3 at about 7.5, 17.5 and 29 minutes, Standard pace, ±25%. The median of the
-    /// four civilizations must land in the window and none may stray beyond ±40% or miss the keystone altogether.
+    /// C5 (docs/MVP/11 §6): KEY-1/2 retain 7.5/17.5-minute targets; the current cadence projects KEY-3 at 41.5 minutes
+    /// (07c §10.1). The median of the four civilizations must land in the window and none may stray beyond ±40% or miss it.
     /// </summary>
     private static bool ReportC5(ResearchSystem research)
     {
-        double[] target = { 7.5, 17.5, 29.0 };
+        double[] target = { 7.5, 17.5, 41.5 };
         bool pass = true;
         Console.WriteLine("C5 keystone timing (minutes, Standard pace):");
         for (int key = 1; key <= 3; key++)

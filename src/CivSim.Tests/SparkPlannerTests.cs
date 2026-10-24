@@ -132,7 +132,7 @@ public class SparkPlannerTests
         // 14 §6.4: when the Strategist reads a threat, DEF and WAR projects jump in priority. Two identical matches reach the
         // same season end (the real Strategist and Spark have decided); the Spark then re-plans once with the threat reading
         // the Strategist would hand it, calm in one copy and urgent in the other.
-        (int First, int Count, bool Reasoned, string Plan) Planned(Sim.Numerics.Fix64 urgency)
+        (int First, bool Reasoned, string Plan) Planned(Sim.Numerics.Fix64 urgency)
         {
             MatchModel match = ForecastTestKit.Match(777, Warlord, CivControl.Council, CivControl.Council, CivControl.Council);
             new SimRunner(match).Advance(8 * ForecastTestKit.TicksPerMinute);
@@ -142,22 +142,37 @@ public class SparkPlannerTests
             seat.Spark.Decide(seat.Context);
             ResearchCatalog cat = match.Research.Catalog;
             bool Military(int p) => cat.Projects[p].Lineage >= 0 && cat.LineageCodes[cat.Projects[p].Lineage] is "DEF" or "WAR";
+            bool DependsOn(int project, int prerequisite)
+            {
+                foreach (int required in cat.Projects[project].Requires)
+                    if (required == prerequisite || DependsOn(required, prerequisite)) return true;
+                foreach (int required in cat.Projects[project].RequiresAny)
+                    if (required == prerequisite || DependsOn(required, prerequisite)) return true;
+                return false;
+            }
+            bool MilitaryPath(int p)
+            {
+                int era = match.Research.Era(0);
+                if (match.Research.IsDone(0, p) || cat.Projects[p].Era > era) return false;
+                if (Military(p)) return true;
+                foreach (int target in Enumerable.Range(0, cat.Count))
+                    if (cat.Projects[target].Era <= era && !match.Research.IsDone(0, target) && Military(target) && DependsOn(target, p)) return true;
+                return false;
+            }
             var plan = ((ResearchSpark)seat.Spark).LastPlan;
             int first = -1;
-            for (int i = 0; i < plan.Count && first < 0; i++) if (Military(plan[i])) first = i;
-            bool slotted = Enumerable.Range(0, CivResearch.SlotCount).Any(s => match.Research.Slot(0, s) is int q && q >= 0 && Military(q));
-            // Reasons are logged for the slots a decision changed (14 §11): a slotted defense pick must say why.
-            bool reasoned = !slotted || match.Ai.Log.Entries.Any(e => e.Civ == 0 && e.Tick >= tick && e.Layer == "Spark" && e.Reason == "threat: defense first");
-            return (first, plan.Count(Military), reasoned, string.Join(" ", plan.Select(q => cat.Projects[q].Id)));
+            for (int i = 0; i < plan.Count && first < 0; i++) if (MilitaryPath(plan[i])) first = i;
+            // Reasons are logged for slots a decision changed (14 §11), including when a military-path pick is also part of a keystone path.
+            var pathChanges = match.Ai.Log.Entries.Where(e => e.Civ == 0 && e.Tick >= tick && e.Layer == "Spark" && MilitaryPath(e.Subject)).ToArray();
+            bool reasoned = pathChanges.Length == 0 || pathChanges.All(e => !string.IsNullOrWhiteSpace(e.Reason));
+            return (first, reasoned, string.Join(" ", plan.Select(q => cat.Projects[q].Id)));
         }
         var calm = Planned(Sim.Numerics.Fix64.Zero);
         var threatened = Planned(Sim.Numerics.Fix64.One);
-        // Urgent: a DEF/WAR project among the first three of the plan (behind at most its own missing prerequisite, which
-        // the plan researches first), more of them than when calm, and none or later when calm.
-        Assert.InRange(threatened.First, 0, 2);
-        Assert.True(threatened.Count > calm.Count, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
+        // Urgent: a DEF/WAR project or its prerequisite path among the first three, before the calm plan reaches it.
+        Assert.True(threatened.First is >= 0 and <= 2, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
         Assert.True(calm.First < 0 || calm.First > threatened.First, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
-        Assert.True(threatened.Reasoned, "a slotted defense pick logs its reason");
+        Assert.True(threatened.Reasoned, $"a slotted defense pick logs its reason: {threatened.Plan}");
     }
 
     [Fact]

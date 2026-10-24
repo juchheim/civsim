@@ -101,10 +101,10 @@ internal static class ResearchE3
             for (int a = 0; a < 4; a += 2) { pairs++; if (r.Touch[a, a + 1] > 0) touchPaired++; }
         }
         text.AppendLine();
-        text.AppendLine($"Timing: KEY-3 median {F(Median(k3))}, KEY-4 median {F(Median(k4))} (T3 43, 07d 46.5), E3 duration median {F(Median(e3))} (T2 11.5-14.5)");
-        text.AppendLine($"T10 people per civ at KEY-4: median {F(Median(people))} (range {F(Min(people))}-{F(Max(people))}; target 170, 120-230)");
-        text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (range {F(Min(setts))}-{F(Max(setts))}; target 7, 5-10)");
-        text.AppendLine($"B17 civs with a Town at KEY-4 {P(MeanOf(towns))}, at the chapter end {P(MeanOf(townsEnd))} (target >= 75%); with a City at KEY-4 {P(MeanOf(cities))}, at the end {P(MeanOf(citiesEnd))} (07d: >= 25% at the chapter end)");
+        text.AppendLine($"Timing: KEY-3 median {F(Median(k3))}, KEY-4 median {F(Median(k4))} (current projection 61.25; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
+        text.AppendLine($"T10 people per civ at KEY-4: median {F(Median(people))} (range {F(Min(people))}-{F(Max(people))}; historical target 170, 120-230; rebaseline at current cadence)");
+        text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (range {F(Min(setts))}-{F(Max(setts))}; historical target 7, 5-10; rebaseline at current cadence)");
+        text.AppendLine($"B17 Town/City rates at KEY-4 {P(MeanOf(towns))}/{P(MeanOf(cities))}; at chapter end {P(MeanOf(townsEnd))}/{P(MeanOf(citiesEnd))} (historical thresholds; rebaseline at current cadence)");
         text.AppendLine($"  at the chapter end (minute {F(Median(endMin))}): people per civ median {F(Median(peopleEnd))}, settlements {F(Median(settsEnd))}, largest {F(Median(bigEnd))}, claimed {P(Median(claimedEnd))}");
         text.AppendLine($"T12 mean FoodCap per settlement: KEY-3 {F(Median(food3))}, KEY-4 {F(Median(food4))}, ratio median {Median(foodRatio):F2} (C1-E3 target x2.16 on the average settlement, x1.74 from E3 projects alone)");
         double ann(int e, int b) => deaths[e, b] / Math.Max(1e-9, exposure[e, b] / 4);

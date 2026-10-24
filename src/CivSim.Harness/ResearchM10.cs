@@ -19,8 +19,8 @@ namespace CivSim.Harness;
 /// </summary>
 internal static class ResearchM10
 {
-    private const double Key4Target = 43.0;
-    private const double E3Target = 13.0;
+    private const double Key4Target = 61.25;
+    private const double E3Target = 19.75;
     private static readonly ulong[] DefaultSeeds = { 20261019UL, 777UL };
 
     private sealed class Run
@@ -82,14 +82,14 @@ internal static class ResearchM10
         bool pass = true;
         double key4Median = Median(key4All), e3Median = Median(e3All);
         int civs = list.Count * 4;
-        bool key4Ok = key4All.Count == civs && key4Median >= Key4Target * 0.75 && key4Median <= Key4Target * 1.25;
-        bool e3Ok = e3All.Count == civs && e3Median >= 11.5 && e3Median <= 14.5;
+        bool key4Ok = key4All.Count == civs && key4Median >= 57.0 && key4Median <= 64.0;
+        bool e3Ok = e3All.Count == civs && e3Median >= E3Target * 0.75 && e3Median <= E3Target * 1.25;
         bool e3Each = e3All.Count == civs && e3All.TrueForAll(x => x >= E3Target * 0.75 && x <= E3Target * 1.25);
         double endMedian = Median(ends);
-        text.AppendLine($"B5 KEY-4 Council median {Fmt(key4Median)} (target {Key4Target:F0} +-25% = 32.3-53.8; {key4All.Count}/{civs} civilizations finished): {(key4Ok ? "PASS" : "FAIL")}");
-        text.AppendLine($"B5 E3 duration median {Fmt(e3Median)} (target 11.5-14.5): {(e3Ok ? "PASS" : "FAIL")}");
-        text.AppendLine($"B5 every civilization's E3 duration within 13.0 +-25% (9.75-16.25): {(e3Each ? "PASS" : "FAIL")}");
-        text.AppendLine($"B6 chapter end median minute {Fmt(endMedian)} over {list.Count} seed(s) (target 44-48; B6 itself is judged over 32 seeds): {(endMedian >= 44 && endMedian <= 48 ? "in band" : "outside band")}");
+        text.AppendLine($"B5 KEY-4 Council median {Fmt(key4Median)} (projection {Key4Target:F2}; acceptance window 57-64 before Year cap; {key4All.Count}/{civs} civilizations finished): {(key4Ok ? "PASS" : "FAIL")}");
+        text.AppendLine($"B5 E3 duration median {Fmt(e3Median)} (projection {E3Target:F2} +-25% = {E3Target * 0.75:F2}-{E3Target * 1.25:F2}): {(e3Ok ? "PASS" : "FAIL")}");
+        text.AppendLine($"B5 every civilization's E3 duration within {E3Target:F2} +-25%: {(e3Each ? "PASS" : "FAIL")}");
+        text.AppendLine($"B6 chapter end median minute {Fmt(endMedian)} over {list.Count} seed(s) (current projection is near Year 64; B6 itself is judged over 32 seeds)");
         text.AppendLine($"B6 matches reaching Year 64: {yearCap}/{list.Count} (target <= 10%)");
         text.AppendLine($"B6 the end rule is replay-identical: {(identical ? "PASS" : "FAIL")}");
         pass = key4Ok && e3Ok && e3Each && identical;

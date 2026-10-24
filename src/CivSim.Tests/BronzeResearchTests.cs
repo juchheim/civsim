@@ -103,7 +103,7 @@ public class BronzeLegacyTests
         ResearchCatalog c = TestPack.Catalog;
         Assert.Equal((2, 3, 4, 25), (c.LegacyMasteryPerEra, c.LegacyFirstPerEra, c.LegacyFirstKeystoneMult, c.LegacyWonderBuiltPerEra));
         Assert.Equal((12, 64, 4), (c.ChapterCountdownSeasons, c.ChapterCapYear, c.MandateRechargeMin));
-        // A First no longer grows with EraBase: E3's EraBase is 150, its First 12 for a regular project.
+        // A First no longer grows with EraBase: E3's EraBase is 400, its First 12 for a regular project.
         Assert.Equal(Fix64.FromInt(12), c.FirstUnits(c.Get("MET-03")));
     }
 }
@@ -706,8 +706,8 @@ public class BronzeChapterTests
         MatchModel match = MatchModel.Create(777, TestPack.Pack, balanced);
         var runner = new SimRunner(match);
         int key4 = match.Research.Catalog.IndexOf("KEY-4");
-        while (runner.Tick < 55 * 600L && !match.EndOfMatch(-1).CountdownRunning) runner.Advance(Season);
-        Assert.True(match.EndOfMatch(-1).CountdownRunning, "someone should have completed KEY-4 within 55 minutes");
+        while (runner.Tick < 64 * 600L && !match.EndOfMatch(-1).CountdownRunning) runner.Advance(Season);
+        Assert.True(match.EndOfMatch(-1).CountdownRunning, "someone should have completed KEY-4 before the Year-64 cap");
         MatchEnd end = match.EndOfMatch(-1);
         Assert.Equal(MatchEndReason.RivalCountdown, end.Reason);
         Assert.True(match.Research.IsDone(end.CountdownCiv, key4));

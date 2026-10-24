@@ -59,12 +59,12 @@ public class E3ContentTests
     }
 
     [Fact]
-    public void Balance_fit_values_of_07d_are_in_the_content()
+    public void Current_research_cadence_values_are_in_the_content()
     {
         (ContentSet set, _) = Validated();
-        Assert.Equal(160, set.Reg("eras").Find("3")!.GetInt("base_cost"));
-        Assert.Equal(CivSim.Sim.Numerics.Fix64.FromInt(160), set.CostOf(set.ById["MET-03"]));
-        Assert.Equal(CivSim.Sim.Numerics.Fix64.FromInt(400), set.CostOf(set.ById["KEY-4"]));
+        Assert.Equal(400, set.Reg("eras").Find("3")!.GetInt("base_cost"));
+        Assert.Equal(CivSim.Sim.Numerics.Fix64.FromInt(400), set.CostOf(set.ById["MET-03"]));
+        Assert.Equal(CivSim.Sim.Numerics.Fix64.FromInt(1000), set.CostOf(set.ById["KEY-4"]));
         Assert.Equal(90, set.ById["SOC-09"].Effects.Single(e => e.Kind == "tier").Int("min_pop"));
         Assert.Equal(60, set.ById["TRD-04"].Effects.Single(e => e.Kind == "tier").Int("min_pop"));
         Assert.Equal(CivSim.Sim.Numerics.Fix64.Parse("0.4"), set.ById["AGR-05"].Effects.Single(e => e.Str("stat") == "field_limit").Num("value"));
@@ -110,7 +110,7 @@ public class E3ContentTests
         ContentValue t10 = regs.Get("tools")!.Items.Single(r => r.GetString("id") == "t10");
         Assert.Equal("G-BRONZE", t10.GetString("metal"));
         Assert.NotNull(t10.Get("mods")!.GetFix("harvest_labor"));
-        Assert.Equal(160, regs.Get("eras")!.Items.Single(r => r.GetInt("id") == 3).GetInt("base_cost"));
+        Assert.Equal(400, regs.Get("eras")!.Items.Single(r => r.GetInt("id") == 3).GetInt("base_cost"));
         // the Sim loads the same pack, including the new kinds
         var catalog = new CivSim.Sim.Research.ResearchCatalog(pack);
         Assert.Contains(catalog.Get("KEY-3").Effects, e => e.Kind == CivSim.Sim.Research.EffectKind.Mandate);

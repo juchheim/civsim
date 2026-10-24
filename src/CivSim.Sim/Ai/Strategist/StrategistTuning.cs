@@ -121,11 +121,17 @@ public static class StrategistTuning
     /// </summary>
     public static readonly Fix64 UnseenFighterShare = Fix64.FromRatio(1, 3);
     /// <summary>
-    /// ...and each is believed as strong as one of our own fighters times this. With accurate beliefs defenders measure about 0.56
-    /// of our raiders, so 1.3 is deliberately cautious: a blind Chieftain raids about as often as a Warlord (a few times in an
-    /// 80-minute game) rather than never (the old guess of 0.36 left the raid simulation with no defenders, and a success of 0).
+    /// ...and each is believed as strong as one of our own fighters times this. Measured against what a raid meets, a defender
+    /// is about 0.6 of our raiders once the defence multiplier is counted separately (the old 1.3 doubled it, and with the
+    /// defences unseen a blind Chieftain won about a quarter of the raids it rated at three in four, 14 §16.3a).
     /// </summary>
-    public static readonly Fix64 UnseenDefenderStrength = Fix64.FromRatio(13, 10);
+    public static readonly Fix64 UnseenDefenderStrength = Fix64.FromRatio(6, 10);
+    /// <summary>
+    /// A blind observer assumes a rival has the thorn hedge, lookouts and dogs from this era of the rival's (public)...
+    /// </summary>
+    public const int UnseenWorksEra = 1;
+    /// <summary>...and the palisade and signal fires from this one (measured: 34 of 39 raided villages had a palisade).</summary>
+    public const int UnseenPalisadeEra = 2;
     /// <summary>Raiders are the strongest fighters: party strength per raider vs the settlement's average.</summary>
     public static readonly Fix64 PartyPickBonus = Fix64.FromRatio(115, 100);
     /// <summary>Party sizes tried, as shares of the origin's fighters (13 §5.2: 15-30%, more with warriors).</summary>
@@ -229,6 +235,11 @@ public static class StrategistTuning
     /// noisy candidate probabilities; higher beam widths retain the original scaling above the floor.
     /// </summary>
     public static int Trials(DifficultyProfile profile) => Math.Max(32, 8 + 2 * profile.BeamWidth);
+    /// <summary>Trials in the second look at a raid about to be ordered. The search uses 10 to 20 trials a candidate, every season, for
+    /// every village; the best of that many noisy estimates reads high (a true 0.2 shows 0.7 now and then), so the chosen raid
+    /// is played again with this many on a fresh stream and must still clear its margins (14 §16.3a).</summary>
+    /// </summary>
+    public const int RaidConfirmTrials = 64;
 
     /// <summary>Raid margins by the archetype registry's raid_margin (14 §9.1): minimum believed success and expected value in rations.</summary>
     public static (Fix64 MinSuccess, Fix64 MinValue) RaidMargin(string margin) => margin switch

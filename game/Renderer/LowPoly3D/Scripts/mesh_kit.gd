@@ -296,19 +296,29 @@ func _structures() -> void:
 	b.prism(Vector3(-0.008, 0, -0.003), 0.01, 0.0, 0.04, 4, Color("#ff9a20"), Color("#ff9a20"), 0.2, 0.2)
 	meshes["flame"] = b.commit()
 
-	# lean-to / brush shelter: a low dome of branches over a pole frame, open toward the hearth
+	# Dwellings, oldest to newest. Each reads differently from the others at map distance: the lean-to is a wedge of boughs,
+	# the hide tent a cone, the pit house a turf mound, the wattle house a low cottage with a hipped roof, the mudbrick house a
+	# flat-roofed stack of blocks, the longhouse a long gable and the hall a colonnaded block. Doors face +Z (toward the hearth).
+	var BOUGH := Color("#6f7f3a")
+	var BOUGH_DARK := Color("#4d5f2c")
+	var DARK := Color("#2a2119")
+	var DOOR := Color("#3a2c1f")
+	var BRICK := Color("#c99a68")
+	var BRICK_LIGHT := Color("#dcb98a")
+	var LIME := Color("#e2cfa6")
+
+	# lean-to: one sloping pitch of leafy boughs on forked posts, open to the hearth, bedding underneath
 	b = _b(305)
-	b.blob(Vector3(0, 0.0, 0), Vector3(0.075, 0.07, 0.065), 9, 4, Color("#8c7445"), 0.12, Color("#6e5a36"))
-	# loose branches laid over the dome
-	for i in 9:
-		var a := TAU * i / 9.0 + 0.2
-		var p0 := Vector3(cos(a) * 0.072, 0.006, sin(a) * 0.062)
-		var p1 := Vector3(cos(a + 0.5) * 0.02, 0.072, sin(a + 0.5) * 0.018)
-		b.pole(p0, p1, 0.0035, Color("#5e4a2e") if i % 2 == 0 else Color("#7a6440"))
-	b.box(Vector3(0, 0.022, 0.06), Vector3(0.032, 0.044, 0.012), Color("#2a2119"))
-	for i in 3:
-		var a := TAU * i / 3.0 + 0.9
-		b.pole(Vector3(cos(a) * 0.05, 0.0, sin(a) * 0.05), Vector3(cos(a) * -0.005, 0.1, sin(a) * -0.005), 0.0035, WOOD)
+	b.quad(Vector3(-0.085, 0.092, 0.06), Vector3(0.085, 0.092, 0.06), Vector3(0.085, 0.03, -0.058), Vector3(-0.085, 0.03, -0.058), BOUGH, Vector3(0, -0.04, 0))
+	for i in 7:
+		var x := -0.078 + 0.026 * i
+		b.pole(Vector3(x, 0.098, 0.068), Vector3(x + 0.004 * b.rnds(), 0.026, -0.064), 0.0045, WOOD if i % 2 == 0 else BOUGH_DARK)
+	for sx in [-0.085, 0.085]:
+		b.quad(Vector3(sx, 0.092, 0.06), Vector3(sx, 0.03, -0.058), Vector3(sx, 0.0, -0.058), Vector3(sx, 0.0, 0.06), BOUGH_DARK, Vector3(0, 0.04, 0))
+		b.pole(Vector3(sx, 0.0, 0.062), Vector3(sx, 0.1, 0.062), 0.006, WOOD)
+	b.quad(Vector3(-0.085, 0.03, -0.058), Vector3(0.085, 0.03, -0.058), Vector3(0.085, 0.0, -0.058), Vector3(-0.085, 0.0, -0.058), BOUGH_DARK, Vector3(0, 0.04, 0.1))
+	b.blob(Vector3(0.0, 0.0, 0.0), Vector3(0.06, 0.016, 0.04), 7, 3, THATCH_DARK, 0.15)
+	b.blob(Vector3(0.03, 0.0, 0.085), Vector3(0.022, 0.014, 0.014), 5, 2, BOUGH, 0.2)
 	meshes["leanto"] = b.commit()
 
 	# hide tent (tipi) with a civ band and protruding poles
@@ -332,45 +342,133 @@ func _structures() -> void:
 	b.tri(Vector3(-0.022, 0.001, 0.058), Vector3(0.022, 0.001, 0.058), Vector3(0.0, 0.055, 0.044), Color("#3a2c1f"), Vector3(0, 0.03, 0))
 	meshes["tent"] = b.commit()
 
-	# pit house: sunken, turf-covered dome with an entrance and smoke hole
+	# pit house: a dug floor under a turf-covered log roof, rim stones, a ladder out of the smoke hole and a sloping entrance
 	b = _b(309)
-	b.prism(Vector3.ZERO, 0.095, 0.09, 0.012, 9, EARTH, EARTH)
+	b.prism(Vector3.ZERO, 0.105, 0.098, 0.01, 10, EARTH.darkened(0.25), EARTH.darkened(0.25))
 	b.tag = M7MeshBuilder.TAG_GRASS
-	b.blob(Vector3(0, 0.012, 0), Vector3(0.088, 0.06, 0.088), 9, 4, Color("#7f8c48"), 0.06, EARTH)
+	b.blob(Vector3(0, 0.008, 0), Vector3(0.088, 0.058, 0.088), 10, 4, Color("#7f8c48"), 0.07, EARTH)
 	b.tag = M7MeshBuilder.TAG_PLAIN
-	b.prism(Vector3(0, 0.064, 0), 0.016, 0.014, 0.012, 6, WOOD, Color("#2a2119"))
-	b.box(Vector3(0, 0.022, 0.085), Vector3(0.04, 0.04, 0.035), WOOD_LIGHT, THATCH_DARK)
-	b.box(Vector3(0, 0.017, 0.103), Vector3(0.022, 0.03, 0.002), Color("#2a2119"))
+	for i in 10:
+		var a := TAU * i / 10.0 + 0.2
+		b.blob(Vector3(cos(a) * 0.098, 0.008, sin(a) * 0.098), Vector3(0.014, 0.012, 0.012), 5, 2, STONE.lerp(STONE_DARK, b.rnd()), 0.2)
+	b.prism(Vector3(0, 0.058, 0), 0.02, 0.016, 0.012, 6, DARK, DARK)
+	b.pole(Vector3(-0.008, 0.03, -0.004), Vector3(-0.012, 0.125, 0.006), 0.004, WOOD)
+	b.pole(Vector3(0.008, 0.03, -0.004), Vector3(0.006, 0.125, 0.008), 0.004, WOOD)
+	for r in 3:
+		b.box(Vector3(-0.003 + 0.0 * r, 0.06 + 0.02 * r, 0.0), Vector3(0.022, 0.003, 0.004), WOOD_LIGHT)
+	b.quad(Vector3(-0.026, 0.0, 0.13), Vector3(0.026, 0.0, 0.13), Vector3(0.026, 0.036, 0.09), Vector3(-0.026, 0.036, 0.09), EARTH.darkened(0.2), Vector3(0, -0.1, 0))
+	b.box(Vector3(-0.026, 0.02, 0.098), Vector3(0.006, 0.04, 0.006), WOOD)
+	b.box(Vector3(0.026, 0.02, 0.098), Vector3(0.006, 0.04, 0.006), WOOD)
+	b.box(Vector3(0, 0.044, 0.098), Vector3(0.06, 0.007, 0.008), WOOD)
+	b.box(Vector3(0, 0.02, 0.092), Vector3(0.044, 0.036, 0.003), DARK)
 	meshes["pithouse"] = b.commit()
 
-	# wattle-and-daub roundhouse with conical thatch
+	# wattle-and-daub house: a low timber-framed cottage, plastered wicker walls, hipped thatch with deep eaves
 	b = _b(311)
-	b.prism(Vector3.ZERO, 0.07, 0.07, 0.055, 10, DAUB, DAUB)
-	b.prism(Vector3(0, 0.05, 0), 0.088, 0.0, 0.1, 10, THATCH, THATCH, 0.0, 0.03)
-	b.box(Vector3(0, 0.022, 0.069), Vector3(0.026, 0.042, 0.004), Color("#3a2c1f"))
+	var wx := 0.07
+	var wz := 0.052
+	b.box(Vector3(0, 0.02, 0), Vector3(wx * 2, 0.04, wz * 2), DAUB)
+	b.box(Vector3(0, 0.0095, 0), Vector3(wx * 2 + 0.01, 0.019, wz * 2 + 0.01), STONE_DARK)
+	for sx in [-wx, wx]:
+		for sz in [-wz, wz]:
+			b.pole(Vector3(sx, 0.0, sz), Vector3(sx, 0.047, sz), 0.0055, WOOD)
+	for sx in [-0.024, 0.024]:
+		b.box(Vector3(sx, 0.02, wz + 0.001), Vector3(0.005, 0.04, 0.003), WOOD)
+	b.box(Vector3(0, 0.0435, wz + 0.001), Vector3(wx * 2, 0.006, 0.004), WOOD)
+	b.box(Vector3(0, 0.0175, wz + 0.003), Vector3(0.026, 0.035, 0.003), DOOR)
+	b.box(Vector3(-0.045, 0.028, wz + 0.002), Vector3(0.016, 0.01, 0.003), DARK)
+	var ey := 0.04
+	var ry2 := 0.118
+	var ox := 0.088
+	var oz := 0.07
+	var rx := 0.03
+	b.quad(Vector3(-ox, ey, oz), Vector3(ox, ey, oz), Vector3(rx, ry2, 0), Vector3(-rx, ry2, 0), THATCH, Vector3(0, 0.02, 0))
+	b.quad(Vector3(-ox, ey, -oz), Vector3(ox, ey, -oz), Vector3(rx, ry2, 0), Vector3(-rx, ry2, 0), THATCH.darkened(0.06), Vector3(0, 0.02, 0))
+	b.tri(Vector3(-ox, ey, oz), Vector3(-ox, ey, -oz), Vector3(-rx, ry2, 0), THATCH_DARK, Vector3(0, 0.02, 0))
+	b.tri(Vector3(ox, ey, oz), Vector3(ox, ey, -oz), Vector3(rx, ry2, 0), THATCH_DARK, Vector3(0, 0.02, 0))
+	b.pole(Vector3(-rx - 0.008, ry2 + 0.004, 0), Vector3(rx + 0.008, ry2 + 0.004, 0), 0.006, THATCH_DARK)
+	b.pole(Vector3(-0.07, 0.07, 0.04), Vector3(0.07, 0.07, 0.04), 0.0035, THATCH_DARK)
+	b.prism(Vector3(-0.012, 0.104, -0.012), 0.01, 0.008, 0.016, 5, STONE_DARK, DARK)
 	meshes["wattle"] = b.commit()
 
-	# mudbrick house: box with a flat roof and parapet
+	# mudbrick house: sun-baked blocks with flat roofs, a second room stepped on top, beam ends and a roof ladder
 	b = _b(313)
-	b.box(Vector3(0, 0.035, 0), Vector3(0.13, 0.07, 0.1), MUD)
-	b.box(Vector3(0, 0.073, 0), Vector3(0.14, 0.008, 0.11), MUD.darkened(0.15), MUD.lightened(0.05))
-	b.box(Vector3(0.02, 0.025, 0.051), Vector3(0.026, 0.05, 0.003), Color("#3a2c1f"))
-	b.box(Vector3(-0.035, 0.05, 0.051), Vector3(0.018, 0.014, 0.003), Color("#3a2c1f"))
+	b.box(Vector3(0, 0.038, 0), Vector3(0.14, 0.076, 0.1), BRICK)
+	b.box(Vector3(0, 0.079, 0), Vector3(0.15, 0.008, 0.11), BRICK_LIGHT.darkened(0.08), BRICK_LIGHT)
+	b.box(Vector3(-0.03, 0.1, -0.008), Vector3(0.078, 0.042, 0.078), BRICK_LIGHT)
+	b.box(Vector3(-0.03, 0.124, -0.008), Vector3(0.088, 0.008, 0.088), BRICK_LIGHT.darkened(0.08), BRICK_LIGHT)
+	for i in 4:
+		b.pole(Vector3(-0.054 + 0.036 * i, 0.068, 0.049), Vector3(-0.054 + 0.036 * i, 0.068, 0.067), 0.0045, WOOD)
+	b.box(Vector3(0.025, 0.027, 0.0505), Vector3(0.028, 0.054, 0.003), DOOR)
+	b.box(Vector3(0.025, 0.056, 0.0505), Vector3(0.034, 0.005, 0.004), WOOD)
+	b.box(Vector3(-0.04, 0.045, 0.0505), Vector3(0.016, 0.014, 0.003), DARK)
+	b.box(Vector3(-0.03, 0.105, 0.0315), Vector3(0.016, 0.016, 0.003), DARK)
+	b.pole(Vector3(0.071, 0.0, 0.03), Vector3(0.071, 0.088, -0.005), 0.003, WOOD)
+	b.pole(Vector3(0.081, 0.0, 0.03), Vector3(0.081, 0.088, -0.005), 0.003, WOOD)
+	for r in 4:
+		b.pole(Vector3(0.071, 0.014 + 0.019 * r, 0.026 - 0.0085 * r), Vector3(0.081, 0.014 + 0.019 * r, 0.026 - 0.0085 * r), 0.0022, WOOD_LIGHT)
+	b.blob(Vector3(0.05, 0.088, 0.02), Vector3(0.016, 0.014, 0.016), 6, 3, EARTH.lightened(0.15), 0.1)
 	meshes["mudbrick"] = b.commit()
 
-	# longhouse: long low walls and a steep gabled thatch roof
+	# longhouse: a long timber hall under a steep thatched gable, posts along the walls, crossed ridge poles, smoke holes
 	b = _b(315)
-	b.box(Vector3(0, 0.025, 0), Vector3(0.26, 0.05, 0.1), WOOD_LIGHT)
-	var L := 0.145
-	var W := 0.072
-	var ry := 0.13
-	var e0 := 0.045
-	b.quad(Vector3(-L, e0, W), Vector3(L, e0, W), Vector3(L, ry, 0), Vector3(-L, ry, 0), THATCH, Vector3(0, 0.0, -0.1))
-	b.quad(Vector3(-L, e0, -W), Vector3(L, e0, -W), Vector3(L, ry, 0), Vector3(-L, ry, 0), THATCH.darkened(0.03), Vector3(0, 0.0, 0.1))
-	b.tri(Vector3(-0.13, 0.05, 0.05), Vector3(-0.13, 0.05, -0.05), Vector3(-0.13, ry - 0.01, 0), WOOD, Vector3(0, 0.07, 0))
-	b.tri(Vector3(0.13, 0.05, 0.05), Vector3(0.13, 0.05, -0.05), Vector3(0.13, ry - 0.01, 0), WOOD, Vector3(0, 0.07, 0))
-	b.box(Vector3(0.0, 0.02, 0.051), Vector3(0.024, 0.04, 0.003), Color("#3a2c1f"))
+	var lx := 0.15
+	var lz := 0.05
+	b.box(Vector3(0, 0.0125, 0), Vector3(lx * 2, 0.025, lz * 2), STONE_DARK)
+	b.box(Vector3(0, 0.0435, 0), Vector3(lx * 2 - 0.01, 0.037, lz * 2 - 0.008), WOOD_LIGHT)
+	for i in 7:
+		var x := -lx + 0.015 + (lx * 2 - 0.03) * i / 6.0
+		for sz in [-lz, lz]:
+			b.pole(Vector3(x, 0.0, sz), Vector3(x, 0.066, sz), 0.0045, WOOD)
+	var le := 0.062
+	var lr := 0.148
+	var lw := 0.082
+	b.quad(Vector3(-lx - 0.01, le, lw), Vector3(lx + 0.01, le, lw), Vector3(lx + 0.01, lr, 0), Vector3(-lx - 0.01, lr, 0), THATCH, Vector3(0, 0.03, 0))
+	b.quad(Vector3(-lx - 0.01, le, -lw), Vector3(lx + 0.01, le, -lw), Vector3(lx + 0.01, lr, 0), Vector3(-lx - 0.01, lr, 0), THATCH.darkened(0.06), Vector3(0, 0.03, 0))
+	for sz in [-1.0, 1.0]:
+		for f in [0.36, 0.68]:
+			b.pole(Vector3(-lx - 0.008, le + (lr - le) * f, lw * (1.0 - f) * sz), Vector3(lx + 0.008, le + (lr - le) * f, lw * (1.0 - f) * sz), 0.0035, THATCH_DARK)
+	for sx in [-lx, lx]:
+		b.tri(Vector3(sx, 0.062, lz - 0.004), Vector3(sx, 0.062, -lz + 0.004), Vector3(sx, lr - 0.012, 0), WOOD_LIGHT, Vector3(0, 0.05, 0))
+		var d := -1.0 if sx < 0.0 else 1.0
+		b.pole(Vector3(sx + d * 0.012, lr + 0.03, 0.0), Vector3(sx - d * 0.004, lr - 0.03, 0.02), 0.0045, WOOD)
+		b.pole(Vector3(sx + d * 0.012, lr + 0.03, 0.0), Vector3(sx - d * 0.004, lr - 0.03, -0.02), 0.0045, WOOD)
+	b.box(Vector3(0.0, 0.025, lz + 0.001), Vector3(0.03, 0.05, 0.003), DOOR)
+	b.box(Vector3(-0.07, 0.042, lz + 0.001), Vector3(0.018, 0.012, 0.003), DARK)
+	b.box(Vector3(0.07, 0.042, lz + 0.001), Vector3(0.018, 0.012, 0.003), DARK)
+	for sx in [-0.05, 0.06]:
+		b.box(Vector3(sx, 0.1, 0.0), Vector3(0.022, 0.014, 0.03), DARK)
 	meshes["longhouse"] = b.commit()
+
+	# hall: stone footing, plastered mudbrick body, a raised clerestory, timber colonnade across the front and a civ pennant
+	b = _b(316)
+	b.box(Vector3(0, 0.013, 0), Vector3(0.34, 0.026, 0.215), STONE)
+	b.box(Vector3(0, 0.0, 0.125), Vector3(0.1, 0.002, 0.04), STONE_DARK)
+	b.box(Vector3(0, 0.0725, -0.01), Vector3(0.31, 0.093, 0.165), LIME)
+	b.box(Vector3(0, 0.1235, -0.01), Vector3(0.325, 0.01, 0.18), LIME.darkened(0.12), LIME.lightened(0.04))
+	b.box(Vector3(0, 0.151, -0.01), Vector3(0.2, 0.046, 0.1), LIME)
+	b.box(Vector3(0, 0.176, -0.01), Vector3(0.214, 0.008, 0.114), LIME.darkened(0.12), LIME.lightened(0.04))
+	for i in 5:
+		b.box(Vector3(-0.08 + 0.04 * i, 0.152, 0.0405), Vector3(0.018, 0.022, 0.003), DARK)
+	for i in 7:
+		b.pole(Vector3(-0.135 + 0.045 * i, 0.112, 0.0725), Vector3(-0.135 + 0.045 * i, 0.112, 0.092), 0.0045, WOOD)
+	for i in 5:
+		var x := -0.12 + 0.06 * i
+		b.prism(Vector3(x, 0.026, 0.118), 0.0095, 0.008, 0.088, 6, WOOD_LIGHT, WOOD_LIGHT)
+		b.box(Vector3(x, 0.027, 0.118), Vector3(0.022, 0.004, 0.022), STONE_DARK)
+	b.box(Vector3(0, 0.118, 0.118), Vector3(0.27, 0.012, 0.018), WOOD)
+	b.box(Vector3(0, 0.126, 0.1), Vector3(0.29, 0.007, 0.056), THATCH_DARK, THATCH)
+	b.box(Vector3(0, 0.063, 0.0735), Vector3(0.06, 0.074, 0.003), DOOR)
+	b.box(Vector3(0, 0.103, 0.0735), Vector3(0.07, 0.006, 0.004), WOOD)
+	for sx in [-0.095, 0.095]:
+		b.box(Vector3(sx, 0.07, 0.0735), Vector3(0.026, 0.026, 0.003), DARK)
+	for i in 8:
+		b.box(Vector3(-0.15 + 0.0429 * i, 0.131, -0.088), Vector3(0.02, 0.012, 0.012), LIME.darkened(0.06))
+	b.pole(Vector3(0.0, 0.18, -0.01), Vector3(0.0, 0.25, -0.01), 0.0035, WOOD)
+	b.tag = M7MeshBuilder.TAG_CIV
+	b.quad(Vector3(0.002, 0.248, -0.01), Vector3(0.056, 0.236, -0.01), Vector3(0.056, 0.206, -0.01), Vector3(0.002, 0.218, -0.01), Color.WHITE, Vector3(0, 0.23, 0.3))
+	b.tag = M7MeshBuilder.TAG_PLAIN
+	meshes["hall"] = b.commit()
 
 	# storage pit: stone-lined lid mound
 	b = _b(317)

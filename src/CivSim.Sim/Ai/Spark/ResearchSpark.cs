@@ -45,6 +45,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private Fix64[] _foodCapability = Array.Empty<Fix64>(), _leanCapability = Array.Empty<Fix64>();
     private Fix64[] _cohesionCapability = Array.Empty<Fix64>(), _combatCapability = Array.Empty<Fix64>();
     private Fix64[] _defenseCapability = Array.Empty<Fix64>(), _reachCapability = Array.Empty<Fix64>();
+    private bool[] _militaryPath = Array.Empty<bool>();
     private ProjectState[] _state = Array.Empty<ProjectState>();
     private string[] _lineageCode = Array.Empty<string>();
     private readonly List<int> _candidates = new();
@@ -113,6 +114,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _combatCapability = new Fix64[_fc.Count];
         _defenseCapability = new Fix64[_fc.Count];
         _reachCapability = new Fix64[_fc.Count];
+        _militaryPath = new bool[_fc.Count];
         _state = new ProjectState[_fc.Count];
         _depth = new int[_fc.Count];
         _lineageCode = new string[_fc.Count];
@@ -248,6 +250,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Fix64 defense = Fix64.Clamp(intent.DefenseUrgency, Fix64.Zero, Fix64.One) * SparkTuning.DefenseBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
         Fix64 frontier = Fix64.Clamp(intent.FrontierValue, Fix64.Zero, Fix64.One) * SparkTuning.FrontierBonus;
+        MarkMilitaryPath(_start.Era);
         GetSettlementNeeds(ctx.Own, out Fix64 foodNeed, out Fix64 leanNeed, out Fix64 cohesionNeed);
         bool met03Done = IsDone(_met03);
         bool mineReachBoost = IsDone(_trn05);
@@ -270,10 +273,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             Fix64 leanValue = leanNeed * _leanCapability[p] * SparkTuning.LeanNeedBonus;
             Fix64 cohesionValue = cohesionNeed * _cohesionCapability[p] * SparkTuning.CohesionNeedBonus;
             bonus += foodValue + leanValue + cohesionValue;
-            // Intent values follow the capability an effect grants, so later catalogs can add relevant projects without
-            // teaching the Spark new lineage codes. Reach is a standing aim; military and acute needs are time-sensitive.
+            // Intent values follow structured capabilities, so later catalogs can add relevant projects without teaching
+            // the Spark new lineage codes. Reach is a standing aim; military and acute needs are time-sensitive.
             bonus += frontier * _reachCapability[p];
-            _value.Urgent[p] = defense * _defenseCapability[p] + attack * _combatCapability[p]
+            Fix64 militaryPath = _militaryPath[p] ? (defense + attack) * Fix64.Half : Fix64.Zero;
+            _value.Urgent[p] = defense * _defenseCapability[p] + attack * _combatCapability[p] + militaryPath
                 + (foodNeed * _foodCapability[p] + leanNeed * _leanCapability[p]
                     + cohesionNeed * _cohesionCapability[p]) * SparkTuning.NeedUrgencyBonus;
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
@@ -370,6 +374,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Array.Clear(_combatCapability);
         Array.Clear(_defenseCapability);
         Array.Clear(_reachCapability);
+        Array.Clear(_militaryPath);
         foreach (int p in _fc!.Numeric)
         {
             foreach (EffectDef effect in catalog.Projects[p].Effects)
@@ -411,6 +416,29 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                         break;
                 }
             }
+        }
+    }
+
+    /// <summary>Carry urgency to prerequisites of military projects in the current era, so hidden options can be unlocked.</summary>
+    private void MarkMilitaryPath(int era)
+    {
+        ForecastCatalog fc = _fc!;
+        Array.Clear(_militaryPath);
+        var pending = new Stack<int>();
+        foreach (int p in fc.Numeric)
+        {
+            if (fc.Era[p] > era || _start.Done[p]) continue;
+            if (_combatCapability[p] <= Fix64.Zero && _defenseCapability[p] <= Fix64.Zero) continue;
+            foreach (int required in fc.Requires[p]) pending.Push(required);
+            foreach (int required in fc.RequiresAny[p]) pending.Push(required);
+        }
+        while (pending.Count > 0)
+        {
+            int p = pending.Pop();
+            if (_militaryPath[p]) continue;
+            _militaryPath[p] = true;
+            foreach (int required in fc.Requires[p]) pending.Push(required);
+            foreach (int required in fc.RequiresAny[p]) pending.Push(required);
         }
     }
 
@@ -751,6 +779,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         if (fc.IsKeystone[p] || (closure is not null && closure[p])) return "keystone path";
         if (_lineageCode[p] is "DEF" or "WAR" && _value.Urgent[p] >= SparkTuning.DefenseBonus / 4)
             return "threat: defense first";
+        if (_militaryPath[p] && _value.Urgent[p] >= SparkTuning.DefenseBonus / 4)
+            return "threat: defense prerequisite";
         if (_forecast.InsightGain(p, _start).Raw > 0) return "insight gain";
         if (_start.FirstBy[p] < 0)
         {

@@ -147,11 +147,11 @@ public sealed partial class Strategist
     {
         int leaving = DepartingFighters(settlement, departures);
         if (settlement.Fighters <= 0 || leaving <= 0) return settlement.DefendingStrength;
-        // OwnView exposes aggregate strength rather than individual fighter strengths. The proportional estimate is
-        // deliberately simple and deterministic; using attacking strength keeps the estimate cautious when the
-        // strongest campaign fighters leave first.
-        Fix64 leavingStrength = settlement.AttackingStrength * Fix64.FromRatio(leaving, settlement.Fighters)
-            * StrategistTuning.PartyPickBonus;
+        // OwnView exposes aggregate defense rather than per-fighter defense. Estimate the departing share from that
+        // aggregate; using attacking strength here can erase the whole garrison when attack ratings exceed defense.
+        Fix64 leavingShare = Fix64.Min(Fix64.One,
+            Fix64.FromRatio(leaving, settlement.Fighters) * StrategistTuning.PartyPickBonus);
+        Fix64 leavingStrength = settlement.DefendingStrength * leavingShare;
         return Fix64.Max(Fix64.Zero, settlement.DefendingStrength - leavingStrength);
     }
 

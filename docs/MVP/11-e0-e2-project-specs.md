@@ -38,13 +38,13 @@
 
 ## 2. Costs
 
-`Cost = EraBase × TypeMult` ([02 §8.3](02-research-structure.md#83-cost-formula)). EraBase E0 = 22, E1 = 50, E2 = 75 (WS-H re-fit, [09 §11.1](09-population-and-health.md#111-re-fit); matches 02 §8.3). TypeMult: D/M 1.0 · S 1.2 · R 0.8 · I 1.5 · W 2.0 · K 2.5. Costs here are the **list cost**. In play they are reduced by Diffusion, EraLag and Know-how ([02 §8–9](02-research-structure.md#8-insight-and-cost)).
+`Cost = EraBase × TypeMult` ([02 §8.3](02-research-structure.md#83-cost-formula)). Current EraBase is E0 = 22, E1 = 50, E2 = 150 ([07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)). TypeMult: D/M 1.0 · S 1.2 · R 0.8 · I 1.5 · W 2.0 · K 2.5. Costs here are the **list cost**. In play they are reduced by Diffusion, EraLag and Know-how ([02 §8–9](02-research-structure.md#8-insight-and-cost)).
 
 | Era | Projects | Sum of list costs | Average | Keystone |
 |-----|---------:|------------------:|--------:|---------:|
 | E0 Dawn | 34 | 826 | 24.3 | 55 |
 | E1 Hunters | 59 | 3185 | 54.0 | 125 |
-| E2 Roots | 52 | 4468 | 85.9 | 188 |
+| E2 Roots | 52 | 8925 | 171.6 | 375 |
 
 These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 
@@ -260,59 +260,59 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 
 | ID | Project | Type | Cost | Requires | Effects (primitives) | Practice |
 |---|---|---|---:|---|---|---|
-| STN-08 | Ground & Polished Stone | M | 75 | STN-06 | Method(Chop, r4 Polished axe, ×4.0) · Mod(Clearing, ×2) · Good(G-POLAXE, prestige) | knap, chop |
-| STN-09 | Querns & Grindstones | S | 90 | STN-08, FOR-05 | Build(Quern: cereal food value +30% for 10 people, replaces FOR-05's +25%) | cook, knap |
-| STN-10 | Megalith Raising | W | 150 | STN-08, MEC-02, BEL-05 | Wonder(Megalith: 120 ws, stone blocks 60 L, rollers) · Cohesion(+10 within radius 8) · Claim(+1.0, radius 6) · Event(seasonal festival, +Cohesion for all your settlements) | build, ritual |
-| FIR-07 | Kilns | S | 90 | FIR-03, CER-02 | Build(Kiln) · Mod(Pottery breakage, 40% → 20%) · Unlock(lime, copper smelting) | tend fire, clay |
-| FIR-08 | Charcoal Burning | D | 75 | FIR-07, WOD-03 | Good(G-CHAR) · Role(Collier) | tend fire, chop |
-| WOD-03 | Adzes & Gouges | M | 75 | WOD-02, STN-08 | Method(Shape timber: adze) · Mod(Timber building, +20%) · Unlock(planks, dugouts) | chop, build |
-| WOD-04 | Coppicing | D | 75 | WOD-03, FOR-06 | Mod(Wood regrowth, ×2 within settlement radius) | chop, forage |
-| FIB-06 | Spinning | M | 75 | FIB-05, (AGR-02 \| HUS-03) | Good(G-YARN) | fiber, herd |
-| FIB-07 | Loom Weaving | M | 75 | FIB-06 | Good(G-CLOTH: warmth +1, trade staple) | fiber |
-| CER-03 | Storage Jars | M | 75 | CER-02 | Good(G-JAR) · Mod(Storage capacity per storage building, +50%) | clay |
-| BLD-04 | Wattle & Daub | M | 75 | BLD-03, FIB-05 | Build(Wattle & daub house: houses 8) · Cap(Housing, ×1.5) | build |
-| BLD-05 | Mudbrick | M | 75 | BLD-04, [Seen: Clay] | Good(G-BRICK) · Build(Mudbrick house: houses 8, fire-resistant) · Cap(Housing, ×1.5) | build, clay |
-| BLD-06 | Longhouses | S | 90 | BLD-04, SOC-05 | Build(Longhouse: houses 25) · Cap(Housing, ×1.5) · Cohesion(+5) | build |
-| MIN-02 | Flint Mines | D | 75 | MIN-01, STN-08 | Action+(Mine flint pits: 3 L/ws) | mine |
-| MIN-03 | Quarrying | D | 75 | MIN-02 | Action+(Quarry stone blocks: 2 L/ws) | mine |
-| MET-01 | Native Copper | D | 75 | STN-08, [Seen: Native copper] | Action+(Collect native copper) · Good(G-COPORN) · Gate([Seen: Native copper]) | mine, craft |
-| MET-02 | Copper Smelting | D | 75 | MET-01, FIR-07, INQ-03 | Good(G-COPPER) · Role(Smith) · Rule(copper awls and ornaments; copper tools come with MET-03) | smelt |
-| MEC-02 | Rollers & Sledges | M | 75 | MEC-01, FIB-05 | Unlock(moving blocks and logs at 0.5 speed) · Mod(Heavy haul, +50%) | haul, build |
-| NRG-01 | Draft Animals | D | 75 | HUS-04 | Action+(Draft oxen) · Mod(Farm and haul labor, −30%; needs cattle) | herd, farm |
-| CHM-03 | Lime Burning | D | 75 | FIR-07, MIN-03 | Good(G-LIME) · Hazard(endemic, ×0.99: lime plaster) | tend fire, build |
-| FOR-07 | Orchards | D | 75 | AGR-01, WOD-03 | Build(Orchard: matures in 6 yrs, then 3 R/tile/yr) | farm, forage |
-| HNT-09 | Weirs & Fish Traps | S | 90 | HNT-08, WOD-03 | Build(Weir: passive 2.0 R/season, ×3 in salmon runs) · Cap(Food, ×1.08^0.4) | fish, build |
-| AGR-01 | Cultivation | D | 75 | FOR-05, FOR-06 | Action+(Farm) · Build(Field) · Method(Farm, r1 Cultivation, 4 R/tile/yr) · Cap(Food, ×1.30) | farm |
-| AGR-02 | Domesticated Staples | M | 75 | AGR-01 | Method(Farm, r2 Domesticated staple by biome, 8 R/tile/yr) · Cap(Food, ×1.22) | farm |
-| AGR-03 | Legume Pairing | M | 75 | AGR-02 | Mod(Field yield, ×1.08) · Mod(Soil fertility loss, ×0.5) · Cap(Food, ×1.08^0.5) | farm |
-| AGR-04 | Slash-and-Burn | M | 75 | AGR-01, STN-08, FIR-05 | Method(Clear, Slash-and-burn: forest 1 ws/tile, fields shift every 4 yrs) | farm, tend fire |
-| HUS-03 | Goats & Sheep | D | 75 | HUS-02, [Seen: Wild goats or sheep] | Action+(Herd: tame 0.5 ws per animal; pasture carries 6) · Good(meat 0.8 R, hide 0.2 per animal per yr) · Gate([Seen: Wild goats or sheep]) | herd |
-| HUS-04 | Cattle & Pigs | D | 75 | HUS-03, AGR-01 | Action+(Herd cattle and pigs) · Good(cattle 2.5 R + 0.3 hide/yr; pigs 1.2 R, eat waste) · Unlock(NRG-01) | herd |
-| FOD-05 | Fermentation | D | 75 | FOD-04, AGR-02 | Good(G-BREW) · Mod(Cereal food value, +15%) · Mod(Feast cost, ×0.7) · Cap(Food, ×1.05) | cook, feast |
-| FOD-06 | Granaries | S | 90 | FOD-03, BLD-05 | Build(Granary: 80 R, spoilage ×0.25, pests −50%) · Cap(Food, ×1.05) | preserve, build |
-| MED-03 | Midwifery | R | 60 | MED-02, SOC-04 | Role(Midwife) · Hazard(age 0, ×0.93) · Hazard(maternal, ×0.88) | heal |
-| SOC-05 | Feasting | I | 113 | SOC-04, FOD-05 | Action+(Feast: 0.5 R per guest, Cohesion +8 for a year) · Rule(feast-givers become Legends) | feast |
-| SOC-06 | Village Life | I | 113 | SOC-05, BLD-06 | Tier(Village) · Cap(Group, 500) · Cap(Housing, ×1.5) | socialize, build |
-| SOC-07 | Chiefdom | I | 113 | SOC-06, GOV-02 | Cap(Group, 2,000 per polity core) · Rule(daughter villages stay fully in the polity; stores shared within 15 tiles) | council, feast |
-| GOV-02 | Chieftainship | I | 113 | GOV-01, SOC-05 | Role(Chief) · Lever(Posture: Expand / Prosper / Fortify / Raid) | council |
-| GOV-03 | Customary Law | I | 113 | GOV-02, LRN-02 | Hazard(violence, ×0.84) · Rule(no border conflict between your own bands) | council |
-| BEL-04 | Ancestor Veneration | I | 113 | BEL-03, SOC-04 | Claim(×1.5 within radius 4 of ancestral burial grounds) · Rule(settlements near ancestors resist abandonment) | ritual |
-| BEL-05 | Sacred Places | S | 90 | BEL-04, ART-03 | Build(Shrine: claim +0.5 in radius 3; pilgrimage) · Cohesion(+3 for all settlements within 20 tiles) | ritual, build |
-| LRN-03 | Apprenticeship | I | 113 | LRN-02, SOC-05 | Mod(Role training time, −50%) · Mod(Skill gain, ×1.5) | teach |
-| WAY-04 | Sketch Maps | D | 75 | WAY-03, ART-03 | Rule(explored terrain stays revealed for the whole civilization) · Planner(settler site choice +) | scout |
-| TRN-04 | Pack Animals | M | 75 | TRN-02, HUS-03 | Mod(Carry, +3 L per pack animal) | haul, herd |
-| SEA-03 | Dugout Canoes | M | 75 | SEA-02, WOD-03 | Method(Paddle, r2 Dugout: coastal water within 2 tiles; 4 L) · Mod(Fishing offshore, +50%) | paddle, chop |
-| SEA-04 | Outriggers | M | 75 | SEA-03, WAY-03 | Method(Paddle, r3 Outrigger: open-sea voyages within 11 tiles of land; see 21) | paddle |
-| TRD-03 | Exchange Networks | I | 113 | TRD-02, WAY-04 | Rule(persistent trade routes; diffusion along routes; luxuries flow) · Mod(Luxury Cohesion, ×1.5) | trade, haul |
-| COM-04 | Signal Fires & Drums | M | 75 | COM-03, FIR-03 | Build(Signal post) · Mod(Defense response time, −70%) · Rule(raid warnings reach all settlements within 20 tiles at once) | guard |
-| NUM-03 | Clay Tokens | D | 75 | NUM-02, CER-02 | Mod(Storage losses to mismanagement, −50%) · Rule(trade debts tracked: barter over several seasons) | count stores, trade |
-| TER-04 | Permanent Villages | I | 113 | TER-03, BLD-04 | Claim(Village radius 4) · Rule(claims never decay while occupied) | mark, build |
-| TER-05 | Daughter Villages | I | 113 | TER-04, SOC-06 | Rule(fission sites scored by quality and Beacons; new villages start with claim ×1.5) | mark, scout |
-| DEF-03 | Palisades & Ditches | S | 90 | DEF-02, WOD-03 | Build(Palisade: settlement defense ×2) | build, guard |
-| WAR-04 | Warrior Bands | R | 60 | WAR-03, SOC-05 | Role(Warrior) · Mod(Raid success, +40%) · Rule(border patrols: presence along borders) | fight |
-| DIP-03 | Marriage Alliances | I | 113 | DIP-02, SOC-04 | Diplo(Alliance: no fighting, shared diffusion, joint defense) | meet strangers, feast |
-| INQ-03 | Stone & Ore Lore | M | 75 | INQ-01, MIN-01 | Reveal(surface ores within sight: copper, tin, gold) · Rule(makes [Seen] metal gates reachable) | mine, scout |
-| KEY-3 | Age of Metal | K | 188 | MET-02, SOC-07, TRD-03, NUM-03 | EraAdvance(E3) · Highlight(ore deposits on the map) · Legacy(Keystone) | — |
+| STN-08 | Ground & Polished Stone | M | 150 | STN-06 | Method(Chop, r4 Polished axe, ×4.0) · Mod(Clearing, ×2) · Good(G-POLAXE, prestige) | knap, chop |
+| STN-09 | Querns & Grindstones | S | 180 | STN-08, FOR-05 | Build(Quern: cereal food value +30% for 10 people, replaces FOR-05's +25%) | cook, knap |
+| STN-10 | Megalith Raising | W | 300 | STN-08, MEC-02, BEL-05 | Wonder(Megalith: 120 ws, stone blocks 60 L, rollers) · Cohesion(+10 within radius 8) · Claim(+1.0, radius 6) · Event(seasonal festival, +Cohesion for all your settlements) | build, ritual |
+| FIR-07 | Kilns | S | 180 | FIR-03, CER-02 | Build(Kiln) · Mod(Pottery breakage, 40% → 20%) · Unlock(lime, copper smelting) | tend fire, clay |
+| FIR-08 | Charcoal Burning | D | 150 | FIR-07, WOD-03 | Good(G-CHAR) · Role(Collier) | tend fire, chop |
+| WOD-03 | Adzes & Gouges | M | 150 | WOD-02, STN-08 | Method(Shape timber: adze) · Mod(Timber building, +20%) · Unlock(planks, dugouts) | chop, build |
+| WOD-04 | Coppicing | D | 150 | WOD-03, FOR-06 | Mod(Wood regrowth, ×2 within settlement radius) | chop, forage |
+| FIB-06 | Spinning | M | 150 | FIB-05, (AGR-02 \ | HUS-03) | Good(G-YARN) | fiber, herd |
+| FIB-07 | Loom Weaving | M | 150 | FIB-06 | Good(G-CLOTH: warmth +1, trade staple) | fiber |
+| CER-03 | Storage Jars | M | 150 | CER-02 | Good(G-JAR) · Mod(Storage capacity per storage building, +50%) | clay |
+| BLD-04 | Wattle & Daub | M | 150 | BLD-03, FIB-05 | Build(Wattle & daub house: houses 8) · Cap(Housing, ×1.5) | build |
+| BLD-05 | Mudbrick | M | 150 | BLD-04, [Seen: Clay] | Good(G-BRICK) · Build(Mudbrick house: houses 8, fire-resistant) · Cap(Housing, ×1.5) | build, clay |
+| BLD-06 | Longhouses | S | 180 | BLD-04, SOC-05 | Build(Longhouse: houses 25) · Cap(Housing, ×1.5) · Cohesion(+5) | build |
+| MIN-02 | Flint Mines | D | 150 | MIN-01, STN-08 | Action+(Mine flint pits: 3 L/ws) | mine |
+| MIN-03 | Quarrying | D | 150 | MIN-02 | Action+(Quarry stone blocks: 2 L/ws) | mine |
+| MET-01 | Native Copper | D | 150 | STN-08, [Seen: Native copper] | Action+(Collect native copper) · Good(G-COPORN) · Gate([Seen: Native copper]) | mine, craft |
+| MET-02 | Copper Smelting | D | 150 | MET-01, FIR-07, INQ-03 | Good(G-COPPER) · Role(Smith) · Rule(copper awls and ornaments; copper tools come with MET-03) | smelt |
+| MEC-02 | Rollers & Sledges | M | 150 | MEC-01, FIB-05 | Unlock(moving blocks and logs at 0.5 speed) · Mod(Heavy haul, +50%) | haul, build |
+| NRG-01 | Draft Animals | D | 150 | HUS-04 | Action+(Draft oxen) · Mod(Farm and haul labor, −30%; needs cattle) | herd, farm |
+| CHM-03 | Lime Burning | D | 150 | FIR-07, MIN-03 | Good(G-LIME) · Hazard(endemic, ×0.99: lime plaster) | tend fire, build |
+| FOR-07 | Orchards | D | 150 | AGR-01, WOD-03 | Build(Orchard: matures in 6 yrs, then 3 R/tile/yr) | farm, forage |
+| HNT-09 | Weirs & Fish Traps | S | 180 | HNT-08, WOD-03 | Build(Weir: passive 2.0 R/season, ×3 in salmon runs) · Cap(Food, ×1.08^0.4) | fish, build |
+| AGR-01 | Cultivation | D | 150 | FOR-05, FOR-06 | Action+(Farm) · Build(Field) · Method(Farm, r1 Cultivation, 4 R/tile/yr) · Cap(Food, ×1.30) | farm |
+| AGR-02 | Domesticated Staples | M | 150 | AGR-01 | Method(Farm, r2 Domesticated staple by biome, 8 R/tile/yr) · Cap(Food, ×1.22) | farm |
+| AGR-03 | Legume Pairing | M | 150 | AGR-02 | Mod(Field yield, ×1.08) · Mod(Soil fertility loss, ×0.5) · Cap(Food, ×1.08^0.5) | farm |
+| AGR-04 | Slash-and-Burn | M | 150 | AGR-01, STN-08, FIR-05 | Method(Clear, Slash-and-burn: forest 1 ws/tile, fields shift every 4 yrs) | farm, tend fire |
+| HUS-03 | Goats & Sheep | D | 150 | HUS-02, [Seen: Wild goats or sheep] | Action+(Herd: tame 0.5 ws per animal; pasture carries 6) · Good(meat 0.8 R, hide 0.2 per animal per yr) · Gate([Seen: Wild goats or sheep]) | herd |
+| HUS-04 | Cattle & Pigs | D | 150 | HUS-03, AGR-01 | Action+(Herd cattle and pigs) · Good(cattle 2.5 R + 0.3 hide/yr; pigs 1.2 R, eat waste) · Unlock(NRG-01) | herd |
+| FOD-05 | Fermentation | D | 150 | FOD-04, AGR-02 | Good(G-BREW) · Mod(Cereal food value, +15%) · Mod(Feast cost, ×0.7) · Cap(Food, ×1.05) | cook, feast |
+| FOD-06 | Granaries | S | 180 | FOD-03, BLD-05 | Build(Granary: 80 R, spoilage ×0.25, pests −50%) · Cap(Food, ×1.05) | preserve, build |
+| MED-03 | Midwifery | R | 120 | MED-02, SOC-04 | Role(Midwife) · Hazard(age 0, ×0.93) · Hazard(maternal, ×0.88) | heal |
+| SOC-05 | Feasting | I | 225 | SOC-04, FOD-05 | Action+(Feast: 0.5 R per guest, Cohesion +8 for a year) · Rule(feast-givers become Legends) | feast |
+| SOC-06 | Village Life | I | 225 | SOC-05, BLD-06 | Tier(Village) · Cap(Group, 500) · Cap(Housing, ×1.5) | socialize, build |
+| SOC-07 | Chiefdom | I | 225 | SOC-06, GOV-02 | Cap(Group, 2,000 per polity core) · Rule(daughter villages stay fully in the polity; stores shared within 15 tiles) | council, feast |
+| GOV-02 | Chieftainship | I | 225 | GOV-01, SOC-05 | Role(Chief) · Lever(Posture: Expand / Prosper / Fortify / Raid) | council |
+| GOV-03 | Customary Law | I | 225 | GOV-02, LRN-02 | Hazard(violence, ×0.84) · Rule(no border conflict between your own bands) | council |
+| BEL-04 | Ancestor Veneration | I | 225 | BEL-03, SOC-04 | Claim(×1.5 within radius 4 of ancestral burial grounds) · Rule(settlements near ancestors resist abandonment) | ritual |
+| BEL-05 | Sacred Places | S | 180 | BEL-04, ART-03 | Build(Shrine: claim +0.5 in radius 3; pilgrimage) · Cohesion(+3 for all settlements within 20 tiles) | ritual, build |
+| LRN-03 | Apprenticeship | I | 225 | LRN-02, SOC-05 | Mod(Role training time, −50%) · Mod(Skill gain, ×1.5) | teach |
+| WAY-04 | Sketch Maps | D | 150 | WAY-03, ART-03 | Rule(explored terrain stays revealed for the whole civilization) · Planner(settler site choice +) | scout |
+| TRN-04 | Pack Animals | M | 150 | TRN-02, HUS-03 | Mod(Carry, +3 L per pack animal) | haul, herd |
+| SEA-03 | Dugout Canoes | M | 150 | SEA-02, WOD-03 | Method(Paddle, r2 Dugout: coastal water within 2 tiles; 4 L) · Mod(Fishing offshore, +50%) | paddle, chop |
+| SEA-04 | Outriggers | M | 150 | SEA-03, WAY-03 | Method(Paddle, r3 Outrigger: open-sea voyages within 11 tiles of land; see 21) | paddle |
+| TRD-03 | Exchange Networks | I | 225 | TRD-02, WAY-04 | Rule(persistent trade routes; diffusion along routes; luxuries flow) · Mod(Luxury Cohesion, ×1.5) | trade, haul |
+| COM-04 | Signal Fires & Drums | M | 150 | COM-03, FIR-03 | Build(Signal post) · Mod(Defense response time, −70%) · Rule(raid warnings reach all settlements within 20 tiles at once) | guard |
+| NUM-03 | Clay Tokens | D | 150 | NUM-02, CER-02 | Mod(Storage losses to mismanagement, −50%) · Rule(trade debts tracked: barter over several seasons) | count stores, trade |
+| TER-04 | Permanent Villages | I | 225 | TER-03, BLD-04 | Claim(Village radius 4) · Rule(claims never decay while occupied) | mark, build |
+| TER-05 | Daughter Villages | I | 225 | TER-04, SOC-06 | Rule(fission sites scored by quality and Beacons; new villages start with claim ×1.5) | mark, scout |
+| DEF-03 | Palisades & Ditches | S | 180 | DEF-02, WOD-03 | Build(Palisade: settlement defense ×2) | build, guard |
+| WAR-04 | Warrior Bands | R | 120 | WAR-03, SOC-05 | Role(Warrior) · Mod(Raid success, +40%) · Rule(border patrols: presence along borders) | fight |
+| DIP-03 | Marriage Alliances | I | 225 | DIP-02, SOC-04 | Diplo(Alliance: no fighting, shared diffusion, joint defense) | meet strangers, feast |
+| INQ-03 | Stone & Ore Lore | M | 150 | INQ-01, MIN-01 | Reveal(surface ores within sight: copper, tin, gold) · Rule(makes [Seen] metal gates reachable) | mine, scout |
+| KEY-3 | Age of Metal | K | 375 | MET-02, SOC-07, TRD-03, NUM-03 | EraAdvance(E3) · Highlight(ore deposits on the map) · Legacy(Keystone) | — |
 
 ### E2 Moments and flavor
 | ID | Moment (the innovator scene) | Chronicle flavor |
@@ -370,7 +370,6 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 | DIP-03 | A wedding between two peoples | "Blood ties make peace." |
 | INQ-03 | A prospector cracks open a green-streaked rock | "The earth's colors tell of metal." |
 | KEY-3 | Copper glints in a chief's hand as villages gather | "The Age of Metal begins." |
-
 ## 6. Acceptance checks for this spec
 
 These are the checks implementation (and the balance model) runs against the numbers above:
@@ -381,7 +380,7 @@ These are the checks implementation (and the balance model) runs against the num
 | C2 | **Late-winter food share** reaches **0.85**, the cap-trigger share: from then on the cap trigger fires before the winter one, so winter no longer limits the band. A share of 1.0 is out of reach while stored food spoils ([07c](07c-e0-e2-checks.md) C2). | by E1 ≈ 0.4 of the era (FOR-03, FOR-02, FOD-02, FOD-03) | [09 §6.2](09-population-and-health.md#62-late-winter-food-the-lean-season) |
 | C3 | **Hazards by cause**: project Hazard primitives and live mechanisms reproduce the 09 child/adult targets from the E0 base at each era midpoint. Do not apply the era's MortChild/MortAdult value a second time as the runtime base. Compare annual-effective E1/E0 and E2/E0 ratios after converting each era's outside-winter Mort* with its WinterMult. Elder live rates are age-standardized from exact-age seasonal hazards to e45 and compared with 09's 15/16/16-year anchors; a transient 45+ cohort mean is diagnostic only. | ±10% for ratios and e45; live gate passes per 07c §5 | [09 §4.1–4.2](09-population-and-health.md#41-hazards-by-era) |
 | C4 | **First fission** (late-winter trigger) | per-archetype median successful founding at years 7–9 at Standard; report stochastic tails and non-fissions separately | [09 §7.3](09-population-and-health.md#73-results-first-fission) and [07c §6](07c-e0-e2-checks.md#6-c4--first-fission) |
-| C5 | **Keystone timing** with the 04 openings | KEY-1 ≈ 7.5 min, KEY-2 ≈ 17.5, KEY-3 ≈ 29 (Standard) ±25% | [07 §6](07-balance-findings.md#6-tuned-run); measured in the live sim in [07c §7a](07c-e0-e2-checks.md#7a-c5-in-the-live-sim-m4-2026-10-19) ✅ |
+| C5 | **Keystone timing** with the 04 openings | KEY-1 ≈ 7.5 min, KEY-2 ≈ 17.5, current KEY-3 projection ≈ 41.5 (Standard) | [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24); fresh live C5 acceptance pending |
 | C6 | **Efficiency growth** on core actions | ×1.5–2 per era | [10 §12](10-e0-e2-actions-and-goods.md#12-efficiency-check-e0--e2-growth) |
 | C7 | **First winter is a felt threat** in about half of games without storage picks | 51% chance of a harsh winter in the first two | [09 §4.3](09-population-and-health.md#43-winter-hazards) |
 | C8 | **Every project has a visible change** within one season of completion (its Moment and a new action, tool sprite, structure or overlay change) | 145/145 | [08](08-ui-and-world-display.md); checked in the sim's event stream (148/148 numeric projects including the three keystones) ✅ |

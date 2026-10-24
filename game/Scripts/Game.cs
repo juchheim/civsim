@@ -431,6 +431,7 @@ public partial class Game : Node3D
                 ["population"] = frame.SettlementPopulation[i],
                 ["food"] = (int)frame.SettlementFood[i],
                 ["structures"] = structures,
+                ["halls"] = (int)frame.SettlementHalls[i],
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
                 ["index"] = frame.SettlementIndex[i],
                 ["cohesion"] = frame.SettlementCohesion[i],
