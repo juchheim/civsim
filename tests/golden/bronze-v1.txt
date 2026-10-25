@@ -1,5 +1,5 @@
 bronze-v1
 seed=20261019
-ticks=27150
-end=RivalCountdown endTick=27150 civ=3 countdownStartSeason=168
-checksum=a0360f53f234e87b
+ticks=35700
+end=RivalCountdown endTick=35700 civ=2 countdownStartSeason=225
+checksum=a3b746b8c855e28a

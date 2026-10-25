@@ -107,6 +107,8 @@ public class FogFairnessTests
         // so a candidate filter cannot silently consult those live values.
         MatchModel a = FogFairnessHarness.Clone(match, controls);
         MatchModel b = FogFairnessHarness.Clone(match, controls);
+        EnsureCompactMandate(a, Observer);
+        EnsureCompactMandate(b, Observer);
         ClearTinBuyCompacts(a, Observer);
         ClearTinBuyCompacts(b, Observer);
         PrepareTinCompactBelief(a, Observer, sellerCiv: 1);
@@ -220,6 +222,17 @@ public class FogFairnessTests
     {
         List<Compact> compacts = (List<Compact>)typeof(PoliticsSystem).GetField("_compacts", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(match.Politics)!;
         compacts.RemoveAll(compact => compact.Active && compact.BuyerCiv == civ && compact.Good == TradeGood.Tin);
+    }
+
+    private static void EnsureCompactMandate(MatchModel match, int civ)
+    {
+        int cost = match.Politics.DecreeCost(civ, DecreeKind.Compact);
+        if (match.Research.Mandate(civ) >= cost) return;
+        // This counterfactual exercises whether the candidate uses only belief-visible evidence. Give the
+        // observer enough of its own visible resource to make the candidate feasible in both cloned worlds.
+        var research = (CivResearch[])typeof(ResearchSystem).GetField("_civs", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(match.Research)!;
+        research[civ].Mandate = cost;
     }
 
     private static DecreeRequest[] KnownTinCompactCandidates(MatchModel match, int civ)

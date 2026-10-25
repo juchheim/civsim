@@ -18,6 +18,7 @@ namespace CivSim.Harness;
 /// civsim-harness research --pack FILE --report-metal [--decree-mines] [--seed N | --seeds a,b,c] [--minutes N]
 /// civsim-harness research --pack FILE --report-e3 [--seed N | --seeds a,b,c] [--minutes N]
 /// civsim-harness research --pack FILE --report-decrees [--seed N | --seeds a,b,c] [--minutes N]
+/// civsim-harness research --pack FILE --check-b21 [--seed N | --seeds a,b,c] [--minutes N]
 /// </code>
 /// Runs a four-civilization match (the living economy plus research). Civilization 0 plays the chosen scripted opening
 /// (docs/MVP/04 §7) unless <c>--bot none</c>; the others are AI on the Council. Prints Keystone times for C5.
@@ -32,7 +33,7 @@ internal static class ResearchCommand
         string? packPath = null, record = null, checkGolden = null, writeGolden = null, checkBronzeGolden = null, writeBronzeGolden = null;
         bool trace = false;
         int traceCiv = 0;
-        bool checkC5 = false, checkM10 = false, reportMetal = false, reportE3 = false, reportDecrees = false, c1e3 = false, decreeMines = false, metalFixture = false, minutesGiven = false, seedGiven = false;
+        bool checkC5 = false, checkM10 = false, reportMetal = false, reportE3 = false, reportDecrees = false, checkB21 = false, c1e3 = false, decreeMines = false, metalFixture = false, minutesGiven = false, seedGiven = false;
         int humanSeat = -1;
         List<ulong>? seeds = null;
         string bot = "grower";
@@ -54,6 +55,7 @@ internal static class ResearchCommand
                 case "--report-metal": reportMetal = true; break;
                 case "--report-e3": reportE3 = true; break;
                 case "--report-decrees": reportDecrees = true; break;
+                case "--check-b21": checkB21 = true; break;
                 case "--c1-e3": c1e3 = true; break;
                 case "--decree-mines": decreeMines = true; break;
                 case "--metal-fixture": metalFixture = true; break;
@@ -89,12 +91,12 @@ internal static class ResearchCommand
             if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
             return ResearchM10.Execute(m10Pack, seeds, minutesGiven ? minutes : 70, humanSeat);
         }
-        if (reportDecrees)
+        if (reportDecrees || checkB21)
         {
             // T11, T14-T16, T20, T26, T27 (docs/MVP/22 §15): Decrees, compacts and Tin Folk under the Council's Decree policy (WP8a).
             ContentPack decreePack = ContentPack.Load(File.ReadAllBytes(packPath));
             if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
-            return ResearchDecrees.Execute(decreePack, seeds, minutesGiven ? minutes : 64);
+            return ResearchDecrees.Execute(decreePack, seeds, minutesGiven ? minutes : 64, checkB21);
         }
         if (c1e3) return C1E3Report.Execute(ContentPack.Load(File.ReadAllBytes(packPath)), seed);
         if (reportE3)

@@ -247,6 +247,11 @@ public class MetalEconomyTests
         Assert.Equal(MethodFallbackReason.NoTin, now.Reason);
         Assert.Equal(8, now.CastTier);
         Assert.True(now.Kits10 * 10 >= before * 9, $"no cliff: {now.Kits10} of {before}");
+        f.RunSeasons(12);
+        MetalReadout twelveSeasons = f.Economy.Metal(0);
+        Assert.Equal(MethodFallbackReason.NoTin, twelveSeasons.Reason);
+        Assert.True(twelveSeasons.Kits10 * 10 <= twelveSeasons.Adults * 9,
+            $"at least 10% of tool users should have fallen back by 12 seasons: {twelveSeasons.Kits10}/{twelveSeasons.Adults}");
         f.RunSeasons(23);
         MetalReadout later = f.Economy.Metal(0);
         Assert.True(later.Kits10 < before, "kits wear out");
@@ -334,7 +339,7 @@ public class MetalEconomyTests
         var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel live = MatchModel.Create(Seed, TestPack.Pack, FogFairnessHarness.World, archetypes);
         var runner = new SimRunner(live);
-        foreach (long at in new[] { 4_537L, 9_001L, 21_300L + 37 })
+        foreach (long at in new[] { 4_537L, 9_001L, 27_000L + 37 })
         {
             runner.Advance(at - runner.Tick);
             using var stream = new MemoryStream();

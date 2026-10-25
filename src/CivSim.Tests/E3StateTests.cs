@@ -23,6 +23,24 @@ public class E3StateTests
 
     private static readonly string[] State = { "TRD-04", "SOC-08", "SOC-09", "BEL-06", "COM-05", "LRN-04", "GOV-05", "AGR-05", "AGR-06" };
 
+    [Fact]
+    public void E3_cause_shares_match_the_health_spec_and_remain_distinct_from_E2()
+    {
+        string[] causes = { "endemic", "epidemic", "starvation", "exposure", "injury", "predators", "violence" };
+        Fix64[] adult = { Fix64.Parse("0.35"), Fix64.Parse("0.10"), Fix64.Parse("0.10"), Fix64.Parse("0.10"), Fix64.Parse("0.20"), Fix64.Zero, Fix64.Parse("0.15") };
+        Fix64[] child = { Fix64.Parse("0.50"), Fix64.Parse("0.10"), Fix64.Parse("0.15"), Fix64.Parse("0.10"), Fix64.Parse("0.10"), Fix64.Zero, Fix64.Parse("0.05") };
+
+        Assert.InRange(adult.Aggregate(Fix64.Zero, (sum, value) => sum + value).ToDoubleForDisplay(), 0.999999, 1.000001);
+        Assert.InRange(child.Aggregate(Fix64.Zero, (sum, value) => sum + value).ToDoubleForDisplay(), 0.999999, 1.000001);
+        for (int i = 0; i < causes.Length; i++)
+        {
+            Assert.Equal(adult[i], LivingEconomyModel.CauseShare(false, causes[i], 3));
+            Assert.Equal(child[i], LivingEconomyModel.CauseShare(true, causes[i], 3));
+        }
+        Assert.Equal(Fix64.Parse("0.27"), LivingEconomyModel.CauseShare(false, "endemic", 2));
+        Assert.Equal(Fix64.Parse("0.42"), LivingEconomyModel.CauseShare(true, "endemic", 2));
+    }
+
     // ---- tiers ----------------------------------------------------------------------------------------
 
     [Fact]
@@ -121,6 +139,16 @@ public class E3StateTests
     }
 
     // ---- Cohesion ----------------------------------------------------------------------------------
+
+    [Fact]
+    public void Cohesion_status_matches_the_full_civic_readout()
+    {
+        BronzeFixture f = Fixture(60, State);
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        CivicReadout full = e.Civic(0);
+        Assert.Equal((full.CohesionLive, full.Cohesion), e.CohesionStatus(0));
+    }
 
     [Fact]
     public void Cohesion_moves_a_quarter_of_the_way_to_its_target_each_season()

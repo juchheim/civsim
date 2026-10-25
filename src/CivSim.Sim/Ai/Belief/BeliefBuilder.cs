@@ -269,7 +269,8 @@ public sealed class BeliefBuilder : IBeliefBuilder
             if (rivals && e.Kind == ExpeditionKind.Caravan)
             {
                 int tile = pol.PartyTile(e);
-                RecordVisibleCaravan(belief.Rivals[e.Civ], e, tile, season, pol.KnowsTile(civ, tile));
+                Fix64 barterValue = e.Good == TradeGood.Food ? Fix64.One : eco.GoodBarterValue(DecreeArgs.GoodId(e.Good));
+                RecordVisibleCaravan(belief.Rivals[e.Civ], e, tile, season, pol.KnowsTile(civ, tile), barterValue);
             }
             bool originSeen = (e.FromSettlement >= 0 && e.FromSettlement < total) && _seenNow[e.FromSettlement];
             bool targetOwn = (e.ToSettlement >= 0 && e.ToSettlement < total) && pol.SettlementCivOf(e.ToSettlement) == civ && !pol.IsFreeFolk(e.ToSettlement);
@@ -385,7 +386,8 @@ public sealed class BeliefBuilder : IBeliefBuilder
     }
 
     /// <summary>Stores a caravan observation only when its current tile is in the observer's known sight.</summary>
-    internal static bool RecordVisibleCaravan(RivalBelief rival, Expedition expedition, int tile, int season, bool visible)
+    internal static bool RecordVisibleCaravan(RivalBelief rival, Expedition expedition, int tile, int season, bool visible,
+        Fix64 cargoUnitValue = default)
     {
         if (!visible || expedition.Kind != ExpeditionKind.Caravan || expedition.Civ != rival.Civ) return false;
         int index = -1;
@@ -395,6 +397,8 @@ public sealed class BeliefBuilder : IBeliefBuilder
         {
             Civ = expedition.Civ, Id = expedition.Id, Tile = tile, LastSeenSeason = season,
             CompactId = expedition.CompactId, Good = expedition.Good, Cargo = expedition.Cargo,
+            ArrivalSeason = expedition.ArriveSeason, CrewEstimate = expedition.Members.Count,
+            CargoBarterValue = expedition.Cargo * cargoUnitValue,
         };
         if (index >= 0) rival.CaravansSeen[index] = sighting;
         else rival.CaravansSeen.Add(sighting);

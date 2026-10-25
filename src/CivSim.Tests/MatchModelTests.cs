@@ -21,6 +21,26 @@ public class MatchModelTests
     private static MatchModel NewMatch() => MatchModel.Create(Seed, TestPack.Pack, World.Value, Archetypes);
 
     [Fact]
+    public void All_four_chieftain_ai_seats_keep_council_research_fallback_enabled()
+    {
+        var balanced = new[]
+        {
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+        };
+        var controls = new[]
+        {
+            CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Balanced),
+            CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Balanced),
+            CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Balanced),
+            CivControl.Ai(Difficulty.Chieftain, EconomyArchetype.Balanced),
+        };
+        MatchModel match = MatchModel.Create(Seed, TestPack.Pack, World.Value, balanced, controls, playerCouncil: true);
+
+        for (int civ = 0; civ < 4; civ++) Assert.True(match.Research.CouncilOn(civ), $"civ {civ} Council fallback is off");
+    }
+
+    [Fact]
     public void Research_completions_are_applied_to_the_economy()
     {
         MatchModel match = NewMatch();

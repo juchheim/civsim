@@ -39,6 +39,7 @@ internal static class ResearchMetal
         public CivTrace[] Civs = Array.Empty<CivTrace>();
         public List<(int Pop, bool Coppiced, double Start, double Now, int Civ)> Forests = new();
         public List<double> SettlementCoverage12 = new();
+        public bool[] ForestsAtKey4 = Array.Empty<bool>();
         public long[] FirstBronzeSeason = new long[4096];
         public double ChopBronze, ChopStone;
         public int ChopSamples;
@@ -86,7 +87,7 @@ internal static class ResearchMetal
                         $"settlements with tin or arsenic access median {P(MedianOf(coverAccess))}; per settlement, 12 seasons after it could first cast bronze: " +
                         $"median {P(MedianOf(coverSettlements))} over {coverSettlements.Count}, {coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70% (target >= 70% where access holds)");
         text.AppendLine();
-        text.AppendLine("T19 standing wood on the forest tiles of each settlement's range, at the end against its Bronze start");
+        text.AppendLine("T19 standing wood on the forest tiles of each settlement's range, at KEY-4 against its KEY-3 baseline");
         var bands = new (int Low, int High)[] { (0, 39), (40, 79), (80, 100), (101, 1000) };
         foreach ((int low, int high) in bands)
             foreach (bool cop in new[] { false, true })
@@ -140,7 +141,7 @@ internal static class ResearchMetal
         ResearchSystem r = match.Research;
         LivingEconomyModel eco = match.Economy;
         int civs = r.CivCount;
-        var result = new Result { Seed = seed, Civs = new CivTrace[civs] };
+        var result = new Result { Seed = seed, Civs = new CivTrace[civs], ForestsAtKey4 = new bool[civs] };
         for (int c = 0; c < civs; c++) result.Civs[c] = new CivTrace();
         int Idx(string id) => r.Catalog.IndexOf(id);
         int key3 = Idx("KEY-3"), key4 = Idx("KEY-4"), met03 = Idx("MET-03"), met04 = Idx("MET-04"), met05 = Idx("MET-05");
@@ -174,6 +175,26 @@ internal static class ResearchMetal
                 foreach (string part in watch.Split(','))
                     if (int.TryParse(part, out int ws) && ws < eco.SettlementCount)
                         Console.WriteLine($"[t{season / 4.0:F1}y m{runner.Tick / 600.0:F1}] {eco.DescribeMetal(ws)}");
+            // T19 is measured at KEY-4 (07d §5), not at the arbitrary end of the harness run. Keep population and WOD-04
+            // status on the same sample tick as forest stock so later growth, fission, or research cannot re-bin it.
+            for (int c = 0; c < civs; c++)
+            {
+                CivTrace t = result.Civs[c];
+                if (result.ForestsAtKey4[c] || !ReachedKey4(season, t.Key4)) continue;
+                result.ForestsAtKey4[c] = true;
+                bool coppiced = r.IsDone(c, wod04);
+                for (int s = 0; s < eco.SettlementCount; s++)
+                {
+                    var v = eco.SettlementLite(s);
+                    if (v.Civilization != c) continue;
+                    int pop = eco.Population(v.Id);
+                    MetalReadout m = eco.Metal(s);
+                    var observation = ForestObservation(pop, match.Politics.IsFreeFolk(s), coppiced,
+                        m.StandingWoodAtStart.ToDoubleForDisplay(), m.StandingWoodInRange.ToDoubleForDisplay());
+                    if (observation is { } sample)
+                        result.Forests.Add((sample.Pop, sample.Coppiced, sample.Start, sample.Now, c));
+                }
+            }
             // T18 where access holds: from the season a settlement can first cast bronze (tier 9 or 10), its rung-6 share 12 seasons on.
             for (int s = 0; s < eco.SettlementCount && s < result.FirstBronzeSeason.Length; s++)
             {
@@ -214,8 +235,6 @@ internal static class ResearchMetal
                 copperOre += m.CopperOre.ToDoubleForDisplay(); tinOre += m.TinOre.ToDoubleForDisplay();
                 charcoal += m.Charcoal.ToDoubleForDisplay(); tin += m.Tin.ToDoubleForDisplay(); bronze += m.Bronze.ToDoubleForDisplay();
                 if (m.Reason != MethodFallbackReason.None) reasons.Add(m.Reason.ToString());
-                if (m.StandingWoodAtStart > Fix64.Zero)
-                    result.Forests.Add((pop, r.IsDone(c, wod04), m.StandingWoodAtStart.ToDoubleForDisplay(), m.StandingWoodInRange.ToDoubleForDisplay(), c));
             }
             int camps = 0;
             for (int i = 0; i < eco.MiningCampCount; i++) if (eco.MiningCamp(i).Civilization == c) camps++;
@@ -269,4 +288,11 @@ internal static class ResearchMetal
 
     private static string F(double v) => double.IsNaN(v) ? "-" : v.ToString("F1", CultureInfo.InvariantCulture);
     private static string P(double v) => double.IsNaN(v) ? "-" : (v * 100).ToString("F0", CultureInfo.InvariantCulture) + "%";
+
+    internal static bool ReachedKey4(long season, double key4Minute)
+        => !double.IsNaN(key4Minute) && season >= (int)Math.Ceiling(key4Minute * 4);
+
+    internal static (int Pop, bool Coppiced, double Start, double Now)? ForestObservation(
+        int pop, bool freeFolk, bool coppiced, double start, double now)
+        => pop <= 0 || freeFolk || start <= 0 ? null : (pop, coppiced, start, now);
 }

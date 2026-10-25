@@ -14,6 +14,8 @@ namespace CivSim.Harness;
 /// <summary>
 /// <code>
 /// civsim-harness politics --report-combat [--trials N]     the raid table, raid value and capture odds (docs/MVP/13 F3 to F5)
+/// civsim-harness politics --report-combat-e3 [--trials N]  Bronze raid and field tables (docs/MVP/22 §7.5)
+/// civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N] [--trace-seed N]  Bronze politics gates B17–B20 (docs/MVP/22 §16)
 /// </code>
 /// </summary>
 internal static class PoliticsCommand
@@ -22,34 +24,41 @@ internal static class PoliticsCommand
     {
         int trials = 4000;
         bool combat = false;
+        bool combatE3 = false;
         string? packPath = null, checkGolden = null, writeGolden = null;
         bool checkM5 = false;
+        bool checkM10 = false;
         int auditSeeds = 0, seedCount = 1;
         ulong seed = ResearchCommand.GoldenSeed;
         int minutes = 30;
+        bool minutesSpecified = false;
         var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
                 case "--report-combat": combat = true; break;
+                case "--report-combat-e3": combatE3 = true; break;
                 case "--pack": packPath = args[++i]; break;
                 case "--check-m5": checkM5 = true; break;
+                case "--check-m10": checkM10 = true; break;
                 case "--check-golden": checkGolden = args[++i]; break;
                 case "--write-golden": writeGolden = args[++i]; break;
                 case "--audit-contact": auditSeeds = 1; break;
                 case "--trace-seed": traceSeed = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seeds": seedCount = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seed": seed = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
-                case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); minutesSpecified = true; break;
                 case "--archetypes": archetypes = Array.ConvertAll(args[++i].Split(','), t => Enum.Parse<EconomyArchetype>(t, true)); break;
                 case "--trials": trials = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
         if (combat) return ReportCombat(trials);
+        if (combatE3) return ReportCombatE3(trials);
         if (packPath is null) throw new ArgumentException("politics needs --report-combat or --pack FILE.");
         if (checkM5) return CheckM5(packPath);
+        if (checkM10) return PoliticsM10.Execute(packPath, seed, seedCount, minutesSpecified ? minutes : 64, traceSeed);
         if (auditSeeds > 0) return AuditContact(packPath, seed, seedCount, archetypes);
         return ReportMatch(packPath, seed, minutes, archetypes, checkGolden, writeGolden);
     }
@@ -71,6 +80,31 @@ internal static class PoliticsCommand
             foreach (string ratio in new[] { "1.0", "1.5", "2.0", "3.0" })
                 Console.WriteLine($"  {name,-14} attacker strength x{ratio}: {D(CombatTables.CaptureSuccessPercent(Fix64.Parse(ratio), d, trials / 2, 20261019)):F1}% held");
         return 0;
+    }
+
+    private static int ReportCombatE3(int trials)
+    {
+        if (trials <= 0) throw new ArgumentOutOfRangeException(nameof(trials), "Trials must be positive.");
+        bool pass = true;
+        Console.WriteLine($"E3 raid tables, {trials} trials per row, seed {CombatE3Tables.Seed}; target bands are ±10 points (net: ±10 rations).");
+        Console.WriteLine($"{"raid scenario",-48}{"success / target",19}{"raider / target",19}{"defender / target",20}{"net / target",18}{"gate",8}");
+        foreach (E3RaidRow row in CombatE3Tables.Raids)
+        {
+            E3RaidResult r = CombatE3Tables.Run(row, trials);
+            bool ok = CombatE3Tables.Pass(r, row); pass &= ok;
+            Console.WriteLine($"{r.Name,-48}{r.Success,7:F1}/{row.SuccessTarget,5:F1}{r.RaiderHurt,7:F1}/{row.RaiderHurtTarget,5:F1}{r.DefenderHurt,7:F1}/{row.DefenderHurtTarget,6:F1}{r.Net,7:F1}/{row.NetTarget,6:F1}{(ok ? "PASS" : "FAIL"),8}");
+        }
+        Console.WriteLine("E3 field battles (open ground, 40% break thresholds; rows without an oracle target are diagnostic):");
+        Console.WriteLine($"{"field scenario",-48}{"attacker win / target",24}{"gate",8}");
+        foreach (E3FieldRow row in CombatE3Tables.Fields)
+        {
+            E3FieldResult r = CombatE3Tables.Run(row, trials);
+            bool ok = CombatE3Tables.Pass(r); pass &= ok;
+            string target = r.WinTarget is double t ? $"{t:F0}%" : "—";
+            Console.WriteLine($"{r.Name,-48}{r.WinPercent,10:F1}% / {target,-10}{(ok ? "PASS" : "FAIL"),8}");
+        }
+        Console.WriteLine(pass ? "E3 combat report PASS" : "E3 combat report FAIL");
+        return pass ? 0 : 1;
     }
 
     /// <summary>Plays a match on the Council and reports contact, relations, territory and conflict (docs/MVP/17 M5 gates).</summary>

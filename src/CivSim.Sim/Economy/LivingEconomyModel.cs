@@ -2815,16 +2815,36 @@ public sealed partial class LivingEconomyModel : ISimModel
         return modifier;
     }
 
-    private static Fix64 CauseShare(bool child, string cause, int era)
+    internal static Fix64 CauseShare(bool child, string cause, int era)
     {
         if (child)
         {
+            if (era == 3)
+            {
+                return cause switch
+                {
+                    "endemic" => Fix64.Parse("0.50"), "epidemic" => Fix64.Parse("0.10"),
+                    "starvation" => Fix64.Parse("0.15"), "exposure" => Fix64.Parse("0.10"),
+                    "injury" => Fix64.Parse("0.10"), "predators" => Fix64.Zero,
+                    "violence" => Fix64.Parse("0.05"), _ => Fix64.Zero,
+                };
+            }
             return cause switch
             {
                 "endemic" => era >= 2 ? Fix64.Parse("0.42") : Fix64.Parse("0.45"),
                 "epidemic" => era >= 2 ? Fix64.Parse("0.03") : Fix64.Zero,
                 "starvation" => Fix64.Parse("0.20"), "exposure" => Fix64.Parse("0.20"),
                 "injury" => Fix64.Parse("0.10"), "predators" => Fix64.Parse("0.05"), _ => Fix64.Zero,
+            };
+        }
+        if (era == 3)
+        {
+            return cause switch
+            {
+                "endemic" => Fix64.Parse("0.35"), "epidemic" => Fix64.Parse("0.10"),
+                "starvation" => Fix64.Parse("0.10"), "exposure" => Fix64.Parse("0.10"),
+                "injury" => Fix64.Parse("0.20"), "predators" => Fix64.Zero,
+                "violence" => Fix64.Parse("0.15"), _ => Fix64.Zero,
             };
         }
         return cause switch

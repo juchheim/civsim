@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Content;
 using CivSim.Sim.Economy;
@@ -17,11 +18,12 @@ namespace CivSim.Harness;
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --check-a7 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
+/// civsim-harness ai --pack FILE (--check-b7 | --check-b8) [--seeds N] [--minutes N] [--first-seed N]
 /// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
 /// Full-sample classification requires explicitly supplying both dimensions at acceptance size (at least 8 seeds, 64 minutes).
-/// civsim-harness ai --pack FILE --exploit [--generations N] [--children N] [--seeds N] [--minutes N]
-/// Bare --exploit defaults to a quick diagnostic (1 generation, 1 child, 1 seed, 2 minutes); acceptance requires
-/// at least 10,000 evaluations and a 64-minute horizon.
+/// civsim-harness ai --pack FILE --exploit [--generations N] [--children N] [--seeds N] [--screen-minutes N] [--minutes N]
+/// Bare --exploit defaults to a quick diagnostic (1 generation, 1 child, 1 seed, 2-minute screen); acceptance
+/// requires 10,000 distinct candidates and 64-minute validation of 16 finalists on fresh mirrored seeds.
 /// </code>
 /// A duel puts team A in seats 0 and 3 and team B in seats 1 and 2 (the world is point-symmetric), then swaps the teams,
 /// and compares the teams' summed Legacy (Dominion + Mastery + Firsts).
@@ -31,9 +33,9 @@ internal static class AiCommand
     public static int Run(string[] args)
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
-        bool check = false, checkM10 = false, checkA7 = false, exploit = false, minutesGiven = false;
-        bool generationsGiven = false, childrenGiven = false, seedsGiven = false;
-        int seeds = 8, minutes = 33, generations = 6, children = 12;
+        bool check = false, checkM10 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
+        bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
+        int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
         var archetype = EconomyArchetype.Balanced;
         for (int i = 0; i < args.Length; i++)
@@ -47,12 +49,15 @@ internal static class AiCommand
                 case "--check-m6": check = true; break;
                 case "--check-m10": checkM10 = true; break;
                 case "--check-a7": checkA7 = true; break;
+                case "--check-b7": checkB7 = true; break;
+                case "--check-b8": checkB8 = true; break;
                 case "--exploit": exploit = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
                 case "--first-seed": firstSeed = ulong.Parse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture); break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); minutesGiven = true; break;
+                case "--screen-minutes": screenMinutes = int.Parse(args[++i], CultureInfo.InvariantCulture); screenMinutesGiven = true; break;
                 case "--archetype": archetype = Enum.Parse<EconomyArchetype>(args[++i], true); break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
@@ -64,6 +69,8 @@ internal static class AiCommand
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
         if (checkA7) return CheckA7Only(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
+        if (checkB7 || checkB8) return BronzeAiGates.Run(pack, checkB7, checkB8,
+            seedsGiven ? seeds : 1, minutesGiven ? minutes : 2, firstSeed);
         if (checkM10)
         {
             (int m10Seeds, int m10Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
@@ -75,11 +82,18 @@ internal static class AiCommand
                 generationsGiven ? generations : null,
                 childrenGiven ? children : null,
                 seedsGiven ? seeds : null,
-                minutesGiven ? minutes : null);
-            (BotPolicy best, double rate, int evaluations) = ExploitSearch.Search(pack,
-                options.Generations, options.Children, options.Seeds, options.Minutes, firstSeed);
-            Console.WriteLine($"Best fixed policy after {evaluations} evaluations: {rate * 100:F0}% against Warlord (confirmed on fresh seeds)\n  {best}");
-            ExploitSearch.GateResult result = ExploitSearch.Classify(evaluations, options.Minutes, rate);
+                minutesGiven ? minutes : null,
+                screenMinutesGiven ? screenMinutes : null);
+            ExploitSearch.SearchResult search = ExploitSearch.Search(pack,
+                options.Generations, options.Children, options.Seeds, options.ScreenMinutes, options.Minutes, firstSeed);
+            Console.WriteLine($"A6 screen: {search.UniqueCandidates:N0} distinct candidates ({search.ScreenEvaluations:N0} evaluations), {search.ScreenMinutes}-minute horizon.");
+            Console.WriteLine($"Finalists: {search.Finalists.Count}; full validation: {search.Validations.Count}/{search.Finalists.Count} at {search.ValidationMinutes} minutes, {ExploitSearch.ValidationSeedPairs} fresh mirrored seed pairs each.");
+            Console.WriteLine($"Deterministic seed ranges: screen {Tournament.BaseSeed + 5000}–{Tournament.BaseSeed + 5000 + (ulong)Math.Max(0, options.Seeds - 1)}; validation {Tournament.BaseSeed + 9000}–{Tournament.BaseSeed + 9000 + (ulong)(ExploitSearch.ValidationSeedPairs - 1)}.");
+            foreach (ExploitSearch.Validation validation in search.Validations)
+                Console.WriteLine($"  finalist {validation.WinRate:P0} vs Warlord: {validation.Policy}");
+            double highestConfirmed = search.Validations.Count == 0 ? double.NaN : search.Validations.Max(v => v.WinRate);
+            ExploitSearch.GateResult result = ExploitSearch.Classify(search.UniqueCandidates, search.ScreenMinutes,
+                search.ValidationMinutes, search.Finalists.Count, search.Validations.Count, highestConfirmed);
             if (result == ExploitSearch.GateResult.ExploitFound)
             {
                 Console.WriteLine("EXPLOIT FOUND (> 55%): a bug in the AI");
@@ -87,13 +101,16 @@ internal static class AiCommand
             }
             if (result == ExploitSearch.GateResult.Passed)
             {
-                Console.WriteLine("EXPLOIT SEARCH PASSED (<= 55%; acceptance requirements met)");
+                Console.WriteLine("EXPLOIT SEARCH PASS: no validated finalist exceeded 55%; applies to this 10,000-policy searched candidate set, not all possible policies.");
                 return 0;
             }
-            Console.WriteLine($"EXPLOIT SEARCH INCOMPLETE: diagnostic only; requires at least {ExploitSearch.MinimumAcceptanceEvaluations:N0} evaluations and a {ExploitSearch.MinimumM10Minutes}-minute chapter horizon (got {evaluations:N0} evaluations, {options.Minutes} minutes).");
+            if (result == ExploitSearch.GateResult.Diagnostic)
+                Console.WriteLine($"EXPLOIT SEARCH DIAGNOSTIC: requires {ExploitSearch.MinimumAcceptanceEvaluations:N0} distinct candidates (got {search.UniqueCandidates:N0}); no acceptance conclusion.");
+            else
+                Console.WriteLine($"EXPLOIT SEARCH INCOMPLETE: requires {ExploitSearch.FinalistCount} finalists fully validated at {ExploitSearch.MinimumM10Minutes} minutes (got {search.Validations.Count}/{search.Finalists.Count} at {options.Minutes}); no acceptance conclusion.");
             return 2;
         }
-        throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-m10 or --exploit.");
+        throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-b7, --check-b8, --check-m10 or --exploit.");
     }
 
     internal static (int Seeds, int Minutes) ResolveM10Sample(int? requestedSeeds, int? requestedMinutes) =>

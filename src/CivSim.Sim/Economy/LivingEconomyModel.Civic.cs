@@ -223,6 +223,13 @@ public sealed partial class LivingEconomyModel
     /// <summary>Cohesion is live for a settlement once its civilization has completed KEY-3 (docs/MVP/22 §8.3).</summary>
     private bool CohesionLive(SettlementState s) => s.Civic is { Seceded: false } && CivInBronze(s.Civilization) && !IsFreeFolk(s);
 
+    /// <summary>The Cohesion inputs needed by Council urgency, without constructing a full civic readout.</summary>
+    public (bool Live, int Points) CohesionStatus(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return (CohesionLive(s), CohesionPoints(s.Cohesion));
+    }
+
     private bool IsFreeFolk(SettlementState s) => FreeFolkStatus is { } f && f.IsFreeFolk(s.Id);
 
     private static int CohesionPoints(Fix64 f) => Math.Clamp(((f - CohesionFloor) / CohesionPerPoint).RoundToInt(), 0, 100);

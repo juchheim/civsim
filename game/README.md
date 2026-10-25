@@ -86,10 +86,11 @@ Scenarios live in `Scripts/Hud/Game.Scenarios.cs` (`assign`, `paused-assign`, `r
 start in a capture), `--paused`, `--ui-scale=1.3`, `--reduce-motion`, `--research-map`,
 `--ui-debug`.
 
-For renderer checks, `--start-minute=70 --viewer=-1` advances the deterministic
+For renderer checks, `--start-minute=60 --viewer=-1` advances the deterministic
 match to a mature omniscient frame before drawing; the HUD reports the number of
-figures in that frame. This development option defaults to minute 0 and viewer
-civilization 0. Long fast-forwards can take a while in Godot's Debug configuration.
+figures in that frame. Minute 60 leaves the chapter live for the benchmark. This
+development option defaults to minute 0 and viewer civilization 0. Long
+fast-forwards can take a while in Godot's Debug configuration.
 
 The projects that change how land and people look (ard plough and fallow fields, herders, wool flocks,
 ox carts, chariots, the temple, the chief's hall, tailored clothing, plank boats and sails) reach the
@@ -104,7 +105,7 @@ zoom level at a time:
 
 ```bash
 dotnet build game/CivSim.Game.csproj -c Debug -p:Optimize=true
-godot-mono --path game -- --start-minute=70 --viewer=-1 --benchmark-seconds=8 --benchmark-zoom=0
+godot-mono --path game -- --start-minute=60 --viewer=-1 --benchmark-seconds=8 --benchmark-zoom=0
 ```
 
 `--benchmark-zoom` accepts 0–3 (Z0–Z3). The match continues at its normal 1×
@@ -117,10 +118,15 @@ command with zoom values 0, 1 and 2 for the M7a performance gate.
 To sample every map layer at Z0–Z2 in one live simulation, use:
 
 ```bash
-godot-mono --path game -- --start-minute=70 --viewer=-1 --benchmark-seconds=4 --benchmark-matrix=all
+godot-mono --path game -- --start-minute=60 --viewer=-1 --benchmark-seconds=4 --benchmark-matrix=all
 ```
 
-The matrix covers Claims, Food, Methods and Resources at each zoom, with a one-second warm-up before each sample. It prints one `M7A_PERF` line per case, including its zoom, overlay and lowest complete one-second FPS window.
+The matrix covers Claims, Food, Methods, Resources, Deposits, Trade, Cohesion and Forest at each zoom, with a one-second warm-up before each sample. It prints one `M7A_PERF` line per case, including its zoom, overlay and lowest complete one-second FPS window.
+
+To benchmark a controlled renderer population without changing the live simulation, add
+`--benchmark-render-figures=1600`. The payload keeps the first 1,600 figures and all
+other frame data; `M7A_PERF` reports the live population as `figures` and the submitted
+figure count as `rendered_figures`.
 
 The current M7a view is the low-poly 3D renderer at
 `Renderer/LowPoly3DView.gd`; its terrain, settlement, vegetation and actor assets

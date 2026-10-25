@@ -607,7 +607,7 @@ Budgets: 60 fps at Z0–Z2 with 1,600 figures, the new structures and all overla
 | T22 | Capture and siege | 1.5× takes a palisaded or hillfort village in one season ≥ 60% (measured 100%); a supplied, unrelieved investment takes a 2–3-season town in 3–6 seasons ≥ 50% | — | §7.3–7.4 | combat_e3 (new) |
 | T23 | Conflict happens | Chieftain 4-AI: 3–12 raids per chapter; ≥ 1 war in ≥ 50% of matches; ≥ 1 capture in 20–50% | — | §1.4 finding 4 | harness |
 | T24 | **Legacy split at chapter end** | Dominion 45–55%, Mastery 25–35%, Firsts 12–20%, Wonders 0–8% | — | §3.3 | legacy_scale (new) |
-| T25 | Cohesion | settlements 55–70 typical; 0.1–0.5 secessions per civ per E3; > 2 in one civ within 2 years in < 2% of matches | — | §8.3 | cohesion_sim (new) |
+| T25 | Cohesion | settlements 60–80 typical; 0.03–0.08 secessions per civ per E3; > 2 in one civ within 2 years in < 2% of matches | — | §8.3; rebaseline in 07d §2/§11 | cohesion_sim (new) |
 | T26 | Tin Folk | 3–6 per map at the first KEY-3; ≥ 1 compact with one in ≥ 50% of matches | — | §6.4 | harness |
 | T27 | Mandate | Historical 7–9 earned and 5–8 Decrees over 13 minutes; current projection ≈13 earned over 19.75 minutes, budget review pending | — | §4.2 | live harness rerun |
 | T28 | Figures and tick | ≤ 1,600 figures at Year 64; tick ≤ 4 ms mean | — | §3.4 | harness |
@@ -634,7 +634,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B3 | **Want more** after the Bronze end screen; can explain one AI action | ≥ 5 of 8 (P9 repeated) | M9 protocol | Human |
 | B4 | Every E3 project and KEY-4 shows a visible change | 66/66 emit Completed, Moment, ≥ 1 VisibleChange | event-stream test (C8) | Auto |
 | B5 | **Keystone timing** | Balanced Council KEY-4 median 57–64 min before Year 64; E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
-| B6 | **Chapter end** | median end 44–48 min; ≤ 10% of Balanced matches reach Year 64; the end rule is replay-identical | harness, 32 seeds | Auto |
+| B6 | **Chapter end** | Every sample ends by the §3.1 rule: 12 seasons after the first rival KEY-4 or at Year 64; ≤ 10% of Balanced matches reach Year 64; the end rule is replay-identical. Report the observed end-time median. | harness, 32 seeds | Auto |
 | B7 | **Hands-off loses to engaged** at the chapter end | ≥ 65% (P8 at the new horizon) | Settler proxy vs Council, mirrored | Auto |
 | B8 | **Decrees pay** | a Decree-using scripted bot beats the same bot with Decrees off in ≥ 60% | mirrored duels, 32 seeds | Auto |
 | B9 | FoodCap E3 (C1-E3) | 88 → 190 ±10% | check_e3 + live fixture | Auto |
@@ -645,11 +645,11 @@ The milestone is done when every automated row passes in the nightly report and 
 | B14 | **Tin geography** | §5.1 rules in 100% of 10,000 worlds; determinism; < 5 s per world | `worldgen --audit-seeds` | Auto |
 | B15 | **E3 raid table** | every §7.5 table value within ±10 of the oracle-corrected values in 07d §6; includes success, both sides hurt, net and the field rows | `combat_e3.py` plus `politics --report-combat` E3 rows | Auto |
 | B16 | **Capture and siege** | T22; no assault ever succeeds against stone walls | combat tables + fixture | Auto |
-| B17 | **Territory** | T11, T14, T15; ≥ 1 Town and ≥ 1 City in ≥ 75% of civs at KEY-4 | `politics --check-m10`, 24 seeds | Auto |
+| B17 | **Territory** | T11, T14, T15 sampled at each civilization's KEY-4; at chapter end, ≥ 1 Town in ≥ 75% and ≥ 1 City (tier ≥ 90) in ≥ 25% of civilizations (07d §2 F4/§11 rebaseline) | `politics --check-m10`, 24 seeds | Auto |
 | B18 | **Legacy split** | T24 | Chieftain 4-AI, 24 seeds | Auto |
-| B19 | **Cohesion and secession** | T25 | Chieftain 4-AI, 24 seeds | Auto |
+| B19 | **Cohesion and secession** | T25: cohesion 60–80; 0.03–0.08 secessions per civ per E3; cascades below 2% | Chieftain 4-AI, 24 seeds | Auto |
 | B20 | **Conflict exists** | T23 | Chieftain 4-AI, 24 seeds | Auto |
-| B21 | **Tin Folk and compacts** | T26 | harness | Auto |
+| B21 | **Tin Folk and compacts** | T26 | `research --check-b21` (default: 24 matches, seeds 20261019–20261042, 64-minute horizon); both criteria must pass | Auto |
 | B22 | Determinism | S1 (1,000 chapter replays) and S2 (macOS arm64 = Windows x64) on a new `tests/golden/bronze-v1.txt` | CI | Auto |
 | B23 | Performance | headless chapter ≤ 30 s; tick ≤ 4 ms mean over the 10-minute S13 sample, no GC pause > 16 ms; 60 fps with 1,600 figures and E3 structures at Z0–Z2 | `acceptance --s12 --s13`, Godot render gate (shorter S13 samples are diagnostic only) | Auto |
 | B24 | Robustness | 0 crashes, desyncs or invalid states in 1,000 chapter matches, all archetypes and levels | `acceptance --s15 --minutes 64` | Auto |
@@ -661,10 +661,17 @@ The milestone is done when every automated row passes in the nightly report and 
 | B30 | New blunders | Mandate overflow < 0.3, siege without supply 0, suicide raid 0, naked caravan < 0.5 per match | blunder detectors | Auto |
 | B31 | Legend vs Warlord | ≥ 60% (the 65% of 14 §10.3 moves to E4) | ladder | Auto |
 
-`ai --check-m10` covers A1–A5/A7 and B27–B31; A6 uses `ai --exploit` and A8 uses the fog-fairness suite, so the combined B26 gate remains open until those separate checks pass.
+B7 and B8 are runnable separately with `ai --check-b7` and `ai --check-b8`. Each uses 32 seeds × 2 mirrored seatings at a 64-minute maximum horizon (chapter-end scoring). B7 compares Settler difficulty against Council; B8 compares the same scripted Grower bot with the default Council Decree policy enabled against that bot with only its Decree policy disabled. Both commands accept `--seeds`, `--minutes` and `--first-seed`; any sample below 32 seeds or 64 minutes is labelled DIAGNOSTIC ONLY and cannot pass.
+
+For B17, T11 settlements, T14 claimed land and T15 paired-border contact are sampled at each civilization's KEY-4. The rebaselined Town (≥ 75%) and City (tier ≥ 90 in ≥ 25%) prevalence is sampled at chapter end, as specified in [07d §2 F4 and §11](07d-e3-balance-findings.md). For B19, that later live rebaseline sets Cohesion at 60–80 with 0.03–0.08 secessions per civ per E3. These values supersede the older targets still present in earlier draft references.
+
+`ai --check-m10` covers A1–A5/A7 and B27–B31; A6 uses `ai --exploit` and A8 uses the fog-fairness suite, so the combined B26 gate remains open until those separate checks pass. A6 screens 10,000 distinct policies at the configured short `--screen-minutes` horizon (default 2), then validates a 16-policy diverse finalist set on fresh mirrored matches at `--minutes 64`. The screen is for selection, not full-horizon acceptance evidence. A PASS means no validated finalist in that searched candidate set exceeded 55%; it is not a universal proof over all possible policies. The output reports candidate/finalist counts and deterministic screen and validation seed ranges; incomplete validation cannot pass.
+An exact-budget invocation is `ai --exploit --generations 417 --children 24 --seeds 1 --screen-minutes 1 --minutes 64` (10,009 distinct candidates; 96 chapter matches for finalist validation). The classifier accepts any positive screen horizon below 64 minutes; the one-minute screen preserves full 64-minute finalist validation and is faster than the two-minute default.
 The full-sample command is `dotnet run --project src/CivSim.Harness -c Release -- ai --pack civsim.pack --check-m10 --seeds 8 --minutes 64`; omitting either sample dimension defaults that dimension to a quick diagnostic value (1 seed or 2 minutes).
 
 **Acceptance status (2026-10-25):** S1 completed 1,000/1,000 64-minute replay matches with all checksums matched (53:20). The initial S15 sweep completed 999/1,000 clean in 2:17:23; match 329 (seed 20261348) exposed a validator error for a physically assigned weir retained after settlement capture by a civilization without HNT-09. Snapshot validation now checks unique physical placement while gameplay still requires HNT-09 to use a weir. The exact seed completed its full 64-minute horizon with all five-season snapshot restores and checksum comparisons passing. The post-fix full 1,000-match S15 rerun completed 1,000/1,000 with no failures, satisfying B24. A separate short attempt stopped after seven matches and did not replace that completed result. WP11 and overall M10 acceptance remain open.
+
+**Follow-up evidence (2026-10-25):** B14 passed its 10,000-seed world-generation audit (10,000 accepted, zero failures; the slowest seed retimed alone at 3.94 s). B21 passed the default 24-match, 64-minute check (24/24). B22's single-seed Bronze golden was refreshed and passed two fresh identical replays; cross-platform S2 remains unverified. B25 strict validation passed with 509 projects and 10 keystones across 33 lineages, zero errors and warnings. The Release test suite passed 686/686. The exact B7 run was stopped after three minutes without a result; B7 remains unverified. The exact B8 run failed: Decrees-on won 50.0% of 64 mirrored matches against a 60% target. The 24-seed politics run remains below target for B17, B19 and B20; B10's two-seed diagnostic missed its adult-hazard and epidemic-share bands and is not full acceptance evidence. A6 passed: 10,009 distinct policies screened at one minute; 16/16 finalists validated on three fresh mirrored 64-minute seed pairs; the highest confirmed win rate was 50%, below the 55% ceiling (24:39 total). Candidate generation now limits mutation retries and falls back to deterministic random candidates when the current policy's local mutation neighborhood is exhausted. The broader B26 `ai --check-m10` sample did not finish; its partial results showed A1, A3 and A4 misses, so B26 remains open. Human gates B1–B3 also remain outstanding. These open results do not change the completed S15 result above.
 
 ---
 

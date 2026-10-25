@@ -291,7 +291,9 @@ public sealed partial class LivingEconomyModel
                     if (SharedGoods[k] == g) want = m.ShareWant[k];
             bool access = s.Metal is { } mm && (mm.Access & (g == MetalGood.Tin ? AccessTin | SourceTin : g == MetalGood.Copper ? AccessCopper | SourceCopper : AccessTin | AccessArsenic)) != 0;
             Fix64 latent = Fix64.Zero;
-            if (g == MetalGood.Tin && TierKnown(civ, 10) && !access) latent = Fix64.FromRatio(15, 1000) * adults;
+            // Tin is also the gate for MET-05. Keep its re-kit demand visible as soon as MET-03 opens that research route,
+            // so a Tin compact can supply the first stock needed to learn MET-05 instead of waiting on a circular gate.
+            if (g == MetalGood.Tin && (TierKnown(civ, 10) || Done(civ, "MET-03")) && !access) latent = Fix64.FromRatio(15, 1000) * adults;
             else if (g == MetalGood.Copper && TierKnown(civ, 8) && !access) latent = Fix64.FromRatio(12, 100) * adults;
             else if (g == MetalGood.Bronze && (TierKnown(civ, 10) || TierKnown(civ, 9)) && !access) latent = Fix64.FromRatio(15, 100) * adults;
             return Fix64.Max(want * horizon, latent);

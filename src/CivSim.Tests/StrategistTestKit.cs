@@ -308,6 +308,7 @@ internal sealed class ActionRecorder : IStrategistActions
     public bool Gift(int toCiv) { Orders.Add($"gift {toCiv}"); return Accept; }
     public bool Barter(int withCiv) { Orders.Add($"barter {withCiv}"); return Accept; }
     public bool Raid(int targetSettlement, int partySize) { Orders.Add($"raid {targetSettlement} {partySize}"); return Accept; }
+    public bool RaidCaravan(int caravanId, int partySize) { Orders.Add($"raid-caravan {caravanId} {partySize}"); return Accept; }
     public bool Assault(int targetSettlement) { Orders.Add($"assault {targetSettlement}"); return Accept; }
     public bool DeclareWar(int civ) { Orders.Add($"war {civ}"); return Accept; }
     public bool MakePeace(int civ) { Orders.Add($"peace {civ}"); return Accept; }

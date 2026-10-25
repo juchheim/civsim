@@ -105,6 +105,7 @@ public partial class Game : Node3D
     private float _lerpOverride = -1f;
     private bool _resourcesVisible;
     private int _mapOverlay;
+    private int _benchmarkRenderFigureLimit;
 
     public override void _Ready()
     {
@@ -123,6 +124,7 @@ public partial class Game : Node3D
             ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
             _contentPack = pack;
             _catalog = new ResearchCatalog(pack);
+            _benchmarkRenderFigureLimit = ReadBenchmarkRenderFigureLimit();
             int startMinute = ReadStartMinute();
             int viewerCiv = ReadViewerCiv();
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty);
@@ -170,6 +172,9 @@ public partial class Game : Node3D
                     int zoomLevel = ReadBenchmarkZoom();
                     _benchmarkOverlay = ReadOverlayName();
                     _benchmarkStartTick = _session.Tick;
+                    // FrameCapital starts an eased move to the capital. Do not let its
+                    // pending target overwrite the benchmark's requested zoom next frame.
+                    _moveAnimating = false;
                     SetZoom(zoomLevel switch { 0 => 5.0f, 1 => 12.0f, 2 => 40.0f, _ => 90.0f });
                     _benchmarkWarmupRemaining = 2.0;
                     GD.Print($"M7A benchmark ready: Z{zoomLevel}, overlay={_benchmarkOverlay}, {_current?.FigureCount ?? 0} figures, " +
@@ -313,6 +318,15 @@ public partial class Game : Node3D
         return 0;
     }
 
+    private static int ReadBenchmarkRenderFigureLimit()
+    {
+        if (ReadBenchmarkSeconds() == 0) return 0;
+        string? value = ArgumentValue("--benchmark-render-figures=");
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count) && count > 0
+            ? count
+            : 0;
+    }
+
     private static string[] ReadBenchmarkMatrix()
     {
         foreach (string arg in OS.GetCmdlineUserArgs())
@@ -338,15 +352,17 @@ public partial class Game : Node3D
     private const float MaxGlideTiles = 4.5f;
 
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
-        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null)
+        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null,
+        int figureLimit = 0)
     {
         int tiles = frame.Width * frame.Height;
         const int figureStride = 11, herdStride = 7;
         long maxGlide = (long)(MaxGlideTiles * MapUnit);
         long maxGlideSquared = maxGlide * maxGlide;
         var relocated = new List<int>();
-        var figures = new int[frame.FigureCount * figureStride];
-        for (int i = 0; i < frame.FigureCount; i++)
+        int renderedFigureCount = figureLimit > 0 ? Math.Min(frame.FigureCount, figureLimit) : frame.FigureCount;
+        var figures = new int[renderedFigureCount * figureStride];
+        for (int i = 0; i < renderedFigureCount; i++)
         {
             int o = i * figureStride;
             figures[o] = frame.FigureX[i];
@@ -377,7 +393,7 @@ public partial class Game : Node3D
 
         // People who left (or relocated) this publish stay where they stood for one glide and fade out.
         int removedCount = previous is not null && figureLink is not null ? figureLink.RemovedCount : 0;
-        int ghostCount = Math.Min(160, removedCount + relocated.Count);
+        int ghostCount = figureLimit > 0 ? 0 : Math.Min(160, removedCount + relocated.Count);
         var ghosts = new int[ghostCount * 8];
         for (int g = 0; g < ghostCount; g++)
         {
@@ -524,6 +540,7 @@ public partial class Game : Node3D
             ["e3OverlayBytes"] = e3OverlayBytes,
             ["forestOverlay"] = forestOverlay,
             ["figures"] = figures,
+            ["renderedFigureCount"] = renderedFigureCount,
             ["ghosts"] = ghosts,
             ["herds"] = herds,
             ["settlements"] = settlements,
@@ -678,6 +695,7 @@ public partial class Game : Node3D
         int renderDrawCalls = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
         int zoom = _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
         GD.Print($"M7A_PERF zoom=Z{zoom} overlay={_benchmarkOverlay} sample={_benchmarkCaseIndex + 1} figures={_current?.FigureCount ?? 0} " +
+                 $"rendered_figures={Math.Min(_current?.FigureCount ?? 0, _benchmarkRenderFigureLimit > 0 ? _benchmarkRenderFigureLimit : int.MaxValue)} " +
                  $"simulation_paused={simulationPaused} tick_advance={simulationTicks} " +
                  $"seconds={elapsed:F2} frames={_benchmarkFrames} avg_fps={averageFps:F1} " +
                  $"min_1s_fps={_benchmarkMinWindowFps:F1} " +
@@ -971,6 +989,7 @@ public partial class Game : Node3D
         _visualRenderer?.Call("set_overlay", _mapOverlay);
         RefreshOverlayState();
         UpdateKnownResources(_current);
+        _moveAnimating = false;
         SetZoom(zoom switch { 0 => 5.0f, 1 => 12.0f, _ => 40.0f });
         _benchmarkStartTick = _session.Tick;
         _benchmarkFrames = 0;
@@ -990,7 +1009,7 @@ public partial class Game : Node3D
         {
             long started = Stopwatch.GetTimestamp();
             var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds,
-                DecorTable.Known(frame, _catalog));
+                DecorTable.Known(frame, _catalog), _benchmarkRenderFigureLimit);
             double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _visualRenderer.Call("update_frame", payload);
             if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))
@@ -1018,7 +1037,8 @@ public partial class Game : Node3D
         _visualRenderer = rendererScript.New().AsGodotObject() as Node3D
             ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
         AddChild(_visualRenderer);
-        _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true, decor: DecorTable.Known(frame, _catalog)));
+        _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true,
+            decor: DecorTable.Known(frame, _catalog), figureLimit: _benchmarkRenderFigureLimit));
         _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
     }
 

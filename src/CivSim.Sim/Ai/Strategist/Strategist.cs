@@ -183,6 +183,10 @@ public sealed partial class Strategist : IStrategist
         {
             Fix64 v0 = StrategistTuning.ConquerBase + Fix64.Clamp(best.Value / StrategistTuning.ConquerValueScale, Fix64.Zero, StrategistTuning.ConquerValueCap) + best.Window;
             value[(int)GrandPlan.Conquer] = v0 * StrategistTuning.Aggression(_spec.Archetype);
+            // A tactically feasible, positive-value conquest should not be hidden by SecureTin's fixed strategic
+            // priority. Keep this as a plan-ranking floor: it does not loosen force, capture, supply, or safety gates.
+            value[(int)GrandPlan.Conquer] = Fix64.Max(value[(int)GrandPlan.Conquer],
+                s.SecureTinValue + StrategistTuning.FeasibleConquestPriorityMargin);
             target[(int)GrandPlan.Conquer] = best.Civ;
         }
         value[(int)GrandPlan.CoalitionAgainstLeader] = s.CoalitionValue;

@@ -4,6 +4,7 @@ using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
 
@@ -80,6 +81,23 @@ public sealed class WP8aDecreeTests
         rig.Grant(0, "KEY-3");
         Assert.True(rig.Match.Research.MandateUnlocked(0));
         Assert.True(rig.Match.Politics.DecreeCost(0, DecreeKind.Found) > 0);
+    }
+
+    [Fact]
+    public void Council_seeks_Tin_after_MET03_before_MET05_is_gated_on_Tin()
+    {
+        var rig = new Rig();
+        var research = rig.Match.Politics.DecreeResearch;
+        Assert.False(CouncilDecreePolicy.ShouldSeekTinCompact(research, rig.Match.Economy, rig.Match.Politics, 0));
+
+        rig.Grant(0, "KEY-3");
+        rig.Grant(0, "MET-03");
+
+        Assert.True(research.IsDone(0, "MET-03"));
+        Assert.False(research.IsDone(0, "MET-05"));
+        Assert.False(rig.Match.Economy.CivHasMetalAccess(0, MetalAccessKind.Tin));
+        Assert.True(CouncilDecreePolicy.ShouldSeekTinCompact(research, rig.Match.Economy, rig.Match.Politics, 0));
+        Assert.True(rig.Match.Economy.TradeNeed(0, "G-TIN", 4) > Fix64.Zero);
     }
 
     [Fact]

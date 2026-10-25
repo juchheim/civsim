@@ -155,6 +155,15 @@ public class StrategistScenarioTests
         // The same neighbour without walls is raided (expected value positive on the belief).
         StrategistRig open = Resume();
         open.Grant(0, spears);
+        // Keep the counter-threat realistic: this seed has a young daughter settlement that an intact neighbour can
+        // take after a 4–5 figure raid party leaves. The raid fixture needs the same weakened rival used by the war test
+        // above, otherwise refusing the raid is the intended departure-safety behavior, not a raid-selection regression.
+        foreach (int s in open.SettlementsOf(1))
+        {
+            var people = new System.Collections.Generic.List<FigureView>();
+            open.Match.Economy.ListFigures(s, people);
+            for (int i = 0; i < people.Count; i += 2) open.Match.Economy.KillFigure(people[i].Id);
+        }
         open.Politics.Diplomacy.Set(0, 1, -40);
         open.Seasons(8);
         Assert.True(open.Notes(0, "Raid").Any(), string.Join(" | ", open.Log.Entries.Where(e => e.Civ == 0 && e.Season > 104).Select(e => $"{e.Season} {e.Kind} {e.Reason}")));

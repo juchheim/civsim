@@ -181,7 +181,13 @@ internal static class ResearchE3
             if (allEra is >= 0 and < 4)
             {
                 var alive = new int[100];
-                for (int f = 0; f < eco.FigureCount; f++) alive[Math.Min(99, eco.Figure(f).Age)]++;
+                // Expected hazards were recorded before seasonal mortality and aging. Survivors are now
+                // one year older; newborns have age 0 and were not exposed to this season's hazards.
+                for (int f = 0; f < eco.FigureCount; f++)
+                {
+                    int age = PreMortalityAgeOfSurvivor(eco.Figure(f).Age);
+                    if (age >= 0) alive[age]++;
+                }
                 for (int i = 0; i < eco.LastDeathEventCount; i++) alive[Math.Min(99, eco.LastDeathEvent(i).Age)]++;
                 for (int a = 0; a < 100; a++)
                 {
@@ -289,6 +295,9 @@ internal static class ResearchE3
         result.Raids = pol.RaidCount;
         return result;
     }
+
+    internal static int PreMortalityAgeOfSurvivor(int postSeasonAge)
+        => postSeasonAge <= 0 ? -1 : Math.Min(99, postSeasonAge - 1);
 
     private static void Sample(At at, int civ, double minute, MatchModel match)
     {
