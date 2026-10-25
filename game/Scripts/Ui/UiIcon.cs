@@ -8,7 +8,7 @@ public enum UiGlyph
 {
     None, Pause, Play, Plus, Minus, Close, ChevronRight, ChevronDown, ChevronUp, Check, CheckBadge, BlockedBadge, Ring, HalfRing,
     Lock, Queue, ClockRing, Warning, Danger, Info, Hammer, Hearth, Compass, Gem, People, Hut, Flags, Scroll, Menu, Spark, Globe,
-    Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star,
+    Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star, StarOutline,
     EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler,
 }
 
@@ -239,6 +239,7 @@ public static class UiDraw
                 ci.DrawCircle(C, Q(0.18f), color);
                 break;
             case UiGlyph.Star:
+            case UiGlyph.StarOutline:
                 {
                     var pts = new Vector2[10];
                     for (int i = 0; i < 10; i++)
@@ -247,7 +248,14 @@ public static class UiDraw
                         float a = -Mathf.Pi / 2 + i * Mathf.Pi / 5;
                         pts[i] = C + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
                     }
-                    ci.DrawColoredPolygon(pts, color);
+                    if (glyph == UiGlyph.Star) ci.DrawColoredPolygon(pts, color);
+                    else
+                    {
+                        var outline = new Vector2[11];
+                        Array.Copy(pts, outline, pts.Length);
+                        outline[^1] = pts[0];
+                        ci.DrawPolyline(outline, color, line);
+                    }
                     break;
                 }
             default:

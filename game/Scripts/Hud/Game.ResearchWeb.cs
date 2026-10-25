@@ -59,6 +59,7 @@ public partial class Game
     private bool _showAllAlmostRows;
     private readonly List<UiProjectCard> _navCards = new();
     private bool[] _agePath = Array.Empty<bool>();
+    private bool[] _breadthPath = Array.Empty<bool>();
 
     // map view
     private bool _mapBuilt;
@@ -225,7 +226,7 @@ public partial class Game
         _peopleWebButton = UiKit.Secondary("People & needs", OpenPeoplePanel,
             "See what your people do and the needs shaping research choices", UiGlyph.People, UiTokens.ControlS, true);
         footer.AddChild(_peopleWebButton);
-        _footerNote = UiKit.Text("★ Turning point prerequisite · Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot", "CaptionTertiary", right: true, ellipsis: true);
+        _footerNote = UiKit.Text("Filled star: keystone path · outline star: breadth project · Click to inspect · Double-click or Enter to start · 1 2 3 choose a slot", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
         footer.AddChild(_footerNote);
         root.AddChild(footer);
