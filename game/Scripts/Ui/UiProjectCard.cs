@@ -37,7 +37,7 @@ public partial class UiProjectCard : Button
 
     private readonly ProjectCardMode _mode;
     private readonly UiIcon _themeIcon = new(UiGlyph.Hammer, 16, UiTokens.TextPrimary);
-    private readonly UiIcon _stateIcon = new(UiGlyph.Ring, 16, UiTokens.TextPrimary);
+    private readonly UiIcon _stateIcon = new(UiGlyph.None, 16, UiTokens.TextPrimary);
     private readonly UiIcon _agePathIcon = new(UiGlyph.Star, 14, UiTokens.Accent) { Visible = false };
     private readonly UiRankBadge[] _ranks = { new(1), new(2), new(3) };
     private readonly Label _name = UiKit.Text("", "BodyStrong", ellipsis: true);
@@ -163,11 +163,11 @@ public partial class UiProjectCard : Button
         Color tint;
         switch (look.State)
         {
-            case ProjectState.Available: glyph = UiGlyph.Ring; tint = UiTokens.ThemeColor(def.Theme); break;
+            case ProjectState.Available: glyph = UiGlyph.None; tint = UiTokens.ThemeColor(def.Theme); break;
             case ProjectState.Slotted: glyph = UiGlyph.None; tint = UiTokens.ThemeColor(def.Theme); break;
             case ProjectState.Completed: glyph = UiGlyph.CheckBadge; tint = UiTokens.Success; break;
             case ProjectState.Dormant: glyph = UiGlyph.BlockedBadge; tint = UiTokens.Warning; break;
-            default: glyph = look.HiddenPrerequisite ? UiGlyph.Lock : UiGlyph.HalfRing; tint = UiTokens.TextTertiary; break;
+            default: glyph = look.HiddenPrerequisite ? UiGlyph.Lock : UiGlyph.None; tint = UiTokens.TextTertiary; break;
         }
         _stateIcon.Glyph = glyph;
         _stateIcon.Tint = tint;
