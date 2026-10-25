@@ -15,6 +15,11 @@ namespace CivSim.Sim.Ai;
 /// </summary>
 internal sealed class StrategistDecreePolicy : IDecreePolicy
 {
+    // A compact remains legal while a village is known by map memory or lies within twice Reach. Keep its
+    // belief evidence alive for the same horizon as tin-route research evidence; the 2-season levy window
+    // does not apply to compact proposals.
+    private const int TinFolkCompactEvidenceSeasons = 12;
+
     private readonly AiLog _log;
     private readonly Belief _belief;
     private readonly StrategicIntent _intent;
@@ -219,7 +224,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         int extra = DecreeArgs.PackCompact(TradeGood.Tin, sell: false);
         foreach (BeliefTinFolk folk in belief.TinFolkSeen)
         {
-            if (belief.Season - folk.LastSeenSeason is < 0 or > 2) continue;
+            if (!HasRecentTinFolkCompactEvidence(belief, folk)) continue;
             AddIfBelievedCompactRoute(belief, civ, DecreeArgs.FolkParty(folk.Settlement), extra, candidates);
         }
         for (int rival = 0; rival < belief.Rivals.Length; rival++)
@@ -236,6 +241,9 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         var request = new DecreeRequest(DecreeKind.Compact, target, extra);
         if (BeliefAllowsCandidate(belief, civ, request) && !Contains(candidates, request)) candidates.Add(request);
     }
+
+    private static bool HasRecentTinFolkCompactEvidence(Belief belief, BeliefTinFolk folk)
+        => belief.Season - folk.LastSeenSeason is >= 0 and <= TinFolkCompactEvidenceSeasons;
 
     private static bool Contains(List<DecreeRequest> candidates, DecreeRequest request)
     {
@@ -279,7 +287,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         {
             int settlement = DecreeArgs.FolkSettlement(target);
             foreach (BeliefTinFolk folk in belief.TinFolkSeen)
-                if (folk.Settlement == settlement && belief.Season - folk.LastSeenSeason is >= 0 and <= 2) return true;
+                if (folk.Settlement == settlement && HasRecentTinFolkCompactEvidence(belief, folk)) return true;
             return false;
         }
         if (unchecked((uint)target) >= unchecked((uint)belief.Rivals.Length) || target == civ) return false;

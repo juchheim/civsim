@@ -44,6 +44,9 @@ jobs:
       - name: Research and economy golden (cross-platform)
         run: dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --minutes 12 --bot grower --check-golden tests/golden/research-v1.txt
 
+      - name: Bronze chapter determinism golden check (cross-platform)
+        run: dotnet run --project src/CivSim.Harness -c Release --no-build -- research --pack civsim.pack --check-bronze-golden tests/golden/bronze-v1.txt
+
       - name: Politics golden (cross-platform)
         run: dotnet run --project src/CivSim.Harness -c Release --no-build -- politics --pack civsim.pack --minutes 24 --check-golden tests/golden/politics-v1.txt
 

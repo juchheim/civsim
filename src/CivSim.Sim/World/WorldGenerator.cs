@@ -853,18 +853,29 @@ public static class WorldGenerator
     private static void PlaceTinFarPlacers(Work w, int[] toFirst, int[] toSecond)
     {
         // One river placer on each start's outer flank, 22-32 tiles from its nearer start, and clearly nearer
-        // to that start than to its neighbour. The pair of nearer distances differs by at most 3 tiles.
+        // to that start than to its neighbour. Keep every fallback inside M2's 18-36 tile, 5-tile fairness band.
+        // The pair of nearer distances differs by at most 3 tiles in the preferred band.
         ReadOnlySpan<(int Low, int High, int Gap)> bands = stackalloc (int, int, int)[]
-            { (220, 320, 30), (180, 360, 50), (100, 400, 100) };
+            { (220, 320, 30), (180, 360, 50) };
         var firstSide = new List<int>();
         var secondSide = new List<int>();
         foreach ((int low, int high, int gap) in bands)
+        {
+            if (TryPlaceTinFarPair(low, high, gap, allowMountain: false)) return;
+        }
+
+        // The relaxed river-eligible search can run out of legal sites on some seeds. Mountains are
+        // acceptable for this fallback, but the acceptance distance and fairness limits still apply.
+        if (TryPlaceTinFarPair(180, 360, 50, allowMountain: true)) return;
+        throw new InvalidOperationException("No legal far tin placer pair remains inside the M2 acceptance envelope.");
+
+        bool TryPlaceTinFarPair(int low, int high, int gap, bool allowMountain)
         {
             firstSide.Clear();
             secondSide.Clear();
             for (int i = 0; i < w.Count; i++)
             {
-                if (i % w.Width >= w.Width / 2 || !TinSiteOpen(w, i, river: true)) continue;
+                if (i % w.Width >= w.Width / 2 || !TinSiteOpen(w, i, river: !allowMountain)) continue;
                 int a = toFirst[i], b = toSecond[i];
                 if (a != int.MaxValue && a >= low && a <= high && (b == int.MaxValue || b - a >= 100)) firstSide.Add(i);
                 if (b != int.MaxValue && b >= low && b <= high && (a == int.MaxValue || a - b >= 100)) secondSide.Add(i);
@@ -880,11 +891,11 @@ public static class WorldGenerator
                             TinTie(w, f, "tin.far.first") + TinTie(w, s, "tin.far.second");
                 if (score < bestScore) { bestScore = score; bestFirst = f; bestSecond = s; }
             }
-            if (bestFirst < 0) continue;
+            if (bestFirst < 0) return false;
             PlaceDepositPointSymmetric(w, bestFirst, DepositKind.Tin, TinFarPlacer, 1);
             PlaceDepositPointSymmetric(w, bestSecond, DepositKind.Tin, TinFarPlacer, 1);
-            if (low != 220) w.Repairs++;
-            return;
+            if (low != 220 || allowMountain) w.Repairs++;
+            return true;
         }
     }
 

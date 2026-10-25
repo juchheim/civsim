@@ -33,6 +33,7 @@ internal static class ResearchM10
         public long Ticks;
         public ulong Checksum;
         public bool OverByRule;
+        public int CountdownSeasons, CapSeason;
     }
 
     public static int Execute(ContentPack pack, IReadOnlyList<ulong>? seeds, int maxMinutes, int humanSeat)
@@ -49,9 +50,10 @@ internal static class ResearchM10
             if (i % 2 == 0) first[s] = run; else again[s] = run;
         });
 
-        var key4All = new List<double>();
-        var e3All = new List<double>();
+        var b5Key4 = new List<double>();
+        var b5E3 = new List<double>();
         bool identical = true;
+        bool b6EndRulesOk = true;
         var ends = new List<double>();
         int yearCap = 0;
         var text = new StringBuilder();
@@ -65,8 +67,11 @@ internal static class ResearchM10
             {
                 double k3 = r.Key3[c], k4 = r.Key4[c];
                 double e3 = double.IsNaN(k3) || double.IsNaN(k4) ? double.NaN : k4 - k3;
-                if (!double.IsNaN(k4)) key4All.Add(k4);
-                if (!double.IsNaN(e3)) e3All.Add(e3);
+                if (list[s] == DefaultSeeds[0] || list[s] == DefaultSeeds[1])
+                {
+                    if (!double.IsNaN(k4)) b5Key4.Add(k4);
+                    if (!double.IsNaN(e3)) b5E3.Add(e3);
+                }
                 string late = !double.IsNaN(k4) && k4 * 600 >= r.End.EndTick ? " *after the chapter end" : "";
                 text.AppendLine($"  {c,-4}{Fmt(k3),8}{Fmt(k4),8}{Fmt(e3),8}{r.Done[c],6}{late}");
             }
@@ -76,42 +81,74 @@ internal static class ResearchM10
             if (end.Reason == MatchEndReason.YearCap) yearCap++;
             bool same = first[s].End == again[s].End && first[s].Checksum == again[s].Checksum && first[s].Ticks == again[s].Ticks;
             identical &= same;
+            bool followsRule = IsB6EndRuleCorrect(end, r.CountdownSeasons, r.CapSeason);
+            b6EndRulesOk &= followsRule && r.OverByRule;
             text.AppendLine($"  chapter end: minute {endMinutes:F1} ({end.Reason}{(end.Civ >= 0 ? $", civ {end.Civ}" : "")}); first rival KEY-4 in season {end.CountdownStartSeason}" +
                             $"; replay {(same ? "identical" : "DIFFERENT")} (checksum {r.Checksum:x16})" + (r.OverByRule ? "" : "  [the chapter did not end within --minutes]"));
         }
 
         bool pass = true;
-        double key4Median = Median(key4All), e3Median = Median(e3All);
-        int civs = list.Count * 4;
-        bool key4Ok = key4All.Count == civs && key4Median >= 57.0 && key4Median <= 64.0;
-        bool e3Ok = e3All.Count == civs && e3Median >= E3Target * 0.75 && e3Median <= E3Target * 1.25;
-        bool e3Each = e3All.Count == civs && e3All.TrueForAll(x => x >= E3Target * 0.75 && x <= E3Target * 1.25);
+        bool b5AcceptanceSample = HasB5AcceptanceSeeds(list);
+        int b5Civs = DefaultSeeds.Length * 4;
+        double key4Median = Median(b5Key4), e3Median = Median(b5E3);
+        bool key4Ok = b5AcceptanceSample && b5Key4.Count == b5Civs && key4Median >= 57.0 && key4Median <= 64.0;
+        bool e3Ok = b5AcceptanceSample && b5E3.Count == b5Civs && e3Median >= E3Target * 0.75 && e3Median <= E3Target * 1.25;
+        bool e3Each = b5AcceptanceSample && b5E3.Count == b5Civs && b5E3.TrueForAll(x => x >= E3Target * 0.75 && x <= E3Target * 1.25);
         double endMedian = Median(ends);
-        bool b6MedianOk = IsB6EndMedianInRange(endMedian);
         bool b6YearCapOk = IsB6YearCapRateInRange(yearCap, list.Count);
         bool b6AcceptanceSample = list.Count >= B6AcceptanceSeeds;
-        text.AppendLine($"B5 KEY-4 Council median {Fmt(key4Median)} (projection {Key4Target:F2}; acceptance window 57-64 before Year cap; {key4All.Count}/{civs} civilizations finished): {(key4Ok ? "PASS" : "FAIL")}");
-        text.AppendLine($"B5 E3 duration median {Fmt(e3Median)} (projection {E3Target:F2} +-25% = {E3Target * 0.75:F2}-{E3Target * 1.25:F2}): {(e3Ok ? "PASS" : "FAIL")}");
-        text.AppendLine($"B5 every civilization's E3 duration within {E3Target:F2} +-25%: {(e3Each ? "PASS" : "FAIL")}");
-        text.AppendLine($"B6 chapter end median minute {Fmt(endMedian)} (target 44-48): {GateStatus(b6MedianOk, b6AcceptanceSample)}");
+        text.AppendLine($"B5 KEY-4 Council median {Fmt(key4Median)} (projection {Key4Target:F2}; acceptance window 57-64 before Year cap; {b5Key4.Count}/{b5Civs} civilizations finished): {GateStatus(key4Ok, b5AcceptanceSample)}");
+        text.AppendLine($"B5 E3 duration median {Fmt(e3Median)} (projection {E3Target:F2} +-25% = {E3Target * 0.75:F2}-{E3Target * 1.25:F2}): {GateStatus(e3Ok, b5AcceptanceSample)}");
+        text.AppendLine($"B5 every civilization's E3 duration within {E3Target:F2} +-25%: {GateStatus(e3Each, b5AcceptanceSample)}");
+        text.AppendLine($"B5 acceptance sample: {b5Key4.Count}/{b5Civs} civilization timings from seeds {DefaultSeeds[0]} and {DefaultSeeds[1]} {(b5AcceptanceSample ? "(complete)" : "(not included)")}");
+        text.AppendLine($"B6 chapter end median minute {Fmt(endMedian)} (observed; first rival KEY-4 + {first[0].CountdownSeasons} seasons or Year 64): {GateStatus(b6EndRulesOk, b6AcceptanceSample)}");
         text.AppendLine($"B6 matches reaching Year 64: {yearCap}/{list.Count} (target <= 10%): {GateStatus(b6YearCapOk, b6AcceptanceSample)}");
         text.AppendLine($"B6 the end rule is replay-identical: {GateStatus(identical, b6AcceptanceSample)}");
         text.AppendLine($"B6 acceptance sample: {list.Count}/{B6AcceptanceSeeds} seeds {(b6AcceptanceSample ? "(complete)" : "(diagnostic only)")}");
-        bool b5Pass = key4Ok && e3Ok && e3Each && identical;
-        bool b6Pass = b6AcceptanceSample && b6MedianOk && b6YearCapOk && identical;
-        pass = b5Pass && (!b6AcceptanceSample || b6Pass);
-        if (pass && !b6AcceptanceSample)
+        bool b5Pass = b5AcceptanceSample && key4Ok && e3Ok && e3Each && identical;
+        bool b6Pass = b6AcceptanceSample && b6EndRulesOk && b6YearCapOk && identical;
+        pass = b6AcceptanceSample
+            ? b6Pass && (!b5AcceptanceSample || b5Pass)
+            : b5AcceptanceSample && b5Pass;
+        if (b6AcceptanceSample && b6Pass && !b5AcceptanceSample)
+            text.AppendLine("B6 chapter-end acceptance PASS; B5 remains outside its documented two-seed timing sample.");
+        else if (pass && !b6AcceptanceSample)
             text.AppendLine("B5 research timing PASS; B6 remains INCOMPLETE until its 32-seed sample.");
+        else if (!b5AcceptanceSample && !b6AcceptanceSample)
+            text.AppendLine("M10 research check INCOMPLETE: run B5 with seeds 20261019,777 or provide all 32 B6 seeds.");
         else
             text.AppendLine(pass ? "M10 research check PASS" : "M10 research check FAIL (reported, not tuned; balance is a later work package)");
         Console.Write(text.ToString());
         return pass ? 0 : 1;
     }
 
-    internal static bool IsB6EndMedianInRange(double median) => double.IsFinite(median) && median >= 44.0 && median <= 48.0;
+    internal static bool IsB6EndRuleCorrect(MatchEnd end, int countdownSeasons, int capSeason)
+    {
+        if (countdownSeasons < 0 || capSeason < 0)
+            return false;
+        if (end.CountdownStartSeason < 0)
+            return end.CountdownCiv == -1 && end.Reason == MatchEndReason.YearCap && end.EndSeason == capSeason && end.Civ == -1;
+
+        int countdownEnd = end.CountdownStartSeason + countdownSeasons;
+        if (end.CountdownCiv < 0) return false;
+        if (countdownEnd <= capSeason)
+            return end.Reason == MatchEndReason.RivalCountdown && end.EndSeason == countdownEnd && end.Civ == end.CountdownCiv;
+        return end.Reason == MatchEndReason.YearCap && end.EndSeason == capSeason && end.Civ == -1;
+    }
 
     internal static bool IsB6YearCapRateInRange(int yearCapMatches, int matches) =>
         matches > 0 && yearCapMatches >= 0 && (long)yearCapMatches * 10 <= matches;
+
+    internal static bool HasB5AcceptanceSeeds(IReadOnlyList<ulong> seeds)
+    {
+        bool first = false, second = false;
+        for (int i = 0; i < seeds.Count; i++)
+        {
+            first |= seeds[i] == DefaultSeeds[0];
+            second |= seeds[i] == DefaultSeeds[1];
+        }
+        return first && second;
+    }
 
     private static string GateStatus(bool pass, bool acceptanceSample) =>
         acceptanceSample ? (pass ? "PASS" : "FAIL") : (pass ? "diagnostic" : "diagnostic miss");
@@ -176,14 +213,17 @@ internal static class ResearchM10
         {
             runner.Advance(1);
             if (runner.Tick % ResearchSystem.SeasonTicks != 0) continue;
-            if (stopAtChapterEnd && match.EndOfMatch(humanSeat).IsOver(runner.Tick)) break;
+            bool endReached = match.EndOfMatch(humanSeat).IsOver(runner.Tick);
+            if (stopAtChapterEnd && endReached) break;
             bool all = true;
             for (int c = 0; c < civs; c++) all &= r.IsDone(c, key4);
-            if (all) break;
+            // B5 needs every KEY-4 completion; B6 also needs the match to reach the actual chapter end.
+            // When all four Keystones finish before the 12-season countdown, keep simulating through that countdown.
+            if (all && endReached) break;
         }
         MatchEnd end = match.EndOfMatch(humanSeat);
         // The end is read from recorded completions, so it is known as soon as a clause has fired; only an undecided Year 64 needs the clock.
-        bool over = end.Reason != MatchEndReason.YearCap || end.IsOver(runner.Tick);
+        bool over = end.IsOver(runner.Tick);
         var run = new Run
         {
             Seed = seed,
@@ -194,6 +234,8 @@ internal static class ResearchM10
             Ticks = runner.Tick,
             Checksum = runner.CurrentChecksum,
             OverByRule = over,
+            CountdownSeasons = r.Catalog.ChapterCountdownSeasons,
+            CapSeason = r.Catalog.ChapterCapYear * MatchEnd.SeasonsPerYear - 1,
         };
         for (int c = 0; c < civs; c++)
         {

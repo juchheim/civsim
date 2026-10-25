@@ -13,8 +13,8 @@ namespace CivSim.Tests;
 
 /// <summary>
 /// The forecast model against the live simulation (docs/MVP/14 §3.2): a real 40-minute match of four Council
-/// civilizations; the forecast starts from each civilization's captured state at minute 0 and minute 10 and is fed the
-/// order in which the civilization really completed its projects. KEY-1, KEY-2 and KEY-3 must land within 25% of the live
+/// civilizations; each forecast starts from the civilization's captured state at minute 0 or minute 10, replays its
+/// actual completion order, and rolls out to the 64-minute Bronze chapter horizon. KEY-1, KEY-2 and KEY-3 must land within 25% of the live
 /// times, and the median error within 12%.
 /// </summary>
 public class ForecastFidelityTests
@@ -56,7 +56,7 @@ public class ForecastFidelityTests
         foreach (Start s in starts)
         {
             var forecast = new ResearchForecast(fc);
-            forecast.Prepare(s.State, 160);
+            forecast.Prepare(s.State, 64 * 4);
             int[] order = ForecastTestKit.CompletionOrder(match.Research, s.Civ, s.Tick);
             // A Council civilization pulls a ready keystone into Primary at once; the forecast plays that rule too.
             ForecastResult r = forecast.Run(order, promoteKeystone: true);
@@ -66,7 +66,7 @@ public class ForecastFidelityTests
             {
                 double live = ForecastTestKit.KeyMinute(match.Research, s.Civ, k);
                 if (double.IsNaN(live) || live * ForecastTestKit.TicksPerMinute <= s.Tick) continue;
-                Assert.True(keys[k - 1] >= 0, $"civ {s.Civ} from minute {s.Minute}: KEY-{k} not forecast within 40 minutes (live {live:0.0})");
+                Assert.True(keys[k - 1] >= 0, $"civ {s.Civ} from minute {s.Minute}: KEY-{k} not forecast within 64 minutes (live {live:0.0})");
                 double predicted = ForecastTestKit.StepMinute(keys[k - 1], s.Tick);
                 double error = Math.Abs(predicted - live) / live;
                 errors.Add(error);

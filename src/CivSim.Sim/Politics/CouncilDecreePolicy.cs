@@ -58,8 +58,7 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
 
         // 2. Tin by compact.
         int compactCost = p.DecreeCost(civ, DecreeKind.Compact);
-        if (compactCost <= mandate && p.Season % 4 == 0 && r.IsDone(civ, "MET-05") && !eco.CivHasMetalAccess(civ, MetalAccessKind.Tin) &&
-            !eco.CivHasOreSource(civ, DepositKind.Tin) && !p.BuysTin(civ))
+        if (compactCost <= mandate && p.Season % 4 == 0 && ShouldSeekTinCompact(r, eco, p, civ))
         {
             int seller = p.TinSellerFor(civ);
             if (seller != int.MinValue)
@@ -113,4 +112,14 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
             if (tile >= 0) into.Add(new DecreeRequest(DecreeKind.Expedition, tile, 0));
         }
     }
+
+    /// <summary>
+    /// MET-05 is gated on having Tin, so the Council must seek a tin compact after MET-03 unlocks the Tin Bronze route,
+    /// before waiting for MET-05 itself would create a circular dependency.
+    /// </summary>
+    internal static bool ShouldSeekTinCompact(ResearchViewForDecrees research, LivingEconomyModel economy, PoliticsSystem politics, int civ)
+        => research.IsDone(civ, "MET-03") &&
+           !economy.CivHasMetalAccess(civ, MetalAccessKind.Tin) &&
+           !economy.CivHasOreSource(civ, DepositKind.Tin) &&
+           !politics.BuysTin(civ);
 }

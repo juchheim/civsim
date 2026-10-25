@@ -52,14 +52,17 @@ public sealed class BeliefBronzeEvidenceTests
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = 1, Id = 42, Good = TradeGood.Tin,
-            Cargo = Fix64.FromInt(12), CompactId = 9,
+            Cargo = Fix64.FromInt(12), CompactId = 9, ArriveSeason = 8,
         };
+        caravan.Members.Add(1001);
+        caravan.Members.Add(1002);
 
         Assert.False(BeliefBuilder.RecordVisibleCaravan(rival, caravan, tile: 7, season: 3, visible: false));
         Assert.Empty(rival.CaravansSeen);
         Assert.False(rival.TinAccessSeen);
 
-        Assert.True(BeliefBuilder.RecordVisibleCaravan(rival, caravan, tile: 7, season: 3, visible: true));
+        Assert.True(BeliefBuilder.RecordVisibleCaravan(rival, caravan, tile: 7, season: 3, visible: true,
+            cargoUnitValue: Fix64.FromInt(40)));
         BeliefCaravan seen = Assert.Single(rival.CaravansSeen);
         Assert.Equal(42, seen.Id);
         Assert.Equal(7, seen.Tile);
@@ -67,6 +70,9 @@ public sealed class BeliefBronzeEvidenceTests
         Assert.Equal(TradeGood.Tin, seen.Good);
         Assert.Equal(Fix64.FromInt(12), seen.Cargo);
         Assert.Equal(3, seen.LastSeenSeason);
+        Assert.Equal(8, seen.ArrivalSeason);
+        Assert.Equal(2, seen.CrewEstimate);
+        Assert.Equal(Fix64.FromInt(480), seen.CargoBarterValue);
         Assert.True(rival.TinAccessSeen);
     }
 

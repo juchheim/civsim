@@ -25,8 +25,9 @@ dotnet run --project src/CivSim.Harness -c Release -- research --pack civsim.pac
 `bronze-v1.txt` is the fixed-seed, chapter-end replay canary for B22. The explicit `--check-bronze-golden` and
 `--write-bronze-golden` options each run seed 20261019 twice independently from scratch through `ResearchM10`'s
 chapter path, stopping on the exact tick the chapter end rule fires, then compare/store the chapter ticks, end reason
-and checksum at that point. Other research options cannot be combined with either Bronze golden option. This is a single-seed infrastructure check; it does
-not complete B22's 1,000-replay corpus or its macOS/Windows comparison.
+and checksum at that point. CI checks it on **macOS (arm64) and Windows (x64)**. Other research options cannot be combined
+with either Bronze golden option. This is a single-seed infrastructure check; it does not complete B22's 1,000-replay
+corpus.
 
 `politics-v1.txt` records seed, ticks, final checksum and digest of a 24-minute match of four Balanced civilizations on
 the Council (`civsim-harness politics --minutes 24`): territory, first contact, gifts and barter on top of the economy and

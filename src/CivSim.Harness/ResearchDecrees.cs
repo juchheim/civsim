@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CivSim.Sim.Content;
@@ -21,6 +22,17 @@ namespace CivSim.Harness;
 internal static class ResearchDecrees
 {
     private static readonly ulong[] DefaultSeeds = { 20261019UL, 777UL };
+    // B21 acceptance uses a 24-match sample with deterministic consecutive seeds. The existing two-seed
+    // report remains a quick diagnostic; 64 minutes allows the Council time to establish Tin Folk compacts.
+    internal const int B21AcceptanceMatches = 24;
+    private static readonly ulong[] B21Seeds = MakeB21Seeds();
+
+    private static ulong[] MakeB21Seeds()
+    {
+        var seeds = new ulong[B21AcceptanceMatches];
+        for (int i = 0; i < seeds.Length; i++) seeds[i] = 20261019UL + (ulong)i;
+        return seeds;
+    }
 
     private sealed class CivTrace
     {
@@ -44,9 +56,9 @@ internal static class ResearchDecrees
         public string Log = "";
     }
 
-    public static int Execute(ContentPack pack, IReadOnlyList<ulong>? seeds, int minutes)
+    public static int Execute(ContentPack pack, IReadOnlyList<ulong>? seeds, int minutes, bool acceptance = false)
     {
-        IReadOnlyList<ulong> list = seeds is { Count: > 0 } ? seeds : DefaultSeeds;
+        IReadOnlyList<ulong> list = seeds is { Count: > 0 } ? seeds : acceptance ? B21Seeds : DefaultSeeds;
         var results = new Result[list.Count];
         Parallel.For(0, list.Count, i => results[i] = Play(list[i], pack, minutes));
         var text = new StringBuilder();
@@ -86,10 +98,20 @@ internal static class ResearchDecrees
         text.AppendLine($"T16 E3 foundings by Decree: median share {P(Median(share))} over {share.Count} civs (historical target 25-50%; review with the longer Mandate window)");
         text.AppendLine($"T20 civs with tin by KEY-4: {tin}/{civs} (historical target >= 50%); with some bronze (tin or arsenic): {bronze}/{civs} (>= 90%; rebaseline at current cadence)");
         int folk = 0; foreach (Result r in results) folk += r.TinFolk;
-        text.AppendLine($"T26 Tin Folk per map: {string.Join(", ", Array.ConvertAll(results, r => r.TinFolk))} (target 3-6); matches with a Tin Folk compact {folkMatches}/{results.Length} (target >= 50%)");
+        bool tinFolkCountPass = results.All(r => r.TinFolk is >= 3 and <= 6);
+        bool folkCompactPass = folkMatches * 2 >= results.Length;
+        bool fullSample = acceptance && list.Count >= B21AcceptanceMatches && minutes >= 64;
+        string gateStatus = acceptance
+            ? $"{(fullSample ? tinFolkCountPass ? "PASS" : "FAIL" : "DIAGNOSTIC ONLY")} (sample {list.Count}/{B21AcceptanceMatches} matches, horizon {minutes}/64 min)"
+            : "report only";
+        string compactStatus = acceptance
+            ? $"{(fullSample ? folkCompactPass ? "PASS" : "FAIL" : "DIAGNOSTIC ONLY")} (sample {list.Count}/{B21AcceptanceMatches} matches, horizon {minutes}/64 min)"
+            : "report only";
+        text.AppendLine($"T26 Tin Folk per map: {string.Join(", ", Array.ConvertAll(results, r => r.TinFolk))} (target 3-6); {gateStatus}");
+        text.AppendLine($"T26 matches with a Tin Folk compact {folkMatches}/{results.Length} (target >= 50%); {compactStatus}");
         text.AppendLine($"T27 Mandate earned per E3 median {F(Median(earned))} (historical 7-9); Decrees median {F(Median(decrees))} (historical 5-8); current budget needs review for a ~20-minute E3");
         Console.Write(text.ToString());
-        return 0;
+        return acceptance && fullSample && (!tinFolkCountPass || !folkCompactPass) ? 1 : 0;
     }
 
     private static Result Play(ulong seed, ContentPack pack, int minutes)

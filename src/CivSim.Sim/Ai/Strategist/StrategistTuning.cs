@@ -25,6 +25,8 @@ public static class StrategistTuning
     public static readonly Fix64 ProsperWeight = Fix64.FromRatio(80, 100);
     public static readonly Fix64 DefendWeight = Fix64.FromRatio(130, 100);
     public static readonly Fix64 ConquerBase = Fix64.FromRatio(45, 100);
+    /// <summary>Margin by which an already feasible conquest outranks SecureTin (plan ranking only; tactical gates remain).</summary>
+    public static readonly Fix64 FeasibleConquestPriorityMargin = Fix64.FromRatio(15, 100);
     /// <summary>Conquer X = (base + war value in Legacy ÷ 25, at most +0.8, + window) × archetype aggression.</summary>
     public const int ConquerValueScale = 25;
     public static readonly Fix64 ConquerValueCap = Fix64.FromRatio(80, 100);

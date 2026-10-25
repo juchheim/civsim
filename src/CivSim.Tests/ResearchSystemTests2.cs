@@ -5,6 +5,7 @@ using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
+using CivSim.Harness;
 
 namespace CivSim.Tests;
 
@@ -254,6 +255,19 @@ public class ResearchCouncilTests
 
 public class ResearchCommandTests
 {
+    [Fact]
+    public void T19_forest_observations_are_captured_at_KEY4_with_matching_population_and_tech_state()
+    {
+        Assert.False(ResearchMetal.ReachedKey4(179, 45));
+        Assert.True(ResearchMetal.ReachedKey4(180, 45));
+        Assert.False(ResearchMetal.ReachedKey4(180, double.NaN));
+
+        var sample = ResearchMetal.ForestObservation(92, freeFolk: false, coppiced: true, start: 390, now: 260);
+        Assert.Equal((92, true, 390d, 260d), sample);
+        Assert.Null(ResearchMetal.ForestObservation(92, freeFolk: true, coppiced: true, start: 390, now: 260));
+        Assert.Null(ResearchMetal.ForestObservation(0, freeFolk: false, coppiced: false, start: 390, now: 260));
+    }
+
     [Fact]
     public void Slot_commands_swap_replace_clear_and_reject_the_unavailable()
     {

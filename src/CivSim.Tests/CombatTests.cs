@@ -139,8 +139,11 @@ public class CombatTests
     {
         var thorn = Defenses.None with { ThornBarrier = true };
         var palisade = Defenses.None with { Palisade = true, Watchers = true };
+        var hillfort = Defenses.None with { Hillfort = true };
         Assert.True(CombatTables.CaptureSuccessPercent(Fix64.Parse("1.5"), thorn, 600, 3) >= Fix64.FromInt(60));
         Assert.True(CombatTables.CaptureSuccessPercent(Fix64.Parse("1.5"), palisade, 600, 3) >= Fix64.FromInt(60));
+        // T22/B16 explicitly includes the stronger hillfort defense as well as palisades.
+        Assert.True(CombatTables.CaptureSuccessPercent(Fix64.Parse("1.5"), hillfort, 600, 3) >= Fix64.FromInt(60));
         // An equal army does not: capture is the strong's privilege (13 §8.4).
         Assert.True(CombatTables.CaptureSuccessPercent(Fix64.One, palisade, 600, 3) < Fix64.FromInt(30));
         Assert.True(CombatTables.CaptureSuccessPercent(Fix64.Parse("3.0"), palisade, 200, 3) >= Fix64.FromInt(95));

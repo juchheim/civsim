@@ -352,10 +352,10 @@ public sealed class LivingEconomySource : IResearchSource
             int live = 0, low = 0;
             foreach (int index in _settlementIndices[civ])
             {
-                CivicReadout r = _economy.Civic(index);
-                if (!r.CohesionLive) continue;
+                (bool isLive, int points) = _economy.CohesionStatus(index);
+                if (!isLive) continue;
                 live++;
-                if (r.Cohesion < 40) low++;
+                if (points < 40) low++;
             }
             if (live > 0) cohesion = Fix64.FromInt(low) / live;
         }

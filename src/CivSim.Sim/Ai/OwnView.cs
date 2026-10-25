@@ -22,7 +22,7 @@ public sealed class OwnSettlement
 public sealed class PairView
 {
     public int Civ;
-    public bool Aware, Contacted, AtWar, Allied, InTruce, TinEmbargoed;
+    public bool Aware, Contacted, AtWar, Allied, InTruce, NonAggressionPact, TinEmbargoed;
     public int Relations, Reputation;
     public int LastGiftSeason, LastBarterSeason, LastRaidOnThemSeason, LastRaidOnUsSeason;
 }
@@ -168,6 +168,7 @@ internal static class OwnViewBuilder
             p.AtWar = d.AtWar(civ, o);
             p.Allied = d.Allied(civ, o);
             p.InTruce = d.InTruce(civ, o, view.Season);
+            p.NonAggressionPact = politics.HasPact(civ, o);
             p.TinEmbargoed = politics.Embargoes(civ, o, TradeGood.Tin);
             p.Relations = d.Relations(civ, o);
             p.Reputation = d.Reputation(o);

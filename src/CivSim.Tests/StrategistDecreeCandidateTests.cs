@@ -87,6 +87,33 @@ public sealed class StrategistDecreeCandidateTests
     }
 
     [Fact]
+    public void Tin_folk_compact_candidates_keep_the_longer_known_route_evidence_window()
+    {
+        var rig = new StrategistRig(Seed, World.Value,
+            new[] { CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced), CivControl.Council, CivControl.Council, CivControl.Council });
+        rig.Grant(0, "KEY-3", "MET-05");
+        Belief belief = rig.Match.Ai!.SeatOf(0)!.Belief;
+        belief.Season = 12; // First season of the year, so compact proposals are eligible.
+        belief.TinFolkSeen.Clear();
+        belief.TinFolkSeen.Add(new BeliefTinFolk { Settlement = 0, Tile = 0, LastSeenSeason = 9 });
+        var candidates = new List<DecreeRequest>();
+
+        StrategistDecreePolicy.AddBeliefKnownTinCompactAlternatives(rig.Politics, 0, belief, candidates);
+
+        int folkParty = DecreeArgs.FolkParty(0);
+        int tinBuy = DecreeArgs.PackCompact(TradeGood.Tin, sell: false);
+        Assert.Contains(candidates, r => r.Kind == DecreeKind.Compact && r.Target == folkParty && r.Extra == tinBuy);
+        Assert.True(StrategistDecreePolicy.BeliefAllowsCandidate(belief, 0,
+            new DecreeRequest(DecreeKind.Compact, folkParty, tinBuy)));
+
+        belief.Season = 16;
+        belief.TinFolkSeen[0].LastSeenSeason = 3;
+        candidates.Clear();
+        StrategistDecreePolicy.AddBeliefKnownTinCompactAlternatives(rig.Politics, 0, belief, candidates);
+        Assert.DoesNotContain(candidates, r => r.Kind == DecreeKind.Compact && r.Target == folkParty && r.Extra == tinBuy);
+    }
+
+    [Fact]
     public void Found_candidates_are_filtered_by_recent_believed_rival_settlements()
     {
         var belief = new Belief(0, 4, TestPack.Catalog.Count,

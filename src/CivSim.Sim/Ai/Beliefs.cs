@@ -46,9 +46,9 @@ public sealed class IncomingParty
 /// <summary>A rival caravan load last observed on a tile in sight.</summary>
 public sealed class BeliefCaravan
 {
-    public int Civ, Id, Tile, LastSeenSeason, CompactId = -1;
+    public int Civ, Id, Tile, LastSeenSeason, CompactId = -1, ArrivalSeason, CrewEstimate;
     public TradeGood Good;
-    public Fix64 Cargo;
+    public Fix64 Cargo, CargoBarterValue;
 }
 
 /// <summary>A Tin Folk village identity and last sighting; it carries no hidden population or defense state.</summary>
@@ -227,7 +227,7 @@ public sealed class Belief
             h.Add(r.LastGiftFromSeason); h.Add(r.PartiesAwaySeen);
             h.Add(r.TinAccessSeen); h.Add(r.CaravansSeen.Count);
             foreach (BeliefCaravan c in r.CaravansSeen)
-            { h.Add(c.Civ); h.Add(c.Id); h.Add(c.Tile); h.Add(c.LastSeenSeason); h.Add(c.CompactId); h.Add((int)c.Good); h.Add(c.Cargo); }
+            { h.Add(c.Civ); h.Add(c.Id); h.Add(c.Tile); h.Add(c.LastSeenSeason); h.Add(c.CompactId); h.Add((int)c.Good); h.Add(c.Cargo); h.Add(c.ArrivalSeason); h.Add(c.CrewEstimate); h.Add(c.CargoBarterValue); }
             foreach (Fix64 p in r.ArchetypePosterior) h.Add(p);
             foreach (bool b in r.ProjectBelieved) h.Add(b);
             h.Add(r.Settlements.Count);
@@ -264,7 +264,7 @@ public sealed class Belief
             w.Write(r.LastGiftFromSeason); w.Write(r.PartiesAwaySeen);
             w.Write(r.TinAccessSeen); w.Write(r.CaravansSeen.Count);
             foreach (BeliefCaravan c in r.CaravansSeen)
-            { w.Write(c.Civ); w.Write(c.Id); w.Write(c.Tile); w.Write(c.LastSeenSeason); w.Write(c.CompactId); w.Write((byte)c.Good); w.Write(c.Cargo.Raw); }
+            { w.Write(c.Civ); w.Write(c.Id); w.Write(c.Tile); w.Write(c.LastSeenSeason); w.Write(c.CompactId); w.Write((byte)c.Good); w.Write(c.Cargo.Raw); w.Write(c.ArrivalSeason); w.Write(c.CrewEstimate); w.Write(c.CargoBarterValue.Raw); }
             w.Write(r.ArchetypePosterior.Length);
             foreach (Fix64 p in r.ArchetypePosterior) w.Write(p.Raw);
             w.Write(r.ProjectBelieved.Length);
@@ -308,7 +308,11 @@ public sealed class Belief
             r.TinAccessSeen = r0.ReadBoolean(); r.CaravansSeen.Clear();
             int caravans = r0.ReadInt32();
             for (int i = 0; i < caravans; i++) r.CaravansSeen.Add(new BeliefCaravan
-            { Civ = r0.ReadInt32(), Id = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(), CompactId = r0.ReadInt32(), Good = (TradeGood)r0.ReadByte(), Cargo = Fix64.FromRaw(r0.ReadInt64()) });
+            {
+                Civ = r0.ReadInt32(), Id = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(),
+                CompactId = r0.ReadInt32(), Good = (TradeGood)r0.ReadByte(), Cargo = Fix64.FromRaw(r0.ReadInt64()),
+                ArrivalSeason = r0.ReadInt32(), CrewEstimate = r0.ReadInt32(), CargoBarterValue = Fix64.FromRaw(r0.ReadInt64()),
+            });
             int posterior = r0.ReadInt32();
             r.ArchetypePosterior = new Fix64[posterior];
             for (int i = 0; i < posterior; i++) r.ArchetypePosterior[i] = Fix64.FromRaw(r0.ReadInt64());

@@ -129,6 +129,41 @@ public sealed class WorldGenerationTests
             string.Join("\n", WorldAcceptance.Validate(world).Failures));
     }
 
+    [Theory]
+    [InlineData(3696UL)]
+    [InlineData(3864UL)]
+    public void Far_tin_placers_stay_inside_the_m2_acceptance_envelope(ulong seed)
+    {
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        WorldTile[] tiles = world.Tiles.ToArray();
+
+        for (int pair = 0; pair < 2; pair++)
+        {
+            int first = world.Starts[pair * 2].Tile;
+            int second = world.Starts[pair * 2 + 1].Tile;
+            byte continent = world.TileAt(first).Continent;
+            int[] toFirst = HexGrid.WalkingCostsFrom(tiles, world.Width, world.Height, first, 400);
+            int[] toSecond = HexGrid.WalkingCostsFrom(tiles, world.Width, world.Height, second, 400);
+            int[] farFirst = Enumerable.Range(0, world.TileCount)
+                .Where(i => tiles[i].Continent == continent && tiles[i].Deposit == DepositKind.Tin &&
+                            tiles[i].DepositAmount == 1 && toFirst[i] < toSecond[i])
+                .ToArray();
+            int[] farSecond = Enumerable.Range(0, world.TileCount)
+                .Where(i => tiles[i].Continent == continent && tiles[i].Deposit == DepositKind.Tin &&
+                            tiles[i].DepositAmount == 1 && toSecond[i] <= toFirst[i])
+                .ToArray();
+
+            Assert.Single(farFirst);
+            Assert.Single(farSecond);
+            Assert.InRange(toFirst[farFirst[0]], 180, 360);
+            Assert.InRange(toSecond[farSecond[0]], 180, 360);
+            Assert.InRange(Math.Abs(toFirst[farFirst[0]] - toSecond[farSecond[0]]), 0, 50);
+        }
+
+        WorldAcceptanceResult acceptance = WorldAcceptance.Validate(world);
+        Assert.True(acceptance.Passed, string.Join("\n", acceptance.Failures));
+    }
+
     [Fact]
     public void Seed_42_matches_world_generation_fingerprint_golden()
     {

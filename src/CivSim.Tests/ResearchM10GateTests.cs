@@ -1,17 +1,33 @@
 using CivSim.Harness;
+using CivSim.Sim.Research;
 
 namespace CivSim.Tests;
 
 public sealed class ResearchM10GateTests
 {
+    [Fact]
+    public void B5_requires_its_documented_seeds_even_when_running_the_broader_B6_sample()
+    {
+        Assert.False(ResearchM10.HasB5AcceptanceSeeds(new ulong[] { 20261019UL }));
+        Assert.True(ResearchM10.HasB5AcceptanceSeeds(new ulong[] { 20261019UL, 777UL }));
+        Assert.True(ResearchM10.HasB5AcceptanceSeeds(new ulong[] { 20261019UL, 20261020UL, 777UL }));
+    }
+
     [Theory]
-    [InlineData(44.0, true)]
-    [InlineData(48.0, true)]
-    [InlineData(43.99, false)]
-    [InlineData(48.01, false)]
-    [InlineData(double.NaN, false)]
-    public void B6_end_median_uses_inclusive_44_to_48_minute_window(double median, bool expected) =>
-        Assert.Equal(expected, ResearchM10.IsB6EndMedianInRange(median));
+    [InlineData(MatchEndReason.RivalCountdown, 112, 100, 4, 4, 12, 255, true)]
+    [InlineData(MatchEndReason.YearCap, 255, -1, -1, -1, 12, 255, true)]
+    [InlineData(MatchEndReason.YearCap, 255, 250, -1, 2, 12, 255, true)]
+    [InlineData(MatchEndReason.YearCap, 255, 100, -1, 4, 12, 255, false)]
+    [InlineData(MatchEndReason.RivalCountdown, 111, 100, 4, 4, 12, 255, false)]
+    [InlineData(MatchEndReason.RivalCountdown, 112, 100, 3, 4, 12, 255, false)]
+    [InlineData(MatchEndReason.YearCap, 255, -1, -1, 2, 12, 255, false)]
+    public void B6_end_reason_and_season_follow_countdown_or_cap(
+        MatchEndReason reason, int endSeason, int countdownStartSeason, int civ, int countdownCiv,
+        int countdownSeasons, int capSeason, bool expected)
+    {
+        var end = new MatchEnd(reason, endSeason, civ, countdownStartSeason, countdownCiv);
+        Assert.Equal(expected, ResearchM10.IsB6EndRuleCorrect(end, countdownSeasons, capSeason));
+    }
 
     [Theory]
     [InlineData(1, 32, true)]

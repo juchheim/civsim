@@ -537,12 +537,21 @@ internal static class Tournament
     }
 
     /// <summary>Runs a match while collecting only the team Legacy scores consumed by A6.</summary>
-    public static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes)
+    public static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
+        Action<MatchModel>? configure = null, Action<MatchModel>? completed = null)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
+        return PlayForLegacy(pack, seed, world, seats, archetypes, minutes, configure, completed);
+    }
+
+    /// <summary>Runs a legacy-only match on a caller-provided generated world.</summary>
+    internal static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, GeneratedWorld world, Player[] seats,
+        EconomyArchetype[] archetypes, int minutes, Action<MatchModel>? configure = null, Action<MatchModel>? completed = null)
+    {
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
+        configure?.Invoke(match);
         var runner = new SimRunner(match, int.MaxValue);
         long ticks = minutes * 600L;
         int seasons = 0;
@@ -560,6 +569,7 @@ internal static class Tournament
             legacy[c] = standing.Dominion.ToDoubleForDisplay() + standing.Mastery.ToDoubleForDisplay() +
                 standing.Firsts.ToDoubleForDisplay();
         }
+        completed?.Invoke(match);
         double teamA = 0, teamB = 0;
         foreach (int c in TeamASeats) teamA += legacy[c];
         foreach (int c in TeamBSeats) teamB += legacy[c];

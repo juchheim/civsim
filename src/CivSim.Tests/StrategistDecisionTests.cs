@@ -202,6 +202,30 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Does_not_send_a_four_or_five_person_party_against_a_seen_palisade_and_watchers()
+    {
+        // B20 trace shape: a small home garrison can spare only four or five fighters, while the freshly seen target
+        // has 22 defenders plus a palisade and watchers. This is a correctly impossible raid; increasing the party
+        // by weakening the home reserve or relaxing the success margin would turn this into an unsafe launch.
+        var scene = new Scene();
+        OwnSettlement origin = scene.Own.Settlements[0];
+        origin.Fighters = 9;
+        origin.AttackingStrength = Fix64.FromRatio(144, 10);
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 22, palisade: true, watchers: true);
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("war", StringComparison.Ordinal));
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("assault", StringComparison.Ordinal));
+        AiDecision rejected = Assert.Single(scene.Notes("RaidRejected"));
+        Assert.True(rejected.Score < Fix64.FromRatio(5, 100), rejected.Reason);
+        Assert.Contains("palisade seen", rejected.Reason);
+        Assert.Contains("watchers seen", rejected.Reason);
+        Assert.Contains("with 5", rejected.Reason);
+    }
+
+    [Fact]
     public void A_blind_Chieftain_estimates_a_villages_defenders_from_its_head_count()
     {
         // Seen only as a head count (no fighters, no strength), a village of 18 is modeled with six fighters at 0.6 of our
@@ -308,6 +332,46 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Strategist_intercepts_a_fresh_visible_caravan_using_its_legal_caravan_order()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 22, palisade: true, watchers: true);
+        scene.Belief.Rivals[1].CaravansSeen.Add(new BeliefCaravan
+        {
+            Civ = 1, Id = 73, Tile = T(42, 40), LastSeenSeason = scene.Season, ArrivalSeason = scene.Season + 2,
+            CrewEstimate = 2, Good = TradeGood.Tin, Cargo = Fix64.FromInt(8), CargoBarterValue = Fix64.FromInt(320),
+        });
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.Contains(act.Orders, o => o.StartsWith("raid-caravan 73 ", StringComparison.Ordinal));
+        Assert.DoesNotContain(act.Orders, o => o.StartsWith("raid 5 ", StringComparison.Ordinal));
+        AiDecision launched = Assert.Single(scene.Notes("CaravanRaid"));
+        Assert.True(launched.Score >= Fix64.FromRatio(35, 100), launched.Reason);
+        Assert.Contains("intercept", launched.Reason);
+    }
+
+    [Fact]
+    public void Strategist_does_not_intercept_a_stale_caravan_or_one_outside_its_arrival_window()
+    {
+        var stale = new Scene();
+        stale.Belief.Rivals[1].CaravansSeen.Add(new BeliefCaravan
+        {
+            Civ = 1, Id = 74, Tile = T(42, 40), LastSeenSeason = stale.Season - 1, ArrivalSeason = stale.Season + 2,
+            CrewEstimate = 2, Good = TradeGood.Tin, CargoBarterValue = Fix64.FromInt(320),
+        });
+        Assert.DoesNotContain(Decide(stale).Item2.Orders, o => o.StartsWith("raid-caravan", StringComparison.Ordinal));
+
+        var tooFar = new Scene();
+        tooFar.Belief.Rivals[1].CaravansSeen.Add(new BeliefCaravan
+        {
+            Civ = 1, Id = 75, Tile = T(52, 40), LastSeenSeason = tooFar.Season, ArrivalSeason = tooFar.Season + 1,
+            CrewEstimate = 2, Good = TradeGood.Tin, CargoBarterValue = Fix64.FromInt(320),
+        });
+        Assert.DoesNotContain(Decide(tooFar).Item2.Orders, o => o.StartsWith("raid-caravan", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Never_raids_without_Raiding_or_under_Fortify()
     {
         var scene = new Scene();
@@ -384,6 +448,28 @@ public class StrategistDecisionTests
                 Assert.True(urgency[3] > Fix64.FromRatio(3, 10), $"settler {urgency[3]}");
             }
         }
+    }
+
+    [Fact]
+    public void Feasible_conquest_outranks_secure_tin_without_changing_combat_safety_gates()
+    {
+        var scene = new Scene { Archetype = EconomyArchetype.Sage };
+        scene.Own.Era = 3;
+        scene.Done.Add("MET-03");
+        scene.Own.Settlements[0].Fighters = 40;
+        scene.Own.Settlements[0].Adults = 40;
+        scene.Own.Settlements[0].AttackingStrength = Fix64.FromRatio(108, 1);
+        scene.Own.Settlements[0].DefendingStrength = Fix64.FromInt(40);
+        scene.Own.Adults = 40;
+        scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+        scene.Site(1, settlement: 6, tile: T(52, 40), fighters: 6);
+
+        (Strategist mind, _) = Decide(scene);
+
+        Assert.Equal(GrandPlan.Conquer, mind.Plan);
+        Assert.Contains(scene.Notes("Plan"), note => note.Reason.Contains("secure tin 1.20") &&
+            note.Reason.Contains("conquer 1.35"));
+        Assert.Contains(scene.Notes("War"), note => note.Reason.Contains("value "));
     }
 
     [Fact]
