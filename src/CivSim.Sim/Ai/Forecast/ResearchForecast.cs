@@ -536,10 +536,12 @@ public sealed class ResearchForecast
             _insightDirty = true;                              // the next season brings new people
             GenerateKnowHow(commons);
             _bronze.EndSeason();
-            ForecastBronzeSeason bronzeSeason = _bronze.Snapshot(season + 1);
             if (trace is not null)
+            {
+                ForecastBronzeSeason bronzeSeason = _bronze.Snapshot(season + 1);
                 trace.Add(new ForecastSeason(season + 1, InsightAt(Math.Min(season + 1, _horizon), out _), _adults[Math.Min(season + 1, _horizon)],
                     _completed, _era, _mastery, _firsts, _utility, bronzeSeason));
+            }
             if (_slots[0] < 0 && _slots[1] < 0 && _slots[2] < 0) break; // nothing left that can be researched
         }
 

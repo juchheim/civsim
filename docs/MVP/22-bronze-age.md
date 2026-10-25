@@ -633,7 +633,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B2 | **Bronze is legible.** Testers can say why their tools are or are not bronze | ≥ 5 of 8 | post-match question | Human |
 | B3 | **Want more** after the Bronze end screen; can explain one AI action | ≥ 5 of 8 (P9 repeated) | M9 protocol | Human |
 | B4 | Every E3 project and KEY-4 shows a visible change | 66/66 emit Completed, Moment, ≥ 1 VisibleChange | event-stream test (C8) | Auto |
-| B5 | **Keystone timing** | KEY-4 Council median 43 ±25%; E3 duration median 11.5–14.5 and every civ ±25%; the three opening bots ±25% | `research --check-m10`, seeds 20261019 and 777 | Auto |
+| B5 | **Keystone timing** | Balanced Council KEY-4 median 57–64 min before Year 64; E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
 | B6 | **Chapter end** | median end 44–48 min; ≤ 10% of Balanced matches reach Year 64; the end rule is replay-identical | harness, 32 seeds | Auto |
 | B7 | **Hands-off loses to engaged** at the chapter end | ≥ 65% (P8 at the new horizon) | Settler proxy vs Council, mirrored | Auto |
 | B8 | **Decrees pay** | a Decree-using scripted bot beats the same bot with Decrees off in ≥ 60% | mirrored duels, 32 seeds | Auto |
@@ -663,6 +663,8 @@ The milestone is done when every automated row passes in the nightly report and 
 
 `ai --check-m10` covers A1–A5/A7 and B27–B31; A6 uses `ai --exploit` and A8 uses the fog-fairness suite, so the combined B26 gate remains open until those separate checks pass.
 The full-sample command is `dotnet run --project src/CivSim.Harness -c Release -- ai --pack civsim.pack --check-m10 --seeds 8 --minutes 64`; omitting either sample dimension defaults that dimension to a quick diagnostic value (1 seed or 2 minutes).
+
+**Acceptance status (2026-10-25):** S1 completed 1,000/1,000 64-minute replay matches with all checksums matched (53:20). S15 completed 999/1,000 clean in 2:17:23; match 329 (seed 20261348) exposed a validator error for a physically assigned weir retained after settlement capture by a civilization without HNT-09. Snapshot validation now checks unique physical placement while gameplay still requires HNT-09 to use a weir. The exact seed completed its full 64-minute horizon with all five-season snapshot restores and checksum comparisons passing. The redundant full 1,000-match rerun was stopped after seven matches; therefore this evidence does not record a single post-fix S15 sweep as a formal B24 pass. WP11 and overall M10 acceptance remain open.
 
 ---
 

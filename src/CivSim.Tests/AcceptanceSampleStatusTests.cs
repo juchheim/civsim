@@ -164,6 +164,41 @@ public sealed class AcceptanceSampleStatusTests
         Assert.True(replayExecuted);
     }
 
+    [Theory]
+    [InlineData(false, 1, 1)]
+    [InlineData(true, 33, 1)]
+    [InlineData(true, 1, 65)]
+    public void S1ProbeRejectsMissingS1OrInputsAboveBounds(bool s1, int matches, int minutes)
+    {
+        Assert.ThrowsAny<ArgumentException>(() => AcceptanceCommand.ValidateReplayProbe(s1, matches, minutes));
+    }
+
+    [Fact]
+    public void S1ProbeRunsReplayCallbackButRemainsDiagnostic()
+    {
+        bool replayExecuted = false;
+        using var output = new StringWriter();
+        TextWriter original = Console.Out;
+        Console.SetOut(output);
+        try
+        {
+            bool passed = AcceptanceCommand.RunReplayProbe(2, 64, () =>
+            {
+                replayExecuted = true;
+                return true;
+            });
+
+            Assert.True(passed);
+            Assert.True(replayExecuted);
+            Assert.Contains("S1 DIAGNOSTIC PROBE", output.ToString());
+            AcceptanceCommand.OverallStatus status = AcceptanceCommand.GetOverallStatus(
+                gatesPassed: true, hasDiagnosticS13: false, hasDiagnosticS1: true);
+            Assert.Equal(AcceptanceCommand.OverallStatus.Incomplete, status);
+            Assert.Equal(2, AcceptanceCommand.GetExitCode(status));
+        }
+        finally { Console.SetOut(original); }
+    }
+
     [Fact]
     public void ChapterReplayMustStopAtExactEndTick()
     {

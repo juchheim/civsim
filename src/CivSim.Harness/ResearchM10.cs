@@ -21,6 +21,7 @@ internal static class ResearchM10
 {
     private const double Key4Target = 61.25;
     private const double E3Target = 19.75;
+    private const int B6AcceptanceSeeds = 32;
     private static readonly ulong[] DefaultSeeds = { 20261019UL, 777UL };
 
     private sealed class Run
@@ -86,17 +87,34 @@ internal static class ResearchM10
         bool e3Ok = e3All.Count == civs && e3Median >= E3Target * 0.75 && e3Median <= E3Target * 1.25;
         bool e3Each = e3All.Count == civs && e3All.TrueForAll(x => x >= E3Target * 0.75 && x <= E3Target * 1.25);
         double endMedian = Median(ends);
+        bool b6MedianOk = IsB6EndMedianInRange(endMedian);
+        bool b6YearCapOk = IsB6YearCapRateInRange(yearCap, list.Count);
+        bool b6AcceptanceSample = list.Count >= B6AcceptanceSeeds;
         text.AppendLine($"B5 KEY-4 Council median {Fmt(key4Median)} (projection {Key4Target:F2}; acceptance window 57-64 before Year cap; {key4All.Count}/{civs} civilizations finished): {(key4Ok ? "PASS" : "FAIL")}");
         text.AppendLine($"B5 E3 duration median {Fmt(e3Median)} (projection {E3Target:F2} +-25% = {E3Target * 0.75:F2}-{E3Target * 1.25:F2}): {(e3Ok ? "PASS" : "FAIL")}");
         text.AppendLine($"B5 every civilization's E3 duration within {E3Target:F2} +-25%: {(e3Each ? "PASS" : "FAIL")}");
-        text.AppendLine($"B6 chapter end median minute {Fmt(endMedian)} over {list.Count} seed(s) (current projection is near Year 64; B6 itself is judged over 32 seeds)");
-        text.AppendLine($"B6 matches reaching Year 64: {yearCap}/{list.Count} (target <= 10%)");
-        text.AppendLine($"B6 the end rule is replay-identical: {(identical ? "PASS" : "FAIL")}");
-        pass = key4Ok && e3Ok && e3Each && identical;
-        text.AppendLine(pass ? "M10 research check PASS" : "M10 research check FAIL (reported, not tuned; balance is a later work package)");
+        text.AppendLine($"B6 chapter end median minute {Fmt(endMedian)} (target 44-48): {GateStatus(b6MedianOk, b6AcceptanceSample)}");
+        text.AppendLine($"B6 matches reaching Year 64: {yearCap}/{list.Count} (target <= 10%): {GateStatus(b6YearCapOk, b6AcceptanceSample)}");
+        text.AppendLine($"B6 the end rule is replay-identical: {GateStatus(identical, b6AcceptanceSample)}");
+        text.AppendLine($"B6 acceptance sample: {list.Count}/{B6AcceptanceSeeds} seeds {(b6AcceptanceSample ? "(complete)" : "(diagnostic only)")}");
+        bool b5Pass = key4Ok && e3Ok && e3Each && identical;
+        bool b6Pass = b6AcceptanceSample && b6MedianOk && b6YearCapOk && identical;
+        pass = b5Pass && (!b6AcceptanceSample || b6Pass);
+        if (pass && !b6AcceptanceSample)
+            text.AppendLine("B5 research timing PASS; B6 remains INCOMPLETE until its 32-seed sample.");
+        else
+            text.AppendLine(pass ? "M10 research check PASS" : "M10 research check FAIL (reported, not tuned; balance is a later work package)");
         Console.Write(text.ToString());
         return pass ? 0 : 1;
     }
+
+    internal static bool IsB6EndMedianInRange(double median) => double.IsFinite(median) && median >= 44.0 && median <= 48.0;
+
+    internal static bool IsB6YearCapRateInRange(int yearCapMatches, int matches) =>
+        matches > 0 && yearCapMatches >= 0 && (long)yearCapMatches * 10 <= matches;
+
+    private static string GateStatus(bool pass, bool acceptanceSample) =>
+        acceptanceSample ? (pass ? "PASS" : "FAIL") : (pass ? "diagnostic" : "diagnostic miss");
 
     /// <summary>Single-seed full chapter replay canary, separate from the multi-seed balance gate.</summary>
     public static int ExecuteGolden(ContentPack pack, string path, bool write)
@@ -145,7 +163,9 @@ internal static class ResearchM10
     private static Run Play(ulong seed, ContentPack pack, EconomyArchetype[] archetypes, int maxMinutes, int humanSeat, bool stopAtChapterEnd = false)
     {
         MatchModel match = MatchModel.Create(seed, pack, archetypes);
-        var runner = new SimRunner(match);
+        // This acceptance path compares the final checksum only; retaining the every-50-tick
+        // history adds one full-model hash per interval without contributing to its result.
+        var runner = new SimRunner(match, int.MaxValue);
         long limit = maxMinutes * 600L;
         ResearchSystem r = match.Research;
         int civs = r.CivCount;

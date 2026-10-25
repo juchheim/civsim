@@ -20,6 +20,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     private readonly StrategicIntent _intent;
     private readonly CouncilDecreePolicy _feasibility = new();
     private readonly List<DecreeRequest> _candidates = new();
+    private readonly List<DecreeForecast> _forecasts = new();
 
     public StrategistDecreePolicy(AiLog log, Belief belief, StrategicIntent intent)
     { _log = log; _belief = belief; _intent = intent; }
@@ -40,14 +41,22 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         AddBeliefKnownTinCompactAlternatives(politics, civ, _belief, _candidates);
         if (_candidates.Count == 0) return;
 
+        // Forecasting is pure for the duration of Propose: candidates are evaluated before any decree
+        // is resolved, and neither scoring nor logging mutates PoliticsSystem. Cache each result because
+        // the mandate-cap scan and final selection both need it, and the winner is logged a second time.
+        _forecasts.Clear();
+        foreach (DecreeRequest candidate in _candidates)
+            _forecasts.Add(DecreeForecaster.Forecast(politics, civ, candidate.Kind, candidate.Target, candidate.Extra, _belief));
+
         ResearchViewForDecrees mandate = politics.DecreeResearch;
         bool atMandateCap = mandate.Mandate(civ) >= mandate.MandateCap(civ);
         bool positivePaidAlternative = false;
         if (atMandateCap)
-            foreach (DecreeRequest candidate in _candidates)
+            for (int i = 0; i < _candidates.Count; i++)
             {
+                DecreeRequest candidate = _candidates[i];
                 if (politics.DecreeCost(civ, candidate.Kind) <= 0) continue;
-                DecreeForecast forecast = DecreeForecaster.Forecast(politics, civ, candidate.Kind, candidate.Target, candidate.Extra, _belief);
+                DecreeForecast forecast = _forecasts[i];
                 Fix64 gross = GrossBenefit(politics, civ, candidate, forecast) +
                     DefenseCorveeBonus(politics, candidate, forecast, _intent.DefenseUrgency) + SecureTinBonus(candidate);
                 if (CandidateNetEv(forecast, gross, Fix64.One) > Fix64.Zero) { positivePaidAlternative = true; break; }
@@ -58,7 +67,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         for (int i = 0; i < _candidates.Count; i++)
         {
             DecreeRequest candidate = _candidates[i];
-            DecreeForecast forecast = DecreeForecaster.Forecast(politics, civ, candidate.Kind, candidate.Target, candidate.Extra, _belief);
+            DecreeForecast forecast = _forecasts[i];
             Fix64 gross = GrossBenefit(politics, civ, candidate, forecast);
             gross += DefenseCorveeBonus(politics, candidate, forecast, _intent.DefenseUrgency);
             Fix64 secureTinBonus = SecureTinBonus(candidate);
@@ -80,7 +89,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         if (bestIndex < 0) return;
         DecreeRequest chosen = _candidates[bestIndex];
         into.Add(chosen);
-        DecreeForecast chosenForecast = DecreeForecaster.Forecast(politics, civ, chosen.Kind, chosen.Target, chosen.Extra, _belief);
+        DecreeForecast chosenForecast = _forecasts[bestIndex];
         Fix64 chosenGross = GrossBenefit(politics, civ, chosen, chosenForecast);
         chosenGross += DefenseCorveeBonus(politics, chosen, chosenForecast, _intent.DefenseUrgency);
         Fix64 chosenSecureTinBonus = SecureTinBonus(chosen);

@@ -20,6 +20,8 @@ internal static class AcceptanceCommand
     internal const int MinimumAcceptanceSampleMinutes = 10;
     internal const int MinimumSoakAcceptanceMinutes = 64;
     internal const int RequiredReplayMatches = 1_000;
+    internal const int MaximumReplayProbeMatches = 32;
+    internal const int MaximumReplayProbeMinutes = 64;
 
     internal enum OverallStatus
     {
@@ -42,7 +44,7 @@ internal static class AcceptanceCommand
     public static int Run(string[] args)
     {
         string? packPath = null;
-        bool s1 = false, s12 = false, s13 = false, s15 = false;
+        bool s1 = false, s1Probe = false, s12 = false, s13 = false, s15 = false;
         int matches = 1_000, minutes = 10, sampleMinutes = 10;
         for (int i = 0; i < args.Length; i++)
         {
@@ -50,6 +52,7 @@ internal static class AcceptanceCommand
             {
                 case "--pack": packPath = Next(args, ref i); break;
                 case "--s1": s1 = true; break;
+                case "--s1-probe": s1Probe = true; break;
                 case "--s12": s12 = true; break;
                 case "--s13": s13 = true; break;
                 case "--s15": s15 = true; break;
@@ -63,13 +66,20 @@ internal static class AcceptanceCommand
         if (!s1 && !s12 && !s13 && !s15) throw new ArgumentException("Choose at least one of --s1, --s12, --s13, or --s15.");
         if (matches <= 0 || minutes <= 0 || sampleMinutes <= 0)
             throw new ArgumentOutOfRangeException(nameof(matches), "Match and sample counts must be positive.");
+        if (s1Probe) ValidateReplayProbe(s1, matches, minutes);
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
 
         bool pass = true;
         bool diagnosticS1 = false;
         if (s1)
         {
-            bool replayPassed = RunReplayGateForHorizon(matches, minutes, () => RunReplayGate(pack, matches, minutes), out diagnosticS1);
+            bool replayPassed;
+            if (s1Probe)
+            {
+                replayPassed = RunReplayProbe(matches, minutes, () => RunReplayGate(pack, matches, minutes));
+                diagnosticS1 = true;
+            }
+            else replayPassed = RunReplayGateForHorizon(matches, minutes, () => RunReplayGate(pack, matches, minutes), out diagnosticS1);
             pass &= replayPassed;
         }
         if (s12) pass &= RunChapterGate(pack);
@@ -105,6 +115,21 @@ internal static class AcceptanceCommand
 
     internal static bool IsDiagnosticReplaySample(int matches, int minutes) =>
         matches != RequiredReplayMatches || minutes < MinimumSoakAcceptanceMinutes;
+
+    internal static void ValidateReplayProbe(bool s1, int matches, int minutes)
+    {
+        if (!s1) throw new ArgumentException("--s1-probe requires --s1.");
+        if (matches <= 0 || minutes <= 0) throw new ArgumentOutOfRangeException(nameof(matches), "Match and sample counts must be positive.");
+        if (matches > MaximumReplayProbeMatches || minutes > MaximumReplayProbeMinutes)
+            throw new ArgumentOutOfRangeException(nameof(matches), $"S1 probe is bounded to at most {MaximumReplayProbeMatches} matches and {MaximumReplayProbeMinutes} minutes.");
+    }
+
+    internal static bool RunReplayProbe(int matches, int minutes, Func<bool> runReplayGate)
+    {
+        ValidateReplayProbe(s1: true, matches, minutes);
+        Console.WriteLine($"S1 DIAGNOSTIC PROBE (throughput only; bounded to {MaximumReplayProbeMatches} matches and {MaximumReplayProbeMinutes} minutes)");
+        return runReplayGate();
+    }
 
     internal static bool RunReplayGateForHorizon(int matches, int minutes, Func<bool> runReplayGate, out bool diagnostic)
     {
@@ -199,7 +224,10 @@ internal static class AcceptanceCommand
     private static bool RunReplayGate(ContentPack pack, int matches, int minutes)
     {
         long capTicks = checked((long)minutes * 600);
-        Console.WriteLine($"S1 replay determinism: {matches} chapter matches, up to {minutes} minutes each, binary replay round trip + every checksum");
+        Console.WriteLine($"S1 replay determinism: {matches} chapter matches, up to {minutes} minutes each, binary replay round trip + every checksum; {WorkerCount} workers");
+        // The command schedule depends only on the horizon and pack. Build it once instead of
+        // rebuilding the research catalog and command array for every independent match.
+        Command[] commands = ReplayCommands(capTicks, pack);
         var failures = new ConcurrentQueue<string>();
         int completed = 0;
         var timer = Stopwatch.StartNew();
@@ -209,9 +237,13 @@ internal static class AcceptanceCommand
             {
                 ulong seed = FirstSeed + (ulong)index;
                 var archetypes = ArchetypesFor(index);
-                MatchModel model = MatchModel.Create(seed, pack, archetypes);
+                // Share the same generated world between match construction and fingerprinting.
+                // WorldGenerator is deterministic and MatchModel.Create(seed, ...) delegates to
+                // this overload with exactly this generated value.
+                GeneratedWorld world = WorldGenerator.Generate(seed);
+                MatchModel model = MatchModel.Create(seed, pack, world, archetypes);
                 var runner = new SimRunner(model);
-                foreach (Command command in ReplayCommands(capTicks, pack)) runner.Submit(command);
+                foreach (Command command in commands) runner.Submit(command);
                 MatchEnd end = model.EndOfMatch();
                 while (!end.IsOver(runner.Tick) && runner.Tick < capTicks)
                 {
@@ -224,7 +256,7 @@ internal static class AcceptanceCommand
 
                 ulong recordedFinal = runner.CurrentChecksum;
                 MatchReplay recorded = MatchReplay.FromRun(seed, pack, archetypes, runner,
-                    WorldEconomyInput.FromGeneratedWorld(WorldGenerator.Generate(seed)).Fingerprint);
+                    WorldEconomyInput.FromGeneratedWorld(world).Fingerprint);
                 using var stream = new MemoryStream();
                 recorded.Write(stream);
                 stream.Position = 0;
@@ -241,7 +273,7 @@ internal static class AcceptanceCommand
             }
 
             int done = Interlocked.Increment(ref completed);
-            if (done % 50 == 0 || done == matches) Console.WriteLine($"  S1 progress {done}/{matches}");
+            Console.WriteLine($"  S1 progress {done}/{matches}; {timer.Elapsed.TotalMinutes:F1} min elapsed");
         });
         timer.Stop();
         Console.WriteLine($"S1 result: {matches - failures.Count}/{matches} replay checks matched; elapsed {timer.Elapsed:hh\\:mm\\:ss}");
@@ -354,7 +386,7 @@ internal static class AcceptanceCommand
     {
         long ticks = checked((long)minutes * 600);
         const int checkpointTicks = 750; // five seasons; every checkpoint exercises full snapshot validation and restore.
-        Console.WriteLine($"S15 headless soak: {matches} matches, {minutes} minutes each; all six archetypes × four AI levels; snapshot checks every five seasons");
+        Console.WriteLine($"S15 headless soak: {matches} matches, {minutes} minutes each; all six archetypes × four AI levels; snapshot checks every five seasons; {WorkerCount} workers");
         var failures = new ConcurrentQueue<string>();
         int completed = 0;
         var timer = Stopwatch.StartNew();
@@ -375,7 +407,9 @@ internal static class AcceptanceCommand
                 GeneratedWorld world = WorldGenerator.Generate(seed);
                 MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls, playerCouncil: false);
                 MatchModel restored = MatchModel.Create(seed, pack, world, archetypes, controls, playerCouncil: false);
-                var runner = new SimRunner(match);
+                // S15 validates the full horizon at each snapshot boundary. Recording checksums
+                // between those boundaries adds full-state traversals without adding a soak check.
+                var runner = new SimRunner(match, checkpointTicks);
                 using var snapshot = new MemoryStream();
                 using var writer = new BinaryWriter(snapshot, System.Text.Encoding.UTF8, leaveOpen: true);
                 using var reader = new BinaryReader(snapshot, System.Text.Encoding.UTF8, leaveOpen: true);
@@ -390,12 +424,16 @@ internal static class AcceptanceCommand
                     writer.Flush();
                     snapshot.Position = 0;
                     restored.ReadSnapshot(reader);
-                    ulong expected = match.ComputeChecksum();
+                    // Snapshot checkpoints align with periodic runner checksums in the common case.
+                    // Reuse that already-computed live hash instead of traversing the whole model a
+                    // second time; the final horizon may not align, so compute it when needed.
+                    ulong expected = runner.Checksums.Count > 0 &&
+                        runner.Checksums[runner.Checksums.Count - 1].Tick == runner.Tick
+                        ? runner.Checksums[runner.Checksums.Count - 1].Hash
+                        : runner.CurrentChecksum;
                     ulong actual = restored.ComputeChecksum();
                     if (actual != expected)
                         throw new InvalidDataException($"snapshot restore checksum mismatch at tick {runner.Tick}: {expected:x16} != {actual:x16}");
-                    if (runner.CurrentChecksum != expected)
-                        throw new InvalidDataException($"runner checksum differs at tick {runner.Tick}");
                 }
             }
             catch (Exception e)
@@ -403,7 +441,7 @@ internal static class AcceptanceCommand
                 failures.Enqueue($"match {index} seed {seed}: {e.GetType().Name}: {e.Message}");
             }
             int done = Interlocked.Increment(ref completed);
-            if (done % 50 == 0 || done == matches) Console.WriteLine($"  S15 progress {done}/{matches}");
+            Console.WriteLine($"  S15 progress {done}/{matches}; {timer.Elapsed.TotalMinutes:F1} min elapsed");
         });
         timer.Stop();
         Console.WriteLine($"S15 result: {matches - failures.Count}/{matches} clean; elapsed {timer.Elapsed:hh\\:mm\\:ss}");

@@ -106,6 +106,29 @@ public sealed class WorldGenerationTests
         }
     }
 
+    [Theory]
+    [InlineData(20261087UL)]
+    [InlineData(20261202UL)]
+    public void Tin_middle_field_stays_inside_the_m2_acceptance_envelope(ulong seed)
+    {
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        WorldTile[] tiles = world.Tiles.ToArray();
+        int tin = Array.FindIndex(tiles, tile => tile.Continent == 0 &&
+            tile.Deposit == DepositKind.Tin && tile.DepositAmount == 2);
+        Assert.True(tin >= 0, $"seed {seed} has no west middle-field placer");
+
+        int first = world.Starts[0].Tile, second = world.Starts[1].Tile;
+        int[] toFirst = HexGrid.WalkingCostsFrom(tiles, world.Width, world.Height, first, 400);
+        int[] toSecond = HexGrid.WalkingCostsFrom(tiles, world.Width, world.Height, second, 400);
+        Assert.InRange(toFirst[tin], 80, 240);
+        Assert.InRange(toSecond[tin], 80, 240);
+        Assert.InRange(Math.Abs(toFirst[tin] - toSecond[tin]), 0, 50);
+        Assert.True(HexGrid.Distance(first, tin, world.Width) >= 8);
+        Assert.True(HexGrid.Distance(second, tin, world.Width) >= 8);
+        Assert.True(WorldAcceptance.Validate(world).Passed,
+            string.Join("\n", WorldAcceptance.Validate(world).Failures));
+    }
+
     [Fact]
     public void Seed_42_matches_world_generation_fingerprint_golden()
     {

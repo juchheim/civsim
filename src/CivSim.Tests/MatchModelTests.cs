@@ -4,6 +4,7 @@ using System.Linq;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
 
@@ -81,6 +82,72 @@ public class MatchModelTests
         var resumedRunner = new SimRunner(resumed, 50, startTick: 600);
         resumedRunner.Advance(600);
         Assert.Equal(straight.ComputeChecksum(), resumed.ComputeChecksum());
+    }
+
+    [Fact]
+    public void A_captured_settlement_keeps_a_valid_weir_without_the_captors_research()
+    {
+        const ulong seed = 20261348;
+        GeneratedWorld generated = WorldGenerator.Generate(seed);
+        WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);
+        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(TestPack.Pack), world);
+        int site = economy.SettlementLite(0).SiteTile;
+        Assert.Contains(Enumerable.Range(0, world.TileCount), tile =>
+            HexGrid.Distance(site, tile, world.Width) is > 0 and <= 3 &&
+            world.Tile(tile).River && world.Tile(tile).FishGrowthPerYear > Fix64.Zero);
+
+        economy.FixtureComplete(0, "HNT-09");
+        economy.FixtureBuildStructure(0, "weir");
+        economy.TransferSettlement(0, 1);
+        Assert.False(economy.HasCompletedProject(1, "HNT-09"));
+
+        using var snapshot = new MemoryStream();
+        using (var writer = new BinaryWriter(snapshot, System.Text.Encoding.UTF8, leaveOpen: true)) economy.WriteSnapshot(writer);
+        snapshot.Position = 0;
+        var restored = new LivingEconomyModel(seed, EconomyContent.FromPack(TestPack.Pack), world);
+        using (var reader = new BinaryReader(snapshot)) restored.ReadSnapshot(reader);
+        Assert.Equal(economy.ComputeChecksum(), restored.ComputeChecksum());
+    }
+
+    [Fact]
+    public void S15_failed_seed_completes_the_full_horizon_with_snapshot_checks()
+    {
+        // Match 329 of S15 uses Sage/Legend for every civilization. Keep this exact failed seed
+        // covered so the snapshot validator fix can be verified without rerunning all 1,000 matches.
+        const ulong seed = 20261348;
+        var archetypes = new[]
+        {
+            EconomyArchetype.Sage, EconomyArchetype.Sage, EconomyArchetype.Sage, EconomyArchetype.Sage,
+        };
+        var controls = new[]
+        {
+            CivControl.Ai(Difficulty.Legend, EconomyArchetype.Sage),
+            CivControl.Ai(Difficulty.Legend, EconomyArchetype.Sage),
+            CivControl.Ai(Difficulty.Legend, EconomyArchetype.Sage),
+            CivControl.Ai(Difficulty.Legend, EconomyArchetype.Sage),
+        };
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        MatchModel live = MatchModel.Create(seed, TestPack.Pack, world, archetypes, controls, playerCouncil: false);
+        MatchModel restored = MatchModel.Create(seed, TestPack.Pack, world, archetypes, controls, playerCouncil: false);
+        const int checkpointTicks = 750;
+        const long horizonTicks = 64 * 600;
+        var runner = new SimRunner(live, checkpointTicks);
+        using var snapshot = new MemoryStream();
+        using var writer = new BinaryWriter(snapshot, System.Text.Encoding.UTF8, leaveOpen: true);
+        using var reader = new BinaryReader(snapshot, System.Text.Encoding.UTF8, leaveOpen: true);
+        while (runner.Tick < horizonTicks)
+        {
+            int step = (int)Math.Min(checkpointTicks, horizonTicks - runner.Tick);
+            runner.Advance(step);
+            if (runner.Tick % checkpointTicks != 0 && runner.Tick != horizonTicks) continue;
+            snapshot.Position = 0;
+            snapshot.SetLength(0);
+            live.WriteSnapshot(writer);
+            writer.Flush();
+            snapshot.Position = 0;
+            restored.ReadSnapshot(reader);
+            Assert.Equal(live.ComputeChecksum(), restored.ComputeChecksum());
+        }
     }
 
     [Fact]

@@ -76,6 +76,8 @@ internal sealed class MatchOutcome
     public int A7AiSeatMatches, AvoidableStarvationDeaths, UndefendedLosses, AttributedHerdCrashes, IdleLaborSeasons;
 }
 
+internal readonly record struct LegacyMatchOutcome(double TeamALegacy, double TeamBLegacy, long FinalTick, int SeasonsProcessed, ulong Checksum);
+
 /// <summary>Runs matches headless and scores them. The harness may use doubles and threads; the simulation does not.</summary>
 internal static class Tournament
 {
@@ -89,7 +91,8 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
-        var runner = new SimRunner(match);
+        // Tournament scoring and telemetry use the final state, not the periodic hash history.
+        var runner = new SimRunner(match, int.MaxValue);
         int civs = seats.Length;
         var outcome = new MatchOutcome { Seed = seed, Seats = seats, Civs = new CivOutcome[civs] };
         for (int c = 0; c < civs; c++) outcome.Civs[c] = new CivOutcome { Civ = c };
@@ -531,6 +534,36 @@ internal static class Tournament
         outcome.FinalTick = runner.Tick;
         outcome.Checksum = runner.CurrentChecksum;
         return outcome;
+    }
+
+    /// <summary>Runs a match while collecting only the team Legacy scores consumed by A6.</summary>
+    public static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes)
+    {
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        var controls = new CivControl[seats.Length];
+        for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
+        MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
+        var runner = new SimRunner(match, int.MaxValue);
+        long ticks = minutes * 600L;
+        int seasons = 0;
+        for (long t = 0; t < ticks; t += 150)
+        {
+            runner.Advance(Math.Min(150, ticks - t));
+            seasons++;
+            if (match.EndOfMatch(humanSeat: -1).IsOver(runner.Tick)) break;
+        }
+
+        var legacy = new double[seats.Length];
+        for (int c = 0; c < seats.Length; c++)
+        {
+            Standing standing = Scoring.Of(match, c);
+            legacy[c] = standing.Dominion.ToDoubleForDisplay() + standing.Mastery.ToDoubleForDisplay() +
+                standing.Firsts.ToDoubleForDisplay();
+        }
+        double teamA = 0, teamB = 0;
+        foreach (int c in TeamASeats) teamA += legacy[c];
+        foreach (int c in TeamBSeats) teamB += legacy[c];
+        return new LegacyMatchOutcome(teamA, teamB, runner.Tick, seasons, runner.CurrentChecksum);
     }
 
     private static bool HasAvailable(ResearchSystem research, ResearchCatalog catalog, int civ)

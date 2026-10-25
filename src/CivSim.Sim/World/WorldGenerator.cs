@@ -16,7 +16,7 @@ public static class WorldGenerator
 
     private readonly record struct ScoredTile(int Score, int Tile);
     private readonly record struct StartCandidate(int Tile, int Score);
-    private readonly record struct StartPair(int First, int Second, int WalkingDistance,
+    private readonly record struct StartPair(int First, int Second, int FirstCandidate, int SecondCandidate, int WalkingDistance,
         int GeometricDistance, int ScoreGap, int GuaranteeGap, int ScoreSum);
 
     private sealed class Work
@@ -510,7 +510,7 @@ public static class WorldGenerator
             int gap = Math.Abs(a.Score - b.Score);
             if (mean == 0 || gap * 100 > mean * 5) continue;
             int guaranteeGap = Math.Abs(guaranteeDistanceScores[i] - guaranteeDistanceScores[j]);
-            pairs.Add(new StartPair(a.Tile, b.Tile, distance,
+            pairs.Add(new StartPair(a.Tile, b.Tile, i, j, distance,
                 HexGrid.Distance(a.Tile, b.Tile, w.Width), gap, guaranteeGap, a.Score + b.Score));
         }
         pairs.Sort(static (a, b) =>
@@ -541,6 +541,10 @@ public static class WorldGenerator
         for (int i = 0; i < attempts; i++)
         {
             StartPair pair = pairs[candidateOrder[i]];
+            if (!HasLegalMiddleTinSite(w, pair.First, pair.Second,
+                    walkingDistances[pair.FirstCandidate], walkingDistances[pair.SecondCandidate]))
+                continue;
+
             int[] starts = { pair.First, pair.Second,
                 HexGrid.Rotate180(pair.First, w.Width, w.Height),
                 HexGrid.Rotate180(pair.Second, w.Width, w.Height) };
@@ -613,6 +617,26 @@ public static class WorldGenerator
         int second = WorldAcceptance.GuaranteeDistanceScore(repaired.Tiles, herds, predators,
             repaired.Width, starts[1]);
         return WorldAcceptance.GuaranteeDistancesAreInParity(first, second);
+    }
+
+    private static bool HasLegalMiddleTinSite(Work w, int first, int second,
+        int[] toFirst, int[] toSecond)
+    {
+        Span<int> neighbors = stackalloc int[6];
+        for (int i = 0; i < w.Count; i++)
+        {
+            if (i % w.Width >= w.Width / 2 || !TinSiteOpen(w, i, river: true)) continue;
+            int a = toFirst[i], b = toSecond[i];
+            if (a is < 80 or > 240 || b is < 80 or > 240 || Math.Abs(a - b) > 50) continue;
+            if (HexGrid.Distance(first, i, w.Width) < 8 || HexGrid.Distance(second, i, w.Width) < 8) continue;
+            int count = HexGrid.Neighbors(i, w.Width, w.Height, neighbors);
+            for (int n = 0; n < count; n++)
+            {
+                int lode = neighbors[n];
+                if (lode % w.Width < w.Width / 2 && TinSiteOpen(w, lode, river: false)) return true;
+            }
+        }
+        return false;
     }
 
     private static int[] BuildCandidateOrder(int count, int initialSampleCount)
@@ -791,9 +815,9 @@ public static class WorldGenerator
     private static void PlaceTinMiddleField(Work w, int first, int second, int[] toFirst, int[] toSecond)
     {
         // Costs are tenths of a walking tile. Strict band first (12-16 tiles from both, within 2 of each other),
-        // then progressively relaxed so a world is never left without its flashpoint.
+        // then progressively relaxed while staying inside the M2 acceptance envelope.
         ReadOnlySpan<(int Low, int High, int Gap)> bands = stackalloc (int, int, int)[]
-            { (120, 160, 20), (100, 190, 30), (80, 240, 50), (0, 1_000, 1_000) };
+            { (120, 160, 20), (100, 190, 30), (80, 240, 50) };
         Span<int> neighbors = stackalloc int[6];
         foreach ((int low, int high, int gap) in bands)
         {
@@ -804,7 +828,7 @@ public static class WorldGenerator
                 int a = toFirst[i], b = toSecond[i];
                 if (a == int.MaxValue || b == int.MaxValue || a < low || a > high || b < low || b > high) continue;
                 if (Math.Abs(a - b) > gap) continue;
-                if (HexGrid.Distance(first, i, w.Width) < 9 || HexGrid.Distance(second, i, w.Width) < 9) continue;
+                if (HexGrid.Distance(first, i, w.Width) < 8 || HexGrid.Distance(second, i, w.Width) < 8) continue;
                 int count = HexGrid.Neighbors(i, w.Width, w.Height, neighbors);
                 for (int n = 0; n < count; n++)
                 {
@@ -822,6 +846,8 @@ public static class WorldGenerator
             if (low != 120) w.Repairs++;
             return;
         }
+        throw new InvalidOperationException(
+            $"No legal middle-field tin site remains for starts {first}/{second} inside the M2 acceptance envelope.");
     }
 
     private static void PlaceTinFarPlacers(Work w, int[] toFirst, int[] toSecond)

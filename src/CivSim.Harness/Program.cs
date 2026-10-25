@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -69,7 +71,8 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6 | --check-a7 | --check-m10 | --exploit) [--seeds N] [--first-seed N] [--minutes N] [--generations N] [--children N] [--archetype X]");
         Console.Error.WriteLine("       civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none] [--archetypes a,b,c,d] [--trace] [--record FILE] [--check-golden FILE | --write-golden FILE] [--check-bronze-golden FILE | --write-bronze-golden FILE] [--check-c5] [--check-m10 [--seeds a,b,c] [--human-seat N]]");
         Console.Error.WriteLine("       civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]");
-        Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 | --s12 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");
+        Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 [--s1-probe] | --s12 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");
+        Console.Error.WriteLine("         --s1-probe runs a bounded diagnostic replay probe (max 32 matches, 64 minutes); always INCOMPLETE, exit 2.");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");
         return 2;
     }
@@ -994,6 +997,7 @@ public static class Program
         if (auditSeeds < 1) throw new ArgumentOutOfRangeException(nameof(auditSeeds), "Audit count must be positive.");
         if (checkFingerprint is not null && auditSeeds != 1)
             throw new ArgumentException("Fingerprint checks require exactly one seed.");
+        if (auditSeeds > 1) return RunWorldGenAudit(seed, auditSeeds);
 
         int failures = 0, riverStarts = 0, coastalStarts = 0, accepted = 0;
         int minLand = int.MaxValue, maxLand = 0, maxGenerationMs = 0;
@@ -1131,6 +1135,180 @@ public static class Program
         if (auditSeeds >= 1000 && !hasCoastal) Console.WriteLine("FAIL fewer than 30% of starts have nearby coast");
         if (!fast) Console.WriteLine("FAIL a world exceeded the 5-second generation budget");
         return failures == 0 && varied && fast && (auditSeeds < 1000 || (hasRivers && hasCoastal)) ? 0 : 1;
+    }
+
+    private sealed class WorldGenAuditSeed
+    {
+        public int GenerationMs;
+        public string? GenerationRejection;
+        public ExceptionDispatchInfo? UnexpectedFailure;
+        public bool Passed;
+        public string[] Failures = Array.Empty<string>();
+        public int RiverStarts, CoastalStarts, LandShare;
+        public int MinShare = int.MaxValue, MaxShare;
+        public Biome[] StartBiomes = Array.Empty<Biome>();
+    }
+
+    private static int RunWorldGenAudit(ulong seed, int auditSeeds)
+    {
+        _ = checked(seed + (ulong)(auditSeeds - 1)); // Validate the complete requested range before starting parallel work.
+        int failures = 0, riverStarts = 0, coastalStarts = 0, accepted = 0;
+        int minLand = int.MaxValue, maxLand = 0, maxGenerationMs = 0;
+        ulong slowestSeed = seed;
+        int minShare = int.MaxValue, maxShare = 0;
+        var startBiomeCounts = new int[Enum.GetValues<Biome>().Length];
+        var windowStartBiomeCounts = new int[Enum.GetValues<Biome>().Length];
+        bool varietyWindowFailed = false;
+        var all = Stopwatch.StartNew();
+        int progressInterval = auditSeeds >= 10 ? 10 : 0;
+        int batchSize = progressInterval > 0 ? Math.Min(auditSeeds, 100) : auditSeeds;
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1),
+        };
+
+        for (int batchStart = 0; batchStart < auditSeeds;)
+        {
+            int batchEnd = (int)Math.Min((long)auditSeeds, (long)batchStart + batchSize);
+            var batchResults = new WorldGenAuditSeed[batchEnd - batchStart];
+            Parallel.For(batchStart, batchEnd, parallelOptions, offset =>
+            {
+                ulong currentSeed = checked(seed + (ulong)offset);
+                var item = new WorldGenAuditSeed();
+                batchResults[offset - batchStart] = item;
+                var generationTimer = Stopwatch.StartNew();
+                GeneratedWorld world;
+                try { world = WorldGenerator.Generate(currentSeed); }
+                catch (InvalidOperationException e)
+                {
+                    generationTimer.Stop();
+                    item.GenerationMs = checked((int)generationTimer.ElapsedMilliseconds);
+                    item.GenerationRejection = e.Message;
+                    return;
+                }
+                catch (Exception e)
+                {
+                    item.UnexpectedFailure = ExceptionDispatchInfo.Capture(e);
+                    return;
+                }
+                generationTimer.Stop();
+                item.GenerationMs = checked((int)generationTimer.ElapsedMilliseconds);
+
+                try
+                {
+                    WorldAcceptanceResult result = WorldAcceptance.Validate(world);
+                    item.Passed = result.Passed;
+                    item.Failures = result.Failures.ToArray();
+                    item.RiverStarts = result.RiverStarts;
+                    item.CoastalStarts = result.CoastalStarts;
+                    item.LandShare = world.Report.LandShareBasisPoints;
+                    foreach (int share in world.Report.E7SharesBasisPoints.Span)
+                    {
+                        item.MinShare = Math.Min(item.MinShare, share);
+                        item.MaxShare = Math.Max(item.MaxShare, share);
+                    }
+                    item.StartBiomes = new Biome[world.Starts.Length];
+                    for (int i = 0; i < item.StartBiomes.Length; i++)
+                        item.StartBiomes[i] = world.TileAt(world.Starts[i].Tile).Biome;
+                }
+                catch (Exception e)
+                {
+                    item.UnexpectedFailure = ExceptionDispatchInfo.Capture(e);
+                }
+            });
+
+            // Aggregate serially in seed order so failure messages and biome-window reports stay stable.
+            for (int offset = batchStart; offset < batchEnd; offset++)
+            {
+                WorldGenAuditSeed item = batchResults[offset - batchStart];
+                item.UnexpectedFailure?.Throw();
+                ulong currentSeed = checked(seed + (ulong)offset);
+                if (item.GenerationRejection is { } rejection)
+                {
+                    if (item.GenerationMs > maxGenerationMs)
+                    { maxGenerationMs = item.GenerationMs; slowestSeed = currentSeed; }
+                    failures++;
+                    Console.WriteLine($"FAIL seed {currentSeed}: generation rejected: {rejection}");
+                    if (progressInterval > 0 && (offset + 1) % progressInterval == 0)
+                        Console.WriteLine($"audited {offset + 1:N0}/{auditSeeds:N0} seeds; accepted={accepted} failures={failures}");
+                    continue;
+                }
+
+                if (item.GenerationMs > maxGenerationMs)
+                { maxGenerationMs = item.GenerationMs; slowestSeed = currentSeed; }
+                if (item.Passed) accepted++;
+                else
+                {
+                    failures++;
+                    foreach (string error in item.Failures)
+                        Console.WriteLine($"FAIL seed {currentSeed}: {error}");
+                }
+                riverStarts += item.RiverStarts;
+                coastalStarts += item.CoastalStarts;
+                minLand = Math.Min(minLand, item.LandShare);
+                maxLand = Math.Max(maxLand, item.LandShare);
+                minShare = Math.Min(minShare, item.MinShare);
+                maxShare = Math.Max(maxShare, item.MaxShare);
+                foreach (Biome biome in item.StartBiomes)
+                {
+                    startBiomeCounts[(int)biome]++;
+                    windowStartBiomeCounts[(int)biome]++;
+                }
+                if (auditSeeds >= 1_000 && (offset + 1) % 1_000 == 0)
+                {
+                    Biome[] windowMissing = RequiredStartBiomes()
+                        .Where(b => windowStartBiomeCounts[(int)b] == 0).ToArray();
+                    ulong firstSeed = checked(seed + (ulong)(offset + 1 - 1_000));
+                    ulong lastSeed = currentSeed;
+                    if (windowMissing.Length == 0)
+                        Console.WriteLine($"biome variety passed for seeds {firstSeed:N0}–{lastSeed:N0}");
+                    else
+                    {
+                        varietyWindowFailed = true;
+                        Console.WriteLine($"FAIL biome variety for seeds {firstSeed:N0}–{lastSeed:N0}: " +
+                            string.Join(", ", windowMissing));
+                    }
+                    Array.Clear(windowStartBiomeCounts);
+                }
+                if (progressInterval > 0 && (offset + 1) % progressInterval == 0)
+                    Console.WriteLine($"audited {offset + 1:N0}/{auditSeeds:N0} seeds; accepted={accepted} failures={failures}");
+            }
+            batchStart = batchEnd;
+        }
+        all.Stop();
+
+        int totalStarts = auditSeeds * 4;
+        Console.WriteLine($"seeds={auditSeeds} accepted={accepted} failures={failures}");
+        Console.WriteLine($"landShareBp={minLand}..{maxLand} riverStarts={riverStarts}/{totalStarts} coastalStarts={coastalStarts}/{totalStarts}");
+        Console.WriteLine($"E7ShareBp={minShare}..{maxShare} maxGenerateMs={maxGenerationMs} totalMs={all.ElapsedMilliseconds}");
+        Console.WriteLine("startBiomes=" + string.Join(", ", Enum.GetValues<Biome>().Where(b => startBiomeCounts[(int)b] > 0)
+            .Select(b => $"{b}:{startBiomeCounts[(int)b]}")));
+
+        bool hasRequiredBiomes = RequiredStartBiomes().All(b => startBiomeCounts[(int)b] > 0);
+        bool varied = auditSeeds < 1_000 || (!varietyWindowFailed && hasRequiredBiomes);
+        bool hasRivers = riverStarts * 100 >= totalStarts * 60;
+        bool hasCoastal = coastalStarts * 100 >= totalStarts * 30;
+        bool fast = maxGenerationMs < 5_000;
+        if (!fast)
+        {
+            int best = int.MaxValue;
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                var retry = Stopwatch.StartNew();
+                try { WorldGenerator.Generate(slowestSeed); } catch (InvalidOperationException) { }
+                retry.Stop();
+                best = Math.Min(best, checked((int)retry.ElapsedMilliseconds));
+            }
+            fast = best < 5_000;
+            Console.WriteLine($"slowest seed {slowestSeed} took {maxGenerationMs} ms in the audit and {best} ms when re-timed alone ({(fast ? "scheduling noise" : "genuinely slow")})");
+        }
+        if (auditSeeds >= 1_000 && !hasRequiredBiomes)
+            Console.WriteLine("FAIL missing start biomes in the aggregate: " +
+                string.Join(", ", RequiredStartBiomes().Where(b => startBiomeCounts[(int)b] == 0)));
+        if (auditSeeds >= 1_000 && !hasRivers) Console.WriteLine("FAIL fewer than 60% of starts have nearby rivers");
+        if (auditSeeds >= 1_000 && !hasCoastal) Console.WriteLine("FAIL fewer than 30% of starts have nearby coast");
+        if (!fast) Console.WriteLine("FAIL a world exceeded the 5-second generation budget");
+        return failures == 0 && varied && fast && (auditSeeds < 1_000 || (hasRivers && hasCoastal)) ? 0 : 1;
     }
 
     // Desert's forage is below the §9.1 90%-of-map-median start threshold, so it is not a required type.

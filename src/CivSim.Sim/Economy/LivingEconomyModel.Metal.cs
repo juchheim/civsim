@@ -1871,8 +1871,8 @@ public sealed partial class LivingEconomyModel
     private bool AnyMetalChopper(SettlementState s, Fix64[,] actionWork)
     {
         if (s.Metal is null) return false;
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == s.Id && actionWork[i, (int)SkillFamily.Chop] > Fix64.Zero && KitChopRung(_figures[i]) >= 0) return true;
+        foreach (int i in _actionWorkTouchedRows)
+            if (actionWork[i, (int)SkillFamily.Chop] > Fix64.Zero && KitChopRung(_figures[i]) >= 0) return true;
         return false;
     }
 
@@ -1926,24 +1926,24 @@ public sealed partial class LivingEconomyModel
         int civ = s.Civilization;
         int column = (int)SkillFamily.Chop;
         Fix64 kitWork = Fix64.Zero;
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == s.Id && KitChopRung(_figures[i]) >= 0) kitWork += actionWork[i, column];
+        foreach (int i in _actionWorkTouchedRows)
+            if (KitChopRung(_figures[i]) >= 0) kitWork += actionWork[i, column];
         Fix64 otherWork = Fix64.Max(Fix64.Zero, chopWork - kitWork);
         Fix64 appliedOther = LimitActionWorkByTool(s, "chop", otherWork);
         if (otherWork > Fix64.Zero && appliedOther < otherWork)
         {
             Fix64 scale = appliedOther / otherWork;
-            for (int i = 0; i < _figures.Count; i++)
-                if (_figures[i].SettlementId == s.Id && KitChopRung(_figures[i]) < 0) actionWork[i, column] *= scale;
+            foreach (int i in _actionWorkTouchedRows)
+                if (KitChopRung(_figures[i]) < 0) actionWork[i, column] *= scale;
         }
         Fix64 woodYield = Modifier(civ, "wood_yield");
         Fix64 e2Rate = ActionRate("chop", Fix64.FromInt(2), s, "chop", toolWork: appliedOther) * woodYield;
         Fix64 wood = Fix64.Zero;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (int i in _actionWorkTouchedRows)
         {
             FigureState f = _figures[i];
             Fix64 work = actionWork[i, column];
-            if (f.SettlementId != s.Id || work <= Fix64.Zero) continue;
+            if (work <= Fix64.Zero) continue;
             Fix64 rate = KitChopRung(f) >= 0 ? KitChopRate(f) * woodYield : e2Rate;
             wood += work * SkillMultiplier(f, SkillFamily.Chop) * rate;
         }
@@ -1958,11 +1958,11 @@ public sealed partial class LivingEconomyModel
         if (s.Metal is null) return Fix64.Zero;
         Fix64 bonus = Fix64.Zero;
         int column = (int)SkillFamily.Farm;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (int i in _actionWorkTouchedRows)
         {
             FigureState f = _figures[i];
             Fix64 work = actionWork[i, column];
-            if (f.SettlementId != s.Id || work <= Fix64.Zero || f.Kit == 0) continue;
+            if (work <= Fix64.Zero || f.Kit == 0) continue;
             Fix64 mod = KitMod(f, "harvest_labor");
             if (mod > Fix64.Zero && mod < Fix64.One) bonus += work * SkillMultiplier(f, SkillFamily.Farm) * (Fix64.One / mod - Fix64.One);
         }

@@ -200,6 +200,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly ulong _contentFingerprint;
     private readonly Fix64[] _forageStock;
     private readonly Fix64[] _herdFoodStock;
+    // Derived from individual herd state in herd-id order alongside _herdFoodStock.
+    private readonly Fix64[] _wildHerdFoodGrowthPerYear;
+    private readonly Fix64[] _wildHerdFoodGrowthWithWildfirePerYear;
     private readonly Fix64[] _woodStock;
     private readonly Fix64[] _fishStock;
     private readonly Fix64[] _stoneStock;
@@ -218,10 +221,18 @@ public sealed partial class LivingEconomyModel : ISimModel
     // Derived from structure counts in settlement-id order; one river tile can host one weir.
     private readonly int[] _weirOwner;
     private readonly bool[][] _completedProjects;
+    // Derived from completed projects and immutable content effects. Lazy so snapshots need not serialize it.
+    private Fix64[]? _reachableForageShareCache;
+    private bool[]? _reachableForageShareCacheValid;
     private readonly EconomyArchetype[] _archetypes;
     private readonly bool _gentleStart;
     private readonly List<SettlementState> _settlements = new();
     private readonly List<FigureState> _figures = new();
+    // Scratch work matrix used by PlanAndWork. Values are cleared for the previous
+    // settlement's rows before the matrix is reused; this is derived state and is
+    // intentionally absent from snapshots.
+    private Fix64[,] _actionWorkScratch = new Fix64[0, (int)SkillFamily.Count];
+    private readonly List<int> _actionWorkTouchedRows = new();
     private readonly int[] _lastDeathsByCause = new int[DeathCauseCount];
     private readonly int[] _lastDeathsByCauseAndAgeBand = new int[DeathCauseCount * 3];
     private readonly Fix64[] _lastExpectedHazardsByCauseAndAgeBand = new Fix64[DeathCauseCount * 3];
@@ -264,6 +275,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         _contentFingerprint = FingerprintContent(content);
         _forageStock = new Fix64[world.TileCount];
         _herdFoodStock = new Fix64[world.TileCount];
+        _wildHerdFoodGrowthPerYear = new Fix64[world.TileCount];
+        _wildHerdFoodGrowthWithWildfirePerYear = new Fix64[world.TileCount];
         _woodStock = new Fix64[world.TileCount];
         _fishStock = new Fix64[world.TileCount];
         _stoneStock = new Fix64[world.TileCount];
@@ -510,6 +523,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (_completedProjects[civ][index]) return;
         _completedProjects[civ][index] = true;
         ClearModifierCache(civ);
+        InvalidateReachableForageShare(civ);
         if (index == _key3) _bronzeActive = true;
         if (_content.Projects[index].Id is "FIR-01" or "FIR-02")
         {
@@ -799,11 +813,19 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void RebuildWildHerdFoodStock()
     {
         Array.Clear(_herdFoodStock);
+        Array.Clear(_wildHerdFoodGrowthPerYear);
+        Array.Clear(_wildHerdFoodGrowthWithWildfirePerYear);
         for (int i = 0; i < _wildHerds.Length; i++)
         {
             WildHerdState herd = _wildHerds[i];
             if (herd.CurrentAnimals <= Fix64.Zero) continue;
             _herdFoodStock[herd.CurrentTile] += herd.CurrentAnimals * MeatPerAnimal(herd.Species);
+            Fix64 annualRate = Fix64.FromRatio(_world.Herd(i).AnnualGrowthPercent, 100);
+            _wildHerdFoodGrowthPerYear[herd.CurrentTile] +=
+                herd.CurrentAnimals * annualRate * MeatPerAnimal(herd.Species);
+            Fix64 wildfireAnnualRate = annualRate * Fix64.Parse("1.3");
+            _wildHerdFoodGrowthWithWildfirePerYear[herd.CurrentTile] +=
+                herd.CurrentAnimals * wildfireAnnualRate * MeatPerAnimal(herd.Species);
         }
     }
 
@@ -822,16 +844,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64 HerdFoodGrowthPerYear(int tile, bool includeTransientEvents = true)
     {
         if (!_hasIndividualHerds) return _world.Tile(tile).HerdFoodGrowthPerYear;
-        Fix64 growth = Fix64.Zero;
-        for (int i = 0; i < _wildHerds.Length; i++)
-        {
-            WildHerdState herd = _wildHerds[i];
-            if (herd.CurrentTile != tile || herd.CurrentAnimals <= Fix64.Zero) continue;
-            Fix64 annualRate = Fix64.FromRatio(_world.Herd(i).AnnualGrowthPercent, 100);
-            if (includeTransientEvents && _wildfireSeasonsRemaining[tile] > 0) annualRate *= Fix64.Parse("1.3");
-            growth += herd.CurrentAnimals * annualRate * MeatPerAnimal(herd.Species);
-        }
-        return growth;
+        return includeTransientEvents && _wildfireSeasonsRemaining[tile] > 0
+            ? _wildHerdFoodGrowthWithWildfirePerYear[tile]
+            : _wildHerdFoodGrowthPerYear[tile];
     }
 
     private Fix64 HerdFoodStockCapacity(int tile)
@@ -1123,6 +1138,10 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private Fix64 ReachableForageShare(int civ)
     {
+        _reachableForageShareCache ??= new Fix64[_completedProjects.Length];
+        _reachableForageShareCacheValid ??= new bool[_completedProjects.Length];
+        if (_reachableForageShareCacheValid[civ]) return _reachableForageShareCache[civ];
+
         Fix64 share = Fix64.Parse("0.4");
         foreach (EconomyEffect effect in _content.Effects)
         {
@@ -1137,7 +1156,15 @@ public sealed partial class LivingEconomyModel : ISimModel
                 _ => share,
             };
         }
-        return Fix64.Clamp(share, Fix64.Zero, Fix64.One);
+        share = Fix64.Clamp(share, Fix64.Zero, Fix64.One);
+        _reachableForageShareCache[civ] = share;
+        _reachableForageShareCacheValid[civ] = true;
+        return share;
+    }
+
+    private void InvalidateReachableForageShare(int civ)
+    {
+        if (_reachableForageShareCacheValid is not null) _reachableForageShareCacheValid[civ] = false;
     }
 
     private Fix64 SeasonalForageFoodValue(SettlementState settlement, int season)
@@ -1155,12 +1182,22 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void PlanAndWork(SettlementState settlement, int season)
     {
-        var actionWork = new Fix64[_figures.Count, (int)SkillFamily.Count];
+        Fix64[,] actionWork = _actionWorkScratch;
+        foreach (int row in _actionWorkTouchedRows)
+            for (int column = 0; column < (int)SkillFamily.Count; column++)
+                actionWork[row, column] = Fix64.Zero;
+        _actionWorkTouchedRows.Clear();
+        if (actionWork.GetLength(0) < _figures.Count)
+        {
+            actionWork = new Fix64[_figures.Count, (int)SkillFamily.Count];
+            _actionWorkScratch = actionWork;
+        }
         Fix64 totalWork = Fix64.Zero;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != settlement.Id) continue;
+            _actionWorkTouchedRows.Add(i);
             figure.Job = EconomyJob.None;
             figure.WorkThisSeason = Fix64.Zero;
             figure.HuntWorkThisSeason = Fix64.Zero;
@@ -1676,8 +1713,12 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         Fix64 work = Fix64.Zero;
         int column = (int)family;
-        for (int i = 0; i < _figures.Count; i++)
-            work += actionWork[i, column] * SkillMultiplier(_figures[i], family);
+        foreach (int i in _actionWorkTouchedRows)
+        {
+            Fix64 assignedWork = actionWork[i, column];
+            if (assignedWork == Fix64.Zero) continue;
+            work += assignedWork * SkillMultiplier(_figures[i], family);
+        }
         return work;
     }
 
@@ -1686,13 +1727,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (assignedWork <= Fix64.Zero || appliedWork >= assignedWork) return;
         Fix64 scale = appliedWork / assignedWork;
         int column = (int)family;
-        for (int i = 0; i < _figures.Count; i++) actionWork[i, column] *= scale;
+        foreach (int i in _actionWorkTouchedRows) actionWork[i, column] *= scale;
     }
 
     private void PracticeSkill(Fix64[,] actionWork, SkillFamily family)
     {
         int column = (int)family;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (int i in _actionWorkTouchedRows)
         {
             Fix64 work = actionWork[i, column];
             if (work <= Fix64.Zero) continue;
@@ -2482,6 +2523,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 winterMultiplier = winter ? WinterMultiplier(era) : Fix64.One;
         ClimateBand climate = (ClimateBand)_world.Tile(settlement.SiteTile).ClimateId;
         int populationAtStart = Population(settlement.Id);
+        int requiredWarmth = WarmthRequirement(climate, winter);
+        if (winter && _lastWinterWasHarsh && requiredWarmth > 0) requiredWarmth++;
         Fix64 fertilityHealth = FertilityHealthFactor(settlement);
         var deadIds = new List<long>();
         var birthMothers = new List<FigureState>();
@@ -2490,6 +2533,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 conceptionCap = Fix64.Zero;
         bool conceptionCapKnown = false;
 
+        int warmthOrdinal = 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
@@ -2497,9 +2541,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (figure.HuntingInjuryHazard > Fix64.Zero && figure.WoundSeasons == 0 &&
                 Pcg32.ForStream(_seed, HuntingWoundStream, (ulong)figure.Id, season).NextFix01() < figure.HuntingInjuryHazard)
                 figure.WoundSeasons = 2;
-            int requiredWarmth = WarmthRequirement(climate, winter);
-            if (winter && _lastWinterWasHarsh && requiredWarmth > 0) requiredWarmth++;
-            int warmth = FigureWarmthTier(settlement, figure);
+            int warmth = FigureWarmthTier(settlement, figure, populationAtStart, warmthOrdinal++);
             int warmthDeficit = Math.Max(0, requiredWarmth - warmth);
             Fix64 exposure = Fix64.Zero;
             if (winter && warmthDeficit > 0 && requiredWarmth > 0)
@@ -2732,6 +2774,20 @@ public sealed partial class LivingEconomyModel : ISimModel
         hazards.Violence * multiplier, hazards.Senescence * multiplier, hazards.WinterShortfall * multiplier);
 
     private Fix64 CauseModifier(int civ, string cause, bool adultExposure = false)
+    {
+        int slot = CauseModifierSlot(cause, adultExposure);
+        if (slot < 0) return ComputeCauseModifier(civ, cause, adultExposure);
+        _causeModifierValues ??= new Fix64[_completedProjects.Length][];
+        _causeModifierValid ??= new bool[_completedProjects.Length][];
+        Fix64[] values = _causeModifierValues[civ] ??= new Fix64[20];
+        bool[] valid = _causeModifierValid[civ] ??= new bool[20];
+        if (valid[slot]) return values[slot];
+        values[slot] = ComputeCauseModifier(civ, cause, adultExposure);
+        valid[slot] = true;
+        return values[slot];
+    }
+
+    private Fix64 ComputeCauseModifier(int civ, string cause, bool adultExposure)
     {
         Fix64 modifier = Fix64.One;
         for (int i = 0; i < _content.Effects.Length; i++)
@@ -3198,6 +3254,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         meatIncome = Fix64.Zero;
         grainIncome = Fix64.Zero;
         fishIncome = Fix64.Zero;
+        Fix64 meatValue = FoodValue(Good.Meat, settlement);
+        Fix64 fishValue = Fix64.Zero;
+        bool hasFishValue = false;
         foreach (int tile in RangeTiles(settlement.SiteTile))
         {
             WorldEconomyTile input = _world.Tile(tile);
@@ -3213,12 +3272,16 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
 
             Fix64 sustainableHerd = HerdFoodGrowthPerYear(tile, includeTransientEvents: false) * HuntShare(civ);
-            meatIncome += sustainableHerd * FoodValue(Good.Meat, settlement);
-            winterIncome += sustainableHerd / Fix64.FromInt(4) * FoodValue(Good.Meat, settlement);
+            meatIncome += sustainableHerd * meatValue;
+            winterIncome += sustainableHerd / Fix64.FromInt(4) * meatValue;
 
             if (input.FishGrowthPerYear > Fix64.Zero)
             {
-                Fix64 fishValue = FoodValue(Good.Fish, settlement);
+                if (!hasFishValue)
+                {
+                    fishValue = FoodValue(Good.Fish, settlement);
+                    hasFishValue = true;
+                }
                 if (CanFishTile(settlement, tile))
                 {
                     // HNT-07's sustainable take is 0.6 of regrowth. Reach is tile-based:
@@ -3239,8 +3302,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         Fix64 domesticAnnualMeat = DomesticAnnualMeat(settlement);
-        meatIncome += domesticAnnualMeat * FoodValue(Good.Meat, settlement);
-        winterIncome += domesticAnnualMeat / Fix64.FromInt(4) * FoodValue(Good.Meat, settlement);
+        meatIncome += domesticAnnualMeat * meatValue;
+        winterIncome += domesticAnnualMeat / Fix64.FromInt(4) * meatValue;
         if (settlement.Civic is not null)
         {
             Fix64 dairy = DairyIncome(settlement);
@@ -3466,17 +3529,20 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private Fix64 FoodNeed(SettlementState settlement, bool winter, bool includeHarshWinter)
     {
+        int population = Population(settlement.Id);
         Fix64 total = Fix64.Zero;
         ClimateBand climate = (ClimateBand)_world.Tile(settlement.SiteTile).ClimateId;
         int requiredWarmth = WarmthRequirement(climate, winter);
         if (winter && includeHarshWinter && _lastWinterWasHarsh && requiredWarmth > 0) requiredWarmth++;
+        int warmthOrdinal = 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != settlement.Id) continue;
             Fix64 need = figure.Age < 14 ? Fix64.Parse("0.6") : figure.Age >= 45 ? Fix64.Parse("0.8") : Fix64.One;
-            if (requiredWarmth > FigureWarmthTier(settlement, figure)) need *= Fix64.Parse("1.15");
+            if (requiredWarmth > FigureWarmthTier(settlement, figure, population, warmthOrdinal)) need *= Fix64.Parse("1.15");
             total += need;
+            warmthOrdinal++;
         }
         return total;
     }
@@ -3645,27 +3711,20 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private int WarmthTier(SettlementState settlement)
     {
-        int count = 0;
+        int population = Population(settlement.Id);
         int total = 0;
+        int warmthOrdinal = 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != settlement.Id) continue;
-            total += FigureWarmthTier(settlement, figure);
-            count++;
+            total += FigureWarmthTier(settlement, figure, population, warmthOrdinal++);
         }
-        return count == 0 ? 0 : total / count;
+        return population == 0 ? 0 : total / population;
     }
 
-    private int FigureWarmthTier(SettlementState settlement, FigureState figure)
+    private int FigureWarmthTier(SettlementState settlement, FigureState figure, int population, int ordinal)
     {
-        int ordinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
-        {
-            FigureState other = _figures[i];
-            if (other.SettlementId == settlement.Id && other.Id < figure.Id) ordinal++;
-        }
-
         int warmShelterSeats = 6 * settlement.Structures[(int)Structure.PitHouse] +
             8 * settlement.Structures[(int)Structure.WattleHouse] +
             8 * settlement.Structures[(int)Structure.MudbrickHouse] +
@@ -3674,8 +3733,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             5 * settlement.Structures[(int)Structure.HideTent];
         int shelter = ordinal < warmShelterSeats ? 2 : ordinal < warmShelterSeats + basicShelterSeats ? 1 : 0;
 
-        int tailoredSeats = Math.Min(Population(settlement.Id), Math.Max(0, settlement.Stores[(int)Good.Tailored].FloorToInt()));
-        int basicClothingSeats = Math.Min(Population(settlement.Id),
+        int tailoredSeats = Math.Min(population, Math.Max(0, settlement.Stores[(int)Good.Tailored].FloorToInt()));
+        int basicClothingSeats = Math.Min(population,
             Math.Max(0, settlement.Stores[(int)Good.Wrap].FloorToInt()) +
             Math.Max(0, settlement.Stores[(int)Good.ClothGarment].FloorToInt()));
         int clothing = ordinal < tailoredSeats ? 2 : ordinal < tailoredSeats + basicClothingSeats ? 1 : 0;
@@ -3693,16 +3752,21 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private int WarmthDeficit(SettlementState settlement, bool winter, bool includeHarshWinter = true)
     {
+        int population = Population(settlement.Id);
         ClimateBand climate = (ClimateBand)_world.Tile(settlement.SiteTile).ClimateId;
         int required = WarmthRequirement(climate, winter);
         if (includeHarshWinter && winter && _lastWinterWasHarsh && required > 0) required++;
         if (required == 0) return 0;
         int deficit = 0;
+        int warmthOrdinal = 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId == settlement.Id)
-                deficit += Math.Max(0, required - FigureWarmthTier(settlement, figure));
+            {
+                deficit += Math.Max(0, required - FigureWarmthTier(settlement, figure, population, warmthOrdinal));
+                warmthOrdinal++;
+            }
         }
         return deficit;
     }
@@ -4172,11 +4236,35 @@ public sealed partial class LivingEconomyModel : ISimModel
     private string?[][]? _modifierKeys;
     private Fix64[][]? _modifierValues;
     private int[]? _modifierCounts;
+    // Hazard modifiers are keyed by the fixed set of causes used in seasonal mortality.
+    // Injury has a separate adult-exposure slot because hunter effects apply only there.
+    private Fix64[][]? _causeModifierValues;
+    private bool[][]? _causeModifierValid;
+
+    private static int CauseModifierSlot(string cause, bool adultExposure)
+    {
+        int causeSlot = cause switch
+        {
+            "exposure" => 0,
+            "injury" => 1,
+            "maternal" => 2,
+            "endemic" => 3,
+            "epidemic" => 4,
+            "starvation" => 5,
+            "predators" => 6,
+            "violence" => 7,
+            "child" => 8,
+            "age0" => 9,
+            _ => -1,
+        };
+        return causeSlot < 0 ? -1 : causeSlot * 2 + (adultExposure ? 1 : 0);
+    }
 
     private void ClearModifierCache(int civ)
     {
         if (_modifierCounts is not null) _modifierCounts[civ] = 0;
         if (_methodMultCache is not null) _methodMultCache[civ] = null;
+        if (_causeModifierValid is not null && _causeModifierValid[civ] is { } causeValid) Array.Clear(causeValid);
     }
 
     private Fix64 Modifier(int civ, string stat)
@@ -4675,6 +4763,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (reader.ReadInt32() != _completedProjects[civ].Length) throw new InvalidDataException("Snapshot project count differs.");
             for (int i = 0; i < _completedProjects[civ].Length; i++) _completedProjects[civ][i] = reader.ReadBoolean();
             ClearModifierCache(civ);
+            InvalidateReachableForageShare(civ);
         }
         _settlements.Clear();
         int settlementCount = ReadCount(reader, 100_000);
@@ -4829,7 +4918,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             for (int structure = 0; structure < s.Structures.Length; structure++)
                 if (s.Structures[structure] < 0) throw new InvalidDataException("Snapshot contains a negative structure count.");
-            if (s.Structures[(int)Structure.Weir] != UsableWeirCount(s))
+            if (s.Structures[(int)Structure.Weir] != CountOwnedWeirs(s))
                 throw new InvalidDataException("Snapshot contains a weir without a unique river tile.");
             for (int j = 0; j < s.FieldTiles.Count; j++)
             {
@@ -4946,12 +5035,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         Array.Copy(source._soil, _soil, _soil.Length);
         Array.Copy(source._wildfireSeasonsRemaining, _wildfireSeasonsRemaining, _wildfireSeasonsRemaining.Length);
         for (int i = 0; i < _wildHerds.Length; i++) CopyWildHerdState(source._wildHerds[i], _wildHerds[i]);
+        if (_hasIndividualHerds) RebuildWildHerdFoodStock();
         Array.Copy(source._fieldOwner, _fieldOwner, _fieldOwner.Length);
         Array.Copy(source._tendedStandYieldBonus, _tendedStandYieldBonus, _tendedStandYieldBonus.Length);
         for (int civ = 0; civ < _completedProjects.Length; civ++)
         {
             Array.Copy(source._completedProjects[civ], _completedProjects[civ], _completedProjects[civ].Length);
             ClearModifierCache(civ);
+            InvalidateReachableForageShare(civ);
         }
         _settlements.Clear();
         foreach (SettlementState settlement in source._settlements)

@@ -198,7 +198,10 @@ public sealed partial class LivingEconomyModel
         => HuntIndividualHerds(_settlements[settlementIndex], work, rate, (int)_seasonsCompleted, cooperativeDrive: false);
 
     internal void FixtureApplyNaturalHerdCrash(int herdIndex)
-        => _wildHerds[herdIndex].CurrentAnimals *= Fix64.Half;
+    {
+        _wildHerds[herdIndex].CurrentAnimals *= Fix64.Half;
+        if (_hasIndividualHerds) RebuildWildHerdFoodStock();
+    }
 
     /// <summary>Raises a civic structure outright: "market", "temple", "palace", "school", "bakery", "hall" or "ziggurat".</summary>
     internal void FixtureCivic(int settlementIndex, string structure)
