@@ -99,28 +99,30 @@ public partial class Game
         _momentCard.Visible = false;
         _momentCard.MouseEntered += () => _momentHover = true;
         _momentCard.MouseExited += () => _momentHover = false;
-        var column = UiKit.Column(1);
-        var top = UiKit.Row(UiTokens.Sp1);
-        _momentEyebrow = UiKit.Text("NEW KNOWLEDGE", "EyebrowAccent", ellipsis: true);
+        var column = UiKit.Column(3);
+        var top = UiKit.Row(UiTokens.Sp2);
+        _momentEyebrow = UiKit.Text("NEW KNOWLEDGE", "MomentEyebrow", ellipsis: true);
         top.AddChild(_momentEyebrow);
         _momentClose = UiKit.IconButton(UiGlyph.Close, "Dismiss", CloseMoment, 24, 14);
         top.AddChild(_momentClose);
         column.AddChild(top);
-        var nameRow = UiKit.Row(UiTokens.Sp1);
+        var nameRow = UiKit.Row(UiTokens.Sp2);
         _momentIcon = new UiIcon(UiGlyph.Hammer, 16, UiTokens.TextPrimary);
         nameRow.AddChild(_momentIcon);
-        _momentName = UiKit.Text("", "Heading", ellipsis: true);
+        _momentName = UiKit.Text("", "MomentHeading", ellipsis: true);
         nameRow.AddChild(_momentName);
         column.AddChild(nameRow);
-        _momentText = UiKit.Text("", "BodySecondary", wrap: true);
+        _momentText = UiKit.Text("", "MomentBody", wrap: true);
         _momentText.MaxLinesVisible = 1;
         _momentText.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         column.AddChild(_momentText);
-        _momentChange = UiKit.Text("", "CaptionTertiary", ellipsis: true);
+        _momentChange = UiKit.Text("", "MomentCaption", ellipsis: true);
         column.AddChild(_momentChange);
-        var buttons = UiKit.Row(UiTokens.Sp1);
+        var buttons = UiKit.Row(UiTokens.Sp2);
         _momentShow = UiKit.Secondary("Show me", ShowMomentOnMap, "Jump to where it happened", UiGlyph.None, 30);
+        _momentShow.ThemeTypeVariation = "MomentSecondary";
         _momentPick = UiKit.Primary("Pick next", () => { CloseMoment(); OpenResearchWeb(FirstOpenSlot()); }, "Choose what your people learn next", UiGlyph.None, 30);
+        _momentPick.ThemeTypeVariation = "MomentPrimary";
         buttons.AddChild(_momentShow);
         buttons.AddChild(_momentPick);
         column.AddChild(buttons);
@@ -215,7 +217,7 @@ public partial class Game
     {
         if (_toastStack is null || _momentCard is null || _ageBanner is null || _coachCard is null || _hintPill is null) return;
         float m = Margin;
-        float bottom = m + FocusBarHeight + UiTokens.Sp3;
+        float bottom = m + FocusBarHeight + UiTokens.Sp1;
         float toastWidth = _compact ? 320 : 377;
         foreach (ToastView view in _toasts) view.Root.CustomMinimumSize = new Vector2(toastWidth, _compact ? 64 : 72);
         AnchorTo(_toastStack, 1, 1, 1, 1, -m - toastWidth, -bottom - 3 * 80, -m, -bottom, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
@@ -407,7 +409,7 @@ public partial class Game
     {
         if (_momentCard is null || _momentPanel is null) return;
         float m = Margin;
-        float bottom = m + FocusBarHeight + UiTokens.Sp3;
+        float bottom = m + FocusBarHeight + UiTokens.Sp1;
         float width = _compact ? 280 : 320;
         float height = Math.Max(_compact ? 112 : 128, _momentPanel.GetCombinedMinimumSize().Y);
         float left = m + (_compact ? 63 : 0);

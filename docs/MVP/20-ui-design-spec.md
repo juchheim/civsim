@@ -325,10 +325,10 @@ All components live in `game/Scripts/Ui/`. Sizes are base (1600×900).
 ### 2.9 Moment card
 - 320×128 (compact 280×112), compact `MomentCard` panel, 3 px left bar in the project's theme colour.
 ```
-NEW KNOWLEDGE                                          ×
-[hammer] Pebble Choppers                                    Heading 20
-An elder cracks a river cobble; the flake opens a bone…     Body 16 secondary, 1 line max; full text in tooltip
-Chopping is now ×1.5 faster as the skill spreads.           Caption (first "What changes" line)
+NEW KNOWLEDGE                                          ×     Eyebrow 12
+[hammer] Pebble Choppers                                    Heading 18
+An elder cracks a river cobble; the flake opens a bone…     Body 14 secondary, 1 line max; full text in tooltip
+Chopping is now ×1.5 faster as the skill spreads.           Caption 12 (first "What changes" line)
 [ Show me ]   [ Pick next ▸ ]                               Secondary 30 / Primary 30
 ```
 - "Pick next" shows only if a slot is open and Auto-fill is off; otherwise the line reads "The elders will pick the next one." (Auto-fill on) or nothing.
@@ -435,7 +435,7 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 | Coach tip / age banner slot | centred, 131, 610, ≤ 110 | top-centre (one at a time; banner wins) |
 | Right drawer | W−21−w, 97; Chronicle w 377 h ≤ 377; Diplomacy w 610 h ≤ 664 | top-right; only one drawer open at a time |
 | Toast stack | W−21−377, bottom at 761, 377, cards 72, max 3, gap 8 | bottom-right, stacks upward |
-| Moment card | 21, 633, 320, 128 | bottom-left, above focus bar |
+| Moment card | 21, 642, 320, 128 | bottom-left, 4 px above focus bar |
 | Hint pill | centred, 727, auto ≤ 610, 34 | bottom-centre, above focus bar |
 | Focus bar | centred, 774, 1508, 105 | bottom-centre |
 | Tile card | floating, 320 wide | near cursor |
