@@ -5,13 +5,12 @@ using Godot;
 
 namespace CivSim.Game;
 
-/// <summary>The left map-tools rail: zoom ladder, compass, map layers with a legend, and Beacon mode (spec §3.5).</summary>
+/// <summary>The left map-tools rail: compass, map layers with a legend, and Beacon mode (spec §3.5).</summary>
 public partial class Game
 {
     private PanelContainer? _rail, _legendCard;
-    private UiButton? _zoomInButton, _zoomOutButton, _compassButton, _claimsButton, _foodButton, _methodsButton, _resourcesButton, _depositsButton, _tradeButton, _cohesionButton, _forestButton, _beaconButton;
-    private UiZoomLadder? _zoomLadder;
-    private Label? _zoomNameLabel, _layersLabel;
+    private UiButton? _compassButton, _claimsButton, _foodButton, _methodsButton, _resourcesButton, _depositsButton, _tradeButton, _cohesionButton, _forestButton, _beaconButton;
+    private Label? _layersLabel;
     private Control? _legendClaims, _legendFood, _legendMethods, _legendResources, _legendDeposits, _legendTrade, _legendCohesion, _legendForest;
     private Control? _railDivider;
 
@@ -20,16 +19,6 @@ public partial class Game
         _rail = UiKit.Panel("HudPanel", "MapTools");
         var column = UiKit.Column(UiTokens.Sp1);
         column.Alignment = BoxContainer.AlignmentMode.Begin;
-        _zoomInButton = UiKit.IconButton(UiGlyph.Plus, "Zoom in · scroll up or =", ZoomIn, 36, 22);
-        column.AddChild(_zoomInButton);
-        _zoomLadder = new UiZoomLadder(level => ZoomTo(ZoomPresets[level]), 73, 100);
-        _zoomLadder.TooltipText = "Zoom: Z0 Hearth · Z1 Settlement · Z2 Region · Z3 Continent (keys 0–3)";
-        column.AddChild(_zoomLadder);
-        _zoomOutButton = UiKit.IconButton(UiGlyph.Minus, "Zoom out · scroll down or −", ZoomOut, 36, 22);
-        column.AddChild(_zoomOutButton);
-        _zoomNameLabel = UiKit.Text("Hearth", "CaptionTertiary");
-        _zoomNameLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        column.AddChild(_zoomNameLabel);
         _compassButton = UiKit.IconButton(UiGlyph.CompassRose, "Turn: Q / E · click for north", TurnToNorth, 36, 26);
         column.AddChild(_compassButton);
         _railDivider = UiKit.Divider();
@@ -206,9 +195,7 @@ public partial class Game
                 button.CustomMinimumSize = new Vector2(73, 54);
             }
         }
-        if (_zoomLadder is not null) _zoomLadder.CustomMinimumSize = new Vector2(_compact ? 39 : 73, 100);
         if (_layersLabel is not null) _layersLabel.Visible = !_compact;
-        if (_zoomNameLabel is not null) _zoomNameLabel.Visible = !_compact;
         if (_legendCard is not null)
         {
             _legendCard.Position = new Vector2(m + width + 8, top);
@@ -231,16 +218,6 @@ public partial class Game
             _beaconButton.SetPressedNoSignal(_beaconMode);
             _beaconButton.Disabled = false;
         }
-        RefreshRailZoom();
-    }
-
-    private void RefreshRailZoom()
-    {
-        if (_zoomLadder is null) return;
-        float t = (Mathf.Log(_zoom) - Mathf.Log(ZoomMin)) / (Mathf.Log(ZoomMax) - Mathf.Log(ZoomMin));
-        _zoomLadder.Set(t, ZoomLevel);
-        if (_zoomNameLabel is not null) UiKit.SetText(_zoomNameLabel, UiText.ZoomNames[ZoomLevel]);
-        if (_zoomLadder is not null) _zoomLadder.TooltipText = UiText.ZoomTips[ZoomLevel] + " · keys 0–3";
     }
 
     private void RefreshCompass()

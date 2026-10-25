@@ -21,11 +21,6 @@ public static class UiText
         "Tools, fire, materials and building", "Food, family, belief and health", "Travel, contact, claims and knowledge", "Moves your people into a new age",
     };
     public static readonly string[] TypeNames = { "Discovery", "Method", "Structure", "Role", "Institution", "Wonder", "Turning point" };
-    public static readonly string[] ZoomNames = { "Hearth", "Settlement", "Region", "Continent" };
-    public static readonly string[] ZoomTips =
-    {
-        "Hearth: faces and tools (0)", "Settlement: the whole camp (1)", "Region: several settlements (2)", "Continent: the whole land (3)",
-    };
     public static readonly string[] SeasonNames = { "Spring", "Summer", "Autumn", "Winter" };
 
     private static string[] _ageNames = { "Dawn", "Hunters", "Roots", "Bronze", "Iron", "Faith & Fief", "Discovery", "Industry", "Modern", "Information" };

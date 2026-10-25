@@ -35,7 +35,6 @@ public partial class Game
         _zoom = _zoomTarget = Mathf.Clamp(value, ZoomMin, ZoomMax);
         _zoomAnchored = false;
         UpdateCamera();
-        RefreshRailZoom();
     }
 
     /// <summary>Eased zoom; with an anchor the ground point under the cursor stays put.</summary>
@@ -52,7 +51,6 @@ public partial class Game
                 if (TryGroundHit(a, out Vector3 after)) { _target += before - after; ClampTarget(); UpdateCamera(); }
             }
             else SetZoom(target);
-            RefreshRailZoom();
             return;
         }
         _zoomTarget = target;
@@ -194,7 +192,6 @@ public partial class Game
         if (dirty)
         {
             UpdateCamera();
-            RefreshRailZoom();
         }
     }
 

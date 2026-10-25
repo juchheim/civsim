@@ -51,7 +51,7 @@ Dev arguments: `--ui-open=…`, `--scenario=…` (+ `--shots=dir`), `--opening-h
 | D8 | **Research web:** default view **"Choose"** — a card grid of the projects ready now, grouped in three theme columns, plus "Almost ready" and a quiet "+N more to discover this age"; the lanes grid becomes the optional **"Map"** view with human field names and only current-age columns. Canvas 61.8 % / inspector 38.2 %. One click selects, the big CTA (or double-click, Enter, 1/2/3) assigns. **CTA targets the first open slot** ("Start in Primary"); when all slots are busy it opens an inline **"Replace which?"** row. Live slot strip on top. Codes never shown to players (F3 only). |
 | D9 | **Notifications:** project completions get a **Moment card** (bottom-left, 8 s, "Show me" / "Pick next"); other events use a **toast stack** (bottom-right, max 3); the **Chronicle** is a collapsed top-right button with an unread badge that expands to a grouped, iconised, newest-first feed. Critical alerts are sticky toasts; they never auto-expand panels. |
 | D10 | **Camera/input:** left-drag **pans** (grab the map), right-drag (or Option/Alt-drag) **turns and tilts**, wheel and two-finger trackpad scroll **zoom toward the cursor** (1.15× per notch), pinch zooms. Right-click never places a Beacon: Beacons use an explicit **Beacon mode** (B). **Diplomacy moves from D to O.** Esc closes the topmost layer; with nothing open it opens the Menu. Space pauses from anywhere except a text field. |
-| D11 | **Left map-tools rail:** + / zoom ladder (Z0 Hearth … Z3 Continent, continuous marker) / −, compass (click = north), Layers (Claims, Food, Methods; Resources as an add-on toggle) with a swatch legend card, and the Beacon button once unlocked. |
+| D11 | **Left map-tools rail:** compass (click = north), Layers (Claims, Food, Methods; Resources as an add-on toggle) with a swatch legend card, and the Beacon button once unlocked. |
 | D12 | **Diplomacy:** civ cards (emblem, name, relation chip) → status + orders grouped **Friendly / Hostile / Your parties**, each with consequence text and a visible disabled reason; war, raid and assault need a two-step confirm. Civs get readable names from their emblem: **Sun, Wave, Leaf, Star Folk**. |
 | D13 | **Plain words:** Era → **Age**, Keystone → **Turning point**, Lineage → **Field**, Council → **the elders / Auto-fill**, Glimpsed → **Almost ready**, Dormant → **Blocked**. "Insight" stays, always with "/yr" and the tooltip "research speed". |
 
@@ -459,7 +459,7 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption 12 (first "
 | Civ card | 233 wide: emblem + people count + age chip (progress moves to tooltip) | as base |
 | Time cluster | unchanged (essential) | as base |
 | Top-right | icon-only 42×42 ×4 (tooltips carry names + keys), 208 wide | as base |
-| Rail | 55 wide, icons only (36×36), zoom ladder stops 26 high, legend card at x = 13+55+8 | as base |
+| Rail | 55 wide, icons only (36×36), legend card at x = 13+55+8 | as base |
 | Focus bar | summary column 199; cards: Tertiary = max(200, 0.191·A), Secondary = max(233, 0.309·A), Primary = rest, where A = W − 2M − 16 − 199 − 13 − 26 (e.g. 1231: 457/294/200; 1422: 571/353/218) | fixed 1508 centred |
 | Toasts / Moment | Toasts 320×64; Moment 280×112 at x=76 beside the 55 px rail | as base |
 | Chronicle drawer | 320 × ≤ 233 | 377 × ≤ 377 |
@@ -553,7 +553,7 @@ Vertical: padding 21 · header 55 · 13 · slot strip 55 · 13 · body (flex; ba
 
 ### 3.5 Map-tools rail (89 wide, HudPanel)
 
-Top to bottom: Icon "+" (42) · **zoom ladder**: four stop buttons 89×30 labelled "Z0" … "Z3" (Caption; selected = Accent text + 2 px Accent left bar) on a 2 px vertical track with an Accent triangle marker at the continuous log position of the zoom (2.7 at top … 120 at bottom) · Icon "−" (42) · caption with the current level name ("Hearth", "Settlement", "Region", "Continent") · compass rose 42 (rotates with yaw; click = turn to north over `CameraTurn`; tooltip "Turn: Q / E · click for north") · divider · Eyebrow "LAYERS" · Claims / Food / Methods (89×55 each: icon 26 over Caption label; exclusive: clicking the active one turns it off) · 8 px gap · Resources (same size, add-on toggle with a small "+" corner mark; key R) · when `FocusBeaconsAllowed > 0`: divider + Beacon button showing slots left, or "Beacon · replace" when full (B). In Beacon mode, an empty tile places a Beacon, or moves the nearest Beacon when at capacity; clicking an own Beacon removes it.
+Top to bottom: compass rose 42 (rotates with yaw; click = turn to north over `CameraTurn`; tooltip "Turn: Q / E · click for north") · divider · Eyebrow "LAYERS" · Claims / Food / Methods (89×55 each: icon 26 over Caption label; exclusive: clicking the active one turns it off) · 8 px gap · Resources (same size, add-on toggle with a small "+" corner mark; key R) · when `FocusBeaconsAllowed > 0`: divider + Beacon button showing slots left, or "Beacon · replace" when full (B). In Beacon mode, an empty tile places a Beacon, or moves the nearest Beacon when at capacity; clicking an own Beacon removes it.
 
 **Legend card (233, CardPanel)**, shown while a layer is active, beside the rail aligned with that layer's button:
 
@@ -791,7 +791,7 @@ Rules: plain English, second person, sentence case (caps only for Eyebrows), no 
 | Focus summary | "Research web" "T" · "Auto-fill" · "63 Insight/yr" | Web: "See every project and choose what to learn (T)". Auto-fill: "When a slot opens, the elders pick a project after one season. Your own choices stay." Insight: "Insight is your research speed. More people, elders and learning raise it." |
 | Slot (working) | "(1) PRIMARY · 57%" | "Primary gets 4 of every 7 research points (57% now). Empty slots pass their share to the others. Right-click for more." |
 | Slot (open) | "+ Choose a project" | "This slot is open. Its share goes to the other slots until you choose." |
-| Rail | "+", "−", "Z0"–"Z3", level name, compass, "LAYERS", "Claims", "Food", "Methods", "Resources", Beacon slots left / "Beacon · replace" | "Zoom in · scroll up or =" · "Zoom out · scroll down or −" · "Hearth — faces and tools (0)" · "Settlement — the whole camp (1)" · "Region — several settlements (2)" · "Continent — the whole land (3)" · "Turn: Q / E · click for north" · "Who holds the land, and how firmly" · "Which settlements have enough food" · "How good your people's tools are" · "Deposits you have found (R)" · "A Beacon draws scouts and settlers toward a spot. Click an own Beacon in Beacon mode to remove it. (B)" |
+| Rail | compass, "LAYERS", "Claims", "Food", "Methods", "Resources", Beacon slots left / "Beacon · replace" | "Turn: Q / E · click for north" · "Who holds the land, and how firmly" · "Which settlements have enough food" · "How good your people's tools are" · "Deposits you have found (R)" · "A Beacon draws scouts and settlers toward a spot. Click an own Beacon in Beacon mode to remove it. (B)" |
 
 ### 5.3 Research web
 
@@ -1013,7 +1013,7 @@ public interface IUiLayer { string Name { get; } bool IsModal { get; } void Clos
 public sealed class UiStack { public void Push(IUiLayer l); public void Remove(IUiLayer l); public bool CloseTop(); public bool Contains(IUiLayer l); }
 public sealed class UiSettings { public float UiScale; public bool ReduceMotion, Hints, Tips, PauseInWeb, PauseOnDanger; public static UiSettings Load(); public void Save(); }
 ```
-Components (one file each): `TopBar` (CivCard, TimeCluster, TopRightCluster, PausedOverlay), `FocusBar` + `SlotCard`, `ResearchWeb` (`ChooseView`, `MapView`, `Inspector`, `SlotStrip`, `QueuePopover`, `LeaningPopover`), `MapToolsRail` + `ZoomLadder` + `LegendCard`, `ChronicleDrawer`, `ToastHost`, `MomentCard`, `TileCard`, `DiplomacyDrawer`, `ModalShell` (+ `IntroModal`, `HelpModal`, `SettingsModal`, `EndScreenModal`, `ConfirmDialog`), `GameMenu`, `CoachTips`, `HintPill`, `DevOverlay`, `CameraController`, `InputRouter`, `UiText` (copy tables, field names, effect phrasing).
+Components (one file each): `TopBar` (CivCard, TimeCluster, TopRightCluster, PausedOverlay), `FocusBar` + `SlotCard`, `ResearchWeb` (`ChooseView`, `MapView`, `Inspector`, `SlotStrip`, `QueuePopover`, `LeaningPopover`), `MapToolsRail` + `LegendCard`, `ChronicleDrawer`, `ToastHost`, `MomentCard`, `TileCard`, `DiplomacyDrawer`, `ModalShell` (+ `IntroModal`, `HelpModal`, `SettingsModal`, `EndScreenModal`, `ConfirmDialog`), `GameMenu`, `CoachTips`, `HintPill`, `DevOverlay`, `CameraController`, `InputRouter`, `UiText` (copy tables, field names, effect phrasing).
 
 ### 6.3 What to keep, replace or delete
 
