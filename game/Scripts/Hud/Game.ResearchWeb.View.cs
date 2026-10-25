@@ -181,6 +181,7 @@ public partial class Game
             Progress = slot >= 0 && _pendingProject[slot] == -2 ? frame.FocusSlotPermille[slot] / 1000f : 0,
             Selected = def.Index == _selectedResearchProject,
             OnAgePath = (uint)def.Index < (uint)_agePath.Length && _agePath[def.Index],
+            OnBreadthPath = (uint)def.Index < (uint)_breadthPath.Length && _breadthPath[def.Index],
             Line2 = "",
             Line3 = "",
             Sub = "",
@@ -195,11 +196,12 @@ public partial class Game
         return look;
     }
 
-    /// <summary>Marks unfinished prerequisites of the current age's turning point.</summary>
+    /// <summary>Marks the current age's turning point and unfinished projects that help reach it.</summary>
     private void UpdateAgePath(MatchFrame frame)
     {
         if (_catalog is null) return;
         _agePath = new bool[_catalog.Count];
+        _breadthPath = new bool[_catalog.Count];
         int civ = frame.FocusCiv;
         int era = frame.FocusEra;
         if ((uint)civ >= (uint)frame.CivCount || era < 0) return;
@@ -215,9 +217,31 @@ public partial class Game
         }
         if (turningPoint is null) return;
 
+        // Keep the destination marked even after its prerequisites are complete.
+        _agePath[turningPoint.Index] = true;
         var visiting = new bool[_catalog.Count];
         var processed = new bool[_catalog.Count];
         MarkAgePathPrerequisites(turningPoint, visiting, processed);
+
+        // Once the named prerequisite chain is complete, any unfinished project in this age
+        // contributes to the keystone's breadth requirement. Mark those choices so the path
+        // does not appear to disappear while the player is still earning the required breadth.
+        bool namedPrerequisitesRemain = false;
+        for (int p = 0; p < _agePath.Length; p++)
+            if (p != turningPoint.Index && _agePath[p])
+            {
+                namedPrerequisitesRemain = true;
+                break;
+            }
+        if (namedPrerequisitesRemain || frame.CivBreadthDone[civ] >= turningPoint.BreadthMin) return;
+
+        foreach (ProjectDef def in _catalog.Projects)
+        {
+            if (!def.Numeric || def.IsKeystone || def.Era != era) continue;
+            if (StateOf(def.Index) is ProjectState.Completed or ProjectState.Dormant) continue;
+            _agePath[def.Index] = true;
+            _breadthPath[def.Index] = true;
+        }
     }
 
     private void MarkAgePathProject(int project, bool[] visiting, bool[] processed)
@@ -385,6 +409,9 @@ public partial class Game
     private int CompareReady(int a, int b)
     {
         ProjectDef da = _catalog!.Projects[a], db = _catalog.Projects[b];
+        bool aOnAgePath = (uint)a < (uint)_agePath.Length && _agePath[a];
+        bool bOnAgePath = (uint)b < (uint)_agePath.Length && _agePath[b];
+        if (aOnAgePath != bOnAgePath) return aOnAgePath ? -1 : 1;
         int c = da.Cost.ToDoubleForDisplay().CompareTo(db.Cost.ToDoubleForDisplay());
         return c != 0 ? c : string.CompareOrdinal(da.Name, db.Name);
     }
@@ -556,7 +583,9 @@ public partial class Game
                 look.HiddenPrerequisite = hidden;
             }
             chip.Bind(def, look);
-            chip.TooltipText = $"{def.Name} · {StateWord(state)}" + (look.OnAgePath ? " · prerequisite for the next age" : "") +
+            string pathTip = look.OnBreadthPath ? " · counts toward the next age's breadth"
+                : look.OnAgePath ? " · part of the path to the next age" : "";
+            chip.TooltipText = $"{def.Name} · {StateWord(state)}" + pathTip +
                                (state == ProjectState.Glimpsed ? $" — {AlmostSub(def)}" : "") +
                                (_devVisible ? $"\n{def.Id}" : "");
             _navCards.Add(chip);

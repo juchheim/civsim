@@ -18,6 +18,7 @@ public struct ProjectLook
     public bool Selected;
     public bool Related;
     public bool OnAgePath;
+    public bool OnBreadthPath;
     public string Line2, Line3, Sub;
 }
 
@@ -37,7 +38,7 @@ public partial class UiProjectCard : Button
     private readonly ProjectCardMode _mode;
     private readonly UiIcon _themeIcon = new(UiGlyph.Hammer, 16, UiTokens.TextPrimary);
     private readonly UiIcon _stateIcon = new(UiGlyph.Ring, 16, UiTokens.TextPrimary);
-    private readonly UiIcon _agePathIcon = new(UiGlyph.Star, 14, UiTokens.Accent) { Visible = false, TooltipText = "Prerequisite for the next age" };
+    private readonly UiIcon _agePathIcon = new(UiGlyph.Star, 14, UiTokens.Accent) { Visible = false };
     private readonly UiRankBadge[] _ranks = { new(1), new(2), new(3) };
     private readonly Label _name = UiKit.Text("", "BodyStrong", ellipsis: true);
     private readonly Label _line2 = UiKit.Text("", "Caption", ellipsis: true);
@@ -172,7 +173,11 @@ public partial class UiProjectCard : Button
         _stateIcon.Tint = tint;
         _stateIcon.Visible = glyph != UiGlyph.None;
         _agePathIcon.Visible = look.OnAgePath;
-        TooltipText = look.OnAgePath ? "Prerequisite for the next age" : "";
+        _agePathIcon.Glyph = look.OnBreadthPath ? UiGlyph.StarOutline : UiGlyph.Star;
+        _agePathIcon.TooltipText = look.OnBreadthPath
+            ? "Counts toward the next age's breadth"
+            : "Part of the path to the next age";
+        TooltipText = _agePathIcon.Visible ? _agePathIcon.TooltipText : "";
 
         for (int i = 0; i < 3; i++) _ranks[i].Visible = look.State == ProjectState.Slotted && look.SlotRank == i;
         bool queued = look.QueueIndex >= 0 && look.State != ProjectState.Slotted;
