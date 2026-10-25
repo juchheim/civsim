@@ -899,8 +899,11 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 		"leanto": int(st[K.LEAN_TO]), "tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
 		"wattle": int(st[K.WATTLE_HOUSE]), "mudbrick": int(st[K.MUDBRICK_HOUSE]), "longhouse": int(st[K.LONGHOUSE]),
 		"hall": halls}
-	var filler := "leanto"
-	for nm in ["leanto", "tent", "pithouse", "wattle", "mudbrick"]:
+	# the first shelters are drawn as hide tents (tipis); the lean-to mesh is no longer used for villages
+	built.tent += built.leanto
+	built.leanto = 0
+	var filler := "tent"
+	for nm in ["tent", "pithouse", "wattle", "mudbrick"]:
 		if built[nm] > 0:
 			filler = nm
 	var shown := {}
@@ -922,7 +925,7 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 		for i in int(shown[nm]):
 			out.append(nm)
 	if short > 0:
-		if filler == "leanto" and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
+		if filler == "tent" and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
 			filler = "longhouse"
 		var more := ceili(float(short) / float(DWELL_CAPACITY[filler]))
 		for i in more:
@@ -930,7 +933,7 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 				break
 			out.append(filler)
 	if out.is_empty() and pop > 0:
-		out.append("leanto")
+		out.append("tent")
 	return out
 
 ## Kinds that sit on the village edge rather than among the houses.
