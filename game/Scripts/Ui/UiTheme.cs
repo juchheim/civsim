@@ -110,6 +110,10 @@ public static class UiTheme
         LabelStyle("Eyebrow", Caps, UiTokens.FontSmall, UiTokens.TextSecondary, 2);
         LabelStyle("EyebrowTertiary", Caps, UiTokens.FontSmall, UiTokens.TextTertiary, 2);
         LabelStyle("EyebrowAccent", Caps, UiTokens.FontSmall, UiTokens.Accent, 2);
+        LabelStyle("MomentHeading", Medium, 18, UiTokens.TextPrimary, 2);
+        LabelStyle("MomentBody", Regular, 14, UiTokens.TextSecondary, 2);
+        LabelStyle("MomentCaption", Regular, 12, UiTokens.TextTertiary, 2);
+        LabelStyle("MomentEyebrow", Caps, 12, UiTokens.Accent, 2);
         LabelStyle("Caption", Regular, UiTokens.FontSmall, UiTokens.TextSecondary, 3);
         LabelStyle("CaptionTertiary", Regular, UiTokens.FontSmall, UiTokens.TextTertiary, 3);
         LabelStyle("CaptionAccent", Regular, UiTokens.FontSmall, UiTokens.Accent, 3);
@@ -126,6 +130,7 @@ public static class UiTheme
         }
         PanelStyle("HudPanel", Box(UiTokens.Surface1, UiTokens.R2, UiTokens.Border, 1, UiTokens.Sp3, UiTokens.Sp2, 6, 2, 0.30f));
         PanelStyle("CardPanel", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 10, 10, 4, 0.35f));
+        PanelStyle("MomentCard", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 8, 10, 4, 0.35f));
         PanelStyle("InnerCard", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 10));
         PanelStyle("SheetPanel", Box(UiTokens.Surface3, UiTokens.R3, UiTokens.BorderStrong, 1, UiTokens.Sp4, UiTokens.Sp4, 21, 8, 0.45f));
         PanelStyle("ToastPanel", Box(UiTokens.Surface2, UiTokens.R2, UiTokens.BorderStrong, 1, UiTokens.Sp3, UiTokens.Sp2, 10, 4, 0.35f));
@@ -219,6 +224,11 @@ public static class UiTheme
                 UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled);
         }
 
+        theme.SetTypeVariation("MomentPrimary", "Primary");
+        theme.SetFontSize("font_size", "MomentPrimary", UiTokens.FontSmall);
+        theme.SetTypeVariation("MomentSecondary", "Secondary");
+        theme.SetFontSize("font_size", "MomentSecondary", UiTokens.FontSmall);
+
         // Icon buttons: square, ghost fill, centred glyph drawn by UiButton.
         ButtonStyle("IconButton", Box(new Color(0, 0, 0, 0), UiTokens.R2, null, 0, 0, 0), Box(UiTokens.Hover, UiTokens.R2, null, 0, 0, 0),
             Box(UiTokens.WithAlpha(UiTokens.Accent, 0.22f), UiTokens.R2, UiTokens.Accent, 1, 0, 0), Box(new Color(0, 0, 0, 0), UiTokens.R2, null, 0, 0, 0),
@@ -268,7 +278,11 @@ public static class UiTheme
             UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled,
             Box(UiTokens.WithAlpha(UiTokens.Accent, 0.26f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), UiTokens.Accent);
         foreach (string state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled" })
-            ((StyleBoxFlat)theme.GetStylebox(state, "ChipButtonIcon")).ContentMarginLeft = UiTokens.Sp3 + 16 + 4;
+        {
+            StyleBoxFlat style = (StyleBoxFlat)theme.GetStylebox(state, "ChipButtonIcon");
+            style.ContentMarginLeft = UiTokens.Sp3 + 16 + UiTokens.Sp1;
+            style.ContentMarginRight = UiTokens.Sp3 + UiTokens.Sp1;
+        }
 
         // Rows (lists): hover fill only
         ButtonStyle("RowButton", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, UiTokens.Sp3, 4), Box(UiTokens.Hover, UiTokens.R1, null, 0, UiTokens.Sp3, 4),

@@ -532,6 +532,8 @@ public partial class Game : Node3D
             ["signalCivs"] = ToIntArray(frame.CivSignals, frame.CivSignals.Length),
             ["burnLearned"] = BurnLearnedTicks(frame),
             ["feastLearned"] = LearnedTicks(frame.CivFeastLearned),
+            ["dogCivs"] = ToIntArray(frame.CivDogs, frame.CivDogs.Length),
+            ["civLooks"] = ToIntArray(frame.CivLooks, frame.CivLooks.Length),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["plots"] = plots,
@@ -616,6 +618,13 @@ public partial class Game : Node3D
     }
 
     private static int[] ToIntArray(byte[] values, int count)
+    {
+        var result = new int[count];
+        for (int i = 0; i < count; i++) result[i] = values[i];
+        return result;
+    }
+
+    private static int[] ToIntArray(ushort[] values, int count)
     {
         var result = new int[count];
         for (int i = 0; i < count; i++) result[i] = values[i];

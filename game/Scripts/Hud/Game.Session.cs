@@ -74,6 +74,7 @@ public partial class Game
 
     private void ReplaceSession(SimulationSession replacement)
     {
+        if (_peopleOpen) ClosePeoplePanel();
         _session?.Dispose();
         _session = replacement;
         if (!_session.Frames.TryAcquire() || _session.Frames.Current is null)
@@ -100,6 +101,7 @@ public partial class Game
         _endScreenShown = false;
         _endScreenDismissed = false;
         _openingHold = false;
+        _openingHoldAssignmentPending = false;
         _pinnedTile = -1;
         _selectedResearchProject = -1;
         RebuildVisualRenderer(_current, _session);

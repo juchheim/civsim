@@ -80,7 +80,7 @@ func _configure_node(node: MultiMeshInstance3D, mesh_name: String) -> void:
 	if mesh_name.begins_with("person") or mesh_name.begins_with("animal_") or mesh_name == "shadow_disc":
 		node.extra_cull_margin = 2.5
 	if mesh_name == "person_far" or mesh_name.begins_with("tuft") or mesh_name.begins_with("tallgrass") or mesh_name == "reeds" \
-		or mesh_name == "shadow_disc" or mesh_name == "field" or mesh_name == "flame" or mesh_name.begins_with("banner"):
+		or mesh_name == "shadow_disc" or mesh_name.begins_with("field") or mesh_name == "flame" or mesh_name.begins_with("banner"):
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if mesh_name.begins_with("tuft") or mesh_name.begins_with("tallgrass") or mesh_name == "reeds" \
 		or mesh_name.begins_with("rock") or mesh_name == "bush" or mesh_name == "shrub":

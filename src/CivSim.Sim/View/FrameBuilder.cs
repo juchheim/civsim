@@ -48,7 +48,8 @@ public sealed partial class FrameBuilder
     private readonly ResearchCatalog _catalog;
     private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03, _stn10;
     private readonly int[] _boatProjects;
-    private readonly int _com04, _fir05, _agr04, _soc05;
+    private readonly (int Project, CivLook Look)[] _lookProjects;
+    private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
     /// <summary>Per civilization: the tile and village its megalith stands at (-1 until the project is done). View-only, not part of the saved view state: a loaded game picks it again.</summary>
     private readonly int[] _monumentTile, _monumentSettlement;
 
@@ -124,7 +125,17 @@ public sealed partial class FrameBuilder
         _stn10 = _catalog.IndexOf("STN-10");
         _com04 = _catalog.IndexOf("COM-04");
         _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
-        _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04") };
+        _hus01 = _catalog.IndexOf("HUS-01"); _travois = _catalog.IndexOf("TRN-02");
+        _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04"),
+            _catalog.IndexOf("SEA-05"), _catalog.IndexOf("SEA-06") };
+        _lookProjects = new[]
+        {
+            (_catalog.IndexOf("AGR-05"), CivLook.ArdPlough), (_catalog.IndexOf("AGR-07"), CivLook.Fallow),
+            (_catalog.IndexOf("HUS-02"), CivLook.HerdFollowing), (_catalog.IndexOf("HUS-06"), CivLook.WoolBreeds),
+            (_catalog.IndexOf("TRN-05"), CivLook.Carts), (_catalog.IndexOf("WAR-06"), CivLook.Chariots),
+            (_catalog.IndexOf("BEL-07"), CivLook.StateCult), (_catalog.IndexOf("SOC-07"), CivLook.Chiefdom),
+            (_catalog.IndexOf("FIB-04"), CivLook.TailoredClothing),
+        };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
         _explored = new byte[_tileCount];
@@ -813,6 +824,7 @@ public sealed partial class FrameBuilder
             target.FigureX[w] = x;
             target.FigureY[w] = y;
             target.FigureActivity[w] = (byte)activity;
+            target.FigureRole[w] = f.Role;
             target.FigureAge[w] = (byte)(f.Age < 14 ? AgeBand.Child : f.Age < 45 ? AgeBand.Adult : AgeBand.Elder);
             target.FigureHealth[w] = (byte)HealthOf(f.Health);
             target.FigureFlags[w] = (ushort)flags;
@@ -1044,6 +1056,20 @@ public sealed partial class FrameBuilder
         if (target.CivFeastLearned.Length < _civs) target.CivFeastLearned = new long[_civs];
         for (int c = 0; c < _civs; c++)
             target.CivFeastLearned[c] = _soc05 >= 0 && research.IsDone(c, _soc05) ? research.CompletedTick(c, _soc05) : -1;
+        if (target.CivDogs.Length < _civs) target.CivDogs = new byte[_civs];
+        for (int c = 0; c < _civs; c++)
+        {
+            bool dogs = _hus01 >= 0 && research.IsDone(c, _hus01);
+            target.CivDogs[c] = (byte)(!dogs ? 0 : _travois >= 0 && research.IsDone(c, _travois) ? 2 : 1);
+        }
+        if (target.CivLooks.Length < _civs) target.CivLooks = new ushort[_civs];
+        for (int c = 0; c < _civs; c++)
+        {
+            CivLook looks = CivLook.None;
+            foreach ((int project, CivLook look) in _lookProjects)
+                if (project >= 0 && research.IsDone(c, project)) looks |= look;
+            target.CivLooks[c] = (ushort)looks;
+        }
     }
 
     /// <summary>
@@ -1265,6 +1291,11 @@ public sealed partial class FrameBuilder
         target.FocusBeaconsAllowed = match.Politics.BeaconAllowance(civ);
         target.FocusBeaconsPlaced = match.Politics.BeaconsOf(civ).Count;
         target.FocusEra = research.Era(civ);
+        int lineages = _catalog.LineageCodes.Count;
+        MatchFrame.Ensure(ref target.FocusKnowHow, lineages);
+        target.FocusKnowHowCount = lineages;
+        for (int lineage = 0; lineage < lineages; lineage++)
+            target.FocusKnowHow[lineage] = research.KnowHow(civ, lineage).Raw;
         int projects = _catalog.Count;
         MatchFrame.Ensure(ref target.FocusProjectState, projects);
         for (int p = 0; p < projects; p++) target.FocusProjectState[p] = (byte)research.State(civ, p);

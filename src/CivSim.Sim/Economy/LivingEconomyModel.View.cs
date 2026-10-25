@@ -9,7 +9,7 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public readonly record struct FigureLook(
     long Id, int Civilization, int SettlementId, int Age, bool Female, Fix64 Health, Fix64 Hunger, Fix64 Warmth,
-    EconomyJob Job, byte IllnessSeasons, byte WoundSeasons, byte PregnancySeasons);
+    EconomyJob Job, byte IllnessSeasons, byte WoundSeasons, byte PregnancySeasons, byte Role);
 
 /// <summary>Why a researched method rung cannot currently be used at a settlement.</summary>
 public enum MethodFallbackReason : byte
@@ -48,7 +48,7 @@ public sealed partial class LivingEconomyModel
     {
         FigureState f = _figures[index];
         return new FigureLook(f.Id, f.Civilization, f.SettlementId, f.Age, f.Female, f.Health, f.Hunger, f.Warmth,
-            f.Job, f.IllnessSeasons, f.WoundSeasons, f.PregnancySeasons);
+            f.Job, f.IllnessSeasons, f.WoundSeasons, f.PregnancySeasons, f.Role);
     }
 
     /// <summary>The next figure id the economy will hand out (every id below it has been used).</summary>

@@ -46,6 +46,34 @@ public enum FigureFlags : ushort
     FreeFolk = 1024,
 }
 
+/// <summary>
+/// Bits of <see cref="MatchFrame.CivLooks"/>: projects that change how a civilization's land and people look. View-only (the
+/// renderer's fields, flocks, carts, chariots, temples and clothes); nothing here feeds back into the simulation.
+/// </summary>
+[Flags]
+public enum CivLook : ushort
+{
+    None = 0,
+    /// <summary>AGR-05 Ard Plough: furrowed fields and ox teams drawing the ard.</summary>
+    ArdPlough = 1,
+    /// <summary>AGR-07 Fallow &amp; Manuring: fields rest in turn and cattle graze them.</summary>
+    Fallow = 2,
+    /// <summary>HUS-02 Herd Following: herders walk beside the wild herds on their land.</summary>
+    HerdFollowing = 4,
+    /// <summary>HUS-06 Wool Breeds: big woolly flocks and bales of fleece.</summary>
+    WoolBreeds = 8,
+    /// <summary>TRN-05 Wheeled Carts: ox carts shuttle along the trails.</summary>
+    Carts = 16,
+    /// <summary>WAR-06 Chariots: raiders ride chariots over open ground and chariots stand in the villages.</summary>
+    Chariots = 32,
+    /// <summary>BEL-07 State Cult: a temple in the greatest village.</summary>
+    StateCult = 64,
+    /// <summary>SOC-07 Chiefdom: a chief's hall in the greatest village.</summary>
+    Chiefdom = 128,
+    /// <summary>FIB-04 Tailored Clothing: fitted parkas, sleeves, leggings and boots.</summary>
+    TailoredClothing = 256,
+}
+
 /// <summary>Age band by size: child under 14, adult 14 to 44, elder 45 and over (docs/MVP/08 §2.1 "life stage").</summary>
 public enum AgeBand : byte { Child = 0, Adult = 1, Elder = 2 }
 

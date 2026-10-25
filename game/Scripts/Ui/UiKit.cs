@@ -41,6 +41,7 @@ public partial class UiButton : Button
         float x;
         if (GlyphTop) { x = (Size.X - size) * 0.5f; y = 6; }
         else if (Text.Length == 0) x = (Size.X - size) * 0.5f;
+        else if (ThemeTypeVariation.ToString() == "ChipButtonIcon") x = UiTokens.Sp3;
         else if (ThemeTypeVariation.ToString().StartsWith("Ghost", StringComparison.Ordinal)) x = UiTokens.Sp3;
         else x = 21;
         UiDraw.Glyph(this, _glyph, new Rect2(x, y, size, size), color, stroke, _rotation);

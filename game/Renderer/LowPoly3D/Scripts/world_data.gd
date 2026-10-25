@@ -14,6 +14,17 @@ enum Biome { OCEAN, COAST, ICE, TUNDRA, TAIGA, TEMPERATE_FOREST, OPEN_WOODLAND, 
 enum Kind { HEARTH, LEAN_TO, HIDE_TENT, PIT_HOUSE, WATTLE_HOUSE, MUDBRICK_HOUSE, LONGHOUSE, STORAGE_PIT,
 	DRYING_RACK, GRANARY, KILN, QUERN, THORN_BARRIER, LOOKOUT, WEIR, FIELD, PASTURE, ORCHARD }
 
+## Bits of civ_looks (CivLook in src/CivSim.Sim/View/ViewTypes.cs): projects that change how land and people look.
+const LOOK_ARD := 1
+const LOOK_FALLOW := 2
+const LOOK_HERD_FOLLOWING := 4
+const LOOK_WOOL := 8
+const LOOK_CARTS := 16
+const LOOK_CHARIOTS := 32
+const LOOK_STATE_CULT := 64
+const LOOK_CHIEFDOM := 128
+const LOOK_TAILORED := 256
+
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
 const FLAG_SPRING := 4
@@ -42,6 +53,8 @@ var monuments := PackedInt32Array()     # stride 5: tile, civ, tick learned, pop
 var sea_tier := PackedInt32Array()       # per civilization: best boat known (0 none .. 4 outrigger)
 var signal_civs := PackedInt32Array()    # per civilization: 1 when it keeps signal fires (COM-04)
 var burn_learned := PackedInt32Array()   # per civilization: tick FIR-05 was learned, tick AGR-04 was learned (-1 = not yet)
+var dog_civs := PackedInt32Array()      # per civilization: 0 no dogs, 1 dogs in the villages, 2 dogs also haul travois
+var civ_looks := PackedInt32Array()     # per civilization: LOOK_* bits (ard plough, fallow, herders, wool, carts, chariots, temple, chief's hall, clothes)
 var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was learned (-1 = not yet)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
@@ -61,6 +74,12 @@ var food_overlay := PackedByteArray() # 0 unknown/non-settlement, 1..4 food band
 var forecast_overlay := PackedByteArray()
 var method_overlay := PackedByteArray() # 0 none, 1+ best rung held by a visible/own worker
 var method_fallback_overlay := PackedByteArray() # 255 where the visible worker knows a better but blocked rung
+
+static var LOOKS_DEBUG: bool = "--looks-debug" in OS.get_cmdline_user_args()
+
+## Whether a civilization knows the project behind a LOOK_* bit.
+func has_look(civ: int, bit: int) -> bool:
+	return civ >= 0 and civ < civ_looks.size() and (civ_looks[civ] & bit) != 0
 
 static func civ_color(civ: int) -> Color:
 	if civ < 0:
@@ -126,6 +145,12 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	signal_civs = _int_data(d.signalCivs, 1) if d.has("signalCivs") else PackedInt32Array()
 	burn_learned = _int_data(d.burnLearned, 1) if d.has("burnLearned") else PackedInt32Array()
 	feast_learned = _int_data(d.feastLearned, 1) if d.has("feastLearned") else PackedInt32Array()
+	dog_civs = _int_data(d.dogCivs, 1) if d.has("dogCivs") else PackedInt32Array()
+	civ_looks = _int_data(d.civLooks, 1) if d.has("civLooks") else PackedInt32Array()
+	if LOOKS_DEBUG:
+		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
+		civ_looks.resize(8)
+		civ_looks.fill(511)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

@@ -46,7 +46,7 @@ Dev arguments: `--ui-open=…`, `--scenario=…` (+ `--shots=dir`), `--opening-h
 | D3 | **Warm ink-glass panels** (`#1F1B16` at 90%) with 1 px parchment border and soft shadow; parchment text; **ochre-gold accent `#E9BE4E`**. Theme colours (Craft copper-amber, Kin sage, Reach sky) appear only in UI, always with a shape glyph. Text never sits directly on the map. |
 | D4 | **Stretch:** keep `canvas_items` with the 1600×900 base, set aspect to **`expand`**, set a minimum window of 1280×720, and apply an **automatic UI scale floor of 0.9** (so 14 px never renders below 12.6 px). Player UI size setting: 100 / 115 / 130 %. |
 | D5 | **Top band:** Civ card (left) · **Time cluster with the dominant Pause/Resume button and ½×/1×/2×/4× speed** (centre) · Diplomacy / Chronicle / Help / Menu (right). FPS, figure count, zoom number and tick move to a developer overlay on **F3**. Year is shown **1-based** everywhere. |
-| D6 | **Paused state is unmistakable:** accent-filled Resume button, a "PAUSED" pill under the time cluster, a 3 px ochre frame around the viewport and a 14 % warm scrim over the map. **A new match starts paused** ("opening hold") on the first research choice and resumes automatically on the first assignment. Opening the research web does **not** pause (setting, default off). |
+| D6 | **Paused state is unmistakable:** accent-filled Resume button, a "PAUSED" pill under the time cluster, a 3 px ochre frame around the viewport and a 14 % warm scrim over the map. **A new match starts paused** ("opening hold") through the first research choice and resumes automatically when the player closes the research web. Opening the research web does **not** pause (setting, default off). |
 | D7 | **Focus bar:** three cards sized **610 : 377 : 233** (1 : 0.618 : 0.382) so rank reads as size, every card ≥ 200 px. Each shows rank badge, name, theme glyph, live share %, progress, ETA. **Open = dashed ochre outline + "+ Choose a project"** (pulses until the player's first ever assignment). Completion: **Done ✓ flash**, then the visible cascade (others slide up, bottom slot opens). Assignments made while paused show a **pending** state. |
 | D8 | **Research web:** default view **"Choose"** — a card grid of the projects ready now, grouped in three theme columns, plus "Almost ready" and a quiet "+N more to discover this age"; the lanes grid becomes the optional **"Map"** view with human field names and only current-age columns. Canvas 61.8 % / inspector 38.2 %. One click selects, the big CTA (or double-click, Enter, 1/2/3) assigns. **CTA targets the first open slot** ("Start in Primary"); when all slots are busy it opens an inline **"Replace which?"** row. Live slot strip on top. Codes never shown to players (F3 only). |
 | D9 | **Notifications:** project completions get a **Moment card** (bottom-left, 8 s, "Show me" / "Pick next"); other events use a **toast stack** (bottom-right, max 3); the **Chronicle** is a collapsed top-right button with an unread badge that expands to a grouped, iconised, newest-first feed. Critical alerts are sticky toasts; they never auto-expand panels. |
@@ -323,13 +323,13 @@ All components live in `game/Scripts/Ui/`. Sizes are base (1600×900).
 - Click anywhere on the toast = its primary action (jump camera if the event has a tile) and dismiss.
 
 ### 2.9 Moment card
-- 377×144 (compact 320×120), `CardPanel`, 3 px left bar in the project's theme colour.
+- 320×128 (compact 280×112), compact `MomentCard` panel, 3 px left bar in the project's theme colour.
 ```
-NEW KNOWLEDGE                                          ×
-[hammer] Pebble Choppers                                    Heading 20
-An elder cracks a river cobble; the flake opens a bone…     Body 16 secondary, 2 lines max
-Chopping is now ×1.5 faster as the skill spreads.           Caption (first "What changes" line)
-[ Show me ]   [ Pick next ▸ ]                               Secondary 36 / Primary 36
+NEW KNOWLEDGE                                          ×     Eyebrow 12
+[hammer] Pebble Choppers                                    Heading 18
+An elder cracks a river cobble; the flake opens a bone…     Body 14 secondary, 1 line max; full text in tooltip
+Chopping is now ×1.5 faster as the skill spreads.           Caption 12 (first "What changes" line)
+[ Show me ]   [ Pick next ▸ ]                               Secondary 30 / Primary 30
 ```
 - "Pick next" shows only if a slot is open and Auto-fill is off; otherwise the line reads "The elders will pick the next one." (Auto-fill on) or nothing.
 - Turning points use eyebrow "A NEW AGE" and also trigger the age banner (§3.1).
@@ -413,9 +413,10 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 │ │LAYERS │                                                               ┌Toast stack 377───────┐ │ ≥529
 │ │Claims │                                                               │ toast 72             │ │
 │ │Food   │                                                               │ toast 72             │ │
-│ │Methods│ ┌Moment card 377×144─┐                                        │ toast 72             │ │
-│ │Resourc│ │ NEW KNOWLEDGE      │   [ Drag to move · Scroll to zoom … ]  └──────────────────────┘ │ 761
-│ └───────┘ └────────────────────┘          hint pill y 727 h 34                                   │
+│ │Methods│                                                               │ toast 72             │ │
+│ │Resourc│                                                               └──────────────────────┘ │
+│ └───────┘ ┌Moment card 320×128─┐                                                hint pill y 727 h 34 │
+│           └────────────────────┘  [ Drag to move · Scroll to zoom … ]                               │ 761
 │ ┌Focus bar 1508×105 (x 46, y 774)────────────────────────────────────────────────────────────┐  │ 774
 │ │[Research web T •3][Primary 610            ][Secondary 377      ][Tertiary 233  ]           │  │
 │ │[Auto-fill ○ 63/yr]                                                                          │  │
@@ -434,7 +435,7 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 | Coach tip / age banner slot | centred, 131, 610, ≤ 110 | top-centre (one at a time; banner wins) |
 | Right drawer | W−21−w, 97; Chronicle w 377 h ≤ 377; Diplomacy w 610 h ≤ 664 | top-right; only one drawer open at a time |
 | Toast stack | W−21−377, bottom at 761, 377, cards 72, max 3, gap 8 | bottom-right, stacks upward |
-| Moment card | 21, 617, 377, 144 | bottom-left, above focus bar |
+| Moment card | 21, 642, 320, 128 | bottom-left, 4 px above focus bar |
 | Hint pill | centred, 727, auto ≤ 610, 34 | bottom-centre, above focus bar |
 | Focus bar | centred, 774, 1508, 105 | bottom-centre |
 | Tile card | floating, 320 wide | near cursor |
@@ -460,7 +461,7 @@ Chopping is now ×1.5 faster as the skill spreads.           Caption (first "Wha
 | Top-right | icon-only 42×42 ×4 (tooltips carry names + keys), 208 wide | as base |
 | Rail | 55 wide, icons only (36×36), zoom ladder stops 26 high, legend card at x = 13+55+8 | as base |
 | Focus bar | summary column 199; cards: Tertiary = max(200, 0.191·A), Secondary = max(233, 0.309·A), Primary = rest, where A = W − 2M − 16 − 199 − 13 − 26 (e.g. 1231: 457/294/200; 1422: 571/353/218) | fixed 1508 centred |
-| Toasts / Moment | 320 wide; toasts 64 high; Moment 320×120 | as base |
+| Toasts / Moment | Toasts 320×64; Moment 280×112 at x=76 beside the 55 px rail | as base |
 | Chronicle drawer | 320 × ≤ 233 | 377 × ≤ 377 |
 | Diplomacy drawer | 520 (civ list 160 + detail 347) | 610 |
 | Research web | inset 13, top 76, same φ split; Choose view keeps 3 columns (≥ 221 each) | max width 1597 centred |
@@ -693,7 +694,7 @@ Caption `NumRegular` lines on HudPanel 233 wide: "60 fps", "Figures 2,412 (all 2
 
 ### 4.3 Opening hold and pending orders
 
-- **Opening hold:** when a live match starts at tick 0 with all three slots empty and Auto-fill off, call `SetPaused(true)` before the intro shows. The paused pill reads "PAUSED · choose a first project, or press Space to start". The first `SetSlot` sent by the player calls `SetPaused(false)` (once per match). Pressing Space resumes normally and ends the hold.
+- **Opening hold:** when a live match starts at tick 0 with all three slots empty and Auto-fill off, call `SetPaused(true)` before the intro shows. The paused pill reads "PAUSED · choose a first project, or press Space to start". The first `SetSlot` sent by the player leaves the hold in place while the research web is open; closing the web calls `SetPaused(false)`. Pressing Space resumes normally and ends the hold.
 - **Pending orders:** after sending `SetSlot`/`ClearSlot` while paused, store `pending[slot] = (project, sentTick)` and draw the slot (focus bar, web strip, node) in the Pending state. Clear when a frame with `Tick > sentTick` arrives (the frame then shows the result) or on an `OrderRefused` for `SetSlot`. Diplomacy orders sent while paused: Info toast "Order sent — it starts when you resume."
 
 ### 4.4 Click flows for the five key tasks
@@ -702,7 +703,7 @@ Caption `NumRegular` lines on HudPanel 233 wide: "60 fps", "Figures 2,412 (all 2
 1. Launch → opening hold + intro modal → click "Choose a first project" (or Enter).
 2. Web opens in Choose view; target = Primary (first open slot); the first Ready card (Craft column, cheapest) is preselected so the CTA is live.
 3. Click any Ready card (inspector updates) → click **"Start in Primary"** (or double-click the card, or Enter, or 1).
-4. Feedback within 100 ms: slot chip shows the project (Pending → Working when the next frame lands), footer "Plant Lore started in Primary.", the opening hold ends and time runs; target moves to Secondary and the CTA reads "Start in Secondary". The web stays open so filling all three takes three more clicks; Esc/× closes it.
+4. Feedback within 100 ms: slot chip shows the project (Pending while paused), footer "Plant Lore started in Primary. Time starts when you close the research menu." The opening hold remains active while the web is open; target moves to Secondary and the CTA reads "Start in Secondary". Esc/× closes the web and starts time; the slot then changes to Working when the next frame lands.
 
 **2 · Replace a slot.**
 1. Click a working focus card (e.g. Primary) → web opens with that project selected and Primary as target.

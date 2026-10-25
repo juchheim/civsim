@@ -27,9 +27,12 @@ var overlay_mode := 0 # 0 none, 1 claims, 2 food, 3 methods, 4 deposits, 5 trade
 var fire_lights: Array[OmniLight3D] = []
 var smoke_nodes: Array[Node3D] = []
 var last_season := -1
+var season_lock := -1                  # dev aid for scenarios: show this season whatever the date (-1 follows the frame)
 var signal_rig: M7SignalRig
 var burn_rig: M7BurnRig
 var feast_rig: M7FeastRig
+var dog_rig: M7DogRig
+var farm_rig: M7FarmRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -60,6 +63,10 @@ func setup_frame(frame_data: Dictionary) -> void:
 	builder.trails_changed = false
 	feast_rig = M7FeastRig.new(builder, world_root)
 	feast_rig.sync(float(world.tick))
+	dog_rig = M7DogRig.new(builder, world_root)
+	dog_rig.sync()
+	farm_rig = M7FarmRig.new(builder, world_root)
+	farm_rig.sync()
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -75,7 +82,7 @@ func update_frame(frame_data: Dictionary) -> void:
 	_update_e3_overlay_texture()
 	_update_forest_overlay_texture()
 	var tile_state := Time.get_ticks_usec()
-	_apply_season(world.season)
+	_apply_season(season_lock if season_lock >= 0 else world.season)
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	var structures_changed := builder.update_frame()
@@ -83,6 +90,8 @@ func update_frame(frame_data: Dictionary) -> void:
 		builder.trails_changed = false
 		burn_rig.set_corridors(builder.trail_polys)
 	signal_rig.sync()
+	dog_rig.sync()
+	farm_rig.sync()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
@@ -103,6 +112,16 @@ func set_render_tick(tick: float) -> void:
 	if feast_rig != null:
 		feast_rig.sync(tick)
 		feast_rig.update(tick)
+	if dog_rig != null:
+		dog_rig.update(tick)
+	if farm_rig != null:
+		farm_rig.update(tick)
+
+## Dev aid for scenarios: show one season (0 spring .. 3 winter) whatever the date; -1 lets the frame decide again.
+func lock_season(season: int) -> void:
+	season_lock = season
+	if season >= 0:
+		_apply_season(season)
 
 ## Dev aid for scenarios: the first monument's ring centre in world coordinates (or the origin when there is none).
 func monument_focus() -> Vector3:
@@ -146,6 +165,101 @@ func burn_focus() -> Vector3:
 		return Vector3.ZERO
 	var c: Vector2 = burn_rig.fx_focus
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
+## Dev aids for scenarios: where a village dog is, and the middle of the first track a dog hauls along (the origin when none).
+func dog_count() -> Vector2i:
+	return Vector2i(dog_rig.dogs.size(), dog_rig.haulers.size()) if dog_rig != null else Vector2i.ZERO
+
+func dog_focus() -> Vector3:
+	return dog_rig.focus() if dog_rig != null else Vector3.ZERO
+
+func haul_focus() -> Vector3:
+	return dog_rig.haul_focus() if dog_rig != null else Vector3.ZERO
+
+## Dev aids for scenarios: where an ard team is ploughing, where cattle graze a resting field, where an ox cart is on its trail and
+## where a chariot was last placed (the origin when none).
+func team_focus() -> Vector3:
+	return farm_rig.team_focus() if farm_rig != null else Vector3.ZERO
+
+func graze_focus() -> Vector3:
+	return farm_rig.graze_focus() if farm_rig != null else Vector3.ZERO
+
+func cart_focus() -> Vector3:
+	return farm_rig.cart_focus() if farm_rig != null else Vector3.ZERO
+
+func chariot_focus() -> Vector3:
+	if builder == null or builder.chariot_probe == Vector2.ZERO:
+		return Vector3.ZERO
+	var c: Vector2 = builder.chariot_probe
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
+## Dev aid for scenarios: where the last decor of a kind (temple, chiefhall, woolbales, chariot ...) was placed (the origin when none).
+func landmark_focus(kind: String) -> Vector3:
+	if builder == null or not builder.decor_spots.has(kind):
+		return Vector3.ZERO
+	var c: Vector2 = builder.decor_spots[kind]
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
+## Dev aid for scenarios: lays the meshes of the looks projects out in rows on a plain stage beside the map, to be photographed one
+## row at a time (rows are 0.7 apart, rows 0 to 4 from the nearest: people, houses and landmarks, boats and chariots, teams and carts,
+## fields). Returns the stage centre.
+func show_gallery() -> Vector3:
+	var stage := Node3D.new()
+	stage.name = "Gallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)    # over the sea off the map's west edge, at the warm middle latitude
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(9.0, 7.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, 0.0)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	var rows := [
+		# people: bare and tailored side by side, tool by tool
+		[["person_plain", 0.18, 1.0], ["person_plain_g", 0.18, 1.0], ["person_spear", 0.18, 1.0], ["person_spear_g", 0.18, 1.0],
+			["person_hoe", 0.18, 1.0], ["person_hoe_g", 0.18, 1.0], ["person_child", 0.18, 1.0], ["person_child_g", 0.18, 1.0],
+			["person_elder", 0.18, 1.0], ["person_elder_g", 0.18, 1.0], ["person_crook", 0.18, 1.0], ["person_crook_g", 0.18, 1.0]],
+		# landmarks and props at village scale
+		[["decor_temple", 0.8, 1.45], ["decor_chiefhall", 0.8, 1.45], ["decor_woolbales", 0.5, 1.45], ["decor_chariot", 0.5, 1.45],
+			["longhouse", 0.7, 1.45]],
+		# boats of every age and chariots
+		[["person_boat_3", 0.5, 1.0], ["person_boat_4", 0.5, 1.0], ["person_boat_5", 0.6, 1.0], ["person_boat_6", 0.6, 1.0],
+			["person_chariot", 0.5, 1.0]],
+		# teams and carts
+		[["ard_team_a", 0.55, 1.2], ["ard_team_b", 0.55, 1.2], ["ox_cart_a", 0.65, 1.2], ["ox_cart_b", 0.65, 1.2]],
+		# fields
+		[["field", 1.1, 1.0], ["field_ard", 1.1, 1.0], ["field_fallow", 1.1, 1.0]],
+	]
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z: float = [2.8, 1.5, 0.3, -0.9, -2.3][r]
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var civ := i % 4
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			if name.begins_with("person") or name.begins_with("ard_") or name.begins_with("ox_"):
+				custom = Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0)
+			var yaw := 0.0
+			if name.begins_with("ard_") or name.begins_with("ox_"):
+				yaw = PI * 0.5
+			batch.add(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * float(item[2])), Vector3(x, 0.0, z)), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	return centre
 
 ## Dev aid for scenarios: where a feast is under way now (the origin when none).
 func feast_focus() -> Vector3:

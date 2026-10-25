@@ -78,13 +78,14 @@ public partial class Game
     private HBoxContainer? _inspectorChips;
     private PanelContainer? _chipTheme, _chipAge, _chipType;
     private Label? _inspName, _inspState, _inspWhy, _inspEstimate, _inspSeeText, _inspFlavor, _inspChanges, _inspEmpty;
+    private Label? _peopleProjectContextText;
     private UiButton? _ctaButton;
     private VBoxContainer? _orRow;
     private Label? _orLabel;
     private readonly UiButton[] _orButtons = new UiButton[3];
     private VBoxContainer? _replaceRow;
     private readonly UiButton[] _replaceChips = new UiButton[3];
-    private Control? _changesBlock, _seeBlock, _needsBlock, _leadsBlock;
+    private Control? _changesBlock, _peopleProjectContext, _seeBlock, _needsBlock, _leadsBlock;
     private VBoxContainer? _needsList, _needsAnyList;
     private readonly List<UiProjectCard> _needsAnyPool = new();
     private HFlowContainer? _leadsList;
@@ -221,6 +222,9 @@ public partial class Game
         _webAutoFill.ThemeTypeVariation = "ToggleRowCompact";
         footer.AddChild(_webAutoFill);
         footer.AddChild(UiKit.Ghost("Elders' leaning…", ToggleLeaningPopover, "Which themes the elders favour when Auto-fill picks"));
+        _peopleWebButton = UiKit.Secondary("People & needs", OpenPeoplePanel,
+            "See what your people do and the needs shaping research choices", UiGlyph.People, UiTokens.ControlS, true);
+        footer.AddChild(_peopleWebButton);
         _footerNote = UiKit.Text("★ Turning point prerequisite · Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
         footer.AddChild(_footerNote);
@@ -404,6 +408,13 @@ public partial class Game
         _changesBlock.AddChild(_inspChanges);
         _inspector.AddChild(_changesBlock);
 
+        _peopleProjectContext = UiKit.Column(UiTokens.Sp1);
+        _peopleProjectContext.AddChild(UiKit.Text("YOUR PEOPLE & PRACTICE", "EyebrowTertiary"));
+        _peopleProjectContextText = UiKit.Text("", "BodySecondary", wrap: true);
+        _peopleProjectContext.AddChild(_peopleProjectContextText);
+        _peopleProjectContext.Visible = false;
+        _inspector.AddChild(_peopleProjectContext);
+
         _seeBlock = UiKit.Column(UiTokens.Sp1);
         _seeBlock.AddChild(UiKit.Text("WHAT YOU'LL SEE", "EyebrowTertiary"));
         _inspSeeText = UiKit.Text("", "BodySecondary", wrap: true);
@@ -484,8 +495,11 @@ public partial class Game
     private void OpenResearchWeb(int targetSlot, int project = -1)
     {
         if (_webPanel is null || _current is null) return;
+        if (_peopleOpen) ClosePeoplePanel();
         if (_ui.Contains("menu") || _ui.Contains("diplomacy") || _ui.Contains("chronicle")) CloseDrawersAndMenus();
         bool wasOpen = _researchWebVisible;
+        if (!wasOpen && !_openingHold && _session is { Paused: true } && IsFreshUnassignedMatch())
+            _openingHold = true;
         _researchWebVisible = true;
         _newProjectCount = 0;
         UpdateNewBadge();
@@ -535,13 +549,15 @@ public partial class Game
     private void CloseResearchWeb()
     {
         if (!_researchWebVisible) return;
+        if (_peopleOpen) ClosePeoplePanel();
         _researchWebVisible = false;
         CloseQueuePopover();
         CloseLeaningPopover();
         if (_webScrim is not null) _webScrim.Visible = false;
         if (_webPanel is not null) UiKit.Fade(_webPanel, false, UiTokens.SlowCloseS);
         if (_webLayer is not null) _ui.Remove(_webLayer);
-        if (_pausedByWeb && _session is { Paused: true } && !_openingHold) _session.SetPaused(false);
+        if (_openingHold && _openingHoldAssignmentPending) EndOpeningHold();
+        else if (_pausedByWeb && _session is { Paused: true } && !_openingHold) _session.SetPaused(false);
         _pausedByWeb = false;
         UpdatePausedTreatment();
         MaybeShowLookAroundTip();

@@ -72,6 +72,8 @@ public sealed class MatchFrame
     public int[] FigureY = Array.Empty<int>();
     /// <summary><see cref="FigureActivity"/>.</summary>
     public byte[] FigureActivity = Array.Empty<byte>();
+    /// <summary>Current specialist role: 1 Priest, 2 Scribe, 0 none.</summary>
+    public byte[] FigureRole = Array.Empty<byte>();
     /// <summary><see cref="AgeBand"/>.</summary>
     public byte[] FigureAge = Array.Empty<byte>();
     /// <summary><see cref="HealthBand"/>.</summary>
@@ -172,7 +174,7 @@ public sealed class MatchFrame
     public long[] MonumentTick = Array.Empty<long>();
     /// <summary>Population of the village that raises it (the size of the hauling crew).</summary>
     public int[] MonumentPopulation = Array.Empty<int>();
-    // ---- seafaring: per civilization, the best boat its people know (0 none, 1 raft SEA-01, 2 bark canoe, 3 dugout, 4 outrigger) ----
+    // ---- seafaring: per civilization, the best boat its people know (0 none, 1 raft SEA-01, 2 bark canoe, 3 dugout, 4 outrigger, 5 plank boat SEA-05, 6 sail SEA-06) ----
     public byte[] CivSeaTier = Array.Empty<byte>();
 
     // ---- signal fires (COM-04): per civilization, 1 when its people keep signal posts on the hills between their villages ----
@@ -183,6 +185,12 @@ public sealed class MatchFrame
 
     // ---- feasting (SOC-05): per civilization, the tick it was learned, or -1 ----
     public long[] CivFeastLearned = Array.Empty<long>();
+
+    // ---- dogs (HUS-01 Wolf Companions, TRN-02 Travois & Sledges): per civilization, 0 none, 1 dogs about the villages, 2 dogs also haul travois on the trails ----
+    public byte[] CivDogs = Array.Empty<byte>();
+
+    // ---- looks (CivLook bits): per civilization, which of the projects that change fields, flocks, carts, chariots, temples and clothes it knows ----
+    public ushort[] CivLooks = Array.Empty<ushort>();
 
     // ---- worn trails: routes between villages as runs of tiles (-1 = not explored or open water) ----------------------------
     public int TrailCount;
@@ -283,6 +291,9 @@ public sealed class MatchFrame
     /// <summary><see cref="Research.ProjectState"/> of every project (dense pack index) for the focus civilization: the research web's node states (08 §8.2).</summary>
     public int FocusProjectCount;
     public byte[] FocusProjectState = Array.Empty<byte>();
+    /// <summary>Current Know-how stock by research field (lineage), fixed-point raw values.</summary>
+    public long[] FocusKnowHow = Array.Empty<long>();
+    public int FocusKnowHowCount;
     /// <summary>Mandate pips (docs/MVP/22 §4.2): in hand, the cap, seasons to the next point (0 when full or locked), and whether Decrees are unlocked.</summary>
     public int FocusMandate, FocusMandateCap, FocusMandateNextSeason;
     public bool FocusMandateUnlocked;
@@ -356,7 +367,7 @@ public sealed class MatchFrame
     {
         if (FigureId.Length >= n) return;
         Ensure(ref FigureId, n); Ensure(ref FigureCiv, n); Ensure(ref FigureSettlement, n); Ensure(ref FigureTile, n);
-        Ensure(ref FigureX, n); Ensure(ref FigureY, n); Ensure(ref FigureActivity, n); Ensure(ref FigureAge, n);
+        Ensure(ref FigureX, n); Ensure(ref FigureY, n); Ensure(ref FigureActivity, n); Ensure(ref FigureRole, n); Ensure(ref FigureAge, n);
         Ensure(ref FigureHealth, n); Ensure(ref FigureFlags, n); Ensure(ref FigureToolRung, n); Ensure(ref FigureCarry, n);
         Ensure(ref FigureKnownToolRung, n); Ensure(ref FigureMethodEfficiencyPermille, n);
         Ensure(ref FigureMethodFallback, n); Ensure(ref FigureMethodFallbackTool, n);

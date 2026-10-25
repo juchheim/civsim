@@ -129,4 +129,53 @@ public class ViewMonumentTests
         Assert.Equal(match.Research.CompletedTick(3, feast), frame.CivFeastLearned[3]);
         Assert.Equal(-1, frame.CivFeastLearned[0]);
     }
+
+    [Fact]
+    public void Each_civilization_reports_how_far_its_dogs_have_come()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(10);
+        var builder = new FrameBuilder(match, -1);
+        var frame = new MatchFrame();
+        builder.Build(match, frame);
+        for (int c = 0; c < frame.CivDogs.Length; c++) Assert.Equal(0, frame.CivDogs[c]);
+
+        int dogs = match.Research.Catalog.IndexOf("HUS-01");
+        runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, dogs, 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(1, frame.CivDogs[3]);
+        Assert.Equal(0, frame.CivDogs[0]);
+
+        int travois = match.Research.Catalog.IndexOf("TRN-02");
+        runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, travois, 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal(2, frame.CivDogs[3]);
+    }
+    [Fact]
+    public void Each_civilization_reports_the_projects_that_change_how_it_looks()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(10);
+        var builder = new FrameBuilder(match, -1);
+        var frame = new MatchFrame();
+        builder.Build(match, frame);
+        for (int c = 0; c < frame.CivLooks.Length; c++) Assert.Equal(0, frame.CivLooks[c]);
+
+        foreach (string id in new[] { "AGR-05", "FIB-04", "SEA-05", "SEA-06" })
+            runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, match.Research.Catalog.IndexOf(id), 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.Equal((ushort)(CivLook.ArdPlough | CivLook.TailoredClothing), frame.CivLooks[3]);
+        Assert.Equal(0, frame.CivLooks[0]);
+        Assert.Equal(6, frame.CivSeaTier[3]);
+
+        runner.Submit(new Command(runner.Tick, 3, CommandKind.CompleteProject, match.Research.Catalog.IndexOf("BEL-07"), 0, 0));
+        runner.Advance(20);
+        builder.Build(match, frame);
+        Assert.True((frame.CivLooks[3] & (ushort)CivLook.StateCult) != 0);
+    }
 }
