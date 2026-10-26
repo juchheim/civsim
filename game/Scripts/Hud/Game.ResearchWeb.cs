@@ -59,6 +59,8 @@ public partial class Game
     private bool _showAllAlmostRows;
     private readonly List<UiProjectCard> _navCards = new();
     private bool[] _agePath = Array.Empty<bool>();
+    private bool[] _agePathRequired = Array.Empty<bool>();
+    private bool[] _agePathOption = Array.Empty<bool>();
     private bool[] _breadthPath = Array.Empty<bool>();
 
     // map view
@@ -78,7 +80,7 @@ public partial class Game
     private UiButton? _backLink;
     private HBoxContainer? _inspectorChips;
     private PanelContainer? _chipTheme, _chipAge, _chipType;
-    private Label? _inspName, _inspState, _inspWhy, _inspEstimate, _inspSeeText, _inspFlavor, _inspChanges, _inspEmpty;
+    private Label? _inspName, _inspState, _ageRoleNote, _inspWhy, _inspEstimate, _inspSeeText, _inspFlavor, _inspChanges, _inspEmpty;
     private Label? _peopleProjectContextText;
     private UiButton? _ctaButton;
     private VBoxContainer? _orRow;
@@ -226,7 +228,7 @@ public partial class Game
         _peopleWebButton = UiKit.Secondary("People & needs", OpenPeoplePanel,
             "See what your people do and the needs shaping research choices", UiGlyph.People, UiTokens.ControlS, true);
         footer.AddChild(_peopleWebButton);
-        _footerNote = UiKit.Text("Filled star: keystone path · outline star: breadth project · Click to inspect · Double-click or Enter to start · 1 2 3 choose a slot", "CaptionTertiary", right: true, ellipsis: true);
+        _footerNote = UiKit.Text("Star: adds to age count · Link: prerequisite route · Age: completes transition · Click to inspect", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
         footer.AddChild(_footerNote);
         root.AddChild(footer);
@@ -362,6 +364,8 @@ public partial class Game
         _inspector.AddChild(_inspName);
         _inspState = UiKit.Text("", "BodyStrong", wrap: true);
         _inspector.AddChild(_inspState);
+        _ageRoleNote = UiKit.Text("", "Caption", wrap: true);
+        _inspector.AddChild(_ageRoleNote);
 
         _ctaButton = UiKit.Primary("", OnCtaPressed, null, UiGlyph.None, UiTokens.ControlL, focus: true);
         _ctaButton.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -428,11 +432,11 @@ public partial class Game
         _needsBlock.AddChild(UiKit.Text("NEEDS", "EyebrowTertiary"));
         _needsNote = UiKit.Text("", "BodySecondary", wrap: true);
         _needsBlock.AddChild(_needsNote);
-        _needsHeaderAll = UiKit.Text("All of these:", "Caption");
+        _needsHeaderAll = UiKit.Text("Required first:", "Caption");
         _needsBlock.AddChild(_needsHeaderAll);
         _needsList = UiKit.Column(UiTokens.Sp1);
         _needsBlock.AddChild(_needsList);
-        _needsHeaderAny = UiKit.Text("Any one of these:", "Caption");
+        _needsHeaderAny = UiKit.Text("Choose one route:", "Caption");
         _needsBlock.AddChild(_needsHeaderAny);
         _needsAnyList = UiKit.Column(UiTokens.Sp1);
         _needsBlock.AddChild(_needsAnyList);

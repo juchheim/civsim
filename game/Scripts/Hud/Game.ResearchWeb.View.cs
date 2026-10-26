@@ -180,7 +180,9 @@ public partial class Game
             QueueIndex = QueueIndexOf(def.Index),
             Progress = slot >= 0 && _pendingProject[slot] == -2 ? frame.FocusSlotPermille[slot] / 1000f : 0,
             Selected = def.Index == _selectedResearchProject,
-            OnAgePath = (uint)def.Index < (uint)_agePath.Length && _agePath[def.Index],
+            RequiredForNextAge = (uint)def.Index < (uint)_agePathRequired.Length && _agePathRequired[def.Index],
+            OptionalNextAgeRoute = (uint)def.Index < (uint)_agePathOption.Length && _agePathOption[def.Index],
+            TurnsAge = def.IsKeystone && def.BreadthEra == frame.FocusEra,
             OnBreadthPath = (uint)def.Index < (uint)_breadthPath.Length && _breadthPath[def.Index],
             Line2 = "",
             Line3 = "",
@@ -201,6 +203,8 @@ public partial class Game
     {
         if (_catalog is null) return;
         _agePath = new bool[_catalog.Count];
+        _agePathRequired = new bool[_catalog.Count];
+        _agePathOption = new bool[_catalog.Count];
         _breadthPath = new bool[_catalog.Count];
         int civ = frame.FocusCiv;
         int era = frame.FocusEra;
@@ -219,13 +223,13 @@ public partial class Game
 
         // Keep the destination marked even after its prerequisites are complete.
         _agePath[turningPoint.Index] = true;
-        var visiting = new bool[_catalog.Count];
-        var processed = new bool[_catalog.Count];
-        MarkAgePathPrerequisites(turningPoint, visiting, processed);
+        var visiting = new[] { new bool[_catalog.Count], new bool[_catalog.Count] };
+        var processed = new[] { new bool[_catalog.Count], new bool[_catalog.Count] };
+        MarkAgePathPrerequisites(turningPoint, false, visiting, processed);
 
-        // Once the named prerequisite chain is complete, any unfinished project in this age
-        // contributes to the keystone's breadth requirement. Mark those choices so the path
-        // does not appear to disappear while the player is still earning the required breadth.
+        // Any unfinished regular project in this age contributes to the keystone's breadth
+        // requirement, even while some named prerequisites remain. Keep the age-path sorting
+        // behavior focused on breadth choices only after the named chain is complete.
         bool namedPrerequisitesRemain = false;
         for (int p = 0; p < _agePath.Length; p++)
             if (p != turningPoint.Index && _agePath[p])
@@ -233,38 +237,47 @@ public partial class Game
                 namedPrerequisitesRemain = true;
                 break;
             }
-        if (namedPrerequisitesRemain || frame.CivBreadthDone[civ] >= turningPoint.BreadthMin) return;
+        if (frame.CivBreadthDone[civ] >= turningPoint.BreadthMin) return;
 
         foreach (ProjectDef def in _catalog.Projects)
         {
             if (!def.Numeric || def.IsKeystone || def.Era != era) continue;
             if (StateOf(def.Index) is ProjectState.Completed or ProjectState.Dormant) continue;
-            _agePath[def.Index] = true;
             _breadthPath[def.Index] = true;
+            if (!namedPrerequisitesRemain) _agePath[def.Index] = true;
         }
     }
 
-    private void MarkAgePathProject(int project, bool[] visiting, bool[] processed)
+    private void MarkAgePathProject(int project, bool optional, bool[][] visiting, bool[][] processed)
     {
         if (_catalog is null || (uint)project >= (uint)_catalog.Count) return;
         ProjectState state = StateOf(project);
         if (state is ProjectState.Completed or ProjectState.Dormant) return;
         _agePath[project] = true;
-        if (processed[project]) return;
-        if (visiting[project]) return;
-        visiting[project] = true;
+        if (optional)
+        {
+            if (!_agePathRequired[project]) _agePathOption[project] = true;
+        }
+        else
+        {
+            _agePathRequired[project] = true;
+            _agePathOption[project] = false;
+        }
+        int route = optional ? 1 : 0;
+        if (processed[route][project] || visiting[route][project]) return;
+        visiting[route][project] = true;
 
         ProjectDef def = _catalog.Projects[project];
-        MarkAgePathPrerequisites(def, visiting, processed);
-        visiting[project] = false;
-        processed[project] = true;
+        MarkAgePathPrerequisites(def, optional, visiting, processed);
+        visiting[route][project] = false;
+        processed[route][project] = true;
     }
 
-    private void MarkAgePathPrerequisites(ProjectDef def, bool[] visiting, bool[] processed)
+    private void MarkAgePathPrerequisites(ProjectDef def, bool optional, bool[][] visiting, bool[][] processed)
     {
         foreach (int required in def.Requires)
             if (StateOf(required) is not (ProjectState.Completed or ProjectState.Dormant))
-                MarkAgePathProject(required, visiting, processed);
+                MarkAgePathProject(required, optional, visiting, processed);
 
         if (def.RequiresAny.Length > 0)
         {
@@ -277,7 +290,7 @@ public partial class Game
                 }
             if (!anyDone)
                 foreach (int alternative in def.RequiresAny)
-                    MarkAgePathProject(alternative, visiting, processed);
+                    MarkAgePathProject(alternative, true, visiting, processed);
         }
     }
 
@@ -583,8 +596,11 @@ public partial class Game
                 look.HiddenPrerequisite = hidden;
             }
             chip.Bind(def, look);
-            string pathTip = look.OnBreadthPath ? " · counts toward the next age's breadth"
-                : look.OnAgePath ? " · part of the path to the next age" : "";
+            string pathTip = "";
+            if (look.OnBreadthPath) pathTip += " · counts toward the age project requirement";
+            if (look.RequiredForNextAge) pathTip += " · required to reach the next age";
+            else if (look.OptionalNextAgeRoute) pathTip += " · one possible route to the next age";
+            if (look.TurnsAge) pathTip += " · completes the age transition";
             chip.TooltipText = $"{def.Name} · {StateWord(state)}" + pathTip +
                                (state == ProjectState.Glimpsed ? $" — {AlmostSub(def)}" : "") +
                                (_devVisible ? $"\n{def.Id}" : "");
@@ -758,6 +774,11 @@ public partial class Game
         if (def is not null)
         {
             hash.Add(StateOf(def.Index));
+            ProjectLook look = BuildLook(def, false);
+            hash.Add(look.OnBreadthPath);
+            hash.Add(look.RequiredForNextAge);
+            hash.Add(look.OptionalNextAgeRoute);
+            hash.Add(look.TurnsAge);
             foreach (int r in def.Requires) hash.Add(StateOf(r));
             foreach (int r in def.RequiresAny) hash.Add(StateOf(r));
             if (def.Index < _dependents.Length) foreach (int d in _dependents[def.Index]) hash.Add(StateOf(d));
@@ -779,7 +800,7 @@ public partial class Game
         _inspSignature = signature;
 
         UiKit.SetVisible(_inspEmpty!, !known);
-        foreach (Control? c in new Control?[] { _inspectorChips, _inspName, _inspState, _ctaButton, _inspWhy, _inspEstimate, _orRow, _changesBlock, _peopleProjectContext, _seeBlock, _needsBlock, _leadsBlock })
+        foreach (Control? c in new Control?[] { _inspectorChips, _inspName, _inspState, _ageRoleNote, _ctaButton, _inspWhy, _inspEstimate, _orRow, _changesBlock, _peopleProjectContext, _seeBlock, _needsBlock, _leadsBlock })
             if (c is not null) UiKit.SetVisible(c, known);
         if (!known || def is null)
         {
@@ -833,6 +854,11 @@ public partial class Game
         UiKit.SetText(_inspState!, stateText);
         UiKit.SetVariation(_inspState!, stateVariation);
 
+        ProjectLook ageLook = BuildLook(def, false);
+        string ageRole = AgeRoleText(frame, ageLook);
+        UiKit.SetText(_ageRoleNote!, ageRole);
+        UiKit.SetVisible(_ageRoleNote!, ageRole.Length > 0);
+
         // call to action
         UpdateCta(frame, def, state, slotOf, queueIndex, target, canCommand);
 
@@ -860,6 +886,32 @@ public partial class Game
         BuildNeeds(frame, def, state);
         BuildLeads(def);
         if (_inspectorScroll is not null && signature != _lastInspectorScrollSignature) { }
+    }
+
+    private static string AgeRoleText(MatchFrame frame, ProjectLook look)
+    {
+        var note = new StringBuilder();
+        if (look.OnBreadthPath)
+        {
+            int needed = Math.Max(1, (int)frame.CivBreadthNeeded[Math.Max(0, frame.FocusCiv)]);
+            note.Append($"Counts toward {UiText.AgeName(frame.FocusEra)}'s {needed}-project requirement.");
+        }
+        if (look.RequiredForNextAge)
+        {
+            if (note.Length > 0) note.Append(' ');
+            note.Append("Required to reach the next age.");
+        }
+        else if (look.OptionalNextAgeRoute)
+        {
+            if (note.Length > 0) note.Append(' ');
+            note.Append("One possible prerequisite route to the next age.");
+        }
+        if (look.TurnsAge)
+        {
+            if (note.Length > 0) note.Append(' ');
+            note.Append("Completes the age transition.");
+        }
+        return note.ToString();
     }
 
     private int _lastInspectorScrollSignature;
@@ -1130,7 +1182,7 @@ public partial class Game
         {
             int civ = Math.Max(0, frame.FocusCiv);
             int done = frame.CivBreadthDone[civ], needed = Math.Max(1, def.BreadthMin);
-            UiKit.SetText(_needsKeystone!, $"{Math.Min(done, needed)}/{needed} {UiText.AgeName(def.BreadthEra)} projects known");
+            UiKit.SetText(_needsKeystone!, $"{Math.Min(done, needed)}/{needed} completed {UiText.AgeName(def.BreadthEra)} projects");
             _needsKeystoneBar!.SetValue(Math.Min(1f, done / (float)needed), false);
         }
     }

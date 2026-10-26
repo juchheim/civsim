@@ -195,6 +195,7 @@ public partial class Game
         UiKit.SetText(_ageLabel!, UiText.AgeName(era).ToUpperInvariant() + " AGE");
         int done = frame.CivBreadthDone[civ], needed = Math.Max(1, (int)frame.CivBreadthNeeded[civ]);
         UiKit.SetText(_ageCountLabel!, $"{Math.Min(done, needed)}/{needed}");
+        _ageCountLabel!.TooltipText = $"Only completed regular {UiText.AgeName(era)} Age projects add to the next-age count. Required older-age projects unlock the route but don't add to this count. Projects in progress don't count yet.";
         _ageBar!.SetValue(Math.Min(1.0f, done / (float)needed), false);
         UiKit.SetText(_yearLabel!, YearText(frame));
         int seasonsLeft = _session.ChapterSeasonsLeft;
@@ -223,7 +224,7 @@ public partial class Game
             _speedControl.Select(index, false);
         }
         string rank = LegacyRankText(frame, civ);
-        string tip = $"Your people. Next age: a turning point moves you on once enough {UiText.AgeName(era)} projects are known and its own needs are met.{rank}";
+        string tip = $"Your people. Next age: complete {needed} regular {UiText.AgeName(era)} Age projects and meet the turning point's prerequisites. A star adds to this count; a link marks a required prerequisite or one possible route, as shown in Needs.{rank}";
         _civCard!.TooltipText = tip;
         _civCard.MouseFilter = Control.MouseFilterEnum.Pass;
     }

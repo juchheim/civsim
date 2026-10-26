@@ -9,7 +9,7 @@ public enum UiGlyph
     None, Pause, Play, Plus, Minus, Close, ChevronRight, ChevronDown, ChevronUp, Check, CheckBadge, BlockedBadge, Ring, HalfRing,
     Lock, Queue, ClockRing, Warning, Danger, Info, Hammer, Hearth, Compass, Gem, People, Hut, Flags, Scroll, Menu, Spark, Globe,
     Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star, StarOutline,
-    EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler,
+    EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler, Link,
 }
 
 /// <summary>Draws every icon the HUD uses with CanvasItem primitives, so no emoji or icon font is needed.</summary>
@@ -169,6 +169,12 @@ public static class UiDraw
             case UiGlyph.Age:
                 ci.DrawArc(C, Q(0.4f), 0, Mathf.Tau, 28, color, line, true);
                 ci.DrawPolyline(new[] { P(0.32f, 0.58f), P(0.5f, 0.38f), P(0.68f, 0.58f) }, color, line);
+                break;
+            case UiGlyph.Link:
+                ci.DrawArc(P(0.38f, 0.58f), Q(0.21f), 0, Mathf.Tau, 20, color, line, true);
+                ci.DrawArc(P(0.62f, 0.42f), Q(0.21f), 0, Mathf.Tau, 20, color, line, true);
+                ci.DrawLine(P(0.42f, 0.48f), P(0.58f, 0.52f), color, line);
+                ci.DrawLine(P(0.42f, 0.64f), P(0.58f, 0.48f), color, line);
                 break;
             case UiGlyph.LayerClaims:
                 ci.DrawPolyline(Hexagon(C, Q(0.4f), true), color, line);

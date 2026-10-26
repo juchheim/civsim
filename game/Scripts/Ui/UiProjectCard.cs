@@ -17,7 +17,9 @@ public struct ProjectLook
     public bool HiddenPrerequisite;
     public bool Selected;
     public bool Related;
-    public bool OnAgePath;
+    public bool RequiredForNextAge;
+    public bool OptionalNextAgeRoute;
+    public bool TurnsAge;
     public bool OnBreadthPath;
     public string Line2, Line3, Sub;
 }
@@ -38,7 +40,9 @@ public partial class UiProjectCard : Button
     private readonly ProjectCardMode _mode;
     private readonly UiIcon _themeIcon = new(UiGlyph.Hammer, 16, UiTokens.TextPrimary);
     private readonly UiIcon _stateIcon = new(UiGlyph.None, 16, UiTokens.TextPrimary);
-    private readonly UiIcon _agePathIcon = new(UiGlyph.Star, 14, UiTokens.Accent) { Visible = false };
+    private readonly UiIcon _breadthIcon = new(UiGlyph.Star, 14, UiTokens.Accent) { Visible = false };
+    private readonly UiIcon _prerequisiteIcon = new(UiGlyph.Link, 14, UiTokens.Info) { Visible = false };
+    private readonly UiIcon _turningPointIcon = new(UiGlyph.Age, 14, UiTokens.Accent) { Visible = false };
     private readonly UiRankBadge[] _ranks = { new(1), new(2), new(3) };
     private readonly Label _name = UiKit.Text("", "BodyStrong", ellipsis: true);
     private readonly Label _line2 = UiKit.Text("", "Caption", ellipsis: true);
@@ -80,7 +84,9 @@ public partial class UiProjectCard : Button
             top.AddChild(_name);
             top.AddChild(_queue);
             top.AddChild(_stateIcon);
-            top.AddChild(_agePathIcon);
+            top.AddChild(_breadthIcon);
+            top.AddChild(_prerequisiteIcon);
+            top.AddChild(_turningPointIcon);
             foreach (UiRankBadge badge in _ranks) top.AddChild(badge);
             column.AddChild(top);
             column.AddChild(_line2);
@@ -96,7 +102,9 @@ public partial class UiProjectCard : Button
             row.MouseFilter = MouseFilterEnum.Ignore;
             if (mode == ProjectCardMode.Chip) row.AddChild(_themeIcon);
             row.AddChild(_stateIcon);
-            row.AddChild(_agePathIcon);
+            row.AddChild(_breadthIcon);
+            row.AddChild(_prerequisiteIcon);
+            row.AddChild(_turningPointIcon);
             row.AddChild(_name);
             _sub.HorizontalAlignment = HorizontalAlignment.Right;
             if (mode == ProjectCardMode.Row)
@@ -172,12 +180,21 @@ public partial class UiProjectCard : Button
         _stateIcon.Glyph = glyph;
         _stateIcon.Tint = tint;
         _stateIcon.Visible = glyph != UiGlyph.None;
-        _agePathIcon.Visible = look.OnAgePath;
-        _agePathIcon.Glyph = look.OnBreadthPath ? UiGlyph.StarOutline : UiGlyph.Star;
-        _agePathIcon.TooltipText = look.OnBreadthPath
-            ? "Counts toward the next age's breadth"
-            : "Part of the path to the next age";
-        TooltipText = _agePathIcon.Visible ? _agePathIcon.TooltipText : "";
+        _breadthIcon.Visible = look.OnBreadthPath;
+        _breadthIcon.TooltipText = "Counts toward the next age's project requirement";
+        _prerequisiteIcon.Visible = look.RequiredForNextAge || look.OptionalNextAgeRoute;
+        _prerequisiteIcon.Tint = look.OptionalNextAgeRoute && !look.RequiredForNextAge ? UiTokens.TextSecondary : UiTokens.Info;
+        _prerequisiteIcon.TooltipText = look.OptionalNextAgeRoute && !look.RequiredForNextAge
+            ? "One possible prerequisite route to the next age"
+            : "Required to reach the next age";
+        _turningPointIcon.Visible = look.TurnsAge;
+        _turningPointIcon.TooltipText = "Completes the age transition";
+        string badgeTips = look.OnBreadthPath ? _breadthIcon.TooltipText : "";
+        if (_prerequisiteIcon.Visible)
+            badgeTips += badgeTips.Length == 0 ? _prerequisiteIcon.TooltipText : $"\n{_prerequisiteIcon.TooltipText}";
+        if (look.TurnsAge)
+            badgeTips += badgeTips.Length == 0 ? _turningPointIcon.TooltipText : $"\n{_turningPointIcon.TooltipText}";
+        TooltipText = badgeTips;
 
         for (int i = 0; i < 3; i++) _ranks[i].Visible = look.State == ProjectState.Slotted && look.SlotRank == i;
         bool queued = look.QueueIndex >= 0 && look.State != ProjectState.Slotted;
