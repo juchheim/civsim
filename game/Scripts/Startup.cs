@@ -11,8 +11,9 @@ public partial class Startup : Control
     private const double FadeStartsAtSeconds = 8.0;
     private const double FadeDurationSeconds = 2.0;
     private const string VideoPath = "res://assets/ui/loading/intro-pan-sunset.ogv";
-    private const string LogoPath = "res://assets/ui/loading/ATG-logo.png";
     private const string GameScenePath = "res://Main.tscn";
+
+    [Export] public Texture2D? LogoTexture { get; set; }
 
     private static readonly Color BackgroundTan = new("#D6C19B");
 
@@ -90,7 +91,7 @@ public partial class Startup : Control
         var logo = new TextureRect
         {
             Name = "Logo",
-            Texture = GD.Load<Texture2D>(LogoPath),
+            Texture = LogoTexture,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = MouseFilterEnum.Ignore,
