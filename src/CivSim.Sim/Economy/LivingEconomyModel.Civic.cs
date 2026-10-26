@@ -72,7 +72,7 @@ public sealed partial class LivingEconomyModel
         public byte LowSeasons;
         public bool Seceded;
         public int RaidedSeason = -1000;
-        /// <summary>The conquered term of the Cohesion target (07d R7): −35 at capture, +1 a season back to 0.</summary>
+        /// <summary>The configured conquered Cohesion term (07d R7): applied at capture and recovered by the configured seasonal step.</summary>
         public int ConqueredTerm;
         public int DeathsThisYear, DeathsLastYear, PeopleLastYear;
         public int Target = -1;
@@ -111,7 +111,7 @@ public sealed partial class LivingEconomyModel
             OverreachFree = K("OverreachFreeTiles", "8").RoundToInt();
             OverreachDivisor = K("OverreachDivisor", "2");
             SpanPenalty = K("SpanPenalty", "3").RoundToInt();
-            Conquered = K("ConqueredCohesion", "-35").RoundToInt();
+            Conquered = K("ConqueredCohesion", "-45").RoundToInt();
             ConqueredRecovery = K("ConqueredRecovery", "1").RoundToInt();
             ConqueredStart = K("ConqueredStartCohesion", "25").RoundToInt();
             TownMinPop = K("TownMinPop", "60").RoundToInt();
@@ -1291,7 +1291,7 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// The settlement was captured by its present civilization (07d R7): when the captor's Cohesion is live it starts at C 25 and
-    /// carries a conquered term of −35 that recovers 1 a season, without the hearth, feast, shrine and GOV-03 terms while it
+    /// carries the configured conquered term that recovers each season, without the hearth, feast, shrine and GOV-03 terms while it
     /// lasts. Returns false (and changes nothing) when Cohesion is not live; politics then applies the E2 debt (13 §8.3).
     /// </summary>
     public bool NoteCaptured(int settlementIndex)

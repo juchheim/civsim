@@ -734,7 +734,7 @@ public sealed partial class PoliticsSystem
         _economy.TransferSettlement(s, captor);
         RefreshSettlements();
         // Taken people carry a Cohesion debt of 20 points that recovers at 2 a season (13 §8.3); from the captor's KEY-3 the
-        // economy's live Cohesion holds it instead (07d R7: C 25, a conquered term of −35 recovering 1 a season).
+        // economy's live Cohesion holds it instead (07d R7: captured C 25, with the configured term and recovery).
         if (!_economy.NoteCaptured(s))
         {
             Fix64 debt = Fix64.FromRatio(20, 100);
