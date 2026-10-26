@@ -9,7 +9,7 @@ public enum EconomyArchetype : byte
 
 public enum EconomyJob : byte
 {
-    None, Forage, Hunt, Fish, Farm, Chop, Gather, Craft, Build, Preserve, Rest, TendFire, Herd
+    None, Forage, Hunt, Fish, Farm, Chop, Gather, Craft, Build, Preserve, Rest, TendFire, Herd, Scout
 }
 
 public readonly record struct FigureView(

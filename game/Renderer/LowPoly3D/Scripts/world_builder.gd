@@ -1181,7 +1181,7 @@ var TIER_DEBUG: bool = "--tier-debug" in OS.get_cmdline_user_args()
 
 const TOOL_BY_ACTIVITY := {
 	0: "plain", 1: "basket", 2: "spear", 3: "pole", 4: "hoe", 5: "axe", 6: "basket", 7: "hammer", 8: "hammer",
-	9: "plain", 10: "plain", 11: "plain", 12: "plain", 15: "bundle", 16: "bundle", 17: "spear", 18: "spear", 19: "spear",
+	9: "plain", 10: "plain", 11: "plain", 12: "plain", 15: "bundle", 16: "bundle", 17: "spear", 18: "spear", 19: "spear", 22: "spear",
 }
 
 ## Where a figure stands on a given map position: people at home gather around the hearth, away from the river.

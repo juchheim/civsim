@@ -1211,6 +1211,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         totalWork -= AssignFireKeeper(settlement);
         totalWork -= AllocateCare(settlement);
         if (settlement.Civic is not null) totalWork -= StaffRoles(settlement);
+        totalWork -= AssignScouts(settlement);
         Fix64 upkeepBudget = WeirUpkeepBudget(settlement, totalWork);
         totalWork -= upkeepBudget;
         totalWork -= OrchardUpkeepBudget(settlement, totalWork);
@@ -1289,6 +1290,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != settlement.Id) continue;
+            if (figure.Job == EconomyJob.Scout) continue;
             if (figure.Role != Role.None && figure.Task is MetalTask.Ritual or MetalTask.Records) continue;
             Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
             if (figure.Camp >= 0 && toolWork is not null) available -= toolWork[i];
@@ -1568,6 +1570,33 @@ public sealed partial class LivingEconomyModel : ISimModel
                     spent += CarePatientWork;
                 }
             }
+        }
+        return spent;
+    }
+
+    /// <summary>Reserves one adult for scouting per settlement, or two after WAY-01 (docs/MVP/13 §2.3).</summary>
+    private Fix64 AssignScouts(SettlementState settlement)
+    {
+        int count = HasProject(settlement.Civilization, "WAY-01") ? 2 : 1;
+        Fix64 spent = Fix64.Zero;
+        for (int slot = 0; slot < count; slot++)
+        {
+            FigureState? chosen = null;
+            for (int i = 0; i < _figures.Count; i++)
+            {
+                FigureState figure = _figures[i];
+                if (figure.SettlementId != settlement.Id || figure.Job != EconomyJob.None || figure.Age is < 14 or >= 45 ||
+                    figure.Role != Role.None || figure.Camp >= 0 || figure.IllnessSeasons > 0 || figure.WoundSeasons > 0 ||
+                    figure.PregnancySeasons > 0 || WorkCapacity(figure) <= figure.CareWorkThisSeason + figure.FireWorkThisSeason)
+                    continue;
+                if (chosen is null || figure.Health > chosen.Health || figure.Health == chosen.Health && figure.Id < chosen.Id)
+                    chosen = figure;
+            }
+            if (chosen is null) break;
+            Fix64 available = WorkCapacity(chosen) - chosen.CareWorkThisSeason - chosen.FireWorkThisSeason;
+            if (available <= Fix64.Zero) break;
+            Assign(chosen, EconomyJob.Scout, available);
+            spent += available;
         }
         return spent;
     }
@@ -5058,7 +5087,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (f.Id <= previousFigureId || f.Id < 0 || f.Id >= _nextFigureId || f.Age < 0 || f.Age > 99 ||
                 f.Civilization < 0 || f.Civilization >= CivilizationCount || f.SettlementId < 0 || f.SettlementId >= _settlements.Count ||
                 _settlements[f.SettlementId].Civilization != f.Civilization || f.PregnancySeasons > 3 ||
-                (uint)f.Job > (uint)EconomyJob.Herd || f.Health < Fix64.Zero || f.Health > Fix64.One ||
+                (uint)f.Job > (uint)EconomyJob.Scout || f.Health < Fix64.Zero || f.Health > Fix64.One ||
                 f.Hunger < Fix64.Zero || f.Hunger > Fix64.One || f.Warmth < Fix64.Zero || f.Warmth > Fix64.One ||
                 f.Rest < Fix64.Zero || f.Rest > Fix64.One || f.Belonging < Fix64.Zero || f.Belonging > Fix64.One ||
                 f.WorkThisSeason < Fix64.Zero || f.HuntWorkThisSeason < Fix64.Zero ||

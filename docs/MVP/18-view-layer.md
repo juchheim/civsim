@@ -38,7 +38,7 @@ Shares are permille, Fix64 values are raw Q32.32 `long`s (divide by 2³² to dis
 |-------|------------------------------------------|
 | Header | `Sequence` (build number), `Tick` (state after ticks 0 .. Tick-1), `Season`, `SeasonOfYear` (0 spring .. 3 winter), `Year`, `TickInSeason` (0–149, to blend the seasonal palette), `LastWinterHarsh`, `ViewerCiv`, `Width`, `Height`, `TotalFigures` (debug only) |
 | Tiles (W × H) | `Visibility` (Unknown, Explored, Visible), `Owner` (−1 none; remembered on explored tiles), strongest `Claim`/`Claimant` plus `Claim2`/`Claimant2` and `Claim3`/`Claimant3` (hundredths, 70 = ownership threshold; visible tiles only), `TileFlags` (Contested, Camp, Beacon, HomeRange), `KnownDeposits` (1 only for a deposit on a tile the viewer has discovered), `ForestBand` (0–3 on visible tiles), `DepositWorked` (1 after ore has been mined, only with current sight), `MiningReach` (1 on known tiles within the viewer's own mining reach; omniscient mode includes any civilization) |
-| Figures | `FigureId` (ascending), `FigureCiv`, `FigureSettlement`, `FigureTile`, `FigureX/Y`, `FigureActivity` (job, Child, Convalescing, OnGift/Barter/Raid/Assault, Occupying), `FigureAge` (child/adult/elder), `FigureHealth` (4 bands), `FigureFlags` (female, walking, wounded, ill, pregnant, hungry, cold, warrior, armed, away, Free Folk), `FigureToolRung` (best method rung usable with current tools), `FigureKnownToolRung` (highest researched rung), `FigureMethodEfficiencyPermille` (active method base rate / researched method base rate; omits tool wear and unrelated modifiers), `FigureMethodFallback`/`FigureMethodFallbackTool` (missing tool or the three-person hunting crew gate), `FigureCarry` (plants, meat, fish, wood, stone, grain, goods) |
+| Figures | `FigureId` (ascending), `FigureCiv`, `FigureSettlement`, `FigureTile`, `FigureX/Y`, `FigureActivity` (job, Scout, Child, Convalescing, OnGift/Barter/Raid/Assault, Occupying), `FigureAge` (child/adult/elder), `FigureHealth` (4 bands), `FigureFlags` (female, walking, wounded, ill, pregnant, hungry, cold, warrior, armed, away, Free Folk), `FigureToolRung` (best method rung usable with current tools), `FigureKnownToolRung` (highest researched rung), `FigureMethodEfficiencyPermille` (active method base rate / researched method base rate; omits tool wear and unrelated modifiers), `FigureMethodFallback`/`FigureMethodFallbackTool` (missing tool or the three-person hunting crew gate), `FigureCarry` (plants, meat, fish, wood, stone, grain, goods) |
 | Wild herds | `HerdId` (ascending), `HerdSpecies`, `HerdTile`, `HerdX/Y`, `HerdAnimals`, `HerdFear` (0–255), `HerdAway` (off its home range) |
 | Predators | `PredatorTile`, `PredatorSpecies`, `PredatorSize` (static packs from world generation; the economy has no predator movement) |
 | Settlements | `SettlementIndex` (ascending), `SettlementCiv`, `SettlementTile`, `SettlementPopulation`, `SettlementFood` and `SettlementWinterForecast` (food bands: secure ≥ 1.0, tight ≥ 0.9, short ≥ 0.7, famine), `SettlementCohesion` (strong ≥ 1.0, steady ≥ 0.9, strained ≥ 0.75, fraying), own-settlement `SettlementOverreach` and `SettlementSpanPenalty` (Cohesion target penalties), `SettlementFlags` (Free Folk, fire lit, fission pending, occupied, remembered, empty, thorn barrier, palisade, lookout, own), `SettlementBuildKind` and `SettlementBuildPermille`, domestic stock, `SettlementSeenSeason`, and `SettlementStructures[i × StructureKinds + kind]` (names: `LivingEconomyModel.StructureName(kind)`) |
@@ -58,6 +58,7 @@ The economy is aggregate per settlement ([05 §5](05-simulation-structure.md)): 
 - a home spot within ~0.3 tile of the settlement site;
 - a work tile chosen per season among the settlement's tiles within 3 that suit the job (forage: forage land; hunt: tiles where a wild herd grazes within 4, else land 2–3 tiles out; fish: river, lake and shore; farm: its fields and orchards; chop: forest; herd: grass and steppe; gather: stone, flint, clay or mountain), falling back to any land and then the site;
 - a 50-tick day (5 s at 1×): 8 ticks walking out, 27 working (with a small drift), 8 walking back carrying the job's goods, 7 at home;
+- scouts are assigned from the settlement's adults, choose an unexplored frontier target, and walk a least-cost path out and home over one or more seasons; the moving scout reveals sight 3 around its current tile;
 - children, the wounded and the ill, and home jobs (craft, build, preserve, rest, fire) drift slowly around the home spot (fire keepers close to the hearth);
 - party members walk with their party (on the straight line between the two settlements, at the progress the travel time implies), occupiers stand at the settlement they hold.
 
@@ -72,6 +73,7 @@ The viewer is a civilization index, or **−1 for the omniscient debug view** (e
 | Own settlements (with people) | routine sight: era reach + 3 (9 tiles in E0) |
 | Own seasonal camps | camp radius 2 + sight 3 |
 | Own parties on the road, own occupying forces | sight 3 around them |
+| Own scouts | sight 3 around the scouting figure |
 
 - **Own** figures, settlements, plots, camps, Beacons and parties are always in the frame. **Rival** figures, herds, predators, parties, occupations, camps, Beacons, plots and a settlement's current details appear only on Visible tiles.
 - **Memory:** every tile ever Visible stays **Explored**, with the owner as last seen and no claim strength. A rival settlement once seen stays in the frame as **Remembered** (owner and head count as last seen, `SettlementSeenSeason`, no structures or bands).
@@ -81,7 +83,7 @@ The viewer is a civilization index, or **−1 for the omniscient debug view** (e
 
 The builder's memory is presentation state. It is **not** in the simulation snapshot (so checksums and the replay format are untouched); `FrameBuilder.WriteState`/`ReadState` save it next to a snapshot. Call `ReadState` right after the match's `ReadSnapshot`: the systems' event lists start empty then and the builder reads them from the start. One gap this covers: `Territory`'s claim field is not in the simulation snapshot (owners are; claims are rebuilt at each season end), so the builder saves its claim layer; without saved view state a loaded game shows no claim strength until the next season.
 
-View-state version 2 saves the complete top-three claim layer; version 1 remains readable. The simulation snapshot, checksum, and replay format are unchanged.
+View-state version 3 saves the complete top-three claim layer and ongoing scout journeys; versions 1 and 2 remain readable. The simulation snapshot, checksum, and replay format are unchanged.
 
 ## 5. Threading and interpolation
 

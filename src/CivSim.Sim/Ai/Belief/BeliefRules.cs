@@ -34,6 +34,10 @@ public static class BeliefRules
     /// </summary>
     public static int ScoutRange(int reach, bool way01, bool way03) => way03 ? 2 * reach : way01 ? reach * 3 / 2 : reach;
 
+    /// <summary>Scout walking targets extend one tile beyond ordinary reach so the scout's own sight can reveal new map.</summary>
+    public static int ScoutMapRange(int reach, bool way01, bool way03)
+        => ScoutRange(reach, way01, way03) + 1;
+
     /// <summary>
     /// Settlements this far apart have figures in each other's sight: both ranges plus a tenth for trails, plus sight, the
     /// rule awareness itself follows (13 §12.2 point 5).

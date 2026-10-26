@@ -49,12 +49,14 @@ public sealed class BeliefBuilder : IBeliefBuilder
 {
     private TechEstimate? _tech;
     private int _way01 = -1, _way03 = -1, _war02 = -1;
+    private WorldTile[] _worldTiles = Array.Empty<WorldTile>();
 
     /// <summary>Own parties on the road at the last update: (target settlement, arrival season). Saved and hashed.</summary>
     private readonly List<(int Settlement, int ArriveSeason)> _visits = new();
 
     // Scratch, rebuilt every update (never state).
     private readonly List<int> _own = new();
+    private readonly HashSet<int> _scoutTargets = new();
     private bool[] _seenNow = Array.Empty<bool>(), _visited = Array.Empty<bool>();
     private int[] _stamp = Array.Empty<int>();
     private int _stampValue;
@@ -82,6 +84,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
         if (_tech is not null) return;
         ResearchCatalog catalog = world.Research.Catalog;
         _tech = new TechEstimate(catalog, world.Politics.WeaponLadder, world.Politics.ArcheryProject);
+        _worldTiles = world.Generated.Tiles.ToArray();
         _way01 = catalog.IndexOf("WAY-01");
         _way03 = catalog.IndexOf("WAY-03");
         _war02 = catalog.IndexOf("WAR-02");
@@ -146,6 +149,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
         _stampValue = _stampValue == int.MaxValue ? 1 : _stampValue + 1;
         Array.Clear(_claims);
         foreach (int s in _own) SeeDisk(belief.Map, pol.Territory, pol.SettlementTileOf(s), routine, season, countClaims: true);
+        ExploreWithScouts(belief, world, season, reach);
 
         // ---- public record and diplomacy ---------------------------------------------------------------------
         Array.Clear(_firsts);
@@ -477,6 +481,58 @@ public sealed class BeliefBuilder : IBeliefBuilder
             if (r.Civ == keep) continue;
             for (int i = r.Settlements.Count - 1; i >= 0; i--)
                 if (r.Settlements[i].Settlement == settlement) r.Settlements.RemoveAt(i);
+        }
+    }
+
+    /// <summary>Scouts return every other season and share what they saw along their route with their civilization.</summary>
+    private void ExploreWithScouts(Belief belief, TrueWorld world, int season, int reach)
+    {
+        if ((season & 1) != 0) return;
+        LivingEconomyModel eco = world.Economy;
+        PoliticsSystem politics = world.Politics;
+        int civ = belief.Civ, width = belief.Map.Width, height = belief.Map.Height;
+        int scoutRange = BeliefRules.ScoutMapRange(reach, IsDone(world.Research, civ, _way01), IsDone(world.Research, civ, _way03));
+        int maximumCost = Math.Max(100, scoutRange * 40);
+        IReadOnlyList<int> beacons = politics.BeaconsOf(civ);
+        _scoutTargets.Clear();
+        for (int i = 0; i < eco.FigureCount; i++)
+        {
+            FigureView scout = eco.Figure(i);
+            if (scout.Civilization != civ || scout.Job != EconomyJob.Scout ||
+                (uint)scout.SettlementId >= (uint)politics.SettlementTotal) continue;
+            int home = politics.SettlementTileOf(scout.SettlementId);
+            int[] costs = HexGrid.WalkingCostsFrom(_worldTiles, width, height, home, maximumCost);
+            int target = -1, bestScore = int.MinValue;
+            for (int tile = 0; tile < belief.Map.TileCount; tile++)
+            {
+                if (belief.Map.IsExplored(tile) || !_worldTiles[tile].IsLand || _worldTiles[tile].Biome == Biome.Peak ||
+                    costs[tile] == int.MaxValue || HexGrid.Distance(home, tile, width) > scoutRange || _scoutTargets.Contains(tile)) continue;
+                int unknownLand = 0;
+                HexGrid.Coordinates(tile, width, out int cx, out int cy);
+                for (int y = Math.Max(0, cy - BeliefRules.SightRadius); y <= Math.Min(height - 1, cy + BeliefRules.SightRadius); y++)
+                    for (int x = Math.Max(0, cx - BeliefRules.SightRadius - 1); x <= Math.Min(width - 1, cx + BeliefRules.SightRadius + 1); x++)
+                    {
+                        int nearby = y * width + x;
+                        if (!belief.Map.IsExplored(nearby) && _worldTiles[nearby].IsLand && _worldTiles[nearby].Biome != Biome.Peak &&
+                            HexGrid.Distance(tile, nearby, width) <= BeliefRules.SightRadius) unknownLand++;
+                    }
+                int beaconPull = 0;
+                for (int b = 0; b < beacons.Count; b++)
+                {
+                    int distance = HexGrid.Distance(tile, beacons[b], width);
+                    if (distance <= 5) beaconPull = Math.Max(beaconPull, 5 - distance);
+                }
+                int score = unknownLand * 1000 - Math.Min(costs[tile], 999) + beaconPull * 250;
+                if (score > bestScore || score == bestScore && tile < target)
+                {
+                    target = tile;
+                    bestScore = score;
+                }
+            }
+            if (target < 0) continue;
+            _scoutTargets.Add(target);
+            int[] path = HexGrid.WalkingPathFrom(_worldTiles, width, height, home, target, maximumCost);
+            foreach (int tile in path) SeeDisk(belief.Map, politics.Territory, tile, BeliefRules.SightRadius, season, countClaims: false);
         }
     }
 

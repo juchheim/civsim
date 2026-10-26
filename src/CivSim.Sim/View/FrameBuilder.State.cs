@@ -11,7 +11,7 @@ namespace CivSim.Sim.View;
 public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
-    private const int StateVersion = 2;
+    private const int StateVersion = 3;
 
     public void WriteState(BinaryWriter w)
     {
@@ -54,6 +54,15 @@ public sealed partial class FrameBuilder
                 w.Write(_topClaim[t]); w.Write(_topCiv[t]); w.Write(_contested[t]);
                 w.Write(_secondClaim[t]); w.Write(_secondCiv[t]); w.Write(_thirdClaim[t]); w.Write(_thirdCiv[t]);
             }
+        long[] scoutIds = new long[_scoutJourneys.Count];
+        _scoutJourneys.Keys.CopyTo(scoutIds, 0);
+        Array.Sort(scoutIds);
+        w.Write(scoutIds.Length);
+        foreach (long id in scoutIds)
+        {
+            ScoutJourney journey = _scoutJourneys[id];
+            w.Write(journey.FigureId); w.Write(journey.HomeTile); w.Write(journey.TargetTile); w.Write(journey.StartTick);
+        }
     }
 
     /// <summary>
@@ -134,6 +143,28 @@ public sealed partial class FrameBuilder
                     _secondCiv[t] = _thirdCiv[t] = -1;
                 }
             }
+        ClearScoutViewState();
+        if (version >= 3)
+        {
+            int scouts = r.ReadInt32();
+            if (scouts < 0 || scouts > 1_000_000) throw new InvalidDataException("Bad view state.");
+            for (int i = 0; i < scouts; i++)
+            {
+                long id = r.ReadInt64();
+                int home = r.ReadInt32(), target = r.ReadInt32();
+                long started = r.ReadInt64();
+                if (id < 0 || unchecked((uint)home) >= (uint)_tileCount || unchecked((uint)target) >= (uint)_tileCount || started < 0)
+                    throw new InvalidDataException("Bad scout view state.");
+                int[] path = BuildScoutPath(home, target);
+                if (path.Length < 2) continue;
+                int seasons = Math.Max(1, (path.Length - 1 + 9) / 10);
+                _scoutJourneys[id] = new ScoutJourney
+                {
+                    FigureId = id, HomeTile = home, TargetTile = target, StartTick = started,
+                    LegTicks = (long)seasons * CivSim.Sim.Economy.LivingEconomyModel.SeasonTicks, Path = path,
+                };
+            }
+        }
         _researchCursor = 0;
         _politicsCursor = 0;
     }

@@ -14,14 +14,15 @@ namespace CivSim.Sim.View;
 /// the model: no state is written, no random stream is drawn, so a match with or without a builder is bit-identical.
 /// <para><b>Viewer.</b> A civilization index, or -1 for the omniscient debug view. A human viewer sees what its people see
 /// (§4): tiles within routine sight (reach + 3, the belief builder's rule) of its settlements, within 5 of its camps and
-/// within 3 of its parties on the road are visible; everything ever visible stays explored with the owner as last seen;
+/// within 3 of its parties or scouting figures are visible; everything ever visible stays explored with the owner as last seen;
 /// rival figures, herds, parties and structures show only on visible tiles, and rival settlements once seen stay as
 /// remembered markers. The builder keeps that memory (and the event log) itself: <see cref="WriteState"/> and
 /// <see cref="ReadState"/> save it next to a simulation snapshot.</para>
 /// <para><b>Figures.</b> The economy is aggregate per settlement and has no positions, so the builder lays figures out as a
 /// pure function of (figure id, settlement, job, season, tick): a home spot by the settlement, a work tile chosen by
-/// the job among the settlement's work tiles, and a 50-tick round trip between them. Party members walk with their
-/// party, occupiers stand at the settlement they hold.</para>
+/// the job among the settlement's work tiles, and a 50-tick round trip between them. Scouts keep a view-state frontier
+/// target and walk a terrain path out and back over one or more seasons. Party members walk with their party, occupiers
+/// stand at the settlement they hold.</para>
 /// <para>Call <see cref="Build(MatchModel, MatchFrame)"/> between ticks, at least once a season (150 ticks) so that no
 /// season's births and deaths are missed. Allocation-free once its buffers and the target frame's have grown.</para>
 /// </summary>
@@ -38,7 +39,7 @@ public sealed partial class FrameBuilder
     private const int WorkRadius = 3, HuntRadius = 4;
     private const int Categories = 8, MaxJobTiles = 64;
     private const int CatPlants = 0, CatHunt = 1, CatFish = 2, CatFields = 3, CatWood = 4, CatGraze = 5, CatStone = 6, CatLand = 7;
-    private const int JobKinds = 13;
+    private const int JobKinds = 14;
 
     private const ulong SaltHome = 0x5A17_0001UL, SaltWork = 0x5A17_0002UL, SaltWander = 0x5A17_0003UL, SaltHerd = 0x5A17_0004UL;
 
@@ -178,6 +179,7 @@ public sealed partial class FrameBuilder
         _viewer = viewerCiv;
         Array.Clear(_explored);
         Array.Fill(_rememberedOwner, (sbyte)-1);
+        ClearScoutViewState();
         _seenSettlements = 0;
         ResetEvents();
     }
@@ -218,6 +220,7 @@ public sealed partial class FrameBuilder
         RefreshLayout(eco, season);
         RefreshClaims(pol);
         ReadParties(match);
+        PrepareScouts(eco, pol, target.Tick);
         MarkVisibility(eco, pol);
         FillTiles(eco, pol, target);
         ReadMembers(pol);
@@ -547,6 +550,7 @@ public sealed partial class FrameBuilder
         }
         for (int p = 0; p < _partyCount; p++)
             if (_pCiv[p] == _viewer) MarkDisk(_pTile[p], BeliefRules.SightRadius);
+        MarkScoutVisibility();
         for (int i = 0; i < pol.Occupations.Count; i++)
         {
             Occupation o = pol.Occupations[i];
@@ -755,11 +759,19 @@ public sealed partial class FrameBuilder
                 x = HexLayout.CenterX(tile, _width) + Jitter(home, 20, Spread);
                 y = HexLayout.CenterY(tile, _width) + Jitter(home, 30, Spread);
             }
+            else if (f.Job == EconomyJob.Scout && TryScoutPosition(f.Id, out ScoutPosition scout))
+            {
+                activity = FigureActivity.Scout;
+                flags |= FigureFlags.Away | FigureFlags.Walking;
+                tile = scout.Tile;
+                x = scout.X + Jitter(home, 20, Spread / 2);
+                y = scout.Y + Jitter(home, 30, Spread / 2);
+            }
             else
             {
                 activity = f.Age < 14 ? FigureActivity.Child
                     : wounded || ill ? FigureActivity.Convalescing
-                    : (FigureActivity)(int)f.Job;
+                    : ActivityForJob(f.Job);
                 int category = activity is FigureActivity.Child or FigureActivity.Convalescing ? -1 : CategoryOf(f.Job);
                 if (category < 0)
                 {
@@ -844,6 +856,9 @@ public sealed partial class FrameBuilder
 
     private static readonly Fix64 HungryLevel = Fix64.FromRatio(3, 10);
     private static readonly Fix64 ColdLevel = Fix64.Half;
+
+    private static FigureActivity ActivityForJob(EconomyJob job)
+        => job == EconomyJob.Scout ? FigureActivity.Scout : (FigureActivity)(int)job;
 
     /// <summary>A signed offset in [-range, range] from ten bits of a hash.</summary>
     private static int Jitter(ulong hash, int shift, int range) => (int)((hash >> shift) & 1023) * (2 * range) / 1023 - range;

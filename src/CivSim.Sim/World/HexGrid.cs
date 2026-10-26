@@ -215,6 +215,38 @@ public static class HexGrid
         return distance;
     }
 
+    /// <summary>One deterministic least-cost route returned by <see cref="WalkingCostsFrom"/>.</summary>
+    public static int[] WalkingPathFrom(WorldTile[] tiles, int width, int height, int start, int target,
+        int maximumCost = int.MaxValue, int[]? landDistance = null, int seaReach = 0)
+    {
+        int[] costs = WalkingCostsFrom(tiles, width, height, start, maximumCost, landDistance, seaReach);
+        if ((uint)target >= (uint)costs.Length || costs[target] == int.MaxValue) return Array.Empty<int>();
+        var reverse = new List<int> { target };
+        int at = target;
+        Span<int> neighbors = stackalloc int[6];
+        while (at != start && reverse.Count <= tiles.Length)
+        {
+            int count = Neighbors(at, width, height, neighbors);
+            int next = -1, bestCost = costs[at];
+            for (int i = 0; i < count; i++)
+            {
+                int candidate = neighbors[i];
+                if (costs[candidate] >= bestCost) continue;
+                if (next < 0 || costs[candidate] < bestCost || costs[candidate] == bestCost && candidate < next)
+                {
+                    next = candidate;
+                    bestCost = costs[candidate];
+                }
+            }
+            if (next < 0) return Array.Empty<int>();
+            at = next;
+            reverse.Add(at);
+        }
+        if (at != start) return Array.Empty<int>();
+        reverse.Reverse();
+        return reverse.ToArray();
+    }
+
     private static bool HasLandNeighbor(WorldTile[] tiles, int tile, int width, int height)
     {
         Span<int> neighbors = stackalloc int[6];

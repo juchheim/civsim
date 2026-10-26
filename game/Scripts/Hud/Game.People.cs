@@ -25,13 +25,13 @@ public partial class Game
         (FigureActivity.Forage, "Foragers"), (FigureActivity.Hunt, "Hunters"), (FigureActivity.Fish, "Fishers"),
         (FigureActivity.Farm, "Farmers"), (FigureActivity.Chop, "Woodcutters"), (FigureActivity.Gather, "Gatherers"),
         (FigureActivity.Craft, "Crafters"), (FigureActivity.Build, "Builders"), (FigureActivity.Preserve, "Food preservers"),
-        (FigureActivity.TendFire, "Fire tenders"), (FigureActivity.Herd, "Herders"),
+        (FigureActivity.TendFire, "Fire tenders"), (FigureActivity.Herd, "Herders"), (FigureActivity.Scout, "Scouts"),
     };
 
     private readonly PeopleMetric?[] _peopleMetrics = new PeopleMetric?[4];
     private readonly PeopleBarRow[] _peopleWorkRows = new PeopleBarRow[PeopleWork.Length];
     private readonly PeopleBarRow[] _peopleKnowHowRows = new PeopleBarRow[3];
-    private readonly int[] _peopleActivityCounts = new int[22];
+    private readonly int[] _peopleActivityCounts = new int[23];
     private Control? _peopleRoot;
     private ColorRect? _peopleScrim;
     private PanelContainer? _peoplePanel;

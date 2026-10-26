@@ -228,10 +228,12 @@ public partial class Game
     {
         var result = new TileWork { Summary = "Out of sight", FirstRequirement = "", FirstDetail = "" };
         if (!visible) return result;
-        Span<int> jobs = stackalloc int[13];
+        Span<int> jobs = stackalloc int[23];
         for (int i = 0; i < frame.FigureCount; i++)
         {
-            if (frame.FigureTile[i] != tile || frame.FigureActivity[i] == (byte)FigureActivity.Idle || frame.FigureActivity[i] > (byte)FigureActivity.Herd) continue;
+            FigureActivity activity = (FigureActivity)frame.FigureActivity[i];
+            if (frame.FigureTile[i] != tile || activity == FigureActivity.Idle ||
+                activity > FigureActivity.Herd && activity != FigureActivity.Scout) continue;
             int job = frame.FigureActivity[i];
             jobs[job]++;
             result.Workers++;
@@ -285,7 +287,8 @@ public partial class Game
         FigureActivity.Forage => "Forage", FigureActivity.Hunt => "Hunt", FigureActivity.Fish => "Fish",
         FigureActivity.Farm => "Farm", FigureActivity.Chop => "Chop", FigureActivity.Gather => "Gather",
         FigureActivity.Craft => "Craft", FigureActivity.Build => "Build", FigureActivity.Preserve => "Preserve",
-        FigureActivity.Rest => "Rest", FigureActivity.TendFire => "Fire", FigureActivity.Herd => "Herd", _ => activity.ToString(),
+        FigureActivity.Rest => "Rest", FigureActivity.TendFire => "Fire", FigureActivity.Herd => "Herd",
+        FigureActivity.Scout => "Scout", _ => activity.ToString(),
     };
 
     private static string ToolName(MethodToolId tool) => tool switch

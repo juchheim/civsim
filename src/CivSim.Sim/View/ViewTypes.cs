@@ -21,6 +21,8 @@ public enum FigureActivity : byte
     OnExpedition = 20,
     /// <summary>Carrying a compact's goods (docs/MVP/22 §6.3).</summary>
     OnCaravan = 21,
+    /// <summary>Exploring the frontier from a settlement (docs/MVP/13 §2.3).</summary>
+    Scout = 22,
 }
 
 /// <summary>Bits of <see cref="MatchFrame.FigureFlags"/>.</summary>
