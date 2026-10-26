@@ -101,6 +101,17 @@ public sealed class WP8aDecreeTests
     }
 
     [Fact]
+    public void Council_adds_growth_corvee_targets_without_changing_Strategist_feasibility()
+    {
+        Assert.True(CouncilDecreePolicy.IsCouncilCorveeTarget(LivingEconomyModel.CorveeTarget.Market, includeGrowthTargets: true));
+        Assert.True(CouncilDecreePolicy.IsCouncilCorveeTarget(LivingEconomyModel.CorveeTarget.School, includeGrowthTargets: true));
+        Assert.False(CouncilDecreePolicy.IsCouncilCorveeTarget(LivingEconomyModel.CorveeTarget.Market, includeGrowthTargets: false));
+        Assert.False(CouncilDecreePolicy.IsCouncilCorveeTarget(LivingEconomyModel.CorveeTarget.School, includeGrowthTargets: false));
+        Assert.True(CouncilDecreePolicy.IsCouncilCorveeTarget(LivingEconomyModel.CorveeTarget.Temple, includeGrowthTargets: false));
+        Assert.True(CouncilDecreePolicy.IsCouncilCorveeTarget(LivingEconomyModel.CorveeTarget.Palace, includeGrowthTargets: false));
+    }
+
+    [Fact]
     public void FoundCheck_rejects_an_invalid_tile_as_NoSite()
     {
         var rig = new Rig();

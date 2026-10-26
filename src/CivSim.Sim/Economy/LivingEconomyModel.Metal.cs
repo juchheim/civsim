@@ -1773,21 +1773,12 @@ public sealed partial class LivingEconomyModel
 
     private MiningCampResult TryOpenCamp(SettlementState parent, int tile, int distance, bool decreed, int season)
     {
+        MiningCampResult eligibility = CheckOpenCamp(parent, tile);
+        if (eligibility != MiningCampResult.Opened) return eligibility;
+
         int civ = parent.Civilization;
-        WorldDeposit d = _world.Deposit(tile);
-        if (OreGood(d.Kind) is null || _ore[tile] <= Fix64.Zero) return MiningCampResult.NoDeposit;
-        if (!OreUnlocked(civ, d.Kind)) return MiningCampResult.NotUnlocked;
-        if (d.Depth >= 2 && !Done(civ, "MIN-04")) return MiningCampResult.NeedsShaftMining;
-        if (IsRivalTile(civ, tile)) return MiningCampResult.RivalOwned;
-        foreach (MiningCampState other in _camps) if (other.Tile == tile) return MiningCampResult.AlreadyOpen;
-        foreach (SettlementState s in _settlements) if (s.SiteTile == tile) return MiningCampResult.NoDeposit;
-        if (TakeWood(parent, tile, Fix64.FromInt(2), commit: false) < Fix64.FromInt(2)) return MiningCampResult.NoCrew;
-        int free = 0;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == parent.Id && f.Camp < 0 && f.Age is >= 14 and < 45 && f.WoundSeasons == 0 && f.IllnessSeasons == 0) free++;
-        // A camp takes its crew from the parent; leave at least half the parent's working adults at home.
-        if (free < _bronzeConstants.CampMinCrew * 2) return MiningCampResult.NoCrew;
         TakeWood(parent, tile, Fix64.FromInt(2), commit: true);
+        int free = FreeMiningCrew(parent);
         int cap = Math.Min(CampCrewCap(civ), free / 2);
         var camp = new MiningCampState
         {
@@ -1807,17 +1798,41 @@ public sealed partial class LivingEconomyModel
         return MiningCampResult.Opened;
     }
 
-    /// <summary>
-    /// Opens a mining camp on a deposit for the <c>Open a mine</c> Decree (docs/MVP/22 §4.3; WP8 executes the Decree): the
-    /// civilization's settlement nearest the tile (within mining reach: 8 tiles, 12 with TRN-05, 16 by water with SEA-05)
-    /// sends 4 miners, 6 with MIN-04. Unlike the planner, the Decree may open on unclaimed land, never on a rival's.
-    /// <paramref name="walkingTiles"/> overrides the hex distance when the caller has measured the walk.
-    /// </summary>
-    public MiningCampResult OpenMiningCamp(int civ, int tile, int walkingTiles = -1)
+    private MiningCampResult CheckOpenCamp(SettlementState parent, int tile)
     {
+        int civ = parent.Civilization;
+        WorldDeposit d = _world.Deposit(tile);
+        if (OreGood(d.Kind) is null || _ore[tile] <= Fix64.Zero) return MiningCampResult.NoDeposit;
+        if (!OreUnlocked(civ, d.Kind)) return MiningCampResult.NotUnlocked;
+        if (d.Depth >= 2 && !Done(civ, "MIN-04")) return MiningCampResult.NeedsShaftMining;
+        if (IsRivalTile(civ, tile)) return MiningCampResult.RivalOwned;
+        foreach (MiningCampState other in _camps) if (other.Tile == tile) return MiningCampResult.AlreadyOpen;
+        foreach (SettlementState s in _settlements) if (s.SiteTile == tile) return MiningCampResult.NoDeposit;
+        if (TakeWood(parent, tile, Fix64.FromInt(2), commit: false) < Fix64.FromInt(2)) return MiningCampResult.NoCrew;
+        // A camp takes its crew from the parent; leave at least half the parent's working adults at home.
+        if (FreeMiningCrew(parent) < _bronzeConstants.CampMinCrew * 2) return MiningCampResult.NoCrew;
+        return MiningCampResult.Opened;
+    }
+
+    private int FreeMiningCrew(SettlementState parent)
+    {
+        int free = 0;
+        foreach (FigureState f in _figures)
+            if (f.SettlementId == parent.Id && f.Camp < 0 && f.Age is >= 14 and < 45 && f.WoundSeasons == 0 && f.IllnessSeasons == 0) free++;
+        return free;
+    }
+
+    /// <summary>Checks whether the nearest settlement can open a mining camp now, including the required wood and available crew.</summary>
+    public MiningCampResult CheckOpenMiningCamp(int civ, int tile)
+        => CheckOpenMiningCamp(civ, tile, walkingTiles: -1, out _, out _);
+
+    private MiningCampResult CheckOpenMiningCamp(int civ, int tile, int walkingTiles,
+        out SettlementState? parent, out int distance)
+    {
+        parent = null;
+        distance = int.MaxValue;
         if (!_bronzeActive || !CivInBronze(civ)) return MiningCampResult.NotBronze;
         if ((uint)tile >= (uint)_world.TileCount) return MiningCampResult.NoDeposit;
-        SettlementState? parent = null;
         int best = int.MaxValue;
         foreach (SettlementState s in _settlements)
         {
@@ -1826,9 +1841,22 @@ public sealed partial class LivingEconomyModel
             if (d < best) { best = d; parent = s; }
         }
         if (parent is null) return MiningCampResult.NoParent;
-        int distance = walkingTiles >= 0 ? walkingTiles : best;
+        distance = walkingTiles >= 0 ? walkingTiles : best;
         if (distance <= Radius) return MiningCampResult.InRange;
         if (distance > MiningReach(civ, parent.SiteTile)) return MiningCampResult.OutOfReach;
+        return CheckOpenCamp(parent, tile);
+    }
+
+    /// <summary>
+    /// Opens a mining camp on a deposit for the <c>Open a mine</c> Decree (docs/MVP/22 §4.3; WP8 executes the Decree): the
+    /// civilization's nearest settlement sends 4 miners, or 6 with MIN-04. Unlike the planner, the Decree may open on unclaimed land,
+    /// never on a rival's. <paramref name="walkingTiles"/> overrides the hex distance when the caller has measured the walk.
+    /// </summary>
+    public MiningCampResult OpenMiningCamp(int civ, int tile, int walkingTiles = -1)
+    {
+        MiningCampResult eligibility = CheckOpenMiningCamp(civ, tile, walkingTiles,
+            out SettlementState? parent, out int distance);
+        if (eligibility != MiningCampResult.Opened || parent is null) return eligibility;
         return TryOpenCamp(parent, tile, distance, decreed: true, checked((int)_seasonsCompleted));
     }
 

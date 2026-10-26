@@ -14,10 +14,11 @@ namespace CivSim.Sim.Politics;
 /// (one camp a season).</item>
 /// <item><b>Compact</b> (once a year, in the first season of the year): buy tin when it knows MET-05 but has no tin source, access or
 /// tin compact, from the nearest Tin Folk village it has heard of, else from a contacted civilization it has seen working tin.</item>
-/// <item><b>Found a village</b> with a full Mandate when a settlement is at 85% of its cap or more (the fission trigger): the best
+/// <item><b>Found a village</b> with a full Mandate when a settlement is at 70% of its cap or more, before the 85% natural-fission
+/// trigger: the best
 /// site by the fission score (food × Beacon pull × rival pressure), ×1.5 beside an unclaimed metal deposit it can use; at most 2
 /// per Bronze Age and never more Decree foundings than natural ones (T16's 25–50% share, 07d §7).</item>
-/// <item><b>Corvée</b> with a full Mandate on the largest settlement raising a Temple or the Palace (walls once they are built).</item>
+/// <item><b>Corvée</b> with a full Mandate on the largest settlement raising a Temple or Palace, or a Market or School already under construction.</item>
 /// <item><b>Expedition</b>, still at the cap, to the reachable spot within range where most tiles are unknown.</item>
 /// </list>
 /// It issues no levy, offers no pact and never embargoes: an engaged player (or the Strategist) does better, which is the point
@@ -25,11 +26,19 @@ namespace CivSim.Sim.Politics;
 /// </summary>
 public sealed class CouncilDecreePolicy : IDecreePolicy
 {
-    /// <summary>The fill at which the Council founds (the natural fission trigger, docs/MVP/09 §7.1).</summary>
-    public static readonly Numerics.Fix64 FoundFill = Numerics.Fix64.FromRatio(85, 100);
+    /// <summary>The Council's early Found window, before the 85% natural fission trigger (docs/MVP/09 §7.1).</summary>
+    public static readonly Numerics.Fix64 FoundFill = Numerics.Fix64.FromRatio(70, 100);
     public const int MaxFoundsPerAge = 2;
 
+    internal static bool IsCouncilCorveeTarget(byte target, bool includeGrowthTargets)
+        => target is LivingEconomyModel.CorveeTarget.Temple or LivingEconomyModel.CorveeTarget.Palace ||
+            includeGrowthTargets && target is LivingEconomyModel.CorveeTarget.Market or LivingEconomyModel.CorveeTarget.School;
+
     public void Propose(PoliticsSystem p, int civ, List<DecreeRequest> into)
+        => Propose(p, civ, into, FoundFill, includeGrowthCorvee: true);
+
+    internal void Propose(PoliticsSystem p, int civ, List<DecreeRequest> into, Numerics.Fix64 foundFill,
+        bool includeGrowthCorvee)
     {
         ResearchViewForDecrees r = p.DecreeResearch;
         int mandate = r.Mandate(civ);
@@ -75,7 +84,7 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
         bool proposedFound = false;
         if (mandate >= cap && foundCost <= mandate && founded < MaxFoundsPerAge && natural >= founded + 1)
         {
-            int tile = p.ChooseFoundSite(civ, FoundFill);
+            int tile = p.ChooseFoundSite(civ, foundFill);
             if (tile >= 0)
             {
                 into.Add(new DecreeRequest(DecreeKind.Found, tile, 0));
@@ -93,7 +102,7 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
             {
                 if (p.SettlementCivOf(s) != civ || p.IsFreeFolk(s) || eco.CorveeAt(s) >= 0) continue;
                 byte target = eco.CivicBuildTarget(s);
-                if (target is not (LivingEconomyModel.CorveeTarget.Temple or LivingEconomyModel.CorveeTarget.Palace)) continue;
+                if (!IsCouncilCorveeTarget(target, includeGrowthCorvee)) continue;
                 int pop = p.SettlementPopulationOf(s);
                 if (pop > bestPop && eco.HasCivicWork(s, target)) { best = s; bestPop = pop; }
             }

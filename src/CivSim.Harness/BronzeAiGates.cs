@@ -113,7 +113,28 @@ internal static class BronzeAiGates
                 }
                 var standing = Scoring.Of(match, civ);
                 double legacy = standing.Legacy.ToDoubleForDisplay();
-                parts.Add($"{label}:civ{civ} legacy={legacy:F1} done(F/E/M/L/C/Cm)={counts[1]}/{counts[2]}/{counts[3]}/{counts[4]}/{counts[5]}/{counts[6]} refused={refused}");
+                int totalE3Foundings = match.Politics.E3Foundings(civ);
+                int decreeFoundings = counts[(int)DecreeKind.Found];
+                int naturalFoundings = totalE3Foundings - decreeFoundings;
+                int ownedTiles = match.Politics.Territory.OwnedTiles(civ);
+                int ownedWeight = match.Politics.Territory.OwnedWeight(civ);
+                parts.Add($"{label}:civ{civ} legacy={legacy:F1} parts(D/M/F/W)=" +
+                    $"{standing.Dominion.ToDoubleForDisplay():F1}/{standing.Mastery.ToDoubleForDisplay():F1}/" +
+                    $"{standing.Firsts.ToDoubleForDisplay():F1}/{standing.Wonders.ToDoubleForDisplay():F1} " +
+                    $"E3foundings(total/natural/decree)={totalE3Foundings}/{naturalFoundings}/{decreeFoundings} " +
+                    $"owned(tiles/weight)={ownedTiles}/{ownedWeight} " +
+                    $"done(F/E/M/L/C/Cm)={counts[1]}/{counts[2]}/{counts[3]}/{counts[4]}/{counts[5]}/{counts[6]} refused={refused}");
+                var settlements = new List<string>();
+                for (int s = 0; s < match.Economy.SettlementCount; s++)
+                {
+                    var settlement = match.Economy.Settlement(s);
+                    if (settlement.Civilization != civ) continue;
+                    byte build = match.Economy.CivicBuildTarget(s);
+                    if (build is not (LivingEconomyModel.CorveeTarget.Market or LivingEconomyModel.CorveeTarget.School or
+                        LivingEconomyModel.CorveeTarget.Temple or LivingEconomyModel.CorveeTarget.Palace)) continue;
+                    settlements.Add($"s{s}:pop={settlement.Population}:build={CorveeTargetName(build)}:corvee={CorveeTargetName(match.Economy.CorveeAt(s))}:cohesion={match.Economy.SettlementCohesion(s).ToDoubleForDisplay():F2}");
+                }
+                parts.Add($"{label}:civ{civ} civic=" + (settlements.Count == 0 ? "none" : string.Join(',', settlements)));
             }
             foreach (PoliticsEvent e in match.Politics.Events)
                 if (Array.IndexOf(civs, e.Civ) >= 0 && e.Kind is PoliticsEventKind.DecreeResolved or PoliticsEventKind.DecreeRefused)
@@ -122,6 +143,19 @@ internal static class BronzeAiGates
         return $"B8 trace match {index} seed {seed} swap {swap} offTeamA {offTeamA}: " +
             (parts.Count == 0 ? "no decree events" : string.Join("; ", parts));
     }
+
+    private static string CorveeTargetName(int target) => target switch
+    {
+        LivingEconomyModel.CorveeTarget.TopPublicWork => "public",
+        LivingEconomyModel.CorveeTarget.Walls => "walls",
+        LivingEconomyModel.CorveeTarget.Temple => "temple",
+        LivingEconomyModel.CorveeTarget.Palace => "palace",
+        LivingEconomyModel.CorveeTarget.Canal => "canal",
+        LivingEconomyModel.CorveeTarget.School => "school",
+        LivingEconomyModel.CorveeTarget.Market => "market",
+        LivingEconomyModel.CorveeTarget.Wonder => "wonder",
+        _ => "none",
+    };
 
     internal static bool ScoresTeamA(bool b7, int swap, bool offTeamA)
     {

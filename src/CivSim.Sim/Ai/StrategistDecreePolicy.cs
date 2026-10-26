@@ -19,6 +19,9 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     // belief evidence alive for the same horizon as tin-route research evidence; the 2-season levy window
     // does not apply to compact proposals.
     private const int TinFolkCompactEvidenceSeasons = 12;
+    // Keep the Strategist's candidate threshold aligned with natural-fission timing; the hands-off Council
+    // can use the earlier window to place a village before the donor buds automatically.
+    private static readonly Fix64 CandidateFoundFill = Fix64.FromRatio(85, 100);
 
     private readonly AiLog _log;
     private readonly Belief _belief;
@@ -35,7 +38,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     public void Propose(PoliticsSystem politics, int civ, List<DecreeRequest> into)
     {
         _candidates.Clear();
-        _feasibility.Propose(politics, civ, _candidates);
+        _feasibility.Propose(politics, civ, _candidates, CandidateFoundFill, includeGrowthCorvee: false);
         // The Council's expedition target uses live route passability. Replace it with candidates ranked from
         // explored-map knowledge and geometric range; an unknown route is accepted as uncertain.
         _candidates.RemoveAll(candidate => candidate.Kind == DecreeKind.Expedition);

@@ -158,8 +158,11 @@ public class MetalEconomyTests
         BronzeFixture f = Fixture(people: 100);
         Assert.True(f.CampTile >= 0);
         LivingEconomyModel e = f.Economy;
+        Assert.Equal(MiningCampResult.InRange, e.CheckOpenMiningCamp(0, f.CopperTile));
+        Assert.Equal(MiningCampResult.Opened, e.CheckOpenMiningCamp(0, f.CampTile));
         Assert.Equal(MiningCampResult.InRange, e.OpenMiningCamp(0, f.CopperTile));
         Assert.Equal(MiningCampResult.Opened, e.OpenMiningCamp(0, f.CampTile));
+        Assert.Equal(MiningCampResult.AlreadyOpen, e.CheckOpenMiningCamp(0, f.CampTile));
         Assert.Equal(MiningCampResult.AlreadyOpen, e.OpenMiningCamp(0, f.CampTile));
         Assert.Equal(1, e.MiningCampCount);
         MiningCampView camp = e.MiningCamp(0);
@@ -172,6 +175,10 @@ public class MetalEconomyTests
         f.RunSeasons(1);
         Assert.Equal(0, e.MiningCampCount);
         for (int i = 0; i < e.FigureCount; i++) Assert.Equal(-1, e.FixtureCampOf(i));
+
+        BronzeFixture small = Fixture(people: 100);
+        small.Economy.FixtureAddMiningCamp(0, small.TinTile, crew: 100);
+        Assert.Equal(MiningCampResult.NoCrew, small.Economy.CheckOpenMiningCamp(0, small.CampTile));
     }
 
     [Fact]

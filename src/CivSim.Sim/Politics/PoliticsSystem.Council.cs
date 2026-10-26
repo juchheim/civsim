@@ -53,7 +53,7 @@ public sealed partial class PoliticsSystem
                 if (dd < d) { d = dd; nearest = s; }
             }
             if (nearest < 0 || d <= 3 || d >= bestDistance || d > _economy.MiningReachFrom(nearest)) continue;
-            if (MineCheck(civ, tile) != 0) continue;
+            if (MineCheck(civ, tile) != 0 || _economy.CheckOpenMiningCamp(civ, tile) != MiningCampResult.Opened) continue;
             best = tile;
             bestDistance = d;
         }
