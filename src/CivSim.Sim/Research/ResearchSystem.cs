@@ -9,10 +9,11 @@ namespace CivSim.Sim.Research;
 /// <summary>How one civilization is controlled and tuned at the start of a match.</summary>
 /// <param name="Leaning">Craft, Kin and Reach weights in percent.</param>
 /// <param name="Council">The Council of Elders fills empty slots (always for AI; configurable for the human seat).</param>
-/// <param name="CouncilDelayTicks">How long an empty slot waits for the Council: 0 for AI, 150 (one season) for the player.</param>
+/// <param name="CouncilDelayTicks">How long an empty slot waits before a pick: 30 ticks (3 game seconds) for AI, 150 (one season) for the player.</param>
 public readonly record struct ResearchCivSetup(int LeaningCraft, int LeaningKin, int LeaningReach, bool Council, int CouncilDelayTicks)
 {
-    public static ResearchCivSetup Ai(int craft, int kin, int reach) => new(craft, kin, reach, true, 0);
+    public static ResearchCivSetup Ai(int craft, int kin, int reach)
+        => new(craft, kin, reach, true, ResearchSystem.AiResearchSelectionDelayTicks);
     public static ResearchCivSetup Player(int craft, int kin, int reach, bool council = true)
         => new(craft, kin, reach, council, ResearchSystem.SeasonTicks);
 }
@@ -28,6 +29,10 @@ public sealed partial class ResearchSystem : IResearchView
     /// <summary>Insight, Know-how and slot progress advance every 10 ticks (docs/MVP/05 §3.2).</summary>
     public const int StepTicks = 10;
     public const int SeasonTicks = 150;
+    /// <summary>At 600 ticks per 60-second game year, there are 10 simulation ticks per game second.</summary>
+    public const int TicksPerGameSecond = SeasonTicks * 4 / 60;
+    /// <summary>AI waits three game seconds after a research slot opens before selecting its next project.</summary>
+    public const int AiResearchSelectionDelayTicks = 3 * TicksPerGameSecond;
     private const int StepsPerYear = 60;
     private const int MaxQueue = 8;
 
@@ -383,6 +388,9 @@ public sealed partial class ResearchSystem : IResearchView
             }
             return;
         }
+        // An AI may plan immediately, but it cannot commit a fresh project into an open slot until its selection
+        // delay has elapsed. Its queued picks use the same gate in PickForSlot below.
+        if (civ.AiControlled && civ.Slots[slot] < 0 && tick - civ.SlotEmptySince[slot] < civ.CouncilDelay) return;
         if ((uint)project >= (uint)_catalog.Count) return;
         ProjectState state = civ.LastState[project];
         if (state != ProjectState.Available && state != ProjectState.Slotted) return;
@@ -488,6 +496,9 @@ public sealed partial class ResearchSystem : IResearchView
     private int PickForSlot(int c, int slot, long tick)
     {
         CivResearch civ = _civs[c];
+        // Queues are a plan, not an exemption from the AI's selection latency. Hold both queued and Council picks
+        // until the newly opened slot has been empty for the configured delay.
+        if (civ.AiControlled && tick - civ.SlotEmptySince[slot] < civ.CouncilDelay) return -1;
         for (int i = 0; i < civ.Queue.Count; i++)
         {
             int q = civ.Queue[i];

@@ -44,7 +44,7 @@ public sealed class CivResearch
     public bool Council = true;
     /// <summary>An AI Spark (docs/MVP/14 §2) sets this civilization's slots and queue; the Council then only fills a slot the plan leaves empty and never re-ranks.</summary>
     public bool AiControlled;
-    /// <summary>Ticks an empty slot waits before the Council fills it (0 for AI, 150 for the player: docs/MVP/08 §7).</summary>
+    /// <summary>Ticks an empty slot waits before a fallback pick (30 for AI, 150 for the player's Council: docs/MVP/08 §7).</summary>
     public int CouncilDelay;
     public Fix64 EraBoonInsight = Fix64.One;
     public int BeaconBoons;
