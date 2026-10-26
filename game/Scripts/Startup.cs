@@ -79,6 +79,16 @@ public partial class Startup : Control
         if (_elapsed >= FadeStartsAtSeconds) BeginFadeToTitleScreen();
     }
 
+    public override void _Input(InputEvent input)
+    {
+        if (input is not InputEventKey key || !key.Pressed || key.Echo || key.Keycode != Key.Escape)
+            return;
+        if (_transitionStarted || _video is null) return;
+
+        BeginFadeToTitleScreen();
+        GetViewport().SetInputAsHandled();
+    }
+
     private Control BuildTitleScreen()
     {
         var screen = new Control
