@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -79,6 +80,17 @@ public enum PoliticsEventKind : byte
     AssaultLaunched,
     /// <summary>Telemetry baseline for an investment. Other = target civilization, A = settlement, B = initial members.</summary>
     InvestmentTelemetryStarted,
+    /// <summary>A raid on a mining camp set out. Other = target civilization, A = party size, B = target tile.</summary>
+    MiningCampRaidLaunched,
+}
+
+/// <summary>Diagnostic-only mining-camp claim-radius alternatives for frontier projection.</summary>
+public enum MiningCampClaimRadiusProjection : byte
+{
+    Current,
+    OneTileSmaller,
+    RadiusZero,
+    Omitted,
 }
 
 /// <summary>Stable reason codes for a rejected player order.</summary>
@@ -117,6 +129,8 @@ public sealed class Expedition
     public int TargetTile = -1;
     /// <summary>A raid on a caravan: the caravan's id (-1 for a raid on a settlement).</summary>
     public int TargetParty = -1;
+    /// <summary>A raid on a mining camp: the camp's stable id, else -1.</summary>
+    public int TargetCampId = -1;
     /// <summary>Goods carried: a caravan's or a goods-barter load (<see cref="TradeGood"/>), with <see cref="Cargo"/> in the good's unit.</summary>
     public TradeGood Good;
     public Fix64 Cargo;
@@ -129,7 +143,7 @@ public sealed class Expedition
     /// <summary>Tiles an explorer has seen and will report on its return (sorted).</summary>
     public readonly List<int> Revealed = new();
 
-    internal bool HasBronzeFields => Id >= 0 || TargetTile >= 0 || TargetParty >= 0 || Good != TradeGood.None || Cargo != Fix64.Zero ||
+    internal bool HasBronzeFields => Id >= 0 || TargetTile >= 0 || TargetParty >= 0 || TargetCampId >= 0 || Good != TradeGood.None || Cargo != Fix64.Zero ||
                                      CompactId >= 0 || FolkSeller >= 0 || EscortCount > 0 || Revealed.Count > 0;
 }
 
@@ -387,6 +401,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     else if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderRaid(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
+                case CommandKind.LaunchMiningCampRaid:
+                    if (command.A < 0) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderRaidMiningCamp(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
                 case CommandKind.LaunchAssault:
                     if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderAssault(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
@@ -582,16 +600,880 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             var ownCamps = new List<ClaimSource>();
             foreach ((int tile, int _, int campCiv) in _camps) if (campCiv == civ) ownCamps.Add(new ClaimSource(civ, tile, Territory.CampRadius, Fix64.Zero));
             int radius = _eraRadius[Math.Min(era, _eraRadius.Length - 1)];
-            foreach (int tile in _territory.ChooseCampSites(civ, _sTile[s], radius, own, ownCamps, rivals, 2))
+            foreach (int tile in _territory.ChooseCompactCampSites(civ, _sTile[s], radius, own, ownCamps, rivals, 2))
                 _camps.Add((tile, s, civ));
             _campsPlaced[s] = true;
         }
+    }
+
+    /// <summary>
+    /// Projects whole-map claimed habitable weight from current settlement sources, then seasonal camps, then mining
+    /// camps. Results omit ownership hysteresis and are intended for diagnostics; live ownership is unchanged.
+    /// </summary>
+    public (int SettlementsOnly, int WithSeasonalCamps, int WithMiningCamps) ProjectedClaimedLandWeights()
+    {
+        var settlements = new List<ClaimSource>();
+        var seasonalCamps = new List<ClaimSource>();
+        var miningCamps = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, seasonalCamps, miningCamps);
+        var withSeasonal = new List<ClaimSource>(seasonalCamps);
+        var withMining = new List<ClaimSource>(seasonalCamps.Count + miningCamps.Count);
+        withMining.AddRange(seasonalCamps);
+        withMining.AddRange(miningCamps);
+        return (
+            _territory.ProjectedClaimedWeight(settlements, Array.Empty<ClaimSource>()),
+            _territory.ProjectedClaimedWeight(settlements, withSeasonal),
+            _territory.ProjectedClaimedWeight(settlements, withMining));
+    }
+
+    /// <summary>Minimum unowned habitable weight on a land-only path between the projected settlement borders.</summary>
+    public (int Weight, int[] Path) ProjectedSettlementOnlyFrontier(int civA, int civB)
+    {
+        var settlements = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, new List<ClaimSource>(), new List<ClaimSource>());
+        var projection = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, Array.Empty<ClaimSource>(), civA, civB);
+        return (projection.FrontierConnectionWeight, projection.FrontierPath);
+    }
+
+    /// <summary>
+    /// Read-only frontier audit for known Found sites that pass the live execution rules. It uses the Strategist donor floor
+    /// (FoundCheck's 60% minimum), projects at most 32 route-adjacent sites per civilization, and includes the Council's current
+    /// choice when it falls outside the shortlist. Founding reduces donor population and cohesion without changing live state;
+    /// optional ownership updates use fixed projected sources to measure how hysteresis settles the candidate borders.
+    /// </summary>
+    public FoundFrontierAudit ProjectedFoundSiteFrontier(int civA, int civB,
+        Func<int, int, bool>? strategistBeliefAllows = null, int ownershipUpdatesProjected = 0)
+    {
+        if (ownershipUpdatesProjected < 0) throw new ArgumentOutOfRangeException(nameof(ownershipUpdatesProjected));
+        var settlements = new List<ClaimSource>();
+        var seasonalCamps = new List<ClaimSource>();
+        var miningCamps = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, seasonalCamps, miningCamps);
+        var baselineCamps = new List<ClaimSource>(seasonalCamps.Count + miningCamps.Count);
+        baselineCamps.AddRange(seasonalCamps);
+        baselineCamps.AddRange(miningCamps);
+        var baseline = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, baselineCamps, civA, civB);
+        bool baselinePairTouching = ownershipUpdatesProjected == 0 ? baseline.PairOwnersTouching :
+            _territory.ProjectedPairOwnersTouchingAfterUpdates(settlements, baselineCamps, civA, civB, ownershipUpdatesProjected);
+
+        const int MaxNearbySitesPerCiv = 32;
+        int maxClaimedWeight = (int)Math.Floor(_territory.TotalHabitableWeight * 0.42);
+        var civSummaries = new List<FoundFrontierCivSummary>(2);
+        var projections = new List<FoundFrontierCandidateProjection>(66);
+        foreach (int civ in new[] { civA, civB })
+        {
+            int foundDecrees = DecreesDone(civ, DecreeKind.Found);
+            int naturalFoundings = E3Foundings(civ) - foundDecrees;
+            int mandate = _research.Mandate(civ);
+            int mandateCap = _research.MandateCap(civ);
+            int preferredTile = ChooseFoundSite(civ, CouncilDecreePolicy.FoundFill);
+            bool aiGateOpen = _research.CouncilOn(civ) && _research.MandateUnlocked(civ) &&
+                mandate >= mandateCap && DecreeCost(civ, DecreeKind.Found) <= mandate &&
+                foundDecrees < CouncilDecreePolicy.MaxFoundsPerAge && naturalFoundings >= foundDecrees + 1;
+
+            var legalSites = new List<(int Tile, int Donor, int DonorPopulation, int DaughterPopulation,
+                Fix64 DonorFill, int PathDistance)>();
+            int eraRadius = EraRadiusOf(civ);
+            int executionLegalSiteCount = 0;
+            for (int tile = 0; tile < _territory.TileCount; tile++)
+            {
+                if (!_economy.IsHabitableSite(tile) || !KnowsTile(civ, tile)) continue;
+                if (FoundCheck(civ, tile, out int donor) != 0 || donor < 0) continue;
+                executionLegalSiteCount++;
+                if (strategistBeliefAllows is not null && !strategistBeliefAllows(civ, tile)) continue;
+                Fix64 donorFill = _economy.PopulationFill(donor);
+                int donorPopulation = _sPop[donor];
+                int daughterPopulation = (Fix64.FromInt(donorPopulation) * _rules.FoundShare).RoundToInt();
+                int pathDistance = DistanceToPath(tile, baseline.FrontierPath);
+                legalSites.Add((tile, donor, donorPopulation, daughterPopulation, donorFill, pathDistance));
+            }
+
+            int relevantRadius = eraRadius + 1;
+            var nearbySites = legalSites.Where(site => site.PathDistance <= relevantRadius)
+                .OrderBy(site => site.PathDistance).ThenBy(site => site.Tile)
+                .Take(MaxNearbySitesPerCiv).ToList();
+            int relevantSiteCount = legalSites.Count(site => site.PathDistance <= relevantRadius);
+            if (preferredTile >= 0 && legalSites.All(site => site.Tile != preferredTile) &&
+                (strategistBeliefAllows is null || strategistBeliefAllows(civ, preferredTile)))
+            {
+                int donor = -1;
+                if (FoundCheck(civ, preferredTile, out donor) == 0 && donor >= 0)
+                {
+                    int donorPopulation = _sPop[donor];
+                    legalSites.Add((preferredTile, donor, donorPopulation,
+                        (Fix64.FromInt(donorPopulation) * _rules.FoundShare).RoundToInt(),
+                        _economy.PopulationFill(donor), DistanceToPath(preferredTile, baseline.FrontierPath)));
+                }
+            }
+            if (preferredTile >= 0 && legalSites.FirstOrDefault(site => site.Tile == preferredTile) is var preferred &&
+                preferred.Tile == preferredTile && nearbySites.All(site => site.Tile != preferredTile))
+                nearbySites.Add(preferred);
+
+            int projectedSiteCount = 0;
+            foreach (var site in nearbySites.OrderBy(site => site.PathDistance).ThenBy(site => site.Tile))
+            {
+                if (site.DaughterPopulation < Math.Max(_rules.MinDaughter, 6) || site.DaughterPopulation >= site.DonorPopulation)
+                    continue;
+                var projection = ProjectFound(site.Donor, civ, site.Tile, site.DaughterPopulation,
+                    settlements, seasonalCamps, miningCamps);
+                projections.Add(new FoundFrontierCandidateProjection(civ, site.Tile, site.Donor,
+                    site.DonorPopulation, site.DaughterPopulation, site.DonorFill, site.PathDistance,
+                    projection.ClaimedWeight, projection.FrontierConnectionWeight,
+                    projection.PairOwnersTouching, projection.ClaimedWeight <= maxClaimedWeight,
+                    site.Tile == preferredTile));
+                projectedSiteCount++;
+            }
+            civSummaries.Add(new FoundFrontierCivSummary(civ, executionLegalSiteCount, legalSites.Count,
+                relevantSiteCount, projectedSiteCount, aiGateOpen, mandate, mandateCap, foundDecrees,
+                naturalFoundings, preferredTile));
+        }
+
+        return new FoundFrontierAudit(baseline.ClaimedWeight, baseline.FrontierConnectionWeight,
+            baselinePairTouching, ownershipUpdatesProjected, civSummaries.ToArray(), projections.ToArray());
+
+        int DistanceToPath(int tile, IReadOnlyList<int> path)
+        {
+            int best = int.MaxValue;
+            foreach (int pathTile in path)
+                best = Math.Min(best, HexGrid.Distance(tile, pathTile, _width));
+            return best;
+        }
+
+        (int ClaimedWeight, int FrontierConnectionWeight, bool PairOwnersTouching) ProjectFound(
+            int donor, int civ, int siteTile, int daughterPopulation,
+            IReadOnlyList<ClaimSource> baseSettlements, IReadOnlyList<ClaimSource> baseSeasonalCamps,
+            IReadOnlyList<ClaimSource> baseMiningCamps)
+        {
+            int donorPopulationAfter = _sPop[donor] - daughterPopulation;
+            Fix64 currentEmission = EmissionOf(donor);
+            Fix64 parentCohesionAfter = Fix64.Max(Fix64.Parse("0.6"),
+                _economy.SettlementCohesion(donor) - Fix64.Parse("0.05"));
+            int era = Math.Min(_research.Era(civ), _eraClaimMult.Length - 1);
+            Fix64 parentEmissionAfter = Fix64.Sqrt(Fix64.FromInt(Math.Max(1, donorPopulationAfter))) *
+                _eraClaimMult[era] * parentCohesionAfter;
+            Fix64 parentEmissionScale = currentEmission > Fix64.Zero
+                ? parentEmissionAfter / currentEmission : Fix64.Zero;
+
+            var projectedSettlements = new List<ClaimSource>(baseSettlements.Count + 1);
+            int donorTile = _sTile[donor];
+            foreach (ClaimSource source in baseSettlements)
+                projectedSettlements.Add(source.Civ == civ && source.Tile == donorTile
+                    ? source with { Emission = source.Emission * parentEmissionScale }
+                    : source);
+
+            var projectedCamps = new List<ClaimSource>(baseSeasonalCamps.Count + baseMiningCamps.Count);
+            int seasonalIndex = 0;
+            foreach ((int tile, int settlement, int campCiv) in _camps)
+            {
+                if (settlement >= _sCount || _free[settlement] || _sCiv[settlement] != campCiv) continue;
+                ClaimSource source = baseSeasonalCamps[seasonalIndex++];
+                projectedCamps.Add(settlement == donor
+                    ? source with { Emission = source.Emission * parentEmissionScale }
+                    : source);
+            }
+            projectedCamps.AddRange(baseMiningCamps);
+
+            Fix64 daughterCohesion = Fix64.Clamp(Fix64.Parse("0.6") +
+                Fix64.FromRatio(6, 1000) * _rules.StartCohesion, Fix64.Parse("0.6"), Fix64.Parse("1.2"));
+            Fix64 daughterEmission = Fix64.Sqrt(Fix64.FromInt(daughterPopulation)) *
+                _eraClaimMult[era] * daughterCohesion;
+            if (Done(civ, _bp.Ter05)) daughterEmission *= _rules.ClaimBoost;
+            projectedSettlements.Add(new ClaimSource(civ, siteTile, EraRadiusOf(civ), daughterEmission));
+
+            var projection = _territory.ProjectedClaimedWeightAndFrontierCost(
+                projectedSettlements, projectedCamps, civA, civB);
+            return (projection.ClaimedWeight, projection.FrontierConnectionWeight,
+                ownershipUpdatesProjected == 0 ? projection.PairOwnersTouching :
+                    _territory.ProjectedPairOwnersTouchingAfterUpdates(projectedSettlements, projectedCamps,
+                        civA, civB, ownershipUpdatesProjected));
+        }
+    }
+
+    /// <summary>
+    /// Diagnostic counterfactual: keeps settlement, hinterland, and mining-camp claims unchanged while overriding
+    /// every seasonal camp's radius and emission scale. Uses current camp sites and the normal live-owner exclusion.
+    /// </summary>
+    public (int ClaimedWeight, int FrontierConnectionWeight, int[] FrontierPath) ProjectedSeasonalCampVariant(
+        int radius, Fix64 emissionScale, int civA, int civB)
+    {
+        if (radius < 0) throw new ArgumentOutOfRangeException(nameof(radius));
+        if (emissionScale < Fix64.Zero || emissionScale > Fix64.One)
+            throw new ArgumentOutOfRangeException(nameof(emissionScale));
+
+        var settlements = new List<ClaimSource>();
+        var seasonalCamps = new List<ClaimSource>();
+        var miningCamps = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, seasonalCamps, miningCamps);
+        var variantCamps = new List<ClaimSource>(seasonalCamps.Count + miningCamps.Count);
+        foreach (ClaimSource camp in seasonalCamps)
+            variantCamps.Add(new ClaimSource(camp.Civ, camp.Tile, radius, camp.Emission * emissionScale));
+        variantCamps.AddRange(miningCamps);
+        var projection = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, variantCamps, civA, civB);
+        return (projection.ClaimedWeight, projection.FrontierConnectionWeight, projection.FrontierPath);
+    }
+
+    /// <summary>
+    /// Diagnostic counterfactual: replaces seasonal camp disks with one-tile claims along the settlement-only
+    /// frontier path. Each half is assigned to its neighboring civilization and can be supported by that civ's
+    /// nearest existing seasonal camp within <paramref name="supportRadius"/>. Mining-camp claims remain fixed.
+    /// </summary>
+    public (int ClaimedWeight, int FrontierConnectionWeight, int[] FrontierPath, int SupportedTiles,
+        int UnsupportedTiles, int CorridorWeight) ProjectedSeasonalCampTrail(int supportRadius, int civA, int civB,
+        MiningCampClaimRadiusProjection miningProjection = MiningCampClaimRadiusProjection.Current)
+    {
+        if (supportRadius < 0) throw new ArgumentOutOfRangeException(nameof(supportRadius));
+        if (!Enum.IsDefined(miningProjection)) throw new ArgumentOutOfRangeException(nameof(miningProjection));
+
+        var settlements = new List<ClaimSource>();
+        var seasonalCamps = new List<ClaimSource>();
+        var miningCamps = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, seasonalCamps, miningCamps);
+        var projectedMiningCamps = new List<ClaimSource>(miningCamps.Count);
+        if (miningProjection != MiningCampClaimRadiusProjection.Omitted)
+        foreach (ClaimSource camp in miningCamps)
+        {
+            int radius = miningProjection switch
+            {
+                MiningCampClaimRadiusProjection.Current => camp.Radius,
+                MiningCampClaimRadiusProjection.OneTileSmaller => Math.Max(0, camp.Radius - 1),
+                MiningCampClaimRadiusProjection.RadiusZero => 0,
+                _ => throw new ArgumentOutOfRangeException(nameof(miningProjection)),
+            };
+            projectedMiningCamps.Add(new ClaimSource(camp.Civ, camp.Tile, radius, camp.Emission));
+        }
+        var trailClaims = new List<ClaimSource>();
+        var trailMetrics = AddSeasonalCampTrailClaims(settlements, seasonalCamps, supportRadius, civA, civB, trailClaims);
+        trailClaims.AddRange(projectedMiningCamps);
+        var projection = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, trailClaims, civA, civB);
+        return (projection.ClaimedWeight, projection.FrontierConnectionWeight, projection.FrontierPath,
+            trailMetrics.SupportedTiles, trailMetrics.UnsupportedTiles, trailMetrics.CorridorWeight);
+    }
+
+    /// <summary>
+    /// Diagnostic snapshot counterfactual: relocates each existing seasonal camp group in settlement order using
+    /// compact legal sites, while holding settlement claims, camp counts, emission, and mining claims fixed.
+    /// </summary>
+    public (int BaselineClaimedWeight, int CompactClaimedWeight, int BaselineFrontierConnectionWeight,
+        int CompactFrontierConnectionWeight, int BaselineCampCount, int CompactCampCount, int ChangedSites,
+        int SnapshotLegalOriginalSites, int ProtectedClaimedWeight, int ProtectedFrontierConnectionWeight,
+        int ProtectedCampSites, int SearchClaimedWeight, int SearchFrontierConnectionWeight,
+        int SearchChangedSites, int SearchSupportSlots, int SearchSupportPairEvaluations,
+        int SearchOptimizedMoves, int SearchCoupledPairEvaluations, int SearchOptimizedPairs,
+        int SearchEvaluations, bool SearchMeetsTargets, int RouteCandidateSlots, int RouteSingleEvaluations,
+        int RoutePairEvaluations, int RouteBestClaimedWeight, int RouteBestFrontierConnectionWeight,
+        bool RouteMeetsContactAndLandCap)
+        ProjectedCompactCampPlacement(int civA, int civB)
+    {
+        var settlements = new List<ClaimSource>();
+        var baselineSeasonalCamps = new List<ClaimSource>();
+        var miningCamps = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, baselineSeasonalCamps, miningCamps);
+
+        var originalSites = new List<int>[_sCount];
+        foreach ((int tile, int settlement, int civ) in _camps)
+        {
+            if (settlement >= _sCount || _free[settlement] || _sCiv[settlement] != civ) continue;
+            (originalSites[settlement] ??= new List<int>()).Add(tile);
+        }
+
+        var compactSeasonalCamps = new List<ClaimSource>(baselineSeasonalCamps.Count);
+        var compactSites = new List<int>[_sCount];
+        for (int s = 0; s < _sCount; s++)
+        {
+            List<int>? existingSites = originalSites[s];
+            if (existingSites is null || existingSites.Count == 0) continue;
+            int civ = _sCiv[s];
+            var own = new List<ClaimSource>();
+            var rivals = new List<ClaimSource>();
+            for (int i = 0; i < _sCount; i++)
+            {
+                if (_free[i]) continue;
+                var source = new ClaimSource(_sCiv[i], _sTile[i],
+                    _eraRadius[Math.Min(_research.Era(_sCiv[i]), _eraRadius.Length - 1)], Fix64.Zero);
+                if (_sCiv[i] == civ) own.Add(source); else rivals.Add(source);
+            }
+            var ownCamps = new List<ClaimSource>();
+            foreach (ClaimSource camp in compactSeasonalCamps)
+                if (camp.Civ == civ) ownCamps.Add(camp);
+            List<int> sites = _territory.ChooseCompactCampSites(civ, _sTile[s],
+                _eraRadius[Math.Min(_research.Era(civ), _eraRadius.Length - 1)], own, ownCamps, rivals, existingSites.Count);
+            compactSites[s] = sites;
+            Fix64 share = _research.IsDone(civ, _p.Ter02) ? Fix64.FromRatio(3, 4) : Fix64.Half;
+            Fix64 emission = EmissionOf(s) * share;
+            foreach (int tile in sites)
+                compactSeasonalCamps.Add(new ClaimSource(civ, tile, Territory.CampRadius, emission));
+        }
+
+        var baselineCamps = new List<ClaimSource>(baselineSeasonalCamps.Count + miningCamps.Count);
+        baselineCamps.AddRange(baselineSeasonalCamps);
+        baselineCamps.AddRange(miningCamps);
+        var compactCamps = new List<ClaimSource>(compactSeasonalCamps.Count + miningCamps.Count);
+        compactCamps.AddRange(compactSeasonalCamps);
+        compactCamps.AddRange(miningCamps);
+        var baseline = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, baselineCamps, civA, civB);
+        var compact = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, compactCamps, civA, civB);
+
+        var slots = new List<(int Settlement, int Civ, int OriginalTile, int CompactTile, Fix64 Emission)>(baselineSeasonalCamps.Count);
+        var groupSlot = new int[_sCount];
+        var snapshotLegalSlots = new List<bool>(baselineSeasonalCamps.Count);
+        int snapshotLegalOriginalSites = 0;
+        foreach ((int tile, int settlement, int civ) in _camps)
+        {
+            if (settlement >= _sCount || _free[settlement] || _sCiv[settlement] != civ) continue;
+            int withinGroup = groupSlot[settlement]++;
+            List<int>? replacements = compactSites[settlement];
+            int compactTile = replacements is not null && withinGroup < replacements.Count
+                ? replacements[withinGroup]
+                : tile;
+            Fix64 share = _research.IsDone(civ, _p.Ter02) ? Fix64.FromRatio(3, 4) : Fix64.Half;
+            var slot = (settlement, civ, tile, compactTile, EmissionOf(settlement) * share);
+            slots.Add(slot);
+
+            var rivals = new List<ClaimSource>();
+            for (int i = 0; i < _sCount; i++)
+            {
+                if (_free[i] || _sCiv[i] == civ) continue;
+                rivals.Add(new ClaimSource(_sCiv[i], _sTile[i],
+                    _eraRadius[Math.Min(_research.Era(_sCiv[i]), _eraRadius.Length - 1)], Fix64.Zero));
+            }
+            bool legal = _territory.IsCampSiteLegal(civ, _sTile[settlement], tile,
+                _eraRadius[Math.Min(_research.Era(civ), _eraRadius.Length - 1)], rivals);
+            snapshotLegalSlots.Add(legal);
+            if (legal)
+                snapshotLegalOriginalSites++;
+        }
+
+        bool[] supportsBaselinePath = _territory.ProjectedCampSupportsPairPath(
+            settlements, baselineCamps, baseline.FrontierPath, civA, civB);
+        var protectedSites = new int[slots.Count];
+        var protectedSlots = new bool[slots.Count];
+        int protectedCampSites = 0;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            bool preserve = i < baselineSeasonalCamps.Count && i < supportsBaselinePath.Length &&
+                supportsBaselinePath[i] && snapshotLegalSlots[i];
+            protectedSites[i] = preserve ? slots[i].OriginalTile : slots[i].CompactTile;
+            protectedSlots[i] = preserve;
+            if (preserve) protectedCampSites++;
+        }
+        const int MaxSearchEvaluations = 200;
+        const int MaxSupportCandidatesPerSlot = 8;
+        const int MaxFullMovesPerPass = 24;
+        int searchEvaluations = 2; // current and compact endpoint projections above
+        int supportPairEvaluations = 0;
+        int optimizedMoves = 0;
+        int coupledPairEvaluations = 0;
+        int optimizedPairs = 0;
+        int landCap = (int)Math.Floor(_territory.TotalHabitableWeight * 0.42);
+        int pathLimit = baseline.FrontierConnectionWeight >= 0
+            ? Math.Min(600, baseline.FrontierConnectionWeight)
+            : 600;
+        bool PathIsAcceptable(int path) => path >= 0 && path <= pathLimit;
+
+        var protectedProjection = ProjectSites(protectedSites);
+        int[] bestSites = (int[])protectedSites.Clone();
+        var bestProjection = PathIsAcceptable(protectedProjection.FrontierConnectionWeight)
+            ? protectedProjection
+            : (baseline.ClaimedWeight, baseline.FrontierConnectionWeight);
+        if (!PathIsAcceptable(protectedProjection.FrontierConnectionWeight))
+        {
+            for (int i = 0; i < slots.Count; i++) bestSites[i] = slots[i].OriginalTile;
+        }
+        if (PathIsAcceptable(baseline.FrontierConnectionWeight) &&
+            (baseline.ClaimedWeight < bestProjection.ClaimedWeight ||
+                baseline.ClaimedWeight == bestProjection.ClaimedWeight && baseline.FrontierConnectionWeight < bestProjection.FrontierConnectionWeight))
+        {
+            bestProjection = (baseline.ClaimedWeight, baseline.FrontierConnectionWeight);
+            for (int i = 0; i < slots.Count; i++) bestSites[i] = slots[i].OriginalTile;
+        }
+        var pairBaseSites = (int[])protectedSites.Clone();
+
+        // Diagnostic only: test route-touching locations for any legal camp slot from the target pair.
+        // This intentionally allows a small claim increase, provided the whole map remains under the 42% cap.
+        const int MaxRouteCandidatesPerSlot = 4;
+        const int MaxRouteSearchEvaluations = 180;
+        const int MaxRouteSingleProbes = 48;
+        int routeSearchEvaluations = 0, routeSingleEvaluations = 0, routePairEvaluations = 0;
+        int routeBestClaimedWeight = baseline.ClaimedWeight;
+        int routeBestFrontierConnectionWeight = baseline.FrontierConnectionWeight;
+        var routeSlots = new List<(int Slot, List<(int Tile, int Delta)> Candidates, int BestClaimed, int BestPath)>();
+        foreach (int slot in Enumerable.Range(0, slots.Count))
+        {
+            if (slots[slot].Civ != civA && slots[slot].Civ != civB) continue;
+            List<(int Tile, int Delta)> candidates = LegalCampCandidates(slot, pairBaseSites,
+                baseline.FrontierPath, routeOnly: true, MaxRouteCandidatesPerSlot);
+            if (candidates.Count > 0) routeSlots.Add((slot, candidates, int.MaxValue, int.MaxValue));
+        }
+        var routeSingleProbes = new List<(int Slot, int Tile, int Delta)>();
+        foreach (var candidateSlot in routeSlots)
+            foreach ((int tile, int delta) in candidateSlot.Candidates)
+                routeSingleProbes.Add((candidateSlot.Slot, tile, delta));
+        routeSingleProbes.Sort(static (a, b) => a.Delta != b.Delta ? a.Delta.CompareTo(b.Delta) :
+            a.Slot != b.Slot ? a.Slot.CompareTo(b.Slot) : a.Tile.CompareTo(b.Tile));
+        if (routeSingleProbes.Count > MaxRouteSingleProbes)
+            routeSingleProbes.RemoveRange(MaxRouteSingleProbes, routeSingleProbes.Count - MaxRouteSingleProbes);
+
+        for (int i = 0; i < routeSingleProbes.Count && routeSearchEvaluations < MaxRouteSearchEvaluations; i++)
+        {
+            (int slot, int tile, _) = routeSingleProbes[i];
+            int[] trialSites = (int[])pairBaseSites.Clone();
+            trialSites[slot] = tile;
+            var trial = ProjectRouteSites(trialSites);
+            routeSingleEvaluations++;
+            int routeSlotIndex = routeSlots.FindIndex(candidateSlot => candidateSlot.Slot == slot);
+            routeSlots[routeSlotIndex] = BetterRouteSlot(routeSlots[routeSlotIndex], trial.ClaimedWeight, trial.FrontierConnectionWeight);
+            UpdateRouteBest(trial.ClaimedWeight, trial.FrontierConnectionWeight);
+            if (RouteMeetsTargets(trial.ClaimedWeight, trial.FrontierConnectionWeight)) break;
+        }
+
+        if (!RouteMeetsTargets(routeBestClaimedWeight, routeBestFrontierConnectionWeight))
+        {
+            var pairSlots = routeSlots.Where(candidateSlot => candidateSlot.BestPath != int.MaxValue)
+                .OrderBy(candidateSlot => candidateSlot.BestPath).ThenBy(candidateSlot => candidateSlot.BestClaimed)
+                .ThenBy(candidateSlot => candidateSlot.Slot).Take(10).ToArray();
+            for (int firstIndex = 0; firstIndex < pairSlots.Length && routeSearchEvaluations < MaxRouteSearchEvaluations; firstIndex++)
+            for (int secondIndex = firstIndex + 1; secondIndex < pairSlots.Length && routeSearchEvaluations < MaxRouteSearchEvaluations; secondIndex++)
+            {
+                var first = pairSlots[firstIndex];
+                var second = pairSlots[secondIndex];
+                foreach ((int firstTile, _) in first.Candidates)
+                foreach ((int secondTile, _) in second.Candidates)
+                {
+                    if (routeSearchEvaluations >= MaxRouteSearchEvaluations) break;
+                    if (firstTile == secondTile && slots[first.Slot].Settlement == slots[second.Slot].Settlement) continue;
+                    int[] trialSites = (int[])pairBaseSites.Clone();
+                    trialSites[first.Slot] = firstTile;
+                    trialSites[second.Slot] = secondTile;
+                    if (HasDuplicateParentCenters(trialSites)) continue;
+                    var trial = ProjectRouteSites(trialSites);
+                    routePairEvaluations++;
+                    UpdateRouteBest(trial.ClaimedWeight, trial.FrontierConnectionWeight);
+                    if (RouteMeetsTargets(trial.ClaimedWeight, trial.FrontierConnectionWeight)) break;
+                }
+                if (RouteMeetsTargets(routeBestClaimedWeight, routeBestFrontierConnectionWeight)) break;
+            }
+        }
+
+        // Search at most two route-support camps together. Remaining support camps stay at their legal baseline sites.
+        var supportSlots = new List<int>();
+        for (int i = 0; i < protectedSlots.Length; i++) if (protectedSlots[i]) supportSlots.Add(i);
+        if (supportSlots.Count > 2) supportSlots.RemoveRange(2, supportSlots.Count - 2);
+        var supportCandidates = new List<(int Tile, int Delta)>[supportSlots.Count];
+        for (int i = 0; i < supportSlots.Count; i++)
+            supportCandidates[i] = LegalCampCandidates(supportSlots[i], pairBaseSites,
+                baseline.FrontierPath, routeOnly: true, MaxSupportCandidatesPerSlot);
+
+        if (supportSlots.Count == 1)
+        {
+            int slot = supportSlots[0];
+            foreach ((int tile, _) in supportCandidates[0])
+            {
+                if (searchEvaluations >= MaxSearchEvaluations) break;
+                int[] trialSites = (int[])pairBaseSites.Clone();
+                trialSites[slot] = tile;
+                EvaluateSupportPair(trialSites);
+            }
+        }
+        else if (supportSlots.Count >= 2)
+        {
+            int first = supportSlots[0], second = supportSlots[1];
+            for (int firstCandidate = 0; firstCandidate < supportCandidates[0].Count; firstCandidate++)
+            {
+                if (searchEvaluations >= MaxSearchEvaluations) break;
+                int firstTile = supportCandidates[0][firstCandidate].Tile;
+                foreach ((int secondTile, _) in supportCandidates[1])
+                {
+                    if (searchEvaluations >= MaxSearchEvaluations) break;
+                    if (firstTile == secondTile && slots[first].Settlement == slots[second].Settlement) continue;
+                    int[] trialSites = (int[])pairBaseSites.Clone();
+                    trialSites[first] = firstTile;
+                    trialSites[second] = secondTile;
+                    EvaluateSupportPair(trialSites);
+                }
+            }
+        }
+
+        // Use exact local ownership deltas to screen legal moves, then spend whole-map projections only on the best
+        // candidates. Recompute after each accepted move because camp claims overlap.
+        while (searchEvaluations < MaxSearchEvaluations &&
+            (bestProjection.ClaimedWeight > landCap || !PathIsAcceptable(bestProjection.FrontierConnectionWeight)))
+        {
+            List<(int Slot, int Tile, int Delta)> moves = RankedLocalMoves(bestSites, protectedSlots);
+            if (moves.Count == 0) break;
+            bool found = false;
+            int[]? chosenSites = null;
+            (int ClaimedWeight, int FrontierConnectionWeight) chosenProjection = bestProjection;
+            int candidatesThisPass = Math.Min(MaxFullMovesPerPass, moves.Count);
+            for (int i = 0; i < candidatesThisPass && searchEvaluations < MaxSearchEvaluations; i++)
+            {
+                (int slot, int tile, _) = moves[i];
+                int[] trialSites = (int[])bestSites.Clone();
+                trialSites[slot] = tile;
+                var trial = ProjectSites(trialSites);
+                if (!PathIsAcceptable(trial.FrontierConnectionWeight) ||
+                    trial.ClaimedWeight >= bestProjection.ClaimedWeight)
+                    continue;
+                if (!found || trial.ClaimedWeight < chosenProjection.ClaimedWeight ||
+                    trial.ClaimedWeight == chosenProjection.ClaimedWeight &&
+                        trial.FrontierConnectionWeight < chosenProjection.FrontierConnectionWeight)
+                {
+                    found = true;
+                    chosenSites = trialSites;
+                    chosenProjection = trial;
+                }
+            }
+            if (!found || chosenSites is null) break;
+            bestSites = chosenSites;
+            bestProjection = chosenProjection;
+            optimizedMoves++;
+        }
+
+        // Greedy single moves can stop at a local minimum when two overlapping camp changes are jointly useful.
+        // Rank those pairs by exact local ownership delta, then check final land and frontier with the whole-map projector.
+        while (searchEvaluations < MaxSearchEvaluations &&
+            (bestProjection.ClaimedWeight > landCap || !PathIsAcceptable(bestProjection.FrontierConnectionWeight)))
+        {
+            List<(int FirstSlot, int FirstTile, int SecondSlot, int SecondTile, int Delta)> movePairs =
+                RankedLocalMovePairs(bestSites, protectedSlots);
+            if (movePairs.Count == 0) break;
+            bool found = false;
+            int[]? chosenSites = null;
+            (int ClaimedWeight, int FrontierConnectionWeight) chosenProjection = bestProjection;
+            foreach ((int firstSlot, int firstTile, int secondSlot, int secondTile, _) in movePairs)
+            {
+                if (searchEvaluations >= MaxSearchEvaluations) break;
+                int[] trialSites = (int[])bestSites.Clone();
+                trialSites[firstSlot] = firstTile;
+                trialSites[secondSlot] = secondTile;
+                var trial = ProjectSites(trialSites);
+                coupledPairEvaluations++;
+                if (!PathIsAcceptable(trial.FrontierConnectionWeight) ||
+                    trial.ClaimedWeight >= bestProjection.ClaimedWeight)
+                    continue;
+                if (!found || trial.ClaimedWeight < chosenProjection.ClaimedWeight ||
+                    trial.ClaimedWeight == chosenProjection.ClaimedWeight &&
+                        trial.FrontierConnectionWeight < chosenProjection.FrontierConnectionWeight)
+                {
+                    found = true;
+                    chosenSites = trialSites;
+                    chosenProjection = trial;
+                }
+                // Pair candidates are ordered by their exact local claimed-weight delta, which equals the
+                // whole-map claimed-weight delta for the affected disks. The first passing target is sufficient.
+                if (trial.ClaimedWeight <= landCap) break;
+            }
+            if (!found || chosenSites is null) break;
+            bestSites = chosenSites;
+            bestProjection = chosenProjection;
+            optimizedPairs++;
+            if (bestProjection.ClaimedWeight <= landCap &&
+                bestProjection.FrontierConnectionWeight >= 0 && bestProjection.FrontierConnectionWeight <= 600)
+                break;
+        }
+
+        int changedSites = 0;
+        for (int s = 0; s < _sCount; s++)
+        {
+            List<int>? previous = originalSites[s];
+            if (previous is null) continue;
+            List<int> replacement = compactSites[s] ?? new List<int>();
+            previous.Sort();
+            replacement.Sort();
+            int common = Math.Min(previous.Count, replacement.Count);
+            for (int i = 0; i < common; i++) if (previous[i] != replacement[i]) changedSites++;
+            changedSites += Math.Abs(previous.Count - replacement.Count);
+        }
+        int searchChangedSites = 0;
+        for (int i = 0; i < slots.Count; i++)
+            if (bestSites[i] != slots[i].OriginalTile) searchChangedSites++;
+        return (baseline.ClaimedWeight, compact.ClaimedWeight, baseline.FrontierConnectionWeight,
+            compact.FrontierConnectionWeight, baselineSeasonalCamps.Count, compactSeasonalCamps.Count, changedSites,
+            snapshotLegalOriginalSites, protectedProjection.ClaimedWeight, protectedProjection.FrontierConnectionWeight,
+            protectedCampSites, bestProjection.ClaimedWeight, bestProjection.FrontierConnectionWeight,
+            searchChangedSites, supportSlots.Count, supportPairEvaluations, optimizedMoves,
+            coupledPairEvaluations, optimizedPairs, searchEvaluations,
+            bestProjection.ClaimedWeight <= landCap && bestProjection.FrontierConnectionWeight >= 0 &&
+                bestProjection.FrontierConnectionWeight <= 600, routeSlots.Count, routeSingleEvaluations,
+            routePairEvaluations, routeBestClaimedWeight, routeBestFrontierConnectionWeight,
+            RouteMeetsTargets(routeBestClaimedWeight, routeBestFrontierConnectionWeight));
+
+        bool RouteMeetsTargets(int claimedWeight, int frontierWeight)
+            => claimedWeight <= landCap && frontierWeight == 0;
+
+        void UpdateRouteBest(int claimedWeight, int frontierWeight)
+        {
+            if (frontierWeight < routeBestFrontierConnectionWeight ||
+                frontierWeight == routeBestFrontierConnectionWeight && claimedWeight < routeBestClaimedWeight)
+            {
+                routeBestClaimedWeight = claimedWeight;
+                routeBestFrontierConnectionWeight = frontierWeight;
+            }
+        }
+
+        (int ClaimedWeight, int FrontierConnectionWeight) ProjectRouteSites(IReadOnlyList<int> campSites)
+        {
+            routeSearchEvaluations++;
+            var camps = new List<ClaimSource>(campSites.Count + miningCamps.Count);
+            for (int i = 0; i < slots.Count; i++)
+                camps.Add(new ClaimSource(slots[i].Civ, campSites[i], Territory.CampRadius, slots[i].Emission));
+            camps.AddRange(miningCamps);
+            var projection = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, camps, civA, civB);
+            return (projection.ClaimedWeight, projection.FrontierConnectionWeight);
+        }
+
+        static (int Slot, List<(int Tile, int Delta)> Candidates, int BestClaimed, int BestPath) BetterRouteSlot(
+            (int Slot, List<(int Tile, int Delta)> Candidates, int BestClaimed, int BestPath) current,
+            int claimed, int path)
+            => path < current.BestPath || path == current.BestPath && claimed < current.BestClaimed
+                ? (current.Slot, current.Candidates, claimed, path)
+                : current;
+
+        (int ClaimedWeight, int FrontierConnectionWeight) ProjectSites(IReadOnlyList<int> campSites)
+        {
+            if (searchEvaluations >= MaxSearchEvaluations)
+                return (int.MaxValue, int.MaxValue);
+            searchEvaluations++;
+            var camps = new List<ClaimSource>(campSites.Count + miningCamps.Count);
+            for (int i = 0; i < slots.Count; i++)
+                camps.Add(new ClaimSource(slots[i].Civ, campSites[i], Territory.CampRadius, slots[i].Emission));
+            camps.AddRange(miningCamps);
+            var projection = _territory.ProjectedClaimedWeightAndFrontierCost(settlements, camps, civA, civB);
+            return (projection.ClaimedWeight, projection.FrontierConnectionWeight);
+        }
+
+        void EvaluateSupportPair(int[] trialSites)
+        {
+            var trial = ProjectSites(trialSites);
+            supportPairEvaluations++;
+            if (!PathIsAcceptable(trial.FrontierConnectionWeight)) return;
+            if (trial.ClaimedWeight < bestProjection.ClaimedWeight ||
+                trial.ClaimedWeight == bestProjection.ClaimedWeight &&
+                    trial.FrontierConnectionWeight < bestProjection.FrontierConnectionWeight)
+            {
+                bestSites = trialSites;
+                bestProjection = trial;
+            }
+        }
+
+        List<(int Tile, int Delta)> LegalCampCandidates(int slotIndex, IReadOnlyList<int> currentSites,
+            IReadOnlyList<int> route, bool routeOnly, int limit)
+        {
+            var candidates = new List<(int Tile, int Delta)>();
+            var rivals = RivalSettlements(slots[slotIndex].Civ);
+            int settlement = slots[slotIndex].Settlement;
+            int radius = _eraRadius[Math.Min(_research.Era(slots[slotIndex].Civ), _eraRadius.Length - 1)];
+            var camps = CampSources(currentSites);
+            for (int tile = 0; tile < _territory.TileCount; tile++)
+            {
+                if (!CanUseCampSite(slotIndex, tile, currentSites, settlement, radius, rivals) ||
+                    routeOnly && !CampTouchesPath(tile, route)) continue;
+                int delta = _territory.ProjectedCampMoveClaimedWeightDelta(settlements, camps, slotIndex, tile);
+                candidates.Add((tile, delta));
+            }
+            candidates.Sort(static (a, b) => a.Delta != b.Delta ? a.Delta.CompareTo(b.Delta) : a.Tile.CompareTo(b.Tile));
+            int currentTile = currentSites[slotIndex];
+            int currentIndex = candidates.FindIndex(candidate => candidate.Tile == currentTile);
+            (int Tile, int Delta)? currentCandidate = currentIndex >= 0 ? candidates[currentIndex] : null;
+            if (candidates.Count > limit) candidates.RemoveRange(limit, candidates.Count - limit);
+            if (currentCandidate is { } retained && !candidates.Exists(candidate => candidate.Tile == currentTile))
+            {
+                if (candidates.Count == limit && candidates.Count > 0) candidates.RemoveAt(candidates.Count - 1);
+                candidates.Add(retained);
+                candidates.Sort(static (a, b) => a.Delta != b.Delta ? a.Delta.CompareTo(b.Delta) : a.Tile.CompareTo(b.Tile));
+            }
+            return candidates;
+        }
+
+        List<(int Slot, int Tile, int Delta)> RankedLocalMoves(IReadOnlyList<int> currentSites,
+            IReadOnlyList<bool> protectedCampSlots)
+        {
+            var moves = new List<(int Slot, int Tile, int Delta)>();
+            for (int slot = 0; slot < slots.Count; slot++)
+            {
+                if (protectedCampSlots[slot]) continue;
+                var candidates = LegalCampCandidates(slot, currentSites, Array.Empty<int>(), routeOnly: false, limit: 4);
+                foreach ((int tile, int delta) in candidates)
+                {
+                    if (tile == currentSites[slot] || delta >= 0) continue;
+                    moves.Add((slot, tile, delta));
+                }
+            }
+            moves.Sort(static (a, b) => a.Delta != b.Delta ? a.Delta.CompareTo(b.Delta) :
+                a.Slot != b.Slot ? a.Slot.CompareTo(b.Slot) : a.Tile.CompareTo(b.Tile));
+            return moves;
+        }
+
+        List<(int FirstSlot, int FirstTile, int SecondSlot, int SecondTile, int Delta)> RankedLocalMovePairs(
+            IReadOnlyList<int> currentSites, IReadOnlyList<bool> protectedCampSlots)
+        {
+            var options = new List<(int Tile, int Delta)>[slots.Count];
+            for (int slot = 0; slot < slots.Count; slot++)
+            {
+                List<(int Tile, int Delta)> candidates = LegalCampCandidates(slot, currentSites,
+                    baseline.FrontierPath, routeOnly: protectedCampSlots[slot], limit: 4);
+                options[slot] = new List<(int Tile, int Delta)>(3);
+                foreach ((int tile, int delta) in candidates)
+                {
+                    if (tile == currentSites[slot]) continue;
+                    options[slot].Add((tile, delta));
+                    if (options[slot].Count == 3) break;
+                }
+            }
+
+            var camps = CampSources(currentSites);
+            var pairs = new List<(int FirstSlot, int FirstTile, int SecondSlot, int SecondTile, int Delta)>();
+            for (int firstSlot = 0; firstSlot < slots.Count; firstSlot++)
+            {
+                for (int secondSlot = firstSlot + 1; secondSlot < slots.Count; secondSlot++)
+                {
+                    if (options[firstSlot].Count == 0 || options[secondSlot].Count == 0) continue;
+                    bool sameParent = slots[firstSlot].Settlement == slots[secondSlot].Settlement;
+                    foreach ((int firstTile, _) in options[firstSlot])
+                    foreach ((int secondTile, _) in options[secondSlot])
+                    {
+                        if (firstTile == secondTile && sameParent) continue;
+                        var trialSites = new int[currentSites.Count];
+                        for (int i = 0; i < currentSites.Count; i++) trialSites[i] = currentSites[i];
+                        trialSites[firstSlot] = firstTile;
+                        trialSites[secondSlot] = secondTile;
+                        if (HasDuplicateParentCenters(trialSites)) continue;
+                        bool disksOverlap = CampMoveFootprintsOverlap(firstSlot, firstTile, secondSlot, secondTile, currentSites);
+                        bool bothTouchRoute = CampTouchesPath(firstTile, baseline.FrontierPath) &&
+                            CampTouchesPath(secondTile, baseline.FrontierPath);
+                        if (!sameParent && !disksOverlap && !bothTouchRoute) continue;
+
+                        int delta = _territory.ProjectedCampMovesClaimedWeightDelta(settlements, camps,
+                            firstSlot, firstTile, secondSlot, secondTile);
+                        if (delta < 0)
+                            pairs.Add((firstSlot, firstTile, secondSlot, secondTile, delta));
+                    }
+                }
+            }
+            pairs.Sort(static (a, b) => a.Delta != b.Delta ? a.Delta.CompareTo(b.Delta) :
+                a.FirstSlot != b.FirstSlot ? a.FirstSlot.CompareTo(b.FirstSlot) :
+                a.SecondSlot != b.SecondSlot ? a.SecondSlot.CompareTo(b.SecondSlot) :
+                a.FirstTile != b.FirstTile ? a.FirstTile.CompareTo(b.FirstTile) : a.SecondTile.CompareTo(b.SecondTile));
+            return pairs;
+        }
+
+        bool HasDuplicateParentCenters(IReadOnlyList<int> sites)
+        {
+            for (int i = 0; i < slots.Count; i++)
+            for (int j = i + 1; j < slots.Count; j++)
+                if (slots[i].Settlement == slots[j].Settlement && sites[i] == sites[j]) return true;
+            return false;
+        }
+
+        bool CampMoveFootprintsOverlap(int firstSlot, int firstTile, int secondSlot, int secondTile,
+            IReadOnlyList<int> currentSites)
+        {
+            int firstOld = currentSites[firstSlot], secondOld = currentSites[secondSlot];
+            int maxCenterDistance = Territory.CampRadius * 2;
+            return HexGrid.Distance(firstOld, secondOld, _territory.Width) <= maxCenterDistance ||
+                HexGrid.Distance(firstOld, secondTile, _territory.Width) <= maxCenterDistance ||
+                HexGrid.Distance(firstTile, secondOld, _territory.Width) <= maxCenterDistance ||
+                HexGrid.Distance(firstTile, secondTile, _territory.Width) <= maxCenterDistance;
+        }
+
+        bool CanUseCampSite(int slotIndex, int tile, IReadOnlyList<int> currentSites, int settlement,
+            int radius, IReadOnlyList<ClaimSource> rivals)
+        {
+            if (!_territory.IsCampSiteLegal(slots[slotIndex].Civ, _sTile[settlement], tile, radius, rivals)) return false;
+            for (int other = 0; other < slots.Count; other++)
+                if (other != slotIndex && slots[other].Settlement == settlement && currentSites[other] == tile) return false;
+            return true;
+        }
+
+        bool CampTouchesPath(int center, IReadOnlyList<int> path)
+        {
+            foreach (int tile in path)
+                if (HexGrid.Distance(center, tile, _territory.Width) <= Territory.CampRadius) return true;
+            return false;
+        }
+
+        List<ClaimSource> CampSources(IReadOnlyList<int> sites)
+        {
+            var camps = new List<ClaimSource>(sites.Count + miningCamps.Count);
+            for (int i = 0; i < slots.Count; i++)
+                camps.Add(new ClaimSource(slots[i].Civ, sites[i], Territory.CampRadius, slots[i].Emission));
+            camps.AddRange(miningCamps);
+            return camps;
+        }
+
+        List<ClaimSource> RivalSettlements(int civ)
+        {
+            var rivals = new List<ClaimSource>();
+            for (int settlement = 0; settlement < _sCount; settlement++)
+            {
+                if (_free[settlement] || _sCiv[settlement] == civ) continue;
+                rivals.Add(new ClaimSource(_sCiv[settlement], _sTile[settlement],
+                    _eraRadius[Math.Min(_research.Era(_sCiv[settlement]), _eraRadius.Length - 1)], Fix64.Zero));
+            }
+            return rivals;
+        }
+    }
+
+    private (int SupportedTiles, int UnsupportedTiles, int CorridorWeight) AddSeasonalCampTrailClaims(
+        IReadOnlyList<ClaimSource> settlements, IReadOnlyList<ClaimSource> seasonalCamps, int supportRadius,
+        int civA, int civB, List<ClaimSource> trailClaims)
+    {
+        var settlementProjection = _territory.ProjectedClaimedWeightAndFrontierCost(
+            settlements, Array.Empty<ClaimSource>(), civA, civB);
+        int[] corridor = settlementProjection.FrontierUnownedPath;
+        int supported = 0, unsupported = 0, corridorWeight = 0;
+        int firstHalf = (corridor.Length + 1) / 2;
+        for (int i = 0; i < corridor.Length; i++)
+        {
+            int tile = corridor[i];
+            corridorWeight += _territory.TileAt(tile).HabitableWeight;
+            int civ = i < firstHalf ? civA : civB;
+            int liveOwner = _territory.OwnerOf(tile);
+            if (liveOwner >= 0 && liveOwner != civ) { unsupported++; continue; }
+            ClaimSource nearest = default;
+            int nearestDistance = int.MaxValue;
+            foreach (ClaimSource camp in seasonalCamps)
+            {
+                if (camp.Civ != civ) continue;
+                int campOwner = _territory.OwnerOf(camp.Tile);
+                if (campOwner >= 0 && campOwner != civ) continue;
+                int distance = HexGrid.Distance(tile, camp.Tile, _width);
+                if (distance > supportRadius || distance > nearestDistance) continue;
+                if (distance == nearestDistance && nearest.Tile <= camp.Tile) continue;
+                nearest = camp;
+                nearestDistance = distance;
+            }
+            if (nearestDistance == int.MaxValue) { unsupported++; continue; }
+            supported++;
+            trailClaims.Add(new ClaimSource(civ, tile, 0, nearest.Emission));
+        }
+        return (supported, unsupported, corridorWeight);
     }
 
     private void UpdateTerritory()
     {
         var settlements = new List<ClaimSource>();
         var camps = new List<ClaimSource>();
+        BuildTerritoryClaimSources(settlements, camps);
+        _territory.Update(settlements, camps);
+    }
+
+    private void BuildTerritoryClaimSources(List<ClaimSource> settlements, List<ClaimSource> camps)
+    {
+        BuildSettlementClaimSources(settlements);
+        BuildSeasonalCampClaimSources(camps);
+        BuildMiningCampClaimSources(camps);
+    }
+
+    private void BuildTerritoryClaimSources(List<ClaimSource> settlements, List<ClaimSource> seasonalCamps,
+        List<ClaimSource> miningCamps)
+    {
+        BuildSettlementClaimSources(settlements);
+        BuildSeasonalCampClaimSources(seasonalCamps);
+        BuildMiningCampClaimSources(miningCamps);
+    }
+
+    private void BuildSettlementClaimSources(List<ClaimSource> settlements)
+    {
         for (int s = 0; s < _sCount; s++)
         {
             if (_free[s]) continue;
@@ -606,6 +1488,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             (int ring, Fix64 share) = _economy.Hinterland(s);
             if (ring > 0) settlements.Add(new ClaimSource(civ, _sTile[s], ring, emission * share));
         }
+    }
+
+    private void BuildSeasonalCampClaimSources(List<ClaimSource> camps)
+    {
         foreach ((int tile, int settlement, int civ) in _camps)
         {
             if (settlement >= _sCount || _free[settlement] || _sCiv[settlement] != civ) continue;
@@ -613,6 +1499,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Fix64 share = _research.IsDone(civ, _p.Ter02) ? Fix64.FromRatio(3, 4) : Fix64.Half;
             camps.Add(new ClaimSource(civ, tile, Territory.CampRadius, EmissionOf(settlement) * share));
         }
+    }
+
+    private void BuildMiningCampClaimSources(List<ClaimSource> camps)
+    {
         // Mining camps claim radius 1 (2 with TER-06) at 75% of a six-person band's emission (docs/MVP/22 §5.2).
         for (int i = 0; i < _economy.MiningCampCount; i++)
         {
@@ -620,7 +1510,6 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             if (camp.ParentSettlementIndex >= _sCount || _free[camp.ParentSettlementIndex]) continue;
             camps.Add(new ClaimSource(camp.Civilization, camp.Tile, camp.ClaimRadius, camp.ClaimEmission));
         }
-        _territory.Update(settlements, camps);
     }
 
     // ---- contact --------------------------------------------------------------------------
@@ -876,7 +1765,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private Defenses DefensesOf(int settlement)
     {
         int civ = _sCiv[settlement];
-        bool palisade = _research.IsDone(civ, _p.Def03) && _season - SeasonOf(_research.CompletedTick(civ, _p.Def03)) >= 2 ||
+        int palisadeKind = LivingEconomyModel.StructureIndex("palisade");
+        bool palisade = palisadeKind >= 0 && _economy.StructureCount(settlement, palisadeKind) > 0 ||
                         _tinFolk.Count > 0 && IsTinFolk(settlement);
         bool watchers = _research.IsDone(civ, _p.Def02) || _economy.DefenseStructures(settlement, lookout: true) > 0;
         bool thorn = _economy.DefenseStructures(settlement, lookout: false) > 0;
@@ -902,8 +1792,6 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4, Hillfort: hillfort, StoneWalls: walls,
             HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive));
     }
-
-    private static int SeasonOf(long tick) => checked((int)(tick / ResearchSystem.SeasonTicks)) + 1;
 
     private int ContestedOverlapTiles(int a, int b)
     {

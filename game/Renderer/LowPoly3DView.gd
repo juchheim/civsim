@@ -24,8 +24,7 @@ var e3_overlay_texture: ImageTexture
 var forest_overlay_image: Image
 var forest_overlay_texture: ImageTexture
 var overlay_mode := 0 # 0 none, 1 claims, 2 food, 3 methods, 4 deposits, 5 trade, 6 cohesion, 7 forest
-var fire_lights: Array[OmniLight3D] = []
-var smoke_nodes: Array[Node3D] = []
+var hearth_fx_by_tile := {}
 var last_season := -1
 var season_lock := -1                  # dev aid for scenarios: show this season whatever the date (-1 follows the frame)
 var signal_rig: M7SignalRig
@@ -37,6 +36,8 @@ var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
 var regional_render_scale_active := false
+var _render_tick_profile_max_usec := 0
+var _render_tick_profile_parts: Dictionary = {}
 
 func setup_frame(frame_data: Dictionary) -> void:
 	M7BurnRig.install_empty()
@@ -103,19 +104,54 @@ func update_frame(frame_data: Dictionary) -> void:
 			" rest=", (Time.get_ticks_usec() - built) / 1000.0)
 
 ## The host's smooth simulation tick, every frame: the megalith's raising is played from it.
-func set_render_tick(tick: float) -> void:
+func set_render_tick(tick: float, profile: bool = false) -> void:
+	var profile_started := Time.get_ticks_usec() if profile else 0
+	var phase_started := profile_started
+	var parts: Dictionary = {}
 	if builder != null and builder.rig != null:
 		builder.rig.update(tick)
+		if profile:
+			parts["monument"] = Time.get_ticks_usec() - phase_started
+			phase_started = Time.get_ticks_usec()
 	if burn_rig != null:
 		burn_rig.sync(tick)
+		if profile:
+			parts["burn_sync"] = Time.get_ticks_usec() - phase_started
+			phase_started = Time.get_ticks_usec()
 		burn_rig.update(tick)
+		if profile:
+			parts["burn_update"] = Time.get_ticks_usec() - phase_started
+			phase_started = Time.get_ticks_usec()
 	if feast_rig != null:
 		feast_rig.sync(tick)
+		if profile:
+			parts["feast_sync"] = Time.get_ticks_usec() - phase_started
+			phase_started = Time.get_ticks_usec()
 		feast_rig.update(tick)
+		if profile:
+			parts["feast_update"] = Time.get_ticks_usec() - phase_started
+			phase_started = Time.get_ticks_usec()
 	if dog_rig != null:
 		dog_rig.update(tick)
+		if profile:
+			parts["dog_update"] = Time.get_ticks_usec() - phase_started
+			phase_started = Time.get_ticks_usec()
 	if farm_rig != null:
 		farm_rig.update(tick)
+		if profile:
+			parts["farm_update"] = Time.get_ticks_usec() - phase_started
+	if profile:
+		var total_usec := Time.get_ticks_usec() - profile_started
+		if total_usec > _render_tick_profile_max_usec:
+			_render_tick_profile_max_usec = total_usec
+			_render_tick_profile_parts = parts
+
+func reset_render_tick_profile() -> void:
+	_render_tick_profile_max_usec = 0
+	_render_tick_profile_parts.clear()
+
+func get_render_tick_profile() -> String:
+	return "tick_us=%d parts=%s" % [_render_tick_profile_max_usec, _render_tick_profile_parts]
 
 ## Dev aid for scenarios: show one season (0 spring .. 3 winter) whatever the date; -1 lets the frame decide again.
 func lock_season(season: int) -> void:
@@ -608,6 +644,10 @@ func _apply_season(season: int) -> void:
 	RenderingServer.global_shader_parameter_set("snow_line", line)
 	sun.light_color = Color("#ffe8c6") if season != 3 else Color("#f2f2ff")
 	sun.light_energy = 1.8 if season != 3 else 1.5
+	for fx in hearth_fx_by_tile.values():
+		var light := fx.get("light") as OmniLight3D
+		if is_instance_valid(light):
+			_set_hearth_light(light, season)
 
 func _set_villages() -> void:
 	var values := PackedVector4Array()
@@ -626,26 +666,48 @@ func _set_villages() -> void:
 	mats.terrain.set_shader_parameter("village_count", mini(builder.villages.size(), limit))
 
 func _sync_hearth_fx() -> void:
-	for light in fire_lights:
-		light.queue_free()
-	for smoke in smoke_nodes:
-		smoke.queue_free()
-	fire_lights.clear()
-	smoke_nodes.clear()
-	for hearth in builder.hearths:
-		var light := OmniLight3D.new()
-		light.light_color = Color("#ff9440")
-		light.light_energy = 0.18 if world.season == 3 else 1.2
-		light.omni_range = 0.45 if world.season == 3 else 0.75
-		light.omni_attenuation = 1.6
+	var active_tiles := {}
+	for i in builder.hearths.size():
+		var hearth: Vector3 = builder.hearths[i]
+		var tile := int(builder.w.settlements[i].tile)
+		active_tiles[tile] = true
+		var fx: Dictionary = hearth_fx_by_tile.get(tile, {})
+		var light := fx.get("light") as OmniLight3D
+		if not is_instance_valid(light):
+			light = OmniLight3D.new()
+			light.light_color = Color("#ff9440")
+			light.omni_attenuation = 1.6
+			light.shadow_enabled = false
+			world_root.add_child(light)
+			fx["light"] = light
+		_set_hearth_light(light, world.season)
 		light.position = hearth + Vector3(0.0, 0.08, 0.0)
-		light.shadow_enabled = false
-		world_root.add_child(light)
-		fire_lights.append(light)
-		var smoke := _make_smoke()
+		var smoke := fx.get("smoke") as GPUParticles3D
+		if not is_instance_valid(smoke):
+			smoke = _make_smoke()
+			world_root.add_child(smoke)
+			fx["smoke"] = smoke
 		smoke.position = hearth + Vector3(0.0, 0.07, 0.0)
-		world_root.add_child(smoke)
-		smoke_nodes.append(smoke)
+		hearth_fx_by_tile[tile] = fx
+	for tile in hearth_fx_by_tile.keys():
+		if active_tiles.has(tile):
+			continue
+		var fx: Dictionary = hearth_fx_by_tile[tile]
+		var light := fx.get("light") as OmniLight3D
+		if is_instance_valid(light):
+			light.queue_free()
+		var smoke := fx.get("smoke") as GPUParticles3D
+		if is_instance_valid(smoke):
+			smoke.queue_free()
+		hearth_fx_by_tile.erase(tile)
+
+func _set_hearth_light(light: OmniLight3D, season: int) -> void:
+	var energy := 0.18 if season == 3 else 1.2
+	var light_range := 0.45 if season == 3 else 0.75
+	if light.light_energy != energy:
+		light.light_energy = energy
+	if light.omni_range != light_range:
+		light.omni_range = light_range
 
 func _make_smoke() -> GPUParticles3D:
 	var particles := GPUParticles3D.new()

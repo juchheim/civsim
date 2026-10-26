@@ -134,7 +134,7 @@ public sealed partial class LivingEconomyModel
         {
             Structure.HideTent, Structure.LeanTo, Structure.DryingRack, Structure.ThornBarrier, Structure.PitHouse,
             Structure.WattleHouse, Structure.Longhouse, Structure.Granary, Structure.StoragePit, Structure.Lookout,
-            Structure.Kiln, Structure.Quern,
+            Structure.Kiln, Structure.Quern, Structure.Palisade,
         };
         foreach (Structure structure in flammable)
         {
@@ -238,6 +238,18 @@ public sealed partial class LivingEconomyModel
         {
             FigureState f = _figures[i];
             if (f.SettlementId == id && f.Age >= 14) into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0));
+        }
+    }
+
+    /// <summary>Lists only people assigned to this mining camp, so an attack cannot hit the parent's home guard.</summary>
+    public void ListMiningCampCrew(int campId, List<FighterRecord> into)
+    {
+        if (campId < 0) return;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState f = _figures[i];
+            if (f.Camp == campId && f.Age >= 14)
+                into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0));
         }
     }
 

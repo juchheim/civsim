@@ -57,6 +57,13 @@ public sealed class BeliefTinFolk
     public int Settlement, Tile, LastSeenSeason;
 }
 
+/// <summary>A mining camp last directly sighted; ore stores remain unknown and its crew estimate is the observed head count.</summary>
+public sealed class BeliefMiningCamp
+{
+    public int Id, Tile, LastSeenSeason, CrewEstimate;
+    public DepositKind Deposit;
+}
+
 /// <summary>Bits of <see cref="RivalBelief.SeenFlags"/>: things ever seen of a rival.</summary>
 public static class SeenFlag
 {
@@ -120,6 +127,8 @@ public sealed class RivalBelief
     public int PartiesAwaySeen;
     /// <summary>Observed caravans, keyed by stable party id; cargo is only recorded when the party tile was in sight.</summary>
     public readonly List<BeliefCaravan> CaravansSeen = new();
+    /// <summary>Mining camps directly seen on explored tiles, keyed by stable economy camp id.</summary>
+    public readonly List<BeliefMiningCamp> MiningCampsSeen = new();
     /// <summary>A rival was observed carrying tin in a caravan.</summary>
     public bool TinAccessSeen;
 }
@@ -228,6 +237,9 @@ public sealed class Belief
             h.Add(r.TinAccessSeen); h.Add(r.CaravansSeen.Count);
             foreach (BeliefCaravan c in r.CaravansSeen)
             { h.Add(c.Civ); h.Add(c.Id); h.Add(c.Tile); h.Add(c.LastSeenSeason); h.Add(c.CompactId); h.Add((int)c.Good); h.Add(c.Cargo); h.Add(c.ArrivalSeason); h.Add(c.CrewEstimate); h.Add(c.CargoBarterValue); }
+            h.Add(r.MiningCampsSeen.Count);
+            foreach (BeliefMiningCamp c in r.MiningCampsSeen)
+            { h.Add(c.Id); h.Add(c.Tile); h.Add(c.LastSeenSeason); h.Add(c.CrewEstimate); h.Add((int)c.Deposit); }
             foreach (Fix64 p in r.ArchetypePosterior) h.Add(p);
             foreach (bool b in r.ProjectBelieved) h.Add(b);
             h.Add(r.Settlements.Count);
@@ -265,6 +277,9 @@ public sealed class Belief
             w.Write(r.TinAccessSeen); w.Write(r.CaravansSeen.Count);
             foreach (BeliefCaravan c in r.CaravansSeen)
             { w.Write(c.Civ); w.Write(c.Id); w.Write(c.Tile); w.Write(c.LastSeenSeason); w.Write(c.CompactId); w.Write((byte)c.Good); w.Write(c.Cargo.Raw); w.Write(c.ArrivalSeason); w.Write(c.CrewEstimate); w.Write(c.CargoBarterValue.Raw); }
+            w.Write(r.MiningCampsSeen.Count);
+            foreach (BeliefMiningCamp c in r.MiningCampsSeen)
+            { w.Write(c.Id); w.Write(c.Tile); w.Write(c.LastSeenSeason); w.Write(c.CrewEstimate); w.Write((byte)c.Deposit); }
             w.Write(r.ArchetypePosterior.Length);
             foreach (Fix64 p in r.ArchetypePosterior) w.Write(p.Raw);
             w.Write(r.ProjectBelieved.Length);
@@ -312,6 +327,13 @@ public sealed class Belief
                 Civ = r0.ReadInt32(), Id = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(),
                 CompactId = r0.ReadInt32(), Good = (TradeGood)r0.ReadByte(), Cargo = Fix64.FromRaw(r0.ReadInt64()),
                 ArrivalSeason = r0.ReadInt32(), CrewEstimate = r0.ReadInt32(), CargoBarterValue = Fix64.FromRaw(r0.ReadInt64()),
+            });
+            r.MiningCampsSeen.Clear();
+            int miningCamps = r0.ReadInt32();
+            for (int i = 0; i < miningCamps; i++) r.MiningCampsSeen.Add(new BeliefMiningCamp
+            {
+                Id = r0.ReadInt32(), Tile = r0.ReadInt32(), LastSeenSeason = r0.ReadInt32(), CrewEstimate = r0.ReadInt32(),
+                Deposit = (DepositKind)r0.ReadByte(),
             });
             int posterior = r0.ReadInt32();
             r.ArchetypePosterior = new Fix64[posterior];

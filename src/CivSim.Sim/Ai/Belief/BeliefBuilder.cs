@@ -63,6 +63,17 @@ public sealed class BeliefBuilder : IBeliefBuilder
     private Fix64[] _weaponNow = Array.Empty<Fix64>();
     private Fix64[] _ownDefense = Array.Empty<Fix64>(), _ownParty = Array.Empty<Fix64>();
 
+    /// <summary>Live rival mining camps encountered by the most recent update.</summary>
+    public int LastUpdateLiveRivalCamps { get; private set; }
+    /// <summary>Live rival camps whose civilization was already known to the observer.</summary>
+    public int LastUpdateAwareMiningCamps { get; private set; }
+    /// <summary>Aware rival camps inside routine or scout sight.</summary>
+    public int LastUpdateRangeMiningCamps { get; private set; }
+    /// <summary>Aware rival camps whose tile owner was recorded during the current season.</summary>
+    public int LastUpdateOwnerSeenMiningCamps { get; private set; }
+    /// <summary>Rival mining camps newly recorded or refreshed during the most recent update.</summary>
+    public int LastUpdateRecordedMiningCamps { get; private set; }
+
     /// <summary>The tech estimate built from the catalog (null until the first update).</summary>
     public TechEstimate? Tech => _tech;
 
@@ -105,6 +116,11 @@ public sealed class BeliefBuilder : IBeliefBuilder
         OpponentModel model = profile.Opponent;
         bool rivals = model != OpponentModel.None;
         bool details = model >= OpponentModel.Full;
+        LastUpdateLiveRivalCamps = 0;
+        LastUpdateAwareMiningCamps = 0;
+        LastUpdateRangeMiningCamps = 0;
+        LastUpdateOwnerSeenMiningCamps = 0;
+        LastUpdateRecordedMiningCamps = 0;
         belief.Season = season;
         EnsureBuffers(total, belief.Map.TileCount, civs);
         // An expedition's report is sight (docs/MVP/22 §4.3): the tiles it revealed are explored.
@@ -239,27 +255,43 @@ public sealed class BeliefBuilder : IBeliefBuilder
         }
 
         // ---- E3 mining camps in sight ------------------------------------------------------------------------
-        // Camps are not settlement structures, so their tile and owner must pass a local sight test before
-        // their deposit can contribute evidence. Do not infer from camps elsewhere in the economy model.
-        if (rivals && details)
-            for (int i = 0; i < eco.MiningCampCount; i++)
+        // A camp is a visible rival fact for every opponent model that observes rivals. It must still pass awareness
+        // and a local sight test; do not infer camps from remote economic state.
+        for (int i = 0; i < eco.MiningCampCount; i++)
+        {
+            MiningCampView camp = eco.MiningCamp(i);
+            if (camp.Civilization == civ || (uint)camp.Civilization >= (uint)civs) continue;
+            LastUpdateLiveRivalCamps++;
+            if (!rivals || !belief.Rivals[camp.Civilization].Aware) continue;
+            LastUpdateAwareMiningCamps++;
+            int d = NearestOwn(pol, camp.Tile, width);
+            bool inLocalRange = d <= routine || d <= scout;
+            if (inLocalRange) LastUpdateRangeMiningCamps++;
+            bool tileSeenThisSeason = belief.Map.OwnerSeen(camp.Tile).Season == season;
+            if (tileSeenThisSeason) LastUpdateOwnerSeenMiningCamps++;
+            if (!inLocalRange && !tileSeenThisSeason) continue;
+
+            RivalBelief rival = belief.Rivals[camp.Civilization];
+            int flag = camp.Deposit switch
             {
-                MiningCampView camp = eco.MiningCamp(i);
-                if (camp.Civilization == civ || (uint)camp.Civilization >= (uint)civs || !belief.Rivals[camp.Civilization].Aware) continue;
-                int d = NearestOwn(pol, camp.Tile, width);
-                if (d > routine && d > scout) continue;
-                RivalBelief rival = belief.Rivals[camp.Civilization];
-                int flag = camp.Deposit switch
-                {
-                    DepositKind.CopperOre => SeenFlag.CopperMineCamp,
-                    DepositKind.ArsenicalCopper => SeenFlag.ArsenicalMineCamp,
-                    DepositKind.Tin => SeenFlag.TinMineCamp,
-                    _ => 0,
-                };
-                if (flag == 0) continue;
-                rival.SeenFlags |= flag;
-                rival.LastSeenSeason = season;
-            }
+                DepositKind.CopperOre => SeenFlag.CopperMineCamp,
+                DepositKind.ArsenicalCopper => SeenFlag.ArsenicalMineCamp,
+                DepositKind.Tin => SeenFlag.TinMineCamp,
+                _ => 0,
+            };
+            if (flag != 0) rival.SeenFlags |= flag;
+            rival.LastSeenSeason = season;
+            int knownIndex = -1;
+            for (int k = 0; k < rival.MiningCampsSeen.Count; k++)
+                if (rival.MiningCampsSeen[k].Id == camp.Id) { knownIndex = k; break; }
+            var sighting = new BeliefMiningCamp
+            {
+                Id = camp.Id, Tile = camp.Tile, LastSeenSeason = season, CrewEstimate = camp.Crew, Deposit = camp.Deposit,
+            };
+            if (knownIndex >= 0) rival.MiningCampsSeen[knownIndex] = sighting;
+            else rival.MiningCampsSeen.Add(sighting);
+            LastUpdateRecordedMiningCamps++;
+        }
 
         // ---- parties on the road ----------------------------------------------------------------------------
         belief.IncomingParties.Clear();

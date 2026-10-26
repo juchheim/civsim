@@ -99,6 +99,19 @@ public partial class Game : Node3D
     private double _benchmarkFrameUpdateMs;
     private double _benchmarkMaxFrameUpdateMs;
     private int _benchmarkFrameUpdates;
+    private double _benchmarkWindowMaxProcessMs;
+    private double _benchmarkWindowMaxFrameGapMs;
+    private double _benchmarkWindowMaxApplyMs;
+    private double _benchmarkWindowMaxRenderTickMs;
+    private double _benchmarkWindowMaxHudMs;
+    private double _benchmarkWindowMaxSessionMs;
+    private double _benchmarkMinWindowMaxProcessMs;
+    private double _benchmarkMinWindowMaxFrameGapMs;
+    private double _benchmarkMinWindowMaxApplyMs;
+    private double _benchmarkMinWindowMaxRenderTickMs;
+    private double _benchmarkMinWindowMaxHudMs;
+    private double _benchmarkMinWindowMaxSessionMs;
+    private long _benchmarkLastFrameTimestamp;
     private double _benchmarkMinWindowFps = double.MaxValue;
     private int _lastSeason = -1;
     private double _hudRefreshMs, _benchmarkHudMs;
@@ -198,6 +211,7 @@ public partial class Game : Node3D
     public override void _Process(double delta)
     {
         if (_session is null || _current is null) return;
+        long processStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
         if (_session.Frames.TryAcquire())
         {
             MatchFrame? newest = _session.Frames.Current;
@@ -214,12 +228,17 @@ public partial class Game : Node3D
                     double updateMs = (Stopwatch.GetTimestamp() - frameUpdateStarted) * 1000.0 / Stopwatch.Frequency;
                     _benchmarkFrameUpdateMs += updateMs;
                     _benchmarkMaxFrameUpdateMs = Math.Max(_benchmarkMaxFrameUpdateMs, updateMs);
+                    _benchmarkWindowMaxApplyMs = Math.Max(_benchmarkWindowMaxApplyMs, updateMs);
                     _benchmarkFrameUpdates++;
                 }
             }
         }
 
+        long sessionStateStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
         UpdateSessionState();
+        if (_benchmarkSeconds > 0)
+            _benchmarkWindowMaxSessionMs = Math.Max(_benchmarkWindowMaxSessionMs,
+                (Stopwatch.GetTimestamp() - sessionStateStarted) * 1000.0 / Stopwatch.Frequency);
 
         if (!_session.Paused)
             _renderTick = Math.Min(_current.Tick, _renderTick + delta * 10.0 * _session.Speed);
@@ -228,13 +247,18 @@ public partial class Game : Node3D
         if (_visualRenderer is not null)
         {
             RenderingServer.GlobalShaderParameterSet("fig_lerp", _lerpOverride >= 0 ? _lerpOverride : alpha);
-            _visualRenderer.Call("set_render_tick", (float)_renderTick);
+            long renderTickStarted = _benchmarkSeconds > 0 ? Stopwatch.GetTimestamp() : 0;
+            _visualRenderer.Call("set_render_tick", (float)_renderTick, _benchmarkSeconds > 0);
+            if (_benchmarkSeconds > 0)
+                _benchmarkWindowMaxRenderTickMs = Math.Max(_benchmarkWindowMaxRenderTickMs,
+                    (Stopwatch.GetTimestamp() - renderTickStarted) * 1000.0 / Stopwatch.Frequency);
         }
-        if (_benchmarkSeconds > 0)
-            RecordBenchmarkFrame(delta);
         long hudStarted = Stopwatch.GetTimestamp();
         TickHud(delta);
-        _uiUpdateMs = _uiUpdateMs * 0.95 + (Stopwatch.GetTimestamp() - hudStarted) * 1000.0 / Stopwatch.Frequency * 0.05;
+        double hudMs = (Stopwatch.GetTimestamp() - hudStarted) * 1000.0 / Stopwatch.Frequency;
+        _uiUpdateMs = _uiUpdateMs * 0.95 + hudMs * 0.05;
+        if (_benchmarkSeconds > 0)
+            _benchmarkWindowMaxHudMs = Math.Max(_benchmarkWindowMaxHudMs, hudMs);
 
         if (_screenshotPath is not null && !_benchmarkConfigured && !_scenarioActive)
         {
@@ -246,6 +270,12 @@ public partial class Game : Node3D
                 _screenshotPath = null;
                 GetTree().Quit();
             }
+        }
+        if (_benchmarkSeconds > 0)
+        {
+            double processMs = (Stopwatch.GetTimestamp() - processStarted) * 1000.0 / Stopwatch.Frequency;
+            _benchmarkWindowMaxProcessMs = Math.Max(_benchmarkWindowMaxProcessMs, processMs);
+            RecordBenchmarkFrame(delta);
         }
     }
 
@@ -664,6 +694,7 @@ public partial class Game : Node3D
 
     private void RecordBenchmarkFrame(double delta)
     {
+        long frameTimestamp = Stopwatch.GetTimestamp();
         if (_benchmarkWarmupRemaining > 0)
         {
             _benchmarkWarmupRemaining -= delta;
@@ -671,18 +702,48 @@ public partial class Game : Node3D
             {
                 _benchmarkWatch.Restart();
                 _benchmarkWindowWatch.Restart();
+                _benchmarkLastFrameTimestamp = frameTimestamp;
+                _benchmarkWindowMaxProcessMs = 0;
+                _benchmarkWindowMaxFrameGapMs = 0;
+                _benchmarkWindowMaxApplyMs = 0;
+                _benchmarkWindowMaxRenderTickMs = 0;
+                _benchmarkWindowMaxHudMs = 0;
+                _benchmarkWindowMaxSessionMs = 0;
+                _visualRenderer?.Call("reset_render_tick_profile");
             }
             return;
         }
+
+        if (_benchmarkLastFrameTimestamp != 0)
+        {
+            double frameGapMs = (frameTimestamp - _benchmarkLastFrameTimestamp) * 1000.0 / Stopwatch.Frequency;
+            _benchmarkWindowMaxFrameGapMs = Math.Max(_benchmarkWindowMaxFrameGapMs, frameGapMs);
+        }
+        _benchmarkLastFrameTimestamp = frameTimestamp;
 
         _benchmarkFrames++;
         _benchmarkWindowFrames++;
         if (_benchmarkWindowWatch.Elapsed.TotalSeconds >= 1.0)
         {
-            _benchmarkMinWindowFps = Math.Min(_benchmarkMinWindowFps,
-                _benchmarkWindowFrames / _benchmarkWindowWatch.Elapsed.TotalSeconds);
+            double windowFps = _benchmarkWindowFrames / _benchmarkWindowWatch.Elapsed.TotalSeconds;
+            if (windowFps < _benchmarkMinWindowFps)
+            {
+                _benchmarkMinWindowFps = windowFps;
+                _benchmarkMinWindowMaxProcessMs = _benchmarkWindowMaxProcessMs;
+                _benchmarkMinWindowMaxFrameGapMs = _benchmarkWindowMaxFrameGapMs;
+                _benchmarkMinWindowMaxApplyMs = _benchmarkWindowMaxApplyMs;
+                _benchmarkMinWindowMaxRenderTickMs = _benchmarkWindowMaxRenderTickMs;
+                _benchmarkMinWindowMaxHudMs = _benchmarkWindowMaxHudMs;
+                _benchmarkMinWindowMaxSessionMs = _benchmarkWindowMaxSessionMs;
+            }
             _benchmarkWindowFrames = 0;
             _benchmarkWindowWatch.Restart();
+            _benchmarkWindowMaxProcessMs = 0;
+            _benchmarkWindowMaxFrameGapMs = 0;
+            _benchmarkWindowMaxApplyMs = 0;
+            _benchmarkWindowMaxRenderTickMs = 0;
+            _benchmarkWindowMaxHudMs = 0;
+            _benchmarkWindowMaxSessionMs = 0;
         }
 
         if (_benchmarkWatch.Elapsed.TotalSeconds < _benchmarkSeconds) return;
@@ -699,10 +760,18 @@ public partial class Game : Node3D
                  $"simulation_paused={simulationPaused} tick_advance={simulationTicks} " +
                  $"seconds={elapsed:F2} frames={_benchmarkFrames} avg_fps={averageFps:F1} " +
                  $"min_1s_fps={_benchmarkMinWindowFps:F1} " +
+                 $"min_1s_max_process_ms={_benchmarkMinWindowMaxProcessMs:F2} " +
+                 $"min_1s_max_frame_gap_ms={_benchmarkMinWindowMaxFrameGapMs:F2} " +
+                 $"min_1s_max_apply_ms={_benchmarkMinWindowMaxApplyMs:F2} " +
+                 $"min_1s_max_render_tick_ms={_benchmarkMinWindowMaxRenderTickMs:F2} " +
+                 $"min_1s_max_hud_ms={_benchmarkMinWindowMaxHudMs:F2} " +
+                 $"min_1s_max_session_ms={_benchmarkMinWindowMaxSessionMs:F2} " +
                  $"render_objects={renderObjects} render_primitives={renderPrimitives} draw_calls={renderDrawCalls} " +
                  $"frame_updates={_benchmarkFrameUpdates} avg_frame_update_ms=" +
                  $"{(_benchmarkFrameUpdates > 0 ? _benchmarkFrameUpdateMs / _benchmarkFrameUpdates : 0):F2} " +
                  $"max_frame_update_ms={_benchmarkMaxFrameUpdateMs:F2}");
+        if (_visualRenderer is not null)
+            GD.Print("M7A_RENDER_TICK_PROFILE " + _visualRenderer.Call("get_render_tick_profile").ToString());
         if (_screenshotPath is not null)
         {
             Error result = SaveScreenshot(_screenshotPath);
@@ -997,6 +1066,19 @@ public partial class Game : Node3D
         _benchmarkFrameUpdateMs = 0;
         _benchmarkMaxFrameUpdateMs = 0;
         _benchmarkFrameUpdates = 0;
+        _benchmarkWindowMaxProcessMs = 0;
+        _benchmarkWindowMaxFrameGapMs = 0;
+        _benchmarkWindowMaxApplyMs = 0;
+        _benchmarkWindowMaxRenderTickMs = 0;
+        _benchmarkWindowMaxHudMs = 0;
+        _benchmarkWindowMaxSessionMs = 0;
+        _benchmarkMinWindowMaxProcessMs = 0;
+        _benchmarkMinWindowMaxFrameGapMs = 0;
+        _benchmarkMinWindowMaxApplyMs = 0;
+        _benchmarkMinWindowMaxRenderTickMs = 0;
+        _benchmarkMinWindowMaxHudMs = 0;
+        _benchmarkMinWindowMaxSessionMs = 0;
+        _benchmarkLastFrameTimestamp = 0;
         _benchmarkMinWindowFps = double.MaxValue;
         _benchmarkWatch.Reset();
         _benchmarkWindowWatch.Reset();

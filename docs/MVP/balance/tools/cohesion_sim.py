@@ -4,9 +4,11 @@ findings in 07d §9).
 Settlement layouts come from territory_sim's E3 runs on the live trajectories (8 seeds × 4 civs; walking distance
 of each settlement to the capital, the civilization's start until a Palace stands, doc 23 C13), settlement count
 over time from the same trajectories, research positions from the live-mode E3 (13 minutes). Each season each
-settlement's C (0–100) moves a quarter of the way to its target (integer steps toward zero, 22 §8.3); it secedes
+settlement's C (0–100) moves a quarter of the way to its target (integer steps toward zero, at least one point while different,
+22 §8.3); it secedes
 after 8 consecutive seasons below 15. Stochastic events per settlement (ASSUMED rates, 07d §9): harsh-winter food
-shortfall, epidemics by class (09 §10), raids (T23), captures (T23).
+shortfall, epidemics by class (09 §10), raids (T23), captures (T23). A capture adds the conquered Cohesion term; it does
+not itself count as a raid.
 
     uv run --no-project --with numpy python cohesion_sim.py            # T25 table, variants and sensitivity
     uv run --no-project --with numpy python cohesion_sim.py --check
@@ -89,10 +91,6 @@ def run_civ(lay, rng, rule=None, ev=None, seasons=64, e3_seasons=52, admin=True,
         red = 1 - math.prod(1 - r for p, r in REDUCE.items() if done(p))
         alive = [s for s in setts if s["alive"]]
         n_alive = len(alive)
-        if capture_step is not None and step == capture_step:
-            # a distant settlement taken from a rival joins: conquered, raided, 25–40 tiles from our capital
-            setts.append(dict(C=rule["capture_c"], low=0, raided=k, conq=rule["conquered"], famine=0.0, loss=0.05,
-                              dist=rng.randint(25, 40), alive=True))
         winter = k % 4 == 3
         for i, s in enumerate(setts):
             if not s["alive"]:
@@ -133,14 +131,29 @@ def run_civ(lay, rng, rule=None, ev=None, seasons=64, e3_seasons=52, admin=True,
             t -= s["conq"]
             s["conq"] = max(0, s["conq"] - rule["conquered_recovery"])
             t = max(0, min(100, int(t)))
-            s["C"] += int((t - s["C"]) * rule["step"])
+            diff = t - s["C"]
+            delta = int(diff * rule["step"])
+            if diff < 0:
+                delta = -int(-diff * rule["step"])
+            if delta == 0 and diff != 0:
+                delta = 1 if diff > 0 else -1
+            s["C"] = max(0, min(100, s["C"] + delta))
             s["low"] = s["low"] + 1 if s["C"] < rule["secede_below"] else 0
             if s["low"] >= rule["secede_seasons"] and not cap:
                 s["alive"] = False
-                seceded += 1
-                seced_steps.append(k)
+                # T25 is measured over KEY-3→KEY-4 exposure, not the post-KEY-4 chapter tail.
+                if k < e3_seasons:
+                    seceded += 1
+                    seced_steps.append(k)
             if k < e3_seasons:
                 cs.append(s["C"])
+        # Live order is Economy.CivicSeasonEnd, then Politics capture handling. The new settlement starts at C25 / −35
+        # after the current cohesion update, so its first target step, term recovery and low-season check are next season.
+        if capture_step is not None and step == capture_step:
+            setts.append(dict(C=rule["capture_c"], low=0, raided=-99, conq=rule["conquered"], famine=0.0, loss=0.05,
+                              dist=rng.randint(25, 40), alive=True))
+            if k < e3_seasons:
+                cs.append(rule["capture_c"])
     burst = any(sum(1 for t2 in seced_steps if t1 <= t2 < t1 + 8) > 2 for t1 in seced_steps)
     return seceded, cs, burst
 
@@ -158,6 +171,55 @@ def mc(lays, runs=30, seed=7, **kw):
     cs.sort()
     return dict(sec_per_civ=st.mean(sec), p_any=sum(1 for v in sec if v) / n, burst=bursts / n,
                 c_mean=st.mean(cs), c10=cs[len(cs) // 10], c90=cs[9 * len(cs) // 10], c_low=sum(1 for v in cs if v < 35) / len(cs))
+
+
+def check_model_semantics():
+    """Small deterministic checks for capture order, capture/raid distinction and T25 exposure boundary."""
+    layout = {"k3": 0, "dist": [0], "S": [1] * 100}
+    quiet_rule = dict(base=0, hearth=0, feast=0, shrine=0, gov03=0, temple=0, temple_near=0,
+                      state_cult=0, gov06=0, epic=0, legend=0, megalith=0, famine=0, loss_per2=0,
+                      inequality=0, overreach_free=100, overreach_div=2, span_pen=0, conquered=0,
+                      conquered_recovery=0, secede_below=15, secede_seasons=8, start_c=0, found_c=0,
+                      step=0.25, culture_years=0, capture_c=0)
+    quiet_events = dict(p_shrine=0, p_gov03=0, p_harsh=0, p_short_if_harsh=0, epi_per_year=0,
+                        raid_per_year=0, capture_per_civ=0, megalith_p=0, luxury=0, legends=0)
+    capture = run_civ(layout, random.Random(19), rule=quiet_rule, ev=quiet_events,
+                      seasons=64, e3_seasons=52, force_capture=True)
+    no_raid_term = run_civ(layout, random.Random(19), rule=dict(quiet_rule, raided=0), ev=quiet_events,
+                           seasons=64, e3_seasons=52, force_capture=True)
+    assert capture == no_raid_term, (capture, no_raid_term)
+
+    class CaptureAt(random.Random):
+        def __init__(self, offset):
+            super().__init__(0)
+            self.offset = offset
+
+        def random(self):
+            return 0.999
+
+        def randrange(self, stop):
+            return self.offset
+
+        def randint(self, a, b):
+            return 30
+
+    # With no pre-existing settlements, a capture at season 0 is observed at C25 after that season's cohesion pass.
+    # The first post-capture pass still targets 25 (−35 term), then recovery shifts the next target to 26.
+    capture_only = {"k3": 0, "dist": [], "S": [0] * 100}
+    captured_c = run_civ(capture_only, CaptureAt(0), rule=dict(quiet_rule, base=60, conquered=35,
+                              conquered_recovery=1, capture_c=25), ev=quiet_events,
+                         seasons=4, e3_seasons=4, force_capture=True)[1]
+    assert captured_c == [25, 25, 26, 27], captured_c
+
+    counted = run_civ(layout, CaptureAt(43), rule=quiet_rule, ev=quiet_events,
+                      seasons=54, e3_seasons=52, force_capture=True)[0]
+    # Capture at season 43 gets exactly eight post-capture updates (44–51). At season 44 it gets only seven;
+    # counting the capture season itself would incorrectly turn that into eight and secede before KEY-4.
+    capture_season = run_civ(layout, CaptureAt(44), rule=quiet_rule, ev=quiet_events,
+                             seasons=54, e3_seasons=52, force_capture=True)[0]
+    outside = run_civ(layout, CaptureAt(45), rule=quiet_rule, ev=quiet_events,
+                      seasons=54, e3_seasons=52, force_capture=True)[0]
+    assert counted == 1 and capture_season == 0 and outside == 0, (counted, capture_season, outside)
 
 
 def report(out=print, check=False):
@@ -188,9 +250,10 @@ def report(out=print, check=False):
                      ("span penalty 3.6", dict(rule=dict(span_pen=3.6))), ("raid rate ×1.2", dict(ev=dict(raid_per_year=0.036))),
                      ("base 48 (−20% of 60)", dict(rule=dict(base=48)))):
         line(name, mc(lays, runs=30, **kw))
-    out("  targets: typical 55–70; 0.1–0.5 secessions per civ per E3; > 2 in one civ within 2 years in < 2% of matches")
+    out("  targets: typical 60–80; 0.03–0.08 secessions per civ per E3; > 2 in one civ within 2 years in < 2% of matches")
     if check:
-        assert 55 <= base["c_mean"] <= 80, base
+        check_model_semantics()
+        assert 60 <= base["c_mean"] <= 80, base
         assert base["burst"] < 0.02, base
         print("cohesion_sim check passed")
     return base

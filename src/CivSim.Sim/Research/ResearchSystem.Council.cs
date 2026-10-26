@@ -163,6 +163,13 @@ public sealed partial class ResearchSystem
             onPath = true;
         }
 
+        // A mature E3 economy can have the City chain ready while BLD-07 waits behind other optional work.
+        // Give only that available breadth project a modest nudge after the bronze housing, belief and stone paths land.
+        // KEY-4 closure projects retain their larger critical-path factor.
+        if (p == _bld07 && civ.Era == 3 && civ.LastState[_bld07] == ProjectState.Available &&
+            civ.Done[_trd04] && civ.Done[_bel05] && civ.Done[_bld05])
+            keyFactor *= BreadthBoost;
+
         reason = onPath ? CouncilReason.KeystonePath
             : urgency >= Fix64.One ? group switch
             {

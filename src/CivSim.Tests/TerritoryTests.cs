@@ -129,6 +129,89 @@ public class TerritoryTests
     }
 
     [Fact]
+    public void Claim_projection_adds_camp_sources_without_mutating_live_ownership()
+    {
+        int home = Start(0);
+        int campTile = Enumerable.Range(0, W.Tiles.Length)
+            .First(tile => HexGrid.Distance(home, tile, W.Width) == 5 && W.TileAt(tile).HabitableWeight > 0);
+        var settlements = One(0, home, "6");
+        var camps = new List<ClaimSource> { new(0, campTile, 2, Fix64.FromInt(8)) };
+        Territory territory = NewTerritory();
+        territory.Update(settlements, None);
+        int liveClaim = territory.ClaimOf(0, home);
+        int liveOwner = territory.OwnerOf(home);
+        int liveClaimedWeight = territory.ClaimedBasisPoints();
+
+        int settlementsOnly = territory.ProjectedClaimedWeight(settlements, None);
+        int withCamp = territory.ProjectedClaimedWeight(settlements, camps);
+
+        Assert.True(withCamp > settlementsOnly);
+        Assert.Equal(liveClaim, territory.ClaimOf(0, home));
+        Assert.Equal(liveOwner, territory.OwnerOf(home));
+        Assert.Equal(liveClaimedWeight, territory.ClaimedBasisPoints());
+    }
+
+    [Fact]
+    public void Claim_projection_reports_land_and_frontier_cost_from_the_same_stateless_projection()
+    {
+        int first = Start(0);
+        int second = LandNeighbor(first);
+        var settlements = new List<ClaimSource>
+        {
+            new(0, first, 0, Fix64.FromInt(6)),
+            new(1, second, 0, Fix64.FromInt(6)),
+        };
+        Territory territory = NewTerritory();
+
+        var projection = territory.ProjectedClaimedWeightAndFrontierCost(settlements, None, 0, 1);
+
+        Assert.True(projection.ClaimedWeight > 0);
+        Assert.Equal(0, projection.FrontierConnectionWeight);
+        Assert.Empty(projection.FrontierUnownedPath);
+        Assert.Equal(projection.ClaimedWeight, territory.ProjectedClaimedWeight(settlements, None));
+        Assert.Equal(0, territory.ClaimedBasisPoints());
+        Assert.Equal(-1, territory.OwnerOf(first));
+    }
+
+    [Fact]
+    public void Claim_projection_returns_the_unowned_tiles_that_make_up_its_frontier_cost()
+    {
+        int start = Start(0), end = -1;
+        var distance = new int[W.Tiles.Length];
+        Array.Fill(distance, -1);
+        var queue = new Queue<int>();
+        distance[start] = 0;
+        queue.Enqueue(start);
+        Span<int> neighbors = stackalloc int[6];
+        while (queue.Count > 0 && end < 0)
+        {
+            int tile = queue.Dequeue();
+            if (distance[tile] >= 2) { end = tile; break; }
+            int count = HexGrid.Neighbors(tile, W.Width, W.Height, neighbors);
+            for (int i = 0; i < count; i++)
+            {
+                int next = neighbors[i];
+                if (!W.TileAt(next).IsLand || distance[next] >= 0) continue;
+                distance[next] = distance[tile] + 1;
+                queue.Enqueue(next);
+            }
+        }
+        Assert.True(end >= 0, "Expected a land path at least two tiles long from the start.");
+        var settlements = new List<ClaimSource>
+        {
+            new(0, start, 0, Fix64.FromInt(6)),
+            new(1, end, 0, Fix64.FromInt(6)),
+        };
+
+        var projection = NewTerritory().ProjectedClaimedWeightAndFrontierCost(settlements, None, 0, 1);
+
+        Assert.True(projection.FrontierConnectionWeight > 0);
+        Assert.NotEmpty(projection.FrontierUnownedPath);
+        Assert.Equal(projection.FrontierConnectionWeight,
+            projection.FrontierUnownedPath.Sum(tile => W.TileAt(tile).HabitableWeight));
+    }
+
+    [Fact]
     public void Dominion_hands_out_a_hundred_points_a_year_by_share_of_the_claimed_land()
     {
         Territory t = NewTerritory();
@@ -171,4 +254,114 @@ public class TerritoryTests
         foreach (int site in t.ChooseCampSites(0, home, 3, own, None, rival, 2))
             Assert.True(HexGrid.Distance(site, home, W.Width) >= 6);
     }
+
+    [Fact]
+    public void Compact_camp_counterfactual_keeps_legal_sites_distinct_and_fills_zero_gain_slots()
+    {
+        Territory t = NewTerritory();
+        int home = Start(0);
+        // The broad owned disk covers every eligible camp disk, so all legal sites have zero marginal gain.
+        var own = new List<ClaimSource> { new(0, home, 9, Fix64.FromInt(6)) };
+        int claimedBefore = t.ClaimedBasisPoints();
+
+        List<int> sites = t.ChooseCompactCampSites(0, home, 3, own, None, None, 2);
+
+        Assert.Equal(2, sites.Count);
+        Assert.NotEqual(sites[0], sites[1]);
+        Assert.All(sites, site =>
+        {
+            Assert.True(W.TileAt(site).HabitableWeight > 0);
+            Assert.Equal(W.TileAt(home).Continent, W.TileAt(site).Continent);
+            Assert.InRange(HexGrid.Distance(home, site, W.Width), 4, 6);
+            Assert.Equal(0, t.CampGain(site, 0, CoveredBy(own, t)));
+        });
+        Assert.Equal(sites, t.ChooseCompactCampSites(0, home, 3, own, None, None, 2));
+        Assert.Equal(claimedBefore, t.ClaimedBasisPoints());
+    }
+
+    [Fact]
+    public void Camp_path_support_reports_only_a_camp_needed_to_keep_a_pair_owned_tile()
+    {
+        Territory t = NewTerritory();
+        int tile = Start(0);
+        var camps = new List<ClaimSource>
+        {
+            new(0, tile, Territory.CampRadius, Fix64.One),
+            new(1, Start(1), Territory.CampRadius, Fix64.One),
+        };
+        int claimedBefore = t.ClaimedBasisPoints();
+
+        bool[] support = t.ProjectedCampSupportsPairPath(None, camps, new[] { tile }, 0, 1);
+
+        Assert.Equal(new[] { true, false }, support);
+        Assert.Equal(claimedBefore, t.ClaimedBasisPoints());
+    }
+
+    [Fact]
+    public void Camp_move_local_projection_delta_matches_whole_map_projection()
+    {
+        Territory t = NewTerritory();
+        int home = Start(0);
+        var settlements = new List<ClaimSource>
+        {
+            new(0, home, 3, Fix64.FromInt(2)),
+            new(1, Start(1), 3, Fix64.FromInt(2)),
+        };
+        int[] sites = Enumerable.Range(0, t.TileCount)
+            .Where(tile => t.IsCampSiteLegal(0, home, tile, 3, None))
+            .Take(2)
+            .ToArray();
+        Assert.Equal(2, sites.Length);
+        var camps = new List<ClaimSource>
+        {
+            new(0, sites[0], Territory.CampRadius, Fix64.One),
+            new(1, Start(1), Territory.CampRadius, Fix64.One),
+        };
+        int claimedBefore = t.ProjectedClaimedWeight(settlements, camps);
+        var movedCamps = new List<ClaimSource>(camps) { [0] = camps[0] with { Tile = sites[1] } };
+        int claimedAfter = t.ProjectedClaimedWeight(settlements, movedCamps);
+        int liveClaimedBefore = t.ClaimedBasisPoints();
+
+        int delta = t.ProjectedCampMoveClaimedWeightDelta(settlements, camps, 0, sites[1]);
+
+        Assert.Equal(claimedAfter - claimedBefore, delta);
+        Assert.Equal(liveClaimedBefore, t.ClaimedBasisPoints());
+    }
+
+    [Fact]
+    public void Paired_camp_move_local_delta_matches_whole_map_projection()
+    {
+        Territory t = NewTerritory();
+        var settlements = new List<ClaimSource>
+        {
+            new(0, Start(0), 3, Fix64.FromInt(2)),
+            new(1, Start(1), 3, Fix64.FromInt(2)),
+        };
+        var camps = new List<ClaimSource>
+        {
+            new(0, Start(0), Territory.CampRadius, Fix64.One),
+            new(1, Start(1), Territory.CampRadius, Fix64.One),
+        };
+        int firstNew = LandNeighbor(Start(0));
+        int secondNew = LandNeighbor(Start(1));
+        int claimedBefore = t.ProjectedClaimedWeight(settlements, camps);
+        var movedCamps = new List<ClaimSource>(camps)
+        {
+            [0] = camps[0] with { Tile = firstNew },
+            [1] = camps[1] with { Tile = secondNew },
+        };
+        int claimedAfter = t.ProjectedClaimedWeight(settlements, movedCamps);
+
+        int delta = t.ProjectedCampMovesClaimedWeightDelta(settlements, camps, 0, firstNew, 1, secondNew);
+
+        Assert.Equal(claimedAfter - claimedBefore, delta);
+    }
+
+    private static bool[] CoveredBy(IReadOnlyList<ClaimSource> sources, Territory territory)
+    {
+        var covered = new bool[territory.TileCount];
+        foreach (ClaimSource source in sources) territory.MarkDisk(covered, source.Tile, source.Radius);
+        return covered;
+    }
+
 }

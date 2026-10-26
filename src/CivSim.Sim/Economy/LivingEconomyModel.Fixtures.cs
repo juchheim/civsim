@@ -79,6 +79,29 @@ public sealed partial class LivingEconomyModel
     /// <summary>Sets a tile's standing wood (a forest burned off, or a clearing).</summary>
     internal void FixtureSetWood(int tile, Fix64 litres) => _woodStock[tile] = litres;
 
+    /// <summary>Sets the raw stone in a settlement's quarry range to a known total for civic masonry fixtures.</summary>
+    internal void FixtureSetRangeStone(int settlementIndex, Fix64 litres)
+    {
+        ReadOnlySpan<int> range = RangeTiles(_settlements[settlementIndex].SiteTile);
+        foreach (int tile in range) _stoneStock[tile] = Fix64.Zero;
+        if (range.Length > 0) _stoneStock[range[0]] = Fix64.Max(Fix64.Zero, litres);
+    }
+
+    internal Fix64 FixtureRangeStone(int settlementIndex)
+    {
+        Fix64 total = Fix64.Zero;
+        foreach (int tile in RangeTiles(_settlements[settlementIndex].SiteTile)) total += _stoneStock[tile];
+        return total;
+    }
+
+    internal Fix64 FixtureCivicBuildProgress(int settlementIndex)
+        => _settlements[settlementIndex].Civic?.BuildProgress ?? Fix64.Zero;
+
+    internal static bool FixtureBetterPalaceSite(bool candidateTown, Fix64 candidateCapacity, int candidatePop, int candidateId,
+        bool currentTown, Fix64 currentCapacity, int currentPop, int currentId)
+        => BetterPalaceSite(candidateTown, candidateCapacity, candidatePop, candidateId,
+            currentTown, currentCapacity, currentPop, currentId);
+
     /// <summary>Builds one registered structure outright for a deterministic politics fixture.</summary>
     internal void FixtureBuildStructure(int settlementIndex, string structure)
     {

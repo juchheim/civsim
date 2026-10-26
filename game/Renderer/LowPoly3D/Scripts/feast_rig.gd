@@ -17,6 +17,8 @@ const COME := 0.15                  # fraction of it spent walking out
 const GO := 0.85                    # ... and when the guests start for home
 const MAX_GUESTS := 10
 const MAT_SCALE := 1.35
+const TREE_BUCKET_SIZE := 0.5
+const PLOT_BUCKET_SIZE := 2.0
 const SEAT_X := [-0.1, -0.05, 0.0, 0.05, 0.1]
 const SEAT_Z := 0.078
 const HOST_X := 0.2
@@ -25,7 +27,10 @@ const FIRE_X := -0.135
 var b                               # the M7WorldBuilder
 var holder: Node3D
 var sites: Array = []
-var signature := -1
+var sites_by_key: Dictionary = {}
+var tree_buckets: Dictionary = {}
+var plot_buckets: Dictionary = {}
+var indexed_plots := PackedInt32Array()
 
 func _init(builder, parent: Node3D) -> void:
 	b = builder
@@ -53,10 +58,65 @@ static func _smooth(x: float) -> float:
 	return t * t * (3.0 - 2.0 * t)
 
 func _tree_near(p: Vector2, radius: float) -> bool:
-	for tp in b.tree_points:
-		if (tp as Vector2).distance_to(p) < radius:
-			return true
+	if tree_buckets.is_empty():
+		for raw in b.tree_points:
+			var tp: Vector2 = raw
+			var cell := Vector2i(floori(tp.x / TREE_BUCKET_SIZE), floori(tp.y / TREE_BUCKET_SIZE))
+			var bucket: Array = tree_buckets.get(cell, [])
+			bucket.append(tp)
+			tree_buckets[cell] = bucket
+	var centre := Vector2i(floori(p.x / TREE_BUCKET_SIZE), floori(p.y / TREE_BUCKET_SIZE))
+	var cell_range := ceili(radius / TREE_BUCKET_SIZE)
+	var radius_squared := radius * radius
+	for y in range(centre.y - cell_range, centre.y + cell_range + 1):
+		for x in range(centre.x - cell_range, centre.x + cell_range + 1):
+			var bucket: Array = tree_buckets.get(Vector2i(x, y), [])
+			for tp in bucket:
+				if (tp as Vector2).distance_squared_to(p) < radius_squared:
+					return true
 	return false
+
+func _home_for_settlement(s: Dictionary, si: int) -> Vector2:
+	var home: Vector2 = b.w.tile_center(int(s.tile))
+	if si < b.hearths.size():
+		home = Vector2(b.hearths[si].x, b.hearths[si].z)
+	return home
+
+func _village_radius(home: Vector2) -> float:
+	for v in b.villages:
+		if Vector2(v.x, v.y).distance_to(home) < 0.6:
+			return v.z
+	return 0.3
+
+func _ensure_plot_buckets() -> void:
+	if indexed_plots == b.w.plots:
+		return
+	indexed_plots = b.w.plots.duplicate()
+	plot_buckets.clear()
+	for pi in range(0, indexed_plots.size(), 2):
+		var tile := int(indexed_plots[pi])
+		var centre: Vector2 = b.w.tile_center(tile)
+		var cell := Vector2i(floori(centre.x / PLOT_BUCKET_SIZE), floori(centre.y / PLOT_BUCKET_SIZE))
+		var bucket: Array = plot_buckets.get(cell, [])
+		bucket.append(tile)
+		plot_buckets[cell] = bucket
+
+func _near_plot_tiles(home: Vector2, village_radius: float) -> PackedInt32Array:
+	_ensure_plot_buckets()
+	# _pick_spot tests at most about 0.85 units from home; include ample tile-center
+	# margin because tile_at may map a candidate to a tile farther from its center.
+	var reach := village_radius + 1.6
+	var reach_squared := reach * reach
+	var centre := Vector2i(floori(home.x / PLOT_BUCKET_SIZE), floori(home.y / PLOT_BUCKET_SIZE))
+	var cell_range := ceili(reach / PLOT_BUCKET_SIZE)
+	var nearby := PackedInt32Array()
+	for y in range(centre.y - cell_range, centre.y + cell_range + 1):
+		for x in range(centre.x - cell_range, centre.x + cell_range + 1):
+			for tile in plot_buckets.get(Vector2i(x, y), []):
+				if (b.w.tile_center(tile) as Vector2).distance_squared_to(home) <= reach_squared:
+					nearby.append(tile)
+	nearby.sort()
+	return nearby
 
 ## A spot beside the village, a little beyond its houses, flat dry ground clear of trees and water for the whole mat.
 func _pick_spot(tile: int, home: Vector2, village_radius: float) -> Variant:
@@ -84,61 +144,85 @@ func _pick_spot(tile: int, home: Vector2, village_radius: float) -> Variant:
 			break
 	return best
 
+func _free_site(site: Dictionary) -> void:
+	for k in ["mat", "flame", "light", "seated", "cheer", "host", "shadow"]:
+		(site[k] as Node).queue_free()
+
+func _make_site(s: Dictionary, si: int, home: Vector2, radius: float, guests: int, local_plots: PackedInt32Array) -> Dictionary:
+	var w: M7WorldData = b.w
+	var tile := int(s.tile)
+	var civ := int(s.civ)
+	var learned := int(w.feast_learned[civ])
+	var spot: Variant = _pick_spot(tile, home, radius)
+	if spot == null:
+		return {}
+	var mat := MeshInstance3D.new()
+	mat.mesh = b.kit.get_mesh("feast_mat")
+	mat.material_override = b.mats.prop
+	mat.visible = false
+	holder.add_child(mat)
+	var flame := MeshInstance3D.new()
+	flame.mesh = b.kit.get_mesh("flame")
+	flame.material_override = b.mats.fire
+	flame.visible = false
+	holder.add_child(flame)
+	var light := OmniLight3D.new()
+	light.light_color = Color("#ff9440")
+	light.omni_range = 0.7
+	light.omni_attenuation = 1.5
+	light.shadow_enabled = false
+	light.visible = false
+	holder.add_child(light)
+	return {
+		"tile": tile, "civ": civ, "home": home, "village_radius": radius, "local_plots": local_plots,
+		"centre": spot[0], "axis": spot[1], "learned": learned, "guests": guests,
+		"offset": SPREAD * M7WorldData.hash01(tile, civ, 83),
+		"mat": mat, "flame": flame, "light": light, "shown": false,
+		"seated": _multimesh("person_feast_seated", b.mats.figure, MAX_GUESTS),
+		"cheer": _multimesh("person_feast_cheer", b.mats.figure, MAX_GUESTS),
+		"host": _multimesh("person_feast_host", b.mats.figure, 1),
+		"shadow": _multimesh("shadow_disc", b.mats.shadow_disc, MAX_GUESTS + 1),
+	}
+
 func sync(tick: float) -> void:
 	var w: M7WorldData = b.w
-	var sig := hash(w.feast_learned)
-	for s in w.settlements:
-		sig = sig * 31 + int(s.tile) * 7 + int(s.civ) + (1 if int(s.population) > 0 and not bool(s.get("remembered")) else 0) + int(s.population / 8) * 3
-	if sig == signature:
-		return
-	signature = sig
-	for site in sites:
-		for k in ["mat", "flame", "light", "seated", "cheer", "host", "shadow"]:
-			(site[k] as Node).queue_free()
-	sites.clear()
+	var next_sites: Array = []
+	var next_by_key: Dictionary = {}
+	var replaced: Dictionary = {}
 	for si in w.settlements.size():
 		var s: Dictionary = w.settlements[si]
 		var civ := int(s.civ)
 		if bool(s.get("remembered")) or int(s.population) <= 0 or civ < 0 or civ >= w.feast_learned.size() or w.feast_learned[civ] < 0:
 			continue
 		var tile := int(s.tile)
-		var home: Vector2 = w.tile_center(tile)
-		if si < b.hearths.size():
-			home = Vector2(b.hearths[si].x, b.hearths[si].z)
-		var radius := 0.3
-		for v in b.villages:
-			if Vector2(v.x, v.y).distance_to(home) < 0.6:
-				radius = v.z
-				break
-		var spot: Variant = _pick_spot(tile, home, radius)
-		if spot == null:
-			continue
-		var mat := MeshInstance3D.new()
-		mat.mesh = b.kit.get_mesh("feast_mat")
-		mat.material_override = b.mats.prop
-		mat.visible = false
-		holder.add_child(mat)
-		var flame := MeshInstance3D.new()
-		flame.mesh = b.kit.get_mesh("flame")
-		flame.material_override = b.mats.fire
-		flame.visible = false
-		holder.add_child(flame)
-		var light := OmniLight3D.new()
-		light.light_color = Color("#ff9440")
-		light.omni_range = 0.7
-		light.omni_attenuation = 1.5
-		light.shadow_enabled = false
-		light.visible = false
-		holder.add_child(light)
-		sites.append({
-			"tile": tile, "civ": civ, "home": home, "centre": spot[0], "axis": spot[1], "learned": w.feast_learned[civ],
-			"guests": clampi(int(int(s.population) * 0.5), 6, MAX_GUESTS), "offset": SPREAD * M7WorldData.hash01(tile, civ, 83),
-			"mat": mat, "flame": flame, "light": light, "shown": false,
-			"seated": _multimesh("person_feast_seated", b.mats.figure, MAX_GUESTS),
-			"cheer": _multimesh("person_feast_cheer", b.mats.figure, MAX_GUESTS),
-			"host": _multimesh("person_feast_host", b.mats.figure, 1),
-			"shadow": _multimesh("shadow_disc", b.mats.shadow_disc, MAX_GUESTS + 1),
-		})
+		var key := tile * 8 + civ
+		var home := _home_for_settlement(s, si)
+		var radius := _village_radius(home)
+		var guests := clampi(int(int(s.population) * 0.5), 6, MAX_GUESTS)
+		var local_plots := _near_plot_tiles(home, radius)
+		var site: Dictionary = sites_by_key.get(key, {})
+		if not site.is_empty():
+			var layout_changed: bool = int(site["learned"]) != int(w.feast_learned[civ]) \
+				or site["home"] != home or float(site["village_radius"]) != radius \
+				or site["local_plots"] != local_plots
+			if layout_changed:
+				_free_site(site)
+				replaced[key] = true
+				site = {}
+		if site.is_empty():
+			site = _make_site(s, si, home, radius, guests, local_plots)
+			if site.is_empty():
+				continue
+		else:
+			# Guest count affects the moving figures only; buffers are sized to MAX_GUESTS.
+			site["guests"] = guests
+		next_sites.append(site)
+		next_by_key[key] = site
+	for key in sites_by_key:
+		if not next_by_key.has(key) and not replaced.has(key):
+			_free_site(sites_by_key[key])
+	sites = next_sites
+	sites_by_key = next_by_key
 
 ## 0..1 through this year's feast of a village, or -1 when it is not feasting (or has not learned how yet).
 func _progress(site: Dictionary, tick: float) -> float:

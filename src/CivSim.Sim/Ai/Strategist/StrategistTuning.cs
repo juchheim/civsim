@@ -1,5 +1,7 @@
 using System;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Ai;
 
@@ -38,6 +40,37 @@ public static class StrategistTuning
     public static readonly Fix64 SecureTinCompactDecreeBonus = Fix64.FromInt(50);
     public static readonly Fix64 SecureTinArsenicalDecreeBonus = Fix64.FromInt(25);
     public static readonly Fix64 SecureTinLevyDecreeBonus = Fix64.FromInt(50);
+    /// <summary>EV for a Found site near recently observed rival ownership (frontier-contact tuning probe).</summary>
+    public static readonly Fix64 FoundFrontierContactBonus = Fix64.FromInt(45);
+    public const int FoundFrontierOwnershipFreshnessSeasons = 2;
+
+    /// <summary>
+    /// Marks explored land sites whose village claim disk can neighbor recently observed rival-owned explored land.
+    /// Uses only the issuing civilization's map memory; the caller provides a reusable output buffer.
+    /// </summary>
+    public static void MarkRecentRivalFrontierSites(Belief belief, int civ, int claimRadius, bool[] sites)
+    {
+        if (claimRadius < 0) throw new ArgumentOutOfRangeException(nameof(claimRadius));
+        if (sites.Length < belief.Map.TileCount) throw new ArgumentException("Frontier-site buffer is too small.", nameof(sites));
+        Array.Clear(sites, 0, belief.Map.TileCount);
+        int candidateRadius = claimRadius + 1;
+        for (int observed = 0; observed < belief.Map.TileCount; observed++)
+        {
+            if (!belief.Map.TryTile(observed, out WorldTile observedLand) || !observedLand.IsLand) continue;
+            (int owner, int seenSeason) = belief.Map.OwnerSeen(observed);
+            if (owner < 0 || owner == civ || belief.Season - seenSeason is < 0 or > FoundFrontierOwnershipFreshnessSeasons) continue;
+
+            HexGrid.Coordinates(observed, belief.Map.Width, out int cx, out int cy);
+            for (int y = Math.Max(0, cy - candidateRadius); y <= Math.Min(belief.Map.Height - 1, cy + candidateRadius); y++)
+            for (int x = Math.Max(0, cx - candidateRadius - 1); x <= Math.Min(belief.Map.Width - 1, cx + candidateRadius + 1); x++)
+            {
+                int site = y * belief.Map.Width + x;
+                if (!sites[site] && HexGrid.Distance(observed, site, belief.Map.Width) <= candidateRadius &&
+                    belief.Map.TryTile(site, out WorldTile knownSite) && knownSite.IsLand)
+                    sites[site] = true;
+            }
+        }
+    }
     /// <summary>A rival is "the leader" when its believed land leads everyone else's by 25% (14 §7.3)...</summary>
     public static readonly Fix64 LeaderLead = Fix64.FromRatio(125, 100);
     /// <summary>...or it holds a third of the land anyone holds, on the way to the 40% Dominion warning.</summary>
@@ -110,7 +143,7 @@ public static class StrategistTuning
     /// <summary>Raiding a Peaceful neighbour also costs reputation 10 (13 §5.4), valued like the Relations cost.</summary>
     public static readonly Fix64 RaidReputationCost = Fix64.FromInt(6);
     /// <summary>The raiders carry 4 rations each (Raids.CarryPerRaider); 80% of it reaches home.</summary>
-    public static readonly Fix64 LootDelivered = Fix64.FromRatio(80, 100);
+    public static readonly Fix64 LootDelivered = Raids.DeliveredLootShare;
     /// <summary>Believed stores per head of the target (observed E1-E2 bands hold about 0.8 rations a person).</summary>
     public static readonly Fix64 StoresPerHead = Fix64.FromRatio(80, 100);
     /// <summary>Stores by the season a raid lands (0 spring .. 3 winter): they peak after the autumn harvest (14 §6.1).</summary>
@@ -139,7 +172,7 @@ public static class StrategistTuning
     /// <summary>Party sizes tried, as shares of the origin's fighters (13 §5.2: 15-30%, more with warriors).</summary>
     public static readonly Fix64[] RaidPartyShares = { Fix64.FromRatio(30, 100), Fix64.FromRatio(45, 100) };
     public const int RaidCooldownSeasons = 6;
-    /// <summary>At most this many target settlements get a Monte Carlo each season (nearest first).</summary>
+    /// <summary>Per-season target simulation budget; raids reserve one slot for the weakest belief after the nearest targets.</summary>
     public const int RaidTargetsConsidered = 3;
     /// <summary>A raid that lands in autumn or winter is not sent from a settlement whose late-winter food forecast is below this (14 §6.1).</summary>
     public static readonly Fix64 WinterFoodFloor = Fix64.FromRatio(80, 100);
@@ -155,8 +188,11 @@ public static class StrategistTuning
 
     // ---- war (14 §6.2, §6.3, 13 §8) -------------------------------------------------------
 
-    /// <summary>Projected force ratio at arrival needed to declare and to assault; double against a palisade (14 §6.2).</summary>
+    /// <summary>Projected force ratio at arrival needed to declare and assault a settlement without a palisade (14 §6.2).</summary>
     public static readonly Fix64 WarRatio = Fix64.FromRatio(15, 10);
+    /// <summary>A margin above launch safety for era/technology-inferred palisades; the assault keeps the full defense model.</summary>
+    public static readonly Fix64 WarRatioInferredPalisade = Fix64.FromRatio(18, 10);
+    /// <summary>Projected force ratio against a palisade directly observed at the target settlement.</summary>
     public static readonly Fix64 WarRatioPalisade = Fix64.FromInt(2);
     /// <summary>
     /// No war while the rival's believed army reaches this share of the 1.5 ratio against our weakest settlement in its

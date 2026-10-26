@@ -274,6 +274,10 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.RaidLaunched; e.Text = ChronicleKey.RaidLaunched;
                     e.Settlement = p.B; e.Tile = TileOf(p.B);
                     break;
+                case PoliticsEventKind.MiningCampRaidLaunched:
+                    e.Kind = ViewEventKind.RaidLaunched; e.Text = ChronicleKey.RaidLaunched;
+                    e.Settlement = -1; e.Tile = p.B;
+                    break;
                 case PoliticsEventKind.AssaultLaunched:
                     e.Kind = ViewEventKind.RaidLaunched; e.Text = ChronicleKey.RaidLaunched;
                     e.Settlement = p.B; e.Tile = TileOf(p.B);
@@ -523,8 +527,9 @@ public sealed partial class FrameBuilder
         {
             var kind = (ExpeditionKind)_pKind[p];
             if (kind is not (ExpeditionKind.Raid or ExpeditionKind.Assault)) continue;
+            if (_pCiv[p] == _viewer) continue;
             int to = _pTo[p];
-            if (!(_omniscient ? _pTarget[p] >= 0 : IsOwn(to)) || _pCiv[p] == _viewer) continue;
+            if (unchecked((uint)to) >= unchecked((uint)_settlementCount) || (_omniscient ? _pTarget[p] < 0 : !IsOwn(to))) continue;
             int key = (_pCiv[p] * 4 + (int)kind) * 65536 + to;
             int found = -1;
             for (int i = 0; i < _announcedCount; i++)

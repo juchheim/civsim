@@ -16,7 +16,7 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 20;
+    public const int SnapshotVersion = 21;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;
@@ -74,7 +74,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         Hearth, LeanTo, HideTent, PitHouse, WattleHouse, MudbrickHouse, Longhouse,
         StoragePit, DryingRack, Granary, Kiln, Quern, ThornBarrier, Lookout, Weir,
-        Field, Pasture, Orchard, Hillfort, StoneWalls, Count
+        Field, Pasture, Orchard, Hillfort, StoneWalls, Palisade, Count
     }
 
     private enum SkillFamily : byte { Forage, Hunt, Fish, Farm, Chop, Gather, Herd, Count }
@@ -1096,7 +1096,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 Structure.LeanTo, Structure.HideTent, Structure.PitHouse, Structure.WattleHouse,
                 Structure.Longhouse, Structure.MudbrickHouse, Structure.StoragePit, Structure.DryingRack,
                 Structure.Granary, Structure.Kiln, Structure.Quern, Structure.ThornBarrier,
-                Structure.Lookout, Structure.Hearth,
+                Structure.Lookout, Structure.Hearth, Structure.Palisade,
             };
             foreach (Structure structure in vulnerable)
             {
@@ -1234,6 +1234,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             totalWork -= canalUpkeep;
             (civicWork, civicCanals, civicHousing) = PlanCivic(settlement, totalWork);
         }
+        if (settlement.Civic is { } civicTraceRequest) civicTraceRequest.TraceCivicRequested = civicWork;
         Fix64 civicAssigned = Fix64.Zero;
         Fix64 upkeepRemaining = upkeepBudget;
         Fix64 need = FoodNeed(settlement, season % 4 == 3);
@@ -1241,9 +1242,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 stores = FoodStores(settlement);
         Fix64 foodShare = stores < need ? Fix64.Parse("0.85") : stores < need * 2 ? Fix64.Parse("0.70") : Fix64.Parse("0.48");
         if (settlement.FoodSecurity < Fix64.Parse("0.8")) foodShare = Fix64.Parse("0.9");
+        if (ShouldPreserveCityTown(settlement)) foodShare = Fix64.Min(foodShare, Fix64.FromRatio(75, 100));
+        if (settlement.Civic is { } civicTraceFood) civicTraceFood.TraceFoodShare = foodShare;
         Fix64 foodWork = totalWork * foodShare;
         // Civic labor comes out of what food leaves, never out of the food work (docs/MVP/23 §8 structures are built in plenty).
         civicWork = Fix64.Min(civicWork, Fix64.Max(Fix64.Zero, totalWork - foodWork));
+        if (settlement.Civic is { } civicTraceAssigned) civicTraceAssigned.TraceCivicAssigned = civicWork;
         totalWork -= civicWork;
         foodWork = Fix64.Min(foodWork, totalWork);
         Fix64 buildBudget = Fix64.Max(Fix64.Zero, totalWork - foodWork);
@@ -1499,6 +1503,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         if (metalPlan is not null && toolWork is not null) RunMetal(settlement, metalPlan, craftLeft, toolWork, season);
         if (civicAssigned > Fix64.Zero) WorkCivic(settlement, civicAssigned, civicCanals, civicHousing);
+        TryCompleteCivic(settlement);
         if (_deadwoodUsed is not null && settlement.Civic is not null) BurnE3Fuel(settlement, season % 4 == 3, _deadwoodUsed);
     }
 
@@ -2180,12 +2185,15 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Structure SelectBuildCandidate(SettlementState settlement)
     {
         int population = Population(settlement.Id);
-        bool needsHousing = HousingCap(settlement) < (IsMarketTown(settlement) ? HousingTarget(settlement) : Fix64.FromInt(population + 8));
+        bool needsHousing = HousingCap(settlement) < (ShouldBuildMarketHousingAhead(settlement)
+            ? HousingTarget(settlement) : Fix64.FromInt(population + 8));
         bool hasWarmShelter = settlement.Structures[(int)Structure.PitHouse] > 0 ||
             settlement.Structures[(int)Structure.WattleHouse] > 0 || settlement.Structures[(int)Structure.MudbrickHouse] > 0 ||
             settlement.Structures[(int)Structure.Longhouse] > 0;
         bool hasBasicShelter = hasWarmShelter || settlement.Structures[(int)Structure.LeanTo] > 0 ||
             settlement.Structures[(int)Structure.HideTent] > 0;
+        bool extraLeanToForMarketCandidate = settlement.Civic is null &&
+            ShouldBuildMarketHousingAhead(settlement) && needsHousing;
         if (CanBuild(settlement.Civilization, Structure.StoragePit) && settlement.Structures[(int)Structure.StoragePit] == 0 &&
             FoodStores(settlement) >= Fix64.FromInt(5)) return Structure.StoragePit;
         if (CanBuild(settlement.Civilization, Structure.DryingRack) && settlement.Structures[(int)Structure.DryingRack] == 0 &&
@@ -2197,7 +2205,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (CanBuild(settlement.Civilization, Structure.WattleHouse) && !hasWarmShelter && hasBasicShelter &&
             WarmthDeficit(settlement, true) > 0 && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&
             settlement.Stores[(int)Good.Clay] >= Fix64.FromInt(2)) return Structure.WattleHouse;
-        if (CanBuild(settlement.Civilization, Structure.LeanTo) && !hasBasicShelter &&
+        if (CanBuild(settlement.Civilization, Structure.LeanTo) && (!hasBasicShelter || extraLeanToForMarketCandidate) &&
             (needsHousing || WarmthDeficit(settlement, true) > 0) && settlement.Stores[(int)Good.Wood] >= Fix64.One)
             return Structure.LeanTo;
         if (CanBuild(settlement.Civilization, Structure.Hearth) && settlement.Structures[(int)Structure.Hearth] == 0 &&
@@ -2226,6 +2234,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             settlement.Stores[(int)Good.Wood] >= Fix64.One) return Structure.Lookout;
         if (CanBuild(settlement.Civilization, Structure.Hillfort) && settlement.Structures[(int)Structure.Hillfort] == 0 &&
             HasHillfortSite(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10)) return Structure.Hillfort;
+        if (CanBuild(settlement.Civilization, Structure.Palisade) && settlement.Structures[(int)Structure.Palisade] == 0 &&
+            settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(20 * ((int)Tier(settlement.Id) + 1))) return Structure.Palisade;
         if (CanBuild(settlement.Civilization, Structure.StoneWalls) &&
             settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1)
             return Structure.StoneWalls;
@@ -2261,7 +2271,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Kiln => "kiln", Structure.Quern => "quern", Structure.ThornBarrier => "thorn_barrier",
         Structure.Lookout => "lookout_post", Structure.Weir => "weir", Structure.Field => "field",
         Structure.Pasture => "pasture", Structure.Orchard => "orchard", Structure.Hillfort => "hillfort",
-        Structure.StoneWalls => "stone_walls", _ => "",
+        Structure.StoneWalls => "stone_walls", Structure.Palisade => "palisade", _ => "",
     };
 
     private static Fix64 BuildLabor(Structure structure) => structure switch
@@ -2280,6 +2290,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64 StructureBuildLabor(SettlementState settlement, Structure structure)
     {
         if (structure == Structure.StoneWalls) return Fix64.FromInt(30 * ((int)Tier(settlement.Id) + 1));
+        if (structure == Structure.Palisade) return Fix64.FromInt(6 * ((int)Tier(settlement.Id) + 1));
         return BuildLabor(structure);
     }
 
@@ -2314,6 +2325,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Orchard => s.Stores[(int)Good.Sapling] >= Fix64.One,
         Structure.Hillfort => s.Stores[(int)Good.Wood] >= Fix64.FromInt(10),
         Structure.StoneWalls => CutStoneHeld(s, blocksToo: false) >= Fix64.FromInt(60 * ((int)Tier(s.Id) + 1)),
+        Structure.Palisade => s.Stores[(int)Good.Wood] >= Fix64.FromInt(20 * ((int)Tier(s.Id) + 1)),
         Structure.StoragePit or Structure.Field => true,
         Structure.DryingRack => s.Stores[(int)Good.Wood] >= Fix64.Half,
         _ => false,
@@ -2344,6 +2356,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             case Structure.Granary: s.Stores[(int)Good.Mudbrick] -= Fix64.FromInt(80); break;
             case Structure.Orchard: s.Stores[(int)Good.Sapling] -= Fix64.One; break;
             case Structure.Hillfort: s.Stores[(int)Good.Wood] -= Fix64.FromInt(10); break;
+            case Structure.Palisade: s.Stores[(int)Good.Wood] -= Fix64.FromInt(20 * ((int)Tier(s.Id) + 1)); break;
             case Structure.StoneWalls:
                 if (s.Metal is { } metal)
                     metal.Goods[(int)MetalGood.Ashlar] -= Fix64.FromInt(60 * ((int)Tier(s.Id) + 1));
@@ -2952,6 +2965,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void TryFission(SettlementState parent, int season)
     {
         if (_holdSettlements) return;
+        if (ShouldPreserveCityTown(parent)) { parent.FissionPending = false; return; }
         if (parent.FissionPending || season - parent.LastFissionSeason < 4) return;
         // Free Folk (refugee camps, seceded towns, Tin Folk) grow to their cap but do not bud: a daughter would join the
         // civilization whose id the camp still carries (docs/MVP/22 §6.4).
@@ -2975,6 +2989,70 @@ public sealed partial class LivingEconomyModel : ISimModel
         parent.FissionPending = true;
     }
 
+    /// <summary>Keep a viable Temple-bound Town intact until it can become a City (07d F4); hunger and low Cohesion still split it.</summary>
+    private bool ShouldPreserveCityTown(SettlementState settlement)
+    {
+        if (settlement.Civic is not { } civic || civic.Tier != (byte)SettlementTier.Town ||
+            civic.BuildKind != CivicBuild.Temple && civic.Temples == 0 && !ShouldPrepareCityTemple(settlement, civic)) return false;
+        Fix64 cityPopulation = Fix64.FromInt(_civic.CityMinPop);
+        return FoodCap(settlement) >= cityPopulation && HousingCap(settlement) >= cityPopulation &&
+            settlement.FoodSecurity >= Fix64.Parse("0.8") &&
+            CohesionLive(settlement) && CohesionPoints(settlement.Cohesion) >= _civic.FissionBelow;
+    }
+
+    /// <summary>
+    /// Keep a Strategist's early frontier Found from splitting a leading City-growth settlement before it reaches Town.
+    /// The rank and capacity checks are own-state only; they cover a healthy Market-bound village such as a future City site.
+    /// </summary>
+    internal bool ShouldProtectStrategistFoundDonor(int settlementIndex, Fix64 foundShare)
+    {
+        if (unchecked((uint)settlementIndex) >= unchecked((uint)_settlements.Count)) return false;
+        SettlementState settlement = _settlements[settlementIndex];
+        int population = Population(settlement.Id);
+        int daughterPopulation = (Fix64.FromInt(population) * foundShare).RoundToInt();
+        return ShouldProtectFoundingCityProspect(
+            cityTrack: IsCityTrack(settlement),
+            capacity: CityProspectCapacity(settlement),
+            minimumCapacity: Fix64.FromRatio(_civic.CityMinPop, 2),
+            healthy: settlement.FoodSecurity >= Fix64.FromRatio(8, 10) && CohesionLive(settlement) &&
+                CohesionPoints(settlement.Cohesion) >= _civic.FissionBelow,
+            capacityRank: CityProspectRank(settlement),
+            remainingPopulation: population - daughterPopulation,
+            cityMinPop: _civic.CityMinPop);
+    }
+
+    internal static bool ShouldProtectFoundingCityProspect(bool cityTrack, Fix64 capacity, Fix64 minimumCapacity,
+        bool healthy, int capacityRank, int remainingPopulation, int cityMinPop)
+        => cityTrack && capacity >= minimumCapacity && healthy && capacityRank < 3 && remainingPopulation < cityMinPop;
+
+    private int CityProspectRank(SettlementState settlement)
+    {
+        Fix64 capacity = CityProspectCapacity(settlement);
+        Fix64 minimumCapacity = Fix64.FromRatio(_civic.CityMinPop, 2);
+        int higherRanked = 0;
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            if (i == settlement.Id) continue;
+            SettlementState other = _settlements[i];
+            if (other.Civilization != settlement.Civilization || !IsCityTrack(other) ||
+                other.FoodSecurity < Fix64.FromRatio(8, 10) || !CohesionLive(other) ||
+                CohesionPoints(other.Cohesion) < _civic.FissionBelow || CityProspectCapacity(other) < minimumCapacity) continue;
+            Fix64 otherCapacity = CityProspectCapacity(other);
+            if (otherCapacity > capacity || otherCapacity == capacity && other.Id < settlement.Id) higherRanked++;
+        }
+        return higherRanked;
+    }
+
+    private bool IsCityTrack(SettlementState settlement)
+    {
+        if (settlement.Civic is not { } civic || Population(settlement.Id) <= 0) return false;
+        return civic.Tier >= (byte)SettlementTier.Town || civic.Markets > 0 ||
+            civic.BuildKind is CivicBuild.Market or CivicBuild.Temple || civic.Temples > 0;
+    }
+
+    private Fix64 CityProspectCapacity(SettlementState settlement)
+        => Fix64.Min(FoodCap(settlement), HousingCap(settlement));
+
     private Fix64 LeanFoodCapacity(SettlementState settlement)
     {
         return FoodCap(settlement) * LeanFoodShare(settlement.Civilization);
@@ -2997,6 +3075,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             SettlementState parent = _settlements[s];
             if (!parent.FissionPending) continue;
+            if (ShouldPreserveCityTown(parent)) { parent.FissionPending = false; continue; }
             if (season - parent.LastFissionSeason < 4) { parent.FissionPending = false; continue; }
             int population = Population(parent.Id);
             if (Fix64.FromInt(population) * DaughterShare < MinimumDaughterPopulation)
@@ -4599,8 +4678,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             SettlementState s = _settlements[i];
             hash.Add(s.Id); hash.Add(s.Civilization); hash.Add(s.SiteTile); hash.Add(s.FoodSecurity);
             hash.Add(s.LateWinterForecast); hash.Add(s.LateWinterFoodShare); hash.Add(s.FarmWorkThisYear);
-            // Keep the pre-Bronze checksum stream stable. The two fortification slots extend the
-            // structure array, and the appended enum members move Count (the old no-build sentinel).
+            // Keep the pre-Bronze checksum stream stable. Fortification slots extend the structure
+            // array, and the appended enum members move Count (the old no-build sentinel).
             // They are unreachable until KEY-3, so hash them only once the Bronze simulation is live.
             byte buildTarget = !_bronzeActive && s.BuildTarget == Structure.Count
                 ? (byte)Structure.Hillfort : (byte)s.BuildTarget;
@@ -4608,6 +4687,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             hash.Add(s.Cohesion); hash.Add(s.Stores);
             int hashedStructures = _bronzeActive ? s.Structures.Length : (int)Structure.Hillfort;
             for (int structure = 0; structure < hashedStructures; structure++) hash.Add(s.Structures[structure]);
+            if (!_bronzeActive && s.Structures[(int)Structure.Palisade] > 0)
+            { hash.Add((int)Structure.Palisade); hash.Add(s.Structures[(int)Structure.Palisade]); }
             hash.Add(s.DomesticSmallStock); hash.Add(s.DomesticCattle); hash.Add(s.DomesticPigs);
             hash.Add(s.ToolRemainingWork);
             hash.Add(s.FissionPending); hash.Add(s.FireLit); hash.Add(s.FireKeeperId); hash.Add(s.UnattendedFireTicks);

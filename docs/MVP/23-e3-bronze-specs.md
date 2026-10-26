@@ -518,7 +518,7 @@ Product **×2.16** (88 → 190, 22 §9). **Of it, ×1.24 comes from the four E1�
 |---|---|---|---|---|---|---|
 | Village | (E2 rule) | 190 average settlement at KEY-4 | ~995 | 2,000 × F (SOC-07) | Food | 20–60 |
 | Town | pop ≥ 60 and a Market (TRD-04) | ×1.19 on ≥ 2 routes (TRD-05's +25% net of the 1.05 already averaged) ≈ 226; Bakery ≈ ×1.04 more | ×1.6 (SOC-09 dense dwellings in Towns and Cities) | 2,000 × F; 10,000 × F with SOC-09 | Food | 60–150 |
-| City | pop ≥ 120 and a Temple or Palace (SOC-09) | as Town; an irrigated river City ≈ ×1.05 more than the average (its whole field share is irrigated) | as Town | 10,000 × F | Food | 120–250 |
+| City | pop ≥ 90 and a Temple or Palace (SOC-09; 07d §2 rebaseline) | as Town; an irrigated river City ≈ ×1.05 more than the average (its whole field share is irrigated) | as Town | 10,000 × F | Food | 90–250 |
 | Capital | the Palace (GOV-05) | as its tier | as its tier | as its tier | Food | — |
 
 The fixture numbers are the mean-field "average settlement" that C1-E3 checks. Live settlements sit below them because they fission at 85% of a *local* cap on uneven, overlapping ranges (22 §1.4 finding 3); T10/T11 are therefore set on the live sim, not on this table.
@@ -585,8 +585,8 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 | CohesionRaided · CohesionRaidedBEL01 · CohesionRaidYears | −10 · −5 · 2 | C · C · years | 22 §8.3 |
 | CohesionFamine · CohesionLossPer2Pct · CohesionCrowding | −20 · −1 · −10 | C per unit | 22 §8.3 |
 | OverreachFreeTiles · OverreachDivisor · SpanPenalty | 8 · 2 · 3 | tiles · ÷ · C per settlement | 22 §8.2–8.3 |
-| ConqueredCohesion · ConqueredRecovery · CaptureAssimilationSiege | −20 · 2 · −0.10 | C · C/season · share | 13 §8.3, 22 §7.4 |
-| TownMinPop · CityMinPop · TierDemoteShare · TierDemoteSeasons | 60 · 120 · 0.85 · 4 | people · people · × · seasons | 22 §8.1; §1.2 |
+| ConqueredCohesion · ConqueredRecovery · ConqueredStartCohesion · CaptureAssimilationSiege | −35 · 1 · 25 · −0.10 | C · C/season · C · share | 07d R7 §10; 13 §8.3 (siege assimilation) |
+| TownMinPop · CityMinPop · TierDemoteShare · TierDemoteSeasons | 60 · 90 · 0.85 · 4 | people · people · × · seasons | 22 §8.1; 07d §2; §1.2 |
 | HinterlandRadius · HinterlandEmit · CapitalClaimMult | 7 · 0.5 · 1.25 | tiles · × · × | 22 §8.1 |
 | SpecialistRateMult | 1.3 | × | 22 §8.5 (SOC-08) |
 | **War** | | | |
@@ -1029,7 +1029,7 @@ Columns: **Sim** = weight (● new system · ◐ new parameters on a WP-built sy
     moment: "A street of workshops: a smith, a potter and a weaver, each at a separate door"
   - id: SOC-09
     effects:
-      - {kind: tier, tier: city, min_pop: 120, needs: [temple, palace], radius: 6}
+      - {kind: tier, tier: city, min_pop: 90, needs: [temple, palace], radius: 6}
       - {kind: cap, cap: group, value: 10000}
       - {kind: cap, cap: housing, mult: 1.6, note: "dense dwellings: mudbrick houses and halls in Towns and Cities house ×1.6"}
       - {kind: rule, text: "+8 Insight a year per City (OutCity × RoleScale, then InsightCalibration)"}

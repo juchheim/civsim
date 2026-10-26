@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -169,6 +170,52 @@ public class BeliefMatchTests
         }
         Assert.True(anySettlement, "the Chieftain should have seen its neighbour by mid-E2");
         Assert.True(Sim.Numerics.Fix64.Abs(BeliefOf(m, 2).Rivals[3].ArchetypePosterior[0] - Fix64Of(1, 5)) > Fix64Of(1, 1000), "the Chieftain reads its neighbour");
+    }
+
+    [Fact]
+    public void Chieftain_records_visible_rival_mining_camps_but_not_remote_ones()
+    {
+        MatchModel m = FogFairnessHarness.Clone(Fixture.Value, Controls);
+        PoliticsSystem pol = m.Politics;
+        int observer = 2, rivalCiv = 1;
+        int ownSettlement = Enumerable.Range(0, pol.SettlementTotal)
+            .First(s => pol.SettlementCivOf(s) == observer && !pol.IsFreeFolk(s));
+        int rivalSettlement = Enumerable.Range(0, pol.SettlementTotal)
+            .First(s => pol.SettlementCivOf(s) == rivalCiv && !pol.IsFreeFolk(s));
+        int ownTile = pol.SettlementTileOf(ownSettlement);
+        AiSeat seat = m.Ai!.SeatOf(observer)!;
+        Belief belief = seat.Belief;
+        int season = pol.Season;
+        int reach = pol.ReachOf(observer);
+        int routine = BeliefRules.RoutineSight(reach);
+        int scout = BeliefRules.ScoutRange(reach,
+            m.Research.IsDone(observer, m.Research.Catalog.IndexOf("WAY-01")),
+            m.Research.IsDone(observer, m.Research.Catalog.IndexOf("WAY-03"))) + BeliefRules.SightRadius;
+        int localTile = Enumerable.Range(0, m.Ai.World.Generated.Tiles.Length)
+            .Where(t => m.Ai.World.Generated.TileAt(t).Deposit is DepositKind.CopperOre or DepositKind.ArsenicalCopper or DepositKind.Tin)
+            .Where(t => HexGrid.Distance(ownTile, t, belief.Map.Width) <= routine)
+            .OrderBy(t => HexGrid.Distance(ownTile, t, belief.Map.Width)).First();
+        int remoteTile = Enumerable.Range(0, m.Ai.World.Generated.Tiles.Length)
+            .Where(t => m.Ai.World.Generated.TileAt(t).Deposit is DepositKind.CopperOre or DepositKind.ArsenicalCopper or DepositKind.Tin)
+            .Where(t => HexGrid.Distance(ownTile, t, belief.Map.Width) > Math.Max(routine, scout))
+            .Where(t => belief.Map.OwnerSeen(t).Season != season)
+            .OrderByDescending(t => HexGrid.Distance(ownTile, t, belief.Map.Width)).First();
+
+        pol.ForceContact(observer, rivalCiv);
+        m.Economy.FixtureAddMiningCamp(rivalSettlement, localTile);
+        m.Economy.FixtureAddMiningCamp(rivalSettlement, remoteTile);
+        int localId = Enumerable.Range(0, m.Economy.MiningCampCount).Select(m.Economy.MiningCamp)
+            .Single(c => c.Tile == localTile && c.Civilization == rivalCiv).Id;
+        int remoteId = Enumerable.Range(0, m.Economy.MiningCampCount).Select(m.Economy.MiningCamp)
+            .Single(c => c.Tile == remoteTile && c.Civilization == rivalCiv).Id;
+
+        new BeliefBuilder().Update(belief, m.Ai.World, seat.Profile);
+
+        Assert.Equal(OpponentModel.ArchetypePosterior, seat.Profile.Opponent);
+        Assert.Contains(belief.Rivals[rivalCiv].MiningCampsSeen, c => c.Id == localId && c.LastSeenSeason == season);
+        Assert.DoesNotContain(belief.Rivals[rivalCiv].MiningCampsSeen, c => c.Id == remoteId);
+        Assert.Equal(Fix64Of(6, 10), belief.Rivals[rivalCiv].WeaponStrength);
+        Assert.False(belief.Rivals[rivalCiv].RangedSeen || belief.Rivals[rivalCiv].WarriorsSeen || belief.Rivals[rivalCiv].RaidPostureSeen);
     }
 
     [Fact]

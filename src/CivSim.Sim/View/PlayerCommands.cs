@@ -35,6 +35,9 @@ public static class PlayerCommands
     public static Command SendBarter(long tick, int civ, int withCiv, int targetSettlement = -1)
         => new(tick, (byte)civ, CommandKind.SendBarter, withCiv, targetSettlement + 1, 0);
     public static Command LaunchRaid(long tick, int civ, int targetSettlement, int partySize) => new(tick, (byte)civ, CommandKind.LaunchRaid, targetSettlement, partySize, 0);
+    /// <summary>A raid on a visible mining camp; use the stable CampId from the frame.</summary>
+    public static Command LaunchMiningCampRaid(long tick, int civ, int campId, int partySize)
+        => new(tick, (byte)civ, CommandKind.LaunchMiningCampRaid, campId, partySize, 0);
     public static Command LaunchAssault(long tick, int civ, int targetSettlement) => new(tick, (byte)civ, CommandKind.LaunchAssault, targetSettlement, 0, 0);
     public static Command DeclareWar(long tick, int civ, int onCiv) => new(tick, (byte)civ, CommandKind.DeclareWar, onCiv, 0, 0);
     public static Command MakePeace(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.MakePeace, withCiv, 0, 0);

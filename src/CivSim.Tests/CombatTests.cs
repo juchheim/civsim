@@ -39,6 +39,24 @@ public class CombatTests
     }
 
     [Fact]
+    public void The_only_side_left_standing_wins_even_before_the_first_round()
+    {
+        Assert.Equal(BattleWinner.Attacker, Combat.Fight(Group(4, "1.0"), Array.Empty<Fighter>(), Open(), 7, 1).Winner);
+        Assert.Equal(BattleWinner.Defender, Combat.Fight(Array.Empty<Fighter>(), Group(4, "1.0"), Open(), 7, 1).Winner);
+        Assert.Equal(BattleWinner.StandOff, Combat.Fight(Array.Empty<Fighter>(), Array.Empty<Fighter>(), Open(), 7, 1).Winner);
+
+        BattleSetup ranged = Open() with { AttackerRangedFirst = true };
+        BattleResult volley = Combat.Fight(Group(4, "1.0"), Group(1, "0.1", 100), ranged, 7, 1);
+        Assert.Equal(100, Assert.Single(volley.DefenderDead.Concat(volley.DefenderWounded)));
+        Assert.Equal(BattleWinner.Attacker, volley.Winner);
+
+        RaidOutcome unopposed = Raids.Resolve(Group(4, "1.0"), Array.Empty<Fighter>(), Defenses.None,
+            raiderRanged: true, seed: 7, stream: 1);
+        Assert.True(unopposed.Success);
+        Assert.Equal(BattleWinner.Attacker, unopposed.Battle.Winner);
+    }
+
+    [Fact]
     public void Casualties_are_forty_percent_deaths_and_sixty_percent_wounds_and_fall_on_real_people()
     {
         int dead = 0, hurt = 0;

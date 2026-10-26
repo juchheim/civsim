@@ -49,7 +49,7 @@ internal static class ResearchDecrees
     {
         public ulong Seed;
         public CivTrace[] Civs = Array.Empty<CivTrace>();
-        public bool[] Touch = new bool[2];
+        public bool[] Touch = new bool[4];
         public int TinFolk, Compacts, FolkCompacts, Deliveries, CaravansRaided, Pacts, Expeditions;
         public int[] Refusals = new int[16];
         public double FinalMinute;
@@ -65,7 +65,7 @@ internal static class ResearchDecrees
         text.AppendLine($"Decree report: {list.Count} seed(s), up to {minutes} minutes, four Balanced civilizations on the Council (Council Decree policy)");
         var setts = new List<double>(); var claimed = new List<double>(); var share = new List<double>(); var earned = new List<double>();
         var decrees = new List<double>(); var atCap = new List<double>(); var k4 = new List<double>(); var e3 = new List<double>();
-        int tin = 0, bronze = 0, civs = 0, touch = 0, pairs = 0, folkMatches = 0;
+        int tin = 0, bronze = 0, civs = 0, touch = 0, borderSamples = 0, folkMatches = 0;
         foreach (Result r in results)
         {
             text.AppendLine($"seed {r.Seed} (ended minute {r.FinalMinute:F1}): Tin Folk {r.TinFolk}, compacts {r.Compacts} ({r.FolkCompacts} with Tin Folk), deliveries {r.Deliveries}, caravans raided {r.CaravansRaided}, pacts {r.Pacts}");
@@ -85,8 +85,9 @@ internal static class ResearchDecrees
                 if (t.E3Foundings > 0) share.Add((double)t.DecreeFounds / t.E3Foundings);
                 if (t.Tin) tin++;
                 if (t.Bronze) bronze++;
+                borderSamples++;
+                if (r.Touch[c]) touch++;
             }
-            for (int p = 0; p < 2; p++) { pairs++; if (r.Touch[p]) touch++; }
             if (r.FolkCompacts > 0) folkMatches++;
             text.Append(r.Log);
         }
@@ -94,7 +95,7 @@ internal static class ResearchDecrees
         text.AppendLine($"Timing: KEY-4 median {F(Median(k4))} (current projection 61.25; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
         text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (historical target 7, 5-10; rebaseline at current cadence)");
         text.AppendLine($"T14 claimed land at KEY-4: median {P(Median(claimed))} (historical target 30-42%; rebaseline at current cadence)");
-        text.AppendLine($"T15 paired borders touching at KEY-4: {touch}/{pairs} (historical target >= 75%; rebaseline at current cadence)");
+        text.AppendLine($"T15 paired borders touching at each civ's own KEY-4: {touch}/{borderSamples} civs (target >= 75%)");
         text.AppendLine($"T16 E3 foundings by Decree: median share {P(Median(share))} over {share.Count} civs (historical target 25-50%; review with the longer Mandate window)");
         text.AppendLine($"T20 civs with tin by KEY-4: {tin}/{civs} (historical target >= 50%); with some bronze (tin or arsenic): {bronze}/{civs} (>= 90%; rebaseline at current cadence)");
         int folk = 0; foreach (Result r in results) folk += r.TinFolk;
@@ -152,7 +153,7 @@ internal static class ResearchDecrees
                 t.Done = true;
                 t.K4 = r.CompletedTick(c, key4) / 600.0;
                 Snapshot(t, c, pol, eco, r);
-                if (c < 4 && Touching(pol.Territory, c, c ^ 1)) result.Touch[c / 2] = true;
+                if (c < 4) result.Touch[c] = Touching(pol.Territory, c, c ^ 1);
             }
             bool all = true;
             foreach (CivTrace t in result.Civs) if (!t.Done) all = false;
@@ -202,7 +203,7 @@ internal static class ResearchDecrees
         t.Bronze = t.Tin || eco.CivHasMetalAccess(c, MetalAccessKind.Arsenic);
     }
 
-    /// <summary>Borders touch for the paired starts (0,1) and (2,3) at the end of the run.</summary>
+    /// <summary>Borders touch for a civ and its paired start at that civ's own KEY-4.</summary>
     private static bool Touching(Territory t, int a, int b)
     {
         Span<int> n = stackalloc int[6];

@@ -55,6 +55,8 @@ public enum CommandKind : ushort
     IssueDecree = 18,
     /// <summary>A = civilization, B = good (<c>TradeGood</c>), C = 1 to stop selling it to them, 0 to lift the embargo. Free.</summary>
     SetEmbargo = 19,
+    /// <summary>A = visible mining camp id, B = party size (at least 4): raid its crew and stored ore.</summary>
+    LaunchMiningCampRaid = 20,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>

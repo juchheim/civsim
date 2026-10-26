@@ -227,6 +227,7 @@ constants:
   - {id: PoxEndemicPop, value: 1000, unit: people in one settlement, source: "22 §10"}
   # WP7 (docs/MVP/07d "WP7 live results"): planner and demand constants the specs imply but do not number.
   - {id: CivicLaborShare, value: 0.10, unit: share of labor, source: "07d WP7: civic construction (canals, Market, Temple, Palace, School, Bakery, Hall, Ziggurat) takes at most this share of a settlement's work, as the metal build of WP6"}
+  - {id: CityTempleLaborMultiplier, value: 1.5, unit: "× civic share", source: "07d F4 B17 tuning: the selected City-site Temple gets 50% more civic labor when food security is at least 0.8 and housing already supports City population; no global research or housing-cap change"}
   - {id: MarketEvery, value: 4, unit: settlements, source: "07d §3 (balance_sim live MarketEvery): a Market in the largest settlement, one more per 4 settlements"}
   - {id: EpidemicInflowE3, value: 0.2, unit: share, source: "09 §10.1 inflow, E3 between E2 0.1 and E4 0.3; routes add to it (WP8)"}
   - {id: HearthPeople, value: 35, unit: people per hearth, source: "metal_sim.py hearth_per (10 §5): one hearth, 1.5 L a season and 3 in Winter, per 35 people"}

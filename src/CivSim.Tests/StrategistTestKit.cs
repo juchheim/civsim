@@ -305,10 +305,15 @@ internal sealed class ActionRecorder : IStrategistActions
 {
     public readonly List<string> Orders = new();
     public bool Accept = true;
+    public int Mandate { get; set; }
+    public int DecreeCost(DecreeKind kind) => kind == DecreeKind.Levy ? 1 : int.MaxValue;
+    public bool IssueDecree(DecreeKind kind, int target, int extra)
+    { Orders.Add($"decree {kind} {target} {extra}"); return Accept; }
     public bool Gift(int toCiv) { Orders.Add($"gift {toCiv}"); return Accept; }
     public bool Barter(int withCiv) { Orders.Add($"barter {withCiv}"); return Accept; }
     public bool Raid(int targetSettlement, int partySize) { Orders.Add($"raid {targetSettlement} {partySize}"); return Accept; }
     public bool RaidCaravan(int caravanId, int partySize) { Orders.Add($"raid-caravan {caravanId} {partySize}"); return Accept; }
+    public bool RaidMiningCamp(int campId, int partySize) { Orders.Add($"raid-mine {campId} {partySize}"); return Accept; }
     public bool Assault(int targetSettlement) { Orders.Add($"assault {targetSettlement}"); return Accept; }
     public bool DeclareWar(int civ) { Orders.Add($"war {civ}"); return Accept; }
     public bool MakePeace(int civ) { Orders.Add($"peace {civ}"); return Accept; }

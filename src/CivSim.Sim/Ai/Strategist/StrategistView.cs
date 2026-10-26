@@ -38,6 +38,8 @@ public interface IStrategistActions
     bool SetEmbargo(int civ, TradeGood good, bool on) => false;
     /// <summary>A raid on a caravan on the road (command 12 with a caravan target).</summary>
     bool RaidCaravan(int caravanId, int partySize) => false;
+    /// <summary>A raid on a mining camp that was directly seen by the Strategist.</summary>
+    bool RaidMiningCamp(int campId, int partySize) => false;
     /// <summary>
     /// Whether the Council's Decree policy keeps issuing for this civilization (the default until the AI plans Decrees itself; the AI
     /// work package turns it off when its Strategist takes over).
@@ -101,5 +103,6 @@ public sealed class OrdersActions : IStrategistActions
     public bool IssueDecree(DecreeKind kind, int target, int extra) => _orders.IssueDecree(kind, target, extra);
     public bool SetEmbargo(int civ, TradeGood good, bool on) => _orders.SetEmbargo(civ, good, on);
     public bool RaidCaravan(int caravanId, int partySize) => _orders.RaidCaravan(caravanId, partySize);
+    public bool RaidMiningCamp(int campId, int partySize) => _orders.RaidMiningCamp(campId, partySize);
     public void UseCouncilDecrees(bool on) => _orders.UseCouncilDecrees(on);
 }

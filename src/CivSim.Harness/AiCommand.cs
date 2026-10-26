@@ -26,7 +26,7 @@ namespace CivSim.Harness;
 /// requires 10,000 distinct candidates and 64-minute validation of 16 finalists on fresh mirrored seeds.
 /// </code>
 /// A duel puts team A in seats 0 and 3 and team B in seats 1 and 2 (the world is point-symmetric), then swaps the teams,
-/// and compares the teams' summed Legacy (Dominion + Mastery + Firsts).
+/// and compares the teams' summed Legacy (Dominion + Mastery + Firsts + Wonders).
 /// </summary>
 internal static class AiCommand
 {
@@ -208,22 +208,22 @@ internal static class AiCommand
     /// <summary>Per-archetype means at the end of the match: where each style's Legacy comes from (docs/MVP/14 §17).</summary>
     private static void PrintArchetypeMeans(List<(EconomyArchetype Archetype, CivOutcome Outcome, bool Won)> civs)
     {
-        Console.WriteLine("  archetype   Legacy Dominion Mastery  Firsts  Settl  Projs  KEY-1  KEY-2  Raids  Capt  Lost");
+        Console.WriteLine("  archetype   Legacy Dominion Mastery  Firsts Wonders  Settl  Projs  KEY-1  KEY-2  Raids  Capt  Lost");
         foreach (string name in FfaNames)
         {
             var a = Enum.Parse<EconomyArchetype>(name);
-            double n = 0, leg = 0, dom = 0, mas = 0, fir = 0, set = 0, proj = 0, k1 = 0, k2 = 0, raids = 0, capt = 0, lost = 0;
+            double n = 0, leg = 0, dom = 0, mas = 0, fir = 0, won = 0, set = 0, proj = 0, k1 = 0, k2 = 0, raids = 0, capt = 0, lost = 0;
             int n1 = 0, n2 = 0;
             foreach (var (arch, o, _) in civs)
             {
                 if (arch != a) continue;
-                n++; leg += o.Legacy; dom += o.Dominion; mas += o.Mastery; fir += o.Firsts; set += o.Settlements; proj += o.Projects;
+                n++; leg += o.Legacy; dom += o.Dominion; mas += o.Mastery; fir += o.Firsts; won += o.Wonders; set += o.Settlements; proj += o.Projects;
                 raids += o.RaidsLaunched; capt += o.SettlementsCaptured; lost += o.SettlementsLost;
                 if (!double.IsNaN(o.KeyMinutes[0])) { k1 += o.KeyMinutes[0]; n1++; }
                 if (!double.IsNaN(o.KeyMinutes[1])) { k2 += o.KeyMinutes[1]; n2++; }
             }
             if (n == 0) continue;
-            Console.WriteLine($"  {name,-9} {leg / n,8:F0} {dom / n,8:F0} {mas / n,7:F0} {fir / n,7:F0} {set / n,6:F1} {proj / n,6:F1} " +
+            Console.WriteLine($"  {name,-9} {leg / n,8:F0} {dom / n,8:F0} {mas / n,7:F0} {fir / n,7:F0} {won / n,7:F0} {set / n,6:F1} {proj / n,6:F1} " +
                 $"{(n1 > 0 ? k1 / n1 : double.NaN),6:F1} {(n2 > 0 ? k2 / n2 : double.NaN),6:F1} {raids / n,6:F1} {capt / n,5:F2} {lost / n,5:F2}");
         }
         Console.WriteLine("  raids: L=launched, R=resolved, P=in transit at match end, W=won; forecast averages all launches / win rate uses resolved raids");

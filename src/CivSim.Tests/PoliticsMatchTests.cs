@@ -8,6 +8,7 @@ using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
+using CivSim.Sim.View;
 using CivSim.Sim.World;
 
 namespace CivSim.Tests;
@@ -165,6 +166,127 @@ public class PoliticsMatchTests
         for (int i = 0; i < rig.Economy.FigureCount; i++) if (rig.Economy.IsWounded(rig.Economy.Figure(i).Id)) wounded++;
         Assert.True(wounded > 0 || rig.Economy.FigureCount < figuresBefore + 10, $"wounded {wounded}");
         Assert.True(home >= 0 && prey >= 0);
+    }
+
+    [Fact]
+    public void A_raid_uses_and_consumes_the_host_gathered_for_its_target()
+    {
+        var rig = new Rig();
+        rig.Minutes(24);
+        rig.Grant(0, "KEY-3", "WAR-02", "HNT-02", "HNT-03", "WAR-01");
+        rig.Politics.ForceContact(0, 1);
+        int target = rig.SettlementOf(1);
+        int home = rig.SettlementOf(0);
+        var records = new List<LivingEconomyModel.FighterRecord>();
+        rig.Economy.ListFightingAge(home, records);
+        var host = new Levy
+        {
+            Civ = 0,
+            TargetSettlement = target,
+            SinceSeason = rig.Politics.Season,
+            UntilSeason = rig.Politics.Season + 2
+        };
+        foreach (LivingEconomyModel.FighterRecord record in records.Where(r => !r.Wounded).Take(Math.Max(0, records.Count - 4)).Take(8))
+        {
+            host.Members.Add(record.Id);
+            host.Strengths.Add(Fix64.One);
+        }
+        Assert.True(host.Members.Count >= 4);
+        rig.Economy.SetIdle(host.Members, host.UntilSeason);
+        var levies = (List<Levy>)typeof(PoliticsSystem).GetField("_levies", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(rig.Politics)!;
+        levies.Add(host);
+        int hostSize = host.Members.Count;
+        Assert.True(hostSize >= 4);
+        Assert.True(rig.Politics.OrderRaid(0, target, 4));
+
+        PoliticsEvent launch = rig.Politics.Events.Last(e => e.Kind == PoliticsEventKind.RaidLaunched && e.Civ == 0);
+        Assert.Equal(hostSize, launch.A);
+        Assert.Null(rig.Politics.LevyFor(0, target));
+    }
+
+    [Fact]
+    public void Mining_camp_raid_targets_the_tile_and_transfers_only_bounded_stored_ore()
+    {
+        var rig = new Rig();
+        rig.Minutes(24);
+        rig.Grant(0, "KEY-3", "WAR-02", "HNT-02", "HNT-03", "WAR-01");
+        rig.Grant(1, "KEY-3");
+        int home = rig.SettlementOf(0), parent = rig.SettlementOf(1);
+        rig.Economy.FixtureAddPeople(home, 20, 20);
+        rig.Economy.FixtureAddPeople(parent, 4, 20);
+        rig.Politics.ForceContact(0, 1);
+        int parentTile = rig.Economy.SettlementLite(parent).SiteTile;
+        int campTile = Enumerable.Range(0, World.Value.TileCount)
+            .Where(tile => World.Value.TileAt(tile).Deposit == DepositKind.CopperOre && tile != parentTile)
+            .OrderBy(tile => HexGrid.Distance(parentTile, tile, World.Value.Width))
+            .First();
+        rig.Economy.FixtureAddMiningCamp(parent, campTile, crew: 2, built: false);
+        MiningCampView camp = Enumerable.Range(0, rig.Economy.MiningCampCount)
+            .Select(rig.Economy.MiningCamp).First(c => c.Tile == campTile);
+        Assert.Equal(2, camp.Crew);
+        rig.Economy.FixtureStock(parent, "G-CUORE", Fix64.FromInt(100));
+        Fix64 targetStockBefore = rig.Economy.GoodStock(parent, "G-CUORE");
+        Fix64 homeStockBefore = rig.Economy.GoodStock(home, "G-CUORE");
+
+        Assert.True(rig.Politics.OrderRaidMiningCamp(0, camp.Id, 12));
+        Expedition raid = Assert.Single(rig.Politics.Expeditions, e => e.Kind == ExpeditionKind.Raid && e.Civ == 0);
+        Assert.Equal(-1, raid.ToSettlement);
+        Assert.Equal(-1, raid.Id); // camp IDs do not share the caravan/explorer party namespace
+        Assert.Equal(camp.Id, raid.TargetCampId);
+        Assert.Equal(campTile, raid.TargetTile);
+
+        using var snapshot = new MemoryStream();
+        using (var writer = new BinaryWriter(snapshot, System.Text.Encoding.UTF8, leaveOpen: true)) rig.Match.WriteSnapshot(writer);
+        snapshot.Position = 0;
+        MatchModel resumed = MatchModel.Create(Seed, TestPack.Pack, World.Value, Balanced);
+        using (var reader = new BinaryReader(snapshot)) resumed.ReadSnapshot(reader);
+        Assert.Equal(rig.Match.ComputeChecksum(), resumed.ComputeChecksum());
+        var resumedRunner = new SimRunner(resumed, 50, rig.Runner.Tick);
+
+        var frame = new MatchFrame();
+        var frameBuilder = new FrameBuilder(rig.Match, 0);
+        frameBuilder.Build(rig.Match, frame);
+        int party = Enumerable.Range(0, frame.PartyCount)
+            .First(i => frame.PartyCiv[i] == 0 && frame.PartyTargetCiv[i] == 1 && frame.PartyKind[i] == (byte)ExpeditionKind.Raid);
+        Assert.Equal(-1, frame.PartyTo[party]);
+        Assert.Equal(campTile, frame.PartyToTile[party]);
+        ViewEvent launch = Enumerable.Range(0, frameBuilder.EventCount).Select(frameBuilder.Event)
+            .Last(e => e.Kind == ViewEventKind.RaidLaunched && e.Civ == 0);
+        Assert.Equal(-1, launch.Settlement);
+        Assert.Equal(campTile, launch.Tile);
+        Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.MiningCampRaidLaunched && e.B == campTile);
+
+        int arrivalSeason = raid.ArriveSeason;
+        Fix64 oreAtDeposit = camp.OreLeft;
+        int arrivalTicks = Math.Max(1, arrivalSeason - rig.Politics.Season + 1) * 150;
+        rig.Runner.Advance(arrivalTicks);
+        resumedRunner.Advance(arrivalTicks);
+
+        Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.RaidResolved && e.Civ == 0);
+        Assert.Equal(rig.Match.ComputeChecksum(), resumed.ComputeChecksum());
+        Fix64 deliveredValue = (rig.Economy.GoodStock(home, "G-CUORE") - homeStockBefore) * rig.Economy.GoodBarterValue("G-CUORE");
+        Assert.InRange(deliveredValue.ToDoubleForDisplay(), 0,
+            (Raids.CarryPerRaider * raid.Members.Count * Raids.DeliveredLootShare).ToDoubleForDisplay());
+        Assert.True(rig.Economy.GoodStock(parent, "G-CUORE") <= targetStockBefore);
+        Assert.True(rig.Economy.TryMiningCampById(camp.Id, out MiningCampView afterRaid));
+        Assert.Equal(oreAtDeposit, afterRaid.OreLeft); // a raid loots hauled stock, never underground ore
+    }
+
+    [Fact]
+    public void Def03_unlocks_palisade_construction_but_does_not_grant_one_to_every_settlement()
+    {
+        var rig = new Rig();
+        rig.Grant(0, "DEF-01", "DEF-02", "WOD-03", "DEF-03");
+        int home = rig.SettlementOf(0);
+        int palisade = LivingEconomyModel.StructureIndex("palisade");
+
+        Assert.True(palisade >= 0);
+        Assert.False(rig.Politics.MilitaryOf(home).Defenses.Palisade);
+
+        rig.Economy.FixtureBuildStructure(home, "palisade");
+
+        Assert.True(rig.Politics.MilitaryOf(home).Defenses.Palisade);
+        Assert.Equal(1, rig.Economy.StructureCount(home, palisade));
     }
 
     [Fact]

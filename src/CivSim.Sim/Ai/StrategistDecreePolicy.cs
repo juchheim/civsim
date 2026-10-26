@@ -26,6 +26,8 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     private readonly CouncilDecreePolicy _feasibility = new();
     private readonly List<DecreeRequest> _candidates = new();
     private readonly List<DecreeForecast> _forecasts = new();
+    private bool[] _foundFrontierSites = Array.Empty<bool>();
+    private byte[] _foundDonorProtectionCache = Array.Empty<byte>();
 
     public StrategistDecreePolicy(AiLog log, Belief belief, StrategicIntent intent)
     { _log = log; _belief = belief; _intent = intent; }
@@ -39,8 +41,24 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         _candidates.RemoveAll(candidate => candidate.Kind == DecreeKind.Expedition);
         AddBeliefExpeditionAlternatives(politics, civ, _belief, _candidates);
         _candidates.RemoveAll(candidate => !BeliefAllowsCandidate(_belief, civ, candidate));
+        ResearchViewForDecrees mandate = politics.DecreeResearch;
+        bool frontierFoundOpportunity = false;
+        byte[]? donorProtectionCache = null;
+        if (mandate.MandateUnlocked(civ))
+        {
+            if (_foundFrontierSites.Length < _belief.Map.TileCount) _foundFrontierSites = new bool[_belief.Map.TileCount];
+            if (_foundDonorProtectionCache.Length < politics.SettlementTotal)
+                _foundDonorProtectionCache = new byte[politics.SettlementTotal];
+            Array.Clear(_foundDonorProtectionCache, 0, politics.SettlementTotal);
+            donorProtectionCache = _foundDonorProtectionCache;
+            StrategistTuning.MarkRecentRivalFrontierSites(_belief, civ,
+                politics.ClaimRadiusOfEra(mandate.Era(civ)), _foundFrontierSites);
+            frontierFoundOpportunity = HasFrontierFoundOpportunity(politics, civ, _belief,
+                _foundFrontierSites, donorProtectionCache);
+        }
         AddBeliefKnownMineAlternatives(politics, civ, _belief, _candidates);
-        AddBeliefKnownFoundAlternatives(politics, civ, _belief, _candidates);
+        AddBeliefKnownFoundAlternatives(politics, civ, _belief, _candidates,
+            frontierFoundOpportunity ? _foundFrontierSites : null);
         AddWallCorveeAlternatives(politics, civ, _candidates);
         if (_intent.Plan == GrandPlan.SecureTin) AddBeliefKnownLevyAlternatives(politics, civ, _belief, _candidates);
         AddBeliefKnownTinCompactAlternatives(politics, civ, _belief, _candidates);
@@ -50,10 +68,17 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         // is resolved, and neither scoring nor logging mutates PoliticsSystem. Cache each result because
         // the mandate-cap scan and final selection both need it, and the winner is logged a second time.
         _forecasts.Clear();
+        bool hasFoundCandidate = false;
         foreach (DecreeRequest candidate in _candidates)
-            _forecasts.Add(DecreeForecaster.Forecast(politics, civ, candidate.Kind, candidate.Target, candidate.Extra, _belief));
+            if (candidate.Kind == DecreeKind.Found) { hasFoundCandidate = true; break; }
+        int? knownOwnedWeight = hasFoundCandidate && mandate.MandateUnlocked(civ) &&
+            mandate.Mandate(civ) >= politics.DecreeCost(civ, DecreeKind.Found)
+            ? DecreeForecaster.KnownOwnedHabitableWeight(politics, civ, _belief)
+            : null;
+        foreach (DecreeRequest candidate in _candidates)
+            _forecasts.Add(DecreeForecaster.Forecast(politics, civ, candidate.Kind, candidate.Target,
+                candidate.Extra, _belief, knownOwnedWeight, donorProtectionCache));
 
-        ResearchViewForDecrees mandate = politics.DecreeResearch;
         bool atMandateCap = mandate.Mandate(civ) >= mandate.MandateCap(civ);
         bool positivePaidAlternative = false;
         if (atMandateCap)
@@ -63,26 +88,46 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
                 if (politics.DecreeCost(civ, candidate.Kind) <= 0) continue;
                 DecreeForecast forecast = _forecasts[i];
                 Fix64 gross = GrossBenefit(politics, civ, candidate, forecast) +
-                    DefenseCorveeBonus(politics, candidate, forecast, _intent.DefenseUrgency) + SecureTinBonus(candidate);
+                    DefenseCorveeBonus(politics, candidate, forecast, _intent.DefenseUrgency) + SecureTinBonus(candidate) +
+                    FoundFrontierBonus(candidate);
                 if (CandidateNetEv(forecast, gross, Fix64.One) > Fix64.Zero) { positivePaidAlternative = true; break; }
             }
 
         int bestIndex = -1;
         Fix64 bestValue = Fix64.Zero;
+        bool reserveLogged = false;
         for (int i = 0; i < _candidates.Count; i++)
         {
             DecreeRequest candidate = _candidates[i];
             DecreeForecast forecast = _forecasts[i];
             Fix64 gross = GrossBenefit(politics, civ, candidate, forecast);
-            gross += DefenseCorveeBonus(politics, candidate, forecast, _intent.DefenseUrgency);
+            Fix64 defenseBonus = DefenseCorveeBonus(politics, candidate, forecast, _intent.DefenseUrgency);
+            gross += defenseBonus;
             Fix64 secureTinBonus = SecureTinBonus(candidate);
             gross += secureTinBonus;
+            Fix64 foundFrontierBonus = FoundFrontierBonus(candidate);
+            gross += foundFrontierBonus;
             Fix64 value = CandidateNetEv(forecast, gross, Fix64.One);
             _log.Add(new AiDecision((long)politics.Season * ResearchSystem.SeasonTicks, politics.Season, civ,
                 "Strategist", "DecreeCandidate", (int)candidate.Kind, candidate.Target, value,
-                Describe(candidate, forecast, gross, value, secureTinBonus)));
+                Describe(candidate, forecast, gross, value, secureTinBonus, foundFrontierBonus)));
             // A zero-valued candidate should not consume Mandate or suppress another action.
             if (value <= Fix64.Zero) continue;
+            if (ShouldReserveFrontierFoundMandate(candidate, politics.DecreeCost(civ, candidate.Kind),
+                    mandate.Mandate(civ), politics.DecreeCost(civ, DecreeKind.Found), frontierFoundOpportunity,
+                    urgentDefense: defenseBonus > Fix64.Zero))
+            {
+                if (!reserveLogged)
+                {
+                    reserveLogged = true;
+                    _log.Add(new AiDecision((long)politics.Season * ResearchSystem.SeasonTicks, politics.Season, civ,
+                        "Strategist", "DecreeReserve", (int)candidate.Kind, (int)DecreeKind.Found,
+                        Fix64.FromInt(mandate.Mandate(civ)),
+                        $"held {politics.DecreeCost(civ, DecreeKind.Found)} Mandate for a belief-legal frontier Found; " +
+                        $"skipped {candidate.Kind} cost {politics.DecreeCost(civ, candidate.Kind)}"));
+                }
+                continue;
+            }
             if (ShouldPreferMandateSpender(atMandateCap, positivePaidAlternative, politics.DecreeCost(civ, candidate.Kind))) continue;
             if (value > bestValue || value == bestValue && (bestIndex < 0 || Compare(candidate, _candidates[bestIndex]) < 0))
             {
@@ -99,9 +144,11 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         chosenGross += DefenseCorveeBonus(politics, chosen, chosenForecast, _intent.DefenseUrgency);
         Fix64 chosenSecureTinBonus = SecureTinBonus(chosen);
         chosenGross += chosenSecureTinBonus;
+        Fix64 chosenFoundFrontierBonus = FoundFrontierBonus(chosen);
+        chosenGross += chosenFoundFrontierBonus;
         _log.Add(new AiDecision((long)politics.Season * ResearchSystem.SeasonTicks, politics.Season, civ,
             "Strategist", "Decree", (int)chosen.Kind, chosen.Target, bestValue,
-            $"chosen; {Describe(chosen, chosenForecast, chosenGross, bestValue, chosenSecureTinBonus)}"));
+            $"chosen; {Describe(chosen, chosenForecast, chosenGross, bestValue, chosenSecureTinBonus, chosenFoundFrontierBonus)}"));
     }
 
     internal static bool ShouldPreferMandateSpender(bool atMandateCap, bool positivePaidAlternative, int candidateCost)
@@ -190,17 +237,54 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     }
 
     internal static void AddBeliefKnownFoundAlternatives(PoliticsSystem politics, int civ, Belief belief, List<DecreeRequest> candidates)
+        => AddBeliefKnownFoundAlternatives(politics, civ, belief, candidates, null);
+
+    internal static void AddBeliefKnownFoundAlternatives(PoliticsSystem politics, int civ, Belief belief,
+        List<DecreeRequest> candidates, bool[]? frontierSites)
     {
         ResearchViewForDecrees research = politics.DecreeResearch;
-        int mandate = research.Mandate(civ), cap = research.MandateCap(civ);
+        int mandate = research.Mandate(civ);
+        int foundCost = politics.DecreeCost(civ, DecreeKind.Found);
         int founded = politics.DecreesDone(civ, DecreeKind.Found);
-        if (mandate < cap || politics.DecreeCost(civ, DecreeKind.Found) > mandate || founded >= CouncilDecreePolicy.MaxFoundsPerAge ||
+        bool atMandateCap = mandate >= research.MandateCap(civ);
+        if ((!atMandateCap && frontierSites is null) || foundCost > mandate || founded >= CouncilDecreePolicy.MaxFoundsPerAge ||
             politics.E3Foundings(civ) - founded < founded + 1) return;
         for (int tile = 0; tile < belief.Map.TileCount; tile++)
         {
+            bool frontierMarked = unchecked((uint)tile) < (uint)(frontierSites?.Length ?? 0) && frontierSites![tile];
+            if (!ShouldAddFoundAlternative(mandate, research.MandateCap(civ), foundCost, frontierMarked)) continue;
             var request = new DecreeRequest(DecreeKind.Found, tile, 0);
             if (BeliefAllowsCandidate(belief, civ, request) && !Contains(candidates, request)) candidates.Add(request);
         }
+    }
+
+    internal static bool ShouldAddFoundAlternative(int mandate, int mandateCap, int foundCost, bool frontierMarked)
+        => mandate >= mandateCap || frontierMarked && mandate >= foundCost;
+
+    internal static bool ShouldReserveFrontierFoundMandate(DecreeRequest candidate, int candidateCost,
+        int currentMandate, int foundCost, bool frontierFoundOpportunity, bool urgentDefense)
+    {
+        // Protect accumulation toward Found, but once Found is affordable let the normal EV ranking decide.
+        if (!frontierFoundOpportunity || candidateCost <= 0 || currentMandate - candidateCost >= foundCost) return false;
+        return candidate.Kind == DecreeKind.Expedition ||
+            candidate.Kind == DecreeKind.Corvee && !urgentDefense;
+    }
+
+    private static bool HasFrontierFoundOpportunity(PoliticsSystem politics, int civ, Belief belief,
+        bool[] frontierSites, byte[]? donorProtectionCache)
+    {
+        int foundCost = politics.DecreeCost(civ, DecreeKind.Found);
+        int founded = politics.DecreesDone(civ, DecreeKind.Found);
+        if (foundCost <= 0 || founded >= CouncilDecreePolicy.MaxFoundsPerAge ||
+            politics.E3Foundings(civ) - founded < founded + 1) return false;
+        for (int tile = 0; tile < belief.Map.TileCount; tile++)
+        {
+            if (!frontierSites[tile]) continue;
+            var request = new DecreeRequest(DecreeKind.Found, tile, 0);
+            if (!BeliefAllowsCandidate(belief, civ, request)) continue;
+            if (DecreeForecaster.FoundOwnCheck(politics, civ, tile, belief, donorProtectionCache, out _) == 0) return true;
+        }
+        return false;
     }
 
     internal static void AddBeliefKnownLevyAlternatives(PoliticsSystem politics, int civ, Belief belief, List<DecreeRequest> candidates)
@@ -371,12 +455,19 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         return Fix64.FromInt(people) * (Fix64.One + forecast.ThreatMarginSeasons) / 10;
     }
 
-    private static string Describe(DecreeRequest candidate, DecreeForecast forecast, Fix64 gross, Fix64 net, Fix64 secureTinBonus)
+    private Fix64 FoundFrontierBonus(DecreeRequest candidate)
+        => candidate.Kind == DecreeKind.Found && unchecked((uint)candidate.Target) < (uint)_foundFrontierSites.Length &&
+            _foundFrontierSites[candidate.Target]
+            ? StrategistTuning.FoundFrontierContactBonus : Fix64.Zero;
+
+    private static string Describe(DecreeRequest candidate, DecreeForecast forecast, Fix64 gross, Fix64 net,
+        Fix64 secureTinBonus, Fix64 foundFrontierBonus)
         => $"{candidate.Kind} target {candidate.Target}; legal {forecast.Allowed}; success {forecast.SuccessPermille}/1000; " +
            $"people {forecast.People}, tiles {forecast.Tiles}, land weight {forecast.LandWeight}, Dominion {forecast.Dominion}, " +
            $"information {forecast.Information}, metal value {forecast.MetalValue}, goods {forecast.Goods}, " +
            $"walls ETA {forecast.WallEtaSeasons}, threat ETA {forecast.ThreatEtaSeasons}, margin {forecast.ThreatMarginSeasons}, relations {forecast.RelationsDelta}, " +
-           $"seasons {forecast.Seasons}; gross {gross}, SecureTin route bonus {secureTinBonus}, mandate cost {forecast.Cost}, net EV {net}";
+           $"seasons {forecast.Seasons}; gross {gross}, SecureTin route bonus {secureTinBonus}, " +
+           $"recent frontier contact bonus {foundFrontierBonus}, mandate cost {forecast.Cost}, net EV {net}";
 
     private static int Compare(DecreeRequest a, DecreeRequest b)
     {

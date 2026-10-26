@@ -60,7 +60,7 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
     private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight;
-    private readonly int _soc03;
+    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07;
     private long _tick;
 
     public ResearchSystem(ResearchCatalog catalog, IResearchSource source, ulong seed, ReadOnlySpan<ResearchCivSetup> setup)
@@ -93,6 +93,10 @@ public sealed partial class ResearchSystem : IResearchView
         _statPriest = catalog.StatIndex("priest_insight");
         _statRoleInsight = catalog.StatIndex("role_insight");
         _soc03 = catalog.IndexOf("SOC-03");
+        _trd04 = catalog.IndexOf("TRD-04");
+        _bel05 = catalog.IndexOf("BEL-05");
+        _bld05 = catalog.IndexOf("BLD-05");
+        _bld07 = catalog.IndexOf("BLD-07");
 
         int civs = source.CivCount;
         _civs = new CivResearch[civs];

@@ -53,6 +53,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly List<int> _current = new();
     private int[] _depth = Array.Empty<int>();
     private readonly List<int> _critical = new();
+    private bool _lateClosureCatchup;
     private int _met03 = -1, _met04 = -1, _met05 = -1, _min04 = -1, _trn05 = -1, _sea05 = -1;
 
     public ResearchSpark(AiSpec spec, DifficultyProfile profile)
@@ -588,7 +589,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         var best = new Node(Array.Empty<int>(), 0, LastBaseline.Utility);
         // Keystone routing (14 §4.2 step 4, §4.3): the most time-critical projects, the head of the next keystone's critical
         // path with its forced backfills, hold Primary and Secondary; the search orders everything after them.
-        CriticalProjects();
+        CriticalProjects(ctx);
         int firstDepth = 1;
         if (_critical.Count > 0)
         {
@@ -675,13 +676,17 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     /// <see cref="SparkTuning.ClosureSlots"/>; none when the closure has nothing available (its next steps are already in
     /// the slots' hands, or only breadth is missing, which any project of the era serves).
     /// </summary>
-    private void CriticalProjects()
+    private void CriticalProjects(AiContext ctx)
     {
         _critical.Clear();
+        _lateClosureCatchup = false;
         ForecastCatalog fc = _fc!;
         int key = fc.Catalog.KeystoneLeaving(_start.Era);
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         if (key < 0 || closure is null || _start.Done[key]) return;
+        if (_spec.Level == Difficulty.Chieftain && _start.Era == ResearchSystem.LastResearchEra)
+            foreach (RivalBelief rival in ctx.Belief.Rivals)
+                if (rival.Civ != ctx.Civ && rival.Era > _start.Era) { _lateClosureCatchup = true; break; }
         if (_state[key] is ProjectState.Available or ProjectState.Slotted) { _critical.Add(key); return; }
         int[] depth = _depth;
         Array.Clear(depth);
@@ -699,7 +704,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             }
             if (!changed) break;
         }
-        while (_critical.Count < SparkTuning.ClosureSlots)
+        int closureSlots = _lateClosureCatchup ? SparkTuning.LateCatchupClosureSlots
+            : _spec.Level == Difficulty.Chieftain && _start.Era == ResearchSystem.LastResearchEra
+                ? SparkTuning.ChieftainBronzeClosureSlots
+                : SparkTuning.ClosureSlots;
+        while (_critical.Count < closureSlots)
         {
             int best = -1;
             for (int p = 0; p < fc.Count; p++)
@@ -724,9 +733,12 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         // The civilization's own stream for this part and season (rule D3). AiContext.Stream would do, but its civ mixing
         // (civ × 0x9E3779B97F4A7C15 outside an unchecked block) overflows for civilization 2 and up; reported to the integrator.
         Pcg32 stream = Pcg32.ForStream(ctx.MatchSeed, StreamPart, (ulong)ctx.Civ, ctx.Season);
+        bool protectBronzeClosure = _spec.Level == Difficulty.Chieftain && _start.Era == ResearchSystem.LastResearchEra;
         for (int i = 0; i < _plan.Count; i++)
         {
-            if (stream.NextBelow(100) >= (uint)percent) continue;
+            uint roll = stream.NextBelow(100);
+            if ((_lateClosureCatchup || protectBronzeClosure) && _critical.Contains(_plan[i])) continue;
+            if (roll >= (uint)percent) continue;
             int pick = -1;
             Fix64 bestPrior = Fix64.Zero;
             foreach (int p in _fc!.Numeric)
@@ -775,6 +787,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private string Reason(int p)
     {
         ForecastCatalog fc = _fc!;
+        if (_lateClosureCatchup && _critical.Contains(p)) return "late KEY-4 catch-up";
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         if (fc.IsKeystone[p] || (closure is not null && closure[p])) return "keystone path";
         if (_lineageCode[p] is "DEF" or "WAR" && _value.Urgent[p] >= SparkTuning.DefenseBonus / 4)

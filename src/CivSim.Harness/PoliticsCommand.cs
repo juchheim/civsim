@@ -15,7 +15,7 @@ namespace CivSim.Harness;
 /// <code>
 /// civsim-harness politics --report-combat [--trials N]     the raid table, raid value and capture odds (docs/MVP/13 F3 to F5)
 /// civsim-harness politics --report-combat-e3 [--trials N]  Bronze raid and field tables (docs/MVP/22 §7.5)
-/// civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N] [--trace-seed N]  Bronze politics gates B17–B20 (docs/MVP/22 §16)
+/// civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N] [--trace-seed N] [--trace-all-seeds]  Bronze politics gates B17–B20 (docs/MVP/22 §16)
 /// </code>
 /// </summary>
 internal static class PoliticsCommand
@@ -28,6 +28,7 @@ internal static class PoliticsCommand
         string? packPath = null, checkGolden = null, writeGolden = null;
         bool checkM5 = false;
         bool checkM10 = false;
+        bool traceAllSeeds = false;
         int auditSeeds = 0, seedCount = 1;
         ulong seed = ResearchCommand.GoldenSeed;
         int minutes = 30;
@@ -46,6 +47,7 @@ internal static class PoliticsCommand
                 case "--write-golden": writeGolden = args[++i]; break;
                 case "--audit-contact": auditSeeds = 1; break;
                 case "--trace-seed": traceSeed = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--trace-all-seeds": traceAllSeeds = true; break;
                 case "--seeds": seedCount = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seed": seed = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); minutesSpecified = true; break;
@@ -58,7 +60,7 @@ internal static class PoliticsCommand
         if (combatE3) return ReportCombatE3(trials);
         if (packPath is null) throw new ArgumentException("politics needs --report-combat or --pack FILE.");
         if (checkM5) return CheckM5(packPath);
-        if (checkM10) return PoliticsM10.Execute(packPath, seed, seedCount, minutesSpecified ? minutes : 64, traceSeed);
+        if (checkM10) return PoliticsM10.Execute(packPath, seed, seedCount, minutesSpecified ? minutes : 64, traceSeed, traceAllSeeds);
         if (auditSeeds > 0) return AuditContact(packPath, seed, seedCount, archetypes);
         return ReportMatch(packPath, seed, minutes, archetypes, checkGolden, writeGolden);
     }

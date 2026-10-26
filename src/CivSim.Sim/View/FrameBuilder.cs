@@ -27,6 +27,7 @@ namespace CivSim.Sim.View;
 /// </summary>
 public sealed partial class FrameBuilder
 {
+    private static readonly int PalisadeStructure = LivingEconomyModel.StructureIndex("palisade");
     public const int DefaultEventCapacity = 1024;
     public const int DefaultEventWindow = 256;
 
@@ -46,7 +47,7 @@ public sealed partial class FrameBuilder
     private readonly int _width, _height, _tileCount, _civs;
     private readonly bool[] _passable;
     private readonly ResearchCatalog _catalog;
-    private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _def03, _stn10;
+    private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _stn10;
     private readonly int[] _boatProjects;
     private readonly (int Project, CivLook Look)[] _lookProjects;
     private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
@@ -121,7 +122,6 @@ public sealed partial class FrameBuilder
         _catalog = match.Research.Catalog;
         _war01 = _catalog.IndexOf("WAR-01"); _war04 = _catalog.IndexOf("WAR-04"); _hnt02 = _catalog.IndexOf("HNT-02");
         _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06");
-        _def03 = _catalog.IndexOf("DEF-03");
         _stn10 = _catalog.IndexOf("STN-10");
         _com04 = _catalog.IndexOf("COM-04");
         _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
@@ -449,7 +449,7 @@ public sealed partial class FrameBuilder
             if (!PartyShown(e)) continue;
             int p = _partyCount++;
             bool back = e.Kind == ExpeditionKind.Barter && e.Leg == 1 || e.Kind == ExpeditionKind.Explore && e.Leg == 1;
-            // Explorers and raids on caravans head for a tile, not a settlement (docs/MVP/22 §4.3, §6.3).
+            // Explorers, camp raids, and raids on caravans head for a tile, not a settlement (docs/MVP/22 §4.3, §6.3).
             int from = back ? e.ToSettlement : e.FromSettlement, to = back ? e.FromSettlement : e.ToSettlement;
             int fromTile = from >= 0 ? _sTile[from] : e.TargetTile, toTile = to >= 0 ? _sTile[to] : e.TargetTile;
             int seasons = match.Politics.TravelSeasons(e.Civ, fromTile, toTile);
@@ -937,7 +937,7 @@ public sealed partial class FrameBuilder
             target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
             if (eco.DefenseStructures(s, lookout: false) > 0) flags |= SettlementViewFlags.ThornBarrier;
             if (eco.DefenseStructures(s, lookout: true) > 0) flags |= SettlementViewFlags.Lookout;
-            if (!_sFree[s] && _def03 >= 0 && (_sCiv[s] >= 0 && _sCiv[s] < _civs) && research.IsDone(_sCiv[s], _def03))
+            if (PalisadeStructure >= 0 && eco.StructureCount(s, PalisadeStructure) > 0)
                 flags |= SettlementViewFlags.Palisade;
             if (_politics is { } pol && pol.TinFolk.Count > 0 && pol.IsTinFolk(s)) flags |= SettlementViewFlags.TinFolk | SettlementViewFlags.Palisade;
             if (own && eco.CorveeAt(s) >= 0) flags |= SettlementViewFlags.Corvee;
@@ -994,6 +994,7 @@ public sealed partial class FrameBuilder
             bool own = !_omniscient && camp.Civ == _viewer;
             if (!own && !Visible(camp.Tile)) continue;
             target.CampTile[w] = camp.Tile; target.CampCiv[w] = (sbyte)camp.Civ;
+            target.CampId[w] = -1;
             target.CampKind[w] = (byte)CampKind.Seasonal; target.CampParent[w] = camp.Settlement;
             target.CampDeposit[w] = (byte)DepositKind.None; target.CampCrew[w] = 0;
             target.CampBuilt[w] = 1; target.CampMineHead[w] = 0; w++;
@@ -1005,6 +1006,7 @@ public sealed partial class FrameBuilder
             bool own = !_omniscient && camp.Civilization == _viewer;
             if (!own && !Visible(camp.Tile)) continue;
             target.CampTile[w] = camp.Tile; target.CampCiv[w] = (sbyte)camp.Civilization;
+            target.CampId[w] = camp.Id;
             target.CampKind[w] = (byte)CampKind.Mining; target.CampParent[w] = camp.ParentSettlementIndex;
             target.CampDeposit[w] = (byte)camp.Deposit; target.CampCrew[w] = (short)Math.Clamp(camp.Crew, 0, short.MaxValue);
             target.CampBuilt[w] = camp.Built ? (byte)1 : (byte)0; target.CampMineHead[w] = camp.MineHead ? (byte)1 : (byte)0; w++;

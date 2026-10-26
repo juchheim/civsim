@@ -280,16 +280,25 @@ func tile_at(p: Vector2) -> int:
 		if yy < 0 or yy >= height:
 			continue
 		var off := 0.5 if (yy & 1) == 1 else 0.0
-		var cx := int(floor(p.x - off))
-		for xx in range(cx - 1, cx + 2):
-			if xx < 0 or xx >= width:
+		var q := p.x - off
+		var cx := int(floor(q))
+		# Centres in a row are one unit apart, so only the nearest column can
+		# win. At exact ties keep the lower column, matching the old ascending scan.
+		var xx := int(ceil(q)) - 1
+		if xx < 0:
+			if cx + 1 < 0:
 				continue
-			var dx := xx + 0.5 + off - p.x
-			var dz := (yy + 0.5) * S - p.y
-			var d := dx * dx + dz * dz
-			if d < bd:
-				bd = d
-				best = yy * width + xx
+			xx = 0
+		elif xx >= width:
+			if cx - 1 >= width:
+				continue
+			xx = width - 1
+		var dx := xx + 0.5 + off - p.x
+		var dz := (yy + 0.5) * S - p.y
+		var d := dx * dx + dz * dz
+		if d < bd:
+			bd = d
+			best = yy * width + xx
 	return best
 
 func height_at(p: Vector2) -> float:

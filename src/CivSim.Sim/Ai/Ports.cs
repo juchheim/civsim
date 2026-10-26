@@ -96,6 +96,7 @@ public sealed class AiOrders
     public bool IssueDecree(DecreeKind kind, int target, int extra) => _politics.IssueDecree(_civ, kind, target, extra, DecreeOrigin.Strategist);
     public bool SetEmbargo(int civ, TradeGood good, bool on) => _politics.OrderEmbargo(_civ, civ, good, on);
     public bool RaidCaravan(int caravanId, int partySize) => _politics.OrderRaidCaravan(_civ, caravanId, partySize);
+    public bool RaidMiningCamp(int campId, int partySize) => _politics.OrderRaidMiningCamp(_civ, campId, partySize);
     public void UseCouncilDecrees(bool on) => _politics.SetDecreePolicy(_civ, on ? new CouncilDecreePolicy() : null);
 }
 

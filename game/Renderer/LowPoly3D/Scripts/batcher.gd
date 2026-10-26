@@ -55,7 +55,8 @@ func update_existing(parent: Node3D, kit: M7MeshKit, material_for: Callable, pre
 			node.set_meta("civsim_mesh_name", String(g.mesh))
 			_configure_node(node, String(g.mesh))
 			parent.add_child(node)
-		mm.instance_count = int(g.count)
+		if mm.instance_count != int(g.count):
+			mm.instance_count = int(g.count)
 		mm.buffer = g.buffer
 		active[key] = node
 		instance_count += int(g.count)

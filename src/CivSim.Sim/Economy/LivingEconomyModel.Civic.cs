@@ -85,7 +85,7 @@ public sealed partial class LivingEconomyModel
         public byte ImportedOutbreak;
         public Fix64 Sanitation;
         /// <summary>Harness tracing only (never hashed or saved): the last season's civic plan and labor.</summary>
-        public Fix64 TracePlan, TraceLabor, TraceHousingWant;
+        public Fix64 TracePlan, TraceLabor, TraceHousingWant, TraceAvailableWork, TraceFoodShare, TraceCivicRequested, TraceCivicAssigned;
     }
 
     private readonly struct CivicConstants
@@ -123,6 +123,7 @@ public sealed partial class LivingEconomyModel
             CapitalClaimMult = K("CapitalClaimMult", "1.25");
             SpecialistRate = K("SpecialistRateMult", "1.3");
             LaborShare = K("CivicLaborShare", "0.10");
+            CityTempleLaborMultiplier = K("CityTempleLaborMultiplier", "1.5");
             MarketEvery = K("MarketEvery", "4").RoundToInt();
             CanalRiverDist = K("CanalRiverDist", "2").RoundToInt();
             CanalLabor = K("CanalLabor", "1");
@@ -150,7 +151,7 @@ public sealed partial class LivingEconomyModel
             OverreachFree, SpanPenalty, Conquered, ConqueredRecovery, ConqueredStart, TownMinPop, CityMinPop, DemoteSeasons,
             HinterlandRadius, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
         public readonly Fix64 Step, WorkMid, WorkRange, WorkSlope, FissionTrigger, Famine, Crowding, OverreachDivisor, DemoteShare,
-            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
+            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
             BakeryPeople, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
             BuildWood, Deadwood;
     }
@@ -440,17 +441,32 @@ public sealed partial class LivingEconomyModel
         if (s.Civic is not { } c || !CohesionLive(s)) return (Fix64.Zero, Fix64.Zero, Fix64.Zero);
         // A Market town builds its housing ahead (07d R2) with another share of the work on top of the civic structures.
         bool town = IsMarketTown(s);
-        Fix64 cap = totalWork * _civic.LaborShare * (town ? 2 : 1);
-        if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         Fix64 canals = Fix64.FromInt(CanalCandidates(s)) * _civic.CanalLabor;
         Fix64 housing = town ? HousingWant(s, c) : Fix64.Zero;
-        if (c.BuildKind == CivicBuild.None || !CanStillBuild(s, c.BuildKind))
+        c.TraceAvailableWork = totalWork;
+        CivicBuild cityEnabler = CityEnabler(s, c);
+        if (cityEnabler != CivicBuild.None && c.BuildKind != cityEnabler)
+        {
+            // A City-eligible Town may have an older optional project queued from before its research or population qualified.
+            // Switch the one civic slot to the structure that can establish City; its brick progress is not reusable here.
+            c.BuildKind = cityEnabler;
+            c.BuildProgress = Fix64.Zero;
+        }
+        else if (c.BuildKind == CivicBuild.None || !CanStillBuild(s, c.BuildKind))
         {
             c.BuildKind = ChooseCivic(s, c);
             c.BuildProgress = Fix64.Zero;
         }
+        Fix64 shareMultiplier = town ? Fix64.FromInt(2) : Fix64.One;
+        if (cityEnabler == CivicBuild.Temple && s.FoodSecurity >= Fix64.FromRatio(8, 10) &&
+            HousingCap(s) >= Fix64.FromInt(_civic.CityMinPop))
+            shareMultiplier *= _civic.CityTempleLaborMultiplier;
+        Fix64 cap = totalWork * _civic.LaborShare * shareMultiplier;
+        if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
+        bool prepareCityTemple = c.BuildKind == CivicBuild.Temple && ShouldPrepareCityTemple(s, c);
         Fix64 structure = Fix64.Zero;
-        if (c.BuildKind != CivicBuild.None && CivicMaterialsReady(s, c.BuildKind, check: true))
+        if (c.BuildKind != CivicBuild.None &&
+            (CivicMaterialsReady(s, c.BuildKind, check: true) || prepareCityTemple))
             structure = Fix64.Max(Fix64.Zero, CivicLabor(s, c.BuildKind) - c.BuildProgress) + CivicGatherLabor(s, c.BuildKind);
         Fix64 want = canals + housing + structure;
         c.TracePlan = want; c.TraceHousingWant = housing;
@@ -458,6 +474,29 @@ public sealed partial class LivingEconomyModel
         // The structure under way comes first; canals and a Market town's dwellings share what is left in proportion.
         return (Fix64.Min(cap, want), canals, housing);
     }
+
+    private CivicBuild CityEnabler(SettlementState s, CivicState c)
+    {
+        if (c.Tier < (byte)SettlementTier.Town || PalaceSite(s.Civilization) != s.Id) return CivicBuild.None;
+        // GOV-05 can start the Palace path before BEL-06 lands. Keep the work already invested in that City-enabling project.
+        if (c.BuildKind == CivicBuild.Palace && c.BuildProgress > Fix64.Zero && CanStillBuild(s, CivicBuild.Palace) &&
+            CivicMaterialsReady(s, CivicBuild.Palace, check: true)) return CivicBuild.Palace;
+        // Stage a Temple's bricks at the selected, large-capacity Town before SOC-09 and stone technology arrive.
+        // The shared civic-work cap protects housing, and the Temple itself still waits for BEL-06.
+        if (ShouldPrepareCityTemple(s, c)) return CivicBuild.Temple;
+        if (!Done(s.Civilization, "SOC-09") || c.Tier >= (byte)SettlementTier.City) return CivicBuild.None;
+        // A Temple is the cheaper City path. Keep the higher-material Palace for the later capital objective when both qualify.
+        if (Done(s.Civilization, "BEL-06") && c.Temples == 0 &&
+            CivicMaterialsReady(s, CivicBuild.Temple, check: true)) return CivicBuild.Temple;
+        CivicBuild candidate = ChooseCivic(s, c);
+        return candidate is CivicBuild.Temple or CivicBuild.Palace && CivicMaterialsReady(s, candidate, check: true)
+            ? candidate : CivicBuild.None;
+    }
+
+    private bool ShouldPrepareCityTemple(SettlementState s, CivicState c)
+        => c.Tier == (byte)SettlementTier.Town && c.Temples == 0 && PalaceSite(s.Civilization) == s.Id &&
+           HousingCap(s) >= Fix64.FromInt(_civic.CityMinPop) &&
+           Done(s.Civilization, "BEL-05") && Done(s.Civilization, "BLD-05");
 
     /// <summary>The dwelling a Market town builds ahead: a longhouse (25) where known, else wattle and daub (8), else a pit house (6).</summary>
     /// <summary>
@@ -505,19 +544,20 @@ public sealed partial class LivingEconomyModel
         return labor;
     }
 
-    private Fix64 WorkHousing(SettlementState s, CivicState c, Fix64 labor)
+    private Fix64 WorkHousing(SettlementState s, CivicState c, Fix64 labor, int protectedBricks)
     {
         var kind = (Structure)c.Dwelling;
         if (kind == Structure.Count || labor <= Fix64.Zero) return labor;
         (int wood, int clay, int bricks) = DwellingMaterials(kind);
-        labor = MakeCivicBricks(s, bricks, labor);
+        labor = MakeCivicBricks(s, bricks + protectedBricks, labor);
         labor = GatherMaterials(s, wood, 0, clay, labor);
         Fix64 need = DwellingLabor(s, kind);
         Fix64 put = Fix64.Min(labor, Fix64.Max(Fix64.Zero, need - c.DwellingProgress));
         c.DwellingProgress += put;
         labor -= put;
+        Fix64 brickReserve = Fix64.Min(Fix64.FromInt(protectedBricks), s.Stores[(int)Good.Mudbrick]);
         if (c.DwellingProgress < need || s.Stores[(int)Good.Wood] < Fix64.FromInt(wood) || s.Stores[(int)Good.Clay] < Fix64.FromInt(clay) ||
-            s.Stores[(int)Good.Mudbrick] < Fix64.FromInt(bricks)) return labor;
+            s.Stores[(int)Good.Mudbrick] - brickReserve < Fix64.FromInt(bricks)) return labor;
         s.Stores[(int)Good.Wood] -= Fix64.FromInt(wood);
         s.Stores[(int)Good.Clay] -= Fix64.FromInt(clay);
         s.Stores[(int)Good.Mudbrick] -= Fix64.FromInt(bricks);
@@ -554,7 +594,8 @@ public sealed partial class LivingEconomyModel
         return b switch
         {
             CivicBuild.Market => c.Markets == 0,
-            CivicBuild.Palace => !CivHasPalace(civ),
+            CivicBuild.Palace => !CivHasPalace(civ) &&
+                (c.BuildProgress > Fix64.Zero || PalaceSite(civ) == s.Id),
             CivicBuild.Temple => c.Temples == 0 && c.Tier >= 1,
             CivicBuild.School => c.Schools == 0 && c.Tier >= 1,
             CivicBuild.Bakery => c.Bakeries == 0 && c.Tier >= 1,
@@ -589,19 +630,44 @@ public sealed partial class LivingEconomyModel
         return false;
     }
 
-    /// <summary>Where the Palace goes (GOV-05): the civilization's largest Town, else its largest settlement.</summary>
+    /// <summary>
+    /// Where the Palace goes (GOV-05): keep a site once Palace labor has been invested; otherwise choose the Town with the
+    /// greatest food-bound growth capacity, then population. Market Towns fission against food and group capacity and build
+    /// housing ahead, so their current housing cap is not a good City-potential signal (07d R2).
+    /// </summary>
     private int PalaceSite(int civ)
     {
+        foreach (SettlementState s in _settlements)
+            if (IsMember(s, civ) && s.Civic is { BuildKind: CivicBuild.Palace } active && active.BuildProgress > Fix64.Zero)
+                return s.Id;
+
         int best = -1, bestPop = -1;
         bool bestTown = false;
+        Fix64 bestGrowthCapacity = Fix64.Zero;
         foreach (SettlementState s in _settlements)
         {
             if (!IsMember(s, civ)) continue;
             bool town = s.Civic is { Tier: >= 1 };
+            Fix64 growthCapacity = Fix64.Min(FoodCap(s), GroupCap(s));
             int pop = Population(s.Id);
-            if (best < 0 || (town && !bestTown) || (town == bestTown && pop > bestPop)) { best = s.Id; bestPop = pop; bestTown = town; }
+            if (best < 0 || BetterPalaceSite(town, growthCapacity, pop, s.Id, bestTown, bestGrowthCapacity, bestPop, best))
+            {
+                best = s.Id;
+                bestPop = pop;
+                bestTown = town;
+                bestGrowthCapacity = growthCapacity;
+            }
         }
         return best;
+    }
+
+    private static bool BetterPalaceSite(bool candidateTown, Fix64 candidateGrowthCapacity, int candidatePop, int candidateId,
+        bool bestTown, Fix64 bestGrowthCapacity, int bestPop, int bestId)
+    {
+        if (candidateTown != bestTown) return candidateTown;
+        if (candidateGrowthCapacity != bestGrowthCapacity) return candidateGrowthCapacity > bestGrowthCapacity;
+        if (candidatePop != bestPop) return candidatePop > bestPop;
+        return candidateId < bestId;
     }
 
     /// <summary>Labor of a civic structure (docs/MVP/23 §8) after NUM-04, STN-11, WOD-05 and the Wonder mods.</summary>
@@ -709,6 +775,11 @@ public sealed partial class LivingEconomyModel
         Fix64 marketFirst = c.BuildKind == CivicBuild.Market
             ? Fix64.Min(labor, Fix64.Max(Fix64.Zero, CivicLabor(s, c.BuildKind) - c.BuildProgress) + CivicGatherLabor(s, c.BuildKind)) : Fix64.Zero;
         labor -= marketFirst;
+        bool structureFirst = c.BuildKind is CivicBuild.Temple or CivicBuild.Palace &&
+            (CivicMaterialsReady(s, c.BuildKind, check: true) ||
+             c.BuildKind == CivicBuild.Temple && ShouldPrepareCityTemple(s, c));
+        if (structureFirst) labor = WorkCivicStructure(s, c, labor);
+        int protectedBricks = structureFirst && c.BuildKind != CivicBuild.None ? CivicMaterials(c.BuildKind).Mudbrick : 0;
         Fix64 housingPool = Fix64.Min(labor, housingWant);
         labor -= housingPool;
         Fix64 canalPool = Fix64.Min(labor, canalWant) + c.CanalProgress;
@@ -720,19 +791,41 @@ public sealed partial class LivingEconomyModel
         }
         c.CanalProgress = NextCanalTile(s) >= 0 ? Fix64.Min(canalPool, canalLabor) : Fix64.Zero;
         if (NextCanalTile(s) < 0) labor += canalPool;
-        labor += WorkHousing(s, c, housingPool) + marketFirst;
+        labor += WorkHousing(s, c, housingPool, protectedBricks) + marketFirst;
         if (c.BuildKind == CivicBuild.None) return;
-        labor = GatherCivicMaterials(s, c.BuildKind, labor);
-        c.BuildProgress = Fix64.Min(CivicLabor(s, c.BuildKind), c.BuildProgress + labor);
-        if (c.BuildProgress < CivicLabor(s, c.BuildKind) || !CivicMaterialsReady(s, c.BuildKind, check: false)) return;
-        PayCivic(s, c.BuildKind);
-        AddBuilt(c, c.BuildKind);
-        if (c.BuildKind == CivicBuild.Ziggurat) _wondersBuilt.Add((s.Civilization, "BLD-08"));
+        WorkCivicStructure(s, c, labor);
+    }
+
+    private Fix64 WorkCivicStructure(SettlementState s, CivicState c, Fix64 labor)
+    {
+        if (c.BuildKind == CivicBuild.None || labor <= Fix64.Zero) return labor;
+        CivicBuild building = c.BuildKind;
+        labor = GatherCivicMaterials(s, building, labor);
+        // BLD-07 unlocks the Temple frame, so its capped civic labor may advance before BEL-06.
+        // BEL-06 still gates completion in TryCompleteCivic.
+        if (building == CivicBuild.Temple && !Done(s.Civilization, "BEL-06") && !Done(s.Civilization, "BLD-07")) return labor;
+        Fix64 put = Fix64.Min(labor, Fix64.Max(Fix64.Zero, CivicLabor(s, building) - c.BuildProgress));
+        c.BuildProgress += put;
+        labor -= put;
+        TryCompleteCivic(s);
+        return labor;
+    }
+
+    /// <summary>Completes a fully worked structure once its final material arrives, including cut stone made after civic work.</summary>
+    private void TryCompleteCivic(SettlementState s)
+    {
+        if (s.Civic is not { } c || c.BuildKind == CivicBuild.None || c.BuildProgress < CivicLabor(s, c.BuildKind) ||
+            (c.BuildKind == CivicBuild.Temple && !Done(s.Civilization, "BEL-06")) ||
+            !CivicMaterialsReady(s, c.BuildKind, check: false)) return;
+        CivicBuild building = c.BuildKind;
+        PayCivic(s, building);
+        AddBuilt(c, building);
+        if (building == CivicBuild.Ziggurat) _wondersBuilt.Add((s.Civilization, "BLD-08"));
         c.BuildKind = CivicBuild.None;
         c.BuildProgress = Fix64.Zero;
     }
 
-    /// <summary>Labor the builders spend fetching a structure's wood, stone and clay themselves (bricks and cut stone are made by the crafts).</summary>
+    /// <summary>Labor the builders spend fetching a structure's wood, stone and clay, making its bricks and city-path masonry.</summary>
     private Fix64 CivicGatherLabor(SettlementState s, CivicBuild b)
     {
         (int wood, int stone, int clay, int brick, _) = CivicMaterials(b);
@@ -744,7 +837,100 @@ public sealed partial class LivingEconomyModel
         Fix64 clayRate = ClayRate(s, out _);
         if (clayRate > Fix64.Zero) labor += Fix64.Max(Fix64.Zero, Fix64.FromInt(clay) - s.Stores[(int)Good.Clay]) / clayRate;
         if (bricksMissing > Fix64.Zero && brickRate > Fix64.Zero) labor += bricksMissing / 10 * (Fix64.One / brickRate + Fix64.FromRatio(3, 10));
+        labor += CivicCutStoneGatherLabor(s, b);
         return labor;
+    }
+
+    /// <summary>Work for the active City path to quarry its required blocks and, for a Temple, dress them into ashlar.</summary>
+    private Fix64 CivicCutStoneGatherLabor(SettlementState s, CivicBuild building)
+    {
+        if (building is not (CivicBuild.Temple or CivicBuild.Palace) || s.Metal is not { } metal ||
+            !Done(s.Civilization, "MIN-03")) return Fix64.Zero;
+        (int _, int _, int _, int _, int cut) = CivicMaterials(building);
+        Fix64 held = metal.Goods[(int)MetalGood.Ashlar];
+        if (building == CivicBuild.Palace) held += metal.Goods[(int)MetalGood.Block];
+        Fix64 missing = Fix64.Max(Fix64.Zero, Fix64.FromInt(cut) - held);
+        if (missing <= Fix64.Zero) return Fix64.Zero;
+        Fix64 rangeStone = Fix64.Zero;
+        foreach (int tile in RangeTiles(s.SiteTile)) rangeStone += _stoneStock[tile];
+        Fix64 quarryRate = QuarryRate(s);
+        if (quarryRate <= Fix64.Zero || rangeStone <= Fix64.Zero) return Fix64.Zero;
+        if (building == CivicBuild.Palace) return Fix64.Min(missing, rangeStone) / quarryRate;
+
+        int recipeIndex = DressStoneRecipeIndex();
+        if (recipeIndex < 0 || !Done(s.Civilization, "STN-11")) return Fix64.Zero;
+        CompiledRecipe recipe = _compiledRecipes[recipeIndex];
+        if (!RecipeAvailable(s, recipe)) return Fix64.Zero;
+        Fix64 output = OutputQuantity(s, recipe);
+        Fix64 blockInput = InputQuantity(s, recipe, 0);
+        if (output <= Fix64.Zero || blockInput <= Fix64.Zero) return Fix64.Zero;
+        Fix64 batches = Fix64.Min(missing / output, (metal.Goods[(int)MetalGood.Block] + rangeStone) / blockInput);
+        Fix64 blocksToQuarry = Fix64.Max(Fix64.Zero, batches * blockInput - metal.Goods[(int)MetalGood.Block]);
+        bool anyMetalKit = false;
+        foreach (FigureState figure in _figures)
+            if (figure.SettlementId == s.Id && KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
+        return blocksToQuarry / quarryRate + batches * RecipeLabor(s, recipe, anyMetalKit);
+    }
+
+    /// <summary>Uses only the active City project's capped civic labor for its cut-stone material.</summary>
+    private Fix64 GatherCivicCutStone(SettlementState s, CivicBuild building, Fix64 labor)
+    {
+        if (labor <= Fix64.Zero || building is not (CivicBuild.Temple or CivicBuild.Palace) || s.Metal is not { } metal ||
+            !Done(s.Civilization, "MIN-03")) return labor;
+        (int _, int _, int _, int _, int cut) = CivicMaterials(building);
+        Fix64 held = metal.Goods[(int)MetalGood.Ashlar];
+        if (building == CivicBuild.Palace) held += metal.Goods[(int)MetalGood.Block];
+        Fix64 missing = Fix64.Max(Fix64.Zero, Fix64.FromInt(cut) - held);
+        if (missing <= Fix64.Zero) return labor;
+        Fix64 quarryRate = QuarryRate(s);
+        if (quarryRate <= Fix64.Zero) return labor;
+
+        if (building == CivicBuild.Palace)
+        {
+            Fix64 palaceRangeStone = Fix64.Zero;
+            foreach (int tile in RangeTiles(s.SiteTile)) palaceRangeStone += _stoneStock[tile];
+            Fix64 palaceQuarry = Fix64.Min(missing, Fix64.Min(palaceRangeStone, labor * quarryRate));
+            Fix64 got = TakeRangeStone(s, palaceQuarry);
+            metal.Goods[(int)MetalGood.Block] += got;
+            return Fix64.Max(Fix64.Zero, labor - got / quarryRate);
+        }
+
+        int recipeIndex = DressStoneRecipeIndex();
+        if (recipeIndex < 0 || !Done(s.Civilization, "STN-11")) return labor;
+        CompiledRecipe recipe = _compiledRecipes[recipeIndex];
+        if (!RecipeAvailable(s, recipe)) return labor;
+        Fix64 output = OutputQuantity(s, recipe);
+        Fix64 blockInput = InputQuantity(s, recipe, 0);
+        if (output <= Fix64.Zero || blockInput <= Fix64.Zero) return labor;
+        Fix64 batches = missing / output;
+        Fix64 blocksNeeded = batches * blockInput;
+        Fix64 missingBlocks = Fix64.Max(Fix64.Zero, blocksNeeded - metal.Goods[(int)MetalGood.Block]);
+        Fix64 rangeStone = Fix64.Zero;
+        foreach (int tile in RangeTiles(s.SiteTile)) rangeStone += _stoneStock[tile];
+        Fix64 quarry = Fix64.Min(missingBlocks, Fix64.Min(rangeStone, labor * quarryRate));
+        Fix64 gotBlocks = TakeRangeStone(s, quarry);
+        metal.Goods[(int)MetalGood.Block] += gotBlocks;
+        labor = Fix64.Max(Fix64.Zero, labor - gotBlocks / quarryRate);
+
+        bool anyMetalKit = false;
+        foreach (FigureState figure in _figures)
+            if (figure.SettlementId == s.Id && KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
+        Fix64 dressLabor = RecipeLabor(s, recipe, anyMetalKit);
+        if (dressLabor <= Fix64.Zero) return labor;
+        batches = Fix64.Min(batches, Fix64.Min(metal.Goods[(int)MetalGood.Block] / blockInput, labor / dressLabor));
+        if (batches <= Fix64.Zero) return labor;
+        metal.Goods[(int)MetalGood.Block] -= batches * blockInput;
+        Fix64 made = batches * output;
+        metal.Goods[(int)MetalGood.Ashlar] += made;
+        RecordRecipe(s.Civilization, recipe, batches, output);
+        return Fix64.Max(Fix64.Zero, labor - batches * dressLabor);
+    }
+
+    private int DressStoneRecipeIndex()
+    {
+        for (int i = 0; i < _compiledRecipes.Length; i++)
+            if (_compiledRecipes[i].Def.Id == "dress_stone") return i;
+        return -1;
     }
 
     /// <summary>Litres of timber a builder fells a work-season for a civic structure (the polished-axe rate, docs/MVP/23 §6.2).</summary>
@@ -758,7 +944,8 @@ public sealed partial class LivingEconomyModel
     {
         (int wood, int stone, int clay, int brick, _) = CivicMaterials(b);
         labor = MakeCivicBricks(s, brick, labor);
-        return GatherMaterials(s, wood, stone, clay, labor);
+        labor = GatherMaterials(s, wood, stone, clay, labor);
+        return GatherCivicCutStone(s, b, labor);
     }
 
     /// <summary>
@@ -869,15 +1056,29 @@ public sealed partial class LivingEconomyModel
     // ---- housing and the Market town rule (07d R2) ---------------------------------------------------------
 
     /// <summary>
-    /// The housing the planner builds toward: just in time (people + 8) in villages; in a settlement with a Market, ahead to
-    /// 0.85 × min(FoodCap, GroupCap) + 8 (07d R2: live villages are housing-bound; a Market town is food-bound).
+    /// The housing the planner builds toward: just in time (people + 8) in ordinary villages; ahead to
+    /// 0.85 × min(FoodCap, GroupCap) + 8 for a Market Town or a healthy, high-food future Market candidate (07d R2).
     /// </summary>
     private Fix64 HousingTarget(SettlementState s)
     {
         Fix64 target = Fix64.FromInt(Population(s.Id) + 8);
-        if (IsMarketTown(s))
+        if (ShouldBuildMarketHousingAhead(s))
             target = Fix64.Max(target, Fix64.FromRatio(85, 100) * Fix64.Min(FoodCap(s), GroupCap(s)) + Fix64.FromInt(8));
         return target;
+    }
+
+    /// <summary>
+    /// Start Market-style housing ahead for the future Market candidates before TRD-04 makes them Towns. The
+    /// population rank uses the same deterministic order as ChooseCivic's Market allocation, with a three-settlement
+    /// ceiling so a City-capable site can be prepared before Town promotion changes that ranking.
+    /// </summary>
+    private bool ShouldBuildMarketHousingAhead(SettlementState s)
+    {
+        if (IsMarketTown(s)) return true;
+        if (s.Civic is not null || !Done(s.Civilization, "TRD-03") ||
+            FoodCap(s) < Fix64.FromInt(_civic.CityMinPop) || s.FoodSecurity < Fix64.FromRatio(8, 10)) return false;
+        int marketCandidates = Math.Min(3, MemberCount(s.Civilization));
+        return AmongLargest(s, marketCandidates);
     }
 
     /// <summary>A settlement with a Market, or raising one: from the day its Market is chosen it keeps its people (07d R2).</summary>
@@ -1171,14 +1372,25 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState s = _settlements[settlementIndex];
         var t = new System.Text.StringBuilder();
+        Fix64 rangeStone = Fix64.Zero;
+        foreach (int tile in RangeTiles(s.SiteTile)) rangeStone += _stoneStock[tile];
         int pop = Population(s.Id);
         t.Append($"s{settlementIndex} pop {pop} food {FoodCap(s).ToDoubleForDisplay():F0} house {HousingCap(s).ToDoubleForDisplay():F0} group {GroupCap(s).ToDoubleForDisplay():F0} C {CohesionPoints(s.Cohesion)}");
-        t.Append($" fields {s.FieldTiles.Count}/{FieldLimit(s)} past {s.Structures[(int)Structure.Pasture]} cattle {s.DomesticCattle.ToDoubleForDisplay():F1} sheep {s.DomesticSmallStock.ToDoubleForDisplay():F1} brick {s.Stores[(int)Good.Mudbrick].ToDoubleForDisplay():F0} wood {s.Stores[(int)Good.Wood].ToDoubleForDisplay():F0} e2build {s.BuildTarget}:{s.BuildProgress.ToDoubleForDisplay():F1} clay {s.Stores[(int)Good.Clay].ToDoubleForDisplay():F1} straw {s.Stores[(int)Good.Straw].ToDoubleForDisplay():F0} stone {s.Stores[(int)Good.Stone].ToDoubleForDisplay():F0} bld05 {HasProject(s.Civilization, "BLD-05")} stn11 {HasProject(s.Civilization, "STN-11")} ashlar {(s.Metal?.Goods[(int)MetalGood.Ashlar] ?? Fix64.Zero).ToDoubleForDisplay():F1} wattle {s.Structures[(int)Structure.WattleHouse]} mud {s.Structures[(int)Structure.MudbrickHouse]} long {s.Structures[(int)Structure.Longhouse]}");
+        t.Append($" fields {s.FieldTiles.Count}/{FieldLimit(s)} past {s.Structures[(int)Structure.Pasture]} cattle {s.DomesticCattle.ToDoubleForDisplay():F1} sheep {s.DomesticSmallStock.ToDoubleForDisplay():F1} brick {s.Stores[(int)Good.Mudbrick].ToDoubleForDisplay():F0}+dry{s.DryingMudbrick.ToDoubleForDisplay():F1} wood {s.Stores[(int)Good.Wood].ToDoubleForDisplay():F0} e2build {s.BuildTarget}:{s.BuildProgress.ToDoubleForDisplay():F1} clay {s.Stores[(int)Good.Clay].ToDoubleForDisplay():F1} straw {s.Stores[(int)Good.Straw].ToDoubleForDisplay():F0} stone {s.Stores[(int)Good.Stone].ToDoubleForDisplay():F0} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {(s.Metal?.Goods[(int)MetalGood.Block] ?? Fix64.Zero).ToDoubleForDisplay():F1} bld05 {HasProject(s.Civilization, "BLD-05")} stn11 {HasProject(s.Civilization, "STN-11")} ashlar {(s.Metal?.Goods[(int)MetalGood.Ashlar] ?? Fix64.Zero).ToDoubleForDisplay():F1} wattle {s.Structures[(int)Structure.WattleHouse]} mud {s.Structures[(int)Structure.MudbrickHouse]} long {s.Structures[(int)Structure.Longhouse]}");
         Fix64 soil = Fix64.Zero;
         foreach (int tile in s.FieldTiles) if (_world.Tile(tile).SoilFertility > Fix64.Zero) soil += _soil[tile] / _world.Tile(tile).SoilFertility;
         if (s.FieldTiles.Count > 0) t.Append($" soil {(soil / s.FieldTiles.Count).ToDoubleForDisplay():F2}");
         if (s.Civic is { } c)
-            t.Append($" | tier {c.Tier} mkt {c.Markets} tmp {c.Temples} pal {c.Palaces} sch {c.Schools} bak {c.Bakeries} hall {c.Halls} zig {c.Ziggurats} canals {c.Canals.Count} build {c.BuildKind}:{c.BuildProgress.ToDoubleForDisplay():F1} target {c.Target} plan {c.TracePlan.ToDoubleForDisplay():F1} housewant {c.TraceHousingWant.ToDoubleForDisplay():F1} labor {c.TraceLabor.ToDoubleForDisplay():F2} dwell {(Structure)c.Dwelling}:{c.DwellingProgress.ToDoubleForDisplay():F1} horses {c.Horses} outbreak {c.Outbreak} san {c.Sanitation.ToDoubleForDisplay():F2} fvm {c.FoodValueMult.ToDoubleForDisplay():F3}");
+            t.Append($" | tier {c.Tier} mkt {c.Markets} tmp {c.Temples} pal {c.Palaces} sch {c.Schools} bak {c.Bakeries} hall {c.Halls} zig {c.Ziggurats} canals {c.Canals.Count} build {c.BuildKind}:{c.BuildProgress.ToDoubleForDisplay():F1} cohesionTarget {c.Target} avail {c.TraceAvailableWork.ToDoubleForDisplay():F1} foodShare {c.TraceFoodShare.ToDoubleForDisplay():P0} civicPlan {c.TraceCivicRequested.ToDoubleForDisplay():F2}/{c.TraceCivicAssigned.ToDoubleForDisplay():F2} plan {c.TracePlan.ToDoubleForDisplay():F1} housewant {c.TraceHousingWant.ToDoubleForDisplay():F1} labor {c.TraceLabor.ToDoubleForDisplay():F2} dwell {(Structure)c.Dwelling}:{c.DwellingProgress.ToDoubleForDisplay():F1} horses {c.Horses} outbreak {c.Outbreak} san {c.Sanitation.ToDoubleForDisplay():F2} fvm {c.FoodValueMult.ToDoubleForDisplay():F3} fissions{s.Fissions} lastFission{s.LastFissionSeason} pending{s.FissionPending} cityHold{ShouldPreserveCityTown(s)} citySite{PalaceSite(s.Civilization)} templePrep{ShouldPrepareCityTemple(s, c)} foodCap{FoodCap(s).ToDoubleForDisplay():F1}");
+        else
+        {
+            bool traceWarmShelter = s.Structures[(int)Structure.PitHouse] > 0 || s.Structures[(int)Structure.WattleHouse] > 0 ||
+                s.Structures[(int)Structure.MudbrickHouse] > 0 || s.Structures[(int)Structure.Longhouse] > 0;
+            bool traceBasicShelter = traceWarmShelter || s.Structures[(int)Structure.LeanTo] > 0 || s.Structures[(int)Structure.HideTent] > 0;
+            bool traceMarketAhead = ShouldBuildMarketHousingAhead(s);
+            bool traceNeedsHousing = HousingCap(s) < (traceMarketAhead ? HousingTarget(s) : Fix64.FromInt(pop + 8));
+            t.Append($" | village fissions{s.Fissions} lastFission{s.LastFissionSeason} pending{s.FissionPending} citySite{PalaceSite(s.Civilization)} marketAhead{traceMarketAhead} housingTarget{HousingTarget(s).ToDoubleForDisplay():F1} needsHousing{traceNeedsHousing} leanToAllowed{CanBuild(s.Civilization, Structure.LeanTo)} basicShelter{traceBasicShelter} warmShelter{traceWarmShelter} foodSecurity{s.FoodSecurity.ToDoubleForDisplay():F2} winterShare{s.LateWinterFoodShare.ToDoubleForDisplay():F2} winterThreshold{(LeanFoodCapacity(s) * Fix64.Clamp(s.LateWinterFoodShare, Fix64.Zero, Fix64.One)).ToDoubleForDisplay():F1} fissionScale{FissionThresholdScale(s.Civilization).ToDoubleForDisplay():F2}");
+        }
         return t.ToString();
     }
 

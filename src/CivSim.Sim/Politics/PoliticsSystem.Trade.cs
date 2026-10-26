@@ -653,6 +653,32 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         return true;
     }
 
+    /// <summary>A raid on a directly sighted mining camp; the target is the camp's stable id, not its mutable list index.</summary>
+    public bool OrderRaidMiningCamp(int c, int campId, int partySize)
+    {
+        if (!_economy.BronzeActive || !_research.IsDone(c, _p.War02) || !_economy.TryMiningCampById(campId, out MiningCampView camp) ||
+            camp.Crew < 2 || camp.OreLeft <= Fix64.Zero) return false;
+        int owner = camp.Civilization;
+        if (owner == c || !_dip.Contacted(c, owner) || _dip.Allied(c, owner) || _dip.InTruce(c, owner, _season) || HasPact(c, owner)) return false;
+        int origin = BestOrigin(c, camp.Tile);
+        if (origin < 0) return false;
+        int travel = Travel(c, _sTile[origin], camp.Tile);
+        if (travel == int.MaxValue) return false;
+        List<Fighter> party = PickParty(origin, c, Math.Max(4, partySize), attacking: true, out List<long> ids, battleTile: camp.Tile);
+        if (party.Count < 4) return false;
+        var raid = new Expedition
+        {
+            Kind = ExpeditionKind.Raid, Civ = c, TargetCiv = owner, FromSettlement = origin,
+            ToSettlement = -1, TargetTile = camp.Tile, TargetCampId = camp.Id,
+            ArriveSeason = _season + SeasonsFor(travel),
+        };
+        for (int i = 0; i < ids.Count; i++) { raid.Members.Add(ids[i]); raid.Strengths.Add(party[i].Strength); }
+        _expeditions.Add(raid);
+        RaidCount++;
+        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.MiningCampRaidLaunched, owner, party.Count, camp.Tile));
+        return true;
+    }
+
     /// <summary>The raiders meet the caravan on the road: its crew fights in the open; on success the cargo is theirs (docs/MVP/22 §6.3).</summary>
     private void ArriveCaravanRaid(Expedition raid)
     {

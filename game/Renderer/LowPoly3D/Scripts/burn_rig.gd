@@ -40,6 +40,8 @@ var smoke_factory: Callable
 var holder: Node3D
 var events: Array = []              # {kind, tiles, ignite, center, first, last}
 var signature := -1
+var _ring_tiles_by_village: Dictionary = {}
+var _patch_candidates_by_kind: Dictionary = {}
 
 var image: Image
 var texture: ImageTexture
@@ -137,6 +139,23 @@ func _ring_tiles(start: int, near: int, far: int) -> Array:
 		frontier = next
 	return out
 
+func _patch_candidates(start: int, forest: bool) -> Array:
+	var key := start * 2 + int(forest)
+	if _patch_candidates_by_kind.has(key):
+		return _patch_candidates_by_kind[key]
+	var w: M7WorldData = b.w
+	var ring: Array = _ring_tiles_by_village.get(start, [])
+	if ring.is_empty():
+		ring = _ring_tiles(start, 1, 3)
+		_ring_tiles_by_village[start] = ring
+	var candidates: Array = []
+	for tile in ring:
+		var ok: bool = _is_forest(w.biome[tile]) if forest else _is_grass(w.biome[tile])
+		if ok and _usable(tile):
+			candidates.append(tile)
+	_patch_candidates_by_kind[key] = candidates
+	return candidates
+
 ## Where a patch may go. Only things that never change (land, the tile's kind, its distance from the village) decide this: a past
 ## year's patch must stand where it did, whatever the claims and fields have become since. Within three tiles of a village is inside
 ## the ground it holds from the first eras on (claim radius 3 to 4).
@@ -147,11 +166,7 @@ func _usable(tile: int) -> bool:
 ## walks across them.
 func _patch(st: int, civ: int, year: int, forest: bool) -> Dictionary:
 	var w: M7WorldData = b.w
-	var candidates: Array = []
-	for t in _ring_tiles(st, 1, 3):
-		var ok: bool = _is_forest(w.biome[t]) if forest else _is_grass(w.biome[t])
-		if ok and _usable(t):
-			candidates.append(t)
+	var candidates: Array = _patch_candidates(st, forest)
 	if candidates.is_empty():
 		return {}
 	var centre: int = candidates[int(M7WorldData.hash01(st, year, 61 if not forest else 63) * candidates.size()) % candidates.size()]
@@ -226,7 +241,7 @@ static func _ramp(x: float, a: float, b2: float) -> float:
 	return clampf((x - a) / (b2 - a), 0.0, 1.0)
 
 ## [char, grass gone, trees gone, glow, flush] for a tile `age` ticks after it ignited.
-static func _state(kind: int, age: float) -> Array:
+static func _state(kind: int, age: float) -> Vector4:
 	var glow := 0.0
 	if age < GLOW_END:
 		glow = _ramp(age, 0.0, GLOW_RISE) * (1.0 - _ramp(age, GLOW_RISE, GLOW_END))
@@ -235,10 +250,7 @@ static func _state(kind: int, age: float) -> Array:
 	var trees := 0.0
 	if kind == 1:
 		trees = 1.0 - _ramp(age, TREE_BACK_FROM, TREE_BACK_END)
-	var flush := 0.0
-	if kind == 0 and age > FLUSH_FROM and age < FLUSH_END:
-		flush = sin(PI * _ramp(age, FLUSH_FROM, FLUSH_END))
-	return [scar, grass, trees, glow, flush]
+	return Vector4(scar, grass, trees, glow)
 
 func update(tick: float) -> void:
 	var w: M7WorldData = b.w
@@ -258,11 +270,12 @@ func update(tick: float) -> void:
 				continue
 			var tile: int = (e.tiles as PackedInt32Array)[i]
 			var st := _state(kind, age)
-			var a: float = 0.5 + 0.5 * float(st[3]) if float(st[3]) > 0.02 else 0.5 * float(st[4])
+			var flush := sin(PI * _ramp(age, FLUSH_FROM, FLUSH_END)) if kind == 0 and age > FLUSH_FROM and age < FLUSH_END else 0.0
+			var a: float = 0.5 + 0.5 * st.w if st.w > 0.02 else 0.5 * flush
 			var prev: Vector4 = now.get(tile, Vector4.ZERO)
-			now[tile] = Vector4(maxf(prev.x, st[0]), maxf(prev.y, st[1]), maxf(prev.z, st[2]), maxf(prev.w, a))
-			if float(st[3]) > 0.05:
-				glowing.append([tile, float(st[3]), ei, age])
+			now[tile] = Vector4(maxf(prev.x, st.x), maxf(prev.y, st.y), maxf(prev.z, st.z), maxf(prev.w, a))
+			if st.w > 0.05:
+				glowing.append([tile, st.w, ei])
 	# only tiles whose quantised value changed are repainted
 	var changed: Array = []
 	for tile in now:
