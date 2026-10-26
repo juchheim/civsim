@@ -11,7 +11,9 @@ config_version=5
 [application]
 
 config/name="CivSim"
-run/main_scene="res://Main.tscn"
+run/main_scene="res://Startup.tscn"
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.839216, 0.756863, 0.607843, 1)
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [display]
