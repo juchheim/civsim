@@ -83,7 +83,7 @@ public partial class Game
         RefreshCompass();
     }
 
-    private void FrameCapital()
+    private void FrameCapital(bool instant = false)
     {
         if (_current is null || _camera is null) return;
         int selected = -1;
@@ -102,7 +102,7 @@ public partial class Game
         var target = new Vector3(center.X + 0.3f, _terrainHeights[tile], center.Z + 0.2f);
         _yaw = _yawTarget = Mathf.DegToRad(30.0f);
         _pitch = Mathf.DegToRad(40.0f);
-        MoveCameraTo(target, 5.0f, instant: !_hudReady);
+        MoveCameraTo(target, 5.0f, instant: instant || !_hudReady);
     }
 
     private void FocusTile(int tile)

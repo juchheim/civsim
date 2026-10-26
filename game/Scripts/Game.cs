@@ -161,7 +161,7 @@ public partial class Game : Node3D
             ReadOverlayArgument();
             CreateHud(seed);
             UpdateKnownResources(_current);
-            FrameCapital();
+            FrameCapital(instant: true);
             ReadCaptureArgument();
             _benchmarkSeconds = ReadBenchmarkSeconds();
             _benchmarkConfigured = _benchmarkSeconds > 0;
