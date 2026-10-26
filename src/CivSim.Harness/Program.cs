@@ -71,7 +71,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6 | --check-a7 | --check-b7 | --check-b8 | --check-m10 | --exploit) [--seeds N] [--first-seed N] [--minutes N] [--screen-minutes N] [--generations N] [--children N] [--archetype X]");
         Console.Error.WriteLine("       civsim-harness research --pack FILE [--seed N] [--minutes N] [--bot grower|builder|wanderer|none] [--archetypes a,b,c,d] [--trace] [--record FILE] [--check-golden FILE | --write-golden FILE] [--check-bronze-golden FILE | --write-bronze-golden FILE] [--check-c5] [--check-m10 [--seeds a,b,c] [--human-seat N]] [--check-b21 [--seeds a,b,c] [--minutes N]]");
         Console.Error.WriteLine("       civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]");
-        Console.Error.WriteLine("       civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N]");
+        Console.Error.WriteLine("       civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N] [--trace-seed N | --trace-all-seeds]");
         Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 [--s1-probe] | --s12 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");
         Console.Error.WriteLine("         --s1-probe runs a bounded diagnostic replay probe (max 32 matches, 64 minutes); always INCOMPLETE, exit 2.");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");

@@ -13,7 +13,7 @@ namespace CivSim.Sim.Ai;
 /// <summary>One of the civilization's own settlements, exactly (docs/MVP/14 §3.1: "Self: exact").</summary>
 public sealed class OwnSettlement
 {
-    public int Index, Tile, Population, Adults, Fighters, Warriors;
+    public int Index, Tile, Population, Adults, Fighters, Warriors, IdleFighters;
     public Fix64 DefendingStrength, AttackingStrength, FoodStores, FoodSecurity, LateWinterForecast, Cohesion;
     public Defenses Defenses;
 }
@@ -25,6 +25,14 @@ public sealed class PairView
     public bool Aware, Contacted, AtWar, Allied, InTruce, NonAggressionPact, TinEmbargoed;
     public int Relations, Reputation;
     public int LastGiftSeason, LastBarterSeason, LastRaidOnThemSeason, LastRaidOnUsSeason;
+}
+
+/// <summary>A currently gathered levy host for one target, visible exactly to its owner (docs/MVP/22 §4.3).</summary>
+public sealed class OwnLevy
+{
+    public int TargetSettlement;
+    public readonly List<Fighter> Members = new();
+    public readonly Dictionary<int, int> Departures = new();
 }
 
 /// <summary>The civilization's own state, exact, rebuilt every season before it decides (docs/MVP/14 §3.1).</summary>
@@ -41,6 +49,7 @@ public sealed class OwnView
     public Fix64 InsightPerYear, Dominion, Legacy;
     public Posture Posture;
     public readonly List<OwnSettlement> Settlements = new();
+    public readonly List<OwnLevy> Levies = new();
     public readonly List<int> Beacons = new();
     public PairView[] Others = Array.Empty<PairView>();
     /// <summary>Own parties on the road: raids, assaults, gifts and barter, by kind.</summary>
@@ -73,8 +82,27 @@ internal static class OwnViewBuilder
         view.Dominion = politics.Territory.Dominion(civ);
         view.ClaimedTiles = politics.Territory.OwnedTiles(civ);
         view.Settlements.Clear();
+        view.Levies.Clear();
         view.Beacons.Clear();
         foreach (int b in politics.BeaconsOf(civ)) view.Beacons.Add(b);
+        var ownSettlementById = new Dictionary<int, int>();
+        for (int settlement = 0; settlement < politics.SettlementTotal; settlement++)
+            if (politics.SettlementCivOf(settlement) == civ && !politics.IsFreeFolk(settlement))
+                ownSettlementById[economy.SettlementLite(settlement).Id] = settlement;
+        foreach (Levy levy in politics.Levies)
+        {
+            if (levy.Civ != civ || levy.UntilSeason <= politics.Season) continue;
+            var ownLevy = new OwnLevy { TargetSettlement = levy.TargetSettlement };
+            for (int i = 0; i < levy.Members.Count; i++)
+            {
+                long id = levy.Members[i];
+                if (!economy.TryFigure(id, out FigureView figure) || economy.IsWounded(id)) continue;
+                ownLevy.Members.Add(new Fighter(id, levy.Strengths[i]));
+                if (ownSettlementById.TryGetValue(figure.SettlementId, out int settlement))
+                    ownLevy.Departures[settlement] = ownLevy.Departures.GetValueOrDefault(settlement) + 1;
+            }
+            view.Levies.Add(ownLevy);
+        }
         view.Population = 0;
         view.Adults = 0;
         ForecastBronzeStart bronze = view.Bronze;
@@ -117,6 +145,11 @@ internal static class OwnViewBuilder
             SettlementMilitary m = politics.MilitaryOf(s);
             int pop = politics.SettlementPopulationOf(s);
             MetalReadout metal = economy.Metal(s);
+            var fightingAge = new List<LivingEconomyModel.FighterRecord>();
+            economy.ListFightingAge(s, fightingAge);
+            int idleFighters = 0;
+            foreach (LivingEconomyModel.FighterRecord fighter in fightingAge)
+                if (!fighter.Wounded && economy.IsIdle(fighter.Id)) idleFighters++;
             bronze.BestCastTier = Math.Max(bronze.BestCastTier, metal.CastTier);
             totalKits8 += metal.Kits8; totalKits9 += metal.Kits9; totalKits10 += metal.Kits10;
             (int overreach, int spanPenalty) = economy.CohesionPressures(s);
@@ -130,7 +163,7 @@ internal static class OwnViewBuilder
             bronze.SettlementCount++;
             view.Settlements.Add(new OwnSettlement
             {
-                Index = s, Tile = politics.SettlementTileOf(s), Population = pop, Adults = m.Adults, Fighters = m.Fighters,
+                Index = s, Tile = politics.SettlementTileOf(s), Population = pop, Adults = m.Adults, Fighters = m.Fighters, IdleFighters = idleFighters,
                 Warriors = m.Warriors, DefendingStrength = m.DefendingStrength, AttackingStrength = m.AttackingStrength,
                 FoodStores = m.FoodStores, FoodSecurity = lite.LastFoodSecurity, LateWinterForecast = lite.LateWinterFoodForecast,
                 Cohesion = economy.SettlementCohesion(s), Defenses = m.Defenses,

@@ -89,6 +89,8 @@ public static class Raids
 
     public static readonly Fix64 SurprisedShare = Fix64.FromRatio(40, 100);
     public static readonly Fix64 AlertShare = Fix64.FromRatio(52, 100);
+    /// <summary>Share of carried goods that reaches the home settlement (the other 20% is lost on the return journey).</summary>
+    public static readonly Fix64 DeliveredLootShare = Fix64.FromRatio(8, 10);
 
     public static RaidOutcome Resolve(IReadOnlyList<Fighter> raiders, IReadOnlyList<Fighter> defenders, in Defenses defenses,
         bool raiderRanged, ulong seed, ulong stream)

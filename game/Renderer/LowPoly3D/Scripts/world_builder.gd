@@ -31,6 +31,7 @@ var terrain_builder: M7TerrainBuilder
 var settlement_props: Node3D
 var actor_props: Node3D
 var vegetation_props: Node3D
+var settlement_multimeshes := {}
 var actor_multimeshes := {}
 var herd_props: Node3D
 var herd_multimeshes := {}
@@ -198,7 +199,7 @@ func update_frame() -> bool:
 		props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
 		_settlements()
 		_camps()
-		_replace_props_node(settlement_props, "SettlementProps", props)
+		settlement_multimeshes = props.update_existing(settlement_props, kit, _material_for, settlement_multimeshes)
 		props = M7Batcher.new()
 	rig.set_monuments(w.monuments, structure_signature)
 	var settlements_updated := Time.get_ticks_usec()
@@ -268,6 +269,9 @@ func _build_props_node(node_name: String, batcher: M7Batcher) -> Node3D:
 	if node_name == "Actors":
 		actor_multimeshes = batcher.update_existing(node, kit, _material_for, {})
 		count = batcher.instance_count
+	elif node_name == "SettlementProps":
+		settlement_multimeshes = batcher.update_existing(node, kit, _material_for, {})
+		count = batcher.instance_count
 	elif node_name == "Herds":
 		herd_multimeshes = batcher.update_existing(node, kit, _material_for, {})
 		count = batcher.instance_count
@@ -315,12 +319,20 @@ const FIELD_MESHES := ["field", "field_ard", "field_fallow"]
 
 func _structure_digest() -> int:
 	var h := 17
-	for s in w.settlements:
+	var flagships := _flagships()
+	for si in w.settlements.size():
+		var s: Dictionary = w.settlements[si]
 		h = h * 31 + int(s.tile)
-		h = h * 31 + int(s.civ)
-		h = h * 31 + int(s.population / 8)           # the fleet's size steps with it
-		h = h * 31 + (w.sea_tier[int(s.civ)] if int(s.civ) >= 0 and int(s.civ) < w.sea_tier.size() else 0)
-		h = h * 31 + (w.civ_looks[int(s.civ)] if int(s.civ) >= 0 and int(s.civ) < w.civ_looks.size() else 0)
+		var civ := int(s.civ)
+		h = h * 31 + civ
+		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
+		h = h * 31 + sea
+		h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
+		if not bool(s.get("remembered")):
+			h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), int(s.population))
+			if sea > 0:
+				h = h * 31 + clampi(int(s.population) / 8, 1, 4)
+			h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
 		for n in s.structures:
 			h = h * 31 + int(n)
 		for n in s.get("decor", PackedInt32Array()):
@@ -889,6 +901,55 @@ const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "pithouse": 6, "wattle": 8, "mu
 const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2}
 const DWELL_MAX_EACH := 10
 const DWELL_MAX_TOTAL := 36
+
+func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
+	var K := M7WorldData.Kind
+	var built_tent := int(st[K.HIDE_TENT]) + int(st[K.LEAN_TO])
+	var built_pithouse := int(st[K.PIT_HOUSE])
+	var built_wattle := int(st[K.WATTLE_HOUSE])
+	var built_mudbrick := int(st[K.MUDBRICK_HOUSE])
+	var built_longhouse := int(st[K.LONGHOUSE])
+	var shown_hall := mini(halls, DWELL_MAX_EACH)
+	var shown_longhouse := mini(built_longhouse, DWELL_MAX_EACH)
+	var shown_mudbrick := mini(built_mudbrick, DWELL_MAX_EACH)
+	var shown_wattle := mini(built_wattle, DWELL_MAX_EACH)
+	var shown_pithouse := mini(built_pithouse, DWELL_MAX_EACH)
+	var shown_tent := mini(built_tent, DWELL_MAX_EACH)
+	var shown_leanto := 0
+	if built_pithouse + built_wattle + built_mudbrick + built_longhouse > 0:
+		shown_tent = 0
+	if built_wattle + built_mudbrick + built_longhouse > 0:
+		shown_pithouse = 0
+	if built_mudbrick + built_longhouse > 0:
+		shown_wattle = 0
+	var covered := shown_hall * int(DWELL_CAPACITY.hall) + shown_longhouse * int(DWELL_CAPACITY.longhouse) \
+		+ shown_mudbrick * int(DWELL_CAPACITY.mudbrick) + shown_wattle * int(DWELL_CAPACITY.wattle) \
+		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_tent * int(DWELL_CAPACITY.tent)
+	var short := maxi(0, pop - covered)
+	var extra_type := ""
+	var extra_count := 0
+	if short > 0:
+		var filler := "tent"
+		if built_pithouse > 0:
+			filler = "pithouse"
+		if built_wattle > 0:
+			filler = "wattle"
+		if built_mudbrick > 0:
+			filler = "mudbrick"
+		if filler == "tent" and built_longhouse > 0 and built_pithouse + built_wattle + built_mudbrick == 0:
+			filler = "longhouse"
+		extra_type = filler
+		extra_count = mini(ceili(float(short) / float(DWELL_CAPACITY[filler])), maxi(0, DWELL_MAX_TOTAL \
+			- shown_hall - shown_longhouse - shown_mudbrick - shown_wattle - shown_pithouse - shown_tent - shown_leanto))
+	if shown_hall + shown_longhouse + shown_mudbrick + shown_wattle + shown_pithouse + shown_tent + shown_leanto + extra_count == 0 and pop > 0:
+		extra_type = "tent"
+		extra_count = 1
+	var signature := 17
+	for count in [shown_hall, shown_longhouse, shown_mudbrick, shown_wattle, shown_pithouse, shown_tent, shown_leanto]:
+		signature = signature * 31 + count
+	signature = signature * 31 + (hash(extra_type) if extra_count > 0 else 0)
+	signature = signature * 31 + extra_count
+	return signature
 
 func _item_radius(mesh_name: String) -> float:
 	return DWELL_RADIUS.get(mesh_name, 0.075)

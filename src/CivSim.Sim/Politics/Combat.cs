@@ -98,7 +98,14 @@ public static class Combat
 
         for (rounds = 1; rounds <= setup.MaxRounds; rounds++)
         {
-            if (a.Empty || d.Empty) break;
+            if (a.Empty || d.Empty)
+            {
+                // A ranged opening volley (or a defense with nobody mobilized) can end the fight before
+                // the first exchange. The side still standing controls the field; only mutual absence
+                // is a stand-off.
+                if (a.Empty != d.Empty) winner = a.Empty ? BattleWinner.Defender : BattleWinner.Attacker;
+                break;
+            }
             Fix64 attack = a.Strength * setup.AttackerMult;
             Fix64 defend = d.Strength * setup.DefenderMult;
             if (setup.DefendersSurprised && rounds == 1) defend = defend * Fix64.Half;

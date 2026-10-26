@@ -140,11 +140,12 @@ public class StrategistScenarioTests
     [Fact]
     public void It_refuses_a_raid_on_a_palisade_and_raids_an_undefended_neighbour()
     {
-        // Palisades, ditches and lookouts at the neighbour's (the palisade stands two seasons after DEF-03).
+        // Give the neighbor built defenses; DEF-03 only unlocks palisade construction.
         string[] spears = { "WAR-01", "HNT-02", "HNT-03", "HNT-04", "WAR-02" };
         StrategistRig walled = Resume();
         walled.Grant(0, spears);
         walled.Grant(1, "DEF-01", "DEF-02", "WOD-03", "DEF-03");
+        foreach (int settlement in walled.SettlementsOf(1)) walled.Match.Economy.FixtureBuildStructure(settlement, "palisade");
         walled.Grant(1, Bows); // and warriors with bows behind it (13 §5.5: "palisade + warriors", 5% success)
         walled.Politics.Diplomacy.Set(0, 1, -40);
         walled.Seasons(8);

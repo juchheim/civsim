@@ -112,8 +112,7 @@ internal static class BronzeAiGates
                     refused += match.Politics.DecreesRefused(civ, (DecreeKind)kind);
                 }
                 var standing = Scoring.Of(match, civ);
-                double legacy = standing.Dominion.ToDoubleForDisplay() + standing.Mastery.ToDoubleForDisplay() +
-                    standing.Firsts.ToDoubleForDisplay();
+                double legacy = standing.Legacy.ToDoubleForDisplay();
                 parts.Add($"{label}:civ{civ} legacy={legacy:F1} done(F/E/M/L/C/Cm)={counts[1]}/{counts[2]}/{counts[3]}/{counts[4]}/{counts[5]}/{counts[6]} refused={refused}");
             }
             foreach (PoliticsEvent e in match.Politics.Events)

@@ -63,6 +63,11 @@ public class StrategistDecisionTests
             r.WeaponStrength = Fix64.FromRatio(13, 10);
         }
 
+        public void ExploreAll()
+        {
+            for (int tile = 0; tile < Map.TileCount; tile++) Map.MarkExplored(tile);
+        }
+
         public BeliefSettlement Site(int civ, int settlement, int tile, int fighters, bool palisade = false, bool watchers = false,
             int seenAgo = 0, bool stoneWalls = false, bool distress = false)
         {
@@ -202,6 +207,73 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Raid_shortlist_keeps_near_targets_and_reserves_one_slot_for_the_weakest_belief()
+    {
+        var origin = new OwnSettlement();
+        Strategist.RaidTargetOption Target(int id, int distance, int fighters, bool palisade = false, bool distress = false) =>
+            new(new Site
+            {
+                Settlement = id, Fighters = fighters, PerDefend = Fix64.One,
+                Defenses = new Defenses(false, palisade, false, false, false, false, false, false, false, false),
+                Distress = distress,
+            }, origin, distance);
+
+        var candidates = new[]
+        {
+            Target(1, 2, 20, palisade: true),
+            Target(2, 3, 18, palisade: true),
+            Target(3, 4, 10),
+            Target(4, 5, 5),
+            Target(5, 6, 5, distress: true),
+        };
+
+        List<Strategist.RaidTargetOption> selected = Strategist.SelectRaidTargets(candidates, 3);
+        List<Strategist.RaidTargetOption> reversed = Strategist.SelectRaidTargets(candidates.Reverse().ToArray(), 3);
+
+        Assert.Equal(new[] { 1, 2, 5 }, selected.Select(x => x.Site.Settlement));
+        Assert.Equal(selected.Select(x => x.Site.Settlement), reversed.Select(x => x.Site.Settlement));
+        Assert.Equal(3, selected.Count);
+    }
+
+    [Fact]
+    public void War_shortlist_ignores_stale_sites_and_breaks_equal_defense_by_existing_near_order()
+    {
+        Site Target(int id, int stale, int fighters) => new()
+        {
+            Settlement = id, Stale = stale, Fighters = fighters, PerDefend = Fix64.One,
+        };
+        Site[] nearestFirst =
+        {
+            Target(1, StrategistTuning.StaleSeasons + 1, 1),
+            Target(2, 0, 20),
+            Target(3, 0, 18),
+            Target(4, 0, 5),
+            Target(5, 0, 5),
+        };
+
+        List<Site> selected = Strategist.SelectWarTargets(nearestFirst, 3);
+
+        Assert.Equal(new[] { 2, 3, 4 }, selected.Select(site => site.Settlement));
+    }
+
+    [Fact]
+    public void Raid_decision_can_choose_a_weak_target_beyond_the_nearest_three_sightings()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(42, 40), fighters: 22, palisade: true, watchers: true);
+        scene.Site(1, settlement: 6, tile: T(43, 40), fighters: 22, palisade: true, watchers: true);
+        scene.Site(1, settlement: 7, tile: T(44, 40), fighters: 22, palisade: true, watchers: true);
+        scene.Site(1, settlement: 8, tile: T(52, 40), fighters: 6);
+        scene.Contact(1, relations: -60);
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.True(act.Orders.Any(order => order.StartsWith("raid 8 ", StringComparison.Ordinal)),
+            $"orders: {string.Join(";", act.Orders)}; rejected: {string.Join(" | ", scene.Notes("RaidRejected").Select(note => note.Reason))}");
+        Assert.Contains(scene.Notes("Raid"), note => note.Subject == 8);
+    }
+
+    [Fact]
     public void Does_not_send_a_four_or_five_person_party_against_a_seen_palisade_and_watchers()
     {
         // B20 trace shape: a small home garrison can spare only four or five fighters, while the freshly seen target
@@ -249,6 +321,180 @@ public class StrategistDecisionTests
         big.BlindSite(1, settlement: 6, tile: T(28, 40), population: 60);
         Assert.DoesNotContain(Decide(big).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
         Assert.Contains(big.Notes("RaidRejected"), n => n.Reason.Contains("rejected"));
+    }
+
+    [Fact]
+    public void Requests_a_levy_when_a_safe_host_makes_an_otherwise_unviable_raid_pay()
+    {
+        var scene = new Scene();
+        scene.ExploreAll();
+        scene.Contact(1, relations: 0);
+        scene.Own.Settlements.Add(new OwnSettlement
+        {
+            Index = 4, Tile = T(42, 40), Population = 40, Adults = 16, Fighters = 14,
+            AttackingStrength = Fix64.FromRatio(224, 10), DefendingStrength = Fix64.FromInt(14),
+            FoodSecurity = Fix64.One, LateWinterForecast = Fix64.One,
+        });
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 20);
+        var act = new ActionRecorder { Mandate = 1 };
+
+        new Strategist(new AiSpec(scene.Level, scene.Archetype), DifficultyProfile.From(TestPack.Pack, scene.Level))
+            .Decide(scene.View(), act);
+
+        Assert.Contains("decree Levy 5 0", act.Orders);
+        AiDecision request = Assert.Single(scene.Notes("RaidLevy"));
+        Assert.Contains("with 14 levy host", request.Reason);
+        Assert.DoesNotContain(act.Orders, order => order.StartsWith("raid 5 ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Raids_a_freshly_seen_mining_camp_when_its_open_ground_forecast_pays()
+    {
+        var scene = new Scene();
+        scene.Belief.Rivals[1].MiningCampsSeen.Add(new BeliefMiningCamp
+        {
+            Id = 42, Tile = T(52, 40), LastSeenSeason = scene.Season, CrewEstimate = 2, Deposit = DepositKind.CopperOre,
+        });
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.Contains(act.Orders, order => order.StartsWith("raid-mine 42 ", StringComparison.Ordinal));
+        Assert.Contains(scene.Notes("Raid"), note => note.Subject == 42 && note.Other == 1 && note.Reason.Contains("mining camp 42"));
+    }
+
+    [Fact]
+    public void Does_not_raid_a_stale_mining_camp_sighting()
+    {
+        var scene = new Scene();
+        scene.Belief.Rivals[1].MiningCampsSeen.Add(new BeliefMiningCamp
+        {
+            Id = 42, Tile = T(52, 40), LastSeenSeason = scene.Season - StrategistTuning.StaleSeasons - 1,
+            CrewEstimate = 2, Deposit = DepositKind.CopperOre,
+        });
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.DoesNotContain(act.Orders, order => order.StartsWith("raid-mine ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Does_not_request_a_levy_when_posture_or_an_existing_raid_blocks_launch()
+    {
+        Scene MakeScene()
+        {
+            var scene = new Scene();
+            scene.ExploreAll();
+            scene.Own.Settlements.Add(new OwnSettlement
+            {
+                Index = 4, Tile = T(42, 40), Population = 40, Adults = 16, Fighters = 14,
+                AttackingStrength = Fix64.FromRatio(224, 10), DefendingStrength = Fix64.FromInt(14),
+                FoodSecurity = Fix64.One, LateWinterForecast = Fix64.One,
+            });
+            scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 20);
+            return scene;
+        }
+
+        Scene fortified = MakeScene();
+        fortified.Own.Posture = Posture.Fortify;
+        var fortifyActions = new ActionRecorder { Mandate = 1 };
+        new Strategist(new AiSpec(fortified.Level, fortified.Archetype), DifficultyProfile.From(TestPack.Pack, fortified.Level))
+            .Decide(fortified.View(), fortifyActions);
+        Assert.DoesNotContain(fortifyActions.Orders, order => order.StartsWith("decree Levy", StringComparison.Ordinal));
+
+        Scene busy = MakeScene();
+        busy.Own.RaidsOnTheRoad = 1;
+        var busyActions = new ActionRecorder { Mandate = 1 };
+        new Strategist(new AiSpec(busy.Level, busy.Archetype), DifficultyProfile.From(TestPack.Pack, busy.Level))
+            .Decide(busy.View(), busyActions);
+        Assert.DoesNotContain(busyActions.Orders, order => order.StartsWith("decree Levy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Does_not_forecast_a_levy_across_an_unexplored_route()
+    {
+        var scene = new Scene();
+        scene.Own.Settlements.Add(new OwnSettlement
+        {
+            Index = 4, Tile = T(42, 40), Population = 40, Adults = 16, Fighters = 14,
+            AttackingStrength = Fix64.FromRatio(224, 10), DefendingStrength = Fix64.FromInt(14),
+            FoodSecurity = Fix64.One, LateWinterForecast = Fix64.One,
+        });
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 20);
+        scene.Map.MarkExplored(T(42, 40));
+        scene.Map.MarkExplored(T(52, 40));
+        var actions = new ActionRecorder { Mandate = 1 };
+
+        Decide(scene).Item1.Decide(scene.View(), actions);
+
+        Assert.DoesNotContain(actions.Orders, order => order.StartsWith("decree Levy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Fresh_sighting_overrides_the_rival_wide_palisade_technology_prior()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 20);
+        scene.Belief.Rivals[1].ProjectBelieved[TestPack.Catalog.IndexOf("DEF-03")] = true;
+
+        Decide(scene);
+
+        Assert.Contains(scene.Notes("RaidRejected"), note => !note.Reason.Contains("palisade seen"));
+    }
+
+    [Fact]
+    public void Uses_the_exact_active_levy_host_when_forecasting_a_matching_raid()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 20);
+        var levy = new OwnLevy { TargetSettlement = 5 };
+        for (int i = 0; i < 14; i++) levy.Members.Add(new Fighter(1_000 + i, Fix64.FromRatio(184, 100)));
+        levy.Departures.Add(0, 10);
+        scene.Own.Levies.Add(levy);
+        var act = new ActionRecorder();
+
+        new Strategist(new AiSpec(scene.Level, scene.Archetype), DifficultyProfile.From(TestPack.Pack, scene.Level))
+            .Decide(scene.View(), act);
+
+        Assert.Contains("raid 5 14", act.Orders);
+        AiDecision request = Assert.Single(scene.Notes("Raid"));
+        Assert.Contains("14 levy host", request.Reason);
+    }
+
+    [Fact]
+    public void Does_not_forecast_a_normal_party_when_a_matching_levy_is_depleted()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 8);
+        var levy = new OwnLevy { TargetSettlement = 5 };
+        for (int i = 0; i < 3; i++) levy.Members.Add(new Fighter(1_000 + i, Fix64.FromRatio(184, 100)));
+        scene.Own.Levies.Add(levy);
+        var act = new ActionRecorder();
+
+        Decide(scene).Item1.Decide(scene.View(), act);
+
+        Assert.DoesNotContain(act.Orders, order => order.StartsWith("raid 5 ", StringComparison.Ordinal));
+        Assert.DoesNotContain(act.Orders, order => order.StartsWith("decree Levy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Counterattack_forecast_counts_an_active_levy_departure_from_home()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(52, 40), fighters: 20);
+        scene.Contact(2, relations: -60);
+        scene.Own.Others[2].AtWar = true;
+        scene.Belief.Rivals[2].Era = 2;
+        scene.Site(2, settlement: 10, tile: T(41, 40), fighters: 50);
+        var levy = new OwnLevy { TargetSettlement = 5 };
+        for (int i = 0; i < 14; i++) levy.Members.Add(new Fighter(1_000 + i, Fix64.FromRatio(184, 100)));
+        levy.Departures.Add(0, 10);
+        scene.Own.Levies.Add(levy);
+        var act = new ActionRecorder();
+
+        Decide(scene).Item1.Decide(scene.View(), act);
+
+        Assert.DoesNotContain(act.Orders, order => order.StartsWith("raid 5 ", StringComparison.Ordinal));
+        Assert.Contains(scene.Notes("RaidRejected"), note => note.Reason.Contains("could take settlement"));
     }
 
     [Fact]
@@ -314,11 +560,11 @@ public class StrategistDecisionTests
     [Fact]
     public void The_head_count_estimate_is_only_for_levels_that_cannot_see_fighters()
     {
-        // At Full, a village believed to have no fighters is believed to have none: the old reading is unchanged there.
+        // At Full, a village believed to have no fighters stays undefended; its small stores do not justify the social cost.
         var scene = new Scene { Level = Difficulty.Warlord };
         scene.BlindSite(1, settlement: 6, tile: T(28, 40), population: 9);
         Assert.DoesNotContain(Decide(scene).Item2.Orders, o => o.StartsWith("raid", StringComparison.Ordinal));
-        Assert.Contains(scene.Notes("RaidRejected"), n => n.Reason.Contains("success 0.00"));
+        Assert.Contains(scene.Notes("RaidRejected"), n => n.Reason.Contains("expected value"));
     }
 
     [Fact]
@@ -505,6 +751,139 @@ public class StrategistDecisionTests
         (_, ActionRecorder peace) = Decide(losing);
         Assert.Contains("peace 1", peace.Orders);
         Assert.Contains(losing.Notes("Peace"), n => n.Reason.Contains("cannot win"));
+    }
+
+    [Fact]
+    public void War_threshold_distinguishes_inferred_palisades_from_observed_ones()
+    {
+        static Scene MakeBlind(int ownFighters)
+        {
+            var scene = new Scene { Level = Difficulty.Chieftain, Archetype = EconomyArchetype.Warlord };
+            OwnSettlement own = scene.Own.Settlements[0];
+            own.Fighters = ownFighters;
+            own.Adults = ownFighters;
+            own.AttackingStrength = Fix64.FromInt(ownFighters) * Fix64.FromRatio(27, 10);
+            own.DefendingStrength = Fix64.FromInt(ownFighters);
+            own.LateWinterForecast = Fix64.One;
+            scene.Own.Adults = ownFighters;
+            scene.Own.Population = ownFighters;
+            scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+            scene.BlindSite(1, settlement: 6, tile: T(28, 40), population: 18);
+            scene.Belief.Rivals[1].Era = 3;
+            return scene;
+        }
+
+        // At 30 own fighters the same blind Era 3 site lands just below 1.8 after applying its inferred walls.
+        Scene below = MakeBlind(30);
+        (_, ActionRecorder belowAct) = Decide(below);
+        Assert.DoesNotContain(belowAct.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
+        AiDecision belowNote = Assert.Single(below.Notes("WarRejected"));
+        Assert.Contains("ratio 1.79 (need 1.80, palisade)", belowNote.Reason);
+
+        // At 32 own fighters the full inferred defense model is retained, but its 1.8 planning gate permits the campaign.
+        Scene inferred = MakeBlind(32);
+        (_, ActionRecorder inferredAct) = Decide(inferred);
+        Assert.Contains("war 1", inferredAct.Orders);
+        Assert.Contains("assault 6", inferredAct.Orders);
+        AiDecision inferredWar = Assert.Single(inferred.Notes("War"));
+        Assert.Contains("need 1.80, palisade", inferredWar.Reason);
+        Assert.True(inferredWar.Score > StrategistTuning.WarRatioInferredPalisade);
+        Assert.True(inferredWar.Score < StrategistTuning.WarRatioPalisade);
+
+        // The same roughly 1.89 ratio remains below the 2.0 gate when a Full opponent has actually seen the palisade.
+        Scene observed = new Scene { Level = Difficulty.Warlord, Archetype = EconomyArchetype.Warlord };
+        OwnSettlement observedOwn = observed.Own.Settlements[0];
+        observedOwn.Fighters = 32;
+        observedOwn.Adults = 32;
+        observedOwn.AttackingStrength = Fix64.FromInt(32) * Fix64.FromRatio(27, 10);
+        observedOwn.DefendingStrength = Fix64.FromInt(32);
+        observedOwn.LateWinterForecast = Fix64.One;
+        observed.Own.Adults = observed.Own.Population = 32;
+        observed.Own.Others[1].Relations = observed.Belief.Rivals[1].Relations = -60;
+        BeliefSettlement seen = observed.Site(1, settlement: 6, tile: T(28, 40), fighters: 6, palisade: true);
+        seen.DefendingStrengthEstimate = Fix64.FromInt(19) * Fix64.FromRatio(27, 10) * StrategistTuning.PartyPickBonus
+            / Fix64.Parse("1.89") / Fix64.FromRatio(22, 10) * Fix64.FromRatio(6, 7);
+        observed.Belief.Rivals[1].Era = 3;
+
+        (_, ActionRecorder observedAct) = Decide(observed);
+        Assert.DoesNotContain(observedAct.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
+        AiDecision observedNote = Assert.Single(observed.Notes("WarRejected"));
+        Assert.Contains("need 2.00, palisade", observedNote.Reason);
+        Assert.True(observedNote.Score >= Fix64.FromRatio(188, 100) && observedNote.Score <= Fix64.FromRatio(190, 100),
+            $"Observed-palisade ratio was {observedNote.Score}");
+    }
+
+    [Fact]
+    public void War_search_reserves_one_evaluation_for_the_weakest_site_beyond_the_nearest_three()
+    {
+        var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+        OwnSettlement own = scene.Own.Settlements[0];
+        own.Fighters = 30;
+        own.Adults = 30;
+        own.AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+        own.DefendingStrength = Fix64.FromInt(80);
+        scene.Own.Adults = 30;
+        scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+        scene.Belief.Rivals[1].WeaponStrength = Fix64.FromRatio(1, 10); // weak field army; strong sites below remain costly to assault
+
+        foreach ((int id, int x) in new[] { (5, 42), (6, 43), (7, 44) })
+        {
+            BeliefSettlement defended = scene.Site(1, settlement: id, tile: T(x, 40), fighters: 22);
+            defended.DefendingStrengthEstimate = Fix64.FromInt(440);
+        }
+        scene.Site(1, settlement: 8, tile: T(45, 40), fighters: 6);
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.Contains("war 1", act.Orders);
+        Assert.Contains("assault 8", act.Orders);
+        Assert.Contains(scene.Notes("Assault"), note => note.Subject == 8);
+    }
+
+    [Fact]
+    public void Counterattack_forecast_does_not_pool_distant_rival_garrisons()
+    {
+        Scene MakeScene(int secondClusterX)
+        {
+            var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+            OwnSettlement own = scene.Own.Settlements[0];
+            own.Fighters = 30;
+            own.Adults = 30;
+            own.AttackingStrength = Fix64.FromInt(81);
+            own.DefendingStrength = Fix64.FromInt(30);
+            scene.Own.Adults = 30;
+            scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+
+            scene.Site(1, settlement: 6, tile: T(42, 40), fighters: 6);
+            BeliefSettlement nearby = scene.Site(1, settlement: 7, tile: T(40, 42), fighters: 10);
+            BeliefSettlement second = scene.Site(1, settlement: 8, tile: T(secondClusterX, 40), fighters: 10);
+            // These sites contribute fighters to a counterattack, but are too strongly defended to become alternate war targets.
+            nearby.DefendingStrengthEstimate = second.DefendingStrengthEstimate = Fix64.FromInt(100);
+            nearby.PopulationEstimate = second.PopulationEstimate = 1;
+            scene.Belief.Rivals[1].PopulationLow = scene.Belief.Rivals[1].PopulationHigh = 20;
+            return scene;
+        }
+
+        Scene dispersed = MakeScene(secondClusterX: 53);
+        (_, ActionRecorder canGatherOneCluster) = Decide(dispersed);
+        Assert.Contains("war 1", canGatherOneCluster.Orders);
+        Assert.Contains("assault 6", canGatherOneCluster.Orders);
+
+        // The same two garrisons can veto the launch when they are close enough to join one campaign.
+        Scene gathered = MakeScene(secondClusterX: 45);
+        (_, ActionRecorder cannotGatherTwoClusters) = Decide(gathered);
+        Assert.DoesNotContain(cannotGatherTwoClusters.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
+        Assert.Contains(gathered.Notes("WarRejected"), note => note.Reason.Contains("could take our settlement 0"));
+    }
+
+    [Theory]
+    [InlineData(35, 1, 2)]
+    [InlineData(151, 2, 3)]
+    public void War_capture_forecast_counts_arrival_season_relief_before_each_holding_season(
+        int population, int holdingSeasons, int expectedReliefChecks)
+    {
+        Assert.Equal(holdingSeasons, Captures.OccupationSeasons(population));
+        Assert.Equal(expectedReliefChecks, Strategist.OccupationReliefChecks(population));
     }
 
     [Fact]

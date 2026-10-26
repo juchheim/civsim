@@ -157,6 +157,8 @@ public sealed class MatchFrame
     // ---- camps and Beacons --------------------------------------------------------------------
     public int CampCount;
     public int[] CampTile = Array.Empty<int>();
+    /// <summary>Stable mining camp id, or -1 for seasonal camps.</summary>
+    public int[] CampId = Array.Empty<int>();
     public sbyte[] CampCiv = Array.Empty<sbyte>();
     /// <summary><see cref="CampKind"/>; seasonal politics camps are 0, mining camps are 1.</summary>
     public byte[] CampKind = Array.Empty<byte>();
@@ -409,7 +411,7 @@ public sealed class MatchFrame
     internal void EnsureCamps(int n)
     {
         if (CampTile.Length >= n) return;
-        Ensure(ref CampTile, n); Ensure(ref CampCiv, n); Ensure(ref CampKind, n); Ensure(ref CampParent, n);
+        Ensure(ref CampTile, n); Ensure(ref CampId, n); Ensure(ref CampCiv, n); Ensure(ref CampKind, n); Ensure(ref CampParent, n);
         Ensure(ref CampDeposit, n); Ensure(ref CampCrew, n); Ensure(ref CampBuilt, n); Ensure(ref CampMineHead, n);
     }
 

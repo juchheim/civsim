@@ -20,7 +20,7 @@ namespace CivSim.Sim.Politics;
 public sealed partial class PoliticsSystem
 {
     private static readonly ulong ExpeditionStream = Hash64.OfString("politics.expedition");
-    private static readonly ulong BronzePoliticsTag = 0x504F4C4252303331UL; // "POLBR031"
+    private static readonly ulong BronzePoliticsTag = 0x504F4C4252303332UL; // "POLBR032"
 
     /// <summary>The Decree constants of docs/MVP/23 §12 (content/constants/balance.yaml), read once.</summary>
     private sealed class DecreeRules
@@ -266,7 +266,8 @@ public sealed partial class PoliticsSystem
         {
             reason = d.Kind switch
             {
-                DecreeKind.Found => ExecuteFound(civ, d.Target, out subject),
+                DecreeKind.Found => ExecuteFound(civ, d.Target, out subject,
+                    protectCityProspect: d.Origin == DecreeOrigin.Strategist),
                 DecreeKind.Expedition => ExecuteExpedition(civ, d.Target, out subject),
                 DecreeKind.Mine => ExecuteMine(civ, d.Target, out subject),
                 DecreeKind.Levy => ExecuteLevy(civ, d.Target, out subject, out other),
@@ -298,6 +299,9 @@ public sealed partial class PoliticsSystem
     /// at least 20 people and 60% of their cap, within reach and off their fission cooldown (ascending index on ties).
     /// </summary>
     public OrderRefusalReason FoundCheck(int civ, int tile, out int donor)
+        => FoundCheck(civ, tile, out donor, protectCityProspect: false);
+
+    private OrderRefusalReason FoundCheck(int civ, int tile, out int donor, bool protectCityProspect)
     {
         donor = -1;
         if (unchecked((uint)tile) >= unchecked((uint)_tileArray.Length) || !_economy.IsHabitableSite(tile)) return OrderRefusalReason.NoSite;
@@ -325,16 +329,17 @@ public sealed partial class PoliticsSystem
             if (_sPop[s] < _rules.DonorMinPop || _economy.SeasonsSinceFission(s) < 4) continue;
             Fix64 fill = _economy.PopulationFill(s);
             if (fill < _rules.DonorMinFill) continue;
+            if (protectCityProspect && _economy.ShouldProtectStrategistFoundDonor(s, _rules.FoundShare)) continue;
             if (fill > bestFill) { bestFill = fill; donor = s; }
         }
         if (!anyInReach) return OrderRefusalReason.OutOfReach;
         return donor < 0 ? OrderRefusalReason.NoDonor : 0;
     }
 
-    private OrderRefusalReason ExecuteFound(int civ, int tile, out int subject)
+    private OrderRefusalReason ExecuteFound(int civ, int tile, out int subject, bool protectCityProspect)
     {
         subject = -1;
-        OrderRefusalReason why = FoundCheck(civ, tile, out int donor);
+        OrderRefusalReason why = FoundCheck(civ, tile, out int donor, protectCityProspect);
         if (why != 0) return why;
         int village = _economy.FoundByDecree(donor, tile, _rules.FoundShare, _rules.MinDaughter, _rules.StartCohesion);
         if (village < 0) return OrderRefusalReason.NoDonor;
@@ -343,6 +348,9 @@ public sealed partial class PoliticsSystem
         subject = village;
         return 0;
     }
+
+    internal bool ShouldProtectStrategistFoundDonor(int settlement)
+        => _economy.ShouldProtectStrategistFoundDonor(settlement, _rules.FoundShare);
 
     /// <summary>The claim boost of a village founded by Decree (TER-05: ×1.5 for 2 years), 1 otherwise.</summary>
     private Fix64 FoundBoost(int settlement)
@@ -640,7 +648,7 @@ public sealed partial class PoliticsSystem
 
     private void HashExpeditionBronze(ref StateHasher h, Expedition e)
     {
-        h.Add(e.Id); h.Add(e.TargetTile); h.Add(e.TargetParty); h.Add((byte)e.Good); h.Add(e.Cargo); h.Add(e.CompactId); h.Add(e.FolkSeller);
+        h.Add(e.Id); h.Add(e.TargetTile); h.Add(e.TargetParty); h.Add(e.TargetCampId); h.Add((byte)e.Good); h.Add(e.Cargo); h.Add(e.CompactId); h.Add(e.FolkSeller);
         h.Add(e.EscortCount);
         h.Add(e.Revealed.Count); foreach (int t in e.Revealed) h.Add(t);
     }
@@ -689,7 +697,7 @@ public sealed partial class PoliticsSystem
         {
             Expedition e = _expeditions[i];
             if (!e.HasBronzeFields) continue;
-            w.Write(i); w.Write(e.Id); w.Write(e.TargetTile); w.Write(e.TargetParty); w.Write((byte)e.Good); w.Write(e.Cargo.Raw);
+            w.Write(i); w.Write(e.Id); w.Write(e.TargetTile); w.Write(e.TargetParty); w.Write(e.TargetCampId); w.Write((byte)e.Good); w.Write(e.Cargo.Raw);
             w.Write(e.CompactId); w.Write(e.FolkSeller); w.Write(e.EscortCount);
             w.Write(e.Revealed.Count); foreach (int t in e.Revealed) w.Write(t);
         }
@@ -730,7 +738,7 @@ public sealed partial class PoliticsSystem
             int i = r.ReadInt32();
             if (unchecked((uint)i) >= unchecked((uint)_expeditions.Count)) throw new System.IO.InvalidDataException("Snapshot party fields point past the parties.");
             Expedition e = _expeditions[i];
-            e.Id = r.ReadInt32(); e.TargetTile = r.ReadInt32(); e.TargetParty = r.ReadInt32(); e.Good = (TradeGood)r.ReadByte();
+            e.Id = r.ReadInt32(); e.TargetTile = r.ReadInt32(); e.TargetParty = r.ReadInt32(); e.TargetCampId = r.ReadInt32(); e.Good = (TradeGood)r.ReadByte();
             e.Cargo = Fix64.FromRaw(r.ReadInt64()); e.CompactId = r.ReadInt32(); e.FolkSeller = r.ReadInt32();
             e.EscortCount = r.ReadInt32();
             e.Revealed.Clear();

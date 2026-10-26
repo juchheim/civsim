@@ -75,13 +75,14 @@ public sealed partial class Strategist
                 foreach (OwnSettlement own in v.Own.Settlements) { ownStrength += own.AttackingStrength; ownFighters += own.Fighters; }
                 if (ownFighters > 0) perDefend = ownStrength / ownFighters * StrategistTuning.UnseenDefenderStrength;
             }
-            // A blind observer cannot see the thorn hedge or the stockade, but it knows the rival's era (public), and by then a
-            // village has them: assume the era-typical defences rather than none (14 §16.3a).
+            // A blind observer cannot see works, so use the era prior. A fresh detailed sighting overrides the rival-wide
+            // palisade technology inference: DEF-03 unlocks construction, but each settlement must pay and build one.
             bool typicalWorks = blind && r.Era >= StrategistTuning.UnseenWorksEra;
             bool typicalPalisade = blind && r.Era >= StrategistTuning.UnseenPalisadeEra;
+            bool freshDetailedSite = !blind && stale == 0;
             var defenses = new Defenses(
                 ThornBarrier: b.ThornBarrierSeen || typicalWorks,
-                Palisade: b.PalisadeSeen || Believed(r, _def03) || typicalPalisade,
+                Palisade: b.PalisadeSeen || (!freshDetailedSite && Believed(r, _def03)) || typicalPalisade,
                 Watchers: b.WatchersSeen || Believed(r, _def02) || typicalWorks,
                 Dogs: Believed(r, _hus01) || typicalWorks, SignalFires: Believed(r, _com04) || typicalPalisade,
                 AlarmCalls: Believed(r, _com01), HillSite: false,
@@ -92,6 +93,7 @@ public sealed partial class Strategist
                 Settlement = b.Settlement, Tile = b.Tile, Stale = stale, Population = b.PopulationEstimate, Fighters = counted,
                 Fresh = fresh, PerDefend = perDefend, PerAttack = weapon * (b.WarriorsSeen > 0 || r.WarriorsSeen ? Fix64.FromRatio(11, 10) : Fix64.One),
                 Defenses = defenses, Distress = b.DistressSeen,
+                PalisadeInferred = !b.PalisadeSeen && ((!freshDetailedSite && Believed(r, _def03)) || typicalPalisade),
             };
             read.Sites.Add(site);
             read.Field += site.PerAttack * site.Fighters;

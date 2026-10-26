@@ -242,7 +242,23 @@ public sealed partial class PoliticsSystem
     {
         int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (forecast && travel > ReachOf(c) * 3)) { Trace?.Invoke($"raid: travel {travel}"); return false; }
-        List<Fighter> party = PickParty(origin, c, size, attacking: true, out List<long> ids, battleTile: _sTile[target]);
+        Levy? levy = LevyFor(c, target);
+        List<Fighter> party;
+        List<long> ids;
+        if (levy is null)
+            party = PickParty(origin, c, size, attacking: true, out ids, battleTile: _sTile[target]);
+        else
+        {
+            party = new List<Fighter>();
+            ids = new List<long>();
+            for (int i = 0; i < levy.Members.Count; i++)
+            {
+                long id = levy.Members[i];
+                if (!_economy.TryFigure(id, out _) || _economy.IsWounded(id)) continue;
+                party.Add(new Fighter(id, levy.Strengths[i]));
+                ids.Add(id);
+            }
+        }
         if (party.Count < 4) { Trace?.Invoke($"raid: party {party.Count}"); return false; }
 
         if (forecast)
@@ -262,6 +278,13 @@ public sealed partial class PoliticsSystem
             Fix64 net = Raids.NetValue(p, Raids.CarryPerRaider * party.Count, Fix64.FromRatio(deaths, ForecastTrials), LifeValue, RaidRelationsCost);
             Trace?.Invoke($"raid forecast civ{c}->civ{o}: party {party.Count} vs {defenders.Count} defenders, success {p.ToDoubleForDisplay():F2}, net {net.ToDoubleForDisplay():F1}");
             if (p < _raidMargin[c] || net <= Fix64.Zero) return false;
+        }
+
+        if (levy is not null && !TryTakeLevy(c, target, out party)) return false;
+        if (levy is not null)
+        {
+            ids.Clear();
+            foreach (Fighter fighter in party) ids.Add(fighter.Id);
         }
 
         var e = new Expedition { Kind = ExpeditionKind.Raid, Civ = c, TargetCiv = o, FromSettlement = origin, ToSettlement = target,
@@ -419,6 +442,11 @@ public sealed partial class PoliticsSystem
             if (e.Kind == ExpeditionKind.Raid && e.TargetParty >= 0) continue;
             if (!_expeditions.Remove(e)) continue;
             if (TurnedBackAtSea(e)) continue;
+            if (e.Kind == ExpeditionKind.Raid && e.TargetCampId >= 0)
+            {
+                ArriveMiningCampRaid(e);
+                continue;
+            }
             switch (e.Kind)
             {
                 case ExpeditionKind.Gift: ArriveGift(e); break;
@@ -530,6 +558,52 @@ public sealed partial class PoliticsSystem
         _dip.RecordRaid(c, o, _season);
         _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidResolved, o, outcome.Success ? 1 : 0, loot.FloorToInt()));
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.RaidResolved, c, outcome.Success ? 2 : 3, loot.FloorToInt()));
+    }
+
+    private void ArriveMiningCampRaid(Expedition e)
+    {
+        if (!_economy.TryMiningCampById(e.TargetCampId, out MiningCampView camp) || camp.Civilization != e.TargetCiv || camp.Tile != e.TargetTile || camp.Crew < 2)
+            return;
+        List<Fighter> raiders = AliveFighters(e, out _);
+        if (raiders.Count < 3) return;
+        var records = new List<LivingEconomyModel.FighterRecord>();
+        _economy.ListMiningCampCrew(camp.Id, records);
+        Fix64 defenderStrength = Weapon(e.TargetCiv, out _) * Fix64.FromRatio(6, 10);
+        var defenders = new List<Fighter>(records.Count);
+        foreach (LivingEconomyModel.FighterRecord record in records)
+            if (!record.Wounded) defenders.Add(new Fighter(record.Id, defenderStrength));
+        Weapon(e.Civ, out bool ranged);
+        RaidOutcome outcome = Raids.Resolve(raiders, defenders, Defenses.None, ranged, _seed,
+            RaidStream ^ 0x4D494E4543414D50UL ^ (ulong)(e.Civ * 4099 + camp.Id * 97) ^ (ulong)_season * 104729UL);
+        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded);
+        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded);
+
+        Fix64 loot = Fix64.Zero;
+        if (outcome.Success)
+        {
+            string? ore = _economy.MiningCampGoodId(camp.Deposit);
+            Fix64 unitValue = ore is null ? Fix64.Zero : _economy.GoodBarterValue(ore);
+            if (ore is not null && unitValue > Fix64.Zero)
+            {
+                Fix64 moved = _economy.TransferGood(camp.ParentSettlementIndex, e.FromSettlement, ore,
+                    outcome.LootCapacity * Raids.DeliveredLootShare / unitValue);
+                loot = moved * unitValue;
+            }
+            RaidsSucceeded++;
+        }
+        bool atWar = _dip.AtWar(e.Civ, e.TargetCiv);
+        bool peaceful = _dip.Relations(e.Civ, e.TargetCiv) > 0;
+        bool deaths = outcome.Battle.DefenderDead.Count > 0;
+        _economy.AdjustCohesion(camp.ParentSettlementIndex, Fix64.FromRatio(_research.IsDone(e.TargetCiv, _p.Bel01) ? -5 : -10, 100));
+        _economy.NoteRaided(camp.ParentSettlementIndex);
+        _economy.AdjustCohesion(e.FromSettlement, Fix64.FromRatio(outcome.Success ? 5 : -10, 100));
+        _dip.Shift(e.Civ, e.TargetCiv, deaths ? -50 : -30);
+        if (peaceful && !atWar) _dip.AdjustReputation(e.Civ, -10);
+        _dip.RecordRaid(e.Civ, e.TargetCiv, _season);
+        _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.RaidResolved, e.TargetCiv,
+            outcome.Success ? 1 : 0, loot.FloorToInt()));
+        _events.Add(new PoliticsEvent(_tick, (byte)e.TargetCiv, PoliticsEventKind.RaidResolved, e.Civ,
+            outcome.Success ? 2 : 3, loot.FloorToInt()));
     }
 
     private void ArriveAssault(Expedition e)

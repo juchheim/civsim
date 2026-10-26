@@ -17,6 +17,10 @@ public static class SparkTuning
     /// 2 slots 75%, 1 slot 88%, 0 slots 97% wins on Legacy.
     /// </summary>
     public const int ClosureSlots = 0;
+    /// <summary>One KEY-4 closure slot for Chieftain during E3, starting at KEY-3, to avoid late breadth catch-up stalls.</summary>
+    public const int ChieftainBronzeClosureSlots = 1;
+    /// <summary>Late Chieftain catch-up slots after a rival announces KEY-4; preserves one unfinished closure project in Primary.</summary>
+    public const int LateCatchupClosureSlots = 1;
     /// <summary>Children tried per beam node: half the beam width plus this, capped (Settler 4, Chieftain 5, Warlord and Legend 6).</summary>
     public const int ExtraCandidates = 3;
     public const int MaxCandidates = 6;

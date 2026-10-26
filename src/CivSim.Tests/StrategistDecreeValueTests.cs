@@ -33,7 +33,16 @@ public sealed class StrategistDecreeValueTests
         int home = rig.Politics.SettlementTileOf(rig.SettlementsOf(0)[0]);
         int center = Enumerable.Range(0, world.Tiles.Length).First(t => world.Tiles[t].IsLand &&
             rig.Politics.Territory.OwnerOf(t) < 0 && HexGrid.Distance(home, t, world.Width) is >= 3 and <= 8);
+        byte[] donorProtectionCache = new byte[rig.Politics.SettlementTotal];
+        OrderRefusalReason directFoundCheck = DecreeForecaster.FoundOwnCheck(rig.Politics, 0, center, belief, out int directPeople);
+        OrderRefusalReason cachedFoundCheck = DecreeForecaster.FoundOwnCheck(rig.Politics, 0, center, belief,
+            donorProtectionCache, out int cachedPeople);
+        Assert.Equal(directFoundCheck, cachedFoundCheck);
+        Assert.Equal(directPeople, cachedPeople);
         var (openTiles, openWeight, openDominion) = DecreeForecaster.FoundLandValue(rig.Politics, 0, center, radius, belief);
+        int knownOwnedWeight = DecreeForecaster.KnownOwnedHabitableWeight(rig.Politics, 0, belief);
+        Assert.Equal((openTiles, openWeight, openDominion),
+            DecreeForecaster.FoundLandValue(rig.Politics, 0, center, radius, belief, knownOwnedWeight));
         Assert.True(openTiles > 0);
         Assert.True(openWeight > CivSim.Sim.Numerics.Fix64.Zero);
         Assert.True(openDominion > CivSim.Sim.Numerics.Fix64.Zero);

@@ -96,6 +96,8 @@ internal sealed class Site
     public Fix64 Fresh, PerDefend, PerAttack;
     public Defenses Defenses;
     public bool Distress;
+    /// <summary>True when the palisade is an era/technology prior, not a structure seen at this settlement.</summary>
+    public bool PalisadeInferred;
     public Fix64 DefendStrength => PerDefend * Fighters;
 }
 

@@ -16,6 +16,16 @@ namespace CivSim.Sim.Ai;
 public static class DecreeForecaster
 {
     public static DecreeForecast Forecast(PoliticsSystem pol, int civ, DecreeKind kind, int target, int extra, Belief? belief = null)
+        => Forecast(pol, civ, kind, target, extra, belief, knownOwnedWeight: null, donorProtectionCache: null);
+
+    internal static DecreeForecast Forecast(PoliticsSystem pol, int civ, DecreeKind kind, int target, int extra,
+        Belief? belief, int? knownOwnedWeight)
+        => Forecast(pol, civ, kind, target, extra, belief, knownOwnedWeight, donorProtectionCache: null);
+
+    // Strategist batches evaluate every candidate against the same unchanged belief snapshot, so Found forecasts can share
+    // the map-wide owned-land denominator and lazily cache donor protection results. Direct callers retain the uncached public path above.
+    internal static DecreeForecast Forecast(PoliticsSystem pol, int civ, DecreeKind kind, int target, int extra,
+        Belief? belief, int? knownOwnedWeight, byte[]? donorProtectionCache)
     {
         ResearchViewForDecrees r = pol.DecreeResearch;
         int cost = pol.DecreeCost(civ, kind);
@@ -31,10 +41,12 @@ public static class DecreeForecaster
             switch (kind)
             {
                 case DecreeKind.Found:
-                    why = FoundOwnCheck(pol, civ, target, belief, out people);
+                    why = FoundOwnCheck(pol, civ, target, belief, donorProtectionCache, out people);
                     int radius = ClaimRadius(pol, civ);
                     tiles = 3 * radius * (radius + 1) + 1;
-                    (tiles, landWeight, dominion) = FoundLandValue(pol, civ, target, radius, belief);
+                    (tiles, landWeight, dominion) = knownOwnedWeight is int cachedWeight
+                        ? FoundLandValue(pol, civ, target, radius, belief, cachedWeight)
+                        : FoundLandValue(pol, civ, target, radius, belief);
                     break;
                 case DecreeKind.Mine:
                     why = belief is null ? MineKnownTileCheck(pol, civ, target) : MineBeliefCheck(pol, civ, target, belief);
@@ -267,7 +279,11 @@ public static class DecreeForecaster
     }
 
     /// <summary>The founding rules on what the civilization knows: own distances and donor exactly, others' villages as seen.</summary>
-    private static OrderRefusalReason FoundOwnCheck(PoliticsSystem pol, int civ, int tile, Belief? belief, out int people)
+    internal static OrderRefusalReason FoundOwnCheck(PoliticsSystem pol, int civ, int tile, Belief? belief, out int people)
+        => FoundOwnCheck(pol, civ, tile, belief, donorProtectionCache: null, out people);
+
+    internal static OrderRefusalReason FoundOwnCheck(PoliticsSystem pol, int civ, int tile, Belief? belief,
+        byte[]? donorProtectionCache, out int people)
     {
         people = 0;
         int width = pol.World.Width;
@@ -297,6 +313,7 @@ public static class DecreeForecaster
                 if (d > pol.FoundReach(civ, bySea: false)) continue;
                 inReach = true;
                 if (pol.SettlementPopulationOf(s) < 20 || pol.Economy.SeasonsSinceFission(s) < 4) continue;
+                if (belief is not null && ShouldProtectFoundDonor(pol, s, donorProtectionCache)) continue;
                 Fix64 fill = pol.Economy.PopulationFill(s);
                 if (fill >= Fix64.FromRatio(6, 10) && fill > bestFill) { bestFill = fill; bestDonor = s; }
             }
@@ -320,6 +337,20 @@ public static class DecreeForecaster
         return people < 8 ? OrderRefusalReason.NoDonor : 0;
     }
 
+    private static bool ShouldProtectFoundDonor(PoliticsSystem pol, int settlement, byte[]? cache)
+    {
+        if (cache is null || (uint)settlement >= (uint)cache.Length)
+            return pol.ShouldProtectStrategistFoundDonor(settlement);
+        byte cached = cache[settlement];
+        if (cached == 0)
+        {
+            bool protect = pol.ShouldProtectStrategistFoundDonor(settlement);
+            cache[settlement] = protect ? (byte)2 : (byte)1;
+            return protect;
+        }
+        return cached == 2;
+    }
+
     private static int UnknownTilesNear(PoliticsSystem pol, int civ, int center, int radius, Belief? belief)
     {
         int width = pol.World.Width, height = pol.World.Height, n = 0;
@@ -337,7 +368,13 @@ public static class DecreeForecaster
 
     internal static (int Tiles, Fix64 Weight, Fix64 Dominion) FoundLandValue(PoliticsSystem pol, int civ, int center, int radius, Belief? belief)
     {
-        int width = pol.World.Width, height = pol.World.Height, tiles = 0, weight = 0, knownOwnedWeight = 0;
+        int knownOwnedWeight = KnownOwnedHabitableWeight(pol, civ, belief);
+        return FoundLandValue(pol, civ, center, radius, belief, knownOwnedWeight);
+    }
+
+    internal static int KnownOwnedHabitableWeight(PoliticsSystem pol, int civ, Belief? belief)
+    {
+        int knownOwnedWeight = 0;
         // Dominion is an estimated annual share from the known map only. Unseen cells are omitted from both sides.
         for (int t = 0; t < pol.World.TileCount; t++)
         {
@@ -346,7 +383,13 @@ public static class DecreeForecaster
             var (owner, _) = belief is not null ? belief.Map.OwnerSeen(t) : (pol.Territory.OwnerOf(t), 0);
             if (owner != -1) knownOwnedWeight += KnownHabitableWeight(pol, civ, belief, t);
         }
+        return knownOwnedWeight;
+    }
 
+    internal static (int Tiles, Fix64 Weight, Fix64 Dominion) FoundLandValue(PoliticsSystem pol, int civ, int center,
+        int radius, Belief? belief, int knownOwnedWeight)
+    {
+        int width = pol.World.Width, height = pol.World.Height, tiles = 0, weight = 0;
         HexGrid.Coordinates(center, width, out int cx, out int cy);
         for (int y = Math.Max(0, cy - radius); y <= Math.Min(height - 1, cy + radius); y++)
         for (int x = Math.Max(0, cx - radius - 1); x <= Math.Min(width - 1, cx + radius + 1); x++)

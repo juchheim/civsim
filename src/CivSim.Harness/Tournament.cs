@@ -39,7 +39,7 @@ internal readonly record struct Player(string Name, CivControl Control)
 internal sealed class CivOutcome
 {
     public int Civ;
-    public double Dominion, Mastery, Firsts;
+    public double Dominion, Mastery, Firsts, Wonders;
     public int Settlements, SettlementsLost, SettlementsCaptured, Projects;
     public readonly double[] KeyMinutes = { double.NaN, double.NaN, double.NaN };
     public int RaidsLaunched, RaidsWon;
@@ -62,7 +62,7 @@ internal sealed class CivOutcome
     public int MandateOverflowBlunders;
     public int SiegeWithoutSupplyBlunders;
     public int NakedCaravans;
-    public double Legacy => Dominion + Mastery + Firsts;
+    public double Legacy => Dominion + Mastery + Firsts + Wonders;
 }
 
 internal sealed class MatchOutcome
@@ -518,6 +518,7 @@ internal static class Tournament
             o.Dominion = s.Dominion.ToDoubleForDisplay();
             o.Mastery = s.Mastery.ToDoubleForDisplay();
             o.Firsts = s.Firsts.ToDoubleForDisplay();
+            o.Wonders = s.Wonders.ToDoubleForDisplay();
             o.Projects = match.Research.DoneCount(c);
             if (seats[c].Control.Kind == ControlKind.Ai)
             {
@@ -566,8 +567,7 @@ internal static class Tournament
         for (int c = 0; c < seats.Length; c++)
         {
             Standing standing = Scoring.Of(match, c);
-            legacy[c] = standing.Dominion.ToDoubleForDisplay() + standing.Mastery.ToDoubleForDisplay() +
-                standing.Firsts.ToDoubleForDisplay();
+            legacy[c] = standing.Legacy.ToDoubleForDisplay();
         }
         completed?.Invoke(match);
         double teamA = 0, teamB = 0;

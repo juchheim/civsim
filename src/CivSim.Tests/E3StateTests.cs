@@ -91,6 +91,180 @@ public class E3StateTests
     }
 
     [Fact]
+    public void A_city_eligible_Town_prioritizes_its_Temple_over_housing_and_finishes_it()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 95, false, true, true, true,
+            "TRD-04", "SOC-09", "BEL-06", "STN-11", "BLD-05");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        Assert.True(e.FixtureHousingCap(0) >= Fix64.FromInt(90));
+        e.FixtureStock(0, "G-BRICK", Fix64.FromInt(120));
+        e.FixtureStock(0, "G-ASHLAR", Fix64.FromInt(10));
+        f.RunSeasons(2);
+        Assert.True(e.Civic(0).Temples == 1 || e.DescribeCivic(0).Contains("build Temple:", StringComparison.Ordinal), e.DescribeCivic(0));
+        f.RunSeasons(8);
+        Assert.Equal(1, e.Civic(0).Temples);
+        Assert.Equal(SettlementTier.City, e.Tier(0));
+    }
+
+    [Fact]
+    public void Selected_City_site_stages_bricks_before_SOC09_and_stone_tech_then_waits_for_BEL06()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 95, false, true, true, true,
+            "TRD-04", "BEL-05", "BLD-05");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        Assert.True(e.FixtureHousingCap(0) >= Fix64.FromInt(90));
+
+        f.RunSeasons(12);
+
+        Assert.Equal(SettlementTier.Town, e.Tier(0));
+        Assert.Equal(0, e.Civic(0).Temples);
+        Assert.Equal(Fix64.Zero, e.FixtureCivicBuildProgress(0));
+        Assert.Contains("build Temple:0.0", e.DescribeCivic(0));
+        Assert.True(e.GoodStock(0, "G-BRICK") >= Fix64.FromInt(120), e.DescribeCivic(0));
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-ASHLAR"));
+
+        e.FixtureComplete(0, "SOC-09", "STN-11", "MIN-03");
+        e.FixtureSetRangeStone(0, Fix64.FromInt(40));
+        f.RunSeasons(12);
+
+        Assert.Equal(SettlementTier.Town, e.Tier(0));
+        Assert.Equal(0, e.Civic(0).Temples);
+        Assert.True(e.GoodStock(0, "G-ASHLAR") >= Fix64.FromInt(10), e.DescribeCivic(0));
+
+        e.FixtureComplete(0, "BLD-07");
+        f.RunSeasons(8);
+        Assert.Equal(SettlementTier.Town, e.Tier(0));
+        Assert.Equal(0, e.Civic(0).Temples);
+        Assert.True(e.FixtureCivicBuildProgress(0) > Fix64.Zero, e.DescribeCivic(0));
+
+        e.FixtureComplete(0, "BEL-06");
+        f.RunSeasons(8);
+
+        Assert.Equal(1, e.Civic(0).Temples);
+        Assert.Equal(SettlementTier.City, e.Tier(0));
+    }
+
+    [Fact]
+    public void A_pending_fission_is_cancelled_when_a_Town_becomes_a_viable_City_site()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 95, false, true, true, true,
+            "TRD-04");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        Assert.True(e.Settlement(0).HousingCap < Fix64.FromInt(90));
+        e.FixtureHoldSettlements = false;
+        e.SetFissionThresholdScale(0, Fix64.Zero);
+        e.FixtureCohesion(0, 60);
+        f.RunSeasons(1);
+        Assert.True(e.Settlement(0).FissionPending);
+
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        Assert.True(e.Settlement(0).FoodCap >= Fix64.FromInt(90));
+        Assert.True(e.Settlement(0).HousingCap >= Fix64.FromInt(90));
+        e.FixtureComplete(0, "SOC-09");
+        e.FixtureCivic(0, "temple");
+        e.SetFissionThresholdScale(0, Fix64.One);
+        f.RunSeasons(1);
+
+        Assert.Equal(0, e.Settlement(0).Fissions);
+        Assert.False(e.Settlement(0).FissionPending);
+        Assert.Equal(SettlementTier.City, e.Tier(0));
+    }
+
+    [Fact]
+    public void A_selected_viable_City_site_does_not_fission_while_SOC09_is_pending()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 95, false, true, true, true,
+            "TRD-04", "BEL-05", "BLD-05");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureBuildStructure(0, "longhouse");
+        Assert.True(e.Settlement(0).FoodCap >= Fix64.FromInt(90));
+        Assert.True(e.Settlement(0).HousingCap >= Fix64.FromInt(90));
+        e.FixtureHoldSettlements = false;
+        e.SetFissionThresholdScale(0, Fix64.Zero);
+        e.FixtureCohesion(0, 60);
+
+        f.RunSeasons(1);
+
+        Assert.Equal(0, e.Settlement(0).Fissions);
+        Assert.False(e.Settlement(0).FissionPending);
+        Assert.Equal(SettlementTier.Town, e.Tier(0));
+    }
+
+    [Fact]
+    public void Temple_city_path_quarries_and_dresses_local_stone_with_civic_labor()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 95, false, true, true, true,
+            "TRD-04", "SOC-09", "BEL-06", "STN-11", "MIN-03", "BLD-05");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        f.RunSeasons(1);
+        Assert.Equal(SettlementTier.Town, e.Tier(0));
+        e.FixtureStock(0, "G-BRICK", Fix64.FromInt(120));
+        e.FixtureSetRangeStone(0, Fix64.FromInt(40));
+        Fix64 stoneBefore = e.FixtureRangeStone(0);
+
+        f.RunSeasons(16);
+
+        Assert.True(e.Civic(0).Temples == 1, e.DescribeCivic(0));
+        Assert.True(e.Tier(0) == SettlementTier.City, e.DescribeCivic(0));
+        Assert.True(e.FixtureRangeStone(0) < stoneBefore, $"the Temple must quarry its cut stone from the local range: {e.DescribeCivic(0)}");
+    }
+
+    [Fact]
+    public void Palace_city_path_keeps_its_progress_when_Temple_research_arrives()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 95, false, true, true, true,
+            "TRD-04", "SOC-09", "GOV-05", "MIN-03", "STN-11", "BLD-05");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCivic(0, "market");
+        f.RunSeasons(1);
+        e.FixtureStock(0, "G-BRICK", Fix64.FromInt(200));
+        e.FixtureSetRangeStone(0, Fix64.FromInt(40));
+        f.RunSeasons(3);
+        Assert.Contains("build Palace:", e.DescribeCivic(0));
+        Assert.True(e.GoodStock(0, "G-BLOCK") > Fix64.Zero, "the Palace should quarry its block material");
+        Fix64 progress = e.FixtureCivicBuildProgress(0);
+        Assert.True(progress > Fix64.Zero);
+
+        e.FixtureComplete(0, "BEL-06");
+        f.RunSeasons(1);
+
+        Assert.Contains("build Palace:", e.DescribeCivic(0));
+        Assert.True(e.FixtureCivicBuildProgress(0) > progress, "Temple research must not erase the active Palace work");
+    }
+
+    [Fact]
+    public void City_site_ranks_food_bound_capacity_before_population_and_uses_stable_ties()
+    {
+        Assert.True(LivingEconomyModel.FixtureBetterPalaceSite(
+            candidateTown: true, candidateCapacity: Fix64.FromInt(248), candidatePop: 62, candidateId: 6,
+            currentTown: true, currentCapacity: Fix64.FromInt(120), currentPop: 63, currentId: 3));
+        Assert.False(LivingEconomyModel.FixtureBetterPalaceSite(
+            candidateTown: true, candidateCapacity: Fix64.FromInt(120), candidatePop: 63, candidateId: 3,
+            currentTown: true, currentCapacity: Fix64.FromInt(248), currentPop: 62, currentId: 6));
+        Assert.True(LivingEconomyModel.FixtureBetterPalaceSite(
+            candidateTown: true, candidateCapacity: Fix64.FromInt(25), candidatePop: 25, candidateId: 6,
+            currentTown: false, currentCapacity: Fix64.FromInt(200), currentPop: 90, currentId: 3));
+        Assert.True(LivingEconomyModel.FixtureBetterPalaceSite(
+            candidateTown: true, candidateCapacity: Fix64.FromInt(120), candidatePop: 63, candidateId: 2,
+            currentTown: true, currentCapacity: Fix64.FromInt(120), currentPop: 63, currentId: 3));
+    }
+
+    [Fact]
     public void The_capital_is_the_oldest_settlement_until_a_Palace_stands_and_then_claims_more()
     {
         BronzeFixture f = Fixture(60, State);
@@ -262,9 +436,16 @@ public class E3StateTests
         CivicReadout c = e.Civic(0);
         Assert.Equal(25, c.Cohesion);
         Assert.Equal(-35, c.ConqueredTerm);
-        f.RunSeasons(3);
+        Assert.Equal(0, c.LowCohesionSeasons);
+        f.RunSeasons(1);
+        c = e.Civic(0);
+        Assert.Equal(26, c.Cohesion);
+        Assert.Equal(-34, c.ConqueredTerm);
+        Assert.Equal(0, c.LowCohesionSeasons);
+        f.RunSeasons(2);
+        c = e.Civic(0);
         Assert.Equal(-32, e.Civic(0).ConqueredTerm);
-        Assert.True(e.Civic(0).CohesionTarget < 60, "no hearth, feast, shrine or GOV-03 while conquered");
+        Assert.True(c.CohesionTarget < 60, "no hearth, feast, shrine or GOV-03 while conquered");
     }
 
     [Fact]

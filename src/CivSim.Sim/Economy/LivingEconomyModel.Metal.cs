@@ -1230,6 +1230,16 @@ public sealed partial class LivingEconomyModel
         Fix64 metalPool = (plan.CharcoalAssigned + plan.SmeltAssigned) * specialist + spare;
         bool arsenic = false;
         bool fuelShort = false;
+        bool traceSettlement = MetalDebug is not null;
+        if (traceSettlement)
+        {
+            Fix64 rangeStone = Fix64.Zero;
+            foreach (int tile in RangeTiles(s.SiteTile)) rangeStone += _stoneStock[tile];
+            Fix64 dressPlan = Fix64.Zero;
+            for (int r = 0; r < _compiledRecipes.Length; r++)
+                if (_compiledRecipes[r].Def.Id == "dress_stone") { dressPlan = plan.Batches[r]; break; }
+            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2}");
+        }
         for (int r = 0; r < _compiledRecipes.Length; r++)
         {
             CompiledRecipe recipe = _compiledRecipes[r];
@@ -1240,11 +1250,13 @@ public sealed partial class LivingEconomyModel
             Fix64 made = recipe.IsCharcoal
                 ? BurnCharcoal(s, m, recipe, plan, Fix64.Min(plan.Batches[r], CharcoalNeededNow(s, plan, r)), ref metalPool, ref craftLeft, out fuelShort)
                 : RunRecipe(s, recipe, plan.Batches[r], plan.AnyMetalKit, ref metalPool, ref craftLeft);
-            MetalDebug?.Append($" {recipe.Def.Id}:{plan.Batches[r].ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+            if (traceSettlement)
+                MetalDebug!.Append($" {recipe.Def.Id}:{plan.Batches[r].ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
             if (made <= Fix64.Zero) continue;
             RecordRecipe(civ, recipe, made, OutputQuantity(s, recipe));
             if (recipe.Def.Id == "cosmelt_arsenical") arsenic = true;
         }
+        if (traceSettlement) MetalDebug!.AppendLine();
         m.FuelShortSeasons = fuelShort ? m.FuelShortSeasons + 1 : 0;
         if (arsenic && Done(civ, "MET-04"))
             foreach (FigureState f in _figures)
@@ -1510,12 +1522,24 @@ public sealed partial class LivingEconomyModel
         if (!Done(s.Civilization, "MIN-03")) return;
         Fix64 net = plan.Want[MetalSlot(MetalGood.Block)] - m.Goods[(int)MetalGood.Block];
         if (net <= Fix64.Zero || craftPool <= Fix64.Zero) return;
+        Fix64 rate = QuarryRate(s);
+        Fix64 want = Fix64.Min(net, craftPool * rate);
+        Fix64 got = TakeRangeStone(s, want);
+        m.Goods[(int)MetalGood.Block] += got;
+        craftPool -= got / rate;
+    }
+
+    private Fix64 QuarryRate(SettlementState s)
+    {
         Fix64 best = Fix64.One;
         foreach (FigureState f in _figures)
             if (f.SettlementId == s.Id && f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
-        Fix64 rate = BaseRate("quarry", Fix64.FromInt(2)) * best;
-        Fix64 want = Fix64.Min(net, craftPool * rate);
-        Fix64 left = want;
+        return BaseRate("quarry", Fix64.FromInt(2)) * best;
+    }
+
+    private Fix64 TakeRangeStone(SettlementState s, Fix64 amount)
+    {
+        Fix64 left = amount;
         foreach (int tile in RangeTiles(s.SiteTile))
         {
             Fix64 take = Fix64.Min(left, _stoneStock[tile]);
@@ -1523,9 +1547,7 @@ public sealed partial class LivingEconomyModel
             left -= take;
             if (left <= Fix64.Zero) break;
         }
-        Fix64 got = want - left;
-        m.Goods[(int)MetalGood.Block] += got;
-        craftPool -= got / rate;
+        return amount - left;
     }
 
     /// <summary>Wool from sheep (HUS-06: 0.5 L a year each) and milk from the herds (HUS-05), the raw goods of wool garments and cheese.</summary>
@@ -1979,7 +2001,7 @@ public sealed partial class LivingEconomyModel
 
     private static bool IsTimberStructure(Structure structure) => structure is Structure.LeanTo or Structure.PitHouse or
         Structure.WattleHouse or Structure.Longhouse or Structure.DryingRack or Structure.ThornBarrier or Structure.Lookout or
-        Structure.Weir or Structure.Pasture;
+        Structure.Weir or Structure.Pasture or Structure.Palisade;
 
     // ---- forests (docs/MVP/22 §5.5, 23 §7.4) -----------------------------------------------------------
 

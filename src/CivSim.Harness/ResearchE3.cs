@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CivSim.Sim.Content;
@@ -51,6 +52,8 @@ internal static class ResearchE3
         public double FinalMinute;
         // Expected seasonal hazard by exact age, summed over figures, in seasons when all four civilizations were in E2 or all in E3.
         public double[,] ExpHazard = new double[4, 100], ExpCount = new double[4, 100];
+        public double[,,] ExpCauseHazard = new double[4, 100, 8];
+        public double[,] ExpWinterShortfall = new double[4, 100];
     }
 
     public static int Execute(ContentPack pack, IReadOnlyList<ulong>? seeds, int minutes)
@@ -124,7 +127,12 @@ internal static class ResearchE3
         foreach (Result rr in results) foreach (CivTrace t in rr.Civs) for (int e = 0; e < 4; e++) { ws[e] += t.WinterSecurity[e]; wp[e] += t.WinterPeople[e]; hg[e] += t.Hungry[e]; }
         text.AppendLine($"  winter food security (people-weighted) E0..E3: {ws[0] / Math.Max(1, wp[0]):F3} {ws[1] / Math.Max(1, wp[1]):F3} {ws[2] / Math.Max(1, wp[2]):F3} {ws[3] / Math.Max(1, wp[3]):F3}; people in a short winter {P(hg[0] / Math.Max(1, wp[0]))} {P(hg[1] / Math.Max(1, wp[1]))} {P(hg[2] / Math.Max(1, wp[2]))} {P(hg[3] / Math.Max(1, wp[3]))}");
         var eh = new double[4, 100]; var ec = new double[4, 100];
-        foreach (Result rr in results) for (int e = 0; e < 4; e++) for (int a = 0; a < 100; a++) { eh[e, a] += rr.ExpHazard[e, a]; ec[e, a] += rr.ExpCount[e, a]; }
+        var ech = new double[4, 100, 8]; var ews = new double[4, 100];
+        foreach (Result rr in results) for (int e = 0; e < 4; e++) for (int a = 0; a < 100; a++)
+        {
+            eh[e, a] += rr.ExpHazard[e, a]; ec[e, a] += rr.ExpCount[e, a]; ews[e, a] += rr.ExpWinterShortfall[e, a];
+            for (int cause = 0; cause < 8; cause++) ech[e, a, cause] += rr.ExpCauseHazard[e, a, cause];
+        }
         double ExpE45(int e)
         {
             double surv = 1, years = 0;
@@ -143,9 +151,25 @@ internal static class ResearchE3
             for (int a = lo; a < hi; a++) { h += eh[e, a]; n += ec[e, a]; }
             return n > 0 ? 4 * h / n : double.NaN;
         }
+        double ExpCauseBand(int e, int cause, int lo, int hi)
+        {
+            double h = 0, n = 0;
+            for (int a = lo; a < hi; a++) { h += ech[e, a, cause]; n += ec[e, a]; }
+            return n > 0 ? 4 * h / n : double.NaN;
+        }
+        double ExpWinterShortfallBand(int e, int lo, int hi)
+        {
+            double h = 0, n = 0;
+            for (int a = lo; a < hi; a++) { h += ews[e, a]; n += ec[e, a]; }
+            return n > 0 ? 4 * h / n : double.NaN;
+        }
         text.AppendLine($"T13 from expected hazards (seasons with all four civs in the era): child annual E0 {ExpBand(0, 0, 14) * 1000:F1} E2 {ExpBand(2, 0, 14) * 1000:F1} E3 {ExpBand(3, 0, 14) * 1000:F1} per mille (09 E3 anchor 36.1); " +
                         $"adult E0 {ExpBand(0, 14, 45) * 1000:F1} E2 {ExpBand(2, 14, 45) * 1000:F1} E3 {ExpBand(3, 14, 45) * 1000:F1} (anchor 11.7); ratios E3/E0 child {ExpBand(3, 0, 14) / ExpBand(0, 0, 14):F3} (target 0.803) adult {ExpBand(3, 14, 45) / ExpBand(0, 14, 45):F3} (target 0.779); " +
                         $"e45 E2 {ExpE45(2):F1} E3 {ExpE45(3):F1} (target 17 +-10%)");
+        text.AppendLine($"  expected adult cause hazards E0/E3 per mille: " +
+                        string.Join("; ", Enum.GetNames<EconomyDeathCause>().Select((name, cause) =>
+                            $"{name} {ExpCauseBand(0, cause, 14, 45) * 1000:F2}/{ExpCauseBand(3, cause, 14, 45) * 1000:F2}")) +
+                        $"; winter-shortfall surcharge {ExpWinterShortfallBand(0, 14, 45) * 1000:F2}/{ExpWinterShortfallBand(3, 14, 45) * 1000:F2}");
         text.AppendLine($"T14 claimed land at each civ's KEY-4: median {P(Median(claimed))} (target 30-42%)");
         text.AppendLine($"T15 paired neighbours' borders touching by the end: {touchPaired}/{pairs} (target >= 75% by KEY-4)");
         text.AppendLine($"T16 E3 foundings per civ (fissions KEY-3 -> KEY-4): median {F(Median(found))}");
@@ -192,9 +216,16 @@ internal static class ResearchE3
                 for (int a = 0; a < 100; a++)
                 {
                     double h = 0;
-                    foreach (Fix64 x in eco.LastExpectedHazardsByExactAgeAndCause(a)) h += x.ToDoubleForDisplay();
+                    ReadOnlySpan<Fix64> causeHazards = eco.LastExpectedHazardsByExactAgeAndCause(a);
+                    for (int cause = 0; cause < causeHazards.Length; cause++)
+                    {
+                        double causeHazard = causeHazards[cause].ToDoubleForDisplay();
+                        h += causeHazard;
+                        result.ExpCauseHazard[allEra, a, cause] += causeHazard;
+                    }
                     result.ExpHazard[allEra, a] += h;
                     result.ExpCount[allEra, a] += alive[a];
+                    result.ExpWinterShortfall[allEra, a] += eco.LastExpectedWinterShortfallByExactAge(a).ToDoubleForDisplay();
                 }
             }
             // deaths of the season just ended, by the civilization's era

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.World;
 using Xunit;
@@ -21,6 +22,49 @@ public sealed class StrategistDecreeCandidateTests
     public void At_cap_useful_paid_decree_precedes_free_compact(bool atCap, bool positivePaidAlternative, int cost, bool expectedSkip)
     {
         Assert.Equal(expectedSkip, StrategistDecreePolicy.ShouldPreferMandateSpender(atCap, positivePaidAlternative, cost));
+    }
+
+    [Theory]
+    [InlineData(1, 4, 2, true, false)]
+    [InlineData(1, 4, 2, false, false)]
+    [InlineData(2, 4, 2, true, true)]
+    [InlineData(2, 4, 2, false, false)]
+    [InlineData(4, 4, 2, false, true)]
+    public void Frontier_found_alternatives_below_cap_require_two_mandate_and_a_marked_site(
+        int mandate, int cap, int cost, bool frontierMarked, bool expected)
+    {
+        Assert.Equal(expected, StrategistDecreePolicy.ShouldAddFoundAlternative(mandate, cap, cost, frontierMarked));
+    }
+
+    [Theory]
+    [InlineData((int)DecreeKind.Expedition, 1, 2, 2, true, false, true)]
+    [InlineData((int)DecreeKind.Expedition, 1, 3, 2, true, false, false)]
+    [InlineData((int)DecreeKind.Expedition, 1, 1, 2, false, false, false)]
+    [InlineData((int)DecreeKind.Corvee, 1, 2, 2, true, false, true)]
+    [InlineData((int)DecreeKind.Corvee, 1, 2, 2, true, true, false)]
+    [InlineData((int)DecreeKind.Mine, 1, 2, 2, true, false, false)]
+    [InlineData((int)DecreeKind.Levy, 1, 2, 2, true, false, false)]
+    public void Frontier_found_reserve_skips_only_optional_expedition_and_corvee_spends(
+        int kind, int candidateCost, int currentMandate, int foundCost, bool opportunity, bool urgentDefense, bool expected)
+    {
+        var candidate = new DecreeRequest((DecreeKind)kind, 0, 0);
+        Assert.Equal(expected, StrategistDecreePolicy.ShouldReserveFrontierFoundMandate(candidate,
+            candidateCost, currentMandate, foundCost, opportunity, urgentDefense));
+    }
+
+    [Theory]
+    [InlineData(true, 51, 45, true, 2, 20, 90, true)]
+    [InlineData(true, 44, 45, true, 2, 20, 90, false)]
+    [InlineData(true, 51, 45, true, 3, 20, 90, false)]
+    [InlineData(true, 51, 45, true, 2, 90, 90, false)]
+    [InlineData(true, 51, 45, false, 2, 20, 90, false)]
+    [InlineData(false, 51, 45, true, 2, 20, 90, false)]
+    public void City_prospect_protection_applies_only_to_top_three_healthy_tracks_split_below_city_population(
+        bool cityTrack, int capacity, int minimumCapacity, bool healthy, int rank, int remainingPopulation,
+        int cityMinPop, bool expected)
+    {
+        Assert.Equal(expected, LivingEconomyModel.ShouldProtectFoundingCityProspect(cityTrack,
+            Fix64.FromInt(capacity), Fix64.FromInt(minimumCapacity), healthy, rank, remainingPopulation, cityMinPop));
     }
 
     [Fact]

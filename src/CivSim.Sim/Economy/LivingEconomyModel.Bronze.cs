@@ -349,6 +349,23 @@ public sealed partial class LivingEconomyModel
             _world.Deposit(camp.Tile).Kind, _ore[camp.Tile], radius, emission);
     }
 
+    /// <summary>Looks up a mining camp by its stable id; false when the camp has closed.</summary>
+    public bool TryMiningCampById(int campId, out MiningCampView view)
+    {
+        for (int i = 0; i < _camps.Count; i++)
+        {
+            if (_camps[i].Id != campId) continue;
+            view = MiningCamp(i);
+            return true;
+        }
+        view = default;
+        return false;
+    }
+
+    /// <summary>The registered ore good hauled by this deposit, or null for a non-mineable deposit.</summary>
+    public string? MiningCampGoodId(DepositKind deposit)
+        => OreGood(deposit) is { } good ? MetalGoodId(good) : null;
+
     /// <summary>The tool kit a figure carries: tier 0 (none, stone tools of the settlement), 8, 9 or 10, and its quality in permille.</summary>
     public (int Tier, int QualityPermille) FigureKit(int index)
     {

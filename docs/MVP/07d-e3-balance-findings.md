@@ -17,7 +17,7 @@
 | **F4** | **A City (≥ 120) is unreachable by KEY-4** at 1 : 1 with 165–200 people and 5–8 settlements; with R2 the capital reaches 60–90 (a Town). T10/T11/B17's "capital 120–250 + 5–10 settlements" cannot all hold at ~170 people | City tier → **≥ 90**; B17 → ≥ 1 Town in ≥ 75% of civs, ≥ 1 City in ≥ 25% at the chapter end |
 | **F5** | The §7.5 raid tables reproduce within ±10 points **except three cells**; chariots match only if crew shields stack with the chariot (×0.7 × 0.5) | T21: three cells move (§6); chariot rule clarified |
 | **F6** | The §7.4 investment rule gives a 2-season-stores town a **median fall at season 2** (fails T22's 3–6) | **Rationing:** an invested town eats 75% of need (R5); then 2–3 seasons of stores fall in 3–6 seasons in 65–98% |
-| **F7** | **Secession never happens** under §8.3 as written (0.000 per civ per E3 in every stress case): base 60 + hearth 5 + feast 8 (both on every closure) puts typical C at 63–80, and the quarter-step plus 8-season timer filters every single crisis | R7: captured settlements start at C 25, −35 recovering +1 a season, without our hearth/feast/shrine/GOV-03 terms → ~0.05 per civ per E3; T25 restated |
+| **F7** | **Secession never happens** under §8.3 as written (0.000 per civ per E3 in every stress case): base 60 + hearth 5 + feast 8 (both on every closure) puts typical C at 63–80, and the quarter-step plus 8-season timer filters every single crisis | Corrected R7 oracle: capture does not add a raid penalty or cohesion update until the following season, and integer cohesion moves at least one point toward target. It gives 0.002 secessions per civ at 0.10 captures per civ and 0.027 with one capture per civ. The 0.03–0.08 target still needs reconciliation with measured B20 capture incidence; T25 remains open |
 | **F8** | C1-E3 mechanisms as written reach **160 (−16%)**, not 190 | R4: field limit 40%, canals reach 75% of a river settlement's fields → 177 (−7%) |
 | **F9** | Metal demand (T17) reproduces 22 §5.6 exactly; T18 holds with the 10% push cap; **fuel pressure (T19) appears only above ~70 people per radius-3 range**, so villages (F2) never feel it; dormancy (B12) is a 6–9-year squeeze after a fresh re-kit | T19 measured on Towns; B12 restated |
 | **F10** | Territory (T11, T14, T15, T16, T20) and Legacy (T24) land inside their targets on the live trajectories, with Found decrees | — |
@@ -161,20 +161,20 @@ Per civ: Dominion 1,134, Mastery 790, Firsts 394 (most 750, least 180), Wonders 
 
 ## 9. Cohesion (`cohesion_sim.py`; T25)
 
-Layouts from §7 (distance to the capital median 19, p90 37 walking tiles), research positions from §3, ASSUMED event rates: harsh winter 30% × shortfall 15% (villages sit at ~⅓ of FoodCap), epidemics 0.049 per settlement-year by 09 §10 class, raids 0.03 per settlement-year and captures 0.10 per civ per E3 (from T23's targets).
+Layouts from §7 (distance to the capital median 19, p90 37 walking tiles), research positions from §3, ASSUMED event rates: harsh winter 30% × shortfall 15% (villages sit at ~⅓ of FoodCap), epidemics 0.049 per settlement-year by 09 §10 class, raids 0.03 per settlement-year and captures 0.10 per civ per E3. Independent 0.10 capture chances imply a 34% chance that at least one of four civs captures a town in a match, within T23's 20–50% target.
 
 | Case | Mean C (p10–p90) | Secessions per civ per E3 |
 |---|---|---:|
-| 22 §8.3 as written | 70.5 (63–80) | **0.000** |
-| no administration projects | 64 (51–77) | 0.000 |
-| every civ captures a distant settlement | 69 (61–79) | 0.000 |
-| famine ×3, raids ×3, epidemics ×2 | 69.5 (61–79) | 0.000 |
-| base 50 instead of 60 | 62 (55–71) | 0.000 |
-| **R7** (captured at C 25, −35 recovering +1 a season, no hearth/feast/shrine/GOV-03 terms while conquered) | 70 (62–79) | **0.034** (captures 0.10 per civ) |
-| R7, every civ captures one distant settlement | 68 (61–80) | 0.37 (≈ 37% of captured distant towns secede) |
-| R7, captures 0.15 per civ, famine ×3, raids ×3 | 69 (61–80) | 0.078 |
+| 22 §8.3 as written | 70.5 (62–80) | **0.000** |
+| no administration projects | 64.0 (51–76) | 0.000 |
+| every civ captures a distant settlement | 69.5 (61–80) | 0.000 |
+| famine ×3, raids ×3, epidemics ×2 | 69.6 (61–79) | 0.000 |
+| base 50 instead of 60 | 62.1 (55–71) | 0.000 |
+| **R7** (captured at C 25, −35 recovering +1 a season, no hearth/feast/shrine/GOV-03 terms while conquered; capture does not imply a raid) | 71.0 (62–81) | **0.002** (captures 0.10 per civ) |
+| R7, every civ captures one distant settlement | 67.9 (58–81) | 0.027 (2.7% of captured distant towns secede) |
+| R7, captures 0.15 per civ, famine ×3, raids ×3 | 69.6 (61–81) | 0.013 |
 
-Typical C runs 63–80 (22 says 55–70): hearth and feast are on every closure, so the "typical" settlement already has +13. Either accept 60–80 or lower the base to 50 (→ 55–71, matching 22's words, still no secession). Secession needs a target below ~10 for ~3 years; no single E3 crisis does that, and the quarter step plus the 8-season timer absorb stacked ones. **T25 → typical 60–80; secessions ≈ 0.03–0.08 per civ per E3 (one in every 2–4 Chieftain matches), almost all captured distant towns; cascade (> 2 in 2 years) < 2% ✅ (0.0%).** 0.1–0.5 would need ~1 capture per civ per E3, far above T23. Sensitivity (±20% on famine weight, Overreach divisor, span penalty, raid rate, base): mean C 60–70, secessions stay 0.
+Typical C is 63–80 (22 says 55–70): hearth and feast are on every closure, so a typical settlement already has +13. The corrected R7 model removes the automatic eight-season raid penalty from captured settlements, applies capture after the current season's Cohesion pass, uses the live minimum-one-point integer step, and counts secessions only within the 52-season E3 exposure. The resulting rate is 0.002 at 0.10 captures per civ and 0.027 when every civ captures one distant town; an independent raid can still apply its own penalty on a later cohesion update. At B20's observed 25% match capture rate, the 0.03–0.08 B19 target would require substantially higher conditional secession risk than this model predicts. Mean Cohesion remains within 60–80 and cascades remain below 2%. B19 stays open pending reconciliation of the joint capture/secession target; no live R7 constants are changed on this model correction alone. Sensitivity (±20% on famine weight, Overreach divisor, span penalty, raid rate, base): mean C remains in range and the noncapture baseline has zero secessions.
 
 ## 10. Final constants for the C# implementation
 
@@ -192,7 +192,7 @@ Typical C runs 63–80 (22 says 55–70): hearth and feast are on every closure,
 | Investment rationing (R5) | invested town eats **0.75** of need | — | §6 |
 | `InvestCapitulateLow` / `Zero` | 0.35 / 0.70 (unchanged with R5) | same | §6 |
 | Captured settlement Cohesion (R7) | start **C 25**; conquered term **−35, +1 a season**; no hearth/feast/shrine/GOV-03 terms while it lasts | −20, +2 | §9 |
-| `CohesionBase` | 60 (or 50 if 22's "55–70" wording is binding) | 60 | §9 |
+| `CohesionBase` | 60 | 60 | §9; the older 22 §8.3 "55–70" description is superseded by the R7 live target |
 | Mining camp claim | radius 1, Emit 0.75 √6 = 1.84 | same | §7 |
 | Found decree rule | as 22 §4.3; AI Strategist ≤ 2 Founds per E3 | — | §7 |
 
@@ -350,8 +350,11 @@ sanitation (CHM-05), `ImportOutbreak`/`OutbreakAt` for WP8's routes; E3 h45 0.01
 **Decisions taken in WP7 (beyond 22/23):**
 1. Civic construction (canals, the Market and other structures, a Market town's dwellings) takes at most `CivicLaborShare` 0.10 of
    the work (0.20 in a Market town), never from the food work, adults first; the builders fetch wood (range, then 8 tiles,
-   hauled), stone and clay themselves and mould the bricks a structure needs. The order is the Market, then housing, canals and
-   the next structure. Without this the E2 economy, whose villages strip their range and gather little clay, never raises one.
+   hauled), stone and clay themselves and mould the bricks a structure needs. The Market remains first. An active Temple or Palace
+   uses the remaining civic budget before housing and canals, with its bricks reserved from dwellings; the largest Town with SOC-09
+   and buildable materials can replace a lower-priority queued structure with the City-enabling Temple or Palace before it reaches
+   90 people. Other structures retain the housing, canals, then structure order. The total civic labor cap is unchanged. Without this the E2 economy,
+   whose villages strip their range and gather little clay, never raises one.
 2. A Market town builds longhouses where the timber is there, else mudbrick houses (a cleared range), else wattle or pit houses.
 3. From KEY-3 clay is dug where there is no deposit (WP6's 0.5–1 L/ws), and the woodcutters go first while the season's wood
    falls short (at most half the material work).
@@ -424,8 +427,8 @@ this measures the helper's stochastic collapse window. The focused WP8b lifecycl
 resume, deterministic next-season siege results, rationing, and relief transition. The sweep does not exercise live-match
 supply, sally, desertion, or casualty interactions. Relief accepts an already-arrived host because the
 order model has no traveling allied-relief order; range-foraging has no numeric rule and is not modeled; structures have no
-inside/outside positions, so the siege burns the first available flammable structure. B20 conflict rates still need the 24-seed
-Council run; current Council reports show zero raids and captures.
+inside/outside positions, so the siege burns the first available flammable structure. This WP8 checkpoint predates the current
+24-seed Council run, which passes B20 at 7.5 raids per match, 95.8% of matches with war, and 25.0% with a capture.
 
 ## 18. WP9 AI telemetry checkpoint
 
@@ -453,7 +456,7 @@ checksums were refreshed after the WP9 and checksummed herd-attribution changes.
 before that refresh; it reported the old politics checksum and has not been rerun. A6 exploit search remains required
 for B26. A later one-seed current-source `research --check-m10 --seeds 20261019 --minutes 64` diagnostic replayed
 identically: KEY-4 median 44.2 min, E3 median 11.8 min, all four civilizations within the B5 timing bands, and chapter
-end at minute 45.2 (0/1 Year-64 endings). This is a single-seed diagnostic, not B5/B6 multi-seed acceptance evidence.
+end at minute 45.2 (0/1 Year-64 endings). This was a single-seed diagnostic. The current exact B5 two-seed Council sample passes: KEY-4 median 58.8 minutes, E3 median 19.0 minutes with all eight civilizations in band; that 0/2 Year-64 result is diagnostic only. The current exact B6 sample passed 32/32 seeds: median chapter end minute 61.2, 3/32 Year-Cap endings (9.4% against a ≤10% limit), and every replay matched.
 
 Harness correctness fixes now protect bounded WP9 work: `Tournament.Play` stops at the evaluated AI chapter end, after
 recording all telemetry for that closing season. Regressions verify the one-year cap at tick 600/four seasons despite a
@@ -475,8 +478,8 @@ was run for the defaults guard.
 WP11 now has a fixed-seed `bronze-v1` chapter-end golden. Its two fresh seed-20261019 runs agree at tick 27,150, with
 RivalCountdown by civilization 3 and checksum `a0360f53f234e87b`; the explicit golden check passed. The S12 Bronze
 chapter gate also passed locally: four Balanced AIs ended at tick 27,150 in 23.952 s against the 30 s budget, with
-the final tick matching the chapter end rule. These close neither B22's 1,000-replay/macOS-Windows requirements nor
-B23's S13 tick and S14 renderer requirements.
+the final tick matching the chapter end rule. B22 S1 later completed 1,000/1,000 full 64-minute replays; S2 cross-platform
+macOS/Windows verification remains open. B23's S12, S13, and S14 requirements now pass.
 
 ## 19. WP10 view checkpoint
 
@@ -484,7 +487,7 @@ The game has the Decrees/forecast panel, compact and embargo controls, countdown
 four E3 overlays (Deposits, Trade, Cohesion, Forest), figure/tool-tier tinting, Bronze coach tips, and the current-sight tile card
 for mining/forest/cohesion details. The forest command-line overlay name is accepted; compact proposals show a likely/possible/
 unlikely estimate when the view API can compute it and say unknown otherwise. The local S12 Bronze chapter gate passed in
-23.952 s. B23 remains open: the S13 tick/GC and S14 60-fps/1,600-figure renderer measurements are still unrun.
+23.952 s. S13 then passed its exact 10-minute tick/GC sample at 1.244 ms mean and 4 ms maximum GC pause. S14 passed all 24 Bronze zoom/overlay cases at 1,600 figures; the minimum one-second rate was 92.8 fps. B23 is complete.
 
 ## 20. Combined verification checkpoint
 
