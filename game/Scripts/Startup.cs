@@ -12,13 +12,15 @@ public partial class Startup : Control
     private const double FadeDurationSeconds = 2.0;
     private const string VideoPath = "res://assets/ui/loading/intro-pan-sunset.ogv";
     private const string GameScenePath = "res://Main.tscn";
+    private const double AfterVideoFadeDurationSeconds = 0.8;
+    private const double StartButtonFadeDurationSeconds = 0.6;
 
-    [Export] public Texture2D? LogoTexture { get; set; }
+    [Export] public Texture2D? AfterVideoTexture { get; set; }
 
     private static readonly Color BackgroundTan = new("#D6C19B");
 
     private VideoStreamPlayer? _video;
-    private Control? _titleScreen;
+    private TextureRect? _afterVideoImage;
     private Button? _startButton;
     private double _elapsed;
     private bool _transitionStarted;
@@ -43,8 +45,7 @@ public partial class Startup : Control
         background.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(background);
 
-        _titleScreen = BuildTitleScreen();
-        AddChild(_titleScreen);
+        AddChild(BuildTitleScreen());
 
         _video = new VideoStreamPlayer
         {
@@ -62,7 +63,7 @@ public partial class Startup : Control
         {
             _transitionStarted = true;
             GD.PushError($"Could not load startup video: {VideoPath}");
-            RevealTitleScreen();
+            RevealAfterVideoScreen();
             return;
         }
 
@@ -83,24 +84,21 @@ public partial class Startup : Control
         var screen = new Control
         {
             Name = "TitleScreen",
-            Modulate = new Color(1, 1, 1, 0),
             MouseFilter = MouseFilterEnum.Pass,
         };
         screen.SetAnchorsPreset(LayoutPreset.FullRect);
 
-        var logo = new TextureRect
+        _afterVideoImage = new TextureRect
         {
-            Name = "Logo",
-            Texture = LogoTexture,
+            Name = "AfterVideoScreen",
+            Texture = AfterVideoTexture,
+            Modulate = new Color(1, 1, 1, 0),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        logo.AnchorLeft = 0.17f;
-        logo.AnchorTop = 0.035f;
-        logo.AnchorRight = 0.83f;
-        logo.AnchorBottom = 0.61f;
-        screen.AddChild(logo);
+        _afterVideoImage.SetAnchorsPreset(LayoutPreset.FullRect);
+        screen.AddChild(_afterVideoImage);
 
         _startButton = new Button
         {
@@ -109,6 +107,7 @@ public partial class Startup : Control
             Theme = UiTheme.Build(),
             ThemeTypeVariation = "Secondary",
             CustomMinimumSize = new Vector2(340, 64),
+            Modulate = new Color(1, 1, 1, 0),
             FocusMode = FocusModeEnum.All,
             Disabled = true,
             MouseDefaultCursorShape = CursorShape.PointingHand,
@@ -130,7 +129,7 @@ public partial class Startup : Control
 
     private void BeginFadeToTitleScreen()
     {
-        if (_transitionStarted || _video is null || _titleScreen is null) return;
+        if (_transitionStarted || _video is null) return;
         _transitionStarted = true;
 
         var tween = CreateTween().SetParallel(true);
@@ -138,17 +137,38 @@ public partial class Startup : Control
             .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
         tween.TweenProperty(_video, "volume_db", -60.0f, FadeDurationSeconds)
             .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
-        tween.TweenProperty(_titleScreen, "modulate:a", 1.0f, FadeDurationSeconds)
-            .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-        tween.Chain().TweenCallback(Callable.From(RevealTitleScreen));
+        tween.Chain().TweenCallback(Callable.From(RevealAfterVideoScreen));
     }
 
-    private void RevealTitleScreen()
+    private void RevealAfterVideoScreen()
     {
-        if (_titleScreen is not null) _titleScreen.Modulate = Colors.White;
         if (_video is not null) _video.Visible = false;
+        if (_afterVideoImage is null)
+        {
+            GD.PushError("Could not display startup background: AfterVideoTexture is not assigned.");
+            RevealStartButton();
+            return;
+        }
+
+        var tween = CreateTween();
+        tween.TweenProperty(_afterVideoImage, "modulate:a", 1.0f, AfterVideoFadeDurationSeconds)
+            .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+        tween.TweenCallback(Callable.From(RevealStartButton));
+    }
+
+    private void RevealStartButton()
+    {
         if (_startButton is null) return;
 
+        var tween = CreateTween();
+        tween.TweenProperty(_startButton, "modulate:a", 1.0f, StartButtonFadeDurationSeconds)
+            .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+        tween.TweenCallback(Callable.From(EnableStartButton));
+    }
+
+    private void EnableStartButton()
+    {
+        if (_startButton is null) return;
         _startButton.Disabled = false;
         _startButton.GrabFocus();
     }
