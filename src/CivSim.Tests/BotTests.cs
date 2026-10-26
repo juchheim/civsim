@@ -30,15 +30,42 @@ public class BotTests
     {
         MatchModel match = Match(CivControl.Scripted(kind), CivControl.Council, CivControl.Council, CivControl.Council);
         var runner = new SimRunner(match);
-        int idleSeasons = 0;
+        ResearchSystem research = match.Research;
+        ResearchCatalog catalog = research.Catalog;
+        int idleSeasonsWithAvailableProject = 0;
         for (int season = 0; season < 16; season++)
         {
             runner.Advance(150);
             if (season < 2) continue;
-            for (int s = 0; s < CivResearch.SlotCount; s++) if (match.Research.Slot(0, s) < 0) { idleSeasons++; break; }
+            // A completion can open a slot late in the season. Let the configured 30-tick AI selection grace expire
+            // before treating an empty slot with an Available project as a bot omission. A completion during that
+            // grace window starts a fresh timer, so defer this sample to the next season in that case.
+            long graceStart = runner.Tick;
+            runner.Advance(30);
+            bool completedDuringGrace = false;
+            foreach (ResearchEvent e in research.Events)
+                if (e.Civ == 0 && e.Kind == ResearchEventKind.Completed && e.Tick >= graceStart)
+                { completedDuringGrace = true; break; }
+            if (completedDuringGrace) continue;
+            bool hasEmptySlot = false;
+            for (int s = 0; s < CivResearch.SlotCount; s++)
+                if (research.Slot(0, s) < 0) { hasEmptySlot = true; break; }
+            if (!hasEmptySlot) continue;
+
+            bool hasUnslottedAvailableProject = false;
+            for (int p = 0; p < catalog.Count; p++)
+            {
+                if (!catalog.Projects[p].Numeric || research.State(0, p) != ProjectState.Available) continue;
+                bool slotted = false;
+                for (int s = 0; s < CivResearch.SlotCount; s++)
+                    if (research.Slot(0, s) == p) { slotted = true; break; }
+                if (!slotted) { hasUnslottedAvailableProject = true; break; }
+            }
+            if (hasUnslottedAvailableProject) idleSeasonsWithAvailableProject++;
         }
-        Assert.True(match.Research.DoneCount(0) >= 8, $"{kind} finished only {match.Research.DoneCount(0)} projects in 16 minutes.");
-        Assert.True(idleSeasons <= 1, $"{kind} left a slot empty in {idleSeasons} seasons.");
+        Assert.True(research.DoneCount(0) >= 8, $"{kind} finished only {research.DoneCount(0)} projects in 16 minutes.");
+        Assert.True(idleSeasonsWithAvailableProject <= 1,
+            $"{kind} left a slot empty while an Available project remained in {idleSeasonsWithAvailableProject} seasons.");
     }
 
     [Fact]

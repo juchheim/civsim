@@ -40,6 +40,21 @@ public class StrategistScenarioTests
 
     private static StrategistRig Resume() => new(Seed, World.Value, Controls, snapshot: Shared.Value.Snapshot);
 
+    private static void WaitOutWarTruce(StrategistRig rig)
+    {
+        Diplomacy diplomacy = rig.Politics.Diplomacy;
+        diplomacy.Set(0, 1, 0);
+        if (diplomacy.AtWar(0, 1)) rig.Politics.SetWar(0, 1, false);
+        int waited = 0;
+        while (diplomacy.InTruce(0, 1, rig.Politics.Season) && waited <= Diplomacy.TruceSeasons)
+        {
+            rig.Seasons(1);
+            waited++;
+        }
+        Assert.False(diplomacy.AtWar(0, 1));
+        Assert.False(diplomacy.InTruce(0, 1, rig.Politics.Season));
+    }
+
     private static readonly string[] Bows = { "WAR-01", "HNT-02", "HNT-03", "HNT-04", "HNT-05", "HNT-06", "WAR-02", "WAR-03", "SOC-05", "WAR-04" };
 
     [Fact]
@@ -98,6 +113,7 @@ public class StrategistScenarioTests
     {
         // Bows and warriors against spears, Relations hostile: war, an assault, and the ratio in the log.
         StrategistRig strong = Resume();
+        WaitOutWarTruce(strong);
         strong.Grant(0, Bows);
         // A sickness has halved the neighbour (its army could otherwise take one of our young daughter settlements in reply,
         // which the Strategist refuses to risk).
@@ -117,11 +133,19 @@ public class StrategistScenarioTests
 
         // The same hostility without the arms: no war, and the refusal says why.
         StrategistRig even = Resume();
+        WaitOutWarTruce(even);
+        // Make the rival's field strength explicit so this branch exercises the 1.5 force-ratio gate,
+        // rather than relying on whatever population the shared opening happened to produce.
+        foreach (int settlement in even.SettlementsOf(1))
+            even.Match.Economy.FixtureAddPeople(settlement, 300, 25);
+        // Keep the prospective war party above the minimum size so rejection reaches the ratio check.
+        even.Match.Economy.FixtureAddPeople(even.SettlementsOf(0)[0], 60, 25);
         even.Politics.Diplomacy.Set(0, 1, -60);
         even.Seasons(4);
         Assert.Empty(even.Notes(0, "War"));
         Assert.False(even.Politics.Diplomacy.AtWar(0, 1));
-        Assert.Contains(even.Notes(0, "WarRejected"), n => n.Other == 1);
+        Assert.Contains(even.Notes(0, "WarRejected"), n => n.Other == 1 &&
+            n.Score < StrategistTuning.WarRatio && n.Reason.Contains("force ratio", StringComparison.Ordinal));
     }
 
     [Fact]

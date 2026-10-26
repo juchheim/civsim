@@ -250,7 +250,7 @@ public sealed class Territory
         if (newCenter < -1 || newCenter >= _tiles.Length) throw new ArgumentOutOfRangeException(nameof(newCenter));
 
         ClaimSource moved = camps[campIndex];
-        var affected = new HashSet<int>();
+        var affected = new SortedSet<int>();
         AddDisk(affected, moved.Tile, moved.Radius);
         if (newCenter >= 0) AddDisk(affected, newCenter, moved.Radius);
 
@@ -284,7 +284,7 @@ public sealed class Territory
         }
         return delta;
 
-        void AddDisk(HashSet<int> into, int center, int radius)
+        void AddDisk(SortedSet<int> into, int center, int radius)
         {
             int x = center % _width, y = center / _width;
             for (int ny = Math.Max(0, y - radius); ny <= Math.Min(_height - 1, y + radius); ny++)
@@ -316,7 +316,7 @@ public sealed class Territory
         ValidateCenter(secondCenter, nameof(secondCenter));
 
         ClaimSource first = camps[firstIndex], second = camps[secondIndex];
-        var affected = new HashSet<int>();
+        var affected = new SortedSet<int>();
         AddDisk(affected, first.Tile, first.Radius);
         AddDisk(affected, second.Tile, second.Radius);
         if (firstCenter >= 0) AddDisk(affected, firstCenter, first.Radius);
@@ -369,7 +369,7 @@ public sealed class Territory
             return liveOwner == NoOwner || liveOwner == camp.Civ;
         }
 
-        void AddDisk(HashSet<int> into, int center, int radius)
+        void AddDisk(SortedSet<int> into, int center, int radius)
         {
             int x = center % _width, y = center / _width;
             for (int ny = Math.Max(0, y - radius); ny <= Math.Min(_height - 1, y + radius); ny++)
@@ -607,7 +607,7 @@ public sealed class Territory
         IReadOnlyList<ClaimSource> ownCamps, IReadOnlyList<ClaimSource> rivals, int count, bool compact)
     {
         var sites = new List<int>();
-        var selected = new HashSet<int>();
+        var selected = new SortedSet<int>();
         var covered = new bool[_tiles.Length];
         foreach (ClaimSource s in own) MarkDisk(covered, s.Tile, s.Radius);
         foreach (ClaimSource c in ownCamps) MarkDisk(covered, c.Tile, CampRadius);

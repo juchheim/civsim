@@ -178,6 +178,9 @@ public class StrategistSecureTinTests
         AiSeat seat = rig.Match.Ai!.SeatOf(0)!;
         Belief belief = seat.Belief;
         int ownTile = rig.Politics.SettlementTileOf(rig.SettlementsOf(0)[0]);
+        // Give the test host enough adults to exceed the forecaster's conservative fixed Tin Folk defense prior.
+        // This keeps the test about belief-gated legal targeting and positive EV, not a zero-success levy.
+        rig.Match.Economy.FixtureAddPeople(rig.SettlementsOf(0)[0], 60, 25);
         TinFolkVillage visibleFolk = rig.Politics.TinFolk[0];
         PlaceSettlementInSight(rig.Politics, visibleFolk.Settlement, ownTile);
         new BeliefBuilder().Update(belief, rig.Match.Ai.World, seat.Profile);

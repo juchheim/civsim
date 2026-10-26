@@ -77,7 +77,10 @@ public sealed class MatchModel : ISimModel
         for (int c = 0; c < setups.Length; c++)
         {
             (int craft, int kin, int reach) = Leaning(pack, profiles[c]);
-            setups[c] = c == 0 ? ResearchCivSetup.Player(craft, kin, reach, playerCouncil) : ResearchCivSetup.Ai(craft, kin, reach);
+            bool humanSeat = c == 0 && (controls.IsEmpty || controls[c].Kind == ControlKind.Council);
+            setups[c] = humanSeat
+                ? ResearchCivSetup.Player(craft, kin, reach, playerCouncil)
+                : ResearchCivSetup.Ai(craft, kin, reach);
         }
         var research = new ResearchSystem(catalog, source, seed, setups);
         var politics = new PoliticsSystem(economy, research, generated, profiles, seed, gentleStart);

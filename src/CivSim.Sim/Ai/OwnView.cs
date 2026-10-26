@@ -32,7 +32,7 @@ public sealed class OwnLevy
 {
     public int TargetSettlement;
     public readonly List<Fighter> Members = new();
-    public readonly Dictionary<int, int> Departures = new();
+    public readonly SortedList<int, int> Departures = new();
 }
 
 /// <summary>The civilization's own state, exact, rebuilt every season before it decides (docs/MVP/14 §3.1).</summary>
@@ -85,7 +85,7 @@ internal static class OwnViewBuilder
         view.Levies.Clear();
         view.Beacons.Clear();
         foreach (int b in politics.BeaconsOf(civ)) view.Beacons.Add(b);
-        var ownSettlementById = new Dictionary<int, int>();
+        var ownSettlementById = new SortedList<int, int>();
         for (int settlement = 0; settlement < politics.SettlementTotal; settlement++)
             if (politics.SettlementCivOf(settlement) == civ && !politics.IsFreeFolk(settlement))
                 ownSettlementById[economy.SettlementLite(settlement).Id] = settlement;

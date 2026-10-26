@@ -56,7 +56,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
 
     // Scratch, rebuilt every update (never state).
     private readonly List<int> _own = new();
-    private readonly HashSet<int> _scoutTargets = new();
+    private readonly SortedSet<int> _scoutTargets = new();
     private bool[] _seenNow = Array.Empty<bool>(), _visited = Array.Empty<bool>();
     private int[] _stamp = Array.Empty<int>();
     private int _stampValue;

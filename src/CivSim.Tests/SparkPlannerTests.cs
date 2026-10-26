@@ -90,7 +90,7 @@ public class SparkPlannerTests
     }
 
     [Fact]
-    public void A_ready_keystone_is_in_Primary_after_every_decision_and_slots_never_idle()
+    public void A_ready_keystone_is_in_Primary_after_every_decision_and_available_projects_are_slotted()
     {
         // Blunder detector "keystone stall" (14 §10.4): breadth met and prerequisites done means the keystone holds Primary
         // after the next decision. The plan also fills all three slots and queues more, so the Council never has to.
@@ -99,9 +99,19 @@ public class SparkPlannerTests
         ResearchSystem r = match.Research;
         ResearchCatalog cat = r.Catalog;
         int checkedKeystones = 0;
+        bool[] completedDuringGrace = new bool[4];
         for (int season = 1; season <= 88; season++)
         {
             runner.Advance(ResearchSystem.SeasonTicks);
+            // Completions may open slots late in the season; allow the configured AI selection grace before
+            // asserting that an Available project was left idle. A completion during that grace window starts a
+            // fresh timer, so defer that civilization's sample to its next decision.
+            long graceStart = runner.Tick;
+            runner.Advance(30);
+            completedDuringGrace[0] = completedDuringGrace[3] = false;
+            foreach (ResearchEvent e in r.Events)
+                if ((e.Civ is 0 or 3) && e.Kind == ResearchEventKind.Completed && e.Tick >= graceStart)
+                    completedDuringGrace[e.Civ] = true;
             foreach (int civ in new[] { 0, 3 })
             {
                 int key = cat.KeystoneLeaving(r.Era(civ));
@@ -110,7 +120,23 @@ public class SparkPlannerTests
                     Assert.Equal(key, r.Slot(civ, 0));
                     checkedKeystones++;
                 }
-                for (int s = 0; s < CivResearch.SlotCount; s++) Assert.True(r.Slot(civ, s) >= 0, $"civ {civ} slot {s} idle in season {season}");
+                bool hasEmptySlot = false;
+                for (int s = 0; s < CivResearch.SlotCount; s++)
+                    if (r.Slot(civ, s) < 0) { hasEmptySlot = true; break; }
+                if (hasEmptySlot && !completedDuringGrace[civ])
+                {
+                    bool hasUnslottedAvailableProject = false;
+                    for (int p = 0; p < cat.Count; p++)
+                    {
+                        if (!cat.Projects[p].Numeric || r.State(civ, p) != ProjectState.Available) continue;
+                        bool slotted = false;
+                        for (int s = 0; s < CivResearch.SlotCount; s++)
+                            if (r.Slot(civ, s) == p) { slotted = true; break; }
+                        if (!slotted) { hasUnslottedAvailableProject = true; break; }
+                    }
+                    Assert.False(hasUnslottedAvailableProject,
+                        $"civ {civ} left an Available project unslotted in season {season}");
+                }
                 Assert.NotEmpty(r.Queue(civ));
             }
         }

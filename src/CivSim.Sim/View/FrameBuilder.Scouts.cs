@@ -22,11 +22,11 @@ public sealed partial class FrameBuilder
     }
 
     private readonly record struct ScoutPosition(int Tile, int X, int Y);
-    private readonly Dictionary<long, ScoutJourney> _scoutJourneys = new();
-    private readonly Dictionary<long, ScoutPosition> _scoutPositions = new();
-    private readonly Dictionary<long, int> _scoutNoTargetSeason = new();
-    private readonly HashSet<long> _liveScouts = new();
-    private readonly HashSet<int> _scoutTargets = new();
+    private readonly SortedList<long, ScoutJourney> _scoutJourneys = new();
+    private readonly SortedList<long, ScoutPosition> _scoutPositions = new();
+    private readonly SortedList<long, int> _scoutNoTargetSeason = new();
+    private readonly SortedSet<long> _liveScouts = new();
+    private readonly SortedSet<int> _scoutTargets = new();
 
     private void PrepareScouts(LivingEconomyModel eco, PoliticsSystem politics, long tick)
     {

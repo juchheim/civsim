@@ -661,7 +661,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             _territory.ProjectedPairOwnersTouchingAfterUpdates(settlements, baselineCamps, civA, civB, ownershipUpdatesProjected);
 
         const int MaxNearbySitesPerCiv = 32;
-        int maxClaimedWeight = (int)Math.Floor(_territory.TotalHabitableWeight * 0.42);
+        int maxClaimedWeight = (int)((long)_territory.TotalHabitableWeight * 42 / 100);
         var civSummaries = new List<FoundFrontierCivSummary>(2);
         var projections = new List<FoundFrontierCandidateProjection>(66);
         foreach (int civ in new[] { civA, civB })
@@ -968,7 +968,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int optimizedMoves = 0;
         int coupledPairEvaluations = 0;
         int optimizedPairs = 0;
-        int landCap = (int)Math.Floor(_territory.TotalHabitableWeight * 0.42);
+        int landCap = (int)((long)_territory.TotalHabitableWeight * 42 / 100);
         int pathLimit = baseline.FrontierConnectionWeight >= 0
             ? Math.Min(600, baseline.FrontierConnectionWeight)
             : 600;
