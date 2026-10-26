@@ -170,11 +170,13 @@ Layouts from §7 (distance to the capital median 19, p90 37 walking tiles), rese
 | every civ captures a distant settlement | 69.5 (61–80) | 0.000 |
 | famine ×3, raids ×3, epidemics ×2 | 69.6 (61–79) | 0.000 |
 | base 50 instead of 60 | 62.1 (55–71) | 0.000 |
-| **R7** (captured at C 25, −35 recovering +1 a season, no hearth/feast/shrine/GOV-03 terms while conquered; capture does not imply a raid) | 71.0 (62–81) | **0.002** (captures 0.10 per civ) |
+| **R7 oracle baseline** (captured at C 25, −35 recovering +1 a season, no hearth/feast/shrine/GOV-03 terms while conquered; capture does not imply a raid) | 71.0 (62–81) | **0.002** (captures 0.10 per civ) |
 | R7, every civ captures one distant settlement | 67.9 (58–81) | 0.027 (2.7% of captured distant towns secede) |
 | R7, captures 0.15 per civ, famine ×3, raids ×3 | 69.6 (61–81) | 0.013 |
 
-Typical C is 63–80 (22 says 55–70): hearth and feast are on every closure, so a typical settlement already has +13. The corrected R7 model removes the automatic eight-season raid penalty from captured settlements, applies capture after the current season's Cohesion pass, uses the live minimum-one-point integer step, and counts secessions only within the 52-season E3 exposure. The resulting rate is 0.002 at 0.10 captures per civ and 0.027 when every civ captures one distant town; an independent raid can still apply its own penalty on a later cohesion update. At B20's observed 25% match capture rate, the 0.03–0.08 B19 target would require substantially higher conditional secession risk than this model predicts. Mean Cohesion remains within 60–80 and cascades remain below 2%. B19 stays open pending reconciliation of the joint capture/secession target; no live R7 constants are changed on this model correction alone. Sensitivity (±20% on famine weight, Overreach divisor, span penalty, raid rate, base): mean C remains in range and the noncapture baseline has zero secessions.
+Typical C is 63–80 (22 says 55–70): hearth and feast are on every closure, so a typical settlement already has +13. The corrected R7 model removes the automatic eight-season raid penalty from captured settlements, applies capture after the current season's Cohesion pass, uses the live minimum-one-point integer step, and counts secessions only within the 52-season E3 exposure. The resulting rate is 0.002 at 0.10 captures per civ and 0.027 when every civ captures one distant town; an independent raid can still apply its own penalty on a later cohesion update. At B20's observed 25% match capture rate, the 0.03–0.08 B19 target would require substantially higher conditional secession risk than this model predicts. Mean Cohesion remains within 60–80 and cascades remain below 2%. At this oracle-only checkpoint B19 stayed open; the later live follow-up below tests a bounded capture-term change. Sensitivity (±20% on famine weight, Overreach divisor, span penalty, raid rate, base): mean C remains in range and the noncapture baseline has zero secessions.
+
+**Live acceptance follow-up (2026-10-26):** changing only `ConqueredCohesion` from −35 to −45 while retaining C 25 start, +1/season recovery, the C 15 threshold and eight-season timer passed B19 on the exact 24-seed cohort with an 80-minute KEY-4 completion ceiling. All 96/96 E3 exposures completed; mean Cohesion was 63.9, secessions were 0.05 per civilization per exposure, and cascades were 0/24. The chapter-end sample remained at the normal MatchEnd tick. On the same cohort B17 remained open: 11.5 settlements/civ and 80.2% own-KEY-4 border contact passed, but claimed land was 43.1% (target ≤42%), and City prevalence was 22.9% (target ≥25%); Town prevalence was 90.6%. The earlier +3/+8 City-path Spark preference screen did not change the City rate and was reverted. No threshold changes are justified by these data.
 
 ## 10. Final constants for the C# implementation
 
@@ -191,7 +193,7 @@ Typical C is 63–80 (22 says 55–70): hearth and feast are on every closure, s
 | Chariot + shield casualties | multiply: crew with arms kits take ×0.35 | unstated | §6 |
 | Investment rationing (R5) | invested town eats **0.75** of need | — | §6 |
 | `InvestCapitulateLow` / `Zero` | 0.35 / 0.70 (unchanged with R5) | same | §6 |
-| Captured settlement Cohesion (R7) | start **C 25**; conquered term **−35, +1 a season**; no hearth/feast/shrine/GOV-03 terms while it lasts | −20, +2 | §9 |
+| Captured settlement Cohesion (R7 live) | start **C 25**; conquered term **−45, +1 a season**; no hearth/feast/shrine/GOV-03 terms while it lasts | −20, +2 | §9 |
 | `CohesionBase` | 60 | 60 | §9; the older 22 §8.3 "55–70" description is superseded by the R7 live target |
 | Mining camp claim | radius 1, Emit 0.75 √6 = 1.84 | same | §7 |
 | Found decree rule | as 22 §4.3; AI Strategist ≤ 2 Founds per E3 | — | §7 |
@@ -339,7 +341,7 @@ role all season, and research counts them (with COM-06 ×1.5, NUM-06 +4, SOC-08 
 a settlement with a Scribe adopts without the distance lag. Cohesion: from each civilization's KEY-3 the stored F is
 target-seeking (C = (F − 0.6) ÷ 0.006, a quarter step a season) on 22 §8.3's target with every E3 `cohesion` effect in its scope,
 Overreach by walking tiles to the capital × (1 − AdminReduction), the Admin span penalty, and R7 for captured towns (`NoteCaptured`
-from politics; start C 25, −35 recovering +1); work ×0.85–1.15, the fission trigger 75% below C 35, secession below C 15 for 8
+from politics; start C 25, −45 recovering +1); work ×0.85–1.15, the fission trigger 75% below C 35, secession below C 15 for 8
 seasons (never the capital; `DrainSecessions` → politics marks it Free Folk). Food: the ard's 40% field limit and halved labor
 per ox pair, canals on fields within 2 tiles of a river (×1.5, ×2 arid), flood loss ×0.5 each for AGR-06 and NUM-06, AGR-07 only
 on manured fields, dairying (milk, cheese), pastures to 15% of the range, horses (HUS-07), coastal salt pans, bakeries, GOV-04's
@@ -368,7 +370,7 @@ sanitation (CHM-05), `ImportOutbreak`/`OutbreakAt` for WP8's routes; E3 h45 0.01
    planner already fells the timber of every dwelling it builds.
 
 **Constants changed (each one the docs mark tunable or a rule's implementation):**
-- `ConqueredCohesion` −20 → **−35**, `ConqueredRecovery` 2 → **1**, new `ConqueredStartCohesion` **25** (R7, §10).
+- `ConqueredCohesion` −20 → −35 in the initial R7 rule, then **−45** in the live B19 follow-up; `ConqueredRecovery` 2 → **1**, new `ConqueredStartCohesion` **25** (R7, §10).
 - New: `CivicLaborShare` 0.10, `MarketEvery` 4, `EpidemicInflowE3` 0.30 (B10 sensitivity; see below), `HearthPeople` 35, `KilnWoodPerPerson` 0.2,
   `BuildWoodPerPerson` 0.05, `DeadwoodPerTile` 2.
 - Not changed: `MetalPushLaborCap`, `UpgradeRemeltShare`, the dormancy tail, `CohesionBase` 60, any 22 §8.3 term.

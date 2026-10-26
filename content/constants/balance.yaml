@@ -166,7 +166,7 @@ constants:
   - {id: OverreachFreeTiles, value: 8, unit: tiles, source: "22 §8.2–8.3"}
   - {id: OverreachDivisor, value: 2, unit: "÷", source: "22 §8.2–8.3"}
   - {id: SpanPenalty, value: 3, unit: C per settlement, source: "22 §8.2–8.3"}
-  - {id: ConqueredCohesion, value: -35, unit: C, source: "07d R7 (§10): the conquered term; 13 §8.3 and 22 §7.4 had -20"}
+  - {id: ConqueredCohesion, value: -45, unit: C, source: "07d §9 live B19 follow-up: −45 passed the 24-seed E3 check; retains +1/season recovery"}
   - {id: ConqueredRecovery, value: 1, unit: C/season, source: "07d R7 (§10): +1 a season; 13 §8.3 had +2"}
   - {id: ConqueredStartCohesion, value: 25, unit: C, source: "07d R7 (§10): a captured settlement starts at C 25"}
   - {id: CaptureAssimilationSiege, value: -0.10, unit: share, source: "13 §8.3, 22 §7.4"}
