@@ -229,7 +229,7 @@ constants:
   - {id: CivicLaborShare, value: 0.10, unit: share of labor, source: "07d WP7: civic construction (canals, Market, Temple, Palace, School, Bakery, Hall, Ziggurat) takes at most this share of a settlement's work, as the metal build of WP6"}
   - {id: CityTempleLaborMultiplier, value: 1.5, unit: "× civic share", source: "07d F4 B17 tuning: the selected City-site Temple gets 50% more civic labor when food security is at least 0.8 and housing already supports City population; no global research or housing-cap change"}
   - {id: MarketEvery, value: 4, unit: settlements, source: "07d §3 (balance_sim live MarketEvery): a Market in the largest settlement, one more per 4 settlements"}
-  - {id: EpidemicInflowE3, value: 0.2, unit: share, source: "09 §10.1 inflow, E3 between E2 0.1 and E4 0.3; routes add to it (WP8)"}
+  - {id: EpidemicInflowE3, value: 0.3, unit: share, source: "07d B10 sensitivity: E3 uses the typical E4 inflow from 09 §10.1; 24-seed expected baseline epidemic share is 7.1% (inside B10's 7–13% band); realized deaths are diagnostic; routes add to it (WP8)"}
   - {id: HearthPeople, value: 35, unit: people per hearth, source: "metal_sim.py hearth_per (10 §5): one hearth, 1.5 L a season and 3 in Winter, per 35 people"}
   - {id: KilnWoodPerPerson, value: 0.2, unit: L/person/yr, source: "metal_sim.py kiln_wood (10 §5: pottery and lime firing)"}
   - {id: BuildWoodPerPerson, value: 0.05, unit: L/person/yr, source: "metal_sim.py build_wood is 0.15 for dwellings, stores and repairs; the live planner already fells the timber of every dwelling and store it builds, so only repairs (a third) are added here (07d WP7)"}

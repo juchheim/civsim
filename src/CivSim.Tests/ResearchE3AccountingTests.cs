@@ -16,4 +16,39 @@ public sealed class ResearchE3AccountingTests
     {
         Assert.Equal(expectedPreMortalityAge, ResearchE3.PreMortalityAgeOfSurvivor(postSeasonAge));
     }
+
+    [Fact]
+    public void T13_baseline_excludes_the_conditional_winter_shortfall_without_losing_total_mortality()
+    {
+        (double baseline, double winterShortfall) = ResearchE3.SplitExpectedHazard(total: 0.011,
+            winterShortfall: 0.00236);
+
+        Assert.Equal(0.00864, baseline, 10);
+        Assert.Equal(0.00236, winterShortfall, 10);
+        Assert.Equal(0.011, baseline + winterShortfall, 10);
+    }
+
+    [Theory]
+    [InlineData(0.036, 2.0, 0.034, 1.25, 0.8027777777777778)]
+    [InlineData(0.012, 2.0, 0.011, 1.25, 0.7791666666666667)]
+    public void T13_anchor_ratio_uses_annual_effective_hazards(double e0Hazard, double e0Winter,
+        double e3Hazard, double e3Winter, double expectedRatio)
+    {
+        double e0Annual = ResearchE3.AnnualEffectiveHazard(e0Hazard, e0Winter);
+        double e3Annual = ResearchE3.AnnualEffectiveHazard(e3Hazard, e3Winter);
+
+        Assert.Equal(expectedRatio, e3Annual / e0Annual, 12);
+    }
+
+    [Fact]
+    public void B10_expected_epidemic_share_uses_baseline_expected_hazards_and_excludes_winter_shortfall()
+    {
+        double baselineShare = ResearchE3.ExpectedEpidemicShare(epidemicHazard: 0.00071,
+            totalExpectedHazard: 0.012, conditionalWinterShortfall: 0.002, includeWinterShortfall: false);
+        double inclusiveDiagnostic = ResearchE3.ExpectedEpidemicShare(epidemicHazard: 0.00071,
+            totalExpectedHazard: 0.012, conditionalWinterShortfall: 0.002, includeWinterShortfall: true);
+
+        Assert.Equal(0.071, baselineShare, 12);
+        Assert.Equal(0.0591666666666667, inclusiveDiagnostic, 12);
+    }
 }

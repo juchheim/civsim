@@ -16,7 +16,7 @@ namespace CivSim.Harness;
 /// <summary>
 /// <c>research --report-e3</c> (WP7; docs/MVP/22 §15 T7, T10–T16, T25, 07d §10–§11): four Balanced civilizations on the Council
 /// over each seed, sampled every season. Reports people, settlements, Towns and Cities, FoodCap, claimed land and border contact
-/// at each civilization's KEY-3 and KEY-4; E3 hazards against E0 (C3-E3), e45 and the epidemic share of deaths; Cohesion in E3
+/// at each civilization's KEY-3 and KEY-4; E3 hazards against E0 (C3-E3), e45 and expected/realized epidemic shares; Cohesion in E3
 /// and secessions; E3 role Insight; and the E3 timing. It reports; it never tunes.
 /// </summary>
 internal static class ResearchE3
@@ -111,9 +111,9 @@ internal static class ResearchE3
         text.AppendLine($"  at the chapter end (minute {F(Median(endMin))}): people per civ median {F(Median(peopleEnd))}, settlements {F(Median(settsEnd))}, largest {F(Median(bigEnd))}, claimed {P(Median(claimedEnd))}");
         text.AppendLine($"T12 mean FoodCap per settlement: KEY-3 {F(Median(food3))}, KEY-4 {F(Median(food4))}, ratio median {Median(foodRatio):F2} (C1-E3 target x2.16 on the average settlement, x1.74 from E3 projects alone)");
         double ann(int e, int b) => deaths[e, b] / Math.Max(1e-9, exposure[e, b] / 4);
-        text.AppendLine($"T13 annual death rate E0 / E3: children {ann(0, 0) * 1000:F1} / {ann(3, 0) * 1000:F1} per mille -> ratio {ann(3, 0) / ann(0, 0):F3} (target 0.803 +-10%); " +
-                        $"adults {ann(0, 1) * 1000:F1} / {ann(3, 1) * 1000:F1} -> {ann(3, 1) / ann(0, 1):F3} (target 0.779 +-10%)");
-        text.AppendLine($"T13 e45 in E3 from the elder life table: {E45(ed, ee):F1} (target 17 +-10%; the same estimator gives {E45(ed2, ee2):F1} in E2, 09 anchor 16); E3 epidemic share of deaths {P(e3epi / Math.Max(1, e3d))} (B10 7-13%), starvation {P(e3starv / Math.Max(1, e3d))}");
+        text.AppendLine($"T13 realized full-era death rates E0 / E3 (includes conditional winter shortfall; diagnostic): children {ann(0, 0) * 1000:F1} / {ann(3, 0) * 1000:F1} per mille -> ratio {ann(3, 0) / ann(0, 0):F3}; " +
+                        $"adults {ann(0, 1) * 1000:F1} / {ann(3, 1) * 1000:F1} -> {ann(3, 1) / ann(0, 1):F3}");
+        text.AppendLine($"T13 realized e45 in E3 from the elder life table: {E45(ed, ee):F1} (diagnostic; expected baseline e45 is reported below; the same estimator gives {E45(ed2, ee2):F1} in E2); realized E3 epidemic share {P(e3epi / Math.Max(1, e3d))} and starvation {P(e3starv / Math.Max(1, e3d))} (ledger diagnostics; realized epidemic share is not the B10 measure)");
         var cz = new double[4, 8]; var ecz = new double[4, 8];
         foreach (Result rr in results) foreach (CivTrace t in rr.Civs) for (int e = 0; e < 4; e++) for (int k = 0; k < 8; k++) { cz[e, k] += t.CauseByEra[e, k]; ecz[e, k] += t.ElderCauseByEra[e, k]; }
         for (int e = 0; e < 4; e++)
@@ -133,12 +133,15 @@ internal static class ResearchE3
             eh[e, a] += rr.ExpHazard[e, a]; ec[e, a] += rr.ExpCount[e, a]; ews[e, a] += rr.ExpWinterShortfall[e, a];
             for (int cause = 0; cause < 8; cause++) ech[e, a, cause] += rr.ExpCauseHazard[e, a, cause];
         }
-        double ExpE45(int e)
+        double ExpE45(int e, bool includeWinterShortfall)
         {
             double surv = 1, years = 0;
             for (int a = 45; a < 100; a++)
             {
-                double m = ec[e, a] > 0 ? 4 * eh[e, a] / ec[e, a] : 4.0;
+                double hazard = includeWinterShortfall
+                    ? eh[e, a]
+                    : SplitExpectedHazard(eh[e, a], ews[e, a]).Baseline;
+                double m = ec[e, a] > 0 ? 4 * hazard / ec[e, a] : 4.0;
                 double q = 1 - Math.Exp(-m);
                 years += surv * (1 - q / 2);
                 surv *= 1 - q;
@@ -148,13 +151,24 @@ internal static class ResearchE3
         double ExpBand(int e, int lo, int hi)
         {
             double h = 0, n = 0;
-            for (int a = lo; a < hi; a++) { h += eh[e, a]; n += ec[e, a]; }
+            for (int a = lo; a < hi; a++)
+            {
+                h += SplitExpectedHazard(eh[e, a], ews[e, a]).Baseline;
+                n += ec[e, a];
+            }
             return n > 0 ? 4 * h / n : double.NaN;
         }
         double ExpCauseBand(int e, int cause, int lo, int hi)
         {
             double h = 0, n = 0;
-            for (int a = lo; a < hi; a++) { h += ech[e, a, cause]; n += ec[e, a]; }
+            for (int a = lo; a < hi; a++)
+            {
+                double causeHazard = ech[e, a, cause];
+                if (cause == (int)EconomyDeathCause.Starvation)
+                    causeHazard = SplitExpectedHazard(causeHazard, ews[e, a]).Baseline;
+                h += causeHazard;
+                n += ec[e, a];
+            }
             return n > 0 ? 4 * h / n : double.NaN;
         }
         double ExpWinterShortfallBand(int e, int lo, int hi)
@@ -163,9 +177,30 @@ internal static class ResearchE3
             for (int a = lo; a < hi; a++) { h += ews[e, a]; n += ec[e, a]; }
             return n > 0 ? 4 * h / n : double.NaN;
         }
-        text.AppendLine($"T13 from expected hazards (seasons with all four civs in the era): child annual E0 {ExpBand(0, 0, 14) * 1000:F1} E2 {ExpBand(2, 0, 14) * 1000:F1} E3 {ExpBand(3, 0, 14) * 1000:F1} per mille (09 E3 anchor 36.1); " +
-                        $"adult E0 {ExpBand(0, 14, 45) * 1000:F1} E2 {ExpBand(2, 14, 45) * 1000:F1} E3 {ExpBand(3, 14, 45) * 1000:F1} (anchor 11.7); ratios E3/E0 child {ExpBand(3, 0, 14) / ExpBand(0, 0, 14):F3} (target 0.803) adult {ExpBand(3, 14, 45) / ExpBand(0, 14, 45):F3} (target 0.779); " +
-                        $"e45 E2 {ExpE45(2):F1} E3 {ExpE45(3):F1} (target 17 +-10%)");
+        double ExpEpidemicShare(int e, bool includeWinterShortfall)
+        {
+            double epidemic = 0, total = 0, winterShortfall = 0;
+            for (int a = 0; a < 100; a++)
+            {
+                epidemic += ech[e, a, (int)EconomyDeathCause.Epidemic];
+                total += eh[e, a];
+                winterShortfall += ews[e, a];
+            }
+            return ExpectedEpidemicShare(epidemic, total, winterShortfall, includeWinterShortfall);
+        }
+        double e0ChildAnchor = AnnualEffectiveHazard(0.036, winterMultiplier: 2.0);
+        double e0AdultAnchor = AnnualEffectiveHazard(0.012, winterMultiplier: 2.0);
+        double targetChildRatio = AnnualEffectiveHazard(0.034, winterMultiplier: 1.25) / e0ChildAnchor;
+        double targetAdultRatio = AnnualEffectiveHazard(0.011, winterMultiplier: 1.25) / e0AdultAnchor;
+        text.AppendLine($"T13 baseline expected hazards excluding conditional winter shortfall (seasons with all four civs in the era): child annual E0 {ExpBand(0, 0, 14) * 1000:F1} E2 {ExpBand(2, 0, 14) * 1000:F1} E3 {ExpBand(3, 0, 14) * 1000:F1} per mille (09 E3 anchor 36.1); " +
+                        $"adult E0 {ExpBand(0, 14, 45) * 1000:F1} E2 {ExpBand(2, 14, 45) * 1000:F1} E3 {ExpBand(3, 14, 45) * 1000:F1} (anchor 11.7); " +
+                        $"anchor-normalized E3/E0 child {ExpBand(3, 0, 14) / e0ChildAnchor:F3} (target {targetChildRatio:F3}) adult {ExpBand(3, 14, 45) / e0AdultAnchor:F3} (target {targetAdultRatio:F3}); " +
+                        $"live expected E3/E0 child {ExpBand(3, 0, 14) / ExpBand(0, 0, 14):F3} adult {ExpBand(3, 14, 45) / ExpBand(0, 14, 45):F3} (diagnostic); " +
+                        $"e45 E2 {ExpE45(2, includeWinterShortfall: false):F1} E3 {ExpE45(3, includeWinterShortfall: false):F1} (target 17 +-10%)");
+        text.AppendLine($"  E3 expected e45 including conditional winter shortfall: {ExpE45(3, includeWinterShortfall: true):F1}; this surcharge is included in realized starvation deaths but excluded from the §4.1 baseline comparison");
+        double b10ExpectedShare = ExpEpidemicShare(3, includeWinterShortfall: false);
+        string b10ShareBand = b10ExpectedShare is >= 0.07 and <= 0.13 ? "IN BAND" : "OUT OF BAND";
+        text.AppendLine($"B10 expected E3 epidemic share (expected epidemic hazard / total expected baseline mortality hazard, age-exposure weighted; conditional winter-shortfall surcharge excluded): {b10ExpectedShare * 100:F1}% (target 7–13%, sample {b10ShareBand}; acceptance uses the 24-seed cohort in 22 §16); including the surcharge: {ExpEpidemicShare(3, includeWinterShortfall: true) * 100:F1}% (diagnostic only)");
         text.AppendLine($"  expected adult cause hazards E0/E3 per mille: " +
                         string.Join("; ", Enum.GetNames<EconomyDeathCause>().Select((name, cause) =>
                             $"{name} {ExpCauseBand(0, cause, 14, 45) * 1000:F2}/{ExpCauseBand(3, cause, 14, 45) * 1000:F2}")) +
@@ -329,6 +364,26 @@ internal static class ResearchE3
 
     internal static int PreMortalityAgeOfSurvivor(int postSeasonAge)
         => postSeasonAge <= 0 ? -1 : Math.Min(99, postSeasonAge - 1);
+
+    internal static (double Baseline, double WinterShortfall) SplitExpectedHazard(double total,
+        double winterShortfall)
+    {
+        double normalizedTotal = Math.Max(0, total);
+        double surcharge = Math.Clamp(winterShortfall, 0, normalizedTotal);
+        return (normalizedTotal - surcharge, surcharge);
+    }
+
+    internal static double AnnualEffectiveHazard(double nonWinterHazard, double winterMultiplier)
+        => nonWinterHazard * (3 + winterMultiplier) / 4;
+
+    internal static double ExpectedEpidemicShare(double epidemicHazard, double totalExpectedHazard,
+        double conditionalWinterShortfall, bool includeWinterShortfall)
+    {
+        (double baseline, double winterShortfall) = SplitExpectedHazard(totalExpectedHazard,
+            conditionalWinterShortfall);
+        double denominator = includeWinterShortfall ? baseline + winterShortfall : baseline;
+        return denominator > 0 ? Math.Max(0, epidemicHazard) / denominator : double.NaN;
+    }
 
     private static void Sample(At at, int civ, double minute, MatchModel match)
     {

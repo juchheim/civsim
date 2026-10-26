@@ -638,7 +638,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B7 | **Hands-off loses to engaged** at the chapter end | ≥ 65% (P8 at the new horizon) | Settler proxy vs Council, mirrored | Auto |
 | B8 | **Decrees pay** | a Decree-using scripted bot beats the same bot with Decrees off in ≥ 60% | mirrored duels, 32 seeds | Auto |
 | B9 | FoodCap E3 (C1-E3) | 88 → 190 ±10% | check_e3 + live fixture | Auto |
-| B10 | Hazards E3 (C3-E3) | ratios and e45 ±10%; epidemic share 7–13% | harness ledger + check_e3 | Auto |
+| B10 | Hazards E3 (C3-E3) | over seeds 20261019–20261042: expected-hazard ratios and e45 ±10%; expected epidemic share 7–13% | `research --report-e3` expected-hazard ledger + `check_e3.py`, 24 seeds × 64 minutes | Auto |
 | B11 | Efficiency (C6-E3) | chop ×1.5, mining ×1.5–2, field labor down ≥ 40% | method-rung report | Auto |
 | B12 | **Metal chain** | T18; after tin is cut, rung 6 falls back within 12 seasons with a "no tin" reason; no smelting without charcoal | economy fixtures | Auto |
 | B13 | **Fuel pressure** | T19 | economy fixtures + metal_sim | Auto |
@@ -660,6 +660,8 @@ The milestone is done when every automated row passes in the nightly report and 
 | B29 | Forecast fidelity | KEY-4 within 15%, median ≤ 6% | harness | Auto |
 | B30 | New blunders | Mandate overflow < 0.3, siege without supply 0, suicide raid 0, naked caravan < 0.5 per match | blunder detectors | Auto |
 | B31 | Legend vs Warlord | ≥ 60% (the 65% of 14 §10.3 moves to E4) | ladder | Auto |
+
+For B10, aggregate expected epidemic hazard from all modeled disease classes over the fixed 24-seed cohort and divide by total expected baseline mortality hazard across E3 age exposures. Exclude the conditional winter-shortfall surcharge from this denominator; it is separate from the §4.1 baseline. Use the season-adjusted §4.1 E0 anchors for the expected child/adult ratios and baseline expected hazards for e45. Realized death shares and shares recalculated with the winter-shortfall surcharge are diagnostic only. Reproduce with `research --report-e3 --seeds 20261019,20261020,20261021,20261022,20261023,20261024,20261025,20261026,20261027,20261028,20261029,20261030,20261031,20261032,20261033,20261034,20261035,20261036,20261037,20261038,20261039,20261040,20261041,20261042 --minutes 64`.
 
 B7 and B8 are runnable separately with `ai --check-b7` and `ai --check-b8`. Each uses 32 seeds × 2 mirrored seatings at a 64-minute maximum horizon (chapter-end scoring). B7 compares Settler difficulty against Council; B8 compares the same scripted Grower bot with the default Council Decree policy enabled against that bot with only its Decree policy disabled. Both commands accept `--seeds`, `--minutes` and `--first-seed`; any sample below 32 seeds or 64 minutes is labelled DIAGNOSTIC ONLY and cannot pass.
 

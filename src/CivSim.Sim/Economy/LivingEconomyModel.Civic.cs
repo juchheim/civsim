@@ -140,7 +140,7 @@ public sealed partial class LivingEconomyModel
             MarketTownRoutes = K("MarketTownRoutes", "2").RoundToInt();
             PlagueR0 = K("PlagueR0", "2.0");
             PlagueCfr = K("PlagueCFR", "0.35");
-            Inflow = K("EpidemicInflowE3", "0.2");
+            Inflow = K("EpidemicInflowE3", "0.3");
             HearthPeople = K("HearthPeople", "35");
             KilnWood = K("KilnWoodPerPerson", "0.2");
             BuildWood = K("BuildWoodPerPerson", "0.15");
