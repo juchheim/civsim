@@ -106,7 +106,7 @@ Arms are 0.26 L, not 22's 0.15: 4 warriors' kits over 6 years is 0.67 kits × 0.
 
 Steady non-metal demand (hearths, kilns, building) crosses the range's ~52 L/yr of regrowth and deadwood at ~70 people; the re-kit adds ~10–20 points but is spread over 8–12 seasons of regrowth, so 23 §20.8's "the re-kit is the fuel event (~47–60%)" is too high once regrowth is counted. Villages (F2, ~25–40 people) never feel fuel pressure. **T19 → measured on Towns of 80–100: 25–70% without WOD-04, < 5% with it.** ±20% on non-metal wood moves the 100-person drawdown 32–82%; ±20% forest tiles 25–82%: T19 is the least robust target here.
 
-**Dormancy (B12):** after a full E3 on tin bronze, tin cut at KEY-4: 100% still on rung 6 after 12 seasons with no growth, 84% in a growing village (new adults get copper), 50% after ~30–36 seasons. A fresh re-kit synchronises kit ages, so 23 C6's "first fallbacks within a season" holds only for old, mixed stocks. **B12 → "within 12 seasons the new and heaviest tool users fall back (≥ 10%) and the 'no tin' reason shows; half of rung 6 is gone within 9 years."** The embargo is a slow lever by design; in a 3-year countdown it bites through growth, arms and new settlements, not existing kits.
+**Dormancy (B12):** after a full E3 on tin bronze, tin cut at KEY-4: 100% still on rung 6 after 12 seasons with no growth, 84% in a growing village (new adults get copper), and about half of initial rung-6 adult coverage remains after 12–13 years in the live fixture. A fresh re-kit synchronises kit ages, so 23 C6's "first fallbacks within a season" holds only for old, mixed stocks. **B12 → "within 12 seasons the new and heaviest tool users fall back (≥ 10%) and the 'no tin' reason shows; about half of rung-6 adult coverage is gone after 12–13 years."** The embargo is a slow lever by design; in a 3-year countdown it bites through growth, arms and new settlements, not existing kits.
 
 **T20 ✅** (territory_sim e3, §7): own tin mine by KEY-4 53–66% of civs, a Tin Folk village within compact reach 78%, one or the other 100%; arsenical fallback needed by 0% under that (optimistic) compact rule. **E3 length vs metal supply: < 2%** — Insight is headcount-driven and Know-how is 35% of Commons whatever is practised; metal moves labor, arms and fuel, not research pace.
 
@@ -255,9 +255,9 @@ civilizations, seeds 20261019 and 777, 64 minutes). No constant this document or
 | T17 bronze / tin / charcoal / wood per 100 a year | 0.83 L / 0.083 L / 2.28 L / 13.7 L (bellows); 80 people 0.65 / 0.065 / 1.80 / 10.8 | median 0.00 L (0–0.16) | median 0.43 L, tin 0.01, charcoal 1.6, wood 10.6 | fixture ✅ (wood at the low edge of 14–19); live ✗ for want of ore access |
 | T17 metal labor (mining, charcoal, smelting) | 1.6–2.2% | 0.2–6% | 4–8% | fixture below 3–4%; live above (small, scattered smithies) |
 | T18 rung 6 twelve seasons after MET-05 (access holds) | 69% at 12, 70% at 13 (60–100 people) | 5 of 19 settlements | per-settlement median 8%, 19 of 79 at ≥ 70%; civ-wide 17–73% at minute 64 | fixture ≈ ✅ (one season late); live ✗ |
-| T19 standing wood drawn down by season 52 | 16% without WOD-04, 2% with (80 people 8% / 1%) | villages 0% (p90 3–7%) | same | with WOD-04 ✅; without it below 25–70% |
+| T19 standing wood drawn down by season 52 | fixed population: 25% / 62% without WOD-04 at 80 / 100 people; 2% / 3% with it | villages 0% (p90 3–7%) | same | ✅ within 25–70% and <5% |
 | B11 chop / mining | ×1.50 / ×1.95 | ×1.50 / ×1.95 | | ✅ |
-| B12 | tin cut: "no tin" the next season; casting falls to T9 (arsenical in range) or T8; 8% of tin-bronze kits replaced after 12 seasons, about half after 12 years; no charcoal, no smelt | | | reason ✅, squeeze ✅ (slower than "half in ~9 years") |
+| B12 | tin cut: "no tin" the next season; casting falls to T9 (arsenical in range) or T8; about 10% fall back by 12 seasons and half of initial rung-6 adult coverage is gone after 12–13 years; no charcoal, no smelt | | | reason ✅, squeeze ✅ (slower than the earlier ~9-year estimate) |
 | B13 | as T19 | | | partial (see T19) |
 | E3 timing (`--check-m10`) | — | KEY-3 30.3–35.6, KEY-4 42.2–47.3, E3 median 12.2 (11.4–13.5), chapter end 45.2 / 49.5 | | ✅ unchanged within 0.3 min of the WP5 baseline |
 
@@ -329,7 +329,7 @@ civilization past KEY-3 and hashed only once the Bronze Age has begun: `research
 | T16 E3 foundings per civ | median 2 | natural fissions only (Decrees are WP8) |
 | T25 Cohesion | mean 70, p10 65, p90 76; 0 secessions (0 captures) | ✅ 60–80; secession needs captures (R7), which the Council AI never makes |
 | T7 E3 roles' share of Insight at KEY-4 | median 11% (EraBase 160: 14%) | just under 12–20% at 150 (KEY-4 comes before most Temples and Schools) |
-| T19 fixture (towns of 80 / 100, `--metal-fixture`) | without WOD-04 53% / 57% drawn down; with it 4% / 3% | ✅ 25–70% and < 5% |
+| T19 fixture (fixed populations 80 / 100, `--metal-fixture`) | without WOD-04 25% / 62% drawn down; with it 2% / 3% | ✅ 25–70% and < 5% |
 | T19 live (`--report-metal`) | every civilization had WOD-04 by the end; towns of 80–100 lose 18% (p10 0, p90 90), 101+ lose 53% | ✗ < 5%: R2 towns fell the timber of their housing ahead (longhouses) and civic structures, which the oracle's steady 0.15 L a person a year does not have |
 | Wood per 100 people a year (fixture, besides metal) | 38–39 L chopped (hearths, kilns, crafts, building) plus up to 26 L of deadwood | ≈ the oracle's 54 (was ~25, §14) |
 

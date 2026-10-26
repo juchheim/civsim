@@ -11,12 +11,20 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel
 {
     private bool _holdSettlements;
+    private bool _holdPopulation;
 
     /// <summary>When set, settlements never split, so a fixture settlement keeps its size (the C1 fixture's rule for one settlement).</summary>
     internal bool FixtureHoldSettlements
     {
         get => _holdSettlements;
         set => _holdSettlements = value;
+    }
+
+    /// <summary>When set, a fixture keeps its starting figures and ages; never enabled in a match.</summary>
+    internal bool FixtureHoldPopulation
+    {
+        get => _holdPopulation;
+        set => _holdPopulation = value;
     }
 
     /// <summary>Completes projects for a civilization at any tick (the economy side of a research grant).</summary>

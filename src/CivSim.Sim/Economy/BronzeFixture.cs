@@ -11,7 +11,8 @@ namespace CivSim.Sim.Economy;
 /// The economy fixture of docs/MVP/22 §16 B12 and B13 (the live counterpart of <c>metal_sim.py</c>): one settlement of a
 /// given size on a generated map, its radius-3 range given 13 forest tiles of 30 L (22 §5.5), a copper-ore surface
 /// deposit, a tin placer and a deep arsenical deposit in range, every E0–E2 project plus KEY-3 and the metal projects
-/// done, fed from outside so its size holds. Fixture state only; never part of a match.
+/// done, fed from outside to prevent starvation. Fixed-population fixtures can freeze demography explicitly. Fixture
+/// state only; never part of a match.
 /// </summary>
 internal sealed class BronzeFixture
 {
@@ -23,14 +24,13 @@ internal sealed class BronzeFixture
     /// <summary>A surface copper deposit beyond the range (5–6 tiles out), for mining camps; -1 when the map has no land there.</summary>
     public int CampTile { get; }
     public int[] ForestTiles { get; }
-    private readonly int _people;
     private long _tick;
 
     public long Tick => _tick;
 
-    private BronzeFixture(LivingEconomyModel economy, int copper, int tin, int arsenic, int camp, int[] forest, int people)
+    private BronzeFixture(LivingEconomyModel economy, int copper, int tin, int arsenic, int camp, int[] forest)
     {
-        Economy = economy; CopperTile = copper; TinTile = tin; ArsenicTile = arsenic; CampTile = camp; ForestTiles = forest; _people = people;
+        Economy = economy; CopperTile = copper; TinTile = tin; ArsenicTile = arsenic; CampTile = camp; ForestTiles = forest;
     }
 
     /// <param name="people">Settlement size (about 35% adults, 12% elders, the rest children: the live mix of 22 §5.6).</param>
@@ -41,6 +41,10 @@ internal sealed class BronzeFixture
 
     public static BronzeFixture Create(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic, bool shaftMining,
         params string[] extraProjects)
+        => Create(pack, seed, people, coppice, tin, arsenic, shaftMining, holdPopulation: false, extraProjects);
+
+    public static BronzeFixture Create(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
+        bool shaftMining, bool holdPopulation, params string[] extraProjects)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -83,7 +87,11 @@ internal sealed class BronzeFixture
         for (int c = 0; c < starts.Length; c++) starts[c] = source.StartingTile(c);
         var world = new WorldEconomyInput(source.Width, source.Height, tiles, starts, source.Herds, deposits);
         var content = EconomyContent.FromPack(pack);
-        var economy = new LivingEconomyModel(seed, content, world) { FixtureHoldSettlements = true };
+        var economy = new LivingEconomyModel(seed, content, world)
+        {
+            FixtureHoldSettlements = true,
+            FixtureHoldPopulation = holdPopulation,
+        };
 
         var projects = new List<string>();
         foreach (EconomyProject p in content.Projects)
@@ -113,7 +121,7 @@ internal sealed class BronzeFixture
         economy.FixtureStock(Settlement, "G-CLAY", Fix64.FromInt(12));
         economy.FixtureStock(Settlement, "G-LEATHER", Fix64.FromInt(4));
         economy.FixtureStock(Settlement, "G-WOOD", Fix64.FromInt(20));
-        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray(), people);
+        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray());
     }
 
     /// <summary>Runs whole seasons, topping the stores up to a season of food before each so the settlement neither starves nor splits.</summary>
@@ -128,7 +136,6 @@ internal sealed class BronzeFixture
             if (food < target) Economy.FixtureStock(Settlement, "G-GRAIN", target - food);
             for (int t = 0; t < LivingEconomyModel.SeasonTicks; t++) Economy.Step(_tick++, ReadOnlySpan<Command>.Empty);
         }
-        _ = _people;
     }
 
     /// <summary>Share of the settlement's adults (14+) carrying a bronze kit (rung 6).</summary>

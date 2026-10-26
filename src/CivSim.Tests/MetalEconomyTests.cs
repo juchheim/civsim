@@ -300,15 +300,20 @@ public class MetalEconomyTests
     public void Smelting_towns_draw_down_their_forest_and_coppicing_keeps_it()
     {
         // B13 / T19 on the fixture (07d §5, measured in docs/MVP/07d "WP6 live results").
-        BronzeFixture plain = Fixture(people: 100, coppice: false), coppiced = Fixture(people: 100, coppice: true);
+        BronzeFixture plain = BronzeFixture.Create(TestPack.Pack, Seed, 100, false, true, true,
+            shaftMining: true, holdPopulation: true, extraProjects: new[] { "WAR-05" });
+        BronzeFixture coppiced = BronzeFixture.Create(TestPack.Pack, Seed, 100, true, true, true,
+            shaftMining: true, holdPopulation: true, extraProjects: new[] { "WAR-05" });
         Fix64 start = plain.StandingWood();
         plain.RunSeasons(52);
         coppiced.RunSeasons(52);
+        Assert.Equal(100, plain.Economy.Population(plain.Economy.SettlementLite(0).Id));
+        Assert.Equal(100, coppiced.Economy.Population(coppiced.Economy.SettlementLite(0).Id));
         Fix64 drawnPlain = Fix64.One - plain.StandingWood() / start;
         Fix64 drawnCoppiced = Fix64.One - coppiced.StandingWood() / start;
         Assert.True(drawnPlain > drawnCoppiced, $"{drawnPlain} vs {drawnCoppiced}");
         Assert.True(drawnCoppiced < F("0.05"), $"coppiced drawdown {drawnCoppiced}");
-        Assert.True(drawnPlain > F("0.08"), $"uncoppiced drawdown {drawnPlain}");
+        Assert.True(drawnPlain >= F("0.25") && drawnPlain <= F("0.70"), $"uncoppiced drawdown {drawnPlain}");
     }
 
     // ---- determinism and snapshots --------------------------------------------------------------

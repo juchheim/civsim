@@ -701,11 +701,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             ConsumeFood(settlement, winter, season);
             SpoilFood(settlement);
             BuildIfReady(settlement);
-            UpdateNeedsAndPopulation(settlement, season, winter, priorSeasonFoodSecurity);
+            if (!_holdPopulation) UpdateNeedsAndPopulation(settlement, season, winter, priorSeasonFoodSecurity);
             if (season % 4 == 2) settlement.LateWinterForecast = ForecastWinterFood(settlement);
         }
 
-        if (season % 4 == 3) AgePopulationByOneYear(firstFigureIdBornThisSeason);
+        if (!_holdPopulation && season % 4 == 3) AgePopulationByOneYear(firstFigureIdBornThisSeason);
         if (_bronzeActive) CivicSeasonEnd(season);
         _deadwoodUsed = null;
         for (int s = 0; s < _settlements.Count; s++)
@@ -4683,6 +4683,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         var hash = new StateHasher();
         if (_gentleStart) hash.Add(0x47454E544C455354UL); // Keep the legacy default-false checksum stream unchanged.
         if (_holdSettlements) hash.Add(0x484F4C4446495854UL); // fixtures only
+        if (_holdPopulation) hash.Add(0x484F4C44504F5055UL); // fixtures only
         hash.Add(_seed); hash.Add(_tick); hash.Add(_seasonsCompleted); hash.Add(_nextFigureId);
         hash.Add(_world.Fingerprint); hash.Add(_contentFingerprint); hash.Add(_lastWinterWasHarsh); hash.Add(_winterForageMultiplier);
         hash.Add(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) hash.Add((byte)archetype);

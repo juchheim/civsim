@@ -22,7 +22,6 @@ internal static class MetalFixtureReport
             foreach (bool coppice in new[] { false, true })
             {
                 BronzeFixture f = BronzeFixture.Create(pack, seed, people, coppice, true, true, "WAR-05");
-                Fix64 wood0 = f.StandingWood();
                 var shares = new StringBuilder();
                 MetalStatistics at12 = default;
                 int reach70 = -1;
@@ -54,11 +53,23 @@ internal static class MetalFixtureReport
                 double wood = (end.CharcoalWood - at12.CharcoalWood + end.FireSettingWood - at12.FireSettingWood).ToDoubleForDisplay() / years100;
                 double chop = (end.ChopWood - at12.ChopWood).ToDoubleForDisplay() / years100;
                 double labor = (end.MetalLabor - at12.MetalLabor).ToDoubleForDisplay() / Math.Max(1e-9, (end.Labor - at12.Labor).ToDoubleForDisplay());
-                double drawn = 1 - f.StandingWood().ToDoubleForDisplay() / wood0.ToDoubleForDisplay();
                 MetalReadout m = f.Economy.Metal(0);
                 text.AppendLine($"  {people,3} people {(coppice ? "WOD-04   " : "no WOD-04")}: rung 6{shares} (70% at season {reach70}); kits T8 {m.Kits8} T9 {m.Kits9} T10 {m.Kits10} of {m.Adults} adults");
                 text.AppendLine($"      steady state (seasons 25-52) per 100 people a year: bronze {bronze:F2} L, tin {tin:F3} L, charcoal {charcoal:F2} L, wood for metal {wood:F1} L, metal labor {labor * 100:F1}%; chopped (hearths, building, crafts) {chop:F0} L;" +
-                                $" standing wood drawn down {drawn * 100:F0}% by season 52");
+                                " population follows natural births, deaths and aging");
+            }
+
+        // B13/T19 compares equal-size, fixed-demography Towns so births and deaths do not change wood demand mid-run.
+        foreach (int people in new[] { 80, 100 })
+            foreach (bool coppice in new[] { false, true })
+            {
+                BronzeFixture f = BronzeFixture.Create(pack, seed, people, coppice, true, true,
+                    shaftMining: true, holdPopulation: true, extraProjects: new[] { "WAR-05" });
+                Fix64 wood0 = f.StandingWood();
+                f.RunSeasons(52);
+                double drawn = (Fix64.One - f.StandingWood() / wood0).ToDoubleForDisplay();
+                int population = f.Economy.Population(f.Economy.SettlementLite(0).Id);
+                text.AppendLine($"  T19 fixed {people}-person population {(coppice ? "with" : "without")} WOD-04: {drawn * 100:F0}% standing-wood drawdown (population {population})");
             }
 
         // B12: tin cut after 52 seasons of tin bronze, with and without arsenical ore to fall back on.
@@ -71,16 +82,16 @@ internal static class MetalFixtureReport
                 d.Economy.FixtureStock(0, g, -d.Economy.GoodStock(0, g));
             MetalReadout start = d.Economy.Metal(0);
             var dorm = new StringBuilder();
-            int half = -1;
-            for (int season = 1; season <= 48; season++)
+            int halfCoverage = -1;
+            for (int season = 1; season <= 52; season++)
             {
                 d.RunSeasons(1);
                 MetalReadout m = d.Economy.Metal(0);
-                if (half < 0 && m.Kits10 * 2 <= start.Kits10) half = season;
-                if (season is 1 or 4 or 8 or 12 or 24 or 36 or 48)
+                if (halfCoverage < 0 && m.Kits10 * start.Adults * 2 <= start.Kits10 * m.Adults) halfCoverage = season;
+                if (season is 1 or 4 or 8 or 12 or 24 or 36 or 48 or 52)
                     dorm.Append($" +{season}: T10 {m.Kits10} T9 {m.Kits9} T8 {m.Kits8} of {m.Adults} ({m.Reason});");
             }
-            text.AppendLine($"B12 tin cut at season 52, {(arsenic ? "arsenical ore in range" : "no arsenical ore")} (T10 {start.Kits10} of {start.Adults}):{dorm} half the tin-bronze kits gone after {half} seasons");
+            text.AppendLine($"B12 tin cut at season 52, {(arsenic ? "arsenical ore in range" : "no arsenical ore")} (T10 {start.Kits10} of {start.Adults}):{dorm} half the initial rung-6 adult coverage gone after {halfCoverage} seasons");
         }
 
         // B12: no smelting without charcoal (the recipe is limited by its scarcest input).
