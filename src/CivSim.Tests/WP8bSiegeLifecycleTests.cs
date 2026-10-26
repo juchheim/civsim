@@ -21,9 +21,14 @@ public sealed class WP8bSiegeLifecycleTests
 
     private sealed class Rig
     {
-        public readonly MatchModel Match = MatchModel.Create(Seed, TestPack.Pack, World.Value, Balanced);
+        public readonly MatchModel Match;
         public readonly SimRunner Runner;
-        public Rig() => Runner = new SimRunner(Match);
+        public Rig() : this(World.Value) { }
+        public Rig(GeneratedWorld world)
+        {
+            Match = MatchModel.Create(Seed, TestPack.Pack, world, Balanced);
+            Runner = new SimRunner(Match);
+        }
         public void Grant(int civ, params string[] projects)
         {
             foreach (string project in projects)
@@ -54,6 +59,44 @@ public sealed class WP8bSiegeLifecycleTests
         rig.Match.Politics.ForceContact(0, 1);
         rig.Match.Politics.SetWar(0, 1, true);
         return (rig, home, target);
+    }
+
+    private static GeneratedWorld WorldWithNearbyWalkingStart()
+    {
+        GeneratedWorld source = World.Value;
+        WorldTile[] tiles = source.Tiles.ToArray();
+        WorldStart[] starts = source.Starts.ToArray();
+        bool[] passable = HexGrid.BuildWalkingPassability(tiles, source.Width, source.Height);
+        int targetStart = starts.Single(s => s.Civilization == 1).Tile;
+        int[] distance = HexGrid.WalkingDistancesFrom(source.Width, source.Height, passable, targetStart);
+        HashSet<int> occupiedStarts = starts.Select(s => s.Tile).ToHashSet();
+        int nearby = Enumerable.Range(0, tiles.Length)
+            .Where(tile => !occupiedStarts.Contains(tile) && tiles[tile].IsLand && tiles[tile].Biome != Biome.Peak &&
+                           distance[tile] is >= 5 and <= 7)
+            .OrderBy(tile => distance[tile]).ThenBy(tile => tile)
+            .First();
+        int attackerIndex = Array.FindIndex(starts, s => s.Civilization == 0);
+        starts[attackerIndex] = starts[attackerIndex] with { Tile = nearby };
+        return new GeneratedWorld(source.Seed, source.Settings, tiles, starts, source.Herds.ToArray(),
+            source.Predators.ToArray(), source.Report);
+    }
+
+    private static void SetStoredFood(LivingEconomyModel economy, int settlement, Fix64 foodValue)
+    {
+        string[] foodGoods = { "G-PLANT", "G-FRUIT", "G-MEAT", "G-ROOT", "G-NUTS", "G-WGRAIN", "G-GRAIN", "G-FISH", "G-DRIED",
+            "G-MILK", "G-CHEESE", "G-SALTED" };
+        foreach (string good in foodGoods)
+        {
+            Fix64 stock = economy.GoodStock(settlement, good);
+            if (stock > Fix64.Zero) economy.FixtureStock(settlement, good, -stock);
+        }
+
+        Fix64 before = economy.FoodStores(settlement);
+        economy.FixtureStock(settlement, "G-GRAIN", Fix64.One);
+        Fix64 grainValue = economy.FoodStores(settlement) - before;
+        economy.FixtureStock(settlement, "G-GRAIN", -Fix64.One);
+        if (grainValue <= Fix64.Zero) throw new InvalidOperationException("Grain must provide positive food value in the siege fixture.");
+        economy.FixtureStock(settlement, "G-GRAIN", foodValue / grainValue);
     }
 
     [Fact]
@@ -110,6 +153,80 @@ public sealed class WP8bSiegeLifecycleTests
         Assert.Null(rig.Match.Politics.InvestmentAt(target));
         Assert.False(rig.Match.Economy.IsUnderInvestment(target));
         Assert.Contains(rig.Match.Politics.Events, e => e.Kind == PoliticsEventKind.InvestmentRelieved && e.Civ == 1);
+    }
+
+    [Fact]
+    public void Supplied_live_economy_investment_rations_a_walled_target_without_direct_assault_capture()
+    {
+        GeneratedWorld world = WorldWithNearbyWalkingStart();
+        var rig = new Rig(world);
+        rig.Grant(0, "KEY-3");
+        rig.Grant(1, "KEY-3", "DEF-05");
+        rig.Season();
+        int home = rig.SettlementOf(0), target = rig.SettlementTargetedBy(1);
+        rig.Match.Economy.FixtureAddPeople(home, 240, 24);
+        rig.Match.Economy.FixtureStock(home, "G-GRAIN", Fix64.FromInt(1000));
+        rig.Match.Economy.FixtureStock(target, "G-GRAIN", Fix64.FromInt(1000));
+        rig.Match.Economy.FixtureBuildStructure(target, "stone_walls");
+        rig.Match.Economy.FixtureBuildStructure(target, "granary");
+        rig.Match.Politics.SetExternalMind(0, true);
+        rig.Match.Politics.SetExternalMind(1, true);
+        rig.Match.Politics.ForceContact(0, 1);
+        rig.Match.Politics.SetWar(0, 1, true);
+
+        WorldTile[] tiles = world.Tiles.ToArray();
+        bool[] passable = HexGrid.BuildWalkingPassability(tiles, world.Width, world.Height);
+        int homeTile = rig.Match.Economy.SettlementLite(home).SiteTile;
+        int targetTile = rig.Match.Economy.SettlementLite(target).SiteTile;
+        int[] walkDistances = HexGrid.WalkingDistancesFrom(world.Width, world.Height, passable, targetTile);
+        Assert.True(passable[homeTile] && passable[targetTile]);
+        Assert.InRange(walkDistances[homeTile], 1, Sieges.SupplyReachTiles);
+
+        Assert.True(rig.Match.Politics.OrderAssault(0, target));
+        int arrival = rig.Match.Politics.Expeditions.Single(e => e.Kind == ExpeditionKind.Assault && e.ToSettlement == target).ArriveSeason;
+        int ticksToArrival = LivingEconomyModel.SeasonTicks * (arrival - rig.Match.Politics.Season);
+        Assert.True(ticksToArrival > 0);
+        rig.Runner.Advance(ticksToArrival - 1);
+
+        bool arrivalWinter = arrival % 4 == 3;
+        Fix64 need = rig.Match.Economy.FoodNeedForSeason(target, arrivalWinter);
+        SetStoredFood(rig.Match.Economy, target, need * Fix64.FromRatio(3, 1));
+        rig.Runner.Advance(1);
+
+        Investment investment = Assert.Single(rig.Match.Politics.Investments);
+        Assert.Equal(target, investment.Settlement);
+        Assert.Equal(1, rig.Match.Economy.SettlementLite(target).Civilization);
+        Assert.Contains(rig.Match.Politics.Events, e => e.Kind == PoliticsEventKind.InvestmentBegan && e.Civ == 0);
+        Assert.DoesNotContain(rig.Match.Politics.Events,
+            e => e.Kind == PoliticsEventKind.AssaultResolved && e.Civ == 0 && e.B == target);
+        bool firstSiegeSeasonWinter = (rig.Match.Politics.Season + 1) % 4 == 3;
+        Fix64 firstSiegeSeasonNeed = rig.Match.Economy.FoodNeedForSeason(target, firstSiegeSeasonWinter);
+        Fix64 startingStores = firstSiegeSeasonNeed * Fix64.FromRatio(5, 2);
+        SetStoredFood(rig.Match.Economy, target, startingStores);
+        Assert.InRange((rig.Match.Economy.FoodStores(target) / firstSiegeSeasonNeed).ToDoubleForDisplay(), 2.0, 3.0);
+        int suppliedRations = investment.State.BesiegerFoodSeasons;
+        int besiegerCount = investment.Members.Count;
+        int startSeason = investment.BeganSeason;
+
+        for (int elapsed = 1; elapsed <= 6 && rig.Match.Politics.InvestmentAt(target) is not null; elapsed++)
+        {
+            rig.Season();
+            Investment? active = rig.Match.Politics.InvestmentAt(target);
+            if (active is not null)
+            {
+                Assert.Equal(1, rig.Match.Economy.SettlementLite(target).Civilization);
+                Assert.Equal(suppliedRations, active.State.BesiegerFoodSeasons);
+                Assert.Equal(besiegerCount, active.Members.Count);
+            }
+            Assert.DoesNotContain(rig.Match.Politics.Events,
+                e => e.Kind is PoliticsEventKind.InvestmentSally or PoliticsEventKind.InvestmentDeserted);
+        }
+
+        Assert.NotNull(rig.Match.Politics.InvestmentAt(target));
+        Assert.Equal(1, rig.Match.Economy.SettlementLite(target).Civilization);
+        Assert.DoesNotContain(rig.Match.Politics.Events, e =>
+            e.Kind == PoliticsEventKind.InvestmentCapitulated && e.Civ == 0 && e.A == target);
+        Assert.Equal(startSeason + 6, rig.Match.Politics.Season);
     }
 
     [Fact]

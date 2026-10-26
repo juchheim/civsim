@@ -434,6 +434,16 @@ order model has no traveling allied-relief order; range-foraging has no numeric 
 inside/outside positions, so the siege burns the first available flammable structure. This WP8 checkpoint predates the current
 24-seed Council run, which passes B20 at 7.5 raids per match, 95.8% of matches with war, and 25.0% with a capture.
 
+**Bounded live-economy siege integration:** `WP8bSiegeLifecycleTests.Supplied_live_economy_investment_rations_a_walled_target_without_direct_assault_capture`
+uses one fixed seed and a controlled generated-world start pair with an actual passable walking route ≤ 8 tiles from the attacker
+to the walled target. It advances the real `MatchModel`/`SimRunner` through assault arrival, sets the target to 2.5 seasons of food
+before the first siege-season update, then follows six live seasonal updates. The supplied besieger retains its carried-food season
+and has no desertion event; the wall attack enters investment without a direct-assault capture. In this fixture, local food
+production keeps the target's stores above capitulation through season six, so it validates live supply and ration wiring but does
+not establish live-match capture timing. The one-seed path is not a T22 rate estimate, and the deliberately oversized supplied
+host does not measure supply interruption, sally, desertion, or casualty interactions. The 1,000-seed `Sieges.Advance` sweep
+remains the T22 rate evidence.
+
 ## 18. WP9 AI telemetry checkpoint
 
 The Harness now measures B27 tin-poor recovery and dormant-route blunders, B28 defense before a believed-bronze raid, B29
