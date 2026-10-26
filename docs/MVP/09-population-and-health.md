@@ -369,7 +369,7 @@ It matters most at oceanic contact after SEA-12 (E6), and against Free Folk.
 On polluted tiles, adult and elder hazards are ×(1 + 0.3 × pollution/100) (05 §14). The balance model leaves this at zero (a clean baseline). WS-B/WS-D should keep a dirty-growth civilization's expected penalty under ~10% of E8 deaths, so the dilemma (D12) stays a choice rather than a trap.
 
 ### 10.6 Check: expected epidemic losses
-Using an average settlement per era (from the balance model), the constants above give these expected epidemic deaths. They are **inside** the §4.1 hazards, not added to them.
+Using an average settlement per era (from the balance model), the constants above give these expected epidemic deaths. They are **inside** the §4.1 hazards, not added to them. The epidemic share is an expected-hazard share: expected epidemic deaths divided by total expected baseline deaths. Realized outbreak deaths are stochastic and are diagnostic, not the acceptance measure for this table.
 
 | Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
 |---|---|---|---|---|---|---|---|---|---|---|
