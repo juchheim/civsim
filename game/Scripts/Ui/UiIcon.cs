@@ -8,7 +8,7 @@ public enum UiGlyph
 {
     None, Pause, Play, Plus, Minus, Close, ChevronRight, ChevronDown, ChevronUp, Check, CheckBadge, BlockedBadge, Ring, HalfRing,
     Lock, Queue, ClockRing, Warning, Danger, Info, Hammer, Hearth, Compass, Gem, People, Hut, Flags, Scroll, Menu, Spark, Globe,
-    Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star,
+    Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star, StarOutline,
     EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler,
 }
 
@@ -239,6 +239,7 @@ public static class UiDraw
                 ci.DrawCircle(C, Q(0.18f), color);
                 break;
             case UiGlyph.Star:
+            case UiGlyph.StarOutline:
                 {
                     var pts = new Vector2[10];
                     for (int i = 0; i < 10; i++)
@@ -247,7 +248,14 @@ public static class UiDraw
                         float a = -Mathf.Pi / 2 + i * Mathf.Pi / 5;
                         pts[i] = C + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
                     }
-                    ci.DrawColoredPolygon(pts, color);
+                    if (glyph == UiGlyph.Star) ci.DrawColoredPolygon(pts, color);
+                    else
+                    {
+                        var outline = new Vector2[11];
+                        Array.Copy(pts, outline, pts.Length);
+                        outline[^1] = pts[0];
+                        ci.DrawPolyline(outline, color, line);
+                    }
                     break;
                 }
             default:
@@ -485,65 +493,5 @@ public partial class UiRankBadge : Control
         string digit = _rank.ToString();
         Vector2 extent = font.GetStringSize(digit, HorizontalAlignment.Left, -1, 14);
         DrawString(font, new Vector2((Size.X - extent.X) * 0.5f, Size.Y * 0.5f + 5), digit, HorizontalAlignment.Left, -1, 14, UiTokens.TextOnAccent);
-    }
-}
-
-/// <summary>Vertical zoom ladder: four labelled stops on a log scale with a continuous marker. Clicking a stop zooms to that level.</summary>
-public partial class UiZoomLadder : Control
-{
-    private float _t;
-    private int _level;
-    private readonly System.Action<int> _pick;
-    private static readonly float[] StopT = { 0.16f, 0.39f, 0.71f, 0.92f };
-
-    public UiZoomLadder(System.Action<int> pick, int width, int height)
-    {
-        _pick = pick;
-        CustomMinimumSize = new Vector2(width, height);
-        MouseFilter = MouseFilterEnum.Stop;
-    }
-
-    public void Set(float t, int level)
-    {
-        t = Mathf.Clamp(t, 0, 1);
-        if (Mathf.Abs(t - _t) < 0.004f && level == _level) return;
-        _t = t;
-        _level = level;
-        QueueRedraw();
-    }
-
-    public override void _GuiInput(InputEvent input)
-    {
-        if (input is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click) return;
-        int best = 0;
-        float bestDistance = float.MaxValue;
-        for (int i = 0; i < 4; i++)
-        {
-            float d = Mathf.Abs(click.Position.Y - StopY(i));
-            if (d < bestDistance) { bestDistance = d; best = i; }
-        }
-        _pick(best);
-        AcceptEvent();
-    }
-
-    private float StopY(int i) => 8 + StopT[i] * (Size.Y - 16);
-
-    public override void _Draw()
-    {
-        float x = Size.X >= 70 ? 18 : Size.X * 0.5f;
-        DrawLine(new Vector2(x, 6), new Vector2(x, Size.Y - 6), UiTokens.BorderStrong, 2.0f);
-        for (int i = 0; i < 4; i++)
-        {
-            float y = StopY(i);
-            bool on = i == _level;
-            DrawCircle(new Vector2(x, y), on ? 4.0f : 3.0f, on ? UiTokens.Accent : UiTokens.TextTertiary);
-            if (Size.X >= 70)
-            {
-                string text = $"Z{i}";
-                DrawString(UiTheme.Medium, new Vector2(x + 12, y + 5), text, HorizontalAlignment.Left, -1, 14, on ? UiTokens.Accent : UiTokens.TextSecondary);
-            }
-        }
-        float my = 8 + _t * (Size.Y - 16);
-        DrawColoredPolygon(new[] { new Vector2(x - 9, my - 5), new Vector2(x - 9, my + 5), new Vector2(x - 2, my) }, UiTokens.Accent);
     }
 }

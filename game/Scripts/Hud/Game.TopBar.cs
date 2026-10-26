@@ -16,7 +16,7 @@ public partial class Game
     private UiSeasonDial? _seasonDial;
     private UiButton? _pauseButton;
     private UiSegmented? _speedControl;
-    private UiButton? _btnDecrees, _btnDiplomacy, _btnChronicle, _btnHelp, _btnMenu;
+    private UiButton? _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu;
     private PanelContainer? _chronicleBadge;
     private Label? _chronicleBadgeLabel;
     private Control? _civDivider, _civAgeBlock, _civStatsBlock;
@@ -121,7 +121,6 @@ public partial class Game
         _btnDecrees = UiKit.Ghost("Decrees", () => ToggleDecrees(), "Mandate and civic orders", UiGlyph.People, UiTokens.ControlM);
         _btnDiplomacy = UiKit.Ghost("Diplomacy", () => ToggleDiplomacy(), "Your neighbours and your orders (O)", UiGlyph.Flags, UiTokens.ControlM);
         _btnChronicle = UiKit.Ghost("Chronicle", () => ToggleChronicle(), "Your people's story (C)", UiGlyph.Scroll, UiTokens.ControlM);
-        _btnHelp = UiKit.Ghost("Help", () => ToggleHelp(), "Controls, research and map layers (H)", UiGlyph.Info, UiTokens.ControlM);
         _btnMenu = UiKit.Ghost("Menu", () => ToggleGameMenu(), "Save, load, replays and settings (Esc)", UiGlyph.Menu, UiTokens.ControlM);
         _chronicleBadge = UiKit.Panel("BadgePanel", null, UiKit.MouseFilter.Ignore);
         _chronicleBadge.Visible = false;
@@ -136,7 +135,6 @@ public partial class Game
         rightRow.AddChild(_btnDecrees);
         rightRow.AddChild(_btnDiplomacy);
         rightRow.AddChild(_btnChronicle);
-        rightRow.AddChild(_btnHelp);
         rightRow.AddChild(_btnMenu);
         _topRight.AddChild(rightRow);
         _hudRoot.AddChild(_topRight);
@@ -159,11 +157,11 @@ public partial class Game
         AnchorTo(_pausedPill, 0.5f, 0, 0.5f, 0, 0, m + TopBandHeight + 8, 0, m + TopBandHeight + 44, Control.GrowDirection.Both);
         AnchorTo(_topRight, 1, 0, 1, 0, 0, m, -m, m + TopBandHeight, Control.GrowDirection.Begin);
 
-        foreach (UiButton? button in new[] { _btnDecrees, _btnDiplomacy, _btnChronicle, _btnHelp, _btnMenu })
+        foreach (UiButton? button in new[] { _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu })
         {
             if (button is null) continue;
-            string label = button == _btnDecrees ? "Decrees" : button == _btnDiplomacy ? "Diplomacy" : button == _btnChronicle ? "Chronicle" : button == _btnHelp ? "Help" : "Menu";
-            UiGlyph glyph = button == _btnDecrees ? UiGlyph.People : button == _btnDiplomacy ? UiGlyph.Flags : button == _btnChronicle ? UiGlyph.Scroll : button == _btnHelp ? UiGlyph.Info : UiGlyph.Menu;
+            string label = button == _btnDecrees ? "Decrees" : button == _btnDiplomacy ? "Diplomacy" : button == _btnChronicle ? "Chronicle" : "Menu";
+            UiGlyph glyph = button == _btnDecrees ? UiGlyph.People : button == _btnDiplomacy ? UiGlyph.Flags : button == _btnChronicle ? UiGlyph.Scroll : UiGlyph.Menu;
             if (_compact)
             {
                 button.Text = "";
