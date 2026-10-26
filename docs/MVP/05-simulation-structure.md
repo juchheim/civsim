@@ -199,7 +199,7 @@ Outputs:
 | Posture | Effect on Civ Mind weights |
 |---------|----------------------------|
 | *Balanced* (default; the only option before GOV-02) | — |
-| Expand | Fission threshold −20%; expansion weight ×2; settlers favor Beacons |
+| Expand | Fission threshold −20% before E3, −17% in E3 (07d B17); expansion weight ×2; settlers favor Beacons |
 | Prosper | Craft and trade labor ×1.5; fission threshold +20% |
 | Fortify | Defense structures and guards ×2; claim upkeep +; no raids |
 | Raid | Warrior share ×2; raids on weak neighbors; diplomacy suffers |

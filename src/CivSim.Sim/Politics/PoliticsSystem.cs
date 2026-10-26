@@ -435,16 +435,20 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         }
     }
 
-    /// <summary>Posture Expand lowers the fission threshold 20%, Prosper raises it 20% (docs/MVP/05 §6.2).</summary>
+    /// <summary>Expand lowers the threshold 20% before E3 and 17% in Bronze; Prosper raises it 20% (docs/MVP/05 §6.2; 07d B17).</summary>
     public void ApplyEconomyInputs()
     {
         for (int c = 0; c < _civs; c++)
+        {
+            int era = _research.Era(c);
+            Fix64 expandScale = era == 3 ? Fix64.FromRatio(83, 100) : Fix64.FromRatio(8, 10);
             _economy.SetFissionThresholdScale(c, (Posture)_posture[c] switch
             {
-                Posture.Expand => Fix64.FromRatio(8, 10),
+                Posture.Expand => expandScale,
                 Posture.Prosper => Fix64.FromRatio(12, 10),
                 _ => Fix64.One,
             });
+        }
     }
 
     // ---- fission site advice (IFissionSiteAdvisor) ---------------------------------------

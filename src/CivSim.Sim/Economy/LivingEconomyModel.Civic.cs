@@ -458,7 +458,10 @@ public sealed partial class LivingEconomyModel
             c.BuildProgress = Fix64.Zero;
         }
         Fix64 shareMultiplier = town ? Fix64.FromInt(2) : Fix64.One;
-        if (cityEnabler == CivicBuild.Temple && s.FoodSecurity >= Fix64.FromRatio(8, 10) &&
+        bool lateCityTemple = c.BuildKind == CivicBuild.Temple && c.Tier == (byte)SettlementTier.Town &&
+            Population(s.Id) >= _civic.CityMinPop && HousingCap(s) >= Fix64.FromInt(_civic.CityMinPop) &&
+            Done(s.Civilization, "BEL-06") && Done(s.Civilization, "SOC-09");
+        if ((cityEnabler == CivicBuild.Temple || lateCityTemple) && s.FoodSecurity >= Fix64.FromRatio(8, 10) &&
             HousingCap(s) >= Fix64.FromInt(_civic.CityMinPop))
             shareMultiplier *= _civic.CityTempleLaborMultiplier;
         Fix64 cap = totalWork * _civic.LaborShare * shareMultiplier;

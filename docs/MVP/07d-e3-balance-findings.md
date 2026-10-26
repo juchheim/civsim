@@ -178,6 +178,8 @@ Typical C is 63–80 (22 says 55–70): hearth and feast are on every closure, s
 
 **Live acceptance follow-up (2026-10-26):** changing only `ConqueredCohesion` from −35 to −45 while retaining C 25 start, +1/season recovery, the C 15 threshold and eight-season timer passed B19 on the exact 24-seed cohort with an 80-minute KEY-4 completion ceiling. All 96/96 E3 exposures completed; mean Cohesion was 63.9, secessions were 0.05 per civilization per exposure, and cascades were 0/24. The chapter-end sample remained at the normal MatchEnd tick. On the same cohort B17 remained open: 11.5 settlements/civ and 80.2% own-KEY-4 border contact passed, but claimed land was 43.1% (target ≤42%), and City prevalence was 22.9% (target ≥25%); Town prevalence was 90.6%. The earlier +3/+8 City-path Spark preference screen did not change the City rate and was reverted. No threshold changes are justified by these data.
 
+**B17–B20 acceptance result (2026-10-26):** on the exact 24-seed cohort 20261019–20261042 with an 80-minute cap, the gated City Temple labor path plus Bronze-era Expand fission scale 0.83 (0.80 before E3; other postures unchanged) passed B17–B20 in 65.59 s. B17: 10.9 settlements/civ, 41.4% claimed land, own-KEY-4 paired border 72/96 (75.0%), KEY-4 96/96, Town 90.6%, City 26.0%. B18 Legacy split: 54.0/31.8/14.2/0.0%. B19: cohesion 64.6, 0.07 secessions/civ/E3, 0/24 cascades. B20: 7.1 raids/match, war 91.7%, capture 33.3%. This supersedes the preceding open B17/B19 result for this cohort; no acceptance thresholds changed.
+
 ## 10. Final constants for the C# implementation
 
 | Constant | Value | Was (22/23) | Section |
