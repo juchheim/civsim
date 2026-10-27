@@ -693,6 +693,8 @@ The full-sample command is `dotnet run --project src/CivSim.Harness -c Release -
 
 **S13–S14 performance results (2026-10-26):** S13 passed the exact 10-minute tick sample after reaching 2,430 figures at simulated minute 60. The 6,000-tick mean was 1.244 ms, the largest tick was 212.273 ms, and the largest GC pause in a tick was 4 ms; sampled population ranged from 2,707 to 4,459. S14 passed the full 24-case Bronze matrix at 1,600 figures across Z0–Z2 and all eight overlays, with four-second samples after one-second warm-ups; minimum one-second FPS was 92.8 (Z1 Claims). B23 is complete.
 
+**B27/B31 bounded follow-up (2026-10-27):** B27 remains open at 22/28 tin-poor cases (78.6%) against the ≥80% target; its dormant-bronze blunder criterion passes. The exact eight-seed, 64-minute B31 duel reproduced 6/16 Legend wins (38%) against the ≥60% target. Winter-shortfall hazard averaged 1.10 per Warlord win and 2.04 per Warlord loss; food pressure overlaps across outcomes, so this sample does not establish a separate policy defect. One traced losing Warlord fission daughter began without transferred stores, remained underfed for several seasons, then recovered by about season 56. No gameplay change or threshold relaxation is justified by this evidence; B31 remains open.
+
 ---
 
 ## 17. Risks

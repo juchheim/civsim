@@ -31,7 +31,9 @@ public readonly record struct EconomyDeathEvent(
     long FigureId, int Civilization, int SettlementId, int Age, bool Female, byte PregnancySeasons,
     EconomyDeathCause Cause, Fix64 TotalHazard, Fix64 EndemicHazard, Fix64 EpidemicHazard,
     Fix64 StarvationHazard, Fix64 ExposureHazard, Fix64 InjuryHazard, Fix64 PredatorsHazard,
-    Fix64 ViolenceHazard, Fix64 SenescenceHazard);
+    Fix64 ViolenceHazard, Fix64 SenescenceHazard,
+    // Included in StarvationHazard; kept separately for diagnostics and attribution.
+    Fix64 WinterShortfallHazard);
 
 public readonly record struct SettlementView(
     int Id, int Civilization, int SiteTile, int Population, Fix64 FoodStores,

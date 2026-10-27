@@ -824,7 +824,7 @@ public static class Program
         string deathEvents = string.Join(';', Enumerable.Range(0, model.LastDeathEventCount)
             .Select(model.LastDeathEvent)
             .Where(death => death.Civilization == before.Civilization)
-            .Select(static death => $"id={death.FigureId},age={death.Age},sex={(death.Female ? 'F' : 'M')},pregnancy={death.PregnancySeasons},cause={death.Cause},hazard={death.TotalHazard},endemic={death.EndemicHazard},epidemic={death.EpidemicHazard},starvation={death.StarvationHazard},exposure={death.ExposureHazard},injury={death.InjuryHazard},predators={death.PredatorsHazard},violence={death.ViolenceHazard},senescence={death.SenescenceHazard}"));
+            .Select(static death => $"id={death.FigureId},age={death.Age},sex={(death.Female ? 'F' : 'M')},pregnancy={death.PregnancySeasons},cause={death.Cause},hazard={death.TotalHazard},endemic={death.EndemicHazard},epidemic={death.EpidemicHazard},starvation={death.StarvationHazard},winterShortfall={death.WinterShortfallHazard},exposure={death.ExposureHazard},injury={death.InjuryHazard},predators={death.PredatorsHazard},violence={death.ViolenceHazard},senescence={death.SenescenceHazard}"));
         double meanHunger = figuresAfter.Length == 0
             ? 0.0
             : figuresAfter.Average(static f => f.Hunger.ToDoubleForDisplay());

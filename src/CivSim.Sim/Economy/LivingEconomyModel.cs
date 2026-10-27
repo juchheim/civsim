@@ -16,7 +16,7 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 21;
+    public const int SnapshotVersion = 22;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;
@@ -143,6 +143,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         public readonly List<int> FieldTiles = new();
         public readonly List<OrchardPlot> OrchardPlots = new();
         public Fix64 FoodSecurity = Fix64.One;
+        // Diagnostic snapshot taken at the same point FoodSecurity is computed.
+        // This does not participate in simulation decisions.
+        public Fix64 LastSeasonFoodStoresBeforeConsumption;
         public Fix64 LateWinterForecast = Fix64.One;
         public Fix64 LateWinterFoodShare = Fix64.One;
         public Fix64 FarmWorkThisYear;
@@ -346,6 +349,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     public ReadOnlySpan<int> LastDeathsByCause => _lastDeathsByCause;
     public int LastDeathEventCount => _lastDeathEvents.Count;
     public EconomyDeathEvent LastDeathEvent(int index) => _lastDeathEvents[index];
+
+    /// <summary>Food inventory immediately before ration consumption in the last completed season.</summary>
+    public Fix64 LastSeasonFoodStoresBeforeConsumption(int settlementIndex)
+        => _settlements[settlementIndex].LastSeasonFoodStoresBeforeConsumption;
     public ReadOnlySpan<int> LastDeathsByCauseAndAgeBand(int ageBand)
     {
         if (ageBand < 0 || ageBand >= 3) throw new ArgumentOutOfRangeException(nameof(ageBand));
@@ -2517,6 +2524,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 need = FoodNeed(settlement, winter);
         if (settlement.UnderInvestment) need *= Fix64.FromRatio(75, 100);
         Fix64 available = FoodStores(settlement);
+        settlement.LastSeasonFoodStoresBeforeConsumption = available;
         Fix64 security = need <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, available / need);
         ConsumeFoodStocks(settlement, Fix64.Min(available, need));
         settlement.FoodSecurity = security;
@@ -2999,7 +3007,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             figure.Id, figure.Civilization, figure.SettlementId, figure.Age, figure.Female,
             figure.PregnancySeasons, cause, hazards.Total, hazards.Endemic, hazards.Epidemic,
             hazards.Starvation + hazards.WinterShortfall, hazards.Exposure, hazards.Injury, hazards.Predators,
-            hazards.Violence, hazards.Senescence));
+            hazards.Violence, hazards.Senescence, hazards.WinterShortfall));
     }
 
     private Fix64 FertilityMultiplier(int civ)
@@ -4853,7 +4861,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(s.FieldTiles.Count); foreach (int tile in s.FieldTiles) writer.Write(tile);
             writer.Write(s.OrchardPlots.Count);
             foreach (OrchardPlot orchard in s.OrchardPlots) { writer.Write(orchard.Tile); writer.Write(orchard.AgeSeasons); }
-            writer.Write(s.FoodSecurity.Raw); writer.Write(s.LateWinterForecast.Raw); writer.Write(s.LateWinterFoodShare.Raw);
+            writer.Write(s.FoodSecurity.Raw); writer.Write(s.LastSeasonFoodStoresBeforeConsumption.Raw);
+            writer.Write(s.LateWinterForecast.Raw); writer.Write(s.LateWinterFoodShare.Raw);
             writer.Write(s.FarmWorkThisYear.Raw); writer.Write(s.BuildProgress.Raw); writer.Write(s.DryingMudbrick.Raw); writer.Write((byte)s.BuildTarget);
             writer.Write(s.Fissions); writer.Write(s.LastFissionSeason); writer.Write(s.Cohesion.Raw); writer.Write(s.FissionPending);
             writer.Write(s.DomesticSmallStock.Raw); writer.Write(s.DomesticCattle.Raw); writer.Write(s.DomesticPigs.Raw);
@@ -4893,6 +4902,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(d.TotalHazard.Raw); writer.Write(d.EndemicHazard.Raw); writer.Write(d.EpidemicHazard.Raw);
             writer.Write(d.StarvationHazard.Raw); writer.Write(d.ExposureHazard.Raw); writer.Write(d.InjuryHazard.Raw);
             writer.Write(d.PredatorsHazard.Raw); writer.Write(d.ViolenceHazard.Raw); writer.Write(d.SenescenceHazard.Raw);
+            writer.Write(d.WinterShortfallHazard.Raw);
         }
         WriteBronze(writer);
     }
@@ -4971,7 +4981,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             int orchards = ReadCount(reader, _world.TileCount);
             for (int j = 0; j < orchards; j++)
                 s.OrchardPlots.Add(new OrchardPlot { Tile = reader.ReadInt32(), AgeSeasons = reader.ReadInt32() });
-            s.FoodSecurity = Fix64.FromRaw(reader.ReadInt64()); s.LateWinterForecast = Fix64.FromRaw(reader.ReadInt64());
+            s.FoodSecurity = Fix64.FromRaw(reader.ReadInt64());
+            s.LastSeasonFoodStoresBeforeConsumption = Fix64.FromRaw(reader.ReadInt64());
+            s.LateWinterForecast = Fix64.FromRaw(reader.ReadInt64());
             s.LateWinterFoodShare = Fix64.FromRaw(reader.ReadInt64()); s.FarmWorkThisYear = Fix64.FromRaw(reader.ReadInt64());
             s.BuildProgress = Fix64.FromRaw(reader.ReadInt64()); s.DryingMudbrick = Fix64.FromRaw(reader.ReadInt64());
             s.BuildTarget = (Structure)reader.ReadByte();
@@ -5026,9 +5038,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             bool female = reader.ReadBoolean(); byte pregnancy = reader.ReadByte(); var cause = (EconomyDeathCause)reader.ReadInt32();
             Fix64 F() => Fix64.FromRaw(reader.ReadInt64());
             Fix64 total = F(), endemic = F(), epidemic = F(), starvation = F(), exposure = F(), injury = F(), predators = F(),
-                violence = F(), senescence = F();
+                violence = F(), senescence = F(), winterShortfall = F();
             _lastDeathEvents.Add(new EconomyDeathEvent(id, civ, settlement, age, female, pregnancy, cause, total, endemic, epidemic,
-                starvation, exposure, injury, predators, violence, senescence));
+                starvation, exposure, injury, predators, violence, senescence, winterShortfall));
         }
         ReadBronze(reader);
         RefreshBronzeActive();
@@ -5088,6 +5100,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             settlementSites[s.SiteTile] = true;
             if (s.Fissions < 0 || s.BuildProgress < Fix64.Zero || s.DryingMudbrick < Fix64.Zero || s.FarmWorkThisYear < Fix64.Zero ||
                 s.FoodSecurity < Fix64.Zero || s.FoodSecurity > Fix64.One ||
+                s.LastSeasonFoodStoresBeforeConsumption < Fix64.Zero ||
                 s.LateWinterForecast < Fix64.Zero || s.LateWinterForecast > Fix64.One ||
                 s.LateWinterFoodShare < Fix64.Zero || s.LateWinterFoodShare > Fix64.One ||
                 s.Cohesion < Fix64.Parse("0.6") || s.Cohesion > Fix64.Parse("1.2") ||
@@ -5290,6 +5303,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             Civilization = source.Civilization,
             SiteTile = source.SiteTile,
             FoodSecurity = source.FoodSecurity,
+            LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,
             LateWinterFoodShare = source.LateWinterFoodShare,
             FarmWorkThisYear = source.FarmWorkThisYear,

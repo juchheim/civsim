@@ -375,11 +375,17 @@ internal static class Tournament
             {
                 int traceSeason = season + 1;
                 var starvationBySettlement = new Dictionary<int, int>();
+                var starvationDetailsBySettlement = new Dictionary<int, List<string>>();
                 for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
                 {
                     EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
                     if (death.Cause == EconomyDeathCause.Starvation)
+                    {
                         starvationBySettlement[death.SettlementId] = starvationBySettlement.GetValueOrDefault(death.SettlementId) + 1;
+                        if (!starvationDetailsBySettlement.TryGetValue(death.SettlementId, out List<string>? details))
+                            starvationDetailsBySettlement[death.SettlementId] = details = new List<string>();
+                        details.Add($"f{death.FigureId}/age{death.Age}/h{death.StarvationHazard.ToDoubleForDisplay():F3}/winter{death.WinterShortfallHazard.ToDoubleForDisplay():F3}/total{death.TotalHazard.ToDoubleForDisplay():F3}");
+                    }
                 }
                 var parents = new List<string>();
                 int priorCount = settlementIdsBeforeAdvance.Length;
@@ -421,13 +427,17 @@ internal static class Tournament
                     int civ = match.Politics.SettlementCivOf(s);
                     if (match.Politics.IsFreeFolk(s)) continue;
                     int deaths = starvationBySettlement.GetValueOrDefault(settlement.Id);
+                    string starvationDetails = starvationDetailsBySettlement.TryGetValue(settlement.Id, out List<string>? details)
+                        ? string.Join(',', details)
+                        : string.Empty;
                     FoodIncomeBreakdown income = match.Economy.SustainableFoodIncomeBreakdown(s);
                     (int smallStock, int cattle, int pigs) = match.Economy.DomesticStock(s);
                     records.Add($"s{settlement.Id}/c{civ}:{seats[civ].Name}/tile={settlement.SiteTile}/p{settlement.Population}" +
                         $"/foodsec={settlement.LastFoodSecurity.ToDoubleForDisplay():F2}/stores={settlement.FoodStores.ToDoubleForDisplay():F1}" +
+                        $"/preEat={match.Economy.LastSeasonFoodStoresBeforeConsumption(s).ToDoubleForDisplay():F1}" +
                         $"/cap={settlement.FoodCap.ToDoubleForDisplay():F1}/sustain={match.Economy.SustainableFoodCapacity(s).ToDoubleForDisplay():F1}" +
                         $"/income={income.Total.ToDoubleForDisplay():F1}[{income.Plants.ToDoubleForDisplay():F1},{income.Meat.ToDoubleForDisplay():F1},{income.Fish.ToDoubleForDisplay():F1},{income.Grain.ToDoubleForDisplay():F1},{income.Fruit.ToDoubleForDisplay():F1}]" +
-                        $"/plots={match.Economy.FieldCount(s)}/{match.Economy.OrchardCount(s)}/herd={smallStock}/{cattle}/{pigs}/starve={deaths}");
+                        $"/plots={match.Economy.FieldCount(s)}/{match.Economy.OrchardCount(s)}/herd={smallStock}/{cattle}/{pigs}/starve={deaths}[{starvationDetails}]");
                 }
                 outcome.SettlementTimelineTraces.Add($"SETTLE_TRACE seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={traceSeason} settlements=[{string.Join(';', records)}] fission=[{string.Join(',', parents)}] events=[{string.Join(',', ownershipEvents)}]");
             }
