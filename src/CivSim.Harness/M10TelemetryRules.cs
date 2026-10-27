@@ -32,6 +32,8 @@ internal static class M10TelemetryRules
     public static bool BelievesBronze(RivalBelief rival, int met04, int met05)
         => IsBelieved(rival, met04) || IsBelieved(rival, met05);
 
+    public static bool IsProjectBelieved(RivalBelief rival, int project) => IsBelieved(rival, project);
+
     public static bool HasTimelyDefense(Defenses defenses)
         => defenses.Palisade || defenses.Hillfort || defenses.StoneWalls;
 

@@ -98,6 +98,9 @@ internal sealed class MatchOutcome
     public bool WarlordE2ClosureSlotDiagnostic;
     public bool WarlordDefenseUrgencyShadowDiagnostic;
     public bool WarlordB30TraceEnabled;
+    public bool WarlordB28TraceEnabled;
+    public readonly List<string> B28Traces = new();
+    public int B28SettlementRaidLaunches, B28AiSettlementRaidLaunches, B28ActualBronzeRaidLaunches, B28BelievedBronzeRaidLaunches;
     public readonly List<FoundFunnelDiagnostic> FoundFunnels = new();
     public readonly List<FoundFunnelSeasonSnapshot> FoundFunnelSnapshots = new();
     public readonly List<WarlordResearchPlanDiagnostic> WarlordResearchTraces = new();
@@ -149,7 +152,7 @@ internal static class Tournament
         Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false,
         bool captureFoundFunnelDiagnostics = false, Fix64? warlordKeystoneTempoOverride = null,
         bool warlordE2ClosureSlotDiagnostic = false, bool warlordSettlementTrace = false,
-        bool warlordSettlementTraceSwapped = false, bool warlordB30Trace = false)
+        bool warlordSettlementTraceSwapped = false, bool warlordB30Trace = false, bool warlordB28Trace = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -215,6 +218,7 @@ internal static class Tournament
             WarlordE2ClosureSlotDiagnostic = warlordE2ClosureSlotDiagnostic,
             WarlordDefenseUrgencyShadowDiagnostic = warlordDefenseUrgencyShadowDiagnostic,
             WarlordB30TraceEnabled = warlordB30Trace,
+            WarlordB28TraceEnabled = warlordB28Trace,
             Seats = seats, Civs = new CivOutcome[civs]
         };
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
@@ -233,7 +237,14 @@ internal static class Tournament
         var dormantReported = new bool[civs];
         var fallbackRouteAfterTinPoor = new bool[civs];
         var bronzeRaidBelieved = new bool[civs][];
-        for (int c = 0; c < civs; c++) bronzeRaidBelieved[c] = new bool[civs];
+        var bronzeRaidBelievedMet04 = new bool[civs][];
+        var bronzeRaidBelievedMet05 = new bool[civs][];
+        for (int c = 0; c < civs; c++)
+        {
+            bronzeRaidBelieved[c] = new bool[civs];
+            bronzeRaidBelievedMet04[c] = new bool[civs];
+            bronzeRaidBelievedMet05[c] = new bool[civs];
+        }
         var siegeBlunderTracker = new SiegeBlunderTracker();
         var pendingRaidPredictions = new Dictionary<(int Civ, int Target), Queue<Fix64>>();
         var nakedTinCaravans = new NakedTinCaravanTracker[civs];
@@ -274,7 +285,9 @@ internal static class Tournament
                 for (int other = 0; other < civs; other++)
                 {
                     if (other == c) continue;
-                    bronzeRaidBelieved[c][other] = M10TelemetryRules.BelievesBronze(rivals[other], met04, met05);
+                    bronzeRaidBelievedMet04[c][other] = M10TelemetryRules.IsProjectBelieved(rivals[other], met04);
+                    bronzeRaidBelievedMet05[c][other] = M10TelemetryRules.IsProjectBelieved(rivals[other], met05);
+                    bronzeRaidBelieved[c][other] = bronzeRaidBelievedMet04[c][other] || bronzeRaidBelievedMet05[c][other];
                 }
             }
             int politicsEventsBefore = match.Politics.Events.Count;
@@ -650,12 +663,36 @@ internal static class Tournament
             for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
             {
                 PoliticsEvent ev = match.Politics.Events[e];
-                if (!M10TelemetryRules.IsSettlementRaidLaunch(ev) || ev.Other < 0 || ev.Other >= civs || ev.Civ >= civs ||
-                    seats[ev.Other].Control.Kind != ControlKind.Ai || seats[ev.Civ].Control.Kind != ControlKind.Ai ||
-                    !M10TelemetryRules.TryMeasureBelievedBronzeRaid(
+                if (!M10TelemetryRules.IsSettlementRaidLaunch(ev)) continue;
+                outcome.B28SettlementRaidLaunches++;
+                if (ev.Other < 0 || ev.Other >= civs || ev.Civ >= civs ||
+                    seats[ev.Other].Control.Kind != ControlKind.Ai || seats[ev.Civ].Control.Kind != ControlKind.Ai) continue;
+                outcome.B28AiSettlementRaidLaunches++;
+                if (match.Research.IsDone(ev.Civ, met04) || match.Research.IsDone(ev.Civ, met05))
+                    outcome.B28ActualBronzeRaidLaunches++;
+                if (bronzeRaidBelieved[ev.Other][ev.Civ]) outcome.B28BelievedBronzeRaidLaunches++;
+                if (!M10TelemetryRules.TryMeasureBelievedBronzeRaid(
                         outcome.Civs[ev.Other].BelievedBronzeRaidMeasured,
                         bronzeRaidBelieved[ev.Other][ev.Civ], ev.B, defensesBeforeAdvance,
                         out bool defendedBeforeRaid)) continue;
+                if (warlordB28Trace)
+                {
+                    var decisions = match.Ai!.Log.Entries
+                        .Where(d => d.Civ == ev.Other && d.Tick <= ev.Tick && d.Kind is "Plan" or "Defense" or "Project")
+                        .TakeLast(5)
+                        .Select(d => $"{d.Season}:{d.Kind}:{d.Reason}");
+                    int def03 = catalog.IndexOf("DEF-03"), def04 = catalog.IndexOf("DEF-04"), def05 = catalog.IndexOf("DEF-05");
+                    string defensesBefore = (uint)ev.B < (uint)defensesBeforeAdvance.Length
+                        ? defensesBeforeAdvance[ev.B].ToString()
+                        : "unknown";
+                    outcome.B28Traces.Add($"B28 seed {seed} {seats[ev.Other].Name} civ{ev.Other} vs {seats[ev.Civ].Name} civ{ev.Civ} " +
+                        $"season {season} tick {ev.Tick} settlement {ev.B}: believed MET-04/05=" +
+                        $"{bronzeRaidBelievedMet04[ev.Other][ev.Civ]}/{bronzeRaidBelievedMet05[ev.Other][ev.Civ]}, " +
+                        $"attacker completed MET-04/05={match.Research.IsDone(ev.Civ, met04)}/{match.Research.IsDone(ev.Civ, met05)}, " +
+                        $"DEF-03/04/05={match.Research.IsDone(ev.Other, def03)}/{match.Research.IsDone(ev.Other, def04)}/{match.Research.IsDone(ev.Other, def05)}, " +
+                        $"before={defensesBefore}, after={match.Politics.MilitaryOf(ev.B).Defenses}; " +
+                        $"recent AI decisions [{string.Join(" | ", decisions)}]");
+                }
                 CivOutcome defender = outcome.Civs[ev.Other];
                 defender.BelievedBronzeRaidMeasured = true;
                 defender.DefendedBeforeBelievedBronzeRaid = defendedBeforeRaid;
@@ -1291,7 +1328,7 @@ internal static class Tournament
         Fix64? warlordE3FissionThresholdOverride = null, Fix64? warlordDefenseResearchBonusOverride = null,
         bool warlordDefenseUrgencyShadowDiagnostic = false, bool captureFoundFunnelDiagnostics = false,
         Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false,
-        bool warlordSettlementTrace = false, bool warlordB30Trace = false)
+        bool warlordSettlementTrace = false, bool warlordB30Trace = false, bool warlordB28Trace = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -1308,7 +1345,7 @@ internal static class Tournament
                 firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin,
                 warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
                 warlordDefenseUrgencyShadowDiagnostic, captureFoundFunnelDiagnostics, warlordKeystoneTempoOverride,
-                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped, warlordB30Trace), swapped);
+                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped, warlordB30Trace, warlordB28Trace), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;

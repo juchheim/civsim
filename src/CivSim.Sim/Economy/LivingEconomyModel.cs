@@ -2205,11 +2205,58 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private bool HasBuildCandidate(SettlementState settlement)
     {
+        if (IsPriorityDefenseTarget(settlement)) return true;
         Structure candidate = SelectBuildCandidate(settlement);
         if (candidate == Structure.Count) return false;
         settlement.BuildTarget = candidate;
         return true;
     }
+
+    /// <summary>
+    /// Starts the next eligible physical defense at an exposed settlement identified from an AI's belief state.
+    /// An existing construction job is allowed to finish before the priority is applied.
+    /// </summary>
+    internal bool PrioritizePhysicalDefenseBuild(int settlementIndex)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count) return false;
+        SettlementState settlement = _settlements[settlementIndex];
+        if (HasPhysicalDefense(settlement)) return false;
+        if (settlement.BuildProgress > Fix64.Zero) return false;
+
+        Structure candidate = SelectPhysicalDefenseCandidate(settlement);
+        if (candidate == Structure.Count || settlement.BuildTarget == candidate) return false;
+        settlement.BuildTarget = candidate;
+        return true;
+    }
+
+    private bool IsPriorityDefenseTarget(SettlementState settlement)
+        => !HasPhysicalDefense(settlement) && IsPhysicalDefense(settlement.BuildTarget) &&
+           CanBuild(settlement.Civilization, settlement.BuildTarget) &&
+           (settlement.BuildTarget != Structure.Hillfort || HasHillfortSite(settlement));
+
+    private Structure SelectPhysicalDefenseCandidate(SettlementState settlement)
+    {
+        if (CanBuild(settlement.Civilization, Structure.Palisade) &&
+            settlement.Structures[(int)Structure.Palisade] == 0 &&
+            settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(20 * ((int)Tier(settlement.Id) + 1)))
+            return Structure.Palisade;
+        if (CanBuild(settlement.Civilization, Structure.Hillfort) &&
+            settlement.Structures[(int)Structure.Hillfort] == 0 && HasHillfortSite(settlement) &&
+            settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10))
+            return Structure.Hillfort;
+        if (CanBuild(settlement.Civilization, Structure.StoneWalls) &&
+            settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1 &&
+            CanPayStructure(settlement, Structure.StoneWalls))
+            return Structure.StoneWalls;
+        return Structure.Count;
+    }
+
+    private static bool IsPhysicalDefense(Structure structure)
+        => structure is Structure.Palisade or Structure.Hillfort or Structure.StoneWalls;
+
+    private static bool HasPhysicalDefense(SettlementState settlement)
+        => settlement.Structures[(int)Structure.Palisade] > 0 || settlement.Structures[(int)Structure.Hillfort] > 0 ||
+           settlement.Structures[(int)Structure.StoneWalls] > 0;
 
     private Structure SelectBuildCandidate(SettlementState settlement)
     {

@@ -15,12 +15,13 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace] [--b28-trace]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --check-a7 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
+/// civsim-harness ai --pack FILE --check-b28 [--seeds N] [--minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE (--check-b7 | --check-b8) [--seeds N] [--minutes N] [--first-seed N]
 /// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
 /// Full-sample classification requires explicitly supplying both dimensions at acceptance size (at least 8 seeds, 64 minutes).
@@ -36,7 +37,7 @@ internal static class AiCommand
     public static int Run(string[] args)
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
-        bool check = false, checkM10 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
+        bool check = false, checkM10 = false, checkB28 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
         bool matchDetails = false;
         Fix64? rivalPaceOverride = null;
         int? firstsEtaPessimismSeasons = null;
@@ -50,7 +51,7 @@ internal static class AiCommand
         bool warlordE2ClosureSlotDiagnostic = false;
         bool warlordFoundFunnel = false;
         bool warlordSettlementTrace = false;
-        bool warlordB30Trace = false;
+        bool warlordB30Trace = false, warlordB28Trace = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
         int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
@@ -65,6 +66,7 @@ internal static class AiCommand
                 case "--ffa": ffa = args[++i]; break;
                 case "--check-m6": check = true; break;
                 case "--check-m10": checkM10 = true; break;
+                case "--check-b28": checkB28 = true; break;
                 case "--check-a7": checkA7 = true; break;
                 case "--check-b7": checkB7 = true; break;
                 case "--check-b8": checkB8 = true; break;
@@ -87,6 +89,7 @@ internal static class AiCommand
                 case "--warlord-found-funnel": warlordFoundFunnel = true; matchDetails = true; break;
                 case "--warlord-settlement-trace": warlordSettlementTrace = true; break;
                 case "--warlord-b30-trace": warlordB30Trace = true; matchDetails = true; break;
+                case "--b28-trace": warlordB28Trace = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
@@ -99,13 +102,18 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, warlordB30Trace), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, warlordB30Trace, warlordB28Trace), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
         if (checkA7) return CheckA7Only(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
         if (checkB7 || checkB8) return BronzeAiGates.Run(pack, checkB7, checkB8,
             seedsGiven ? seeds : 1, minutesGiven ? minutes : 2, firstSeed);
+        if (checkB28)
+        {
+            (int b28Seeds, int b28Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
+            return CheckB28(pack, b28Seeds, b28Minutes, firstSeed, warlordB28Trace);
+        }
         if (checkM10)
         {
             (int m10Seeds, int m10Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
@@ -641,7 +649,7 @@ internal static class AiCommand
         bool legendPass = legend.WinRateA >= 0.60;
         Console.WriteLine($"  B31: {legend.WinRateA * 100:F0}% over {legend.Matches} matches {M10AiAcceptanceStatus.FormatGateLabel(legendPass, seeds, minutes)}");
 
-        int bronzeRaidCases = 0, bronzeRaidDefended = 0;
+        B28TelemetrySummary b28Summary = B28TelemetrySummary.FromMatches(legend.Outcomes);
         int suicideRaids = 0, siegeBlunders = 0, mandateOverflowBlunders = 0, nakedCaravans = 0, frontierBlunders = 0;
         int mandateSaturationAiSeats = 0, aiMatches = 0;
         int raidLaunchedPredictions = 0, raidResolvedPredictions = 0, raidObservedSuccesses = 0;
@@ -655,11 +663,6 @@ internal static class AiCommand
                 aiMatches++;
                 CivOutcome o = match.Civs[c];
                 frontierBlunders += o.UnwalledFrontierBlunders;
-                if (o.BelievedBronzeRaidMeasured)
-                {
-                    bronzeRaidCases++;
-                    if (o.DefendedBeforeBelievedBronzeRaid) bronzeRaidDefended++;
-                }
                 suicideRaids += o.SuicideRaids;
                 siegeBlunders += o.SiegeWithoutSupplyBlunders;
                 raidLaunchedPredictions += o.RaidPredictionsLaunched;
@@ -672,9 +675,8 @@ internal static class AiCommand
                 if (o.MandateSeasonsAtCap > 8) mandateSaturationAiSeats++;
             }
         int matches = baseline.Outcomes.Count;
-        double defenseRate = bronzeRaidCases == 0 ? double.NaN : (double)bronzeRaidDefended / bronzeRaidCases;
         bool b27 = b27Summary.Pass;
-        bool b28 = bronzeRaidCases > 0 && defenseRate >= 0.80;
+        bool b28 = b28Summary.Pass;
         bool suicidePass = suicideRaids == 0;
         bool siegePass = siegeBlunders == 0;
         double mandateOverflowRate = matches == 0 ? double.NaN : (double)mandateOverflowBlunders / matches;
@@ -682,7 +684,10 @@ internal static class AiCommand
         bool mandateOverflowPass = mandateOverflowRate < 0.30;
         bool nakedCaravanPass = nakedCaravanRate < 0.50;
         Console.WriteLine($"  B27 tin-poor fallback: {b27Summary.TinRouteSeats}/{b27Summary.TinPoorSeats} = {b27Summary.TinRouteRate:P0}; dormant bronze {b27Summary.DormantBlunders}/{b27Summary.Matches} = {b27Summary.DormantBlunderRate:F3} per match ({b27Summary.WarlordSeats} Warlord seats) {M10AiAcceptanceStatus.FormatGateLabel(b27, seeds, minutes)}");
-        Console.WriteLine($"  B28 defenses before first believed-bronze raid: {bronzeRaidDefended}/{bronzeRaidCases} = {defenseRate:P0} {M10AiAcceptanceStatus.FormatGateLabel(b28, seeds, minutes)}");
+        Console.WriteLine($"  B28 defenses before first believed-bronze raid: {b28Summary.Defended}/{b28Summary.Cases} = {b28Summary.DefenseRate:P0}; " +
+            $"settlement raids {b28Summary.SettlementRaids}, AI-vs-AI {b28Summary.AiSettlementRaids}, believed-bronze {b28Summary.BelievedBronzeRaids}; " +
+            $"actual-bronze {b28Summary.ActualBronzeRaids}; " +
+            $"Legend-vs-Warlord matches {M10AiAcceptanceStatus.FormatGateLabel(b28, seeds, minutes)}");
         Console.WriteLine($"  B30 mandate overflow with positive decree EV: {mandateOverflowBlunders}/{matches} = {mandateOverflowRate:F3} per match {M10AiAcceptanceStatus.FormatGateLabel(mandateOverflowPass, seeds, minutes)}");
         Console.WriteLine($"  B30 measurable: suicide raids {suicideRaids} {M10AiAcceptanceStatus.FormatGateLabel(suicidePass, seeds, minutes)}; unsupplied siege desertion blunders {siegeBlunders} {M10AiAcceptanceStatus.FormatGateLabel(siegePass, seeds, minutes)}; naked caravans {nakedCaravans}/{matches} = {nakedCaravanRate:F3} per match {M10AiAcceptanceStatus.FormatGateLabel(nakedCaravanPass, seeds, minutes)}");
         double raidMae = raidResolvedPredictions == 0 ? double.NaN : raidCalibrationAbsoluteError / raidResolvedPredictions;
@@ -694,6 +699,25 @@ internal static class AiCommand
         bool measuredPass = core == 0 && legendPass && b27 && b28 && b29 && suicidePass && siegePass && mandateOverflowPass && nakedCaravanPass;
         Console.WriteLine(M10AiAcceptanceStatus.FormatSummary(measuredPass, seeds, minutes));
         return 1;
+    }
+
+    private static int CheckB28(ContentPack pack, int seeds, int minutes, ulong firstSeed, bool trace = false)
+    {
+        Console.WriteLine($"== B28: defense before the first believed-bronze raid in Legend-vs-Warlord AI matches ({seeds} seeds)");
+        Tournament.DuelResult duel = Tournament.Duel(pack, "legend", "warlord", seeds, minutes, EconomyArchetype.Balanced, firstSeed,
+            warlordB28Trace: trace);
+        B28TelemetrySummary summary = B28TelemetrySummary.FromMatches(duel.Outcomes);
+        Console.WriteLine($"  B28 defenses before first believed-bronze raid: {summary.Defended}/{summary.Cases} = {summary.DefenseRate:P0}; " +
+            $"settlement raids {summary.SettlementRaids}, AI-vs-AI {summary.AiSettlementRaids}, believed-bronze {summary.BelievedBronzeRaids}; " +
+            $"actual-bronze {summary.ActualBronzeRaids}; " +
+            $"{duel.Matches} matches {M10AiAcceptanceStatus.FormatGateLabel(summary.Pass, seeds, minutes)}");
+        foreach (MatchOutcome match in duel.Outcomes)
+            foreach (string detail in match.B28Traces) Console.WriteLine($"  {detail}");
+        if (M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic)
+            Console.WriteLine($"B28 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
+        else
+            Console.WriteLine($"B28 {(summary.Pass ? "PASS" : "FAIL")}");
+        return M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic ? 2 : summary.Pass ? 0 : 1;
     }
 
     /// <summary>The M6 acceptance gates A1 to A7 that need matches (docs/MVP/17 §4.3). A8 is the unit test FogFairnessTests.</summary>

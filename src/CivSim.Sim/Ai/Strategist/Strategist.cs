@@ -73,6 +73,7 @@ public sealed partial class Strategist : IStrategist
         ReadWarOptions(v, s);
         s.SecureTinValue = SecureTinPlanValue(v);
         ChoosePlan(v, s);
+        PrioritizeBronzeDefense(v, act);
 
         DecidePeace(v, s, act);
         DecideWar(v, s, act);
@@ -83,6 +84,15 @@ public sealed partial class Strategist : IStrategist
         NoteDefense(v, s);
 
         Remember(v, s);
+    }
+
+    private static void PrioritizeBronzeDefense(StrategistView v, IStrategistActions act)
+    {
+        int settlement = BronzeDefensePolicy.SelectSettlement(v.Civ, v.Season, v.Belief.Map.Width,
+            v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals,
+            v.Catalog.IndexOf("MET-04"), v.Catalog.IndexOf("MET-05"));
+        if (settlement >= 0 && act.PrioritizePhysicalDefenseBuild(settlement))
+            v.Note("DefenseBuild", settlement, -1, Fix64.One, "physical defense priority from believed bronze threat");
     }
 
     // ---- set-up ---------------------------------------------------------------------------

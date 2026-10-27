@@ -141,6 +141,14 @@ public sealed partial class PoliticsSystem
         return true;
     }
 
+    /// <summary>AI-only build priority, validated against the caller's own settlement.</summary>
+    public bool OrderPrioritizePhysicalDefenseBuild(int c, int settlement)
+    {
+        if ((uint)c >= (uint)_civs || (uint)settlement >= (uint)_sCiv.Length || _sCiv[settlement] != c || IsFreeFolk(settlement))
+            return false;
+        return _economy.PrioritizePhysicalDefenseBuild(settlement);
+    }
+
     /// <summary>Posture (needs GOV-02, the same rule as the player's lever).</summary>
     public bool OrderPosture(int c, Posture posture)
     {

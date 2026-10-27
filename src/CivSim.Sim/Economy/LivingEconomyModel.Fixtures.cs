@@ -118,6 +118,10 @@ public sealed partial class LivingEconomyModel
         _settlements[settlementIndex].Structures[kind]++;
     }
 
+    internal int FixtureBuildTarget(int settlementIndex) => (int)_settlements[settlementIndex].BuildTarget;
+
+    internal bool FixtureHasBuildCandidate(int settlementIndex) => HasBuildCandidate(_settlements[settlementIndex]);
+
     /// <summary>Builds a metal structure outright: "forge", "smelter", "kiln" or "mine_head" (at <paramref name="tile"/>).</summary>
     internal void FixtureBuild(int settlementIndex, string structure, int tile = -1)
     {
