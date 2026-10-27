@@ -735,13 +735,25 @@ internal static class AiCommand
     private static int CheckB27(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
     {
         Console.WriteLine($"== B27: tin-poor route recovery and dormant-route blunders ({seeds} seeds)");
-        Tournament.DuelResult duel = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed);
+        Tournament.DuelResult duel = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed,
+            warlordB27Trace: true);
         B27TelemetrySummary summary = B27TelemetrySummary.FromMatches(duel.Outcomes);
         bool diagnostic = M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic;
         Console.WriteLine($"  Tin/arsenical recovery {summary.TinRouteSeats}/{summary.TinPoorSeats} = {summary.TinRouteRate:P0}; " +
             $"dormant-route blunders {summary.DormantBlunders}/{summary.Matches} = {summary.DormantBlunderRate:F3} per match; " +
             $"{summary.WarlordSeats} Warlord seats across {duel.Matches} matches " +
             $"{M10AiAcceptanceStatus.FormatGateLabel(summary.Pass, seeds, minutes)}");
+        foreach (MatchOutcome match in duel.Outcomes)
+            for (int c = 0; c < match.Civs.Length; c++)
+            {
+                CivOutcome outcome = match.Civs[c];
+                if (match.Seats[c].Name != "warlord" || outcome.TinPoorEightSeasonsAfterKey3 == 0 ||
+                    outcome.TinOrArsenicalRouteByChapterEnd) continue;
+                Console.WriteLine($"  B27 unrecovered seat: seed={match.Seed} civ={c} KEY3={outcome.KeyMinutes[2]:F1} min " +
+                    $"checkpoint season={outcome.TinPoorCheckpointSeason}; no route by chapter end");
+                foreach (string trace in match.B27Traces.Where(trace => trace.Contains($" civ={c} ", StringComparison.Ordinal)))
+                    Console.WriteLine($"    {trace}");
+            }
         if (diagnostic)
             Console.WriteLine($"B27 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
         return diagnostic ? 2 : summary.Pass ? 0 : 1;

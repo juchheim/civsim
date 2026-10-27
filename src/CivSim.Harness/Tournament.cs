@@ -72,6 +72,7 @@ internal sealed class CivOutcome
     public int KeystoneStalls, IdleSlotSeasons, PlanSwitchesInThreeYears;
     public int AvoidableStarvationDeaths, UndefendedLosses, AttributedHerdCrashes, IdleLaborSeasons;
     public int TinPoorEightSeasonsAfterKey3;
+    public int TinPoorCheckpointSeason = -1;
     public bool TinOrArsenicalRouteByChapterEnd;
     public int DormantBronzeBlunders;
     public int UnwalledFrontierBlunders;
@@ -100,6 +101,7 @@ internal sealed class MatchOutcome
     public bool WarlordB30TraceEnabled;
     public bool WarlordB28TraceEnabled;
     public readonly List<string> B28Traces = new();
+    public readonly List<string> B27Traces = new();
     public int B28SettlementRaidLaunches, B28AiSettlementRaidLaunches, B28ActualBronzeRaidLaunches, B28BelievedBronzeRaidLaunches;
     public readonly List<FoundFunnelDiagnostic> FoundFunnels = new();
     public readonly List<FoundFunnelSeasonSnapshot> FoundFunnelSnapshots = new();
@@ -152,7 +154,8 @@ internal static class Tournament
         Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false,
         bool captureFoundFunnelDiagnostics = false, Fix64? warlordKeystoneTempoOverride = null,
         bool warlordE2ClosureSlotDiagnostic = false, bool warlordSettlementTrace = false,
-        bool warlordSettlementTraceSwapped = false, bool warlordB30Trace = false, bool warlordB28Trace = false)
+        bool warlordSettlementTraceSwapped = false, bool warlordB30Trace = false, bool warlordB28Trace = false,
+        bool warlordB27Trace = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -236,6 +239,7 @@ internal static class Tournament
         var dormantOptionSeasons = new int[civs];
         var dormantReported = new bool[civs];
         var fallbackRouteAfterTinPoor = new bool[civs];
+        var lastB27TraceState = new string[civs];
         var bronzeRaidBelieved = new bool[civs][];
         var bronzeRaidBelievedMet04 = new bool[civs][];
         var bronzeRaidBelievedMet05 = new bool[civs][];
@@ -757,6 +761,7 @@ internal static class Tournament
                     {
                         bronzePoorMeasured[c] = true;
                         o.TinPoorEightSeasonsAfterKey3 = !match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin) ? 1 : 0;
+                        if (o.TinPoorEightSeasonsAfterKey3 != 0) o.TinPoorCheckpointSeason = match.Politics.Season;
                     }
                     fallbackRouteAfterTinPoor[c] = M10TelemetryRules.LatchFallbackRoute(bronzePoorMeasured[c],
                         fallbackRouteAfterTinPoor[c], match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin),
@@ -779,6 +784,43 @@ internal static class Tournament
                     {
                         o.DormantBronzeBlunders++;
                         dormantReported[c] = true;
+                    }
+
+                    if (warlordB27Trace && o.TinPoorEightSeasonsAfterKey3 != 0 &&
+                        string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase))
+                    {
+                        AiDecision[] decisions = match.Ai?.Log.Entries
+                            .Skip(aiLogEntriesBefore)
+                            .Where(d => d.Civ == c && d.Layer == "Strategist" &&
+                                (d.Kind == "Plan" || d.Kind == "Decree" || d.Kind == "DecreeCandidate"))
+                            .ToArray() ?? Array.Empty<AiDecision>();
+                        string plan = decisions.Where(d => d.Kind == "Plan")
+                            .Select(d => d.Reason).LastOrDefault() ?? string.Empty;
+                        string selected = string.Join(";", decisions.Where(d => d.Kind == "Decree")
+                            .Select(d => $"{(DecreeKind)d.Subject}@{d.Other} EV={d.Score.ToDoubleForDisplay():F2}"));
+                        string CandidateLabel(AiDecision decision)
+                        {
+                            DecreeKind kind = (DecreeKind)decision.Subject;
+                            string deposit = kind == DecreeKind.Mine && (uint)decision.Other < (uint)world.TileCount
+                                ? $"/{world.TileAt(decision.Other).Deposit}" : string.Empty;
+                            return $"{kind}{deposit}@{decision.Other} EV={decision.Score.ToDoubleForDisplay():F2} {decision.Reason}";
+                        }
+                        string candidates = string.Join(";", decisions
+                            .Where(d => d.Kind == "DecreeCandidate" &&
+                                (DecreeKind)d.Subject is DecreeKind.Mine or DecreeKind.Levy or DecreeKind.Compact)
+                            .OrderByDescending(d => d.Score)
+                            .Take(3)
+                            .Select(CandidateLabel));
+                        string traceState = $"{tinAccess}/{arsenicAccess}/{tinOption}/{arsenicOption}/{met04State}/{met05State}";
+                        bool traceStateChanged = !string.Equals(lastB27TraceState[c], traceState, StringComparison.Ordinal);
+                        lastB27TraceState[c] = traceState;
+                        if (match.Politics.Season == o.TinPoorCheckpointSeason || traceStateChanged ||
+                            plan.Length > 0 || selected.Length > 0 || candidates.Length > 0)
+                            outcome.B27Traces.Add($"B27_TRACE seed={seed} civ={c} season={match.Politics.Season} " +
+                                $"checkpoint={o.TinPoorCheckpointSeason} metal(tin={tinAccess},ars={arsenicAccess}) " +
+                                $"option(tin={tinOption},ars={arsenicOption}) MET04={met04State} MET05={met05State} " +
+                                $"dormantStreak={dormantOptionSeasons[c]} recoveryAction={recoveryAction} " +
+                                $"plan=[{plan}] selected=[{selected}] topRouteCandidates=[{candidates}]");
                     }
 
                     o.MandateSeasonsAtCap = match.Politics.MandateSeasonsAtCap(c);
@@ -1328,7 +1370,8 @@ internal static class Tournament
         Fix64? warlordE3FissionThresholdOverride = null, Fix64? warlordDefenseResearchBonusOverride = null,
         bool warlordDefenseUrgencyShadowDiagnostic = false, bool captureFoundFunnelDiagnostics = false,
         Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false,
-        bool warlordSettlementTrace = false, bool warlordB30Trace = false, bool warlordB28Trace = false)
+        bool warlordSettlementTrace = false, bool warlordB30Trace = false, bool warlordB28Trace = false,
+        bool warlordB27Trace = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -1345,7 +1388,8 @@ internal static class Tournament
                 firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin,
                 warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
                 warlordDefenseUrgencyShadowDiagnostic, captureFoundFunnelDiagnostics, warlordKeystoneTempoOverride,
-                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped, warlordB30Trace, warlordB28Trace), swapped);
+                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped, warlordB30Trace, warlordB28Trace,
+                warlordB27Trace), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
