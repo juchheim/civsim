@@ -71,7 +71,8 @@ public class PoliticsMatchTests
     public void Peaceful_neighbours_exchange_gifts_and_barter_and_their_relations_grow()
     {
         var rig = new Rig();
-        rig.Minutes(26);
+        // Give late-contact neighbours enough seasons to exchange gifts and raise relations.
+        rig.Minutes(30);
         PoliticsSystem p = rig.Politics;
         Assert.True(p.Gifts > 0, "no gifts were delivered");
         Assert.True(p.BarterTrips > 0, "no barter trip completed");

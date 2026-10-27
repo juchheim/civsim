@@ -106,6 +106,8 @@ public sealed partial class FrameBuilder
     private readonly int[] _walkFrom = new int[64], _walkTo = new int[64], _walkTiles = new int[64];
     private int _walkCount, _walkNext;
     private readonly int[] _bfsDistance, _bfsQueue;
+    private readonly int[] _scoutCosts;
+    private readonly System.Collections.Generic.PriorityQueue<int, int> _scoutCostQueue;
 
     public FrameBuilder(MatchModel match, int viewerCiv, int eventCapacity = DefaultEventCapacity, int eventWindow = DefaultEventWindow)
     {
@@ -151,6 +153,9 @@ public sealed partial class FrameBuilder
         _contested = new bool[_tileCount];
         _bfsDistance = new int[_tileCount];
         _bfsQueue = new int[_tileCount];
+        _scoutCosts = new int[_tileCount];
+        _scoutCostQueue = new System.Collections.Generic.PriorityQueue<int, int>(checked(_tileCount * 6));
+        InitializeScoutJourneys();
         _ring = new ViewEvent[eventCapacity];
         _window = eventWindow;
         InitEventScratch();

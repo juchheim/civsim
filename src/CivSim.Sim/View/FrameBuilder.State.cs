@@ -155,14 +155,17 @@ public sealed partial class FrameBuilder
                 long started = r.ReadInt64();
                 if (id < 0 || unchecked((uint)home) >= (uint)_tileCount || unchecked((uint)target) >= (uint)_tileCount || started < 0)
                     throw new InvalidDataException("Bad scout view state.");
-                int[] path = BuildScoutPath(home, target);
-                if (path.Length < 2) continue;
-                int seasons = Math.Max(1, (path.Length - 1 + 9) / 10);
-                _scoutJourneys[id] = new ScoutJourney
-                {
-                    FigureId = id, HomeTile = home, TargetTile = target, StartTick = started,
-                    LegTicks = (long)seasons * CivSim.Sim.Economy.LivingEconomyModel.SeasonTicks, Path = path,
-                };
+                ScoutJourney journey = RentScoutJourney();
+                int pathLength = BuildScoutPath(home, target, journey.Path);
+                if (pathLength < 2) { ReturnScoutJourney(journey); continue; }
+                int seasons = Math.Max(1, (pathLength - 1 + 9) / 10);
+                journey.FigureId = id;
+                journey.HomeTile = home;
+                journey.TargetTile = target;
+                journey.StartTick = started;
+                journey.LegTicks = (long)seasons * CivSim.Sim.Economy.LivingEconomyModel.SeasonTicks;
+                journey.PathLength = pathLength;
+                _scoutJourneys[id] = journey;
             }
         }
         _researchCursor = 0;

@@ -12,6 +12,7 @@ namespace CivSim.Sim.View;
 public sealed partial class FrameBuilder
 {
     private const int ScoutSight = 3, ScoutRevealRadius = 3, ScoutTilesPerSeason = 10;
+    private const int MaxScoutJourneys = CivResearch.MaxSettlements * 2;
 
     private sealed class ScoutJourney
     {
@@ -19,14 +20,22 @@ public sealed partial class FrameBuilder
         public int HomeTile, TargetTile;
         public long StartTick, LegTicks;
         public int[] Path = Array.Empty<int>();
+        public int PathLength;
     }
 
     private readonly record struct ScoutPosition(int Tile, int X, int Y);
     private readonly SortedList<long, ScoutJourney> _scoutJourneys = new();
     private readonly SortedList<long, ScoutPosition> _scoutPositions = new();
     private readonly SortedList<long, int> _scoutNoTargetSeason = new();
-    private readonly SortedSet<long> _liveScouts = new();
-    private readonly SortedSet<int> _scoutTargets = new();
+    private readonly List<long> _liveScouts = new();
+    private readonly List<int> _scoutTargets = new();
+    private readonly Stack<ScoutJourney> _scoutJourneyPool = new(MaxScoutJourneys);
+
+    private void InitializeScoutJourneys()
+    {
+        for (int i = 0; i < MaxScoutJourneys; i++)
+            _scoutJourneyPool.Push(new ScoutJourney { Path = new int[_tileCount] });
+    }
 
     private void PrepareScouts(LivingEconomyModel eco, PoliticsSystem politics, long tick)
     {
@@ -38,8 +47,11 @@ public sealed partial class FrameBuilder
 
         if (_viewer >= 0)
         {
-            foreach (ScoutJourney journey in _scoutJourneys.Values)
+            for (int i = 0; i < _scoutJourneys.Count; i++)
+            {
+                ScoutJourney journey = _scoutJourneys.Values[i];
                 if (tick < journey.StartTick + 2 * journey.LegTicks) _scoutTargets.Add(journey.TargetTile);
+            }
 
             for (int i = 0; i < eco.FigureCount; i++)
             {
@@ -48,42 +60,54 @@ public sealed partial class FrameBuilder
                     (uint)figure.SettlementId >= (uint)_settlementCount) continue;
                 _liveScouts.Add(figure.Id);
                 int home = _sTile[figure.SettlementId];
-                if (!_scoutJourneys.TryGetValue(figure.Id, out ScoutJourney? journey) || journey.HomeTile != home ||
-                    tick >= journey.StartTick + 2 * journey.LegTicks)
+                bool hasJourney = _scoutJourneys.TryGetValue(figure.Id, out ScoutJourney? journey);
+                if (!hasJourney || journey!.HomeTile != home || tick >= journey.StartTick + 2 * journey.LegTicks)
                 {
-                    _scoutJourneys.Remove(figure.Id);
-                    journey = null;
                     if (_scoutNoTargetSeason.TryGetValue(figure.Id, out int lastAttempt) && lastAttempt == season) continue;
                     _scoutNoTargetSeason[figure.Id] = season;
                     int target = ChooseScoutTarget(politics, figure.Civilization, home);
-                    if (target < 0) continue;
-                    int[] path = BuildScoutPath(home, target);
-                    if (path.Length < 2) continue;
-                    int steps = path.Length - 1;
-                    int seasons = Math.Max(1, (steps + ScoutTilesPerSeason - 1) / ScoutTilesPerSeason);
-                    journey = new ScoutJourney
+                    if (target < 0)
                     {
-                        FigureId = figure.Id, HomeTile = home, TargetTile = target,
-                        StartTick = seasonStart, LegTicks = (long)seasons * LivingEconomyModel.SeasonTicks,
-                        Path = path,
-                    };
+                        if (hasJourney) ReleaseScoutJourney(figure.Id);
+                        continue;
+                    }
+                    journey ??= RentScoutJourney();
+                    int pathLength = HexGrid.WalkingPathFrom(_tiles, _width, _height, _scoutCosts, home, target, journey.Path);
+                    if (pathLength < 2)
+                    {
+                        if (hasJourney) _scoutJourneys.Remove(figure.Id);
+                        ReturnScoutJourney(journey);
+                        continue;
+                    }
+                    int steps = pathLength - 1;
+                    int seasons = Math.Max(1, (steps + ScoutTilesPerSeason - 1) / ScoutTilesPerSeason);
+                    journey.FigureId = figure.Id;
+                    journey.HomeTile = home;
+                    journey.TargetTile = target;
+                    journey.StartTick = seasonStart;
+                    journey.LegTicks = (long)seasons * LivingEconomyModel.SeasonTicks;
+                    journey.PathLength = pathLength;
                     _scoutJourneys[figure.Id] = journey;
                     _scoutTargets.Add(target);
                 }
-                else if (journey.Path.Length < 2)
+                else if (journey!.PathLength < 2)
                 {
-                    journey.Path = BuildScoutPath(journey.HomeTile, journey.TargetTile);
-                    if (journey.Path.Length < 2) { _scoutJourneys.Remove(figure.Id); continue; }
+                    journey.PathLength = BuildScoutPath(journey.HomeTile, journey.TargetTile, journey.Path);
+                    if (journey.PathLength < 2) { ReleaseScoutJourney(figure.Id); continue; }
                 }
 
-                _scoutPositions[figure.Id] = PositionOnScoutPath(journey, tick);
+                _scoutPositions[figure.Id] = PositionOnScoutPath(journey!, tick);
             }
         }
 
-        foreach (long id in new List<long>(_scoutJourneys.Keys))
-            if (!_liveScouts.Contains(id)) _scoutJourneys.Remove(id);
-        foreach (long id in new List<long>(_scoutNoTargetSeason.Keys))
-            if (!_liveScouts.Contains(id)) _scoutNoTargetSeason.Remove(id);
+        for (int i = _scoutJourneys.Count - 1; i >= 0; i--)
+            if (!_liveScouts.Contains(_scoutJourneys.Keys[i]))
+            {
+                ReturnScoutJourney(_scoutJourneys.Values[i]);
+                _scoutJourneys.RemoveAt(i);
+            }
+        for (int i = _scoutNoTargetSeason.Count - 1; i >= 0; i--)
+            if (!_liveScouts.Contains(_scoutNoTargetSeason.Keys[i])) _scoutNoTargetSeason.RemoveAt(i);
     }
 
     private int ChooseScoutTarget(PoliticsSystem politics, int civ, int home)
@@ -91,13 +115,13 @@ public sealed partial class FrameBuilder
         int reach = BeliefRules.ScoutMapRange(politics.ReachOf(civ),
             politics.DecreeResearch.IsDone(civ, "WAY-01"), politics.DecreeResearch.IsDone(civ, "WAY-03"));
         int maxCost = Math.Max(100, reach * 40);
-        int[] costs = HexGrid.WalkingCostsFrom(_tiles, _width, _height, home, maxCost);
+        HexGrid.WalkingCostsFrom(_tiles, _width, _height, home, _scoutCosts, _scoutCostQueue, maxCost);
         IReadOnlyList<int> beacons = politics.BeaconsOf(civ);
         int best = -1, bestScore = int.MinValue;
         for (int tile = 0; tile < _tileCount; tile++)
         {
             if (_explored[tile] != 0 || !_tiles[tile].IsLand || _tiles[tile].Biome == Biome.Peak ||
-                costs[tile] == int.MaxValue || HexGrid.Distance(home, tile, _width) > reach || _scoutTargets.Contains(tile)) continue;
+                _scoutCosts[tile] == int.MaxValue || HexGrid.Distance(home, tile, _width) > reach || _scoutTargets.Contains(tile)) continue;
             int unknownLand = 0;
             HexGrid.Coordinates(tile, _width, out int cx, out int cy);
             for (int y = Math.Max(0, cy - ScoutRevealRadius); y <= Math.Min(_height - 1, cy + ScoutRevealRadius); y++)
@@ -113,7 +137,7 @@ public sealed partial class FrameBuilder
                 int distance = HexGrid.Distance(tile, beacons[b], _width);
                 if (distance <= 5) beaconPull = Math.Max(beaconPull, 5 - distance);
             }
-            int score = unknownLand * 1000 - Math.Min(costs[tile], 999) + beaconPull * 250;
+            int score = unknownLand * 1000 - Math.Min(_scoutCosts[tile], 999) + beaconPull * 250;
             if (score > bestScore || score == bestScore && tile < best)
             {
                 best = tile;
@@ -123,15 +147,34 @@ public sealed partial class FrameBuilder
         return best;
     }
 
-    private int[] BuildScoutPath(int home, int target)
-        => HexGrid.WalkingPathFrom(_tiles, _width, _height, home, target);
+    private int BuildScoutPath(int home, int target, int[] path)
+    {
+        HexGrid.WalkingCostsFrom(_tiles, _width, _height, home, _scoutCosts, _scoutCostQueue);
+        return HexGrid.WalkingPathFrom(_tiles, _width, _height, _scoutCosts, home, target, path);
+    }
+
+    private ScoutJourney RentScoutJourney()
+        => _scoutJourneyPool.Count > 0 ? _scoutJourneyPool.Pop() : new ScoutJourney { Path = new int[_tileCount] };
+
+    private void ReturnScoutJourney(ScoutJourney journey)
+    {
+        journey.PathLength = 0;
+        if (_scoutJourneyPool.Count < MaxScoutJourneys) _scoutJourneyPool.Push(journey);
+    }
+
+    private void ReleaseScoutJourney(long figureId)
+    {
+        if (!_scoutJourneys.TryGetValue(figureId, out ScoutJourney? journey)) return;
+        _scoutJourneys.Remove(figureId);
+        ReturnScoutJourney(journey);
+    }
 
     private ScoutPosition PositionOnScoutPath(ScoutJourney journey, long tick)
     {
         long elapsed = Math.Clamp(tick - journey.StartTick, 0, journey.LegTicks * 2);
         bool returning = elapsed >= journey.LegTicks;
         long legElapsed = returning ? elapsed - journey.LegTicks : elapsed;
-        int steps = journey.Path.Length - 1;
+        int steps = journey.PathLength - 1;
         long progress = Math.Min((long)steps * 1000, legElapsed * steps * 1000 / journey.LegTicks);
         int completed = (int)(progress / 1000);
         int fraction = (int)(progress % 1000);
@@ -150,6 +193,7 @@ public sealed partial class FrameBuilder
 
     private void ClearScoutViewState()
     {
+        for (int i = 0; i < _scoutJourneys.Count; i++) ReturnScoutJourney(_scoutJourneys.Values[i]);
         _scoutJourneys.Clear();
         _scoutPositions.Clear();
         _scoutNoTargetSeason.Clear();
@@ -159,6 +203,6 @@ public sealed partial class FrameBuilder
 
     private void MarkScoutVisibility()
     {
-        foreach (ScoutPosition position in _scoutPositions.Values) MarkDisk(position.Tile, ScoutSight);
+        for (int i = 0; i < _scoutPositions.Count; i++) MarkDisk(_scoutPositions.Values[i].Tile, ScoutSight);
     }
 }

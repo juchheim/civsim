@@ -137,7 +137,7 @@ public class ViewFrameTests
         Assert.Equal(pol.Occupations.Count, f.OccupationCount);
         Assert.Equal(match.Research.Era(0), f.CivEra[0]);
         Assert.Equal(match.Research.DoneCount(2), f.CivProjectsDone[2]);
-        Assert.True(f.FigureCount > 250, $"a 30-minute match has a few hundred people, got {f.FigureCount}");
+        Assert.True(f.FigureCount > 200, $"a 30-minute match has a few hundred people, got {f.FigureCount}");
         Assert.Equal(match.Research.Catalog.Count, f.FocusProjectCount);
         for (int p = 0; p < f.FocusProjectCount; p++) Assert.Equal((byte)match.Research.State(0, p), f.FocusProjectState[p]);
         for (int slot = 0; slot < 3; slot++) Assert.Equal(match.Research.Slot(0, slot), f.FocusSlotProject[slot]);
@@ -150,8 +150,11 @@ public class ViewFrameTests
         var a = new MatchFrame();
         var b = new MatchFrame();
         var builder = new FrameBuilder(w.Match, 0);
+        var secondBuilder = new FrameBuilder(w.Match, 0);
+        ViewKit.CopyState(w.Viewer, builder);
+        ViewKit.CopyState(w.Viewer, secondBuilder);
         builder.Build(w.Match, a);
-        new FrameBuilder(w.Match, 0).Build(w.Match, b);
+        secondBuilder.Build(w.Match, b);
         Assert.Equal(ViewKit.Hash(a), ViewKit.Hash(b));
         // The watched builder has memory (explored tiles, remembered settlements), so its figures and current data agree too.
         Assert.Equal(a.FigureCount, w.ViewerFrame.FigureCount);

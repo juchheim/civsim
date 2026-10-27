@@ -12,7 +12,7 @@ using Xunit.Abstractions;
 namespace CivSim.Tests;
 
 /// <summary>
-/// The forecast model against the live simulation (docs/MVP/14 §3.2): a real 40-minute match of four Council
+/// The forecast model against the live simulation (docs/MVP/14 §3.2): a real 45-minute match of four Council
 /// civilizations; each forecast starts from the civilization's captured state at minute 0 or minute 10, replays its
 /// actual completion order, and rolls out to the 64-minute Bronze chapter horizon. KEY-1, KEY-2 and KEY-3 must land within 25% of the live
 /// times, and the median error within 12%.
@@ -30,7 +30,7 @@ public class ForecastFidelityTests
         var runner = new SimRunner(match);
         var trackers = Enumerable.Range(0, 4).Select(_ => new KnowHowTracker()).ToArray();
         var starts = new List<Start>();
-        for (int season = 1; season <= 160; season++)
+        for (int season = 1; season <= 180; season++)
         {
             runner.Advance(ResearchSystem.SeasonTicks);
             for (int c = 0; c < 4; c++)

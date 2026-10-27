@@ -121,6 +121,15 @@ public class ViewStoreTests
             if (runner.Tick % 50 == 0) omniscient.Build(match, omniFrame);
         }
 
+        // Prime trail links and event scratch buffers first added just after the 18-minute baseline.
+        for (int i = 0; i < 15; i++)
+        {
+            runner.Advance(10);
+            store.BuildAndPublish(viewer, match);
+            store.TryAcquire();
+            omniscient.Build(match, omniFrame);
+        }
+
         long allocated = 0;
         for (int i = 0; i < 60; i++) // 600 ticks: four season boundaries
         {

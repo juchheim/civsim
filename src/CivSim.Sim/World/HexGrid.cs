@@ -158,11 +158,20 @@ public static class HexGrid
         int maximumCost = int.MaxValue, int[]? landDistance = null, int seaReach = 0)
     {
         int[] distance = new int[tiles.Length];
-        Array.Fill(distance, int.MaxValue);
-        if (start < 0 || start >= tiles.Length || !tiles[start].IsLand || tiles[start].Biome == Biome.Peak)
-            return distance;
-
         var queue = new PriorityQueue<int, int>();
+        WalkingCostsFrom(tiles, width, height, start, distance, queue, maximumCost, landDistance, seaReach);
+        return distance;
+    }
+
+    /// <summary>Fills caller-owned buffers with the same Dijkstra costs as <see cref="WalkingCostsFrom"/>.</summary>
+    public static void WalkingCostsFrom(WorldTile[] tiles, int width, int height, int start, int[] distance,
+        PriorityQueue<int, int> queue, int maximumCost = int.MaxValue, int[]? landDistance = null, int seaReach = 0)
+    {
+        if (distance.Length < tiles.Length) throw new ArgumentException("Distance buffer is too small.", nameof(distance));
+        distance.AsSpan(0, tiles.Length).Fill(int.MaxValue);
+        queue.Clear();
+        if (start < 0 || start >= tiles.Length || !tiles[start].IsLand || tiles[start].Biome == Biome.Peak) return;
+
         distance[start] = 0;
         queue.Enqueue(start, 0);
         Span<int> neighbors = stackalloc int[6];
@@ -212,7 +221,39 @@ public static class HexGrid
                 queue.Enqueue(next, candidate);
             }
         }
-        return distance;
+    }
+
+    /// <summary>Writes one deterministic least-cost route from previously computed walking costs into caller storage.</summary>
+    public static int WalkingPathFrom(WorldTile[] tiles, int width, int height, ReadOnlySpan<int> costs,
+        int start, int target, Span<int> path)
+    {
+        if (costs.Length < tiles.Length) throw new ArgumentException("Cost buffer is too small.", nameof(costs));
+        if ((uint)target >= (uint)tiles.Length || costs[target] == int.MaxValue || path.IsEmpty) return 0;
+        int count = 1;
+        path[0] = target;
+        int at = target;
+        Span<int> neighbors = stackalloc int[6];
+        while (at != start && count < path.Length)
+        {
+            int neighborCount = Neighbors(at, width, height, neighbors);
+            int next = -1, bestCost = costs[at];
+            for (int i = 0; i < neighborCount; i++)
+            {
+                int candidate = neighbors[i];
+                if (costs[candidate] >= bestCost) continue;
+                if (next < 0 || costs[candidate] < bestCost || costs[candidate] == bestCost && candidate < next)
+                {
+                    next = candidate;
+                    bestCost = costs[candidate];
+                }
+            }
+            if (next < 0) return 0;
+            at = next;
+            path[count++] = at;
+        }
+        if (at != start) return 0;
+        for (int i = 0, j = count - 1; i < j; i++, j--) (path[i], path[j]) = (path[j], path[i]);
+        return count;
     }
 
     /// <summary>One deterministic least-cost route returned by <see cref="WalkingCostsFrom"/>.</summary>

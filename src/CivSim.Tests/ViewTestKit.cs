@@ -38,6 +38,15 @@ internal static class ViewKit
         return match;
     }
 
+    public static void CopyState(FrameBuilder source, FrameBuilder destination)
+    {
+        using var state = new MemoryStream();
+        using (var writer = new BinaryWriter(state, System.Text.Encoding.UTF8, leaveOpen: true)) source.WriteState(writer);
+        state.Position = 0;
+        using var reader = new BinaryReader(state);
+        destination.ReadState(reader);
+    }
+
     /// <summary>A fingerprint of everything a frame shows (all blocks up to their counts, events included).</summary>
     public static ulong Hash(MatchFrame f, bool includeTotals = true)
     {

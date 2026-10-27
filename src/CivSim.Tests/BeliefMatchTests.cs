@@ -16,6 +16,7 @@ namespace CivSim.Tests;
 /// The belief builder in a real match (docs/MVP/14 §3.1, §5): one match run once to mid-E2 with a Warlord (full model) at
 /// civilization 0, a Chieftain (archetype posterior) at 2 and a Settler (none) at 3. Tests only read it or copy it.
 /// </summary>
+[Collection("Frame timing")]
 public class BeliefMatchTests
 {
     private const int Seasons = 124;

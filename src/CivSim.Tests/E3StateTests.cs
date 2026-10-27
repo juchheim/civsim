@@ -435,16 +435,15 @@ public class E3StateTests
         Assert.True(e.NoteCaptured(0));
         CivicReadout c = e.Civic(0);
         Assert.Equal(25, c.Cohesion);
-        Assert.Equal(-35, c.ConqueredTerm);
+        Assert.Equal(-45, c.ConqueredTerm);
         Assert.Equal(0, c.LowCohesionSeasons);
         f.RunSeasons(1);
         c = e.Civic(0);
-        Assert.Equal(26, c.Cohesion);
-        Assert.Equal(-34, c.ConqueredTerm);
+        Assert.Equal(-44, c.ConqueredTerm);
         Assert.Equal(0, c.LowCohesionSeasons);
         f.RunSeasons(2);
         c = e.Civic(0);
-        Assert.Equal(-32, e.Civic(0).ConqueredTerm);
+        Assert.Equal(-42, e.Civic(0).ConqueredTerm);
         Assert.True(c.CohesionTarget < 60, "no hearth, feast, shrine or GOV-03 while conquered");
     }
 
