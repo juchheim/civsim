@@ -16,6 +16,15 @@ public class SparkPlannerTests
     private static readonly CivControl Warlord = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
 
     [Fact]
+    public void Posture_unlock_value_favors_GOV_02_only_for_open_frontiers_without_urgent_conflict()
+    {
+        Assert.Equal(Fix64.FromInt(27), ResearchSpark.PostureUnlockBonus(Fix64.FromRatio(75, 100), Fix64.Zero, Fix64.Zero));
+        Assert.Equal(Fix64.Zero, ResearchSpark.PostureUnlockBonus(Fix64.FromRatio(39, 100), Fix64.Zero, Fix64.Zero));
+        Assert.Equal(Fix64.Zero, ResearchSpark.PostureUnlockBonus(Fix64.FromRatio(75, 100), StrategistTuning.FortifyAt, Fix64.Zero));
+        Assert.Equal(Fix64.Zero, ResearchSpark.PostureUnlockBonus(Fix64.FromRatio(75, 100), Fix64.Zero, StrategistTuning.FortifyAt));
+    }
+
+    [Fact]
     public void Bronze_fork_uses_only_feedable_routes_and_breaks_a_two_route_tie_toward_tin()
     {
         ResearchCatalog catalog = TestPack.Catalog;

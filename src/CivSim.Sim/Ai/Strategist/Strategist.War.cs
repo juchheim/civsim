@@ -149,7 +149,7 @@ public sealed partial class Strategist
         foreach (OwnSettlement settlement in v.Own.Settlements)
         {
             if (HexGrid.Distance(settlement.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange) continue;
-            int allowed = Math.Max(0, Math.Min(settlement.Fighters - 4, settlement.Fighters * 6 / 10));
+            int allowed = Math.Max(0, Math.Min(settlement.Fighters - PoliticsSystem.CampaignHomeReserve, settlement.Fighters * 6 / 10));
             if (allowed > 0) departures.Add(new SettlementDeparture(settlement.Index, allowed));
         }
         return departures;
@@ -214,7 +214,7 @@ public sealed partial class Strategist
                 {
                     if (contributor.Settlement == neutralizedSettlement ||
                         HexGrid.Distance(origin.Tile, contributor.Tile, width) > StrategistTuning.ArmyGatherRange) continue;
-                    int available = Math.Max(0, Math.Min(contributor.Fighters - 4, contributor.Fighters * 6 / 10));
+                    int available = Math.Max(0, Math.Min(contributor.Fighters - PoliticsSystem.CampaignHomeReserve, contributor.Fighters * 6 / 10));
                     localArmy += contributor.PerAttack * available;
                 }
                 if (localArmy > army) army = localArmy;
@@ -254,18 +254,22 @@ public sealed partial class Strategist
         if (origin is null) { option.Why = "no settlement to march from"; return option; }
         option.Travel = HexGrid.Distance(origin.Tile, site.Tile, width);
 
-        // The field army: up to 60% of the fighters of every own settlement within ten tiles of the origin, strongest first.
+        // The field army: up to 60% of the fighters of every own settlement within the campaign gather radius, strongest first.
         _a.Clear();
         Fix64 force = Fix64.Zero;
         foreach (OwnSettlement o in v.Own.Settlements)
         {
             if (HexGrid.Distance(o.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange || o.Fighters <= 0) continue;
-            int allowed = Math.Max(0, Math.Min(o.Fighters - 4, o.Fighters * 6 / 10));
+            int allowed = Math.Max(0, Math.Min(o.Fighters - PoliticsSystem.CampaignHomeReserve, o.Fighters * 6 / 10));
             Fix64 each = o.AttackingStrength / o.Fighters * StrategistTuning.PartyPickBonus;
             for (int i = 0; i < allowed; i++) { _a.Add(new Fighter(2_000_000 + _a.Count, each)); force += each; }
         }
         option.Attackers = _a.Count;
-        if (_a.Count < 6) { option.Why = $"army of {_a.Count} too small"; return option; }
+        if (_a.Count < PoliticsSystem.CampaignMinimumAttackers)
+        {
+            option.Why = $"army of {_a.Count} too small to launch a campaign (need {PoliticsSystem.CampaignMinimumAttackers}; {Captures.MinHolders} holders must remain after battle)";
+            return option;
+        }
 
         // E3 stone walls turn an assault order into an investment. A wall sighting belongs to this settlement only;
         // never infer it from the rival-wide technology/structure evidence. Stores are not in the belief view, so

@@ -207,7 +207,7 @@ public static class StrategistTuning
     public static readonly Fix64 ReliefShare = Fix64.FromRatio(60, 100);
     public const int ReliefRange = 8;
     /// <summary>The field army is drawn from settlements within this many tiles of the origin.</summary>
-    public const int ArmyGatherRange = 10;
+    public const int ArmyGatherRange = PoliticsSystem.CampaignGatherRange;
     /// <summary>Peace: when the force ratio falls below one, or own adults fall by this share since the war began (14 §6.3).</summary>
     public static readonly Fix64 PeaceRatio = Fix64.One;
     public static readonly Fix64 LossesMount = Fix64.FromRatio(25, 100);

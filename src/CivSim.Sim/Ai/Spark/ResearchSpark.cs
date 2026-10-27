@@ -54,7 +54,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private int[] _depth = Array.Empty<int>();
     private readonly List<int> _critical = new();
     private bool _lateClosureCatchup;
-    private int _met03 = -1, _met04 = -1, _met05 = -1, _min04 = -1, _trn05 = -1, _sea05 = -1;
+    private int _met03 = -1, _met04 = -1, _met05 = -1, _min04 = -1, _trn05 = -1, _sea05 = -1, _gov02 = -1;
 
     public ResearchSpark(AiSpec spec, DifficultyProfile profile)
     {
@@ -122,6 +122,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         for (int p = 0; p < _fc.Count; p++) _lineageCode[p] = _fc.Lineage[p] >= 0 ? catalog.LineageCodes[_fc.Lineage[p]] : "";
         _met03 = catalog.IndexOf("MET-03"); _met04 = catalog.IndexOf("MET-04"); _met05 = catalog.IndexOf("MET-05");
         _min04 = catalog.IndexOf("MIN-04"); _trn05 = catalog.IndexOf("TRN-05"); _sea05 = catalog.IndexOf("SEA-05");
+        _gov02 = catalog.IndexOf("GOV-02");
         CacheCapabilities(catalog);
     }
 
@@ -283,8 +284,18 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                     + cohesionNeed * _cohesionCapability[p]) * SparkTuning.NeedUrgencyBonus;
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
             bonus += BronzeForkBonus(p, _met04, _met05, met03Done, IsDone(_min04), tinAccessProbability, arsenicAccess);
+            if (p == _gov02 && !_start.Done[p]) bonus += PostureUnlockBonus(frontier, defense, attack);
             _value.Bonus[p] = bonus;
         }
+    }
+
+    /// <summary>Values Chieftainship's posture lever when open land makes Expand useful, but yields to active conflict.</summary>
+    internal static Fix64 PostureUnlockBonus(Fix64 frontierValue, Fix64 defenseUrgency, Fix64 attackReadiness)
+    {
+        if (frontierValue < StrategistTuning.FrontierOpen ||
+            defenseUrgency >= StrategistTuning.FortifyAt || attackReadiness >= StrategistTuning.FortifyAt)
+            return Fix64.Zero;
+        return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * SparkTuning.PostureUnlockBonus;
     }
 
     private bool IsDone(int project) => project >= 0 && project < _start.Done.Length && _start.Done[project];

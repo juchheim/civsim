@@ -41,9 +41,20 @@ internal sealed class CivOutcome
     public int Civ;
     public double Dominion, Mastery, Firsts, Wonders;
     public int Settlements, SettlementsLost, SettlementsCaptured, Projects;
+    public int FoundDecrees;
+    public readonly int[] PostureSeasons = new int[5];
+    public readonly int[] WarlordUrgencyBands = new int[5];
+    public int WarlordUrgencySeasons;
+    public int FissionSplits, FissionPendingSeasons;
+    public int PostureGateLockedSeasons, FrontierOpenSeasons;
     public readonly double[] KeyMinutes = { double.NaN, double.NaN, double.NaN };
     public int RaidsLaunched, RaidsWon;
     public int RaidsResolved, RaidExpeditionsPending, RaidPredictions;
+    public int WarsDeclared, WarRejections;
+    public readonly Dictionary<string, int> WarRejectionReasons = new(StringComparer.Ordinal);
+    public readonly Dictionary<string, int> ThreatReasons = new(StringComparer.Ordinal);
+    public int IncomingRusherRaidsLaunched, IncomingRusherRaidsResolved, IncomingRusherRaidsSucceeded;
+    public long IncomingRusherRaidPartyFighters;
     public int AssaultsLaunched, AssaultsResolved, AssaultsHeld, AssaultExpeditionsPending;
     public int OccupationsBroken, OccupationsPending, AssaultPredictions;
     public double PredictedRaidSuccess, PredictedCaptureSuccess;
@@ -98,6 +109,7 @@ internal static class Tournament
         for (int c = 0; c < civs; c++) outcome.Civs[c] = new CivOutcome { Civ = c };
         ResearchCatalog catalog = match.Research.Catalog;
         int[] keys = { catalog.IndexOf("KEY-1"), catalog.IndexOf("KEY-2"), catalog.IndexOf("KEY-3") };
+        int gov02 = catalog.IndexOf("GOV-02");
         int met03 = catalog.IndexOf("MET-03"), met04 = catalog.IndexOf("MET-04"), met05 = catalog.IndexOf("MET-05");
         int min04 = catalog.IndexOf("MIN-04");
         var stalled = new bool[civs * 3];
@@ -114,6 +126,8 @@ internal static class Tournament
         for (int c = 0; c < civs; c++) nakedTinCaravans[c] = new NakedTinCaravanTracker();
         var mandateOverflowStreak = new int[civs];
         var mandateOverflowReported = new bool[civs];
+        var fissionsSeen = new int[match.Economy.SettlementCount];
+        for (int s = 0; s < fissionsSeen.Length; s++) fissionsSeen[s] = match.Economy.Settlement(s).Fissions;
         var frontierThreatSeason = new int[civs, world.TileCount];
         var a7ThreatObservedSeason = new int[civs, world.TileCount];
         var a7DefenseResponseSeen = new bool[civs, world.TileCount];
@@ -163,6 +177,36 @@ internal static class Tournament
             for (int s = 0; s < defensesBeforeAdvance.Length; s++)
                 defensesBeforeAdvance[s] = match.Politics.MilitaryOf(s).Defenses;
             runner.Advance(Math.Min(150, ticks - t));
+
+            for (int c = 0; c < civs; c++)
+            {
+                outcome.Civs[c].PostureSeasons[(int)match.Politics.PostureOf(c)]++;
+                if (seats[c].Control.Kind == ControlKind.Ai && match.Ai?.SeatOf(c) is { } aiSeat)
+                {
+                    if (!match.Research.IsDone(c, gov02)) outcome.Civs[c].PostureGateLockedSeasons++;
+                    if (aiSeat.Context.Intent.FrontierValue >= StrategistTuning.FrontierOpen)
+                        outcome.Civs[c].FrontierOpenSeasons++;
+                    if (aiSeat.Control.Spec.Level == Difficulty.Warlord)
+                    {
+                        outcome.Civs[c].WarlordUrgencyBands[WarlordUrgencyBand(aiSeat.Context.Intent.DefenseUrgency)]++;
+                        outcome.Civs[c].WarlordUrgencySeasons++;
+                    }
+                }
+            }
+            if (match.Economy.SettlementCount > fissionsSeen.Length)
+                Array.Resize(ref fissionsSeen, match.Economy.SettlementCount);
+            for (int s = 0; s < match.Economy.SettlementCount; s++)
+            {
+                SettlementView settlement = match.Economy.Settlement(s);
+                int owner = match.Politics.SettlementCivOf(s);
+                if ((uint)owner < (uint)civs && !match.Politics.IsFreeFolk(s))
+                {
+                    if (settlement.FissionPending) outcome.Civs[owner].FissionPendingSeasons++;
+                    if (settlement.Fissions > fissionsSeen[s])
+                        outcome.Civs[owner].FissionSplits += settlement.Fissions - fissionsSeen[s];
+                }
+                fissionsSeen[s] = settlement.Fissions;
+            }
 
             // A7 starvation uses stores held at the start of the season, before consumption and deaths.
             // A sister is operationally reachable within 15 hexes (the default inter-settlement sharing
@@ -457,7 +501,28 @@ internal static class Tournament
         PoliticsSystem pol = match.Politics;
         foreach (PoliticsEvent e in pol.Events)
         {
-            if (e.Kind == PoliticsEventKind.Captured)
+            if (e.Kind == PoliticsEventKind.RaidLaunched && e.B >= 0 &&
+                (uint)e.Civ < (uint)civs && (uint)e.Other < (uint)civs &&
+                string.Equals(seats[e.Civ].Name, "rusher", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(seats[e.Other].Name, "warlord", StringComparison.OrdinalIgnoreCase))
+            {
+                CivOutcome target = outcome.Civs[e.Other];
+                target.IncomingRusherRaidsLaunched++;
+                target.IncomingRusherRaidPartyFighters += e.A;
+            }
+            else if (e.Kind == PoliticsEventKind.RaidResolved && e.A is 2 or 3 &&
+                (uint)e.Civ < (uint)civs && (uint)e.Other < (uint)civs &&
+                string.Equals(seats[e.Civ].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(seats[e.Other].Name, "rusher", StringComparison.OrdinalIgnoreCase))
+            {
+                CivOutcome target = outcome.Civs[e.Civ];
+                target.IncomingRusherRaidsResolved++;
+                if (e.A == 2) target.IncomingRusherRaidsSucceeded++;
+            }
+
+            if (e.Kind == PoliticsEventKind.DecreeResolved && e.A == (int)DecreeKind.Found && e.Civ < civs)
+                outcome.Civs[e.Civ].FoundDecrees++;
+            else if (e.Kind == PoliticsEventKind.Captured)
             {
                 // Each capture is logged twice: the captor's event has B >= 0, the loser's B <= 0 (both 0 if nobody stayed, so
                 // the final owner decides that case).
@@ -496,6 +561,19 @@ internal static class Tournament
                     c.RaidPredictions++;
                 }
                 else if (d.Kind == "Assault") { c.AssaultPredictions++; c.PredictedCaptureSuccess += d.Score.ToDoubleForDisplay(); c.AssaultsLaunched++; }
+                else if (d.Kind == "War") c.WarsDeclared++;
+                else if (d.Kind == "WarRejected")
+                {
+                    c.WarRejections++;
+                    c.WarRejectionReasons.TryGetValue(d.Reason, out int count);
+                    c.WarRejectionReasons[d.Reason] = count + 1;
+                }
+                else if (d.Kind == "Threat")
+                {
+                    string threat = $"civ {d.Civ} rival {d.Subject}: {d.Reason}";
+                    c.ThreatReasons.TryGetValue(threat, out int count);
+                    c.ThreatReasons[threat] = count + 1;
+                }
             }
         }
         foreach (Expedition expedition in pol.Expeditions)
@@ -535,6 +613,15 @@ internal static class Tournament
         outcome.FinalTick = runner.Tick;
         outcome.Checksum = runner.CurrentChecksum;
         return outcome;
+    }
+
+    private static int WarlordUrgencyBand(Fix64 urgency)
+    {
+        if (urgency < Fix64.FromRatio(45, 100)) return 0;
+        if (urgency < Fix64.FromRatio(50, 100)) return 1;
+        if (urgency < Fix64.FromRatio(60, 100)) return 2;
+        if (urgency < Fix64.FromRatio(70, 100)) return 3;
+        return 4;
     }
 
     /// <summary>Runs a match while collecting only the team Legacy scores consumed by A6.</summary>

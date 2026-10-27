@@ -754,6 +754,36 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Campaign_gathers_a_support_settlement_within_the_shared_radius()
+    {
+        var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+        OwnSettlement origin = scene.Own.Settlements[0];
+        origin.Fighters = 11;
+        origin.Adults = 11;
+        origin.AttackingStrength = Fix64.FromInt(11) * Fix64.FromRatio(27, 10);
+        origin.DefendingStrength = Fix64.FromInt(11);
+        scene.Own.Adults = 16;
+        scene.Own.Population = 30;
+        scene.Own.Settlements.Add(new OwnSettlement
+        {
+            Index = 1, Tile = T(51, 40), Population = 15, Adults = 5, Fighters = 5,
+            AttackingStrength = Fix64.FromInt(5) * Fix64.FromRatio(27, 10),
+            DefendingStrength = Fix64.FromInt(5), FoodSecurity = Fix64.One,
+            LateWinterForecast = Fix64.One, Cohesion = Fix64.One, Defenses = Defenses.None,
+        });
+        scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+        scene.Site(1, settlement: 6, tile: T(28, 40), fighters: 2);
+
+        (_, ActionRecorder act) = Decide(scene);
+
+        Assert.Equal(11, HexGrid.Distance(origin.Tile, scene.Own.Settlements[1].Tile, W));
+        Assert.True(StrategistTuning.ArmyGatherRange >= 11);
+        Assert.Contains("war 1", act.Orders);
+        Assert.Contains("assault 6", act.Orders);
+        Assert.Contains(scene.Notes("Assault"), note => note.Reason.Contains("with 7"));
+    }
+
+    [Fact]
     public void War_threshold_distinguishes_inferred_palisades_from_observed_ones()
     {
         static Scene MakeBlind(int ownFighters)

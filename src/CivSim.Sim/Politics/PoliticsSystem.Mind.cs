@@ -361,15 +361,15 @@ public sealed partial class PoliticsSystem
         int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (requireOdds && travel > ReachOf(c) * 3)) return false;
 
-        // The field army: up to 60% of the fighters in every own settlement within ten tiles of the origin.
+        // The field army: up to 60% of the fighters in every own settlement within the campaign gather radius.
         var force = new List<Fighter>();
         var ids = new List<long>();
         Fix64 strength = Fix64.Zero;
         for (int s = 0; s < _sCount; s++)
         {
-            if (_sCiv[s] != c || _free[s] || HexGrid.Distance(_sTile[s], _sTile[origin], _width) > 10) continue;
+            if (_sCiv[s] != c || _free[s] || HexGrid.Distance(_sTile[s], _sTile[origin], _width) > CampaignGatherRange) continue;
             List<Fighter> here = Fighters(s, attacking: true, out List<long> hereIds, _sTile[target]);
-            int allowed = Math.Max(0, Math.Min(here.Count - 4, here.Count * 6 / 10));
+            int allowed = Math.Max(0, Math.Min(here.Count - CampaignHomeReserve, here.Count * 6 / 10));
             var ordered = new List<Fighter>(here);
             ordered.Sort((x, y) => x.Strength != y.Strength ? y.Strength.CompareTo(x.Strength) : x.Id.CompareTo(y.Id));
             for (int i = 0; i < allowed; i++) { force.Add(ordered[i]); ids.Add(ordered[i].Id); strength += ordered[i].Strength; }
@@ -386,7 +386,7 @@ public sealed partial class PoliticsSystem
                 force.Add(new Fighter(id, levy.Strengths[i])); ids.Add(id); strength += levy.Strengths[i];
             }
         }
-        if (force.Count < (requireOdds ? 6 : Captures.MinHolders)) return false;
+        if (force.Count < (requireOdds ? CampaignMinimumAttackers : Captures.MinHolders)) return false;
         Fix64 defence = Fix64.Zero;
         foreach (Fighter f in Fighters(target, attacking: false, out _, _sTile[target])) defence += f.Strength;
         if (walled)

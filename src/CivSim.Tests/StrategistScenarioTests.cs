@@ -162,7 +162,7 @@ public class StrategistScenarioTests
     }
 
     [Fact]
-    public void It_refuses_a_raid_on_a_palisade_and_raids_an_undefended_neighbour()
+    public void It_refuses_a_raid_on_a_palisade_and_attacks_an_undefended_neighbour()
     {
         // Give the neighbor built defenses; DEF-03 only unlocks palisade construction.
         string[] spears = { "WAR-01", "HNT-02", "HNT-03", "HNT-04", "WAR-02" };
@@ -191,10 +191,20 @@ public class StrategistScenarioTests
         }
         open.Politics.Diplomacy.Set(0, 1, -40);
         open.Seasons(8);
-        Assert.True(open.Notes(0, "Raid").Any(), string.Join(" | ", open.Log.Entries.Where(e => e.Civ == 0 && e.Season > 104).Select(e => $"{e.Season} {e.Kind} {e.Reason}")));
-        AiDecision raid = open.Notes(0, "Raid").First();
-        Assert.True(raid.Score >= Fix64.FromRatio(45, 100), raid.Reason);
-        Assert.Contains(open.Politics.Events, e => e.Kind == PoliticsEventKind.RaidLaunched && e.Civ == 0 && e.Other == 1);
+        bool raided = open.Notes(0, "Raid").Any();
+        bool conquered = open.Notes(0, "Assault").Any();
+        Assert.True(raided || conquered, string.Join(" | ", open.Log.Entries.Where(e => e.Civ == 0 && e.Season > 104).Select(e => $"{e.Season} {e.Kind} {e.Reason}")));
+        if (raided)
+        {
+            AiDecision raid = open.Notes(0, "Raid").First();
+            Assert.True(raid.Score >= Fix64.FromRatio(45, 100), raid.Reason);
+            Assert.Contains(open.Politics.Events, e => e.Kind == PoliticsEventKind.RaidLaunched && e.Civ == 0 && e.Other == 1);
+        }
+        else
+        {
+            Assert.Contains(open.Notes(0, "War"), note => note.Other == 1);
+            Assert.Contains(open.Politics.Events, e => e.Kind == PoliticsEventKind.AssaultLaunched && e.Civ == 0 && e.Other == 1);
+        }
     }
 
     [Fact]

@@ -175,6 +175,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
 
     /// <summary>Tiles a party covers in a season on foot.</summary>
     public const int TilesPerSeason = 10;
+    /// <summary>Radius around a campaign's chosen origin from which settlements may contribute fighters.</summary>
+    public const int CampaignGatherRange = 12;
+    /// <summary>Fighters each settlement must keep home when contributing to a campaign.</summary>
+    public const int CampaignHomeReserve = 4;
+    /// <summary>Minimum field army size for a probability-gated campaign launch.</summary>
+    public const int CampaignMinimumAttackers = 6;
 
     private readonly LivingEconomyModel _economy;
     private readonly ResearchSystem _research;

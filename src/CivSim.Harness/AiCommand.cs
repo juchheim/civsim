@@ -12,7 +12,7 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
@@ -34,6 +34,7 @@ internal static class AiCommand
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
         bool check = false, checkM10 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
+        bool matchDetails = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
         int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
@@ -52,6 +53,7 @@ internal static class AiCommand
                 case "--check-b7": checkB7 = true; break;
                 case "--check-b8": checkB8 = true; break;
                 case "--exploit": exploit = true; break;
+                case "--match-details": matchDetails = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
@@ -64,7 +66,7 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed)); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
@@ -116,13 +118,148 @@ internal static class AiCommand
     internal static (int Seeds, int Minutes) ResolveM10Sample(int? requestedSeeds, int? requestedMinutes) =>
         (requestedSeeds ?? 1, requestedMinutes ?? 2);
 
-    private static void PrintDuel(string a, string b, Tournament.DuelResult r)
+    private static void PrintDuel(string a, string b, Tournament.DuelResult r, bool matchDetails = false)
     {
         Console.WriteLine($"{a} vs {b}: {r.Matches} matches, {a} wins {r.WinRateA * 100:F0}% (Legacy {r.LegacyA / r.Matches:F1} vs {r.LegacyB / r.Matches:F1})");
         Console.WriteLine($"  settlements lost per match: {a} {r.SettlementsLostA / r.Matches:F2} (in {r.MatchesWithLossA} matches), {b} {r.SettlementsLostB / r.Matches:F2} (in {r.MatchesWithLossB} matches)");
         Console.WriteLine($"  raids launched per match: {a} {(double)r.RaidsA / r.Matches:F1}, {b} {(double)r.RaidsB / r.Matches:F1}");
         Console.WriteLine($"  KEY-1 mean minute: {a} {r.MeanKey1A:F1}, {b} {r.MeanKey1B:F1}");
         Console.WriteLine($"  blunders ({a}): keystone stalls {r.KeystoneStallsA}, idle slot seasons {r.IdleSlotSeasonsA}, dithering matches {r.PlanDitherMatchesA}");
+        if (!matchDetails) return;
+
+        Console.WriteLine("  match details: summed team Legacy components, settlement changes, conflict outcomes, and KEY-1/2 timing");
+        foreach (MatchOutcome match in r.Outcomes)
+        {
+            DuelTotals teamA = SumTeam(match, a), teamB = SumTeam(match, b);
+            string result = teamA.Legacy > teamB.Legacy ? a + " win" : teamA.Legacy < teamB.Legacy ? b + " win" : "tie";
+            Console.WriteLine($"    seed {match.Seed}: {result}; {a} L={teamA.Legacy:F0} (D/M/F/W {teamA.Dominion:F0}/{teamA.Mastery:F0}/{teamA.Firsts:F0}/{teamA.Wonders:F0}), settlements/founds/projects {teamA.Settlements}/{teamA.FoundDecrees}/{teamA.Projects}, splits/pending-seasons {teamA.FissionSplits}/{teamA.FissionPendingSeasons}, posture B/E/P/F/R {FormatPostures(teamA.PostureSeasons)}, GOV02-locked/frontier-open {teamA.PostureGateLockedSeasons}/{teamA.FrontierOpenSeasons}, lost/captured {teamA.SettlementsLost}/{teamA.SettlementsCaptured}, raids {teamA.RaidsWon}/{teamA.RaidsLaunched}, wars declared/rejected {teamA.WarsDeclared}/{teamA.WarRejections}, assaults launch/resolve/hold {teamA.AssaultsLaunched}/{teamA.AssaultsResolved}/{teamA.AssaultsHeld}, predicted capture Σp {teamA.PredictedCaptureSuccess:F2}/{teamA.AssaultPredictions}, K1/K2 {teamA.Key1Mean:F1}/{teamA.Key2Mean:F1}; " +
+                $"{b} L={teamB.Legacy:F0} (D/M/F/W {teamB.Dominion:F0}/{teamB.Mastery:F0}/{teamB.Firsts:F0}/{teamB.Wonders:F0}), settlements/founds/projects {teamB.Settlements}/{teamB.FoundDecrees}/{teamB.Projects}, splits/pending-seasons {teamB.FissionSplits}/{teamB.FissionPendingSeasons}, posture B/E/P/F/R {FormatPostures(teamB.PostureSeasons)}, GOV02-locked/frontier-open {teamB.PostureGateLockedSeasons}/{teamB.FrontierOpenSeasons}, lost/captured {teamB.SettlementsLost}/{teamB.SettlementsCaptured}, raids {teamB.RaidsWon}/{teamB.RaidsLaunched}, wars declared/rejected {teamB.WarsDeclared}/{teamB.WarRejections}, assaults launch/resolve/hold {teamB.AssaultsLaunched}/{teamB.AssaultsResolved}/{teamB.AssaultsHeld}, predicted capture Σp {teamB.PredictedCaptureSuccess:F2}/{teamB.AssaultPredictions}, K1/K2 {teamB.Key1Mean:F1}/{teamB.Key2Mean:F1}");
+            Console.WriteLine($"      rejected wars ({a}): {FormatRejections(teamA.WarRejectionReasons)}");
+            Console.WriteLine($"      rejected wars ({b}): {FormatRejections(teamB.WarRejectionReasons)}");
+            Console.WriteLine($"      threat estimates ({a}): {FormatThreats(teamA.ThreatReasons)}");
+            Console.WriteLine($"      threat estimates ({b}): {FormatThreats(teamB.ThreatReasons)}");
+            if (string.Equals(a, "warlord", StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine($"      incoming Rusher settlement raids on {a}: {FormatIncomingRaids(teamA)}");
+            if (string.Equals(b, "warlord", StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine($"      incoming Rusher settlement raids on {b}: {FormatIncomingRaids(teamB)}");
+            if (teamA.WarlordUrgencySeasons > 0)
+                Console.WriteLine($"      Warlord defense urgency {a}: {FormatUrgencyBands(teamA.WarlordUrgencyBands)}");
+            if (teamB.WarlordUrgencySeasons > 0)
+                Console.WriteLine($"      Warlord defense urgency {b}: {FormatUrgencyBands(teamB.WarlordUrgencyBands)}");
+        }
+    }
+
+    private static string FormatPostures(int[] seasons)
+        => string.Join("/", seasons);
+
+    private static string FormatUrgencyBands(int[] bands)
+        => $"<.45/.45-.50/.50-.60/.60-.70/>=.70 {string.Join('/', bands)}";
+
+    private static string FormatThreats(Dictionary<string, int> threats)
+        => threats.Count == 0 ? "none" :
+            string.Join(" | ", threats.OrderByDescending(x => x.Value).Take(4).Select(x => $"{x.Value}× {x.Key}"));
+
+    private static string FormatIncomingRaids(DuelTotals team)
+    {
+        double successRate = team.IncomingRusherRaidsResolved == 0 ? double.NaN :
+            (double)team.IncomingRusherRaidsSucceeded / team.IncomingRusherRaidsResolved;
+        double meanParty = team.IncomingRusherRaidsLaunched == 0 ? double.NaN :
+            (double)team.IncomingRusherRaidPartyFighters / team.IncomingRusherRaidsLaunched;
+        return $"launched/resolved/pending {team.IncomingRusherRaidsLaunched}/{team.IncomingRusherRaidsResolved}/" +
+            $"{team.IncomingRusherRaidsLaunched - team.IncomingRusherRaidsResolved}, succeeded {team.IncomingRusherRaidsSucceeded} " +
+            $"({successRate:P0} of resolved), mean party {meanParty:F1}";
+    }
+
+    private static string FormatRejections(Dictionary<string, int>? reasons)
+    {
+        if (reasons is null || reasons.Count == 0) return "none";
+        int radiusRescues = reasons.Where(x => x.Key.Contains("would clear holder floor", StringComparison.Ordinal)).Sum(x => x.Value);
+        string top = string.Join(" | ", reasons.OrderByDescending(x => x.Value).Take(2).Select(x => $"{x.Value}× {x.Key}"));
+        if (radiusRescues > 0) top = $"+4 radius could clear the holder floor in {radiusRescues} rejections | {top}";
+        return top;
+    }
+
+    private static DuelTotals SumTeam(MatchOutcome match, string name)
+    {
+        var total = new DuelTotals { PostureSeasons = new int[5], WarlordUrgencyBands = new int[5], ThreatReasons = new Dictionary<string, int>(StringComparer.Ordinal) };
+        for (int seat = 0; seat < match.Seats.Length; seat++)
+        {
+            if (!string.Equals(match.Seats[seat].Name, name, StringComparison.OrdinalIgnoreCase)) continue;
+            CivOutcome civ = match.Civs[seat];
+            total.Dominion += civ.Dominion;
+            total.Mastery += civ.Mastery;
+            total.Firsts += civ.Firsts;
+            total.Wonders += civ.Wonders;
+            total.Settlements += civ.Settlements;
+            total.Projects += civ.Projects;
+            total.FoundDecrees += civ.FoundDecrees;
+            total.FissionSplits += civ.FissionSplits;
+            total.FissionPendingSeasons += civ.FissionPendingSeasons;
+            total.PostureGateLockedSeasons += civ.PostureGateLockedSeasons;
+            total.FrontierOpenSeasons += civ.FrontierOpenSeasons;
+            for (int posture = 0; posture < total.PostureSeasons.Length; posture++)
+                total.PostureSeasons[posture] += civ.PostureSeasons[posture];
+            for (int band = 0; band < total.WarlordUrgencyBands.Length; band++)
+                total.WarlordUrgencyBands[band] += civ.WarlordUrgencyBands[band];
+            total.WarlordUrgencySeasons += civ.WarlordUrgencySeasons;
+            total.SettlementsLost += civ.SettlementsLost;
+            total.SettlementsCaptured += civ.SettlementsCaptured;
+            total.IncomingRusherRaidsLaunched += civ.IncomingRusherRaidsLaunched;
+            total.IncomingRusherRaidsResolved += civ.IncomingRusherRaidsResolved;
+            total.IncomingRusherRaidsSucceeded += civ.IncomingRusherRaidsSucceeded;
+            total.IncomingRusherRaidPartyFighters += civ.IncomingRusherRaidPartyFighters;
+            total.RaidsLaunched += civ.RaidsLaunched;
+            total.RaidsWon += civ.RaidsWon;
+            total.WarsDeclared += civ.WarsDeclared;
+            total.WarRejections += civ.WarRejections;
+            if (civ.WarRejectionReasons.Count > 0)
+            {
+                total.WarRejectionReasons ??= new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach ((string reason, int count) in civ.WarRejectionReasons)
+                {
+                    total.WarRejectionReasons.TryGetValue(reason, out int prior);
+                    total.WarRejectionReasons[reason] = prior + count;
+                }
+            }
+            foreach ((string threat, int count) in civ.ThreatReasons)
+            {
+                total.ThreatReasons.TryGetValue(threat, out int prior);
+                total.ThreatReasons[threat] = prior + count;
+            }
+            total.AssaultsLaunched += civ.AssaultsLaunched;
+            total.AssaultsResolved += civ.AssaultsResolved;
+            total.AssaultsHeld += civ.AssaultsHeld;
+            total.AssaultPredictions += civ.AssaultPredictions;
+            total.PredictedCaptureSuccess += civ.PredictedCaptureSuccess;
+            if (!double.IsNaN(civ.KeyMinutes[0])) { total.Key1Total += civ.KeyMinutes[0]; total.Key1Count++; }
+            if (!double.IsNaN(civ.KeyMinutes[1])) { total.Key2Total += civ.KeyMinutes[1]; total.Key2Count++; }
+        }
+        return total;
+    }
+
+    private struct DuelTotals
+    {
+        public double Dominion, Mastery, Firsts, Wonders;
+        public int Settlements, FoundDecrees, Projects;
+        public int FissionSplits, FissionPendingSeasons;
+        public int PostureGateLockedSeasons, FrontierOpenSeasons;
+        public int[] PostureSeasons;
+        public int[] WarlordUrgencyBands;
+        public int WarlordUrgencySeasons;
+        public int SettlementsLost, SettlementsCaptured, RaidsLaunched, RaidsWon;
+        public int WarsDeclared, WarRejections;
+        public Dictionary<string, int>? WarRejectionReasons;
+        public Dictionary<string, int> ThreatReasons;
+        public int AssaultsLaunched, AssaultsResolved, AssaultsHeld;
+        public int AssaultPredictions;
+        public double PredictedCaptureSuccess;
+        public int IncomingRusherRaidsLaunched, IncomingRusherRaidsResolved, IncomingRusherRaidsSucceeded;
+        public long IncomingRusherRaidPartyFighters;
+        public double Key1Total, Key2Total;
+        public int Key1Count, Key2Count;
+        public readonly double Legacy => Dominion + Mastery + Firsts + Wonders;
+        public readonly double Key1Mean => Key1Count == 0 ? double.NaN : Key1Total / Key1Count;
+        public readonly double Key2Mean => Key2Count == 0 ? double.NaN : Key2Total / Key2Count;
     }
 
     private static int Ladder(ContentPack pack, string[] names, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
