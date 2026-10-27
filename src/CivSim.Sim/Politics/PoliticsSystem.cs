@@ -198,6 +198,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly Territory _territory;
     private readonly Diplomacy _dip;
     private readonly byte[] _posture;
+    private readonly Fix64?[] _warlordE3ExpandFissionThresholdOverride;
     private readonly bool[] _externalMind;
     private readonly bool[] _maxCampaignOriginForDiagnostics;
     private readonly List<int>[] _beacons;
@@ -268,6 +269,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _territory = new Territory(generated, _civs);
         _dip = new Diplomacy(_civs);
         _posture = new byte[_civs];
+        _warlordE3ExpandFissionThresholdOverride = new Fix64?[_civs];
         _externalMind = new bool[_civs];
         _maxCampaignOriginForDiagnostics = new bool[_civs];
         _beacons = new List<int>[_civs];
@@ -321,6 +323,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     public IReadOnlyList<PoliticsEvent> Events => _events;
     public void ClearEvents() => _events.Clear();
     internal void UseMaxCampaignOriginForDiagnostics(int civ, bool enabled) => _maxCampaignOriginForDiagnostics[civ] = enabled;
+
+    internal void SetWarlordE3ExpandFissionThresholdOverrideForDiagnostics(int civ, Fix64 threshold)
+    {
+        if ((uint)civ >= (uint)_civs) throw new ArgumentOutOfRangeException(nameof(civ));
+        _warlordE3ExpandFissionThresholdOverride[civ] = threshold;
+    }
     public int Season => _season;
     public Posture PostureOf(int civ) => (Posture)_posture[civ];
     public IReadOnlyList<int> BeaconsOf(int civ) => _beacons[civ];
@@ -451,7 +459,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         {
             int era = _research.Era(c);
             Fix64 expandScale = era == 3 ? Fix64.FromRatio(83, 100) : Fix64.FromRatio(8, 10);
-            _economy.SetFissionThresholdScale(c, (Posture)_posture[c] switch
+            Posture posture = (Posture)_posture[c];
+            if (era == 3 && posture == Posture.Expand && _warlordE3ExpandFissionThresholdOverride[c] is { } overrideScale)
+                expandScale = overrideScale;
+            _economy.SetFissionThresholdScale(c, posture switch
             {
                 Posture.Expand => expandScale,
                 Posture.Prosper => Fix64.FromRatio(12, 10),

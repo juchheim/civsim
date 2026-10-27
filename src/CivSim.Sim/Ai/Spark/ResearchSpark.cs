@@ -29,7 +29,16 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly KnowHowTracker _tracker = new();
     private int _lastDecision = -1;
     internal Fix64? RivalPaceOverrideForDiagnostics { get; set; }
+    internal Fix64? DefenseResearchBonusOverrideForDiagnostics { get; set; }
+    internal bool DefenseUrgencyShadowDiagnosticForDiagnostics { get; set; }
+    internal int DefenseUrgencyShadowHighDecisionsForDiagnostics { get; private set; }
+    internal int DefenseUrgencyShadowSlotsChangedForDiagnostics { get; private set; }
+    internal int DefenseUrgencyShadowDisplacedDefenseForDiagnostics { get; private set; }
+    internal int[] DefenseUrgencyShadowHighDecisionsByEraForDiagnostics { get; } = new int[ResearchCatalog.EraCount];
     internal int FirstsEtaPessimismSeasonsForDiagnostics { get; set; }
+    private Fix64? _defenseUrgencyForValuationOverrideForDiagnostics;
+    private bool _suppressWriteForShadowDiagnostics;
+    private ResearchSpark? _defenseUrgencyShadowSpark;
     private readonly int[] _lastSlots = { -1, -1, -1 };
     /// <summary>Season each civilization was first seen in each era (civ × era), -1 if not yet: the public keystone record.</summary>
     private int[] _eraSeason = Array.Empty<int>();
@@ -85,6 +94,22 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _tracker.Observe(readout, ctx.Season);
         KeepLeaning(ctx);
 
+        byte[]? shadowState = DefenseUrgencyShadowDiagnosticForDiagnostics &&
+            ctx.Intent.DefenseUrgency >= StrategistTuning.FortifyAt
+                ? SaveStateForShadowDiagnostics()
+                : null;
+
+        PreparePlan(ctx, port, fc, readout);
+        BuildCandidates(port);
+        Search(ctx);
+        if (shadowState is not null) CompareDefenseUrgencyShadow(ctx, shadowState);
+        if (!_suppressWriteForShadowDiagnostics) Write(ctx);
+        _lastDecision = ctx.Season;
+        Decisions++;
+    }
+
+    private void PreparePlan(AiContext ctx, AiResearchPort port, ForecastCatalog fc, PortReadout readout)
+    {
         _start.CaptureResearch(readout, ctx.Civ, ctx.Spec.Archetype);
         _start.CaptureBronze(ctx.Own.Bronze);
         _start.Season = ctx.Season;
@@ -96,12 +121,56 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 
         BuildRivalFrontier(ctx, horizon);
         BuildValuation(ctx);
-        BuildCandidates(port);
-        Search(ctx);
-        Write(ctx);
-        _lastDecision = ctx.Season;
-        Decisions++;
     }
+
+    private byte[] SaveStateForShadowDiagnostics()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) Write(writer);
+        return stream.ToArray();
+    }
+
+    private void CompareDefenseUrgencyShadow(AiContext ctx, byte[] savedState)
+    {
+        ResearchSpark shadow = _defenseUrgencyShadowSpark ??= new ResearchSpark(_spec, _profile);
+        using (var stream = new MemoryStream(savedState, writable: false))
+        using (var reader = new BinaryReader(stream)) shadow.Read(reader);
+        shadow.RivalPaceOverrideForDiagnostics = RivalPaceOverrideForDiagnostics;
+        shadow.DefenseResearchBonusOverrideForDiagnostics = DefenseResearchBonusOverrideForDiagnostics;
+        shadow.FirstsEtaPessimismSeasonsForDiagnostics = FirstsEtaPessimismSeasonsForDiagnostics;
+        shadow._defenseUrgencyForValuationOverrideForDiagnostics = Fix64.Zero;
+        shadow._suppressWriteForShadowDiagnostics = true;
+        shadow.Decide(ctx);
+
+        Span<int> liveSlots = stackalloc int[CivResearch.SlotCount];
+        Span<int> shadowSlots = stackalloc int[CivResearch.SlotCount];
+        FillPlannedSlots(liveSlots);
+        shadow.FillPlannedSlots(shadowSlots);
+        DefenseUrgencyShadowHighDecisionsForDiagnostics++;
+        int era = Math.Clamp(_start.Era, 0, DefenseUrgencyShadowHighDecisionsByEraForDiagnostics.Length - 1);
+        DefenseUrgencyShadowHighDecisionsByEraForDiagnostics[era]++;
+        for (int slot = 0; slot < CivResearch.SlotCount; slot++)
+        {
+            int live = liveSlots[slot], withoutDefense = shadowSlots[slot];
+            if (live != withoutDefense) DefenseUrgencyShadowSlotsChangedForDiagnostics++;
+            if (IsDefenseResearchProject(live) && withoutDefense >= 0 && !IsDefenseResearchProject(withoutDefense))
+                DefenseUrgencyShadowDisplacedDefenseForDiagnostics++;
+        }
+    }
+
+    private void FillPlannedSlots(Span<int> target)
+    {
+        target.Fill(-1);
+        int filled = 0;
+        foreach (int p in _plan)
+        {
+            if (filled == CivResearch.SlotCount) break;
+            if (_state[p] is ProjectState.Available or ProjectState.Slotted) target[filled++] = p;
+        }
+    }
+
+    private bool IsDefenseResearchProject(int project)
+        => project >= 0 && project < _lineageCode.Length && _lineageCode[project] is "DEF" or "WAR";
 
     private void Ensure(ResearchCatalog catalog)
     {
@@ -256,7 +325,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         ForecastCatalog fc = _fc!;
         StrategicIntent intent = ctx.Intent;
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
-        Fix64 defense = Fix64.Clamp(intent.DefenseUrgency, Fix64.Zero, Fix64.One) * SparkTuning.DefenseBonus;
+        Fix64 defenseBonus = DefenseResearchBonusOverrideForDiagnostics ?? SparkTuning.DefenseBonus;
+        Fix64 defenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
+        Fix64 defense = Fix64.Clamp(defenseUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
         Fix64 frontier = Fix64.Clamp(intent.FrontierValue, Fix64.Zero, Fix64.One) * SparkTuning.FrontierBonus;
         MarkMilitaryPath(_start.Era);

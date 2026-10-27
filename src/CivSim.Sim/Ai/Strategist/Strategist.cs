@@ -39,6 +39,7 @@ public sealed partial class Strategist : IStrategist
     private int _lastPostureChange = -1000;
     private int _raidStreak;
     internal int? NonConquerRaidPostureStreakForDiagnostics { get; set; }
+    internal Fix64? FrontierEarlyBonusForDiagnostics { get; set; }
     internal int ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics { get; private set; }
     internal bool UseMaxCampaignOriginForDiagnostics { get; set; }
     private Fix64 _prevLegacy, _legacyRate, _prevDominion, _dominionRate;
@@ -172,8 +173,11 @@ public sealed partial class Strategist : IStrategist
         // stack contents and make the selected plan vary with call history or runtime layout.
         value.Clear();
         target.Fill(-1);
+        Fix64 frontierEarlyBonus = FrontierEarlyBonusForDiagnostics is { } overrideBonus
+            ? overrideBonus
+            : StrategistTuning.FrontierEarlyBonus;
         value[(int)GrandPlan.FrontierRace] = StrategistTuning.FrontierWeight * s.Frontier
-            + (v.Own.Era <= 3 ? StrategistTuning.FrontierEarlyBonus : Fix64.Zero);
+            + (v.Own.Era <= 3 ? frontierEarlyBonus : Fix64.Zero);
         target[(int)GrandPlan.FrontierRace] = -1;
         value[(int)GrandPlan.Prosper] = StrategistTuning.ProsperWeight * (Fix64.One - s.Frontier);
         target[(int)GrandPlan.Prosper] = -1;

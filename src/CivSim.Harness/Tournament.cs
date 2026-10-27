@@ -47,9 +47,11 @@ internal sealed class CivOutcome
     public readonly int[] PostureSeasons = new int[5];
     public readonly int[] WarlordUrgencyBands = new int[5];
     public int WarlordUrgencySeasons;
+    public int DefenseUrgencyShadowHighDecisions, DefenseUrgencyShadowSlotsChanged, DefenseUrgencyShadowDisplacedDefense;
+    public int[] DefenseUrgencyShadowHighDecisionsByEra = new int[ResearchCatalog.EraCount];
     public int FissionSplits, FissionPendingSeasons;
     public int OwnedLandShareBasisPoints;
-    public int ConquerPlanSeasons, RaidStreakPostureTransitions;
+    public int ConquerPlanSeasons, FrontierRacePlanSeasons, RaidStreakPostureTransitions;
     public int ThreeSeasonNonConquerRaidPostureOpportunities;
     public int AlternateOriginCampaignRescues, AlternateOriginCampaignNoRescues;
     public int PostureGateLockedSeasons, FrontierOpenSeasons;
@@ -89,6 +91,10 @@ internal sealed class MatchOutcome
     public int? FirstsEtaPessimismOverride;
     public int? WarlordNonConquerRaidPostureStreakOverride;
     public bool WarlordMaxCampaignOriginOverride;
+    public Fix64? WarlordFrontierEarlyBonusOverride;
+    public Fix64? WarlordE3FissionThresholdOverride;
+    public Fix64? WarlordDefenseResearchBonusOverride;
+    public bool WarlordDefenseUrgencyShadowDiagnostic;
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
     public readonly List<FirstRaceClaimDiagnostic> FirstRaceClaims = new();
@@ -113,7 +119,9 @@ internal static class Tournament
 
     public static MatchOutcome Play(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
         bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null, int? firstsEtaPessimismSeasons = null,
-        int? warlordNonConquerRaidPostureStreak = null, bool warlordMaxCampaignOrigin = false)
+        int? warlordNonConquerRaidPostureStreak = null, bool warlordMaxCampaignOrigin = false,
+        Fix64? warlordFrontierEarlyBonusOverride = null, Fix64? warlordE3FissionThresholdOverride = null,
+        Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -129,7 +137,7 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
-        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin)
+        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin || warlordFrontierEarlyBonusOverride is not null || warlordE3FissionThresholdOverride is not null || warlordDefenseResearchBonusOverride is not null || warlordDefenseUrgencyShadowDiagnostic)
             for (int c = 0; c < seats.Length; c++)
                 if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) && match.Ai?.SeatOf(c) is { } warlordSeat)
                 {
@@ -140,6 +148,14 @@ internal static class Tournament
                     }
                     if (warlordSeat.Strategist is Strategist strategist && warlordNonConquerRaidPostureStreak is { } streak)
                         strategist.NonConquerRaidPostureStreakForDiagnostics = streak;
+                    if (warlordSeat.Strategist is Strategist frontierStrategist && warlordFrontierEarlyBonusOverride is { } frontierBonus)
+                        frontierStrategist.FrontierEarlyBonusForDiagnostics = frontierBonus;
+                    if (warlordSeat.Spark is ResearchSpark warlordSpark && warlordDefenseResearchBonusOverride is { } defenseBonus)
+                        warlordSpark.DefenseResearchBonusOverrideForDiagnostics = defenseBonus;
+                    if (warlordSeat.Spark is ResearchSpark shadowSpark && warlordDefenseUrgencyShadowDiagnostic)
+                        shadowSpark.DefenseUrgencyShadowDiagnosticForDiagnostics = true;
+                    if (warlordE3FissionThresholdOverride is { } fissionThreshold)
+                        match.Politics.SetWarlordE3ExpandFissionThresholdOverrideForDiagnostics(c, fissionThreshold);
                     if (warlordMaxCampaignOrigin)
                     {
                         if (warlordSeat.Strategist is Strategist campaignStrategist) campaignStrategist.UseMaxCampaignOriginForDiagnostics = true;
@@ -154,6 +170,10 @@ internal static class Tournament
             Seed = seed, RivalPaceOverride = rivalPaceOverride, FirstsEtaPessimismOverride = firstsEtaPessimismSeasons,
             WarlordNonConquerRaidPostureStreakOverride = warlordNonConquerRaidPostureStreak,
             WarlordMaxCampaignOriginOverride = warlordMaxCampaignOrigin,
+            WarlordFrontierEarlyBonusOverride = warlordFrontierEarlyBonusOverride,
+            WarlordE3FissionThresholdOverride = warlordE3FissionThresholdOverride,
+            WarlordDefenseResearchBonusOverride = warlordDefenseResearchBonusOverride,
+            WarlordDefenseUrgencyShadowDiagnostic = warlordDefenseUrgencyShadowDiagnostic,
             Seats = seats, Civs = new CivOutcome[civs]
         };
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
@@ -264,8 +284,11 @@ internal static class Tournament
                     {
                         outcome.Civs[c].WarlordUrgencyBands[WarlordUrgencyBand(aiSeat.Context.Intent.DefenseUrgency)]++;
                         outcome.Civs[c].WarlordUrgencySeasons++;
-                        if (aiSeat.Strategist is Strategist strategist && strategist.Plan == GrandPlan.Conquer)
-                            outcome.Civs[c].ConquerPlanSeasons++;
+                        if (aiSeat.Strategist is Strategist strategist)
+                        {
+                            if (strategist.Plan == GrandPlan.Conquer) outcome.Civs[c].ConquerPlanSeasons++;
+                            if (strategist.Plan == GrandPlan.FrontierRace) outcome.Civs[c].FrontierRacePlanSeasons++;
+                        }
                     }
                 }
             }
@@ -689,6 +712,14 @@ internal static class Tournament
             o.Firsts = s.Firsts.ToDoubleForDisplay();
             o.Wonders = s.Wonders.ToDoubleForDisplay();
             o.Projects = match.Research.DoneCount(c);
+            if (match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark)
+            {
+                o.DefenseUrgencyShadowHighDecisions = spark.DefenseUrgencyShadowHighDecisionsForDiagnostics;
+                o.DefenseUrgencyShadowSlotsChanged = spark.DefenseUrgencyShadowSlotsChangedForDiagnostics;
+                o.DefenseUrgencyShadowDisplacedDefense = spark.DefenseUrgencyShadowDisplacedDefenseForDiagnostics;
+                Array.Copy(spark.DefenseUrgencyShadowHighDecisionsByEraForDiagnostics, o.DefenseUrgencyShadowHighDecisionsByEra,
+                    Math.Min(spark.DefenseUrgencyShadowHighDecisionsByEraForDiagnostics.Length, o.DefenseUrgencyShadowHighDecisionsByEra.Length));
+            }
             if (seats[c].Control.Kind == ControlKind.Ai)
             {
                 outcome.A7AiSeatMatches++;
@@ -811,7 +842,9 @@ internal static class Tournament
     public static DuelResult Duel(ContentPack pack, string teamA, string teamB, int seeds, int minutes, EconomyArchetype archetype,
         ulong firstSeed = BaseSeed, bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null,
         int? firstsEtaPessimismSeasons = null, int? warlordNonConquerRaidPostureStreak = null,
-        bool warlordMaxCampaignOrigin = false)
+        bool warlordMaxCampaignOrigin = false, Fix64? warlordFrontierEarlyBonusOverride = null,
+        Fix64? warlordE3FissionThresholdOverride = null, Fix64? warlordDefenseResearchBonusOverride = null,
+        bool warlordDefenseUrgencyShadowDiagnostic = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -825,7 +858,9 @@ internal static class Tournament
             foreach (int s in TeamBSeats) seats[s] = swapped ? a : b;
             var archetypes = new[] { archetype, archetype, archetype, archetype };
             results[j] = (Play(pack, seed, seats, archetypes, minutes, captureFirstRaceDiagnostics, rivalPaceOverride,
-                firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin), swapped);
+                firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin,
+                warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
+                warlordDefenseUrgencyShadowDiagnostic), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
