@@ -44,6 +44,7 @@ public sealed class AiSeat
 /// </summary>
 public sealed class AiSystem
 {
+    internal const int RouteDecreeOutOfReachCooldownSeasons = 8;
     private readonly TrueWorld _world;
     private readonly AiSeat?[] _seats;
     private readonly AiLog _log = new();
@@ -114,6 +115,8 @@ public sealed class AiSystem
             ctx.Tick = tick;
             ctx.Season = _world.Politics.Season;
             OwnViewBuilder.Build(ctx.Own, civ, tick, _world.Economy, _world.Research, _world.Politics);
+            ObserveRouteDecreeOutcome(ctx.Intent, civ, ctx.Season, tick, ctx.Own.Bronze.Mandate,
+                ctx.Own.Bronze.MandateCap, _world.Politics.Events);
             seat.Builder.Update(seat.Belief, _world, seat.Profile);
             // Replan cadence (docs/MVP/14 §9.2): the Settler thinks once a year.
             if (seat.Profile.Replan == ReplanCadence.Yearly && ctx.Season % 4 != 0) continue;
@@ -121,6 +124,30 @@ public sealed class AiSystem
             seat.Strategist.Decide(ctx);
             seat.Spark.Decide(ctx);
         }
+    }
+
+    internal static void ObserveRouteDecreeOutcome(StrategicIntent intent, int civ, int season, long tick,
+        int mandate, int mandateCap, IReadOnlyList<PoliticsEvent> events)
+    {
+        if (intent.PendingRouteDecreeKind >= 0 && intent.PendingRouteDecreeSeason == season)
+        {
+            bool refusedOutOfReach = false;
+            foreach (PoliticsEvent ev in events)
+                if (ev.Tick == tick && ev.Civ == civ && ev.Kind == PoliticsEventKind.DecreeRefused &&
+                    ev.A == intent.PendingRouteDecreeKind && ev.B == (int)OrderRefusalReason.OutOfReach)
+                {
+                    refusedOutOfReach = true;
+                    break;
+                }
+
+            if (refusedOutOfReach && mandate >= mandateCap)
+                intent.RouteDecreeRetryAfterSeason = season + RouteDecreeOutOfReachCooldownSeasons;
+            intent.PendingRouteDecreeKind = -1;
+            intent.PendingRouteDecreeSeason = -1;
+        }
+
+        if (intent.RouteDecreeRetryAfterSeason >= 0 && season >= intent.RouteDecreeRetryAfterSeason)
+            intent.RouteDecreeRetryAfterSeason = -1;
     }
 
     public void Hash(ref StateHasher h)

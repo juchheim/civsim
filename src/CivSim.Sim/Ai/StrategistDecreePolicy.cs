@@ -42,7 +42,9 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         // The Council's expedition target uses live route passability. Replace it with candidates ranked from
         // explored-map knowledge and geometric range; an unknown route is accepted as uncertain.
         _candidates.RemoveAll(candidate => candidate.Kind == DecreeKind.Expedition);
-        AddBeliefExpeditionAlternatives(politics, civ, _belief, _candidates);
+        bool routeCooldownActive = IsRouteDecreeCooldownActive(politics.Season, _intent.RouteDecreeRetryAfterSeason);
+        if (!routeCooldownActive)
+            AddBeliefExpeditionAlternatives(politics, civ, _belief, _candidates);
         _candidates.RemoveAll(candidate => !BeliefAllowsCandidate(_belief, civ, candidate));
         ResearchViewForDecrees mandate = politics.DecreeResearch;
         bool frontierFoundOpportunity = false;
@@ -63,8 +65,11 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         AddBeliefKnownFoundAlternatives(politics, civ, _belief, _candidates,
             frontierFoundOpportunity ? _foundFrontierSites : null);
         AddWallCorveeAlternatives(politics, civ, _candidates);
-        if (_intent.Plan == GrandPlan.SecureTin) AddBeliefKnownLevyAlternatives(politics, civ, _belief, _candidates);
+        if (_intent.Plan == GrandPlan.SecureTin && !routeCooldownActive)
+            AddBeliefKnownLevyAlternatives(politics, civ, _belief, _candidates);
         AddBeliefKnownTinCompactAlternatives(politics, civ, _belief, _candidates);
+        if (routeCooldownActive)
+            _candidates.RemoveAll(candidate => candidate.Kind is DecreeKind.Expedition or DecreeKind.Levy);
         if (_candidates.Count == 0) return;
 
         // Forecasting is pure for the duration of Propose: candidates are evaluated before any decree
@@ -141,6 +146,11 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
 
         if (bestIndex < 0) return;
         DecreeRequest chosen = _candidates[bestIndex];
+        if (chosen.Kind is DecreeKind.Expedition or DecreeKind.Levy)
+        {
+            _intent.PendingRouteDecreeKind = (int)chosen.Kind;
+            _intent.PendingRouteDecreeSeason = politics.Season;
+        }
         into.Add(chosen);
         DecreeForecast chosenForecast = _forecasts[bestIndex];
         Fix64 chosenGross = GrossBenefit(politics, civ, chosen, chosenForecast);
@@ -156,6 +166,9 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
 
     internal static bool ShouldPreferMandateSpender(bool atMandateCap, bool positivePaidAlternative, int candidateCost)
         => atMandateCap && positivePaidAlternative && candidateCost == 0;
+
+    internal static bool IsRouteDecreeCooldownActive(int season, int retryAfterSeason)
+        => retryAfterSeason > season;
 
     internal static void AddBeliefExpeditionAlternatives(PoliticsSystem politics, int civ, Belief belief, List<DecreeRequest> candidates)
     {

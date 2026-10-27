@@ -127,16 +127,28 @@ public sealed class StrategicIntent
     public Numerics.Fix64 AttackReadiness;
     /// <summary>0 to 1: how much open land is still worth racing for, so Kin and Reach projects keep their priority.</summary>
     public Numerics.Fix64 FrontierValue;
+    /// <summary>The pending route-based decree, consumed after the politics step resolves that season's decree.</summary>
+    public int PendingRouteDecreeKind = -1;
+    public int PendingRouteDecreeSeason = -1;
+    /// <summary>Do not retry blind route-based decrees until this season after an OutOfReach refusal at the Mandate cap.</summary>
+    public int RouteDecreeRetryAfterSeason = -1;
 
     public void Hash(ref Core.StateHasher h)
     {
         h.Add((int)Plan); h.Add(PlanSinceSeason); h.Add(TargetCiv); h.Add(DefenseUrgency); h.Add(AttackReadiness); h.Add(FrontierValue);
+        if (PendingRouteDecreeKind >= 0 || RouteDecreeRetryAfterSeason >= 0)
+        {
+            h.Add(PendingRouteDecreeKind);
+            h.Add(PendingRouteDecreeSeason);
+            h.Add(RouteDecreeRetryAfterSeason);
+        }
     }
 
     public void Write(System.IO.BinaryWriter w)
     {
         w.Write((byte)Plan); w.Write(PlanSinceSeason); w.Write(TargetCiv);
         w.Write(DefenseUrgency.Raw); w.Write(AttackReadiness.Raw); w.Write(FrontierValue.Raw);
+        w.Write(PendingRouteDecreeKind); w.Write(PendingRouteDecreeSeason); w.Write(RouteDecreeRetryAfterSeason);
     }
 
     public void Read(System.IO.BinaryReader r)
@@ -144,5 +156,7 @@ public sealed class StrategicIntent
         Plan = (GrandPlan)r.ReadByte(); PlanSinceSeason = r.ReadInt32(); TargetCiv = r.ReadInt32();
         DefenseUrgency = Numerics.Fix64.FromRaw(r.ReadInt64()); AttackReadiness = Numerics.Fix64.FromRaw(r.ReadInt64());
         FrontierValue = Numerics.Fix64.FromRaw(r.ReadInt64());
+        PendingRouteDecreeKind = r.ReadInt32(); PendingRouteDecreeSeason = r.ReadInt32();
+        RouteDecreeRetryAfterSeason = r.ReadInt32();
     }
 }
