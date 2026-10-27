@@ -110,6 +110,22 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Prioritizes_physical_defense_for_a_believed_bronze_threat()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(44, 40), fighters: 20);
+        RivalBelief rival = scene.Belief.Rivals[1];
+        rival.ProjectBelieved[TestPack.Catalog.IndexOf("MET-04")] = true;
+        rival.ThreatProbability = Fix64.Half;
+
+        (_, ActionRecorder actions) = Decide(scene);
+
+        Assert.Contains("defense-build 0", actions.Orders);
+        Assert.Contains(scene.Notes("DefenseBuild"), note => note.Subject == 0 &&
+            note.Reason.Contains("believed bronze threat", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Coalition_embargoes_only_tin_to_the_believed_leader_after_key3_once()
     {
         var scene = new Scene { Season = 120 };
