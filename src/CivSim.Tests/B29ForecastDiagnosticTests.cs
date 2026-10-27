@@ -32,12 +32,15 @@ public sealed class B29ForecastDiagnosticTests
             new(2, 1, 60, 50),
         };
 
-        B29ForecastDiagnostic.Summary missing = B29ForecastDiagnostic.Summarize(observations, attempts: 3);
+        B29ForecastDiagnostic.Summary missing = B29ForecastDiagnostic.Summarize(observations, attempts: 3,
+            missingForecasts: 1);
         B29ForecastDiagnostic.Summary inaccurate = B29ForecastDiagnostic.Summarize(observations, attempts: 2);
 
         Assert.False(missing.Pass);
         Assert.False(inaccurate.Pass);
         Assert.Equal(1, inaccurate.Within15Percent);
+        Assert.Equal(1, missing.MissingForecasts);
+        Assert.Equal(0, missing.CensoredForecasts);
     }
 
     [Fact]
@@ -56,16 +59,36 @@ public sealed class B29ForecastDiagnosticTests
     }
 
     [Fact]
-    public void Censored_key4_attempt_remains_missing_and_fails_the_gate()
+    public void Forecast_without_key4_completion_is_counted_as_censored_and_fails_the_gate()
     {
         var attempt = new B29ForecastDiagnostic.SeatAttempt(seed: 42, civ: 2);
         attempt.Capture(predictedMinute: 51.0);
+        attempt.MarkHorizonReached();
 
         Assert.True(attempt.Attempted);
+        Assert.False(attempt.MissingForecastAtCapture);
+        Assert.True(attempt.CensoredAtHorizon);
         // KEY-4 never completes before the match horizon, so Complete is never called.
         B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(
-            new List<B29ForecastDiagnostic.Observation>(), attempts: 1);
+            new List<B29ForecastDiagnostic.Observation>(), attempts: 1, censoredForecasts: 1);
         Assert.False(summary.Pass);
         Assert.Equal(0, summary.Forecasts);
+        Assert.Equal(1, summary.CensoredForecasts);
+    }
+
+    [Fact]
+    public void Missing_at_capture_is_distinct_from_a_forecast_censored_by_horizon()
+    {
+        var missing = new B29ForecastDiagnostic.SeatAttempt(seed: 42, civ: 2);
+        missing.Capture(predictedMinute: null);
+        missing.MarkHorizonReached();
+        var censored = new B29ForecastDiagnostic.SeatAttempt(seed: 42, civ: 3);
+        censored.Capture(predictedMinute: 51.0);
+        censored.MarkHorizonReached();
+
+        Assert.True(missing.MissingForecastAtCapture);
+        Assert.False(missing.CensoredAtHorizon);
+        Assert.False(censored.MissingForecastAtCapture);
+        Assert.True(censored.CensoredAtHorizon);
     }
 }

@@ -637,12 +637,14 @@ internal static class AiCommand
             checkName: "M10 AI CORE");
 
         Console.WriteLine("== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3)");
-        (List<B29ForecastDiagnostic.Observation> observations, int attempts) =
+        (List<B29ForecastDiagnostic.Observation> observations, int attempts, int missingForecasts, int censoredForecasts) =
             B29ForecastDiagnostic.Run(pack, seeds, minutes, archetype, firstSeed);
-        B29ForecastDiagnostic.Summary b29Summary = B29ForecastDiagnostic.Summarize(observations, attempts);
+        B29ForecastDiagnostic.Summary b29Summary = B29ForecastDiagnostic.Summarize(observations, attempts,
+            missingForecasts, censoredForecasts);
         bool b29 = b29Summary.Pass;
         Console.WriteLine($"  B29: {b29Summary.Within15Percent}/{b29Summary.Forecasts} forecasts within 15%; median {b29Summary.MedianError:P1}; " +
-            $"sampled {b29Summary.Attempts} AI seats {M10AiAcceptanceStatus.FormatGateLabel(b29, seeds, minutes)}");
+            $"sampled {b29Summary.Attempts} AI seats; missing at capture {b29Summary.MissingForecasts}; " +
+            $"KEY-4 horizon-censored {b29Summary.CensoredForecasts} {M10AiAcceptanceStatus.FormatGateLabel(b29, seeds, minutes)}");
 
         Console.WriteLine("== B31: Legend vs Warlord, >= 60% (22 §16)");
         Tournament.DuelResult legend = Tournament.Duel(pack, "legend", "warlord", seeds, minutes, archetype, firstSeed);

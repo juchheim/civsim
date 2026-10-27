@@ -19,7 +19,8 @@ internal static class B29ForecastDiagnostic
         public double RelativeError => Math.Abs(PredictedMinute - ActualMinute) / ActualMinute;
     }
 
-    internal readonly record struct Summary(int Attempts, int Forecasts, int Within15Percent, double MedianError)
+    internal readonly record struct Summary(int Attempts, int Forecasts, int Within15Percent, double MedianError,
+        int MissingForecasts, int CensoredForecasts)
     {
         public bool Pass => Attempts > 0 && Forecasts == Attempts && Within15Percent == Attempts && MedianError <= 0.06;
     }
@@ -29,7 +30,10 @@ internal static class B29ForecastDiagnostic
     {
         private double? _predictedMinute;
         private bool _completionRecorded;
+        private bool _horizonReached;
         public bool Attempted { get; private set; }
+        public bool MissingForecastAtCapture => Attempted && !_predictedMinute.HasValue;
+        public bool CensoredAtHorizon => _horizonReached && Attempted && _predictedMinute.HasValue && !_completionRecorded;
 
         public void Capture(double? predictedMinute)
         {
@@ -44,13 +48,15 @@ internal static class B29ForecastDiagnostic
             _completionRecorded = true;
             return new Observation(seed, civ, _predictedMinute.Value, actualMinute);
         }
+
+        public void MarkHorizonReached() => _horizonReached = true;
     }
 
-    public static (List<Observation> Observations, int Attempts) Run(ContentPack pack, int seeds, int minutes,
+    public static (List<Observation> Observations, int Attempts, int MissingForecasts, int CensoredForecasts) Run(ContentPack pack, int seeds, int minutes,
         EconomyArchetype archetype, ulong firstSeed)
     {
         var observations = new List<Observation>();
-        int attempts = 0;
+        int attempts = 0, missingForecasts = 0, censoredForecasts = 0;
         int key3, key4;
         // Every seed is mirrored to sample both point-symmetric AI seat pairs, as in the Harness duel.
         for (int i = 0; i < seeds; i++)
@@ -102,17 +108,24 @@ internal static class B29ForecastDiagnostic
                         }
                     }
                 }
+                foreach (SeatAttempt attempt in attemptsBySeat)
+                {
+                    attempt.MarkHorizonReached();
+                    if (attempt.MissingForecastAtCapture) missingForecasts++;
+                    else if (attempt.CensoredAtHorizon) censoredForecasts++;
+                }
             }
-        return (observations, attempts);
+        return (observations, attempts, missingForecasts, censoredForecasts);
     }
 
-    public static Summary Summarize(IReadOnlyCollection<Observation> observations, int attempts)
+    public static Summary Summarize(IReadOnlyCollection<Observation> observations, int attempts,
+        int missingForecasts = 0, int censoredForecasts = 0)
     {
         double[] errors = observations.Select(o => o.RelativeError).OrderBy(e => e).ToArray();
         double median = errors.Length == 0 ? double.NaN : errors.Length % 2 == 1
             ? errors[errors.Length / 2]
             : (errors[errors.Length / 2 - 1] + errors[errors.Length / 2]) / 2.0;
         int within = errors.Count(e => e <= 0.15);
-        return new Summary(attempts, errors.Length, within, median);
+        return new Summary(attempts, errors.Length, within, median, missingForecasts, censoredForecasts);
     }
 }
