@@ -37,7 +37,7 @@ public static class StrategistTuning
     public static readonly Fix64 SecureTinBase = Fix64.FromRatio(120, 100);
     /// <summary>Added to forecast gross value only for legal tin mine/compact, Tin Folk levy, or arsenical fallback candidates while SecureTin is active.</summary>
     public static readonly Fix64 SecureTinMineDecreeBonus = Fix64.FromInt(50);
-    public static readonly Fix64 SecureTinCompactDecreeBonus = Fix64.FromInt(50);
+    public static readonly Fix64 SecureTinCompactDecreeBonus = Fix64.FromInt(180);
     public static readonly Fix64 SecureTinArsenicalDecreeBonus = Fix64.FromInt(50);
     public static readonly Fix64 SecureTinLevyDecreeBonus = Fix64.FromInt(50);
     /// <summary>EV for a Found site near recently observed rival ownership (frontier-contact tuning probe).</summary>
