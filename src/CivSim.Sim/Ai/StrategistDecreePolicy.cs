@@ -43,7 +43,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         // explored-map knowledge and geometric range; an unknown route is accepted as uncertain.
         _candidates.RemoveAll(candidate => candidate.Kind == DecreeKind.Expedition);
         bool routeCooldownActive = IsRouteDecreeCooldownActive(politics.Season, _intent.RouteDecreeRetryAfterSeason);
-        if (!routeCooldownActive)
+        if (!ShouldPauseRouteDecree(DecreeKind.Expedition, routeCooldownActive))
             AddBeliefExpeditionAlternatives(politics, civ, _belief, _candidates);
         _candidates.RemoveAll(candidate => !BeliefAllowsCandidate(_belief, civ, candidate));
         ResearchViewForDecrees mandate = politics.DecreeResearch;
@@ -65,11 +65,11 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         AddBeliefKnownFoundAlternatives(politics, civ, _belief, _candidates,
             frontierFoundOpportunity ? _foundFrontierSites : null);
         AddWallCorveeAlternatives(politics, civ, _candidates);
-        if (_intent.Plan == GrandPlan.SecureTin && !routeCooldownActive)
+        if (_intent.Plan == GrandPlan.SecureTin && !ShouldPauseRouteDecree(DecreeKind.Levy, routeCooldownActive))
             AddBeliefKnownLevyAlternatives(politics, civ, _belief, _candidates);
         AddBeliefKnownTinCompactAlternatives(politics, civ, _belief, _candidates);
         if (routeCooldownActive)
-            _candidates.RemoveAll(candidate => candidate.Kind is DecreeKind.Expedition or DecreeKind.Levy);
+            _candidates.RemoveAll(candidate => ShouldPauseRouteDecree(candidate.Kind, routeCooldownActive));
         if (_candidates.Count == 0) return;
 
         // Forecasting is pure for the duration of Propose: candidates are evaluated before any decree
@@ -169,6 +169,9 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
 
     internal static bool IsRouteDecreeCooldownActive(int season, int retryAfterSeason)
         => retryAfterSeason > season;
+
+    internal static bool ShouldPauseRouteDecree(DecreeKind kind, bool cooldownActive)
+        => cooldownActive && (kind is DecreeKind.Expedition or DecreeKind.Levy);
 
     internal static void AddBeliefExpeditionAlternatives(PoliticsSystem politics, int civ, Belief belief, List<DecreeRequest> candidates)
     {

@@ -76,4 +76,15 @@ public sealed class StrategistRouteDecreeRetryTests
         Assert.Equal(28, restored.RouteDecreeRetryAfterSeason);
         Assert.False(StrategistDecreePolicy.IsRouteDecreeCooldownActive(28, restored.RouteDecreeRetryAfterSeason));
     }
+
+    [Fact]
+    public void Route_decree_cooldown_pauses_only_expedition_and_levy()
+    {
+        Assert.True(StrategistDecreePolicy.ShouldPauseRouteDecree(DecreeKind.Expedition, cooldownActive: true));
+        Assert.True(StrategistDecreePolicy.ShouldPauseRouteDecree(DecreeKind.Levy, cooldownActive: true));
+        Assert.False(StrategistDecreePolicy.ShouldPauseRouteDecree(DecreeKind.Mine, cooldownActive: true));
+        Assert.False(StrategistDecreePolicy.ShouldPauseRouteDecree(DecreeKind.Found, cooldownActive: true));
+        Assert.False(StrategistDecreePolicy.ShouldPauseRouteDecree(DecreeKind.Compact, cooldownActive: true));
+        Assert.False(StrategistDecreePolicy.ShouldPauseRouteDecree(DecreeKind.Expedition, cooldownActive: false));
+    }
 }
