@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using CivSim.Sim.Ai;
@@ -50,6 +51,7 @@ internal sealed class CivOutcome
     public int OwnedLandShareBasisPoints;
     public int ConquerPlanSeasons, RaidStreakPostureTransitions;
     public int ThreeSeasonNonConquerRaidPostureOpportunities;
+    public int AlternateOriginCampaignRescues, AlternateOriginCampaignNoRescues;
     public int PostureGateLockedSeasons, FrontierOpenSeasons;
     public readonly double[] KeyMinutes = { double.NaN, double.NaN, double.NaN };
     public int RaidsLaunched, RaidsWon;
@@ -86,6 +88,7 @@ internal sealed class MatchOutcome
     public Fix64? RivalPaceOverride;
     public int? FirstsEtaPessimismOverride;
     public int? WarlordNonConquerRaidPostureStreakOverride;
+    public bool WarlordMaxCampaignOriginOverride;
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
     public readonly List<FirstRaceClaimDiagnostic> FirstRaceClaims = new();
@@ -110,7 +113,7 @@ internal static class Tournament
 
     public static MatchOutcome Play(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
         bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null, int? firstsEtaPessimismSeasons = null,
-        int? warlordNonConquerRaidPostureStreak = null)
+        int? warlordNonConquerRaidPostureStreak = null, bool warlordMaxCampaignOrigin = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -126,7 +129,7 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
-        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null)
+        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin)
             for (int c = 0; c < seats.Length; c++)
                 if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) && match.Ai?.SeatOf(c) is { } warlordSeat)
                 {
@@ -137,6 +140,11 @@ internal static class Tournament
                     }
                     if (warlordSeat.Strategist is Strategist strategist && warlordNonConquerRaidPostureStreak is { } streak)
                         strategist.NonConquerRaidPostureStreakForDiagnostics = streak;
+                    if (warlordMaxCampaignOrigin)
+                    {
+                        if (warlordSeat.Strategist is Strategist campaignStrategist) campaignStrategist.UseMaxCampaignOriginForDiagnostics = true;
+                        match.Politics.UseMaxCampaignOriginForDiagnostics(c, enabled: true);
+                    }
                 }
         // Tournament scoring and telemetry use the final state, not the periodic hash history.
         var runner = new SimRunner(match, int.MaxValue);
@@ -145,6 +153,7 @@ internal static class Tournament
         {
             Seed = seed, RivalPaceOverride = rivalPaceOverride, FirstsEtaPessimismOverride = firstsEtaPessimismSeasons,
             WarlordNonConquerRaidPostureStreakOverride = warlordNonConquerRaidPostureStreak,
+            WarlordMaxCampaignOriginOverride = warlordMaxCampaignOrigin,
             Seats = seats, Civs = new CivOutcome[civs]
         };
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
@@ -641,6 +650,12 @@ internal static class Tournament
                     c.WarRejections++;
                     c.WarRejectionReasons.TryGetValue(d.Reason, out int count);
                     c.WarRejectionReasons[d.Reason] = count + 1;
+                    if (d.Reason.Contains("too small to launch a campaign", StringComparison.Ordinal) &&
+                        TryReadAlternateOriginAttackers(d.Reason, out int alternateAttackers))
+                    {
+                        if (alternateAttackers >= PoliticsSystem.CampaignMinimumAttackers) c.AlternateOriginCampaignRescues++;
+                        else c.AlternateOriginCampaignNoRescues++;
+                    }
                 }
                 else if (d.Kind == "Threat")
                 {
@@ -760,6 +775,17 @@ internal static class Tournament
         return false;
     }
 
+    private static bool TryReadAlternateOriginAttackers(string reason, out int attackers)
+    {
+        const string marker = "best alternate rally origin yields ";
+        int start = reason.LastIndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) { attackers = 0; return false; }
+        start += marker.Length;
+        int end = reason.IndexOf(' ', start);
+        if (end < 0) end = reason.Length;
+        return int.TryParse(reason.AsSpan(start, end - start), NumberStyles.None, CultureInfo.InvariantCulture, out attackers);
+    }
+
     /// <summary>
     /// A mirrored duel: team A (seats 0 and 3) against team B (seats 1 and 2) on each seed, then again with the teams
     /// swapped, so neither side gets the better half of the map. Returns one result per match from team A's view.
@@ -772,6 +798,8 @@ internal static class Tournament
         public int MatchesWithLossA, MatchesWithLossB;
         public double LegacyA, LegacyB;
         public int OwnedLandShareA, OwnedLandShareB;
+        public int AlternateOriginCampaignRescuesA, AlternateOriginCampaignRescuesB;
+        public int AlternateOriginCampaignNoRescuesA, AlternateOriginCampaignNoRescuesB;
         public int RaidsA, RaidsB;
         public int KeystoneStallsA, IdleSlotSeasonsA, MaxPlanSwitchesA;
         public int PlanDitherMatchesA;
@@ -782,7 +810,8 @@ internal static class Tournament
 
     public static DuelResult Duel(ContentPack pack, string teamA, string teamB, int seeds, int minutes, EconomyArchetype archetype,
         ulong firstSeed = BaseSeed, bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null,
-        int? firstsEtaPessimismSeasons = null, int? warlordNonConquerRaidPostureStreak = null)
+        int? firstsEtaPessimismSeasons = null, int? warlordNonConquerRaidPostureStreak = null,
+        bool warlordMaxCampaignOrigin = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -796,7 +825,7 @@ internal static class Tournament
             foreach (int s in TeamBSeats) seats[s] = swapped ? a : b;
             var archetypes = new[] { archetype, archetype, archetype, archetype };
             results[j] = (Play(pack, seed, seats, archetypes, minutes, captureFirstRaceDiagnostics, rivalPaceOverride,
-                firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak), swapped);
+                firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
@@ -824,6 +853,10 @@ internal static class Tournament
             r.LegacyA += la; r.LegacyB += lb;
             r.OwnedLandShareA += (int)aSeats.Sum(s => (long)m.Civs[s].OwnedLandShareBasisPoints);
             r.OwnedLandShareB += (int)bSeats.Sum(s => (long)m.Civs[s].OwnedLandShareBasisPoints);
+            r.AlternateOriginCampaignRescuesA += aSeats.Sum(s => m.Civs[s].AlternateOriginCampaignRescues);
+            r.AlternateOriginCampaignRescuesB += bSeats.Sum(s => m.Civs[s].AlternateOriginCampaignRescues);
+            r.AlternateOriginCampaignNoRescuesA += aSeats.Sum(s => m.Civs[s].AlternateOriginCampaignNoRescues);
+            r.AlternateOriginCampaignNoRescuesB += bSeats.Sum(s => m.Civs[s].AlternateOriginCampaignNoRescues);
             r.SettlementsLostA += lostA; r.SettlementsLostB += lostB;
             if (lostA > 0) r.MatchesWithLossA++;
             if (lostB > 0) r.MatchesWithLossB++;

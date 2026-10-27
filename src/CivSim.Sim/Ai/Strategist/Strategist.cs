@@ -40,6 +40,7 @@ public sealed partial class Strategist : IStrategist
     private int _raidStreak;
     internal int? NonConquerRaidPostureStreakForDiagnostics { get; set; }
     internal int ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics { get; private set; }
+    internal bool UseMaxCampaignOriginForDiagnostics { get; set; }
     private Fix64 _prevLegacy, _legacyRate, _prevDominion, _dominionRate;
     private readonly List<int> _prevSettlements = new();
     private readonly List<int> _beaconSeasons = new();

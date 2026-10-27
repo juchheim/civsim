@@ -95,6 +95,19 @@ public sealed partial class PoliticsSystem
         return best >= 0 ? best : fullest;
     }
 
+    private int BestCampaignOrigin(int civ, int targetTile)
+    {
+        if (!_maxCampaignOriginForDiagnostics[civ]) return BestOrigin(civ, targetTile);
+        var candidates = new List<CampaignOriginCandidate>();
+        for (int s = 0; s < _sCount; s++)
+        {
+            if (_sCiv[s] != civ || _free[s]) continue;
+            List<Fighter> fighters = Fighters(s, attacking: true, out _);
+            candidates.Add(new CampaignOriginCandidate(s, _sTile[s], AdultCount(s), fighters.Count));
+        }
+        return CampaignOriginSelector.BestOrigin(candidates, targetTile, _width);
+    }
+
     private (int Origin, int Target) ClosestPair(int civ, int other, int targetSettlement = -1)
     {
         if (targetSettlement >= 0)
@@ -356,7 +369,7 @@ public sealed partial class PoliticsSystem
         if (walled && UnderInvestment(target)) return false;
         foreach (Expedition e in _expeditions) if (e.Kind == ExpeditionKind.Assault && e.Civ == c && e.TargetCiv == o) return false;
         foreach (Occupation occ in _occupations) if (occ.Civ == c && _sCiv[occ.Settlement] == o) return false;
-        int origin = BestOrigin(c, _sTile[target]);
+        int origin = BestCampaignOrigin(c, _sTile[target]);
         if (origin < 0) return false;
         int travel = Travel(c, _sTile[origin], _sTile[target]);
         if (travel == int.MaxValue || (requireOdds && travel > ReachOf(c) * 3)) return false;

@@ -139,12 +139,12 @@ public sealed partial class Strategist
     /// left at home) and the weakest post-departure own settlement in its reach that it could storm at 1.5 ratio after
     /// nearby relief, or null.
     /// </summary>
-    private static List<SettlementDeparture> CampaignDepartures(StrategistView v, int targetTile, int width)
+    private List<SettlementDeparture> CampaignDepartures(StrategistView v, int targetTile, int width)
     {
         // OwnViewBuilder appends settlements in ascending settlement id. Keep that order in this
         // compact list so all lookups are deterministic and do not depend on a hash collection.
         var departures = new List<SettlementDeparture>(v.Own.Settlements.Count);
-        OwnSettlement? origin = BestOrigin(v, targetTile, width);
+        OwnSettlement? origin = BestCampaignOrigin(v, targetTile, width);
         if (origin is null) return departures;
         foreach (OwnSettlement settlement in v.Own.Settlements)
         {
@@ -164,6 +164,16 @@ public sealed partial class Strategist
     }
 
     private readonly record struct SettlementDeparture(int Settlement, int Fighters);
+
+    private OwnSettlement? BestCampaignOrigin(StrategistView v, int targetTile, int width)
+    {
+        if (!UseMaxCampaignOriginForDiagnostics) return BestOrigin(v, targetTile, width);
+        var candidates = new List<CampaignOriginCandidate>(v.Own.Settlements.Count);
+        foreach (OwnSettlement settlement in v.Own.Settlements)
+            candidates.Add(new CampaignOriginCandidate(settlement.Index, settlement.Tile, settlement.Adults, settlement.Fighters));
+        int selected = CampaignOriginSelector.BestOrigin(candidates, targetTile, width);
+        return v.Own.SettlementAt(selected);
+    }
 
     private static int DepartingFighters(OwnSettlement settlement, IReadOnlyList<SettlementDeparture> departures)
     {
@@ -250,7 +260,7 @@ public sealed partial class Strategist
         option.Required = !option.Palisade ? StrategistTuning.WarRatio
             : site.PalisadeInferred ? StrategistTuning.WarRatioInferredPalisade
             : StrategistTuning.WarRatioPalisade;
-        OwnSettlement? origin = BestOrigin(v, site.Tile, width);
+        OwnSettlement? origin = BestCampaignOrigin(v, site.Tile, width);
         if (origin is null) { option.Why = "no settlement to march from"; return option; }
         option.Travel = HexGrid.Distance(origin.Tile, site.Tile, width);
 
@@ -267,7 +277,9 @@ public sealed partial class Strategist
         option.Attackers = _a.Count;
         if (_a.Count < PoliticsSystem.CampaignMinimumAttackers)
         {
-            option.Why = $"army of {_a.Count} too small to launch a campaign (need {PoliticsSystem.CampaignMinimumAttackers}; {Captures.MinHolders} holders must remain after battle)";
+            option.AlternateOriginAttackers = MaxAlternateOriginAttackers(v, width, origin.Index);
+            option.Why = $"army of {_a.Count} too small to launch a campaign (need {PoliticsSystem.CampaignMinimumAttackers}; {Captures.MinHolders} holders must remain after battle); " +
+                         $"best alternate rally origin yields {option.AlternateOriginAttackers} attackers";
             return option;
         }
 
@@ -352,6 +364,25 @@ public sealed partial class Strategist
         option.Why = $"ratio {F2(option.Ratio)} (need {F2(option.Required)}{(option.Palisade ? ", palisade" : "")}), capture {F2(option.CaptureChance)}, " +
                      $"value {F1(option.Value)} Legacy (gain {F1(gain)}, cost {F1(cost)}, expected deaths {F2(option.Deaths)}, wounded {F2(option.Wounded)}){(hungryWinter ? ", winter food short" : "")}";
         return option;
+    }
+
+    /// <summary>Maximum radius-limited force from another runtime-eligible rally settlement; diagnostic only.</summary>
+    private static int MaxAlternateOriginAttackers(StrategistView v, int width, int selectedOrigin)
+    {
+        int maximum = 0;
+        foreach (OwnSettlement candidate in v.Own.Settlements)
+        {
+            if (candidate.Index == selectedOrigin || candidate.Adults < 8) continue;
+            int attackers = 0;
+            foreach (OwnSettlement contributor in v.Own.Settlements)
+            {
+                if (HexGrid.Distance(contributor.Tile, candidate.Tile, width) > StrategistTuning.ArmyGatherRange) continue;
+                attackers += Math.Max(0, Math.Min(contributor.Fighters - PoliticsSystem.CampaignHomeReserve,
+                    contributor.Fighters * 6 / 10));
+            }
+            if (attackers > maximum) maximum = attackers;
+        }
+        return maximum;
     }
 
     private static bool StoneWallsSeen(StrategistView v, int civ, int settlement)

@@ -199,6 +199,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly Diplomacy _dip;
     private readonly byte[] _posture;
     private readonly bool[] _externalMind;
+    private readonly bool[] _maxCampaignOriginForDiagnostics;
     private readonly List<int>[] _beacons;
     private readonly List<(int Tile, int Settlement, int Civ)> _camps = new();
     private readonly List<bool> _campsPlaced = new();
@@ -268,6 +269,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _dip = new Diplomacy(_civs);
         _posture = new byte[_civs];
         _externalMind = new bool[_civs];
+        _maxCampaignOriginForDiagnostics = new bool[_civs];
         _beacons = new List<int>[_civs];
         for (int c = 0; c < _civs; c++) _beacons[c] = new List<int>();
         _failedCampaigns = new int[_civs * _civs];
@@ -318,6 +320,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     public Diplomacy Diplomacy => _dip;
     public IReadOnlyList<PoliticsEvent> Events => _events;
     public void ClearEvents() => _events.Clear();
+    internal void UseMaxCampaignOriginForDiagnostics(int civ, bool enabled) => _maxCampaignOriginForDiagnostics[civ] = enabled;
     public int Season => _season;
     public Posture PostureOf(int civ) => (Posture)_posture[civ];
     public IReadOnlyList<int> BeaconsOf(int civ) => _beacons[civ];

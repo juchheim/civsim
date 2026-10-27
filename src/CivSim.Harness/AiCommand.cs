@@ -15,7 +15,7 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
@@ -41,6 +41,7 @@ internal static class AiCommand
         Fix64? rivalPaceOverride = null;
         int? firstsEtaPessimismSeasons = null;
         int? warlordNonConquerRaidPostureStreak = null;
+        bool warlordMaxCampaignOrigin = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
         int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
@@ -67,6 +68,7 @@ internal static class AiCommand
                     if (warlordNonConquerRaidPostureStreak < 1) throw new ArgumentOutOfRangeException(args[i], "Streak threshold must be at least one season.");
                     matchDetails = true;
                     break;
+                case "--warlord-max-campaign-origin-diagnostic": warlordMaxCampaignOrigin = true; matchDetails = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
@@ -79,7 +81,7 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
@@ -137,6 +139,7 @@ internal static class AiCommand
         Console.WriteLine($"  settlements lost per match: {a} {r.SettlementsLostA / r.Matches:F2} (in {r.MatchesWithLossA} matches), {b} {r.SettlementsLostB / r.Matches:F2} (in {r.MatchesWithLossB} matches)");
         Console.WriteLine($"  raids launched per match: {a} {(double)r.RaidsA / r.Matches:F1}, {b} {(double)r.RaidsB / r.Matches:F1}");
         Console.WriteLine($"  owned land share per match: {a} {r.OwnedLandShareA / (r.Matches * 100.0):F1}%, {b} {r.OwnedLandShareB / (r.Matches * 100.0):F1}%");
+        Console.WriteLine($"  below-six campaign rejections with alternate origin reaching six / still short: {a} {r.AlternateOriginCampaignRescuesA}/{r.AlternateOriginCampaignNoRescuesA}, {b} {r.AlternateOriginCampaignRescuesB}/{r.AlternateOriginCampaignNoRescuesB}");
         Console.WriteLine($"  KEY-1 mean minute: {a} {r.MeanKey1A:F1}, {b} {r.MeanKey1B:F1}");
         Console.WriteLine($"  blunders ({a}): keystone stalls {r.KeystoneStallsA}, idle slot seasons {r.IdleSlotSeasonsA}, dithering matches {r.PlanDitherMatchesA}");
         if (!matchDetails) return;
@@ -156,8 +159,9 @@ internal static class AiCommand
             string result = teamA.Legacy > teamB.Legacy ? a + " win" : teamA.Legacy < teamB.Legacy ? b + " win" : "tie";
             string streakLabel = match.WarlordNonConquerRaidPostureStreakOverride is { } streak
                 ? $" [Warlord non-Conquer Raid streak={streak}]" : string.Empty;
-            Console.WriteLine($"    seed {match.Seed}: {result}{streakLabel}; {a} L={teamA.Legacy:F0} (D/M/F/W {teamA.Dominion:F0}/{teamA.Mastery:F0}/{teamA.Firsts:F0}/{teamA.Wonders:F0}), settlements/founds/projects {teamA.Settlements}/{teamA.FoundDecrees}/{teamA.Projects}, splits/pending-seasons {teamA.FissionSplits}/{teamA.FissionPendingSeasons}, owned land {teamA.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamA.PostureSeasons)}, Conquer/streak-posture changes/3-season opportunities {teamA.ConquerPlanSeasons}/{teamA.RaidStreakPostureTransitions}/{teamA.ThreeSeasonNonConquerRaidPostureOpportunities}, GOV02-locked/frontier-open {teamA.PostureGateLockedSeasons}/{teamA.FrontierOpenSeasons}, lost/captured {teamA.SettlementsLost}/{teamA.SettlementsCaptured}, raids {teamA.RaidsWon}/{teamA.RaidsLaunched}, wars declared/rejected {teamA.WarsDeclared}/{teamA.WarRejections}, assaults launch/resolve/hold {teamA.AssaultsLaunched}/{teamA.AssaultsResolved}/{teamA.AssaultsHeld}, predicted capture Σp {teamA.PredictedCaptureSuccess:F2}/{teamA.AssaultPredictions}, K1/K2 {teamA.Key1Mean:F1}/{teamA.Key2Mean:F1}; " +
-                $"{b} L={teamB.Legacy:F0} (D/M/F/W {teamB.Dominion:F0}/{teamB.Mastery:F0}/{teamB.Firsts:F0}/{teamB.Wonders:F0}), settlements/founds/projects {teamB.Settlements}/{teamB.FoundDecrees}/{teamB.Projects}, splits/pending-seasons {teamB.FissionSplits}/{teamB.FissionPendingSeasons}, owned land {teamB.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamB.PostureSeasons)}, Conquer/streak-posture changes/3-season opportunities {teamB.ConquerPlanSeasons}/{teamB.RaidStreakPostureTransitions}/{teamB.ThreeSeasonNonConquerRaidPostureOpportunities}, GOV02-locked/frontier-open {teamB.PostureGateLockedSeasons}/{teamB.FrontierOpenSeasons}, lost/captured {teamB.SettlementsLost}/{teamB.SettlementsCaptured}, raids {teamB.RaidsWon}/{teamB.RaidsLaunched}, wars declared/rejected {teamB.WarsDeclared}/{teamB.WarRejections}, assaults launch/resolve/hold {teamB.AssaultsLaunched}/{teamB.AssaultsResolved}/{teamB.AssaultsHeld}, predicted capture Σp {teamB.PredictedCaptureSuccess:F2}/{teamB.AssaultPredictions}, K1/K2 {teamB.Key1Mean:F1}/{teamB.Key2Mean:F1}");
+            if (match.WarlordMaxCampaignOriginOverride) streakLabel += " [Warlord max-force campaign origin]";
+            Console.WriteLine($"    seed {match.Seed}: {result}{streakLabel}; {a} L={teamA.Legacy:F0} (D/M/F/W {teamA.Dominion:F0}/{teamA.Mastery:F0}/{teamA.Firsts:F0}/{teamA.Wonders:F0}), settlements/founds/projects {teamA.Settlements}/{teamA.FoundDecrees}/{teamA.Projects}, splits/pending-seasons {teamA.FissionSplits}/{teamA.FissionPendingSeasons}, owned land {teamA.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamA.PostureSeasons)}, Conquer/streak-posture changes/3-season opportunities {teamA.ConquerPlanSeasons}/{teamA.RaidStreakPostureTransitions}/{teamA.ThreeSeasonNonConquerRaidPostureOpportunities}, alternate-origin rescues/short {teamA.AlternateOriginCampaignRescues}/{teamA.AlternateOriginCampaignNoRescues}, GOV02-locked/frontier-open {teamA.PostureGateLockedSeasons}/{teamA.FrontierOpenSeasons}, lost/captured {teamA.SettlementsLost}/{teamA.SettlementsCaptured}, raids {teamA.RaidsWon}/{teamA.RaidsLaunched}, wars declared/rejected {teamA.WarsDeclared}/{teamA.WarRejections}, assaults launch/resolve/hold {teamA.AssaultsLaunched}/{teamA.AssaultsResolved}/{teamA.AssaultsHeld}, predicted capture Σp {teamA.PredictedCaptureSuccess:F2}/{teamA.AssaultPredictions}, K1/K2 {teamA.Key1Mean:F1}/{teamA.Key2Mean:F1}; " +
+                $"{b} L={teamB.Legacy:F0} (D/M/F/W {teamB.Dominion:F0}/{teamB.Mastery:F0}/{teamB.Firsts:F0}/{teamB.Wonders:F0}), settlements/founds/projects {teamB.Settlements}/{teamB.FoundDecrees}/{teamB.Projects}, splits/pending-seasons {teamB.FissionSplits}/{teamB.FissionPendingSeasons}, owned land {teamB.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamB.PostureSeasons)}, Conquer/streak-posture changes/3-season opportunities {teamB.ConquerPlanSeasons}/{teamB.RaidStreakPostureTransitions}/{teamB.ThreeSeasonNonConquerRaidPostureOpportunities}, alternate-origin rescues/short {teamB.AlternateOriginCampaignRescues}/{teamB.AlternateOriginCampaignNoRescues}, GOV02-locked/frontier-open {teamB.PostureGateLockedSeasons}/{teamB.FrontierOpenSeasons}, lost/captured {teamB.SettlementsLost}/{teamB.SettlementsCaptured}, raids {teamB.RaidsWon}/{teamB.RaidsLaunched}, wars declared/rejected {teamB.WarsDeclared}/{teamB.WarRejections}, assaults launch/resolve/hold {teamB.AssaultsLaunched}/{teamB.AssaultsResolved}/{teamB.AssaultsHeld}, predicted capture Σp {teamB.PredictedCaptureSuccess:F2}/{teamB.AssaultPredictions}, K1/K2 {teamB.Key1Mean:F1}/{teamB.Key2Mean:F1}");
             Console.WriteLine($"      rejected wars ({a}): {FormatRejections(teamA.WarRejectionReasons)}");
             Console.WriteLine($"      rejected wars ({b}): {FormatRejections(teamB.WarRejectionReasons)}");
             Console.WriteLine($"      threat estimates ({a}): {FormatThreats(teamA.ThreatReasons)}");
@@ -310,6 +314,8 @@ internal static class AiCommand
             total.ConquerPlanSeasons += civ.ConquerPlanSeasons;
             total.RaidStreakPostureTransitions += civ.RaidStreakPostureTransitions;
             total.ThreeSeasonNonConquerRaidPostureOpportunities += civ.ThreeSeasonNonConquerRaidPostureOpportunities;
+            total.AlternateOriginCampaignRescues += civ.AlternateOriginCampaignRescues;
+            total.AlternateOriginCampaignNoRescues += civ.AlternateOriginCampaignNoRescues;
             total.PostureGateLockedSeasons += civ.PostureGateLockedSeasons;
             total.FrontierOpenSeasons += civ.FrontierOpenSeasons;
             for (int posture = 0; posture < total.PostureSeasons.Length; posture++)
@@ -360,6 +366,7 @@ internal static class AiCommand
         public int OwnedLandShareBasisPoints;
         public int ConquerPlanSeasons, RaidStreakPostureTransitions;
         public int ThreeSeasonNonConquerRaidPostureOpportunities;
+        public int AlternateOriginCampaignRescues, AlternateOriginCampaignNoRescues;
         public int PostureGateLockedSeasons, FrontierOpenSeasons;
         public int[] PostureSeasons;
         public int[] WarlordUrgencyBands;

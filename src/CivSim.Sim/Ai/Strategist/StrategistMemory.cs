@@ -104,7 +104,7 @@ internal sealed class Site
 /// <summary>A possible war target with predicted tactical outcome and a separate safe-to-launch result.</summary>
 internal sealed class WarOption
 {
-    public int Civ, Settlement, Tile, Travel, Attackers, LandsSeason;
+    public int Civ, Settlement, Tile, Travel, Attackers, AlternateOriginAttackers, LandsSeason;
     public Fix64 OriginWinter;
     public Fix64 Ratio, Required, CaptureChance, Deaths, Wounded, Casualties, Value, Window;
     /// <summary>Tactical, value, and supply checks pass before strategic launch blockers are applied.</summary>
