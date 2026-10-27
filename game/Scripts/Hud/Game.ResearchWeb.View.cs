@@ -662,6 +662,9 @@ public partial class Game
                 chip.Badge.SetFill(UiTokens.TextTertiary);
             }
             chip.Name.ThemeTypeVariation = project >= 0 ? "BodyStrong" : "BodyStrongAccent";
+            chip.Root.TooltipText = project >= 0
+                ? $"{UiText.SlotNames[slot]} · Drag {chip.Name.Text} to another slot to change its priority. Click to choose this slot."
+                : $"{UiText.SlotNames[slot]} is open · Drop a project here to start it at this priority. Click to choose this slot.";
             UiKit.SetVisible(chip.Target, slot == target && chip.Root.Size.X > 260);
             UiKit.SetVisible(chip.Frame, slot == target);
         }
@@ -1265,6 +1268,21 @@ public partial class Game
     }
 
     private void AssignSelectedToSlot(int slot) => AssignResearch(_selectedResearchProject, slot);
+
+    private bool CanDropResearchSlot(int from, int to)
+    {
+        if (_session?.CanIssueCommands != true || _current is null || _catalog is null ||
+            (uint)from >= 3u || (uint)to >= 3u || from == to) return false;
+        int project = EffectiveSlotProject(from);
+        return project >= 0 && StateOf(project) is ProjectState.Available or ProjectState.Slotted;
+    }
+
+    private void MoveResearchSlot(int from, int to)
+    {
+        if (!CanDropResearchSlot(from, to)) return;
+        int project = EffectiveSlotProject(from);
+        if (project >= 0) AssignResearch(project, to);
+    }
 
     private void AssignResearch(int project, int slot)
     {

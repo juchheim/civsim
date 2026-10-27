@@ -30,7 +30,7 @@ public partial class Game
     // slot strip
     private sealed class StripChip
     {
-        public Control Root = null!;
+        public UiResearchSlot Root = null!;
         public UiRankBadge Badge = null!;
         public Label Name = null!, Eta = null!, Target = null!;
         public UiProgressBar Bar = null!;
@@ -228,7 +228,7 @@ public partial class Game
         _peopleWebButton = UiKit.Secondary("People & needs", OpenPeoplePanel,
             "See what your people do and the needs shaping research choices", UiGlyph.People, UiTokens.ControlS, true);
         footer.AddChild(_peopleWebButton);
-        _footerNote = UiKit.Text("Star: adds to age count · Link: prerequisite route · Age: completes transition · Click to inspect", "CaptionTertiary", right: true, ellipsis: true);
+        _footerNote = UiKit.Text("Drag projects above to reprioritize · Star: age count · Link: prerequisite · Age: transition", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
         footer.AddChild(_footerNote);
         root.AddChild(footer);
@@ -247,9 +247,20 @@ public partial class Game
     {
         var chip = new StripChip();
         var panel = new PanelContainer { ThemeTypeVariation = "InnerCard" };
-        chip.Root = UiKit.WrapOverlay(panel, new Vector2(0, 55));
+        chip.Root = new UiResearchSlot(slot) { CustomMinimumSize = new Vector2(0, 55) };
+        panel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        panel.MouseFilter = Control.MouseFilterEnum.Pass;
+        chip.Root.AddChild(panel);
         chip.Root.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         chip.Root.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
+        chip.Root.ProjectAtSlot = () => EffectiveSlotProject(slot);
+        chip.Root.CanDragProject = () => _session?.CanIssueCommands == true;
+        chip.Root.ProjectName = project => _catalog is not null && (uint)project < (uint)_catalog.Count
+            ? _catalog.Projects[project].Name
+            : "research project";
+        chip.Root.CanDropResearchSlot = CanDropResearchSlot;
+        chip.Root.ResearchSlotDropped = MoveResearchSlot;
+        chip.Root.TooltipText = "Drag a project to another slot to change its priority. Click to choose this slot for a project.";
         chip.Root.GuiInput += input =>
         {
             if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
