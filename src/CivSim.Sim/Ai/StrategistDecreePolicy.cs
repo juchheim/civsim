@@ -423,15 +423,18 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     }
 
     private Fix64 SecureTinBonus(DecreeRequest candidate)
+        => SecureTinBonus(_intent.Plan, _belief, candidate);
+
+    internal static Fix64 SecureTinBonus(GrandPlan plan, Belief belief, DecreeRequest candidate)
     {
-        if (_intent.Plan != GrandPlan.SecureTin) return Fix64.Zero;
+        if (plan != GrandPlan.SecureTin) return Fix64.Zero;
         if (candidate.Kind == DecreeKind.Compact && DecreeArgs.Good(candidate.Extra) == TradeGood.Tin && !DecreeArgs.Sell(candidate.Extra))
             return StrategistTuning.SecureTinCompactDecreeBonus;
         if (candidate.Kind == DecreeKind.Levy)
-            foreach (BeliefTinFolk folk in _belief.TinFolkSeen)
-                if (folk.Settlement == candidate.Target && _belief.Season - folk.LastSeenSeason <= 2)
+            foreach (BeliefTinFolk folk in belief.TinFolkSeen)
+                if (folk.Settlement == candidate.Target && belief.Season - folk.LastSeenSeason <= 2)
                     return StrategistTuning.SecureTinLevyDecreeBonus;
-        if (candidate.Kind != DecreeKind.Mine || !_belief.Map.TryTile(candidate.Target, out CivSim.Sim.World.WorldTile known)) return Fix64.Zero;
+        if (candidate.Kind != DecreeKind.Mine || !belief.Map.TryTile(candidate.Target, out CivSim.Sim.World.WorldTile known)) return Fix64.Zero;
         return known.Deposit switch
         {
             CivSim.Sim.World.DepositKind.Tin => StrategistTuning.SecureTinMineDecreeBonus,

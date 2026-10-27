@@ -244,6 +244,26 @@ public class StrategistSecureTinTests
     }
 
     [Fact]
+    public void Secure_tin_arsenical_mine_gets_full_route_bonus_only_while_plan_is_active()
+    {
+        (StrategistView view, int _) = BuildView();
+        int arsenicalTile = Enumerable.Range(0, MatchWorld.Value.Tiles.Length)
+            .First(tile => MatchWorld.Value.Tiles[tile].Deposit == DepositKind.ArsenicalCopper);
+        view.Belief.Map.MarkExplored(arsenicalTile);
+        view.Belief.Map.RecordOwner(arsenicalTile, -1, view.Season);
+        var candidate = new DecreeRequest(DecreeKind.Mine, arsenicalTile, 0);
+
+        Assert.Equal(StrategistTuning.SecureTinMineDecreeBonus, StrategistTuning.SecureTinArsenicalDecreeBonus);
+        Assert.Equal(StrategistTuning.SecureTinArsenicalDecreeBonus,
+            StrategistDecreePolicy.SecureTinBonus(GrandPlan.SecureTin, view.Belief, candidate));
+        Assert.Equal(Fix64.Zero, StrategistDecreePolicy.SecureTinBonus(GrandPlan.Prosper, view.Belief, candidate));
+        var partialSuccess = new DecreeForecast(DecreeKind.Mine, true, default, 1, 0, 400, 0, 0, Fix64.Zero, 0, 1);
+        Fix64 weightedBonus = StrategistDecreePolicy.CandidateNetEv(partialSuccess,
+            StrategistDecreePolicy.SecureTinBonus(GrandPlan.SecureTin, view.Belief, candidate), Fix64.Zero);
+        Assert.True(Fix64.Abs(weightedBonus - Fix64.FromInt(20)) <= Fix64.FromRatio(1, 1_000_000));
+    }
+
+    [Fact]
     public void Levy_forecast_rejects_allied_targets()
     {
         CivControl ai = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
