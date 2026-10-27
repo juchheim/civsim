@@ -21,6 +21,7 @@ namespace CivSim.Harness;
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --check-a7 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
+/// civsim-harness ai --pack FILE --check-b27 [--seeds N] [--minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-b28 [--seeds N] [--minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE (--check-b7 | --check-b8) [--seeds N] [--minutes N] [--first-seed N]
 /// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
@@ -37,7 +38,7 @@ internal static class AiCommand
     public static int Run(string[] args)
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
-        bool check = false, checkM10 = false, checkB28 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
+        bool check = false, checkM10 = false, checkB27 = false, checkB28 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
         bool matchDetails = false;
         Fix64? rivalPaceOverride = null;
         int? firstsEtaPessimismSeasons = null;
@@ -66,6 +67,7 @@ internal static class AiCommand
                 case "--ffa": ffa = args[++i]; break;
                 case "--check-m6": check = true; break;
                 case "--check-m10": checkM10 = true; break;
+                case "--check-b27": checkB27 = true; break;
                 case "--check-b28": checkB28 = true; break;
                 case "--check-a7": checkA7 = true; break;
                 case "--check-b7": checkB7 = true; break;
@@ -109,6 +111,11 @@ internal static class AiCommand
         if (checkA7) return CheckA7Only(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
         if (checkB7 || checkB8) return BronzeAiGates.Run(pack, checkB7, checkB8,
             seedsGiven ? seeds : 1, minutesGiven ? minutes : 2, firstSeed);
+        if (checkB27)
+        {
+            (int b27Seeds, int b27Minutes) = ResolveB27Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
+            return CheckB27(pack, b27Seeds, b27Minutes, archetype, firstSeed);
+        }
         if (checkB28)
         {
             (int b28Seeds, int b28Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
@@ -153,11 +160,14 @@ internal static class AiCommand
                 Console.WriteLine($"EXPLOIT SEARCH INCOMPLETE: requires {ExploitSearch.FinalistCount} finalists fully validated at {ExploitSearch.MinimumM10Minutes} minutes (got {search.Validations.Count}/{search.Finalists.Count} at {options.Minutes}); no acceptance conclusion.");
             return 2;
         }
-        throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-b7, --check-b8, --check-m10 or --exploit.");
+        throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-b7, --check-b8, --check-b27, --check-b28, --check-m10 or --exploit.");
     }
 
     internal static (int Seeds, int Minutes) ResolveM10Sample(int? requestedSeeds, int? requestedMinutes) =>
         (requestedSeeds ?? 1, requestedMinutes ?? 2);
+
+    internal static (int Seeds, int Minutes) ResolveB27Sample(int? requestedSeeds, int? requestedMinutes) =>
+        (requestedSeeds ?? 1, requestedMinutes ?? M10AiAcceptanceStatus.MinimumMinutes);
 
     private static void PrintDuel(string a, string b, Tournament.DuelResult r, bool matchDetails = false)
     {
@@ -720,6 +730,21 @@ internal static class AiCommand
         else
             Console.WriteLine($"B28 {(summary.Pass ? "PASS" : "FAIL")}");
         return M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic ? 2 : summary.Pass ? 0 : 1;
+    }
+
+    private static int CheckB27(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
+    {
+        Console.WriteLine($"== B27: tin-poor route recovery and dormant-route blunders ({seeds} seeds)");
+        Tournament.DuelResult duel = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed);
+        B27TelemetrySummary summary = B27TelemetrySummary.FromMatches(duel.Outcomes);
+        bool diagnostic = M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic;
+        Console.WriteLine($"  Tin/arsenical recovery {summary.TinRouteSeats}/{summary.TinPoorSeats} = {summary.TinRouteRate:P0}; " +
+            $"dormant-route blunders {summary.DormantBlunders}/{summary.Matches} = {summary.DormantBlunderRate:F3} per match; " +
+            $"{summary.WarlordSeats} Warlord seats across {duel.Matches} matches " +
+            $"{M10AiAcceptanceStatus.FormatGateLabel(summary.Pass, seeds, minutes)}");
+        if (diagnostic)
+            Console.WriteLine($"B27 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
+        return diagnostic ? 2 : summary.Pass ? 0 : 1;
     }
 
     /// <summary>The M6 acceptance gates A1 to A7 that need matches (docs/MVP/17 §4.3). A8 is the unit test FogFairnessTests.</summary>

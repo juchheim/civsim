@@ -19,6 +19,15 @@ public sealed class M10AiAcceptanceStatusTests
     }
 
     [Fact]
+    public void Check_b27_defaults_to_one_full_horizon_seed_for_a_focused_diagnostic()
+    {
+        Assert.Equal((1, 64), AiCommand.ResolveB27Sample(null, null));
+        Assert.Equal((2, 64), AiCommand.ResolveB27Sample(2, null));
+        Assert.Equal((1, 10), AiCommand.ResolveB27Sample(null, 10));
+        Assert.Equal((8, 64), AiCommand.ResolveB27Sample(8, 64));
+    }
+
+    [Fact]
     public void Core_check_summary_uses_the_invoking_gate_name()
     {
         Assert.Equal("M10 AI CORE CHECK DIAGNOSTIC ONLY",
