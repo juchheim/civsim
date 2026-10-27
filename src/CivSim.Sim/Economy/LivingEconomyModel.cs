@@ -3270,10 +3270,25 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (SiteAdvisor is not null && !SiteAdvisor.Allows(parent.Civilization, tile)) continue;
             Fix64 score = _siteFoodScores[tile];
             if (SiteAdvisor is not null) score *= SiteAdvisor.Multiplier(parent.Civilization, tile);
-            if (score > bestScore || score == bestScore && (best < 0 || tile < best))
-            { best = tile; bestScore = score; }
+            if (score > bestScore)
+            {
+                best = tile;
+                bestScore = score;
+            }
+            else if (score == bestScore)
+            {
+                if (best < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, best, _world.Width, _world.Height)) best = tile;
+            }
         }
         return best;
+    }
+
+    // The generated map is point-symmetric. Resolve equal food scores in the same parent-relative direction,
+    // so mirrored parents with mirrored candidate sets choose mirrored fission sites.
+    internal static bool PreferFissionTieCandidate(int parentTile, int candidateTile, int currentBestTile, int width, int height)
+    {
+        int rotatedParent = HexGrid.Rotate180(parentTile, width, height);
+        return parentTile <= rotatedParent ? candidateTile < currentBestTile : candidateTile > currentBestTile;
     }
 
     private Fix64 SiteFoodScore(int center)

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using CivSim.Sim.Economy;
 using CivSim.Sim.World;
 
 namespace CivSim.Tests;
@@ -23,6 +24,24 @@ public sealed class WorldGenerationTests
                 Assert.Contains(HexGrid.Rotate180(neighbors[i], width, height),
                     NeighborsOf(rotated, width, height));
         }
+    }
+
+    [Fact]
+    public void Fission_site_ties_choose_point_symmetric_tiles_for_mirrored_parents()
+    {
+        const int width = 8, height = 6;
+        int westParent = 5;
+        int eastParent = HexGrid.Rotate180(westParent, width, height);
+        int westCandidateA = 6, westCandidateB = 8;
+        int eastCandidateA = HexGrid.Rotate180(westCandidateA, width, height);
+        int eastCandidateB = HexGrid.Rotate180(westCandidateB, width, height);
+
+        int westChoice = LivingEconomyModel.PreferFissionTieCandidate(
+            westParent, westCandidateA, westCandidateB, width, height) ? westCandidateA : westCandidateB;
+        int eastChoice = LivingEconomyModel.PreferFissionTieCandidate(
+            eastParent, eastCandidateA, eastCandidateB, width, height) ? eastCandidateA : eastCandidateB;
+
+        Assert.Equal(HexGrid.Rotate180(westChoice, width, height), eastChoice);
     }
 
     [Fact]
