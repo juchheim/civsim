@@ -29,6 +29,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly KnowHowTracker _tracker = new();
     private int _lastDecision = -1;
     internal Fix64? RivalPaceOverrideForDiagnostics { get; set; }
+    internal int FirstsEtaPessimismSeasonsForDiagnostics { get; set; }
     private readonly int[] _lastSlots = { -1, -1, -1 };
     /// <summary>Season each civilization was first seen in each era (civ × era), -1 if not yet: the public keystone record.</summary>
     private int[] _eraSeason = Array.Empty<int>();
@@ -266,6 +267,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Fix64 tinAccessProbability = met03Done ? TinAccessProbability(ctx, mineReachBoost, waterMineReach) : Fix64.Zero;
         bool arsenicAccess = met03Done && IsDone(_min04) && HasKnownMineAccess(ctx, DepositKind.ArsenicalCopper, mineReachBoost, waterMineReach);
         _value.MarginSteps = SparkTuning.FirstMarginSeasons * _forecast.StepsPerSeason;
+        _value.FirstsEtaPessimismSteps = Math.Max(0, FirstsEtaPessimismSeasonsForDiagnostics) * _forecast.StepsPerSeason;
         _value.EtaUncertainty = SparkTuning.RivalEtaUncertainty;
         _value.KeystoneTempo = SparkTuning.KeystoneTempo;
         _value.UrgencySteps = SparkTuning.UrgencySeasons * _forecast.StepsPerSeason;
@@ -816,6 +818,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         {
             int mine = _forecast.DoneAt[p];
             int eta = _value.RivalEta[p];
+            if (eta != int.MaxValue)
+                eta = Math.Max(0, eta - Math.Min(eta, _value.FirstsEtaPessimismSteps));
             if (mine >= 0 && (eta == int.MaxValue || eta - mine >= _value.MarginSteps)) return "First within reach";
         }
         if (fc.Lineage[p] >= 0 && _start.KnowHow[fc.Lineage[p]] * 4 >= _start.Cost[p]) return "know-how";

@@ -47,6 +47,9 @@ internal sealed class CivOutcome
     public readonly int[] WarlordUrgencyBands = new int[5];
     public int WarlordUrgencySeasons;
     public int FissionSplits, FissionPendingSeasons;
+    public int OwnedLandShareBasisPoints;
+    public int ConquerPlanSeasons, RaidStreakPostureTransitions;
+    public int ThreeSeasonNonConquerRaidPostureOpportunities;
     public int PostureGateLockedSeasons, FrontierOpenSeasons;
     public readonly double[] KeyMinutes = { double.NaN, double.NaN, double.NaN };
     public int RaidsLaunched, RaidsWon;
@@ -81,6 +84,8 @@ internal sealed class MatchOutcome
 {
     public ulong Seed;
     public Fix64? RivalPaceOverride;
+    public int? FirstsEtaPessimismOverride;
+    public int? WarlordNonConquerRaidPostureStreakOverride;
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
     public readonly List<FirstRaceClaimDiagnostic> FirstRaceClaims = new();
@@ -104,7 +109,8 @@ internal static class Tournament
     public static readonly int[] TeamBSeats = { 1, 2 };
 
     public static MatchOutcome Play(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
-        bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null)
+        bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null, int? firstsEtaPessimismSeasons = null,
+        int? warlordNonConquerRaidPostureStreak = null)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -120,15 +126,27 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
-        if (rivalPaceOverride is { } overridePace)
+        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null)
             for (int c = 0; c < seats.Length; c++)
-                if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
-                    match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark)
-                    spark.RivalPaceOverrideForDiagnostics = overridePace;
+                if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) && match.Ai?.SeatOf(c) is { } warlordSeat)
+                {
+                    if (warlordSeat.Spark is ResearchSpark spark)
+                    {
+                        if (rivalPaceOverride is { } overridePace) spark.RivalPaceOverrideForDiagnostics = overridePace;
+                        if (firstsEtaPessimismSeasons is { } pessimism) spark.FirstsEtaPessimismSeasonsForDiagnostics = pessimism;
+                    }
+                    if (warlordSeat.Strategist is Strategist strategist && warlordNonConquerRaidPostureStreak is { } streak)
+                        strategist.NonConquerRaidPostureStreakForDiagnostics = streak;
+                }
         // Tournament scoring and telemetry use the final state, not the periodic hash history.
         var runner = new SimRunner(match, int.MaxValue);
         int civs = seats.Length;
-        var outcome = new MatchOutcome { Seed = seed, RivalPaceOverride = rivalPaceOverride, Seats = seats, Civs = new CivOutcome[civs] };
+        var outcome = new MatchOutcome
+        {
+            Seed = seed, RivalPaceOverride = rivalPaceOverride, FirstsEtaPessimismOverride = firstsEtaPessimismSeasons,
+            WarlordNonConquerRaidPostureStreakOverride = warlordNonConquerRaidPostureStreak,
+            Seats = seats, Civs = new CivOutcome[civs]
+        };
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
         for (int c = 0; c < civs; c++) outcome.Civs[c] = new CivOutcome { Civ = c };
         ResearchCatalog catalog = match.Research.Catalog;
@@ -237,6 +255,8 @@ internal static class Tournament
                     {
                         outcome.Civs[c].WarlordUrgencyBands[WarlordUrgencyBand(aiSeat.Context.Intent.DefenseUrgency)]++;
                         outcome.Civs[c].WarlordUrgencySeasons++;
+                        if (aiSeat.Strategist is Strategist strategist && strategist.Plan == GrandPlan.Conquer)
+                            outcome.Civs[c].ConquerPlanSeasons++;
                     }
                 }
             }
@@ -546,6 +566,10 @@ internal static class Tournament
         }
 
         PoliticsSystem pol = match.Politics;
+        for (int c = 0; c < civs; c++)
+            if (match.Ai?.SeatOf(c)?.Strategist is Strategist strategist)
+                outcome.Civs[c].ThreeSeasonNonConquerRaidPostureOpportunities =
+                    strategist.ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics;
         foreach (PoliticsEvent e in pol.Events)
         {
             if (e.Kind == PoliticsEventKind.RaidLaunched && e.B >= 0 &&
@@ -592,6 +616,9 @@ internal static class Tournament
             }
             else if (e.Kind == PoliticsEventKind.OccupationBroken) outcome.Civs[e.Civ].OccupationsBroken++;
         }
+
+        for (int c = 0; c < civs; c++)
+            outcome.Civs[c].OwnedLandShareBasisPoints = pol.Territory.ShareBasisPoints(c);
         if (match.Ai is { } ai)
         {
             for (int c = 0; c < civs; c++)
@@ -621,6 +648,8 @@ internal static class Tournament
                     c.ThreatReasons.TryGetValue(threat, out int count);
                     c.ThreatReasons[threat] = count + 1;
                 }
+                else if (d.Kind == "Posture" && d.Reason.Contains("raids have paid in expectation", StringComparison.Ordinal))
+                    c.RaidStreakPostureTransitions++;
             }
         }
         foreach (Expedition expedition in pol.Expeditions)
@@ -742,6 +771,7 @@ internal static class Tournament
         public double SettlementsLostA, SettlementsLostB;
         public int MatchesWithLossA, MatchesWithLossB;
         public double LegacyA, LegacyB;
+        public int OwnedLandShareA, OwnedLandShareB;
         public int RaidsA, RaidsB;
         public int KeystoneStallsA, IdleSlotSeasonsA, MaxPlanSwitchesA;
         public int PlanDitherMatchesA;
@@ -751,7 +781,8 @@ internal static class Tournament
     }
 
     public static DuelResult Duel(ContentPack pack, string teamA, string teamB, int seeds, int minutes, EconomyArchetype archetype,
-        ulong firstSeed = BaseSeed, bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null)
+        ulong firstSeed = BaseSeed, bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null,
+        int? firstsEtaPessimismSeasons = null, int? warlordNonConquerRaidPostureStreak = null)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -764,7 +795,8 @@ internal static class Tournament
             foreach (int s in TeamASeats) seats[s] = swapped ? b : a;
             foreach (int s in TeamBSeats) seats[s] = swapped ? a : b;
             var archetypes = new[] { archetype, archetype, archetype, archetype };
-            results[j] = (Play(pack, seed, seats, archetypes, minutes, captureFirstRaceDiagnostics, rivalPaceOverride), swapped);
+            results[j] = (Play(pack, seed, seats, archetypes, minutes, captureFirstRaceDiagnostics, rivalPaceOverride,
+                firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
@@ -790,6 +822,8 @@ internal static class Tournament
             r.Matches++;
             r.WinsA += la > lb ? 1 : la == lb ? 0.5 : 0;
             r.LegacyA += la; r.LegacyB += lb;
+            r.OwnedLandShareA += (int)aSeats.Sum(s => (long)m.Civs[s].OwnedLandShareBasisPoints);
+            r.OwnedLandShareB += (int)bSeats.Sum(s => (long)m.Civs[s].OwnedLandShareBasisPoints);
             r.SettlementsLostA += lostA; r.SettlementsLostB += lostB;
             if (lostA > 0) r.MatchesWithLossA++;
             if (lostB > 0) r.MatchesWithLossB++;

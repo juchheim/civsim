@@ -47,6 +47,8 @@ public sealed class ForecastValuation
     public Fix64[] Weight { get; }
     /// <summary>Half-width of the Firsts race in steps: a First is sure when we finish this much before the rival (14 §4.4: one season).</summary>
     public int MarginSteps { get; set; } = ForecastTuning.StepsPerSeason;
+    /// <summary>Diagnostic-only reduction to rival ETA used when valuing contested Firsts; zero in normal play.</summary>
+    public int FirstsEtaPessimismSteps { get; set; }
     /// <summary>Relative uncertainty of a rival's ETA: the race margin is at least this share of the time until it.</summary>
     public Fix64 EtaUncertainty { get; set; } = Fix64.FromRatio(1, 5);
     /// <summary>Value of a keystone per season it lands before the horizon, on top of its Legacy.</summary>
@@ -772,6 +774,7 @@ public sealed class ResearchForecast
         if (_value is null) return _c.FirstPoints[p];
         int eta = _value.RivalEta[p];
         if (eta == int.MaxValue) return _c.FirstPoints[p];
+        eta = Math.Max(0, eta - Math.Min(eta, _value.FirstsEtaPessimismSteps));
         int m = Math.Max(Math.Max(1, _value.MarginSteps), (_value.EtaUncertainty * eta).FloorToInt());
         int d = eta - step;
         if (d >= m) return _c.FirstPoints[p];

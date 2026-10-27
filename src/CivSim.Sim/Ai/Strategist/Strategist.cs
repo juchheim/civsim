@@ -38,6 +38,8 @@ public sealed partial class Strategist : IStrategist
     private readonly int[] _switchSeasons = { -1000, -1000, -1000, -1000 };
     private int _lastPostureChange = -1000;
     private int _raidStreak;
+    internal int? NonConquerRaidPostureStreakForDiagnostics { get; set; }
+    internal int ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics { get; private set; }
     private Fix64 _prevLegacy, _legacyRate, _prevDominion, _dominionRate;
     private readonly List<int> _prevSettlements = new();
     private readonly List<int> _beaconSeasons = new();
@@ -265,13 +267,18 @@ public sealed partial class Strategist : IStrategist
     {
         if (!Done(v, _gov02)) return;
         Posture current = v.Own.Posture;
+        if (NonConquerRaidPostureStreakForDiagnostics is > StrategistTuning.RaidPostureStreak &&
+            _plan != GrandPlan.Conquer && _raidStreak == StrategistTuning.RaidPostureStreak &&
+            s.Urgency < StrategistTuning.FortifyAt &&
+            !(_plan == GrandPlan.Defend && s.Urgency >= StrategistTuning.FortifyAt / 2))
+            ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics++;
         Posture want;
         string why;
         if (s.Urgency >= StrategistTuning.FortifyAt || (_plan == GrandPlan.Defend && s.Urgency >= StrategistTuning.FortifyAt / 2))
         { want = Posture.Fortify; why = $"threat from civ {s.TopThreatCiv}, urgency {F2(s.Urgency)}"; }
         else if (_plan == GrandPlan.Conquer && s.WarPostureWanted)
         { want = Posture.Raid; why = $"a war of conquest on civ {_planTarget} needs the Raid posture (13 §8.1)"; }
-        else if (_raidStreak >= StrategistTuning.RaidPostureStreak)
+        else if (_raidStreak >= (NonConquerRaidPostureStreakForDiagnostics ?? StrategistTuning.RaidPostureStreak))
         { want = Posture.Raid; why = $"raids have paid in expectation {_raidStreak} seasons running"; }
         else if (s.Frontier >= StrategistTuning.FrontierOpen)
         { want = Posture.Expand; why = $"frontier open ({F2(s.Frontier)})"; }
