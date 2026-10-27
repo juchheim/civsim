@@ -94,7 +94,14 @@ internal sealed class MatchOutcome
     public Fix64? WarlordFrontierEarlyBonusOverride;
     public Fix64? WarlordE3FissionThresholdOverride;
     public Fix64? WarlordDefenseResearchBonusOverride;
+    public Fix64? WarlordKeystoneTempoOverride;
+    public bool WarlordE2ClosureSlotDiagnostic;
     public bool WarlordDefenseUrgencyShadowDiagnostic;
+    public readonly List<FoundFunnelDiagnostic> FoundFunnels = new();
+    public readonly List<FoundFunnelSeasonSnapshot> FoundFunnelSnapshots = new();
+    public readonly List<WarlordResearchPlanDiagnostic> WarlordResearchTraces = new();
+    public readonly List<WarlordResearchSeasonSnapshot> WarlordResearchSnapshots = new();
+    public readonly List<string> WarlordEconomyTraces = new();
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
     public readonly List<FirstRaceClaimDiagnostic> FirstRaceClaims = new();
@@ -107,6 +114,21 @@ internal sealed class MatchOutcome
 internal readonly record struct FirstRaceEstimate(int WarlordCiv, int ForecastSeason, Fix64 RivalPace, int[] RivalEtaSteps);
 internal readonly record struct FirstRaceClaimDiagnostic(int ProjectIndex, string Project, int Era, string Lineage,
     int ClaimantCiv, long Tick, FirstRaceEstimate[] WarlordEstimates);
+internal readonly record struct FoundFunnelDiagnostic(int Civ, int CandidateSeasons, int FoundCandidateSeasons,
+    int PositiveFoundCandidateSeasons, int FoundSelectedSeasons, int PositiveFoundPassedSeasons,
+    int SeasonsObserved, int CouncilOnSeasons, int MandateUnlockedSeasons, int CouncilAndMandateSeasons,
+    int FoundAffordableSeasons, int AtMandateCapSeasons, int QuotaOpenSeasons, int NaturalGateOpenSeasons,
+    int ActiveButNoFoundCandidateSeasons, int MeanMandate, int MeanMandateCap, int MeanFoundCost,
+    string Key3MissingPrerequisites, string Key3PrerequisitePath, int E2BreadthDone, string Key3State, Fix64 Key3Progress);
+internal readonly record struct FoundFunnelSeasonSnapshot(int Civ, int Season, bool CouncilOn, bool MandateUnlocked,
+    int Mandate, int MandateCap, int FoundCost, int Founded, int E3Foundings,
+    int FoundQuotaRemaining, int NaturalHeadroom);
+internal readonly record struct WarlordResearchSeasonSnapshot(int Civ, int Season, ProjectState Key3State,
+    Fix64 Key3Progress, Fix64 Key3EffectiveCost, bool Key3Done, int Era, ProjectState Key2State,
+    Fix64 Key2Progress, bool Key2Done, Fix64 InsightPerYear, int ProjectsDone, int E2BreadthDone,
+    int[] Slots, int[] Queue, int[] Plan, (int Project, ProjectState State, Fix64 Progress)[] Prerequisites,
+    int[] AvailableClosureNotPlanned);
+internal readonly record struct WarlordResearchPlanDiagnostic(int Civ, string Summary, string Timeline);
 
 internal readonly record struct LegacyMatchOutcome(double TeamALegacy, double TeamBLegacy, long FinalTick, int SeasonsProcessed, ulong Checksum);
 
@@ -121,7 +143,9 @@ internal static class Tournament
         bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null, int? firstsEtaPessimismSeasons = null,
         int? warlordNonConquerRaidPostureStreak = null, bool warlordMaxCampaignOrigin = false,
         Fix64? warlordFrontierEarlyBonusOverride = null, Fix64? warlordE3FissionThresholdOverride = null,
-        Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false)
+        Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false,
+        bool captureFoundFunnelDiagnostics = false, Fix64? warlordKeystoneTempoOverride = null,
+        bool warlordE2ClosureSlotDiagnostic = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -133,11 +157,17 @@ internal static class Tournament
             }
             captureFirstRaceDiagnostics = rusher && warlord;
         }
+        if (captureFoundFunnelDiagnostics)
+        {
+            bool hasWarlord = false;
+            foreach (Player seat in seats) hasWarlord |= string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase);
+            captureFoundFunnelDiagnostics = hasWarlord;
+        }
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
-        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin || warlordFrontierEarlyBonusOverride is not null || warlordE3FissionThresholdOverride is not null || warlordDefenseResearchBonusOverride is not null || warlordDefenseUrgencyShadowDiagnostic)
+        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin || warlordFrontierEarlyBonusOverride is not null || warlordE3FissionThresholdOverride is not null || warlordDefenseResearchBonusOverride is not null || warlordDefenseUrgencyShadowDiagnostic || warlordKeystoneTempoOverride is not null || warlordE2ClosureSlotDiagnostic)
             for (int c = 0; c < seats.Length; c++)
                 if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) && match.Ai?.SeatOf(c) is { } warlordSeat)
                 {
@@ -152,6 +182,10 @@ internal static class Tournament
                         frontierStrategist.FrontierEarlyBonusForDiagnostics = frontierBonus;
                     if (warlordSeat.Spark is ResearchSpark warlordSpark && warlordDefenseResearchBonusOverride is { } defenseBonus)
                         warlordSpark.DefenseResearchBonusOverrideForDiagnostics = defenseBonus;
+                    if (warlordSeat.Spark is ResearchSpark tempoSpark && warlordKeystoneTempoOverride is { } tempo)
+                        tempoSpark.KeystoneTempoOverrideForDiagnostics = tempo;
+                    if (warlordSeat.Spark is ResearchSpark closureSpark && warlordE2ClosureSlotDiagnostic)
+                        closureSpark.E2ClosureSlotOverrideForDiagnostics = true;
                     if (warlordSeat.Spark is ResearchSpark shadowSpark && warlordDefenseUrgencyShadowDiagnostic)
                         shadowSpark.DefenseUrgencyShadowDiagnosticForDiagnostics = true;
                     if (warlordE3FissionThresholdOverride is { } fissionThreshold)
@@ -173,10 +207,14 @@ internal static class Tournament
             WarlordFrontierEarlyBonusOverride = warlordFrontierEarlyBonusOverride,
             WarlordE3FissionThresholdOverride = warlordE3FissionThresholdOverride,
             WarlordDefenseResearchBonusOverride = warlordDefenseResearchBonusOverride,
+            WarlordKeystoneTempoOverride = warlordKeystoneTempoOverride,
+            WarlordE2ClosureSlotDiagnostic = warlordE2ClosureSlotDiagnostic,
             WarlordDefenseUrgencyShadowDiagnostic = warlordDefenseUrgencyShadowDiagnostic,
             Seats = seats, Civs = new CivOutcome[civs]
         };
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
+        int[] lastFoundFunnelSeason = new int[civs];
+        Array.Fill(lastFoundFunnelSeason, -1);
         for (int c = 0; c < civs; c++) outcome.Civs[c] = new CivOutcome { Civ = c };
         ResearchCatalog catalog = match.Research.Catalog;
         int[] keys = { catalog.IndexOf("KEY-1"), catalog.IndexOf("KEY-2"), catalog.IndexOf("KEY-3") };
@@ -197,6 +235,8 @@ internal static class Tournament
         for (int c = 0; c < civs; c++) nakedTinCaravans[c] = new NakedTinCaravanTracker();
         var mandateOverflowStreak = new int[civs];
         var mandateOverflowReported = new bool[civs];
+        var totalDeaths = new int[civs];
+        var starvationDeaths = new int[civs];
         var fissionsSeen = new int[match.Economy.SettlementCount];
         for (int s = 0; s < fissionsSeen.Length; s++) fissionsSeen[s] = match.Economy.Settlement(s).Fissions;
         var frontierThreatSeason = new int[civs, world.TileCount];
@@ -255,8 +295,64 @@ internal static class Tournament
                 firstRaceHistory.Add(firstRaceEstimates);
                 if (firstRaceHistory.Count > 20) firstRaceHistory.RemoveAt(0);
             }
+            if (captureFoundFunnelDiagnostics)
+                for (int c = 0; c < civs; c++)
+                {
+                    if (!string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+                    int funnelSeason = match.Politics.Season;
+                    if (lastFoundFunnelSeason[c] == funnelSeason) continue;
+                    lastFoundFunnelSeason[c] = funnelSeason;
+                    int founded = match.Politics.DecreesDone(c, DecreeKind.Found);
+                    int natural = match.Politics.E3Foundings(c) - founded;
+                    int foundCost = match.Politics.DecreeCost(c, DecreeKind.Found);
+                    int mandate = match.Research.Mandate(c);
+                    int mandateCap = match.Research.MandateCap(c);
+                    outcome.FoundFunnelSnapshots.Add(new FoundFunnelSeasonSnapshot(c, funnelSeason,
+                        match.Research.CouncilOn(c), match.Research.MandateUnlocked(c), mandate, mandateCap,
+                        foundCost, founded, match.Politics.E3Foundings(c),
+                        Math.Max(0, CouncilDecreePolicy.MaxFoundsPerAge - founded), natural - (founded + 1)));
+                    if (funnelSeason % 32 == 0)
+                        outcome.WarlordEconomyTraces.Add(FormatWarlordEconomySnapshot(match, c,
+                            totalDeaths[c], starvationDeaths[c]));
+
+                }
             int researchEventsBeforeAdvance = match.Research.Events.Count;
             runner.Advance(Math.Min(150, ticks - t));
+            for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
+            {
+                EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
+                if ((uint)death.Civilization >= (uint)civs) continue;
+                totalDeaths[death.Civilization]++;
+                if (death.Cause == EconomyDeathCause.Starvation)
+                    starvationDeaths[death.Civilization]++;
+            }
+
+            if (captureFoundFunnelDiagnostics)
+                for (int c = 0; c < civs; c++)
+                {
+                    if (!string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+                    int key2 = catalog.IndexOf("KEY-2");
+                    int key3 = catalog.IndexOf("KEY-3");
+                    ProjectDef key3Def = catalog.Projects[key3];
+                    int[] slots = new int[CivResearch.SlotCount];
+                    for (int slot = 0; slot < slots.Length; slot++) slots[slot] = match.Research.Slot(c, slot);
+                    int[] queue = match.Research.Queue(c).ToArray();
+                    int[] plan = match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark ? spark.LastPlan.ToArray() : Array.Empty<int>();
+                    var planned = new HashSet<int>(plan);
+                    bool[]? closure = catalog.ClosureOf(2);
+                    int[] availableClosureNotPlanned = closure is null
+                        ? Array.Empty<int>()
+                        : Enumerable.Range(0, closure.Length).Where(project => closure[project] &&
+                            match.Research.State(c, project) == ProjectState.Available && !planned.Contains(project)).ToArray();
+                    var prerequisiteStates = key3Def.Requires.Select(project =>
+                        (project, match.Research.State(c, project), match.Research.Progress(c, project))).ToArray();
+                    outcome.WarlordResearchSnapshots.Add(new WarlordResearchSeasonSnapshot(c, match.Politics.Season,
+                        match.Research.State(c, key3), match.Research.Progress(c, key3), match.Research.EffectiveCost(c, key3),
+                        match.Research.IsDone(c, key3), match.Research.Era(c), match.Research.State(c, key2),
+                        match.Research.Progress(c, key2), match.Research.IsDone(c, key2), match.Research.InsightPerYear(c),
+                        match.Research.DoneCount(c), match.Research.DoneInEra(c, key3Def.BreadthEra),
+                        slots, queue, plan, prerequisiteStates, availableClosureNotPlanned));
+                }
 
             if (captureFirstRaceDiagnostics)
                 for (int e = researchEventsBeforeAdvance; e < match.Research.Events.Count; e++)
@@ -653,6 +749,32 @@ internal static class Tournament
             outcome.Civs[c].OwnedLandShareBasisPoints = pol.Territory.ShareBasisPoints(c);
         if (match.Ai is { } ai)
         {
+            if (captureFoundFunnelDiagnostics)
+                for (int c = 0; c < civs; c++)
+                    if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outcome.FoundFunnels.Add(SummarizeFoundFunnel(c, ai.Log.Entries, outcome.FoundFunnelSnapshots, match.Research));
+                        outcome.WarlordResearchTraces.Add(SummarizeWarlordResearch(c, outcome.WarlordResearchSnapshots,
+                            match.Research.Catalog));
+                        if (outcome.WarlordEconomyTraces.Count == 0 ||
+                            !outcome.WarlordEconomyTraces[^1].Contains($"civ {c} s{match.Politics.Season}:", StringComparison.Ordinal))
+                            outcome.WarlordEconomyTraces.Add(FormatWarlordEconomySnapshot(match, c,
+                                totalDeaths[c], starvationDeaths[c]));
+                        int other = c == 0 ? 1 : 0;
+                        FoundFrontierAudit audit = match.Politics.ProjectedFoundSiteFrontier(c, other, (candidateCiv, tile) =>
+                        {
+                            if (candidateCiv != c) return true;
+                            Belief? belief = match.Ai?.SeatOf(candidateCiv)?.Belief;
+                            return belief is not null && PoliticsM10.StrategistBeliefAllowsFoundCandidate(
+                                match.Politics, belief, candidateCiv, tile);
+                        });
+                        foreach (FoundFrontierCivSummary civSummary in audit.Civilizations)
+                            outcome.WarlordEconomyTraces.Add($"Found-site audit civ {civSummary.Civ}: execution-legal {civSummary.LegalSiteCount}, " +
+                                $"Strategist candidates {civSummary.StrategistCandidateCount}, frontier-near {civSummary.RelevantSiteCount}, " +
+                                $"projected {civSummary.ProjectedSiteCount}; gate {civSummary.AiFoundGateOpen}, " +
+                                $"Mandate {civSummary.Mandate}/{civSummary.MandateCap}, natural E3 foundings {civSummary.NaturalFoundings}, " +
+                                $"Found decrees {civSummary.FoundDecrees}");
+                    }
             for (int c = 0; c < civs; c++)
                 if (seats[c].Control.Kind == ControlKind.Ai)
                     outcome.Civs[c].PlanSwitchesInThreeYears = M10TelemetryRules.MaxOrdinaryPlanSwitchesInThreeYears(ai.Log.Entries, c);
@@ -736,6 +858,180 @@ internal static class Tournament
         outcome.Checksum = runner.CurrentChecksum;
         return outcome;
     }
+
+    private static FoundFunnelDiagnostic SummarizeFoundFunnel(int civ, IReadOnlyList<AiDecision> decisions,
+        IReadOnlyList<FoundFunnelSeasonSnapshot> snapshots, ResearchSystem research)
+    {
+        var candidateSeasons = new HashSet<int>();
+        var foundCandidateSeasons = new HashSet<int>();
+        var positiveFoundCandidateSeasons = new HashSet<int>();
+        var foundSelectedSeasons = new HashSet<int>();
+        var otherSelectedSeasons = new HashSet<int>();
+        foreach (AiDecision decision in decisions)
+        {
+            if (decision.Civ != civ || decision.Layer != "Strategist") continue;
+            if (decision.Kind == "DecreeCandidate")
+            {
+                candidateSeasons.Add(decision.Season);
+                if ((DecreeKind)decision.Subject == DecreeKind.Found)
+                {
+                    foundCandidateSeasons.Add(decision.Season);
+                    if (decision.Score > Fix64.Zero) positiveFoundCandidateSeasons.Add(decision.Season);
+                }
+            }
+            else if (decision.Kind == "Decree")
+            {
+                if ((DecreeKind)decision.Subject == DecreeKind.Found) foundSelectedSeasons.Add(decision.Season);
+                else otherSelectedSeasons.Add(decision.Season);
+            }
+        }
+        int positiveFoundPassedSeasons = positiveFoundCandidateSeasons.Count(otherSelectedSeasons.Contains);
+        FoundFunnelSeasonSnapshot[] states = snapshots.Where(snapshot => snapshot.Civ == civ).ToArray();
+        int councilOn = states.Count(snapshot => snapshot.CouncilOn);
+        int mandateUnlocked = states.Count(snapshot => snapshot.MandateUnlocked);
+        int both = states.Count(snapshot => snapshot.CouncilOn && snapshot.MandateUnlocked);
+        int activeNoFound = states.Count(snapshot => snapshot.CouncilOn && snapshot.MandateUnlocked &&
+            !foundCandidateSeasons.Contains(snapshot.Season));
+        int key3 = research.Catalog.IndexOf("KEY-3");
+        ProjectDef key3Def = research.Catalog.Projects[key3];
+        string missingKey3 = string.Join(",", key3Def.Requires.Where(project => !research.IsDone(civ, project))
+            .Select(project => research.Catalog.Projects[project].Id));
+        string key3Path = string.Join(",", key3Def.Requires.Select(project =>
+            $"{research.Catalog.Projects[project].Id}:{research.State(civ, project)}:{research.Progress(civ, project).ToDoubleForDisplay():F1}"));
+        return new FoundFunnelDiagnostic(civ, candidateSeasons.Count, foundCandidateSeasons.Count,
+            positiveFoundCandidateSeasons.Count, foundSelectedSeasons.Count, positiveFoundPassedSeasons,
+            states.Length, councilOn, mandateUnlocked, both,
+            states.Count(snapshot => snapshot.MandateUnlocked && snapshot.Mandate >= snapshot.FoundCost),
+            states.Count(snapshot => snapshot.MandateUnlocked && snapshot.Mandate >= snapshot.MandateCap),
+            states.Count(snapshot => snapshot.FoundQuotaRemaining > 0),
+            states.Count(snapshot => snapshot.NaturalHeadroom >= 0), activeNoFound,
+            states.Length == 0 ? 0 : (int)Math.Round(states.Average(snapshot => snapshot.Mandate)),
+            states.Length == 0 ? 0 : (int)Math.Round(states.Average(snapshot => snapshot.MandateCap)),
+            states.Length == 0 ? 0 : (int)Math.Round(states.Average(snapshot => snapshot.FoundCost)),
+            missingKey3, key3Path, research.DoneInEra(civ, key3Def.BreadthEra), research.State(civ, key3).ToString(), research.Progress(civ, key3));
+    }
+
+    private static string FormatWarlordEconomySnapshot(MatchModel match, int civ, int deaths, int starvationDeaths)
+    {
+        int settlements = 0, population = 0, adults = 0, pending = 0, fissions = 0;
+        Fix64 fill = Fix64.Zero, foodSecurity = Fix64.Zero, lateWinter = Fix64.Zero, cohesion = Fix64.Zero;
+        for (int s = 0; s < match.Economy.SettlementCount; s++)
+        {
+            if (match.Politics.SettlementCivOf(s) != civ || match.Politics.IsFreeFolk(s)) continue;
+            SettlementView view = match.Economy.Settlement(s);
+            if (view.Population <= 0) continue;
+            settlements++;
+            population += view.Population;
+            adults += match.Economy.AgeBandPopulation(s, 1);
+            if (view.FissionPending) pending++;
+            fissions += view.Fissions;
+            fill += match.Economy.PopulationFill(s);
+            foodSecurity += view.LastFoodSecurity;
+            lateWinter += view.LateWinterFoodForecast;
+            cohesion += match.Economy.SettlementCohesion(s);
+        }
+        Fix64 divisor = Fix64.FromInt(Math.Max(1, settlements));
+        return $"Warlord economy trace civ {civ} s{match.Politics.Season}: settlements {settlements}, population/adults {population}/{adults}, " +
+            $"mean fill/food security/late-winter/cohesion {(fill / divisor).ToDoubleForDisplay():F2}/" +
+            $"{(foodSecurity / divisor).ToDoubleForDisplay():F2}/{(lateWinter / divisor).ToDoubleForDisplay():F2}/" +
+            $"{(cohesion / divisor).ToDoubleForDisplay():F2}, fission pending {pending}, cumulative fissions {fissions}, " +
+            $"natural E3 foundings {match.Politics.E3Foundings(civ)}, deaths/starvation {deaths}/{starvationDeaths}";
+    }
+
+    private static WarlordResearchPlanDiagnostic SummarizeWarlordResearch(int civ,
+        IReadOnlyList<WarlordResearchSeasonSnapshot> snapshots, ResearchCatalog catalog)
+    {
+        WarlordResearchSeasonSnapshot[] states = snapshots.Where(snapshot => snapshot.Civ == civ).ToArray();
+        if (states.Length == 0) return new WarlordResearchPlanDiagnostic(civ, "no season snapshots", "");
+
+        int key3 = catalog.IndexOf("KEY-3");
+        WarlordResearchSeasonSnapshot first = states[0], last = states[^1];
+        Fix64 maxKeyProgress = states.Max(static snapshot => snapshot.Key3Progress);
+        int key3SlotSeasons = states.Count(snapshot => snapshot.Slots.Contains(key3));
+        int key3QueueSeasons = states.Count(snapshot => snapshot.Queue.Contains(key3));
+        int key3PlanSeasons = states.Count(snapshot => snapshot.Plan.Contains(key3));
+        int? key2DoneSeason = states.FirstOrDefault(static snapshot => snapshot.Key2Done).Season;
+        if (key2DoneSeason == 0 && !states.Any(static snapshot => snapshot.Key2Done)) key2DoneSeason = null;
+        int? firstE2CompletionSeason = states.FirstOrDefault(static snapshot => snapshot.E2BreadthDone > 0).Season;
+        if (firstE2CompletionSeason == 0 && !states.Any(static snapshot => snapshot.E2BreadthDone > 0)) firstE2CompletionSeason = null;
+        int? breadth14Season = FirstSeasonAtBreadth(states, 14);
+        int? breadth17Season = FirstSeasonAtBreadth(states, 17);
+        int? breadth20Season = FirstSeasonAtBreadth(states, catalog.Projects[key3].BreadthMin);
+        string[] prerequisiteSummary = catalog.Projects[key3].Requires.Select(project =>
+        {
+            WarlordResearchSeasonSnapshot[] withProject = states.Where(snapshot =>
+                snapshot.Prerequisites.Any(prerequisite => prerequisite.Project == project)).ToArray();
+            var final = withProject[^1].Prerequisites.Single(prerequisite => prerequisite.Project == project);
+            int slotSeasons = withProject.Count(snapshot => snapshot.Slots.Contains(project));
+            int queueSeasons = withProject.Count(snapshot => snapshot.Queue.Contains(project));
+            int planSeasons = withProject.Count(snapshot => snapshot.Plan.Contains(project));
+            int? firstAvailable = withProject.FirstOrDefault(snapshot =>
+                snapshot.Prerequisites.Single(prerequisite => prerequisite.Project == project).State is
+                    ProjectState.Available or ProjectState.Slotted or ProjectState.Completed).Season;
+            if (firstAvailable == 0 && !withProject.Any(snapshot =>
+                snapshot.Prerequisites.Single(prerequisite => prerequisite.Project == project).State is
+                    ProjectState.Available or ProjectState.Slotted or ProjectState.Completed)) firstAvailable = null;
+            int? completed = withProject.FirstOrDefault(snapshot =>
+                snapshot.Prerequisites.Single(prerequisite => prerequisite.Project == project).State == ProjectState.Completed).Season;
+            if (completed == 0 && !withProject.Any(snapshot =>
+                snapshot.Prerequisites.Single(prerequisite => prerequisite.Project == project).State == ProjectState.Completed)) completed = null;
+            Fix64 firstProgress = withProject[0].Prerequisites.Single(prerequisite => prerequisite.Project == project).Progress;
+            Fix64 maxProgress = withProject.Max(snapshot =>
+                snapshot.Prerequisites.Single(prerequisite => prerequisite.Project == project).Progress);
+            int availableOffPlan = withProject.Count(snapshot =>
+                snapshot.Prerequisites.Single(prerequisite => prerequisite.Project == project).State == ProjectState.Available &&
+                !snapshot.Plan.Contains(project));
+            return $"{catalog.Projects[project].Id} {firstAvailable?.ToString() ?? "n/a"}→{completed?.ToString() ?? "n/a"} s; progress {firstProgress.ToDoubleForDisplay():F1}→{final.Progress.ToDoubleForDisplay():F1} (max {maxProgress.ToDoubleForDisplay():F1}); slot {slotSeasons}, queue {queueSeasons}, plan {planSeasons}, available off-plan {availableOffPlan}; final {final.State}";
+        }).ToArray();
+
+        var omittedClosureCounts = new Dictionary<int, int>();
+        foreach (WarlordResearchSeasonSnapshot snapshot in states)
+            foreach (int project in snapshot.AvailableClosureNotPlanned)
+            {
+                omittedClosureCounts.TryGetValue(project, out int count);
+                omittedClosureCounts[project] = count + 1;
+            }
+        string omittedClosure = omittedClosureCounts.Count == 0
+            ? "none"
+            : string.Join(", ", omittedClosureCounts.OrderByDescending(static pair => pair.Value)
+                .ThenBy(pair => catalog.Projects[pair.Key].Id, StringComparer.Ordinal).Take(8)
+                .Select(pair => $"{catalog.Projects[pair.Key].Id}:{pair.Value}"));
+        string summary = $"Era {first.Era}→{last.Era}, KEY-2 done s{key2DoneSeason?.ToString() ?? "n/a"}; E2 breadth {first.E2BreadthDone}→{last.E2BreadthDone}, first E2 completion s{firstE2CompletionSeason?.ToString() ?? "n/a"}, 14/17/20 at {breadth14Season?.ToString() ?? "n/a"}/{breadth17Season?.ToString() ?? "n/a"}/{breadth20Season?.ToString() ?? "n/a"}; Insight/year {first.InsightPerYear.ToDoubleForDisplay():F1}→{last.InsightPerYear.ToDoubleForDisplay():F1}, projects {first.ProjectsDone}→{last.ProjectsDone}; KEY-3 {first.Key3State}/{first.Key3Progress.ToDoubleForDisplay():F1}→{last.Key3State}/{last.Key3Progress.ToDoubleForDisplay():F1} of cost {last.Key3EffectiveCost.ToDoubleForDisplay():F1} (max {maxKeyProgress.ToDoubleForDisplay():F1}; slot {key3SlotSeasons}, queue {key3QueueSeasons}, plan {key3PlanSeasons}, done {last.Key3Done}); prerequisites [{string.Join("; ", prerequisiteSummary)}]; available closure projects off-plan [{omittedClosure}]";
+
+        var timeline = new List<string>();
+        ProjectState previousKey3State = first.Key3State;
+        string previousPrerequisiteStates = string.Join(",", first.Prerequisites.Select(static prerequisite => prerequisite.State));
+        int previousE2 = first.E2BreadthDone;
+        bool breadthGateWasMet = first.E2BreadthDone >= catalog.Projects[key3].BreadthMin;
+        foreach (WarlordResearchSeasonSnapshot snapshot in states)
+        {
+            string plan = $"slots {FormatPlanProjects(snapshot.Slots, catalog)} | q {FormatPlanProjects(snapshot.Queue.Take(3), catalog)} | plan {FormatPlanProjects(snapshot.Plan.Take(5), catalog)}";
+            string prerequisiteStates = string.Join(",", snapshot.Prerequisites.Select(static prerequisite => prerequisite.State));
+            bool breadthGateMet = snapshot.E2BreadthDone >= catalog.Projects[key3].BreadthMin;
+            bool milestone = snapshot.Key3State != previousKey3State || prerequisiteStates != previousPrerequisiteStates ||
+                breadthGateMet != breadthGateWasMet || CrossedBreadth(previousE2, snapshot.E2BreadthDone, 14) ||
+                CrossedBreadth(previousE2, snapshot.E2BreadthDone, 17) || CrossedBreadth(previousE2, snapshot.E2BreadthDone, catalog.Projects[key3].BreadthMin);
+            if (milestone || snapshot.Season % 16 == 0)
+                timeline.Add($"s{snapshot.Season} era={snapshot.Era} K2={snapshot.Key2State} K3={snapshot.Key3State}/{snapshot.Key3Progress.ToDoubleForDisplay():F1} E2={snapshot.E2BreadthDone} I/y={snapshot.InsightPerYear.ToDoubleForDisplay():F0} done={snapshot.ProjectsDone} [{plan}]");
+            previousKey3State = snapshot.Key3State;
+            previousPrerequisiteStates = prerequisiteStates;
+            previousE2 = snapshot.E2BreadthDone;
+            breadthGateWasMet = breadthGateMet;
+        }
+        return new WarlordResearchPlanDiagnostic(civ, summary, string.Join("; ", timeline));
+    }
+
+    private static int? FirstSeasonAtBreadth(IReadOnlyList<WarlordResearchSeasonSnapshot> states, int breadth)
+    {
+        foreach (WarlordResearchSeasonSnapshot snapshot in states)
+            if (snapshot.E2BreadthDone >= breadth) return snapshot.Season;
+        return null;
+    }
+
+    private static bool CrossedBreadth(int before, int after, int threshold) => before < threshold && after >= threshold;
+
+    private static string FormatPlanProjects(IEnumerable<int> projects, ResearchCatalog catalog) =>
+        string.Join(",", projects.Select(project => project < 0 ? "-" : catalog.Projects[project].Id));
 
     private static int WarlordUrgencyBand(Fix64 urgency)
     {
@@ -844,7 +1140,8 @@ internal static class Tournament
         int? firstsEtaPessimismSeasons = null, int? warlordNonConquerRaidPostureStreak = null,
         bool warlordMaxCampaignOrigin = false, Fix64? warlordFrontierEarlyBonusOverride = null,
         Fix64? warlordE3FissionThresholdOverride = null, Fix64? warlordDefenseResearchBonusOverride = null,
-        bool warlordDefenseUrgencyShadowDiagnostic = false)
+        bool warlordDefenseUrgencyShadowDiagnostic = false, bool captureFoundFunnelDiagnostics = false,
+        Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -860,7 +1157,8 @@ internal static class Tournament
             results[j] = (Play(pack, seed, seats, archetypes, minutes, captureFirstRaceDiagnostics, rivalPaceOverride,
                 firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin,
                 warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
-                warlordDefenseUrgencyShadowDiagnostic), swapped);
+                warlordDefenseUrgencyShadowDiagnostic, captureFoundFunnelDiagnostics, warlordKeystoneTempoOverride,
+                warlordE2ClosureSlotDiagnostic), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;

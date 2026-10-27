@@ -1111,7 +1111,7 @@ internal static class PoliticsM10
         return false;
     }
 
-    private static bool StrategistBeliefAllowsFoundCandidate(PoliticsSystem politics, Belief belief, int civ, int tile)
+    internal static bool StrategistBeliefAllowsFoundCandidate(PoliticsSystem politics, Belief belief, int civ, int tile)
     {
         if (unchecked((uint)tile) >= unchecked((uint)belief.Map.TileCount) ||
             !belief.Map.TryTile(tile, out WorldTile knownTile) || !knownTile.IsLand) return false;

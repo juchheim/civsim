@@ -15,7 +15,7 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-defense-urgency-shadow-diagnostic]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
@@ -45,7 +45,10 @@ internal static class AiCommand
         Fix64? warlordFrontierEarlyBonusOverride = null;
         Fix64? warlordE3FissionThresholdOverride = null;
         Fix64? warlordDefenseResearchBonusOverride = null;
+        Fix64? warlordKeystoneTempoOverride = null;
         bool warlordDefenseUrgencyShadowDiagnostic = false;
+        bool warlordE2ClosureSlotDiagnostic = false;
+        bool warlordFoundFunnel = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
         int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
@@ -76,7 +79,10 @@ internal static class AiCommand
                 case "--warlord-frontier-early-bonus-override": warlordFrontierEarlyBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-e3-fission-threshold-override": warlordE3FissionThresholdOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-defense-research-bonus-override": warlordDefenseResearchBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
+                case "--warlord-keystone-tempo-override": warlordKeystoneTempoOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
+                case "--warlord-e2-closure-slot-diagnostic": warlordE2ClosureSlotDiagnostic = true; matchDetails = true; break;
                 case "--warlord-defense-urgency-shadow-diagnostic": warlordDefenseUrgencyShadowDiagnostic = true; matchDetails = true; break;
+                case "--warlord-found-funnel": warlordFoundFunnel = true; matchDetails = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
@@ -89,7 +95,7 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
@@ -185,6 +191,19 @@ internal static class AiCommand
                 streakLabel += $" [Warlord E3 Expand fission threshold={matchFissionThreshold.ToDoubleForDisplay():F2}]";
             if (match.WarlordDefenseResearchBonusOverride is { } matchDefenseBonus)
                 streakLabel += $" [Warlord defense research bonus={matchDefenseBonus.ToDoubleForDisplay():F2}]";
+            if (match.WarlordKeystoneTempoOverride is { } matchKeystoneTempo)
+                streakLabel += $" [Warlord keystone tempo={matchKeystoneTempo.ToDoubleForDisplay():F1}]";
+            if (match.WarlordE2ClosureSlotDiagnostic)
+                streakLabel += " [Warlord E2 closure slot diagnostic]";
+            foreach (FoundFunnelDiagnostic funnel in match.FoundFunnels)
+                Console.WriteLine($"      Warlord Found funnel civ {funnel.Civ}: observed seasons {funnel.SeasonsObserved}; CouncilOn {funnel.CouncilOnSeasons}, MandateUnlocked {funnel.MandateUnlockedSeasons}, both {funnel.CouncilAndMandateSeasons}; Found affordable {funnel.FoundAffordableSeasons}, at cap {funnel.AtMandateCapSeasons}, quota open {funnel.QuotaOpenSeasons}, natural headroom open {funnel.NaturalGateOpenSeasons}; active seasons without Found candidate {funnel.ActiveButNoFoundCandidateSeasons}; mean mandate/cap/Found cost {funnel.MeanMandate}/{funnel.MeanMandateCap}/{funnel.MeanFoundCost}; decree candidate seasons {funnel.CandidateSeasons}; Found candidate seasons {funnel.FoundCandidateSeasons} (positive EV {funnel.PositiveFoundCandidateSeasons}); Found chosen {funnel.FoundSelectedSeasons}; positive Found passed for another decree {funnel.PositiveFoundPassedSeasons}; final KEY-3 blockers [{funnel.Key3MissingPrerequisites}], prerequisite path [{funnel.Key3PrerequisitePath}], E2 breadth {funnel.E2BreadthDone}/20, KEY-3 {funnel.Key3State} progress {funnel.Key3Progress.ToDoubleForDisplay():F1}");
+            foreach (WarlordResearchPlanDiagnostic trace in match.WarlordResearchTraces)
+            {
+                Console.WriteLine($"      Warlord research trace civ {trace.Civ}: {trace.Summary}");
+                Console.WriteLine($"        checkpoints: {trace.Timeline}");
+            }
+            foreach (string trace in match.WarlordEconomyTraces)
+                Console.WriteLine($"      {trace}");
             if (match.WarlordDefenseUrgencyShadowDiagnostic)
                 streakLabel += " [Warlord high-urgency shadow plan enabled]";
             Console.WriteLine($"    seed {match.Seed}: {result}{streakLabel}; {a} L={teamA.Legacy:F0} (D/M/F/W {teamA.Dominion:F0}/{teamA.Mastery:F0}/{teamA.Firsts:F0}/{teamA.Wonders:F0}), settlements/founds/projects {teamA.Settlements}/{teamA.FoundDecrees}/{teamA.Projects}, splits/pending-seasons {teamA.FissionSplits}/{teamA.FissionPendingSeasons}, owned land {teamA.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamA.PostureSeasons)}, FrontierRace/Conquer plan seasons {teamA.FrontierRacePlanSeasons}/{teamA.ConquerPlanSeasons}, streak-posture changes/3-season opportunities {teamA.RaidStreakPostureTransitions}/{teamA.ThreeSeasonNonConquerRaidPostureOpportunities}, alternate-origin rescues/short {teamA.AlternateOriginCampaignRescues}/{teamA.AlternateOriginCampaignNoRescues}, GOV02-locked/frontier-open {teamA.PostureGateLockedSeasons}/{teamA.FrontierOpenSeasons}, lost/captured {teamA.SettlementsLost}/{teamA.SettlementsCaptured}, raids {teamA.RaidsWon}/{teamA.RaidsLaunched}, wars declared/rejected {teamA.WarsDeclared}/{teamA.WarRejections}, assaults launch/resolve/hold {teamA.AssaultsLaunched}/{teamA.AssaultsResolved}/{teamA.AssaultsHeld}, predicted capture Σp {teamA.PredictedCaptureSuccess:F2}/{teamA.AssaultPredictions}, K1/K2 {teamA.Key1Mean:F1}/{teamA.Key2Mean:F1}; " +

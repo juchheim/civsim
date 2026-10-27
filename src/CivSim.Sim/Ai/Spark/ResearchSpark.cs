@@ -30,6 +30,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private int _lastDecision = -1;
     internal Fix64? RivalPaceOverrideForDiagnostics { get; set; }
     internal Fix64? DefenseResearchBonusOverrideForDiagnostics { get; set; }
+    internal Fix64? KeystoneTempoOverrideForDiagnostics { get; set; }
+    internal bool E2ClosureSlotOverrideForDiagnostics { get; set; }
     internal bool DefenseUrgencyShadowDiagnosticForDiagnostics { get; set; }
     internal int DefenseUrgencyShadowHighDecisionsForDiagnostics { get; private set; }
     internal int DefenseUrgencyShadowSlotsChangedForDiagnostics { get; private set; }
@@ -137,6 +139,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         using (var reader = new BinaryReader(stream)) shadow.Read(reader);
         shadow.RivalPaceOverrideForDiagnostics = RivalPaceOverrideForDiagnostics;
         shadow.DefenseResearchBonusOverrideForDiagnostics = DefenseResearchBonusOverrideForDiagnostics;
+        shadow.KeystoneTempoOverrideForDiagnostics = KeystoneTempoOverrideForDiagnostics;
+        shadow.E2ClosureSlotOverrideForDiagnostics = E2ClosureSlotOverrideForDiagnostics;
         shadow.FirstsEtaPessimismSeasonsForDiagnostics = FirstsEtaPessimismSeasonsForDiagnostics;
         shadow._defenseUrgencyForValuationOverrideForDiagnostics = Fix64.Zero;
         shadow._suppressWriteForShadowDiagnostics = true;
@@ -340,7 +344,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _value.MarginSteps = SparkTuning.FirstMarginSeasons * _forecast.StepsPerSeason;
         _value.FirstsEtaPessimismSteps = Math.Max(0, FirstsEtaPessimismSeasonsForDiagnostics) * _forecast.StepsPerSeason;
         _value.EtaUncertainty = SparkTuning.RivalEtaUncertainty;
-        _value.KeystoneTempo = SparkTuning.KeystoneTempo;
+        _value.KeystoneTempo = KeystoneTempoOverrideForDiagnostics ?? SparkTuning.KeystoneTempo;
         _value.UrgencySteps = SparkTuning.UrgencySeasons * _forecast.StepsPerSeason;
         foreach (int p in fc.Numeric)
         {
@@ -795,6 +799,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             if (!changed) break;
         }
         int closureSlots = _lateClosureCatchup ? SparkTuning.LateCatchupClosureSlots
+            : E2ClosureSlotOverrideForDiagnostics && _spec.Level == Difficulty.Warlord && _start.Era == 2
+                ? 1
             : _spec.Level == Difficulty.Chieftain && _start.Era == ResearchSystem.LastResearchEra
                 ? SparkTuning.ChieftainBronzeClosureSlots
                 : SparkTuning.ClosureSlots;
