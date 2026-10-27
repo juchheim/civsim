@@ -66,6 +66,21 @@ public class ForecastModelTests
     }
 
     [Fact]
+    public void An_empty_population_has_no_commons_to_normalize_and_forecast_does_not_overflow()
+    {
+        var fc = new ForecastCatalog(TestPack.Catalog);
+        var start = new ForecastStart(fc);
+        start.KnowHowGen[0] = Fix64.One;
+        var forecast = new ResearchForecast(fc, ForecastTuning.PlannerStepsPerSeason);
+
+        forecast.Prepare(start, 1);
+        ForecastResult result = forecast.Run(ReadOnlySpan<int>.Empty);
+
+        Assert.Equal(Fix64.Zero, forecast.KnowHowUsed);
+        Assert.True(result.Utility >= Fix64.Zero);
+    }
+
+    [Fact]
     public void A_forecast_crosses_keystones_and_counts_Mastery_by_era()
     {
         // From minute 8 (E1) the Council's own order reaches KEY-2 inside fifteen minutes; every project done is worth at least

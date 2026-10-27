@@ -235,7 +235,9 @@ public sealed class ResearchForecast
         _fudge = model.Raw > 0 && start.InsightPerYear.Raw > 0
             ? Fix64.Clamp(start.InsightPerYear / model, ForecastTuning.FudgeMin, ForecastTuning.FudgeMax) : Fix64.One;
         _commons0 = Fix64.Max(Fix64.Epsilon, commons * _fudge);
-        _invCommons0 = Fix64.One / _commons0;
+        // Q32.32 cannot represent 1 / epsilon (or 1 / 2 raw units). An empty civ has no baseline Commons to
+        // normalize against, so it contributes no projected Know-how until it has a representable baseline.
+        _invCommons0 = _commons0.Raw > 2 ? Fix64.One / _commons0 : Fix64.Zero;
         _gainAll0 = Fix64.One;
         if (_lineageGain0.Length != _c.LineageCount) _lineageGain0 = new Fix64[_c.LineageCount];
         Array.Fill(_lineageGain0, Fix64.One);
@@ -312,6 +314,13 @@ public sealed class ResearchForecast
                 if (start.Done[p] || _c.Era[p] > era) { scores[p] = Fix64.MinValue; continue; }
                 count++;
                 Fix64 c = Fix64.Max(cost[p], Fix64.Epsilon);
+                if (c.Raw <= 2)
+                {
+                    // The exact inverse cost is outside Q32.32. Treat malformed/near-zero costs as free
+                    // projects for ranking rather than overflowing either ratio below.
+                    scores[p] = Fix64.MaxValue;
+                    continue;
+                }
                 Fix64 leaning = _c.Theme[p] == Theme.Keystone ? Fix64.One : Fix64.Max(MinLeaning, Fix64.FromRatio(start.Leaning[(int)_c.Theme[p]], 100));
                 Fix64 kh = _c.Lineage[p] >= 0 ? Fix64.Min(Fix64.One, start.KnowHow[_c.Lineage[p]] / c) : Fix64.Zero;
                 Fix64 opportunity = kh + InsightGain(p, start) * InsightGainWeight;
