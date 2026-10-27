@@ -130,7 +130,7 @@ public sealed class StrategicIntent
     /// <summary>The pending route-based decree, consumed after the politics step resolves that season's decree.</summary>
     public int PendingRouteDecreeKind = -1;
     public int PendingRouteDecreeSeason = -1;
-    /// <summary>Do not retry blind route-based decrees until this season after an OutOfReach refusal at the Mandate cap.</summary>
+    /// <summary>Pause route-based decrees until this season after an OutOfReach or NoDonor refusal at the Mandate cap.</summary>
     public int RouteDecreeRetryAfterSeason = -1;
 
     public void Hash(ref Core.StateHasher h)

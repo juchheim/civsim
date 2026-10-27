@@ -46,7 +46,7 @@ public sealed class StrategistRouteDecreeRetryTests
     }
 
     [Fact]
-    public void Route_decree_refusal_below_cap_does_not_delay_other_exploration()
+    public void No_donor_route_decree_at_mandate_cap_starts_eight_season_cooldown()
     {
         const int civ = 0, season = 20;
         const long tick = 12345;
@@ -54,7 +54,26 @@ public sealed class StrategistRouteDecreeRetryTests
         var events = new[]
         {
             new PoliticsEvent(tick, civ, PoliticsEventKind.DecreeRefused, -1,
-                (int)DecreeKind.Expedition, (int)OrderRefusalReason.OutOfReach),
+                (int)DecreeKind.Expedition, (int)OrderRefusalReason.NoDonor),
+        };
+
+        AiSystem.ObserveRouteDecreeOutcome(intent, civ, season, tick, mandate: 4, mandateCap: 4, events);
+
+        Assert.Equal(28, intent.RouteDecreeRetryAfterSeason);
+        Assert.Equal(-1, intent.PendingRouteDecreeKind);
+        Assert.Equal(-1, intent.PendingRouteDecreeSeason);
+    }
+
+    [Fact]
+    public void No_donor_route_decree_below_cap_does_not_start_cooldown()
+    {
+        const int civ = 0, season = 20;
+        const long tick = 12345;
+        var intent = new StrategicIntent { PendingRouteDecreeKind = (int)DecreeKind.Expedition, PendingRouteDecreeSeason = season };
+        var events = new[]
+        {
+            new PoliticsEvent(tick, civ, PoliticsEventKind.DecreeRefused, -1,
+                (int)DecreeKind.Expedition, (int)OrderRefusalReason.NoDonor),
         };
 
         AiSystem.ObserveRouteDecreeOutcome(intent, civ, season, tick, mandate: 3, mandateCap: 4, events);

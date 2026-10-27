@@ -44,7 +44,7 @@ public sealed class AiSeat
 /// </summary>
 public sealed class AiSystem
 {
-    internal const int RouteDecreeOutOfReachCooldownSeasons = 8;
+    internal const int RouteDecreeRefusalCooldownSeasons = 8;
     private readonly TrueWorld _world;
     private readonly AiSeat?[] _seats;
     private readonly AiLog _log = new();
@@ -131,17 +131,18 @@ public sealed class AiSystem
     {
         if (intent.PendingRouteDecreeKind >= 0 && intent.PendingRouteDecreeSeason == season)
         {
-            bool refusedOutOfReach = false;
+            bool refusedForRouteOrDonor = false;
             foreach (PoliticsEvent ev in events)
                 if (ev.Tick == tick && ev.Civ == civ && ev.Kind == PoliticsEventKind.DecreeRefused &&
-                    ev.A == intent.PendingRouteDecreeKind && ev.B == (int)OrderRefusalReason.OutOfReach)
+                    ev.A == intent.PendingRouteDecreeKind &&
+                    (ev.B == (int)OrderRefusalReason.OutOfReach || ev.B == (int)OrderRefusalReason.NoDonor))
                 {
-                    refusedOutOfReach = true;
+                    refusedForRouteOrDonor = true;
                     break;
                 }
 
-            if (refusedOutOfReach && mandate >= mandateCap)
-                intent.RouteDecreeRetryAfterSeason = season + RouteDecreeOutOfReachCooldownSeasons;
+            if (refusedForRouteOrDonor && mandate >= mandateCap)
+                intent.RouteDecreeRetryAfterSeason = season + RouteDecreeRefusalCooldownSeasons;
             intent.PendingRouteDecreeKind = -1;
             intent.PendingRouteDecreeSeason = -1;
         }
