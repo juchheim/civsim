@@ -15,7 +15,7 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
@@ -49,6 +49,7 @@ internal static class AiCommand
         bool warlordDefenseUrgencyShadowDiagnostic = false;
         bool warlordE2ClosureSlotDiagnostic = false;
         bool warlordFoundFunnel = false;
+        bool warlordSettlementTrace = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
         int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
@@ -83,6 +84,7 @@ internal static class AiCommand
                 case "--warlord-e2-closure-slot-diagnostic": warlordE2ClosureSlotDiagnostic = true; matchDetails = true; break;
                 case "--warlord-defense-urgency-shadow-diagnostic": warlordDefenseUrgencyShadowDiagnostic = true; matchDetails = true; break;
                 case "--warlord-found-funnel": warlordFoundFunnel = true; matchDetails = true; break;
+                case "--warlord-settlement-trace": warlordSettlementTrace = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
@@ -95,7 +97,7 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
@@ -149,6 +151,8 @@ internal static class AiCommand
 
     private static void PrintDuel(string a, string b, Tournament.DuelResult r, bool matchDetails = false)
     {
+        foreach (MatchOutcome outcome in r.Outcomes)
+            foreach (string line in outcome.SettlementTimelineTraces) Console.WriteLine(line);
         Console.WriteLine($"{a} vs {b}: {r.Matches} matches, {a} wins {r.WinRateA * 100:F0}% (Legacy {r.LegacyA / r.Matches:F1} vs {r.LegacyB / r.Matches:F1})");
         Console.WriteLine($"  settlements lost per match: {a} {r.SettlementsLostA / r.Matches:F2} (in {r.MatchesWithLossA} matches), {b} {r.SettlementsLostB / r.Matches:F2} (in {r.MatchesWithLossB} matches)");
         Console.WriteLine($"  raids launched per match: {a} {(double)r.RaidsA / r.Matches:F1}, {b} {(double)r.RaidsB / r.Matches:F1}");
