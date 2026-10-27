@@ -21,9 +21,11 @@ public static class SparkTuning
     public const int ChieftainBronzeClosureSlots = 1;
     /// <summary>Late Chieftain catch-up slots after a rival announces KEY-4; preserves one unfinished closure project in Primary.</summary>
     public const int LateCatchupClosureSlots = 1;
-    /// <summary>Children tried per beam node: half the beam width plus this, capped (Settler 4, Chieftain 5, Warlord and Legend 6).</summary>
+    /// <summary>Children tried per beam node: half the beam width plus this, capped at 6 except Legend's first search expansion.</summary>
     public const int ExtraCandidates = 3;
     public const int MaxCandidates = 6;
+    /// <summary>Legend's first search expansion may spend two extra rollouts per decision within its fixed relative budget.</summary>
+    public const int LegendFirstExpansionCandidates = 8;
     /// <summary>Slots plus the research queue: the plan written each decision, so slots never idle between decisions.</summary>
     public const int PlanLength = 11;
     /// <summary>The shortest horizon, in seasons (14 §4.1: "at least 2 years of sim time").</summary>

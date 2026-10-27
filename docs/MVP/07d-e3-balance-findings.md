@@ -511,6 +511,8 @@ macOS/Windows verification remains open. B23's S12, S13, and S14 requirements no
 
 **B30 route-refusal follow-up (2026-10-27):** The Strategist now records the route-based Decree it issued and, after that season's politics step, reads its own `DecreeRefused:OutOfReach` event. At the Mandate cap it pauses blind Expedition and Levy candidates for eight seasons, then resumes them; this uses refusal feedback and stored AI state without checking hidden routes. The first bounded trace after the Expedition-only cooldown still showed repeated Levy `OutOfReach` refusals, so the cooldown was extended to both route-based Decrees. A focused regression now also checks that the pause suppresses only Expedition and Levy, leaving Mine, Found and Compact choices available. A seed-20261019 Warlord-vs-Council trace recorded 0/2 overflow episodes, down from the first response attempt's 1/2; this is a two-match diagnostic only. The exact 8-seed cohort remains 21/16 episodes (1.312 per match), so B30 is still open pending a short exact cohort rerun.
 
+**B27/B31 acceptance update (2026-10-27):** After prioritizing Tin Folk compacts, B27 passes the exact eight-seed cohort at 23/28 tin-poor recoveries (82.1%) and 0/16 dormant-route blunders. The Legend first-expansion search probe keeps later search depths and the winter rule unchanged; its mirrored seed-20261019 diagnostic measured 434 Spark rollouts per Legend decision versus 234 per Warlord decision (1.86×). The exact eight-seed B31 duel then scored 11/16 Legend wins (68.75%), passing the ≥60% gate. B31 is closed; B26 remains open on its other failed checks, and B28–B30 remain open or unsampled as recorded above.
+
 ## 19. WP10 view checkpoint
 
 The game has the Decrees/forecast panel, compact and embargo controls, countdown and Bronze end summary, the E3 research column,
@@ -533,8 +535,8 @@ checksums were refreshed after WP9 and checksummed herd-attribution changes. A f
 before the golden refresh and reported the old politics checksum; it has not been rerun. The current Bronze chapter golden
 passed a two-run same-seed check at tick 27,150 (checksum `a0360f53f234e87b`), and the local S12 chapter benchmark passed
 at 23.952 s. The one-seed research diagnostic passed its timing bands but is not multi-seed acceptance. The latest focused A8 fog-fairness
-run passed 2/2. At the user's request, the long AI gates were stopped; current A1–A5/A7 and B27–B31 statistical acceptance
-is still open, as is the A6 exploit search required for B26. The prior `research --check-m10`
+run passed 2/2. At the user's request, the long AI gates were stopped; B27 and B31 have since passed their exact cohorts.
+Current A1–A5/A7, B28–B30 statistical acceptance remains open or unsampled, as is the A6 exploit search required for B26. The prior `research --check-m10`
 passed with KEY-4 median 45.8, E3 median 12.0, chapter-end median 47.2, and replay-identical checksums. A
 tiny-positive-stock barter ratio overflow found during an earlier run was fixed by clamping before division, with a
 regression test. The final game Debug build had passed with 0 warnings/errors at the earlier checkpoint.

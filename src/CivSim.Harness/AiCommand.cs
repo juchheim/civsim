@@ -244,6 +244,8 @@ internal static class AiCommand
                 streakLabel += " [Warlord high-urgency shadow plan enabled]";
             Console.WriteLine($"    seed {match.Seed}: {result}{streakLabel}; {a} L={teamA.Legacy:F0} (D/M/F/W {teamA.Dominion:F0}/{teamA.Mastery:F0}/{teamA.Firsts:F0}/{teamA.Wonders:F0}), settlements/founds/projects {teamA.Settlements}/{teamA.FoundDecrees}/{teamA.Projects}, splits/pending-seasons {teamA.FissionSplits}/{teamA.FissionPendingSeasons}, owned land {teamA.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamA.PostureSeasons)}, FrontierRace/Conquer plan seasons {teamA.FrontierRacePlanSeasons}/{teamA.ConquerPlanSeasons}, streak-posture changes/3-season opportunities {teamA.RaidStreakPostureTransitions}/{teamA.ThreeSeasonNonConquerRaidPostureOpportunities}, alternate-origin rescues/short {teamA.AlternateOriginCampaignRescues}/{teamA.AlternateOriginCampaignNoRescues}, GOV02-locked/frontier-open {teamA.PostureGateLockedSeasons}/{teamA.FrontierOpenSeasons}, lost/captured {teamA.SettlementsLost}/{teamA.SettlementsCaptured}, raids {teamA.RaidsWon}/{teamA.RaidsLaunched}, wars declared/rejected {teamA.WarsDeclared}/{teamA.WarRejections}, assaults launch/resolve/hold {teamA.AssaultsLaunched}/{teamA.AssaultsResolved}/{teamA.AssaultsHeld}, predicted capture Σp {teamA.PredictedCaptureSuccess:F2}/{teamA.AssaultPredictions}, K1/K2 {teamA.Key1Mean:F1}/{teamA.Key2Mean:F1}; " +
                 $"{b} L={teamB.Legacy:F0} (D/M/F/W {teamB.Dominion:F0}/{teamB.Mastery:F0}/{teamB.Firsts:F0}/{teamB.Wonders:F0}), settlements/founds/projects {teamB.Settlements}/{teamB.FoundDecrees}/{teamB.Projects}, splits/pending-seasons {teamB.FissionSplits}/{teamB.FissionPendingSeasons}, owned land {teamB.OwnedLandShareBasisPoints / 100.0:F1}%, posture B/E/P/F/R {FormatPostures(teamB.PostureSeasons)}, FrontierRace/Conquer plan seasons {teamB.FrontierRacePlanSeasons}/{teamB.ConquerPlanSeasons}, streak-posture changes/3-season opportunities {teamB.RaidStreakPostureTransitions}/{teamB.ThreeSeasonNonConquerRaidPostureOpportunities}, alternate-origin rescues/short {teamB.AlternateOriginCampaignRescues}/{teamB.AlternateOriginCampaignNoRescues}, GOV02-locked/frontier-open {teamB.PostureGateLockedSeasons}/{teamB.FrontierOpenSeasons}, lost/captured {teamB.SettlementsLost}/{teamB.SettlementsCaptured}, raids {teamB.RaidsWon}/{teamB.RaidsLaunched}, wars declared/rejected {teamB.WarsDeclared}/{teamB.WarRejections}, assaults launch/resolve/hold {teamB.AssaultsLaunched}/{teamB.AssaultsResolved}/{teamB.AssaultsHeld}, predicted capture Σp {teamB.PredictedCaptureSuccess:F2}/{teamB.AssaultPredictions}, K1/K2 {teamB.Key1Mean:F1}/{teamB.Key2Mean:F1}");
+            Console.WriteLine($"      Spark forecast rollouts/decisions: {a} {teamA.SparkRollouts}/{teamA.SparkDecisions} ({PerDecision(teamA.SparkRollouts, teamA.SparkDecisions):F1} per decision), " +
+                $"{b} {teamB.SparkRollouts}/{teamB.SparkDecisions} ({PerDecision(teamB.SparkRollouts, teamB.SparkDecisions):F1} per decision)");
             if (match.WarlordDefenseUrgencyShadowDiagnostic)
             {
                 DuelTotals shadow = string.Equals(a, "warlord", StringComparison.OrdinalIgnoreCase) ? teamA : teamB;
@@ -354,6 +356,9 @@ internal static class AiCommand
     private static string FormatPostures(int[] seasons)
         => string.Join("/", seasons);
 
+    private static double PerDecision(long rollouts, int decisions)
+        => decisions == 0 ? 0 : (double)rollouts / decisions;
+
     private static string FormatUrgencyBands(int[] bands)
         => $"<.45/.45-.50/.50-.60/.60-.70/>=.70 {string.Join('/', bands)}";
 
@@ -398,6 +403,8 @@ internal static class AiCommand
             total.Wonders += civ.Wonders;
             total.Settlements += civ.Settlements;
             total.Projects += civ.Projects;
+            total.SparkRollouts += civ.SparkRollouts;
+            total.SparkDecisions += civ.SparkDecisions;
             total.FoundDecrees += civ.FoundDecrees;
             total.FissionSplits += civ.FissionSplits;
             total.FissionPendingSeasons += civ.FissionPendingSeasons;
@@ -464,6 +471,8 @@ internal static class AiCommand
             total.DefenseUrgencyShadowHighDecisions += one.DefenseUrgencyShadowHighDecisions;
             total.DefenseUrgencyShadowSlotsChanged += one.DefenseUrgencyShadowSlotsChanged;
             total.DefenseUrgencyShadowDisplacedDefense += one.DefenseUrgencyShadowDisplacedDefense;
+            total.SparkRollouts += one.SparkRollouts;
+            total.SparkDecisions += one.SparkDecisions;
             for (int era = 0; era < total.DefenseUrgencyShadowHighDecisionsByEra.Length; era++)
                 total.DefenseUrgencyShadowHighDecisionsByEra[era] += one.DefenseUrgencyShadowHighDecisionsByEra[era];
         }
@@ -474,6 +483,8 @@ internal static class AiCommand
     {
         public double Dominion, Mastery, Firsts, Wonders;
         public int Settlements, FoundDecrees, Projects;
+        public long SparkRollouts;
+        public int SparkDecisions;
         public int FissionSplits, FissionPendingSeasons;
         public int OwnedLandShareBasisPoints;
         public int ConquerPlanSeasons, FrontierRacePlanSeasons, RaidStreakPostureTransitions;

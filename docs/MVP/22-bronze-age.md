@@ -695,6 +695,8 @@ The full-sample command is `dotnet run --project src/CivSim.Harness -c Release -
 
 **B27/B31 bounded follow-up (2026-10-27):** B27 passes the exact eight-seed, 64-minute cohort after raising `SecureTinCompactDecreeBonus` to 180: 23/28 tin-poor seats recovered (82.1% vs ≥80%), with 0/16 dormant-bronze blunders. A targeted trace showed the legal Tin Folk compact was available before MET-05 but ranked below an Expedition; this change prioritizes the direct tin route. The current exact eight-seed B31 duel with this tuning produced 7/16 Legend wins (44%) against the ≥60% target. Winter-shortfall hazard averaged 1.10 per Warlord win and 2.04 per Warlord loss, with overlapping outcomes. Diagnostic counterfactuals on the same cohort produced 10/16 wins with the surcharge removed and 7/16 with it at half strength. Since §09 specifies the surcharge and the half-strength variant does not pass, the production mortality rule remains unchanged; B31 remains open and no gate was relaxed.
 
+**B31 search-budget follow-up (2026-10-27):** Keeping the §09 winter rule and all acceptance thresholds unchanged, Legend now tries two additional candidates at its first Spark search expansion only; subsequent expansions remain capped at six. On the mirrored seed-20261019 diagnostic pair this moved Legend from 1/2 to 2/2 wins, with measured Spark rollout rates of 434 per decision for Legend and 234 for Warlord (1.86×, within the 2× budget). The exact eight-seed, 64-minute B31 cohort then passed at 11/16 wins (68.75% vs ≥60%). `--match-details` now reports rollout and decision counts for future budget checks. This supersedes the preceding B31 failure; the broader B26/M10 acceptance remains open on its other failing gates.
+
 ---
 
 ## 17. Risks

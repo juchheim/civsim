@@ -678,7 +678,6 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     {
         ForecastCatalog fc = _fc!;
         int width = Math.Max(1, _profile.BeamWidth);
-        int perNode = Math.Min(SparkTuning.MaxCandidates, width / 2 + SparkTuning.ExtraCandidates);
         LastBaseline = _forecast.Run(ReadOnlySpan<int>.Empty, _value, promoteKeystone: true);
         var best = new Node(Array.Empty<int>(), 0, LastBaseline.Utility);
         // Keystone routing (14 §4.2 step 4, §4.3): the most time-critical projects, the head of the next keystone's critical
@@ -695,6 +694,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         var children = new List<Node>();
         for (int depth = firstDepth; depth <= SparkTuning.SearchDepth; depth++)
         {
+            int perNode = Math.Min(SparkTuning.MaxCandidates, width / 2 + SparkTuning.ExtraCandidates);
+            if (_profile.Level == Difficulty.Legend && depth == firstDepth)
+                perNode = Math.Min(SparkTuning.LegendFirstExpansionCandidates, width / 2 + SparkTuning.ExtraCandidates);
             children.Clear();
             foreach (Node node in beam)
             {

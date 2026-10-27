@@ -75,6 +75,8 @@ internal sealed class CivOutcome
     public int TinPoorCheckpointSeason = -1;
     public bool TinOrArsenicalRouteByChapterEnd;
     public int DormantBronzeBlunders;
+    public long SparkRollouts;
+    public int SparkDecisions;
     public int UnwalledFrontierBlunders;
     public bool BelievedBronzeRaidMeasured, DefendedBeforeBelievedBronzeRaid;
     public int SuicideRaids;
@@ -1074,6 +1076,8 @@ internal static class Tournament
             o.Projects = match.Research.DoneCount(c);
             if (match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark)
             {
+                o.SparkRollouts = spark.Rollouts;
+                o.SparkDecisions = spark.Decisions;
                 o.DefenseUrgencyShadowHighDecisions = spark.DefenseUrgencyShadowHighDecisionsForDiagnostics;
                 o.DefenseUrgencyShadowSlotsChanged = spark.DefenseUrgencyShadowSlotsChangedForDiagnostics;
                 o.DefenseUrgencyShadowDisplacedDefense = spark.DefenseUrgencyShadowDisplacedDefenseForDiagnostics;

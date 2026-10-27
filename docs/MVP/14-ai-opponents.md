@@ -108,7 +108,7 @@ U    = E[Legacy over horizon H]                      # Dominion + Mastery + Firs
 
 ### 4.2 Plan search
 1. **Candidates:** all Available projects, plus Glimpsed ones one step away.
-2. **Beam search** over sequences of the next ~6 projects assigned to slots (beam width by difficulty, §9). The prior ordering comes from the Council scorer (02 §15), so search starts from sensible plans.
+2. **Beam search** over sequences of the next ~6 projects assigned to slots (beam width by difficulty, §9). The prior ordering comes from the Council scorer (02 §15), so search starts from sensible plans. Legend tries up to 8 candidates only at its first search expansion, then returns to the standard 6-candidate cap; the other levels retain their current caps.
 3. **Evaluate** each sequence with the forecast model (own civ, plus rivals' believed forecasts where they interact: contact, Firsts races, threats).
 4. **Choose** the best; put the **most time-critical** project in Primary, the next in Secondary, and a **long-horizon, Know-how-fed** project in Tertiary (cheap progress from practice, 02 §9).
 5. **Re-plan** every season, and immediately on events (famine forecast, contact, raid, new Glimpse, a rival's First).
