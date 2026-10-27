@@ -8,8 +8,18 @@ namespace CivSim.Harness;
 internal readonly record struct B28TelemetrySummary(int Defended, int Cases,
     int SettlementRaids, int AiSettlementRaids, int ActualBronzeRaids, int BelievedBronzeRaids)
 {
+    internal enum Disposition
+    {
+        Pass,
+        Fail,
+        Incomplete,
+    }
+
     public double DefenseRate => Cases == 0 ? double.NaN : (double)Defended / Cases;
-    public bool Pass => Cases > 0 && DefenseRate >= 0.80;
+    public Disposition Result => Cases == 0
+        ? Disposition.Incomplete
+        : DefenseRate >= 0.80 ? Disposition.Pass : Disposition.Fail;
+    public bool Pass => Result == Disposition.Pass;
 
     public static B28TelemetrySummary FromMatches(IReadOnlyCollection<MatchOutcome> matches)
     {

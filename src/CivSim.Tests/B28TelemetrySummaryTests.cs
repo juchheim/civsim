@@ -41,6 +41,7 @@ public sealed class B28TelemetrySummaryTests
         Assert.Equal(6, summary.AiSettlementRaids);
         Assert.Equal(4, summary.ActualBronzeRaids);
         Assert.Equal(3, summary.BelievedBronzeRaids);
+        Assert.Equal(B28TelemetrySummary.Disposition.Fail, summary.Result);
         Assert.False(summary.Pass);
     }
 
@@ -58,6 +59,7 @@ public sealed class B28TelemetrySummaryTests
         Assert.Equal(0, summary.Cases);
         Assert.Equal(0, summary.SettlementRaids);
         Assert.True(double.IsNaN(summary.DefenseRate));
+        Assert.Equal(B28TelemetrySummary.Disposition.Incomplete, summary.Result);
         Assert.False(summary.Pass);
     }
 }

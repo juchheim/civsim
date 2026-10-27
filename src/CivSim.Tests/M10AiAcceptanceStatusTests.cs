@@ -80,4 +80,12 @@ public sealed class M10AiAcceptanceStatusTests
         Assert.Equal(M10AiAcceptanceStatus.Result.AcceptanceQuality, M10AiAcceptanceStatus.Classify(8, 64));
         Assert.Equal(expected, M10AiAcceptanceStatus.FormatSummary(measuredPass, seeds: 8, minutes: 64));
     }
+
+    [Fact]
+    public void Full_sample_can_report_incomplete_when_a_gate_has_no_measurements()
+    {
+        Assert.Equal(
+            "M10 measurable gates INCOMPLETE; full B26-B30 result remains INCOMPLETE.",
+            M10AiAcceptanceStatus.FormatSummary(M10AiAcceptanceStatus.GateResult.Incomplete, seeds: 8, minutes: 64));
+    }
 }

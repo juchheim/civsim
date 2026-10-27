@@ -665,7 +665,6 @@ internal static class AiCommand
             checkName: "M10 AI CORE");
 
         B29ForecastDiagnostic.Summary b29Summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed);
-        bool b29 = b29Summary.Pass;
         Console.WriteLine($"  B29 result {FormatB29GateLabel(b29Summary, seeds, minutes)}");
 
         Console.WriteLine("== B31: Legend vs Warlord, >= 60% (22 §16)");
@@ -700,7 +699,6 @@ internal static class AiCommand
             }
         int matches = baseline.Outcomes.Count;
         bool b27 = b27Summary.Pass;
-        bool b28 = b28Summary.Pass;
         bool suicidePass = suicideRaids == 0;
         bool siegePass = siegeBlunders == 0;
         double mandateOverflowRate = matches == 0 ? double.NaN : (double)mandateOverflowBlunders / matches;
@@ -711,7 +709,7 @@ internal static class AiCommand
         Console.WriteLine($"  B28 defenses before first believed-bronze raid: {b28Summary.Defended}/{b28Summary.Cases} = {b28Summary.DefenseRate:P0}; " +
             $"settlement raids {b28Summary.SettlementRaids}, AI-vs-AI {b28Summary.AiSettlementRaids}, believed-bronze {b28Summary.BelievedBronzeRaids}; " +
             $"actual-bronze {b28Summary.ActualBronzeRaids}; " +
-            $"Legend-vs-Warlord matches {M10AiAcceptanceStatus.FormatGateLabel(b28, seeds, minutes)}");
+            $"Legend-vs-Warlord matches {FormatB28GateLabel(b28Summary, seeds, minutes)}");
         Console.WriteLine($"  B30 mandate overflow with positive decree EV: {mandateOverflowBlunders}/{matches} = {mandateOverflowRate:F3} per match {M10AiAcceptanceStatus.FormatGateLabel(mandateOverflowPass, seeds, minutes)}");
         Console.WriteLine($"  B30 measurable: suicide raids {suicideRaids} {M10AiAcceptanceStatus.FormatGateLabel(suicidePass, seeds, minutes)}; unsupplied siege desertion blunders {siegeBlunders} {M10AiAcceptanceStatus.FormatGateLabel(siegePass, seeds, minutes)}; naked caravans {nakedCaravans}/{matches} = {nakedCaravanRate:F3} per match {M10AiAcceptanceStatus.FormatGateLabel(nakedCaravanPass, seeds, minutes)}");
         double raidMae = raidResolvedPredictions == 0 ? double.NaN : raidCalibrationAbsoluteError / raidResolvedPredictions;
@@ -720,8 +718,16 @@ internal static class AiCommand
         Console.WriteLine($"  §13.5 unwalled frontier diagnostic: {frontierBlunders} unanswered bronze-warrior threats after four seasons (no acceptance threshold specified).");
         Console.WriteLine($"  B30 mandate saturation proxy: {mandateSaturationAiSeats}/{aiMatches} AI seat-matches had >8 seasons at cap; this omits positive-EV availability and is not a gate.");
         Console.WriteLine("M10 AI check INCOMPLETE: A6 exploit search (`ai --exploit`) and A8 fog fairness tests remain separate acceptance gates.");
-        bool measuredPass = core == 0 && legendPass && b27 && b28 && b29 && suicidePass && siegePass && mandateOverflowPass && nakedCaravanPass;
-        Console.WriteLine(M10AiAcceptanceStatus.FormatSummary(measuredPass, seeds, minutes));
+        bool measuredFailure = core != 0 || !legendPass || !b27 ||
+            b28Summary.Result == B28TelemetrySummary.Disposition.Fail ||
+            b29Summary.Result == B29ForecastDiagnostic.Disposition.Fail ||
+            !suicidePass || !siegePass || !mandateOverflowPass || !nakedCaravanPass;
+        bool measuredIncomplete = b28Summary.Result == B28TelemetrySummary.Disposition.Incomplete ||
+            b29Summary.Result == B29ForecastDiagnostic.Disposition.Incomplete;
+        M10AiAcceptanceStatus.GateResult measuredResult = measuredFailure
+            ? M10AiAcceptanceStatus.GateResult.Fail
+            : measuredIncomplete ? M10AiAcceptanceStatus.GateResult.Incomplete : M10AiAcceptanceStatus.GateResult.Pass;
+        Console.WriteLine(M10AiAcceptanceStatus.FormatSummary(measuredResult, seeds, minutes));
         return 1;
     }
 
@@ -776,14 +782,26 @@ internal static class AiCommand
         Console.WriteLine($"  B28 defenses before first believed-bronze raid: {summary.Defended}/{summary.Cases} = {summary.DefenseRate:P0}; " +
             $"settlement raids {summary.SettlementRaids}, AI-vs-AI {summary.AiSettlementRaids}, believed-bronze {summary.BelievedBronzeRaids}; " +
             $"actual-bronze {summary.ActualBronzeRaids}; " +
-            $"{duel.Matches} matches {M10AiAcceptanceStatus.FormatGateLabel(summary.Pass, seeds, minutes)}");
+            $"{duel.Matches} matches {FormatB28GateLabel(summary, seeds, minutes)}");
         foreach (MatchOutcome match in duel.Outcomes)
             foreach (string detail in match.B28Traces) Console.WriteLine($"  {detail}");
         if (M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic)
             Console.WriteLine($"B28 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
         else
-            Console.WriteLine($"B28 {(summary.Pass ? "PASS" : "FAIL")}");
-        return M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic ? 2 : summary.Pass ? 0 : 1;
+            Console.WriteLine($"B28 {summary.Result.ToString().ToUpperInvariant()}");
+        return M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic ? 2 : summary.Result switch
+        {
+            B28TelemetrySummary.Disposition.Pass => 0,
+            B28TelemetrySummary.Disposition.Fail => 1,
+            _ => 2,
+        };
+    }
+
+    private static string FormatB28GateLabel(B28TelemetrySummary summary, int seeds, int minutes)
+    {
+        if (M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic)
+            return "DIAGNOSTIC";
+        return summary.Result.ToString().ToUpperInvariant();
     }
 
     private static int CheckB27(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
