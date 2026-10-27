@@ -249,14 +249,18 @@ public sealed partial class FrameBuilder
         }
 
         var decisions = match.Ai.Log.Entries;
-        int count = Math.Min(target.AiWhyEntries.Length, decisions.Count);
-        int first = decisions.Count - count;
-        for (int i = 0; i < count; i++)
+        int count = 0;
+        for (int i = decisions.Count - 1; i >= 0 && count < target.AiWhyEntries.Length; i--)
         {
-            AiDecision decision = decisions[first + i];
-            target.AiWhyEntries[i] = new AiWhyEntry(decision.Tick, (byte)decision.Civ,
+            AiDecision decision = decisions[i];
+            // These decree records explain internal candidate scoring and mandate bookkeeping, not
+            // player-facing choices. Keep the full AiLog intact for diagnostics, but don't expose
+            // its raw evaluator details through the presentation frame.
+            if (decision.Kind is "DecreeCandidate" or "Decree" or "DecreeReserve") continue;
+            target.AiWhyEntries[count++] = new AiWhyEntry(decision.Tick, (byte)decision.Civ,
                 decision.Layer, decision.Kind, decision.Score.Raw, decision.Reason);
         }
+        Array.Reverse(target.AiWhyEntries, 0, count);
         target.AiWhyCount = count;
     }
 
