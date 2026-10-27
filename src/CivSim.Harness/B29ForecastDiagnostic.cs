@@ -14,6 +14,13 @@ namespace CivSim.Harness;
 /// <summary>KEY-4 forecast fidelity measurement for docs/MVP/22 §13.1.</summary>
 internal static class B29ForecastDiagnostic
 {
+    internal enum Disposition
+    {
+        Pass,
+        Fail,
+        Incomplete,
+    }
+
     internal readonly record struct Observation(ulong Seed, int Civ, double PredictedMinute, double ActualMinute)
     {
         public double RelativeError => Math.Abs(PredictedMinute - ActualMinute) / ActualMinute;
@@ -22,7 +29,18 @@ internal static class B29ForecastDiagnostic
     internal readonly record struct Summary(int Attempts, int Forecasts, int Within15Percent, double MedianError,
         int MissingForecasts, int CensoredForecasts)
     {
-        public bool Pass => Attempts > 0 && Forecasts == Attempts && Within15Percent == Attempts && MedianError <= 0.06;
+        public Disposition Result
+        {
+            get
+            {
+                if (Attempts <= 0) return Disposition.Incomplete;
+                if (MissingForecasts > 0 || Within15Percent < Forecasts) return Disposition.Fail;
+                if (Forecasts != Attempts || CensoredForecasts > 0) return Disposition.Incomplete;
+                return MedianError <= 0.06 ? Disposition.Pass : Disposition.Fail;
+            }
+        }
+
+        public bool Pass => Result == Disposition.Pass;
     }
 
     /// <summary>Pairs the first post-KEY-3 forecast with the later realized completion, if it occurs.</summary>

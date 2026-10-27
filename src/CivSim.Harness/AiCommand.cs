@@ -666,7 +666,7 @@ internal static class AiCommand
 
         B29ForecastDiagnostic.Summary b29Summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed);
         bool b29 = b29Summary.Pass;
-        Console.WriteLine($"  B29 result {M10AiAcceptanceStatus.FormatGateLabel(b29, seeds, minutes)}");
+        Console.WriteLine($"  B29 result {FormatB29GateLabel(b29Summary, seeds, minutes)}");
 
         Console.WriteLine("== B31: Legend vs Warlord, >= 60% (22 §16)");
         Tournament.DuelResult legend = Tournament.Duel(pack, "legend", "warlord", seeds, minutes, archetype, firstSeed);
@@ -735,8 +735,13 @@ internal static class AiCommand
         if (diagnostic)
             Console.WriteLine($"B29 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
         else
-            Console.WriteLine($"B29 {(summary.Pass ? "PASS" : "FAIL")}");
-        return diagnostic ? 2 : summary.Pass ? 0 : 1;
+            Console.WriteLine($"B29 {summary.Result.ToString().ToUpperInvariant()}");
+        return diagnostic ? 2 : summary.Result switch
+        {
+            B29ForecastDiagnostic.Disposition.Pass => 0,
+            B29ForecastDiagnostic.Disposition.Fail => 1,
+            _ => 2,
+        };
     }
 
     private static B29ForecastDiagnostic.Summary MeasureB29(ContentPack pack, int seeds, int minutes,
@@ -750,7 +755,16 @@ internal static class AiCommand
         Console.WriteLine($"  B29: {summary.Within15Percent}/{summary.Forecasts} forecasts within 15%; median {summary.MedianError:P1}; " +
             $"sampled {summary.Attempts} AI seats; missing at capture {summary.MissingForecasts}; " +
             $"KEY-4 horizon-censored {summary.CensoredForecasts}");
+        if (summary.CensoredForecasts > 0)
+            Console.WriteLine("  B29 observation incomplete: horizon-censored forecasts are unscored; extend the observation window before acceptance.");
         return summary;
+    }
+
+    private static string FormatB29GateLabel(B29ForecastDiagnostic.Summary summary, int seeds, int minutes)
+    {
+        if (M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic)
+            return "DIAGNOSTIC";
+        return summary.Result.ToString().ToUpperInvariant();
     }
 
     private static int CheckB28(ContentPack pack, int seeds, int minutes, ulong firstSeed, bool trace = false)

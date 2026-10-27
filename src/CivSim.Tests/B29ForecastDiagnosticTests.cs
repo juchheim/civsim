@@ -44,6 +44,23 @@ public sealed class B29ForecastDiagnosticTests
     }
 
     [Fact]
+    public void Median_error_over_six_percent_fails_when_all_forecasts_are_observed()
+    {
+        var observations = new List<B29ForecastDiagnostic.Observation>
+        {
+            new(1, 0, 53.5, 50),
+            new(2, 1, 54.0, 50),
+            new(3, 2, 54.5, 50),
+        };
+
+        B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(observations, attempts: 3);
+
+        Assert.Equal(B29ForecastDiagnostic.Disposition.Fail, summary.Result);
+        Assert.False(summary.Pass);
+        Assert.Equal(0.08, summary.MedianError, 8);
+    }
+
+    [Fact]
     public void Forecast_captured_after_key3_pairs_with_a_later_key4_completion()
     {
         var attempt = new B29ForecastDiagnostic.SeatAttempt(seed: 42, civ: 2);
@@ -59,7 +76,7 @@ public sealed class B29ForecastDiagnosticTests
     }
 
     [Fact]
-    public void Forecast_without_key4_completion_is_counted_as_censored_and_fails_the_gate()
+    public void Forecast_without_key4_completion_is_counted_as_censored_and_leaves_the_gate_incomplete()
     {
         var attempt = new B29ForecastDiagnostic.SeatAttempt(seed: 42, civ: 2);
         attempt.Capture(predictedMinute: 51.0);
@@ -71,9 +88,35 @@ public sealed class B29ForecastDiagnosticTests
         // KEY-4 never completes before the match horizon, so Complete is never called.
         B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(
             new List<B29ForecastDiagnostic.Observation>(), attempts: 1, censoredForecasts: 1);
+        Assert.Equal(B29ForecastDiagnostic.Disposition.Incomplete, summary.Result);
         Assert.False(summary.Pass);
         Assert.Equal(0, summary.Forecasts);
         Assert.Equal(1, summary.CensoredForecasts);
+    }
+
+    [Fact]
+    public void A_known_accuracy_miss_fails_even_if_another_forecast_is_censored()
+    {
+        var observations = new List<B29ForecastDiagnostic.Observation>
+        {
+            new(1, 0, 60, 50),
+        };
+
+        B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(
+            observations, attempts: 2, censoredForecasts: 1);
+
+        Assert.Equal(B29ForecastDiagnostic.Disposition.Fail, summary.Result);
+        Assert.False(summary.Pass);
+    }
+
+    [Fact]
+    public void Empty_sample_is_incomplete()
+    {
+        B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(
+            new List<B29ForecastDiagnostic.Observation>(), attempts: 0);
+
+        Assert.Equal(B29ForecastDiagnostic.Disposition.Incomplete, summary.Result);
+        Assert.False(summary.Pass);
     }
 
     [Fact]
