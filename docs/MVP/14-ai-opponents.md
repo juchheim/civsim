@@ -267,7 +267,7 @@ Automated checks flagging AI mistakes, with target rates per match at Warlord le
 
 | Blunder | Detector | Target |
 |---------|----------|-------:|
-| Avoidable starvation | Deaths by starvation while own stores or a sister settlement within reach held food, or after a forecast warning with spare labor | ~0 |
+| Avoidable starvation | Winter-shortfall-attributed deaths only when season-start stores after eligible GOV-04 redistribution cover the full seasonal need | 0 |
 | Undefended loss | Settlement raided or captured after the threat was observed ≥ 2 seasons earlier with no defensive response | < 0.1 |
 | Suicide raid | Raid launched with believed P(success) < 30% | 0 |
 | Keystone stall | Breadth met but keystone not slotted for > 1 season | 0 |
@@ -276,7 +276,7 @@ Automated checks flagging AI mistakes, with target rates per match at Warlord le
 | Dithering | Grand plan switched > 2× in 3 years without a hard event | 0 |
 | Cheating check | AI decision reads any state outside its belief state | 0 (tested by fuzzing: randomize unseen state and check that decisions don't change) |
 
-The headless A7 harness uses these conservative operational definitions: avoidable starvation counts only `Starvation` deaths whose deterministic cause draw lands in the conditional Winter food-shortfall hazard (not the unconditional baseline starvation hazard), and only when positive food stores were present at the start of that season at the death's settlement or a same-civilization sister settlement within 15 hexes (20 with GOV-04); undefended loss counts a captured settlement after a currently believed bronze-and-warrior threat was first sighted within four hexes at least two seasons earlier, provided no fortification appeared; herd crash requires the simulation's direct `HuntedToExtinctionByCiv` attribution; idle labor counts a season only when more than 15% of living adults aged 14–44 did no work for that season and a settlement had food security below 1.0. These are harness measurements and do not affect AI decisions or simulation rules.
+The headless A7 harness uses these conservative operational definitions: avoidable starvation counts only `Starvation` deaths whose deterministic cause draw lands in the conditional Winter food-shortfall hazard (not the unconditional baseline starvation hazard), and only when season-start food stores after any eligible GOV-04 redistribution cover the settlement's full seasonal need; positive but insufficient stores and nearby stores that the simulation cannot transfer do not qualify. Undefended loss counts a captured settlement after a currently believed bronze-and-warrior threat was first sighted within four hexes at least two seasons earlier, provided no fortification appeared; herd crash requires the simulation's direct `HuntedToExtinctionByCiv` attribution; idle labor counts a season only when more than 15% of living adults aged 14–44 did no work for that season and a settlement had food security below 1.0. These are harness measurements and do not affect AI decisions or simulation rules.
 
 ## 11. Explainability
 - Every strategic decision is logged with its **top reasons** (the forecast terms that decided it): *"Raid on Ash Valley rejected: palisade seen 1 season ago, P(success) 0.15"*.

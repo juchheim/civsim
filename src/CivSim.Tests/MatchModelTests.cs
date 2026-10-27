@@ -21,6 +21,23 @@ public class MatchModelTests
     private static MatchModel NewMatch() => MatchModel.Create(Seed, TestPack.Pack, World.Value, Archetypes);
 
     [Fact]
+    public void Season_start_food_telemetry_is_available_before_bronze()
+    {
+        MatchModel match = NewMatch();
+        Assert.False(match.Economy.IsBronzeCivilization(0));
+        Fix64[] openingStores = new Fix64[match.Economy.SettlementCount];
+        for (int s = 0; s < openingStores.Length; s++) openingStores[s] = match.Economy.FoodStores(s);
+
+        new SimRunner(match).Advance(LivingEconomyModel.SeasonTicks);
+
+        for (int s = 0; s < openingStores.Length; s++)
+        {
+            Assert.True(match.Economy.LastSeasonFoodNeed(s) > Fix64.Zero);
+            Assert.Equal(openingStores[s], match.Economy.LastSeasonReachableFoodStores(s));
+        }
+    }
+
+    [Fact]
     public void All_four_chieftain_ai_seats_keep_council_research_fallback_enabled()
     {
         var balanced = new[]

@@ -71,15 +71,14 @@ public sealed class M10TelemetryRulesTests
     }
 
     [Fact]
-    public void A7_starvation_requires_stores_in_own_or_reachable_sister_settlement()
+    public void A7_starvation_requires_stores_to_cover_the_full_seasonal_need()
     {
-        Assert.False(M10TelemetryRules.IsReachableSisterFood(true, true, 16, 15));
-        Assert.False(M10TelemetryRules.IsReachableSisterFood(false, true, 1, 15));
-        Assert.False(M10TelemetryRules.IsReachableSisterFood(true, false, 1, 15));
-        Assert.True(M10TelemetryRules.IsReachableSisterFood(true, true, 15, 15));
-        Assert.False(M10TelemetryRules.HasReachableFood(false, false));
-        Assert.True(M10TelemetryRules.HasReachableFood(true, false));
-        Assert.True(M10TelemetryRules.HasReachableFood(false, true));
+        Fix64 need = Fix64.FromInt(10);
+        Assert.False(M10TelemetryRules.HasSufficientSeasonFood(Fix64.Zero, need));
+        Assert.False(M10TelemetryRules.HasSufficientSeasonFood(Fix64.Parse("9.99"), need));
+        Assert.True(M10TelemetryRules.HasSufficientSeasonFood(need, need));
+        Assert.True(M10TelemetryRules.HasSufficientSeasonFood(Fix64.FromInt(11), need));
+        Assert.False(M10TelemetryRules.HasSufficientSeasonFood(Fix64.Zero, Fix64.Zero));
     }
 
     [Fact]
@@ -135,10 +134,10 @@ public sealed class M10TelemetryRulesTests
             Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero);
         var otherCause = starvation with { Cause = EconomyDeathCause.Endemic };
 
-        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: false, reachableFood: true));
-        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: true, reachableFood: false));
-        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(otherCause, shortfallAttributed: true, reachableFood: true));
-        Assert.True(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: true, reachableFood: true));
+        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: false, sufficientFood: true));
+        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: true, sufficientFood: false));
+        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(otherCause, shortfallAttributed: true, sufficientFood: true));
+        Assert.True(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: true, sufficientFood: true));
     }
 
     [Fact]

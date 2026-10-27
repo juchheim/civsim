@@ -67,14 +67,12 @@ internal static class M10TelemetryRules
     public static bool IsUnwalledFrontierBlunder(bool threatObserved, bool defensiveResponse, int seasonsSinceObserved)
         => threatObserved && !defensiveResponse && seasonsSinceObserved >= 4;
 
-    /// <summary>Food is reachable from a sister settlement within the operational food-sharing radius.</summary>
-    public static bool IsReachableSisterFood(bool sameCiv, bool hasStores, int distance, int reach)
-        => sameCiv && hasStores && distance <= reach;
+    /// <summary>Only count stored food that could cover the settlement's full upcoming seasonal need.</summary>
+    public static bool HasSufficientSeasonFood(Fix64 available, Fix64 need)
+        => need > Fix64.Zero && available >= need;
 
-    public static bool HasReachableFood(bool ownStores, bool reachableSisterStores) => ownStores || reachableSisterStores;
-
-    public static bool IsAvoidableStarvationDeath(EconomyDeathEvent death, bool shortfallAttributed, bool reachableFood)
-        => death.Cause == EconomyDeathCause.Starvation && shortfallAttributed && reachableFood;
+    public static bool IsAvoidableStarvationDeath(EconomyDeathEvent death, bool shortfallAttributed, bool sufficientFood)
+        => death.Cause == EconomyDeathCause.Starvation && shortfallAttributed && sufficientFood;
 
     /// <summary>Count a capture only when an observed threat predates it by at least two seasons and no defense appeared.</summary>
     public static bool IsUndefendedLoss(int threatSeason, int currentSeason, bool defensiveResponse)

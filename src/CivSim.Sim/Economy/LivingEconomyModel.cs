@@ -241,6 +241,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly Fix64[] _lastExpectedHazardsByCauseAndAgeBand = new Fix64[DeathCauseCount * 3];
     private readonly Fix64[] _lastExpectedHazardsByExactAgeAndCause = new Fix64[DeathCauseCount * 100];
     private readonly Fix64[] _lastExpectedWinterShortfallByExactAge = new Fix64[100];
+    // A7 telemetry sampled after GOV-04 redistribution and before seasonal production/consumption.
+    // This is diagnostic-only state and does not affect simulation decisions or outcomes.
+    private Fix64[] _lastSeasonReachableFoodStores = Array.Empty<Fix64>();
+    private Fix64[] _lastSeasonFoodNeed = Array.Empty<Fix64>();
     private readonly List<EconomyDeathEvent> _lastDeathEvents = new();
     private long _tick;
     private long _seasonsCompleted;
@@ -376,6 +380,18 @@ public sealed partial class LivingEconomyModel : ISimModel
     /// <summary>Food inventory immediately before ration consumption in the last completed season.</summary>
     public Fix64 LastSeasonFoodStoresBeforeConsumption(int settlementIndex)
         => _settlements[settlementIndex].LastSeasonFoodStoresBeforeConsumption;
+
+    /// <summary>Food stores after season-start redistribution, before work and consumption.</summary>
+    public Fix64 LastSeasonReachableFoodStores(int settlementIndex)
+        => (uint)settlementIndex < (uint)_lastSeasonReachableFoodStores.Length
+            ? _lastSeasonReachableFoodStores[settlementIndex]
+            : Fix64.Zero;
+
+    /// <summary>Exact seasonal food need at season start, including the under-investment adjustment.</summary>
+    public Fix64 LastSeasonFoodNeed(int settlementIndex)
+        => (uint)settlementIndex < (uint)_lastSeasonFoodNeed.Length
+            ? _lastSeasonFoodNeed[settlementIndex]
+            : Fix64.Zero;
     public ReadOnlySpan<int> LastDeathsByCauseAndAgeBand(int ageBand)
     {
         if (ageBand < 0 || ageBand >= 3) throw new ArgumentOutOfRangeException(nameof(ageBand));
@@ -689,6 +705,9 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void EndSeason(int season)
     {
+        EnsureSeasonFoodTelemetryCapacity();
+        Array.Clear(_lastSeasonReachableFoodStores);
+        Array.Clear(_lastSeasonFoodNeed);
         // Births are added after seasonal mortality. Keep this boundary so Winter's
         // age pass advances only people who existed before the season update.
         long firstFigureIdBornThisSeason = _nextFigureId;
@@ -719,6 +738,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             CivicSeasonStart(season);
             _deadwoodUsed = new bool[_world.TileCount];
         }
+        // Keep A7's season-start stock snapshot available for all eras. Before E3,
+        // no food redistribution runs, so the snapshot is the settlement's own stores.
+        CaptureSeasonStartFoodAvailability(winter);
         for (int s = 0; s < _settlements.Count; s++)
         {
             SettlementState settlement = _settlements[s];
@@ -741,6 +763,26 @@ public sealed partial class LivingEconomyModel : ISimModel
         for (int s = 0; s < _settlements.Count; s++)
             TryFission(_settlements[s], season);
         RotateMetalOutputSeason();
+    }
+
+    private void EnsureSeasonFoodTelemetryCapacity()
+    {
+        if (_lastSeasonReachableFoodStores.Length == _settlements.Count) return;
+        Array.Resize(ref _lastSeasonReachableFoodStores, _settlements.Count);
+        Array.Resize(ref _lastSeasonFoodNeed, _settlements.Count);
+    }
+
+    private void CaptureSeasonStartFoodAvailability(bool winter)
+    {
+        EnsureSeasonFoodTelemetryCapacity();
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            SettlementState settlement = _settlements[i];
+            Fix64 need = FoodNeed(settlement, winter);
+            if (settlement.UnderInvestment) need *= Fix64.FromRatio(75, 100);
+            _lastSeasonReachableFoodStores[i] = FoodStores(settlement);
+            _lastSeasonFoodNeed[i] = need;
+        }
     }
 
     private void RegrowResources(int seasonOfYear)

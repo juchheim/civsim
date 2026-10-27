@@ -307,7 +307,6 @@ internal static class Tournament
             }
             var foodStoresBeforeAdvance = new Fix64[match.Economy.SettlementCount];
             var settlementOwnersBeforeAdvance = new int[match.Economy.SettlementCount];
-            var settlementTilesBeforeAdvance = new int[match.Economy.SettlementCount];
             var settlementIdsBeforeAdvance = new int[match.Economy.SettlementCount];
             var settlementFissionsBeforeAdvance = new int[match.Economy.SettlementCount];
             var settlementFieldsBeforeAdvance = traceSettlementTimeline ? new int[match.Economy.SettlementCount] : null;
@@ -320,7 +319,6 @@ internal static class Tournament
                 SettlementView view = match.Economy.Settlement(s);
                 foodStoresBeforeAdvance[s] = view.FoodStores;
                 settlementOwnersBeforeAdvance[s] = match.Politics.SettlementCivOf(s);
-                settlementTilesBeforeAdvance[s] = view.SiteTile;
                 settlementIdsBeforeAdvance[s] = view.Id;
                 settlementFissionsBeforeAdvance[s] = view.Fissions;
                 if (traceSettlementTimeline)
@@ -521,9 +519,8 @@ internal static class Tournament
             }
 
             // A7 counts only deaths attributed to the conditional winter food-shortfall hazard, not the unconditional
-            // baseline starvation hazard. Reachable food is sampled at the start of the season, before consumption.
-            // A sister is operationally reachable within 15 hexes (the default inter-settlement sharing
-            // radius), or 20 when GOV-04 has extended food redistribution for that civilization.
+            // baseline starvation hazard. Food sufficiency is sampled after the actual season-start redistribution
+            // and before seasonal production or consumption; nearby stores without an eligible GOV-04 transfer do not count.
             for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
             {
                 EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
@@ -532,20 +529,12 @@ internal static class Tournament
                 bool shortfallAttributed = match.Economy.IsLastDeathAttributedToWinterShortfall(d);
                 if (!shortfallAttributed) continue;
                 int own = -1;
-                for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
+                for (int s = 0; s < settlementIdsBeforeAdvance.Length; s++)
                     if (settlementIdsBeforeAdvance[s] == death.SettlementId) { own = s; break; }
-                bool ownFood = own >= 0 && foodStoresBeforeAdvance[own] > Fix64.Zero;
-                bool sisterFood = false;
-                int reach = match.Research.IsDone(death.Civilization, catalog.IndexOf("GOV-04")) ? 20 : 15;
-                if (own >= 0)
-                    for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
-                        if (s != own && M10TelemetryRules.IsReachableSisterFood(
-                            settlementOwnersBeforeAdvance[s] == death.Civilization,
-                            foodStoresBeforeAdvance[s] > Fix64.Zero,
-                            HexGrid.Distance(settlementTilesBeforeAdvance[s], settlementTilesBeforeAdvance[own], world.Width), reach))
-                        { sisterFood = true; break; }
+                bool sufficientFood = own >= 0 && M10TelemetryRules.HasSufficientSeasonFood(
+                    match.Economy.LastSeasonReachableFoodStores(own), match.Economy.LastSeasonFoodNeed(own));
                 if (M10TelemetryRules.IsAvoidableStarvationDeath(death, shortfallAttributed,
-                        reachableFood: M10TelemetryRules.HasReachableFood(ownFood, sisterFood)))
+                        sufficientFood))
                     outcome.Civs[death.Civilization].AvoidableStarvationDeaths++;
             }
 
