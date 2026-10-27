@@ -284,6 +284,7 @@ public sealed partial class FrameBuilder
                     break;
                 case PoliticsEventKind.RaidResolved:
                     e.Kind = ViewEventKind.RaidResolved;
+                    e.Tile = p.Tile; e.C = p.Fight;
                     (e.Text, e.Tier) = p.A switch
                     {
                         1 => (ChronicleKey.RaidSucceeded, ViewEventTier.Milestone),
@@ -300,7 +301,7 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.PeaceMade; e.Text = ChronicleKey.PeaceMade; e.Tier = ViewEventTier.Milestone;
                     break;
                 case PoliticsEventKind.AssaultResolved:
-                    e.Kind = ViewEventKind.AssaultResolved; e.Settlement = p.B; e.Tile = TileOf(p.B);
+                    e.Kind = ViewEventKind.AssaultResolved; e.Settlement = p.B; e.Tile = TileOf(p.B); e.C = p.Fight;
                     (e.Text, e.Tier) = p.A switch
                     {
                         1 => (ChronicleKey.AssaultWon, ViewEventTier.Milestone),

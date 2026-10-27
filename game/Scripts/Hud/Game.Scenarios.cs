@@ -504,6 +504,54 @@ public partial class Game
                 Step(() => _lerpOverride = 1.0f, 0.4f);
                 Shot("fixed-10");
                 break;
+            case "skirmish":
+                // --start-minute=30 --viewer=-1 [--reduce-motion]: civ 1 raids civ 0's largest village three times (raiders win, defenders
+                // win, a raiders' assault) and each fight is photographed through its stages; onDone is logged with its time
+                int skTile = -1;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    int best = -1;
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_current.SettlementCiv[i] == 0 && (best < 0 || _current.SettlementPopulation[i] > _current.SettlementPopulation[best])) best = i;
+                    skTile = best >= 0 ? _current.SettlementTile[best] : -1;
+                    Vector3 c = TileCenter(skTile % _current.Width, skTile / _current.Width);
+                    MoveCameraTo(new Vector3(c.X, _terrainHeights[skTile], c.Z), 3.0f, instant: true);
+                    UpdateCamera();
+                }, 1.5f);
+                foreach (var (label, spec) in new[]
+                {
+                    ("win", new SkirmishSpec(0, 1, 0, true, 8, 6, 1, 4)),
+                    ("hold", new SkirmishSpec(0, 1, 0, false, 6, 14, 4, 2)),
+                    ("assault", new SkirmishSpec(0, 1, 0, true, 22, 18, 5, 12, Assault: true)),
+                })
+                {
+                    string skLabel = label;
+                    SkirmishSpec skSpec = spec;
+                    float started = 0, startAt = t;
+                    Step(() =>
+                    {
+                        started = _scenarioClock;
+                        bool ok = StartSkirmish(skSpec with { Tile = skTile }, () => GD.Print($"SCN skirmish {skLabel} done after {_scenarioClock - started:0.00}s"));
+                        Vector3 f = (Vector3)_visualRenderer!.Call("skirmish_focus");
+                        GD.Print($"SCN skirmish {skLabel} started={ok} tile={skTile} focus={f}");
+                        if (f != Vector3.Zero) { _target = f; UpdateCamera(); }
+                    }, 0.35f);
+                    foreach (float at in new[] { 0.35f, 0.8f, 1.3f, 1.8f, 2.3f, 2.8f, 3.3f, 3.9f, 4.4f })
+                    {
+                        string shotName = $"skirmish-{skLabel}-{at:0.00}s";
+                        _scenario.Add((startAt + at, () => TakeScenarioShot(shotName)));
+                    }
+                    t = startAt + 4.8f + 1.2f;
+                }
+                Step(() => ZoomTo(9.0f), 0.2f);
+                Step(() => StartSkirmish(new SkirmishSpec(skTile, 1, 0, true, 8, 6, 1, 4), () => GD.Print("SCN skirmish wide done")), 1.6f);
+                Shot("skirmish-wide");
+                Step(() => { }, 3.0f);
+                break;
             case "dev":
                 Step(ToggleDevOverlay);
                 Step(() => OpenResearchWeb(-1), 3.0f);

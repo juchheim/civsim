@@ -5,6 +5,7 @@ extends Node3D
 const M7WorldData = preload("res://Renderer/LowPoly3D/Scripts/world_data.gd")
 const M7MeshKit = preload("res://Renderer/LowPoly3D/Scripts/mesh_kit.gd")
 const M7WorldBuilder = preload("res://Renderer/LowPoly3D/Scripts/world_builder.gd")
+const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
 
 var world: M7WorldData
 var kit: M7MeshKit
@@ -32,6 +33,7 @@ var burn_rig: M7BurnRig
 var feast_rig: M7FeastRig
 var dog_rig: M7DogRig
 var farm_rig: M7FarmRig
+var skirmish_rig: M7SkirmishRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -68,6 +70,7 @@ func setup_frame(frame_data: Dictionary) -> void:
 	dog_rig.sync()
 	farm_rig = M7FarmRig.new(builder, world_root)
 	farm_rig.sync()
+	skirmish_rig = M7SkirmishRig.new(builder, world_root)
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -297,6 +300,21 @@ func show_gallery() -> Vector3:
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre
 
+## A raid or assault skirmish on the map (see skirmish_rig.gd); returns [id, seconds], or [-1, 0] when it cannot play there.
+func skirmish_start(spec: Dictionary) -> Array:
+	return skirmish_rig.start(spec) if skirmish_rig != null else [-1, 0.0]
+
+func skirmish_alive(id: int) -> bool:
+	return skirmish_rig != null and skirmish_rig.alive(id)
+
+func skirmish_clear() -> void:
+	if skirmish_rig != null:
+		skirmish_rig.clear()
+
+## Dev aid for scenarios: where the latest skirmish is being fought (the origin when none).
+func skirmish_focus() -> Vector3:
+	return skirmish_rig.focus() if skirmish_rig != null else Vector3.ZERO
+
 ## Dev aid for scenarios: where a feast is under way now (the origin when none).
 func feast_focus() -> Vector3:
 	if feast_rig == null:
@@ -310,6 +328,8 @@ func feast_focus() -> Vector3:
 func _process(_delta: float) -> void:
 	if builder != null:
 		builder.update_herds()
+	if skirmish_rig != null and not skirmish_rig.fights.is_empty():
+		skirmish_rig.update(_delta, clampf(1.25 + (camera_distance - 8.0) / 24.0, 1.25, 2.6), clampf(camera_distance / 12.0, 1.0, 6.0), camera.global_position if camera != null else Vector3.ZERO)
 	if signal_rig != null:
 		signal_rig.update(Time.get_ticks_msec() / 1000.0)
 

@@ -74,6 +74,7 @@ public partial class Game
 
     private void ReplaceSession(SimulationSession replacement)
     {
+        ClearSkirmishes();
         if (_peopleOpen) ClosePeoplePanel();
         _session?.Dispose();
         _session = replacement;

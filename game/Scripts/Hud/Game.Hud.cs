@@ -207,6 +207,7 @@ public partial class Game
         TickTileCard((float)delta);
         TickCamera((float)delta);
         TickPulses((float)delta);
+        TickSkirmishes((float)delta);
         TickHint((float)delta);
         _devTimer += (float)delta;
         if (_devTimer >= 0.25f)

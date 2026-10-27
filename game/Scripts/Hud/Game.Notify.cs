@@ -792,6 +792,21 @@ public partial class Game
 
     private string OtherName(ViewEvent item) => UiText.CivName(item.Other);
 
+    /// <summary>
+    /// Plays the fight of a resolved raid or assault on its tile, then runs <paramref name="report"/> (the chronicle line and the
+    /// toast). With no fight to show (an investment ended, no tile, or the skirmish cannot play) it reports at once.
+    /// </summary>
+    private void ReportAfterSkirmish(ViewEvent item, bool assault, Action report)
+    {
+        int fight = item.C;
+        if (item.Tile < 0 || fight == 0) { report(); return; }
+        bool viewerAttacked = item.A is 0 or 1;
+        bool attackersWon = item.A is 1 or 2;
+        var spec = new SkirmishSpec(item.Tile, viewerAttacked ? item.Civ : item.Other, viewerAttacked ? item.Other : item.Civ, attackersWon,
+            fight & 0xFF, (fight >> 8) & 0xFF, (fight >> 16) & 0xFF, (fight >> 24) & 0x7F, assault);
+        if (!StartSkirmish(spec, report)) report();
+    }
+
     private void HandleEvent(ViewEvent item, int viewer, MatchFrame frame)
     {
         bool mine = item.Civ == viewer || item.Civ < 0;
@@ -936,9 +951,13 @@ public partial class Game
             case ViewEventKind.RaidResolved:
                 {
                     string text = item.A switch { 1 => "The raid came back with food.", 2 => $"The {OtherName(item)} raided one of your settlements.", 3 => "Your people drove off a raid.", _ => "The raid failed." };
-                    AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
-                    ShowToast(item.A == 2 ? "You were raided" : "A raid ended", item.A == 2 ? ToastKind.Critical : ToastKind.Info, text, item.Tile, key: "raid-resolved");
-                    if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
+                    // The fight plays on the map first; the result follows when it is over.
+                    ReportAfterSkirmish(item, assault: false, () =>
+                    {
+                        AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
+                        ShowToast(item.A == 2 ? "You were raided" : "A raid ended", item.A == 2 ? ToastKind.Critical : ToastKind.Info, text, item.Tile, key: "raid-resolved");
+                        if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
+                    });
                     break;
                 }
             case ViewEventKind.WarDeclared:
@@ -956,9 +975,12 @@ public partial class Game
             case ViewEventKind.AssaultResolved:
                 {
                     string text = item.A switch { 1 => "Your assault succeeded.", 2 => "A settlement fell.", 3 => "Your people held their settlement.", _ => "Your assault was driven back." };
-                    AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
-                    ShowToast(item.A == 2 ? "A settlement fell" : "An assault ended", item.A == 2 ? ToastKind.Critical : ToastKind.Milestone, text, item.Tile, key: "assault");
-                    if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
+                    ReportAfterSkirmish(item, assault: true, () =>
+                    {
+                        AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
+                        ShowToast(item.A == 2 ? "A settlement fell" : "An assault ended", item.A == 2 ? ToastKind.Critical : ToastKind.Milestone, text, item.Tile, key: "assault");
+                        if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
+                    });
                     break;
                 }
             case ViewEventKind.Occupied:
