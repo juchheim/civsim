@@ -28,6 +28,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly DifficultyProfile _profile;
     private readonly KnowHowTracker _tracker = new();
     private int _lastDecision = -1;
+    internal Fix64? RivalPaceOverrideForDiagnostics { get; set; }
     private readonly int[] _lastSlots = { -1, -1, -1 };
     /// <summary>Season each civilization was first seen in each era (civ × era), -1 if not yet: the public keystone record.</summary>
     private int[] _eraSeason = Array.Empty<int>();
@@ -70,6 +71,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     /// <summary>The forecast of the last decision's chosen plan.</summary>
     public ForecastResult LastForecast { get; private set; }
     public ForecastResult LastBaseline { get; private set; }
+    internal int LastDecisionSeasonForDiagnostics => _lastDecision;
+    internal int RivalEtaStepsForDiagnostics(int project)
+        => _fc is not null && (uint)project < (uint)_value.RivalEta.Length ? _value.RivalEta[project] : int.MaxValue;
 
     public void Decide(AiContext ctx)
     {
@@ -176,6 +180,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             }
             pace = Fix64.Clamp(pace, SparkTuning.RivalPaceMin, SparkTuning.RivalPaceMax);
         }
+        if (RivalPaceOverrideForDiagnostics is { } overridePace)
+            pace = Fix64.Clamp(overridePace, SparkTuning.RivalPaceMin, SparkTuning.RivalPaceMax);
         bool union = model && rivalEra > s.Era;
         int frontEra = union ? rivalEra : s.Era;
         f.Civ = -1;

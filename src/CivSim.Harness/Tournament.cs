@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Content;
@@ -79,13 +80,19 @@ internal sealed class CivOutcome
 internal sealed class MatchOutcome
 {
     public ulong Seed;
+    public Fix64? RivalPaceOverride;
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
+    public readonly List<FirstRaceClaimDiagnostic> FirstRaceClaims = new();
     public long FinalTick;
     public int SeasonsProcessed;
     public ulong Checksum;
     public int A7AiSeatMatches, AvoidableStarvationDeaths, UndefendedLosses, AttributedHerdCrashes, IdleLaborSeasons;
 }
+
+internal readonly record struct FirstRaceEstimate(int WarlordCiv, int ForecastSeason, Fix64 RivalPace, int[] RivalEtaSteps);
+internal readonly record struct FirstRaceClaimDiagnostic(int ProjectIndex, string Project, int Era, string Lineage,
+    int ClaimantCiv, long Tick, FirstRaceEstimate[] WarlordEstimates);
 
 internal readonly record struct LegacyMatchOutcome(double TeamALegacy, double TeamBLegacy, long FinalTick, int SeasonsProcessed, ulong Checksum);
 
@@ -96,16 +103,33 @@ internal static class Tournament
     public static readonly int[] TeamASeats = { 0, 3 };
     public static readonly int[] TeamBSeats = { 1, 2 };
 
-    public static MatchOutcome Play(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes)
+    public static MatchOutcome Play(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
+        bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null)
     {
+        if (captureFirstRaceDiagnostics)
+        {
+            bool rusher = false, warlord = false;
+            foreach (Player seat in seats)
+            {
+                rusher |= string.Equals(seat.Name, "rusher", StringComparison.OrdinalIgnoreCase);
+                warlord |= string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase);
+            }
+            captureFirstRaceDiagnostics = rusher && warlord;
+        }
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
+        if (rivalPaceOverride is { } overridePace)
+            for (int c = 0; c < seats.Length; c++)
+                if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
+                    match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark)
+                    spark.RivalPaceOverrideForDiagnostics = overridePace;
         // Tournament scoring and telemetry use the final state, not the periodic hash history.
         var runner = new SimRunner(match, int.MaxValue);
         int civs = seats.Length;
-        var outcome = new MatchOutcome { Seed = seed, Seats = seats, Civs = new CivOutcome[civs] };
+        var outcome = new MatchOutcome { Seed = seed, RivalPaceOverride = rivalPaceOverride, Seats = seats, Civs = new CivOutcome[civs] };
+        var firstRaceHistory = new List<FirstRaceEstimate[]>();
         for (int c = 0; c < civs; c++) outcome.Civs[c] = new CivOutcome { Civ = c };
         ResearchCatalog catalog = match.Research.Catalog;
         int[] keys = { catalog.IndexOf("KEY-1"), catalog.IndexOf("KEY-2"), catalog.IndexOf("KEY-3") };
@@ -176,7 +200,30 @@ internal static class Tournament
             var defensesBeforeAdvance = new Defenses[match.Politics.SettlementTotal];
             for (int s = 0; s < defensesBeforeAdvance.Length; s++)
                 defensesBeforeAdvance[s] = match.Politics.MilitaryOf(s).Defenses;
+            FirstRaceEstimate[] firstRaceEstimates = captureFirstRaceDiagnostics
+                ? CaptureFirstRaceEstimates(match, seats, catalog.Count)
+                : Array.Empty<FirstRaceEstimate>();
+            if (captureFirstRaceDiagnostics)
+            {
+                firstRaceHistory.Add(firstRaceEstimates);
+                if (firstRaceHistory.Count > 20) firstRaceHistory.RemoveAt(0);
+            }
+            int researchEventsBeforeAdvance = match.Research.Events.Count;
             runner.Advance(Math.Min(150, ticks - t));
+
+            if (captureFirstRaceDiagnostics)
+                for (int e = researchEventsBeforeAdvance; e < match.Research.Events.Count; e++)
+                {
+                    ResearchEvent researchEvent = match.Research.Events[e];
+                    if (researchEvent.Kind != ResearchEventKind.FirstClaimed || (uint)researchEvent.Civ >= (uint)civs ||
+                        !string.Equals(seats[researchEvent.Civ].Name, "rusher", StringComparison.OrdinalIgnoreCase)) continue;
+                    ProjectDef project = catalog.Projects[researchEvent.Project];
+                    string lineage = project.Lineage >= 0 && project.Lineage < catalog.LineageCodes.Count
+                        ? catalog.LineageCodes[project.Lineage]
+                        : "none";
+                    outcome.FirstRaceClaims.Add(new FirstRaceClaimDiagnostic(researchEvent.Project, project.Id, project.Era,
+                        lineage, researchEvent.Civ, researchEvent.Tick, firstRaceHistory.SelectMany(static x => x).ToArray()));
+                }
 
             for (int c = 0; c < civs; c++)
             {
@@ -624,6 +671,20 @@ internal static class Tournament
         return 4;
     }
 
+    private static FirstRaceEstimate[] CaptureFirstRaceEstimates(MatchModel match, Player[] seats, int projects)
+    {
+        var estimates = new List<FirstRaceEstimate>(2);
+        for (int c = 0; c < seats.Length; c++)
+        {
+            if (!string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) ||
+                match.Ai?.SeatOf(c)?.Spark is not ResearchSpark spark) continue;
+            var rivalEta = new int[projects];
+            for (int p = 0; p < projects; p++) rivalEta[p] = spark.RivalEtaStepsForDiagnostics(p);
+            estimates.Add(new FirstRaceEstimate(c, spark.LastDecisionSeasonForDiagnostics, spark.RivalPace, rivalEta));
+        }
+        return estimates.ToArray();
+    }
+
     /// <summary>Runs a match while collecting only the team Legacy scores consumed by A6.</summary>
     public static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
         Action<MatchModel>? configure = null, Action<MatchModel>? completed = null)
@@ -689,7 +750,8 @@ internal static class Tournament
         public double WinRateA => Matches == 0 ? 0 : WinsA / Matches;
     }
 
-    public static DuelResult Duel(ContentPack pack, string teamA, string teamB, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed = BaseSeed)
+    public static DuelResult Duel(ContentPack pack, string teamA, string teamB, int seeds, int minutes, EconomyArchetype archetype,
+        ulong firstSeed = BaseSeed, bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -702,7 +764,7 @@ internal static class Tournament
             foreach (int s in TeamASeats) seats[s] = swapped ? b : a;
             foreach (int s in TeamBSeats) seats[s] = swapped ? a : b;
             var archetypes = new[] { archetype, archetype, archetype, archetype };
-            results[j] = (Play(pack, seed, seats, archetypes, minutes), swapped);
+            results[j] = (Play(pack, seed, seats, archetypes, minutes, captureFirstRaceDiagnostics, rivalPaceOverride), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;

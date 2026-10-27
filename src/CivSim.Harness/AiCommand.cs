@@ -4,15 +4,18 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using CivSim.Sim.Ai;
+using CivSim.Sim.Ai.Forecast;
 using CivSim.Sim.Content;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
+using CivSim.Sim.Research;
 
 namespace CivSim.Harness;
 
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
 /// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
@@ -35,6 +38,7 @@ internal static class AiCommand
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
         bool check = false, checkM10 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
         bool matchDetails = false;
+        Fix64? rivalPaceOverride = null;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
         int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
@@ -54,6 +58,7 @@ internal static class AiCommand
                 case "--check-b8": checkB8 = true; break;
                 case "--exploit": exploit = true; break;
                 case "--match-details": matchDetails = true; break;
+                case "--warlord-rival-pace-override": rivalPaceOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
@@ -66,7 +71,7 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
@@ -146,7 +151,90 @@ internal static class AiCommand
                 Console.WriteLine($"      Warlord defense urgency {a}: {FormatUrgencyBands(teamA.WarlordUrgencyBands)}");
             if (teamB.WarlordUrgencySeasons > 0)
                 Console.WriteLine($"      Warlord defense urgency {b}: {FormatUrgencyBands(teamB.WarlordUrgencyBands)}");
+            PrintFirstRaceDiagnostics(match);
         }
+    }
+
+    private static void PrintFirstRaceDiagnostics(MatchOutcome match)
+    {
+        if (match.FirstRaceClaims.Count == 0) return;
+        string paceOverride = match.RivalPaceOverride is { } pace
+            ? $" (diagnostic Warlord pace override {pace.ToDoubleForDisplay():F2}×)" : string.Empty;
+        foreach (int lookback in new[] { 4, 8, 16 })
+        {
+            var samples = new List<(int Era, string Lineage, int Error, double Pace, int EtaSeasons, int ElapsedSeasons)>();
+            int outsideHorizon = 0, withoutLookback = 0;
+            foreach (FirstRaceClaimDiagnostic claim in match.FirstRaceClaims)
+            {
+                int actualSeason = (int)(claim.Tick / ResearchSystem.SeasonTicks);
+                foreach (IGrouping<int, FirstRaceEstimate> warlordHistory in claim.WarlordEstimates
+                             .Where(estimate => estimate.ForecastSeason >= 0).GroupBy(estimate => estimate.WarlordCiv))
+                {
+                    FirstRaceEstimate[] eligible = warlordHistory
+                        .Where(estimate => actualSeason - estimate.ForecastSeason >= lookback)
+                        .OrderBy(estimate => actualSeason - estimate.ForecastSeason).ToArray();
+                    if (eligible.Length == 0) { withoutLookback++; continue; }
+                    FirstRaceEstimate estimate = eligible[0];
+                    int etaSteps = estimate.RivalEtaSteps[claim.ProjectIndex];
+                    if (etaSteps == int.MaxValue) { outsideHorizon++; continue; }
+                    int etaSeasons = (etaSteps + ForecastTuning.PlannerStepsPerSeason - 1) / ForecastTuning.PlannerStepsPerSeason;
+                    int elapsedSeasons = actualSeason - estimate.ForecastSeason;
+                    int error = actualSeason - (estimate.ForecastSeason + etaSeasons);
+                    samples.Add((claim.Era, claim.Lineage, error, estimate.RivalPace.ToDoubleForDisplay(), etaSeasons, elapsedSeasons));
+                }
+            }
+            int beatEta = samples.Count(sample => sample.Error < 0);
+            int[] errors = samples.Select(sample => sample.Error).OrderBy(error => error).ToArray();
+            string medianError = errors.Length == 0 ? "n/a" : FormatSigned(errors[errors.Length / 2]);
+            double[] requiredPace = samples.Where(sample => sample.Error < 0 && sample.ElapsedSeasons > 0 && sample.EtaSeasons > 0)
+                .Select(sample => sample.Pace * sample.EtaSeasons / sample.ElapsedSeasons).OrderBy(value => value).ToArray();
+            string paceSummary = requiredPace.Length == 0
+                ? "pace proxy n/a"
+                : $"rough linear pace needed {requiredPace[requiredPace.Length / 2]:F2}× " +
+                  $"({requiredPace.Count(value => value > 2.0)}/{requiredPace.Length} above 2.00× cap)";
+            Console.WriteLine($"      Rusher First ETA at {lookback}-season lookback (global rival frontier): " +
+                $"before ETA {beatEta}/{samples.Count}, median actual-predicted {medianError} seasons; {paceSummary}; " +
+                $"{outsideHorizon} outside forecast horizon, {withoutLookback} without that much history{paceOverride}.");
+            if (lookback != 4) continue;
+            foreach (var group in samples.GroupBy(sample => (sample.Era, sample.Lineage))
+                         .Where(group => group.Count() >= 4).OrderByDescending(group => group.Count()).Take(10))
+            {
+                int[] groupErrors = group.Select(sample => sample.Error).OrderBy(error => error).ToArray();
+                int groupBeatEta = groupErrors.Count(error => error < 0);
+                double[] groupPaces = group.Where(sample => sample.Error < 0 && sample.ElapsedSeasons > 0 && sample.EtaSeasons > 0)
+                    .Select(sample => sample.Pace * sample.EtaSeasons / sample.ElapsedSeasons).OrderBy(value => value).ToArray();
+                string groupPace = groupPaces.Length == 0 ? "pace proxy n/a" :
+                    $"rough pace {groupPaces[groupPaces.Length / 2]:F2}× ({groupPaces.Count(value => value > 2.0)}/{groupPaces.Length} above cap)";
+                Console.WriteLine($"        E{group.Key.Era}/{group.Key.Lineage}: before ETA {groupBeatEta}/{groupErrors.Length}, " +
+                    $"median actual-predicted {FormatSigned(groupErrors[groupErrors.Length / 2])}, {groupPace}");
+            }
+        }
+        foreach (FirstRaceClaimDiagnostic claim in match.FirstRaceClaims.Take(8))
+        {
+            int actualSeason = (int)(claim.Tick / ResearchSystem.SeasonTicks);
+            string estimates = string.Join("; ", claim.WarlordEstimates
+                .Where(estimate => estimate.ForecastSeason >= 0 && actualSeason - estimate.ForecastSeason >= 4)
+                .GroupBy(estimate => estimate.WarlordCiv)
+                .Select(group => group.OrderBy(estimate => actualSeason - estimate.ForecastSeason).First())
+                .Select(estimate => FormatFirstRaceEstimate(claim, estimate, actualSeason)));
+            if (estimates.Length == 0) estimates = "no 4-season prior forecast";
+            Console.WriteLine($"        E{claim.Era}/{claim.Lineage} {claim.Project} at season {actualSeason}: {estimates}");
+        }
+        if (match.FirstRaceClaims.Count > 8) Console.WriteLine($"        ... {match.FirstRaceClaims.Count - 8} more claims summarized above");
+    }
+
+    private static string FormatSigned(int value) => value > 0 ? $"+{value}" : value.ToString(CultureInfo.InvariantCulture);
+
+    private static string FormatFirstRaceEstimate(FirstRaceClaimDiagnostic claim, FirstRaceEstimate estimate, int actualSeason)
+    {
+        if (estimate.ForecastSeason < 0) return $"Warlord civ {estimate.WarlordCiv}: no prior forecast";
+        int etaSteps = estimate.RivalEtaSteps[claim.ProjectIndex];
+        if (etaSteps == int.MaxValue) return $"Warlord civ {estimate.WarlordCiv}: project beyond rival-forecast horizon from season {estimate.ForecastSeason}";
+        int etaSeasons = (etaSteps + ForecastTuning.PlannerStepsPerSeason - 1) / ForecastTuning.PlannerStepsPerSeason;
+        int predictedSeason = estimate.ForecastSeason + etaSeasons;
+        int delta = actualSeason - predictedSeason;
+        return $"Warlord civ {estimate.WarlordCiv} from season {estimate.ForecastSeason} pred {predictedSeason} " +
+            $"(actual-predicted {FormatSigned(delta)}, pace {estimate.RivalPace.ToDoubleForDisplay():F2}×)";
     }
 
     private static string FormatPostures(int[] seasons)
