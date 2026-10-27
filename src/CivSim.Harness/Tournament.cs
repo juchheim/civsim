@@ -94,6 +94,7 @@ internal sealed class MatchOutcome
     public int? FirstsEtaPessimismOverride;
     public int? WarlordNonConquerRaidPostureStreakOverride;
     public bool WarlordMaxCampaignOriginOverride;
+    public bool WarlordSeatAllianceDiagnostic;
     public Fix64? WarlordFrontierEarlyBonusOverride;
     public Fix64? WarlordE3FissionThresholdOverride;
     public Fix64? WarlordDefenseResearchBonusOverride;
@@ -112,6 +113,7 @@ internal sealed class MatchOutcome
     public readonly List<WarlordResearchSeasonSnapshot> WarlordResearchSnapshots = new();
     public readonly List<string> WarlordEconomyTraces = new();
     public readonly List<string> WarlordMandateTraces = new();
+    public readonly List<string> WarlordCombatTraces = new();
     public readonly List<string> SettlementTimelineTraces = new();
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
@@ -158,7 +160,7 @@ internal static class Tournament
         bool captureFoundFunnelDiagnostics = false, Fix64? warlordKeystoneTempoOverride = null,
         bool warlordE2ClosureSlotDiagnostic = false, bool warlordSettlementTrace = false,
         bool warlordSettlementTraceSwapped = false, bool warlordB30Trace = false, bool warlordB28Trace = false,
-        bool warlordB27Trace = false)
+        bool warlordB27Trace = false, bool warlordSeatAllianceDiagnostic = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -180,6 +182,23 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
+        bool warlordSeatAllianceApplied = false;
+        if (warlordSeatAllianceDiagnostic)
+        {
+            int firstWarlord = -1, secondWarlord = -1;
+            for (int c = 0; c < seats.Length; c++)
+            {
+                if (!string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+                if (firstWarlord < 0) firstWarlord = c;
+                else if (secondWarlord < 0) secondWarlord = c;
+            }
+            if (secondWarlord >= 0)
+            {
+                match.Politics.Diplomacy.MarkContacted(firstWarlord, secondWarlord);
+                match.Politics.Diplomacy.Ally(firstWarlord, secondWarlord);
+                warlordSeatAllianceApplied = true;
+            }
+        }
         if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin || warlordFrontierEarlyBonusOverride is not null || warlordE3FissionThresholdOverride is not null || warlordDefenseResearchBonusOverride is not null || warlordDefenseUrgencyShadowDiagnostic || warlordKeystoneTempoOverride is not null || warlordE2ClosureSlotDiagnostic)
             for (int c = 0; c < seats.Length; c++)
                 if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) && match.Ai?.SeatOf(c) is { } warlordSeat)
@@ -217,6 +236,7 @@ internal static class Tournament
             Seed = seed, RivalPaceOverride = rivalPaceOverride, FirstsEtaPessimismOverride = firstsEtaPessimismSeasons,
             WarlordNonConquerRaidPostureStreakOverride = warlordNonConquerRaidPostureStreak,
             WarlordMaxCampaignOriginOverride = warlordMaxCampaignOrigin,
+            WarlordSeatAllianceDiagnostic = warlordSeatAllianceApplied,
             WarlordFrontierEarlyBonusOverride = warlordFrontierEarlyBonusOverride,
             WarlordE3FissionThresholdOverride = warlordE3FissionThresholdOverride,
             WarlordDefenseResearchBonusOverride = warlordDefenseResearchBonusOverride,
@@ -969,6 +989,12 @@ internal static class Tournament
                     strategist.ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics;
         foreach (PoliticsEvent e in pol.Events)
         {
+            if (warlordSettlementTrace && (uint)e.Civ < (uint)civs &&
+                string.Equals(seats[e.Civ].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
+                e.Kind is PoliticsEventKind.WarDeclared or PoliticsEventKind.AssaultResolved or
+                    PoliticsEventKind.OccupationBroken or PoliticsEventKind.Captured)
+                outcome.WarlordCombatTraces.Add($"WARLORD_COMBAT_EVENT seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} " +
+                    $"season={e.Tick / ResearchSystem.SeasonTicks} civ={e.Civ} {e.Kind} other={e.Other} A={e.A} B={e.B}");
             if (e.Kind == PoliticsEventKind.RaidLaunched && e.B >= 0 &&
                 (uint)e.Civ < (uint)civs && (uint)e.Other < (uint)civs &&
                 string.Equals(seats[e.Civ].Name, "rusher", StringComparison.OrdinalIgnoreCase) &&
@@ -1051,6 +1077,10 @@ internal static class Tournament
             foreach (AiDecision d in ai.Log.Entries)
             {
                 if ((uint)d.Civ >= (uint)civs || seats[d.Civ].Control.Kind != ControlKind.Ai) continue;
+                if (warlordSettlementTrace && string.Equals(seats[d.Civ].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
+                    d.Kind is "War" or "WarRejected" or "Assault" or "Captured")
+                    outcome.WarlordCombatTraces.Add($"WARLORD_COMBAT_DECISION seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} " +
+                        $"season={d.Season} civ={d.Civ} {d.Kind} target={d.Subject} other={d.Other} score={d.Score} {d.Reason}");
                 CivOutcome c = outcome.Civs[d.Civ];
                 if (d.Kind == "Raid")
                 {
@@ -1414,7 +1444,7 @@ internal static class Tournament
         bool warlordDefenseUrgencyShadowDiagnostic = false, bool captureFoundFunnelDiagnostics = false,
         Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false,
         bool warlordSettlementTrace = false, bool warlordB30Trace = false, bool warlordB28Trace = false,
-        bool warlordB27Trace = false)
+        bool warlordB27Trace = false, bool warlordSeatAllianceDiagnostic = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -1432,7 +1462,7 @@ internal static class Tournament
                 warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
                 warlordDefenseUrgencyShadowDiagnostic, captureFoundFunnelDiagnostics, warlordKeystoneTempoOverride,
                 warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped, warlordB30Trace, warlordB28Trace,
-                warlordB27Trace), swapped);
+                warlordB27Trace, warlordSeatAllianceDiagnostic), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
@@ -1478,12 +1508,14 @@ internal static class Tournament
     /// A free-for-all: four AIs of one level with different archetypes, rotated through the seats so position does
     /// not decide. Returns wins and appearances per archetype (docs/MVP/14 §10.3 archetype balance).
     /// </summary>
-    public static (double[] Wins, int[] Appearances) FreeForAll(ContentPack pack, string level, int seeds, int minutes, ulong firstSeed = BaseSeed)
-        => FreeForAll(pack, level, seeds, minutes, out _, firstSeed);
+    public static (double[] Wins, int[] Appearances) FreeForAll(ContentPack pack, string level, int seeds, int minutes,
+        ulong firstSeed = BaseSeed, Fix64? rivalPaceOverride = null, bool warlordMaxCampaignOrigin = false)
+        => FreeForAll(pack, level, seeds, minutes, out _, firstSeed, rivalPaceOverride, warlordMaxCampaignOrigin);
 
     /// <summary>The free-for-all, also returning every civilization's outcome with its archetype for the per-archetype report.</summary>
     public static (double[] Wins, int[] Appearances) FreeForAll(ContentPack pack, string level, int seeds, int minutes,
-        out List<(EconomyArchetype Archetype, CivOutcome Outcome, bool Won)> civs, ulong firstSeed = BaseSeed)
+        out List<(EconomyArchetype Archetype, CivOutcome Outcome, bool Won)> civs, ulong firstSeed = BaseSeed,
+        Fix64? rivalPaceOverride = null, bool warlordMaxCampaignOrigin = false)
     {
         EconomyArchetype[] all = { EconomyArchetype.Builder, EconomyArchetype.Grower, EconomyArchetype.Wanderer, EconomyArchetype.Warlord, EconomyArchetype.Sage };
         var jobs = new List<(ulong Seed, int Rotation)>();
@@ -1498,7 +1530,8 @@ internal static class Tournament
             for (int k = 0; k < 4; k++) seating[(k + shift) % 4] = all[(rot + 1 + k) % 5];
             var seats = new Player[4];
             for (int s = 0; s < 4; s++) seats[s] = Player.Parse(level, seating[s]);
-            outcomes[j] = (Play(pack, seed, seats, seating, minutes), seating);
+            outcomes[j] = (Play(pack, seed, seats, seating, minutes, rivalPaceOverride: rivalPaceOverride,
+                warlordMaxCampaignOrigin: warlordMaxCampaignOrigin), seating);
         });
         var wins = new double[5];
         var apps = new int[5];

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using CivSim.Harness;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -106,6 +107,72 @@ public class StrategistScenarioTests
         Assert.Contains(rig.Notes(0, "Threat"), n => n.Subject == 1);
         Assert.Contains(rig.Notes(0, "Posture"), n => n.Subject == (int)Posture.Fortify);
         Assert.True(rig.Match.Ai!.SeatOf(0)!.Context.Intent.DefenseUrgency >= StrategistTuning.FortifyAt);
+    }
+
+    [Fact]
+    public void It_builds_physical_defense_before_a_qualifying_believed_bronze_raid()
+    {
+        var rig = new StrategistRig(Seed, World.Value, Controls);
+        const int defender = 0, attacker = 1;
+        int target = rig.SettlementsOf(defender)
+            .OrderBy(settlement => rig.SettlementsOf(attacker)
+                .Min(other => HexGrid.Distance(rig.Politics.SettlementTileOf(settlement),
+                    rig.Politics.SettlementTileOf(other), 160)))
+            .First();
+
+        rig.Grant(defender, "DEF-01", "DEF-02", "WOD-03", "DEF-03");
+        rig.Grant(attacker, "WAR-01", "HNT-02", "HNT-03", "HNT-04", "WAR-02", "GOV-01", "SOC-05", "GOV-02", "MET-04");
+        rig.Match.Economy.FixtureStock(target, "G-WOOD", Fix64.FromInt(100));
+        rig.Match.Economy.FixtureAddPeople(rig.SettlementsOf(attacker)[0], 40, 25);
+        rig.Politics.Diplomacy.MarkContacted(defender, attacker);
+        rig.Politics.Diplomacy.Set(defender, attacker, -60);
+        rig.Politics.SetWar(attacker, defender, true);
+        // The decision-level test covers the Strategist dispatch; this scenario follows that exact order
+        // through the live economy and into the B28 launch-time telemetry.
+        Assert.True(rig.Politics.OrderPrioritizePhysicalDefenseBuild(defender, target));
+
+        bool defendedBeforeRaid = false, supportedThreatObserved = false;
+        for (int season = 0; season < 24; season++)
+        {
+            rig.Seasons(1);
+            RivalBelief currentBelief = rig.Match.Ai!.SeatOf(defender)!.Belief.Rivals[attacker];
+            supportedThreatObserved |= currentBelief.AtWar || currentBelief.ThreatProbability >= Fix64.FromRatio(1, 10);
+            Defenses defenses = rig.Politics.MilitaryOf(target).Defenses;
+            if (defenses.Palisade || defenses.Hillfort || defenses.StoneWalls)
+            {
+                defendedBeforeRaid = true;
+                break;
+            }
+        }
+
+        RivalBelief belief = rig.Match.Ai!.SeatOf(defender)!.Belief.Rivals[attacker];
+        (int buildKind, Fix64 buildShare) = rig.Match.Economy.SettlementBuild(target);
+        int defenderTile = rig.Politics.SettlementTileOf(target);
+        int attackerTile = rig.Politics.SettlementTileOf(rig.SettlementsOf(attacker)[0]);
+        string defenseState = $"target={target} built={defendedBeforeRaid} believed MET04={belief.ProjectBelieved[TestPack.Catalog.IndexOf("MET-04")]} " +
+            $"threat={belief.ThreatProbability} atWar={belief.AtWar} lastRaid={belief.LastRaidOnUsSeason} " +
+            $"distance={HexGrid.Distance(defenderTile, attackerTile, 160)} defenseTech={rig.Match.Research.IsDone(defender, TestPack.Catalog.IndexOf("DEF-03"))} " +
+            $"wood={rig.Match.Economy.GoodStock(target, "G-WOOD")} build={buildKind}/{buildShare}; " +
+            string.Join(" | ", rig.Notes(defender, "DefenseBuild").Select(note => note.Reason));
+        Assert.True(defendedBeforeRaid, defenseState);
+        Assert.True(belief.ProjectBelieved[TestPack.Catalog.IndexOf("MET-04")]);
+        Assert.True(supportedThreatObserved);
+
+        // A peace/truce between the construction phase and the probe raid must expire before the legal scripted order.
+        for (int season = 0; rig.Politics.Diplomacy.InTruce(attacker, defender, rig.Politics.Season) && season < 20; season++)
+            rig.Seasons(1);
+        Assert.False(rig.Politics.Diplomacy.InTruce(attacker, defender, rig.Politics.Season));
+        rig.Politics.Diplomacy.Set(defender, attacker, -60);
+
+        var defensesBeforeAdvance = new Defenses[rig.Match.Economy.SettlementCount];
+        for (int settlement = 0; settlement < defensesBeforeAdvance.Length; settlement++)
+            defensesBeforeAdvance[settlement] = rig.Politics.MilitaryOf(settlement).Defenses;
+        Assert.True(rig.Politics.OrderRaid(attacker, target, 20));
+        PoliticsEvent raid = rig.Politics.Events.Last(e => e.Kind == PoliticsEventKind.RaidLaunched && e.Civ == attacker);
+        Assert.True(M10TelemetryRules.IsSettlementRaidLaunch(raid));
+        Assert.True(M10TelemetryRules.TryMeasureBelievedBronzeRaid(false, believedBronze: true, target,
+            defensesBeforeAdvance, out bool measuredDefense));
+        Assert.True(measuredDefense);
     }
 
     [Fact]

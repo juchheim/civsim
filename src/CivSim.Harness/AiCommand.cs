@@ -15,9 +15,9 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace] [--b28-trace]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-seat-alliance-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace] [--b28-trace]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
-/// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N]
+/// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N] [--warlord-rival-pace-override X] [--warlord-max-campaign-origin-diagnostic]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --check-a7 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
@@ -45,6 +45,7 @@ internal static class AiCommand
         int? firstsEtaPessimismSeasons = null;
         int? warlordNonConquerRaidPostureStreak = null;
         bool warlordMaxCampaignOrigin = false;
+        bool warlordSeatAllianceDiagnostic = false;
         Fix64? warlordFrontierEarlyBonusOverride = null;
         Fix64? warlordE3FissionThresholdOverride = null;
         Fix64? warlordDefenseResearchBonusOverride = null;
@@ -84,6 +85,7 @@ internal static class AiCommand
                     matchDetails = true;
                     break;
                 case "--warlord-max-campaign-origin-diagnostic": warlordMaxCampaignOrigin = true; matchDetails = true; break;
+                case "--warlord-seat-alliance-diagnostic": warlordSeatAllianceDiagnostic = true; matchDetails = true; break;
                 case "--warlord-frontier-early-bonus-override": warlordFrontierEarlyBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-e3-fission-threshold-override": warlordE3FissionThresholdOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-defense-research-bonus-override": warlordDefenseResearchBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
@@ -106,9 +108,10 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, warlordB30Trace, warlordB28Trace), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, warlordB30Trace, warlordB28Trace, warlordSeatAllianceDiagnostic: warlordSeatAllianceDiagnostic), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
-        if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed);
+        if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed,
+            rivalPaceOverride, warlordMaxCampaignOrigin);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
         if (checkA7) return CheckA7Only(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
         if (checkB7 || checkB8) return BronzeAiGates.Run(pack, checkB7, checkB8,
@@ -181,6 +184,7 @@ internal static class AiCommand
         foreach (MatchOutcome outcome in r.Outcomes)
         {
             foreach (string line in outcome.SettlementTimelineTraces) Console.WriteLine(line);
+            foreach (string line in outcome.WarlordCombatTraces) Console.WriteLine(line);
             foreach (string line in outcome.WarlordMandateTraces) Console.WriteLine(line);
         }
         MatchOutcome[] b30TraceMatches = r.Outcomes.Where(outcome => outcome.WarlordB30TraceEnabled).ToArray();
@@ -228,6 +232,7 @@ internal static class AiCommand
             string streakLabel = match.WarlordNonConquerRaidPostureStreakOverride is { } streak
                 ? $" [Warlord non-Conquer Raid streak={streak}]" : string.Empty;
             if (match.WarlordMaxCampaignOriginOverride) streakLabel += " [Warlord max-force campaign origin]";
+            if (match.WarlordSeatAllianceDiagnostic) streakLabel += " [forced alliance between Warlord seats]";
             if (match.WarlordFrontierEarlyBonusOverride is { } bonus)
                 streakLabel += $" [Warlord FrontierEarlyBonus={bonus.ToDoubleForDisplay():F2}]";
             if (match.WarlordE3FissionThresholdOverride is { } matchFissionThreshold)
@@ -541,10 +546,14 @@ internal static class AiCommand
         return 0;
     }
 
-    private static int FreeForAll(ContentPack pack, string level, int seeds, int minutes, ulong firstSeed)
+    private static int FreeForAll(ContentPack pack, string level, int seeds, int minutes, ulong firstSeed,
+        Fix64? rivalPaceOverride = null, bool warlordMaxCampaignOrigin = false)
     {
-        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes, out var civs, firstSeed);
+        (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes, out var civs, firstSeed,
+            rivalPaceOverride, warlordMaxCampaignOrigin);
         Console.WriteLine($"Free-for-all at {level}: win rate per appearance (25% is fair)");
+        if (rivalPaceOverride is { } pace) Console.WriteLine($"  diagnostic Warlord rival pace override: {pace.ToDoubleForDisplay():F2}");
+        if (warlordMaxCampaignOrigin) Console.WriteLine("  diagnostic Warlord max-force campaign origin enabled");
         for (int i = 0; i < 5; i++) Console.WriteLine($"  {FfaNames[i],-9} {wins[i]:F0}/{apps[i]} = {100.0 * wins[i] / Math.Max(1, apps[i]),5:F1}%");
         PrintArchetypeMeans(civs);
         return 0;
