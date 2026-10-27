@@ -495,6 +495,10 @@ chapter gate also passed locally: four Balanced AIs ended at tick 27,150 in 23.9
 the final tick matching the chapter end rule. B22 S1 later completed 1,000/1,000 full 64-minute replays; S2 cross-platform
 macOS/Windows verification remains open. B23's S12, S13, and S14 requirements now pass.
 
+**A1 follow-up (2026-10-27):** The exact current-source Warlord-vs-Council cohort (8 seeds, 64 minutes, 16 mirrored matches) scored 13/16 wins (81%), below the 85% target; mean Legacy was 6,037 vs 4,658 and Warlord lost 1.12 settlements per match. A Warlord Keystone-tempo override of 30 improved a three-seed screen from 3/6 to 4/6, but the exact cohort remained 13/16 (Legacy 6,110 vs 4,618) and shifted which mirrored match was lost; the candidate was rejected and the live tempo remains unchanged. A temporary 70% Strategist Found threshold produced no outcome or score changes on the same three-pair screen and was reverted. A bounded settlement timeline trace for seed 20261025 did not show a consistent daughter food-capacity deficit; site and seat orientation remain plausible contributors, not established causes. A1 and B26 remain open; no full B26 gate is claimed.
+
+**A3 current-source follow-up (2026-10-27):** After the fission tie-symmetry change, the exact 8-seed, 64-minute Warlord-vs-Rusher cohort scored 10/16 wins (62%; target ≥70%) and lost a settlement in 1/16 matches (93.8%; survival target ≥80%). Mean Legacy was 5,638 vs 4,845. A3 survival passes, but its win criterion remains open. The 1-seed, 2-minute all-gates smoke completed in 7.4 seconds and correctly labeled every measured result diagnostic-only; it reached no KEY-4 forecasts or believed-bronze raid cases and is not acceptance evidence.
+
 ## 19. WP10 view checkpoint
 
 The game has the Decrees/forecast panel, compact and embargo controls, countdown and Bronze end summary, the E3 research column,

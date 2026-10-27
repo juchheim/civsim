@@ -102,6 +102,7 @@ internal sealed class MatchOutcome
     public readonly List<WarlordResearchPlanDiagnostic> WarlordResearchTraces = new();
     public readonly List<WarlordResearchSeasonSnapshot> WarlordResearchSnapshots = new();
     public readonly List<string> WarlordEconomyTraces = new();
+    public readonly List<string> SettlementTimelineTraces = new();
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
     public readonly List<FirstRaceClaimDiagnostic> FirstRaceClaims = new();
@@ -145,7 +146,8 @@ internal static class Tournament
         Fix64? warlordFrontierEarlyBonusOverride = null, Fix64? warlordE3FissionThresholdOverride = null,
         Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false,
         bool captureFoundFunnelDiagnostics = false, Fix64? warlordKeystoneTempoOverride = null,
-        bool warlordE2ClosureSlotDiagnostic = false)
+        bool warlordE2ClosureSlotDiagnostic = false, bool warlordSettlementTrace = false,
+        bool warlordSettlementTraceSwapped = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -257,6 +259,8 @@ internal static class Tournament
         int season = 0;
         for (long t = 0; t < ticks; t += 150, season++)
         {
+            bool traceSettlementTimeline = warlordSettlementTrace && season + 1 >= 16 && season + 1 <= 128 &&
+                seats.Any(static seat => string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase));
             // The belief snapshot precedes this season's political step: only evidence observed by the AI before
             // the incoming raid can qualify for B28.
             for (int c = 0; c < civs; c++)
@@ -276,6 +280,12 @@ internal static class Tournament
             var settlementOwnersBeforeAdvance = new int[match.Economy.SettlementCount];
             var settlementTilesBeforeAdvance = new int[match.Economy.SettlementCount];
             var settlementIdsBeforeAdvance = new int[match.Economy.SettlementCount];
+            var settlementFissionsBeforeAdvance = new int[match.Economy.SettlementCount];
+            var settlementFieldsBeforeAdvance = traceSettlementTimeline ? new int[match.Economy.SettlementCount] : null;
+            var settlementOrchardsBeforeAdvance = traceSettlementTimeline ? new int[match.Economy.SettlementCount] : null;
+            var settlementHerdsBeforeAdvance = traceSettlementTimeline
+                ? new (int SmallStock, int Cattle, int Pigs)[match.Economy.SettlementCount]
+                : null;
             for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
             {
                 SettlementView view = match.Economy.Settlement(s);
@@ -283,6 +293,13 @@ internal static class Tournament
                 settlementOwnersBeforeAdvance[s] = match.Politics.SettlementCivOf(s);
                 settlementTilesBeforeAdvance[s] = view.SiteTile;
                 settlementIdsBeforeAdvance[s] = view.Id;
+                settlementFissionsBeforeAdvance[s] = view.Fissions;
+                if (traceSettlementTimeline)
+                {
+                    settlementFieldsBeforeAdvance![s] = match.Economy.FieldCount(s);
+                    settlementOrchardsBeforeAdvance![s] = match.Economy.OrchardCount(s);
+                    settlementHerdsBeforeAdvance![s] = match.Economy.DomesticStock(s);
+                }
             }
             var defensesBeforeAdvance = new Defenses[match.Politics.SettlementTotal];
             for (int s = 0; s < defensesBeforeAdvance.Length; s++)
@@ -325,6 +342,67 @@ internal static class Tournament
                 totalDeaths[death.Civilization]++;
                 if (death.Cause == EconomyDeathCause.Starvation)
                     starvationDeaths[death.Civilization]++;
+            }
+
+            if (traceSettlementTimeline)
+            {
+                int traceSeason = season + 1;
+                var starvationBySettlement = new Dictionary<int, int>();
+                for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
+                {
+                    EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
+                    if (death.Cause == EconomyDeathCause.Starvation)
+                        starvationBySettlement[death.SettlementId] = starvationBySettlement.GetValueOrDefault(death.SettlementId) + 1;
+                }
+                var parents = new List<string>();
+                int priorCount = settlementIdsBeforeAdvance.Length;
+                var newSettlementIds = new Queue<int>();
+                for (int n = priorCount; n < match.Economy.SettlementCount; n++)
+                    newSettlementIds.Enqueue(match.Economy.Settlement(n).Id);
+                for (int s = 0; s < Math.Min(priorCount, match.Economy.SettlementCount); s++)
+                {
+                    SettlementView before = match.Economy.Settlement(s);
+                    int added = before.Fissions - settlementFissionsBeforeAdvance[s];
+                    for (int n = 0; n < added; n++)
+                    {
+                        if (newSettlementIds.Count > 0)
+                        {
+                            int daughterId = newSettlementIds.Dequeue();
+                            (int smallStock, int cattle, int pigs) = settlementHerdsBeforeAdvance![s];
+                            parents.Add($"inferred:{before.Id}>{daughterId}(preStores={foodStoresBeforeAdvance[s].ToDoubleForDisplay():F1}," +
+                                $"prePlots={settlementFieldsBeforeAdvance![s]}/{settlementOrchardsBeforeAdvance![s]}," +
+                                $"preHerd={smallStock}/{cattle}/{pigs})");
+                        }
+                    }
+                }
+                var ownershipEvents = new List<string>();
+                for (int s = 0; s < priorCount; s++)
+                {
+                    int id = settlementIdsBeforeAdvance[s];
+                    int oldOwner = settlementOwnersBeforeAdvance[s];
+                    int currentOwner = -1;
+                    for (int n = 0; n < match.Economy.SettlementCount; n++)
+                        if (match.Economy.Settlement(n).Id == id) { currentOwner = match.Politics.SettlementCivOf(n); break; }
+                    if (currentOwner >= 0 && currentOwner != oldOwner)
+                        ownershipEvents.Add($"capture:s{id}:c{oldOwner}>c{currentOwner}");
+                    else if (currentOwner < 0) ownershipEvents.Add($"lost:s{id}:c{oldOwner}");
+                }
+                var records = new List<string>();
+                for (int s = 0; s < match.Economy.SettlementCount; s++)
+                {
+                    SettlementView settlement = match.Economy.Settlement(s);
+                    int civ = match.Politics.SettlementCivOf(s);
+                    if (match.Politics.IsFreeFolk(s)) continue;
+                    int deaths = starvationBySettlement.GetValueOrDefault(settlement.Id);
+                    FoodIncomeBreakdown income = match.Economy.SustainableFoodIncomeBreakdown(s);
+                    (int smallStock, int cattle, int pigs) = match.Economy.DomesticStock(s);
+                    records.Add($"s{settlement.Id}/c{civ}:{seats[civ].Name}/tile={settlement.SiteTile}/p{settlement.Population}" +
+                        $"/foodsec={settlement.LastFoodSecurity.ToDoubleForDisplay():F2}/stores={settlement.FoodStores.ToDoubleForDisplay():F1}" +
+                        $"/cap={settlement.FoodCap.ToDoubleForDisplay():F1}/sustain={match.Economy.SustainableFoodCapacity(s).ToDoubleForDisplay():F1}" +
+                        $"/income={income.Total.ToDoubleForDisplay():F1}[{income.Plants.ToDoubleForDisplay():F1},{income.Meat.ToDoubleForDisplay():F1},{income.Fish.ToDoubleForDisplay():F1},{income.Grain.ToDoubleForDisplay():F1},{income.Fruit.ToDoubleForDisplay():F1}]" +
+                        $"/plots={match.Economy.FieldCount(s)}/{match.Economy.OrchardCount(s)}/herd={smallStock}/{cattle}/{pigs}/starve={deaths}");
+                }
+                outcome.SettlementTimelineTraces.Add($"SETTLE_TRACE seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={traceSeason} settlements=[{string.Join(';', records)}] fission=[{string.Join(',', parents)}] events=[{string.Join(',', ownershipEvents)}]");
             }
 
             if (captureFoundFunnelDiagnostics)
@@ -1141,7 +1219,8 @@ internal static class Tournament
         bool warlordMaxCampaignOrigin = false, Fix64? warlordFrontierEarlyBonusOverride = null,
         Fix64? warlordE3FissionThresholdOverride = null, Fix64? warlordDefenseResearchBonusOverride = null,
         bool warlordDefenseUrgencyShadowDiagnostic = false, bool captureFoundFunnelDiagnostics = false,
-        Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false)
+        Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false,
+        bool warlordSettlementTrace = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -1158,7 +1237,7 @@ internal static class Tournament
                 firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin,
                 warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
                 warlordDefenseUrgencyShadowDiagnostic, captureFoundFunnelDiagnostics, warlordKeystoneTempoOverride,
-                warlordE2ClosureSlotDiagnostic), swapped);
+                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
