@@ -548,7 +548,7 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 | FoundOwnMinDist · FoundRivalMinDist | r + 1 · 9 | tiles | 22 §4.3 |
 | FoundClaimBoost · FoundClaimBoostYears · FoundStartCohesion | 1.5 · 2 · 60 | × · years · C | 22 §4.3 (TER-05) |
 | ExpeditionSize · ExpeditionRangeMult | 4 · 2 | adults · × Reach | 22 §4.3 (Reach E3 15) |
-| ExpeditionSight · ExpeditionRevealRadius · ExpeditionContactRadius | 3 (+1 riding) · 5 · 2 | tiles | 22 §4.3 |
+| ExpeditionSight · ExpeditionRevealRadius | 3 (+1 riding) · 5 | tiles | 22 §4.3 |
 | RidingSpeedMult · RidingRangeMult | 2 · 1.5 | × | 22 §4.3, TRN-06 |
 | MineReach · MineReachCarts · MineReachWater | 8 · 12 · 16 | walking tiles | 22 §4.3 |
 | LevySeasons · LevyOtherAdultsShare · LevyTravelSeasons | 2 · 0.5 · 2 | seasons · share · seasons | 22 §4.3 |

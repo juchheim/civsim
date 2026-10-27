@@ -16,7 +16,7 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 22;
+    public const int SnapshotVersion = 23;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;

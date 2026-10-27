@@ -159,10 +159,10 @@ public sealed class Occupation
 }
 
 /// <summary>
-/// Territory, contact and conflict (M5; docs/MVP/05 §11 to §12, 07b, 13). Once a season it recomputes claims and
-/// ownership, notices rivals and rolls first contact, moves the parties on the road, and lets each civilization's Civ
-/// Mind (a plain rule set until M6) choose gifts, barter, raids and wars. The same rules run for every civilization;
-/// the player steers with Posture and Beacons.
+/// Territory, contact and conflict (M5; docs/MVP/05 §11 to §12, 07b, 13). Each tick it advances scout routes and direct
+/// sighting contacts. Once a season it recomputes claims and ownership, notices rivals, moves parties on the road, and
+/// lets each civilization's Civ Mind (a plain rule set until M6) choose gifts, barter, raids and wars. The same rules
+/// run for every civilization; the player steers with Posture and Beacons.
 /// </summary>
 public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus
 {
@@ -293,6 +293,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         economy.SiteAdvisor = this;
         economy.TileOwnership = this;
         economy.FreeFolkStatus = this;
+        InitializeScoutSimulation();
         InitDecrees();
         RefreshSettlements();
         ApplyEconomyInputs();
@@ -450,6 +451,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     break;
             }
         }
+        AdvanceScoutSimulation(tick);
     }
 
     /// <summary>Expand lowers the threshold 20% before E3 and 17% in Bronze; Prosper raises it 20% (docs/MVP/05 §6.2; 07d B17).</summary>
@@ -1916,6 +1918,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (int v in _warSince) h.Add(v);
         h.Add(RaidCount); h.Add(RaidsSucceeded); h.Add(Gifts); h.Add(BarterTrips); h.Add(CaptureCount); h.Add(Skirmishes); h.Add(Wars);
         HashBronze(ref h);
+        HashScoutSimulation(ref h);
     }
 
     public void WriteSnapshot(BinaryWriter w)
@@ -1955,6 +1958,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (int v in _warSince) w.Write(v);
         w.Write(RaidCount); w.Write(RaidsSucceeded); w.Write(Gifts); w.Write(BarterTrips); w.Write(CaptureCount); w.Write(Skirmishes); w.Write(Wars);
         WriteBronze(w);
+        WriteScoutSimulation(w);
     }
 
     public void ReadSnapshot(BinaryReader r)
@@ -2009,6 +2013,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         RaidCount = r.ReadInt32(); RaidsSucceeded = r.ReadInt32(); Gifts = r.ReadInt32(); BarterTrips = r.ReadInt32();
         CaptureCount = r.ReadInt32(); Skirmishes = r.ReadInt32(); Wars = r.ReadInt32();
         ReadBronze(r);
+        ReadScoutSimulation(r);
         _events.Clear();
         RefreshSettlements();
         ApplyEconomyInputs();

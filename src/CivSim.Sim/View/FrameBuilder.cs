@@ -106,8 +106,6 @@ public sealed partial class FrameBuilder
     private readonly int[] _walkFrom = new int[64], _walkTo = new int[64], _walkTiles = new int[64];
     private int _walkCount, _walkNext;
     private readonly int[] _bfsDistance, _bfsQueue;
-    private readonly int[] _scoutCosts;
-    private readonly System.Collections.Generic.PriorityQueue<int, int> _scoutCostQueue;
 
     public FrameBuilder(MatchModel match, int viewerCiv, int eventCapacity = DefaultEventCapacity, int eventWindow = DefaultEventWindow)
     {
@@ -153,9 +151,6 @@ public sealed partial class FrameBuilder
         _contested = new bool[_tileCount];
         _bfsDistance = new int[_tileCount];
         _bfsQueue = new int[_tileCount];
-        _scoutCosts = new int[_tileCount];
-        _scoutCostQueue = new System.Collections.Generic.PriorityQueue<int, int>(checked(_tileCount * 6));
-        InitializeScoutJourneys();
         _ring = new ViewEvent[eventCapacity];
         _window = eventWindow;
         InitEventScratch();
@@ -579,6 +574,13 @@ public sealed partial class FrameBuilder
     private void FillTiles(LivingEconomyModel eco, PoliticsSystem pol, MatchFrame target)
     {
         target.EnsureTiles(_tileCount);
+        if (!_omniscient)
+            for (int t = 0; t < _tileCount; t++)
+                if (pol.ScoutMapExplored(_viewer, t))
+                {
+                    _explored[t] = 1;
+                    _rememberedOwner[t] = (sbyte)pol.ScoutMapOwnerSeen(_viewer, t).Owner;
+                }
         Territory territory = pol.Territory;
         byte[] vis = target.Visibility, claim = target.Claim, claim2 = target.Claim2, claim3 = target.Claim3,
             flags = target.TileFlags, knownDeposits = target.KnownDeposits, forest = target.ForestBand,

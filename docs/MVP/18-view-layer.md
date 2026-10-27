@@ -52,17 +52,17 @@ Shares are permille, Fix64 values are raw Q32.32 `long`s (divide by 2³² to dis
 
 `MatchFrame.IndexOfFigure(id)` and `IndexOfSettlement(index)` binary-search a frame.
 
-### 3.1 Figures have no positions in the simulation
-The economy is aggregate per settlement ([05 §5](05-simulation-structure.md)): a figure has a settlement and a job, not a place. The builder therefore **lays figures out** as a pure function of (figure id, settlement, job, season, tick), hashed with `Hash64.Mix` (no random stream is drawn):
+### 3.1 Figure positions
+The economy is aggregate per settlement ([05 §5](05-simulation-structure.md)). Most figures have a settlement and a job, not a place, so the builder **lays them out** as a pure function of (figure id, settlement, job, season, tick), hashed with `Hash64.Mix` (no random stream is drawn). Scouts are the exception: Politics owns their routes and interpolated positions because their paths reveal tiles and can start diplomacy:
 
 - a home spot within ~0.3 tile of the settlement site;
 - a work tile chosen per season among the settlement's tiles within 3 that suit the job (forage: forage land; hunt: tiles where a wild herd grazes within 4, else land 2–3 tiles out; fish: river, lake and shore; farm: its fields and orchards; chop: forest; herd: grass and steppe; gather: stone, flint, clay or mountain), falling back to any land and then the site;
 - a 50-tick day (5 s at 1×): 8 ticks walking out, 27 working (with a small drift), 8 walking back carrying the job's goods, 7 at home;
-- scouts are assigned from the settlement's adults, choose an unexplored frontier target, and walk a least-cost path out and home over one or more seasons; the moving scout reveals sight 3 around its current tile;
+- scouts are assigned from the settlement's adults; Politics chooses an unexplored frontier target and simulates a least-cost path out and home over one or more seasons; the moving scout reveals sight 3 around its current tile;
 - children, the wounded and the ill, and home jobs (craft, build, preserve, rest, fire) drift slowly around the home spot (fire keepers close to the hearth);
 - party members walk with their party (on the straight line between the two settlements, at the progress the travel time implies), occupiers stand at the settlement they hold.
 
-So a figure's place is presentation, not state: the renderer may route or animate as it likes (a path along terrain, a facing from the movement direction; the sim has no heading), and later milestones can move the layout into the simulation without changing the contract.
+The frame builder reads those scout routes and uses them to draw the scout and stamp its visible area. Other figures remain presentation positions; they have no simulated heading.
 
 ## 4. Visibility
 
@@ -83,7 +83,7 @@ The viewer is a civilization index, or **−1 for the omniscient debug view** (e
 
 The builder's memory is presentation state. It is **not** in the simulation snapshot (so checksums and the replay format are untouched); `FrameBuilder.WriteState`/`ReadState` save it next to a snapshot. Call `ReadState` right after the match's `ReadSnapshot`: the systems' event lists start empty then and the builder reads them from the start. One gap this covers: `Territory`'s claim field is not in the simulation snapshot (owners are; claims are rebuilt at each season end), so the builder saves its claim layer; without saved view state a loaded game shows no claim strength until the next season.
 
-View-state version 3 saves the complete top-three claim layer and ongoing scout journeys; versions 1 and 2 remain readable. The simulation snapshot, checksum, and replay format are unchanged.
+View-state version 4 saves the complete top-three claim layer; versions 1–3 remain readable. Scout routes and scout map knowledge are simulation state, covered by the match snapshot and checksum.
 
 ## 5. Threading and interpolation
 

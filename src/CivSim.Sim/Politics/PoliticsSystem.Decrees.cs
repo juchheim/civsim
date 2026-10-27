@@ -15,18 +15,17 @@ namespace CivSim.Sim.Politics;
 /// ascending order, each civilization's Decrees in issue order, then its policy's. Mandate is spent only on success; a refusal
 /// emits <see cref="PoliticsEventKind.DecreeRefused"/> (and <see cref="PoliticsEventKind.OrderRefused"/> for a player command) with
 /// one of the reason codes NoMandate, NoDonor, NoSite, OutOfReach, Rejected. Donor and site choices use the fission scoring with
-/// ascending-id tie-breaks; expedition contact rolls use <c>Pcg32.ForStream(seed, "politics.expedition", civ, season)</c>.
+/// ascending-id tie-breaks. An expedition makes contact deterministically when its sight reaches an occupied rival settlement.
 /// </summary>
 public sealed partial class PoliticsSystem
 {
-    private static readonly ulong ExpeditionStream = Hash64.OfString("politics.expedition");
     private static readonly ulong BronzePoliticsTag = 0x504F4C4252303332UL; // "POLBR032"
 
     /// <summary>The Decree constants of docs/MVP/23 §12 (content/constants/balance.yaml), read once.</summary>
     private sealed class DecreeRules
     {
         public int DonorMinPop, MinDaughter, SettleReach, CartBonus, SeaReach, OwnMinDistBeyondRadius, RivalMinDist;
-        public int BoostSeasons, StartCohesion, ExpeditionSize, ExpeditionRangeMult, Sight, RevealRadius, ContactRadius;
+        public int BoostSeasons, StartCohesion, ExpeditionSize, ExpeditionRangeMult, Sight, RevealRadius;
         public int LevySeasons, LevyTravelSeasons, CorveeSeasons, CorveeCohesion;
         public Fix64 DonorMinFill, FoundShare, ClaimBoost, RidingSpeed, RidingRange, LevyOthers;
 
@@ -38,7 +37,7 @@ public sealed partial class PoliticsSystem
             OwnMinDistBeyondRadius = I("FoundOwnMinDist"); RivalMinDist = I("FoundRivalMinDist"); ClaimBoost = c.Constant("FoundClaimBoost");
             BoostSeasons = I("FoundClaimBoostYears") * 4; StartCohesion = I("FoundStartCohesion");
             ExpeditionSize = I("ExpeditionSize"); ExpeditionRangeMult = I("ExpeditionRangeMult"); Sight = I("ExpeditionSight");
-            RevealRadius = I("ExpeditionRevealRadius"); ContactRadius = I("ExpeditionContactRadius");
+            RevealRadius = I("ExpeditionRevealRadius");
             RidingSpeed = c.Constant("RidingSpeedMult"); RidingRange = c.Constant("RidingRangeMult");
             LevySeasons = I("LevySeasons"); LevyOthers = c.Constant("LevyOtherAdultsShare"); LevyTravelSeasons = I("LevyTravelSeasons");
             CorveeSeasons = I("CorveeSeasons"); CorveeCohesion = I("CorveeCohesion");
@@ -423,8 +422,8 @@ public sealed partial class PoliticsSystem
         MarkDisk(seen, to, _rules.RevealRadius);
         e.Revealed.Clear();
         for (int t = 0; t < seen.Length; t++) if (seen[t]) e.Revealed.Add(t);
-        // Anyone seen becomes known; within two tiles of the party's path or target they meet (a roll per civilization).
-        Pcg32 roll = Pcg32.ForStream(_seed, ExpeditionStream, (ulong)civ, _season);
+        // Seeing a settlement reveals who lives there. A settlement inside the party's actual sight corridor means first contact;
+        // the larger target reveal radius discovers terrain, not people, and does not by itself establish contact.
         var met = new bool[_civs];
         for (int s = 0; s < _sCount; s++)
         {
@@ -436,10 +435,9 @@ public sealed partial class PoliticsSystem
                 _events.Add(new PoliticsEvent(_tick, (byte)civ, PoliticsEventKind.Aware, o, 0, 1));
                 _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.Aware, civ, 0, 1));
             }
-            if (met[o] || _dip.Contacted(civ, o) || !NearPath(_sTile[s], from, to, _rules.ContactRadius)) continue;
+            if (met[o] || _dip.Contacted(civ, o) || _sPop[s] <= 0 || !NearPath(_sTile[s], from, to, sight)) continue;
             met[o] = true;
-            // Three in four such meetings become first contact (docs/MVP/22 §4.3 "roll first contact within 2 tiles").
-            if (roll.NextBelow(4) < 3) MakeContact(civ, o);
+            MakeContact(civ, o);
         }
         if (Done(civ, _bp.Way04)) CommitReveal(civ, e.Revealed);
         e.Leg = 1;

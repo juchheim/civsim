@@ -92,7 +92,6 @@ constants:
   - {id: ExpeditionRangeMult, value: 2, unit: "× Reach", source: "22 §4.3 (Reach E3 15)"}
   - {id: ExpeditionSight, value: 3, unit: "tiles (+1 riding)", source: "22 §4.3"}
   - {id: ExpeditionRevealRadius, value: 5, unit: tiles, source: "22 §4.3"}
-  - {id: ExpeditionContactRadius, value: 2, unit: tiles, source: "22 §4.3"}
   - {id: RidingSpeedMult, value: 2, unit: "×", source: "22 §4.3, TRN-06"}
   - {id: RidingRangeMult, value: 1.5, unit: "×", source: "22 §4.3, TRN-06"}
   - {id: MineReach, value: 8, unit: walking tiles, source: "22 §4.3"}

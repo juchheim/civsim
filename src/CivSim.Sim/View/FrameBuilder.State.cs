@@ -5,13 +5,13 @@ namespace CivSim.Sim.View;
 
 /// <summary>
 /// Saving the builder's memory (docs/MVP/18 §4.3): what the viewer has explored, the owners and settlements it last saw,
-/// the event log and the baselines events are derived from. It is presentation state, kept out of the simulation
-/// snapshot so checksums and the replay format do not change; a save file stores it next to the snapshot.
+/// the event log and the baselines events are derived from. Simulation-owned scout routes and scout map knowledge live
+/// in the match snapshot; this file keeps the remaining presentation state alongside it.
 /// </summary>
 public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
-    private const int StateVersion = 3;
+    private const int StateVersion = 4;
 
     public void WriteState(BinaryWriter w)
     {
@@ -54,15 +54,6 @@ public sealed partial class FrameBuilder
                 w.Write(_topClaim[t]); w.Write(_topCiv[t]); w.Write(_contested[t]);
                 w.Write(_secondClaim[t]); w.Write(_secondCiv[t]); w.Write(_thirdClaim[t]); w.Write(_thirdCiv[t]);
             }
-        long[] scoutIds = new long[_scoutJourneys.Count];
-        _scoutJourneys.Keys.CopyTo(scoutIds, 0);
-        Array.Sort(scoutIds);
-        w.Write(scoutIds.Length);
-        foreach (long id in scoutIds)
-        {
-            ScoutJourney journey = _scoutJourneys[id];
-            w.Write(journey.FigureId); w.Write(journey.HomeTile); w.Write(journey.TargetTile); w.Write(journey.StartTick);
-        }
     }
 
     /// <summary>
@@ -144,7 +135,7 @@ public sealed partial class FrameBuilder
                 }
             }
         ClearScoutViewState();
-        if (version >= 3)
+        if (version is >= 3 and < 4)
         {
             int scouts = r.ReadInt32();
             if (scouts < 0 || scouts > 1_000_000) throw new InvalidDataException("Bad view state.");
@@ -155,17 +146,6 @@ public sealed partial class FrameBuilder
                 long started = r.ReadInt64();
                 if (id < 0 || unchecked((uint)home) >= (uint)_tileCount || unchecked((uint)target) >= (uint)_tileCount || started < 0)
                     throw new InvalidDataException("Bad scout view state.");
-                ScoutJourney journey = RentScoutJourney();
-                int pathLength = BuildScoutPath(home, target, journey.Path);
-                if (pathLength < 2) { ReturnScoutJourney(journey); continue; }
-                int seasons = Math.Max(1, (pathLength - 1 + 9) / 10);
-                journey.FigureId = id;
-                journey.HomeTile = home;
-                journey.TargetTile = target;
-                journey.StartTick = started;
-                journey.LegTicks = (long)seasons * CivSim.Sim.Economy.LivingEconomyModel.SeasonTicks;
-                journey.PathLength = pathLength;
-                _scoutJourneys[id] = journey;
             }
         }
         _researchCursor = 0;

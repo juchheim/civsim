@@ -19,8 +19,8 @@ namespace CivSim.Sim.Ai;
 /// <list type="number">
 /// <item><b>Routine sight:</b> every tile within r + s of one of the observer's own settlements is explored and its
 /// owner recorded this season (MapKnowledge). A rival settlement on such a tile is seen.</item>
-/// <item><b>Scouts</b> (13 §2.3), once the observer is Aware of a rival: settlements within S + s are seen, where S is
-/// the scout range (r; ×1.5 with WAY-01; ×2 with WAY-03). The tiles within s of a settlement seen this way are explored.</item>
+/// <item><b>Scouts</b> (13 §2.3): Politics advances their routes and records their current sight-3 disk. The builder
+/// shares that route map and refreshes settlement details when the scout sighted the settlement this season.</item>
 /// <item><b>Visits:</b> a party of the observer's own (gift, barter, raid, assault) that reached a settlement this
 /// season saw it. The builder remembers its own parties on the road for this, its only state.</item>
 /// <item><b>Figures in the field:</b> two settlements whose people range into each other's sight, (r + r') × 1.1 + s
@@ -48,15 +48,13 @@ namespace CivSim.Sim.Ai;
 public sealed class BeliefBuilder : IBeliefBuilder
 {
     private TechEstimate? _tech;
-    private int _way01 = -1, _way03 = -1, _war02 = -1;
-    private WorldTile[] _worldTiles = Array.Empty<WorldTile>();
+    private int _war02 = -1;
 
     /// <summary>Own parties on the road at the last update: (target settlement, arrival season). Saved and hashed.</summary>
     private readonly List<(int Settlement, int ArriveSeason)> _visits = new();
 
     // Scratch, rebuilt every update (never state).
     private readonly List<int> _own = new();
-    private readonly SortedSet<int> _scoutTargets = new();
     private bool[] _seenNow = Array.Empty<bool>(), _visited = Array.Empty<bool>();
     private int[] _stamp = Array.Empty<int>();
     private int _stampValue;
@@ -69,7 +67,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
     public int LastUpdateLiveRivalCamps { get; private set; }
     /// <summary>Live rival camps whose civilization was already known to the observer.</summary>
     public int LastUpdateAwareMiningCamps { get; private set; }
-    /// <summary>Aware rival camps inside routine or scout sight.</summary>
+    /// <summary>Aware rival camps inside routine sight or on a tile observed by scouts this season.</summary>
     public int LastUpdateRangeMiningCamps { get; private set; }
     /// <summary>Aware rival camps whose tile owner was recorded during the current season.</summary>
     public int LastUpdateOwnerSeenMiningCamps { get; private set; }
@@ -84,9 +82,6 @@ public sealed class BeliefBuilder : IBeliefBuilder
         if (_tech is not null) return;
         ResearchCatalog catalog = world.Research.Catalog;
         _tech = new TechEstimate(catalog, world.Politics.WeaponLadder, world.Politics.ArcheryProject);
-        _worldTiles = world.Generated.Tiles.ToArray();
-        _way01 = catalog.IndexOf("WAY-01");
-        _way03 = catalog.IndexOf("WAY-03");
         _war02 = catalog.IndexOf("WAR-02");
     }
 
@@ -137,7 +132,6 @@ public sealed class BeliefBuilder : IBeliefBuilder
             if (pol.SettlementCivOf(s) == civ && !pol.IsFreeFolk(s)) _own.Add(s);
         int reach = pol.ReachOf(civ);
         int routine = BeliefRules.RoutineSight(reach);
-        int scout = BeliefRules.ScoutRange(reach, IsDone(res, civ, _way01), IsDone(res, civ, _way03)) + BeliefRules.SightRadius;
         Array.Clear(_visited, 0, _visited.Length);
         foreach ((int target, int arrive) in _visits)
             if (arrive <= season && (target >= 0 && target < total)) _visited[target] = true;
@@ -149,7 +143,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
         _stampValue = _stampValue == int.MaxValue ? 1 : _stampValue + 1;
         Array.Clear(_claims);
         foreach (int s in _own) SeeDisk(belief.Map, pol.Territory, pol.SettlementTileOf(s), routine, season, countClaims: true);
-        ExploreWithScouts(belief, world, season, reach);
+        ExploreWithScouts(belief, pol);
 
         // ---- public record and diplomacy ---------------------------------------------------------------------
         Array.Clear(_firsts);
@@ -203,14 +197,15 @@ public sealed class BeliefBuilder : IBeliefBuilder
                 int d = NearestOwn(pol, pol.SettlementTileOf(s), width);
                 bool free = pol.IsFreeFolk(s);
                 bool aware = !free && (owner >= 0 && owner < civs) && belief.Rivals[owner].Aware;
-                bool inSight = _visited[s] || d <= routine || (AnyAware(belief) && d <= scout);
+                int scoutSeenSeason = pol.ScoutMapOwnerSeen(civ, pol.SettlementTileOf(s)).Season;
+                bool inSight = _visited[s] || d <= routine || scoutSeenSeason >= season;
                 if (free || pol.SettlementPopulationOf(s) <= 0)
                 {
                     if (inSight) Forget(belief, s, keep: -1); // seen empty or gone over to the Free Folk
                     continue;
                 }
                 if (!aware) continue;
-                bool settlementSeen = _visited[s] || d <= routine || d <= scout;
+                bool settlementSeen = inSight;
                 bool figuresSeen = settlementSeen || d <= BeliefRules.FigureSight(reach, pol.ReachOf(owner));
                 if (!figuresSeen) continue;
                 RivalBelief r = belief.Rivals[owner];
@@ -249,7 +244,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
             if (!pol.IsTinFolk(s)) continue;
             int tile = pol.SettlementTileOf(s);
             int d = NearestOwn(pol, tile, width);
-            bool inSight = _visited[s] || d <= routine || (AnyAware(belief) && d <= scout);
+            bool inSight = _visited[s] || d <= routine || pol.ScoutMapOwnerSeen(civ, tile).Season >= season;
             if (!inSight) continue;
             BeliefTinFolk? known = null;
             foreach (BeliefTinFolk folk in belief.TinFolkSeen)
@@ -269,7 +264,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
             if (!rivals || !belief.Rivals[camp.Civilization].Aware) continue;
             LastUpdateAwareMiningCamps++;
             int d = NearestOwn(pol, camp.Tile, width);
-            bool inLocalRange = d <= routine || d <= scout;
+            bool inLocalRange = d <= routine || belief.Map.OwnerSeen(camp.Tile).Season == season;
             if (inLocalRange) LastUpdateRangeMiningCamps++;
             bool tileSeenThisSeason = belief.Map.OwnerSeen(camp.Tile).Season == season;
             if (tileSeenThisSeason) LastUpdateOwnerSeenMiningCamps++;
@@ -484,55 +479,18 @@ public sealed class BeliefBuilder : IBeliefBuilder
         }
     }
 
-    /// <summary>Scouts return every other season and share what they saw along their route with their civilization.</summary>
-    private void ExploreWithScouts(Belief belief, TrueWorld world, int season, int reach)
+    /// <summary>Shares explored tiles and owner sightings recorded by the simulation's scout routes.</summary>
+    private static void ExploreWithScouts(Belief belief, PoliticsSystem politics)
     {
-        if ((season & 1) != 0) return;
-        LivingEconomyModel eco = world.Economy;
-        PoliticsSystem politics = world.Politics;
-        int civ = belief.Civ, width = belief.Map.Width, height = belief.Map.Height;
-        int scoutRange = BeliefRules.ScoutMapRange(reach, IsDone(world.Research, civ, _way01), IsDone(world.Research, civ, _way03));
-        int maximumCost = Math.Max(100, scoutRange * 40);
-        IReadOnlyList<int> beacons = politics.BeaconsOf(civ);
-        _scoutTargets.Clear();
-        for (int i = 0; i < eco.FigureCount; i++)
+        int civ = belief.Civ;
+        for (int tile = 0; tile < belief.Map.TileCount; tile++)
         {
-            FigureView scout = eco.Figure(i);
-            if (scout.Civilization != civ || scout.Job != EconomyJob.Scout ||
-                (uint)scout.SettlementId >= (uint)politics.SettlementTotal) continue;
-            int home = politics.SettlementTileOf(scout.SettlementId);
-            int[] costs = HexGrid.WalkingCostsFrom(_worldTiles, width, height, home, maximumCost);
-            int target = -1, bestScore = int.MinValue;
-            for (int tile = 0; tile < belief.Map.TileCount; tile++)
-            {
-                if (belief.Map.IsExplored(tile) || !_worldTiles[tile].IsLand || _worldTiles[tile].Biome == Biome.Peak ||
-                    costs[tile] == int.MaxValue || HexGrid.Distance(home, tile, width) > scoutRange || _scoutTargets.Contains(tile)) continue;
-                int unknownLand = 0;
-                HexGrid.Coordinates(tile, width, out int cx, out int cy);
-                for (int y = Math.Max(0, cy - BeliefRules.SightRadius); y <= Math.Min(height - 1, cy + BeliefRules.SightRadius); y++)
-                    for (int x = Math.Max(0, cx - BeliefRules.SightRadius - 1); x <= Math.Min(width - 1, cx + BeliefRules.SightRadius + 1); x++)
-                    {
-                        int nearby = y * width + x;
-                        if (!belief.Map.IsExplored(nearby) && _worldTiles[nearby].IsLand && _worldTiles[nearby].Biome != Biome.Peak &&
-                            HexGrid.Distance(tile, nearby, width) <= BeliefRules.SightRadius) unknownLand++;
-                    }
-                int beaconPull = 0;
-                for (int b = 0; b < beacons.Count; b++)
-                {
-                    int distance = HexGrid.Distance(tile, beacons[b], width);
-                    if (distance <= 5) beaconPull = Math.Max(beaconPull, 5 - distance);
-                }
-                int score = unknownLand * 1000 - Math.Min(costs[tile], 999) + beaconPull * 250;
-                if (score > bestScore || score == bestScore && tile < target)
-                {
-                    target = tile;
-                    bestScore = score;
-                }
-            }
-            if (target < 0) continue;
-            _scoutTargets.Add(target);
-            int[] path = HexGrid.WalkingPathFrom(_worldTiles, width, height, home, target, maximumCost);
-            foreach (int tile in path) SeeDisk(belief.Map, politics.Territory, tile, BeliefRules.SightRadius, season, countClaims: false);
+            if (!politics.ScoutMapExplored(civ, tile)) continue;
+            belief.Map.MarkExplored(tile);
+            (int owner, int seenSeason) = politics.ScoutMapOwnerSeen(civ, tile);
+            if (seenSeason < 0) continue;
+            var previous = belief.Map.OwnerSeen(tile);
+            if (seenSeason >= previous.Season) belief.Map.RecordOwner(tile, owner, seenSeason);
         }
     }
 

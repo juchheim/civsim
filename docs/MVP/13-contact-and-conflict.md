@@ -27,13 +27,13 @@ Reach grows **project by project**, not just by era: WAY-01 +50% for scouts, WAY
 
 ### 2.3 Scouts
 - The Civ Mind keeps **1 scout per settlement** from the start (an adult with the *restless* or *curious* trait if available). From WAY-01 it keeps 2 scouts, and from WAY-03 scouts may range to **2× reach**.
-- Scouts explore by **frontier value** (unexplored habitable tiles × distance cost), biased toward **Beacons** (05 §11.4) and toward **known rivals' last-seen positions** once Aware. They return home every 1–2 seasons to report (map knowledge is shared civilization-wide only after return until WAY-04 Sketch Maps).
+- The simulation chooses each scout's reachable unexplored habitable target by **frontier value** (unknown land × distance cost), with a bias toward **Beacons** (05 §11.4). Scouts follow a least-cost route out and home over one or two seasons. Their sight-3 path updates map knowledge as they travel; when it reaches an occupied rival settlement, the civilizations become Aware and make first contact immediately.
 
 ### 2.4 Awareness and contact
 | State | Trigger | What you learn |
 |-------|---------|----------------|
-| **Aware** | One of your figures sees a figure, structure or claim of another civilization | Their existence, color and the seen location; their visible **tool tier and outfits** (a hint of their research, §2.5) |
-| **Contacted** | Figures of both civilizations within 2 tiles of each other, a gift or trade, or owned tiles touching | Their name, approximate population band (±25%), and **Glimpse** of every project they've completed (02 §14). Diffusion and `[Seen]`-by-contact start |
+| **Aware** | One of your figures sees a figure, structure or claim of another civilization; seeing an occupied settlement also makes the observer Aware | Their existence, color and the seen location; their visible **tool tier and outfits** (a hint of their research, §2.5) |
+| **Contacted** | A scout's or exploration party's sight reaches an occupied rival settlement; the seasonal routine-reach check also brings nearby civilizations into contact. Gifts, trade, or touching owned tiles are contact triggers in the design | Their name, approximate population band (±25%), and **Glimpse** of every project they've completed (02 §14). Diffusion and `[Seen]`-by-contact start |
 | **Neighbours** | Owned tiles adjacent | Border pressure; Relations drift (§3.3) |
 
 ### 2.5 What can be inferred by sight (no cheating)
@@ -258,7 +258,7 @@ Raid table, a warband of 8 (stone-tipped spears, 1.6) against a band of 40 with 
 2. **Defenders break at 40% in a raid and at 60% when children are inside in an assault.** A raid is a grab for stores, so the camp's fighters give way at the usual 40%; the 60% of §7.3 is for those fighting for their families in a siege. With 60% in raids no row of the table can be reproduced.
 3. **Mobilization.** Only the defenders who reach the fight count (§6.1): **40%** of the adults when the raid surprises the camp, **52%** when it was warned. Surprise, watchers, dogs and the stacked multipliers do the rest. These two numbers are the fitted constants (`Raids.SurprisedShare`, `AlertShare`).
 4. **Field strength for F5 includes defenses** (05 §12.3): the attackers' strength is 1.5 × Σ defenders × defense multiplier, with every adult of the village fighting.
-5. **Reach and contact.** Routine reach is the era value (6 / 9 / 12 …); the table already folds in the scouting projects (07b §2), so the +1s of §2.2 are not added again. It is counted in the terrain-weighted tiles the start pairs are placed by (12 §9.3), plus a tenth for trails, from **settlement** to settlement (camps are not scouting bases). Two figures meet when walking distance ≤ reach(A) + reach(B) + 2 (aware at + 3). Daughter bands refuse sites within 23 weighted tiles of a rival settlement, so contact comes from reach and not from a band wandering over; without that, 5 of 24 seeds met in E1.
+5. **Reach and contact.** Routine reach is the era value (6 / 9 / 12 …); the table already folds in the scouting projects (07b §2), so the +1s of §2.2 are not added again. It is counted in the terrain-weighted tiles the start pairs are placed by (12 §9.3), plus a tenth for trails, from **settlement** to settlement (camps are not scouting bases). The seasonal routine check contacts them at walking distance ≤ 1.1 × (reach(A) + reach(B)) + 2 (aware at +3). An exploration party also establishes contact immediately when its sight reaches an occupied rival settlement; terrain revealed around its destination does not count as sight. Daughter bands refuse sites within 23 weighted tiles of a rival settlement, so routine contact comes from reach and not from a band wandering over; without that, 5 of 24 seeds met in E1.
 6. **Camps** follow 07b §9.4: two per settlement once WAY-02 is known (existing settlements included), radius 2, half the band's emission (three quarters with TER-02), none on rival land.
 
 ### 12.3 What is a stand-in

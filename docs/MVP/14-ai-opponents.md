@@ -179,7 +179,7 @@ EV(raid on s) = P(success | believed defenses) × loot value(s)
 
 ### 7.1 First contact and gifts (13 §3)
 - Contact itself follows the rules in §13. After contact and Gift Giving research, rank gift opportunities by purpose: appease a threatening neighbor, build toward a needed alliance, maintain relations with a peaceful neighbor, or make a first gift to a stronger neighbor (or any peaceful neighbor other than a Warlord). Gifts are sent to a fresh, known settlement when a viable route and food reserve exist.
-- If it plans to raid soon: stay unseen as long as possible (scouts avoid contact), so first contact happens on its terms.
+- If it plans to raid soon, it can delay gifts and other overtures; automatic scouts may still make contact when their route sights an occupied settlement.
 
 ### 7.2 Alliances, trade and promises
 - **Trade** when both sides gain (13 §4.2): barter requires research on both sides, positive relations, a fresh known destination, a viable route and food reserve, and a positive distance-adjusted benefit estimate. The Strategist sends at most one successful barter order per season; it does not assume unseen knowledge or goods. Trade can satisfy `[Seen]` and `[Has]` gates it lacks (tin!).
@@ -321,13 +321,13 @@ Distances are hex tiles (terrain slows walking, not the eye; hex distance is a c
 | Channel | Rule | What it shows |
 |---|---|---|
 | Routine sight | tiles within r + s of an own settlement, every season | explored terrain and current owner (MapKnowledge); rival settlements on those tiles |
-| Scouts (13 §2.3) | once Aware of anyone: settlements within S + s, S = r (×1.5 with WAY-01, ×2 with WAY-03) | the settlement, and the tiles within s of it |
+| Scouts (13 §2.3) | the route's current sight-3 disk, refreshed each simulation tick | explored terrain and owner; an occupied settlement in that disk is directly seen |
 | Visits | an own gift, barter, raid or assault party that reached a settlement this season | the settlement |
 | Figures in the field | settlements (r + r′) × 1.1 + s apart: the awareness rule of 13 §12.2 | best weapon carried, warriors' paint (WAR-04), warpaint (Raid posture) |
 | Public | no sight needed | Aware, contact, Relations, reputation, war, alliance, truce; era and Keystones; Firsts; raids on us, gifts to us |
 | Incoming | a party aimed at an own settlement within r + s of it (≈ its remaining seasons × 10 tiles) or that left a settlement in sight | `Belief.IncomingParties` |
 
-Nothing is seen of a civilization before the observer is Aware of it. A seen settlement gives its head count and fighters times one noise factor uniform in [0.75, 1.25] (a stream keyed by match seed, observer, settlement and season), warriors exactly (painted), defenders' strength times the same factor, thorn barrier, palisade and watchers, distress (last food security < 0.9) and the structures standing there. Out of sight a record keeps its last values and `LastSeenSeason`; a settlement seen under a new owner, as Free Folk or empty moves or leaves the list. Without scouts and visits no settlement would be seen in E2 at all: paired starts are 25 tiles apart and r + s is 15.
+Nothing is seen of a civilization before the observer is Aware of it. A seen settlement gives its head count and fighters times one noise factor uniform in [0.75, 1.25] (a stream keyed by match seed, observer, settlement and season), warriors exactly (painted), defenders' strength times the same factor, thorn barrier, palisade and watchers, distress (last food security < 0.9) and the structures standing there. Out of sight a record keeps its last values and `LastSeenSeason`; a settlement seen under a new owner, as Free Folk or empty moves or leaves the list. A scout's simulated route is the source of scout map observations and settlement sightings; a duplicate AI-only path is not generated.
 
 ### 16.2 Estimates
 - **Tech (§5.2):** each sighting maps through the catalog's effects (`build` structure, `role` id, the politics weapon ladder) to the projects that produce it; when several could, only what all their closures share is believed. Closures follow `requires`, and for `requires_any` only what every alternative shares. The public era adds the closures of the keystones left behind; Firsts add their projects. The estimate is monotone and, by construction, never contains a project the rival lacks (tested).
