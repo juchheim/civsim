@@ -85,9 +85,9 @@ internal static class M10TelemetryRules
            (uint)settlement < (uint)observedThreatSeasons.GetLength(1) && (uint)settlement < (uint)defenseResponses.GetLength(1) &&
            IsUndefendedLoss(observedThreatSeasons[civ, settlement], currentSeason, defenseResponses[civ, settlement]);
 
-    /// <summary>Idle labor is a strict adult share threshold; seasons without a food deficit are excluded.</summary>
-    public static bool IsIdleLaborBlunder(int idleAdults, int adultWorkers, bool foodDeficit)
-        => foodDeficit && adultWorkers > 0 && idleAdults * 100 > adultWorkers * 15;
+    /// <summary>Idle labor is a strict adult share threshold at a food-deficient settlement.</summary>
+    public static bool IsIdleLaborBlunder(int idleAdults, int adultWorkers, bool localFoodDeficit)
+        => localFoodDeficit && adultWorkers > 0 && idleAdults * 100 > adultWorkers * 15;
 
     public static bool IsAttributedHerdCrash(int huntedToExtinctionByCiv, int civ, int civilizationCount)
         => (uint)civ < (uint)civilizationCount && huntedToExtinctionByCiv == civ;

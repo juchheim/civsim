@@ -596,6 +596,9 @@ internal static class AiCommand
             $"{herdCrashes} directly attributed; {herdCrashRate:F3} per match ({a7Matches}; {a7Seats} AI seats)");
         Gate("A7 idle labor", idleLaborRate == 0,
             $"{idleLabor} seasons; {idleLaborRate:F3} per match ({a7Matches}; {a7Seats} AI seats)");
+        foreach (MatchOutcome match in a1.Outcomes)
+            foreach (string trace in match.A7Traces)
+                Console.WriteLine($"  {trace}");
         return pass;
     }
 

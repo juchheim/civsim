@@ -18,11 +18,26 @@ public sealed class WildHerdAttributionTests
         int tile = economy.Settlement(0).SiteTile;
         economy.FixtureSetWildHerd(0, tile, Fix64.One);
 
-        economy.FixtureHuntWildHerd(0, Fix64.FromInt(100), Fix64.One);
+        economy.FixtureHuntWildHerd(0, Fix64.FromInt(100), Fix64.One, enforceSustainableLimit: false);
 
         WildHerdView herd = economy.WildHerd(0);
         Assert.Equal(Fix64.Zero, herd.AnimalCount);
         Assert.Equal(0, herd.LastHuntCrashCivilization);
+    }
+
+    [Fact]
+    public void Sustainable_hunt_work_cannot_take_a_wild_herd_to_zero()
+    {
+        BronzeFixture fixture = Fixture();
+        LivingEconomyModel economy = fixture.Economy;
+        int tile = economy.Settlement(0).SiteTile;
+        economy.FixtureSetWildHerd(0, tile, Fix64.One);
+
+        economy.FixtureHuntWildHerd(0, Fix64.FromInt(100), Fix64.One);
+
+        WildHerdView herd = economy.WildHerd(0);
+        Assert.True(herd.AnimalCount > Fix64.Zero);
+        Assert.Equal(-1, herd.LastHuntCrashCivilization);
     }
 
     [Fact]
@@ -45,7 +60,7 @@ public sealed class WildHerdAttributionTests
         BronzeFixture fixture = Fixture();
         LivingEconomyModel economy = fixture.Economy;
         economy.FixtureSetWildHerd(0, economy.Settlement(0).SiteTile, Fix64.One);
-        economy.FixtureHuntWildHerd(0, Fix64.FromInt(100), Fix64.One);
+        economy.FixtureHuntWildHerd(0, Fix64.FromInt(100), Fix64.One, enforceSustainableLimit: false);
         ulong checksum = economy.ComputeChecksum();
 
         using var stream = new MemoryStream();

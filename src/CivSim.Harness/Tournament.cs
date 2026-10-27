@@ -103,6 +103,7 @@ internal sealed class MatchOutcome
     public bool WarlordB30TraceEnabled;
     public bool WarlordB28TraceEnabled;
     public readonly List<string> B28Traces = new();
+    public readonly List<string> A7Traces = new();
     public readonly List<string> B27Traces = new();
     public int B28SettlementRaidLaunches, B28AiSettlementRaidLaunches, B28ActualBronzeRaidLaunches, B28BelievedBronzeRaidLaunches;
     public readonly List<FoundFunnelDiagnostic> FoundFunnels = new();
@@ -361,7 +362,20 @@ internal static class Tournament
 
                 }
             int researchEventsBeforeAdvance = match.Research.Events.Count;
+            // Levy and siege hosts are intentionally removed from work capacity. Snapshot their IDs on both
+            // sides of the advance so a host that expires at the season boundary is not called idle labor.
+            var intentionallyIdleFigureIds = new HashSet<long>();
+            for (int f = 0; f < match.Economy.FigureCount; f++)
+            {
+                FigureView figure = match.Economy.Figure(f);
+                if (match.Economy.IsIdle(figure.Id)) intentionallyIdleFigureIds.Add(figure.Id);
+            }
             runner.Advance(Math.Min(150, ticks - t));
+            for (int f = 0; f < match.Economy.FigureCount; f++)
+            {
+                FigureView figure = match.Economy.Figure(f);
+                if (match.Economy.IsIdle(figure.Id)) intentionallyIdleFigureIds.Add(figure.Id);
+            }
             for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
             {
                 EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
@@ -902,22 +916,44 @@ internal static class Tournament
 
                 if (seats[c].Control.Kind == ControlKind.Ai)
                 {
-                    int adultWorkers = 0, idleAdults = 0;
+                    int settlementCount = match.Economy.SettlementCount;
+                    var adultWorkers = new int[settlementCount];
+                    var idleAdults = new int[settlementCount];
                     for (int f = 0; f < match.Economy.FigureCount; f++)
                     {
                         FigureView figure = match.Economy.Figure(f);
-                        if (figure.Civilization != c || figure.Age < 14 || figure.Age >= 45) continue;
-                        adultWorkers++;
-                        if (figure.WorkThisSeason <= Fix64.Zero) idleAdults++;
+                        if (figure.Civilization != c || figure.Age < 14 || figure.Age >= 45 ||
+                            (uint)figure.SettlementId >= (uint)settlementCount ||
+                            intentionallyIdleFigureIds.Contains(figure.Id)) continue;
+                        adultWorkers[figure.SettlementId]++;
+                        if (figure.WorkThisSeason <= Fix64.Zero) idleAdults[figure.SettlementId]++;
                     }
-                    bool deficit = false;
-                    for (int s = 0; s < match.Economy.SettlementCount; s++)
+                    bool idleLaborBlunder = false;
+                    for (int settlementId = 0; settlementId < settlementCount; settlementId++)
                     {
-                        SettlementView settlement = match.Economy.Settlement(s);
-                        if (settlement.Civilization == c && settlement.LastFoodSecurity < Fix64.One)
-                        { deficit = true; break; }
+                        SettlementView settlement = match.Economy.Settlement(settlementId);
+                        bool localFoodDeficit = settlement.Civilization == c && settlement.LastFoodSecurity < Fix64.One;
+                        if (!M10TelemetryRules.IsIdleLaborBlunder(
+                                idleAdults[settlementId], adultWorkers[settlementId], localFoodDeficit)) continue;
+                        if (!idleLaborBlunder)
+                        {
+                            o.IdleLaborSeasons++;
+                            idleLaborBlunder = true;
+                        }
+                        var idlePeople = new List<string>();
+                        for (int f = 0; f < match.Economy.FigureCount; f++)
+                        {
+                            FigureView figure = match.Economy.Figure(f);
+                            if (figure.Civilization != c || figure.SettlementId != settlementId ||
+                                figure.Age < 14 || figure.Age >= 45 || figure.WorkThisSeason > Fix64.Zero ||
+                                intentionallyIdleFigureIds.Contains(figure.Id)) continue;
+                            idlePeople.Add($"id{figure.Id}/s{figure.SettlementId}/age{figure.Age}/health{figure.Health}/hunger{figure.Hunger}/warmth{figure.Warmth}/rest{figure.Rest}/job{figure.Job}");
+                        }
+                        outcome.A7Traces.Add($"A7 idle-labor seed={seed} season={season + 1} civ={c}: " +
+                            $"settlement s{settlementId} idle {idleAdults[settlementId]}/{adultWorkers[settlementId]}, " +
+                            $"food security {settlement.LastFoodSecurity}, " +
+                            $"zero-work figures [{string.Join(';', idlePeople)}]");
                     }
-                    if (M10TelemetryRules.IsIdleLaborBlunder(idleAdults, adultWorkers, deficit)) o.IdleLaborSeasons++;
                 }
             }
 

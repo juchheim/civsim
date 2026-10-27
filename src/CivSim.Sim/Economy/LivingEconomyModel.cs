@@ -1889,10 +1889,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         return harvested;
     }
 
-    private Fix64 HuntIndividualHerds(SettlementState settlement, Fix64 work, Fix64 rate, int season, bool cooperativeDrive)
+    private Fix64 HuntIndividualHerds(SettlementState settlement, Fix64 work, Fix64 rate, int season, bool cooperativeDrive,
+        bool enforceSustainableLimit = true)
     {
         if (work <= Fix64.Zero || rate <= Fix64.Zero) return Fix64.Zero;
         Fix64 remainingWork = work;
+        Fix64 remainingSustainableHarvest = enforceSustainableLimit ? SustainableHuntLimit(settlement) : Fix64.MaxValue;
         Fix64 meat = Fix64.Zero;
         for (int i = 0; i < _wildHerds.Length && remainingWork > Fix64.Zero; i++)
         {
@@ -1903,6 +1905,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 herdRate = cooperativeDrive && !largeGame ? rate * Fix64.Parse("0.6875") : rate;
             Fix64 perAnimal = MeatPerAnimal(herd.Species);
             Fix64 take = Fix64.Min(remainingWork * herdRate, herd.CurrentAnimals * perAnimal);
+            if (enforceSustainableLimit)
+            {
+                take = Fix64.Min(take, remainingSustainableHarvest);
+                take = Fix64.Min(take, SustainableHuntLimit(herd, settlement.Civilization));
+            }
             Fix64 kills = take / perAnimal;
             herd.CurrentAnimals -= kills;
             if (herd.CurrentAnimals == Fix64.Zero) herd.LastHuntCrashCivilization = settlement.Civilization;
@@ -1914,6 +1921,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (herd.Species != HerdSpecies.SmallGame) settlement.Stores[(int)Good.Hide] += kills;
             settlement.Stores[(int)Good.Bone] += kills * Fix64.Parse("0.3");
             remainingWork -= take / herdRate;
+            if (enforceSustainableLimit) remainingSustainableHarvest -= take;
             meat += take;
         }
         if (remainingWork > Fix64.Zero && CanBowHuntSmallGame(settlement, PlannedHuntPartySize(settlement)))
@@ -4585,6 +4593,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         foreach (int tile in RangeTiles(settlement.SiteTile)) annual += HerdFoodGrowthPerYear(tile);
         Fix64 share = HuntShare(settlement.Civilization);
         return annual * share / 4;
+    }
+
+    private Fix64 SustainableHuntLimit(WildHerdState herd, int civ)
+    {
+        Fix64 annualRate = Fix64.FromRatio(_world.Herd(herd.Id).AnnualGrowthPercent, 100);
+        if (_wildfireSeasonsRemaining[herd.CurrentTile] > 0) annualRate *= Fix64.Parse("1.3");
+        return herd.CurrentAnimals * annualRate * MeatPerAnimal(herd.Species) * HuntShare(civ) / 4;
     }
 
     private Fix64 HuntShare(int civ)
