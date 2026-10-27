@@ -103,8 +103,12 @@ public class MatchModelTests
             Assert.Equal(first.Economy.LastSeasonFoodStoresBeforeConsumption(s),
                 resumed.Economy.LastSeasonFoodStoresBeforeConsumption(s));
         for (int d = 0; d < first.Economy.LastDeathEventCount; d++)
+        {
             Assert.Equal(first.Economy.LastDeathEvent(d).WinterShortfallHazard,
                 resumed.Economy.LastDeathEvent(d).WinterShortfallHazard);
+            Assert.Equal(first.Economy.IsLastDeathAttributedToWinterShortfall(d),
+                resumed.Economy.IsLastDeathAttributedToWinterShortfall(d));
+        }
         var resumedRunner = new SimRunner(resumed, 50, startTick: 600);
         resumedRunner.Advance(600);
         Assert.Equal(straight.ComputeChecksum(), resumed.ComputeChecksum());

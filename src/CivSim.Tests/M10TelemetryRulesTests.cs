@@ -1,5 +1,6 @@
 using CivSim.Harness;
 using CivSim.Sim.Ai;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
@@ -124,6 +125,33 @@ public sealed class M10TelemetryRulesTests
         Assert.False(M10TelemetryRules.IsAttributedHerdCrash(1, 0, 2));
         Assert.False(M10TelemetryRules.IsAttributedHerdCrash(2, 2, 2));
         Assert.True(M10TelemetryRules.IsAttributedHerdCrash(0, 0, 2));
+    }
+
+    [Fact]
+    public void A7_avoidable_starvation_requires_shortfall_attribution_and_reachable_food()
+    {
+        var starvation = new EconomyDeathEvent(1, 0, 0, 20, false, 0, EconomyDeathCause.Starvation,
+            Fix64.One, Fix64.Zero, Fix64.Zero, Fix64.FromRatio(2, 10), Fix64.Zero, Fix64.Zero,
+            Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero);
+        var otherCause = starvation with { Cause = EconomyDeathCause.Endemic };
+
+        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: false, reachableFood: true));
+        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: true, reachableFood: false));
+        Assert.False(M10TelemetryRules.IsAvoidableStarvationDeath(otherCause, shortfallAttributed: true, reachableFood: true));
+        Assert.True(M10TelemetryRules.IsAvoidableStarvationDeath(starvation, shortfallAttributed: true, reachableFood: true));
+    }
+
+    [Fact]
+    public void A7_separates_baseline_starvation_from_conditional_winter_shortfall()
+    {
+        var death = new EconomyDeathEvent(1, 0, 0, 20, false, 0, EconomyDeathCause.Starvation,
+            Fix64.FromInt(1), Fix64.FromRatio(1, 10), Fix64.FromRatio(1, 10), Fix64.FromRatio(5, 10),
+            Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.FromRatio(2, 10));
+
+        Assert.False(LivingEconomyModel.IsWinterShortfallCauseDraw(death, Fix64.FromRatio(49, 100)));
+        Assert.True(LivingEconomyModel.IsWinterShortfallCauseDraw(death, Fix64.FromRatio(50, 100)));
+        Assert.True(LivingEconomyModel.IsWinterShortfallCauseDraw(death, Fix64.FromRatio(69, 100)));
+        Assert.False(LivingEconomyModel.IsWinterShortfallCauseDraw(death, Fix64.FromRatio(70, 100)));
     }
 
     [Fact]

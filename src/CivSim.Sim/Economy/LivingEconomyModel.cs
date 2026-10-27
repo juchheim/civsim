@@ -350,6 +350,29 @@ public sealed partial class LivingEconomyModel : ISimModel
     public int LastDeathEventCount => _lastDeathEvents.Count;
     public EconomyDeathEvent LastDeathEvent(int index) => _lastDeathEvents[index];
 
+    /// <summary>
+    /// Whether the deterministic cause-selection draw for a last-season death landed in the conditional Winter shortfall
+    /// hazard, rather than the unconditional baseline starvation hazard. This replays the cause stream and does not
+    /// change simulation state or the random sequence.
+    /// </summary>
+    public bool IsLastDeathAttributedToWinterShortfall(int index)
+    {
+        if ((uint)index >= (uint)_lastDeathEvents.Count || _seasonsCompleted <= 0) return false;
+        EconomyDeathEvent death = _lastDeathEvents[index];
+        if (death.Cause != EconomyDeathCause.Starvation || death.WinterShortfallHazard <= Fix64.Zero) return false;
+        Pcg32 selection = Pcg32.ForStream(_seed, DeathCauseStream, (ulong)death.FigureId, _seasonsCompleted - 1);
+        return IsWinterShortfallCauseDraw(death, selection.NextFix01() * death.TotalHazard);
+    }
+
+    internal static bool IsWinterShortfallCauseDraw(EconomyDeathEvent death, Fix64 target)
+    {
+        if (death.Cause != EconomyDeathCause.Starvation || death.WinterShortfallHazard <= Fix64.Zero) return false;
+        target -= death.EndemicHazard;
+        target -= death.EpidemicHazard;
+        Fix64 baselineStarvation = death.StarvationHazard - death.WinterShortfallHazard;
+        return target >= baselineStarvation && target < death.StarvationHazard;
+    }
+
     /// <summary>Food inventory immediately before ration consumption in the last completed season.</summary>
     public Fix64 LastSeasonFoodStoresBeforeConsumption(int settlementIndex)
         => _settlements[settlementIndex].LastSeasonFoodStoresBeforeConsumption;

@@ -520,7 +520,8 @@ internal static class Tournament
                 fissionsSeen[s] = settlement.Fissions;
             }
 
-            // A7 starvation uses stores held at the start of the season, before consumption and deaths.
+            // A7 counts only deaths attributed to the conditional winter food-shortfall hazard, not the unconditional
+            // baseline starvation hazard. Reachable food is sampled at the start of the season, before consumption.
             // A sister is operationally reachable within 15 hexes (the default inter-settlement sharing
             // radius), or 20 when GOV-04 has extended food redistribution for that civilization.
             for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
@@ -528,6 +529,8 @@ internal static class Tournament
                 EconomyDeathEvent death = match.Economy.LastDeathEvent(d);
                 if (death.Cause != EconomyDeathCause.Starvation || (uint)death.Civilization >= (uint)civs ||
                     seats[death.Civilization].Control.Kind != ControlKind.Ai) continue;
+                bool shortfallAttributed = match.Economy.IsLastDeathAttributedToWinterShortfall(d);
+                if (!shortfallAttributed) continue;
                 int own = -1;
                 for (int s = 0; s < foodStoresBeforeAdvance.Length; s++)
                     if (settlementIdsBeforeAdvance[s] == death.SettlementId) { own = s; break; }
@@ -541,7 +544,8 @@ internal static class Tournament
                             foodStoresBeforeAdvance[s] > Fix64.Zero,
                             HexGrid.Distance(settlementTilesBeforeAdvance[s], settlementTilesBeforeAdvance[own], world.Width), reach))
                         { sisterFood = true; break; }
-                if (M10TelemetryRules.HasReachableFood(ownFood, sisterFood))
+                if (M10TelemetryRules.IsAvoidableStarvationDeath(death, shortfallAttributed,
+                        reachableFood: M10TelemetryRules.HasReachableFood(ownFood, sisterFood)))
                     outcome.Civs[death.Civilization].AvoidableStarvationDeaths++;
             }
 

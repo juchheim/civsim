@@ -1,4 +1,5 @@
 using CivSim.Sim.Ai;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
@@ -71,6 +72,9 @@ internal static class M10TelemetryRules
         => sameCiv && hasStores && distance <= reach;
 
     public static bool HasReachableFood(bool ownStores, bool reachableSisterStores) => ownStores || reachableSisterStores;
+
+    public static bool IsAvoidableStarvationDeath(EconomyDeathEvent death, bool shortfallAttributed, bool reachableFood)
+        => death.Cause == EconomyDeathCause.Starvation && shortfallAttributed && reachableFood;
 
     /// <summary>Count a capture only when an observed threat predates it by at least two seasons and no defense appeared.</summary>
     public static bool IsUndefendedLoss(int threatSeason, int currentSeason, bool defensiveResponse)
