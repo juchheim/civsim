@@ -190,6 +190,24 @@ public sealed class ResearchForecast
     public Fix64 Elders(int season) => _elders[Math.Min(season, _horizon)];
     public int Settlements(int season) => _settlements[Math.Min(season, _horizon)];
 
+    internal string BlockerStateForDiagnostics(int project)
+    {
+        if ((uint)project >= (uint)_n) return $"invalid project index {project}";
+        var missingRequires = new List<string>();
+        foreach (int prerequisite in _c.Requires[project])
+            if (!_done[prerequisite]) missingRequires.Add(_c.Catalog.Projects[prerequisite].Id);
+        bool anyRequirementUnmet = _c.RequiresAny[project].Length > 0 && !_anySat[project];
+        int breadthEra = _c.BreadthEra[project];
+        int breadthCurrent = breadthEra >= 0 ? _doneByEra[breadthEra] : 0;
+        int breadthRequired = breadthEra >= 0 ? _c.BreadthMin[project] : 0;
+        bool unseenGateActive = _start.SeenBlocked[project] && !_seenOpen;
+        bool eraBlocked = _c.Era[project] > _era;
+        return $"{_c.Catalog.Projects[project].Id} done={_done[project]} available={Available(project)} blockers={_blockers[project]} " +
+            $"missingRequires=[{string.Join(",", missingRequires)}] requiresAnyUnmet={anyRequirementUnmet} " +
+            $"era={_era}/{_c.Era[project]} eraBlocked={eraBlocked} breadth={breadthCurrent}/{breadthRequired} " +
+            $"seenBlocked={_start.SeenBlocked[project]} unseenGateActive={unseenGateActive} seenOpen={_seenOpen}";
+    }
+
     /// <summary>Projects people and prepares costs and the fallback order for rollouts from <paramref name="start"/>.</summary>
     public void Prepare(ForecastStart start, int horizonSeasons)
     {

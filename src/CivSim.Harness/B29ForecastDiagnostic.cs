@@ -53,7 +53,7 @@ internal static class B29ForecastDiagnostic
     }
 
     public static (List<Observation> Observations, int Attempts, int MissingForecasts, int CensoredForecasts) Run(ContentPack pack, int seeds, int minutes,
-        EconomyArchetype archetype, ulong firstSeed)
+        EconomyArchetype archetype, ulong firstSeed, ICollection<string>? missingForecastDetails = null)
     {
         var observations = new List<Observation>();
         int attempts = 0, missingForecasts = 0, censoredForecasts = 0;
@@ -97,6 +97,15 @@ internal static class B29ForecastDiagnostic
                                 // read is the realized KEY-4 completion, paired when it occurs in a later season.
                                 predicted = (seat.Context.Tick + 1L +
                                     spark.LastForecast.Key4 * (ResearchSystem.SeasonTicks / (double)ForecastTuning.PlannerStepsPerSeason)) / 600.0;
+                            }
+                            else if (missingForecastDetails is not null && seat.Spark is ResearchSpark missingSpark)
+                            {
+                                int forecastHorizonSeasons = seat.Profile.HorizonEras * ForecastTuning.SeasonsPerEra;
+                                missingForecastDetails.Add($"seed={seed} civ={c} KEY-3 season={seat.Context.Season} " +
+                                    $"Spark decision season={missingSpark.LastDecisionSeasonForDiagnostics}; " +
+                                    $"forecast horizon={forecastHorizonSeasons} seasons, rollout={missingSpark.LastForecast.Steps} steps, " +
+                                    $"forecast era={missingSpark.LastForecast.Era}, KEY-4 steps={missingSpark.LastForecast.Key4}; " +
+                                    missingSpark.LastForecastKey4BlockersForDiagnostics());
                             }
                             attempt.Capture(predicted);
                         }

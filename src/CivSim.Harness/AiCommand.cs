@@ -23,6 +23,7 @@ namespace CivSim.Harness;
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-b27 [--seeds N] [--minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-b28 [--seeds N] [--minutes N] [--first-seed N]
+/// civsim-harness ai --pack FILE --check-b29 [--seeds N] [--minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE (--check-b7 | --check-b8) [--seeds N] [--minutes N] [--first-seed N]
 /// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
 /// Full-sample classification requires explicitly supplying both dimensions at acceptance size (at least 8 seeds, 64 minutes).
@@ -38,7 +39,7 @@ internal static class AiCommand
     public static int Run(string[] args)
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
-        bool check = false, checkM10 = false, checkB27 = false, checkB28 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
+        bool check = false, checkM10 = false, checkB27 = false, checkB28 = false, checkB29 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
         bool matchDetails = false;
         Fix64? rivalPaceOverride = null;
         int? firstsEtaPessimismSeasons = null;
@@ -69,6 +70,7 @@ internal static class AiCommand
                 case "--check-m10": checkM10 = true; break;
                 case "--check-b27": checkB27 = true; break;
                 case "--check-b28": checkB28 = true; break;
+                case "--check-b29": checkB29 = true; break;
                 case "--check-a7": checkA7 = true; break;
                 case "--check-b7": checkB7 = true; break;
                 case "--check-b8": checkB8 = true; break;
@@ -121,6 +123,11 @@ internal static class AiCommand
             (int b28Seeds, int b28Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
             return CheckB28(pack, b28Seeds, b28Minutes, firstSeed, warlordB28Trace);
         }
+        if (checkB29)
+        {
+            (int b29Seeds, int b29Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
+            return CheckB29(pack, b29Seeds, b29Minutes, archetype, firstSeed);
+        }
         if (checkM10)
         {
             (int m10Seeds, int m10Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
@@ -160,7 +167,7 @@ internal static class AiCommand
                 Console.WriteLine($"EXPLOIT SEARCH INCOMPLETE: requires {ExploitSearch.FinalistCount} finalists fully validated at {ExploitSearch.MinimumM10Minutes} minutes (got {search.Validations.Count}/{search.Finalists.Count} at {options.Minutes}); no acceptance conclusion.");
             return 2;
         }
-        throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-b7, --check-b8, --check-b27, --check-b28, --check-m10 or --exploit.");
+        throw new ArgumentException("ai needs --duel A B, --ladder a,b,c, --ffa LEVEL, --check-m6, --check-a7, --check-b7, --check-b8, --check-b27, --check-b28, --check-b29, --check-m10 or --exploit.");
     }
 
     internal static (int Seeds, int Minutes) ResolveM10Sample(int? requestedSeeds, int? requestedMinutes) =>
@@ -657,15 +664,9 @@ internal static class AiCommand
         int core = CheckM6(pack, seeds, minutes, archetype, firstSeed, out Tournament.DuelResult baseline, diagnostic,
             checkName: "M10 AI CORE");
 
-        Console.WriteLine("== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3)");
-        (List<B29ForecastDiagnostic.Observation> observations, int attempts, int missingForecasts, int censoredForecasts) =
-            B29ForecastDiagnostic.Run(pack, seeds, minutes, archetype, firstSeed);
-        B29ForecastDiagnostic.Summary b29Summary = B29ForecastDiagnostic.Summarize(observations, attempts,
-            missingForecasts, censoredForecasts);
+        B29ForecastDiagnostic.Summary b29Summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed);
         bool b29 = b29Summary.Pass;
-        Console.WriteLine($"  B29: {b29Summary.Within15Percent}/{b29Summary.Forecasts} forecasts within 15%; median {b29Summary.MedianError:P1}; " +
-            $"sampled {b29Summary.Attempts} AI seats; missing at capture {b29Summary.MissingForecasts}; " +
-            $"KEY-4 horizon-censored {b29Summary.CensoredForecasts} {M10AiAcceptanceStatus.FormatGateLabel(b29, seeds, minutes)}");
+        Console.WriteLine($"  B29 result {M10AiAcceptanceStatus.FormatGateLabel(b29, seeds, minutes)}");
 
         Console.WriteLine("== B31: Legend vs Warlord, >= 60% (22 §16)");
         Tournament.DuelResult legend = Tournament.Duel(pack, "legend", "warlord", seeds, minutes, archetype, firstSeed);
@@ -722,6 +723,34 @@ internal static class AiCommand
         bool measuredPass = core == 0 && legendPass && b27 && b28 && b29 && suicidePass && siegePass && mandateOverflowPass && nakedCaravanPass;
         Console.WriteLine(M10AiAcceptanceStatus.FormatSummary(measuredPass, seeds, minutes));
         return 1;
+    }
+
+    private static int CheckB29(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
+    {
+        var missingForecastDetails = new List<string>();
+        B29ForecastDiagnostic.Summary summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed, missingForecastDetails);
+        foreach (string detail in missingForecastDetails)
+            Console.WriteLine($"  B29 missing forecast: {detail}");
+        bool diagnostic = M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic;
+        if (diagnostic)
+            Console.WriteLine($"B29 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
+        else
+            Console.WriteLine($"B29 {(summary.Pass ? "PASS" : "FAIL")}");
+        return diagnostic ? 2 : summary.Pass ? 0 : 1;
+    }
+
+    private static B29ForecastDiagnostic.Summary MeasureB29(ContentPack pack, int seeds, int minutes,
+        EconomyArchetype archetype, ulong firstSeed, ICollection<string>? missingForecastDetails = null)
+    {
+        Console.WriteLine($"== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3; {seeds} seeds, {minutes}-minute horizon)");
+        (List<B29ForecastDiagnostic.Observation> observations, int attempts, int missingForecasts, int censoredForecasts) =
+            B29ForecastDiagnostic.Run(pack, seeds, minutes, archetype, firstSeed, missingForecastDetails);
+        B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(observations, attempts,
+            missingForecasts, censoredForecasts);
+        Console.WriteLine($"  B29: {summary.Within15Percent}/{summary.Forecasts} forecasts within 15%; median {summary.MedianError:P1}; " +
+            $"sampled {summary.Attempts} AI seats; missing at capture {summary.MissingForecasts}; " +
+            $"KEY-4 horizon-censored {summary.CensoredForecasts}");
+        return summary;
     }
 
     private static int CheckB28(ContentPack pack, int seeds, int minutes, ulong firstSeed, bool trace = false)

@@ -84,6 +84,12 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     public ForecastResult LastForecast { get; private set; }
     public ForecastResult LastBaseline { get; private set; }
     internal int LastDecisionSeasonForDiagnostics => _lastDecision;
+    internal string LastForecastKey4BlockersForDiagnostics()
+    {
+        if (_fc is null) return "forecast not initialized";
+        int key4 = _fc.Catalog.IndexOf("KEY-4");
+        return _forecast.BlockerStateForDiagnostics(key4);
+    }
     internal int RivalEtaStepsForDiagnostics(int project)
         => _fc is not null && (uint)project < (uint)_value.RivalEta.Length ? _value.RivalEta[project] : int.MaxValue;
 
