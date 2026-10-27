@@ -41,12 +41,13 @@ public sealed class M10B30TelemetryTests
     }
 
     [Fact]
-    public void Overflow_requires_a_positive_candidate_while_at_cap()
+    public void Overflow_requires_an_unused_positive_candidate_while_starting_at_cap()
     {
-        Assert.False(M10B30Rules.IsMandateOverflowSeason(false, 4, 4));
-        Assert.False(M10B30Rules.IsMandateOverflowSeason(true, 3, 4));
-        Assert.True(M10B30Rules.IsMandateOverflowSeason(true, 4, 4));
-        Assert.False(M10B30Rules.IsMandateOverflowSeason(true, 4, 0));
+        Assert.False(M10B30Rules.IsMandateOverflowSeason(false, false, 4, 4));
+        Assert.False(M10B30Rules.IsMandateOverflowSeason(true, false, 3, 4));
+        Assert.True(M10B30Rules.IsMandateOverflowSeason(true, false, 4, 4));
+        Assert.False(M10B30Rules.IsMandateOverflowSeason(true, true, 4, 4));
+        Assert.False(M10B30Rules.IsMandateOverflowSeason(true, false, 4, 0));
     }
 
     [Fact]
@@ -58,26 +59,34 @@ public sealed class M10B30TelemetryTests
     }
 
     [Fact]
-    public void Overflow_streak_requires_nine_consecutive_cap_seasons_with_a_positive_paid_candidate()
+    public void Overflow_streak_requires_nine_consecutive_start_of_season_cap_seasons_with_an_unused_positive_paid_candidate()
     {
         int streak = 0;
         for (int season = 1; season <= 8; season++)
         {
-            streak = M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 4, cap: 4);
+            streak = M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true,
+                paidDecreeResolved: false, mandate: 4, cap: 4);
             Assert.Equal(season, streak);
             Assert.False(streak > 8);
         }
 
-        streak = M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 4, cap: 4);
+        streak = M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true,
+            paidDecreeResolved: false, mandate: 4, cap: 4);
         Assert.Equal(9, streak);
         Assert.True(streak > 8);
 
-        // Either losing the positive-EV option or spending below the cap breaks consecutiveness.
-        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: false, mandate: 4, cap: 4));
-        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 3, cap: 4));
-        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true, mandate: 4, cap: 0));
+        // Losing the positive-EV option, resolving a paid decree, or starting below cap breaks consecutiveness.
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: false,
+            paidDecreeResolved: false, mandate: 4, cap: 4));
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true,
+            paidDecreeResolved: true, mandate: 4, cap: 4));
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true,
+            paidDecreeResolved: false, mandate: 3, cap: 4));
+        Assert.Equal(0, M10B30Rules.AdvanceMandateOverflowStreak(streak, positiveDecreeCandidate: true,
+            paidDecreeResolved: false, mandate: 4, cap: 0));
 
-        streak = M10B30Rules.AdvanceMandateOverflowStreak(0, positiveDecreeCandidate: true, mandate: 4, cap: 4);
+        streak = M10B30Rules.AdvanceMandateOverflowStreak(0, positiveDecreeCandidate: true,
+            paidDecreeResolved: false, mandate: 4, cap: 4);
         Assert.Equal(1, streak);
     }
 

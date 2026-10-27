@@ -97,11 +97,13 @@ internal sealed class MatchOutcome
     public Fix64? WarlordKeystoneTempoOverride;
     public bool WarlordE2ClosureSlotDiagnostic;
     public bool WarlordDefenseUrgencyShadowDiagnostic;
+    public bool WarlordB30TraceEnabled;
     public readonly List<FoundFunnelDiagnostic> FoundFunnels = new();
     public readonly List<FoundFunnelSeasonSnapshot> FoundFunnelSnapshots = new();
     public readonly List<WarlordResearchPlanDiagnostic> WarlordResearchTraces = new();
     public readonly List<WarlordResearchSeasonSnapshot> WarlordResearchSnapshots = new();
     public readonly List<string> WarlordEconomyTraces = new();
+    public readonly List<string> WarlordMandateTraces = new();
     public readonly List<string> SettlementTimelineTraces = new();
     public Player[] Seats = Array.Empty<Player>();
     public CivOutcome[] Civs = Array.Empty<CivOutcome>();
@@ -147,7 +149,7 @@ internal static class Tournament
         Fix64? warlordDefenseResearchBonusOverride = null, bool warlordDefenseUrgencyShadowDiagnostic = false,
         bool captureFoundFunnelDiagnostics = false, Fix64? warlordKeystoneTempoOverride = null,
         bool warlordE2ClosureSlotDiagnostic = false, bool warlordSettlementTrace = false,
-        bool warlordSettlementTraceSwapped = false)
+        bool warlordSettlementTraceSwapped = false, bool warlordB30Trace = false)
     {
         if (captureFirstRaceDiagnostics)
         {
@@ -212,6 +214,7 @@ internal static class Tournament
             WarlordKeystoneTempoOverride = warlordKeystoneTempoOverride,
             WarlordE2ClosureSlotDiagnostic = warlordE2ClosureSlotDiagnostic,
             WarlordDefenseUrgencyShadowDiagnostic = warlordDefenseUrgencyShadowDiagnostic,
+            WarlordB30TraceEnabled = warlordB30Trace,
             Seats = seats, Civs = new CivOutcome[civs]
         };
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
@@ -276,6 +279,13 @@ internal static class Tournament
             }
             int politicsEventsBefore = match.Politics.Events.Count;
             int aiLogEntriesBefore = match.Ai?.Log.Entries.Count ?? 0;
+            var mandateBeforeAdvance = new int[civs];
+            var mandateCapBeforeAdvance = new int[civs];
+            for (int c = 0; c < civs; c++)
+            {
+                mandateBeforeAdvance[c] = match.Research.Mandate(c);
+                mandateCapBeforeAdvance[c] = match.Research.MandateCap(c);
+            }
             var foodStoresBeforeAdvance = new Fix64[match.Economy.SettlementCount];
             var settlementOwnersBeforeAdvance = new int[match.Economy.SettlementCount];
             var settlementTilesBeforeAdvance = new int[match.Economy.SettlementCount];
@@ -604,8 +614,17 @@ internal static class Tournament
             }
 
             var positiveDecreeCandidate = new bool[civs];
+            var paidDecreeSelected = new bool[civs];
+            var paidDecreeResolved = new bool[civs];
             var recoveryTinOrder = new bool[civs];
             var recoveryArsenicOrder = new bool[civs];
+            for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
+            {
+                PoliticsEvent ev = match.Politics.Events[e];
+                if (ev.Kind != PoliticsEventKind.DecreeResolved || (uint)ev.Civ >= (uint)civs ||
+                    ev.A is < (int)DecreeKind.Found or > (int)DecreeKind.Compact) continue;
+                paidDecreeResolved[ev.Civ] |= match.Politics.DecreeCost(ev.Civ, (DecreeKind)ev.A) > 0;
+            }
             if (match.Ai is { } aiSystem)
                 for (int i = aiLogEntriesBefore; i < aiSystem.Log.Entries.Count; i++)
                 {
@@ -616,6 +635,8 @@ internal static class Tournament
                         positiveDecreeCandidate[decision.Civ] = true;
                     if (decision.Kind != "Decree" || (uint)decision.Civ >= (uint)civs) continue;
                     DecreeKind kind = (DecreeKind)decision.Subject;
+                    if (match.Politics.DecreeCost(decision.Civ, kind) > 0)
+                        paidDecreeSelected[decision.Civ] = true;
                     if (kind == DecreeKind.Compact) recoveryTinOrder[decision.Civ] = true; // the current policy's compact is for Tin.
                     if (kind == DecreeKind.Mine && (uint)decision.Other < (uint)world.TileCount)
                     {
@@ -724,8 +745,58 @@ internal static class Tournament
                     }
 
                     o.MandateSeasonsAtCap = match.Politics.MandateSeasonsAtCap(c);
+                    // Measure true overflow at the start of the season. A paid Decree can lower Mandate before
+                    // this season's recharge, so an end-of-season cap reading alone would count useful spending.
                     mandateOverflowStreak[c] = M10B30Rules.AdvanceMandateOverflowStreak(mandateOverflowStreak[c],
-                        positiveDecreeCandidate[c], match.Research.Mandate(c), match.Research.MandateCap(c));
+                        positiveDecreeCandidate[c], paidDecreeResolved[c], mandateBeforeAdvance[c], mandateCapBeforeAdvance[c]);
+                    if (warlordB30Trace && string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
+                        positiveDecreeCandidate[c] && mandateCapBeforeAdvance[c] > 0 &&
+                        mandateBeforeAdvance[c] >= mandateCapBeforeAdvance[c])
+                    {
+                        AiDecision[] seasonDecisions = match.Ai!.Log.Entries
+                            .Skip(aiLogEntriesBefore)
+                            .Where(decision => decision.Civ == c)
+                            .ToArray();
+                        AiDecision[] paidCandidateDecisions = seasonDecisions
+                            .Where(decision => decision.Kind == "DecreeCandidate" && decision.Score > Fix64.Zero &&
+                                match.Politics.DecreeCost(c, (DecreeKind)decision.Subject) > 0)
+                            .ToArray();
+                        string[] paidCandidates = paidCandidateDecisions
+                            .OrderByDescending(decision => decision.Score)
+                            .Take(5)
+                            .Select(decision => $"{(DecreeKind)decision.Subject}@{decision.Other}:cost={match.Politics.DecreeCost(c, (DecreeKind)decision.Subject)},ev={decision.Score.ToDoubleForDisplay():F2}")
+                            .ToArray();
+                        AiDecision[] positiveFoundDecisions = seasonDecisions
+                            .Where(decision => decision.Kind == "DecreeCandidate" && decision.Subject == (int)DecreeKind.Found &&
+                                decision.Score > Fix64.Zero)
+                            .OrderByDescending(decision => decision.Score)
+                            .Take(3)
+                            .ToArray();
+                        string[] foundCandidates = positiveFoundDecisions
+                            .Select(decision => $"target={decision.Other},ev={decision.Score.ToDoubleForDisplay():F2}")
+                            .ToArray();
+                        string[] reserves = seasonDecisions
+                            .Where(decision => decision.Kind == "DecreeReserve")
+                            .Select(decision => $"{(DecreeKind)decision.Subject}: {decision.Reason}")
+                            .ToArray();
+                        string[] selected = seasonDecisions
+                            .Where(decision => decision.Kind == "Decree")
+                            .Select(decision => $"{(DecreeKind)decision.Subject}@{decision.Other}:cost={match.Politics.DecreeCost(c, (DecreeKind)decision.Subject)},ev={decision.Score.ToDoubleForDisplay():F2}")
+                            .ToArray();
+                        string[] decreeEvents = match.Politics.Events
+                            .Skip(politicsEventsBefore)
+                            .Where(ev => ev.Civ == c && ev.Kind is PoliticsEventKind.DecreeResolved or PoliticsEventKind.DecreeRefused)
+                            .Select(ev => ev.Kind == PoliticsEventKind.DecreeResolved
+                                ? $"resolved:{(DecreeKind)ev.A}:subject={ev.B}"
+                                : $"refused:{(DecreeKind)ev.A}:{(OrderRefusalReason)ev.B}")
+                            .ToArray();
+                        outcome.WarlordMandateTraces.Add(
+                            $"B30_TRACE seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} civ={c} season={season + 1} " +
+                            $"streak={mandateOverflowStreak[c]} mandate={mandateBeforeAdvance[c]}->{match.Research.Mandate(c)}/cap={mandateCapBeforeAdvance[c]} " +
+                            $"paid={paidCandidateDecisions.Length}[{string.Join(';', paidCandidates)}] paidSelected={paidDecreeSelected[c]} paidResolved={paidDecreeResolved[c]} " +
+                            $"positiveFound={positiveFoundDecisions.Length}[{string.Join(';', foundCandidates)}] " +
+                            $"reserved=[{string.Join(';', reserves)}] selected=[{string.Join(';', selected)}] events=[{string.Join(';', decreeEvents)}]");
+                    }
                     if (mandateOverflowStreak[c] > 8 && !mandateOverflowReported[c])
                     {
                         o.MandateOverflowBlunders++;
@@ -1220,7 +1291,7 @@ internal static class Tournament
         Fix64? warlordE3FissionThresholdOverride = null, Fix64? warlordDefenseResearchBonusOverride = null,
         bool warlordDefenseUrgencyShadowDiagnostic = false, bool captureFoundFunnelDiagnostics = false,
         Fix64? warlordKeystoneTempoOverride = null, bool warlordE2ClosureSlotDiagnostic = false,
-        bool warlordSettlementTrace = false)
+        bool warlordSettlementTrace = false, bool warlordB30Trace = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -1237,7 +1308,7 @@ internal static class Tournament
                 firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin,
                 warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride,
                 warlordDefenseUrgencyShadowDiagnostic, captureFoundFunnelDiagnostics, warlordKeystoneTempoOverride,
-                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped), swapped);
+                warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, swapped, warlordB30Trace), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;

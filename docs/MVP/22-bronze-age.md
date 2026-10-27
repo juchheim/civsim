@@ -553,7 +553,7 @@ New evidence by sight: copper and bronze tool tints (MET-03; MET-04 or MET-05), 
 ### 13.5 Archetype balance and blunders
 - **A5 re-fit** at the chapter end under the new Legacy units; expect the `ArchetypeResearch` table to move (the Firsts edge that made Sage and Grower win is smaller).
 - **Raid calibration:** multiply the simulated success probability by **3/4**, fitted to the prior 8-seed, 64-minute baseline (66/84 resolved raids: 75% predicted, 56% observed). The AI uses this calibrated probability for raid EV, the launch threshold and its decision log; rerun the final 8-seed check before treating the fit as accepted.
-- **New blunder detectors (14 §10.4):** *Dormant bronze* (MET-04/05 done, no access for > 8 seasons while a compact, mine or arsenical option existed), *Unwalled frontier* (rival bronze warriors seen within reach and no defensive response in 4 seasons), *Siege without supply* (besiegers lose > 30% to desertion), *Mandate overflow* (> 8 seasons at the cap with a positive-EV Decree available), *Naked caravan* (tin caravan through hostile land without escort).
+- **New blunder detectors (14 §10.4):** *Dormant bronze* (MET-04/05 done, no access for > 8 seasons while a compact, mine or arsenical option existed), *Unwalled frontier* (rival bronze warriors seen within reach and no defensive response in 4 seasons), *Siege without supply* (besiegers lose > 30% to desertion), *Mandate overflow* (at the start of > 8 consecutive seasons the AI is at the cap, has a positive-EV paid Decree, and resolves no paid Decree that season), *Naked caravan* (tin caravan through hostile land without escort). Spending Mandate and then recharging to the cap in the same season is not overflow.
 
 ---
 
