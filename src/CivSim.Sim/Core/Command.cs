@@ -57,6 +57,8 @@ public enum CommandKind : ushort
     SetEmbargo = 19,
     /// <summary>A = visible mining camp id, B = party size (at least 4): raid its crew and stored ore.</summary>
     LaunchMiningCampRaid = 20,
+    /// <summary>A = target civilization, B = party size (at least 4): raid its closest settlement (WAR-02, contact, no alliance or truce).</summary>
+    LaunchRaidAgainst = 21,
 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>

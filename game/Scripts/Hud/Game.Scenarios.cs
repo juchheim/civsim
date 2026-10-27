@@ -294,7 +294,7 @@ public partial class Game
                 // needs: --start-minute=15 --dev-island-colony (debug builds): civ 0's fighters now live on an island
                 Step(() =>
                 {
-                    _session!.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _session.DevRivalSettlement, 8));
+                    _session!.Queue(PlayerCommands.LaunchRaidAgainst(_session.Tick, 0, 1, 8));
                     _session.SetSpeedIndex(2);
                 }, 1.0f);
                 for (int i = 0; i < 30; i++)

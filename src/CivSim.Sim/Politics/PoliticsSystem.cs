@@ -419,6 +419,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     else if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderRaid(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
+                case CommandKind.LaunchRaidAgainst:
+                    if (command.A < 0 || command.A >= _civs) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderRaidAgainst(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
                 case CommandKind.LaunchMiningCampRaid:
                     if (command.A < 0) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderRaidMiningCamp(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
