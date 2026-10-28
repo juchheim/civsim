@@ -571,6 +571,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         ClearModifierCache(civ);
         InvalidateReachableForageShare(civ);
         if (index == _key3) _bronzeActive = true;
+        BuildHousingPrototype(civ, index);
         if (_content.Projects[index].Id is "FIR-01" or "FIR-02")
         {
             // Discovering fire keeping supplies the initial embers; completing it again
@@ -596,6 +597,35 @@ public sealed partial class LivingEconomyModel : ISimModel
                         Fix64.Parse("0.6"), Fix64.Parse("1.2"));
         }
     }
+
+    /// <summary>Research supplies one free prototype of each newly unlocked dwelling at the civilization's oldest inhabited settlement.</summary>
+    private void BuildHousingPrototype(int civ, int projectIndex)
+    {
+        int oldest = OldestOf(civ);
+        if (oldest < 0) return;
+
+        SettlementState settlement = _settlements[oldest];
+        EconomyProject project = _content.Projects[projectIndex];
+        for (int i = project.EffectStart; i < project.EffectStart + project.EffectCount; i++)
+        {
+            EconomyEffect effect = _content.Effects[i];
+            if (effect.Kind != "build") continue;
+
+            int kind = StructureIndex(effect.Structure ?? string.Empty);
+            if (kind >= 0 && IsDwelling((Structure)kind))
+            {
+                settlement.Structures[kind] = checked(settlement.Structures[kind] + 1);
+                continue;
+            }
+
+            if (CivicOf(effect.Structure) == CivicBuild.Hall)
+                AddBuilt(EnsureCivic(settlement), CivicBuild.Hall);
+        }
+    }
+
+    private static bool IsDwelling(Structure structure)
+        => structure is Structure.LeanTo or Structure.HideTent or Structure.PitHouse or Structure.WattleHouse or
+            Structure.MudbrickHouse or Structure.Longhouse;
 
     private long FindFireKeeper(SettlementState settlement)
     {

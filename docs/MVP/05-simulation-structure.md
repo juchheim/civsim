@@ -207,7 +207,7 @@ Outputs:
 ### 6.3 Settlement Planner (operational, per settlement)
 Every season it computes **deficits** and posts **work orders**:
 1. **Food:** projected stores through next winter vs. consumption → forage, hunt, fish, farm, herd and preserve orders.
-2. **Shelter:** housing capacity vs. population → build orders for the best known dwelling.
+2. **Shelter:** housing capacity vs. population → build orders for the best known dwelling. Completing a project that unlocks a dwelling also grants one free prototype in the civilization's oldest inhabited settlement; later homes use the normal planner, labor and materials.
 3. **Storage, tools, clothing:** stock targets → craft orders. Tools wear out and are replaced with the best known tier.
 4. **Defense:** threat level → walls, watchers, warriors.
 5. **Structures** unlocked by research → placement chosen by a site scorer (water, resources, centrality; NUM, WAY and GIS projects improve it).
