@@ -3945,14 +3945,23 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         Fix64 totalWork = Fix64.Zero;
-        Fix64 scoutWork = plannedScouts.Work;
+        Fix64 unavailableWork = plannedScouts.Work;
         foreach (FigureState figure in _figures)
         {
             if (figure.SettlementId != settlement.Id) continue;
             totalWork += WorkCapacity(figure);
-            if (figure.Job == EconomyJob.Scout) scoutWork += figure.WorkThisSeason;
+            if (figure.Job == EconomyJob.Scout)
+            {
+                // WorkThisSeason includes any care already assigned to a scout.
+                unavailableWork += figure.WorkThisSeason;
+                continue;
+            }
+            Fix64 careAndFire = figure.CareWorkThisSeason + figure.FireWorkThisSeason;
+            unavailableWork += careAndFire;
+            if (figure.Task is MetalTask.Ritual or MetalTask.Records)
+                unavailableWork += Fix64.Max(Fix64.Zero, WorkCapacity(figure) - careAndFire);
         }
-        totalWork = Fix64.Max(Fix64.Zero, totalWork - scoutWork);
+        totalWork = Fix64.Max(Fix64.Zero, totalWork - unavailableWork);
         Fix64 upkeep = WeirUpkeepBudget(settlement, totalWork);
         totalWork -= upkeep;
         totalWork -= OrchardUpkeepBudget(settlement, totalWork);
@@ -3977,8 +3986,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             FigureState figure = _figures[figureIndex];
             if (figure.SettlementId != settlement.Id || figure.Job == EconomyJob.Scout ||
+                figure.Task is MetalTask.Ritual or MetalTask.Records ||
                 plannedScouts.Contains(figureIndex) || foodRemaining <= Fix64.Zero) continue;
-            Fix64 available = WorkCapacity(figure);
+            Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
             Fix64 paidUpkeep = Fix64.Min(available, upkeepRemaining);
             available -= paidUpkeep;
             upkeepRemaining -= paidUpkeep;
