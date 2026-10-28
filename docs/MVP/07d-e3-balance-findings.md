@@ -628,6 +628,8 @@ unlikely estimate when the view API can compute it and say unknown otherwise. Th
 23.952 s. S13 then passed its exact 10-minute tick/GC sample at 1.244 ms mean and 4 ms maximum GC pause. S14 passed all 24 Bronze zoom/overlay cases at 1,600 figures; the minimum one-second rate was 92.8 fps. B23 is complete.
 
 ## 20. Combined verification checkpoint
+**Cross-platform CI follow-up (2026-10-28):** The full Release suite passed 803/803 locally, and the 13 previously failing CI regression tests passed 13/13. The first pushed CI run then passed build, Bronze/content determinism, strict validation, and content-pack hash on macOS and Windows but failed the 12-minute research golden on both platforms: final `580c565f62410edd`, digest `62df00ca4817b6a5`, versus the prior golden. The source now stores and hashes per-tile scout-owner observation ticks, so the old research checksum was stale. `--write-golden` followed by `--check-golden` passed locally with the new exact values; CI will be rerun after pushing that golden update. No long acceptance campaign ran.
+
 
 Before the latest A7 detector and herd-attribution changes, the Release solution build passed with 0 warnings/errors, the
 full suite passed **555/555**, strict validation reported 509 projects + 10 keystones in 33 lineages with 0 errors and 0
@@ -637,8 +639,8 @@ predate the new telemetry. After the latest changes, the Release solution build 
 broader WP9-focused set passed 91/91 in 19 s and source/view determinism passed 6/6 in 12 s. The bare-command smoke
 returned `INCOMPLETE` at 2 evaluations/2 minutes in under 30 s. Strict validation reported 509 projects +
 10 keystones with 0 errors/warnings. Toy, research, politics, and content-pack goldens match; research and politics expected
-checksums were refreshed after WP9 and checksummed herd-attribution changes. A full-suite run was capped at 2 minutes
-before the golden refresh and reported the old politics checksum; it has not been rerun. The current Bronze chapter golden
+checksums were refreshed after WP9 and checksummed herd-attribution changes. The later full Release suite passed 803/803
+in about 128 seconds (log: `/tmp/civsim-full-tests-20261028.txt`). The current Bronze chapter golden
 passed a two-run same-seed check at tick 27,150 (checksum `a0360f53f234e87b`), and the local S12 chapter benchmark passed
 at 23.952 s. The one-seed research diagnostic passed its timing bands but is not multi-seed acceptance. The latest focused A8 fog-fairness
 run passed 2/2. At the user's request, the long AI gates were stopped; B27 and B31 have since passed their exact cohorts.
