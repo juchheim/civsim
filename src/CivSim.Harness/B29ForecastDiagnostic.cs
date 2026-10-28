@@ -70,9 +70,12 @@ internal static class B29ForecastDiagnostic
         public void MarkHorizonReached() => _horizonReached = true;
     }
 
-    public static (List<Observation> Observations, int Attempts, int MissingForecasts, int CensoredForecasts) Run(ContentPack pack, int seeds, int minutes,
-        EconomyArchetype archetype, ulong firstSeed, ICollection<string>? missingForecastDetails = null)
+    public static (List<Observation> Observations, int Attempts, int MissingForecasts, int CensoredForecasts) Run(ContentPack pack, int seeds, int captureMinutes,
+        EconomyArchetype archetype, ulong firstSeed, ICollection<string>? missingForecastDetails = null, int? observationMinutes = null)
     {
+        int totalMinutes = observationMinutes ?? captureMinutes;
+        if (captureMinutes < 0 || totalMinutes < captureMinutes)
+            throw new ArgumentOutOfRangeException(nameof(observationMinutes), "Observation horizon must be at least the capture horizon.");
         var observations = new List<Observation>();
         int attempts = 0, missingForecasts = 0, censoredForecasts = 0;
         int key3, key4;
@@ -97,24 +100,25 @@ internal static class B29ForecastDiagnostic
                 key4 = match.Research.Catalog.IndexOf("KEY-4");
                 var attemptsBySeat = new SeatAttempt[4];
                 for (int c = 0; c < 4; c++) attemptsBySeat[c] = new SeatAttempt(seed, c);
-                for (long tick = 0; tick < minutes * 600L; tick += ResearchSystem.SeasonTicks)
+                for (long tick = 0; tick < totalMinutes * 600L; tick += ResearchSystem.SeasonTicks)
                 {
-                    runner.Advance(Math.Min(ResearchSystem.SeasonTicks, minutes * 600L - tick));
+                    runner.Advance(Math.Min(ResearchSystem.SeasonTicks, totalMinutes * 600L - tick));
                     for (int c = 0; c < 4; c++)
                     {
                         AiSeat? seat = match.Ai?.SeatOf(c);
                         SeatAttempt attempt = attemptsBySeat[c];
-                        if (!attempt.Attempted && seat is not null && seat.Control.Kind == ControlKind.Ai &&
+                        if (tick + ResearchSystem.SeasonTicks <= captureMinutes * 600L && !attempt.Attempted && seat is not null && seat.Control.Kind == ControlKind.Ai &&
                             seat.Context.Research.IsDone(key3))
                         {
                             attempts++;
                             double? predicted = null;
-                            if (seat.Spark is ResearchSpark spark && spark.LastForecast.Key4 > 0)
+                            if (seat.Spark is ResearchSpark spark && TryGetKey4Forecast(
+                                    spark.LastForecast, spark.LastB29ReportForecastForDiagnostics, out ForecastResult forecast))
                             {
                                 // Save the absolute prediction at the first post-KEY-3 forecast. The only oracle
                                 // read is the realized KEY-4 completion, paired when it occurs in a later season.
                                 predicted = (seat.Context.Tick + 1L +
-                                    spark.LastForecast.Key4 * (ResearchSystem.SeasonTicks / (double)ForecastTuning.PlannerStepsPerSeason)) / 600.0;
+                                    forecast.Key4 * (ResearchSystem.SeasonTicks / (double)ForecastTuning.PlannerStepsPerSeason)) / 600.0;
                             }
                             else if (missingForecastDetails is not null && seat.Spark is ResearchSpark missingSpark)
                             {
@@ -122,7 +126,9 @@ internal static class B29ForecastDiagnostic
                                 missingForecastDetails.Add($"seed={seed} civ={c} KEY-3 season={seat.Context.Season} " +
                                     $"Spark decision season={missingSpark.LastDecisionSeasonForDiagnostics}; " +
                                     $"forecast horizon={forecastHorizonSeasons} seasons, rollout={missingSpark.LastForecast.Steps} steps, " +
-                                    $"forecast era={missingSpark.LastForecast.Era}, KEY-4 steps={missingSpark.LastForecast.Key4}; " +
+                                    $"forecast era={missingSpark.LastForecast.Era}, KEY-4 steps={missingSpark.LastForecast.Key4}, " +
+                                    $"report horizon={ResearchSpark.B29ReportHorizonSeasons} seasons, " +
+                                    $"report KEY-4 steps={missingSpark.LastB29ReportForecastForDiagnostics?.Key4 ?? -1}; " +
                                     missingSpark.LastForecastKey4BlockersForDiagnostics());
                             }
                             attempt.Capture(predicted);
@@ -143,6 +149,22 @@ internal static class B29ForecastDiagnostic
                 }
             }
         return (observations, attempts, missingForecasts, censoredForecasts);
+    }
+
+    internal static bool TryGetKey4Forecast(ForecastResult primary, ForecastResult? reportOnly, out ForecastResult selected)
+    {
+        if (primary.Key4 > 0)
+        {
+            selected = primary;
+            return true;
+        }
+        if (reportOnly is { Key4: > 0 } extended)
+        {
+            selected = extended;
+            return true;
+        }
+        selected = default;
+        return false;
     }
 
     public static Summary Summarize(IReadOnlyCollection<Observation> observations, int attempts,

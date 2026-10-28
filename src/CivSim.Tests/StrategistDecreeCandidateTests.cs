@@ -73,9 +73,10 @@ public sealed class StrategistDecreeCandidateTests
         var rig = new StrategistRig(Seed, World.Value,
             new[] { CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced), CivControl.Council, CivControl.Council, CivControl.Council });
         rig.Grant(0, "KEY-3", "MET-05");
-        rig.Seasons(12);
         Belief belief = rig.Match.Ai!.SeatOf(0)!.Belief;
         belief.Season = rig.Season;
+        Assert.True(rig.Politics.DecreeResearch.IsDone(0, "MET-05"));
+        Assert.False(rig.Match.Economy.CivHasMetalAccess(0, MetalAccessKind.Tin));
         int tile = Enumerable.Range(0, World.Value.Tiles.Length).First(t => World.Value.Tiles[t].Deposit == DepositKind.Tin);
         belief.Map.MarkExplored(tile);
         belief.Map.RecordOwner(tile, -1, belief.Season);

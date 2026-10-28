@@ -561,6 +561,7 @@ public sealed partial class LivingEconomyModel
         Fix64 brickReserve = Fix64.Min(Fix64.FromInt(protectedBricks), s.Stores[(int)Good.Mudbrick]);
         if (c.DwellingProgress < need || s.Stores[(int)Good.Wood] < Fix64.FromInt(wood) || s.Stores[(int)Good.Clay] < Fix64.FromInt(clay) ||
             s.Stores[(int)Good.Mudbrick] - brickReserve < Fix64.FromInt(bricks)) return labor;
+        RecordLocalWoodUse(s, Fix64.FromInt(wood), "civic");
         s.Stores[(int)Good.Wood] -= Fix64.FromInt(wood);
         s.Stores[(int)Good.Clay] -= Fix64.FromInt(clay);
         s.Stores[(int)Good.Mudbrick] -= Fix64.FromInt(bricks);
@@ -750,6 +751,7 @@ public sealed partial class LivingEconomyModel
     private void PayCivic(SettlementState s, CivicBuild b)
     {
         (int wood, int stone, int clay, int brick, int cut) = CivicMaterials(b);
+        RecordLocalWoodUse(s, Fix64.FromInt(wood), "civic");
         s.Stores[(int)Good.Wood] -= Fix64.FromInt(wood);
         s.Stores[(int)Good.Stone] -= Fix64.FromInt(stone);
         s.Stores[(int)Good.Clay] -= Fix64.FromInt(clay);
@@ -1010,11 +1012,13 @@ public sealed partial class LivingEconomyModel
                     Fix64 perLitre = Fix64.One / CivicChopRate + (pass == 2 ? HaulPerLitreTile * d : Fix64.Zero);
                     Fix64 take = Fix64.Min(Fix64.Min(missingWood - got, _woodStock[tile]), labor / perLitre);
                     if (take <= Fix64.Zero) continue;
+                    RecordB13StandingWoodRemoval(tile, take, "civic", _woodStock[tile]);
                     _woodStock[tile] -= take;
                     got += take;
                     labor -= take * perLitre;
                 }
             s.Stores[(int)Good.Wood] += got;
+            RecordLocalWoodInflow(s, got, chop: false, civic: true);
         }
         Fix64 missingStone = Fix64.Max(Fix64.Zero, Fix64.FromInt(stone) - s.Stores[(int)Good.Stone]);
         if (missingStone > Fix64.Zero && labor > Fix64.Zero)

@@ -15,6 +15,67 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel : ISimModel
 {
+    internal string? B28DefenseWorkTrace { get; private set; }
+    private sealed class B28LocalWoodLedger
+    {
+        public int Season;
+        public Fix64 Opening, ChopInflows, OtherInflows, EffectiveChopWork, HearthFire, E3Fuel, Metal, Goods, Civic, Structure;
+        public Fix64 BuildProgressStart;
+    }
+    private B28LocalWoodLedger? _b28LocalWoodLedger;
+    internal readonly List<string> B28LocalWoodLedgerRows = new();
+
+    private void BeginB28WoodLedger(int season)
+    {
+        if (season is < 201 or > 233 || _settlements.Count <= 35) return;
+        SettlementState s = _settlements[35];
+        _b28LocalWoodLedger = new B28LocalWoodLedger
+        {
+            Season = season,
+            Opening = s.Stores[(int)Good.Wood],
+            BuildProgressStart = s.BuildProgress
+        };
+    }
+
+    private void FinishB28WoodLedger()
+    {
+        B28LocalWoodLedger? l = _b28LocalWoodLedger;
+        if (l is null || _settlements.Count <= 35) return;
+        SettlementState s = _settlements[35];
+        Fix64 closing = s.Stores[(int)Good.Wood];
+        Fix64 inflows = l.ChopInflows + l.OtherInflows;
+        Fix64 uses = l.HearthFire + l.E3Fuel + l.Metal + l.Goods + l.Civic + l.Structure;
+        Fix64 residual = l.Opening + inflows - uses - closing;
+        B28LocalWoodLedgerRows.Add($"season={l.Season} open={l.Opening.ToDoubleForDisplay():F3} chopIn={l.ChopInflows.ToDoubleForDisplay():F3} otherIn={l.OtherInflows.ToDoubleForDisplay():F3} " +
+            $"effectiveChopWork={l.EffectiveChopWork.ToDoubleForDisplay():F3} hearthFire={l.HearthFire.ToDoubleForDisplay():F3} e3Fuel={l.E3Fuel.ToDoubleForDisplay():F3} " +
+            $"metal={l.Metal.ToDoubleForDisplay():F3} goods={l.Goods.ToDoubleForDisplay():F3} civic={l.Civic.ToDoubleForDisplay():F3} structure={l.Structure.ToDoubleForDisplay():F3} " +
+            $"close={closing.ToDoubleForDisplay():F3} residual={residual.ToDoubleForDisplay():F3} buildProgressDelta={(s.BuildProgress-l.BuildProgressStart).ToDoubleForDisplay():F3}");
+        _b28LocalWoodLedger = null;
+    }
+
+    private void RecordLocalWoodUse(SettlementState s, Fix64 amount, string category)
+    {
+        RecordB13LocalWoodUse(s, amount, category);
+        B28LocalWoodLedger? l = _b28LocalWoodLedger;
+        if (s.Id != 35 || l is null || amount <= Fix64.Zero) return;
+        switch (category)
+        {
+            case "fire": l.HearthFire += amount; break;
+            case "fuel": l.E3Fuel += amount; break;
+            case "metal": l.Metal += amount; break;
+            case "goods": l.Goods += amount; break;
+            case "civic": l.Civic += amount; break;
+            case "structure": l.Structure += amount; break;
+        }
+    }
+
+    private void RecordLocalWoodInflow(SettlementState s, Fix64 amount, bool chop, bool civic = false)
+    {
+        RecordB13LocalWoodInflow(s, amount, chop, civic);
+        B28LocalWoodLedger? l = _b28LocalWoodLedger;
+        if (s.Id != 35 || l is null || amount <= Fix64.Zero) return;
+        if (chop) l.ChopInflows += amount; else l.OtherInflows += amount;
+    }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 23;
     private const int Radius = 3;
@@ -246,6 +307,24 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64[] _lastSeasonReachableFoodStores = Array.Empty<Fix64>();
     private Fix64[] _lastSeasonFoodNeed = Array.Empty<Fix64>();
     private readonly List<EconomyDeathEvent> _lastDeathEvents = new();
+    // Per-season report-only attribution, intentionally excluded from snapshots and checksums.
+    private readonly Dictionary<int, FoodWorkAttribution> _foodWorkAttribution = new();
+    public bool FoodWorkAttributionTraceEnabled { get; set; }
+    public bool[]? SkipScoutsWhenFoodShortForCivsForDiagnostics { get; set; }
+    // Harness-only counterfactual control. Intentionally excluded from model state,
+    // snapshots, and checksums; unset unless a bounded diagnostic explicitly opts in.
+    private int _deferredFissionCivForDiagnostics = -1;
+    private int _deferredFissionSettlementForDiagnostics = -1;
+    private int _deferredFissionUntilSeasonForDiagnostics = -1;
+
+    public void DeferFissionForDiagnostics(int civ, int settlementId, int firstAllowedSeason)
+    {
+        if (civ < 0 || settlementId < 0 || firstAllowedSeason < 0)
+            throw new ArgumentOutOfRangeException(nameof(firstAllowedSeason));
+        _deferredFissionCivForDiagnostics = civ;
+        _deferredFissionSettlementForDiagnostics = settlementId;
+        _deferredFissionUntilSeasonForDiagnostics = firstAllowedSeason;
+    }
     private long _tick;
     private long _seasonsCompleted;
     // Derived within one season end: forest stands whose deadwood a settlement has burned this season.
@@ -419,6 +498,16 @@ public sealed partial class LivingEconomyModel : ISimModel
         return _lastExpectedWinterShortfallByExactAge[age];
     }
 
+    public bool TryGetFoodWorkAttribution(int settlementIndex, out FoodWorkAttribution attribution)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count)
+        {
+            attribution = default;
+            return false;
+        }
+        return _foodWorkAttribution.TryGetValue(_settlements[settlementIndex].Id, out attribution);
+    }
+
     public int AgeBandPopulation(int settlementIndex, int ageBand)
     {
         if (ageBand < 0 || ageBand >= 3) throw new ArgumentOutOfRangeException(nameof(ageBand));
@@ -432,6 +521,16 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (matches) count++;
         }
         return count;
+    }
+
+    /// <summary>Effective figure work capacity attached to a settlement, for report-only harness diagnostics.</summary>
+    public Fix64 DiagnosticEffectiveWorkCapacity(int settlementIndex)
+    {
+        int settlementId = _settlements[settlementIndex].Id;
+        Fix64 total = Fix64.Zero;
+        foreach (FigureState figure in _figures)
+            if (figure.SettlementId == settlementId) total += WorkCapacity(figure);
+        return total;
     }
 
     public SettlementView Settlement(int index)
@@ -543,6 +642,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public void Step(long tick, ReadOnlySpan<Command> commands)
     {
         if (tick != _tick) throw new InvalidOperationException($"Expected tick {_tick}, got {tick}.");
+        if (_tick % SeasonTicks == 0) BeginB28WoodLedger(checked((int)(_tick / SeasonTicks)));
         if (_tick != 0 && _tick % SeasonTicks == 0)
             ResolvePendingFissions(checked((int)_seasonsCompleted));
         foreach (Command command in commands) Apply(command);
@@ -551,6 +651,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (_tick % SeasonTicks == 0)
         {
             EndSeason(checked((int)_seasonsCompleted));
+            FinishB28WoodLedger();
             _seasonsCompleted++;
         }
     }
@@ -658,6 +759,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 Fix64 fuel = winter ? WinterHearthFuelPerTick : HearthFuelPerTick;
                 if (settlement.Stores[(int)Good.Wood] >= fuel)
                 {
+                    RecordLocalWoodUse(settlement, fuel, "fire");
                     settlement.Stores[(int)Good.Wood] -= fuel;
                     settlement.FireLit = true;
                     settlement.UnattendedFireTicks = 0;
@@ -689,8 +791,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             if (settlement.Stores[(int)Good.Wood] > Fix64.Zero)
             {
-                settlement.Stores[(int)Good.Wood] = Fix64.Max(Fix64.Zero,
-                    settlement.Stores[(int)Good.Wood] - FireFuelPerTick);
+                Fix64 burned = Fix64.Min(settlement.Stores[(int)Good.Wood], FireFuelPerTick);
+                RecordLocalWoodUse(settlement, burned, "fire");
+                settlement.Stores[(int)Good.Wood] -= burned;
                 settlement.UnattendedFireTicks = 0;
                 continue;
             }
@@ -705,6 +808,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void EndSeason(int season)
     {
+        if (FoodWorkAttributionTraceEnabled) _foodWorkAttribution.Clear();
         EnsureSeasonFoodTelemetryCapacity();
         Array.Clear(_lastSeasonReachableFoodStores);
         Array.Clear(_lastSeasonFoodNeed);
@@ -745,9 +849,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             SettlementState settlement = _settlements[s];
             AdvanceMudbrickDrying(settlement);
+            Fix64 orchardFruitBefore = settlement.Stores[(int)Good.Fruit];
             AdvanceOrchards(settlement, season);
+            Fix64 orchardFruitYield = Fix64.Max(Fix64.Zero, settlement.Stores[(int)Good.Fruit] - orchardFruitBefore);
             AdvanceDomesticHerds(settlement, season);
             PlanAndWork(settlement, season);
+            if (FoodWorkAttributionTraceEnabled && _foodWorkAttribution.TryGetValue(settlement.Id, out FoodWorkAttribution workTrace))
+                _foodWorkAttribution[settlement.Id] = workTrace with { OrchardFruitYield = orchardFruitYield };
             // §09 §3.2 conception uses the fed share from the completed prior season.
             Fix64 priorSeasonFoodSecurity = settlement.FoodSecurity;
             ConsumeFood(settlement, winter, season);
@@ -807,7 +915,9 @@ public sealed partial class LivingEconomyModel : ISimModel
                 _herdFoodStock[tile] = Fix64.Min(_herdFoodStock[tile] + herdGrowth / 4,
                     input.InitialHerdFood + herdGrowth);
             }
+            Fix64 woodBeforeRegrowth = _woodStock[tile];
             _woodStock[tile] = Fix64.Min(_woodStock[tile] + WoodRegrowth(tile, input.WoodGrowthPerYear / 4), input.InitialWood);
+            RecordB13WoodRegrowth(tile, _woodStock[tile] - woodBeforeRegrowth);
             if (_bronzeActive) UpdateForestState(tile);
             _fishStock[tile] = Fix64.Min(_fishStock[tile] + SeasonalFishRegrowth(tile, seasonOfYear, year),
                 input.InitialFish + input.TotalFishGrowthPerYear);
@@ -1254,6 +1364,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void PlanAndWork(SettlementState settlement, int season)
     {
+        MetalStatistics traceStatsBefore = settlement.Id == 35 ? MetalStats(settlement.Civilization) : default;
         Fix64[,] actionWork = _actionWorkScratch;
         foreach (int row in _actionWorkTouchedRows)
             for (int column = 0; column < (int)SkillFamily.Count; column++)
@@ -1264,7 +1375,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             actionWork = new Fix64[_figures.Count, (int)SkillFamily.Count];
             _actionWorkScratch = actionWork;
         }
-        Fix64 totalWork = Fix64.Zero;
+        Fix64 totalWork = Fix64.Zero, baseCapacity = Fix64.Zero;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
@@ -1277,16 +1388,36 @@ public sealed partial class LivingEconomyModel : ISimModel
             figure.FireWorkThisSeason = Fix64.Zero;
             figure.Task = 0;
             BeginHealthSeason(figure, season);
+            baseCapacity += BaseWorkCapacity(figure);
             totalWork += WorkCapacity(figure);
         }
+        Fix64 effectiveCapacity = totalWork;
 
-        totalWork -= AssignFireKeeper(settlement);
-        totalWork -= AllocateCare(settlement);
-        if (settlement.Civic is not null) totalWork -= StaffRoles(settlement);
-        totalWork -= AssignScouts(settlement);
+        Fix64 fireWork = AssignFireKeeper(settlement);
+        totalWork -= fireWork;
+        Fix64 careWork = AllocateCare(settlement);
+        totalWork -= careWork;
+        Fix64 staffWork = settlement.Civic is not null ? StaffRoles(settlement) : Fix64.Zero;
+        totalWork -= staffWork;
+        Fix64 openingFoodStores = Fix64.Zero, openingFoodNeed = Fix64.Zero;
+        bool openingFoodShort = false;
+        bool skipScoutsWhenFoodShort = SkipScoutsWhenFoodShortForCivsForDiagnostics is { } skipForCiv &&
+            (uint)settlement.Civilization < (uint)skipForCiv.Length && skipForCiv[settlement.Civilization];
+        if (FoodWorkAttributionTraceEnabled || skipScoutsWhenFoodShort)
+        {
+            openingFoodStores = FoodStores(settlement);
+            openingFoodNeed = FoodNeed(settlement, season % 4 == 3);
+            if (settlement.UnderInvestment) openingFoodNeed *= Fix64.Parse("0.75");
+            openingFoodShort = openingFoodStores < openingFoodNeed;
+        }
+        Fix64 scoutWork = skipScoutsWhenFoodShort && openingFoodShort
+            ? Fix64.Zero : AssignScouts(settlement);
+        totalWork -= scoutWork;
         Fix64 upkeepBudget = WeirUpkeepBudget(settlement, totalWork);
         totalWork -= upkeepBudget;
-        totalWork -= OrchardUpkeepBudget(settlement, totalWork);
+        Fix64 orchardUpkeep = OrchardUpkeepBudget(settlement, totalWork);
+        totalWork -= orchardUpkeep;
+        Fix64 b28AvailableWork = settlement.Id == 35 ? totalWork : Fix64.Zero;
         // The Bronze Age metal chain reserves its labor first, at most MetalPushLaborCap of the work (docs/MVP/23 §7.3).
         MetalPlan? metalPlan = null;
         Fix64[]? toolWork = null;
@@ -1318,6 +1449,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (ShouldPreserveCityTown(settlement)) foodShare = Fix64.Min(foodShare, Fix64.FromRatio(75, 100));
         if (settlement.Civic is { } civicTraceFood) civicTraceFood.TraceFoodShare = foodShare;
         Fix64 foodWork = totalWork * foodShare;
+        Fix64 foodWorkRequested = foodWork;
         // Civic labor comes out of what food leaves, never out of the food work (docs/MVP/23 §8 structures are built in plenty).
         civicWork = Fix64.Min(civicWork, Fix64.Max(Fix64.Zero, totalWork - foodWork));
         if (settlement.Civic is { } civicTraceAssigned) civicTraceAssigned.TraceCivicAssigned = civicWork;
@@ -1347,9 +1479,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         int huntersAssigned = 0;
         // Work-seasons of chopping this season's wood needs (Bronze only): the E3 fuel and a dwelling's timber beyond the stores,
         // at 8 L a work-season, at most half of the material work so clay, stone and the crafts keep their share.
-        Fix64 woodShortWork = metalPlan is not null
-            ? Fix64.Min(materialWork * Fix64.Half, Fix64.Max(Fix64.Zero, E3FuelNeed(settlement, season % 4 == 3) + Fix64.FromInt(6) - settlement.Stores[(int)Good.Wood]) / Fix64.FromInt(8))
-            : Fix64.Zero;
+        Fix64 woodShortWork = Fix64.Zero;
+        if (metalPlan is not null)
+        {
+            Fix64 fuelTarget = E3FuelNeed(settlement, season % 4 == 3) + Fix64.FromInt(6);
+            woodShortWork = Fix64.Min(materialWork * Fix64.Half,
+                Fix64.Max(Fix64.Zero, fuelTarget - settlement.Stores[(int)Good.Wood]) / Fix64.FromInt(8));
+        }
 
         Fix64 foodRemaining = foodWork;
         Fix64 buildRemaining = buildWork;
@@ -1453,6 +1589,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             if (figure.WorkThisSeason <= Fix64.Zero) figure.Job = EconomyJob.Rest;
         }
+        Fix64 foodWorkAssigned = foodWork - foodRemaining;
 
         // The baseline food mix assumes roughly 70% forage and 30% scavenging. Keep
         // scavenging work within that budget; assigning a fixed three-person hunting
@@ -1493,6 +1630,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         ScaleHuntWork(settlement, huntWork, appliedHuntWork);
         ScaleSkillWork(actionWork, SkillFamily.Hunt, huntWork, appliedHuntWork);
         Fix64 productiveHuntWork = SkillWeightedWork(actionWork, SkillFamily.Hunt);
+        Fix64 huntedYield = Fix64.Zero;
         Fix64 huntInjuryRate = HuntInjuryRate(settlement, huntersAssigned);
         for (int i = 0; i < _figures.Count; i++)
         {
@@ -1503,14 +1641,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (hasHunt)
         {
             bool cooperativeDrive = huntersAssigned >= 6 && HasProject(settlement.Civilization, "HNT-04");
-            Fix64 hunted = _hasIndividualHerds
+            huntedYield = _hasIndividualHerds
                 ? HuntIndividualHerds(settlement, productiveHuntWork, rate, season, cooperativeDrive)
                 : Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2,
                     SustainableHuntLimit(settlement));
             if (!_hasIndividualHerds)
             {
-                settlement.Stores[(int)Good.Hide] += hunted * Fix64.Parse("0.05");
-                settlement.Stores[(int)Good.Bone] += hunted * Fix64.Parse("0.03");
+                settlement.Stores[(int)Good.Hide] += huntedYield * Fix64.Parse("0.05");
+                settlement.Stores[(int)Good.Bone] += huntedYield * Fix64.Parse("0.03");
             }
         }
         else if (huntWork > Fix64.Zero)
@@ -1518,16 +1656,18 @@ public sealed partial class LivingEconomyModel : ISimModel
         WearActionTool(settlement, "hunt", appliedHuntWork, rate, huntersAssigned);
         PracticeSkill(actionWork, SkillFamily.Hunt);
 
-        WeirCatch(settlement, upkeepBudget - upkeepRemaining, season % 4, false);
+        Fix64 weirFishYield = WeirCatch(settlement, upkeepBudget - upkeepRemaining, season % 4, false);
+        Fix64 fishYield = Fix64.Zero;
         if (fishWork > Fix64.Zero)
         {
             Fix64 appliedFishWork = LimitActionWorkByTool(settlement, "fish", fishWork);
             ScaleSkillWork(actionWork, SkillFamily.Fish, fishWork, appliedFishWork);
             Fix64 fishRate = ActionRate("fish", Fix64.One, settlement, "fish", toolWork: appliedFishWork);
-            HarvestFish(settlement, SkillWeightedWork(actionWork, SkillFamily.Fish), appliedFishWork, fishRate, season % 4);
+            fishYield = HarvestFish(settlement, SkillWeightedWork(actionWork, SkillFamily.Fish), appliedFishWork, fishRate, season % 4);
             PracticeSkill(actionWork, SkillFamily.Fish);
         }
 
+        Fix64 grainBeforeHarvest = settlement.Stores[(int)Good.Grain];
         if (farmWork > Fix64.Zero)
         {
             Fix64 productiveFarmWork = SkillWeightedWork(actionWork, SkillFamily.Farm);
@@ -1537,12 +1677,14 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (season % 4 == 2) HarvestFields(settlement, season / 4);
         }
         else if (season % 4 == 2) HarvestFields(settlement, season / 4);
+        Fix64 grainYield = Fix64.Max(Fix64.Zero, settlement.Stores[(int)Good.Grain] - grainBeforeHarvest);
 
         if (chopWork > Fix64.Zero && metalPlan is not null && AnyMetalChopper(settlement, actionWork))
             ChopWithKits(settlement, actionWork, chopWork, WoodChopLimit(settlement, metalPlan) + E3FuelNeed(settlement, season % 4 == 3));
         else if (chopWork > Fix64.Zero)
         {
             Fix64 appliedChopWork = LimitActionWorkByTool(settlement, "chop", chopWork);
+            if (settlement.Id == 35 && _b28LocalWoodLedger is { } chopLedger) chopLedger.EffectiveChopWork += appliedChopWork;
             ScaleSkillWork(actionWork, SkillFamily.Chop, chopWork, appliedChopWork);
             Fix64 chopRate = ActionRate("chop", Fix64.FromInt(2), settlement, "chop",
                 toolWork: appliedChopWork) * Modifier(settlement.Civilization, "wood_yield");
@@ -1575,10 +1717,33 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (CorveeAt(settlement.Id) == CorveeTarget.Walls) assignedBuildWork *= Fix64.FromRatio(3, 2);
             settlement.BuildProgress += assignedBuildWork;
         }
-        if (metalPlan is not null && toolWork is not null) RunMetal(settlement, metalPlan, craftLeft, toolWork, season);
+        if (metalPlan is not null && toolWork is not null)
+        {
+            TraceB12MiningPlanIfNeeded(settlement, metalPlan, season);
+            CaptureB12T18Snapshot(settlement, metalPlan, season);
+            RunMetal(settlement, metalPlan, craftLeft, toolWork, season);
+        }
         if (civicAssigned > Fix64.Zero) WorkCivic(settlement, civicAssigned, civicCanals, civicHousing);
         TryCompleteCivic(settlement);
         if (_deadwoodUsed is not null && settlement.Civic is not null) BurnE3Fuel(settlement, season % 4 == 3, _deadwoodUsed);
+        if (settlement.Id == 35 && SettlementHasQueuedPhysicalDefenseBuild(35))
+        {
+            MetalStatistics traceStatsAfter = MetalStats(settlement.Civilization);
+            Fix64 assignedMetal = metalPlan is null ? Fix64.Zero : metalPlan.BuildAssigned + metalPlan.MineAssigned + metalPlan.CharcoalAssigned + metalPlan.SmeltAssigned;
+            B28DefenseWorkTrace = $"season={season} available={b28AvailableWork.ToDoubleForDisplay():F2} food={foodWork.ToDoubleForDisplay():F2} " +
+                $"metal={assignedMetal.ToDoubleForDisplay():F2} civic={civicAssigned.ToDoubleForDisplay():F2} " +
+                $"chop={chopWork.ToDoubleForDisplay():F2} build={assignedBuildWork.ToDoubleForDisplay():F2} " +
+                $"wood={settlement.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} harvested={(traceStatsAfter.ChopWood - traceStatsBefore.ChopWood).ToDoubleForDisplay():F1} " +
+                $"fuel={(traceStatsAfter.OtherWood - traceStatsBefore.OtherWood).ToDoubleForDisplay():F1} forest={StandingWoodInRange(settlement.SiteTile).ToDoubleForDisplay():F1} " +
+                $"target={settlement.BuildTarget} progress={settlement.BuildProgress.ToDoubleForDisplay():F2}";
+        }
+        if (FoodWorkAttributionTraceEnabled)
+        {
+            _foodWorkAttribution[settlement.Id] = new FoodWorkAttribution(openingFoodStores, openingFoodNeed, baseCapacity, effectiveCapacity,
+                fireWork, careWork, staffWork, scoutWork, upkeepBudget, upkeepBudget - upkeepRemaining, orchardUpkeep,
+                foodWorkRequested, foodWorkAssigned, forageWork, huntWork, fishWork, farmWork, preserveWork, foraged, huntedYield,
+                fishYield, weirFishYield, grainYield, Fix64.Zero);
+        }
     }
 
     private void BeginHealthSeason(FigureState figure, int season)
@@ -1880,8 +2045,10 @@ public sealed partial class LivingEconomyModel : ISimModel
                 available = Fix64.Min(available, limit);
             }
             Fix64 take = Fix64.Min(remaining, available);
+            if (output == Good.Wood) RecordB13StandingWoodRemoval(tile, take, "chop", stock[tile]);
             stock[tile] -= take;
             settlement.Stores[(int)output] += take;
+            if (output == Good.Wood) RecordLocalWoodInflow(settlement, take, chop: true);
             remaining -= take;
             harvested += take;
         }
@@ -2162,7 +2329,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             batch = Fix64.Min(batch, settlement.Stores[(int)inputB] / amountB);
         if (batch <= Fix64.Zero) return;
         settlement.Stores[(int)inputA] -= batch * amountA;
+        if (inputA == Good.Wood) RecordLocalWoodUse(settlement, batch * amountA, "goods");
         if (inputB != Good.Count && amountB > Fix64.Zero) settlement.Stores[(int)inputB] -= batch * amountB;
+        if (inputB == Good.Wood) RecordLocalWoodUse(settlement, batch * amountB, "goods");
         settlement.Stores[(int)output] += batch;
         if (durability > Fix64.Zero) settlement.ToolRemainingWork[(int)output] += batch * durability;
         work -= batch * workPerUnit;
@@ -2274,7 +2443,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 labor = StructureBuildLabor(settlement, candidate);
         if (settlement.BuildProgress < labor) return;
         if (!CanPayStructure(settlement, candidate)) return;
+        Fix64 woodBeforePayment = settlement.Stores[(int)Good.Wood];
         PayStructure(settlement, candidate);
+        RecordLocalWoodUse(settlement, woodBeforePayment - settlement.Stores[(int)Good.Wood], "structure");
         settlement.Structures[(int)candidate]++;
         settlement.BuildProgress -= labor;
         settlement.BuildTarget = Structure.Count;
@@ -2291,6 +2462,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         settlement.BuildTarget = candidate;
         return true;
     }
+
+    private bool IsPriorityDefenseTarget(SettlementState settlement)
+        => !HasPhysicalDefense(settlement) && IsPhysicalDefense(settlement.BuildTarget) &&
+           CanBuild(settlement.Civilization, settlement.BuildTarget) &&
+           (settlement.BuildTarget != Structure.Hillfort || HasHillfortSite(settlement));
 
     /// <summary>
     /// Starts the next eligible physical defense at an exposed settlement identified from an AI's belief state.
@@ -2309,10 +2485,36 @@ public sealed partial class LivingEconomyModel : ISimModel
         return true;
     }
 
-    private bool IsPriorityDefenseTarget(SettlementState settlement)
-        => !HasPhysicalDefense(settlement) && IsPhysicalDefense(settlement.BuildTarget) &&
-           CanBuild(settlement.Civilization, settlement.BuildTarget) &&
-           (settlement.BuildTarget != Structure.Hillfort || HasHillfortSite(settlement));
+    /// <summary>Read-only explanation of the physical-defense priority order's current refusal gates.</summary>
+    internal string DescribePrioritizePhysicalDefenseBuild(int settlementIndex)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count) return "order refusal=invalid-settlement";
+        SettlementState s = _settlements[settlementIndex];
+        int tier = (int)Tier(s.Id);
+        Fix64 wood = s.Stores[(int)Good.Wood];
+        Fix64 palisadeWood = Fix64.FromInt(20 * (tier + 1));
+        bool palisadeUnlocked = CanBuild(s.Civilization, Structure.Palisade);
+        bool palisadeLegal = palisadeUnlocked && s.Structures[(int)Structure.Palisade] == 0;
+        bool palisadeAffordable = wood >= palisadeWood;
+        bool hillfortUnlocked = CanBuild(s.Civilization, Structure.Hillfort);
+        bool hillfortSite = HasHillfortSite(s);
+        bool hillfortLegal = hillfortUnlocked && s.Structures[(int)Structure.Hillfort] == 0 && hillfortSite;
+        bool hillfortAffordable = wood >= Fix64.FromInt(10);
+        bool wallsUnlocked = CanBuild(s.Civilization, Structure.StoneWalls);
+        bool wallsBelowCap = s.Structures[(int)Structure.StoneWalls] < tier + 1;
+        bool wallsAffordable = CanPayStructure(s, Structure.StoneWalls);
+        bool wallsLegal = wallsUnlocked && wallsBelowCap;
+        Structure candidate = SelectPhysicalDefenseCandidate(s);
+        string refusal = HasPhysicalDefense(s) ? "already-defended"
+            : candidate == Structure.Count ? "no-legal-defense-candidate"
+            : s.BuildTarget == candidate ? "already-targeting-candidate"
+            : "none-order-should-accept";
+        return $"order refusal={refusal} buildTarget={s.BuildTarget} buildProgress={s.BuildProgress.ToDoubleForDisplay():F2} " +
+            $"tier={tier} candidate={candidate} wood={wood.ToDoubleForDisplay():F1} " +
+            $"palisade[unlocked={palisadeUnlocked},built={s.Structures[(int)Structure.Palisade]},requiredWood={palisadeWood.ToDoubleForDisplay():F0},affordable={palisadeAffordable},queueLegal={palisadeLegal}] " +
+            $"hillfort[unlocked={hillfortUnlocked},built={s.Structures[(int)Structure.Hillfort]},site={hillfortSite},requiredWood=10,affordable={hillfortAffordable},queueLegal={hillfortLegal}] " +
+            $"walls[unlocked={wallsUnlocked},built={s.Structures[(int)Structure.StoneWalls]},capOK={wallsBelowCap},affordable={wallsAffordable},queueLegal={wallsLegal}]";
+    }
 
     private Structure SelectPhysicalDefenseCandidate(SettlementState settlement)
     {
@@ -3232,19 +3434,52 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             SettlementState parent = _settlements[s];
             if (!parent.FissionPending) continue;
-            if (ShouldPreserveCityTown(parent)) { parent.FissionPending = false; continue; }
-            if (season - parent.LastFissionSeason < 4) { parent.FissionPending = false; continue; }
+            if (parent.Civilization == _deferredFissionCivForDiagnostics &&
+                parent.Id == _deferredFissionSettlementForDiagnostics &&
+                season < _deferredFissionUntilSeasonForDiagnostics) continue;
+            FissionSiteDiagnostics? diagnostics = FissionSiteDiagnosticsForDiagnostics;
             int population = Population(parent.Id);
+            string cohort = diagnostics is null ? string.Empty : FissionCohortSummary(parent);
+            void Record(string result, int site = -1, int daughterCount = 0)
+            {
+                if (diagnostics is null) return;
+                diagnostics.RecordResolution(parent.Civilization,
+                    $"FISSION_RESOLUTION civ={parent.Civilization} parent=s{parent.Id} season={season} population={population} " +
+                    $"daughterCount={daughterCount} selectedSite={site} {cohort} result={result}");
+            }
+            if (ShouldPreserveCityTown(parent)) { parent.FissionPending = false; Record("cancelled:preserveCityTown"); continue; }
+            if (season - parent.LastFissionSeason < 4) { parent.FissionPending = false; Record("cancelled:cooldown"); continue; }
             if (Fix64.FromInt(population) * DaughterShare < MinimumDaughterPopulation)
-            { parent.FissionPending = false; continue; }
+            { parent.FissionPending = false; Record("cancelled:belowMinimumDaughterPopulation"); continue; }
             int daughterCount = (Fix64.FromInt(population) * DaughterShare).RoundToInt();
             if (daughterCount >= population) daughterCount = population - 1;
-            if (daughterCount < 6) { parent.FissionPending = false; continue; }
-            int site = ChooseFissionSite(parent);
-            if (site < 0) continue;
-            if (SiteAdvisor is not null && SiteAdvisor.VoyageLost(parent.Civilization, parent.SiteTile, site, season)) { parent.FissionPending = false; continue; }
-            if (SplitSettlement(parent, site, daughterCount, season, FissionStream) is null) parent.FissionPending = false;
+            if (daughterCount < 6) { parent.FissionPending = false; Record("cancelled:belowSixDaughterMembers", daughterCount: daughterCount); continue; }
+            int site = ChooseFissionSite(parent, season);
+            if (site < 0) { Record("noSite:pendingRetained", daughterCount: daughterCount); continue; }
+            if (SiteAdvisor is not null && SiteAdvisor.VoyageLost(parent.Civilization, parent.SiteTile, site, season))
+            { parent.FissionPending = false; Record("cancelled:voyageLost", site, daughterCount); continue; }
+            SettlementState? daughter = SplitSettlement(parent, site, daughterCount, season, FissionStream, out string cohortResult);
+            if (daughter is null) parent.FissionPending = false;
+            Record(daughter is null ? $"cancelled:{cohortResult}" : $"splitSuccess:daughter=s{daughter.Id};{cohortResult}", site, daughterCount);
         }
+    }
+
+    private string FissionCohortSummary(SettlementState parent)
+    {
+        int children = 0, adultWomen = 0, adultMen = 0, elders = 0, skilledAdults = 0;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState figure = _figures[i];
+            if (figure.SettlementId != parent.Id) continue;
+            if (figure.Age < 14) children++;
+            else if (figure.Age < 45)
+            {
+                if (figure.Female) adultWomen++; else adultMen++;
+                if (IsSkilled(figure)) skilledAdults++;
+            }
+            else elders++;
+        }
+        return $"cohort(children={children},adultWomen14to44={adultWomen},adultMen14to44={adultMen},elders45plus={elders},skilledAdults14to44={skilledAdults})";
     }
 
     /// <summary>
@@ -3253,7 +3488,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     /// childbearing age and an elder or skilled adult, 40% of the stores and herds. Records the parent's fission and returns the
     /// daughter, or null (nothing changed) when the cohort lacks the two representatives or six people.
     /// </summary>
-    private SettlementState? SplitSettlement(SettlementState parent, int site, int daughterCount, int season, ulong stream)
+    private SettlementState? SplitSettlement(SettlementState parent, int site, int daughterCount, int season, ulong stream,
+        out string cohortResult)
     {
         var candidates = new List<int>();
         for (int i = 0; i < _figures.Count; i++)
@@ -3294,7 +3530,31 @@ public sealed partial class LivingEconomyModel : ISimModel
                 break;
             }
         }
-        if (womanIndex < 0 || elderOrSkilledAdultIndex < 0) return null;
+        if (womanIndex < 0)
+        {
+            bool donorHasWoman = false;
+            for (int i = 0; i < _figures.Count; i++)
+                if (_figures[i].SettlementId == parent.Id && _figures[i].Female && _figures[i].Age is >= 14 and < 45)
+                { donorHasWoman = true; break; }
+            cohortResult = donorHasWoman
+                ? "daughterSampleMissingRequiredWoman14to44"
+                : "donorMissingRequiredWoman14to44";
+            return null;
+        }
+        if (elderOrSkilledAdultIndex < 0)
+        {
+            bool donorHasElderOrSkilledAdult = false;
+            for (int i = 0; i < _figures.Count; i++)
+            {
+                FigureState figure = _figures[i];
+                if (figure.SettlementId == parent.Id && (figure.Age >= 45 || figure.Age is >= 14 and < 45 && IsSkilled(figure)))
+                { donorHasElderOrSkilledAdult = true; break; }
+            }
+            cohortResult = donorHasElderOrSkilledAdult
+                ? "daughterSampleMissingRequiredElderOrSkilledAdult"
+                : "donorMissingRequiredElderOrSkilledAdult";
+            return null;
+        }
 
         bool[] selected = new bool[_figures.Count];
         selected[womanIndex] = true;
@@ -3302,7 +3562,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         int moved = 2;
         for (int i = 0; i < candidates.Count && moved < daughterCount; i++)
             if (!selected[candidates[i]]) { selected[candidates[i]] = true; moved++; }
-        if (moved < 6) return null;
+        if (moved < 6) { cohortResult = "daughterSampleBelowSixMembers"; return null; }
 
         SettlementState daughter = NewSettlement(parent.Civilization, site);
         _settlements.Add(daughter);
@@ -3343,6 +3603,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         parent.FireKeeperId = FindFireKeeper(parent);
         daughter.FireKeeperId = daughter.FireLit ? FindFireKeeper(daughter) : -1;
         RebuildWeirOwnership();
+        cohortResult = "selectedRequiredWomanAndElderOrSkilledAdult";
         return daughter;
     }
 
@@ -3379,23 +3640,52 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (_figures[i].Id == figureId) { _figures[i].SettlementId = settlementId; return; }
     }
 
-    private int ChooseFissionSite(SettlementState parent)
+    private int ChooseFissionSite(SettlementState parent, int season)
     {
         int best = -1;
         Fix64 bestScore = Fix64.MinValue;
         int reach = Math.Max(14, SiteAdvisor?.SettleReach(parent.Civilization) ?? 14);
+        FissionSiteDiagnostics? diagnostics = FissionSiteDiagnosticsForDiagnostics;
+        int[]? rejections = diagnostics is null ? null : new int[6];
+        int legalSites = 0;
         for (int tile = 0; tile < _world.TileCount; tile++)
         {
-            if (!IsHabitable(tile)) continue;
+            if (!IsHabitable(tile))
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.Uninhabitable]++;
+                continue;
+            }
             int parentDistance = HexGrid.Distance(tile, parent.SiteTile, _world.Width);
-            if (parentDistance < Radius * 2 + 1 || parentDistance > reach) continue;
+            if (parentDistance < Radius * 2 + 1)
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.ParentDistanceBelowMinimum]++;
+                continue;
+            }
+            if (parentDistance > reach)
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.BeyondReach]++;
+                continue;
+            }
             bool farEnough = true;
             for (int s = 0; s < _settlements.Count; s++)
                 if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
                 { farEnough = false; break; }
-            if (!farEnough) continue;
-            if (SiteAdvisor is not null && !SiteAdvisor.Reachable(parent.Civilization, parent.SiteTile, tile)) continue;
-            if (SiteAdvisor is not null && !SiteAdvisor.Allows(parent.Civilization, tile)) continue;
+            if (!farEnough)
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.TooCloseToAnotherSettlement]++;
+                continue;
+            }
+            if (SiteAdvisor is not null && !SiteAdvisor.Reachable(parent.Civilization, parent.SiteTile, tile))
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.Unreachable]++;
+                continue;
+            }
+            if (SiteAdvisor is not null && !SiteAdvisor.Allows(parent.Civilization, tile))
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.DisallowedByAdvisor]++;
+                continue;
+            }
+            legalSites++;
             Fix64 score = _siteFoodScores[tile];
             if (SiteAdvisor is not null) score *= SiteAdvisor.Multiplier(parent.Civilization, tile);
             if (score > bestScore)
@@ -3408,6 +3698,8 @@ public sealed partial class LivingEconomyModel : ISimModel
                 if (best < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, best, _world.Width, _world.Height)) best = tile;
             }
         }
+        if (diagnostics is not null)
+            diagnostics.RecordAttempt(parent.Civilization, parent.Id, season, _world.TileCount, legalSites, best, rejections!);
         return best;
     }
 

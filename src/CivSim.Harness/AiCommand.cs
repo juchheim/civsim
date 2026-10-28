@@ -15,15 +15,15 @@ namespace CivSim.Harness;
 /// <summary>
 /// The AI harness (docs/MVP/14 §10): mirrored duels, free-for-alls, an Elo ladder and the M6 acceptance gate.
 /// <code>
-/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-seat-alliance-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace] [--b28-trace]
+/// civsim-harness ai --pack FILE --duel warlord council [--seeds N] [--minutes N] [--archetype balanced] [--match-details] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-seat-alliance-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-frontier-conquest-plan-floor] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-settlement-trace] [--warlord-campaign-opportunity-trace] [--b28-trace]
 /// civsim-harness ai --pack FILE --ladder council,rusher,chieftain,warlord [--seeds N]
-/// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N] [--warlord-rival-pace-override X] [--warlord-max-campaign-origin-diagnostic]
+/// civsim-harness ai --pack FILE --ffa warlord [--seeds N] [--first-seed N] [--match-details] [--ffa-firsts-attribution] [--warlord-rival-pace-override X] [--warlord-max-campaign-origin-diagnostic]
 /// civsim-harness ai --pack FILE --check-m6 [--seeds N]
 /// civsim-harness ai --pack FILE --check-a7 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-m10 [--seeds N] [--minutes N]
 /// civsim-harness ai --pack FILE --check-b27 [--seeds N] [--minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE --check-b28 [--seeds N] [--minutes N] [--first-seed N]
-/// civsim-harness ai --pack FILE --check-b29 [--seeds N] [--minutes N] [--first-seed N]
+/// civsim-harness ai --pack FILE --check-b29 [--seeds N] [--minutes N] [--observation-minutes N] [--first-seed N]
 /// civsim-harness ai --pack FILE (--check-b7 | --check-b8) [--seeds N] [--minutes N] [--first-seed N]
 /// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
 /// Full-sample classification requires explicitly supplying both dimensions at acceptance size (at least 8 seeds, 64 minutes).
@@ -39,8 +39,14 @@ internal static class AiCommand
     public static int Run(string[] args)
     {
         string? packPath = null, duelA = null, duelB = null, ladder = null, ffa = null;
-        bool check = false, checkM10 = false, checkB27 = false, checkB28 = false, checkB29 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false;
+        bool check = false, checkM10 = false, checkB27 = false, checkB28 = false, checkB29 = false, checkA7 = false, checkB7 = false, checkB8 = false, exploit = false, minutesGiven = false, observationMinutesGiven = false;
         bool matchDetails = false;
+        bool ffaFirstsAttribution = false;
+        bool ffaResearchTimeline = false;
+        bool ffaFoodDemographyTimeline = false;
+        bool ffaCaseControlTimeline = false;
+        bool a5DeferBuilderS1FissionUntil64 = false;
+        int[]? ffaRotations = null;
         Fix64? rivalPaceOverride = null;
         int? firstsEtaPessimismSeasons = null;
         int? warlordNonConquerRaidPostureStreak = null;
@@ -49,14 +55,22 @@ internal static class AiCommand
         Fix64? warlordFrontierEarlyBonusOverride = null;
         Fix64? warlordE3FissionThresholdOverride = null;
         Fix64? warlordDefenseResearchBonusOverride = null;
+        Fix64? warlordPostureUnlockBonusOverride = null;
+        bool warlordFrontierConquestPlanFloorDiagnostic = false;
         Fix64? warlordKeystoneTempoOverride = null;
         bool warlordDefenseUrgencyShadowDiagnostic = false;
+        bool warlordFissionSiteDiagnostic = false;
+        bool a2LeadCheckpointDiagnostic = false;
+        bool warlordCampaignOpportunityTrace = false;
         bool warlordE2ClosureSlotDiagnostic = false;
         bool warlordFoundFunnel = false;
         bool warlordSettlementTrace = false;
+        bool foodShortageSkipScouts = false;
+        bool foodShortageSkipScoutsForChieftains = false;
+        bool a3DeferWarlordS2FissionUntil30 = false;
         bool warlordB30Trace = false, warlordB28Trace = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
-        int seeds = 8, minutes = 33, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
+        int seeds = 8, minutes = 33, observationMinutes = 0, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
         var archetype = EconomyArchetype.Balanced;
         for (int i = 0; i < args.Length; i++)
@@ -77,6 +91,15 @@ internal static class AiCommand
                 case "--check-b8": checkB8 = true; break;
                 case "--exploit": exploit = true; break;
                 case "--match-details": matchDetails = true; break;
+                case "--ffa-firsts-attribution": ffaFirstsAttribution = true; break;
+                case "--ffa-research-timeline": ffaResearchTimeline = true; break;
+                case "--ffa-food-demography-timeline": ffaFoodDemographyTimeline = true; break;
+                case "--ffa-case-control-timeline": ffaCaseControlTimeline = true; break;
+                case "--a5-defer-builder-s1-fission-until64": a5DeferBuilderS1FissionUntil64 = true; break;
+                case "--ffa-rotations":
+                    ffaRotations = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(value => int.Parse(value, CultureInfo.InvariantCulture)).ToArray();
+                    break;
                 case "--warlord-rival-pace-override": rivalPaceOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-firsts-eta-pessimism-seasons": firstsEtaPessimismSeasons = int.Parse(args[++i], CultureInfo.InvariantCulture); matchDetails = true; break;
                 case "--warlord-nonconquer-raid-posture-streak":
@@ -89,11 +112,19 @@ internal static class AiCommand
                 case "--warlord-frontier-early-bonus-override": warlordFrontierEarlyBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-e3-fission-threshold-override": warlordE3FissionThresholdOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-defense-research-bonus-override": warlordDefenseResearchBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
+                case "--warlord-posture-unlock-bonus-override": warlordPostureUnlockBonusOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
+                case "--warlord-frontier-conquest-plan-floor": warlordFrontierConquestPlanFloorDiagnostic = true; matchDetails = true; break;
                 case "--warlord-keystone-tempo-override": warlordKeystoneTempoOverride = Fix64.Parse(args[++i]); matchDetails = true; break;
                 case "--warlord-e2-closure-slot-diagnostic": warlordE2ClosureSlotDiagnostic = true; matchDetails = true; break;
                 case "--warlord-defense-urgency-shadow-diagnostic": warlordDefenseUrgencyShadowDiagnostic = true; matchDetails = true; break;
+                case "--warlord-fission-site-diagnostic": warlordFissionSiteDiagnostic = true; matchDetails = true; break;
+                case "--a2-lead-checkpoint-diagnostic": a2LeadCheckpointDiagnostic = true; matchDetails = true; break;
+                case "--warlord-campaign-opportunity-trace": warlordCampaignOpportunityTrace = true; matchDetails = true; break;
                 case "--warlord-found-funnel": warlordFoundFunnel = true; matchDetails = true; break;
                 case "--warlord-settlement-trace": warlordSettlementTrace = true; break;
+                case "--food-shortage-skip-scouts": foodShortageSkipScouts = true; matchDetails = true; break;
+                case "--food-shortage-skip-scouts-chieftain": foodShortageSkipScouts = true; foodShortageSkipScoutsForChieftains = true; matchDetails = true; break;
+                case "--a3-defer-warlord-s2-fission-until30": a3DeferWarlordS2FissionUntil30 = true; matchDetails = true; break;
                 case "--warlord-b30-trace": warlordB30Trace = true; matchDetails = true; break;
                 case "--b28-trace": warlordB28Trace = true; break;
                 case "--generations": generations = int.Parse(args[++i], CultureInfo.InvariantCulture); generationsGiven = true; break;
@@ -101,6 +132,7 @@ internal static class AiCommand
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
                 case "--first-seed": firstSeed = ulong.Parse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture); break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); minutesGiven = true; break;
+                case "--observation-minutes": observationMinutes = int.Parse(args[++i], CultureInfo.InvariantCulture); observationMinutesGiven = true; break;
                 case "--screen-minutes": screenMinutes = int.Parse(args[++i], CultureInfo.InvariantCulture); screenMinutesGiven = true; break;
                 case "--archetype": archetype = Enum.Parse<EconomyArchetype>(args[++i], true); break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
@@ -108,10 +140,12 @@ internal static class AiCommand
         }
         if (packPath is null) throw new ArgumentException("ai needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, warlordB30Trace, warlordB28Trace, warlordSeatAllianceDiagnostic: warlordSeatAllianceDiagnostic), matchDetails); return 0; }
+        if (duelA is not null && duelB is not null) { PrintDuel(duelA, duelB, Tournament.Duel(pack, duelA, duelB, seeds, minutes, archetype, firstSeed, matchDetails, rivalPaceOverride, firstsEtaPessimismSeasons, warlordNonConquerRaidPostureStreak, warlordMaxCampaignOrigin, warlordFrontierEarlyBonusOverride, warlordE3FissionThresholdOverride, warlordDefenseResearchBonusOverride, warlordDefenseUrgencyShadowDiagnostic, warlordFoundFunnel, warlordKeystoneTempoOverride, warlordE2ClosureSlotDiagnostic, warlordSettlementTrace, warlordB30Trace, warlordB28Trace, warlordSeatAllianceDiagnostic: warlordSeatAllianceDiagnostic, warlordPostureUnlockBonusOverride: warlordPostureUnlockBonusOverride, warlordFissionSiteDiagnostic: warlordFissionSiteDiagnostic, foodShortageSkipScoutsForDiagnostics: foodShortageSkipScouts, foodShortageSkipScoutsForChieftainsForDiagnostics: foodShortageSkipScoutsForChieftains, warlordCampaignOpportunityTrace: warlordCampaignOpportunityTrace, warlordFrontierConquestPlanFloorDiagnostic: warlordFrontierConquestPlanFloorDiagnostic, a2LeadCheckpointDiagnostic: a2LeadCheckpointDiagnostic, deferWarlordS2FissionUntilSeasonForDiagnostics: a3DeferWarlordS2FissionUntil30 ? 30 : null), matchDetails); return 0; }
         if (ladder is not null) return Ladder(pack, ladder.Split(','), seeds, minutes, archetype, firstSeed);
         if (ffa is not null) return FreeForAll(pack, ffa, seeds, minutes, firstSeed,
-            rivalPaceOverride, warlordMaxCampaignOrigin);
+            rivalPaceOverride, warlordMaxCampaignOrigin, matchDetails, ffaFirstsAttribution,
+            ffaResearchTimeline, ffaRotations, ffaFoodDemographyTimeline, a5DeferBuilderS1FissionUntil64,
+            ffaCaseControlTimeline);
         if (check) return CheckM6(pack, seeds, minutes, archetype, firstSeed, out _);
         if (checkA7) return CheckA7Only(pack, seeds, minutesGiven ? minutes : 64, archetype, firstSeed);
         if (checkB7 || checkB8) return BronzeAiGates.Run(pack, checkB7, checkB8,
@@ -129,7 +163,7 @@ internal static class AiCommand
         if (checkB29)
         {
             (int b29Seeds, int b29Minutes) = ResolveM10Sample(seedsGiven ? seeds : null, minutesGiven ? minutes : null);
-            return CheckB29(pack, b29Seeds, b29Minutes, archetype, firstSeed);
+            return CheckB29(pack, b29Seeds, b29Minutes, observationMinutesGiven ? observationMinutes : null, archetype, firstSeed);
         }
         if (checkM10)
         {
@@ -205,6 +239,8 @@ internal static class AiCommand
             Console.WriteLine($"  diagnostic Warlord E3 Expand fission threshold override: {fissionThreshold.ToDoubleForDisplay():F2} (production default 0.83)");
         if (r.Outcomes.Count > 0 && r.Outcomes[0].WarlordDefenseResearchBonusOverride is { } defenseBonus)
             Console.WriteLine($"  diagnostic Warlord defense research bonus override: {defenseBonus.ToDoubleForDisplay():F2} (production default {SparkTuning.DefenseBonus.ToDoubleForDisplay():F2})");
+        if (r.Outcomes.Count > 0 && r.Outcomes[0].WarlordPostureUnlockBonusOverride is { } postureUnlockBonus)
+            Console.WriteLine($"  diagnostic Warlord GOV-02 posture unlock bonus override: {postureUnlockBonus.ToDoubleForDisplay():F2} (production default {SparkTuning.PostureUnlockBonus.ToDoubleForDisplay():F2})");
         if (r.Outcomes.Count > 0 && r.Outcomes[0].WarlordDefenseUrgencyShadowDiagnostic)
         {
             DuelTotals shadow = SumTeam(r.Outcomes, string.Equals(a, "warlord", StringComparison.OrdinalIgnoreCase) ? a : b);
@@ -239,6 +275,10 @@ internal static class AiCommand
                 streakLabel += $" [Warlord E3 Expand fission threshold={matchFissionThreshold.ToDoubleForDisplay():F2}]";
             if (match.WarlordDefenseResearchBonusOverride is { } matchDefenseBonus)
                 streakLabel += $" [Warlord defense research bonus={matchDefenseBonus.ToDoubleForDisplay():F2}]";
+            if (match.WarlordPostureUnlockBonusOverride is { } matchPostureUnlockBonus)
+                streakLabel += $" [Warlord GOV-02 posture unlock bonus={matchPostureUnlockBonus.ToDoubleForDisplay():F2}]";
+            if (match.WarlordFrontierConquestPlanFloorDiagnostic)
+                streakLabel += " [Warlord FrontierRace-to-Conquer plan-floor screen]";
             if (match.WarlordKeystoneTempoOverride is { } matchKeystoneTempo)
                 streakLabel += $" [Warlord keystone tempo={matchKeystoneTempo.ToDoubleForDisplay():F1}]";
             if (match.WarlordE2ClosureSlotDiagnostic)
@@ -251,6 +291,18 @@ internal static class AiCommand
                 Console.WriteLine($"        checkpoints: {trace.Timeline}");
             }
             foreach (string trace in match.WarlordEconomyTraces)
+                Console.WriteLine($"      {trace}");
+            foreach (string trace in match.WarlordDemographyTraces)
+                Console.WriteLine($"      {trace}");
+            foreach (string trace in match.WarlordFoodLedgerTraces)
+                Console.WriteLine($"      {trace}");
+            foreach (string trace in match.WarlordFoodWorkAttributionTraces)
+                Console.WriteLine($"      {trace}");
+            foreach (string diagnostic in match.WarlordFissionSiteDiagnostics)
+                Console.WriteLine($"      {diagnostic}");
+            foreach (string diagnostic in match.A2LeadCheckpointTraces)
+                Console.WriteLine($"      {diagnostic}");
+            foreach (string trace in match.WarlordCampaignOpportunityTraces)
                 Console.WriteLine($"      {trace}");
             if (match.WarlordDefenseUrgencyShadowDiagnostic)
                 streakLabel += " [Warlord high-urgency shadow plan enabled]";
@@ -547,15 +599,37 @@ internal static class AiCommand
     }
 
     private static int FreeForAll(ContentPack pack, string level, int seeds, int minutes, ulong firstSeed,
-        Fix64? rivalPaceOverride = null, bool warlordMaxCampaignOrigin = false)
+        Fix64? rivalPaceOverride = null, bool warlordMaxCampaignOrigin = false, bool matchDetails = false,
+        bool ffaFirstsAttribution = false, bool ffaResearchTimeline = false, int[]? ffaRotations = null,
+        bool ffaFoodDemographyTimeline = false, bool a5DeferBuilderS1FissionUntil64 = false,
+        bool ffaCaseControlTimeline = false)
     {
+        List<string>? matchRows = matchDetails ? new List<string>() : null;
+        List<string>? firstsRows = ffaFirstsAttribution ? new List<string>() : null;
+        List<string>? researchRows = ffaResearchTimeline ? new List<string>() : null;
+        List<string>? foodDemographyRows = ffaFoodDemographyTimeline ? new List<string>() : null;
+        List<string>? caseControlRows = ffaCaseControlTimeline ? new List<string>() : null;
         (double[] wins, int[] apps) = Tournament.FreeForAll(pack, level, seeds, minutes, out var civs, firstSeed,
-            rivalPaceOverride, warlordMaxCampaignOrigin);
+            rivalPaceOverride, warlordMaxCampaignOrigin, matchRows, firstsRows, ffaFirstsAttribution,
+            researchRows, ffaResearchTimeline, ffaRotations, foodDemographyRows, ffaFoodDemographyTimeline,
+            a5DeferBuilderS1FissionUntil64, caseControlRows, ffaCaseControlTimeline);
         Console.WriteLine($"Free-for-all at {level}: win rate per appearance (25% is fair)");
         if (rivalPaceOverride is { } pace) Console.WriteLine($"  diagnostic Warlord rival pace override: {pace.ToDoubleForDisplay():F2}");
         if (warlordMaxCampaignOrigin) Console.WriteLine("  diagnostic Warlord max-force campaign origin enabled");
+        if (a5DeferBuilderS1FissionUntil64) Console.WriteLine("  diagnostic A5 deferral enabled only for seed 20261025 rotation 4 Builder civ1 settlement s1; first eligible season s64");
+        if (ffaCaseControlTimeline) Console.WriteLine("  report-only A5 split/checkpoint case-control timeline enabled");
         for (int i = 0; i < 5; i++) Console.WriteLine($"  {FfaNames[i],-9} {wins[i]:F0}/{apps[i]} = {100.0 * wins[i] / Math.Max(1, apps[i]),5:F1}%");
         PrintArchetypeMeans(civs);
+        if (matchRows is not null)
+            foreach (string row in matchRows) Console.WriteLine($"  {row}");
+        if (firstsRows is not null)
+            foreach (string row in firstsRows) Console.WriteLine($"  {row}");
+        if (researchRows is not null)
+            foreach (string row in researchRows) Console.WriteLine($"  {row}");
+        if (foodDemographyRows is not null)
+            foreach (string row in foodDemographyRows) Console.WriteLine($"  {row}");
+        if (caseControlRows is not null)
+            foreach (string row in caseControlRows) Console.WriteLine($"  {row}");
         return 0;
     }
 
@@ -743,15 +817,15 @@ internal static class AiCommand
         return 1;
     }
 
-    private static int CheckB29(ContentPack pack, int seeds, int minutes, EconomyArchetype archetype, ulong firstSeed)
+    private static int CheckB29(ContentPack pack, int seeds, int minutes, int? observationMinutes, EconomyArchetype archetype, ulong firstSeed)
     {
         var missingForecastDetails = new List<string>();
-        B29ForecastDiagnostic.Summary summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed, missingForecastDetails);
+        B29ForecastDiagnostic.Summary summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed, missingForecastDetails, observationMinutes);
         foreach (string detail in missingForecastDetails)
             Console.WriteLine($"  B29 missing forecast: {detail}");
         bool diagnostic = M10AiAcceptanceStatus.Classify(seeds, minutes) == M10AiAcceptanceStatus.Result.Diagnostic;
         if (diagnostic)
-            Console.WriteLine($"B29 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute chapter horizon.");
+            Console.WriteLine($"B29 DIAGNOSTIC ONLY: acceptance requires at least {M10AiAcceptanceStatus.MinimumSeeds} seeds and {M10AiAcceptanceStatus.MinimumMinutes}-minute capture horizon.");
         else
             Console.WriteLine($"B29 {summary.Result.ToString().ToUpperInvariant()}");
         return diagnostic ? 2 : summary.Result switch
@@ -763,18 +837,19 @@ internal static class AiCommand
     }
 
     private static B29ForecastDiagnostic.Summary MeasureB29(ContentPack pack, int seeds, int minutes,
-        EconomyArchetype archetype, ulong firstSeed, ICollection<string>? missingForecastDetails = null)
+        EconomyArchetype archetype, ulong firstSeed, ICollection<string>? missingForecastDetails = null, int? observationMinutes = null)
     {
-        Console.WriteLine($"== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3; {seeds} seeds, {minutes}-minute horizon)");
+        int observedThrough = observationMinutes ?? minutes;
+        Console.WriteLine($"== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3; {seeds} seeds, capture {minutes} min, observe {observedThrough} min)");
         (List<B29ForecastDiagnostic.Observation> observations, int attempts, int missingForecasts, int censoredForecasts) =
-            B29ForecastDiagnostic.Run(pack, seeds, minutes, archetype, firstSeed, missingForecastDetails);
+            B29ForecastDiagnostic.Run(pack, seeds, minutes, archetype, firstSeed, missingForecastDetails, observationMinutes);
         B29ForecastDiagnostic.Summary summary = B29ForecastDiagnostic.Summarize(observations, attempts,
             missingForecasts, censoredForecasts);
         Console.WriteLine($"  B29: {summary.Within15Percent}/{summary.Forecasts} forecasts within 15%; median {summary.MedianError:P1}; " +
             $"sampled {summary.Attempts} AI seats; missing at capture {summary.MissingForecasts}; " +
             $"KEY-4 horizon-censored {summary.CensoredForecasts}");
         if (summary.CensoredForecasts > 0)
-            Console.WriteLine("  B29 observation incomplete: horizon-censored forecasts are unscored; extend the observation window before acceptance.");
+            Console.WriteLine($"  B29 observation incomplete: horizon-censored forecasts are unscored through minute {observedThrough}; extend the observation window before acceptance.");
         return summary;
     }
 

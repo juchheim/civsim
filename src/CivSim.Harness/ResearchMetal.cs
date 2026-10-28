@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CivSim.Sim.Content;
@@ -39,6 +40,13 @@ internal static class ResearchMetal
         public CivTrace[] Civs = Array.Empty<CivTrace>();
         public List<(int Pop, bool Coppiced, double Start, double Now, int Civ)> Forests = new();
         public List<double> SettlementCoverage12 = new();
+        public List<B12T18Snapshot> B12T18Snapshots = new();
+        public List<B12T18Snapshot> B12CensusSnapshots = new();
+        public Dictionary<int, B13WoodSnapshot> B13AtKey3 = new();
+        public Dictionary<int, B13WoodSnapshot> B13AtKey4 = new();
+        public List<string> B12CampOpenTrace = new();
+        public List<string> B12CopperShareTrace = new();
+        public double B12CopperShareShortfallTotal;
         public bool[] ForestsAtKey4 = Array.Empty<bool>();
         public long[] FirstBronzeSeason = new long[4096];
         public double ChopBronze, ChopStone;
@@ -111,6 +119,37 @@ internal static class ResearchMetal
         }
         if (n > 0) text.AppendLine($"B11 chop: bronze kit {chopB / n:F2} L/ws against stone tools {chopS / n:F2} L/ws = x{chopB / Math.Max(1e-9, chopS):F2} (target x1.5)");
         if (m > 0) text.AppendLine($"B11 mining: shaft with bronze picks {mineB / m:F2} L/ws against surface digging {mineS / m:F2} = x{mineB / Math.Max(1e-9, mineS):F2} (target x1.5-2)");
+        if (Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_T18") == "1")
+            foreach (Result r in results) AppendB12T18Trace(text, r);
+        if (Environment.GetEnvironmentVariable("CIVSIM_TRACE_B13_WOOD") == "1")
+            foreach (Result r in results) AppendB13WoodTrace(text, r);
+        foreach (Result r in results)
+            if (r.B12CampOpenTrace.Count > 0)
+            {
+                text.AppendLine();
+                text.AppendLine("B12 failed civ0/s0 camp-opening decisions for own copper tile 7401, seasons 255-267:");
+                foreach (string line in r.B12CampOpenTrace) text.AppendLine("  " + line);
+            }
+        foreach (Result r in results)
+            if (r.B12CopperShareTrace.Count > 0)
+            {
+                text.AppendLine();
+                text.AppendLine("B12 s0/s11 copper sharing and camp delivery, seasons 255-267:");
+                foreach (string line in r.B12CopperShareTrace) text.AppendLine("  " + line);
+                double oreDeficit = r.B12CopperShareShortfallTotal;
+                // Current recipes: 2 Cu ore -> 0.5 Cu; 0.9 Cu -> 1 tin bronze; 0.15 bronze -> 1 tier-10 kit.
+                double copperOrePerKit = 2.0 / 0.5 * 0.9 * 0.15;
+                double kitEquivalentUpperBound = oreDeficit / copperOrePerKit;
+                text.AppendLine($"  generous incremental T10-kit ceiling from those deficits: {oreDeficit:F2} Cu ore / {copperOrePerKit:F2} Cu ore per kit = {kitEquivalentUpperBound:F2} kit-equivalents (at most {Math.Floor(kitEquivalentUpperBound)} complete kits); six needed; cannot reach six. This ignores tin/charcoal, recipes' labor, and the unchanged 10% cap, all of which can only reduce the bound.");
+            }
+        foreach (Result r in results)
+            if (r.B12CensusSnapshots.Count > 0)
+            {
+                text.AppendLine();
+                text.AppendLine($"B12 +12 after first casting access census (seed {r.Seed}; one row per exposed settlement):");
+                foreach (B12T18Snapshot x in r.B12CensusSnapshots.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
+                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} season={x.Season} {x.Census}");
+            }
         Console.Write(text.ToString());
         return 0;
     }
@@ -137,6 +176,16 @@ internal static class ResearchMetal
     {
         var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel match = MatchModel.Create(seed, pack, archetypes);
+        bool traceB12T18 = seed == 20261019UL && Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_T18") == "1";
+        match.Economy.B12T18TraceEnabled = traceB12T18;
+        bool traceB12Census = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1" && (seed == 20261019UL || seed == 777UL);
+        match.Economy.B12CensusTraceEnabled = traceB12Census;
+        bool traceB13Wood = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B13_WOOD") == "1" && (seed == 20261019UL || seed == 777UL);
+        match.Economy.B13WoodTraceEnabled = traceB13Wood;
+        bool traceB12CampOpen = seed == 20261019UL && Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CAMP_OPEN") == "1";
+        match.Economy.B12CampOpenTraceEnabled = traceB12CampOpen;
+        bool traceB12CopperShare = seed == 20261019UL && Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_COPPER_SHARE") == "1";
+        match.Economy.B12CopperShareTraceEnabled = traceB12CopperShare;
         var runner = new SimRunner(match);
         ResearchSystem r = match.Research;
         LivingEconomyModel eco = match.Economy;
@@ -159,6 +208,10 @@ internal static class ResearchMetal
                 double T(int p) => r.IsDone(c, p) ? r.CompletedTick(c, p) / 600.0 : double.NaN;
                 t.Key3 = T(key3); t.Key4 = T(key4); t.Met03 = T(met03); t.Met04 = T(met04); t.Met05 = T(met05);
                 t.Fir09 = T(fir09); t.Min04 = T(min04); t.Wod04 = T(wod04);
+                if (traceB13Wood && r.IsDone(c, key3) && !result.B13AtKey3.Values.Any(x => x.Civilization == c))
+                    foreach (B13WoodSnapshot snap in eco.CaptureB13WoodSnapshots((int)season).Where(x => x.Civilization == c)) result.B13AtKey3[snap.SettlementId] = snap;
+                if (traceB13Wood && r.IsDone(c, key4) && !result.B13AtKey4.Values.Any(x => x.Civilization == c))
+                    foreach (B13WoodSnapshot snap in eco.CaptureB13WoodSnapshots((int)season).Where(x => x.Civilization == c)) result.B13AtKey4[snap.SettlementId] = snap;
                 double first = Math.Min(double.IsNaN(t.Met04) ? double.MaxValue : t.Met04, double.IsNaN(t.Met05) ? double.MaxValue : t.Met05);
                 if (first == double.MaxValue) continue;
                 long firstSeason = (long)Math.Ceiling(first * 4);
@@ -251,7 +304,78 @@ internal static class ResearchMetal
             (Fix64 best, Fix64 surface) = eco.MineRates(c);
             if (r.IsDone(c, min04)) { result.MineBest = best.ToDoubleForDisplay(); result.MineSurface = surface.ToDoubleForDisplay(); }
         }
+        if ((traceB12T18 || traceB12Census) && eco.B12T18Snapshots is { } snapshots)
+        {
+            if (traceB12T18) result.B12T18Snapshots.AddRange(snapshots);
+            if (traceB12Census) result.B12CensusSnapshots.AddRange(snapshots.Where(x => x.Offset == 12));
+        }
+        if (traceB12CampOpen) result.B12CampOpenTrace.AddRange(eco.B12CampOpenTrace);
+        if (traceB12CopperShare)
+        {
+            result.B12CopperShareTrace.AddRange(eco.B12CopperShareTrace);
+            result.B12CopperShareShortfallTotal = eco.B12CopperShareShortfallTotal.ToDoubleForDisplay();
+        }
         return result;
+    }
+
+    private static void AppendB12T18Trace(StringBuilder text, Result result)
+    {
+        if (result.Seed != 20261019UL) return;
+        var outcomes = result.B12T18Snapshots.Where(x => x.Offset == 12 && x.Adults > 0 && !double.IsNaN(x.Coverage)).ToArray();
+        B12T18Snapshot? failed = outcomes.Where(x => x.Coverage < 0.70).OrderByDescending(x => x.Coverage)
+            .ThenBy(x => x.Civilization).ThenBy(x => x.SettlementId).Cast<B12T18Snapshot?>().FirstOrDefault();
+        B12T18Snapshot? passed = outcomes.Where(x => x.Coverage >= 0.70).OrderBy(x => x.Coverage)
+            .ThenBy(x => x.Civilization).ThenBy(x => x.SettlementId).Cast<B12T18Snapshot?>().FirstOrDefault();
+        text.AppendLine();
+        text.AppendLine("B12 T18 aligned settlement trace (first cast access, then +4/+8/+12 seasons):");
+        Append("failed", failed);
+        Append("passed", passed);
+
+        void Append(string label, B12T18Snapshot? outcome)
+        {
+            if (outcome is not { } selected)
+            {
+                text.AppendLine($"  {label}: no settlement with an observed +12-season outcome");
+                return;
+            }
+            text.AppendLine($"  {label}: selected civ{selected.Civilization}/s{selected.SettlementId} T18={selected.Coverage:P0}");
+            foreach (B12T18Snapshot snapshot in result.B12T18Snapshots
+                         .Where(x => x.SettlementId == selected.SettlementId && x.Civilization == selected.Civilization)
+                         .OrderBy(x => x.Offset))
+                text.AppendLine($"    +{snapshot.Offset} season={snapshot.Season} civ{snapshot.Civilization}/s{snapshot.SettlementId} " +
+                    $"rung6={snapshot.Rung6Adults}/{snapshot.Adults} ({snapshot.Coverage:P0}) {snapshot.Detail}");
+        }
+    }
+
+    private static void AppendB13WoodTrace(StringBuilder text, Result result)
+    {
+        text.AppendLine();
+        text.AppendLine($"B13 wood balance at KEY-3 to KEY-4 (seed {result.Seed}; WOD-04 towns, pop 80-100):");
+        foreach (B13WoodSnapshot close in result.B13AtKey4.Values
+                     .Where(x => x.IsTown && x.Population is >= 80 and <= 100 && !double.IsNaN(result.Civs[x.Civilization].Wod04))
+                     .OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
+        {
+            if (!result.B13AtKey3.TryGetValue(close.SettlementId, out B13WoodSnapshot open))
+            {
+                text.AppendLine($"  civ{close.Civilization}/s{close.SettlementId} pop={close.Population}: no KEY-3 opening sample");
+                continue;
+            }
+            Fix64 dChopIn = close.ChopInflows - open.ChopInflows, dCivicIn = close.CivicInflows - open.CivicInflows;
+            Fix64 dOtherIn = close.OtherInflows - open.OtherInflows;
+            Fix64 dHearth = close.HearthUse - open.HearthUse, dFuel = close.E3FuelUse - open.E3FuelUse;
+            Fix64 dMetalUse = close.MetalUse - open.MetalUse, dGoods = close.GoodsUse - open.GoodsUse;
+            Fix64 dCivicUse = close.CivicUse - open.CivicUse, dStructure = close.StructureUse - open.StructureUse;
+            Fix64 dOtherUse = close.OtherUse - open.OtherUse;
+            Fix64 dRegrowth = close.Regrowth - open.Regrowth, dChop = close.ChopRemoved - open.ChopRemoved;
+            Fix64 dMetal = close.MetalRemoved - open.MetalRemoved, dCivic = close.CivicRemoved - open.CivicRemoved;
+            Fix64 dOther = close.OtherRemoved - open.OtherRemoved;
+            Fix64 localResidual = open.LocalWood + dChopIn + dCivicIn + dOtherIn - dHearth - dFuel - dMetalUse - dGoods - dCivicUse - dStructure - dOtherUse - close.LocalWood;
+            Fix64 forestResidual = open.StandingForestWood + dRegrowth - dChop - dMetal - dCivic - dOther - close.StandingForestWood;
+            text.AppendLine($"  civ{close.Civilization}/s{close.SettlementId} pop={close.Population} KEY3=season{open.Season} local={F64(open.LocalWood)} forest={F64(open.StandingForestWood)} KEY4=season{close.Season} local={F64(close.LocalWood)} forest={F64(close.StandingForestWood)}");
+            text.AppendLine($"    local inflow chop={F64(dChopIn)} civic/housing={F64(dCivicIn)} other={F64(dOtherIn)}; use hearth={F64(dHearth)} E3fire={F64(dFuel)} metal={F64(dMetalUse)} goods={F64(dGoods)} civic/housing={F64(dCivicUse)} structure={F64(dStructure)} other={F64(dOtherUse)} residual={F64(localResidual)}");
+            text.AppendLine($"    forest regrowth={F64(dRegrowth)} removed chop/clear={F64(dChop)} metal={F64(dMetal)} civic={F64(dCivic)} other={F64(dOther)} clearThreshold={F64(close.ClearThresholdRemoval-open.ClearThresholdRemoval)} crossings={close.ClearThresholdCrossings-open.ClearThresholdCrossings} residual={F64(forestResidual)}");
+        }
+        static string F64(Fix64 x) => x.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
     }
 
     private static (double All, double Access) Coverage(LivingEconomyModel eco, PoliticsSystem pol, int civ)

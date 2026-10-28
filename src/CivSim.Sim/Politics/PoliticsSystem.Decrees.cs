@@ -338,15 +338,40 @@ public sealed partial class PoliticsSystem
     private OrderRefusalReason ExecuteFound(int civ, int tile, out int subject, bool protectCityProspect)
     {
         subject = -1;
+        bool traceB8 = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B8") == "1";
+        int unprotectedDonor = -1;
+        bool unprotectedCandidateIsCityProspect = false;
+        if (traceB8 && protectCityProspect && FoundCheck(civ, tile, out unprotectedDonor, protectCityProspect: false) == 0)
+            unprotectedCandidateIsCityProspect = _economy.ShouldProtectStrategistFoundDonor(unprotectedDonor, _rules.FoundShare);
         OrderRefusalReason why = FoundCheck(civ, tile, out int donor, protectCityProspect);
+        if (traceB8 && unprotectedCandidateIsCityProspect)
+            _b8FoundTrace.Add($"civ{civ}:FoundCandidate donor=s{unprotectedDonor} tile={tile} cityProspect=true " +
+                $"protected={protectCityProspect} selectedDonor={(why == 0 ? $"s{donor}" : "none")} result={why}");
         if (why != 0) return why;
+        int donorPopulationBefore = traceB8 ? _economy.Settlement(donor).Population : 0;
+        Fix64 donorFillBefore = traceB8 ? _economy.PopulationFill(donor) : Fix64.Zero;
+        bool cityProspectBefore = traceB8 && _economy.ShouldProtectStrategistFoundDonor(donor, _rules.FoundShare);
         int village = _economy.FoundByDecree(donor, tile, _rules.FoundShare, _rules.MinDaughter, _rules.StartCohesion);
         if (village < 0) return OrderRefusalReason.NoDonor;
+        if (traceB8)
+        {
+            int donorPopulationAfter = _economy.Settlement(donor).Population;
+            Fix64 donorFillAfter = _economy.PopulationFill(donor);
+            bool cityProspectAfter = _economy.ShouldProtectStrategistFoundDonor(donor, _rules.FoundShare);
+            _b8FoundTrace.Add($"civ{civ}:CouncilFound donor=s{donor} child=s{village} pop={donorPopulationBefore}->{donorPopulationAfter} " +
+                $"cap~={donorPopulationBefore / Math.Max(0.000001, donorFillBefore.ToDoubleForDisplay()):F1}->" +
+                $"{donorPopulationAfter / Math.Max(0.000001, donorFillAfter.ToDoubleForDisplay()):F1} " +
+                $"fill={donorFillBefore.ToDoubleForDisplay():F3}->{donorFillAfter.ToDoubleForDisplay():F3} " +
+                $"cityProspect={cityProspectBefore}->{cityProspectAfter} protected={protectCityProspect}");
+        }
         RefreshSettlements();
         if (Done(civ, _bp.Ter05)) _foundBoost.Add((village, _season + _rules.BoostSeasons));
         subject = village;
         return 0;
     }
+
+    private readonly List<string> _b8FoundTrace = new();
+    internal IReadOnlyList<string> B8FoundTrace => _b8FoundTrace;
 
     internal bool ShouldProtectStrategistFoundDonor(int settlement)
         => _economy.ShouldProtectStrategistFoundDonor(settlement, _rules.FoundShare);

@@ -22,6 +22,7 @@ namespace CivSim.Sim.Ai;
 public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 {
     private const ulong StreamPart = 0x535041524BUL; // "SPARK": the Settler's and Chieftain's prior picks
+    internal const int B29ReportHorizonSeasons = 120;
     private static readonly Fix64 Third = Fix64.FromRatio(1, 3);
 
     private readonly AiSpec _spec;
@@ -30,6 +31,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private int _lastDecision = -1;
     internal Fix64? RivalPaceOverrideForDiagnostics { get; set; }
     internal Fix64? DefenseResearchBonusOverrideForDiagnostics { get; set; }
+    internal Fix64? PostureUnlockBonusOverrideForDiagnostics { get; set; }
     internal Fix64? KeystoneTempoOverrideForDiagnostics { get; set; }
     internal bool E2ClosureSlotOverrideForDiagnostics { get; set; }
     internal bool DefenseUrgencyShadowDiagnosticForDiagnostics { get; set; }
@@ -50,7 +52,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     // Derived per catalog and rebuilt each decision; never part of the saved state.
     private ForecastCatalog? _fc;
     private ForecastStart _start = null!, _front = null!;
-    private ResearchForecast _forecast = null!, _frontier = null!;
+    private ResearchForecast _forecast = null!, _frontier = null!, _b29ReportForecast = null!;
     private ForecastValuation _value = null!;
     private Fix64[] _prior = Array.Empty<Fix64>();
     private Fix64[] _rank = Array.Empty<Fix64>();
@@ -82,6 +84,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     public IReadOnlyList<int> LastPlan => _plan;
     /// <summary>The forecast of the last decision's chosen plan.</summary>
     public ForecastResult LastForecast { get; private set; }
+    internal ForecastResult? LastB29ReportForecastForDiagnostics { get; private set; }
     public ForecastResult LastBaseline { get; private set; }
     internal int LastDecisionSeasonForDiagnostics => _lastDecision;
     internal string LastForecastKey4BlockersForDiagnostics()
@@ -95,6 +98,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 
     public void Decide(AiContext ctx)
     {
+        LastB29ReportForecastForDiagnostics = null;
         Ensure(ctx.Catalog);
         ForecastCatalog fc = _fc!;
         AiResearchPort port = ctx.Research;
@@ -145,6 +149,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         using (var reader = new BinaryReader(stream)) shadow.Read(reader);
         shadow.RivalPaceOverrideForDiagnostics = RivalPaceOverrideForDiagnostics;
         shadow.DefenseResearchBonusOverrideForDiagnostics = DefenseResearchBonusOverrideForDiagnostics;
+        shadow.PostureUnlockBonusOverrideForDiagnostics = PostureUnlockBonusOverrideForDiagnostics;
         shadow.KeystoneTempoOverrideForDiagnostics = KeystoneTempoOverrideForDiagnostics;
         shadow.E2ClosureSlotOverrideForDiagnostics = E2ClosureSlotOverrideForDiagnostics;
         shadow.FirstsEtaPessimismSeasonsForDiagnostics = FirstsEtaPessimismSeasonsForDiagnostics;
@@ -190,6 +195,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _front = new ForecastStart(_fc);
         _forecast = new ResearchForecast(_fc, ForecastTuning.PlannerStepsPerSeason);
         _frontier = new ResearchForecast(_fc, ForecastTuning.PlannerStepsPerSeason);
+        _b29ReportForecast = new ResearchForecast(_fc, ForecastTuning.PlannerStepsPerSeason);
         _value = new ForecastValuation(_fc.Count);
         _prior = new Fix64[_fc.Count];
         _rank = new Fix64[_fc.Count];
@@ -373,18 +379,20 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                     + cohesionNeed * _cohesionCapability[p]) * SparkTuning.NeedUrgencyBonus;
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
             bonus += BronzeForkBonus(p, _met04, _met05, met03Done, IsDone(_min04), tinAccessProbability, arsenicAccess);
-            if (p == _gov02 && !_start.Done[p]) bonus += PostureUnlockBonus(frontier, defense, attack);
+            if (p == _gov02 && !_start.Done[p])
+                bonus += PostureUnlockBonus(frontier, defense, attack, PostureUnlockBonusOverrideForDiagnostics);
             _value.Bonus[p] = bonus;
         }
     }
 
     /// <summary>Values Chieftainship's posture lever when open land makes Expand useful, but yields to active conflict.</summary>
-    internal static Fix64 PostureUnlockBonus(Fix64 frontierValue, Fix64 defenseUrgency, Fix64 attackReadiness)
+    internal static Fix64 PostureUnlockBonus(Fix64 frontierValue, Fix64 defenseUrgency, Fix64 attackReadiness,
+        Fix64? bonusOverride = null)
     {
         if (frontierValue < StrategistTuning.FrontierOpen ||
             defenseUrgency >= StrategistTuning.FortifyAt || attackReadiness >= StrategistTuning.FortifyAt)
             return Fix64.Zero;
-        return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * SparkTuning.PostureUnlockBonus;
+        return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * (bonusOverride ?? SparkTuning.PostureUnlockBonus);
     }
 
     private bool IsDone(int project) => project >= 0 && project < _start.Done.Length && _start.Done[project];
@@ -769,6 +777,16 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         {
             _plan.Remove(key);
             _plan.Insert(0, key);
+        }
+
+        // B29 reports a longer ETA when the normal planner horizon misses KEY-4. This separate
+        // rollout uses the finalized plan but never feeds the planner, LastForecast, or plan choice.
+        int key3 = fc.Catalog.IndexOf("KEY-3");
+        if (LastForecast.Key4 < 0 && key3 >= 0 && _start.Done[key3])
+        {
+            _b29ReportForecast.Prepare(_start, B29ReportHorizonSeasons);
+            LastB29ReportForecastForDiagnostics = _b29ReportForecast.Run(
+                System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_plan), _value, promoteKeystone: true);
         }
     }
 

@@ -87,6 +87,7 @@ public sealed class AiOrders
     public bool Ally(int civ) => _politics.OrderAlliance(_civ, civ);
     public bool SetPosture(Posture posture) => _politics.OrderPosture(_civ, posture);
     public bool PrioritizePhysicalDefenseBuild(int settlement) => _politics.OrderPrioritizePhysicalDefenseBuild(_civ, settlement);
+    public string DescribePrioritizePhysicalDefenseBuild(int settlement) => _politics.DescribePrioritizePhysicalDefenseBuild(_civ, settlement);
     public bool PlaceBeacon(int tile) => _politics.OrderBeacon(_civ, tile);
     public void RemoveBeacon(int index) => _politics.OrderRemoveBeacon(_civ, index);
 

@@ -60,6 +60,9 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly List<(int Parent, int Daughter)> _fissions = new();
     private readonly Fix64[] _practiceWork;
     private readonly Fix64[][] _people;
+    // Harness-only gross-generation counters. They are opt-in and never read by research decisions or snapshots.
+    private Fix64[]? _diagnosticInsightGenerated;
+    private Fix64[][]? _diagnosticKnowHowGenerated;
 
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
@@ -162,6 +165,17 @@ public sealed partial class ResearchSystem : IResearchView
     public Fix64 WondersLegacy(int civ) => _civs[civ].WondersLegacy;
     public Fix64 FirstsLegacy(int civ) => _civs[civ].FirstsLegacy;
     public Fix64 MasteryLegacy(int civ) => _civs[civ].MasteryLegacy;
+    public void EnableDiagnosticGenerationCounters()
+    {
+        _diagnosticInsightGenerated ??= new Fix64[_civs.Length];
+        _diagnosticKnowHowGenerated ??= new Fix64[_civs.Length][];
+        for (int c = 0; c < _civs.Length; c++)
+            _diagnosticKnowHowGenerated[c] ??= new Fix64[_catalog.LineageCodes.Count];
+    }
+    public Fix64 DiagnosticInsightGenerated(int civ) => _diagnosticInsightGenerated?[civ] ?? Fix64.Zero;
+    public Fix64 DiagnosticKnowHowGenerated(int civ, int lineage) =>
+        _diagnosticKnowHowGenerated is { } generated && (uint)lineage < (uint)generated[civ].Length
+            ? generated[civ][lineage] : Fix64.Zero;
     public int BeaconBoons(int civ) => _civs[civ].BeaconBoons;
     public bool CouncilOn(int civ) => _civs[civ].Council;
 
@@ -413,10 +427,11 @@ public sealed partial class ResearchSystem : IResearchView
     {
         CivResearch civ = _civs[c];
         if (civ.InsightDirty) RefreshInsight(c);
+        Fix64 perStep = civ.InsightPerYear / StepsPerYear;
+        if (_diagnosticInsightGenerated is { } generatedInsight) generatedInsight[c] += perStep;
         int totalWeight = 0;
         for (int s = 0; s < CivResearch.SlotCount; s++) if (civ.Slots[s] >= 0) totalWeight += _slotWeight[s];
         if (totalWeight == 0) return;
-        Fix64 perStep = civ.InsightPerYear / StepsPerYear;
         // Decide every slot's share before anything completes, so a cascade mid-step cannot change who gets what.
         Span<int> project = stackalloc int[CivResearch.SlotCount];
         Span<Fix64> amount = stackalloc Fix64[CivResearch.SlotCount];
@@ -722,7 +737,11 @@ public sealed partial class ResearchSystem : IResearchView
             if (_practiceWork[a].Raw == 0) continue;
             Fix64 part = season * _practiceWork[a] / totalWork;
             foreach ((int lineage, int percent) in _catalog.PracticeSplit(a, civ.Era))
-                civ.KnowHow[lineage] += part * percent / 100 * civ.KnowHowLineageGain[lineage];
+            {
+                Fix64 generated = part * percent / 100 * civ.KnowHowLineageGain[lineage];
+                civ.KnowHow[lineage] += generated;
+                if (_diagnosticKnowHowGenerated is { } diagnostic) diagnostic[c][lineage] += generated;
+            }
         }
     }
 
