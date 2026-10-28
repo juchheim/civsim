@@ -197,6 +197,7 @@ public partial class Game
         view.Action.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         view.Action.Pressed += () => { view.Callback?.Invoke(); DismissToast(view); };
         row.AddChild(view.Action);
+        row.AddChild(UiKit.IconButton(UiGlyph.Close, "Dismiss notification", () => DismissToast(view), 28, 14));
         panel.AddChild(row);
         view.Bar = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
         view.Bar.SetAnchorsPreset(Control.LayoutPreset.LeftWide);
