@@ -1,4 +1,5 @@
 using CivSim.Sim.Core;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
 
 namespace CivSim.Sim.View;
@@ -65,6 +66,10 @@ public static class PlayerCommands
         => Decree(tick, civ, DecreeKind.Compact, partner, DecreeArgs.PackCompact(TradeGood.None, false, treaty ? CompactVariant.Treaty : CompactVariant.Pact));
     public static Command SetEmbargo(long tick, int civ, int onCiv, TradeGood good, bool on)
         => new(tick, (byte)civ, CommandKind.SetEmbargo, onCiv, (int)good, on ? 1 : 0);
+
+    // ---- settlement labor policies ----
+    public static Command SetScoutPolicy(long tick, int civ, int settlement, ScoutPolicy policy)
+        => new(tick, (byte)civ, CommandKind.SetScoutPolicy, settlement, (int)policy, 0);
 
     public static Command Decree(long tick, int civ, DecreeKind kind, int target, int extra)
         => new(tick, (byte)civ, CommandKind.IssueDecree, (int)kind, target, extra);

@@ -122,6 +122,8 @@ public sealed class MatchFrame
     public sbyte[] SettlementCiv = Array.Empty<sbyte>();
     public int[] SettlementTile = Array.Empty<int>();
     public int[] SettlementPopulation = Array.Empty<int>();
+    /// <summary>Private (<see cref="SettlementViewFlags.Own"/> only): current <see cref="CivSim.Sim.Economy.ScoutPolicy"/>.</summary>
+    public byte[] SettlementScoutPolicy = Array.Empty<byte>();
     /// <summary><see cref="FoodBand"/> of last season's food security.</summary>
     public byte[] SettlementFood = Array.Empty<byte>();
     /// <summary><see cref="FoodBand"/> of the late-winter forecast (made each autumn).</summary>
@@ -396,6 +398,7 @@ public sealed class MatchFrame
         if (SettlementIndex.Length < n)
         {
             Ensure(ref SettlementIndex, n); Ensure(ref SettlementCiv, n); Ensure(ref SettlementTile, n); Ensure(ref SettlementPopulation, n);
+            Ensure(ref SettlementScoutPolicy, n);
             Ensure(ref SettlementFood, n); Ensure(ref SettlementWinterForecast, n); Ensure(ref SettlementCohesion, n);
             Ensure(ref SettlementOverreach, n); Ensure(ref SettlementSpanPenalty, n);
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);

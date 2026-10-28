@@ -15,7 +15,9 @@ public partial class Game
     private PanelContainer? _tileCard;
     private Label? _tileTitle, _tileFeatures, _tileWorkers, _tileFallback, _tileHint, _tileExtra;
     private UiIcon? _tileWarn;
-    private Control? _tileFallbackRow;
+    private Control? _tileFallbackRow, _tileScoutRow;
+    private Label? _tileScoutStatus;
+    private readonly Button[] _tileScoutButtons = new Button[4];
     private UiButton? _tileClose;
     private Vector2 _hoverScreen;
     private int _hoverTile = -1;
@@ -44,6 +46,31 @@ public partial class Game
         column.AddChild(_tileFeatures);
         _tileWorkers = UiKit.Text("", "Caption", wrap: true, minWidth: 296);
         column.AddChild(_tileWorkers);
+        var scout = UiKit.Column(UiTokens.Sp1);
+        _tileScoutStatus = UiKit.Text("Scouting", "Caption");
+        scout.AddChild(_tileScoutStatus);
+        var scoutOptions = UiKit.Row(UiTokens.Sp1);
+        string[] scoutLabels = { "Auto", "0", "1", "2" };
+        ScoutPolicy[] scoutPolicies = { ScoutPolicy.Auto, ScoutPolicy.Zero, ScoutPolicy.One, ScoutPolicy.Two };
+        string[] scoutTips =
+        {
+            "Use normal scouting, yielding scouts automatically when food is short.",
+            "Stop scouting at this settlement; released workers return to other jobs.",
+            "Allow up to one scout at this settlement.",
+            "Allow up to two scouts at this settlement.",
+        };
+        for (int i = 0; i < _tileScoutButtons.Length; i++)
+        {
+            int slot = i;
+            ScoutPolicy policy = scoutPolicies[i];
+            Button button = UiKit.InteractiveChip(scoutLabels[i], UiGlyph.None, () => SetScoutPolicyAtPinnedSettlement(policy), scoutTips[i]);
+            button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _tileScoutButtons[slot] = button;
+            scoutOptions.AddChild(button);
+        }
+        scout.AddChild(scoutOptions);
+        _tileScoutRow = scout;
+        column.AddChild(scout);
         var warn = UiKit.Row(UiTokens.Sp1);
         warn.MouseFilter = Control.MouseFilterEnum.Ignore;
         _tileWarn = new UiIcon(UiGlyph.Warning, 16, UiTokens.Warning) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
@@ -129,6 +156,7 @@ public partial class Game
         MatchFrame frame = _current;
         WorldView world = _session.WorldView;
         TileVisibility visibility = (TileVisibility)frame.Visibility[tile];
+        _tileScoutRow!.Visible = false;
         _tileClose!.Visible = pinned;
         _tileCard.MouseFilter = pinned ? Control.MouseFilterEnum.Stop : Control.MouseFilterEnum.Ignore;
 
@@ -163,6 +191,7 @@ public partial class Game
         _tileWorkers!.Visible = true;
         TileWork work = ScanTileWork(frame, tile, visibility == TileVisibility.Visible);
         UiKit.SetText(_tileWorkers, work.Summary);
+        RefreshScoutControls(frame, tile, pinned);
         _tileFallbackRow!.Visible = work.Fallbacks > 0;
         if (work.Fallbacks > 0) UiKit.SetText(_tileFallback!, $"{work.Fallbacks} use older tools — {work.FirstRequirement}");
 
@@ -199,6 +228,45 @@ public partial class Game
         _tileHint!.Visible = showHint;
         if (showHint) { UiKit.SetText(_tileHint, "Hold Shift for more · Click to pin"); if (_cardTile != tile) _tileHintsShown++; }
         PositionTileCard(screen);
+    }
+
+    private void RefreshScoutControls(MatchFrame frame, int tile, bool pinned)
+    {
+        if (!pinned || frame.ViewerCiv < 0) return;
+        for (int s = 0; s < frame.SettlementCount; s++)
+        {
+            SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[s];
+            if (frame.SettlementTile[s] != tile || frame.SettlementCiv[s] != frame.ViewerCiv ||
+                (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != SettlementViewFlags.Own)
+                continue;
+
+            int settlement = frame.SettlementIndex[s];
+            int activeScouts = 0;
+            for (int i = 0; i < frame.FigureCount; i++)
+                if (frame.FigureSettlement[i] == settlement && frame.FigureActivity[i] == (byte)FigureActivity.Scout)
+                    activeScouts++;
+            UiKit.SetText(_tileScoutStatus!, $"Scouting · {activeScouts} active this season");
+            byte policy = frame.SettlementScoutPolicy[s];
+            for (int i = 0; i < _tileScoutButtons.Length; i++)
+                _tileScoutButtons[i].SetPressedNoSignal((byte)i == policy);
+            _tileScoutRow!.Visible = true;
+            return;
+        }
+    }
+
+    private void SetScoutPolicyAtPinnedSettlement(ScoutPolicy policy)
+    {
+        if (_session is null || _current is null || _pinnedTile < 0) return;
+        for (int s = 0; s < _current.SettlementCount; s++)
+        {
+            SettlementViewFlags flags = (SettlementViewFlags)_current.SettlementFlags[s];
+            if (_current.SettlementTile[s] != _pinnedTile || _current.SettlementCiv[s] != _current.ViewerCiv ||
+                (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != SettlementViewFlags.Own)
+                continue;
+            _session.Queue(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
+                _current.SettlementIndex[s], policy));
+            return;
+        }
     }
 
     private static string JoinTileDetail(string current, string detail) => current.Length == 0 ? detail : $"{current} · {detail}";

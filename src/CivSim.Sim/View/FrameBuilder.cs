@@ -920,6 +920,7 @@ public sealed partial class FrameBuilder
             int w = written++;
             target.SettlementIndex[w] = s;
             target.SettlementTile[w] = _sTile[s];
+            target.SettlementScoutPolicy[w] = (byte)ScoutPolicy.Auto;
             int structureBase = w * kinds;
             if (!current)
             {
@@ -941,6 +942,7 @@ public sealed partial class FrameBuilder
             var lite = eco.SettlementLite(s);
             target.SettlementCiv[w] = _sCiv[s];
             target.SettlementPopulation[w] = _sPop[s];
+            target.SettlementScoutPolicy[w] = own ? (byte)eco.SettlementScoutPolicy(s) : (byte)ScoutPolicy.Auto;
             target.SettlementFood[w] = (byte)FoodBandOf(lite.LastFoodSecurity);
             target.SettlementWinterForecast[w] = (byte)FoodBandOf(lite.LateWinterFoodForecast);
             target.SettlementCohesion[w] = (byte)CohesionOf(eco.SettlementCohesion(s));

@@ -16,7 +16,7 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel : ISimModel
 {
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 23;
+    public const int SnapshotVersion = 24;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;
@@ -161,6 +161,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         public bool FissionPending;
         /// <summary>A walled settlement's field and pasture output is cut while it is under investment (22 §7.4).</summary>
         public bool UnderInvestment;
+        public ScoutPolicy ScoutPolicy = ScoutPolicy.Auto;
         public bool FireLit;
         public long FireKeeperId = -1;
         public byte UnattendedFireTicks;
@@ -449,6 +450,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             s.FieldTiles.Count, WarmthTier(s));
     }
 
+    /// <summary>The scouting policy stored for a settlement.</summary>
+    public ScoutPolicy SettlementScoutPolicy(int index) => _settlements[index].ScoutPolicy;
+
     /// <summary>Hearths built at a settlement (FIR-03), for research's hearth Insight bonus.</summary>
     public int HearthCount(int settlementIndex) => _settlements[settlementIndex].Structures[(int)Structure.Hearth];
 
@@ -557,7 +561,17 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void Apply(Command command)
     {
-        if (command.Civ >= _completedProjects.Length || command.Kind != CommandKind.CompleteProject) return;
+        if (command.Civ >= _completedProjects.Length) return;
+        if (command.Kind == CommandKind.SetScoutPolicy)
+        {
+            if ((uint)command.A >= (uint)_settlements.Count || command.B < (int)ScoutPolicy.Auto || command.B > (int)ScoutPolicy.Two)
+                return;
+            SettlementState settlement = _settlements[command.A];
+            if (settlement.Civilization == command.Civ)
+                settlement.ScoutPolicy = (ScoutPolicy)command.B;
+            return;
+        }
+        if (command.Kind != CommandKind.CompleteProject) return;
         int index = command.A;
         if (index < 0 || index >= _completedProjects[command.Civ].Length) return;
         EconomyProject project = _content.Projects[index];
@@ -1313,7 +1327,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         totalWork -= AssignFireKeeper(settlement);
         totalWork -= AllocateCare(settlement);
         if (settlement.Civic is not null) totalWork -= StaffRoles(settlement);
-        totalWork -= AssignScouts(settlement);
+        totalWork -= AssignScouts(settlement, season);
         Fix64 upkeepBudget = WeirUpkeepBudget(settlement, totalWork);
         totalWork -= upkeepBudget;
         totalWork -= OrchardUpkeepBudget(settlement, totalWork);
@@ -1676,10 +1690,16 @@ public sealed partial class LivingEconomyModel : ISimModel
         return spent;
     }
 
-    /// <summary>Reserves one adult for scouting per settlement, or two after WAY-01 (docs/MVP/13 §2.3).</summary>
-    private Fix64 AssignScouts(SettlementState settlement)
+    /// <summary>Reserves eligible adults for scouting under the settlement's scouting policy.</summary>
+    private Fix64 AssignScouts(SettlementState settlement, int season)
     {
-        int count = HasProject(settlement.Civilization, "WAY-01") ? 2 : 1;
+        int count = settlement.ScoutPolicy switch
+        {
+            ScoutPolicy.Zero => 0,
+            ScoutPolicy.One => 1,
+            ScoutPolicy.Two => 2,
+            _ => AutoScoutCount(settlement, season),
+        };
         Fix64 spent = Fix64.Zero;
         for (int slot = 0; slot < count; slot++)
         {
@@ -1701,6 +1721,17 @@ public sealed partial class LivingEconomyModel : ISimModel
             spent += available;
         }
         return spent;
+    }
+
+    private int AutoScoutCount(SettlementState settlement, int season)
+    {
+        int count = HasProject(settlement.Civilization, "WAY-01") ? 2 : 1;
+        // Food insecurity takes priority over exploration. Release at least one scout when the
+        // settlement is short, and use a fresh autumn forecast to suspend scouting before winter.
+        bool winterShortage = season % 4 == 2 && ForecastWinterFood(settlement) < Fix64.One;
+        if (settlement.FoodSecurity < Fix64.One || winterShortage)
+            count = Math.Max(0, count - 1);
+        return count;
     }
 
     private bool TryAssignCare(FigureState patient, byte role)
@@ -4907,6 +4938,14 @@ public sealed partial class LivingEconomyModel : ISimModel
             hash.Add(s.OrchardPlots.Count);
             foreach (OrchardPlot orchard in s.OrchardPlots) { hash.Add(orchard.Tile); hash.Add(orchard.AgeSeasons); }
         }
+        bool hasScoutPolicyOverride = false;
+        foreach (SettlementState settlement in _settlements)
+            if (settlement.ScoutPolicy != ScoutPolicy.Auto) { hasScoutPolicyOverride = true; break; }
+        if (hasScoutPolicyOverride)
+        {
+            hash.Add(0x53434F5554504F4CUL); // "SCOUTPOL"
+            foreach (SettlementState settlement in _settlements) hash.Add((byte)settlement.ScoutPolicy);
+        }
         hash.Add(_figures.Count);
         for (int i = 0; i < _figures.Count; i++)
         {
@@ -4978,6 +5017,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(s.DomesticSmallStock.Raw); writer.Write(s.DomesticCattle.Raw); writer.Write(s.DomesticPigs.Raw);
             writer.Write(s.FireLit); writer.Write(s.FireKeeperId); writer.Write(s.UnattendedFireTicks);
             writer.Write(s.UnderInvestment);
+            writer.Write((byte)s.ScoutPolicy);
         }
         writer.Write(_figures.Count);
         for (int i = 0; i < _figures.Count; i++)
@@ -5103,6 +5143,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             s.DomesticCattle = Fix64.FromRaw(reader.ReadInt64()); s.DomesticPigs = Fix64.FromRaw(reader.ReadInt64());
             s.FireLit = reader.ReadBoolean(); s.FireKeeperId = reader.ReadInt64(); s.UnattendedFireTicks = reader.ReadByte();
             s.UnderInvestment = reader.ReadBoolean();
+            byte scoutPolicy = reader.ReadByte();
+            if (scoutPolicy > (byte)ScoutPolicy.Two) throw new InvalidDataException("Snapshot contains an invalid settlement scout policy.");
+            s.ScoutPolicy = (ScoutPolicy)scoutPolicy;
             _settlements.Add(s);
         }
         _figures.Clear();
@@ -5431,6 +5474,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             FireKeeperId = source.FireKeeperId,
             UnattendedFireTicks = source.UnattendedFireTicks,
             UnderInvestment = source.UnderInvestment,
+            ScoutPolicy = source.ScoutPolicy,
             Metal = CloneMetal(source.Metal),
             Civic = CloneCivic(source.Civic),
         };
