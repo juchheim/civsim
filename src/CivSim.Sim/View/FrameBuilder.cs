@@ -256,14 +256,18 @@ public sealed partial class FrameBuilder
         }
 
         var decisions = match.Ai.Log.Entries;
-        int count = Math.Min(target.AiWhyEntries.Length, decisions.Count);
-        int first = decisions.Count - count;
-        for (int i = 0; i < count; i++)
+        int count = 0;
+        for (int i = decisions.Count - 1; i >= 0 && count < target.AiWhyEntries.Length; i--)
         {
-            AiDecision decision = decisions[first + i];
-            target.AiWhyEntries[i] = new AiWhyEntry(decision.Tick, (byte)decision.Civ,
+            AiDecision decision = decisions[i];
+            // These decree records explain internal candidate scoring and mandate bookkeeping, not
+            // player-facing choices. Keep the full AiLog intact for diagnostics, but don't expose
+            // its raw evaluator details through the presentation frame.
+            if (decision.Kind is "DecreeCandidate" or "Decree" or "DecreeReserve") continue;
+            target.AiWhyEntries[count++] = new AiWhyEntry(decision.Tick, (byte)decision.Civ,
                 decision.Layer, decision.Kind, decision.Score.Raw, decision.Reason);
         }
+        Array.Reverse(target.AiWhyEntries, 0, count);
         target.AiWhyCount = count;
     }
 
@@ -928,6 +932,7 @@ public sealed partial class FrameBuilder
             int w = written++;
             target.SettlementIndex[w] = s;
             target.SettlementTile[w] = _sTile[s];
+            target.SettlementScoutPolicy[w] = (byte)ScoutPolicy.Auto;
             int structureBase = w * kinds;
             if (!current)
             {
@@ -943,12 +948,13 @@ public sealed partial class FrameBuilder
                 target.SettlementSmallStock[w] = 0; target.SettlementCattle[w] = 0; target.SettlementPigs[w] = 0;
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
-                target.SettlementHalls[w] = 0;
+                target.SettlementHalls[w] = 0; target.SettlementZiggurats[w] = 0; target.SettlementZigguratPermille[w] = 0;
                 continue;
             }
             var lite = eco.SettlementLite(s);
             target.SettlementCiv[w] = _sCiv[s];
             target.SettlementPopulation[w] = _sPop[s];
+            target.SettlementScoutPolicy[w] = own ? (byte)eco.SettlementScoutPolicy(s) : (byte)ScoutPolicy.Auto;
             target.SettlementFood[w] = (byte)FoodBandOf(lite.LastFoodSecurity);
             target.SettlementWinterForecast[w] = (byte)FoodBandOf(lite.LateWinterFoodForecast);
             target.SettlementCohesion[w] = (byte)CohesionOf(eco.SettlementCohesion(s));
@@ -969,6 +975,9 @@ public sealed partial class FrameBuilder
             for (int k = 0; k < kinds; k++)
                 target.SettlementStructures[structureBase + k] = (byte)Math.Min(255, eco.StructureCount(s, k));
             target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
+            (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
+            target.SettlementZiggurats[w] = (byte)Math.Min(255, ziggurats);
+            target.SettlementZigguratPermille[w] = (short)Math.Clamp(zigguratPermille, 0, 1000);
             if (eco.DefenseStructures(s, lookout: false) > 0) flags |= SettlementViewFlags.ThornBarrier;
             if (eco.DefenseStructures(s, lookout: true) > 0) flags |= SettlementViewFlags.Lookout;
             if (PalisadeStructure >= 0 && eco.StructureCount(s, PalisadeStructure) > 0)

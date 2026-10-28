@@ -89,13 +89,40 @@ public sealed partial class PoliticsSystem
     /// <summary>A raid on a chosen settlement, from the nearest settlement that can spare the party. Hard rules: WAR-02, contact, no alliance or truce.</summary>
     public bool OrderRaid(int c, int targetSettlement, int partySize)
     {
-        if ((uint)targetSettlement >= (uint)_sCount || _free[targetSettlement]) return false;
+        if ((uint)targetSettlement >= (uint)_sCount || _free[targetSettlement] || _sPop[targetSettlement] <= 0) return false;
         int o = _sCiv[targetSettlement];
         if (o == c || !_research.IsDone(c, _p.War02) || !_dip.Contacted(c, o) || _dip.Allied(c, o)) return false;
         if (_dip.InTruce(c, o, _season)) return false;
         if (_pacts.Count > 0 && HasPact(c, o)) return false;
         int origin = BestOrigin(c, _sTile[targetSettlement]);
         return origin >= 0 && SendRaid(c, o, origin, targetSettlement, Math.Max(4, partySize), forecast: false);
+    }
+
+    /// <summary>Raid the closest settlement of a contacted civilization, choosing the destination in simulation state.</summary>
+    public bool OrderRaidAgainst(int c, int other, int partySize)
+    {
+        if (c == other || (uint)other >= (uint)_civs || !_research.IsDone(c, _p.War02) || !_dip.Contacted(c, other) || _dip.Allied(c, other)) return false;
+        if (_dip.InTruce(c, other, _season) || _pacts.Count > 0 && HasPact(c, other)) return false;
+        int target = ClosestRaidSettlement(c, other);
+        return target >= 0 && OrderRaid(c, target, partySize);
+    }
+
+    private int ClosestRaidSettlement(int civ, int other)
+    {
+        int bestSettlement = -1, bestDistance = int.MaxValue;
+        for (int target = 0; target < _sCount; target++)
+        {
+            if (_sCiv[target] != other || _free[target] || _sPop[target] <= 0) continue;
+            for (int origin = 0; origin < _sCount; origin++)
+            {
+                if (_sCiv[origin] != civ || _free[origin] || _sPop[origin] <= 0) continue;
+                int distance = HexGrid.Distance(_sTile[origin], _sTile[target], _width);
+                if (distance >= bestDistance) continue;
+                bestDistance = distance;
+                bestSettlement = target;
+            }
+        }
+        return bestSettlement;
     }
 
     /// <summary>The field army against a chosen settlement. Hard rules: at war with its owner, contact.</summary>

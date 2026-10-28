@@ -229,7 +229,7 @@ Herding labor: 0.1 ws per 10 small stock or 4 cattle per season. Domestic herds 
 | Orchard | FOR-07 | 1.0 per tile | saplings | Matures after 6 yrs, then 3 R/tile/yr for 50 yrs | 0.1 ws/yr |
 | **Megalith** (Wonder) | STN-10 | 120 | stone blocks 60 L; rollers (MEC-02) | 10.1 Wonder; Cohesion within 8; seasonal festival | — |
 
-Housing is **build-limited** (09 §6.3): the planner builds ahead of demand when labor allows.
+When a project unlocks a dwelling, the civilization's oldest inhabited settlement immediately receives one free prototype of that dwelling. Additional homes remain **build-limited** (09 §6.3): the planner builds ahead of demand when labor allows, using the usual materials and work.
 
 ## 7. Move and haul
 

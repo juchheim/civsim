@@ -285,7 +285,7 @@ public static class UiText
         (int)CivSim.Sim.Core.CommandKind.QueueProject => "Queueing",
         (int)CivSim.Sim.Core.CommandKind.SendGift => "Your gift",
         (int)CivSim.Sim.Core.CommandKind.SendBarter => "Your barter trip",
-        (int)CivSim.Sim.Core.CommandKind.LaunchRaid => "Your raid",
+        (int)CivSim.Sim.Core.CommandKind.LaunchRaid or (int)CivSim.Sim.Core.CommandKind.LaunchRaidAgainst => "Your raid",
         (int)CivSim.Sim.Core.CommandKind.LaunchAssault => "Your assault",
         (int)CivSim.Sim.Core.CommandKind.DeclareWar => "War",
         (int)CivSim.Sim.Core.CommandKind.MakePeace => "Peace",

@@ -232,13 +232,13 @@ public enum ViewEventKind : ushort
     BarterDone = 44,
     /// <summary>A raid set out. A = party size; Settlement = target.</summary>
     RaidLaunched = 45,
-    /// <summary>A raid ended. A = 1 raided successfully, 0 failed, 2 we were raided, 3 we repelled it; B = loot.</summary>
+    /// <summary>A raid ended. A = 1 raided successfully, 0 failed, 2 we were raided, 3 we repelled it; B = loot. Tile = where it was fought; C = head counts, bytes low to high: raiders, defenders, raiders down, defenders down.</summary>
     RaidResolved = 46,
     /// <summary>War. A = 0 we declared, 1 it was declared on us.</summary>
     WarDeclared = 47,
     /// <summary>Peace. A = seasons the war lasted.</summary>
     PeaceMade = 48,
-    /// <summary>An assault was fought. A = 1 we won, 0 lost (attacking); 2 they took it, 3 we held (defending). Settlement = target.</summary>
+    /// <summary>An assault was fought. A = 1 we won, 0 lost (attacking); 2 they took it, 3 we held (defending). Settlement = target. C = head counts as for <see cref="RaidResolved"/>, or 0 when no battle was fought (an investment ended).</summary>
     AssaultResolved = 49,
     /// <summary>A settlement is occupied. A = holders; Settlement = it.</summary>
     Occupied = 50,

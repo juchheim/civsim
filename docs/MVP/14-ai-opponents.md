@@ -195,7 +195,9 @@ EV(raid on s) = P(success | believed defenses) × loot value(s)
 ## 8. Economic and expansion intelligence (Civ Mind, every civilization)
 
 ### 8.1 Labor
-Allocate labor by **marginal value per worker-season**: the next ws goes to whichever job raises forecast utility most, given current deficits (05 §6.3). This is what keeps tool chains supplied, stores filled and buildings ahead of demand.
+The shared settlement planner assigns work for both human and AI civilizations. In Auto scouting mode, it normally assigns one scout per settlement (two after WAY-01), then reduces that count by one when current food security is below 1.0 or, in autumn, the fresh winter forecast is below 1.0. The autumn forecast reserves the work of the scouts the planner would assign, so it does not count their capacity toward food production. A player can set an owned settlement's scouting limit to Auto, zero or one; two is available after WAY-01. The limit takes effect next season. Food, building and material jobs remain automatically assigned.
+
+The long-term target is to allocate labor by **marginal value per worker-season**: the next ws goes to whichever job raises forecast utility most, given current deficits (05 §6.3). That fuller optimizer is not yet implemented.
 
 ### 8.2 Winter planning
 Each autumn the Civ Mind forecasts food security for the winter, including a harsh-winter scenario (30%, [09 §4.3](09-population-and-health.md#43-winter-hazards)). It targets **FS ≥ 1.0 in a harsh winter** when stores allow: shifts labor to preserving, hunting drives and storage building in autumn, and splits a group early (late-winter trigger) rather than starving.

@@ -124,6 +124,8 @@ public sealed class MatchFrame
     public sbyte[] SettlementCiv = Array.Empty<sbyte>();
     public int[] SettlementTile = Array.Empty<int>();
     public int[] SettlementPopulation = Array.Empty<int>();
+    /// <summary>Private (<see cref="SettlementViewFlags.Own"/> only): current <see cref="CivSim.Sim.Economy.ScoutPolicy"/>.</summary>
+    public byte[] SettlementScoutPolicy = Array.Empty<byte>();
     /// <summary><see cref="FoodBand"/> of last season's food security.</summary>
     public byte[] SettlementFood = Array.Empty<byte>();
     /// <summary><see cref="FoodBand"/> of the late-winter forecast (made each autumn).</summary>
@@ -148,6 +150,9 @@ public sealed class MatchFrame
     public byte[] SettlementStructures = Array.Empty<byte>();
     /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
     public byte[] SettlementHalls = Array.Empty<byte>();
+    /// <summary>Ziggurats standing at each settlement (BLD-08 Wonder), and the permille of the next one raised while it is under way. Zero for remembered settlements.</summary>
+    public byte[] SettlementZiggurats = Array.Empty<byte>();
+    public short[] SettlementZigguratPermille = Array.Empty<short>();
 
     // ---- fields and orchards ------------------------------------------------------------------
     public int PlotCount;
@@ -397,11 +402,13 @@ public sealed class MatchFrame
         if (SettlementIndex.Length < n)
         {
             Ensure(ref SettlementIndex, n); Ensure(ref SettlementCiv, n); Ensure(ref SettlementTile, n); Ensure(ref SettlementPopulation, n);
+            Ensure(ref SettlementScoutPolicy, n);
             Ensure(ref SettlementFood, n); Ensure(ref SettlementWinterForecast, n); Ensure(ref SettlementCohesion, n);
             Ensure(ref SettlementOverreach, n); Ensure(ref SettlementSpanPenalty, n);
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
+            Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
     }

@@ -1,6 +1,6 @@
 ## Meshes for the projects that change how a civilization's land and people look (MatchFrame.CivLooks): the furrowed and the
 ## resting field, the ox team that draws the ard, plank boats and the sailing ship, the ox cart, the chariot (under a raider and
-## parked in the village), the stepped temple, the chief's hall and the bales of fleece. See looks_rig.gd for where they go.
+## parked in the village). The stepped temple, the chief's hall and the bales of fleece are in art_landmarks.gd. See looks_rig.gd for where they go.
 ##
 ## Same units as the rest of the kit (1.0 = one tile column, an adult is ~0.1 tall). Orientation follows each mesh's family:
 ## things that glide under a person (person_*) face +Z like people; rig meshes (ox teams, carts) face +X like animals and dogs;
@@ -24,7 +24,6 @@ const OX_DARK := Color("#4a3426")
 const OX_DUN := Color("#a88458")
 const HORSE_BAY := Color("#7a4a2a")
 const HORSE_DARK := Color("#4a3020")
-const FLEECE := Color("#efe8d6")
 
 static func build(kit: M7MeshKit) -> void:
 	_fields(kit)
@@ -32,7 +31,6 @@ static func build(kit: M7MeshKit) -> void:
 	_chariot(kit)
 	_ard_team(kit)
 	_cart(kit)
-	_decor(kit)
 
 # ------------------------------------------------------------------ shared pieces
 
@@ -364,105 +362,3 @@ static func _cart(kit: M7MeshKit) -> void:
 		# the driver walks at the near ox's flank with a goad
 		_mini_person(b, Vector3(0.14, 0.0, 0.06), PI * 0.5, false, true)
 		kit.meshes["ox_cart_%s" % ("a" if phase == 0 else "b")] = b.commit()
-
-# ------------------------------------------------------------------ village decor: temple, chief's hall, fleece bales
-
-static func _decor(kit: M7MeshKit) -> void:
-	# temple (BEL-07): three mud-brick terraces, a stair up the front (+Z), a shrine under a glazed roof, a brazier and pennants
-	var b := kit._b(780)
-	var tiers := [[0.118, 0.104, 0.0, 0.05], [0.088, 0.076, 0.05, 0.047], [0.058, 0.05, 0.097, 0.04]]
-	for t in tiers:
-		b.prism(Vector3(0, float(t[2]), 0), float(t[0]), float(t[1]), float(t[3]), 4, ADOBE, ADOBE.lightened(0.12), PI * 0.25)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.prism(Vector3(0, 0.045, 0), 0.1086, 0.1086, 0.007, 4, Color.WHITE, Color.WHITE, PI * 0.25)
-	b.prism(Vector3(0, 0.093, 0), 0.0795, 0.0795, 0.007, 4, Color.WHITE, Color.WHITE, PI * 0.25)
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	for i in 9:
-		var top := 0.137 * (i + 1) / 9.0
-		b.box(Vector3(0, top * 0.5, 0.1 - i * 0.0063), Vector3(0.03, top, 0.0067), ADOBE_DARK, ADOBE.lightened(0.15))
-	b.box(Vector3(0, 0.154, 0), Vector3(0.062, 0.028, 0.056), ADOBE.lightened(0.08))
-	b.box(Vector3(0, 0.15, 0.0285), Vector3(0.022, 0.02, 0.003), DARK)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.prism(Vector3(0, 0.168, 0), 0.056, 0.0, 0.034, 4, Color.WHITE, Color.WHITE, PI * 0.25)
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	b.blob(Vector3(0, 0.206, 0), Vector3(0.007, 0.007, 0.007), 5, 3, GOLD)
-	# corner pennants on the lowest terrace
-	for sx in [-1.0, 1.0]:
-		b.pole(Vector3(sx * 0.07, 0.05, 0.07), Vector3(sx * 0.07, 0.14, 0.07), 0.0028, M7MeshKit.WOOD)
-		b.tag = M7MeshBuilder.TAG_CIV
-		b.quad(Vector3(sx * 0.07, 0.136, 0.07), Vector3(sx * 0.07 + sx * 0.026, 0.128, 0.07), Vector3(sx * 0.07 + sx * 0.026, 0.112, 0.07),
-			Vector3(sx * 0.07, 0.12, 0.07), Color.WHITE, Vector3(0, 0.12, 0.3))
-		b.tag = M7MeshBuilder.TAG_PLAIN
-	# a brazier on each side of the stair, glowing
-	for sx in [-1.0, 1.0]:
-		b.tag = M7MeshBuilder.TAG_PLAIN
-		b.prism(Vector3(sx * 0.044, 0.097, 0.05), 0.009, 0.012, 0.012, 6, M7MeshKit.STONE_DARK, M7MeshKit.STONE_DARK)
-		b.tag = M7MeshBuilder.TAG_EMISSIVE
-		b.prism(Vector3(sx * 0.044, 0.108, 0.05), 0.011, 0.0, 0.02, 6, Color("#ff7a20"), Color("#ff7a20"))
-	kit.meshes["decor_temple"] = b.commit()
-
-	# chief's hall (SOC-07): a timber great hall on a raised earth platform under a steep thatch, crossed horns on the gables,
-	# carved door posts and a row of shields along the front
-	b = kit._b(781)
-	b.prism(Vector3.ZERO, 0.13, 0.112, 0.018, 8, M7MeshKit.EARTH, M7MeshKit.EARTH.lightened(0.12))
-	var lx := 0.1
-	var lz := 0.048
-	b.box(Vector3(0, 0.0445, 0), Vector3(lx * 2.0, 0.053, lz * 2.0), M7MeshKit.WOOD_LIGHT, M7MeshKit.WOOD)
-	for i in 8:
-		var x := -lx + 0.012 + (lx * 2.0 - 0.024) * i / 7.0
-		for sz in [-lz, lz]:
-			b.pole(Vector3(x, 0.018, sz), Vector3(x, 0.072, sz), 0.0042, M7MeshKit.WOOD)
-	var eave := 0.07
-	var ridge := 0.158
-	var half_w := 0.075
-	b.quad(Vector3(-lx - 0.014, eave, half_w), Vector3(lx + 0.014, eave, half_w), Vector3(lx + 0.014, ridge, 0), Vector3(-lx - 0.014, ridge, 0), M7MeshKit.THATCH, Vector3(0, 0.04, 0))
-	b.quad(Vector3(-lx - 0.014, eave, -half_w), Vector3(lx + 0.014, eave, -half_w), Vector3(lx + 0.014, ridge, 0), Vector3(-lx - 0.014, ridge, 0), M7MeshKit.THATCH.darkened(0.06), Vector3(0, 0.04, 0))
-	for sz in [-1.0, 1.0]:
-		for f in [0.34, 0.68]:
-			b.pole(Vector3(-lx - 0.012, eave + (ridge - eave) * f, half_w * (1.0 - f) * sz), Vector3(lx + 0.012, eave + (ridge - eave) * f, half_w * (1.0 - f) * sz), 0.0034, M7MeshKit.THATCH_DARK)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.pole(Vector3(-lx - 0.012, ridge + 0.002, 0), Vector3(lx + 0.012, ridge + 0.002, 0), 0.0052, Color.WHITE)
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	for sx in [-lx, lx]:
-		var d := -1.0 if sx < 0.0 else 1.0
-		b.tri(Vector3(sx, eave, lz - 0.003), Vector3(sx, eave, -lz + 0.003), Vector3(sx, ridge - 0.014, 0), M7MeshKit.WOOD_LIGHT, Vector3(0, 0.06, 0))
-		b.pole(Vector3(sx + d * 0.016, ridge + 0.04, 0.0), Vector3(sx - d * 0.006, ridge - 0.036, 0.026), 0.0048, M7MeshKit.WOOD)
-		b.pole(Vector3(sx + d * 0.016, ridge + 0.04, 0.0), Vector3(sx - d * 0.006, ridge - 0.036, -0.026), 0.0048, M7MeshKit.WOOD)
-	b.box(Vector3(0.0, 0.04, lz + 0.001), Vector3(0.034, 0.05, 0.003), DARK)
-	b.box(Vector3(0.05, 0.158, 0.0), Vector3(0.024, 0.01, 0.02), DARK)
-	for sx in [-1.0, 1.0]:
-		b.pole(Vector3(sx * 0.026, 0.018, lz + 0.014), Vector3(sx * 0.026, 0.094, lz + 0.014), 0.0052, M7MeshKit.WOOD)
-		b.tag = M7MeshBuilder.TAG_CIV
-		b.prism(Vector3(sx * 0.026, 0.06, lz + 0.014), 0.0072, 0.0072, 0.008, 6, Color.WHITE, Color.WHITE)
-		b.tag = M7MeshBuilder.TAG_PLAIN
-		b.blob(Vector3(sx * 0.026, 0.098, lz + 0.014), Vector3(0.0075, 0.0085, 0.0075), 5, 3, GOLD)
-	# shields on the wall: civilization colour and pale, alternating
-	for i in 6:
-		var x := -0.086 + i * 0.034
-		if absf(x) < 0.04:
-			continue
-		var save := _with(b, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(x, 0.05, lz + 0.001)))
-		b.tag = M7MeshBuilder.TAG_CIV if i % 2 == 0 else M7MeshBuilder.TAG_PLAIN
-		b.prism(Vector3.ZERO, 0.0105, 0.0105, 0.003, 8, Color.WHITE if i % 2 == 0 else SAIL_CREAM, Color.WHITE if i % 2 == 0 else SAIL_CREAM)
-		b.xf = save
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	b.pole(Vector3(-0.096, 0.018, lz + 0.03), Vector3(-0.096, 0.2, lz + 0.03), 0.0034, M7MeshKit.WOOD)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.quad(Vector3(-0.094, 0.198, lz + 0.03), Vector3(-0.04, 0.186, lz + 0.03), Vector3(-0.04, 0.152, lz + 0.03), Vector3(-0.094, 0.164, lz + 0.03), Color.WHITE, Vector3(-0.07, 0.17, lz + 0.3))
-	kit.meshes["decor_chiefhall"] = b.commit()
-
-	# bales of fleece, a stool and a rack of drying wool
-	b = kit._b(782)
-	for bale in [[Vector3(-0.026, 0.009, 0.0), 0.0], [Vector3(0.012, 0.009, 0.004), 0.3], [Vector3(-0.007, 0.027, 0.002), 0.15]]:
-		var bp: Vector3 = bale[0]
-		var sv := _with(b, Transform3D(Basis(Vector3.UP, float(bale[1])), Vector3.ZERO))
-		b.box(bp, Vector3(0.032, 0.018, 0.022), FLEECE, FLEECE.lightened(0.05))
-		b.box(bp + Vector3(-0.007, 0.0, 0.0), Vector3(0.0022, 0.0185, 0.0225), Color("#8a6a48"))
-		b.box(bp + Vector3(0.007, 0.0, 0.0), Vector3(0.0022, 0.0185, 0.0225), Color("#8a6a48"))
-		b.xf = sv
-	for sx in [-1.0, 1.0]:
-		b.pole(Vector3(sx * 0.03 + 0.02, 0, -0.034), Vector3(sx * 0.03 + 0.02, 0.05, -0.034), 0.003, M7MeshKit.WOOD)
-	b.pole(Vector3(-0.01, 0.048, -0.034), Vector3(0.05, 0.048, -0.034), 0.0026, M7MeshKit.WOOD)
-	for i in 3:
-		b.blob(Vector3(0.0 + i * 0.019, 0.034, -0.034), Vector3(0.007, 0.016, 0.006), 5, 3, FLEECE, 0.06)
-	kit.meshes["decor_woolbales"] = b.commit()

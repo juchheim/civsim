@@ -617,7 +617,8 @@ Auto-pause: setting "Pause on danger" (default **off**) pauses on any Critical t
 ```
 - **Civ list:** cards 199×55 (List row style) for every civ with `Aware`: emblem 26 on civ-colour disc, name `BodyStrong`, status Caption (relation word · age). Civs not yet aware are not listed. Sorted: at war, allied, contacted, aware. Selected card: Accent left bar.
 - **Detail header:** emblem 34 + name `Title` 26; chips: relation status (At war `Danger` / Allied `Success` / In truce `Info` / Contacted / Known only), relations word + number (≤ −40 "Hostile", −39…−1 "Cold", 0…40 "Neutral", > 40 "Warm"; `CivRelations`), age (`CivEra`). Line: "{n} settlements seen". AI line: newest `AiWhyEntries` with this civ, shown as "Their elders: “{Reason}”" (only for `Contacted` civs; omit if none).
-- **Destination chips:** "Nearest" (default) + one chip per visible, non-remembered, non-Free-Folk, non-empty settlement of that civ ("Settlement {index+1} · {pop}"). "Nearest" for raid/assault is resolved by the UI to the visible settlement of that civ closest (hex distance between tiles) to any of your settlements; gift/barter pass −1 as today.
+- **Destination chips:** "Nearest" (default) + one chip per visible, non-remembered, non-Free-Folk, non-empty settlement of that civ ("Settlement {index+1} · {pop}"). "Nearest" for assault is resolved to the visible settlement closest (hex distance between tiles) to any of your settlements. A raid with "Nearest" targets that civilization's closest settlement in simulation state, so it remains available when no enemy settlement is in sight; selecting a visible settlement sends the raid there. Gift/barter pass −1 as today.
+- **Raid party size:** The player chooses 4, up to 8 or up to 12 raiders before confirming a raid; the rules send available fighters and still require at least four.
 - **Order rows:** button 144×42 + consequence text (Caption secondary). Disabled: button disabled + lock glyph + reason in `TextSecondary` replacing the consequence (copy §5.8; project codes resolved to names via `ResearchCatalog.IndexOf` → `Name`). Rows show only for applicable state: "Make peace" only when at war; "Form alliance" hidden when allied; "Declare war" hidden when at war or allied (reason shown instead when allied).
 - **Two-step confirm** (Raid, Assault, Declare war): first click turns the button `Danger` with label "Confirm war" / "Confirm raid" / "Confirm assault" and shows a Ghost "Cancel" for 4 s; second click queues the command; Esc or timeout reverts.
 - **Your parties:** pooled rows (kind, members, progress bar from `PartyProgress`, "halfway" words: < 34 % "setting out", < 67 % "halfway", else "nearly there", returning legs "on the way home"), Ghost "Recall" per row (`RecallParty(ordinal)`).
@@ -906,17 +907,17 @@ Buttons: "Got it" · "Turn off tips".
 | Empty | "You haven't met anyone yet. Scouts and growing borders will find your neighbours." |
 | Viewer ≠ 0 | "Orders are available only when you play your own civilization." |
 | Sections | "DESTINATION" · "FRIENDLY" · "HOSTILE" · "YOUR PARTIES" · "No parties on the road." |
-| Destination chips | "Nearest" (tooltip "The closest pair of settlements") · "Settlement {n} · {pop}" |
+| Destination chips | "Nearest" (tooltip "Raids choose their closest settlement even if it is out of sight; assaults need a visible settlement.") · "Settlement {n} · {pop}" |
 | AI line | "Their elders: “{Reason}”" |
 | Gift | "Send gift" — "Carries food to them. Improves relations." |
 | Barter | "Barter" — "Trades your surplus for theirs." |
 | Alliance | "Form alliance" — "You defend each other." |
 | Peace | "Make peace" — "Ends the war. A truce follows." |
-| Raid | "Raid" — "Sends 4 raiders to take stores. Hurts relations." → "Confirm raid" |
+| Raid | Party size 4 / 8 / 12 · "Raid" — "Sends raiders to their closest settlement, even if it is out of sight. Hurts relations." → "Confirm raid" |
 | War | "Declare war" — "Breaks any truce and harms your reputation. Lets you assault." → "Confirm war" |
 | Assault | "Assault" — "Tries to take the settlement." → "Confirm assault" |
 | Recall | "Recall" — tooltip "Survivors head home." |
-| Disabled reasons | "Needs {Gift Giving} (research)." · "Needs {name} — both of you must know it." (alliance) · "Meet them first." · "Not while you're at war." · "Needs warmer relations (above 40; now {n})." · "A barter trip is already on the way." · "Pick one of their settlements you can see." · "Declare war first." · "You can't raid an ally." · "Not during a truce." · "Not while you hold one of their settlements." · "End the alliance first." · "Already allied." |
+| Disabled reasons | "Needs {Gift Giving} (research)." · "Needs {name} — both of you must know it." (alliance) · "Meet them first." · "Not while you're at war." · "Needs warmer relations (above 40; now {n})." · "A barter trip is already on the way." · "Pick one of their settlements you can see." (assault) · "Declare war first." · "You can't raid an ally." · "Not during a truce." · "Not while you hold one of their settlements." · "End the alliance first." · "Already allied." |
 (Project names resolved from `TRD-01`, `TRD-02`, `WAR-02`, `DIP-03` via the catalog at runtime.)
 
 ### 5.9 Modals

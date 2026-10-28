@@ -213,7 +213,7 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureForecastWinterProduction(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
-        return ForecastWinterProduction(s, Fix64.Zero, FoodNeed(s, true));
+        return ForecastWinterProduction(s, Fix64.Zero, FoodNeed(s, true), ScoutPlan.Empty);
     }
 
     internal Fix64 FixtureDomesticHerdWorkNeed(int settlementIndex)

@@ -12,6 +12,15 @@ public enum EconomyJob : byte
     None, Forage, Hunt, Fish, Farm, Chop, Gather, Craft, Build, Preserve, Rest, TendFire, Herd, Scout
 }
 
+/// <summary>Per-settlement scouting limit. Auto preserves the normal scout count and yields scouts during food shortages.</summary>
+public enum ScoutPolicy : byte
+{
+    Auto,
+    Zero,
+    One,
+    Two,
+}
+
 public readonly record struct FigureView(
     long Id, int Civilization, int SettlementId, int Age, bool Female, Fix64 Health,
     Fix64 Hunger, Fix64 Warmth, Fix64 Rest, Fix64 Belonging, byte PregnancySeasons,
