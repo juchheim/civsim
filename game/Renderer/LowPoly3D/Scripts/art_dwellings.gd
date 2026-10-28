@@ -5,9 +5,10 @@
 ## (the village layout spaces dwellings by DWELL_RADIUS in world_builder.gd), and the tag meanings (TAG_CIV faces take the owner's
 ## colour, TAG_EMISSIVE glows). `kit` is the M7MeshKit: use kit._b(seed) for a builder and kit.WOOD, kit.THATCH ... for its palette.
 ##
-## The dwellings climb in craft from lean-to to hall and each keeps one silhouette that reads at map distance: the lean-to a ragged
-## wedge, the tent a banded cone, the pit house a turf mound, the wattle house a steep hipped cottage, the mudbrick house a stepped
-## flat-roofed block, the longhouse a long hipped thatch and the hall a white block with a red pediment and portico.
+## The dwellings climb in craft from lean-to to hall and each keeps one silhouette that reads at map distance: open sleeping a low
+## windbreak, the lean-to a ragged wedge, the hide tent a banded cone, the pit house a turf mound, the wattle house a steep hipped
+## cottage, the mudbrick house a stepped flat-roofed block, the longhouse a long hipped thatch and the hall a white block with a red
+## pediment and portico.
 extends RefCounted
 
 const WOOD := Color("#5e4631")
@@ -49,13 +50,16 @@ const EMISSIVE := M7MeshBuilder.TAG_EMISSIVE
 static func build(kit) -> void:
 	kit.meshes["hearth"] = _hearth(kit)
 	kit.meshes["leanto"] = _leanto(kit)
-	kit.meshes["tent"] = _tent(kit)
+	# Open sleeping uses a low windbreak; BLD-02's actual hide tent gets the tipi silhouette.
+	var open_sleeping := _camp(kit)
+	kit.meshes["tent"] = open_sleeping
+	kit.meshes["hide_tent"] = _tent(kit)
 	kit.meshes["pithouse"] = _pithouse(kit)
 	kit.meshes["wattle"] = _wattle(kit)
 	kit.meshes["mudbrick"] = _mudbrick(kit)
 	kit.meshes["longhouse"] = _longhouse(kit)
 	kit.meshes["hall"] = _hall(kit)
-	kit.meshes["camp"] = _camp(kit)
+	kit.meshes["camp"] = open_sleeping
 
 # hearth: a bed of ash and glowing coals in a ring of fieldstones, a teepee of charred logs and spare wood stacked beside it
 static func _hearth(kit) -> ArrayMesh:

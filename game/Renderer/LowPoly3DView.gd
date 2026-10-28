@@ -331,7 +331,7 @@ func show_buildings_gallery() -> Vector3:
 	var vs := 1.45
 	# [mesh, width it needs, scale]
 	var rows := [
-		[["tent", 0.34, vs], ["leanto", 0.36, vs], ["pithouse", 0.44, vs], ["wattle", 0.42, vs], ["mudbrick", 0.42, vs], ["longhouse", 0.7, vs], ["hall", 0.85, vs]],
+		[["tent", 0.34, vs], ["leanto", 0.36, vs], ["hide_tent", 0.34, vs], ["pithouse", 0.44, vs], ["wattle", 0.42, vs], ["mudbrick", 0.42, vs], ["longhouse", 0.7, vs], ["hall", 0.85, vs]],
 		[["hearth", 0.4, vs], ["storagepit", 0.4, vs], ["dryingrack", 0.4, vs], ["granary", 0.4, vs], ["kiln", 0.4, vs], ["quern", 0.4, vs],
 			["camp", 0.5, 1.0], ["lookout", 0.4, vs]],
 		[["thorn", 0.4, 1.2], ["thorn", 0.4, 1.2], ["fence", 0.4, 1.15], ["weir", 0.5, 1.0], ["decor_palisade", 0.4, vs], ["beacon", 0.4, 1.25],

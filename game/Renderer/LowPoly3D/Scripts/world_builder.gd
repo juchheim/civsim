@@ -955,16 +955,17 @@ func _settlements() -> void:
 				break
 
 ## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
-## (lean-tos and tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
-## do not cover live in the best small house the village knows (or in more longhouses when that is all it has).
-const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
-const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2}
+## (lean-tos and hide tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
+## do not cover live in the best small house the village knows (or in more longhouses when that is all it has). Generic open-sleeping
+## placeholders use the small windbreak; a researched Hide Tent has its own, clearly recognizable mesh.
+const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "hide_tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
+const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2}
 const DWELL_MAX_EACH := 10
 const DWELL_MAX_TOTAL := 36
 
 func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
 	var K := M7WorldData.Kind
-	var built_tent := int(st[K.HIDE_TENT])
+	var built_hide_tent := int(st[K.HIDE_TENT])
 	var built_leanto := int(st[K.LEAN_TO])
 	var built_pithouse := int(st[K.PIT_HOUSE])
 	var built_wattle := int(st[K.WATTLE_HOUSE])
@@ -975,10 +976,10 @@ func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
 	var shown_mudbrick := mini(built_mudbrick, DWELL_MAX_EACH)
 	var shown_wattle := mini(built_wattle, DWELL_MAX_EACH)
 	var shown_pithouse := mini(built_pithouse, DWELL_MAX_EACH)
-	var shown_tent := mini(built_tent, DWELL_MAX_EACH)
+	var shown_hide_tent := mini(built_hide_tent, DWELL_MAX_EACH)
 	var shown_leanto := mini(built_leanto, DWELL_MAX_EACH)
 	if built_pithouse + built_wattle + built_mudbrick + built_longhouse > 0:
-		shown_tent = 0
+		shown_hide_tent = 0
 		shown_leanto = 0
 	if built_wattle + built_mudbrick + built_longhouse > 0:
 		shown_pithouse = 0
@@ -986,31 +987,31 @@ func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
 		shown_wattle = 0
 	var covered := shown_hall * int(DWELL_CAPACITY.hall) + shown_longhouse * int(DWELL_CAPACITY.longhouse) \
 		+ shown_mudbrick * int(DWELL_CAPACITY.mudbrick) + shown_wattle * int(DWELL_CAPACITY.wattle) \
-		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_tent * int(DWELL_CAPACITY.tent) \
+		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_hide_tent * int(DWELL_CAPACITY.hide_tent) \
 		+ shown_leanto * int(DWELL_CAPACITY.leanto)
 	var short := maxi(0, pop - covered)
 	var extra_type := ""
 	var extra_count := 0
 	if short > 0:
 		var filler := "leanto" if built_leanto > 0 else "tent"
-		if built_tent > 0:
-			filler = "tent"
+		if built_hide_tent > 0:
+			filler = "hide_tent"
 		if built_pithouse > 0:
 			filler = "pithouse"
 		if built_wattle > 0:
 			filler = "wattle"
 		if built_mudbrick > 0:
 			filler = "mudbrick"
-		if (filler == "tent" or filler == "leanto") and built_longhouse > 0 and built_pithouse + built_wattle + built_mudbrick == 0:
+		if (filler == "tent" or filler == "leanto" or filler == "hide_tent") and built_longhouse > 0 and built_pithouse + built_wattle + built_mudbrick == 0:
 			filler = "longhouse"
 		extra_type = filler
 		extra_count = mini(ceili(float(short) / float(DWELL_CAPACITY[filler])), maxi(0, DWELL_MAX_TOTAL \
-			- shown_hall - shown_longhouse - shown_mudbrick - shown_wattle - shown_pithouse - shown_tent - shown_leanto))
-	if shown_hall + shown_longhouse + shown_mudbrick + shown_wattle + shown_pithouse + shown_tent + shown_leanto + extra_count == 0 and pop > 0:
+			- shown_hall - shown_longhouse - shown_mudbrick - shown_wattle - shown_pithouse - shown_hide_tent - shown_leanto))
+	if shown_hall + shown_longhouse + shown_mudbrick + shown_wattle + shown_pithouse + shown_hide_tent + shown_leanto + extra_count == 0 and pop > 0:
 		extra_type = "tent"
 		extra_count = 1
 	var signature := 17
-	for count in [shown_hall, shown_longhouse, shown_mudbrick, shown_wattle, shown_pithouse, shown_tent, shown_leanto]:
+	for count in [shown_hall, shown_longhouse, shown_mudbrick, shown_wattle, shown_pithouse, shown_hide_tent, shown_leanto]:
 		signature = signature * 31 + count
 	signature = signature * 31 + (hash(extra_type) if extra_count > 0 else 0)
 	signature = signature * 31 + extra_count
@@ -1022,12 +1023,14 @@ func _item_radius(mesh_name: String) -> float:
 func _dwellings(st: Array, halls: int, pop: int) -> Array:
 	var K := M7WorldData.Kind
 	var built := {
-		"leanto": int(st[K.LEAN_TO]), "tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
+		"leanto": int(st[K.LEAN_TO]), "tent": 0, "hide_tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
 		"wattle": int(st[K.WATTLE_HOUSE]), "mudbrick": int(st[K.MUDBRICK_HOUSE]), "longhouse": int(st[K.LONGHOUSE]),
 		"hall": halls}
-	# the first shelter the sim builds is a lean-to (BLD-01), then one hide tent (BLD-02); until something sturdier stands both are drawn
+	# The first shelter is a lean-to (BLD-01); BLD-02's crafted hide tent has a distinct silhouette from the generic placeholder.
 	var filler := "leanto" if built.leanto > 0 else "tent"
-	for nm in ["tent", "pithouse", "wattle", "mudbrick"]:
+	if built.hide_tent > 0:
+		filler = "hide_tent"
+	for nm in ["pithouse", "wattle", "mudbrick"]:
 		if built[nm] > 0:
 			filler = nm
 	var shown := {}
@@ -1035,7 +1038,7 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 		shown[nm] = mini(int(built[nm]), DWELL_MAX_EACH)
 	if built.pithouse + built.wattle + built.mudbrick + built.longhouse > 0:
 		shown.leanto = 0
-		shown.tent = 0
+		shown.hide_tent = 0
 	if built.wattle + built.mudbrick + built.longhouse > 0:
 		shown.pithouse = 0
 	if built.mudbrick + built.longhouse > 0:
@@ -1045,11 +1048,11 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 		covered += int(shown[nm]) * int(DWELL_CAPACITY[nm])
 	var short := maxi(0, pop - covered)
 	var out := []
-	for nm in ["hall", "longhouse", "mudbrick", "wattle", "pithouse", "tent", "leanto"]:
+	for nm in ["hall", "longhouse", "mudbrick", "wattle", "pithouse", "hide_tent", "tent", "leanto"]:
 		for i in int(shown[nm]):
 			out.append(nm)
 	if short > 0:
-		if (filler == "tent" or filler == "leanto") and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
+		if (filler == "tent" or filler == "leanto" or filler == "hide_tent") and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
 			filler = "longhouse"
 		var more := ceili(float(short) / float(DWELL_CAPACITY[filler]))
 		for i in more:
