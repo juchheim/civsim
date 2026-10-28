@@ -146,6 +146,9 @@ public sealed class MatchFrame
     public byte[] SettlementStructures = Array.Empty<byte>();
     /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
     public byte[] SettlementHalls = Array.Empty<byte>();
+    /// <summary>Ziggurats standing at each settlement (BLD-08 Wonder), and the permille of the next one raised while it is under way. Zero for remembered settlements.</summary>
+    public byte[] SettlementZiggurats = Array.Empty<byte>();
+    public short[] SettlementZigguratPermille = Array.Empty<short>();
 
     // ---- fields and orchards ------------------------------------------------------------------
     public int PlotCount;
@@ -398,6 +401,7 @@ public sealed class MatchFrame
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
+            Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
     }

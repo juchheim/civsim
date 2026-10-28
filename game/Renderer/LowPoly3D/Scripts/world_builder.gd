@@ -55,6 +55,7 @@ var figure_tints := PackedColorArray()
 var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
+var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
 var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
@@ -315,6 +316,14 @@ func field_angle(t: int) -> float:
 	var xy := w.tile_xy(t)
 	return PI / 3.0 * int(M7WorldData.hash01(xy.x, xy.y, 301) * 3.0)
 
+## BLD-08: how far a settlement's ziggurat has come. 0 none, 1 to 3 rising (a third of the labour each), 4 standing.
+## The stage, not the permille, goes into the structure digest: the permille changes almost every publish.
+static func zig_stage(s: Dictionary) -> int:
+	if int(s.get("ziggurats", 0)) > 0:
+		return 4
+	var pm := int(s.get("zigguratPermille", 0))
+	return 0 if pm <= 0 else 1 + mini(2, pm * 3 / 1000)
+
 const FIELD_MESHES := ["field", "field_ard", "field_fallow"]
 
 func _structure_digest() -> int:
@@ -333,6 +342,7 @@ func _structure_digest() -> int:
 			if sea > 0:
 				h = h * 31 + clampi(int(s.population) / 8, 1, 4)
 			h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
+			h = h * 31 + zig_stage(s)
 		for n in s.structures:
 			h = h * 31 + int(n)
 		for n in s.get("decor", PackedInt32Array()):
@@ -711,10 +721,42 @@ func _ok_site(p: Vector2, h0: float) -> bool:
 		return false
 	return true
 
+const ZIG_SCALE := 1.3         # drawn larger than life, like the megalith pieces
+const ZIG_OFFSET := 0.46       # from the hearth to the ziggurat's centre
+
+## Where a settlement's ziggurat stands: a ring of candidates round the hearth, first one on level, clear ground that is
+## not under trees or on the banner. The stair faces the hearth (the city's fire below, the god's fire on top).
+func _ziggurat_site(c: Vector2, h0: float, seed: float) -> Variant:
+	var banner := c + Vector2(0.09, -0.07)
+	for k in 12:
+		var a := seed * TAU + PI + k * TAU / 12.0
+		var p := c + Vector2(cos(a), sin(a)) * ZIG_OFFSET
+		var yaw := atan2((c - p).x, (c - p).y)
+		if not _ok_site(p, h0) or p.distance_to(banner) < 0.45:
+			continue
+		var y := w.height_at(p)
+		var ok := true
+		for lc in [Vector3(-0.25, 0, -0.215), Vector3(0.25, 0, -0.215), Vector3(0.25, 0, 0.3), Vector3(-0.25, 0, 0.3)]:
+			var q3: Vector3 = rot_y(yaw) * (lc * ZIG_SCALE)
+			var q := p + Vector2(q3.x, q3.z)
+			if not _ok_site(q, h0):
+				ok = false
+				break
+			y = minf(y, w.height_at(q))
+		if ok:
+			for tp in tree_points:
+				if (tp as Vector2).distance_squared_to(p) < 0.36:
+					ok = false
+					break
+		if ok:
+			return {"p": p, "y": y, "yaw": yaw}
+	return null
+
 func _settlements() -> void:
 	var K := M7WorldData.Kind
 	hearths.clear()
 	villages.clear()
+	ziggurat_sites.clear()
 	# fields and orchards on their plot tiles
 	for pi in range(0, w.plots.size(), 2):
 		var t := w.plots[pi]
@@ -777,6 +819,22 @@ func _settlements() -> void:
 				ins += 3
 		var placed := []
 		var placed_r := []
+		var landmarks_seed := []
+		# the ziggurat (BLD-08) takes the heart of the city: houses spiral round it, the stair faces the hearth
+		var zs := zig_stage(s)
+		var zsite = _ziggurat_site(c, h0, seed) if zs > 0 else null
+		if zsite != null:
+			placed.append(zsite.p)
+			placed_r.append(0.36)
+			landmarks_seed.append([zsite.p, 0.8])
+			var zp: Vector2 = zsite.p
+			props.add(M7MeshKit.ZIG_MESHES[zs - 1], _xf(zp, zsite.y, zsite.yaw, ZIG_SCALE),
+				Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 91)))
+			if zs == 4:
+				var o: Vector3 = rot_y(zsite.yaw) * (Vector3(-0.056, 0.314, -0.09) * ZIG_SCALE)
+				props.add("banner%d" % civ, _xf(zp + Vector2(o.x, o.z), zsite.y + o.y, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
+			ziggurat_sites.append({"p": zp, "y": zsite.y, "yaw": zsite.yaw, "stage": zs, "civ": civ, "seed": seed, "tile": t})
+			decor_spots["ziggurat"] = zp
 		var slot := 0
 		var rmax := 0.0
 		for it in items:
@@ -809,13 +867,15 @@ func _settlements() -> void:
 			var ang := atan2(d.x, d.y)
 			var sc := VS * (0.95 + 0.15 * M7WorldData.hash01(t, placed.size(), 5))
 			props.add(it, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
+		if zsite != null:
+			rmax = maxf(rmax, ZIG_OFFSET + 0.3)
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
 		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
 		if sea > 0:
 			_moor_fleet(t, c0, seed, sea, int(s.population), cc)
 		var decor := _village_decor(s.get("decor", PackedInt32Array()), civ, si, flagship)
 		if decor.size() > 0:
-			_place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0)
+			_place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0, landmarks_seed)
 		# lookout tower with a big banner at the edge
 		if st[K.LOOKOUT] > 0:
 			for i in 12:
@@ -904,7 +964,8 @@ const DWELL_MAX_TOTAL := 36
 
 func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
 	var K := M7WorldData.Kind
-	var built_tent := int(st[K.HIDE_TENT]) + int(st[K.LEAN_TO])
+	var built_tent := int(st[K.HIDE_TENT])
+	var built_leanto := int(st[K.LEAN_TO])
 	var built_pithouse := int(st[K.PIT_HOUSE])
 	var built_wattle := int(st[K.WATTLE_HOUSE])
 	var built_mudbrick := int(st[K.MUDBRICK_HOUSE])
@@ -915,28 +976,32 @@ func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
 	var shown_wattle := mini(built_wattle, DWELL_MAX_EACH)
 	var shown_pithouse := mini(built_pithouse, DWELL_MAX_EACH)
 	var shown_tent := mini(built_tent, DWELL_MAX_EACH)
-	var shown_leanto := 0
+	var shown_leanto := mini(built_leanto, DWELL_MAX_EACH)
 	if built_pithouse + built_wattle + built_mudbrick + built_longhouse > 0:
 		shown_tent = 0
+		shown_leanto = 0
 	if built_wattle + built_mudbrick + built_longhouse > 0:
 		shown_pithouse = 0
 	if built_mudbrick + built_longhouse > 0:
 		shown_wattle = 0
 	var covered := shown_hall * int(DWELL_CAPACITY.hall) + shown_longhouse * int(DWELL_CAPACITY.longhouse) \
 		+ shown_mudbrick * int(DWELL_CAPACITY.mudbrick) + shown_wattle * int(DWELL_CAPACITY.wattle) \
-		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_tent * int(DWELL_CAPACITY.tent)
+		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_tent * int(DWELL_CAPACITY.tent) \
+		+ shown_leanto * int(DWELL_CAPACITY.leanto)
 	var short := maxi(0, pop - covered)
 	var extra_type := ""
 	var extra_count := 0
 	if short > 0:
-		var filler := "tent"
+		var filler := "leanto" if built_leanto > 0 else "tent"
+		if built_tent > 0:
+			filler = "tent"
 		if built_pithouse > 0:
 			filler = "pithouse"
 		if built_wattle > 0:
 			filler = "wattle"
 		if built_mudbrick > 0:
 			filler = "mudbrick"
-		if filler == "tent" and built_longhouse > 0 and built_pithouse + built_wattle + built_mudbrick == 0:
+		if (filler == "tent" or filler == "leanto") and built_longhouse > 0 and built_pithouse + built_wattle + built_mudbrick == 0:
 			filler = "longhouse"
 		extra_type = filler
 		extra_count = mini(ceili(float(short) / float(DWELL_CAPACITY[filler])), maxi(0, DWELL_MAX_TOTAL \
@@ -960,10 +1025,8 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 		"leanto": int(st[K.LEAN_TO]), "tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
 		"wattle": int(st[K.WATTLE_HOUSE]), "mudbrick": int(st[K.MUDBRICK_HOUSE]), "longhouse": int(st[K.LONGHOUSE]),
 		"hall": halls}
-	# the first shelters are drawn as hide tents (tipis); the lean-to mesh is no longer used for villages
-	built.tent += built.leanto
-	built.leanto = 0
-	var filler := "tent"
+	# the first shelter the sim builds is a lean-to (BLD-01), then one hide tent (BLD-02); until something sturdier stands both are drawn
+	var filler := "leanto" if built.leanto > 0 else "tent"
 	for nm in ["tent", "pithouse", "wattle", "mudbrick"]:
 		if built[nm] > 0:
 			filler = nm
@@ -986,7 +1049,7 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 		for i in int(shown[nm]):
 			out.append(nm)
 	if short > 0:
-		if filler == "tent" and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
+		if (filler == "tent" or filler == "leanto") and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
 			filler = "longhouse"
 		var more := ceili(float(short) / float(DWELL_CAPACITY[filler]))
 		for i in more:
@@ -1036,11 +1099,11 @@ func _village_decor(host_decor, civ: int, si: int, flagship: Dictionary) -> Arra
 ## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
 ## palisade rings the village, `placed` holds the house spots so nothing overlaps.
 func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float, rmax: float, placed: Array, cc: Color,
-		has_thorns: bool) -> void:
+		has_thorns: bool, landmarks_seed: Array = []) -> void:
 	var near_r := rmax + 0.17
 	var far_r := rmax + 0.3
 	var slot := 0
-	var landmarks := []        # [spot, clear distance] of the big buildings placed so far
+	var landmarks := landmarks_seed.duplicate()        # [spot, clear distance] of the big buildings placed so far
 	for kind in decor:
 		var kind_i := int(kind)
 		if kind_i < 0 or kind_i >= M7MeshKit.DECOR_NAMES.size():

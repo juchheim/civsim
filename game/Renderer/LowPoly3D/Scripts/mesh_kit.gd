@@ -42,14 +42,23 @@ func _init() -> void:
 	_ground_cover()
 	_mountains()
 	_structures()
-	_decor()
-	_monument()
+	_ziggurats()
 	_boats()
 	M7LooksKit.build(self)
 	_feast()
 	_dogs()
 	_people()
 	_animals()
+	for art in ART_PASSES:
+		art.build(self)
+
+## Art passes run last and replace meshes by name (see the header of each file).
+const ART_PASSES := [
+	preload("res://Renderer/LowPoly3D/Scripts/art_dwellings.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_yard.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_decor.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_landmarks.gd"),
+]
 
 func get_mesh(name: String) -> ArrayMesh:
 	return meshes[name]
@@ -279,250 +288,14 @@ func _peak(b: M7MeshBuilder, p: Vector3, r: float, h: float, sides: int, snow_fr
 # ------------------------------------------------------------------ structures
 
 func _structures() -> void:
-	# hearth: stone ring, logs, ember bed
-	var b := _b(301)
-	for i in 8:
-		var a := TAU * i / 8.0
-		b.blob(Vector3(cos(a) * 0.036, 0.006, sin(a) * 0.036), Vector3(0.011, 0.008, 0.01), 5, 2, STONE.lerp(STONE_DARK, b.rnd()), 0.2)
-	for i in 3:
-		var a := TAU * i / 3.0
-		b.pole(Vector3(cos(a) * 0.03, 0.003, sin(a) * 0.03), Vector3(cos(a) * 0.004, 0.02, sin(a) * 0.004), 0.0045, WOOD)
-	b.tag = M7MeshBuilder.TAG_EMISSIVE
-	b.prism(Vector3(0, 0.0, 0), 0.024, 0.02, 0.006, 6, Color("#ff5a1a"), Color("#ff7a20"))
-	meshes["hearth"] = b.commit()
-
-	b = _b(303)
+	# flame: the shared fire (hearths, signal posts, ziggurat); every other building is built in the art_*.gd passes
+	var b := _b(303)
 	b.tag = M7MeshBuilder.TAG_EMISSIVE
 	b.prism(Vector3.ZERO, 0.02, 0.0, 0.075, 5, Color("#ff6a10"), Color("#ff6a10"), 0.0, 0.2)
 	b.prism(Vector3(0.006, 0, 0.004), 0.012, 0.0, 0.05, 5, Color("#ffc040"), Color("#ffc040"), 0.5, 0.2)
 	b.prism(Vector3(-0.008, 0, -0.003), 0.01, 0.0, 0.04, 4, Color("#ff9a20"), Color("#ff9a20"), 0.2, 0.2)
 	meshes["flame"] = b.commit()
 
-	# Dwellings, oldest to newest. Each reads differently from the others at map distance: the lean-to is a wedge of boughs,
-	# the hide tent a cone, the pit house a turf mound, the wattle house a low cottage with a hipped roof, the mudbrick house a
-	# flat-roofed stack of blocks, the longhouse a long gable and the hall a colonnaded block. Doors face +Z (toward the hearth).
-	var BOUGH := Color("#6f7f3a")
-	var BOUGH_DARK := Color("#4d5f2c")
-	var DARK := Color("#2a2119")
-	var DOOR := Color("#3a2c1f")
-	var BRICK := Color("#c99a68")
-	var BRICK_LIGHT := Color("#dcb98a")
-	var LIME := Color("#e2cfa6")
-
-	# lean-to: one sloping pitch of leafy boughs on forked posts, open to the hearth, bedding underneath
-	b = _b(305)
-	b.quad(Vector3(-0.085, 0.092, 0.06), Vector3(0.085, 0.092, 0.06), Vector3(0.085, 0.03, -0.058), Vector3(-0.085, 0.03, -0.058), BOUGH, Vector3(0, -0.04, 0))
-	for i in 7:
-		var x := -0.078 + 0.026 * i
-		b.pole(Vector3(x, 0.098, 0.068), Vector3(x + 0.004 * b.rnds(), 0.026, -0.064), 0.0045, WOOD if i % 2 == 0 else BOUGH_DARK)
-	for sx in [-0.085, 0.085]:
-		b.quad(Vector3(sx, 0.092, 0.06), Vector3(sx, 0.03, -0.058), Vector3(sx, 0.0, -0.058), Vector3(sx, 0.0, 0.06), BOUGH_DARK, Vector3(0, 0.04, 0))
-		b.pole(Vector3(sx, 0.0, 0.062), Vector3(sx, 0.1, 0.062), 0.006, WOOD)
-	b.quad(Vector3(-0.085, 0.03, -0.058), Vector3(0.085, 0.03, -0.058), Vector3(0.085, 0.0, -0.058), Vector3(-0.085, 0.0, -0.058), BOUGH_DARK, Vector3(0, 0.04, 0.1))
-	b.blob(Vector3(0.0, 0.0, 0.0), Vector3(0.06, 0.016, 0.04), 7, 3, THATCH_DARK, 0.15)
-	b.blob(Vector3(0.03, 0.0, 0.085), Vector3(0.022, 0.014, 0.014), 5, 2, BOUGH, 0.2)
-	meshes["leanto"] = b.commit()
-
-	# hide tent (tipi) with a civ band and protruding poles
-	b = _b(307)
-	b.prism(Vector3.ZERO, 0.062, 0.012, 0.13, 8, HIDE, HIDE)
-	b.tag = M7MeshBuilder.TAG_CIV
-	var band_y0 := 0.055
-	var band_y1 := 0.075
-	for i in 8:
-		var a0 := TAU * i / 8.0
-		var a1 := TAU * (i + 1) / 8.0
-		var rr0 := 0.062 - (0.05) * band_y0 / 0.13 + 0.0015
-		var rr1 := 0.062 - (0.05) * band_y1 / 0.13 + 0.0015
-		b.quad(Vector3(cos(a0) * rr0, band_y0, sin(a0) * rr0), Vector3(cos(a1) * rr0, band_y0, sin(a1) * rr0),
-			Vector3(cos(a1) * rr1, band_y1, sin(a1) * rr1), Vector3(cos(a0) * rr1, band_y1, sin(a0) * rr1), Color.WHITE, Vector3(0, 0.065, 0))
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	for i in 4:
-		var a := TAU * i / 4.0 + 0.4
-		b.pole(Vector3(cos(a) * 0.008, 0.12, sin(a) * 0.008), Vector3(cos(a) * -0.012, 0.17, sin(a) * -0.012), 0.0035, WOOD)
-	# door flap (dark triangle facing +Z)
-	b.tri(Vector3(-0.022, 0.001, 0.058), Vector3(0.022, 0.001, 0.058), Vector3(0.0, 0.055, 0.044), Color("#3a2c1f"), Vector3(0, 0.03, 0))
-	meshes["tent"] = b.commit()
-
-	# pit house: a dug floor under a turf-covered log roof, rim stones, a ladder out of the smoke hole and a sloping entrance
-	b = _b(309)
-	b.prism(Vector3.ZERO, 0.105, 0.098, 0.01, 10, EARTH.darkened(0.25), EARTH.darkened(0.25))
-	b.tag = M7MeshBuilder.TAG_GRASS
-	b.blob(Vector3(0, 0.008, 0), Vector3(0.088, 0.058, 0.088), 10, 4, Color("#7f8c48"), 0.07, EARTH)
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	for i in 10:
-		var a := TAU * i / 10.0 + 0.2
-		b.blob(Vector3(cos(a) * 0.098, 0.008, sin(a) * 0.098), Vector3(0.014, 0.012, 0.012), 5, 2, STONE.lerp(STONE_DARK, b.rnd()), 0.2)
-	b.prism(Vector3(0, 0.058, 0), 0.02, 0.016, 0.012, 6, DARK, DARK)
-	b.pole(Vector3(-0.008, 0.03, -0.004), Vector3(-0.012, 0.125, 0.006), 0.004, WOOD)
-	b.pole(Vector3(0.008, 0.03, -0.004), Vector3(0.006, 0.125, 0.008), 0.004, WOOD)
-	for r in 3:
-		b.box(Vector3(-0.003 + 0.0 * r, 0.06 + 0.02 * r, 0.0), Vector3(0.022, 0.003, 0.004), WOOD_LIGHT)
-	b.quad(Vector3(-0.026, 0.0, 0.13), Vector3(0.026, 0.0, 0.13), Vector3(0.026, 0.036, 0.09), Vector3(-0.026, 0.036, 0.09), EARTH.darkened(0.2), Vector3(0, -0.1, 0))
-	b.box(Vector3(-0.026, 0.02, 0.098), Vector3(0.006, 0.04, 0.006), WOOD)
-	b.box(Vector3(0.026, 0.02, 0.098), Vector3(0.006, 0.04, 0.006), WOOD)
-	b.box(Vector3(0, 0.044, 0.098), Vector3(0.06, 0.007, 0.008), WOOD)
-	b.box(Vector3(0, 0.02, 0.092), Vector3(0.044, 0.036, 0.003), DARK)
-	meshes["pithouse"] = b.commit()
-
-	# wattle-and-daub house: a low timber-framed cottage, plastered wicker walls, hipped thatch with deep eaves
-	b = _b(311)
-	var wx := 0.07
-	var wz := 0.052
-	b.box(Vector3(0, 0.02, 0), Vector3(wx * 2, 0.04, wz * 2), DAUB)
-	b.box(Vector3(0, 0.0095, 0), Vector3(wx * 2 + 0.01, 0.019, wz * 2 + 0.01), STONE_DARK)
-	for sx in [-wx, wx]:
-		for sz in [-wz, wz]:
-			b.pole(Vector3(sx, 0.0, sz), Vector3(sx, 0.047, sz), 0.0055, WOOD)
-	for sx in [-0.024, 0.024]:
-		b.box(Vector3(sx, 0.02, wz + 0.001), Vector3(0.005, 0.04, 0.003), WOOD)
-	b.box(Vector3(0, 0.0435, wz + 0.001), Vector3(wx * 2, 0.006, 0.004), WOOD)
-	b.box(Vector3(0, 0.0175, wz + 0.003), Vector3(0.026, 0.035, 0.003), DOOR)
-	b.box(Vector3(-0.045, 0.028, wz + 0.002), Vector3(0.016, 0.01, 0.003), DARK)
-	var ey := 0.04
-	var ry2 := 0.118
-	var ox := 0.088
-	var oz := 0.07
-	var rx := 0.03
-	b.quad(Vector3(-ox, ey, oz), Vector3(ox, ey, oz), Vector3(rx, ry2, 0), Vector3(-rx, ry2, 0), THATCH, Vector3(0, 0.02, 0))
-	b.quad(Vector3(-ox, ey, -oz), Vector3(ox, ey, -oz), Vector3(rx, ry2, 0), Vector3(-rx, ry2, 0), THATCH.darkened(0.06), Vector3(0, 0.02, 0))
-	b.tri(Vector3(-ox, ey, oz), Vector3(-ox, ey, -oz), Vector3(-rx, ry2, 0), THATCH_DARK, Vector3(0, 0.02, 0))
-	b.tri(Vector3(ox, ey, oz), Vector3(ox, ey, -oz), Vector3(rx, ry2, 0), THATCH_DARK, Vector3(0, 0.02, 0))
-	b.pole(Vector3(-rx - 0.008, ry2 + 0.004, 0), Vector3(rx + 0.008, ry2 + 0.004, 0), 0.006, THATCH_DARK)
-	b.pole(Vector3(-0.07, 0.07, 0.04), Vector3(0.07, 0.07, 0.04), 0.0035, THATCH_DARK)
-	b.prism(Vector3(-0.012, 0.104, -0.012), 0.01, 0.008, 0.016, 5, STONE_DARK, DARK)
-	meshes["wattle"] = b.commit()
-
-	# mudbrick house: sun-baked blocks with flat roofs, a second room stepped on top, beam ends and a roof ladder
-	b = _b(313)
-	b.box(Vector3(0, 0.038, 0), Vector3(0.14, 0.076, 0.1), BRICK)
-	b.box(Vector3(0, 0.079, 0), Vector3(0.15, 0.008, 0.11), BRICK_LIGHT.darkened(0.08), BRICK_LIGHT)
-	b.box(Vector3(-0.03, 0.1, -0.008), Vector3(0.078, 0.042, 0.078), BRICK_LIGHT)
-	b.box(Vector3(-0.03, 0.124, -0.008), Vector3(0.088, 0.008, 0.088), BRICK_LIGHT.darkened(0.08), BRICK_LIGHT)
-	for i in 4:
-		b.pole(Vector3(-0.054 + 0.036 * i, 0.068, 0.049), Vector3(-0.054 + 0.036 * i, 0.068, 0.067), 0.0045, WOOD)
-	b.box(Vector3(0.025, 0.027, 0.0505), Vector3(0.028, 0.054, 0.003), DOOR)
-	b.box(Vector3(0.025, 0.056, 0.0505), Vector3(0.034, 0.005, 0.004), WOOD)
-	b.box(Vector3(-0.04, 0.045, 0.0505), Vector3(0.016, 0.014, 0.003), DARK)
-	b.box(Vector3(-0.03, 0.105, 0.0315), Vector3(0.016, 0.016, 0.003), DARK)
-	b.pole(Vector3(0.071, 0.0, 0.03), Vector3(0.071, 0.088, -0.005), 0.003, WOOD)
-	b.pole(Vector3(0.081, 0.0, 0.03), Vector3(0.081, 0.088, -0.005), 0.003, WOOD)
-	for r in 4:
-		b.pole(Vector3(0.071, 0.014 + 0.019 * r, 0.026 - 0.0085 * r), Vector3(0.081, 0.014 + 0.019 * r, 0.026 - 0.0085 * r), 0.0022, WOOD_LIGHT)
-	b.blob(Vector3(0.05, 0.088, 0.02), Vector3(0.016, 0.014, 0.016), 6, 3, EARTH.lightened(0.15), 0.1)
-	meshes["mudbrick"] = b.commit()
-
-	# longhouse: a long timber hall under a steep thatched gable, posts along the walls, crossed ridge poles, smoke holes
-	b = _b(315)
-	var lx := 0.15
-	var lz := 0.05
-	b.box(Vector3(0, 0.0125, 0), Vector3(lx * 2, 0.025, lz * 2), STONE_DARK)
-	b.box(Vector3(0, 0.0435, 0), Vector3(lx * 2 - 0.01, 0.037, lz * 2 - 0.008), WOOD_LIGHT)
-	for i in 7:
-		var x := -lx + 0.015 + (lx * 2 - 0.03) * i / 6.0
-		for sz in [-lz, lz]:
-			b.pole(Vector3(x, 0.0, sz), Vector3(x, 0.066, sz), 0.0045, WOOD)
-	var le := 0.062
-	var lr := 0.148
-	var lw := 0.082
-	b.quad(Vector3(-lx - 0.01, le, lw), Vector3(lx + 0.01, le, lw), Vector3(lx + 0.01, lr, 0), Vector3(-lx - 0.01, lr, 0), THATCH, Vector3(0, 0.03, 0))
-	b.quad(Vector3(-lx - 0.01, le, -lw), Vector3(lx + 0.01, le, -lw), Vector3(lx + 0.01, lr, 0), Vector3(-lx - 0.01, lr, 0), THATCH.darkened(0.06), Vector3(0, 0.03, 0))
-	for sz in [-1.0, 1.0]:
-		for f in [0.36, 0.68]:
-			b.pole(Vector3(-lx - 0.008, le + (lr - le) * f, lw * (1.0 - f) * sz), Vector3(lx + 0.008, le + (lr - le) * f, lw * (1.0 - f) * sz), 0.0035, THATCH_DARK)
-	for sx in [-lx, lx]:
-		b.tri(Vector3(sx, 0.062, lz - 0.004), Vector3(sx, 0.062, -lz + 0.004), Vector3(sx, lr - 0.012, 0), WOOD_LIGHT, Vector3(0, 0.05, 0))
-		var d := -1.0 if sx < 0.0 else 1.0
-		b.pole(Vector3(sx + d * 0.012, lr + 0.03, 0.0), Vector3(sx - d * 0.004, lr - 0.03, 0.02), 0.0045, WOOD)
-		b.pole(Vector3(sx + d * 0.012, lr + 0.03, 0.0), Vector3(sx - d * 0.004, lr - 0.03, -0.02), 0.0045, WOOD)
-	b.box(Vector3(0.0, 0.025, lz + 0.001), Vector3(0.03, 0.05, 0.003), DOOR)
-	b.box(Vector3(-0.07, 0.042, lz + 0.001), Vector3(0.018, 0.012, 0.003), DARK)
-	b.box(Vector3(0.07, 0.042, lz + 0.001), Vector3(0.018, 0.012, 0.003), DARK)
-	for sx in [-0.05, 0.06]:
-		b.box(Vector3(sx, 0.1, 0.0), Vector3(0.022, 0.014, 0.03), DARK)
-	meshes["longhouse"] = b.commit()
-
-	# hall: stone footing, plastered mudbrick body, a raised clerestory, timber colonnade across the front and a civ pennant
-	b = _b(316)
-	b.box(Vector3(0, 0.013, 0), Vector3(0.34, 0.026, 0.215), STONE)
-	b.box(Vector3(0, 0.0, 0.125), Vector3(0.1, 0.002, 0.04), STONE_DARK)
-	b.box(Vector3(0, 0.0725, -0.01), Vector3(0.31, 0.093, 0.165), LIME)
-	b.box(Vector3(0, 0.1235, -0.01), Vector3(0.325, 0.01, 0.18), LIME.darkened(0.12), LIME.lightened(0.04))
-	b.box(Vector3(0, 0.151, -0.01), Vector3(0.2, 0.046, 0.1), LIME)
-	b.box(Vector3(0, 0.176, -0.01), Vector3(0.214, 0.008, 0.114), LIME.darkened(0.12), LIME.lightened(0.04))
-	for i in 5:
-		b.box(Vector3(-0.08 + 0.04 * i, 0.152, 0.0405), Vector3(0.018, 0.022, 0.003), DARK)
-	for i in 7:
-		b.pole(Vector3(-0.135 + 0.045 * i, 0.112, 0.0725), Vector3(-0.135 + 0.045 * i, 0.112, 0.092), 0.0045, WOOD)
-	for i in 5:
-		var x := -0.12 + 0.06 * i
-		b.prism(Vector3(x, 0.026, 0.118), 0.0095, 0.008, 0.088, 6, WOOD_LIGHT, WOOD_LIGHT)
-		b.box(Vector3(x, 0.027, 0.118), Vector3(0.022, 0.004, 0.022), STONE_DARK)
-	b.box(Vector3(0, 0.118, 0.118), Vector3(0.27, 0.012, 0.018), WOOD)
-	b.box(Vector3(0, 0.126, 0.1), Vector3(0.29, 0.007, 0.056), THATCH_DARK, THATCH)
-	b.box(Vector3(0, 0.063, 0.0735), Vector3(0.06, 0.074, 0.003), DOOR)
-	b.box(Vector3(0, 0.103, 0.0735), Vector3(0.07, 0.006, 0.004), WOOD)
-	for sx in [-0.095, 0.095]:
-		b.box(Vector3(sx, 0.07, 0.0735), Vector3(0.026, 0.026, 0.003), DARK)
-	for i in 8:
-		b.box(Vector3(-0.15 + 0.0429 * i, 0.131, -0.088), Vector3(0.02, 0.012, 0.012), LIME.darkened(0.06))
-	b.pole(Vector3(0.0, 0.18, -0.01), Vector3(0.0, 0.25, -0.01), 0.0035, WOOD)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.quad(Vector3(0.002, 0.248, -0.01), Vector3(0.056, 0.236, -0.01), Vector3(0.056, 0.206, -0.01), Vector3(0.002, 0.218, -0.01), Color.WHITE, Vector3(0, 0.23, 0.3))
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	meshes["hall"] = b.commit()
-
-	# storage pit: stone-lined lid mound
-	b = _b(317)
-	b.prism(Vector3.ZERO, 0.032, 0.028, 0.01, 7, STONE, STONE.lightened(0.1), 0.0, 0.1)
-	b.prism(Vector3(0, 0.01, 0), 0.024, 0.006, 0.014, 7, WOOD_LIGHT, WOOD_LIGHT)
-	meshes["storagepit"] = b.commit()
-
-	# drying rack: two A-frames, a bar and hanging strips
-	b = _b(319)
-	for sx in [-0.045, 0.045]:
-		b.pole(Vector3(sx, 0, -0.02), Vector3(sx, 0.07, 0), 0.0035, WOOD)
-		b.pole(Vector3(sx, 0, 0.02), Vector3(sx, 0.07, 0), 0.0035, WOOD)
-	b.pole(Vector3(-0.05, 0.068, 0), Vector3(0.05, 0.068, 0), 0.003, WOOD)
-	for i in 6:
-		var x := -0.035 + i * 0.014
-		b.box(Vector3(x, 0.05, 0), Vector3(0.007, 0.032, 0.003), Color("#9c4a32") if i % 2 == 0 else Color("#b8916a"))
-	meshes["dryingrack"] = b.commit()
-
-	# granary on stilts
-	b = _b(321)
-	for i in 4:
-		var a := TAU * i / 4.0 + PI / 4.0
-		b.pole(Vector3(cos(a) * 0.03, 0, sin(a) * 0.03), Vector3(cos(a) * 0.03, 0.035, sin(a) * 0.03), 0.004, WOOD)
-	b.prism(Vector3(0, 0.035, 0), 0.042, 0.042, 0.045, 8, DAUB, DAUB)
-	b.prism(Vector3(0, 0.077, 0), 0.055, 0.0, 0.06, 8, THATCH, THATCH)
-	meshes["granary"] = b.commit()
-
-	# kiln: domed clay with a chimney
-	b = _b(323)
-	b.blob(Vector3(0, 0.0, 0), Vector3(0.05, 0.05, 0.05), 8, 4, Color("#a8704a"), 0.06, Color("#8a5a3a"))
-	b.prism(Vector3(0, 0.04, 0), 0.012, 0.01, 0.035, 6, Color("#8a5a3a"), Color("#2a2119"))
-	b.tag = M7MeshBuilder.TAG_EMISSIVE
-	b.box(Vector3(0, 0.012, 0.047), Vector3(0.02, 0.018, 0.004), Color("#ff6a20"))
-	meshes["kiln"] = b.commit()
-
-	# quern: slab and a round upper stone
-	b = _b(325)
-	b.prism(Vector3.ZERO, 0.03, 0.028, 0.01, 6, STONE_DARK, STONE)
-	b.prism(Vector3(0, 0.01, 0), 0.018, 0.017, 0.01, 8, STONE, STONE.lightened(0.15))
-	meshes["quern"] = b.commit()
-
-	# thorn hedge segment (along local X, ~0.12 long)
-	b = _b(327)
-	b.tag = M7MeshBuilder.TAG_FOLIAGE
-	for i in 4:
-		var x := -0.05 + i * 0.033 + 0.006 * b.rnds()
-		b.blob(Vector3(x, 0.018, 0.004 * b.rnds()), Vector3(0.022, 0.022, 0.018), 5, 3, Color("#5d6234"), 0.5, Color("#4a4a2a"))
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	for i in 3:
-		var x := -0.045 + i * 0.045
-		b.pole(Vector3(x, 0, 0), Vector3(x + 0.004, 0.045, 0.003), 0.003, WOOD)
-	meshes["thorn"] = b.commit()
 
 	# palisade segment (pointed stakes)
 	b = _b(329)
@@ -534,50 +307,6 @@ func _structures() -> void:
 	b.pole(Vector3(-0.06, 0.05, 0.008), Vector3(0.06, 0.05, 0.008), 0.004, WOOD)
 	meshes["palisade"] = b.commit()
 
-	# lookout tower with platform and a small roof
-	b = _b(331)
-	var th := 0.24
-	for i in 4:
-		var a := TAU * i / 4.0 + PI / 4.0
-		b.pole(Vector3(cos(a) * 0.04, 0, sin(a) * 0.04), Vector3(cos(a) * 0.026, th, sin(a) * 0.026), 0.0045, WOOD)
-	for yy in [0.08, 0.16]:
-		for i in 4:
-			var a0 := TAU * i / 4.0 + PI / 4.0
-			var a1 := TAU * (i + 1) / 4.0 + PI / 4.0
-			var rr: float = 0.04 - 0.014 * yy / th
-			b.pole(Vector3(cos(a0) * rr, yy, sin(a0) * rr), Vector3(cos(a1) * rr, yy + 0.04, sin(a1) * rr), 0.0028, WOOD)
-	b.box(Vector3(0, th, 0), Vector3(0.07, 0.008, 0.07), WOOD_LIGHT)
-	for i in 4:
-		var a := TAU * i / 4.0 + PI / 4.0
-		b.pole(Vector3(cos(a) * 0.03, th, sin(a) * 0.03), Vector3(cos(a) * 0.03, th + 0.04, sin(a) * 0.03), 0.003, WOOD)
-	b.prism(Vector3(0, th + 0.04, 0), 0.058, 0.0, 0.045, 4, THATCH, THATCH, PI / 4.0)
-	meshes["lookout"] = b.commit()
-
-	# player Beacon: a carved hardwood marker topped with a civ-coloured pennant.
-	b = _b(332)
-	b.prism(Vector3(0, 0, 0), 0.025, 0.022, 0.34, 5, WOOD, WOOD_LIGHT)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.prism(Vector3(0, 0.34, 0), 0.052, 0.0, 0.11, 5, Color.WHITE, Color.WHITE)
-	meshes["beacon"] = b.commit()
-
-	# weir: a V of stakes (local +Z downstream)
-	b = _b(333)
-	for i in 9:
-		var t := float(i) / 8.0
-		var x := (t - 0.5) * 0.3
-		var z := absf(x) * 0.5
-		b.prism(Vector3(x, -0.04, z), 0.0055, 0.005, 0.07, 4, WOOD, WOOD_LIGHT)
-	b.pole(Vector3(-0.15, 0.015, 0.075), Vector3(0, 0.015, 0.0), 0.003, WOOD_LIGHT)
-	b.pole(Vector3(0.15, 0.015, 0.075), Vector3(0, 0.015, 0.0), 0.003, WOOD_LIGHT)
-	meshes["weir"] = b.commit()
-
-	# fence segment (pasture), along local X, 0.12 long
-	b = _b(335)
-	for x in [-0.06, 0.0, 0.06]:
-		b.prism(Vector3(x, 0, 0), 0.004, 0.004, 0.04, 4, WOOD, WOOD)
-	b.pole(Vector3(-0.065, 0.032, 0), Vector3(0.065, 0.032, 0), 0.0026, WOOD_LIGHT)
-	b.pole(Vector3(-0.065, 0.017, 0), Vector3(0.065, 0.017, 0), 0.0026, WOOD_LIGHT)
-	meshes["fence"] = b.commit()
 
 	# field: soil hex with crop ridges (local, pointy-top hex, radius 0.9 of the tile)
 	b = _b(337)
@@ -611,12 +340,6 @@ func _structures() -> void:
 		b.tri(a1, c1, d1, SOIL, Vector3(0.0, 0.0, z))
 	meshes["field"] = b.commit()
 
-	# camp windbreak (small hide shelter)
-	b = _b(339)
-	b.prism(Vector3.ZERO, 0.045, 0.01, 0.08, 6, HIDE_DARK, HIDE_DARK)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.prism(Vector3(0, 0.03, 0), 0.0355, 0.03, 0.012, 6, Color.WHITE, Color.WHITE)
-	meshes["camp"] = b.commit()
 
 	# banners with emblems (one mesh per civ slot)
 	for civ in 8:
@@ -1024,223 +747,191 @@ const DECOR_NAMES := ["totem", "cairn", "hideframe", "pots", "loom", "shrine", "
 	"sledge", "palisade", "spearrack", "grave", "council", "quarry", "skypole", "bricks", "baskets", "woodwork",
 	"temple", "chiefhall", "woolbales", "chariot"]
 
-func _decor() -> void:
-	var b := _b(700)
-	# totem: a carved post, a civ-coloured band, a beaked head and spread wings
-	b.pole(Vector3(0, 0, 0), Vector3(0, 0.12, 0), 0.009, WOOD)
-	b.box(Vector3(0, 0.032, 0), Vector3(0.03, 0.028, 0.03), Color("#a6603a"))
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.box(Vector3(0, 0.066, 0), Vector3(0.034, 0.012, 0.034), Color.WHITE)
-	b.tag = M7MeshBuilder.TAG_PLAIN
-	b.box(Vector3(0, 0.088, 0), Vector3(0.07, 0.008, 0.012), WOOD_LIGHT)
-	b.box(Vector3(0, 0.106, 0.004), Vector3(0.026, 0.022, 0.028), Color("#d8c08a"))
-	b.box(Vector3(0, 0.102, 0.022), Vector3(0.01, 0.01, 0.016), Color("#c9973c"))
-	meshes["decor_totem"] = b.commit()
-
-	# cairn: three stacked stones
-	b = _b(701)
-	b.blob(Vector3(0, 0.008, 0), Vector3(0.032, 0.014, 0.03), 6, 3, STONE, 0.1, STONE_DARK)
-	b.blob(Vector3(0.002, 0.024, 0), Vector3(0.022, 0.011, 0.02), 6, 3, ROCK_HI, 0.1, STONE)
-	b.blob(Vector3(-0.001, 0.036, 0.001), Vector3(0.013, 0.009, 0.013), 5, 3, STONE, 0.1)
-	meshes["decor_cairn"] = b.commit()
-
-	# hide frame: a stretched hide laced into a pole frame
-	b = _b(703)
-	b.pole(Vector3(-0.034, 0, 0), Vector3(-0.034, 0.07, 0), 0.0036, WOOD)
-	b.pole(Vector3(0.034, 0, 0), Vector3(0.034, 0.07, 0), 0.0036, WOOD)
-	b.pole(Vector3(-0.036, 0.067, 0), Vector3(0.036, 0.067, 0), 0.0032, WOOD)
-	b.pole(Vector3(-0.036, 0.012, 0), Vector3(0.036, 0.012, 0), 0.0032, WOOD)
-	b.box(Vector3(0, 0.04, 0), Vector3(0.062, 0.05, 0.003), HIDE, HIDE_DARK)
-	meshes["decor_hideframe"] = b.commit()
-
-	# pots: three fired clay pots
-	b = _b(704)
-	for pot in [[Vector3(0, 0.012, 0), 0.015, Color("#b5603c")], [Vector3(0.032, 0.009, 0.012), 0.011, Color("#c27a4a")],
-			[Vector3(-0.028, 0.01, 0.016), 0.012, Color("#a4532f")]]:
-		var pp: Vector3 = pot[0]
-		var pr: float = pot[1]
-		b.blob(pp, Vector3(pr, pr * 0.95, pr), 7, 4, pot[2], 0.0, pot[2].darkened(0.2))
-		b.prism(pp + Vector3(0, pr * 0.8, 0), pr * 0.6, pr * 0.6, 0.003, 7, Color("#2a1c12"), Color("#2a1c12"))
-	meshes["decor_pots"] = b.commit()
-
-	# loom: warp-weighted, a striped cloth growing
-	b = _b(705)
-	b.pole(Vector3(-0.034, 0, 0), Vector3(-0.034, 0.1, 0), 0.0036, WOOD)
-	b.pole(Vector3(0.034, 0, 0), Vector3(0.034, 0.1, 0), 0.0036, WOOD)
-	b.pole(Vector3(-0.038, 0.096, 0), Vector3(0.038, 0.096, 0), 0.0032, WOOD_LIGHT)
-	for i in 7:
-		var x := -0.027 + i * 0.009
-		b.box(Vector3(x, 0.072, 0), Vector3(0.006, 0.04, 0.002), Color("#9c4a32") if i % 3 == 0 else (Color("#e4d6b8") if i % 3 == 1 else Color("#3f5a7a")))
-		b.box(Vector3(x, 0.036, 0), Vector3(0.0014, 0.032, 0.0014), Color("#cdbd9a"))
-		b.blob(Vector3(x, 0.016, 0), Vector3(0.0042, 0.0045, 0.0042), 4, 3, STONE_DARK)
-	meshes["decor_loom"] = b.commit()
-
-	# shrine: a stone platform, two uprights and a lintel, an offering lamp
-	b = _b(706)
-	b.prism(Vector3.ZERO, 0.052, 0.048, 0.01, 6, STONE, STONE.lightened(0.1))
-	b.pole(Vector3(-0.026, 0.01, 0), Vector3(-0.026, 0.075, 0), 0.0065, STONE)
-	b.pole(Vector3(0.026, 0.01, 0), Vector3(0.026, 0.075, 0), 0.0065, STONE)
-	b.box(Vector3(0, 0.08, 0), Vector3(0.07, 0.01, 0.016), ROCK_HI)
-	b.blob(Vector3(0, 0.016, 0.012), Vector3(0.008, 0.005, 0.008), 5, 3, Color("#7a5a3a"))
-	b.tag = M7MeshBuilder.TAG_EMISSIVE
-	b.box(Vector3(0, 0.024, 0.012), Vector3(0.006, 0.008, 0.006), Color("#ffb347"))
-	meshes["decor_shrine"] = b.commit()
-
-	# signal fire: a stacked pyre on a stone ring (the flame is added by the builder)
-	b = _b(707)
-	b.prism(Vector3.ZERO, 0.036, 0.034, 0.008, 7, STONE, STONE)
-	b.pole(Vector3(-0.022, 0.008, 0.0), Vector3(0.0, 0.07, 0.0), 0.004, WOOD)
-	b.pole(Vector3(0.022, 0.008, 0.004), Vector3(0.0, 0.07, 0.0), 0.004, BARK)
-	b.pole(Vector3(0.0, 0.008, -0.022), Vector3(0.0, 0.07, 0.0), 0.004, WOOD_LIGHT)
-	b.pole(Vector3(0.004, 0.008, 0.022), Vector3(0.0, 0.07, 0.0), 0.004, BARK)
-	meshes["decor_signal"] = b.commit()
-
-	# charcoal mound: earth-covered and smoking
-	b = _b(708)
-	b.blob(Vector3(0, 0.0, 0), Vector3(0.05, 0.034, 0.05), 8, 4, Color("#2d261f"), 0.08, Color("#1d1814"))
-	b.prism(Vector3(0, 0.03, 0), 0.008, 0.005, 0.012, 6, Color("#15110d"), Color("#15110d"))
-	b.pole(Vector3(0.05, 0, 0.0), Vector3(0.036, 0.03, 0.0), 0.003, WOOD)
-	b.pole(Vector3(-0.05, 0, 0.0), Vector3(-0.036, 0.03, 0.0), 0.003, WOOD)
-	meshes["decor_charcoal"] = b.commit()
-
-	# furnace: a clay dome with a bellows pipe, ore and a bar of copper beside it
-	b = _b(709)
-	b.blob(Vector3(0, 0.0, 0), Vector3(0.032, 0.046, 0.032), 7, 4, Color("#9a5a3a"), 0.05, Color("#7a4a30"))
-	b.pole(Vector3(0.018, 0.01, 0.026), Vector3(0.052, 0.006, 0.06), 0.004, Color("#3a2c1f"))
-	b.blob(Vector3(-0.046, 0.004, 0.02), Vector3(0.014, 0.008, 0.014), 5, 3, Color("#4f8f6a"), 0.1)
-	b.box(Vector3(-0.03, 0.003, 0.05), Vector3(0.022, 0.005, 0.008), Color("#c0683a"))
-	b.tag = M7MeshBuilder.TAG_EMISSIVE
-	b.box(Vector3(0, 0.012, 0.03), Vector3(0.016, 0.014, 0.004), Color("#ff6a20"))
-	meshes["decor_furnace"] = b.commit()
-
-	# sledge: runners and cross boards under a stone block
-	b = _b(711)
-	b.pole(Vector3(-0.03, 0.004, -0.055), Vector3(-0.03, 0.01, 0.065), 0.004, WOOD)
-	b.pole(Vector3(0.03, 0.004, -0.055), Vector3(0.03, 0.01, 0.065), 0.004, WOOD)
-	for z in [-0.04, 0.0, 0.04]:
-		b.pole(Vector3(-0.036, 0.012, z), Vector3(0.036, 0.012, z), 0.0034, WOOD_LIGHT)
-	b.box(Vector3(0, 0.026, 0), Vector3(0.05, 0.022, 0.06), ROCK, ROCK_HI)
-	b.pole(Vector3(-0.03, 0.006, -0.055), Vector3(0.0, 0.03, -0.1), 0.0016, Color("#b9a68a"))
-	meshes["decor_sledge"] = b.commit()
-
-	# palisade segment (along local X, ~0.12 long): sharpened stakes and a rail
-	b = _b(712)
-	for i in 6:
-		var x := -0.055 + i * 0.022
-		b.prism(Vector3(x, 0, 0), 0.0075, 0.0075, 0.082, 5, WOOD if i % 2 == 0 else BARK, WOOD)
-		b.prism(Vector3(x, 0.082, 0), 0.0075, 0.0, 0.018, 5, WOOD_LIGHT, WOOD_LIGHT)
-	b.pole(Vector3(-0.06, 0.04, 0.007), Vector3(0.06, 0.04, 0.007), 0.0028, WOOD_LIGHT)
-	meshes["decor_palisade"] = b.commit()
-
-	# spear rack: a bar between two posts with spears leaning against it
-	b = _b(713)
-	b.pole(Vector3(-0.04, 0, 0), Vector3(-0.04, 0.05, 0), 0.0042, WOOD)
-	b.pole(Vector3(0.04, 0, 0), Vector3(0.04, 0.05, 0), 0.0042, WOOD)
-	b.pole(Vector3(-0.044, 0.046, 0), Vector3(0.044, 0.046, 0), 0.003, WOOD_LIGHT)
-	for i in 5:
-		var x := -0.03 + i * 0.015
-		b.pole(Vector3(x, 0, 0.022), Vector3(x * 0.8, 0.095, 0.002), 0.0022, WOOD_LIGHT)
-		b.prism(Vector3(x * 0.8, 0.095, 0.002), 0.004, 0.0, 0.014, 4, STONE_DARK, STONE_DARK)
-	meshes["decor_spearrack"] = b.commit()
-
-	# grave: a low mound with a stone at the head and a smear of red ochre
-	b = _b(714)
-	b.blob(Vector3(0, 0, 0), Vector3(0.04, 0.014, 0.025), 6, 3, EARTH, 0.05, EARTH)
-	b.box(Vector3(0, 0.013, 0.0), Vector3(0.02, 0.002, 0.03), Color("#9c3a22"))
-	b.prism(Vector3(0, 0, -0.032), 0.009, 0.006, 0.032, 5, STONE, STONE.lightened(0.1))
-	meshes["decor_grave"] = b.commit()
-
-	# council circle: log seats round a chief's staff with a civ pennant
-	b = _b(715)
-	for i in 6:
-		var a := TAU * i / 6.0
-		b.prism(Vector3(cos(a) * 0.045, 0, sin(a) * 0.045), 0.012, 0.012, 0.014, 6, WOOD_LIGHT, WOOD_LIGHT.lightened(0.12))
-	b.pole(Vector3.ZERO, Vector3(0, 0.08, 0), 0.0028, WOOD)
-	b.tag = M7MeshBuilder.TAG_CIV
-	b.box(Vector3(0.012, 0.072, 0), Vector3(0.024, 0.014, 0.002), Color.WHITE)
-	meshes["decor_council"] = b.commit()
-
-	# quarry: cut blocks, rubble and a wedge and pick
-	b = _b(716)
-	b.box(Vector3(-0.022, 0.012, 0), Vector3(0.04, 0.024, 0.03), STONE, STONE.lightened(0.1))
-	b.box(Vector3(0.022, 0.01, 0.012), Vector3(0.03, 0.02, 0.03), STONE_DARK, STONE)
-	b.box(Vector3(-0.004, 0.034, 0.002), Vector3(0.036, 0.02, 0.03), ROCK_HI, ROCK_HI.lightened(0.1))
-	b.blob(Vector3(0.04, 0.004, -0.03), Vector3(0.012, 0.007, 0.012), 5, 3, ROCK, 0.1)
-	b.blob(Vector3(-0.04, 0.004, -0.028), Vector3(0.01, 0.006, 0.01), 5, 3, ROCK, 0.1)
-	b.pole(Vector3(0.012, 0, -0.04), Vector3(0.03, 0.036, -0.036), 0.003, WOOD_LIGHT)
-	b.box(Vector3(0.03, 0.038, -0.036), Vector3(0.016, 0.006, 0.006), STONE_DARK)
-	meshes["decor_quarry"] = b.commit()
-
-	# sky pole: a gnomon in a ring of small stones, a gold sun disc on top
-	b = _b(717)
-	b.pole(Vector3.ZERO, Vector3(0, 0.1, 0), 0.0048, WOOD_LIGHT)
-	for i in 8:
-		var a := TAU * i / 8.0
-		b.blob(Vector3(cos(a) * 0.06, 0.004, sin(a) * 0.06), Vector3(0.008, 0.007, 0.008), 5, 3, STONE, 0.1)
-	b.box(Vector3(0, 0.106, 0), Vector3(0.022, 0.006, 0.022), Color("#c9973c"))
-	meshes["decor_skypole"] = b.commit()
-
-	# mudbricks drying in rows
-	b = _b(718)
-	for row in 3:
-		for i in 4:
-			var tone := 0.04 * ((row * 4 + i) % 3 - 1)
-			b.box(Vector3(-0.03 + i * 0.02, 0.004 + (row % 2) * 0.0, -0.02 + row * 0.02), Vector3(0.017, 0.008, 0.009), MUD.lightened(tone))
-	b.box(Vector3(0.0, 0.012, -0.012), Vector3(0.017, 0.008, 0.009), MUD.darkened(0.05))
-	b.box(Vector3(0.02, 0.012, -0.012), Vector3(0.017, 0.008, 0.009), MUD.lightened(0.05))
-	meshes["decor_bricks"] = b.commit()
-
-	# baskets of nuts and seed
-	b = _b(719)
-	for bk in [[Vector3(-0.022, 0, 0), 0.0], [Vector3(0.016, 0, 0.012), 1.0], [Vector3(0.0, 0, -0.026), 2.0]]:
-		var bp: Vector3 = bk[0]
-		b.prism(bp, 0.012, 0.016, 0.018, 6, Color("#b08a4e"), Color("#7a5a2c"))
-		b.blob(bp + Vector3(0, 0.019, 0), Vector3(0.012, 0.006, 0.012), 5, 3, Color("#7a5a30") if bk[1] != 1.0 else Color("#d6ae43"))
-	meshes["decor_baskets"] = b.commit()
-
-	# woodwork: a chopping block with an adze, planks and a stack of coppiced poles
-	b = _b(720)
-	b.prism(Vector3.ZERO, 0.02, 0.02, 0.02, 7, WOOD_LIGHT, WOOD_LIGHT.lightened(0.15))
-	b.pole(Vector3(0.006, 0.02, 0.004), Vector3(0.03, 0.036, 0.012), 0.0024, WOOD)
-	b.box(Vector3(0.032, 0.037, 0.012), Vector3(0.012, 0.005, 0.008), STONE_DARK)
-	b.box(Vector3(-0.045, 0.004, 0.02), Vector3(0.05, 0.008, 0.012), WOOD_LIGHT.lightened(0.1))
-	b.box(Vector3(-0.045, 0.012, 0.02), Vector3(0.05, 0.008, 0.012), WOOD_LIGHT)
-	for i in 4:
-		b.pole(Vector3(0.03 + i * 0.006, 0, -0.03), Vector3(0.032 + i * 0.006, 0.07, -0.034), 0.0028, WOOD if i % 2 == 0 else WOOD_LIGHT)
-	meshes["decor_woodwork"] = b.commit()
-
-
 # ------------------------------------------------------------------ megalith pieces (see monument_rig.gd)
 
-func _monument() -> void:
-	# a standing stone, foot at the origin, 0.17 tall: rough, tapering, with a band of red ochre
-	var b := _b(730)
-	b.prism(Vector3.ZERO, 0.034, 0.03, 0.11, 6, ROCK, ROCK_HI, 0.0, 0.1)
-	b.prism(Vector3(0, 0.11, 0), 0.03, 0.019, 0.06, 6, ROCK_HI, ROCK_HI.lightened(0.08), 0.3, 0.1)
-	b.prism(Vector3(0, 0.07, 0), 0.0345, 0.0345, 0.008, 6, Color("#a4452c"), Color("#a4452c"))
-	meshes["monument_menhir"] = b.commit()
-	# a lintel, centred, long axis along X
-	b = _b(731)
-	b.box(Vector3.ZERO, Vector3(0.26, 0.04, 0.06), ROCK_HI, ROCK_HI.lightened(0.1))
-	b.box(Vector3(0, -0.012, 0), Vector3(0.262, 0.008, 0.062), Color("#a4452c"))
-	meshes["monument_lintel"] = b.commit()
-	# a drag sledge, centred, long axis along Z: two runners and cross boards
-	b = _b(732)
-	b.pole(Vector3(-0.03, 0.006, -0.1), Vector3(-0.03, 0.006, 0.09), 0.0045, WOOD)
-	b.pole(Vector3(0.03, 0.006, -0.1), Vector3(0.03, 0.006, 0.09), 0.0045, WOOD)
-	b.pole(Vector3(-0.03, 0.006, 0.09), Vector3(-0.03, 0.02, 0.112), 0.0045, WOOD)
-	b.pole(Vector3(0.03, 0.006, 0.09), Vector3(0.03, 0.02, 0.112), 0.0045, WOOD)
-	for z in [-0.08, -0.03, 0.02, 0.07]:
-		b.box(Vector3(0, 0.014, z), Vector3(0.08, 0.008, 0.014), WOOD_LIGHT)
-	meshes["monument_sledge"] = b.commit()
-	# a roller log, axis along X
-	b = _b(733)
-	b.pole(Vector3(-0.045, 0.0, 0), Vector3(0.045, 0.0, 0), 0.0075, WOOD_LIGHT, 6)
-	meshes["monument_roller"] = b.commit()
-	# a drag rope, one unit long along +Z from the origin
-	b = _b(734)
-	b.box(Vector3(0, 0, 0.5), Vector3(0.004, 0.004, 1.0), Color("#b9a68a"))
-	meshes["monument_rope"] = b.commit()
+# ------------------------------------------------------------------ ziggurat (BLD-08)
+
+# ziggurat palette (sRGB)
+const ZIG_BRICK := Color("#a3704a")      # baked-brick casing, first terrace
+const ZIG_BRICK_MID := Color("#b98a5c")  # second terrace, stair walls
+const ZIG_BRICK_HI := Color("#cb9f6c")   # third terrace, gate pylons
+const ZIG_WALK := Color("#dcbb8a")       # terrace walkways: lighter than every wall
+const ZIG_STAIR := Color("#e6cc9e")      # stair treads: the lightest masonry
+const ZIG_RECESS := Color("#6f4a30")     # buttress recesses
+const ZIG_BITUMEN := Color("#3b2b20")    # reed-and-bitumen course
+const ZIG_LIME := Color("#f1e6cb")       # whitewashed summit shrine
+const ZIG_MESHES := ["ziggurat_s1", "ziggurat_s2", "ziggurat_s3", "ziggurat"]
+# apron = STONE, raw tops = MUD, ramp = EARTH, poles = WOOD/WOOD_LIGHT, crest = M7LooksKit.GOLD, DARK = #2a2119
+
+## BLD-08 Stepped Pyramid: the ziggurat a civilization raises at its city, in three half-built stages and a finished one.
+func _ziggurats() -> void:
+	for stage in range(1, 5):
+		meshes[ZIG_MESHES[stage - 1]] = _ziggurat(stage)
+
+## Battered rectangular terrace on (0, y, cz): bottom half-extents (ax, az), top (bx, bz); top == null leaves it open.
+func _zig_terrace(b: M7MeshBuilder, cz: float, y: float, h: float, ax: float, az: float, bx: float, bz: float,
+		side: Color, top = null) -> void:
+	var lo := [Vector3(-ax, y, cz - az), Vector3(ax, y, cz - az), Vector3(ax, y, cz + az), Vector3(-ax, y, cz + az)]
+	var hi := [Vector3(-bx, y + h, cz - bz), Vector3(bx, y + h, cz - bz), Vector3(bx, y + h, cz + bz), Vector3(-bx, y + h, cz + bz)]
+	var core := Vector3(0, y + h * 0.5, cz)
+	for i in 4:                                   # 0 back, 1 +X, 2 front, 3 -X
+		b.quad(lo[i], lo[(i + 1) % 4], hi[(i + 1) % 4], hi[i], side.darkened(0.05) if i % 2 == 1 else side, core)
+	if top != null:
+		b.quad(hi[0], hi[1], hi[2], hi[3], top, Vector3(0, y, cz))
+
+## Dark recess stripes 1.5 mm proud of a battered wall: at absolute x on the back face, at cz + z on the side faces.
+func _zig_stripes(b: M7MeshBuilder, cz: float, y: float, h: float, ax: float, az: float, bx: float, bz: float,
+		back_xs: Array, side_zs: Array) -> void:
+	var w := 0.008
+	var e := 0.0015
+	var y0 := y + 0.004
+	var y1 := y + h - 0.004
+	var core := Vector3(0, y + h * 0.5, cz)
+	for x in back_xs:
+		b.quad(Vector3(x - w, y0, cz - az - e), Vector3(x + w, y0, cz - az - e),
+			Vector3(x + w, y1, cz - bz - e), Vector3(x - w, y1, cz - bz - e), ZIG_RECESS, core)
+	for sx in [-1.0, 1.0]:
+		for z in side_zs:
+			b.quad(Vector3(sx * (ax + e), y0, cz + z - w), Vector3(sx * (ax + e), y0, cz + z + w),
+				Vector3(sx * (bx + e), y1, cz + z + w), Vector3(sx * (bx + e), y1, cz + z - w), ZIG_RECESS, core)
+
+## Axial flight (centred on x = 0) from foot (zf, yf) to head (zh, yh) against a terrace face whose foot is at zb:
+## a tread slope, parapet walls each side (outer face, cap, inner face), `steps` dark tread lines.
+func _zig_stair(b: M7MeshBuilder, zf: float, yf: float, zh: float, yh: float, zb: float, hw: float, steps: int) -> void:
+	var p := 0.008
+	var ww := hw + 0.006
+	var zm := (zf + zh) * 0.5
+	b.quad(Vector3(-hw, yf, zf), Vector3(hw, yf, zf), Vector3(hw, yh, zh), Vector3(-hw, yh, zh), ZIG_STAIR, Vector3(0, yf - 0.05, zm))
+	for sx in [-1.0, 1.0]:
+		b.quad(Vector3(sx * ww, yf, zf), Vector3(sx * ww, yf, zb), Vector3(sx * ww, yh + p, zh), Vector3(sx * ww, yf + p, zf),
+			ZIG_BRICK_MID, Vector3(0, yf, zm))
+		b.quad(Vector3(sx * hw, yf + p, zf), Vector3(sx * ww, yf + p, zf), Vector3(sx * ww, yh + p, zh), Vector3(sx * hw, yh + p, zh),
+			ZIG_WALK, Vector3(sx * hw, yf - 0.05, zm))
+		b.quad(Vector3(sx * hw, yf, zf), Vector3(sx * hw, yh, zh), Vector3(sx * hw, yh + p, zh), Vector3(sx * hw, yf + p, zf),
+			ZIG_BRICK_MID.darkened(0.1), Vector3(sx * ww * 3.0, (yf + yh) * 0.5, zm))
+	var d := 0.0035 / Vector2(zh - zf, yh - yf).length()
+	for i in steps:
+		var t := (i + 0.5) / steps
+		var a := Vector3(0, lerpf(yf, yh, t - d) + 0.0012, lerpf(zf, zh, t - d))
+		var c := Vector3(0, lerpf(yf, yh, t + d) + 0.0012, lerpf(zf, zh, t + d))
+		b.quad(a + Vector3(-hw, 0, 0), a + Vector3(hw, 0, 0), c + Vector3(hw, 0, 0), c + Vector3(-hw, 0, 0),
+			ZIG_STAIR.darkened(0.32), a + Vector3(0, -0.05, 0))
+
+## The two side flights hugging the first terrace's front face, rising toward the central stair.
+func _zig_side_flights(b: M7MeshBuilder) -> void:
+	for sx in [-1.0, 1.0]:
+		var f_in := Vector3(sx * 0.205, 0.012, 0.19)
+		var f_out := Vector3(sx * 0.205, 0.012, 0.226)
+		var h_in := Vector3(sx * 0.064, 0.122, 0.173)
+		var h_out := Vector3(sx * 0.064, 0.122, 0.209)
+		var under := Vector3(sx * 0.064, 0.012, 0.226)
+		var core := Vector3(sx * 0.13, 0.03, 0.2)
+		b.quad(f_in, f_out, h_out, h_in, ZIG_STAIR, core)
+		b.tri(f_out, h_out, under, ZIG_BRICK_MID, core)
+		b.quad(under, h_out, h_in, Vector3(sx * 0.064, 0.012, 0.19), ZIG_BRICK_MID.darkened(0.08), core)
+		for i in 5:
+			var t := (i + 0.5) / 5.0
+			var a0 := f_in.lerp(h_in, t - 0.02) + Vector3(0, 0.0012, 0)
+			var a1 := f_out.lerp(h_out, t - 0.02) + Vector3(0, 0.0012, 0)
+			var c1 := f_out.lerp(h_out, t + 0.02) + Vector3(0, 0.0012, 0)
+			var c0 := f_in.lerp(h_in, t + 0.02) + Vector3(0, 0.0012, 0)
+			b.quad(a0, a1, c1, c0, ZIG_STAIR.darkened(0.32), a0 + Vector3(0, -0.05, 0))
+
+func _zig_bricks(b: M7MeshBuilder, p: Vector3) -> void:
+	b.box(p + Vector3(0, 0.006, 0), Vector3(0.032, 0.012, 0.022), MUD, MUD.lightened(0.08))
+	b.box(p + Vector3(0.003, 0.018, -0.002), Vector3(0.024, 0.012, 0.018), MUD.darkened(0.06), MUD.lightened(0.04))
+
+## Stage 1..3 = under construction, 4 = finished. Origin at ground centre, stair faces +Z (toward the hearth).
+func _ziggurat(stage: int) -> ArrayMesh:
+	var b := _b(790 + stage)
+	var DARK := Color("#2a2119")
+	# cut-stone apron, sunk to -0.038 so a slope never shows under it
+	b.box(Vector3(0, -0.013, 0.0425), Vector3(0.5, 0.05, 0.515), STONE, STONE.lightened(0.08))
+	# --- terrace 1: y 0.012 .. 0.122
+	if stage == 1:
+		_zig_terrace(b, 0.0, 0.012, 0.058, 0.225, 0.19, 0.2155, 0.1805, ZIG_BRICK, MUD)
+	else:
+		_zig_terrace(b, 0.0, 0.012, 0.072, 0.225, 0.19, 0.2132, 0.1782, ZIG_BRICK)
+		_zig_terrace(b, 0.0, 0.084, 0.006, 0.2132, 0.1782, 0.2122, 0.1772, ZIG_BITUMEN)
+		_zig_terrace(b, 0.0, 0.090, 0.032, 0.2122, 0.1772, 0.207, 0.172, ZIG_BRICK, ZIG_WALK)
+		_zig_stripes(b, 0.0, 0.012, 0.11, 0.225, 0.19, 0.207, 0.172,
+			[-0.18, -0.108, -0.036, 0.036, 0.108, 0.18], [-0.114, -0.038, 0.038, 0.114])
+		_zig_stair(b, 0.29, 0.012, 0.172, 0.122, 0.19, 0.03, 7)
+		_zig_side_flights(b)
+		for sx in [-1.0, 1.0]:                       # gate pylons where the three flights meet, civ caps
+			b.box(Vector3(sx * 0.052, 0.137, 0.155), Vector3(0.022, 0.03, 0.022), ZIG_BRICK_HI)
+			b.tag = M7MeshBuilder.TAG_CIV
+			b.box(Vector3(sx * 0.052, 0.155, 0.155), Vector3(0.026, 0.006, 0.026), Color.WHITE)
+			b.tag = M7MeshBuilder.TAG_PLAIN
+	# --- terrace 2: y 0.122 .. 0.202, set back (cz -0.025)
+	if stage == 2:
+		_zig_terrace(b, -0.025, 0.122, 0.04, 0.15, 0.12, 0.144, 0.114, ZIG_BRICK_MID, MUD)
+	elif stage >= 3:
+		_zig_terrace(b, -0.025, 0.122, 0.08, 0.15, 0.12, 0.138, 0.108, ZIG_BRICK_MID, ZIG_WALK)
+		_zig_stripes(b, -0.025, 0.122, 0.08, 0.15, 0.12, 0.138, 0.108, [-0.105, -0.035, 0.035, 0.105], [-0.06, 0.0, 0.06])
+		_zig_stair(b, 0.15, 0.122, 0.083, 0.202, 0.095, 0.026, 5)
+		# --- terrace 3: y 0.202 .. 0.256 (cz -0.04)
+		_zig_terrace(b, -0.04, 0.202, 0.054, 0.095, 0.075, 0.088, 0.068, ZIG_BRICK_HI, ZIG_WALK.lightened(0.04))
+		_zig_stair(b, 0.078, 0.202, 0.028, 0.256, 0.035, 0.022, 4)
+	# --- summit shrine (on terrace 3, z -0.09 .. -0.01) and fire altar
+	if stage == 3:
+		b.box(Vector3(0, 0.273, -0.05), Vector3(0.11, 0.034, 0.08), ZIG_LIME.darkened(0.08), MUD)
+		b.box(Vector3(0, 0.272, -0.0085), Vector3(0.024, 0.03, 0.003), DARK)
+	elif stage == 4:
+		b.box(Vector3(0, 0.281, -0.05), Vector3(0.11, 0.05, 0.08), ZIG_LIME)
+		b.tag = M7MeshBuilder.TAG_CIV
+		b.box(Vector3(0, 0.299, -0.05), Vector3(0.114, 0.008, 0.084), Color.WHITE)          # frieze
+		b.tag = M7MeshBuilder.TAG_PLAIN
+		b.box(Vector3(0, 0.31, -0.05), Vector3(0.122, 0.008, 0.092), ZIG_LIME.darkened(0.12), ZIG_LIME)  # roof slab
+		b.box(Vector3(0, 0.32, -0.05), Vector3(0.05, 0.012, 0.012), M7LooksKit.GOLD)        # crest
+		b.quad(Vector3(-0.012, 0.257, -0.0085), Vector3(0.012, 0.257, -0.0085), Vector3(0.012, 0.29, -0.0085),
+			Vector3(-0.012, 0.29, -0.0085), DARK, Vector3(0, 0.28, -0.05))                  # door
+		b.prism(Vector3(0, 0.256, 0.009), 0.011, 0.014, 0.009, 6, STONE_DARK, DARK)          # altar bowl
+		b.tag = M7MeshBuilder.TAG_EMISSIVE
+		b.prism(Vector3(0, 0.265, 0.009), 0.010, 0.0, 0.018, 5, Color("#ff7a20"), Color("#ff7a20"))
+		b.prism(Vector3(0.002, 0.265, 0.01), 0.006, 0.0, 0.012, 4, Color("#ffc040"), Color("#ffc040"))
+		b.tag = M7MeshBuilder.TAG_PLAIN
+	# --- construction gear: earth ramp up +X, brick stacks, scaffold, the owner's pennant
+	if stage < 4:
+		var rh := 0.07 if stage == 1 else 0.122
+		var xf := 0.36 if stage == 1 else 0.42
+		var xh := 0.2155 if stage == 1 else 0.207
+		b.quad(Vector3(xf, 0.0, -0.035), Vector3(xf, 0.0, 0.035), Vector3(xh, rh, 0.035), Vector3(xh, rh, -0.035),
+			EARTH.lightened(0.12), Vector3((xf + xh) * 0.5, -0.05, 0))
+		for sz in [-0.035, 0.035]:
+			b.tri(Vector3(xf, 0.0, sz), Vector3(xh, 0.0, sz), Vector3(xh, rh, sz), EARTH, Vector3((xf + xh) * 0.5, rh * 0.3, 0))
+		for p in [Vector3(0.40, 0.0, 0.075), Vector3(0.40, 0.0, -0.075)]:
+			_zig_bricks(b, p)
+		var stacks: Array = [
+			[Vector3(-0.12, 0.07, -0.08), Vector3(-0.03, 0.07, 0.06), Vector3(0.09, 0.07, -0.1), Vector3(0.15, 0.07, 0.05)],
+			[Vector3(-0.07, 0.162, -0.085), Vector3(0.06, 0.162, -0.005), Vector3(0.17, 0.122, 0.12)],
+			[Vector3(0.07, 0.256, -0.05), Vector3(-0.115, 0.202, -0.025)]][stage - 1]
+		for p in stacks:
+			_zig_bricks(b, p)
+		if stage == 3:                                    # ladder from terrace 1 to terrace 2
+			for sz in [-0.012, 0.012]:
+				b.pole(Vector3(0.19, 0.122, sz), Vector3(0.135, 0.21, sz), 0.0025, WOOD_LIGHT)
+			for r in 3:
+				var q := Vector3(0.19, 0.122, 0).lerp(Vector3(0.135, 0.21, 0), 0.25 + 0.25 * r)
+				b.pole(q + Vector3(0, 0, -0.012), q + Vector3(0, 0, 0.012), 0.002, WOOD)
+		var sc: Array = [[0.222, 0.0, 0.187, 0.012, 0.11], [0.147, -0.025, 0.117, 0.122, 0.2], [0.062, -0.05, 0.047, 0.256, 0.33]][stage - 1]
+		var hx: float = sc[0]
+		var cz: float = sc[1]
+		var hz: float = sc[2]
+		var y0: float = sc[3]
+		var y1: float = sc[4]
+		for sx in [-1.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				b.pole(Vector3(sx * hx, y0, cz + sz * hz), Vector3(sx * hx, y1, cz + sz * hz), 0.0035, WOOD_LIGHT)
+		for sz in [-1.0, 1.0]:
+			b.pole(Vector3(-hx, y1 - 0.018, cz + sz * hz), Vector3(hx, y1 - 0.018, cz + sz * hz), 0.0028, WOOD)
+		var pp := Vector3(-hx, y1, cz + hz)
+		b.pole(pp, pp + Vector3(0, 0.06, 0), 0.003, WOOD)
+		b.tag = M7MeshBuilder.TAG_CIV
+		b.quad(pp + Vector3(0.002, 0.058, 0), pp + Vector3(0.05, 0.048, 0), pp + Vector3(0.05, 0.02, 0), pp + Vector3(0.002, 0.03, 0),
+			Color.WHITE, pp + Vector3(0.02, 0.04, 0.3))
+		b.tag = M7MeshBuilder.TAG_PLAIN
+	return b.commit()
 
 
 # ------------------------------------------------------------------ boats under fishers (named person_* so they glide with them)

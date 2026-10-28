@@ -5,6 +5,7 @@ extends Node3D
 const M7WorldData = preload("res://Renderer/LowPoly3D/Scripts/world_data.gd")
 const M7MeshKit = preload("res://Renderer/LowPoly3D/Scripts/mesh_kit.gd")
 const M7WorldBuilder = preload("res://Renderer/LowPoly3D/Scripts/world_builder.gd")
+const M7ZigguratRig = preload("res://Renderer/LowPoly3D/Scripts/zig_rig.gd")
 const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
 
 var world: M7WorldData
@@ -34,6 +35,7 @@ var feast_rig: M7FeastRig
 var dog_rig: M7DogRig
 var farm_rig: M7FarmRig
 var skirmish_rig: M7SkirmishRig
+var zig_rig: M7ZigguratRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -71,6 +73,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	farm_rig = M7FarmRig.new(builder, world_root)
 	farm_rig.sync()
 	skirmish_rig = M7SkirmishRig.new(builder, world_root)
+	zig_rig = M7ZigguratRig.new(builder, world_root, Callable(self, "_make_smoke"))
+	zig_rig.sync()
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -96,6 +100,7 @@ func update_frame(frame_data: Dictionary) -> void:
 	signal_rig.sync()
 	dog_rig.sync()
 	farm_rig.sync()
+	zig_rig.sync()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
@@ -143,6 +148,8 @@ func set_render_tick(tick: float, profile: bool = false) -> void:
 		farm_rig.update(tick)
 		if profile:
 			parts["farm_update"] = Time.get_ticks_usec() - phase_started
+	if zig_rig != null:
+		zig_rig.update(tick)
 	if profile:
 		var total_usec := Time.get_ticks_usec() - profile_started
 		if total_usec > _render_tick_profile_max_usec:
@@ -296,6 +303,61 @@ func show_gallery() -> Vector3:
 			if name.begins_with("ard_") or name.begins_with("ox_"):
 				yaw = PI * 0.5
 			batch.add(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * float(item[2])), Vector3(x, 0.0, z)), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	return centre
+
+## Dev aid for scenarios: lays every building and village prop out in rows on a plain stage at village scale (see the buildings-gallery
+## scenario): dwellings, yard structures, defenses and land, three rows of decor, then the landmarks. Rows are 1.4 apart (row 0 is the
+## nearest, at +z). Returns the stage centre.
+func show_buildings_gallery() -> Vector3:
+	var stage := Node3D.new()
+	stage.name = "BuildingsGallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(8.0, 11.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, 0.0)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	var vs := 1.45
+	# [mesh, width it needs, scale]
+	var rows := [
+		[["tent", 0.34, vs], ["leanto", 0.36, vs], ["pithouse", 0.44, vs], ["wattle", 0.42, vs], ["mudbrick", 0.42, vs], ["longhouse", 0.7, vs], ["hall", 0.85, vs]],
+		[["hearth", 0.4, vs], ["storagepit", 0.4, vs], ["dryingrack", 0.4, vs], ["granary", 0.4, vs], ["kiln", 0.4, vs], ["quern", 0.4, vs],
+			["camp", 0.5, 1.0], ["lookout", 0.4, vs]],
+		[["thorn", 0.4, 1.2], ["thorn", 0.4, 1.2], ["fence", 0.4, 1.15], ["weir", 0.5, 1.0], ["decor_palisade", 0.4, vs], ["beacon", 0.4, 1.25],
+			["orchard_tree", 0.5, 1.0], ["orchard_tree", 0.5, 1.0]],
+		[["decor_totem", 0.5, vs], ["decor_cairn", 0.5, vs], ["decor_hideframe", 0.5, vs], ["decor_pots", 0.5, vs], ["decor_loom", 0.5, vs], ["decor_shrine", 0.5, vs]],
+		[["decor_signal", 0.5, vs], ["decor_charcoal", 0.5, vs], ["decor_furnace", 0.5, vs], ["decor_sledge", 0.5, vs], ["decor_spearrack", 0.5, vs], ["decor_grave", 0.5, vs]],
+		[["decor_council", 0.5, vs], ["decor_quarry", 0.5, vs], ["decor_skypole", 0.5, vs], ["decor_bricks", 0.5, vs], ["decor_baskets", 0.5, vs], ["decor_woodwork", 0.5, vs]],
+		[["decor_temple", 0.8, vs], ["decor_chiefhall", 0.8, vs], ["decor_woolbales", 0.5, vs], ["ziggurat", 0.8, 1.3], ["monument_menhir", 0.4, 1.3], ["monument_lintel", 0.5, 1.3]],
+	]
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z := 4.2 - 1.4 * r
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(i % 4), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			var at := Vector3(x, 0.0, z)
+			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * float(item[2])), at), custom, false)
+			if name == "hearth":
+				batch.add("flame", Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * vs), at + Vector3(0, 0.004, 0)), Color(1, 1, 1, 0.5), false)
 			x += float(item[1]) * 0.5
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre

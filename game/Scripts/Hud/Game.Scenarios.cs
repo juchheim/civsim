@@ -413,6 +413,91 @@ public partial class Game
                 Step(() => Look("landmark_focus", 12.0f, "temple"), 1.2f);
                 Shot("looks-wide");
                 break;
+            case "ziggurat":
+                // --start-minute=30 --viewer=-1 --dev-ziggurat=0..4 (debug builds; 1 to 3 = the stages of a ziggurat going up, 4 = built):
+                // the BLD-08 ziggurat in its city, from afar, close up, then a few moments of the procession or the carriers.
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(false);
+                    _session.SetSpeedIndex(1);
+                    FrameCapital();
+                }, 3.0f);
+                void ZigLook(float zoom)
+                {
+                    Vector3 at = (Vector3)_visualRenderer!.Call("landmark_focus", "ziggurat");
+                    if (at != Vector3.Zero) { _target = at; ZoomTo(zoom); UpdateCamera(); }
+                }
+                Step(() => ZigLook(8.0f), 1.5f);
+                Shot("ziggurat-wide");
+                Step(() => ZigLook(3.6f), 1.2f);
+                Shot("ziggurat-village");
+                for (int i = 0; i < 6; i++)
+                {
+                    int n = i;
+                    Step(() => ZigLook(2.2f), 1.0f);
+                    Shot($"ziggurat-close-{n}");
+                    Step(() => { }, 2.2f);
+                }
+                break;
+            case "leanto-village":
+                // --start-minute=30 --viewer=-1 --dev-leanto=N (debug builds): the capital as a camp of lean-tos, from afar and close up
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital();
+                }, 2.0f);
+                foreach (var (leantoShot, leantoZoom) in new[] { ("wide", 7.0f), ("village", 4.0f), ("close", 2.7f) })
+                {
+                    float zoom = leantoZoom;
+                    string shot = leantoShot;
+                    Step(() => { FrameCapital(); ZoomTo(zoom); UpdateCamera(); }, 1.2f);
+                    Shot($"leanto-{shot}");
+                }
+                break;
+            case "buildings-gallery":
+                // every building and village prop at village scale, one row per shot (rows are laid out in LowPoly3DView.show_buildings_gallery)
+                Vector3 buildingsOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital();
+                }, 1.5f);
+                Step(() => buildingsOrigin = (Vector3)_visualRenderer!.Call("show_buildings_gallery"), 1.0f);
+                // --rows=dwellings,yard limits the tour to those rows (names below)
+                string[]? onlyRows = ArgumentValue("--rows=")?.Split(',');
+                foreach (var (rowName, row) in new[]
+                {
+                    ("dwellings", 0), ("yard", 1), ("defense-land", 2), ("decor-1", 3), ("decor-2", 4), ("decor-3", 5), ("landmarks", 6),
+                })
+                {
+                    if (onlyRows is not null && Array.IndexOf(onlyRows, rowName) < 0) continue;
+                    string label = rowName;
+                    float z = 4.2f - 1.4f * row;
+                    foreach (var (half, dx) in new[] { ("a", -1.5f), ("b", 0.0f), ("c", 1.5f) })
+                    {
+                        string side = half;
+                        float x = dx;
+                        Step(() =>
+                        {
+                            _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                            _pitch = Mathf.DegToRad(40.0f);
+                            _target = new Vector3(buildingsOrigin.X + x, buildingsOrigin.Y, buildingsOrigin.Z + z - 0.05f);
+                            ZoomTo(2.7f);
+                            UpdateCamera();
+                        }, 1.0f);
+                        Shot($"buildings-{label}-{side}");
+                    }
+                }
+                break;
             case "looks-gallery":
                 // lays the meshes of the looks projects out in rows on a stage above the map and photographs them row by row
                 Vector3 galleryOrigin = Vector3.Zero;

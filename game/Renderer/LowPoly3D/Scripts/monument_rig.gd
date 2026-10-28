@@ -78,6 +78,10 @@ func _pick_center(tile: int) -> Variant:
 		for tp in b.tree_points:
 			if (tp as Vector2).distance_to(cand) < RING_R + 0.3:
 				score -= 6
+		# a ziggurat (BLD-08) stands about the same distance out: keep the ring off it
+		for z in b.ziggurat_sites:
+			if (z.p as Vector2).distance_to(cand) < RING_R + 0.6:
+				score -= 20
 		if b._ok_site(cand, h0):
 			score += 4
 		for i in UPRIGHTS:
