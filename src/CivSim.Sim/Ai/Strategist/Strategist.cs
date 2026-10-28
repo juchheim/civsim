@@ -40,6 +40,7 @@ public sealed partial class Strategist : IStrategist
     private int _raidStreak;
     internal int? NonConquerRaidPostureStreakForDiagnostics { get; set; }
     internal Fix64? FrontierEarlyBonusForDiagnostics { get; set; }
+    internal bool FrontierConquestPlanFloorForDiagnostics { get; set; }
     internal int ThreeSeasonNonConquerRaidPostureOpportunitiesForDiagnostics { get; private set; }
     internal bool UseMaxCampaignOriginForDiagnostics { get; set; }
     private Fix64 _prevLegacy, _legacyRate, _prevDominion, _dominionRate;
@@ -55,6 +56,12 @@ public sealed partial class Strategist : IStrategist
 
     public bool ActsOnPolitics => true;
     public GrandPlan Plan => _plan;
+    /// <summary>Enables selector/order explanation rows for the opt-in B28 harness trace only.</summary>
+    public bool TraceBronzeDefenseForDiagnostics { get; set; }
+    /// <summary>Harness-only observer for the campaign options the Strategist already evaluates; never read by policy.</summary>
+    internal Action<CampaignEvaluationDiagnostic>? CampaignEvaluationObserverForDiagnostics { get; set; }
+    /// <summary>Harness-only output observer called after this season's plan and target are selected.</summary>
+    internal Action<int, int, GrandPlan, int>? CampaignPlanObserverForDiagnostics { get; set; }
 
     public void Decide(AiContext context) => Decide(StrategistView.From(context), new OrdersActions(context.Orders));
 
@@ -73,6 +80,7 @@ public sealed partial class Strategist : IStrategist
         ReadWarOptions(v, s);
         s.SecureTinValue = SecureTinPlanValue(v);
         ChoosePlan(v, s);
+        CampaignPlanObserverForDiagnostics?.Invoke(v.Civ, v.Season, _plan, _planTarget);
         PrioritizeBronzeDefense(v, act);
 
         DecidePeace(v, s, act);
@@ -86,13 +94,35 @@ public sealed partial class Strategist : IStrategist
         Remember(v, s);
     }
 
-    private static void PrioritizeBronzeDefense(StrategistView v, IStrategistActions act)
+    private void PrioritizeBronzeDefense(StrategistView v, IStrategistActions act)
     {
         int settlement = BronzeDefensePolicy.SelectSettlement(v.Civ, v.Season, v.Belief.Map.Width,
             v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals,
             v.Catalog.IndexOf("MET-04"), v.Catalog.IndexOf("MET-05"));
-        if (settlement >= 0 && act.PrioritizePhysicalDefenseBuild(settlement))
-            v.Note("DefenseBuild", settlement, -1, Fix64.One, "physical defense priority from believed bronze threat");
+        if (settlement >= 0)
+        {
+            string refusalDetails = TraceBronzeDefenseForDiagnostics
+                ? act.DescribePrioritizePhysicalDefenseBuild(settlement)
+                : string.Empty;
+            bool accepted = act.PrioritizePhysicalDefenseBuild(settlement);
+            if (accepted) v.Note("DefenseBuild", settlement, -1, Fix64.One, "physical defense priority from believed bronze threat");
+            if (TraceBronzeDefenseForDiagnostics)
+                v.Note("B28DefenseAttempt", settlement, accepted ? 1 : 0, Fix64.One,
+                    $"selector=target:s{settlement}; order={(accepted ? "accepted" : "rejected")}; {refusalDetails}");
+            return;
+        }
+        if (!TraceBronzeDefenseForDiagnostics) return;
+        int met04 = v.Catalog.IndexOf("MET-04"), met05 = v.Catalog.IndexOf("MET-05");
+        foreach (RivalBelief rival in v.Belief.Rivals)
+        {
+            if (rival.Civ == v.Civ || !BronzeDefensePolicy.BelievesBronze(rival, met04, met05)) continue;
+            bool recentRaid = v.Season - rival.LastRaidOnUsSeason is >= 0 and <= ThreatModel.RecentRaidSeasons;
+            if (!(rival.AtWar || rival.ThreatProbability >= Fix64.FromRatio(1, 10) || recentRaid)) continue;
+            v.Note("B28DefenseAttempt", -1, 0, rival.ThreatProbability,
+                $"selector=no-target; supported believed-bronze rival=c{rival.Civ} war={rival.AtWar} " +
+                $"threat={rival.ThreatProbability.ToDoubleForDisplay():F3} recentRaid={recentRaid}");
+            break;
+        }
     }
 
     // ---- set-up ---------------------------------------------------------------------------
@@ -211,6 +241,11 @@ public sealed partial class Strategist : IStrategist
         value[(int)GrandPlan.SecureTin] = s.SecureTinValue;
         target[(int)GrandPlan.SecureTin] = -1;
 
+        int otherwiseBestPlan = 0;
+        for (int i = 1; i < value.Length; i++) if (value[i] > value[otherwiseBestPlan]) otherwiseBestPlan = i;
+        value[(int)GrandPlan.Conquer] = ApplyFrontierConquestPlanFloorForDiagnostics(
+            FrontierConquestPlanFloorForDiagnostics, _started, _plan, (GrandPlan)otherwiseBestPlan,
+            value[(int)GrandPlan.FrontierRace], value[(int)GrandPlan.Conquer]);
         int bestPlan = 0;
         for (int i = 1; i < value.Length; i++) if (value[i] > value[bestPlan]) bestPlan = i;
         Fix64 current = value[(int)_plan];
@@ -274,6 +309,16 @@ public sealed partial class Strategist : IStrategist
         else if (best is { } b && b.Ratio > Fix64.Zero && b.Window > Fix64.Zero) readiness = Fix64.FromRatio(4, 10);
         else if (_raidStreak > 0) readiness = Fix64.FromRatio(35, 100);
         intent.AttackReadiness = Fix64.Clamp(readiness, Fix64.Zero, Fix64.One);
+    }
+
+    internal static Fix64 ApplyFrontierConquestPlanFloorForDiagnostics(bool enabled, bool started,
+        GrandPlan currentPlan, GrandPlan otherwiseBestPlan, Fix64 frontierValue, Fix64 conquerValue)
+    {
+        if (!enabled || !started || currentPlan != GrandPlan.FrontierRace ||
+            otherwiseBestPlan != GrandPlan.FrontierRace || conquerValue <= Fix64.Zero)
+            return conquerValue;
+        Fix64 switchFloor = frontierValue + StrategistTuning.CommitmentPenalty * frontierValue + Fix64.Epsilon;
+        return Fix64.Max(conquerValue, switchFloor);
     }
 
     // ---- Posture (14 §4.5) ------------------------------------------------------------------

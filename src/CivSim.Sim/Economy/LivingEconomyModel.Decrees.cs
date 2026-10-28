@@ -100,7 +100,7 @@ public sealed partial class LivingEconomyModel
         int population = Population(parent.Id);
         int daughterCount = (Fix64.FromInt(population) * share).RoundToInt();
         if (daughterCount < minDaughter || daughterCount >= population) return -1;
-        SettlementState? daughter = SplitSettlement(parent, siteTile, daughterCount, season, FoundStream);
+        SettlementState? daughter = SplitSettlement(parent, siteTile, daughterCount, season, FoundStream, out _);
         if (daughter is null) return -1;
         // C = (F − 0.6) ÷ 0.006 (docs/MVP/22 §8.3), so C 60 is F 0.96.
         daughter.Cohesion = Fix64.Clamp(Fix64.Parse("0.6") + Fix64.FromRatio(6, 1000) * startCohesion, Fix64.Parse("0.6"), Fix64.Parse("1.2"));

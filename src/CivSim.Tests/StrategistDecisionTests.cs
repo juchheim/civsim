@@ -735,6 +735,28 @@ public class StrategistDecisionTests
     }
 
     [Fact]
+    public void Frontier_conquest_plan_floor_clears_only_the_strict_frontier_switch_margin()
+    {
+        Fix64 frontier = Fix64.FromInt(2);
+        Fix64 below = Fix64.FromRatio(21, 10);
+        Fix64 floor = frontier + StrategistTuning.CommitmentPenalty * frontier + Fix64.Epsilon;
+
+        Assert.Equal(floor, Strategist.ApplyFrontierConquestPlanFloorForDiagnostics(
+            enabled: true, started: true, GrandPlan.FrontierRace, GrandPlan.FrontierRace, frontier, below));
+        Assert.True(floor > frontier + StrategistTuning.CommitmentPenalty * frontier);
+        Assert.Equal(below, Strategist.ApplyFrontierConquestPlanFloorForDiagnostics(
+            enabled: false, started: true, GrandPlan.FrontierRace, GrandPlan.FrontierRace, frontier, below));
+        Assert.Equal(below, Strategist.ApplyFrontierConquestPlanFloorForDiagnostics(
+            enabled: true, started: false, GrandPlan.FrontierRace, GrandPlan.FrontierRace, frontier, below));
+        Assert.Equal(below, Strategist.ApplyFrontierConquestPlanFloorForDiagnostics(
+            enabled: true, started: true, GrandPlan.Prosper, GrandPlan.FrontierRace, frontier, below));
+        Assert.Equal(below, Strategist.ApplyFrontierConquestPlanFloorForDiagnostics(
+            enabled: true, started: true, GrandPlan.FrontierRace, GrandPlan.Defend, frontier, below));
+        Assert.Equal(Fix64.Zero, Strategist.ApplyFrontierConquestPlanFloorForDiagnostics(
+            enabled: true, started: true, GrandPlan.FrontierRace, GrandPlan.FrontierRace, frontier, Fix64.Zero));
+    }
+
+    [Fact]
     public void Declares_war_only_with_the_force_ratio_and_makes_peace_when_losing()
     {
         // Strong and hostile toward a small camp: war and an assault in the same season.

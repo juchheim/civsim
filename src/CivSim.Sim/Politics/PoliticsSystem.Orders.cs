@@ -149,6 +149,14 @@ public sealed partial class PoliticsSystem
         return _economy.PrioritizePhysicalDefenseBuild(settlement);
     }
 
+    /// <summary>Read-only explanation for the optional B28 diagnostic trace.</summary>
+    public string DescribePrioritizePhysicalDefenseBuild(int c, int settlement)
+    {
+        if ((uint)c >= (uint)_civs || (uint)settlement >= (uint)_sCiv.Length || _sCiv[settlement] != c || IsFreeFolk(settlement))
+            return "order refusal=caller-does-not-own-settlement";
+        return _economy.DescribePrioritizePhysicalDefenseBuild(settlement);
+    }
+
     /// <summary>Posture (needs GOV-02, the same rule as the player's lever).</summary>
     public bool OrderPosture(int c, Posture posture)
     {

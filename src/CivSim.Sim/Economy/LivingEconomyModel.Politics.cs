@@ -42,6 +42,8 @@ public sealed partial class LivingEconomyModel
     }
 
     public IFissionSiteAdvisor? SiteAdvisor { get; set; }
+    // Diagnostic-only sink: deliberately excluded from state hashes, snapshots and serialization.
+    internal FissionSiteDiagnostics? FissionSiteDiagnosticsForDiagnostics { get; set; }
 
     public Fix64 FissionScaleOf(int civ) => FissionThresholdScale(civ);
 

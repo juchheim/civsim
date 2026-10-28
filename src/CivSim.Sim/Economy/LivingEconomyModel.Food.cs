@@ -287,6 +287,7 @@ public sealed partial class LivingEconomyModel
         }
         Fix64 fromStores = Fix64.Min(need, Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood]));
         s.Stores[(int)Good.Wood] -= fromStores;
+        RecordLocalWoodUse(s, fromStores, "fuel");
         AddMetalStat(s.Civilization, StatOtherWood, fromStores);
     }
 }

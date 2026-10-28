@@ -655,13 +655,11 @@ public sealed class BeliefBuilder : IBeliefBuilder
     public static int TilesOutOfSight(TrueWorld world, int observer, int settlement)
     {
         PoliticsSystem pol = world.Politics;
-        ResearchCatalog c = world.Research.Catalog;
         int reach = pol.ReachOf(observer);
-        int range = Math.Max(BeliefRules.RoutineSight(reach),
-            BeliefRules.ScoutRange(reach, IsDone(world.Research, observer, c.IndexOf("WAY-01")), IsDone(world.Research, observer, c.IndexOf("WAY-03")))
-            + BeliefRules.SightRadius);
-        int d = MinDistance(pol, observer, pol.SettlementTileOf(settlement));
-        return d == int.MaxValue ? d : d - range;
+        int tile = pol.SettlementTileOf(settlement);
+        if (pol.ScoutMapOwnerSeen(observer, tile).Season >= pol.Season) return 0;
+        int d = MinDistance(pol, observer, tile);
+        return d == int.MaxValue ? d : d - BeliefRules.RoutineSight(reach);
     }
 
     /// <summary>How many tiles the nearest settlements of observer and rival lie beyond figure sight (zero or less: figures seen).</summary>

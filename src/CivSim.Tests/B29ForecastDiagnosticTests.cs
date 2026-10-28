@@ -1,10 +1,31 @@
 using System.Collections.Generic;
 using CivSim.Harness;
+using CivSim.Sim.Ai.Forecast;
 
 namespace CivSim.Tests;
 
 public sealed class B29ForecastDiagnosticTests
 {
+    [Fact]
+    public void B29_uses_the_separate_report_estimate_when_the_primary_forecast_misses()
+    {
+        var primary = new ForecastResult { Key4 = -1 };
+        var reportOnly = new ForecastResult { Key4 = 93 };
+
+        Assert.True(B29ForecastDiagnostic.TryGetKey4Forecast(primary, reportOnly, out ForecastResult selected));
+        Assert.Equal(93, selected.Key4);
+    }
+
+    [Fact]
+    public void B29_keeps_the_primary_estimate_when_it_is_available()
+    {
+        var primary = new ForecastResult { Key4 = 41 };
+        var reportOnly = new ForecastResult { Key4 = 93 };
+
+        Assert.True(B29ForecastDiagnostic.TryGetKey4Forecast(primary, reportOnly, out ForecastResult selected));
+        Assert.Equal(41, selected.Key4);
+    }
+
     [Fact]
     public void Summary_applies_the_per_forecast_and_median_targets()
     {
