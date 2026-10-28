@@ -67,6 +67,7 @@ public sealed partial class PoliticsSystem
     private readonly List<Levy> _levies = new();
     /// <summary>Settlements founded by Decree with their claim boost (TER-05: ×1.5 for 2 years): (settlement, first season without it).</summary>
     private readonly List<(int Settlement, int Until)> _foundBoost = new();
+    internal bool B8FoundTraceEnabled { get; set; }
     /// <summary>Per civilization and Decree kind (index civ × 7 + kind): Decrees carried out, and refused.</summary>
     private int[] _decreesDone = Array.Empty<int>(), _decreesRefused = Array.Empty<int>();
     /// <summary>Per civilization: seasons with Mandate unlocked, and of those at the cap (docs/MVP/22 §15 T27).</summary>
@@ -338,7 +339,7 @@ public sealed partial class PoliticsSystem
     private OrderRefusalReason ExecuteFound(int civ, int tile, out int subject, bool protectCityProspect)
     {
         subject = -1;
-        bool traceB8 = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B8") == "1";
+        bool traceB8 = B8FoundTraceEnabled;
         int unprotectedDonor = -1;
         bool unprotectedCandidateIsCityProspect = false;
         if (traceB8 && protectCityProspect && FoundCheck(civ, tile, out unprotectedDonor, protectCityProspect: false) == 0)

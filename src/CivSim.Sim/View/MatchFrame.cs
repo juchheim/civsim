@@ -13,6 +13,8 @@ namespace CivSim.Sim.View;
 /// </summary>
 public sealed class MatchFrame
 {
+    private const int ReservedTrailCount = 48;
+    private const int ReservedTrailTiles = ReservedTrailCount * 400;
     /// <summary>Kinds of structure the economy builds; the stride of <see cref="SettlementStructures"/>.</summary>
     public static int StructureKinds => Economy.LivingEconomyModel.StructureKindCount;
 
@@ -335,6 +337,8 @@ public sealed class MatchFrame
         EnsureOccupations(parties);
         EnsurePlots(plots);
         EnsureCamps(settlements * 4);
+        EnsureTrails(ReservedTrailCount);
+        EnsureTrailTiles(ReservedTrailTiles);
         EnsureBeacons(64);
         Ensure(ref Events, events);
         Ensure(ref AiWhyEntries, aiWhy);

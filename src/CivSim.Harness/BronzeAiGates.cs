@@ -200,6 +200,7 @@ internal static class BronzeAiGates
             LegacyMatchOutcome outcome = Tournament.PlayForLegacy(pack, seed, seats, archetypes, minutes,
                 b8 ? match =>
                 {
+                    match.Politics.B8FoundTraceEnabled = traceB8;
                     int[] offSeats = offTeamA ? Tournament.TeamASeats : Tournament.TeamBSeats;
                     foreach (int c in offSeats) match.Politics.SetDecreePolicy(c, null);
                 } : null,

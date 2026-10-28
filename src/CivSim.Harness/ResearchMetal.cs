@@ -41,6 +41,7 @@ internal static class ResearchMetal
         public List<(int Pop, bool Coppiced, double Start, double Now, int Civ)> Forests = new();
         public List<double> SettlementCoverage12 = new();
         public List<B12T18Snapshot> B12T18Snapshots = new();
+        public List<string> B12MiningWantTrace = new();
         public List<B12T18Snapshot> B12CensusSnapshots = new();
         public Dictionary<int, B13WoodSnapshot> B13AtKey3 = new();
         public Dictionary<int, B13WoodSnapshot> B13AtKey4 = new();
@@ -131,6 +132,8 @@ internal static class ResearchMetal
                 foreach (string line in r.B12CampOpenTrace) text.AppendLine("  " + line);
             }
         foreach (Result r in results)
+            foreach (string row in r.B12MiningWantTrace) text.AppendLine(row);
+        foreach (Result r in results)
             if (r.B12CopperShareTrace.Count > 0)
             {
                 text.AppendLine();
@@ -148,7 +151,7 @@ internal static class ResearchMetal
                 text.AppendLine();
                 text.AppendLine($"B12 +12 after first casting access census (seed {r.Seed}; one row per exposed settlement):");
                 foreach (B12T18Snapshot x in r.B12CensusSnapshots.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
-                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} season={x.Season} {x.Census}");
+                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} season={x.Season} coverage={x.Rung6Adults}/{x.Adults}({(double)x.Rung6Adults / x.Adults:P0}) {x.Census}");
             }
         Console.Write(text.ToString());
         return 0;
@@ -177,6 +180,8 @@ internal static class ResearchMetal
         var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel match = MatchModel.Create(seed, pack, archetypes);
         bool traceB12T18 = seed == 20261019UL && Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_T18") == "1";
+        bool traceB12MiningWant = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_MINING") == "1";
+        match.Economy.B12MiningWantTraceEnabled = traceB12MiningWant;
         match.Economy.B12T18TraceEnabled = traceB12T18;
         bool traceB12Census = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1" && (seed == 20261019UL || seed == 777UL);
         match.Economy.B12CensusTraceEnabled = traceB12Census;
@@ -309,6 +314,7 @@ internal static class ResearchMetal
             if (traceB12T18) result.B12T18Snapshots.AddRange(snapshots);
             if (traceB12Census) result.B12CensusSnapshots.AddRange(snapshots.Where(x => x.Offset == 12));
         }
+        if (traceB12MiningWant) result.B12MiningWantTrace.AddRange(eco.B12MiningWantTrace);
         if (traceB12CampOpen) result.B12CampOpenTrace.AddRange(eco.B12CampOpenTrace);
         if (traceB12CopperShare)
         {
@@ -321,10 +327,11 @@ internal static class ResearchMetal
     private static void AppendB12T18Trace(StringBuilder text, Result result)
     {
         if (result.Seed != 20261019UL) return;
-        var outcomes = result.B12T18Snapshots.Where(x => x.Offset == 12 && x.Adults > 0 && !double.IsNaN(x.Coverage)).ToArray();
-        B12T18Snapshot? failed = outcomes.Where(x => x.Coverage < 0.70).OrderByDescending(x => x.Coverage)
+        var outcomes = result.B12T18Snapshots.Where(x => x.Offset == 12 && x.Adults > 0).ToArray();
+        static double Coverage(B12T18Snapshot x) => (double)x.Rung6Adults / x.Adults;
+        B12T18Snapshot? failed = outcomes.Where(x => x.Rung6Adults * 100 < x.Adults * 70).OrderByDescending(Coverage)
             .ThenBy(x => x.Civilization).ThenBy(x => x.SettlementId).Cast<B12T18Snapshot?>().FirstOrDefault();
-        B12T18Snapshot? passed = outcomes.Where(x => x.Coverage >= 0.70).OrderBy(x => x.Coverage)
+        B12T18Snapshot? passed = outcomes.Where(x => x.Rung6Adults * 100 >= x.Adults * 70).OrderBy(Coverage)
             .ThenBy(x => x.Civilization).ThenBy(x => x.SettlementId).Cast<B12T18Snapshot?>().FirstOrDefault();
         text.AppendLine();
         text.AppendLine("B12 T18 aligned settlement trace (first cast access, then +4/+8/+12 seasons):");
@@ -338,12 +345,12 @@ internal static class ResearchMetal
                 text.AppendLine($"  {label}: no settlement with an observed +12-season outcome");
                 return;
             }
-            text.AppendLine($"  {label}: selected civ{selected.Civilization}/s{selected.SettlementId} T18={selected.Coverage:P0}");
+            text.AppendLine($"  {label}: selected civ{selected.Civilization}/s{selected.SettlementId} T18={Coverage(selected):P0}");
             foreach (B12T18Snapshot snapshot in result.B12T18Snapshots
                          .Where(x => x.SettlementId == selected.SettlementId && x.Civilization == selected.Civilization)
                          .OrderBy(x => x.Offset))
                 text.AppendLine($"    +{snapshot.Offset} season={snapshot.Season} civ{snapshot.Civilization}/s{snapshot.SettlementId} " +
-                    $"rung6={snapshot.Rung6Adults}/{snapshot.Adults} ({snapshot.Coverage:P0}) {snapshot.Detail}");
+                    $"rung6={snapshot.Rung6Adults}/{snapshot.Adults} ({Coverage(snapshot):P0}) {snapshot.Detail}");
         }
     }
 

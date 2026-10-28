@@ -307,6 +307,15 @@ public sealed class A7HarnessTelemetryTests
         Assert.Equal(baseline.Checksum, observed.Checksum);
         Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
         Assert.Contains(observed.WarlordFissionSiteDiagnostics,
+            row => row.StartsWith("FISSION_SITE_DIAG", StringComparison.Ordinal) &&
+                row.Contains("selectedRawFood=", StringComparison.Ordinal) &&
+                row.Contains("selectedMultiplier=", StringComparison.Ordinal) &&
+                row.Contains("selectedScore=", StringComparison.Ordinal) &&
+                row.Contains("rawBestTile=", StringComparison.Ordinal) &&
+                row.Contains("rawBestFood=", StringComparison.Ordinal) &&
+                row.Contains("selectedRawRank=", StringComparison.Ordinal) &&
+                row.Contains("rawFoodShortfall=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFissionSiteDiagnostics,
             row => row.StartsWith("FISSION_RESOLUTION", StringComparison.Ordinal) && row.Contains("cohort(children=", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordFissionSiteDiagnostics,
             row => row.StartsWith("FISSION_RESOLUTION", StringComparison.Ordinal) && row.Contains("growerGOV02=[", StringComparison.Ordinal));

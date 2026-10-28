@@ -25,7 +25,7 @@ public sealed partial class LivingEconomyModel
         public int ClearThresholdCrossings;
     }
 
-    private Dictionary<int, B13LocalWoodFlow>? _b13LocalWoodFlows;
+    private SortedList<int, B13LocalWoodFlow>? _b13LocalWoodFlows;
     private B13TileWoodFlow[]? _b13TileWoodFlows;
     internal bool B13WoodTraceEnabled { get; set; }
 
@@ -91,7 +91,7 @@ public sealed partial class LivingEconomyModel
 
     private B13LocalWoodFlow LocalFlow(int settlementId)
     {
-        _b13LocalWoodFlows ??= new Dictionary<int, B13LocalWoodFlow>();
+        _b13LocalWoodFlows ??= new SortedList<int, B13LocalWoodFlow>();
         if (!_b13LocalWoodFlows.TryGetValue(settlementId, out B13LocalWoodFlow? flow))
             _b13LocalWoodFlows.Add(settlementId, flow = new B13LocalWoodFlow());
         return flow;

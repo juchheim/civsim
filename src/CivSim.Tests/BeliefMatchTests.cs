@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -33,6 +34,29 @@ public class BeliefMatchTests
         return m;
     });
 
+    private static readonly Lazy<(MatchModel Match, int Target)> ScoutSightFixture = new(() =>
+    {
+        MatchModel m = FogFairnessHarness.Clone(Fixture.Value, Controls);
+        PoliticsSystem politics = m.Politics;
+        int routine = BeliefRules.RoutineSight(politics.ReachOf(0));
+        int target = Enumerable.Range(0, politics.SettlementTotal)
+            .Where(s => politics.SettlementCivOf(s) is > 0 and < 4 && !politics.IsFreeFolk(s) && politics.SettlementPopulationOf(s) > 0)
+            .Where(s => Enumerable.Range(0, politics.SettlementTotal)
+                .Where(own => politics.SettlementCivOf(own) == 0 && !politics.IsFreeFolk(own))
+                .Min(own => HexGrid.Distance(politics.SettlementTileOf(own), politics.SettlementTileOf(s), politics.Territory.Width)) > routine)
+            .OrderBy(s => politics.SettlementTileOf(s))
+            .First();
+        int rival = politics.SettlementCivOf(target);
+        int tile = politics.SettlementTileOf(target);
+        politics.ForceContact(0, rival);
+        int season = politics.Season;
+        MethodInfo recordSight = typeof(PoliticsSystem).GetMethod("RecordScoutSight", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        recordSight.Invoke(politics, new object[] { 0, tile, BeliefRules.SightRadius, season });
+        AiSeat seat = m.Ai!.SeatOf(0)!;
+        new BeliefBuilder().Update(seat.Belief, m.Ai.World, seat.Profile);
+        return (m, target);
+    });
+
     private readonly ITestOutputHelper _out;
     public BeliefMatchTests(ITestOutputHelper output) => _out = output;
 
@@ -41,7 +65,7 @@ public class BeliefMatchTests
     [Fact]
     public void What_is_in_sight_is_seen_this_season_and_nothing_of_an_unknown_civilization_is()
     {
-        MatchModel m = Fixture.Value;
+        MatchModel m = ScoutSightFixture.Value.Match;
         TrueWorld world = m.Ai!.World;
         Belief b = BeliefOf(m, 0);
         int season = m.Politics.Season, seen = 0;
@@ -60,7 +84,7 @@ public class BeliefMatchTests
                 seen++;
             }
         }
-        Assert.True(seen >= 1, "a rival settlement should be in sight by mid-E2");
+        Assert.True(seen >= 1, "a current-season scout observation should expose its rival settlement");
         // Stale records are of settlements out of sight now; they keep the season they were last true.
         foreach (RivalBelief r in b.Rivals)
             foreach (BeliefSettlement s in r.Settlements)
@@ -93,7 +117,7 @@ public class BeliefMatchTests
     [Fact]
     public void Head_counts_seen_this_season_are_within_a_quarter_of_the_truth()
     {
-        MatchModel m = Fixture.Value;
+        MatchModel m = ScoutSightFixture.Value.Match;
         int checkedCount = 0;
         foreach (int civ in new[] { 0, 2 })
             foreach (RivalBelief r in BeliefOf(m, civ).Rivals)
@@ -105,6 +129,25 @@ public class BeliefMatchTests
                     checkedCount++;
                 }
         Assert.True(checkedCount >= 1);
+    }
+
+    [Fact]
+    public void Current_season_scout_observation_marks_settlement_in_sight_and_updates_headcount()
+    {
+        (MatchModel match, int target) = ScoutSightFixture.Value;
+        int season = match.Politics.Season;
+        int tile = match.Politics.SettlementTileOf(target);
+        AiSeat seat = match.Ai!.SeatOf(0)!;
+        BeliefSettlement? seen = seat.Belief.Rivals[match.Politics.SettlementCivOf(target)].Settlements
+            .Find(s => s.Settlement == target);
+
+        Assert.Equal((match.Politics.SettlementCivOf(target), season), match.Politics.ScoutMapOwnerSeen(0, tile));
+        Assert.True(BeliefBuilder.TilesOutOfSight(match.Ai.World, 0, target) <= 0);
+        Assert.NotNull(seen);
+        Assert.Equal(season, seen!.LastSeenSeason);
+        Assert.InRange(seen.PopulationEstimate,
+            match.Politics.SettlementPopulationOf(target) * 3 / 4 - 1,
+            match.Politics.SettlementPopulationOf(target) * 5 / 4 + 1);
     }
 
     [Fact]

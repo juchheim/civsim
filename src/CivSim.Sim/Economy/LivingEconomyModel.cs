@@ -77,7 +77,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (chop) l.ChopInflows += amount; else l.OtherInflows += amount;
     }
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 23;
+    public const int SnapshotVersion = 24;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;
@@ -308,7 +308,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64[] _lastSeasonFoodNeed = Array.Empty<Fix64>();
     private readonly List<EconomyDeathEvent> _lastDeathEvents = new();
     // Per-season report-only attribution, intentionally excluded from snapshots and checksums.
-    private readonly Dictionary<int, FoodWorkAttribution> _foodWorkAttribution = new();
+    private readonly SortedList<int, FoodWorkAttribution> _foodWorkAttribution = new();
     public bool FoodWorkAttributionTraceEnabled { get; set; }
     public bool[]? SkipScoutsWhenFoodShortForCivsForDiagnostics { get; set; }
     // Harness-only counterfactual control. Intentionally excluded from model state,
@@ -3647,7 +3647,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         int reach = Math.Max(14, SiteAdvisor?.SettleReach(parent.Civilization) ?? 14);
         FissionSiteDiagnostics? diagnostics = FissionSiteDiagnosticsForDiagnostics;
         int[]? rejections = diagnostics is null ? null : new int[6];
+        List<(int Tile, Fix64 Food)>? legalRawFood = diagnostics is null ? null : new List<(int Tile, Fix64 Food)>();
         int legalSites = 0;
+        int rawBestTile = -1;
+        Fix64 rawBestFood = Fix64.MinValue, rawBestMultiplier = Fix64.Zero, rawBestScore = Fix64.Zero;
+        Fix64 selectedRawFood = Fix64.Zero, selectedMultiplier = Fix64.Zero;
         for (int tile = 0; tile < _world.TileCount; tile++)
         {
             if (!IsHabitable(tile))
@@ -3686,20 +3690,50 @@ public sealed partial class LivingEconomyModel : ISimModel
                 continue;
             }
             legalSites++;
-            Fix64 score = _siteFoodScores[tile];
-            if (SiteAdvisor is not null) score *= SiteAdvisor.Multiplier(parent.Civilization, tile);
+            Fix64 rawFood = _siteFoodScores[tile];
+            Fix64 multiplier = SiteAdvisor is not null ? SiteAdvisor.Multiplier(parent.Civilization, tile) : Fix64.One;
+            Fix64 score = rawFood * multiplier;
+            if (legalRawFood is not null)
+            {
+                legalRawFood.Add((tile, rawFood));
+                if (rawBestTile < 0 || rawFood > rawBestFood)
+                {
+                    rawBestTile = tile;
+                    rawBestFood = rawFood;
+                    rawBestMultiplier = multiplier;
+                    rawBestScore = score;
+                }
+            }
             if (score > bestScore)
             {
                 best = tile;
                 bestScore = score;
+                selectedRawFood = rawFood;
+                selectedMultiplier = multiplier;
             }
             else if (score == bestScore)
             {
-                if (best < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, best, _world.Width, _world.Height)) best = tile;
+                if (best < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, best, _world.Width, _world.Height))
+                {
+                    best = tile;
+                    selectedRawFood = rawFood;
+                    selectedMultiplier = multiplier;
+                }
             }
         }
         if (diagnostics is not null)
-            diagnostics.RecordAttempt(parent.Civilization, parent.Id, season, _world.TileCount, legalSites, best, rejections!);
+        {
+            int rawRank = 0;
+            if (best >= 0)
+            {
+                rawRank = 1;
+                foreach ((int tile, Fix64 food) in legalRawFood!)
+                    if (food > selectedRawFood || (food == selectedRawFood && tile < best)) rawRank++;
+            }
+            diagnostics.RecordAttempt(parent.Civilization, parent.Id, season, _world.TileCount, legalSites, best, rejections!,
+                selectedRawFood, selectedMultiplier, bestScore, rawBestTile, rawBestFood, rawBestMultiplier, rawBestScore,
+                rawRank, rawBestTile < 0 || best < 0 ? Fix64.Zero : rawBestFood - selectedRawFood);
+        }
         return best;
     }
 

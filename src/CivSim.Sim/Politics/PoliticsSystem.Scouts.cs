@@ -30,11 +30,12 @@ public sealed partial class PoliticsSystem
     private byte[][] _scoutExplored = Array.Empty<byte[]>();
     private sbyte[][] _scoutOwnerSeen = Array.Empty<sbyte[]>();
     private int[][] _scoutOwnerSeenSeason = Array.Empty<int[]>();
+    private long[][] _scoutOwnerSeenTick = Array.Empty<long[]>();
     private int[] _scoutCosts = Array.Empty<int>();
     private int[] _scoutPathScratch = Array.Empty<int>();
     private PriorityQueue<int, int> _scoutCostQueue = new();
     private readonly List<int> _scoutTargets = new();
-    private readonly HashSet<long> _liveScoutSet = new();
+    private readonly SortedSet<long> _liveScoutSet = new();
 
     private void InitializeScoutSimulation()
     {
@@ -42,6 +43,7 @@ public sealed partial class PoliticsSystem
         _scoutExplored = new byte[_civs][];
         _scoutOwnerSeen = new sbyte[_civs][];
         _scoutOwnerSeenSeason = new int[_civs][];
+        _scoutOwnerSeenTick = new long[_civs][];
         for (int civ = 0; civ < _civs; civ++)
         {
             _scoutExplored[civ] = new byte[tileCount];
@@ -49,6 +51,8 @@ public sealed partial class PoliticsSystem
             Array.Fill(_scoutOwnerSeen[civ], (sbyte)-1);
             _scoutOwnerSeenSeason[civ] = new int[tileCount];
             Array.Fill(_scoutOwnerSeenSeason[civ], -1);
+            _scoutOwnerSeenTick[civ] = new long[tileCount];
+            Array.Fill(_scoutOwnerSeenTick[civ], -1L);
         }
         _scoutCosts = new int[tileCount];
         _scoutPathScratch = new int[tileCount];
@@ -74,6 +78,9 @@ public sealed partial class PoliticsSystem
     /// <summary>Owner last observed by this civilization's simulated scouts, and the season of that sighting.</summary>
     public (int Owner, int Season) ScoutMapOwnerSeen(int civ, int tile)
         => (_scoutOwnerSeen[civ][tile], _scoutOwnerSeenSeason[civ][tile]);
+
+    /// <summary>Tick of the latest scout observation of a tile's owner, or -1 when never observed.</summary>
+    public long ScoutMapOwnerSeenTick(int civ, int tile) => _scoutOwnerSeenTick[civ][tile];
 
     private void AdvanceScoutSimulation(long tick)
     {
@@ -219,6 +226,7 @@ public sealed partial class PoliticsSystem
                 int owner = _territory.OwnerOf(tile);
                 _scoutOwnerSeen[civ][tile] = (sbyte)owner;
                 _scoutOwnerSeenSeason[civ][tile] = season;
+                _scoutOwnerSeenTick[civ][tile] = _tick;
                 if (owner < 0 || owner >= _civs || owner == civ || _dip.Aware(civ, owner)) continue;
                 _dip.MarkAware(civ, owner);
                 int distance = HexGrid.Distance(center, tile, _width);
@@ -263,6 +271,7 @@ public sealed partial class PoliticsSystem
                 h.Add(_scoutExplored[civ][tile]);
                 h.Add((int)_scoutOwnerSeen[civ][tile]);
                 h.Add(_scoutOwnerSeenSeason[civ][tile]);
+                h.Add(_scoutOwnerSeenTick[civ][tile]);
             }
     }
 
@@ -273,7 +282,7 @@ public sealed partial class PoliticsSystem
         {
             w.Write(_scoutExplored[civ]);
             for (int tile = 0; tile < _tileArray.Length; tile++)
-            { w.Write(_scoutOwnerSeen[civ][tile]); w.Write(_scoutOwnerSeenSeason[civ][tile]); }
+            { w.Write(_scoutOwnerSeen[civ][tile]); w.Write(_scoutOwnerSeenSeason[civ][tile]); w.Write(_scoutOwnerSeenTick[civ][tile]); }
         }
         w.Write(_scoutJourneys.Count);
         for (int i = 0; i < _scoutJourneys.Count; i++)
@@ -296,7 +305,7 @@ public sealed partial class PoliticsSystem
             if (explored.Length != _tileArray.Length) throw new InvalidDataException("Truncated scout map.");
             Buffer.BlockCopy(explored, 0, _scoutExplored[civ], 0, explored.Length);
             for (int tile = 0; tile < _tileArray.Length; tile++)
-            { _scoutOwnerSeen[civ][tile] = r.ReadSByte(); _scoutOwnerSeenSeason[civ][tile] = r.ReadInt32(); }
+            { _scoutOwnerSeen[civ][tile] = r.ReadSByte(); _scoutOwnerSeenSeason[civ][tile] = r.ReadInt32(); _scoutOwnerSeenTick[civ][tile] = r.ReadInt64(); }
         }
         _scoutJourneys.Clear();
         int journeys = r.ReadInt32();

@@ -7,7 +7,7 @@ using CivSim.Sim.World;
 namespace CivSim.Sim.Economy;
 
 internal readonly record struct B12T18Snapshot(int SettlementId, int Civilization, int Season, int Offset,
-    int Adults, int Rung6Adults, double Coverage, string Detail, string Census);
+    int Adults, int Rung6Adults, string Detail, string Census);
 
 /// <summary>
 /// The Bronze Age economy's season (docs/MVP/22 §5, 23 §4–§7): the planner decides how many kits, arms and crafted goods
@@ -72,8 +72,10 @@ public sealed partial class LivingEconomyModel
     private Fix64[] _metalBarter = Array.Empty<Fix64>();
     /// <summary>Harness tracing of the craft step; null (and free) in matches.</summary>
     internal System.Text.StringBuilder? MetalDebug;
-    private HashSet<int>? _b12MiningTraceCaptured;
-    private Dictionary<int, int>? _b12T18FirstCastSeason;
+    private SortedSet<int>? _b12MiningTraceCaptured;
+    private SortedList<int, int>? _b12T18FirstCastSeason;
+    internal bool B12MiningWantTraceEnabled { get; set; }
+    internal List<string> B12MiningWantTrace { get; } = new();
     internal bool B12T18TraceEnabled { get; set; }
     internal bool B12CensusTraceEnabled { get; set; }
     internal List<B12T18Snapshot>? B12T18Snapshots { get; private set; }
@@ -686,7 +688,7 @@ public sealed partial class LivingEconomyModel
     /// <summary>One-shot B12 diagnosis for cast-capable settlements that assign no direct mining labor.</summary>
     private void TraceB12MiningPlanIfNeeded(SettlementState s, MetalPlan plan, int season)
     {
-        if (Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_MINING") != "1" || plan.Tier < 9 || plan.MineAssigned > Fix64.Zero)
+        if (!B12MiningWantTraceEnabled || plan.Tier < 9 || plan.MineAssigned > Fix64.Zero)
             return;
 
         MetalState m = s.Metal!;
@@ -719,7 +721,7 @@ public sealed partial class LivingEconomyModel
         }
         if (!hasBuiltCamp && candidates.Count == 0) return;
 
-        _b12MiningTraceCaptured ??= new HashSet<int>();
+        _b12MiningTraceCaptured ??= new SortedSet<int>();
         if (!_b12MiningTraceCaptured.Add(s.Id)) return;
 
         static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
@@ -746,7 +748,7 @@ public sealed partial class LivingEconomyModel
                 $"head={camp.MineHead} oreLeft={F(_ore[camp.Tile])} want={F(want)} local={F(stock)} net={F(want * 2 - stock)} rate={F(MineRate(s.Civilization, camp.Tile, camp.MineHead, out _))}");
         }
 
-        Console.WriteLine($"B12 mining want season={season} civ={s.Civilization} settlement=s{s.Id} castTier={plan.Tier} accessMask={m.Access} " +
+        B12MiningWantTrace.Add($"B12 mining want season={season} civ={s.Civilization} settlement=s{s.Id} castTier={plan.Tier} accessMask={m.Access} " +
             $"totalWork={F(plan.TotalWork)} pushCap={F(plan.PushCap)} primaryChain={F(plan.PrimaryChain)} secondaryChain={F(plan.SecondaryChain)} " +
             $"primaryScale={F(plan.PrimaryScale)} secondaryScale={F(plan.SecondaryScale)} campWork={F(plan.CampWork)} " +
             $"build={F(plan.BuildAssigned)}/{F(plan.BuildNeed)} mine={F(plan.MineAssigned)}/{F(plan.MineNeed)} " +
@@ -757,7 +759,7 @@ public sealed partial class LivingEconomyModel
     private void CaptureB12T18Snapshot(SettlementState s, MetalPlan plan, int season)
     {
         if ((!B12T18TraceEnabled && !B12CensusTraceEnabled) || plan.Tier < 9 || s.Metal is not { Forges: > 0 } m) return;
-        _b12T18FirstCastSeason ??= new Dictionary<int, int>();
+        _b12T18FirstCastSeason ??= new SortedList<int, int>();
         if (!_b12T18FirstCastSeason.TryGetValue(s.Id, out int firstSeason))
         {
             firstSeason = season;
@@ -814,7 +816,7 @@ public sealed partial class LivingEconomyModel
                 $"rate={F(MineRate(s.Civilization, camp.Tile, camp.MineHead, out _))} want={F(want)} " +
                 $"currentStock={F(stock)} targetNet={F(want * 2 - stock)}");
         }
-        double coverage = readout.Adults == 0 ? double.NaN : (double)(readout.Kits9 + readout.Kits10) / readout.Adults;
+        int rung6Adults = readout.Kits9 + readout.Kits10;
         Fix64 cuStock = m.Goods[(int)MetalGood.CopperOre], cuWant = plan.Want[MetalSlot(MetalGood.CopperOre)];
         Fix64 tinStock = m.Goods[(int)MetalGood.TinOre], tinWant = plan.Want[MetalSlot(MetalGood.TinOre)];
         Fix64 charStock = m.Goods[(int)MetalGood.Charcoal], charWant = plan.Want[MetalSlot(MetalGood.Charcoal)];
@@ -838,7 +840,7 @@ public sealed partial class LivingEconomyModel
         Fix64 secondaryAssigned = Fix64.Max(Fix64.Zero, assignedChain - primaryAssigned);
         Fix64 cuGap = Fix64.Max(Fix64.Zero, cuWant - cuStock), tinGap = Fix64.Max(Fix64.Zero, tinWant - tinStock), charGap = Fix64.Max(Fix64.Zero, charWant - charStock);
         string largestConstraint;
-        if (coverage >= 0.70) largestConstraint = "at-target";
+        if (readout.Adults > 0 && rung6Adults * 100 >= readout.Adults * 70) largestConstraint = "at-target";
         else if (m.Forges <= 0 || m.Smelters <= 0) largestConstraint = "forge/smelter capacity";
         else if (plan.PrimaryScale < Fix64.Parse("0.999") || plan.SecondaryScale < Fix64.Parse("0.999")) largestConstraint = "10% chain push-cap";
         else if (cuGap >= tinGap && cuGap >= charGap && cuGap > Fix64.Parse("0.01")) largestConstraint = "copper ore stock";
@@ -846,7 +848,7 @@ public sealed partial class LivingEconomyModel
         else if (charGap > Fix64.Parse("0.01")) largestConstraint = "charcoal stock";
         else if (assignedChain + Fix64.Parse("0.01") < primaryScaled + plan.SecondaryChain * plan.SecondaryScale) largestConstraint = "chain work assignment";
         else largestConstraint = "kit demand/turnover beyond current chain plan";
-        string census = $"coverage={readout.Kits9 + readout.Kits10}/{readout.Adults}({coverage:P0}) copperOre={F(cuStock)}/{F(cuWant)} tinOre={F(tinStock)}/{F(tinWant)} charcoal={F(charStock)}/{F(charWant)} " +
+        string census = $"copperOre={F(cuStock)}/{F(cuWant)} tinOre={F(tinStock)}/{F(tinWant)} charcoal={F(charStock)}/{F(charWant)} " +
             $"forge/smelter={m.Forges}/{m.Smelters} kitsLocal={localKits}+store{F(localKitStores)} kitsSisters={sisterKits}+store{F(sisterKitStores)} " +
             $"chainPrimary={F(plan.PrimaryChain)} need*scale={F(primaryScaled)} assigned={F(primaryAssigned)} chainSecondary={F(plan.SecondaryChain)} need*scale={F(plan.SecondaryChain * plan.SecondaryScale)} assigned={F(secondaryAssigned)} " +
             $"largestUnmet={largestConstraint}";
@@ -854,7 +856,7 @@ public sealed partial class LivingEconomyModel
         string access = $"stored(cu={(accessMask & AccessCopper) != 0},as={(accessMask & AccessArsenic) != 0},tin={(accessMask & AccessTin) != 0}) " +
             $"source(cu={(accessMask & SourceCopper) != 0},as={(accessMask & SourceArsenic) != 0},tin={(accessMask & SourceTin) != 0})";
         string detail = $"accessMask={accessMask} {access} castTier={readout.CastTier} forge/smelter={m.Forges}/{m.Smelters} " +
-            $"coverage={readout.Kits9 + readout.Kits10}/{readout.Adults} ({coverage:P0}) " +
+            $"coverage={rung6Adults}/{readout.Adults} " +
             $"currentStocks[cuore={F(readout.CopperOre)} asore={F(readout.ArsenicalOre)} tinore={F(readout.TinOre)} charcoal={F(readout.Charcoal)}; oreDelivery=not-tracked] " +
             $"work[total={F(plan.TotalWork)} cap={F(plan.PushCap)} primary={F(plan.PrimaryChain)}*{F(plan.PrimaryScale)} " +
             $"secondary={F(plan.SecondaryChain)}*{F(plan.SecondaryScale)} camp={F(plan.CampWork)} " +
@@ -863,7 +865,7 @@ public sealed partial class LivingEconomyModel
             $"ores[{string.Join(';', oreParts)}] camps[{(camps.Count == 0 ? "none" : string.Join(';', camps))}]";
         B12T18Snapshots ??= new List<B12T18Snapshot>();
         B12T18Snapshots.Add(new B12T18Snapshot(s.Id, s.Civilization, season, offset, readout.Adults,
-            readout.Kits9 + readout.Kits10, coverage, detail, census));
+            rung6Adults, detail, census));
     }
 
     private static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
