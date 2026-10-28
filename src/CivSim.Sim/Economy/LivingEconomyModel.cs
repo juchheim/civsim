@@ -90,6 +90,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64 Total => Endemic + Epidemic + Starvation + WinterShortfall + Exposure + Injury + Predators + Violence + Senescence;
     }
 
+    private readonly record struct ScoutPlan(int FirstFigure, int SecondFigure, Fix64 Work)
+    {
+        public static ScoutPlan Empty => new(-1, -1, Fix64.Zero);
+        public bool Contains(int figureIndex) => figureIndex == FirstFigure || figureIndex == SecondFigure;
+    }
+
     private sealed class FigureState
     {
         public long Id;
@@ -567,7 +573,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             if ((uint)command.A >= (uint)_settlements.Count || command.B < (int)ScoutPolicy.Auto || command.B > (int)ScoutPolicy.Two)
                 return;
             SettlementState settlement = _settlements[command.A];
-            if (settlement.Civilization == command.Civ)
+            if (settlement.Civilization == command.Civ &&
+                (command.B != (int)ScoutPolicy.Two || HasProject(command.Civ, "WAY-01")))
                 settlement.ScoutPolicy = (ScoutPolicy)command.B;
             return;
         }
@@ -798,7 +805,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             SpoilFood(settlement);
             BuildIfReady(settlement);
             if (!_holdPopulation) UpdateNeedsAndPopulation(settlement, season, winter, priorSeasonFoodSecurity);
-            if (season % 4 == 2) settlement.LateWinterForecast = ForecastWinterFood(settlement);
+            if (season % 4 == 2) settlement.LateWinterForecast = ForecastWinterFood(settlement, ScoutPlan.Empty);
         }
 
         if (!_holdPopulation && season % 4 == 3) AgePopulationByOneYear(firstFigureIdBornThisSeason);
@@ -1693,45 +1700,70 @@ public sealed partial class LivingEconomyModel : ISimModel
     /// <summary>Reserves eligible adults for scouting under the settlement's scouting policy.</summary>
     private Fix64 AssignScouts(SettlementState settlement, int season)
     {
+        int unlockedCount = HasProject(settlement.Civilization, "WAY-01") ? 2 : 1;
         int count = settlement.ScoutPolicy switch
         {
             ScoutPolicy.Zero => 0,
-            ScoutPolicy.One => 1,
-            ScoutPolicy.Two => 2,
-            _ => AutoScoutCount(settlement, season),
+            ScoutPolicy.One => Math.Min(1, unlockedCount),
+            ScoutPolicy.Two => Math.Min(2, unlockedCount),
+            _ => unlockedCount,
         };
-        Fix64 spent = Fix64.Zero;
-        for (int slot = 0; slot < count; slot++)
+        ScoutPlan plan = SelectScouts(settlement, count);
+        if (settlement.ScoutPolicy == ScoutPolicy.Auto && count > 0)
         {
-            FigureState? chosen = null;
-            for (int i = 0; i < _figures.Count; i++)
-            {
-                FigureState figure = _figures[i];
-                if (figure.SettlementId != settlement.Id || figure.Job != EconomyJob.None || figure.Age is < 14 or >= 45 ||
-                    figure.Role != Role.None || figure.Camp >= 0 || figure.IllnessSeasons > 0 || figure.WoundSeasons > 0 ||
-                    figure.PregnancySeasons > 0 || WorkCapacity(figure) <= figure.CareWorkThisSeason + figure.FireWorkThisSeason)
-                    continue;
-                if (chosen is null || figure.Health > chosen.Health || figure.Health == chosen.Health && figure.Id < chosen.Id)
-                    chosen = figure;
-            }
-            if (chosen is null) break;
-            Fix64 available = WorkCapacity(chosen) - chosen.CareWorkThisSeason - chosen.FireWorkThisSeason;
-            if (available <= Fix64.Zero) break;
-            Assign(chosen, EconomyJob.Scout, available);
-            spent += available;
+            bool winterShortage = season % 4 == 2 && ForecastWinterFood(settlement, plan) < Fix64.One;
+            if (settlement.FoodSecurity < Fix64.One || winterShortage)
+                plan = SelectScouts(settlement, --count);
         }
-        return spent;
+        if (plan.FirstFigure >= 0) AssignScout(plan.FirstFigure);
+        if (plan.SecondFigure >= 0) AssignScout(plan.SecondFigure);
+        return plan.Work;
     }
 
-    private int AutoScoutCount(SettlementState settlement, int season)
+    private ScoutPlan SelectScouts(SettlementState settlement, int count)
     {
-        int count = HasProject(settlement.Civilization, "WAY-01") ? 2 : 1;
-        // Food insecurity takes priority over exploration. Release at least one scout when the
-        // settlement is short, and use a fresh autumn forecast to suspend scouting before winter.
-        bool winterShortage = season % 4 == 2 && ForecastWinterFood(settlement) < Fix64.One;
-        if (settlement.FoodSecurity < Fix64.One || winterShortage)
-            count = Math.Max(0, count - 1);
-        return count;
+        int first = -1, second = -1;
+        Fix64 work = Fix64.Zero;
+        for (int slot = 0; slot < count; slot++)
+        {
+            int chosen = FindScoutCandidate(settlement, first, second);
+            if (chosen < 0) break;
+            FigureState figure = _figures[chosen];
+            Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
+            if (available <= Fix64.Zero) break;
+            if (first < 0) first = chosen;
+            else second = chosen;
+            work += available;
+        }
+        return new ScoutPlan(first, second, work);
+    }
+
+    private int FindScoutCandidate(SettlementState settlement, int excludedFirst, int excludedSecond)
+    {
+        FigureState? chosen = null;
+        int chosenIndex = -1;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            if (i == excludedFirst || i == excludedSecond) continue;
+            FigureState figure = _figures[i];
+            if (figure.SettlementId != settlement.Id || figure.Job != EconomyJob.None || figure.Age is < 14 or >= 45 ||
+                figure.Role != Role.None || figure.Camp >= 0 || figure.IllnessSeasons > 0 || figure.WoundSeasons > 0 ||
+                figure.PregnancySeasons > 0 || WorkCapacity(figure) <= figure.CareWorkThisSeason + figure.FireWorkThisSeason)
+                continue;
+            if (chosen is null || figure.Health > chosen.Health || figure.Health == chosen.Health && figure.Id < chosen.Id)
+            {
+                chosen = figure;
+                chosenIndex = i;
+            }
+        }
+        return chosenIndex;
+    }
+
+    private void AssignScout(int figureIndex)
+    {
+        FigureState figure = _figures[figureIndex];
+        Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
+        if (available > Fix64.Zero) Assign(figure, EconomyJob.Scout, available);
     }
 
     private bool TryAssignCare(FigureState patient, byte role)
@@ -3879,7 +3911,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         return total;
     }
 
-    private Fix64 ForecastWinterFood(SettlementState settlement)
+    private Fix64 ForecastWinterFood(SettlementState settlement, ScoutPlan plannedScouts)
     {
         Fix64 need = FoodNeed(settlement, true);
         if (need <= Fix64.Zero) return Fix64.One;
@@ -3891,11 +3923,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             retained += settlement.Stores[(int)good] * FoodValue(good, settlement) *
                 RetentionAfterOneAndHalfSeasons(good, storageFactor, settlement.Civilization);
 
-        Fix64 winterProduction = ForecastWinterProduction(settlement, retained, need);
+        Fix64 winterProduction = ForecastWinterProduction(settlement, retained, need, plannedScouts);
         return Fix64.Clamp((retained + winterProduction) / need, Fix64.Zero, Fix64.One);
     }
 
-    private Fix64 ForecastWinterProduction(SettlementState settlement, Fix64 retainedFood, Fix64 need)
+    private Fix64 ForecastWinterProduction(SettlementState settlement, Fix64 retainedFood, Fix64 need, ScoutPlan plannedScouts)
     {
         int civ = settlement.Civilization;
         Fix64 plants = Fix64.Zero, meat = Fix64.Zero;
@@ -3913,8 +3945,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         Fix64 totalWork = Fix64.Zero;
+        Fix64 scoutWork = plannedScouts.Work;
         foreach (FigureState figure in _figures)
-            if (figure.SettlementId == settlement.Id) totalWork += WorkCapacity(figure);
+        {
+            if (figure.SettlementId != settlement.Id) continue;
+            totalWork += WorkCapacity(figure);
+            if (figure.Job == EconomyJob.Scout) scoutWork += figure.WorkThisSeason;
+        }
+        totalWork = Fix64.Max(Fix64.Zero, totalWork - scoutWork);
         Fix64 upkeep = WeirUpkeepBudget(settlement, totalWork);
         totalWork -= upkeep;
         totalWork -= OrchardUpkeepBudget(settlement, totalWork);
@@ -3935,9 +3973,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 forageWork = Fix64.Zero, huntWork = Fix64.Zero, fishWork = Fix64.Zero;
         Fix64 forageSkillWork = Fix64.Zero, huntSkillWork = Fix64.Zero, fishSkillWork = Fix64.Zero;
         int ordinal = 0;
-        foreach (FigureState figure in _figures)
+        for (int figureIndex = 0; figureIndex < _figures.Count; figureIndex++)
         {
-            if (figure.SettlementId != settlement.Id || foodRemaining <= Fix64.Zero) continue;
+            FigureState figure = _figures[figureIndex];
+            if (figure.SettlementId != settlement.Id || figure.Job == EconomyJob.Scout ||
+                plannedScouts.Contains(figureIndex) || foodRemaining <= Fix64.Zero) continue;
             Fix64 available = WorkCapacity(figure);
             Fix64 paidUpkeep = Fix64.Min(available, upkeepRemaining);
             available -= paidUpkeep;

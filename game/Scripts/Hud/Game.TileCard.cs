@@ -55,9 +55,9 @@ public partial class Game
         string[] scoutTips =
         {
             "Use normal scouting, yielding scouts automatically when food is short.",
-            "Stop scouting at this settlement; released workers return to other jobs.",
-            "Allow up to one scout at this settlement.",
-            "Allow up to two scouts at this settlement.",
+            "Stop scouting at this settlement; released workers return to other jobs next season.",
+            "Allow up to one scout at this settlement next season.",
+            "Allow up to two scouts at this settlement next season. Requires WAY-01.",
         };
         for (int i = 0; i < _tileScoutButtons.Length; i++)
         {
@@ -245,10 +245,14 @@ public partial class Game
             for (int i = 0; i < frame.FigureCount; i++)
                 if (frame.FigureSettlement[i] == settlement && frame.FigureActivity[i] == (byte)FigureActivity.Scout)
                     activeScouts++;
-            UiKit.SetText(_tileScoutStatus!, $"Scouting · {activeScouts} active this season");
+            UiKit.SetText(_tileScoutStatus!, $"Scouting · {activeScouts} active this season · changes next season");
             byte policy = frame.SettlementScoutPolicy[s];
             for (int i = 0; i < _tileScoutButtons.Length; i++)
+            {
                 _tileScoutButtons[i].SetPressedNoSignal((byte)i == policy);
+                _tileScoutButtons[i].Disabled = !(_session?.CanIssueCommands ?? false) ||
+                    i == (int)ScoutPolicy.Two && !HasWayfindingOne(frame);
+            }
             _tileScoutRow!.Visible = true;
             return;
         }
@@ -257,6 +261,7 @@ public partial class Game
     private void SetScoutPolicyAtPinnedSettlement(ScoutPolicy policy)
     {
         if (_session is null || _current is null || _pinnedTile < 0) return;
+        if (policy == ScoutPolicy.Two && !HasWayfindingOne(_current)) return;
         for (int s = 0; s < _current.SettlementCount; s++)
         {
             SettlementViewFlags flags = (SettlementViewFlags)_current.SettlementFlags[s];

@@ -195,7 +195,7 @@ EV(raid on s) = P(success | believed defenses) × loot value(s)
 ## 8. Economic and expansion intelligence (Civ Mind, every civilization)
 
 ### 8.1 Labor
-The shared settlement planner assigns work for both human and AI civilizations. In Auto scouting mode, it normally assigns one scout per settlement (two after WAY-01), then reduces that count by one when current food security is below 1.0 or, in autumn, the fresh winter forecast is below 1.0. A player can set an owned settlement's scouting limit to Auto, zero, one or two; the limit takes effect next season. Food, building and material jobs remain automatically assigned.
+The shared settlement planner assigns work for both human and AI civilizations. In Auto scouting mode, it normally assigns one scout per settlement (two after WAY-01), then reduces that count by one when current food security is below 1.0 or, in autumn, the fresh winter forecast is below 1.0. The autumn forecast reserves the work of the scouts the planner would assign, so it does not count their capacity toward food production. A player can set an owned settlement's scouting limit to Auto, zero or one; two is available after WAY-01. The limit takes effect next season. Food, building and material jobs remain automatically assigned.
 
 The long-term target is to allocate labor by **marginal value per worker-season**: the next ws goes to whichever job raises forecast utility most, given current deficits (05 §6.3). That fuller optimizer is not yet implemented.
 

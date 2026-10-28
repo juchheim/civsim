@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Game.Ui;
+using CivSim.Sim.Economy;
+using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using Godot;
 
@@ -32,6 +35,10 @@ public partial class Game
     private readonly PeopleBarRow[] _peopleWorkRows = new PeopleBarRow[PeopleWork.Length];
     private readonly PeopleBarRow[] _peopleKnowHowRows = new PeopleBarRow[3];
     private readonly int[] _peopleActivityCounts = new int[23];
+    private readonly List<int> _peopleScoutSettlementIds = new();
+    private readonly Button[] _peopleScoutButtons = new Button[4];
+    private int _peopleSelectedScoutSettlement = -1;
+    private bool _rebuildingPeopleScoutOptions;
     private Control? _peopleRoot;
     private ColorRect? _peopleScrim;
     private PanelContainer? _peoplePanel;
@@ -39,6 +46,8 @@ public partial class Game
     private bool _peopleOpen;
     private UiButton? _peopleWebButton, _peopleReturnButton;
     private Label? _peopleDate, _peopleResearchSummary, _peopleWorkNote, _peopleNoKnowHow;
+    private Label? _peopleScoutStatus;
+    private OptionButton? _peopleScoutSettlement;
     private Label? _peopleChildren, _peopleRecovering, _peopleResting, _peopleTraveling;
     private Label? _peoplePriests, _peopleScribes, _peopleWarriors;
     private Label? _peopleFoodShort, _peopleWinterRisk, _peopleHungry, _peopleCold, _peopleIll, _peopleWounded, _peopleBlockedMethods, _peopleStrained;
@@ -107,6 +116,47 @@ public partial class Game
             _peopleWorkRows[i] = BuildPeopleBarRow(workList, PeopleWork[i].Name);
         }
         workContent.AddChild(workList);
+        workContent.AddChild(UiKit.Divider());
+        workContent.AddChild(UiKit.Text("SETTLEMENT SCOUTING LIMITS", "Eyebrow"));
+        var scoutTargetRow = UiKit.Row(UiTokens.Sp2);
+        scoutTargetRow.AddChild(UiKit.Text("Settlement", "Caption"));
+        _peopleScoutSettlement = new OptionButton
+        {
+            CustomMinimumSize = new Vector2(185, UiTokens.ControlM),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        _peopleScoutSettlement.ItemSelected += selected =>
+        {
+            if (_rebuildingPeopleScoutOptions) return;
+            int index = (int)selected;
+            if ((uint)index < (uint)_peopleScoutSettlementIds.Count)
+                _peopleSelectedScoutSettlement = _peopleScoutSettlementIds[index];
+            if (_current is not null) RefreshPeopleScoutControls(_current);
+        };
+        scoutTargetRow.AddChild(_peopleScoutSettlement);
+        scoutTargetRow.AddChild(UiKit.Text("Scouts", "Caption"));
+        workContent.AddChild(scoutTargetRow);
+        var scoutPolicyRow = UiKit.Row(UiTokens.Sp1);
+        string[] scoutLabels = { "Auto", "0", "1", "2" };
+        ScoutPolicy[] scoutPolicies = { ScoutPolicy.Auto, ScoutPolicy.Zero, ScoutPolicy.One, ScoutPolicy.Two };
+        string[] scoutTips =
+        {
+            "Auto scouting yields workers when food is short.",
+            "No scouts; released workers return to other jobs next season.",
+            "Allow up to one scout next season.",
+            "Allow up to two scouts next season. Requires WAY-01.",
+        };
+        for (int i = 0; i < _peopleScoutButtons.Length; i++)
+        {
+            ScoutPolicy policy = scoutPolicies[i];
+            Button button = UiKit.InteractiveChip(scoutLabels[i], UiGlyph.None, () => SetPeopleScoutPolicy(policy), scoutTips[i]);
+            button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _peopleScoutButtons[i] = button;
+            scoutPolicyRow.AddChild(button);
+        }
+        workContent.AddChild(scoutPolicyRow);
+        _peopleScoutStatus = UiKit.Text("Auto scouting yields workers when food is short. Changes apply next season.", "CaptionTertiary", wrap: true);
+        workContent.AddChild(_peopleScoutStatus);
         workContent.AddChild(UiKit.Divider());
         workContent.AddChild(UiKit.Text("OTHER ACTIVITIES", "EyebrowTertiary"));
         var other = new HFlowContainer();
@@ -255,6 +305,7 @@ public partial class Game
         if (_peopleRoot is null || _catalog is null) return;
         int civ = frame.FocusCiv;
         if ((uint)civ >= (uint)frame.CivCount) return;
+        RefreshPeopleScoutControls(frame);
         Array.Clear(_peopleActivityCounts);
         int children = 0, adults = 0, elders = 0, recovering = 0, resting = 0, traveling = 0;
         int priests = 0, scribes = 0, warriors = 0, hungry = 0, cold = 0, ill = 0, wounded = 0, blocked = 0;
@@ -362,5 +413,88 @@ public partial class Game
         }
         UiKit.SetVisible(_peopleNoKnowHow!, maxKnowHow == 0);
         UiKit.SetText(_peopleReturnButton!, _researchWebVisible ? "Back to Research" : "Close");
+    }
+
+    private void RefreshPeopleScoutControls(MatchFrame frame)
+    {
+        if (_peopleScoutSettlement is null || _peopleScoutStatus is null) return;
+        bool changed = false;
+        int ownCount = 0;
+        for (int s = 0; s < frame.SettlementCount; s++)
+        {
+            if (!IsOwnPeopleSettlement(frame, s)) continue;
+            if (ownCount >= _peopleScoutSettlementIds.Count || _peopleScoutSettlementIds[ownCount] != frame.SettlementIndex[s]) changed = true;
+            ownCount++;
+        }
+        if (ownCount != _peopleScoutSettlementIds.Count) changed = true;
+        if (changed)
+        {
+            int previousSelection = _peopleSelectedScoutSettlement;
+            _peopleScoutSettlementIds.Clear();
+            _peopleScoutSettlement.Clear();
+            for (int s = 0; s < frame.SettlementCount; s++)
+            {
+                if (!IsOwnPeopleSettlement(frame, s)) continue;
+                int settlement = frame.SettlementIndex[s];
+                _peopleScoutSettlementIds.Add(settlement);
+                _peopleScoutSettlement.AddItem($"Settlement {settlement + 1}", settlement);
+            }
+            int selectedIndex = _peopleScoutSettlementIds.IndexOf(previousSelection);
+            if (selectedIndex < 0) selectedIndex = _peopleScoutSettlementIds.Count > 0 ? 0 : -1;
+            _peopleSelectedScoutSettlement = selectedIndex >= 0 ? _peopleScoutSettlementIds[selectedIndex] : -1;
+            _rebuildingPeopleScoutOptions = true;
+            if (selectedIndex >= 0) _peopleScoutSettlement.Select(selectedIndex);
+            _rebuildingPeopleScoutOptions = false;
+        }
+
+        bool available = _peopleSelectedScoutSettlement >= 0 && frame.ViewerCiv >= 0;
+        int selectedRow = -1;
+        if (available)
+            for (int s = 0; s < frame.SettlementCount; s++)
+                if (frame.SettlementIndex[s] == _peopleSelectedScoutSettlement && IsOwnPeopleSettlement(frame, s))
+                { selectedRow = s; break; }
+        available &= selectedRow >= 0;
+        _peopleScoutSettlement.Disabled = _peopleScoutSettlementIds.Count == 0;
+        for (int i = 0; i < _peopleScoutButtons.Length; i++)
+            _peopleScoutButtons[i].Disabled = !available || !(_session?.CanIssueCommands ?? false) ||
+                i == (int)ScoutPolicy.Two && !HasWayfindingOne(frame);
+        if (!available)
+        {
+            UiKit.SetText(_peopleScoutStatus, "No settlement is available to manage.");
+            return;
+        }
+
+        int activeScouts = 0;
+        for (int i = 0; i < frame.FigureCount; i++)
+            if (frame.FigureSettlement[i] == _peopleSelectedScoutSettlement && frame.FigureActivity[i] == (byte)FigureActivity.Scout)
+                activeScouts++;
+        ScoutPolicy policy = (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow];
+        UiKit.SetText(_peopleScoutStatus,
+            $"Settlement {_peopleSelectedScoutSettlement + 1} · {activeScouts} active this season · changes apply next season");
+        for (int i = 0; i < _peopleScoutButtons.Length; i++)
+            _peopleScoutButtons[i].SetPressedNoSignal(i == (int)policy);
+    }
+
+    private static bool IsOwnPeopleSettlement(MatchFrame frame, int index)
+    {
+        SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[index];
+        return frame.SettlementCiv[index] == frame.ViewerCiv &&
+            (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) == SettlementViewFlags.Own;
+    }
+
+    private bool HasWayfindingOne(MatchFrame frame)
+    {
+        int project = _catalog?.IndexOf("WAY-01") ?? -1;
+        if (project < 0 || project >= frame.FocusProjectCount) return false;
+        ProjectState state = (ProjectState)frame.FocusProjectState[project];
+        return state is ProjectState.Completed or ProjectState.Dormant;
+    }
+
+    private void SetPeopleScoutPolicy(ScoutPolicy policy)
+    {
+        if (_session is null || _current is null || _peopleSelectedScoutSettlement < 0) return;
+        if (policy == ScoutPolicy.Two && !HasWayfindingOne(_current)) return;
+        _session.Queue(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
+            _peopleSelectedScoutSettlement, policy));
     }
 }
