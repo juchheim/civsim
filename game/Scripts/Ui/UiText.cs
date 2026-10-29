@@ -80,6 +80,14 @@ public static class UiText
                 into[id] = name;
     }
 
+    /// <summary>Player-facing name of a goods registry id (G-WOOD), falling back to the id's own words.</summary>
+    public static string GoodName(string id)
+        => GoodNames.TryGetValue(id, out string? name) ? name : Sentence(id.StartsWith("G-", StringComparison.Ordinal) ? id[2..].Replace('_', ' ').ToLowerInvariant() : id);
+
+    /// <summary>Player-facing name of a structure registry id.</summary>
+    public static string StructureName(string id)
+        => StructureNames.TryGetValue(id, out string? name) ? name : Sentence(id.Replace('_', ' ').ToLowerInvariant());
+
     public static string AgeName(int era) => (uint)era < (uint)_ageNames.Length ? _ageNames[era] : $"Age {era + 1}";
 
     public static string CivName(int civ) => (uint)civ < (uint)CivEmblemNames.Length ? CivEmblemNames[civ] + " Folk" : "A distant people";

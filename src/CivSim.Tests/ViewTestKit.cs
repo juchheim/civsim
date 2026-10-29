@@ -136,6 +136,22 @@ internal static class ViewKit
         for (int i = 0; i < f.FocusQueueCount; i++) h.Add(f.FocusQueue[i]);
         h.Add(f.FocusCouncil); h.Add(f.FocusBeaconsAllowed); h.Add(f.FocusBeaconsPlaced); h.Add(f.FocusEra); h.Add(f.FocusProjectCount);
         for (int i = 0; i < f.FocusProjectCount; i++) h.Add(f.FocusProjectState[i]);
+        int econSlots = MatchFrame.StoreSlots, series = MatchFrame.HistorySeriesCount;
+        for (int i = 0; i < f.SettlementCount; i++)
+        {
+            for (int slot = 0; slot < econSlots; slot++) h.Add(f.SettlementStores[i * econSlots + slot]);
+            h.Add(f.SettlementFoodStores[i]);
+            for (int k = 0; k < EconField.Stride; k++) h.Add(f.SettlementEcon[i * EconField.Stride + k]);
+            h.Add(f.SettlementHistoryCount[i]);
+            for (int k = 0; k < f.SettlementHistoryCount[i] * series; k++) h.Add(f.SettlementHistory[i * MatchFrame.HistoryLength * series + k]);
+        }
+        h.Add(f.PayoffProjectCount);
+        for (int i = 0; i < f.SettlementCount * f.PayoffProjectCount * 3; i++)
+        { h.Add(f.SettlementPayoff[i]); h.Add(f.SettlementPayoffTotal[i]); h.Add(f.SettlementPayoffInfo[i]); }
+        for (int i = 0; i < 9; i++) { h.Add(f.FocusSlotProjection[i]); h.Add(f.FocusSlotProjectionInfo[i]); }
+        h.Add(f.FocusHistoryCount);
+        for (int k = 0; k < f.FocusHistoryCount * HistorySeries.CivSeries; k++) h.Add(f.FocusHistory[k]);
+        for (int i = 0; i < f.FocusProjectCount; i++) h.Add(f.FocusProjectDoneSeason[i]);
         h.Add(f.EventCount); h.Add(f.LatestEventSequence);
         for (int i = 0; i < f.EventCount; i++) h.Add(HashEvent(f.Events[i]));
         return h.Finish();

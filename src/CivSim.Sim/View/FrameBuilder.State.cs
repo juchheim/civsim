@@ -11,7 +11,7 @@ namespace CivSim.Sim.View;
 public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
-    private const int StateVersion = 4;
+    private const int StateVersion = 6;
 
     public void WriteState(BinaryWriter w)
     {
@@ -54,6 +54,7 @@ public sealed partial class FrameBuilder
                 w.Write(_topClaim[t]); w.Write(_topCiv[t]); w.Write(_contested[t]);
                 w.Write(_secondClaim[t]); w.Write(_secondCiv[t]); w.Write(_thirdClaim[t]); w.Write(_thirdCiv[t]);
             }
+        WriteEconomyState(w);
     }
 
     /// <summary>
@@ -148,6 +149,8 @@ public sealed partial class FrameBuilder
                     throw new InvalidDataException("Bad scout view state.");
             }
         }
+        if (version >= 5) ReadEconomyState(r, version);
+        else ClearEconomyState();
         _researchCursor = 0;
         _politicsCursor = 0;
     }

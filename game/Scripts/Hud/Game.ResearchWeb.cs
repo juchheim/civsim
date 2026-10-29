@@ -225,8 +225,8 @@ public partial class Game
         _webAutoFill.ThemeTypeVariation = "ToggleRowCompact";
         footer.AddChild(_webAutoFill);
         footer.AddChild(UiKit.Ghost("Elders' leaning…", ToggleLeaningPopover, "Which themes the elders favour when Auto-fill picks"));
-        _peopleWebButton = UiKit.Secondary("People & needs", OpenPeoplePanel,
-            "See what your people do and the needs shaping research choices", UiGlyph.People, UiTokens.ControlS, true);
+        _peopleWebButton = UiKit.Secondary("Your people", () => OpenPeoplePanel(PeopleTab.Research, int.MinValue),
+            "See what your learned projects are doing, and what is slowing your people down", UiGlyph.People, UiTokens.ControlS, true);
         footer.AddChild(_peopleWebButton);
         _footerNote = UiKit.Text("Drag projects above to reprioritize · Star: age count · Link: prerequisite · Age: transition", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;

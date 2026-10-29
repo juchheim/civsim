@@ -181,6 +181,7 @@ public sealed partial class FrameBuilder
         Array.Fill(_rememberedOwner, (sbyte)-1);
         ClearScoutViewState();
         _seenSettlements = 0;
+        ClearEconomyState();
         ResetEvents();
     }
 
@@ -226,6 +227,7 @@ public sealed partial class FrameBuilder
         ReadMembers(pol);
         FillFigures(eco, match.Research, target, season);
         FillSettlements(eco, match.Research, target, season);
+        FillEconomy(eco, match.Research, target, season);
         FillPlotsCampsBeacons(eco, pol, target);
         FillMonuments(match.Research, target);
         FillTrails(match, target);
@@ -236,6 +238,7 @@ public sealed partial class FrameBuilder
         FillOccupations(pol, target);
         FillCivs(match, target);
         FillFocus(match, target);
+        FillEconomyCiv(eco, target, season);
         FillAiWhy(match, target);
         CollectEvents(match, target, season);
     }
@@ -1331,7 +1334,12 @@ public sealed partial class FrameBuilder
             target.FocusKnowHow[lineage] = research.KnowHow(civ, lineage).Raw;
         int projects = _catalog.Count;
         MatchFrame.Ensure(ref target.FocusProjectState, projects);
-        for (int p = 0; p < projects; p++) target.FocusProjectState[p] = (byte)research.State(civ, p);
+        MatchFrame.Ensure(ref target.FocusProjectDoneSeason, projects);
+        for (int p = 0; p < projects; p++)
+        {
+            target.FocusProjectState[p] = (byte)research.State(civ, p);
+            target.FocusProjectDoneSeason[p] = research.IsDone(civ, p) ? (int)Math.Max(0, research.CompletedTick(civ, p) / LivingEconomyModel.SeasonTicks) : -1;
+        }
         target.FocusProjectCount = projects;
         PoliticsSystem pol = match.Politics;
         target.FocusMandateUnlocked = research.MandateUnlocked(civ);

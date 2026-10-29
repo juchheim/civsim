@@ -123,6 +123,7 @@ public partial class Game
     {
         string? open = ArgumentValue("--ui-open=");
         if (open is null) return;
+        if (ArgumentValue("--people-scope=") is { } scope && int.TryParse(scope, out int scoped)) _peopleScopeSelected = scoped;
         switch (open)
         {
             case "web": OpenResearchWeb(-1); break;
@@ -135,6 +136,9 @@ public partial class Game
             case "settings": OpenSettings(); break;
             case "menu": ToggleGameMenu(true); break;
             case "people": OpenPeoplePanel(); break;
+            case "people-stores": OpenPeoplePanel(PeopleTab.Stores, int.MinValue); break;
+            case "people-work": OpenPeoplePanel(PeopleTab.Work, int.MinValue); break;
+            case "people-research": OpenPeoplePanel(PeopleTab.Research, int.MinValue); break;
             case "end": ShowEndScreen(); break;
             case "intro": ShowIntroModal(true); break;
         }
