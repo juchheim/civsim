@@ -72,7 +72,7 @@ public partial class Game
     private UiLayer? _peopleLayer;
     private bool _peopleOpen;
     private UiButton? _peopleReturnButton, _peopleWebButton;
-    private Label? _peopleDate, _peopleWorkNote, _peopleFootnote;
+    private Label? _peopleDate, _peopleFootnote;
     private Label? _peopleScoutStatus;
     private OptionButton? _peopleScoutSettlement;
     private Label? _peopleChildren, _peopleRecovering, _peopleResting, _peopleTraveling;
@@ -107,25 +107,28 @@ public partial class Game
         _peoplePanel.AddChild(content);
 
         var header = UiKit.Row(UiTokens.Sp3);
-        var titleColumn = UiKit.Column(UiTokens.Sp1);
-        titleColumn.AddChild(UiKit.Text("Your people", "Title"));
-        _peopleDate = UiKit.Text("Year 1 · Spring", "CaptionTertiary");
-        titleColumn.AddChild(_peopleDate);
-        header.AddChild(titleColumn);
+        var title = UiKit.Text("People & Stores", "Title");
+        title.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        header.AddChild(title);
+        _peopleDate = UiKit.Text("Year 1 · Spring", "BodySecondary");
+        _peopleDate.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        header.AddChild(_peopleDate);
         header.AddChild(UiKit.Spacer(expand: true));
         header.AddChild(UiKit.IconButton(UiGlyph.Close, "Close (Esc)", ClosePeoplePanel));
         content.AddChild(header);
 
         var tabRow = UiKit.Row(UiTokens.Sp3);
-        _peopleTabs = new UiSegmented(PeopleTabNames, (int)_peopleTab, SelectPeopleTab, 110);
+        _peopleTabs = new UiSegmented(PeopleTabNames, (int)_peopleTab, SelectPeopleTab, 112);
         _peopleTabs.SetTooltip(0, "What is slowing your people down, and what limits their growth.");
         _peopleTabs.SetTooltip(1, "What you hold, how long it lasts and where the food goes.");
         _peopleTabs.SetTooltip(2, "Who does what, and where better methods are blocked.");
         _peopleTabs.SetTooltip(3, "What research is under way and what learned projects are doing.");
         tabRow.AddChild(_peopleTabs);
         tabRow.AddChild(UiKit.Spacer(expand: true));
-        tabRow.AddChild(UiKit.Text("Showing", "CaptionTertiary"));
-        _peopleScope = new OptionButton { CustomMinimumSize = new Vector2(200, UiTokens.ControlM) };
+        var showing = UiKit.Text("Showing", "Caption");
+        showing.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        tabRow.AddChild(showing);
+        _peopleScope = new OptionButton { CustomMinimumSize = new Vector2(260, UiTokens.ControlM) };
         _peopleScope.TooltipText = "Every number on these tabs covers all your settlements, or just the one you pick.";
         _peopleScope.ItemSelected += selected =>
         {
@@ -150,8 +153,10 @@ public partial class Game
             host.AddChild(pane);
         }
 
-        var footer = UiKit.Row(UiTokens.Sp2);
+        content.AddChild(UiKit.Divider());
+        var footer = UiKit.Row(UiTokens.Sp3);
         _peopleFootnote = UiKit.Text("", "CaptionTertiary", wrap: true);
+        _peopleFootnote.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         footer.AddChild(_peopleFootnote);
         _peopleReturnButton = UiKit.Secondary("Close", ClosePeoplePanel, null, UiGlyph.None, UiTokens.ControlS, true);
         footer.AddChild(_peopleReturnButton);
@@ -162,49 +167,112 @@ public partial class Game
         UpdatePeopleFootnote();
     }
 
-    // ---- Work pane: who does what (today's content) -------------------------------------------
+    // ---- shared layout pieces -------------------------------------------------------------------
+
+    /// <summary>A titled section of the sheet: a sunken panel with a title row (title, then anything added to Head) and a body.</summary>
+    private sealed class PeopleSection
+    {
+        public PanelContainer Panel = null!;
+        public Label Title = null!;
+        public HBoxContainer Head = null!;
+        public VBoxContainer Body = null!;
+    }
+
+    private static PeopleSection NewPeopleSection(string title, string? name = null, string? caption = null)
+    {
+        var section = new PeopleSection { Panel = UiKit.Panel("SectionPanel", name) };
+        section.Panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        section.Body = UiKit.Column(UiTokens.Sp2);
+        var top = UiKit.Column(UiTokens.Sp1);
+        section.Head = UiKit.Row(UiTokens.Sp3);
+        section.Title = UiKit.Text(title, "SectionTitle");
+        section.Title.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        section.Head.AddChild(section.Title);
+        top.AddChild(section.Head);
+        if (caption is not null) top.AddChild(UiKit.Text(caption, "CaptionTertiary", wrap: true));
+        section.Body.AddChild(top);
+        section.Body.AddChild(UiKit.Spacer(height: UiTokens.Sp1));
+        section.Panel.AddChild(section.Body);
+        return section;
+    }
+
+    /// <summary>A small all-caps label that opens a block inside a section.</summary>
+    private static Label PeopleSubhead(string text) => UiKit.Text(text, "EyebrowTertiary");
+
+    /// <summary>A tab's scrolling body, with a little room on the right for the scroll bar and below the last section.</summary>
+    private static ScrollContainer PeopleScroll(Control content)
+        => UiKit.Scroll(UiKit.Margin(content, 0, 0, UiTokens.Sp3, UiTokens.Sp2));
+
+    /// <summary>A column of sections for a two-column tab, sharing the row's width by <paramref name="ratio"/>.</summary>
+    private static VBoxContainer PeopleColumn(float ratio, params PeopleSection[] sections)
+    {
+        var column = UiKit.Column(UiTokens.Sp3);
+        column.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        column.SizeFlagsStretchRatio = ratio;
+        column.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
+        foreach (PeopleSection section in sections) column.AddChild(section.Panel);
+        return column;
+    }
+
+    private static HFlowContainer PeopleFlow()
+    {
+        var flow = new HFlowContainer();
+        flow.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
+        flow.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
+        return flow;
+    }
+
+    // ---- Work pane: who does what -----------------------------------------------------------------
 
     private Control BuildPeopleWorkPane()
     {
-        var body = UiKit.Row(UiTokens.Sp3);
-        PanelContainer workPanel = UiKit.Panel("WellPanel", "WorkAssignments");
-        workPanel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        workPanel.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        workPanel.SizeFlagsStretchRatio = 0.618f;
-        var workContent = UiKit.Column(UiTokens.Sp2);
-        workContent.AddChild(UiKit.Text("WORK ASSIGNMENTS · THIS SEASON", "Eyebrow"));
-        _peopleWorkNote = UiKit.Text("Counts show each person's current job assignment.", "CaptionTertiary", wrap: true);
-        workContent.AddChild(_peopleWorkNote);
+        // Left: who does what this season, and where last season's work went.
+        PeopleSection work = NewPeopleSection("Work assignments", "WorkAssignments", "Each person's job right now. Assignments change with the season.");
         var workList = UiKit.Column(UiTokens.Sp1);
         for (int i = 0; i < PeopleWork.Length; i++) _peopleWorkRows[i] = BuildPeopleBarRow(workList, PeopleWork[i].Name);
-        workContent.AddChild(workList);
-        workContent.AddChild(UiKit.Divider());
-        workContent.AddChild(UiKit.Text("WHERE THE WORK WENT LAST SEASON", "Eyebrow"));
-        _laborNote = UiKit.Text("", "CaptionTertiary", wrap: true);
-        workContent.AddChild(_laborNote);
+        work.Body.AddChild(workList);
+        work.Body.AddChild(UiKit.Spacer(height: UiTokens.Sp1));
+        work.Body.AddChild(PeopleSubhead("NOT AT WORK"));
+        var other = PeopleFlow();
+        _peopleChildren = AddPeopleCountChip(other, "Children");
+        _peopleRecovering = AddPeopleCountChip(other, "Recovering");
+        _peopleResting = AddPeopleCountChip(other, "Resting or idle");
+        _peopleTraveling = AddPeopleCountChip(other, "Away with a party");
+        work.Body.AddChild(other);
+
+        PeopleSection labor = NewPeopleSection("Where the work went last season", "LaborSplit");
+        _laborNote = UiKit.Text("", "Caption", wrap: true);
+        labor.Body.AddChild(_laborNote);
         string[] laborNames = { "Food", "Building", "Crafts & materials", "Herding", "Civic works", "Fire, care, roles" };
+        var laborList = UiKit.Column(UiTokens.Sp1);
         for (int i = 0; i < _laborRows.Length; i++)
         {
-            var row = UiKit.Row(UiTokens.Sp2);
+            var row = UiKit.Row(UiTokens.Sp3);
+            row.CustomMinimumSize = new Vector2(0, 26);
             var view = new FlowRow
             {
-                Name = UiKit.Text(laborNames[i], "Caption", minWidth: 118),
-                Bar = new UiProgressBar(5) { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill },
-                Value = UiKit.Text("", "Num", minWidth: 104, right: true),
+                Name = UiKit.Cell(laborNames[i], "BodySecondary", 160, wrap: true),
+                Bar = new UiProgressBar(6),
+                Value = UiKit.Cell("", "NumBody", 128, right: true),
             };
+            view.Name.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             row.AddChild(view.Name);
             row.AddChild(view.Bar);
             row.AddChild(view.Value);
-            workContent.AddChild(row);
+            laborList.AddChild(row);
             _laborRows[i] = view;
         }
-        workContent.AddChild(UiKit.Divider());
-        workContent.AddChild(UiKit.Text("SETTLEMENT SCOUTING LIMITS", "Eyebrow"));
+        labor.Body.AddChild(laborList);
+
+        // Right: scouting limits, methods held back, lost work, roles.
+        PeopleSection scouting = NewPeopleSection("Scouting", "Scouting", "How many scouts a settlement may send out. Changes apply next season.");
         var scoutTargetRow = UiKit.Row(UiTokens.Sp2);
-        scoutTargetRow.AddChild(UiKit.Text("Settlement", "Caption"));
+        var settlementLabel = UiKit.Cell("Settlement", "BodySecondary", 84);
+        settlementLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        scoutTargetRow.AddChild(settlementLabel);
         _peopleScoutSettlement = new OptionButton
         {
-            CustomMinimumSize = new Vector2(185, UiTokens.ControlM),
+            CustomMinimumSize = new Vector2(180, UiTokens.ControlS),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         _peopleScoutSettlement.ItemSelected += selected =>
@@ -216,9 +284,11 @@ public partial class Game
             if (_current is not null) RefreshPeopleScoutControls(_current);
         };
         scoutTargetRow.AddChild(_peopleScoutSettlement);
-        scoutTargetRow.AddChild(UiKit.Text("Scouts", "Caption"));
-        workContent.AddChild(scoutTargetRow);
-        var scoutPolicyRow = UiKit.Row(UiTokens.Sp1);
+        scouting.Body.AddChild(scoutTargetRow);
+        var scoutPolicyRow = UiKit.Row(UiTokens.Sp2);
+        var scoutsLabel = UiKit.Cell("Scouts", "BodySecondary", 84);
+        scoutsLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        scoutPolicyRow.AddChild(scoutsLabel);
         string[] scoutLabels = { "Auto", "0", "1", "2" };
         ScoutPolicy[] scoutPolicies = { ScoutPolicy.Auto, ScoutPolicy.Zero, ScoutPolicy.One, ScoutPolicy.Two };
         string[] scoutTips =
@@ -236,73 +306,56 @@ public partial class Game
             _peopleScoutButtons[i] = button;
             scoutPolicyRow.AddChild(button);
         }
-        workContent.AddChild(scoutPolicyRow);
-        _peopleScoutStatus = UiKit.Text("Auto scouting yields workers when food is short. Changes apply next season.", "CaptionTertiary", wrap: true);
-        workContent.AddChild(_peopleScoutStatus);
-        workContent.AddChild(UiKit.Divider());
-        workContent.AddChild(UiKit.Text("OTHER ACTIVITIES", "EyebrowTertiary"));
-        var other = new HFlowContainer();
-        other.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-        other.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        _peopleChildren = AddPeopleCountChip(other, "Children");
-        _peopleRecovering = AddPeopleCountChip(other, "Recovering");
-        _peopleResting = AddPeopleCountChip(other, "Resting or idle");
-        _peopleTraveling = AddPeopleCountChip(other, "Away with a party");
-        workContent.AddChild(other);
-        workPanel.AddChild(workContent);
-        body.AddChild(workPanel);
+        scouting.Body.AddChild(scoutPolicyRow);
+        _peopleScoutStatus = UiKit.Text("Auto scouting yields workers when food is short.", "Caption", wrap: true);
+        scouting.Body.AddChild(_peopleScoutStatus);
 
-        PanelContainer rightPanel = UiKit.Panel("WellPanel", "MethodsAndRoles");
-        rightPanel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        rightPanel.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        rightPanel.SizeFlagsStretchRatio = 0.382f;
-        var right = UiKit.Column(UiTokens.Sp2);
-        right.AddChild(UiKit.Text("WORKERS ON OLDER METHODS", "Eyebrow"));
-        right.AddChild(UiKit.Text("A better method is known, but something is missing for these workers: a tool, a hunting party or metal.", "CaptionTertiary", wrap: true));
+        PeopleSection methods = NewPeopleSection("Workers on older methods", "OlderMethods",
+            "A better method is known, but these workers lack something it needs: a tool, a bigger hunting party or metal.");
         for (int i = 0; i < _peopleMethodRows.Length; i++)
         {
-            _peopleMethodLabels[i] = UiKit.Text("", "Caption", wrap: true);
+            _peopleMethodLabels[i] = UiKit.Text("", "BodySecondary", wrap: true);
             _peopleMethodRows[i] = _peopleMethodLabels[i];
-            right.AddChild(_peopleMethodLabels[i]);
+            methods.Body.AddChild(_peopleMethodLabels[i]);
         }
         _peopleMethodNone = UiKit.Text("Everyone is using the best method they know.", "CaptionSuccess", wrap: true);
-        right.AddChild(_peopleMethodNone);
-        right.AddChild(UiKit.Divider());
-        right.AddChild(UiKit.Text("WHERE WORK WAS LOST", "Eyebrow"));
-        right.AddChild(UiKit.Text("Work with no tool to use, and work that found little to take.", "CaptionTertiary", wrap: true));
+        methods.Body.AddChild(_peopleMethodNone);
+
+        PeopleSection lost = NewPeopleSection("Where work was lost", "LostWork", "Work with no tool to use, and work that found little to take.");
         for (int i = 0; i < _lossLabels.Length; i++)
         {
-            _lossLabels[i] = UiKit.Text("", "Caption", wrap: true);
-            right.AddChild(_lossLabels[i]);
+            _lossLabels[i] = UiKit.Text("", "BodySecondary", wrap: true);
+            lost.Body.AddChild(_lossLabels[i]);
         }
         _lossNone = UiKit.Text("No work went unused for want of tools, and nothing came up short on land.", "CaptionSuccess", wrap: true);
-        right.AddChild(_lossNone);
-        right.AddChild(UiKit.Divider());
-        right.AddChild(UiKit.Text("ROLES", "EyebrowTertiary"));
-        var roleRow = new HFlowContainer();
-        roleRow.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-        roleRow.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
+        lost.Body.AddChild(_lossNone);
+
+        PeopleSection roles = NewPeopleSection("Roles", "Roles", "Warriors and specialists may also appear in the work counts.");
+        var roleRow = PeopleFlow();
         _peoplePriests = AddPeopleCountChip(roleRow, "Priests");
         _peopleScribes = AddPeopleCountChip(roleRow, "Scribes");
         _peopleWarriors = AddPeopleCountChip(roleRow, "Warriors");
-        right.AddChild(roleRow);
-        right.AddChild(UiKit.Text("Warriors and specialist roles may also appear in the work counts.", "CaptionTertiary", wrap: true));
-        rightPanel.AddChild(right);
-        body.AddChild(rightPanel);
-        return UiKit.Scroll(body);
+        roles.Body.AddChild(roleRow);
+
+        var body = UiKit.Row(UiTokens.Sp3);
+        body.AddChild(PeopleColumn(0.58f, work, labor));
+        body.AddChild(PeopleColumn(0.42f, scouting, methods, lost, roles));
+        return PeopleScroll(body);
     }
 
     private static PeopleBarRow BuildPeopleBarRow(VBoxContainer parent, string name)
     {
-        var row = UiKit.Row(UiTokens.Sp2);
+        var row = UiKit.Row(UiTokens.Sp3);
         row.MouseFilter = Control.MouseFilterEnum.Ignore;
+        row.CustomMinimumSize = new Vector2(0, 24);
         var result = new PeopleBarRow
         {
             Root = row,
-            Name = UiKit.Text(name, "Caption", minWidth: 117, ellipsis: true),
-            Bar = new UiProgressBar(4) { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill },
-            Count = UiKit.Text("0", "Num", minWidth: 36, right: true),
+            Name = UiKit.Cell(name, "BodySecondary", 170, wrap: true),
+            Bar = new UiProgressBar(6),
+            Count = UiKit.Cell("0", "NumBody", 48, right: true),
         };
+        result.Name.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         result.Root.AddChild(result.Name);
         result.Root.AddChild(result.Bar);
         result.Root.AddChild(result.Count);
@@ -313,8 +366,8 @@ public partial class Game
     private static Label AddPeopleCountChip(HFlowContainer parent, string name)
     {
         var chip = UiKit.Panel("ChipPanel", null, UiKit.MouseFilter.Ignore);
-        var row = UiKit.Row(UiTokens.Sp1);
-        row.AddChild(UiKit.Text(name, "CaptionTertiary"));
+        var row = UiKit.Row(UiTokens.Sp2);
+        row.AddChild(UiKit.Text(name, "Caption"));
         Label count = UiKit.Text("0", "NumStrong");
         row.AddChild(count);
         chip.AddChild(row);
@@ -327,8 +380,8 @@ public partial class Game
     private void LayoutPeoplePanel()
     {
         if (_peoplePanel is null) return;
-        float width = Math.Min(1100, _logicalSize.X - 2 * Margin);
-        float height = Math.Min(705, _logicalSize.Y - 2 * Margin);
+        float width = Math.Min(1280, _logicalSize.X - 2 * Margin);
+        float height = Math.Min(780, _logicalSize.Y - 2 * Margin);
         _peoplePanel.AnchorLeft = _peoplePanel.AnchorRight = 0.5f;
         _peoplePanel.AnchorTop = _peoplePanel.AnchorBottom = 0.5f;
         _peoplePanel.OffsetLeft = -width / 2;
@@ -396,10 +449,10 @@ public partial class Game
         if (_peopleFootnote is null) return;
         UiKit.SetText(_peopleFootnote, _peopleTab switch
         {
-            PeopleTab.Overview => "Food numbers are for the last full season. Winter risk appears in autumn and winter.",
-            PeopleTab.Stores => "R is a ration: one adult's food for a season. Flows are for the last full season; \"now\" is live.",
-            PeopleTab.Work => "Assignments change with the season.",
-            _ => "Status shows what a learned project is doing in your settlements right now, not what it was worth.",
+            PeopleTab.Overview => "Food numbers are for the last full season. Winter risk shows in autumn and winter.",
+            PeopleTab.Stores => "R is a ration: one adult's food for a season. Stock is live; flows are for the last full season.",
+            PeopleTab.Work => "Counts are live; the work split is for the last full season.",
+            _ => "Gains are estimates: what last season would have lost without each project.",
         });
     }
 
@@ -577,6 +630,8 @@ public partial class Game
             UiKit.SetVisible(row.Root, true);
             UiKit.SetText(row.Count, count.ToString("N0"));
             row.Bar.SetValue(population > 0 ? count / (float)population : 0, false);
+            SetTone(row.Name, count > 0 ? UiTokens.TextPrimary : UiTokens.TextTertiary);
+            SetTone(row.Count, count > 0 ? UiTokens.TextPrimary : UiTokens.TextTertiary);
         }
         UiKit.SetText(_peopleChildren!, _peopleCensus.Children.ToString("N0"));
         UiKit.SetText(_peopleRecovering!, _peopleCensus.Recovering.ToString("N0"));
@@ -618,7 +673,7 @@ public partial class Game
         }
         double capacity = Units(_laborSums[LivingEconomyModel.LaborCapacity]);
         UiKit.SetText(_laborNote!, capacity <= 0 ? "Numbers appear once the first season has ended."
-            : $"{FormatUnits(capacity)} work-seasons were available. {FoodShareCaptions[Math.Clamp(rule, 0, 5)]}");
+            : $"{FormatUnits(capacity)} work-seasons (ws) were available. {FoodShareCaptions[Math.Clamp(rule, 0, 5)]}");
         double reserved = Units(_laborSums[LivingEconomyModel.LaborReserved]);
         double[] parts =
         {
@@ -775,7 +830,7 @@ public partial class Game
                 activeScouts++;
         ScoutPolicy policy = (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow];
         UiKit.SetText(_peopleScoutStatus,
-            $"Settlement {_peopleSelectedScoutSettlement + 1} · {activeScouts} active this season · changes apply next season");
+            $"Settlement {_peopleSelectedScoutSettlement + 1} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season.");
         for (int i = 0; i < _peopleScoutButtons.Length; i++)
             _peopleScoutButtons[i].SetPressedNoSignal(i == (int)policy);
     }

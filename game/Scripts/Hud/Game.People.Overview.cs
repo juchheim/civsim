@@ -19,7 +19,7 @@ public partial class Game
 
     private sealed class DiagRow
     {
-        public Control Root = null!;
+        public Control Root = null!, Divider = null!;
         public UiIcon Icon = null!;
         public Label Headline = null!, Detail = null!, Where = null!;
         public readonly Button[] Chips = new Button[2];
@@ -45,12 +45,16 @@ public partial class Game
     private GridContainer? _settlementGrid;
     private readonly float[] _seriesScratch = new float[MatchFrame.HistoryLength + 1];
 
+    // Settlements table: column widths (header and rows share the grid, so they line up) and which columns are numbers.
+    private static readonly int[] SettlementColumnWidths = { 150, 70, 64, 90, 110, 160, 90 };
+    private static readonly bool[] SettlementColumnRight = { false, true, true, true, true, true, false };
+
     private Control BuildPeopleOverviewPane()
     {
         var content = UiKit.Column(UiTokens.Sp3);
 
-        var cards = UiKit.Row(UiTokens.Sp2);
-        string[] titles = { "YOUR PEOPLE", "FOOD", "GROWTH LIMIT", "RESEARCH SPEED" };
+        var cards = UiKit.Row(UiTokens.Sp3);
+        string[] titles = { "YOUR PEOPLE", "FOOD LASTS", "GROWTH LIMIT", "RESEARCH SPEED" };
         for (int i = 0; i < titles.Length; i++)
         {
             var card = UiKit.Panel("InnerCard");
@@ -60,7 +64,7 @@ public partial class Game
             {
                 Title = UiKit.Text(titles[i], "EyebrowTertiary"),
                 Value = UiKit.Text("—", "NumTitle"),
-                Detail = UiKit.Text("", "CaptionTertiary", wrap: true),
+                Detail = UiKit.Text("", "Caption", wrap: true),
             };
             stack.AddChild(view.Title);
             stack.AddChild(view.Value);
@@ -71,96 +75,125 @@ public partial class Game
         }
         content.AddChild(cards);
 
-        var body = UiKit.Row(UiTokens.Sp3);
-        PanelContainer slowing = UiKit.Panel("WellPanel", "WhatSlowsYouDown");
-        slowing.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        slowing.SizeFlagsStretchRatio = 0.618f;
-        var slowingContent = UiKit.Column(UiTokens.Sp2);
-        slowingContent.AddChild(UiKit.Text("WHAT'S SLOWING YOU DOWN", "Eyebrow"));
-        _diagEmpty = UiKit.Text("", "Caption", wrap: true);
-        slowingContent.AddChild(_diagEmpty);
+        PeopleSection slowing = NewPeopleSection("What's slowing you down", "WhatSlowsYouDown");
+        _diagEmpty = UiKit.Text("", "Body", wrap: true);
+        slowing.Body.AddChild(_diagEmpty);
+        var diagList = UiKit.Column(UiTokens.Sp3);
         for (int i = 0; i < _diagRows.Length; i++)
         {
             _diagRows[i] = BuildDiagRow();
-            slowingContent.AddChild(_diagRows[i].Root);
+            diagList.AddChild(_diagRows[i].Root);
         }
-        slowing.AddChild(slowingContent);
-        body.AddChild(slowing);
+        slowing.Body.AddChild(diagList);
 
-        PanelContainer limits = UiKit.Panel("WellPanel", "GrowthLimits");
-        limits.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        limits.SizeFlagsStretchRatio = 0.382f;
-        var limitContent = UiKit.Column(UiTokens.Sp2);
-        limitContent.AddChild(UiKit.Text("WHAT LIMITS GROWTH", "Eyebrow"));
+        PeopleSection limits = NewPeopleSection("What limits growth", "GrowthLimits");
         string[] limitNames = { "Food", "Housing", "Group size" };
+        var limitList = UiKit.Column(UiTokens.Sp1);
         for (int i = 0; i < _growthRows.Length; i++)
         {
-            var row = UiKit.Row(UiTokens.Sp2);
+            var row = UiKit.Row(UiTokens.Sp3);
+            row.CustomMinimumSize = new Vector2(0, 26);
             var view = new GrowthBarRow
             {
-                Name = UiKit.Text(limitNames[i], "Caption", minWidth: 78),
-                Bar = new UiProgressBar(6) { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill },
-                Value = UiKit.Text("", "Num", minWidth: 70, right: true),
+                Name = UiKit.Cell(limitNames[i], "BodySecondary", 110),
+                Bar = new UiProgressBar(6),
+                Value = UiKit.Cell("", "NumBody", 92, right: true),
             };
+            view.Name.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             row.AddChild(view.Name);
             row.AddChild(view.Bar);
             row.AddChild(view.Value);
-            limitContent.AddChild(row);
+            limitList.AddChild(row);
             _growthRows[i] = view;
         }
-        _growthNote = UiKit.Text("", "CaptionTertiary", wrap: true);
-        limitContent.AddChild(_growthNote);
-        limitContent.AddChild(UiKit.Divider());
-        limitContent.AddChild(UiKit.Text("NEEDS & WELLBEING", "EyebrowTertiary"));
-        var needs = new HFlowContainer();
-        needs.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-        needs.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        _wellFoodShort = AddPeopleCountChip(needs, "Food short");
-        _wellWinterRisk = AddPeopleCountChip(needs, "Winter risk");
-        _wellWinterChip = _wellWinterRisk.GetParent<Control>()?.GetParent<Control>();
-        _wellHungry = AddPeopleCountChip(needs, "Hungry");
-        _wellCold = AddPeopleCountChip(needs, "Cold");
-        _wellIll = AddPeopleCountChip(needs, "Ill");
-        _wellWounded = AddPeopleCountChip(needs, "Wounded");
-        _wellStrained = AddPeopleCountChip(needs, "Strained settlements");
-        limitContent.AddChild(needs);
-        limits.AddChild(limitContent);
-        body.AddChild(limits);
+        limits.Body.AddChild(limitList);
+        _growthNote = UiKit.Text("", "Caption", wrap: true);
+        limits.Body.AddChild(_growthNote);
+
+        PeopleSection needs = NewPeopleSection("Needs & wellbeing", "Wellbeing");
+        var needColumns = UiKit.Row(UiTokens.Sp5);
+        var places = UiKit.Column(UiTokens.Sp1);
+        places.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        places.AddChild(PeopleSubhead("SETTLEMENTS"));
+        _wellFoodShort = AddWellStat(places, "Short of food");
+        _wellWinterRisk = AddWellStat(places, "Winter risk");
+        _wellWinterChip = _wellWinterRisk.GetParent<Control>();
+        _wellStrained = AddWellStat(places, "Strained");
+        var persons = UiKit.Column(UiTokens.Sp1);
+        persons.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        persons.AddChild(PeopleSubhead("PEOPLE"));
+        _wellHungry = AddWellStat(persons, "Hungry");
+        _wellCold = AddWellStat(persons, "Cold");
+        _wellIll = AddWellStat(persons, "Ill");
+        _wellWounded = AddWellStat(persons, "Wounded");
+        needColumns.AddChild(places);
+        needColumns.AddChild(persons);
+        needs.Body.AddChild(needColumns);
+
+        var body = UiKit.Row(UiTokens.Sp3);
+        body.AddChild(PeopleColumn(0.6f, slowing));
+        body.AddChild(PeopleColumn(0.4f, limits, needs));
         content.AddChild(body);
 
-        _settlementsPanel = UiKit.Panel("WellPanel", "SettlementsTable");
-        var tableContent = UiKit.Column(UiTokens.Sp2);
-        tableContent.AddChild(UiKit.Text("YOUR SETTLEMENTS", "Eyebrow"));
+        PeopleSection table = NewPeopleSection("Your settlements", "SettlementsTable");
+        _settlementsPanel = table.Panel;
         _settlementGrid = new GridContainer { Columns = 8 };
-        _settlementGrid.AddThemeConstantOverride("h_separation", UiTokens.Sp3);
-        _settlementGrid.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        string[] heads = { "SETTLEMENT", "PEOPLE", "FED", "STORES", "LASTS", "LIMIT", "COHESION", "" };
-        foreach (string head in heads) _settlementGrid.AddChild(UiKit.Text(head, "EyebrowTertiary"));
-        tableContent.AddChild(_settlementGrid);
-        _settlementsPanel.AddChild(tableContent);
-        content.AddChild(_settlementsPanel);
-        return UiKit.Scroll(content);
+        _settlementGrid.AddThemeConstantOverride("h_separation", UiTokens.Sp4);
+        _settlementGrid.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
+        string[] heads = { "SETTLEMENT", "PEOPLE", "FED", "STORES", "LASTS", "GROWTH LIMIT", "COHESION", "" };
+        for (int c = 0; c < heads.Length; c++)
+        {
+            Label head = c < SettlementColumnWidths.Length
+                ? UiKit.Cell(heads[c], "EyebrowTertiary", SettlementColumnWidths[c], right: SettlementColumnRight[c])
+                : UiKit.Text("", "EyebrowTertiary");
+            _settlementGrid.AddChild(head);
+        }
+        table.Body.AddChild(_settlementGrid);
+        content.AddChild(table.Panel);
+        return PeopleScroll(content);
+    }
+
+    /// <summary>A "name ... count" line for the wellbeing lists; returns the count label.</summary>
+    private static Label AddWellStat(VBoxContainer list, string name)
+    {
+        var row = UiKit.Row(UiTokens.Sp2);
+        row.CustomMinimumSize = new Vector2(0, 24);
+        var label = UiKit.Text(name, "BodySecondary", wrap: true);
+        label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        row.AddChild(label);
+        Label count = UiKit.Cell("0", "NumStrong", 40, right: true);
+        count.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        row.AddChild(count);
+        list.AddChild(row);
+        return count;
     }
 
     private DiagRow BuildDiagRow()
     {
         var row = new DiagRow();
-        var root = UiKit.Row(UiTokens.Sp2);
+        var outer = UiKit.Column(UiTokens.Sp3);
+        outer.MouseFilter = Control.MouseFilterEnum.Ignore;
+        row.Divider = UiKit.Divider();
+        outer.AddChild(row.Divider);
+        var root = UiKit.Row(UiTokens.Sp3);
         root.MouseFilter = Control.MouseFilterEnum.Ignore;
-        row.Icon = new UiIcon(UiGlyph.Info, 18, UiTokens.Info) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
+        row.Icon = new UiIcon(UiGlyph.Info, 20, UiTokens.Info) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
         root.AddChild(row.Icon);
         var text = UiKit.Column(UiTokens.Sp1);
         text.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var top = UiKit.Row(UiTokens.Sp3);
         row.Headline = UiKit.Text("", "BodyStrong", wrap: true);
+        row.Where = UiKit.Text("", "Caption", right: true);
+        row.Where.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
+        top.AddChild(row.Headline);
+        top.AddChild(row.Where);
         row.Detail = UiKit.Text("", "Caption", wrap: true);
-        row.Where = UiKit.Text("", "CaptionTertiary", wrap: true);
-        text.AddChild(row.Headline);
+        text.AddChild(top);
         text.AddChild(row.Detail);
-        text.AddChild(row.Where);
-        var chips = new HFlowContainer();
-        chips.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-        chips.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        chips.AddChild(UiKit.Text("Research that could help", "CaptionTertiary"));
+        var chips = PeopleFlow();
+        var helps = UiKit.Text("Research that could help", "CaptionTertiary");
+        helps.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        chips.AddChild(helps);
         for (int i = 0; i < row.Chips.Length; i++)
         {
             int slot = i;
@@ -168,11 +201,12 @@ public partial class Game
             row.Chips[i].ToggleMode = false;
             chips.AddChild(row.Chips[i]);
         }
-        row.ChipRow = chips;
-        text.AddChild(chips);
+        row.ChipRow = UiKit.Margin(chips, 0, 2, 0, 0);
+        text.AddChild(row.ChipRow);
         root.AddChild(text);
-        row.Root = root;
-        root.Visible = false;
+        outer.AddChild(root);
+        row.Root = outer;
+        outer.Visible = false;
         return row;
     }
 
@@ -198,7 +232,7 @@ public partial class Game
         {
             int back = Math.Min(4, n - 1);
             int delta = population - (int)Math.Round(_seriesScratch[n - 1 - back]);
-            growth = $"{(delta > 0 ? "+" : delta < 0 ? "−" : "±")}{Math.Abs(delta)} in {back} {(back == 1 ? "season" : "seasons")} · ";
+            growth = $"{(delta > 0 ? "+" : delta < 0 ? "−" : "±")}{Math.Abs(delta)} in the last {back} {(back == 1 ? "season" : "seasons")}\n";
         }
         UiKit.SetText(people.Detail, $"{growth}{census.Adults:N0} adults · {census.Elders:N0} elders · {census.Children:N0} children");
 
@@ -218,7 +252,7 @@ public partial class Game
             SetTone(food.Value, ToneForRunway(runway));
             double fed = sum.Population > 0 ? sum.FoodSecurityWeighted / (double)sum.Population / 10.0 : 100;
             UiKit.SetText(food.Detail,
-                $"{FormatUnits(stores)} of {FormatUnits(capacity)} R stored · need {FormatUnits(need)} R this season · {Math.Min(100, fed):0}% fed last season");
+                $"{FormatUnits(stores)} of {FormatUnits(capacity)} R stored\n{FormatUnits(need)} R needed this season\n{Math.Min(100, fed):0}% fed last season");
         }
 
         // GROWTH LIMIT
@@ -236,12 +270,12 @@ public partial class Game
             double births = sum.Population > 0 ? sum.BirthWeighted / (double)sum.Population / 10.0 : 100;
             UiKit.SetText(limit.Value, $"{sum.Population:N0} / {cap:N0}");
             SetTone(limit.Value, sum.Population * 100 >= cap * 85 ? UiTokens.Warning : UiTokens.TextPrimary);
-            UiKit.SetText(limit.Detail, $"{(byFood ? "The land" : "Housing")} sets the limit · births at {Math.Clamp(births, 0, 100):0}% of normal");
+            UiKit.SetText(limit.Detail, $"{(byFood ? "The land" : "Housing")} sets the limit\nBirths at {Math.Clamp(births, 0, 100):0}% of normal");
         }
 
         // RESEARCH SPEED
         OverviewCard research = _overviewCards[3];
-        UiKit.SetText(research.Value, UiText.FormatInsight(frame.CivInsightPerYear[civ]) + " /yr");
+        UiKit.SetText(research.Value, UiText.FormatInsight(frame.CivInsightPerYear[civ]));
         int slots = 0;
         for (int s = 0; s < 3; s++) if (frame.FocusSlotProject[s] >= 0) slots++;
         string trend = "";
@@ -254,10 +288,10 @@ public partial class Game
             if (then > 0)
             {
                 double change = (now - then) * 100.0 / then;
-                trend = $"{(change >= 0 ? "+" : "−")}{Math.Abs(change):0}% in {back} {(back == 1 ? "season" : "seasons")} · ";
+                trend = $" · {(change >= 0 ? "up" : "down")} {Math.Abs(change):0}% in {back} {(back == 1 ? "season" : "seasons")}";
             }
         }
-        UiKit.SetText(research.Detail, $"{trend}{slots} of 3 research slots active");
+        UiKit.SetText(research.Detail, $"Insight a year{trend}\n{slots} of 3 research slots in use");
 
         RefreshDiagnosis(frame);
         RefreshGrowthBars(frame, foodCap, housingCap);
@@ -281,7 +315,9 @@ public partial class Game
             ulong bit = 1UL << ((int)entry.Code & 63);
             if (!civWide && _peopleScopeSelected < 0 && (shownCodes & bit) != 0) continue;
             shownCodes |= bit;
-            DiagRow row = _diagRows[shown++];
+            DiagRow row = _diagRows[shown];
+            UiKit.SetVisible(row.Divider, shown > 0);
+            shown++;
             (string headline, string detail) = DescribeDiagnosis(entry);
             UiKit.SetVisible(row.Root, true);
             UiKit.SetText(row.Headline, headline);
@@ -372,7 +408,7 @@ public partial class Game
                 return ($"{Sentence(PeopleActivityWord((FigureActivity)e.A, 2))} lack tools",
                     $"{e.B} of {e.C} are missing a tool for the best method they know, so they work the older way.");
             case DiagCode.HuntParty:
-                return ("Too few hunters for the party method", $"{e.A} hunters are held back until the hunting party is big enough.");
+                return ("Too few hunters for the party method", $"{e.A} {(e.A == 1 ? "hunter is" : "hunters are")} held back until the hunting party is big enough.");
             case DiagCode.MetalAccess:
                 return (Sentence(PeopleFallbackWords((MethodFallbackReason)e.A)), $"{e.B} workers cannot use their metal tools.");
             case DiagCode.Cold:
@@ -536,14 +572,20 @@ public partial class Game
             if (winterForecast && frame.SettlementWinterForecast[i] >= (byte)FoodBand.Short) winterRisk++;
             if (frame.SettlementCohesion[i] >= (byte)CohesionBand.Strained) strained++;
         }
-        UiKit.SetText(_wellFoodShort!, foodShort.ToString("N0"));
+        SetWellStat(_wellFoodShort!, foodShort);
         if (_wellWinterChip is not null) UiKit.SetVisible(_wellWinterChip, winterForecast);
-        UiKit.SetText(_wellWinterRisk!, winterRisk.ToString("N0"));
-        UiKit.SetText(_wellHungry!, _peopleCensus.Hungry.ToString("N0"));
-        UiKit.SetText(_wellCold!, _peopleCensus.Cold.ToString("N0"));
-        UiKit.SetText(_wellIll!, _peopleCensus.Ill.ToString("N0"));
-        UiKit.SetText(_wellWounded!, _peopleCensus.Wounded.ToString("N0"));
-        UiKit.SetText(_wellStrained!, strained.ToString("N0"));
+        SetWellStat(_wellWinterRisk!, winterRisk);
+        SetWellStat(_wellHungry!, _peopleCensus.Hungry);
+        SetWellStat(_wellCold!, _peopleCensus.Cold);
+        SetWellStat(_wellIll!, _peopleCensus.Ill);
+        SetWellStat(_wellWounded!, _peopleCensus.Wounded);
+        SetWellStat(_wellStrained!, strained);
+    }
+
+    private static void SetWellStat(Label count, int value)
+    {
+        UiKit.SetText(count, value.ToString("N0"));
+        SetTone(count, value > 0 ? UiTokens.Warning : UiTokens.TextTertiary);
     }
 
     private static readonly string[] CohesionWords = { "Strong", "Steady", "Strained", "Fraying" };
@@ -573,13 +615,14 @@ public partial class Game
             UiKit.SetText(cells[0], $"Settlement {frame.SettlementIndex[w] + 1}");
             UiKit.SetText(cells[1], pop.ToString("N0"));
             UiKit.SetText(cells[2], has ? $"{Math.Min(100, fs / 10)}%" : "—");
-            SetTone(cells[2], fs < 700 ? UiTokens.Danger : fs < 900 ? UiTokens.Warning : UiTokens.TextSecondary);
+            SetTone(cells[2], fs < 700 ? UiTokens.Danger : fs < 900 ? UiTokens.Warning : UiTokens.TextPrimary);
             UiKit.SetText(cells[3], has ? $"{FormatUnits(stores)} R" : "—");
             UiKit.SetText(cells[4], has ? FormatSeasons(runway) : "—");
-            SetTone(cells[4], has ? ToneForRunway(runway) : UiTokens.TextSecondary);
-            UiKit.SetText(cells[5], has && cap > 0 ? $"{(foodCap <= housingCap ? "food" : "housing")} {pop}/{cap}" : "—");
-            SetTone(cells[5], has && cap > 0 && pop * 100 >= cap * 85 ? UiTokens.Warning : UiTokens.TextSecondary);
+            SetTone(cells[4], has ? ToneForRunway(runway) : UiTokens.TextTertiary);
+            UiKit.SetText(cells[5], has && cap > 0 ? $"{pop:N0} / {cap:N0} {(foodCap <= housingCap ? "food" : "housing")}" : "—");
+            SetTone(cells[5], has && cap > 0 && pop * 100 >= cap * 85 ? UiTokens.Warning : UiTokens.TextPrimary);
             UiKit.SetText(cells[6], CohesionWords[Math.Min(3, (int)frame.SettlementCohesion[w])]);
+            SetTone(cells[6], frame.SettlementCohesion[w] >= (byte)CohesionBand.Strained ? UiTokens.Warning : UiTokens.TextPrimary);
             _settlementShowTarget[shown] = frame.SettlementIndex[w];
             for (int c = 0; c < cells.Length; c++) UiKit.SetVisible(cells[c], true);
             UiKit.SetVisible(_settlementShow[shown], true);
@@ -597,7 +640,8 @@ public partial class Game
         var cells = new Label[7];
         for (int c = 0; c < cells.Length; c++)
         {
-            cells[c] = UiKit.Text("", c == 0 ? "BodyStrong" : "Num", minWidth: c == 0 ? 110 : 64);
+            cells[c] = UiKit.Cell("", c == 0 ? "BodyStrong" : "NumBody", SettlementColumnWidths[c], right: SettlementColumnRight[c]);
+            cells[c].SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             _settlementGrid!.AddChild(cells[c]);
         }
         int index = _settlementRows.Count;

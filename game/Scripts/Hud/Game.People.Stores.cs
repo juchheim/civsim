@@ -12,7 +12,7 @@ public partial class Game
 {
     private sealed class StoreRow
     {
-        public Control Root = null!;
+        public PanelContainer Root = null!;
         public Label Name = null!, Now = null!, Change = null!;
         public UiSparkline Spark = null!;
         public int Slot = -1;
@@ -26,12 +26,16 @@ public partial class Game
 
     private static readonly string[] StoreSectionNames = { "FOOD", "MATERIALS", "CLOTHING", "TOOLS", "ADVANCED GOODS" };
 
+    // Store table columns: the name takes the rest of the row.
+    private const int StoreNowWidth = 90, StoreChangeWidth = 116, StoreTrendWidth = 96;
+
     private readonly StoreRow[] _foodRows = new StoreRow[LivingEconomyModel.FoodLedgerLineCount - LivingEconomyModel.FoodLedgerSummaryLines];
     private readonly List<StoreRow> _goodRows = new();
     private readonly Control?[] _storeSectionHeads = new Control?[StoreSectionNames.Length];
     private readonly FlowRow[] _flowRows = new FlowRow[6];
     private StoreRow? _foodTotalRow;
-    private Label? _foodSummary, _foodNeedLine, _foodLandLine, _fuelLine, _flowEmpty;
+    private Label? _foodStoredValue, _foodStoredDetail, _foodLastsValue, _foodNeedValue;
+    private Label? _foodNeedLine, _foodLandLine, _fuelLine, _flowEmpty;
     private readonly float[] _storeSeries = new float[MatchFrame.HistoryLength + 1];
     private static readonly int WoodStoreSlot = StoreSlotById("G-WOOD");
 
@@ -44,31 +48,34 @@ public partial class Game
 
     private Control BuildPeopleStoresPane()
     {
-        var body = UiKit.Row(UiTokens.Sp3);
+        PeopleSection held = NewPeopleSection("What you hold", "StoreTable");
 
-        PanelContainer left = UiKit.Panel("WellPanel", "StoreTable");
-        left.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        left.SizeFlagsStretchRatio = 0.618f;
-        var leftContent = UiKit.Column(UiTokens.Sp1);
-        leftContent.AddChild(UiKit.Text("FOOD", "Eyebrow"));
-        _foodSummary = UiKit.Text("", "BodyStrong", wrap: true);
-        leftContent.AddChild(_foodSummary);
-        AddStoreHeader(leftContent, "In store", "Gathered (R)");
+        // Food at a glance: stored, how long it lasts, this season's need.
+        var stats = UiKit.Row(UiTokens.Sp5);
+        _foodStoredValue = AddStoreStat(stats, "FOOD IN STORE", out _foodStoredDetail);
+        _foodLastsValue = AddStoreStat(stats, "LASTS", out _);
+        _foodNeedValue = AddStoreStat(stats, "NEEDED THIS SEASON", out _);
+        held.Body.AddChild(stats);
+        held.Body.AddChild(UiKit.Spacer(height: UiTokens.Sp1));
+
+        var food = UiKit.Column(2);
+        food.AddChild(StoreHeader("FOOD", "In store", "Gathered (R)", "Rations gathered last season, by kind of food."));
         for (int g = 0; g < _foodRows.Length; g++)
         {
             string id = LivingEconomyModel.StoreSlotId(LivingEconomyModel.FoodGoodSlot(g));
-            _foodRows[g] = BuildStoreRow(leftContent, UiText.GoodName(id), false);
+            _foodRows[g] = BuildStoreRow(food, UiText.GoodName(id), false);
             _foodRows[g].Slot = LivingEconomyModel.FoodGoodSlot(g);
         }
-        _foodTotalRow = BuildStoreRow(leftContent, "All food (rations)", true);
+        food.AddChild(UiKit.Divider());
+        _foodTotalRow = BuildStoreRow(food, "All food (rations)", true);
+        held.Body.AddChild(food);
 
         for (int category = 1; category < StoreSectionNames.Length; category++)
         {
-            var section = UiKit.Column(UiTokens.Sp1);
-            section.AddChild(UiKit.Divider());
-            section.AddChild(UiKit.Text(StoreSectionNames[category], "Eyebrow"));
-            AddStoreHeader(section, "In store", "Last season");
-            leftContent.AddChild(section);
+            var section = UiKit.Column(2);
+            section.AddChild(UiKit.Spacer(height: UiTokens.Sp2));
+            section.AddChild(StoreHeader(StoreSectionNames[category], "In store", "Last season", "How much the stock rose or fell over the last full season."));
+            held.Body.AddChild(section);
             _storeSectionHeads[category] = section;
             for (int slot = 0; slot < LivingEconomyModel.StoreSlotCount; slot++)
             {
@@ -79,73 +86,97 @@ public partial class Game
                 _goodRows.Add(row);
             }
         }
-        left.AddChild(leftContent);
-        body.AddChild(left);
 
-        PanelContainer right = UiKit.Panel("WellPanel", "FoodFlows");
-        right.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        right.SizeFlagsStretchRatio = 0.382f;
-        var rightContent = UiKit.Column(UiTokens.Sp2);
-        rightContent.AddChild(UiKit.Text("WHERE FOOD WENT LAST SEASON", "Eyebrow"));
-        _flowEmpty = UiKit.Text("Flows appear after the first season ends.", "CaptionTertiary", wrap: true);
-        rightContent.AddChild(_flowEmpty);
+        PeopleSection flows = NewPeopleSection("Where food went last season", "FoodFlows");
+        _flowEmpty = UiKit.Text("Flows appear after the first season ends.", "Caption", wrap: true);
+        flows.Body.AddChild(_flowEmpty);
         string[] flowNames = { "Held at the start", "+ Gathered", "− Eaten", "− Spoiled", "− Lost: stores full", "= Held at the end" };
+        var flowList = UiKit.Column(UiTokens.Sp1);
         for (int i = 0; i < _flowRows.Length; i++)
         {
-            var row = UiKit.Row(UiTokens.Sp2);
+            var row = UiKit.Row(UiTokens.Sp3);
+            row.CustomMinimumSize = new Vector2(0, 26);
             var view = new FlowRow
             {
-                Name = UiKit.Text(flowNames[i], "Caption", minWidth: 118),
-                Bar = new UiProgressBar(6) { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill },
-                Value = UiKit.Text("", "Num", minWidth: 52, right: true),
+                Name = UiKit.Cell(flowNames[i], i is 0 or 5 ? "BodyStrongSecondary" : "BodySecondary", 150, wrap: true),
+                Bar = new UiProgressBar(6),
+                Value = UiKit.Cell("", "NumBody", 64, right: true),
             };
+            view.Name.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             row.AddChild(view.Name);
             row.AddChild(view.Bar);
             row.AddChild(view.Value);
-            rightContent.AddChild(row);
+            flowList.AddChild(row);
             _flowRows[i] = view;
         }
-        rightContent.AddChild(UiKit.Divider());
+        flows.Body.AddChild(flowList);
+        flows.Body.AddChild(UiKit.Spacer(height: UiTokens.Sp1));
         _foodNeedLine = UiKit.Text("", "Caption", wrap: true);
         _foodLandLine = UiKit.Text("", "Caption", wrap: true);
-        _fuelLine = UiKit.Text("", "Caption", wrap: true);
-        rightContent.AddChild(_foodNeedLine);
-        rightContent.AddChild(_foodLandLine);
-        rightContent.AddChild(UiKit.Divider());
-        rightContent.AddChild(UiKit.Text("FUEL", "EyebrowTertiary"));
-        rightContent.AddChild(_fuelLine);
-        right.AddChild(rightContent);
-        body.AddChild(right);
-        return UiKit.Scroll(body);
+        flows.Body.AddChild(_foodNeedLine);
+        flows.Body.AddChild(_foodLandLine);
+
+        PeopleSection fuel = NewPeopleSection("Fuel", "Fuel");
+        _fuelLine = UiKit.Text("", "Body", wrap: true);
+        fuel.Body.AddChild(_fuelLine);
+
+        var body = UiKit.Row(UiTokens.Sp3);
+        body.AddChild(PeopleColumn(0.58f, held));
+        body.AddChild(PeopleColumn(0.42f, flows, fuel));
+        return PeopleScroll(body);
     }
 
-    private static void AddStoreHeader(VBoxContainer parent, string now, string change)
+    /// <summary>A headline number with an all-caps label above and an optional quiet line below; returns the number label.</summary>
+    private static Label AddStoreStat(HBoxContainer parent, string title, out Label detail)
     {
-        var row = UiKit.Row(UiTokens.Sp2);
-        row.AddChild(UiKit.Text("", "EyebrowTertiary", minWidth: 150, ellipsis: true));
-        row.AddChild(UiKit.Text(now.ToUpperInvariant(), "EyebrowTertiary", minWidth: 70, right: true));
-        row.AddChild(UiKit.Text(change.ToUpperInvariant(), "EyebrowTertiary", minWidth: 92, right: true));
-        row.AddChild(UiKit.Text("TREND", "EyebrowTertiary", minWidth: 84));
-        parent.AddChild(row);
+        var column = UiKit.Column(2);
+        column.AddChild(UiKit.Text(title, "EyebrowTertiary"));
+        Label value = UiKit.Text("—", "Heading");
+        column.AddChild(value);
+        detail = UiKit.Text("", "CaptionTertiary");
+        column.AddChild(detail);
+        parent.AddChild(column);
+        return value;
+    }
+
+    /// <summary>A store group's header: the group name over the name column, then the column titles, aligned with the rows.</summary>
+    private static Control StoreHeader(string group, string now, string change, string changeTip)
+    {
+        var head = UiKit.Panel("TableHead", null, UiKit.MouseFilter.Ignore);
+        var row = UiKit.Row(UiTokens.Sp3);
+        var name = UiKit.Text(group, "Eyebrow");
+        name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(name);
+        row.AddChild(UiKit.Cell(now.ToUpperInvariant(), "EyebrowTertiary", StoreNowWidth, right: true));
+        Label changeHead = UiKit.Cell(change.ToUpperInvariant(), "EyebrowTertiary", StoreChangeWidth, right: true);
+        changeHead.MouseFilter = Control.MouseFilterEnum.Stop;
+        changeHead.TooltipText = changeTip;
+        row.AddChild(changeHead);
+        row.AddChild(UiKit.Cell("TREND", "EyebrowTertiary", StoreTrendWidth, right: true));
+        head.AddChild(row);
+        return head;
     }
 
     private static StoreRow BuildStoreRow(VBoxContainer parent, string name, bool strong)
     {
-        var row = UiKit.Row(UiTokens.Sp2);
-        row.MouseFilter = Control.MouseFilterEnum.Ignore;
+        var root = UiKit.Panel("TableRow", null, UiKit.MouseFilter.Ignore);
+        var row = UiKit.Row(UiTokens.Sp3);
         var view = new StoreRow
         {
-            Root = row,
-            Name = UiKit.Text(name, strong ? "BodyStrong" : "Caption", minWidth: 150, ellipsis: true),
-            Now = UiKit.Text("", strong ? "NumStrong" : "Num", minWidth: 70, right: true),
-            Change = UiKit.Text("", "Num", minWidth: 92, right: true),
-            Spark = new UiSparkline(84, 20),
+            Root = root,
+            Name = UiKit.Text(name, strong ? "BodyStrong" : "Body", wrap: true),
+            Now = UiKit.Cell("", strong ? "NumStrong" : "NumBody", StoreNowWidth, right: true),
+            Change = UiKit.Cell("", strong ? "NumStrong" : "NumBody", StoreChangeWidth, right: true),
+            Spark = new UiSparkline(StoreTrendWidth, 20),
         };
+        view.Now.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        view.Change.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         row.AddChild(view.Name);
         row.AddChild(view.Now);
         row.AddChild(view.Change);
         row.AddChild(view.Spark);
-        parent.AddChild(row);
+        root.AddChild(row);
+        parent.AddChild(root);
         return view;
     }
 
@@ -179,16 +210,26 @@ public partial class Game
         bool none = sum.Rows == 0;
 
         double stores = Units(sum.Stores), need = Units(sum.Need), capacity = Units(sum.Capacity);
-        if (none) UiKit.SetText(_foodSummary!, "No settlement to report on yet.");
+        if (none)
+        {
+            UiKit.SetText(_foodStoredValue!, "—");
+            UiKit.SetText(_foodStoredDetail!, "No settlement to report on yet.");
+            UiKit.SetText(_foodLastsValue!, "—");
+            SetTone(_foodLastsValue!, UiTokens.TextPrimary);
+            UiKit.SetText(_foodNeedValue!, "—");
+        }
         else
         {
             double runway = need > 0 ? stores / need : 8;
-            UiKit.SetText(_foodSummary!,
-                $"{FormatUnits(stores)} R in store of {FormatUnits(capacity)} R storage · covers {FormatSeasons(runway)} of this season's need ({FormatUnits(need)} R)");
-            SetTone(_foodSummary!, ToneForRunway(runway));
+            UiKit.SetText(_foodStoredValue!, $"{FormatUnits(stores)} R");
+            UiKit.SetText(_foodStoredDetail!, $"of {FormatUnits(capacity)} R storage");
+            UiKit.SetText(_foodLastsValue!, need > 0 ? FormatSeasons(runway) : "—");
+            SetTone(_foodLastsValue!, need > 0 ? ToneForRunway(runway) : UiTokens.TextPrimary);
+            UiKit.SetText(_foodNeedValue!, $"{FormatUnits(need)} R");
         }
 
         // Food goods: stock in units, gathered last season in rations.
+        int foodShown = 0;
         for (int g = 0; g < _foodRows.Length; g++)
         {
             StoreRow row = _foodRows[g];
@@ -197,9 +238,11 @@ public partial class Game
             UiKit.SetText(row.Now, FormatUnits(stock));
             double gathered = sum.LedgerValid ? Units(ledger[LivingEconomyModel.FoodLedgerSummaryLines + g]) : double.NaN;
             UiKit.SetText(row.Change, sum.LedgerValid ? FormatChange(gathered) : "—");
-            SetTone(row.Change, !double.IsNaN(gathered) && gathered < -0.05 ? UiTokens.Warning : UiTokens.TextSecondary);
+            SetTone(row.Change, !double.IsNaN(gathered) && gathered < -0.05 ? UiTokens.Warning : UiTokens.TextPrimary);
             _ = change;
-            UiKit.SetVisible(row.Root, stock > 0.005 || sum.LedgerValid && Math.Abs(gathered) > 0.005 || none);
+            bool visible = stock > 0.005 || sum.LedgerValid && Math.Abs(gathered) > 0.005 || none;
+            UiKit.SetVisible(row.Root, visible);
+            if (visible) UiKit.SetVariation(row.Root, (foodShown++ & 1) == 0 ? "TableRowAlt" : "TableRow");
         }
         StoreRow total = _foodTotalRow!;
         double totalChange = FillSpark(frame, total, HistorySeries.FoodStores, stores, UiTokens.Success);
@@ -217,11 +260,12 @@ public partial class Game
             for (int i = 0; i < n && !everHeld; i++) everHeld = _storeSeries[i] > 0.5f;
             UiKit.SetVisible(row.Root, everHeld);
             if (!everHeld) continue;
-            visibleBySection[(int)LivingEconomyModel.StoreSlotCategory(row.Slot)]++;
+            int shownInSection = visibleBySection[(int)LivingEconomyModel.StoreSlotCategory(row.Slot)]++;
+            UiKit.SetVariation(row.Root, (shownInSection & 1) == 0 ? "TableRowAlt" : "TableRow");
             double change = FillSpark(frame, row, HistorySeries.StockBase + row.Slot, stock, UiTokens.Info);
             UiKit.SetText(row.Now, FormatUnits(stock));
             UiKit.SetText(row.Change, FormatChange(change));
-            SetTone(row.Change, !double.IsNaN(change) && change < -0.05 ? UiTokens.Warning : UiTokens.TextSecondary);
+            SetTone(row.Change, !double.IsNaN(change) && change < -0.05 ? UiTokens.Warning : UiTokens.TextPrimary);
         }
         for (int category = 1; category < StoreSectionNames.Length; category++)
             if (_storeSectionHeads[category] is { } head) UiKit.SetVisible(head, visibleBySection[category] > 0);
@@ -268,12 +312,16 @@ public partial class Game
 
         double fuel = Units(sum.Fuel);
         double wood = WoodStoreSlot >= 0 ? Units(ScopeStock(frame, WoodStoreSlot)) : 0;
-        if (fuel <= 0.005) UiKit.SetText(_fuelLine!, $"No hearth burns wood yet. {FormatUnits(wood)} wood in store.");
+        if (fuel <= 0.005)
+        {
+            UiKit.SetText(_fuelLine!, $"No hearth burns wood yet. {FormatUnits(wood)} wood in store.");
+            SetTone(_fuelLine!, UiTokens.TextPrimary);
+        }
         else
         {
             double seasons = wood / fuel;
             UiKit.SetText(_fuelLine!, $"Fires burn {FormatUnits(fuel)} wood this season; {FormatUnits(wood)} is in store, enough for {FormatSeasons(seasons)}.");
-            SetTone(_fuelLine!, seasons < 1 ? UiTokens.Warning : UiTokens.TextSecondary);
+            SetTone(_fuelLine!, seasons < 1 ? UiTokens.Warning : UiTokens.TextPrimary);
         }
     }
 }
