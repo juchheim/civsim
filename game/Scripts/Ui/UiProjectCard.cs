@@ -16,7 +16,6 @@ public struct ProjectLook
     public float Progress;        // 0..1 when in a slot
     public bool HiddenPrerequisite;
     public bool Selected;
-    public bool Related;
     public bool RequiredForNextAge;
     public bool OptionalNextAgeRoute;
     public bool TurnsAge;
@@ -34,7 +33,6 @@ public partial class UiProjectCard : Button
     private static readonly StyleBoxFlat Known = FlatBox(null, UiTokens.Border, 1), Almost = FlatBox(null, UiTokens.TextTertiary, 1);
     private static readonly StyleBoxFlat Blocked = FlatBox(UiTokens.WithAlpha(UiTokens.WarningDark, 0.5f), UiTokens.Warning, 1);
     private static readonly StyleBoxFlat SelectedRing = FlatBox(null, UiTokens.Accent, 2);
-    private static readonly StyleBoxFlat RelatedRing = FlatBox(null, UiTokens.WithAlpha(UiTokens.Accent, 0.6f), 1);
     private static readonly StyleBoxFlat HoverFill = FlatBox(UiTokens.Hover, new Color(0, 0, 0, 0), 0);
 
     private readonly ProjectCardMode _mode;
@@ -138,13 +136,6 @@ public partial class UiProjectCard : Button
         return boxes;
     }
 
-    public void SetRelated(bool related)
-    {
-        if (_look.Related == related) return;
-        _look.Related = related;
-        QueueRedraw();
-    }
-
     public void Bind(ProjectDef def, in ProjectLook look)
     {
         bool projectChanged = Project != def.Index;
@@ -230,7 +221,6 @@ public partial class UiProjectCard : Button
                 DrawDashedLine(new Vector2(rect.Size.X - 0.5f, 4), new Vector2(rect.Size.X - 0.5f, rect.Size.Y - 4), UiTokens.TextTertiary, 1.0f, 3.0f);
                 break;
         }
-        if (_look.Related && !_look.Selected) DrawStyleBox(RelatedRing, rect);
         if (GetDrawMode() is DrawMode.Hover or DrawMode.HoverPressed) DrawStyleBox(HoverFill, rect);
         if (_look.Selected) DrawStyleBox(SelectedRing, rect);
     }
