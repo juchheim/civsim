@@ -16,6 +16,8 @@ public struct RadialNodeLook
     public ProjectState State;
     public int SlotRank, QueueIndex;
     public float Progress;
+    /// <summary>Turning points only: how many projects of the age already count toward its breadth requirement.</summary>
+    public int BreadthDone;
     public bool HiddenPrerequisite, Filtered, Match, RequiredForNextAge, OptionalNextAgeRoute, OnBreadthPath, TurnsAge;
 }
 
@@ -60,6 +62,9 @@ public partial class ResearchRadialMap : Control
     private int _focus = int.MinValue;
     private bool[] _upstream = Array.Empty<bool>(), _downstream = Array.Empty<bool>(), _onPath = Array.Empty<bool>();
     private int[] _blockerOf = Array.Empty<int>();
+    // what a focused turning point or project still needs beyond the named chain
+    private bool[] _breadth = Array.Empty<bool>(), _unmetDirect = Array.Empty<bool>(), _fogRequired = Array.Empty<bool>();
+    private int _breadthEra = -1, _breadthMin;
     private int _nextStep = -1;
     private float _pulse;
 
@@ -148,6 +153,9 @@ public partial class ResearchRadialMap : Control
         _downstream = new bool[n];
         _onPath = new bool[n];
         _blockerOf = new int[n];
+        _breadth = new bool[n];
+        _unmetDirect = new bool[n];
+        _fogRequired = new bool[n];
         _fullWidth = new float[n];
         Font font = UiTheme.Medium;
         for (int p = 0; p < n; p++) _fullWidth[p] = font.GetStringSize(catalog.Projects[p].Name, HorizontalAlignment.Left, -1, LabelFont).X;
@@ -542,6 +550,10 @@ public partial class ResearchRadialMap : Control
         Array.Clear(_downstream);
         Array.Clear(_onPath);
         Array.Fill(_blockerOf, -1);
+        Array.Clear(_breadth);
+        Array.Clear(_unmetDirect);
+        Array.Clear(_fogRequired);
+        _breadthEra = -1;
         _nextStep = -1;
         if (_layout is null || focus < 0) return;
 
@@ -554,6 +566,28 @@ public partial class ResearchRadialMap : Control
                 if (!_upstream[r]) { _upstream[r] = true; stack.Push(r); }
         }
         foreach (int d in _layout.Dependents[focus]) _downstream[d] = true;
+
+        // every named prerequisite still missing, including ones the player has not discovered (shown unnamed)
+        foreach (ResearchRadialLayout.Edge edge in _layout.Edges)
+        {
+            if (!_looks[edge.To].Visible || !(edge.To == focus || _upstream[edge.To])) continue;
+            bool fog = !_looks[edge.From].Visible && _looks[edge.From].Undiscovered;
+            if (fog) _fogRequired[edge.From] = true;
+            if (edge.To == focus && !edge.Any && (fog || (_looks[edge.From].Visible && !IsKnown(edge.From)))) _unmetDirect[edge.From] = true;
+        }
+
+        // a turning point also wants a count of projects from its age, whichever they are
+        ProjectDef focusDef = _catalog!.Projects[focus];
+        if (focusDef.IsKeystone && focusDef.Numeric && focusDef.BreadthEra >= 0 && _looks[focus].TurnsAge)
+        {
+            _breadthEra = focusDef.BreadthEra;
+            _breadthMin = focusDef.BreadthMin;
+            for (int p = 0; p < _breadth.Length; p++)
+            {
+                ProjectDef d = _catalog.Projects[p];
+                _breadth[p] = d.Numeric && !d.IsKeystone && d.Era == focusDef.BreadthEra && _layout.Placed[p] && (_looks[p].Visible || _looks[p].Undiscovered);
+            }
+        }
 
         // the chain of first missing prerequisites, down to something that can start now
         int current = focus;
@@ -571,7 +605,9 @@ public partial class ResearchRadialMap : Control
         if (_nextStep >= 0 && !UiSettings.Current.ReduceMotion) SetProcess(true);
     }
 
-    private bool InFocus(int p) => _focus < 0 || p == _focus || _upstream[p] || _downstream[p];
+    private bool IsKnown(int p) => _looks[p].Visible && _looks[p].State is ProjectState.Completed or ProjectState.Dormant;
+
+    private bool InFocus(int p) => _focus < 0 || p == _focus || _upstream[p] || _downstream[p] || _breadth[p] || _fogRequired[p];
 
     /// <summary>Hovering is a question about one project, so it dims the rest harder than a standing selection does.</summary>
     private float OutOfFocusAlpha => _hover >= 0 ? 0.32f : 0.5f;
@@ -592,6 +628,7 @@ public partial class ResearchRadialMap : Control
         DrawEdges();
         DrawNodes();
         DrawLabels();
+        DrawBreadthCounter();
         DrawTrackNames();
     }
 
@@ -766,13 +803,21 @@ public partial class ResearchRadialMap : Control
             for (int e = 0; e < layout.Edges.Length; e++)
             {
                 ResearchRadialLayout.Edge edge = layout.Edges[e];
-                if (!_looks[edge.From].Visible || !_looks[edge.To].Visible) continue;
+                bool fogEdge = !_looks[edge.From].Visible;
+                if (!_looks[edge.To].Visible) continue;
+                if (fogEdge && !(focused && _fogRequired[edge.From] && (edge.To == _focus || _upstream[edge.To]))) continue;
                 if (!view.Intersects(_edgeBounds[e])) continue;
                 Color color;
                 float width;
                 bool strong;
                 bool dimmed = _looks[edge.From].Filtered || _looks[edge.To].Filtered || (_searching && !_looks[edge.From].Match && !_looks[edge.To].Match);
                 if (focused && _blockerOf[edge.To] == edge.From)
+                {
+                    strong = true;
+                    color = UiTokens.Accent;
+                    width = 3f;
+                }
+                else if (focused && edge.To == _focus && _unmetDirect[edge.From] && !edge.Any)
                 {
                     strong = true;
                     color = UiTokens.Accent;
@@ -803,7 +848,7 @@ public partial class ResearchRadialMap : Control
                 Vector2[] screen = _edgeScreen[e];
                 float[] pts = edge.Points;
                 for (int i = 0; i < screen.Length; i++) screen[i] = ToScreen(pts[i * 2], pts[i * 2 + 1]);
-                if (edge.Any) DrawDashedPolyline(screen, color, width);
+                if (edge.Any || fogEdge) DrawDashedPolyline(screen, color, width);
                 else DrawPolyline(screen, color, width, true);
                 if (strong) DrawArrowHead(screen, color, width);
             }
@@ -855,7 +900,17 @@ public partial class ResearchRadialMap : Control
         {
             if (!_looks[p].Undiscovered || _looks[p].Visible) continue;
             Vector2 c = ToScreen(layout.X[p], layout.Y[p]);
-            if (view.HasPoint(c)) DrawCircle(c, Math.Max(1.5f, r * 0.3f), fog);
+            if (!view.HasPoint(c)) continue;
+            if (_fogRequired[p])
+            {
+                // a prerequisite the player has not found yet: unnamed, but plainly there
+                float fr = Math.Max(5f, r * 0.9f);
+                DrawCircle(c, fr, UiTokens.WithAlpha(UiTokens.Surface2, 0.9f));
+                DrawArc(c, fr, 0, Mathf.Tau, 24, UiTokens.WithAlpha(UiTokens.Accent, 0.9f), _unmetDirect[p] ? 2.5f : 1.5f, true);
+                if (_zoom >= 0.5f) DrawString(UiTheme.Medium, c + new Vector2(-r * 0.3f, r * 0.38f), "?", HorizontalAlignment.Left, -1, (int)(r * 1.2f), UiTokens.Accent);
+            }
+            else if (_breadth[p]) DrawCircle(c, Math.Max(2f, r * 0.45f), UiTokens.WithAlpha(UiTokens.Accent, 0.45f));
+            else DrawCircle(c, Math.Max(1.5f, r * 0.3f), fog);
         }
 
         // quiet nodes first, the focus chain above them, the focus itself last
@@ -878,6 +933,10 @@ public partial class ResearchRadialMap : Control
                 if (_searching && _looks[p].Match)
                     DrawArc(c, radius + 6, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.Accent, 0.85f), 2f, true);
                 PaintNode(this, c, radius, _looks[p], theme, gate, alpha, _zoom >= 0.7f);
+                if (_breadth[p] && !IsKnown(p))
+                    DrawArc(c, radius + 4, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.Accent, 0.6f), 1.5f, true);
+                if (_unmetDirect[p] && !_onPath[p])
+                    DrawArc(c, radius + 4, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.Accent, 0.9f), 2f, true);
                 if (_onPath[p] && p != _nextStep)
                     DrawArc(c, radius + 4, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.Accent, 0.9f), 2f, true);
                 if (p == _nextStep)
@@ -1137,6 +1196,23 @@ public partial class ResearchRadialMap : Control
         string text = name[..best].TrimEnd() + "…";
         _truncated[key] = text;
         return text;
+    }
+
+    /// <summary>Beside a focused turning point: how many of the age's projects it still wants.</summary>
+    private void DrawBreadthCounter()
+    {
+        if (_breadthEra < 0 || _focus < 0 || !_looks[_focus].Visible || _layout is null) return;
+        int done = Math.Min(_looks[_focus].BreadthDone, _breadthMin);
+        string text = $"{done} of {_breadthMin} {UiText.AgeName(_breadthEra)} projects · ringed";
+        Font font = UiTheme.Medium;
+        Vector2 size = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelFont);
+        Vector2 c = ToScreen(_layout.X[_focus], _layout.Y[_focus]);
+        var box = new Rect2(c + new Vector2(-size.X * 0.5f - 8, NodeRadius(true) + 12), size + new Vector2(16, 8));
+        Rect2 room = Usable();
+        if (box.End.Y > room.End.Y) box.Position = new Vector2(box.Position.X, c.Y - NodeRadius(true) - 12 - box.Size.Y);
+        box.Position = new Vector2(Math.Clamp(box.Position.X, room.Position.X, Math.Max(room.Position.X, room.End.X - box.Size.X)), Math.Clamp(box.Position.Y, room.Position.Y, Math.Max(room.Position.Y, room.End.Y - box.Size.Y)));
+        DrawStyleBox(LabelBoxSelected, box);
+        DrawString(font, box.Position + new Vector2(8, 4 + font.GetAscent(LabelFont)), text, HorizontalAlignment.Left, -1, LabelFont, UiTokens.TextPrimary);
     }
 
     private void DrawLabels()

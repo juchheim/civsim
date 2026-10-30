@@ -525,7 +525,10 @@ public partial class Game
             node.Filtered = _webThemeFilter >= 0 && (def.IsKeystone || (int)def.Theme != _webThemeFilter);
             node.Match = searching && ResearchMatches(def, query);
             if (p == keystone && (uint)civ < (uint)frame.CivCount)
+            {
                 node.Progress = Math.Min(1f, frame.CivBreadthDone[civ] / (float)Math.Max(1, def.BreadthMin));
+                node.BreadthDone = frame.CivBreadthDone[civ];
+            }
         }
 
         string title = era >= 0 ? $"{UiText.AgeName(era).ToUpperInvariant()} AGE" : "";
