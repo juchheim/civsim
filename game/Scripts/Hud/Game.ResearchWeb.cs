@@ -519,9 +519,10 @@ public partial class Game
         _backProject = -1;
         if (!wasOpen)
         {
-            _webView = ViewChoose;
-            _webViewSwitch?.Select(ViewChoose, false);
-            ShowResearchView(ViewChoose);
+            _webView = _uiSettings.ResearchMapView ? ViewMap : ViewChoose;
+            _mapCenterNext = _webView == ViewMap;
+            _webViewSwitch?.Select(_webView, false);
+            ShowResearchView(_webView);
             _webThemeFilter = -1;
             for (int i = 0; i < 4; i++) _themeChips[i].SetPressedNoSignal(i == 0);
             if (_webSearch is not null) _webSearch.Text = "";
@@ -542,6 +543,7 @@ public partial class Game
             _ui.Push(_webLayer!);
         }
         RefreshResearchWebNow();
+        if (_webView == ViewMap) CallDeferred(nameof(ScrollToSelected));
         if (_uiSettings.PauseInWeb && _session is { Paused: false } && !_pausedByWeb) { _session.SetPaused(true); _pausedByWeb = true; }
         UpdatePausedTreatment();
         CallDeferred(nameof(FocusSelectedCard));
@@ -561,6 +563,11 @@ public partial class Game
         if (!_researchWebVisible) return;
         if (_peopleOpen) ClosePeoplePanel();
         _researchWebVisible = false;
+        if (_uiSettings.ResearchMapView != (_webView == ViewMap))
+        {
+            _uiSettings.ResearchMapView = _webView == ViewMap;
+            _uiSettings.Save();
+        }
         CloseQueuePopover();
         CloseLeaningPopover();
         if (_webScrim is not null) _webScrim.Visible = false;
