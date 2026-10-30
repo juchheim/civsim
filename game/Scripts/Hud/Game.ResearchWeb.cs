@@ -671,10 +671,16 @@ public partial class Game
     /// </summary>
     private bool IsRevealed(int project)
     {
+        if (!RevealsPath) return false;
         if (_catalog is null || (uint)project >= (uint)_agePathRequired.Length || !_agePathRequired[project] || StateOf(project) != ProjectState.Hidden) return false;
         ProjectDef def = _catalog.Projects[project];
         return def.Numeric && !def.IsKeystone;
     }
+
+    /// <summary>Ages up to and including this one (0 = Dawn, 1 = Hunters) show the required path to their turning point by name. Later ages keep it hidden; tune after playtests.</summary>
+    private const int RevealPathThroughEra = 1;
+
+    private bool RevealsPath => _current is not null && _current.FocusEra <= RevealPathThroughEra;
 
     private bool IsKnownToPlayer(int project) => StateOf(project) != ProjectState.Hidden || IsRevealed(project);
 

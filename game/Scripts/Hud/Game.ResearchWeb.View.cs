@@ -532,8 +532,9 @@ public partial class Game
             {
                 node.Progress = Math.Min(1f, frame.CivBreadthDone[civ] / (float)Math.Max(1, def.BreadthMin));
                 node.BreadthDone = frame.CivBreadthDone[civ];
-                for (int r = 0; r < _agePathRequired.Length; r++)
-                    if (_agePathRequired[r] && r != p && _catalog.Projects[r].Numeric) node.PathLeft++;
+                if (RevealsPath)
+                    for (int r = 0; r < _agePathRequired.Length; r++)
+                        if (_agePathRequired[r] && r != p && _catalog.Projects[r].Numeric) node.PathLeft++;
             }
         }
 
