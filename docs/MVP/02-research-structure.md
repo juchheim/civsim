@@ -114,6 +114,7 @@ stateDiagram-v2
 ```
 
 - **Hidden**: not shown in the research web at all, which keeps the early web small.
+  - *UI exception:* the required path to the current age's turning point is shown by name as locked steps ("Not in reach yet — needs X"), so the goal of the age can be planned. This is display only: the sim still treats those projects as Hidden, they cannot be started or queued, and everything off the path (including any-of alternatives and free picks) stays hidden.
 - **Glimpsed**: shown as a silhouette with its name and a "?" icon, plus the missing prerequisite. Glimpsing builds anticipation and makes the web *sprawl* outward as you play.
 - **Available**, **Slotted**, **Completed**: as named.
 - **Dormant**: completed, but a needed input is unavailable; its methods fall back to the previous rung.

@@ -148,7 +148,7 @@ public partial class Game
         foreach (int r in def.Requires)
         {
             ProjectState s = StateOf(r);
-            if (s == ProjectState.Hidden) { hidden = true; return; }
+            if (s == ProjectState.Hidden && !IsRevealed(r)) { hidden = true; return; }
             if (s is not (ProjectState.Completed or ProjectState.Dormant)) { missing = r; return; }
         }
         if (def.RequiresAny.Length == 0) return;
@@ -157,7 +157,7 @@ public partial class Game
         {
             ProjectState s = StateOf(r);
             if (s is ProjectState.Completed or ProjectState.Dormant) return;
-            if (s != ProjectState.Hidden && firstVisible < 0) firstVisible = r;
+            if (IsKnownToPlayer(r) && firstVisible < 0) firstVisible = r;
         }
         if (firstVisible >= 0) missing = firstVisible;
         else hidden = true;
@@ -177,6 +177,7 @@ public partial class Game
     {
         var frame = _current!;
         ProjectState state = StateOf(def.Index);
+        if (IsRevealed(def.Index)) state = ProjectState.Glimpsed;
         int slot = SlotOfProject(def.Index);
         var look = new ProjectLook
         {
@@ -321,6 +322,7 @@ public partial class Game
             ProjectState state = StateOf(p);
             if (state == ProjectState.Hidden)
             {
+                if (IsRevealed(p)) continue;
                 if (!def.IsKeystone && def.Era <= frame.FocusEra) hiddenCount++;
                 continue;
             }
@@ -502,7 +504,8 @@ public partial class Game
             node.SlotRank = -1;
             node.QueueIndex = -1;
             if (!layout.Placed[p]) continue;
-            if (state == ProjectState.Hidden)
+            bool revealed = IsRevealed(p);
+            if (state == ProjectState.Hidden && !revealed)
             {
                 node.Undiscovered = !def.IsKeystone && def.Era <= era;
                 continue;
@@ -517,7 +520,8 @@ public partial class Game
             node.OptionalNextAgeRoute = look.OptionalNextAgeRoute;
             node.OnBreadthPath = look.OnBreadthPath;
             node.TurnsAge = look.TurnsAge;
-            if (state == ProjectState.Glimpsed)
+            if (revealed) node.HiddenPrerequisite = true;
+            else if (state == ProjectState.Glimpsed)
             {
                 MissingPrerequisite(def, out _, out bool hidden);
                 node.HiddenPrerequisite = hidden;
@@ -528,6 +532,8 @@ public partial class Game
             {
                 node.Progress = Math.Min(1f, frame.CivBreadthDone[civ] / (float)Math.Max(1, def.BreadthMin));
                 node.BreadthDone = frame.CivBreadthDone[civ];
+                for (int r = 0; r < _agePathRequired.Length; r++)
+                    if (_agePathRequired[r] && r != p && _catalog.Projects[r].Numeric) node.PathLeft++;
             }
         }
 
@@ -549,7 +555,8 @@ public partial class Game
         ProjectState state = StateOf(project);
         ProjectLook look = BuildLook(def, false);
         var tip = new StringBuilder();
-        tip.Append(def.Name).Append(" · ").Append(StateWord(look.State));
+        bool revealed = IsRevealed(project);
+        tip.Append(def.Name).Append(" · ").Append(revealed ? $"On the path · needs {WhatItNeeds(def)}" : StateWord(look.State));
         if (state == ProjectState.Glimpsed) tip.Append(" — ").Append(AlmostSub(def));
         tip.Append('\n').Append(def.IsKeystone ? "Turning point" : UiText.FieldName(_catalog, def.Lineage, false))
             .Append(" · ").Append(UiText.AgeName(def.Era)).Append(" age");
@@ -569,7 +576,7 @@ public partial class Game
         if (query.Length == 0) return;
         var matches = new List<int>();
         for (int p = 0; p < Math.Min(_current.FocusProjectCount, _catalog.Count); p++)
-            if (layout.Placed[p] && StateOf(p) != ProjectState.Hidden && ResearchMatches(_catalog.Projects[p], query)) matches.Add(p);
+            if (layout.Placed[p] && IsKnownToPlayer(p) && ResearchMatches(_catalog.Projects[p], query)) matches.Add(p);
         if (matches.Count == 0) return;
         matches.Sort(CompareSearch);
         _mapCenterNext = true;
@@ -725,7 +732,8 @@ public partial class Game
             hash.Add(look.RequiredForNextAge);
             hash.Add(look.OptionalNextAgeRoute);
             hash.Add(look.TurnsAge);
-            foreach (int r in def.Requires) hash.Add(StateOf(r));
+            hash.Add(IsRevealed(def.Index));
+            foreach (int r in def.Requires) { hash.Add(StateOf(r)); hash.Add(IsRevealed(r)); }
             foreach (int r in def.RequiresAny) hash.Add(StateOf(r));
             if (def.Index < _dependents.Length) foreach (int d in _dependents[def.Index]) hash.Add(StateOf(d));
             hash.Add(frame.CivBreadthDone[Math.Max(0, frame.FocusCiv)]);
@@ -738,7 +746,7 @@ public partial class Game
     {
         if (_catalog is null || _inspector is null) return;
         int project = _selectedResearchProject;
-        bool known = (uint)project < (uint)frame.FocusProjectCount && StateOf(project) != ProjectState.Hidden;
+        bool known = (uint)project < (uint)frame.FocusProjectCount && IsKnownToPlayer(project);
         ProjectDef? def = known ? _catalog.Projects[project] : null;
         if (_dependents.Length == 0) EnsureDependents();
         int signature = InspectorSignature(frame, def);
@@ -786,6 +794,9 @@ public partial class Game
                         : $"In {UiText.SlotNames[s]} · {permille / 10}% · {EtaPhrase(s, (short)permille)}";
                     break;
                 }
+            case ProjectState.Hidden:
+                stateText = $"Not in reach yet — needs {WhatItNeeds(def)}";
+                break;
             case ProjectState.Glimpsed:
                 stateText = queueIndex >= 0 ? $"Queued · #{queueIndex + 1} in line" : $"Almost ready — needs {WhatItNeeds(def)}";
                 break;
@@ -941,6 +952,14 @@ public partial class Game
                     : hidden ? "Why can't I start this? One step before it is still undiscovered."
                     : $"Why can't I start this? {AlmostSub(def)}.";
                 break;
+            case ProjectState.Hidden:
+                _cta = CtaKind.Disabled;
+                disabled = true;
+                primary = false;
+                text = "Not in reach yet";
+                MissingPrerequisite(def, out int pathMissing, out _);
+                why = pathMissing >= 0 ? $"Why can't I start this? It needs {_catalog!.Projects[pathMissing].Name} first." : $"Why can't I start this? {AlmostSub(def)}.";
+                break;
             case ProjectState.Completed:
                 _cta = CtaKind.Disabled;
                 disabled = true;
@@ -1094,7 +1113,7 @@ public partial class Game
         foreach (int r in def.Requires)
         {
             ProjectState s = StateOf(r);
-            if (s == ProjectState.Hidden) { hiddenRequired++; continue; }
+            if (s == ProjectState.Hidden && !IsRevealed(r)) { hiddenRequired++; continue; }
             BindNeedRow(_needsPool, allUsed++, _needsList!, r, s);
         }
         HideFrom(_needsPool, allUsed);
@@ -1147,6 +1166,7 @@ public partial class Game
             ProjectState.Available => "ready",
             ProjectState.Glimpsed => "almost ready",
             ProjectState.Dormant => "blocked",
+            ProjectState.Hidden => "not in reach yet",
             _ => "",
         };
         row.Bind(def, look);
@@ -1160,7 +1180,7 @@ public partial class Game
             foreach (int d in _dependents[def.Index])
             {
                 ProjectState s = StateOf(d);
-                if (s == ProjectState.Hidden || !_catalog!.Projects[d].Numeric) continue;
+                if ((s == ProjectState.Hidden && !IsRevealed(d)) || !_catalog!.Projects[d].Numeric) continue;
                 if (used >= 8) { more++; continue; }
                 ProjectDef dependent = _catalog.Projects[d];
                 UiProjectCard chip = GetPooled(_leadsPool, used, () => NewProjectCard(ProjectCardMode.Chip), _leadsList!);
@@ -1205,6 +1225,11 @@ public partial class Game
         int target = ResolveTargetSlot();
         if (_selectedResearchProject < 0) return;
         ProjectState state = StateOf(_selectedResearchProject);
+        if (IsRevealed(_selectedResearchProject))
+        {
+            ShowFooterNote($"{_catalog!.Projects[_selectedResearchProject].Name} needs {WhatItNeeds(_catalog.Projects[_selectedResearchProject])} first.");
+            return;
+        }
         if (state == ProjectState.Glimpsed) { QueueSelected(); return; }
         if (target >= 0) AssignSelectedToSlot(target);
         else { _replaceRowOpen = true; _inspSignature = int.MinValue; RefreshResearchWebNow(); }

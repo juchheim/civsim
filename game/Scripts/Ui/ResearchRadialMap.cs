@@ -18,6 +18,8 @@ public struct RadialNodeLook
     public float Progress;
     /// <summary>Turning points only: how many projects of the age already count toward its breadth requirement.</summary>
     public int BreadthDone;
+    /// <summary>Turning points only: how many projects are still on the required path to it.</summary>
+    public int PathLeft;
     public bool HiddenPrerequisite, Filtered, Match, RequiredForNextAge, OptionalNextAgeRoute, OnBreadthPath, TurnsAge;
 }
 
@@ -1052,6 +1054,7 @@ public partial class ResearchRadialMap : Control
         if (p == _nextStep) return 900;
         if (_onPath[p]) return 850;
         if (_searching && _looks[p].Match) return 800;
+        if (_unmetDirect[p]) return 780;
         if (_focus >= 0 && (_upstream[p] || _downstream[p])) return 700;
         // what you can act on keeps its name at middle zoom; the rest steps back while something is in focus
         int rank = _looks[p].State switch
@@ -1203,7 +1206,10 @@ public partial class ResearchRadialMap : Control
     {
         if (_breadthEra < 0 || _focus < 0 || !_looks[_focus].Visible || _layout is null) return;
         int done = Math.Min(_looks[_focus].BreadthDone, _breadthMin);
-        string text = $"{done} of {_breadthMin} {UiText.AgeName(_breadthEra)} projects · ringed";
+        int pathLeft = _looks[_focus].PathLeft;
+        string text = pathLeft > 0
+            ? $"{done} of {_breadthMin} {UiText.AgeName(_breadthEra)} projects · {pathLeft} on the path"
+            : $"{done} of {_breadthMin} {UiText.AgeName(_breadthEra)} projects · ringed";
         Font font = UiTheme.Medium;
         Vector2 size = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelFont);
         Vector2 c = ToScreen(_layout.X[_focus], _layout.Y[_focus]);

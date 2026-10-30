@@ -665,6 +665,19 @@ public partial class Game
     private ProjectState StateOf(int project)
         => _current is not null && (uint)project < (uint)_current.FocusProjectCount ? (ProjectState)_current.FocusProjectState[project] : ProjectState.Hidden;
 
+    /// <summary>
+    /// A hidden project on the required path to this age's turning point. The goal of an age should be plannable, so the path
+    /// is shown by name as a locked step; everything else stays hidden. Display only: the sim still treats it as hidden.
+    /// </summary>
+    private bool IsRevealed(int project)
+    {
+        if (_catalog is null || (uint)project >= (uint)_agePathRequired.Length || !_agePathRequired[project] || StateOf(project) != ProjectState.Hidden) return false;
+        ProjectDef def = _catalog.Projects[project];
+        return def.Numeric && !def.IsKeystone;
+    }
+
+    private bool IsKnownToPlayer(int project) => StateOf(project) != ProjectState.Hidden || IsRevealed(project);
+
     /// <summary>The project a slot shows: the player's pending order while paused, else what the frame says.</summary>
     private int EffectiveSlotProject(int slot)
         => _pendingProject[slot] != -2 ? _pendingProject[slot] : _current?.FocusSlotProject[slot] ?? -1;
