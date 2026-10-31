@@ -108,10 +108,13 @@ public sealed partial class FrameBuilder
 
     private int TileOf(int settlement) => (settlement >= 0 && settlement < _settlementCount) ? _sTile[settlement] : -1;
 
+    /// <summary>A civilization index for the view's sbyte field; anything else (a refused order's tile target, say) is -1, never an overflow.</summary>
+    private static sbyte CivOrNone(int civ) => civ is >= 0 and <= sbyte.MaxValue ? (sbyte)civ : (sbyte)-1;
+
     private static ViewEvent New(long tick, ViewEventKind kind, ChronicleKey text, ViewEventTier tier, int civ, int other)
         => new()
         {
-            Tick = tick, Kind = kind, Text = text, Tier = tier, Civ = (sbyte)civ, Other = (sbyte)other,
+            Tick = tick, Kind = kind, Text = text, Tier = tier, Civ = CivOrNone(civ), Other = CivOrNone(other),
             Figure = -1, Project = -1, Settlement = -1, Tile = -1,
         };
 

@@ -6,6 +6,7 @@ using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
+using CivSim.Sim.View;
 using CivSim.Sim.World;
 
 namespace CivSim.Tests;
@@ -72,6 +73,23 @@ public sealed class WP8aDecreeTests
         Assert.Contains(rig.Match.Politics.Events, e => e.Kind == PoliticsEventKind.OrderRefused && e.Civ == 0 && e.A == (int)CommandKind.IssueDecree);
         Assert.Equal(before, rig.Match.Research.Mandate(0));
         Assert.Equal(0, rig.Match.Politics.DecreesDone(0));
+    }
+
+    [Fact]
+    public void Refused_tile_Decree_builds_a_view_frame_without_overflowing_the_event_civ_fields()
+    {
+        // A refused Mine/Found/Expedition order carries its tile as the event's Other; the view's sbyte field must not throw on it.
+        var rig = new Rig();
+        rig.Runner.Submit(new Command(rig.Runner.Tick, 0, CommandKind.IssueDecree, (int)DecreeKind.Mine, 1000, 0));
+        rig.Season();
+
+        Assert.Contains(rig.Match.Politics.Events, e => e.Kind == PoliticsEventKind.OrderRefused && e.Civ == 0 && e.Other >= sbyte.MaxValue + 1);
+        var frame = new MatchFrame();
+        new FrameBuilder(rig.Match, 0).Build(rig.Match, frame);
+        bool seen = false;
+        for (int i = 0; i < frame.EventCount; i++)
+            if (frame.Events[i].Kind == ViewEventKind.OrderRefused) { seen = true; Assert.Equal(-1, frame.Events[i].Other); }
+        Assert.True(seen);
     }
 
     [Fact]

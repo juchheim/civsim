@@ -380,9 +380,7 @@ public partial class Game
             _momentBar!.Color = UiTokens.Accent;
             _momentShow!.Visible = false;
             _momentPick!.Text = "Open research";
-            _momentPick.Pressed -= OpenResearchFromMoment;
-            _momentPick.Pressed += OpenResearchFromMoment;
-            _momentProject = -2;
+            _momentProject = -2; // the button's own handler (set at build) already opens the research web
             ShowMomentCard();
             return;
         }
@@ -405,8 +403,6 @@ public partial class Game
         _momentPick!.Text = "Pick next";
         ShowMomentCard();
     }
-
-    private void OpenResearchFromMoment() { CloseMoment(); OpenResearchWeb(FirstOpenSlot()); }
 
     private void FitMomentCard()
     {
