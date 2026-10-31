@@ -218,6 +218,10 @@ public class ViewFrameTests
             for (int k = 0; k < MatchFrame.StructureKinds; k++)
                 Assert.Equal(Math.Min(255, eco.StructureCount(s, k)), f.SettlementStructures[s * MatchFrame.StructureKinds + k]);
             Assert.Equal(Math.Min(255, eco.HallCount(s)), f.SettlementHalls[s]);
+            (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
+            Assert.Equal(Math.Min(255, eco.TempleCount(s)), f.SettlementTemples[s]);
+            Assert.Equal(Math.Min(255, ziggurats), f.SettlementZiggurats[s]);
+            Assert.Equal(zigguratPermille, f.SettlementZigguratPermille[s]);
         }
 
         for (int t = 0; t < f.Visibility.Length; t++)
@@ -297,6 +301,9 @@ public class ViewFrameTests
             Assert.NotEqual(0, f.SettlementFlags[index] & (ushort)SettlementViewFlags.Remembered);
             for (int k = 0; k < MatchFrame.StructureKinds; k++) Assert.Equal(0, f.SettlementStructures[index * MatchFrame.StructureKinds + k]);
             Assert.Equal(0, f.SettlementHalls[index]);
+            Assert.Equal(0, f.SettlementTemples[index]);
+            Assert.Equal(0, f.SettlementZiggurats[index]);
+            Assert.Equal(0, f.SettlementZigguratPermille[index]);
         }
         // A rival's private numbers are not in the frame; public ones are.
         for (int c = 1; c < f.CivCount; c++)

@@ -33,6 +33,7 @@ public partial class Game
     private Label? _diploEmptyLabel, _diploName, _diploMeta, _diploAi, _diploNoParties;
     private UiEmblem? _diploEmblem;
     private OptionButton? _diploCompactGood;
+    private OptionButton? _raidPartySize;
     private CheckButton? _diploCompactSell;
     private UiButton? _diploCompactAction, _diploEmbargoAction;
     private PanelContainer? _diploStatusChip, _diploRelationChip, _diploAgeChip;
@@ -134,6 +135,15 @@ public partial class Game
         var hostile = UiKit.Column(UiTokens.Sp2);
         hostile.AddChild(UiKit.Text("HOSTILE", "EyebrowTertiary"));
         _raidRow = NewOrderRow("Raid", QueueRaid, true, "Confirm raid");
+        var raidSizeRow = UiKit.Row(UiTokens.Sp2);
+        raidSizeRow.AddChild(UiKit.Text("Party size", "Caption"));
+        _raidPartySize = new OptionButton { CustomMinimumSize = new Vector2(128, UiTokens.ControlM) };
+        _raidPartySize.AddItem("4 raiders", 4);
+        _raidPartySize.AddItem("Up to 8", 8);
+        _raidPartySize.AddItem("Up to 12", 12);
+        _raidPartySize.Select(0);
+        raidSizeRow.AddChild(_raidPartySize);
+        hostile.AddChild(raidSizeRow);
         _warRow = NewOrderRow("Declare war", () => QueueDiplomacyOrder(PlayerCommands.DeclareWar), true, "Confirm war");
         _assaultRow = NewOrderRow("Assault", QueueAssault, true, "Confirm assault");
         foreach (OrderRow row in new[] { _raidRow, _warRow, _assaultRow }) hostile.AddChild(row.Root);
@@ -362,7 +372,9 @@ public partial class Game
             chip.Visible = true;
             chip.Text = options[i].Text;
             chip.SetMeta("settlement", options[i].Settlement);
-            chip.TooltipText = options[i].Settlement < 0 ? "The closest pair of settlements" : "";
+            chip.TooltipText = options[i].Settlement < 0
+                ? "For raids, chooses their closest settlement even if it is out of sight. Assaults need a visible settlement."
+                : "";
             chip.SetPressedNoSignal(options[i].Settlement == _selectedTargetSettlement);
         }
         for (int i = options.Count; i < _destinationPool.Count; i++) _destinationPool[i].Visible = false;
@@ -438,9 +450,13 @@ public partial class Game
                     occupation = true;
         SetOrder(_peaceRow!, atWar, can && atWar && !occupation, occupation ? "Not while you hold one of their settlements." : "Ends the war. A truce follows.");
 
-        SetOrder(_raidRow!, true, can && contacted && war02 && !allied && !truce && hasDestination,
+        bool chosenDestination = _selectedTargetSettlement >= 0;
+        string raidHint = chosenDestination
+            ? "Sends raiders to this settlement. Hurts relations."
+            : "Sends raiders to their closest settlement, even if it is out of sight. Hurts relations.";
+        SetOrder(_raidRow!, true, can && contacted && war02 && !allied && !truce,
             !war02 ? $"Needs {NeedsName(_war02)} (research)." : !contacted ? "Meet them first." : allied ? "You can't raid an ally." : truce ? "Not during a truce." :
-            !hasDestination ? "Pick one of their settlements you can see." : "Sends 4 raiders to take stores. Hurts relations.");
+            raidHint);
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
         SetOrder(_assaultRow!, true, can && atWar && hasDestination,
@@ -503,9 +519,12 @@ public partial class Game
 
     private void QueueRaid()
     {
-        if (_session is null || _current is null) return;
-        int destination = ResolveDestination(_current, _selectedPoliticsCiv);
-        if (destination >= 0) _session.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, destination, 4));
+        if (_session is null || _current is null || _selectedPoliticsCiv < 0) return;
+        int partySize = _raidPartySize is null ? 4 : Math.Max(4, _raidPartySize.GetSelectedId());
+        if (_selectedTargetSettlement >= 0)
+            _session.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _selectedTargetSettlement, partySize));
+        else
+            _session.Queue(PlayerCommands.LaunchRaidAgainst(_session.Tick, 0, _selectedPoliticsCiv, partySize));
     }
 
     private void QueueAssault()

@@ -80,6 +80,14 @@ public static class UiText
                 into[id] = name;
     }
 
+    /// <summary>Player-facing name of a goods registry id (G-WOOD), falling back to the id's own words.</summary>
+    public static string GoodName(string id)
+        => GoodNames.TryGetValue(id, out string? name) ? name : Sentence(id.StartsWith("G-", StringComparison.Ordinal) ? id[2..].Replace('_', ' ').ToLowerInvariant() : id);
+
+    /// <summary>Player-facing name of a structure registry id.</summary>
+    public static string StructureName(string id)
+        => StructureNames.TryGetValue(id, out string? name) ? name : Sentence(id.Replace('_', ' ').ToLowerInvariant());
+
     public static string AgeName(int era) => (uint)era < (uint)_ageNames.Length ? _ageNames[era] : $"Age {era + 1}";
 
     public static string CivName(int civ) => (uint)civ < (uint)CivEmblemNames.Length ? CivEmblemNames[civ] + " Folk" : "A distant people";
@@ -258,11 +266,37 @@ public static class UiText
         return gate.Kind switch
         {
             GateKind.Seen => $"Your people have seen {target}",
-            GateKind.Has => $"Needs {target} at a settlement",
+            GateKind.Has when MetalGate(catalog, gate, out _, out string metal) => $"Needs {metal} in a settlement's stores",
             GateKind.Near => $"Needs to live near {target}",
             GateKind.Climate => $"Needs a {target} climate",
             _ => $"Needs {target}",
         };
+    }
+
+    /// <summary>Whether a [Has] gate is one of the Bronze Age metals: its bit in <c>MatchFrame.CivMetalAccess</c> (arsenical 2, tin 4) and the plain name of the metal.</summary>
+    public static bool MetalGate(ResearchCatalog catalog, Gate gate, out int bit, out string metal)
+    {
+        bit = 0;
+        metal = "";
+        if (gate.Kind != GateKind.Has || (uint)gate.Target >= (uint)catalog.GateTargets.Count) return false;
+        switch (catalog.GateTargets[gate.Target])
+        {
+            case "Tin": bit = 4; metal = "tin"; return true;
+            case "Arsenic ore": bit = 2; metal = "arsenical ore"; return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>The Needs-panel text for a metal gate: whether it is met now, what counts, how to get it, and what happens without it.</summary>
+    public static string MetalGateNote(string metal, bool met, bool learned)
+    {
+        string status = met ? $"✓ A settlement holds {metal} right now." : $"✗ No settlement holds {metal} right now.";
+        string what = $"What counts: {metal} (ore or smelted) sitting in a settlement's stores, or in a sister settlement's within 15 tiles (Social Order; 20 with Government). A deposit on your land does not count until it has been mined and hauled home.";
+        string how = learned
+            ? $"To get it: mine a deposit inside your borders (a settlement reaches 8 tiles, 12 with Wheeled Transport)."
+            : $"You can learn this before you have {metal}. Learning it is what lets your people dig {metal} at all, so plan for a deposit inside your borders first.";
+        string without = $"Without it this project goes Blocked: bronze kits stop being cast and workers fall back to older tools. A Blocked project still counts toward your age.";
+        return $"{status}\n{what}\n{how}\n{without}";
     }
 
     public static string CouncilReason(int reason) => reason switch
@@ -285,7 +319,7 @@ public static class UiText
         (int)CivSim.Sim.Core.CommandKind.QueueProject => "Queueing",
         (int)CivSim.Sim.Core.CommandKind.SendGift => "Your gift",
         (int)CivSim.Sim.Core.CommandKind.SendBarter => "Your barter trip",
-        (int)CivSim.Sim.Core.CommandKind.LaunchRaid => "Your raid",
+        (int)CivSim.Sim.Core.CommandKind.LaunchRaid or (int)CivSim.Sim.Core.CommandKind.LaunchRaidAgainst => "Your raid",
         (int)CivSim.Sim.Core.CommandKind.LaunchAssault => "Your assault",
         (int)CivSim.Sim.Core.CommandKind.DeclareWar => "War",
         (int)CivSim.Sim.Core.CommandKind.MakePeace => "Peace",
@@ -300,6 +334,48 @@ public static class UiText
         1 => "that target isn't valid any more",
         2 => "something it needs is missing",
         3 => "it isn't possible right now",
+        4 => "you don't have enough Mandate",
+        5 => "no settlement can spare the people",
+        6 => "that spot won't do",
+        7 => "it's too far from your settlements",
+        8 => "the elders won't allow it",
         _ => "it was refused",
     };
+
+    /// <summary>Why a Decree would be (or was) refused, in a full sentence for the Decree card. Never shows a code name.</summary>
+    public static string DecreeRefusal(CivSim.Sim.Politics.DecreeKind kind, int reason)
+    {
+        return (kind, reason) switch
+        {
+            (CivSim.Sim.Politics.DecreeKind.Found, 5) =>
+                "No settlement in reach can spare settlers yet. One needs 20 or more people, to be at least 60% full, and not to have sent settlers out in the past year.",
+            (CivSim.Sim.Politics.DecreeKind.Found, 6) =>
+                "A village can't go there. The land must be known, unclaimed, and well clear of other villages.",
+            (CivSim.Sim.Politics.DecreeKind.Found, 7) =>
+                "None of your settlements is close enough to send settlers there.",
+            (CivSim.Sim.Politics.DecreeKind.Expedition, 5) =>
+                "No settlement can spare an expedition party of four adults.",
+            (CivSim.Sim.Politics.DecreeKind.Expedition, 6) =>
+                "There is nowhere on the map there to explore.",
+            (CivSim.Sim.Politics.DecreeKind.Expedition, 7) =>
+                "That is beyond the range an expedition can travel from your settlements.",
+            (CivSim.Sim.Politics.DecreeKind.Mine, 5) =>
+                "You have no settlement to send a mining crew from.",
+            (CivSim.Sim.Politics.DecreeKind.Mine, 6) =>
+                "Your people can't mine there: it needs a known, unclaimed deposit that your discoveries let you work.",
+            (CivSim.Sim.Politics.DecreeKind.Mine, 7) =>
+                "That deposit is beyond the reach of your nearest settlement.",
+            (CivSim.Sim.Politics.DecreeKind.Levy, 5) =>
+                "Too few fighters nearby to raise a levy. It needs at least four to spare.",
+            (_, 4) => "You don't have enough Mandate.",
+            (_, 8) => "The elders won't allow it right now.",
+            (_, 1) => "That target isn't valid.",
+            (_, 2) => "Something it needs is missing.",
+            (_, 3) => "It isn't possible right now.",
+            (_, 5) => "No settlement can spare the people.",
+            (_, 6) => "That spot won't do.",
+            (_, 7) => "It's too far from your settlements.",
+            _ => "The elders can't see a way to do it.",
+        };
+    }
 }

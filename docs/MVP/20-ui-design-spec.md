@@ -526,12 +526,13 @@ Vertical: padding 21 · header 55 · 13 · slot strip 55 · 13 · body (flex; ba
 - Footer line: "+ {N} more to discover in the {Age} age" where N = Hidden projects with `Numeric` and `Era ≤ FocusEra` (names never shown). *Deliberate change from 08 §8.2, which shows fog without a count; update 08 when shipped.*
 - Search replaces the sections with one flat result list grouped "Ready", "Almost ready", "Known", "Blocked" (Hidden never matches).
 
-**Map view (advanced; the lanes grid):**
-- Columns: one per age from Dawn to the current age (each ≥ 233), plus a 144 px "Next age" column holding only the turning-point chip (Almost ready) and fog. **Later-age columns are not drawn.**
-- Rows: three bands (Craft, Kin, Reach), header = glyph + "CRAFT — tools, fire, materials and building" (Eyebrow) with a 3 px band strip in theme base; inside a band, fields sorted by display name; label column 160 (glyph 16 + short field name `BodyStrong`, full name in tooltip). **Fields with no visible project are hidden**; the band ends with "4 fields not yet discovered" (Caption tertiary).
-- Top row "TURNING POINTS": keystone chips (cut-gem glyph).
-- Node chip: height 36, width = text + 47 (glyph 16 + paddings), min 144, max 233 (ellipsis), `HFlowContainer` per cell, colours per §1.4 node states. Hover: the node's visible prerequisites and unlocks get a 1 px `Accent` border (no edge lines). "Show known" toggle (default on) at the right of the band headers.
-- Arrow keys move between chips (left/right within the lane; up/down to the nearest chip by x in the next visible lane).
+**Map view (radial; every known project and what it needs).** One custom-drawn control (`ResearchRadialMap`, layout in `ResearchRadialLayout`) fills the canvas column; the inspector, slot strip, chips, search and footer are unchanged. *Replaced the lanes grid, which showed no connections.*
+- **Rings = ages**, Dawn in the middle; rings are drawn up to the current age and the next one (dashed, "next age"). **Sectors = tracks**, clockwise from 12 o'clock: Craft, Kin, Reach, tinted with the theme dark colour; inside a sector each **field** owns a wedge through every ring (thin separators; short field names at the outer edge when zoomed in). Age names sit in the empty wedge at 12 o'clock; the centre disc shows "{AGE} AGE" and "{done} of {n} {Age} projects known toward {turning point}".
+- Inside an age ring a project's lane is its longest chain of same-age prerequisites, so **every line runs outward** from a prerequisite to what it unlocks. Fields are ordered within a track to keep cross-field lines short; projects sit inside their wedge nearest the mean angle of their prerequisites. **Turning points** (gem diamonds) sit on a dashed gate circle between the age they leave and the next, with an `Accent` ring for the age's breadth progress.
+- Lines: required = solid, "any one of" = dashed `Info`; quiet (low alpha) by default. The selected (or hovered) project highlights its **whole prerequisite chain** (met links neutral, unmet `Accent`) and its **direct unlocks** in the dependant's theme colour, and dims the rest. The chain of first missing prerequisites is drawn thick `Accent`, ending at a pulsing ring on the step you can start now.
+- Nodes per §1.4: Known = filled theme disc + check; Ready = bright theme ring with a halo; In a slot = progress ring + rank badge 1–3; queued = "Q{n}"; Almost ready = dim dotted ring + lock; Blocked = warning disc. Hidden projects in reached ages are faint unnamed dots (no hit, no name). The exception, in Dawn and Hunters only (`RevealPathThroughEra`; later ages stay hidden until playtests say otherwise), is the required path to the current age's turning point: those hidden projects are drawn as named locked nodes (lock glyph), selectable but not startable (CTA "Not in reach yet", reason "It needs {Name} first"), and a prerequisite that is hidden and off the path shows as a dashed edge to an unnamed "?" dot while its dependant is focused. Focusing the current age's turning point rings the age's counted projects and shows an "{n} of {N} {Age} projects · {k} on the path" counter.
+- Labels (Medium 14 on a dark pill) are placed without overlap by priority (selection, missing chain, search matches, chain, in slot, ready, …), truncated with an ellipsis; the selection's name is never cut. Level of detail: below zoom 0.3 only the selection and its missing chain are named; below 0.5 also search matches, the chain, turning points and ready or in-slot projects; icons inside nodes from zoom 0.7.
+- Controls: click selects; double-click (or Enter) starts exactly like a card; wheel, trackpad scroll or pinch zooms toward the cursor; drag pans; −/+ (and the − / = keys), "Fit" (Home) shows every known project, "Selected" centres the selection, "Key" toggles the legend (open by default, bottom-left). Arrow keys move to the nearest project in that screen direction. Opening the Map, following an inspector link or pressing Enter in search centres the target (a locked target is framed with its missing chain). Theme chips dim the other tracks; search rings the matches and shows "{n} matches · Enter to jump to the first".
 
 **Inspector (571 base; scrolls):**
 1. Chips row: theme (glyph + name), "{Age} age", type (Discovery, Method, Structure, Role, Institution, Wonder, Turning point).
@@ -617,7 +618,8 @@ Auto-pause: setting "Pause on danger" (default **off**) pauses on any Critical t
 ```
 - **Civ list:** cards 199×55 (List row style) for every civ with `Aware`: emblem 26 on civ-colour disc, name `BodyStrong`, status Caption (relation word · age). Civs not yet aware are not listed. Sorted: at war, allied, contacted, aware. Selected card: Accent left bar.
 - **Detail header:** emblem 34 + name `Title` 26; chips: relation status (At war `Danger` / Allied `Success` / In truce `Info` / Contacted / Known only), relations word + number (≤ −40 "Hostile", −39…−1 "Cold", 0…40 "Neutral", > 40 "Warm"; `CivRelations`), age (`CivEra`). Line: "{n} settlements seen". AI line: newest `AiWhyEntries` with this civ, shown as "Their elders: “{Reason}”" (only for `Contacted` civs; omit if none).
-- **Destination chips:** "Nearest" (default) + one chip per visible, non-remembered, non-Free-Folk, non-empty settlement of that civ ("Settlement {index+1} · {pop}"). "Nearest" for raid/assault is resolved by the UI to the visible settlement of that civ closest (hex distance between tiles) to any of your settlements; gift/barter pass −1 as today.
+- **Destination chips:** "Nearest" (default) + one chip per visible, non-remembered, non-Free-Folk, non-empty settlement of that civ ("Settlement {index+1} · {pop}"). "Nearest" for assault is resolved to the visible settlement closest (hex distance between tiles) to any of your settlements. A raid with "Nearest" targets that civilization's closest settlement in simulation state, so it remains available when no enemy settlement is in sight; selecting a visible settlement sends the raid there. Gift/barter pass −1 as today.
+- **Raid party size:** The player chooses 4, up to 8 or up to 12 raiders before confirming a raid; the rules send available fighters and still require at least four.
 - **Order rows:** button 144×42 + consequence text (Caption secondary). Disabled: button disabled + lock glyph + reason in `TextSecondary` replacing the consequence (copy §5.8; project codes resolved to names via `ResearchCatalog.IndexOf` → `Name`). Rows show only for applicable state: "Make peace" only when at war; "Form alliance" hidden when allied; "Declare war" hidden when at war or allied (reason shown instead when allied).
 - **Two-step confirm** (Raid, Assault, Declare war): first click turns the button `Danger` with label "Confirm war" / "Confirm raid" / "Confirm assault" and shows a Ghost "Cancel" for 4 s; second click queues the command; Esc or timeout reverts.
 - **Your parties:** pooled rows (kind, members, progress bar from `PartyProgress`, "halfway" words: < 34 % "setting out", < 67 % "halfway", else "nearly there", returning legs "on the way home"), Ghost "Recall" per row (`RecallParty(ordinal)`).
@@ -713,7 +715,7 @@ Caption `NumRegular` lines on HudPanel 233 wide: "60 fps", "Figures 2,412 (all 2
 
 **3 · Check a prerequisite.**
 1. Click an "Almost ready" row/chip → inspector state line "Almost ready — needs Hand Axes"; CTA is Secondary **"Queue — starts when it's ready"**; under it, Caption: "Why can't I start this? It needs Hand Axes first."
-2. NEEDS lists "All of these: ✓ Pebble Choppers — known · ○ Hand Axes — in Secondary, 30%". Click "Hand Axes" → selection jumps to it (Choose view if it is Ready, else Map view scrolled to it), with "← Back to Prepared Cores" at the top. From there "Start in …" or "Move to Primary".
+2. NEEDS lists "All of these: ✓ Pebble Choppers — known · ○ Hand Axes — in Secondary, 30%". Click "Hand Axes" → selection jumps to it (Choose view if it is Ready, else the Map centred on it), with "← Back to Prepared Cores" at the top. From there "Start in …" or "Move to Primary".
 
 **4 · Zoom in on a settlement.**
 - Mouse: point at it and scroll up (zoom follows the cursor) or click Z0 on the rail; F frames your largest settlement. Trackpad: pinch or two-finger scroll over it. From the Chronicle or a toast: click the row/"Go there" (camera eases there at ≤ Z1).
@@ -798,7 +800,7 @@ Rules: plain English, second person, sentence case (caps only for Eyebrows), no 
 | Element | Copy |
 |---------|------|
 | Title | "Research" |
-| View switch | "Choose" · "Map" (tooltips: "Projects you can start now" · "Every field you know, by age") |
+| View switch | "Available" · "Tree" (tooltips: "Projects you can start now" · "Every field you know, by age") |
 | Theme chips | "All" · "Craft" · "Kin" · "Reach" |
 | Search placeholder | "Search projects (e.g. fire, fish, tools)" |
 | No results | "No known project matches “{query}”." |
@@ -820,7 +822,7 @@ Rules: plain English, second person, sentence case (caps only for Eyebrows), no 
 | Footer hint | "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot" |
 | Auto-fill toggled | "Auto-fill is on. The elders fill empty slots after one season; your choices stay." · "Auto-fill is off. Empty slots wait for you." |
 | Leaning popover | title "Elders' leaning" · body "When Auto-fill picks, the elders favour these themes." · "Apply" · "Cancel" |
-| Map view | "TURNING POINTS" · "CRAFT — tools, fire, materials and building" (etc.) · "{n} fields not yet discovered" · "Next age" · "Show known" |
+| Map view | "{AGE} AGE" · "{done} of {n} {Age} projects known toward {turning point}" · "CRAFT" · "KIN" · "REACH" · "Fit" · "Selected" · "Key" · "{n} matches · Enter to jump to the first" · "No known project matches" |
 | Estimate tooltip | "An estimate at today's research speed. Practice and contact with neighbours can make it faster." |
 
 ### 5.4 Numbers and estimates
@@ -906,17 +908,17 @@ Buttons: "Got it" · "Turn off tips".
 | Empty | "You haven't met anyone yet. Scouts and growing borders will find your neighbours." |
 | Viewer ≠ 0 | "Orders are available only when you play your own civilization." |
 | Sections | "DESTINATION" · "FRIENDLY" · "HOSTILE" · "YOUR PARTIES" · "No parties on the road." |
-| Destination chips | "Nearest" (tooltip "The closest pair of settlements") · "Settlement {n} · {pop}" |
+| Destination chips | "Nearest" (tooltip "Raids choose their closest settlement even if it is out of sight; assaults need a visible settlement.") · "Settlement {n} · {pop}" |
 | AI line | "Their elders: “{Reason}”" |
 | Gift | "Send gift" — "Carries food to them. Improves relations." |
 | Barter | "Barter" — "Trades your surplus for theirs." |
 | Alliance | "Form alliance" — "You defend each other." |
 | Peace | "Make peace" — "Ends the war. A truce follows." |
-| Raid | "Raid" — "Sends 4 raiders to take stores. Hurts relations." → "Confirm raid" |
+| Raid | Party size 4 / 8 / 12 · "Raid" — "Sends raiders to their closest settlement, even if it is out of sight. Hurts relations." → "Confirm raid" |
 | War | "Declare war" — "Breaks any truce and harms your reputation. Lets you assault." → "Confirm war" |
 | Assault | "Assault" — "Tries to take the settlement." → "Confirm assault" |
 | Recall | "Recall" — tooltip "Survivors head home." |
-| Disabled reasons | "Needs {Gift Giving} (research)." · "Needs {name} — both of you must know it." (alliance) · "Meet them first." · "Not while you're at war." · "Needs warmer relations (above 40; now {n})." · "A barter trip is already on the way." · "Pick one of their settlements you can see." · "Declare war first." · "You can't raid an ally." · "Not during a truce." · "Not while you hold one of their settlements." · "End the alliance first." · "Already allied." |
+| Disabled reasons | "Needs {Gift Giving} (research)." · "Needs {name} — both of you must know it." (alliance) · "Meet them first." · "Not while you're at war." · "Needs warmer relations (above 40; now {n})." · "A barter trip is already on the way." · "Pick one of their settlements you can see." (assault) · "Declare war first." · "You can't raid an ally." · "Not during a truce." · "Not while you hold one of their settlements." · "End the alliance first." · "Already allied." |
 (Project names resolved from `TRD-01`, `TRD-02`, `WAR-02`, `DIP-03` via the catalog at runtime.)
 
 ### 5.9 Modals

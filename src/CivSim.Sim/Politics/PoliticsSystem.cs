@@ -101,8 +101,16 @@ public enum OrderRefusalReason : byte
     NoMandate = 4, NoDonor = 5, NoSite = 6, OutOfReach = 7, Rejected = 8,
 }
 
-/// <summary>Something that happened between civilizations, for the Chronicle (docs/MVP/13 §10).</summary>
-public readonly record struct PoliticsEvent(long Tick, byte Civ, PoliticsEventKind Kind, int Other, int A, int B);
+/// <summary>
+/// Something that happened between civilizations, for the Chronicle (docs/MVP/13 §10). <paramref name="Tile"/> and
+/// <paramref name="Fight"/> are presentation only: where a fight happened and who was in it (see <see cref="PackFight"/>).
+/// </summary>
+public readonly record struct PoliticsEvent(long Tick, byte Civ, PoliticsEventKind Kind, int Other, int A, int B, int Tile = -1, int Fight = 0)
+{
+    /// <summary>Head counts of a fight in one int: attackers, defenders, attackers down, defenders down (a byte each; the last capped at 127).</summary>
+    public static int PackFight(int attackers, int defenders, int attackersDown, int defendersDown)
+        => Math.Min(attackers, 255) | Math.Min(defenders, 255) << 8 | Math.Min(attackersDown, 255) << 16 | Math.Min(defendersDown, 127) << 24;
+}
 
 /// <summary>What a party on the road is doing. Explore is the Expedition Decree, Caravan a compact delivery (docs/MVP/22 §4.3, §6.3). Append only.</summary>
 public enum ExpeditionKind : byte { Gift, Barter, Raid, Assault, Explore, Caravan }
@@ -418,6 +426,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     }
                     else if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderRaid(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
+                case CommandKind.LaunchRaidAgainst:
+                    if (command.A < 0 || command.A >= _civs) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderRaidAgainst(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.LaunchMiningCampRaid:
                     if (command.A < 0) Refused(command, command.A, OrderRefusalReason.InvalidTarget);

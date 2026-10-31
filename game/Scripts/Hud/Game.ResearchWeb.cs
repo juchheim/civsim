@@ -9,7 +9,8 @@ using ResearchTheme = CivSim.Sim.Research.Theme;
 namespace CivSim.Game;
 
 /// <summary>
-/// The research web: a "Choose" view of what is ready now and a "Map" view of every known field, with one inspector.
+/// The research web: an "Available" view of what is ready now and a radial "Tree" of every known project and its prerequisites,
+/// with one inspector.
 /// Click to look, click the big button to start. docs/MVP/20 §3.4 and §4.4.
 /// </summary>
 public partial class Game
@@ -41,7 +42,8 @@ public partial class Game
 
     // canvas
     private ScrollContainer? _canvasScroll;
-    private VBoxContainer? _chooseView, _mapView;
+    private VBoxContainer? _chooseView;
+    private ResearchRadialMap? _mapView;
     private PanelContainer? _noticeBar;
     private Label? _noticeLabel;
     private UiButton? _noticeButton;
@@ -64,14 +66,9 @@ public partial class Game
     private bool[] _breadthPath = Array.Empty<bool>();
 
     // map view
-    private bool _mapBuilt;
-    private readonly Dictionary<int, UiProjectCard> _chips = new();
-    private readonly List<(Control Row, int Lineage, int Theme)> _mapRows = new();
-    private readonly List<Control> _mapEraHeaders = new();
-    private readonly List<(HFlowContainer Cell, int Era, Control Row)> _mapCells = new();
-    private readonly List<(Label Header, int Theme)> _mapBandHeaders = new();
-    private HFlowContainer? _mapKeystoneCell;
-    private Control? _mapKeystoneRow;
+    private RadialNodeLook[] _mapLooks = Array.Empty<RadialNodeLook>();
+    /// <summary>The next ScrollToSelected centres the selection instead of only keeping it on screen.</summary>
+    private bool _mapCenterNext;
     private int[][] _dependents = Array.Empty<int[]>();
 
     // inspector
@@ -129,9 +126,9 @@ public partial class Game
         // Header
         var header = UiKit.Row(UiTokens.Sp3);
         header.AddChild(UiKit.Text("Research", "Title"));
-        _webViewSwitch = new UiSegmented(new[] { "Choose", "Map" }, 0, SetResearchView, 76);
+        _webViewSwitch = new UiSegmented(new[] { "Available", "Tree" }, 0, SetResearchView, 88);
         _webViewSwitch.SetTooltip(0, "Projects you can start now");
-        _webViewSwitch.SetTooltip(1, "Every field you know, by age");
+        _webViewSwitch.SetTooltip(1, "Every project you know and what it needs, by age");
         _webViewSwitch.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         header.AddChild(_webViewSwitch);
         var chips = UiKit.Row(UiTokens.Sp2);
@@ -158,6 +155,7 @@ public partial class Game
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
         _webSearch.TextChanged += _ => { _webSignature = int.MinValue; RefreshResearchWebNow(); };
+        _webSearch.TextSubmitted += _ => JumpToFirstMapMatch();
         header.AddChild(_webSearch);
         header.AddChild(UiKit.IconButton(UiGlyph.Close, "Close (Esc)", CloseResearchWeb));
         root.AddChild(header);
@@ -197,14 +195,11 @@ public partial class Game
 
         _chooseView = UiKit.Column(UiTokens.Sp3);
         BuildChooseView(_chooseView);
-        _mapView = UiKit.Column(UiTokens.Sp2);
-        _mapView.Visible = false;
-        var canvasHost = UiKit.Column(0);
-        canvasHost.AddChild(_chooseView);
-        canvasHost.AddChild(_mapView);
-        _canvasScroll = UiKit.Scroll(canvasHost);
+        _canvasScroll = UiKit.Scroll(_chooseView);
         _canvasScroll.FollowFocus = false;
         canvasColumn.AddChild(_canvasScroll);
+        _mapView = BuildMapView();
+        canvasColumn.AddChild(_mapView);
         body.AddChild(canvasColumn);
 
         var inspectorHost = UiKit.Panel("WellPanel", null);
@@ -225,8 +220,8 @@ public partial class Game
         _webAutoFill.ThemeTypeVariation = "ToggleRowCompact";
         footer.AddChild(_webAutoFill);
         footer.AddChild(UiKit.Ghost("Elders' leaning…", ToggleLeaningPopover, "Which themes the elders favour when Auto-fill picks"));
-        _peopleWebButton = UiKit.Secondary("People & needs", OpenPeoplePanel,
-            "See what your people do and the needs shaping research choices", UiGlyph.People, UiTokens.ControlS, true);
+        _peopleWebButton = UiKit.Secondary("People & Stores", () => OpenPeoplePanel(PeopleTab.Overview, int.MinValue),
+            "See what is slowing your people down, what you hold, who does what, and what your research is paying off", UiGlyph.People, UiTokens.ControlS, true);
         footer.AddChild(_peopleWebButton);
         _footerNote = UiKit.Text("Drag projects above to reprioritize · Star: age count · Link: prerequisite · Age: transition", "CaptionTertiary", right: true, ellipsis: true);
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
@@ -524,10 +519,10 @@ public partial class Game
         _backProject = -1;
         if (!wasOpen)
         {
-            _webView = ViewChoose;
-            _webViewSwitch?.Select(ViewChoose, false);
-            _chooseView!.Visible = true;
-            _mapView!.Visible = false;
+            _webView = _uiSettings.ResearchMapView ? ViewMap : ViewChoose;
+            _mapCenterNext = _webView == ViewMap;
+            _webViewSwitch?.Select(_webView, false);
+            ShowResearchView(_webView);
             _webThemeFilter = -1;
             for (int i = 0; i < 4; i++) _themeChips[i].SetPressedNoSignal(i == 0);
             if (_webSearch is not null) _webSearch.Text = "";
@@ -548,6 +543,7 @@ public partial class Game
             _ui.Push(_webLayer!);
         }
         RefreshResearchWebNow();
+        if (_webView == ViewMap) CallDeferred(nameof(ScrollToSelected));
         if (_uiSettings.PauseInWeb && _session is { Paused: false } && !_pausedByWeb) { _session.SetPaused(true); _pausedByWeb = true; }
         UpdatePausedTreatment();
         CallDeferred(nameof(FocusSelectedCard));
@@ -567,6 +563,11 @@ public partial class Game
         if (!_researchWebVisible) return;
         if (_peopleOpen) ClosePeoplePanel();
         _researchWebVisible = false;
+        if (_uiSettings.ResearchMapView != (_webView == ViewMap))
+        {
+            _uiSettings.ResearchMapView = _webView == ViewMap;
+            _uiSettings.Save();
+        }
         CloseQueuePopover();
         CloseLeaningPopover();
         if (_webScrim is not null) _webScrim.Visible = false;
@@ -602,21 +603,28 @@ public partial class Game
 
     private void SetResearchView(int view)
     {
+        if (view == ViewMap && _webView != ViewMap) _mapCenterNext = true;
         _webView = view;
         _webViewSwitch?.Select(view, false);
-        if (_chooseView is not null) _chooseView.Visible = view == ViewChoose;
-        if (_mapView is not null) _mapView.Visible = view == ViewMap;
-        if (view == ViewMap && !_mapBuilt) BuildMapView();
+        ShowResearchView(view);
         if (_canvasScroll is not null) _canvasScroll.ScrollVertical = 0;
         _webSignature = int.MinValue;
         RefreshResearchWebNow();
         if (view == ViewMap) CallDeferred(nameof(ScrollToSelected));
     }
 
+    private void ShowResearchView(int view)
+    {
+        if (_canvasScroll is not null) _canvasScroll.Visible = view == ViewChoose;
+        if (_mapView is not null) _mapView.Visible = view == ViewMap;
+    }
+
+    /// <summary>Keeps the selection on the Map's screen; centres it after a jump from elsewhere (view switch, inspector link, search).</summary>
     private void ScrollToSelected()
     {
-        if (_canvasScroll is null || _selectedResearchProject < 0) return;
-        if (_chips.TryGetValue(_selectedResearchProject, out UiProjectCard? chip) && chip.IsVisibleInTree()) _canvasScroll.EnsureControlVisible(chip);
+        if (_mapView is null || _webView != ViewMap || _selectedResearchProject < 0) return;
+        _mapView.FocusProject(_selectedResearchProject, _mapCenterNext);
+        _mapCenterNext = false;
     }
 
     private void SetThemeFilter(int filter)
@@ -656,6 +664,25 @@ public partial class Game
 
     private ProjectState StateOf(int project)
         => _current is not null && (uint)project < (uint)_current.FocusProjectCount ? (ProjectState)_current.FocusProjectState[project] : ProjectState.Hidden;
+
+    /// <summary>
+    /// A hidden project on the required path to this age's turning point. The goal of an age should be plannable, so the path
+    /// is shown by name as a locked step; everything else stays hidden. Display only: the sim still treats it as hidden.
+    /// </summary>
+    private bool IsRevealed(int project)
+    {
+        if (!RevealsPath) return false;
+        if (_catalog is null || (uint)project >= (uint)_agePathRequired.Length || !_agePathRequired[project] || StateOf(project) != ProjectState.Hidden) return false;
+        ProjectDef def = _catalog.Projects[project];
+        return def.Numeric && !def.IsKeystone;
+    }
+
+    /// <summary>Ages up to and including this one (0 = Dawn, 1 = Hunters) show the required path to their turning point by name. Later ages keep it hidden; tune after playtests.</summary>
+    private const int RevealPathThroughEra = 1;
+
+    private bool RevealsPath => _current is not null && _current.FocusEra <= RevealPathThroughEra;
+
+    private bool IsKnownToPlayer(int project) => StateOf(project) != ProjectState.Hidden || IsRevealed(project);
 
     /// <summary>The project a slot shows: the player's pending order while paused, else what the frame says.</summary>
     private int EffectiveSlotProject(int slot)

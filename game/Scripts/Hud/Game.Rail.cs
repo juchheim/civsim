@@ -114,9 +114,10 @@ public partial class Game
         deposits.AddChild(UiKit.Text("DEPOSITS & MINES", "EyebrowTertiary"));
         AddSwatch(deposits, new Color("#f2ad1e"), "Tin");
         AddSwatch(deposits, new Color("#dc6e33"), "Copper ores");
-        AddSwatch(deposits, new Color("#ad70c8"), "Arsenical copper");
+        AddSwatch(deposits, new Color("#ad70c8"), "Arsenical copper (always deep)");
         AddSwatch(deposits, new Color("#f5e17a"), "Worked deposit");
         AddSwatch(deposits, new Color("#3de8ad"), "Within mining reach");
+        deposits.AddChild(UiKit.Text("Deep deposits can only be dug with Shaft Mining; hover a tile to see whether it is deep.", "CaptionTertiary", wrap: true, minWidth: 207));
         deposits.AddChild(UiKit.Text("Only known deposits and visible/owned mining capability are shown.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         trade.AddChild(UiKit.Text("TRADE", "EyebrowTertiary"));

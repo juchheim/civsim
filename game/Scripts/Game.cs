@@ -465,6 +465,32 @@ public partial class Game : Node3D
 
         var settlements = new Godot.Collections.Array();
         int kinds = MatchFrame.StructureKinds;
+#if DEBUG
+        // --dev-ziggurat=0..4: pretend the biggest settlement is raising (1 to 3) or has raised (4) its BLD-08 ziggurat, to photograph it
+        int forcedZigguratStage = ArgumentValue("--dev-ziggurat=") is { } zigArg && int.TryParse(zigArg, out int zigStage) ? zigStage : -1;
+        int forcedZigguratAt = -1;
+        // --dev-temple=N: the biggest settlement has raised N BEL-06 temples
+        int forcedTemples = ArgumentValue("--dev-temple=") is { } templeArg && int.TryParse(templeArg, out int templeCount) ? templeCount : -1;
+        int forcedTempleAt = -1;
+        // --dev-leanto=N: the capital stands in a camp of N lean-tos and nothing sturdier (the early-village look)
+        int forcedLeanTos = ArgumentValue("--dev-leanto=") is { } leanArg && int.TryParse(leanArg, out int leanCount) ? leanCount : -1;
+        int forcedLeanToAt = -1;
+        if (forcedLeanTos > 0)
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (forcedLeanToAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedLeanToAt]))
+                    forcedLeanToAt = i;
+        if (forcedZigguratStage > 0)
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (forcedZigguratAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedZigguratAt]))
+                    forcedZigguratAt = i;
+        if (forcedTemples > 0)
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (forcedTempleAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedTempleAt]))
+                    forcedTempleAt = i;
+#endif
         for (int i = 0; i < frame.SettlementCount; i++)
         {
             var structures = new int[kinds];
@@ -478,12 +504,30 @@ public partial class Game : Node3D
                 ["food"] = (int)frame.SettlementFood[i],
                 ["structures"] = structures,
                 ["halls"] = (int)frame.SettlementHalls[i],
+                ["temples"] = (int)frame.SettlementTemples[i],
+                ["ziggurats"] = (int)frame.SettlementZiggurats[i],
+                ["zigguratPermille"] = (int)frame.SettlementZigguratPermille[i],
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
                 ["index"] = frame.SettlementIndex[i],
                 ["cohesion"] = frame.SettlementCohesion[i],
                 ["overreach"] = frame.SettlementOverreach[i],
                 ["spanPenalty"] = frame.SettlementSpanPenalty[i],
             };
+#if DEBUG
+            if (i == forcedLeanToAt)
+            {
+                for (int kind = 1; kind <= 6; kind++) structures[kind] = 0;    // lean-to .. longhouse
+                structures[1] = forcedLeanTos;
+                settlement["structures"] = structures;
+                settlement["halls"] = 0;
+            }
+            if (i == forcedTempleAt) settlement["temples"] = forcedTemples;
+            if (i == forcedZigguratAt)
+            {
+                settlement["ziggurats"] = forcedZigguratStage >= 4 ? 1 : 0;
+                settlement["zigguratPermille"] = forcedZigguratStage >= 4 ? 0 : forcedZigguratStage * 333 - 200;
+            }
+#endif
             // Props the focus civilization's knowledge leaves in its own villages (DecorTable); rivals' settlements show none.
             if (decor is { Length: > 0 } && frame.SettlementCiv[i] == frame.FocusCiv) settlement["decor"] = decor;
             settlements.Add(settlement);

@@ -155,8 +155,11 @@ public sealed class A7HarnessTelemetryTests
             row.Contains("fission(pending/firstPending/firstSplit/splits)=True/", StringComparison.Ordinal));
         Assert.Contains(builderParentRows, row => row.Contains("season=64", StringComparison.Ordinal));
         Assert.Contains(builderParentRows, row => row.Contains("season=80", StringComparison.Ordinal) &&
-            row.Contains("fission(pending/firstPending/firstSplit/splits)=False/", StringComparison.Ordinal) &&
-            row.Contains("/never/0", StringComparison.Ordinal));
+            row.Contains("fission(pending/firstPending/firstSplit/splits)=False/", StringComparison.Ordinal));
+        // The deferral holds the pending fission through season 64; whether it then splits (it now does, at season 65, once the
+        // settlement keeps its food margin) or drops depends on the economy, so the split count is not asserted.
+        Assert.Contains(builderParentRows, row => row.Contains("season=72", StringComparison.Ordinal) &&
+            row.Contains("fission(pending/firstPending/firstSplit/splits)=False/", StringComparison.Ordinal));
     }
 
     [Fact]

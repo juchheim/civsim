@@ -1,3 +1,5 @@
+using CivSim.Sim.Numerics;
+
 namespace CivSim.Sim.Economy;
 
 /// <summary>
@@ -25,4 +27,18 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>How many Halls (a Bronze-age civic dwelling, housing 30) stand at a settlement.</summary>
     public int HallCount(int settlementIndex) => _settlements[settlementIndex].Civic?.Halls ?? 0;
+
+    /// <summary>How many Temples (BEL-06, a civic building outside the structure kinds) stand at a settlement.</summary>
+    public int TempleCount(int settlementIndex) => _settlements[settlementIndex].Civic?.Temples ?? 0;
+
+    /// <summary>Ziggurats (the BLD-08 Wonder) standing at a settlement, and how much of the next one is raised, in permille (0 when none is being built).</summary>
+    public (int Standing, int BuildPermille) ZigguratView(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        if (s.Civic is not { } c) return (0, 0);
+        if (c.BuildKind != CivicBuild.Ziggurat || c.BuildProgress <= Fix64.Zero) return (c.Ziggurats, 0);
+        Fix64 labor = CivicLabor(s, CivicBuild.Ziggurat);
+        Fix64 share = labor <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, c.BuildProgress / labor);
+        return (c.Ziggurats, (share * 1000).FloorToInt());
+    }
 }

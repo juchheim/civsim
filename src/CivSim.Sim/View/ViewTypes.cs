@@ -173,6 +173,12 @@ public enum PartyKind : byte { Gift = 0, Barter = 1, Raid = 2, Assault = 3, Expl
 /// <summary>How loudly the front end should present an event (docs/MVP/08 §10.1).</summary>
 public enum ViewEventTier : byte { Ambient = 0, Info = 1, Milestone = 2, Moment = 3, Critical = 4 }
 
+/// <summary>What a <see cref="ViewEventKind.RaidLaunched"/> party marches on (the event's C).</summary>
+public static class RaidTarget
+{
+    public const int Settlement = 0, Caravan = 1, MiningCamp = 2, Assault = 3;
+}
+
 /// <summary>What happened. Stable numbers (docs/MVP/18 §6): append, never renumber.</summary>
 public enum ViewEventKind : ushort
 {
@@ -230,15 +236,15 @@ public enum ViewEventKind : ushort
     GiftArrived = 43,
     /// <summary>A barter trip came home. A = value.</summary>
     BarterDone = 44,
-    /// <summary>A raid set out. A = party size; Settlement = target.</summary>
+    /// <summary>A raid or assault set out. A = party size; B = 0; C = what it marches on (<see cref="RaidTarget"/>); Settlement = target settlement or -1; Tile = target tile or -1.</summary>
     RaidLaunched = 45,
-    /// <summary>A raid ended. A = 1 raided successfully, 0 failed, 2 we were raided, 3 we repelled it; B = loot.</summary>
+    /// <summary>A raid ended. A = 1 raided successfully, 0 failed, 2 we were raided, 3 we repelled it; B = loot in rations (what the raiders brought home, or what the target lost). Tile = where it was fought; C = head counts, bytes low to high: raiders, defenders, raiders down, defenders down.</summary>
     RaidResolved = 46,
     /// <summary>War. A = 0 we declared, 1 it was declared on us.</summary>
     WarDeclared = 47,
     /// <summary>Peace. A = seasons the war lasted.</summary>
     PeaceMade = 48,
-    /// <summary>An assault was fought. A = 1 we won, 0 lost (attacking); 2 they took it, 3 we held (defending). Settlement = target.</summary>
+    /// <summary>An assault was fought. A = 1 we won, 0 lost (attacking); 2 they took it, 3 we held (defending). Settlement = target. C = head counts as for <see cref="RaidResolved"/>, or 0 when no battle was fought (an investment ended).</summary>
     AssaultResolved = 49,
     /// <summary>A settlement is occupied. A = holders; Settlement = it.</summary>
     Occupied = 50,

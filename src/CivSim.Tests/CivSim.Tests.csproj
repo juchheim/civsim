@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The research Map's pure layout lives in the Godot project; it has no Godot types, so it is tested here. -->
+    <Compile Include="..\..\game\Scripts\Ui\ResearchRadialLayout.cs" Link="Game\ResearchRadialLayout.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CivSim.Sim\CivSim.Sim.csproj" />
     <ProjectReference Include="..\CivSim.Content\CivSim.Content.csproj" />
     <ProjectReference Include="..\CivSim.Cli\CivSim.Cli.csproj" />

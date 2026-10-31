@@ -1,4 +1,5 @@
 using CivSim.Sim.Core;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
 
 namespace CivSim.Sim.View;
@@ -27,7 +28,7 @@ public static class PlayerCommands
         => new(tick, (byte)civ, CommandKind.PlaceBeacon, tile % width, tile / width, replaceIfFull ? 1 : 0);
     public static Command RemoveBeacon(long tick, int civ, int beaconIndex) => new(tick, (byte)civ, CommandKind.RemoveBeacon, beaconIndex, 0, 0);
 
-    // ---- politics orders (PoliticsSystem.Step, CommandKind 10 to 17) ----
+    // ---- politics orders (PoliticsSystem.Step, CommandKind 10 to 17 and 21) ----
     /// <summary>Target settlement is optional; -1 keeps the rules' closest-pair destination.</summary>
     public static Command SendGift(long tick, int civ, int toCiv, int targetSettlement = -1)
         => new(tick, (byte)civ, CommandKind.SendGift, toCiv, targetSettlement + 1, 0);
@@ -35,6 +36,9 @@ public static class PlayerCommands
     public static Command SendBarter(long tick, int civ, int withCiv, int targetSettlement = -1)
         => new(tick, (byte)civ, CommandKind.SendBarter, withCiv, targetSettlement + 1, 0);
     public static Command LaunchRaid(long tick, int civ, int targetSettlement, int partySize) => new(tick, (byte)civ, CommandKind.LaunchRaid, targetSettlement, partySize, 0);
+    /// <summary>Raid the target civilization's closest settlement, even when no settlement is currently visible.</summary>
+    public static Command LaunchRaidAgainst(long tick, int civ, int targetCiv, int partySize)
+        => new(tick, (byte)civ, CommandKind.LaunchRaidAgainst, targetCiv, partySize, 0);
     /// <summary>A raid on a visible mining camp; use the stable CampId from the frame.</summary>
     public static Command LaunchMiningCampRaid(long tick, int civ, int campId, int partySize)
         => new(tick, (byte)civ, CommandKind.LaunchMiningCampRaid, campId, partySize, 0);
@@ -62,6 +66,10 @@ public static class PlayerCommands
         => Decree(tick, civ, DecreeKind.Compact, partner, DecreeArgs.PackCompact(TradeGood.None, false, treaty ? CompactVariant.Treaty : CompactVariant.Pact));
     public static Command SetEmbargo(long tick, int civ, int onCiv, TradeGood good, bool on)
         => new(tick, (byte)civ, CommandKind.SetEmbargo, onCiv, (int)good, on ? 1 : 0);
+
+    // ---- settlement labor policies ----
+    public static Command SetScoutPolicy(long tick, int civ, int settlement, ScoutPolicy policy)
+        => new(tick, (byte)civ, CommandKind.SetScoutPolicy, settlement, (int)policy, 0);
 
     public static Command Decree(long tick, int civ, DecreeKind kind, int target, int extra)
         => new(tick, (byte)civ, CommandKind.IssueDecree, (int)kind, target, extra);

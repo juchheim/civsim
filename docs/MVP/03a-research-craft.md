@@ -171,7 +171,7 @@ Lineages: [STN](#stn--stoneworking) · [FIR](#fir--fire--heat) · [WOD](#wod--wo
 | MET-01 | Native Copper | E2 | D | STN-08, [Seen: Native copper] | Cold-hammered copper ornaments (luxury trade, prestige). |
 | MET-02 | Copper Smelting | E2 | D | MET-01, FIR-07, INQ-03 | **Good:** Copper. ▸ Tools: Copper (fragile). **Role:** Smith. *KEY-3 prerequisite.* |
 | MET-03 | Casting & Moulds | E3 | M | MET-02, CER-03 | ▸ Chop: Copper axe; copper tools cheaper (−40% metal). |
-| MET-04 | Arsenical Bronze | E3 | M | MET-03, [Has: Arsenic ore] | **Good:** Bronze (route A). ▸ Tools & arms: Bronze. |
+| MET-04 | Arsenical Bronze | E3 | M | MET-03, MIN-04, [Has: Arsenic ore] | **Good:** Bronze (route A). ▸ Tools & arms: Bronze. |
 | MET-05 | Tin Bronze | E3 | M | MET-03, [Has: Tin] | **Good:** Bronze (route B, +20% quality). ▸ Tools & arms: Bronze. Tin trade becomes strategic. |
 | MET-06 | Lost-Wax Casting | E3 | M | (MET-04 \| MET-05), ART-06 | Fine bronze: statues, bells, type molds. +Prestige goods. |
 | MET-07 | Gold & Silver Working | E3 | D | MET-03, TRD-03, [Seen: Gold or Silver] | **Good:** Precious metal, the basis for coinage (TRD-06). |

@@ -569,8 +569,11 @@ public sealed partial class PoliticsSystem
         _dip.Shift(c, o, deaths ? -50 : -30);
         if (peaceful && !atWar) _dip.AdjustReputation(c, -10);
         _dip.RecordRaid(c, o, _season);
-        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidResolved, o, outcome.Success ? 1 : 0, loot.FloorToInt()));
-        _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.RaidResolved, c, outcome.Success ? 2 : 3, loot.FloorToInt()));
+        int fight = PoliticsEvent.PackFight(raiders.Count, defenders.Count,
+            outcome.Battle.AttackerDead.Count + outcome.Battle.AttackerWounded.Count, outcome.Battle.DefenderDead.Count + outcome.Battle.DefenderWounded.Count);
+        // The raiders bring home Raids.DeliveredLootShare of what was taken; the target lost all of it.
+        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidResolved, o, outcome.Success ? 1 : 0, (loot * Raids.DeliveredLootShare).FloorToInt(), _sTile[e.ToSettlement], fight));
+        _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.RaidResolved, c, outcome.Success ? 2 : 3, loot.FloorToInt(), _sTile[e.ToSettlement], fight));
     }
 
     private void ArriveMiningCampRaid(Expedition e)
@@ -613,10 +616,12 @@ public sealed partial class PoliticsSystem
         _dip.Shift(e.Civ, e.TargetCiv, deaths ? -50 : -30);
         if (peaceful && !atWar) _dip.AdjustReputation(e.Civ, -10);
         _dip.RecordRaid(e.Civ, e.TargetCiv, _season);
+        int fight = PoliticsEvent.PackFight(raiders.Count, defenders.Count,
+            outcome.Battle.AttackerDead.Count + outcome.Battle.AttackerWounded.Count, outcome.Battle.DefenderDead.Count + outcome.Battle.DefenderWounded.Count);
         _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.RaidResolved, e.TargetCiv,
-            outcome.Success ? 1 : 0, loot.FloorToInt()));
+            outcome.Success ? 1 : 0, loot.FloorToInt(), camp.Tile, fight));
         _events.Add(new PoliticsEvent(_tick, (byte)e.TargetCiv, PoliticsEventKind.RaidResolved, e.Civ,
-            outcome.Success ? 2 : 3, loot.FloorToInt()));
+            outcome.Success ? 2 : 3, loot.FloorToInt(), camp.Tile, fight));
     }
 
     private void ArriveAssault(Expedition e)
@@ -638,8 +643,10 @@ public sealed partial class PoliticsSystem
         ApplyCasualties(result.AttackerDead, result.AttackerWounded);
         ApplyCasualties(result.DefenderDead, result.DefenderWounded);
         bool won = Captures.CanHold(result);
-        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.AssaultResolved, o, won ? 1 : 0, e.ToSettlement));
-        _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.AssaultResolved, c, won ? 2 : 3, e.ToSettlement));
+        int fight = PoliticsEvent.PackFight(attackers.Count, defenders.Count,
+            result.AttackerDead.Count + result.AttackerWounded.Count, result.DefenderDead.Count + result.DefenderWounded.Count);
+        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.AssaultResolved, o, won ? 1 : 0, e.ToSettlement, _sTile[e.ToSettlement], fight));
+        _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.AssaultResolved, c, won ? 2 : 3, e.ToSettlement, _sTile[e.ToSettlement], fight));
         if (!won)
         {
             _failedCampaigns[c * _civs + o]++;

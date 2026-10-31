@@ -124,6 +124,8 @@ public sealed class MatchFrame
     public sbyte[] SettlementCiv = Array.Empty<sbyte>();
     public int[] SettlementTile = Array.Empty<int>();
     public int[] SettlementPopulation = Array.Empty<int>();
+    /// <summary>Private (<see cref="SettlementViewFlags.Own"/> only): current <see cref="CivSim.Sim.Economy.ScoutPolicy"/>.</summary>
+    public byte[] SettlementScoutPolicy = Array.Empty<byte>();
     /// <summary><see cref="FoodBand"/> of last season's food security.</summary>
     public byte[] SettlementFood = Array.Empty<byte>();
     /// <summary><see cref="FoodBand"/> of the late-winter forecast (made each autumn).</summary>
@@ -148,6 +150,49 @@ public sealed class MatchFrame
     public byte[] SettlementStructures = Array.Empty<byte>();
     /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
     public byte[] SettlementHalls = Array.Empty<byte>();
+    /// <summary>Temples standing at each settlement (BEL-06; a civic building outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
+    public byte[] SettlementTemples = Array.Empty<byte>();
+    /// <summary>Ziggurats standing at each settlement (BLD-08 Wonder), and the permille of the next one raised while it is under way. Zero for remembered settlements.</summary>
+    public byte[] SettlementZiggurats = Array.Empty<byte>();
+    public short[] SettlementZigguratPermille = Array.Empty<short>();
+
+    // ---- economy of the viewer's own settlements (zero elsewhere): the "Your people" sheet --------
+    /// <summary>Goods a settlement can hold; the stride of <see cref="SettlementStores"/>.</summary>
+    public static int StoreSlots => Economy.LivingEconomyModel.StoreSlotCount;
+    /// <summary>Seasons of history kept per settlement.</summary>
+    public const int HistoryLength = 16;
+    /// <summary>Series per history sample: the fixed ones in <see cref="View.HistorySeries"/> then one stock per good.</summary>
+    public static int HistorySeriesCount => HistorySeries.StockBase + StoreSlots;
+    /// <summary>Stock of every good now (raw Q32.32): [w × StoreSlots + slot]; slot ids by <see cref="Economy.LivingEconomyModel.StoreSlotId"/>.</summary>
+    public long[] SettlementStores = Array.Empty<long>();
+    /// <summary>Rations in store now (raw Q32.32).</summary>
+    public long[] SettlementFoodStores = Array.Empty<long>();
+    /// <summary>Per-season numbers, <see cref="EconField.Stride"/> longs per row (see <see cref="EconField"/>).</summary>
+    public long[] SettlementEcon = Array.Empty<long>();
+    /// <summary>Samples kept per settlement (oldest first); <see cref="SettlementHistory"/> holds [(w × HistoryLength + sample) × series + series].</summary>
+    public byte[] SettlementHistoryCount = Array.Empty<byte>();
+    /// <summary>Hundredths of a unit (people and permille as they are), one sample per season boundary.</summary>
+    public int[] SettlementHistory = Array.Empty<int>();
+    /// <summary>The builder's history version this frame holds, and the row layout it was copied for.</summary>
+    public int HistoryVersion = -1, HistoryLayout;
+    /// <summary>The focus civilization's history (<see cref="HistorySeries.CivSeries"/> series per sample, oldest first).</summary>
+    public int FocusHistoryCount;
+    public readonly int[] FocusHistory = new int[HistoryLength * HistorySeries.CivSeries];
+
+    /// <summary>
+    /// What learned projects are worth, per own settlement and measurable project: rations, wood and lives a season (raw Q32.32,
+    /// three numbers each) from last season's ledger, and the running totals since the project was learned.
+    /// </summary>
+    public int PayoffProjectCount;
+    /// <summary>Dense project index of each measurable project.</summary>
+    public int[] PayoffProject = Array.Empty<int>();
+    /// <summary>[(w × PayoffProjectCount + m) × 3 + (0 rations, 1 wood, 2 lives)].</summary>
+    public long[] SettlementPayoff = Array.Empty<long>(), SettlementPayoffTotal = Array.Empty<long>();
+    /// <summary>[(w × PayoffProjectCount + m) × 3 + (status, reason, tool)]: <see cref="Economy.LivingEconomyModel.PayoffStatus"/>, <see cref="Economy.MethodFallbackReason"/>, <see cref="Economy.MethodToolId"/>.</summary>
+    public byte[] SettlementPayoffInfo = Array.Empty<byte>();
+    /// <summary>What each project in a research slot would add at today's flows: rations, wood, lives; and status, reason, tool.</summary>
+    public readonly long[] FocusSlotProjection = new long[9];
+    public readonly byte[] FocusSlotProjectionInfo = new byte[9];
 
     // ---- fields and orchards ------------------------------------------------------------------
     public int PlotCount;
@@ -261,6 +306,8 @@ public sealed class MatchFrame
     /// <summary>Public: era, keystone breadth, Legacy, Firsts, Dominion and land share, posture and Relations with the viewer.</summary>
     public byte[] CivEra = Array.Empty<byte>();
     public short[] CivBreadthDone = Array.Empty<short>(), CivBreadthNeeded = Array.Empty<short>();
+    /// <summary>Bronze Age metals some settlement of the civ holds in stores: bit 0 copper, 1 arsenical, 2 tin (the research [Has] gates). Filled for the viewer's own civ only, and 0 before the Bronze Age begins.</summary>
+    public byte[] CivMetalAccess = Array.Empty<byte>();
     public long[] CivLegacy = Array.Empty<long>(), CivFirstsLegacy = Array.Empty<long>(), CivDominion = Array.Empty<long>();
     public int[] CivLandBasisPoints = Array.Empty<int>();
     /// <summary><see cref="Core.Posture"/>; Raid posture shows as warpaint, so it is public.</summary>
@@ -295,6 +342,8 @@ public sealed class MatchFrame
     /// <summary><see cref="Research.ProjectState"/> of every project (dense pack index) for the focus civilization: the research web's node states (08 §8.2).</summary>
     public int FocusProjectCount;
     public byte[] FocusProjectState = Array.Empty<byte>();
+    /// <summary>The season each completed project was learned (-1 for projects not yet learned), by dense pack index.</summary>
+    public int[] FocusProjectDoneSeason = Array.Empty<int>();
     /// <summary>Current Know-how stock by research field (lineage), fixed-point raw values.</summary>
     public long[] FocusKnowHow = Array.Empty<long>();
     public int FocusKnowHowCount;
@@ -343,6 +392,7 @@ public sealed class MatchFrame
         Ensure(ref Events, events);
         Ensure(ref AiWhyEntries, aiWhy);
         Ensure(ref FocusProjectState, 1024);
+        Ensure(ref FocusProjectDoneSeason, 1024);
     }
 
     internal static void Ensure<T>(ref T[] array, int needed)
@@ -397,13 +447,33 @@ public sealed class MatchFrame
         if (SettlementIndex.Length < n)
         {
             Ensure(ref SettlementIndex, n); Ensure(ref SettlementCiv, n); Ensure(ref SettlementTile, n); Ensure(ref SettlementPopulation, n);
+            Ensure(ref SettlementScoutPolicy, n);
             Ensure(ref SettlementFood, n); Ensure(ref SettlementWinterForecast, n); Ensure(ref SettlementCohesion, n);
             Ensure(ref SettlementOverreach, n); Ensure(ref SettlementSpanPenalty, n);
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
+            Ensure(ref SettlementTemples, n); Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
+        int rows = SettlementIndex.Length;
+        if (SettlementFoodStores.Length < rows)
+        {
+            Ensure(ref SettlementFoodStores, rows); Ensure(ref SettlementHistoryCount, rows);
+        }
+        Ensure(ref SettlementStores, rows * StoreSlots);
+        Ensure(ref SettlementEcon, rows * EconField.Stride);
+        Ensure(ref SettlementHistory, rows * HistoryLength * HistorySeriesCount);
+    }
+
+    internal void EnsurePayoff(int projects)
+    {
+        PayoffProjectCount = projects;
+        int rows = Math.Max(SettlementIndex.Length, 1);
+        Ensure(ref PayoffProject, projects);
+        Ensure(ref SettlementPayoff, rows * projects * 3);
+        Ensure(ref SettlementPayoffTotal, rows * projects * 3);
+        Ensure(ref SettlementPayoffInfo, rows * projects * 3);
     }
 
     internal void EnsurePlots(int n)
@@ -462,7 +532,7 @@ public sealed class MatchFrame
     internal void EnsureCivs(int n)
     {
         if (CivFlags.Length >= n) return;
-        CivFlags = new ushort[n]; CivEra = new byte[n]; CivBreadthDone = new short[n]; CivBreadthNeeded = new short[n];
+        CivFlags = new ushort[n]; CivEra = new byte[n]; CivBreadthDone = new short[n]; CivBreadthNeeded = new short[n]; CivMetalAccess = new byte[n];
         CivLegacy = new long[n]; CivFirstsLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
         CivPosture = new byte[n]; CivRelations = new short[n]; CivWeaponTier = new byte[n]; CivPopulation = new int[n];
         CivSettlements = new int[n]; CivProjectsDone = new int[n]; CivInsightPerYear = new long[n];

@@ -72,7 +72,12 @@ public partial class Game
         var card = new UiProjectCard(mode);
         if (mode == ProjectCardMode.Card) card.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         else if (mode == ProjectCardMode.Row) card.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        card.Pressed += () => SelectResearchProject(card.Project, _webView == ViewChoose && card.GetParent() is not null && IsInspectorLink(card));
+        card.Pressed += () =>
+        {
+            bool link = card.GetParent() is not null && IsInspectorLink(card);
+            if (link) _mapCenterNext = true;
+            SelectResearchProject(card.Project, _webView == ViewChoose && link);
+        };
         card.GuiInput += input =>
         {
             if (input is InputEventMouseButton { DoubleClick: true, ButtonIndex: MouseButton.Left } && card.Project >= 0)
@@ -143,7 +148,7 @@ public partial class Game
         foreach (int r in def.Requires)
         {
             ProjectState s = StateOf(r);
-            if (s == ProjectState.Hidden) { hidden = true; return; }
+            if (s == ProjectState.Hidden && !IsRevealed(r)) { hidden = true; return; }
             if (s is not (ProjectState.Completed or ProjectState.Dormant)) { missing = r; return; }
         }
         if (def.RequiresAny.Length == 0) return;
@@ -152,7 +157,7 @@ public partial class Game
         {
             ProjectState s = StateOf(r);
             if (s is ProjectState.Completed or ProjectState.Dormant) return;
-            if (s != ProjectState.Hidden && firstVisible < 0) firstVisible = r;
+            if (IsKnownToPlayer(r) && firstVisible < 0) firstVisible = r;
         }
         if (firstVisible >= 0) missing = firstVisible;
         else hidden = true;
@@ -172,6 +177,7 @@ public partial class Game
     {
         var frame = _current!;
         ProjectState state = StateOf(def.Index);
+        if (IsRevealed(def.Index)) state = ProjectState.Glimpsed;
         int slot = SlotOfProject(def.Index);
         var look = new ProjectLook
         {
@@ -316,6 +322,7 @@ public partial class Game
             ProjectState state = StateOf(p);
             if (state == ProjectState.Hidden)
             {
+                if (IsRevealed(p)) continue;
                 if (!def.IsKeystone && def.Era <= frame.FocusEra) hiddenCount++;
                 continue;
             }
@@ -456,184 +463,128 @@ public partial class Game
 
     // ---- Map view ----------------------------------------------------------------------------
 
-    private void BuildMapView()
+    private ResearchRadialMap BuildMapView()
     {
-        if (_mapBuilt || _catalog is null || _mapView is null) return;
-        _mapBuilt = true;
-
-        // adjacency for hover relatives
-        var lists = new List<int>[_catalog.Count];
-        foreach (ProjectDef def in _catalog.Projects)
+        var map = new ResearchRadialMap
         {
-            foreach (int r in def.Requires) (lists[r] ??= new List<int>()).Add(def.Index);
-            foreach (int r in def.RequiresAny) (lists[r] ??= new List<int>()).Add(def.Index);
-        }
-        _dependents = new int[_catalog.Count][];
-        for (int i = 0; i < lists.Length; i++) _dependents[i] = lists[i]?.ToArray() ?? Array.Empty<int>();
-
-        Font font = UiTheme.Medium;
-        UiProjectCard MakeChip(ProjectDef def)
-        {
-            UiProjectCard chip = NewProjectCard(ProjectCardMode.Chip);
-            float width = Math.Clamp(font.GetStringSize(def.Name, HorizontalAlignment.Left, -1, UiTokens.FontBody).X + 84, 144, 233);
-            chip.CustomMinimumSize = new Vector2(width, UiTokens.ControlS);
-            chip.Visible = false;
-            int index = def.Index;
-            chip.MouseEntered += () => HighlightRelatives(index, true);
-            chip.MouseExited += () => HighlightRelatives(index, false);
-            _chips[def.Index] = chip;
-            return chip;
-        }
-
-        // era header row
-        var eraRow = UiKit.Row(UiTokens.Sp2);
-        eraRow.AddChild(UiKit.Spacer(160));
-        for (int era = 0; era < 4; era++)
-        {
-            Label header = UiKit.Text(UiText.AgeName(era).ToUpperInvariant() + " AGE", "EyebrowTertiary");
-            header.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            _mapEraHeaders.Add(header);
-            eraRow.AddChild(header);
-        }
-        _mapView.AddChild(eraRow);
-
-        // turning points
-        var keyRow = UiKit.Row(UiTokens.Sp2);
-        keyRow.AddChild(UiKit.Text("TURNING POINTS", "EyebrowTertiary", minWidth: 160));
-        _mapKeystoneCell = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _mapKeystoneCell.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-        _mapKeystoneCell.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
-        foreach (ProjectDef def in _catalog.Projects)
-            if (def.IsKeystone && def.Numeric && def.Era <= 3) _mapKeystoneCell.AddChild(MakeChip(def));
-        keyRow.AddChild(_mapKeystoneCell);
-        _mapKeystoneRow = keyRow;
-        _mapView.AddChild(keyRow);
-
-        for (int theme = 0; theme < 3; theme++)
-        {
-            var bandHead = UiKit.Row(UiTokens.Sp2);
-            bandHead.AddChild(new UiIcon(UiDraw.ThemeGlyph((ResearchTheme)theme), 16, UiTokens.ThemeColor((ResearchTheme)theme)));
-            Label band = UiKit.Text($"{UiText.ThemeNames[theme].ToUpperInvariant()} — {UiText.ThemePurpose[theme].ToLowerInvariant()}", "Eyebrow", UiTokens.ThemeText((ResearchTheme)theme));
-            bandHead.AddChild(band);
-            bandHead.AddChild(UiKit.Spacer(expand: true));
-            Control bandHeaderHost = bandHead;
-            _mapBandHeaders.Add((band, theme));
-            bandHeaderHost.SetMeta("band", theme);
-            _mapView.AddChild(UiKit.Spacer(0, UiTokens.Sp2));
-            _mapView.AddChild(bandHead);
-
-            var lineages = new List<int>();
-            for (int l = 0; l < _catalog.LineageCodes.Count; l++)
-                if (LineageTheme(l) == theme) lineages.Add(l);
-            lineages.Sort((a, b) => string.CompareOrdinal(UiText.FieldName(_catalog, a, true), UiText.FieldName(_catalog, b, true)));
-            foreach (int lineage in lineages)
+            Visible = false,
+            ProjectClicked = project => SelectResearchProject(project),
+            ProjectActivated = project =>
             {
-                var row = UiKit.Row(UiTokens.Sp2);
-                var label = UiKit.Text(UiText.FieldName(_catalog, lineage, true), "BodyStrong", minWidth: 160, ellipsis: true);
-                label.CustomMinimumSize = new Vector2(160, 0);
-                label.SizeFlagsHorizontal = Control.SizeFlags.Fill;
-                label.TooltipText = UiText.FieldName(_catalog, lineage, false);
-                label.MouseFilter = Control.MouseFilterEnum.Stop;
-                row.AddChild(label);
-                for (int era = 0; era < 4; era++)
-                {
-                    var cell = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(233, 0) };
-                    cell.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-                    cell.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
-                    foreach (ProjectDef def in _catalog.Projects)
-                        if (def.Numeric && !def.IsKeystone && def.Lineage == lineage && def.Era == era) cell.AddChild(MakeChip(def));
-                    _mapCells.Add((cell, era, row));
-                    row.AddChild(cell);
-                }
-                row.SetMeta("lineage", lineage);
-                row.SetMeta("theme", theme);
-                _mapRows.Add((row, lineage, theme));
-                _mapView.AddChild(row);
-            }
-        }
-    }
-
-    private int LineageTheme(int lineage)
-    {
-        foreach (ProjectDef def in _catalog!.Projects)
-            if (!def.IsKeystone && def.Lineage == lineage) return (int)def.Theme;
-        return 0;
-    }
-
-    private void HighlightRelatives(int project, bool on)
-    {
-        if (_catalog is null || project < 0) return;
-        ProjectDef def = _catalog.Projects[project];
-        void Mark(int p)
-        {
-            if (_chips.TryGetValue(p, out UiProjectCard? chip)) chip.SetRelated(on);
-        }
-        foreach (int r in def.Requires) Mark(r);
-        foreach (int r in def.RequiresAny) Mark(r);
-        if (project < _dependents.Length) foreach (int d in _dependents[project]) Mark(d);
+                SelectResearchProject(project);
+                StartSelectedProject();
+            },
+            TooltipFor = MapTooltip,
+            FirstMissing = project =>
+            {
+                if (_catalog is null || (uint)project >= (uint)_catalog.Count) return -1;
+                MissingPrerequisite(_catalog.Projects[project], out int missing, out _);
+                return missing;
+            },
+        };
+        map.SetCatalog(_catalog!, lineage => UiText.FieldName(_catalog!, lineage, true));
+        _mapLooks = new RadialNodeLook[_catalog!.Count];
+        return map;
     }
 
     private void RefreshMapView(MatchFrame frame)
     {
-        if (!_mapBuilt) BuildMapView();
+        if (_mapView?.Layout is not ResearchRadialLayout layout || _catalog is null) return;
         string query = _webSearch?.Text.Trim() ?? "";
-        var visibleRows = new HashSet<Control>();
-        int[] visibleByTheme = new int[3];
-        var eraVisible = new bool[4];
-        foreach ((int project, UiProjectCard chip) in _chips)
+        bool searching = query.Length > 0;
+        int era = frame.FocusEra;
+        int civ = Math.Max(0, frame.FocusCiv);
+        int keystone = _catalog.KeystoneLeaving(Math.Max(0, era));
+        for (int p = 0; p < _mapLooks.Length; p++)
         {
-            ProjectDef def = _catalog!.Projects[project];
-            ProjectState state = StateOf(project);
-            bool visible = state != ProjectState.Hidden && (_webThemeFilter < 0 || (int)def.Theme == _webThemeFilter) &&
-                           (query.Length == 0 || ResearchMatches(def, query));
-            if (def.IsKeystone && _webThemeFilter >= 0) visible = false;
-            if (chip.Visible != visible) chip.Visible = visible;
-            if (!visible) continue;
+            ProjectDef def = _catalog.Projects[p];
+            ProjectState state = StateOf(p);
+            ref RadialNodeLook node = ref _mapLooks[p];
+            node = default;
+            node.SlotRank = -1;
+            node.QueueIndex = -1;
+            if (!layout.Placed[p]) continue;
+            bool revealed = IsRevealed(p);
+            if (state == ProjectState.Hidden && !revealed)
+            {
+                node.Undiscovered = !def.IsKeystone && def.Era <= era;
+                continue;
+            }
             ProjectLook look = BuildLook(def, false);
-            if (state == ProjectState.Glimpsed)
+            node.Visible = true;
+            node.State = look.State;
+            node.SlotRank = look.SlotRank;
+            node.QueueIndex = look.QueueIndex;
+            node.Progress = look.Progress;
+            node.RequiredForNextAge = look.RequiredForNextAge;
+            node.OptionalNextAgeRoute = look.OptionalNextAgeRoute;
+            node.OnBreadthPath = look.OnBreadthPath;
+            node.TurnsAge = look.TurnsAge;
+            if (revealed) node.HiddenPrerequisite = true;
+            else if (state == ProjectState.Glimpsed)
             {
                 MissingPrerequisite(def, out _, out bool hidden);
-                look.HiddenPrerequisite = hidden;
+                node.HiddenPrerequisite = hidden;
             }
-            chip.Bind(def, look);
-            string pathTip = "";
-            if (look.OnBreadthPath) pathTip += " · counts toward the age project requirement";
-            if (look.RequiredForNextAge) pathTip += " · required to reach the next age";
-            else if (look.OptionalNextAgeRoute) pathTip += " · one possible route to the next age";
-            if (look.TurnsAge) pathTip += " · completes the age transition";
-            chip.TooltipText = $"{def.Name} · {StateWord(state)}" + pathTip +
-                               (state == ProjectState.Glimpsed ? $" — {AlmostSub(def)}" : "") +
-                               (_devVisible ? $"\n{def.Id}" : "");
-            _navCards.Add(chip);
-            if (def.Era <= 3) eraVisible[def.Era] = true;
+            node.Filtered = _webThemeFilter >= 0 && (def.IsKeystone || (int)def.Theme != _webThemeFilter);
+            node.Match = searching && ResearchMatches(def, query);
+            if (p == keystone && (uint)civ < (uint)frame.CivCount)
+            {
+                node.Progress = Math.Min(1f, frame.CivBreadthDone[civ] / (float)Math.Max(1, def.BreadthMin));
+                node.BreadthDone = frame.CivBreadthDone[civ];
+                if (RevealsPath)
+                    for (int r = 0; r < _agePathRequired.Length; r++)
+                        if (_agePathRequired[r] && r != p && _catalog.Projects[r].Numeric) node.PathLeft++;
+            }
         }
-        _navCards.Sort((a, b) => ChipOrder(a).CompareTo(ChipOrder(b)));
-        foreach ((HFlowContainer cell, int era, Control row) in _mapCells)
+
+        string title = era >= 0 ? $"{UiText.AgeName(era).ToUpperInvariant()} AGE" : "";
+        string sub = "";
+        if (keystone >= 0 && (uint)civ < (uint)frame.CivCount && StateOf(keystone) is not (ProjectState.Completed or ProjectState.Dormant))
         {
-            bool any = false;
-            foreach (Node child in cell.GetChildren())
-                if (child is Control { Visible: true }) { any = true; break; }
-            if (any) visibleRows.Add(row);
-            UiKit.SetVisible(cell, true);
+            ProjectDef gate = _catalog.Projects[keystone];
+            int done = Math.Min((int)frame.CivBreadthDone[civ], gate.BreadthMin);
+            sub = $"{done} of {gate.BreadthMin} {UiText.AgeName(era)} projects known toward {gate.Name}";
         }
-        foreach ((Control row, int lineage, int theme) in _mapRows)
-        {
-            bool show = visibleRows.Contains(row);
-            UiKit.SetVisible(row, show);
-            if (show) visibleByTheme[theme]++;
-        }
-        for (int era = 0; era < 4; era++) UiKit.SetVisible(_mapEraHeaders[era], eraVisible[era] || era <= frame.FocusEra);
-        bool anyKey = false;
-        foreach (Node child in _mapKeystoneCell!.GetChildren()) if (child is Control { Visible: true }) anyKey = true;
-        UiKit.SetVisible(_mapKeystoneRow!, anyKey);
-        foreach ((Label header, int theme) in _mapBandHeaders)
-        {
-            Control parent = header.GetParent<Control>();
-            UiKit.SetVisible(parent, visibleByTheme[theme] > 0);
-        }
+        _mapView.SetLooks(_mapLooks, _selectedResearchProject, era, searching, _webThemeFilter, title, sub);
     }
 
-    private int ChipOrder(UiProjectCard card) => card.Visible ? (int)(card.GlobalPosition.Y * 10000 + card.GlobalPosition.X) : int.MaxValue;
+    private string MapTooltip(int project)
+    {
+        if (_catalog is null || (uint)project >= (uint)_catalog.Count) return "";
+        ProjectDef def = _catalog.Projects[project];
+        ProjectState state = StateOf(project);
+        ProjectLook look = BuildLook(def, false);
+        var tip = new StringBuilder();
+        bool revealed = IsRevealed(project);
+        tip.Append(def.Name).Append(" · ").Append(revealed ? $"On the path · needs {WhatItNeeds(def)}" : StateWord(look.State));
+        if (state == ProjectState.Glimpsed) tip.Append(" — ").Append(AlmostSub(def));
+        tip.Append('\n').Append(def.IsKeystone ? "Turning point" : UiText.FieldName(_catalog, def.Lineage, false))
+            .Append(" · ").Append(UiText.AgeName(def.Era)).Append(" age");
+        string role = AgeRoleText(_current!, look);
+        if (role.Length > 0) tip.Append('\n').Append(role);
+        if (state is ProjectState.Available && SlotOfProject(project) < 0) tip.Append("\nDouble-click or Enter to start");
+        else if (state == ProjectState.Glimpsed && QueueIndexOf(project) < 0) tip.Append("\nDouble-click to queue it");
+        if (_devVisible) tip.Append('\n').Append(def.Id);
+        return tip.ToString();
+    }
+
+    /// <summary>Enter in the search box on the Map: select the best match and centre it.</summary>
+    private void JumpToFirstMapMatch()
+    {
+        if (_webView != ViewMap || _catalog is null || _current is null || _mapView?.Layout is not ResearchRadialLayout layout) return;
+        string query = _webSearch?.Text.Trim() ?? "";
+        if (query.Length == 0) return;
+        var matches = new List<int>();
+        for (int p = 0; p < Math.Min(_current.FocusProjectCount, _catalog.Count); p++)
+            if (layout.Placed[p] && IsKnownToPlayer(p) && ResearchMatches(_catalog.Projects[p], query)) matches.Add(p);
+        if (matches.Count == 0) return;
+        matches.Sort(CompareSearch);
+        _mapCenterNext = true;
+        _webSearch?.ReleaseFocus();
+        SelectResearchProject(matches[0]);
+        _mapView.GrabFocus();
+    }
 
     // ---- slot strip, queue ---------------------------------------------------------------------
 
@@ -782,7 +733,8 @@ public partial class Game
             hash.Add(look.RequiredForNextAge);
             hash.Add(look.OptionalNextAgeRoute);
             hash.Add(look.TurnsAge);
-            foreach (int r in def.Requires) hash.Add(StateOf(r));
+            hash.Add(IsRevealed(def.Index));
+            foreach (int r in def.Requires) { hash.Add(StateOf(r)); hash.Add(IsRevealed(r)); }
             foreach (int r in def.RequiresAny) hash.Add(StateOf(r));
             if (def.Index < _dependents.Length) foreach (int d in _dependents[def.Index]) hash.Add(StateOf(d));
             hash.Add(frame.CivBreadthDone[Math.Max(0, frame.FocusCiv)]);
@@ -795,7 +747,7 @@ public partial class Game
     {
         if (_catalog is null || _inspector is null) return;
         int project = _selectedResearchProject;
-        bool known = (uint)project < (uint)frame.FocusProjectCount && StateOf(project) != ProjectState.Hidden;
+        bool known = (uint)project < (uint)frame.FocusProjectCount && IsKnownToPlayer(project);
         ProjectDef? def = known ? _catalog.Projects[project] : null;
         if (_dependents.Length == 0) EnsureDependents();
         int signature = InspectorSignature(frame, def);
@@ -843,6 +795,9 @@ public partial class Game
                         : $"In {UiText.SlotNames[s]} · {permille / 10}% · {EtaPhrase(s, (short)permille)}";
                     break;
                 }
+            case ProjectState.Hidden:
+                stateText = $"Not in reach yet — needs {WhatItNeeds(def)}";
+                break;
             case ProjectState.Glimpsed:
                 stateText = queueIndex >= 0 ? $"Queued · #{queueIndex + 1} in line" : $"Almost ready — needs {WhatItNeeds(def)}";
                 break;
@@ -851,7 +806,9 @@ public partial class Game
                 stateVariation = "BodyStrongSecondary";
                 break;
             default:
-                stateText = "Blocked — its methods fall back until you meet its needs";
+                stateText = BlockedByMetal(frame, def) is { } metalName
+                    ? $"Blocked — no settlement holds {metalName}, so its methods fall back. Still counts toward your age."
+                    : "Blocked — its methods fall back until you meet its needs";
                 break;
         }
         UiKit.SetText(_inspState!, stateText);
@@ -997,6 +954,14 @@ public partial class Game
                 why = missing >= 0 ? $"Why can't I start this? It needs {_catalog!.Projects[missing].Name} first."
                     : hidden ? "Why can't I start this? One step before it is still undiscovered."
                     : $"Why can't I start this? {AlmostSub(def)}.";
+                break;
+            case ProjectState.Hidden:
+                _cta = CtaKind.Disabled;
+                disabled = true;
+                primary = false;
+                text = "Not in reach yet";
+                MissingPrerequisite(def, out int pathMissing, out _);
+                why = pathMissing >= 0 ? $"Why can't I start this? It needs {_catalog!.Projects[pathMissing].Name} first." : $"Why can't I start this? {AlmostSub(def)}.";
                 break;
             case ProjectState.Completed:
                 _cta = CtaKind.Disabled;
@@ -1145,13 +1110,25 @@ public partial class Game
         for (int i = 0; i < lists.Length; i++) _dependents[i] = lists[i]?.ToArray() ?? Array.Empty<int>();
     }
 
+    private static bool MetalAccessMet(MatchFrame frame, int civ, int bit)
+        => (uint)civ < (uint)frame.CivMetalAccess.Length && (frame.CivMetalAccess[civ] & bit) != 0;
+
+    /// <summary>The metal a Blocked project is missing, or null when its gate is something else.</summary>
+    private string? BlockedByMetal(MatchFrame frame, ProjectDef def)
+    {
+        int civ = Math.Max(0, frame.FocusCiv);
+        foreach (Gate gate in def.Gates)
+            if (UiText.MetalGate(_catalog!, gate, out int bit, out string metal) && !MetalAccessMet(frame, civ, bit)) return metal;
+        return null;
+    }
+
     private void BuildNeeds(MatchFrame frame, ProjectDef def, ProjectState state)
     {
         int allUsed = 0, anyUsed = 0, hiddenRequired = 0;
         foreach (int r in def.Requires)
         {
             ProjectState s = StateOf(r);
-            if (s == ProjectState.Hidden) { hiddenRequired++; continue; }
+            if (s == ProjectState.Hidden && !IsRevealed(r)) { hiddenRequired++; continue; }
             BindNeedRow(_needsPool, allUsed++, _needsList!, r, s);
         }
         HideFrom(_needsPool, allUsed);
@@ -1170,8 +1147,13 @@ public partial class Game
         var note = new StringBuilder();
         if (hiddenRequired > 0) note.Append(hiddenRequired == 1 ? "1 more you haven't discovered yet.\n" : $"{hiddenRequired} more you haven't discovered yet.\n");
         if (def.RequiresAny.Length > 0 && anyUsed == 0) note.Append("Another route you haven't discovered yet.\n");
+        int focusCiv = Math.Max(0, frame.FocusCiv);
         foreach (Gate gate in def.Gates)
+        {
             note.Append(gate.Kind == GateKind.Seen ? "✓ " : "• ").Append(UiText.GateText(_catalog!, gate)).Append('\n');
+            if (UiText.MetalGate(_catalog!, gate, out int bit, out string metal))
+                note.Append(UiText.MetalGateNote(metal, MetalAccessMet(frame, focusCiv, bit), state is ProjectState.Completed or ProjectState.Dormant)).Append('\n');
+        }
         if (def.Requires.Length == 0 && def.RequiresAny.Length == 0 && def.Gates.Length == 0 && !def.IsKeystone)
             note.Append(state is ProjectState.Available or ProjectState.Slotted ? "Nothing — you can start it now." : "No earlier project is needed.");
         string noteText = note.ToString().Replace("✓ ", "").TrimEnd('\n');
@@ -1204,6 +1186,7 @@ public partial class Game
             ProjectState.Available => "ready",
             ProjectState.Glimpsed => "almost ready",
             ProjectState.Dormant => "blocked",
+            ProjectState.Hidden => "not in reach yet",
             _ => "",
         };
         row.Bind(def, look);
@@ -1217,7 +1200,7 @@ public partial class Game
             foreach (int d in _dependents[def.Index])
             {
                 ProjectState s = StateOf(d);
-                if (s == ProjectState.Hidden || !_catalog!.Projects[d].Numeric) continue;
+                if ((s == ProjectState.Hidden && !IsRevealed(d)) || !_catalog!.Projects[d].Numeric) continue;
                 if (used >= 8) { more++; continue; }
                 ProjectDef dependent = _catalog.Projects[d];
                 UiProjectCard chip = GetPooled(_leadsPool, used, () => NewProjectCard(ProjectCardMode.Chip), _leadsList!);
@@ -1262,6 +1245,11 @@ public partial class Game
         int target = ResolveTargetSlot();
         if (_selectedResearchProject < 0) return;
         ProjectState state = StateOf(_selectedResearchProject);
+        if (IsRevealed(_selectedResearchProject))
+        {
+            ShowFooterNote($"{_catalog!.Projects[_selectedResearchProject].Name} needs {WhatItNeeds(_catalog.Projects[_selectedResearchProject])} first.");
+            return;
+        }
         if (state == ProjectState.Glimpsed) { QueueSelected(); return; }
         if (target >= 0) AssignSelectedToSlot(target);
         else { _replaceRowOpen = true; _inspSignature = int.MinValue; RefreshResearchWebNow(); }
@@ -1400,8 +1388,17 @@ public partial class Game
                     return true;
                 }
             case Key.Enter or Key.KpEnter:
-                if (GetViewport().GuiGetFocusOwner() is UiProjectCard or null) { OnCtaPressed(); return true; }
+                if (GetViewport().GuiGetFocusOwner() is UiProjectCard or ResearchRadialMap or null) { OnCtaPressed(); return true; }
                 return false;
+            case Key.Minus or Key.KpSubtract when _webView == ViewMap:
+                _mapView?.ZoomBy(1 / 1.3f);
+                return true;
+            case Key.Equal or Key.Plus or Key.KpAdd when _webView == ViewMap:
+                _mapView?.ZoomBy(1.3f);
+                return true;
+            case Key.Home when _webView == ViewMap:
+                _mapView?.FitVisible();
+                return true;
             case Key.Slash:
                 _webSearch?.GrabFocus();
                 return true;
@@ -1415,6 +1412,13 @@ public partial class Game
 
     private void MoveWebSelection(int dx, int dy)
     {
+        if (_webView == ViewMap && _mapView is not null)
+        {
+            int neighbour = _mapView.Neighbour(_selectedResearchProject, dx, dy);
+            if (neighbour >= 0 && neighbour != _selectedResearchProject) SelectResearchProject(neighbour);
+            _mapView.GrabFocus();
+            return;
+        }
         if (_navCards.Count == 0) return;
         int current = _navCards.FindIndex(c => c.Project == _selectedResearchProject);
         if (current < 0) { SelectResearchProject(_navCards[0].Project); return; }
