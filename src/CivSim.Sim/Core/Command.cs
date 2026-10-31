@@ -61,7 +61,12 @@ public enum CommandKind : ushort
     LaunchRaidAgainst = 21,
     /// <summary>A = own settlement index, B = <see cref="CivSim.Sim.Economy.ScoutPolicy"/>.</summary>
     SetScoutPolicy = 22,
+    /// <summary>A = own settlement index, B = <see cref="RaidResponse"/>; takes effect next season.</summary>
+    SetRaidResponse = 23,
 }
+
+/// <summary>How an alerted settlement responds to an ordinary raid. Surprise always forces a normal fight.</summary>
+public enum RaidResponse : byte { Stand = 0, Withdraw = 1 }
 
 /// <summary>Civilization-wide stance (docs/MVP/01 §5.4).</summary>
 public enum Posture : byte

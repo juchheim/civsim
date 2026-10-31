@@ -81,12 +81,16 @@ public sealed class AiOrders
     public bool Barter(int withCiv) => _politics.OrderBarter(_civ, withCiv);
     public bool Barter(int withCiv, int targetSettlement) => _politics.OrderBarter(_civ, withCiv, targetSettlement);
     public bool Raid(int targetSettlement, int partySize) => _politics.OrderRaid(_civ, targetSettlement, partySize);
+    public bool SetRaidResponse(int settlement, RaidResponse response) => _politics.OrderRaidResponse(_civ, settlement, response);
     public bool Assault(int targetSettlement) => _politics.OrderAssault(_civ, targetSettlement);
     public bool DeclareWar(int civ) => _politics.OrderWar(_civ, civ);
     public bool MakePeace(int civ) => _politics.OrderPeace(_civ, civ);
     public bool Ally(int civ) => _politics.OrderAlliance(_civ, civ);
     public bool SetPosture(Posture posture) => _politics.OrderPosture(_civ, posture);
     public bool PrioritizePhysicalDefenseBuild(int settlement) => _politics.OrderPrioritizePhysicalDefenseBuild(_civ, settlement);
+    public bool PreparePhysicalDefenseBuild(int settlement) => _politics.OrderPreparePhysicalDefenseBuild(_civ, settlement);
+    public bool PreparePhysicalDefenseBuild(int settlement, bool urgent) => _politics.OrderPreparePhysicalDefenseBuild(_civ, settlement, urgent);
+    public bool PrioritizePhysicalDefenseBuild(int settlement, bool proactiveDiagnostic) => _politics.OrderPrioritizePhysicalDefenseBuild(_civ, settlement, proactiveDiagnostic);
     public string DescribePrioritizePhysicalDefenseBuild(int settlement) => _politics.DescribePrioritizePhysicalDefenseBuild(_civ, settlement);
     public bool PlaceBeacon(int tile) => _politics.OrderBeacon(_civ, tile);
     public void RemoveBeacon(int index) => _politics.OrderRemoveBeacon(_civ, index);

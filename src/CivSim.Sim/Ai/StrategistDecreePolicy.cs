@@ -9,6 +9,11 @@ using CivSim.Sim.World;
 
 namespace CivSim.Sim.Ai;
 
+internal readonly record struct FoundFrontierBlockerSnapshot(
+    int Civ, int Season, int Marked, int BeliefLegal, int AllowedWithDonorProtection,
+    int AllowedWithoutDonorProtection, int CandidatesBeforeExposure, int RemovedByExposure, int CandidatesRemaining,
+    int CandidateAllowedBeforeExposure, int CandidateAllowedAfterExposure, int CandidateAllowedRemovedByExposure);
+
 /// <summary>
 /// Deterministic first Strategist decree planner. The Council's feasibility rules generate only legal candidates; this layer
 /// scores their expected strategic value, logs every positive candidate, and issues the highest-valued one with stable ties.
@@ -26,14 +31,27 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     private readonly AiLog _log;
     private readonly Belief _belief;
     private readonly StrategicIntent _intent;
+    private readonly int _met04Project;
+    private readonly int _met05Project;
     private readonly CouncilDecreePolicy _feasibility = new();
     private readonly List<DecreeRequest> _candidates = new();
     private readonly List<DecreeForecast> _forecasts = new();
     private bool[] _foundFrontierSites = Array.Empty<bool>();
     private byte[] _foundDonorProtectionCache = Array.Empty<byte>();
 
-    public StrategistDecreePolicy(AiLog log, Belief belief, StrategicIntent intent)
-    { _log = log; _belief = belief; _intent = intent; }
+    internal Action<FoundFrontierBlockerSnapshot>? FoundFrontierBlockerTraceForDiagnostics { get; set; }
+    internal bool AllowExposedFoundCandidatesForDiagnostics { get; set; }
+    internal int? FoundPerAgeCapForDiagnostics { get; set; }
+    private int FoundPerAgeCap => FoundPerAgeCapForDiagnostics ?? CouncilDecreePolicy.MaxFoundsPerAge;
+
+    public StrategistDecreePolicy(AiLog log, Belief belief, StrategicIntent intent, ResearchCatalog catalog)
+    {
+        _log = log;
+        _belief = belief;
+        _intent = intent;
+        _met04Project = catalog.IndexOf("MET-04");
+        _met05Project = catalog.IndexOf("MET-05");
+    }
 
     public void Propose(PoliticsSystem politics, int civ, List<DecreeRequest> into)
     {
@@ -59,11 +77,49 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
             StrategistTuning.MarkRecentRivalFrontierSites(_belief, civ,
                 politics.ClaimRadiusOfEra(mandate.Era(civ)), _foundFrontierSites);
             frontierFoundOpportunity = HasFrontierFoundOpportunity(politics, civ, _belief,
-                _foundFrontierSites, donorProtectionCache);
+                _foundFrontierSites, donorProtectionCache, FoundPerAgeCap);
         }
         AddBeliefKnownMineAlternatives(politics, civ, _belief, _candidates);
         AddBeliefKnownFoundAlternatives(politics, civ, _belief, _candidates,
-            frontierFoundOpportunity ? _foundFrontierSites : null);
+            frontierFoundOpportunity ? _foundFrontierSites : null, FoundPerAgeCap);
+        int bronzeRaidRange = StrategistTuning.RaidRangeReaches *
+            Math.Max(6, politics.ReachOfEra(3));
+        if (FoundFrontierBlockerTraceForDiagnostics is not null && politics.Season % 16 == 0)
+        {
+            int marked = 0, beliefLegal = 0, allowedWithProtection = 0, allowedWithoutProtection = 0;
+            for (int tile = 0; tile < _foundFrontierSites.Length; tile++)
+            {
+                if (!_foundFrontierSites[tile]) continue;
+                marked++;
+                DecreeRequest candidate = new(DecreeKind.Found, tile, 0);
+                if (!BeliefAllowsCandidate(_belief, civ, candidate)) continue;
+                beliefLegal++;
+                if (DecreeForecaster.FoundOwnCheck(politics, civ, tile, _belief,
+                    _foundDonorProtectionCache, out _) == 0) allowedWithProtection++;
+                if (DecreeForecaster.FoundOwnCheck(politics, civ, tile, _belief, _foundDonorProtectionCache,
+                    out _, protectDonor: false) == 0) allowedWithoutProtection++;
+            }
+            int candidatesBeforeExposure = CountFoundCandidates(_candidates);
+            int candidateAllowedBeforeExposure = CountAllowedFoundCandidates(politics, civ, _candidates);
+            var exposureCandidates = new List<DecreeRequest>(_candidates);
+            int removedByExposure = RemoveExposedFoundCandidates(_belief, civ, exposureCandidates,
+                bronzeRaidRange, _met04Project, _met05Project);
+            int candidatesRemaining = CountFoundCandidates(exposureCandidates);
+            int candidateAllowedAfterExposure = CountAllowedFoundCandidates(politics, civ, exposureCandidates);
+            var removedCandidates = new List<DecreeRequest>(Math.Max(0, candidatesBeforeExposure - candidatesRemaining));
+            foreach (DecreeRequest candidate in _candidates)
+                if (candidate.Kind == DecreeKind.Found && IsFoundSiteWithinBelievedBronzeRaidRange(
+                    _belief, civ, candidate.Target, bronzeRaidRange, _met04Project, _met05Project))
+                    removedCandidates.Add(candidate);
+            int candidateAllowedRemovedByExposure = CountAllowedFoundCandidates(politics, civ, removedCandidates);
+            FoundFrontierBlockerTraceForDiagnostics(new FoundFrontierBlockerSnapshot(civ, politics.Season,
+                marked, beliefLegal, allowedWithProtection, allowedWithoutProtection, candidatesBeforeExposure,
+                removedByExposure, candidatesRemaining, candidateAllowedBeforeExposure,
+                candidateAllowedAfterExposure, candidateAllowedRemovedByExposure));
+        }
+        if (!AllowExposedFoundCandidatesForDiagnostics)
+            RemoveExposedFoundCandidates(_belief, civ, _candidates, bronzeRaidRange,
+                _met04Project, _met05Project);
         AddWallCorveeAlternatives(politics, civ, _candidates);
         if (_intent.Plan == GrandPlan.SecureTin && !ShouldPauseRouteDecree(DecreeKind.Levy, routeCooldownActive))
             AddBeliefKnownLevyAlternatives(politics, civ, _belief, _candidates);
@@ -259,14 +315,14 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         => AddBeliefKnownFoundAlternatives(politics, civ, belief, candidates, null);
 
     internal static void AddBeliefKnownFoundAlternatives(PoliticsSystem politics, int civ, Belief belief,
-        List<DecreeRequest> candidates, bool[]? frontierSites)
+        List<DecreeRequest> candidates, bool[]? frontierSites, int foundPerAgeCap = CouncilDecreePolicy.MaxFoundsPerAge)
     {
         ResearchViewForDecrees research = politics.DecreeResearch;
         int mandate = research.Mandate(civ);
         int foundCost = politics.DecreeCost(civ, DecreeKind.Found);
         int founded = politics.DecreesDone(civ, DecreeKind.Found);
         bool atMandateCap = mandate >= research.MandateCap(civ);
-        if ((!atMandateCap && frontierSites is null) || foundCost > mandate || founded >= CouncilDecreePolicy.MaxFoundsPerAge ||
+        if ((!atMandateCap && frontierSites is null) || foundCost > mandate || founded >= foundPerAgeCap ||
             politics.E3Foundings(civ) - founded < founded + 1) return;
         for (int tile = 0; tile < belief.Map.TileCount; tile++)
         {
@@ -280,6 +336,36 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     internal static bool ShouldAddFoundAlternative(int mandate, int mandateCap, int foundCost, bool frontierMarked)
         => mandate >= mandateCap || frontierMarked && mandate >= foundCost;
 
+    /// <summary>
+    /// An E3 Found site inside the raid reach of a recently seen Bronze rival is not a safe expansion.
+    /// Skip it until the known front moves or grows stale; this only uses the Strategist's belief.
+    /// </summary>
+    internal static int RemoveExposedFoundCandidates(Belief belief, int civ, List<DecreeRequest> candidates,
+        int bronzeRaidRange, int met04Project, int met05Project)
+    {
+        return candidates.RemoveAll(candidate => candidate.Kind == DecreeKind.Found &&
+            IsFoundSiteWithinBelievedBronzeRaidRange(belief, civ, candidate.Target, bronzeRaidRange,
+                met04Project, met05Project));
+    }
+
+    internal static bool IsFoundSiteWithinBelievedBronzeRaidRange(Belief belief, int civ, int tile,
+        int bronzeRaidRange, int met04Project, int met05Project)
+    {
+        if (bronzeRaidRange < 0 || unchecked((uint)tile) >= (uint)belief.Map.TileCount) return false;
+        foreach (RivalBelief rival in belief.Rivals)
+        {
+            bool publicBronze = rival.Contacted && rival.Era >= 3;
+            if (rival.Civ == civ || rival.Allied || rival.InTruce ||
+                !(publicBronze || BronzeDefensePolicy.BelievesBronze(rival, met04Project, met05Project))) continue;
+            foreach (BeliefSettlement site in rival.Settlements)
+            {
+                if (belief.Season - site.LastSeenSeason is < 0 or > 8) continue;
+                if (HexGrid.Distance(site.Tile, tile, belief.Map.Width) <= bronzeRaidRange) return true;
+            }
+        }
+        return false;
+    }
+
     internal static bool ShouldReserveFrontierFoundMandate(DecreeRequest candidate, int candidateCost,
         int currentMandate, int foundCost, bool frontierFoundOpportunity, bool urgentDefense)
     {
@@ -290,11 +376,11 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     }
 
     private static bool HasFrontierFoundOpportunity(PoliticsSystem politics, int civ, Belief belief,
-        bool[] frontierSites, byte[]? donorProtectionCache)
+        bool[] frontierSites, byte[]? donorProtectionCache, int foundPerAgeCap)
     {
         int foundCost = politics.DecreeCost(civ, DecreeKind.Found);
         int founded = politics.DecreesDone(civ, DecreeKind.Found);
-        if (foundCost <= 0 || founded >= CouncilDecreePolicy.MaxFoundsPerAge ||
+        if (foundCost <= 0 || founded >= foundPerAgeCap ||
             politics.E3Foundings(civ) - founded < founded + 1) return false;
         for (int tile = 0; tile < belief.Map.TileCount; tile++)
         {
@@ -353,6 +439,25 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         foreach (DecreeRequest candidate in candidates)
             if (candidate.Kind == request.Kind && candidate.Target == request.Target && candidate.Extra == request.Extra) return true;
         return false;
+    }
+
+    private static int CountFoundCandidates(List<DecreeRequest> candidates)
+    {
+        int count = 0;
+        foreach (DecreeRequest candidate in candidates)
+            if (candidate.Kind == DecreeKind.Found) count++;
+        return count;
+    }
+
+    private int CountAllowedFoundCandidates(PoliticsSystem politics, int civ, List<DecreeRequest> candidates)
+    {
+        int allowed = 0;
+        foreach (DecreeRequest candidate in candidates)
+            if (candidate.Kind == DecreeKind.Found &&
+                DecreeForecaster.FoundOwnCheck(politics, civ, candidate.Target, _belief,
+                    _foundDonorProtectionCache, out _) == 0)
+                allowed++;
+        return allowed;
     }
 
     internal static bool BeliefAllowsCandidate(Belief belief, int civ, DecreeRequest candidate)
@@ -484,7 +589,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
 
     private static string Describe(DecreeRequest candidate, DecreeForecast forecast, Fix64 gross, Fix64 net,
         Fix64 secureTinBonus, Fix64 foundFrontierBonus)
-        => $"{candidate.Kind} target {candidate.Target}; legal {forecast.Allowed}; success {forecast.SuccessPermille}/1000; " +
+        => $"{candidate.Kind} target {candidate.Target}; legal {forecast.Allowed}; likely refusal {forecast.LikelyRefusal}; success {forecast.SuccessPermille}/1000; " +
            $"people {forecast.People}, tiles {forecast.Tiles}, land weight {forecast.LandWeight}, Dominion {forecast.Dominion}, " +
            $"information {forecast.Information}, metal value {forecast.MetalValue}, goods {forecast.Goods}, " +
            $"walls ETA {forecast.WallEtaSeasons}, threat ETA {forecast.ThreatEtaSeasons}, margin {forecast.ThreatMarginSeasons}, relations {forecast.RelationsDelta}, " +

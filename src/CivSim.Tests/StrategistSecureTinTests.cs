@@ -184,7 +184,7 @@ public class StrategistSecureTinTests
         TinFolkVillage visibleFolk = rig.Politics.TinFolk[0];
         PlaceSettlementInSight(rig.Politics, visibleFolk.Settlement, ownTile);
         new BeliefBuilder().Update(belief, rig.Match.Ai.World, seat.Profile);
-        var policy = new StrategistDecreePolicy(rig.Log, belief, seat.Context.Intent);
+        var policy = new StrategistDecreePolicy(rig.Log, belief, seat.Context.Intent, seat.Context.Catalog);
         seat.Context.Intent.Plan = GrandPlan.SecureTin;
         var requests = new List<DecreeRequest>();
         policy.Propose(rig.Politics, 0, requests);

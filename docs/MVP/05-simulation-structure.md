@@ -156,7 +156,7 @@ flowchart TB
 - On scale change, figures in the same household or job merge into one representative. That figure keeps the most notable identity, so Legends survive.
 
 ### 5.3 Life cycle
-- **Child** (0–13): consumes food, no work, learns by following parents (skill seeds).
+- **Child** (0–13): consumes food and learns by following parents (skill seeds). Ages 0–9 do no work; ages 10–13 contribute 0.3 ws per season (see [10 §1](10-e0-e2-actions-and-goods.md#1-units)).
 - **Adult** (14–44): full work, reproduction, can join fission groups.
 - **Elder** (45+): reduced physical work, **double Commons Insight**, teaches (adoption bonus), and is the default Elder or Shaman.
 - **Death** causes: old age (lifespan curve shifted by MED), starvation, cold exposure, injury (hunting, accidents, combat), disease, predators, childbirth. Each death lowers Cohesion slightly; burial practices (BEL-01) soften the loss.

@@ -47,6 +47,13 @@ public class ForecastModelTests
         Assert.Equal(doneAt, a.DoneAt);
         Assert.Equal(doneAt, b.DoneAt);
         Assert.True(first.Completed > 20 && first.Utility > Fix64.Zero);
+
+        var exhausted = new ForecastStart(start.Catalog);
+        Array.Fill(exhausted.Done, true);
+        a.Prepare(exhausted, 1);
+        ForecastResult noCompletions = a.Run(ReadOnlySpan<int>.Empty);
+        Assert.Equal(0, noCompletions.Completed);
+        Assert.All(a.DoneAt, step => Assert.Equal(-1, step));
     }
 
     [Fact]

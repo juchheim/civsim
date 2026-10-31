@@ -40,6 +40,16 @@ public sealed partial class LivingEconomyModel
     /// <summary>Seasons since the settlement last split (fission or a founding Decree); its 4-season cooldown reads this.</summary>
     public int SeasonsSinceFission(int settlementIndex) => checked((int)_seasonsCompleted) - _settlements[settlementIndex].LastFissionSeason;
 
+    /// <summary>The population cap used by fission pressure, exposed for report-only diagnostics.</summary>
+    public Fix64 FissionEffectivePopulationCapForDiagnostics(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        Fix64 foodCap = FoodCap(settlement);
+        Fix64 groupCap = GroupCap(settlement);
+        return IsMarketTown(settlement) ? Fix64.Min(foodCap, groupCap)
+            : Fix64.Min(foodCap, Fix64.Min(HousingCap(settlement), groupCap));
+    }
+
     /// <summary>The settlement's people over its EffectivePopCap (min of FoodCap, HousingCap, GroupCap): the fission scoring a founding donor is chosen by.</summary>
     public Fix64 PopulationFill(int settlementIndex)
     {
@@ -100,7 +110,9 @@ public sealed partial class LivingEconomyModel
         int population = Population(parent.Id);
         int daughterCount = (Fix64.FromInt(population) * share).RoundToInt();
         if (daughterCount < minDaughter || daughterCount >= population) return -1;
-        SettlementState? daughter = SplitSettlement(parent, siteTile, daughterCount, season, FoundStream, out _);
+        FissionCohortSample cohort = SelectFissionCohort(parent, daughterCount, season, FoundStream);
+        if (!cohort.Success) return -1;
+        SettlementState? daughter = SplitSettlement(parent, siteTile, daughterCount, season, cohort.DaughterFigures, out _);
         if (daughter is null) return -1;
         // C = (F − 0.6) ÷ 0.006 (docs/MVP/22 §8.3), so C 60 is F 0.96.
         daughter.Cohesion = Fix64.Clamp(Fix64.Parse("0.6") + Fix64.FromRatio(6, 1000) * startCohesion, Fix64.Parse("0.6"), Fix64.Parse("1.2"));

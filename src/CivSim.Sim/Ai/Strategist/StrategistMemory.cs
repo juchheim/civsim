@@ -104,9 +104,11 @@ internal sealed class Site
 /// <summary>A possible war target with predicted tactical outcome and a separate safe-to-launch result.</summary>
 internal sealed class WarOption
 {
-    public int Civ, Settlement, Tile, Travel, Attackers, AlternateOriginAttackers, LandsSeason, OriginSettlement = -1;
+    public int Civ, Settlement, Tile, Travel, Attackers, AlternateOriginAttackers, LandsSeason, OriginSettlement = -1, AlternateOriginSettlement = -1;
     public Fix64 OriginWinter;
     public Fix64 Ratio, Required, CaptureChance, Deaths, Wounded, Casualties, Value, Window;
+    public Fix64 LocalForce, BelievedDefense;
+    public string GlobalForceDiagnostic = "";
     /// <summary>Tactical, value, and supply checks pass before strategic launch blockers are applied.</summary>
     public bool TacticallyViable;
     /// <summary>Safe to launch now after tactical checks and current strategic/political blockers.</summary>
@@ -116,8 +118,21 @@ internal sealed class WarOption
 
 /// <summary>Output-only copy of an already evaluated campaign option for an opt-in harness diagnostic.</summary>
 internal readonly record struct CampaignEvaluationDiagnostic(int Civ, int Rival, int Season, int Settlement, int Tile,
-    int OriginSettlement, int Attackers, int AlternateOriginAttackers, Fix64 Ratio, Fix64 Required,
-    Fix64 CaptureChance, Fix64 Value, bool TacticallyViable, bool Feasible, bool Selected, string Reason);
+    int OriginSettlement, int AlternateOriginSettlement, int Attackers, int AlternateOriginAttackers, Fix64 Ratio, Fix64 Required,
+    Fix64 CaptureChance, Fix64 Value, bool TacticallyViable, bool Feasible, bool Selected, string Reason,
+    string GlobalForceDiagnostic);
+
+/// <summary>Report-only plan scores and a raw-score shadow with defense urgency removed.</summary>
+internal readonly record struct CampaignPlanEvaluationDiagnostic(int Civ, int Season, int Era, Fix64 Frontier,
+    Fix64 DefenseUrgency, Fix64 DefendValue, GrandPlan BestNonDefend, Fix64 BestNonDefendValue,
+    GrandPlan SelectedPlan, int PlanAge, GrandPlan ZeroUrgencyPlan);
+
+/// <summary>Output-only summary of the Strategist's normal raid evaluation for a bounded harness trace.</summary>
+internal readonly record struct RaidDecisionDiagnostic(int Civ, int Season, bool War02Ready, Posture Posture,
+    GrandPlan Plan, int PlanTarget, int FreshTargets, int StaleTargets, string CandidateType, int TargetCiv,
+    int TargetId, int TargetStale, int OriginSettlement, int OriginFighters, int Party, Fix64 Success,
+    Fix64 ExpectedValue, Fix64 OriginWinter, bool CandidateReady, int TopThreatCiv, Fix64 TopThreat,
+    Fix64 TopThreatProbability, Fix64 ExpectedLoss, Fix64 Urgency, string Blocker);
 
 /// <summary>This season's reading of one rival. Not state: rebuilt every season from the belief.</summary>
 internal sealed class RivalRead

@@ -49,13 +49,15 @@ public sealed class AiSystem
     private readonly AiSeat?[] _seats;
     private readonly AiLog _log = new();
     private readonly ulong _seed;
+    private bool _warlordRaidWithdrawalPolicyEnabled;
     private long _tick;
 
     public AiSystem(LivingEconomyModel economy, ResearchSystem research, PoliticsSystem politics, GeneratedWorld generated,
-        ContentPack pack, ulong seed, ReadOnlySpan<CivControl> controls)
+        ContentPack pack, ulong seed, ReadOnlySpan<CivControl> controls, bool warlordRaidWithdrawalPolicyEnabled = false)
     {
         _world = new TrueWorld(economy, research, politics, generated);
         _seed = seed;
+        _warlordRaidWithdrawalPolicyEnabled = warlordRaidWithdrawalPolicyEnabled;
         _seats = new AiSeat?[controls.Length];
         for (int civ = 0; civ < controls.Length; civ++)
         {
@@ -76,7 +78,8 @@ public sealed class AiSystem
             if (strategist.ActsOnPolitics)
             {
                 politics.SetExternalMind(civ, true);
-                if (control.Kind == ControlKind.Ai) politics.SetDecreePolicy(civ, new StrategistDecreePolicy(_log, belief, context.Intent));
+                if (control.Kind == ControlKind.Ai) politics.SetDecreePolicy(civ,
+                    new StrategistDecreePolicy(_log, belief, context.Intent, research.Catalog));
             }
         }
     }
@@ -122,6 +125,8 @@ public sealed class AiSystem
             if (seat.Profile.Replan == ReplanCadence.Yearly && ctx.Season % 4 != 0) continue;
             // The Strategist decides first: its threat and war readings tell the Spark what research is urgent.
             seat.Strategist.Decide(ctx);
+            if (_warlordRaidWithdrawalPolicyEnabled)
+                RaidWithdrawalPolicy.Decide(seat, _world.Politics, _seed, ctx.Season);
             seat.Spark.Decide(ctx);
         }
     }
@@ -153,6 +158,7 @@ public sealed class AiSystem
 
     public void Hash(ref StateHasher h)
     {
+        if (_warlordRaidWithdrawalPolicyEnabled) h.Add(0x5241494457495448UL);
         foreach (AiSeat? seat in _seats)
         {
             if (seat is null) { h.Add(0); continue; }
@@ -167,6 +173,7 @@ public sealed class AiSystem
 
     public void Write(BinaryWriter w)
     {
+        w.Write(_warlordRaidWithdrawalPolicyEnabled);
         w.Write(_tick);
         foreach (AiSeat? seat in _seats)
         {
@@ -181,6 +188,7 @@ public sealed class AiSystem
 
     public void Read(BinaryReader r)
     {
+        _warlordRaidWithdrawalPolicyEnabled = r.ReadBoolean();
         _tick = r.ReadInt64();
         foreach (AiSeat? seat in _seats)
         {

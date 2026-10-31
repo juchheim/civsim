@@ -1,5 +1,6 @@
 using System;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
 
@@ -26,6 +27,8 @@ public sealed partial class LivingEconomyModel
         get => _holdPopulation;
         set => _holdPopulation = value;
     }
+
+    internal Fix64 FixtureFertilityMultiplier(int civ) => FertilityMultiplier(civ);
 
     /// <summary>Completes projects for a civilization at any tick (the economy side of a research grant).</summary>
     internal void FixtureComplete(int civ, params string[] projectIds)
@@ -119,8 +122,46 @@ public sealed partial class LivingEconomyModel
     }
 
     internal int FixtureBuildTarget(int settlementIndex) => (int)_settlements[settlementIndex].BuildTarget;
+    internal Fix64 FixtureBuildProgress(int settlementIndex) => _settlements[settlementIndex].BuildProgress;
+    internal void FixtureSetBuildProgress(int settlementIndex, Fix64 progress) => _settlements[settlementIndex].BuildProgress = progress;
+    internal void FixtureBuildIfReady(int settlementIndex)
+        => BuildIfReady(_settlements[settlementIndex], checked((int)_seasonsCompleted));
+    internal void FixtureSetBuildTarget(int settlementIndex, string structure)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        _settlements[settlementIndex].BuildTarget = (Structure)kind;
+    }
 
-    internal bool FixtureHasBuildCandidate(int settlementIndex) => HasBuildCandidate(_settlements[settlementIndex]);
+    internal void FixtureSetCivicBuildTarget(int settlementIndex, string structure)
+    {
+        CivicBuild kind = CivicOf(structure) ?? throw new ArgumentException($"Unknown civic structure '{structure}'.", nameof(structure));
+        EnsureCivic(_settlements[settlementIndex]).BuildKind = kind;
+    }
+
+    internal void FixtureSetScoutPolicy(int settlementIndex, ScoutPolicy policy)
+        => _settlements[settlementIndex].ScoutPolicy = policy;
+
+    internal void FixtureShareDefenseWood(int season) => ShareDefenseWood(season);
+    internal Fix64 FixtureDefenseWoodDonorReserve(int settlementIndex, int season)
+        => DefenseWoodDonorReserve(_settlements[settlementIndex], season);
+
+    internal int FixtureFindHabitableSiteFartherThan(int settlementIndex, int minimumDistance)
+    {
+        SettlementState source = _settlements[settlementIndex];
+        for (int tile = 0; tile < _world.TileCount; tile++)
+        {
+            if (!IsHabitable(tile) || HexGrid.Distance(source.SiteTile, tile, _world.Width) <= minimumDistance) continue;
+            bool occupied = false;
+            foreach (SettlementState existing in _settlements)
+                if (existing.SiteTile == tile) { occupied = true; break; }
+            if (!occupied) return tile;
+        }
+        return -1;
+    }
+
+    internal bool FixtureHasBuildCandidate(int settlementIndex)
+        => HasBuildCandidate(_settlements[settlementIndex], checked((int)_seasonsCompleted));
 
     /// <summary>Builds a metal structure outright: "forge", "smelter", "kiln" or "mine_head" (at <paramref name="tile"/>).</summary>
     internal void FixtureBuild(int settlementIndex, string structure, int tile = -1)

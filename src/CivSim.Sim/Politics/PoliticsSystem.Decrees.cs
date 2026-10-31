@@ -354,6 +354,7 @@ public sealed partial class PoliticsSystem
         bool cityProspectBefore = traceB8 && _economy.ShouldProtectStrategistFoundDonor(donor, _rules.FoundShare);
         int village = _economy.FoundByDecree(donor, tile, _rules.FoundShare, _rules.MinDaughter, _rules.StartCohesion);
         if (village < 0) return OrderRefusalReason.NoDonor;
+        FoundResolvedObserverForDiagnostics?.Invoke(civ, donor, village);
         if (traceB8)
         {
             int donorPopulationAfter = _economy.Settlement(donor).Population;
@@ -675,6 +676,7 @@ public sealed partial class PoliticsSystem
         h.Add(e.Id); h.Add(e.TargetTile); h.Add(e.TargetParty); h.Add(e.TargetCampId); h.Add((byte)e.Good); h.Add(e.Cargo); h.Add(e.CompactId); h.Add(e.FolkSeller);
         h.Add(e.EscortCount);
         h.Add(e.Revealed.Count); foreach (int t in e.Revealed) h.Add(t);
+        h.Add(e.WarnedTargetCiv); h.Add(e.WarnedTargetSettlement); h.Add(e.WarningSeason);
     }
 
     /// <summary>The Bronze politics state, hashed only once there is any, so E0–E2 checksums are those of politics without it.</summary>
@@ -724,6 +726,7 @@ public sealed partial class PoliticsSystem
             w.Write(i); w.Write(e.Id); w.Write(e.TargetTile); w.Write(e.TargetParty); w.Write(e.TargetCampId); w.Write((byte)e.Good); w.Write(e.Cargo.Raw);
             w.Write(e.CompactId); w.Write(e.FolkSeller); w.Write(e.EscortCount);
             w.Write(e.Revealed.Count); foreach (int t in e.Revealed) w.Write(t);
+            w.Write(e.WarnedTargetCiv); w.Write(e.WarnedTargetSettlement); w.Write(e.WarningSeason);
         }
         w.Write(_decreeQueue.Count);
         foreach (PendingDecree d in _decreeQueue) { w.Write(d.Civ); w.Write((byte)d.Kind); w.Write(d.Target); w.Write(d.Extra); w.Write(d.Tick); w.Write((byte)d.Origin); }
@@ -768,6 +771,7 @@ public sealed partial class PoliticsSystem
             e.Revealed.Clear();
             int n = r.ReadInt32();
             for (int t = 0; t < n; t++) e.Revealed.Add(r.ReadInt32());
+            e.WarnedTargetCiv = r.ReadInt32(); e.WarnedTargetSettlement = r.ReadInt32(); e.WarningSeason = r.ReadInt32();
         }
         _decreeQueue.Clear();
         int q = r.ReadInt32();

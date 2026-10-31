@@ -64,6 +64,12 @@ public sealed partial class Strategist
         if (!Done(v, _war02) || v.Own.Settlements.Count == 0)
         {
             _raidStreak = 0;
+            CountRaidTargets(s, out int fresh, out int stale);
+            ReportRaidDecision(v, s, war02Ready: Done(v, _war02), freshTargets: fresh, staleTargets: stale,
+                candidateType: "none", targetCiv: -1, targetId: -1, targetStale: -1, originId: -1,
+                originFighters: 0, originWinter: Fix64.Zero, party: 0, success: Fix64.Zero,
+                expectedValue: Fix64.Zero, candidateReady: false,
+                blocker: !Done(v, _war02) ? "WAR-02 not completed" : "no own settlements");
             return;
         }
         int width = v.Belief.Map.Width;
@@ -75,6 +81,7 @@ public sealed partial class Strategist
         int bestRejectedCiv = -1;
         int campsSeen = 0, campsBlockedDiplomacy = 0, campsBlockedCooldown = 0;
         int campsBadId = 0, campsSmallCrew = 0, campsStale = 0, campsNoOrigin = 0, campsOutOfRange = 0, campsEvaluated = 0;
+        int freshTargets = 0, staleTargets = 0;
         bool[]? knownWalkingPassable = null;
         for (int o = 0; o < _civs; o++)
         {
@@ -99,7 +106,8 @@ public sealed partial class Strategist
             var eligibleSites = new List<RaidTargetOption>();
             foreach (Site site in read.Sites)
             {
-                if (site.Stale > StrategistTuning.StaleSeasons) { staleOnly++; continue; }
+                if (site.Stale > StrategistTuning.StaleSeasons) { staleOnly++; staleTargets++; continue; }
+                freshTargets++;
                 OwnSettlement? origin = BestOrigin(v, site.Tile, width);
                 if (origin is null) continue;
                 int distance = HexGrid.Distance(origin.Tile, site.Tile, width);
@@ -233,13 +241,17 @@ public sealed partial class Strategist
                 $"seen={campsSeen} diplomacy={campsBlockedDiplomacy} cooldown={campsBlockedCooldown} id={campsBadId} crew={campsSmallCrew} stale={campsStale} " +
                 $"origin={campsNoOrigin} range={campsOutOfRange} evaluated={campsEvaluated} selected={chooseMiningCamp}; {campBest}");
         }
-        string? postureBlock = v.Own.Posture is Posture.Fortify or Posture.Prosper ? $"Posture {v.Own.Posture} does not raid" : null;
+        string? postureBlock = v.Own.Posture is Posture.Prosper or Posture.Fortify
+            ? $"Posture {v.Own.Posture} does not raid" : null;
         int candidateCiv = chooseMiningCamp ? bestMiningCamp!.Civ : chooseCaravan ? bestCaravan!.Civ : best?.Civ ?? -1;
         if (candidateCiv >= 0 && postureBlock is null && s.Urgency >= StrategistTuning.FortifyAt && candidateCiv != s.TopThreatCiv)
             postureBlock = $"civ {s.TopThreatCiv} threatens us; no losses to spare on civ {candidateCiv}";
         string? levyPostureBlock = v.Own.Posture is Posture.Fortify or Posture.Prosper ? $"Posture {v.Own.Posture} does not raid" : null;
         if (bestLevy is not null && levyPostureBlock is null && s.Urgency >= StrategistTuning.FortifyAt && bestLevy.Civ != s.TopThreatCiv)
             levyPostureBlock = $"civ {s.TopThreatCiv} threatens us; no losses to spare on civ {bestLevy.Civ}";
+        ReportRaidDecisionForCandidates(v, s, act, freshTargets, staleTargets, best, bestRejected,
+            bestCaravan, bestMiningCamp, bestLevy, chooseCaravan, chooseMiningCamp, postureBlock,
+            levyPostureBlock, s.OrderedLaunch || v.Own.RaidsOnTheRoad > 0);
         if (best is null && !chooseCaravan && bestLevy is not null && levyPostureBlock is null && !s.OrderedLaunch &&
             v.Own.RaidsOnTheRoad == 0 &&
             act.DecreeCost(DecreeKind.Levy) <= act.Mandate && act.IssueDecree(DecreeKind.Levy, bestLevy.Settlement, 0))
@@ -363,6 +375,96 @@ public sealed partial class Strategist
             v.Note("CaravanRaidRejected", bestCaravan.CaravanId, bestCaravan.Civ, bestCaravan.P,
                 CaravanRaidReason(bestCaravan, "rejected: " + bestCaravan.Blocker));
         }
+    }
+
+    private void ReportRaidDecisionForCandidates(StrategistView v, SeasonRead s, IStrategistActions act,
+        int freshTargets, int staleTargets,
+        RaidCandidate? best, RaidCandidate? rejected, CaravanRaidCandidate? caravan, MiningCampRaidCandidate? camp,
+        RaidCandidate? levy, bool chooseCaravan, bool chooseCamp, string? postureBlock, string? levyPostureBlock,
+        bool partyAlreadyOut)
+    {
+        string type = "none", blocker = "no evaluated target passed availability/range/party checks";
+        int targetCiv = -1, targetId = -1, stale = -1, originId = -1, originFighters = 0, party = 0;
+        Fix64 success = Fix64.Zero, value = Fix64.Zero, winter = Fix64.Zero;
+        bool ready = false;
+        if (chooseCamp && camp is not null)
+        {
+            type = "mining-camp"; targetCiv = camp.Civ; targetId = camp.CampId; originId = camp.Origin.Index;
+            originFighters = camp.Origin.Fighters; party = camp.Party; success = camp.P; value = camp.Value;
+            winter = camp.OriginWinter; ready = postureBlock is null && !partyAlreadyOut;
+            blocker = ready ? string.Empty : postureBlock ?? "a raid party is already out";
+        }
+        else if (chooseCaravan && caravan is not null)
+        {
+            type = "caravan"; targetCiv = caravan.Civ; targetId = caravan.CaravanId; originId = caravan.Origin.Index;
+            originFighters = caravan.Origin.Fighters; party = caravan.Party; success = caravan.P; value = caravan.Value;
+            winter = caravan.OriginWinter; ready = postureBlock is null && !partyAlreadyOut;
+            blocker = ready ? string.Empty : postureBlock ?? "a raid party is already out";
+        }
+        else if (best is not null)
+        {
+            type = "settlement"; targetCiv = best.Civ; targetId = best.Settlement; stale = best.Stale;
+            originId = best.Origin.Index; originFighters = best.Origin.Fighters; party = best.Party;
+            success = best.P; value = best.Value; winter = best.OriginWinter;
+            ready = postureBlock is null && !partyAlreadyOut;
+            blocker = ready ? string.Empty : postureBlock ?? "a raid party is already out";
+        }
+        else if (rejected is not null)
+        {
+            type = "settlement"; targetCiv = rejected.Civ; targetId = rejected.Settlement; stale = rejected.Stale;
+            originId = rejected.Origin.Index; originFighters = rejected.Origin.Fighters; party = rejected.Party;
+            success = rejected.P; value = rejected.Value; winter = rejected.OriginWinter;
+            blocker = postureBlock ?? (partyAlreadyOut ? "a raid party is already out" : rejected.Blocker);
+        }
+        else if (camp is not null)
+        {
+            type = "mining-camp"; targetCiv = camp.Civ; targetId = camp.CampId; originId = camp.Origin.Index;
+            originFighters = camp.Origin.Fighters; party = camp.Party; success = camp.P; value = camp.Value;
+            winter = camp.OriginWinter; blocker = postureBlock ?? (partyAlreadyOut ? "a party is already out" : camp.Blocker);
+        }
+        else if (caravan is not null)
+        {
+            type = "caravan"; targetCiv = caravan.Civ; targetId = caravan.CaravanId; originId = caravan.Origin.Index;
+            originFighters = caravan.Origin.Fighters; party = caravan.Party; success = caravan.P; value = caravan.Value;
+            winter = caravan.OriginWinter; blocker = postureBlock ?? (partyAlreadyOut ? "a party is already out" : caravan.Blocker);
+        }
+        else if (levy is not null)
+        {
+            type = "levy"; targetCiv = levy.Civ; targetId = levy.Settlement; stale = levy.Stale;
+            originId = levy.Origin.Index; originFighters = levy.Origin.Fighters; party = levy.Party;
+            success = levy.P; value = levy.Value; winter = levy.OriginWinter;
+            ready = levyPostureBlock is null && !partyAlreadyOut && act.DecreeCost(DecreeKind.Levy) <= act.Mandate;
+            blocker = ready ? string.Empty : levyPostureBlock ??
+                (partyAlreadyOut ? "a party is already out" : act.DecreeCost(DecreeKind.Levy) > act.Mandate ? "insufficient Mandate for Levy" : levy.Blocker);
+        }
+        if (type == "none")
+            blocker = freshTargets == 0 && staleTargets > 0 ? "all known settlement sightings are stale" :
+                postureBlock ?? blocker;
+        ReportRaidDecision(v, s, war02Ready: true, freshTargets, staleTargets, type, targetCiv, targetId,
+            stale, originId, originFighters, winter, party, success, value, ready, blocker);
+    }
+
+    private static void CountRaidTargets(SeasonRead s, out int fresh, out int stale)
+    {
+        fresh = 0; stale = 0;
+        foreach (RivalRead rival in s.Rivals)
+            foreach (Site site in rival.Sites)
+                if (site.Stale > StrategistTuning.StaleSeasons) stale++;
+                else fresh++;
+    }
+
+    private void ReportRaidDecision(StrategistView v, SeasonRead s, bool war02Ready, int freshTargets,
+        int staleTargets, string candidateType, int targetCiv, int targetId, int targetStale,
+        int originId, int originFighters, Fix64 originWinter, int party, Fix64 success, Fix64 expectedValue,
+        bool candidateReady, string blocker)
+    {
+        if (RaidDecisionObserverForDiagnostics is null) return;
+        RivalRead? threat = s.TopThreatCiv >= 0 && s.TopThreatCiv < s.Rivals.Length ? s.Rivals[s.TopThreatCiv] : null;
+        RaidDecisionObserverForDiagnostics(new RaidDecisionDiagnostic(v.Civ, v.Season, war02Ready,
+            v.Own.Posture, _plan, _planTarget, freshTargets, staleTargets, candidateType, targetCiv, targetId,
+            targetStale, originId, originFighters, party, success, expectedValue, originWinter, candidateReady, s.TopThreatCiv,
+            threat?.EffectiveThreat ?? Fix64.Zero, threat?.ThreatP ?? Fix64.Zero, threat?.ExpectedLoss ?? Fix64.Zero,
+            s.Urgency, blocker));
     }
 
     /// <summary>

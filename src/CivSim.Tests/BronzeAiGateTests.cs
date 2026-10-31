@@ -1,11 +1,42 @@
 using System.Collections.Generic;
 using CivSim.Harness;
+using CivSim.Sim.Economy;
 using Xunit;
 
 namespace CivSim.Tests;
 
 public sealed class BronzeAiGateTests
 {
+    [Fact]
+    public void Legacy_season_observer_is_opt_in_and_does_not_change_checksum()
+    {
+        Player[] seats =
+        {
+            Player.Parse("grower", EconomyArchetype.Balanced), Player.Parse("grower", EconomyArchetype.Balanced),
+            Player.Parse("grower", EconomyArchetype.Balanced), Player.Parse("grower", EconomyArchetype.Balanced),
+        };
+        EconomyArchetype[] archetypes =
+        {
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+            EconomyArchetype.Balanced, EconomyArchetype.Balanced,
+        };
+
+        LegacyMatchOutcome baseline = Tournament.PlayForLegacy(TestPack.Pack, 20261019, seats, archetypes, minutes: 1);
+        int observedSeasons = 0;
+        int lastSeason = -1;
+        LegacyMatchOutcome observed = Tournament.PlayForLegacy(TestPack.Pack, 20261019, seats, archetypes, minutes: 1,
+            afterSeason: (_, season) =>
+            {
+                Assert.True(season > lastSeason);
+                lastSeason = season;
+                observedSeasons++;
+            });
+
+        Assert.Equal(baseline.Checksum, observed.Checksum);
+        Assert.Equal(baseline.SeasonsProcessed, observed.SeasonsProcessed);
+        Assert.True(observedSeasons > 0);
+    }
+
     [Fact]
     public void B8_firsts_ledger_formats_claimants_opponent_timing_and_team_era_totals()
     {

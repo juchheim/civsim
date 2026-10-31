@@ -23,6 +23,11 @@ public interface IStrategistActions
     bool SetPosture(Posture posture);
     /// <summary>Prioritizes a feasible physical settlement defense based on the Strategist's current belief.</summary>
     bool PrioritizePhysicalDefenseBuild(int settlement) => false;
+    /// <summary>Prepares a defense against a directly believed Bronze rival and a fresh, nearby site.</summary>
+    bool PreparePhysicalDefenseBuild(int settlement) => PrioritizePhysicalDefenseBuild(settlement);
+    /// <summary>High-confidence exposure may retarget active non-defense construction.</summary>
+    bool PreparePhysicalDefenseBuild(int settlement, bool urgent) => PreparePhysicalDefenseBuild(settlement);
+    bool PrioritizePhysicalDefenseBuild(int settlement, bool proactiveDiagnostic) => PrioritizePhysicalDefenseBuild(settlement);
     string DescribePrioritizePhysicalDefenseBuild(int settlement) => "order refusal details unavailable";
     bool PlaceBeacon(int tile);
     void RemoveBeacon(int index);
@@ -79,7 +84,8 @@ public sealed class StrategistView
     public static StrategistView From(AiContext ctx) => new()
     {
         Civ = ctx.Civ, Season = ctx.Season, Tick = ctx.Tick, MatchSeed = ctx.MatchSeed, Spec = ctx.Spec, Profile = ctx.Profile,
-        Own = ctx.Own, Belief = ctx.Belief, Intent = ctx.Intent, Catalog = ctx.Catalog, OwnDone = ctx.Research.IsDone, Log = ctx.Log,
+        Own = ctx.Own, Belief = ctx.Belief, Intent = ctx.Intent, Catalog = ctx.Catalog, OwnDone = ctx.Research.IsDone,
+        Log = ctx.Log,
     };
 }
 
@@ -99,6 +105,9 @@ public sealed class OrdersActions : IStrategistActions
     public bool Ally(int civ) => _orders.Ally(civ);
     public bool SetPosture(Posture posture) => _orders.SetPosture(posture);
     public bool PrioritizePhysicalDefenseBuild(int settlement) => _orders.PrioritizePhysicalDefenseBuild(settlement);
+    public bool PreparePhysicalDefenseBuild(int settlement) => _orders.PreparePhysicalDefenseBuild(settlement);
+    public bool PreparePhysicalDefenseBuild(int settlement, bool urgent) => _orders.PreparePhysicalDefenseBuild(settlement, urgent);
+    public bool PrioritizePhysicalDefenseBuild(int settlement, bool proactiveDiagnostic) => _orders.PrioritizePhysicalDefenseBuild(settlement, proactiveDiagnostic);
     public string DescribePrioritizePhysicalDefenseBuild(int settlement) => _orders.DescribePrioritizePhysicalDefenseBuild(settlement);
     public bool PlaceBeacon(int tile) => _orders.PlaceBeacon(tile);
     public void RemoveBeacon(int index) => _orders.RemoveBeacon(index);

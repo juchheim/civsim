@@ -138,6 +138,13 @@ internal sealed class BronzeFixture
         }
     }
 
+    /// <summary>Runs whole seasons without adding external food; used to make shortage fixtures reproducible.</summary>
+    public void RunSeasonsWithoutFoodTopUp(int seasons)
+    {
+        for (int s = 0; s < seasons; s++)
+            for (int t = 0; t < LivingEconomyModel.SeasonTicks; t++) Economy.Step(_tick++, ReadOnlySpan<Command>.Empty);
+    }
+
     /// <summary>Share of the settlement's adults (14+) carrying a bronze kit (rung 6).</summary>
     public Fix64 BronzeShare()
     {

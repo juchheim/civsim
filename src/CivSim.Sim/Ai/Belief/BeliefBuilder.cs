@@ -309,11 +309,15 @@ public sealed class BeliefBuilder : IBeliefBuilder
             {
                 int remaining = (e.ArriveSeason - season) * PoliticsSystem.TilesPerSeason;
                 if (originSeen || remaining <= routine)
+                {
+                    if (e.Kind == ExpeditionKind.Raid)
+                        pol.RecordRaidWarning(e, civ, e.ToSettlement, season);
                     belief.IncomingParties.Add(new IncomingParty
                     {
                         Civ = e.Civ, Kind = e.Kind, FromSettlement = e.FromSettlement, TargetSettlement = e.ToSettlement,
-                        ArriveSeason = e.ArriveSeason, PartySize = e.Members.Count,
+                        ArriveSeason = e.ArriveSeason, PartySize = e.Members.Count, SourceExpedition = e,
                     });
+                }
             }
             else if (rivals && originSeen && e.Kind is ExpeditionKind.Raid or ExpeditionKind.Assault)
                 belief.Rivals[e.Civ].PartiesAwaySeen += e.Members.Count;
@@ -329,7 +333,13 @@ public sealed class BeliefBuilder : IBeliefBuilder
             RivalBelief r = belief.Rivals[o];
             int raidBy = dip.LastRaidBy(o, civ);
             bool raidedUs = raidBy > r.LastRaidOnUsSeason && raidBy > -1000;
-            if (raidedUs) { r.RaidsOnUs++; r.LastRaidOnUsSeason = raidBy; }
+            if (raidedUs)
+            {
+                r.RaidsOnUs++;
+                r.LastRaidOnUsSeason = raidBy;
+                // The public raid record proves WAR-02 even when the raider has never been sighted.
+                tech.AddProject(_war02, r.ProjectBelieved);
+            }
             int giftBy = dip.LastGift(o, civ);
             bool gift = giftBy > r.LastGiftFromSeason && giftBy > -1000;
             if (gift) r.LastGiftFromSeason = giftBy;

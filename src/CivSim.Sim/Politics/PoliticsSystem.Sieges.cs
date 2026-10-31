@@ -254,8 +254,8 @@ public sealed partial class PoliticsSystem
             Raids.MaxRounds, false);
         BattleResult battle = Combat.Fight(defenders, besiegers, setup, _seed,
             SiegeStream ^ 0x53414C4C59UL ^ (ulong)investment.Settlement ^ (ulong)_season * 104729UL);
-        ApplyCasualties(battle.AttackerDead, battle.AttackerWounded);
-        ApplyCasualties(battle.DefenderDead, battle.DefenderWounded);
+        ApplyCasualties(battle.AttackerDead, battle.AttackerWounded, "siegeSally");
+        ApplyCasualties(battle.DefenderDead, battle.DefenderWounded, "siegeSally");
         _events.Add(new PoliticsEvent(_tick, (byte)investment.TargetCiv, PoliticsEventKind.InvestmentSally,
             investment.Civ, investment.Settlement, battle.Winner == BattleWinner.Attacker ? 1 : 0));
         _events.Add(new PoliticsEvent(_tick, (byte)investment.Civ, PoliticsEventKind.InvestmentSally,
@@ -301,8 +301,8 @@ public sealed partial class PoliticsSystem
             Raids.MaxRounds, false);
         BattleResult battle = Combat.Fight(alive, besiegers, setup, _seed,
             SiegeStream ^ 0x52454C494546UL ^ (ulong)settlement ^ (ulong)_season * 13007UL);
-        ApplyCasualties(battle.AttackerDead, battle.AttackerWounded);
-        ApplyCasualties(battle.DefenderDead, battle.DefenderWounded);
+        ApplyCasualties(battle.AttackerDead, battle.AttackerWounded, "siegeRelief");
+        ApplyCasualties(battle.DefenderDead, battle.DefenderWounded, "siegeRelief");
         if (battle.Winner == BattleWinner.Attacker) EndInvestment(_investments.IndexOf(investment), relieved: true);
         return true;
     }

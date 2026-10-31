@@ -14,8 +14,13 @@ namespace CivSim.Sim.Ai;
 public sealed class OwnSettlement
 {
     public int Index, Tile, Population, Adults, Fighters, Warriors, IdleFighters;
+    public int LastRaidObservedSeason = -1000, LastRaidObservedAttackers;
+    public int LastRaidObservedByCiv = -1;
+    public readonly List<Fighter> Defenders = new();
     public Fix64 DefendingStrength, AttackingStrength, FoodStores, FoodSecurity, LateWinterForecast, Cohesion;
     public Defenses Defenses;
+    /// <summary>Exact own-state indicator that this settlement already has a queued Palisade, Hillfort, or StoneWalls build.</summary>
+    public bool PhysicalDefenseQueued;
 }
 
 /// <summary>What one civilization knows about its dealings with another: mutual knowledge, so exact.</summary>
@@ -161,13 +166,19 @@ internal static class OwnViewBuilder
             if (m.Defenses.Hillfort) bronze.HillfortSettlements++;
             if (m.Defenses.StoneWalls) bronze.WalledSettlements++;
             bronze.SettlementCount++;
-            view.Settlements.Add(new OwnSettlement
+            var ownSettlement = new OwnSettlement
             {
                 Index = s, Tile = politics.SettlementTileOf(s), Population = pop, Adults = m.Adults, Fighters = m.Fighters, IdleFighters = idleFighters,
                 Warriors = m.Warriors, DefendingStrength = m.DefendingStrength, AttackingStrength = m.AttackingStrength,
                 FoodStores = m.FoodStores, FoodSecurity = lite.LastFoodSecurity, LateWinterForecast = lite.LateWinterFoodForecast,
                 Cohesion = economy.SettlementCohesion(s), Defenses = m.Defenses,
-            });
+                PhysicalDefenseQueued = economy.HasQueuedPhysicalDefenseBuild(s),
+                LastRaidObservedSeason = politics.LastRaidObservedSeasonOf(s),
+                LastRaidObservedAttackers = politics.LastRaidObservedAttackersOf(s),
+                LastRaidObservedByCiv = politics.LastRaidObservedByCivOf(s),
+            };
+            ownSettlement.Defenders.AddRange(politics.OwnDefendersOf(civ, s));
+            view.Settlements.Add(ownSettlement);
             view.Population += pop;
             view.Adults += m.Adults;
         }

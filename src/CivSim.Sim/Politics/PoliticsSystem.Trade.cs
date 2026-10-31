@@ -691,8 +691,8 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         Weapon(raid.Civ, out bool ranged);
         RaidOutcome outcome = Raids.Resolve(raiders, crew, Defenses.None, ranged, _seed,
             RaidStream ^ 0x434152415641UL ^ (ulong)(raid.Civ * 4099 + caravan.Id * 97) ^ (ulong)_season * 104729UL);
-        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded);
-        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded);
+        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded, "caravanRaid");
+        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded, "caravanRaid");
         Fix64 loot = Fix64.Zero;
         if (outcome.Success || crew.Count == 0)
         {

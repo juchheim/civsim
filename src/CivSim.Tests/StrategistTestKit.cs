@@ -304,6 +304,7 @@ public static class StrategistAudit
 internal sealed class ActionRecorder : IStrategistActions
 {
     public readonly List<string> Orders = new();
+    public readonly List<(int Settlement, bool Urgent)> DefensePreparationCalls = new();
     public bool Accept = true;
     public int Mandate { get; set; }
     public int DecreeCost(DecreeKind kind) => kind == DecreeKind.Levy ? 1 : int.MaxValue;
@@ -321,6 +322,8 @@ internal sealed class ActionRecorder : IStrategistActions
     public bool SetEmbargo(int civ, TradeGood good, bool on) { Orders.Add($"embargo {civ} {good} {on}"); return Accept; }
     public bool SetPosture(Posture posture) { Orders.Add($"posture {posture}"); return Accept; }
     public bool PrioritizePhysicalDefenseBuild(int settlement) { Orders.Add($"defense-build {settlement}"); return Accept; }
+    public bool PreparePhysicalDefenseBuild(int settlement, bool urgent)
+    { DefensePreparationCalls.Add((settlement, urgent)); Orders.Add($"defense-build {settlement}"); return Accept; }
     public bool PlaceBeacon(int tile) { Orders.Add($"beacon {tile}"); return Accept; }
     public void RemoveBeacon(int index) => Orders.Add($"unbeacon {index}");
 }

@@ -175,4 +175,46 @@ public sealed class StrategistDecreeCandidateTests
         belief.Rivals[1].Settlements[0].LastSeenSeason = 17;
         Assert.True(StrategistDecreePolicy.BeliefAllowsCandidate(belief, 0, candidate));
     }
+
+    [Fact]
+    public void Found_candidates_inside_a_fresh_bronze_raid_radius_are_deferred()
+    {
+        var belief = new Belief(0, 4, TestPack.Catalog.Count,
+            new MapKnowledge(World.Value.Tiles.ToArray(), World.Value.Width, World.Value.Height)) { Season = 20 };
+        const int rivalSite = 1000;
+        int nearSite = Enumerable.Range(0, belief.Map.TileCount)
+            .First(tile => HexGrid.Distance(rivalSite, tile, belief.Map.Width) == 5);
+        int farSite = Enumerable.Range(0, belief.Map.TileCount)
+            .First(tile => HexGrid.Distance(rivalSite, tile, belief.Map.Width) > 8);
+        RivalBelief rival = belief.Rivals[1];
+        rival.Contacted = true;
+        rival.Era = 3;
+        rival.Settlements.Add(new BeliefSettlement { Settlement = 1, Tile = rivalSite, LastSeenSeason = 12 });
+        var candidates = new List<DecreeRequest>
+        {
+            new(DecreeKind.Found, nearSite, 0),
+            new(DecreeKind.Found, farSite, 0),
+        };
+
+        Assert.True(StrategistDecreePolicy.IsFoundSiteWithinBelievedBronzeRaidRange(
+            belief, 0, nearSite, 6, TestPack.Catalog.IndexOf("MET-04"), TestPack.Catalog.IndexOf("MET-05")));
+        Assert.False(StrategistDecreePolicy.IsFoundSiteWithinBelievedBronzeRaidRange(
+            belief, 0, farSite, 6, TestPack.Catalog.IndexOf("MET-04"), TestPack.Catalog.IndexOf("MET-05")));
+        Assert.Equal(1, StrategistDecreePolicy.RemoveExposedFoundCandidates(belief, 0, candidates, 6,
+            TestPack.Catalog.IndexOf("MET-04"), TestPack.Catalog.IndexOf("MET-05")));
+        Assert.DoesNotContain(candidates, candidate => candidate.Target == nearSite);
+        Assert.Contains(candidates, candidate => candidate.Target == farSite);
+
+        // The danger decays with the settlement sighting; old or unknown sites must not block expansion.
+        rival.Settlements[0].LastSeenSeason = 11;
+        Assert.False(StrategistDecreePolicy.IsFoundSiteWithinBelievedBronzeRaidRange(
+            belief, 0, nearSite, 6, TestPack.Catalog.IndexOf("MET-04"), TestPack.Catalog.IndexOf("MET-05")));
+        rival.Settlements[0].LastSeenSeason = belief.Season;
+        rival.Era = 2;
+        Assert.False(StrategistDecreePolicy.IsFoundSiteWithinBelievedBronzeRaidRange(
+            belief, 0, nearSite, 6, TestPack.Catalog.IndexOf("MET-04"), TestPack.Catalog.IndexOf("MET-05")));
+        rival.ProjectBelieved[TestPack.Catalog.IndexOf("MET-04")] = true;
+        Assert.True(StrategistDecreePolicy.IsFoundSiteWithinBelievedBronzeRaidRange(
+            belief, 0, nearSite, 6, TestPack.Catalog.IndexOf("MET-04"), TestPack.Catalog.IndexOf("MET-05")));
+    }
 }

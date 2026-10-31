@@ -73,7 +73,8 @@ public sealed partial class LivingEconomyModel
     public bool SettlementHasQueuedPhysicalDefenseBuild(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
-        return !HasPhysicalDefense(s) && IsPhysicalDefense(s.BuildTarget) && CanBuild(s.Civilization, s.BuildTarget) &&
+        return !HasPhysicalDefense(s) && IsPhysicalDefense(s.BuildTarget) &&
+               (s.BuildTarget == Structure.Palisade || CanBuild(s.Civilization, s.BuildTarget)) &&
                (s.BuildTarget != Structure.Hillfort || HasHillfortSite(s));
     }
 

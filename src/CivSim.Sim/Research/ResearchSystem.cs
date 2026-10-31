@@ -71,6 +71,7 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly int _soc03, _trd04, _bel05, _bld05, _bld07;
     private long _tick;
 
+
     public ResearchSystem(ResearchCatalog catalog, IResearchSource source, ulong seed, ReadOnlySpan<ResearchCivSetup> setup)
     {
         ArgumentNullException.ThrowIfNull(catalog);

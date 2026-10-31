@@ -62,7 +62,7 @@ public sealed class MatchModel : ISimModel
     /// </summary>
     public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
         ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls, bool playerCouncil = true,
-        bool gentleStart = false)
+        bool gentleStart = false, bool warlordRaidWithdrawalPolicy = false)
     {
         var catalog = new ResearchCatalog(pack);
         WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -86,7 +86,8 @@ public sealed class MatchModel : ISimModel
         var politics = new PoliticsSystem(economy, research, generated, profiles, seed, gentleStart);
         AiSystem? ai = null;
         foreach (CivControl control in controls)
-            if (control.Kind != ControlKind.Council) { ai = new AiSystem(economy, research, politics, generated, pack, seed, controls); break; }
+            if (control.Kind != ControlKind.Council) { ai = new AiSystem(economy, research, politics, generated, pack, seed, controls,
+                warlordRaidWithdrawalPolicy); break; }
         return new MatchModel(economy, research, source, politics, ai);
     }
 

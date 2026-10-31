@@ -170,10 +170,21 @@ public sealed partial class PoliticsSystem
 
     /// <summary>AI-only build priority, validated against the caller's own settlement.</summary>
     public bool OrderPrioritizePhysicalDefenseBuild(int c, int settlement)
+        => OrderPrioritizePhysicalDefenseBuild(c, settlement, proactiveDiagnostic: false);
+
+    public bool OrderPrioritizePhysicalDefenseBuild(int c, int settlement, bool proactiveDiagnostic)
     {
         if ((uint)c >= (uint)_civs || (uint)settlement >= (uint)_sCiv.Length || _sCiv[settlement] != c || IsFreeFolk(settlement))
             return false;
-        return _economy.PrioritizePhysicalDefenseBuild(settlement);
+        return _economy.PrioritizePhysicalDefenseBuild(settlement, proactiveDiagnostic);
+    }
+
+    /// <summary>Prepares an exposed settlement for a directly believed Bronze rival.</summary>
+    public bool OrderPreparePhysicalDefenseBuild(int c, int settlement, bool urgent = false)
+    {
+        if ((uint)c >= (uint)_civs || (uint)settlement >= (uint)_sCiv.Length || _sCiv[settlement] != c || IsFreeFolk(settlement))
+            return false;
+        return _economy.PreparePhysicalDefenseBuild(settlement, urgent);
     }
 
     /// <summary>Read-only explanation for the optional B28 diagnostic trace.</summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Ai.Forecast;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -23,6 +24,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 {
     private const ulong StreamPart = 0x535041524BUL; // "SPARK": the Settler's and Chieftain's prior picks
     internal const int B29ReportHorizonSeasons = 120;
+    private static readonly string[] FrontierDecisionPrerequisiteIds = { "MET-02", "SOC-07", "TRD-03", "NUM-03" };
     private static readonly Fix64 Third = Fix64.FromRatio(1, 3);
 
     private readonly AiSpec _spec;
@@ -30,6 +32,10 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly KnowHowTracker _tracker = new();
     private int _lastDecision = -1;
     internal Fix64? RivalPaceOverrideForDiagnostics { get; set; }
+    internal bool B29ReportForecastEnabledForDiagnostics { get; set; }
+    internal bool B29ReportForecastCapturedForDiagnostics => _b29ReportForecastCaptured;
+    internal bool FrontierDecisionTraceEnabledForDiagnostics { get; set; }
+    internal Action<string>? FrontierDecisionTraceSinkForDiagnostics { get; set; }
     internal Fix64? DefenseResearchBonusOverrideForDiagnostics { get; set; }
     internal Fix64? PostureUnlockBonusOverrideForDiagnostics { get; set; }
     internal Fix64? KeystoneTempoOverrideForDiagnostics { get; set; }
@@ -43,6 +49,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private Fix64? _defenseUrgencyForValuationOverrideForDiagnostics;
     private bool _suppressWriteForShadowDiagnostics;
     private ResearchSpark? _defenseUrgencyShadowSpark;
+    private bool _b29ReportForecastCaptured;
     private readonly int[] _lastSlots = { -1, -1, -1 };
     /// <summary>Season each civilization was first seen in each era (civ × era), -1 if not yet: the public keystone record.</summary>
     private int[] _eraSeason = Array.Empty<int>();
@@ -70,6 +77,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private readonly List<int> _critical = new();
     private bool _lateClosureCatchup;
     private int _met03 = -1, _met04 = -1, _met05 = -1, _min04 = -1, _trn05 = -1, _sea05 = -1, _gov02 = -1;
+    private int[] _frontierDecisionPrerequisites = Array.Empty<int>();
+    private Fix64[] _frontierDecisionPreviousProgress = Array.Empty<Fix64>();
+    private bool _frontierDecisionProgressCaptured;
 
     public ResearchSpark(AiSpec spec, DifficultyProfile profile)
     {
@@ -98,7 +108,15 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 
     public void Decide(AiContext ctx)
     {
-        LastB29ReportForecastForDiagnostics = null;
+        if (!B29ReportForecastEnabledForDiagnostics)
+        {
+            LastB29ReportForecastForDiagnostics = null;
+            _b29ReportForecastCaptured = false;
+        }
+        else if (!_b29ReportForecastCaptured)
+        {
+            LastB29ReportForecastForDiagnostics = null;
+        }
         Ensure(ctx.Catalog);
         ForecastCatalog fc = _fc!;
         AiResearchPort port = ctx.Research;
@@ -114,6 +132,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         PreparePlan(ctx, port, fc, readout);
         BuildCandidates(port);
         Search(ctx);
+        TraceFrontierDecision(ctx);
         if (shadowState is not null) CompareDefenseUrgencyShadow(ctx, shadowState);
         if (!_suppressWriteForShadowDiagnostics) Write(ctx);
         _lastDecision = ctx.Season;
@@ -213,6 +232,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         _met03 = catalog.IndexOf("MET-03"); _met04 = catalog.IndexOf("MET-04"); _met05 = catalog.IndexOf("MET-05");
         _min04 = catalog.IndexOf("MIN-04"); _trn05 = catalog.IndexOf("TRN-05"); _sea05 = catalog.IndexOf("SEA-05");
         _gov02 = catalog.IndexOf("GOV-02");
+        _frontierDecisionPrerequisites = new int[FrontierDecisionPrerequisiteIds.Length];
+        for (int i = 0; i < _frontierDecisionPrerequisites.Length; i++)
+            _frontierDecisionPrerequisites[i] = catalog.IndexOf(FrontierDecisionPrerequisiteIds[i]);
+        _frontierDecisionPreviousProgress = new Fix64[_frontierDecisionPrerequisites.Length];
+        _frontierDecisionProgressCaptured = false;
         CacheCapabilities(catalog);
     }
 
@@ -344,6 +368,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         Fix64 defenseBonus = DefenseResearchBonusOverrideForDiagnostics ?? SparkTuning.DefenseBonus;
         Fix64 defenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
         Fix64 defense = Fix64.Clamp(defenseUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
+        Fix64 foodNeedBonus = SparkTuning.FoodNeedBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
         Fix64 frontier = Fix64.Clamp(intent.FrontierValue, Fix64.Zero, Fix64.One) * SparkTuning.FrontierBonus;
         MarkMilitaryPath(_start.Era);
@@ -366,7 +391,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             Fix64 bonus = SparkTuning.HubBonus * fc.HubWeight[p];
             if (closure is not null && closure[p] && !_start.Done[p]) bonus += SparkTuning.ClosureBonus;
             string code = _lineageCode[p];
-            Fix64 foodValue = foodNeed * _foodCapability[p] * SparkTuning.FoodNeedBonus;
+            Fix64 foodValue = foodNeed * _foodCapability[p] * foodNeedBonus;
             Fix64 leanValue = leanNeed * _leanCapability[p] * SparkTuning.LeanNeedBonus;
             Fix64 cohesionValue = cohesionNeed * _cohesionCapability[p] * SparkTuning.CohesionNeedBonus;
             bonus += foodValue + leanValue + cohesionValue;
@@ -648,6 +673,88 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                 (_candidates[b], _candidates[b - 1]) = (_candidates[b - 1], _candidates[b]);
     }
 
+    private void TraceFrontierDecision(AiContext ctx)
+    {
+        if (!FrontierDecisionTraceEnabledForDiagnostics || FrontierDecisionTraceSinkForDiagnostics is null) return;
+        ForecastCatalog fc = _fc!;
+        int key2 = fc.Catalog.IndexOf("KEY-2"), key3 = fc.Catalog.IndexOf("KEY-3");
+        if (key2 < 0 || key3 < 0 || !_start.Done[key2] || _start.Done[key3]) return;
+
+        string liveSlots = string.Join(',', Enumerable.Range(0, CivResearch.SlotCount).Select(sl => ProjectId(ctx.Research.Slot(sl))));
+        string liveQueue = string.Join(',', ctx.Research.Queue.Select(ProjectId));
+        string plan = string.Join(',', _plan.Select(ProjectId));
+        string progress = string.Join(" ", Enumerable.Range(0, _frontierDecisionPrerequisites.Length).Select(i =>
+        {
+            int p = _frontierDecisionPrerequisites[i];
+            if (p < 0) return FrontierDecisionPrerequisiteIds[i] + "=missing";
+            string progressValue, deltaValue;
+            if (_start.Done[p])
+            {
+                progressValue = "done";
+                deltaValue = "completed";
+            }
+            else if (!_frontierDecisionProgressCaptured)
+            {
+                progressValue = _start.Progress[p].ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                deltaValue = "n/a";
+            }
+            else
+            {
+                Fix64 delta = _start.Progress[p] - _frontierDecisionPreviousProgress[i];
+                progressValue = _start.Progress[p].ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                deltaValue = delta < Fix64.Zero ? "reset" : delta.ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            return $"{fc.Catalog.Projects[p].Id}:{_state[p]}:progress={progressValue}:delta={deltaValue}:{Selection(p)}";
+        }));
+        string requirements = string.Join(" | ", Enumerable.Range(0, _frontierDecisionPrerequisites.Length).Select(i =>
+        {
+            int p = _frontierDecisionPrerequisites[i];
+            if (p < 0) return FrontierDecisionPrerequisiteIds[i] + "<-missing";
+            int[] missing = fc.Requires[p].Where(r => !_start.Done[r]).ToArray();
+            int[] any = fc.RequiresAny[p];
+            string direct = missing.Length == 0 ? "none" : string.Join(',', missing.Select(r => $"{fc.Catalog.Projects[r].Id}:{_state[r]}"));
+            string oneOf = any.Length == 0 ? "" : ";any=" + (any.Any(r => _start.Done[r]) ? "satisfied" : string.Join(',', any.Select(r => $"{fc.Catalog.Projects[r].Id}:{_state[r]}")));
+            return $"{fc.Catalog.Projects[p].Id}<-{direct}{oneOf}";
+        }));
+        var selected = new List<int>(_plan);
+        for (int sl = 0; sl < CivResearch.SlotCount; sl++) if (ctx.Research.Slot(sl) >= 0) selected.Add(ctx.Research.Slot(sl));
+        foreach (int p in ctx.Research.Queue) selected.Add(p);
+        var candidates = new List<string>();
+        int shown = Math.Min(6, _candidates.Count);
+        for (int i = 0; i < shown; i++)
+        {
+            int p = _candidates[i];
+            int ownEta = _forecast.DoneAt[p];
+            Fix64? first = _forecast.ExpectedFirstPointsForDiagnostics(p, ownEta);
+            int eta = _value.RivalEta[p];
+            string ownEtaSeasons = ownEta < 0 ? "inf" : FormatEtaSeasons(ownEta);
+            string rivalEtaSeasons = eta == int.MaxValue ? "inf" : FormatEtaSeasons(eta);
+            string firstValue = first is { } expectedFirst
+                ? expectedFirst.ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture)
+                : "n/a";
+            candidates.Add($"{i + 1}:{fc.Catalog.Projects[p].Id} state={_state[p]} score={_rank[p].ToDoubleForDisplay():F3} " +
+                $"first={firstValue}/{fc.FirstPoints[p].ToDoubleForDisplay():F2} ownEta={ownEtaSeasons} rivalEta={rivalEtaSeasons} selected={selected.Contains(p)}");
+        }
+        FrontierDecisionTraceSinkForDiagnostics.Invoke(
+            $"A3_FRONTIER_DECISION season={ctx.Season} era={_start.Era} adults={ctx.Own.Adults} population={ctx.Own.Population} insightPerYear={ctx.Own.InsightPerYear.ToDoubleForDisplay():F2} " +
+            $"prereqs=[{progress}] unmet=[{requirements}] liveSlots=[{liveSlots}] queue=[{liveQueue}] plan=[{plan}] top=[{string.Join(" | ", candidates)}]");
+        for (int i = 0; i < _frontierDecisionPrerequisites.Length; i++)
+            if (_frontierDecisionPrerequisites[i] >= 0) _frontierDecisionPreviousProgress[i] = _start.Progress[_frontierDecisionPrerequisites[i]];
+        _frontierDecisionProgressCaptured = true;
+
+        string ProjectId(int p) => p >= 0 && p < fc.Count ? fc.Catalog.Projects[p].Id : "-";
+        string FormatEtaSeasons(int steps)
+            => Fix64.FromRatio(steps, _forecast.StepsPerSeason).ToDoubleForDisplay().ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        string Selection(int p)
+        {
+            int slot = -1, queue = -1, proposedPlan = -1;
+            for (int i = 0; i < CivResearch.SlotCount; i++) if (ctx.Research.Slot(i) == p) { slot = i; break; }
+            for (int i = 0; i < ctx.Research.Queue.Count; i++) if (ctx.Research.Queue[i] == p) { queue = i; break; }
+            for (int i = 0; i < _plan.Count; i++) if (_plan[i] == p) { proposedPlan = i; break; }
+            return $"selected(slot={slot},queue={queue},plan={proposedPlan})";
+        }
+    }
+
     /// <summary>Whether a project can follow a partial plan: available now, or one step away with the missing step in it.</summary>
     private bool CanFollow(int p, int[] seq, int length)
     {
@@ -782,13 +889,19 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         // B29 reports a longer ETA when the normal planner horizon misses KEY-4. This separate
         // rollout uses the finalized plan but never feeds the planner, LastForecast, or plan choice.
         int key3 = fc.Catalog.IndexOf("KEY-3");
-        if (LastForecast.Key4 < 0 && key3 >= 0 && _start.Done[key3])
+        if (ShouldRunB29ReportForecastForDiagnostics(LastForecast.Key4 >= 0, key3 >= 0 && _start.Done[key3]))
         {
             _b29ReportForecast.Prepare(_start, B29ReportHorizonSeasons);
             LastB29ReportForecastForDiagnostics = _b29ReportForecast.Run(
                 System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_plan), _value, promoteKeystone: true);
+            MarkB29ReportForecastCapturedForDiagnostics();
         }
     }
+
+    internal bool ShouldRunB29ReportForecastForDiagnostics(bool primaryHasKey4, bool key3Done)
+        => B29ReportForecastEnabledForDiagnostics && !_b29ReportForecastCaptured && !primaryHasKey4 && key3Done;
+
+    internal void MarkB29ReportForecastCapturedForDiagnostics() => _b29ReportForecastCaptured = true;
 
     /// <summary>
     /// The available projects with the longest chains still ahead of them inside the next keystone's closure (backfills

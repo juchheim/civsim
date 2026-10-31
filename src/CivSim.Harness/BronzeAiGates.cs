@@ -31,6 +31,9 @@ internal static class BronzeAiGates
         double NaturalFoundings, double DecreeFoundings, double[] DecreesDone, double[] DecreesRefused,
         double[] FirstPointsByProject);
 
+    private sealed record B8FoodSeason(int Season, bool Enabled, int Settlements, int CurrentLow, int WinterLow,
+        double MinCurrent, double MinWinter);
+
     internal static string FormatB8FirstLedger(IReadOnlyList<B8FirstClaim> claims)
     {
         var projects = new List<string>(claims.Count);
@@ -197,6 +200,7 @@ internal static class BronzeAiGates
             }
 
             bool offTeamA = b8 && swap == 1;
+            var b8FoodSeasons = traceB8 ? new List<B8FoodSeason>() : null;
             LegacyMatchOutcome outcome = Tournament.PlayForLegacy(pack, seed, seats, archetypes, minutes,
                 b8 ? match =>
                 {
@@ -206,9 +210,11 @@ internal static class BronzeAiGates
                 } : null,
                 traceB8 || summaryB8 ? match =>
                 {
-                    if (traceB8) traces[j] = CaptureB8Trace(j, seed, swap, offTeamA, match);
+                    if (traceB8) traces[j] = CaptureB8Trace(j, seed, swap, offTeamA, match) +
+                        Environment.NewLine + FormatB8FoodTrace(seed, swap, offTeamA, match, b8FoodSeasons!);
                     if (summaryB8) summaries![j] = CaptureB8SampleDelta(seed, swap, offTeamA, match);
-                } : null);
+                } : null,
+                traceB8 ? (match, season) => CaptureB8FoodSeason(match, season, offTeamA, b8FoodSeasons!) : null);
             bool teamAWon = outcome.TeamALegacy > outcome.TeamBLegacy;
             bool teamBWon = outcome.TeamBLegacy > outcome.TeamALegacy;
             bool tie = outcome.TeamALegacy == outcome.TeamBLegacy;
@@ -289,6 +295,63 @@ internal static class BronzeAiGates
         return new B8SampleDelta(seed, swap, metrics[0], metrics[1], metrics[2], metrics[3], metrics[4],
             settlements, villages, towns, cities, ownedWeight, natural, decreeFoundings, done, refused,
             firstPoints, match.Research.Catalog.Projects.Select(x => x.Id).ToArray(), metrics[4]);
+    }
+
+    private static void CaptureB8FoodSeason(MatchModel match, int season, bool offTeamA, List<B8FoodSeason> into)
+    {
+        for (int side = 0; side < 2; side++)
+        {
+            bool enabled = side == 0;
+            int[] civs = enabled
+                ? offTeamA ? Tournament.TeamBSeats : Tournament.TeamASeats
+                : offTeamA ? Tournament.TeamASeats : Tournament.TeamBSeats;
+            int settlements = 0, currentLow = 0, winterLow = 0;
+            double minCurrent = double.PositiveInfinity, minWinter = double.PositiveInfinity;
+            foreach (int civ in civs)
+                for (int s = 0; s < match.Economy.SettlementCount; s++)
+                {
+                    var lite = match.Economy.SettlementLite(s);
+                    if (lite.Civilization != civ || match.Politics.IsFreeFolk(s)) continue;
+                    settlements++;
+                    double food = lite.LastFoodSecurity.ToDoubleForDisplay();
+                    double winter = lite.LateWinterFoodForecast.ToDoubleForDisplay();
+                    minCurrent = Math.Min(minCurrent, food);
+                    minWinter = Math.Min(minWinter, winter);
+                    if (food < 0.8) currentLow++;
+                    if (winter < 0.8) winterLow++;
+                }
+            into.Add(new B8FoodSeason(season, enabled, settlements, currentLow, winterLow,
+                double.IsPositiveInfinity(minCurrent) ? 0 : minCurrent,
+                double.IsPositiveInfinity(minWinter) ? 0 : minWinter));
+        }
+    }
+
+    private static string FormatB8FoodTrace(ulong seed, int swap, bool offTeamA, MatchModel match,
+        IReadOnlyList<B8FoodSeason> snapshots)
+    {
+        var expeditions = new List<(int Civ, int Season, int Target)>();
+        foreach (PoliticsEvent e in match.Politics.Events)
+            if (e.Kind == PoliticsEventKind.DecreeResolved && e.A == (int)DecreeKind.Expedition)
+                expeditions.Add((e.Civ, checked((int)(e.Tick / ResearchSystem.SeasonTicks)), e.B));
+
+        var lines = new List<string>();
+        foreach (B8FoodSeason row in snapshots)
+        {
+            var sideCivs = row.Enabled
+                ? offTeamA ? Tournament.TeamBSeats : Tournament.TeamASeats
+                : offTeamA ? Tournament.TeamASeats : Tournament.TeamBSeats;
+            var nearby = new List<string>();
+            foreach ((int civ, int expeditionSeason, int target) in expeditions)
+                if (Array.IndexOf(sideCivs, civ) >= 0 && Math.Abs(row.Season - expeditionSeason) <= 1)
+                    nearby.Add($"c{civ}@s{expeditionSeason}/t{target}");
+            bool foodRisk = row.CurrentLow > 0 || row.WinterLow > 0;
+            if (!foodRisk && nearby.Count == 0) continue;
+            lines.Add($"B8 food seed={seed} swap={swap} side={(row.Enabled ? "enabled" : "disabled")} season={row.Season} " +
+                $"settlements={row.Settlements} currentLow(<0.8)={row.CurrentLow} minCurrent={row.MinCurrent:F2} " +
+                $"winterLow(<0.8)={row.WinterLow} minWinter={row.MinWinter:F2} " +
+                $"expeditionWindow={(nearby.Count == 0 ? "none" : string.Join(',', nearby))}");
+        }
+        return string.Join(Environment.NewLine, lines);
     }
 
     internal static IReadOnlyList<B8SeedDelta> PairB8Samples(IReadOnlyList<B8SampleDelta> samples)

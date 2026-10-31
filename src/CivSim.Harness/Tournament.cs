@@ -90,6 +90,8 @@ internal sealed class CivOutcome
 internal sealed class MatchOutcome
 {
     public ulong Seed;
+    public bool A5BuilderFertilityDiagnostic;
+    public bool A5GrowerFertilityDiagnostic;
     public Fix64? RivalPaceOverride;
     public int? FirstsEtaPessimismOverride;
     public int? WarlordNonConquerRaidPostureStreakOverride;
@@ -97,17 +99,26 @@ internal sealed class MatchOutcome
     public bool WarlordSeatAllianceDiagnostic;
     public Fix64? WarlordFrontierEarlyBonusOverride;
     public Fix64? WarlordE3FissionThresholdOverride;
+    public Fix64? WarlordPreE3FissionThresholdScaleOverride;
+    public bool WarlordPreE3FissionOriginalSettlementsOnly;
+    public bool WarlordPreE3FissionFirstGenerationDaughtersOnly;
     public Fix64? WarlordDefenseResearchBonusOverride;
     public Fix64? WarlordPostureUnlockBonusOverride;
     public bool WarlordFrontierConquestPlanFloorDiagnostic;
     public Fix64? WarlordKeystoneTempoOverride;
     public bool WarlordE2ClosureSlotDiagnostic;
+    public bool WarlordFrontierDecisionTraceEnabled;
     public bool WarlordDefenseUrgencyShadowDiagnostic;
     public bool WarlordB30TraceEnabled;
     public bool WarlordB28TraceEnabled;
+    public bool B28AffordabilityTimelineEnabled;
     public bool WarlordFissionSiteDiagnosticEnabled;
     public bool A2LeadCheckpointDiagnosticEnabled;
     public bool WarlordCampaignOpportunityTraceEnabled;
+    public bool WarlordRaidDecisionTraceEnabled;
+    public bool WarlordCombatCasualtyTraceEnabled;
+    public bool WarlordAllowExposedFoundDiagnostic;
+    public bool WarlordThirdE3FoundDiagnostic;
     public readonly List<string> B28Traces = new();
     public readonly List<string> A7Traces = new();
     public readonly List<string> B27Traces = new();
@@ -120,11 +131,18 @@ internal sealed class MatchOutcome
     public readonly List<string> WarlordDemographyTraces = new();
     public readonly List<string> WarlordFoodLedgerTraces = new();
     public readonly List<string> WarlordFoodWorkAttributionTraces = new();
+    public List<string> WarlordFrontierDecisionTraces = new();
     public readonly List<string> FfaFoodDemographyTraces = new();
     public readonly List<string> FfaCaseControlTraces = new();
     public readonly List<string> WarlordFissionSiteDiagnostics = new();
+    public readonly List<string> WarlordFissionOperatingMarginTraces = new();
+    public readonly List<string> WarlordDeathStateTraces = new();
+    public readonly List<string> WarlordScoutDecisionTraces = new();
     public readonly List<string> A2LeadCheckpointTraces = new();
     public readonly List<string> WarlordCampaignOpportunityTraces = new();
+    public readonly List<string> WarlordRaidDecisionTraces = new();
+    public readonly List<string> WarlordRaidWithdrawalTraces = new();
+    public readonly List<string> WarlordCombatCasualtyTraces = new();
     public readonly List<FfaFirstClaimDiagnostic> FfaFirstClaims = new();
     public readonly List<string> FfaResearchTimeline = new();
     public readonly List<string> WarlordMandateTraces = new();
@@ -147,7 +165,8 @@ internal readonly record struct FoundFunnelDiagnostic(int Civ, int CandidateSeas
     int SeasonsObserved, int CouncilOnSeasons, int MandateUnlockedSeasons, int CouncilAndMandateSeasons,
     int FoundAffordableSeasons, int AtMandateCapSeasons, int QuotaOpenSeasons, int NaturalGateOpenSeasons,
     int ActiveButNoFoundCandidateSeasons, int MeanMandate, int MeanMandateCap, int MeanFoundCost,
-    string Key3MissingPrerequisites, string Key3PrerequisitePath, int E2BreadthDone, string Key3State, Fix64 Key3Progress);
+    string Key3MissingPrerequisites, string Key3PrerequisitePath, int E2BreadthDone, string Key3State, Fix64 Key3Progress,
+    string FoundScoreComparison);
 internal readonly record struct FoundFunnelSeasonSnapshot(int Civ, int Season, bool CouncilOn, bool MandateUnlocked,
     int Mandate, int MandateCap, int FoundCost, int Founded, int E3Foundings,
     int FoundQuotaRemaining, int NaturalHeadroom);
@@ -174,6 +193,28 @@ internal sealed class FfaFoodWindow
 /// <summary>Runs matches headless and scores them. The harness may use doubles and threads; the simulation does not.</summary>
 internal static class Tournament
 {
+    private static string CampaignBlockerClass(string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason)) return "unspecified";
+        if (reason.Contains("too small to launch", StringComparison.OrdinalIgnoreCase)) return "attacker-count";
+        if (reason.Contains("force ratio", StringComparison.OrdinalIgnoreCase)) return "force-ratio";
+        if (reason.Contains("counter", StringComparison.OrdinalIgnoreCase) || reason.Contains("expos", StringComparison.OrdinalIgnoreCase)) return "counter-exposure";
+        if (reason.Contains("winter food", StringComparison.OrdinalIgnoreCase)) return "winter-food";
+        if (reason.Contains("capture", StringComparison.OrdinalIgnoreCase)) return "capture-chance";
+        if (reason.Contains("value", StringComparison.OrdinalIgnoreCase) || reason.Contains("Legacy", StringComparison.OrdinalIgnoreCase)) return "nonpositive-value";
+        if (reason.Contains("no fresh known", StringComparison.OrdinalIgnoreCase)) return "no-known-target";
+        if (reason.Contains("no settlement", StringComparison.OrdinalIgnoreCase)) return "no-origin";
+        if (reason.StartsWith("not-evaluated", StringComparison.OrdinalIgnoreCase)) return "not-evaluated";
+        return "other";
+    }
+
+    private sealed class RaidDecisionTraceStats
+    {
+        public int Civ, Decisions, War02Ready, FreshTargetDecisions, CandidateDecisions, ReadyDecisions, FortifyBlocked;
+        public string? LastState;
+        public int LastLoggedSeason = -4;
+    }
+
     public const ulong BaseSeed = 20261019;
     public static readonly int[] TeamASeats = { 0, 3 };
     public static readonly int[] TeamBSeats = { 1, 2 };
@@ -197,8 +238,31 @@ internal static class Tournament
         bool warlordCampaignOpportunityTrace = false,
         bool warlordFrontierConquestPlanFloorDiagnostic = false,
         bool a2LeadCheckpointDiagnostic = false,
-        int? deferWarlordS2FissionUntilSeasonForDiagnostics = null)
+        int? deferWarlordS2FissionUntilSeasonForDiagnostics = null,
+        bool warlordFrontierDecisionTrace = false,
+        bool warlordB28ProactiveDefenseDiagnostic = false,
+        bool warlordB28PublicEraShadowDiagnostic = false,
+        bool warlordFissionOperatingMarginTrace = false,
+        bool warlordEmergencyFoodWorkDiagnostic = false,
+        bool warlordRaidDecisionTrace = false,
+        bool a5BuilderFertilityDiagnostic = false,
+        bool warlordB28AffordabilityTimeline = false,
+        bool warlordGlobalForceCampaignDiagnostic = false,
+        bool a5GrowerFertilityDiagnostic = false,
+        bool warlordDeathStateTrace = false,
+        Fix64? warlordPreE3FissionThresholdScaleOverride = null,
+        bool warlordPreE3FissionOriginalSettlementsOnly = false,
+        bool warlordPreE3FissionFirstGenerationDaughtersOnly = false,
+        bool warlordFoundFrontierTrajectory = false,
+        bool warlordAllowExposedFoundDiagnostic = false, bool warlordThirdE3FoundDiagnostic = false,
+        bool warlordQuietFrontierPlanTrace = false, bool warlordCombatCasualtyTrace = false,
+        bool warlordRaidWithdrawalDiagnostic = false)
     {
+        if (warlordPreE3FissionOriginalSettlementsOnly && warlordPreE3FissionFirstGenerationDaughtersOnly)
+            throw new ArgumentException("Choose either original-settlement-only or first-generation-daughter-only fission threshold diagnostics.");
+        if (warlordPreE3FissionThresholdScaleOverride is { } earlyScale &&
+            (earlyScale <= Fix64.Zero || earlyScale > Fix64.One))
+            throw new ArgumentOutOfRangeException(nameof(warlordPreE3FissionThresholdScaleOverride), "Pre-E3 fission scale must be in (0, 1].");
         if (captureFirstRaceDiagnostics)
         {
             bool rusher = false, warlord = false;
@@ -209,6 +273,7 @@ internal static class Tournament
             }
             captureFirstRaceDiagnostics = rusher && warlord;
         }
+        if (warlordFoundFrontierTrajectory) captureFoundFunnelDiagnostics = true;
         if (captureFoundFunnelDiagnostics)
         {
             bool hasWarlord = false;
@@ -217,20 +282,58 @@ internal static class Tournament
         }
         if (warlordCampaignOpportunityTrace)
         {
-            bool warlord = false, grower = false;
+            bool warlord = false;
             foreach (Player seat in seats)
             {
                 warlord |= string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase);
-                grower |= string.Equals(seat.Name, "grower", StringComparison.OrdinalIgnoreCase);
             }
-            warlordCampaignOpportunityTrace = seed == 20261024 && warlord && grower;
+            warlordCampaignOpportunityTrace = warlord;
         }
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
-        MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
+        MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls,
+            warlordRaidWithdrawalPolicy: warlordRaidWithdrawalDiagnostic);
+        if (warlordRaidWithdrawalDiagnostic)
+        {
+            var traceCivs = new bool[seats.Length];
+            for (int civ = 0; civ < seats.Length; civ++)
+                traceCivs[civ] = string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase);
+            match.Politics.RaidWithdrawalTraceCivsForDiagnostics = traceCivs;
+            match.Politics.RaidWithdrawalTraceEnabledForDiagnostics = traceCivs.Any(enabled => enabled);
+        }
+        if (warlordDeathStateTrace)
+        {
+            var targetCivs = new bool[seats.Length];
+            for (int civ = 0; civ < seats.Length; civ++)
+                targetCivs[civ] = string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase);
+            match.Economy.DeathStateTraceCivsForDiagnostics = targetCivs;
+            match.Economy.ScoutDecisionTraceCivsForDiagnostics = targetCivs;
+        }
+        if (warlordPreE3FissionThresholdScaleOverride is { } earlyFissionScale)
+        {
+            var thresholdOverrides = new Fix64?[seats.Length];
+            for (int civ = 0; civ < seats.Length; civ++)
+                if (string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase))
+                    thresholdOverrides[civ] = earlyFissionScale;
+            match.Economy.PreE3FissionThresholdScaleOverridesForDiagnostics = thresholdOverrides;
+            match.Economy.PreE3FissionThresholdOverrideInitialSettlementsOnlyForDiagnostics = warlordPreE3FissionOriginalSettlementsOnly;
+            match.Economy.PreE3FissionThresholdOverrideFirstGenerationDaughtersOnlyForDiagnostics = warlordPreE3FissionFirstGenerationDaughtersOnly;
+        }
+        if (a5BuilderFertilityDiagnostic)
+            match.Economy.BuilderFertilityMultiplierForDiagnostics = Fix64.One;
+        if (a5GrowerFertilityDiagnostic)
+            match.Economy.GrowerFertilityMultiplierForDiagnostics = Fix64.Parse("1.20");
         if (captureFfaResearchTimeline || captureFfaCaseControlTimeline) match.Research.EnableDiagnosticGenerationCounters();
-        match.Economy.FoodWorkAttributionTraceEnabled = warlordSettlementTrace || captureFfaFoodDemographyTimeline;
+        match.Economy.FoodWorkAttributionTraceEnabled = warlordSettlementTrace || captureFfaFoodDemographyTimeline || warlordFissionOperatingMarginTrace;
+        if (warlordFissionOperatingMarginTrace)
+        {
+            var targetCivs = new List<int>();
+            for (int civ = 0; civ < seats.Length; civ++)
+                if (FissionOperatingMarginTraceAppliesForDiagnostics(seats[civ].Name, enabled: true)) targetCivs.Add(civ);
+            match.Economy.FissionOperatingFoodMarginTraceEnabled = targetCivs.Count > 0;
+            match.Economy.FissionOperatingFoodMarginCivsForDiagnostics = targetCivs.ToArray();
+        }
         if (foodShortageSkipScoutsForDiagnostics)
         {
             var skipScoutsForCiv = new bool[seats.Length];
@@ -242,13 +345,20 @@ internal static class Tournament
             }
             if (anyWarlordSeat) match.Economy.SkipScoutsWhenFoodShortForCivsForDiagnostics = skipScoutsForCiv;
         }
+        if (warlordEmergencyFoodWorkDiagnostic)
+        {
+            var emergencyFoodCivs = new bool[seats.Length];
+            for (int civ = 0; civ < seats.Length; civ++)
+                emergencyFoodCivs[civ] = WarlordEmergencyFoodWorkAppliesForDiagnostics(seats[civ].Name);
+            match.Economy.FullFoodWorkWhenShortForCivsForDiagnostics = emergencyFoodCivs;
+        }
         if (deferFissionSettlementUntilSeasonForDiagnostics is { } fissionFirstAllowedSeason)
             match.Economy.DeferFissionForDiagnostics(civ: 1, settlementId: 1, fissionFirstAllowedSeason);
         if (deferWarlordS2FissionUntilSeasonForDiagnostics is { } warlordS2FirstAllowedSeason &&
             seed == 20261024 && warlordSettlementTraceSwapped && seats.Length > 2 &&
             string.Equals(seats[2].Name, "warlord", StringComparison.OrdinalIgnoreCase))
             match.Economy.DeferFissionForDiagnostics(civ: 2, settlementId: 2, warlordS2FirstAllowedSeason);
-        FissionSiteDiagnostics? fissionSiteDiagnostics = warlordFissionSiteDiagnostic && seed == 20261024
+        FissionSiteDiagnostics? fissionSiteDiagnostics = warlordFissionSiteDiagnostic
             ? new FissionSiteDiagnostics() : null;
         bool a2LeadCheckpointEnabled = a2LeadCheckpointDiagnostic && seed == 20261025 &&
             seats.Any(seat => string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase)) &&
@@ -280,6 +390,27 @@ internal static class Tournament
             for (int c = 0; c < seats.Length; c++)
                 if (b28TraceAi.SeatOf(c)?.Strategist is Strategist strategist)
                     strategist.TraceBronzeDefenseForDiagnostics = true;
+        match.Economy.B28PreparedDefenseTraceEnabled = warlordB28Trace;
+        if (warlordB28AffordabilityTimeline)
+            match.Economy.B28AffordabilityTimelineEnabled = true;
+        if (warlordB28PublicEraShadowDiagnostic && match.Ai is { } publicEraShadowAi)
+            foreach (int c in B28ProactiveDefenseCivs(seats))
+                if (publicEraShadowAi.SeatOf(c)?.Strategist is Strategist publicEraStrategist)
+                {
+                    publicEraStrategist.ShadowPublicEraDefenseForDiagnostics = true;
+                    publicEraStrategist.TraceBronzeDefenseForDiagnostics = true;
+                }
+        if (warlordB28ProactiveDefenseDiagnostic)
+        {
+            match.Economy.ProactiveBronzeDefenseForDiagnostics = true;
+            if (match.Ai is { } proactiveB28Ai)
+                foreach (int c in B28ProactiveDefenseCivs(seats))
+                    if (proactiveB28Ai.SeatOf(c)?.Strategist is Strategist proactiveStrategist)
+                    {
+                        proactiveStrategist.ProactiveBronzeDefenseForDiagnostics = true;
+                        proactiveStrategist.TraceBronzeDefenseForDiagnostics = true;
+                    }
+        }
         bool warlordSeatAllianceApplied = false;
         if (warlordSeatAllianceDiagnostic)
         {
@@ -299,7 +430,8 @@ internal static class Tournament
         }
         bool warlordPostureUnlockBonusOverrideApplied = false;
         bool warlordFrontierConquestPlanFloorApplied = false;
-        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin || warlordFrontierEarlyBonusOverride is not null || warlordE3FissionThresholdOverride is not null || warlordDefenseResearchBonusOverride is not null || warlordPostureUnlockBonusOverride is not null || warlordDefenseUrgencyShadowDiagnostic || warlordKeystoneTempoOverride is not null || warlordE2ClosureSlotDiagnostic || warlordFrontierConquestPlanFloorDiagnostic)
+        var warlordFrontierDecisionTraces = new List<string>();
+        if (rivalPaceOverride is not null || firstsEtaPessimismSeasons is not null || warlordNonConquerRaidPostureStreak is not null || warlordMaxCampaignOrigin || warlordFrontierEarlyBonusOverride is not null || warlordE3FissionThresholdOverride is not null || warlordDefenseResearchBonusOverride is not null || warlordPostureUnlockBonusOverride is not null || warlordDefenseUrgencyShadowDiagnostic || warlordKeystoneTempoOverride is not null || warlordE2ClosureSlotDiagnostic || warlordFrontierConquestPlanFloorDiagnostic || warlordFrontierDecisionTrace)
             for (int c = 0; c < seats.Length; c++)
                 if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) && match.Ai?.SeatOf(c) is { } warlordSeat)
                 {
@@ -328,6 +460,12 @@ internal static class Tournament
                         tempoSpark.KeystoneTempoOverrideForDiagnostics = tempo;
                     if (warlordSeat.Spark is ResearchSpark closureSpark && warlordE2ClosureSlotDiagnostic)
                         closureSpark.E2ClosureSlotOverrideForDiagnostics = true;
+                    if (warlordSeat.Spark is ResearchSpark frontierDecisionSpark && warlordFrontierDecisionTrace)
+                    {
+                        frontierDecisionSpark.FrontierDecisionTraceEnabledForDiagnostics = true;
+                        frontierDecisionSpark.FrontierDecisionTraceSinkForDiagnostics = trace =>
+                            warlordFrontierDecisionTraces.Add($"seed={seed} mirror={(warlordSettlementTraceSwapped ? "swapped" : "original")} warlordCiv={c} {trace}");
+                    }
                     if (warlordSeat.Spark is ResearchSpark shadowSpark && warlordDefenseUrgencyShadowDiagnostic)
                         shadowSpark.DefenseUrgencyShadowDiagnosticForDiagnostics = true;
                     if (warlordE3FissionThresholdOverride is { } fissionThreshold)
@@ -343,55 +481,178 @@ internal static class Tournament
         int civs = seats.Length;
         var outcome = new MatchOutcome
         {
-            Seed = seed, RivalPaceOverride = rivalPaceOverride, FirstsEtaPessimismOverride = firstsEtaPessimismSeasons,
+            Seed = seed, A5BuilderFertilityDiagnostic = a5BuilderFertilityDiagnostic,
+            A5GrowerFertilityDiagnostic = a5GrowerFertilityDiagnostic,
+            RivalPaceOverride = rivalPaceOverride, FirstsEtaPessimismOverride = firstsEtaPessimismSeasons,
             WarlordNonConquerRaidPostureStreakOverride = warlordNonConquerRaidPostureStreak,
             WarlordMaxCampaignOriginOverride = warlordMaxCampaignOrigin,
             WarlordSeatAllianceDiagnostic = warlordSeatAllianceApplied,
             WarlordFrontierEarlyBonusOverride = warlordFrontierEarlyBonusOverride,
             WarlordE3FissionThresholdOverride = warlordE3FissionThresholdOverride,
+            WarlordPreE3FissionThresholdScaleOverride = warlordPreE3FissionThresholdScaleOverride,
+            WarlordPreE3FissionOriginalSettlementsOnly = warlordPreE3FissionOriginalSettlementsOnly,
+            WarlordPreE3FissionFirstGenerationDaughtersOnly = warlordPreE3FissionFirstGenerationDaughtersOnly,
             WarlordDefenseResearchBonusOverride = warlordDefenseResearchBonusOverride,
             WarlordPostureUnlockBonusOverride = warlordPostureUnlockBonusOverrideApplied ? warlordPostureUnlockBonusOverride : null,
             WarlordFrontierConquestPlanFloorDiagnostic = warlordFrontierConquestPlanFloorApplied,
             WarlordKeystoneTempoOverride = warlordKeystoneTempoOverride,
             WarlordE2ClosureSlotDiagnostic = warlordE2ClosureSlotDiagnostic,
+            WarlordFrontierDecisionTraceEnabled = warlordFrontierDecisionTrace,
             WarlordDefenseUrgencyShadowDiagnostic = warlordDefenseUrgencyShadowDiagnostic,
             WarlordB30TraceEnabled = warlordB30Trace,
             WarlordB28TraceEnabled = warlordB28Trace,
+            B28AffordabilityTimelineEnabled = warlordB28AffordabilityTimeline,
             WarlordFissionSiteDiagnosticEnabled = fissionSiteDiagnostics is not null,
             A2LeadCheckpointDiagnosticEnabled = a2LeadCheckpointEnabled,
             WarlordCampaignOpportunityTraceEnabled = warlordCampaignOpportunityTrace,
+            WarlordRaidDecisionTraceEnabled = warlordRaidDecisionTrace,
+            WarlordCombatCasualtyTraceEnabled = warlordCombatCasualtyTrace,
+            WarlordAllowExposedFoundDiagnostic = warlordAllowExposedFoundDiagnostic,
+            WarlordThirdE3FoundDiagnostic = warlordThirdE3FoundDiagnostic,
+            WarlordFrontierDecisionTraces = warlordFrontierDecisionTraces,
             Seats = seats, Civs = new CivOutcome[civs]
         };
+        if (warlordCombatCasualtyTrace)
+            match.Politics.CombatCasualtyObserverForDiagnostics = (figure, conflictKind, died, casualtySeason) =>
+            {
+                int civ = figure.Civilization;
+                if ((uint)civ >= (uint)seats.Length ||
+                    !string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) return;
+                outcome.WarlordCombatCasualtyTraces.Add(
+                    $"A3 COMBAT_CASUALTY seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={casualtySeason} civ={civ}/warlord settlement=s{figure.SettlementId} conflict={conflictKind} outcome={(died ? "dead" : "wounded")} figure=f{figure.Id} age={figure.Age} sex={(figure.Female ? "F" : "M")}");
+            };
+        if (warlordAllowExposedFoundDiagnostic)
+            for (int civ = 0; civ < seats.Length; civ++)
+            {
+                if (!string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+                if (match.Politics.DecreePolicyOf(civ) is StrategistDecreePolicy decreePolicy)
+                    decreePolicy.AllowExposedFoundCandidatesForDiagnostics = true;
+            }
+        if (warlordThirdE3FoundDiagnostic && match.Ai is { } thirdFoundAi)
+            for (int civ = 0; civ < seats.Length; civ++)
+                if (string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&
+                    match.Politics.DecreePolicyOf(civ) is StrategistDecreePolicy decreePolicy)
+                    decreePolicy.FoundPerAgeCapForDiagnostics = 3;
+        var foundFollowups = new Dictionary<int, (int Parent, int FoundedSeason)>();
+        if (warlordSettlementTrace)
+            match.Politics.FoundResolvedObserverForDiagnostics = (civ, parent, child) =>
+            {
+                if ((uint)civ >= (uint)seats.Length || !string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) return;
+                foundFollowups[child] = (parent, match.Politics.Season);
+                outcome.SettlementTimelineTraces.Add($"A3_FOUND_FOLLOWUP seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} civ={civ} parent=s{parent} child=s{child} tile={match.Economy.Settlement(child).SiteTile} foundedSeason={match.Politics.Season}");
+            };
+        if (warlordFoundFrontierTrajectory)
+            for (int civ = 0; civ < seats.Length; civ++)
+            {
+                if (!string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+                if (match.Politics.DecreePolicyOf(civ) is StrategistDecreePolicy decreePolicy)
+                    decreePolicy.FoundFrontierBlockerTraceForDiagnostics = snapshot =>
+                        outcome.WarlordEconomyTraces.Add(
+                            $"FOUND_BLOCKER seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} civ={snapshot.Civ} season={snapshot.Season} " +
+                            $"marked={snapshot.Marked} beliefLegal={snapshot.BeliefLegal} allowedWithDonor={snapshot.AllowedWithDonorProtection} " +
+                            $"allowedWithoutDonor={snapshot.AllowedWithoutDonorProtection} beforeExposure={snapshot.CandidatesBeforeExposure} " +
+                            $"removedExposed={snapshot.RemovedByExposure} remaining={snapshot.CandidatesRemaining} " +
+                            $"candidateAllowedBefore/after/removed={snapshot.CandidateAllowedBeforeExposure}/" +
+                            $"{snapshot.CandidateAllowedAfterExposure}/{snapshot.CandidateAllowedRemovedByExposure}");
+            }
         var firstRaceHistory = new List<FirstRaceEstimate[]>();
         var pendingCampaignEvaluations = new List<CampaignEvaluationDiagnostic>();
-        if (warlordCampaignOpportunityTrace && !warlordSettlementTraceSwapped && match.Ai is { } campaignAi)
+        var campaignPlanChoiceCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var lastCampaignCandidateTrace = new Dictionary<(int Civ, int Rival, int Settlement), (int Season, string Signature)>();
+        if ((warlordCampaignOpportunityTrace || warlordQuietFrontierPlanTrace) && match.Ai is { } campaignAi)
             for (int c = 0; c < seats.Length; c++)
             {
                 if (!string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) ||
                     campaignAi.SeatOf(c)?.Strategist is not Strategist strategist) continue;
+                strategist.CampaignPlanEvaluationObserverForDiagnostics = diagnostic =>
+                {
+                    outcome.WarlordCampaignOpportunityTraces.Add(
+                        $"A3 campaign-urgency-shadow seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} warlord=civ{diagnostic.Civ} " +
+                        $"season={diagnostic.Season} era={diagnostic.Era} frontier={diagnostic.Frontier.ToDoubleForDisplay():F3} " +
+                        $"frontierOpen={diagnostic.Frontier >= StrategistTuning.FrontierOpen} " +
+                        $"urgency={diagnostic.DefenseUrgency.ToDoubleForDisplay():F3} defendValue={diagnostic.DefendValue.ToDoubleForDisplay():F3} " +
+                        $"bestNonDefend={diagnostic.BestNonDefend}:{diagnostic.BestNonDefendValue.ToDoubleForDisplay():F3} " +
+                        $"selected={diagnostic.SelectedPlan} planAge={diagnostic.PlanAge} zeroUrgencyPlan={diagnostic.ZeroUrgencyPlan}");
+                };
+                if (!warlordCampaignOpportunityTrace) continue;
                 strategist.CampaignEvaluationObserverForDiagnostics = evaluation =>
                 {
                     if (evaluation.Season < 128 || (uint)evaluation.Rival >= (uint)seats.Length ||
-                        !string.Equals(seats[evaluation.Rival].Name, "grower", StringComparison.OrdinalIgnoreCase)) return;
+                        string.Equals(seats[evaluation.Rival].Name, "warlord", StringComparison.OrdinalIgnoreCase)) return;
                     pendingCampaignEvaluations.Add(evaluation);
                 };
                 strategist.CampaignPlanObserverForDiagnostics = (civ, planSeason, plan, target) =>
                 {
+                    var sameTurn = new List<CampaignEvaluationDiagnostic>();
                     for (int i = pendingCampaignEvaluations.Count - 1; i >= 0; i--)
                     {
                         CampaignEvaluationDiagnostic evaluation = pendingCampaignEvaluations[i];
                         if (evaluation.Civ != civ || evaluation.Season != planSeason) continue;
                         pendingCampaignEvaluations.RemoveAt(i);
-                        outcome.WarlordCampaignOpportunityTraces.Add(
-                            $"A2 campaign-candidate seed={seed} mirror=0 warlord=civ{evaluation.Civ} grower=civ{evaluation.Rival} " +
+                        sameTurn.Add(evaluation);
+                        string opponent = seats[evaluation.Rival].Name;
+                        string row =
+                            $"A3 campaign-candidate seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} warlord=civ{evaluation.Civ} {opponent}=civ{evaluation.Rival} " +
                             $"s{evaluation.Season} plan={plan} planTarget={(target < 0 ? "none" : $"civ{target}")} " +
                             $"target={(evaluation.Settlement < 0 ? "none" : $"s{evaluation.Settlement}@t{evaluation.Tile}")} " +
                             $"selected={evaluation.Selected} origin={(evaluation.OriginSettlement < 0 ? "none" : $"s{evaluation.OriginSettlement}")} " +
+                            $"alternateOrigin={(evaluation.AlternateOriginSettlement < 0 ? "none" : $"s{evaluation.AlternateOriginSettlement}")} " +
                             $"attackers={evaluation.Attackers} alternateOriginAttackers={evaluation.AlternateOriginAttackers} " +
                             $"ratio={evaluation.Ratio.ToDoubleForDisplay():F3}/{evaluation.Required.ToDoubleForDisplay():F3} " +
                             $"predictedCapture={evaluation.CaptureChance.ToDoubleForDisplay():F3} EV={evaluation.Value.ToDoubleForDisplay():F2} " +
-                            $"tactical={evaluation.TacticallyViable} launchFeasible={evaluation.Feasible} reason={evaluation.Reason}");
+                            $"tactical={evaluation.TacticallyViable} launchFeasible={evaluation.Feasible} reason={evaluation.Reason} " +
+                            $"{evaluation.GlobalForceDiagnostic} " +
+                            FormatFoundOriginAssociation(match, foundFollowups, evaluation) +
+                            FormatWarlordCampaignFoodScoutContext(match, evaluation.Civ, evaluation.Rival,
+                                evaluation.Season, evaluation.Settlement, evaluation.Tile, evaluation.OriginSettlement);
+                        var candidateKey = (evaluation.Civ, evaluation.Rival, evaluation.Settlement);
+                        string signature = row[(row.IndexOf(" plan=", StringComparison.Ordinal))..];
+                        if (lastCampaignCandidateTrace.TryGetValue(candidateKey, out var previous) &&
+                            previous.Signature == signature && evaluation.Season - previous.Season < 8) continue;
+                        lastCampaignCandidateTrace[candidateKey] = (evaluation.Season, signature);
+                        if (outcome.WarlordCampaignOpportunityTraces.Count < 512)
+                            outcome.WarlordCampaignOpportunityTraces.Add(row);
                     }
+                    if (sameTurn.Count == 0) return;
+                    int feasible = sameTurn.Count(e => e.Feasible && e.Value > Fix64.Zero);
+                    string planName = plan.ToString();
+                    campaignPlanChoiceCounts.TryGetValue(planName, out int planCount);
+                    campaignPlanChoiceCounts[planName] = planCount + 1;
+                    string blockers = string.Join(',', sameTurn.Where(e => !e.Feasible)
+                        .GroupBy(e => CampaignBlockerClass(e.Reason), StringComparer.Ordinal)
+                        .OrderBy(g => g.Key, StringComparer.Ordinal)
+                        .Select(g => $"{g.Key}:{g.Count()}"));
+                    outcome.WarlordCampaignOpportunityTraces.Add(
+                        $"A3 campaign-plan-shadow seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} warlord=civ{civ} season={planSeason} " +
+                        $"plan={planName} target={(target < 0 ? "none" : $"civ{target}")} evaluated={sameTurn.Count} " +
+                        $"positiveLaunchFeasible={feasible} feasibleWithNonConquer={((plan != GrandPlan.Conquer && feasible > 0) ? "yes" : "no")} " +
+                        $"blockers=[{(blockers.Length == 0 ? "none" : blockers)}]");
+                };
+            }
+        var raidDecisionStats = new Dictionary<int, RaidDecisionTraceStats>();
+        if (warlordRaidDecisionTrace && match.Ai is { } raidTraceAi)
+            for (int c = 0; c < seats.Length; c++)
+            {
+                if (!string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) ||
+                    raidTraceAi.SeatOf(c)?.Strategist is not Strategist strategist) continue;
+                var stats = new RaidDecisionTraceStats { Civ = c };
+                raidDecisionStats.Add(c, stats);
+                strategist.RaidDecisionObserverForDiagnostics = diagnostic =>
+                {
+                    stats.Decisions++;
+                    if (diagnostic.War02Ready) stats.War02Ready++;
+                    if (diagnostic.FreshTargets > 0) stats.FreshTargetDecisions++;
+                    if (!string.Equals(diagnostic.CandidateType, "none", StringComparison.Ordinal)) stats.CandidateDecisions++;
+                    if (diagnostic.CandidateReady) stats.ReadyDecisions++;
+                    if (diagnostic.Blocker == "Posture Fortify does not raid") stats.FortifyBlocked++;
+                    string state = $"{diagnostic.War02Ready}|{diagnostic.Posture}|{diagnostic.Plan}|{diagnostic.PlanTarget}|" +
+                        $"{diagnostic.FreshTargets}|{diagnostic.StaleTargets}|{diagnostic.CandidateType}|{diagnostic.TargetCiv}|" +
+                        $"{diagnostic.TargetId}|{diagnostic.CandidateReady}|{diagnostic.Blocker}";
+                    if (diagnostic.Season % 4 != 0 && state == stats.LastState) return;
+                    if (diagnostic.Season - stats.LastLoggedSeason < 1) return;
+                    stats.LastState = state;
+                    stats.LastLoggedSeason = diagnostic.Season;
+                    outcome.WarlordRaidDecisionTraces.Add(FormatRaidDecisionTrace(seed, warlordSettlementTraceSwapped, diagnostic));
                 };
             }
         int[] lastFoundFunnelSeason = new int[civs];
@@ -442,6 +703,9 @@ internal static class Tournament
         }
         var b28Timeline = new Dictionary<(int Defender, int Attacker), List<string>>();
         int b28WoodLedgerRowsEmitted = 0;
+        int b28DefenseBuildRowsEmitted = 0;
+        int b28DefenseWorkRowsEmitted = 0;
+        int b28PreparedDefenseWorkRowsEmitted = 0;
         var b28FirstBeliefEvidenceEmitted = new bool[civs, civs];
         var b28FirstBeliefSeason = new int[civs, civs];
         for (int c = 0; c < civs; c++)
@@ -494,13 +758,13 @@ internal static class Tournament
         for (long t = 0; t < ticks; t += 150, season++)
         {
             Dictionary<long, int>? foodTraceAgesBefore = null;
-            if (warlordSettlementTrace && season + 1 is >= 28 and <= 64)
+            if (warlordSettlementTrace && season + 1 is >= 24 and <= 128)
             {
                 foodTraceAgesBefore = new Dictionary<long, int>();
                 for (int f = 0; f < match.Economy.FigureCount; f++)
                 {
                     FigureView figure = match.Economy.Figure(f);
-                    if (figure.SettlementId is 1 or 2 or 3 or 4) foodTraceAgesBefore[figure.Id] = figure.Age;
+                    if (figure.SettlementId >= 0) foodTraceAgesBefore[figure.Id] = figure.Age;
                 }
             }
             if (warlordB28Trace && s35FirstAppearanceSeason < 0 && match.Politics.SettlementTotal > 35)
@@ -514,7 +778,7 @@ internal static class Tournament
             }
             bool traceSettlementTimeline = warlordSettlementTrace && season + 1 >= 16 && season + 1 <= 128 &&
                 seats.Any(static seat => string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase));
-            bool traceFoodLedger = warlordSettlementTrace && season + 1 >= 24 && season + 1 <= 80 &&
+            bool traceFoodLedger = warlordSettlementTrace && season + 1 >= 24 && season + 1 <= 128 &&
                 seats.Any(static seat => string.Equals(seat.Name, "warlord", StringComparison.OrdinalIgnoreCase));
             // The belief snapshot precedes this season's political step: only evidence observed by the AI before
             // the incoming raid can qualify for B28.
@@ -633,7 +897,7 @@ internal static class Tournament
             {
                 SettlementView view = match.Economy.Settlement(s);
                 foodStoresBeforeAdvance[s] = view.FoodStores;
-                if (foodGoodStocksBeforeAdvance is not null && view.Id is 1 or 2 or 3 or 4)
+                if (foodGoodStocksBeforeAdvance is not null)
                     for (int good = 0; good < foodGoodIds.Length; good++)
                         foodGoodStocksBeforeAdvance[s, good] = match.Economy.GoodStock(s, foodGoodIds[good]);
                 settlementOwnersBeforeAdvance[s] = match.Politics.SettlementCivOf(s);
@@ -660,8 +924,13 @@ internal static class Tournament
                 }
             }
             var defensesBeforeAdvance = new Defenses[match.Politics.SettlementTotal];
+            var woodBeforeAdvance = warlordB28Trace ? new Fix64[match.Economy.SettlementCount] : null;
             for (int s = 0; s < defensesBeforeAdvance.Length; s++)
+            {
                 defensesBeforeAdvance[s] = match.Politics.MilitaryOf(s).Defenses;
+                if (woodBeforeAdvance is not null && s < woodBeforeAdvance.Length)
+                    woodBeforeAdvance[s] = match.Economy.GoodStock(s, "G-WOOD");
+            }
             // Actual research is sampled alongside the pre-advance defense snapshot for trace context only.
             var actualMet04BeforeAdvance = new bool[civs];
             var actualMet05BeforeAdvance = new bool[civs];
@@ -711,6 +980,38 @@ internal static class Tournament
             }
             long nextFigureIdBeforeAdvance = warlordSettlementTrace ? match.Economy.NextFigureId : -1;
             runner.Advance(Math.Min(150, ticks - t));
+            if (warlordSettlementTrace && foundFollowups.Count > 0)
+            {
+                int traceSeason = match.Politics.Season;
+                foreach (var pair in foundFollowups.ToArray())
+                {
+                    int child = pair.Key; var found = pair.Value;
+                    int age = traceSeason - found.FoundedSeason;
+                    if (age is < 0 or > 15 || (uint)child >= (uint)match.Economy.SettlementCount) continue;
+                    SettlementView fs = match.Economy.Settlement(child);
+                    if (match.Politics.SettlementCivOf(child) < 0) continue;
+                    int adults = match.Economy.AgeBandPopulation(child, 1);
+                    int fighters = match.Politics.MilitaryOf(child).Fighters;
+                    int nearest = int.MaxValue, threatCiv = -1, threatAge = -1;
+                    if (match.Ai?.SeatOf(fs.Civilization) is { } foundSeat)
+                        for (int rival = 0; rival < seats.Length; rival++)
+                        {
+                            if (rival == fs.Civilization || foundSeat.Belief.Rivals[rival].Era < 3) continue;
+                            foreach (BeliefSettlement belief in foundSeat.Belief.Rivals[rival].Settlements)
+                            {
+                                int seenAge = traceSeason - belief.LastSeenSeason;
+                                if (seenAge > StrategistTuning.StaleSeasons) continue;
+                                int distance = HexGrid.Distance(fs.SiteTile, belief.Tile, foundSeat.Belief.Map.Width);
+                                if (distance < nearest) { nearest = distance; threatCiv = rival; threatAge = seenAge; }
+                            }
+                        }
+                    string threat = threatCiv < 0 ? "none" : $"civ{threatCiv}/s{threatAge}/d{nearest}";
+                    outcome.SettlementTimelineTraces.Add($"A3_FOUND_FOLLOWUP seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={traceSeason} age={age} civ={fs.Civilization} parent=s{found.Parent} child=s{child} pop={fs.Population} adults={adults} fighters={fighters} food={fs.LastFoodSecurity.ToDoubleForDisplay():F2} winter={fs.LateWinterFoodForecast.ToDoubleForDisplay():F2} threat={threat}");
+                }
+            }
+            if (warlordFoundFrontierTrajectory && match.Politics.Season is > 0 and <= 256 && match.Politics.Season % 16 == 0)
+                CaptureWarlordFoundFrontierTrajectory(match, seats, outcome, seed, warlordSettlementTraceSwapped,
+                    match.Politics.Season);
             if (warlordCampaignOpportunityTrace)
                 CaptureWarlordCampaignOpportunityTrace(match, seats, outcome, season + 1,
                     aiLogEntriesBefore, politicsEventsBefore, campaignOpportunityPrior,
@@ -742,7 +1043,7 @@ internal static class Tournament
                     }
                 }
                 int foodTraceSeason = season + 1;
-                for (int settlementId = 1; settlementId <= 4; settlementId++)
+                for (int settlementId = 0; settlementId < match.Economy.SettlementCount; settlementId++)
                 {
                     int current = -1, prior = -1;
                     for (int s = 0; s < match.Economy.SettlementCount; s++)
@@ -782,12 +1083,13 @@ internal static class Tournament
             if (foodTraceAgesBefore is not null)
             {
                 int traceSeason = season + 1;
-                for (int settlementId = 1; settlementId <= 4; settlementId++)
+                for (int settlementId = 0; settlementId < match.Economy.SettlementCount; settlementId++)
                 {
                     int index = -1;
                     for (int s = 0; s < match.Economy.SettlementCount; s++)
                         if (match.Economy.Settlement(s).Id == settlementId) { index = s; break; }
-                    if (index < 0 || !match.Economy.TryGetFoodWorkAttribution(index, out FoodWorkAttribution work)) continue;
+                    if (index < 0 || !match.Economy.TryGetFoodWorkAttribution(index, out FoodWorkAttribution work) ||
+                        !match.Economy.TryGetFertilityAttribution(index, out FertilityAttribution fertility)) continue;
                     int owner = match.Politics.SettlementCivOf(index);
                     var deaths = new List<string>();
                     for (int d = 0; d < match.Economy.LastDeathEventCount; d++)
@@ -798,6 +1100,16 @@ internal static class Tournament
                     }
                     int aged = 0;
                     int births = 0;
+                    // Report current post-season figure state in exact age bands. These are observational
+                    // aggregates only; no model state or allocation is changed by the diagnostic.
+                    int[] ageCounts = new int[5];
+                    Fix64[] ageHealth = new Fix64[5];
+                    Fix64[] ageHunger = new Fix64[5];
+                    Fix64[] ageWork = new Fix64[5];
+                    int[] adultCohortCounts = new int[5];
+                    Fix64[] adultCohortHealth = new Fix64[5];
+                    Fix64[] adultCohortHunger = new Fix64[5];
+                    Fix64[] adultCohortWork = new Fix64[5];
                     for (int f = 0; f < match.Economy.FigureCount; f++)
                     {
                         FigureView figure = match.Economy.Figure(f);
@@ -805,8 +1117,43 @@ internal static class Tournament
                             births++;
                         if (figure.SettlementId == settlementId && foodTraceAgesBefore.TryGetValue(figure.Id, out int oldAge) && figure.Age > oldAge)
                             aged++;
+                        if (figure.SettlementId != settlementId) continue;
+                        int ageBand = figure.Age switch
+                        {
+                            <= 5 => 0,
+                            <= 9 => 1,
+                            <= 13 => 2,
+                            < 45 => 3,
+                            _ => 4
+                        };
+                        ageCounts[ageBand]++;
+                        ageHealth[ageBand] += figure.Health;
+                        ageHunger[ageBand] += figure.Hunger;
+                        ageWork[ageBand] += figure.WorkThisSeason;
+                        if (figure.Age is >= 14 and < 45)
+                        {
+                            int adultCohort = figure.Age switch
+                            {
+                                <= 19 => 0,
+                                <= 24 => 1,
+                                <= 34 => 2,
+                                <= 39 => 3,
+                                _ => 4
+                            };
+                            adultCohortCounts[adultCohort]++;
+                            adultCohortHealth[adultCohort] += figure.Health;
+                            adultCohortHunger[adultCohort] += figure.Hunger;
+                            adultCohortWork[adultCohort] += figure.WorkThisSeason;
+                        }
                     }
                     SettlementView view = match.Economy.Settlement(index);
+                    FoodIncomeBreakdown sustainable = match.Economy.SustainableFoodIncomeBreakdown(index);
+                    // traceSeason is one-based; winter food need is charged at seasons 4, 8, ...
+                    Fix64[] foodNeedByAge = match.Economy.FoodNeedByExactAgeBand(index, traceSeason % 4 == 0);
+                    string ageSummary = string.Join(';', Enumerable.Range(0, ageCounts.Length).Select(age =>
+                        $"{new[] { "0-5", "6-9", "10-13", "14-44", "45+" }[age]}:n{ageCounts[age]}:health{ageHealth[age].ToDoubleForDisplay():F2}:hunger{ageHunger[age].ToDoubleForDisplay():F2}:work{ageWork[age].ToDoubleForDisplay():F2}:foodNeed{foodNeedByAge[age].ToDoubleForDisplay():F2}"));
+                    string adultCohortSummary = string.Join(';', Enumerable.Range(0, adultCohortCounts.Length).Select(age =>
+                        $"{new[] { "14-19", "20-24", "25-34", "35-39", "40-44" }[age]}:n{adultCohortCounts[age]}:health{adultCohortHealth[age].ToDoubleForDisplay():F2}:hunger{adultCohortHunger[age].ToDoubleForDisplay():F2}:work{adultCohortWork[age].ToDoubleForDisplay():F2}"));
                     outcome.WarlordFoodWorkAttributionTraces.Add(
                         $"A3 work-attribution seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={traceSeason} settlement=s{settlementId} civ={owner}/{seats[owner].Name} " +
                         $"openingFood/need={work.OpeningFoodStores.ToDoubleForDisplay():F2}/{work.FoodNeed.ToDoubleForDisplay():F2} foodShort={work.OpeningFoodStores < work.FoodNeed} " +
@@ -815,7 +1162,16 @@ internal static class Tournament
                         $"reserved(fire/care/staff/scout/weirBudget/weirAssigned/orchard)={work.FireWork.ToDoubleForDisplay():F2}/{work.CareWork.ToDoubleForDisplay():F2}/{work.StaffWork.ToDoubleForDisplay():F2}/{work.ScoutWork.ToDoubleForDisplay():F2}/{work.WeirUpkeepBudget.ToDoubleForDisplay():F2}/{work.WeirUpkeepAssigned.ToDoubleForDisplay():F2}/{work.OrchardUpkeep.ToDoubleForDisplay():F2} scoutWork={work.ScoutWork.ToDoubleForDisplay():F2} " +
                         $"foodWork(requested/assigned)={work.FoodWorkRequested.ToDoubleForDisplay():F2}/{work.FoodWorkAssigned.ToDoubleForDisplay():F2} " +
                         $"jobs(forage/hunt/fish/farm/preserve)={work.ForageWork.ToDoubleForDisplay():F2}/{work.HuntWork.ToDoubleForDisplay():F2}/{work.FishWork.ToDoubleForDisplay():F2}/{work.FarmWork.ToDoubleForDisplay():F2}/{work.PreserveWork.ToDoubleForDisplay():F2} " +
+                        $"forage(potential/accessibleStock/yield)={work.ForagePotentialYield.ToDoubleForDisplay():F2}/{work.ForageStockBeforeHarvest.ToDoubleForDisplay():F2}/{work.ForageYield.ToDoubleForDisplay():F2} " +
                         $"yield(forage/meat/fish/weir/grain/orchardFruit)={work.ForageYield.ToDoubleForDisplay():F2}/{work.MeatYield.ToDoubleForDisplay():F2}/{work.FishYield.ToDoubleForDisplay():F2}/{work.WeirFishYield.ToDoubleForDisplay():F2}/{work.GrainYield.ToDoubleForDisplay():F2}/{work.OrchardFruitYield.ToDoubleForDisplay():F2} " +
+                        $"ageBandsExact=[{ageSummary}] adultCohort(14-19/20-24/25-34/35-39/40-44)=[{adultCohortSummary}] " +
+                        $"sustainableFoodIncome(plants/meat/fish/grain/fruit/total)={sustainable.Plants.ToDoubleForDisplay():F2}/{sustainable.Meat.ToDoubleForDisplay():F2}/{sustainable.Fish.ToDoubleForDisplay():F2}/{sustainable.Grain.ToDoubleForDisplay():F2}/{sustainable.Fruit.ToDoubleForDisplay():F2}/{sustainable.Total.ToDoubleForDisplay():F2} sustainableCapacity={match.Economy.SustainableFoodCapacity(index).ToDoubleForDisplay():F2} " +
+                        $"fertility(startPop={fertility.PopulationAtStart} women14-24/25-34/35-44={fertility.Women14To24}/{fertility.Women25To34}/{fertility.Women35To44} pregnant={fertility.PregnantWomen} sick/wounded={fertility.SickFertileWomen}/{fertility.WoundedFertileWomen} " +
+                        $"attempts/conceptions/deaths/pregnantDeaths/births={fertility.EligibleAttempts}/{fertility.Conceptions}/{fertility.FertileWomenDeaths}/{fertility.PregnantWomenDeaths}/{fertility.CompletedBirths} " +
+                        $"priorFood/health={fertility.PriorSeasonFoodSecurity.ToDoubleForDisplay():F2}/{fertility.FertilityHealth.ToDoubleForDisplay():F2} caps(food/housing)={fertility.FoodCap.ToDoubleForDisplay():F1}/{fertility.HousingCap.ToDoubleForDisplay():F1} " +
+                        $"density/crowding={fertility.Density.ToDoubleForDisplay():F3}/{fertility.Crowding.ToDoubleForDisplay():F3} baseChance/actualChance={fertility.BaseConceptionChance.ToDoubleForDisplay():F4}/{fertility.ConceptionChance.ToDoubleForDisplay():F4}) " +
+                        $"bestJobYieldUpperBound=unavailable(no non-mutating per-job projection API; actual resource/tool constraints are not exposed) " +
+                        $"methodRungToolAndReachableStock=unavailable(no report API for exact action selection, tool quality, or reachable stock/regrowth) " +
                         $"pop={view.Population} births={births} deaths=[{string.Join(',', deaths)}] figuresAged={aged}");
                 }
             }
@@ -829,6 +1185,15 @@ internal static class Tournament
             if (warlordB28Trace)
                 while (b28WoodLedgerRowsEmitted < match.Economy.B28LocalWoodLedgerRows.Count)
                     outcome.B28Traces.Add($"B28 s35 wood-ledger seed={seed} {match.Economy.B28LocalWoodLedgerRows[b28WoodLedgerRowsEmitted++]}");
+            if (warlordB28Trace)
+                while (b28DefenseBuildRowsEmitted < match.Economy.B28DefenseBuildRows.Count)
+                    outcome.B28Traces.Add($"B28 defense-build seed={seed} {match.Economy.B28DefenseBuildRows[b28DefenseBuildRowsEmitted++]}");
+            if (warlordB28Trace)
+                while (b28DefenseWorkRowsEmitted < match.Economy.B28DefenseWorkRows.Count)
+                    outcome.B28Traces.Add($"B28 defense-work seed={seed} {match.Economy.B28DefenseWorkRows[b28DefenseWorkRowsEmitted++]}");
+            if (warlordB28Trace)
+                while (b28PreparedDefenseWorkRowsEmitted < match.Economy.B28PreparedDefenseWorkRows.Count)
+                    outcome.B28Traces.Add($"B28 prepared-defense-work seed={seed} {match.Economy.B28PreparedDefenseWorkRows[b28PreparedDefenseWorkRowsEmitted++]}");
             if (warlordB28Trace && match.Economy.SettlementCount > 35 &&
                 match.Economy.SettlementHasQueuedPhysicalDefenseBuild(35) &&
                 match.Economy.B28DefenseWorkTrace is { } defenseWorkTrace)
@@ -837,9 +1202,12 @@ internal static class Tournament
                 for (int i = aiLogEntriesBefore; i < b28AiAfterAdvance.Log.Entries.Count; i++)
                 {
                     AiDecision decision = b28AiAfterAdvance.Log.Entries[i];
-                    if (decision.Kind != "B28DefenseAttempt") continue;
-                    outcome.B28Traces.Add($"B28 selector/order seed {seed} season={decision.Season} civ={decision.Civ} " +
-                        $"selected={(decision.Subject < 0 ? "none" : $"s{decision.Subject}")} orderAccepted={decision.Other == 1} {decision.Reason}");
+                    if (decision.Kind == "B28DefenseAttempt")
+                        outcome.B28Traces.Add($"B28 selector/order seed {seed} season={decision.Season} civ={decision.Civ} " +
+                            $"selected={(decision.Subject < 0 ? "none" : $"s{decision.Subject}")} orderAccepted={decision.Other == 1} {decision.Reason}");
+                    else if (decision.Kind == "B28PublicEraShadow")
+                        outcome.B28Traces.Add($"B28 public-E3 shadow seed={seed} season={decision.Season} civ={decision.Civ} " +
+                            $"target={(decision.Subject < 0 ? "none" : $"s{decision.Subject}")} rival={(decision.Other < 0 ? "none" : $"c{decision.Other}")} {decision.Reason}");
                 }
             for (int f = 0; f < match.Economy.FigureCount; f++)
             {
@@ -1113,7 +1481,7 @@ internal static class Tournament
                     SettlementView view = match.Economy.Settlement(index);
                     var cohesion = match.Economy.CohesionStatus(index);
                     Fix64 capTrigger = cohesion.Live && cohesion.Points < 35 ? Fix64.Parse("0.75") : Fix64.Parse("0.85");
-                    bool capPressure = Fix64.FromInt(view.Population) >= view.EffectivePopulationCap * capTrigger * match.Economy.FissionScaleOf(c);
+                    bool capPressure = Fix64.FromInt(view.Population) >= view.EffectivePopulationCap * capTrigger * match.Economy.FissionScaleOf(c, settlementId);
                     bool winterPressure = season % 4 == 3 && Fix64.FromInt(view.Population) >= view.LateWinterFissionThreshold;
                     if (capPressure) fissionCapPressureWindow[c]++;
                     if (winterPressure) fissionWinterPressureWindow[c]++;
@@ -1128,11 +1496,56 @@ internal static class Tournament
                         $"FISSION_TRIGGER_TRACE seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={completedSeason} civ={c}/{seats[c].Name} parent=s{settlementId} " +
                         $"pop={view.Population} births4={fissionBirthsWindow[c]} deaths4=[{deathCounts}] ageBands={match.Economy.AgeBandPopulation(index, 0)}/{match.Economy.AgeBandPopulation(index, 1)}/{match.Economy.AgeBandPopulation(index, 2)} " +
                         $"foodSecurity={view.LastFoodSecurity.ToDoubleForDisplay():F2} caps(food/housing/group/effective)={view.FoodCap.ToDoubleForDisplay():F1}/{view.HousingCap.ToDoubleForDisplay():F1}/{view.GroupCap.ToDoubleForDisplay():F1}/{view.EffectivePopulationCap.ToDoubleForDisplay():F1} " +
-                        $"thresholdScale={match.Economy.FissionScaleOf(c).ToDoubleForDisplay():F2} capPressureNow={capPressure} capPressureSeasons4={fissionCapPressureWindow[c]} " +
+                        $"thresholdScale={match.Economy.FissionScaleOf(c, settlementId).ToDoubleForDisplay():F2} capPressureNow={capPressure} capPressureSeasons4={fissionCapPressureWindow[c]} " +
                         $"leanWinterPressureNow={winterPressure} leanWinterPressureSeasons4={fissionWinterPressureWindow[c]} pending={view.FissionPending} firstPendingSeason={(fissionFirstPendingSeason[c] < 0 ? "never" : fissionFirstPendingSeason[c].ToString())} " +
                         $"firstSplitSeason={(fissionFirstSplitSeason[c] < 0 ? "never" : fissionFirstSplitSeason[c].ToString())}");
                     fissionBirthsWindow[c] = fissionCapPressureWindow[c] = fissionWinterPressureWindow[c] = 0;
                     for (int cause = 0; cause < fissionDeathsWindow.GetLength(1); cause++) fissionDeathsWindow[c, cause] = 0;
+                }
+                if (completedSeason is >= 64 and <= 128)
+                {
+                    for (int s = 0; s < match.Economy.SettlementCount; s++)
+                    {
+                        int civ = match.Politics.SettlementCivOf(s);
+                        if ((uint)civ >= (uint)seats.Length ||
+                            !string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+                        SettlementView view = match.Economy.Settlement(s);
+                        (bool cohesionLive, int cohesionPoints) = match.Economy.CohesionStatus(s);
+                        Fix64 capTrigger = cohesionLive && cohesionPoints < 35
+                            ? Fix64.Parse("0.75") : Fix64.Parse("0.85");
+                        Fix64 fissionCap = match.Economy.FissionEffectivePopulationCapForDiagnostics(s);
+                        Fix64 scale = match.Economy.FissionScaleOf(civ, view.Id);
+                        bool capPressure = Fix64.FromInt(view.Population) >= fissionCap * capTrigger * scale;
+                        bool winterPressure = season % 4 == 3 &&
+                            Fix64.FromInt(view.Population) >= view.LateWinterFissionThreshold;
+                        int seasonsSinceFission = match.Economy.SeasonsSinceFission(s);
+                        int lastFissionSeason = completedSeason - seasonsSinceFission;
+                        string lastFissionSeasonLabel = lastFissionSeason < 0 ? "never" : lastFissionSeason.ToString(CultureInfo.InvariantCulture);
+                        string seasonsSinceFissionLabel = lastFissionSeason < 0
+                            ? "never" : seasonsSinceFission.ToString(CultureInfo.InvariantCulture);
+                        int projectedDaughter = (Fix64.FromInt(view.Population) * Fix64.Parse("0.4")).RoundToInt();
+                        bool daughterMeetsMinimum = Fix64.FromInt(view.Population) * Fix64.Parse("0.4") >= Fix64.FromInt(6);
+                        string pressureReason = (capPressure, winterPressure) switch
+                        {
+                            (true, true) => "cap+lateWinter",
+                            (true, false) => "cap",
+                            (false, true) => "lateWinter",
+                            _ => "none",
+                        };
+                        string reason = view.FissionPending ? "alreadyPending"
+                            : !capPressure && !winterPressure ? "noPressure"
+                            : !daughterMeetsMinimum ? "daughterBelowMinimum"
+                            : "eligibleInputs";
+                        fissionSiteDiagnostics.RecordTriggerTimeline(civ,
+                            $"FISSION_ELIGIBILITY_TRACE seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={completedSeason} " +
+                            $"civ={civ}/{seats[civ].Name} settlement=s{view.Id} pop={view.Population} fissions={view.Fissions} " +
+                            $"lastFissionSeason={lastFissionSeasonLabel} seasonsSinceFission={seasonsSinceFissionLabel} cooldownRemaining={Math.Max(0, 4 - seasonsSinceFission)} " +
+                            $"caps(food/housing/group/effective)={view.FoodCap.ToDoubleForDisplay():F1}/{view.HousingCap.ToDoubleForDisplay():F1}/{view.GroupCap.ToDoubleForDisplay():F1}/{fissionCap.ToDoubleForDisplay():F1} " +
+                            $"cohesion(live/points)={cohesionLive}/{cohesionPoints} selectedTrigger={capTrigger.ToDoubleForDisplay():F2} scale={scale.ToDoubleForDisplay():F2} " +
+                            $"capPressure={capPressure} lateWinterThreshold={view.LateWinterFissionThreshold.ToDoubleForDisplay():F1} lateWinterPressure={winterPressure} " +
+                            $"pending={view.FissionPending} daughterProjected={projectedDaughter} daughterMeetsMinimum={daughterMeetsMinimum} " +
+                            $"pressureReason={pressureReason} reason={reason}");
+                    }
                 }
                 if (completedSeason is 128 or 192 or 256 or 320 or 384 or 448 or 512)
                     CaptureFissionLeadCheckpoint(match, seats, catalog, completedSeason,
@@ -1466,6 +1879,22 @@ internal static class Tournament
                 if (bronzeRaidBelieved[ev.Other][ev.Civ]) outcome.B28BelievedBronzeRaidLaunches++;
                 bool attackerHadActualBronze = actualMet04BeforeAdvance[ev.Civ] || actualMet05BeforeAdvance[ev.Civ];
                 bool firstQualifyingRaid = !outcome.Civs[ev.Other].BelievedBronzeRaidMeasured && bronzeRaidBelieved[ev.Other][ev.Civ];
+                if (warlordB28Trace && firstQualifyingRaid && woodBeforeAdvance is not null &&
+                    (uint)ev.B < (uint)woodBeforeAdvance.Length)
+                {
+                    int targetTile = match.Politics.SettlementTileOf(ev.B);
+                    string donors = string.Join(", ", Enumerable.Range(0, woodBeforeAdvance.Length)
+                        .Where(s => s != ev.B && settlementOwnersBeforeAdvance[s] == ev.Other && woodBeforeAdvance[s] > Fix64.Zero)
+                        .OrderByDescending(s => woodBeforeAdvance[s])
+                        .Take(8)
+                        .Select(s => $"s{settlementIdsBeforeAdvance[s]}@d{HexGrid.Distance(targetTile,
+                            match.Politics.SettlementTileOf(s), world.Width)}={woodBeforeAdvance[s].ToDoubleForDisplay():F1}"));
+                    int gov04 = catalog.IndexOf("GOV-04");
+                    int soc07 = catalog.IndexOf("SOC-07");
+                    outcome.B28Traces.Add($"B28 wood-supply snapshot seed={seed} defender=civ{ev.Other} target=s{ev.B} " +
+                        $"season={season} GOV-04={match.Research.IsDone(ev.Other, gov04)} SOC-07={match.Research.IsDone(ev.Other, soc07)} " +
+                        $"same-civ-donors=[{donors}]");
+                }
                 if (warlordB28Trace && firstQualifyingRaid && ev.Other == 0 && ev.Civ == 2 && ev.B == 35)
                 {
                     int raidSeason = checked((int)(ev.Tick / LivingEconomyModel.SeasonTicks));
@@ -1486,11 +1915,57 @@ internal static class Tournament
                         outcome.B28Traces.Add($"B28 timeline seed {seed} defender=civ{ev.Other} attacker=civ{ev.Civ} {row}");
                     b28Timeline.Remove((ev.Other, ev.Civ));
                 }
+                if (warlordB28AffordabilityTimeline && firstQualifyingRaid)
+                {
+                    int raidSeason = checked((int)(ev.Tick / LivingEconomyModel.SeasonTicks));
+                    int emitted = 0;
+                    foreach (string row in match.Economy.B28AffordabilityTimelineRows(ev.B))
+                    {
+                        if (emitted >= 30) break;
+                        int seasonEnd = row.IndexOf(' ');
+                        if (!row.StartsWith("season=", StringComparison.Ordinal) || seasonEnd < 8 ||
+                            !int.TryParse(row.AsSpan(7, seasonEnd - 7), NumberStyles.None, CultureInfo.InvariantCulture, out int rowSeason) ||
+                            rowSeason >= raidSeason) continue;
+                        string selector = "none";
+                        string publicShadow = "none";
+                        if (match.Ai is { } affordabilityAi)
+                        {
+                            AiDecision[] decisions = affordabilityAi.Log.Entries
+                                .Where(d => d.Civ == ev.Other && d.Season == rowSeason &&
+                                    d.Kind is "B28DefenseAttempt" or "DefenseBuild" or "B28PublicEraShadow")
+                                .ToArray();
+                            AiDecision[] selectorRows = decisions.Where(d => d.Kind is "B28DefenseAttempt" or "DefenseBuild").ToArray();
+                            AiDecision[] shadowRows = decisions.Where(d => d.Kind == "B28PublicEraShadow").ToArray();
+                            if (selectorRows.Length > 0)
+                                selector = string.Join("|", selectorRows.Select(d => $"target={(d.Subject < 0 ? "none" : $"s{d.Subject}")} accepted={d.Other == 1} {d.Reason}"));
+                            if (shadowRows.Length > 0)
+                                publicShadow = string.Join("|", shadowRows.Select(d => $"target={(d.Subject < 0 ? "none" : $"s{d.Subject}")} rival={(d.Other < 0 ? "none" : $"c{d.Other}")} {d.Reason}"));
+                        }
+                        outcome.B28Traces.Add($"B28 affordability seed={seed} defender=civ{ev.Other} target=s{ev.B} raidSeason={raidSeason} " +
+                            $"{row} liveSelector=[{selector}] publicE3Shadow=[{publicShadow}]");
+                        emitted++;
+                    }
+                }
                 if (warlordB28Trace && attackerHadActualBronze)
                 {
                     string preLaunchDefense = (uint)ev.B < (uint)defensesBeforeAdvance.Length
                         ? defensesBeforeAdvance[ev.B].ToString()
                         : "unknown";
+                    Expedition[] raidExpeditions = match.Politics.Expeditions
+                        .Where(expedition => expedition.Kind == ExpeditionKind.Raid && expedition.Civ == ev.Civ &&
+                            expedition.TargetCiv == ev.Other && expedition.ToSettlement == ev.B)
+                        .ToArray();
+                    string origin = raidExpeditions.Length == 1
+                        ? $"s{raidExpeditions[0].FromSettlement}/distance" +
+                          HexGrid.Distance(match.Politics.SettlementTileOf(raidExpeditions[0].FromSettlement),
+                              match.Politics.SettlementTileOf(ev.B), world.Width)
+                        : raidExpeditions.Length == 0 ? "unavailable" : $"ambiguous-{raidExpeditions.Length}";
+                    string defenseTrail = string.Join(" || ", match.Ai!.Log.Entries
+                        .Where(d => d.Civ == ev.Other && d.Tick <= ev.Tick && d.Season >= season - 8 &&
+                            (d.Kind == "B28DefenseAttempt" || d.Kind == "DefenseBuild" || d.Kind == "B28PublicEraShadow"))
+                        .TakeLast(16)
+                        .Select(d => $"s{d.Season}:{d.Kind}:target={(d.Subject < 0 ? "none" : $"s{d.Subject}")}:" +
+                            $"{(d.Kind == "B28DefenseAttempt" ? d.Other == 1 ? "accepted" : "refused" : "recorded")}:{d.Reason}"));
                     int lastSeenSeason = bronzeRivalLastSeenSeason[ev.Other][ev.Civ];
                     int firstContactSeason = bronzeRivalFirstContactSeason[ev.Other][ev.Civ];
                     int lastSeenAge = lastSeenSeason < 0 ? -1 : season - lastSeenSeason;
@@ -1509,7 +1984,8 @@ internal static class Tournament
                         $"everSeenBronzeEvidence={(bronzeEvidence.Count == 0 ? "none" : string.Join(',', bronzeEvidence))}; " +
                         $"lastVisualSeenSeason={lastSeenSeason} age={lastSeenAge}; " +
                         $"contacted={bronzeRivalContacted[ev.Other][ev.Civ]} firstContactSeason={firstContactSeason} age={contactAge}; " +
-                        $"preLaunchDefense={preLaunchDefense} firstQualifyingRaid={firstQualifyingRaid}");
+                        $"origin={origin}; preLaunchDefense={preLaunchDefense} firstQualifyingRaid={firstQualifyingRaid}; " +
+                        $"defenseTrail=[{defenseTrail}]");
                 }
                 if (!M10TelemetryRules.TryMeasureBelievedBronzeRaid(
                         outcome.Civs[ev.Other].BelievedBronzeRaidMeasured,
@@ -1992,12 +2468,59 @@ internal static class Tournament
             foreach (FissionLeadCheckpointRow row in fissionSiteDiagnostics.LeadCheckpoints)
                 outcome.WarlordFissionSiteDiagnostics.Add(row.Trace);
         }
+        if (warlordFissionOperatingMarginTrace)
+            outcome.WarlordFissionOperatingMarginTraces.AddRange(match.Economy.FissionOperatingFoodMarginTraces);
+        if (warlordDeathStateTrace)
+            outcome.WarlordDeathStateTraces.AddRange(match.Economy.DeathStateTraces.Select(trace =>
+                $"A3 DEATH_STATE seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} {trace}"));
+        if (warlordDeathStateTrace)
+            outcome.WarlordScoutDecisionTraces.AddRange(match.Economy.ScoutDecisionTraces.Select(trace =>
+                $"A3 SCOUT_DECISION seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} {trace}"));
+        foreach (RaidDecisionTraceStats stats in raidDecisionStats.Values)
+            outcome.WarlordRaidDecisionTraces.Add(
+                $"A3 RAID_SUMMARY seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} civ={stats.Civ} " +
+                $"decisions={stats.Decisions} WAR02ready={stats.War02Ready} freshTargetDecisions={stats.FreshTargetDecisions} " +
+                $"candidateDecisions={stats.CandidateDecisions} readyDecisions={stats.ReadyDecisions} fortifyBlocked={stats.FortifyBlocked}");
+        if (warlordRaidWithdrawalDiagnostic)
+            outcome.WarlordRaidWithdrawalTraces.AddRange(match.Politics.RaidWithdrawalTracesForDiagnostics.Select(trace =>
+                $"A3 raid-withdrawal seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} {trace}"));
         return outcome;
+    }
+
+    private static string FormatRaidDecisionTrace(ulong seed, bool swapped, RaidDecisionDiagnostic d)
+    {
+        string target = d.TargetCiv < 0 ? "none" : $"{d.CandidateType}:c{d.TargetCiv}/t{d.TargetId}";
+        string targetStale = d.TargetStale < 0 ? "n/a" : d.TargetStale.ToString(CultureInfo.InvariantCulture);
+        string origin = d.OriginSettlement < 0 ? "none" : $"s{d.OriginSettlement}/fighters={d.OriginFighters}";
+        string threat = d.TopThreatCiv < 0 ? "none" :
+            $"c{d.TopThreatCiv}/effective={d.TopThreat.ToDoubleForDisplay():F2}/p={d.TopThreatProbability.ToDoubleForDisplay():F2}/loss={d.ExpectedLoss.ToDoubleForDisplay():F1}";
+        string planTarget = d.PlanTarget < 0 ? "none" : $"c{d.PlanTarget}";
+        return $"A3 RAID_DECISION seed={seed} mirror={(swapped ? 1 : 0)} civ={d.Civ} season={d.Season} " +
+            $"WAR02={d.War02Ready} posture={d.Posture} plan={d.Plan}/{planTarget} " +
+            $"targets=fresh:{d.FreshTargets},stale:{d.StaleTargets} candidate={target} stale={targetStale} " +
+            $"party={d.Party} success={d.Success.ToDoubleForDisplay():F2} EV={d.ExpectedValue.ToDoubleForDisplay():F1} " +
+            $"origin={origin} winter={d.OriginWinter.ToDoubleForDisplay():F2} threat={threat} " +
+            $"urgency={d.Urgency.ToDoubleForDisplay():F2} ready={d.CandidateReady} blocker={d.Blocker}";
     }
 
     internal static bool FoodShortageScoutSkipAppliesForDiagnostics(string seatName, bool chieftainOptIn)
         => string.Equals(seatName, "warlord", StringComparison.OrdinalIgnoreCase) ||
            (chieftainOptIn && string.Equals(seatName, "chieftain", StringComparison.OrdinalIgnoreCase));
+
+    internal static bool WarlordEmergencyFoodWorkAppliesForDiagnostics(string seatName)
+        => string.Equals(seatName, "warlord", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool FissionOperatingMarginTraceAppliesForDiagnostics(string seatName, bool enabled)
+        => enabled && string.Equals(seatName, "warlord", StringComparison.OrdinalIgnoreCase);
+
+    internal static int[] B28ProactiveDefenseCivs(IReadOnlyList<Player> seats)
+    {
+        var civs = new List<int>();
+        for (int c = 0; c < seats.Count; c++)
+            if (string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(seats[c].Name, "legend", StringComparison.OrdinalIgnoreCase)) civs.Add(c);
+        return civs.ToArray();
+    }
 
     private static void CaptureFissionLeadCheckpoint(MatchModel match, Player[] seats, ResearchCatalog catalog,
         int season, int[] birthsByCiv, int[] starvationDeathsByCiv, bool mirror,
@@ -2132,6 +2655,33 @@ internal static class Tournament
             $"mastery={masteries[0] - masteries[1]:F1} firsts={firsts[0] - firsts[1]:F1} FirstClaimDelta={claimPoints[0] - claimPoints[1]}]");
     }
 
+    private static void CaptureWarlordFoundFrontierTrajectory(MatchModel match, Player[] seats,
+        MatchOutcome outcome, ulong seed, bool swapped, int season)
+    {
+        for (int civ = 0; civ < seats.Length; civ++)
+        {
+            if (!string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
+            int pairedOpponent = civ ^ 1;
+            FoundFrontierAudit audit = match.Politics.ProjectedFoundSiteFrontier(civ, pairedOpponent,
+                (candidateCiv, tile) =>
+                {
+                    Belief? belief = match.Ai?.SeatOf(candidateCiv)?.Belief;
+                    return belief is not null && PoliticsM10.StrategistBeliefAllowsFoundCandidate(
+                        match.Politics, belief, candidateCiv, tile);
+                });
+            foreach (FoundFrontierCivSummary summary in audit.Civilizations)
+            {
+                string gate = summary.AiFoundGateOpen ? "open" : "closed";
+                int paired = summary.Civ ^ 1;
+                outcome.WarlordEconomyTraces.Add(
+                    $"FOUND_FRONTIER seed={seed} mirror={(swapped ? 1 : 0)} season={season} civ={summary.Civ} paired={paired} " +
+                    $"mandate={summary.Mandate}/{summary.MandateCap} unlocked={match.Research.MandateUnlocked(summary.Civ)} " +
+                    $"naturalFoundings={summary.NaturalFoundings} legal/candidate/frontierNear/projected=" +
+                    $"{summary.LegalSiteCount}/{summary.StrategistCandidateCount}/{summary.RelevantSiteCount}/{summary.ProjectedSiteCount} gate={gate}");
+            }
+        }
+    }
+
     private static FoundFunnelDiagnostic SummarizeFoundFunnel(int civ, IReadOnlyList<AiDecision> decisions,
         IReadOnlyList<FoundFunnelSeasonSnapshot> snapshots, ResearchSystem research)
     {
@@ -2140,6 +2690,9 @@ internal static class Tournament
         var positiveFoundCandidateSeasons = new HashSet<int>();
         var foundSelectedSeasons = new HashSet<int>();
         var otherSelectedSeasons = new HashSet<int>();
+        var bestFoundBySeason = new Dictionary<int, AiDecision>();
+        var bestOtherBySeason = new Dictionary<int, AiDecision>();
+        var disallowedFoundRefusals = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (AiDecision decision in decisions)
         {
             if (decision.Civ != civ || decision.Layer != "Strategist") continue;
@@ -2150,7 +2703,18 @@ internal static class Tournament
                 {
                     foundCandidateSeasons.Add(decision.Season);
                     if (decision.Score > Fix64.Zero) positiveFoundCandidateSeasons.Add(decision.Season);
+                    if (decision.Score == Fix64.MinValue)
+                    {
+                        string refusal = ExtractLikelyRefusal(decision.Reason) ?? "Unspecified";
+                        disallowedFoundRefusals[refusal] = disallowedFoundRefusals.GetValueOrDefault(refusal) + 1;
+                    }
+                    else if (
+                        (!bestFoundBySeason.TryGetValue(decision.Season, out AiDecision prior) || decision.Score > prior.Score))
+                        bestFoundBySeason[decision.Season] = decision;
                 }
+                else if (decision.Score != Fix64.MinValue &&
+                    (!bestOtherBySeason.TryGetValue(decision.Season, out AiDecision prior) || decision.Score > prior.Score))
+                    bestOtherBySeason[decision.Season] = decision;
             }
             else if (decision.Kind == "Decree")
             {
@@ -2171,6 +2735,8 @@ internal static class Tournament
             .Select(project => research.Catalog.Projects[project].Id));
         string key3Path = string.Join(",", key3Def.Requires.Select(project =>
             $"{research.Catalog.Projects[project].Id}:{research.State(civ, project)}:{research.Progress(civ, project).ToDoubleForDisplay():F1}"));
+        string foundScoreComparison = SummarizeFoundScores(foundCandidateSeasons, bestFoundBySeason, bestOtherBySeason,
+            disallowedFoundRefusals);
         return new FoundFunnelDiagnostic(civ, candidateSeasons.Count, foundCandidateSeasons.Count,
             positiveFoundCandidateSeasons.Count, foundSelectedSeasons.Count, positiveFoundPassedSeasons,
             states.Length, councilOn, mandateUnlocked, both,
@@ -2181,7 +2747,58 @@ internal static class Tournament
             states.Length == 0 ? 0 : (int)Math.Round(states.Average(snapshot => snapshot.Mandate)),
             states.Length == 0 ? 0 : (int)Math.Round(states.Average(snapshot => snapshot.MandateCap)),
             states.Length == 0 ? 0 : (int)Math.Round(states.Average(snapshot => snapshot.FoundCost)),
-            missingKey3, key3Path, research.DoneInEra(civ, key3Def.BreadthEra), research.State(civ, key3).ToString(), research.Progress(civ, key3));
+            missingKey3, key3Path, research.DoneInEra(civ, key3Def.BreadthEra), research.State(civ, key3).ToString(), research.Progress(civ, key3),
+            foundScoreComparison);
+    }
+
+    private static string SummarizeFoundScores(IReadOnlySet<int> foundCandidateSeasons,
+        IReadOnlyDictionary<int, AiDecision> bestFoundBySeason, IReadOnlyDictionary<int, AiDecision> bestOtherBySeason,
+        IReadOnlyDictionary<string, int> disallowedFoundRefusals)
+    {
+        AiDecision[] found = bestFoundBySeason.Values.ToArray();
+        AiDecision[] competing = bestOtherBySeason.Where(pair => foundCandidateSeasons.Contains(pair.Key))
+            .Select(pair => pair.Value).ToArray();
+        string refusalSummary = disallowedFoundRefusals.Count == 0
+            ? "no disallowed Found forecasts"
+            : $"disallowed Found forecast refusals [{string.Join(",", disallowedFoundRefusals.Select(pair => $"{pair.Key}={pair.Value}"))}]";
+        if (found.Length == 0)
+            return "no Allowed Found forecast scores; " + (competing.Length == 0
+                ? "no allowed non-Found decree candidates in Found-candidate seasons"
+                : $"best non-Found during Found-candidate seasons [{FormatDecreeCandidate(competing.OrderByDescending(decision => decision.Score).First())}]") +
+                $"; {refusalSummary}";
+
+        double[] orderedScores = found.Select(decision => decision.Score.ToDoubleForDisplay()).Order().ToArray();
+        double median = orderedScores.Length % 2 == 0
+            ? (orderedScores[orderedScores.Length / 2 - 1] + orderedScores[orderedScores.Length / 2]) / 2.0
+            : orderedScores[orderedScores.Length / 2];
+        AiDecision bestFound = found.OrderByDescending(decision => decision.Score).First();
+        string foundMax = FormatDecreeCandidate(bestFound);
+        string otherMax = competing.Length == 0
+            ? "no competing decree candidates in Found seasons"
+            : FormatDecreeCandidate(competing.OrderByDescending(decision => decision.Score).First());
+        return $"season-best Allowed Found EV n={found.Length}, mean={orderedScores.Average():F2}, median={median:F2}, " +
+            $"min={orderedScores[0]:F2}, max={orderedScores[^1]:F2}; best Found [{foundMax}]; " +
+            $"best non-Found during Found-candidate seasons [{otherMax}]; {refusalSummary}";
+    }
+
+    private static string? ExtractLikelyRefusal(string reason)
+    {
+        const string marker = "likely refusal ";
+        int start = reason.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return null;
+        start += marker.Length;
+        int end = reason.IndexOf(';', start);
+        string refusal = (end < 0 ? reason[start..] : reason[start..end]).Trim();
+        return refusal.Length == 0 ? null : refusal;
+    }
+
+    private static string FormatDecreeCandidate(AiDecision decision)
+    {
+        const int maxReasonLength = 180;
+        string reason = decision.Reason.Length <= maxReasonLength
+            ? decision.Reason
+            : decision.Reason[..(maxReasonLength - 3)] + "...";
+        return $"s{decision.Season} {((DecreeKind)decision.Subject)} target={decision.Other} EV={decision.Score.ToDoubleForDisplay():F2} {reason}";
     }
 
     private static string FormatWarlordEconomySnapshot(MatchModel match, int civ, int deaths, int starvationDeaths)
@@ -2391,15 +3008,17 @@ internal static class Tournament
 
     /// <summary>Runs a match while collecting only the team Legacy scores consumed by A6.</summary>
     public static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
-        Action<MatchModel>? configure = null, Action<MatchModel>? completed = null)
+        Action<MatchModel>? configure = null, Action<MatchModel>? completed = null,
+        Action<MatchModel, int>? afterSeason = null)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
-        return PlayForLegacy(pack, seed, world, seats, archetypes, minutes, configure, completed);
+        return PlayForLegacy(pack, seed, world, seats, archetypes, minutes, configure, completed, afterSeason);
     }
 
     /// <summary>Runs a legacy-only match on a caller-provided generated world.</summary>
     internal static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, GeneratedWorld world, Player[] seats,
-        EconomyArchetype[] archetypes, int minutes, Action<MatchModel>? configure = null, Action<MatchModel>? completed = null)
+        EconomyArchetype[] archetypes, int minutes, Action<MatchModel>? configure = null, Action<MatchModel>? completed = null,
+        Action<MatchModel, int>? afterSeason = null)
     {
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
@@ -2408,10 +3027,17 @@ internal static class Tournament
         var runner = new SimRunner(match, int.MaxValue);
         long ticks = minutes * 600L;
         int seasons = 0;
+        int lastObservedSeason = -1;
         for (long t = 0; t < ticks; t += 150)
         {
             runner.Advance(Math.Min(150, ticks - t));
             seasons++;
+            int currentSeason = match.Politics.Season;
+            if (currentSeason != lastObservedSeason)
+            {
+                lastObservedSeason = currentSeason;
+                afterSeason?.Invoke(match, currentSeason);
+            }
             if (match.EndOfMatch(humanSeat: -1).IsOver(runner.Tick)) break;
         }
 
@@ -2482,7 +3108,23 @@ internal static class Tournament
         bool warlordCampaignOpportunityTrace = false,
         bool warlordFrontierConquestPlanFloorDiagnostic = false,
         bool a2LeadCheckpointDiagnostic = false,
-        int? deferWarlordS2FissionUntilSeasonForDiagnostics = null)
+        int? deferWarlordS2FissionUntilSeasonForDiagnostics = null,
+        bool warlordFrontierDecisionTrace = false,
+        bool warlordB28ProactiveDefenseDiagnostic = false,
+        bool warlordB28PublicEraShadowDiagnostic = false,
+        bool warlordFissionOperatingMarginTrace = false,
+        bool warlordEmergencyFoodWorkDiagnostic = false,
+        bool warlordRaidDecisionTrace = false,
+        bool warlordB28AffordabilityTimeline = false,
+        bool warlordGlobalForceCampaignDiagnostic = false,
+        bool warlordDeathStateTrace = false,
+        Fix64? warlordPreE3FissionThresholdScaleOverride = null,
+        bool warlordPreE3FissionOriginalSettlementsOnly = false,
+        bool warlordPreE3FissionFirstGenerationDaughtersOnly = false,
+        bool warlordFoundFrontierTrajectory = false,
+        bool warlordAllowExposedFoundDiagnostic = false, bool warlordThirdE3FoundDiagnostic = false,
+        bool warlordQuietFrontierPlanTrace = false, bool warlordCombatCasualtyTrace = false,
+        bool warlordRaidWithdrawalDiagnostic = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -2505,7 +3147,25 @@ internal static class Tournament
                 warlordCampaignOpportunityTrace: warlordCampaignOpportunityTrace,
                 warlordFrontierConquestPlanFloorDiagnostic: warlordFrontierConquestPlanFloorDiagnostic,
                 a2LeadCheckpointDiagnostic: a2LeadCheckpointDiagnostic,
-                deferWarlordS2FissionUntilSeasonForDiagnostics: deferWarlordS2FissionUntilSeasonForDiagnostics), swapped);
+                deferWarlordS2FissionUntilSeasonForDiagnostics: deferWarlordS2FissionUntilSeasonForDiagnostics,
+                warlordFrontierDecisionTrace: warlordFrontierDecisionTrace,
+                warlordB28ProactiveDefenseDiagnostic: warlordB28ProactiveDefenseDiagnostic,
+                warlordB28PublicEraShadowDiagnostic: warlordB28PublicEraShadowDiagnostic,
+                warlordFissionOperatingMarginTrace: warlordFissionOperatingMarginTrace,
+                warlordEmergencyFoodWorkDiagnostic: warlordEmergencyFoodWorkDiagnostic,
+                warlordRaidDecisionTrace: warlordRaidDecisionTrace,
+                warlordB28AffordabilityTimeline: warlordB28AffordabilityTimeline,
+                warlordGlobalForceCampaignDiagnostic: warlordGlobalForceCampaignDiagnostic,
+                warlordDeathStateTrace: warlordDeathStateTrace,
+                warlordPreE3FissionThresholdScaleOverride: warlordPreE3FissionThresholdScaleOverride,
+                warlordPreE3FissionOriginalSettlementsOnly: warlordPreE3FissionOriginalSettlementsOnly,
+                warlordPreE3FissionFirstGenerationDaughtersOnly: warlordPreE3FissionFirstGenerationDaughtersOnly,
+                warlordFoundFrontierTrajectory: warlordFoundFrontierTrajectory,
+                warlordAllowExposedFoundDiagnostic: warlordAllowExposedFoundDiagnostic,
+                warlordThirdE3FoundDiagnostic: warlordThirdE3FoundDiagnostic,
+                warlordQuietFrontierPlanTrace: warlordQuietFrontierPlanTrace,
+                warlordCombatCasualtyTrace: warlordCombatCasualtyTrace,
+                warlordRaidWithdrawalDiagnostic: warlordRaidWithdrawalDiagnostic), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
@@ -2557,11 +3217,13 @@ internal static class Tournament
         List<string>? researchDiagnostics = null, bool captureResearchTimeline = false, int[]? selectedRotations = null,
         List<string>? foodDiagnostics = null, bool captureFoodTimeline = false,
         bool deferA5BuilderS1FissionUntil64 = false, List<string>? caseControlDiagnostics = null,
-        bool captureCaseControlTimeline = false)
+        bool captureCaseControlTimeline = false, bool a5BuilderFertilityDiagnostic = false,
+        bool a5GrowerFertilityDiagnostic = false)
         => FreeForAll(pack, level, seeds, minutes, out _, firstSeed, rivalPaceOverride, warlordMaxCampaignOrigin,
             matchDiagnostics, firstsDiagnostics, captureFirstsAttribution, researchDiagnostics, captureResearchTimeline,
             selectedRotations, foodDiagnostics, captureFoodTimeline, deferA5BuilderS1FissionUntil64,
-            caseControlDiagnostics, captureCaseControlTimeline);
+            caseControlDiagnostics, captureCaseControlTimeline, a5BuilderFertilityDiagnostic,
+            a5GrowerFertilityDiagnostic);
 
     /// <summary>The free-for-all, also returning every civilization's outcome with its archetype for the per-archetype report.</summary>
     public static (double[] Wins, int[] Appearances) FreeForAll(ContentPack pack, string level, int seeds, int minutes,
@@ -2571,7 +3233,8 @@ internal static class Tournament
         List<string>? researchDiagnostics = null, bool captureResearchTimeline = false, int[]? selectedRotations = null,
         List<string>? foodDiagnostics = null, bool captureFoodTimeline = false,
         bool deferA5BuilderS1FissionUntil64 = false, List<string>? caseControlDiagnostics = null,
-        bool captureCaseControlTimeline = false)
+        bool captureCaseControlTimeline = false, bool a5BuilderFertilityDiagnostic = false,
+        bool a5GrowerFertilityDiagnostic = false)
     {
         EconomyArchetype[] all = { EconomyArchetype.Builder, EconomyArchetype.Grower, EconomyArchetype.Wanderer, EconomyArchetype.Warlord, EconomyArchetype.Sage };
         var jobs = new List<(ulong Seed, int Rotation)>();
@@ -2594,6 +3257,8 @@ internal static class Tournament
                 captureFfaFirstsDiagnostic: captureFirstsAttribution,
                 captureFfaResearchTimeline: captureResearchTimeline, ffaRotation: rot,
                 captureFfaFoodDemographyTimeline: captureFoodTimeline,
+                a5BuilderFertilityDiagnostic: a5BuilderFertilityDiagnostic,
+                a5GrowerFertilityDiagnostic: a5GrowerFertilityDiagnostic,
                 deferFissionSettlementUntilSeasonForDiagnostics: deferA5BuilderS1FissionUntil64 &&
                     seed == 20261025 && rot == 4 && seating[1] == EconomyArchetype.Builder ? 64 : null,
                 captureFfaCaseControlTimeline: captureCaseControlTimeline), seating);
@@ -2723,7 +3388,7 @@ internal static class Tournament
                 ai.SeatOf(warlord) is not { } seat) continue;
             for (int rivalCiv = 0; rivalCiv < seats.Length; rivalCiv++)
             {
-                if (!string.Equals(seats[rivalCiv].Name, "grower", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(seats[rivalCiv].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
                 RivalBelief rival = seat.Belief.Rivals[rivalCiv];
                 OwnView own = seat.Own;
                 int width = seat.Belief.Map.Width;
@@ -2784,6 +3449,7 @@ internal static class Tournament
                 string stateSignature = $"target={target?.Settlement ?? -1};tile={target?.Tile ?? -1};fresh={selectedFresh};" +
                     $"range={rangeEligible};origin={selectedOrigin?.Index ?? -1};forceMin={eligibleAttackers >= PoliticsSystem.CampaignMinimumAttackers};" +
                     $"posture={own.Posture};war={rival.AtWar};relationGate={declarationAllowed};gov02={gov02Done};block={blocker}";
+                string opponent = seats[rivalCiv].Name;
                 if (season >= 128)
                 {
                     bool firstTraceRow = !milestoneEmitted.Contains(key);
@@ -2791,7 +3457,7 @@ internal static class Tournament
                     {
                         milestoneEmitted.Add(key);
                         outcome.WarlordCampaignOpportunityTraces.Add(
-                            $"A2 campaign-milestone seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{warlord} grower=civ{rivalCiv} " +
+                            $"A3 campaign-milestone seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{warlord} {opponent}=civ{rivalCiv} " +
                             $"firstKnown={(firstKnownSeason.TryGetValue(key, out int knownAt) ? $"s{knownAt}" : "never")} " +
                             $"firstRangeEligible={(firstReachSeason.TryGetValue(key, out int reachAt) ? $"s{reachAt}" : "never")} " +
                             "reachDefinition=belief-site-fresh+Strategist-geometric-range(no-pathfinding) " +
@@ -2799,7 +3465,7 @@ internal static class Tournament
                     }
                     if (firstTraceRow || !prior.TryGetValue(key, out string? oldSnapshot) || oldSnapshot != stateSignature)
                         outcome.WarlordCampaignOpportunityTraces.Add(
-                            $"A2 campaign-state seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{warlord} grower=civ{rivalCiv} s{season} {snapshot}");
+                            $"A3 campaign-state seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{warlord} {opponent}=civ{rivalCiv} s{season} {snapshot}");
                 }
                 prior[key] = stateSignature;
             }
@@ -2817,7 +3483,7 @@ internal static class Tournament
             if (emittedDecisions.TryGetValue(key, out string? previous) && previous == signature) continue;
             emittedDecisions[key] = signature;
             outcome.WarlordCampaignOpportunityTraces.Add(
-                $"A2 campaign-decision seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{decision.Civ} s{decision.Season} " +
+                $"A3 campaign-decision seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{decision.Civ} s{decision.Season} " +
                 $"kind={decision.Kind} target={decision.Subject} other={decision.Other} score={decision.Score.ToDoubleForDisplay():F3} reason={decision.Reason}");
         }
         for (int i = politicsEventStart; i < match.Politics.Events.Count; i++)
@@ -2830,7 +3496,7 @@ internal static class Tournament
                     PoliticsEventKind.OccupationBroken or PoliticsEventKind.VoyageLost)) continue;
             int eventSeason = checked((int)(ev.Tick / LivingEconomyModel.SeasonTicks));
             outcome.WarlordCampaignOpportunityTraces.Add(
-                $"A2 campaign-event seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{ev.Civ} s{eventSeason} " +
+                $"A3 campaign-event seed={outcome.Seed} mirror={(swapped ? 1 : 0)} warlord=civ{ev.Civ} s{eventSeason} " +
                 $"kind={ev.Kind} other={ev.Other} a={ev.A} b={ev.B}");
         }
     }
@@ -2847,6 +3513,87 @@ internal static class Tournament
             { nearestDistance = distance; nearestAdultOrigin = settlement; }
         }
         return nearestAdultOrigin ?? fullest;
+    }
+
+    private static string FormatFoundOriginAssociation(MatchModel match,
+        Dictionary<int, (int Parent, int FoundedSeason)> foundSites, CampaignEvaluationDiagnostic evaluation)
+    {
+        if (match.Ai?.SeatOf(evaluation.Civ) is not { } seat) return string.Empty;
+        var rows = new List<string>();
+        foreach (int originIndex in new[] { evaluation.OriginSettlement, evaluation.AlternateOriginSettlement }.Distinct())
+        {
+            if (!foundSites.TryGetValue(originIndex, out var found)) continue;
+            rows.Add($"child=s{originIndex}(parent=s{found.Parent},age={evaluation.Season - found.FoundedSeason})");
+        }
+        var contributions = new List<string>();
+        if (evaluation.OriginSettlement >= 0)
+        {
+            OwnSettlement? origin = seat.Own.Settlements.FirstOrDefault(s => s.Index == evaluation.OriginSettlement);
+            if (origin is not null)
+                foreach (OwnSettlement child in seat.Own.Settlements)
+                {
+                    if (!foundSites.TryGetValue(child.Index, out var found) ||
+                        HexGrid.Distance(child.Tile, origin.Tile, seat.Belief.Map.Width) > StrategistTuning.ArmyGatherRange) continue;
+                    int contribution = Math.Max(0, Math.Min(child.Fighters - PoliticsSystem.CampaignHomeReserve, child.Fighters * 6 / 10));
+                    if (contribution > 0) contributions.Add($"s{child.Index}:{contribution}(parent=s{found.Parent},age={evaluation.Season - found.FoundedSeason})");
+                }
+        }
+        if (rows.Count == 0 && contributions.Count == 0) return string.Empty;
+        return $"foundCampaignSites=[{string.Join(',', rows)}] foundForceContributions=[{string.Join(',', contributions)}] ";
+    }
+
+    private static string FormatWarlordCampaignFoodScoutContext(MatchModel match, int warlord, int rivalCiv,
+        int season, int targetSettlement, int targetTile, int originSettlement)
+    {
+        if (match.Ai?.SeatOf(warlord) is not { } seat) return "foodScoutContext=unavailable";
+        OwnView own = seat.Own;
+        int width = seat.Belief.Map.Width;
+        OwnSettlement? origin = null;
+        foreach (OwnSettlement settlement in own.Settlements)
+            if (settlement.Index == originSettlement) { origin = settlement; break; }
+
+        BeliefSettlement? target = null;
+        if ((uint)rivalCiv < (uint)seat.Belief.Rivals.Length)
+            foreach (BeliefSettlement known in seat.Belief.Rivals[rivalCiv].Settlements)
+                if (known.Settlement == targetSettlement && known.Tile == targetTile)
+                { target = known; break; }
+        int targetAge = target is null ? -1 : Math.Max(0, season - target.LastSeenSeason);
+        int targetDistance = origin is null || target is null ? int.MaxValue : HexGrid.Distance(origin.Tile, target.Tile, width);
+        RivalBelief rival = seat.Belief.Rivals[rivalCiv];
+        int reach = StrategistTuning.RaidRangeReaches * Math.Max(6, match.Politics.ReachOfEra(rival.Era));
+        bool targetFresh = target is not null && targetAge <= StrategistTuning.StaleSeasons;
+
+        var settlementRows = new List<string>();
+        var scoutsBySettlement = new Dictionary<int, (int Count, Fix64 Work)>();
+        for (int f = 0; f < match.Economy.FigureCount; f++)
+        {
+            FigureView figure = match.Economy.Figure(f);
+            if (figure.Job != EconomyJob.Scout) continue;
+            scoutsBySettlement.TryGetValue(figure.SettlementId, out var current);
+            scoutsBySettlement[figure.SettlementId] = (current.Count + 1, current.Work + figure.WorkThisSeason);
+        }
+        int legalAttackers = 0;
+        foreach (OwnSettlement settlement in own.Settlements)
+        {
+            bool canContribute = origin is not null && target is not null && settlement.Fighters > 0 &&
+                HexGrid.Distance(settlement.Tile, origin.Tile, width) <= StrategistTuning.ArmyGatherRange;
+            int available = canContribute
+                ? Math.Max(0, Math.Min(settlement.Fighters - PoliticsSystem.CampaignHomeReserve,
+                    settlement.Fighters * 6 / 10))
+                : 0;
+            legalAttackers += available;
+
+            SettlementView food = match.Economy.Settlement(settlement.Index);
+            scoutsBySettlement.TryGetValue(food.Id, out var scouts);
+            string fighterPart = canContribute ? $";atk={available}/{settlement.Fighters}" : string.Empty;
+            settlementRows.Add($"s{settlement.Index}:scout={scouts.Count}/{scouts.Work.ToDoubleForDisplay():F2}" +
+                $"/{match.Economy.SettlementScoutPolicy(settlement.Index)};food={food.LastFoodSecurity.ToDoubleForDisplay():F2}" +
+                $";winter={food.LateWinterFoodForecast.ToDoubleForDisplay():F2}{fighterPart}");
+        }
+
+        string targetInfo = target is null ? "none" : $"s{target.Settlement}@t{target.Tile}";
+        return $"readinessTarget={targetInfo};age={targetAge};fresh={targetFresh};dist={targetDistance};range={reach};" +
+            $"attackersAfterReserve={legalAttackers};settlements=[{string.Join(',', settlementRows)}]";
     }
 
     private static string FormatB28ShadowSettlement(int settlement, int defender, int season, int worldWidth, MatchModel match,

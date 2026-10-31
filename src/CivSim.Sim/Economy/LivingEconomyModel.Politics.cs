@@ -47,6 +47,20 @@ public sealed partial class LivingEconomyModel
 
     public Fix64 FissionScaleOf(int civ) => FissionThresholdScale(civ);
 
+    public Fix64 FissionScaleOf(int civ, int settlementId)
+    {
+        if ((uint)civ >= (uint)_completedProjects.Length) throw new ArgumentOutOfRangeException(nameof(civ));
+        if (CurrentEra(civ) < 3 && PreE3FissionThresholdScaleOverridesForDiagnostics is { } overrides &&
+            civ < overrides.Length && overrides[civ] is { } diagnosticOverride &&
+            (!PreE3FissionThresholdOverrideInitialSettlementsOnlyForDiagnostics || settlementId == civ) &&
+            (!PreE3FissionThresholdOverrideFirstGenerationDaughtersOnlyForDiagnostics ||
+                _firstGenerationDaughterSettlementIdsForDiagnostics.Contains(settlementId)))
+            return diagnosticOverride;
+        return FissionThresholdScale(civ);
+    }
+
+
+
     private Fix64 FissionThresholdScale(int civ) => civ < _fissionThresholdScale.Length ? _fissionThresholdScale[civ] : Fix64.One;
 
     /// <summary>Posture Expand lowers the fission threshold 20%, Prosper raises it 20% (docs/MVP/05 §6.2).</summary>

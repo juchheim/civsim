@@ -301,7 +301,7 @@ The combat round (13 §7.2) is unchanged (k = 0.06; 40% of casualties die; MED-0
 
 | Defense | Project | Multiplier | Other effect | Cost |
 |---|---|---:|---|---|
-| Palisade (E2) | DEF-03 | ×2.0 | burnable | 6 ws, 20 L wood |
+| Palisade (E2) | DEF-03 | ×2.0 | burnable | 6 ws, 8 L wood (×2 Village) |
 | **Hillfort** | DEF-04 | **×2.5** (replaces palisade) | refuge on a hill within 4 tiles for the non-combatants and stores of every own settlement within 6: raid loot ×0.25 | 15 ws, 10 L wood |
 | **Stone walls** | DEF-05 | **×3.0** (replaces) | **cannot be assaulted in E3** (no siege engines until E4): investment only (§7.4); raiders loot outside the walls only (×0.25); do not burn | 30 ws + 60 L cut stone per Village ring; ×2 Town, ×3 City |
 | Archery behind barriers, hill site, home ground | (13) | ×1.25, ×1.2, ×1.1 | unchanged | |

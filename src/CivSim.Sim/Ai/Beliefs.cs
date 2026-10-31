@@ -41,6 +41,8 @@ public sealed class IncomingParty
     public int ArriveSeason;
     /// <summary>Heads counted in the party.</summary>
     public int PartySize;
+    /// <summary>The live source party for this update; deliberately omitted from belief snapshots.</summary>
+    internal Expedition? SourceExpedition;
 }
 
 /// <summary>A rival caravan load last observed on a tile in sight.</summary>

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CivSim.Harness;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Content;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 
@@ -17,6 +19,28 @@ public sealed class A7HarnessTelemetryTests
         Assert.False(Tournament.FoodShortageScoutSkipAppliesForDiagnostics("chieftain", chieftainOptIn: false));
         Assert.True(Tournament.FoodShortageScoutSkipAppliesForDiagnostics("chieftain", chieftainOptIn: true));
         Assert.False(Tournament.FoodShortageScoutSkipAppliesForDiagnostics("rusher", chieftainOptIn: true));
+    }
+
+    [Fact]
+    public void Emergency_food_work_diagnostic_is_warlord_only_and_fills_only_critical_food_share()
+    {
+        Assert.True(Tournament.WarlordEmergencyFoodWorkAppliesForDiagnostics("warlord"));
+        Assert.False(Tournament.WarlordEmergencyFoodWorkAppliesForDiagnostics("chieftain"));
+        Assert.False(Tournament.WarlordEmergencyFoodWorkAppliesForDiagnostics("rusher"));
+
+        Assert.True(LivingEconomyModel.EmergencyFoodWorkEligibleForDiagnostics(63,
+            Fix64.Parse("0.59"), Fix64.FromInt(10), Fix64.FromInt(10), enabled: true));
+        Assert.True(LivingEconomyModel.EmergencyFoodWorkEligibleForDiagnostics(63,
+            Fix64.Parse("0.8"), Fix64.FromInt(2), Fix64.FromInt(10), enabled: true));
+        Assert.False(LivingEconomyModel.EmergencyFoodWorkEligibleForDiagnostics(64,
+            Fix64.Parse("0.1"), Fix64.Zero, Fix64.FromInt(10), enabled: true));
+        Assert.False(LivingEconomyModel.EmergencyFoodWorkEligibleForDiagnostics(63,
+            Fix64.Parse("0.6"), Fix64.FromInt(3), Fix64.FromInt(10), enabled: true));
+        Assert.False(LivingEconomyModel.EmergencyFoodWorkEligibleForDiagnostics(63,
+            Fix64.Parse("0.5"), Fix64.Zero, Fix64.FromInt(10), enabled: false));
+
+        Assert.Equal(Fix64.One, LivingEconomyModel.EmergencyFoodWorkShare(Fix64.Parse("0.9"), eligible: true));
+        Assert.Equal(Fix64.Parse("0.85"), LivingEconomyModel.EmergencyFoodWorkShare(Fix64.Parse("0.85"), eligible: false));
     }
 
     [Fact]
@@ -265,6 +289,56 @@ public sealed class A7HarnessTelemetryTests
     }
 
     [Fact]
+    public void A5_builder_fertility_diagnostic_is_opt_in_and_default_off_preserves_checksum()
+    {
+        EconomyArchetype[] archetypes =
+        {
+            EconomyArchetype.Builder, EconomyArchetype.Grower,
+            EconomyArchetype.Sage, EconomyArchetype.Wanderer,
+        };
+        Player[] seats =
+        {
+            Player.Parse("warlord", archetypes[0]), Player.Parse("warlord", archetypes[1]),
+            Player.Parse("warlord", archetypes[2]), Player.Parse("warlord", archetypes[3]),
+        };
+
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes, minutes: 1);
+        MatchOutcome explicitlyOff = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes,
+            minutes: 1, a5BuilderFertilityDiagnostic: false);
+        MatchOutcome optIn = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes,
+            minutes: 1, a5BuilderFertilityDiagnostic: true,
+            a5GrowerFertilityDiagnostic: true);
+
+        Assert.False(baseline.A5BuilderFertilityDiagnostic);
+        Assert.False(explicitlyOff.A5BuilderFertilityDiagnostic);
+        Assert.Equal(baseline.Checksum, explicitlyOff.Checksum);
+        Assert.Equal(baseline.Civs.Select(c => c.Legacy), explicitlyOff.Civs.Select(c => c.Legacy));
+        Assert.True(optIn.A5BuilderFertilityDiagnostic);
+        Assert.True(optIn.A5GrowerFertilityDiagnostic);
+    }
+
+    [Fact]
+    public void B28_affordability_timeline_is_opt_in_report_only()
+    {
+        EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
+        Player[] seats = Enumerable.Repeat(Player.Parse("warlord", EconomyArchetype.Balanced), 4).ToArray();
+
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes, minutes: 1);
+        MatchOutcome explicitlyOff = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes,
+            minutes: 1, warlordB28AffordabilityTimeline: false);
+        MatchOutcome optIn = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes,
+            minutes: 1, warlordB28AffordabilityTimeline: true);
+
+        Assert.False(baseline.B28AffordabilityTimelineEnabled);
+        Assert.False(explicitlyOff.B28AffordabilityTimelineEnabled);
+        Assert.Equal(baseline.Checksum, explicitlyOff.Checksum);
+        Assert.Equal(baseline.Checksum, optIn.Checksum);
+        Assert.Equal(baseline.Civs.Select(c => c.Legacy), explicitlyOff.Civs.Select(c => c.Legacy));
+        Assert.Equal(baseline.Civs.Select(c => c.Legacy), optIn.Civs.Select(c => c.Legacy));
+        Assert.True(optIn.B28AffordabilityTimelineEnabled);
+    }
+
+    [Fact]
     public void Frontier_conquest_plan_floor_is_opt_in_and_applied_only_to_warlord_harness_seats()
     {
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
@@ -325,9 +399,66 @@ public sealed class A7HarnessTelemetryTests
             row => row.StartsWith("FISSION_TRIGGER_TRACE", StringComparison.Ordinal) && row.Contains("births4=", StringComparison.Ordinal) &&
                 row.Contains("deaths4=[", StringComparison.Ordinal) && row.Contains("capPressureNow=", StringComparison.Ordinal) &&
                 row.Contains("leanWinterPressureNow=", StringComparison.Ordinal));
+        string successfulSplit = observed.WarlordFissionSiteDiagnostics.First(row =>
+            row.StartsWith("FISSION_RESOLUTION", StringComparison.Ordinal) &&
+            row.Contains("result=splitSuccess:daughter=s", StringComparison.Ordinal));
+        const string daughterMarker = "result=splitSuccess:daughter=s";
+        int daughterStart = successfulSplit.IndexOf(daughterMarker, StringComparison.Ordinal) + daughterMarker.Length;
+        string daughterId = new(successfulSplit[daughterStart..].TakeWhile(char.IsDigit).ToArray());
+        Assert.NotEmpty(daughterId);
+        Assert.Contains(observed.WarlordFissionSiteDiagnostics,
+            row => row.StartsWith("FISSION_ELIGIBILITY_TRACE", StringComparison.Ordinal) &&
+                row.Contains("season=128 ", StringComparison.Ordinal) &&
+                row.Contains($"settlement=s{daughterId} ", StringComparison.Ordinal) &&
+                row.Contains("pressureReason=", StringComparison.Ordinal) &&
+                row.Contains("cooldownRemaining=", StringComparison.Ordinal));
+        string[] eligibilityRows = observed.WarlordFissionSiteDiagnostics
+            .Where(row => row.StartsWith("FISSION_ELIGIBILITY_TRACE", StringComparison.Ordinal)).ToArray();
+        Assert.Contains(eligibilityRows, row => row.Contains("lastFissionSeason=never seasonsSinceFission=never", StringComparison.Ordinal));
+        Assert.All(eligibilityRows, row =>
+        {
+            Assert.DoesNotContain("pressureMetNotPending", row, StringComparison.Ordinal);
+            Assert.Contains("pressureReason=", row, StringComparison.Ordinal);
+            Assert.Contains(new[] { "alreadyPending", "noPressure", "daughterBelowMinimum", "eligibleInputs" },
+                reason => row.Contains($"reason={reason} ", StringComparison.Ordinal));
+        });
         Assert.Contains(observed.WarlordFissionSiteDiagnostics,
             row => row.StartsWith("A2_LEAD_CHECKPOINT", StringComparison.Ordinal) && row.Contains("season=128", StringComparison.Ordinal) &&
                 row.Contains("team=warlord", StringComparison.Ordinal) && row.Contains("GOV02=[", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Warlord_combat_casualty_trace_reports_only_warlord_events_without_changing_results()
+    {
+        Player[] seats =
+        {
+            Player.Parse("warlord", EconomyArchetype.Balanced), Player.Parse("rusher", EconomyArchetype.Balanced),
+            Player.Parse("rusher", EconomyArchetype.Balanced), Player.Parse("warlord", EconomyArchetype.Balanced),
+        };
+        EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
+
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 32);
+        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 32,
+            warlordCombatCasualtyTrace: true);
+
+        Assert.False(baseline.WarlordCombatCasualtyTraceEnabled);
+        Assert.Empty(baseline.WarlordCombatCasualtyTraces);
+        Assert.True(observed.WarlordCombatCasualtyTraceEnabled);
+        Assert.Equal(baseline.Checksum, observed.Checksum);
+        Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
+        Assert.NotEmpty(observed.WarlordCombatCasualtyTraces);
+        Assert.All(observed.WarlordCombatCasualtyTraces, row =>
+        {
+            Assert.StartsWith("A3 COMBAT_CASUALTY seed=20261022 ", row, StringComparison.Ordinal);
+            Assert.Contains("season=", row, StringComparison.Ordinal);
+            Assert.Contains("settlement=s", row, StringComparison.Ordinal);
+            Assert.Contains("conflict=", row, StringComparison.Ordinal);
+            Assert.Contains("outcome=", row, StringComparison.Ordinal);
+            Assert.True(row.Contains("civ=0/warlord", StringComparison.Ordinal) ||
+                row.Contains("civ=3/warlord", StringComparison.Ordinal));
+            Assert.True(row.Contains("outcome=dead", StringComparison.Ordinal) ||
+                row.Contains("outcome=wounded", StringComparison.Ordinal));
+        });
     }
 
     [Fact]
@@ -357,39 +488,100 @@ public sealed class A7HarnessTelemetryTests
     }
 
     [Fact]
-    public void Warlord_campaign_opportunity_trace_is_report_only_for_seed_20261024()
+    public void Warlord_campaign_opportunity_trace_is_report_only_and_seat_isolated_for_rusher()
     {
         Player[] seats =
         {
-            Player.Parse("warlord", EconomyArchetype.Balanced), Player.Parse("grower", EconomyArchetype.Balanced),
-            Player.Parse("grower", EconomyArchetype.Balanced), Player.Parse("warlord", EconomyArchetype.Balanced),
+            Player.Parse("warlord", EconomyArchetype.Balanced), Player.Parse("rusher", EconomyArchetype.Balanced),
+            Player.Parse("rusher", EconomyArchetype.Balanced), Player.Parse("warlord", EconomyArchetype.Balanced),
         };
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
-        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261024, seats, archetypes, minutes: 32);
-        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261024, seats, archetypes, minutes: 32,
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261021, seats, archetypes, minutes: 32);
+        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261021, seats, archetypes, minutes: 32,
             warlordCampaignOpportunityTrace: true);
 
         Assert.True(observed.WarlordCampaignOpportunityTraceEnabled);
         Assert.Equal(baseline.Checksum, observed.Checksum);
         Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
         Assert.Contains(observed.WarlordCampaignOpportunityTraces,
-            row => row.StartsWith("A2 campaign-milestone", StringComparison.Ordinal) && row.Contains("firstKnown=", StringComparison.Ordinal));
+            row => row.StartsWith("A3 campaign-milestone", StringComparison.Ordinal) && row.Contains("firstKnown=", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordCampaignOpportunityTraces,
-            row => row.StartsWith("A2 campaign-state", StringComparison.Ordinal) &&
+            row => row.StartsWith("A3 campaign-state", StringComparison.Ordinal) &&
                 row.Contains("estimatedAvailableAttackers=", StringComparison.Ordinal) &&
                 row.Contains("rangeEligible=", StringComparison.Ordinal) &&
                 row.Contains("remainingCapture/strategy-gates=not-evaluated", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordCampaignOpportunityTraces,
-            row => row.StartsWith("A2 campaign-candidate", StringComparison.Ordinal) &&
+            row => row.StartsWith("A3 campaign-candidate", StringComparison.Ordinal) &&
                 row.Contains("plan=", StringComparison.Ordinal) && row.Contains("planTarget=", StringComparison.Ordinal) &&
                 row.Contains("predictedCapture=", StringComparison.Ordinal) &&
                 row.Contains("launchFeasible=", StringComparison.Ordinal) &&
-                row.Contains("reason=", StringComparison.Ordinal));
+                row.Contains("reason=", StringComparison.Ordinal) &&
+                row.Contains("readinessTarget=", StringComparison.Ordinal) &&
+                row.Contains("attackersAfterReserve=", StringComparison.Ordinal) &&
+                row.Contains("scout=", StringComparison.Ordinal) &&
+                row.Contains("food=", StringComparison.Ordinal) &&
+                row.Contains("winter=", StringComparison.Ordinal) &&
+                row.Contains("globalForce=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordCampaignOpportunityTraces,
+            row => row.StartsWith("A3 campaign-plan-shadow", StringComparison.Ordinal) &&
+                row.Contains("positiveLaunchFeasible=", StringComparison.Ordinal) &&
+                row.Contains("feasibleWithNonConquer=", StringComparison.Ordinal) &&
+                row.Contains("blockers=[", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordCampaignOpportunityTraces,
+            row => row.StartsWith("A3 campaign-urgency-shadow", StringComparison.Ordinal) &&
+                row.Contains("urgency=", StringComparison.Ordinal) &&
+                row.Contains("defendValue=", StringComparison.Ordinal) &&
+                row.Contains("bestNonDefend=", StringComparison.Ordinal) &&
+                row.Contains("selected=", StringComparison.Ordinal) &&
+                row.Contains("planAge=", StringComparison.Ordinal) &&
+                row.Contains("zeroUrgencyPlan=", StringComparison.Ordinal) &&
+                row.Contains("frontierOpen=", StringComparison.Ordinal));
+        Assert.All(observed.WarlordCampaignOpportunityTraces, row =>
+            Assert.Contains("warlord=civ", row, StringComparison.Ordinal));
+        Assert.DoesNotContain(observed.WarlordCampaignOpportunityTraces,
+            row => row.Contains("grower=civ", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Settlement_trace_demography_checkpoints_are_report_only()
+    public void Warlord_raid_decision_trace_is_bounded_report_only_and_seat_isolated()
+    {
+        Player[] seats =
+        {
+            Player.Parse("warlord", EconomyArchetype.Balanced), Player.Parse("rusher", EconomyArchetype.Balanced),
+            Player.Parse("rusher", EconomyArchetype.Balanced), Player.Parse("warlord", EconomyArchetype.Balanced),
+        };
+        EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261026, seats, archetypes, minutes: 2);
+        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261026, seats, archetypes, minutes: 2,
+            warlordRaidDecisionTrace: true);
+
+        Assert.False(baseline.WarlordRaidDecisionTraceEnabled);
+        Assert.Empty(baseline.WarlordRaidDecisionTraces);
+        Assert.True(observed.WarlordRaidDecisionTraceEnabled);
+        Assert.Equal(baseline.Checksum, observed.Checksum);
+        Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
+        Assert.InRange(observed.WarlordRaidDecisionTraces.Count, 3, 24);
+        string row = observed.WarlordRaidDecisionTraces.First(line => line.StartsWith("A3 RAID_DECISION", StringComparison.Ordinal));
+        Assert.Contains("WAR02=", row, StringComparison.Ordinal);
+        Assert.Contains("posture=", row, StringComparison.Ordinal);
+        Assert.Contains("plan=", row, StringComparison.Ordinal);
+        Assert.Contains("targets=fresh:", row, StringComparison.Ordinal);
+        Assert.Contains("candidate=", row, StringComparison.Ordinal);
+        Assert.Contains("success=", row, StringComparison.Ordinal);
+        Assert.Contains("EV=", row, StringComparison.Ordinal);
+        Assert.Contains("origin=", row, StringComparison.Ordinal);
+        Assert.Contains("winter=", row, StringComparison.Ordinal);
+        Assert.Contains("threat=", row, StringComparison.Ordinal);
+        Assert.Contains("blocker=", row, StringComparison.Ordinal);
+        Assert.Contains(observed.WarlordRaidDecisionTraces, line => line.StartsWith("A3 RAID_SUMMARY", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordRaidDecisionTraces, line => line.Contains("fortifyBlocked=", StringComparison.Ordinal));
+        Assert.All(observed.WarlordRaidDecisionTraces, line =>
+            Assert.True(line.Contains("civ=0", StringComparison.Ordinal) || line.Contains("civ=3", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void Settlement_trace_demography_and_extended_food_work_window_are_report_only()
     {
         Player[] seats =
         {
@@ -400,9 +592,9 @@ public sealed class A7HarnessTelemetryTests
         };
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
-        MatchOutcome baseline = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes, minutes: 7);
-        MatchOutcome observed = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes, minutes: 7,
-            warlordSettlementTrace: true);
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes, minutes: 32);
+        MatchOutcome observed = Tournament.Play(TestPack.Pack, Tournament.BaseSeed, seats, archetypes, minutes: 32,
+            warlordSettlementTrace: true, warlordDeathStateTrace: true);
 
         Assert.Equal(baseline.Checksum, observed.Checksum);
         Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
@@ -414,8 +606,23 @@ public sealed class A7HarnessTelemetryTests
         Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("capacity(base/effective)=", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("foodWork(requested/assigned)=", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("yield(forage/meat/fish/weir/grain/orchardFruit)=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("forage(potential/accessibleStock/yield)=", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("ages(child/adult/elder)=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("adultCohort(14-19/20-24/25-34/35-39/40-44)=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("fertility(startPop=", StringComparison.Ordinal) &&
+            row.Contains("attempts/conceptions/deaths/pregnantDeaths/births=", StringComparison.Ordinal) &&
+            row.Contains("priorFood/health=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFoodWorkAttributionTraces,
+            row => row.Contains("settlement=s0 civ=0/warlord", StringComparison.Ordinal));
         Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("births=", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFoodLedgerTraces, row => row.Contains("season=81 ", StringComparison.Ordinal));
+        Assert.Contains(observed.WarlordFoodWorkAttributionTraces, row => row.Contains("season=81 ", StringComparison.Ordinal));
+        Assert.NotEmpty(observed.WarlordDeathStateTraces);
+        Assert.All(observed.WarlordDeathStateTraces, row =>
+        {
+            Assert.Contains("sex=", row, StringComparison.Ordinal);
+            Assert.Contains("pregnant=", row, StringComparison.Ordinal);
+        });
     }
 
     [Fact]

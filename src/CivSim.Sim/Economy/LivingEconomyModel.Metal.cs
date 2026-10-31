@@ -397,9 +397,96 @@ public sealed partial class LivingEconomyModel
         }
         MaintainCamps(season);
         ShareMetals(season);
+        ShareDefenseWood(season);
         for (int i = 0; i < _settlements.Count; i++)
             if (_settlements[i].Metal is { } m) m.Access = ComputeAccess(_settlements[i]);
     }
+
+    /// <summary>
+    /// SOC-07/GOV-04 sister-settlement stores support a queued Palisade with reachable surplus wood.
+    /// No wood is created: donors keep seasonal fuel and active construction reserves, and the closest
+    /// to completion defense receives scarce stores first.
+    /// </summary>
+    private void ShareDefenseWood(int season)
+    {
+        int wood = (int)Good.Wood;
+        for (int civ = 0; civ < _completedProjects.Length; civ++)
+        {
+            int reach = ShareReach(civ);
+            if (reach < 0) continue;
+
+            var receivers = new List<SettlementState>();
+            foreach (SettlementState settlement in _settlements)
+                if (IsMember(settlement, civ) && !HasPhysicalDefense(settlement) &&
+                    CanBuild(civ, Structure.Palisade) && settlement.BuildTarget == Structure.Palisade)
+                    receivers.Add(settlement);
+            receivers.Sort((a, b) =>
+            {
+                Fix64 aRemaining = Fix64.Max(Fix64.Zero, StructureBuildLabor(a, Structure.Palisade) - a.BuildProgress);
+                Fix64 bRemaining = Fix64.Max(Fix64.Zero, StructureBuildLabor(b, Structure.Palisade) - b.BuildProgress);
+                int remaining = aRemaining.CompareTo(bRemaining);
+                return remaining != 0 ? remaining : a.Id.CompareTo(b.Id);
+            });
+
+            foreach (SettlementState receiver in receivers)
+            {
+                bool receiverHasMetalPlan = receiver.Metal is not null && CivInBronze(civ);
+                Fix64 target = ProactivePalisadeWoodTarget(receiver, season, receiverHasMetalPlan);
+                Fix64 deficit = Fix64.Max(Fix64.Zero, target - receiver.Stores[wood]);
+                if (deficit <= Fix64.Zero) continue;
+
+                for (int d = 0; d < _settlements.Count && deficit > Fix64.Zero; d++)
+                {
+                    SettlementState donor = _settlements[d];
+                    if (donor.Id == receiver.Id || !IsMember(donor, civ) ||
+                        HexGrid.Distance(donor.SiteTile, receiver.SiteTile, _world.Width) > reach) continue;
+
+                    Fix64 reserve = DefenseWoodDonorReserve(donor, season);
+                    Fix64 surplus = Fix64.Max(Fix64.Zero, donor.Stores[wood] - reserve);
+                    Fix64 moved = Fix64.Min(deficit, surplus);
+                    if (moved <= Fix64.Zero) continue;
+
+                    donor.Stores[wood] -= moved;
+                    receiver.Stores[wood] += moved;
+                    RecordLocalWoodUse(donor, moved, "other");
+                    RecordLocalWoodInflow(receiver, moved, chop: false);
+                    deficit -= moved;
+                }
+            }
+        }
+    }
+
+    private Fix64 DefenseWoodDonorReserve(SettlementState settlement, int season)
+    {
+        Fix64 fuelAndHearth = E3FuelNeed(settlement, season % 4 == 3) + Fix64.FromInt(2);
+        Fix64 committedBuild = StructureWoodRequirement(settlement, settlement.BuildTarget, season);
+        Fix64 reserve = fuelAndHearth + committedBuild;
+        if (!HasPhysicalDefense(settlement) && settlement.BuildTarget == Structure.Palisade)
+            reserve = Fix64.Max(reserve, ProactivePalisadeWoodTarget(settlement, season,
+                metalPlanAvailable: settlement.Metal is not null && CivInBronze(settlement.Civilization)));
+        if (settlement.Civic is { } civic)
+        {
+            reserve += Fix64.FromInt(CivicMaterials(civic.BuildKind).Wood);
+            if (civic.Dwelling != (byte)Structure.Count)
+                reserve += Fix64.FromInt(DwellingMaterials((Structure)civic.Dwelling).Wood);
+        }
+        return reserve;
+    }
+
+    private Fix64 StructureWoodRequirement(SettlementState settlement, Structure structure, int season)
+        => structure switch
+        {
+            Structure.LeanTo or Structure.HideTent or Structure.Lookout or Structure.Pasture => Fix64.One,
+            Structure.PitHouse => Fix64.FromInt(4),
+            Structure.WattleHouse => Fix64.FromInt(3),
+            Structure.Longhouse => Fix64.FromInt(12),
+            Structure.ThornBarrier => Fix64.FromInt(2),
+            Structure.Weir => Fix64.FromInt(3),
+            Structure.Hillfort => Fix64.FromInt(10),
+            Structure.Palisade => PalisadeRequiredWood((int)Tier(settlement.Id), season),
+            Structure.DryingRack => Fix64.Half,
+            _ => Fix64.Zero,
+        };
 
     private void ShareMetals(int season)
     {

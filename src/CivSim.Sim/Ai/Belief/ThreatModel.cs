@@ -61,6 +61,8 @@ public static class ThreatModel
     /// <summary>A raid party is three tenths of a settlement's fighters, at least four (13 §5.2 under Raid posture).</summary>
     public static readonly Fix64 RaidPartyShare = Fix64.FromRatio(3, 10);
     public const int MinimumParty = 4;
+    /// <summary>The minimum fighter estimate that can support a raid party of four while leaving four home.</summary>
+    public const int MinimumRaidPartyFighters = MinimumParty * 2;
     /// <summary>A warrior fights at ×1.3 (13 §7.1).</summary>
     public static readonly Fix64 WarriorTraining = Fix64.FromRatio(13, 10);
     /// <summary>Settlement of unknown make-up: half its people fight, at the non-warrior defender's 0.6.</summary>

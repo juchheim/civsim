@@ -58,10 +58,21 @@ public sealed partial class Strategist : IStrategist
     public GrandPlan Plan => _plan;
     /// <summary>Enables selector/order explanation rows for the opt-in B28 harness trace only.</summary>
     public bool TraceBronzeDefenseForDiagnostics { get; set; }
+    public bool ProactiveBronzeDefenseForDiagnostics { get; set; }
+    /// <summary>Reports a public-E3 defense target counterfactual without issuing orders.</summary>
+    public bool ShadowPublicEraDefenseForDiagnostics { get; set; }
+    private string? _lastPublicEraDefenseShadow;
+    private int _lastPublicEraDefenseShadowSeason = int.MinValue;
+    private int _publicEraDefenseShadowRows;
     /// <summary>Harness-only observer for the campaign options the Strategist already evaluates; never read by policy.</summary>
     internal Action<CampaignEvaluationDiagnostic>? CampaignEvaluationObserverForDiagnostics { get; set; }
     /// <summary>Harness-only output observer called after this season's plan and target are selected.</summary>
     internal Action<int, int, GrandPlan, int>? CampaignPlanObserverForDiagnostics { get; set; }
+    /// <summary>Harness-only plan-score snapshot; its null default keeps normal decisions and random state untouched.</summary>
+    internal Action<CampaignPlanEvaluationDiagnostic>? CampaignPlanEvaluationObserverForDiagnostics { get; set; }
+    /// <summary>Harness-only observer for the existing raid evaluation; it does not affect the decision.</summary>
+    internal Action<RaidDecisionDiagnostic>? RaidDecisionObserverForDiagnostics { get; set; }
+
 
     public void Decide(AiContext context) => Decide(StrategistView.From(context), new OrdersActions(context.Orders));
 
@@ -77,7 +88,7 @@ public sealed partial class Strategist : IStrategist
         ReadRivals(v, s);
         s.Frontier = FrontierValue(v);
         ReadLeader(v, s);
-        ReadWarOptions(v, s);
+        ReadWarOptions(v, s, act);
         s.SecureTinValue = SecureTinPlanValue(v);
         ChoosePlan(v, s);
         CampaignPlanObserverForDiagnostics?.Invoke(v.Civ, v.Season, _plan, _planTarget);
@@ -96,21 +107,77 @@ public sealed partial class Strategist : IStrategist
 
     private void PrioritizeBronzeDefense(StrategistView v, IStrategistActions act)
     {
-        int settlement = BronzeDefensePolicy.SelectSettlement(v.Civ, v.Season, v.Belief.Map.Width,
-            v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals,
-            v.Catalog.IndexOf("MET-04"), v.Catalog.IndexOf("MET-05"));
-        if (settlement >= 0)
+        if (ShadowPublicEraDefenseForDiagnostics)
         {
-            string refusalDetails = TraceBronzeDefenseForDiagnostics
-                ? act.DescribePrioritizePhysicalDefenseBuild(settlement)
-                : string.Empty;
-            bool accepted = act.PrioritizePhysicalDefenseBuild(settlement);
-            if (accepted) v.Note("DefenseBuild", settlement, -1, Fix64.One, "physical defense priority from believed bronze threat");
-            if (TraceBronzeDefenseForDiagnostics)
-                v.Note("B28DefenseAttempt", settlement, accepted ? 1 : 0, Fix64.One,
-                    $"selector=target:s{settlement}; order={(accepted ? "accepted" : "rejected")}; {refusalDetails}");
+            int publicE3Rivals = 0;
+            foreach (RivalBelief rival in v.Belief.Rivals)
+                if (rival.Civ != v.Civ && rival.Contacted && rival.Era >= 3) publicE3Rivals++;
+            if (publicE3Rivals > 0)
+            {
+                bool found = BronzeDefensePolicy.TrySelectPublicEraShadowTarget(v.Civ, v.Season,
+                    v.Belief.Map.Width, v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals, out var shadow);
+                int live = BronzeDefensePolicy.SelectSettlement(v.Civ, v.Season, v.Belief.Map.Width,
+                    v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals,
+                    v.Catalog.IndexOf("MET-04"), v.Catalog.IndexOf("MET-05"));
+                string readiness = found ? act.DescribePrioritizePhysicalDefenseBuild(shadow.Settlement) : "no-target";
+                bool queueWouldAccept = readiness.Contains("order refusal=none-order-should-accept", StringComparison.Ordinal);
+                string woodGap = found ? PublicEraDefenseWoodGap(readiness) : "n/a";
+                string signature = $"rivals={publicE3Rivals};target={shadow.Settlement};rival={shadow.Rival};site={shadow.Site};" +
+                    $"distance={shadow.Distance};live={live};queue={queueWouldAccept};";
+                if (_publicEraDefenseShadowRows < 96 &&
+                    (signature != _lastPublicEraDefenseShadow || v.Season - _lastPublicEraDefenseShadowSeason >= 8))
+                {
+                    _lastPublicEraDefenseShadow = signature;
+                    _lastPublicEraDefenseShadowSeason = v.Season;
+                    _publicEraDefenseShadowRows++;
+                    v.Note("B28PublicEraShadow", found ? shadow.Settlement : -1, found ? shadow.Rival : -1,
+                        found ? shadow.ThreatProbability : Fix64.Zero,
+                        $"publicE3EligibleRivals={publicE3Rivals} target={(found ? $"s{shadow.Settlement}" : "none")} " +
+                        $"rival={(found ? $"c{shadow.Rival}" : "none")} freshSite={(found ? $"s{shadow.Site}/age{shadow.SiteAge}" : "none")} " +
+                        $"distance={(found ? shadow.Distance : -1)} threat={(found ? shadow.ThreatProbability.ToDoubleForDisplay() : 0):F3} " +
+                        $"liveSelector={(live < 0 ? "none" : $"s{live}")} queueWouldAccept={queueWouldAccept} woodGap={woodGap} " +
+                        $"order=shadow-only {readiness}");
+                }
+            }
+        }
+        if (ProactiveBronzeDefenseForDiagnostics)
+        {
+            int[] hedge = BronzeDefensePolicy.SelectHedgeSettlements(v.Civ, v.Season, v.Belief.Map.Width,
+                v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals,
+                v.Catalog.IndexOf("MET-04"), v.Catalog.IndexOf("MET-05"));
+            foreach (int target in hedge)
+            {
+                string refusalDetails = TraceBronzeDefenseForDiagnostics
+                    ? act.DescribePrioritizePhysicalDefenseBuild(target)
+                    : string.Empty;
+                bool accepted = act.PrioritizePhysicalDefenseBuild(target, proactiveDiagnostic: true);
+                if (accepted) v.Note("DefenseBuild", target, -1, Fix64.One,
+                    "physical defense hedge from believed bronze technology");
+                if (TraceBronzeDefenseForDiagnostics)
+                    v.Note("B28DefenseAttempt", target, accepted ? 1 : 0, Fix64.One,
+                        $"selector=hedge:[{string.Join(',', hedge)}]; target:s{target}; order={(accepted ? "accepted" : "rejected")}; {refusalDetails}");
+            }
             return;
         }
+
+        BronzeDefensePolicy.PreparationTarget[] targets = BronzeDefensePolicy.SelectPreparationTargets(v.Civ, v.Season, v.Belief.Map.Width,
+            v.Own.ReachTiles, v.Own.Settlements, v.Belief.Rivals,
+            v.Catalog.IndexOf("MET-04"), v.Catalog.IndexOf("MET-05"));
+        foreach (BronzeDefensePolicy.PreparationTarget target in targets)
+        {
+            string refusalDetails = TraceBronzeDefenseForDiagnostics
+                ? act.DescribePrioritizePhysicalDefenseBuild(target.Settlement)
+                : string.Empty;
+            bool accepted = act.PreparePhysicalDefenseBuild(target.Settlement, target.Urgent);
+            if (accepted) v.Note("DefenseBuild", target.Settlement, -1, Fix64.One,
+                target.Urgent ? "urgent physical defense preparation from high-confidence exposure"
+                    : "early physical defense hedge from contacted era-one or era-two rival");
+            if (TraceBronzeDefenseForDiagnostics)
+                v.Note("B28DefenseAttempt", target.Settlement, accepted ? 1 : 0, Fix64.One,
+                    $"selector=preparation-target:s{target.Settlement}; urgent={target.Urgent}; " +
+                    $"order={(accepted ? "accepted" : "rejected")}; {refusalDetails}");
+        }
+        if (targets.Length > 0) return;
         if (!TraceBronzeDefenseForDiagnostics) return;
         int met04 = v.Catalog.IndexOf("MET-04"), met05 = v.Catalog.IndexOf("MET-05");
         foreach (RivalBelief rival in v.Belief.Rivals)
@@ -123,6 +190,30 @@ public sealed partial class Strategist : IStrategist
                 $"threat={rival.ThreatProbability.ToDoubleForDisplay():F3} recentRaid={recentRaid}");
             break;
         }
+    }
+
+    internal static string PublicEraDefenseWoodGap(string readiness)
+    {
+        string woodText = PublicEraDefenseField(readiness, "wood=");
+        int structureStart = readiness.IndexOf("palisade[", StringComparison.Ordinal);
+        if (structureStart < 0) return "n/a";
+        int requiredStart = readiness.IndexOf("requiredWood=", structureStart, StringComparison.Ordinal);
+        if (requiredStart < 0) return "n/a";
+        requiredStart += "requiredWood=".Length;
+        int requiredEnd = readiness.IndexOfAny(new[] { ',', ']', ' ' }, requiredStart);
+        string requiredText = readiness[requiredStart..(requiredEnd < 0 ? readiness.Length : requiredEnd)];
+        if (!double.TryParse(woodText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double wood) ||
+            !double.TryParse(requiredText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double required)) return "n/a";
+        return Math.Max(0, required - wood).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string PublicEraDefenseField(string text, string marker)
+    {
+        int start = text.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return string.Empty;
+        start += marker.Length;
+        int end = text.IndexOfAny(new[] { ' ', ',', ']' }, start);
+        return text[start..(end < 0 ? text.Length : end)];
     }
 
     // ---- set-up ---------------------------------------------------------------------------
@@ -221,7 +312,8 @@ public sealed partial class Strategist : IStrategist
         target[(int)GrandPlan.FrontierRace] = -1;
         value[(int)GrandPlan.Prosper] = StrategistTuning.ProsperWeight * (Fix64.One - s.Frontier);
         target[(int)GrandPlan.Prosper] = -1;
-        value[(int)GrandPlan.Defend] = StrategistTuning.DefendWeight * s.Urgency;
+        Fix64 rawDefendValue = StrategistTuning.DefendWeight * s.Urgency;
+        value[(int)GrandPlan.Defend] = rawDefendValue;
         target[(int)GrandPlan.Defend] = s.TopThreatCiv;
         WarOption? best = s.BestWar;
         value[(int)GrandPlan.Conquer] = Fix64.Zero;
@@ -309,6 +401,23 @@ public sealed partial class Strategist : IStrategist
         else if (best is { } b && b.Ratio > Fix64.Zero && b.Window > Fix64.Zero) readiness = Fix64.FromRatio(4, 10);
         else if (_raidStreak > 0) readiness = Fix64.FromRatio(35, 100);
         intent.AttackReadiness = Fix64.Clamp(readiness, Fix64.Zero, Fix64.One);
+
+        if (CampaignPlanEvaluationObserverForDiagnostics is { } planObserver)
+        {
+            int bestNonDefend = -1, zeroUrgencyPlan = -1;
+            Fix64 bestNonDefendValue = Fix64.MinValue, zeroUrgencyBestValue = Fix64.MinValue;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (i != (int)GrandPlan.Defend && value[i] > bestNonDefendValue)
+                { bestNonDefend = i; bestNonDefendValue = value[i]; }
+                Fix64 shadowValue = i == (int)GrandPlan.Defend ? Fix64.Zero : value[i];
+                if (shadowValue > zeroUrgencyBestValue)
+                { zeroUrgencyPlan = i; zeroUrgencyBestValue = shadowValue; }
+            }
+            planObserver(new CampaignPlanEvaluationDiagnostic(v.Civ, v.Season, v.Own.Era, s.Frontier,
+                s.Urgency, rawDefendValue, (GrandPlan)bestNonDefend, bestNonDefendValue,
+                _plan, v.Season - _planSince, (GrandPlan)zeroUrgencyPlan));
+        }
     }
 
     internal static Fix64 ApplyFrontierConquestPlanFloorForDiagnostics(bool enabled, bool started,

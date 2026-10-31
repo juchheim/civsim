@@ -20,7 +20,7 @@ public sealed partial class Strategist
     /// a Monte Carlo of the assault and occupation hold against
     /// relief, and the war's value in Legacy over the horizon, less its casualties and reputation cost.
     /// </summary>
-    private void ReadWarOptions(StrategistView v, SeasonRead s)
+    private void ReadWarOptions(StrategistView v, SeasonRead s, IStrategistActions act)
     {
         int width = v.Belief.Map.Width;
         int trials = StrategistTuning.Trials(v.Profile);
@@ -40,8 +40,8 @@ public sealed partial class Strategist
             if (!read.Contacted || p.Allied)
             {
                 CampaignEvaluationObserverForDiagnostics?.Invoke(new CampaignEvaluationDiagnostic(v.Civ, o, v.Season,
-                    -1, -1, -1, 0, 0, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, false, false, false,
-                    p.Allied ? "not-evaluated: rival allied" : "not-evaluated: no contact"));
+                    -1, -1, -1, -1, 0, 0, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, false, false, false,
+                    p.Allied ? "not-evaluated: rival allied" : "not-evaluated: no contact", "globalForce=not-evaluated"));
                 continue;
             }
             WarOption? best = null;
@@ -50,13 +50,15 @@ public sealed partial class Strategist
                 ? null : new List<WarOption>(warTargets.Count);
             if (warTargets.Count == 0)
                 CampaignEvaluationObserverForDiagnostics?.Invoke(new CampaignEvaluationDiagnostic(v.Civ, o, v.Season,
-                    -1, -1, -1, 0, 0, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, false, false, false,
-                    "not-evaluated: no fresh known campaign target"));
+                    -1, -1, -1, -1, 0, 0, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, false, false, false,
+                    "not-evaluated: no fresh known campaign target", "globalForce=not-evaluated"));
             foreach (Site site in warTargets)
             {
                 WarOption option = EvaluateAssault(v, s, read, m, site, width, trials, landPerSettlement, ownAvgPop);
                 option.TacticallyViable = option.Feasible;
                 ApplyLaunchBlockers(v, s, read, option, width);
+                if (CampaignEvaluationObserverForDiagnostics is not null)
+                    option.GlobalForceDiagnostic = FormatGlobalForceUpperBound(v, read, option, width);
                 diagnosticOptions?.Add(option);
                 if (best is null || (option.Feasible && !best.Feasible) ||
                     (option.Feasible == best.Feasible && option.TacticallyViable && !best.TacticallyViable) ||
@@ -66,9 +68,10 @@ public sealed partial class Strategist
             if (diagnosticOptions is not null)
                 foreach (WarOption option in diagnosticOptions)
                     CampaignEvaluationObserverForDiagnostics!(new CampaignEvaluationDiagnostic(v.Civ, o, v.Season,
-                        option.Settlement, option.Tile, option.OriginSettlement, option.Attackers,
+                        option.Settlement, option.Tile, option.OriginSettlement, option.AlternateOriginSettlement, option.Attackers,
                         option.AlternateOriginAttackers, option.Ratio, option.Required, option.CaptureChance,
-                        option.Value, option.TacticallyViable, option.Feasible, ReferenceEquals(option, best), option.Why));
+                        option.Value, option.TacticallyViable, option.Feasible, ReferenceEquals(option, best), option.Why,
+                        option.GlobalForceDiagnostic));
             if (best is null) continue;
             // Windows: strike before the rival's walls arrive, or while it is in distress (14 §6.2).
             RivalBelief r = v.Belief.Rivals[o];
@@ -116,7 +119,8 @@ public sealed partial class Strategist
         return selected;
     }
 
-    private void ApplyLaunchBlockers(StrategistView v, SeasonRead s, RivalRead read, WarOption option, int width)
+    private void ApplyLaunchBlockers(StrategistView v, SeasonRead s, RivalRead read, WarOption option, int width,
+        IReadOnlyList<SettlementDeparture>? departureOverride = null)
     {
         if (!option.Feasible) return;
         PairView pair = v.Own.Others[read.Civ];
@@ -136,7 +140,7 @@ public sealed partial class Strategist
                 return;
             }
         // Evaluate the counterattack against the home army left by this exact target's proposed campaign.
-        IReadOnlyList<SettlementDeparture> departures = CampaignDepartures(v, option.Tile, width);
+        IReadOnlyList<SettlementDeparture> departures = departureOverride ?? CampaignDepartures(v, option.Tile, width);
         (Fix64 reply, OwnSettlement? exposed) = CounterThreat(v, read, width, departures, option.Settlement);
         if (exposed is not null)
         {
@@ -174,6 +178,44 @@ public sealed partial class Strategist
         return departures;
     }
 
+    private string FormatGlobalForceUpperBound(StrategistView v, RivalRead read, WarOption option, int width)
+    {
+        if (option.OriginSettlement < 0)
+            return "globalForce=unavailable";
+        OwnSettlement? origin = v.Own.SettlementAt(option.OriginSettlement);
+        if (origin is null) return "globalForce=unavailable";
+
+        int globalAttackers = 0, outsideAttackers = 0;
+        Fix64 globalForce = Fix64.Zero, outsideForce = Fix64.Zero;
+        var departures = new List<SettlementDeparture>(v.Own.Settlements.Count);
+        foreach (OwnSettlement settlement in v.Own.Settlements)
+        {
+            if (settlement.Fighters <= 0) continue;
+            int allowed = Math.Max(0, Math.Min(settlement.Fighters - PoliticsSystem.CampaignHomeReserve,
+                settlement.Fighters * 6 / 10));
+            if (allowed <= 0) continue;
+            Fix64 perFighter = settlement.AttackingStrength / settlement.Fighters * StrategistTuning.PartyPickBonus;
+            Fix64 settlementForce = perFighter * allowed;
+            globalAttackers += allowed;
+            globalForce += settlementForce;
+            if (HexGrid.Distance(settlement.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange)
+            {
+                outsideAttackers += allowed;
+                outsideForce += settlementForce;
+            }
+            departures.Add(new SettlementDeparture(settlement.Index, allowed));
+        }
+
+        Fix64 globalRatio = option.BelievedDefense > Fix64.Zero
+            ? globalForce / option.BelievedDefense : Fix64.FromInt(10);
+        (Fix64 counterArmy, OwnSettlement? exposed) = CounterThreat(v, read, width, departures, option.Settlement);
+        string exposure = exposed is null ? "none" : $"s{exposed.Index}";
+        return $"globalForceUpperBound=attackers:{globalAttackers};force:{F2(globalForce)};" +
+            $"outsideGather:{outsideAttackers}/{F2(outsideForce)};ratio:{F2(globalRatio)}/{F2(option.Required)};" +
+            $"sameBelievedDefense:{F2(option.BelievedDefense)};counterExposureBlocked:{exposed is not null};" +
+            $"counterExposureSite:{exposure};counterArmy:{F1(counterArmy)}";
+    }
+
     private static List<SettlementDeparture> RaidDepartures(OwnSettlement origin, int partySize)
     {
         int leaving = Math.Min(Math.Max(0, origin.Fighters - 4), Math.Max(0, partySize));
@@ -182,7 +224,7 @@ public sealed partial class Strategist
         return departures;
     }
 
-    private readonly record struct SettlementDeparture(int Settlement, int Fighters);
+    internal readonly record struct SettlementDeparture(int Settlement, int Fighters);
 
     private OwnSettlement? BestCampaignOrigin(StrategistView v, int targetTile, int width)
     {
@@ -272,7 +314,8 @@ public sealed partial class Strategist
     }
 
     private WarOption EvaluateAssault(StrategistView v, SeasonRead s, RivalRead read, RivalMemory m, Site site, int width, int trials,
-        Fix64 landPerSettlement, int ownAvgPop)
+        Fix64 landPerSettlement, int ownAvgPop, IReadOnlyList<Fighter>? hostOverride = null,
+        IReadOnlyList<SettlementDeparture>? departureOverride = null)
     {
         bool stoneWalls = StoneWallsSeen(v, read.Civ, site.Settlement);
         var option = new WarOption { Civ = read.Civ, Settlement = site.Settlement, Tile = site.Tile, Palisade = site.Defenses.Palisade };
@@ -283,21 +326,31 @@ public sealed partial class Strategist
         if (origin is null) { option.Why = "no settlement to march from"; return option; }
         option.OriginSettlement = origin.Index;
         option.Travel = HexGrid.Distance(origin.Tile, site.Tile, width);
+        int seasons = Math.Max(1, (option.Travel + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
+        Fix64 growth = Fix64.One;
+        if (m.FieldTrend > Fix64.Zero && read.Field > Fix64.Zero) growth += m.FieldTrend * seasons / read.Field;
+        Fix64 believedDefense = site.DefendStrength * site.Defenses.Multiplier() * growth;
+        option.BelievedDefense = believedDefense;
 
         // The field army: up to 60% of the fighters of every own settlement within the campaign gather radius, strongest first.
         _a.Clear();
         Fix64 force = Fix64.Zero;
-        foreach (OwnSettlement o in v.Own.Settlements)
+        if (hostOverride is not null)
         {
-            if (HexGrid.Distance(o.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange || o.Fighters <= 0) continue;
-            int allowed = Math.Max(0, Math.Min(o.Fighters - PoliticsSystem.CampaignHomeReserve, o.Fighters * 6 / 10));
-            Fix64 each = o.AttackingStrength / o.Fighters * StrategistTuning.PartyPickBonus;
-            for (int i = 0; i < allowed; i++) { _a.Add(new Fighter(2_000_000 + _a.Count, each)); force += each; }
+            foreach (Fighter fighter in hostOverride) { _a.Add(fighter); force += fighter.Strength; }
         }
+        else
+            foreach (OwnSettlement o in v.Own.Settlements)
+            {
+                if (HexGrid.Distance(o.Tile, origin.Tile, width) > StrategistTuning.ArmyGatherRange || o.Fighters <= 0) continue;
+                int allowed = Math.Max(0, Math.Min(o.Fighters - PoliticsSystem.CampaignHomeReserve, o.Fighters * 6 / 10));
+                Fix64 each = o.AttackingStrength / o.Fighters * StrategistTuning.PartyPickBonus;
+                for (int i = 0; i < allowed; i++) { _a.Add(new Fighter(2_000_000 + _a.Count, each)); force += each; }
+            }
         option.Attackers = _a.Count;
         if (_a.Count < PoliticsSystem.CampaignMinimumAttackers)
         {
-            option.AlternateOriginAttackers = MaxAlternateOriginAttackers(v, width, origin.Index);
+            (option.AlternateOriginAttackers, option.AlternateOriginSettlement) = MaxAlternateOriginAttackers(v, width, origin.Index);
             option.Why = $"army of {_a.Count} too small to launch a campaign (need {PoliticsSystem.CampaignMinimumAttackers}; {Captures.MinHolders} holders must remain after battle); " +
                          $"best alternate rally origin yields {option.AlternateOriginAttackers} attackers";
             return option;
@@ -312,12 +365,8 @@ public sealed partial class Strategist
             return EvaluateInvestment(v, s, read, site, origin, option, force, width, landPerSettlement);
 
         // Nearby settlements do not join the initial assault defense; their relief forces fight during occupation below.
-        Fix64 defense = site.DefendStrength * site.Defenses.Multiplier();
         // Projected at arrival: the rival's believed growth over the march (14 §6.2).
-        int seasons = Math.Max(1, (option.Travel + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
-        Fix64 growth = Fix64.One;
-        if (m.FieldTrend > Fix64.Zero && read.Field > Fix64.Zero) growth += m.FieldTrend * seasons / read.Field;
-        option.Ratio = defense > Fix64.Zero ? force / (defense * growth) : Fix64.FromInt(10);
+        option.Ratio = believedDefense > Fix64.Zero ? force / believedDefense : Fix64.FromInt(10);
         if (option.Ratio < option.Required * Fix64.FromRatio(9, 10))
         {
             option.Why = $"force ratio {F2(option.Ratio)} < {F2(option.Required)}{(option.Palisade ? " (palisade)" : "")}";
@@ -387,9 +436,10 @@ public sealed partial class Strategist
     }
 
     /// <summary>Maximum radius-limited force from another runtime-eligible rally settlement; diagnostic only.</summary>
-    private static int MaxAlternateOriginAttackers(StrategistView v, int width, int selectedOrigin)
+    private static (int Attackers, int Settlement) MaxAlternateOriginAttackers(StrategistView v, int width, int selectedOrigin)
     {
         int maximum = 0;
+        int bestSettlement = -1;
         foreach (OwnSettlement candidate in v.Own.Settlements)
         {
             if (candidate.Index == selectedOrigin || candidate.Adults < 8) continue;
@@ -400,9 +450,9 @@ public sealed partial class Strategist
                 attackers += Math.Max(0, Math.Min(contributor.Fighters - PoliticsSystem.CampaignHomeReserve,
                     contributor.Fighters * 6 / 10));
             }
-            if (attackers > maximum) maximum = attackers;
+            if (attackers > maximum) { maximum = attackers; bestSettlement = candidate.Index; }
         }
-        return maximum;
+        return (maximum, bestSettlement);
     }
 
     private static bool StoneWallsSeen(StrategistView v, int civ, int settlement)
@@ -419,6 +469,7 @@ public sealed partial class Strategist
         option.LandsSeason = (v.Season + seasons - 1) % 4;
         option.OriginWinter = origin.LateWinterForecast;
         Fix64 defenders = site.DefendStrength * Fix64.FromRatio(11, 10); // home ground; wall multiplier excluded
+        option.BelievedDefense = defenders;
         option.Required = Fix64.FromRatio(15, 10); // margin over the 1.2× hard investment gate
         option.Ratio = defenders > Fix64.Zero ? force / defenders : Fix64.FromInt(10);
 

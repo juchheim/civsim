@@ -38,6 +38,34 @@ public class MatchModelTests
     }
 
     [Fact]
+    public void Exact_age_band_food_need_sums_to_the_model_need()
+    {
+        MatchModel match = NewMatch();
+        for (int settlement = 0; settlement < match.Economy.SettlementCount; settlement++)
+        foreach (bool winter in new[] { false, true })
+        {
+            Fix64 sum = Fix64.Zero;
+            foreach (Fix64 bandNeed in match.Economy.FoodNeedByExactAgeBand(settlement, winter)) sum += bandNeed;
+            Assert.Equal(match.Economy.FoodNeedForSeason(settlement, winter), sum);
+        }
+    }
+
+    [Fact]
+    public void A5_builder_fertility_diagnostic_changes_only_builder_fertility()
+    {
+        MatchModel match = NewMatch();
+        Assert.Equal(Fix64.Parse("1.3"), match.Economy.FixtureFertilityMultiplier(0));
+        Assert.Equal(Fix64.Parse("1.1"), match.Economy.FixtureFertilityMultiplier(1));
+
+        match.Economy.BuilderFertilityMultiplierForDiagnostics = Fix64.One;
+
+        Assert.Equal(Fix64.Parse("1.3"), match.Economy.FixtureFertilityMultiplier(0));
+        Assert.Equal(Fix64.One, match.Economy.FixtureFertilityMultiplier(1));
+        Assert.Equal(Fix64.Parse("0.95"), match.Economy.FixtureFertilityMultiplier(2));
+        Assert.Equal(Fix64.One, match.Economy.FixtureFertilityMultiplier(3));
+    }
+
+    [Fact]
     public void All_four_chieftain_ai_seats_keep_council_research_fallback_enabled()
     {
         var balanced = new[]

@@ -150,9 +150,16 @@ public sealed class Expedition
     public int EscortCount;
     /// <summary>Tiles an explorer has seen and will report on its return (sorted).</summary>
     public readonly List<int> Revealed = new();
+    /// <summary>The target warned about this ordinary settlement raid, else -1.</summary>
+    public int WarnedTargetCiv = -1;
+    /// <summary>The settlement warned about for this ordinary raid, else -1.</summary>
+    public int WarnedTargetSettlement = -1;
+    /// <summary>The season the warning was visible, else -1.</summary>
+    public int WarningSeason = -1;
 
     internal bool HasBronzeFields => Id >= 0 || TargetTile >= 0 || TargetParty >= 0 || TargetCampId >= 0 || Good != TradeGood.None || Cargo != Fix64.Zero ||
-                                     CompactId >= 0 || FolkSeller >= 0 || EscortCount > 0 || Revealed.Count > 0;
+                                     CompactId >= 0 || FolkSeller >= 0 || EscortCount > 0 || Revealed.Count > 0 ||
+                                     WarnedTargetCiv >= 0 || WarnedTargetSettlement >= 0 || WarningSeason >= 0;
 }
 
 /// <summary>Attackers holding a taken settlement tile until it is theirs (docs/MVP/13 §8.2).</summary>
@@ -174,6 +181,10 @@ public sealed class Occupation
 /// </summary>
 public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus
 {
+    /// <summary>Optional output-only callback for resolved Found donor/child IDs; never consulted by simulation rules.</summary>
+    internal Action<int, int, int>? FoundResolvedObserverForDiagnostics { get; set; }
+    /// <summary>Optional output-only observer for combat casualties; never consulted by simulation rules.</summary>
+    internal Action<FigureView, string, bool, int>? CombatCasualtyObserverForDiagnostics { get; set; }
     private static readonly ulong ContactStream = Hash64.OfString("politics.contact");
     private static readonly ulong SkirmishStream = Hash64.OfString("politics.skirmish");
     private static readonly ulong RaidStream = Hash64.OfString("politics.raid");
@@ -454,6 +465,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 case CommandKind.RecallParty:
                     OrderRecallCommand(civ, command.A, command);
                     break;
+                case CommandKind.SetRaidResponse:
+                    ApplyRaidResponseCommand(command);
+                    break;
                 case CommandKind.IssueDecree:
                     QueueDecreeCommand(command);
                     break;
@@ -563,6 +577,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     {
         _tick = tick;
         _season = checked((int)_economy.SeasonsCompleted);
+        ApplyPendingRaidResponses();
         RefreshSettlements();
         TakeSecessions();
         SpawnTinFolk();
@@ -574,6 +589,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             _dip.YearlyDrift();
         }
         DetectContacts();
+        RecordVisibleRaidWarningsForActiveWithdrawals();
         ResolveExpeditions();
         AdvanceInvestments();
         AdvanceOccupations();
@@ -1672,18 +1688,32 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         if (partyA.Count == 0 || partyB.Count == 0) return;
         var setup = new BattleSetup(Fix64.One, Fix64.One, false, Fix64.FromRatio(4, 10), Fix64.FromRatio(4, 10), 6, false);
         BattleResult r = Combat.Fight(partyA, partyB, setup, _seed, SkirmishStream ^ (ulong)(a * 16 + b) ^ (ulong)_season);
-        ApplyCasualties(r.AttackerDead, r.AttackerWounded);
-        ApplyCasualties(r.DefenderDead, r.DefenderWounded);
+        ApplyCasualties(r.AttackerDead, r.AttackerWounded, "skirmish");
+        ApplyCasualties(r.DefenderDead, r.DefenderWounded, "skirmish");
         Skirmishes++;
         int hurtA = r.AttackerDead.Count + r.AttackerWounded.Count, hurtB = r.DefenderDead.Count + r.DefenderWounded.Count;
         _events.Add(new PoliticsEvent(_tick, (byte)a, PoliticsEventKind.Skirmish, b, hurtA, hurtB));
         _events.Add(new PoliticsEvent(_tick, (byte)b, PoliticsEventKind.Skirmish, a, hurtB, hurtA));
     }
 
-    private void ApplyCasualties(List<long> dead, List<long> wounded)
+    private void ApplyCasualties(List<long> dead, List<long> wounded, string conflictKind)
     {
-        foreach (long id in dead) _economy.KillFigure(id);
-        foreach (long id in wounded) _economy.WoundFigure(id, 2);
+        Action<FigureView, string, bool, int>? observer = CombatCasualtyObserverForDiagnostics;
+        if (observer is null)
+        {
+            foreach (long id in dead) _economy.KillFigure(id);
+            foreach (long id in wounded) _economy.WoundFigure(id, 2);
+            return;
+        }
+        foreach (long id in dead)
+            if (_economy.TryFigure(id, out FigureView figure) && _economy.KillFigure(id))
+                observer(figure, conflictKind, true, _season);
+        foreach (long id in wounded)
+            if (_economy.TryFigure(id, out FigureView figure))
+            {
+                _economy.WoundFigure(id, 2);
+                observer(figure, conflictKind, false, _season);
+            }
     }
 
     // ---- shared helpers -------------------------------------------------------------------
@@ -1931,6 +1961,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         h.Add(RaidCount); h.Add(RaidsSucceeded); h.Add(Gifts); h.Add(BarterTrips); h.Add(CaptureCount); h.Add(Skirmishes); h.Add(Wars);
         HashBronze(ref h);
         HashScoutSimulation(ref h);
+        HashRaidResponses(ref h);
     }
 
     public void WriteSnapshot(BinaryWriter w)
@@ -1971,6 +2002,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         w.Write(RaidCount); w.Write(RaidsSucceeded); w.Write(Gifts); w.Write(BarterTrips); w.Write(CaptureCount); w.Write(Skirmishes); w.Write(Wars);
         WriteBronze(w);
         WriteScoutSimulation(w);
+        WriteRaidResponses(w);
     }
 
     public void ReadSnapshot(BinaryReader r)
@@ -2026,6 +2058,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         CaptureCount = r.ReadInt32(); Skirmishes = r.ReadInt32(); Wars = r.ReadInt32();
         ReadBronze(r);
         ReadScoutSimulation(r);
+        ReadRaidResponses(r);
         _events.Clear();
         RefreshSettlements();
         ApplyEconomyInputs();

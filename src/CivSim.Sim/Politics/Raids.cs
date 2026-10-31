@@ -48,6 +48,9 @@ public sealed class RaidOutcome
 {
     public bool Success { get; init; }
     public bool Surprised { get; init; }
+    /// <summary>The surprise-probability draw before a prepared withdrawal can override it.</summary>
+    public bool SurpriseRoll { get; init; }
+    public bool Withdrew { get; init; }
     public BattleResult Battle { get; init; } = new();
     /// <summary>Rations of goods the surviving, unwounded raiders can carry away (zero on failure).</summary>
     public Fix64 LootCapacity { get; init; }
@@ -93,10 +96,27 @@ public static class Raids
     public static readonly Fix64 DeliveredLootShare = Fix64.FromRatio(8, 10);
 
     public static RaidOutcome Resolve(IReadOnlyList<Fighter> raiders, IReadOnlyList<Fighter> defenders, in Defenses defenses,
-        bool raiderRanged, ulong seed, ulong stream)
+        bool raiderRanged, ulong seed, ulong stream, bool withdrawIfAlerted = false, bool preparedWithdrawal = false)
     {
         Pcg32 rng = Pcg32.ForStream(seed, stream, 1, 0);
         bool surprised = rng.NextFix01() < SurpriseChance(defenses);
+
+        // Withdrawal is a response to an alerted ordinary settlement raid. A visibly warned party can still be
+        // withdrawn if the surprise roll would otherwise catch the settlement unready. Keep the draw first so this
+        // exception does not shift any deterministic random streams. A withdrawal has no combat rounds and therefore
+        // receives the single structure-burning roll specified for that case.
+        if (withdrawIfAlerted && (!surprised || preparedWithdrawal))
+        {
+            int withdrawalBurn = rng.NextBelow(2) == 0 ? 1 : 0;
+            return new RaidOutcome
+            {
+                Success = true, Surprised = false, SurpriseRoll = surprised, Withdrew = true,
+                Battle = new BattleResult { Winner = BattleWinner.Attacker, AttackerSurvivors = raiders.Count,
+                    DefenderSurvivors = defenders.Count },
+                LootCapacity = CarryPerRaider * raiders.Count * defenses.LootMultiplier(),
+                StructuresBurned = withdrawalBurn,
+            };
+        }
 
         // Only the defenders who reach the fight count; picked by lot so no one is always the one at home.
         Fix64 share = MobilizedShare(surprised);
@@ -119,6 +139,7 @@ public static class Raids
         {
             Success = success,
             Surprised = surprised,
+            SurpriseRoll = surprised,
             Battle = battle,
             LootCapacity = success ? CarryPerRaider * carriers * defenses.LootMultiplier() : Fix64.Zero,
             StructuresBurned = Math.Min(burned, 3),

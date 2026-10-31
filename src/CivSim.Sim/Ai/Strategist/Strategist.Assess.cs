@@ -162,6 +162,10 @@ public sealed partial class Strategist
         foreach (Site site in read.Sites)
             if (site.Fighters > theirFighters) { theirFighters = site.Fighters; originTile = site.Tile; perAttack = site.PerAttack; }
         if (read.Sites.Count == 0 && r.PopulationHigh > 0) theirFighters = r.PopulationHigh * 3 / 10;
+        else if (read.Sites.Count == 0 && v.Season - p.LastRaidOnUsSeason is >= 0 and <= StrategistTuning.RecentRaidSeasons)
+            // A public raid proves at least the four-person minimum party even when its origin is still unseen.
+            // Model that lower bound so a fogged raider cannot become a zero-threat rival after it has attacked.
+            theirFighters = ThreatModel.MinimumRaidPartyFighters;
         int party = Math.Min(Math.Max(4, (Fix64.FromInt(theirFighters) * StrategistTuning.ThreatPartyShare).FloorToInt() + 1), theirFighters - 4);
         if (party < 4 || v.Own.Settlements.Count == 0) return;
 

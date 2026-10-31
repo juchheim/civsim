@@ -283,7 +283,7 @@ public static class DecreeForecaster
         => FoundOwnCheck(pol, civ, tile, belief, donorProtectionCache: null, out people);
 
     internal static OrderRefusalReason FoundOwnCheck(PoliticsSystem pol, int civ, int tile, Belief? belief,
-        byte[]? donorProtectionCache, out int people)
+        byte[]? donorProtectionCache, out int people, bool protectDonor = true)
     {
         people = 0;
         int width = pol.World.Width;
@@ -313,7 +313,7 @@ public static class DecreeForecaster
                 if (d > pol.FoundReach(civ, bySea: false)) continue;
                 inReach = true;
                 if (pol.SettlementPopulationOf(s) < 20 || pol.Economy.SeasonsSinceFission(s) < 4) continue;
-                if (belief is not null && ShouldProtectFoundDonor(pol, s, donorProtectionCache)) continue;
+                if (protectDonor && belief is not null && ShouldProtectFoundDonor(pol, s, donorProtectionCache)) continue;
                 Fix64 fill = pol.Economy.PopulationFill(s);
                 if (fill >= Fix64.FromRatio(6, 10) && fill > bestFill) { bestFill = fill; bestDonor = s; }
             }

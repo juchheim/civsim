@@ -95,6 +95,7 @@ internal static class B29ForecastDiagnostic
                 }
                 MatchModel match = MatchModel.Create(seed, pack, world,
                     new[] { archetype, archetype, archetype, archetype }, controls);
+                EnableReportForecasts(match);
                 var runner = new SimRunner(match);
                 key3 = match.Research.Catalog.IndexOf("KEY-3");
                 key4 = match.Research.Catalog.IndexOf("KEY-4");
@@ -149,6 +150,14 @@ internal static class B29ForecastDiagnostic
                 }
             }
         return (observations, attempts, missingForecasts, censoredForecasts);
+    }
+
+    internal static void EnableReportForecasts(MatchModel match)
+    {
+        if (match.Ai is not { } ai) return;
+        for (int civ = 0; civ < ai.CivCount; civ++)
+            if (ai.SeatOf(civ)?.Spark is ResearchSpark spark)
+                spark.B29ReportForecastEnabledForDiagnostics = true;
     }
 
     internal static bool TryGetKey4Forecast(ForecastResult primary, ForecastResult? reportOnly, out ForecastResult selected)

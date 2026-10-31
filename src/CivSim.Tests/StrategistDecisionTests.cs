@@ -116,13 +116,33 @@ public class StrategistDecisionTests
         scene.Site(1, settlement: 5, tile: T(44, 40), fighters: 20);
         RivalBelief rival = scene.Belief.Rivals[1];
         rival.ProjectBelieved[TestPack.Catalog.IndexOf("MET-04")] = true;
-        rival.ThreatProbability = Fix64.Half;
+        rival.ThreatProbability = Fix64.FromRatio(18, 1000);
 
         (_, ActionRecorder actions) = Decide(scene);
 
         Assert.Contains("defense-build 0", actions.Orders);
         Assert.Contains(scene.Notes("DefenseBuild"), note => note.Subject == 0 &&
-            note.Reason.Contains("believed bronze threat", StringComparison.Ordinal));
+            note.Reason.Contains("urgent physical defense preparation", StringComparison.Ordinal));
+        Assert.Contains((0, true), actions.DefensePreparationCalls);
+    }
+
+    [Fact]
+    public void Starts_physical_defense_preparation_after_contacted_public_era_one()
+    {
+        var scene = new Scene();
+        scene.Site(1, settlement: 5, tile: T(44, 40), fighters: 20);
+        RivalBelief rival = scene.Belief.Rivals[1];
+        Assert.True(rival.Contacted);
+        Assert.Equal(1, rival.Era);
+        Assert.False(rival.ProjectBelieved[TestPack.Catalog.IndexOf("MET-04")]);
+        Assert.False(rival.ProjectBelieved[TestPack.Catalog.IndexOf("MET-05")]);
+
+        (_, ActionRecorder actions) = Decide(scene);
+
+        Assert.Contains("defense-build 0", actions.Orders);
+        Assert.Contains(scene.Notes("DefenseBuild"), note => note.Subject == 0 &&
+            note.Reason.Contains("early physical defense hedge", StringComparison.Ordinal));
+        Assert.Contains((0, false), actions.DefensePreparationCalls);
     }
 
     [Fact]

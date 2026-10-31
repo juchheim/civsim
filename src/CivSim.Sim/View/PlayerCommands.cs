@@ -70,6 +70,8 @@ public static class PlayerCommands
     // ---- settlement labor policies ----
     public static Command SetScoutPolicy(long tick, int civ, int settlement, ScoutPolicy policy)
         => new(tick, (byte)civ, CommandKind.SetScoutPolicy, settlement, (int)policy, 0);
+    public static Command SetRaidResponse(long tick, int civ, int settlement, RaidResponse response)
+        => new(tick, (byte)civ, CommandKind.SetRaidResponse, settlement, (int)response, 0);
 
     public static Command Decree(long tick, int civ, DecreeKind kind, int target, int extra)
         => new(tick, (byte)civ, CommandKind.IssueDecree, (int)kind, target, extra);

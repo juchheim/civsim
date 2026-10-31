@@ -59,7 +59,7 @@ public readonly record struct ForecastBronzeSeason(bool Active, int Season, int 
     Fix64 MeanCohesion, Fix64 MeanOverreach, Fix64 MeanSpanPenalty, int WalledSettlements, int HillfortSettlements,
     int ActiveCompacts, int TinCompacts, bool HasMetalOutputRate, MetalOutputRates MetalOutputRates);
 
-internal sealed class ForecastBronzeRollout
+internal struct ForecastBronzeRollout
 {
     private readonly ForecastBronzeStart _start;
     private readonly ResearchCatalog _catalog;

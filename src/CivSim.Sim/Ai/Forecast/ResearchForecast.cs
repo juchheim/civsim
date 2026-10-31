@@ -146,7 +146,7 @@ public sealed class ResearchForecast
     private bool _seenOpen;
     private bool _promote;
     private Fix64 _khUsed;
-    private ForecastBronzeRollout? _bronze;
+    private ForecastBronzeRollout _bronze;
     /// <summary>Know-how drained into projects during the last run.</summary>
     public Fix64 KnowHowUsed => _khUsed;
 
@@ -164,6 +164,7 @@ public sealed class ResearchForecast
         _lineageGain = new Fix64[catalog.LineageCount];
         DoneAt = new int[_n];
         CompletionOrder = new int[_n];
+        Array.Fill(DoneAt, -1);
         for (int mask = 1; mask < 8; mask++)
         {
             int total = 0;
@@ -511,7 +512,7 @@ public sealed class ResearchForecast
         Array.Copy(s.KnowHow, _kh, _kh.Length);
         Array.Copy(_lineageGain0, _lineageGain, _lineageGain.Length);
         Array.Copy(s.DoneByEra, _doneByEra, _doneByEra.Length);
-        Array.Fill(DoneAt, -1);
+        for (int i = 0; i < _completed; i++) DoneAt[CompletionOrder[i]] = -1;
         _era = s.Era;
         _lmC = s.LmCommons; _lmE = s.LmElder; _soc03 = s.Done[_c.Soc03]; _boon = Fix64.One; _gainAll = _gainAll0;
         _roles = RolesOf(s.Done);
@@ -801,9 +802,13 @@ public sealed class ResearchForecast
         return Fix64.FromRaw(checked(_c.FirstPoints[p].Raw * (d + m)) / (2L * m));
     }
 
+    /// <summary>Expected Firsts Legacy at a selected forecast completion step, for report-only Spark diagnostics.</summary>
+    internal Fix64? ExpectedFirstPointsForDiagnostics(int project, int completionStep)
+        => completionStep < 0 ? null : ExpectedFirst(project, completionStep);
+
     private void Complete(int p)
     {
-        _bronze?.OnProjectCompleted(p);
+        _bronze.OnProjectCompleted(p);
         _done[p] = true;
         DoneAt[p] = _step;
         CompletionOrder[_completed++] = p;

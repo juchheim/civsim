@@ -46,6 +46,24 @@ public sealed class BeliefBronzeEvidenceTests
     }
 
     [Fact]
+    public void A_public_raid_reveals_raiding_technology_without_a_sighting()
+    {
+        CivControl[] controls = FogFairnessHarness.DefaultControls();
+        MatchModel match = FogFairnessHarness.NewMatch(controls);
+        match.Politics.ForceContact(0, 1);
+        match.Politics.Diplomacy.RecordRaid(1, 0, match.Politics.Season);
+
+        AiSeat observer = match.Ai!.SeatOf(0)!;
+        new BeliefBuilder().Update(observer.Belief, match.Ai.World, observer.Profile);
+
+        RivalBelief rival = observer.Belief.Rivals[1];
+        Assert.True(rival.ProjectBelieved[TestPack.Catalog.IndexOf("WAR-02")]);
+        Assert.True(rival.ProjectBelieved[TestPack.Catalog.IndexOf("WAR-01")]);
+        Assert.True(rival.ProjectBelieved[TestPack.Catalog.IndexOf("HNT-04")]);
+        Assert.False(rival.ProjectBelieved[TestPack.Catalog.IndexOf("WAR-03")]);
+    }
+
+    [Fact]
     public void Caravan_cargo_and_compact_are_recorded_only_when_the_party_tile_is_in_sight()
     {
         var rival = new RivalBelief { Civ = 1 };

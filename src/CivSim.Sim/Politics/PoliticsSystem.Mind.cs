@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
@@ -399,21 +400,24 @@ public sealed partial class PoliticsSystem
                 force.Add(new Fighter(id, levy.Strengths[i])); ids.Add(id); strength += levy.Strengths[i];
             }
         }
-        if (force.Count < (requireOdds ? CampaignMinimumAttackers : Captures.MinHolders)) return false;
         Fix64 defence = Fix64.Zero;
         foreach (Fighter f in Fighters(target, attacking: false, out _, _sTile[target])) defence += f.Strength;
         if (walled)
         {
             // The 1.2 threshold includes home ground (×1.1), but excludes the ×3 wall multiplier.
             defence *= Fix64.FromRatio(11, 10);
-            if (!Sieges.CanInvest(strength, defence)) return false;
         }
         else
         {
             defence = defence * DefensesOf(target).Multiplier();
-            // Move out only with the odds: 1.5 times the defenders' effective strength (13 §8.4).
-            if (requireOdds && strength < defence * Fix64.FromRatio(15, 10)) return false;
         }
+        int minimumAttackers = requireOdds ? CampaignMinimumAttackers : Captures.MinHolders;
+        if (force.Count < minimumAttackers) return false;
+        if (walled)
+        {
+            if (!Sieges.CanInvest(strength, defence)) return false;
+        }
+        else if (requireOdds && strength < defence * Fix64.FromRatio(15, 10)) return false;
         if (levy is not null && !TryTakeLevy(c, target, out _)) return false;
         var assault = new Expedition { Kind = ExpeditionKind.Assault, Civ = c, TargetCiv = o, FromSettlement = origin, ToSettlement = target,
             ArriveSeason = _season + SeasonsFor(travel) };
@@ -547,9 +551,18 @@ public sealed partial class PoliticsSystem
         List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _, _sTile[e.ToSettlement]);
         Defenses defenses = DefensesOf(e.ToSettlement);
         Weapon(c, out bool ranged);
-        RaidOutcome outcome = Raids.Resolve(raiders, defenders, defenses, ranged, _seed, RaidStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 104729UL);
-        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded);
-        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded);
+        bool withdrawIfAlerted = RaidResponseOf(e.ToSettlement) == RaidResponse.Withdraw;
+        bool preparedWarning = withdrawIfAlerted && e.WarnedTargetCiv == o &&
+            e.WarnedTargetSettlement == e.ToSettlement && e.WarningSeason >= 0 && e.WarningSeason < _season;
+        ulong stream = RaidStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 104729UL;
+        RaidOutcome outcome = Raids.Resolve(raiders, defenders, defenses, ranged, _seed, stream,
+            withdrawIfAlerted, preparedWarning);
+        RaidOutcome? shadowStand = null;
+        if (outcome.Withdrew && IsRaidWithdrawalTraceTargetForDiagnostics(o))
+            shadowStand = Raids.Resolve(raiders, defenders, defenses, ranged, _seed, stream, withdrawIfAlerted: false);
+        ObserveSettlementRaid(e.ToSettlement, _season, raiders.Count, c);
+        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded, "settlementRaid");
+        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded, "settlementRaid");
 
         Fix64 loot = Fix64.Zero;
         if (outcome.Success)
@@ -559,6 +572,11 @@ public sealed partial class PoliticsSystem
             for (int i = 0; i < outcome.StructuresBurned; i++) _economy.BurnStructure(e.ToSettlement);
             RaidsSucceeded++;
         }
+        if (IsRaidWithdrawalTraceTargetForDiagnostics(o))
+            AddRaidWithdrawalArrivalTraceForDiagnostics(RaidWithdrawalPolicy.FormatArrivalTrace(_season, e.ToSettlement,
+                c, raiders.Count, withdrawIfAlerted ? RaidResponse.Withdraw : RaidResponse.Stand, outcome.Surprised,
+                outcome.Success, outcome.Withdrew, loot.FloorToInt(), outcome.Battle.DefenderDead.Count,
+                outcome.Battle.DefenderWounded.Count, shadowStand, preparedWarning, outcome.SurpriseRoll));
         bool atWar = _dip.AtWar(c, o);
         bool peaceful = _dip.Relations(c, o) > 0;
         bool deaths = outcome.Battle.DefenderDead.Count > 0;
@@ -590,8 +608,8 @@ public sealed partial class PoliticsSystem
         Weapon(e.Civ, out bool ranged);
         RaidOutcome outcome = Raids.Resolve(raiders, defenders, Defenses.None, ranged, _seed,
             RaidStream ^ 0x4D494E4543414D50UL ^ (ulong)(e.Civ * 4099 + camp.Id * 97) ^ (ulong)_season * 104729UL);
-        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded);
-        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded);
+        ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded, "miningCampRaid");
+        ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded, "miningCampRaid");
 
         Fix64 loot = Fix64.Zero;
         if (outcome.Success)
@@ -639,8 +657,8 @@ public sealed partial class PoliticsSystem
         List<Fighter> defenders = Fighters(e.ToSettlement, attacking: false, out _, _sTile[e.ToSettlement]);
         Defenses defenses = DefensesOf(e.ToSettlement);
         BattleResult result = Captures.Assault(attackers, defenders, defenses, childrenInside: true, _seed, AssaultStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 7907UL);
-        ApplyCasualties(result.AttackerDead, result.AttackerWounded);
-        ApplyCasualties(result.DefenderDead, result.DefenderWounded);
+        ApplyCasualties(result.AttackerDead, result.AttackerWounded, "assault");
+        ApplyCasualties(result.DefenderDead, result.DefenderWounded, "assault");
         bool won = Captures.CanHold(result);
         int fight = PoliticsEvent.PackFight(attackers.Count, defenders.Count,
             result.AttackerDead.Count + result.AttackerWounded.Count, result.DefenderDead.Count + result.DefenderWounded.Count);
@@ -715,8 +733,8 @@ public sealed partial class PoliticsSystem
         if (relief.Count == 0) return false;
         BattleResult result = Captures.Assault(relief, holders, Defenses.None, childrenInside: false, _seed,
             AssaultStream ^ 0x4C4945UL ^ (ulong)(occ.Settlement * 131) ^ (ulong)_season * 6151UL);
-        ApplyCasualties(result.AttackerDead, result.AttackerWounded);
-        ApplyCasualties(result.DefenderDead, result.DefenderWounded);
+        ApplyCasualties(result.AttackerDead, result.AttackerWounded, "occupationRelief");
+        ApplyCasualties(result.DefenderDead, result.DefenderWounded, "occupationRelief");
         return result.Winner == BattleWinner.Attacker;
     }
 

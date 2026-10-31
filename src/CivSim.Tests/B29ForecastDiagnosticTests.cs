@@ -1,11 +1,39 @@
 using System.Collections.Generic;
 using CivSim.Harness;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Ai.Forecast;
+using CivSim.Sim.Core;
+using CivSim.Sim.Economy;
+using CivSim.Sim.Research;
 
 namespace CivSim.Tests;
 
 public sealed class B29ForecastDiagnosticTests
 {
+    [Fact]
+    public void B29_diagnostic_enables_the_report_forecast_only_on_AI_seats()
+    {
+        MatchModel match = ForecastTestKit.Match(20261030,
+            CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced), CivControl.Council,
+            CivControl.Council, CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced));
+        ResearchSpark first = (ResearchSpark)match.Ai!.SeatOf(0)!.Spark;
+        ResearchSpark last = (ResearchSpark)match.Ai.SeatOf(3)!.Spark;
+        Assert.False(first.B29ReportForecastEnabledForDiagnostics);
+        Assert.False(last.B29ReportForecastEnabledForDiagnostics);
+
+        B29ForecastDiagnostic.EnableReportForecasts(match);
+
+        Assert.True(first.B29ReportForecastEnabledForDiagnostics);
+        Assert.True(last.B29ReportForecastEnabledForDiagnostics);
+        Assert.Null(match.Ai.SeatOf(1));
+        Assert.Null(match.Ai.SeatOf(2));
+        Assert.True(first.ShouldRunB29ReportForecastForDiagnostics(primaryHasKey4: false, key3Done: true));
+        Assert.False(first.ShouldRunB29ReportForecastForDiagnostics(primaryHasKey4: true, key3Done: true));
+        first.MarkB29ReportForecastCapturedForDiagnostics();
+        Assert.True(first.B29ReportForecastCapturedForDiagnostics);
+        Assert.False(first.ShouldRunB29ReportForecastForDiagnostics(primaryHasKey4: false, key3Done: true));
+    }
+
     [Fact]
     public void B29_uses_the_separate_report_estimate_when_the_primary_forecast_misses()
     {

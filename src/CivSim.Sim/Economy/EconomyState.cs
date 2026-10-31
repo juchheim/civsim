@@ -35,8 +35,17 @@ public readonly record struct FoodWorkAttribution(
     Fix64 OpeningFoodStores, Fix64 FoodNeed, Fix64 BaseCapacity, Fix64 EffectiveCapacity, Fix64 FireWork, Fix64 CareWork, Fix64 StaffWork,
     Fix64 ScoutWork, Fix64 WeirUpkeepBudget, Fix64 WeirUpkeepAssigned, Fix64 OrchardUpkeep,
     Fix64 FoodWorkRequested, Fix64 FoodWorkAssigned, Fix64 ForageWork, Fix64 HuntWork, Fix64 FishWork,
-    Fix64 FarmWork, Fix64 PreserveWork, Fix64 ForageYield, Fix64 MeatYield, Fix64 FishYield,
+    Fix64 FarmWork, Fix64 PreserveWork, Fix64 ForagePotentialYield, Fix64 ForageStockBeforeHarvest, Fix64 ForageYield,
+    Fix64 MeatYield, Fix64 FishYield,
     Fix64 WeirFishYield, Fix64 GrainYield, Fix64 OrchardFruitYield);
+
+/// <summary>Report-only view of the exact fertility inputs and results for one settlement season.</summary>
+public readonly record struct FertilityAttribution(
+    int Season, int PopulationAtStart, int FertileWomen, int Women14To24, int Women25To34, int Women35To44,
+    int PregnantWomen, int SickFertileWomen, int WoundedFertileWomen, int EligibleAttempts, int Conceptions,
+    int FertileWomenDeaths, int PregnantWomenDeaths, int CompletedBirths,
+    Fix64 PriorSeasonFoodSecurity, Fix64 FertilityHealth, Fix64 FoodCap, Fix64 HousingCap,
+    Fix64 Density, Fix64 Crowding, Fix64 BaseConceptionChance, Fix64 ConceptionChance);
 
 public enum EconomyDeathCause : byte
 {
