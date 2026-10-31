@@ -104,6 +104,19 @@ public sealed class WP8bSiegeLifecycleTests
         economy.FixtureStock(settlement, "G-GRAIN", foodValue / grainValue);
     }
 
+    private static void PromoteTargetToTown(Rig rig, int target)
+    {
+        const int townMinPopulation = 60;
+        rig.Match.Economy.FixtureHoldPopulation = true;
+        rig.Match.Economy.FixtureHoldSettlements = true;
+        int missing = Math.Max(0, townMinPopulation - rig.Match.Economy.Population(target));
+        rig.Match.Economy.FixtureAddPeople(target, missing, 24);
+        rig.Match.Economy.FixtureCivic(target, "market");
+        rig.Match.Economy.FixtureStock(target, "G-GRAIN", Fix64.FromInt(1000));
+        rig.Match.Economy.FixtureCivicSeasonEnd(rig.Match.Politics.Season);
+        Assert.Equal(SettlementTier.Town, rig.Match.Economy.Tier(target));
+    }
+
     [Fact]
     public void Assault_against_walls_becomes_persistent_investment_and_survives_snapshot_resume()
     {
@@ -327,8 +340,8 @@ public sealed class WP8bSiegeLifecycleTests
     [Fact]
     public void Controlled_live_siege_timing_reaches_target_rate_across_fixed_match_seeds()
     {
-        // Short controlled integration sample, not ordinary-economy acceptance. Reuse one generated route/world
-        // while varying only the deterministic match seed so the siege outcome stream changes reproducibly.
+        // Short controlled integration sample, not ordinary-economy acceptance. Each target is a real promoted Town
+        // with a Market and stone walls; reuse one generated route/world while varying the match seed deterministically.
         const int sampleCount = 16;
         GeneratedWorld world = WorldWithNearbyWalkingStart();
         int captures = 0;
@@ -339,10 +352,13 @@ public sealed class WP8bSiegeLifecycleTests
             ulong seed = 20261024 + offset;
             var rig = new Rig(world, seed);
             rig.Grant(0, "KEY-3");
-            rig.Grant(1, "KEY-3", "DEF-05");
+            rig.Grant(1, "KEY-3", "DEF-05", "TRD-04");
             rig.Season();
             int home = rig.SettlementOf(0), target = rig.SettlementTargetedBy(1);
-            rig.Match.Economy.FixtureAddPeople(home, 240, 24);
+            PromoteTargetToTown(rig, target);
+            // The opponent may discover stronger weapons while the six-season integration fixture runs. Give the
+            // supplied host enough numerical reserve that normal field-strength changes do not lift the investment.
+            rig.Match.Economy.FixtureAddPeople(home, 600, 24);
             rig.Match.Economy.FixtureStock(home, "G-GRAIN", Fix64.FromInt(1000));
             rig.Match.Economy.FixtureStock(target, "G-GRAIN", Fix64.FromInt(1000));
             rig.Match.Economy.FixtureBuildStructure(target, "stone_walls");
@@ -362,6 +378,7 @@ public sealed class WP8bSiegeLifecycleTests
 
             Investment siege = Assert.IsType<Investment>(rig.Match.Politics.InvestmentAt(target));
             Assert.Equal(1, rig.Match.Economy.SettlementLite(target).Civilization); // no wall-assault bypass
+            Assert.Equal(SettlementTier.Town, rig.Match.Economy.Tier(target));
             WorldTile[] routeTiles = world.Tiles.ToArray();
             bool[] passable = HexGrid.BuildWalkingPassability(routeTiles, world.Width, world.Height);
             int homeTile = rig.Match.Economy.SettlementLite(home).SiteTile;
@@ -375,13 +392,19 @@ public sealed class WP8bSiegeLifecycleTests
             siege.State = siege.State with { StoresSeasons = Fix64.FromRatio(5, 2) };
             Assert.InRange(siege.State.StoresSeasons.ToDoubleForDisplay(), 2.0, 3.0);
             int carriedFood = siege.State.BesiegerFoodSeasons;
-            int began = siege.BeganSeason;
+            var trace = new List<string>
+            {
+                $"seed {seed} town={rig.Match.Economy.Tier(target)} pop={rig.Match.Economy.Population(target)} " +
+                $"force/defense={siege.State.BesiegerStrength.ToDoubleForDisplay():F1}/{siege.State.UnwalledDefenderStrength.ToDoubleForDisplay():F1}"
+            };
 
             for (int elapsed = 1; elapsed <= 6 && rig.Match.Politics.InvestmentAt(target) is not null; elapsed++)
             {
-                rig.Runner.Advance(LivingEconomyModel.SeasonTicks - 1);
-                bool winter = (rig.Match.Politics.Season + 1) % 4 == 3;
-                Fix64 need = rig.Match.Economy.FoodNeedForSeason(target, winter);
+                int ticksToSeasonEnd = LivingEconomyModel.SeasonTicks - (int)(rig.Runner.Tick % LivingEconomyModel.SeasonTicks);
+                rig.Runner.Advance(ticksToSeasonEnd - 1);
+                int activeSeason = checked((int)(rig.Runner.Tick / LivingEconomyModel.SeasonTicks));
+                Fix64 activeNeed = rig.Match.Economy.FoodNeedForSeason(target, activeSeason % 4 == 3);
+                Fix64 siegeNeed = rig.Match.Economy.FoodNeedForSeason(target, (activeSeason + 1) % 4 == 3);
                 Fix64 desiredState = elapsed switch
                 {
                     // Keep post-ration stores above one full need for the first two seasons;
@@ -389,14 +412,28 @@ public sealed class WP8bSiegeLifecycleTests
                     1 or 2 => Fix64.FromInt(3),
                     _ => Sieges.RationNeed,
                 };
-                SetStoredFood(rig.Match.Economy, target,
-                    Fix64.Max(Fix64.Zero, desiredState - Sieges.RationNeed) * need);
+                // Keep the live Town fed, but feed the siege's exact post-ration ratio through the controlled
+                // lifecycle fixture. This avoids seasonal winter-need changes corrupting the intended trajectory.
+                SetStoredFood(rig.Match.Economy, target, Fix64.Max(activeNeed, siegeNeed) * Fix64.FromInt(4));
+                rig.Match.Politics.FixtureSetInvestmentStoresAfterRation(target, desiredState);
                 rig.Runner.Advance(1);
 
                 Investment? active = rig.Match.Politics.InvestmentAt(target);
-                if (active is null) break;
+                Fix64 stores = rig.Match.Economy.FoodStores(target);
+                Fix64 currentNeed = rig.Match.Economy.FoodNeedForSeason(target, (rig.Match.Politics.Season + 1) % 4 == 3);
+                trace.Add($"  season {elapsed}: stores={(currentNeed > Fix64.Zero ? stores / currentNeed : Fix64.Zero).ToDoubleForDisplay():F2}, " +
+                    $"state={active?.State.StoresSeasons.ToDoubleForDisplay():F2}, force/defense={active?.State.BesiegerStrength.ToDoubleForDisplay():F1}/{active?.State.UnwalledDefenderStrength.ToDoubleForDisplay():F1}");
+                if (active is null)
+                {
+                    string terminal = string.Join(',', rig.Match.Politics.Events
+                        .Where(e => e.A == target && e.Kind is PoliticsEventKind.InvestmentRelieved or PoliticsEventKind.InvestmentCapitulated)
+                        .Select(e => $"{e.Civ}:{e.Kind}:B{e.B}"));
+                    trace.Add($"  ended: {terminal}");
+                    break;
+                }
                 Assert.Equal(carriedFood, active.State.BesiegerFoodSeasons);
                 Assert.Equal(1, rig.Match.Economy.SettlementLite(target).Civilization);
+                Assert.Equal(SettlementTier.Town, rig.Match.Economy.Tier(target));
                 Assert.DoesNotContain(rig.Match.Politics.Events,
                     e => e.Kind is PoliticsEventKind.InvestmentSally or PoliticsEventKind.InvestmentDeserted ||
                          e.Kind == PoliticsEventKind.AssaultResolved && e.Civ == 0 && e.B == target);
@@ -405,6 +442,7 @@ public sealed class WP8bSiegeLifecycleTests
             PoliticsEvent? capitulation = rig.Match.Politics.Events
                 .Where(e => e.Kind == PoliticsEventKind.InvestmentCapitulated && e.Civ == 0 && e.A == target)
                 .Select(e => (PoliticsEvent?)e).LastOrDefault();
+            foreach (string timing in trace) _output.WriteLine(timing);
             if (capitulation is not null)
             {
                 captures++;

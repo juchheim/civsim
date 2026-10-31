@@ -10,7 +10,8 @@ internal readonly record struct B12T18Snapshot(int SettlementId, int Civilizatio
     int Adults, int Rung6Adults, string Detail, string Census);
 
 internal readonly record struct B12T18PlanSnapshot(int SettlementId, int Civilization, int Season, int Tier,
-    string BuildKind, int Forges, int Smelters, Fix64 TotalWork, Fix64 PushCap,
+    string BuildKind, int Adults, int Rung6Adults, int Forges, int Smelters, Fix64 TotalWork, Fix64 PushCap,
+    Fix64 FoodSecurity, Fix64 LateWinterForecast,
     Fix64 PrimaryChain, Fix64 PrimaryScale, Fix64 SecondaryChain, Fix64 SecondaryScale,
     Fix64 BuildAssigned, Fix64 BuildNeed, Fix64 MineAssigned, Fix64 MineNeed,
     Fix64 CharcoalAssigned, Fix64 CharcoalNeed, Fix64 SmeltAssigned, Fix64 SmeltNeed,
@@ -72,6 +73,7 @@ public sealed partial class LivingEconomyModel
         public Fix64 SecondaryChain;
         public Fix64 PrimaryScale = Fix64.One;
         public Fix64 SecondaryScale;
+        public int Rung6Adults;
         public Fix64 MeanChopRate = Fix64.FromInt(8);
         public bool AnyMetalKit;
         public int Adults;
@@ -726,7 +728,7 @@ public sealed partial class LivingEconomyModel
         m.Reason = DormancyReason(s, plan.Tier);
 
         // Who carries what: the kit summary feeds charcoal labor and the craft labor of dressing stone.
-        int adults = 0, needKits = 0;
+        int adults = 0, needKits = 0, rung6Adults = 0;
         Fix64 chopSum = Fix64.Zero;
         Fix64 e2Chop = ActionRate("chop", Fix64.FromInt(2), s, "chop") * Modifier(civ, "wood_yield");
         for (int i = 0; i < _figures.Count; i++)
@@ -734,12 +736,14 @@ public sealed partial class LivingEconomyModel
             FigureState f = _figures[i];
             if (f.SettlementId != s.Id || f.Age < 14) continue;
             adults++;
+            if (f.Kit is 9 or 10) rung6Adults++;
             Fix64 kitRate = KitChopRate(f);
             if (kitRate > Fix64.Zero) { chopSum = Fix64.Max(chopSum, kitRate * Modifier(civ, "wood_yield")); plan.AnyMetalKit = true; }
             else chopSum = Fix64.Max(chopSum, e2Chop);
             if (plan.Tier != 0 && (f.Kit == 0 || f.KitLeft <= ExpectedSeasonWear || Rank(f.Kit) < Rank(plan.Tier))) needKits++;
         }
         plan.Adults = adults;
+        plan.Rung6Adults = rung6Adults;
         // The colliers fell their wood with the best axe in the settlement (as metal_sim.py does).
         if (adults > 0) plan.MeanChopRate = Fix64.Max(Fix64.One, chopSum);
         int pop = Population(s.Id);
@@ -761,8 +765,8 @@ public sealed partial class LivingEconomyModel
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
         Fix64 chainA = mineA + charA + smeltA;
         plan.BuildNeed = Fix64.Min(plan.BuildNeed, totalWork * _bronzeConstants.PushCap);
-        Fix64 chainCap = cap;
         Fix64 laborB = Fix64.Max(Fix64.Zero, mineAll + charAll + smeltAll - chainA);
+        Fix64 chainCap = cap;
         Fix64 scaleA = chainA <= chainCap || chainA <= Fix64.Zero ? Fix64.One : chainCap / chainA;
         Fix64 left = Fix64.Max(Fix64.Zero, chainCap - chainA * scaleA);
         Fix64 scaleB = laborB <= Fix64.Zero ? Fix64.Zero : laborB <= left ? Fix64.One : left / laborB;
@@ -873,7 +877,8 @@ public sealed partial class LivingEconomyModel
         {
             B12T18PlanSnapshots ??= new List<B12T18PlanSnapshot>();
             B12T18PlanSnapshots.Add(new B12T18PlanSnapshot(s.Id, s.Civilization, season, plan.Tier,
-                censusMetal.BuildKind.ToString(), censusMetal.Forges, censusMetal.Smelters, plan.TotalWork, plan.PushCap,
+                censusMetal.BuildKind.ToString(), plan.Adults, plan.Rung6Adults, censusMetal.Forges, censusMetal.Smelters, plan.TotalWork, plan.PushCap,
+                s.FoodSecurity, s.LateWinterForecast,
                 plan.PrimaryChain, plan.PrimaryScale, plan.SecondaryChain, plan.SecondaryScale,
                 plan.BuildAssigned, plan.BuildNeed, plan.MineAssigned, plan.MineNeed,
                 plan.CharcoalAssigned, plan.CharcoalNeed, plan.SmeltAssigned, plan.SmeltNeed,

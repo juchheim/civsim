@@ -18,6 +18,8 @@ public sealed class Investment
     public int HomeSettlement { get; internal set; }
     public int BeganSeason { get; internal set; }
     public SiegeState State { get; internal set; }
+    // A one-season override for controlled lifecycle fixtures; never serialized or used by production matches.
+    internal Fix64? FixtureStoresAfterRation { get; set; }
     public List<long> Members { get; } = new();
     public List<Fix64> Strengths { get; } = new();
 }
@@ -35,6 +37,13 @@ public sealed partial class PoliticsSystem
         foreach (Investment investment in _investments)
             if (investment.Settlement == settlement) return investment;
         return null;
+    }
+
+    /// <summary>Sets the controlled post-ration store ratio consumed by the next live siege update in a fixture.</summary>
+    internal void FixtureSetInvestmentStoresAfterRation(int settlement, Fix64 storesAfterRation)
+    {
+        Investment investment = InvestmentAt(settlement) ?? throw new InvalidOperationException("The settlement has no active investment.");
+        investment.FixtureStoresAfterRation = Fix64.Max(Fix64.Zero, storesAfterRation);
     }
 
     private bool UnderInvestment(int settlement) => InvestmentAt(settlement) is not null;
@@ -150,11 +159,19 @@ public sealed partial class PoliticsSystem
             if (!supplied && investment.State.BesiegerFoodSeasons <= 0 && besiegers.Count > 0)
                 ApplyDesertion(investment, besiegers, force);
 
-            Fix64 need = _economy.FoodNeedForSeason(investment.Settlement, _season % 4 == 3);
-            Fix64 stores = _economy.FoodStores(investment.Settlement);
-            // The economy has already consumed this season's 75% ration before OnSeasonEnd. Restore that amount in the
-            // helper's starting value so its per-season subtraction leaves the actual post-ration store level.
-            investment.State = investment.State with { StoresSeasons = need <= Fix64.Zero ? Fix64.Zero : stores / need + Sieges.RationNeed };
+            if (investment.FixtureStoresAfterRation is { } fixtureStores)
+            {
+                investment.State = investment.State with { StoresSeasons = fixtureStores + Sieges.RationNeed };
+                investment.FixtureStoresAfterRation = null;
+            }
+            else
+            {
+                Fix64 need = _economy.FoodNeedForSeason(investment.Settlement, _season % 4 == 3);
+                Fix64 stores = _economy.FoodStores(investment.Settlement);
+                // The economy has already consumed this season's 75% ration before OnSeasonEnd. Restore that amount in the
+                // helper's starting value so its per-season subtraction leaves the actual post-ration store level.
+                investment.State = investment.State with { StoresSeasons = need <= Fix64.Zero ? Fix64.Zero : stores / need + Sieges.RationNeed };
+            }
             int carriedFood = investment.State.BesiegerFoodSeasons;
             Fix64 strengthBefore = force;
             SiegeState next = investment.State;

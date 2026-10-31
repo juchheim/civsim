@@ -288,6 +288,9 @@ public sealed partial class LivingEconomyModel
         AddBuilt(c, CivicOf(structure) ?? throw new ArgumentException($"Unknown civic structure '{structure}'.", nameof(structure)));
     }
 
+    /// <summary>Runs the production civic season-end path for a prepared civic fixture.</summary>
+    internal void FixtureCivicSeasonEnd(int season) => CivicSeasonEnd(season);
+
     /// <summary>Sets a settlement's Cohesion (C, 0–100) and its conquered term (≤ 0).</summary>
     internal void FixtureCohesion(int settlementIndex, int cohesion, int conqueredTerm = 0)
     {

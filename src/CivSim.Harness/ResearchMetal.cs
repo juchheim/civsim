@@ -53,6 +53,7 @@ internal static class ResearchMetal
         public MetalStatistics AtWindow, AtEnd;
         public double Coverage12 = double.NaN, CoverageAccess12 = double.NaN;
         public double CoverageEnd, People, Settlements, Camps, MineHeads;
+        public int FoodSecurityBelow80, WinterForecastBelow80;
         public string Summary = "";
     }
 
@@ -136,6 +137,16 @@ internal static class ResearchMetal
         text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): adult-weighted {P(t18AdultWeighted)} ({t18Rung6Adults}/{t18Adults}), " +
                         $"per-settlement median {P(MedianOf(coverSettlements))} over {coverSettlements.Count} eligible rows, " +
                         $"{coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70%; cohort starts {t18Started}, access lost before +12 {t18Lost}, still within +12 at horizon {t18RightCensored}, no adults at +12 {t18NoAdults} (target >= 70% where access holds)");
+        if (Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1")
+        {
+            text.AppendLine("B12 report-horizon food safety (settlement-weighted):");
+            foreach (Result r in results)
+                for (int c = 0; c < r.Civs.Length; c++)
+                {
+                    CivTrace civ = r.Civs[c];
+                    text.AppendLine($"  seed{r.Seed}/civ{c}: report-horizon food-security <0.8={civ.FoodSecurityBelow80}, winter-forecast <0.8={civ.WinterForecastBelow80} (settlement-weighted)");
+                }
+        }
         text.AppendLine();
         text.AppendLine("T19 standing wood on the forest tiles of each settlement's range, at KEY-4 against its KEY-3 baseline");
         var bands = new (int Low, int High)[] { (0, 39), (40, 79), (80, 100), (101, 1000) };
@@ -222,7 +233,7 @@ internal static class ResearchMetal
                 {
                     static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
                     return $"tier={plan.Tier} forge/smelter={plan.Forges}/{plan.Smelters} buildKind={plan.BuildKind} " +
-                        $"work={F(plan.TotalWork)} cap={F(plan.PushCap)} " +
+                        $"rung6={plan.Rung6Adults}/{plan.Adults} work={F(plan.TotalWork)} cap={F(plan.PushCap)} foodSec/winter={F(plan.FoodSecurity)}/{F(plan.LateWinterForecast)} " +
                         $"chain={F(plan.PrimaryChain)}*{F(plan.PrimaryScale)}+{F(plan.SecondaryChain)}*{F(plan.SecondaryScale)} " +
                         $"assigned/need(build,mine,charcoal,smelt)={F(plan.BuildAssigned)}/{F(plan.BuildNeed)} " +
                         $"{F(plan.MineAssigned)}/{F(plan.MineNeed)} {F(plan.CharcoalAssigned)}/{F(plan.CharcoalNeed)} " +
@@ -459,6 +470,8 @@ internal static class ResearchMetal
                 if (pop == 0) continue;
                 people += pop;
                 settlements++;
+                if (v.LastFoodSecurity < Fix64.Parse("0.8")) t.FoodSecurityBelow80++;
+                if (v.LateWinterFoodForecast < Fix64.Parse("0.8")) t.WinterForecastBelow80++;
                 MetalReadout m = eco.Metal(s);
                 heads += m.MineHeads; k8 += m.Kits8; k9 += m.Kits9; k10 += m.Kits10;
                 copperOre += m.CopperOre.ToDoubleForDisplay(); tinOre += m.TinOre.ToDoubleForDisplay();
