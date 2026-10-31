@@ -31,7 +31,7 @@ public partial class Game
         col.AddChild(header);
         _decreeMandate = UiKit.Text("Mandate · locked", "Body");
         col.AddChild(_decreeMandate);
-        _decreeHint = UiKit.Text("Research KEY-3 to issue a Decree.", "Caption", wrap: true, minWidth: 280);
+        _decreeHint = UiKit.Text($"Reach {DecreeUnlockProjectName()} to issue a Decree.", "Caption", wrap: true, minWidth: 280);
         col.AddChild(_decreeHint);
         col.AddChild(UiKit.Text("CHOOSE A PLACE", "EyebrowTertiary"));
         _decreeFound = UiKit.Secondary("Found a village", () => ArmDecree(DecreeKind.Found), "Choose a tile on the map.");
@@ -111,10 +111,50 @@ public partial class Game
         DecreeForecast f = _session.PreviewDecree(civ, _pendingDecree, _pendingTarget, _pendingExtra);
         string result = f.Allowed
             ? $"Elders expect {f.SuccessPermille / 10.0:0.#}% success · {f.People} people · about {f.Tiles} tiles · {f.Seasons} seasons. Mandate {f.MandateAfter} after."
-            : $"Elders expect refusal: {f.LikelyRefusal}. Nothing will be spent.";
+            : $"The elders advise against it. {MineRefusalDetail(_pendingDecree, (int)f.LikelyRefusal, _pendingTarget) ?? UiText.DecreeRefusal(_pendingDecree, (int)f.LikelyRefusal)} Nothing will be spent.";
         UiKit.SetText(_decreeForecast!, result);
         UiKit.SetVisible(_decreeConfirm!, f.Allowed);
         UiKit.SetText(_decreeConfirm!, $"Confirm · {f.Cost} Mandate");
+    }
+
+    /// <summary>The usual reasons <c>Open a mine</c> is refused as "no site", named for the tile picked; null when none of them is the cause.</summary>
+    private string? MineRefusalDetail(DecreeKind kind, int reason, int tile)
+    {
+        if (kind != DecreeKind.Mine || reason != (int)OrderRefusalReason.NoSite || _current is null || _catalog is null || _session is null) return null;
+        WorldView world = _session.WorldView;
+        if ((uint)tile >= (uint)world.TileCount) return null;
+        var deposit = (CivSim.Sim.World.DepositKind)world.Deposit[tile];
+        string? unlock = deposit switch
+        {
+            CivSim.Sim.World.DepositKind.ArsenicalCopper => "MET-04",
+            CivSim.Sim.World.DepositKind.Tin => "MET-05",
+            CivSim.Sim.World.DepositKind.Iron => "MET-08",
+            CivSim.Sim.World.DepositKind.Gold or CivSim.Sim.World.DepositKind.Silver => "MET-07",
+            CivSim.Sim.World.DepositKind.Salt => "MIN-06",
+            _ => null,
+        };
+        if (unlock is not null && !ProjectKnown(unlock))
+            return $"Your people don't know how to work {SpacedName(deposit.ToString()).ToLowerInvariant()} yet: learn {_catalog.Projects[_catalog.IndexOf(unlock)].Name} first.";
+        if (world.DepositDepth[tile] >= 2 && !ProjectKnown("MIN-04"))
+            return $"That {SpacedName(deposit.ToString()).ToLowerInvariant()} deposit is deep: only a shaft reaches it, and your people haven't learned Shaft Mining. Research it, then try again.";
+        int civ = Math.Max(0, _current.ViewerCiv);
+        for (int s = 0; s < _current.SettlementCount; s++)
+            if (_current.SettlementCiv[s] == civ && CivSim.Sim.World.HexGrid.Distance(_current.SettlementTile[s], tile, world.Width) <= 3)
+                return "That deposit is within three tiles of a settlement, so its people already work it themselves: no separate mine is needed.";
+        return null;
+    }
+
+    private bool ProjectKnown(string id)
+    {
+        int index = _catalog!.IndexOf(id);
+        return index >= 0 && StateOf(index) is CivSim.Sim.Research.ProjectState.Completed or CivSim.Sim.Research.ProjectState.Dormant;
+    }
+
+    private string DecreeUnlockProjectName()
+    {
+        if (_catalog is null) return "Age of Metal";
+        int index = _catalog.IndexOf("KEY-3");
+        return index >= 0 ? _catalog.Projects[index].Name : "Age of Metal";
     }
 
     private void ConfirmDecree()
@@ -129,10 +169,11 @@ public partial class Game
     {
         if (_decreeMandate is null) return;
         bool available = frame.FocusMandateUnlocked;
+        string unlockProject = DecreeUnlockProjectName();
         UiKit.SetText(_decreeMandate, available
             ? $"Mandate · {frame.FocusMandate}/{frame.FocusMandateCap} · next in {frame.FocusMandateNextSeason} seasons"
-            : "Mandate · locked until KEY-3");
-        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : "Research KEY-3 to issue a Decree.");
+            : $"Mandate · locked until {unlockProject}");
+        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : $"Reach {unlockProject} to issue a Decree.");
         foreach (UiButton? button in new[] { _decreeFound, _decreeExplore, _decreeMine, _decreeLevy, _decreeCorvee })
             if (button is not null) button.Disabled = !available || !(_session?.CanIssueCommands ?? false);
         if (_decreePartner is null) return;
@@ -192,7 +233,7 @@ public partial class Game
         int extra = DecreeArgs.PackCompact(good, _diploCompactSell.ButtonPressed);
         DecreeForecast forecast = _session.PreviewDecree(civ, DecreeKind.Compact, partner, extra);
         if (!forecast.Allowed)
-            return $"Likely to accept: unknown ({forecast.LikelyRefusal}).";
+            return $"Likely to accept: unknown. {UiText.DecreeRefusal(DecreeKind.Compact, (int)forecast.LikelyRefusal)}";
         string likelihood = forecast.SuccessPermille >= 800 ? "likely" : forecast.SuccessPermille >= 500 ? "possible" : "unlikely";
         return $"Likely to accept: {likelihood} · about {forecast.SuccessPermille / 10.0:0.#}% from known information.";
     }

@@ -23,6 +23,7 @@ public sealed class WorldView
         Continent = new byte[n];
         Deposit = new byte[n];
         DepositAmount = new byte[n];
+        DepositDepth = new byte[n];
     }
 
     public int Width { get; }
@@ -44,6 +45,8 @@ public sealed class WorldView
     /// <summary><see cref="DepositKind"/> per tile. The front end shows a deposit only once the viewer knows it (08 §5 Resources).</summary>
     public byte[] Deposit { get; }
     public byte[] DepositAmount { get; }
+    /// <summary>0 or 1 for a surface deposit, 2 for one only a shaft reaches (it needs Shaft Mining, MIN-04).</summary>
+    public byte[] DepositDepth { get; }
     /// <summary>Each civilization's starting tile, by civilization.</summary>
     public int[] StartTiles { get; private set; } = Array.Empty<int>();
 
@@ -69,6 +72,7 @@ public sealed class WorldView
             view.Continent[t] = tile.Continent;
             view.Deposit[t] = (byte)tile.Deposit;
             view.DepositAmount[t] = tile.DepositAmount;
+            view.DepositDepth[t] = tile.DepositDepth;
         }
         var starts = new int[world.Starts.Length];
         foreach (WorldStart start in world.Starts) starts[start.Civilization] = start.Tile;

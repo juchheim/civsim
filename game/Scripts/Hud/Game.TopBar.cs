@@ -45,7 +45,7 @@ public partial class Game
         _civNameLabel = UiKit.Text("YOUR PEOPLE", "Eyebrow", ellipsis: true);
         _civNameLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         nameRow.AddChild(_civNameLabel);
-        _peopleTopButton = UiKit.IconButton(UiGlyph.People, "People, work and research context", OpenPeoplePanel, 30, 16);
+        _peopleTopButton = UiKit.IconButton(UiGlyph.People, "Your people: what slows them down, what they hold, who does what", OpenPeoplePanel, 30, 16);
         _peopleTopButton.FocusMode = Control.FocusModeEnum.All;
         _peopleTopButton.CustomMinimumSize = new Vector2(30, 26);
         nameRow.AddChild(_peopleTopButton);

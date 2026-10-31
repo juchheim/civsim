@@ -40,6 +40,7 @@ renderer_script="res://Renderer/LowPoly3DView.gd"
 
 [rendering]
 
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="mobile"
 environment/defaults/default_clear_color=Color(0.11, 0.16, 0.2, 1)

@@ -166,7 +166,7 @@ STRUCT_IDS = {"hearth": "hearth", "lean-to": "lean_to", "hide tent": "hide_tent"
 ROLE_IDS = {"elder", "shaman", "watcher", "collier", "smith", "midwife", "chief", "warrior"}
 ACTION_IDS = {"keep fire": "keep_fire", "make fire": "make_fire", "bury": "bury", "gift exchange": "gift_exchange",
               "controlled burn": "controlled_burn", "gather clay": "gather_clay",
-              "collect flint and ochre": "collect_flint_ochre", "fish": "fish", "tend the sick": "tend_sick",
+              "collect flint and ochre": "collect_flint_ochre", "gather flint and ochre from nearby surface outcrops": "collect_flint_ochre", "fish": "fish", "tend the sick": "tend_sick",
               "barter with other civilizations": "barter", "collect native copper": "collect_native_copper",
               "draft oxen": "draft_oxen", "farm": "farm", "feast": "feast", "herd cattle and pigs": "herd",
               "hunt": "hunt", "herd": "herd", "raid": "raid", "mine flint pits": "mine_flint",
@@ -592,7 +592,7 @@ def actions_yaml():
            ("keep_fire", "Keep fire", "activity", None, None), ("make_fire", "Make fire", "activity", None, None),
            ("bury", "Bury the dead", "activity", None, None), ("raft_crossing", "Raft crossing", "activity", None, None),
            ("gift_exchange", "Gift exchange", "activity", None, None), ("controlled_burn", "Controlled burn", "activity", None, None),
-           ("gather_clay", "Gather clay", "activity", "3", "L/ws"), ("collect_flint_ochre", "Collect flint and ochre", "activity", "1", "L/ws"),
+           ("gather_clay", "Gather clay", "activity", "3", "L/ws"), ("collect_flint_ochre", "Gather flint and ochre from nearby surface outcrops", "activity", "1", "L/ws"),
            ("tend_sick", "Tend the sick", "activity", None, None), ("barter", "Barter", "activity", None, None),
            ("raid", "Raid", "activity", None, None), ("mine_flint", "Mine flint pits", "activity", "3", "L/ws"),
            ("quarry", "Quarry stone blocks", "activity", "2", "L/ws"), ("collect_native_copper", "Collect native copper", "activity", "0.2", "L/ws"),

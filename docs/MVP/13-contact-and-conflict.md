@@ -237,7 +237,7 @@ Code: `CivSim.Sim/Politics` (`Combat`, `Raids`, `Territory`, `Diplomacy`, `Polit
 
 | Check | Target | Measured |
 |---|---|---|
-| **F1** first contact, paired starts | minute 15–25 on ≥ 90% of maps | **24 of 24** seeds, minutes 18.2–23.5 (median ≈ 20, the start of E2) |
+| **F1** first contact, paired starts | minute 15–25 on ≥ 90% of maps | **0 of 24** seeds since scouts make contact on sight (2026-10-27, `76aa47e`): minutes 6.7–14.4 over seeds 20261019 to 20261042, median ≈ 9.4. Earlier measurement: 24 of 24, minutes 18.2–23.5. **Open design question:** accept contact in E1, or hold scout contact until E2 |
 | **F2** first-contact outcomes, no DIP/TRD projects | ~25 / 45 / 30% | 25 / 45 / 30 within ±1.5 points over 20,000 rolls (unit test) |
 | **F3** raid table (§5.5) | ±10 points | all twelve cells inside (table below) |
 | **F4** net value of an unprovoked raid | positive vs undefended, negative vs palisaded | **+16.4** undefended, −3.0 thorn + watchers + dogs, **−13.1** palisade, −18.1 palisade + warriors (rations; a life is 8, the Relations cost 6) |

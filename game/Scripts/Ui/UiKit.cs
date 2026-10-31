@@ -248,6 +248,43 @@ public partial class UiSegmented : PanelContainer
     }
 }
 
+/// <summary>A small rounded status label ("Paying off", "Blocked"); the tone picks the chip fill and text colour.</summary>
+public partial class UiPill : PanelContainer
+{
+    public enum Tone { Neutral, Success, Warning, Danger, Info, Accent }
+
+    private readonly Label _label;
+    private Tone _tone = (Tone)(-1);
+
+    public UiPill(string text = "", Tone tone = Tone.Neutral)
+    {
+        MouseFilter = MouseFilterEnum.Ignore;
+        SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        _label = UiKit.Text(text, "Caption");
+        AddChild(_label);
+        Set(text, tone);
+    }
+
+    public void Set(string text, Tone tone)
+    {
+        UiKit.SetText(_label, text);
+        if (tone == _tone) return;
+        _tone = tone;
+        (string variation, Color color) = tone switch
+        {
+            Tone.Success => ("ChipPanelSuccess", UiTokens.Success),
+            Tone.Warning => ("ChipPanelWarning", UiTokens.Warning),
+            Tone.Danger => ("ChipPanelDanger", UiTokens.Danger),
+            Tone.Info => ("ChipPanelInfo", UiTokens.Info),
+            Tone.Accent => ("ChipPanelAccent", UiTokens.Accent),
+            _ => ("ChipPanel", UiTokens.TextSecondary),
+        };
+        UiKit.SetVariation(this, variation);
+        _label.AddThemeColorOverride("font_color", color);
+    }
+}
+
 /// <summary>Pooled factory helpers so every screen builds controls the same way.</summary>
 public static class UiKit
 {
@@ -283,6 +320,19 @@ public static class UiKit
             label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             label.ClipText = true;
         }
+        return label;
+    }
+
+    /// <summary>
+    /// A table cell: exactly <paramref name="width"/> wide, never clipped. Long text wraps inside the column instead of ending
+    /// in an ellipsis, so the same width can be used for a header and every row below it.
+    /// </summary>
+    public static Label Cell(string text, string style, int width, bool right = false, bool wrap = false)
+    {
+        Label label = Text(text, style, right: right);
+        label.CustomMinimumSize = new Vector2(width, 0);
+        label.SizeFlagsHorizontal = Control.SizeFlags.Fill;
+        if (wrap) label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         return label;
     }
 

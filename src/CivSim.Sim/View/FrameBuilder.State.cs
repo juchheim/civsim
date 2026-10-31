@@ -11,7 +11,8 @@ namespace CivSim.Sim.View;
 public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
-    private const int StateVersion = 5;
+    // 5 and 6: economy state (Your people sheet). 7: remembered-owner ticks (scout map observation ticks).
+    private const int StateVersion = 7;
 
     public void WriteState(BinaryWriter w)
     {
@@ -55,6 +56,7 @@ public sealed partial class FrameBuilder
                 w.Write(_topClaim[t]); w.Write(_topCiv[t]); w.Write(_contested[t]);
                 w.Write(_secondClaim[t]); w.Write(_secondCiv[t]); w.Write(_thirdClaim[t]); w.Write(_thirdCiv[t]);
             }
+        WriteEconomyState(w);
     }
 
     /// <summary>
@@ -76,7 +78,7 @@ public sealed partial class FrameBuilder
         if (explored.Length != _tileCount) throw new InvalidDataException("Truncated view state.");
         Buffer.BlockCopy(explored, 0, _explored, 0, _tileCount);
         for (int t = 0; t < _tileCount; t++) _rememberedOwner[t] = r.ReadSByte();
-        if (version >= 5)
+        if (version >= 7)
             for (int t = 0; t < _tileCount; t++) _rememberedOwnerTick[t] = r.ReadInt64();
         else
         {
@@ -158,6 +160,8 @@ public sealed partial class FrameBuilder
                     throw new InvalidDataException("Bad scout view state.");
             }
         }
+        if (version >= 5) ReadEconomyState(r, version);
+        else ClearEconomyState();
         _researchCursor = 0;
         _politicsCursor = 0;
     }

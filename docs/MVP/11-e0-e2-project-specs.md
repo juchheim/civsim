@@ -144,7 +144,7 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 | CER-02 | Pottery | D | 50 | CER-01, FOD-01 | Good(G-POT) · Mod(Spoilage of stored food, −25%) · Unlock(boiling) | clay, tend fire |
 | BLD-02 | Hide Tents | S | 60 | BLD-01, FIB-02 | Build(Hide tent: houses 5, packs to 1 L) · Cap(Housing, ×1.2) · Mod(Camp relocation time, ×0.5) | build, hide |
 | BLD-03 | Pit House | S | 60 | BLD-02, WOD-02 | Build(Pit house: houses 6, warmth +2) · Cap(Housing, ×1.5) · Hazard(exposure, ×0.88) | build |
-| MIN-01 | Flint & Ochre Seeking | D | 50 | STN-05 | Reveal(flint and ochre within sight) · Action+(Collect flint and ochre) · Good(G-FLINT, G-OCHRE) | mine, scout |
+| MIN-01 | Flint & Ochre Seeking | D | 50 | STN-05 | Gather(flint 1 L/ws and ochre 0.5 L/ws from nearby surface outcrops) · Good(G-FLINT, G-OCHRE) | mine, scout |
 | MEC-01 | Lever & Wedge | M | 50 | WOD-02 | Mod(Heavy-object handling, +30%) · Mod(Wood yield, +15% by splitting) | build, chop |
 | CHM-01 | Ochre Pigments | D | 50 | FIR-03 | Good(G-PIGMENT) | craft |
 | CHM-02 | Birch-Tar Adhesive | M | 50 | FIR-03, STN-04 | Good(G-TAR) · Mod(Hafted tool durability, ×1.4) | craft, tend fire |

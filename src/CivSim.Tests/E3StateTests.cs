@@ -68,10 +68,18 @@ public class E3StateTests
         e.FixtureCivic(0, "market");
         f.RunSeasons(1);
         Assert.Equal(SettlementTier.Town, e.Tier(0));
-        e.FixtureRemovePeople(0, e.Population(0) - 45);
-        f.RunSeasons(3);
+        // Hold the Town under 85% of its threshold (51 of 60): the village now regrows past it within four seasons if left alone.
+        for (int season = 0; season < 3; season++)
+        {
+            e.FixtureRemovePeople(0, Math.Max(0, e.Population(0) - 45));
+            f.RunSeasons(1);
+        }
         Assert.Equal(SettlementTier.Town, e.Tier(0));
-        f.RunSeasons(2);
+        for (int season = 0; season < 2; season++)
+        {
+            e.FixtureRemovePeople(0, Math.Max(0, e.Population(0) - 45));
+            f.RunSeasons(1);
+        }
         Assert.Equal(SettlementTier.Village, e.Tier(0));
         Assert.Equal(4, e.ClaimRadius(0, 4));
     }
@@ -159,16 +167,14 @@ public class E3StateTests
             "TRD-04");
         LivingEconomyModel e = f.Economy;
         e.FixtureCivic(0, "market");
-        Assert.True(e.Settlement(0).HousingCap < Fix64.FromInt(90));
+        // Housing starts at 96 now, so the site is held back by its Cohesion (a Town in disorder is not preserved as a City site) instead of by room.
         e.FixtureHoldSettlements = false;
         e.SetFissionThresholdScale(0, Fix64.Zero);
-        e.FixtureCohesion(0, 60);
+        e.FixtureCohesion(0, 0);
         f.RunSeasons(1);
         Assert.True(e.Settlement(0).FissionPending);
 
-        e.FixtureBuildStructure(0, "longhouse");
-        e.FixtureBuildStructure(0, "longhouse");
-        e.FixtureBuildStructure(0, "longhouse");
+        e.FixtureCohesion(0, 60);
         Assert.True(e.Settlement(0).FoodCap >= Fix64.FromInt(90));
         Assert.True(e.Settlement(0).HousingCap >= Fix64.FromInt(90));
         e.FixtureComplete(0, "SOC-09");

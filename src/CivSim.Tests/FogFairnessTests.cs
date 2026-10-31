@@ -275,7 +275,7 @@ public class FogFairnessTests
         {
             int owner = match.Politics.SettlementCivOf(s);
             if (owner == Observer || match.Politics.IsFreeFolk(s) || !match.Politics.Diplomacy.Aware(Observer, owner)) continue;
-            if (match.Politics.SettlementPopulationOf(s) >= 8 && BeliefBuilder.TilesOutOfSight(world, Observer, s) <= -2) target = s;
+            if (match.Politics.SettlementPopulationOf(s) >= 8 && BeliefBuilder.TilesOutOfRoutineSight(world, Observer, s) <= -2) target = s;
         }
         if (target < 0) return false;
         MatchModel a = FogFairnessHarness.Clone(match, controls), b = FogFairnessHarness.Clone(match, controls);

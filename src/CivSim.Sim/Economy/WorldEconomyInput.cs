@@ -138,7 +138,8 @@ public sealed class WorldEconomyInput
     public ulong Fingerprint { get; }
     /// <summary>
     /// Fingerprint of the mineral deposits, kept apart from <see cref="Fingerprint"/> so that matches which never reach the
-    /// Bronze Age (where deposits first matter) keep the checksums they had before deposits reached the economy.
+    /// Hunters-era surface mineral gathering and the later Bronze mining economy use deposits. Matches that have not
+    /// completed MIN-01 keep their pre-gathering checksum stream; the deposit fingerprint also protects snapshots.
     /// </summary>
     public ulong DepositFingerprint { get; }
     /// <summary>The deposit on a tile; <see cref="DepositKind.None"/> where there is none.</summary>

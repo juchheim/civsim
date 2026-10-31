@@ -105,6 +105,7 @@ public partial class Game
         _openingHoldAssignmentPending = false;
         _pinnedTile = -1;
         _selectedResearchProject = -1;
+        _completedWhileClosed = -1;
         RebuildVisualRenderer(_current, _session);
         _visualRenderer?.Call("set_overlay", _mapOverlay);
         ApplyNewFrame(_current);

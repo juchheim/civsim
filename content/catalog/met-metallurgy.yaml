@@ -49,7 +49,7 @@ projects:
     era: 3
     type: M
     status: numeric
-    requires: [MET-03]
+    requires: [MET-03, MIN-04]
     gates: [{kind: has, target: Arsenic ore}]
     effects:
       - {kind: good, id: G-ASORE}

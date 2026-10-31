@@ -19,6 +19,8 @@ public sealed class UiSettings
     public bool PlayedBefore;
     public bool HintsPanned, HintsZoomed, HintsTurned;
     public bool TrackpadSeen;
+    /// <summary>Whether the research screen was last left on its Tree tab; it reopens there.</summary>
+    public bool ResearchMapView;
     /// <summary>The rival level chosen for the next new match. New players start on Settler, the gentlest.</summary>
     public CivSim.Sim.Ai.Difficulty Difficulty = CivSim.Sim.Ai.Difficulty.Settler;
 
@@ -41,6 +43,7 @@ public sealed class UiSettings
                 settings.HintsZoomed = file.GetValue(Section, "hint_zoomed", false).AsBool();
                 settings.HintsTurned = file.GetValue(Section, "hint_turned", false).AsBool();
                 settings.TrackpadSeen = file.GetValue(Section, "trackpad_seen", false).AsBool();
+                settings.ResearchMapView = file.GetValue(Section, "research_map_view", false).AsBool();
                 int level = file.GetValue(Section, "difficulty", (int)CivSim.Sim.Ai.Difficulty.Settler).AsInt32();
                 settings.Difficulty = System.Enum.IsDefined(typeof(CivSim.Sim.Ai.Difficulty), (byte)level)
                     ? (CivSim.Sim.Ai.Difficulty)level : CivSim.Sim.Ai.Difficulty.Settler;
@@ -67,6 +70,7 @@ public sealed class UiSettings
             file.SetValue(Section, "hint_zoomed", HintsZoomed);
             file.SetValue(Section, "hint_turned", HintsTurned);
             file.SetValue(Section, "trackpad_seen", TrackpadSeen);
+            file.SetValue(Section, "research_map_view", ResearchMapView);
             file.SetValue(Section, "difficulty", (int)Difficulty);
             file.Save(Path);
         }

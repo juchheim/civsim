@@ -19,7 +19,7 @@ actions:
   - {id: gift_exchange, name: Gift exchange, class: activity}
   - {id: controlled_burn, name: Controlled burn, class: activity}
   - {id: gather_clay, name: Gather clay, class: activity, base_rate: 3, unit: L/ws}
-  - {id: collect_flint_ochre, name: Collect flint and ochre, class: activity, base_rate: 1, unit: L/ws}
+  - {id: collect_flint_ochre, name: Gather flint and ochre from nearby surface outcrops, class: activity, base_rate: 1, unit: L/ws}
   - {id: tend_sick, name: Tend the sick, class: activity}
   - {id: barter, name: Barter, class: activity}
   - {id: raid, name: Raid, class: activity}

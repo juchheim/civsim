@@ -118,7 +118,10 @@ public static class UiTheme
         LabelStyle("CaptionTertiary", Regular, UiTokens.FontSmall, UiTokens.TextTertiary, 3);
         LabelStyle("CaptionAccent", Regular, UiTokens.FontSmall, UiTokens.Accent, 3);
         LabelStyle("Num", Num, UiTokens.FontSmall, UiTokens.TextSecondary, 3);
+        LabelStyle("NumBody", Num, UiTokens.FontBody, UiTokens.TextPrimary, 3);
         LabelStyle("NumStrong", NumBold, UiTokens.FontBody, UiTokens.TextPrimary, 3);
+        // Section titles inside sheets: one step above body, below the sheet title.
+        LabelStyle("SectionTitle", Bold, 18, UiTokens.TextPrimary, 3);
         LabelStyle("NumTitle", NumBold, UiTokens.FontTitle, UiTokens.TextPrimary, 3);
 
         // Panels
@@ -142,6 +145,11 @@ public static class UiTheme
         PanelStyle("SlotCardDone", Box(UiTokens.SuccessDark, UiTokens.R1, UiTokens.Success, 2, UiTokens.Sp3, 10));
         PanelStyle("WellPanel", Box(UiTokens.SurfaceSunken, UiTokens.R1, null, 0, UiTokens.Sp2, UiTokens.Sp2));
         PanelStyle("SegmentedPanel", Box(UiTokens.SurfaceSunken, UiTokens.R1, null, 0, 2, 2));
+        // Sheet sections and table rows: a roomier sunken well, and rows that share one padding so headers line up with cells.
+        PanelStyle("SectionPanel", Box(UiTokens.SurfaceSunken, UiTokens.R2, null, 0, UiTokens.Sp3 + 3, UiTokens.Sp3 + 1));
+        PanelStyle("TableRow", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, UiTokens.Sp2, 6));
+        PanelStyle("TableRowAlt", Box(new Color("#F3ECDD0B"), UiTokens.R1, null, 0, UiTokens.Sp2, 6));
+        PanelStyle("TableHead", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, UiTokens.Sp2, 2));
         PanelStyle("ChipPanel", Box(new Color("#F3ECDD14"), 13, UiTokens.Border, 1, 10, 2));
         PanelStyle("ChipPanelAccent", Box(UiTokens.WithAlpha(UiTokens.Accent, 0.16f), 13, UiTokens.Accent, 1, 10, 2));
         PanelStyle("ChipPanelWarning", Box(UiTokens.WarningDark, 13, UiTokens.Warning, 1, 10, 2));

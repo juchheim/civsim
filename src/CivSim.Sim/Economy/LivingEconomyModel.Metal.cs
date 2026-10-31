@@ -134,7 +134,12 @@ public sealed partial class LivingEconomyModel
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
-        => slot < (int)Good.Count ? s.Stores[slot] : s.Metal is { } m ? m.Goods[slot - (int)Good.Count] : Fix64.Zero;
+    {
+        if (slot < (int)Good.Count) return s.Stores[slot];
+        int metalSlot = slot - (int)Good.Count;
+        if (metalSlot == (int)MetalGood.Ochre && s.Metal is null) return s.SurfaceOchre;
+        return s.Metal is { } m ? m.Goods[metalSlot] : Fix64.Zero;
+    }
 
     private void AddStock(SettlementState s, int slot, Fix64 amount)
     {
@@ -145,8 +150,14 @@ public sealed partial class LivingEconomyModel
         }
         else
         {
+            int metalSlot = slot - (int)Good.Count;
+            if (metalSlot == (int)MetalGood.Ochre && s.Metal is null)
+            {
+                s.SurfaceOchre = Fix64.Max(Fix64.Zero, s.SurfaceOchre + amount);
+                return;
+            }
             MetalState m = EnsureMetal(s);
-            m.Goods[slot - (int)Good.Count] = Fix64.Max(Fix64.Zero, m.Goods[slot - (int)Good.Count] + amount);
+            m.Goods[metalSlot] = Fix64.Max(Fix64.Zero, m.Goods[metalSlot] + amount);
         }
     }
 
@@ -154,6 +165,8 @@ public sealed partial class LivingEconomyModel
     {
         if (s.Metal is { } existing) return existing;
         var m = new MetalState { ForestAtStart = StandingWoodInRange(s.SiteTile) };
+        m.Goods[(int)MetalGood.Ochre] = s.SurfaceOchre;
+        s.SurfaceOchre = Fix64.Zero;
         s.Metal = m;
         return m;
     }
@@ -1132,7 +1145,7 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceCopper | AccessCopper)) != 0) potential[MetalSlot(MetalGood.CopperOre)] = Plenty;
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
-        if (Done(civ, "MIN-01")) potential[MetalSlot(MetalGood.Ochre)] = Plenty;
+        if (Done(civ, "MIN-01") && HasResourceInRange(s, _ochreStock)) potential[MetalSlot(MetalGood.Ochre)] = Plenty;
         if (Done(civ, "MIN-03")) potential[MetalSlot(MetalGood.Block)] = Plenty;
         var result = new Fix64[_compiledRecipes.Length];
         for (int r = 0; r < _compiledRecipes.Length; r++)
@@ -1569,7 +1582,6 @@ public sealed partial class LivingEconomyModel
         {
             CompiledRecipe recipe = _compiledRecipes[r];
             if (plan.Batches[r] <= Fix64.Zero || !RecipeAvailable(s, recipe)) continue;
-            if (recipe.OutputSlot == MetalSlot(MetalGood.Pigment)) GatherOchre(s, m, plan, ref craftLeft);
             if (recipe.OutputSlot == MetalSlot(MetalGood.Ashlar)) QuarryBlocks(s, m, plan, ref craftLeft);
             if (recipe.OutputSlot == MetalSlot(MetalGood.Salted)) PanSalt(s, m, plan, season, ref craftLeft);
             Fix64 made = recipe.IsCharcoal
@@ -1828,17 +1840,6 @@ public sealed partial class LivingEconomyModel
         var result = new int[count];
         Array.Copy(tiles, result, count);
         return result;
-    }
-
-    /// <summary>Ochre for pigment (MIN-01: 0.5 L a work-season from surface outcrops, docs/MVP/10 §5.4), from craft labor.</summary>
-    private void GatherOchre(SettlementState s, MetalState m, MetalPlan plan, ref Fix64 craftPool)
-    {
-        if (!Done(s.Civilization, "MIN-01")) return;
-        Fix64 net = plan.Want[MetalSlot(MetalGood.Ochre)] - m.Goods[(int)MetalGood.Ochre];
-        if (net <= Fix64.Zero || craftPool <= Fix64.Zero) return;
-        Fix64 litres = Fix64.Min(net, craftPool * Fix64.Half);
-        m.Goods[(int)MetalGood.Ochre] += litres;
-        craftPool -= litres * 2;
     }
 
     /// <summary>
