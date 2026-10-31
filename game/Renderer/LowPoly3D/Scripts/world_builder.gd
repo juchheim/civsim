@@ -342,6 +342,22 @@ static func zig_stage(s: Dictionary) -> int:
 	var pm := int(s.get("zigguratPermille", 0))
 	return 0 if pm <= 0 else 1 + mini(2, pm * 3 / 1000)
 
+## Whether a settlement's fire is burning now: the sim lights it only once the civilization has learned to keep fire, and
+## clears it when the fire goes out. A village seen from memory shows no fire.
+func _fire_lit(s: Dictionary) -> bool:
+	return bool(s.get("fireLit", false)) and not bool(s.get("remembered"))
+
+## Whether the fire of camp `ci` is burning: a camp keeps embers from the settlement that sent it out.
+func _camp_fire_lit(ci: int) -> bool:
+	return ci < w.camp_details.size() and _fire_lit_for_index(int(w.camp_details[ci][3]))
+
+## Whether the fire of the settlement with this sim index (a camp's parent) is burning.
+func _fire_lit_for_index(index: int) -> bool:
+	for s in w.settlements:
+		if int(s.get("index", -1)) == index:
+			return _fire_lit(s)
+	return false
+
 const FIELD_MESHES := ["field", "field_ard", "field_fallow"]
 
 func _structure_digest() -> int:
@@ -364,12 +380,15 @@ func _structure_digest() -> int:
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 		for n in s.structures:
 			h = h * 31 + int(n)
+		h = h * 31 + (1 if _fire_lit(s) else 0)
 		for n in s.get("decor", PackedInt32Array()):
 			h = h * 31 + int(n) + 1
 	for i in range(0, w.plots.size(), 2):
 		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1] + (field_kind(w.plots[i]) * 3 if w.plots[i + 1] == 0 else 0)
-	for c in w.camps:
+	for ci in w.camps.size():
+		var c: Array = w.camps[ci]
 		h = h * 31 + int(c[0]) * 7 + int(c[1])
+		h = h * 31 + (1 if _camp_fire_lit(ci) else 0)
 	return h
 
 func _border_digest() -> int:
@@ -868,7 +887,8 @@ func _settlements() -> void:
 			continue
 		if st[K.HEARTH] > 0:
 			props.add("hearth", _xf(c, h0, seed * TAU, VS), Color(1, 1, 1, seed))
-			props.add("flame", _xf(c, h0 + 0.004, seed * TAU, VS), Color(1, 1, 1, seed))
+			if _fire_lit(s):
+				props.add("flame", _xf(c, h0 + 0.004, seed * TAU, VS), Color(1, 1, 1, seed))
 		props.add("banner%d" % civ, _xf(c + Vector2(0.09, -0.07), h0, -0.4, VS), Color(cc.r, cc.g, cc.b, seed))
 
 		# items to lay out on a sunflower spiral around the hearth
@@ -1299,7 +1319,8 @@ func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, c
 		props.add(mesh_name, _xf(q, y, yaw, 1.0), Color(cc.r, cc.g, cc.b, hv))
 
 func _camps() -> void:
-	for cp in w.camps:
+	for ci in w.camps.size():
+		var cp: Array = w.camps[ci]
 		var t := int(cp[0])
 		var civ := int(cp[1])
 		if not w.is_land(t):
@@ -1312,7 +1333,8 @@ func _camps() -> void:
 		props.add("camp", _xf(c, h, seed * TAU, 1.0), Color(cc.r, cc.g, cc.b, seed))
 		props.add("camp", _xf(c + Vector2(0.1, 0.06), h, seed * TAU + 2.0, 0.85), Color(cc.r, cc.g, cc.b, seed))
 		props.add("hearth", _xf(c + Vector2(0.03, 0.12), h, seed, 0.7), Color(1, 1, 1, seed))
-		props.add("flame", _xf(c + Vector2(0.03, 0.12), h + 0.003, seed, 0.6), Color(1, 1, 1, seed))
+		if _camp_fire_lit(ci):
+			props.add("flame", _xf(c + Vector2(0.03, 0.12), h + 0.003, seed, 0.6), Color(1, 1, 1, seed))
 		props.add("banner_small%d" % civ, _xf(c + Vector2(-0.07, -0.02), h, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
 
 # ------------------------------------------------------------------ deposits

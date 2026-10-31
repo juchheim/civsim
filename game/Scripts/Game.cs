@@ -508,6 +508,7 @@ public partial class Game : Node3D
                 ["ziggurats"] = (int)frame.SettlementZiggurats[i],
                 ["zigguratPermille"] = (int)frame.SettlementZigguratPermille[i],
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
+                ["fireLit"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.FireLit) != 0,
                 ["index"] = frame.SettlementIndex[i],
                 ["cohesion"] = frame.SettlementCohesion[i],
                 ["overreach"] = frame.SettlementOverreach[i],

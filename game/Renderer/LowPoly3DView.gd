@@ -757,6 +757,9 @@ func _sync_hearth_fx() -> void:
 	for i in builder.hearths.size():
 		var hearth: Vector3 = builder.hearths[i]
 		var tile := int(builder.w.settlements[i].tile)
+		# glow and smoke belong to a burning fire: none before fire is learned, none once it has gone out
+		if not builder._fire_lit(builder.w.settlements[i]):
+			continue
 		active_tiles[tile] = true
 		var fx: Dictionary = hearth_fx_by_tile.get(tile, {})
 		var light := fx.get("light") as OmniLight3D
