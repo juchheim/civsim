@@ -19,7 +19,7 @@ public sealed class UiSettings
     public bool PlayedBefore;
     public bool HintsPanned, HintsZoomed, HintsTurned;
     public bool TrackpadSeen;
-    /// <summary>Whether the research screen was last left on its Map tab; it reopens there.</summary>
+    /// <summary>Whether the research screen was last left on its Tree tab; it reopens there.</summary>
     public bool ResearchMapView;
     /// <summary>The rival level chosen for the next new match. New players start on Settler, the gentlest.</summary>
     public CivSim.Sim.Ai.Difficulty Difficulty = CivSim.Sim.Ai.Difficulty.Settler;

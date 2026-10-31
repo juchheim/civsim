@@ -58,6 +58,7 @@ var figure_tints := PackedColorArray()
 var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
+var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
 var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
 var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
@@ -166,11 +167,11 @@ func build() -> Node3D:
 	_beacons()
 	herd_props = _build_props_node("Herds", props)
 	props = M7Batcher.new()
-	var t4 := Time.get_ticks_msec()
 	deposit_signature = hash(w.e3_overlay_bytes)
 	_deposits()
 	deposit_props = _build_props_node("Deposits", props)
 	props = M7Batcher.new()
+	var t4 := Time.get_ticks_msec()
 	var t5 := Time.get_ticks_msec()
 	stats.instances = stats.get("instances_vegetation", 0) + stats.get("instances_settlements", 0) + stats.get("instances_actors", 0)
 	stats.ms_terrain = t1 - t0
@@ -210,7 +211,6 @@ func update_frame() -> bool:
 		settlement_multimeshes = props.update_existing(settlement_props, kit, _material_for, settlement_multimeshes)
 		props = M7Batcher.new()
 	rig.set_monuments(w.monuments, structure_signature)
-	var settlements_updated := Time.get_ticks_usec()
 	var new_deposit_signature := hash(w.e3_overlay_bytes)
 	if new_deposit_signature != deposit_signature:
 		deposit_signature = new_deposit_signature
@@ -218,6 +218,7 @@ func update_frame() -> bool:
 		_deposits()
 		deposit_multimeshes = props.update_existing(deposit_props, kit, _material_for, deposit_multimeshes)
 		props = M7Batcher.new()
+	var settlements_updated := Time.get_ticks_usec()
 	props = M7Batcher.new()
 	var people_started := Time.get_ticks_usec()
 	_figures()
@@ -290,10 +291,10 @@ func _build_props_node(node_name: String, batcher: M7Batcher) -> Node3D:
 	elif node_name == "Herds":
 		herd_multimeshes = batcher.update_existing(node, kit, _material_for, {})
 		count = batcher.instance_count
-	else:
 	elif node_name == "Deposits":
 		deposit_multimeshes = batcher.update_existing(node, kit, _material_for, {})
 		count = batcher.instance_count
+	else:
 		count = batcher.build(node, kit, _material_for)
 	stats["instances_" + node_name.to_lower().trim_suffix("props").trim_suffix("s")] = count
 	stats["multimesh_groups_" + node_name.to_lower()] = batcher.groups.size()
@@ -360,6 +361,7 @@ func _structure_digest() -> int:
 				h = h * 31 + clampi(int(s.population) / 8, 1, 4)
 			h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
 			h = h * 31 + zig_stage(s)
+			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 		for n in s.structures:
 			h = h * 31 + int(n)
 		for n in s.get("decor", PackedInt32Array()):
@@ -393,10 +395,10 @@ func _material_for(mesh_name: String) -> Material:
 		return mats.animal
 	if mesh_name.begins_with("banner"):
 		return mats.banner
-	if mesh_name.begins_with("detail_") or mesh_name.begins_with("tuft") or mesh_name == "reeds" or mesh_name.begins_with("tallgrass"):
-		return mats.grass_wind
 	if mesh_name.begins_with("deposit"):
 		return mats.deposit
+	if mesh_name.begins_with("detail_") or mesh_name.begins_with("tuft") or mesh_name == "reeds" or mesh_name.begins_with("tallgrass"):
+		return mats.grass_wind
 	if mesh_name.begins_with("conifer") or mesh_name.begins_with("broadleaf") or mesh_name.begins_with("acacia") \
 			or mesh_name.begins_with("jungle"):
 		return mats.prop_wind
@@ -771,11 +773,56 @@ func _ziggurat_site(c: Vector2, h0: float, seed: float) -> Variant:
 			return {"p": p, "y": y, "yaw": yaw}
 	return null
 
+const CIVIC := {
+	# kind: [mesh, scale, offset from the hearth, half the footprint (x, z) in mesh units, footprint radius in world units]
+	"temple": ["temple", 1.3, 0.58, Vector2(0.19, 0.23), 0.36],
+}
+
+## Where a civic building stands: rings of candidates round the hearth, first one on level, clear ground that is clear of trees, the
+## banner and what is already placed (`placed` and `placed_r`, the latter in village-scale units). The front (+Z) faces the hearth.
+func _civic_site(c: Vector2, h0: float, seed: float, kind: String, placed: Array, placed_r: Array) -> Variant:
+	var spec: Array = CIVIC[kind]
+	var sc: float = spec[1]
+	var half: Vector2 = spec[3]
+	var foot: float = spec[4]
+	var banner := c + Vector2(0.09, -0.07)
+	for ring in [1.0, 1.3, 1.6]:
+		for k in 12:
+			# north of the hearth first (the default camera then sees the front), then alternately either side of it
+			var a := -PI * 0.5 + (((k + 1) / 2) * (1 if k % 2 == 1 else -1)) * TAU / 12.0
+			var p: Vector2 = c + Vector2(cos(a), sin(a)) * float(spec[2]) * float(ring)
+			var yaw := atan2((c - p).x, (c - p).y)
+			if not _ok_site(p, h0) or p.distance_to(banner) < foot + 0.1:
+				continue
+			var y := w.height_at(p)
+			var ok := true
+			for lc in [Vector3(-half.x, 0, -half.y), Vector3(half.x, 0, -half.y), Vector3(half.x, 0, half.y), Vector3(-half.x, 0, half.y)]:
+				var q3: Vector3 = rot_y(yaw) * (lc * sc)
+				var q: Vector2 = p + Vector2(q3.x, q3.z)
+				if not _ok_site(q, h0):
+					ok = false
+					break
+				y = minf(y, w.height_at(q))
+			if ok:
+				for i in placed.size():
+					if (placed[i] as Vector2).distance_to(p) < float(placed_r[i]) * VS + foot:
+						ok = false
+						break
+			if ok:
+				for tp in tree_points:
+					if (tp as Vector2).distance_squared_to(p) < foot * foot:
+						ok = false
+						break
+			if ok:
+				return {"p": p, "y": y, "yaw": yaw}
+	return null
+
 func _settlements() -> void:
 	var K := M7WorldData.Kind
 	hearths.clear()
 	villages.clear()
 	ziggurat_sites.clear()
+	civic_sites.clear()
 	# fields and orchards on their plot tiles
 	for pi in range(0, w.plots.size(), 2):
 		var t := w.plots[pi]
@@ -854,6 +901,18 @@ func _settlements() -> void:
 				props.add("banner%d" % civ, _xf(zp + Vector2(o.x, o.z), zsite.y + o.y, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
 			ziggurat_sites.append({"p": zp, "y": zsite.y, "yaw": zsite.yaw, "stage": zs, "civ": civ, "seed": seed, "tile": t})
 			decor_spots["ziggurat"] = zp
+		# the temple (BEL-06), one drawn, beside the ziggurat when the city has both
+		if int(s.get("temples", 0)) > 0:
+			var tsite = _civic_site(c, h0, seed, "temple", placed, placed_r)
+			if tsite != null:
+				var spec: Array = CIVIC["temple"]
+				var tp: Vector2 = tsite.p
+				props.add(spec[0], _xf(tp, tsite.y, tsite.yaw, spec[1]), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 92)))
+				placed.append(tp)
+				placed_r.append(float(spec[4]) / VS)
+				landmarks_seed.append([tp, 0.6])
+				civic_sites.append({"kind": "temple", "p": tp, "y": tsite.y, "yaw": tsite.yaw, "civ": civ, "seed": seed, "tile": t})
+				decor_spots["temple_built"] = tp
 		var slot := 0
 		var rmax := 0.0
 		for it in items:
@@ -888,6 +947,9 @@ func _settlements() -> void:
 			props.add(it, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
 		if zsite != null:
 			rmax = maxf(rmax, ZIG_OFFSET + 0.3)
+		for cs in civic_sites:
+			if int(cs.tile) == t:
+				rmax = maxf(rmax, ((cs.p as Vector2) - c).length() + 0.4)
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
 		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
 		if sea > 0:
@@ -1253,6 +1315,27 @@ func _camps() -> void:
 		props.add("flame", _xf(c + Vector2(0.03, 0.12), h + 0.003, seed, 0.6), Color(1, 1, 1, seed))
 		props.add("banner_small%d" % civ, _xf(c + Vector2(-0.07, -0.02), h, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
 
+# ------------------------------------------------------------------ deposits
+
+## A marker on every tile whose deposit the viewer knows (the E3 overlay's red channel is the DepositKind + 1, set only for known ones).
+## It stands to one side of the tile's middle, clear of a village's hearth, and keeps the same spot for the life of the match.
+const DEPOSIT_SCALE := 1.3
+
+func _deposits() -> void:
+	var bytes := w.e3_overlay_bytes
+	var tiles := w.width * w.height
+	if bytes.size() != tiles * 4:
+		return
+	for t in tiles:
+		var kind := int(bytes[t * 4]) - 1
+		if kind <= 0 or not w.is_land(t) or not kit.meshes.has("deposit%d" % kind):
+			continue
+		var high := w.biome[t] >= M7WorldData.Biome.MOUNTAIN
+		var a := M7WorldData.hash01(t, 17) * TAU
+		var p := w.tile_center(t) + Vector2(cos(a), sin(a)) * 0.2
+		props.add("deposit%d%s" % [kind, "_tall" if high else ""], _xf(p, w.height_at(p), M7WorldData.hash01(t, 19) * TAU, DEPOSIT_SCALE),
+			Color(1, 1, 1, M7WorldData.hash01(t, 23)))
+
 # ------------------------------------------------------------------ people
 
 ## `--boat-debug` puts every adult near water in a boat, tier 1 to 4 by figure index.
@@ -1315,27 +1398,6 @@ func _figures() -> void:
 		var seed := M7WorldData.hash01(id & 0xffff, (id >> 16) & 0x3fff, 7)
 		var tint := 8 if (fl & 1024) else civ % 8
 		var mode_offset := 16 if pmx < 0 else 0     # new this publish: grow in
-# ------------------------------------------------------------------ deposits
-
-## A marker on every tile whose deposit the viewer knows (the E3 overlay's red channel is the DepositKind + 1, set only for known ones).
-## It stands to one side of the tile's middle, clear of a village's hearth, and keeps the same spot for the life of the match.
-const DEPOSIT_SCALE := 1.3
-
-func _deposits() -> void:
-	var bytes := w.e3_overlay_bytes
-	var tiles := w.width * w.height
-	if bytes.size() != tiles * 4:
-		return
-	for t in tiles:
-		var kind := int(bytes[t * 4]) - 1
-		if kind <= 0 or not w.is_land(t) or not kit.meshes.has("deposit%d" % kind):
-			continue
-		var high := w.biome[t] >= M7WorldData.Biome.MOUNTAIN
-		var a := M7WorldData.hash01(t, 17) * TAU
-		var p := w.tile_center(t) + Vector2(cos(a), sin(a)) * 0.2
-		props.add("deposit%d%s" % [kind, "_tall" if high else ""], _xf(p, w.height_at(p), M7WorldData.hash01(t, 19) * TAU, DEPOSIT_SCALE),
-			Color(1, 1, 1, M7WorldData.hash01(t, 23)))
-
 		var placed := _place_figure(mx, my, home, seed * TAU)
 		var p: Vector2 = placed[0]
 		var face: float = placed[1]

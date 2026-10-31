@@ -177,7 +177,7 @@ public partial class Game
     private ToastView BuildToast(ToastView view)
     {
         var panel = UiKit.Panel("ToastPanel");
-        view.Root = UiKit.WrapOverlay(panel, new Vector2(377, 72));
+        view.Root = UiKit.WrapOverlay(panel, new Vector2(440, 72));
         view.Root.Visible = false;
         view.Root.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
         var row = UiKit.Row(UiTokens.Sp3);
@@ -189,7 +189,9 @@ public partial class Game
         column.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         column.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         view.Title = UiKit.Text("", "BodyStrong", ellipsis: true);
-        view.Body = UiKit.Text("", "Caption", ellipsis: true);
+        view.Body = UiKit.Text("", "Caption", wrap: true);
+        view.Body.MaxLinesVisible = 3;
+        view.Body.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         column.AddChild(view.Title);
         column.AddChild(view.Body);
         row.AddChild(column);
@@ -219,7 +221,7 @@ public partial class Game
         if (_toastStack is null || _momentCard is null || _ageBanner is null || _coachCard is null || _hintPill is null) return;
         float m = Margin;
         float bottom = m + FocusBarHeight + UiTokens.Sp1;
-        float toastWidth = _compact ? 320 : 377;
+        float toastWidth = _compact ? 340 : 440;
         foreach (ToastView view in _toasts) view.Root.CustomMinimumSize = new Vector2(toastWidth, _compact ? 64 : 72);
         AnchorTo(_toastStack, 1, 1, 1, 1, -m - toastWidth, -bottom - 3 * 80, -m, -bottom, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
         float momentWidth = _compact ? 280 : 320;
@@ -793,6 +795,51 @@ public partial class Game
 
     private string OtherName(ViewEvent item) => UiText.CivName(item.Other);
 
+    private static string Rations(int n) => n == 1 ? "1 ration" : $"{n} rations";
+
+    /// <summary>
+    /// What a raid came to, for the viewer: the toast title, the sentence for the toast and the chronicle (the loot and who was
+    /// hurt), and the few words and colour that float up off the map where it was fought.
+    /// </summary>
+    private (string Title, string Text, string Floater, Color Color) RaidReport(ViewEvent item)
+    {
+        string who = OtherName(item);
+        int fight = item.C, loot = Math.Max(0, item.B);
+        int raiders = fight & 0xFF, defenders = (fight >> 8) & 0xFF, raidersDown = (fight >> 16) & 0xFF, defendersDown = (fight >> 24) & 0x7F;
+        string Toll(int down, int of, string side) => down <= 0 || of <= 0 ? "" : $" {down} of {of} {side} hurt or lost.";
+        switch (item.A)
+        {
+            case 1:
+                return (loot > 0 ? $"Raid won: +{Rations(loot)}" : "Raid won",
+                    (loot > 0 ? $"Your raiders came home with {Rations(loot)} of loot." : "Your raiders won but found little worth carrying home.")
+                        + Toll(raidersDown, raiders, "raiders were"),
+                    loot > 0 ? $"+{Rations(loot)}" : "Raid won", UiTokens.Accent);
+            case 0:
+                return ("Raid failed", "Your raiders were beaten back and came home with nothing." + Toll(raidersDown, raiders, "raiders were"), "Raid failed", UiTokens.TextSecondary);
+            case 2:
+                return (loot > 0 ? $"Raided: -{Rations(loot)}" : "You were raided",
+                    loot > 0 ? $"The {who} raiders carried off {Rations(loot)} of your goods." + Toll(defendersDown, defenders, "defenders were")
+                             : $"The {who} raiders broke through." + Toll(defendersDown, defenders, "defenders were"),
+                    loot > 0 ? $"-{Rations(loot)}" : "Raided", UiTokens.Danger);
+            default:
+                return ("Raid driven off", $"Your people drove off the {who} raiders." + Toll(defendersDown, defenders, "defenders were"), "Raid driven off", UiTokens.Success);
+        }
+    }
+
+    /// <summary>Moves the camera to the viewer's raiding party where it is now, or to the raid's target when none is on the road.</summary>
+    private void FollowRaidParty(int viewer, int targetTile)
+    {
+        if (_current is not null)
+            for (int i = 0; i < _current.FigureCount; i++)
+            {
+                if (_current.FigureCiv[i] != viewer) continue;
+                if ((FigureActivity)_current.FigureActivity[i] is not (FigureActivity.OnRaid or FigureActivity.OnAssault)) continue;
+                FocusTile(_current.FigureTile[i]);
+                return;
+            }
+        FocusTile(targetTile);
+    }
+
     /// <summary>
     /// Plays the fight of a resolved raid or assault on its tile, then runs <paramref name="report"/> (the chronicle line and the
     /// toast). With no fight to show (an investment ended, no tile, or the skirmish cannot play) it reports at once.
@@ -946,17 +993,29 @@ public partial class Game
                 ShowToast("Barter done", ToastKind.Info, "Your trade party came home.", key: "barter");
                 break;
             case ViewEventKind.RaidLaunched:
-                AddChronicle(item, "A raid party set out.", ChronicleClass.Rivals, true);
-                ShowToast("A raid set out", ToastKind.Info, "", key: "raid-out");
-                break;
+                {
+                    string who = OtherName(item);
+                    string text = item.C switch
+                    {
+                        RaidTarget.Caravan => $"{item.A} raiders went out to ambush a {who} caravan.",
+                        RaidTarget.MiningCamp => $"{item.A} raiders set out for a {who} mining camp.",
+                        RaidTarget.Assault => $"{item.A} fighters marched on a {who} settlement.",
+                        _ => $"{item.A} raiders set out for a {who} settlement.",
+                    };
+                    AddChronicle(item, text, ChronicleClass.Rivals, true);
+                    int target = item.Tile;
+                    ShowToast(item.C == RaidTarget.Assault ? "An assault set out" : "Raiders set out", ToastKind.Milestone, text, target, "Follow", () => FollowRaidParty(viewer, target), "raid-out");
+                    break;
+                }
             case ViewEventKind.RaidResolved:
                 {
-                    string text = item.A switch { 1 => "The raid came back with food.", 2 => $"The {OtherName(item)} raided one of your settlements.", 3 => "Your people drove off a raid.", _ => "The raid failed." };
+                    (string title, string text, string floater, Color color) = RaidReport(item);
                     // The fight plays on the map first; the result follows when it is over.
                     ReportAfterSkirmish(item, assault: false, () =>
                     {
                         AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
-                        ShowToast(item.A == 2 ? "You were raided" : "A raid ended", item.A == 2 ? ToastKind.Critical : ToastKind.Info, text, item.Tile, key: "raid-resolved");
+                        ShowToast(title, item.A == 2 ? ToastKind.Critical : item.A == 1 ? ToastKind.Milestone : ToastKind.Info, text, item.Tile, key: $"raid-resolved-{item.A}-{item.Tile}");
+                        SpawnMapFloater(item.Tile, floater, color);
                         if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
                     });
                     break;

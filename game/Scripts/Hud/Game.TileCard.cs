@@ -181,11 +181,12 @@ public partial class Game
 
         string water = world.HasRiver(tile) ? "River" : world.HasLake(tile) ? "Lake" : "";
         string deposit = frame.KnownDeposits[tile] != 0 && world.Deposit[tile] != (byte)DepositKind.None
-            ? $"{SpacedName(((DepositKind)world.Deposit[tile]).ToString())} deposit" : "No known deposit";
+            ? $"{SpacedName(((DepositKind)world.Deposit[tile]).ToString())} deposit{(world.DepositDepth[tile] >= 2 ? " (deep: needs Shaft Mining)" : "")}" : "No known deposit";
         string liveTile = visibility == TileVisibility.Visible
             ? $"Forest band {frame.ForestBand[tile]}" : "";
         if (frame.KnownDeposits[tile] != 0 && frame.DepositWorked[tile] != 0) liveTile = JoinTileDetail(liveTile, "worked");
-        else if (frame.KnownDeposits[tile] != 0 && frame.MiningReach[tile] != 0) liveTile = JoinTileDetail(liveTile, "within mining reach");
+        else if (frame.KnownDeposits[tile] != 0 && frame.MiningReach[tile] != 0)
+            liveTile = JoinTileDetail(liveTile, world.DepositDepth[tile] >= 2 && !ProjectKnown("MIN-04") ? "within mining reach, but too deep without Shaft Mining" : "within mining reach");
         UiKit.SetText(_tileFeatures!, string.Join(" · ", new[] { water, deposit, liveTile }.Where(s => s.Length > 0)));
 
         _tileWorkers!.Visible = true;

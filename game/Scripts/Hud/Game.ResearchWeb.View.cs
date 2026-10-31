@@ -806,7 +806,9 @@ public partial class Game
                 stateVariation = "BodyStrongSecondary";
                 break;
             default:
-                stateText = "Blocked — its methods fall back until you meet its needs";
+                stateText = BlockedByMetal(frame, def) is { } metalName
+                    ? $"Blocked — no settlement holds {metalName}, so its methods fall back. Still counts toward your age."
+                    : "Blocked — its methods fall back until you meet its needs";
                 break;
         }
         UiKit.SetText(_inspState!, stateText);
@@ -1108,6 +1110,18 @@ public partial class Game
         for (int i = 0; i < lists.Length; i++) _dependents[i] = lists[i]?.ToArray() ?? Array.Empty<int>();
     }
 
+    private static bool MetalAccessMet(MatchFrame frame, int civ, int bit)
+        => (uint)civ < (uint)frame.CivMetalAccess.Length && (frame.CivMetalAccess[civ] & bit) != 0;
+
+    /// <summary>The metal a Blocked project is missing, or null when its gate is something else.</summary>
+    private string? BlockedByMetal(MatchFrame frame, ProjectDef def)
+    {
+        int civ = Math.Max(0, frame.FocusCiv);
+        foreach (Gate gate in def.Gates)
+            if (UiText.MetalGate(_catalog!, gate, out int bit, out string metal) && !MetalAccessMet(frame, civ, bit)) return metal;
+        return null;
+    }
+
     private void BuildNeeds(MatchFrame frame, ProjectDef def, ProjectState state)
     {
         int allUsed = 0, anyUsed = 0, hiddenRequired = 0;
@@ -1133,8 +1147,13 @@ public partial class Game
         var note = new StringBuilder();
         if (hiddenRequired > 0) note.Append(hiddenRequired == 1 ? "1 more you haven't discovered yet.\n" : $"{hiddenRequired} more you haven't discovered yet.\n");
         if (def.RequiresAny.Length > 0 && anyUsed == 0) note.Append("Another route you haven't discovered yet.\n");
+        int focusCiv = Math.Max(0, frame.FocusCiv);
         foreach (Gate gate in def.Gates)
+        {
             note.Append(gate.Kind == GateKind.Seen ? "✓ " : "• ").Append(UiText.GateText(_catalog!, gate)).Append('\n');
+            if (UiText.MetalGate(_catalog!, gate, out int bit, out string metal))
+                note.Append(UiText.MetalGateNote(metal, MetalAccessMet(frame, focusCiv, bit), state is ProjectState.Completed or ProjectState.Dormant)).Append('\n');
+        }
         if (def.Requires.Length == 0 && def.RequiresAny.Length == 0 && def.Gates.Length == 0 && !def.IsKeystone)
             note.Append(state is ProjectState.Available or ProjectState.Slotted ? "Nothing — you can start it now." : "No earlier project is needed.");
         string noteText = note.ToString().Replace("✓ ", "").TrimEnd('\n');

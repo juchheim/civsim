@@ -469,6 +469,9 @@ public partial class Game : Node3D
         // --dev-ziggurat=0..4: pretend the biggest settlement is raising (1 to 3) or has raised (4) its BLD-08 ziggurat, to photograph it
         int forcedZigguratStage = ArgumentValue("--dev-ziggurat=") is { } zigArg && int.TryParse(zigArg, out int zigStage) ? zigStage : -1;
         int forcedZigguratAt = -1;
+        // --dev-temple=N: the biggest settlement has raised N BEL-06 temples
+        int forcedTemples = ArgumentValue("--dev-temple=") is { } templeArg && int.TryParse(templeArg, out int templeCount) ? templeCount : -1;
+        int forcedTempleAt = -1;
         // --dev-leanto=N: the capital stands in a camp of N lean-tos and nothing sturdier (the early-village look)
         int forcedLeanTos = ArgumentValue("--dev-leanto=") is { } leanArg && int.TryParse(leanArg, out int leanCount) ? leanCount : -1;
         int forcedLeanToAt = -1;
@@ -482,6 +485,11 @@ public partial class Game : Node3D
                 if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedZigguratAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedZigguratAt]))
                     forcedZigguratAt = i;
+        if (forcedTemples > 0)
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (forcedTempleAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedTempleAt]))
+                    forcedTempleAt = i;
 #endif
         for (int i = 0; i < frame.SettlementCount; i++)
         {
@@ -496,6 +504,7 @@ public partial class Game : Node3D
                 ["food"] = (int)frame.SettlementFood[i],
                 ["structures"] = structures,
                 ["halls"] = (int)frame.SettlementHalls[i],
+                ["temples"] = (int)frame.SettlementTemples[i],
                 ["ziggurats"] = (int)frame.SettlementZiggurats[i],
                 ["zigguratPermille"] = (int)frame.SettlementZigguratPermille[i],
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
@@ -512,6 +521,7 @@ public partial class Game : Node3D
                 settlement["structures"] = structures;
                 settlement["halls"] = 0;
             }
+            if (i == forcedTempleAt) settlement["temples"] = forcedTemples;
             if (i == forcedZigguratAt)
             {
                 settlement["ziggurats"] = forcedZigguratStage >= 4 ? 1 : 0;

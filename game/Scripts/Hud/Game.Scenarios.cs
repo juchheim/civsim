@@ -75,8 +75,30 @@ public partial class Game
                 break;
             case "map":
                 Step(() => OpenResearchWeb(-1));
-                Step(() => SetResearchView(1));
+                Step(() => SetResearchView(1), 1.0f);
                 Shot("map-1");
+                Step(() => { _mapCenterNext = true; SelectFirstAlmostReady(); }, 1.0f);
+                Shot("map-2-chain");
+                Step(() => _mapView?.FitVisible(), 1.0f);
+                Shot("map-3-fit");
+                Step(() => SetThemeFilter(1));
+                Shot("map-4-kin");
+                Step(() => { SetThemeFilter(-1); if (_webSearch is not null) _webSearch.Text = "fire"; _webSignature = int.MinValue; RefreshResearchWebNow(); });
+                Shot("map-5-search");
+                Step(() => { JumpToFirstMapMatch(); }, 1.0f);
+                Shot("map-6-search-jump");
+                Step(() => _mapView?.ZoomBy(1.8f), 0.8f);
+                Shot("map-7-zoomed");
+                Step(() => { MoveWebSelection(0, 1); MoveWebSelection(0, 1); }, 1.0f);
+                Shot("map-8-arrows");
+                Step(() => { if (_webSearch is not null) _webSearch.Text = ""; SelectResearchProject(FindDefaultResearchProject()); _mapView?.ProjectActivated?.Invoke(_selectedResearchProject); }, 1.0f);
+                Shot("map-9-activated");
+                Step(() => { if (_current is not null && _catalog is not null) { int ks = _catalog.KeystoneLeaving(Math.Max(0, _current.FocusEra)); if (ks >= 0) SelectResearchProject(ks); _mapCenterNext = true; ScrollToSelected(); } }, 1.0f);
+                Shot("map-10-turning-point");
+                Step(() => _mapView?.FitVisible(), 1.0f);
+                Shot("map-11-turning-point-fit");
+                Step(() => { int hafting = _catalog?.IndexOf("STN-04") ?? -1; if (hafting >= 0) SelectResearchProject(hafting); _mapCenterNext = true; ScrollToSelected(); }, 1.0f);
+                Shot("map-12-revealed-step");
                 break;
             case "overlays":
                 Step(() => SetMapOverlay(1));
@@ -87,6 +109,17 @@ public partial class Game
                 Shot("ov-methods");
                 Step(() => SetResourcesVisible(true));
                 Shot("ov-resources");
+                break;
+            case "deposits":
+                // centres on the known deposit with the most known deposits around it, then shoots it near and far
+                Step(() => { CenterOnDepositCluster(); ZoomTo(ZoomPresets[1]); }, 1.2f);
+                Shot("deposits-z1");
+                Step(() => ZoomTo(ZoomPresets[2]), 1.0f);
+                Shot("deposits-z2");
+                Step(() => ZoomTo(ZoomPresets[0]), 1.0f);
+                Shot("deposits-z0");
+                Step(() => ZoomTo(ZoomPresets[3]), 1.0f);
+                Shot("deposits-z3");
                 break;
             case "moments":
                 Step(() => OpenResearchWeb(-1));
@@ -110,17 +143,6 @@ public partial class Game
                 Shot("menu");
                 Step(() => ToggleGameMenu(false));
                 Step(() => ToggleHelp(true));
-            case "deposits":
-                // centres on the known deposit with the most known deposits around it, then shoots it near and far
-                Step(() => { CenterOnDepositCluster(); ZoomTo(ZoomPresets[1]); }, 1.2f);
-                Shot("deposits-z1");
-                Step(() => ZoomTo(ZoomPresets[2]), 1.0f);
-                Shot("deposits-z2");
-                Step(() => ZoomTo(ZoomPresets[0]), 1.0f);
-                Shot("deposits-z0");
-                Step(() => ZoomTo(ZoomPresets[3]), 1.0f);
-                Shot("deposits-z3");
-                break;
                 Shot("help-controls");
                 Step(() => _helpTabs?.Select(1, true));
                 Shot("help-research");
@@ -301,6 +323,7 @@ public partial class Game
                 Step(() => ZoomTo(2.4f), 1.0f);
                 Shot("boats-close");
                 break;
+#if DEBUG
             case "voyage":
                 // needs: --start-minute=15 --dev-island-colony (debug builds): civ 0's fighters now live on an island
                 Step(() =>
@@ -329,6 +352,7 @@ public partial class Game
                 Step(() => { _session!.SetPaused(false); _session.SetSpeedIndex(0); }, 1.5f);
                 Shot("voyage-b");
                 break;
+#endif
             case "signals":
                 Step(() => { _session!.SetSpeedIndex(0); GrantProject(FindProjectByName("Signal Fires & Drums")); }, 2.0f);
                 Step(() => { GD.Print($"SCN signals posts={(int)_visualRenderer!.Call("signal_count")}"); _target = (Vector3)_visualRenderer!.Call("signal_focus"); ZoomTo(7.0f); }, 1.0f);
@@ -453,6 +477,29 @@ public partial class Game
                     Step(() => { }, 2.2f);
                 }
                 break;
+            case "civic":
+                // --start-minute=30 --viewer=-1 --dev-temple=1 [--focus=temple_built] (debug builds): a built civic building in its town, from afar and close up
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital();
+                }, 8.0f);
+                string civicFocus = ArgumentValue("--focus=") ?? "temple_built";
+                foreach (var (civicShot, civicZoom) in new[] { ("wide", 8.0f), ("village", 4.0f), ("close", 2.7f) })
+                {
+                    float zoom = civicZoom;
+                    string shot = civicShot;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("landmark_focus", civicFocus);
+                        if (at != Vector3.Zero) { _target = at; ZoomTo(zoom); UpdateCamera(); }
+                    }, 1.2f);
+                    Shot($"civic-{shot}");
+                }
+                break;
             case "leanto-village":
                 // --start-minute=30 --viewer=-1 --dev-leanto=N (debug builds): the capital as a camp of lean-tos, from afar and close up
                 Step(() =>
@@ -487,7 +534,7 @@ public partial class Game
                 string[]? onlyRows = ArgumentValue("--rows=")?.Split(',');
                 foreach (var (rowName, row) in new[]
                 {
-                    ("dwellings", 0), ("yard", 1), ("defense-land", 2), ("decor-1", 3), ("decor-2", 4), ("decor-3", 5), ("landmarks", 6),
+                    ("dwellings", 0), ("yard", 1), ("defense-land", 2), ("decor-1", 3), ("decor-2", 4), ("decor-3", 5), ("landmarks", 6), ("civic", 7),
                 })
                 {
                     if (onlyRows is not null && Array.IndexOf(onlyRows, rowName) < 0) continue;
@@ -648,6 +695,36 @@ public partial class Game
                 Shot("skirmish-wide");
                 Step(() => { }, 3.0f);
                 break;
+            case "raid-report":
+                {
+                    // --start-minute=30 --viewer=0: how a raid is told to the player. A launch toast, then a won raid (loot, toast, floater),
+                    // then a raid the player suffered; the HUD stays up so the toasts show.
+                    int rrTile = -1, rrViewer = 0;
+                    Step(() =>
+                    {
+                        _session!.SetPaused(true);
+                        rrViewer = Math.Max(0, _current!.ViewerCiv);
+                        int best = -1;
+                        for (int i = 0; i < _current.SettlementCount; i++)
+                            if (_current.SettlementCiv[i] == rrViewer && (best < 0 || _current.SettlementPopulation[i] > _current.SettlementPopulation[best])) best = i;
+                        rrTile = best >= 0 ? _current.SettlementTile[best] : 0;
+                        Vector3 c = TileCenter(rrTile % _current.Width, rrTile / _current.Width);
+                        MoveCameraTo(new Vector3(c.X, _terrainHeights[rrTile], c.Z), 6.0f, instant: true);
+                        UpdateCamera();
+                    }, 1.5f);
+                    ViewEvent Ev(ViewEventKind kind, int a, int b, int c, sbyte civ, sbyte other)
+                        => new() { Kind = kind, A = a, B = b, C = c, Tile = rrTile, Settlement = -1, Civ = civ, Other = other, Project = -1, Figure = -1, Tier = ViewEventTier.Milestone };
+                    int Fight(int raiders, int defenders, int raidersDown, int defendersDown) => raiders | defenders << 8 | raidersDown << 16 | defendersDown << 24;
+                    Step(() => HandleEvent(Ev(ViewEventKind.RaidLaunched, 9, 0, RaidTarget.Settlement, (sbyte)rrViewer, 1), rrViewer, _current!), 0.6f);
+                    Shot("raid-report-launched");
+                    Step(() => HandleEvent(Ev(ViewEventKind.RaidResolved, 1, 24, 0, (sbyte)rrViewer, 1) with { C = 0 }, rrViewer, _current!), 0.8f);
+                    Shot("raid-report-won");
+                    Step(() => { }, 3.5f);
+                    Step(() => HandleEvent(Ev(ViewEventKind.RaidResolved, 2, 31, 0, 1, (sbyte)rrViewer) with { C = Fight(9, 5, 2, 3) }, rrViewer, _current!), 5.0f);
+                    Shot("raid-report-suffered");
+                    Step(() => { }, 1.0f);
+                    break;
+                }
             case "dev":
                 Step(ToggleDevOverlay);
                 Step(() => OpenResearchWeb(-1), 3.0f);
@@ -705,6 +782,29 @@ public partial class Game
 
     private static void InjectRightDrag(Vector2 from, Vector2 to) => InjectDrag(from, to, MouseButton.Right);
 
+    private void CenterOnDepositCluster()
+    {
+        if (_session is null || _current is null) return;
+        int w = _current.Width, h = _current.Height, best = -1, bestCount = 0;
+        for (int tile = 0; tile < w * h; tile++)
+        {
+            if (_current.KnownDeposits[tile] == 0) continue;
+            int count = 0, tx = tile % w, ty = tile / w;
+            for (int dy = -3; dy <= 3; dy++)
+                for (int dx = -3; dx <= 3; dx++)
+                {
+                    int x = tx + dx, y = ty + dy;
+                    if (x >= 0 && y >= 0 && x < w && y < h && _current.KnownDeposits[y * w + x] != 0) count++;
+                }
+            if (count > bestCount) { bestCount = count; best = tile; }
+        }
+        GD.Print($"SCN deposit cluster tile={best} known={bestCount}");
+        if (best < 0) return;
+        _target = TileCenter(best % w, best / w);
+        ClampTarget();
+        UpdateCamera();
+    }
+
     private void TakeScenarioShot(string name)
     {
         Error error = SaveScreenshot(Path.Combine(_scenarioDir!, name + ".png"));
@@ -739,26 +839,3 @@ public partial class Game
         _session.Queue(new Command(_session.Tick, 0, CommandKind.CompleteProject, project, 0, 0));
     }
 }
-    private void CenterOnDepositCluster()
-    {
-        if (_session is null || _current is null) return;
-        int w = _current.Width, h = _current.Height, best = -1, bestCount = 0;
-        for (int tile = 0; tile < w * h; tile++)
-        {
-            if (_current.KnownDeposits[tile] == 0) continue;
-            int count = 0, tx = tile % w, ty = tile / w;
-            for (int dy = -3; dy <= 3; dy++)
-                for (int dx = -3; dx <= 3; dx++)
-                {
-                    int x = tx + dx, y = ty + dy;
-                    if (x >= 0 && y >= 0 && x < w && y < h && _current.KnownDeposits[y * w + x] != 0) count++;
-                }
-            if (count > bestCount) { bestCount = count; best = tile; }
-        }
-        GD.Print($"SCN deposit cluster tile={best} known={bestCount}");
-        if (best < 0) return;
-        _target = TileCenter(best % w, best / w);
-        ClampTarget();
-        UpdateCamera();
-    }
-

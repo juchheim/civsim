@@ -9,7 +9,7 @@ using ResearchTheme = CivSim.Sim.Research.Theme;
 namespace CivSim.Game;
 
 /// <summary>
-/// The research web: a "Choose" view of what is ready now and a radial "Map" of every known project and its prerequisites,
+/// The research web: an "Available" view of what is ready now and a radial "Tree" of every known project and its prerequisites,
 /// with one inspector.
 /// Click to look, click the big button to start. docs/MVP/20 §3.4 and §4.4.
 /// </summary>
@@ -126,7 +126,7 @@ public partial class Game
         // Header
         var header = UiKit.Row(UiTokens.Sp3);
         header.AddChild(UiKit.Text("Research", "Title"));
-        _webViewSwitch = new UiSegmented(new[] { "Choose", "Map" }, 0, SetResearchView, 76);
+        _webViewSwitch = new UiSegmented(new[] { "Available", "Tree" }, 0, SetResearchView, 88);
         _webViewSwitch.SetTooltip(0, "Projects you can start now");
         _webViewSwitch.SetTooltip(1, "Every project you know and what it needs, by age");
         _webViewSwitch.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;

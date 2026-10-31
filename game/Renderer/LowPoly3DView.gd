@@ -318,9 +318,9 @@ func show_buildings_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(8.0, 11.0)
+	plane.size = Vector2(8.0, 13.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, 0.0)
+	floor_mesh.position = Vector3(0.0, -0.01, -0.7)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -340,6 +340,7 @@ func show_buildings_gallery() -> Vector3:
 		[["decor_signal", 0.5, vs], ["decor_charcoal", 0.5, vs], ["decor_furnace", 0.5, vs], ["decor_sledge", 0.5, vs], ["decor_spearrack", 0.5, vs], ["decor_grave", 0.5, vs]],
 		[["decor_council", 0.5, vs], ["decor_quarry", 0.5, vs], ["decor_skypole", 0.5, vs], ["decor_bricks", 0.5, vs], ["decor_baskets", 0.5, vs], ["decor_woodwork", 0.5, vs]],
 		[["decor_temple", 0.8, vs], ["decor_chiefhall", 0.8, vs], ["decor_woolbales", 0.5, vs], ["ziggurat", 0.8, 1.3], ["monument_menhir", 0.4, 1.3], ["monument_lintel", 0.5, 1.3]],
+		[["temple", 0.9, 1.3]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -582,11 +583,11 @@ func _make_materials() -> void:
 	banner.set_shader_parameter("lod_grow", 1.5)
 	banner.set_shader_parameter("billboard_y", true)
 	mats.banner = banner
-	var figure := ShaderMaterial.new()
 	var deposit := ShaderMaterial.new()                # grows with the camera distance like people do, so a deposit still reads zoomed out
 	deposit.shader = prop.shader
 	deposit.set_shader_parameter("lod_grow", 1.2)
 	mats.deposit = deposit
+	var figure := ShaderMaterial.new()
 	figure.shader = prop.shader
 	figure.set_shader_parameter("is_figure", true)
 	var figure_tints := PackedVector3Array()
