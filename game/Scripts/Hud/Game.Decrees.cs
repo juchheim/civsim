@@ -111,10 +111,18 @@ public partial class Game
         DecreeForecast f = _session.PreviewDecree(civ, _pendingDecree, _pendingTarget, _pendingExtra);
         string result = f.Allowed
             ? $"Elders expect {f.SuccessPermille / 10.0:0.#}% success · {f.People} people · about {f.Tiles} tiles · {f.Seasons} seasons. Mandate {f.MandateAfter} after."
-            : $"The elders advise against it. {MineRefusalDetail(_pendingDecree, (int)f.LikelyRefusal, _pendingTarget) ?? UiText.DecreeRefusal(_pendingDecree, (int)f.LikelyRefusal)} Nothing will be spent.";
+            : $"The elders advise against it. {MineRefusalDetail(_pendingDecree, (int)f.LikelyRefusal, _pendingTarget) ?? UiText.DecreeRefusal(_pendingDecree, (int)f.LikelyRefusal)}{FoundRefusalDetail(_pendingDecree, f.LikelyRefusal, civ, _pendingTarget)} Nothing will be spent.";
         UiKit.SetText(_decreeForecast!, result);
         UiKit.SetVisible(_decreeConfirm!, f.Allowed);
         UiKit.SetText(_decreeConfirm!, $"Confirm · {f.Cost} Mandate");
+    }
+
+    /// <summary>For a founding refused because no settlement can spare people: what each settlement in reach is short of, as lines after the rule.</summary>
+    private string FoundRefusalDetail(DecreeKind kind, OrderRefusalReason reason, int civ, int tile)
+    {
+        if (kind != DecreeKind.Found || reason != OrderRefusalReason.NoDonor || _session is null) return "";
+        string detail = UiText.FoundDonorShortfalls(_session.FoundDonorStatuses(civ, tile));
+        return detail.Length == 0 ? "" : "\n" + detail;
     }
 
     /// <summary>The usual reasons <c>Open a mine</c> is refused as "no site", named for the tile picked; null when none of them is the cause.</summary>

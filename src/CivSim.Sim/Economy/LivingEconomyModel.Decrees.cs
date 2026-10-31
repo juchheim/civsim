@@ -50,6 +50,15 @@ public sealed partial class LivingEconomyModel
             : Fix64.Min(foodCap, Fix64.Min(HousingCap(settlement), groupCap));
     }
 
+    /// <summary>Which cap holds <see cref="PopulationFill"/> down: 0 food, 1 housing, 2 group (the lowest; food first on ties).</summary>
+    public int PopulationLimiter(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        Fix64 food = FoodCap(s), housing = HousingCap(s), group = GroupCap(s);
+        if (food <= housing && food <= group) return 0;
+        return housing <= group ? 1 : 2;
+    }
+
     /// <summary>The settlement's people over its EffectivePopCap (min of FoodCap, HousingCap, GroupCap): the fission scoring a founding donor is chosen by.</summary>
     public Fix64 PopulationFill(int settlementIndex)
     {

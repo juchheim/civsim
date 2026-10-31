@@ -156,6 +156,13 @@ public sealed class TinFolkVillage
 }
 
 /// <summary>
+/// One own settlement within reach of a founding site, with the three donor requirements it is measured against (docs/MVP/22 §4.3):
+/// people, fill (whole percent, rounded down) and seasons since it last sent settlers out. <c>Limiter</c> is what holds the fill down
+/// (0 food, 1 housing, 2 group).
+/// </summary>
+public readonly record struct FoundDonorStatus(int Settlement, int Population, int FillPercent, int Limiter, int SeasonsSinceFission);
+
+/// <summary>
 /// The forecast card of a Decree (docs/MVP/22 §4.4), computed from what the issuing civilization knows: its own state exactly and
 /// everyone else's only as far as it has seen (fog-fair). Permille values are probabilities; the rest are expectations.
 /// </summary>

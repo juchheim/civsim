@@ -262,6 +262,15 @@ public sealed class SimulationSession : IDisposable
             return DecreeForecaster.Forecast(_match.Politics, civ, kind, target, extra, belief: null);
     }
 
+    /// <summary>Own settlements within reach of a founding site with the donor figures a refusal is judged by, read on the simulation lock.</summary>
+    public System.Collections.Generic.List<FoundDonorStatus> FoundDonorStatuses(int civ, int tile)
+    {
+        var statuses = new System.Collections.Generic.List<FoundDonorStatus>();
+        lock (_stateLock)
+            _match.Politics.FoundDonorStatuses(civ, tile, statuses);
+        return statuses;
+    }
+
     internal GameSaveData CaptureSave(ulong onboardingSeen, bool introDismissed)
     {
         if (!CanSave) throw new InvalidOperationException("Development fast-forward sessions cannot be saved.");

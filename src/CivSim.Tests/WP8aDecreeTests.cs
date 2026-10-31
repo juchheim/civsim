@@ -139,6 +139,34 @@ public sealed class WP8aDecreeTests
     }
 
     [Fact]
+    public void FoundDonorStatuses_explain_each_founding_refusal()
+    {
+        var rig = new Rig();
+        var statuses = new System.Collections.Generic.List<FoundDonorStatus>();
+        int noDonor = 0;
+
+        for (int tile = 0; tile < World.Value.TileCount; tile++)
+        {
+            OrderRefusalReason why = rig.Match.Politics.FoundCheck(0, tile, out int donor);
+            if (why != 0 && why != OrderRefusalReason.NoDonor && why != OrderRefusalReason.OutOfReach) continue;
+            statuses.Clear();
+            rig.Match.Politics.FoundDonorStatuses(0, tile, statuses);
+            static bool CanSpare(FoundDonorStatus d) => d.Population >= 20 && d.FillPercent >= 60 && d.SeasonsSinceFission >= 4;
+
+            if (why == OrderRefusalReason.OutOfReach) Assert.Empty(statuses);
+            else if (why == OrderRefusalReason.NoDonor)
+            {
+                noDonor++;
+                Assert.NotEmpty(statuses);
+                Assert.DoesNotContain(statuses, CanSpare);
+            }
+            else Assert.Contains(statuses, d => d.Settlement == donor && CanSpare(d));
+        }
+
+        Assert.True(noDonor > 0, "the opening village is too small to donate, so some tile in reach is a NoDonor case");
+    }
+
+    [Fact]
     public void Embargo_requires_Key3_and_toggles_the_ordered_trade_lane()
     {
         var rig = new Rig();

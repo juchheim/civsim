@@ -321,10 +321,7 @@ public sealed partial class PoliticsSystem
         for (int s = 0; s < _sCount; s++)
         {
             if (_sCiv[s] != civ || _free[s] || _sPop[s] <= 0) continue;
-            int d = HexGrid.Distance(_sTile[s], tile, _width);
-            bool walk = WalkFrom(_sTile[s])[tile] != int.MaxValue;
-            int reach = FoundReach(civ, bySea: !walk);
-            if (reach == 0 || d > reach || (!walk && !CanReach(civ, _sTile[s], tile))) continue;
+            if (!InFoundReach(civ, s, tile)) continue;
             anyInReach = true;
             if (_sPop[s] < _rules.DonorMinPop || _economy.SeasonsSinceFission(s) < 4) continue;
             Fix64 fill = _economy.PopulationFill(s);
@@ -334,6 +331,29 @@ public sealed partial class PoliticsSystem
         }
         if (!anyInReach) return OrderRefusalReason.OutOfReach;
         return donor < 0 ? OrderRefusalReason.NoDonor : 0;
+    }
+
+    private bool InFoundReach(int civ, int settlement, int tile)
+    {
+        int d = HexGrid.Distance(_sTile[settlement], tile, _width);
+        bool walk = WalkFrom(_sTile[settlement])[tile] != int.MaxValue;
+        int reach = FoundReach(civ, bySea: !walk);
+        return reach != 0 && d <= reach && (walk || CanReach(civ, _sTile[settlement], tile));
+    }
+
+    /// <summary>
+    /// The own settlements within reach of <paramref name="tile"/>, in ascending index, with the figures <see cref="FoundCheck"/> judges
+    /// a donor by, so a NoDonor refusal can say which requirement each one misses. Appends to <paramref name="into"/>.
+    /// </summary>
+    public void FoundDonorStatuses(int civ, int tile, List<FoundDonorStatus> into)
+    {
+        if (unchecked((uint)tile) >= unchecked((uint)_tileArray.Length)) return;
+        for (int s = 0; s < _sCount; s++)
+        {
+            if (_sCiv[s] != civ || _free[s] || _sPop[s] <= 0 || !InFoundReach(civ, s, tile)) continue;
+            into.Add(new FoundDonorStatus(s, _sPop[s], (_economy.PopulationFill(s) * Fix64.FromInt(100)).FloorToInt(),
+                _economy.PopulationLimiter(s), _economy.SeasonsSinceFission(s)));
+        }
     }
 
     private OrderRefusalReason ExecuteFound(int civ, int tile, out int subject, bool protectCityProspect)

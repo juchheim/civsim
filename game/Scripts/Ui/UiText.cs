@@ -343,6 +343,29 @@ public static class UiText
         _ => "it was refused",
     };
 
+    /// <summary>
+    /// What each settlement in reach lacks to send settlers (20 people, 60% full, 4 seasons since it last did), one line per settlement
+    /// that has none to spare. The limiter is what holds the fill down: 0 food, 1 housing, 2 group.
+    /// </summary>
+    public static string FoundDonorShortfalls(System.Collections.Generic.IReadOnlyList<CivSim.Sim.Politics.FoundDonorStatus> statuses)
+    {
+        var lines = new System.Collections.Generic.List<string>();
+        foreach (var d in statuses)
+        {
+            var misses = new System.Collections.Generic.List<string>();
+            if (d.Population < 20) misses.Add($"only {d.Population} people (needs 20)");
+            if (d.FillPercent < 60)
+                misses.Add($"{d.FillPercent}% full (needs 60%), held back by {d.Limiter switch { 0 => "food", 1 => "housing", _ => "its numbers" }}");
+            if (d.SeasonsSinceFission < 4)
+            {
+                int left = 4 - d.SeasonsSinceFission;
+                misses.Add($"sent settlers out recently ({left} more {(left == 1 ? "season" : "seasons")})");
+            }
+            if (misses.Count > 0) lines.Add($"Settlement {d.Settlement + 1}: {string.Join("; ", misses)}.");
+        }
+        return string.Join("\n", lines);
+    }
+
     /// <summary>Why a Decree would be (or was) refused, in a full sentence for the Decree card. Never shows a code name.</summary>
     public static string DecreeRefusal(CivSim.Sim.Politics.DecreeKind kind, int reason)
     {
