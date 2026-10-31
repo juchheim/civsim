@@ -134,11 +134,17 @@ public sealed class BronzeAiGateTests
     }
 
     [Theory]
-    [InlineData(.60, "Pass")]
-    [InlineData(.59, "Fail")]
-    public void B8_requires_60_percent_enabled_match_wins(double rate, string expected)
+    [InlineData(20, 32, 51.4, "Pass", 32, 64)]
+    [InlineData(19, 32, 51.4, "Fail", 32, 64)]
+    [InlineData(20, 32, 0, "Fail", 32, 64)]
+    [InlineData(20, 32, 51.4, "Diagnostic", 31, 64)]
+    [InlineData(20, 32, 51.4, "Diagnostic", 32, 63)]
+    public void B8_requires_positive_paired_legacy_advantage_in_60_percent_of_full_seed_cohort(
+        int positivePairs, int seedPairs, double meanDelta, string expected, int seeds, int minutes)
     {
-        Assert.Equal(expected, BronzeAiGates.Classify(32, 64, rate, .60).ToString());
+        var effect = new BronzeAiGates.B8PairedLegacySummary(positivePairs, seedPairs, meanDelta, meanDelta);
+
+        Assert.Equal(expected, BronzeAiGates.ClassifyB8(seeds, minutes, effect).ToString());
     }
 
     [Fact]
