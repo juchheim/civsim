@@ -31,7 +31,7 @@ public partial class Game
         col.AddChild(header);
         _decreeMandate = UiKit.Text("Mandate · locked", "Body");
         col.AddChild(_decreeMandate);
-        _decreeHint = UiKit.Text($"Research {DecreeUnlockProjectName()} to issue a Decree.", "Caption", wrap: true, minWidth: 280);
+        _decreeHint = UiKit.Text($"Reach {DecreeUnlockProjectName()} to issue a Decree.", "Caption", wrap: true, minWidth: 280);
         col.AddChild(_decreeHint);
         col.AddChild(UiKit.Text("CHOOSE A PLACE", "EyebrowTertiary"));
         _decreeFound = UiKit.Secondary("Found a village", () => ArmDecree(DecreeKind.Found), "Choose a tile on the map.");
@@ -173,7 +173,7 @@ public partial class Game
         UiKit.SetText(_decreeMandate, available
             ? $"Mandate · {frame.FocusMandate}/{frame.FocusMandateCap} · next in {frame.FocusMandateNextSeason} seasons"
             : $"Mandate · locked until {unlockProject}");
-        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : $"Research {unlockProject} to issue a Decree.");
+        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : $"Reach {unlockProject} to issue a Decree.");
         foreach (UiButton? button in new[] { _decreeFound, _decreeExplore, _decreeMine, _decreeLevy, _decreeCorvee })
             if (button is not null) button.Disabled = !available || !(_session?.CanIssueCommands ?? false);
         if (_decreePartner is null) return;
