@@ -56,7 +56,7 @@ public class PoliticsMatchTests
         var contacts = rig.Politics.Events.Where(e => e.Kind == PoliticsEventKind.Contact).ToList();
         Assert.NotEmpty(contacts);
         double first = contacts.Min(e => (e.Tick + 1) / 600.0);
-        Assert.InRange(first, 15, 25); // 13 §11 F1 for this seed (the harness audits 24 seeds)
+        Assert.InRange(first, 6, 15); // scouts make contact when their sight reaches a rival settlement (13 §3): minutes 6.7 to 14.4 over seeds 20261019 to 20261042, earlier than 13 §11 F1's 15 to 25
         PoliticsEvent c = contacts[0];
         int a = c.Civ, b = c.Other;
         Assert.True(rig.Politics.Diplomacy.Contacted(a, b));

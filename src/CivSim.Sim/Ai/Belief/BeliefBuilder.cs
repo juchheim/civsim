@@ -664,6 +664,17 @@ public sealed class BeliefBuilder : IBeliefBuilder
         return d == int.MaxValue ? d : d - range;
     }
 
+    /// <summary>
+    /// As <see cref="TilesOutOfSight"/> but for routine sight alone (zero or less: certainly seen at the next update). Scouts now
+    /// see only where their simulated route took them, so their range no longer guarantees a sighting.
+    /// </summary>
+    public static int TilesOutOfRoutineSight(TrueWorld world, int observer, int settlement)
+    {
+        PoliticsSystem pol = world.Politics;
+        int d = MinDistance(pol, observer, pol.SettlementTileOf(settlement));
+        return d == int.MaxValue ? d : d - BeliefRules.RoutineSight(pol.ReachOf(observer));
+    }
+
     /// <summary>How many tiles the nearest settlements of observer and rival lie beyond figure sight (zero or less: figures seen).</summary>
     public static int TilesOutOfFigureSight(TrueWorld world, int observer, int rival)
     {

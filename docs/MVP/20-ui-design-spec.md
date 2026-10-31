@@ -800,7 +800,7 @@ Rules: plain English, second person, sentence case (caps only for Eyebrows), no 
 | Element | Copy |
 |---------|------|
 | Title | "Research" |
-| View switch | "Choose" · "Map" (tooltips: "Projects you can start now" · "Every field you know, by age") |
+| View switch | "Available" · "Tree" (tooltips: "Projects you can start now" · "Every field you know, by age") |
 | Theme chips | "All" · "Craft" · "Kin" · "Reach" |
 | Search placeholder | "Search projects (e.g. fire, fish, tools)" |
 | No results | "No known project matches “{query}”." |

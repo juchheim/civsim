@@ -121,8 +121,8 @@ public class ViewStoreTests
             if (runner.Tick % 50 == 0) omniscient.Build(match, omniFrame);
         }
 
-        // Prime trail links and event scratch buffers first added just after the 18-minute baseline.
-        for (int i = 0; i < 15; i++)
+        // Prime trail links, event scratch buffers and the arrays a first mining camp grows (it opens at about minute 18.8 now).
+        for (int i = 0; i < 60; i++)
         {
             runner.Advance(10);
             store.BuildAndPublish(viewer, match);

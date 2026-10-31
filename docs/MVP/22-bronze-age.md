@@ -458,7 +458,7 @@ Effect primitives as in [11 §1](11-e0-e2-project-specs.md#1-effect-primitives-s
 | MIN-05 | Fire-Setting | M | MIN-04, FIR-08 | Mod(mine output, ×1.5; 0.5 L wood per L ore) | mine, tend fire |
 | MIN-06 | Salt Works | D | MIN-03, FOD-02, [Seen: Salt] | Action+(Salt: 1 L/ws at salt deposits, coastal pans in Summer) · Good(G-SALT, barter 6) · Unlock(FOD-07) | mine |
 | MET-03 | Casting & Moulds | M | MET-02, CER-03 | Good(G-TOOL8 copper kit: 0.12 L, durability 12) · Method(Chop, r5 Copper axe, ×4.5) · Mod(quarry and mine, +10%) · Good(G-ARMS1 copper spear and dagger, 1.8) | smelt, craft |
-| MET-04 | Arsenical Bronze | M | MET-03, [Has: Arsenic ore] | Good(G-ABRONZE: co-smelt) · Good(G-TOOL9: 0.15 L, durability 16) · Method(Chop, r6 Bronze axe, ×6.0) · Mod(harvest labor ×0.8; timber build ×0.85; mine and quarry +30%; clearing ×1.25) · Risk(smiths' injury ×1.3) | smelt, mine |
+| MET-04 | Arsenical Bronze | M | MET-03, MIN-04, [Has: Arsenic ore] | Good(G-ABRONZE: co-smelt) · Good(G-TOOL9: 0.15 L, durability 16) · Method(Chop, r6 Bronze axe, ×6.0) · Mod(harvest labor ×0.8; timber build ×0.85; mine and quarry +30%; clearing ×1.25) · Risk(smiths' injury ×1.3) | smelt, mine |
 | MET-05 | Tin Bronze | M | MET-03, [Has: Tin] | Action+(dig and smelt tin) · Good(G-TIN, G-BRONZE) · Good(G-TOOL10: 0.15 L, durability 24) · Method(Chop, r6 Bronze axe, ×6.0) · same Mods as MET-04 · Rule(tin barter value 40) | smelt, trade |
 | MET-06 | Lost-Wax Casting | M | ART-06, (MET-04 \| MET-05) | Good(G-FINEBRONZE statues and vessels, luxury, barter 30) · Mod(Wonder build labor, −10%) · Rule(a Legend commemorated in bronze keeps its bonus) | craft, smelt |
 | MET-07 | Gold & Silver Working | D | MET-03, TRD-03, [Seen: Gold or Silver] | Action+(gold and silver: 0.1 L/ws) · Good(G-GOLD, luxury, barter 40; luxury Cohesion ×2) | mine, craft |
@@ -536,7 +536,7 @@ Effect primitives as in [11 §1](11-e0-e2-project-specs.md#1-effect-primitives-s
 - **Fidelity target:** KEY-4 within 15% of the live sim, median ≤ 6% (today KEY-1–3: median 4.5%).
 
 ### 13.2 Research (Spark)
-- **The bronze fork:** V(MET-05) uses P(tin access within the horizon) from beliefs: own claim on a tin tile, an open compact offer, a Tin Folk village in reach, Relations with tin holders. V(MET-04) needs MIN-04 and an arsenical deposit within mining reach. A smart AI researches the route it can feed, and both when tin is contested.
+- **The bronze fork:** V(MET-05) uses P(tin access within the horizon) from beliefs: own claim on a tin tile, an open compact offer, a Tin Folk village in reach, Relations with tin holders. V(MET-04) needs an arsenical deposit within mining reach; MIN-04 is now a prerequisite of MET-04 itself (arsenical ore is always depth 2, so the project was unusable without it). A smart AI researches the route it can feed, and both when tin is contested.
 - **Defense on time (A1 in practice):** if a rival's believed WAR-05 ETA is earlier than its own palisade, hillfort or walls ETA + 2 seasons, DEF and WAR projects jump and a Corvée is issued.
 - **Archetype signatures in E3:** Builder STN-11, BLD-07/08, DEF-05, FIR-09; Grower AGR-05/06/07, SOC-09, FOD-08, Found; Wanderer SEA-05/06, WAY-05, TRD-04/05, HUS-07/TRN-06, Expedition and Compact; Warlord WAR-05/06, FOD-07, Levy; Sage COM-05/06, LRN-04, NUM-05/06, BEL-06/07. Weights inside the same planner; competence is equal (14 §9.1).
 

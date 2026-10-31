@@ -207,6 +207,9 @@ internal sealed class WatchedMatch
                 else if (v == TileVisibility.Explored)
                 {
                     ExploredObservations++;
+                    // A scout's route sight (docs/MVP/13 §3) explores land, and refreshes its owner, during the season step; no frame
+                    // shows it Visible. What the civilization remembers is the owner at the scout map's last sighting.
+                    if (Match.Politics.ScoutMapExplored(0, t)) { everSeen[t] = true; lastSeenOwner[t] = (sbyte)Match.Politics.ScoutMapOwnerSeen(0, t).Owner; }
                     if (!everSeen[t]) Violations.Add($"tick {f.Tick}: tile {t} explored but never seen");
                     else if (f.Owner[t] != lastSeenOwner[t]) Violations.Add($"tick {f.Tick}: tile {t} remembered owner {f.Owner[t]}, last seen {lastSeenOwner[t]}");
                     if (f.Claim[t] != 0) Violations.Add($"tick {f.Tick}: claim strength shown on unseen tile {t}");

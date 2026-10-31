@@ -23,7 +23,7 @@ internal static class FrameDump
         {
             var structures = new int[kinds];
             for (int k = 0; k < kinds; k++) structures[k] = f.SettlementStructures[i * kinds + k];
-            settlements.Add(new { tile = f.SettlementTile[i], civ = (int)f.SettlementCiv[i], population = f.SettlementPopulation[i], food = (int)f.SettlementFood[i], structures, ziggurats = (int)f.SettlementZiggurats[i], zigguratPermille = (int)f.SettlementZigguratPermille[i] });
+            settlements.Add(new { tile = f.SettlementTile[i], civ = (int)f.SettlementCiv[i], population = f.SettlementPopulation[i], food = (int)f.SettlementFood[i], structures, temples = (int)f.SettlementTemples[i], ziggurats = (int)f.SettlementZiggurats[i], zigguratPermille = (int)f.SettlementZigguratPermille[i] });
         }
         var plots = new List<int[]>();
         for (int i = 0; i < f.PlotCount; i++) plots.Add(new[] { f.PlotTile[i], f.PlotKind[i] });

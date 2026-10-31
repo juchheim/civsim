@@ -341,7 +341,8 @@ public class BronzeEraTests
         Assert.Equal(3, rig.Research.Era(0));
         Assert.Equal(ProjectState.Available, rig.Research.State(0, met03)); // MET-02 and CER-03 are done
         // One prerequisite away is a Glimpse; two or more stay Hidden.
-        Assert.Equal(ProjectState.Glimpsed, rig.Research.State(0, rig.P("MET-04"))); // needs MET-03 only ([Has] is for use, not research)
+        Assert.Equal(ProjectState.Glimpsed, rig.Research.State(0, rig.P("MET-05"))); // needs MET-03 only ([Has] is for use, not research)
+        Assert.Equal(ProjectState.Hidden, rig.Research.State(0, rig.P("MET-04"))); // MET-03 and MIN-04: arsenical ore is depth 2, so the dig needs a shaft
         Assert.Equal(ProjectState.Hidden, rig.Research.State(0, rig.P("MET-06")));
     }
 

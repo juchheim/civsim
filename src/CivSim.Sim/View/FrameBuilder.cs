@@ -939,7 +939,7 @@ public sealed partial class FrameBuilder
                 target.SettlementSmallStock[w] = 0; target.SettlementCattle[w] = 0; target.SettlementPigs[w] = 0;
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
-                target.SettlementHalls[w] = 0; target.SettlementZiggurats[w] = 0; target.SettlementZigguratPermille[w] = 0;
+                target.SettlementHalls[w] = 0; target.SettlementTemples[w] = 0; target.SettlementZiggurats[w] = 0; target.SettlementZigguratPermille[w] = 0;
                 continue;
             }
             var lite = eco.SettlementLite(s);
@@ -966,6 +966,7 @@ public sealed partial class FrameBuilder
             for (int k = 0; k < kinds; k++)
                 target.SettlementStructures[structureBase + k] = (byte)Math.Min(255, eco.StructureCount(s, k));
             target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
+            target.SettlementTemples[w] = (byte)Math.Min(255, eco.TempleCount(s));
             (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
             target.SettlementZiggurats[w] = (byte)Math.Min(255, ziggurats);
             target.SettlementZigguratPermille[w] = (short)Math.Clamp(zigguratPermille, 0, 1000);
@@ -1232,6 +1233,14 @@ public sealed partial class FrameBuilder
 
     // ---- civilizations and the focus bar --------------------------------------------------------
 
+    private static int MetalAccessBits(LivingEconomyModel eco, int civ)
+    {
+        if (!eco.BronzeActive) return 0;
+        return (eco.CivHasMetalAccess(civ, MetalAccessKind.Copper) ? 1 : 0)
+            | (eco.CivHasMetalAccess(civ, MetalAccessKind.Arsenic) ? 2 : 0)
+            | (eco.CivHasMetalAccess(civ, MetalAccessKind.Tin) ? 4 : 0);
+    }
+
     private void FillCivs(MatchModel match, MatchFrame target)
     {
         ResearchSystem research = match.Research;
@@ -1260,6 +1269,7 @@ public sealed partial class FrameBuilder
             target.CivEra[c] = (byte)era;
             target.CivBreadthDone[c] = (short)research.DoneInEra(c, era);
             target.CivBreadthNeeded[c] = (short)_catalog.EraBreadth[Math.Min(era, ResearchCatalog.EraCount - 1)];
+            target.CivMetalAccess[c] = (byte)(_omniscient || c == _viewer ? MetalAccessBits(match.Economy, c) : 0);
             target.CivLegacy[c] = research.Legacy(c).Raw;
             target.CivFirstsLegacy[c] = research.FirstsLegacy(c).Raw;
             target.CivDominion[c] = pol.Territory.Dominion(c).Raw;

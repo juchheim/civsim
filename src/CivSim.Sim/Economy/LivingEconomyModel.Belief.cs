@@ -28,6 +28,9 @@ public sealed partial class LivingEconomyModel
     /// <summary>How many Halls (a Bronze-age civic dwelling, housing 30) stand at a settlement.</summary>
     public int HallCount(int settlementIndex) => _settlements[settlementIndex].Civic?.Halls ?? 0;
 
+    /// <summary>How many Temples (BEL-06, a civic building outside the structure kinds) stand at a settlement.</summary>
+    public int TempleCount(int settlementIndex) => _settlements[settlementIndex].Civic?.Temples ?? 0;
+
     /// <summary>Ziggurats (the BLD-08 Wonder) standing at a settlement, and how much of the next one is raised, in permille (0 when none is being built).</summary>
     public (int Standing, int BuildPermille) ZigguratView(int settlementIndex)
     {

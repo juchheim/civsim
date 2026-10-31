@@ -34,7 +34,7 @@ public sealed partial class PoliticsSystem
     private int[] _scoutPathScratch = Array.Empty<int>();
     private PriorityQueue<int, int> _scoutCostQueue = new();
     private readonly List<int> _scoutTargets = new();
-    private readonly HashSet<long> _liveScoutSet = new();
+    private readonly List<long> _liveScoutIds = new();
 
     private void InitializeScoutSimulation()
     {
@@ -91,7 +91,7 @@ public sealed partial class PoliticsSystem
             }
         }
 
-        _liveScoutSet.Clear();
+        _liveScoutIds.Clear();
         for (int civ = 0; civ < _civs; civ++)
         {
             _scoutTargets.Clear();
@@ -107,7 +107,7 @@ public sealed partial class PoliticsSystem
                 FigureView figure = _economy.Figure(i);
                 if (figure.Civilization != civ || figure.Job != EconomyJob.Scout ||
                     (uint)figure.SettlementId >= (uint)_sCount) continue;
-                _liveScoutSet.Add(figure.Id);
+                _liveScoutIds.Add(figure.Id);
                 int home = _sTile[figure.SettlementId];
                 bool hasJourney = _scoutJourneys.TryGetValue(figure.Id, out ScoutJourney? journey);
                 if (hasJourney && (journey!.Civilization != civ || journey.HomeTile != home ||
@@ -151,10 +151,11 @@ public sealed partial class PoliticsSystem
             }
         }
 
+        _liveScoutIds.Sort();
         for (int i = _scoutJourneys.Count - 1; i >= 0; i--)
-            if (!_liveScoutSet.Contains(_scoutJourneys.Keys[i])) _scoutJourneys.RemoveAt(i);
+            if (_liveScoutIds.BinarySearch(_scoutJourneys.Keys[i]) < 0) _scoutJourneys.RemoveAt(i);
         for (int i = _scoutAttemptSeason.Count - 1; i >= 0; i--)
-            if (!_liveScoutSet.Contains(_scoutAttemptSeason.Keys[i])) _scoutAttemptSeason.RemoveAt(i);
+            if (_liveScoutIds.BinarySearch(_scoutAttemptSeason.Keys[i]) < 0) _scoutAttemptSeason.RemoveAt(i);
     }
 
     private int ChooseScoutTarget(int civ, int home)

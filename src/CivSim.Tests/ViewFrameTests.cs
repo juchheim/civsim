@@ -122,6 +122,7 @@ public class ViewFrameTests
                 Assert.Equal(Math.Min(255, eco.StructureCount(s, k)), f.SettlementStructures[s * MatchFrame.StructureKinds + k]);
             Assert.Equal(Math.Min(255, eco.HallCount(s)), f.SettlementHalls[s]);
             (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
+            Assert.Equal(Math.Min(255, eco.TempleCount(s)), f.SettlementTemples[s]);
             Assert.Equal(Math.Min(255, ziggurats), f.SettlementZiggurats[s]);
             Assert.Equal(zigguratPermille, f.SettlementZigguratPermille[s]);
         }
@@ -203,6 +204,7 @@ public class ViewFrameTests
             Assert.NotEqual(0, f.SettlementFlags[index] & (ushort)SettlementViewFlags.Remembered);
             for (int k = 0; k < MatchFrame.StructureKinds; k++) Assert.Equal(0, f.SettlementStructures[index * MatchFrame.StructureKinds + k]);
             Assert.Equal(0, f.SettlementHalls[index]);
+            Assert.Equal(0, f.SettlementTemples[index]);
             Assert.Equal(0, f.SettlementZiggurats[index]);
             Assert.Equal(0, f.SettlementZigguratPermille[index]);
         }

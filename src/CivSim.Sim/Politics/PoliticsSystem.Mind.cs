@@ -571,7 +571,8 @@ public sealed partial class PoliticsSystem
         _dip.RecordRaid(c, o, _season);
         int fight = PoliticsEvent.PackFight(raiders.Count, defenders.Count,
             outcome.Battle.AttackerDead.Count + outcome.Battle.AttackerWounded.Count, outcome.Battle.DefenderDead.Count + outcome.Battle.DefenderWounded.Count);
-        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidResolved, o, outcome.Success ? 1 : 0, loot.FloorToInt(), _sTile[e.ToSettlement], fight));
+        // The raiders bring home Raids.DeliveredLootShare of what was taken; the target lost all of it.
+        _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidResolved, o, outcome.Success ? 1 : 0, (loot * Raids.DeliveredLootShare).FloorToInt(), _sTile[e.ToSettlement], fight));
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.RaidResolved, c, outcome.Success ? 2 : 3, loot.FloorToInt(), _sTile[e.ToSettlement], fight));
     }
 

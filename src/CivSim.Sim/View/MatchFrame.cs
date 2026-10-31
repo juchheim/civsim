@@ -148,6 +148,8 @@ public sealed class MatchFrame
     public byte[] SettlementStructures = Array.Empty<byte>();
     /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
     public byte[] SettlementHalls = Array.Empty<byte>();
+    /// <summary>Temples standing at each settlement (BEL-06; a civic building outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
+    public byte[] SettlementTemples = Array.Empty<byte>();
     /// <summary>Ziggurats standing at each settlement (BLD-08 Wonder), and the permille of the next one raised while it is under way. Zero for remembered settlements.</summary>
     public byte[] SettlementZiggurats = Array.Empty<byte>();
     public short[] SettlementZigguratPermille = Array.Empty<short>();
@@ -302,6 +304,8 @@ public sealed class MatchFrame
     /// <summary>Public: era, keystone breadth, Legacy, Firsts, Dominion and land share, posture and Relations with the viewer.</summary>
     public byte[] CivEra = Array.Empty<byte>();
     public short[] CivBreadthDone = Array.Empty<short>(), CivBreadthNeeded = Array.Empty<short>();
+    /// <summary>Bronze Age metals some settlement of the civ holds in stores: bit 0 copper, 1 arsenical, 2 tin (the research [Has] gates). Filled for the viewer's own civ only, and 0 before the Bronze Age begins.</summary>
+    public byte[] CivMetalAccess = Array.Empty<byte>();
     public long[] CivLegacy = Array.Empty<long>(), CivFirstsLegacy = Array.Empty<long>(), CivDominion = Array.Empty<long>();
     public int[] CivLandBasisPoints = Array.Empty<int>();
     /// <summary><see cref="Core.Posture"/>; Raid posture shows as warpaint, so it is public.</summary>
@@ -445,7 +449,7 @@ public sealed class MatchFrame
             Ensure(ref SettlementFlags, n); Ensure(ref SettlementBuildKind, n); Ensure(ref SettlementBuildPermille, n);
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
-            Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
+            Ensure(ref SettlementTemples, n); Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
         int rows = SettlementIndex.Length;
@@ -524,7 +528,7 @@ public sealed class MatchFrame
     internal void EnsureCivs(int n)
     {
         if (CivFlags.Length >= n) return;
-        CivFlags = new ushort[n]; CivEra = new byte[n]; CivBreadthDone = new short[n]; CivBreadthNeeded = new short[n];
+        CivFlags = new ushort[n]; CivEra = new byte[n]; CivBreadthDone = new short[n]; CivBreadthNeeded = new short[n]; CivMetalAccess = new byte[n];
         CivLegacy = new long[n]; CivFirstsLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
         CivPosture = new byte[n]; CivRelations = new short[n]; CivWeaponTier = new byte[n]; CivPopulation = new int[n];
         CivSettlements = new int[n]; CivProjectsDone = new int[n]; CivInsightPerYear = new long[n];
