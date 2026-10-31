@@ -77,7 +77,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (chop) l.ChopInflows += amount; else l.OtherInflows += amount;
     }
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 24;
+    public const int SnapshotVersion = 25;
     private const int Radius = 3;
     /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int MaxEra = 3;
@@ -203,6 +203,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public int Id;
         public int Civilization;
         public int SiteTile;
+        /// <summary>Ochre collected before the Bronze goods store is activated.</summary>
+        public Fix64 SurfaceOchre;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
         // Remaining work capacity across each fractional inventory of tools.
         public readonly Fix64[] ToolRemainingWork = new Fix64[(int)Good.Count];
@@ -297,6 +299,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly Fix64[] _stoneStock;
     private readonly Fix64[] _clayStock;
     private readonly Fix64[] _flintStock;
+    private readonly Fix64[] _ochreStock;
     private readonly Fix64[] _soil;
     private readonly byte[] _wildfireSeasonsRemaining;
     private readonly WildHerdState[] _wildHerds;
@@ -393,6 +396,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _stoneStock = new Fix64[world.TileCount];
         _clayStock = new Fix64[world.TileCount];
         _flintStock = new Fix64[world.TileCount];
+        _ochreStock = new Fix64[world.TileCount];
         _soil = new Fix64[world.TileCount];
         _wildfireSeasonsRemaining = new byte[world.TileCount];
         _hasIndividualHerds = world.Herds.Length > 0;
@@ -424,6 +428,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             _stoneStock[tile] = input.InitialStoneStock;
             _clayStock[tile] = input.InitialClayStock;
             _flintStock[tile] = input.InitialFlintStock;
+            WorldDeposit deposit = world.Deposit(tile);
+            if (deposit.Kind == DepositKind.Ochre) _ochreStock[tile] = Fix64.FromInt(deposit.Tier);
             _soil[tile] = input.SoilFertility;
         }
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
@@ -2492,16 +2498,25 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 startingRemaining = remaining;
         if (HasProject(civ, "MIN-01"))
         {
-            Fix64 flintWork = Fix64.Min(remaining * Fix64.Parse("0.4"), Fix64.Max(Fix64.Zero, Fix64.FromInt(6) - settlement.Stores[(int)Good.Flint]));
-            if (flintWork > Fix64.Zero && HasResourceInRange(settlement, _flintStock))
+            Fix64 flintNeed = Fix64.Max(Fix64.Zero, Fix64.FromInt(6) - settlement.Stores[(int)Good.Flint]);
+            Fix64 ochreNeed = Fix64.Max(Fix64.Zero, Fix64.FromInt(6) - Stock(settlement, MetalSlot(MetalGood.Ochre)));
+            Fix64 flintAvailable = ResourceInRange(settlement, _flintStock, flintNeed);
+            Fix64 ochreAvailable = ResourceInRange(settlement, _ochreStock, ochreNeed);
+            bool flintInRange = flintAvailable > Fix64.Zero;
+            bool ochreInRange = ochreAvailable > Fix64.Zero;
+            Fix64 neededWork = Fix64.Max(flintAvailable, ochreAvailable * Fix64.FromInt(2));
+            Fix64 surfaceWork = Fix64.Min(remaining * Fix64.Parse("0.4"), neededWork);
+            if (surfaceWork > Fix64.Zero && (flintInRange || ochreInRange))
             {
-                Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * flintWork / remaining;
+                Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * surfaceWork / remaining;
                 Fix64 rate = GatherRate(settlement,
-                    ActionRate("collect_flint_ochre", Fix64.One, settlement, "collect_flint_ochre"), flintWork);
-                Fix64 gathered = Harvest(settlement, EconomyJob.Gather, productive,
-                    rate, Good.Flint, _flintStock, 7);
-                WearGatherTool(settlement, flintWork);
-                remaining -= flintWork;
+                    ActionRate("collect_flint_ochre", Fix64.One, settlement, "collect_flint_ochre"), surfaceWork);
+                if (flintInRange)
+                    Harvest(settlement, EconomyJob.Gather, productive, rate, Good.Flint, _flintStock, 7, flintNeed);
+                if (ochreInRange)
+                    HarvestSurfaceOchre(settlement, productive, rate * Fix64.Half, ochreNeed);
+                WearGatherTool(settlement, surfaceWork);
+                remaining -= surfaceWork;
                 remainingProductive -= productive;
             }
         }
@@ -2555,6 +2570,36 @@ public sealed partial class LivingEconomyModel : ISimModel
             WearGatherTool(settlement, remaining);
         }
         return startingRemaining;
+    }
+
+    private Fix64 HarvestSurfaceOchre(SettlementState settlement, Fix64 work, Fix64 rate, Fix64 maximum)
+    {
+        if (work <= Fix64.Zero || rate <= Fix64.Zero || maximum <= Fix64.Zero) return Fix64.Zero;
+        Fix64 remaining = Fix64.Min(work * rate, maximum);
+        Fix64 harvested = Fix64.Zero;
+        foreach (int tile in RangeTiles(settlement.SiteTile))
+        {
+            if (remaining <= Fix64.Zero) break;
+            Fix64 take = Fix64.Min(remaining, _ochreStock[tile]);
+            if (take <= Fix64.Zero) continue;
+            _ochreStock[tile] -= take;
+            AddStock(settlement, MetalSlot(MetalGood.Ochre), take);
+            remaining -= take;
+            harvested += take;
+        }
+        return harvested;
+    }
+
+    private Fix64 ResourceInRange(SettlementState settlement, Fix64[] stock, Fix64 maximum)
+    {
+        if (maximum <= Fix64.Zero) return Fix64.Zero;
+        Fix64 available = Fix64.Zero;
+        foreach (int tile in RangeTiles(settlement.SiteTile))
+        {
+            available += stock[tile];
+            if (available >= maximum) return maximum;
+        }
+        return available;
     }
 
     private static void Preserve(SettlementState settlement, Fix64 work)
@@ -3743,6 +3788,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             parent.ToolRemainingWork[good] -= toolTransfer;
             daughter.ToolRemainingWork[good] += toolTransfer;
         }
+        Fix64 surfaceOchreTransfer = parent.SurfaceOchre * Fix64.FromRatio(2, 5);
+        parent.SurfaceOchre -= surfaceOchreTransfer;
+        daughter.SurfaceOchre += surfaceOchreTransfer;
         TransferDomesticHerds(parent, daughter);
         parent.Fissions++;
         parent.LastFissionSeason = season;
@@ -5331,7 +5379,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(_world.Fingerprint); hash.Add(_contentFingerprint); hash.Add(_lastWinterWasHarsh); hash.Add(_winterForageMultiplier);
         hash.Add(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) hash.Add((byte)archetype);
         hash.Add(_forageStock); hash.Add(_herdFoodStock); hash.Add(_woodStock); hash.Add(_fishStock);
-        hash.Add(_stoneStock); hash.Add(_clayStock); hash.Add(_flintStock); hash.Add(_soil);
+        hash.Add(_stoneStock); hash.Add(_clayStock); hash.Add(_flintStock);
+        bool surfaceMineralsUnlocked = false;
+        for (int civ = 0; civ < _completedProjects.Length; civ++)
+            if (HasProject(civ, "MIN-01")) { surfaceMineralsUnlocked = true; break; }
+        if (surfaceMineralsUnlocked) { hash.Add(0x4F4348524553544FUL); hash.Add(_ochreStock); }
+        hash.Add(_soil);
         foreach (byte seasons in _wildfireSeasonsRemaining) hash.Add(seasons);
         hash.Add(_wildHerds.Length);
         foreach (WildHerdState herd in _wildHerds)
@@ -5358,6 +5411,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 ? (byte)Structure.Hillfort : (byte)s.BuildTarget;
             hash.Add(s.BuildProgress); hash.Add(s.DryingMudbrick); hash.Add(buildTarget); hash.Add(s.Fissions); hash.Add(s.LastFissionSeason);
             hash.Add(s.Cohesion); hash.Add(s.Stores);
+            if (HasProject(s.Civilization, "MIN-01")) { hash.Add(0x535552464F434852UL); hash.Add(s.SurfaceOchre); }
             int hashedStructures = _bronzeActive ? s.Structures.Length : (int)Structure.Hillfort;
             for (int structure = 0; structure < hashedStructures; structure++) hash.Add(s.Structures[structure]);
             if (!_bronzeActive && s.Structures[(int)Structure.Palisade] > 0)
@@ -5405,14 +5459,14 @@ public sealed partial class LivingEconomyModel : ISimModel
     public void WriteSnapshot(BinaryWriter writer)
     {
         writer.Write(0x45434F4E); writer.Write(SnapshotVersion); writer.Write(_seed);
-        writer.Write(_world.Fingerprint); writer.Write(_contentFingerprint);
+        writer.Write(_world.Fingerprint); writer.Write(_world.DepositFingerprint); writer.Write(_contentFingerprint);
         writer.Write(_gentleStart);
         writer.Write(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) writer.Write((byte)archetype);
         writer.Write(_tick);
         writer.Write(_seasonsCompleted); writer.Write(_nextFigureId); writer.Write(_lastWinterWasHarsh); writer.Write(_winterForageMultiplier.Raw);
         WriteFixArray(writer, _forageStock); WriteFixArray(writer, _herdFoodStock); WriteFixArray(writer, _woodStock);
         WriteFixArray(writer, _fishStock); WriteFixArray(writer, _stoneStock); WriteFixArray(writer, _clayStock);
-        WriteFixArray(writer, _flintStock); WriteFixArray(writer, _soil);
+        WriteFixArray(writer, _flintStock); WriteFixArray(writer, _ochreStock); WriteFixArray(writer, _soil);
         writer.Write(_wildfireSeasonsRemaining.Length);
         foreach (byte seasons in _wildfireSeasonsRemaining) writer.Write(seasons);
         writer.Write(_wildHerds.Length);
@@ -5437,6 +5491,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             SettlementState s = _settlements[i];
             writer.Write(s.Id); writer.Write(s.Civilization); writer.Write(s.SiteTile); WriteFixArray(writer, s.Stores);
+            writer.Write(s.SurfaceOchre.Raw);
             WriteFixArray(writer, s.ToolRemainingWork);
             foreach (int count in s.Structures) writer.Write(count);
             writer.Write(s.FieldTiles.Count); foreach (int tile in s.FieldTiles) writer.Write(tile);
@@ -5501,7 +5556,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         if (reader.ReadInt32() != 0x45434F4E || reader.ReadInt32() != SnapshotVersion)
             throw new InvalidDataException("Unsupported living-economy snapshot.");
-        if (reader.ReadUInt64() != _seed || reader.ReadUInt64() != _world.Fingerprint || reader.ReadUInt64() != _contentFingerprint)
+        if (reader.ReadUInt64() != _seed || reader.ReadUInt64() != _world.Fingerprint ||
+            reader.ReadUInt64() != _world.DepositFingerprint || reader.ReadUInt64() != _contentFingerprint)
             throw new InvalidDataException("Snapshot seed, world or content does not match this model.");
         if (reader.ReadBoolean() != _gentleStart) throw new InvalidDataException("Snapshot start settings differ.");
         if (reader.ReadInt32() != _archetypes.Length) throw new InvalidDataException("Snapshot archetype count differs.");
@@ -5511,7 +5567,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _lastWinterWasHarsh = reader.ReadBoolean(); _winterForageMultiplier = Fix64.FromRaw(reader.ReadInt64());
         ReadFixArray(reader, _forageStock); ReadFixArray(reader, _herdFoodStock); ReadFixArray(reader, _woodStock);
         ReadFixArray(reader, _fishStock); ReadFixArray(reader, _stoneStock); ReadFixArray(reader, _clayStock);
-        ReadFixArray(reader, _flintStock); ReadFixArray(reader, _soil);
+        ReadFixArray(reader, _flintStock); ReadFixArray(reader, _ochreStock); ReadFixArray(reader, _soil);
         if (reader.ReadInt32() != _wildfireSeasonsRemaining.Length)
             throw new InvalidDataException("Snapshot wildfire tile count differs.");
         for (int i = 0; i < _wildfireSeasonsRemaining.Length; i++)
@@ -5556,6 +5612,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             var s = new SettlementState { Id = reader.ReadInt32(), Civilization = reader.ReadInt32(), SiteTile = reader.ReadInt32() };
             ReadFixArray(reader, s.Stores);
+            s.SurfaceOchre = Fix64.FromRaw(reader.ReadInt64());
             ReadFixArray(reader, s.ToolRemainingWork);
             for (int j = 0; j < s.Structures.Length; j++) s.Structures[j] = reader.ReadInt32();
             int fields = ReadCount(reader, _world.TileCount);
@@ -5643,7 +5700,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
         ValidateNonnegative(_forageStock); ValidateNonnegative(_herdFoodStock); ValidateNonnegative(_woodStock);
         ValidateNonnegative(_fishStock); ValidateNonnegative(_stoneStock); ValidateNonnegative(_clayStock);
-        ValidateNonnegative(_flintStock); ValidateNonnegative(_soil);
+        ValidateNonnegative(_flintStock); ValidateNonnegative(_ochreStock); ValidateNonnegative(_soil);
         for (int i = 0; i < _wildHerds.Length; i++)
         {
             WildHerdState herd = _wildHerds[i];
@@ -5697,6 +5754,8 @@ public sealed partial class LivingEconomyModel : ISimModel
                 throw new InvalidDataException("Snapshot contains domestic herds beyond pasture capacity.");
             if (s.Structures[(int)Structure.Orchard] != s.OrchardPlots.Count)
                 throw new InvalidDataException("Snapshot orchard count differs from its orchard plots.");
+            if (s.SurfaceOchre < Fix64.Zero || s.Metal is not null && s.SurfaceOchre != Fix64.Zero)
+                throw new InvalidDataException("Snapshot contains invalid pre-Bronze ochre stock.");
             for (int good = 0; good < s.Stores.Length; good++)
                 if (s.Stores[good] < Fix64.Zero) throw new InvalidDataException("Snapshot contains a negative store.");
             for (int good = 0; good < s.ToolRemainingWork.Length; good++)
@@ -5823,6 +5882,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Array.Copy(source._stoneStock, _stoneStock, _stoneStock.Length);
         Array.Copy(source._clayStock, _clayStock, _clayStock.Length);
         Array.Copy(source._flintStock, _flintStock, _flintStock.Length);
+        Array.Copy(source._ochreStock, _ochreStock, _ochreStock.Length);
         Array.Copy(source._soil, _soil, _soil.Length);
         Array.Copy(source._wildfireSeasonsRemaining, _wildfireSeasonsRemaining, _wildfireSeasonsRemaining.Length);
         for (int i = 0; i < _wildHerds.Length; i++) CopyWildHerdState(source._wildHerds[i], _wildHerds[i]);
@@ -5887,6 +5947,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             Id = source.Id,
             Civilization = source.Civilization,
             SiteTile = source.SiteTile,
+            SurfaceOchre = source.SurfaceOchre,
             FoodSecurity = source.FoodSecurity,
             LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,

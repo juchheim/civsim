@@ -195,7 +195,7 @@ Herding labor: 0.1 ws per 10 small stock or 4 cattle per season. Domestic herds 
 ### 5.4 Mine and quarry (E1–E2)
 | Action | Unlocked by | Output per ws | Notes |
 |--------|-------------|--------------:|-------|
-| Collect flint and ochre (surface) | MIN-01 | flint 1 L, ochre 0.5 L | Reveal radius = sight |
+| Gather flint and ochre from nearby surface outcrops | MIN-01 | flint 1 L, ochre 0.5 L | Uses outcrops within settlement range |
 | Mine flint (pits) | MIN-02 | flint 3 L | Never runs out locally |
 | Quarry blocks | MIN-03 | stone blocks 2 L | Needs a stone deposit tile |
 | Collect native copper | MET-01 | 0.2 L | `[Seen: Native copper]` tile |

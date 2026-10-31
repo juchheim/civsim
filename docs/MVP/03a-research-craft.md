@@ -145,7 +145,7 @@ Lineages: [STN](#stn--stoneworking) · [FIR](#fir--fire--heat) · [WOD](#wod--wo
 
 | ID | Project | Era | Type | Requires | Effect |
 |----|---------|-----|------|----------|--------|
-| MIN-01 | Flint & Ochre Seeking | E1 | D | STN-05 | **Reveal:** Flint and ochre deposits within sight. **Good:** Ochre. |
+| MIN-01 | Flint & Ochre Seeking | E1 | D | STN-05 | **Gather:** Flint (1 L/ws) and ochre (0.5 L/ws) from nearby surface outcrops. |
 | MIN-02 | Flint Mines | E2 | D | MIN-01, STN-08 | **+Action:** Mine (shallow pits). Stone-tool raw material never runs out locally. |
 | MIN-03 | Quarrying | E2 | D | MIN-02 | **+Action:** Quarry. **Good:** Building stone blocks. |
 | MIN-04 | Shaft Mining | E3 | M | MIN-03, MET-03, SOC-07 | ▸ Mine: Shaft. Reach deep deposits; ore yield +50%. **Role:** Miner. |

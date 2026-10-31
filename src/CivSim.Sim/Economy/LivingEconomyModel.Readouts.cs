@@ -28,7 +28,8 @@ public sealed partial class LivingEconomyModel
 
     public static StoreCategory StoreSlotCategory(int slot)
     {
-        if (slot >= (int)Good.Count) return StoreCategory.Advanced;
+        if (slot >= (int)Good.Count)
+            return (MetalGood)(slot - (int)Good.Count) == MetalGood.Ochre ? StoreCategory.Material : StoreCategory.Advanced;
         return (Good)slot switch
         {
             Good.Plant or Good.Meat or Good.Roots or Good.Nuts or Good.WildGrain or Good.Grain or Good.Fish or Good.DriedFood or Good.Fruit

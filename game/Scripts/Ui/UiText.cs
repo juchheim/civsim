@@ -205,6 +205,7 @@ public static class UiText
             case EffectKind.Tier:
                 return e.Text is { Length: > 0 } tier ? $"Settlement tier: {Sentence(tier)}" : null;
             case EffectKind.UnlockAction:
+                if (e.Action == "collect_flint_ochre") return "Gather flint and ochre from nearby surface outcrops";
                 return $"People start to {(e.Action ?? e.Id ?? "do something new").Replace('_', ' ')}";
             case EffectKind.Good:
                 {

@@ -9,7 +9,6 @@ projects:
     status: numeric
     requires: [STN-05]
     effects:
-      - {kind: reveal, text: flint and ochre within sight}
       - {kind: unlock_action, action: collect_flint_ochre}
       - {kind: good, id: G-FLINT}
       - {kind: good, id: G-OCHRE}
