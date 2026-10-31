@@ -120,11 +120,30 @@ public sealed class BronzeAiGateTests
         Assert.Equal(expected, BronzeAiGates.Classify(32, 64, rate, .65).ToString());
     }
 
+    [Fact]
+    public void B8_averages_mirrored_legacy_margins_per_seed()
+    {
+        double[] margins = { 300, -100, -100, 200, -80, 0 };
+
+        BronzeAiGates.B8PairedLegacySummary effect = BronzeAiGates.SummarizeB8PairedLegacyMargins(margins);
+
+        Assert.Equal(2, effect.PositiveSeedPairs);
+        Assert.Equal(3, effect.SeedPairs);
+        Assert.Equal(110.0 / 3, effect.MeanDelta, 8);
+        Assert.Equal(50, effect.MedianDelta);
+    }
+
     [Theory]
     [InlineData(.60, "Pass")]
     [InlineData(.59, "Fail")]
-    public void B8_requires_60_percent(double rate, string expected)
+    public void B8_requires_60_percent_enabled_match_wins(double rate, string expected)
     {
         Assert.Equal(expected, BronzeAiGates.Classify(32, 64, rate, .60).ToString());
+    }
+
+    [Fact]
+    public void B8_paired_legacy_summary_requires_both_orientations()
+    {
+        Assert.Throws<System.ArgumentException>(() => BronzeAiGates.SummarizeB8PairedLegacyMargins(new[] { 10.0 }));
     }
 }

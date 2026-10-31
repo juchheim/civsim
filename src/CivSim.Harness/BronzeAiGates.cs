@@ -175,6 +175,7 @@ internal static class BronzeAiGates
         var traces = new string[jobs.Length];
         bool summaryB8 = b8 && Environment.GetEnvironmentVariable("CIVSIM_SUMMARY_B8") == "1";
         bool traceB8 = b8 && !summaryB8 && Environment.GetEnvironmentVariable("CIVSIM_TRACE_B8") == "1";
+        var b8LegacyMargins = b8 ? new double[jobs.Length] : null;
         var summaries = summaryB8 ? new B8SampleDelta[jobs.Length] : null;
         var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) };
         Parallel.For(0, jobs.Length, options, j =>
@@ -219,6 +220,10 @@ internal static class BronzeAiGates
             bool teamBWon = outcome.TeamBLegacy > outcome.TeamALegacy;
             bool tie = outcome.TeamALegacy == outcome.TeamBLegacy;
             scores[j] = (ScoresTeamA(b7, swap, offTeamA) ? teamAWon : teamBWon, tie);
+            if (b8)
+                b8LegacyMargins![j] = offTeamA
+                    ? outcome.TeamBLegacy - outcome.TeamALegacy
+                    : outcome.TeamALegacy - outcome.TeamBLegacy;
         });
 
         // Fold in stable job order so completion timing cannot affect the reported rate.
@@ -227,9 +232,18 @@ internal static class BronzeAiGates
         int matches = scores.Length;
         double rate = wins / matches;
         double threshold = b7 ? .65 : .60;
+        B8PairedLegacySummary b8Effect = b8 ? SummarizeB8PairedLegacyMargins(b8LegacyMargins!) : default;
         Result result = Classify(seeds, minutes, rate, threshold);
-        Console.WriteLine($"B{(b7 ? 7 : 8)}: {matches} mirrored matches ({seeds} seeds × 2, {minutes} minutes); " +
-            $"{(b7 ? "Council vs Settler" : "Grower Decrees-on vs identical Grower Decrees-off")}; engaged/enabled win rate {rate.ToString("P1", CultureInfo.InvariantCulture)} (target ≥ {threshold:P0}).");
+        if (b7)
+            Console.WriteLine($"B7: {matches} mirrored matches ({seeds} seeds × 2, {minutes} minutes); Council vs Settler; " +
+                $"engaged win rate {rate.ToString("P1", CultureInfo.InvariantCulture)} (target ≥ {threshold:P0}).");
+        else
+            Console.WriteLine($"B8: {matches} mirrored matches ({seeds} seeds × 2, {minutes} minutes); " +
+                $"Grower Decrees-on vs identical Grower Decrees-off; raw enabled match win rate " +
+                $"{rate.ToString("P1", CultureInfo.InvariantCulture)} (target ≥ {threshold:P0}); paired Legacy advantage " +
+                $"{b8Effect.PositiveSeedPairs}/{b8Effect.SeedPairs} seeds " +
+                $"({(double)b8Effect.PositiveSeedPairs / b8Effect.SeedPairs:P1}), mean {b8Effect.MeanDelta:+0.0;-0.0;0.0}, " +
+                $"median {b8Effect.MedianDelta:+0.0;-0.0;0.0} (diagnostic only).");
         Console.WriteLine(result switch
         {
             Result.Pass => "PASS",
@@ -241,6 +255,30 @@ internal static class BronzeAiGates
         if (summaryB8)
             Console.WriteLine(FormatB8CohortSummary(PairB8Samples(summaries!), summaries![0].ProjectIds, summaries));
         return result switch { Result.Pass => 0, Result.Fail => 1, _ => 2 };
+    }
+
+    internal readonly record struct B8PairedLegacySummary(int PositiveSeedPairs, int SeedPairs, double MeanDelta, double MedianDelta);
+
+    internal static B8PairedLegacySummary SummarizeB8PairedLegacyMargins(IReadOnlyList<double> orientationMargins)
+    {
+        if (orientationMargins.Count % 2 != 0)
+            throw new ArgumentException("B8 needs two mirrored Legacy margins per seed.", nameof(orientationMargins));
+        int seedPairs = orientationMargins.Count / 2;
+        var deltas = new double[seedPairs];
+        int positive = 0;
+        double total = 0;
+        for (int i = 0; i < seedPairs; i++)
+        {
+            double delta = (orientationMargins[i * 2] + orientationMargins[i * 2 + 1]) / 2;
+            deltas[i] = delta;
+            if (delta > 0) positive++;
+            total += delta;
+        }
+        Array.Sort(deltas);
+        double median = seedPairs == 0 ? 0 : seedPairs % 2 == 1
+            ? deltas[seedPairs / 2]
+            : (deltas[seedPairs / 2 - 1] + deltas[seedPairs / 2]) / 2;
+        return new B8PairedLegacySummary(positive, seedPairs, seedPairs == 0 ? 0 : total / seedPairs, median);
     }
 
     private static B8SampleDelta CaptureB8SampleDelta(ulong seed, int swap, bool offTeamA, MatchModel match)
