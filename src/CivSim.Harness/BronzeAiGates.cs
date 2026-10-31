@@ -233,17 +233,19 @@ internal static class BronzeAiGates
         double rate = wins / matches;
         double threshold = b7 ? .65 : .60;
         B8PairedLegacySummary b8Effect = b8 ? SummarizeB8PairedLegacyMargins(b8LegacyMargins!) : default;
-        Result result = Classify(seeds, minutes, rate, threshold);
+        Result result = b8
+            ? ClassifyB8(seeds, minutes, b8Effect)
+            : Classify(seeds, minutes, rate, threshold);
         if (b7)
             Console.WriteLine($"B7: {matches} mirrored matches ({seeds} seeds × 2, {minutes} minutes); Council vs Settler; " +
                 $"engaged win rate {rate.ToString("P1", CultureInfo.InvariantCulture)} (target ≥ {threshold:P0}).");
         else
             Console.WriteLine($"B8: {matches} mirrored matches ({seeds} seeds × 2, {minutes} minutes); " +
-                $"Grower Decrees-on vs identical Grower Decrees-off; raw enabled match win rate " +
-                $"{rate.ToString("P1", CultureInfo.InvariantCulture)} (target ≥ {threshold:P0}); paired Legacy advantage " +
+                $"Grower Decrees-on vs identical Grower Decrees-off; paired Legacy advantage " +
                 $"{b8Effect.PositiveSeedPairs}/{b8Effect.SeedPairs} seeds " +
                 $"({(double)b8Effect.PositiveSeedPairs / b8Effect.SeedPairs:P1}), mean {b8Effect.MeanDelta:+0.0;-0.0;0.0}, " +
-                $"median {b8Effect.MedianDelta:+0.0;-0.0;0.0} (diagnostic only).");
+                $"median {b8Effect.MedianDelta:+0.0;-0.0;0.0} (target ≥ 60% of pairs and positive mean); " +
+                $"raw enabled match win rate {rate.ToString("P1", CultureInfo.InvariantCulture)} (diagnostic).");
         Console.WriteLine(result switch
         {
             Result.Pass => "PASS",
@@ -279,6 +281,14 @@ internal static class BronzeAiGates
             ? deltas[seedPairs / 2]
             : (deltas[seedPairs / 2 - 1] + deltas[seedPairs / 2]) / 2;
         return new B8PairedLegacySummary(positive, seedPairs, seedPairs == 0 ? 0 : total / seedPairs, median);
+    }
+
+    internal static Result ClassifyB8(int seeds, int minutes, B8PairedLegacySummary effect)
+    {
+        if (seeds < AcceptanceSeeds || minutes < AcceptanceMinutes || effect.SeedPairs != seeds)
+            return Result.Diagnostic;
+        return effect.PositiveSeedPairs / (double)seeds >= .60 && effect.MeanDelta > 0
+            ? Result.Pass : Result.Fail;
     }
 
     private static B8SampleDelta CaptureB8SampleDelta(ulong seed, int swap, bool offTeamA, MatchModel match)
