@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
@@ -90,6 +91,38 @@ public sealed class WP8aDecreeTests
         for (int i = 0; i < frame.EventCount; i++)
             if (frame.Events[i].Kind == ViewEventKind.OrderRefused) { seen = true; Assert.Equal(-1, frame.Events[i].Other); }
         Assert.True(seen);
+    }
+
+    [Fact]
+    public void Mine_forecast_refuses_a_deposit_inside_a_settlements_working_radius_as_execution_does()
+    {
+        // A settlement digs deposits within three tiles itself, so a Mine Decree there is refused at execution. The forecast
+        // behind the Confirm button must say so up front instead of approving it. Seed 20261020 opens civilization 1 beside copper ore.
+        const ulong seed = 20261020;
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        MatchModel match = MatchModel.Create(seed, TestPack.Pack, world, Balanced);
+        var runner = new SimRunner(match);
+        const int civ = 1;
+        foreach (string project in new[] { "KEY-3", "MET-03", "MET-04", "MIN-04" })
+        {
+            runner.Submit(new Command(runner.Tick, civ, CommandKind.CompleteProject, TestPack.Catalog.IndexOf(project), 0, 0));
+            runner.Advance(1);
+        }
+        int tile = -1;
+        for (int s = 0; s < match.Economy.SettlementCount && tile < 0; s++)
+        {
+            if (match.Economy.SettlementLite(s).Civilization != civ) continue;
+            int at = match.Politics.SettlementTileOf(s);
+            for (int t = 0; t < world.TileCount; t++)
+                if (world.Tiles[t].Deposit == DepositKind.CopperOre && HexGrid.Distance(at, t, world.Width) <= 3) { tile = t; break; }
+        }
+        Assert.True(tile >= 0, "civilization 1 opens with copper ore within three tiles");
+
+        Assert.Equal(MiningCampResult.InRange, match.Economy.CheckOpenMiningCamp(civ, tile));
+        Assert.Equal(OrderRefusalReason.NoSite, PoliticsSystem.MiningRefusal(MiningCampResult.InRange));
+        DecreeForecast forecast = DecreeForecaster.Forecast(match.Politics, civ, DecreeKind.Mine, tile, 0);
+        Assert.False(forecast.Allowed);
+        Assert.Equal(OrderRefusalReason.NoSite, forecast.LikelyRefusal);
     }
 
     [Fact]

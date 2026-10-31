@@ -220,7 +220,12 @@ public static class DecreeForecaster
             if (distance < best) { best = distance; nearest = s; }
         }
         if (nearest < 0) return OrderRefusalReason.NoDonor;
-        return best > pol.Economy.MiningReachFrom(nearest) ? OrderRefusalReason.OutOfReach : (OrderRefusalReason)0;
+        if (best > pol.Economy.MiningReachFrom(nearest)) return OrderRefusalReason.OutOfReach;
+        // What the executor will also refuse, from the civilization's own state: a deposit within a settlement's working radius (it
+        // digs that itself), a camp already open there, a parent short of wood or of a free crew. A rival's claim and the ore left
+        // stay hidden, so they are not judged here.
+        MiningCampResult camp = pol.Economy.CheckOpenMiningCamp(civ, tile);
+        return camp is MiningCampResult.RivalOwned or MiningCampResult.NoDeposit ? 0 : PoliticsSystem.MiningRefusal(camp);
     }
 
     private static int ClaimRadius(PoliticsSystem pol, int civ) => pol.ClaimRadiusOfEra(pol.DecreeResearch.Era(civ));

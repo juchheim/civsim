@@ -384,7 +384,7 @@ public static class UiText
             (CivSim.Sim.Politics.DecreeKind.Expedition, 7) =>
                 "That is beyond the range an expedition can travel from your settlements.",
             (CivSim.Sim.Politics.DecreeKind.Mine, 5) =>
-                "You have no settlement to send a mining crew from.",
+                "Your nearest settlement can't spare a mining crew right now: it needs 2 wood and enough healthy adults to send a crew and keep half at home.",
             (CivSim.Sim.Politics.DecreeKind.Mine, 6) =>
                 "Your people can't mine there: it needs a known, unclaimed deposit that your discoveries let you work.",
             (CivSim.Sim.Politics.DecreeKind.Mine, 7) =>

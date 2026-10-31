@@ -586,14 +586,17 @@ public sealed partial class PoliticsSystem
         subject = tile;
         OrderRefusalReason why = MineCheck(civ, tile);
         if (why != 0) return why;
-        return _economy.OpenMiningCamp(civ, tile) switch
-        {
-            MiningCampResult.Opened => 0,
-            MiningCampResult.OutOfReach => OrderRefusalReason.OutOfReach,
-            MiningCampResult.NoParent or MiningCampResult.NoCrew => OrderRefusalReason.NoDonor,
-            _ => OrderRefusalReason.NoSite,
-        };
+        return MiningRefusal(_economy.OpenMiningCamp(civ, tile));
     }
+
+    /// <summary>How the economy's camp verdict reads as a Decree refusal; the executor and the player's forecast share it so they cannot disagree.</summary>
+    public static OrderRefusalReason MiningRefusal(MiningCampResult result) => result switch
+    {
+        MiningCampResult.Opened => 0,
+        MiningCampResult.OutOfReach => OrderRefusalReason.OutOfReach,
+        MiningCampResult.NoParent or MiningCampResult.NoCrew => OrderRefusalReason.NoDonor,
+        _ => OrderRefusalReason.NoSite,
+    };
 
     // ---- Raise the levy -------------------------------------------------------------------------------
 

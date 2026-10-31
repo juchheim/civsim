@@ -149,6 +149,9 @@ public partial class Game
         for (int s = 0; s < _current.SettlementCount; s++)
             if (_current.SettlementCiv[s] == civ && CivSim.Sim.World.HexGrid.Distance(_current.SettlementTile[s], tile, world.Width) <= 3)
                 return "That deposit is within three tiles of a settlement, so its people already work it themselves: no separate mine is needed.";
+        for (int c = 0; c < _current.CampCount; c++)
+            if (_current.CampTile[c] == tile && _current.CampKind[c] == 1)
+                return "A mining camp is already working that deposit.";
         return null;
     }
 

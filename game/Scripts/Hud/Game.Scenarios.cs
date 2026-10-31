@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
+using CivSim.Sim.Politics;
 using CivSim.Sim.View;
 using Godot;
 
@@ -725,6 +726,25 @@ public partial class Game
                     Step(() => { }, 1.0f);
                     break;
                 }
+            case "decree-refused":
+                // --start-minute=14: queue a Mine Decree on a far tile (index > 127) as the player would, run a few seasons, and report
+                // the refusal. Before the CivOrNone fix this aborted the process with an OverflowException on the sim thread.
+                Step(() =>
+                {
+                    int civ = Math.Max(0, _current!.ViewerCiv);
+                    _session!.Queue(PlayerCommands.Decree(_session.Tick, civ, DecreeKind.Mine, 1000, 0));
+                    _session.SetPaused(false);
+                    _session.SetSpeedIndex(3);
+                }, 25.0f);
+                Step(() =>
+                {
+                    int refused = 0;
+                    for (int i = 0; i < _current!.EventCount; i++)
+                        if (_current.Events[i].Kind == ViewEventKind.OrderRefused) refused++;
+                    GD.Print($"SCN decree-refused tick={_current.Tick} refusedEvents={refused}");
+                }, 0.5f);
+                Shot("decree-refused");
+                break;
             case "dev":
                 Step(ToggleDevOverlay);
                 Step(() => OpenResearchWeb(-1), 3.0f);
