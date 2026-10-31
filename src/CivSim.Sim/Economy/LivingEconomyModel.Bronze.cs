@@ -384,7 +384,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Whether this settlement can currently obtain an input from its stores/shared stores or a workable source deposit.</summary>
-    public bool SettlementHasMetalInputAccess(int settlementIndex, MetalAccessKind kind)
+    internal bool SettlementHasMetalInputAccess(int settlementIndex, MetalAccessKind kind)
     {
         if ((uint)settlementIndex >= (uint)_settlements.Count || _settlements[settlementIndex].Metal is not { } m) return false;
         byte stored = kind switch { MetalAccessKind.Copper => AccessCopper, MetalAccessKind.Arsenic => AccessArsenic, _ => AccessTin };

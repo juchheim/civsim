@@ -66,6 +66,7 @@ internal static class ResearchMetal
         public List<T18CensoredWindow> T18CensoredWindows = new();
         public int T18Started, T18NoAdults, T18RightCensored;
         public List<B12T18Snapshot> B12T18Snapshots = new();
+        public List<B12T18PlanSnapshot> B12T18PlanSnapshots = new();
         public List<string> B12MiningWantTrace = new();
         public Dictionary<int, B13WoodSnapshot> B13AtKey3 = new();
         public Dictionary<int, B13WoodSnapshot> B13AtKey4 = new();
@@ -127,9 +128,13 @@ internal static class ResearchMetal
         int t18Lost = results.Sum(r => r.T18CensoredWindows.Count(x => x.Reason == "qualifying input access lost"));
         int t18NoAdults = results.Sum(r => r.T18NoAdults);
         int t18RightCensored = results.Sum(r => r.T18RightCensored);
+        int t18Adults = results.Sum(r => r.T18EligibleRows.Sum(x => x.Adults));
+        int t18Rung6Adults = results.Sum(r => r.T18EligibleRows.Sum(x => x.Rung6Adults));
+        double t18AdultWeighted = t18Adults == 0 ? double.NaN : (double)t18Rung6Adults / t18Adults;
         text.AppendLine($"T18 research-timed diagnostic (not conditioned on continuous settlement input access): civ-wide median {P(MedianOf(cover))}, " +
                         $"cast-tier-qualified settlements (CastTier >= 9) median {P(MedianOf(coverAccess))}.");
-        text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): per-settlement median {P(MedianOf(coverSettlements))} over {coverSettlements.Count} eligible rows, " +
+        text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): adult-weighted {P(t18AdultWeighted)} ({t18Rung6Adults}/{t18Adults}), " +
+                        $"per-settlement median {P(MedianOf(coverSettlements))} over {coverSettlements.Count} eligible rows, " +
                         $"{coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70%; cohort starts {t18Started}, access lost before +12 {t18Lost}, still within +12 at horizon {t18RightCensored}, no adults at +12 {t18NoAdults} (target >= 70% where access holds)");
         text.AppendLine();
         text.AppendLine("T19 standing wood on the forest tiles of each settlement's range, at KEY-4 against its KEY-3 baseline");
@@ -186,22 +191,45 @@ internal static class ResearchMetal
             {
                 text.AppendLine();
                 text.AppendLine($"B12 T18 shared live-input-access cohort (seed {r.Seed}; valid +12 rows and censored windows):");
+                Dictionary<(int SettlementId, int Season), B12T18PlanSnapshot> allocations = r.B12T18PlanSnapshots
+                    .ToDictionary(x => (x.SettlementId, x.Season));
                 foreach (T18CohortRow x in r.T18EligibleRows.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
                 {
                     text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} start=season{x.FirstSeason} +12=season{x.Season} access={x.AccessPath} coverage={x.Rung6Adults}/{x.Adults}({(double)x.Rung6Adults / x.Adults:P0})");
                     if (x.Rung6Adults * 100 < x.Adults * 70)
-                        AppendCheckpoints(x.Checkpoints);
+                        AppendCheckpoints(x.SettlementId, x.Checkpoints);
                 }
                 foreach (T18CensoredWindow x in r.T18CensoredWindows.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
                 {
                     text.AppendLine($"  censored civ{x.Civilization}/s{x.SettlementId} start=season{x.FirstSeason} at=season{x.CensoredSeason} access={x.AccessPath} reason={x.Reason}");
-                    AppendCheckpoints(x.Checkpoints);
+                    AppendCheckpoints(x.SettlementId, x.Checkpoints);
                 }
 
-                void AppendCheckpoints(List<T18WindowCheckpoint> checkpoints)
+                void AppendCheckpoints(int settlementId, List<T18WindowCheckpoint> checkpoints)
                 {
                     foreach (T18WindowCheckpoint checkpoint in checkpoints)
-                        text.AppendLine($"    +{checkpoint.Offset} season{checkpoint.Season}: {checkpoint.Detail}");
+                    {
+                        text.Append($"    +{checkpoint.Offset} season{checkpoint.Season}: {checkpoint.Detail}");
+                        if (allocations.TryGetValue((settlementId, checkpoint.Season), out B12T18PlanSnapshot plan))
+                            text.Append($" | normal-call plan before RunMetal: {DescribePlanAllocation(plan)}");
+                        else
+                            text.Append(" | plan allocation not sampled (no cast-tier plan in the normal call)");
+                        text.AppendLine();
+                    }
+                }
+
+                static string DescribePlanAllocation(B12T18PlanSnapshot plan)
+                {
+                    static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
+                    return $"tier={plan.Tier} forge/smelter={plan.Forges}/{plan.Smelters} buildKind={plan.BuildKind} " +
+                        $"work={F(plan.TotalWork)} cap={F(plan.PushCap)} " +
+                        $"chain={F(plan.PrimaryChain)}*{F(plan.PrimaryScale)}+{F(plan.SecondaryChain)}*{F(plan.SecondaryScale)} " +
+                        $"assigned/need(build,mine,charcoal,smelt)={F(plan.BuildAssigned)}/{F(plan.BuildNeed)} " +
+                        $"{F(plan.MineAssigned)}/{F(plan.MineNeed)} {F(plan.CharcoalAssigned)}/{F(plan.CharcoalNeed)} " +
+                        $"{F(plan.SmeltAssigned)}/{F(plan.SmeltNeed)} " +
+                        $"stock/want(ore cu/as/tin,char)={F(plan.CopperOreStock)}/{F(plan.CopperOreWant)} " +
+                        $"{F(plan.ArsenicalOreStock)}/{F(plan.ArsenicalOreWant)} {F(plan.TinOreStock)}/{F(plan.TinOreWant)} " +
+                        $"{F(plan.CharcoalStock)}/{F(plan.CharcoalWant)}";
                 }
             }
         Console.Write(text.ToString());
@@ -245,7 +273,7 @@ internal static class ResearchMetal
         bool traceB12MiningWant = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_MINING") == "1";
         match.Economy.B12MiningWantTraceEnabled = traceB12MiningWant;
         match.Economy.B12T18TraceEnabled = traceB12T18;
-        bool traceB12Census = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1" && (seed == 20261019UL || seed == 777UL);
+        bool traceB12Census = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1";
         match.Economy.B12CensusTraceEnabled = traceB12Census;
         bool traceB13Wood = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B13_WOOD") == "1" && (seed == 20261019UL || seed == 777UL);
         match.Economy.B13WoodTraceEnabled = traceB13Wood;
@@ -456,6 +484,8 @@ internal static class ResearchMetal
         {
             result.B12T18Snapshots.AddRange(snapshots);
         }
+        if (traceB12Census && eco.B12T18PlanSnapshots is { } planSnapshots)
+            result.B12T18PlanSnapshots.AddRange(planSnapshots);
         for (int s = 0; s < result.FirstT18AccessSeason.Length; s++)
             if (result.FirstT18AccessSeason[s] >= 0 && !result.T18CohortClosed[s])
             {

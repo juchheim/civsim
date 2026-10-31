@@ -9,6 +9,14 @@ namespace CivSim.Sim.Economy;
 internal readonly record struct B12T18Snapshot(int SettlementId, int Civilization, int Season, int Offset,
     int Adults, int Rung6Adults, string Detail, string Census);
 
+internal readonly record struct B12T18PlanSnapshot(int SettlementId, int Civilization, int Season, int Tier,
+    string BuildKind, int Forges, int Smelters, Fix64 TotalWork, Fix64 PushCap,
+    Fix64 PrimaryChain, Fix64 PrimaryScale, Fix64 SecondaryChain, Fix64 SecondaryScale,
+    Fix64 BuildAssigned, Fix64 BuildNeed, Fix64 MineAssigned, Fix64 MineNeed,
+    Fix64 CharcoalAssigned, Fix64 CharcoalNeed, Fix64 SmeltAssigned, Fix64 SmeltNeed,
+    Fix64 CopperOreStock, Fix64 CopperOreWant, Fix64 ArsenicalOreStock, Fix64 ArsenicalOreWant,
+    Fix64 TinOreStock, Fix64 TinOreWant, Fix64 CharcoalStock, Fix64 CharcoalWant);
+
 /// <summary>
 /// The Bronze Age economy's season (docs/MVP/22 §5, 23 §4–§7): the planner decides how many kits, arms and crafted goods
 /// it wants, expands that backwards through the recipes into ore, charcoal and labor, reserves at most
@@ -79,6 +87,7 @@ public sealed partial class LivingEconomyModel
     internal bool B12T18TraceEnabled { get; set; }
     internal bool B12CensusTraceEnabled { get; set; }
     internal List<B12T18Snapshot>? B12T18Snapshots { get; private set; }
+    internal List<B12T18PlanSnapshot>? B12T18PlanSnapshots { get; private set; }
     internal bool B12CampOpenTraceEnabled { get; set; }
     internal List<string> B12CampOpenTrace { get; } = new();
     internal bool B12CopperShareTraceEnabled { get; set; }
@@ -858,6 +867,21 @@ public sealed partial class LivingEconomyModel
 
     private void CaptureB12T18Snapshot(SettlementState s, MetalPlan plan, int season)
     {
+        // Capture the exact normal-call plan before RunMetal consumes these assignments. The harness joins
+        // these opt-in samples to live-input cohort checkpoints by settlement and season.
+        if (B12CensusTraceEnabled && plan.Tier >= 9 && s.Metal is { } censusMetal)
+        {
+            B12T18PlanSnapshots ??= new List<B12T18PlanSnapshot>();
+            B12T18PlanSnapshots.Add(new B12T18PlanSnapshot(s.Id, s.Civilization, season, plan.Tier,
+                censusMetal.BuildKind.ToString(), censusMetal.Forges, censusMetal.Smelters, plan.TotalWork, plan.PushCap,
+                plan.PrimaryChain, plan.PrimaryScale, plan.SecondaryChain, plan.SecondaryScale,
+                plan.BuildAssigned, plan.BuildNeed, plan.MineAssigned, plan.MineNeed,
+                plan.CharcoalAssigned, plan.CharcoalNeed, plan.SmeltAssigned, plan.SmeltNeed,
+                censusMetal.Goods[(int)MetalGood.CopperOre], plan.Want[MetalSlot(MetalGood.CopperOre)],
+                censusMetal.Goods[(int)MetalGood.ArsenicalOre], plan.Want[MetalSlot(MetalGood.ArsenicalOre)],
+                censusMetal.Goods[(int)MetalGood.TinOre], plan.Want[MetalSlot(MetalGood.TinOre)],
+                censusMetal.Goods[(int)MetalGood.Charcoal], plan.Want[MetalSlot(MetalGood.Charcoal)]));
+        }
         if ((!B12T18TraceEnabled && !B12CensusTraceEnabled) || plan.Tier < 9 || s.Metal is not { Forges: > 0 } m) return;
         _b12T18FirstCastSeason ??= new SortedList<int, int>();
         if (!_b12T18FirstCastSeason.TryGetValue(s.Id, out int firstSeason))
