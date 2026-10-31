@@ -26,6 +26,8 @@ public partial class Game
     private LineEdit? _webSearch;
     private int _webView, _webThemeFilter = -1;
     private int _selectedResearchProject = -1, _webTarget = -1, _backProject = -1;
+    /// <summary>The viewer's latest project completed while the web was closed; the next open lands on it instead of the last selection.</summary>
+    private int _completedWhileClosed = -1;
     private bool _replaceRowOpen;
 
     // slot strip
@@ -531,7 +533,9 @@ public partial class Game
         int selected = project;
         if (selected < 0 && targetSlot >= 0) selected = EffectiveSlotProject(targetSlot);
         if (selected >= 0 && selected < _current.FocusProjectCount && StateOf(selected) != ProjectState.Hidden) _selectedResearchProject = selected;
+        else if (!wasOpen && _completedWhileClosed >= 0 && IsKnownToPlayer(_completedWhileClosed)) _selectedResearchProject = _completedWhileClosed;
         else if (_selectedResearchProject < 0 || !IsKnownToPlayer(_selectedResearchProject)) _selectedResearchProject = FindDefaultResearchProject();
+        if (!wasOpen) _completedWhileClosed = -1;
         _webSignature = int.MinValue;
         _inspSignature = int.MinValue;
         _webScrim!.Visible = true;

@@ -929,6 +929,7 @@ public partial class Game
                 QueueMoment(item.Project, item.Tile);
                 if (mine && item.Tile >= 0)
                     StartPulse(item.Tile, _catalog is not null && (uint)item.Project < (uint)_catalog.Projects.Count && _catalog.Projects[item.Project].IsKeystone);
+                if (mine && !_researchWebVisible) _completedWhileClosed = item.Project;
                 OnResearchProjectCompleted(item.Project);
                 break;
             case ViewEventKind.FirstClaimed:
