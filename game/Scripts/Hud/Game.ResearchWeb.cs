@@ -531,7 +531,7 @@ public partial class Game
         int selected = project;
         if (selected < 0 && targetSlot >= 0) selected = EffectiveSlotProject(targetSlot);
         if (selected >= 0 && selected < _current.FocusProjectCount && StateOf(selected) != ProjectState.Hidden) _selectedResearchProject = selected;
-        else if (!wasOpen || _selectedResearchProject < 0 || StateOf(_selectedResearchProject) == ProjectState.Hidden) _selectedResearchProject = FindDefaultResearchProject();
+        else if (_selectedResearchProject < 0 || !IsKnownToPlayer(_selectedResearchProject)) _selectedResearchProject = FindDefaultResearchProject();
         _webSignature = int.MinValue;
         _inspSignature = int.MinValue;
         _webScrim!.Visible = true;
