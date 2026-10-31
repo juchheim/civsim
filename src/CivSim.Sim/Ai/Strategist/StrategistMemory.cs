@@ -104,7 +104,7 @@ internal sealed class Site
 /// <summary>A possible war target with predicted tactical outcome and a separate safe-to-launch result.</summary>
 internal sealed class WarOption
 {
-    public int Civ, Settlement, Tile, Travel, Attackers, AlternateOriginAttackers, LandsSeason;
+    public int Civ, Settlement, Tile, Travel, Attackers, AlternateOriginAttackers, LandsSeason, OriginSettlement = -1;
     public Fix64 OriginWinter;
     public Fix64 Ratio, Required, CaptureChance, Deaths, Wounded, Casualties, Value, Window;
     /// <summary>Tactical, value, and supply checks pass before strategic launch blockers are applied.</summary>
@@ -113,6 +113,11 @@ internal sealed class WarOption
     public bool Feasible, Palisade;
     public string Why = "";
 }
+
+/// <summary>Output-only copy of an already evaluated campaign option for an opt-in harness diagnostic.</summary>
+internal readonly record struct CampaignEvaluationDiagnostic(int Civ, int Rival, int Season, int Settlement, int Tile,
+    int OriginSettlement, int Attackers, int AlternateOriginAttackers, Fix64 Ratio, Fix64 Required,
+    Fix64 CaptureChance, Fix64 Value, bool TacticallyViable, bool Feasible, bool Selected, string Reason);
 
 /// <summary>This season's reading of one rival. Not state: rebuilt every season from the belief.</summary>
 internal sealed class RivalRead

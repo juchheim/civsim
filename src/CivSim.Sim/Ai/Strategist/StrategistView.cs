@@ -23,6 +23,7 @@ public interface IStrategistActions
     bool SetPosture(Posture posture);
     /// <summary>Prioritizes a feasible physical settlement defense based on the Strategist's current belief.</summary>
     bool PrioritizePhysicalDefenseBuild(int settlement) => false;
+    string DescribePrioritizePhysicalDefenseBuild(int settlement) => "order refusal details unavailable";
     bool PlaceBeacon(int tile);
     void RemoveBeacon(int index);
 
@@ -98,6 +99,7 @@ public sealed class OrdersActions : IStrategistActions
     public bool Ally(int civ) => _orders.Ally(civ);
     public bool SetPosture(Posture posture) => _orders.SetPosture(posture);
     public bool PrioritizePhysicalDefenseBuild(int settlement) => _orders.PrioritizePhysicalDefenseBuild(settlement);
+    public string DescribePrioritizePhysicalDefenseBuild(int settlement) => _orders.DescribePrioritizePhysicalDefenseBuild(settlement);
     public bool PlaceBeacon(int tile) => _orders.PlaceBeacon(tile);
     public void RemoveBeacon(int index) => _orders.RemoveBeacon(index);
     public int Mandate => _orders.Mandate;

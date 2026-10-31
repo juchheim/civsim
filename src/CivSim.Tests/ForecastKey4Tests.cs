@@ -50,4 +50,30 @@ public sealed class ForecastKey4Tests
 
         Assert.Equal(-1, result.Key4);
     }
+
+    [Fact]
+    public void Extended_report_horizon_finds_KEY4_after_the_72_season_planner_miss()
+    {
+        (ForecastCatalog catalog, ForecastStart start, int key4) = BronzeStart(Fix64.FromInt(1_000));
+        int planProject = Array.Find(catalog.Numeric, p => catalog.Era[p] == 3 && p != key4);
+        start.Done[planProject] = false;
+        start.DoneByEra[3]--;
+        start.Mastery -= Fix64.FromInt(catalog.Mastery[planProject]);
+        start.Cost[key4] *= Fix64.FromInt(20);
+        int[] samePlan = { planProject };
+
+        var planner = new ResearchForecast(catalog);
+        planner.Prepare(start, 72);
+        ForecastResult plannerResult = planner.Run(samePlan, promoteKeystone: true);
+        int plannerDoneAt = planner.DoneAt[key4];
+
+        var report = new ResearchForecast(catalog);
+        report.Prepare(start, 120);
+        ForecastResult reportResult = report.Run(samePlan, promoteKeystone: true);
+
+        Assert.Equal(-1, plannerResult.Key4);
+        Assert.True(reportResult.Key4 > 72 * report.StepsPerSeason && reportResult.Key4 <= 120 * report.StepsPerSeason);
+        Assert.Equal(plannerDoneAt, planner.DoneAt[key4]);
+        Assert.Equal(planProject, samePlan[0]);
+    }
 }

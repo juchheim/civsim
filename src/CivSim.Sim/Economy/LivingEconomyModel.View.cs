@@ -69,6 +69,14 @@ public sealed partial class LivingEconomyModel
         return ((int)s.BuildTarget, labor <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, s.BuildProgress / labor));
     }
 
+    /// <summary>Whether the settlement's current target is an unfinished physical defense, including at zero progress.</summary>
+    public bool SettlementHasQueuedPhysicalDefenseBuild(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return !HasPhysicalDefense(s) && IsPhysicalDefense(s.BuildTarget) && CanBuild(s.Civilization, s.BuildTarget) &&
+               (s.BuildTarget != Structure.Hillfort || HasHillfortSite(s));
+    }
+
     /// <summary>Field plots a settlement tends.</summary>
     public int FieldCount(int settlementIndex) => _settlements[settlementIndex].FieldTiles.Count;
     public int FieldTileAt(int settlementIndex, int index) => _settlements[settlementIndex].FieldTiles[index];

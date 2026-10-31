@@ -44,6 +44,7 @@ public sealed partial class FrameBuilder
     private const ulong SaltHome = 0x5A17_0001UL, SaltWork = 0x5A17_0002UL, SaltWander = 0x5A17_0003UL, SaltHerd = 0x5A17_0004UL;
 
     private readonly GeneratedWorld _world;
+    private readonly LivingEconomyModel _economy;
     private readonly WorldTile[] _tiles;
     private readonly int _width, _height, _tileCount, _civs;
     private readonly bool[] _passable;
@@ -59,6 +60,7 @@ public sealed partial class FrameBuilder
     private int _viewer;
     private byte[] _explored;
     private sbyte[] _rememberedOwner;
+    private long[] _rememberedOwnerTick;
     private int[] _seenSeason = Array.Empty<int>();
     private sbyte[] _seenCiv = Array.Empty<sbyte>();
     private int[] _seenPopulation = Array.Empty<int>();
@@ -110,6 +112,7 @@ public sealed partial class FrameBuilder
     public FrameBuilder(MatchModel match, int viewerCiv, int eventCapacity = DefaultEventCapacity, int eventWindow = DefaultEventWindow)
     {
         ArgumentNullException.ThrowIfNull(match);
+        _economy = match.Economy;
         _world = match.Politics.World;
         _tiles = _world.Tiles.ToArray();
         _width = _world.Width;
@@ -142,6 +145,8 @@ public sealed partial class FrameBuilder
         _explored = new byte[_tileCount];
         _rememberedOwner = new sbyte[_tileCount];
         Array.Fill(_rememberedOwner, (sbyte)-1);
+        _rememberedOwnerTick = new long[_tileCount];
+        Array.Fill(_rememberedOwnerTick, -1L);
         _stamp = new int[_tileCount];
         _topClaim = new byte[_tileCount];
         _topCiv = new sbyte[_tileCount];
@@ -151,6 +156,7 @@ public sealed partial class FrameBuilder
         _contested = new bool[_tileCount];
         _bfsDistance = new int[_tileCount];
         _bfsQueue = new int[_tileCount];
+        InitializeTrailScratch();
         _ring = new ViewEvent[eventCapacity];
         _window = eventWindow;
         InitEventScratch();
@@ -179,6 +185,7 @@ public sealed partial class FrameBuilder
         _viewer = viewerCiv;
         Array.Clear(_explored);
         Array.Fill(_rememberedOwner, (sbyte)-1);
+        Array.Fill(_rememberedOwnerTick, -1L);
         ClearScoutViewState();
         _seenSettlements = 0;
         ClearEconomyState();
@@ -586,7 +593,12 @@ public sealed partial class FrameBuilder
                 if (pol.ScoutMapExplored(_viewer, t))
                 {
                     _explored[t] = 1;
-                    _rememberedOwner[t] = (sbyte)pol.ScoutMapOwnerSeen(_viewer, t).Owner;
+                    long observationTick = pol.ScoutMapOwnerSeenTick(_viewer, t);
+                    if (observationTick > _rememberedOwnerTick[t])
+                    {
+                        _rememberedOwner[t] = (sbyte)pol.ScoutMapOwnerSeen(_viewer, t).Owner;
+                        _rememberedOwnerTick[t] = observationTick;
+                    }
                 }
         Territory territory = pol.Territory;
         byte[] vis = target.Visibility, claim = target.Claim, claim2 = target.Claim2, claim3 = target.Claim3,
@@ -606,7 +618,7 @@ public sealed partial class FrameBuilder
                 claim2[t] = _secondClaim[t]; claimant2[t] = _secondCiv[t];
                 claim3[t] = _thirdClaim[t]; claimant3[t] = _thirdCiv[t];
                 flags[t] = _contested[t] ? (byte)TileViewFlags.Contested : (byte)0;
-                if (!_omniscient) { _explored[t] = 1; _rememberedOwner[t] = now; }
+                if (!_omniscient) { _explored[t] = 1; _rememberedOwner[t] = now; _rememberedOwnerTick[t] = target.Tick; }
             }
             else
             {

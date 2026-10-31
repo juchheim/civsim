@@ -25,6 +25,19 @@ public class SparkPlannerTests
     }
 
     [Fact]
+    public void Posture_unlock_override_preserves_default_and_frontier_conflict_guards()
+    {
+        Fix64 openFrontier = Fix64.FromRatio(75, 100);
+        Assert.Equal(Fix64.FromInt(27), ResearchSpark.PostureUnlockBonus(openFrontier, Fix64.Zero, Fix64.Zero));
+        Assert.Equal(Fix64.FromRatio(81, 2), ResearchSpark.PostureUnlockBonus(openFrontier, Fix64.Zero, Fix64.Zero,
+            Fix64.FromInt(54)));
+        Assert.Equal(Fix64.Zero, ResearchSpark.PostureUnlockBonus(openFrontier, StrategistTuning.FortifyAt,
+            Fix64.Zero, Fix64.FromInt(54)));
+        Assert.Equal(Fix64.Zero, ResearchSpark.PostureUnlockBonus(Fix64.FromRatio(39, 100), Fix64.Zero,
+            Fix64.Zero, Fix64.FromInt(54)));
+    }
+
+    [Fact]
     public void Bronze_fork_uses_only_feedable_routes_and_breaks_a_two_route_tie_toward_tin()
     {
         ResearchCatalog catalog = TestPack.Catalog;

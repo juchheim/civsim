@@ -30,6 +30,14 @@ public readonly record struct FigureView(
     public string? TaskPractice => LivingEconomyModel.TaskPractice(Task);
 }
 
+/// <summary>Report-only seasonal allocation and food yield totals; never serialized or included in checksums.</summary>
+public readonly record struct FoodWorkAttribution(
+    Fix64 OpeningFoodStores, Fix64 FoodNeed, Fix64 BaseCapacity, Fix64 EffectiveCapacity, Fix64 FireWork, Fix64 CareWork, Fix64 StaffWork,
+    Fix64 ScoutWork, Fix64 WeirUpkeepBudget, Fix64 WeirUpkeepAssigned, Fix64 OrchardUpkeep,
+    Fix64 FoodWorkRequested, Fix64 FoodWorkAssigned, Fix64 ForageWork, Fix64 HuntWork, Fix64 FishWork,
+    Fix64 FarmWork, Fix64 PreserveWork, Fix64 ForageYield, Fix64 MeatYield, Fix64 FishYield,
+    Fix64 WeirFishYield, Fix64 GrainYield, Fix64 OrchardFruitYield);
+
 public enum EconomyDeathCause : byte
 {
     Endemic, Epidemic, Starvation, Exposure, Injury, Predators, Violence, Senescence

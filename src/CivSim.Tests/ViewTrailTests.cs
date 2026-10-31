@@ -1,4 +1,7 @@
 using System;
+using System.Reflection;
+using CivSim.Sim.Core;
+using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
 
@@ -7,6 +10,20 @@ namespace CivSim.Tests;
 /// <summary>Worn trails (docs/MVP/19): routes between villages, drawn from tiles the viewer has explored and nothing else.</summary>
 public class ViewTrailTests
 {
+    [Fact]
+    public void Trail_path_with_identical_endpoints_is_rejected()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var builder = new FrameBuilder(match, -1);
+        Type linkType = typeof(FrameBuilder).GetNestedType("TrailLink", BindingFlags.NonPublic)!;
+        object link = Activator.CreateInstance(linkType, nonPublic: true)!;
+        MethodInfo tracePath = typeof(FrameBuilder).GetMethod("TracePath", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        int tile = match.Economy.SettlementLite(0).SiteTile;
+
+        Assert.False((bool)tracePath.Invoke(builder, new[] { (object)tile, tile, link })!);
+        Assert.Equal(0, (int)linkType.GetField("TileCount")!.GetValue(link)!);
+    }
+
     [Fact]
     public void Trails_follow_the_map_and_never_reach_unexplored_ground()
     {

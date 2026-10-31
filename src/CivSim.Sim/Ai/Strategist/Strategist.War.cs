@@ -37,19 +37,38 @@ public sealed partial class Strategist
             RivalRead read = s.Rivals[o];
             PairView p = v.Own.Others[o];
             RivalMemory m = _memory[o];
-            if (!read.Contacted || p.Allied) continue;
+            if (!read.Contacted || p.Allied)
+            {
+                CampaignEvaluationObserverForDiagnostics?.Invoke(new CampaignEvaluationDiagnostic(v.Civ, o, v.Season,
+                    -1, -1, -1, 0, 0, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, false, false, false,
+                    p.Allied ? "not-evaluated: rival allied" : "not-evaluated: no contact"));
+                continue;
+            }
             WarOption? best = null;
             List<Site> warTargets = SelectWarTargets(read.Sites, StrategistTuning.RaidTargetsConsidered);
+            List<WarOption>? diagnosticOptions = CampaignEvaluationObserverForDiagnostics is null
+                ? null : new List<WarOption>(warTargets.Count);
+            if (warTargets.Count == 0)
+                CampaignEvaluationObserverForDiagnostics?.Invoke(new CampaignEvaluationDiagnostic(v.Civ, o, v.Season,
+                    -1, -1, -1, 0, 0, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, false, false, false,
+                    "not-evaluated: no fresh known campaign target"));
             foreach (Site site in warTargets)
             {
                 WarOption option = EvaluateAssault(v, s, read, m, site, width, trials, landPerSettlement, ownAvgPop);
                 option.TacticallyViable = option.Feasible;
                 ApplyLaunchBlockers(v, s, read, option, width);
+                diagnosticOptions?.Add(option);
                 if (best is null || (option.Feasible && !best.Feasible) ||
                     (option.Feasible == best.Feasible && option.TacticallyViable && !best.TacticallyViable) ||
                     (option.Feasible == best.Feasible && option.TacticallyViable == best.TacticallyViable && option.Value > best.Value))
                     best = option;
             }
+            if (diagnosticOptions is not null)
+                foreach (WarOption option in diagnosticOptions)
+                    CampaignEvaluationObserverForDiagnostics!(new CampaignEvaluationDiagnostic(v.Civ, o, v.Season,
+                        option.Settlement, option.Tile, option.OriginSettlement, option.Attackers,
+                        option.AlternateOriginAttackers, option.Ratio, option.Required, option.CaptureChance,
+                        option.Value, option.TacticallyViable, option.Feasible, ReferenceEquals(option, best), option.Why));
             if (best is null) continue;
             // Windows: strike before the rival's walls arrive, or while it is in distress (14 §6.2).
             RivalBelief r = v.Belief.Rivals[o];
@@ -262,6 +281,7 @@ public sealed partial class Strategist
             : StrategistTuning.WarRatioPalisade;
         OwnSettlement? origin = BestCampaignOrigin(v, site.Tile, width);
         if (origin is null) { option.Why = "no settlement to march from"; return option; }
+        option.OriginSettlement = origin.Index;
         option.Travel = HexGrid.Distance(origin.Tile, site.Tile, width);
 
         // The field army: up to 60% of the fighters of every own settlement within the campaign gather radius, strongest first.

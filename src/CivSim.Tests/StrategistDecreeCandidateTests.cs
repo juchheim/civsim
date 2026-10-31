@@ -73,9 +73,10 @@ public sealed class StrategistDecreeCandidateTests
         var rig = new StrategistRig(Seed, World.Value,
             new[] { CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced), CivControl.Council, CivControl.Council, CivControl.Council });
         rig.Grant(0, "KEY-3", "MET-05");
-        rig.Seasons(8); // Mandate is back to 1 and no tin is in stores yet; by season 9 the camp has dug some and the Strategist no longer needs a second mine
         Belief belief = rig.Match.Ai!.SeatOf(0)!.Belief;
         belief.Season = rig.Season;
+        Assert.True(rig.Politics.DecreeResearch.IsDone(0, "MET-05"));
+        Assert.False(rig.Match.Economy.CivHasMetalAccess(0, MetalAccessKind.Tin));
         int tile = Enumerable.Range(0, World.Value.Tiles.Length).First(t => World.Value.Tiles[t].Deposit == DepositKind.Tin);
         belief.Map.MarkExplored(tile);
         belief.Map.RecordOwner(tile, -1, belief.Season);

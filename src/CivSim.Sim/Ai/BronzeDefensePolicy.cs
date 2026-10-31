@@ -39,7 +39,7 @@ internal static class BronzeDefensePolicy
         return bestSettlement;
     }
 
-    private static bool BelievesBronze(RivalBelief rival, int met04, int met05)
+    internal static bool BelievesBronze(RivalBelief rival, int met04, int met05)
         => IsBelieved(rival, met04) || IsBelieved(rival, met05);
 
     private static bool IsBelieved(RivalBelief rival, int project)

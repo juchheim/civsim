@@ -11,7 +11,8 @@ namespace CivSim.Sim.View;
 public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
-    private const int StateVersion = 6;
+    // 5 and 6: economy state (Your people sheet). 7: remembered-owner ticks (scout map observation ticks).
+    private const int StateVersion = 7;
 
     public void WriteState(BinaryWriter w)
     {
@@ -23,6 +24,7 @@ public sealed partial class FrameBuilder
         w.Write(_frameSequence);
         w.Write(_explored);
         for (int t = 0; t < _tileCount; t++) w.Write(_rememberedOwner[t]);
+        for (int t = 0; t < _tileCount; t++) w.Write(_rememberedOwnerTick[t]);
         w.Write(_seenSettlements);
         for (int s = 0; s < _seenSettlements; s++)
         {
@@ -76,6 +78,15 @@ public sealed partial class FrameBuilder
         if (explored.Length != _tileCount) throw new InvalidDataException("Truncated view state.");
         Buffer.BlockCopy(explored, 0, _explored, 0, _tileCount);
         for (int t = 0; t < _tileCount; t++) _rememberedOwner[t] = r.ReadSByte();
+        if (version >= 7)
+            for (int t = 0; t < _tileCount; t++) _rememberedOwnerTick[t] = r.ReadInt64();
+        else
+        {
+            Array.Fill(_rememberedOwnerTick, -1L);
+            long restoredTick = _economy.Tick;
+            for (int t = 0; t < _tileCount; t++)
+                if (_explored[t] != 0) _rememberedOwnerTick[t] = restoredTick;
+        }
         int seen = r.ReadInt32();
         if (seen < 0 || seen > 1_000_000) throw new InvalidDataException("Bad view state.");
         EnsureSeen(seen);

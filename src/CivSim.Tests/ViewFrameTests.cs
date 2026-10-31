@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Reflection;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
@@ -14,6 +16,101 @@ namespace CivSim.Tests;
 /// <summary>What a frame shows (docs/MVP/18 §3 to §4): the truth in omniscient mode, and only what the viewer's people see otherwise.</summary>
 public class ViewFrameTests
 {
+    [Fact]
+    public void Owner_memory_orders_visible_and_scout_observations_across_view_state_round_trip()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        int tile = Enumerable.Range(0, ViewKit.World.Value.TileCount)
+            .First(t => ViewKit.World.Value.TileAt(t).IsLand &&
+                Enumerable.Range(0, match.Economy.SettlementCount).Where(s => match.Economy.SettlementLite(s).Civilization == 0)
+                    .All(s => HexGrid.Distance(t, match.Economy.SettlementLite(s).SiteTile, ViewKit.World.Value.Width) > 12));
+        PoliticsSystem politics = match.Politics;
+        SetScoutOwner(politics, tile, -1, 10);
+
+        var original = new FrameBuilder(match, 0);
+        var frame = new MatchFrame();
+        original.Build(match, frame);
+        SetBuilderOwnerMemory(original, tile, 0, 20);
+        using var state = new MemoryStream();
+        using (var writer = new BinaryWriter(state, System.Text.Encoding.UTF8, leaveOpen: true)) original.WriteState(writer);
+        state.Position = 0;
+        var restored = new FrameBuilder(match, 0);
+        using (var reader = new BinaryReader(state, System.Text.Encoding.UTF8, leaveOpen: true)) restored.ReadState(reader);
+        restored.Build(match, frame);
+        Assert.Equal((byte)TileVisibility.Explored, frame.Visibility[tile]);
+        Assert.Equal((sbyte)0, frame.Owner[tile]);
+
+        SetScoutOwner(politics, tile, 1, 30);
+        restored.Build(match, frame);
+        Assert.Equal((sbyte)1, frame.Owner[tile]);
+    }
+
+    [Fact]
+    public void Version_four_view_state_keeps_legacy_owner_until_a_later_scout_observation()
+    {
+        MatchModel match = ViewKit.NewMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(100);
+        int tile = Enumerable.Range(0, ViewKit.World.Value.TileCount)
+            .First(t => ViewKit.World.Value.TileAt(t).IsLand &&
+                Enumerable.Range(0, match.Economy.SettlementCount).Where(s => match.Economy.SettlementLite(s).Civilization == 0)
+                    .All(s => HexGrid.Distance(t, match.Economy.SettlementLite(s).SiteTile, ViewKit.World.Value.Width) > 12));
+        SetScoutOwner(match.Politics, tile, 1, 10);
+
+        var original = new FrameBuilder(match, 0);
+        var frame = new MatchFrame();
+        original.Build(match, frame);
+        SetBuilderOwnerMemory(original, tile, 0, 20);
+        using var state = new MemoryStream();
+        using (var writer = new BinaryWriter(state, System.Text.Encoding.UTF8, leaveOpen: true)) original.WriteState(writer);
+        byte[] legacyState = AsVersionFourViewState(state.ToArray(), ViewKit.World.Value.TileCount);
+
+        MatchModel restoredMatch = ViewKit.Restore(ViewKit.Snapshot(match));
+        var restored = new FrameBuilder(restoredMatch, 0);
+        using (var reader = new BinaryReader(new MemoryStream(legacyState))) restored.ReadState(reader);
+        restored.Build(restoredMatch, frame);
+        Assert.Equal((sbyte)0, frame.Owner[tile]);
+
+        var resumedRunner = new SimRunner(restoredMatch, startTick: restoredMatch.Economy.Tick);
+        resumedRunner.Advance(10);
+        SetScoutOwner(restoredMatch.Politics, tile, 1, restoredMatch.Economy.Tick);
+        restored.Build(restoredMatch, frame);
+        Assert.Equal((sbyte)1, frame.Owner[tile]);
+    }
+
+    private static byte[] AsVersionFourViewState(byte[] state, int tileCount)
+    {
+        const int versionOffset = sizeof(uint);
+        const int ownerTicksStart = 24;
+        int ticksStart = ownerTicksStart + tileCount * 2;
+        int ticksEnd = ticksStart + tileCount * sizeof(long);
+        byte[] legacy = new byte[state.Length - tileCount * sizeof(long)];
+        Array.Copy(state, 0, legacy, 0, ticksStart);
+        BitConverter.GetBytes(4).CopyTo(legacy, versionOffset);
+        Array.Copy(state, ticksEnd, legacy, ticksStart, state.Length - ticksEnd);
+        return legacy;
+    }
+
+    private static void SetScoutOwner(PoliticsSystem politics, int tile, sbyte owner, long tick)
+    {
+        var owners = (sbyte[][])typeof(PoliticsSystem).GetField("_scoutOwnerSeen", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(politics)!;
+        var ticks = (long[][])typeof(PoliticsSystem).GetField("_scoutOwnerSeenTick", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(politics)!;
+        var explored = (byte[][])typeof(PoliticsSystem).GetField("_scoutExplored", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(politics)!;
+        var seasons = (int[][])typeof(PoliticsSystem).GetField("_scoutOwnerSeenSeason", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(politics)!;
+        owners[0][tile] = owner;
+        ticks[0][tile] = tick;
+        explored[0][tile] = 1;
+        seasons[0][tile] = (int)(tick / LivingEconomyModel.SeasonTicks) + 1;
+    }
+
+    private static void SetBuilderOwnerMemory(FrameBuilder builder, int tile, sbyte owner, long tick)
+    {
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        ((byte[])typeof(FrameBuilder).GetField("_explored", flags)!.GetValue(builder)!)[tile] = 1;
+        ((sbyte[])typeof(FrameBuilder).GetField("_rememberedOwner", flags)!.GetValue(builder)!)[tile] = owner;
+        ((long[])typeof(FrameBuilder).GetField("_rememberedOwnerTick", flags)!.GetValue(builder)!)[tile] = tick;
+    }
+
     [Fact]
     public void Bronze_frame_carries_live_forest_mining_and_cohesion_data_without_revealing_unseen_tiles()
     {

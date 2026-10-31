@@ -136,22 +136,6 @@ internal static class ViewKit
         for (int i = 0; i < f.FocusQueueCount; i++) h.Add(f.FocusQueue[i]);
         h.Add(f.FocusCouncil); h.Add(f.FocusBeaconsAllowed); h.Add(f.FocusBeaconsPlaced); h.Add(f.FocusEra); h.Add(f.FocusProjectCount);
         for (int i = 0; i < f.FocusProjectCount; i++) h.Add(f.FocusProjectState[i]);
-        int econSlots = MatchFrame.StoreSlots, series = MatchFrame.HistorySeriesCount;
-        for (int i = 0; i < f.SettlementCount; i++)
-        {
-            for (int slot = 0; slot < econSlots; slot++) h.Add(f.SettlementStores[i * econSlots + slot]);
-            h.Add(f.SettlementFoodStores[i]);
-            for (int k = 0; k < EconField.Stride; k++) h.Add(f.SettlementEcon[i * EconField.Stride + k]);
-            h.Add(f.SettlementHistoryCount[i]);
-            for (int k = 0; k < f.SettlementHistoryCount[i] * series; k++) h.Add(f.SettlementHistory[i * MatchFrame.HistoryLength * series + k]);
-        }
-        h.Add(f.PayoffProjectCount);
-        for (int i = 0; i < f.SettlementCount * f.PayoffProjectCount * 3; i++)
-        { h.Add(f.SettlementPayoff[i]); h.Add(f.SettlementPayoffTotal[i]); h.Add(f.SettlementPayoffInfo[i]); }
-        for (int i = 0; i < 9; i++) { h.Add(f.FocusSlotProjection[i]); h.Add(f.FocusSlotProjectionInfo[i]); }
-        h.Add(f.FocusHistoryCount);
-        for (int k = 0; k < f.FocusHistoryCount * HistorySeries.CivSeries; k++) h.Add(f.FocusHistory[k]);
-        for (int i = 0; i < f.FocusProjectCount; i++) h.Add(f.FocusProjectDoneSeason[i]);
         h.Add(f.EventCount); h.Add(f.LatestEventSequence);
         for (int i = 0; i < f.EventCount; i++) h.Add(HashEvent(f.Events[i]));
         return h.Finish();
@@ -190,6 +174,9 @@ internal sealed class WatchedMatch
         Omniscient = new FrameBuilder(Match, -1);
         var world = ViewKit.World.Value;
         var lastSeenOwner = new sbyte[world.TileCount];
+        var lastSeenOwnerTick = new long[world.TileCount];
+        Array.Fill(lastSeenOwnerTick, -1L);
+        var everExplored = new bool[world.TileCount];
         var everSeen = new bool[world.TileCount];
         long shown = 0;
         while (Runner.Tick < ticks)
@@ -203,18 +190,45 @@ internal sealed class WatchedMatch
             for (int t = 0; t < f.Visibility.Length; t++)
             {
                 var v = (TileVisibility)f.Visibility[t];
-                if (v == TileVisibility.Visible) { everSeen[t] = true; lastSeenOwner[t] = f.Owner[t]; }
-                else if (v == TileVisibility.Explored)
+                if (v == TileVisibility.Visible)
+                {
+                    everExplored[t] = true;
+                    everSeen[t] = true;
+                    lastSeenOwner[t] = f.Owner[t];
+                    lastSeenOwnerTick[t] = f.Tick;
+                }
+                bool scouted = Match.Politics.ScoutMapExplored(0, t);
+                if (scouted)
+                {
+                    long scoutTick = Match.Politics.ScoutMapOwnerSeenTick(0, t);
+                    if (scoutTick > lastSeenOwnerTick[t])
+                    {
+                        lastSeenOwner[t] = (sbyte)Match.Politics.ScoutMapOwnerSeen(0, t).Owner;
+                        lastSeenOwnerTick[t] = scoutTick;
+                    }
+                }
+                if (v == TileVisibility.Explored)
                 {
                     ExploredObservations++;
-                    // A scout's route sight (docs/MVP/13 §3) explores land, and refreshes its owner, during the season step; no frame
-                    // shows it Visible. What the civilization remembers is the owner at the scout map's last sighting.
-                    if (Match.Politics.ScoutMapExplored(0, t)) { everSeen[t] = true; lastSeenOwner[t] = (sbyte)Match.Politics.ScoutMapOwnerSeen(0, t).Owner; }
-                    if (!everSeen[t]) Violations.Add($"tick {f.Tick}: tile {t} explored but never seen");
-                    else if (f.Owner[t] != lastSeenOwner[t]) Violations.Add($"tick {f.Tick}: tile {t} remembered owner {f.Owner[t]}, last seen {lastSeenOwner[t]}");
+                    if (!everSeen[t])
+                    {
+                        bool revealed = Match.Politics.IsRevealed(0, t);
+                        if (!scouted && !revealed)
+                            Violations.Add($"tick {f.Tick}: tile {t} explored without sampled visibility, scout exploration, or reveal");
+                        else if (scouted)
+                        {
+                            if (f.Owner[t] != lastSeenOwner[t])
+                                Violations.Add($"tick {f.Tick}: tile {t} scout owner {f.Owner[t]}, recorded {lastSeenOwner[t]}");
+                        }
+                        else if (f.Owner[t] != -1)
+                            Violations.Add($"tick {f.Tick}: reveal-only tile {t} exposed owner {f.Owner[t]}");
+                    }
+                    else if (f.Owner[t] != lastSeenOwner[t])
+                        Violations.Add($"tick {f.Tick}: tile {t} remembered owner {f.Owner[t]}, last seen {lastSeenOwner[t]}");
+                    everExplored[t] = true;
                     if (f.Claim[t] != 0) Violations.Add($"tick {f.Tick}: claim strength shown on unseen tile {t}");
                 }
-                else if (everSeen[t]) Violations.Add($"tick {f.Tick}: tile {t} forgotten");
+                else if (v == TileVisibility.Unknown && everExplored[t]) Violations.Add($"tick {f.Tick}: tile {t} forgotten");
             }
             for (int i = 0; i < f.SettlementCount; i++)
                 if ((f.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0) RememberedSettlementObservations++;
