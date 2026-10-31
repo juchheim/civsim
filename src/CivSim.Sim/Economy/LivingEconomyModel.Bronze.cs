@@ -383,6 +383,15 @@ public sealed partial class LivingEconomyModel
         return false;
     }
 
+    /// <summary>Whether this settlement can currently obtain an input from its stores/shared stores or a workable source deposit.</summary>
+    public bool SettlementHasMetalInputAccess(int settlementIndex, MetalAccessKind kind)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count || _settlements[settlementIndex].Metal is not { } m) return false;
+        byte stored = kind switch { MetalAccessKind.Copper => AccessCopper, MetalAccessKind.Arsenic => AccessArsenic, _ => AccessTin };
+        byte source = kind switch { MetalAccessKind.Copper => SourceCopper, MetalAccessKind.Arsenic => SourceArsenic, _ => SourceTin };
+        return !IsFreeFolk(_settlements[settlementIndex]) && (m.Access & (stored | source)) != 0;
+    }
+
     public MetalStatistics MetalStats(int civ)
     {
         int o = civ * StatCount;
@@ -412,6 +421,21 @@ public sealed partial class LivingEconomyModel
             m.Goods[(int)MetalGood.Charcoal], m.Goods[(int)MetalGood.Copper], m.Goods[(int)MetalGood.Tin],
             m.Goods[(int)MetalGood.Bronze], m.Goods[(int)MetalGood.ArsenicalBronze], StandingWoodInRange(s.SiteTile),
             m.ForestAtStart, m.ClampTile);
+    }
+
+    /// <summary>Read-only Bronze economy state for bounded harness diagnostics; unlike DescribeMetal, this does not build a new metal plan.</summary>
+    internal string DescribeMetalStateReadOnly(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        var text = new System.Text.StringBuilder();
+        text.Append($"s{settlementIndex} civ{s.Civilization} pop={Population(s.Id)} kiln={s.Structures[(int)Structure.Kiln]}");
+        if (s.Metal is not { } m) return text.Append(" metal=none").ToString();
+        text.Append($" tier={BestCastTier(s)} accessMask={m.Access} forge/smelter={m.Forges}/{m.Smelters} " +
+            $"build={m.BuildKind}:{m.BuildProgress.ToDoubleForDisplay():F2} siteClay={m.SiteClay.ToDoubleForDisplay():F2} siteStone={m.SiteStone.ToDoubleForDisplay():F2}");
+        for (int g = 0; g < (int)MetalGood.Count; g++)
+            if (m.Goods[g] > Fix64.Zero)
+                text.Append($" {MetalGoodId((MetalGood)g)}={m.Goods[g].ToDoubleForDisplay():F2}");
+        return text.ToString();
     }
 
     /// <summary>Standing wood on the forest tiles of a radius-3 range (docs/MVP/22 §5.5).</summary>

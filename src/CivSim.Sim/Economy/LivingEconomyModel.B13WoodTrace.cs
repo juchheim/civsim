@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
 
@@ -10,6 +11,13 @@ internal readonly record struct B13WoodSnapshot(int SettlementId, int Civilizati
     Fix64 HearthUse, Fix64 E3FuelUse, Fix64 MetalUse, Fix64 GoodsUse, Fix64 CivicUse, Fix64 StructureUse, Fix64 OtherUse,
     Fix64 Regrowth, Fix64 ChopRemoved, Fix64 MetalRemoved, Fix64 CivicRemoved, Fix64 OtherRemoved,
     Fix64 ClearThresholdRemoval, int ClearThresholdCrossings);
+
+internal readonly record struct B13TileWoodSnapshot(int Tile, Fix64 Initial, Fix64 Standing, Fix64 Regrowth,
+    Fix64 ChopRemoved, Fix64 MetalRemoved, Fix64 CivicRemoved, Fix64 OtherRemoved,
+    Fix64 ClearThresholdRemoval, int ClearThresholdCrossings, int[] OverlappingSettlements);
+
+internal readonly record struct B13OuterWoodSnapshot(int SettlementId, int Civilization, int Season, int Tile,
+    Fix64 Standing, int Distance, bool IsForest, int[] Competitors);
 
 public sealed partial class LivingEconomyModel
 {
@@ -60,6 +68,62 @@ public sealed partial class LivingEconomyModel
                 s.Stores[(int)Good.Wood], standing, local.ChopInflows, local.CivicInflows, local.OtherInflows,
                 local.HearthUse, local.E3FuelUse, local.MetalUse, local.GoodsUse, local.CivicUse, local.StructureUse, local.OtherUse,
                 regrowth, chopRemoved, metalRemoved, civicRemoved, otherRemoved, clearRemoved, clearCrossings));
+        }
+        return snapshots;
+    }
+
+    internal IReadOnlyList<B13TileWoodSnapshot> CaptureB13TileWoodSnapshots(int civilization)
+    {
+        if (!B13WoodTraceEnabled) return Array.Empty<B13TileWoodSnapshot>();
+        _b13TileWoodFlows ??= new B13TileWoodFlow[_woodStock.Length];
+        var tiles = new List<B13TileWoodSnapshot>();
+        for (int tile = 0; tile < _woodStock.Length; tile++)
+        {
+            Fix64 initial = _world.Tile(tile).InitialWood;
+            if (initial < Fix64.FromInt(15)) continue;
+            var overlaps = new List<int>();
+            foreach (SettlementState s in _settlements)
+                if (s.Civilization == civilization && Population(s.Id) is >= 80 and <= 100 && Tier(s.Id) == SettlementTier.Town &&
+                    Done(s.Civilization, "WOD-04") && HexGrid.Distance(s.SiteTile, tile, _world.Width) <= Radius)
+                    overlaps.Add(s.Id);
+            B13TileWoodFlow? f = _b13TileWoodFlows[tile];
+            tiles.Add(new B13TileWoodSnapshot(tile, initial, _woodStock[tile], f?.Regrowth ?? Fix64.Zero,
+                f?.ChopRemoved ?? Fix64.Zero, f?.MetalRemoved ?? Fix64.Zero, f?.CivicRemoved ?? Fix64.Zero,
+                f?.OtherRemoved ?? Fix64.Zero, f?.ClearThresholdRemoval ?? Fix64.Zero,
+                f?.ClearThresholdCrossings ?? 0, overlaps.ToArray()));
+        }
+        return tiles;
+    }
+
+    internal IReadOnlyList<B13OuterWoodSnapshot> CaptureB13OuterWoodSnapshots(int civilization, int season)
+    {
+        if (!B13WoodTraceEnabled) return Array.Empty<B13OuterWoodSnapshot>();
+        var snapshots = new List<B13OuterWoodSnapshot>();
+        foreach (SettlementState target in _settlements)
+        {
+            if (target.Civilization != civilization || Population(target.Id) <= 0) continue;
+            var reachable = new HashSet<int>();
+            foreach (int tile in ReachTiles(target.SiteTile, 8))
+            {
+                int distance = HexGrid.Distance(target.SiteTile, tile, _world.Width);
+                if (distance <= Radius || IsRivalTile(civilization, tile)) continue;
+                if (_world.Tile(tile).InitialWood <= Fix64.Zero && _woodStock[tile] <= Fix64.Zero) continue;
+                reachable.Add(tile);
+            }
+
+            foreach (int tile in reachable)
+            {
+                int distance = HexGrid.Distance(target.SiteTile, tile, _world.Width);
+                var competitors = new List<int>();
+                foreach (SettlementState other in _settlements)
+                {
+                    if (other.Id == target.Id || Population(other.Id) <= 0) continue;
+                    if (HexGrid.Distance(other.SiteTile, tile, _world.Width) > 8 || IsRivalTile(other.Civilization, tile)) continue;
+                    competitors.Add(other.Id);
+                }
+                snapshots.Add(new B13OuterWoodSnapshot(target.Id, civilization, season, tile, _woodStock[tile], distance,
+                    IsForestTile(tile), competitors.ToArray()));
+            }
         }
         return snapshots;
     }

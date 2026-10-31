@@ -23,6 +23,28 @@ internal static class ResearchMetal
 {
     private static readonly ulong[] DefaultSeeds = { 20261019UL, 777UL };
 
+    private sealed class T18CohortRow
+    {
+        public int Civilization, SettlementId, FirstSeason, Season, Adults, Rung6Adults;
+        public string AccessPath = "";
+        public List<T18WindowCheckpoint> Checkpoints = new();
+    }
+
+    private readonly record struct T18WindowCheckpoint(int Offset, int Season, string Detail);
+
+    private sealed class T18CensoredWindow
+    {
+        public int Civilization, SettlementId, FirstSeason, CensoredSeason;
+        public string AccessPath = "", Reason = "";
+        public List<T18WindowCheckpoint> Checkpoints = new();
+
+        public T18CensoredWindow(int civilization, int settlementId, int firstSeason, int censoredSeason, string accessPath, string reason)
+        {
+            Civilization = civilization; SettlementId = settlementId; FirstSeason = firstSeason; CensoredSeason = censoredSeason;
+            AccessPath = accessPath; Reason = reason;
+        }
+    }
+
     private sealed class CivTrace
     {
         public double Key3 = double.NaN, Key4 = double.NaN, Met03 = double.NaN, Met04 = double.NaN, Met05 = double.NaN,
@@ -40,16 +62,25 @@ internal static class ResearchMetal
         public CivTrace[] Civs = Array.Empty<CivTrace>();
         public List<(int Pop, bool Coppiced, double Start, double Now, int Civ)> Forests = new();
         public List<double> SettlementCoverage12 = new();
+        public List<T18CohortRow> T18EligibleRows = new();
+        public List<T18CensoredWindow> T18CensoredWindows = new();
+        public int T18Started, T18NoAdults, T18RightCensored;
         public List<B12T18Snapshot> B12T18Snapshots = new();
         public List<string> B12MiningWantTrace = new();
-        public List<B12T18Snapshot> B12CensusSnapshots = new();
         public Dictionary<int, B13WoodSnapshot> B13AtKey3 = new();
         public Dictionary<int, B13WoodSnapshot> B13AtKey4 = new();
+        public Dictionary<(int Civilization, int Tile), B13TileWoodSnapshot> B13TilesAtKey3 = new();
+        public Dictionary<(int Civilization, int Tile), B13TileWoodSnapshot> B13TilesAtKey4 = new();
+        public Dictionary<(int SettlementId, int Tile), B13OuterWoodSnapshot> B13OuterAtKey3 = new();
+        public Dictionary<(int SettlementId, int Tile), B13OuterWoodSnapshot> B13OuterAtKey4 = new();
         public List<string> B12CampOpenTrace = new();
         public List<string> B12CopperShareTrace = new();
         public double B12CopperShareShortfallTotal;
         public bool[] ForestsAtKey4 = Array.Empty<bool>();
-        public long[] FirstBronzeSeason = new long[4096];
+        public int[] FirstT18AccessSeason = Array.Empty<int>();
+        public bool[] T18CohortClosed = Array.Empty<bool>();
+        public string[] T18AccessPath = Array.Empty<string>();
+        public List<T18WindowCheckpoint>?[] T18WindowCheckpoints = Array.Empty<List<T18WindowCheckpoint>?>();
         public double ChopBronze, ChopStone;
         public int ChopSamples;
         public double MineBest, MineSurface;
@@ -92,9 +123,14 @@ internal static class ResearchMetal
         if (t17.Count > 0)
             text.AppendLine($"  median: bronze {Median(t17, 0):F2} L, tin {Median(t17, 3):F3} L, charcoal {Median(t17, 4):F2} L, wood {Median(t17, 5):F1} L, labor {Median(t17, 6) * 100:F1}%");
         text.AppendLine();
-        text.AppendLine($"T18 share of adults on rung 6 twelve seasons after MET-04/05: civ-wide median {P(MedianOf(cover))}, " +
-                        $"settlements with tin or arsenic access median {P(MedianOf(coverAccess))}; per settlement, 12 seasons after it could first cast bronze: " +
-                        $"median {P(MedianOf(coverSettlements))} over {coverSettlements.Count}, {coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70% (target >= 70% where access holds)");
+        int t18Started = results.Sum(r => r.T18Started);
+        int t18Lost = results.Sum(r => r.T18CensoredWindows.Count(x => x.Reason == "qualifying input access lost"));
+        int t18NoAdults = results.Sum(r => r.T18NoAdults);
+        int t18RightCensored = results.Sum(r => r.T18RightCensored);
+        text.AppendLine($"T18 research-timed diagnostic (not conditioned on continuous settlement input access): civ-wide median {P(MedianOf(cover))}, " +
+                        $"cast-tier-qualified settlements (CastTier >= 9) median {P(MedianOf(coverAccess))}.");
+        text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): per-settlement median {P(MedianOf(coverSettlements))} over {coverSettlements.Count} eligible rows, " +
+                        $"{coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70%; cohort starts {t18Started}, access lost before +12 {t18Lost}, still within +12 at horizon {t18RightCensored}, no adults at +12 {t18NoAdults} (target >= 70% where access holds)");
         text.AppendLine();
         text.AppendLine("T19 standing wood on the forest tiles of each settlement's range, at KEY-4 against its KEY-3 baseline");
         var bands = new (int Low, int High)[] { (0, 39), (40, 79), (80, 100), (101, 1000) };
@@ -146,15 +182,41 @@ internal static class ResearchMetal
                 text.AppendLine($"  generous incremental T10-kit ceiling from those deficits: {oreDeficit:F2} Cu ore / {copperOrePerKit:F2} Cu ore per kit = {kitEquivalentUpperBound:F2} kit-equivalents (at most {Math.Floor(kitEquivalentUpperBound)} complete kits); six needed; cannot reach six. This ignores tin/charcoal, recipes' labor, and the unchanged 10% cap, all of which can only reduce the bound.");
             }
         foreach (Result r in results)
-            if (r.B12CensusSnapshots.Count > 0)
+            if (r.T18EligibleRows.Count > 0 || r.T18CensoredWindows.Count > 0)
             {
                 text.AppendLine();
-                text.AppendLine($"B12 +12 after first casting access census (seed {r.Seed}; one row per exposed settlement):");
-                foreach (B12T18Snapshot x in r.B12CensusSnapshots.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
-                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} season={x.Season} coverage={x.Rung6Adults}/{x.Adults}({(double)x.Rung6Adults / x.Adults:P0}) {x.Census}");
+                text.AppendLine($"B12 T18 shared live-input-access cohort (seed {r.Seed}; valid +12 rows and censored windows):");
+                foreach (T18CohortRow x in r.T18EligibleRows.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
+                {
+                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} start=season{x.FirstSeason} +12=season{x.Season} access={x.AccessPath} coverage={x.Rung6Adults}/{x.Adults}({(double)x.Rung6Adults / x.Adults:P0})");
+                    if (x.Rung6Adults * 100 < x.Adults * 70)
+                        AppendCheckpoints(x.Checkpoints);
+                }
+                foreach (T18CensoredWindow x in r.T18CensoredWindows.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
+                {
+                    text.AppendLine($"  censored civ{x.Civilization}/s{x.SettlementId} start=season{x.FirstSeason} at=season{x.CensoredSeason} access={x.AccessPath} reason={x.Reason}");
+                    AppendCheckpoints(x.Checkpoints);
+                }
+
+                void AppendCheckpoints(List<T18WindowCheckpoint> checkpoints)
+                {
+                    foreach (T18WindowCheckpoint checkpoint in checkpoints)
+                        text.AppendLine($"    +{checkpoint.Offset} season{checkpoint.Season}: {checkpoint.Detail}");
+                }
             }
         Console.Write(text.ToString());
         return 0;
+    }
+
+    private static string DescribeT18Checkpoint(LivingEconomyModel eco, int settlement)
+    {
+        MetalReadout readout = eco.Metal(settlement);
+        static string F64(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
+        string read = $"metal castTier={readout.CastTier} access(cu/as/tin)={readout.CopperAccess}/{readout.ArsenicAccess}/{readout.TinAccess} " +
+            $"forge/smelter={readout.Forges}/{readout.Smelters} adults={readout.Adults} kits8/9/10={readout.Kits8}/{readout.Kits9}/{readout.Kits10} " +
+            $"stock(cuOre/asOre/tinOre/charcoal/copper/tin/bronze)={F64(readout.CopperOre)}/{F64(readout.ArsenicalOre)}/{F64(readout.TinOre)}/" +
+            $"{F64(readout.Charcoal)}/{F64(readout.Copper)}/{F64(readout.Tin)}/{F64(readout.Bronze)}";
+        return $"{read} | read-only state: {eco.DescribeMetalStateReadOnly(settlement)}; current plan not recomputed";
     }
 
     private static double[]? Demand(CivTrace t)
@@ -196,6 +258,11 @@ internal static class ResearchMetal
         LivingEconomyModel eco = match.Economy;
         int civs = r.CivCount;
         var result = new Result { Seed = seed, Civs = new CivTrace[civs], ForestsAtKey4 = new bool[civs] };
+        result.FirstT18AccessSeason = new int[eco.SettlementCount];
+        Array.Fill(result.FirstT18AccessSeason, -1);
+        result.T18CohortClosed = new bool[eco.SettlementCount];
+        result.T18AccessPath = new string[eco.SettlementCount];
+        result.T18WindowCheckpoints = new List<T18WindowCheckpoint>?[eco.SettlementCount];
         for (int c = 0; c < civs; c++) result.Civs[c] = new CivTrace();
         int Idx(string id) => r.Catalog.IndexOf(id);
         int key3 = Idx("KEY-3"), key4 = Idx("KEY-4"), met03 = Idx("MET-03"), met04 = Idx("MET-04"), met05 = Idx("MET-05");
@@ -214,9 +281,17 @@ internal static class ResearchMetal
                 t.Key3 = T(key3); t.Key4 = T(key4); t.Met03 = T(met03); t.Met04 = T(met04); t.Met05 = T(met05);
                 t.Fir09 = T(fir09); t.Min04 = T(min04); t.Wod04 = T(wod04);
                 if (traceB13Wood && r.IsDone(c, key3) && !result.B13AtKey3.Values.Any(x => x.Civilization == c))
+                {
                     foreach (B13WoodSnapshot snap in eco.CaptureB13WoodSnapshots((int)season).Where(x => x.Civilization == c)) result.B13AtKey3[snap.SettlementId] = snap;
+                    foreach (B13TileWoodSnapshot tile in eco.CaptureB13TileWoodSnapshots(c)) result.B13TilesAtKey3[(c, tile.Tile)] = tile;
+                    foreach (B13OuterWoodSnapshot tile in eco.CaptureB13OuterWoodSnapshots(c, (int)season)) result.B13OuterAtKey3[(tile.SettlementId, tile.Tile)] = tile;
+                }
                 if (traceB13Wood && r.IsDone(c, key4) && !result.B13AtKey4.Values.Any(x => x.Civilization == c))
+                {
                     foreach (B13WoodSnapshot snap in eco.CaptureB13WoodSnapshots((int)season).Where(x => x.Civilization == c)) result.B13AtKey4[snap.SettlementId] = snap;
+                    foreach (B13TileWoodSnapshot tile in eco.CaptureB13TileWoodSnapshots(c)) result.B13TilesAtKey4[(c, tile.Tile)] = tile;
+                    foreach (B13OuterWoodSnapshot tile in eco.CaptureB13OuterWoodSnapshots(c, (int)season)) result.B13OuterAtKey4[(tile.SettlementId, tile.Tile)] = tile;
+                }
                 double first = Math.Min(double.IsNaN(t.Met04) ? double.MaxValue : t.Met04, double.IsNaN(t.Met05) ? double.MaxValue : t.Met05);
                 if (first == double.MaxValue) continue;
                 long firstSeason = (long)Math.Ceiling(first * 4);
@@ -253,14 +328,82 @@ internal static class ResearchMetal
                         result.Forests.Add((sample.Pop, sample.Coppiced, sample.Start, sample.Now, c));
                 }
             }
-            // T18 where access holds: from the season a settlement can first cast bronze (tier 9 or 10), its rung-6 share 12 seasons on.
-            for (int s = 0; s < eco.SettlementCount && s < result.FirstBronzeSeason.Length; s++)
+            // Settlements can be founded/fissioned after the report starts; preserve a tracker slot for every new settlement.
+            if (eco.SettlementCount > result.FirstT18AccessSeason.Length)
             {
-                if (match.Politics.IsFreeFolk(s)) continue;
+                int oldLength = result.FirstT18AccessSeason.Length;
+                Array.Resize(ref result.FirstT18AccessSeason, eco.SettlementCount);
+                Array.Fill(result.FirstT18AccessSeason, -1, oldLength, eco.SettlementCount - oldLength);
+                Array.Resize(ref result.T18CohortClosed, eco.SettlementCount);
+                Array.Resize(ref result.T18AccessPath, eco.SettlementCount);
+                Array.Resize(ref result.T18WindowCheckpoints, eco.SettlementCount);
+            }
+            // T18 starts from live input access, never residual alloy stock, and requires the same access through +12.
+            for (int s = 0; s < eco.SettlementCount && s < result.FirstT18AccessSeason.Length; s++)
+            {
+                if (match.Politics.IsFreeFolk(s))
+                {
+                    if (result.FirstT18AccessSeason[s] >= 0 && !result.T18CohortClosed[s])
+                    {
+                        result.T18CensoredWindows.Add(new T18CensoredWindow(eco.SettlementLite(s).Civilization, s,
+                            result.FirstT18AccessSeason[s], (int)season, result.T18AccessPath[s], "became Free Folk")
+                        { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                        result.T18CohortClosed[s] = true;
+                    }
+                    continue;
+                }
+                int civ = eco.SettlementLite(s).Civilization;
                 MetalReadout mr = eco.Metal(s);
-                if (result.FirstBronzeSeason[s] == 0 && mr.CastTier >= 9 && mr.Forges > 0) result.FirstBronzeSeason[s] = season;
-                else if (result.FirstBronzeSeason[s] > 0 && season == result.FirstBronzeSeason[s] + 12 && mr.Adults > 0)
-                    result.SettlementCoverage12.Add((double)(mr.Kits9 + mr.Kits10) / mr.Adults);
+                bool arsenic = r.IsDone(civ, met04) && eco.SettlementHasMetalInputAccess(s, MetalAccessKind.Arsenic);
+                bool tin = r.IsDone(civ, met05) && eco.SettlementHasMetalInputAccess(s, MetalAccessKind.Copper) &&
+                    eco.SettlementHasMetalInputAccess(s, MetalAccessKind.Tin);
+                bool hasAccess = arsenic || tin;
+                if (result.FirstT18AccessSeason[s] < 0)
+                {
+                    if (!hasAccess) continue;
+                    result.FirstT18AccessSeason[s] = (int)season;
+                    result.T18AccessPath[s] = arsenic ? "MET-04+arsenic" : "MET-05+copper+tin";
+                    result.T18Started++;
+                    if (traceB12Census)
+                    {
+                        result.T18WindowCheckpoints[s] = new List<T18WindowCheckpoint>
+                        {
+                            new(0, (int)season, DescribeT18Checkpoint(eco, s))
+                        };
+                    }
+                    continue;
+                }
+                if (result.T18CohortClosed[s]) continue;
+                int firstSeason = result.FirstT18AccessSeason[s];
+                if (!hasAccess)
+                {
+                    result.T18CensoredWindows.Add(new T18CensoredWindow(civ, s, firstSeason, (int)season,
+                        result.T18AccessPath[s], "qualifying input access lost")
+                    { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                    result.T18CohortClosed[s] = true;
+                    continue;
+                }
+                int offset = (int)season - firstSeason;
+                if (traceB12Census && (offset is 4 or 8 or 12) && result.T18WindowCheckpoints[s] is { } checkpoints)
+                    checkpoints.Add(new T18WindowCheckpoint(offset, (int)season, DescribeT18Checkpoint(eco, s)));
+                if (season != firstSeason + 12) continue;
+                result.T18CohortClosed[s] = true;
+                if (mr.Adults <= 0)
+                {
+                    result.T18NoAdults++;
+                    result.T18CensoredWindows.Add(new T18CensoredWindow(civ, s, firstSeason, (int)season,
+                        result.T18AccessPath[s], "no adults at +12")
+                    { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                    continue;
+                }
+                int rung6 = mr.Kits9 + mr.Kits10;
+                result.SettlementCoverage12.Add((double)rung6 / mr.Adults);
+                result.T18EligibleRows.Add(new T18CohortRow
+                {
+                    Civilization = civ, SettlementId = s, FirstSeason = firstSeason, Season = (int)season,
+                    Adults = mr.Adults, Rung6Adults = rung6, AccessPath = result.T18AccessPath[s],
+                    Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>()
+                });
             }
             if (season % 8 == 0)
                 for (int s = 0; s < eco.SettlementCount; s++)
@@ -311,9 +454,16 @@ internal static class ResearchMetal
         }
         if ((traceB12T18 || traceB12Census) && eco.B12T18Snapshots is { } snapshots)
         {
-            if (traceB12T18) result.B12T18Snapshots.AddRange(snapshots);
-            if (traceB12Census) result.B12CensusSnapshots.AddRange(snapshots.Where(x => x.Offset == 12));
+            result.B12T18Snapshots.AddRange(snapshots);
         }
+        for (int s = 0; s < result.FirstT18AccessSeason.Length; s++)
+            if (result.FirstT18AccessSeason[s] >= 0 && !result.T18CohortClosed[s])
+            {
+                result.T18RightCensored++;
+                result.T18CensoredWindows.Add(new T18CensoredWindow(eco.SettlementLite(s).Civilization, s,
+                    result.FirstT18AccessSeason[s], minutes * 4, result.T18AccessPath[s], "report horizon before +12")
+                { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+            }
         if (traceB12MiningWant) result.B12MiningWantTrace.AddRange(eco.B12MiningWantTrace);
         if (traceB12CampOpen) result.B12CampOpenTrace.AddRange(eco.B12CampOpenTrace);
         if (traceB12CopperShare)
@@ -382,6 +532,59 @@ internal static class ResearchMetal
             text.AppendLine($"    local inflow chop={F64(dChopIn)} civic/housing={F64(dCivicIn)} other={F64(dOtherIn)}; use hearth={F64(dHearth)} E3fire={F64(dFuel)} metal={F64(dMetalUse)} goods={F64(dGoods)} civic/housing={F64(dCivicUse)} structure={F64(dStructure)} other={F64(dOtherUse)} residual={F64(localResidual)}");
             text.AppendLine($"    forest regrowth={F64(dRegrowth)} removed chop/clear={F64(dChop)} metal={F64(dMetal)} civic={F64(dCivic)} other={F64(dOther)} clearThreshold={F64(close.ClearThresholdRemoval-open.ClearThresholdRemoval)} crossings={close.ClearThresholdCrossings-open.ClearThresholdCrossings} residual={F64(forestResidual)}");
         }
+        var tileRows = result.B13TilesAtKey4
+            .Where(pair => pair.Value.OverlappingSettlements.Length > 0 && result.B13TilesAtKey3.ContainsKey(pair.Key))
+            .Select(pair => (Close: pair.Value, Open: result.B13TilesAtKey3[pair.Key]))
+            .Select(x => (x.Close, x.Open, Loss: x.Open.Standing - x.Close.Standing))
+            .OrderByDescending(x => x.Loss.ToDoubleForDisplay()).Take(12).ToArray();
+        text.AppendLine("  worst forest tiles in selected town ranges (tile: stock KEY3→KEY4; net loss; removals chop/metal/civic/other; regrowth; threshold crossings/removal; overlapping towns):");
+        foreach (var row in tileRows)
+        {
+            B13TileWoodSnapshot c = row.Close, o = row.Open;
+            Fix64 d = c.ChopRemoved - o.ChopRemoved, m = c.MetalRemoved - o.MetalRemoved;
+            Fix64 cv = c.CivicRemoved - o.CivicRemoved, ot = c.OtherRemoved - o.OtherRemoved, rg = c.Regrowth - o.Regrowth;
+            text.AppendLine($"    tile{c.Tile}: {F64(o.Standing)}->{F64(c.Standing)} loss={F64(row.Loss)} removed={F64(d)}/{F64(m)}/{F64(cv)}/{F64(ot)} regrowth={F64(rg)} clearCrossings={c.ClearThresholdCrossings - o.ClearThresholdCrossings} clearRemoved={F64(c.ClearThresholdRemoval-o.ClearThresholdRemoval)} overlap=[{string.Join(",", c.OverlappingSettlements.Select(id => $"s{id}"))}]");
+        }
+        text.AppendLine("  outer wood candidates for GatherMaterials (d=4-8; excludes rival-owned tiles; per-town totals can overlap; potential stock, not observed harvest):");
+        foreach (B13WoodSnapshot close in result.B13AtKey4.Values
+                     .Where(x => x.IsTown && x.Population is >= 80 and <= 100 && !double.IsNaN(result.Civs[x.Civilization].Wod04))
+                     .OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
+        {
+            var open = result.B13OuterAtKey3.Values.Where(x => x.SettlementId == close.SettlementId).ToDictionary(x => x.Tile);
+            var now = result.B13OuterAtKey4.Values.Where(x => x.SettlementId == close.SettlementId).ToDictionary(x => x.Tile);
+            AppendOuterAvailability(text, $"KEY3 civ{close.Civilization}/s{close.SettlementId}", open.Values);
+            AppendOuterAvailability(text, $"KEY4 civ{close.Civilization}/s{close.SettlementId}", now.Values);
+            AppendOuterTileRows(text, "KEY3", open.Values);
+            AppendOuterTileRows(text, "KEY4", now.Values);
+        }
+        static string F64(Fix64 x) => x.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
+    }
+
+    private static void AppendOuterTileRows(StringBuilder text, string stage, IEnumerable<B13OuterWoodSnapshot> source)
+    {
+        B13OuterWoodSnapshot[] tiles = source.Where(x => x.Standing > Fix64.Zero)
+            .OrderByDescending(x => x.Standing).ThenBy(x => x.Distance).ThenBy(x => x.Tile).ToArray();
+        int sampleCount = Math.Min(8, tiles.Length);
+        foreach (B13OuterWoodSnapshot tile in tiles.Take(sampleCount))
+            text.AppendLine($"      {stage} tile{tile.Tile} {tile.Standing.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture)}L d{tile.Distance} {(tile.IsForest ? "forest" : "nonforest")} potentialOtherSettlements=[{string.Join(",", tile.Competitors.Select(id => $"s{id}"))}]");
+        if (tiles.Length > sampleCount)
+            text.AppendLine($"      {stage} tile details: showing {sampleCount} of {tiles.Length} positive-stock candidates (highest standing stock)");
+    }
+
+    private static void AppendOuterAvailability(StringBuilder text, string label, IEnumerable<B13OuterWoodSnapshot> source)
+    {
+        B13OuterWoodSnapshot[] tiles = source.ToArray();
+        Fix64 forest = Fix64.Zero, nonforest = Fix64.Zero, contested = Fix64.Zero, haul = Fix64.Zero;
+        var byDistance = new Fix64[9];
+        foreach (B13OuterWoodSnapshot tile in tiles)
+        {
+            if (tile.IsForest) forest += tile.Standing;
+            else nonforest += tile.Standing;
+            if (tile.Competitors.Length > 0) contested += tile.Standing;
+            haul += tile.Standing * (Fix64.FromRatio(1, 8) + Fix64.FromRatio(tile.Distance, 40));
+            byDistance[tile.Distance] += tile.Standing;
+        }
+        text.AppendLine($"    {label}: candidateTiles={tiles.Length} reachableStanding={F64(forest + nonforest)}L forest={F64(forest)}L nonforest={F64(nonforest)}L potentiallySharedStanding={F64(contested)}L grossHaulEstimate={F64(haul)}ws distanceStock=[d4:{F64(byDistance[4])},d5:{F64(byDistance[5])},d6:{F64(byDistance[6])},d7:{F64(byDistance[7])},d8:{F64(byDistance[8])}]");
         static string F64(Fix64 x) => x.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
     }
 
