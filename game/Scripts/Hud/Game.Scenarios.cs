@@ -110,6 +110,17 @@ public partial class Game
                 Shot("menu");
                 Step(() => ToggleGameMenu(false));
                 Step(() => ToggleHelp(true));
+            case "deposits":
+                // centres on the known deposit with the most known deposits around it, then shoots it near and far
+                Step(() => { CenterOnDepositCluster(); ZoomTo(ZoomPresets[1]); }, 1.2f);
+                Shot("deposits-z1");
+                Step(() => ZoomTo(ZoomPresets[2]), 1.0f);
+                Shot("deposits-z2");
+                Step(() => ZoomTo(ZoomPresets[0]), 1.0f);
+                Shot("deposits-z0");
+                Step(() => ZoomTo(ZoomPresets[3]), 1.0f);
+                Shot("deposits-z3");
+                break;
                 Shot("help-controls");
                 Step(() => _helpTabs?.Select(1, true));
                 Shot("help-research");
@@ -728,3 +739,26 @@ public partial class Game
         _session.Queue(new Command(_session.Tick, 0, CommandKind.CompleteProject, project, 0, 0));
     }
 }
+    private void CenterOnDepositCluster()
+    {
+        if (_session is null || _current is null) return;
+        int w = _current.Width, h = _current.Height, best = -1, bestCount = 0;
+        for (int tile = 0; tile < w * h; tile++)
+        {
+            if (_current.KnownDeposits[tile] == 0) continue;
+            int count = 0, tx = tile % w, ty = tile / w;
+            for (int dy = -3; dy <= 3; dy++)
+                for (int dx = -3; dx <= 3; dx++)
+                {
+                    int x = tx + dx, y = ty + dy;
+                    if (x >= 0 && y >= 0 && x < w && y < h && _current.KnownDeposits[y * w + x] != 0) count++;
+                }
+            if (count > bestCount) { bestCount = count; best = tile; }
+        }
+        GD.Print($"SCN deposit cluster tile={best} known={bestCount}");
+        if (best < 0) return;
+        _target = TileCenter(best % w, best / w);
+        ClampTarget();
+        UpdateCamera();
+    }
+

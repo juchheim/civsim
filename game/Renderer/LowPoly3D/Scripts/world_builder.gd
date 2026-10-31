@@ -35,6 +35,9 @@ var settlement_multimeshes := {}
 var actor_multimeshes := {}
 var herd_props: Node3D
 var herd_multimeshes := {}
+var deposit_props: Node3D
+var deposit_multimeshes := {}
+var deposit_signature := -1
 var herds_dirty := false   # herds and beacons rebuild one frame after people, so a publish never costs two frames' worth
 var border_node: MeshInstance3D
 var borders_far_node: MeshInstance3D
@@ -164,6 +167,10 @@ func build() -> Node3D:
 	herd_props = _build_props_node("Herds", props)
 	props = M7Batcher.new()
 	var t4 := Time.get_ticks_msec()
+	deposit_signature = hash(w.e3_overlay_bytes)
+	_deposits()
+	deposit_props = _build_props_node("Deposits", props)
+	props = M7Batcher.new()
 	var t5 := Time.get_ticks_msec()
 	stats.instances = stats.get("instances_vegetation", 0) + stats.get("instances_settlements", 0) + stats.get("instances_actors", 0)
 	stats.ms_terrain = t1 - t0
@@ -204,6 +211,13 @@ func update_frame() -> bool:
 		props = M7Batcher.new()
 	rig.set_monuments(w.monuments, structure_signature)
 	var settlements_updated := Time.get_ticks_usec()
+	var new_deposit_signature := hash(w.e3_overlay_bytes)
+	if new_deposit_signature != deposit_signature:
+		deposit_signature = new_deposit_signature
+		props = M7Batcher.new()
+		_deposits()
+		deposit_multimeshes = props.update_existing(deposit_props, kit, _material_for, deposit_multimeshes)
+		props = M7Batcher.new()
 	props = M7Batcher.new()
 	var people_started := Time.get_ticks_usec()
 	_figures()
@@ -277,6 +291,9 @@ func _build_props_node(node_name: String, batcher: M7Batcher) -> Node3D:
 		herd_multimeshes = batcher.update_existing(node, kit, _material_for, {})
 		count = batcher.instance_count
 	else:
+	elif node_name == "Deposits":
+		deposit_multimeshes = batcher.update_existing(node, kit, _material_for, {})
+		count = batcher.instance_count
 		count = batcher.build(node, kit, _material_for)
 	stats["instances_" + node_name.to_lower().trim_suffix("props").trim_suffix("s")] = count
 	stats["multimesh_groups_" + node_name.to_lower()] = batcher.groups.size()
@@ -378,6 +395,8 @@ func _material_for(mesh_name: String) -> Material:
 		return mats.banner
 	if mesh_name.begins_with("detail_") or mesh_name.begins_with("tuft") or mesh_name == "reeds" or mesh_name.begins_with("tallgrass"):
 		return mats.grass_wind
+	if mesh_name.begins_with("deposit"):
+		return mats.deposit
 	if mesh_name.begins_with("conifer") or mesh_name.begins_with("broadleaf") or mesh_name.begins_with("acacia") \
 			or mesh_name.begins_with("jungle"):
 		return mats.prop_wind
@@ -1296,6 +1315,27 @@ func _figures() -> void:
 		var seed := M7WorldData.hash01(id & 0xffff, (id >> 16) & 0x3fff, 7)
 		var tint := 8 if (fl & 1024) else civ % 8
 		var mode_offset := 16 if pmx < 0 else 0     # new this publish: grow in
+# ------------------------------------------------------------------ deposits
+
+## A marker on every tile whose deposit the viewer knows (the E3 overlay's red channel is the DepositKind + 1, set only for known ones).
+## It stands to one side of the tile's middle, clear of a village's hearth, and keeps the same spot for the life of the match.
+const DEPOSIT_SCALE := 1.3
+
+func _deposits() -> void:
+	var bytes := w.e3_overlay_bytes
+	var tiles := w.width * w.height
+	if bytes.size() != tiles * 4:
+		return
+	for t in tiles:
+		var kind := int(bytes[t * 4]) - 1
+		if kind <= 0 or not w.is_land(t) or not kit.meshes.has("deposit%d" % kind):
+			continue
+		var high := w.biome[t] >= M7WorldData.Biome.MOUNTAIN
+		var a := M7WorldData.hash01(t, 17) * TAU
+		var p := w.tile_center(t) + Vector2(cos(a), sin(a)) * 0.2
+		props.add("deposit%d%s" % [kind, "_tall" if high else ""], _xf(p, w.height_at(p), M7WorldData.hash01(t, 19) * TAU, DEPOSIT_SCALE),
+			Color(1, 1, 1, M7WorldData.hash01(t, 23)))
+
 		var placed := _place_figure(mx, my, home, seed * TAU)
 		var p: Vector2 = placed[0]
 		var face: float = placed[1]

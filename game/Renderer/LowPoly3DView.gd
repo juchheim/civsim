@@ -583,6 +583,10 @@ func _make_materials() -> void:
 	banner.set_shader_parameter("billboard_y", true)
 	mats.banner = banner
 	var figure := ShaderMaterial.new()
+	var deposit := ShaderMaterial.new()                # grows with the camera distance like people do, so a deposit still reads zoomed out
+	deposit.shader = prop.shader
+	deposit.set_shader_parameter("lod_grow", 1.2)
+	mats.deposit = deposit
 	figure.shader = prop.shader
 	figure.set_shader_parameter("is_figure", true)
 	var figure_tints := PackedVector3Array()

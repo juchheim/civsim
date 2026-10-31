@@ -58,6 +58,7 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_yard.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_decor.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_landmarks.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_deposits.gd"),
 ]
 
 func get_mesh(name: String) -> ArrayMesh:
