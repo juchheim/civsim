@@ -31,7 +31,7 @@ public partial class Game
         col.AddChild(header);
         _decreeMandate = UiKit.Text("Mandate · locked", "Body");
         col.AddChild(_decreeMandate);
-        _decreeHint = UiKit.Text("Research KEY-3 to issue a Decree.", "Caption", wrap: true, minWidth: 280);
+        _decreeHint = UiKit.Text($"Research {DecreeUnlockProjectName()} to issue a Decree.", "Caption", wrap: true, minWidth: 280);
         col.AddChild(_decreeHint);
         col.AddChild(UiKit.Text("CHOOSE A PLACE", "EyebrowTertiary"));
         _decreeFound = UiKit.Secondary("Found a village", () => ArmDecree(DecreeKind.Found), "Choose a tile on the map.");
@@ -150,6 +150,13 @@ public partial class Game
         return index >= 0 && StateOf(index) is CivSim.Sim.Research.ProjectState.Completed or CivSim.Sim.Research.ProjectState.Dormant;
     }
 
+    private string DecreeUnlockProjectName()
+    {
+        if (_catalog is null) return "Age of Metal";
+        int index = _catalog.IndexOf("KEY-3");
+        return index >= 0 ? _catalog.Projects[index].Name : "Age of Metal";
+    }
+
     private void ConfirmDecree()
     {
         if (_session is null || !_session.CanIssueCommands) return;
@@ -162,10 +169,11 @@ public partial class Game
     {
         if (_decreeMandate is null) return;
         bool available = frame.FocusMandateUnlocked;
+        string unlockProject = DecreeUnlockProjectName();
         UiKit.SetText(_decreeMandate, available
             ? $"Mandate · {frame.FocusMandate}/{frame.FocusMandateCap} · next in {frame.FocusMandateNextSeason} seasons"
-            : "Mandate · locked until KEY-3");
-        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : "Research KEY-3 to issue a Decree.");
+            : $"Mandate · locked until {unlockProject}");
+        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : $"Research {unlockProject} to issue a Decree.");
         foreach (UiButton? button in new[] { _decreeFound, _decreeExplore, _decreeMine, _decreeLevy, _decreeCorvee })
             if (button is not null) button.Disabled = !available || !(_session?.CanIssueCommands ?? false);
         if (_decreePartner is null) return;
