@@ -1159,3 +1159,7 @@ For B16, the focused `WP8bSiegeLifecycleTests` suite passes 7/7 in 5.67s. Its fi
 | B30 | | all measurable parts PASS |
 
 Reading: the A1–A5 misses are the same set as before the B12 promotion (A1–A5 failing, A6/A8 not run), so the promotion did not close them and no earlier number gets cited as regressed. A5 is the sharpest: Builder and Grower exceed the 30% ceiling again, with Grower earning the highest Legacy (3,209) and the most settlements (21.0); Warlord has the most raids (3.0 per seat) and captures (0.38) but not the most Legacy. The B28 100% is a 4-case sample and must not be read as the gate passing; it only shows the Legend-vs-Warlord 16-match path produced few qualifying attacks.
+
+#### Post-promotion robustness and performance sweeps (2026-11-01)
+
+On `e84bcfd` with a pack rebuilt from `content/`: S15 (1,000 chapter matches, 64 min) 1000/1000 clean in 94.2 min; S1 (1,000 replays) 1000/1000 matched in 52.2 min; S12 headless Bronze chapter 7.739 s (limit 30 s), checksum `c4ddf7675658e7a4`; S13 sim tick average 2.437 ms (limit 4.0), max GC pause 2 ms (limit 16), workload reached at minute 59 with 2,400 figures. S12/S13 ran with machine load average around 4 (shared Mac, 12 users logged in, no harness processes of ours running), so the timings are not from a fully idle machine. Outputs: `/tmp/civsim-post-s15.txt`, `/tmp/civsim-post-s1.txt`, `/tmp/civsim-post-perf.txt`.
