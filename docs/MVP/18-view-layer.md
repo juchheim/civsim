@@ -121,7 +121,7 @@ The front end sends `Command(Tick, Civ, Kind, A, B, C)` to the `SimRunner` (help
 | 10 | `SendGift` | recipient civ; B = optional destination settlement index + 1 (0 = closest pair) |
 | 11 | `SendBarter` | partner civ; B = optional destination settlement index + 1 (0 = closest pair) |
 | 12 | `LaunchRaid` | target settlement, party size (≥ 4) |
-| 13 | `LaunchAssault` | target settlement; B = expected owner + 1 (0 keeps legacy owner-agnostic behavior) |
+| 13 | `LaunchAssault` | target settlement; B = expected owner + 1 (0 keeps legacy owner-agnostic behavior). A = −1 and B = target civilization + 1 lets the simulation choose its closest campaign target. |
 | 14 | `DeclareWar` | civ |
 | 15 | `MakePeace` | civ |
 | 16 | `FormAlliance` | civ |

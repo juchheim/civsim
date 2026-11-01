@@ -447,7 +447,15 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     else if (!OrderRaidMiningCamp(civ, command.A, command.B)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.LaunchAssault:
-                    if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    if (command.A == -1)
+                    {
+                        int targetCiv = command.B - 1;
+                        if (command.B <= 0 || targetCiv >= _civs || targetCiv == civ)
+                            Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                        else if (!OrderAssaultAgainst(civ, targetCiv))
+                            Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    }
+                    else if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
                     else if (!OrderAssault(civ, command.A, command.B > 0 ? command.B - 1 : -1)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.DeclareWar:

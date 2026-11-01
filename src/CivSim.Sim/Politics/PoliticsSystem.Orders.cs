@@ -138,6 +138,13 @@ public sealed partial class PoliticsSystem
         return o != c && _dip.AtWar(c, o) && SendAssault(c, o, targetSettlement, requireOdds: false);
     }
 
+    /// <summary>Lets the civilization choose the closest campaign target against the selected enemy.</summary>
+    public bool OrderAssaultAgainst(int c, int other)
+    {
+        if ((uint)c >= (uint)_civs || (uint)other >= (uint)_civs || c == other || !_dip.AtWar(c, other)) return false;
+        return LaunchAssault(c, other, requireOdds: false);
+    }
+
     public bool OrderWar(int c, int o)
     {
         if (c == o || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _dip.Allied(c, o)) return false;

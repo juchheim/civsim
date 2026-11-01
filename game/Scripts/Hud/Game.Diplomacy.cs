@@ -343,8 +343,8 @@ public partial class Game
 
     private void RefreshDestinations(MatchFrame frame, int civ)
     {
-        var options = new List<(int Settlement, string Text)> { (-1, "Nearest") };
-        for (int i = 0; i < frame.SettlementCount && options.Count < 9; i++)
+        var options = new List<(int Settlement, string Text)> { (-1, "Civilization decides") };
+        for (int i = 0; i < frame.SettlementCount; i++)
         {
             if (frame.SettlementCiv[i] != civ) continue;
             SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[i];
@@ -378,7 +378,7 @@ public partial class Game
             chip.Text = options[i].Text;
             chip.SetMeta("settlement", options[i].Settlement);
             chip.TooltipText = options[i].Settlement < 0
-                ? "Raids choose their closest settlement even if it is out of sight. Assaults choose the closest settlement you have seen, including remembered locations."
+                ? "Your civilization picks the target automatically. For assaults, it chooses its closest campaign target."
                 : DestinationTooltip(frame, civ, options[i].Settlement);
             chip.SetPressedNoSignal(options[i].Settlement == _selectedTargetSettlement);
         }
@@ -393,29 +393,6 @@ public partial class Game
     }
 
     private string NeedsName(int project) => project >= 0 && _catalog is not null ? _catalog.Projects[project].Name : "a research project";
-
-    /// <summary>A known settlement of <paramref name="civ"/> to raid or assault: the chosen one, or the one nearest to your own.</summary>
-    private int ResolveDestination(MatchFrame frame, int civ)
-    {
-        if (_selectedTargetSettlement >= 0) return _selectedTargetSettlement;
-        int best = -1;
-        float bestDistance = float.MaxValue;
-        for (int i = 0; i < frame.SettlementCount; i++)
-        {
-            if (frame.SettlementCiv[i] != civ) continue;
-            if ((frame.SettlementFlags[i] & (ushort)(SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
-            int tile = frame.SettlementTile[i];
-            var a = new Vector2(tile % frame.Width, tile / frame.Width);
-            for (int j = 0; j < frame.SettlementCount; j++)
-            {
-                if (frame.SettlementCiv[j] != Math.Max(0, frame.ViewerCiv)) continue;
-                int own = frame.SettlementTile[j];
-                float d = a.DistanceTo(new Vector2(own % frame.Width, own / frame.Width));
-                if (d < bestDistance) { bestDistance = d; best = frame.SettlementIndex[i]; }
-            }
-        }
-        return best;
-    }
 
     private static string DestinationTooltip(MatchFrame frame, int civ, int settlement)
     {
@@ -457,8 +434,6 @@ public partial class Game
         bool barterInFlight = false;
         for (int i = 0; i < frame.PartyCount; i++)
             if (frame.PartyCiv[i] == frame.ViewerCiv && frame.PartyTargetCiv[i] == civ && frame.PartyKind[i] == (byte)PartyKind.Barter) barterInFlight = true;
-        int destination = ResolveDestination(frame, civ);
-        bool hasDestination = destination >= 0;
         bool can = _session?.CanIssueCommands ?? false;
         if (_diploCompactAction is not null) _diploCompactAction.TooltipText = CompactAcceptanceHint(frame.ViewerCiv, civ);
 
@@ -487,10 +462,11 @@ public partial class Game
             raidHint);
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
-        bool rememberedDestination = hasDestination && IsRememberedDestination(frame, civ, destination);
-        SetOrder(_assaultRow!, true, can && atWar && hasDestination,
-            !atWar ? "Declare war first." : !hasDestination ? "You need to have discovered one of their settlements." :
-            rememberedDestination ? "Marches to its last known site; it may be empty or its population may have changed." : "Tries to take the settlement.");
+        bool chosenDestination = _selectedTargetSettlement >= 0;
+        bool rememberedDestination = chosenDestination && IsRememberedDestination(frame, civ, _selectedTargetSettlement);
+        SetOrder(_assaultRow!, true, can && atWar,
+            !atWar ? "Declare war first." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :
+            rememberedDestination ? "Marches to its last known site; it may be empty or its population may have changed." : "Tries to take the selected settlement.");
     }
 
     private void RefreshParties(MatchFrame frame)
@@ -560,7 +536,9 @@ public partial class Game
     private void QueueAssault()
     {
         if (_session is null || _current is null) return;
-        int destination = ResolveDestination(_current, _selectedPoliticsCiv);
-        if (destination >= 0) _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, destination, _selectedPoliticsCiv));
+        if (_selectedTargetSettlement >= 0)
+            _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, _selectedTargetSettlement, _selectedPoliticsCiv));
+        else
+            _session.Queue(PlayerCommands.LaunchAssaultAgainst(_session.Tick, 0, _selectedPoliticsCiv));
     }
 }

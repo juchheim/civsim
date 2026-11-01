@@ -45,6 +45,9 @@ public static class PlayerCommands
     /// <summary>Assault a settlement; optionally require it still belongs to the civilization selected by the player.</summary>
     public static Command LaunchAssault(long tick, int civ, int targetSettlement, int expectedOwner = -1)
         => new(tick, (byte)civ, CommandKind.LaunchAssault, targetSettlement, expectedOwner + 1, 0);
+    /// <summary>Assault the target civilization's closest campaign target, chosen by the simulation.</summary>
+    public static Command LaunchAssaultAgainst(long tick, int civ, int targetCiv)
+        => new(tick, (byte)civ, CommandKind.LaunchAssault, -1, targetCiv + 1, 0);
     public static Command DeclareWar(long tick, int civ, int onCiv) => new(tick, (byte)civ, CommandKind.DeclareWar, onCiv, 0, 0);
     public static Command MakePeace(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.MakePeace, withCiv, 0, 0);
     public static Command FormAlliance(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.FormAlliance, withCiv, 0, 0);
