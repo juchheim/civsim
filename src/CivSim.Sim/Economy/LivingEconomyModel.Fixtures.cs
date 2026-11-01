@@ -67,6 +67,9 @@ public sealed partial class LivingEconomyModel
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
     internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
 
+    /// <summary>Sets the remaining ore for a deposit in a deterministic economy fixture.</summary>
+    internal void FixtureSetOreRemaining(int tile, Fix64 amount) => _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+
     /// <summary>Adds a populated mining camp at a chosen deposit for view and lifecycle fixtures.</summary>
     internal void FixtureAddMiningCamp(int parentSettlementIndex, int tile, int crew = 4, bool built = true, bool mineHead = false)
     {
@@ -213,6 +216,15 @@ public sealed partial class LivingEconomyModel
         m.Access = ComputeAccess(s);
         int tier = BestCastTier(s);
         return (tier, DormancyReason(s, tier));
+    }
+
+    /// <summary>Tests cast-tier selection with explicit sister-access bits while retaining the fixture's local stocks and deposits.</summary>
+    internal int FixtureTierWithAccess(int settlementIndex, bool copper, bool arsenic, bool tin)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        MetalState m = EnsureMetal(s);
+        m.Access = (byte)((copper ? AccessCopper : 0) | (arsenic ? AccessArsenic : 0) | (tin ? AccessTin : 0));
+        return BestCastTier(s);
     }
 
     /// <summary>The camp a figure works at, or -1.</summary>

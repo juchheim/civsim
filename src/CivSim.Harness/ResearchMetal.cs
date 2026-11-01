@@ -66,6 +66,10 @@ internal static class ResearchMetal
         public List<T18CohortRow> T18EligibleRows = new();
         public List<T18CensoredWindow> T18CensoredWindows = new();
         public int T18Started, T18NoAdults, T18RightCensored;
+        public List<T18CohortRow> T18CastableEligibleRows = new();
+        public List<T18CensoredWindow> T18CastableCensoredWindows = new();
+        public int T18CastableStarted, T18CastableNoAdults, T18CastableRightCensored;
+        public List<double> T18CastableCoverage12 = new();
         public List<B12T18Snapshot> B12T18Snapshots = new();
         public List<B12T18PlanSnapshot> B12T18PlanSnapshots = new();
         public List<string> B12MiningWantTrace = new();
@@ -83,6 +87,8 @@ internal static class ResearchMetal
         public bool[] T18CohortClosed = Array.Empty<bool>();
         public string[] T18AccessPath = Array.Empty<string>();
         public List<T18WindowCheckpoint>?[] T18WindowCheckpoints = Array.Empty<List<T18WindowCheckpoint>?>();
+        public int[] FirstT18CastableSeason = Array.Empty<int>();
+        public bool[] T18CastableCohortClosed = Array.Empty<bool>();
         public double ChopBronze, ChopStone;
         public int ChopSamples;
         public double MineBest, MineSurface;
@@ -132,11 +138,22 @@ internal static class ResearchMetal
         int t18Adults = results.Sum(r => r.T18EligibleRows.Sum(x => x.Adults));
         int t18Rung6Adults = results.Sum(r => r.T18EligibleRows.Sum(x => x.Rung6Adults));
         double t18AdultWeighted = t18Adults == 0 ? double.NaN : (double)t18Rung6Adults / t18Adults;
+        int t18CastableAdults = results.Sum(r => r.T18CastableEligibleRows.Sum(x => x.Adults));
+        int t18CastableRung6Adults = results.Sum(r => r.T18CastableEligibleRows.Sum(x => x.Rung6Adults));
+        double t18CastableAdultWeighted = t18CastableAdults == 0 ? double.NaN : (double)t18CastableRung6Adults / t18CastableAdults;
+        var castableCoverage = results.SelectMany(r => r.T18CastableCoverage12).ToList();
+        int t18CastableLost = results.Sum(r => r.T18CastableCensoredWindows.Count(x => x.Reason == "qualifying input access lost"));
         text.AppendLine($"T18 research-timed diagnostic (not conditioned on continuous settlement input access): civ-wide median {P(MedianOf(cover))}, " +
                         $"cast-tier-qualified settlements (CastTier >= 9) median {P(MedianOf(coverAccess))}.");
         text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): adult-weighted {P(t18AdultWeighted)} ({t18Rung6Adults}/{t18Adults}), " +
                         $"per-settlement median {P(MedianOf(coverSettlements))} over {coverSettlements.Count} eligible rows, " +
                         $"{coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70%; cohort starts {t18Started}, access lost before +12 {t18Lost}, still within +12 at horizon {t18RightCensored}, no adults at +12 {t18NoAdults} (target >= 70% where access holds)");
+        text.AppendLine($"T18 local-facility-chain diagnostic (raw input access plus local Forge and Kiln/Smelter; continuous through +12): " +
+                        $"adult-weighted {P(t18CastableAdultWeighted)} ({t18CastableRung6Adults}/{t18CastableAdults}), " +
+                        $"per-settlement median {P(MedianOf(castableCoverage))} over {castableCoverage.Count} eligible rows, " +
+                        $"{castableCoverage.FindAll(x => x >= 0.7).Count} at >= 70%; cohort starts {results.Sum(r => r.T18CastableStarted)}, " +
+                        $"access lost before +12 {t18CastableLost}, still within +12 at horizon {results.Sum(r => r.T18CastableRightCensored)}, " +
+                        $"no adults at +12 {results.Sum(r => r.T18CastableNoAdults)} (diagnostic only; unchanged 70% target)");
         if (Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1")
         {
             text.AppendLine("B12 report-horizon food safety (settlement-weighted):");
@@ -235,12 +252,20 @@ internal static class ResearchMetal
                     return $"tier={plan.Tier} forge/smelter={plan.Forges}/{plan.Smelters} buildKind={plan.BuildKind} " +
                         $"rung6={plan.Rung6Adults}/{plan.Adults} work={F(plan.TotalWork)} cap={F(plan.PushCap)} foodSec/winter={F(plan.FoodSecurity)}/{F(plan.LateWinterForecast)} " +
                         $"chain={F(plan.PrimaryChain)}*{F(plan.PrimaryScale)}+{F(plan.SecondaryChain)}*{F(plan.SecondaryScale)} " +
-                        $"assigned/need(build,mine,charcoal,smelt)={F(plan.BuildAssigned)}/{F(plan.BuildNeed)} " +
-                        $"{F(plan.MineAssigned)}/{F(plan.MineNeed)} {F(plan.CharcoalAssigned)}/{F(plan.CharcoalNeed)} " +
+                        $"build assigned/need={F(plan.BuildAssigned)}/{F(plan.BuildNeed)} " +
+                        $"requested/cap(build)={F(plan.BuildRequested)}/{F(plan.BuildCap)}; " +
+                        $"assigned/need(mine,charcoal,smelt)={F(plan.MineAssigned)}/{F(plan.MineNeed)} " +
+                        $"{F(plan.CharcoalAssigned)}/{F(plan.CharcoalNeed)} " +
                         $"{F(plan.SmeltAssigned)}/{F(plan.SmeltNeed)} " +
                         $"stock/want(ore cu/as/tin,char)={F(plan.CopperOreStock)}/{F(plan.CopperOreWant)} " +
                         $"{F(plan.ArsenicalOreStock)}/{F(plan.ArsenicalOreWant)} {F(plan.TinOreStock)}/{F(plan.TinOreWant)} " +
-                        $"{F(plan.CharcoalStock)}/{F(plan.CharcoalWant)}";
+                        $"{F(plan.CharcoalStock)}/{F(plan.CharcoalWant)} " +
+                        $"jobs(fire,care,staff,scout,upkeep,orchard,food,civic,build,herd,material,unused)=" +
+                        $"{F(plan.FireAssigned)}/{F(plan.CareAssigned)}/{F(plan.StaffAssigned)}/{F(plan.ScoutAssigned)}/" +
+                        $"{F(plan.UpkeepAssigned)}/{F(plan.OrchardAssigned)}/{F(plan.FoodAssigned)}/{F(plan.CivicAssigned)}/" +
+                        $"{F(plan.ConstructionAssigned)}/{F(plan.HerdAssigned)}/{F(plan.MaterialAssigned)}/" +
+                        $"food-requested={F(plan.FoodRequested)} food-assigned={F(plan.FoodAssigned)} " +
+                        $"idle(adult,child)={F(plan.AdultUnusedWork)},{F(plan.ChildUnusedWork)}";
                 }
             }
         Console.Write(text.ToString());
@@ -302,6 +327,9 @@ internal static class ResearchMetal
         result.T18CohortClosed = new bool[eco.SettlementCount];
         result.T18AccessPath = new string[eco.SettlementCount];
         result.T18WindowCheckpoints = new List<T18WindowCheckpoint>?[eco.SettlementCount];
+        result.FirstT18CastableSeason = new int[eco.SettlementCount];
+        Array.Fill(result.FirstT18CastableSeason, -1);
+        result.T18CastableCohortClosed = new bool[eco.SettlementCount];
         for (int c = 0; c < civs; c++) result.Civs[c] = new CivTrace();
         int Idx(string id) => r.Catalog.IndexOf(id);
         int key3 = Idx("KEY-3"), key4 = Idx("KEY-4"), met03 = Idx("MET-03"), met04 = Idx("MET-04"), met05 = Idx("MET-05");
@@ -376,6 +404,9 @@ internal static class ResearchMetal
                 Array.Resize(ref result.T18CohortClosed, eco.SettlementCount);
                 Array.Resize(ref result.T18AccessPath, eco.SettlementCount);
                 Array.Resize(ref result.T18WindowCheckpoints, eco.SettlementCount);
+                Array.Resize(ref result.FirstT18CastableSeason, eco.SettlementCount);
+                Array.Fill(result.FirstT18CastableSeason, -1, oldLength, eco.SettlementCount - oldLength);
+                Array.Resize(ref result.T18CastableCohortClosed, eco.SettlementCount);
             }
             // T18 starts from live input access, never residual alloy stock, and requires the same access through +12.
             for (int s = 0; s < eco.SettlementCount && s < result.FirstT18AccessSeason.Length; s++)
@@ -444,6 +475,68 @@ internal static class ResearchMetal
                     Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>()
                 });
             }
+            // This supplemental T18 clock starts only once local casting infrastructure is usable. It keeps the same
+            // technology/input-access rule and +12 target, but separates facility rollout from the upgrade-push window.
+            for (int s = 0; s < eco.SettlementCount; s++)
+            {
+                int civ = eco.SettlementLite(s).Civilization;
+                if (match.Politics.IsFreeFolk(s))
+                {
+                    if (result.FirstT18CastableSeason[s] >= 0 && !result.T18CastableCohortClosed[s])
+                    {
+                        result.T18CastableCensoredWindows.Add(new T18CensoredWindow(civ, s,
+                            result.FirstT18CastableSeason[s], (int)season, "local facility chain", "became Free Folk"));
+                        result.T18CastableCohortClosed[s] = true;
+                    }
+                    continue;
+                }
+                MetalReadout castReadout = eco.Metal(s);
+                bool arsenicAccess = r.IsDone(civ, met04) && eco.SettlementHasMetalInputAccess(s, MetalAccessKind.Arsenic);
+                bool tinAccess = r.IsDone(civ, met05) && eco.SettlementHasMetalInputAccess(s, MetalAccessKind.Copper) &&
+                    eco.SettlementHasMetalInputAccess(s, MetalAccessKind.Tin);
+                bool hasAccess = arsenicAccess || tinAccess;
+                bool hasLocalCastingPath = eco.HasLocalMetalCastingFacilities(s);
+                if (result.FirstT18CastableSeason[s] < 0)
+                {
+                    if (!hasAccess || !hasLocalCastingPath) continue;
+                    result.FirstT18CastableSeason[s] = (int)season;
+                    result.T18CastableStarted++;
+                    continue;
+                }
+                if (result.T18CastableCohortClosed[s]) continue;
+                int firstCastableSeason = result.FirstT18CastableSeason[s];
+                if (!hasAccess)
+                {
+                    result.T18CastableCensoredWindows.Add(new T18CensoredWindow(civ, s, firstCastableSeason,
+                        (int)season, "local facility chain", "qualifying input access lost"));
+                    result.T18CastableCohortClosed[s] = true;
+                    continue;
+                }
+                if (!hasLocalCastingPath)
+                {
+                    result.T18CastableCensoredWindows.Add(new T18CensoredWindow(civ, s, firstCastableSeason,
+                        (int)season, "local facility chain", "local facility unavailable"));
+                    result.T18CastableCohortClosed[s] = true;
+                    continue;
+                }
+                if ((int)season != firstCastableSeason + 12) continue;
+                result.T18CastableCohortClosed[s] = true;
+                if (castReadout.Adults <= 0)
+                {
+                    result.T18CastableNoAdults++;
+                    result.T18CastableCensoredWindows.Add(new T18CensoredWindow(civ, s, firstCastableSeason,
+                        (int)season, "local facility chain", "no adults at +12"));
+                    continue;
+                }
+                int castRung6 = castReadout.Kits9 + castReadout.Kits10;
+                double castCoverage = (double)castRung6 / castReadout.Adults;
+                result.T18CastableCoverage12.Add(castCoverage);
+                result.T18CastableEligibleRows.Add(new T18CohortRow
+                {
+                    Civilization = civ, SettlementId = s, FirstSeason = firstCastableSeason, Season = (int)season,
+                    Adults = castReadout.Adults, Rung6Adults = castRung6, AccessPath = "local facility chain"
+                });
+            }
             if (season % 8 == 0)
                 for (int s = 0; s < eco.SettlementCount; s++)
                 {
@@ -507,6 +600,13 @@ internal static class ResearchMetal
                     result.FirstT18AccessSeason[s], minutes * 4, result.T18AccessPath[s], "report horizon before +12")
                 { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
             }
+        for (int s = 0; s < result.FirstT18CastableSeason.Length; s++)
+            if (result.FirstT18CastableSeason[s] >= 0 && !result.T18CastableCohortClosed[s])
+            {
+                result.T18CastableRightCensored++;
+                result.T18CastableCensoredWindows.Add(new T18CensoredWindow(eco.SettlementLite(s).Civilization, s,
+                    result.FirstT18CastableSeason[s], minutes * 4, "local facility chain", "report horizon before +12"));
+            }
         if (traceB12MiningWant) result.B12MiningWantTrace.AddRange(eco.B12MiningWantTrace);
         if (traceB12CampOpen) result.B12CampOpenTrace.AddRange(eco.B12CampOpenTrace);
         if (traceB12CopperShare)
@@ -542,8 +642,11 @@ internal static class ResearchMetal
             foreach (B12T18Snapshot snapshot in result.B12T18Snapshots
                          .Where(x => x.SettlementId == selected.SettlementId && x.Civilization == selected.Civilization)
                          .OrderBy(x => x.Offset))
+            {
                 text.AppendLine($"    +{snapshot.Offset} season={snapshot.Season} civ{snapshot.Civilization}/s{snapshot.SettlementId} " +
                     $"rung6={snapshot.Rung6Adults}/{snapshot.Adults} ({Coverage(snapshot):P0}) {snapshot.Detail}");
+                if (snapshot.Offset == 12) text.AppendLine($"      bottleneck: {snapshot.Census}");
+            }
         }
     }
 

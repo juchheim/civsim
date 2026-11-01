@@ -13,10 +13,15 @@ internal readonly record struct B12T18PlanSnapshot(int SettlementId, int Civiliz
     string BuildKind, int Adults, int Rung6Adults, int Forges, int Smelters, Fix64 TotalWork, Fix64 PushCap,
     Fix64 FoodSecurity, Fix64 LateWinterForecast,
     Fix64 PrimaryChain, Fix64 PrimaryScale, Fix64 SecondaryChain, Fix64 SecondaryScale,
-    Fix64 BuildAssigned, Fix64 BuildNeed, Fix64 MineAssigned, Fix64 MineNeed,
+    Fix64 BuildAssigned, Fix64 BuildNeed, Fix64 BuildRequested, Fix64 BuildCap,
+    Fix64 MineAssigned, Fix64 MineNeed,
     Fix64 CharcoalAssigned, Fix64 CharcoalNeed, Fix64 SmeltAssigned, Fix64 SmeltNeed,
     Fix64 CopperOreStock, Fix64 CopperOreWant, Fix64 ArsenicalOreStock, Fix64 ArsenicalOreWant,
-    Fix64 TinOreStock, Fix64 TinOreWant, Fix64 CharcoalStock, Fix64 CharcoalWant);
+    Fix64 TinOreStock, Fix64 TinOreWant, Fix64 CharcoalStock, Fix64 CharcoalWant,
+    Fix64 FireAssigned, Fix64 CareAssigned, Fix64 StaffAssigned, Fix64 ScoutAssigned,
+    Fix64 UpkeepAssigned, Fix64 OrchardAssigned, Fix64 FoodRequested, Fix64 FoodAssigned, Fix64 CivicAssigned,
+    Fix64 ConstructionAssigned, Fix64 HerdAssigned, Fix64 MaterialAssigned,
+    Fix64 AdultUnusedWork, Fix64 ChildUnusedWork);
 
 /// <summary>
 /// The Bronze Age economy's season (docs/MVP/22 §5, 23 §4–§7): the planner decides how many kits, arms and crafted goods
@@ -63,7 +68,7 @@ public sealed partial class LivingEconomyModel
         public readonly Fix64[] Terminal;
         public Fix64 Budget;
         // Labor buckets, in the order figures are assigned to them.
-        public Fix64 BuildNeed, MineNeed, CharcoalNeed, SmeltNeed;
+        public Fix64 BuildNeed, BuildRequested, BuildCap, MineNeed, CharcoalNeed, SmeltNeed;
         public Fix64 BuildAssigned, MineAssigned, CharcoalAssigned, SmeltAssigned;
         public Fix64 MineProductive;
         public Fix64 CampWork;
@@ -658,14 +663,91 @@ public sealed partial class LivingEconomyModel
     {
         if (s.Metal is not { } m) return 0;
         int civ = s.Civilization;
-        bool copper = (m.Access & (AccessCopper | SourceCopper)) != 0 || m.Goods[(int)MetalGood.Copper] >= Fix64.FromRatio(12, 100);
+        Fix64 copperPerKit = RecipeInputPerOutput(s, "cast_t8", MetalGood.Kit8, MetalGood.Copper);
+        bool copper = (m.Access & (AccessCopper | SourceCopper)) != 0 ||
+            (copperPerKit > Fix64.Zero && m.Goods[(int)MetalGood.Copper] >= copperPerKit);
         bool tin = (m.Access & (AccessTin | SourceTin)) != 0;
         bool arsenic = (m.Access & (AccessArsenic | SourceArsenic)) != 0;
-        Fix64 kitMetal = Fix64.FromRatio(15, 100);
-        if (TierKnown(civ, 10) && (m.Goods[(int)MetalGood.Bronze] >= kitMetal || (tin && copper))) return 10;
-        if (TierKnown(civ, 9) && (m.Goods[(int)MetalGood.ArsenicalBronze] >= kitMetal || arsenic)) return 9;
+        Fix64 tinBronzePerKit = RecipeInputPerOutput(s, "cast_t10", MetalGood.Kit10, MetalGood.Bronze);
+        Fix64 arsenicalBronzePerKit = RecipeInputPerOutput(s, "cast_t9", MetalGood.Kit9, MetalGood.ArsenicalBronze);
+        bool hasCastableTinBronze = tinBronzePerKit > Fix64.Zero && m.Goods[(int)MetalGood.Bronze] >= tinBronzePerKit;
+        if (TierKnown(civ, 10) && (hasCastableTinBronze || (tin && copper)))
+        {
+            Fix64 tinPerBronze = RecipeInputPerOutput(s, "alloy_bronze", MetalGood.Bronze, MetalGood.Tin);
+            Fix64 copperPerBronze = RecipeInputPerOutput(s, "alloy_bronze", MetalGood.Bronze, MetalGood.Copper);
+            bool localTin = HasLocalMetalInput(s, MetalGood.Tin, MetalGood.TinOre,
+                tinBronzePerKit * tinPerBronze, "smelt_tin");
+            bool localCopper = HasLocalMetalInput(s, MetalGood.Copper, MetalGood.CopperOre,
+                tinBronzePerKit * copperPerBronze, "smelt_copper");
+            bool localArsenic = HasLocalMetalInput(s, MetalGood.ArsenicalBronze, MetalGood.ArsenicalOre,
+                arsenicalBronzePerKit, "cosmelt_arsenical");
+            if (!hasCastableTinBronze && (!localTin || !localCopper) && TierKnown(civ, 9) && localArsenic)
+                return 9;
+            return 10;
+        }
+        if (TierKnown(civ, 9) && (arsenicalBronzePerKit > Fix64.Zero &&
+            m.Goods[(int)MetalGood.ArsenicalBronze] >= arsenicalBronzePerKit || arsenic)) return 9;
         if (TierKnown(civ, 8) && copper) return 8;
         return 0;
+    }
+
+    /// <summary>Local stock or workable local ore sufficient for a recipe-sized amount; sister access is deliberately excluded.</summary>
+    private bool HasLocalMetalInput(SettlementState s, MetalGood metal, MetalGood ore, Fix64 requiredMetal, string smeltRecipe)
+    {
+        if (requiredMetal <= Fix64.Zero) return false;
+        MetalState m = s.Metal!;
+        Fix64 oreYield = RecipeOutputPerInput(s, smeltRecipe, metal, ore);
+        if (oreYield <= Fix64.Zero) return false;
+        Fix64 localOre = m.Goods[(int)ore];
+        int civ = s.Civilization;
+        foreach (int tile in RangeTiles(s.SiteTile))
+            if (OreGood(_world.Deposit(tile).Kind) == ore && IsLocalMetalDepositWorkable(civ, tile, HasMineHead(s, tile)))
+                localOre += _ore[tile];
+        // Camps extend local supply beyond the settlement's ordinary collection radius. In-range camps were already
+        // included above, so count only the outlying camp deposits here.
+        foreach (MiningCampState camp in _camps)
+            if (camp.Parent == s.Id && HexGrid.Distance(s.SiteTile, camp.Tile, _world.Width) > Radius &&
+                OreGood(_world.Deposit(camp.Tile).Kind) == ore && IsLocalMetalDepositWorkable(civ, camp.Tile, camp.MineHead))
+                localOre += _ore[camp.Tile];
+        Fix64 metalEquivalent = m.Goods[(int)metal] + localOre * oreYield;
+        return metalEquivalent >= requiredMetal;
+    }
+
+    private bool IsLocalMetalDepositWorkable(int civ, int tile, bool mineHead)
+        => _ore[tile] > Fix64.Zero && DepositWorkable(civ, tile) && !IsRivalTile(civ, tile) &&
+            MineRate(civ, tile, mineHead, out _) > Fix64.Zero;
+
+    private Fix64 RecipeInputPerOutput(SettlementState s, string recipeId, MetalGood output, MetalGood input)
+    {
+        int outputSlot = MetalSlot(output), inputSlot = MetalSlot(input);
+        foreach (CompiledRecipe recipe in _compiledRecipes)
+        {
+            if (!string.Equals(recipe.Def.Id, recipeId, StringComparison.Ordinal) || recipe.OutputSlot != outputSlot) continue;
+            Fix64 outputQuantity = OutputQuantity(s, recipe);
+            if (outputQuantity <= Fix64.Zero) return Fix64.Zero;
+            for (int i = 0; i < recipe.InputSlots.Length; i++)
+                if (Array.IndexOf(recipe.InputSlots[i], inputSlot) >= 0)
+                    return InputQuantity(s, recipe, i) / outputQuantity;
+            return Fix64.Zero;
+        }
+        return Fix64.Zero;
+    }
+
+    private Fix64 RecipeOutputPerInput(SettlementState s, string recipeId, MetalGood output, MetalGood input)
+    {
+        int outputSlot = MetalSlot(output), inputSlot = MetalSlot(input);
+        foreach (CompiledRecipe recipe in _compiledRecipes)
+        {
+            if (!string.Equals(recipe.Def.Id, recipeId, StringComparison.Ordinal) || recipe.OutputSlot != outputSlot) continue;
+            for (int i = 0; i < recipe.InputSlots.Length; i++)
+                if (Array.IndexOf(recipe.InputSlots[i], inputSlot) >= 0)
+                {
+                    Fix64 inputQuantity = InputQuantity(s, recipe, i);
+                    return inputQuantity <= Fix64.Zero ? Fix64.Zero : OutputQuantity(s, recipe) / inputQuantity;
+                }
+            return Fix64.Zero;
+        }
+        return Fix64.Zero;
     }
 
     private MethodFallbackReason DormancyReason(SettlementState s, int tier)
@@ -758,13 +840,15 @@ public sealed partial class LivingEconomyModel
         ExpandWants(s, plan);
         (Fix64 mineAll, Fix64 charAll, Fix64 smeltAll) = ChainLabor(s, plan);
 
-        plan.BuildNeed = PlanMetalBuild(s, m, plan);
+        plan.BuildRequested = PlanMetalBuild(s, m, plan);
+        plan.BuildCap = totalWork * _bronzeConstants.PushCap;
+        plan.BuildNeed = plan.BuildRequested;
         Fix64 cap = totalWork * _bronzeConstants.PushCap;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
         Fix64 chainA = mineA + charA + smeltA;
-        plan.BuildNeed = Fix64.Min(plan.BuildNeed, totalWork * _bronzeConstants.PushCap);
+        plan.BuildNeed = Fix64.Min(plan.BuildNeed, plan.BuildCap);
         Fix64 laborB = Fix64.Max(Fix64.Zero, mineAll + charAll + smeltAll - chainA);
         Fix64 chainCap = cap;
         Fix64 scaleA = chainA <= chainCap || chainA <= Fix64.Zero ? Fix64.One : chainCap / chainA;
@@ -869,23 +953,39 @@ public sealed partial class LivingEconomyModel
             $"ores=[{string.Join(';', oreParts)}] camps=[{string.Join(';', campParts)}]");
     }
 
-    private void CaptureB12T18Snapshot(SettlementState s, MetalPlan plan, int season)
+    private void CaptureB12T18Snapshot(SettlementState s, MetalPlan plan, int season,
+        Fix64 fireAssigned, Fix64 careAssigned, Fix64 staffAssigned, Fix64 scoutAssigned,
+        Fix64 upkeepAssigned, Fix64 orchardAssigned, Fix64 foodRequested, Fix64 foodAssigned, Fix64 civicAssigned,
+        Fix64 constructionAssigned, Fix64 herdAssigned, Fix64 materialAssigned)
     {
         // Capture the exact normal-call plan before RunMetal consumes these assignments. The harness joins
         // these opt-in samples to live-input cohort checkpoints by settlement and season.
         if (B12CensusTraceEnabled && plan.Tier >= 9 && s.Metal is { } censusMetal)
         {
             B12T18PlanSnapshots ??= new List<B12T18PlanSnapshot>();
+            Fix64 adultUnusedWork = Fix64.Zero;
+            Fix64 childUnusedWork = Fix64.Zero;
+            foreach (FigureState figure in _figures)
+                if (figure.SettlementId == s.Id)
+                {
+                    Fix64 unused = Fix64.Max(Fix64.Zero, WorkCapacity(figure) - figure.WorkThisSeason);
+                    if (figure.Age >= 14) adultUnusedWork += unused;
+                    else childUnusedWork += unused;
+                }
             B12T18PlanSnapshots.Add(new B12T18PlanSnapshot(s.Id, s.Civilization, season, plan.Tier,
                 censusMetal.BuildKind.ToString(), plan.Adults, plan.Rung6Adults, censusMetal.Forges, censusMetal.Smelters, plan.TotalWork, plan.PushCap,
                 s.FoodSecurity, s.LateWinterForecast,
                 plan.PrimaryChain, plan.PrimaryScale, plan.SecondaryChain, plan.SecondaryScale,
-                plan.BuildAssigned, plan.BuildNeed, plan.MineAssigned, plan.MineNeed,
+                plan.BuildAssigned, plan.BuildNeed, plan.BuildRequested, plan.BuildCap,
+                plan.MineAssigned, plan.MineNeed,
                 plan.CharcoalAssigned, plan.CharcoalNeed, plan.SmeltAssigned, plan.SmeltNeed,
                 censusMetal.Goods[(int)MetalGood.CopperOre], plan.Want[MetalSlot(MetalGood.CopperOre)],
                 censusMetal.Goods[(int)MetalGood.ArsenicalOre], plan.Want[MetalSlot(MetalGood.ArsenicalOre)],
                 censusMetal.Goods[(int)MetalGood.TinOre], plan.Want[MetalSlot(MetalGood.TinOre)],
-                censusMetal.Goods[(int)MetalGood.Charcoal], plan.Want[MetalSlot(MetalGood.Charcoal)]));
+                censusMetal.Goods[(int)MetalGood.Charcoal], plan.Want[MetalSlot(MetalGood.Charcoal)],
+                fireAssigned, careAssigned, staffAssigned, scoutAssigned,
+                upkeepAssigned, orchardAssigned, foodRequested, foodAssigned, civicAssigned,
+                constructionAssigned, herdAssigned, materialAssigned, adultUnusedWork, childUnusedWork));
         }
         if ((!B12T18TraceEnabled && !B12CensusTraceEnabled) || plan.Tier < 9 || s.Metal is not { Forges: > 0 } m) return;
         _b12T18FirstCastSeason ??= new SortedList<int, int>();
@@ -1200,9 +1300,15 @@ public sealed partial class LivingEconomyModel
     /// <summary>Whether the settlement can dig an ore this season: a workable deposit in range or one of its camps on it.</summary>
     private bool CanDig(SettlementState s, MetalGood ore)
     {
-        if (BestRangeDeposit(s, ore, out _) >= 0) return true;
+        int civ = s.Civilization;
+        foreach (int tile in RangeTiles(s.SiteTile))
+            if (OreGood(_world.Deposit(tile).Kind) == ore && _ore[tile] > Fix64.Zero &&
+                DepositWorkable(civ, tile) && !IsRivalTile(civ, tile) && MineRate(civ, tile, HasMineHead(s, tile), out _) > Fix64.Zero)
+                return true;
         foreach (MiningCampState camp in _camps)
-            if (camp.Parent == s.Id && OreGood(_world.Deposit(camp.Tile).Kind) == ore && _ore[camp.Tile] > Fix64.Zero) return true;
+            if (camp.Parent == s.Id && OreGood(_world.Deposit(camp.Tile).Kind) == ore && _ore[camp.Tile] > Fix64.Zero &&
+                DepositWorkable(civ, camp.Tile) && !IsRivalTile(civ, camp.Tile) && MineRate(civ, camp.Tile, camp.MineHead, out _) > Fix64.Zero)
+                return true;
         return false;
     }
 

@@ -423,6 +423,14 @@ public sealed partial class LivingEconomyModel
             m.ForestAtStart, m.ClampTile);
     }
 
+    /// <summary>Whether a settlement has a local Forge and a local Kiln or Smelter.</summary>
+    public bool HasLocalMetalCastingFacilities(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return s.Metal is { Forges: > 0 } metal &&
+            (metal.Smelters > 0 || s.Structures[(int)Structure.Kiln] > 0);
+    }
+
     /// <summary>Read-only Bronze economy state for bounded harness diagnostics; unlike DescribeMetal, this does not build a new metal plan.</summary>
     internal string DescribeMetalStateReadOnly(int settlementIndex)
     {

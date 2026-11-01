@@ -2050,7 +2050,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (metalPlan is not null && toolWork is not null)
         {
             TraceB12MiningPlanIfNeeded(settlement, metalPlan, season);
-            CaptureB12T18Snapshot(settlement, metalPlan, season);
+            CaptureB12T18Snapshot(settlement, metalPlan, season, fireWork, careWork, staffWork, scoutWork,
+                upkeepBudget, orchardUpkeep, foodWorkRequested, foodWorkAssigned, civicAssigned, buildWork - buildRemaining,
+                assignedHerdWork, materialWork - materialRemaining);
             RunMetal(settlement, metalPlan, craftLeft, toolWork, season);
         }
         if (civicAssigned > Fix64.Zero) WorkCivic(settlement, civicAssigned, civicCanals, civicHousing);
