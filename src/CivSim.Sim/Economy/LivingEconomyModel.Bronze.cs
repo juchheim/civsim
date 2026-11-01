@@ -447,7 +447,8 @@ public sealed partial class LivingEconomyModel
         text.Append($"s{settlementIndex} civ{s.Civilization} pop={Population(s.Id)} kiln={s.Structures[(int)Structure.Kiln]}");
         if (s.Metal is not { } m) return text.Append(" metal=none").ToString();
         text.Append($" tier={BestCastTier(s)} accessMask={m.Access} forge/smelter={m.Forges}/{m.Smelters} " +
-            $"build={m.BuildKind}:{m.BuildProgress.ToDoubleForDisplay():F2} siteClay={m.SiteClay.ToDoubleForDisplay():F2} siteStone={m.SiteStone.ToDoubleForDisplay():F2}");
+            $"build={m.BuildKind}:{m.BuildProgress.ToDoubleForDisplay():F2} siteClay={m.SiteClay.ToDoubleForDisplay():F2} siteStone={m.SiteStone.ToDoubleForDisplay():F2} " +
+            $"woodStore={s.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} standingWood={StandingWoodInRange(s.SiteTile).ToDoubleForDisplay():F1} headWood={TakeWood(s, s.SiteTile, Fix64.FromInt(6), commit: false).ToDoubleForDisplay():F1}");
         for (int g = 0; g < (int)MetalGood.Count; g++)
             if (m.Goods[g] > Fix64.Zero)
                 text.Append($" {MetalGoodId((MetalGood)g)}={m.Goods[g].ToDoubleForDisplay():F2}");
