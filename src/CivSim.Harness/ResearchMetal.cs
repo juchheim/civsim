@@ -339,6 +339,7 @@ internal static class ResearchMetal
         match.Economy.BlockChainForUnobtainableOre = Environment.GetEnvironmentVariable("CIVSIM_B12_BLOCK_UNOBTAINABLE") == "1";
         if (Environment.GetEnvironmentVariable("CIVSIM_B12_MINEHEAD_WOOD") is { } headWood) match.Economy.MineHeadWood = Fix64.Parse(headWood);
         if (Environment.GetEnvironmentVariable("CIVSIM_B12_BUILD_CAP_X") is { } buildX) match.Economy.BuildCapMultiplier = Fix64.Parse(buildX);
+        match.Economy.OpenOwnCampDespiteSister = Environment.GetEnvironmentVariable("CIVSIM_B12_OWN_CAMP") == "1";
         match.Economy.AdultsTakeMetalReserveFirst = Environment.GetEnvironmentVariable("CIVSIM_B12_ADULT_METAL_FIRST") == "1";
         string? civicRelease = Environment.GetEnvironmentVariable("CIVSIM_B12_CIVIC_RELEASE");
         match.Economy.CivicToMetalReleasesHousing = civicRelease is "housing" or "all";

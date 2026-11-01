@@ -103,6 +103,8 @@ public sealed partial class LivingEconomyModel
     internal bool AdultsTakeMetalReserveFirst { get; set; }
     /// <summary>Candidate B12 rule: plan no charcoal or smelting for an ore the settlement cannot dig, buy or be sent. Off by default.</summary>
     internal bool BlockChainForUnobtainableOre { get; set; }
+    /// <summary>Screen only: a settlement with an unmet ore want opens its own camp even when a sister's camp is assumed to supply it.</summary>
+    internal bool OpenOwnCampDespiteSister { get; set; }
     /// <summary>Screen only: standing wood a mine head consumes (docs/MVP/23 §6.3: 6 L).</summary>
     internal Fix64 MineHeadWood { get; set; } = Fix64.FromInt(6);
     /// <summary>Screen only: multiplies the metal chain's labor cap (not the build cap). 1 in production.</summary>
@@ -2326,12 +2328,12 @@ public sealed partial class LivingEconomyModel
             if (plan.Want[MetalSlot(good)] <= m.Goods[g] && !(tierNeeds && m.Goods[g] < Fix64.FromInt(2)))
             { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "ore-not-wanted"; continue; }
             if (BestRangeDeposit(s, good, out _) >= 0)
-            { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "direct-range-deposit-supplies"; continue; }
+            { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "direct-range-deposit-supplies"; if (B12MiningWantTraceEnabled && HasSourceBit(m, good)) CountCampAttempt($"{good}/skip:direct-range-deposit"); continue; }
             bool have = false;
             foreach (MiningCampState camp in _camps)
                 if (camp.Parent == s.Id && OreGood(_world.Deposit(camp.Tile).Kind) == good) { have = true; break; }
             if (have)
-            { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "local-camp-supplies"; continue; }
+            { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "local-camp-supplies"; if (B12MiningWantTraceEnabled && HasSourceBit(m, good)) CountCampAttempt($"{good}/skip:local-camp"); continue; }
             // A sister within the sharing reach that digs this ore already supplies it (docs/MVP/22 §5.7).
             int share = ShareReach(civ);
             if (share >= 0)
@@ -2341,8 +2343,8 @@ public sealed partial class LivingEconomyModel
                     if (p != s && p.Civilization == civ && !IsFreeFolk(p) && OreGood(_world.Deposit(camp.Tile).Kind) == good &&
                         HexGrid.Distance(p.SiteTile, s.SiteTile, _world.Width) <= share) { have = true; break; }
                 }
-            if (have)
-            { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "sister-camp-supplies"; continue; }
+            if (have && !OpenOwnCampDespiteSister)
+            { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "sister-camp-supplies"; if (B12MiningWantTraceEnabled && HasSourceBit(m, good)) CountCampAttempt($"{good}/skip:sister-camp"); continue; }
             int reach = MiningReach(civ, s.SiteTile);
             int candidateTiles = 0;
             foreach (int tile in ReachTiles(s.SiteTile, reach))
@@ -2350,15 +2352,32 @@ public sealed partial class LivingEconomyModel
                 if (OreGood(_world.Deposit(tile).Kind) != good || !IsOwnTile(civ, tile)) continue;
                 candidateTiles++;
                 MiningCampResult result = TryOpenCamp(s, tile, HexGrid.Distance(s.SiteTile, tile, _world.Width), decreed: false, season);
-                if (B12MiningWantTraceEnabled) CountCampAttempt($"{good}/{result}");
+                if (B12MiningWantTraceEnabled && HasSourceBit(m, good)) CountCampAttempt($"{good}/{result}");
                 if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre && tile == 7401)
                     targetDecision = $"target-attempt-{result}";
                 if (result == MiningCampResult.Opened) break;
             }
-            if (candidateTiles == 0 && B12MiningWantTraceEnabled) CountCampAttempt($"{good}/NoOwnTileInReach");
+            if (candidateTiles == 0 && B12MiningWantTraceEnabled && HasSourceBit(m, good))
+            {
+                // Why no own tile: classify the best remaining deposit of this ore in reach.
+                string best = "no-deposit-in-reach";
+                foreach (int tile in ReachTiles(s.SiteTile, reach))
+                {
+                    if (OreGood(_world.Deposit(tile).Kind) != good || _ore[tile] <= Fix64.Zero) continue;
+                    bool inRange = HexGrid.Distance(s.SiteTile, tile, _world.Width) <= Radius;
+                    string kind = IsRivalTile(civ, tile) ? "rival-owned" : "unowned";
+                    string depth = _world.Deposit(tile).Depth >= 2 ? "deep" : "shallow";
+                    string label = $"{kind}-{(inRange ? "in-range" : "beyond-range")}-{depth}";
+                    if (best == "no-deposit-in-reach" || (kind == "unowned" && !best.StartsWith("unowned", StringComparison.Ordinal))) best = label;
+                }
+                CountCampAttempt($"{good}/NoOwnTile:{best}");
+            }
         }
         if (TraceTargetCampDecision(s, season)) AppendB12CampOpenTrace(s, season, plan, targetDecision);
     }
+
+    private static bool HasSourceBit(MetalState m, MetalGood ore)
+        => (m.Access & ore switch { MetalGood.CopperOre => SourceCopper, MetalGood.ArsenicalOre => SourceArsenic, _ => SourceTin }) != 0;
 
     /// <summary>Opt-in tally of camp-open attempts by ore and result for unmet ore wants (harness diagnostic only).</summary>
     internal SortedList<string, int>? B12CampAttemptCounts;
