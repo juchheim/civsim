@@ -86,6 +86,27 @@ public class CivicMetalCompletionTests
     }
 
     [Fact]
+    public void Releasing_housing_lets_the_final_sliver_come_from_housing_but_never_from_canals_or_a_market()
+    {
+        BronzeFixture f = Fixture("kiln", "1.98");
+        LivingEconomyModel e = f.Economy;
+        // All 0.30 of civic labor is housing demand: protected by default.
+        Assert.Equal(Fix64.Zero, e.FixtureCivicToMetalCompletion(0, Need, Fix64.Zero, F("0.30"), Fix64.Zero, F("0.30")).Moved);
+        e.CivicToMetalReleasesHousing = true;
+        (Fix64 moved, Fix64 assigned) = e.FixtureCivicToMetalCompletion(0, Need, Fix64.Zero, F("0.30"), Fix64.Zero, F("0.30"));
+        Assert.Equal(Need, moved);
+        Assert.Equal(Need, assigned);
+        // Canal labor stays protected when only housing is released.
+        Assert.Equal(Fix64.Zero, e.FixtureCivicToMetalCompletion(0, Need, Fix64.Zero, F("0.30"), F("0.30"), Fix64.Zero).Moved);
+        // The sliver must still fit: a civic assignment smaller than it moves nothing.
+        Assert.Equal(Fix64.Zero, e.FixtureCivicToMetalCompletion(0, Need, Fix64.Zero, F("0.01"), Fix64.Zero, F("0.01")).Moved);
+        // A Market under way is never touched.
+        BronzeFixture market = Fixture("kiln", "1.98", "market");
+        market.Economy.CivicToMetalReleasesHousing = true;
+        Assert.Equal(Fix64.Zero, market.Economy.FixtureCivicToMetalCompletion(0, Need, Fix64.Zero, F("0.30"), Fix64.Zero, F("0.30")).Moved);
+    }
+
+    [Fact]
     public void Only_the_first_forge_or_kiln_qualifies()
     {
         foreach (string kind in new[] { "smelter", "minehead" })

@@ -312,6 +312,9 @@ internal static class ResearchMetal
         match.Economy.B12T18TraceEnabled = traceB12T18;
         bool traceB12Census = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1";
         match.Economy.B12CensusTraceEnabled = traceB12Census;
+        string? civicRelease = Environment.GetEnvironmentVariable("CIVSIM_B12_CIVIC_RELEASE");
+        match.Economy.CivicToMetalReleasesHousing = civicRelease is "housing" or "all";
+        match.Economy.CivicToMetalReleasesCanals = civicRelease == "all";
         bool traceB13Wood = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B13_WOOD") == "1" && (seed == 20261019UL || seed == 777UL);
         match.Economy.B13WoodTraceEnabled = traceB13Wood;
         bool traceB12CampOpen = seed == 20261019UL && Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CAMP_OPEN") == "1";

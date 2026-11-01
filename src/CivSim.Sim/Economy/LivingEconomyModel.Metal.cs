@@ -97,6 +97,10 @@ public sealed partial class LivingEconomyModel
     internal List<string> B12MiningWantTrace { get; } = new();
     /// <summary>Candidate B12 rule; on by default, switchable so a screen can compare against the unchanged allocation.</summary>
     internal bool CivicToMetalCompletionEnabled { get; set; } = true;
+    /// <summary>Whether the completion-only transfer may take Market-town housing labor for a funded first facility's final sliver.</summary>
+    internal bool CivicToMetalReleasesHousing { get; set; }
+    /// <summary>Whether it may also take canal labor (screen only).</summary>
+    internal bool CivicToMetalReleasesCanals { get; set; }
     /// <summary>Total labor the completion-only rule has moved; diagnostic only, never part of state.</summary>
     internal Fix64 CivicToMetalTransferred { get; private set; }
     internal bool B12T18TraceEnabled { get; set; }
@@ -1642,7 +1646,8 @@ public sealed partial class LivingEconomyModel
         if (plan.BuildAssigned + remaining > plan.BuildNeed) return Block(plan, "build-need");
         // WorkCivic multiplies the labor by the Corvée before filling the housing and canal pools; keep enough raw labor for both.
         Fix64 corvee = CorveeLaborMult(s);
-        Fix64 protectedLabor = corvee > Fix64.Zero ? (civicCanals + civicHousing) / corvee : civicCanals + civicHousing;
+        Fix64 protectedRaw = (CivicToMetalReleasesCanals ? Fix64.Zero : civicCanals) + (CivicToMetalReleasesHousing ? Fix64.Zero : civicHousing);
+        Fix64 protectedLabor = corvee > Fix64.Zero ? protectedRaw / corvee : protectedRaw;
         Fix64 discretionary = civicAssigned - Fix64.Min(civicAssigned, protectedLabor);
         if (remaining > discretionary)
             return Block(plan, !B12CensusTraceEnabled ? "civic-surplus" : $"civic-surplus need={remaining.ToDoubleForDisplay():F2} civic={civicAssigned.ToDoubleForDisplay():F2} housing={civicHousing.ToDoubleForDisplay():F2} canals={civicCanals.ToDoubleForDisplay():F2} kind={c.BuildKind}");
