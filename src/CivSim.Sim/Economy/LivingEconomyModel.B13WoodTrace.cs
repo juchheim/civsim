@@ -102,7 +102,7 @@ public sealed partial class LivingEconomyModel
         foreach (SettlementState target in _settlements)
         {
             if (target.Civilization != civilization || Population(target.Id) <= 0) continue;
-            var reachable = new HashSet<int>();
+            var reachable = new SortedSet<int>();
             foreach (int tile in ReachTiles(target.SiteTile, 8))
             {
                 int distance = HexGrid.Distance(target.SiteTile, tile, _world.Width);

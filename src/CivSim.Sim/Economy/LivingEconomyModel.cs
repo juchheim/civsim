@@ -24,7 +24,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     internal bool B28PreparedDefenseTraceEnabled { get; set; }
     internal readonly List<string> B28PreparedDefenseWorkRows = new();
     private readonly List<int> _b28PreparedDefenseTraceSettlements = new(8);
-    private readonly Dictionary<int, B28PreparedDefenseLedger> _b28PreparedDefenseLedgers = new();
+    private readonly SortedList<int, B28PreparedDefenseLedger> _b28PreparedDefenseLedgers = new();
     private sealed class B28PreparedDefenseLedger
     {
         public int Season;
@@ -48,8 +48,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64 Opening, ChopInflows, CivicInflows, OtherInflows, HearthFire, OtherUses, BuildProgressStart;
         public Structure BuildTargetStart;
     }
-    private readonly Dictionary<int, B28AffordabilityLedger> _b28AffordabilityLedgers = new();
-    private readonly Dictionary<int, List<string>> _b28AffordabilityRowsBySettlement = new();
+    private readonly SortedList<int, B28AffordabilityLedger> _b28AffordabilityLedgers = new();
+    private readonly SortedList<int, List<string>> _b28AffordabilityRowsBySettlement = new();
 
     internal IReadOnlyList<string> B28AffordabilityTimelineRows(int settlementId)
         => _b28AffordabilityRowsBySettlement.TryGetValue(settlementId, out List<string>? rows) ? rows : Array.Empty<string>();
@@ -485,7 +485,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public Fix64?[]? PreE3FissionThresholdScaleOverridesForDiagnostics { get; set; }
     public bool PreE3FissionThresholdOverrideInitialSettlementsOnlyForDiagnostics { get; set; }
     public bool PreE3FissionThresholdOverrideFirstGenerationDaughtersOnlyForDiagnostics { get; set; }
-    private readonly HashSet<int> _firstGenerationDaughterSettlementIdsForDiagnostics = new();
+    private readonly SortedSet<int> _firstGenerationDaughterSettlementIdsForDiagnostics = new();
     internal Fix64? BuilderFertilityMultiplierForDiagnostics { get; set; }
     internal Fix64? GrowerFertilityMultiplierForDiagnostics { get; set; }
     /// <summary>Harness-only Warlord famine-work counterfactual; leaves ordinary food shares unchanged.</summary>

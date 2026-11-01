@@ -182,7 +182,7 @@ internal static class RaidWithdrawalPolicy
     internal static void RemoveDefenderCasualties(List<Fighter> defenders, BattleResult battle)
     {
         if (battle.DefenderDead.Count == 0 && battle.DefenderWounded.Count == 0) return;
-        var casualties = new HashSet<long>(battle.DefenderDead);
+        var casualties = new SortedSet<long>(battle.DefenderDead);
         casualties.UnionWith(battle.DefenderWounded);
         defenders.RemoveAll(defender => casualties.Contains(defender.Id));
     }

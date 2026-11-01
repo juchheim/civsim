@@ -26,7 +26,7 @@ public enum PoliticsEventKind : byte
     Barter,
     /// <summary>A raid set out. Other = target, A = party size, B = target settlement.</summary>
     RaidLaunched,
-    /// <summary>A raid ended. Other = target, A = 1 if it succeeded, B = loot value.</summary>
+    /// <summary>A raid ended. Other = target, A = 1 if it succeeded, B = loot value (the raider's event reports the delivered share; the target's event, A = 2 or 3, reports the full loss).</summary>
     RaidResolved,
     WarDeclared,
     PeaceMade,

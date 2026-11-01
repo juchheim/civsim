@@ -630,7 +630,7 @@ internal static class ResearchMetal
             foreach (MetalAccessKind ore in new[] { MetalAccessKind.Copper, MetalAccessKind.Arsenic, MetalAccessKind.Tin })
             {
                 var d = eco.OreDepletion(ore);
-                parts.Add($"{ore} {d.Depleted}/{d.Deposits} worked out, {d.Left:F0}/{d.Initial:F0} L left");
+                parts.Add($"{ore} {d.Depleted}/{d.Deposits} worked out, {d.Left.ToDoubleForDisplay():F0}/{d.Initial.ToDoubleForDisplay():F0} L left");
             }
             int raids = match.Politics.Events.Count(x => x.Kind == PoliticsEventKind.MiningCampRaidLaunched);
             result.SupplySummary = $"seed {seed}: {string.Join("; ", parts)}; camps at end {eco.MiningCampCount}; mining-camp raids launched {raids}";

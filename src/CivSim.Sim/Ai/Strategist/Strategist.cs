@@ -202,9 +202,13 @@ public sealed partial class Strategist : IStrategist
         requiredStart += "requiredWood=".Length;
         int requiredEnd = readiness.IndexOfAny(new[] { ',', ']', ' ' }, requiredStart);
         string requiredText = readiness[requiredStart..(requiredEnd < 0 ? readiness.Length : requiredEnd)];
-        if (!double.TryParse(woodText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double wood) ||
-            !double.TryParse(requiredText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double required)) return "n/a";
-        return Math.Max(0, required - wood).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        Fix64 wood, required;
+        try { wood = Fix64.Parse(woodText); required = Fix64.Parse(requiredText); }
+        catch (FormatException) { return "n/a"; }
+        catch (OverflowException) { return "n/a"; }
+        Fix64 gap = Fix64.Max(Fix64.Zero, required - wood);
+        long tenths = (gap * 10).RoundToInt();
+        return $"{tenths / 10}.{tenths % 10}";
     }
 
     private static string PublicEraDefenseField(string text, string marker)
