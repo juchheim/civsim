@@ -103,8 +103,12 @@ public sealed partial class LivingEconomyModel
     internal bool AdultsTakeMetalReserveFirst { get; set; }
     /// <summary>Candidate B12 rule: plan no charcoal or smelting for an ore the settlement cannot dig, buy or be sent. Off by default.</summary>
     internal bool BlockChainForUnobtainableOre { get; set; }
+    /// <summary>Screen only: standing wood a mine head consumes (docs/MVP/23 §6.3: 6 L).</summary>
+    internal Fix64 MineHeadWood { get; set; } = Fix64.FromInt(6);
     /// <summary>Screen only: multiplies the metal chain's labor cap (not the build cap). 1 in production.</summary>
     internal Fix64 ChainCapMultiplier { get; set; } = Fix64.One;
+    /// <summary>Screen only: multiplies the metal build cap (forge, furnaces, mine heads). 1 in production.</summary>
+    internal Fix64 BuildCapMultiplier { get; set; } = Fix64.One;
     /// <summary>Whether the completion-only transfer may take Market-town housing labor for a funded first facility's final sliver.</summary>
     internal bool CivicToMetalReleasesHousing { get; set; }
     /// <summary>Whether it may also take canal labor (screen only).</summary>
@@ -877,7 +881,7 @@ public sealed partial class LivingEconomyModel
             ExpandWants(s, plan);
             (mineAll, charAll, smeltAll) = ChainLabor(s, plan);
         }
-        plan.BuildCap = totalWork * _bronzeConstants.PushCap;
+        plan.BuildCap = totalWork * _bronzeConstants.PushCap * BuildCapMultiplier;
         plan.BuildNeed = plan.BuildRequested;
         Fix64 cap = totalWork * _bronzeConstants.PushCap * ChainCapMultiplier;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
@@ -1507,7 +1511,7 @@ public sealed partial class LivingEconomyModel
     private bool MaterialsObtainable(SettlementState s, MetalBuild kind)
     {
         (int clay, int stone) = MetalBuildMaterials(kind);
-        if (kind == MetalBuild.MineHead) return TakeWood(s, s.SiteTile, Fix64.FromInt(6), commit: false) >= Fix64.FromInt(6);
+        if (kind == MetalBuild.MineHead) return TakeWood(s, s.SiteTile, MineHeadWood, commit: false) >= MineHeadWood;
         Fix64 stoneInRange = s.Stores[(int)Good.Stone];
         foreach (int tile in RangeTiles(s.SiteTile)) stoneInRange += _stoneStock[tile];
         if (stoneInRange + s.Metal!.SiteStone < Fix64.FromInt(stone)) return false;
@@ -1624,8 +1628,8 @@ public sealed partial class LivingEconomyModel
             Fix64 fromLeather = Fix64.Min(st[leather], Fix64.FromInt(2));
             st[leather] -= fromLeather; st[hide] -= Fix64.FromInt(2) - fromLeather;
         }
-        if (kind == MetalBuild.MineHead && TakeWood(s, s.SiteTile, Fix64.FromInt(6), commit: false) < Fix64.FromInt(6)) return false;
-        if (kind == MetalBuild.MineHead) TakeWood(s, s.SiteTile, Fix64.FromInt(6), commit: true);
+        if (kind == MetalBuild.MineHead && TakeWood(s, s.SiteTile, MineHeadWood, commit: false) < MineHeadWood) return false;
+        if (kind == MetalBuild.MineHead) TakeWood(s, s.SiteTile, MineHeadWood, commit: true);
         // Leftover site materials go back to the stores.
         st[(int)Good.Clay] += m.SiteClay - Fix64.FromInt(clay);
         st[(int)Good.Stone] += m.SiteStone - Fix64.FromInt(stone);
@@ -2252,12 +2256,12 @@ public sealed partial class LivingEconomyModel
                     used += part;
                     if (camp.Progress >= Fix64.FromInt(2)) camp.Built = true;
                 }
-                else if (!camp.MineHead && Done(civ, "MIN-04") && TakeWood(s, camp.Tile, Fix64.FromInt(6), commit: false) >= Fix64.FromInt(6))
+                else if (!camp.MineHead && Done(civ, "MIN-04") && TakeWood(s, camp.Tile, MineHeadWood, commit: false) >= MineHeadWood)
                 {
                     Fix64 part = Fix64.Min(available, Fix64.FromInt(4) - camp.HeadProgress);
                     camp.HeadProgress += part;
                     used += part;
-                    if (camp.HeadProgress >= Fix64.FromInt(4)) { camp.MineHead = true; TakeWood(s, camp.Tile, Fix64.FromInt(6), commit: true); }
+                    if (camp.HeadProgress >= Fix64.FromInt(4)) { camp.MineHead = true; TakeWood(s, camp.Tile, MineHeadWood, commit: true); }
                 }
                 Fix64 left = available - used;
                 if (camp.Built && left > Fix64.Zero && net > Fix64.Zero && _ore[camp.Tile] > Fix64.Zero)
@@ -2340,16 +2344,29 @@ public sealed partial class LivingEconomyModel
             if (have)
             { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "sister-camp-supplies"; continue; }
             int reach = MiningReach(civ, s.SiteTile);
+            int candidateTiles = 0;
             foreach (int tile in ReachTiles(s.SiteTile, reach))
             {
                 if (OreGood(_world.Deposit(tile).Kind) != good || !IsOwnTile(civ, tile)) continue;
+                candidateTiles++;
                 MiningCampResult result = TryOpenCamp(s, tile, HexGrid.Distance(s.SiteTile, tile, _world.Width), decreed: false, season);
+                if (B12MiningWantTraceEnabled) CountCampAttempt($"{good}/{result}");
                 if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre && tile == 7401)
                     targetDecision = $"target-attempt-{result}";
                 if (result == MiningCampResult.Opened) break;
             }
+            if (candidateTiles == 0 && B12MiningWantTraceEnabled) CountCampAttempt($"{good}/NoOwnTileInReach");
         }
         if (TraceTargetCampDecision(s, season)) AppendB12CampOpenTrace(s, season, plan, targetDecision);
+    }
+
+    /// <summary>Opt-in tally of camp-open attempts by ore and result for unmet ore wants (harness diagnostic only).</summary>
+    internal SortedList<string, int>? B12CampAttemptCounts;
+
+    private void CountCampAttempt(string key)
+    {
+        B12CampAttemptCounts ??= new SortedList<string, int>(StringComparer.Ordinal);
+        B12CampAttemptCounts[key] = B12CampAttemptCounts.TryGetValue(key, out int n) ? n + 1 : 1;
     }
 
     private bool TraceTargetCampDecision(SettlementState s, int season) =>

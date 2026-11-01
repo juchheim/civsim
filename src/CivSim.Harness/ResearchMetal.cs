@@ -63,6 +63,7 @@ internal static class ResearchMetal
     private sealed class Result
     {
         public ulong Seed;
+        public List<KeyValuePair<string, int>> CampAttempts = new();
         public CivTrace[] Civs = Array.Empty<CivTrace>();
         public List<(int Pop, bool Coppiced, double Start, double Now, int Civ)> Forests = new();
         public List<double> SettlementCoverage12 = new();
@@ -147,6 +148,12 @@ internal static class ResearchMetal
         double t18CastableAdultWeighted = t18CastableAdults == 0 ? double.NaN : (double)t18CastableRung6Adults / t18CastableAdults;
         var castableCoverage = results.SelectMany(r => r.T18CastableCoverage12).ToList();
         int t18CastableLost = results.Sum(r => r.T18CastableCensoredWindows.Count(x => x.Reason == "qualifying input access lost"));
+        if (results.Any(r => r.CampAttempts.Count > 0))
+        {
+            text.AppendLine("B12 camp-open attempts for unmet ore wants (ore/result: count, all seeds):");
+            foreach (IGrouping<string, KeyValuePair<string, int>> g in results.SelectMany(r => r.CampAttempts).GroupBy(x => x.Key).OrderBy(g => g.Key, StringComparer.Ordinal))
+                text.AppendLine($"  {g.Key}: {g.Sum(x => x.Value)}");
+        }
         text.AppendLine($"T18 research-timed diagnostic (not conditioned on continuous settlement input access): civ-wide median {P(MedianOf(cover))}, " +
                         $"cast-tier-qualified settlements (CastTier >= 9) median {P(MedianOf(coverAccess))}.");
         text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): adult-weighted {P(t18AdultWeighted)} ({t18Rung6Adults}/{t18Adults}), " +
@@ -330,6 +337,8 @@ internal static class ResearchMetal
         match.Economy.B12CensusTraceEnabled = traceB12Census;
         if (Environment.GetEnvironmentVariable("CIVSIM_B12_CHAIN_CAP_X") is { } capX) match.Economy.ChainCapMultiplier = Fix64.Parse(capX);
         match.Economy.BlockChainForUnobtainableOre = Environment.GetEnvironmentVariable("CIVSIM_B12_BLOCK_UNOBTAINABLE") == "1";
+        if (Environment.GetEnvironmentVariable("CIVSIM_B12_MINEHEAD_WOOD") is { } headWood) match.Economy.MineHeadWood = Fix64.Parse(headWood);
+        if (Environment.GetEnvironmentVariable("CIVSIM_B12_BUILD_CAP_X") is { } buildX) match.Economy.BuildCapMultiplier = Fix64.Parse(buildX);
         match.Economy.AdultsTakeMetalReserveFirst = Environment.GetEnvironmentVariable("CIVSIM_B12_ADULT_METAL_FIRST") == "1";
         string? civicRelease = Environment.GetEnvironmentVariable("CIVSIM_B12_CIVIC_RELEASE");
         match.Economy.CivicToMetalReleasesHousing = civicRelease is "housing" or "all";
@@ -634,6 +643,7 @@ internal static class ResearchMetal
                     result.FirstT18CastableSeason[s], minutes * 4, "local facility chain", "report horizon before +12"));
             }
         if (traceB12MiningWant) result.B12MiningWantTrace.AddRange(eco.B12MiningWantTrace);
+        if (traceB12MiningWant && eco.B12CampAttemptCounts is { } attempts) result.CampAttempts.AddRange(attempts);
         if (traceB12CampOpen) result.B12CampOpenTrace.AddRange(eco.B12CampOpenTrace);
         if (traceB12CopperShare)
         {
