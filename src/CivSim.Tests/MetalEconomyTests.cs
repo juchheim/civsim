@@ -368,7 +368,9 @@ public class MetalEconomyTests
         Fix64 drawnCoppiced = Fix64.One - coppiced.StandingWood() / start;
         Assert.True(drawnPlain > drawnCoppiced, $"{drawnPlain} vs {drawnCoppiced}");
         Assert.True(drawnCoppiced < F("0.05"), $"coppiced drawdown {drawnCoppiced}");
-        Assert.True(drawnPlain >= F("0.25") && drawnPlain <= F("0.70"), $"uncoppiced drawdown {drawnPlain}");
+        // 0.70 became 0.75 with MetalChainLaborCap 0.30 (07d B12, 2026-10-31): a 100-person Town without WOD-04 now draws the
+        // forest down to 71% over 52 seasons (62% at the old 0.10 cap, 35% at 80 people), with coppicing still under 5%.
+        Assert.True(drawnPlain >= F("0.25") && drawnPlain <= F("0.75"), $"uncoppiced drawdown {drawnPlain}");
     }
 
     // ---- determinism and snapshots --------------------------------------------------------------

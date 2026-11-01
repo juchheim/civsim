@@ -166,16 +166,17 @@ public class CivicMetalCompletionTests
         Assert.False(e.FixtureCanObtainOre(0, MetalAccessKind.Tin));
     }
 
+    /// <summary>The B12 rules are production defaults; this asserts they are, so a test that relies on them fails loudly if one is switched off.</summary>
     private static void EnableB12Screens(LivingEconomyModel e)
     {
-        e.AdultsTakeMetalReserveFirst = true;
-        e.ChainCapMultiplier = Fix64.FromInt(3);
-        e.OpenOwnCampDespiteSister = true;
-        e.AllowSecondCampOnTile = true;
+        Assert.True(e.AdultsTakeMetalReserveFirst);
+        Assert.True(e.OpenOwnCampDespiteSister);
+        Assert.True(e.AllowSecondCampOnTile);
+        Assert.Equal(Fix64.One, e.ChainCapMultiplier);
     }
 
     [Fact]
-    public void With_the_B12_screens_on_losing_tin_is_still_a_slow_squeeze_with_a_no_tin_reason()
+    public void With_the_B12_defaults_losing_tin_is_still_a_slow_squeeze_with_a_no_tin_reason()
     {
         // The second half of B12 (07d §5) under adult-first, a 3x chain cap, own camps and a shared camp tile.
         BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 100, coppice: false, tin: true, arsenic: false, shaftMining: true, "WAR-05");
@@ -203,7 +204,7 @@ public class CivicMetalCompletionTests
     }
 
     [Fact]
-    public void With_the_B12_screens_on_bronze_still_covers_most_tool_users_and_lasts()
+    public void With_the_B12_defaults_bronze_still_covers_most_tool_users_and_lasts()
     {
         BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 100, coppice: false, tin: true, arsenic: true, shaftMining: true, "WAR-05");
         EnableB12Screens(f.Economy);

@@ -341,9 +341,9 @@ internal static class ResearchMetal
         match.Economy.BlockChainForUnobtainableOre = Environment.GetEnvironmentVariable("CIVSIM_B12_BLOCK_UNOBTAINABLE") == "1";
         if (Environment.GetEnvironmentVariable("CIVSIM_B12_MINEHEAD_WOOD") is { } headWood) match.Economy.MineHeadWood = Fix64.Parse(headWood);
         if (Environment.GetEnvironmentVariable("CIVSIM_B12_BUILD_CAP_X") is { } buildX) match.Economy.BuildCapMultiplier = Fix64.Parse(buildX);
-        match.Economy.OpenOwnCampDespiteSister = Environment.GetEnvironmentVariable("CIVSIM_B12_OWN_CAMP") == "1";
-        match.Economy.AllowSecondCampOnTile = Environment.GetEnvironmentVariable("CIVSIM_B12_SHARED_CAMP_TILE") == "1";
-        match.Economy.AdultsTakeMetalReserveFirst = Environment.GetEnvironmentVariable("CIVSIM_B12_ADULT_METAL_FIRST") == "1";
+        if (Environment.GetEnvironmentVariable("CIVSIM_B12_OWN_CAMP") is { } ownCamp) match.Economy.OpenOwnCampDespiteSister = ownCamp == "1";
+        if (Environment.GetEnvironmentVariable("CIVSIM_B12_SHARED_CAMP_TILE") is { } sharedTile) match.Economy.AllowSecondCampOnTile = sharedTile == "1";
+        if (Environment.GetEnvironmentVariable("CIVSIM_B12_ADULT_METAL_FIRST") is { } adultFirst) match.Economy.AdultsTakeMetalReserveFirst = adultFirst == "1";
         string? civicRelease = Environment.GetEnvironmentVariable("CIVSIM_B12_CIVIC_RELEASE");
         match.Economy.CivicToMetalReleasesHousing = civicRelease is "housing" or "all";
         match.Economy.CivicToMetalReleasesCanals = civicRelease == "all";

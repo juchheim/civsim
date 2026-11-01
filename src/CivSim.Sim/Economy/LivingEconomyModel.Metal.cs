@@ -99,17 +99,17 @@ public sealed partial class LivingEconomyModel
     internal List<string> B12MiningWantTrace { get; } = new();
     /// <summary>Candidate B12 rule; on by default, switchable so a screen can compare against the unchanged allocation.</summary>
     internal bool CivicToMetalCompletionEnabled { get; set; } = true;
-    /// <summary>Candidate B12 rule: adults take their share of the reserved metal labor before food. Off by default.</summary>
-    internal bool AdultsTakeMetalReserveFirst { get; set; }
+    /// <summary>B12 (07d, 2026-10-31): adults take their share of the reserved metal labor before food. On by default; the harness can switch it off.</summary>
+    internal bool AdultsTakeMetalReserveFirst { get; set; } = true;
     /// <summary>Candidate B12 rule: plan no charcoal or smelting for an ore the settlement cannot dig, buy or be sent. Off by default.</summary>
     internal bool BlockChainForUnobtainableOre { get; set; }
-    /// <summary>Screen only: a settlement with an unmet ore want opens its own camp even when a sister's camp is assumed to supply it.</summary>
-    internal bool OpenOwnCampDespiteSister { get; set; }
-    /// <summary>Screen only: a different settlement of the civilization may open its own camp on a tile that already carries a sister's camp.</summary>
-    internal bool AllowSecondCampOnTile { get; set; }
+    /// <summary>B12 (07d, 2026-10-31): a settlement with an unmet ore want opens its own camp even when a sister's camp is assumed to supply it. On by default.</summary>
+    internal bool OpenOwnCampDespiteSister { get; set; } = true;
+    /// <summary>B12 (07d, 2026-10-31): a different settlement of the civilization may open its own camp on a tile that already carries a sister's camp. On by default.</summary>
+    internal bool AllowSecondCampOnTile { get; set; } = true;
     /// <summary>Screen only: standing wood a mine head consumes (docs/MVP/23 §6.3: 6 L).</summary>
     internal Fix64 MineHeadWood { get; set; } = Fix64.FromInt(6);
-    /// <summary>Screen only: multiplies the metal chain's labor cap (not the build cap). 1 in production.</summary>
+    /// <summary>Screen only: multiplies the metal chain's labor cap (MetalChainLaborCap, not the build cap). 1 in production.</summary>
     internal Fix64 ChainCapMultiplier { get; set; } = Fix64.One;
     /// <summary>Screen only: multiplies the metal build cap (forge, furnaces, mine heads). 1 in production.</summary>
     internal Fix64 BuildCapMultiplier { get; set; } = Fix64.One;
@@ -887,7 +887,7 @@ public sealed partial class LivingEconomyModel
         }
         plan.BuildCap = totalWork * _bronzeConstants.PushCap * BuildCapMultiplier;
         plan.BuildNeed = plan.BuildRequested;
-        Fix64 cap = totalWork * _bronzeConstants.PushCap * ChainCapMultiplier;
+        Fix64 cap = totalWork * _bronzeConstants.ChainCap * ChainCapMultiplier;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
