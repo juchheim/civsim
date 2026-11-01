@@ -521,13 +521,11 @@ internal static class Tournament
                 outcome.WarlordCombatCasualtyTraces.Add(
                     $"A3 COMBAT_CASUALTY seed={seed} mirror={(warlordSettlementTraceSwapped ? 1 : 0)} season={casualtySeason} civ={civ}/warlord settlement=s{figure.SettlementId} conflict={conflictKind} outcome={(died ? "dead" : "wounded")} figure=f{figure.Id} age={figure.Age} sex={(figure.Female ? "F" : "M")}");
             };
-        if (warlordAllowExposedFoundDiagnostic)
+        // The exposure filter is off by default; CIVSIM_BLOCK_EXPOSED_FOUND=1 restores it for comparisons.
+        if (Environment.GetEnvironmentVariable("CIVSIM_BLOCK_EXPOSED_FOUND") == "1")
             for (int civ = 0; civ < seats.Length; civ++)
-            {
-                if (!string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase)) continue;
-                if (match.Politics.DecreePolicyOf(civ) is StrategistDecreePolicy decreePolicy)
-                    decreePolicy.AllowExposedFoundCandidatesForDiagnostics = true;
-            }
+                if (match.Politics.DecreePolicyOf(civ) is StrategistDecreePolicy exposureDecreePolicy)
+                    exposureDecreePolicy.BlockExposedFoundCandidates = true;
         if (warlordThirdE3FoundDiagnostic && match.Ai is { } thirdFoundAi)
             for (int civ = 0; civ < seats.Length; civ++)
                 if (string.Equals(seats[civ].Name, "warlord", StringComparison.OrdinalIgnoreCase) &&

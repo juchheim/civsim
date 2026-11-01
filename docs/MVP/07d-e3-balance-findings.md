@@ -1178,3 +1178,25 @@ On `e84bcfd` with a pack rebuilt from `content/`: S15 (1,000 chapter matches, 64
 | B28 defended before first believed-bronze raid | 0/8 | 2/2 | 4/4 |
 
 Reading: (1) A1, A2 grower, A4, A5 and B31 miss on every tree, so they are long-standing and unrelated to the B12 promotion or to `55d0e10`. (2) A5 Builder and Grower exceed 30% on all three; the promotion did not move it. (3) A3 win falls from 38% (6/16, matching the 10-30 status) to 25% between `03ce68c` and `main`, which points at `55d0e10` again. (4) The B28 line in this check has 8, 2 and 4 qualifying cases and swings between 0% and 100%; it is not usable as a gate measurement. (5) The promoted tree's single idle-labor season (s24, food security 0.198) is not on the other two trees.
+
+#### Trace of the `55d0e10` border and raid regression (2026-11-01)
+
+Method: single-feature switches on copies of `55d0e10`, each with a pack rebuilt from its own `content/`, scored by `politics --check-m10 --seeds 24 --minutes 80` (seeds 20261019-20261042). The parent merge `71e58d5` is clean (borders 84/95, raids 8.2, war 58.3%, capture 12.5%), so the break is in `55d0e10` itself.
+
+| Variant | Borders at own KEY-4 | City | Raids / war / capture |
+|---|---|---|---|
+| parent `71e58d5` | 84/95 | 19.8% | 8.2 / 58.3% / 12.5% |
+| `55d0e10` as committed | 36/95 | 24.0% | 11.4 / 45.8% / 4.2% |
+| raid withdrawal off | 36/95 | 24.0% | 11.4 / 45.8% / 4.2% (identical: the policy never acts here) |
+| daughters no longer get a Palisade target | 41/94 | 27.1% | 11.4 / 50.0% / 8.3% |
+| Era-1 defense preparation off | 28/95 | 26.0% | 8.4 / 62.5% / 4.2% |
+| both palisade-queuing changes off | 22/95 | 26.0% | 8.2 / 62.5% / 12.5% |
+| economy changes only (all else reverted) | 83/95 | 18.8% | 8.2 / 58.3% / 8.3% |
+| **Found exposure filter off** | **88/95** | 26.0% | 10.4 / 66.7% / 37.5% |
+| exposure filter and palisade queuing off | 89/95 | 27.1% | 7.6 / 58.3% / 16.7% |
+
+Findings: (1) The B17 border collapse is the Strategist's `RemoveExposedFoundCandidates`, which drops Found sites inside raid reach of a recently seen Bronze rival. Settlements per civ and claimed land barely move (11.1 vs 11.2; 41.6% vs 41.8%); the civs simply stop founding toward each other. (2) The B20 war and capture drop is palisade queuing (the new rule that gives every daughter settlement of a defending civ a Palisade build target, plus Era-1 preparation); only turning both off restores raids/war/capture to the parent's values. (3) Raid withdrawal is inert in the politics check and cannot be the cause.
+
+B28 on 72 seeds (20261027-20261098, 64 min, `ai --check-b28`): `main` 20/26 (77%), promoted tree 13/23 (57%), promoted tree with the exposure filter off 8/17 (47%). The `main` vs promoted gap is not significant (Fisher p = 0.22); the filter on vs off gap is also within noise. On 24 seeds the same check read 7/8 on `55d0e10`, 6/7 on `main`, 2/5 on the promoted tree and 3/4, 5/8, 3/6, 4/7 with adult-first, the chain cap, own camps and the shared camp tile each switched back off; those samples (4-10 cases) cannot separate anything and the earlier statement that the promotion broke B28 is withdrawn. B28 is below 80% on every tree at the larger sample, including `main`.
+
+Decision (taken without further sign-off because the filter is a tuning rule): the exposure filter is now off by default (`StrategistDecreePolicy.BlockExposedFoundCandidates`, set `CIVSIM_BLOCK_EXPOSED_FOUND=1` in the AI harness to restore it). Promoted tree with the filter off: borders 87/94 (target ≥75%), City 16.7% (target ≥25%, still failing), raids 11.1 (3-12), war 83.3% and capture 37.5% (≥50% and 20-50%), Dominion 55.2%; B26 A1/A2/A4/B31 unchanged, A3 win 25%, A5 Builder 33.3% / Grower 35.4% / Warlord 30.2%, A7 all zero. Tests 911/911 and all goldens unchanged. Not fixed: B17 City share, B28 (open on every tree), and the palisade-queuing effect on B20 (war and capture currently pass, so left alone).
