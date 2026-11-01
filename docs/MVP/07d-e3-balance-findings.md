@@ -1258,3 +1258,24 @@ The held-out Warlord miss is within the sampling error of a 96-appearance share 
 Gates on the promoted tree: A1 81%, A2 grower 69%, A3 win 25%, A4 50% and B31 38% are the same misses as before; A7 idle labor shows one season again (seed 20261025, s10, food security 0.000), a different seed from the earlier one, so it is a recurring single-season miss and not this change. A7 starvation, undefended loss and herd crash are 0; B27, B28 (2/2), B30 pass. B7 70.3%, B8 26/32, B17 to B20 identical to the previous section (the politics, research and E3 checks seat Balanced civs, and B6 11/32, B9 193.3, B10 7.4%, B21 and B12 70% / 52% are unchanged). Tests 911/911 after updating the one test that hard-coded the old Builder and Grower defaults. Only `tests/golden/research-v1.txt` changed (its bot is a Grower): final `92a34be92d6f03ef` to `64bf02f47b3bcca4`, digest `7964b21dba4849f1` to `30440743bf98b148`; toy, politics and bronze goldens match.
 
 The `--a5-builder-fertility-diagnostic` and `--a5-grower-fertility-diagnostic` harness flags remain as overrides (1.00 and 1.20) but no longer describe the production values. The screening hook used here (`CIVSIM_A5`) was scratch-only and is not in the tree.
+
+**B17 claimed land versus City share screen (2026-11-01).** On the tree at `27ef7ad` B17 fails only on claimed land (43.0% against 30-42%); Dominion (55.2%) and KEY-4 completion (94/96) are the other marginal misses. The 24-seed politics check takes 1.6 minutes, so the Bronze and pre-Bronze Expand fission scales (currently 0.83 and 0.80) were swept through a scratch override, with settlements per civ, claimed land, own-KEY-4 border contact and City share read from the same run:
+
+| Setting (Bronze Expand / pre-Bronze Expand) | Settl. | Claimed land | Borders | City | Dominion | Secessions | Capture |
+|---|---|---|---|---|---|---|---|
+| 0.83 / 0.80 (current) | 11.5 | 43.0% | 86/94 | 25.0% | 55.2% | 0.05 | 33% |
+| 0.84 / 0.80 | 11.5 | 43.3% | 90/94 | 24.0% | 55.2% | 0.05 | 29% |
+| 0.85 / 0.80 | 11.4 | 43.4% | 89/94 | 21.9% | 55.1% | 0.04 | 29% |
+| 0.86 / 0.80 | 11.2 | 41.7% | 87/94 | 18.8% | 55.2% | 0.04 | 25% |
+| 0.87 / 0.80 | 11.0 | 41.8% | 87/94 | 18.8% | 55.2% | 0.04 | 33% |
+| 0.88 / 0.80 | 11.1 | 41.8% | 88/94 | 19.8% | 55.1% | 0.04 | 29% |
+| 0.90 / 0.80 | 11.1 | 42.2% | 88/94 | 22.9% | 55.2% | 0.03 | 38% |
+| 0.83 / 0.85 | 11.2 | 42.9% | 84/94 | 18.8% | 55.0% | 0.07 | 33% |
+| 0.83 / 0.90 | 11.1 | 41.7% | 92/94 | 19.8% | 55.1% | 0.06 | 50% |
+| 0.86 / 0.90 | 11.1 | 41.3% | 90/94 | 20.8% | 55.1% | 0.11 | 42% |
+| 0.88 / 0.90 | 11.1 | 41.3% | 93/94 | 21.9% | 55.1% | 0.07 | 29% |
+
+Every setting that gets claimed land to 42% or below also drops City prevalence to 19-22%, and the two settings that keep City at 24-25% leave claimed land at 43.0-43.3%. Fewer fissions mean fewer settlements and less land, but the land is also what carries the population that fills the 90-person City; the two goals trade against each other along this lever. Broadening the Palace-site fission protection to every Town that could reach City size (food and housing capacity of at least 90, healthy, Temple built or not) recovered some City share but not enough: at Bronze 0.88 it reached 41.1% claimed land with City 22.9% (10.9 settlements/civ), and with pre-Bronze 0.90 as well 40.8% land with City 20.8% (94/94 borders, Dominion 55.0%). Dominion stays at 55.0-55.2% under every setting because the Dominion share is a yearly land share that these levers hardly move; it needs Mastery or Firsts to rise relative to it. KEY-4 completion stays at 94/96 (seeds 20261020 and 20261042 hit the 80-minute ceiling) in all of them.
+
+Nothing was promoted: no setting passes B17 as a whole, and the current tree has the smallest single miss (claimed land 1.0 point over, against City 3 to 6 points under for every alternative). A change would have to either decouple City from total land (for example a denser, larger capital) or move the claimed-land ceiling or the City floor. Neither is a tuning decision to take without sign-off, and the gate thresholds are unchanged.
+
