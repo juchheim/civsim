@@ -235,7 +235,7 @@ public partial class Game
             ("Claims", "Who holds the land, and how firmly. A stronger colour means a stronger claim; 70 or more makes land yours."),
             ("Food", "Which settlements have enough food: green is well fed, then tight, short and famine. In autumn and winter it shows the forecast for late winter."),
             ("Methods", "How good your people's tools are. Purple tiles use newer tools, blue older ones, and orange tiles know a better method they can't use yet."),
-            ("Resources", "Coloured stones mark deposits your people have found. Hover a tile to see what is there."),
+            ("Resources", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all."),
         };
         foreach ((string title, string text) in entries)
         {

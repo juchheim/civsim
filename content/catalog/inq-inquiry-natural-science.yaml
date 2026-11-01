@@ -33,7 +33,7 @@ projects:
     status: numeric
     requires: [INQ-01, MIN-01]
     effects:
-      - {kind: reveal, text: "surface ores within sight: copper, tin, gold"}
+      - {kind: reveal, text: "surface ores within sight: copper, tin, gold, silver"}
       - {kind: rule, text: "makes [Seen] metal gates reachable"}
     practice: [{action: mine, share: 50}, {action: scout, share: 50}]
     flavor: "The earth's colors tell of metal."

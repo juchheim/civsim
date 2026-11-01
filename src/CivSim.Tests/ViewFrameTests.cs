@@ -344,9 +344,12 @@ public class ViewFrameTests
         GeneratedWorld world = ViewKit.World.Value;
         for (int tile = 0; tile < viewer.Width * viewer.Height; tile++)
         {
-            bool hasDeposit = world.TileAt(tile).Deposit != DepositKind.None;
+            DepositKind deposit = world.TileAt(tile).Deposit;
+            bool hasDeposit = deposit != DepositKind.None;
             bool seen = viewer.Visibility[tile] != (byte)TileVisibility.Unknown;
-            Assert.Equal(hasDeposit && seen, viewer.KnownDeposits[tile] != 0);
+            Assert.False(viewer.KnownDeposits[tile] != 0 && !seen);
+            if (deposit is DepositKind.Coal or DepositKind.Oil or DepositKind.RareEarths or DepositKind.Lithium)
+                Assert.False(viewer.KnownDeposits[tile] != 0);
             Assert.Equal(hasDeposit, omniscient.KnownDeposits[tile] != 0);
         }
     }

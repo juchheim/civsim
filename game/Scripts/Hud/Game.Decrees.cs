@@ -131,6 +131,10 @@ public partial class Game
         if (kind != DecreeKind.Mine || reason != (int)OrderRefusalReason.NoSite || _current is null || _catalog is null || _session is null) return null;
         WorldView world = _session.WorldView;
         if ((uint)tile >= (uint)world.TileCount) return null;
+        if (_current.KnownDeposits[tile] == 0)
+            return _current.DepositClues[tile] != 0
+                ? "Your people have noticed a geological clue here, but have not identified a mineable deposit."
+                : "Your people have not identified a deposit here.";
         var deposit = (CivSim.Sim.World.DepositKind)world.Deposit[tile];
         string? unlock = deposit switch
         {

@@ -311,7 +311,7 @@ These are the costs the balance model runs on ([07c](07c-e0-e2-checks.md) §7).
 | DEF-03 | Palisades & Ditches | S | 180 | DEF-02, WOD-03 | Build(Palisade: settlement defense ×2) | build, guard |
 | WAR-04 | Warrior Bands | R | 120 | WAR-03, SOC-05 | Role(Warrior) · Mod(Raid success, +40%) · Rule(border patrols: presence along borders) | fight |
 | DIP-03 | Marriage Alliances | I | 225 | DIP-02, SOC-04 | Diplo(Alliance: no fighting, shared diffusion, joint defense) | meet strangers, feast |
-| INQ-03 | Stone & Ore Lore | M | 150 | INQ-01, MIN-01 | Reveal(surface ores within sight: copper, tin, gold) · Rule(makes [Seen] metal gates reachable) | mine, scout |
+| INQ-03 | Stone & Ore Lore | M | 150 | INQ-01, MIN-01 | Reveal(surface ores within sight: copper, tin, gold, silver) · Rule(makes [Seen] metal gates reachable) | mine, scout |
 | KEY-3 | Age of Metal | K | 375 | MET-02, SOC-07, TRD-03, NUM-03 | EraAdvance(E3) · Highlight(ore deposits on the map) · Legacy(Keystone) | — |
 
 ### E2 Moments and flavor

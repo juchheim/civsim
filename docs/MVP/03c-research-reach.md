@@ -243,7 +243,7 @@ Lineages: [WAY](#way--wayfinding--cartography) · [TRN](#trn--land-transport) ·
 |----|---------|-----|------|----------|--------|
 | INQ-01 | Tracking & Animal Lore | E1 | M | HNT-03 | **Reveal:** Game herds within 2× sight. Hunting success +20%. |
 | INQ-02 | Sky Watching | E1 | M | COM-02 | Seasons read from the sky: migration timing +; enables calendars and star paths. |
-| INQ-03 | Stone & Ore Lore | E2 | M | INQ-01, MIN-01 | **Reveal:** Surface ores within sight (copper, tin, gold). Makes `[Seen: …]` metal gates reachable. |
+| INQ-03 | Stone & Ore Lore | E2 | M | INQ-01, MIN-01 | **Reveal:** Surface ores within sight (copper, tin, gold, silver). Makes `[Seen: …]` metal gates reachable. |
 | INQ-04 | Natural Philosophy | E4 | I | INQ-03, BEL-08, NUM-07 | Rational inquiry: Scholar Insight +20%. |
 | INQ-05 | Mechanics & Hydrostatics | E4 | M | INQ-04, MEC-05 | MEC and NRG project costs −10%; buoyancy (ships +10% cargo). |
 | INQ-06 | Optics & Magnetism | E5 | M | INQ-05, CER-07 | Enables lenses and the compass. |

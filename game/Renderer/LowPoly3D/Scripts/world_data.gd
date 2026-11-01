@@ -61,7 +61,7 @@ var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or op
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
 var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibility (0/128/255), claimant+1
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
-var e3_overlay_bytes := PackedByteArray() # RGBA8 per tile: deposit, mine marker, cohesion band, compact/caravan
+var e3_overlay_bytes := PackedByteArray() # RGBA8 per tile: deposit or clue marker, mine marker, cohesion band, compact/caravan
 var forest_overlay := PackedByteArray() # visible ForestBand 0–3, zero elsewhere
 var camp_details := [] # [tile, civ, kind, parent, deposit, crew, built, minehead]
 var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood

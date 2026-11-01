@@ -142,6 +142,7 @@ void fragment() {
 				if (deposit == 8.0) tint = vec3(0.95, 0.68, 0.12);        // tin
 				else if (deposit == 7.0) tint = vec3(0.66, 0.35, 0.78);   // arsenical copper
 				else if (deposit == 5.0 || deposit == 6.0) tint = vec3(0.88, 0.43, 0.20); // copper
+				else if (deposit == 22.0) tint = vec3(0.83, 0.72, 0.49); // unidentified geological clue
 				else tint = vec3(0.40, 0.72, 0.86);
 				float mine = floor(e3.g * 255.0 + 0.5);
 				if (mine > 0.5) tint = mix(tint, mine == 1.0 ? vec3(0.96, 0.88, 0.35) : mine == 2.0 ? vec3(0.24, 0.91, 0.68) : vec3(1.0, 0.97, 0.65), 0.58);

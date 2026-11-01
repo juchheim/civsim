@@ -67,6 +67,7 @@ public sealed class DecreeForecasterMineBeliefTests
         var belief = new Belief(0, 4, TestPack.Catalog.Count,
             new MapKnowledge(world.Tiles.ToArray(), world.Width, world.Height)) { Season = season };
         belief.Map.MarkExplored(tile);
+        belief.Map.RecordDepositKnowledge(tile);
         belief.Map.RecordOwner(tile, owner, season);
         return belief;
     }

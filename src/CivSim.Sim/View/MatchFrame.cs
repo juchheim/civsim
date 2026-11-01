@@ -56,6 +56,8 @@ public sealed class MatchFrame
     public byte[] TileFlags = Array.Empty<byte>();
     /// <summary>1 when the viewer has discovered a deposit on this tile; 0 otherwise. Read WorldView.Deposit only when set.</summary>
     public byte[] KnownDeposits = Array.Empty<byte>();
+    /// <summary>0 none, 1 generic mineral outcrop, 2 dark mineral seam, 3 oil seep; the deposit type stays hidden.</summary>
+    public byte[] DepositClues = Array.Empty<byte>();
     /// <summary>Standing forest stock band (0–3) on visible tiles; zero elsewhere. See <see cref="Economy.LivingEconomyModel.ForestBand"/>.</summary>
     public byte[] ForestBand = Array.Empty<byte>();
     /// <summary>1 when ore from the tile has been mined; current sight is required to reveal it.</summary>
@@ -414,6 +416,7 @@ public sealed class MatchFrame
         if (Claimant3.Length != count) Claimant3 = new sbyte[count];
         if (TileFlags.Length != count) TileFlags = new byte[count];
         if (KnownDeposits.Length != count) KnownDeposits = new byte[count];
+        if (DepositClues.Length != count) DepositClues = new byte[count];
         if (ForestBand.Length != count) ForestBand = new byte[count];
         if (DepositWorked.Length != count) DepositWorked = new byte[count];
         if (MiningReach.Length != count) MiningReach = new byte[count];

@@ -1339,7 +1339,7 @@ func _camps() -> void:
 
 # ------------------------------------------------------------------ deposits
 
-## A marker on every tile whose deposit the viewer knows (the E3 overlay's red channel is the DepositKind + 1, set only for known ones).
+## A marker on every identified deposit and generic geological clue (red channel: DepositKind + 1, or 23 for a clue).
 ## It stands to one side of the tile's middle, clear of a village's hearth, and keeps the same spot for the life of the match.
 const DEPOSIT_SCALE := 1.3
 
