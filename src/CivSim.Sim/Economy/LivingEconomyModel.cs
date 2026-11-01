@@ -2049,6 +2049,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         if (metalPlan is not null && toolWork is not null)
         {
+            civicAssigned -= TransferCivicWorkToMetalCompletion(settlement, metalPlan, civicAssigned, civicCanals, civicHousing);
             TraceB12MiningPlanIfNeeded(settlement, metalPlan, season);
             CaptureB12T18Snapshot(settlement, metalPlan, season, fireWork, careWork, staffWork, scoutWork,
                 upkeepBudget, orchardUpkeep, foodWorkRequested, foodWorkAssigned, civicAssigned, buildWork - buildRemaining,

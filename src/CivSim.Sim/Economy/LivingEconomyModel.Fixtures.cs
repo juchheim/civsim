@@ -208,6 +208,50 @@ public sealed partial class LivingEconomyModel
     /// <summary>Whether a civilization can dig a deposit now (unlocked, and depth 2 needs Shaft Mining).</summary>
     internal bool FixtureWorkable(int civ, int tile) => DepositWorkable(civ, tile);
 
+    /// <summary>Puts a settlement mid-way through a metal build: "forge", "kiln", "smelter" or "minehead", with site clay and stone already gathered.</summary>
+    internal void FixtureSetMetalBuild(int settlementIndex, string kind, Fix64 progress, int siteClay, int siteStone, int smelters = 0)
+    {
+        MetalState m = _settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.");
+        m.BuildKind = kind.ToLowerInvariant() switch
+        {
+            "forge" => MetalBuild.Forge, "kiln" => MetalBuild.Kiln, "smelter" => MetalBuild.Smelter, "minehead" => MetalBuild.MineHead,
+            _ => throw new ArgumentException($"Unknown metal build '{kind}'.", nameof(kind)),
+        };
+        m.BuildProgress = progress;
+        m.SiteClay = Fix64.FromInt(siteClay);
+        m.SiteStone = Fix64.FromInt(siteStone);
+        m.Smelters = smelters;
+    }
+
+    /// <summary>Metal build state: kind, progress, Forges, Kilns, Smelters.</summary>
+    internal (string Kind, Fix64 Progress, int Forges, int Kilns, int Smelters) FixtureMetalBuildState(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        MetalState m = s.Metal ?? throw new InvalidOperationException("Not a Bronze settlement.");
+        return (m.BuildKind.ToString(), m.BuildProgress, m.Forges, s.Structures[(int)Structure.Kiln], m.Smelters);
+    }
+
+    /// <summary>Applies the completion-only civic-to-metal transfer to a hand-made plan; returns the labor moved and the plan's new BuildAssigned.</summary>
+    internal (Fix64 Moved, Fix64 BuildAssigned) FixtureCivicToMetalCompletion(int settlementIndex, Fix64 buildNeed, Fix64 buildAssigned,
+        Fix64 civicAssigned, Fix64 civicCanals, Fix64 civicHousing)
+    {
+        var plan = new MetalPlan(_compiledRecipes.Length) { BuildNeed = buildNeed, BuildAssigned = buildAssigned };
+        Fix64 moved = TransferCivicWorkToMetalCompletion(_settlements[settlementIndex], plan, civicAssigned, civicCanals, civicHousing);
+        return (moved, plan.BuildAssigned);
+    }
+
+    /// <summary>Each of the settlement's figures' work this season, kit durability left, and job, in figure order.</summary>
+    internal (Fix64[] Work, Fix64[] KitLeft, EconomyJob[] Jobs) FixtureFigureWork(int settlementIndex)
+    {
+        int id = _settlements[settlementIndex].Id;
+        var work = new System.Collections.Generic.List<Fix64>();
+        var kit = new System.Collections.Generic.List<Fix64>();
+        var jobs = new System.Collections.Generic.List<EconomyJob>();
+        foreach (FigureState f in _figures)
+            if (f.SettlementId == id) { work.Add(f.WorkThisSeason); kit.Add(f.KitLeft); jobs.Add(f.Job); }
+        return (work.ToArray(), kit.ToArray(), jobs.ToArray());
+    }
+
     /// <summary>The settlement's dormancy reason and best castable tier as the planner sees them this season.</summary>
     internal (int Tier, MethodFallbackReason Reason) FixtureTier(int settlementIndex)
     {

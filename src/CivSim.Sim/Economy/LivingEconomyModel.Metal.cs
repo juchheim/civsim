@@ -21,7 +21,7 @@ internal readonly record struct B12T18PlanSnapshot(int SettlementId, int Civiliz
     Fix64 FireAssigned, Fix64 CareAssigned, Fix64 StaffAssigned, Fix64 ScoutAssigned,
     Fix64 UpkeepAssigned, Fix64 OrchardAssigned, Fix64 FoodRequested, Fix64 FoodAssigned, Fix64 CivicAssigned,
     Fix64 ConstructionAssigned, Fix64 HerdAssigned, Fix64 MaterialAssigned,
-    Fix64 AdultUnusedWork, Fix64 ChildUnusedWork);
+    Fix64 AdultUnusedWork, Fix64 ChildUnusedWork, Fix64 CivicBuildTransfer, string CivicTransferBlock);
 
 /// <summary>
 /// The Bronze Age economy's season (docs/MVP/22 §5, 23 §4–§7): the planner decides how many kits, arms and crafted goods
@@ -70,6 +70,10 @@ public sealed partial class LivingEconomyModel
         // Labor buckets, in the order figures are assigned to them.
         public Fix64 BuildNeed, BuildRequested, BuildCap, MineNeed, CharcoalNeed, SmeltNeed;
         public Fix64 BuildAssigned, MineAssigned, CharcoalAssigned, SmeltAssigned;
+        /// <summary>Civic build work moved onto the first Forge/Kiln this season so it completes (already inside BuildAssigned).</summary>
+        public Fix64 CivicBuildTransfer;
+        /// <summary>Why the completion-only transfer did not fire for a first Forge/Kiln (diagnostic; empty when it fired or did not apply).</summary>
+        public string CivicTransferBlock = "";
         public Fix64 MineProductive;
         public Fix64 CampWork;
         public Fix64 TotalWork;
@@ -91,6 +95,10 @@ public sealed partial class LivingEconomyModel
     private SortedList<int, int>? _b12T18FirstCastSeason;
     internal bool B12MiningWantTraceEnabled { get; set; }
     internal List<string> B12MiningWantTrace { get; } = new();
+    /// <summary>Candidate B12 rule; on by default, switchable so a screen can compare against the unchanged allocation.</summary>
+    internal bool CivicToMetalCompletionEnabled { get; set; } = true;
+    /// <summary>Total labor the completion-only rule has moved; diagnostic only, never part of state.</summary>
+    internal Fix64 CivicToMetalTransferred { get; private set; }
     internal bool B12T18TraceEnabled { get; set; }
     internal bool B12CensusTraceEnabled { get; set; }
     internal List<B12T18Snapshot>? B12T18Snapshots { get; private set; }
@@ -985,7 +993,7 @@ public sealed partial class LivingEconomyModel
                 censusMetal.Goods[(int)MetalGood.Charcoal], plan.Want[MetalSlot(MetalGood.Charcoal)],
                 fireAssigned, careAssigned, staffAssigned, scoutAssigned,
                 upkeepAssigned, orchardAssigned, foodRequested, foodAssigned, civicAssigned,
-                constructionAssigned, herdAssigned, materialAssigned, adultUnusedWork, childUnusedWork));
+                constructionAssigned, herdAssigned, materialAssigned, adultUnusedWork, childUnusedWork, plan.CivicBuildTransfer, plan.CivicTransferBlock));
         }
         if ((!B12T18TraceEnabled && !B12CensusTraceEnabled) || plan.Tier < 9 || s.Metal is not { Forges: > 0 } m) return;
         _b12T18FirstCastSeason ??= new SortedList<int, int>();
@@ -1607,6 +1615,41 @@ public sealed partial class LivingEconomyModel
             toolWork[index] += part;
             amount -= part;
         }
+    }
+
+    /// <summary>
+    /// Completion-only transfer: when the settlement's first Forge (or first Kiln, with no Smelter) has every clay and stone
+    /// secured and the normal assignments left less work than it still needs, the exact remainder moves from discretionary
+    /// civic construction to that build. Both are adult Build work already counted in WorkThisSeason and toolWork, so nothing
+    /// is added; housing, canals, Markets and Bakeries keep their labor. Returns the labor moved out of the civic assignment.
+    /// </summary>
+    private static Fix64 Block(MetalPlan plan, string reason)
+    {
+        plan.CivicTransferBlock = reason;
+        return Fix64.Zero;
+    }
+
+    private Fix64 TransferCivicWorkToMetalCompletion(SettlementState s, MetalPlan plan, Fix64 civicAssigned,
+        Fix64 civicCanals, Fix64 civicHousing)
+    {
+        if (!CivicToMetalCompletionEnabled || civicAssigned <= Fix64.Zero || s.Metal is not { } m || s.Civic is not { } c) return Fix64.Zero;
+        bool firstFacility = m.BuildKind == MetalBuild.Forge || (m.BuildKind == MetalBuild.Kiln && m.Smelters == 0);
+        if (!firstFacility) return Fix64.Zero;
+        if (c.BuildKind is CivicBuild.Market or CivicBuild.Bakery) return Block(plan, $"civic-{c.BuildKind}");
+        if (MaterialLabor(s, m.BuildKind) > Fix64.Zero) return Block(plan, "materials");
+        Fix64 remaining = MetalBuildLabor(m.BuildKind) - m.BuildProgress - plan.BuildAssigned;
+        if (remaining <= Fix64.Zero) return Fix64.Zero;
+        if (plan.BuildAssigned + remaining > plan.BuildNeed) return Block(plan, "build-need");
+        // WorkCivic multiplies the labor by the Corvée before filling the housing and canal pools; keep enough raw labor for both.
+        Fix64 corvee = CorveeLaborMult(s);
+        Fix64 protectedLabor = corvee > Fix64.Zero ? (civicCanals + civicHousing) / corvee : civicCanals + civicHousing;
+        Fix64 discretionary = civicAssigned - Fix64.Min(civicAssigned, protectedLabor);
+        if (remaining > discretionary)
+            return Block(plan, !B12CensusTraceEnabled ? "civic-surplus" : $"civic-surplus need={remaining.ToDoubleForDisplay():F2} civic={civicAssigned.ToDoubleForDisplay():F2} housing={civicHousing.ToDoubleForDisplay():F2} canals={civicCanals.ToDoubleForDisplay():F2} kind={c.BuildKind}");
+        plan.BuildAssigned += remaining;
+        plan.CivicBuildTransfer = remaining;
+        CivicToMetalTransferred += remaining;
+        return remaining;
     }
 
     private static Fix64 Unassigned(MetalPlan plan)

@@ -253,6 +253,7 @@ internal static class ResearchMetal
                         $"rung6={plan.Rung6Adults}/{plan.Adults} work={F(plan.TotalWork)} cap={F(plan.PushCap)} foodSec/winter={F(plan.FoodSecurity)}/{F(plan.LateWinterForecast)} " +
                         $"chain={F(plan.PrimaryChain)}*{F(plan.PrimaryScale)}+{F(plan.SecondaryChain)}*{F(plan.SecondaryScale)} " +
                         $"build assigned/need={F(plan.BuildAssigned)}/{F(plan.BuildNeed)} " +
+                        $"civic->metal-build={F(plan.CivicBuildTransfer)}{(plan.CivicTransferBlock.Length > 0 ? " blocked:" + plan.CivicTransferBlock : "")} " +
                         $"requested/cap(build)={F(plan.BuildRequested)}/{F(plan.BuildCap)}; " +
                         $"assigned/need(mine,charcoal,smelt)={F(plan.MineAssigned)}/{F(plan.MineNeed)} " +
                         $"{F(plan.CharcoalAssigned)}/{F(plan.CharcoalNeed)} " +
