@@ -239,7 +239,7 @@ internal static class ResearchMetal
                     .ToDictionary(x => (x.SettlementId, x.Season));
                 foreach (T18CohortRow x in r.T18EligibleRows.OrderBy(x => x.Civilization).ThenBy(x => x.SettlementId))
                 {
-                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} start=season{x.FirstSeason} +12=season{x.Season} access={x.AccessPath} coverage={x.Rung6Adults}/{x.Adults}({(double)x.Rung6Adults / x.Adults:P0})");
+                    text.AppendLine($"  civ{x.Civilization}/s{x.SettlementId} start=season{x.FirstSeason} +12=season{x.Season} access={x.AccessPath} supply={(x.SourceBacked ? "source" : "stock")} coverage={x.Rung6Adults}/{x.Adults}({(double)x.Rung6Adults / x.Adults:P0})");
                     if (x.Rung6Adults * 100 < x.Adults * 70)
                         AppendCheckpoints(x.SettlementId, x.Checkpoints);
                 }
