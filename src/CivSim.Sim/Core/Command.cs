@@ -35,7 +35,7 @@ public enum CommandKind : ushort
     SendBarter = 11,
     /// <summary>A = target settlement index, B = party size (at least 4): a raid (WAR-02, contact, no alliance or truce).</summary>
     LaunchRaid = 12,
-    /// <summary>A = target settlement index: the field army assaults it (at war with its owner).</summary>
+    /// <summary>A = target settlement index; B = expected owner + 1, or 0 for no owner check: the field army assaults it (at war with its owner).</summary>
     LaunchAssault = 13,
     /// <summary>A = civilization (contacted, not allied).</summary>
     DeclareWar = 14,

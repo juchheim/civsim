@@ -448,7 +448,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     break;
                 case CommandKind.LaunchAssault:
                     if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
-                    else if (!OrderAssault(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    else if (!OrderAssault(civ, command.A, command.B > 0 ? command.B - 1 : -1)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
                     break;
                 case CommandKind.DeclareWar:
                     if (command.A < 0 || command.A >= _civs || !OrderWar(civ, command.A))

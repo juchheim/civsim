@@ -127,9 +127,14 @@ public sealed partial class PoliticsSystem
 
     /// <summary>The field army against a chosen settlement. Hard rules: at war with its owner, contact.</summary>
     public bool OrderAssault(int c, int targetSettlement)
+        => OrderAssault(c, targetSettlement, expectedOwner: -1);
+
+    /// <summary>The field army against a chosen settlement, optionally checking its owner against the player's choice.</summary>
+    public bool OrderAssault(int c, int targetSettlement, int expectedOwner)
     {
         if ((uint)targetSettlement >= (uint)_sCount || _free[targetSettlement]) return false;
         int o = _sCiv[targetSettlement];
+        if (expectedOwner >= 0 && o != expectedOwner) return false;
         return o != c && _dip.AtWar(c, o) && SendAssault(c, o, targetSettlement, requireOdds: false);
     }
 

@@ -347,8 +347,13 @@ public partial class Game
         for (int i = 0; i < frame.SettlementCount && options.Count < 9; i++)
         {
             if (frame.SettlementCiv[i] != civ) continue;
-            if ((frame.SettlementFlags[i] & (ushort)(SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
-            options.Add((frame.SettlementIndex[i], $"Settlement {frame.SettlementIndex[i] + 1} · {frame.SettlementPopulation[i]}"));
+            SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[i];
+            if ((flags & (SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
+            bool remembered = (flags & SettlementViewFlags.Remembered) != 0;
+            string label = remembered
+                ? $"Settlement {frame.SettlementIndex[i] + 1} · last seen"
+                : $"Settlement {frame.SettlementIndex[i] + 1} · {frame.SettlementPopulation[i]}";
+            options.Add((frame.SettlementIndex[i], label));
         }
         bool selectedStillThere = _selectedTargetSettlement < 0;
         for (int i = 0; i < options.Count; i++)
@@ -373,8 +378,8 @@ public partial class Game
             chip.Text = options[i].Text;
             chip.SetMeta("settlement", options[i].Settlement);
             chip.TooltipText = options[i].Settlement < 0
-                ? "For raids, chooses their closest settlement even if it is out of sight. Assaults need a visible settlement."
-                : "";
+                ? "Raids choose their closest settlement even if it is out of sight. Assaults choose the closest settlement you have seen, including remembered locations."
+                : DestinationTooltip(frame, civ, options[i].Settlement);
             chip.SetPressedNoSignal(options[i].Settlement == _selectedTargetSettlement);
         }
         for (int i = options.Count; i < _destinationPool.Count; i++) _destinationPool[i].Visible = false;
@@ -389,7 +394,7 @@ public partial class Game
 
     private string NeedsName(int project) => project >= 0 && _catalog is not null ? _catalog.Projects[project].Name : "a research project";
 
-    /// <summary>The visible settlement of <paramref name="civ"/> to raid or assault: the chosen one, or the one nearest to your own.</summary>
+    /// <summary>A known settlement of <paramref name="civ"/> to raid or assault: the chosen one, or the one nearest to your own.</summary>
     private int ResolveDestination(MatchFrame frame, int civ)
     {
         if (_selectedTargetSettlement >= 0) return _selectedTargetSettlement;
@@ -398,7 +403,7 @@ public partial class Game
         for (int i = 0; i < frame.SettlementCount; i++)
         {
             if (frame.SettlementCiv[i] != civ) continue;
-            if ((frame.SettlementFlags[i] & (ushort)(SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
+            if ((frame.SettlementFlags[i] & (ushort)(SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
             int tile = frame.SettlementTile[i];
             var a = new Vector2(tile % frame.Width, tile / frame.Width);
             for (int j = 0; j < frame.SettlementCount; j++)
@@ -410,6 +415,29 @@ public partial class Game
             }
         }
         return best;
+    }
+
+    private static string DestinationTooltip(MatchFrame frame, int civ, int settlement)
+    {
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            if (frame.SettlementIndex[i] != settlement || frame.SettlementCiv[i] != civ) continue;
+            if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0) return "Currently visible settlement.";
+            int seen = frame.SettlementSeenSeason[i];
+            string when = seen >= 0
+                ? $"{UiText.SeasonNames[seen & 3]}, Year {seen / 4 + 1}"
+                : "an earlier season";
+            return $"Last seen in {when} with {frame.SettlementPopulation[i]} people. If control has changed, the assault will not launch.";
+        }
+        return "";
+    }
+
+    private static bool IsRememberedDestination(MatchFrame frame, int civ, int settlement)
+    {
+        for (int i = 0; i < frame.SettlementCount; i++)
+            if (frame.SettlementIndex[i] == settlement && frame.SettlementCiv[i] == civ)
+                return (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0;
+        return false;
     }
 
     private void SetOrder(OrderRow row, bool visible, bool enabled, string text)
@@ -459,8 +487,10 @@ public partial class Game
             raidHint);
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
+        bool rememberedDestination = hasDestination && IsRememberedDestination(frame, civ, destination);
         SetOrder(_assaultRow!, true, can && atWar && hasDestination,
-            !atWar ? "Declare war first." : !hasDestination ? "Pick one of their settlements you can see." : "Tries to take the settlement.");
+            !atWar ? "Declare war first." : !hasDestination ? "You need to have discovered one of their settlements." :
+            rememberedDestination ? "Marches to its last known site; it may be empty or its population may have changed." : "Tries to take the settlement.");
     }
 
     private void RefreshParties(MatchFrame frame)
@@ -531,6 +561,6 @@ public partial class Game
     {
         if (_session is null || _current is null) return;
         int destination = ResolveDestination(_current, _selectedPoliticsCiv);
-        if (destination >= 0) _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, destination));
+        if (destination >= 0) _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, destination, _selectedPoliticsCiv));
     }
 }
