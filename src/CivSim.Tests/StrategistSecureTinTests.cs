@@ -28,6 +28,7 @@ public class StrategistSecureTinTests
         var mineCandidate = new DecreeRequest(DecreeKind.Mine, mine, 0);
         Assert.False(StrategistDecreePolicy.BeliefAllowsCandidate(belief, 0, mineCandidate));
         belief.Map.MarkExplored(mine);
+        belief.Map.RecordDepositKnowledge(mine);
         belief.Map.RecordOwner(mine, -1, belief.Season);
         Assert.True(StrategistDecreePolicy.BeliefAllowsCandidate(belief, 0, mineCandidate));
         belief.Map.RecordOwner(mine, 1, belief.Season);
@@ -78,6 +79,7 @@ public class StrategistSecureTinTests
             .OrderBy(t => HexGrid.Distance(ownTile, t, world.Width)).First();
         var map = new MapKnowledge(world.Tiles.ToArray(), world.Width, world.Height);
         map.MarkExplored(tinTile);
+        map.RecordDepositKnowledge(tinTile);
         map.RecordOwner(tinTile, -1, Season);
         var belief = new Belief(civ, 4, TestPack.Catalog.Count, map);
         var own = new OwnView
@@ -231,6 +233,7 @@ public class StrategistSecureTinTests
         if (alternativeMine >= 0)
         {
             belief.Map.MarkExplored(alternativeMine);
+            belief.Map.RecordDepositKnowledge(alternativeMine);
             belief.Map.RecordOwner(alternativeMine, -1, belief.Season);
             StrategistDecreePolicy.AddBeliefKnownMineAlternatives(rig.Politics, 0, belief, candidates);
             Assert.Contains(candidates, c => c.Kind == DecreeKind.Mine && c.Target == alternativeMine);
@@ -250,6 +253,7 @@ public class StrategistSecureTinTests
         int arsenicalTile = Enumerable.Range(0, MatchWorld.Value.Tiles.Length)
             .First(tile => MatchWorld.Value.Tiles[tile].Deposit == DepositKind.ArsenicalCopper);
         view.Belief.Map.MarkExplored(arsenicalTile);
+        view.Belief.Map.RecordDepositKnowledge(arsenicalTile);
         view.Belief.Map.RecordOwner(arsenicalTile, -1, view.Season);
         var candidate = new DecreeRequest(DecreeKind.Mine, arsenicalTile, 0);
 

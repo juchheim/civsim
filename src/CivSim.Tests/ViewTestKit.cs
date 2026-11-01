@@ -58,7 +58,7 @@ internal static class ViewKit
         {
             h.Add(f.Visibility[t]); h.Add(f.Owner[t]); h.Add(f.Claim[t]); h.Add(f.Claimant[t]);
             h.Add(f.Claim2[t]); h.Add(f.Claimant2[t]); h.Add(f.Claim3[t]); h.Add(f.Claimant3[t]);
-            h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]); h.Add(f.ForestBand[t]); h.Add(f.DepositWorked[t]); h.Add(f.MiningReach[t]);
+            h.Add(f.TileFlags[t]); h.Add(f.KnownDeposits[t]); h.Add(f.DepositClues[t]); h.Add(f.ForestBand[t]); h.Add(f.DepositWorked[t]); h.Add(f.MiningReach[t]);
         }
         h.Add(f.FigureCount);
         for (int i = 0; i < f.FigureCount; i++)

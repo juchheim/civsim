@@ -1,6 +1,6 @@
 # 12 — World Generation (WS-G)
 
-> How a match's world is built: landmasses, terrain, climate, biomes, water, fauna, deposits, start placement, the resource guarantees, and the fairness pass. It is detailed to the level the first three eras need, but it generates the whole world, including late-era deposits (coal, oil), at match start.
+> How a match's world is built: landmasses, terrain, climate, biomes, water, fauna, geological provinces and surface evidence, deposits, start placement, the resource guarantees, and the fairness pass. It generates late-era deposits at match start; civilizations discover them through surface finds, prospecting and research.
 > Inputs: [05 §4](05-simulation-structure.md#4-the-world), [02 §6.1](02-research-structure.md#61-keystone-critical-gates-and-world-generation-guarantees) (guarantees), [07b](07b-territory-findings.md) (map size, start spacing, fairness), [10](10-e0-e2-actions-and-goods.md) (rates that biome multipliers scale).
 > The M2 implementation is in `src/CivSim.Sim/World/`. Its as-built scope and validation status are recorded in §14; this document remains the target design for features outside the four-player MVP.
 
@@ -39,13 +39,14 @@ flowchart TD
     B --> C[3 Water<br/>rivers by flow accumulation, lakes, coast, straits]
     C --> D[4 Climate<br/>latitude temperature, rain shadow, seasons]
     D --> E[5 Biomes + soil]
-    E --> F[6 Deposits by geology rules]
-    F --> G[7 Fauna herds + predators]
-    G --> H[8 Search paired starts]
-    H --> I[9 Fairness pass:<br/>paired resource score and seasonal expansion]
-    I -->|next candidate pair| H
-    I -->|pass| J[10 Repair start and continental guarantees]
-    J --> K[11 Validate and return World]
+    E --> F[6 Geological provinces]
+    F --> G[7 Deposits by host setting]
+    G --> H[8 Fauna herds + predators]
+    H --> I[9 Search paired starts]
+    I --> J[10 Fairness pass:<br/>paired resource score and seasonal expansion]
+    J -->|next candidate pair| I
+    J -->|pass| K[11 Repair start and continental guarantees]
+    K --> L[12 Generate surface evidence, validate and return World]
 ```
 
 ### 3.1 Landmasses
@@ -162,6 +163,14 @@ Placed by geology rules, then counted per 1,000 land tiles (targets, before guar
 | Rare earths / lithium | old mountain cores, salt flats | 1 | 2 | MIN-15 |
 | Silk moths | Warm and Temperate woodland | 4 regions per map | — | `[Seen: Silk moths]`, FIB-09 |
 | Sugarcane | Tropical, Warm wetland | 3 regions per map | — | FOD-10 |
+
+### 8.1 Geological provinces and clues
+
+The generator assigns broad, point-symmetric host settings before placing deposits: crystalline highlands, volcanic belts, sedimentary basins, carbonate lowlands, alluvium, closed arid basins, and tropical uplands. Provinces use low-frequency seeded noise plus elevation, climate, rivers and exposure. Faulting, exposed rock, organic basin fill and deep weathering are separate flags. The classification does not change terrain or movement.
+
+The generated province layer supplies the host context for deposits; guaranteed repairs stamp a compatible local host setting when needed. Surface evidence is then sampled independently from deposits, from the shared geology: a mineral outcrop can be barren, a dark seam can lie at a coal basin's eroded edge, and an oil seep can occur along a fault away from an oil field. Some deep deposits have no surface clue. The Bronze arsenical guarantee also ensures an outcrop in the same local province so the depth-2 route can be prospected.
+
+Exploration records generic evidence without naming its source. INQ-03 identifies exposed copper, tin, gold and silver. MIN-04 enables local prospecting for depth-2 metal lodes near a discovered mineral outcrop. MIN-08 surveys ore across owned territory; INQ-13 identifies coal and oil basins in owned territory; MIN-09 and MIN-13 follow nearby seams and seeps to fields. MIN-16 reveals deposits globally. The map's knowledge layer stores identified deposits separately from generated truth, including for AI opponents.
 
 ## 9. Start placement
 

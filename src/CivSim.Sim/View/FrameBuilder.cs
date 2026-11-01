@@ -53,12 +53,15 @@ public sealed partial class FrameBuilder
     private readonly int[] _boatProjects;
     private readonly (int Project, CivLook Look)[] _lookProjects;
     private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
+    private readonly int _inq03, _inq13, _min01, _min04, _min08, _min09, _min13, _min15, _min16, _met08, _met16;
     /// <summary>Per civilization: the tile and village its megalith stands at (-1 until the project is done). View-only, not part of the saved view state: a loaded game picks it again.</summary>
     private readonly int[] _monumentTile, _monumentSettlement;
 
     // ---- memory: saved by WriteState ---------------------------------------------------------
     private int _viewer;
     private byte[] _explored;
+    private byte[] _knownDeposits;
+    private byte[] _depositClues;
     private sbyte[] _rememberedOwner;
     private long[] _rememberedOwnerTick;
     private int[] _seenSeason = Array.Empty<int>();
@@ -130,6 +133,10 @@ public sealed partial class FrameBuilder
         _com04 = _catalog.IndexOf("COM-04");
         _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
         _hus01 = _catalog.IndexOf("HUS-01"); _travois = _catalog.IndexOf("TRN-02");
+        _inq03 = _catalog.IndexOf("INQ-03"); _inq13 = _catalog.IndexOf("INQ-13"); _min01 = _catalog.IndexOf("MIN-01"); _min04 = _catalog.IndexOf("MIN-04");
+        _min08 = _catalog.IndexOf("MIN-08"); _min09 = _catalog.IndexOf("MIN-09"); _min13 = _catalog.IndexOf("MIN-13");
+        _min15 = _catalog.IndexOf("MIN-15"); _min16 = _catalog.IndexOf("MIN-16");
+        _met08 = _catalog.IndexOf("MET-08"); _met16 = _catalog.IndexOf("MET-16");
         _boatProjects = new[] { _catalog.IndexOf("SEA-01"), _catalog.IndexOf("SEA-02"), _catalog.IndexOf("SEA-03"), _catalog.IndexOf("SEA-04"),
             _catalog.IndexOf("SEA-05"), _catalog.IndexOf("SEA-06") };
         _lookProjects = new[]
@@ -143,6 +150,8 @@ public sealed partial class FrameBuilder
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
         _explored = new byte[_tileCount];
+        _knownDeposits = new byte[_tileCount];
+        _depositClues = new byte[_tileCount];
         _rememberedOwner = new sbyte[_tileCount];
         Array.Fill(_rememberedOwner, (sbyte)-1);
         _rememberedOwnerTick = new long[_tileCount];
@@ -184,6 +193,8 @@ public sealed partial class FrameBuilder
         if (viewerCiv == _viewer) return;
         _viewer = viewerCiv;
         Array.Clear(_explored);
+        Array.Clear(_knownDeposits);
+        Array.Clear(_depositClues);
         Array.Fill(_rememberedOwner, (sbyte)-1);
         Array.Fill(_rememberedOwnerTick, -1L);
         ClearScoutViewState();
@@ -230,7 +241,7 @@ public sealed partial class FrameBuilder
         ReadParties(match);
         PrepareScouts(eco, pol, target.Tick);
         MarkVisibility(eco, pol);
-        FillTiles(eco, pol, target);
+        FillTiles(eco, pol, match.Research, target);
         ReadMembers(pol);
         FillFigures(eco, match.Research, target, season);
         FillSettlements(eco, match.Research, target, season);
@@ -585,7 +596,7 @@ public sealed partial class FrameBuilder
 
     private bool Visible(int tile) => _omniscient || (tile >= 0 && tile < _tileCount) && _stamp[tile] == _stampValue;
 
-    private void FillTiles(LivingEconomyModel eco, PoliticsSystem pol, MatchFrame target)
+    private void FillTiles(LivingEconomyModel eco, PoliticsSystem pol, ResearchSystem research, MatchFrame target)
     {
         target.EnsureTiles(_tileCount);
         if (!_omniscient)
@@ -600,9 +611,14 @@ public sealed partial class FrameBuilder
                         _rememberedOwnerTick[t] = observationTick;
                     }
                 }
+        // Record surface evidence first so a clue discovered later in tile order can support local prospecting now.
+        if (!_omniscient)
+            for (int t = 0; t < _tileCount; t++)
+                if (Visible(t) && _knownDeposits[t] == 0)
+                    _depositClues[t] = (byte)_tiles[t].SurfaceEvidence;
         Territory territory = pol.Territory;
         byte[] vis = target.Visibility, claim = target.Claim, claim2 = target.Claim2, claim3 = target.Claim3,
-            flags = target.TileFlags, knownDeposits = target.KnownDeposits, forest = target.ForestBand,
+            flags = target.TileFlags, knownDeposits = target.KnownDeposits, depositClues = target.DepositClues, forest = target.ForestBand,
             worked = target.DepositWorked, miningReach = target.MiningReach;
         sbyte[] owner = target.Owner, claimant = target.Claimant, claimant2 = target.Claimant2, claimant3 = target.Claimant3;
         bool reachEnabled = _omniscient ? eco.BronzeActive : eco.IsBronzeCivilization(_viewer);
@@ -633,9 +649,9 @@ public sealed partial class FrameBuilder
                 claim3[t] = 0; claimant3[t] = -1;
                 flags[t] = 0;
             }
-            knownDeposits[t] = _tiles[t].Deposit != DepositKind.None && (_omniscient || _explored[t] != 0)
-                ? (byte)1
-                : (byte)0;
+            UpdateDepositKnowledge(t, territory.OwnerOf(t) == _viewer, eco, research);
+            knownDeposits[t] = _knownDeposits[t];
+            depositClues[t] = _depositClues[t];
             forest[t] = Visible(t) ? (byte)eco.ForestBand(t) : (byte)0;
             worked[t] = Visible(t) && eco.DepositWorked(t) ? (byte)1 : (byte)0;
             miningReach[t] = 0;

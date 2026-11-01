@@ -1,10 +1,10 @@
-## Mineable deposits: one marker per DepositKind (`deposit1` ... `deposit21`, the kind's byte value), drawn on every tile whose deposit the viewer knows.
+## Mineable deposits: one marker per DepositKind (`deposit1` ... `deposit21`), plus an indistinct `deposit22` clue marker.
 ##
 ## Art pass: meshes in this file are ADDED to the ones mesh_kit.gd builds (`deposit<kind>_tall` has the long pole for mountain tiles).
 ## world_builder.gd `_deposits()` places them. Every marker is
 ## three things at once so a deposit is found at a glance, near or far: an outcrop that shows what the ground holds (boulders, a clay
 ## pit, ore veins, a salt crust, a coal heap, an oil pool, cane), a patch of stained ground under it, and a tall slim pole topped by a
-## glowing gem in the deposit's colour (TAG_EMISSIVE) that stands above the grass, trees and houses.
+## glowing gem in the deposit's colour (TAG_EMISSIVE). The clue marker is only a low scatter of stones, with no pole or gem.
 extends RefCounted
 
 const PIN_H := 0.3        # pole height; the gem sits on top of it
@@ -35,6 +35,7 @@ const KINDS := {
 	19: ["#8a8ca0", "#cfd4ff", "#c4ccff", "ore"],         # lithium
 	20: ["#6e8a3c", "#f2e8f0", "#ff9ee0", "moths"],       # silk moths
 	21: ["#5a8a2e", "#9ad04c", "#a6ff4a", "cane"],        # sugarcane
+	22: ["#84765b", "#d3b674", "#e7cc8c", "trace"],       # unidentified geological clue
 }
 
 static func build(kit) -> void:
@@ -61,7 +62,9 @@ static func _marker(kit, kind: int, spec: Array, tall: bool) -> void:
 		"crust": _crust(b, base, face)
 		"moths": _moths(b, base, face)
 		"cane": _cane(b, base, face)
-	_pin(b, gem, PIN_H_TALL if tall else PIN_H)
+		"trace": _trace(b, base, face)
+	if style != "trace":
+		_pin(b, gem, PIN_H_TALL if tall else PIN_H)
 	kit.meshes["deposit%d%s" % [kind, "_tall" if tall else ""]] = b.commit()
 
 ## A boulder: a squat jittered blob, lighter on top.
@@ -130,6 +133,12 @@ static func _cane(b: M7MeshBuilder, base: Color, face: Color) -> void:
 	for p in [[0.0, 0.0, 0.17], [0.05, 0.03, 0.14], [-0.05, 0.02, 0.15], [0.02, -0.05, 0.12], [-0.03, -0.04, 0.16], [0.07, -0.02, 0.1]]:
 		b.pole(Vector3(p[0], 0, p[1]), Vector3(p[0] * 1.2 + 0.01, p[2], p[1] * 1.2), 0.011, base, 5)
 		b.blob(Vector3(p[0] * 1.2 + 0.01, p[2], p[1] * 1.2), Vector3(0.03, 0.02, 0.03), 5, 2, face)
+
+static func _trace(b: M7MeshBuilder, base: Color, face: Color) -> void:
+	# A low, indistinct scatter of mineral-stained stones; no pole or gem gives away the deposit type.
+	_boulder(b, Vector3(-0.04, 0, 0.02), Vector3(0.09, 0.035, 0.07), base, face.darkened(0.08))
+	_shard(b, Vector3(0.04, 0.025, -0.04), Vector3(-0.15, 0, 0.3), 0.018, 0.055, face, face.lightened(0.12))
+	_shard(b, Vector3(0.1, 0.018, 0.07), Vector3(0.2, 0, -0.2), 0.014, 0.04, face.darkened(0.08), face)
 
 ## The landmark: a slim pole off to one side of the outcrop with a glowing gem on top.
 static func _pin(b: M7MeshBuilder, gem: Color, height: float) -> void:

@@ -32,6 +32,7 @@ internal sealed class PerfectBeliefBuilder : IBeliefBuilder
         {
             map.MarkExplored(t);
             map.RecordOwner(t, pol.Territory.OwnerOf(t), season);
+            if (world.Generated.TileAt(t).Deposit != DepositKind.None) map.RecordDepositKnowledge(t);
         }
         for (int o = 0; o < belief.Rivals.Length; o++)
         {

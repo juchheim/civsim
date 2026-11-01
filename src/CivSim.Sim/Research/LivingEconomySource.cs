@@ -97,10 +97,11 @@ public sealed class LivingEconomySource : IResearchSource
                     "Clay" => tile.Deposit == DepositKind.Clay || _world.Tile(i).Clay,
                     "Native copper" => tile.Deposit == DepositKind.NativeCopper,
                     "Salt" => tile.Deposit == DepositKind.Salt,
-                    "Tin" => tile.Deposit == DepositKind.Tin,
-                    "Coal" => tile.Deposit == DepositKind.Coal,
-                    // E3 [Seen] gates (docs/MVP/23 §15-§17): gold glints for MET-07, silk moths for FIB-09.
-                    "Gold or Silver" => tile.Deposit is DepositKind.Gold or DepositKind.Silver,
+                    "Tin" => tile.Deposit == DepositKind.Tin && tile.DepositDepth <= 1,
+                    "Coal" => tile.SurfaceEvidence == SurfaceEvidence.DarkSeam,
+                    "Oil seep" => tile.SurfaceEvidence == SurfaceEvidence.OilSeep,
+                    // E3 [Seen] gates (docs/MVP/23 §15–§17): only exposed metal finds count.
+                    "Gold or Silver" => tile.DepositDepth <= 1 && tile.Deposit is DepositKind.Gold or DepositKind.Silver,
                     "Silk moths" => tile.Deposit == DepositKind.SilkMoths,
                     _ => false,
                 };

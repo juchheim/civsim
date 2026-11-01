@@ -17,6 +17,24 @@ public static class WorldAcceptance
         int pointMismatch = PointSymmetryMismatches(world);
         if (pointMismatch != 0) failures.Add($"point symmetry differs on {pointMismatch} tiles");
 
+        int clueOnlyTiles = 0, deepDepositsWithoutClue = 0, oilDepthErrors = 0;
+        bool oilSeepAwayFromOil = false;
+        for (int i = 0; i < world.TileCount; i++)
+        {
+            WorldTile tile = world.TileAt(i);
+            if (tile.IsLand && tile.Geology == GeologyProvince.None) failures.Add("land tile has no generated geology");
+            if (!tile.IsLand && tile.SurfaceEvidence != SurfaceEvidence.None) failures.Add("surface evidence appears on water");
+            if (tile.SurfaceEvidence != SurfaceEvidence.None && tile.Deposit == DepositKind.None) clueOnlyTiles++;
+            if (tile.Deposit != DepositKind.None && tile.DepositDepth >= 2 && tile.SurfaceEvidence == SurfaceEvidence.None)
+                deepDepositsWithoutClue++;
+            if (tile.Deposit == DepositKind.Oil && tile.DepositDepth != 3) oilDepthErrors++;
+            if (tile.SurfaceEvidence == SurfaceEvidence.OilSeep && tile.Deposit != DepositKind.Oil) oilSeepAwayFromOil = true;
+        }
+        if (clueOnlyTiles == 0) failures.Add("surface evidence is coupled to economic deposits");
+        if (deepDepositsWithoutClue == 0) failures.Add("every deep deposit has an automatic local clue");
+        if (oilDepthErrors != 0) failures.Add($"{oilDepthErrors} oil deposits are not depth tier 3");
+        if (!oilSeepAwayFromOil) failures.Add("no oil seep exists away from an oil deposit");
+
         int riverStarts = 0, coastalStarts = 0;
         for (int i = 0; i < world.Starts.Length; i++)
         {
@@ -26,6 +44,7 @@ public static class WorldAcceptance
             if (!HasDeposit(world, start, DepositKind.Clay, 20)) failures.Add($"civ {i} has no clay within 20 tiles");
             if (!HasDeposit(world, start, DepositKind.NativeCopper, 20)) failures.Add($"civ {i} has no native copper within 20 tiles");
             if (!HasDeposit(world, start, DepositKind.Flint, 15)) failures.Add($"civ {i} has no flint within 15 tiles");
+            if (!HasProspectableArsenical(world, start, 25)) failures.Add($"civ {i} has no arsenical vein near a discoverable mineral outcrop");
             if (!HasPredator(world, start, PredatorSpecies.Wolves, 20)) failures.Add($"civ {i} has no wolf pack within 20 tiles");
             if (!HasSmallHerd(world, start, 25)) failures.Add($"civ {i} has no goat/sheep or camelid herd within 25 tiles");
             if (!HasTwoHerds(world, start, 12)) failures.Add($"civ {i} has fewer than two nearby herds or no large game");
@@ -56,6 +75,7 @@ public static class WorldAcceptance
             bool continentMatches = !a.IsLand && (a.Flags & TileFlags.Lake) == 0 || b.Continent == expectedContinent;
             if (a.Elevation != b.Elevation || a.Climate != b.Climate || a.Biome != b.Biome ||
                 a.Flags != b.Flags || a.Rainfall != b.Rainfall || a.SoilFertility != b.SoilFertility ||
+                a.Geology != b.Geology || a.GeologyFlags != b.GeologyFlags || a.SurfaceEvidence != b.SurfaceEvidence ||
                 !continentMatches || a.Deposit != b.Deposit || a.DepositAmount != b.DepositAmount ||
                 a.DepositDepth != b.DepositDepth) mismatches++;
         }
@@ -296,6 +316,22 @@ public static class WorldAcceptance
     {
         for (int i = 0; i < world.TileCount; i++)
             if (world.TileAt(i).Deposit == kind && HexGrid.Distance(center, i, world.Width) <= radius) return true;
+        return false;
+    }
+
+    private static bool HasProspectableArsenical(GeneratedWorld world, int center, int radius)
+    {
+        for (int deposit = 0; deposit < world.TileCount; deposit++)
+        {
+            WorldTile ore = world.TileAt(deposit);
+            if (ore.Deposit != DepositKind.ArsenicalCopper || HexGrid.Distance(center, deposit, world.Width) > radius) continue;
+            for (int clue = 0; clue < world.TileCount; clue++)
+            {
+                WorldTile evidence = world.TileAt(clue);
+                if (evidence.SurfaceEvidence == SurfaceEvidence.MineralOutcrop && evidence.Geology == ore.Geology &&
+                    HexGrid.Distance(deposit, clue, world.Width) <= 10) return true;
+            }
+        }
         return false;
     }
 

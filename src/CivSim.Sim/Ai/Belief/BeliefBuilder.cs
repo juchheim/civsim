@@ -49,6 +49,8 @@ public sealed class BeliefBuilder : IBeliefBuilder
 {
     private TechEstimate? _tech;
     private int _war02 = -1;
+    private int _inq03 = -1, _inq13 = -1, _min01 = -1, _min04 = -1, _min08 = -1, _min09 = -1,
+        _min13 = -1, _min15 = -1, _min16 = -1, _met08 = -1, _met16 = -1;
 
     /// <summary>Own parties on the road at the last update: (target settlement, arrival season). Saved and hashed.</summary>
     private readonly List<(int Settlement, int ArriveSeason)> _visits = new();
@@ -83,6 +85,10 @@ public sealed class BeliefBuilder : IBeliefBuilder
         ResearchCatalog catalog = world.Research.Catalog;
         _tech = new TechEstimate(catalog, world.Politics.WeaponLadder, world.Politics.ArcheryProject);
         _war02 = catalog.IndexOf("WAR-02");
+        _inq03 = catalog.IndexOf("INQ-03"); _inq13 = catalog.IndexOf("INQ-13");
+        _min01 = catalog.IndexOf("MIN-01"); _min04 = catalog.IndexOf("MIN-04"); _min08 = catalog.IndexOf("MIN-08");
+        _min09 = catalog.IndexOf("MIN-09"); _min13 = catalog.IndexOf("MIN-13"); _min15 = catalog.IndexOf("MIN-15");
+        _min16 = catalog.IndexOf("MIN-16"); _met08 = catalog.IndexOf("MET-08"); _met16 = catalog.IndexOf("MET-16");
     }
 
     private void EnsureBuffers(int settlements, int tiles, int civs)
@@ -144,6 +150,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
         Array.Clear(_claims);
         foreach (int s in _own) SeeDisk(belief.Map, pol.Territory, pol.SettlementTileOf(s), routine, season, countClaims: true);
         ExploreWithScouts(belief, pol);
+        UpdateKnownDeposits(belief.Civ, belief.Map, world.Generated, pol, res, season);
 
         // ---- public record and diplomacy ---------------------------------------------------------------------
         Array.Clear(_firsts);
@@ -409,6 +416,68 @@ public sealed class BeliefBuilder : IBeliefBuilder
             Estimate(r, pol, season, details, rivals, ownWeapon, ownEra, width);
         }
     }
+
+    private void UpdateKnownDeposits(int civ, MapKnowledge map, GeneratedWorld generated, PoliticsSystem politics,
+        ResearchSystem research, int season)
+    {
+        bool inq03 = Done(_inq03), inq13 = Done(_inq13), min01 = Done(_min01), min04 = Done(_min04),
+            min08 = Done(_min08), min09 = Done(_min09), min13 = Done(_min13), min15 = Done(_min15),
+            min16 = Done(_min16), met08 = Done(_met08), met16 = Done(_met16);
+        for (int tileIndex = 0; tileIndex < map.TileCount; tileIndex++)
+        {
+            if (!map.IsExplored(tileIndex)) continue;
+            WorldTile tile = generated.TileAt(tileIndex);
+            if (tile.Deposit == DepositKind.None) continue;
+            bool ownTerritory = politics.Territory.OwnerOf(tileIndex) == civ;
+            bool visible = map.OwnerSeen(tileIndex).Season == season;
+            bool identified = min16;
+
+            if (!identified && tile.DepositDepth <= 1 && IsObviousSurfaceDeposit(tile.Deposit)) identified = true;
+            if (!identified && min01 && NearOwnSettlement(politics, tileIndex, 25) &&
+                tile.Deposit is DepositKind.Flint or DepositKind.Ochre) identified = true;
+            if (!identified && visible && inq03 && tile.DepositDepth <= 1 &&
+                tile.Deposit is DepositKind.CopperOre or DepositKind.Tin or DepositKind.Gold or DepositKind.Silver) identified = true;
+            if (!identified && ownTerritory && min04 && tile.DepositDepth >= 2 && IsOreVein(tile.Deposit) &&
+                HasNearbyEvidence(map, tileIndex, SurfaceEvidence.MineralOutcrop, 10)) identified = true;
+            if (!identified && ownTerritory && min08 && IsOreVein(tile.Deposit)) identified = true;
+            if (!identified && ownTerritory && met08 && tile.Deposit == DepositKind.Iron && NearOwnSettlement(politics, tileIndex, 20)) identified = true;
+            if (!identified && ownTerritory && inq13 && tile.Deposit is DepositKind.Coal or DepositKind.Oil) identified = true;
+            if (!identified && min09 && tile.Deposit == DepositKind.Coal &&
+                HasNearbyEvidence(map, tileIndex, SurfaceEvidence.DarkSeam, 10)) identified = true;
+            if (!identified && min13 && tile.Deposit == DepositKind.Oil &&
+                HasNearbyEvidence(map, tileIndex, SurfaceEvidence.OilSeep, 10)) identified = true;
+            if (!identified && ownTerritory && min15 && tile.Deposit is DepositKind.RareEarths or DepositKind.Lithium) identified = true;
+            if (!identified && ownTerritory && met16 && tile.Deposit == DepositKind.Bauxite) identified = true;
+            if (identified) map.RecordDepositKnowledge(tileIndex);
+        }
+
+        bool Done(int project) => project >= 0 && research.IsDone(civ, project);
+    }
+
+    private bool NearOwnSettlement(PoliticsSystem politics, int tile, int radius)
+    {
+        foreach (int settlement in _own)
+            if (HexGrid.Distance(politics.SettlementTileOf(settlement), tile, politics.World.Width) <= radius) return true;
+        return false;
+    }
+
+    private static bool HasNearbyEvidence(MapKnowledge map, int tile, SurfaceEvidence evidence, int radius)
+    {
+        int width = map.Width;
+        for (int candidate = 0; candidate < map.TileCount; candidate++)
+            if (map.TryTile(candidate, out WorldTile observed) && observed.SurfaceEvidence == evidence &&
+                HexGrid.Distance(tile, candidate, width) <= radius) return true;
+        return false;
+    }
+
+    private static bool IsObviousSurfaceDeposit(DepositKind deposit)
+        => deposit is DepositKind.Stone or DepositKind.Flint or DepositKind.Clay or DepositKind.Ochre or
+            DepositKind.NativeCopper or DepositKind.Salt or DepositKind.Saltpeter or DepositKind.Sulfur or
+            DepositKind.SilkMoths or DepositKind.Sugarcane;
+
+    private static bool IsOreVein(DepositKind deposit)
+        => deposit is DepositKind.CopperOre or DepositKind.ArsenicalCopper or DepositKind.Tin or DepositKind.Gold or
+            DepositKind.Silver or DepositKind.Iron;
 
     private static bool IsDone(ResearchSystem res, int civ, int project) => project >= 0 && res.IsDone(civ, project);
 

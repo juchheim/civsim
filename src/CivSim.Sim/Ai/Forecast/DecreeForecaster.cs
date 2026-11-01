@@ -448,8 +448,6 @@ public static class DecreeForecaster
                 bool knownMetal = false;
                 if (belief is not null && belief.Map.TryTile(neighbor, out WorldTile seen))
                     knownMetal = seen.Deposit is DepositKind.Tin or DepositKind.ArsenicalCopper or DepositKind.CopperOre;
-                else if (belief is null && pol.KnowsTile(civ, neighbor))
-                    knownMetal = pol.World.TileAt(neighbor).Deposit is DepositKind.Tin or DepositKind.ArsenicalCopper or DepositKind.CopperOre;
                 if (knownMetal) metalContext = true;
             }
             score += Fix64.One + (frontier ? Fix64.FromRatio(1, 2) : Fix64.Zero) + (metalContext ? Fix64.FromRatio(1, 2) : Fix64.Zero);

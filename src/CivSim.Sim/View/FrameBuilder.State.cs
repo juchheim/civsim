@@ -12,7 +12,8 @@ public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
     // 5 and 6: economy state (Your people sheet). 7: remembered-owner ticks (scout map observation ticks).
-    private const int StateVersion = 7;
+    // 8: persistent deposit discoveries and unidentified geological clues.
+    private const int StateVersion = 8;
 
     public void WriteState(BinaryWriter w)
     {
@@ -57,6 +58,8 @@ public sealed partial class FrameBuilder
                 w.Write(_secondClaim[t]); w.Write(_secondCiv[t]); w.Write(_thirdClaim[t]); w.Write(_thirdCiv[t]);
             }
         WriteEconomyState(w);
+        w.Write(_knownDeposits);
+        w.Write(_depositClues);
     }
 
     /// <summary>
@@ -162,6 +165,22 @@ public sealed partial class FrameBuilder
         }
         if (version >= 5) ReadEconomyState(r, version);
         else ClearEconomyState();
+        if (version >= 8)
+        {
+            byte[] knownDeposits = r.ReadBytes(_tileCount);
+            byte[] depositClues = r.ReadBytes(_tileCount);
+            if (knownDeposits.Length != _tileCount || depositClues.Length != _tileCount)
+                throw new InvalidDataException("Truncated deposit knowledge in view state.");
+            for (int t = 0; t < _tileCount; t++)
+                if (knownDeposits[t] > 1 || depositClues[t] > 3) throw new InvalidDataException("Bad deposit knowledge in view state.");
+            Buffer.BlockCopy(knownDeposits, 0, _knownDeposits, 0, _tileCount);
+            Buffer.BlockCopy(depositClues, 0, _depositClues, 0, _tileCount);
+        }
+        else
+        {
+            Array.Clear(_knownDeposits);
+            Array.Clear(_depositClues);
+        }
         _researchCursor = 0;
         _politicsCursor = 0;
     }

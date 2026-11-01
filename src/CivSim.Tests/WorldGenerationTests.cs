@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Economy;
 using CivSim.Sim.World;
 
@@ -62,12 +63,46 @@ public sealed class WorldGenerationTests
             Assert.Equal(tile.Flags, rotated.Flags);
             Assert.Equal(tile.Rainfall, rotated.Rainfall);
             Assert.Equal(tile.SoilFertility, rotated.SoilFertility);
+            Assert.Equal(tile.Geology, rotated.Geology);
+            Assert.Equal(tile.GeologyFlags, rotated.GeologyFlags);
+            Assert.Equal(tile.SurfaceEvidence, rotated.SurfaceEvidence);
             if (tile.IsLand || (tile.Flags & TileFlags.Lake) != 0)
                 Assert.Equal(tile.Continent == 0 ? 1 : tile.Continent == 1 ? 0 : tile.Continent == 2 ? 3 : 2, rotated.Continent);
             Assert.Equal(tile.Deposit, rotated.Deposit);
             Assert.Equal(tile.DepositAmount, rotated.DepositAmount);
             Assert.Equal(tile.DepositDepth, rotated.DepositDepth);
         }
+    }
+
+    [Fact]
+    public void Generated_geology_has_barren_clues_and_deep_deposits_without_surface_clues()
+    {
+        GeneratedWorld world = WorldGenerator.Generate(42);
+        Assert.Contains(world.Tiles.ToArray(), tile => tile.Geology != GeologyProvince.None && tile.IsLand);
+        Assert.Contains(world.Tiles.ToArray(), tile => tile.SurfaceEvidence != SurfaceEvidence.None && tile.Deposit == DepositKind.None);
+        Assert.Contains(world.Tiles.ToArray(), tile => tile.DepositDepth >= 2 && tile.SurfaceEvidence == SurfaceEvidence.None);
+        Assert.Contains(world.Tiles.ToArray(), tile => tile.SurfaceEvidence == SurfaceEvidence.OilSeep && tile.Deposit != DepositKind.Oil);
+        Assert.All(world.Tiles.ToArray().Where(tile => tile.Deposit == DepositKind.Oil), tile => Assert.Equal(3, tile.DepositDepth));
+    }
+
+    [Fact]
+    public void Explored_ai_map_masks_hidden_deposits_until_discovery_is_recorded()
+    {
+        GeneratedWorld world = WorldGenerator.Generate(42);
+        int buriedTile = Enumerable.Range(0, world.TileCount)
+            .First(tile => world.TileAt(tile).Deposit != DepositKind.None && world.TileAt(tile).DepositDepth >= 2);
+        var map = new MapKnowledge(world.Tiles.ToArray(), world.Width, world.Height);
+
+        map.MarkExplored(buriedTile);
+        Assert.True(map.TryTile(buriedTile, out WorldTile observed));
+        Assert.Equal(DepositKind.None, observed.Deposit);
+        Assert.Equal(0, observed.DepositAmount);
+        Assert.Equal(world.TileAt(buriedTile).SurfaceEvidence, observed.SurfaceEvidence);
+
+        map.RecordDepositKnowledge(buriedTile);
+        Assert.True(map.TryTile(buriedTile, out observed));
+        Assert.Equal(world.TileAt(buriedTile).Deposit, observed.Deposit);
+        Assert.Equal(world.TileAt(buriedTile).DepositDepth, observed.DepositDepth);
     }
 
     [Fact]

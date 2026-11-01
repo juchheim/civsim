@@ -45,6 +45,7 @@ projects:
     requires: [MIN-03, MET-03, SOC-07]
     effects:
       - {kind: method, action: mine, rung: 1, name: Shaft, mult: 1.5, note: "opens depth-2 deposits; needs a Mine head"}
+      - {kind: reveal, text: "local prospecting identifies depth-2 metal lodes near discovered mineral outcrops"}
       - {kind: role, id: miner}
       - {kind: build, structure: mine_head}
       - {kind: mod, stat: mining_camp_crew, op: set, value: 6, note: "Open a mine sends 6 miners"}
@@ -101,7 +102,7 @@ projects:
     requires: [MIN-08]
     gates: [{kind: seen, target: Coal}]
     effects:
-      - {kind: prose, text: "Good: Coal."}
+      - {kind: prose, text: "Dark seams guide prospectors to coal fields. Good: Coal."}
   - id: MIN-10
     name: Black-Powder Blasting
     era: 6
@@ -134,7 +135,7 @@ projects:
     requires: [MIN-12, INQ-13]
     gates: [{kind: seen, target: Oil seep}]
     effects:
-      - {kind: prose, text: "Good: Crude oil. Build: Oil well."}
+      - {kind: prose, text: "Oil seeps mark nearby fields. Good: Crude oil. Build: Oil well."}
   - id: MIN-14
     name: "Open-Pit & Heavy Machinery"
     era: 8

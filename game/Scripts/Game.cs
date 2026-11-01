@@ -655,6 +655,8 @@ public partial class Game : Node3D
         {
             if (frame.KnownDeposits[tile] != 0 && world.Deposit[tile] != (byte)DepositKind.None)
                 data[tile * stride] = (byte)(world.Deposit[tile] + 1);
+            else if (frame.DepositClues[tile] != 0)
+                data[tile * stride] = 23; // generic clue marker; the deposit kind stays hidden
             // G: 0 none, 1 worked, 2 reachable, 3 both.
             data[tile * stride + 1] = (byte)((frame.DepositWorked[tile] != 0 ? 1 : 0) | (frame.MiningReach[tile] != 0 ? 2 : 0));
         }
@@ -1196,14 +1198,22 @@ public partial class Game : Node3D
             WorldView world = _session.WorldView;
             for (int tile = 0; tile < world.TileCount; tile++)
             {
-                if (frame.KnownDeposits[tile] == 0) continue;
-                byte raw = world.Deposit[tile];
-                if (raw == (byte)DepositKind.None) continue;
+                bool identified = frame.KnownDeposits[tile] != 0;
+                bool clue = frame.DepositClues[tile] != 0;
+                if (!identified && !clue) continue;
                 Vector3 center = TileCenter(tile % frame.Width, tile / frame.Width);
-                float size = 0.08f + world.DepositAmount[tile] * 0.012f;
+                float size = 0.055f;
+                Color color = new Color("#d3b674").SrgbToLinear();
+                if (identified)
+                {
+                    byte raw = world.Deposit[tile];
+                    if (raw == (byte)DepositKind.None) continue;
+                    size = 0.08f + world.DepositAmount[tile] * 0.012f;
+                    color = DepositColor((DepositKind)raw).SrgbToLinear();
+                }
                 transforms.Add(TransformAt(center + new Vector3(0, _terrainHeights[tile] + 0.11f, 0), tile * 0.37f,
                     new Vector3(size, size, size)));
-                colors.Add(DepositColor((DepositKind)raw).SrgbToLinear());
+                colors.Add(color);
             }
         }
         SetInstances(_resourceNode.Multimesh, transforms, colors);

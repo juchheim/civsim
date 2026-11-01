@@ -143,6 +143,7 @@ public sealed class MapKnowledge
 {
     private readonly WorldTile[] _tiles;
     private readonly bool[] _explored;
+    private readonly bool[] _depositKnown;
     private readonly sbyte[] _ownerSeen;
     private readonly short[] _ownerSeenSeason;
 
@@ -152,6 +153,7 @@ public sealed class MapKnowledge
         Width = width;
         Height = height;
         _explored = new bool[tiles.Length];
+        _depositKnown = new bool[tiles.Length];
         _ownerSeen = new sbyte[tiles.Length];
         Array.Fill(_ownerSeen, (sbyte)-1);
         _ownerSeenSeason = new short[tiles.Length];
@@ -163,10 +165,22 @@ public sealed class MapKnowledge
     public int TileCount => _tiles.Length;
     public bool IsExplored(int tile) => _explored[tile];
 
-    /// <summary>The tile's terrain and deposit, only if the civilization has seen it.</summary>
+    /// <summary>The tile's terrain and discovered deposit, only if the civilization has seen it.</summary>
     public bool TryTile(int tile, out WorldTile value)
     {
-        if (_explored[tile]) { value = _tiles[tile]; return true; }
+        if (_explored[tile])
+        {
+            value = _tiles[tile];
+            value.Geology = GeologyProvince.None;
+            value.GeologyFlags = GeologyFlags.None;
+            if (!_depositKnown[tile])
+            {
+                value.Deposit = DepositKind.None;
+                value.DepositAmount = 0;
+                value.DepositDepth = 0;
+            }
+            return true;
+        }
         value = default;
         return false;
     }
@@ -176,24 +190,25 @@ public sealed class MapKnowledge
 
     // Written by the belief builder only.
     public void MarkExplored(int tile) => _explored[tile] = true;
+    public void RecordDepositKnowledge(int tile) => _depositKnown[tile] = true;
     public void RecordOwner(int tile, int owner, int season) { _ownerSeen[tile] = (sbyte)owner; _ownerSeenSeason[tile] = (short)season; }
 
     public void Hash(ref StateHasher h)
     {
         for (int i = 0; i < _explored.Length; i++)
-            if (_explored[i]) { h.Add(i); h.Add((int)_ownerSeen[i]); h.Add((int)_ownerSeenSeason[i]); }
+            if (_explored[i]) { h.Add(i); h.Add((int)_ownerSeen[i]); h.Add((int)_ownerSeenSeason[i]); h.Add(_depositKnown[i]); }
     }
 
     public void Write(BinaryWriter w)
     {
         w.Write(_explored.Length);
-        for (int i = 0; i < _explored.Length; i++) { w.Write(_explored[i]); w.Write(_ownerSeen[i]); w.Write(_ownerSeenSeason[i]); }
+        for (int i = 0; i < _explored.Length; i++) { w.Write(_explored[i]); w.Write(_ownerSeen[i]); w.Write(_ownerSeenSeason[i]); w.Write(_depositKnown[i]); }
     }
 
     public void Read(BinaryReader r)
     {
         if (r.ReadInt32() != _explored.Length) throw new InvalidDataException("Map knowledge does not match this world.");
-        for (int i = 0; i < _explored.Length; i++) { _explored[i] = r.ReadBoolean(); _ownerSeen[i] = r.ReadSByte(); _ownerSeenSeason[i] = r.ReadInt16(); }
+        for (int i = 0; i < _explored.Length; i++) { _explored[i] = r.ReadBoolean(); _ownerSeen[i] = r.ReadSByte(); _ownerSeenSeason[i] = r.ReadInt16(); _depositKnown[i] = r.ReadBoolean(); }
     }
 }
 

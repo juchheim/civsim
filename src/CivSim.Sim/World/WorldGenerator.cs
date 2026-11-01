@@ -50,6 +50,7 @@ public static class WorldGenerator
         BuildElevation(work);
         BuildWater(work);
         BuildClimateAndBiomes(work);
+        BuildGeology(work);
         BuildNaturalDeposits(work);
         BuildFauna(work);
         int[] coastDistance = CoastDistances(work);
@@ -61,6 +62,7 @@ public static class WorldGenerator
         ApplyStartGuarantees(work, starts, coastDistance);
         PlaceBronzeGeography(work, starts);
         ApplyContinentalGuarantees(work);
+        BuildSurfaceEvidence(work, starts);
         SortFauna(work);
 
         int land = CountLand(work.Tiles);
@@ -348,6 +350,174 @@ public static class WorldGenerator
         PlaceDepositType(w, DepositKind.Sugarcane, 3, 0, 0, static t => (t.Climate is ClimateBand.Warm or ClimateBand.Tropical) && t.Biome == Biome.Wetland);
     }
 
+    /// <summary>Build broad host-rock provinces before deposits, using only terrain and named geology noise.</summary>
+    private static void BuildGeology(Work w)
+    {
+        Span<int> neighbors = stackalloc int[6];
+        for (int i = 0; i < w.Count; i++)
+        {
+            WorldTile tile = w.Tiles[i];
+            if (!tile.IsLand) { w.Tiles[i] = tile; continue; }
+
+            int x = i % w.Width, y = i / w.Width;
+            int province = SymmetricNoise(w.Seed, "geology.province", x, y, w.Width, w.Height, 14, 9);
+            int structure = SymmetricNoise(w.Seed, "geology.structure", x, y, w.Width, w.Height, 10, 7);
+            int erosion = SymmetricNoise(w.Seed, "geology.exposure", x, y, w.Width, w.Height, 22, 15);
+            bool nearRiver = (tile.Flags & (TileFlags.River | TileFlags.Lake)) != 0;
+            int neighborCount = HexGrid.Neighbors(i, w.Width, w.Height, neighbors);
+            for (int n = 0; n < neighborCount && !nearRiver; n++)
+                nearRiver = (w.Tiles[neighbors[n]].Flags & (TileFlags.River | TileFlags.Lake)) != 0;
+
+            GeologyProvince geology;
+            if (nearRiver && tile.Elevation < 170) geology = GeologyProvince.Alluvium;
+            else if (tile.Climate == ClimateBand.Arid && tile.Elevation < 135 && province < 43_000)
+                geology = GeologyProvince.ClosedAridBasin;
+            else if (tile.Climate == ClimateBand.Tropical && tile.Elevation >= 105 && province > 18_000)
+                geology = GeologyProvince.TropicalUpland;
+            else if (tile.Elevation >= 145)
+                geology = structure < 34_000 ? GeologyProvince.CrystallineHighland : GeologyProvince.VolcanicBelt;
+            else if (province > 37_000)
+                geology = GeologyProvince.SedimentaryBasin;
+            else geology = GeologyProvince.CarbonateLowland;
+
+            GeologyFlags flags = GeologyFlags.None;
+            if ((tile.Elevation >= 135 && erosion < 48_000) || nearRiver) flags |= GeologyFlags.Exposed;
+            if (geology == GeologyProvince.VolcanicBelt || (tile.Elevation >= 130 && structure > 50_000))
+                flags |= GeologyFlags.Faulted;
+            if (geology == GeologyProvince.SedimentaryBasin) flags |= GeologyFlags.OrganicBasin;
+            if (geology == GeologyProvince.TropicalUpland) flags |= GeologyFlags.DeeplyWeathered;
+            tile.Geology = geology;
+            tile.GeologyFlags = flags;
+            w.Tiles[i] = tile;
+        }
+    }
+
+    /// <summary>Surface evidence samples geology independently from economic deposits.</summary>
+    private static void BuildSurfaceEvidence(Work w, int[] starts)
+    {
+        for (int i = 0; i < w.Count; i++)
+        {
+            if (HexGrid.CanonicalWestNorth(i, w.Width, w.Height) != i) continue;
+            WorldTile tile = w.Tiles[i];
+            if (!tile.IsLand) continue;
+
+            ulong evidence = Hash64.Combine(w.Seed, Hash64.Combine(Hash64.OfString("geology.evidence"), (ulong)i));
+            SurfaceEvidence kind = SurfaceEvidence.None;
+            bool exposed = (tile.GeologyFlags & GeologyFlags.Exposed) != 0;
+            bool organic = (tile.GeologyFlags & GeologyFlags.OrganicBasin) != 0;
+            bool faulted = (tile.GeologyFlags & GeologyFlags.Faulted) != 0;
+
+            // The clues are regional signs, not disguised deposit markers. Any may occur on a barren tile.
+            if (organic && faulted && Hash64.Mix(evidence ^ 0x4F494CUL) % 100 < 7)
+                kind = SurfaceEvidence.OilSeep;
+            else if (organic && exposed && Hash64.Mix(evidence ^ 0x434F414CUL) % 100 < 12)
+                kind = SurfaceEvidence.DarkSeam;
+            else if (exposed && (faulted || tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt or GeologyProvince.Alluvium) &&
+                     Hash64.Mix(evidence ^ 0x4F555443524F50UL) % 100 < 18)
+                kind = SurfaceEvidence.MineralOutcrop;
+
+            if (kind != SurfaceEvidence.None)
+                MarkSymmetricTile(w, i, (t, _) => { t.SurfaceEvidence = kind; return t; });
+        }
+
+        // Keep the [Seen: Coal] and [Seen: Oil seep] paths reachable on every generated map. These
+        // guaranteed signs are placed on barren host-rock tiles near the starting pair, not on deposits.
+        EnsureBarrenEvidence(w, starts, SurfaceEvidence.DarkSeam);
+        EnsureBarrenEvidence(w, starts, SurfaceEvidence.OilSeep);
+        EnsureArsenicalOutcrops(w);
+    }
+
+    private static void EnsureBarrenEvidence(Work w, int[] starts, SurfaceEvidence evidence)
+    {
+        bool alreadyPresent = false;
+        for (int i = 0; i < w.Count; i++)
+        {
+            WorldTile tile = w.Tiles[i];
+            if (!tile.IsLand || tile.Continent != 0 || tile.SurfaceEvidence != evidence || tile.Deposit != DepositKind.None) continue;
+            if (Math.Min(HexGrid.Distance(starts[0], i, w.Width), HexGrid.Distance(starts[1], i, w.Width)) <= 30)
+            { alreadyPresent = true; break; }
+        }
+        if (alreadyPresent) return;
+
+        int best = -1, bestScore = int.MaxValue;
+        for (int i = 0; i < w.Count; i++)
+        {
+            if (i % w.Width >= w.Width / 2 || i / w.Width >= w.Height / 2) continue;
+            WorldTile tile = w.Tiles[i];
+            if (!tile.IsLand || tile.Continent != 0 || tile.Deposit != DepositKind.None) continue;
+            int distance = Math.Min(HexGrid.Distance(starts[0], i, w.Width), HexGrid.Distance(starts[1], i, w.Width));
+            int score = distance * 1_000 + (int)(Hash64.Mix(Hash64.Combine(w.Seed, Hash64.Combine((byte)evidence, (ulong)i))) % 1_000);
+            if (score < bestScore) { best = i; bestScore = score; }
+        }
+        if (best < 0) throw new InvalidOperationException($"Could not place guaranteed {evidence} evidence.");
+
+        MarkSymmetricTile(w, best, (tile, _) =>
+        {
+            tile.Geology = GeologyProvince.SedimentaryBasin;
+            tile.GeologyFlags |= GeologyFlags.OrganicBasin;
+            tile.GeologyFlags |= evidence == SurfaceEvidence.OilSeep ? GeologyFlags.Faulted : GeologyFlags.Exposed;
+            tile.SurfaceEvidence = evidence;
+            return tile;
+        });
+    }
+
+    private static void EnsureArsenicalOutcrops(Work w)
+    {
+        for (int deposit = 0; deposit < w.Count; deposit++)
+        {
+            if (deposit > HexGrid.Rotate180(deposit, w.Width, w.Height) ||
+                w.Tiles[deposit].Deposit != DepositKind.ArsenicalCopper) continue;
+            WorldTile ore = w.Tiles[deposit];
+            bool nearby = false;
+            for (int clue = 0; clue < w.Count; clue++)
+                if (w.Tiles[clue].SurfaceEvidence == SurfaceEvidence.MineralOutcrop && w.Tiles[clue].Geology == ore.Geology &&
+                    HexGrid.Distance(deposit, clue, w.Width) <= 10) { nearby = true; break; }
+            if (nearby) continue;
+
+            int best = -1, bestScore = int.MaxValue;
+            int x = deposit % w.Width, y = deposit / w.Width;
+            for (int ny = Math.Max(0, y - 10); ny <= Math.Min(w.Height - 1, y + 10); ny++)
+            for (int nx = Math.Max(0, x - 11); nx <= Math.Min(w.Width - 1, x + 11); nx++)
+            {
+                int candidate = ny * w.Width + nx;
+                WorldTile tile = w.Tiles[candidate];
+                if (!tile.IsLand || tile.Deposit != DepositKind.None || !FourWayOrbitIsDepositFree(w, candidate) ||
+                    HexGrid.Distance(deposit, candidate, w.Width) > 10) continue;
+                if (tile.Geology != ore.Geology && tile.Geology != GeologyProvince.None) continue;
+                int score = HexGrid.Distance(deposit, candidate, w.Width) * 1_000 +
+                    (int)(Hash64.Mix(Hash64.Combine(w.Seed, Hash64.Combine(Hash64.OfString("geology.arsenical.outcrop"), (ulong)candidate))) % 1_000);
+                if (score < bestScore) { best = candidate; bestScore = score; }
+            }
+            if (best < 0)
+                for (int candidate = 0; candidate < w.Count; candidate++)
+                {
+                    WorldTile tile = w.Tiles[candidate];
+                    if (!tile.IsLand || tile.Deposit != DepositKind.None || !FourWayOrbitIsDepositFree(w, candidate) ||
+                        HexGrid.Distance(deposit, candidate, w.Width) > 10) continue;
+                    int score = HexGrid.Distance(deposit, candidate, w.Width) * 1_000 + candidate % 1_000;
+                    if (score < bestScore) { best = candidate; bestScore = score; }
+                }
+            if (best < 0) throw new InvalidOperationException("Could not place an outcrop near a guaranteed arsenical vein.");
+
+            MarkSymmetricTile(w, best, (tile, _) =>
+            {
+                tile.Geology = ore.Geology;
+                tile.GeologyFlags |= GeologyFlags.Exposed | GeologyFlags.Faulted;
+                tile.SurfaceEvidence = SurfaceEvidence.MineralOutcrop;
+                return tile;
+            });
+        }
+    }
+
+    private static bool FourWayOrbitIsDepositFree(Work w, int index)
+    {
+        Span<int> orbit = stackalloc int[4];
+        GetSymmetricOrbit(index, w.Width, w.Height, orbit);
+        for (int n = 0; n < orbit.Length; n++)
+            if (w.Tiles[orbit[n]].Deposit != DepositKind.None) return false;
+        return true;
+    }
+
     private static void PlaceDepositType(Work w, DepositKind kind, int perThousand, byte minDepth,
         byte maxDepth, Predicate<WorldTile> eligible)
     {
@@ -369,7 +539,7 @@ public static class WorldGenerator
         int amount = perThousand == 100_000
             ? candidates.Count / 5
             : Math.Max(1, (CountLand(w.Tiles) * perThousand + 2_000) / 4_000);
-        if (kind == DepositKind.SilkMoths || kind == DepositKind.Sugarcane) amount = perThousand;
+        if (kind is DepositKind.SilkMoths or DepositKind.Sugarcane) amount = perThousand;
         amount = Math.Min(amount, candidates.Count);
         for (int i = 0; i < amount; i++)
         {
@@ -380,6 +550,23 @@ public static class WorldGenerator
             PlaceDepositSymmetric(w, index, kind, quantity, depth);
         }
     }
+
+    private static bool HasGeologicalHost(DepositKind kind, WorldTile tile) => kind switch
+    {
+        DepositKind.NativeCopper => tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt,
+        DepositKind.CopperOre => tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt,
+        DepositKind.ArsenicalCopper => tile.Geology == GeologyProvince.VolcanicBelt,
+        DepositKind.Tin => tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.Alluvium,
+        DepositKind.Gold or DepositKind.Silver => tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt or GeologyProvince.Alluvium,
+        DepositKind.Iron => tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt or GeologyProvince.SedimentaryBasin or GeologyProvince.Alluvium,
+        DepositKind.Salt => tile.Geology == GeologyProvince.ClosedAridBasin || (tile.Flags & TileFlags.CoastAdjacent) != 0,
+        DepositKind.Coal or DepositKind.Oil => (tile.GeologyFlags & GeologyFlags.OrganicBasin) != 0,
+        DepositKind.Sulfur => tile.Geology == GeologyProvince.VolcanicBelt,
+        DepositKind.Bauxite => tile.Geology == GeologyProvince.TropicalUpland,
+        DepositKind.RareEarths => tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt,
+        DepositKind.Lithium => tile.Geology == GeologyProvince.ClosedAridBasin,
+        _ => true
+    };
 
     private static void BuildFauna(Work w)
     {
@@ -942,7 +1129,8 @@ public static class WorldGenerator
             int center = (w.Height / 4) * w.Width + w.Width / 4;
             int tile = FindSymmetricSite(w, center, w.Width,
                 t => t.IsLand && t.Continent == 0 && t.Deposit == DepositKind.None, true);
-            PlaceDepositSymmetric(w, tile, kind, 2, kind is DepositKind.Coal or DepositKind.Oil ? (byte)2 : (byte)1);
+            byte depth = kind == DepositKind.Oil ? (byte)3 : kind == DepositKind.Coal ? (byte)2 : (byte)1;
+            PlaceDepositSymmetric(w, tile, kind, 2, depth);
             w.Repairs++;
         }
     }
@@ -1037,6 +1225,7 @@ public static class WorldGenerator
     private static void PlaceDepositSymmetric(Work w, int index, DepositKind kind, byte amount, byte depth)
         => MarkSymmetricTile(w, index, (tile, _) =>
         {
+            ApplyDepositHost(ref tile, kind, depth);
             tile.Deposit = kind;
             tile.DepositAmount = amount;
             tile.DepositDepth = depth;
@@ -1044,13 +1233,46 @@ public static class WorldGenerator
         });
 
     private static void PlaceDepositPointSymmetric(Work w, int index, DepositKind kind, byte amount, byte depth)
-        => MarkPointSymmetricTile(w, index, tile =>
+    {
+        MarkSymmetricTile(w, index, (tile, _) =>
+        {
+            ApplyDepositHost(ref tile, kind, depth);
+            return tile;
+        });
+        MarkPointSymmetricTile(w, index, tile =>
         {
             tile.Deposit = kind;
             tile.DepositAmount = amount;
             tile.DepositDepth = depth;
             return tile;
         });
+    }
+
+    private static void ApplyDepositHost(ref WorldTile tile, DepositKind kind, byte depth)
+    {
+        if (HasGeologicalHost(kind, tile)) return;
+        tile.Geology = kind switch
+        {
+            DepositKind.NativeCopper or DepositKind.CopperOre or DepositKind.Gold or DepositKind.Silver or DepositKind.RareEarths
+                => GeologyProvince.CrystallineHighland,
+            DepositKind.ArsenicalCopper or DepositKind.Sulfur => GeologyProvince.VolcanicBelt,
+            DepositKind.Tin when depth == 1 => GeologyProvince.Alluvium,
+            DepositKind.Tin => GeologyProvince.CrystallineHighland,
+            DepositKind.Coal or DepositKind.Oil => GeologyProvince.SedimentaryBasin,
+            DepositKind.Salt or DepositKind.Lithium => GeologyProvince.ClosedAridBasin,
+            DepositKind.Bauxite => GeologyProvince.TropicalUpland,
+            DepositKind.Iron => GeologyProvince.SedimentaryBasin,
+            _ => tile.Geology
+        };
+        if (tile.Geology is GeologyProvince.CrystallineHighland or GeologyProvince.VolcanicBelt or GeologyProvince.Alluvium)
+            tile.GeologyFlags |= GeologyFlags.Exposed;
+        if (tile.Geology == GeologyProvince.VolcanicBelt || kind == DepositKind.Oil)
+            tile.GeologyFlags |= GeologyFlags.Faulted;
+        if (tile.Geology == GeologyProvince.SedimentaryBasin)
+            tile.GeologyFlags |= GeologyFlags.OrganicBasin;
+        if (tile.Geology == GeologyProvince.TropicalUpland)
+            tile.GeologyFlags |= GeologyFlags.DeeplyWeathered;
+    }
 
     private static void AddHerdSymmetric(Work w, int index, HerdSpecies species, ushort size, byte growth)
     {

@@ -25,6 +25,22 @@ public enum DepositKind : byte
     Lithium, SilkMoths, Sugarcane
 }
 
+/// <summary>Broad, coherent host-rock settings generated before economic deposits are placed.</summary>
+public enum GeologyProvince : byte
+{
+    None, CrystallineHighland, VolcanicBelt, SedimentaryBasin, CarbonateLowland,
+    Alluvium, ClosedAridBasin, TropicalUpland
+}
+
+[Flags]
+public enum GeologyFlags : byte
+{
+    None = 0, Exposed = 1, Faulted = 2, OrganicBasin = 4, DeeplyWeathered = 8
+}
+
+/// <summary>Visible surface evidence. A clue can occur where no mineable deposit exists.</summary>
+public enum SurfaceEvidence : byte { None, MineralOutcrop, DarkSeam, OilSeep }
+
 public enum HerdSpecies : byte
 {
     Deer, Aurochs, WildBoar, Bison, Horse, Reindeer, WildGoatSheep,
@@ -47,6 +63,9 @@ public struct WorldTile
     public byte Rainfall { get; internal set; }
     public byte SoilFertility { get; internal set; }
     public byte Continent { get; internal set; }
+    public GeologyProvince Geology { get; internal set; }
+    public GeologyFlags GeologyFlags { get; internal set; }
+    public SurfaceEvidence SurfaceEvidence { get; internal set; }
     public DepositKind Deposit { get; internal set; }
     public byte DepositAmount { get; internal set; }
     public byte DepositDepth { get; internal set; }
@@ -183,6 +202,9 @@ public sealed class GeneratedWorld
             h.Add(tile.Rainfall);
             h.Add(tile.SoilFertility);
             h.Add(tile.Continent);
+            h.Add((byte)tile.Geology);
+            h.Add((byte)tile.GeologyFlags);
+            h.Add((byte)tile.SurfaceEvidence);
             h.Add((byte)tile.Deposit);
             h.Add(tile.DepositAmount);
             h.Add(tile.DepositDepth);

@@ -79,6 +79,7 @@ public sealed class StrategistDecreeCandidateTests
         Assert.False(rig.Match.Economy.CivHasMetalAccess(0, MetalAccessKind.Tin));
         int tile = Enumerable.Range(0, World.Value.Tiles.Length).First(t => World.Value.Tiles[t].Deposit == DepositKind.Tin);
         belief.Map.MarkExplored(tile);
+        belief.Map.RecordDepositKnowledge(tile);
         belief.Map.RecordOwner(tile, -1, belief.Season);
 
         var candidates = new List<DecreeRequest>();

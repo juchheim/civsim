@@ -200,7 +200,7 @@ public sealed class RaidResponseTests
         Fix64 loot = targetStoresBefore - rig.Match.Economy.FoodStores(target);
         loot += targetToolsBefore - ToolValue(rig.Match.Economy, target);
         Assert.Equal(1, resolved.A);
-        Assert.Equal(loot.FloorToInt(), resolved.B);
+        Assert.Equal((loot * Raids.DeliveredLootShare).FloorToInt(), resolved.B);
         Assert.Equal(populationBefore, rig.Match.Economy.Population(target));
         Assert.Equal(figuresBefore, rig.Match.Economy.FigureCount);
         Assert.Equal(0, (resolved.Fight >> 16) & 255);

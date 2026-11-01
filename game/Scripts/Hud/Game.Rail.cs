@@ -29,8 +29,8 @@ public partial class Game
         _claimsButton = RailToggle("Claims", UiGlyph.LayerClaims, "Who holds the land, and how firmly", () => SetMapOverlay(1));
         _foodButton = RailToggle("Food", UiGlyph.LayerFood, "Which settlements have enough food", () => SetMapOverlay(2));
         _methodsButton = RailToggle("Methods", UiGlyph.LayerMethods, "How good your people's tools are", () => SetMapOverlay(3));
-        _resourcesButton = RailToggle("Resources", UiGlyph.LayerResources, "Deposits you have found (R)", () => SetResourcesVisible(!_resourcesVisible));
-        _depositsButton = RailToggle("Deposits", UiGlyph.LayerResources, "Known deposits, including tin and copper.", () => SetMapOverlay(4));
+        _resourcesButton = RailToggle("Resources", UiGlyph.LayerResources, "Identified resources and geological clues (R)", () => SetResourcesVisible(!_resourcesVisible));
+        _depositsButton = RailToggle("Deposits", UiGlyph.LayerResources, "Identified deposits and geological clues.", () => SetMapOverlay(4));
         _tradeButton = RailToggle("Trade", UiGlyph.Flags, "Active compact routes; tin routes are highlighted.", () => SetMapOverlay(5));
         _cohesionButton = RailToggle("Cohesion", UiGlyph.People, "Settlement Cohesion bands.", () => SetMapOverlay(6));
         _forestButton = RailToggle("Forest", UiGlyph.LayerFood, "Visible forest stock bands.", () => SetMapOverlay(7));
@@ -109,16 +109,17 @@ public partial class Game
         AddSwatch(methods, new Color("#FF8A1A"), "A better method is blocked — hover for why");
 
         resources.AddChild(UiKit.Text("RESOURCES", "EyebrowTertiary"));
-        resources.AddChild(UiKit.Text("Coloured stones mark deposits you have found. Hover a tile for the type.", "Caption", wrap: true, minWidth: 207));
+        resources.AddChild(UiKit.Text("Named markers are identified deposits. Pale marks are clues that need surveying.", "Caption", wrap: true, minWidth: 207));
 
         deposits.AddChild(UiKit.Text("DEPOSITS & MINES", "EyebrowTertiary"));
         AddSwatch(deposits, new Color("#f2ad1e"), "Tin");
         AddSwatch(deposits, new Color("#dc6e33"), "Copper ores");
         AddSwatch(deposits, new Color("#ad70c8"), "Arsenical copper (always deep)");
+        AddSwatch(deposits, new Color("#d3b674"), "Unidentified clue");
         AddSwatch(deposits, new Color("#f5e17a"), "Worked deposit");
         AddSwatch(deposits, new Color("#3de8ad"), "Within mining reach");
         deposits.AddChild(UiKit.Text("Deep deposits can only be dug with Shaft Mining; hover a tile to see whether it is deep.", "CaptionTertiary", wrap: true, minWidth: 207));
-        deposits.AddChild(UiKit.Text("Only known deposits and visible/owned mining capability are shown.", "CaptionTertiary", wrap: true, minWidth: 207));
+        deposits.AddChild(UiKit.Text("Surface finds appear in sight. Research identifies local deposits; remote sensing maps them all.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         trade.AddChild(UiKit.Text("TRADE", "EyebrowTertiary"));
         AddSwatch(trade, new Color("#34c7d1"), "Compact route");

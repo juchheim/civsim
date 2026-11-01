@@ -169,7 +169,7 @@ Overlays sit in a left toolbar (§6), one at a time plus the always-on territory
 
 | Overlay | Shows | Encoding | Available from |
 |---------|-------|----------|----------------|
-| **Resources** | Known renewables and deposits | Icons per type; deposit size as icon size; unknown deposits not shown | Start (sight only); expands with MIN-01, INQ-03, MIN-08, INQ-13, MIN-16 |
+| **Resources** | Known renewables, identified deposits, and indistinct geological clues | Identified deposits use type icons scaled by size; clues use a generic marker and surface-evidence text (such as a seep or seam), not a confirmed deposit type; unknown deposits not shown | Surface finds in sight; expands with MIN-01, INQ-03, MIN-08, INQ-13; MIN-16 reveals every deposit globally |
 | **Food security** | Per-settlement months of stores and next-winter forecast; tile yields | Settlement gauge rings (green → amber → red) + yield heat on tiles | Start (simple); forecast with NUM-01 Tally Marks |
 | **Cohesion & Overreach** | Cohesion per settlement; Overreach gradient from the capital | Ring color + a "fraying rope" icon on at-risk settlements; distance gradient | Start; Overreach detail with GOV-07 |
 | **Claims** | Claim strength field (§4.2) | Saturation + tile bar chart | Start |

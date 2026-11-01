@@ -180,8 +180,11 @@ public partial class Game
         UiKit.SetText(_tileTitle!, $"{terrain} · {ownerText}");
 
         string water = world.HasRiver(tile) ? "River" : world.HasLake(tile) ? "Lake" : "";
-        string deposit = frame.KnownDeposits[tile] != 0 && world.Deposit[tile] != (byte)DepositKind.None
-            ? $"{SpacedName(((DepositKind)world.Deposit[tile]).ToString())} deposit{(world.DepositDepth[tile] >= 2 ? " (deep: needs Shaft Mining)" : "")}" : "No known deposit";
+        bool depositKnown = frame.KnownDeposits[tile] != 0;
+        DepositKind tileDeposit = depositKnown ? (DepositKind)world.Deposit[tile] : DepositKind.None;
+        string deposit = depositKnown && tileDeposit != DepositKind.None
+            ? $"{SpacedName(tileDeposit.ToString())} deposit{(world.DepositDepth[tile] >= 2 ? " (deep: needs Shaft Mining)" : "")}" :
+            frame.DepositClues[tile] != 0 ? DepositClueText(frame.DepositClues[tile]) : "No known deposit";
         string liveTile = visibility == TileVisibility.Visible
             ? $"Forest band {frame.ForestBand[tile]}" : "";
         if (frame.KnownDeposits[tile] != 0 && frame.DepositWorked[tile] != 0) liveTile = JoinTileDetail(liveTile, "worked");
@@ -230,6 +233,13 @@ public partial class Game
         if (showHint) { UiKit.SetText(_tileHint, "Hold Shift for more · Click to pin"); if (_cardTile != tile) _tileHintsShown++; }
         PositionTileCard(screen);
     }
+
+    private static string DepositClueText(byte clue) => clue switch
+    {
+        2 => "Dark mineral seam · not identified",
+        3 => "Oil seep · not surveyed",
+        _ => "Mineral outcrop · not identified",
+    };
 
     private void RefreshScoutControls(MatchFrame frame, int tile, bool pinned)
     {

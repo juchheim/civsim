@@ -563,7 +563,7 @@ Top to bottom: compass rose 42 (rotates with yaw; click = turn to north over `Ca
 | Claims | gradient bar (viewer civ colour, 20 % → 100 % alpha) labelled "Weak" … "Strong"; Caption "70+ makes land yours. Hover a tile for the top three claims." |
 | Food | four 13 px swatches with words: Well fed `#338C38` · Tight `#C79E29` · Short `#D4541F` · Famine `#A6141A` (sample the same constants as `terrain.gdshader` L105 via a shared `MapLegendColors` table); Caption "Autumn and winter show the forecast for late winter." |
 | Methods | gradient `#1F6B9C` → `#9140B3` "Older tools → newer tools"; swatch `#FF8A1A` "A better method is blocked — hover for why" |
-| Resources | Caption "Coloured stones mark deposits you have found. Hover a tile for the type." |
+| Resources | Caption "Named markers are identified deposits. Pale marks are clues that need surveying." |
 
 ### 3.6 Chronicle
 
@@ -590,7 +590,7 @@ Auto-pause: setting "Pause on danger" (default **off**) pauses on any Critical t
 ### 3.8 Tile card (hover)
 
 - Appears after the cursor rests 250 ms on the map (not while dragging, not over UI); hides 150 ms after leaving or on any drag. Position: cursor + (21, 21); flips left/up to stay 8 px inside the viewport. Width 320, CardPanel, MouseFilter Ignore. Content refreshes only when the tile changes or once per second.
-- **Default ≤ 5 lines:** (1) `BodyStrong` "Open woodland · Yours" (owner as civ name with a 10 px emblem disc); (2) Caption secondary "River · Copper deposit" (features + known deposit) or "No known deposit"; (3) Caption "Working here: 4 — Forage 3, Chop 1" or "Nobody working here"; (4) only with fallbacks: warning glyph + "2 use older tools — need a hand axe"; (5) first 3 hovers per profile only: Caption tertiary "Hold Shift for more · Click to pin".
+- **Default ≤ 5 lines:** (1) `BodyStrong` "Open woodland · Yours" (owner as civ name with a 10 px emblem disc); (2) Caption secondary "River · Copper deposit" (features + identified deposit), a generic clue such as "Oil seep · not surveyed", or "No known deposit"; (3) Caption "Working here: 4 — Forage 3, Chop 1" or "Nobody working here"; (4) only with fallbacks: warning glyph + "2 use older tools — need a hand axe"; (5) first 3 hovers per profile only: Caption tertiary "Hold Shift for more · Click to pin".
 - **Shift held or pinned (click):** adds "Claims: You 82% · Wave Folk 21% · —", "Elevation 3", and per-job method lines "Chop: 70% of your best method (needs a hand axe)". Pinned card gets a close × and MouseFilter Stop; Esc, right-click or clicking elsewhere unpins.
 - Unknown tile: one line "Unexplored". Explored-not-visible: owner "as last seen", workers "Out of sight".
 
