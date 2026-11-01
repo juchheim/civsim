@@ -1101,6 +1101,41 @@ Raising the cap works, with diminishing returns: most of the gain is by 2x, 3x i
 
 Every rule contributes on the current pack: removing adult-first costs 35 points of source-backed coverage, the shared tile 15, the 0.30 chain cap 16 and own camps 6, so no subset reproduces the promoted set. The shared tile needs own camps to act (without them camps stay near the baseline's, 110 against 97). Deposit depletion and the longer horizon, 140 minutes, same pairs: baseline source-backed 27% (715/2,657), 56 of 278 at or above 70%, cohort 27%, end rung-6 78%, population 47,116, food-security warnings 261 and winter 206; promoted **76% (1,907/2,524), 193 of 266 at or above 70%**, cohort 80%, end rung-6 96%, population **49,018 (+4.0%)**, warnings 257 and 178. Ore at 140 minutes (baseline against promoted): copper 168,898 against 160,580 of 192,600 L left with 17 and 18 of 322 deposits worked out, arsenic 118,961 against 106,100 of 128,000 L with none worked out, tin 11,625 against 11,385 of 16,800 L with 47 of 80 in both, so the shared camp tile does not exhaust deposits. Camps at the end are 726 against 163, and no mining-camp raid was launched in any run of either configuration, so camp raid exposure is still not measured. The promoted defaults reach 66% at 70 minutes and 76% at 140 minutes on the pooled source-backed measure: above the 70% gate only over the longer horizon, with the early population cost (-2.9% at 70 minutes) turning into a gain. The first half of B12 therefore still misses its 70%-within-12-seasons target at the 70-minute horizon on the training pairs (66%) and on held-out pairs (63%); the remaining gap, the stock-only tin supply limit and camp raid exposure are the open items. Outputs: `/tmp/civsim-b12-tp-{noAF,cap1x,noOC,noST}-m70-seeds*-20261031.txt` and `/tmp/civsim-b12-tp-{base,promoted}-m140-seeds*-20261031.txt`.
 
+### Post-promotion gate reruns and a bisect (2026-10-31)
+
+After the B12 promotion (`04d6706`) and the suite cleanup (`e84bcfd`: 911/911 tests, `SourceRulesTests` clean, goldens passing), the economy-dependent gates were rerun on a pack rebuilt from `content/`, each with a `main` (`3ae0cdc`) baseline where a gate failed. Promoted defaults, 64-minute cohorts unless noted:
+
+| gate | promoted | `main` before the promotion | verdict |
+|---|---|---|---|
+| B7 (32 seeds x 2, 64 min) | 70.3% engaged wins (>= 65%) | not run | PASS |
+| B8 paired Legacy (32 seeds x 2) | positive in 24/32 (75.0%), mean +51.0, median +46.9 | not run | PASS |
+| B9 FoodCap E3, seed 20261019 | 201.5, 185.9, 199.4, 186.2 (mean 193.3; band 171-209) | not run | PASS (seed 777 not rerun) |
+| B21 Tin Folk and compacts (24 matches) | 24/24 in both criteria; Tin Folk 4-6 per map | not run | PASS |
+| B12/B13 metal fixture | `NoTin` fallback, no cliff; no smelting without charcoal; T19 drawdown 35% and 71% without WOD-04, 2% and 3% with it | not run | PASS (band in the T19 test raised to 75%) |
+| B6 Year-64 endings (32 seeds) | 11/32 (34%) | 8/32 (25%) | FAIL (<= 10%); median chapter end 63.0 vs 63.2 passes |
+| B5 KEY-4 median | 61.2, E3 median 20.1 (4 of 8 sampled civs finished) | 60.6 and 19.5 | diagnostic miss on both |
+| B10 expected epidemic share (24 seeds) | 6.8% | 6.9% | out of band (7-13%) by 0.1-0.2 points, on both |
+| B17 own-KEY-4 paired borders (24 seeds, 80-minute cap) | 40/94 (43%) | 34/94 (36%) | FAIL (>= 75%) |
+| B17 City at chapter end | 15.6% | 17.7% | FAIL (>= 25%) |
+| B18 Dominion share | 55.2% | 55.1% | FAIL by 0.1-0.2 (45-55%) |
+| B19 exposures complete | 94/96 | 94/96 | FAIL (cohesion 61.4/61.8 and 0.04/0.05 secessions are in band) |
+| B20 raids per match | 12.5 | 12.7 | FAIL (3-12); war 70.8% and 62.5%, capture 25.0% pass |
+
+So the promotion does not cause any of the failing gates: each fails on `main` with nearly the same value, and the promotion moves them slightly in both directions (borders and raids a little better, B6 Year-64 endings 8 to 11 of 32 worse). The last pass of the B6 and B17-B20 cohorts was 2026-10-26 (1/32 Year-Cap endings; borders 75.0%, City 26.0%, Dominion 53.9%).
+
+Bisect of the B5/B6, B10 and B17-B20 checks over earlier commits, each built in a clean worktree with a pack rebuilt from its own `content/` (same seeds and caps):
+
+| commit | B6 Year-64 | B10 | B17 borders | B17 City | B18 Dominion | B20 raids / war / capture |
+|---|---|---|---|---|---|---|
+| `96a6aa4` (10-30) | 9/32 | 6.8% | 84/95 | 19.8% | 55.5% | 8.2 / 58.3% / 12.5% |
+| `bf1ee4c` | 9/32 | 7.1% | 87/94 | 21.9% | 55.3% | 11.1 / 58.3% / 20.8% |
+| `03ce68c` | 8/32 | 6.9% | 85/94 | 22.9% | 55.2% | 11.0 / 58.3% / 25.0% |
+| `55d0e10` | 9/32 | 6.8% | **36/95** | 24.0% | 55.1% | 11.4 / **45.8% / 4.2%** |
+| `3ae0cdc` (`main`) | 8/32 | 6.9% | 34/94 | 17.7% | 55.1% | 12.7 / 62.5% / 25.0% |
+| promoted (`e84bcfd`) | 11/32 | 6.8% | 40/94 | 15.6% | 55.2% | 12.5 / 70.8% / 25.0% |
+
+Reading: (1) The B17 own-KEY-4 border collapse (85/94 to 36/95) and the B20 war and capture drop enter with `55d0e10` "Advance M10 defense and starvation gates" (a large merge: new fission cohort sampler `SelectFissionCohort`, per-settlement `FissionScaleOf`, raid-withdrawal responses, Strategist and defense policy changes). That commit is a single unit here, so which of its parts moves the borders is not yet isolated. (2) B6 Year-64 endings were already 8-9 of 32 at `96a6aa4`, so the break from 1/32 happened between 2026-10-26 and 2026-10-30, earlier than any commit tested. (3) B10 and B18 sit within a few tenths of their bands at every commit and are noise-level; B19's complete-exposure count is 94-95 of 96 at every commit. (4) The promotion's own contribution to the failing gates is small. Outputs: `/tmp/civsim-post-*.txt`, `/tmp/civsim-main-*.txt` and `/tmp/bisect-*-{b5b6,b10,politics}.txt`.
+
 The same run selected only five 80–100-population WOD-04 Towns for the live B13 sample. Median standing-forest drawdown was 5%, but the 10th–90th percentile ranged from an 87% gain to complete depletion; this does not establish real-match durability. The gate's matched fixture is more decisive: the fixed-population 52-season `research --metal-fixture` run completed in 6.23s and measured 80-person drawdown at 28% without WOD-04 vs 2% with it, and 100-person drawdown at 62% vs 3%. Steady-state metal output was unchanged at 80 people (0.48 L/100/year) and rose from 0.46 to 0.49 at 100; WOD-04 did not incur the specified >30% output loss. This passes B13's fixture gate; the small live sample remains supplemental and mixed. Outer-range wood is now reported as reachable candidate stock, with potentially shared stock and gross haul estimates labeled as overlapping/potential rather than observed exclusive supply; tile detail is capped at eight rows per town and stage. No wood-priority or regrowth rule changed.
 
 For B16, the focused `WP8bSiegeLifecycleTests` suite passes 7/7 in 5.67s. Its fixed 16-seed integration sample uses a real assault order against a promoted 60-person Market Town with stone walls and a passable ≤8-tile supply route. It capitulates 13/16 supplied, unrelieved Towns in seasons 3–6 (81.25%, above the 50% target); the other three investments remain active through season 6. Carried besieger food persists, with no sally, desertion or direct wall-assault capture. The fixture deliberately controls Town stores before each season's final tick to measure siege timing independent of ordinary local food production. Together with the existing 1,000-seed T22 model sweep and stone-wall assault fixtures (`CanBeAssaulted == false`, `StandOff`), the controlled B16 timing gate passes; this does not measure ordinary-economy Town timing.
