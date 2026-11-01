@@ -99,6 +99,8 @@ public sealed partial class LivingEconomyModel
     internal bool CivicToMetalCompletionEnabled { get; set; } = true;
     /// <summary>Candidate B12 rule: adults take their share of the reserved metal labor before food. Off by default.</summary>
     internal bool AdultsTakeMetalReserveFirst { get; set; }
+    /// <summary>Screen only: multiplies the metal chain's labor cap (not the build cap). 1 in production.</summary>
+    internal Fix64 ChainCapMultiplier { get; set; } = Fix64.One;
     /// <summary>Whether the completion-only transfer may take Market-town housing labor for a funded first facility's final sliver.</summary>
     internal bool CivicToMetalReleasesHousing { get; set; }
     /// <summary>Whether it may also take canal labor (screen only).</summary>
@@ -857,7 +859,7 @@ public sealed partial class LivingEconomyModel
         plan.BuildRequested = PlanMetalBuild(s, m, plan);
         plan.BuildCap = totalWork * _bronzeConstants.PushCap;
         plan.BuildNeed = plan.BuildRequested;
-        Fix64 cap = totalWork * _bronzeConstants.PushCap;
+        Fix64 cap = totalWork * _bronzeConstants.PushCap * ChainCapMultiplier;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.

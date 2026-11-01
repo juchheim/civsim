@@ -328,6 +328,7 @@ internal static class ResearchMetal
         match.Economy.B12T18TraceEnabled = traceB12T18;
         bool traceB12Census = Environment.GetEnvironmentVariable("CIVSIM_TRACE_B12_CENSUS") == "1";
         match.Economy.B12CensusTraceEnabled = traceB12Census;
+        if (Environment.GetEnvironmentVariable("CIVSIM_B12_CHAIN_CAP_X") is { } capX) match.Economy.ChainCapMultiplier = Fix64.Parse(capX);
         match.Economy.AdultsTakeMetalReserveFirst = Environment.GetEnvironmentVariable("CIVSIM_B12_ADULT_METAL_FIRST") == "1";
         string? civicRelease = Environment.GetEnvironmentVariable("CIVSIM_B12_CIVIC_RELEASE");
         match.Economy.CivicToMetalReleasesHousing = civicRelease is "housing" or "all";
