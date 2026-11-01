@@ -240,6 +240,33 @@ public sealed partial class LivingEconomyModel
         return (moved, plan.BuildAssigned);
     }
 
+    /// <summary>Plans the metal chain for a settlement at its current capacity and returns the labor buckets (build, mine, charcoal, smelt).</summary>
+    internal (Fix64 Build, Fix64 Mine, Fix64 Charcoal, Fix64 Smelt) FixturePlanMetalLabor(int settlementIndex, Fix64 totalWork)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        MetalPlan plan = PlanMetal(s, totalWork);
+        return (plan.BuildNeed, plan.MineNeed, plan.CharcoalNeed, plan.SmeltNeed);
+    }
+
+    /// <summary>Whether the settlement can obtain an ore this season (stock, a positive-rate deposit, or an own-land camp site).</summary>
+    internal bool FixtureCanObtainOre(int settlementIndex, MetalAccessKind kind)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        s.Metal!.Access = ComputeAccess(s);
+        return CanObtainOre(s, kind switch { MetalAccessKind.Copper => MetalGood.CopperOre, MetalAccessKind.Arsenic => MetalGood.ArsenicalOre, _ => MetalGood.TinOre });
+    }
+
+    /// <summary>Removes every mine head of the settlement.</summary>
+    internal void FixtureClearMineHeads(int settlementIndex)
+        => (_settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.")).MineHeads.Clear();
+
+    /// <summary>Adds a mine head to a deposit tile for the settlement, as a finished MineHead build would.</summary>
+    internal void FixtureAddMineHead(int settlementIndex, int tile)
+    {
+        MetalState m = _settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.");
+        if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile);
+    }
+
     /// <summary>Each of the settlement's figures' work this season, kit durability left, and job, in figure order.</summary>
     internal (Fix64[] Work, Fix64[] KitLeft, EconomyJob[] Jobs) FixtureFigureWork(int settlementIndex)
     {

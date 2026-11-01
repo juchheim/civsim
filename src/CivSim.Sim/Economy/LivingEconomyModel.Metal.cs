@@ -74,6 +74,8 @@ public sealed partial class LivingEconomyModel
         public Fix64 CivicBuildTransfer;
         /// <summary>Why the completion-only transfer did not fire for a first Forge/Kiln (diagnostic; empty when it fired or did not apply).</summary>
         public string CivicTransferBlock = "";
+        /// <summary>Ore slots the season's wants cannot be met from (see <see cref="BlockChainForUnobtainableOre"/>); null when the rule is off or nothing is blocked.</summary>
+        public bool[]? BlockedOres;
         public Fix64 MineProductive;
         public Fix64 CampWork;
         public Fix64 TotalWork;
@@ -99,6 +101,8 @@ public sealed partial class LivingEconomyModel
     internal bool CivicToMetalCompletionEnabled { get; set; } = true;
     /// <summary>Candidate B12 rule: adults take their share of the reserved metal labor before food. Off by default.</summary>
     internal bool AdultsTakeMetalReserveFirst { get; set; }
+    /// <summary>Candidate B12 rule: plan no charcoal or smelting for an ore the settlement cannot dig, buy or be sent. Off by default.</summary>
+    internal bool BlockChainForUnobtainableOre { get; set; }
     /// <summary>Screen only: multiplies the metal chain's labor cap (not the build cap). 1 in production.</summary>
     internal Fix64 ChainCapMultiplier { get; set; } = Fix64.One;
     /// <summary>Whether the completion-only transfer may take Market-town housing labor for a funded first facility's final sliver.</summary>
@@ -848,6 +852,7 @@ public sealed partial class LivingEconomyModel
 
         // Kits and arms come first; the other goods get what is left of the push cap (docs/MVP/23 §7.3).
         PrimaryWants(s, m, plan, pop, needKits);
+        var primaryTerminal = (Fix64[])plan.Terminal.Clone();
         ExpandWants(s, plan);
         var primaryBatches = (Fix64[])plan.Batches.Clone();
         var primaryWant = (Fix64[])plan.Want.Clone();
@@ -857,6 +862,21 @@ public sealed partial class LivingEconomyModel
         (Fix64 mineAll, Fix64 charAll, Fix64 smeltAll) = ChainLabor(s, plan);
 
         plan.BuildRequested = PlanMetalBuild(s, m, plan);
+        if (BlockChainForUnobtainableOre && BlockedOreSlots(s, m, plan) is { } blocked)
+        {
+            // The ore wants stay in the plan above so a MineHead is still chosen; the labor and batches of everything that
+            // would consume an ore nobody can dig are planned again without it.
+            plan.BlockedOres = blocked;
+            Fix64[] fullTerminal = (Fix64[])plan.Terminal.Clone();
+            Array.Copy(primaryTerminal, plan.Terminal, plan.Terminal.Length);
+            ExpandWants(s, plan);
+            primaryBatches = (Fix64[])plan.Batches.Clone();
+            primaryWant = (Fix64[])plan.Want.Clone();
+            (mineA, charA, smeltA) = ChainLabor(s, plan);
+            Array.Copy(fullTerminal, plan.Terminal, plan.Terminal.Length);
+            ExpandWants(s, plan);
+            (mineAll, charAll, smeltAll) = ChainLabor(s, plan);
+        }
         plan.BuildCap = totalWork * _bronzeConstants.PushCap;
         plan.BuildNeed = plan.BuildRequested;
         Fix64 cap = totalWork * _bronzeConstants.PushCap * ChainCapMultiplier;
@@ -1242,7 +1262,7 @@ public sealed partial class LivingEconomyModel
         int n = _compiledRecipes.Length;
         var available = new bool[n];
         for (int r = 0; r < n; r++) available[r] = RecipeAvailable(s, _compiledRecipes[r]);
-        Fix64[] maxBatches = FeasibleBatches(s, available);
+        Fix64[] maxBatches = FeasibleBatches(s, available, plan.BlockedOres);
         Array.Copy(plan.Terminal, plan.Want, plan.Want.Length);
         var next = new Fix64[plan.Want.Length];
         for (int pass = 0; pass < 8; pass++)
@@ -1278,7 +1298,7 @@ public sealed partial class LivingEconomyModel
     /// what earlier recipes could make, and, without limit, ores the settlement can dig, standing wood for charcoal, ochre
     /// and quarried blocks. The plan never reserves labor for a recipe its inputs cannot feed.
     /// </summary>
-    private Fix64[] FeasibleBatches(SettlementState s, bool[] available)
+    private Fix64[] FeasibleBatches(SettlementState s, bool[] available, bool[]? blockedOres = null)
     {
         var potential = new Fix64[SlotCount];
         for (int slot = 0; slot < SlotCount; slot++) potential[slot] = Stock(s, slot);
@@ -1290,6 +1310,9 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceCopper | AccessCopper)) != 0) potential[MetalSlot(MetalGood.CopperOre)] = Plenty;
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
+        if (blockedOres is not null)
+            for (int slot = 0; slot < SlotCount; slot++)
+                if (blockedOres[slot]) potential[slot] = Stock(s, slot);
         if (Done(civ, "MIN-01") && HasResourceInRange(s, _ochreStock)) potential[MetalSlot(MetalGood.Ochre)] = Plenty;
         if (Done(civ, "MIN-03")) potential[MetalSlot(MetalGood.Block)] = Plenty;
         var result = new Fix64[_compiledRecipes.Length];
@@ -1311,6 +1334,36 @@ public sealed partial class LivingEconomyModel
         }
         _ = m;
         return result;
+    }
+
+    /// <summary>Ore slots wanted beyond the stock that the settlement cannot obtain this season; null when none.</summary>
+    private bool[]? BlockedOreSlots(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        bool[]? blocked = null;
+        foreach (MetalGood ore in new[] { MetalGood.CopperOre, MetalGood.ArsenicalOre, MetalGood.TinOre })
+        {
+            int slot = MetalSlot(ore);
+            if (plan.Want[slot] <= m.Goods[(int)ore] || CanObtainOre(s, ore)) continue;
+            blocked ??= new bool[SlotCount];
+            blocked[slot] = true;
+        }
+        return blocked;
+    }
+
+    /// <summary>Whether ore can come this season: stored or shared stock, a deposit dug at a positive rate (a deep one needs its MineHead), or an own-land deposit a camp could open at a positive rate.</summary>
+    private bool CanObtainOre(SettlementState s, MetalGood ore)
+    {
+        MetalState m = s.Metal!;
+        byte stored = ore switch { MetalGood.CopperOre => AccessCopper, MetalGood.ArsenicalOre => AccessArsenic, _ => AccessTin };
+        if ((m.Access & stored) != 0) return true;
+        int civ = s.Civilization;
+        foreach (int tile in RangeTiles(s.SiteTile))
+            if (OreGood(_world.Deposit(tile).Kind) == ore && IsLocalMetalDepositWorkable(civ, tile, HasMineHead(s, tile))) return true;
+        foreach (MiningCampState camp in _camps)
+            if (camp.Parent == s.Id && OreGood(_world.Deposit(camp.Tile).Kind) == ore && IsLocalMetalDepositWorkable(civ, camp.Tile, camp.MineHead)) return true;
+        foreach (int tile in ReachTiles(s.SiteTile, MiningReach(civ, s.SiteTile)))
+            if (OreGood(_world.Deposit(tile).Kind) == ore && IsOwnTile(civ, tile) && IsLocalMetalDepositWorkable(civ, tile, false)) return true;
+        return false;
     }
 
     /// <summary>Whether the settlement can dig an ore this season: a workable deposit in range or one of its camps on it.</summary>

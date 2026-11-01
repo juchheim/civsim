@@ -150,4 +150,19 @@ public class CivicMetalCompletionTests
         Assert.Equal(runs[0].Food, runs[1].Food);
         Assert.Equal(runs[0].State, runs[1].State);
     }
+
+    [Fact]
+    public void A_deep_deposit_is_obtainable_only_once_its_mine_head_stands()
+    {
+        // The fixture's arsenical deposit is deep (depth 2): zero rate without a mine head, so no ore can come from it.
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 60, coppice: false, tin: false, arsenic: true, shaftMining: true, "WAR-05");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureClearMineHeads(0);
+        e.FixtureStock(0, "G-ASORE", -e.GoodStock(0, "G-ASORE"));
+        Assert.False(e.FixtureCanObtainOre(0, MetalAccessKind.Arsenic));
+        e.FixtureAddMineHead(0, f.ArsenicTile);
+        Assert.True(e.FixtureCanObtainOre(0, MetalAccessKind.Arsenic));
+        // Tin has no deposit in this fixture and no stock: never obtainable.
+        Assert.False(e.FixtureCanObtainOre(0, MetalAccessKind.Tin));
+    }
 }
