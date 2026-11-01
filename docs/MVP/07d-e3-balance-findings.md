@@ -1200,3 +1200,28 @@ Findings: (1) The B17 border collapse is the Strategist's `RemoveExposedFoundCan
 B28 on 72 seeds (20261027-20261098, 64 min, `ai --check-b28`): `main` 20/26 (77%), promoted tree 13/23 (57%), promoted tree with the exposure filter off 8/17 (47%). The `main` vs promoted gap is not significant (Fisher p = 0.22); the filter on vs off gap is also within noise. On 24 seeds the same check read 7/8 on `55d0e10`, 6/7 on `main`, 2/5 on the promoted tree and 3/4, 5/8, 3/6, 4/7 with adult-first, the chain cap, own camps and the shared camp tile each switched back off; those samples (4-10 cases) cannot separate anything and the earlier statement that the promotion broke B28 is withdrawn. B28 is below 80% on every tree at the larger sample, including `main`.
 
 Decision (taken without further sign-off because the filter is a tuning rule): the exposure filter is now off by default (`StrategistDecreePolicy.BlockExposedFoundCandidates`, set `CIVSIM_BLOCK_EXPOSED_FOUND=1` in the AI harness to restore it). Promoted tree with the filter off: borders 87/94 (target ≥75%), City 16.7% (target ≥25%, still failing), raids 11.1 (3-12), war 83.3% and capture 37.5% (≥50% and 20-50%), Dominion 55.2%; B26 A1/A2/A4/B31 unchanged, A3 win 25%, A5 Builder 33.3% / Grower 35.4% / Warlord 30.2%, A7 all zero. Tests 911/911 and all goldens unchanged. Not fixed: B17 City share, B28 (open on every tree), and the palisade-queuing effect on B20 (war and capture currently pass, so left alone).
+
+#### B17 City share diagnosis (2026-11-01)
+
+On the promoted tree with the Found exposure filter off (the current default), 16 of 96 civs hold a City at the chapter end (16.7%) against the 25% target (24 civs). A City needs SOC-09, a Temple (BEL-06) or a Palace (GOV-05), and a settlement of at least 90 people (the tier then holds to 76). A read-only chapter-end trace of every civ (scratch diagnostic, not kept) found:
+
+| Why a civ has no City | Civs |
+|---|---|
+| No settlement of 90 yet (18 of them have 80-89) | 57 |
+| Has a 90+ settlement but no Temple, BEL-06 not researched | 20 |
+| Has a 90+ settlement, Temple path open or in progress, not finished | 3 |
+
+Of the 23 civs with a 90+ settlement and no City, 17 already hold GOV-05, no Palace, and are staging bricks for a Temple that needs BEL-06; 11 of those are at the Palace site. `CityEnabler` prefers staging the Temple whenever BEL-05 and BLD-05 are done, so the Palace route never starts. Single-change screens on the 24-seed cohort:
+
+| Variant | City share | Town | Note |
+|---|---|---|---|
+| current tree | 16.7% | 87.5% | borders 87/94 |
+| B12 civic-to-metal transfer off | 16.7% | 87.5% | identical: the transfer never fires here |
+| adult-first metal reserve off | 20.8% | 93.8% | |
+| chain cap back to 0.10 | 17.7% | 88.5% | |
+| all four promoted metal rules off | 17.7% | 92.7% | so the promotion is not the cause |
+| stop staging the Temple when GOV-05 is done and BEL-06 is not (Palace instead) | 13.5% | 84.4% | 11 civs start the Palace, progress up to 27 of 30; most finish after the chapter end |
+| Palace gets the City-Temple 1.5x civic labor multiplier | 17.7% | 87.5% | |
+| both of the last two | 14.6% | 85.4% | |
+
+Conclusions: (1) The promoted metal rules are not why City share sits below target; with all of them off it is 17.7%. (2) The Palace route is slower than the Temple route and loses City share; no code change was kept. (3) City share has been between 15% and 27% on this cohort at every commit tested (19.8-24.0% before `55d0e10`, 26.0% with the exposure filter off on the bare `55d0e10`), within about 4 points of sampling noise on 96 civs, so the 25% target is not reliably reachable without raising either capital population or BEL-06 uptake. (4) The remaining levers are outside the civic rules: research priority for BEL-06 on a civ whose capital is a 90+ Town (touches the Spark and the Council bot), or keeping capitals larger by lowering their fission pressure. Neither has been tried.
