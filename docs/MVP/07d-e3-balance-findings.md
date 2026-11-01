@@ -1158,8 +1158,23 @@ For B16, the focused `WP8bSiegeLifecycleTests` suite passes 7/7 in 5.67s. Its fi
 | B28 defenses before first believed-bronze raid | ≥80% | 4/4 = 100% in this 16-match Legend-vs-Warlord sample (denominator far too small; the 32-seed baseline screen was 5/11 = 45%) |
 | B30 | | all measurable parts PASS |
 
-Reading: the A1–A5 misses are the same set as before the B12 promotion (A1–A5 failing, A6/A8 not run), so the promotion did not close them and no earlier number gets cited as regressed. A5 is the sharpest: Builder and Grower exceed the 30% ceiling again, with Grower earning the highest Legacy (3,209) and the most settlements (21.0); Warlord has the most raids (3.0 per seat) and captures (0.38) but not the most Legacy. The B28 100% is a 4-case sample and must not be read as the gate passing; it only shows the Legend-vs-Warlord 16-match path produced few qualifying attacks.
+Reading: see the three-tree comparison below. The A1–A5 and B31 misses are identical or near-identical on `03ce68c`, `main` and the promoted tree, so the promotion did not cause them and did not close them. These misses do not match the 2026-10-30 status in doc 17 (A1 14/16, A4 5/16, B31 passing), which used a different cohort or setup that I could not reproduce. A5 is the sharpest: Builder and Grower exceed the 30% ceiling again, with Grower earning the highest Legacy (3,209) and the most settlements (21.0); Warlord has the most raids (3.0 per seat) and captures (0.38) but not the most Legacy. The B28 100% is a 4-case sample and must not be read as the gate passing; it only shows the Legend-vs-Warlord 16-match path produced few qualifying attacks.
 
 #### Post-promotion robustness and performance sweeps (2026-11-01)
 
 On `e84bcfd` with a pack rebuilt from `content/`: S15 (1,000 chapter matches, 64 min) 1000/1000 clean in 94.2 min; S1 (1,000 replays) 1000/1000 matched in 52.2 min; S12 headless Bronze chapter 7.739 s (limit 30 s), checksum `c4ddf7675658e7a4`; S13 sim tick average 2.437 ms (limit 4.0), max GC pause 2 ms (limit 16), workload reached at minute 59 with 2,400 figures. S12/S13 ran with machine load average around 4 (shared Mac, 12 users logged in, no harness processes of ours running), so the timings are not from a fully idle machine. Outputs: `/tmp/civsim-post-s15.txt`, `/tmp/civsim-post-s1.txt`, `/tmp/civsim-post-perf.txt`.
+
+**B26 comparison across three trees (2026-11-01):** The same `ai --check-m10 --seeds 8 --first-seed 20261019 --minutes 64` check, each tree built in a clean worktree with a pack rebuilt from its own `content/` (the two older trees ran concurrently, 83 min each; outputs `/tmp/m10ai-03ce68c.txt`, `/tmp/m10ai-3ae0cdc.txt`).
+
+| | `03ce68c` (before `55d0e10`) | `3ae0cdc` (`main`) | promoted (`e84bcfd`) |
+|---|---|---|---|
+| A1 | 81% | 81% | 81% |
+| A2 grower / builder / wanderer | 69 / 94 / 88% | 69 / 94 / 81% | 69 / 94 / 81% |
+| A3 win | 38% | 25% | 25% |
+| A4 | 50% | 50% | 50% |
+| A5 Builder / Grower / Warlord / Wanderer / Sage | 37.5 / 40.6 / 29.2 / 9.4 / 8.3% | 32.3 / 37.5 / 29.2 / 15.6 / 10.4% | 33.3 / 37.5 / 28.1 / 15.6 / 10.4% |
+| A7 idle labor | 0 | 0 | 1 season |
+| B31 | 38% | 44% | 44% |
+| B28 defended before first believed-bronze raid | 0/8 | 2/2 | 4/4 |
+
+Reading: (1) A1, A2 grower, A4, A5 and B31 miss on every tree, so they are long-standing and unrelated to the B12 promotion or to `55d0e10`. (2) A5 Builder and Grower exceed 30% on all three; the promotion did not move it. (3) A3 win falls from 38% (6/16, matching the 10-30 status) to 25% between `03ce68c` and `main`, which points at `55d0e10` again. (4) The B28 line in this check has 8, 2 and 4 qualifying cases and swings between 0% and 100%; it is not usable as a gate measurement. (5) The promoted tree's single idle-labor season (s24, food security 0.198) is not on the other two trees.
