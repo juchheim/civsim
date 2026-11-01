@@ -392,6 +392,14 @@ public sealed partial class LivingEconomyModel
         return !IsFreeFolk(_settlements[settlementIndex]) && (m.Access & (stored | source)) != 0;
     }
 
+    /// <summary>Whether this settlement has a workable deposit of the input in range, in a camp or on own land within mining reach (not mere stored stock).</summary>
+    internal bool SettlementHasMetalSource(int settlementIndex, MetalAccessKind kind)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count || _settlements[settlementIndex].Metal is not { } m) return false;
+        byte source = kind switch { MetalAccessKind.Copper => SourceCopper, MetalAccessKind.Arsenic => SourceArsenic, _ => SourceTin };
+        return !IsFreeFolk(_settlements[settlementIndex]) && (m.Access & source) != 0;
+    }
+
     public MetalStatistics MetalStats(int civ)
     {
         int o = civ * StatCount;

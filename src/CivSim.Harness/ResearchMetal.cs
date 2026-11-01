@@ -27,6 +27,8 @@ internal static class ResearchMetal
     {
         public int Civilization, SettlementId, FirstSeason, Season, Adults, Rung6Adults;
         public string AccessPath = "";
+        /// <summary>Whether the window opened with a workable deposit of the path's scarce input (tin or arsenical ore), not only stored stock.</summary>
+        public bool SourceBacked;
         public List<T18WindowCheckpoint> Checkpoints = new();
     }
 
@@ -36,6 +38,7 @@ internal static class ResearchMetal
     {
         public int Civilization, SettlementId, FirstSeason, CensoredSeason;
         public string AccessPath = "", Reason = "";
+        public bool SourceBacked;
         public List<T18WindowCheckpoint> Checkpoints = new();
 
         public T18CensoredWindow(int civilization, int settlementId, int firstSeason, int censoredSeason, string accessPath, string reason)
@@ -86,6 +89,7 @@ internal static class ResearchMetal
         public int[] FirstT18AccessSeason = Array.Empty<int>();
         public bool[] T18CohortClosed = Array.Empty<bool>();
         public string[] T18AccessPath = Array.Empty<string>();
+        public bool[] T18SourceBacked = Array.Empty<bool>();
         public List<T18WindowCheckpoint>?[] T18WindowCheckpoints = Array.Empty<List<T18WindowCheckpoint>?>();
         public int[] FirstT18CastableSeason = Array.Empty<int>();
         public bool[] T18CastableCohortClosed = Array.Empty<bool>();
@@ -148,6 +152,18 @@ internal static class ResearchMetal
         text.AppendLine($"T18 live-input-access cohort (MET-04+arsenic, or MET-05+copper+tin; continuous through +12): adult-weighted {P(t18AdultWeighted)} ({t18Rung6Adults}/{t18Adults}), " +
                         $"per-settlement median {P(MedianOf(coverSettlements))} over {coverSettlements.Count} eligible rows, " +
                         $"{coverSettlements.FindAll(x => x >= 0.7).Count} at >= 70%; cohort starts {t18Started}, access lost before +12 {t18Lost}, still within +12 at horizon {t18RightCensored}, no adults at +12 {t18NoAdults} (target >= 70% where access holds)");
+        foreach (bool backed in new[] { true, false })
+        {
+            var rows = results.SelectMany(r => r.T18EligibleRows).Where(x => x.SourceBacked == backed).ToList();
+            var windows = results.SelectMany(r => r.T18CensoredWindows).Where(x => x.SourceBacked == backed).ToList();
+            int adults = rows.Sum(x => x.Adults), rung6 = rows.Sum(x => x.Rung6Adults);
+            int atTarget = rows.Count(x => x.Adults > 0 && (double)x.Rung6Adults / x.Adults >= 0.7);
+            int lost = windows.Count(x => x.Reason == "qualifying input access lost");
+            int open = windows.Count(x => x.Reason == "report horizon before +12");
+            text.AppendLine($"T18 cohort by opening supply, {(backed ? "source-backed (workable tin/arsenical deposit at the start)" : "stock-only (stored input only)")}: " +
+                            $"adult-weighted {P(adults == 0 ? double.NaN : (double)rung6 / adults)} ({rung6}/{adults}), {atTarget} of {rows.Count} eligible rows at >= 70%; " +
+                            $"starts {rows.Count + windows.Count}, access lost before +12 {lost}, still within +12 at horizon {open}");
+        }
         text.AppendLine($"T18 local-facility-chain diagnostic (raw input access plus local Forge and Kiln/Smelter; continuous through +12): " +
                         $"adult-weighted {P(t18CastableAdultWeighted)} ({t18CastableRung6Adults}/{t18CastableAdults}), " +
                         $"per-settlement median {P(MedianOf(castableCoverage))} over {castableCoverage.Count} eligible rows, " +
@@ -331,6 +347,7 @@ internal static class ResearchMetal
         Array.Fill(result.FirstT18AccessSeason, -1);
         result.T18CohortClosed = new bool[eco.SettlementCount];
         result.T18AccessPath = new string[eco.SettlementCount];
+        result.T18SourceBacked = new bool[eco.SettlementCount];
         result.T18WindowCheckpoints = new List<T18WindowCheckpoint>?[eco.SettlementCount];
         result.FirstT18CastableSeason = new int[eco.SettlementCount];
         Array.Fill(result.FirstT18CastableSeason, -1);
@@ -408,6 +425,7 @@ internal static class ResearchMetal
                 Array.Fill(result.FirstT18AccessSeason, -1, oldLength, eco.SettlementCount - oldLength);
                 Array.Resize(ref result.T18CohortClosed, eco.SettlementCount);
                 Array.Resize(ref result.T18AccessPath, eco.SettlementCount);
+                Array.Resize(ref result.T18SourceBacked, eco.SettlementCount);
                 Array.Resize(ref result.T18WindowCheckpoints, eco.SettlementCount);
                 Array.Resize(ref result.FirstT18CastableSeason, eco.SettlementCount);
                 Array.Fill(result.FirstT18CastableSeason, -1, oldLength, eco.SettlementCount - oldLength);
@@ -422,7 +440,7 @@ internal static class ResearchMetal
                     {
                         result.T18CensoredWindows.Add(new T18CensoredWindow(eco.SettlementLite(s).Civilization, s,
                             result.FirstT18AccessSeason[s], (int)season, result.T18AccessPath[s], "became Free Folk")
-                        { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                        { SourceBacked = result.T18SourceBacked[s], Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
                         result.T18CohortClosed[s] = true;
                     }
                     continue;
@@ -438,6 +456,7 @@ internal static class ResearchMetal
                     if (!hasAccess) continue;
                     result.FirstT18AccessSeason[s] = (int)season;
                     result.T18AccessPath[s] = arsenic ? "MET-04+arsenic" : "MET-05+copper+tin";
+                    result.T18SourceBacked[s] = eco.SettlementHasMetalSource(s, arsenic ? MetalAccessKind.Arsenic : MetalAccessKind.Tin);
                     result.T18Started++;
                     if (traceB12Census)
                     {
@@ -454,7 +473,7 @@ internal static class ResearchMetal
                 {
                     result.T18CensoredWindows.Add(new T18CensoredWindow(civ, s, firstSeason, (int)season,
                         result.T18AccessPath[s], "qualifying input access lost")
-                    { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                    { SourceBacked = result.T18SourceBacked[s], Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
                     result.T18CohortClosed[s] = true;
                     continue;
                 }
@@ -468,7 +487,7 @@ internal static class ResearchMetal
                     result.T18NoAdults++;
                     result.T18CensoredWindows.Add(new T18CensoredWindow(civ, s, firstSeason, (int)season,
                         result.T18AccessPath[s], "no adults at +12")
-                    { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                    { SourceBacked = result.T18SourceBacked[s], Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
                     continue;
                 }
                 int rung6 = mr.Kits9 + mr.Kits10;
@@ -476,7 +495,7 @@ internal static class ResearchMetal
                 result.T18EligibleRows.Add(new T18CohortRow
                 {
                     Civilization = civ, SettlementId = s, FirstSeason = firstSeason, Season = (int)season,
-                    Adults = mr.Adults, Rung6Adults = rung6, AccessPath = result.T18AccessPath[s],
+                    Adults = mr.Adults, Rung6Adults = rung6, AccessPath = result.T18AccessPath[s], SourceBacked = result.T18SourceBacked[s],
                     Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>()
                 });
             }
@@ -603,7 +622,7 @@ internal static class ResearchMetal
                 result.T18RightCensored++;
                 result.T18CensoredWindows.Add(new T18CensoredWindow(eco.SettlementLite(s).Civilization, s,
                     result.FirstT18AccessSeason[s], minutes * 4, result.T18AccessPath[s], "report horizon before +12")
-                { Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
+                { SourceBacked = result.T18SourceBacked[s], Checkpoints = result.T18WindowCheckpoints[s] ?? new List<T18WindowCheckpoint>() });
             }
         for (int s = 0; s < result.FirstT18CastableSeason.Length; s++)
             if (result.FirstT18CastableSeason[s] >= 0 && !result.T18CastableCohortClosed[s])
