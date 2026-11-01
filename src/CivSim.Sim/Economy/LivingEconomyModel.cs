@@ -4001,8 +4001,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     /// <summary>Keep a viable Temple-bound Town intact until it can become a City (07d F4); hunger and low Cohesion still split it.</summary>
     private bool ShouldPreserveCityTown(SettlementState settlement)
     {
-        if (settlement.Civic is not { } civic || civic.Tier != (byte)SettlementTier.Town ||
-            civic.BuildKind != CivicBuild.Temple && civic.Temples == 0 && !ShouldPrepareCityTemple(settlement, civic)) return false;
+        // The Palace site keeps its people once it is a Town, whether or not its Temple is under way: capitals that split
+        // while waiting for BEL-06 rarely reached 90 by the chapter end (07d, B17 City share, 2026-11-01).
+        if (settlement.Civic is not { } civic || civic.Tier < (byte)SettlementTier.Town ||
+            PalaceSite(settlement.Civilization) != settlement.Id) return false;
         Fix64 cityPopulation = Fix64.FromInt(_civic.CityMinPop);
         return FoodCap(settlement) >= cityPopulation && HousingCap(settlement) >= cityPopulation &&
             settlement.FoodSecurity >= Fix64.Parse("0.8") &&
