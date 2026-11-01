@@ -105,6 +105,8 @@ public sealed partial class LivingEconomyModel
     internal bool BlockChainForUnobtainableOre { get; set; }
     /// <summary>Screen only: a settlement with an unmet ore want opens its own camp even when a sister's camp is assumed to supply it.</summary>
     internal bool OpenOwnCampDespiteSister { get; set; }
+    /// <summary>Screen only: a different settlement of the civilization may open its own camp on a tile that already carries a sister's camp.</summary>
+    internal bool AllowSecondCampOnTile { get; set; }
     /// <summary>Screen only: standing wood a mine head consumes (docs/MVP/23 §6.3: 6 L).</summary>
     internal Fix64 MineHeadWood { get; set; } = Fix64.FromInt(6);
     /// <summary>Screen only: multiplies the metal chain's labor cap (not the build cap). 1 in production.</summary>
@@ -2460,7 +2462,8 @@ public sealed partial class LivingEconomyModel
         if (!OreUnlocked(civ, d.Kind)) return MiningCampResult.NotUnlocked;
         if (d.Depth >= 2 && !Done(civ, "MIN-04")) return MiningCampResult.NeedsShaftMining;
         if (IsRivalTile(civ, tile)) return MiningCampResult.RivalOwned;
-        foreach (MiningCampState other in _camps) if (other.Tile == tile) return MiningCampResult.AlreadyOpen;
+        foreach (MiningCampState other in _camps)
+            if (other.Tile == tile && (!AllowSecondCampOnTile || other.Parent == parent.Id)) return MiningCampResult.AlreadyOpen;
         foreach (SettlementState s in _settlements) if (s.SiteTile == tile) return MiningCampResult.NoDeposit;
         if (TakeWood(parent, tile, Fix64.FromInt(2), commit: false) < Fix64.FromInt(2)) return MiningCampResult.NoCrew;
         // A camp takes its crew from the parent; leave at least half the parent's working adults at home.
