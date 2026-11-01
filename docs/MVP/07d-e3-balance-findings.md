@@ -1139,3 +1139,23 @@ Reading: (1) The B17 own-KEY-4 border collapse (85/94 to 36/95) and the B20 war 
 The same run selected only five 80–100-population WOD-04 Towns for the live B13 sample. Median standing-forest drawdown was 5%, but the 10th–90th percentile ranged from an 87% gain to complete depletion; this does not establish real-match durability. The gate's matched fixture is more decisive: the fixed-population 52-season `research --metal-fixture` run completed in 6.23s and measured 80-person drawdown at 28% without WOD-04 vs 2% with it, and 100-person drawdown at 62% vs 3%. Steady-state metal output was unchanged at 80 people (0.48 L/100/year) and rose from 0.46 to 0.49 at 100; WOD-04 did not incur the specified >30% output loss. This passes B13's fixture gate; the small live sample remains supplemental and mixed. Outer-range wood is now reported as reachable candidate stock, with potentially shared stock and gross haul estimates labeled as overlapping/potential rather than observed exclusive supply; tile detail is capped at eight rows per town and stage. No wood-priority or regrowth rule changed.
 
 For B16, the focused `WP8bSiegeLifecycleTests` suite passes 7/7 in 5.67s. Its fixed 16-seed integration sample uses a real assault order against a promoted 60-person Market Town with stone walls and a passable ≤8-tile supply route. It capitulates 13/16 supplied, unrelieved Towns in seasons 3–6 (81.25%, above the 50% target); the other three investments remain active through season 6. Carried besieger food persists, with no sally, desertion or direct wall-assault capture. The fixture deliberately controls Town stores before each season's final tick to measure siege timing independent of ordinary local food production. Together with the existing 1,000-seed T22 model sweep and stone-wall assault fixtures (`CanBeAssaulted == false`, `StandOff`), the controlled B16 timing gate passes; this does not measure ordinary-economy Town timing.
+
+#### B26 AI check on the promoted tree (2026-11-01)
+
+`ai --check-m10 --seeds 8 --first-seed 20261019 --minutes 64` on `e84bcfd` with a pack rebuilt from `content/` (66m32s wall; output `/tmp/civsim-post-m10ai.txt`). It exits 1; A6 and A8 are separate gates and were not run.
+
+| Gate | Target | Result |
+|---|---|---|
+| A1 Warlord vs Council (Legacy) | ≥85% | 81% of 16, FAIL |
+| A2 grower / builder / wanderer | ≥70% each | 69% FAIL / 94% PASS / 81% PASS |
+| A3 vs Rusher: no lost settlement / win | ≥80% / ≥70% | 100% PASS / 25% FAIL |
+| A4 Chieftain vs Warlord | 25–40% | 50%, FAIL |
+| A5 four-AI FFA win share (24 seeds) | no archetype >30% | Builder 33.3% FAIL, Grower 37.5% FAIL, Warlord 28.1%, Wanderer 15.6%, Sage 10.4% |
+| A7 blunders | 0 | all PASS except idle labor 1 season (0.062 per match; s24, food security 0.198, one figure on `jobRest`) |
+| B29 KEY-4 forecast fidelity | within 15% | 27/27, median 1.5%; 5 horizon-censored, so INCOMPLETE |
+| B31 Legend vs Warlord | ≥60% | 44%, FAIL |
+| B27 tin-poor fallback | | 94% PASS; dormant bronze 0.062 per match |
+| B28 defenses before first believed-bronze raid | ≥80% | 4/4 = 100% in this 16-match Legend-vs-Warlord sample (denominator far too small; the 32-seed baseline screen was 5/11 = 45%) |
+| B30 | | all measurable parts PASS |
+
+Reading: the A1–A5 misses are the same set as before the B12 promotion (A1–A5 failing, A6/A8 not run), so the promotion did not close them and no earlier number gets cited as regressed. A5 is the sharpest: Builder and Grower exceed the 30% ceiling again, with Grower earning the highest Legacy (3,209) and the most settlements (21.0); Warlord has the most raids (3.0 per seat) and captures (0.38) but not the most Legacy. The B28 100% is a 4-case sample and must not be read as the gate passing; it only shows the Legend-vs-Warlord 16-match path produced few qualifying attacks.
