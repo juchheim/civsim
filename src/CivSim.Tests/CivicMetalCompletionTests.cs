@@ -165,4 +165,51 @@ public class CivicMetalCompletionTests
         // Tin has no deposit in this fixture and no stock: never obtainable.
         Assert.False(e.FixtureCanObtainOre(0, MetalAccessKind.Tin));
     }
+
+    private static void EnableB12Screens(LivingEconomyModel e)
+    {
+        e.AdultsTakeMetalReserveFirst = true;
+        e.ChainCapMultiplier = Fix64.FromInt(3);
+        e.OpenOwnCampDespiteSister = true;
+        e.AllowSecondCampOnTile = true;
+    }
+
+    [Fact]
+    public void With_the_B12_screens_on_losing_tin_is_still_a_slow_squeeze_with_a_no_tin_reason()
+    {
+        // The second half of B12 (07d §5) under adult-first, a 3x chain cap, own camps and a shared camp tile.
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 100, coppice: false, tin: true, arsenic: false, shaftMining: true, "WAR-05");
+        EnableB12Screens(f.Economy);
+        f.RunSeasons(24);
+        int before = f.Economy.Metal(0).Kits10;
+        Assert.True(before > 20, $"kits10 before {before}");
+        f.Economy.FixtureExhaust(f.TinTile);
+        foreach (string g in new[] { "G-TIN", "G-TINORE", "G-BRONZE", "G-TOOL10" })
+            f.Economy.FixtureStock(0, g, -f.Economy.GoodStock(0, g));
+        f.RunSeasons(1);
+        MetalReadout now = f.Economy.Metal(0);
+        Assert.Equal(MethodFallbackReason.NoTin, now.Reason);
+        Assert.Equal(8, now.CastTier);
+        Assert.True(now.Kits10 * 10 >= before * 9, $"no cliff: {now.Kits10} of {before}");
+        f.RunSeasons(12);
+        MetalReadout later12 = f.Economy.Metal(0);
+        Assert.Equal(MethodFallbackReason.NoTin, later12.Reason);
+        Assert.True(later12.Kits10 * 10 <= later12.Adults * 9, $"at least 10% fallen back by 12 seasons: {later12.Kits10}/{later12.Adults}");
+        f.RunSeasons(23);
+        MetalReadout later = f.Economy.Metal(0);
+        Assert.True(later.Kits10 < before, "kits wear out");
+        Assert.True(later.Kits8 > 0, "replacements are copper");
+        Assert.True(later.Kits10 > 0, "the squeeze is slow");
+    }
+
+    [Fact]
+    public void With_the_B12_screens_on_bronze_still_covers_most_tool_users_and_lasts()
+    {
+        BronzeFixture f = BronzeFixture.Create(TestPack.Pack, Seed, 100, coppice: false, tin: true, arsenic: true, shaftMining: true, "WAR-05");
+        EnableB12Screens(f.Economy);
+        f.RunSeasons(12);
+        Assert.True(f.BronzeShare() >= F("0.6"), $"rung 6 at 12 seasons: {f.BronzeShare()}");
+        f.RunSeasons(4);
+        Assert.True(f.BronzeShare() >= F("0.7"), $"rung 6 at 16 seasons: {f.BronzeShare()}");
+    }
 }

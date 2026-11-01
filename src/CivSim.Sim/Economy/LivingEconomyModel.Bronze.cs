@@ -400,6 +400,24 @@ public sealed partial class LivingEconomyModel
         return !IsFreeFolk(_settlements[settlementIndex]) && (m.Access & source) != 0;
     }
 
+    /// <summary>Harness diagnostic: deposits of the three smelted ores in the world, how many are worked out, and the litres at the start and left.</summary>
+    internal (int Deposits, int Depleted, double Initial, double Left) OreDepletion(MetalAccessKind kind)
+    {
+        MetalGood ore = kind switch { MetalAccessKind.Copper => MetalGood.CopperOre, MetalAccessKind.Arsenic => MetalGood.ArsenicalOre, _ => MetalGood.TinOre };
+        int deposits = 0, depleted = 0;
+        Fix64 initial = Fix64.Zero, left = Fix64.Zero;
+        for (int tile = 0; tile < _world.TileCount; tile++)
+        {
+            WorldDeposit d = _world.Deposit(tile);
+            if (OreGood(d.Kind) != ore) continue;
+            deposits++;
+            initial += OreLitres(d);
+            left += _ore[tile];
+            if (_ore[tile] <= Fix64.Zero) depleted++;
+        }
+        return (deposits, depleted, initial.ToDoubleForDisplay(), left.ToDoubleForDisplay());
+    }
+
     public MetalStatistics MetalStats(int civ)
     {
         int o = civ * StatCount;

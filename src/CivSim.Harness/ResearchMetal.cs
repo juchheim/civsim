@@ -63,6 +63,7 @@ internal static class ResearchMetal
     private sealed class Result
     {
         public ulong Seed;
+        public string SupplySummary = "";
         public List<KeyValuePair<string, int>> CampAttempts = new();
         public CivTrace[] Civs = Array.Empty<CivTrace>();
         public List<(int Pop, bool Coppiced, double Start, double Now, int Civ)> Forests = new();
@@ -148,6 +149,7 @@ internal static class ResearchMetal
         double t18CastableAdultWeighted = t18CastableAdults == 0 ? double.NaN : (double)t18CastableRung6Adults / t18CastableAdults;
         var castableCoverage = results.SelectMany(r => r.T18CastableCoverage12).ToList();
         int t18CastableLost = results.Sum(r => r.T18CastableCensoredWindows.Count(x => x.Reason == "qualifying input access lost"));
+        foreach (Result r in results) text.AppendLine("B12 supply side " + r.SupplySummary);
         if (results.Any(r => r.CampAttempts.Count > 0))
         {
             text.AppendLine("B12 camp-open attempts for unmet ore wants (ore/result: count, all seeds):");
@@ -622,6 +624,16 @@ internal static class ResearchMetal
                         $"reasons {string.Join(",", reasons)}";
             (Fix64 best, Fix64 surface) = eco.MineRates(c);
             if (r.IsDone(c, min04)) { result.MineBest = best.ToDoubleForDisplay(); result.MineSurface = surface.ToDoubleForDisplay(); }
+        }
+        {
+            var parts = new List<string>();
+            foreach (MetalAccessKind ore in new[] { MetalAccessKind.Copper, MetalAccessKind.Arsenic, MetalAccessKind.Tin })
+            {
+                var d = eco.OreDepletion(ore);
+                parts.Add($"{ore} {d.Depleted}/{d.Deposits} worked out, {d.Left:F0}/{d.Initial:F0} L left");
+            }
+            int raids = match.Politics.Events.Count(x => x.Kind == PoliticsEventKind.MiningCampRaidLaunched);
+            result.SupplySummary = $"seed {seed}: {string.Join("; ", parts)}; camps at end {eco.MiningCampCount}; mining-camp raids launched {raids}";
         }
         if ((traceB12T18 || traceB12Census) && eco.B12T18Snapshots is { } snapshots)
         {
