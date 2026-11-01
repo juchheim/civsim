@@ -1824,6 +1824,18 @@ public sealed partial class LivingEconomyModel : ISimModel
                 available -= amount;
                 civicRemaining -= amount;
             }
+            // The metal budget was taken out of the settlement's work as a lump, but only adults can spend it. Adults taking food
+            // first leave it as children's idle capacity (B12), so an adult takes its share of the reserve ahead of food.
+            if (AdultsTakeMetalReserveFirst && metalPlan is not null && toolWork is not null && available > Fix64.Zero && figure.Age >= 14)
+            {
+                Fix64 open = Unassigned(metalPlan);
+                if (open > Fix64.Zero)
+                {
+                    Fix64 amount = Fix64.Min(available, open);
+                    AssignMetalWork(figure, i, amount, metalPlan, toolWork);
+                    available -= amount;
+                }
+            }
             if (foodRemaining > Fix64.Zero && available > Fix64.Zero)
             {
                 Fix64 amount = Fix64.Min(available, foodRemaining);

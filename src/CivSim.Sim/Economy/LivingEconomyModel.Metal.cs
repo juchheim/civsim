@@ -97,6 +97,8 @@ public sealed partial class LivingEconomyModel
     internal List<string> B12MiningWantTrace { get; } = new();
     /// <summary>Candidate B12 rule; on by default, switchable so a screen can compare against the unchanged allocation.</summary>
     internal bool CivicToMetalCompletionEnabled { get; set; } = true;
+    /// <summary>Candidate B12 rule: adults take their share of the reserved metal labor before food. Off by default.</summary>
+    internal bool AdultsTakeMetalReserveFirst { get; set; }
     /// <summary>Whether the completion-only transfer may take Market-town housing labor for a funded first facility's final sliver.</summary>
     internal bool CivicToMetalReleasesHousing { get; set; }
     /// <summary>Whether it may also take canal labor (screen only).</summary>
