@@ -689,8 +689,8 @@ internal static class AiCommand
         if (rivalPaceOverride is { } pace) Console.WriteLine($"  diagnostic Warlord rival pace override: {pace.ToDoubleForDisplay():F2}");
         if (warlordMaxCampaignOrigin) Console.WriteLine("  diagnostic Warlord max-force campaign origin enabled");
         if (a5DeferBuilderS1FissionUntil64) Console.WriteLine("  diagnostic A5 deferral enabled only for seed 20261025 rotation 4 Builder civ1 settlement s1; first eligible season s64");
-        if (a5BuilderFertilityDiagnostic) Console.WriteLine("  diagnostic A5 Builder fertility multiplier: 1.00 (production default 1.10)");
-        if (a5GrowerFertilityDiagnostic) Console.WriteLine("  diagnostic A5 Grower fertility multiplier: 1.20 (production default 1.30)");
+        if (a5BuilderFertilityDiagnostic) Console.WriteLine("  diagnostic A5 Builder fertility multiplier: 1.00 (production default 1.00)");
+        if (a5GrowerFertilityDiagnostic) Console.WriteLine("  diagnostic A5 Grower fertility multiplier: 1.20 (production default 1.12)");
         if (ffaCaseControlTimeline) Console.WriteLine("  report-only A5 split/checkpoint case-control timeline enabled");
         for (int i = 0; i < 5; i++) Console.WriteLine($"  {FfaNames[i],-9} {wins[i]:F0}/{apps[i]} = {100.0 * wins[i] / Math.Max(1, apps[i]),5:F1}%");
         PrintArchetypeMeans(civs);

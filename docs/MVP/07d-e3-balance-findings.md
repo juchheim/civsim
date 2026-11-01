@@ -1150,7 +1150,7 @@ For B16, the focused `WP8bSiegeLifecycleTests` suite passes 7/7 in 5.67s. Its fi
 | A2 grower / builder / wanderer | ≥70% each | 69% FAIL / 94% PASS / 81% PASS |
 | A3 vs Rusher: no lost settlement / win | ≥80% / ≥70% | 100% PASS / 25% FAIL |
 | A4 Chieftain vs Warlord | 25–40% | 50%, FAIL |
-| A5 four-AI FFA win share (24 seeds) | no archetype >30% | Builder 33.3% FAIL, Grower 37.5% FAIL, Warlord 28.1%, Wanderer 15.6%, Sage 10.4% |
+| A5 four-AI FFA win share (24 seeds) | no archetype >30% | Builder 33.3% FAIL, Grower 37.5% FAIL, Warlord 28.1%, Wanderer 15.6%, Sage 10.4% (before the growth re-fit below; now 29.2 / 21.9 / 27.1 / 19.8 / 27.1%, PASS) |
 | A7 blunders | 0 | all PASS except idle labor 1 season (0.062 per match; s24, food security 0.198, one figure on `jobRest`) |
 | B29 KEY-4 forecast fidelity | within 15% | 27/27, median 1.5%; 5 horizon-censored, so INCOMPLETE |
 | B31 Legend vs Warlord | ≥60% | 44%, FAIL |
@@ -1231,3 +1231,30 @@ Conclusions: (1) The promoted metal rules are not why City share sits below targ
 **B17 City share: capital protection (2026-11-01).** `ShouldPreserveCityTown` protected a Town from fission only while it was building or staging a Temple; it now protects the Palace site at any Town or City tier. On the 24-seed, 80-minute politics check City share rose from 16.7% to 25.0% (24/96, target >= 25%) with the Town share 87.5% to 89.6%, paired borders 87/94 to 86/94, raids 11.1 to 10.4, war 83.3% and capture 37.5% to 33.3%. Protecting Towns only (not Cities) gave 24.0%. An earlier read of a chapter-end trace suggested fission was not the limit (39 of 50 capitals under 90 were already protected); the screen contradicted that, so the unprotected capitals were splitting while waiting on BEL-06.
 
 Wider gates on the same tree (pack rebuilt from `content/`): B7 70.3% (unchanged), B8 26/32 (81.2%, was 24/32), B9 193.3 (unchanged), B21 passes, B6 Year-64 endings 11/32 (unchanged, still failing), B10 epidemic share 7.4% (now inside 7-13%, was 6.8%); B12 source-backed 70-minute coverage 70% on the training pairs and 52% on the held-out pairs (was 66% and 63%; four pairs, so noise cannot be separated, 70% target still unmet); B26: A1 81%, A2 grower 69%, A3 win 25%, A4 50%, A5 Builder 33.3% / Grower 37.5% (unchanged misses), A7 starvation, undefended loss and herd crash 0, idle labor 1 season (as before), B31 38% (was 44%, 16 matches); B28 on 72 seeds 11/18 (61%; 13/23 and 8/17 before, all below 80%). B17 still fails on claimed land (43.0% vs 30-42%, unchanged since before this work), and B18 on Dominion (55.2% vs 45-55%) and B19 on KEY-4 completion (94/96) are marginal and separate. The bronze golden changed (ticks 37350 to 37200, checksum `c4ddf7675658e7a4` to `b2f7c72993e2ed36`) because capital Towns now stay together; the S12 chapter checksum moves with it. Tests 911/911.
+
+**A5 growth re-fit (2026-11-01).** A5 passes. The tables in `ArchetypeResearch` and `Profile` were fitted at minute 33; by the chapter end Dominion (a zero-sum yearly land share) was the whole gap: Grower 1,893 and Builder 1,632 against about 1,375 for Wanderer and Sage, with 21.1 and 15.2 settlements against 10.3. Fertility and food-capacity differences of 5 to 30% compound into that. Every earlier A5 screen moved one knob on 4 to 40 matches, and each time the displaced wins went to a neighbour. This one moved all the growth gaps together and used the 24-seed, five-rotation cohort (120 matches, 21 minutes with the harness's parallel workers; `ai --ffa warlord --seeds 24 --first-seed 20261019 --minutes 64`) plus a held-out cohort at `--first-seed 20261100`.
+
+| Profile (fertility / food capacity / adult mortality) | Before | After |
+|---|---|---|
+| Grower | 1.30 / 1.11 / 1.00 | 1.12 / 1.11 / 1.00 |
+| Builder | 1.10 / 1.07 / 1.00 | 1.00 / 1.07 / 1.00 |
+| Wanderer | 1.00 / 0.95 / 1.05 | 1.00 / 1.00 / 1.00 |
+| Sage | 0.95 / 0.95 / 0.95 | 1.05 / 1.00 / 0.95 |
+| Warlord | unchanged | unchanged |
+
+Win shares (Builder / Grower / Wanderer / Warlord / Sage):
+
+| Cohort | Result |
+|---|---|
+| Baseline, exact seeds | 33.3 / 37.5 / 13.5 / 28.1 / 12.5% |
+| Candidate 1 (Grower fertility 1.20), exact seeds | 27.1 / 28.1 / 24.0 / 21.9 / 24.0% |
+| Candidate 1, held-out seeds | 22.9 / 33.3 / 20.8 / 21.9 / 26.0%: Grower still over, pooled 30.7% |
+| **Candidate 2 (Grower fertility 1.12, promoted), exact seeds** | **29.2 / 21.9 / 27.1 / 19.8 / 27.1%, PASS** |
+| Candidate 2, held-out seeds | 21.9 / 22.9 / 25.0 / 31.2 / 24.0%: Warlord 30 of 96 wins, 2 over the 28-win limit |
+| Candidate 2, pooled over 48 seeds | 25.5 / 22.4 / 26.0 / 25.5 / 25.5% |
+
+The held-out Warlord miss is within the sampling error of a 96-appearance share (about 4.4 points) and the pooled shares are flat, so it is recorded as noise, not as a failing archetype. The acceptance cohort passes. Mean Legacy now spans 2,798 to 2,935 (was 2,535 to 3,225). Settlements per civ: Grower 16.6, Sage 13.1, Builder 12.9, Warlord 12.4, Wanderer 12.0.
+
+Gates on the promoted tree: A1 81%, A2 grower 69%, A3 win 25%, A4 50% and B31 38% are the same misses as before; A7 idle labor shows one season again (seed 20261025, s10, food security 0.000), a different seed from the earlier one, so it is a recurring single-season miss and not this change. A7 starvation, undefended loss and herd crash are 0; B27, B28 (2/2), B30 pass. B7 70.3%, B8 26/32, B17 to B20 identical to the previous section (the politics, research and E3 checks seat Balanced civs, and B6 11/32, B9 193.3, B10 7.4%, B21 and B12 70% / 52% are unchanged). Tests 911/911 after updating the one test that hard-coded the old Builder and Grower defaults. Only `tests/golden/research-v1.txt` changed (its bot is a Grower): final `92a34be92d6f03ef` to `64bf02f47b3bcca4`, digest `7964b21dba4849f1` to `30440743bf98b148`; toy, politics and bronze goldens match.
+
+The `--a5-builder-fertility-diagnostic` and `--a5-grower-fertility-diagnostic` harness flags remain as overrides (1.00 and 1.20) but no longer describe the production values. The screening hook used here (`CIVSIM_A5`) was scratch-only and is not in the tree.
