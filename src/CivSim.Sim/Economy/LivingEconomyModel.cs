@@ -1719,7 +1719,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 foodWork = totalWork * foodShare;
         Fix64 foodWorkRequested = foodWork;
         // Civic labor comes out of what food leaves, never out of the food work (docs/MVP/23 §8 structures are built in plenty).
-        civicWork = Fix64.Min(civicWork, Fix64.Max(Fix64.Zero, totalWork - foodWork));
+        // A queued Palisade keeps its urgent build labor ahead of civic work: a daughter with less than a season of stores
+        // spends 85% on food, and the civic builders took the whole remainder (07d, B28 labor reservation).
+        Fix64 palisadeReserve = Fix64.Zero;
+        if (settlement.BuildTarget == Structure.Palisade && !HasPhysicalDefense(settlement) && CanBuild(settlement.Civilization, Structure.Palisade))
+            palisadeReserve = Fix64.Min(Fix64.Min(Fix64.FromInt(3), totalWork * Fix64.FromRatio(25, 100)),
+                Fix64.Max(Fix64.Zero, StructureBuildLabor(settlement, Structure.Palisade) - settlement.BuildProgress));
+        civicWork = Fix64.Min(civicWork, Fix64.Max(Fix64.Zero, totalWork - foodWork - palisadeReserve));
         if (settlement.Civic is { } civicTraceAssigned) civicTraceAssigned.TraceCivicAssigned = civicWork;
         totalWork -= civicWork;
         foodWork = Fix64.Min(foodWork, totalWork);
