@@ -8,7 +8,7 @@ using CivSim.Sim.Randomness;
 
 namespace CivSim.Sim.Ai;
 
-/// <summary>Opt-in Warlord policy based on recent attacks and visible next-season ordinary raids.</summary>
+/// <summary>Warlord-difficulty policy based on recent attacks and visible next-season ordinary raids (docs/MVP/07d, A3).</summary>
 internal static class RaidWithdrawalPolicy
 {
     private const int EvidenceSeasons = 8;

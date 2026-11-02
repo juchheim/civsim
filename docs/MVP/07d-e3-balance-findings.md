@@ -1336,3 +1336,20 @@ Gates on the promoted tree: A5 Builder 27.1%, Grower 24.0%, Wanderer 26.0%, Warl
 
 A2 grower is therefore not tuned: its Warlord losses have low Firsts and no common cause, and the earlier scout-reserve candidate that reached 13/16 hurt A3. A3 and A4 are real and both point at the Warlord's expansion pace, which is where `55d0e10` (A3 win 38% to 25% between `03ce68c` and `main`) is the lead. Acceptance protocol is unchanged; whether the AI gates should be judged on 32 seeds like B7 and B8 is a decision for sign-off.
 
+
+## A3 promoted: Warlord raid-withdrawal policy on by default (2026-11-02)
+
+The 2026-10-31 raid-withdrawal policy (alerted and prepared withdrawal, Warlord-difficulty seats only; see the screens above) reached 14/16 on the 8-seed cohort but stayed opt-in, so the official A3 check never used it and kept measuring 21-30%. It is now the production default (`AiSystem` and `MatchModel.Create` default on). `--warlord-raid-withdrawal-off-diagnostic` disables it for counterfactuals; `--warlord-raid-withdrawal-diagnostic` now only enables the trace.
+
+Warlord vs Rusher, 80 matches per block, 64 minutes, no flags:
+
+| Block (first seed) | Before (policy off) | After (default) | Warlord settlements lost |
+|---|---|---|---|
+| 20261019 | 21% (Legacy 4,456 vs 5,953) | 81% (6,201 vs 4,823) | 0 / 80 |
+| 20261100 | 30% (4,484 vs 5,929) | 79% (6,187 vs 4,842) | 0 / 80 |
+
+A3 target (win >= 70%, no lost settlement >= 80%) passes on both blocks. This is a behaviour of the Warlord AI (it withdraws a settlement's workforce from a raid it forecasts to lose), not a catch-up mechanic: it keys on the raid forecast, not on a civilization's rank.
+
+Checks: 911/911 tests pass; toy, research, politics and bronze goldens and `validate --strict` are unchanged (those runs use no Warlord AI seats), so nothing was regenerated.
+
+Not yet rerun with the policy on: A4 (Chieftain vs Warlord, was ~45% vs 25-40%; the policy should lower it but it may overshoot), A2 (Warlord vs Grower/Builder/Wanderer), the A5 FFA cohort and `--check-m10`. A started A4 block did not finish and was stopped. A3 is therefore closed; the others need a recheck.

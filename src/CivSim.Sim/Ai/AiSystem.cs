@@ -49,11 +49,11 @@ public sealed class AiSystem
     private readonly AiSeat?[] _seats;
     private readonly AiLog _log = new();
     private readonly ulong _seed;
-    private bool _warlordRaidWithdrawalPolicyEnabled;
+    private bool _warlordRaidWithdrawalPolicyEnabled = true;
     private long _tick;
 
     public AiSystem(LivingEconomyModel economy, ResearchSystem research, PoliticsSystem politics, GeneratedWorld generated,
-        ContentPack pack, ulong seed, ReadOnlySpan<CivControl> controls, bool warlordRaidWithdrawalPolicyEnabled = false)
+        ContentPack pack, ulong seed, ReadOnlySpan<CivControl> controls, bool warlordRaidWithdrawalPolicyEnabled = true)
     {
         _world = new TrueWorld(economy, research, politics, generated);
         _seed = seed;

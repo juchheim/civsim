@@ -256,7 +256,7 @@ internal static class Tournament
         bool warlordFoundFrontierTrajectory = false,
         bool warlordAllowExposedFoundDiagnostic = false, bool warlordThirdE3FoundDiagnostic = false,
         bool warlordQuietFrontierPlanTrace = false, bool warlordCombatCasualtyTrace = false,
-        bool warlordRaidWithdrawalDiagnostic = false)
+        bool warlordRaidWithdrawalDiagnostic = false, bool warlordRaidWithdrawalOffDiagnostic = false)
     {
         if (warlordPreE3FissionOriginalSettlementsOnly && warlordPreE3FissionFirstGenerationDaughtersOnly)
             throw new ArgumentException("Choose either original-settlement-only or first-generation-daughter-only fission threshold diagnostics.");
@@ -293,7 +293,7 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls,
-            warlordRaidWithdrawalPolicy: warlordRaidWithdrawalDiagnostic);
+            warlordRaidWithdrawalPolicy: !warlordRaidWithdrawalOffDiagnostic);
         if (warlordRaidWithdrawalDiagnostic)
         {
             var traceCivs = new bool[seats.Length];
@@ -3122,7 +3122,7 @@ internal static class Tournament
         bool warlordFoundFrontierTrajectory = false,
         bool warlordAllowExposedFoundDiagnostic = false, bool warlordThirdE3FoundDiagnostic = false,
         bool warlordQuietFrontierPlanTrace = false, bool warlordCombatCasualtyTrace = false,
-        bool warlordRaidWithdrawalDiagnostic = false)
+        bool warlordRaidWithdrawalDiagnostic = false, bool warlordRaidWithdrawalOffDiagnostic = false)
     {
         var jobs = new List<(ulong Seed, bool Swapped)>();
         for (int i = 0; i < seeds; i++) { jobs.Add((firstSeed + (ulong)i, false)); jobs.Add((firstSeed + (ulong)i, true)); }
@@ -3163,7 +3163,8 @@ internal static class Tournament
                 warlordThirdE3FoundDiagnostic: warlordThirdE3FoundDiagnostic,
                 warlordQuietFrontierPlanTrace: warlordQuietFrontierPlanTrace,
                 warlordCombatCasualtyTrace: warlordCombatCasualtyTrace,
-                warlordRaidWithdrawalDiagnostic: warlordRaidWithdrawalDiagnostic), swapped);
+                warlordRaidWithdrawalDiagnostic: warlordRaidWithdrawalDiagnostic,
+                warlordRaidWithdrawalOffDiagnostic: warlordRaidWithdrawalOffDiagnostic), swapped);
         });
         var r = new DuelResult();
         double key1A = 0, key1B = 0; int nA = 0, nB = 0;
