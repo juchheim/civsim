@@ -24,7 +24,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     internal bool B28PreparedDefenseTraceEnabled { get; set; }
     internal readonly List<string> B28PreparedDefenseWorkRows = new();
     private readonly List<int> _b28PreparedDefenseTraceSettlements = new(8);
-    private readonly Dictionary<int, B28PreparedDefenseLedger> _b28PreparedDefenseLedgers = new();
+    private readonly SortedList<int, B28PreparedDefenseLedger> _b28PreparedDefenseLedgers = new();
     private sealed class B28PreparedDefenseLedger
     {
         public int Season;
@@ -48,8 +48,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64 Opening, ChopInflows, CivicInflows, OtherInflows, HearthFire, OtherUses, BuildProgressStart;
         public Structure BuildTargetStart;
     }
-    private readonly Dictionary<int, B28AffordabilityLedger> _b28AffordabilityLedgers = new();
-    private readonly Dictionary<int, List<string>> _b28AffordabilityRowsBySettlement = new();
+    private readonly SortedList<int, B28AffordabilityLedger> _b28AffordabilityLedgers = new();
+    private readonly SortedList<int, List<string>> _b28AffordabilityRowsBySettlement = new();
 
     internal IReadOnlyList<string> B28AffordabilityTimelineRows(int settlementId)
         => _b28AffordabilityRowsBySettlement.TryGetValue(settlementId, out List<string>? rows) ? rows : Array.Empty<string>();
@@ -485,7 +485,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public Fix64?[]? PreE3FissionThresholdScaleOverridesForDiagnostics { get; set; }
     public bool PreE3FissionThresholdOverrideInitialSettlementsOnlyForDiagnostics { get; set; }
     public bool PreE3FissionThresholdOverrideFirstGenerationDaughtersOnlyForDiagnostics { get; set; }
-    private readonly HashSet<int> _firstGenerationDaughterSettlementIdsForDiagnostics = new();
+    private readonly SortedSet<int> _firstGenerationDaughterSettlementIdsForDiagnostics = new();
     internal Fix64? BuilderFertilityMultiplierForDiagnostics { get; set; }
     internal Fix64? GrowerFertilityMultiplierForDiagnostics { get; set; }
     /// <summary>Harness-only Warlord famine-work counterfactual; leaves ordinary food shares unchanged.</summary>
@@ -1719,7 +1719,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 foodWork = totalWork * foodShare;
         Fix64 foodWorkRequested = foodWork;
         // Civic labor comes out of what food leaves, never out of the food work (docs/MVP/23 §8 structures are built in plenty).
-        civicWork = Fix64.Min(civicWork, Fix64.Max(Fix64.Zero, totalWork - foodWork));
+        // A queued Palisade keeps its urgent build labor ahead of civic work: a daughter with less than a season of stores
+        // spends 85% on food, and the civic builders took the whole remainder (07d, B28 labor reservation).
+        Fix64 palisadeReserve = Fix64.Zero;
+        if (settlement.BuildTarget == Structure.Palisade && !HasPhysicalDefense(settlement) && CanBuild(settlement.Civilization, Structure.Palisade))
+            palisadeReserve = Fix64.Min(Fix64.Min(Fix64.FromInt(3), totalWork * Fix64.FromRatio(25, 100)),
+                Fix64.Max(Fix64.Zero, StructureBuildLabor(settlement, Structure.Palisade) - settlement.BuildProgress));
+        civicWork = Fix64.Min(civicWork, Fix64.Max(Fix64.Zero, totalWork - foodWork - palisadeReserve));
         if (settlement.Civic is { } civicTraceAssigned) civicTraceAssigned.TraceCivicAssigned = civicWork;
         totalWork -= civicWork;
         foodWork = Fix64.Min(foodWork, totalWork);
@@ -1823,6 +1829,18 @@ public sealed partial class LivingEconomyModel : ISimModel
                 if (toolWork is not null) toolWork[i] += amount;
                 available -= amount;
                 civicRemaining -= amount;
+            }
+            // The metal budget was taken out of the settlement's work as a lump, but only adults can spend it. Adults taking food
+            // first leave it as children's idle capacity (B12), so an adult takes its share of the reserve ahead of food.
+            if (AdultsTakeMetalReserveFirst && metalPlan is not null && toolWork is not null && available > Fix64.Zero && figure.Age >= 14)
+            {
+                Fix64 open = Unassigned(metalPlan);
+                if (open > Fix64.Zero)
+                {
+                    Fix64 amount = Fix64.Min(available, open);
+                    AssignMetalWork(figure, i, amount, metalPlan, toolWork);
+                    available -= amount;
+                }
             }
             if (foodRemaining > Fix64.Zero && available > Fix64.Zero)
             {
@@ -2049,8 +2067,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         if (metalPlan is not null && toolWork is not null)
         {
+            civicAssigned -= TransferCivicWorkToMetalCompletion(settlement, metalPlan, civicAssigned, civicCanals, civicHousing);
             TraceB12MiningPlanIfNeeded(settlement, metalPlan, season);
-            CaptureB12T18Snapshot(settlement, metalPlan, season);
+            CaptureB12T18Snapshot(settlement, metalPlan, season, fireWork, careWork, staffWork, scoutWork,
+                upkeepBudget, orchardUpkeep, foodWorkRequested, foodWorkAssigned, civicAssigned, buildWork - buildRemaining,
+                assignedHerdWork, materialWork - materialRemaining);
             RunMetal(settlement, metalPlan, craftLeft, toolWork, season);
         }
         if (civicAssigned > Fix64.Zero) WorkCivic(settlement, civicAssigned, civicCanals, civicHousing);
@@ -3931,11 +3952,11 @@ public sealed partial class LivingEconomyModel : ISimModel
     // mortality; since M5 raids and assaults kill fighters in the simulation itself (docs/MVP/14 §17).
     private ArchetypeProfile Profile(int civ) => _archetypes[civ] switch
     {
-        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.3"), Fix64.Parse("1.11"), Fix64.One, Fix64.Zero),
-        EconomyArchetype.Builder => new ArchetypeProfile(BuilderFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.10"), Fix64.Parse("1.07"), Fix64.One, Fix64.Parse("-0.02")),
-        EconomyArchetype.Wanderer => new ArchetypeProfile(Fix64.One, Fix64.Parse("0.95"), Fix64.Parse("1.05"), Fix64.Zero),
+        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.12"), Fix64.Parse("1.11"), Fix64.One, Fix64.Zero),
+        EconomyArchetype.Builder => new ArchetypeProfile(BuilderFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.00"), Fix64.Parse("1.07"), Fix64.One, Fix64.Parse("-0.02")),
+        EconomyArchetype.Wanderer => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         EconomyArchetype.Warlord => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
-        EconomyArchetype.Sage => new ArchetypeProfile(Fix64.Parse("0.95"), Fix64.Parse("0.95"), Fix64.Parse("0.95"), Fix64.Zero),
+        EconomyArchetype.Sage => new ArchetypeProfile(Fix64.Parse("1.05"), Fix64.One, Fix64.Parse("0.95"), Fix64.Zero),
         _ => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
     };
 
@@ -3986,8 +4007,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     /// <summary>Keep a viable Temple-bound Town intact until it can become a City (07d F4); hunger and low Cohesion still split it.</summary>
     private bool ShouldPreserveCityTown(SettlementState settlement)
     {
-        if (settlement.Civic is not { } civic || civic.Tier != (byte)SettlementTier.Town ||
-            civic.BuildKind != CivicBuild.Temple && civic.Temples == 0 && !ShouldPrepareCityTemple(settlement, civic)) return false;
+        // The Palace site keeps its people once it is a Town, whether or not its Temple is under way: capitals that split
+        // while waiting for BEL-06 rarely reached 90 by the chapter end (07d, B17 City share, 2026-11-01).
+        if (settlement.Civic is not { } civic || civic.Tier < (byte)SettlementTier.Town ||
+            PalaceSite(settlement.Civilization) != settlement.Id) return false;
         Fix64 cityPopulation = Fix64.FromInt(_civic.CityMinPop);
         return FoodCap(settlement) >= cityPopulation && HousingCap(settlement) >= cityPopulation &&
             settlement.FoodSecurity >= Fix64.Parse("0.8") &&

@@ -40,7 +40,13 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     private byte[] _foundDonorProtectionCache = Array.Empty<byte>();
 
     internal Action<FoundFrontierBlockerSnapshot>? FoundFrontierBlockerTraceForDiagnostics { get; set; }
-    internal bool AllowExposedFoundCandidatesForDiagnostics { get; set; }
+    /// <summary>
+    /// Off by default. When set, Found sites inside the raid reach of a recently seen Bronze rival are dropped from the
+    /// candidates. The filter keeps new settlements out of reach but stops AI civs from founding toward their
+    /// neighbours: with it on, paired borders at each civ's own KEY-4 fell from 85/94 to 36/95 (B17) at the same
+    /// settlement count, and B28 did not improve by a measurable margin (07d, 2026-11-01).
+    /// </summary>
+    internal bool BlockExposedFoundCandidates { get; set; }
     internal int? FoundPerAgeCapForDiagnostics { get; set; }
     private int FoundPerAgeCap => FoundPerAgeCapForDiagnostics ?? CouncilDecreePolicy.MaxFoundsPerAge;
 
@@ -117,7 +123,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
                 removedByExposure, candidatesRemaining, candidateAllowedBeforeExposure,
                 candidateAllowedAfterExposure, candidateAllowedRemovedByExposure));
         }
-        if (!AllowExposedFoundCandidatesForDiagnostics)
+        if (BlockExposedFoundCandidates)
             RemoveExposedFoundCandidates(_belief, civ, _candidates, bronzeRaidRange,
                 _met04Project, _met05Project);
         AddWallCorveeAlternatives(politics, civ, _candidates);

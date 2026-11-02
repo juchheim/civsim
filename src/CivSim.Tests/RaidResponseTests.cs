@@ -200,7 +200,10 @@ public sealed class RaidResponseTests
         Fix64 loot = targetStoresBefore - rig.Match.Economy.FoodStores(target);
         loot += targetToolsBefore - ToolValue(rig.Match.Economy, target);
         Assert.Equal(1, resolved.A);
+        // The raider's event reports what it brings home (DeliveredLootShare of the take); the target's reports the full loss.
         Assert.Equal((loot * Raids.DeliveredLootShare).FloorToInt(), resolved.B);
+        PoliticsEvent targetSide = rig.Politics.Events.Last(e => e.Kind == PoliticsEventKind.RaidResolved && e.Civ == 1);
+        Assert.Equal(loot.FloorToInt(), targetSide.B);
         Assert.Equal(populationBefore, rig.Match.Economy.Population(target));
         Assert.Equal(figuresBefore, rig.Match.Economy.FigureCount);
         Assert.Equal(0, (resolved.Fight >> 16) & 255);

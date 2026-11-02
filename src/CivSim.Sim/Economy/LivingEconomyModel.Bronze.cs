@@ -181,6 +181,7 @@ public sealed partial class LivingEconomyModel
             BreakQuality = K("KitBreakQuality", "0.5");
             RemeltShare = K("UpgradeRemeltShare", "0.5");
             PushCap = K("MetalPushLaborCap", "0.10");
+            ChainCap = K("MetalChainLaborCap", "0.30");
             SpareArms = K("WarriorSpareKits", "2").FloorToInt();
             FireSettingWood = K("FireSettingWoodPerL", "0.5");
             ClearedBelow = K("ForestClearedBelow", "5");
@@ -196,7 +197,7 @@ public sealed partial class LivingEconomyModel
 
         public readonly int CampCrew, CampCrewShaft, CampMinCrew, CampRadius, ShareReach, ShareReachGov04, SpareArms, GrassSeasons;
         public readonly int CharcoalReach, CharcoalReachCarts, MineReach, MineReachCarts, MineReachWater;
-        public readonly Fix64 CampBand, CampEmit, HaulWaterDiv, AccessMin, ReplaceQuality, BreakQuality, RemeltShare, PushCap;
+        public readonly Fix64 CampBand, CampEmit, HaulWaterDiv, AccessMin, ReplaceQuality, BreakQuality, RemeltShare, PushCap, ChainCap;
         public readonly Fix64 FireSettingWood, ClearedBelow, GrassBelow, RestoreAt;
     }
 
@@ -392,6 +393,32 @@ public sealed partial class LivingEconomyModel
         return !IsFreeFolk(_settlements[settlementIndex]) && (m.Access & (stored | source)) != 0;
     }
 
+    /// <summary>Whether this settlement has a workable deposit of the input in range, in a camp or on own land within mining reach (not mere stored stock).</summary>
+    internal bool SettlementHasMetalSource(int settlementIndex, MetalAccessKind kind)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count || _settlements[settlementIndex].Metal is not { } m) return false;
+        byte source = kind switch { MetalAccessKind.Copper => SourceCopper, MetalAccessKind.Arsenic => SourceArsenic, _ => SourceTin };
+        return !IsFreeFolk(_settlements[settlementIndex]) && (m.Access & source) != 0;
+    }
+
+    /// <summary>Harness diagnostic: deposits of the three smelted ores in the world, how many are worked out, and the litres at the start and left.</summary>
+    internal (int Deposits, int Depleted, Fix64 Initial, Fix64 Left) OreDepletion(MetalAccessKind kind)
+    {
+        MetalGood ore = kind switch { MetalAccessKind.Copper => MetalGood.CopperOre, MetalAccessKind.Arsenic => MetalGood.ArsenicalOre, _ => MetalGood.TinOre };
+        int deposits = 0, depleted = 0;
+        Fix64 initial = Fix64.Zero, left = Fix64.Zero;
+        for (int tile = 0; tile < _world.TileCount; tile++)
+        {
+            WorldDeposit d = _world.Deposit(tile);
+            if (OreGood(d.Kind) != ore) continue;
+            deposits++;
+            initial += OreLitres(d);
+            left += _ore[tile];
+            if (_ore[tile] <= Fix64.Zero) depleted++;
+        }
+        return (deposits, depleted, initial, left);
+    }
+
     public MetalStatistics MetalStats(int civ)
     {
         int o = civ * StatCount;
@@ -423,6 +450,14 @@ public sealed partial class LivingEconomyModel
             m.ForestAtStart, m.ClampTile);
     }
 
+    /// <summary>Whether a settlement has a local Forge and a local Kiln or Smelter.</summary>
+    public bool HasLocalMetalCastingFacilities(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return s.Metal is { Forges: > 0 } metal &&
+            (metal.Smelters > 0 || s.Structures[(int)Structure.Kiln] > 0);
+    }
+
     /// <summary>Read-only Bronze economy state for bounded harness diagnostics; unlike DescribeMetal, this does not build a new metal plan.</summary>
     internal string DescribeMetalStateReadOnly(int settlementIndex)
     {
@@ -431,7 +466,8 @@ public sealed partial class LivingEconomyModel
         text.Append($"s{settlementIndex} civ{s.Civilization} pop={Population(s.Id)} kiln={s.Structures[(int)Structure.Kiln]}");
         if (s.Metal is not { } m) return text.Append(" metal=none").ToString();
         text.Append($" tier={BestCastTier(s)} accessMask={m.Access} forge/smelter={m.Forges}/{m.Smelters} " +
-            $"build={m.BuildKind}:{m.BuildProgress.ToDoubleForDisplay():F2} siteClay={m.SiteClay.ToDoubleForDisplay():F2} siteStone={m.SiteStone.ToDoubleForDisplay():F2}");
+            $"build={m.BuildKind}:{m.BuildProgress.ToDoubleForDisplay():F2} siteClay={m.SiteClay.ToDoubleForDisplay():F2} siteStone={m.SiteStone.ToDoubleForDisplay():F2} " +
+            $"woodStore={s.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} standingWood={StandingWoodInRange(s.SiteTile).ToDoubleForDisplay():F1} headWood={TakeWood(s, s.SiteTile, Fix64.FromInt(6), commit: false).ToDoubleForDisplay():F1}");
         for (int g = 0; g < (int)MetalGood.Count; g++)
             if (m.Goods[g] > Fix64.Zero)
                 text.Append($" {MetalGoodId((MetalGood)g)}={m.Goods[g].ToDoubleForDisplay():F2}");

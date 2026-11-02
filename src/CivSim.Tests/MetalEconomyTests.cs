@@ -23,6 +23,12 @@ public class MetalEconomyTests
     private static BronzeFixture Fixture(int people = 60, bool coppice = false, bool tin = true, bool arsenic = true, bool shaft = true)
         => BronzeFixture.Create(TestPack.Pack, Seed, people, coppice, tin, arsenic, shaft, "WAR-05");
 
+    private static void ExhaustCopperAndTin(BronzeFixture f)
+    {
+        f.Economy.FixtureExhaust(f.CopperTile);
+        f.Economy.FixtureExhaust(f.TinTile);
+    }
+
     // ---- recipes -------------------------------------------------------------------------------
 
     [Fact]
@@ -79,6 +85,55 @@ public class MetalEconomyTests
         f.Economy.FixtureStock(0, "G-CHAR", -f.Economy.GoodStock(0, "G-CHAR"));
         Assert.Equal(Fix64.Zero, f.Economy.FixtureRunRecipe(0, "smelt_copper", Fix64.FromInt(5), Fix64.FromInt(10)));
         Assert.Equal(Fix64.Zero, f.Economy.FixtureRunRecipe(0, "smelt_tin", Fix64.FromInt(5), Fix64.FromInt(10)));
+    }
+
+    [Fact]
+    public void Tin_bronze_access_falls_back_to_local_arsenical_feed_when_local_tin_or_copper_is_absent()
+    {
+        BronzeFixture f = Fixture();
+        ExhaustCopperAndTin(f);
+        f.Economy.FixtureStock(0, "G-ASORE", Fix64.FromRatio(3, 5));
+
+        // Copper and tin are accessible through sister stores, but local tin/copper chains are stalled.
+        Assert.Equal(9, f.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
+
+        BronzeFixture residual = Fixture();
+        ExhaustCopperAndTin(residual);
+        residual.Economy.FixtureStock(0, "G-COPPER", F("0.001"));
+        residual.Economy.FixtureStock(0, "G-TIN", F("0.001"));
+        residual.Economy.FixtureStock(0, "G-ASORE", Fix64.FromRatio(3, 5));
+        Assert.Equal(9, residual.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
+
+        BronzeFixture depleted = Fixture();
+        depleted.Economy.FixtureSetOreRemaining(depleted.CopperTile, F("0.001"));
+        depleted.Economy.FixtureSetOreRemaining(depleted.TinTile, F("0.001"));
+        depleted.Economy.FixtureStock(0, "G-ASORE", Fix64.FromRatio(3, 5));
+        Assert.Equal(9, depleted.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
+    }
+
+    [Fact]
+    public void Tin_bronze_stays_preferred_with_local_inputs_or_castable_stock_and_without_local_arsenic()
+    {
+        BronzeFixture localDeposits = Fixture();
+        Assert.Equal(10, localDeposits.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
+
+        BronzeFixture stockedInputs = Fixture();
+        ExhaustCopperAndTin(stockedInputs);
+        stockedInputs.Economy.FixtureStock(0, "G-COPPER", F("0.135"));
+        stockedInputs.Economy.FixtureStock(0, "G-TIN", F("0.015"));
+        stockedInputs.Economy.FixtureStock(0, "G-ASORE", Fix64.Half);
+        Assert.Equal(10, stockedInputs.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
+
+        BronzeFixture castableBronze = Fixture();
+        ExhaustCopperAndTin(castableBronze);
+        castableBronze.Economy.FixtureStock(0, "G-BRONZE", F("0.15"));
+        castableBronze.Economy.FixtureStock(0, "G-ASORE", Fix64.Half);
+        Assert.Equal(10, castableBronze.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
+
+        BronzeFixture noArsenicFallback = Fixture(arsenic: false);
+        ExhaustCopperAndTin(noArsenicFallback);
+        noArsenicFallback.Economy.FixtureExhaust(noArsenicFallback.ArsenicTile);
+        Assert.Equal(10, noArsenicFallback.Economy.FixtureTierWithAccess(0, copper: true, arsenic: false, tin: true));
     }
 
     // ---- deposits and camps --------------------------------------------------------------------
@@ -313,7 +368,9 @@ public class MetalEconomyTests
         Fix64 drawnCoppiced = Fix64.One - coppiced.StandingWood() / start;
         Assert.True(drawnPlain > drawnCoppiced, $"{drawnPlain} vs {drawnCoppiced}");
         Assert.True(drawnCoppiced < F("0.05"), $"coppiced drawdown {drawnCoppiced}");
-        Assert.True(drawnPlain >= F("0.25") && drawnPlain <= F("0.70"), $"uncoppiced drawdown {drawnPlain}");
+        // 0.70 became 0.75 with MetalChainLaborCap 0.30 (07d B12, 2026-10-31): a 100-person Town without WOD-04 now draws the
+        // forest down to 71% over 52 seasons (62% at the old 0.10 cap, 35% at 80 people), with coppicing still under 5%.
+        Assert.True(drawnPlain >= F("0.25") && drawnPlain <= F("0.75"), $"uncoppiced drawdown {drawnPlain}");
     }
 
     // ---- determinism and snapshots --------------------------------------------------------------

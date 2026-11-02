@@ -62,7 +62,7 @@ public sealed class MatchModel : ISimModel
     /// </summary>
     public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
         ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls, bool playerCouncil = true,
-        bool gentleStart = false, bool warlordRaidWithdrawalPolicy = false)
+        bool gentleStart = false, bool warlordRaidWithdrawalPolicy = true)
     {
         var catalog = new ResearchCatalog(pack);
         WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);

@@ -562,6 +562,7 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 | KitReplaceQuality · KitBreakQuality | 0.7 · 0.5 | ToolQuality | 10 §3; §4.1 |
 | UpgradeRemeltShare | 0.5 | share of kit metal | §4.1 (decided here) |
 | MetalPushLaborCap | 0.10 | share of labor | §7.3 (decided here) |
+| MetalChainLaborCap | 0.30 | share of labor | §7.3; 07d B12 (decided 2026-10-31) |
 | WarriorSpareKits · MilitiaArmsShareFortify | 2 · 0.25 | kits · × adults | §4.2 (decided here) |
 | FireSettingWoodPerL | 0.5 | L wood per L ore | 22 §5.2 |
 | ForestStock · ForestRegrowth | 30 · 0.5 | L · L/season | 10 §5.1 |

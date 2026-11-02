@@ -41,6 +41,8 @@ public class BeliefMatchTests
         int routine = BeliefRules.RoutineSight(politics.ReachOf(0));
         int target = Enumerable.Range(0, politics.SettlementTotal)
             .Where(s => politics.SettlementCivOf(s) is > 0 and < 4 && !politics.IsFreeFolk(s) && politics.SettlementPopulationOf(s) > 0)
+            // Ownership moves toward the claim one season at a time, so a just-founded daughter's own tile can still read unowned;
+            // the observation under test records the tile's owner, so pick a settlement whose tile its civilization already holds.
             .Where(s => politics.Territory.OwnerOf(politics.SettlementTileOf(s)) == politics.SettlementCivOf(s))
             .Where(s => Enumerable.Range(0, politics.SettlementTotal)
                 .Where(own => politics.SettlementCivOf(own) == 0 && !politics.IsFreeFolk(own))
