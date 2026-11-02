@@ -1298,3 +1298,17 @@ Promoted tree, exact cohort: B17 10.9 settlements/civ, 41.3% claimed land, borde
 
 Other gates on the promoted tree: S12 7.97 s, S13 1.84 ms mean tick (max GC 1 ms); A5 Builder 29.2%, Grower 22.9%, Wanderer 26.0%, Warlord 20.8%, Sage 26.0% (still passing); **A1 94% (was 81%, now passes)**; A7 all zero including idle labor (was 1 season); A2 grower 69%, A3 win 25%, A4 50%, B31 44% unchanged misses; B27 dormant bronze 2/16 (0.125 per match, flips between runs); B7 70.3%, B8 27/32. Tests 911/911. Only `tests/golden/bronze-v1.txt` changed (checksum `b2f7c72993e2ed36` to `5e9f9aaa459bb699`); the S12 chapter checksum moves with it. The research, politics and toy goldens match.
 
+**B17/B19 KEY-4 completion trace (2026-11-01).** The two civs that miss the 80-minute ceiling on the exact cohort (94/96) are civ3 in seed 20261020 and civ2 in seed 20261042. Traced with `politics --check-m10 --seed N --seeds 1 --minutes 80 --trace-seed N` on `d6ece0b`. Both are founder bands that never grow, not slow researchers and not war losses (no captures; wars and raids on the civ are ordinary):
+
+| | 20261020 civ3 | 20261042 civ2 |
+|---|---|---|
+| Starting site | identical to its neighbours (food cap 19.0) | same |
+| Pop at season 40 / 80 (others) | 13 / 21 (21-28 / 19-37) | 14 / 13 (23-28 / 36-45) |
+| Fissions by season 80 | 0 | 0 |
+| Food cap at season 40 / 80 | 33 / 55 | 57 / 74 (not food-limited) |
+| KEY-2 / KEY-3 completed | season 98 / 252 (others 73-85 / 144-167) | season 85 / 256 (others 71-85 / 144-167) |
+| Chapter-end settlements | 3 settlements, 85 people | 1 settlement, 48 people |
+| KEY-4 at 80 minutes | open: E3 breadth 16/21, MET-08, GOV-06, TRD-05 | open: E3 breadth 10/21 |
+
+In both, the band lost two of its roughly six adults in the first eight seasons (an adult woman each: season 0 violence and season 7 exposure in 20261042; exposure and injury in 20261020), then births stayed at or below deaths for 80 seasons: child deaths from endemic disease, exposure and starvation (some at a reported food security of 1.00, which is the winter-shortfall surcharge landing between the eight-season snapshots) kept the band at 12-21 people with four to seven adults. A band that small has too little Insight to reach KEY-2 on time, and the lag compounds to KEY-3 at minute 63-64 and KEY-4 past 80. It is demographic variance in a fragile founder band, which is why the held-out cohort completed 96/96 and why changing any unrelated rule reshuffles which two civs it hits. A research-pace lever would not address it, and a catch-up bonus is not being considered. The remaining ways to close it are a design choice about early hazards for the founding band (the human player already gets three protected onboarding winters) or relaxing the "96/96" completion criterion; neither is a tuning decision to take without sign-off, and no code or threshold changed.
+
