@@ -13,7 +13,7 @@ namespace CivSim.Game;
 public partial class Game
 {
     private PanelContainer? _tileCard;
-    private Label? _tileTitle, _tileFeatures, _tileWorkers, _tileFallback, _tileHint, _tileExtra;
+    private Label? _tileTitle, _tileFeatures, _tileBeaconPreview, _tileWorkers, _tileFallback, _tileHint, _tileExtra;
     private UiIcon? _tileWarn;
     private Control? _tileFallbackRow, _tileScoutRow;
     private Label? _tileScoutStatus;
@@ -44,6 +44,9 @@ public partial class Game
         column.AddChild(top);
         _tileFeatures = UiKit.Text("", "Caption", wrap: true, minWidth: 296);
         column.AddChild(_tileFeatures);
+        _tileBeaconPreview = UiKit.Text("", "Caption", wrap: true, minWidth: 296);
+        _tileBeaconPreview.Visible = false;
+        column.AddChild(_tileBeaconPreview);
         _tileWorkers = UiKit.Text("", "Caption", wrap: true, minWidth: 296);
         column.AddChild(_tileWorkers);
         var scout = UiKit.Column(UiTokens.Sp1);
@@ -157,6 +160,9 @@ public partial class Game
         WorldView world = _session.WorldView;
         TileVisibility visibility = (TileVisibility)frame.Visibility[tile];
         _tileScoutRow!.Visible = false;
+        _tileBeaconPreview!.Visible = _beaconMode;
+        if (_beaconMode && TryGetOwnBeaconIndex(tile, out _))
+            UiKit.SetText(_tileBeaconPreview, "Your Beacon is here · click to remove it.");
         _tileClose!.Visible = pinned;
         _tileCard.MouseFilter = pinned ? Control.MouseFilterEnum.Stop : Control.MouseFilterEnum.Ignore;
 
@@ -164,6 +170,8 @@ public partial class Game
         {
             UiKit.SetText(_tileTitle!, "Unexplored");
             UiKit.SetText(_tileFeatures!, "Your people haven't been here yet.");
+            if (_beaconMode && !TryGetOwnBeaconIndex(tile, out _))
+                UiKit.SetText(_tileBeaconPreview!, "Settlement likelihood is unknown until this land is explored.");
             _tileWorkers!.Visible = false;
             _tileFallbackRow!.Visible = false;
             _tileExtra!.Visible = false;
@@ -178,6 +186,8 @@ public partial class Game
             ? (visibility == TileVisibility.Explored ? "unclaimed when last seen" : "unclaimed")
             : owner == frame.ViewerCiv ? "Yours" : CivLabel(frame, owner);
         UiKit.SetText(_tileTitle!, $"{terrain} · {ownerText}");
+        if (_beaconMode && !TryGetOwnBeaconIndex(tile, out _))
+            UiKit.SetText(_tileBeaconPreview!, BeaconPreviewText(frame, tile));
 
         string water = world.HasRiver(tile) ? "River" : world.HasLake(tile) ? "Lake" : "";
         bool depositKnown = frame.KnownDeposits[tile] != 0;
@@ -240,6 +250,21 @@ public partial class Game
         3 => "Oil seep · not surveyed",
         _ => "Mineral outcrop · not identified",
     };
+
+    private string BeaconPreviewText(MatchFrame frame, int tile)
+    {
+        if (_session is null) return "Settlement likelihood unavailable.";
+        CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(frame, tile);
+        if (!preview.CanFound)
+            return "Estimated likelihood: none · no current settlement can legally found here.";
+
+        int fit = Math.Clamp((preview.RelativeSiteFit * CivSim.Sim.Numerics.Fix64.FromInt(100)).RoundToInt(), 0, 100);
+        string likelihood = fit >= 85 ? "High" : fit >= 60 ? "Possible" : "Low";
+        string ready = preview.PendingSplits > 0
+            ? $"Ready splits choosing this exact tile: {preview.PendingSplitsChoosingTile}/{preview.PendingSplits}."
+            : "No split is pending right now; timing depends on population growth and conditions.";
+        return $"Estimated likelihood: {likelihood} · this tile scores {fit}% of the best reachable site in this field. {ready}";
+    }
 
     private void RefreshScoutControls(MatchFrame frame, int tile, bool pinned)
     {

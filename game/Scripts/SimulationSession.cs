@@ -262,6 +262,13 @@ public sealed class SimulationSession : IDisposable
             return DecreeForecaster.Forecast(_match.Politics, civ, kind, target, extra, belief: null);
     }
 
+    /// <summary>Read-only Beacon placement estimate, synchronized with the deterministic simulation thread.</summary>
+    public BeaconSitePreview PreviewBeaconPlacement(int civ, int tile)
+    {
+        lock (_stateLock)
+            return _match.Politics.PreviewBeaconPlacement(civ, tile);
+    }
+
     /// <summary>Own settlements within reach of a founding site with the donor figures a refusal is judged by, read on the simulation lock.</summary>
     public System.Collections.Generic.List<FoundDonorStatus> FoundDonorStatuses(int civ, int tile)
     {

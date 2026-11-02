@@ -23,6 +23,11 @@ public partial class Game
     private Vector3 _moveFrom, _moveTo;
     private float _moveZoomFrom, _moveZoomTo, _moveT;
     private int _pinnedTile = -1;
+    private int _beaconPreviewTile = -1;
+    private long _beaconPreviewSequence = -1;
+    private int _beaconEstimateTile = -1;
+    private long _beaconEstimateSequence = -1;
+    private CivSim.Sim.Economy.BeaconSitePreview _beaconEstimate;
     private bool _panGestureSeen;
 
     private int ZoomLevel => _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
@@ -193,6 +198,7 @@ public partial class Game
         {
             UpdateCamera();
         }
+        TickBeaconPreview();
     }
 
     private void UpdateCameraTransformOnly()
@@ -500,7 +506,63 @@ public partial class Game
         }
         else if (_beaconLayer is not null) _ui.Remove(_beaconLayer);
         RefreshRail(_current!);
+        RefreshOverlayState();
+        if (!on) ClearBeaconPreview();
+        if (_tileCard is { Visible: true }) RefreshTileCardNow(GetViewport().GetMousePosition());
         Input.SetDefaultCursorShape(on ? Input.CursorShape.Cross : Input.CursorShape.Arrow);
+    }
+
+    private void TickBeaconPreview()
+    {
+        if (!_beaconMode || _session is null || _current is null || _visualRenderer is null)
+        {
+            if (_beaconPreviewTile >= 0) ClearBeaconPreview();
+            return;
+        }
+
+        Control? hovered = GetViewport().GuiGetHoveredControl();
+        if (hovered is not null && hovered != _hudRoot)
+        {
+            if (_beaconPreviewTile >= 0) ClearBeaconPreview();
+            return;
+        }
+        if (!TryPickTile(GetViewport().GetMousePosition(), out int tile))
+        {
+            if (_beaconPreviewTile >= 0) ClearBeaconPreview();
+            return;
+        }
+
+        long sequence = _current.Sequence;
+        if (_beaconPreviewTile == tile && _beaconPreviewSequence == sequence) return;
+        _beaconPreviewTile = tile;
+        _beaconPreviewSequence = sequence;
+
+        float fit = -1.0f;
+        if (_current.Visibility[tile] != (byte)TileVisibility.Unknown)
+        {
+            CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(_current, tile);
+            fit = preview.CanFound ? (float)preview.RelativeSiteFit.ToDoubleForDisplay() : 0.0f;
+        }
+        _visualRenderer.Call("set_beacon_preview", tile, fit);
+    }
+
+    private CivSim.Sim.Economy.BeaconSitePreview GetBeaconPlacementPreview(MatchFrame frame, int tile)
+    {
+        if (_session is null) return default;
+        if (_beaconEstimateTile != tile || _beaconEstimateSequence != frame.Sequence)
+        {
+            _beaconEstimate = _session.PreviewBeaconPlacement(frame.FocusCiv, tile);
+            _beaconEstimateTile = tile;
+            _beaconEstimateSequence = frame.Sequence;
+        }
+        return _beaconEstimate;
+    }
+
+    private void ClearBeaconPreview()
+    {
+        _visualRenderer?.Call("set_beacon_preview", -1, -1.0f);
+        _beaconPreviewTile = -1;
+        _beaconPreviewSequence = -1;
     }
 
     private void ManageBeaconAt(Vector2 screenPosition)

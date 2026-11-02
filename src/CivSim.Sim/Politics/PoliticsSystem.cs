@@ -359,6 +359,26 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// <summary>Beacons a civilization may hold: one from ART-05 Songlines, plus Era Boons (docs/MVP/05 §11.4).</summary>
     public int BeaconAllowance(int civ) => (_research.IsDone(civ, _p.Art05) ? 1 : 0) + _research.BeaconBoons(civ);
 
+    /// <summary>Read-only estimate for placing at a tile, including the nearest-Beacon replacement used when slots are full.</summary>
+    public BeaconSitePreview PreviewBeaconPlacement(int civ, int tile)
+    {
+        if ((uint)civ >= (uint)_civs) return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
+        IReadOnlyList<int> beacons = _beacons[civ];
+        int replaced = -1;
+        if (beacons.Count >= BeaconAllowance(civ) && beacons.Count > 0)
+        {
+            int nearestDistance = int.MaxValue;
+            for (int i = 0; i < beacons.Count; i++)
+            {
+                int distance = HexGrid.Distance(beacons[i], tile, _width);
+                if (distance >= nearestDistance) continue;
+                nearestDistance = distance;
+                replaced = i;
+            }
+        }
+        return _economy.PreviewBeaconSite(civ, tile, replaced);
+    }
+
     /// <summary>First contact between two civilizations, whatever their reach (a test and scenario hook).</summary>
     public void ForceContact(int a, int b) => MakeContact(a, b);
 
@@ -553,14 +573,31 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// to half, so bands do not wander into a neighbour's doorstep before contact.
     /// </summary>
     public Fix64 Multiplier(int civ, int tile)
+        => MultiplierWithBeacon(civ, tile, -1, -1);
+
+    public Fix64 PreviewMultiplier(int civ, int tile, int beaconTile, int replacedBeaconIndex)
+        => MultiplierWithBeacon(civ, tile, beaconTile, replacedBeaconIndex);
+
+    private Fix64 MultiplierWithBeacon(int civ, int tile, int beaconTile, int replacedBeaconIndex)
     {
         Fix64 best = Fix64.Zero;
-        foreach (int beacon in _beacons[civ])
+        IReadOnlyList<int> beacons = _beacons[civ];
+        for (int i = 0; i < beacons.Count; i++)
         {
-            int d = HexGrid.Distance(beacon, tile, _width);
+            if (i == replacedBeaconIndex) continue;
+            int d = HexGrid.Distance(beacons[i], tile, _width);
             if (d >= 15) continue;
             Fix64 pull = Fix64.FromRatio(15 - d, 15);
             if (pull > best) best = pull;
+        }
+        if (beaconTile >= 0)
+        {
+            int d = HexGrid.Distance(beaconTile, tile, _width);
+            if (d < 15)
+            {
+                Fix64 pull = Fix64.FromRatio(15 - d, 15);
+                if (pull > best) best = pull;
+            }
         }
         Fix64 factor = Fix64.One + best / 2;
         int nearestRival = int.MaxValue;

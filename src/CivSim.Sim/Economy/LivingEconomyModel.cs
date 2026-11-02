@@ -4433,12 +4433,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (_figures[i].Id == figureId) { _figures[i].SettlementId = settlementId; return; }
     }
 
-    private int ChooseFissionSite(SettlementState parent, int season)
+    private int ChooseFissionSite(SettlementState parent, int season, int previewBeaconTile = -1, int replacedBeaconIndex = -1,
+        bool recordDiagnostics = true)
     {
         int best = -1;
         Fix64 bestScore = Fix64.MinValue;
         int reach = Math.Max(14, SiteAdvisor?.SettleReach(parent.Civilization) ?? 14);
-        FissionSiteDiagnostics? diagnostics = FissionSiteDiagnosticsForDiagnostics;
+        FissionSiteDiagnostics? diagnostics = recordDiagnostics ? FissionSiteDiagnosticsForDiagnostics : null;
         int[]? rejections = diagnostics is null ? null : new int[6];
         List<(int Tile, Fix64 Food)>? legalRawFood = diagnostics is null ? null : new List<(int Tile, Fix64 Food)>();
         int legalSites = 0;
@@ -4484,7 +4485,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             legalSites++;
             Fix64 rawFood = _siteFoodScores[tile];
-            Fix64 multiplier = SiteAdvisor is not null ? SiteAdvisor.Multiplier(parent.Civilization, tile) : Fix64.One;
+            Fix64 multiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
+                ? SiteAdvisor.PreviewMultiplier(parent.Civilization, tile, previewBeaconTile, replacedBeaconIndex)
+                : SiteAdvisor.Multiplier(parent.Civilization, tile);
             Fix64 score = rawFood * multiplier;
             if (legalRawFood is not null)
             {

@@ -8,6 +8,11 @@ uniform sampler2D tile_state : filter_nearest;
 uniform sampler2D overlay_state : filter_nearest;
 uniform sampler2D e3_overlay_state : filter_nearest;
 uniform sampler2D forest_overlay_state : filter_nearest;
+uniform vec2 map_size = vec2(1.0);
+uniform bool beacon_preview_enabled = false;
+uniform vec2 beacon_preview_axial = vec2(-10000.0);
+uniform vec2 beacon_preview_uv = vec2(-1.0);
+uniform float beacon_preview_fit = -1.0;
 uniform float territory_strength = 1.0;
 uniform float claim_overlay_strength = 0.0;
 uniform float overlay_forecast = 0.0;
@@ -156,6 +161,28 @@ void fragment() {
 			}
 			c = mix(c, tint, overlay_mode == 6 ? 0.58 : 0.62);
 		}
+		}
+	}
+	// Beacon planning field: exact odd-r hex distance, with the same 15-tile falloff used by fission scoring.
+	if (beacon_preview_enabled && !wall) {
+		vec2 cell = floor(tile_uv * map_size);
+		float row = cell.y;
+		float q = cell.x - floor(row * 0.5);
+		float dq = q - beacon_preview_axial.x;
+		float dr = row - beacon_preview_axial.y;
+		float beacon_distance = max(max(abs(dq), abs(dr)), abs(dq + dr));
+		if (beacon_distance < 15.0) {
+			float pull = clamp(1.0 - beacon_distance / 15.0, 0.0, 1.0);
+			vec3 field_tint = mix(vec3(0.12, 0.49, 0.62), vec3(0.98, 0.73, 0.25), pull);
+			c = mix(c, field_tint, 0.38 * pull);
+		}
+		if (beacon_distance == 15.0) c = mix(c, vec3(0.78, 0.89, 0.79), 0.48);
+		vec2 center_cell = floor(beacon_preview_uv * map_size);
+		if (all(equal(cell, center_cell))) {
+			vec3 fit_tint = beacon_preview_fit < 0.0 ? vec3(0.78, 0.85, 0.87)
+				: beacon_preview_fit >= 0.85 ? vec3(0.30, 0.82, 0.48)
+				: beacon_preview_fit >= 0.60 ? vec3(0.96, 0.68, 0.22) : vec3(0.90, 0.32, 0.24);
+			c = mix(c, fit_tint, 0.52);
 		}
 	}
 	// Keep the whole landform legible while suppressing details on unknown and explored tiles.

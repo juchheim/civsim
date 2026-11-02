@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
 
@@ -13,6 +14,8 @@ public interface IFissionSiteAdvisor
     bool Allows(int civ, int tile);
     /// <summary>Multiplier on the site's food score, 1 when neutral.</summary>
     Fix64 Multiplier(int civ, int tile);
+    /// <summary>The multiplier with a hypothetical Beacon placement, optionally replacing one existing Beacon.</summary>
+    Fix64 PreviewMultiplier(int civ, int tile, int beaconTile, int replacedBeaconIndex);
     /// <summary>The farthest (hex distance) a daughter band may settle from its parent: on foot, or by boat once the civilization has one (docs/MVP/21).</summary>
     int SettleReach(int civ);
     /// <summary>Whether the band can actually get from the parent's village to the site.</summary>
@@ -20,6 +23,9 @@ public interface IFissionSiteAdvisor
     /// <summary>True if the band's voyage turns back (shipwreck); it then stays home this season.</summary>
     bool VoyageLost(int civ, int fromTile, int toTile, int season);
 }
+
+/// <summary>A read-only estimate of where a newly placed Beacon would rank as a daughter-band settlement site.</summary>
+public readonly record struct BeaconSitePreview(bool CanFound, Fix64 RelativeSiteFit, int PendingSplits, int PendingSplitsChoosingTile);
 
 /// <summary>What conflict and trade take from or add to a settlement's goods (docs/MVP/13 §4, §5.4).</summary>
 public enum LootPreference { PreservedFoodThenToolsThenFresh, FoodOnly }
@@ -42,6 +48,70 @@ public sealed partial class LivingEconomyModel
     }
 
     public IFissionSiteAdvisor? SiteAdvisor { get; set; }
+
+    /// <summary>
+    /// Estimates the Beacon tile against legal nearby fission sites. RelativeSiteFit is the target score divided by the strongest
+    /// reachable site score within the Beacon's 15-tile influence radius. Pending splits are checked against the full fission chooser.
+    /// This is a display-only query and does not change simulation state.
+    /// </summary>
+    public BeaconSitePreview PreviewBeaconSite(int civ, int beaconTile, int replacedBeaconIndex = -1)
+    {
+        if ((uint)beaconTile >= (uint)_world.TileCount || !IsHabitable(beaconTile))
+            return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
+
+        var parents = new List<SettlementState>();
+        int pendingSplits = 0, pendingSplitsChoosingTile = 0;
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            SettlementState parent = _settlements[i];
+            if (parent.Civilization != civ || IsFreeFolk(parent) || Population(parent.Id) <= 0) continue;
+            parents.Add(parent);
+            if (!parent.FissionPending) continue;
+            pendingSplits++;
+            if (ChooseFissionSite(parent, checked((int)_seasonsCompleted), beaconTile, replacedBeaconIndex, recordDiagnostics: false) == beaconTile)
+                pendingSplitsChoosingTile++;
+        }
+        if (parents.Count == 0) return new BeaconSitePreview(false, Fix64.Zero, pendingSplits, pendingSplitsChoosingTile);
+
+        var localCandidates = new List<(int Tile, Fix64 Score)>(768);
+        for (int tile = 0; tile < _world.TileCount; tile++)
+        {
+            if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile)) continue;
+            bool farEnough = true;
+            for (int s = 0; s < _settlements.Count; s++)
+                if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
+                { farEnough = false; break; }
+            if (!farEnough || SiteAdvisor is not null && !SiteAdvisor.Allows(civ, tile)) continue;
+            Fix64 score = _siteFoodScores[tile] * (SiteAdvisor is null
+                ? Fix64.One
+                : SiteAdvisor.PreviewMultiplier(civ, tile, beaconTile, replacedBeaconIndex));
+            if (score >= Fix64.Zero) localCandidates.Add((tile, score));
+        }
+
+        bool canFound = false;
+        Fix64 bestFit = Fix64.Zero;
+        foreach (SettlementState parent in parents)
+        {
+            int reach = Math.Max(14, SiteAdvisor?.SettleReach(civ) ?? 14);
+            Fix64 best = Fix64.Zero, target = Fix64.Zero;
+            bool targetReachable = false;
+            foreach ((int tile, Fix64 score) in localCandidates)
+            {
+                int distance = HexGrid.Distance(parent.SiteTile, tile, _world.Width);
+                if (distance < Radius * 2 + 1 || distance > reach ||
+                    SiteAdvisor is not null && !SiteAdvisor.Reachable(civ, parent.SiteTile, tile)) continue;
+                if (score > best) best = score;
+                if (tile == beaconTile) { target = score; targetReachable = true; }
+            }
+            if (!targetReachable) continue;
+            canFound = true;
+            Fix64 fit = best > Fix64.Zero ? Fix64.Clamp(target / best, Fix64.Zero, Fix64.One) : Fix64.Zero;
+            if (fit > bestFit) bestFit = fit;
+        }
+
+        return new BeaconSitePreview(canFound, bestFit, pendingSplits, pendingSplitsChoosingTile);
+    }
+
     // Diagnostic-only sink: deliberately excluded from state hashes, snapshots and serialization.
     internal FissionSiteDiagnostics? FissionSiteDiagnosticsForDiagnostics { get; set; }
 

@@ -26,6 +26,7 @@ var e3_overlay_texture: ImageTexture
 var forest_overlay_image: Image
 var forest_overlay_texture: ImageTexture
 var overlay_mode := 0 # 0 none, 1 claims, 2 food, 3 methods, 4 deposits, 5 trade, 6 cohesion, 7 forest
+var beacon_preview_tile := -1
 var hearth_fx_by_tile := {}
 var last_season := -1
 var season_lock := -1                  # dev aid for scenarios: show this season whatever the date (-1 follows the frame)
@@ -407,6 +408,22 @@ func set_overlay(mode: int) -> void:
 		mats.terrain.set_shader_parameter("overlay_mode", overlay_mode)
 		mats.terrain.set_shader_parameter("claim_overlay_strength", 1.35 if overlay_mode == 1 else 0.0)
 
+## Preview the Beacon's exact hex influence field and the hovered site's relative fit.
+## site_fit is -1 when the tile is unexplored, otherwise 0..1.
+func set_beacon_preview(tile: int, site_fit: float) -> void:
+	beacon_preview_tile = tile
+	if not mats.has("terrain"):
+		return
+	var enabled := tile >= 0 and tile < world.width * world.height
+	mats.terrain.set_shader_parameter("beacon_preview_enabled", enabled)
+	if not enabled:
+		return
+	var xy: Vector2i = world.tile_xy(tile)
+	var axial_q := xy.x - int((xy.y - (xy.y & 1)) / 2)
+	mats.terrain.set_shader_parameter("beacon_preview_axial", Vector2(axial_q, xy.y))
+	mats.terrain.set_shader_parameter("beacon_preview_uv", Vector2((xy.x + 0.5) / float(world.width), (xy.y + 0.5) / float(world.height)))
+	mats.terrain.set_shader_parameter("beacon_preview_fit", clampf(site_fit, -1.0, 1.0))
+
 func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> void:
 	if camera == null:
 		return
@@ -551,6 +568,7 @@ func _make_materials() -> void:
 	terrain.set_shader_parameter("overlay_state", overlay_texture)
 	terrain.set_shader_parameter("e3_overlay_state", e3_overlay_texture)
 	terrain.set_shader_parameter("forest_overlay_state", forest_overlay_texture)
+	terrain.set_shader_parameter("map_size", Vector2(world.width, world.height))
 	terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	mats.terrain = terrain
 	set_overlay(overlay_mode)

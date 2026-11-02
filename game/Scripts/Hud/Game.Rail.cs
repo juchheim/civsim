@@ -11,7 +11,7 @@ public partial class Game
     private PanelContainer? _rail, _legendCard;
     private UiButton? _compassButton, _claimsButton, _foodButton, _methodsButton, _resourcesButton, _depositsButton, _tradeButton, _cohesionButton, _forestButton, _beaconButton;
     private Label? _layersLabel;
-    private Control? _legendClaims, _legendFood, _legendMethods, _legendResources, _legendDeposits, _legendTrade, _legendCohesion, _legendForest;
+    private Control? _legendClaims, _legendFood, _legendMethods, _legendResources, _legendDeposits, _legendTrade, _legendCohesion, _legendForest, _legendBeacon;
     private Control? _railDivider;
 
     private void CreateRail()
@@ -42,7 +42,7 @@ public partial class Game
         column.AddChild(_tradeButton);
         column.AddChild(_cohesionButton);
         column.AddChild(_forestButton);
-        _beaconButton = RailToggle("Beacon", UiGlyph.Beacon, "A Beacon draws scouts and settlers toward a spot. Beacon mode (B) can place, move, or remove your Beacons.", ToggleBeaconMode);
+        _beaconButton = RailToggle("Beacon", UiGlyph.Beacon, "A Beacon biases scouting and future settlement sites. Beacon mode (B) previews its influence and settlement fit before placing, moving, or removing.", ToggleBeaconMode);
         _beaconButton.Visible = false;
         column.AddChild(_beaconButton);
         _rail.AddChild(column);
@@ -79,9 +79,9 @@ public partial class Game
 
         VBoxContainer Block() { var v = UiKit.Column(UiTokens.Sp2); v.Visible = false; host.AddChild(v); return v; }
         VBoxContainer claims = Block(), food = Block(), methods = Block(), resources = Block();
-        VBoxContainer deposits = Block(), trade = Block(), cohesion = Block(), forest = Block();
+        VBoxContainer deposits = Block(), trade = Block(), cohesion = Block(), forest = Block(), beacon = Block();
         _legendClaims = claims; _legendFood = food; _legendMethods = methods; _legendResources = resources;
-        _legendDeposits = deposits; _legendTrade = trade; _legendCohesion = cohesion; _legendForest = forest;
+        _legendDeposits = deposits; _legendTrade = trade; _legendCohesion = cohesion; _legendForest = forest; _legendBeacon = beacon;
 
         claims.AddChild(UiKit.Text("CLAIMS", "EyebrowTertiary"));
         claims.AddChild(GradientBar(new Color(0.5f, 0.5f, 0.45f, 0.25f), UiTokens.Accent));
@@ -138,6 +138,20 @@ public partial class Game
         AddSwatch(forest, new Color("#2e8747"), "Medium (15–24 L)");
         AddSwatch(forest, new Color("#145f38"), "Dense");
         forest.AddChild(UiKit.Text("Bands appear only on tiles in current sight.", "CaptionTertiary", wrap: true, minWidth: 207));
+
+        beacon.AddChild(UiKit.Text("BEACON INFLUENCE", "EyebrowTertiary"));
+        beacon.AddChild(GradientBar(new Color("#267D9E"), new Color("#F9BA40")));
+        var beaconStrength = UiKit.Row(0);
+        beaconStrength.AddChild(UiKit.Text("0%", "Caption"));
+        beaconStrength.AddChild(UiKit.Spacer(expand: true));
+        beaconStrength.AddChild(UiKit.Text("+50%", "Caption"));
+        beacon.AddChild(beaconStrength);
+        AddSwatch(beacon, new Color("#4dcc7a"), "High site fit");
+        AddSwatch(beacon, new Color("#f5ad37"), "Moderate site fit");
+        AddSwatch(beacon, new Color("#e65242"), "Low or no legal site");
+        AddSwatch(beacon, new Color("#c7d9de"), "Unexplored · estimate unavailable");
+        beacon.AddChild(UiKit.Text("Shade shows the fission score bonus: strongest at the marker, fading to zero over 15 hexes.", "CaptionTertiary", wrap: true, minWidth: 207));
+        beacon.AddChild(UiKit.Text("Center color shows site fit. The % compares its score with nearby reachable legal sites; it is not a literal chance. Pending splits also show how many would choose the exact tile.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         _legendCard.AddChild(host);
         _hudRoot!.AddChild(_legendCard);
@@ -215,8 +229,8 @@ public partial class Game
             int left = Math.Max(0, frame.FocusBeaconsAllowed - frame.FocusBeaconsPlaced);
             if (!_compact) UiKit.SetText(_beaconButton, left > 0 ? $"Beacon · {left} left" : "Beacon · replace");
             _beaconButton.TooltipText = left > 0
-                ? "Beacon mode (B): click an empty tile to place (or replace the nearest if full), or one of your Beacons to remove."
-                : "Beacon slots are full. Beacon mode (B): click an empty tile to move the nearest Beacon, or one of your Beacons to remove.";
+                ? "Beacon mode (B): move over a tile to preview influence and settlement fit; click an empty tile to place or a Beacon to remove."
+                : "Slots are full. Beacon mode (B): move over a tile to preview influence and settlement fit; click an empty tile to move the nearest Beacon or click one to remove.";
             _beaconButton.SetPressedNoSignal(_beaconMode);
             _beaconButton.Disabled = false;
         }
@@ -262,24 +276,25 @@ public partial class Game
         _cohesionButton!.SetPressedNoSignal(_mapOverlay == 6);
         _forestButton!.SetPressedNoSignal(_mapOverlay == 7);
         if (_legendCard is null) return;
-        UiButton? anchor = OverlayButton(_mapOverlay);
-        _legendClaims!.Visible = _mapOverlay == 1 && !_resourcesVisible;
-        _legendFood!.Visible = _mapOverlay == 2 && !_resourcesVisible;
-        _legendMethods!.Visible = _mapOverlay == 3 && !_resourcesVisible;
-        _legendDeposits!.Visible = _mapOverlay == 4 && !_resourcesVisible;
-        _legendTrade!.Visible = _mapOverlay == 5 && !_resourcesVisible;
-        _legendCohesion!.Visible = _mapOverlay == 6 && !_resourcesVisible;
-        _legendForest!.Visible = _mapOverlay == 7 && !_resourcesVisible;
-        _legendResources!.Visible = _resourcesVisible;
-        _legendCard.Visible = anchor is not null;
+        UiButton? anchor = _beaconMode ? _beaconButton : OverlayButton(_mapOverlay);
+        _legendClaims!.Visible = !_beaconMode && _mapOverlay == 1 && !_resourcesVisible;
+        _legendFood!.Visible = !_beaconMode && _mapOverlay == 2 && !_resourcesVisible;
+        _legendMethods!.Visible = !_beaconMode && _mapOverlay == 3 && !_resourcesVisible;
+        _legendDeposits!.Visible = !_beaconMode && _mapOverlay == 4 && !_resourcesVisible;
+        _legendTrade!.Visible = !_beaconMode && _mapOverlay == 5 && !_resourcesVisible;
+        _legendCohesion!.Visible = !_beaconMode && _mapOverlay == 6 && !_resourcesVisible;
+        _legendForest!.Visible = !_beaconMode && _mapOverlay == 7 && !_resourcesVisible;
+        _legendResources!.Visible = !_beaconMode && _resourcesVisible;
+        _legendBeacon!.Visible = _beaconMode;
+        _legendCard.Visible = anchor is not null || _beaconMode;
         if (anchor is not null) CallDeferred(nameof(PositionLegend));
     }
 
     private void PositionLegend()
     {
         if (_legendCard is null || _rail is null) return;
-        UiButton? anchor = OverlayButton(_mapOverlay);
-        if (_resourcesVisible) anchor = _resourcesButton;
+        UiButton? anchor = _beaconMode ? _beaconButton : OverlayButton(_mapOverlay);
+        if (!_beaconMode && _resourcesVisible) anchor = _resourcesButton;
         if (anchor is null) return;
         _legendCard.Position = new Vector2(_rail.Position.X + _rail.Size.X + 8, anchor.GlobalPosition.Y);
     }
