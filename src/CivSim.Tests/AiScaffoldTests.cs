@@ -26,7 +26,8 @@ public class AiScaffoldTests
         Assert.Equal((1, 2, 20, ReplanCadence.Yearly, 2), (settler.HorizonEras, settler.BeamWidth, settler.CouncilPriorPercent, settler.Replan, settler.ReactionDelaySeasons));
         DifficultyProfile warlord = DifficultyProfile.From(TestPack.Pack, Difficulty.Warlord);
         Assert.Equal((3, 8, 0, OpponentModel.Full, ReplanCadence.SeasonAndEvents), (warlord.HorizonEras, warlord.BeamWidth, warlord.CouncilPriorPercent, warlord.Opponent, warlord.Replan));
-        Assert.Equal(16, DifficultyProfile.From(TestPack.Pack, Difficulty.Legend).BeamWidth);
+        DifficultyProfile legend = DifficultyProfile.From(TestPack.Pack, Difficulty.Legend);
+        Assert.Equal((3, 16), (legend.HorizonEras, legend.BeamWidth));
     }
 
     [Fact]

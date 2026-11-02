@@ -229,7 +229,9 @@ Archetypes are weights *inside* the same planner. A Warlord at Legend difficulty
 | **Settler** (learning) | 1 era | 2 | none (treats rivals as average) | yearly | 20% of picks from the Council prior instead of search; reacts to threats 2 seasons late |
 | **Chieftain** (default) | 2 eras | 4 | archetype posterior | each season | 5% Council-prior picks |
 | **Warlord** (experienced) | 3 eras | 8 | full (§5) | each season + events | none |
-| **Legend** (expert) | 4 eras | 16 | full + coalition coordination timing | each season + events | none |
+| **Legend** (expert) | 3 eras (see note) | 16 | full + coalition coordination timing | each season + events | none |
+
+Note (2026-11-02): Legend's research forecast looked 4 eras ahead until the E3 balance pass. Over four 80-match mirrored Legend-vs-Warlord blocks the longer horizon won 44% against 48.5% with 3 eras (about +2 points on seeds not used for tuning, within noise), and the 4-era forecast and rival model never found more, so Legend now shares Warlord's 3-era horizon and keeps its wider beam. Legend still has no demonstrated edge over Warlord (07d, "B31 Legend vs Warlord"); its edge has to come from search width and coalition timing.
 
 At **every** level: same fog, same rules, same resources. Imperfection at the lower levels comes from shallower thinking and slower reactions, which still look like plausible decisions, never from random nonsense.
 

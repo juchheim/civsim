@@ -1389,3 +1389,15 @@ Variants (same two blocks, pooled over 160 matches; each changed only the named 
 | Spark horizon 4, rival-frontier horizon 3 | 45 / 51 | 48% (inconclusive) |
 
 Reading: beam width does nothing measurable; the Strategist horizon does nothing; the Spark's 4-era (96-season) research-forecast horizon is what pulls Legend below Warlord. Capping it at Warlord's 3 eras brings Legend to parity (about 50%), which is the mirror-match expectation, so Legend currently has no demonstrated edge over Warlord and 60% would need a real Legend capability (doc 14 §9.2 lists "coalition coordination timing", which is not implemented; `OpponentModel.FullCoalition` is treated like `Full`). The same pattern fits A4: Chieftain (2 eras, beam 4) wins 50% against Warlord, so deeper lookahead is not helping anywhere. No production change was made; thresholds are unchanged. The rival-frontier split was not decisive (SE about 4 points).
+
+**B31 Legend horizon cap promoted (2026-11-02):** `content/registries/difficulty.yaml` now gives Legend `horizon_eras: 3` (beam 16 unchanged; doc 14 §9.2 notes it). Control and cap on the same blocks, 80 matches each, `ai --duel legend warlord --seeds 40`:
+
+| First seed | 4 eras | 3 eras |
+|---|---|---|
+| 20261019 (tuned on) | 41% | 51% |
+| 20261100 (tuned on) | 45% | 49% |
+| 20261300 (fresh) | 46% | 44% |
+| 20261400 (fresh) | 44% | 50% |
+| All 320 matches | 44% | 48.5% |
+
+The tuned-on blocks overstated the effect: on the two fresh blocks the gain is about +2 points (one standard error is roughly 3-4 points), so the cap is a small, harmless change that matches Warlord's horizon, and not a fix. **B31 remains open at about 48% against >= 60%.** Legend has no demonstrated edge over Warlord; closing the gate needs a real Legend capability (coalition coordination timing, doc 14 §9.2, not implemented) or a decision on the target, which I have not touched. Checks: 913/913 tests, toy/research/politics/bronze goldens unchanged, `validate --strict` clean, `content-pack.txt` golden refreshed (hash `8132d2e2…` to `679977fb…`) because the registry changed.
