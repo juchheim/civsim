@@ -1353,3 +1353,22 @@ A3 target (win >= 70%, no lost settlement >= 80%) passes on both blocks. This is
 Checks: 911/911 tests pass; toy, research, politics and bronze goldens and `validate --strict` are unchanged (those runs use no Warlord AI seats), so nothing was regenerated.
 
 Not yet rerun with the policy on: A4 (Chieftain vs Warlord, was ~45% vs 25-40%; the policy should lower it but it may overshoot), A2 (Warlord vs Grower/Builder/Wanderer), the A5 FFA cohort and `--check-m10`. A started A4 block did not finish and was stopped. A3 is therefore closed; the others need a recheck.
+
+**M10 AI check on merged `main` `2b07f2a` (2026-11-02):** `ai --check-m10 --seeds 8 --first-seed 20261019 --minutes 64` (policy on by default, geology discovery merged; full output saved under `/tmp/m10ai-main-2b07f2a.txt`). Exit 1.
+
+| Gate | Result | Target | Status |
+|---|---|---|---|
+| A1 Warlord vs Council | 88% | >= 85% | PASS |
+| A2 Grower / Builder / Wanderer | 69% / 94% / 88% | >= 70% | Builder, Wanderer pass; Grower 11/16, sampling noise (74% over 240 matches) |
+| A3 survive / win | 100% / 81% | >= 80% / >= 70% | PASS |
+| A4 Chieftain wins | 50% | 25-40% | FAIL |
+| A5 shares (24 seeds, 96 FFA seats each) | Builder 29.2, Grower 22.9, Wanderer 28.1, Warlord 18.8, Sage 26.0 | each <= 30% | PASS (Builder is 1.2 points inside) |
+| A7 stalls / dithering / starvation / undefended loss / herd crash | 0 / 0 / 0 / 0 / 0 | 0 | PASS |
+| A7 idle labor | 1 season (0.062 per match; seed 20261023 s24, season 224) | 0 | FAIL, single season |
+| B27 tin-poor fallback / dormant bronze | 94% / 0.188 per match | see 22 | fallback passes, dormant FAIL |
+| B28 | 1/1 | >= 80% | unsampled (n=1) here; the 72-seed check is the real measure |
+| B29 | 26/26 within 15%, median 1.7% | | INCOMPLETE (6 forecasts horizon-censored) |
+| B30 | 1/16 mandate overflow, 0 suicide raids, 0 desertion blunders | | PASS |
+| B31 Legend vs Warlord | 31% | >= 60% | FAIL |
+
+Reading: A3 and A5 both pass together on the merged tree, so the withdrawal policy did not disturb the A5 re-fit. A4 did not move (50%), and B31 is lower than the 44% seen before (31%), so the withdrawal policy plus geology did not help either and may have made the Warlord harder for Legend to beat. A7 idle labor is a one-season blip. Remaining AI-side misses: A4, B31, B27 dormant bronze, A7 idle labor (single season), B28 below 80% on the 72-seed check, B29 incomplete.
