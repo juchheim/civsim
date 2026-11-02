@@ -1279,3 +1279,22 @@ Every setting that gets claimed land to 42% or below also drops City prevalence 
 
 Nothing was promoted: no setting passes B17 as a whole, and the current tree has the smallest single miss (claimed land 1.0 point over, against City 3 to 6 points under for every alternative). A change would have to either decouple City from total land (for example a denser, larger capital) or move the claimed-land ceiling or the City floor. Neither is a tuning decision to take without sign-off, and the gate thresholds are unchanged.
 
+**B17 capital food (2026-11-01).** The previous screen found that fission scales trade claimed land against City share. A bigger capital breaks that trade: City needs 90 people in one settlement, and land only matters because it feeds them. The Palace site (the civ's `PalaceSite`, once it is a Town) now carries a ×1.6 food-value multiplier in `FoodValuePassThrough`, on the idea that the seat of the realm is fed by tribute from the rest of it (GOV-04 already redistributes food between settlements). Housing is not the limit: +20 and +40 housing at the Palace site did nothing (City 25.0% and 24.0%).
+
+Screen on the exact cohort (`politics --check-m10 --seeds 24 --minutes 80`, 1.6 minutes per run, scratch override of the multiplier):
+
+| Palace-site food value | Claimed land | City | Borders | Settl./civ |
+|---|---|---|---|---|
+| ×1.0 (before) | 43.0% | 25.0% | 86/94 | 11.5 |
+| ×1.1 | 42.5% | 24.0% | 80/94 | 11.4 |
+| ×1.2 | 42.2% | 26.0% | 84/94 | 11.2 |
+| ×1.3 | 42.4% | 24.0% | 82/94 | 11.2 |
+| ×1.4 | 42.2% | 28.1% | 84/94 | 11.1 |
+| **×1.6 (promoted)** | **41.3%** | **29.2%** | 80/94 | 10.9 |
+
+City rises with the multiplier up to the ×1.6 row. Combining the multiplier with a later Bronze fission scale (0.85 with ×1.5, 0.86 with ×1.4) also passed the exact cohort (41.4% / 29.2% and 40.5% / 28.1%) but was noisier on B19 secessions (0.07-0.10) and B20 capture, so the single-knob version was chosen. Held-out cohort (`--seed 20261100`): before 43.3% land and City 21.9%; ×1.6 gives 42.1% and 27.1%, secessions 0.02, raids 11.0, capture 25.0%, 96/96 KEY-4 completions.
+
+Promoted tree, exact cohort: B17 10.9 settlements/civ, 41.3% claimed land, borders 80/94 (85%), Town 92.7%, City 29.2%; B18 Dominion 55.2% / Mastery 30.8% / Firsts 14.0%; B19 cohesion 62.0, secessions 0.07, no cascades; B20 10.8 raids, war 75.0%, capture 33.3% (pass). B17 therefore still reports FAIL, but only on KEY-4 completion (94/96: seeds 20261020 and 20261042 do not finish within the 80-minute ceiling, which also leaves B19 at 94/96 exposures); B18 fails on Dominion 55.2% against 55%. Both were marginal before and are unchanged.
+
+Other gates on the promoted tree: S12 7.97 s, S13 1.84 ms mean tick (max GC 1 ms); A5 Builder 29.2%, Grower 22.9%, Wanderer 26.0%, Warlord 20.8%, Sage 26.0% (still passing); **A1 94% (was 81%, now passes)**; A7 all zero including idle labor (was 1 season); A2 grower 69%, A3 win 25%, A4 50%, B31 44% unchanged misses; B27 dormant bronze 2/16 (0.125 per match, flips between runs); B7 70.3%, B8 27/32. Tests 911/911. Only `tests/golden/bronze-v1.txt` changed (checksum `b2f7c72993e2ed36` to `5e9f9aaa459bb699`); the S12 chapter checksum moves with it. The research, politics and toy goldens match.
+

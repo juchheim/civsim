@@ -167,6 +167,8 @@ public sealed partial class LivingEconomyModel
     /// ×1.06, with a cart per 25 people), redistribution (GOV-04 ×1.04), market towns (TRD-05 ×1.05, and
     /// ×1.25 net in a Town on two or more routes).
     /// </summary>
+    private static readonly Fix64 PalaceSiteFoodValue = Fix64.Parse("1.6");
+
     private Fix64 FoodValuePassThrough(SettlementState s, CivicState c)
     {
         int civ = s.Civilization;
@@ -175,6 +177,9 @@ public sealed partial class LivingEconomyModel
             ? Fix64.Min(Fix64.One, _civic.BakeryPeople * c.Bakeries / pop) : Fix64.Zero;
         if (!CohesionLive(s)) return Fix64.One;
         Fix64 mult = Fix64.One;
+        // The seat of the realm is fed by tribute from the rest of it, so the Palace site carries more people than its own
+        // land would: capitals reach City size without the realm having to claim more ground (07d, B17 capital food).
+        if (c.Tier >= 1 && PalaceSite(civ) == s.Id) mult *= PalaceSiteFoodValue;
         if (HasProject(civ, "TRN-05") && s.Metal is { } m)
         {
             Fix64 carts = Fix64.Min(Fix64.One, m.Goods[(int)MetalGood.Cart] * 25 / pop);
