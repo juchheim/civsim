@@ -1326,3 +1326,13 @@ The effect is consistent but small, and the case count moves with every change (
 
 Gates on the promoted tree: A5 Builder 27.1%, Grower 24.0%, Wanderer 26.0%, Warlord 20.8%, Sage 27.1% (pass); A1 88% (pass); A2 grower 69%, A3 win 25%, A4 50%, B31 44% unchanged misses; A7 all zero; B27 dormant bronze 2/16 (flips between runs); B7 70.3%; B8 25/32 (78.1%); S12 7.94 s, S13 1.87 ms. B17 10.9 settlements/civ, claimed land 41.4%, borders 83/94, City 32.3%, Town 91.7%; B18 Dominion 55.2%; B20 10.2 raids, war 83.3%, capture 45.8% (pass); B19 cohesion 62.1 and secessions 0.09 per civ (band 0.03-0.08, up from 0.07; the held-out cohort gave 0.02 before this change, so this band moves with any change), exposures 94/96. Tests 911/911. Only `tests/golden/bronze-v1.txt` changed (checksum `5e9f9aaa459bb699` to `21307c46d5d6ffcf`).
 
+**A2/A3/A4 on larger samples (2026-11-01).** The official A1-A4 cohort is 16 matches (8 seeds mirrored), so a miss of one match is within sampling error. The same duels were rerun on 80 matches (40 seeds mirrored, 64 minutes) on `d496fea`, from first seeds 20261019, 20261100 and, for A2, also 20261200:
+
+| Gate | Official 16 matches | 80-match blocks | Target | Reading |
+|---|---|---|---|---|
+| A2 Warlord vs Grower script | 11/16 = 69% | 71%, 75%, 75% (pooled 177/240 = 74%) | >= 70% | passes; the official draw is low |
+| A4 Chieftain vs Warlord (Chieftain wins) | 50% | 50%, 40% | 25-40% | real miss, about 45% |
+| A3 Warlord vs Rusher (Warlord wins) | 25% | 21%, 30% | >= 70% | real, large miss; Warlord loses no settlements, the Rusher out-expands it (Legacy 4,456 vs 5,953) |
+
+A2 grower is therefore not tuned: its Warlord losses have low Firsts and no common cause, and the earlier scout-reserve candidate that reached 13/16 hurt A3. A3 and A4 are real and both point at the Warlord's expansion pace, which is where `55d0e10` (A3 win 38% to 25% between `03ce68c` and `main`) is the lead. Acceptance protocol is unchanged; whether the AI gates should be judged on 32 seeds like B7 and B8 is a decision for sign-off.
+
