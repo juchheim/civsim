@@ -829,8 +829,10 @@ internal static class AiCommand
         B29ForecastDiagnostic.Summary b29Summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed);
         Console.WriteLine($"  B29 result {FormatB29GateLabel(b29Summary, seeds, minutes)}");
 
-        Console.WriteLine("== B31: Legend vs Warlord, >= 45% (22 §16; relaxed from 60%, Legend must not be worse than Warlord)");
-        Tournament.DuelResult legend = Tournament.Duel(pack, "legend", "warlord", seeds, minutes, archetype, firstSeed);
+        // 16 matches carry about +/-12 points of noise against a 45% bar, so B31 judges at least 32 seeds (64 matches), as B7/B8 do.
+        int legendSeeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumLegendSeeds);
+        Console.WriteLine($"== B31: Legend vs Warlord, >= 45% over {legendSeeds} seeds (22 §16; relaxed from 60%, Legend must not be worse than Warlord)");
+        Tournament.DuelResult legend = Tournament.Duel(pack, "legend", "warlord", legendSeeds, minutes, archetype, firstSeed);
         bool legendPass = legend.WinRateA >= 0.45;
         Console.WriteLine($"  B31: {legend.WinRateA * 100:F0}% over {legend.Matches} matches {M10AiAcceptanceStatus.FormatGateLabel(legendPass, seeds, minutes)}");
 

@@ -214,7 +214,7 @@ The milestone gates of the Bronze chapter. How each row is measured, and the tar
 | B28 | Defense timing | walls or palisade before the first bronze raid in ≥ 80% | 22 §13 |
 | B29 | Forecast fidelity | KEY-4 within 15%, median ≤ 6% | 14 §18 |
 | B30 | New blunders | Mandate overflow < 0.3, siege without supply 0, suicide raid 0 per match | 22 §13.5 |
-| B31 | Legend vs Warlord | ≥ 45% (relaxed from 60% on 2026-11-02: Legend must not be worse than Warlord; 22 §16) | 14 §10.3 |
+| B31 | Legend vs Warlord | ≥ 45% (relaxed from 60% on 2026-11-02: Legend must not be worse than Warlord; judged on at least 32 seeds; 22 §16) | 14 §10.3 |
 
 ## 5. A scripted demo (what a good run shows)
 
