@@ -231,7 +231,7 @@ Archetypes are weights *inside* the same planner. A Warlord at Legend difficulty
 | **Warlord** (experienced) | 3 eras | 8 | full (§5) | each season + events | none |
 | **Legend** (expert) | 3 eras (see note) | 16 | full + coalition coordination timing | each season + events | none |
 
-Note (2026-11-02): Legend's research forecast looked 4 eras ahead until the E3 balance pass. Over four 80-match mirrored Legend-vs-Warlord blocks the longer horizon won 44% against 48.5% with 3 eras (about +2 points on seeds not used for tuning, within noise), and the 4-era forecast and rival model never found more, so Legend now shares Warlord's 3-era horizon and keeps its wider beam. Legend still has no demonstrated edge over Warlord (07d, "B31 Legend vs Warlord"); its edge has to come from search width and coalition timing.
+Note (2026-11-02): Legend's research forecast looked 4 eras ahead until the E3 balance pass. Over four 80-match mirrored Legend-vs-Warlord blocks the longer horizon won 44% against 48.5% with 3 eras (about +2 points on seeds not used for tuning, within noise), and the 4-era forecast and rival model never found more, so Legend now shares Warlord's 3-era horizon and keeps its wider beam. Legend still has no demonstrated edge over Warlord (07d, "B31 Legend vs Warlord"); Legend's coalition coordination timing is implemented as a public-information timing rule (a war, and the coalition plan, get +0.20 while the target's fighters are seen away on raids or assaults); over 320 matches it left Legend at about 49%, so it is not yet a measurable edge.
 
 At **every** level: same fog, same rules, same resources. Imperfection at the lower levels comes from shallower thinking and slower reactions, which still look like plausible decisions, never from random nonsense.
 
@@ -260,7 +260,7 @@ Paper prototypes with people are replaced by an automated **AI harness** (decisi
 | Warlord AI vs. Council bot (same archetype, mirrored seeds) | wins ≥ 85% on Legacy |
 | Warlord AI vs. each opening script | wins ≥ 70% |
 | Warlord AI vs. Rusher | survives ≥ 95% (loses no settlement in ≥ 80%); wins ≥ 70% |
-| Legend vs. Warlord | wins ≥ 65% |
+| Legend vs. Warlord | wins ≥ 65% (E3 chapter: ≥ 45%, Legend not worse than Warlord; see 22 §16 B31) |
 | Chieftain vs. Warlord | wins 25–40% (a real step, not a cliff) |
 | Archetype balance at equal difficulty | no archetype wins > 30% of 4-player free-for-alls (25% is fair) |
 | Exploit searcher | after screening 10,000 distinct fixed policies, no policy in a 16-policy diverse finalist set beats Warlord > 55% on fresh, mirrored, 64-minute matches |

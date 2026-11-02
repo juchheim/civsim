@@ -1401,3 +1401,23 @@ Reading: beam width does nothing measurable; the Strategist horizon does nothing
 | All 320 matches | 44% | 48.5% |
 
 The tuned-on blocks overstated the effect: on the two fresh blocks the gain is about +2 points (one standard error is roughly 3-4 points), so the cap is a small, harmless change that matches Warlord's horizon, and not a fix. **B31 remains open at about 48% against >= 60%.** Legend has no demonstrated edge over Warlord; closing the gate needs a real Legend capability (coalition coordination timing, doc 14 §9.2, not implemented) or a decision on the target, which I have not touched. Checks: 913/913 tests, toy/research/politics/bronze goldens unchanged, `validate --strict` clean, `content-pack.txt` golden refreshed (hash `8132d2e2…` to `679977fb…`) because the registry changed.
+
+## B31: Legend coalition timing implemented, target relaxed to 45% (2026-11-02)
+
+**Coalition timing (Legend only, `OpponentModel.FullCoalition`).** `StrategistTuning.CommittedElsewhereWindow` = +0.20 is added to a war's window (`ReadWarOptions`) and to the coalition plan's value (`Assess`) while the target's, or the forecast leader's, fighters are seen away on raids or assaults (`RivalBelief.PartiesAwaySeen`, public sightings only; this signal was computed but unused by the Strategist). Warlord and below are unchanged. The duel is 2v2 (seats 0 and 3 against 1 and 2) and teammates do not share beliefs, so teammate coordination is not implemented.
+
+Four 80-match Legend-vs-Warlord blocks, the 3-era cap alone against the cap plus timing:
+
+| First seed | Cap only | Cap + timing |
+|---|---|---|
+| 20261019 | 51% | 51% |
+| 20261100 | 49% | 49% |
+| 20261300 | 44% | 46% |
+| 20261400 | 50% | 51% |
+| Pooled 320 matches | 48.5% | 49.25% |
+
+The first two blocks are identical in win rate and within a few points of Legacy, so the rule rarely changes a decision here; the pooled difference (+0.75 points) is far inside noise (one standard error is about 2.8 points). Legend remains at parity with Warlord. It is kept because it is the documented Legend capability (14 §7.3), uses only public information, is Legend-only and regresses nothing, not because it has been shown to help. A decision trace of how often it fires has not been done.
+
+**B31 target relaxed from >= 60% to >= 45%** (user decision, 2026-11-02; value chosen by me): Legend must not be measurably worse than Warlord. Parity measures about 49%; the 4-era Legend sat at 43-44% over 320 matches, so 45% separates the two without requiring an edge the E3 content has not shown. `ai --check-m10` uses 16 matches here, which carries about +/-12 points of noise, so a miss on that draw should be confirmed on 80 matches before acting on it. The Legend-over-Warlord edge moves to the E4 design, as the 65% already did. Updated in `AiCommand.cs` (the gate), `17` §4, `22` §16 and `14` §10.3/§9.2.
+
+Checks: 913/913 tests, toy/research/politics/bronze goldens unchanged, `validate --strict` clean. No golden refresh: these goldens do not include Legend seats.

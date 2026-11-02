@@ -79,6 +79,8 @@ public sealed partial class Strategist
             if (Believed(r, _def02) && !Believed(r, _def03) && r.Era >= 2) window += Fix64.FromRatio(15, 100);
             if (m.FieldTrend > Fix64.Zero && read.Field > Fix64.Zero && m.FieldTrend * 8 > read.Field / 10) window += Fix64.FromRatio(10, 100);
             foreach (Site site in read.Sites) if (site.Distress) { window += Fix64.FromRatio(10, 100); break; }
+            // Legend times a war for when the target's fighters are away on raids or assaults (14 §7.3).
+            if (v.Profile.Opponent == OpponentModel.FullCoalition && r.PartiesAwaySeen > 0) window += StrategistTuning.CommittedElsewhereWindow;
             best.Window = window;
             read.War = best;
             if (s.BestWar is null || (best.Feasible && !s.BestWar.Feasible) ||

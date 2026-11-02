@@ -304,5 +304,8 @@ public sealed partial class Strategist
         if (lead < StrategistTuning.LeaderLead && !(allSeen && share >= StrategistTuning.LeaderShare)) return;
         s.Leader = leader;
         s.CoalitionValue = StrategistTuning.CoalitionBase + Fix64.Clamp(lead - StrategistTuning.LeaderLead, Fix64.Zero, Fix64.FromRatio(3, 10));
+        // Legend joins a coalition when the leader is committed elsewhere (14 §7.3).
+        if (v.Profile.Opponent == OpponentModel.FullCoalition && v.Belief.Rivals[leader].PartiesAwaySeen > 0)
+            s.CoalitionValue += StrategistTuning.CommittedElsewhereWindow;
     }
 }

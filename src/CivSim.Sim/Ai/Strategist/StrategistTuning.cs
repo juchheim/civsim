@@ -33,6 +33,11 @@ public static class StrategistTuning
     public const int ConquerValueScale = 25;
     public static readonly Fix64 ConquerValueCap = Fix64.FromRatio(80, 100);
     public static readonly Fix64 CoalitionBase = Fix64.FromRatio(55, 100);
+    /// <summary>
+    /// Legend's coalition coordination timing (14 §7.3, 9.2): added to a war's window, and to the coalition plan's value,
+    /// while the target's own fighters are seen away on raids or assaults (it is committed elsewhere).
+    /// </summary>
+    public static readonly Fix64 CommittedElsewhereWindow = Fix64.FromRatio(20, 100);
     /// <summary>After KEY-3, an unmet tin route beats open-land growth when MET-03 has made the MET-05 fork available (22 §13.3).</summary>
     public static readonly Fix64 SecureTinBase = Fix64.FromRatio(120, 100);
     /// <summary>Added to forecast gross value only for legal tin mine/compact, Tin Folk levy, or arsenical fallback candidates while SecureTin is active.</summary>

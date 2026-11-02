@@ -659,7 +659,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B28 | **Defense timing** | an AI facing a believed bronze-armed neighbour has palisade, hillfort or walls before the first bronze raid on it in ≥ 80% | harness | Auto |
 | B29 | Forecast fidelity | KEY-4 within 15%, median ≤ 6% | harness | Auto |
 | B30 | New blunders | Mandate overflow < 0.3, siege without supply 0, suicide raid 0, naked caravan < 0.5 per match | blunder detectors | Auto |
-| B31 | Legend vs Warlord | ≥ 60% (the 65% of 14 §10.3 moves to E4) | ladder | Auto |
+| B31 | Legend vs Warlord | ≥ 45% (relaxed 2026-11-02 from 60%, itself relaxed from the 65% of 14 §10.3; Legend must not be measurably worse than Warlord, and the Legend-over-Warlord edge moves to E4; a 16-match draw has about ±12 points of noise, so confirm a miss on 80 matches) | ladder | Auto |
 
 **Human gate record (2026-10-31):** The user confirmed that B1–B3 passed. They are recorded as complete per that confirmation; participant counts and detailed playtest notes are not included here.
 
