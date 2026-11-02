@@ -1372,3 +1372,20 @@ Not yet rerun with the policy on: A4 (Chieftain vs Warlord, was ~45% vs 25-40%; 
 | B31 Legend vs Warlord | 31% | >= 60% | FAIL |
 
 Reading: A3 and A5 both pass together on the merged tree, so the withdrawal policy did not disturb the A5 re-fit. A4 did not move (50%), and B31 is lower than the 44% seen before (31%), so the withdrawal policy plus geology did not help either and may have made the Warlord harder for Legend to beat. A7 idle labor is a one-season blip. Remaining AI-side misses: A4, B31, B27 dormant bronze, A7 idle labor (single season), B28 below 80% on the 72-seed check, B29 incomplete.
+
+## B31 Legend vs Warlord: the 4-era research horizon costs Legend about 7 points (2026-11-02)
+
+The `check-m10` B31 draw of 31% (5/16) was a low sample. On two 80-match blocks (first seeds 20261019 and 20261100, 64 minutes, `ai --duel legend warlord --seeds 40`), Legend wins 41% and 45% with the Warlord raid-withdrawal policy on and 41% and 49% with it off, so the policy is not the cause and the true rate is about 43-45% against >= 60%. Legend's mean Firsts Legacy is 698 against Warlord's 877 even though Legend reaches KEY-1 slightly earlier (6.6 vs 6.8 min) and runs 1.86x the Spark rollouts, so its extra search is not winning races.
+
+Variants (same two blocks, pooled over 160 matches; each changed only the named Legend setting, pack or scratch-worktree override, nothing committed):
+
+| Legend variant | Win % (block 1 / block 2) | Pooled |
+|---|---|---|
+| Production (horizon 4 eras, beam 16) | 41 / 45 | 43% |
+| Beam 8 (horizon 4) | 42 / 46 | 44% |
+| Horizon 3 eras (beam 16), both Spark and Strategist | 51 / 49 | 50% |
+| Spark horizon 3, Strategist horizon 4 | 51 / 48 | 50% |
+| Spark horizon 4, Strategist horizon 3 | 39 / 48 | 44% |
+| Spark horizon 4, rival-frontier horizon 3 | 45 / 51 | 48% (inconclusive) |
+
+Reading: beam width does nothing measurable; the Strategist horizon does nothing; the Spark's 4-era (96-season) research-forecast horizon is what pulls Legend below Warlord. Capping it at Warlord's 3 eras brings Legend to parity (about 50%), which is the mirror-match expectation, so Legend currently has no demonstrated edge over Warlord and 60% would need a real Legend capability (doc 14 §9.2 lists "coalition coordination timing", which is not implemented; `OpponentModel.FullCoalition` is treated like `Full`). The same pattern fits A4: Chieftain (2 eras, beam 4) wins 50% against Warlord, so deeper lookahead is not helping anywhere. No production change was made; thresholds are unchanged. The rival-frontier split was not decisive (SE about 4 points).
