@@ -283,6 +283,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
                 DepositKind.CopperOre => SeenFlag.CopperMineCamp,
                 DepositKind.ArsenicalCopper => SeenFlag.ArsenicalMineCamp,
                 DepositKind.Tin => SeenFlag.TinMineCamp,
+                DepositKind.Iron when eco.IronChain => SeenFlag.IronMineCamp,
                 _ => 0,
             };
             if (flag != 0) rival.SeenFlags |= flag;

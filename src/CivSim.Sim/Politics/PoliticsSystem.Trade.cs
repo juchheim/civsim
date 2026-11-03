@@ -67,7 +67,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     /// <summary>Whether <paramref name="seller"/> embargoes <paramref name="good"/> to <paramref name="buyer"/> (docs/MVP/22 §4.3).</summary>
     public bool Embargoes(int seller, int buyer, TradeGood good)
         => unchecked((uint)seller) < unchecked((uint)_civs) && unchecked((uint)buyer) < unchecked((uint)_civs) && good is > TradeGood.None and < TradeGood.Count &&
-           (_embargo[seller * _civs + buyer] & (1 << (int)good)) != 0;
+           good != TradeGood.Iron && (_embargo[seller * _civs + buyer] & (1 << (int)good)) != 0;
 
     /// <summary>The goods a civilization embargoes to another, as a bit mask over <see cref="TradeGood"/>.</summary>
     public int EmbargoMask(int seller, int buyer) => _embargo[seller * _civs + buyer];
@@ -245,6 +245,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         }
         TradeGood good = DecreeArgs.Good(extra);
         if (good is TradeGood.None or >= TradeGood.Count) return OrderRefusalReason.InvalidTarget;
+        if (good == TradeGood.Iron && !_economy.IronChain) return OrderRefusalReason.InvalidTarget; // an Iron-chapter good only
         bool weSell = DecreeArgs.Sell(extra);
         int sellerCiv = weSell ? civ : folk ? -1 : target, buyerCiv = weSell ? (folk ? -1 : target) : civ;
         int sellerFolk = weSell ? -1 : folkSettlement, buyerFolk = weSell ? folkSettlement : -1;
@@ -364,6 +365,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     public bool OrderEmbargo(int civ, int target, TradeGood good, bool on)
     {
         if (unchecked((uint)civ) >= unchecked((uint)_civs) || unchecked((uint)target) >= unchecked((uint)_civs) || civ == target || good is TradeGood.None or >= TradeGood.Count) return false;
+        if (good == TradeGood.Iron) return false; // iron has no embargo bit (see TradeGood)
         if (!_research.MandateUnlocked(civ)) return false;
         int i = civ * _civs + target;
         byte bit = (byte)(1 << (int)good);

@@ -6,8 +6,12 @@ namespace CivSim.Sim.Politics;
 /// <summary>The six Decrees (docs/MVP/22 §4.3). Values are command 18's A argument and part of the replay format: append only.</summary>
 public enum DecreeKind : byte { None = 0, Found = 1, Expedition = 2, Mine = 3, Levy = 4, Corvee = 5, Compact = 6 }
 
-/// <summary>The goods a Compact can carry (docs/MVP/22 §4.3, §6.2). Values are packed into command arguments: append only.</summary>
-public enum TradeGood : byte { None = 0, Tin = 1, Copper = 2, Bronze = 3, Salt = 4, Gold = 5, Food = 6, Luxury = 7, Count = 8 }
+/// <summary>
+/// The goods a Compact can carry (docs/MVP/22 §4.3, §6.2). Values are packed into command arguments: append only. <see cref="Iron"/>
+/// (iron bloom, docs/MVP/25 §4) is carried only in the Iron chapter and cannot be embargoed: the embargo mask is one byte with a bit per
+/// good, and widening it would change the Bronze hash and snapshot.
+/// </summary>
+public enum TradeGood : byte { None = 0, Tin = 1, Copper = 2, Bronze = 3, Salt = 4, Gold = 5, Food = 6, Luxury = 7, Iron = 8, Count = 9 }
 
 /// <summary>What a Compact Decree proposes (docs/MVP/22 §4.3, §6.5): a goods route, an Invite, a non-aggression pact (DIP-04) or a border treaty (DIP-05).</summary>
 public enum CompactVariant : byte { Goods = 0, Invite = 1, Pact = 2, Treaty = 3 }
@@ -41,7 +45,7 @@ public static class DecreeArgs
     public static string GoodId(TradeGood good) => good switch
     {
         TradeGood.Tin => "G-TIN", TradeGood.Copper => "G-COPPER", TradeGood.Bronze => "G-BRONZE", TradeGood.Salt => "G-SALT",
-        TradeGood.Gold => "G-GOLD", TradeGood.Food => Economy.LivingEconomyModel.FoodGoodId, TradeGood.Luxury => "G-FAIENCE",
+        TradeGood.Gold => "G-GOLD", TradeGood.Iron => "G-IRON", TradeGood.Food => Economy.LivingEconomyModel.FoodGoodId, TradeGood.Luxury => "G-FAIENCE",
         _ => "",
     };
 

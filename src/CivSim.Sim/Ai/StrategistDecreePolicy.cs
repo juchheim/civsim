@@ -130,6 +130,7 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         if (_intent.Plan == GrandPlan.SecureTin && !ShouldPauseRouteDecree(DecreeKind.Levy, routeCooldownActive))
             AddBeliefKnownLevyAlternatives(politics, civ, _belief, _candidates);
         AddBeliefKnownTinCompactAlternatives(politics, civ, _belief, _candidates);
+        AddBeliefKnownIronCompactAlternatives(politics, civ, _belief, _candidates);
         if (routeCooldownActive)
             _candidates.RemoveAll(candidate => ShouldPauseRouteDecree(candidate.Kind, routeCooldownActive));
         if (_candidates.Count == 0) return;
@@ -431,6 +432,27 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         }
     }
 
+    /// <summary>
+    /// Iron-chapter counterpart of the tin compact candidates: when the civilization knows iron tools but has no iron source and buys none, a
+    /// compact to buy bloom from a contacted rival it has seen working an iron camp (belief evidence only; a rival digging iron inside its
+    /// settlements' range, with no camp, is never seen).
+    /// </summary>
+    internal static void AddBeliefKnownIronCompactAlternatives(PoliticsSystem politics, int civ, Belief belief, List<DecreeRequest> candidates)
+    {
+        ResearchViewForDecrees research = politics.DecreeResearch;
+        LivingEconomyModel economy = politics.Economy;
+        if (belief.Season % 4 != 0 || !CouncilDecreePolicy.IronCouncilNeedsIron(research, economy, civ) ||
+            politics.DecreeCost(civ, DecreeKind.Compact) > research.Mandate(civ) || politics.BuysIron(civ)) return;
+        int extra = DecreeArgs.PackCompact(TradeGood.Iron, sell: false);
+        for (int rival = 0; rival < belief.Rivals.Length; rival++)
+        {
+            if (rival == civ) continue;
+            RivalBelief known = belief.Rivals[rival];
+            if (!known.Contacted || (known.SeenFlags & SeenFlag.IronMineCamp) == 0) continue;
+            AddIfBelievedCompactRoute(belief, civ, rival, extra, candidates);
+        }
+    }
+
     private static void AddIfBelievedCompactRoute(Belief belief, int civ, int target, int extra, List<DecreeRequest> candidates)
     {
         var request = new DecreeRequest(DecreeKind.Compact, target, extra);
@@ -492,6 +514,14 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
                 CivSim.Sim.World.DepositKind.Salt or CivSim.Sim.World.DepositKind.Iron)) return false;
             (int owner, int seenSeason) = belief.Map.OwnerSeen(tile);
             return belief.Season - seenSeason is >= 0 and <= 2 && (owner == -1 || owner == civ);
+        }
+        if (candidate.Kind == DecreeKind.Compact && DecreeArgs.Variant(candidate.Extra) == CompactVariant.Goods &&
+            DecreeArgs.Good(candidate.Extra) == TradeGood.Iron && !DecreeArgs.Sell(candidate.Extra))
+        {
+            // Buying iron needs a contacted rival believed to be digging it.
+            int seller = candidate.Target;
+            if (DecreeArgs.IsFolkParty(seller) || unchecked((uint)seller) >= unchecked((uint)belief.Rivals.Length) || seller == civ) return false;
+            return belief.Rivals[seller].Contacted && (belief.Rivals[seller].SeenFlags & SeenFlag.IronMineCamp) != 0;
         }
         if (candidate.Kind != DecreeKind.Compact || DecreeArgs.Variant(candidate.Extra) != CompactVariant.Goods ||
             DecreeArgs.Good(candidate.Extra) != TradeGood.Tin || DecreeArgs.Sell(candidate.Extra)) return true;

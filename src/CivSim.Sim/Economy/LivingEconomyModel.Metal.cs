@@ -1195,6 +1195,7 @@ public sealed partial class LivingEconomyModel
         if (plan.Tier != 0)
             plan.Terminal[MetalSlot(KitGood(plan.Tier))] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - m.Goods[(int)KitGood(plan.Tier)]);
         IronKitWant(s, m, plan);
+        IronExportWant(s, m, plan, pop);
         int reach = ShareReach(civ);
         if (reach >= 0)
         {

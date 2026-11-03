@@ -1,6 +1,6 @@
 # M11 WP6 — Iron metal ledger
 
-Records slices 1 to 4 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
+Records slices 1 to 5 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
 
 ## Slice 1: the ledger
 
@@ -33,14 +33,16 @@ Records slices 1 to 4 of WP6 (forging, carbon and steel, tool wear, fuel, transp
 - **Evidence.** In a fixture with no iron in range and one surface deposit four tiles out on own land, the Iron planner opens the camp, digs, hauls and makes T11 kits from it; the Bronze-chapter economy on the same world opens none. Bronze checksum and goldens unchanged.
 - **What this settles from the WP4 audit.** The finding that "the planner never opens iron camps" is closed for the Iron chapter. Ownership is still required (`IsOwnTile`), so the audit's "only deposits nearer a rival" starts (step 4) stay unserved by camps.
 
-## Iron trade good: not built, and why
+## Slice 5: iron as a Compact good (option 1: no embargo)
 
-An iron `TradeGood` is a Politics change, not an Economy one, and it is larger than it looks:
+Decided with the user (2026-11-03): append `TradeGood.Iron = 8` (`Count = 9`), exclude it from embargoes, and teach the Council and the Strategist to buy it.
 
-- `TradeGood` is `None..Luxury = 7, Count = 8`. Appending `Iron = 8` is allowed (append only), but the **embargo mask is a `byte`** with one bit per good (`1 << (int)good`), hashed and snapshotted as `byte[]`. Bit 8 does not fit. Widening it changes Bronze hash and snapshot bytes. Iron would have to be excluded from embargoes (so it could not be embargoed), or the mask widened for the Iron chapter only.
-- `Count` bounds several range checks (`>= TradeGood.Count`), the compact argument packing and the belief and forecast code, all shared with Bronze.
-- Nothing proposes an iron compact. `CouncilDecreePolicy` and the Strategist propose Tin compacts only. A route is useful only if the planner buys iron when it has no source and a partner sells a surplus, which is new AI and Council policy (WP8/WP9 scope), and needs contact, Relations ≥ 0 and a finite `Travel` (WP4 §7).
-- So the 0.68% tail (272 starts, of which 64 to 80 have no capable partner) still has no working trade route. Expansion (camps on newly founded land) is the other half of the Q9 decision and is untested here.
+- **The good.** `TradeGood.Iron` carries iron bloom (`G-IRON`). Because the embargo mask is a `byte` with one bit per good, Iron has no bit: `Embargoes` is false for it and `OrderEmbargo` refuses it, so the embargo storage, hash and snapshot are unchanged. Compacts in iron are refused (`InvalidTarget`) outside the Iron chapter, and the barter lists are fixed arrays that do not include it, so Bronze trade is untouched.
+- **Need and reserve (economy).** In the Iron chapter `TradeNeed("G-IRON")` is the bloom a settlement's own T11 kits still need (kits lacking, less kits in store, less wrought iron in store, at 0.1875 bloom a kit). A settlement that sells iron under an active compact and can dig iron keeps a bloom reserve of a litre per 20 people (`IronExportWant`), so a caravan has a surplus to carry. The economy learns of the sale through `IIronTradeSource`, derived from the snapshotted compacts, so it adds no state of its own.
+- **Council.** In the Iron chapter, a Council that knows MET-09 and has no iron of its own opens an iron mine when one is within reach (the existing Mine Decree), and otherwise buys bloom by compact once a year from the nearest contacted civilization it has seen digging iron (a mining camp on a known iron tile). `IronSellerFor`, `BuysIron` and `SellsIron` are the Politics helpers.
+- **Strategist.** `AddBeliefKnownIronCompactAlternatives` offers the same compact to rivals whose iron camp the belief has seen (`SeenFlag.IronMineCamp`, recorded only in the Iron chapter so Bronze beliefs never carry the bit); `BeliefAllowsCandidate` requires that evidence. The forecaster and the benefit estimate were already generic over the good.
+- **Evidence.** On world 39 (civilization 1 has iron and a camp site civilization 0 can see; civilization 0 has none): the compact is signed in the Iron chapter and refused in Bronze; bloom leaves the seller in caravans and reaches the buyer as bloom, wrought iron or kits; the Council proposes the compact; the Strategist proposes it only for a contacted rival with an iron camp seen; Iron cannot be embargoed. Bronze checksum and goldens unchanged.
+- **Limits.** The evidence for a seller is a *camp*. A civilization whose iron lies inside its settlements' range digs it without a camp and is never seen as a seller, by either policy. Caravans carry what the buyer is short of, not more, and a seller's reserve is small (a litre per 20 people), so supply is thin. This is a working route, not a fitted one. `Relations`, `Travel`, contact and route blockage apply as for tin, so the audit's starts with no capable partner (64 to 80) are still unserved. Iron has no Free Folk sellers. Research must know MET-09 for the Council and Strategist to act; the test pack makes MET-09 numeric for that reason (`TestPack.WithNumeric`), because every E4 row is still a draft.
 
 ## Evidence
 
@@ -52,7 +54,7 @@ An iron `TradeGood` is a Politics change, not an Economy one, and it is larger t
 
 1. **Planner wants beyond T11.** Steel (MET-10) and T12 kits, iron and steel arms (WP8), and sister-settlement sharing of Iron goods are not wanted yet. Mining iron ore for the chain uses the E3 deposit logic, so the WP4 camp gap still applies.
 2. **Saw attachment and mixed-age wear distributions.** The WOD-08 saw on a T12 kit, and a live wear distribution over many seasons and settlements for I-T3, are not built or measured yet. Steel (MET-10) is not wanted by the planner, so T12 kits exist only from fixtures.
-3. **Iron trade good.** From the [WP4 audit](m11-wp4-iron-geography.md): `TradeGood` has no iron, so the 0.68% tail has no working trade route yet. See the section above for what building it involves. Sister-settlement sharing of Iron goods and kits (`ShareMetals`, `SharedGoods`) is also unbuilt.
+3. **Sister-settlement sharing** of Iron goods and kits (`ShareMetals`, `SharedGoods`) is unbuilt: a settlement without a forge or iron cannot be sent kits by a sister. Iron compacts also still need contact, relations and a finite route, so the audit's 64 to 80 starts with no capable partner rely on expansion.
 4. **Fuel (I-T6).** Sustainable metal must be ≤15% of civilian work with no mandatory clear-cut. The WP4 audit found 45.6% of starts cannot sustain 100 adults of T11 replacement on local wood regrowth alone.
 5. **Transport and imports.** Shipping bloom, wrought iron and kits between settlements and across borders, with the captured-forge and imported-kit cases of B4-06.
 6. **Fission.** The fission operating-margin projection copies only `Goods`; Iron goods follow whatever happens to the parent's `MetalState`, which is the same rule as E3 metal, but it is untested for Iron.

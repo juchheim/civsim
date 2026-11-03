@@ -17,6 +17,12 @@ public enum MiningCampResult : byte
 }
 
 /// <summary>Who owns a tile, for the planner's rule that it opens camps only on own land (docs/MVP/23 §7.2). Politics implements it.</summary>
+/// <summary>Whether a civilization has an active contract to sell iron bloom, so its economy keeps a bloom reserve (Iron chapter; docs/MVP/25 §4).</summary>
+public interface IIronTradeSource
+{
+    bool SellsIron(int civ);
+}
+
 public interface ITileOwnership
 {
     /// <summary>The owning civilization of a tile, or -1.</summary>
@@ -232,6 +238,8 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Who owns tiles (politics); without it the planner treats tiles within four of its own settlements as its own.</summary>
     public ITileOwnership? TileOwnership { get; set; }
+    /// <summary>Politics' view of iron sales; read only in the Iron chapter, derived from snapshotted compacts, never state of its own.</summary>
+    public IIronTradeSource? IronTrade { get; set; }
 
     /// <summary>True from the season the first civilization completes KEY-3: deposits, camps, forests and kits are live.</summary>
     public bool BronzeActive => _bronzeActive;

@@ -23,6 +23,32 @@ internal static class TestPack
 
     public static ContentPack Pack => Cached.Value;
     public static ResearchCatalog Catalog { get; } = new(Cached.Value);
+
+    /// <summary>
+    /// The real content with the named draft projects made numeric, compiled without the validator (rule V21 still forbids a numeric E4 row).
+    /// For tests of what a promoted E4 row does once the mode bounds are in place; never used by a golden.
+    /// </summary>
+    public static ContentPack WithNumeric(params string[] projectIds)
+    {
+        var files = ContentFixture.Files();
+        foreach (string id in projectIds)
+        {
+            bool found = false;
+            for (int i = 0; i < files.Count && !found; i++)
+            {
+                string text = files[i].Text;
+                int at = text.IndexOf("id: " + id + "\n", StringComparison.Ordinal);
+                if (at < 0) continue;
+                int status = text.IndexOf("status: draft", at, StringComparison.Ordinal);
+                if (status < 0) throw new InvalidOperationException($"{id} is not a draft project.");
+                files[i] = (files[i].Path, text[..status] + "status: numeric" + text[(status + "status: draft".Length)..]);
+                found = true;
+            }
+            if (!found) throw new ArgumentException($"Unknown project '{id}'.", nameof(projectIds));
+        }
+        (CivSim.Content.ContentSet set, _) = ContentFixture.Load(files);
+        return ContentPack.FromTree(CivSim.Content.PackBuilder.Compile(set));
+    }
 }
 
 /// <summary>A scripted stand-in for the economy: fixed people, practice and exposure, so research rules can be tested alone.</summary>

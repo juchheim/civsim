@@ -82,6 +82,39 @@ public sealed partial class LivingEconomyModel
         plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - IronStock(s, IronGood.Kit11));
     }
 
+    /// <summary>Iron bloom in one T11 kit: 0.15 wrought, and a forge batch turns 0.5 bloom into 0.4 wrought (docs/MVP/26 §2.3).</summary>
+    private static readonly Fix64 BloomPerKit = Fix64.FromRatio(1875, 10000);
+
+    /// <summary>
+    /// A settlement that sells iron under a compact keeps a bloom reserve of a litre per 20 people on top of its own chain's need, so a
+    /// caravan has a surplus to carry. Only a settlement that can dig iron (or has a camp on it) makes one.
+    /// </summary>
+    private void IronExportWant(SettlementState s, MetalState m, MetalPlan plan, int pop)
+    {
+        if (!IronChain || IronTrade is not { } trade || !trade.SellsIron(s.Civilization)) return;
+        if ((m.Access & SourceIron) == 0 && !CanDig(s, MetalGood.IronOre)) return;
+        plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.FromRatio(pop, 20);
+    }
+
+    /// <summary>
+    /// What a settlement needs of iron bloom for its own T11 kits: the kits it lacks (adults with no iron kit or one about to wear out,
+    /// less kits in store), less the bloom already in store as wrought iron. The trade valuation reads it as the "need".
+    /// </summary>
+    private Fix64 IronBloomNeed(SettlementState s)
+    {
+        if (!Done(s.Civilization, "MET-09")) return Fix64.Zero;
+        int lacking = 0;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState f = _figures[i];
+            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
+        }
+        Fix64 kits = Fix64.Max(Fix64.Zero, Fix64.FromInt(lacking) - IronStock(s, IronGood.Kit11) - IronStock(s, IronGood.Kit12));
+        Fix64 inStore = IronStock(s, IronGood.Wrought) * Fix64.FromRatio(5, 4);
+        return Fix64.Max(Fix64.Zero, kits * BloomPerKit - inStore);
+    }
+
     /// <summary>
     /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): those with no kit first, then worn kits, then early upgrades, oldest
     /// first, each getting the best Iron tier in store that beats what they carry. An early upgrade of a Bronze kit remelts it as the E3 rule does;

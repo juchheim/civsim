@@ -179,7 +179,7 @@ public sealed class Occupation
 /// lets each civilization's Civ Mind (a plain rule set until M6) choose gifts, barter, raids and wars. The same rules
 /// run for every civilization; the player steers with Posture and Beacons.
 /// </summary>
-public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus
+public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus, IIronTradeSource
 {
     /// <summary>Optional output-only callback for resolved Found donor/child IDs; never consulted by simulation rules.</summary>
     internal Action<int, int, int>? FoundResolvedObserverForDiagnostics { get; set; }
@@ -312,6 +312,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         economy.SiteAdvisor = this;
         economy.TileOwnership = this;
         economy.FreeFolkStatus = this;
+        economy.IronTrade = this;
         InitializeScoutSimulation();
         InitDecrees();
         RefreshSettlements();

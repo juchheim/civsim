@@ -302,6 +302,7 @@ public sealed partial class LivingEconomyModel
         int civ = s.Civilization;
         int adults = 0;
         foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age >= 14) adults++;
+        if (IronChain && goodId == "G-IRON") return IronBloomNeed(s);
         MetalGood? metal = goodId switch { "G-TIN" => MetalGood.Tin, "G-COPPER" => MetalGood.Copper, "G-BRONZE" => MetalGood.Bronze, _ => null };
         if (metal is { } g)
         {
