@@ -1515,3 +1515,21 @@ An independent block with different seeds (`--duel warlord grower --seeds 40 --f
 B29 showed `26/26 forecasts within 15%, median 1.7%, 6 KEY-4 horizon-censored` and so read INCOMPLETE in every `check-m10`: the integrated check stops observing at the 64-minute capture horizon, and six of the 32 AI seats finish KEY-4 later than that, so their forecasts could not be scored (a censored forecast cannot pass by design, 22 §16). The harness already had the remedy (`--observation-minutes` continues the same simulations after capture). Standalone `ai --check-b29 --seeds 8 --first-seed 20261019 --minutes 64 --observation-minutes 100`, pack from `main` `5dc20ea`: **32/32 forecasts within 15%, median 2.0% (target <= 6%), 32 of 32 seats sampled, 0 missing at capture, 0 censored: B29 PASS.** Observing to minute 100 completed every KEY-4, so the forecast itself needed no change; the 6 seats that were censored scored within tolerance and moved the median from 1.7% to 2.0%.
 
 **Change (harness only):** `check-m10` now passes `M10AiAcceptanceStatus.ResolveB29ObservationMinutes(seeds, minutes)` to B29, which is `max(minutes, 100)` for acceptance-quality samples (8 seeds and 64 minutes or more) and the capture horizon for diagnostic ones; a unit test pins it. Standalone `--check-b29` keeps its default of observing only to the capture horizon unless `--observation-minutes` is given. Cost: B29's simulations in `check-m10` now run 100 game-minutes instead of 64, roughly 25-30 more minutes of the check. This follows the 22 §16 text ("extend the observation window before acceptance"); it changes how long B29 is observed, not its 15% / 6% thresholds.
+
+**M10 AI check on pushed `main` `090de8e` (2026-11-03): every measured gate passes.** `ai --check-m10 --seeds 8 --first-seed 20261019 --minutes 64`, pack rebuilt from `content/` (hash `6436cd73...`). The run prints `M10 AI CORE CHECK PASSED` and `M10 measurable gates PASS; full B26-B30 result remains INCOMPLETE.`
+
+| Gate | Result | Target | Status |
+|---|---|---|---|
+| A1 | 88% (16 matches) | >= 85% | pass |
+| A2 Grower / Builder / Wanderer | 69% / 88% / 83% (64 matches each) | >= 70% | Builder and Wanderer pass; Grower `FAIL (ACCEPTED by the project owner)` |
+| A3 | 100% survive, 81% win | >= 80% / >= 70% | pass |
+| A4 | 38% | 25-40% | pass |
+| A5 | Builder 29.2, Grower 22.9, Wanderer 28.1, Warlord 18.8, Sage 26.0 | each <= 30% | pass |
+| A7 | every detector 0 | 0 | pass |
+| B27 | fallback 94% (30/32); dormant bronze 0/16 | >= 80% / < 0.1 | pass |
+| B28 | 8/10 = 80% | >= 80% | pass (on the line) |
+| B29 | 32/32 within 15%, median 2.0%, 0 censored (observed to minute 100) | within 15%, median <= 6% | **pass** (was incomplete) |
+| B30 | pass | | pass |
+| B31 | 50% over 64 matches | >= 45% | pass |
+
+Reading: the A1-A5/A7 and B27-B31 gates the check measures are all green; the only non-PASS label is the owner-accepted A2 Grower near-miss. The process still exits 1 and prints "full B26-B30 result remains INCOMPLETE" by design: `CheckM10` always returns 1 because A6 (exploit search, `ai --exploit`) and A8 (fog fairness) are separate acceptance gates, so the combined B26 gate stays open until those two are recorded as passed alongside this run. B28 sits exactly on its 80% line and is worth a re-check on a different first seed. Not covered by this check: A6, A8, B6, B12 70-minute coverage, B17 KEY-4 completion, B18 and B19.
