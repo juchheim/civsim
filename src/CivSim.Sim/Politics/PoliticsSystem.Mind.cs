@@ -431,8 +431,7 @@ public sealed partial class PoliticsSystem
     {
         int since = _warSince[a * _civs + b];
         int age = _season - since;
-        foreach (Occupation occ in _occupations)
-            if (occ.Civ == a && _sCiv[occ.Settlement] == b || occ.Civ == b && _sCiv[occ.Settlement] == a) return;
+        if (HasUnresolvedAssault(a, b)) return;
         bool weary = age >= 12 || _failedCampaigns[a * _civs + b] >= 2 || _failedCampaigns[b * _civs + a] >= 2;
         if (!weary || age < 4) return;
         _dip.MakePeace(a, b, _season);
@@ -441,6 +440,21 @@ public sealed partial class PoliticsSystem
         _failedCampaigns[a * _civs + b] = 0;
         _failedCampaigns[b * _civs + a] = 0;
     }
+
+    /// <summary>Whether an assault between the pair is still traveling, investing, or holding an occupation.</summary>
+    private bool HasUnresolvedAssault(int a, int b)
+    {
+        foreach (Expedition expedition in _expeditions)
+            if (expedition.Kind == ExpeditionKind.Assault && IsPair(expedition.Civ, expedition.TargetCiv, a, b)) return true;
+        foreach (Investment investment in _investments)
+            if (IsPair(investment.Civ, investment.TargetCiv, a, b)) return true;
+        foreach (Occupation occupation in _occupations)
+            if (IsPair(occupation.Civ, _sCiv[occupation.Settlement], a, b)) return true;
+        return false;
+    }
+
+    private static bool IsPair(int first, int second, int a, int b)
+        => first == a && second == b || first == b && second == a;
 
     // ---- parties arrive -------------------------------------------------------------------
 
@@ -646,7 +660,7 @@ public sealed partial class PoliticsSystem
     {
         int c = e.Civ, o = e.TargetCiv;
         if (!TargetStillThere(e)) return;
-        // Peace made while the army was on the road calls it off (docs/MVP/13 §8.1).
+        // Keep the guard for out-of-band war-state changes; ordinary peace is blocked until this assault resolves.
         if (!_dip.AtWar(c, o)) return;
         List<Fighter> attackers = AliveFighters(e, out _);
         if (attackers.Count < Captures.MinHolders) return;

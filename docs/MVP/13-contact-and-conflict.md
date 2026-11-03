@@ -184,7 +184,7 @@ Casualties are split between **deaths** (40%) and **wounded** (60%, out of the f
 ### 8.1 War
 - **War** is a declared state between two civilizations (no gifts, no trade, routes cut). Raids become free of reputation cost against an enemy at war.
 - The decision to declare is the Civ Mind's ([14 §6](14-ai-opponents.md#6-war-raid-and-defense-intelligence)), allowed when Relations < −30, or under Posture Raid, or when an ally is attacked.
-- **Peace:** either side can offer it; acceptance is an AI decision (14 §7). A peace sets Relations to −10 and a **truce of 4 years** (breaking it is a reputation −40 event).
+- **Peace:** either side can offer it; acceptance is an AI decision (14 §7). Peace cannot be established while an assault between the pair is unresolved: the attacking army is traveling, investing in a walled settlement, or holding an occupation. After the assault resolves, peace sets Relations to −10 and a **truce of 4 years** (breaking it is a reputation −40 event).
 
 ### 8.2 Capturing a settlement
 A settlement is **captured** when, after a battle at the settlement:

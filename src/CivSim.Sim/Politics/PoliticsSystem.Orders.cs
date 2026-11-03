@@ -161,8 +161,7 @@ public sealed partial class PoliticsSystem
     public bool OrderPeace(int c, int o)
     {
         if (c == o || !_dip.AtWar(c, o)) return false;
-        foreach (Occupation occ in _occupations)
-            if (occ.Civ == c && _sCiv[occ.Settlement] == o || occ.Civ == o && _sCiv[occ.Settlement] == c) return false;
+        if (HasUnresolvedAssault(c, o)) return false;
         _dip.MakePeace(c, o, _season);
         _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.PeaceMade, o, _season - _warSince[c * _civs + o], 0));
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.PeaceMade, c, _season - _warSince[c * _civs + o], 0));
