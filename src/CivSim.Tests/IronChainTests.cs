@@ -418,6 +418,36 @@ public class IronChainTests
     }
 
     [Fact]
+    public void With_MET_10_the_chain_makes_steel_edge_kits_for_the_adults_who_lack_one()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MET-08", "MET-09", "MET-10");
+        f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(120));
+        f.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(100));
+        f.RunSeasons(10);
+        int steel = 0, wrought = 0;
+        foreach (int t in f.Economy.FixtureAdultKitTiers(0)) { if (t == 12) steel++; else if (t == 11) wrought++; }
+        Assert.True(steel > 0, "adults should hold steel-edge kits");
+        Assert.True(steel > wrought, "new and replacement kits are steel-edge once MET-10 is known");
+    }
+
+    [Fact]
+    public void The_saw_adds_forty_percent_to_a_T12_kits_chop_and_to_nothing_else()
+    {
+        var pack = TestPack.WithNumeric("MET-09", "MET-10", "WOD-08");
+        BronzeFixture without = BronzeFixture.CreateIronWithCamp(pack, Seed, 60, "MET-08", "MET-09", "MET-10");
+        BronzeFixture with = BronzeFixture.CreateIronWithCamp(pack, Seed, 60, "MET-08", "MET-09", "MET-10", "WOD-08");
+        int adult = FirstAdult(without.Economy);
+        foreach (BronzeFixture f in new[] { without, with }) f.Economy.FixtureSetKit(adult, 12, Fix64.FromInt(40));
+        Fix64 axe = without.Economy.FixtureKitChopRate(adult), saw = with.Economy.FixtureKitChopRate(adult);
+        Assert.True(axe > Fix64.Zero);
+        Near(axe * F("1.4"), saw);
+        // A T11 kit gets no saw, even with WOD-08.
+        with.Economy.FixtureSetKit(adult, 11, Fix64.FromInt(20));
+        without.Economy.FixtureSetKit(adult, 11, Fix64.FromInt(20));
+        Assert.Equal(without.Economy.FixtureKitChopRate(adult), with.Economy.FixtureKitChopRate(adult));
+    }
+
+    [Fact]
     public void Sharing_leaves_a_settlement_with_no_sisters_exactly_as_it_was()
     {
         // The sister terms are zero for one settlement, with sharing on or off.

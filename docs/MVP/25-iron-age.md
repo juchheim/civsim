@@ -277,10 +277,10 @@ The new prefix distinguishes **E4** gates from M10 B1–B31. All rows are **prop
 | Q1 | Is scope 56 regular + KEY-5, or are projects missing from the brief's 59? Recommend actual catalog scope pending identification | Completeness and validator counts |
 | Q2 | Approve default-off IronChapter through KEY-5, provisional Year 96/+12 seasons? Keep default Bronze | Ending/acceptance semantics cannot change silently |
 | Q3 | Keep simulation 1:1, optionally aggregate E4 presentation 1:2? | Catalog has 1:2 at E4 and KEY-5 prose 1:5; unreviewed scaling corrupts economy |
-| Q4 | Do contracts remove distance strain rather than grant absolute secession immunity? | Explicit narrowing of existing prose |
-| Q5 | Does tributary Dominion transfer flow only, conserving points, and exclude victory land? | Prevents duplicated score and early automatic domination |
-| Q6 | Include full bounded naval blockade, league co-building and missionary influence now? | All are catalog promises, each adds state/AI/tests; deferral requires explicit scope change |
-| Q7 | Make Great Dome buildable in E4 or retain “built later”? Proposal: unlock only in E4, construction deferred unless approved | Otherwise a new Wonder is silently introduced through an M-type project |
+| Q4 | Do contracts remove distance strain rather than grant absolute secession immunity? **Resolved 2026-11-03: yes, distance and span pressure only; famine, conquest and other crisis secession remain.** | Explicit narrowing of existing prose |
+| Q5 | Does tributary Dominion transfer flow only, conserving points, and exclude victory land? **Resolved 2026-11-03: yes, points move once and never count as land.** | Prevents duplicated score and early automatic domination |
+| Q6 | Include full bounded naval blockade, league co-building and missionary influence now? **Resolved 2026-11-03: yes. The user asked for the entire Iron Age to be complete and working as a whole before playtesting; no catalog promise is deferred.** | All are catalog promises, each adds state/AI/tests; deferral requires explicit scope change |
+| Q7 | Make Great Dome buildable in E4 or retain “built later”? Proposal: unlock only in E4, construction deferred unless approved. **Resolved 2026-11-03: buildable in E4, as a normal Wonder with its own cost (to be set with the other P values).** | Otherwise a new Wonder is silently introduced through an M-type project |
 | Q8 | Confirm P numeric baselines, new B4 protocols/performance budget and a pacing band fitted around the latest 17-minute Standard projection before implementation | No values are oracle-fitted; no gates have passed |
 | Q9 | If existing iron geography cannot support all starts, approve a mode-isolated overlay or accept trade dependence? **Resolved 2026-11-03: accept trade/expansion for the 0.68% tail; no overlay** ([WP4 audit](balance/m11-wp4-iron-geography.md)). | Shared worldgen changes would move E3 goldens |
 

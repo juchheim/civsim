@@ -17,14 +17,14 @@ public sealed partial class LivingEconomyModel
     /// <summary>Goods that exist only in the Iron chapter. Append only; the order is the slot order in snapshots.</summary>
     private enum IronGood : byte
     {
-        Wrought, Steel, Kit11, Kit12, Arms3, Arms4,
+        Wrought, Steel, Kit11, Kit12, Arms3, Arms4, Plank,
         Count
     }
 
     private static string IronGoodId(IronGood good) => good switch
     {
         IronGood.Wrought => "G-WROUGHT", IronGood.Steel => "G-STEEL", IronGood.Kit11 => "G-TOOL11", IronGood.Kit12 => "G-TOOL12",
-        IronGood.Arms3 => "G-ARMS3", IronGood.Arms4 => "G-ARMS4",
+        IronGood.Arms3 => "G-ARMS3", IronGood.Arms4 => "G-ARMS4", IronGood.Plank => "G-PLANK",
         _ => "",
     };
 
@@ -77,9 +77,13 @@ public sealed partial class LivingEconomyModel
         Fix64 needKits = Fix64.FromInt(IronKitsLacking(s)) + SisterKitDeficit(s);
         // A thin forest asks for fewer new and replacement kits, but iron already in store (smelted earlier or imported by compact) is always worth forging
         // into kits: that costs a quarter of a litre of charcoal a kit, where smelting the ore costs six times more.
-        Fix64 fromStore = (IronStock(s, IronGood.Wrought) + m.Goods[(int)MetalGood.Iron] * Fix64.FromRatio(4, 5)) / WroughtPerKit;
+        // With MET-10 the kits wanted are steel-edge T12 (replacing a worn or missing kit, never an early upgrade of a working one); steel and wrought
+        // iron in store both count, since carburizing stored wrought iron is cheap (0.2 charcoal for 0.4 steel).
+        bool steel = Done(s.Civilization, "MET-10");
+        Fix64 iron = IronStock(s, IronGood.Wrought) + m.Goods[(int)MetalGood.Iron] * Fix64.FromRatio(4, 5) + (steel ? IronStock(s, IronGood.Steel) : Fix64.Zero);
+        Fix64 fromStore = iron / WroughtPerKit;
         Fix64 wanted = Fix64.Max(needKits * IronWoodFactor(s, m), Fix64.Min(needKits, fromStore));
-        plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, wanted - IronStock(s, IronGood.Kit11));
+        plan.Terminal[IronSlot(steel ? IronGood.Kit12 : IronGood.Kit11)] = Fix64.Max(Fix64.Zero, wanted - IronKitsInStore(s));
     }
 
     /// <summary>The standing-wood share (of what the settlement's range held when its metal economy began) above which the Iron chain asks for fuel in full.</summary>

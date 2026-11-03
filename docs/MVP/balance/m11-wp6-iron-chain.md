@@ -1,6 +1,6 @@
 # M11 WP6 — Iron metal ledger
 
-Records slices 1 to 6 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
+Records slices 1 to 7 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
 
 ## Slice 1: the ledger
 
@@ -54,6 +54,12 @@ Before this, a daughter town or a town without a forge or iron could not be supp
 - **Tests.** The sister counts the daughter's adults in its kit want, and not when sharing is off; spare kits move to the daughter only when sharing is on and none are created or lost; spare bloom reaches a sister forge that digs no iron, only when sharing is on; a lone town behaves the same either way.
 - **Limits.** The fixture's daughter town builds its own forge within a few seasons and can reach the parent's iron, so the full pipeline (parent smelts, forges, ships kits to a dependent daughter) was exercised in pieces, not as one run. The demand side and the transfer side are tested separately. Sharing uses the E3 reach rule, so it needs SOC-07 or GOV-04.
 
+## Slice 7: steel, steel-edge kits and the saw
+
+- **Steel and T12.** Once a civilization knows MET-10, the Iron kit target is steel-edge T12 instead of T11: it applies to adults with no iron kit or a worn one, not as an early upgrade of a working kit. The want expands through the existing recipes (kit, steel, wrought iron, bloom, ore, charcoal), under the same wood throttle. Steel and wrought iron in store both count towards the kits that can be made without smelting, since carburizing stored wrought iron is cheap. T11 kits in store are still issued as a fallback.
+- **Saw.** A T12 kit gets chop x1.4 when its civilization knows WOD-08 and MET-10; a T11 kit never does. `G-PLANK` is now an Iron good and `saw_planks` compiles, but nothing wants planks yet: the structures in 26 §3.2 are built from blocks, ashlar and wood, so planks wait for a consumer (ships or buildings that name them).
+- **Tests.** With MET-10 the chain makes steel-edge kits and adults hold more T12 than T11; the saw multiplies exactly 1.4 on T12 and not on T11 (using a pack with MET-09, MET-10 and WOD-08 numeric).
+
 ## Evidence
 
 - The T11 hand check in 26 §2.3 reproduces: one kit costs 0.75 G-IRONORE and 1.36875 G-CHAR (8.2125 G-WOOD at 6 per charcoal), with no bloom left over, so the bloomery charge is not counted twice. Labor excluding charcoal burning is 0.65 ws.
@@ -63,7 +69,7 @@ Before this, a daughter town or a town without a forge or iron could not be supp
 ## Not done (later WP6 slices)
 
 1. **Planner wants beyond T11.** Steel (MET-10) and T12 kits, iron and steel arms (WP8), and sister-settlement sharing of Iron goods are not wanted yet. Mining iron ore for the chain uses the E3 deposit logic, so the WP4 camp gap still applies.
-2. **Saw attachment and mixed-age wear distributions.** The WOD-08 saw on a T12 kit, and a live wear distribution over many seasons and settlements for I-T3, are not built or measured yet. Steel (MET-10) is not wanted by the planner, so T12 kits exist only from fixtures.
+2. **Live wear distribution** over many seasons and settlements for I-T3 is not measured yet; that needs the whole-match runs.
 3. Iron compacts still need contact, relations and a finite route, so the audit's 64 to 80 starts with no capable partner rely on expansion.
 4. **Fuel (I-T6).** Sustainable metal must be ≤15% of civilian work with no mandatory clear-cut. The WP4 audit found 45.6% of starts cannot sustain 100 adults of T11 replacement on local wood regrowth alone.
 5. **Transport and imports.** Shipping bloom, wrought iron and kits between settlements and across borders, with the captured-forge and imported-kit cases of B4-06.

@@ -210,6 +210,9 @@ public sealed partial class LivingEconomyModel
         return SisterKitDeficit(_settlements[settlementIndex]);
     }
 
+    /// <summary>A figure's kit chop rate (work-seasons of wood per work-season), 0 without a usable metal kit, for saw and axe fixtures.</summary>
+    internal Fix64 FixtureKitChopRate(int figureIndex) => KitChopRate(_figures[figureIndex]);
+
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
     internal Fix64 FixtureIronWoodFactor(int settlementIndex)
         => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;

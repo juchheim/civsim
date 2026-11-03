@@ -326,8 +326,13 @@ public sealed partial class LivingEconomyModel
     {
         int rung = KitChopRung(f);
         if (rung < 0) return Fix64.Zero;
-        return BaseRate("chop", Fix64.FromInt(2)) * ChopRungMult(f.Civilization, rung) * KitQuality(f);
+        Fix64 rate = BaseRate("chop", Fix64.FromInt(2)) * ChopRungMult(f.Civilization, rung) * KitQuality(f);
+        // The WOD-08 saw rides on a T12 kit only: chop x1.4 against the T12 iron axe (docs/MVP/26 §2.2).
+        if (f.Kit == 12 && Done(f.Civilization, "WOD-08") && Done(f.Civilization, "MET-10")) rate *= SawChopMult;
+        return rate;
     }
+
+    private static readonly Fix64 SawChopMult = Fix64.FromRatio(14, 10);
 
     private Fix64 BaseRate(string action, Fix64 fallback)
     {
