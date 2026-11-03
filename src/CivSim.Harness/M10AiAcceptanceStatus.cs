@@ -4,8 +4,11 @@ internal static class M10AiAcceptanceStatus
 {
     internal const int MinimumSeeds = 8;
     internal const int MinimumMinutes = 64;
-    /// <summary>B31 samples at least this many seeds (64 matches); 8 seeds cannot resolve a 45% bar.</summary>
-    internal const int MinimumLegendSeeds = 32;
+    /// <summary>
+    /// Gates that sit close to their bar (A2 against the opening scripts, B31) sample at least this many seeds (64 matches);
+    /// 8 seeds carry about +/-12 points of noise and cannot resolve them.
+    /// </summary>
+    internal const int MinimumWideSampleSeeds = 32;
 
     internal enum Result
     {

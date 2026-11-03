@@ -830,7 +830,7 @@ internal static class AiCommand
         Console.WriteLine($"  B29 result {FormatB29GateLabel(b29Summary, seeds, minutes)}");
 
         // 16 matches carry about +/-12 points of noise against a 45% bar, so B31 judges at least 32 seeds (64 matches), as B7/B8 do.
-        int legendSeeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumLegendSeeds);
+        int legendSeeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumWideSampleSeeds);
         Console.WriteLine($"== B31: Legend vs Warlord, >= 45% over {legendSeeds} seeds (22 §16; relaxed from 60%, Legend must not be worse than Warlord)");
         Tournament.DuelResult legend = Tournament.Duel(pack, "legend", "warlord", legendSeeds, minutes, archetype, firstSeed);
         bool legendPass = legend.WinRateA >= 0.45;
@@ -1025,10 +1025,13 @@ internal static class AiCommand
         a1 = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed);
         Gate("A1", a1.WinRateA >= 0.85, $"{a1.WinRateA * 100:F0}% over {a1.Matches} matches");
 
-        Console.WriteLine("== A2: Warlord AI vs each opening script, >= 70%");
+        // A2 sits close to its bar on 16 matches (the Grower duel is 74% over 240 matches but reads 69% on the exact 8-seed
+        // cohort), so acceptance-quality runs judge it on at least 32 seeds; diagnostic runs keep the requested seeds.
+        int a2Seeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumWideSampleSeeds);
+        Console.WriteLine($"== A2: Warlord AI vs each opening script, >= 70% over {a2Seeds} seeds");
         foreach (string opening in new[] { "grower", "builder", "wanderer" })
         {
-            Tournament.DuelResult r = Tournament.Duel(pack, "warlord", opening, seeds, minutes, archetype, firstSeed);
+            Tournament.DuelResult r = Tournament.Duel(pack, "warlord", opening, a2Seeds, minutes, archetype, firstSeed);
             Gate("A2 " + opening, r.WinRateA >= 0.70, $"{r.WinRateA * 100:F0}% over {r.Matches} matches");
         }
 
