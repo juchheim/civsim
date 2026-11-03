@@ -1479,3 +1479,21 @@ The single idle-labor season that `check-m10` kept reporting (seed 20261023, sea
 **Fix (measurement only):** `PoliticsSystem.NearestMineSite` gained an overload taking an `identified` filter (the existing call keeps its behavior); `Tournament` now passes a filter that accepts a tile only if the AI seat's belief map shows that deposit kind there, for both the tin and arsenic options. The tin-seller option was already knowledge-based. Thresholds, the AI and every golden are unchanged. A unit test pins the filter. Exact 8-seed, 64-minute `check-b27` (seeds from 20261019): **dormant-route blunders 0/16 = 0.000, tin/arsenical recovery 30/32 = 94% (target >= 80%): PASS** (was 3/16 = 0.188, FAIL). The two unrecovered seats (20261022 civ 1, 20261023 civ 3) are unchanged and fall within the 80% allowance.
 
 **Not fixed, noted for later:** in all three seats the Strategist spent its mandate on a Levy against the same Tin Folk village every ~6 seasons (EV 80-157) for 25+ seasons without ever getting tin; the Levy is not counted as a recovery action because a Levy is an assault, not a mine or a compact. That is a real planning weakness (repeating a failing conquest) but B27 does not measure it, and changing the Levy valuation would move the war balance. A cooldown after a failed Tin Folk Levy is the obvious candidate if it matters in play.
+
+**M10 AI check on pushed `main` `471d98f` (2026-11-03):** `ai --check-m10 --seeds 8 --first-seed 20261019 --minutes 64`, pack rebuilt from `content/` (hash `6436cd73...`). Exit 1, and every gate that was measured now passes except one.
+
+| Gate | Result | Target | Status |
+|---|---|---|---|
+| A1 | 88% | >= 85% | pass |
+| A2 Grower / Builder / Wanderer | 69% (11/16) / 94% / 88% | >= 70% | **Grower fails** |
+| A3 | 100% survive, 81% win | >= 80% / >= 70% | pass |
+| A4 | 38% | 25-40% | pass |
+| A5 | Builder 29.2, Grower 22.9, Wanderer 28.1, Warlord 18.8, Sage 26.0 | each <= 30% | pass |
+| A7 | all detectors 0 including idle labor | 0 | **pass** (was 1 season) |
+| B27 | fallback 94% (30/32); dormant bronze 0/16 | >= 80% / < 0.1 | **pass** (was 0.188) |
+| B28 | 8/10 = 80% | >= 80% | pass (on the line) |
+| B29 | 26/26 within 15%, 6 horizon-censored | | incomplete |
+| B30 | pass | | pass |
+| B31 | 50% over 64 matches | >= 45% | pass |
+
+Reading: A2 Grower is the only failing measured gate. The run is deterministic, so this exact 16-match cohort will always read 11/16 = 68.75% (a pass needs 12/16 = 75%); over 240 matches the same matchup is 74%, so the gap is cohort luck, not a defect. Moving A2 to a larger seed sample (as B31 now does) would settle it and needs sign-off. B29 stays incomplete until the observation window passes minute 64. B28 sits exactly on 80% and should be re-checked on another first seed. Still separate and open: A6 exploit search, A8 fog fairness, B6, B12 70-minute coverage, B17 KEY-4 completion, B19 and B18.
