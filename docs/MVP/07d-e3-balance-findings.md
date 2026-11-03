@@ -1447,3 +1447,21 @@ A4 (Chieftain vs Warlord, target 25-40%) read 50% on the official 16-match draw.
 Reading: the unchanged Chieftain is already at the top of the band (about 42%, so the 50% official draw was partly a high draw). A larger Council-prior share is the cleanest lever: about 7 points, on both blocks. The threat reaction delay and the horizon cut add nothing measurable on top (all within noise); horizon 1 with beam 2 would make Chieftain think exactly like the Settler, and yearly re-planning is a blunt skip of three seasons in four, so neither was taken. Prior shares above 20% were single blocks inside the noise and are not evidence of more effect.
 
 **Promoted:** `content/registries/difficulty.yaml` Chieftain `council_prior_pct: 20` (doc 14 §9.2 row and note updated; `AiScaffoldTests` pins Chieftain at 2 eras, beam 4, 20%). This is data only: one in five of Chieftain's explicitly ordered research picks now comes from the Council's prior instead of the search (its bronze-closure picks stay protected). Horizon, beam, opponent model and re-planning are unchanged, so Chieftain stays distinct from Settler (which also reacts two seasons late and re-plans yearly). `tests/golden/content-pack.txt` is refreshed (hash `6436cd73477fb336f9184e2f86b5fb8509eea7d9bfaa81f59e28c11f9df1cfb9`, 318,020 bytes). No other golden moved: toy, research, politics and bronze all still pass, and 913 tests pass. A4 is still judged on the 16-match `check-m10` draw (about +/-12 points), so it can miss by luck; 32 seeds would fix that the same way as B31 if it flips.
+
+**M10 AI check on pushed `main` `fb52fd3` (2026-11-03):** `ai --check-m10 --seeds 8 --first-seed 20261019 --minutes 64`, pack rebuilt from `content/` (hash `6436cd73...`). Exit 1. First run with the Legend 3-era horizon, B31 on 32 seeds and Chieftain's 20% Council prior together.
+
+| Gate | Result | Target | Status |
+|---|---|---|---|
+| A1 | 88% | >= 85% | pass |
+| A2 Grower / Builder / Wanderer | 69% / 94% / 88% | >= 70% | Grower fails (known noise, 74% over 240 matches) |
+| A3 | 100% survive, 81% win | >= 80% / >= 70% | pass |
+| A4 | **38% (6/16)** | 25-40% | **pass** (was 50%) |
+| A5 | Builder 29.2, Grower 22.9, Wanderer 28.1, Warlord 18.8, Sage 26.0 | each <= 30% | pass |
+| A7 | idle labor 1 season (seed 20261023, s224, same case as the previous two runs); every other detector 0 | 0 | idle labor fails |
+| B27 | fallback 94% (30/32); dormant bronze 3/16 = 0.188 per match | | dormant bronze fails |
+| B28 | **8/10 = 80%** (was 2/3, n too small) | >= 80% | **pass** |
+| B29 | 26/26 within 15%, median 1.7%, 6 horizon-censored | | incomplete |
+| B30 | mandate overflow 1/16; suicide raids 0; siege blunders 0; naked caravans 4/16 | | pass |
+| B31 | **50% over 64 matches** (32 seeds) | >= 45% | **pass** |
+
+Reading: A4 and B31 now pass in the official check, and B28 gained enough cases (10, from the 32-seed Legend duel) to pass at exactly 80%, so it sits on the line and should be re-checked on a different first seed. Nothing else moved. Open AI gates: A2 Grower (noise), A7 idle labor (one season, seed 20261023 s224), B27 dormant bronze (0.188 per match), B29 (censored), plus B6, B12 70-minute coverage, B17 KEY-4 completion, B19 and B18 from earlier records.
