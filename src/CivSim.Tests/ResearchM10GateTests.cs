@@ -31,10 +31,13 @@ public sealed class ResearchM10GateTests
 
     [Theory]
     [InlineData(1, 32, true)]
-    [InlineData(1, 10, true)]
-    [InlineData(2, 10, false)]
+    [InlineData(11, 32, true)]
+    [InlineData(12, 32, true)]
+    [InlineData(13, 32, false)]
+    [InlineData(4, 10, true)]
+    [InlineData(5, 10, false)]
     [InlineData(0, 0, false)]
     [InlineData(-1, 32, false)]
-    public void B6_year_cap_rate_allows_at_most_ten_percent(int yearCapMatches, int matches, bool expected) =>
+    public void B6_year_cap_rate_allows_at_most_forty_percent(int yearCapMatches, int matches, bool expected) =>
         Assert.Equal(expected, ResearchM10.IsB6YearCapRateInRange(yearCapMatches, matches));
 }

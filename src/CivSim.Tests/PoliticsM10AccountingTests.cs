@@ -11,6 +11,25 @@ public sealed class PoliticsM10AccountingTests
         Assert.Equal(96, PoliticsM10.ExpectedBorderCivSamples(24 * 4));
     }
 
+    [Theory]
+    [InlineData(96, 96, true)]
+    [InlineData(279, 288, true)]
+    [InlineData(274, 288, true)]
+    [InlineData(273, 288, false)]
+    [InlineData(93, 96, true)]
+    [InlineData(92, 96, true)]
+    [InlineData(91, 96, false)]
+    [InlineData(0, 0, false)]
+    [InlineData(97, 96, false)]
+    public void Key4_completion_needs_at_least_ninety_five_percent_of_civilizations(int completed, int civs, bool expected) =>
+        Assert.Equal(expected, PoliticsM10.IsKey4CompletionInRange(completed, civs));
+
+    [Fact]
+    public void B18_allows_dominion_up_to_fifty_seven_percent()
+    {
+        Assert.Equal(57, PoliticsM10.B18DominionMaxPercent);
+    }
+
     [Fact]
     public void Incomplete_key4_run_still_reports_actual_horizon_minutes()
     {
