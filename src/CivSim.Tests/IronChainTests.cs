@@ -722,7 +722,10 @@ public class IronChainTests
             int d = CivSim.Sim.World.HexGrid.Distance(start, tile, world.Width);
             if (d < 14 || d > 18) continue;
             int far = f.Economy.FoundByDecree(0, tile, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
-            if (far >= 0) return (f, far);
+            if (far < 0) continue;
+            f.Economy.FixtureSetTier(0, 0); // give both towns a civic state so Cohesion is live
+            f.Economy.FixtureSetTier(far, 0);
+            return (f, far);
         }
         throw new InvalidOperationException("no site for a far province");
     }
@@ -765,6 +768,40 @@ public class IronChainTests
         (BronzeFixture g, int farG) = WithFarProvince("GOV-07", "TER-08", "KEY-4");
         for (int season = 0; season < 6; season++) { g.Economy.FixtureSetTier(0, 1); g.Economy.FixtureSetTier(farG, 1); g.RunSeasons(1); }
         Assert.True(g.Economy.CohesionPressures(farG).Overreach > 0);
+    }
+
+    [Fact]
+    public void A_paved_link_shortens_the_distance_strain_and_courier_relays_add_their_relief_only_along_it()
+    {
+        (BronzeFixture plain, int far) = WithFarProvince("KEY-4", "TRN-07", "TRN-08", "COM-08");
+        int rivers = plain.Economy.FixtureRiversOnLink(far);
+        int unlinked = plain.Economy.CohesionPressures(far).Overreach;
+        Assert.True(unlinked > 0);
+        Assert.False(plain.Economy.FixtureRoadLinked(far));
+
+        plain.Economy.FixtureBuildIronStructure(far, "road");
+        // A road over a river is incomplete without a bridge; with no river it is linked at once.
+        Assert.Equal(rivers == 0, plain.Economy.FixtureRoadLinked(far));
+        if (rivers > 0) plain.Economy.FixtureBuildIronStructure(far, "bridge");
+        Assert.True(plain.Economy.FixtureRoadLinked(far));
+        int linked = plain.Economy.CohesionPressures(far).Overreach;
+        Assert.True(linked < unlinked, $"the road should cut the strain ({linked} against {unlinked})");
+
+        // Relays need a maintained road: the same research without the road gives no relief.
+        (BronzeFixture noRoad, int farNoRoad) = WithFarProvince("KEY-4", "TRN-07", "COM-08");
+        (BronzeFixture noRelay, int farNoRelay) = WithFarProvince("KEY-4", "TRN-07");
+        Assert.Equal(unlinked, noRoad.Economy.CohesionPressures(farNoRoad).Overreach);
+        noRoad.Economy.FixtureBuildIronStructure(farNoRoad, "road");
+        noRelay.Economy.FixtureBuildIronStructure(farNoRelay, "road");
+        if (noRoad.Economy.FixtureRiversOnLink(farNoRoad) > 0)
+        {
+            noRoad.Economy.FixtureBuildIronStructure(farNoRoad, "bridge");
+            noRelay.Economy.FixtureBuildIronStructure(farNoRelay, "bridge");
+        }
+        Assert.True(noRoad.Economy.CohesionPressures(farNoRoad).Overreach <= noRelay.Economy.CohesionPressures(farNoRelay).Overreach);
+        // And a Bronze town never has a road at all.
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "KEY-4", "TRN-07");
+        Assert.False(bronze.Economy.FixtureRoadLinked(0));
     }
 
     private static int ProjectIndex(LivingEconomyModel economy, string id)

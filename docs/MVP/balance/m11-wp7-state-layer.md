@@ -15,11 +15,16 @@ What the Iron chapter's government does in the economy, the provisional numbers,
 - **Coinage (TRD-06).** Its Admin span +1 already applied through the generic span sum; trade friction ×0.6 waits for the trade batch.
 - **Republic (GOV-08), philosophy (BEL-08), theatre (ART-08).** Cohesion targets +10, +10 (integration) and +15 (a town with a theatre). The theatre is a new Iron structure (12 blocks, 4 wood, 24 ws), wanted by a town of 50 or more with none.
 
+### Roads, bridges and relays (TRN-07, TRN-08, COM-08)
+- **Road:** a paved link from a settlement to its capital, 12 work-seasons and 6 blocks (provisional; the catalog gives no road cost; surveying shortens it). Wanted by a settlement joined to the capital by land and beyond the free Overreach distance. A road-linked settlement moves x1.5 along its link, so the distance the Cohesion strain counts is two thirds of the walk, rounded up.
+- **Bridge (TRN-08):** 16 ws, 6 blocks, 2 ashlar, 2 wood. A link whose straight line from the capital crosses a river tile is incomplete without one; it is wanted once the road stands. A river gives no general movement bonus.
+- **Courier relays (COM-08):** the -20% Overreach relief reaches only a road-linked settlement (a maintained road). Its x2 adoption spread along roads belongs to research and is not built.
+- **Not built:** road claim strength +10% (territory), road movement for caravans and armies (trade and war batches), road upkeep.
+
 ## Tests
-`IronChainTests`: cohesion terms apply only where their scope holds; an administrator and a governor are staffed and their relief depends on being in post; a feudal contract zeroes distance and span strain in a governed province and a province without it still feels both.
+`IronChainTests`: a paved link shortens the strain, a river link needs a bridge, and relays add relief only along a linked road; cohesion terms apply only where their scope holds; an administrator and a governor are staffed and their relief depends on being in post; a feudal contract zeroes distance and span strain in a governed province and a province without it still feels both.
 
 ## Still to build in the state layer
-- **Roads and bridges (TRN-07/08) and courier relays (COM-08):** relays' Overreach relief is deliberately not applied yet, because it is defined along maintained roads.
-- **Colonies (TER-09)**, **tributary states (DIP-06)** and **leagues (DIP-07)**.
+- **Colonies (TER-09)** overseas need ships and voyages, so they come with the sea batch; **tributary states (DIP-06)** and **leagues (DIP-07)** come with diplomacy.
 - The Insight cost of a feudal contract ("less central extraction") has no number in the catalog or 26 and is not modelled.
 - The civ-wide `voluntary_war_declaration_cooldown` of GOV-08 and the unrest-pressure mod of ART-08 belong to the politics batch.

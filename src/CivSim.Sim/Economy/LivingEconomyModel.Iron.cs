@@ -514,6 +514,8 @@ public sealed partial class LivingEconomyModel
         if (!IronChain) return Fix64.One - keep;
         if (Done(civ, "GOV-07") && HasStaffedAdministrator(civ)) keep *= Fix64.One - Fix64.Min(Fix64.One, ScopedOverreach("GOV-07"));
         if (GovernorSeatOf(s) >= 0) keep *= Fix64.One - Fix64.Min(Fix64.One, ScopedOverreach("TER-08"));
+        // Courier relays (COM-08) work along maintained roads: the relief reaches only a road-linked settlement.
+        if (Done(civ, "COM-08") && RoadLinked(s)) keep *= Fix64.One - Fix64.Min(Fix64.One, ScopedOverreach("COM-08"));
         return Fix64.One - keep;
     }
 
@@ -529,6 +531,42 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>What is left of the Admin-span strain: none under a feudal contract, otherwise all of it.</summary>
     private Fix64 SpanStrainFactor(SettlementState s) => UnderFeudalContract(s) ? Fix64.Zero : Fix64.One;
+
+    // ---- roads, bridges and relays (TRN-07, TRN-08, COM-08) ------------------------------------------------
+
+    /// <summary>River tiles on the straight line from the capital to a settlement: a road over them is incomplete without a bridge (TRN-08). Zero for the capital.</summary>
+    private int RiversOnLink(SettlementState s)
+    {
+        int capital = CapitalOf(s.Civilization);
+        if (capital < 0 || capital == s.Id) return 0;
+        HexGrid.Coordinates(_settlements[capital].SiteTile, _world.Width, out int fx, out int fy);
+        HexGrid.Coordinates(s.SiteTile, _world.Width, out int tx, out int ty);
+        int steps = Math.Max(1, HexGrid.Distance(_settlements[capital].SiteTile, s.SiteTile, _world.Width));
+        int rivers = 0;
+        for (int k = 0; k <= steps; k++)
+            if (_world.Tile(HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _world.Width, _world.Height)).River) rivers++;
+        return rivers;
+    }
+
+    private bool RoadWanted(SettlementState s)
+    {
+        int civ = s.Civilization;
+        if (IronWorksCount(s, IronStructure.Road) > 0 || !IsMember(s, civ)) return false;
+        int capital = CapitalOf(civ);
+        return capital >= 0 && capital != s.Id && LandConnected(_settlements[capital].SiteTile, s.SiteTile) &&
+            WalkingTiles(_settlements[capital].SiteTile, s.SiteTile) > _civic.OverreachFree;
+    }
+
+    /// <summary>A settlement is road-linked to its capital when it has a paved link and, if that link crosses a river, a bridge too.</summary>
+    private bool RoadLinked(SettlementState s)
+        => IronChain && IronWorksCount(s, IronStructure.Road) > 0 && (RiversOnLink(s) == 0 || IronWorksCount(s, IronStructure.Bridge) > 0);
+
+    /// <summary>
+    /// The walking distance to the capital as the Cohesion strain sees it: a road-linked settlement moves x1.5 faster along its link (TRN-07), so the
+    /// distance counts as two thirds, rounded up. Unlinked settlements, and every Bronze settlement, keep the plain walk.
+    /// </summary>
+    private int RoadAdjustedWalk(SettlementState s, int walk)
+        => RoadLinked(s) && Done(s.Civilization, "TRN-07") ? (walk * 2 + 2) / 3 : walk;
 
     // ---- orchards (FOR-08) ---------------------------------------------------------------------------------
 
@@ -642,7 +680,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre,
+        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge,
         Count
     }
 
@@ -659,6 +697,9 @@ public sealed partial class LivingEconomyModel
         new("aqueduct", "BLD-10", 40, 20, 8, 5, 0, Large: true, Stone: true, Infrastructure: true),
         new("bathhouse", "MED-06", 20, 8, 0, 4, 0, Stone: true),
         new("theatre_arena", "ART-08", 24, 12, 0, 4, 0, Stone: true),
+        // A paved link from a settlement to its capital (provisional: the catalog gives no road cost). Surveying shortens it; a bridge is the 26 §3.2 row.
+        new("road", "TRN-07", 12, 6, 0, 0, 0, Infrastructure: true),
+        new("bridge", "TRN-08", 16, 6, 2, 2, 0, Stone: true),
     };
 
     /// <summary>
@@ -731,6 +772,9 @@ public sealed partial class LivingEconomyModel
             // Baths pay off where people are dense enough for outbreaks to bite.
             IronStructure.Bathhouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Bathhouse) == 0 && Population(s.Id) >= 40,
             // One venue per city: a town of fifty or more that has none builds one (it lifts that city's Cohesion target).
+            // A paved link to the capital pays where there is distance strain to relieve; a bridge where that link crosses a river.
+            IronStructure.Road => RoadWanted(s),
+            IronStructure.Bridge => IronWorksCount(s, IronStructure.Road) > 0 && IronWorksCount(s, IronStructure.Bridge) == 0 && RiversOnLink(s) > 0,
             IronStructure.Theatre => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Theatre) == 0 && Population(s.Id) >= 50,
             _ => false,
         };

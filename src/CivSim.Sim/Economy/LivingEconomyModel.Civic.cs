@@ -1223,7 +1223,7 @@ public sealed partial class LivingEconomyModel
         if (housing > Fix64.Zero) t += _civic.Crowding * Fix64.Max(Fix64.Zero, Fix64.FromInt(pop) / housing - Fix64.One);
         if (cap is not null && capital != s.Id)
         {
-            int walk = WalkingTiles(cap.SiteTile, s.SiteTile);
+            int walk = RoadAdjustedWalk(s, WalkingTiles(cap.SiteTile, s.SiteTile));
             Fix64 over = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) / _civic.OverreachDivisor * (Fix64.One - AdminReductionAt(s));
             if (Done(civ, "HUS-08") && MostlyOpenGround(s)) over *= Fix64.Half;
             over *= DistanceStrainFactor(s);
@@ -1367,7 +1367,7 @@ public sealed partial class LivingEconomyModel
         if (!CohesionLive(s)) return (0, 0);
         int civ = s.Civilization, capital = CapitalOf(s.Civilization);
         if (capital < 0 || capital == s.Id) return (0, 0);
-        int walk = WalkingTiles(_settlements[capital].SiteTile, s.SiteTile);
+        int walk = RoadAdjustedWalk(s, WalkingTiles(_settlements[capital].SiteTile, s.SiteTile));
         Fix64 overreach = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) /
             _civic.OverreachDivisor * (Fix64.One - AdminReductionAt(s));
         if (Done(civ, "HUS-08") && MostlyOpenGround(s)) overreach *= Fix64.Half;

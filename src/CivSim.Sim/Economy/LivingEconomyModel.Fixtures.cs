@@ -297,6 +297,8 @@ public sealed partial class LivingEconomyModel
         foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id) f.Role = Role.None;
     }
 
+    internal int FixtureRiversOnLink(int settlementIndex) => RiversOnLink(_settlements[settlementIndex]);
+    internal bool FixtureRoadLinked(int settlementIndex) => RoadLinked(_settlements[settlementIndex]);
     internal int FixtureGovernorSeat(int settlementIndex) => GovernorSeatOf(_settlements[settlementIndex]);
 
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
