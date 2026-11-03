@@ -64,8 +64,17 @@ internal sealed class BronzeFixture
     public static BronzeFixture CreateWithIronTile(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true, extraProjects);
 
+    /// <summary>
+    /// A settlement for the fuel check (docs/MVP/25 I-T6): either chapter, with an iron camp site four tiles out, Coppicing known or not, and
+    /// <paramref name="forestTiles"/> forested tiles in range (13 in the other fixtures; fewer is a low-wood start).
+    /// </summary>
+    public static BronzeFixture CreateFuelScenario(ContentPack pack, ulong seed, int people, bool ironChain, bool coppice, int forestTiles,
+        params string[] extraProjects)
+        => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true,
+            extraProjects, forestTiles);
+
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
-        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects)
+        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -112,7 +121,7 @@ internal sealed class BronzeFixture
             deposits[ironTile] = new WorldDeposit(DepositKind.Iron, 2, 1);
         }
         var forest = new List<int>();
-        for (int i = 3; i < range.Count && forest.Count < 13; i++) forest.Add(range[i]);
+        for (int i = 3; i < range.Count && forest.Count < forestCount; i++) forest.Add(range[i]);
         foreach (int t in range)
             if (!forest.Contains(t) && tiles[t].InitialWood >= Fix64.FromInt(15)) tiles[t] = tiles[t] with { InitialWood = Fix64.FromInt(4) };
         foreach (int t in forest) tiles[t] = tiles[t] with { BiomeId = (int)Biome.TemperateForest, InitialWood = Fix64.FromInt(30), WoodGrowthPerYear = Fix64.FromInt(2) };

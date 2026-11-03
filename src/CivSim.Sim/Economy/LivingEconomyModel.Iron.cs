@@ -79,8 +79,33 @@ public sealed partial class LivingEconomyModel
             if (f.SettlementId != s.Id || f.Age < 14) continue;
             if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) needKits++;
         }
-        plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - IronStock(s, IronGood.Kit11));
+        // A thin forest asks for fewer new and replacement kits, but iron already in store (smelted earlier or imported by compact) is always worth forging
+        // into kits: that costs a quarter of a litre of charcoal a kit, where smelting the ore costs six times more.
+        Fix64 fromStore = (IronStock(s, IronGood.Wrought) + m.Goods[(int)MetalGood.Iron] * Fix64.FromRatio(4, 5)) / WroughtPerKit;
+        Fix64 wanted = Fix64.Max(Fix64.FromInt(needKits) * IronWoodFactor(s, m), Fix64.Min(Fix64.FromInt(needKits), fromStore));
+        plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, wanted - IronStock(s, IronGood.Kit11));
     }
+
+    /// <summary>The standing-wood share (of what the settlement's range held when its metal economy began) above which the Iron chain asks for fuel in full.</summary>
+    private static readonly Fix64 IronWoodFull = Fix64.FromRatio(75, 100);
+    /// <summary>...and at or below which it asks for none: the forest is left to recover (docs/MVP/25 I-T6, "no mandatory clear-cut").</summary>
+    private static readonly Fix64 IronWoodFloor = Fix64.FromRatio(55, 100);
+
+    /// <summary>
+    /// How much of the Iron chain's fuel demand the settlement's forest allows, from 0 to 1: the standing wood in range as a share of its
+    /// start, scaled linearly between <see cref="IronWoodFloor"/> and <see cref="IronWoodFull"/>. It is stateless (recomputed from the forest each season) and
+    /// governs only what the Iron chain *wants*: kits already made keep working, bloom and wrought iron in store are still forged, and the Bronze chain
+    /// is untouched. A settlement with no forest baseline is not throttled (it has no wood to protect and the chain will find none to burn).
+    /// </summary>
+    private Fix64 IronWoodFactor(SettlementState s, MetalState m)
+    {
+        if (m.ForestAtStart <= Fix64.Zero) return Fix64.One;
+        Fix64 share = StandingWoodInRange(s.SiteTile) / m.ForestAtStart;
+        return Fix64.Clamp((share - IronWoodFloor) / (IronWoodFull - IronWoodFloor), Fix64.Zero, Fix64.One);
+    }
+
+    /// <summary>Wrought iron in one T11 kit (docs/MVP/26 §2.3).</summary>
+    private static readonly Fix64 WroughtPerKit = Fix64.FromRatio(15, 100);
 
     /// <summary>Iron bloom in one T11 kit: 0.15 wrought, and a forge batch turns 0.5 bloom into 0.4 wrought (docs/MVP/26 §2.3).</summary>
     private static readonly Fix64 BloomPerKit = Fix64.FromRatio(1875, 10000);
@@ -93,7 +118,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain || IronTrade is not { } trade || !trade.SellsIron(s.Civilization)) return;
         if ((m.Access & SourceIron) == 0 && !CanDig(s, MetalGood.IronOre)) return;
-        plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.FromRatio(pop, 20);
+        plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.FromRatio(pop, 20) * IronWoodFactor(s, m);
     }
 
     /// <summary>

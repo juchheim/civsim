@@ -1279,7 +1279,9 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "FOD-07")) Want(MetalGood.Salted, Fix64.FromInt(pop) / 2);
         if (Done(civ, "HUS-06")) Want(MetalGood.WoolGarment, Fix64.FromInt((pop + 9) / 10));
         if (Done(civ, "MET-07")) Want(MetalGood.Gold, perTwenty / 10);
-        if (Done(civ, "MET-08")) Want(MetalGood.Iron, Fix64.One);
+        // The standing litre of bloom is, in the Iron chapter, a pump for kits (the forge turns it into wrought iron, then it is smelted again), so a thin
+        // forest throttles it with the rest of the Iron chain (see IronWoodFactor).
+        if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
     }
 

@@ -297,6 +297,52 @@ public class IronChainTests
         foreach (int t in bronze.Economy.FixtureAdultKitTiers(0)) Assert.True(t is 0 or 8 or 9 or 10);
     }
 
+    private static Fix64 IronKits(BronzeFixture f)
+    {
+        int held = 0;
+        foreach (int t in f.Economy.FixtureAdultKitTiers(0)) if (t >= 11) held++;
+        return f.Economy.GoodStock(0, "G-TOOL11") + Fix64.FromInt(held);
+    }
+
+    private static void ThinTheForest(BronzeFixture f, int percent)
+    {
+        foreach (int tile in f.ForestTiles) f.Economy.FixtureSetWood(tile, Fix64.FromInt(30 * percent / 100));
+    }
+
+    [Fact]
+    public void A_thin_forest_stops_the_Iron_chain_asking_for_fuel_and_a_full_one_does_not()
+    {
+        Fix64 oreUsed = Fix64.Zero, oreUsedThin = Fix64.Zero, kits = Fix64.Zero, kitsThin = Fix64.Zero;
+        foreach (int percent in new[] { 100, 40 })
+        {
+            BronzeFixture f = BronzeFixture.CreateFuelScenario(TestPack.Pack, Seed, 60, ironChain: true, coppice: true, forestTiles: 13, "MET-08", "MET-09");
+            f.RunSeasons(1); // the metal economy begins and records the forest it started with
+            ThinTheForest(f, percent);
+            f.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(60));
+            f.RunSeasons(4);
+            Fix64 used = Fix64.FromInt(60) - f.Economy.GoodStock(0, "G-IRONORE");
+            if (percent == 100) { oreUsed = used; kits = IronKits(f); } else { oreUsedThin = used; kitsThin = IronKits(f); }
+        }
+        Assert.True(oreUsed > Fix64.FromInt(2), "with a full forest the chain smelts ore for kits");
+        Assert.True(kits > Fix64.Zero);
+        Assert.True(oreUsedThin < oreUsed / 4, $"a thin forest should not be smelted for: used {oreUsedThin} against {oreUsed}");
+        Assert.True(kitsThin < kits);
+    }
+
+    [Fact]
+    public void Iron_already_in_store_is_still_forged_into_kits_when_the_forest_is_thin()
+    {
+        BronzeFixture f = BronzeFixture.CreateFuelScenario(TestPack.Pack, Seed, 60, ironChain: true, coppice: true, forestTiles: 13, "MET-08", "MET-09");
+        f.RunSeasons(1);
+        ThinTheForest(f, 40);
+        f.Economy.FixtureStock(0, "G-WROUGHT", Fix64.FromInt(2)); // enough for 13 kits
+        f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(10));
+        f.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(60));
+        f.RunSeasons(3);
+        Assert.True(IronKits(f) >= Fix64.FromInt(5), "stored wrought iron should have become kits");
+        Assert.True(f.Economy.GoodStock(0, "G-IRONORE") >= Fix64.FromInt(58), "but no new ore is smelted while the forest is thin");
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

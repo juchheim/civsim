@@ -199,6 +199,10 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
     }
 
+    /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
+    internal Fix64 FixtureIronWoodFactor(int settlementIndex)
+        => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;
+
     /// <summary>The work-seasons a kit of a tier lasts, and the work left on it when it breaks (the dormancy tail), for wear fixtures.</summary>
     internal (Fix64 Service, Fix64 BreakLeft) FixtureKitLife(int tier) => (ServiceOf(tier), KitBreakLeft(tier));
 
