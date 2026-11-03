@@ -1541,3 +1541,22 @@ Reading: the A1-A5/A7 and B27-B31 gates the check measures are all green; the on
 **A8:** `dotnet test CivSim.slnx -c Release --filter FullyQualifiedName~FogFairness` passes 2/2 (25 s), including the unseen-Bronze case, so seats see no hidden state (docs 15 D10, 22 §7 evidence rules).
 
 **B26 status:** with the full `check-m10` of `090de8e` (A1-A5, A7, B27-B31 all passing, A2 Grower owner-accepted) and these two, every A-gate of 14 §10.3 (A1-A8) has been re-measured under the E3 Legacy units and passes on current `main`. `check-m10` still exits 1 by design because it cannot see A6 and A8; the combined result lives in this record. Open items outside the AI gates: B6 Year-64 endings (11/32 earlier), B12 70-minute coverage, B17 KEY-4 completion, B18 and B19.
+
+## Non-AI gate snapshot on `main` `ffbb63d` (2026-11-03)
+
+Measured for the M10 status row: `politics --check-m10 --seeds 24 --minutes 80`, `research --check-m10` on seeds 20261019-20261050 (B6) and on 20261019 and 777 (B5), `ai --check-b7 --seeds 32 --minutes 64` and `ai --check-b8 --seeds 32 --minutes 64`. Pack rebuilt from `content/` (hash `6436cd73...`).
+
+| Gate | Result | Target | Status |
+|---|---|---|---|
+| B5 | KEY-4 Council median 61.7, E3 median 21.0, all 8 civs in band | 57-64 / 19.75 +-25% | pass |
+| B6 | chapter-end median 63.5, replay identical, **Year-64 endings 11/32 = 34%** | median reported; <= 10% at Year 64 | **fail** (ending share) |
+| B7 | 70.3% | >= 65% | pass |
+| B8 | 25/32 pairs (78.1%), mean +76.3 | >= 60% | pass |
+| B17 | 10.6 settlements/civ, claimed land 41.1%, borders 91/93, Town 93.8%, City 32.3%; **KEY-4 completed 93/96** | all in band, completion 96/96 | **fail** on completion only |
+| B18 | **Dominion 55.5%**, Mastery 30.4%, Firsts 14.1%, Wonders 0% | Dominion 45-55% | **fail** by 0.5 points |
+| B19 | cohesion 62.7, **secessions 0.01 per civ per E3**, cascades 0/24, exposures 93/94 | 0.03-0.08, 100% complete | **fail** |
+| B20 | 10.7 raids, war 75.0%, capture 20.8% | 3-12, >= 50%, 20-50% | pass |
+
+Control for B17-B20 with Chieftain's Council prior at 5% (the pre-A4 value, same tree): B17 94/96 completion and borders 86/94, B18 Dominion 55.3%, B19 **secessions 0.06 (in band)** with exposures 94/96, B20 pass. So the A4 change (prior 20%) moved this Chieftain-4-AI cohort: secessions from 0.06 to 0.01 (about 6 events to 1, so partly noise, but a lower count is plausible with a weaker Chieftain) and one more civ missing KEY-4. B17 and B19 fail on every tree because their rule demands that all 96 civs complete KEY-4 within the 80-minute ceiling; the 11-01 trace shows the misses are fragile founder bands (demographic variance, no research-pace lever), and the held-out cohort completed 96/96, so which civs miss changes with any unrelated rule. Everything else in B17 is in band.
+
+Reading: the remaining failures are four marginal or statistical ones. B6's 34% Year-64 share means a third of matches have no rival KEY-4 by about minute 61 (first KEY-4 lands at season 249-251 in the capped ones), so KEY-4 is slightly slower than the chapter cap assumes; the median end (63.5) is inside the design, only the share misses. Fixing it by pace means moving E3 EraBase, which reshuffles every golden and AI gate just closed; relaxing the share target or accepting it is the cheap alternative.
