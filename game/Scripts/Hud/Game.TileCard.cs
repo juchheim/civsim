@@ -51,6 +51,7 @@ public partial class Game
             PlaceholderText = "Name this settlement",
             MaxLength = MaxSettlementNameLength,
             SelectAllOnFocus = true,
+            FocusMode = Control.FocusModeEnum.All,
             TooltipText = "Rename this settlement (Enter to confirm, empty to restore the default name)",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, UiTokens.ControlS),
@@ -292,6 +293,7 @@ public partial class Game
         _tileRenameBound = settlement;
         _tileRename!.Text = CustomSettlementName(settlement);
         _tileRename.PlaceholderText = $"Name this settlement (now {SettlementLabel(settlement)})";
+        _tileRename.GrabFocus();
     }
 
     private void CommitSettlementRename()
@@ -301,7 +303,6 @@ public partial class Game
         string name = RenameSettlement(settlement, _tileRename.Text);
         _tileRename.Text = name;
         _tileRename.ReleaseFocus();
-        _tileRenameBound = -1;
         RefreshTileCardNow(_hoverScreen);
         if (name.Length > 0) ShowToast("Settlement renamed", ToastKind.Info, $"Now called {name}.", key: "settlement-renamed");
     }
