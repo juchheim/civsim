@@ -1,0 +1,391 @@
+# M11 WP4 raw outputs (iron geography)
+# Source: commit 6dcdd6bb187a8de569e96bc222ba99b84afd9666 + uncommitted WP2/WP3 work on codex/e4-iron; pack SHA-256 749f7fb0ca6ea4cba0bccebfbbb821b621df2fa8591aef080bf60723756f46ce (345,022 bytes).
+# Interpretation lives in m11-wp4-iron-geography.md. Nothing here is edited.
+
+##### 1. civsim-harness iron-audit --seed 1 --seeds 10000  (two independent builds, 5 and 3 threads, byte-identical)
+iron-audit seeds 1..10000 (10,000 worlds, 40,000 starts)
+digest 886df080d45a6021da720673de6a66725ce5c4241d466775f42eab2a051323da
+mirror check: local columns of civ c and c+2 differ in 0 of 20,000 pairs (full-record differences: 0)
+
+== 1. Denominators ==
+worlds 10,000; starts 40,000; geometrically distinct starts 20,000 (civ 2 and 3 mirror civ 0 and 1).
+All outcome tables count all starts, the mirror starts included; the distinct-start column repeats the headline.
+
+== 2. World truth vs knowledge ==
+iron deposits on the map per world: min 64 p1 64 p5 64 p25 64 p50 64 p75 64 p95 64 p99 64 max 66 (n=10,000)
+iron deposits on the start's continent: min 32 p1 32 p5 32 p25 32 p50 32 p75 32 p95 32 p99 32 max 33 (n=40,000)
+nearest iron (hex, any depth): min 0 p1 1 p5 1 p25 3 p50 5 p75 7 p95 11 p99 13 max 20 (n=40,000)
+nearest depth-1 iron (hex): min 0 p1 1 p5 2 p25 4 p50 7 p75 10 p95 15 p99 21 max 34 (n=40,000)
+nearest uncontested depth-1 iron (hex; -1 = none anywhere): min -1 p1 1 p5 2 p25 4 p50 7 p75 10 p95 16 p99 23 max 48 (n=40,000)
+known at MET-08 (iron within 20 of the start): min 1 p1 3 p5 5 p25 8 p50 11 p75 13 p95 16 p99 19 max 25 (n=40,000)
+starts with iron within 20: 100.0% (40,000/40,000)
+starts with depth-1 iron within 20: 98.9%
+
+== 3. Local iron route (first step satisfied, uncontested = strictly nearer this start than any other start) ==
+step 1 depth-1 within 8 | step 2 depth-1 within 12 (TRN-05) or 16 (SEA-05, river/coast/lake site) | step 3 depth-2 within the extended reach (MIN-04)
+step 4 only deposits nearer a rival start | step 5 known but beyond reach | step 6 none within 20
+  all starts (n=40,000): s1 26,712 (66.8%) s2 10,828 (27.1%) s3 2,188 (5.5%) s4 48 (0.1%) s5 224 (0.6%) s6 0 (0.0%)
+  distinct starts (civ 0, 1) (n=20,000): s1 13,356 (66.8%) s2 5,414 (27.1%) s3 1,094 (5.5%) s4 24 (0.1%) s5 112 (0.6%) s6 0 (0.0%)
+  of the 10,828 step-2 starts, 2,264 need SEA-05 (a depth-1 site only 13-16 away on a wet start site); the rest need only TRN-05, which TRD-05 makes a KEY-4 prerequisite
+  steps 1-2 on E3 rules: 37,540 (93.9%); without SEA-05: 35,276 (88.2%)
+  steps 1-3: 39,728 (99.3%) (step 3 also needs MIN-04, which KEY-4 does not require)
+
+== 4. Mineability and camp capacity ==
+depth-1 uncontested sites within 8 per start: min 0 p1 0 p5 0 p25 0 p50 1 p75 2 p95 3 p99 4 max 8 (n=40,000)
+depth-1 uncontested sites within the extended reach per start: min 0 p1 0 p5 0 p25 2 p50 3 p75 4 p95 6 p99 8 max 16 (n=40,000)
+any-depth uncontested sites within the extended reach per start: min 0 p1 1 p5 2 p25 4 p50 6 p75 8 p95 11 p99 13 max 20 (n=40,000)
+starts whose nearest eligible site is depth 2: 5.5%
+reference ore need: 2.036 L per 100 adults per season (T11 replacement, e4_metal_oracle) = 138.4 L over 68 seasons for 100 adults;
+one deposit holds 1000 L, enough for 722 adults over the horizon; one minimum camp (2 miners, 1 L per work-season) mines 2 L/season,
+about 98 adults' T11 need at base rate; a full 4-miner camp 196 adults.
+adults whose 68-season T11 ore need the start's depth-1 uncontested sites could cover (sites x 1000 L / need): min 722 p1 722 p5 722 p25 1444 p50 2167 p75 2889 p95 5056 p99 5779 max 11558 (n=37,540)
+haul labor to the nearest eligible site, 100 adults at T11, basis points of adult work: min 0 p1 5 p5 9 p25 19 p50 28 p75 42 p95 61 p99 70 max 75 (n=37,540)
+walking tiles to the cheapest eligible site (Dijkstra tenths / 10, where a route exists): min 0 p1 1 p5 2 p25 4 p50 7 p75 10 p95 16 p99 25 max 77 (n=37,450)
+starts whose every eligible site has no walking route at all (steps 1-2 only): 90; with a route longer than 40 tiles: 28
+starts with depth-1 uncontested iron inside the E3 claim floor of 4: 10,944 (27.4%); wet start sites 76.7%
+live-planner caveat: MaintainCamps opens camps only for copper, arsenical copper and tin (LivingEconomyModel.Metal.cs, MaintainCamps); iron is dug without a Mine Decree only within 3 of a settlement site.
+starts with depth-1 uncontested iron within 3 of the start site: 7,056 (17.6%); any depth: 12,240 (30.6%)
+iron deposits at depth 2 per world: min 4 p1 12 p5 20 p25 28 p50 32 p75 36 p95 44 p99 48 max 60 (n=10,000)
+
+== 5. Wood regeneration (charcoal reach 8, 12 with TRN-05; flat 2 L/yr regrowth on every tile that holds wood) ==
+forest tiles (>= 15 L) within 8, uncontested: min 0 p1 0 p5 1 p25 25 p50 49 p75 82 p95 160 p99 189 max 217 (n=40,000)
+forest tiles within 12, uncontested: min 0 p1 1 p5 18 p25 82 p50 132 p75 182 p95 269 p99 320 max 433 (n=40,000)
+wooded tiles (> 0 L) within 8: min 118 p1 172 p5 187 p25 210 p50 216 p75 217 p95 217 p99 217 max 217 (n=40,000)
+adults T11 replacement wood regrowth can sustain (forest only, reach 8): min 0 p1 0 p5 2 p25 56 p50 109 p75 183 p95 358 p99 423 max 486 (n=40,000)
+adults T11 sustained, reach 12: min 0 p1 2 p5 40 p25 183 p50 296 p75 408 p95 603 p99 717 max 971 (n=40,000)
+adults T12 sustained, reach 8: min 0 p1 0 p5 4 p25 110 p50 215 p75 361 p95 704 p99 832 max 956 (n=40,000)
+adults T11 sustained, reach 8 with WOD-04 (doubles regrowth within 3): min 0 p1 0 p5 2 p25 58 p50 112 p75 208 p95 439 p99 504 max 569 (n=40,000)
+standing forest stock within 8 (L): min 0 p1 0 p5 15 p25 525 p50 1210 p75 1980 p95 3360 p99 4775 max 7390 (n=40,000)
+low-wood start (regrowth sustains < 100 adults of T11 replacement, reach 8, forest only): 18,230 (45.6%)
+very low wood (< 50 adults): 9,144 (22.9%)
+This counts only the iron-tool charcoal draw. E3 bronze, hearths and building draw on the same woods; the real margin is smaller.
+  regrowth sustains fewer than 25 adults (T11, reach 8): 5,718 (14.3%); if half the regrowth is already committed to other uses: 9,144 (22.9%)
+  regrowth sustains fewer than 50 adults (T11, reach 8): 9,144 (22.9%); if half the regrowth is already committed to other uses: 18,230 (45.6%)
+  regrowth sustains fewer than 100 adults (T11, reach 8): 18,230 (45.6%); if half the regrowth is already committed to other uses: 31,200 (78.0%)
+  regrowth sustains fewer than 200 adults (T11, reach 8): 31,200 (78.0%); if half the regrowth is already committed to other uses: 39,190 (98.0%)
+  regrowth sustains fewer than 400 adults (T11, reach 8): 39,190 (98.0%); if half the regrowth is already committed to other uses: 40,000 (100.0%)
+relative stratum: bottom decile by forest tiles within 8 (<= 6 tiles; set after the 40-seed pilot, see report): 4,224
+
+== 6. Inland and low-wood strata ==
+nearest coast-adjacent tile (hex): min 5 p1 5 p5 5 p25 7 p50 9 p75 12 p95 15 p99 17 max 20 (n=40,000)
+nearest river or lake tile (hex): min 0 p1 0 p5 0 p25 0 p50 0 p75 0 p95 4 p99 4 max 4 (n=40,000)
+coastal (<= 8): 17,094; inland (9-20): 22,906; landlocked (> 20, no sea access inside the 20-tile start guarantee): 0
+  coastal starts (n=17,094): s1 11,168 (65.3%) s2 4,606 (26.9%) s3 1,158 (6.8%) s4 32 (0.2%) s5 130 (0.8%) s6 0 (0.0%)
+  inland starts (n=22,906): s1 15,544 (67.9%) s2 6,222 (27.2%) s3 1,030 (4.5%) s4 16 (0.1%) s5 94 (0.4%) s6 0 (0.0%)
+  landlocked starts (n=0): empty
+  deep inland starts (coast 15-20 away) (n=3,038): s1 2,046 (67.3%) s2 836 (27.5%) s3 142 (4.7%) s4 4 (0.1%) s5 10 (0.3%) s6 0 (0.0%)
+  low-wood starts (n=18,230): s1 12,276 (67.3%) s2 4,814 (26.4%) s3 1,016 (5.6%) s4 12 (0.1%) s5 112 (0.6%) s6 0 (0.0%)
+  very-low-wood starts (n=9,144): s1 6,050 (66.2%) s2 2,480 (27.1%) s3 546 (6.0%) s4 6 (0.1%) s5 62 (0.7%) s6 0 (0.0%)
+  inland and low-wood starts (n=10,310): s1 7,050 (68.4%) s2 2,742 (26.6%) s3 480 (4.7%) s4 4 (0.0%) s5 34 (0.3%) s6 0 (0.0%)
+  bottom-decile forest starts (n=4,224): s1 2,748 (65.1%) s2 1,186 (28.1%) s3 244 (5.8%) s4 4 (0.1%) s5 42 (1.0%) s6 0 (0.0%)
+  zero forest within 8 (n=1,800): s1 1,142 (63.4%) s2 528 (29.3%) s3 110 (6.1%) s4 2 (0.1%) s5 18 (1.0%) s6 0 (0.0%)
+  inland and bottom-decile forest (n=2,412): s1 1,618 (67.1%) s2 662 (27.4%) s3 122 (5.1%) s4 0 (0.0%) s5 10 (0.4%) s6 0 (0.0%)
+  joint iron route (step 1-2) by wood status:
+    reach-8 regrowth >= 100 adults: n=21,770; step 1-2 20,450 (93.9%); step 1-3 21,622 (99.3%)
+    50-99 adults: n=9,086; step 1-2 8,560 (94.2%); step 1-3 9,030 (99.4%)
+    < 50 adults: n=9,144; step 1-2 8,530 (93.3%); step 1-3 9,076 (99.3%)
+
+== 7. Import alternatives (geography only; no contact, relations or iron TradeGood is modelled here) ==
+capable partner = its own start reaches step 1 or 2 on E3 rules. Route = unit-cost walk (Travel) else sail with SEA-04 (11 tiles from land), tiles / 10 = seasons.
+mate on the same continent: 100.0%
+mate capable of exporting: 93.9%; walkable to mate: 100.0%
+mate walk tiles: min 21 p1 21 p5 21 p25 22 p50 23 p75 25 p95 26 p99 26 max 27 (n=40,000)
+mate sail tiles (if walking is impossible): n/a
+other-continent partner capable: 97.1%; walkable: 0.0%; sailable: 97.1%
+other-continent sail tiles: min 24 p1 27 p5 30 p25 45 p50 84 p75 89 p95 94 p99 97 max 113 (n=38,844)
+other-continent sail seasons: min 3 p1 3 p5 3 p25 5 p50 9 p75 9 p95 10 p99 10 max 12 (n=38,844)
+
+== 8. Route outcome (geography; first applicable) ==
+local = steps 1-3 on E3 technology | ownership-dependent = step 4 | needs a nearer settlement = step 5 | trade only = no local route but a capable partner is
+walkable (mate) or sailable (other continent) | none = no local route and no geographic trade route
+  all starts (n=40,000): local 39,728 (99.3%); ownership-dependent 48; needs nearer settlement 224; no iron known 0; of the 272 non-local starts, trade-feasible 192 and no route 80
+    non-local starts whose capable partner is the walkable mate: 192; reachable only by sea from the other continent: 0
+  distinct starts (civ 0, 1) (n=20,000): local 19,864 (99.3%); ownership-dependent 24; needs nearer settlement 112; no iron known 0; of the 136 non-local starts, trade-feasible 96 and no route 40
+    non-local starts whose capable partner is the walkable mate: 96; reachable only by sea from the other continent: 0
+  landlocked starts (n=0): empty
+  deep inland starts (coast 15-20 away) (n=3,038): local 3,024 (99.5%); ownership-dependent 4; needs nearer settlement 10; no iron known 0; of the 14 non-local starts, trade-feasible 12 and no route 2
+    non-local starts whose capable partner is the walkable mate: 12; reachable only by sea from the other continent: 0
+  inland starts (n=22,906): local 22,796 (99.5%); ownership-dependent 16; needs nearer settlement 94; no iron known 0; of the 110 non-local starts, trade-feasible 80 and no route 30
+    non-local starts whose capable partner is the walkable mate: 80; reachable only by sea from the other continent: 0
+  low-wood starts (n=18,230): local 18,106 (99.3%); ownership-dependent 12; needs nearer settlement 112; no iron known 0; of the 124 non-local starts, trade-feasible 78 and no route 46
+    non-local starts whose capable partner is the walkable mate: 78; reachable only by sea from the other continent: 0
+
+worlds with at least one start outside steps 1-3: 120 of 10,000; with at least one such start that also has no geographic trade route: 24
+== 9. Starts without a step 1-2 local route (first 25 by seed) ==
+seed 7 civ 1: step 3 NeedsShaft, known 16, nearest uncontested depth-1 14, wet site False, mate walk 21
+seed 7 civ 3: step 3 NeedsShaft, known 16, nearest uncontested depth-1 14, wet site False, mate walk 21
+seed 16 civ 1: step 3 NeedsShaft, known 6, nearest uncontested depth-1 18, wet site True, mate walk 23
+seed 16 civ 3: step 3 NeedsShaft, known 6, nearest uncontested depth-1 18, wet site True, mate walk 23
+seed 17 civ 0: step 3 NeedsShaft, known 4, nearest uncontested depth-1 19, wet site True, mate walk 23
+seed 17 civ 2: step 3 NeedsShaft, known 4, nearest uncontested depth-1 19, wet site True, mate walk 23
+seed 18 civ 1: step 3 NeedsShaft, known 6, nearest uncontested depth-1 16, wet site False, mate walk 21
+seed 18 civ 3: step 3 NeedsShaft, known 6, nearest uncontested depth-1 16, wet site False, mate walk 21
+seed 20 civ 0: step 3 NeedsShaft, known 13, nearest uncontested depth-1 13, wet site False, mate walk 21
+seed 20 civ 2: step 3 NeedsShaft, known 13, nearest uncontested depth-1 13, wet site False, mate walk 21
+seed 23 civ 0: step 3 NeedsShaft, known 5, nearest uncontested depth-1 20, wet site False, mate walk 25
+seed 23 civ 1: step 3 NeedsShaft, known 5, nearest uncontested depth-1 20, wet site False, mate walk 25
+seed 23 civ 2: step 3 NeedsShaft, known 5, nearest uncontested depth-1 20, wet site False, mate walk 25
+seed 23 civ 3: step 3 NeedsShaft, known 5, nearest uncontested depth-1 20, wet site False, mate walk 25
+seed 29 civ 0: step 3 NeedsShaft, known 6, nearest uncontested depth-1 14, wet site False, mate walk 24
+seed 29 civ 2: step 3 NeedsShaft, known 6, nearest uncontested depth-1 14, wet site False, mate walk 24
+seed 33 civ 1: step 5 BeyondReach, known 4, nearest uncontested depth-1 16, wet site False, mate walk 23
+seed 33 civ 3: step 5 BeyondReach, known 4, nearest uncontested depth-1 16, wet site False, mate walk 23
+seed 37 civ 1: step 4 Contested, known 10, nearest uncontested depth-1 19, wet site True, mate walk 22
+seed 37 civ 3: step 4 Contested, known 10, nearest uncontested depth-1 19, wet site True, mate walk 22
+seed 43 civ 0: step 3 NeedsShaft, known 14, nearest uncontested depth-1 14, wet site False, mate walk 24
+seed 43 civ 2: step 3 NeedsShaft, known 14, nearest uncontested depth-1 14, wet site False, mate walk 24
+seed 47 civ 0: step 3 NeedsShaft, known 4, nearest uncontested depth-1 18, wet site True, mate walk 22
+seed 47 civ 2: step 3 NeedsShaft, known 4, nearest uncontested depth-1 18, wet site True, mate walk 22
+seed 60 civ 0: step 3 NeedsShaft, known 9, nearest uncontested depth-1 24, wet site False, mate walk 21
+
+##### 2. python3 -I docs/MVP/balance/tools/iron_audit_csv_supplement.py <csv from --csv>
+starts 40000 non-local (steps 4-6) 272
+  non-local starts with a partner at step <= 2: 192; without: 80
+  non-local starts with a partner at step <= 3: 208; without: 64
+  mate step among non-local starts: {1: 122, 2: 70, 3: 16, 5: 64}
+  pairs (seed, pair) with a non-local start: 240 ; with both members non-local: 32
+steps 1-2 with no walking route to any eligible site: 90 by step {1: 10, 2: 80}
+steps 1-2 with a walking route > 40 tiles: 28
+distinct starts 20000 steps 1-2 18770 steps 1-3 19864
+
+##### 3. civsim-harness iron-live --pack <pack> --seed 20261019 --seeds 24 --minutes 80
+iron-live seeds 20261019..20261042 (24 matches, 96 civilizations), minute limit 80, planner-only Balanced stand-in
+own KEY-4 reached: 94/96; incomplete exposures (no KEY-4 inside the limit): 2. Incomplete civilizations are excluded from the KEY-4 rows below, never counted as zero.
+MET-08 minute: p10 53.2 p50 56.4 p90 61.0 max 68.7 (n=94)
+KEY-3 minute: p10 39.5 p50 42.4 p90 47.4 max 56.1 (n=94)
+KEY-4 minute: p10 59.5 p50 62.3 p90 68.9 max 76.6 (n=94)
+own E3 exposure (KEY-3 to KEY-4, minutes): p10 17.6 p50 20.3 p90 22.3 max 29.8 (n=94)
+MET-08 to KEY-4 (minutes): p10 5.2 p50 6.4 p90 7.6 max 10.5 (n=94)
+settlements at own KEY-4: p10 6 p50 9 p90 12 max 14 (n=94)
+iron deposits known (within 20 of an own settlement) at own KEY-4: p10 14 p50 19 p90 25 max 32 (n=94)
+iron deposits inside own territory at own KEY-4: p10 1 p50 4 p90 7 max 10 (n=94)
+civilizations that had worked an owned iron deposit by their own KEY-4: 39/94; any deposit within 20: 50/94
+civilizations with an iron mining camp open at own KEY-4: 0/94 (built 0/94); camps opened by the planner never target iron, so any seen here came from a decree
+litres mined from owned iron by own KEY-4: p10 0.0 p50 0.0 p90 2.4 max 5.0 (n=94)
+litres mined from iron within 20 of an own settlement: p10 0.0 p50 1.8 p90 2.5 max 6.2 (n=94)
+iron bloom in stock at own KEY-4 (L, all settlements): p10 0.0 p50 0.0 p90 0.6 max 1.2 (n=94)
+at own KEY-4: mate contacted 94/94; mate borders touching 14/94; contact with a civilization on the other continent 80/94
+E3 projects done by own KEY-4 that the static steps lean on: TRN-05 94/94, MIN-04 94/94, SEA-05 83/94, WOD-04 94/94
+at own KEY-4 with no contact of any kind: 0/94
+per civilization (seed civ key4-minute settlements owned-iron worked mined-L bloom mate-contact mate-touch other-contact):
+  20261019 c0 61.3 11 5 1 2 0.6 1 0 1
+  20261019 c1 61.4 9 7 1 2 0.6 1 0 1
+  20261019 c2 61.4 9 5 1 2 0.5 1 0 1
+  20261019 c3 59.1 8 6 1 2 0.6 1 0 1
+  20261020 c0 62.2 8 4 2 4 0.9 1 0 0
+  20261020 c1 61.6 11 5 1 2 0.5 1 0 1
+  20261020 c2 64.2 10 3 1 2 0.6 1 0 1
+  20261020 c3 72.1 8 4 1 2 0.6 1 0 1
+  20261021 c0 61.2 11 8 0 0 0.0 1 0 1
+  20261021 c1 64.5 6 4 1 2 0.6 1 0 0
+  20261021 c2 64.1 10 6 0 0 0.0 1 1 1
+  20261021 c3 62.5 8 6 1 2 0.6 1 0 1
+  20261022 c0 63.1 9 0 0 0 0.0 1 0 1
+  20261022 c1 63.1 6 0 0 0 0.0 1 0 1
+  20261022 c2 63.0 8 3 0 0 0.0 1 0 1
+  20261022 c3 62.9 10 7 1 2 0.6 1 0 1
+  20261023 c0 59.6 13 3 0 0 0.0 1 0 0
+  20261023 c1 60.6 8 4 0 0 0.0 1 0 1
+  20261023 c2 60.8 10 2 0 0 0.0 1 0 1
+  20261023 c3 63.1 8 3 0 0 0.0 1 0 1
+  20261024 c0 61.3 7 0 0 0 0.0 1 1 1
+  20261024 c1 61.7 13 3 1 3 0.7 1 1 1
+  20261024 c2 62.2 7 1 0 0 0.0 1 1 1
+  20261024 c3 66.4 7 2 0 0 0.0 1 1 1
+  20261025 c0 76.6 9 3 1 2 0.6 1 0 1
+  20261025 c1 65.9 9 5 1 2 0.6 1 0 0
+  20261025 c2 63.2 9 8 1 2 0.5 1 0 0
+  20261025 c3 incomplete@80.0 8 5 1 2 0.5 1 0 0
+  20261026 c0 58.6 14 6 0 0 0.0 1 0 1
+  20261026 c1 58.4 10 4 1 2 0.6 1 0 1
+  20261026 c2 59.5 11 6 0 0 0.0 1 1 1
+  20261026 c3 59.5 9 5 0 0 0.0 1 1 1
+  20261027 c0 60.0 10 4 2 5 1.2 1 0 1
+  20261027 c1 60.4 10 6 0 0 0.0 1 0 1
+  20261027 c2 76.6 4 3 1 2 0.5 1 0 1
+  20261027 c3 60.0 10 4 0 0 0.0 1 0 1
+  20261028 c0 62.3 8 5 0 0 0.0 1 0 1
+  20261028 c1 60.1 10 6 1 2 0.5 1 0 1
+  20261028 c2 72.8 8 5 0 0 0.0 1 1 1
+  20261028 c3 57.7 10 7 1 2 0.5 1 0 1
+  20261029 c0 63.4 7 5 1 2 0.5 1 0 0
+  20261029 c1 71.2 5 3 0 0 0.0 1 1 1
+  20261029 c2 65.6 6 1 0 0 0.0 1 0 0
+  20261029 c3 65.6 10 9 1 2 0.6 1 0 1
+  20261030 c0 60.9 12 7 0 0 0.0 1 0 0
+  20261030 c1 67.1 10 6 1 2 0.5 1 0 1
+  20261030 c2 67.5 8 5 0 0 0.0 1 0 1
+  20261030 c3 68.1 9 5 0 0 0.0 1 0 1
+  20261031 c0 60.7 11 5 1 2 0.5 1 0 1
+  20261031 c1 61.0 11 3 0 0 0.0 1 0 1
+  20261031 c2 68.2 5 2 0 0 0.0 1 0 1
+  20261031 c3 61.0 10 3 1 2 0.5 1 0 1
+  20261032 c0 63.4 11 7 0 0 0.0 1 0 1
+  20261032 c1 73.8 8 2 0 0 0.0 1 0 1
+  20261032 c2 63.2 12 4 1 2 0.5 1 0 1
+  20261032 c3 66.7 6 3 0 0 0.0 1 0 1
+  20261033 c0 68.0 7 2 0 0 0.0 1 0 1
+  20261033 c1 62.5 9 4 1 4 0.3 1 0 1
+  20261033 c2 65.5 7 3 1 3 0.3 1 0 1
+  20261033 c3 59.9 10 3 0 0 0.0 1 0 1
+  20261034 c0 62.0 9 4 1 2 0.5 1 0 1
+  20261034 c1 59.9 11 2 0 0 0.0 1 0 1
+  20261034 c2 59.8 10 5 1 2 0.5 1 0 1
+  20261034 c3 66.8 7 1 0 0 0.0 1 0 1
+  20261035 c0 62.8 9 3 0 0 0.0 1 0 1
+  20261035 c1 62.8 9 4 1 3 0.7 1 0 1
+  20261035 c2 62.2 13 2 0 0 0.0 1 0 1
+  20261035 c3 60.5 12 5 1 2 0.6 1 0 1
+  20261036 c0 73.0 3 1 0 0 0.0 1 0 1
+  20261036 c1 61.5 8 1 0 0 0.0 1 0 1
+  20261036 c2 67.2 6 3 0 0 0.0 1 0 1
+  20261036 c3 64.9 9 1 0 0 0.0 1 0 1
+  20261037 c0 59.9 9 6 1 2 0.6 1 1 1
+  20261037 c1 59.9 10 5 0 0 0.0 1 1 1
+  20261037 c2 59.9 10 5 1 1 0.2 1 1 1
+  20261037 c3 59.9 10 7 1 2 0.5 1 1 1
+  20261038 c0 69.2 14 6 0 0 0.0 1 0 1
+  20261038 c1 68.9 10 7 0 0 0.0 1 0 1
+  20261038 c2 56.3 10 7 0 0 0.0 1 0 0
+  20261038 c3 58.4 9 3 0 0 0.0 1 0 0
+  20261039 c0 incomplete@80.0 2 2 0 0 0.0 1 0 1
+  20261039 c1 60.0 12 8 1 2 0.6 1 0 1
+  20261039 c2 73.6 4 2 0 0 0.0 1 0 1
+  20261039 c3 64.6 11 10 0 0 0.0 1 0 1
+  20261040 c0 64.3 9 3 0 0 0.0 1 0 1
+  20261040 c1 64.8 7 3 1 2 0.5 1 1 0
+  20261040 c2 66.6 9 4 0 0 0.0 1 0 0
+  20261040 c3 66.7 6 3 1 2 0.5 1 0 1
+  20261041 c0 60.5 11 3 0 0 0.0 1 0 1
+  20261041 c1 60.5 13 4 1 2 0.5 1 0 1
+  20261041 c2 61.9 13 5 0 0 0.0 1 0 1
+  20261041 c3 63.9 2 1 0 0 0.0 1 0 1
+  20261042 c0 59.4 8 3 0 0 0.0 1 0 0
+  20261042 c1 58.4 12 7 0 0 0.0 1 0 0
+  20261042 c2 71.9 6 3 0 0 0.0 1 0 1
+  20261042 c3 62.3 10 4 0 0 0.0 1 0 1
+
+##### 4. civsim-harness iron-live --pack <pack> --seed 20261100 --seeds 24 --minutes 80
+iron-live seeds 20261100..20261123 (24 matches, 96 civilizations), minute limit 80, planner-only Balanced stand-in
+own KEY-4 reached: 93/96; incomplete exposures (no KEY-4 inside the limit): 3. Incomplete civilizations are excluded from the KEY-4 rows below, never counted as zero.
+MET-08 minute: p10 53.4 p50 56.5 p90 60.8 max 70.6 (n=93)
+KEY-3 minute: p10 39.7 p50 42.6 p90 47.0 max 58.1 (n=93)
+KEY-4 minute: p10 58.8 p50 63.1 p90 67.0 max 76.7 (n=93)
+own E3 exposure (KEY-3 to KEY-4, minutes): p10 18.0 p50 19.9 p90 22.2 max 24.3 (n=93)
+MET-08 to KEY-4 (minutes): p10 5.2 p50 6.2 p90 7.4 max 8.9 (n=93)
+settlements at own KEY-4: p10 7 p50 9 p90 12 max 15 (n=93)
+iron deposits known (within 20 of an own settlement) at own KEY-4: p10 14 p50 19 p90 25 max 28 (n=93)
+iron deposits inside own territory at own KEY-4: p10 1 p50 4 p90 7 max 14 (n=93)
+civilizations that had worked an owned iron deposit by their own KEY-4: 41/93; any deposit within 20: 50/93
+civilizations with an iron mining camp open at own KEY-4: 0/93 (built 0/93); camps opened by the planner never target iron, so any seen here came from a decree
+litres mined from owned iron by own KEY-4: p10 0.0 p50 0.0 p90 3.9 max 7.0 (n=93)
+litres mined from iron within 20 of an own settlement: p10 0.0 p50 2.0 p90 5.2 max 9.9 (n=93)
+iron bloom in stock at own KEY-4 (L, all settlements): p10 0.0 p50 0.0 p90 1.0 max 1.6 (n=93)
+at own KEY-4: mate contacted 93/93; mate borders touching 14/93; contact with a civilization on the other continent 71/93
+E3 projects done by own KEY-4 that the static steps lean on: TRN-05 93/93, MIN-04 93/93, SEA-05 77/93, WOD-04 93/93
+at own KEY-4 with no contact of any kind: 0/93
+per civilization (seed civ key4-minute settlements owned-iron worked mined-L bloom mate-contact mate-touch other-contact):
+  20261100 c0 63.6 6 8 1 2 0.6 1 0 1
+  20261100 c1 60.8 7 4 1 3 0.7 1 0 1
+  20261100 c2 60.7 11 8 1 3 0.7 1 0 1
+  20261100 c3 63.6 7 6 1 3 0.7 1 0 1
+  20261101 c0 63.9 10 3 0 0 0.0 1 0 0
+  20261101 c1 64.5 8 4 1 1 0.3 1 0 0
+  20261101 c2 67.0 7 1 0 0 0.0 1 1 0
+  20261101 c3 63.9 6 4 1 2 0.6 1 0 0
+  20261102 c0 73.1 7 4 0 0 0.0 1 0 0
+  20261102 c1 71.9 8 5 1 2 0.6 1 0 1
+  20261102 c2 61.9 10 6 3 7 1.6 1 0 0
+  20261102 c3 65.6 10 3 0 0 0.0 1 0 1
+  20261103 c0 63.1 13 5 0 0 0.0 1 0 0
+  20261103 c1 incomplete@80.0 1 0 0 0 0.0 1 0 1
+  20261103 c2 62.1 11 5 0 0 0.0 1 0 0
+  20261103 c3 70.4 7 1 0 0 0.0 1 1 1
+  20261104 c0 62.8 11 4 0 0 0.0 1 0 1
+  20261104 c1 60.1 11 4 0 0 0.0 1 0 1
+  20261104 c2 69.3 7 3 0 0 0.0 1 0 1
+  20261104 c3 60.9 9 4 2 4 1.0 1 0 1
+  20261105 c0 67.4 8 0 0 0 0.0 1 0 0
+  20261105 c1 63.5 9 5 0 0 0.0 1 0 0
+  20261105 c2 65.3 5 0 0 0 0.0 1 0 0
+  20261105 c3 59.8 9 5 0 0 0.0 1 0 0
+  20261106 c0 64.3 10 4 0 0 0.0 1 0 0
+  20261106 c1 61.6 8 2 0 0 0.0 1 0 0
+  20261106 c2 65.2 7 3 0 0 0.0 1 0 0
+  20261106 c3 incomplete@80.0 5 2 0 0 0.0 1 0 1
+  20261107 c0 60.2 10 6 1 2 0.6 1 1 0
+  20261107 c1 65.2 9 3 1 2 0.6 1 1 0
+  20261107 c2 66.8 8 4 1 2 0.5 1 1 0
+  20261107 c3 66.6 8 2 1 2 0.5 1 1 1
+  20261108 c0 59.9 10 9 0 0 0.0 1 0 1
+  20261108 c1 63.5 10 9 0 0 0.0 1 0 1
+  20261108 c2 56.4 11 10 1 1 0.0 1 0 1
+  20261108 c3 59.5 14 14 0 0 0.0 1 0 1
+  20261109 c0 58.7 15 7 0 0 0.0 1 0 1
+  20261109 c1 64.7 5 4 0 0 0.0 1 0 1
+  20261109 c2 64.7 7 4 0 0 0.0 1 0 1
+  20261109 c3 62.1 6 5 1 2 0.5 1 0 1
+  20261110 c0 60.8 10 1 0 0 0.0 1 0 1
+  20261110 c1 60.2 7 0 0 0 0.0 1 0 1
+  20261110 c2 58.3 9 1 0 0 0.0 1 0 1
+  20261110 c3 60.4 8 0 0 0 0.0 1 0 1
+  20261111 c0 58.8 13 6 0 0 0.0 1 0 1
+  20261111 c1 60.9 12 4 0 0 0.0 1 0 1
+  20261111 c2 58.3 7 6 0 0 0.0 1 0 1
+  20261111 c3 61.2 7 3 0 0 0.0 1 0 1
+  20261112 c0 66.7 9 4 1 3 0.6 1 0 1
+  20261112 c1 63.6 10 1 0 0 0.0 1 0 1
+  20261112 c2 64.2 9 2 1 3 0.8 1 0 1
+  20261112 c3 incomplete@80.0 1 1 0 0 0.0 1 0 0
+  20261113 c0 76.7 6 6 0 0 0.0 1 0 1
+  20261113 c1 58.8 10 4 0 0 0.0 1 0 1
+  20261113 c2 60.8 11 8 0 0 0.0 1 0 1
+  20261113 c3 58.8 12 2 0 0 0.0 1 0 1
+  20261114 c0 59.1 12 7 2 3 0.7 1 0 1
+  20261114 c1 69.8 9 5 0 0 0.0 1 0 1
+  20261114 c2 64.9 9 6 1 2 0.5 1 0 1
+  20261114 c3 58.0 9 4 1 2 0.5 1 0 0
+  20261115 c0 68.8 6 3 1 3 0.6 1 0 1
+  20261115 c1 61.6 8 6 3 7 1.6 1 0 1
+  20261115 c2 59.7 9 6 3 6 1.4 1 0 0
+  20261115 c3 59.7 12 7 2 4 1.1 1 0 0
+  20261116 c0 66.4 8 3 0 0 0.0 1 0 1
+  20261116 c1 66.0 9 7 0 0 0.0 1 0 1
+  20261116 c2 69.1 9 9 0 0 0.0 1 1 1
+  20261116 c3 63.1 10 8 2 4 1.1 1 0 1
+  20261117 c0 61.1 10 5 1 2 0.6 1 0 1
+  20261117 c1 76.3 6 3 0 0 0.0 1 0 1
+  20261117 c2 67.0 10 3 0 0 0.0 1 0 1
+  20261117 c3 67.0 9 4 1 2 0.5 1 0 1
+  20261118 c0 66.0 7 2 0 0 0.0 1 0 1
+  20261118 c1 63.5 10 2 0 0 0.0 1 0 1
+  20261118 c2 64.2 5 3 0 0 0.0 1 1 1
+  20261118 c3 63.4 12 4 0 0 0.0 1 0 1
+  20261119 c0 62.6 7 2 2 6 1.4 1 0 1
+  20261119 c1 60.3 10 3 2 4 1.1 1 0 1
+  20261119 c2 61.4 10 3 0 0 0.0 1 1 1
+  20261119 c3 61.4 8 3 1 3 0.7 1 1 1
+  20261120 c0 61.6 8 4 1 2 0.6 1 0 1
+  20261120 c1 64.3 7 4 0 0 0.0 1 0 1
+  20261120 c2 62.3 7 3 0 0 0.0 1 0 1
+  20261120 c3 61.3 10 1 0 0 0.0 1 0 1
+  20261121 c0 62.8 12 5 1 2 0.6 1 0 1
+  20261121 c1 57.7 11 6 1 2 0.6 1 0 1
+  20261121 c2 61.7 8 3 1 3 0.8 1 0 1
+  20261121 c3 61.5 10 7 1 3 0.6 1 0 1
+  20261122 c0 60.2 9 5 2 4 1.1 1 1 1
+  20261122 c1 57.7 9 2 2 4 1.1 1 1 1
+  20261122 c2 55.9 12 4 1 3 0.7 1 1 1
+  20261122 c3 66.1 8 2 0 0 0.0 1 1 1
+  20261123 c0 64.2 7 5 1 2 0.6 1 0 1
+  20261123 c1 64.7 8 5 2 4 1.1 1 0 1
+  20261123 c2 64.8 8 5 1 2 0.6 1 0 0
+  20261123 c3 64.0 12 5 0 0 0.0 1 0 1
+
+##### 5. civsim-harness politics --pack <pack> --check-m10 --seed 20261019 --seeds 24 --minutes 80 (B17/B19 lines only; AI Chieftain politics harness)
+B17 KEY-4: 10.7 settlements/civ, claimed land 40.7 %, paired borders at each civ's own KEY-4 86/94 civs sampled; KEY-4 completed 94/96
+B19 KEY-3→KEY-4 exposure: cohesion mean 62.3, secessions/civ/E3 0.06, exposures complete 94/96 (incomplete 2), cascades 0/24
+
+##### 6. civsim-harness politics --pack <pack> --check-m10 --seed 20261100 --seeds 24 --minutes 80 (B17/B19 lines only)
+B17 KEY-4: 10.7 settlements/civ, claimed land 42.2 %, paired borders at each civ's own KEY-4 85/96 civs sampled; KEY-4 completed 96/96
+B19 KEY-3→KEY-4 exposure: cohesion mean 62.1, secessions/civ/E3 0.02, exposures complete 96/96 (incomplete 0), cascades 0/24
