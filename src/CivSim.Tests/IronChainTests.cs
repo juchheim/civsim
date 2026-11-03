@@ -699,6 +699,74 @@ public class IronChainTests
         Assert.Equal(Fix64.One, bronze.Economy.FixtureGraftedFactor(0, 0));               // not the Iron chapter
     }
 
+    [Fact]
+    public void Iron_chapter_cohesion_terms_apply_only_where_their_scope_holds()
+    {
+        BronzeFixture without = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        BronzeFixture withTheatreResearch = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "ART-08", "BEL-08");
+        int baseline = without.Economy.FixtureCohesionTarget(0);
+        // The theatre's +15 and the integration +10 used to fall through to "everywhere"; with the research but no theatre and no conquered town, nothing changes.
+        Assert.Equal(baseline, withTheatreResearch.Economy.FixtureCohesionTarget(0));
+        withTheatreResearch.Economy.FixtureBuildIronStructure(0, "theatre_arena");
+        int lifted = withTheatreResearch.Economy.FixtureCohesionTarget(0);
+        Assert.True(lifted == Math.Min(100, baseline + 15), $"{baseline} -> {lifted}");
+    }
+
+    private static (BronzeFixture Fixture, int Far) WithFarProvince(params string[] projects)
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, projects);
+        int start = f.Economy.SettlementLite(0).SiteTile;
+        var world = CivSim.Sim.Economy.WorldEconomyInput.FromGeneratedWorld(CivSim.Sim.World.WorldGenerator.Generate(Seed));
+        for (int tile = 0; tile < world.TileCount; tile++)
+        {
+            int d = CivSim.Sim.World.HexGrid.Distance(start, tile, world.Width);
+            if (d < 14 || d > 18) continue;
+            int far = f.Economy.FoundByDecree(0, tile, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
+            if (far >= 0) return (f, far);
+        }
+        throw new InvalidOperationException("no site for a far province");
+    }
+
+    [Fact]
+    public void An_administrator_and_a_governor_are_staffed_roles_and_their_relief_depends_on_being_in_post()
+    {
+        string[] state = { "GOV-07", "TER-08", "KEY-4" };
+        (BronzeFixture staffed, int far) = WithFarProvince(state);
+        (BronzeFixture bare, int farBare) = WithFarProvince("KEY-4");
+        for (int season = 0; season < 6; season++)
+        {
+            foreach (BronzeFixture f in new[] { staffed, bare }) { f.Economy.FixtureSetTier(0, 1); f.Economy.FixtureSetTier(far, 1); }
+            staffed.RunSeasons(1);
+            bare.RunSeasons(1);
+        }
+        Assert.Equal(1, staffed.Economy.FixtureRoleCount(0, "administrator"));
+        Assert.Equal(1, staffed.Economy.FixtureRoleCount(far, "governor"));
+        Assert.Equal(far, staffed.Economy.FixtureGovernorSeat(far));
+        Assert.Equal(0, bare.Economy.FixtureRoleCount(0, "administrator"));
+        (int overStaffed, _) = staffed.Economy.CohesionPressures(far);
+        (int overBare, _) = bare.Economy.CohesionPressures(farBare);
+        Assert.True(overBare > 0, "a far settlement should feel distance");
+        Assert.True(overStaffed < overBare, $"staffed relief should lower the strain ({overStaffed} against {overBare})");
+        // Vacate the governor and the province relief goes with it, while the census relief stays.
+        staffed.Economy.FixtureClearRoles(far);
+        Assert.Equal(-1, staffed.Economy.FixtureGovernorSeat(far));
+    }
+
+    [Fact]
+    public void A_feudal_contract_removes_distance_and_span_strain_in_a_governed_province_and_nothing_else()
+    {
+        (BronzeFixture f, int far) = WithFarProvince("GOV-07", "TER-08", "GOV-09", "KEY-4");
+        for (int season = 0; season < 6; season++) { f.Economy.FixtureSetTier(0, 1); f.Economy.FixtureSetTier(far, 1); f.RunSeasons(1); }
+        Assert.Equal(far, f.Economy.FixtureGovernorSeat(far));
+        (int overreach, int span) = f.Economy.CohesionPressures(far);
+        Assert.Equal(0, overreach);
+        Assert.Equal(0, span);
+        // Without the contract the same province still feels both.
+        (BronzeFixture g, int farG) = WithFarProvince("GOV-07", "TER-08", "KEY-4");
+        for (int season = 0; season < 6; season++) { g.Economy.FixtureSetTier(0, 1); g.Economy.FixtureSetTier(farG, 1); g.RunSeasons(1); }
+        Assert.True(g.Economy.CohesionPressures(farG).Overreach > 0);
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

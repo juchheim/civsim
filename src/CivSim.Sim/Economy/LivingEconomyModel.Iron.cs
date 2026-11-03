@@ -430,6 +430,106 @@ public sealed partial class LivingEconomyModel
             ? Fix64.Max(tile.FieldYieldPerYear, PrimeFieldYield)
             : tile.FieldYieldPerYear;
 
+    // ---- the state layer: administrators, provinces and the feudal contract ------------------------------------
+
+    /// <summary>How far, in walking tiles, a province seat's governor reaches (docs/MVP/26 §3.3; provisional).</summary>
+    private const int ProvinceRadius = 12;
+
+    /// <summary>The projects whose Overreach relief the Iron chapter scopes (staffed administrator, governed province, maintained roads) instead of applying civilization-wide.</summary>
+    private bool IsScopedAdminProject(int projectIndex)
+    {
+        string id = _content.Projects[projectIndex].Id;
+        return id is "GOV-07" or "TER-08" or "COM-08";
+    }
+
+    /// <summary>The Overreach relief a scoped project's `admin` effect gives, from the content (zero when it has none).</summary>
+    private Fix64 ScopedOverreach(string projectId)
+    {
+        foreach (EconomyEffect e in _content.Effects)
+            if (e.Kind == "admin" && e.Overreach is { } r && _content.Projects[e.ProjectIndex].Id == projectId) return r;
+        return Fix64.Zero;
+    }
+
+    private bool LandConnected(int siteA, int siteB) => (_walkFrom[siteA] ??= WalkingCosts(siteA))[siteB] != int.MaxValue;
+
+    private bool HasStaffedRole(SettlementState s, byte role)
+    {
+        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Role == role && f.Age is >= 14 and < 60) return true;
+        return false;
+    }
+
+    /// <summary>GOV-07: the census office works only with an administrator at the capital; a vacant office gives no relief (docs/MVP/26 §3.3).</summary>
+    private bool HasStaffedAdministrator(int civ)
+        => CapitalOf(civ) is int capital and >= 0 && HasStaffedRole(_settlements[capital], Role.Administrator);
+
+    /// <summary>
+    /// Whether a settlement should keep a governor (TER-08): a town other than the capital, joined to it by land, that is itself beyond the free Overreach
+    /// distance or has a member settlement within the province radius that is. Few seats result: a governor takes an adult from the fields full time.
+    /// </summary>
+    private bool WantsGovernor(SettlementState s)
+    {
+        if (!IronChain || !Done(s.Civilization, "TER-08") || s.Civic is not { Tier: >= 1 } || !IsMember(s, s.Civilization)) return false;
+        int capital = CapitalOf(s.Civilization);
+        if (capital < 0 || capital == s.Id || !LandConnected(_settlements[capital].SiteTile, s.SiteTile)) return false;
+        if (WalkingTiles(_settlements[capital].SiteTile, s.SiteTile) > _civic.OverreachFree) return true;
+        foreach (SettlementState o in _settlements)
+            if (o != s && IsMember(o, s.Civilization) && WalkingTiles(s.SiteTile, o.SiteTile) <= ProvinceRadius &&
+                WalkingTiles(_settlements[capital].SiteTile, o.SiteTile) > _civic.OverreachFree) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// The index of the staffed province seat that governs this settlement, or -1: the nearest settlement (by walking tiles, then lowest index) within the
+    /// province radius, joined by land, whose governor is in post. The capital is governed directly. A seat whose governor has gone, or that has been cut off
+    /// or captured, projects nothing, and the assignment is read from the staffed roles each time, so it is rebuilt every season without being stored.
+    /// </summary>
+    private int GovernorSeatOf(SettlementState s)
+    {
+        int civ = s.Civilization;
+        if (!IronChain || !Done(civ, "TER-08")) return -1;
+        int capital = CapitalOf(civ);
+        if (capital < 0 || capital == s.Id) return -1;
+        int best = -1, bestWalk = int.MaxValue;
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            SettlementState seat = _settlements[i];
+            if (!IsMember(seat, civ) || i == capital || !HasStaffedRole(seat, Role.Governor) || !LandConnected(seat.SiteTile, s.SiteTile) ||
+                !LandConnected(_settlements[capital].SiteTile, seat.SiteTile)) continue;
+            int walk = seat.Id == s.Id ? 0 : WalkingTiles(seat.SiteTile, s.SiteTile);
+            if (walk > ProvinceRadius || walk >= bestWalk) continue;
+            best = i;
+            bestWalk = walk;
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// The settlement's Overreach relief: the civilization's unscoped relief, plus the census (GOV-07, only with a staffed administrator at the capital) and
+    /// its province (TER-08, only in a province whose governor is in post). They combine as 1 - the product of (1 - r), as every `admin` relief does.
+    /// </summary>
+    private Fix64 AdminReductionAt(SettlementState s)
+    {
+        int civ = s.Civilization;
+        Fix64 keep = Fix64.One - AdminReductionOf(civ);
+        if (!IronChain) return Fix64.One - keep;
+        if (Done(civ, "GOV-07") && HasStaffedAdministrator(civ)) keep *= Fix64.One - Fix64.Min(Fix64.One, ScopedOverreach("GOV-07"));
+        if (GovernorSeatOf(s) >= 0) keep *= Fix64.One - Fix64.Min(Fix64.One, ScopedOverreach("TER-08"));
+        return Fix64.One - keep;
+    }
+
+    /// <summary>True while a settlement is in a governed province and the civilization holds GOV-09: the feudal contract (docs/MVP/25 §6; Q4 resolved).</summary>
+    private bool UnderFeudalContract(SettlementState s) => IronChain && Done(s.Civilization, "GOV-09") && GovernorSeatOf(s) >= 0;
+
+    /// <summary>
+    /// What is left of the distance-from-the-capital strain on Cohesion: none under a feudal contract (Q4: distance and span pressure only), half with
+    /// citizenship (SOC-10), otherwise all of it. Famine, defeat and the other strains are untouched.
+    /// </summary>
+    private Fix64 DistanceStrainFactor(SettlementState s)
+        => UnderFeudalContract(s) ? Fix64.Zero : IronChain ? Modifier(s.Civilization, "distance_contribution_to_cohesion_decay") : Fix64.One;
+
+    /// <summary>What is left of the Admin-span strain: none under a feudal contract, otherwise all of it.</summary>
+    private Fix64 SpanStrainFactor(SettlementState s) => UnderFeudalContract(s) ? Fix64.Zero : Fix64.One;
+
     // ---- orchards (FOR-08) ---------------------------------------------------------------------------------
 
     /// <summary>Orchard plots one iron-knife holder can graft and keep grafted (provisional).</summary>
@@ -542,7 +642,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse,
+        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre,
         Count
     }
 
@@ -558,6 +658,7 @@ public sealed partial class LivingEconomyModel
         new("terrace", "AGR-08", 8, 4, 0, 2, 0, Infrastructure: true),
         new("aqueduct", "BLD-10", 40, 20, 8, 5, 0, Large: true, Stone: true, Infrastructure: true),
         new("bathhouse", "MED-06", 20, 8, 0, 4, 0, Stone: true),
+        new("theatre_arena", "ART-08", 24, 12, 0, 4, 0, Stone: true),
     };
 
     /// <summary>
@@ -629,6 +730,8 @@ public sealed partial class LivingEconomyModel
                 Fix64.FromInt(Population(s.Id)) >= WaterCapBase(s) * Fix64.FromRatio(85, 100),
             // Baths pay off where people are dense enough for outbreaks to bite.
             IronStructure.Bathhouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Bathhouse) == 0 && Population(s.Id) >= 40,
+            // One venue per city: a town of fifty or more that has none builds one (it lifts that city's Cohesion target).
+            IronStructure.Theatre => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Theatre) == 0 && Population(s.Id) >= 50,
             _ => false,
         };
 

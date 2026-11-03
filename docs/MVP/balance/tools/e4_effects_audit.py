@@ -27,7 +27,7 @@ BUCKETS = {
 
 
 # Effects wired by a path the string heuristics cannot see, asserted by hand when a batch lands (project id, effect kind).
-WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod"), ("FOR-08", "mod"), ("STN-12", "mod"), ("NUM-07", "mod"), ("MEC-04", "mod"), ("BLD-11", "mod"), ("FOD-09", "rule"), ("FOD-09", "cap"), ("FOD-09", "mod"), ("MED-05", "role")}
+WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod"), ("FOR-08", "mod"), ("STN-12", "mod"), ("NUM-07", "mod"), ("MEC-04", "mod"), ("BLD-11", "mod"), ("FOD-09", "rule"), ("FOD-09", "cap"), ("FOD-09", "mod"), ("MED-05", "role"), ("GOV-07", "role"), ("GOV-07", "admin"), ("TER-08", "role"), ("TER-08", "admin"), ("TRD-06", "admin"), ("GOV-08", "cohesion"), ("BEL-08", "cohesion"), ("ART-08", "cohesion"), ("ART-08", "build"), ("SOC-10", "mod"), ("GOV-09", "rule"), ("TER-08", "rule")}
 
 
 def projects():

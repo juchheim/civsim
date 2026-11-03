@@ -282,6 +282,23 @@ public sealed partial class LivingEconomyModel
 
     internal Fix64 FixtureGraftedFactor(int settlementIndex, int plot) => GraftedOrchardFactor(_settlements[settlementIndex], plot);
 
+    /// <summary>How many adults of a settlement hold a state role ("administrator" or "governor").</summary>
+    internal int FixtureRoleCount(int settlementIndex, string role)
+    {
+        byte id = role switch { "administrator" => Role.Administrator, "governor" => Role.Governor, _ => throw new ArgumentException(role, nameof(role)) };
+        int n = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == id) n++;
+        return n;
+    }
+
+    /// <summary>Takes every state role off a settlement's people, as if the post were vacant.</summary>
+    internal void FixtureClearRoles(int settlementIndex)
+    {
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id) f.Role = Role.None;
+    }
+
+    internal int FixtureGovernorSeat(int settlementIndex) => GovernorSeatOf(_settlements[settlementIndex]);
+
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
     internal Fix64 FixtureIronWoodFactor(int settlementIndex)
         => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;

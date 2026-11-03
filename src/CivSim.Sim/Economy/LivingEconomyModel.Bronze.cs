@@ -94,11 +94,11 @@ public sealed partial class LivingEconomyModel
     private static class MetalTask
     {
         public const byte None = 0, Mine = 1, Smelt = 2, SmeltArsenic = 3, Charcoal = 4, Craft = 5, Knap = 6, Clay = 7,
-            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Count = 13;
+            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Administer = 13, Count = 14;
     }
 
     private static readonly string[] TaskPracticeIds =
-        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe" };
+        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe", "council" };
 
     /// <summary>The practice id a figure's metal task generates, or null for none (research maps it to a practice index).</summary>
     public static string? TaskPractice(byte task) => task is > 0 and < MetalTask.Count ? TaskPracticeIds[task] : null;
@@ -772,7 +772,7 @@ public sealed partial class LivingEconomyModel
         foreach (FigureState f in _figures)
         {
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
-                f.Role > Role.Scribe)
+                f.Role > (IronChain ? Role.Governor : Role.Scribe))
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }
         ValidateCivic();
