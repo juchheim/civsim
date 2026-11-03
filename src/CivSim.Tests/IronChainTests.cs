@@ -272,6 +272,31 @@ public class IronChainTests
         throw new InvalidOperationException("no adult");
     }
 
+    [Fact]
+    public void The_Iron_planner_opens_a_camp_on_own_land_iron_and_makes_kits_from_it_while_Bronze_opens_none()
+    {
+        BronzeFixture iron = BronzeFixture.CreateWithIronTile(TestPack.Pack, Seed, 60, ironChain: true, "MET-08", "MET-09");
+        BronzeFixture bronze = BronzeFixture.CreateWithIronTile(TestPack.Pack, Seed, 60, ironChain: false, "MET-08", "MET-09");
+        Assert.True(iron.IronTile >= 0);
+        Assert.Equal(iron.IronTile, bronze.IronTile);
+        foreach (BronzeFixture f in new[] { iron, bronze })
+        {
+            f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(60)); // charcoal in store: the question is where the ore comes from
+            Assert.Equal(MiningCampResult.Opened, f.Economy.CheckOpenMiningCamp(0, f.IronTile));
+        }
+
+        iron.RunSeasons(6);
+        bronze.RunSeasons(6);
+
+        Assert.Equal(MiningCampResult.AlreadyOpen, iron.Economy.CheckOpenMiningCamp(0, iron.IronTile));
+        Assert.Equal(MiningCampResult.Opened, bronze.Economy.CheckOpenMiningCamp(0, bronze.IronTile)); // never opened
+        int held = 0;
+        foreach (int t in iron.Economy.FixtureAdultKitTiers(0)) if (t == 11) held++;
+        Fix64 kits = iron.Economy.GoodStock(0, "G-TOOL11") + Fix64.FromInt(held);
+        Assert.True(kits > Fix64.Zero, "ore from the camp should have become iron kits");
+        foreach (int t in bronze.Economy.FixtureAdultKitTiers(0)) Assert.True(t is 0 or 8 or 9 or 10);
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

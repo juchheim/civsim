@@ -24,6 +24,8 @@ internal sealed class BronzeFixture
     /// <summary>A surface copper deposit beyond the range (5–6 tiles out), for mining camps; -1 when the map has no land there.</summary>
     public int CampTile { get; }
     public int[] ForestTiles { get; }
+    /// <summary>A surface iron deposit on own land four tiles out (beyond the settlement's range of 3, inside mining reach) when built with <c>CreateIronWithCamp</c>; otherwise -1.</summary>
+    public int IronTile { get; private set; } = -1;
     private long _tick;
 
     public long Tick => _tick;
@@ -45,14 +47,25 @@ internal sealed class BronzeFixture
 
     public static BronzeFixture Create(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
         bool shaftMining, bool holdPopulation, params string[] extraProjects)
-        => Build(pack, seed, people, coppice, tin, arsenic, shaftMining, holdPopulation, ironChain: false, extraProjects);
+        => Build(pack, seed, people, coppice, tin, arsenic, shaftMining, holdPopulation, ironChain: false, ironCamp: false, extraProjects);
 
     /// <summary>The same settlement in an economy that plays the Iron chapter (docs/MVP/25 §3), with Coppicing, tin and arsenic known.</summary>
     public static BronzeFixture CreateIron(ContentPack pack, ulong seed, int people, params string[] extraProjects)
-        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, extraProjects);
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: false, extraProjects);
+
+    /// <summary>
+    /// An Iron-chapter settlement with no iron in range and one surface iron deposit on own land four tiles out, for iron-camp fixtures. Any iron
+    /// world generation placed within four tiles is removed so the camp tile is the only source.
+    /// </summary>
+    public static BronzeFixture CreateIronWithCamp(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => CreateWithIronTile(pack, seed, people, ironChain: true, extraProjects);
+
+    /// <summary>The iron-camp settlement in either chapter, so a Bronze economy can be compared against the Iron one on the same world.</summary>
+    public static BronzeFixture CreateWithIronTile(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true, extraProjects);
 
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
-        bool shaftMining, bool holdPopulation, bool ironChain, string[] extraProjects)
+        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -86,6 +99,18 @@ internal sealed class BronzeFixture
                 campTile = t;
         }
         if (campTile >= 0) deposits[campTile] = new WorldDeposit(DepositKind.CopperOre, 2, 1);
+        int ironTile = -1;
+        if (ironCamp)
+        {
+            for (int t = 0; t < source.TileCount; t++)
+                if (HexGrid.Distance(start, t, source.Width) <= 4 && deposits[t].Kind == DepositKind.Iron) deposits[t] = default;
+            for (int t = 0; t < source.TileCount && ironTile < 0; t++)
+                if (t != campTile && HexGrid.Distance(start, t, source.Width) == 4 && deposits[t].Kind == DepositKind.None &&
+                    source.Tile(t).BiomeId is not ((int)Biome.Ocean or (int)Biome.Coast or (int)Biome.Ice or (int)Biome.Peak))
+                    ironTile = t;
+            if (ironTile < 0) throw new InvalidOperationException("The fixture start has no land four tiles out for an iron camp.");
+            deposits[ironTile] = new WorldDeposit(DepositKind.Iron, 2, 1);
+        }
         var forest = new List<int>();
         for (int i = 3; i < range.Count && forest.Count < 13; i++) forest.Add(range[i]);
         foreach (int t in range)
@@ -130,7 +155,7 @@ internal sealed class BronzeFixture
         economy.FixtureStock(Settlement, "G-CLAY", Fix64.FromInt(12));
         economy.FixtureStock(Settlement, "G-LEATHER", Fix64.FromInt(4));
         economy.FixtureStock(Settlement, "G-WOOD", Fix64.FromInt(20));
-        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray());
+        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray()) { IronTile = ironTile };
     }
 
     /// <summary>Runs whole seasons, topping the stores up to a season of food before each so the settlement neither starves nor splits.</summary>

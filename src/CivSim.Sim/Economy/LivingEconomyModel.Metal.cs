@@ -679,7 +679,8 @@ public sealed partial class LivingEconomyModel
         foreach (MiningCampState camp in _camps)
             if (camp.Parent == s.Id) access |= SourceBit(civ, camp.Tile);
         // A workable deposit on own land within mining reach is a source too: the planner opens a camp there when it wants the ore.
-        if ((access & (SourceCopper | SourceArsenic | SourceTin)) != (SourceCopper | SourceArsenic | SourceTin))
+        if ((access & (SourceCopper | SourceArsenic | SourceTin)) != (SourceCopper | SourceArsenic | SourceTin) ||
+            (IronChain && (access & SourceIron) == 0))
             foreach (int tile in ReachTiles(s.SiteTile, MiningReach(civ, s.SiteTile)))
             {
                 byte bit = SourceBit(civ, tile);
@@ -696,6 +697,7 @@ public sealed partial class LivingEconomyModel
             DepositKind.CopperOre => SourceCopper,
             DepositKind.ArsenicalCopper => SourceArsenic,
             DepositKind.Tin => SourceTin,
+            DepositKind.Iron => IronChain ? SourceIron : (byte)0, // iron is a camp source only in the Iron chapter
             _ => 0,
         };
     }
@@ -1337,6 +1339,7 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceCopper | AccessCopper)) != 0) potential[MetalSlot(MetalGood.CopperOre)] = Plenty;
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
+        if (IronChain && (m.Access & SourceIron) != 0) potential[MetalSlot(MetalGood.IronOre)] = Plenty; // a camp can open on it
         if (blockedOres is not null)
             for (int slot = 0; slot < PlanSlots; slot++)
                 if (blockedOres[slot]) potential[slot] = Stock(s, slot);
@@ -2338,7 +2341,7 @@ public sealed partial class LivingEconomyModel
         for (int g = 0; g < (int)MetalGood.Count; g++)
         {
             MetalGood good = (MetalGood)g;
-            if (good is not (MetalGood.CopperOre or MetalGood.ArsenicalOre or MetalGood.TinOre)) continue;
+            if (good is not (MetalGood.CopperOre or MetalGood.ArsenicalOre or MetalGood.TinOre) && !(IronChain && good == MetalGood.IronOre)) continue;
             bool tierNeeds = plan.Tier switch
             {
                 8 => good == MetalGood.CopperOre,
