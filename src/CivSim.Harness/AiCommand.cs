@@ -985,6 +985,15 @@ internal static class AiCommand
             $"{summary.WarlordSeats} Warlord seats across {duel.Matches} matches " +
             $"{M10AiAcceptanceStatus.FormatGateLabel(summary.Pass, seeds, minutes)}");
         foreach (MatchOutcome match in duel.Outcomes)
+            foreach (string dormant in match.B27Traces.Where(trace => trace.StartsWith("B27_DORMANT", StringComparison.Ordinal)))
+            {
+                Console.WriteLine($"  {dormant}");
+                string civTag = dormant.Split(' ').First(part => part.StartsWith("civ=", StringComparison.Ordinal));
+                foreach (string trace in match.B27Traces.Where(trace => trace.StartsWith("B27_TRACE", StringComparison.Ordinal) &&
+                    trace.Contains($" {civTag} ", StringComparison.Ordinal)))
+                    Console.WriteLine($"    {trace}");
+            }
+        foreach (MatchOutcome match in duel.Outcomes)
             for (int c = 0; c < match.Civs.Length; c++)
             {
                 CivOutcome outcome = match.Civs[c];

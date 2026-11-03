@@ -219,6 +219,20 @@ internal static class Tournament
     public static readonly int[] TeamASeats = { 0, 3 };
     public static readonly int[] TeamBSeats = { 1, 2 };
 
+    /// <summary>The tiles whose <paramref name="kind"/> deposit the AI seat's own map has identified; null (ground truth) for a seat without an AI.</summary>
+    private static Func<int, bool>? IdentifiedDeposit(MatchModel match, int civ, DepositKind kind)
+    {
+        if (match.Ai?.SeatOf(civ) is not { } seat) return null;
+        return tile => seat.Belief.Map.TryTile(tile, out WorldTile known) && known.Deposit == kind;
+    }
+
+    private static string ArsenicSiteKnown(MatchModel match, int civ)
+    {
+        int site = match.Politics.NearestMineSite(civ, DepositKind.ArsenicalCopper);
+        if (site < 0 || match.Ai?.SeatOf(civ) is not { } seat) return "n/a";
+        return seat.Belief.Map.TryTile(site, out WorldTile known) ? known.Deposit.ToString() : "unknown";
+    }
+
     public static MatchOutcome Play(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
         bool captureFirstRaceDiagnostics = false, Fix64? rivalPaceOverride = null, int? firstsEtaPessimismSeasons = null,
         int? warlordNonConquerRaidPostureStreak = null, bool warlordMaxCampaignOrigin = false,
@@ -2081,8 +2095,11 @@ internal static class Tournament
                         fallbackRouteAfterTinPoor[c], match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin),
                         match.Economy.CivHasMetalAccess(c, MetalAccessKind.Arsenic));
 
-                    bool tinOption = match.Politics.NearestMineSite(c, DepositKind.Tin) >= 0 || match.Politics.TinSellerFor(c) != int.MinValue;
-                    bool arsenicOption = match.Research.IsDone(c, min04) && match.Politics.NearestMineSite(c, DepositKind.ArsenicalCopper) >= 0;
+                    // Judge the AI by the deposits its own map has identified (the fog rule): a vein it cannot see is not an option it missed.
+                    bool tinOption = match.Politics.NearestMineSite(c, DepositKind.Tin, IdentifiedDeposit(match, c, DepositKind.Tin)) >= 0 ||
+                        match.Politics.TinSellerFor(c) != int.MinValue;
+                    bool arsenicOption = match.Research.IsDone(c, min04) &&
+                        match.Politics.NearestMineSite(c, DepositKind.ArsenicalCopper, IdentifiedDeposit(match, c, DepositKind.ArsenicalCopper)) >= 0;
                     ProjectState met04State = match.Research.State(c, met04);
                     ProjectState met05State = match.Research.State(c, met05);
                     bool tinAccess = match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin);
@@ -2098,9 +2115,16 @@ internal static class Tournament
                     {
                         o.DormantBronzeBlunders++;
                         dormantReported[c] = true;
+                        outcome.B27Traces.Add($"B27_DORMANT seed={seed} civ={c} season={match.Politics.Season} " +
+                            $"key3Season={key3Season[c]} option(tin={tinOption},ars={arsenicOption}) MET04={met04State} MET05={met05State} " +
+                            $"dormantOptionSeasons={dormantOptionSeasons[c]} orders(tin={recoveryTinOrder[c]},ars={recoveryArsenicOrder[c]}) " +
+                            $"mineSite={match.Politics.NearestMineSite(c, DepositKind.Tin)} tinSeller={match.Politics.TinSellerFor(c)} " +
+                            $"arsSite={match.Politics.NearestMineSite(c, DepositKind.ArsenicalCopper)} " +
+                            $"arsOreSource={match.Economy.CivHasOreSource(c, DepositKind.ArsenicalCopper)} " +
+                            $"arsSiteKnown={ArsenicSiteKnown(match, c)} min04={match.Research.IsDone(c, min04)}");
                     }
 
-                    if (warlordB27Trace && o.TinPoorEightSeasonsAfterKey3 != 0 &&
+                    if (warlordB27Trace && (o.TinPoorEightSeasonsAfterKey3 != 0 || dormantOptionSeasons[c] > 0) &&
                         string.Equals(seats[c].Name, "warlord", StringComparison.OrdinalIgnoreCase))
                     {
                         AiDecision[] decisions = match.Ai?.Log.Entries
@@ -2134,6 +2158,7 @@ internal static class Tournament
                                 $"checkpoint={o.TinPoorCheckpointSeason} metal(tin={tinAccess},ars={arsenicAccess}) " +
                                 $"option(tin={tinOption},ars={arsenicOption}) MET04={met04State} MET05={met05State} " +
                                 $"dormantStreak={dormantOptionSeasons[c]} recoveryAction={recoveryAction} " +
+                                $"mandate={match.Research.Mandate(c)}/{match.Research.MandateCap(c)} mineCost={match.Politics.DecreeCost(c, DecreeKind.Mine)} " +
                                 $"plan=[{plan}] selected=[{selected}] topRouteCandidates=[{candidates}]");
                     }
 

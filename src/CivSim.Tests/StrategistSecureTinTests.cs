@@ -230,6 +230,10 @@ public class StrategistSecureTinTests
         var candidates = new List<DecreeRequest>();
 
         int alternativeMine = rig.Politics.NearestMineSite(0, DepositKind.Tin);
+        // The identified-deposit filter judges a seat by what its map shows: nothing identified means no site, the site's own tile keeps it.
+        Assert.Equal(-1, rig.Politics.NearestMineSite(0, DepositKind.Tin, tile => false));
+        if (alternativeMine >= 0)
+            Assert.Equal(alternativeMine, rig.Politics.NearestMineSite(0, DepositKind.Tin, tile => tile == alternativeMine));
         if (alternativeMine >= 0)
         {
             belief.Map.MarkExplored(alternativeMine);

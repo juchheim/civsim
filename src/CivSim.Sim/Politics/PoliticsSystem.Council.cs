@@ -40,11 +40,18 @@ public sealed partial class PoliticsSystem
     /// Free Folk, beyond every own settlement's range (the planner digs those itself) and within the nearest settlement's mining reach.
     /// Lowest tile index on ties. -1 when there is none.
     /// </summary>
-    public int NearestMineSite(int civ, DepositKind kind)
+    public int NearestMineSite(int civ, DepositKind kind) => NearestMineSite(civ, kind, identified: null);
+
+    /// <summary>
+    /// As <see cref="NearestMineSite(int, DepositKind)"/>, but when <paramref name="identified"/> is given only tiles it accepts
+    /// count. A harness uses it to judge an AI by the deposits its own map has identified, not by the world's ground truth.
+    /// </summary>
+    public int NearestMineSite(int civ, DepositKind kind, Func<int, bool>? identified)
     {
         int best = -1, bestDistance = int.MaxValue;
         foreach (int tile in DepositTiles(kind))
         {
+            if (identified is not null && !identified(tile)) continue;
             int nearest = -1, d = int.MaxValue;
             for (int s = 0; s < _sCount; s++)
             {
