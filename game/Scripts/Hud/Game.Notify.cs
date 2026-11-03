@@ -14,6 +14,7 @@ public partial class Game
 {
     private enum ToastKind { Info, Milestone, Critical, Warning }
     private enum ChronicleClass { Research, People, Season, Danger, Rivals, World, Age }
+    private const float RecurringResourceToastCooldownSeconds = 90f;
 
     private sealed class ToastView
     {
@@ -293,7 +294,12 @@ public partial class Game
         if (_toastStack is null) return;
         if (key.Length > 0)
         {
-            if (_toastRecent.TryGetValue(key, out float last) && _clock - last < (kind == ToastKind.Critical ? 20f : 5f)) return;
+            foreach (ToastView active in _toasts)
+                if (active.Active && active.Key == key) return;
+            float cooldown = key is "fire-out" or "famine" or "famine-forecast"
+                ? RecurringResourceToastCooldownSeconds
+                : kind == ToastKind.Critical ? 20f : 5f;
+            if (_toastRecent.TryGetValue(key, out float last) && _clock - last < cooldown) return;
             _toastRecent[key] = _clock;
         }
         ToastView? slot = null;
@@ -900,8 +906,10 @@ public partial class Game
                 {
                     string text = item.B == 1 ? "Food will run short this winter." : "A settlement is starving.";
                     AddChronicle(item, text, ChronicleClass.Danger, true);
-                    ShowToast("Food warning", ToastKind.Critical, text, item.Tile, key: "famine");
-                    _chronicleUnseenCritical |= !_chronicleOpen;
+                    ShowToast(item.B == 1 ? "Winter food warning" : "Food warning",
+                        item.B == 1 ? ToastKind.Warning : ToastKind.Critical, text, item.Tile,
+                        key: item.B == 1 ? "famine-forecast" : "famine");
+                    if (item.B != 1) _chronicleUnseenCritical |= !_chronicleOpen;
                     break;
                 }
             case ViewEventKind.PartyIncoming:

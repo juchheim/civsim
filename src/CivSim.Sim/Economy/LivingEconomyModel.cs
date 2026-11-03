@@ -1703,8 +1703,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (settlement.UnderInvestment) need *= Fix64.FromRatio(75, 100);
         Fix64 stores = FoodStores(settlement);
         Fix64 foodShare = stores < need ? Fix64.Parse("0.85") : stores < need * 2 ? Fix64.Parse("0.70") : Fix64.Parse("0.48");
-        if (settlement.FoodSecurity < Fix64.Parse("0.8")) foodShare = Fix64.Parse("0.9");
-        settlement.LedgerFoodShareRule = settlement.FoodSecurity < Fix64.Parse("0.8") ? (byte)1
+        if (settlement.FoodSecurity < Fix64.Parse("0.9")) foodShare = Fix64.Parse("0.9");
+        settlement.LedgerFoodShareRule = settlement.FoodSecurity < Fix64.Parse("0.9") ? (byte)1
             : stores < need ? (byte)2 : stores < need * 2 ? (byte)3 : (byte)4;
         if (ShouldPreserveCityTown(settlement))
         {
@@ -1740,7 +1740,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 fuelTarget = PalisadeFuelTarget(settlement, season, metalPlan is not null);
         Fix64 woodTarget = proactivePalisade
             ? ProactivePalisadeWoodTarget(settlement, season, metalPlan is not null)
-            : fuelTarget;
+            : metalPlan is not null ? fuelTarget : SeasonalFuelReserveTarget(settlement, season);
         Fix64 woodStock = settlement.Stores[(int)Good.Wood];
         bool proactiveWoodShortfall = proactivePalisade && woodStock < woodTarget;
         Fix64 ordinaryMaterialWork = B28MaterialWork(totalWork, foodWork, ordinaryBuildWork, proactive: false);
@@ -1782,11 +1782,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 preserveWork = Fix64.Zero;
         int huntPartyTarget = PlannedHuntPartySize(settlement);
         int huntersAssigned = 0;
-        // Reserve Chop work for Bronze wood needs. The proactive Palisade path uses the traced
-        // effective yield (~1.8 L/work); the existing metal-plan estimate stays unchanged.
+        // Reserve Chop work for the hearth fuel buffer and Bronze wood needs. The ordinary
+        // and proactive paths use the traced effective yield (~1.8 L/work); metal-plan estimates stay unchanged.
         Fix64 woodShortWork = Fix64.Zero;
         woodShortWork = B28WoodShortWork(materialWork, settlement.Stores[(int)Good.Wood], woodTarget,
-            metalPlan is not null, proactivePalisade);
+            metalPlan is not null, proactivePalisade, seasonalFuelReserve: metalPlan is null && !proactivePalisade);
         if (_b28PreparedDefenseLedgers.TryGetValue(settlement.Id, out B28PreparedDefenseLedger? preparedWork))
         {
             preparedWork.Food = foodWork;
@@ -1895,7 +1895,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 // Keyed on the figure's own id, not its place in the global list, so deaths elsewhere cannot reshuffle this civilization's jobs (the fog-fairness rule, docs/MVP/15 D10).
                 long rotation = figure.Id % 3;
                 EconomyJob job = rotation == 0 ? EconomyJob.Craft : rotation == 1 ? EconomyJob.Chop : EconomyJob.Gather;
-                // From KEY-3 woodcutters go first while the stores are short of the season's wood (hearths, kilns, building).
+                // Fuel-targeted woodcutters go first while stores are short of the hearth and kiln reserve.
                 if (woodShortWork > Fix64.Zero && job != EconomyJob.Chop) job = EconomyJob.Chop;
                 if (job == EconomyJob.Chop) woodShortWork -= Fix64.Min(woodShortWork, amount);
                 Assign(figure, job, amount);
@@ -3066,11 +3066,11 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     internal static Fix64 B28WoodShortWork(Fix64 materialWork, Fix64 woodStock, Fix64 woodTarget,
-        bool metalPlanAvailable, bool proactivePalisade)
+        bool metalPlanAvailable, bool proactivePalisade, bool seasonalFuelReserve = false)
     {
-        if (!metalPlanAvailable && !proactivePalisade) return Fix64.Zero;
+        if (!metalPlanAvailable && !proactivePalisade && !seasonalFuelReserve) return Fix64.Zero;
         Fix64 cap = proactivePalisade ? materialWork : materialWork * Fix64.Half;
-        Fix64 yieldEstimate = proactivePalisade ? B28EstimatedWoodPerChopWork : Fix64.FromInt(8);
+        Fix64 yieldEstimate = proactivePalisade || seasonalFuelReserve ? B28EstimatedWoodPerChopWork : Fix64.FromInt(8);
         return Fix64.Min(cap, Fix64.Max(Fix64.Zero, woodTarget - woodStock) / yieldEstimate);
     }
 
@@ -3241,8 +3241,23 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private Fix64 ProactivePalisadeWoodTarget(SettlementState settlement, int season, bool metalPlanAvailable)
     {
-        Fix64 fuelTarget = PalisadeFuelTarget(settlement, season, metalPlanAvailable);
+        Fix64 fuelTarget = metalPlanAvailable
+            ? PalisadeFuelTarget(settlement, season, metalPlanAvailable: true)
+            : SeasonalFuelReserveTarget(settlement, season);
         return Fix64.Max(fuelTarget, PalisadeRequiredWood((int)Tier(settlement.Id), season) + fuelTarget);
+    }
+
+    /// <summary>
+    /// Wood target after this season's work: cover E3 fuel drawn at the season boundary, then keep enough for
+    /// the next two seasons of hearth use. The existing material-work budget still limits how much can be cut.
+    /// </summary>
+    private Fix64 SeasonalFuelReserveTarget(SettlementState settlement, int season)
+    {
+        Fix64 target = E3FuelNeed(settlement, season % 4 == 3);
+        if (settlement.Structures[(int)Structure.Hearth] <= 0) return target;
+        for (int seasonsAhead = 1; seasonsAhead <= 2; seasonsAhead++)
+            target += (season + seasonsAhead) % 4 == 3 ? Fix64.FromInt(3) : Fix64.Parse("1.5");
+        return target;
     }
 
     /// <summary>DEF-04: a settlement can raise one hillfort when a high, non-mountain tile lies within four hexes.</summary>
@@ -5014,7 +5029,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             { fishAvailable = true; break; }
         Fix64 foodShare = retainedFood < need ? Fix64.Parse("0.85") :
             retainedFood < need * 2 ? Fix64.Parse("0.70") : Fix64.Parse("0.48");
-        if (settlement.FoodSecurity < Fix64.Parse("0.8")) foodShare = Fix64.Parse("0.9");
+        if (settlement.FoodSecurity < Fix64.Parse("0.9")) foodShare = Fix64.Parse("0.9");
         Fix64 foodRemaining = totalWork * foodShare;
         Fix64 forageWork = Fix64.Zero, huntWork = Fix64.Zero, fishWork = Fix64.Zero;
         Fix64 forageSkillWork = Fix64.Zero, huntSkillWork = Fix64.Zero, fishSkillWork = Fix64.Zero;

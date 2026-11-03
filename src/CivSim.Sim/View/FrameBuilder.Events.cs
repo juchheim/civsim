@@ -508,7 +508,7 @@ public sealed partial class FrameBuilder
     private ViewEvent Famine(long tick, int settlement, byte band, int forecast)
     {
         ViewEvent e = New(tick, ViewEventKind.FamineRisk, forecast == 1 ? ChronicleKey.FamineForecast : ChronicleKey.FamineNow,
-            ViewEventTier.Critical, _sCiv[settlement], -1);
+            forecast == 1 ? ViewEventTier.Info : ViewEventTier.Critical, _sCiv[settlement], -1);
         e.Settlement = settlement; e.Tile = _sTile[settlement]; e.A = band; e.B = forecast;
         return e;
     }
