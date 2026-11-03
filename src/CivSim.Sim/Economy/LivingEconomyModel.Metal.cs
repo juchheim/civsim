@@ -632,6 +632,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
+            if (IronChain && IronSharingEnabled) ShareIronGoods(civ, reach);
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {

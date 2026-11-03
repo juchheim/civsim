@@ -199,6 +199,17 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
     }
 
+    /// <summary>The sharing reach of a civilization (-1 without SOC-07 or GOV-04) and the hex distance between two settlements, for sharing fixtures.</summary>
+    internal (int Reach, int Distance) FixtureSharing(int civ, int settlementA, int settlementB)
+        => (ShareReach(civ), HexGrid.Distance(_settlements[settlementA].SiteTile, _settlements[settlementB].SiteTile, _world.Width));
+
+    /// <summary>The iron kits the forgeless sisters of a settlement still lack, which that settlement smiths for them; zero when sharing is off or out of reach.</summary>
+    internal Fix64 FixtureSisterKitDeficit(int settlementIndex)
+    {
+        EnsureMetal(_settlements[settlementIndex]);
+        return SisterKitDeficit(_settlements[settlementIndex]);
+    }
+
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
     internal Fix64 FixtureIronWoodFactor(int settlementIndex)
         => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;

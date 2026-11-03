@@ -1,6 +1,6 @@
 # M11 WP6 — Iron metal ledger
 
-Records slices 1 to 5 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
+Records slices 1 to 6 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
 
 ## Slice 1: the ledger
 
@@ -44,6 +44,16 @@ Decided with the user (2026-11-03): append `TradeGood.Iron = 8` (`Count = 9`), e
 - **Evidence.** On world 39 (civilization 1 has iron and a camp site civilization 0 can see; civilization 0 has none): the compact is signed in the Iron chapter and refused in Bronze; bloom leaves the seller in caravans and reaches the buyer as bloom, wrought iron or kits; the Council proposes the compact; the Strategist proposes it only for a contacted rival with an iron camp seen; Iron cannot be embargoed. Bronze checksum and goldens unchanged.
 - **Limits.** The evidence for a seller is a *camp*. A civilization whose iron lies inside its settlements' range digs it without a camp and is never seen as a seller, by either policy. Caravans carry what the buyer is short of, not more, and a seller's reserve is small (a litre per 20 people), so supply is thin. This is a working route, not a fitted one. `Relations`, `Travel`, contact and route blockage apply as for tin, so the audit's starts with no capable partner (64 to 80) are still unserved. Iron has no Free Folk sellers. Research must know MET-09 for the Council and Strategist to act; the test pack makes MET-09 numeric for that reason (`TestPack.WithNumeric`), because every E4 row is still a draft.
 
+## Slice 6: sharing between a civilization's own towns
+
+Before this, a daughter town or a town without a forge or iron could not be supplied with iron by its sisters. Now, in the Iron chapter and with the E3 sharing research (SOC-07, reach 15 tiles; GOV-04, reach 20):
+
+- **Kits.** A forge town counts the adults of its *forgeless* sister towns in range (their adults without an iron kit, less kits they already hold) in its own T11 kit target (`SisterKitDeficit`), so it smiths for them. In `ShareMetals`, whole kits then move, best tier first, from a town holding more kits than its own adults lack to a town short of them. The kit leaves one store and enters another, so it exists once.
+- **Bloom.** A town that digs iron smelts extra bloom for forge sisters that dig none (`SisterBloomDeficit`), scaled by its own forest (it burns the fuel). Bloom moves from a town holding more than its own kits need to a forge town that digs no iron. "Digs iron" means a deposit in range or a working camp; a deposit it merely could open a camp on does not count, because a small daughter town can hold that possibility and never be able to act on it.
+- **Isolation.** All of it runs only when `IronChain` is on, so the Bronze economy is unchanged. The sister terms are zero for a town with no sisters (tested), and `IronSharingEnabled` is an internal switch that turns the Iron sharing off, for tests and screens.
+- **Tests.** The sister counts the daughter's adults in its kit want, and not when sharing is off; spare kits move to the daughter only when sharing is on and none are created or lost; spare bloom reaches a sister forge that digs no iron, only when sharing is on; a lone town behaves the same either way.
+- **Limits.** The fixture's daughter town builds its own forge within a few seasons and can reach the parent's iron, so the full pipeline (parent smelts, forges, ships kits to a dependent daughter) was exercised in pieces, not as one run. The demand side and the transfer side are tested separately. Sharing uses the E3 reach rule, so it needs SOC-07 or GOV-04.
+
 ## Evidence
 
 - The T11 hand check in 26 §2.3 reproduces: one kit costs 0.75 G-IRONORE and 1.36875 G-CHAR (8.2125 G-WOOD at 6 per charcoal), with no bloom left over, so the bloomery charge is not counted twice. Labor excluding charcoal burning is 0.65 ws.
@@ -54,7 +64,7 @@ Decided with the user (2026-11-03): append `TradeGood.Iron = 8` (`Count = 9`), e
 
 1. **Planner wants beyond T11.** Steel (MET-10) and T12 kits, iron and steel arms (WP8), and sister-settlement sharing of Iron goods are not wanted yet. Mining iron ore for the chain uses the E3 deposit logic, so the WP4 camp gap still applies.
 2. **Saw attachment and mixed-age wear distributions.** The WOD-08 saw on a T12 kit, and a live wear distribution over many seasons and settlements for I-T3, are not built or measured yet. Steel (MET-10) is not wanted by the planner, so T12 kits exist only from fixtures.
-3. **Sister-settlement sharing** of Iron goods and kits (`ShareMetals`, `SharedGoods`) is unbuilt: a settlement without a forge or iron cannot be sent kits by a sister. Iron compacts also still need contact, relations and a finite route, so the audit's 64 to 80 starts with no capable partner rely on expansion.
+3. Iron compacts still need contact, relations and a finite route, so the audit's 64 to 80 starts with no capable partner rely on expansion.
 4. **Fuel (I-T6).** Sustainable metal must be ≤15% of civilian work with no mandatory clear-cut. The WP4 audit found 45.6% of starts cannot sustain 100 adults of T11 replacement on local wood regrowth alone.
 5. **Transport and imports.** Shipping bloom, wrought iron and kits between settlements and across borders, with the captured-forge and imported-kit cases of B4-06.
 6. **Fission.** The fission operating-margin projection copies only `Goods`; Iron goods follow whatever happens to the parent's `MetalState`, which is the same rule as E3 metal, but it is untested for Iron.

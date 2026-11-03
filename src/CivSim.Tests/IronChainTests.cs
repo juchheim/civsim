@@ -343,6 +343,94 @@ public class IronChainTests
         Assert.True(f.Economy.GoodStock(0, "G-IRONORE") >= Fix64.FromInt(58), "but no new ore is smelted while the forest is thin");
     }
 
+    private static int IronKitHolders(LivingEconomyModel e, int settlement)
+    {
+        int held = 0;
+        foreach (int t in e.FixtureAdultKitTiers(settlement)) if (t >= 11) held++;
+        return held;
+    }
+
+    private static (BronzeFixture Fixture, int Daughter) WithDaughter(bool sharing)
+    {
+        // SOC-07 (the sharing research) is an early project the fixture already knows, so the towns share unless the economy's switch is off.
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MET-08", "MET-09");
+        f.Economy.IronSharingEnabled = sharing;
+        f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(60));
+        int daughter = f.Economy.FoundByDecree(0, f.CampTile, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
+        Assert.True(daughter >= 0, "the fixture should found a daughter settlement");
+        return (f, daughter);
+    }
+
+    private static Fix64 AllIronKits(LivingEconomyModel e, params int[] settlements)
+    {
+        Fix64 total = Fix64.Zero;
+        foreach (int i in settlements) total += e.GoodStock(i, "G-TOOL11") + Fix64.FromInt(IronKitHolders(e, i));
+        return total;
+    }
+
+    [Fact]
+    public void Spare_iron_kits_move_to_a_sister_town_only_when_the_towns_share_and_exist_once()
+    {
+        int daughterHolders = 0, aloneHolders = 0;
+        foreach (bool sharing in new[] { true, false })
+        {
+            (BronzeFixture f, int daughter) = WithDaughter(sharing);
+            f.Economy.FixtureStock(0, "G-TOOL11", Fix64.FromInt(40)); // far more than the parent's own adults lack
+            Fix64 before = AllIronKits(f.Economy, 0, daughter);
+            f.RunSeasons(1);
+            Assert.Equal(before, AllIronKits(f.Economy, 0, daughter)); // moving kits creates and destroys none (no new smithing in a season with this stock)
+            if (sharing) daughterHolders = IronKitHolders(f.Economy, daughter); else aloneHolders = IronKitHolders(f.Economy, daughter);
+        }
+        Assert.True(daughterHolders > 0, "the daughter's adults should hold kits the parent could spare");
+        Assert.Equal(0, aloneHolders);
+    }
+
+    [Fact]
+    public void Spare_bloom_moves_to_a_sister_forge_that_digs_no_iron_when_the_towns_share()
+    {
+        Fix64 withSharing = Fix64.Zero, without = Fix64.Zero;
+        foreach (bool sharing in new[] { true, false })
+        {
+            (BronzeFixture f, int daughter) = WithDaughter(sharing);
+            f.Economy.FixtureExhaust(f.IronTile); // neither town digs iron now, so the daughter's forge depends on what the parent holds
+            f.Economy.FixtureBuild(daughter, "forge");
+            f.Economy.FixtureStock(0, "G-IRON", Fix64.FromInt(8));
+            f.RunSeasons(1);
+            // Whatever reached the daughter is bloom, wrought iron or kits made from them.
+            Fix64 reached = f.Economy.GoodStock(daughter, "G-IRON") + f.Economy.GoodStock(daughter, "G-WROUGHT") +
+                f.Economy.GoodStock(daughter, "G-TOOL11") + Fix64.FromInt(IronKitHolders(f.Economy, daughter));
+            if (sharing) withSharing = reached; else without = reached;
+        }
+        Assert.True(withSharing > Fix64.Zero, "bloom should have reached the sister forge");
+        Assert.Equal(Fix64.Zero, without);
+    }
+
+    [Fact]
+    public void A_forge_town_counts_its_forgeless_sisters_adults_in_its_own_kit_want()
+    {
+        (BronzeFixture shared, int daughter) = WithDaughter(sharing: true);
+        (BronzeFixture alone, _) = WithDaughter(sharing: false);
+        shared.RunSeasons(1); // both towns have a metal economy; the daughter has no forge yet
+        alone.RunSeasons(1);
+        Assert.Equal(0, shared.Economy.Metal(daughter).Forges);
+        Assert.True(shared.Economy.FixtureSisterKitDeficit(0) >= Fix64.FromInt(5), "the parent should count the daughter's adults");
+        Assert.Equal(Fix64.Zero, alone.Economy.FixtureSisterKitDeficit(0));
+    }
+
+    [Fact]
+    public void Sharing_leaves_a_settlement_with_no_sisters_exactly_as_it_was()
+    {
+        // The sister terms are zero for one settlement, with sharing on or off.
+        BronzeFixture a = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MET-08", "MET-09");
+        BronzeFixture b = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MET-08", "MET-09");
+        a.Economy.IronSharingEnabled = false;
+        a.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(60));
+        b.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(60));
+        a.RunSeasons(6);
+        b.RunSeasons(6);
+        Assert.Equal(IronKits(a), IronKits(b));
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

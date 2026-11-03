@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
 
@@ -71,18 +72,13 @@ public sealed partial class LivingEconomyModel
     private void IronKitWant(SettlementState s, MetalState m, MetalPlan plan)
     {
         if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "MET-09")) return;
-        // Adults who hold no iron kit, or whose iron kit is about to be replaced, less the kits already made and waiting.
-        int needKits = 0;
-        for (int i = 0; i < _figures.Count; i++)
-        {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
-            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) needKits++;
-        }
+        // Adults who hold no iron kit, or whose iron kit is about to be replaced, here and in the forgeless sister settlements this one smiths for,
+        // less the kits already made and waiting (the sisters' own stores are netted in their deficit).
+        Fix64 needKits = Fix64.FromInt(IronKitsLacking(s)) + SisterKitDeficit(s);
         // A thin forest asks for fewer new and replacement kits, but iron already in store (smelted earlier or imported by compact) is always worth forging
         // into kits: that costs a quarter of a litre of charcoal a kit, where smelting the ore costs six times more.
         Fix64 fromStore = (IronStock(s, IronGood.Wrought) + m.Goods[(int)MetalGood.Iron] * Fix64.FromRatio(4, 5)) / WroughtPerKit;
-        Fix64 wanted = Fix64.Max(Fix64.FromInt(needKits) * IronWoodFactor(s, m), Fix64.Min(Fix64.FromInt(needKits), fromStore));
+        Fix64 wanted = Fix64.Max(needKits * IronWoodFactor(s, m), Fix64.Min(needKits, fromStore));
         plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, wanted - IronStock(s, IronGood.Kit11));
     }
 
@@ -104,6 +100,117 @@ public sealed partial class LivingEconomyModel
         return Fix64.Clamp((share - IronWoodFloor) / (IronWoodFull - IronWoodFloor), Fix64.Zero, Fix64.One);
     }
 
+    /// <summary>Screen and test switch: turn the Iron chapter's sharing between sister settlements off. On in production.</summary>
+    internal bool IronSharingEnabled { get; set; } = true;
+
+    /// <summary>The distance within which sister settlements share Iron goods: the E3 sharing reach, or none when sharing is switched off.</summary>
+    private int IronShareReach(int civ) => IronSharingEnabled ? ShareReach(civ) : -1;
+
+    /// <summary>Adults of a settlement with no iron kit, or whose iron kit is about to wear out.</summary>
+    private int IronKitsLacking(SettlementState s)
+    {
+        int lacking = 0;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState f = _figures[i];
+            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
+        }
+        return lacking;
+    }
+
+    private Fix64 IronKitsInStore(SettlementState s) => IronStock(s, IronGood.Kit11) + IronStock(s, IronGood.Kit12);
+
+    /// <summary>A sister settlement this one can send goods to or take them from: same civilization, a living metal economy, within the sharing reach.</summary>
+    private bool IronSister(SettlementState s, SettlementState other, int reach)
+        => other != s && other.Civilization == s.Civilization && other.Metal is not null && !IsFreeFolk(other) && Population(other.Id) > 0 &&
+           HexGrid.Distance(other.SiteTile, s.SiteTile, _world.Width) <= reach;
+
+    /// <summary>
+    /// The iron kits the forgeless sister settlements within the sharing reach still lack (their adults without an iron kit, less kits they
+    /// already hold). A forge settlement smiths for them, as it casts Bronze kits for sisters (docs/MVP/22 §5.7). Zero without the sharing
+    /// research (SOC-07 or GOV-04).
+    /// </summary>
+    private Fix64 SisterKitDeficit(SettlementState s)
+    {
+        int reach = IronShareReach(s.Civilization);
+        if (reach < 0) return Fix64.Zero;
+        Fix64 deficit = Fix64.Zero;
+        foreach (SettlementState sister in _settlements)
+        {
+            if (!IronSister(s, sister, reach) || sister.Metal!.Forges > 0) continue;
+            deficit += Fix64.Max(Fix64.Zero, Fix64.FromInt(IronKitsLacking(sister)) - IronKitsInStore(sister));
+        }
+        return deficit;
+    }
+
+    /// <summary>
+    /// The bloom the forge sisters not digging iron themselves still lack, which a settlement that can dig iron smelts for them (stateless, from
+    /// the sisters' kits and stores), scaled by this settlement's forest: the smelting fuel is its own.
+    /// </summary>
+    private Fix64 SisterBloomDeficit(SettlementState s, MetalState m)
+    {
+        int reach = IronShareReach(s.Civilization);
+        if (reach < 0 || ((m.Access & SourceIron) == 0 && !CanDig(s, MetalGood.IronOre))) return Fix64.Zero;
+        Fix64 deficit = Fix64.Zero;
+        foreach (SettlementState sister in _settlements)
+        {
+            if (!IronSister(s, sister, reach) || sister.Metal!.Forges <= 0) continue;
+            if (CanDig(sister, MetalGood.IronOre)) continue; // it digs iron now; a deposit it merely could open a camp on does not count
+            deficit += Fix64.Max(Fix64.Zero, IronBloomNeed(sister) - sister.Metal.Goods[(int)MetalGood.Iron]);
+        }
+        return deficit * IronWoodFactor(s, m);
+    }
+
+    /// <summary>
+    /// Moves Iron kits and bloom between sister settlements of a civilization (called from <c>ShareMetals</c> in the Iron chapter, after the Bronze goods):
+    /// whole kits, best tier first, from settlements holding more than their own adults lack to those short of them; bloom from settlements holding
+    /// more than their own kits need to forge settlements without iron. Nothing is created: each move debits the donor as it credits the receiver.
+    /// </summary>
+    private void ShareIronGoods(int civ, int reach)
+    {
+        for (int r = 0; r < _settlements.Count; r++)
+        {
+            SettlementState receiver = _settlements[r];
+            if (receiver.Civilization != civ || receiver.Metal is not { } rm || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
+            Fix64 need = Fix64.FromInt(IronKitsLacking(receiver)) - IronKitsInStore(receiver);
+            for (int d = 0; d < _settlements.Count && need >= Fix64.One; d++)
+            {
+                if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
+                SettlementState donor = _settlements[d];
+                Fix64 surplus = IronKitsInStore(donor) - Fix64.FromInt(IronKitsLacking(donor));
+                for (int t = 12; t >= 11 && surplus >= Fix64.One && need >= Fix64.One; t--)
+                {
+                    IronGood kit = t == 12 ? IronGood.Kit12 : IronGood.Kit11;
+                    Fix64 move = Fix64.FromInt(Fix64.Min(Fix64.Min(need, surplus), IronStock(donor, kit)).FloorToInt());
+                    if (move <= Fix64.Zero) continue;
+                    AddStock(donor, IronSlot(kit), -move);
+                    AddStock(receiver, IronSlot(kit), move);
+                    need -= move;
+                    surplus -= move;
+                }
+            }
+        }
+        for (int r = 0; r < _settlements.Count; r++)
+        {
+            SettlementState receiver = _settlements[r];
+            if (receiver.Civilization != civ || receiver.Metal is not { Forges: > 0 } rm || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
+            if (CanDig(receiver, MetalGood.IronOre)) continue;
+            Fix64 need = IronBloomNeed(receiver) - rm.Goods[(int)MetalGood.Iron];
+            for (int d = 0; d < _settlements.Count && need > Epsilon; d++)
+            {
+                if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
+                SettlementState donor = _settlements[d];
+                Fix64 surplus = donor.Metal!.Goods[(int)MetalGood.Iron] - IronBloomNeed(donor);
+                Fix64 move = Fix64.Min(need, surplus);
+                if (move <= Epsilon) continue;
+                donor.Metal.Goods[(int)MetalGood.Iron] -= move;
+                rm.Goods[(int)MetalGood.Iron] += move;
+                need -= move;
+            }
+        }
+    }
+
     /// <summary>Wrought iron in one T11 kit (docs/MVP/26 §2.3).</summary>
     private static readonly Fix64 WroughtPerKit = Fix64.FromRatio(15, 100);
 
@@ -116,7 +223,10 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private void IronExportWant(SettlementState s, MetalState m, MetalPlan plan, int pop)
     {
-        if (!IronChain || IronTrade is not { } trade || !trade.SellsIron(s.Civilization)) return;
+        if (!IronChain) return;
+        // Bloom for forge sisters that have no iron of their own, smelted here.
+        plan.Terminal[MetalSlot(MetalGood.Iron)] += SisterBloomDeficit(s, m);
+        if (IronTrade is not { } trade || !trade.SellsIron(s.Civilization)) return;
         if ((m.Access & SourceIron) == 0 && !CanDig(s, MetalGood.IronOre)) return;
         plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.FromRatio(pop, 20) * IronWoodFactor(s, m);
     }
@@ -128,14 +238,7 @@ public sealed partial class LivingEconomyModel
     private Fix64 IronBloomNeed(SettlementState s)
     {
         if (!Done(s.Civilization, "MET-09")) return Fix64.Zero;
-        int lacking = 0;
-        for (int i = 0; i < _figures.Count; i++)
-        {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
-            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
-        }
-        Fix64 kits = Fix64.Max(Fix64.Zero, Fix64.FromInt(lacking) - IronStock(s, IronGood.Kit11) - IronStock(s, IronGood.Kit12));
+        Fix64 kits = Fix64.Max(Fix64.Zero, Fix64.FromInt(IronKitsLacking(s)) - IronStock(s, IronGood.Kit11) - IronStock(s, IronGood.Kit12));
         Fix64 inStore = IronStock(s, IronGood.Wrought) * Fix64.FromRatio(5, 4);
         return Fix64.Max(Fix64.Zero, kits * BloomPerKit - inStore);
     }
