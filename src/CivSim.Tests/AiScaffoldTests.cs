@@ -24,6 +24,8 @@ public class AiScaffoldTests
     {
         DifficultyProfile settler = DifficultyProfile.From(TestPack.Pack, Difficulty.Settler);
         Assert.Equal((1, 2, 20, ReplanCadence.Yearly, 2), (settler.HorizonEras, settler.BeamWidth, settler.CouncilPriorPercent, settler.Replan, settler.ReactionDelaySeasons));
+        DifficultyProfile chieftain = DifficultyProfile.From(TestPack.Pack, Difficulty.Chieftain);
+        Assert.Equal((2, 4, 20), (chieftain.HorizonEras, chieftain.BeamWidth, chieftain.CouncilPriorPercent));
         DifficultyProfile warlord = DifficultyProfile.From(TestPack.Pack, Difficulty.Warlord);
         Assert.Equal((3, 8, 0, OpponentModel.Full, ReplanCadence.SeasonAndEvents), (warlord.HorizonEras, warlord.BeamWidth, warlord.CouncilPriorPercent, warlord.Opponent, warlord.Replan));
         DifficultyProfile legend = DifficultyProfile.From(TestPack.Pack, Difficulty.Legend);

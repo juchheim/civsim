@@ -1427,3 +1427,23 @@ Checks: 913/913 tests, toy/research/politics/bronze goldens unchanged, `validate
 B31's miss is a low draw, not a regression: the same first seed over 40 seeds (80 matches) gives Legend 51%, and four 80-match blocks pool to 49%, while this official cohort is only the first 8 of those seeds (16 matches, about +/-12 points of noise). Under the stated rule (confirm a 16-match miss on 80 matches) B31 passes, but the official 16-match check will keep flipping around the threshold; moving B31 to a 32-seed sample (as B7/B8 use) would settle it and needs sign-off. Open gates now: A4 (50%), A2 grower (noise), A7 idle labor (1 season), B27 dormant bronze, B28 (n too small here), B29 (censored), B31 (draw-limited), plus B6, B12 70-minute coverage, B17 KEY-4 completion, B19.
 
 **B31 now judged on 32 seeds (2026-11-02, user sign-off):** `ai --check-m10` runs the Legend-vs-Warlord duel on `max(seeds, 32)` seeds (64 matches, about +/-6 points of noise instead of +/-12) whenever the check is acceptance quality; diagnostic runs (fewer than 8 seeds or 64 minutes) keep the requested seeds. The threshold stays at >= 45% and the first 8 seeds are unchanged. The B28 telemetry reads the same duel, so its case count grows with it (it was n=3). Cost: roughly 8-10 more minutes in `check-m10`. The 40-seed block at `20261019` (51%) contains these 32 seeds, so B31 is expected to pass.
+
+## A4 Chieftain vs Warlord: Council-prior share raised from 5% to 20% (2026-11-02)
+
+A4 (Chieftain vs Warlord, target 25-40%) read 50% on the official 16-match draw. User feedback was that Chieftain is hard to beat (their best finish on Chieftain is 3rd), so the fix makes Chieftain less optimized rather than touching Warlord. Screens were 80-match mirrored blocks (`ai --duel chieftain warlord --seeds 40 --minutes 64`, pack variants built from edited copies of `content/`), first seeds 20261100 and 20261300. One block carries about +/-5 points (SE ~5.5), so pooled figures are the ones to read:
+
+| Chieftain setting | 20261100 | 20261300 | pooled |
+|---|---|---|---|
+| unchanged (prior 5%) | 44% | 41% | 42.5% |
+| prior 20% | 36% | 34% | **35%** |
+| prior 20% + threat reaction delayed one season | 39% | 36% | 37.5% |
+| horizon 1, beam 4, prior 20% | 36% | 40% | 38% |
+| horizon 1, beam 4, prior 5% | 45% | - | - |
+| horizon 1, beam 2, prior 5% | 32% | - | - |
+| prior 40% | 38% | - | - |
+| prior 30% + one-season delay | 41% | - | - |
+| prior 20% + yearly re-planning | 34% | - | - |
+
+Reading: the unchanged Chieftain is already at the top of the band (about 42%, so the 50% official draw was partly a high draw). A larger Council-prior share is the cleanest lever: about 7 points, on both blocks. The threat reaction delay and the horizon cut add nothing measurable on top (all within noise); horizon 1 with beam 2 would make Chieftain think exactly like the Settler, and yearly re-planning is a blunt skip of three seasons in four, so neither was taken. Prior shares above 20% were single blocks inside the noise and are not evidence of more effect.
+
+**Promoted:** `content/registries/difficulty.yaml` Chieftain `council_prior_pct: 20` (doc 14 §9.2 row and note updated; `AiScaffoldTests` pins Chieftain at 2 eras, beam 4, 20%). This is data only: one in five of Chieftain's explicitly ordered research picks now comes from the Council's prior instead of the search (its bronze-closure picks stay protected). Horizon, beam, opponent model and re-planning are unchanged, so Chieftain stays distinct from Settler (which also reacts two seasons late and re-plans yearly). `tests/golden/content-pack.txt` is refreshed (hash `6436cd73477fb336f9184e2f86b5fb8509eea7d9bfaa81f59e28c11f9df1cfb9`, 318,020 bytes). No other golden moved: toy, research, politics and bronze all still pass, and 913 tests pass. A4 is still judged on the 16-match `check-m10` draw (about +/-12 points), so it can miss by luck; 32 seeds would fix that the same way as B31 if it flips.

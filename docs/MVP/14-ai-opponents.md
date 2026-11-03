@@ -227,11 +227,13 @@ Archetypes are weights *inside* the same planner. A Warlord at Legend difficulty
 | Level | Forecast horizon | Beam width | Opponent modeling | Re-plan | Deliberate imperfection |
 |-------|-----------------:|-----------:|-------------------|---------|-------------------------|
 | **Settler** (learning) | 1 era | 2 | none (treats rivals as average) | yearly | 20% of picks from the Council prior instead of search; reacts to threats 2 seasons late |
-| **Chieftain** (default) | 2 eras | 4 | archetype posterior | each season | 5% Council-prior picks |
+| **Chieftain** (default) | 2 eras | 4 | archetype posterior | each season | 20% Council-prior picks (5% until 2026-11-02; see note) |
 | **Warlord** (experienced) | 3 eras | 8 | full (§5) | each season + events | none |
 | **Legend** (expert) | 3 eras (see note) | 16 | full + coalition coordination timing | each season + events | none |
 
 Note (2026-11-02): Legend's research forecast looked 4 eras ahead until the E3 balance pass. Over four 80-match mirrored Legend-vs-Warlord blocks the longer horizon won 44% against 48.5% with 3 eras (about +2 points on seeds not used for tuning, within noise), and the 4-era forecast and rival model never found more, so Legend now shares Warlord's 3-era horizon and keeps its wider beam. Legend still has no demonstrated edge over Warlord (07d, "B31 Legend vs Warlord"); Legend's coalition coordination timing is implemented as a public-information timing rule (a war, and the coalition plan, get +0.20 while the target's fighters are seen away on raids or assaults); over 320 matches it left Legend at about 49%, so it is not yet a measurable edge.
+
+Note (2026-11-02): Chieftain's Council-prior share rose from 5% to 20% so A4 (Chieftain vs Warlord) lands inside 25-40%. On mirrored 80-match blocks the unchanged Chieftain won 44% and 41% (about 42%); at 20% it wins 36% and 34% (about 35%). Horizon 1, a one-season threat delay and yearly re-planning were also screened; none beat the prior change enough to justify making Chieftain think like a Settler (07d).
 
 At **every** level: same fog, same rules, same resources. Imperfection at the lower levels comes from shallower thinking and slower reactions, which still look like plausible decisions, never from random nonsense.
 
