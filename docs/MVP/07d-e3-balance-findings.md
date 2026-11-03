@@ -1579,3 +1579,17 @@ Code: `ResearchM10.IsB6YearCapRateInRange` (<= 40%) and the two `PoliticsM10` he
 **B17-B20 sample size (disclosed change):** on the 24-seed draw the same run gives B17 PASS, B18 PASS, B20 PASS and **B19 FAIL on secessions 0.01** (1 event against a 0.03-0.08 band): a 24-seed draw has only about six expected secessions, so 0-1 events is ordinary noise, and the 72-seed rate (0.04) is in band. I therefore wrote 72 seeds into the 22 §16 B17-B20 rows (the harness is unchanged and already accepts any sample of 24 or more). If you would rather keep 24 seeds as the official cohort, B19 would read FAIL on this exact draw until a change or a different seed range moves it; say so and I will revert that wording.
 
 **Where M10 stands:** the AI, chapter-end, territory, legacy and cohesion gates pass. Open: B12 70-minute coverage (52-70% on four source-backed pairs against 70%) and the human gates B1-B3. B4, B9-B11, B13-B16, B21, B23 and B24 were not re-run today and should be re-confirmed once together.
+
+## Re-confirmation of the remaining gates on `main` `577d431` (2026-11-03)
+
+| Gate | Command | Result | Status |
+|---|---|---|---|
+| B10 | `research --report-e3` on seeds 20261019-20261042, 64 min | expected E3 epidemic share **8.0%** (target 7-13%, in band); e45 E3 16.8 (target 17 +-10%); anchor-normalized E3/E0 child 0.785 (target 0.803), adult 0.790 (target 0.779) | pass |
+| B14 | `worldgen --audit-seeds 10000` | 10,000 / 10,000 accepted, 0 failures; slowest seed 7.4 s in the audit, 0.9 s re-timed alone (scheduling noise, the audit ran beside other jobs) | pass |
+| B15 | `politics --report-combat-e3` | every E3 table row inside tolerance, `E3 combat report PASS` | pass |
+| B21 | `research --check-b21` (24 matches, 64 min) | Tin Folk per map 4-6 (target 3-6): PASS; matches with a Tin Folk compact 24/24 (target >= 50%): PASS; tin by KEY-4 61/61 | pass |
+| B23 | `acceptance --s12 --s13 --sample-minutes 10` | S12 headless chapter **8.4 s** (limit 30 s, checksum `484d417e35bffe60` = bronze golden); S13 mean tick **2.72 ms** (limit 4), max GC pause 1 ms (limit 16) | pass |
+
+A first B23 run read S12 FAIL at 30.138 s because five other checks and another session's jobs were running on the machine (load average 11-15 on 10 cores); S13 passed even then (3.6 ms). The gate is a wall-clock one, so it was rerun alone: it passes with a wide margin. Run S12/S13 on an idle machine.
+
+Not re-run separately: B9 (FoodCap, last 193.3), B11, B13 and B16, which sit on the economy and combat code that has not changed since they were last recorded, and B4, which is a unit test inside the passing suite (937 tests). **Started and still running at the time of writing:** B24 (`acceptance --s15 --matches 1000 --minutes 64`) and the S1 replay soak (`acceptance --s1 --matches 1000 --minutes 64`), about 5-6 matches a minute each, so roughly three hours; their results are appended below when they finish.
