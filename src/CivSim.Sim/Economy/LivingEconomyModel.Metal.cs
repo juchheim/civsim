@@ -128,14 +128,14 @@ public sealed partial class LivingEconomyModel
     internal bool B12CopperShareTraceEnabled { get; set; }
     internal List<string> B12CopperShareTrace { get; } = new();
     internal Fix64 B12CopperShareShortfallTotal { get; private set; }
-    private readonly EconomyToolTier?[] _tierDefs = new EconomyToolTier?[11];
+    private readonly EconomyToolTier?[] _tierDefs = new EconomyToolTier?[13];
 
     private void CompileRecipes()
     {
         _metalBarter = new Fix64[(int)MetalGood.Count];
         for (int g = 0; g < (int)MetalGood.Count; g++) _metalBarter[g] = _content.BarterValue(MetalGoodId((MetalGood)g));
         foreach (EconomyToolTier tier in _content.ToolTiers)
-            if (tier.Tier is >= 8 and <= 10) _tierDefs[tier.Tier] = tier;
+            if (tier.Tier is >= 8 and <= 12) _tierDefs[tier.Tier] = tier;
 
         var compiled = new List<CompiledRecipe>();
         var iron = new List<CompiledRecipe>();
@@ -241,7 +241,7 @@ public sealed partial class LivingEconomyModel
 
     private bool TierKnown(int civ, int tier) => _tierDefs[tier] is { } def && AnyDone(civ, def.UnlockedBy);
 
-    private static int Rank(int tier) => tier switch { 8 => 1, 9 => 2, 10 => 3, _ => 0 };
+    private static int Rank(int tier) => tier switch { 8 => 1, 9 => 2, 10 => 3, 11 => 4, 12 => 5, _ => 0 };
 
     private static MetalGood KitGood(int tier) => tier switch { 8 => MetalGood.Kit8, 9 => MetalGood.Kit9, _ => MetalGood.Kit10 };
 
@@ -274,7 +274,7 @@ public sealed partial class LivingEconomyModel
     private int KitChopRung(FigureState f)
     {
         if (f.Kit == 0) return -1;
-        int rung = f.Kit == 8 ? 5 : 6;
+        int rung = f.Kit == 8 ? 5 : f.Kit >= 11 ? 7 : 6; // iron kits chop at MET-09's rung 7 (docs/MVP/26 §2.2)
         return ChopRungMult(f.Civilization, rung) > Fix64.Zero ? rung : -1;
     }
 
@@ -347,6 +347,8 @@ public sealed partial class LivingEconomyModel
             f.KitLeft -= toolWork[i];
             if (f.KitLeft <= KitBreakLeft(f.Kit)) { f.Kit = 0; f.KitLeft = Fix64.Zero; }
         }
+        // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
+        if (IronChain) IssueIronKits(s, m);
         // Hand out the kits in stock: those without a kit first, then worn kits, then upgrades, oldest kits first.
         var order = new List<int>();
         for (int i = 0; i < _figures.Count; i++)

@@ -754,7 +754,7 @@ public sealed partial class LivingEconomyModel
         }
         foreach (FigureState f in _figures)
         {
-            if (f.Kit is not (0 or 8 or 9 or 10) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
+            if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
                 f.Role > Role.Scribe)
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.World;
 
@@ -196,6 +197,18 @@ public sealed partial class LivingEconomyModel
         foreach (CompiledRecipe recipe in _ironRecipes)
             if (recipe.Def.Id == recipeId) return RunIronRecipe(s, recipeId, planned, ref labor);
         throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
+    /// <summary>The work-seasons a kit of a tier lasts, and the work left on it when it breaks (the dormancy tail), for wear fixtures.</summary>
+    internal (Fix64 Service, Fix64 BreakLeft) FixtureKitLife(int tier) => (ServiceOf(tier), KitBreakLeft(tier));
+
+    /// <summary>The kit tier each adult of a settlement carries, in figure order (0 for none).</summary>
+    internal int[] FixtureAdultKitTiers(int settlementIndex)
+    {
+        int id = _settlements[settlementIndex].Id;
+        var tiers = new List<int>();
+        foreach (FigureState f in _figures) if (f.SettlementId == id && f.Age >= 14) tiers.Add(f.Kit);
+        return tiers.ToArray();
     }
 
     /// <summary>A figure's kit quality (1.2 new, 0.7 at replacement, 0.5 when it breaks).</summary>

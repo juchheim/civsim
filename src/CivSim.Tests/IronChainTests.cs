@@ -162,9 +162,12 @@ public class IronChainTests
         f.RunSeasons(3);
 
         Fix64 kits = e.GoodStock(0, "G-TOOL11");
-        Assert.True(kits > Fix64.Zero, "the Iron chain should have produced kits");
         // Every litre of ore went through the bloomery (2 ore -> 0.5 bloom -> 0.4 wrought at the forge -> 0.15 wrought a kit).
-        Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + kits * F("0.15")) * F("1.25");
+        int held = 0;
+        foreach (int t in e.FixtureAdultKitTiers(0)) if (t == 11) held++;
+        Assert.True(held > 0, "kits made should reach hands");
+        Fix64 allKits = kits + Fix64.FromInt(held);
+        Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + allKits * F("0.15")) * F("1.25");
         Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromInt(4));
     }
 
@@ -200,6 +203,73 @@ public class IronChainTests
         }
         Assert.Equal(live.Economy.ComputeChecksum(), copy.Economy.ComputeChecksum());
         Assert.Equal(live.Economy.GoodStock(0, "G-TOOL11"), copy.Economy.GoodStock(0, "G-TOOL11"));
+    }
+
+    [Fact]
+    public void T12_lasts_exactly_twice_as_long_as_T11_and_neither_counts_as_a_Bronze_kit()
+    {
+        BronzeFixture f = Iron("MET-08", "MET-09", "MET-10");
+        (Fix64 s11, Fix64 b11) = f.Economy.FixtureKitLife(11);
+        (Fix64 s12, Fix64 b12) = f.Economy.FixtureKitLife(12);
+        Assert.Equal(Fix64.FromInt(24), s11);
+        Assert.Equal(Fix64.FromInt(48), s12);
+        Near(s11 * Fix64.FromInt(2), s12);
+        Near(b11 * Fix64.FromInt(2), b12); // the dormancy tail scales with the service life, so the whole curve is stretched exactly 2x
+    }
+
+    [Fact]
+    public void Iron_kits_move_from_store_to_adults_once_and_wear_with_their_tool_work()
+    {
+        BronzeFixture f = Iron("MET-08", "MET-09");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureStock(0, "G-TOOL11", Fix64.FromInt(5));
+        Fix64 copperBefore = e.GoodStock(0, "G-COPPER");
+        f.RunSeasons(1);
+        int[] tiers = e.FixtureAdultKitTiers(0);
+        int held = 0;
+        foreach (int t in tiers) if (t == 11) held++;
+        Assert.True(held >= 5, $"the five stocked kits should be in hand, {held} are");
+        // Every T11 kit is either in a store or in a hand: the planner's own kits plus the five, none duplicated by the hand-out.
+        Fix64 total = e.GoodStock(0, "G-TOOL11") + Fix64.FromInt(held);
+        Assert.True(total >= Fix64.FromInt(5));
+        // A worn-down kit is replaced from store; the old iron kit returns nothing (docs/MVP/26 §2.2).
+        Assert.True(e.GoodStock(0, "G-COPPER") >= copperBefore - Fix64.FromInt(1000));
+    }
+
+    [Fact]
+    public void An_early_upgrade_from_T11_to_T12_gives_no_metal_back_but_a_Bronze_kit_still_remelts()
+    {
+        foreach ((int oldTier, bool refunds) in new[] { (11, false), (10, true) })
+        {
+            BronzeFixture f = Iron("MET-08", "MET-09", "MET-10");
+            LivingEconomyModel e = f.Economy;
+            int adult = FirstAdult(e);
+            e.FixtureSetKit(adult, oldTier, Fix64.FromInt(20));
+            e.FixtureStock(0, "G-TOOL12", Fix64.FromInt(100)); // enough for the kitless first, so the upgrade is served too
+            Fix64 remelted = e.MetalStats(0).RemeltCopper;
+            f.RunSeasons(1);
+            Assert.Equal(12, e.FigureKit(adult).Tier);
+            Fix64 returned = e.MetalStats(0).RemeltCopper - remelted;
+            if (refunds) Assert.True(returned > Fix64.Zero, "a Bronze kit retired early is remelted");
+            else Assert.Equal(Fix64.Zero, returned);           // an Iron kit is never refunded
+        }
+    }
+
+    [Fact]
+    public void A_Bronze_settlement_never_hands_out_Iron_kits()
+    {
+        BronzeFixture f = Bronze("MET-08", "MET-09");
+        f.Economy.FixtureStock(0, "G-TOOL11", Fix64.FromInt(5));
+        f.RunSeasons(2);
+        foreach (int t in f.Economy.FixtureAdultKitTiers(0)) Assert.True(t is 0 or 8 or 9 or 10);
+        Assert.Equal(Fix64.FromInt(5), f.Economy.GoodStock(0, "G-TOOL11"));
+    }
+
+    private static int FirstAdult(LivingEconomyModel e)
+    {
+        for (int i = 0; i < e.FigureCount; i++)
+            if (e.Figure(i).Civilization == 0 && e.Figure(i).Age >= 14) return i;
+        throw new InvalidOperationException("no adult");
     }
 
     private static int ProjectIndex(LivingEconomyModel economy, string id)

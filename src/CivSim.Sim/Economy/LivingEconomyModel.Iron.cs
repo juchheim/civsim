@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
@@ -70,7 +71,65 @@ public sealed partial class LivingEconomyModel
     private void IronKitWant(SettlementState s, MetalState m, MetalPlan plan)
     {
         if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "MET-09")) return;
-        plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, Fix64.FromInt(plan.Adults) - IronStock(s, IronGood.Kit11));
+        // Adults who hold no iron kit, or whose iron kit is about to be replaced, less the kits already made and waiting.
+        int needKits = 0;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState f = _figures[i];
+            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) needKits++;
+        }
+        plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - IronStock(s, IronGood.Kit11));
+    }
+
+    /// <summary>
+    /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): those with no kit first, then worn kits, then early upgrades, oldest
+    /// first, each getting the best Iron tier in store that beats what they carry. An early upgrade of a Bronze kit remelts it as the E3 rule does;
+    /// an Iron kit is never refunded on retirement. The kit moves from store to figure, so it exists once.
+    /// </summary>
+    private void IssueIronKits(SettlementState s, MetalState m)
+    {
+        if (m.IronGoods is null) return;
+        int civ = s.Civilization;
+        int top = Done(civ, "MET-10") ? 12 : Done(civ, "MET-09") ? 11 : 0;
+        if (top == 0) return;
+        var order = new List<int>();
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState f = _figures[i];
+            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (f.Kit == 0 || f.KitLeft <= Fix64.Zero || Rank(f.Kit) < Rank(top)) order.Add(i);
+        }
+        order.Sort((a, b) =>
+        {
+            FigureState fa = _figures[a], fb = _figures[b];
+            int pa = fa.Kit == 0 ? 0 : fa.KitLeft <= Fix64.Zero ? 1 : 2, pb = fb.Kit == 0 ? 0 : fb.KitLeft <= Fix64.Zero ? 1 : 2;
+            if (pa != pb) return pa.CompareTo(pb);
+            int byLeft = fa.KitLeft.CompareTo(fb.KitLeft);
+            return byLeft != 0 ? byLeft : fa.Id.CompareTo(fb.Id);
+        });
+        foreach (int i in order)
+        {
+            FigureState f = _figures[i];
+            int give = 0;
+            for (int t = top; t >= 11; t--)
+            {
+                if (IronStock(s, t == 12 ? IronGood.Kit12 : IronGood.Kit11) < Fix64.One) continue;
+                if (f.Kit != 0 && f.KitLeft > Fix64.Zero && Rank(t) <= Rank(f.Kit)) continue;
+                give = t;
+                break;
+            }
+            if (give == 0) continue;
+            if (f.Kit is >= 8 and <= 10 && f.KitLeft > Fix64.Zero && _tierDefs[f.Kit] is { } old)
+            {
+                Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
+                m.Goods[(int)MetalGood.Copper] += copper;
+                AddMetalStat(civ, StatRemeltCopper, copper);
+            }
+            AddStock(s, IronSlot(give == 12 ? IronGood.Kit12 : IronGood.Kit11), -Fix64.One);
+            f.Kit = (byte)give;
+            f.KitLeft = ServiceOf(give);
+        }
     }
 
     // ---- recipes --------------------------------------------------------------------------------
