@@ -37,6 +37,17 @@ internal static class M10AiAcceptanceStatus
         return $"M10 measurable gates {gateResult.ToString().ToUpperInvariant()}; full B26-B30 result remains INCOMPLETE.";
     }
 
+    /// <summary>
+    /// The project owner accepted A2 Grower as passed on 2026-11-03 (docs/MVP/07d): the exact 32-seed cohort reads 44/64 = 68.75%
+    /// against the 70% bar, while 144 pooled matches read 72.2%. The exception holds only while Warlord still wins at least this
+    /// share of the Grower duel, so a real regression below the observed near-miss band fails again.
+    /// </summary>
+    internal const double AcceptedA2GrowerFloor = 0.65;
+
+    /// <summary>True when a failed A2 line is the owner-accepted Grower near-miss (and no worse than the floor).</summary>
+    internal static bool IsAcceptedException(string gate, double winRate) =>
+        gate == "A2 grower" && winRate >= AcceptedA2GrowerFloor;
+
     internal static string FormatGateLabel(bool passed, int seeds, int minutes) =>
         Classify(seeds, minutes) == Result.Diagnostic ? "DIAGNOSTIC" : passed ? "PASS" : "FAIL";
 }

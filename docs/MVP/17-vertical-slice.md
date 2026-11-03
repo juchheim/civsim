@@ -168,7 +168,7 @@ The slice is done when every automated row passes in the nightly CI report and t
 | # | Test | Target | Source |
 |---|------|--------|--------|
 | A1 | Warlord AI vs. Council bot, mirrored seeds | wins ≥ 85% | [14 §10.3](14-ai-opponents.md#103-acceptance-targets) |
-| A2 | Warlord AI vs. each opening script | wins ≥ 70% (`check-m10` judges it on at least 32 seeds = 64 matches per script, since 16 matches carry about ±12 points; 2026-11-03). **Accepted 2026-11-03 by the project owner:** the exact cohort reads Grower 44/64 = 68.75%, one match short, but the pooled estimate over 144 matches is 72.2% (07d), so A2 counts as passed and the harness line is a known near-miss | 14 §10.3 |
+| A2 | Warlord AI vs. each opening script | wins ≥ 70% (`check-m10` judges it on at least 32 seeds = 64 matches per script, since 16 matches carry about ±12 points; 2026-11-03). **Accepted 2026-11-03 by the project owner:** the exact cohort reads Grower 44/64 = 68.75%, one match short, but the pooled estimate over 144 matches is 72.2% (07d), so A2 counts as passed; `check-m10` prints the Grower line as `FAIL (ACCEPTED by the project owner)` and does not fail the check for it while Warlord still wins at least 65% of that duel | 14 §10.3 |
 | A3 | Warlord AI vs. Rusher | loses no settlement ≥ 80% of the time; wins ≥ 70% | 14 §10.3 |
 | A4 | Chieftain vs. Warlord | wins 25–40% | 14 §10.3 |
 | A5 | Archetype balance | no archetype wins > 30% of free-for-alls | 14 §10.3 |

@@ -65,6 +65,18 @@ public sealed class M10AiAcceptanceStatusTests
     }
 
     [Theory]
+    [InlineData("A2 grower", 0.6875, true)]
+    [InlineData("A2 grower", 0.65, true)]
+    [InlineData("A2 grower", 0.64, false)]
+    [InlineData("A2 builder", 0.6875, false)]
+    [InlineData("A2 wanderer", 0.6875, false)]
+    [InlineData("A1", 0.6875, false)]
+    public void Only_the_owner_accepted_grower_near_miss_is_an_accepted_exception(string gate, double winRate, bool accepted)
+    {
+        Assert.Equal(accepted, M10AiAcceptanceStatus.IsAcceptedException(gate, winRate));
+    }
+
+    [Theory]
     [InlineData(true, "PASS")]
     [InlineData(false, "FAIL")]
     public void Full_window_gate_labels_preserve_pass_and_fail(bool passed, string expected)

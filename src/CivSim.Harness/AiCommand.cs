@@ -1014,10 +1014,12 @@ internal static class AiCommand
         out Tournament.DuelResult a1, bool diagnostic = false, string checkName = "M6")
     {
         bool pass = true;
-        bool Gate(string name, bool ok, string detail)
+        bool Gate(string name, bool ok, string detail, bool accepted = false)
         {
-            Console.WriteLine($"  {name}: {detail} {(diagnostic ? "DIAGNOSTIC" : ok ? "PASS" : "FAIL")}");
-            pass &= ok;
+            bool acceptedMiss = !ok && accepted && !diagnostic;
+            Console.WriteLine($"  {name}: {detail} " +
+                $"{(diagnostic ? "DIAGNOSTIC" : ok ? "PASS" : acceptedMiss ? "FAIL (ACCEPTED by the project owner, docs/MVP/07d)" : "FAIL")}");
+            pass &= ok || acceptedMiss;
             return ok;
         }
 
@@ -1032,7 +1034,8 @@ internal static class AiCommand
         foreach (string opening in new[] { "grower", "builder", "wanderer" })
         {
             Tournament.DuelResult r = Tournament.Duel(pack, "warlord", opening, a2Seeds, minutes, archetype, firstSeed);
-            Gate("A2 " + opening, r.WinRateA >= 0.70, $"{r.WinRateA * 100:F0}% over {r.Matches} matches");
+            Gate("A2 " + opening, r.WinRateA >= 0.70, $"{r.WinRateA * 100:F0}% over {r.Matches} matches",
+                accepted: M10AiAcceptanceStatus.IsAcceptedException("A2 " + opening, r.WinRateA));
         }
 
         Console.WriteLine("== A3: Warlord AI vs Rusher: loses no settlement in >= 80% of matches, wins >= 70%");
