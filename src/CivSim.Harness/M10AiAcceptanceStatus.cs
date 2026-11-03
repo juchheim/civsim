@@ -1,3 +1,5 @@
+using System;
+
 namespace CivSim.Harness;
 
 internal static class M10AiAcceptanceStatus
@@ -47,6 +49,17 @@ internal static class M10AiAcceptanceStatus
     /// <summary>True when a failed A2 line is the owner-accepted Grower near-miss (and no worse than the floor).</summary>
     internal static bool IsAcceptedException(string gate, double winRate) =>
         gate == "A2 grower" && winRate >= AcceptedA2GrowerFloor;
+
+    /// <summary>
+    /// B29 scores a KEY-4 forecast only once KEY-4 completes, and on the 8-seed cohort six seats finish KEY-4 after minute 64, so
+    /// an integrated check that stops at the capture horizon can never complete B29. Acceptance-quality runs keep the same
+    /// simulations going to this minute (the standalone `--check-b29 --observation-minutes 100` run leaves none censored).
+    /// </summary>
+    internal const int B29ObservationMinutes = 100;
+
+    /// <summary>The observation window the integrated check gives B29: the standard window, or none (capture horizon) for a diagnostic sample.</summary>
+    internal static int? ResolveB29ObservationMinutes(int seeds, int minutes) =>
+        Classify(seeds, minutes) == Result.Diagnostic ? null : Math.Max(minutes, B29ObservationMinutes);
 
     internal static string FormatGateLabel(bool passed, int seeds, int minutes) =>
         Classify(seeds, minutes) == Result.Diagnostic ? "DIAGNOSTIC" : passed ? "PASS" : "FAIL";

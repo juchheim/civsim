@@ -65,6 +65,17 @@ public sealed class M10AiAcceptanceStatusTests
     }
 
     [Theory]
+    [InlineData(8, 64, 100)]
+    [InlineData(8, 120, 120)]
+    [InlineData(32, 64, 100)]
+    [InlineData(7, 64, null)]
+    [InlineData(8, 63, null)]
+    public void Integrated_b29_observes_past_the_capture_horizon_only_for_acceptance_samples(int seeds, int minutes, int? expected)
+    {
+        Assert.Equal(expected, M10AiAcceptanceStatus.ResolveB29ObservationMinutes(seeds, minutes));
+    }
+
+    [Theory]
     [InlineData("A2 grower", 0.6875, true)]
     [InlineData("A2 grower", 0.65, true)]
     [InlineData("A2 grower", 0.64, false)]

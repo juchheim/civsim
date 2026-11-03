@@ -826,7 +826,8 @@ internal static class AiCommand
         int core = CheckM6(pack, seeds, minutes, archetype, firstSeed, out Tournament.DuelResult baseline, diagnostic,
             checkName: "M10 AI CORE");
 
-        B29ForecastDiagnostic.Summary b29Summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed);
+        B29ForecastDiagnostic.Summary b29Summary = MeasureB29(pack, seeds, minutes, archetype, firstSeed,
+            observationMinutes: M10AiAcceptanceStatus.ResolveB29ObservationMinutes(seeds, minutes));
         Console.WriteLine($"  B29 result {FormatB29GateLabel(b29Summary, seeds, minutes)}");
 
         // 16 matches carry about +/-12 points of noise against a 45% bar, so B31 judges at least 32 seeds (64 matches), as B7/B8 do.
