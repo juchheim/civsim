@@ -70,6 +70,8 @@ public sealed partial class LivingEconomyModel
         // Labor buckets, in the order figures are assigned to them.
         public Fix64 BuildNeed, BuildRequested, BuildCap, MineNeed, CharcoalNeed, SmeltNeed;
         public Fix64 BuildAssigned, MineAssigned, CharcoalAssigned, SmeltAssigned;
+        /// <summary>The Iron chapter's construction bucket (docs/MVP/26 §3.2): labor wanted and given this season.</summary>
+        public Fix64 IronBuildNeed, IronBuildAssigned;
         /// <summary>Civic build work moved onto the first Forge/Kiln this season so it completes (already inside BuildAssigned).</summary>
         public Fix64 CivicBuildTransfer;
         /// <summary>Why the completion-only transfer did not fire for a first Forge/Kiln (diagnostic; empty when it fired or did not apply).</summary>
@@ -919,6 +921,7 @@ public sealed partial class LivingEconomyModel
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
         Fix64 chainA = mineA + charA + smeltA;
         plan.BuildNeed = Fix64.Min(plan.BuildNeed, plan.BuildCap);
+        plan.IronBuildNeed = IronBuildLabor(m, totalWork);
         Fix64 laborB = Fix64.Max(Fix64.Zero, mineAll + charAll + smeltAll - chainA);
         Fix64 chainCap = cap;
         Fix64 scaleA = chainA <= chainCap || chainA <= Fix64.Zero ? Fix64.One : chainCap / chainA;
@@ -948,7 +951,7 @@ public sealed partial class LivingEconomyModel
             m.ShareWant[k] = Fix64.Max(Fix64.Zero, plan.Want[slot] - plan.SisterTerminal[slot]);
         }
         (plan.MineNeed, plan.CharcoalNeed, plan.SmeltNeed) = ChainLabor(s, plan);
-        plan.Budget = plan.BuildNeed + plan.MineNeed + plan.CharcoalNeed + plan.SmeltNeed;
+        plan.Budget = plan.BuildNeed + plan.IronBuildNeed + plan.MineNeed + plan.CharcoalNeed + plan.SmeltNeed;
         return plan;
     }
 
@@ -1202,6 +1205,7 @@ public sealed partial class LivingEconomyModel
             plan.Terminal[MetalSlot(KitGood(plan.Tier))] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - m.Goods[(int)KitGood(plan.Tier)]);
         IronKitWant(s, m, plan);
         IronExportWant(s, m, plan, pop);
+        IronBuildWants(s, m, plan);
         int reach = ShareReach(civ);
         if (reach >= 0)
         {
@@ -1688,6 +1692,13 @@ public sealed partial class LivingEconomyModel
                 if (figure.Task == 0) figure.Task = MetalTask.Build;
                 plan.BuildAssigned += part;
             }
+            else if (plan.IronBuildAssigned < plan.IronBuildNeed)
+            {
+                part = Fix64.Min(amount, plan.IronBuildNeed - plan.IronBuildAssigned);
+                Assign(figure, EconomyJob.Build, part);
+                if (figure.Task == 0) figure.Task = MetalTask.Build;
+                plan.IronBuildAssigned += part;
+            }
             else if (plan.MineAssigned < plan.MineNeed)
             {
                 part = Fix64.Min(amount, plan.MineNeed - plan.MineAssigned);
@@ -1802,6 +1813,7 @@ public sealed partial class LivingEconomyModel
                 m.BuildProgress = Fix64.Zero;
             }
         }
+        spare += RunIronBuild(s, m, plan);
 
         // SOC-08: full-time Miners, Smiths and Potters in Towns and Cities work 30% faster (docs/MVP/22 §8.5).
         Fix64 specialist = s.Civic is { Tier: >= 1 } && Done(civ, "SOC-08") ? _civic.SpecialistRate : Fix64.One;
@@ -2710,6 +2722,7 @@ public sealed partial class LivingEconomyModel
             if (work <= Fix64.Zero || f.Kit == 0) continue;
             Fix64 mod = KitMod(f, "harvest_labor");
             if (mod > Fix64.Zero && mod < Fix64.One) bonus += work * SkillMultiplier(f, SkillFamily.Farm) * (Fix64.One / mod - Fix64.One);
+            bonus += ScytheFarmBonus(f, work);
         }
         return bonus;
     }

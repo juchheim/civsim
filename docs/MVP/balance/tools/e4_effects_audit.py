@@ -26,6 +26,10 @@ BUCKETS = {
 }
 
 
+# Effects wired by a path the string heuristics cannot see, asserted by hand when a batch lands (project id, effect kind).
+WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method")}
+
+
 def projects():
     for f in sorted(glob.glob("content/catalog/*.yaml")):
         d = yaml.safe_load(open(f))
@@ -58,13 +62,13 @@ def main():
             elif kind == "build":
                 name = e.get("structure") or e.get("id") or ""
                 detail = name
-                wired = structure_names(name) in flat and ("structure." + structure_names(name)) in flat
+                wired = f'new("{name}"' in src or (structure_names(name) in flat and ("structure." + structure_names(name)) in flat)
             elif kind == "role":
                 detail = e.get("id", "")
                 wired = f'"{e.get("id")}"' in src
             elif kind == "method":
                 detail = f"{e.get('action')} {e.get('name')} {e.get('mult')}"
-                wired = False
+                wired = (p["id"], "method") in WIRED_BY_HAND
             elif kind in ("good",):
                 detail = e.get("id", "")
                 wired = f'"{e.get("id")}"' in src

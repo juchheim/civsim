@@ -318,15 +318,23 @@ public sealed partial class LivingEconomyModel
 
     // ---- hashing and snapshots ------------------------------------------------------------------
 
+    private static bool HasIronState(MetalState m)
+        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 };
+
     private void HashIron(ref StateHasher hash)
     {
         if (!IronChain) return;
         hash.Add(IronTag);
         for (int i = 0; i < _settlements.Count; i++)
         {
-            if (_settlements[i].Metal?.IronGoods is not { } iron) continue;
+            if (_settlements[i].Metal is not { } m || !HasIronState(m)) continue;
             hash.Add(i);
-            hash.Add(iron);
+            hash.Add(m.IronGoods ?? new Fix64[(int)IronGood.Count]);
+            hash.Add(m.IronBuildKind);
+            hash.Add(m.IronBuildProgress);
+            for (int k = 0; k < (int)IronStructure.Count; k++) hash.Add(m.IronWorks is { } w ? w[k] : 0);
+            hash.Add(m.IronTerraces?.Count ?? 0);
+            if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) hash.Add(tile);
         }
     }
 
@@ -335,13 +343,18 @@ public sealed partial class LivingEconomyModel
         if (!IronChain) return;
         writer.Write(IronSnapshotMagic);
         int count = 0;
-        for (int i = 0; i < _settlements.Count; i++) if (_settlements[i].Metal?.IronGoods is not null) count++;
+        for (int i = 0; i < _settlements.Count; i++) if (_settlements[i].Metal is { } m && HasIronState(m)) count++;
         writer.Write(count);
         for (int i = 0; i < _settlements.Count; i++)
         {
-            if (_settlements[i].Metal?.IronGoods is not { } iron) continue;
+            if (_settlements[i].Metal is not { } m || !HasIronState(m)) continue;
             writer.Write(i);
-            WriteFixArray(writer, iron);
+            WriteFixArray(writer, m.IronGoods ?? new Fix64[(int)IronGood.Count]);
+            writer.Write(m.IronBuildKind);
+            writer.Write(m.IronBuildProgress.Raw);
+            for (int k = 0; k < (int)IronStructure.Count; k++) writer.Write(m.IronWorks is { } w ? w[k] : 0);
+            writer.Write(m.IronTerraces?.Count ?? 0);
+            if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) writer.Write(tile);
         }
     }
 
@@ -362,6 +375,192 @@ public sealed partial class LivingEconomyModel
             ReadFixArray(reader, iron);
             foreach (Fix64 amount in iron) if (amount < Fix64.Zero) throw new InvalidDataException("Snapshot contains a negative Iron-good stock.");
             metal.IronGoods = iron;
+            metal.IronBuildKind = reader.ReadInt32();
+            metal.IronBuildProgress = Fix64.FromRaw(reader.ReadInt64());
+            if (metal.IronBuildKind < -1 || metal.IronBuildKind >= (int)IronStructure.Count || metal.IronBuildProgress < Fix64.Zero)
+                throw new InvalidDataException("Invalid Iron-chapter build state.");
+            var works = new int[(int)IronStructure.Count];
+            bool any = false;
+            for (int k = 0; k < works.Length; k++)
+            {
+                works[k] = reader.ReadInt32();
+                if (works[k] < 0) throw new InvalidDataException("Negative Iron-chapter structure count.");
+                any |= works[k] > 0;
+            }
+            metal.IronWorks = any ? works : null;
+            int terraces = reader.ReadInt32();
+            if (terraces < 0 || terraces > _world.TileCount) throw new InvalidDataException("Invalid Iron-chapter terrace count.");
+            metal.IronTerraces = terraces == 0 ? null : new List<int>(terraces);
+            for (int t = 0; t < terraces; t++)
+            {
+                int tile = reader.ReadInt32();
+                if ((uint)tile >= (uint)_world.TileCount) throw new InvalidDataException("Invalid Iron-chapter terrace tile.");
+                metal.IronTerraces!.Add(tile);
+            }
+        }
+    }
+
+    // ---- farming ----------------------------------------------------------------------------------------
+
+    /// <summary>Share of a field's labor that is harvesting, the stage the AGR-09 scythe speeds (provisional; the catalog gives no split).</summary>
+    private static readonly Fix64 ScytheHarvestShare = Fix64.FromRatio(1, 3);
+
+    /// <summary>The scythe's harvest-stage output per work (AGR-09: x2).</summary>
+    private static readonly Fix64 ScytheMult = Fix64.FromInt(2);
+
+    /// <summary>The best base field yield in the world (grassland); the mouldboard plough lifts heavy forest soil to it (AGR-10).</summary>
+    private static readonly Fix64 PrimeFieldYield = Fix64.FromInt(3);
+
+    /// <summary>
+    /// Extra effective farm work from an iron scythe: a farmer with a T11 or T12 kit in a civilization that knows AGR-09 gets harvest-stage output x2 on the
+    /// harvest share of the work. It is extra *work*, so it only raises a harvest where the settlement was short of farm labor (its fields are filled
+    /// by work, never by hand), and the kit's own harvest-labor saving is a separate, existing bonus. No population-food grant.
+    /// </summary>
+    private Fix64 ScytheFarmBonus(FigureState f, Fix64 work)
+        => IronChain && f.Kit >= 11 && Done(f.Civilization, "AGR-09")
+            ? work * SkillMultiplier(f, SkillFamily.Farm) * ScytheHarvestShare * (ScytheMult - Fix64.One)
+            : Fix64.Zero;
+
+    /// <summary>
+    /// A tile's base field yield for a civilization: the mouldboard plough (AGR-10, Iron chapter) makes a heavy-soil temperate-forest plot (the forest biome
+    /// with a clay deposit) prime farmland, the world's best base yield, and changes nothing else (no universal bonus).
+    /// </summary>
+    private Fix64 FieldBaseYield(int civ, in WorldEconomyTile tile)
+        => IronChain && tile.Clay && (Biome)tile.BiomeId == Biome.TemperateForest && Done(civ, "AGR-10")
+            ? Fix64.Max(tile.FieldYieldPerYear, PrimeFieldYield)
+            : tile.FieldYieldPerYear;
+
+    // ---- construction ---------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Structures only the Iron chapter builds (docs/MVP/26 §3.2). They are kept apart from the E2/E3 <c>Structure</c> array, which every Bronze hash
+    /// covers. Append only; the order is the order a settlement considers them.
+    /// </summary>
+    private enum IronStructure : byte
+    {
+        Terrace,
+        Count
+    }
+
+    /// <summary>What a structure needs: its unlocking project, labor in work-seasons, and materials paid at completion (docs/MVP/26 §3.2; all provisional).</summary>
+    private readonly record struct IronSpec(string Name, string Unlock, int Labor, int Block, int Ashlar, int Wood, int Bloom);
+
+    private static readonly IronSpec[] IronSpecs =
+    {
+        new("terrace", "AGR-08", 8, 4, 0, 2, 0),
+    };
+
+    /// <summary>The share of a settlement's work the Iron construction bucket may take in a season, beside the metal chain and civic works (provisional).</summary>
+    private static readonly Fix64 IronBuildShare = Fix64.FromRatio(1, 10);
+
+    /// <summary>Crop output of a terraced hillside plot, in the same unit as a tile's field yield (provisional; a flat tile yields 0.6 to 3.0 by biome).</summary>
+    private static readonly Fix64 TerraceYield = Fix64.FromInt(2);
+
+    private int IronWorksCount(SettlementState s, IronStructure kind) => s.Metal?.IronWorks is { } w ? w[(int)kind] : 0;
+
+    private int IronTerraceCount(SettlementState s) => s.Metal?.IronTerraces?.Count ?? 0;
+
+    private bool IsIronTerrace(SettlementState s, int tile) => s.Metal?.IronTerraces?.Contains(tile) == true;
+
+    /// <summary>The next hillside tile a settlement could terrace: a Mountain tile in range that is no one's field or orchard, lowest index first; -1 when none.</summary>
+    private int NextTerraceTile(SettlementState s)
+    {
+        int best = -1;
+        foreach (int tile in RangeTiles(s.SiteTile))
+        {
+            if ((Biome)_world.Tile(tile).BiomeId != Biome.Mountain || _fieldOwner[tile] >= 0 || IsOrchardOccupied(tile)) continue;
+            if (best < 0 || tile < best) best = tile;
+        }
+        return best;
+    }
+
+    /// <summary>True when every flat tile the settlement can field is already a field, or its field allowance is used: the case for terracing a hillside.</summary>
+    private bool NaturalFieldsFull(SettlementState s)
+    {
+        int natural = s.FieldTiles.Count - IronTerraceCount(s);
+        if (natural >= FieldLimit(s) - IronTerraceCount(s)) return true;
+        foreach (int tile in RangeTiles(s.SiteTile))
+            if (_fieldOwner[tile] < 0 && !IsOrchardOccupied(tile) && _world.Tile(tile).FieldYieldPerYear > Fix64.Zero) return false;
+        return true;
+    }
+
+    private bool IronBuildWanted(SettlementState s, IronStructure kind)
+        => kind switch
+        {
+            IronStructure.Terrace => Population(s.Id) >= 12 && NextTerraceTile(s) >= 0 && NaturalFieldsFull(s),
+            _ => false,
+        };
+
+    /// <summary>
+    /// Chooses the Iron structure to build (first the settlement wants, in enum order) and asks the chain for the materials it lacks. Called from
+    /// <c>PrimaryWants</c>, before the wants are expanded, so the stone and bloom it needs are planned like any other want.
+    /// </summary>
+    private void IronBuildWants(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        if (!IronChain) return;
+        int civ = s.Civilization;
+        if (m.IronBuildKind >= 0 && (!Done(civ, IronSpecs[m.IronBuildKind].Unlock) || !IronBuildWanted(s, (IronStructure)m.IronBuildKind)))
+        {
+            m.IronBuildKind = -1; // nothing is paid before completion, so there is nothing to refund
+            m.IronBuildProgress = Fix64.Zero;
+        }
+        if (m.IronBuildKind < 0)
+            for (int k = 0; k < (int)IronStructure.Count; k++)
+                if (Done(civ, IronSpecs[k].Unlock) && IronBuildWanted(s, (IronStructure)k)) { m.IronBuildKind = k; m.IronBuildProgress = Fix64.Zero; break; }
+        if (m.IronBuildKind < 0) return;
+        IronSpec spec = IronSpecs[m.IronBuildKind];
+        if (spec.Block > 0) plan.Terminal[MetalSlot(MetalGood.Block)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Block) - m.Goods[(int)MetalGood.Block]);
+        if (spec.Ashlar > 0) plan.Terminal[MetalSlot(MetalGood.Ashlar)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]);
+        if (spec.Bloom > 0) plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Bloom) - m.Goods[(int)MetalGood.Iron]);
+    }
+
+    /// <summary>The labor the Iron structure under construction can take this season: what it still needs, within its share of the settlement's work.</summary>
+    private Fix64 IronBuildLabor(MetalState m, Fix64 totalWork)
+    {
+        if (!IronChain || m.IronBuildKind < 0) return Fix64.Zero;
+        Fix64 remaining = Fix64.Max(Fix64.Zero, Fix64.FromInt(IronSpecs[m.IronBuildKind].Labor) - m.IronBuildProgress);
+        return Fix64.Min(remaining, totalWork * IronBuildShare);
+    }
+
+    /// <summary>
+    /// Adds the season's assigned labor to the Iron structure under construction and completes it once its labor is in and its materials are in
+    /// store. Returns labor beyond what the structure needed, which goes back to the metal pool.
+    /// </summary>
+    private Fix64 RunIronBuild(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        if (!IronChain || m.IronBuildKind < 0) return Fix64.Zero;
+        IronSpec spec = IronSpecs[m.IronBuildKind];
+        Fix64 labor = Fix64.FromInt(spec.Labor), over = Fix64.Zero;
+        m.IronBuildProgress += plan.IronBuildAssigned;
+        if (m.IronBuildProgress > labor) { over = m.IronBuildProgress - labor; m.IronBuildProgress = labor; }
+        if (m.IronBuildProgress < labor || !TryPayIronBuild(s, m, spec)) return over;
+        CompleteIronBuild(s, m, (IronStructure)m.IronBuildKind);
+        m.IronBuildKind = -1;
+        m.IronBuildProgress = Fix64.Zero;
+        return over;
+    }
+
+    private bool TryPayIronBuild(SettlementState s, MetalState m, IronSpec spec)
+    {
+        if (m.Goods[(int)MetalGood.Block] < Fix64.FromInt(spec.Block) || m.Goods[(int)MetalGood.Ashlar] < Fix64.FromInt(spec.Ashlar) ||
+            m.Goods[(int)MetalGood.Iron] < Fix64.FromInt(spec.Bloom) || s.Stores[(int)Good.Wood] < Fix64.FromInt(spec.Wood)) return false;
+        if (m.IronBuildKind == (int)IronStructure.Terrace && NextTerraceTile(s) < 0) return false;
+        AddStock(s, MetalSlot(MetalGood.Block), -Fix64.FromInt(spec.Block));
+        AddStock(s, MetalSlot(MetalGood.Ashlar), -Fix64.FromInt(spec.Ashlar));
+        AddStock(s, MetalSlot(MetalGood.Iron), -Fix64.FromInt(spec.Bloom));
+        AddStock(s, (int)Good.Wood, -Fix64.FromInt(spec.Wood));
+        return true;
+    }
+
+    private void CompleteIronBuild(SettlementState s, MetalState m, IronStructure kind)
+    {
+        (m.IronWorks ??= new int[(int)IronStructure.Count])[(int)kind]++;
+        if (kind == IronStructure.Terrace)
+        {
+            int tile = NextTerraceTile(s);
+            _fieldOwner[tile] = s.Id;
+            s.FieldTiles.Add(tile);
+            (m.IronTerraces ??= new List<int>()).Add(tile);
         }
     }
 }

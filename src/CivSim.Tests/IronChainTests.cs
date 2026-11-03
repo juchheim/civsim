@@ -461,6 +461,99 @@ public class IronChainTests
         Assert.Equal(IronKits(a), IronKits(b));
     }
 
+    private static BronzeFixture TerraceTown(bool ironChain)
+    {
+        BronzeFixture f = BronzeFixture.CreateTerraceScenario(TestPack.Pack, Seed, 60, ironChain, "AGR-08", "MIN-03");
+        f.Economy.FixtureFillNaturalFields(0);
+        f.Economy.FixtureStock(0, "G-BLOCK", Fix64.FromInt(10));
+        f.Economy.FixtureStock(0, "G-WOOD", Fix64.FromInt(20));
+        return f;
+    }
+
+    [Fact]
+    public void An_Iron_town_whose_flat_fields_are_full_terraces_a_hillside_into_a_field_and_a_Bronze_town_does_not()
+    {
+        BronzeFixture iron = TerraceTown(ironChain: true), bronze = TerraceTown(ironChain: false);
+        Assert.True(iron.TerraceTile >= 0);
+        int fieldsBefore = iron.Economy.FixtureFieldCount(0);
+        iron.RunSeasons(10);
+        bronze.RunSeasons(10);
+
+        Assert.Equal(1, iron.Economy.FixtureTerraceCount(0));
+        Assert.True(iron.Economy.FixtureIsTerrace(0, iron.TerraceTile), "the hillside tile should now be a terraced field");
+        Assert.Equal(fieldsBefore + 1, iron.Economy.FixtureFieldCount(0));
+        Assert.True(iron.Economy.GoodStock(0, "G-BLOCK") <= Fix64.FromInt(6), "the terrace's four blocks were paid");
+        Assert.Equal(0, bronze.Economy.FixtureTerraceCount(0));
+    }
+
+    [Fact]
+    public void A_town_does_not_start_a_terrace_while_it_has_flat_fields_to_place_or_the_research_is_missing()
+    {
+        BronzeFixture noResearch = BronzeFixture.CreateTerraceScenario(TestPack.Pack, Seed, 60, ironChain: true, "MIN-03");
+        noResearch.Economy.FixtureFillNaturalFields(0);
+        noResearch.Economy.FixtureStock(0, "G-BLOCK", Fix64.FromInt(10));
+        noResearch.RunSeasons(4);
+        Assert.Equal(-1, noResearch.Economy.FixtureIronBuildKind(0));
+        Assert.Equal(0, noResearch.Economy.FixtureTerraceCount(0));
+    }
+
+    [Fact]
+    public void An_Iron_economy_with_a_terrace_restores_from_a_snapshot_and_continues_exactly()
+    {
+        BronzeFixture live = TerraceTown(ironChain: true);
+        live.RunSeasons(10);
+        Assert.Equal(1, live.Economy.FixtureTerraceCount(0));
+        BronzeFixture copy = TerraceTown(ironChain: true);
+        Restore(copy.Economy, Snapshot(live.Economy));
+        Assert.Equal(live.Economy.ComputeChecksum(), copy.Economy.ComputeChecksum());
+        Assert.True(copy.Economy.FixtureIsTerrace(0, live.TerraceTile));
+        for (long tick = 10L * LivingEconomyModel.SeasonTicks; tick < 12L * LivingEconomyModel.SeasonTicks; tick++)
+        {
+            live.Economy.Step(tick, ReadOnlySpan<Command>.Empty);
+            copy.Economy.Step(tick, ReadOnlySpan<Command>.Empty);
+        }
+        Assert.Equal(live.Economy.ComputeChecksum(), copy.Economy.ComputeChecksum());
+    }
+
+    [Fact]
+    public void The_scythe_adds_a_third_more_effective_farm_work_only_for_an_iron_kit_in_an_Iron_chapter_that_knows_AGR_09()
+    {
+        BronzeFixture iron = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "AGR-09");
+        BronzeFixture noScythe = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "AGR-09");
+        int adult = FirstAdult(iron.Economy);
+        foreach (BronzeFixture f in new[] { iron, noScythe, bronze }) f.Economy.FixtureSetKit(adult, 11, Fix64.FromInt(20));
+        Fix64 work = Fix64.FromInt(3);
+        Fix64 bonus = iron.Economy.FixtureScytheBonus(adult, work);
+        Assert.True(bonus > Fix64.Zero);
+        // x2 on a third of the work: one more third of the work, scaled by skill (never above work/3 times the skill multiplier).
+        Assert.True(bonus <= work / 3 * Fix64.FromInt(2), $"bonus {bonus} is out of range");
+        Assert.Equal(Fix64.Zero, noScythe.Economy.FixtureScytheBonus(adult, work));   // AGR-09 unknown
+        Assert.Equal(Fix64.Zero, bronze.Economy.FixtureScytheBonus(adult, work));      // not the Iron chapter
+        iron.Economy.FixtureSetKit(adult, 10, Fix64.FromInt(20));
+        Assert.Equal(Fix64.Zero, iron.Economy.FixtureScytheBonus(adult, work));        // a bronze kit has no scythe
+    }
+
+    [Fact]
+    public void The_plough_lifts_only_heavy_forest_soil_to_prime_yield_and_only_with_AGR_10_in_the_Iron_chapter()
+    {
+        BronzeFixture iron = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "AGR-10");
+        BronzeFixture noPlough = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "AGR-10");
+        var world = CivSim.Sim.Economy.WorldEconomyInput.FromGeneratedWorld(CivSim.Sim.World.WorldGenerator.Generate(Seed));
+        CivSim.Sim.Economy.WorldEconomyTile forest = world.Tile(0) with
+        {
+            BiomeId = (int)CivSim.Sim.World.Biome.TemperateForest, Clay = true, FieldYieldPerYear = F("2.8"),
+        };
+        Assert.Equal(Fix64.FromInt(3), iron.Economy.FixtureFieldBaseYield(0, forest));
+        Assert.Equal(F("2.8"), noPlough.Economy.FixtureFieldBaseYield(0, forest));
+        Assert.Equal(F("2.8"), bronze.Economy.FixtureFieldBaseYield(0, forest));
+        // Light soil, other biomes and better ground are untouched.
+        Assert.Equal(F("2.8"), iron.Economy.FixtureFieldBaseYield(0, forest with { Clay = false }));
+        Assert.Equal(F("2.6"), iron.Economy.FixtureFieldBaseYield(0, forest with { BiomeId = (int)CivSim.Sim.World.Biome.OpenWoodland, FieldYieldPerYear = F("2.6") }));
+        Assert.Equal(F("3.4"), iron.Economy.FixtureFieldBaseYield(0, forest with { FieldYieldPerYear = F("3.4") })); // never lowered
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

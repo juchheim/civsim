@@ -2625,6 +2625,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 soilLossMod = settlement.Civic is not null ? SoilLossModifier(settlement) : Modifier(settlement.Civilization, "soil_fertility_loss");
         foreach (int tile in settlement.FieldTiles)
         {
+            // A terraced hillside plot (Iron chapter): built-up soil, a fixed yield, never flooded.
+            if (IronChain && IsIronTerrace(settlement, tile)) { yield += TerraceYield; continue; }
             WorldEconomyTile input = _world.Tile(tile);
             Fix64 soilRatio = input.SoilFertility <= Fix64.Zero
                 ? Fix64.Parse("0.3")
@@ -2639,11 +2641,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             {
                 _soil[tile] = Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
                 // AGR-06's canals and NUM-06's calendar halve what a flood takes (E2: the whole harvest).
-                if (settlement.Civic is not null) yield += input.FieldYieldPerYear * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement));
+                if (settlement.Civic is not null) yield += FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement));
             }
             else
             {
-                Fix64 fieldYield = input.FieldYieldPerYear * soilRatio;
+                Fix64 fieldYield = FieldBaseYield(settlement.Civilization, input) * soilRatio;
                 if (irrigation != Fix64.One) fieldYield *= irrigation;
                 if (_tendedStandYieldBonus[tile] && factor > Fix64.Zero)
                 {
@@ -3394,7 +3396,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private int FieldLimit(SettlementState settlement)
         // C1 limits fields to one quarter of the full range. Cultivability is checked
         // separately when a field is placed; barren/orchard tiles still count toward the limit.
-        => E3FieldLimit(settlement, RangeTiles(settlement.SiteTile).Length / 4);
+        => E3FieldLimit(settlement, RangeTiles(settlement.SiteTile).Length / 4) + (IronChain ? IronTerraceCount(settlement) : 0); // terraces add plots, not take them
 
     private void ConsumeFood(SettlementState settlement, bool winter, int season)
     {

@@ -213,6 +213,29 @@ public sealed partial class LivingEconomyModel
     /// <summary>A figure's kit chop rate (work-seasons of wood per work-season), 0 without a usable metal kit, for saw and axe fixtures.</summary>
     internal Fix64 FixtureKitChopRate(int figureIndex) => KitChopRate(_figures[figureIndex]);
 
+    /// <summary>Places fields until the settlement's allowance is used or no flat tile is left, so a terrace fixture starts with its natural fields full.</summary>
+    internal void FixtureFillNaturalFields(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        while (s.FieldTiles.Count < FieldLimit(s))
+        {
+            int before = s.FieldTiles.Count;
+            PlaceField(s);
+            if (s.FieldTiles.Count == before) break;
+        }
+    }
+
+    internal int FixtureFieldCount(int settlementIndex) => _settlements[settlementIndex].FieldTiles.Count;
+    internal bool FixtureIsTerrace(int settlementIndex, int tile) => IsIronTerrace(_settlements[settlementIndex], tile);
+    internal int FixtureTerraceCount(int settlementIndex) => IronTerraceCount(_settlements[settlementIndex]);
+    internal int FixtureIronBuildKind(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildKind ?? -1;
+
+    /// <summary>The extra effective farm work a figure's scythe gives for a stated amount of farm work (zero without AGR-09 and a T11 or T12 kit).</summary>
+    internal Fix64 FixtureScytheBonus(int figureIndex, Fix64 work) => ScytheFarmBonus(_figures[figureIndex], work);
+
+    /// <summary>A tile's field yield for a civilization with the plough rule applied, for plough fixtures.</summary>
+    internal Fix64 FixtureFieldBaseYield(int civ, WorldEconomyTile tile) => FieldBaseYield(civ, tile);
+
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
     internal Fix64 FixtureIronWoodFactor(int settlementIndex)
         => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;

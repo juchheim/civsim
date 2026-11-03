@@ -26,6 +26,8 @@ internal sealed class BronzeFixture
     public int[] ForestTiles { get; }
     /// <summary>A surface iron deposit on own land four tiles out (beyond the settlement's range of 3, inside mining reach) when built with <c>CreateIronWithCamp</c>; otherwise -1.</summary>
     public int IronTile { get; private set; } = -1;
+    /// <summary>The hillside tile (biome Mountain, no field yield) when built with <c>CreateTerraceScenario</c>; otherwise -1.</summary>
+    public int TerraceTile { get; private set; } = -1;
     private long _tick;
 
     public long Tick => _tick;
@@ -73,8 +75,13 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true,
             extraProjects, forestTiles);
 
+    /// <summary>A settlement with one hillside in range, for terrace fixtures, in either chapter.</summary>
+    public static BronzeFixture CreateTerraceScenario(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: false,
+            extraProjects, forestCount: 13, terrace: true);
+
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
-        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13)
+        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13, bool terrace = false)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -120,8 +127,18 @@ internal sealed class BronzeFixture
             if (ironTile < 0) throw new InvalidOperationException("The fixture start has no land four tiles out for an iron camp.");
             deposits[ironTile] = new WorldDeposit(DepositKind.Iron, 2, 1);
         }
+        int terraceTile = -1;
+        if (terrace)
+        {
+            // One hillside in range that is neither a deposit tile nor forest: the last non-deposit tile of the range.
+            for (int i = range.Count - 1; i >= 3 && terraceTile < 0; i--) if (i >= 16 || range.Count < 17) terraceTile = range[i];
+            if (terraceTile < 0) throw new InvalidOperationException("The fixture start has no spare tile for a hillside.");
+            tiles[terraceTile] = tiles[terraceTile] with { BiomeId = (int)Biome.Mountain, FieldYieldPerYear = Fix64.Zero, InitialWood = Fix64.Zero };
+            deposits[terraceTile] = default;
+        }
         var forest = new List<int>();
         for (int i = 3; i < range.Count && forest.Count < forestCount; i++) forest.Add(range[i]);
+        forest.Remove(terraceTile);
         foreach (int t in range)
             if (!forest.Contains(t) && tiles[t].InitialWood >= Fix64.FromInt(15)) tiles[t] = tiles[t] with { InitialWood = Fix64.FromInt(4) };
         foreach (int t in forest) tiles[t] = tiles[t] with { BiomeId = (int)Biome.TemperateForest, InitialWood = Fix64.FromInt(30), WoodGrowthPerYear = Fix64.FromInt(2) };
@@ -164,7 +181,7 @@ internal sealed class BronzeFixture
         economy.FixtureStock(Settlement, "G-CLAY", Fix64.FromInt(12));
         economy.FixtureStock(Settlement, "G-LEATHER", Fix64.FromInt(4));
         economy.FixtureStock(Settlement, "G-WOOD", Fix64.FromInt(20));
-        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray()) { IronTile = ironTile };
+        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray()) { IronTile = ironTile, TerraceTile = terraceTile };
     }
 
     /// <summary>Runs whole seasons, topping the stores up to a season of food before each so the settlement neither starves nor splits.</summary>

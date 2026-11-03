@@ -135,6 +135,13 @@ public sealed partial class LivingEconomyModel
         public readonly Fix64[] Goods = new Fix64[(int)MetalGood.Count];
         /// <summary>The Iron chapter's goods (docs/MVP/25 §4), kept apart from <see cref="Goods"/> so a Bronze checksum and snapshot never see them. Allocated on first use.</summary>
         public Fix64[]? IronGoods;
+        /// <summary>Iron-chapter structures built here, by <c>IronStructure</c>; null until the first one. Outside <see cref="Goods"/> and the Structures array, so Bronze hashes never see it.</summary>
+        public int[]? IronWorks;
+        /// <summary>The Iron structure under construction (an <c>IronStructure</c> value) or -1, with the labor put into it.</summary>
+        public int IronBuildKind = -1;
+        public Fix64 IronBuildProgress;
+        /// <summary>The hillside tiles terraced into fields here (a subset of the settlement's field tiles).</summary>
+        public List<int>? IronTerraces;
         /// <summary>Last season's gross want of each shared good, what sister settlements send toward.</summary>
         public readonly Fix64[] ShareWant = new Fix64[SharedGoods.Length];
         public int Forges;
@@ -802,6 +809,10 @@ public sealed partial class LivingEconomyModel
         };
         Array.Copy(source.Goods, m.Goods, m.Goods.Length);
         if (source.IronGoods is not null) m.IronGoods = (Fix64[])source.IronGoods.Clone();
+        if (source.IronWorks is not null) m.IronWorks = (int[])source.IronWorks.Clone();
+        m.IronBuildKind = source.IronBuildKind;
+        m.IronBuildProgress = source.IronBuildProgress;
+        if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);
         m.MineHeads.AddRange(source.MineHeads);
         return m;
