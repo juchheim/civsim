@@ -132,11 +132,15 @@ public class ChapterRulesTests
         // A Bronze save never becomes Iron, and an Iron save never becomes Bronze.
         MatchModel ironFresh = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), default, default, rules: ChapterRules.Iron);
         Assert.ThrowsAny<System.Exception>(() => Restore(ironFresh, bronzeBytes));
+        // The Iron economy writes its own section mid-stream, so a Bronze match either fails to parse the later sections or, if it parses,
+        // leaves bytes unread (which the game rejects). It never accepts the snapshot as its own.
         MatchModel bronzeFresh = MatchModel.Create(seed, TestPack.Pack);
         using var stream = new MemoryStream(ironBytes);
         using var reader = new BinaryReader(stream);
-        bronzeFresh.ReadSnapshot(reader);
-        Assert.NotEqual(stream.Length, stream.Position); // the game rejects a snapshot with unread bytes
+        bool accepted;
+        try { bronzeFresh.ReadSnapshot(reader); accepted = stream.Position == stream.Length; }
+        catch (InvalidDataException) { accepted = false; }
+        Assert.False(accepted);
     }
 
     [Fact]

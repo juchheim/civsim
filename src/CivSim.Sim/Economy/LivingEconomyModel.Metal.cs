@@ -138,6 +138,7 @@ public sealed partial class LivingEconomyModel
             if (tier.Tier is >= 8 and <= 10) _tierDefs[tier.Tier] = tier;
 
         var compiled = new List<CompiledRecipe>();
+        var iron = new List<CompiledRecipe>();
         foreach (EconomyRecipe r in _content.Recipes)
         {
             bool enabled = r.Outputs.Length > 0;
@@ -156,8 +157,10 @@ public sealed partial class LivingEconomyModel
                 quantities[i] = r.Inputs[i].Quantity;
             }
             int output = r.Outputs.Length > 0 ? SlotOf(r.Outputs[0].Good) : NoSlot;
+            bool touchesIron = output >= IronSlotBase;
+            foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesIron |= slot >= IronSlotBase;
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
-            compiled.Add(new CompiledRecipe
+            (touchesIron ? iron : compiled).Add(new CompiledRecipe
             {
                 Def = r, InputSlots = slots, InputQuantity = quantities, OutputSlot = output,
                 OutputQuantity = r.Outputs.Length > 0 ? r.Outputs[0].Quantity : Fix64.Zero,
@@ -166,6 +169,7 @@ public sealed partial class LivingEconomyModel
             });
         }
         _compiledRecipes = compiled.ToArray();
+        _ironRecipes = iron.ToArray();
     }
 
     private int SlotOf(string goodId)
@@ -174,12 +178,15 @@ public sealed partial class LivingEconomyModel
         if (e2 >= 0) return e2;
         for (int g = 0; g < (int)MetalGood.Count; g++)
             if (MetalGoodId((MetalGood)g) == goodId) return MetalSlot((MetalGood)g);
+        for (int g = 0; g < (int)IronGood.Count; g++)
+            if (IronGoodId((IronGood)g) == goodId) return IronSlot((IronGood)g);
         return NoSlot;
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
     {
         if (slot < (int)Good.Count) return s.Stores[slot];
+        if (slot >= IronSlotBase) return s.Metal?.IronGoods is { } iron ? iron[slot - IronSlotBase] : Fix64.Zero;
         int metalSlot = slot - (int)Good.Count;
         if (metalSlot == (int)MetalGood.Ochre && s.Metal is null) return s.SurfaceOchre;
         return s.Metal is { } m ? m.Goods[metalSlot] : Fix64.Zero;
@@ -191,6 +198,11 @@ public sealed partial class LivingEconomyModel
         {
             if (slot == (int)Good.Wood && amount < Fix64.Zero) RecordLocalWoodUse(s, -amount, "metal");
             s.Stores[slot] = Fix64.Max(Fix64.Zero, s.Stores[slot] + amount);
+        }
+        else if (slot >= IronSlotBase)
+        {
+            Fix64[] iron = EnsureMetal(s).IronGoods ??= new Fix64[(int)IronGood.Count];
+            iron[slot - IronSlotBase] = Fix64.Max(Fix64.Zero, iron[slot - IronSlotBase] + amount);
         }
         else
         {

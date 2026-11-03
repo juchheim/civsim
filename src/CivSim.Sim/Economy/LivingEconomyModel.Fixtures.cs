@@ -193,6 +193,8 @@ public sealed partial class LivingEconomyModel
             Fix64 craft = Fix64.Zero;
             return RunRecipe(s, recipe, planned, anyMetalKit: false, ref labor, ref craft);
         }
+        foreach (CompiledRecipe recipe in _ironRecipes)
+            if (recipe.Def.Id == recipeId) return RunIronRecipe(s, recipeId, planned, ref labor);
         throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
     }
 

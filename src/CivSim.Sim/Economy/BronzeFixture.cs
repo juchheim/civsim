@@ -45,6 +45,14 @@ internal sealed class BronzeFixture
 
     public static BronzeFixture Create(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
         bool shaftMining, bool holdPopulation, params string[] extraProjects)
+        => Build(pack, seed, people, coppice, tin, arsenic, shaftMining, holdPopulation, ironChain: false, extraProjects);
+
+    /// <summary>The same settlement in an economy that plays the Iron chapter (docs/MVP/25 §3), with Coppicing, tin and arsenic known.</summary>
+    public static BronzeFixture CreateIron(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, extraProjects);
+
+    private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
+        bool shaftMining, bool holdPopulation, bool ironChain, string[] extraProjects)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -91,6 +99,7 @@ internal sealed class BronzeFixture
         {
             FixtureHoldSettlements = true,
             FixtureHoldPopulation = holdPopulation,
+            IronChain = ironChain,
         };
 
         var projects = new List<string>();

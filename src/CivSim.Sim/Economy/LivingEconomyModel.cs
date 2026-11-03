@@ -880,7 +880,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         int index = command.A;
         if (index < 0 || index >= _completedProjects[command.Civ].Length) return;
         EconomyProject project = _content.Projects[index];
-        if (project.Era <= MaxEra) CompleteProject(command.Civ, index);
+        if (project.Era <= ProjectCeiling) CompleteProject(command.Civ, index);
     }
 
     private void CompleteProject(int civ, int index)
@@ -6062,6 +6062,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(_lastExpectedHazardsByExactAgeAndCause);
         hash.Add(_lastExpectedWinterShortfallByExactAge);
         HashBronze(ref hash);
+        HashIron(ref hash);
         HashDecrees(ref hash);
         return hash.Finish();
     }
@@ -6152,12 +6153,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(d.WinterShortfallHazard.Raw);
         }
         WriteBronze(writer);
+        WriteIron(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra };
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }
@@ -6295,6 +6297,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 starvation, exposure, injury, predators, violence, senescence, winterShortfall));
         }
         ReadBronze(reader);
+        ReadIron(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();

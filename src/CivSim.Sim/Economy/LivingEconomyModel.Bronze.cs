@@ -125,6 +125,8 @@ public sealed partial class LivingEconomyModel
     private sealed class MetalState
     {
         public readonly Fix64[] Goods = new Fix64[(int)MetalGood.Count];
+        /// <summary>The Iron chapter's goods (docs/MVP/25 §4), kept apart from <see cref="Goods"/> so a Bronze checksum and snapshot never see them. Allocated on first use.</summary>
+        public Fix64[]? IronGoods;
         /// <summary>Last season's gross want of each shared good, what sister settlements send toward.</summary>
         public readonly Fix64[] ShareWant = new Fix64[SharedGoods.Length];
         public int Forges;
@@ -789,6 +791,7 @@ public sealed partial class LivingEconomyModel
             ForestAtStart = source.ForestAtStart, FuelShortSeasons = source.FuelShortSeasons,
         };
         Array.Copy(source.Goods, m.Goods, m.Goods.Length);
+        if (source.IronGoods is not null) m.IronGoods = (Fix64[])source.IronGoods.Clone();
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);
         m.MineHeads.AddRange(source.MineHeads);
         return m;
