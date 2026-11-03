@@ -84,7 +84,11 @@ projects:
     status: draft
     requires: [CER-06]
     effects:
-      - {kind: prose, text: "▸ Glass: Blown ×4. Glass becomes common: storage, trade, early windows."}
+      - {kind: good, id: G-BLOWNGLASS}
+      - {kind: rule, text: "The blow_glass recipe outputs 4 G-BLOWNGLASS per batch as the bounded reading of Blown ×4."}
+    practice: [{action: craft, share: 100}]
+    flavor: "The furnace gives sand a clear voice."
+    moment: "A glowing gather twists into a vessel."
   - id: CER-08
     name: "Fired Brick & Tile"
     era: 4
@@ -92,7 +96,12 @@ projects:
     status: draft
     requires: [CER-04, FIR-07]
     effects:
-      - {kind: prose, text: "Good: Fired brick and roof tile. Fire risk in towns −50%; building durability +."}
+      - {kind: good, id: G-FBRICK}
+      - {kind: good, id: G-TILE}
+      - {kind: rule, text: "Town fire risk ×0.5 for the relevant structure; fired-brick/tile structures gain +25% durability."}
+    practice: [{action: clay, share: 100}]
+    flavor: "A fired roof turns sparks aside."
+    moment: "Roof tiles are fitted across the market."
   - id: CER-09
     name: Porcelain
     era: 5

@@ -58,7 +58,7 @@ public sealed class EconomyToolTier
 }
 
 /// <summary>A good's trade facts (docs/MVP/23 §3): category, barter value per unit and, for goods that wear by age, service seasons.</summary>
-public readonly record struct EconomyTradeGood(string Id, string Category, Fix64 Barter, int ServiceSeasons);
+public readonly record struct EconomyTradeGood(string Id, string Category, Fix64 Barter, int ServiceSeasons, int IntroducedEra = 0);
 
 public sealed partial class EconomyContent
 {
@@ -183,7 +183,8 @@ public sealed partial class EconomyContent
         {
             string id = RequiredString(g, "id");
             Fix64 barter = g.Get("barter") is { IsNumber: true } b ? Number(b) : Fix64.Zero;
-            trade.Add(new EconomyTradeGood(id, g.GetString("category") ?? "", barter, ServiceSeasons(g.GetString("durability"))));
+            trade.Add(new EconomyTradeGood(id, g.GetString("category") ?? "", barter,
+                ServiceSeasons(g.GetString("durability")), OptionalInt(g, "introduced_era") ?? 0));
         }
         trade.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
         _tradeGoods = trade.ToArray();
@@ -216,9 +217,12 @@ public sealed partial class EconomyContent
     private ulong ComputeBronzeFingerprint()
     {
         var hash = new StateHasher();
-        hash.Add(_recipes.Length);
+        int bronzeRecipes = 0;
+        foreach (EconomyRecipe recipe in _recipes) if (IsBronzeDefinition(recipe.UnlockedBy)) bronzeRecipes++;
+        hash.Add(bronzeRecipes);
         foreach (EconomyRecipe r in _recipes)
         {
+            if (!IsBronzeDefinition(r.UnlockedBy)) continue;
             hash.Add(Hash64.OfString(r.Id)); hash.Add(r.Order); hash.Add(r.Labor); hash.Add(Hash64.OfString(r.Practice)); hash.Add(r.Bellows);
             hash.Add(r.UnlockedBy.Length); foreach (int u in r.UnlockedBy) hash.Add(u);
             hash.Add(r.Structures.Length); foreach (string s in r.Structures) hash.Add(Hash64.OfString(s));
@@ -231,28 +235,65 @@ public sealed partial class EconomyContent
             hash.Add(r.Outputs.Length);
             foreach (EconomyRecipeOutput output in r.Outputs) { hash.Add(Hash64.OfString(output.Good)); hash.Add(output.Quantity); }
         }
-        hash.Add(_toolTiers.Length);
+        int bronzeToolTiers = 0;
+        foreach (EconomyToolTier tier in _toolTiers) if (IsBronzeDefinition(tier.UnlockedBy)) bronzeToolTiers++;
+        hash.Add(bronzeToolTiers);
         foreach (EconomyToolTier t in _toolTiers)
         {
+            if (!IsBronzeDefinition(t.UnlockedBy)) continue;
             hash.Add(Hash64.OfString(t.Id)); hash.Add(t.Tier); hash.Add(Hash64.OfString(t.Metal)); hash.Add(t.MetalPerKit); hash.Add(t.ServiceWs);
             hash.Add(t.UnlockedBy.Length); foreach (int u in t.UnlockedBy) hash.Add(u);
             hash.Add(t.ModCount);
             for (int i = 0; i < t.ModCount; i++) { hash.Add(Hash64.OfString(t.ModKey(i))); hash.Add(t.ModValue(i)); }
         }
-        hash.Add(_tradeGoods.Length);
+        int bronzeTradeGoods = 0;
+        foreach (EconomyTradeGood good in _tradeGoods) if (good.IntroducedEra <= 3) bronzeTradeGoods++;
+        hash.Add(bronzeTradeGoods);
         foreach (EconomyTradeGood g in _tradeGoods)
-        { hash.Add(Hash64.OfString(g.Id)); hash.Add(Hash64.OfString(g.Category)); hash.Add(g.Barter); hash.Add(g.ServiceSeasons); }
-        hash.Add(_effects.Length);
-        foreach (EconomyEffect e in _effects)
         {
-            hash.Add(e.Span ?? -1); hash.Add(e.Overreach ?? Fix64.FromInt(-1)); hash.Add(e.Radius ?? -1);
-            hash.Add(Hash64.OfString(e.Tier ?? "")); hash.Add(e.MinPop ?? -1); hash.Add(e.ClaimMult ?? Fix64.FromInt(-1));
-            hash.Add(Hash64.OfString(e.RoleId ?? ""));
-            hash.Add(e.Needs?.Length ?? -1);
-            if (e.Needs is not null) foreach (string n in e.Needs) hash.Add(Hash64.OfString(n));
+            if (g.IntroducedEra > 3) continue;
+            hash.Add(Hash64.OfString(g.Id)); hash.Add(Hash64.OfString(g.Category)); hash.Add(g.Barter); hash.Add(g.ServiceSeasons);
+        }
+        // Preserve the legacy effect sequence used by Bronze snapshots. Before WP3 every E4
+        // project compiled to one prose effect; E5+ effects were already present in the old
+        // fingerprint and remain included here. Iron-mode activation will use a separate full
+        // content fingerprint.
+        int legacyEffects = 0;
+        foreach (EconomyProject project in _projects)
+            legacyEffects += project.Era == 4 ? 1 : project.EffectCount;
+        hash.Add(legacyEffects);
+        foreach (EconomyProject project in _projects)
+        {
+            if (project.Era == 4)
+            {
+                // Match the EconomyEffect values produced by the legacy prose-only row.
+                hash.Add(-1); hash.Add(Fix64.FromInt(-1)); hash.Add(-1);
+                hash.Add(Hash64.OfString("")); hash.Add(-1); hash.Add(Fix64.FromInt(-1));
+                hash.Add(Hash64.OfString("")); hash.Add(-1);
+                continue;
+            }
+            for (int i = project.EffectStart; i < project.EffectStart + project.EffectCount; i++)
+            {
+                EconomyEffect e = _effects[i];
+                hash.Add(e.Span ?? -1); hash.Add(e.Overreach ?? Fix64.FromInt(-1)); hash.Add(e.Radius ?? -1);
+                hash.Add(Hash64.OfString(e.Tier ?? "")); hash.Add(e.MinPop ?? -1); hash.Add(e.ClaimMult ?? Fix64.FromInt(-1));
+                hash.Add(Hash64.OfString(e.RoleId ?? ""));
+                hash.Add(e.Needs?.Length ?? -1);
+                if (e.Needs is not null) foreach (string n in e.Needs) hash.Add(Hash64.OfString(n));
+            }
         }
         hash.Add(_constantIds.Length);
         for (int i = 0; i < _constantIds.Length; i++) { hash.Add(Hash64.OfString(_constantIds[i])); hash.Add(_constantValues[i]); }
         return hash.Finish();
     }
+
+    private bool IsBronzeDefinition(int[] unlockedBy)
+    {
+        foreach (int index in unlockedBy)
+            if (IsBronzeProject(index)) return true;
+        return false;
+    }
+
+    private bool IsBronzeProject(int projectIndex)
+        => (uint)projectIndex < (uint)_projects.Length && _projects[projectIndex].Era <= 3;
 }

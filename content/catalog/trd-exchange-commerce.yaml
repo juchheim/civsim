@@ -74,7 +74,11 @@ projects:
     status: draft
     requires: [TRD-05, MET-07]
     effects:
-      - {kind: prose, text: "Money: trade friction −40%; taxes (admin capacity +)."}
+      - {kind: mod, stat: trade_friction, op: mult, value: 0.60}
+      - {kind: admin, span: 1, note: "Tax/coin administration capacity."}
+    practice: [{action: trade, share: 100}]
+    moment: "A stamped coin is weighed at the market."
+    flavor: "A shared mark settles an exchange."
   - id: TRD-07
     name: Long-Distance Trade Routes
     era: 4
@@ -83,7 +87,10 @@ projects:
     requires: [TRD-06]
     requires_any: [HUS-09, SEA-07]
     effects:
-      - {kind: prose, text: "Caravan (overland) or maritime (harbor-to-harbor) trade: route length ×3; Silk-Road / Indian-Ocean–style network."}
+      - {kind: reach, text: "Route range ×3 for caravan or harbor-to-harbor mode; only available mode is active; no free cargo, route or import."}
+    practice: [{action: trade, share: 100}]
+    moment: "A caravan and ship exchange cargo at a distant port."
+    flavor: "A chain of routes joins far markets."
   - id: TRD-08
     name: Banking
     era: 5

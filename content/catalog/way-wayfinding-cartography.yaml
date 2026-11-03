@@ -74,7 +74,10 @@ projects:
     status: draft
     requires: [WAY-05, COM-07]
     effects:
-      - {kind: prose, text: "Written route guides: trade route efficiency +25%."}
+      - {kind: mod, stat: trade_route_efficiency, op: mult, value: 1.25, note: "Guides require known path and ports."}
+    practice: [{action: scout, share: 100}]
+    moment: "A pilot marks bearings in a written itinerary."
+    flavor: "A coast can be followed by name and measure."
   - id: WAY-07
     name: Grid Cartography
     era: 4
@@ -82,7 +85,11 @@ projects:
     status: draft
     requires: [WAY-06, NUM-07, LRN-05]
     effects:
-      - {kind: prose, text: "Coordinate maps: Reveal: coastline outlines of the known world; Beacon range +."}
+      - {kind: reveal, text: "Coastline outlines of the known world only; no unexplored interior."}
+      - {kind: rule, text: "Beacon range +2 tiles."}
+    practice: [{action: scout, share: 100}]
+    moment: "A coastline is drawn onto a gridded chart."
+    flavor: "The map gives the shore a measured form."
   - id: WAY-08
     name: Magnetic Compass
     era: 5

@@ -85,7 +85,11 @@ projects:
     status: draft
     requires: [WAR-05, GOV-07]
     effects:
-      - {kind: prose, text: "Role: Soldier. Standing army: drilled units ×1.5; garrisons hold claims."}
+      - {kind: role, id: soldier, note: "Base ceiling 10% of adults; standing role requires staffing, training and supply."}
+      - {kind: combat, text: "Professional training replaces ordinary multiplier with ×1.5; garrison claims require staffing and supply."}
+    practice: [{action: guard, share: 100}]
+    moment: "Recruits drill in a common formation."
+    flavor: "Practice makes a standing force."
   - id: WAR-08
     name: Iron Weapons
     era: 4
@@ -93,7 +97,11 @@ projects:
     status: draft
     requires: [WAR-07, MET-09]
     effects:
-      - {kind: prose, text: "Cheap iron arms: army size cap ×2."}
+      - {kind: good, id: G-ARMS3}
+      - {kind: combat, text: "Soldier capacity ceiling rises from 10% to 20% of adults; iron weapon strength 2.4; MET-10 steel edge raises it once to 3.0 (×1.25)."}
+    practice: [{action: fight, share: 100}]
+    moment: "An iron sword is issued beside a ration."
+    flavor: "More people can be equipped if the state can supply them."
   - id: WAR-09
     name: Siege Engines
     era: 4
@@ -101,7 +109,11 @@ projects:
     status: draft
     requires: [WAR-07, MEC-05]
     effects:
-      - {kind: prose, text: "Assault walls: siege time −60%."}
+      - {kind: good, id: G-ENGINE}
+      - {kind: combat, text: "Supplied engine assault reduces matched siege duration to ×0.40; requires engine, crew, transport, supply and time."}
+    practice: [{action: guard, share: 100}]
+    moment: "A counterweighted arm throws a stone against a wall."
+    flavor: "A wall now has a measured weakness."
   - id: WAR-10
     name: Heavy Cavalry
     era: 5

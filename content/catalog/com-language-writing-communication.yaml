@@ -88,7 +88,11 @@ projects:
     status: draft
     requires: [COM-06]
     effects:
-      - {kind: prose, text: "Literacy easy to learn: scribes ×2; Commons Insight +5%."}
+      - {kind: mod, stat: scribe_learning_output, op: mult, value: 2}
+      - {kind: mod, stat: commons_insight, op: mult, value: 1.05}
+    practice: [{action: scribe, share: 100}]
+    moment: "A learner writes a sound with one letter."
+    flavor: "A smaller script carries more speech."
   - id: COM-08
     name: Courier Relays
     era: 4
@@ -96,7 +100,11 @@ projects:
     status: draft
     requires: [COM-07, TRN-07]
     effects:
-      - {kind: prose, text: "Postal relays on roads: Overreach −20%; adoption across distance ×2."}
+      - {kind: admin, overreach: 0.20}
+      - {kind: adopt, mult: 2}
+    practice: [{action: scribe, share: 100}]
+    moment: "A courier changes horses at a road station."
+    flavor: "A message arrives before a traveler."
   - id: COM-09
     name: Paper
     era: 5

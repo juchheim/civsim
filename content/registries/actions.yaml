@@ -38,3 +38,7 @@ actions:
   - {id: marine_hunt, name: Marine hunt, class: activity, base_rate: 4, unit: R/ws}
   - {id: tame_horses, name: Tame horses, class: activity, base_rate: 1, unit: animals/ws}
   - {id: reel_silk, name: Reel silk, class: activity, base_rate: 0.1, unit: L/ws}
+  # E4 Iron additions (docs/MVP/26 §3.1).
+  - {id: siege_assault, name: Engine assault, class: activity, introduced_era: 4}
+  - {id: naval_blockade, name: Harbor blockade, class: activity, introduced_era: 4}
+  - {id: till, name: Till, class: family, introduced_era: 4}

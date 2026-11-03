@@ -103,8 +103,8 @@ public class ContentGoldenTests
     public void Method_ladders_are_collected_from_project_effects()
     {
         var ladders = Validator.Ladders(Set);
-        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 6 }, ladders["chop"].Select(r => r.Rung)); // rung 6 by MET-04 or MET-05
-        Assert.Equal(new[] { "STN-01", "STN-02", "STN-04", "STN-08", "MET-03", "MET-04", "MET-05" }, ladders["chop"].Select(r => r.Project.Id));
+        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 6, 7 }, ladders["chop"].Select(r => r.Rung)); // rung 6 by MET-04 or MET-05; E4 rung 7 by MET-09
+        Assert.Equal(new[] { "STN-01", "STN-02", "STN-04", "STN-08", "MET-03", "MET-04", "MET-05", "MET-09" }, ladders["chop"].Select(r => r.Project.Id));
         Assert.Equal(new[] { 1, 2 }, ladders["mine"].Select(r => r.Rung));
         Assert.Equal(new[] { 1, 2, 3, 4, 5 }, ladders["hunt"].Select(r => r.Rung));
         Assert.Equal(new[] { 1, 2, 3, 4 }, ladders["forage"].Select(r => r.Rung));

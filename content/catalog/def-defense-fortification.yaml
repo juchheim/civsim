@@ -70,7 +70,12 @@ projects:
     status: draft
     requires: [DEF-05, MEC-04]
     effects:
-      - {kind: prose, text: "Wall defense +50%; controlled gates (trade not disrupted in wartime)."}
+      - {kind: build, structure: gatehouse}
+      - {kind: defense, structure: stone_walls, mult: 1.5}
+      - {kind: rule, text: "Friendly trade may pass a controlled open gate in wartime."}
+    practice: [{action: build, share: 100}]
+    moment: "A watchman signals from a new tower."
+    flavor: "The gate can close without closing the market."
   - id: DEF-07
     name: Frontier Walls
     era: 4
@@ -78,7 +83,12 @@ projects:
     status: draft
     requires: [DEF-06, TER-08]
     effects:
-      - {kind: prose, text: "Build: Border wall segments. Border tiles resist flips −50%; raids across walls −70%."}
+      - {kind: build, structure: frontier_wall_segment}
+      - {kind: claim, text: "Border flips ×0.5 only across a built segment."}
+      - {kind: combat, text: "Raid success ×0.3 only across a built segment."}
+    practice: [{action: build, share: 100}]
+    moment: "Masonry joins two boundary markers."
+    flavor: "A border becomes a line that can be held."
   - id: DEF-08
     name: Castle Building
     era: 4
@@ -86,7 +96,11 @@ projects:
     status: draft
     requires: [DEF-06, BLD-09]
     effects:
-      - {kind: prose, text: "Build: Castle. Holds a region (claim radius 5, strong); garrisons. *KEY-5 prerequisite.*"}
+      - {kind: build, structure: castle}
+      - {kind: claim, text: "Strong claim anchor, radius 5 under existing rules; garrison required."}
+    practice: [{action: build, share: 100}]
+    moment: "A keep rises above the river crossing."
+    flavor: "A fortified seat holds the surrounding road."
   - id: DEF-09
     name: Concentric Castles
     era: 5

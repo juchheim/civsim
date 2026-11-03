@@ -57,7 +57,11 @@ projects:
     status: draft
     requires: [MED-04, COM-07]
     effects:
-      - {kind: prose, text: "Codified medicine: all MED effects +15%; Role: Physician."}
+      - {kind: mod, stat: eligible_med_effect_magnitudes, op: mult, value: 1.15, note: "no cascade"}
+      - {kind: role, id: physician}
+    practice: [{action: heal, share: 100}]
+    flavor: "Practice becomes a text others can learn."
+    moment: "A physician copies a treatment onto a tablet."
   - id: MED-06
     name: "Baths & Latrines"
     era: 4
@@ -65,7 +69,11 @@ projects:
     status: draft
     requires: [MED-05, BLD-10]
     effects:
-      - {kind: prose, text: "Build: Bathhouse, latrines. Density disease −25%."}
+      - {kind: build, structure: bathhouse}
+      - {kind: mod, stat: local_density_disease_pressure, op: mult, value: 0.75}
+    practice: [{action: heal, share: 100}]
+    flavor: "Clean water enters; waste leaves."
+    moment: "Water runs past bathers into covered drains."
   - id: MED-07
     name: Hospitals
     era: 5

@@ -123,7 +123,11 @@ projects:
     requires: [HUS-07]
     gates: [{kind: seen, target: Camels or Llamas}]
     effects:
-      - {kind: prose, text: "Desert and mountain caravans: trade range across deserts ×3."}
+      - {kind: reach, text: "caravan_desert_mult:3"}
+      - {kind: rule, text: "enables pack-animal caravan jobs only with available animals/crew"}
+    practice: [{action: herd, share: 100}]
+    flavor: "The caravan crosses ground carts cannot."
+    moment: "A loaded camel crosses a dry pass."
   - id: HUS-10
     name: Selective Breeding
     era: 5

@@ -101,7 +101,10 @@ projects:
     status: draft
     requires: [AGR-06, STN-11]
     effects:
-      - {kind: prose, text: "Build: Terraces. Hills and mountains become farmland."}
+      - {kind: build, structure: terrace, note: "one farmable plot on eligible hill/mountain tile; materials paid"}
+    practice: [{action: farm, share: 100}]
+    flavor: "The hillside holds a field."
+    moment: "A retaining wall makes a level strip on the slope."
   - id: AGR-09
     name: "Iron Sickle & Scythe"
     era: 4
@@ -109,7 +112,10 @@ projects:
     status: draft
     requires: [AGR-05, MET-09]
     effects:
-      - {kind: prose, text: "▸ Harvest: Scythe ×2."}
+      - {kind: method, action: farm, rung: 4, name: iron_scythe, mult: 2.0, tool: t11, stage: harvest, note: "crop output only; no population-food grant"}
+    practice: [{action: farm, share: 100}]
+    flavor: "One stroke gathers what many hands once cut."
+    moment: "A curved iron blade sweeps through ripe grain."
   - id: AGR-10
     name: Heavy Plough
     era: 4
@@ -117,7 +123,11 @@ projects:
     status: draft
     requires: [AGR-09, NRG-02]
     effects:
-      - {kind: prose, text: "▸ Till: Mouldboard. Heavy clay soils (temperate forest biomes) become prime farmland. *KEY-5 prerequisite.*"}
+      - {kind: method, action: till, rung: 1, name: mouldboard, mult: 1.0, note: "heavy-clay eligibility changes; no universal output bonus"}
+      - {kind: rule, text: "heavy-clay temperate-forest plot becomes prime farmland; KEY-5 prerequisite; no universal output bonus"}
+    practice: [{action: farm, share: 100}]
+    flavor: "The heavy ground opens to seed."
+    moment: "A mouldboard turns thick soil aside."
   - id: AGR-11
     name: Three-Field Rotation
     era: 5

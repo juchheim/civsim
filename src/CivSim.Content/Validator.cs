@@ -41,6 +41,7 @@ public static class Validator
         CheckCapTargets(set, report);
         CheckHazardCoverage(set, report);
         CheckHasGatesAndDecrees(set, report);
+        CheckE4DraftScope(set, report);
 
         if (cycle is null && !report.HasErrorsOf("V2"))
         {
@@ -416,11 +417,12 @@ public static class Validator
     // ---- V12 registry completeness ----------------------------------------------------------------
     private static void CheckRegistryCompleteness(ContentSet set, Report report)
     {
-        HashSet<string> goods = set.Reg("goods").Ids(), structures = set.Reg("structures").Ids(), roles = set.Reg("roles").Ids(), actions = set.Reg("actions").Ids();
+        HashSet<string> goods = set.Reg("goods").Ids(), structures = set.Reg("structures").Ids(), roles = set.Reg("roles").Ids(), actions = set.Reg("actions").Ids(), tools = set.Reg("tools").Ids();
         var usedGoods = new HashSet<string>(StringComparer.Ordinal);
         var usedStructures = new HashSet<string>(StringComparer.Ordinal);
         var usedRoles = new HashSet<string>(StringComparer.Ordinal);
         var usedActions = new HashSet<string>(StringComparer.Ordinal);
+        var usedTools = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (Project p in set.Projects)
             foreach (Effect e in p.Effects)
@@ -441,12 +443,27 @@ public static class Validator
                     case "tier":
                         foreach (string need in e.Map.GetStringList("needs")) Need(structures, usedStructures, "structure", need);
                         break;
-                    case "unlock_action": case "method": Need(actions, usedActions, "action", e.Str("action")); break;
+                    case "unlock_action": Need(actions, usedActions, "action", e.Str("action")); break;
+                    case "method":
+                        Need(actions, usedActions, "action", e.Str("action"));
+                        Need(tools, usedTools, "tool", e.Str("tool"));
+                        break;
                     case "unlock":
                         if (e.Str("project") is { } pid && !set.ById.ContainsKey(pid)) report.Error("V2", at, $"{p.Id}: unlock refers to unknown project {pid}");
                         break;
                 }
             }
+
+        // E4 introduces separate system-job practice rows for activities such as siege_assault.
+        // A mapped Know-how activity is a real E4 draft reference even when it is not a project's
+        // research-practice action. Keep this limited to activities mapped to an E4 draft lineage.
+        foreach (ContentValue a in set.Reg("practice").Records)
+        {
+            string id = a.GetString("id") ?? "";
+            if (!actions.Contains(id)) continue;
+            if (set.Projects.Any(p => p.Era == 4 && p.Status == "draft" && a.Get("knowhow")?.Get(p.Lineage) is not null))
+                usedActions.Add(id);
+        }
 
         void Unused(string registry, HashSet<string> used, Func<ContentValue, bool> relevant)
         {
@@ -519,6 +536,29 @@ public static class Validator
         }
     }
 
+    // ---- V21 E4 draft integrity -------------------------------------------------------------------
+    // E4 data is being typed before runtime activation. Keep every E4 catalog node inert until WP5
+    // establishes mode-aware live and forecast eligibility.
+    private static void CheckE4DraftScope(ContentSet set, Report report)
+    {
+        foreach (Project p in set.Projects.Where(p => p.Era == 4))
+        {
+            if (p.Status != "draft")
+                report.Error("V21", At(p), $"{p.Id}: E4 projects must remain status: draft until WP5 mode-aware eligibility is implemented");
+            if (set.CostOf(p) is null)
+                report.Error("V21", At(p), $"{p.Id}: E4 draft has no computed cost");
+            if (p.Effects.Count == 0)
+                report.Error("V21", At(p), $"{p.Id}: E4 draft needs at least one typed effect");
+            foreach (Effect e in p.Effects)
+                if (e.Kind == EffectSpecs.Prose)
+                    report.Error("V21", $"{p.File}:{e.Line}", $"{p.Id}: E4 draft effects must be typed; prose effects are not allowed");
+            if (string.IsNullOrWhiteSpace(p.Flavor))
+                report.Error("V21", At(p), $"{p.Id}: E4 draft needs flavor text");
+            if (string.IsNullOrWhiteSpace(p.Moment))
+                report.Error("V21", At(p), $"{p.Id}: E4 draft needs Moment text");
+        }
+    }
+
     // ---- V13 costs --------------------------------------------------------------------------------
     private static void CheckCosts(ContentSet set, Report report)
     {
@@ -554,7 +594,8 @@ public static class Validator
         HashSet<string> actions = practice.Ids();
         foreach (Project p in set.Projects)
         {
-            if (p.Status == "draft" || p.IsKeystone) continue;
+            bool e4Draft = p.Era == 4;
+            if ((p.Status == "draft" && !e4Draft) || (p.IsKeystone && !e4Draft)) continue;
             if (p.Practice.Count == 0) { report.Error("V14", At(p), $"{p.Id} ({p.Status}) has no practice"); continue; }
             int sum = p.Practice.Sum(x => x.Share);
             if (sum != 100) report.Error("V14", At(p), $"{p.Id}: practice shares sum to {sum}, not 100");
@@ -564,7 +605,15 @@ public static class Validator
                 if (!actions.Contains(s.Action)) { report.Error("V14", At(p), $"{p.Id}: practice action '{s.Action}' is not in the practice registry"); continue; }
                 if (practice.Find(s.Action)?.Get("knowhow")?.Get(p.Lineage) is not null) feeds = true;
             }
-            if (!feeds) Warn(report, p, "V14", $"{p.Id}: none of its practice actions feeds its own lineage {p.Lineage}");
+            if (!feeds)
+            {
+                string message = $"{p.Id}: none of its practice actions feeds its own lineage {p.Lineage}";
+                if (e4Draft)
+                {
+                    if (!p.IsKeystone) report.Error("V14", At(p), message);
+                }
+                else Warn(report, p, "V14", message);
+            }
         }
     }
 
@@ -573,7 +622,7 @@ public static class Validator
     {
         foreach (Project p in set.Projects)
         {
-            if (p.Status == "draft") continue;
+            if (p.Status == "draft" && p.Era != 4) continue;
             if (string.IsNullOrWhiteSpace(p.Flavor)) report.Error("V17", At(p), $"{p.Id} ({p.Status}) has no flavor line");
             if (p.Era <= 4 && string.IsNullOrWhiteSpace(p.Moment)) report.Error("V17", At(p), $"{p.Id} (era {p.Era}) has no moment text");
         }

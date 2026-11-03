@@ -152,7 +152,11 @@ projects:
     status: draft
     requires: [STN-11, MET-09]
     effects:
-      - {kind: prose, text: "Iron chisels: +40% stone build speed. Unlocks classical colonnades (Theatre, Temple tier 2)."}
+      - {kind: mod, stat: stone_build_labor, op: mult, value: 0.6, note: "Stone construction labor; 40% faster."}
+      - {kind: unlock, text: "Unlock classical colonnade and Temple tier 2 options."}
+    practice: [{action: knap, share: 100}]
+    flavor: "Stone takes a cleaner line."
+    moment: "An iron chisel squares a column drum."
   - id: STN-13
     name: Master Masons
     era: 5

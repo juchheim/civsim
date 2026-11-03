@@ -97,7 +97,12 @@ projects:
     status: draft
     requires: [ART-07, BLD-09]
     effects:
-      - {kind: prose, text: "Build: Theatre or arena. City Cohesion +15%; unrest −."}
+      - {kind: build, structure: theatre_arena}
+      - {kind: cohesion, value: 15, scope: local_city}
+      - {kind: mod, stat: unrest_pressure, op: pct, value: -0.10}
+    practice: [{action: tell_stories, share: 100}]
+    flavor: "A city sees itself on the stage."
+    moment: "A chorus speaks beneath a stone arch."
   - id: ART-09
     name: Illuminated Manuscripts
     era: 5

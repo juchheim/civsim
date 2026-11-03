@@ -85,7 +85,10 @@ projects:
     status: draft
     requires: [MIN-05, MEC-05]
     effects:
-      - {kind: prose, text: "Archimedes' screw and bucket wheels: flooded deposits usable; depth tier 2."}
+      - {kind: rule, text: "Mine depth 2 with flooded-deposit access. Each flooded deposit requires a drainage installation (1 G-WOOD + 0.2 G-CHAR, 2 ws) and upkeep of 0.1 G-CHAR per season while staffed; no new deposit is created."}
+    practice: [{action: mine, share: 100}]
+    flavor: "The mine descends beyond the waterline."
+    moment: "A screw lifts pooled water from a lower gallery."
   - id: MIN-08
     name: Mine Surveying
     era: 5

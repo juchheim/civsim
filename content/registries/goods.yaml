@@ -96,3 +96,20 @@ goods:
   - {id: G-DYEDCLOTH, name: Dyed cloth, category: luxury, first_from: [FIB-08], durability: durable, load: 0.2, barter: 8}
   - {id: G-SILK, name: Silk, category: luxury, first_from: [FIB-09], durability: durable, load: 0.1, barter: 25}
   - {id: G-FINEBRONZE, name: Fine bronze, category: luxury, first_from: [MET-06], durability: durable, load: 0.3, barter: 30}
+  # E4 Iron additions (docs/MVP/26 §2.1); draft content, values provisional.
+  - {id: G-WROUGHT, name: Forged wrought iron, category: metal, first_from: [MET-09], durability: durable, load: 1, barter: 18, introduced_era: 4}
+  - {id: G-STEEL, name: Carburized steel edge stock, category: metal, first_from: [MET-10], durability: durable, load: 1, barter: 30, introduced_era: 4}
+  - {id: G-TOOL11, name: Wrought iron tool kit (T11), category: tool, first_from: [MET-09], durability: 24 tool-ws, load: 0.3, barter: 14, introduced_era: 4}
+  - {id: G-TOOL12, name: Tempered steel-edge kit (T12), category: tool, first_from: [MET-10], durability: 48 tool-ws, load: 0.3, barter: 24, introduced_era: 4}
+  - {id: G-ARMS3, name: Iron arms, category: arms, first_from: [WAR-08], durability: 24 seasons, load: 0.5, barter: 18, introduced_era: 4}
+  - {id: G-ARMS4, name: Tempered-edge arms, category: arms, first_from: [MET-10], durability: 48 seasons, load: 0.5, barter: 30, introduced_era: 4}
+  - {id: G-FBRICK, name: Fired brick, category: material, first_from: [CER-08], durability: durable, load: 1, barter: 0.4, introduced_era: 4}
+  - {id: G-TILE, name: Roof tile, category: material, first_from: [CER-08], durability: durable, load: 1, barter: 0.6, introduced_era: 4}
+  - {id: G-PLANK, name: Saw-cut plank, category: material, first_from: [WOD-08], durability: durable, load: 0.5, barter: 0.5, introduced_era: 4}
+  - {id: G-BLOWNGLASS, name: Blown glass, category: processed, first_from: [CER-07], durability: durable, load: 0.2, barter: 16, introduced_era: 4}
+  - {id: G-BARREL, name: Barrel, category: container, first_from: [WOD-07], durability: 40 seasons, load: 0.4, barter: 4, introduced_era: 4}
+  - {id: G-GRAPE, name: Grapes, category: food, first_from: [FOR-08], spoilage: 0.2, load: 0.5, barter: 1, introduced_era: 4}
+  - {id: G-OLIVE, name: Olives, category: food, first_from: [FOR-08], spoilage: 0.1, load: 0.5, barter: 1, introduced_era: 4}
+  - {id: G-WINE, name: Wine, category: food, first_from: [FOR-08], spoilage: 0.2, load: 0.5, barter: 3, introduced_era: 4}
+  - {id: G-OILPLANT, name: Pressed olive oil, category: food, first_from: [FOR-08], spoilage: 0.1, load: 0.5, barter: 3, introduced_era: 4}
+  - {id: G-ENGINE, name: Counterweighted siege engine, category: tool, first_from: [WAR-09], durability: 12 seasons, load: 0, barter: 12, introduced_era: 4}

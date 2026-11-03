@@ -124,7 +124,10 @@ projects:
     status: draft
     requires: [SOC-09, GOV-06]
     effects:
-      - {kind: prose, text: "Shared civic identity: Cohesion decays 50% slower with distance from capital."}
+      - {kind: mod, stat: distance_contribution_to_cohesion_decay, op: mult, value: 0.5}
+    practice: [{action: socialize, share: 100}]
+    flavor: "Belonging reaches beyond the household."
+    moment: "A newcomer receives a civic token."
   - id: SOC-11
     name: Guilds
     era: 5

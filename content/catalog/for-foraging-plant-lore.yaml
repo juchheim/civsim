@@ -104,7 +104,11 @@ projects:
     status: draft
     requires: [FOR-07, MET-09]
     effects:
-      - {kind: prose, text: "Orchard yield ×2; wine and oil trade goods."}
+      - {kind: mod, stat: orchard_output, op: mult, value: 2, note: "grafted orchard jobs only"}
+      - {kind: rule, text: "unlocks wine/oil goods from actual produce and MEC-05 press recipe"}
+    practice: [{action: farm, share: 100}]
+    flavor: "Two harvests grow from a practiced branch."
+    moment: "A graft is bound into a fruit tree."
   - id: FOR-09
     name: "Herbals & Botanical Gardens"
     era: 6

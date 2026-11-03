@@ -116,7 +116,10 @@ projects:
     status: draft
     requires: [BLD-07, CER-08]
     effects:
-      - {kind: prose, text: "Spans without timber: bridges, aqueducts, large halls."}
+      - {kind: rule, text: "Enable bridge, aqueduct, and large-hall spans without timber support; construction materials and labor are still paid."}
+    practice: [{action: build, share: 100}]
+    flavor: "The arch carries what the forest cannot."
+    moment: "Stones lock over a timberless span."
   - id: BLD-10
     name: Aqueducts
     era: 4
@@ -124,7 +127,11 @@ projects:
     status: draft
     requires: [BLD-09, NUM-07]
     effects:
-      - {kind: prose, text: "Build: Aqueduct. City population cap +40% (water), disease −15%."}
+      - {kind: build, structure: aqueduct}
+      - {kind: rule, text: "In a served city, water-limited effective city cap +40% and disease term ×0.85."}
+    practice: [{action: build, share: 100}]
+    flavor: "A distant spring enters the city."
+    moment: "Water pours into a channel above the roofs."
   - id: BLD-11
     name: "Concrete & Domes"
     era: 4
@@ -132,7 +139,11 @@ projects:
     status: draft
     requires: [BLD-09, CHM-03]
     effects:
-      - {kind: prose, text: "Roman concrete: build speed +30%; harbor and dome construction. Wonder: Great Dome (unlocked here, built later)."}
+      - {kind: mod, stat: build_labor, op: pct, value: -0.23077, note: "Eligible construction work; equivalent to ×1.3 speed."}
+      - {kind: unlock, text: "Unlock concrete large-span construction and a dome build option; Great Dome construction is deferred per Q7. SEA-07 separately unlocks harbor use and construction."}
+    practice: [{action: build, share: 100}]
+    flavor: "Stone takes the shape of the sky."
+    moment: "A concrete vault holds after its wooden frame is removed."
   - id: BLD-12
     name: Gothic Cathedral
     era: 5

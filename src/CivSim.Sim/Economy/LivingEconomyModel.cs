@@ -6615,27 +6615,60 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(content.Projects.Length);
         foreach (EconomyProject project in content.Projects)
         { hash.Add(project.Index); hash.Add(Hash64.OfString(project.Id)); hash.Add(project.Era); hash.Add(project.EnterEra); }
-        hash.Add(content.Effects.Length);
-        foreach (EconomyEffect effect in content.Effects)
+        // The legacy Bronze fingerprint represents each E4 draft project by its original single prose
+        // placeholder, so typing draft effects does not alter old checksums. Iron activation needs a
+        // separate full-content fingerprint before any E4 effect can run.
+        int bronzeEffectCount = 0;
+        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era == 4 ? 1 : project.EffectCount;
+        hash.Add(bronzeEffectCount);
+        foreach (EconomyProject project in content.Projects)
         {
-            hash.Add(effect.ProjectIndex); hash.Add(Hash64.OfString(effect.Kind));
-            hash.Add(Hash64.OfString(effect.Action ?? "")); hash.Add(Hash64.OfString(effect.Stat ?? ""));
-            hash.Add(Hash64.OfString(effect.Operation ?? "")); hash.Add(Hash64.OfString(effect.Cap ?? ""));
-            hash.Add(Hash64.OfString(effect.Good ?? "")); hash.Add(Hash64.OfString(effect.Structure ?? ""));
-            hash.Add(Hash64.OfString(effect.Cause ?? "")); hash.Add(Hash64.OfString(effect.Scope ?? ""));
-            AddOptional(ref hash, effect.Rung); AddOptional(ref hash, effect.Value); AddOptional(ref hash, effect.Mult);
-            AddOptional(ref hash, effect.Take); AddOptional(ref hash, effect.Rate); hash.Add(Hash64.OfString(effect.Unit ?? ""));
+            if (project.Era == 4)
+            {
+                AddEffectFingerprint(ref hash, project.Index, "prose");
+                continue;
+            }
+            for (int i = project.EffectStart; i < project.EffectStart + project.EffectCount; i++)
+            {
+                EconomyEffect effect = content.Effects[i];
+                AddEffectFingerprint(ref hash, effect.ProjectIndex, effect.Kind, effect.Action, effect.Stat,
+                    effect.Operation, effect.Cap, effect.Good, effect.Structure, effect.Cause, effect.Scope,
+                    effect.Rung, effect.Value, effect.Mult, effect.Take, effect.Rate, effect.Unit);
+            }
         }
-        hash.Add(content.Actions.Length);
+        int bronzeActionCount = 0;
+        foreach (EconomyAction action in content.Actions) if (action.IntroducedEra <= 3) bronzeActionCount++;
+        hash.Add(bronzeActionCount);
         foreach (EconomyAction action in content.Actions)
         {
+            if (action.IntroducedEra > 3) continue;
             hash.Add(Hash64.OfString(action.Id)); AddOptional(ref hash, action.BaseRate);
             hash.Add(Hash64.OfString(action.Unit ?? ""));
         }
-        hash.Add(content.Goods.Length);
+        int bronzeGoodCount = 0;
+        foreach (EconomyGood good in content.Goods) if (good.IntroducedEra <= 3) bronzeGoodCount++;
+        hash.Add(bronzeGoodCount);
         foreach (EconomyGood good in content.Goods)
-        { hash.Add(Hash64.OfString(good.Id)); hash.Add(good.Spoilage); }
+        {
+            if (good.IntroducedEra > 3) continue;
+            hash.Add(Hash64.OfString(good.Id)); hash.Add(good.Spoilage);
+        }
         return hash.Finish();
+    }
+
+    private static void AddEffectFingerprint(ref StateHasher hash, int projectIndex, string kind,
+        string? action = null, string? stat = null, string? operation = null, string? cap = null,
+        string? good = null, string? structure = null, string? cause = null, string? scope = null,
+        int? rung = null, Fix64? value = null, Fix64? mult = null, Fix64? take = null, Fix64? rate = null,
+        string? unit = null)
+    {
+        hash.Add(projectIndex); hash.Add(Hash64.OfString(kind));
+        hash.Add(Hash64.OfString(action ?? "")); hash.Add(Hash64.OfString(stat ?? ""));
+        hash.Add(Hash64.OfString(operation ?? "")); hash.Add(Hash64.OfString(cap ?? ""));
+        hash.Add(Hash64.OfString(good ?? "")); hash.Add(Hash64.OfString(structure ?? ""));
+        hash.Add(Hash64.OfString(cause ?? "")); hash.Add(Hash64.OfString(scope ?? ""));
+        AddOptional(ref hash, rung); AddOptional(ref hash, value); AddOptional(ref hash, mult);
+        AddOptional(ref hash, take); AddOptional(ref hash, rate); hash.Add(Hash64.OfString(unit ?? ""));
     }
 
     private static void AddOptional(ref StateHasher hash, int? value)
