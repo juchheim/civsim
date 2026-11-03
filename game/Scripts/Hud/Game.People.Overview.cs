@@ -612,7 +612,7 @@ public partial class Game
             int housingCap = DiagnosisEngine.Whole(frame.SettlementEcon[econ + EconField.HousingCap]);
             int cap = Math.Min(foodCap, housingCap);
             int fs = (int)frame.SettlementEcon[econ + EconField.FoodSecurityPermille];
-            UiKit.SetText(cells[0], $"Settlement {frame.SettlementIndex[w] + 1}");
+            UiKit.SetText(cells[0], SettlementLabel(frame.SettlementIndex[w]));
             UiKit.SetText(cells[1], pop.ToString("N0"));
             UiKit.SetText(cells[2], has ? $"{Math.Min(100, fs / 10)}%" : "—");
             SetTone(cells[2], fs < 700 ? UiTokens.Danger : fs < 900 ? UiTokens.Warning : UiTokens.TextPrimary);

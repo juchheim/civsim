@@ -19,6 +19,9 @@ public partial class Game
     private Label? _tileScoutStatus;
     private readonly Button[] _tileScoutButtons = new Button[4];
     private UiButton? _tileClose;
+    private Control? _tileRenameRow;
+    private LineEdit? _tileRename;
+    private int _tileRenameBound = -1;
     private Vector2 _hoverScreen;
     private int _hoverTile = -1;
     private float _hoverRest, _tileRefreshClock;
@@ -42,6 +45,22 @@ public partial class Game
         _tileClose.Visible = false;
         top.AddChild(_tileClose);
         column.AddChild(top);
+        var rename = UiKit.Row(UiTokens.Sp1);
+        _tileRename = new LineEdit
+        {
+            PlaceholderText = "Name this settlement",
+            MaxLength = MaxSettlementNameLength,
+            SelectAllOnFocus = true,
+            TooltipText = "Rename this settlement (Enter to confirm, empty to restore the default name)",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, UiTokens.ControlS),
+        };
+        _tileRename.TextSubmitted += _ => CommitSettlementRename();
+        rename.AddChild(_tileRename);
+        rename.AddChild(UiKit.Secondary("Rename", CommitSettlementRename, "Save this settlement's name", UiGlyph.None, UiTokens.ControlS));
+        _tileRenameRow = rename;
+        _tileRenameRow.Visible = false;
+        column.AddChild(rename);
         _tileFeatures = UiKit.Text("", "Caption", wrap: true, minWidth: 296);
         column.AddChild(_tileFeatures);
         _tileBeaconPreview = UiKit.Text("", "Caption", wrap: true, minWidth: 296);
@@ -160,6 +179,7 @@ public partial class Game
         WorldView world = _session.WorldView;
         TileVisibility visibility = (TileVisibility)frame.Visibility[tile];
         _tileScoutRow!.Visible = false;
+        _tileRenameRow!.Visible = false;
         _tileBeaconPreview!.Visible = _beaconMode;
         if (_beaconMode && TryGetOwnBeaconIndex(tile, out _))
             UiKit.SetText(_tileBeaconPreview, "Your Beacon is here · click to remove it.");
@@ -185,7 +205,11 @@ public partial class Game
         string ownerText = owner < 0
             ? (visibility == TileVisibility.Explored ? "unclaimed when last seen" : "unclaimed")
             : owner == frame.ViewerCiv ? "Yours" : CivLabel(frame, owner);
-        UiKit.SetText(_tileTitle!, $"{terrain} · {ownerText}");
+        int ownSettlement = FindOwnSettlementAt(frame, tile);
+        UiKit.SetText(_tileTitle!, ownSettlement >= 0
+            ? $"{SettlementLabel(ownSettlement)} · {terrain} · {ownerText}"
+            : $"{terrain} · {ownerText}");
+        RefreshRenameRow(ownSettlement, pinned);
         if (_beaconMode && !TryGetOwnBeaconIndex(tile, out _))
             UiKit.SetText(_tileBeaconPreview!, BeaconPreviewText(frame, tile));
 
@@ -240,8 +264,46 @@ public partial class Game
         }
         bool showHint = !pinned && !shift && _tileHintsShown < 12;
         _tileHint!.Visible = showHint;
-        if (showHint) { UiKit.SetText(_tileHint, "Hold Shift for more · Click to pin"); if (_cardTile != tile) _tileHintsShown++; }
+        if (showHint) { UiKit.SetText(_tileHint, ownSettlement >= 0 ? "Hold Shift for more · Click to pin and rename" : "Hold Shift for more · Click to pin"); if (_cardTile != tile) _tileHintsShown++; }
         PositionTileCard(screen);
+    }
+
+    /// <summary>The viewer's own live settlement on <paramref name="tile"/> (its sim index), or -1.</summary>
+    private static int FindOwnSettlementAt(MatchFrame frame, int tile)
+    {
+        if (frame.ViewerCiv < 0) return -1;
+        for (int s = 0; s < frame.SettlementCount; s++)
+        {
+            SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[s];
+            if (frame.SettlementTile[s] == tile && frame.SettlementCiv[s] == frame.ViewerCiv &&
+                (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) == SettlementViewFlags.Own)
+                return frame.SettlementIndex[s];
+        }
+        return -1;
+    }
+
+    private void RefreshRenameRow(int settlement, bool pinned)
+    {
+        bool show = pinned && settlement >= 0;
+        _tileRenameRow!.Visible = show;
+        if (!show) { _tileRenameBound = -1; return; }
+        if (_tileRenameBound == settlement) return;
+        // Bind once per settlement so the one-second refresh never overwrites what the player is typing.
+        _tileRenameBound = settlement;
+        _tileRename!.Text = CustomSettlementName(settlement);
+        _tileRename.PlaceholderText = $"Name this settlement (now {SettlementLabel(settlement)})";
+    }
+
+    private void CommitSettlementRename()
+    {
+        if (_tileRename is null || _tileRenameBound < 0) return;
+        int settlement = _tileRenameBound;
+        string name = RenameSettlement(settlement, _tileRename.Text);
+        _tileRename.Text = name;
+        _tileRename.ReleaseFocus();
+        _tileRenameBound = -1;
+        RefreshTileCardNow(_hoverScreen);
+        if (name.Length > 0) ShowToast("Settlement renamed", ToastKind.Info, $"Now called {name}.", key: "settlement-renamed");
     }
 
     private static string DepositClueText(byte clue) => clue switch

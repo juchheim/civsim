@@ -28,6 +28,8 @@ internal sealed class GameSaveData
     public List<AiWhyEntry> AiWhyEntries = new();
     public ulong OnboardingSeen;
     public bool IntroDismissed;
+    /// <summary>Player-chosen settlement names by settlement index (version 5); cosmetic, outside the sim snapshot.</summary>
+    public List<KeyValuePair<int, string>> SettlementNames = new();
 
     public Replay ToReplay() => new()
     {
@@ -43,7 +45,10 @@ internal sealed class GameSaveData
 internal static class GameSave
 {
     private const uint Magic = 0x53475343; // "CSGS", little-endian
-    private const uint Version = 4;
+    private const uint Version = 5;
+    /// <summary>Version 5 appends the player's settlement names after the difficulty byte.</summary>
+    private const uint FirstVersionWithSettlementNames = 5;
+    private const int MaxSettlementNames = 4096;
     private const uint FirstVersionWithDifficulty = 2;
     /// <summary>Version 3: the sim snapshot carries the Bronze state (Mandate, built Wonders). An older snapshot has a different layout and cannot be restored.</summary>
     private const uint FirstVersionWithBronzeState = 3;
@@ -126,6 +131,12 @@ internal static class GameSave
                 writer.Write(data.OnboardingSeen);
                 writer.Write(data.IntroDismissed);
                 writer.Write((byte)data.Difficulty);
+                writer.Write(data.SettlementNames.Count);
+                foreach (KeyValuePair<int, string> name in data.SettlementNames)
+                {
+                    writer.Write(name.Key);
+                    writer.Write(name.Value);
+                }
                 writer.Flush();
                 stream.Flush(flushToDisk: true);
             }
@@ -174,6 +185,13 @@ internal static class GameSave
             byte level = reader.ReadByte();
             if (!Enum.IsDefined(typeof(Difficulty), level)) throw new InvalidDataException("Invalid saved difficulty.");
             data.Difficulty = (Difficulty)level;
+        }
+        if (version >= FirstVersionWithSettlementNames)
+        {
+            int count = reader.ReadInt32();
+            if (count < 0 || count > MaxSettlementNames) throw new InvalidDataException("Invalid saved settlement name count.");
+            for (int i = 0; i < count; i++)
+                data.SettlementNames.Add(new KeyValuePair<int, string>(reader.ReadInt32(), ReadBoundedString(reader, 64)));
         }
         if (!data.PackHash.AsSpan().SequenceEqual(expectedPackHash))
             throw new InvalidDataException("Save content hash differs from the loaded content pack.");

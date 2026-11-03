@@ -486,7 +486,7 @@ public partial class Game
             {
                 if (!IsOwnPeopleSettlement(frame, s)) continue;
                 _peopleScopeIds.Add(frame.SettlementIndex[s]);
-                _peopleScope.AddItem($"Settlement {frame.SettlementIndex[s] + 1} · {frame.SettlementPopulation[s]:N0} people", _peopleScopeIds.Count - 1);
+                _peopleScope.AddItem($"{SettlementLabel(frame.SettlementIndex[s])} · {frame.SettlementPopulation[s]:N0} people", _peopleScopeIds.Count - 1);
             }
             if (!_peopleScopeIds.Contains(_peopleScopeSelected)) _peopleScopeSelected = -1;
             _rebuildingPeopleScope = false;
@@ -789,7 +789,7 @@ public partial class Game
                 if (!IsOwnPeopleSettlement(frame, s)) continue;
                 int settlement = frame.SettlementIndex[s];
                 _peopleScoutSettlementIds.Add(settlement);
-                _peopleScoutSettlement.AddItem($"Settlement {settlement + 1}", settlement);
+                _peopleScoutSettlement.AddItem(SettlementLabel(settlement), settlement);
             }
             int selectedIndex = _peopleScoutSettlementIds.IndexOf(previousSelection);
             if (selectedIndex < 0) selectedIndex = _peopleScoutSettlementIds.Count > 0 ? 0 : -1;
@@ -830,7 +830,7 @@ public partial class Game
                 activeScouts++;
         ScoutPolicy policy = (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow];
         UiKit.SetText(_peopleScoutStatus,
-            $"Settlement {_peopleSelectedScoutSettlement + 1} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season.");
+            $"{SettlementLabel(_peopleSelectedScoutSettlement)} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season.");
         for (int i = 0; i < _peopleScoutButtons.Length; i++)
             _peopleScoutButtons[i].SetPressedNoSignal(i == (int)policy);
     }

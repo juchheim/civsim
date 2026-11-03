@@ -18,7 +18,9 @@ public partial class Game
         try
         {
             if (_session is null || !_session.CanSave) throw new InvalidOperationException("Quick-save is available during a live match.");
-            GameSave.Write(GameSave.QuickSavePath, _session.CaptureSave(_onboardingSeen, _introDismissed));
+            GameSaveData save = _session.CaptureSave(_onboardingSeen, _introDismissed);
+            save.SettlementNames = SettlementNamesForSave();
+            GameSave.Write(GameSave.QuickSavePath, save);
             ShowToast("Game saved", ToastKind.Info, "", key: "saved");
         }
         catch (Exception ex) { ShowToast("Couldn't save", ToastKind.Warning, ex.Message, key: "save-failed"); }
@@ -35,6 +37,7 @@ public partial class Game
             _introDismissed |= data.IntroDismissed;
             if (_introDismissed) WriteIntroPreference();
             ReplaceSession(restored);
+            RestoreSettlementNames(data.SettlementNames);
             ShowToast("Game loaded", ToastKind.Info, $"Year {(_current?.Year ?? 0) + 1}.", key: "loaded");
         }
         catch (Exception ex) { ShowToast("Couldn't load", ToastKind.Warning, ex.Message, key: "load-failed"); }
@@ -104,6 +107,7 @@ public partial class Game
         _openingHold = false;
         _openingHoldAssignmentPending = false;
         _pinnedTile = -1;
+        _settlementNames.Clear();
         _selectedResearchProject = -1;
         _completedWhileClosed = -1;
         RebuildVisualRenderer(_current, _session);
