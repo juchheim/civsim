@@ -22,6 +22,8 @@ public sealed class AiResearchPort
     }
 
     public ResearchCatalog Catalog => _research.Catalog;
+    /// <summary>The chapter this match plays; its research ceiling bounds what the AI may plan.</summary>
+    public ChapterRules Rules => _research.Rules;
     public int Era => _research.Era(_civ);
     public bool IsDone(int project) => _research.IsDone(_civ, project);
     public ProjectState State(int project) => _research.State(_civ, project);

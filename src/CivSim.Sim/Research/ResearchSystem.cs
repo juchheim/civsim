@@ -388,7 +388,8 @@ public sealed partial class ResearchSystem : IResearchView
             case CommandKind.CompleteProject:
                 // A grant (fixtures, debugging): complete without spending Insight. The economy receives the
                 // same command from its caller, so it is not forwarded again.
-                if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] && _catalog.Projects[command.A].Numeric)
+                if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] && _catalog.Projects[command.A].Numeric
+                    && _catalog.Projects[command.A].Era <= Rules.LastResearchEra) // no grant past the match's ceiling
                     Complete(c, command.A, tick, forwardToEconomy: false);
                 break;
         }

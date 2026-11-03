@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Research;
@@ -138,6 +139,40 @@ public class ChapterRulesTests
         Assert.NotEqual(stream.Length, stream.Position); // the game rejects a snapshot with unread bytes
     }
 
+    [Fact]
+    public void Match_replays_record_the_chapter_mode_and_Bronze_files_keep_their_format()
+    {
+        const ulong seed = 31337;
+        var seats = new[] { CivSim.Sim.Economy.EconomyArchetype.Balanced, CivSim.Sim.Economy.EconomyArchetype.Balanced,
+            CivSim.Sim.Economy.EconomyArchetype.Balanced, CivSim.Sim.Economy.EconomyArchetype.Balanced };
+        ulong fingerprint = CivSim.Sim.Economy.WorldEconomyInput.FromGeneratedWorld(WorldGen(seed)).Fingerprint;
+        foreach (ChapterRules rules in new[] { ChapterRules.Bronze, ChapterRules.Iron })
+        {
+            MatchModel match = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), seats, default, rules: rules);
+            var runner = new SimRunner(match);
+            runner.Advance(2 * Season);
+            MatchReplay replay = MatchReplay.FromRun(seed, TestPack.Pack, seats, runner, fingerprint, rules);
+            Assert.Same(rules, replay.Rules);
+            Assert.True(replay.Verify(TestPack.Pack).Ok);
+
+            using var bytes = new MemoryStream();
+            replay.Write(bytes);
+            uint version = System.BitConverter.ToUInt32(bytes.ToArray(), 4);
+            Assert.Equal(rules.IsIron ? MatchReplay.ModeFormatVersion : MatchReplay.FormatVersion, version);
+            bytes.Position = 0;
+            MatchReplay read = MatchReplay.Read(bytes);
+            Assert.Same(rules, read.Rules);
+            Assert.True(read.Verify(TestPack.Pack).Ok);
+        }
+
+        // An Iron replay verified as Bronze (its recorded checksums came from Iron rules) must not pass.
+        MatchModel ironMatch = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), seats, default, rules: ChapterRules.Iron);
+        var ironRunner = new SimRunner(ironMatch);
+        ironRunner.Advance(Season);
+        MatchReplay asBronze = MatchReplay.FromRun(seed, TestPack.Pack, seats, ironRunner, fingerprint, ChapterRules.Bronze);
+        Assert.False(asBronze.Verify(TestPack.Pack).Ok);
+    }
+
     private static CivSim.Sim.World.GeneratedWorld WorldGen(ulong seed) => CivSim.Sim.World.WorldGenerator.Generate(seed);
 
     private static byte[] Snapshot(MatchModel m)
@@ -152,5 +187,58 @@ public class ChapterRulesTests
         using var stream = new MemoryStream(bytes);
         using var reader = new BinaryReader(stream);
         m.ReadSnapshot(reader);
+    }
+}
+
+/// <summary>
+/// Numeric E4 content must stay inert outside the Iron chapter (docs/MVP/25 B4-01): the live State, the grant command and the
+/// forecast catalog all bound it by the match's research ceiling, so promoting an E4 row cannot reach a Bronze match.
+/// </summary>
+public class ChapterRulesPromotedE4Tests
+{
+    private const string Promoted = "AGR-09";
+
+    private static CivSim.Sim.Content.ContentPack PromotedPack()
+    {
+        var files = CivSim.Tests.ContentFixture.Files();
+        int index = files.FindIndex(f => f.Path == "catalog/agr-agriculture.yaml");
+        string text = files[index].Text;
+        int at = text.IndexOf("id: AGR-09", StringComparison.Ordinal);
+        int status = text.IndexOf("status: draft", at, StringComparison.Ordinal);
+        files[index] = (files[index].Path, text[..status] + "status: numeric" + text[(status + "status: draft".Length)..]);
+        (CivSim.Content.ContentSet set, _) = ContentFixture.Load(files);
+        // The validator's V21 still forbids a numeric E4 row, so the pack is compiled without it to test the mode bounds ahead of promotion.
+        CivSim.Sim.Content.ContentPack pack = CivSim.Sim.Content.ContentPack.FromTree(CivSim.Content.PackBuilder.Compile(set));
+        return pack;
+    }
+
+    [Fact]
+    public void A_numeric_E4_project_is_Hidden_ungrantable_and_unforecast_in_Bronze_but_live_in_Iron()
+    {
+        var catalog = new ResearchCatalog(PromotedPack());
+        int p = catalog.IndexOf(Promoted);
+        Assert.True(catalog.Projects[p].Numeric);
+
+        ResearchRig bronze = new(civs: 4, catalog: catalog);
+        ResearchRig iron = new(civs: 4, catalog: catalog, rules: ChapterRules.Iron);
+        foreach (ResearchRig rig in new[] { bronze, iron })
+        {
+            rig.Do(rig.Grant(0, "KEY-4"));
+            Assert.Equal(4, rig.Research.Era(0));
+            rig.Do(rig.Grant(0, Promoted));
+        }
+
+        // Bronze: Hidden and the grant is refused, even for a civilization past KEY-4.
+        Assert.Equal(ProjectState.Hidden, bronze.Research.State(0, p));
+        Assert.False(bronze.Research.IsDone(0, p));
+        // Iron: the same grant lands.
+        Assert.True(iron.Research.IsDone(0, p));
+
+        var bronzeForecast = new CivSim.Sim.Ai.Forecast.ForecastCatalog(catalog);
+        var ironForecast = new CivSim.Sim.Ai.Forecast.ForecastCatalog(catalog, ChapterRules.Iron.LastResearchEra);
+        Assert.False(bronzeForecast.IsNumeric[p]);
+        Assert.DoesNotContain(p, bronzeForecast.Numeric);
+        Assert.True(ironForecast.IsNumeric[p]);
+        Assert.Contains(p, ironForecast.Numeric);
     }
 }

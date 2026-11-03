@@ -13,6 +13,8 @@ namespace CivSim.Sim.Ai.Forecast;
 public sealed class ForecastCatalog
 {
     public ResearchCatalog Catalog { get; }
+    /// <summary>The last era this catalog treats as researchable.</summary>
+    public int CeilingEra { get; }
     public int Count { get; }
     /// <summary>Numeric projects in index order: the only ones research can complete.</summary>
     public int[] Numeric { get; }
@@ -79,9 +81,14 @@ public sealed class ForecastCatalog
     public Fix64 KnowHowCostShare { get; } = Fix64.Half;
     public int[] SlotWeight { get; } = new int[CivResearch.SlotCount];
 
-    public ForecastCatalog(ResearchCatalog catalog)
+    /// <summary>
+    /// <paramref name="ceilingEra"/> is the match's last researchable era (<see cref="ChapterRules.LastResearchEra"/>). A numeric project above
+    /// it is not eligible: the live State keeps it Hidden, so a forecast must not plan it either (docs/MVP/25 §2.2). The default is Bronze.
+    /// </summary>
+    public ForecastCatalog(ResearchCatalog catalog, int ceilingEra = ResearchSystem.LastResearchEra)
     {
         Catalog = catalog;
+        CeilingEra = ceilingEra;
         Count = catalog.Count;
         LineageCount = catalog.LineageCodes.Count;
         IsNumeric = new bool[Count];
@@ -133,7 +140,8 @@ public sealed class ForecastCatalog
         for (int p = 0; p < Count; p++)
         {
             ProjectDef def = catalog.Projects[p];
-            IsNumeric[p] = def.Numeric;
+            bool eligible = def.Numeric && def.Era <= ceilingEra;
+            IsNumeric[p] = eligible;
             Era[p] = def.Era;
             Lineage[p] = def.Lineage;
             Theme[p] = def.Theme;
@@ -150,7 +158,7 @@ public sealed class ForecastCatalog
             KnowHowGainAll[p] = Fix64.One;
             KnowHowGainLineage[p] = -1;
             KnowHowGainLineageMult[p] = Fix64.One;
-            if (!def.Numeric) continue;
+            if (!eligible) continue;
             numeric.Add(p);
             byEra[def.Era].Add(p);
             if (def.IsKeystone && def.BreadthEra >= 0) KeystoneByBreadthEra[def.BreadthEra] = p;
