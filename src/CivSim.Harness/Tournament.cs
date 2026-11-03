@@ -971,10 +971,14 @@ internal static class Tournament
             // Levy and siege hosts are intentionally removed from work capacity. Snapshot their IDs on both
             // sides of the advance so a host that expires at the season boundary is not called idle labor.
             var intentionallyIdleFigureIds = new HashSet<long>();
+            // Everyone ages a year at the season boundary, so a figure who turns 14 during the advance worked this
+            // season as a child (leftover capacity only) and must not be counted as an idle adult afterwards.
+            var childAtSeasonStartFigureIds = new HashSet<long>();
             for (int f = 0; f < match.Economy.FigureCount; f++)
             {
                 FigureView figure = match.Economy.Figure(f);
                 if (match.Economy.IsIdle(figure.Id)) intentionallyIdleFigureIds.Add(figure.Id);
+                if (figure.Age < M10TelemetryRules.AdultWorkAge) childAtSeasonStartFigureIds.Add(figure.Id);
             }
             long nextFigureIdBeforeAdvance = warlordSettlementTrace ? match.Economy.NextFigureId : -1;
             runner.Advance(Math.Min(150, ticks - t));
@@ -2213,9 +2217,10 @@ internal static class Tournament
                     for (int f = 0; f < match.Economy.FigureCount; f++)
                     {
                         FigureView figure = match.Economy.Figure(f);
-                        if (figure.Civilization != c || figure.Age < 14 || figure.Age >= 45 ||
+                        if (figure.Civilization != c || figure.Age < M10TelemetryRules.AdultWorkAge || figure.Age >= 45 ||
                             (uint)figure.SettlementId >= (uint)settlementCount ||
-                            intentionallyIdleFigureIds.Contains(figure.Id)) continue;
+                            intentionallyIdleFigureIds.Contains(figure.Id) ||
+                            childAtSeasonStartFigureIds.Contains(figure.Id)) continue;
                         adultWorkers[figure.SettlementId]++;
                         if (figure.WorkThisSeason <= Fix64.Zero) idleAdults[figure.SettlementId]++;
                     }
@@ -2236,8 +2241,9 @@ internal static class Tournament
                         {
                             FigureView figure = match.Economy.Figure(f);
                             if (figure.Civilization != c || figure.SettlementId != settlementId ||
-                                figure.Age < 14 || figure.Age >= 45 || figure.WorkThisSeason > Fix64.Zero ||
-                                intentionallyIdleFigureIds.Contains(figure.Id)) continue;
+                                figure.Age < M10TelemetryRules.AdultWorkAge || figure.Age >= 45 || figure.WorkThisSeason > Fix64.Zero ||
+                                intentionallyIdleFigureIds.Contains(figure.Id) ||
+                                childAtSeasonStartFigureIds.Contains(figure.Id)) continue;
                             idlePeople.Add($"id{figure.Id}/s{figure.SettlementId}/age{figure.Age}/health{figure.Health}/hunger{figure.Hunger}/warmth{figure.Warmth}/rest{figure.Rest}/job{figure.Job}");
                         }
                         outcome.A7Traces.Add($"A7 idle-labor seed={seed} season={season + 1} civ={c}: " +

@@ -85,6 +85,9 @@ internal static class M10TelemetryRules
            (uint)settlement < (uint)observedThreatSeasons.GetLength(1) && (uint)settlement < (uint)defenseResponses.GetLength(1) &&
            IsUndefendedLoss(observedThreatSeasons[civ, settlement], currentSeason, defenseResponses[civ, settlement]);
 
+    /// <summary>Age at which a figure takes adult work assignments (civic building, metal and herd work start here).</summary>
+    public const int AdultWorkAge = 14;
+
     /// <summary>Idle labor is a strict adult share threshold at a food-deficient settlement.</summary>
     public static bool IsIdleLaborBlunder(int idleAdults, int adultWorkers, bool localFoodDeficit)
         => localFoodDeficit && adultWorkers > 0 && idleAdults * 100 > adultWorkers * 15;
