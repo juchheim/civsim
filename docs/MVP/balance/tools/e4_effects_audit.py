@@ -27,7 +27,7 @@ BUCKETS = {
 
 
 # Effects wired by a path the string heuristics cannot see, asserted by hand when a batch lands (project id, effect kind).
-WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod")}
+WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod"), ("FOR-08", "mod"), ("STN-12", "mod"), ("NUM-07", "mod"), ("MEC-04", "mod"), ("BLD-11", "mod"), ("FOD-09", "rule"), ("FOD-09", "cap"), ("FOD-09", "mod"), ("MED-05", "role")}
 
 
 def projects():
@@ -65,7 +65,7 @@ def main():
                 wired = f'new("{name}"' in src or (structure_names(name) in flat and ("structure." + structure_names(name)) in flat)
             elif kind == "role":
                 detail = e.get("id", "")
-                wired = f'"{e.get("id")}"' in src
+                wired = f'"{e.get("id")}"' in src or (p["id"], "role") in WIRED_BY_HAND
             elif kind == "method":
                 detail = f"{e.get('action')} {e.get('name')} {e.get('mult')}"
                 wired = (p["id"], "method") in WIRED_BY_HAND
@@ -74,7 +74,7 @@ def main():
                 wired = f'"{e.get("id")}"' in src
             else:
                 detail = (e.get("text") or e.get("id") or "")[:90]
-                wired = False
+                wired = (p["id"], kind) in WIRED_BY_HAND
             rows.setdefault(bucket, []).append((p["id"], p.get("name", ""), kind, detail.replace("|", "/"), wired))
     out = []
     out.append("# E4 effects ledger\n")

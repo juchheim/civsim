@@ -614,6 +614,91 @@ public class IronChainTests
         Assert.False(f.Economy.FixtureIronBuildWanted(0, "bathhouse"), "one bathhouse is enough");
     }
 
+    [Fact]
+    public void Public_grain_moves_only_a_donors_grain_above_its_winter_reserve_and_creates_none()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "FOD-09");
+        int daughter = f.Economy.FoundByDecree(0, f.CampTile, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
+        Assert.True(daughter >= 0);
+        f.Economy.FixtureSetTier(daughter, 1);
+        f.Economy.FixtureStock(0, "G-GRAIN", Fix64.FromInt(300));
+        Fix64 before = f.Economy.FixtureGrainUnits(0) + f.Economy.FixtureGrainUnits(daughter);
+        Fix64 receiverBefore = f.Economy.FixtureGrainUnits(daughter);
+
+        Fix64 moved = f.Economy.FixtureSharePublicGrain(0);
+
+        Assert.True(moved > Fix64.Zero, "the town should have been sent grain");
+        Assert.Equal(before, f.Economy.FixtureGrainUnits(0) + f.Economy.FixtureGrainUnits(daughter)); // none created or lost
+        Assert.Equal(receiverBefore + moved, f.Economy.FixtureGrainUnits(daughter));
+        // A donor with nothing above its winter reserve sends nothing.
+        BronzeFixture poor = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "FOD-09");
+        int poorDaughter = poor.Economy.FoundByDecree(0, poor.CampTile, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
+        poor.Economy.FixtureSetTier(poorDaughter, 1);
+        poor.Economy.FixtureStock(0, "G-GRAIN", -poor.Economy.FixtureGrainUnits(0)); // the donor holds no grain at all
+        Assert.Equal(Fix64.Zero, poor.Economy.FixtureSharePublicGrain(0));
+        // And nothing moves without FOD-09 or in the Bronze chapter.
+        BronzeFixture noResearch = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        int d2 = noResearch.Economy.FoundByDecree(0, noResearch.CampTile, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
+        noResearch.Economy.FixtureSetTier(d2, 1);
+        noResearch.Economy.FixtureStock(0, "G-GRAIN", Fix64.FromInt(300));
+        Assert.Equal(Fix64.Zero, noResearch.Economy.FixtureSharePublicGrain(0));
+    }
+
+    [Fact]
+    public void Construction_research_shortens_Iron_structures_one_factor_at_a_time_and_a_crane_halves_large_works()
+    {
+        var pack = TestPack.WithNumeric("BLD-11", "MEC-04", "NUM-07", "STN-12");
+        BronzeFixture plain = BronzeFixture.CreateIronWithCamp(pack, Seed, 60);
+        Assert.Equal(Fix64.FromInt(40), plain.Economy.FixtureIronLabor(0, "aqueduct"));
+        Assert.Equal(Fix64.FromInt(20), plain.Economy.FixtureIronLabor(0, "bathhouse"));
+
+        BronzeFixture general = BronzeFixture.CreateIronWithCamp(pack, Seed, 60, "BLD-11", "MEC-04");
+        Fix64 expected = Fix64.FromInt(40) * F("0.76923") * F("0.869565");
+        Assert.True(Fix64.Abs(general.Economy.FixtureIronLabor(0, "aqueduct") - expected) <= F("0.01"), "build_labor mods multiply");
+
+        BronzeFixture stone = BronzeFixture.CreateIronWithCamp(pack, Seed, 60, "STN-12");
+        Near(Fix64.FromInt(20) * F("0.6"), stone.Economy.FixtureIronLabor(0, "bathhouse"));          // stone work x0.6
+        Near(Fix64.FromInt(8), stone.Economy.FixtureIronLabor(0, "terrace"));                       // a terrace is not stone work
+
+        BronzeFixture survey = BronzeFixture.CreateIronWithCamp(pack, Seed, 60, "NUM-07");
+        Assert.True(Fix64.Abs(survey.Economy.FixtureIronLabor(0, "aqueduct") - Fix64.FromInt(40) / F("1.15")) <= F("0.01"));
+        Assert.True(Fix64.Abs(survey.Economy.FixtureIronLabor(0, "terrace") - Fix64.FromInt(8) / F("1.15")) <= F("0.01"));
+        Assert.Equal(Fix64.FromInt(20), survey.Economy.FixtureIronLabor(0, "bathhouse"));           // surveying does not shorten baths
+
+        BronzeFixture crane = BronzeFixture.CreateIronWithCamp(pack, Seed, 60);
+        crane.Economy.FixtureBuildIronStructure(0, "crane");
+        Assert.Equal(Fix64.FromInt(20), crane.Economy.FixtureIronLabor(0, "aqueduct"));              // large work halved
+        Assert.Equal(Fix64.FromInt(20), crane.Economy.FixtureIronLabor(0, "bathhouse"));             // not large
+    }
+
+    [Fact]
+    public void A_windlass_well_counts_as_a_fresh_water_source_for_the_water_cap_and_the_Bronze_economy_has_none_of_it()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "KEY-4");
+        Fix64 before = f.Economy.FixtureWaterCapBase(0);
+        f.Economy.FixtureBuildIronStructure(0, "windlass_well");
+        Fix64 after = f.Economy.FixtureWaterCapBase(0);
+        Assert.True(after == before + Fix64.FromInt(8) || after == Fix64.FromInt(150), $"{before} -> {after}");
+    }
+
+    [Fact]
+    public void Grafting_doubles_the_fruit_of_the_plots_an_iron_blade_keeps_and_no_others()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "FOR-08");
+        BronzeFixture noResearch = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "FOR-08");
+        int adult = FirstAdult(f.Economy);
+        foreach (BronzeFixture x in new[] { f, noResearch, bronze }) x.Economy.FixtureSetKit(adult, 11, Fix64.FromInt(20));
+        int blades = 0;
+        foreach (int t in f.Economy.FixtureAdultKitTiers(0)) if (t >= 11) blades++;
+        Assert.Equal(1, blades);
+        Assert.Equal(Fix64.FromInt(2), f.Economy.FixtureGraftedFactor(0, 0));
+        Assert.Equal(Fix64.FromInt(2), f.Economy.FixtureGraftedFactor(0, 1));
+        Assert.Equal(Fix64.One, f.Economy.FixtureGraftedFactor(0, 2));                    // one blade keeps two plots
+        Assert.Equal(Fix64.One, noResearch.Economy.FixtureGraftedFactor(0, 0));           // FOR-08 unknown
+        Assert.Equal(Fix64.One, bronze.Economy.FixtureGraftedFactor(0, 0));               // not the Iron chapter
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

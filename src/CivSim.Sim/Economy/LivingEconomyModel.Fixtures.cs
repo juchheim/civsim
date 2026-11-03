@@ -269,6 +269,19 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
     }
 
+    /// <summary>Runs one public-grain transfer for a civilization and returns the grain units moved.</summary>
+    internal Fix64 FixtureSharePublicGrain(int civ) => SharePublicGrain(civ, Math.Max(0, ShareReach(civ)));
+    internal Fix64 FixtureGrainUnits(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Grain];
+
+    internal Fix64 FixtureIronLabor(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronLaborOf(_settlements[settlementIndex], IronSpecs[k]);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal Fix64 FixtureGraftedFactor(int settlementIndex, int plot) => GraftedOrchardFactor(_settlements[settlementIndex], plot);
+
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
     internal Fix64 FixtureIronWoodFactor(int settlementIndex)
         => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;

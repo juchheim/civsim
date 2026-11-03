@@ -639,7 +639,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
-            if (IronChain && IronSharingEnabled) ShareIronGoods(civ, reach);
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach); SharePublicGrain(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
@@ -921,7 +921,7 @@ public sealed partial class LivingEconomyModel
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
         Fix64 chainA = mineA + charA + smeltA;
         plan.BuildNeed = Fix64.Min(plan.BuildNeed, plan.BuildCap);
-        plan.IronBuildNeed = IronBuildLabor(m, totalWork);
+        plan.IronBuildNeed = IronBuildLabor(s, m, totalWork);
         Fix64 laborB = Fix64.Max(Fix64.Zero, mineAll + charAll + smeltAll - chainA);
         Fix64 chainCap = cap;
         Fix64 scaleA = chainA <= chainCap || chainA <= Fix64.Zero ? Fix64.One : chainCap / chainA;

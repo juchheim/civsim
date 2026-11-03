@@ -27,8 +27,24 @@ Records what each piece does in the economy, the provisional numbers behind it, 
 - **Medical texts (MED-05).** The care effects already in play (remedies for outbreaks, wound care, midwives, sickness care) are strengthened by 15% of their reduction: 0.70 becomes 0.655, 0.60 becomes 0.54, with no compounding and never below zero. The physician role is not built.
 - **A started structure survives a bad season.** A structure whose labor has begun is kept while it is still possible (research known, tile free, none built), even if the reason it was wanted lapses for a season; labor already spent is lost only when it becomes impossible.
 
+### Public grain (FOD-09)
+- Each season a town or city holds a reserve target of one ration per person, and grain moves to it from sister settlements in sharing reach, but only the grain a donor holds above its own one-season winter need, at most a quarter ration per person per season. Physical grain moves from one store to another, so none is created. The catalog's "+25% cap" is the outcome the oracle checks (I-T4), not a multiplier applied here, because 25 §5 forbids piling food-cap multipliers on top of the mechanisms.
+
+### Construction research, crane and wells (MEC-04, MEC-06, BLD-11, STN-12, NUM-07)
+- The general construction mods (`build_labor` from BLD-11 and MEC-04) now multiply the labor of Iron structures and civic builds; STN-12 (`stone_build_labor`) shortens stone works; surveying (NUM-07, efficiency 1.15) shortens fields, roads and aqueducts. Each factor is exactly 1 until its project is complete, so Bronze civic labor is unchanged.
+- **Crane (MEC-06):** 8 wood and 2 bloom, 16 ws. A town builds one when it wants a large work (the aqueduct); it halves the labor of large works.
+- **Windlass well (MEC-04):** 4 wood, 8 ws, at most two; wanted when water is the tightest cap before any aqueduct. Each counts as a fresh-water tile for the water cap.
+
+### Grafted orchards (FOR-08)
+- A mature orchard plot gives twice the fruit when grafted. A plot counts as grafted when a T11 or T12 kit holder in the settlement keeps it (two plots per blade, provisional). Fruit is the only output so far.
+
+## Gaps found
+- **The water mill (NRG-03) has nothing to multiply.** The catalog says "grind output x5", but the economy has no grinding labor or flour: the Quern is only a structure. The mill needs a decision on what grinding costs in this model before it can save any of it.
+- **Wine and oil (FOR-08 with MEC-05)** need orchard crop types (grape, olive), the press structure and their goods; the economy's orchards produce one kind of fruit. Left for the culture and trade batch.
+- **The physician role** is not a separate staffed role: in this economy a patient is treated only when a healer is assigned, so a treated patient already means staffed care, and MED-05's 15% applies to exactly those treatments.
+
 ## Tests
 `IronChainTests`: the water cap exists only in the Iron chapter after KEY-4 and an aqueduct raises it 40%; aqueduct and bath factors multiply; medical texts strengthen care 15% and never below zero; a town with the research and people builds a bathhouse; a town with full flat fields terraces a hillside into a field and a Bronze town does not; no terrace without the research; an Iron economy with a terrace restores from a snapshot and continues to the same checksum; the scythe bonus appears only for an iron kit with AGR-09 in the Iron chapter; the plough rule lifts only heavy forest soil and never lowers a yield.
 
 ## Still to build in this group
-Water and health: the physician role (medical staffing), windlass wells, upkeep for baths. Food: public grain supply, grafted orchards and the press (wine, oil), the water mill (grind x5). Cities and learning: academies, theatres, cranes, harbors, mechanical build-labor mods, fired brick and tile, glass. The checklist is `m11-e4-effects-ledger.md`.
+Water and health: the water mill (needs a grinding model), wine and oil, upkeep for baths. Food: public grain supply, grafted orchards and the press (wine, oil), the water mill (grind x5). Cities and learning: academies, theatres, cranes, harbors, mechanical build-labor mods, fired brick and tile, glass. The checklist is `m11-e4-effects-ledger.md`.

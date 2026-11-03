@@ -430,6 +430,65 @@ public sealed partial class LivingEconomyModel
             ? Fix64.Max(tile.FieldYieldPerYear, PrimeFieldYield)
             : tile.FieldYieldPerYear;
 
+    // ---- orchards (FOR-08) ---------------------------------------------------------------------------------
+
+    /// <summary>Orchard plots one iron-knife holder can graft and keep grafted (provisional).</summary>
+    private const int GraftedPlotsPerBlade = 2;
+
+    /// <summary>
+    /// FOR-08 grafting: a mature orchard plot gives twice the fruit when it is grafted, and a plot is grafted when a T11 or T12 kit holder of the settlement has
+    /// it among the (two) plots he or she keeps (plots in order). Without an iron blade no plot is grafted; a Bronze economy never grafts. Fruit is the only
+    /// output here: wine and oil need the press chain, which is not built yet.
+    /// </summary>
+    private Fix64 GraftedOrchardFactor(SettlementState s, int plotIndex)
+    {
+        if (!IronChain || !Done(s.Civilization, "FOR-08")) return Fix64.One;
+        int blades = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age >= 14 && f.Kit >= 11) blades++;
+        return plotIndex < blades * GraftedPlotsPerBlade ? Fix64.FromInt(2) : Fix64.One;
+    }
+
+    // ---- public grain (FOD-09) ----------------------------------------------------------------------------
+
+    /// <summary>The most a town can take in as public grain in a season, as a share of a ration per person (the transfer's capacity limit; provisional).</summary>
+    private static readonly Fix64 PublicGrainRate = Fix64.FromRatio(1, 4);
+
+    /// <summary>
+    /// Public grain supply (docs/MVP/26 §5.2, FOD-09): a town or city holds a reserve target of one ration per person, and grain moves to it from sister
+    /// settlements in sharing reach, but only the grain a donor holds above its own one-season winter need, and at most a quarter-ration per person per
+    /// season. Physical grain moves from one store to another, so none is created; the catalog's "+25% cap" is the outcome the oracle looks for, not a multiplier
+    /// applied here. Returns the grain units moved, for tests and screens.
+    /// </summary>
+    private Fix64 SharePublicGrain(int civ, int reach)
+    {
+        if (!Done(civ, "FOD-09")) return Fix64.Zero;
+        Fix64 movedTotal = Fix64.Zero;
+        for (int r = 0; r < _settlements.Count; r++)
+        {
+            SettlementState receiver = _settlements[r];
+            int pop = Population(receiver.Id);
+            if (receiver.Civilization != civ || IsFreeFolk(receiver) || pop == 0 || receiver.Civic is not { Tier: >= 1 }) continue;
+            Fix64 need = Fix64.Min(Fix64.FromInt(pop) - FoodStores(receiver), Fix64.FromInt(pop) * PublicGrainRate);
+            Fix64 receiverValue = FoodValue(Good.Grain, receiver);
+            for (int d = 0; d < _settlements.Count && need > Epsilon && receiverValue > Fix64.Zero; d++)
+            {
+                SettlementState donor = _settlements[d];
+                if (d == r || donor.Civilization != civ || IsFreeFolk(donor) || Population(donor.Id) == 0 ||
+                    HexGrid.Distance(donor.SiteTile, receiver.SiteTile, _world.Width) > reach) continue;
+                Fix64 surplus = FoodStores(donor) - FoodNeed(donor, true); // above its one-season winter reserve
+                Fix64 donorValue = FoodValue(Good.Grain, donor);
+                if (surplus <= Epsilon || donorValue <= Fix64.Zero) continue;
+                Fix64 units = Fix64.Min(Fix64.Min(need / receiverValue, surplus / donorValue), donor.Stores[(int)Good.Grain]);
+                if (units <= Epsilon) continue;
+                donor.Stores[(int)Good.Grain] -= units;
+                receiver.Stores[(int)Good.Grain] += units;
+                need -= units * receiverValue;
+                movedTotal += units;
+            }
+        }
+        return movedTotal;
+    }
+
     // ---- water and health -------------------------------------------------------------------------------
 
     /// <summary>A town's water-limited size before any aqueduct: 60 people plus 8 for each fresh-water tile in its range, at most 150 (provisional; the oracle screen used 80).</summary>
@@ -441,7 +500,8 @@ public sealed partial class LivingEconomyModel
             WorldEconomyTile t = _world.Tile(tile);
             if (t.River || t.Lake || t.FreshWater) fresh++;
         }
-        return Fix64.FromInt(Math.Min(150, 60 + 8 * fresh));
+        // A windlass well (MEC-04) reaches a deep source and counts as a fresh-water tile; it adds no new source to the map.
+        return Fix64.FromInt(Math.Min(150, 60 + 8 * (fresh + IronWorksCount(s, IronStructure.WindlassWell))));
     }
 
     /// <summary>
@@ -482,19 +542,42 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Terrace, Aqueduct, Bathhouse,
+        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse,
         Count
     }
 
     /// <summary>What a structure needs: its unlocking project, labor in work-seasons, and materials paid at completion (docs/MVP/26 §3.2; all provisional).</summary>
-    private readonly record struct IronSpec(string Name, string Unlock, int Labor, int Block, int Ashlar, int Wood, int Bloom);
+    private readonly record struct IronSpec(string Name, string Unlock, int Labor, int Block, int Ashlar, int Wood, int Bloom,
+        bool Large = false, bool Stone = false, bool Infrastructure = false);
 
+    // Large: a treadwheel crane halves the labor (MEC-06). Stone: STN-12 shortens stone work. Infrastructure: surveying (NUM-07) shortens fields, roads and aqueducts.
     private static readonly IronSpec[] IronSpecs =
     {
-        new("terrace", "AGR-08", 8, 4, 0, 2, 0),
-        new("aqueduct", "BLD-10", 40, 20, 8, 5, 0),
-        new("bathhouse", "MED-06", 20, 8, 0, 4, 0),
+        new("crane", "MEC-06", 16, 0, 0, 8, 2),
+        new("windlass_well", "MEC-04", 8, 0, 0, 4, 0),
+        new("terrace", "AGR-08", 8, 4, 0, 2, 0, Infrastructure: true),
+        new("aqueduct", "BLD-10", 40, 20, 8, 5, 0, Large: true, Stone: true, Infrastructure: true),
+        new("bathhouse", "MED-06", 20, 8, 0, 4, 0, Stone: true),
     };
+
+    /// <summary>
+    /// The labor a structure costs this settlement: its listed work-seasons, shortened by the civilization's general construction research (BLD-11, MEC-04:
+    /// stat <c>build_labor</c>), stone-work research (STN-12), surveying for fields, roads and aqueducts (NUM-07, an efficiency of 1.15 meaning labor /1.15), and
+    /// a crane for large works (x0.5). Each factor is exactly 1 until its project is complete, so the Bronze economy is unaffected.
+    /// </summary>
+    private Fix64 IronLaborOf(SettlementState s, IronSpec spec)
+    {
+        int civ = s.Civilization;
+        Fix64 labor = Fix64.FromInt(spec.Labor) * Modifier(civ, "build_labor");
+        if (spec.Stone) labor *= Modifier(civ, "stone_build_labor");
+        if (spec.Infrastructure)
+        {
+            Fix64 efficiency = Modifier(civ, "infrastructure_efficiency");
+            if (efficiency > Fix64.Zero) labor /= efficiency;
+        }
+        if (spec.Large && IronWorksCount(s, IronStructure.Crane) > 0) labor *= Fix64.Half;
+        return labor;
+    }
 
     /// <summary>The share of a settlement's work the Iron construction bucket may take in a season, beside the metal chain and civic works (provisional).</summary>
     private static readonly Fix64 IronBuildShare = Fix64.FromRatio(1, 10);
@@ -533,6 +616,12 @@ public sealed partial class LivingEconomyModel
     private bool IronBuildWanted(SettlementState s, IronStructure kind)
         => kind switch
         {
+            // A crane is worth building when a large work is wanted and none stands yet (it halves the labor).
+            IronStructure.Crane => IronWorksCount(s, IronStructure.Crane) == 0 && IronBuildWanted(s, IronStructure.Aqueduct),
+            // A windlass well adds a deep water source where water, not food or housing, holds a town back (at most two).
+            IronStructure.WindlassWell => IronWorksCount(s, IronStructure.WindlassWell) < 2 && s.Civic is { Tier: >= 1 } &&
+                WaterCapBase(s) <= Fix64.Min(FoodCap(s), Fix64.Min(HousingCap(s), GroupCap(s))) &&
+                Fix64.FromInt(Population(s.Id)) >= WaterCapBase(s) * Fix64.FromRatio(85, 100) && IronWorksCount(s, IronStructure.Aqueduct) == 0,
             IronStructure.Terrace => Population(s.Id) >= 12 && NextTerraceTile(s) >= 0 && NaturalFieldsFull(s),
             // A town on the way to its water limit builds an aqueduct only if water is what holds it back (not food, housing or its group).
             IronStructure.Aqueduct => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Aqueduct) == 0 &&
@@ -548,6 +637,7 @@ public sealed partial class LivingEconomyModel
         => kind switch
         {
             IronStructure.Terrace => NextTerraceTile(s) >= 0,
+            IronStructure.WindlassWell => IronWorksCount(s, kind) < 2,
             _ => IronWorksCount(s, kind) == 0,
         };
 
@@ -575,10 +665,10 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>The labor the Iron structure under construction can take this season: what it still needs, within its share of the settlement's work.</summary>
-    private Fix64 IronBuildLabor(MetalState m, Fix64 totalWork)
+    private Fix64 IronBuildLabor(SettlementState s, MetalState m, Fix64 totalWork)
     {
         if (!IronChain || m.IronBuildKind < 0) return Fix64.Zero;
-        Fix64 remaining = Fix64.Max(Fix64.Zero, Fix64.FromInt(IronSpecs[m.IronBuildKind].Labor) - m.IronBuildProgress);
+        Fix64 remaining = Fix64.Max(Fix64.Zero, IronLaborOf(s, IronSpecs[m.IronBuildKind]) - m.IronBuildProgress);
         return Fix64.Min(remaining, totalWork * IronBuildShare);
     }
 
@@ -590,7 +680,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain || m.IronBuildKind < 0) return Fix64.Zero;
         IronSpec spec = IronSpecs[m.IronBuildKind];
-        Fix64 labor = Fix64.FromInt(spec.Labor), over = Fix64.Zero;
+        Fix64 labor = IronLaborOf(s, spec), over = Fix64.Zero;
         m.IronBuildProgress += plan.IronBuildAssigned;
         if (m.IronBuildProgress > labor) { over = m.IronBuildProgress - labor; m.IronBuildProgress = labor; }
         if (m.IronBuildProgress < labor || !TryPayIronBuild(s, m, spec)) return over;

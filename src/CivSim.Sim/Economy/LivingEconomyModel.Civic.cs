@@ -685,7 +685,8 @@ public sealed partial class LivingEconomyModel
             CivicBuild.Caravanserai => Fix64.FromInt(8), CivicBuild.Ziggurat => Fix64.FromInt(200), _ => Fix64.Zero,
         };
         labor *= Modifier(civ, "construction_labor");
-        if (b is CivicBuild.Temple or CivicBuild.Palace or CivicBuild.Hall or CivicBuild.Ziggurat) labor *= Modifier(civ, "stone_building_labor");
+        labor *= Modifier(civ, "build_labor"); // BLD-11, MEC-04 (Iron chapter only: exactly 1 until those projects are complete)
+        if (b is CivicBuild.Temple or CivicBuild.Palace or CivicBuild.Hall or CivicBuild.Ziggurat) labor *= Modifier(civ, "stone_building_labor") * Modifier(civ, "stone_build_labor");
         if (b is CivicBuild.Market or CivicBuild.School or CivicBuild.Caravanserai) labor *= Modifier(civ, "timber_building_labor");
         if (b == CivicBuild.Ziggurat)
         {
