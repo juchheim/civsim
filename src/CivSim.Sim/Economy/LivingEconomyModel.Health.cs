@@ -72,7 +72,7 @@ public sealed partial class LivingEconomyModel
         // ρ = (people ÷ built tiles) ÷ 50; a settlement is one built tile at game scale (09 §10.1: village 0.8, town 1.2, city 1.8).
         Fix64 rho = Fix64.FromInt(pop) / 50;
         Fix64 inflow = Fix64.Clamp(_civic.Inflow + (TradeRoutes?.InflowAt(s.Id) ?? Fix64.Zero), Fix64.Zero, Fix64.One);
-        return rho * (Fix64.One - c.Sanitation) * (Fix64.One + inflow);
+        return rho * (Fix64.One - c.Sanitation) * (Fix64.One + inflow) * IronSanitationFactor(s);
     }
 
     /// <summary>Starts, advances and spreads outbreaks at the season start, and marks this season's infected figures.</summary>
@@ -164,7 +164,7 @@ public sealed partial class LivingEconomyModel
         if (figure.Age < 14) h *= Fix64.FromRatio(3, 2);
         else if (figure.Age >= 45) h *= Fix64.FromInt(2);
         h *= c.CfrScale;
-        if (HasProject(figure.Civilization, "MED-01")) h *= Fix64.FromRatio(9, 10);
+        if (HasProject(figure.Civilization, "MED-01")) h *= MedCare(figure.Civilization, Fix64.FromRatio(9, 10));
         return h;
     }
 

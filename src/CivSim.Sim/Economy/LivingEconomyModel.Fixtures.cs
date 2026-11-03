@@ -228,6 +228,11 @@ public sealed partial class LivingEconomyModel
     internal int FixtureFieldCount(int settlementIndex) => _settlements[settlementIndex].FieldTiles.Count;
     internal bool FixtureIsTerrace(int settlementIndex, int tile) => IsIronTerrace(_settlements[settlementIndex], tile);
     internal int FixtureTerraceCount(int settlementIndex) => IronTerraceCount(_settlements[settlementIndex]);
+    internal string FixtureIronBuildState(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return $"tier {(s.Civic?.Tier ?? 255)} kind {s.Metal?.IronBuildKind} progress {s.Metal?.IronBuildProgress.ToDoubleForDisplay():F2} block {(s.Metal?.Goods[(int)MetalGood.Block] ?? Fix64.Zero).ToDoubleForDisplay():F1} wood {s.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} pop {Population(s.Id)}";
+    }
     internal int FixtureIronBuildKind(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildKind ?? -1;
 
     /// <summary>The extra effective farm work a figure's scythe gives for a stated amount of farm work (zero without AGR-09 and a T11 or T12 kit).</summary>
@@ -235,6 +240,34 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>A tile's field yield for a civilization with the plough rule applied, for plough fixtures.</summary>
     internal Fix64 FixtureFieldBaseYield(int civ, WorldEconomyTile tile) => FieldBaseYield(civ, tile);
+
+    internal Fix64 FixtureWaterCap(int settlementIndex) => WaterCap(_settlements[settlementIndex]);
+    internal Fix64 FixtureWaterCapBase(int settlementIndex) => WaterCapBase(_settlements[settlementIndex]);
+    internal Fix64 FixtureIronSanitationFactor(int settlementIndex) => IronSanitationFactor(_settlements[settlementIndex]);
+    internal Fix64 FixtureMedCare(int civ, Fix64 multiplier) => MedCare(civ, multiplier);
+
+    /// <summary>Raises a settlement to a civic tier (0 village, 1 town, 2 city) without the works that normally earn it.</summary>
+    internal void FixtureSetTier(int settlementIndex, int tier) => EnsureCivic(_settlements[settlementIndex]).Tier = (byte)tier;
+
+    /// <summary>Places an Iron-chapter structure outright (terrace excluded, since it needs a tile), for effect fixtures.</summary>
+    internal void FixtureBuildIronStructure(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name)
+            {
+                SettlementState s = _settlements[settlementIndex];
+                (EnsureMetal(s).IronWorks ??= new int[(int)IronStructure.Count])[k]++;
+                return;
+            }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal bool FixtureIronBuildWanted(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronBuildWanted(_settlements[settlementIndex], (IronStructure)k);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
 
     /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
     internal Fix64 FixtureIronWoodFactor(int settlementIndex)

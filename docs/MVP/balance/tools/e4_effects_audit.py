@@ -27,7 +27,7 @@ BUCKETS = {
 
 
 # Effects wired by a path the string heuristics cannot see, asserted by hand when a batch lands (project id, effect kind).
-WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method")}
+WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod")}
 
 
 def projects():
@@ -58,7 +58,7 @@ def main():
             kind = e.get("kind")
             if kind == "mod":
                 detail = f"{e.get('stat')} {e.get('op')} {e.get('value')}"
-                wired = f'"{e.get("stat")}"' in src
+                wired = f'"{e.get("stat")}"' in src or (p["id"], "mod") in WIRED_BY_HAND
             elif kind == "build":
                 name = e.get("structure") or e.get("id") or ""
                 detail = name

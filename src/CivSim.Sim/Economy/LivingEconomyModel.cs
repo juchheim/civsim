@@ -3746,7 +3746,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // points of adult mortality for actual deliveries, not every adult each season.
         if (adult) injuryShare -= Fix64.Parse("0.06");
         Fix64 injury = annual * injuryShare * CauseModifier(civ, "injury", adultExposure: !child) * seasonalScale;
-        if (figure.WoundTreated) injury *= Fix64.Parse("0.7");
+        if (figure.WoundTreated) injury *= MedCare(civ, Fix64.Parse("0.7"));
         // MET-04's arsenic (docs/MVP/23 §15): a per-figure risk for those who co-smelted arsenical bronze this season.
         if (figure.Task == MetalTask.SmeltArsenic) injury *= ArsenicInjury;
         if (adult && figure.Female && figure.PregnancySeasons == 1)
@@ -3755,10 +3755,10 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 deliveriesPerAdult = Fix64.Half * Fix64.Parse("0.13") * FertilityMultiplier(civ);
             Fix64 maternal = annual * Fix64.Parse("0.06") * seasonalScale / deliveriesPerAdult;
             maternal *= CauseModifier(civ, "maternal");
-            if (figure.MidwifeAttended) maternal *= Fix64.Parse("0.6");
+            if (figure.MidwifeAttended) maternal *= MedCare(civ, Fix64.Parse("0.6"));
             injury += maternal;
         }
-        Fix64 diseaseCare = figure.DiseaseTreated ? Fix64.Parse("0.75") : Fix64.One;
+        Fix64 diseaseCare = figure.DiseaseTreated ? MedCare(civ, Fix64.Parse("0.75")) : Fix64.One;
         // E3: epidemics come as discrete outbreaks (docs/MVP/09 §10); the continuous budget is then zero, so they do not count twice.
         bool discrete = DiscreteEpidemics(figure);
         // GOV-04: local famine deaths −50% (docs/MVP/23 §16), half of starvation being local famine (check_e3.py).
@@ -3998,6 +3998,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // A Market town is food-bound: it buds at 85% of min(FoodCap, GroupCap), not of its housing (07d R2).
         Fix64 effectiveCap = IsMarketTown(parent) ? Fix64.Min(foodCap, GroupCap(parent))
             : Fix64.Min(foodCap, Fix64.Min(HousingCap(parent), GroupCap(parent)));
+        effectiveCap = Fix64.Min(effectiveCap, WaterCap(parent)); // Iron chapter, after the civilization's own KEY-4; otherwise no limit
         // Below C 35 volunteers leave sooner: the trigger drops to 75% (docs/MVP/22 §8.3).
         Fix64 trigger = CohesionLive(parent) && CohesionPoints(parent.Cohesion) < _civic.FissionBelow ? _civic.FissionTrigger : Fix64.Parse("0.85");
         bool capPressure = Fix64.FromInt(population) >= effectiveCap * trigger * FissionScaleOf(parent.Civilization, parent.Id);

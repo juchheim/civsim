@@ -554,6 +554,66 @@ public class IronChainTests
         Assert.Equal(F("3.4"), iron.Economy.FixtureFieldBaseYield(0, forest with { FieldYieldPerYear = F("3.4") })); // never lowered
     }
 
+    [Fact]
+    public void Water_limits_a_town_only_in_the_Iron_chapter_after_its_own_KEY_4_and_an_aqueduct_raises_it_by_forty_percent()
+    {
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "KEY-4");
+        BronzeFixture ironEarly = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        BronzeFixture iron = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "KEY-4");
+        Fix64 plenty = Fix64.FromInt(100000);
+        Assert.Equal(plenty, bronze.Economy.FixtureWaterCap(0));
+        Assert.Equal(plenty, ironEarly.Economy.FixtureWaterCap(0));
+        Fix64 cap = iron.Economy.FixtureWaterCap(0);
+        Assert.True(cap >= Fix64.FromInt(60) && cap <= Fix64.FromInt(150), $"water cap {cap}");
+        iron.Economy.FixtureBuildIronStructure(0, "aqueduct");
+        Near(cap * F("1.4"), iron.Economy.FixtureWaterCap(0));
+        Assert.Equal(F("0.85"), iron.Economy.FixtureIronSanitationFactor(0));
+    }
+
+    [Fact]
+    public void Aqueducts_and_baths_cut_density_disease_and_the_cuts_multiply()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "KEY-4");
+        Assert.Equal(Fix64.One, f.Economy.FixtureIronSanitationFactor(0));
+        f.Economy.FixtureBuildIronStructure(0, "bathhouse");
+        Assert.Equal(F("0.75"), f.Economy.FixtureIronSanitationFactor(0));
+        f.Economy.FixtureBuildIronStructure(0, "aqueduct");
+        Near(F("0.6375"), f.Economy.FixtureIronSanitationFactor(0));
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false);
+        Assert.Equal(Fix64.One, bronze.Economy.FixtureIronSanitationFactor(0));
+    }
+
+    [Fact]
+    public void Medical_texts_strengthen_care_by_fifteen_percent_of_its_reduction_in_the_Iron_chapter_only()
+    {
+        BronzeFixture withTexts = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MED-05");
+        BronzeFixture without = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60);
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "MED-05");
+        Near(F("0.655"), withTexts.Economy.FixtureMedCare(0, F("0.7")));
+        Near(F("0.54"), withTexts.Economy.FixtureMedCare(0, F("0.6")));
+        Assert.Equal(Fix64.One, withTexts.Economy.FixtureMedCare(0, Fix64.One));          // no care, no change
+        Assert.Equal(F("0.7"), without.Economy.FixtureMedCare(0, F("0.7")));              // MED-05 unknown
+        Assert.Equal(F("0.7"), bronze.Economy.FixtureMedCare(0, F("0.7")));               // not the Iron chapter
+        Assert.Equal(Fix64.Zero, withTexts.Economy.FixtureMedCare(0, F("0.05")));         // never below zero
+    }
+
+    [Fact]
+    public void A_town_with_research_and_people_wants_a_bathhouse_and_builds_it_from_blocks_and_wood()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MED-06", "MIN-03");
+        f.Economy.FixtureSetTier(0, 1);
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "bathhouse"));
+        f.Economy.FixtureStock(0, "G-BLOCK", Fix64.FromInt(20));
+        f.Economy.FixtureStock(0, "G-WOOD", Fix64.FromInt(20));
+        for (int season = 0; season < 14; season++)
+        {
+            f.Economy.FixtureSetTier(0, 1); // the fixture town stays a town (the economy would demote it, having none of the works that earn the tier)
+            f.RunSeasons(1);
+        }
+        Assert.Equal(F("0.75"), f.Economy.FixtureIronSanitationFactor(0));
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "bathhouse"), "one bathhouse is enough");
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

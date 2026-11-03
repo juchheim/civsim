@@ -430,6 +430,50 @@ public sealed partial class LivingEconomyModel
             ? Fix64.Max(tile.FieldYieldPerYear, PrimeFieldYield)
             : tile.FieldYieldPerYear;
 
+    // ---- water and health -------------------------------------------------------------------------------
+
+    /// <summary>A town's water-limited size before any aqueduct: 60 people plus 8 for each fresh-water tile in its range, at most 150 (provisional; the oracle screen used 80).</summary>
+    private Fix64 WaterCapBase(SettlementState s)
+    {
+        int fresh = 0;
+        foreach (int tile in RangeTiles(s.SiteTile))
+        {
+            WorldEconomyTile t = _world.Tile(tile);
+            if (t.River || t.Lake || t.FreshWater) fresh++;
+        }
+        return Fix64.FromInt(Math.Min(150, 60 + 8 * fresh));
+    }
+
+    /// <summary>
+    /// The water-limited size of a town (docs/MVP/25 §5, 26 §3.2): an aqueduct raises it by 40%, and it creates neither food nor housing. It binds only in the
+    /// Iron chapter once a civilization has its own KEY-4 (E4 is hidden before then); otherwise there is no limit. It is one more term in the cap that
+    /// makes a town bud, so a town short of water splits instead of crowding.
+    /// </summary>
+    private Fix64 WaterCap(SettlementState s)
+    {
+        if (!IronChain || !Done(s.Civilization, "KEY-4")) return Plenty;
+        Fix64 cap = WaterCapBase(s);
+        return IronWorksCount(s, IronStructure.Aqueduct) > 0 ? cap * Fix64.FromRatio(14, 10) : cap;
+    }
+
+    /// <summary>Density-disease pressure multiplier from an aqueduct (x0.85) and a bathhouse (x0.75) in the Iron chapter; they multiply when both stand.</summary>
+    private Fix64 IronSanitationFactor(SettlementState s)
+    {
+        if (!IronChain) return Fix64.One;
+        Fix64 factor = Fix64.One;
+        if (IronWorksCount(s, IronStructure.Aqueduct) > 0) factor *= Fix64.FromRatio(85, 100);
+        if (IronWorksCount(s, IronStructure.Bathhouse) > 0) factor *= Fix64.FromRatio(75, 100);
+        return factor;
+    }
+
+    /// <summary>
+    /// MED-05 (medical texts) strengthens the care effects already in play by 15% of their reduction, without compounding on itself: a care
+    /// multiplier m becomes 1 - (1 - m) x 1.15 (0.70 becomes 0.655). It applies in the Iron chapter to remedies, wound care, midwives and sickness
+    /// care; the physician role is a separate piece.
+    /// </summary>
+    private Fix64 MedCare(int civ, Fix64 multiplier)
+        => IronChain && Done(civ, "MED-05") ? Fix64.Max(Fix64.Zero, Fix64.One - (Fix64.One - multiplier) * Fix64.FromRatio(115, 100)) : multiplier;
+
     // ---- construction ---------------------------------------------------------------------------------
 
     /// <summary>
@@ -438,7 +482,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Terrace,
+        Terrace, Aqueduct, Bathhouse,
         Count
     }
 
@@ -448,6 +492,8 @@ public sealed partial class LivingEconomyModel
     private static readonly IronSpec[] IronSpecs =
     {
         new("terrace", "AGR-08", 8, 4, 0, 2, 0),
+        new("aqueduct", "BLD-10", 40, 20, 8, 5, 0),
+        new("bathhouse", "MED-06", 20, 8, 0, 4, 0),
     };
 
     /// <summary>The share of a settlement's work the Iron construction bucket may take in a season, beside the metal chain and civic works (provisional).</summary>
@@ -488,7 +534,21 @@ public sealed partial class LivingEconomyModel
         => kind switch
         {
             IronStructure.Terrace => Population(s.Id) >= 12 && NextTerraceTile(s) >= 0 && NaturalFieldsFull(s),
+            // A town on the way to its water limit builds an aqueduct only if water is what holds it back (not food, housing or its group).
+            IronStructure.Aqueduct => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Aqueduct) == 0 &&
+                WaterCapBase(s) <= Fix64.Min(FoodCap(s), Fix64.Min(HousingCap(s), GroupCap(s))) &&
+                Fix64.FromInt(Population(s.Id)) >= WaterCapBase(s) * Fix64.FromRatio(85, 100),
+            // Baths pay off where people are dense enough for outbreaks to bite.
+            IronStructure.Bathhouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Bathhouse) == 0 && Population(s.Id) >= 40,
             _ => false,
+        };
+
+    /// <summary>Whether a started structure can still be finished: a transient change in why it was wanted (a town slipping a tier for a season) does not throw away labor already spent.</summary>
+    private bool IronBuildFeasible(SettlementState s, IronStructure kind)
+        => kind switch
+        {
+            IronStructure.Terrace => NextTerraceTile(s) >= 0,
+            _ => IronWorksCount(s, kind) == 0,
         };
 
     /// <summary>
@@ -499,9 +559,9 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain) return;
         int civ = s.Civilization;
-        if (m.IronBuildKind >= 0 && (!Done(civ, IronSpecs[m.IronBuildKind].Unlock) || !IronBuildWanted(s, (IronStructure)m.IronBuildKind)))
+        if (m.IronBuildKind >= 0 && (!Done(civ, IronSpecs[m.IronBuildKind].Unlock) || !IronBuildFeasible(s, (IronStructure)m.IronBuildKind)))
         {
-            m.IronBuildKind = -1; // nothing is paid before completion, so there is nothing to refund
+            m.IronBuildKind = -1; // nothing is paid before completion, so there is nothing to refund (labor already spent is lost)
             m.IronBuildProgress = Fix64.Zero;
         }
         if (m.IronBuildKind < 0)
