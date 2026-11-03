@@ -180,7 +180,6 @@ public partial class Game
         WorldView world = _session.WorldView;
         TileVisibility visibility = (TileVisibility)frame.Visibility[tile];
         _tileScoutRow!.Visible = false;
-        _tileRenameRow!.Visible = false;
         _tileBeaconPreview!.Visible = _beaconMode;
         if (_beaconMode && TryGetOwnBeaconIndex(tile, out _))
             UiKit.SetText(_tileBeaconPreview, "Your Beacon is here · click to remove it.");
@@ -189,6 +188,8 @@ public partial class Game
 
         if (visibility == TileVisibility.Unknown)
         {
+            _tileRenameRow!.Visible = false;
+            _tileRenameBound = -1;
             UiKit.SetText(_tileTitle!, "Unexplored");
             UiKit.SetText(_tileFeatures!, "Your people haven't been here yet.");
             if (_beaconMode && !TryGetOwnBeaconIndex(tile, out _))
