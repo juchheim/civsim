@@ -41,7 +41,7 @@ public sealed partial class ResearchSystem
         // Past the last researchable keystone (KEY-4's Iron threshold) there is no keystone path to chase: the Council
         // works through the leftovers on cost, Leaning and urgency alone.
         int keystone = _catalog.KeystoneLeaving(civ.Era);
-        bool chase = keystone >= 0 && _catalog.Projects[keystone].Numeric && civ.Era <= LastResearchEra;
+        bool chase = keystone >= 0 && _catalog.Projects[keystone].Numeric && civ.Era <= Rules.LastResearchEra;
         var ctx = new CouncilContext
         {
             Signals = _source.GetSignals(c),

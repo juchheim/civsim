@@ -210,8 +210,14 @@ public sealed partial class LivingEconomyModel : ISimModel
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 26;
     private const int Radius = 3;
-    /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
-    private const int MaxEra = 3;
+    /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
+    private const int BronzeMaxEra = 3;
+
+    /// <summary>
+    /// The last era whose projects the economy applies. Bronze unless the match carries chapter rules that say otherwise
+    /// (docs/MVP/25 §3); the research system holds the matching ceiling and both are set together by <c>MatchModel</c>.
+    /// </summary>
+    public int MaxEra { get; init; } = BronzeMaxEra;
 
     private static readonly ulong ClimateStream = Hash64.OfString("economy.climate");
     private static readonly ulong BirthStream = Hash64.OfString("economy.birth");
@@ -6151,7 +6157,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart);
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }

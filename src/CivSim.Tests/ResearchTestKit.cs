@@ -98,7 +98,7 @@ internal sealed class ResearchRig
     public long Tick;
 
     public ResearchRig(int civs = 1, double insightPerYear = 0, bool council = false, int councilDelay = 0, Action<FixedSource>? configure = null,
-        (int Craft, int Kin, int Reach)? leaning = null, ResearchCatalog? catalog = null)
+        (int Craft, int Kin, int Reach)? leaning = null, ResearchCatalog? catalog = null, ChapterRules? rules = null)
     {
         Catalog = catalog ?? TestPack.Catalog;
         Source = insightPerYear > 0 ? FixedSource.WithInsightPerYear(Catalog, civs, insightPerYear) : new FixedSource(Catalog, civs);
@@ -106,7 +106,7 @@ internal sealed class ResearchRig
         var (craft, kin, reach) = leaning ?? (34, 33, 33);
         var setups = new ResearchCivSetup[civs];
         Array.Fill(setups, new ResearchCivSetup(craft, kin, reach, council, councilDelay));
-        Research = new ResearchSystem(Catalog, Source, 1, setups);
+        Research = new ResearchSystem(Catalog, Source, 1, setups, rules);
     }
 
     public int P(string id) => Catalog.IndexOf(id);

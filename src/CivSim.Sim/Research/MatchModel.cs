@@ -35,6 +35,9 @@ public sealed class MatchModel : ISimModel
         source.FreeFolk = politics;
     }
 
+    private const uint ModeTrailerMagic = 0x52544843; // "CHTR" little-endian
+    private const int ModeTrailerVersion = 1;
+
     public LivingEconomyModel Economy { get; }
     public ResearchSystem Research { get; }
     public LivingEconomySource Source { get; }
@@ -62,8 +65,9 @@ public sealed class MatchModel : ISimModel
     /// </summary>
     public static MatchModel Create(ulong seed, ContentPack pack, GeneratedWorld generated,
         ReadOnlySpan<EconomyArchetype> archetypes, ReadOnlySpan<CivControl> controls, bool playerCouncil = true,
-        bool gentleStart = false, bool warlordRaidWithdrawalPolicy = true)
+        bool gentleStart = false, bool warlordRaidWithdrawalPolicy = true, ChapterRules? rules = null)
     {
+        rules ??= ChapterRules.Bronze;
         var catalog = new ResearchCatalog(pack);
         WorldEconomyInput world = WorldEconomyInput.FromGeneratedWorld(generated);
         var profiles = new EconomyArchetype[world.CivilizationCount];
@@ -71,7 +75,7 @@ public sealed class MatchModel : ISimModel
         if (!controls.IsEmpty && controls.Length != profiles.Length) throw new ArgumentException("One control per civilization.", nameof(controls));
         for (int c = 0; c < controls.Length; c++)
             if (controls[c].Kind == ControlKind.Ai) profiles[c] = controls[c].Spec.Archetype;
-        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart);
+        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart) { MaxEra = rules.EconomyMaxEra };
         var source = new LivingEconomySource(economy, world, generated, catalog, profiles);
         var setups = new ResearchCivSetup[profiles.Length];
         for (int c = 0; c < setups.Length; c++)
@@ -82,7 +86,7 @@ public sealed class MatchModel : ISimModel
                 ? ResearchCivSetup.Player(craft, kin, reach, playerCouncil)
                 : ResearchCivSetup.Ai(craft, kin, reach);
         }
-        var research = new ResearchSystem(catalog, source, seed, setups);
+        var research = new ResearchSystem(catalog, source, seed, setups, rules);
         var politics = new PoliticsSystem(economy, research, generated, profiles, seed, gentleStart);
         AiSystem? ai = null;
         foreach (CivControl control in controls)
@@ -90,6 +94,9 @@ public sealed class MatchModel : ISimModel
                 warlordRaidWithdrawalPolicy); break; }
         return new MatchModel(economy, research, source, politics, ai);
     }
+
+    /// <summary>The chapter this match plays (docs/MVP/25 §3).</summary>
+    public ChapterRules Rules => Research.Rules;
 
     /// <summary>An archetype's starting Leaning in percent (docs/MVP/14 §8): from the archetypes registry, equal for Balanced.</summary>
     public static (int Craft, int Kin, int Reach) Leaning(ContentPack pack, EconomyArchetype archetype)
@@ -155,6 +162,14 @@ public sealed class MatchModel : ISimModel
         Politics.WriteSnapshot(writer);
         Research.WriteSnapshot(writer);
         Ai?.Write(writer);
+        // A Bronze snapshot is byte-identical to one written before M11. An Iron one carries a trailer, so a Bronze match
+        // that reads it sees unread bytes and an Iron match that reads a Bronze snapshot runs out of data: neither converts silently.
+        if (Rules.IsIron)
+        {
+            writer.Write(ModeTrailerMagic);
+            writer.Write(ModeTrailerVersion);
+            writer.Write((byte)Rules.Mode);
+        }
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -163,5 +178,10 @@ public sealed class MatchModel : ISimModel
         Politics.ReadSnapshot(reader);
         Research.ReadSnapshot(reader);
         Ai?.Read(reader);
+        if (Rules.IsIron)
+        {
+            if (reader.ReadUInt32() != ModeTrailerMagic || reader.ReadInt32() != ModeTrailerVersion || reader.ReadByte() != (byte)Rules.Mode)
+                throw new InvalidDataException("The snapshot was not written by an Iron-chapter match.");
+        }
     }
 }

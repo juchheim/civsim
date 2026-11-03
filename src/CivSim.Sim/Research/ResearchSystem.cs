@@ -49,6 +49,9 @@ public sealed partial class ResearchSystem : IResearchView
     /// </summary>
     public const int LastResearchEra = 3;
 
+    /// <summary>The chapter this match plays (docs/MVP/25 §3); Bronze unless the match was built with Iron rules.</summary>
+    public ChapterRules Rules { get; }
+
     private readonly ResearchCatalog _catalog;
     private readonly IResearchSource _source;
     private readonly ulong _seed;
@@ -72,7 +75,8 @@ public sealed partial class ResearchSystem : IResearchView
     private long _tick;
 
 
-    public ResearchSystem(ResearchCatalog catalog, IResearchSource source, ulong seed, ReadOnlySpan<ResearchCivSetup> setup)
+    public ResearchSystem(ResearchCatalog catalog, IResearchSource source, ulong seed, ReadOnlySpan<ResearchCivSetup> setup,
+        ChapterRules? rules = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(source);
@@ -80,6 +84,7 @@ public sealed partial class ResearchSystem : IResearchView
         _catalog = catalog;
         _source = source;
         _seed = seed;
+        Rules = rules ?? ChapterRules.Bronze;
         _commonsCoef = catalog.Constant("CommonsCoef");
         _commonsExp = catalog.Constant("CommonsExp");
         _elderCommons = catalog.Constant("ElderCommons");
@@ -638,7 +643,7 @@ public sealed partial class ResearchSystem : IResearchView
     {
         int p = def.Index;
         if (civ.Done[p]) return AccessSatisfied(civ, def) ? ProjectState.Completed : ProjectState.Dormant;
-        if (!def.Numeric || def.Era > civ.Era || def.Era > LastResearchEra) return ProjectState.Hidden;
+        if (!def.Numeric || def.Era > civ.Era || def.Era > Rules.LastResearchEra) return ProjectState.Hidden;
         if (!SeenSatisfied(civ, def)) return ProjectState.Hidden;
         int missing = 0;
         foreach (int r in def.Requires) if (!civ.Done[r]) missing++;
@@ -901,6 +906,7 @@ public sealed partial class ResearchSystem : IResearchView
     public void Hash(ref StateHasher h)
     {
         h.Add(_tick);
+        if (Rules.IsIron) h.Add((int)Rules.Mode); // Bronze adds nothing, so legacy checksums are unchanged
         foreach (CivResearch civ in _civs) civ.Hash(ref h);
         foreach (int f in _firstBy) h.Add(f);
         foreach (bool k in _contact) h.Add(k);
