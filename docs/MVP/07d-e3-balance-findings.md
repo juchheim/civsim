@@ -1593,3 +1593,12 @@ Code: `ResearchM10.IsB6YearCapRateInRange` (<= 40%) and the two `PoliticsM10` he
 A first B23 run read S12 FAIL at 30.138 s because five other checks and another session's jobs were running on the machine (load average 11-15 on 10 cores); S13 passed even then (3.6 ms). The gate is a wall-clock one, so it was rerun alone: it passes with a wide margin. Run S12/S13 on an idle machine.
 
 Not re-run separately: B9 (FoodCap, last 193.3), B11, B13 and B16, which sit on the economy and combat code that has not changed since they were last recorded, and B4, which is a unit test inside the passing suite (937 tests). **Started and still running at the time of writing:** B24 (`acceptance --s15 --matches 1000 --minutes 64`) and the S1 replay soak (`acceptance --s1 --matches 1000 --minutes 64`), about 5-6 matches a minute each, so roughly three hours; their results are appended below when they finish.
+
+**B24 and S1 soaks finished (2026-11-03), run on `main` `577d431` with the pack from `content/` (hash `6436cd73...`):**
+
+| Gate | Command | Result | Status |
+|---|---|---|---|
+| B24 robustness | `acceptance --s15 --matches 1000 --minutes 64` | **1000/1000 clean** (no crash, desync or invalid state across all archetypes and levels), 2 h 57 min | **pass** |
+| S1 / B22 replay identity | `acceptance --s1 --matches 1000 --minutes 64` | **1000/1000 replay checks matched**, 2 h 51 min | **pass** |
+
+Both ran in parallel on a loaded machine (load average 11-41 from other sessions), which only affects their wall time. With these, every automated gate of 22 §16 has a passing result on current `main` except B12's 70-minute coverage (52-70% on four source-backed pairs against 70%) and the human gates B1-B3; B9, B11, B13 and B16 keep their last recorded results and B4 is a unit test in the passing suite.
