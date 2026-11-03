@@ -86,7 +86,7 @@ public partial class Game
                 Shot("map-4-kin");
                 Step(() => { SetThemeFilter(-1); if (_webSearch is not null) _webSearch.Text = "fire"; _webSignature = int.MinValue; RefreshResearchWebNow(); });
                 Shot("map-5-search");
-                Step(() => { JumpToFirstMapMatch(); }, 1.0f);
+                Step(() => { JumpToSearchResult(); }, 1.0f);
                 Shot("map-6-search-jump");
                 Step(() => _mapView?.ZoomBy(1.8f), 0.8f);
                 Shot("map-7-zoomed");
@@ -100,6 +100,13 @@ public partial class Game
                 Shot("map-11-turning-point-fit");
                 Step(() => { int hafting = _catalog?.IndexOf("STN-04") ?? -1; if (hafting >= 0) SelectResearchProject(hafting); _mapCenterNext = true; ScrollToSelected(); }, 1.0f);
                 Shot("map-12-revealed-step");
+                Step(() => { SelectResearchProject(FindDefaultResearchProject()); _mapView?.FitVisible(); }, 1.0f);
+                Step(() => _mapView?.ZoomBy(0.55f), 0.6f);
+                Shot("map-13-zoomed-out");
+                Step(() => _mapView?.ZoomBy(0.4f), 0.6f);
+                Shot("map-14-far");
+                Step(() => _mapView?.FocusNextTurningPoint(), 1.2f);
+                Shot("map-15-next-turning-point");
                 break;
             case "overlays":
                 Step(() => SetMapOverlay(1));

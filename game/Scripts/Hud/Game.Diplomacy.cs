@@ -462,7 +462,6 @@ public partial class Game
             raidHint);
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
-        bool chosenDestination = _selectedTargetSettlement >= 0;
         bool rememberedDestination = chosenDestination && IsRememberedDestination(frame, civ, _selectedTargetSettlement);
         SetOrder(_assaultRow!, true, can && atWar,
             !atWar ? "Declare war first." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :

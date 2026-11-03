@@ -151,13 +151,19 @@ public partial class Game
         header.AddChild(UiKit.Spacer(expand: true));
         _webSearch = new LineEdit
         {
-            PlaceholderText = "Search projects: fire, fish, tools",
+            PlaceholderText = "Find a project: fire, fish, tools  ( / )",
             CustomMinimumSize = new Vector2(300, UiTokens.ControlS),
             ClearButtonEnabled = true,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
         _webSearch.TextChanged += _ => { _webSignature = int.MinValue; RefreshResearchWebNow(); };
-        _webSearch.TextSubmitted += _ => JumpToFirstMapMatch();
+        _webSearch.TextSubmitted += _ => JumpToSearchResult();
+        _webSearch.GuiInput += input =>
+        {
+            if (input is not InputEventKey { Pressed: true, Keycode: Key.Up or Key.Down } key || _webView != ViewMap || _mapView is null) return;
+            _mapView.MoveSearchCursor(key.Keycode == Key.Down ? 1 : -1);
+            _webSearch.AcceptEvent();
+        };
         header.AddChild(_webSearch);
         header.AddChild(UiKit.IconButton(UiGlyph.Close, "Close (Esc)", CloseResearchWeb));
         root.AddChild(header);

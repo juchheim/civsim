@@ -33,9 +33,13 @@ public partial class ResearchRadialMap : Control
     public const float MaxZoom = 3.0f;
     private const int LabelFont = UiTokens.FontSmall;
     private const float LabelHeight = 19f;
+    /// <summary>Room at the left of a turning point's label for its gem.</summary>
+    private const float GateLabelPad = 18f;
 
     public Action<int>? ProjectClicked;
     public Action<int>? ProjectActivated;
+    /// <summary>A search result was chosen: the host selects it, clears the search and brings it into view.</summary>
+    public Action<int>? ProjectJumped;
     public Func<int, string>? TooltipFor;
     /// <summary>The first prerequisite still missing for a project, or -1 (the inspector's own rule).</summary>
     public Func<int, int>? FirstMissing;
@@ -87,15 +91,35 @@ public partial class ResearchRadialMap : Control
     private Vector2[][] _edgeScreen = Array.Empty<Vector2[]>();
     private Rect2[] _edgeBounds = Array.Empty<Rect2>();
 
+    // search results: the host passes the matches best-first; the list jumps to one
+    private const int MaxResultRows = 5;
+    private readonly List<ResultRow> _resultRows = new();
+    private int[] _searchOrder = Array.Empty<int>();
+    private int _searchCursor;
+
+    // a ring that finds the project a jump landed on
+    private int _pingProject = -1;
+    private float _pingAge;
+    private const float PingSeconds = 2.4f;
+
+    // the next turning point, pinned to the edge of the view while it is off screen
+    private Rect2 _edgeMarker;
+    private int _edgeMarkerProject = -1;
+    private float _pulseRedraw;
+    private readonly UiButton _gateButton;
+
     // overlays
     private readonly Label _status;
     private readonly PanelContainer _statusPill;
+    private readonly VBoxContainer _resultColumn;
     private readonly PanelContainer _legend;
     private readonly UiButton _legendButton;
+    private readonly PanelContainer _toolPill;
 
     private static readonly StyleBoxFlat WellBox = UiTheme.Box(UiTokens.SurfaceSunken, UiTokens.R1, null, 0);
     private static readonly StyleBoxFlat LabelBox = UiTheme.Box(new Color("#1F1B16E0"), 4, null, 0);
     private static readonly StyleBoxFlat LabelBoxSelected = UiTheme.Box(new Color("#2A251EF2"), 4, UiTokens.Accent, 1);
+    private static readonly StyleBoxFlat LabelBoxGate = UiTheme.Box(new Color("#2A251EF5"), 4, UiTokens.WithAlpha(new Color("#E2D3A6"), 0.8f), 1);
     private static readonly StyleBoxFlat LabelBoxPath = UiTheme.Box(new Color("#2A251EF2"), 4, UiTokens.WithAlpha(UiTokens.Accent, 0.55f), 1);
     private static readonly StyleBoxFlat TrackPill = UiTheme.Box(new Color("#1F1B16D9"), 12, UiTokens.Border, 1);
     private static readonly Color GateColor = new("#E2D3A6");
@@ -109,7 +133,7 @@ public partial class ResearchRadialMap : Control
         SizeFlagsVertical = SizeFlags.ExpandFill;
         CustomMinimumSize = new Vector2(320, 240);
 
-        PanelContainer toolPill = UiKit.Panel("PillPanel", "MapTools");
+        PanelContainer toolPill = _toolPill = UiKit.Panel("PillPanel", "MapTools");
         toolPill.SetAnchorsPreset(LayoutPreset.TopRight);
         toolPill.GrowHorizontal = GrowDirection.Begin;
         toolPill.OffsetLeft = -UiTokens.Sp2;
@@ -122,16 +146,30 @@ public partial class ResearchRadialMap : Control
         tools.AddChild(UiKit.IconButton(UiGlyph.Plus, "Zoom in (=)", () => ZoomBy(1.3f), 32, 16));
         tools.AddChild(UiKit.Ghost("Fit", FitVisible, "Show every project you know (Home)", UiGlyph.None, 32));
         tools.AddChild(UiKit.Ghost("Selected", () => FocusProject(_selected, true), "Centre the selected project", UiGlyph.None, 32));
+        _gateButton = UiKit.Ghost("Turning point", FocusNextTurningPoint, "Go to the project that opens the next age", UiGlyph.Gem, 32);
+        tools.AddChild(_gateButton);
         _legendButton = UiKit.Ghost("Key", () => SetLegendVisible(!_legend!.Visible), "Show or hide the key", UiGlyph.None, 32);
         _legendButton.ToggleMode = true;
         tools.AddChild(_legendButton);
         AddChild(toolPill);
 
-        _statusPill = UiKit.Panel("PillPanel", "MapSearchStatus", UiKit.MouseFilter.Ignore);
+        _statusPill = UiKit.Panel("HudPanel", "MapSearchResults");
         _statusPill.Position = new Vector2(UiTokens.Sp2, UiTokens.Sp2);
+        _statusPill.CustomMinimumSize = new Vector2(300, 0);
         _statusPill.Visible = false;
+        _resultColumn = UiKit.Column(2);
         _status = UiKit.Text("", "Caption");
-        _statusPill.AddChild(_status);
+        _resultColumn.AddChild(UiKit.Margin(_status, UiTokens.Sp2, 2, UiTokens.Sp2, 2));
+        for (int i = 0; i < MaxResultRows; i++)
+        {
+            var row = new ResultRow { ToggleMode = true, Visible = false };
+            int slot = i;
+            row.Pressed += () => ChooseResult(slot);
+            row.MouseEntered += () => HighlightResult(slot);
+            _resultRows.Add(row);
+            _resultColumn.AddChild(row);
+        }
+        _statusPill.AddChild(_resultColumn);
         AddChild(_statusPill);
 
         _legend = BuildLegend();
@@ -160,7 +198,10 @@ public partial class ResearchRadialMap : Control
         _fogRequired = new bool[n];
         _fullWidth = new float[n];
         Font font = UiTheme.Medium;
-        for (int p = 0; p < n; p++) _fullWidth[p] = font.GetStringSize(catalog.Projects[p].Name, HorizontalAlignment.Left, -1, LabelFont).X;
+        for (int p = 0; p < n; p++)
+            _fullWidth[p] = _layout.Gate[p]
+                ? UiTheme.Bold.GetStringSize(catalog.Projects[p].Name, HorizontalAlignment.Left, -1, LabelFont).X + GateLabelPad
+                : font.GetStringSize(catalog.Projects[p].Name, HorizontalAlignment.Left, -1, LabelFont).X;
         _fieldNames = new string[catalog.LineageCodes.Count];
         for (int l = 0; l < _fieldNames.Length; l++) _fieldNames[l] = fieldName(l);
         _edgeScreen = new Vector2[_layout.Edges.Length][];
@@ -204,11 +245,152 @@ public partial class ResearchRadialMap : Control
         _drawEra = maxEra;
         if (_hover >= 0 && !_looks[_hover].Visible) _hover = -1;
         _statusPill.Visible = searching;
-        if (searching)
-            UiKit.SetText(_status, _matchCount == 0 ? "No known project matches" : _matchCount == 1 ? "1 match · Enter to jump to it" : $"{_matchCount} matches · Enter to jump to the first");
+        if (!searching) SetSearchResults(Array.Empty<int>(), 0);
+        int next = NextTurningPoint();
+        _gateButton.Disabled = next < 0;
+        _gateButton.TooltipText = next >= 0 ? $"Go to {_catalog!.Projects[next].Name}, the project that opens the next age" : "Every turning point in your reach is known";
         _focus = int.MinValue;
         _labelsDirty = true;
         QueueRedraw();
+    }
+
+    // ---- search ------------------------------------------------------------------------------
+
+    /// <summary>The known projects that match the search, best first, and how many undiscovered ones in reach match too. Shown as a list that jumps to the one chosen.</summary>
+    public void SetSearchResults(ReadOnlySpan<int> ordered, int undiscovered)
+    {
+        bool same = ordered.Length == _searchOrder.Length;
+        for (int i = 0; same && i < ordered.Length; i++) same = ordered[i] == _searchOrder[i];
+        if (!same)
+        {
+            _searchOrder = ordered.ToArray();
+            _searchCursor = 0;
+        }
+        if (_catalog is null || _layout is null) return;
+        int shown = Math.Min(_searchOrder.Length, MaxResultRows);
+        string more = undiscovered > 0 ? (undiscovered == 1 ? " · 1 more not discovered yet" : $" · {undiscovered} more not discovered yet") : "";
+        string status = _searchOrder.Length == 0 ? "No known project matches" + more
+            : _searchOrder.Length > MaxResultRows ? $"{_searchOrder.Length} matches · best {MaxResultRows} listed, all marked on the tree{more}"
+            : (_searchOrder.Length == 1 ? "1 match" : $"{_searchOrder.Length} matches") + more;
+        UiKit.SetText(_status, status);
+        for (int i = 0; i < _resultRows.Count; i++)
+        {
+            ResultRow row = _resultRows[i];
+            row.Visible = i < shown;
+            if (i >= shown) continue;
+            int p = _searchOrder[i];
+            ProjectDef def = _catalog.Projects[p];
+            bool gate = _layout.Gate[p];
+            string field = gate ? "Turning point" : def.Lineage >= 0 && def.Lineage < _fieldNames.Length ? _fieldNames[def.Lineage] : "";
+            row.Set(gate ? UiGlyph.Gem : UiDraw.ThemeGlyph(def.Theme), gate ? GateColor : UiTokens.ThemeColor(def.Theme), def.Name,
+                $"{ResultState(_looks[p].State)} · {field}");
+            row.SetPressedNoSignal(i == _searchCursor);
+        }
+    }
+
+    private void HighlightResult(int row)
+    {
+        int shown = Math.Min(_searchOrder.Length, MaxResultRows);
+        if (row >= shown || row == _searchCursor) return;
+        _searchCursor = row;
+        for (int i = 0; i < shown; i++) _resultRows[i].SetPressedNoSignal(i == _searchCursor);
+    }
+
+    /// <summary>One line of the result list: icon, name, and state · field at the right.</summary>
+    private sealed partial class ResultRow : Button
+    {
+        private readonly UiIcon _icon = new(UiGlyph.Dot, 16, UiTokens.TextSecondary);
+        private readonly Label _name = UiKit.Text("", "BodyStrong", ellipsis: true);
+        private readonly Label _meta = UiKit.Text("", "CaptionTertiary");
+
+        public ResultRow()
+        {
+            ThemeTypeVariation = "RowButton";
+            FocusMode = FocusModeEnum.None;
+            CustomMinimumSize = new Vector2(0, 32);
+            ClipContents = true;
+            var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+            margin.SetAnchorsPreset(LayoutPreset.FullRect);
+            margin.AddThemeConstantOverride("margin_left", UiTokens.Sp2);
+            margin.AddThemeConstantOverride("margin_right", UiTokens.Sp2);
+            var row = UiKit.Row(UiTokens.Sp2);
+            row.MouseFilter = MouseFilterEnum.Ignore;
+            row.AddChild(_icon);
+            _name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.AddChild(_name);
+            row.AddChild(_meta);
+            margin.AddChild(row);
+            AddChild(margin);
+        }
+
+        public void Set(UiGlyph glyph, Color tint, string name, string meta)
+        {
+            _icon.Glyph = glyph;
+            _icon.Tint = tint;
+            UiKit.SetText(_name, name);
+            UiKit.SetText(_meta, meta);
+        }
+    }
+
+    private static string ResultState(ProjectState state) => state switch
+    {
+        ProjectState.Available => "Ready",
+        ProjectState.Slotted => "In progress",
+        ProjectState.Completed => "Known",
+        ProjectState.Dormant => "Blocked",
+        _ => "Locked",
+    };
+
+    /// <summary>Moves the highlight in the result list (arrow keys in the search box).</summary>
+    public void MoveSearchCursor(int delta)
+    {
+        int shown = Math.Min(_searchOrder.Length, MaxResultRows);
+        if (shown == 0) return;
+        _searchCursor = (_searchCursor + delta + shown) % shown;
+        for (int i = 0; i < shown; i++) _resultRows[i].SetPressedNoSignal(i == _searchCursor);
+    }
+
+    /// <summary>The project the highlighted result stands for, or -1 when nothing matches.</summary>
+    public int SearchCursorProject => _searchCursor < _searchOrder.Length ? _searchOrder[_searchCursor] : -1;
+
+    private void ChooseResult(int row)
+    {
+        if (row < _searchOrder.Length) ProjectJumped?.Invoke(_searchOrder[row]);
+    }
+
+    /// <summary>Rings a project for a moment, so a jump to it is plain to see.</summary>
+    public void Ping(int project)
+    {
+        if ((uint)project >= (uint)_looks.Length) return;
+        _pingProject = project;
+        _pingAge = 0;
+        SetProcess(true);
+        QueueRedraw();
+    }
+
+    /// <summary>Brings the turning point that opens the next age into view, with a ring around it.</summary>
+    public void FocusNextTurningPoint()
+    {
+        int gate = NextTurningPoint();
+        if (gate < 0) return;
+        ProjectClicked?.Invoke(gate);
+        FocusProject(gate, true);
+        Ping(gate);
+    }
+
+    /// <summary>The turning point of the current age can be started now: it breathes so nobody misses it.</summary>
+    private bool TurningPointReady()
+    {
+        int gate = NextTurningPoint();
+        return gate >= 0 && _looks[gate].State is ProjectState.Available;
+    }
+
+    private int NextTurningPoint()
+    {
+        if (_layout is null) return -1;
+        for (int p = 0; p < _looks.Length; p++)
+            if (_layout.Gate[p] && _looks[p].Visible && _looks[p].TurnsAge && _looks[p].State is not (ProjectState.Completed or ProjectState.Dormant)) return p;
+        return -1;
     }
 
     // ---- view --------------------------------------------------------------------------------
@@ -336,7 +518,11 @@ public partial class ResearchRadialMap : Control
             float fit = Math.Min(usable.Size.X / extent.X, usable.Size.Y / extent.Y);
             zoom = Math.Clamp(Math.Max(zoom, 0.9f), 0.5f, Math.Max(0.5f, fit));
             zoom = Math.Min(zoom, 1.4f);
+            var target = new Vector2(_layout.X[project], _layout.Y[project]);
             world = CenterFor((min + max) * 0.5f, zoom);
+            // framing the chain must not leave the project itself at the edge, under the key or the tools
+            Rect2 safe = Usable().Grow(-(NodeRadius(_layout.Gate[project]) + 48));
+            if (!safe.HasPoint((target - world) * zoom + Size * 0.5f)) world = world.Lerp(CenterFor(target, zoom), 0.5f);
         }
         Vector2 screen = (new Vector2(_layout.X[project], _layout.Y[project]) - _center) * _zoom + Size * 0.5f;
         Rect2 inner = Usable().Grow(-40);
@@ -368,6 +554,12 @@ public partial class ResearchRadialMap : Control
     {
         if (what == NotificationResized || what == NotificationVisibilityChanged)
         {
+            // the result list takes what the tools along the top leave
+            float room = Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * UiTokens.Sp2;
+            _statusPill.CustomMinimumSize = new Vector2(Math.Clamp(room, 220, 320), 0);
+            bool narrow = Size.X < 780;
+            _gateButton.Text = narrow ? "" : "Turning point";
+            _statusPill.Position = new Vector2(UiTokens.Sp2, room < 240 ? _toolPill.GetCombinedMinimumSize().Y + 2 * UiTokens.Sp2 : UiTokens.Sp2);
             if (Size.X > 2 && IsVisibleInTree() && _layout is not null)
             {
                 if (!_viewReady) ResetView(_pendingProject >= 0 ? _pendingProject : _selected);
@@ -397,12 +589,25 @@ public partial class ResearchRadialMap : Control
             }
             busy = true;
         }
-        if (_nextStep >= 0 && !UiSettings.Current.ReduceMotion)
+        bool pulsing = (_nextStep >= 0 || TurningPointReady()) && !UiSettings.Current.ReduceMotion;
+        if (pulsing)
         {
             _pulse = (_pulse + (float)delta) % 1.6f;
             busy = true;
         }
-        if (busy && IsVisibleInTree()) QueueRedraw();
+        if (_pingProject >= 0)
+        {
+            _pingAge += (float)delta;
+            if (_pingAge >= PingSeconds) _pingProject = -1;
+            busy = true;
+        }
+        // a pulse alone is slow enough to redraw at ~20 fps; moving the view or a ping needs every frame
+        _pulseRedraw += (float)delta;
+        bool moving = _animating || _pingProject >= 0;
+        if (busy && IsVisibleInTree())
+        {
+            if (moving || _pulseRedraw >= 0.05f) { _pulseRedraw = 0; QueueRedraw(); }
+        }
         else SetProcess(false);
     }
 
@@ -431,7 +636,8 @@ public partial class ResearchRadialMap : Control
                     if (button.ButtonIndex == MouseButton.Left && button.DoubleClick)
                     {
                         int hit = HitTest(button.Position);
-                        if (hit >= 0) { _doubleClicked = true; ProjectActivated?.Invoke(hit); }
+                        // the edge tab only says "go there": a double click on it must not start the project
+                        if (hit >= 0 && !(hit == _edgeMarkerProject && _edgeMarker.HasPoint(button.Position))) { _doubleClicked = true; ProjectActivated?.Invoke(hit); }
                     }
                 }
                 else
@@ -439,7 +645,12 @@ public partial class ResearchRadialMap : Control
                     if (_pressed && !_dragging && !_doubleClicked && button.ButtonIndex == MouseButton.Left)
                     {
                         int hit = HitTest(button.Position);
-                        if (hit >= 0) ProjectClicked?.Invoke(hit);
+                        if (hit >= 0)
+                        {
+                            bool pointer = hit == _edgeMarkerProject && _edgeMarker.HasPoint(button.Position);
+                            ProjectClicked?.Invoke(hit);
+                            if (pointer) { FocusProject(hit, true); Ping(hit); }
+                        }
                     }
                     _pressed = false;
                     _dragging = false;
@@ -487,6 +698,7 @@ public partial class ResearchRadialMap : Control
     private int HitTest(Vector2 screen)
     {
         if (_layout is null) return -1;
+        if (_edgeMarkerProject >= 0 && _edgeMarker.HasPoint(screen)) return _edgeMarkerProject;
         float best = float.MaxValue;
         int found = -1;
         float reach = Math.Max(13f, NodeRadius(false) + 6);
@@ -494,7 +706,7 @@ public partial class ResearchRadialMap : Control
         {
             if (!_looks[p].Visible) continue;
             float d = ToScreen(_layout.X[p], _layout.Y[p]).DistanceTo(screen);
-            float limit = _layout.Gate[p] ? reach * 1.4f : reach;
+            float limit = _layout.Gate[p] ? Math.Max(reach * 1.4f, NodeRadius(true) * 1.3f) : reach;
             if (d <= limit && d < best) { best = d; found = p; }
         }
         return found;
@@ -616,22 +828,25 @@ public partial class ResearchRadialMap : Control
 
     // ---- drawing -----------------------------------------------------------------------------
 
-    private float NodeRadius(bool gate) => Math.Clamp(8f * _zoom, 3f, 12f) * (gate ? 1.45f : 1f);
+    /// <summary>Turning points are the biggest marks on the map at any zoom: never smaller than 10 px, so they read from across the screen.</summary>
+    private float NodeRadius(bool gate) => gate ? Math.Max(10f, Math.Clamp(8f * _zoom, 3f, 12f) * 1.9f) : Math.Clamp(8f * _zoom, 3f, 12f);
 
     public override void _Draw()
     {
         DrawStyleBox(WellBox, new Rect2(Vector2.Zero, Size));
         if (_layout is null || _catalog is null) return;
         RebuildHighlight();
-        if (_nextStep >= 0 && !UiSettings.Current.ReduceMotion && !IsProcessing()) SetProcess(true);
+        if ((_nextStep >= 0 || TurningPointReady()) && !UiSettings.Current.ReduceMotion && !IsProcessing()) SetProcess(true);
         if (_labelsDirty || !Mathf.IsEqualApprox(_labelZoom, _zoom)) PlaceLabels();
 
         DrawRings();
         DrawEdges();
         DrawNodes();
         DrawLabels();
+        DrawPing();
         DrawBreadthCounter();
         DrawTrackNames();
+        DrawTurningPointPointer();
     }
 
     private Vector2 Origin => ToScreen(0, 0);
@@ -690,7 +905,8 @@ public partial class ResearchRadialMap : Control
         {
             if (!layout.Gate[p] || !_looks[p].Visible) continue;
             float r = layout.Radius[p] * _zoom;
-            Color c = UiTokens.WithAlpha(GateColor, _looks[p].State is ProjectState.Completed ? 0.22f : 0.38f);
+            bool knownGate = _looks[p].State is ProjectState.Completed or ProjectState.Dormant;
+            Color c = UiTokens.WithAlpha(GateColor, knownGate ? 0.15f : _looks[p].TurnsAge ? 0.6f : 0.25f);
             DrawDashedCircle(o, r, c);
         }
 
@@ -929,6 +1145,8 @@ public partial class ResearchRadialMap : Control
                 if (_focus >= 0 && !InFocus(p) && !_onPath[p]) alpha = OutOfFocusAlpha;
                 if (_looks[p].Filtered) alpha = Math.Min(alpha, 0.22f);
                 if (_searching && !_looks[p].Match) alpha = Math.Min(alpha, 0.28f);
+                // a turning point never fades to a ghost: its label stays readable, so the mark must match it
+                if (gate) alpha = _searching && !_looks[p].Match ? 0.45f : Math.Max(alpha, 0.6f);
                 if (pass == 2 || _onPath[p]) alpha = 1f;
                 float radius = NodeRadius(gate);
                 int theme = gate ? 3 : (int)_catalog!.Projects[p].Theme;
@@ -946,6 +1164,11 @@ public partial class ResearchRadialMap : Control
                     float wave = UiSettings.Current.ReduceMotion ? 0.5f : _pulse / 1.6f;
                     DrawArc(c, radius + 4 + 8 * wave, 0, Mathf.Tau, 40, UiTokens.WithAlpha(UiTokens.Accent, 0.95f * (1 - wave)), 2f, true);
                     DrawArc(c, radius + 4, 0, Mathf.Tau, 32, UiTokens.Accent, 2f, true);
+                }
+                if (gate && _looks[p].State is ProjectState.Available && !_searching)
+                {
+                    float breath = UiSettings.Current.ReduceMotion ? 0.5f : _pulse / 1.6f;
+                    DrawArc(c, radius * 1.65f + 6 * breath, 0, Mathf.Tau, 48, UiTokens.WithAlpha(GateColor, 0.7f * (1 - breath)), 2.5f, true);
                 }
                 if (p == _hover && p != _selected)
                     DrawArc(c, radius + 4, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.TextPrimary, 0.6f), 1.5f, true);
@@ -966,16 +1189,31 @@ public partial class ResearchRadialMap : Control
 
         if (gate)
         {
+            // a turning point is the biggest, brightest mark on the map: a glowing gold diamond inside a second outline, whatever the zoom.
+            // The one that opens the next age is at full strength; ones already passed or still far ahead step back, so thirteen of them do not shout at once.
             float s = r * 1.15f;
-            Vector2[] diamond = { c + new Vector2(0, -s), c + new Vector2(s, 0), c + new Vector2(0, s), c + new Vector2(-s, 0), c + new Vector2(0, -s) };
             bool known = look.State is ProjectState.Completed or ProjectState.Dormant;
+            bool ready = look.State is ProjectState.Available or ProjectState.Slotted;
+            bool next = look.TurnsAge && !known;
+            Vector2[] Diamond(float k) => new[] { c + new Vector2(0, -s * k), c + new Vector2(s * k, 0), c + new Vector2(0, s * k), c + new Vector2(-s * k, 0), c + new Vector2(0, -s * k) };
+            if (!known) ci.DrawColoredPolygon(Diamond(1.65f)[..4], A(GateColor, ready ? 0.30f : next ? 0.30f : 0.12f));
+            ci.DrawPolyline(Diamond(1.34f), A(GateColor, known ? 0.3f : next ? 1f : 0.45f), 1.3f, true);
+            Vector2[] diamond = Diamond(1f);
             ci.DrawColoredPolygon(diamond[..4], A(known ? GateColor : UiTokens.ThemeFill(ResearchTheme.Keystone)));
-            ci.DrawPolyline(diamond, A(GateColor), look.State is ProjectState.Available or ProjectState.Slotted ? 2.5f : 1.5f, true);
+            ci.DrawPolyline(diamond, A(GateColor, known || next ? 1f : 0.7f), ready && next ? 3.5f : known ? 2f : 2.5f, true);
             if (look.Progress > 0.001f && !known)
-                ci.DrawArc(c, s + 5, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * Math.Clamp(look.Progress, 0, 1), 40, A(UiTokens.Accent), 2.5f, true);
-            if (icons && r >= 8)
-                UiDraw.Glyph(ci, known ? UiGlyph.Check : UiGlyph.Gem, new Rect2(c - new Vector2(r * 0.55f, r * 0.55f), new Vector2(r * 1.1f, r * 1.1f)),
-                    A(known ? UiTokens.TextOnAccent : GateColor), 1.5f);
+                ci.DrawArc(c, s + 7, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * Math.Clamp(look.Progress, 0, 1), 40, A(UiTokens.Accent), 3.5f, true);
+            if (r >= 8)
+                UiDraw.Glyph(ci, known ? UiGlyph.Check : UiGlyph.Gem, new Rect2(c - new Vector2(r * 0.62f, r * 0.62f), new Vector2(r * 1.24f, r * 1.24f)),
+                    A(known ? UiTokens.TextOnAccent : ready ? UiTokens.TextPrimary : GateColor), 1.8f);
+            if (!known && !ready && r >= 8)
+            {
+                // still locked: a lock on the upper corner, clear of the ring that runs through the gate, so "not yet" reads without opening anything
+                Vector2 at = c + new Vector2(s * 0.9f, -s * 0.9f);
+                ci.DrawCircle(at, 7f, A(UiTokens.Surface2));
+                ci.DrawArc(at, 7f, 0, Mathf.Tau, 20, A(GateColor), 1.5f, true);
+                UiDraw.Glyph(ci, UiGlyph.Lock, new Rect2(at - new Vector2(4.5f, 4.5f), new Vector2(9, 9)), A(GateColor), 1.3f);
+            }
             return;
         }
 
@@ -1003,16 +1241,25 @@ public partial class ResearchRadialMap : Control
                     ci.DrawArc(c, r + 3.5f, -Mathf.Pi / 2, -Mathf.Pi / 2 + Mathf.Tau * Math.Clamp(look.Progress, 0, 1), 32, A(baseColor), 2.5f, true);
                 break;
             default:
-                // almost ready: dim, dotted outline, a lock while something before it is missing
-                ci.DrawCircle(c, r, A(UiTokens.Surface1, 0.9f));
-                int dots = 10;
-                for (int i = 0; i < dots; i++)
+            {
+                // locked (almost ready): dim, dotted outline and a lock while something before it is missing. Zoomed out the disc keeps
+                // a floor of 5 px and the lock is drawn by hand at any size, so a locked project still reads as locked from afar.
+                float lr = Math.Max(r, 5f);
+                ci.DrawCircle(c, lr, A(UiTokens.Surface1, 0.95f));
+                if (lr >= 7)
                 {
-                    float a0 = Mathf.Tau * i / dots;
-                    ci.DrawArc(c, r, a0, a0 + Mathf.Tau / dots * 0.55f, 3, A(UiTokens.TextTertiary), 1.2f, true);
+                    int dots = 10;
+                    for (int i = 0; i < dots; i++)
+                    {
+                        float a0 = Mathf.Tau * i / dots;
+                        ci.DrawArc(c, lr, a0, a0 + Mathf.Tau / dots * 0.55f, 3, A(UiTokens.TextTertiary), 1.2f, true);
+                    }
                 }
-                if (icons && r >= 7) UiDraw.Glyph(ci, UiGlyph.Lock, new Rect2(c - new Vector2(r * 0.55f, r * 0.55f), new Vector2(r * 1.1f, r * 1.1f)), A(UiTokens.TextTertiary), 1.3f);
+                else ci.DrawArc(c, lr, 0, Mathf.Tau, 16, A(UiTokens.TextTertiary), 1f, true);
+                if (icons && lr >= 7) UiDraw.Glyph(ci, UiGlyph.Lock, new Rect2(c - new Vector2(lr * 0.55f, lr * 0.55f), new Vector2(lr * 1.1f, lr * 1.1f)), A(UiTokens.TextTertiary), 1.3f);
+                else PaintMiniLock(ci, c, lr, A(UiTokens.TextSecondary));
                 break;
+            }
         }
 
         if (look.State == ProjectState.Slotted && look.SlotRank is >= 0 and <= 2)
@@ -1045,6 +1292,67 @@ public partial class ResearchRadialMap : Control
         }
     }
 
+    /// <summary>A padlock small enough for a 5 px disc: a body and a shackle, no glyph metrics.</summary>
+    private static void PaintMiniLock(CanvasItem ci, Vector2 c, float r, Color color)
+    {
+        float w = r * 1.0f, h = r * 0.78f;
+        var body = new Rect2(c.X - w * 0.5f, c.Y - h * 0.12f, w, h);
+        ci.DrawRect(body, color);
+        ci.DrawArc(new Vector2(c.X, body.Position.Y), w * 0.3f, Mathf.Pi, Mathf.Tau, 8, color, Math.Max(1f, r * 0.15f), true);
+    }
+
+    /// <summary>Expanding gold rings around the project a search or button just took the view to.</summary>
+    private void DrawPing()
+    {
+        if (_pingProject < 0 || _layout is null || !_looks[_pingProject].Visible) return;
+        Vector2 c = ToScreen(_layout.X[_pingProject], _layout.Y[_pingProject]);
+        float baseR = NodeRadius(_layout.Gate[_pingProject]) + 8;
+        float fade = 1f - Math.Clamp((_pingAge - PingSeconds * 0.6f) / (PingSeconds * 0.4f), 0f, 1f);
+        if (UiSettings.Current.ReduceMotion)
+        {
+            DrawArc(c, baseR + 6, 0, Mathf.Tau, 40, UiTokens.WithAlpha(UiTokens.Accent, 0.9f * fade), 3f, true);
+            return;
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            float t = (_pingAge * 1.1f - i * 0.28f) % 1f;
+            if (_pingAge * 1.1f - i * 0.28f < 0) continue;
+            DrawArc(c, baseR + 34 * t, 0, Mathf.Tau, 48, UiTokens.WithAlpha(UiTokens.Accent, 0.9f * (1 - t) * fade), 3f, true);
+        }
+    }
+
+    /// <summary>While the turning point of this age is off screen: a gold tab on the edge of the view that points to it. A click goes there.</summary>
+    private void DrawTurningPointPointer()
+    {
+        _edgeMarkerProject = -1;
+        if (_layout is null || _searching) return;
+        int gate = NextTurningPoint();
+        if (gate < 0) return;
+        Vector2 at = ToScreen(_layout.X[gate], _layout.Y[gate]);
+        Rect2 room = Usable().Grow(-4);
+        if (room.Grow(NodeRadius(true)).HasPoint(at)) return;
+
+        Vector2 from = room.GetCenter();
+        Vector2 dir = (at - from).Normalized();
+        if (dir == Vector2.Zero) dir = Vector2.Up;
+        Font font = UiTheme.Bold;
+        string name = _catalog!.Projects[gate].Name;
+        string text = name + "  " + (dir.Y < -0.6f ? "↑" : dir.Y > 0.6f ? "↓" : dir.X < 0 ? "←" : "→");
+        Vector2 extent = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelFont);
+        var size = new Vector2(extent.X + 40, 28);
+        // where the ray from the middle leaves the usable area, with the tab pulled wholly inside it
+        Vector2 edge = from + dir * ExitDistance(from, dir, room);
+        var box = new Rect2((edge - size * 0.5f).Clamp(room.Position, room.End - size), size);
+        _edgeMarker = box;
+        _edgeMarkerProject = gate;
+
+        bool ready = _looks[gate].State is ProjectState.Available or ProjectState.Slotted;
+        float glow = ready && !UiSettings.Current.ReduceMotion ? 0.5f + 0.5f * Mathf.Sin(_pulse / 1.6f * Mathf.Tau) : 0.5f;
+        DrawStyleBox(UiTheme.Box(new Color("#2A251EF5"), 14, UiTokens.WithAlpha(GateColor, 0.55f + 0.4f * glow), 2), box);
+        UiDraw.Glyph(this, UiGlyph.Gem, new Rect2(box.Position + new Vector2(8, 5), new Vector2(18, 18)), GateColor, 1.6f);
+        DrawString(font, box.Position + new Vector2(32, 5 + font.GetAscent(LabelFont) + (18 - font.GetHeight(LabelFont)) * 0.5f), text, HorizontalAlignment.Left, -1, LabelFont, UiTokens.TextPrimary);
+    }
+
     // ---- labels ------------------------------------------------------------------------------
 
     private int LabelPriority(int p)
@@ -1052,6 +1360,14 @@ public partial class ResearchRadialMap : Control
         if (p == _selected) return 1000;
         if (p == _hover) return 950;
         if (p == _nextStep) return 900;
+        // turning points keep their names at every zoom: they are the landmarks of the whole tree
+        if (_layout!.Gate[p])
+        {
+            bool known = _looks[p].State is ProjectState.Completed or ProjectState.Dormant;
+            if (_searching && !_looks[p].Match) return 790;
+            // the gate of this age is a landmark at every zoom; the ones behind and beyond it only name themselves up close
+            return _looks[p].TurnsAge && !known ? 880 : known ? 560 : 480;
+        }
         if (_onPath[p]) return 850;
         if (_searching && _looks[p].Match) return 800;
         if (_unmetDirect[p]) return 780;
@@ -1065,7 +1381,6 @@ public partial class ResearchRadialMap : Control
             ProjectState.Dormant => 250,
             _ => 200,
         };
-        if (_layout!.Gate[p]) rank = Math.Max(rank, 560);
         if (_looks[p].Filtered || (_searching && !_looks[p].Match)) rank -= 150;
         else if (_focus >= 0 && rank < 500) rank -= 100;
         return rank;
@@ -1185,9 +1500,11 @@ public partial class ResearchRadialMap : Control
     {
         string name = _catalog!.Projects[p].Name;
         if (_fullWidth[p] <= width + 0.5f) return name;
+        bool gate = _layout!.Gate[p];
+        if (gate) width -= GateLabelPad;
         long key = ((long)p << 16) | (long)Math.Clamp((int)width, 0, 0xFFFF);
         if (_truncated.TryGetValue(key, out string? cached)) return cached;
-        Font font = UiTheme.Medium;
+        Font font = gate ? UiTheme.Bold : UiTheme.Medium;
         int lo = 1, hi = name.Length - 1, best = 1;
         while (lo <= hi)
         {
@@ -1245,16 +1562,28 @@ public partial class ResearchRadialMap : Control
             if (_looks[p].Filtered) alpha = Math.Min(alpha, 0.35f);
             if (_searching && !_looks[p].Match) alpha = Math.Min(alpha, 0.4f);
             if (selected || path) alpha = 1f;
-            if (alpha < 1f) DrawRect(box, UiTokens.WithAlpha(LabelBox.BgColor, 0.75f * alpha));
-            else DrawStyleBox(selected ? LabelBoxSelected : path ? LabelBoxPath : LabelBox, box);
+            bool gateLabel = _layout!.Gate[p];
+            bool knownGate = gateLabel && _looks[p].State is ProjectState.Completed or ProjectState.Dormant;
+            bool majorGate = gateLabel && !knownGate && (_looks[p].TurnsAge || selected);
+            if (gateLabel) alpha = _searching && !_looks[p].Match ? 0.45f : Math.Max(alpha, 0.6f);
+            if (alpha < 1f && !majorGate) DrawRect(box, UiTokens.WithAlpha(LabelBox.BgColor, 0.75f * alpha));
+            else DrawStyleBox(selected ? LabelBoxSelected : majorGate ? LabelBoxGate : path ? LabelBoxPath : LabelBox, box);
             ProjectState state = _looks[p].State;
             Color text = state is ProjectState.Available or ProjectState.Slotted || selected || path || _layout!.Gate[p]
                 ? UiTokens.TextPrimary
                 : state == ProjectState.Dormant ? UiTokens.Warning : UiTokens.TextSecondary;
             if (p == _nextStep) text = UiTokens.Accent;
             text.A *= alpha;
-            DrawString(font, box.Position + new Vector2(4, (LabelHeight - font.GetHeight(LabelFont)) * 0.5f + ascent), label.Text,
-                HorizontalAlignment.Left, -1, LabelFont, text);
+            Font face = gateLabel ? UiTheme.Bold : font;
+            float indent = 4;
+            if (gateLabel && !knownGate)
+            {
+                UiDraw.Glyph(this, UiGlyph.Gem, new Rect2(box.Position + new Vector2(3, 2), new Vector2(15, 15)), UiTokens.WithAlpha(GateColor, alpha * (majorGate ? 1f : 0.7f)), 1.4f);
+                indent = 4 + GateLabelPad;
+            }
+            Color gateText = knownGate ? UiTokens.WithAlpha(UiTokens.TextTertiary, alpha) : UiTokens.WithAlpha(GateColor, alpha * (majorGate ? 1f : 0.75f));
+            DrawString(face, box.Position + new Vector2(indent, (LabelHeight - face.GetHeight(LabelFont)) * 0.5f + face.GetAscent(LabelFont)), label.Text,
+                HorizontalAlignment.Left, -1, LabelFont, gateLabel ? gateText : text);
         }
     }
 
@@ -1296,7 +1625,7 @@ public partial class ResearchRadialMap : Control
         Item(KeySwatch.Kind.Known, "Known");
         Item(KeySwatch.Kind.Ready, "Ready");
         Item(KeySwatch.Kind.Slotted, "In slot 1–3");
-        Item(KeySwatch.Kind.Almost, "Almost ready");
+        Item(KeySwatch.Kind.Almost, "Locked");
         Item(KeySwatch.Kind.Blocked, "Blocked");
         Item(KeySwatch.Kind.Gate, "Turning point");
         Item(KeySwatch.Kind.Required, "Required");

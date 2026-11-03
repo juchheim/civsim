@@ -469,6 +469,7 @@ public partial class Game
         {
             Visible = false,
             ProjectClicked = project => SelectResearchProject(project),
+            ProjectJumped = JumpToProject,
             ProjectActivated = project =>
             {
                 SelectResearchProject(project);
@@ -547,6 +548,35 @@ public partial class Game
             sub = $"{done} of {gate.BreadthMin} {UiText.AgeName(era)} projects known toward {gate.Name}";
         }
         _mapView.SetLooks(_mapLooks, _selectedResearchProject, era, searching, _webThemeFilter, title, sub);
+        if (searching)
+        {
+            // projects of an age you have reached that you have not found yet: only how many fit is told, never which
+            int undiscovered = 0;
+            for (int p = 0; p < _mapLooks.Length; p++)
+                if (_mapLooks[p].Undiscovered && ResearchMatches(_catalog.Projects[p], query)) undiscovered++;
+            _mapView.SetSearchResults(MapSearchMatches(layout, query).ToArray(), undiscovered);
+        }
+    }
+
+    /// <summary>Every project the player knows that fits the query, the best fit first: names that start with it, then names that contain it, then the rest.</summary>
+    private List<int> MapSearchMatches(ResearchRadialLayout layout, string query)
+    {
+        var matches = new List<int>();
+        if (_catalog is null || _current is null) return matches;
+        for (int p = 0; p < Math.Min(_current.FocusProjectCount, _catalog.Count); p++)
+            if (layout.Placed[p] && IsKnownToPlayer(p) && ResearchMatches(_catalog.Projects[p], query)) matches.Add(p);
+        int Rank(int p)
+        {
+            string name = _catalog.Projects[p].Name;
+            return name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0
+                : name.Contains(query, StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+        }
+        matches.Sort((a, b) =>
+        {
+            int c = Rank(a).CompareTo(Rank(b));
+            return c != 0 ? c : CompareSearch(a, b);
+        });
+        return matches;
     }
 
     private string MapTooltip(int project)
@@ -569,20 +599,33 @@ public partial class Game
         return tip.ToString();
     }
 
-    /// <summary>Enter in the search box on the Map: select the best match and centre it.</summary>
-    private void JumpToFirstMapMatch()
+    /// <summary>Enter in the search box: go to the highlighted result (the first one until the arrow keys move it). From the Available list that opens the Tree.</summary>
+    private void JumpToSearchResult()
     {
-        if (_webView != ViewMap || _catalog is null || _current is null || _mapView?.Layout is not ResearchRadialLayout layout) return;
+        if (_catalog is null || _current is null || _mapView?.Layout is not ResearchRadialLayout layout) return;
         string query = _webSearch?.Text.Trim() ?? "";
         if (query.Length == 0) return;
-        var matches = new List<int>();
-        for (int p = 0; p < Math.Min(_current.FocusProjectCount, _catalog.Count); p++)
-            if (layout.Placed[p] && IsKnownToPlayer(p) && ResearchMatches(_catalog.Projects[p], query)) matches.Add(p);
-        if (matches.Count == 0) return;
-        matches.Sort(CompareSearch);
+        int project = _webView == ViewMap ? _mapView.SearchCursorProject : -1;
+        if (project < 0)
+        {
+            List<int> matches = MapSearchMatches(layout, query);
+            if (matches.Count == 0) return;
+            project = matches[0];
+        }
+        JumpToProject(project);
+    }
+
+    /// <summary>Select a project, clear the search and take the Tree to it with a ring that shows where it landed.</summary>
+    private void JumpToProject(int project)
+    {
+        if (_mapView is null || _webSearch is null) return;
+        _webSearch.Text = "";
+        _webSearch.ReleaseFocus();
         _mapCenterNext = true;
-        _webSearch?.ReleaseFocus();
-        SelectResearchProject(matches[0]);
+        if (_webView != ViewMap) SetResearchView(ViewMap);
+        _webSignature = int.MinValue;
+        SelectResearchProject(project);
+        _mapView.Ping(project);
         _mapView.GrabFocus();
     }
 
@@ -776,6 +819,8 @@ public partial class Game
         SetChip(_chipTheme!, UiText.ThemeNames[(int)def.Theme].ToUpperInvariant(), UiDraw.ThemeGlyph(def.Theme), UiTokens.ThemeText(def.Theme));
         SetChip(_chipAge!, UiText.AgeName(def.Era).ToUpperInvariant() + " AGE", UiGlyph.None, UiTokens.TextSecondary);
         SetChip(_chipType!, UiText.TypeNames[(int)def.Type].ToUpperInvariant(), UiGlyph.None, UiTokens.TextSecondary);
+        // a turning point already says so in the first chip: the kind chip would only repeat it
+        _chipType!.Visible = !def.IsKeystone;
 
         // state line
         string stateText;
@@ -1400,6 +1445,7 @@ public partial class Game
                 _mapView?.FitVisible();
                 return true;
             case Key.Slash:
+            case Key.F when key.CtrlPressed || key.MetaPressed:
                 _webSearch?.GrabFocus();
                 return true;
             case Key.Left: MoveWebSelection(-1, 0); return true;
