@@ -145,7 +145,7 @@ public class ViewFrameTests
         new FrameBuilder(match, 0).Build(match, frame);
 
         Assert.Equal((byte)2, frame.ForestBand[forestTile]);
-        Assert.Equal((byte)1, frame.DepositWorked[campTile]);
+        Assert.Equal((byte)2, frame.DepositWorked[campTile]); // exhausted: worked, no ore left
         Assert.Equal((byte)1, frame.MiningReach[homeTile]);
         Assert.Equal((byte)0, frame.ForestBand[hiddenTile]);
         Assert.Equal((byte)0, frame.DepositWorked[hiddenTile]);
@@ -159,6 +159,10 @@ public class ViewFrameTests
         Assert.Equal(4, frame.CampCrew[camp]);
         Assert.Equal((byte)1, frame.CampBuilt[camp]);
         Assert.Equal((byte)1, frame.CampMineHead[camp]);
+
+        eco.FixtureSetOreRemaining(campTile, Fix64.FromInt(5)); // some ore left: still being worked
+        new FrameBuilder(match, 0).Build(match, frame);
+        Assert.Equal((byte)1, frame.DepositWorked[campTile]);
 
         int homeFrame = frame.IndexOfSettlement(home);
         (int overreach, int spanPenalty) = eco.CohesionPressures(home);

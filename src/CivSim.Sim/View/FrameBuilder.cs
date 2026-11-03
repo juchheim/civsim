@@ -653,7 +653,7 @@ public sealed partial class FrameBuilder
             knownDeposits[t] = _knownDeposits[t];
             depositClues[t] = _depositClues[t];
             forest[t] = Visible(t) ? (byte)eco.ForestBand(t) : (byte)0;
-            worked[t] = Visible(t) && eco.DepositWorked(t) ? (byte)1 : (byte)0;
+            worked[t] = Visible(t) && eco.DepositWorked(t) ? (eco.OreRemaining(t) <= Fix64.Zero ? (byte)2 : (byte)1) : (byte)0;
             miningReach[t] = 0;
             if ((_omniscient || _explored[t] != 0) && reachEnabled)
             {

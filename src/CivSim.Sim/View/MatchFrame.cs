@@ -60,7 +60,7 @@ public sealed class MatchFrame
     public byte[] DepositClues = Array.Empty<byte>();
     /// <summary>Standing forest stock band (0–3) on visible tiles; zero elsewhere. See <see cref="Economy.LivingEconomyModel.ForestBand"/>.</summary>
     public byte[] ForestBand = Array.Empty<byte>();
-    /// <summary>1 when ore from the tile has been mined; current sight is required to reveal it.</summary>
+    /// <summary>1 when ore from the tile has been mined, 2 when that deposit is now exhausted; current sight is required to reveal it.</summary>
     public byte[] DepositWorked = Array.Empty<byte>();
     /// <summary>1 when a known tile is within the viewer's current mining reach (or any civilization in omniscient mode).</summary>
     public byte[] MiningReach = Array.Empty<byte>();

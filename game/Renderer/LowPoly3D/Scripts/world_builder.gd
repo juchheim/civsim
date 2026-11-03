@@ -167,7 +167,7 @@ func build() -> Node3D:
 	_beacons()
 	herd_props = _build_props_node("Herds", props)
 	props = M7Batcher.new()
-	deposit_signature = hash(w.e3_overlay_bytes)
+	deposit_signature = _deposit_digest()
 	_deposits()
 	deposit_props = _build_props_node("Deposits", props)
 	props = M7Batcher.new()
@@ -211,7 +211,7 @@ func update_frame() -> bool:
 		settlement_multimeshes = props.update_existing(settlement_props, kit, _material_for, settlement_multimeshes)
 		props = M7Batcher.new()
 	rig.set_monuments(w.monuments, structure_signature)
-	var new_deposit_signature := hash(w.e3_overlay_bytes)
+	var new_deposit_signature := _deposit_digest()
 	if new_deposit_signature != deposit_signature:
 		deposit_signature = new_deposit_signature
 		props = M7Batcher.new()
@@ -1342,21 +1342,141 @@ func _camps() -> void:
 ## A marker on every identified deposit and generic geological clue (red channel: DepositKind + 1, or 23 for a clue).
 ## It stands to one side of the tile's middle, clear of a village's hearth, and keeps the same spot for the life of the match.
 const DEPOSIT_SCALE := 1.3
+const MINE_AWAY_FROM_CAMP := PI + 0.58   # opposite the centroid of a camp's props, about (0.14, 0.09) from the tile centre
 
+## Byte 1 of a tile's e3 overlay entry is a bitfield (Game.cs `BuildE3OverlayBytes`).
+const MINE_WORKED := 1      # the deposit has produced ore
+const MINE_REACH := 2       # within a settlement's mining reach (terrain overlay only)
+const MINE_DEEP := 4        # a known deposit of depth >= 2 (needs a shaft)
+const MINE_EXHAUSTED := 8   # no ore left; only ever set together with MINE_WORKED
+
+## The mesh a deposit of `kind` shows for its byte-1 bits `g` (art_deposits.gd / art_mines.gd), `camp_head` when the mining camp on the
+## tile has built its mine head. Untouched: the marker. Worked: copper ore, arsenical copper and iron show the adit, or the headframe
+## when the deposit is deep or the camp has its mine head; tin shows the stream working, or the headframe only when it is a deep lode
+## (a shaft over a placer makes no sense); gold and silver are always panned; salt is always the salt works. Exhausted: the same family's
+## `_spent` mesh. Without the `_tall` suffix that mountain tiles add.
+static func mine_mesh_name(kind: int, g: int, camp_head: bool) -> String:
+	if (g & MINE_WORKED) == 0 or kind not in M7_MINED_KINDS:
+		return "deposit%d" % kind
+	var deep := (g & MINE_DEEP) != 0
+	var head := false
+	if kind in [6, 7, 11]:
+		head = deep or camp_head
+	elif kind == 8:
+		head = deep
+	var name := "deposit_mine%d%s" % [kind, "_head" if head else ""]
+	if (g & MINE_EXHAUSTED) != 0:
+		name += "_spent"
+	return name
+
+const M7_MINED_KINDS := [6, 7, 8, 9, 10, 11, 12]
+
+## A known deposit shows its marker; once it has produced ore its working replaces the marker on the same spot and turn (or, on a tile
+## with a mining camp, on the far side of the tile from the camp), see `mine_mesh_name`. A working's pennant takes the colour of the
+## camp's civilization, else the tile owner's, else plain hide brown; a spent working has no pennant.
 func _deposits() -> void:
 	var bytes := w.e3_overlay_bytes
 	var tiles := w.width * w.height
 	if bytes.size() != tiles * 4:
 		return
+	var camps := _mining_camps_by_tile()
+	var gallery := _mine_gallery(bytes) if MINE_GALLERY else {}
 	for t in tiles:
 		var kind := int(bytes[t * 4]) - 1
-		if kind <= 0 or not w.is_land(t) or not kit.meshes.has("deposit%d" % kind):
-			continue
-		var high := w.biome[t] >= M7WorldData.Biome.MOUNTAIN
+		var g := int(bytes[t * 4 + 1])
+		var camp_head := camps.has(t) and int(camps[t][1]) != 0
+		if MINE_DEBUG and kind > 0:
+			g |= MINE_WORKED
+			if M7WorldData.hash01(t, 37) < 0.2:
+				g |= MINE_EXHAUSTED
+			if not camps.has(t):
+				camp_head = M7WorldData.hash01(t, 29) < 0.5
 		var a := M7WorldData.hash01(t, 17) * TAU
 		var p := w.tile_center(t) + Vector2(cos(a), sin(a)) * 0.2
-		props.add("deposit%d%s" % [kind, "_tall" if high else ""], _xf(p, w.height_at(p), M7WorldData.hash01(t, 19) * TAU, DEPOSIT_SCALE),
-			Color(1, 1, 1, M7WorldData.hash01(t, 23)))
+		var yaw := M7WorldData.hash01(t, 19) * TAU
+		if gallery.has(t):
+			kind = int(gallery[t][0])
+			g = int(gallery[t][1])
+			camp_head = bool(gallery[t][2])
+			p = w.tile_center(t)
+			yaw = 0.0
+		if kind <= 0 or not w.is_land(t) or not kit.meshes.has("deposit%d" % kind):
+			continue
+		var tall := "_tall" if w.biome[t] >= M7WorldData.Biome.MOUNTAIN else ""
+		var seed := M7WorldData.hash01(t, 23)
+		var mesh := mine_mesh_name(kind, g, camp_head)
+		if not kit.meshes.has(mesh + tall):
+			mesh = "deposit%d" % kind
+		if mesh.begins_with("deposit_mine"):
+			if camps.has(t) and not gallery.has(t):
+				# the camp's tents, hearth and banner stand at +(0.12, 0.05) (`_camps`): dig on the far side of the tile from them
+				a = MINE_AWAY_FROM_CAMP + (M7WorldData.hash01(t, 17) - 0.5) * 1.1
+				p = w.tile_center(t) + Vector2(cos(a), sin(a)) * 0.22
+			var civ: int = int(camps[t][0]) if camps.has(t) else (w.owner[t] if t < w.owner.size() else -1)
+			var cc := M7MeshBuilder.lin(M7WorldData.civ_color(civ) if civ >= 0 else Color("#9c8466"), 0.5)
+			props.add(mesh + tall, _xf(p, w.height_at(p), yaw, DEPOSIT_SCALE), Color(cc.r, cc.g, cc.b, seed))
+			continue
+		props.add(mesh + tall, _xf(p, w.height_at(p), yaw, DEPOSIT_SCALE), Color(1, 1, 1, seed))
+
+## What the deposit props depend on: the e3 overlay (kind, worked bit) and each mining camp's tile, civilization and mine head.
+func _deposit_digest() -> int:
+	var h := hash(w.e3_overlay_bytes)
+	for cd in w.camp_details:
+		if int(cd[2]) == 1:
+			h = int((h * 31 + int(cd[0]) * 17 + int(cd[1]) * 3 + int(cd[7])) & 0x7fffffff)
+	return h
+
+## tile -> [civ, mine head 0/1] for every mining camp in the frame (camp_details kind 1; the camp stands on the deposit it digs).
+func _mining_camps_by_tile() -> Dictionary:
+	var out := {}
+	for cd in w.camp_details:
+		if int(cd[2]) == 1:
+			out[int(cd[0])] = [int(cd[1]), int(cd[7])]
+	return out
+
+## `--mine-debug` draws every known deposit of the mined kinds as worked, about a fifth of them exhausted, and on tiles without a camp
+## gives about half a camp mine head. `--mine-gallery` also relabels five rows of eight tiles around the busiest known deposit cluster
+## (the tile the `deposits` scenario centres on), columns copper ore, arsenical copper, iron, tin placer, tin lode (deep), gold, silver,
+## salt; rows north to south: untouched marker, working, working with a camp mine head, exhausted, exhausted with a camp mine head. All
+## drawn at the tile centre facing south. Renderer only: the simulation never sees either.
+var MINE_GALLERY: bool = "--mine-gallery" in OS.get_cmdline_user_args()
+var MINE_DEBUG: bool = MINE_GALLERY or "--mine-debug" in OS.get_cmdline_user_args()
+const MINE_GALLERY_COLUMNS := [[6, 0], [7, 0], [11, 0], [8, 0], [8, MINE_DEEP], [9, 0], [10, 0], [12, 0]]
+const MINE_GALLERY_ROWS := [[0, false], [MINE_WORKED, false], [MINE_WORKED, true], [MINE_WORKED | MINE_EXHAUSTED, false],
+	[MINE_WORKED | MINE_EXHAUSTED, true]]
+
+func _mine_gallery(bytes: PackedByteArray) -> Dictionary:
+	var best := -1
+	var best_count := 0
+	for t in w.width * w.height:
+		if bytes[t * 4] == 0:
+			continue
+		var count := 0
+		var x0 := t % w.width
+		var y0 := t / w.width
+		for dy in range(-3, 4):
+			for dx in range(-3, 4):
+				var x := x0 + dx
+				var y := y0 + dy
+				if x >= 0 and y >= 0 and x < w.width and y < w.height and bytes[(y * w.width + x) * 4] != 0:
+					count += 1
+		if count > best_count:
+			best_count = count
+			best = t
+	var out := {}
+	if best < 0:
+		return out
+	var cx := best % w.width
+	var cy := best / w.width
+	for row in MINE_GALLERY_ROWS.size():
+		var y := cy - 4 + row * 2   # every other row, so the hex stagger keeps the columns straight
+		for i in MINE_GALLERY_COLUMNS.size():
+			var x := cx - 4 + i
+			if x < 0 or y < 0 or x >= w.width or y >= w.height:
+				continue
+			var col: Array = MINE_GALLERY_COLUMNS[i]
+			out[y * w.width + x] = [col[0], int(MINE_GALLERY_ROWS[row][0]) | int(col[1]), MINE_GALLERY_ROWS[row][1]]
+	return out
 
 # ------------------------------------------------------------------ people
 

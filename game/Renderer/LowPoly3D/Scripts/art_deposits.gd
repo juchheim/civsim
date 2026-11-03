@@ -21,7 +21,7 @@ const KINDS := {
 	5: ["#5a5148", "#d0793f", "#ff8a3a", "ore"],          # native copper
 	6: ["#505a52", "#4aa88a", "#ff8a3a", "ore"],          # copper ore (green malachite)
 	7: ["#4f4858", "#a35fc8", "#c06cff", "ore"],          # arsenical copper
-	8: ["#5b5b5e", "#d9d4c4", "#ffd23a", "ore"],          # tin
+	8: ["#5b5b5e", "#d9d4c4", "#9ce8f8", "ore"],          # tin (a cool pale cyan, apart from gold's yellow)
 	9: ["#6e5f3a", "#f4cc3c", "#ffe14a", "ore"],          # gold
 	10: ["#5c6068", "#e4e9f0", "#f4f7ff", "ore"],         # silver
 	11: ["#4a423e", "#a8503a", "#e0583a", "ore"],         # iron

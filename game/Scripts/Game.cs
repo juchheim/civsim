@@ -657,8 +657,11 @@ public partial class Game : Node3D
                 data[tile * stride] = (byte)(world.Deposit[tile] + 1);
             else if (frame.DepositClues[tile] != 0)
                 data[tile * stride] = 23; // generic clue marker; the deposit kind stays hidden
-            // G: 0 none, 1 worked, 2 reachable, 3 both.
-            data[tile * stride + 1] = (byte)((frame.DepositWorked[tile] != 0 ? 1 : 0) | (frame.MiningReach[tile] != 0 ? 2 : 0));
+            // G is a bitfield: 1 worked, 2 reachable, 4 depth-2 deposit (known deposits only), 8 exhausted (with 1).
+            int mine = (frame.DepositWorked[tile] != 0 ? 1 : 0) | (frame.MiningReach[tile] != 0 ? 2 : 0)
+                | (frame.DepositWorked[tile] == 2 ? 8 : 0);
+            if (frame.KnownDeposits[tile] != 0 && world.DepositDepth[tile] >= 2) mine |= 4;
+            data[tile * stride + 1] = (byte)mine;
         }
         for (int i = 0; i < frame.SettlementCount; i++)
         {
