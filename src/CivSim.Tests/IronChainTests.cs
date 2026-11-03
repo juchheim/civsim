@@ -149,6 +149,59 @@ public class IronChainTests
         }
     }
 
+    [Fact]
+    public void An_Iron_settlement_plans_T11_kits_for_its_adults_through_the_existing_chain_and_conserves_the_ore()
+    {
+        BronzeFixture f = Iron("MET-08", "MET-09");
+        LivingEconomyModel e = f.Economy;
+        Fix64 ore = Fix64.FromInt(60);
+        e.FixtureStock(0, "G-IRONORE", ore);
+        e.FixtureStock(0, "G-CHAR", Fix64.FromInt(40));
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-TOOL11"));
+
+        f.RunSeasons(3);
+
+        Fix64 kits = e.GoodStock(0, "G-TOOL11");
+        Assert.True(kits > Fix64.Zero, "the Iron chain should have produced kits");
+        // Every litre of ore went through the bloomery (2 ore -> 0.5 bloom -> 0.4 wrought at the forge -> 0.15 wrought a kit).
+        Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + kits * F("0.15")) * F("1.25");
+        Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromInt(4));
+    }
+
+    [Fact]
+    public void A_Bronze_settlement_with_the_same_stock_and_projects_makes_no_Iron_goods()
+    {
+        BronzeFixture f = Bronze("MET-08", "MET-09");
+        LivingEconomyModel e = f.Economy;
+        e.FixtureStock(0, "G-IRONORE", Fix64.FromInt(60));
+        e.FixtureStock(0, "G-CHAR", Fix64.FromInt(40));
+        f.RunSeasons(3);
+        foreach (string good in new[] { "G-WROUGHT", "G-STEEL", "G-TOOL11", "G-TOOL12" })
+            Assert.Equal(Fix64.Zero, e.GoodStock(0, good));
+    }
+
+    [Fact]
+    public void An_Iron_economy_restored_from_a_snapshot_continues_exactly()
+    {
+        BronzeFixture live = Iron("MET-08", "MET-09");
+        live.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(60));
+        live.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(40));
+        live.Economy.FixtureStock(0, "G-GRAIN", Fix64.FromInt(400));
+        for (long t = 0; t < 2 * LivingEconomyModel.SeasonTicks; t++) live.Economy.Step(t, ReadOnlySpan<Command>.Empty);
+        Assert.True(live.Economy.GoodStock(0, "G-TOOL11") > Fix64.Zero);
+
+        BronzeFixture copy = Iron("MET-08", "MET-09");
+        Restore(copy.Economy, Snapshot(live.Economy));
+        Assert.Equal(live.Economy.ComputeChecksum(), copy.Economy.ComputeChecksum());
+        for (long t = 2 * LivingEconomyModel.SeasonTicks; t < 4 * LivingEconomyModel.SeasonTicks; t++)
+        {
+            live.Economy.Step(t, ReadOnlySpan<Command>.Empty);
+            copy.Economy.Step(t, ReadOnlySpan<Command>.Empty);
+        }
+        Assert.Equal(live.Economy.ComputeChecksum(), copy.Economy.ComputeChecksum());
+        Assert.Equal(live.Economy.GoodStock(0, "G-TOOL11"), copy.Economy.GoodStock(0, "G-TOOL11"));
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

@@ -237,7 +237,7 @@ public sealed partial class LivingEconomyModel
     internal (Fix64 Moved, Fix64 BuildAssigned) FixtureCivicToMetalCompletion(int settlementIndex, Fix64 buildNeed, Fix64 buildAssigned,
         Fix64 civicAssigned, Fix64 civicCanals, Fix64 civicHousing)
     {
-        var plan = new MetalPlan(_compiledRecipes.Length) { BuildNeed = buildNeed, BuildAssigned = buildAssigned };
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots) { BuildNeed = buildNeed, BuildAssigned = buildAssigned };
         Fix64 moved = TransferCivicWorkToMetalCompletion(_settlements[settlementIndex], plan, civicAssigned, civicCanals, civicHousing);
         return (moved, plan.BuildAssigned);
     }

@@ -34,18 +34,44 @@ public sealed partial class LivingEconomyModel
     private const uint IronSnapshotMagic = 0x4E4F5249;   // "IRON" little-endian
 
     private CompiledRecipe[] _ironRecipes = Array.Empty<CompiledRecipe>();
+    /// <summary>Every compiled recipe in content order (ascending order, then id): the Bronze list with the Iron recipes in place.</summary>
+    private CompiledRecipe[] _allRecipes = Array.Empty<CompiledRecipe>();
+    private bool _ironChain;
+
+    /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
+    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0);
 
     /// <summary>
     /// True when the match plays the Iron chapter (<c>MatchModel</c> sets it from the chapter rules). Off, the Iron recipes cannot run, no Iron
     /// state is hashed or written, and E4 project completions are not recorded: the economy is byte-for-byte the Bronze economy.
     /// </summary>
-    public bool IronChain { get; init; }
+    public bool IronChain
+    {
+        get => _ironChain;
+        init
+        {
+            _ironChain = value;
+            // The Iron recipes join the planner's list only in the Iron chapter, in content order so the craft step still runs them ascending.
+            if (value) _compiledRecipes = _allRecipes;
+        }
+    }
 
     /// <summary>The last era whose project completions the economy records: one past <see cref="MaxEra"/> in the Iron chapter.</summary>
     private int ProjectCeiling => IronChain ? MaxEra + 1 : MaxEra;
 
     /// <summary>Stock of an Iron good in a settlement (zero before the chapter's first batch).</summary>
     private Fix64 IronStock(SettlementState s, IronGood good) => Stock(s, IronSlot(good));
+
+    /// <summary>
+    /// The Iron chapter's first claim on the chain (docs/MVP/25 §4): a T11 kit for every adult who does not hold one, wanted only by a settlement
+    /// with a forge that knows MET-09. The want expands backwards through the same recipe graph as the Bronze kits (kit, wrought iron, bloom, ore,
+    /// charcoal, wood) and is bounded by the same labor cap. Kits wait in store until kit use and wear arrive (a later WP6 slice).
+    /// </summary>
+    private void IronKitWant(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "MET-09")) return;
+        plan.Terminal[IronSlot(IronGood.Kit11)] = Fix64.Max(Fix64.Zero, Fix64.FromInt(plan.Adults) - IronStock(s, IronGood.Kit11));
+    }
 
     // ---- recipes --------------------------------------------------------------------------------
 

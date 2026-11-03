@@ -51,12 +51,12 @@ public sealed partial class LivingEconomyModel
 
     private sealed class MetalPlan
     {
-        public MetalPlan(int recipes)
+        public MetalPlan(int recipes, int slots)
         {
             Batches = new Fix64[recipes];
-            Want = new Fix64[SlotCount];
-            Terminal = new Fix64[SlotCount];
-            SisterTerminal = new Fix64[SlotCount];
+            Want = new Fix64[slots];
+            Terminal = new Fix64[slots];
+            SisterTerminal = new Fix64[slots];
         }
 
         /// <summary>The part of <see cref="Terminal"/> made or dug for sister settlements.</summary>
@@ -139,6 +139,7 @@ public sealed partial class LivingEconomyModel
 
         var compiled = new List<CompiledRecipe>();
         var iron = new List<CompiledRecipe>();
+        var merged = new List<CompiledRecipe>();
         foreach (EconomyRecipe r in _content.Recipes)
         {
             bool enabled = r.Outputs.Length > 0;
@@ -160,16 +161,19 @@ public sealed partial class LivingEconomyModel
             bool touchesIron = output >= IronSlotBase;
             foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesIron |= slot >= IronSlotBase;
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
-            (touchesIron ? iron : compiled).Add(new CompiledRecipe
+            var entry = new CompiledRecipe
             {
                 Def = r, InputSlots = slots, InputQuantity = quantities, OutputSlot = output,
                 OutputQuantity = r.Outputs.Length > 0 ? r.Outputs[0].Quantity : Fix64.Zero,
                 Task = TaskOfPractice(r.Practice), IsCharcoal = output == MetalSlot(MetalGood.Charcoal),
                 Enabled = enabled,
-            });
+            };
+            (touchesIron ? iron : compiled).Add(entry);
+            merged.Add(entry);
         }
         _compiledRecipes = compiled.ToArray();
         _ironRecipes = iron.ToArray();
+        _allRecipes = merged.ToArray();
     }
 
     private int SlotOf(string goodId)
@@ -845,7 +849,7 @@ public sealed partial class LivingEconomyModel
     {
         MetalState m = EnsureMetal(s);
         int civ = s.Civilization;
-        var plan = new MetalPlan(_compiledRecipes.Length);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
         plan.Tier = BestCastTier(s);
         m.Reason = DormancyReason(s, plan.Tier);
 
@@ -1186,6 +1190,7 @@ public sealed partial class LivingEconomyModel
         int civ = s.Civilization;
         if (plan.Tier != 0)
             plan.Terminal[MetalSlot(KitGood(plan.Tier))] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - m.Goods[(int)KitGood(plan.Tier)]);
+        IronKitWant(s, m, plan);
         int reach = ShareReach(civ);
         if (reach >= 0)
         {
@@ -1320,8 +1325,8 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private Fix64[] FeasibleBatches(SettlementState s, bool[] available, bool[]? blockedOres = null)
     {
-        var potential = new Fix64[SlotCount];
-        for (int slot = 0; slot < SlotCount; slot++) potential[slot] = Stock(s, slot);
+        var potential = new Fix64[PlanSlots];
+        for (int slot = 0; slot < PlanSlots; slot++) potential[slot] = Stock(s, slot);
         MetalState m = s.Metal!;
         int civ = s.Civilization;
         foreach (MetalGood ore in new[] { MetalGood.CopperOre, MetalGood.ArsenicalOre, MetalGood.TinOre, MetalGood.IronOre, MetalGood.Gold, MetalGood.Salt })
@@ -1331,7 +1336,7 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
         if (blockedOres is not null)
-            for (int slot = 0; slot < SlotCount; slot++)
+            for (int slot = 0; slot < PlanSlots; slot++)
                 if (blockedOres[slot]) potential[slot] = Stock(s, slot);
         if (Done(civ, "MIN-01") && HasResourceInRange(s, _ochreStock)) potential[MetalSlot(MetalGood.Ochre)] = Plenty;
         if (Done(civ, "MIN-03")) potential[MetalSlot(MetalGood.Block)] = Plenty;
@@ -1364,7 +1369,7 @@ public sealed partial class LivingEconomyModel
         {
             int slot = MetalSlot(ore);
             if (plan.Want[slot] <= m.Goods[(int)ore] || CanObtainOre(s, ore)) continue;
-            blocked ??= new bool[SlotCount];
+            blocked ??= new bool[PlanSlots];
             blocked[slot] = true;
         }
         return blocked;
@@ -1908,8 +1913,8 @@ public sealed partial class LivingEconomyModel
     private Fix64 CharcoalNeededNow(SettlementState s, MetalPlan plan, int charcoalRecipe)
     {
         int charcoal = MetalSlot(MetalGood.Charcoal);
-        var stock = new Fix64[SlotCount];
-        for (int slot = 0; slot < SlotCount; slot++) stock[slot] = Stock(s, slot);
+        var stock = new Fix64[PlanSlots];
+        for (int slot = 0; slot < PlanSlots; slot++) stock[slot] = Stock(s, slot);
         Fix64 need = Fix64.Zero;
         for (int r = charcoalRecipe + 1; r < _compiledRecipes.Length; r++)
         {
