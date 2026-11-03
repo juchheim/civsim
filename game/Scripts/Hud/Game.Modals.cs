@@ -501,9 +501,12 @@ public partial class Game
         var order = new int[frame.CivCount];
         for (int i = 0; i < order.Length; i++) order[i] = i;
         Array.Sort(order, (a, b) => frame.CivLegacy[b].CompareTo(frame.CivLegacy[a]));
-        _endModal.Title.Text = _session?.EndReason == MatchEndReason.HumanKeystone || frame.CivEra[viewer] >= 4
-            ? "The Iron Age dawns"
-            : _session?.EndReason == MatchEndReason.RivalCountdown ? "The Iron Age has come"
+        // The Iron chapter ends on KEY-5 (docs/MVP/25 §3), so its text is its own; the Bronze text is unchanged.
+        bool ironChapter = _session?.IsIron == true;
+        int endEra = ironChapter ? 5 : 4;
+        _endModal.Title.Text = _session?.EndReason == MatchEndReason.HumanKeystone || frame.CivEra[viewer] >= endEra
+            ? (ironChapter ? "The Feudal Order is raised" : "The Iron Age dawns")
+            : _session?.EndReason == MatchEndReason.RivalCountdown ? (ironChapter ? "The Feudal Order has come" : "The Iron Age has come")
             : $"{_session?.MatchYears ?? 64} years have passed";
         int myRank = Array.IndexOf(order, viewer) + 1;
         string leader = order[0] == viewer ? "Your people lead" : $"The {UiText.CivName(order[0])} lead";
@@ -633,9 +636,10 @@ public partial class Game
             _endTimelineSequence = item.Sequence;
             if (item.Kind is ViewEventKind.EraAdvanced)
             {
-                // A rival completing KEY-4 starts the Iron Age countdown (docs/MVP/22 §3.1): 3 years to finish or the age closes.
-                if (item.A >= 4 && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
-                    ShowToast($"The Iron Age is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
+                // A rival completing the chapter keystone starts the countdown (KEY-4 in Bronze, docs/MVP/22 §3.1; KEY-5 in Iron, docs/MVP/25 §3):
+                // 3 years to finish or the age closes.
+                if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
+                    ShowToast($"{(_session.IsIron ? "The Feudal Order" : "The Iron Age")} is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
                         $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or in 3 years, or at Year {_session.MatchYears}.",
                         key: $"rival-era-{item.Civ}-{item.A}");
                 _endTimeline.Add(item);

@@ -39,6 +39,7 @@ internal static class ResearchCommand
         string bot = "grower";
         ulong seed = GoldenSeed;
         int minutes = GoldenMinutes;
+        ChapterRules rules = ChapterRules.Bronze;
         var archetypes = new[] { EconomyArchetype.Grower, EconomyArchetype.Builder, EconomyArchetype.Sage, EconomyArchetype.Wanderer };
         for (int i = 0; i < args.Length; i++)
         {
@@ -61,6 +62,7 @@ internal static class ResearchCommand
                 case "--metal-fixture": metalFixture = true; break;
                 case "--human-seat": humanSeat = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
                 case "--bot": bot = Next(args, ref i); break;
+                case "--mode": rules = ParseMode(Next(args, ref i)); break;
                 case "--archetypes": archetypes = ParseArchetypes(Next(args, ref i)); break;
                 case "--trace": trace = true; break;
                 case "--trace-civ": traceCiv = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); trace = true; break;
@@ -74,6 +76,13 @@ internal static class ResearchCommand
             }
         }
         if (packPath is null) throw new ArgumentException("research needs --pack FILE (civsim build-pack --out FILE).");
+        if (rules.IsIron)
+        {
+            // Every golden and report below is a Bronze protocol (docs/MVP/25 §3); an Iron run is the plain match only.
+            if (checkGolden is not null || writeGolden is not null || checkBronzeGolden is not null || writeBronzeGolden is not null || checkM10 ||
+                reportDecrees || checkB21 || c1e3 || reportE3 || metalFixture || reportMetal || checkC5)
+                throw new ArgumentException("--mode iron runs the plain match only; goldens and the M10 reports are Bronze protocols.");
+        }
         if (checkBronzeGolden is not null || writeBronzeGolden is not null)
         {
             if (checkBronzeGolden is not null && writeBronzeGolden is not null) throw new ArgumentException("Choose either --check-bronze-golden or --write-bronze-golden.");
@@ -125,7 +134,9 @@ internal static class ResearchCommand
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
         long ticks = minutes * 600L;
 
-        var match = MatchModel.Create(seed, pack, archetypes);
+        MatchModel match = rules.IsIron
+            ? MatchModel.Create(seed, pack, CivSim.Sim.World.WorldGenerator.Generate(seed), archetypes, ReadOnlySpan<CivSim.Sim.Ai.CivControl>.Empty, rules: rules)
+            : MatchModel.Create(seed, pack, archetypes);
         OpeningBot? opening = bot == "none" ? null : new OpeningBot(match.Research.Catalog, bot);
         var runner = new SimRunner(match);
         var commands = new List<Command>();
@@ -146,11 +157,12 @@ internal static class ResearchCommand
 
         string result = Describe(seed, ticks, bot, archetypes, runner, match);
         Console.WriteLine(result);
+        if (rules.IsIron) Console.WriteLine(DescribeChapter(match));
         if (checkC5 && !ReportC5(match.Research)) return 1;
         if (record is not null)
         {
             var world = CivSim.Sim.Economy.WorldEconomyInput.FromGeneratedWorld(CivSim.Sim.World.WorldGenerator.Generate(seed));
-            MatchReplay replay = MatchReplay.FromRun(seed, pack, archetypes, runner, world.Fingerprint);
+            MatchReplay replay = MatchReplay.FromRun(seed, pack, archetypes, runner, world.Fingerprint, rules);
             using FileStream stream = File.Create(record);
             replay.Write(stream);
             Console.WriteLine($"wrote replay {record}");
@@ -174,6 +186,21 @@ internal static class ResearchCommand
             Console.WriteLine("research determinism check passed");
         }
         return 0;
+    }
+
+    private static ChapterRules ParseMode(string text) => text.ToLowerInvariant() switch
+    {
+        "bronze" => ChapterRules.Bronze,
+        "iron" => ChapterRules.Iron,
+        _ => throw new ArgumentException($"Unknown chapter mode '{text}'; use bronze or iron."),
+    };
+
+    /// <summary>The chapter line of an Iron run: the mode and how the match would end as things stand (headless, so no human clause).</summary>
+    private static string DescribeChapter(MatchModel match)
+    {
+        MatchEnd end = match.EndOfMatch(-1);
+        string civ = end.Civ >= 0 ? $", civ{end.Civ}" : "";
+        return $"chapter: Iron (ceiling E{match.Rules.LastResearchEra}, ends season {end.EndSeason} by {end.Reason}{civ})";
     }
 
     private static void Trace(MatchModel match, int minute, int civ)

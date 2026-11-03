@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
+using CivSim.Sim.Research;
 using CivSim.Sim.View;
 
 namespace CivSim.Game;
@@ -28,6 +29,8 @@ internal sealed class GameSaveData
     public List<AiWhyEntry> AiWhyEntries = new();
     public ulong OnboardingSeen;
     public bool IntroDismissed;
+    /// <summary>The chapter the match plays. Bronze saves keep version 4 and carry no mode; an Iron save is version 5.</summary>
+    public ChapterMode Mode = ChapterMode.Bronze;
 
     public Replay ToReplay() => new()
     {
@@ -43,7 +46,11 @@ internal sealed class GameSaveData
 internal static class GameSave
 {
     private const uint Magic = 0x53475343; // "CSGS", little-endian
-    private const uint Version = 4;
+    /// <summary>The newest version this build reads. Bronze saves are still written as <see cref="BronzeVersion"/>.</summary>
+    private const uint Version = 5;
+    private const uint BronzeVersion = 4;
+    /// <summary>Version 5: a chapter-mode byte follows the difficulty. Written only for a non-Bronze chapter (docs/MVP/25 §3).</summary>
+    private const uint FirstVersionWithChapterMode = 5;
     private const uint FirstVersionWithDifficulty = 2;
     /// <summary>Version 3: the sim snapshot carries the Bronze state (Mandate, built Wonders). An older snapshot has a different layout and cannot be restored.</summary>
     private const uint FirstVersionWithBronzeState = 3;
@@ -97,7 +104,7 @@ internal static class GameSave
             using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: false))
             {
                 writer.Write(Magic);
-                writer.Write(Version);
+                writer.Write(data.Mode == ChapterMode.Bronze ? BronzeVersion : Version);
                 writer.Write(data.Seed);
                 writer.Write(data.ViewerCiv);
                 writer.Write(data.Tick);
@@ -126,6 +133,7 @@ internal static class GameSave
                 writer.Write(data.OnboardingSeen);
                 writer.Write(data.IntroDismissed);
                 writer.Write((byte)data.Difficulty);
+                if (data.Mode != ChapterMode.Bronze) writer.Write((byte)data.Mode);
                 writer.Flush();
                 stream.Flush(flushToDisk: true);
             }
@@ -174,6 +182,12 @@ internal static class GameSave
             byte level = reader.ReadByte();
             if (!Enum.IsDefined(typeof(Difficulty), level)) throw new InvalidDataException("Invalid saved difficulty.");
             data.Difficulty = (Difficulty)level;
+        }
+        if (version >= FirstVersionWithChapterMode)
+        {
+            byte mode = reader.ReadByte();
+            if (mode != (byte)ChapterMode.Iron) throw new InvalidDataException("Invalid saved chapter mode.");
+            data.Mode = (ChapterMode)mode;
         }
         if (!data.PackHash.AsSpan().SequenceEqual(expectedPackHash))
             throw new InvalidDataException("Save content hash differs from the loaded content pack.");
