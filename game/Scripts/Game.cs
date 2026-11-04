@@ -156,6 +156,7 @@ public partial class Game : Node3D
             }
             if (_current is null) throw new InvalidOperationException("Simulation did not publish its initial MatchFrame.");
             RebuildVisualRenderer(_current, _session);
+            UpdateSettlementMapLabels(_current);
             _resourceNode = CreateMultiMeshNode(_look.CreateSphere(), "KnownResourceDeposits", _look.LitVertexMaterial());
             _resourceNode.Visible = false;
             ReadOverlayArgument();
@@ -1137,6 +1138,7 @@ public partial class Game : Node3D
 
     private void ApplyNewFrame(MatchFrame frame)
     {
+        UpdateSettlementMapLabels(frame);
         if (_visualRenderer is not null && _session is not null)
         {
             long started = Stopwatch.GetTimestamp();

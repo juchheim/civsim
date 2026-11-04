@@ -37,8 +37,10 @@ public partial class Game
     private CheckButton? _diploCompactSell;
     private UiButton? _diploCompactAction, _diploEmbargoAction;
     private PanelContainer? _diploStatusChip, _diploRelationChip, _diploAgeChip;
-    private HFlowContainer? _destinationChips;
-    private readonly List<UiButton> _destinationPool = new();
+    private OptionButton? _destinationSelect;
+    private readonly List<(int Settlement, string Text)> _destinationOptions = new();
+    private int _destinationOptionsCiv = -1;
+    private bool _syncingDestinationSelect;
     private OrderRow? _giftRow, _barterRow, _allianceRow, _peaceRow, _raidRow, _warRow, _assaultRow;
     private VBoxContainer? _partyList;
     private readonly List<(HBoxContainer Root, Label Text, UiProgressBar Bar, UiButton Recall)> _partyRows = new();
@@ -105,10 +107,19 @@ public partial class Game
         detail.AddChild(_diploAi);
 
         detail.AddChild(UiKit.Text("DESTINATION", "EyebrowTertiary"));
-        _destinationChips = new HFlowContainer();
-        _destinationChips.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
-        _destinationChips.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
-        detail.AddChild(_destinationChips);
+        _destinationSelect = new OptionButton
+        {
+            CustomMinimumSize = new Vector2(0, UiTokens.ControlM),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            TooltipText = "Used for gifts and barter. Raids and assaults also use this target. Choose Civilization decides to let the simulation pick.",
+        };
+        _destinationSelect.ItemSelected += selected =>
+        {
+            if (_syncingDestinationSelect) return;
+            _selectedTargetSettlement = _destinationSelect.GetItemId((int)selected);
+            if (_current is not null) RefreshDiplomacy(_current);
+        };
+        detail.AddChild(_destinationSelect);
 
         var friendly = UiKit.Column(UiTokens.Sp2);
         friendly.AddChild(UiKit.Text("FRIENDLY", "EyebrowTertiary"));
@@ -351,39 +362,46 @@ public partial class Game
             if ((flags & (SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) != 0) continue;
             bool remembered = (flags & SettlementViewFlags.Remembered) != 0;
             string label = remembered
-                ? $"Settlement {frame.SettlementIndex[i] + 1} · last seen"
-                : $"Settlement {frame.SettlementIndex[i] + 1} · {frame.SettlementPopulation[i]}";
+                ? $"{SettlementLabel(frame.SettlementIndex[i])} · last seen"
+                : $"{SettlementLabel(frame.SettlementIndex[i])} · {frame.SettlementPopulation[i]} people";
             options.Add((frame.SettlementIndex[i], label));
         }
-        bool selectedStillThere = _selectedTargetSettlement < 0;
-        for (int i = 0; i < options.Count; i++)
-        {
-            if (options[i].Settlement == _selectedTargetSettlement) selectedStillThere = true;
-            UiButton chip;
-            if (i >= _destinationPool.Count)
-            {
-                int captured = i;
-                chip = (UiButton)UiKit.InteractiveChip("", UiGlyph.None, () => { });
-                chip.Pressed += () =>
-                {
-                    if (chip.GetMeta("settlement").AsInt32() is int s) _selectedTargetSettlement = s;
-                    if (_current is not null) RefreshDiplomacy(_current);
-                };
-                _destinationPool.Add(chip);
-                _destinationChips!.AddChild(chip);
-                _ = captured;
-            }
-            chip = _destinationPool[i];
-            chip.Visible = true;
-            chip.Text = options[i].Text;
-            chip.SetMeta("settlement", options[i].Settlement);
-            chip.TooltipText = options[i].Settlement < 0
-                ? "Your civilization picks the target automatically. For assaults, it chooses its closest campaign target."
-                : DestinationTooltip(frame, civ, options[i].Settlement);
-            chip.SetPressedNoSignal(options[i].Settlement == _selectedTargetSettlement);
-        }
-        for (int i = options.Count; i < _destinationPool.Count; i++) _destinationPool[i].Visible = false;
+        bool selectedStillThere = false;
+        foreach ((int settlement, string _) in options)
+            if (settlement == _selectedTargetSettlement) { selectedStillThere = true; break; }
         if (!selectedStillThere) _selectedTargetSettlement = -1;
+
+        bool changed = _destinationOptionsCiv != civ || _destinationOptions.Count != options.Count;
+        if (!changed)
+        {
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (_destinationOptions[i] != options[i]) { changed = true; break; }
+            }
+        }
+        if (changed)
+        {
+            _syncingDestinationSelect = true;
+            _destinationSelect!.Clear();
+            _destinationOptions.Clear();
+            foreach ((int settlement, string text) in options)
+            {
+                _destinationSelect.AddItem(text, settlement);
+                _destinationOptions.Add((settlement, text));
+            }
+            _destinationOptionsCiv = civ;
+            _syncingDestinationSelect = false;
+        }
+
+        int selectedIndex = 0;
+        for (int i = 0; i < _destinationOptions.Count; i++)
+            if (_destinationOptions[i].Settlement == _selectedTargetSettlement) { selectedIndex = i; break; }
+        _syncingDestinationSelect = true;
+        _destinationSelect!.Select(selectedIndex);
+        _syncingDestinationSelect = false;
+        _destinationSelect.TooltipText = _selectedTargetSettlement < 0
+            ? "Used for gifts and barter. Raids and assaults use the selected settlement too. The simulation picks a target by default."
+            : DestinationTooltip(frame, civ, _selectedTargetSettlement);
     }
 
     private bool HasProjectDone(MatchFrame frame, int project)
