@@ -640,7 +640,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B9 | FoodCap E3 (C1-E3) | 88 → 190 ±10% | check_e3 + live fixture | Auto |
 | B10 | Hazards E3 (C3-E3) | over seeds 20261019–20261042: expected-hazard ratios and e45 ±10%; expected epidemic share 7–13% | `research --report-e3` expected-hazard ledger + `check_e3.py`, 24 seeds × 64 minutes | Auto |
 | B11 | Efficiency (C6-E3) | chop ×1.5, mining ×1.5–2, field labor down ≥ 40% | method-rung report | Auto |
-| B12 | **Metal chain** | T18; after tin is cut, rung 6 falls back within 12 seasons with a "no tin" reason; no smelting without charcoal | economy fixtures | Auto |
+| B12 | **Metal chain** | T18; after tin is cut, rung 6 falls back within 12 seasons with a "no tin" reason; no smelting without charcoal | economy fixtures (`research --metal-fixture`) and the live T18 cohort of `research --report-metal --minutes 70` (adult-weighted rung-6 share of the live-input-access cohort, target >= 70% where access holds; the source-backed split is a stricter diagnostic) | Auto |
 | B13 | **Fuel pressure** | T19 | economy fixtures + metal_sim | Auto |
 | B14 | **Tin geography** | §5.1 rules in 100% of 10,000 worlds; determinism; < 5 s per world | `worldgen --audit-seeds` | Auto |
 | B15 | **E3 raid table** | every §7.5 table value within ±10 of the oracle-corrected values in 07d §6; includes success, both sides hurt, net and the field rows | `combat_e3.py` plus `politics --report-combat` E3 rows | Auto |

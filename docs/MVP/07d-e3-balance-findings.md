@@ -1602,3 +1602,18 @@ Not re-run separately: B9 (FoodCap, last 193.3), B11, B13 and B16, which sit on 
 | S1 / B22 replay identity | `acceptance --s1 --matches 1000 --minutes 64` | **1000/1000 replay checks matched**, 2 h 51 min | **pass** |
 
 Both ran in parallel on a loaded machine (load average 11-41 from other sessions), which only affects their wall time. With these, every automated gate of 22 §16 has a passing result on current `main` except B12's 70-minute coverage (52-70% on four source-backed pairs against 70%) and the human gates B1-B3; B9, B11, B13 and B16 keep their last recorded results and B4 is a unit test in the passing suite.
+
+## B12 metal chain on `main` `cc31af6`: the stated T18 target is met, narrowly (2026-11-03)
+
+The "B12 70-minute coverage" figure that stayed open (70% on the training pairs, 52% on held-out pairs, 07d 2026-11-01) was the **source-backed** split, a stricter internal diagnostic. The gate itself (22 §16 B12, T18) is "at least 70% of tool-using workers on rung 6 within 12 seasons of MET-04/05 **where access holds**", which is the report's **live-input-access cohort** (continuous input access through +12) and prints as `target >= 70% where access holds`. Measured with `research --report-metal --minutes 70`, 8 seeds per set (four pairs), all on the current pack:
+
+| Seed set | Live-input-access cohort (the gate) | Rows at >= 70% | Source-backed (stricter diagnostic) | Stock-only |
+|---|---|---|---|---|
+| training pairs 20261019/777, 20261020/778, 31337/9001, 424242/2024 | **71%** (1904/2673), per-settlement median 85% | 142 of 223 | 59% (702/1199) | 82% |
+| fresh 20261021/779 ... 20261024/782 | **73%** (1962/2687), median 88% | 131 of 209 | 67% (653/969) | 76% |
+| fresh 20261025/783 ... 20261028/786 | **67%** (2203/3265), median 80% | 147 of 255 | 56% (831/1473) | 77% |
+| pooled, 24 seeds | **70.4%** (6069/8625) | | 60.0% (2186/3641) | |
+
+The fixture half passes too (`research --metal-fixture`): rung 6 reaches 70% at season 4-5 and 86-97% by season 12 for 40-100 people; after tin is cut the fallback reason is `NoTin` the next season and the tin-bronze share declines gradually (T10 73 of 77 to 68 at +12 with arsenic in range, 67 without), with no cliff; with no charcoal 10 L of copper ore smelts 0.00 batches, and with 2 L of charcoal it smelts 1.25; WOD-04 holds the 100-person forest drawdown at 3% (71% without it).
+
+Reading: B12 meets its stated target on the pooled sample but with essentially no margin (70.4% against 70%, and one of three 8-seed sets is below at 67%); the promotion of the four B12 rules (07d 2026-10-31) is what moved it, and the earlier sessions' further levers (chain-cap multipliers, housing release, unobtainable-ore block, MineHead wood) were rejected. The stricter source-backed split stays at 56-67%: settlements that must open their own camp and build their first Forge or Kiln inside the 12-season window are the ones that miss, a small-village timing effect the earlier diagnosis traced to a 10% build cap, not to a missing rule. I did not tune further. If the margin matters, the next lever is the ones in the 2026-10-31 diagnosis (build allowance for the first Forge or Kiln in a small village), at the cost of re-checking every economy-dependent gate.
