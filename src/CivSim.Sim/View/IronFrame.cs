@@ -35,6 +35,13 @@ public sealed class IronFrame
     /// <summary>Own settlements only: the settlement (frame-independent index) this town's build labor is pledged to this season, -1 none.</summary>
     public short[] PledgeTo = Array.Empty<short>();
 
+    /// <summary>A settlement the viewer sees now: the civilizations its frontier wall segments face, one bit per civilization.</summary>
+    public byte[] FacingMask = Array.Empty<byte>();
+
+    // ---- terraces (AGR-08): the tiles of every terrace the viewer may see ----
+    public int TerraceTileCount;
+    public int[] TerraceTiles = Array.Empty<int>(), TerraceSettlement = Array.Empty<int>();
+
     // ---- paved roads (TRN-07) and their bridges (TRN-08): one road per settlement linked to its capital ----
     public int RoadCount;
     /// <summary>Frame index of the settlement the road runs to, and where its tiles start in <see cref="RoadTiles"/> and how many there are.</summary>
@@ -72,9 +79,16 @@ public sealed class IronFrame
         if (Works.Length < n * WorkKinds) Works = new byte[Math.Max(n * WorkKinds, Works.Length * 2)];
         if (Soldiers.Length >= n) return;
         int size = Math.Max(n, Soldiers.Length * 2);
-        Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size]; Forge = new byte[size]; ProvinceSeat = new short[size]; Contract = new byte[size];
+        Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size]; Forge = new byte[size]; FacingMask = new byte[size]; ProvinceSeat = new short[size]; Contract = new byte[size];
         ForeignFaithPermille = new short[size]; ForeignFaithCiv = new sbyte[size];
         BuildKind = new sbyte[size]; BuildPermille = new short[size]; PledgeTo = new short[size];
+    }
+
+    internal void EnsureTerraces(int n)
+    {
+        if (TerraceTiles.Length >= n) return;
+        int size = Math.Max(n, TerraceTiles.Length * 2);
+        Array.Resize(ref TerraceTiles, size); Array.Resize(ref TerraceSettlement, size);
     }
 
     internal void EnsureRoads(int n)

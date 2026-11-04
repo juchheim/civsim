@@ -252,6 +252,11 @@ func chariot_focus() -> Vector3:
 func works_focus(kind: String) -> Vector3:
 	if builder == null:
 		return Vector3.ZERO
+	if kind == "frontier":
+		if builder.frontier_sites.is_empty():
+			return Vector3.ZERO
+		var fs: Dictionary = builder.frontier_sites[0]
+		return Vector3(fs.p.x, fs.y, fs.p.y)
 	if kind == "lighthouse":
 		if builder.lighthouse_sites.is_empty():
 			return Vector3.ZERO
@@ -433,9 +438,9 @@ func show_iron_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(9.0, 27.0)
+	plane.size = Vector2(9.0, 33.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -8.3)
+	floor_mesh.position = Vector3(0.0, -0.01, -11.3)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -471,6 +476,9 @@ func show_iron_gallery() -> Vector3:
 		[["great_dome", 1.4, 1.35], ["great_library", 1.6, 1.2], ["great_lighthouse", 0.8, 1.3]],
 		# STN-12 / BEL-09 / TER-08 / GOV-09: the colonnaded temple beside the old one, the faith standard, the province standard and the feudal banner
 		[["temple", 0.9, 1.3], ["temple_tier2", 0.9, 1.3], ["faith_standard", 0.3, 1.3], ["province_standard", 0.3, 1.3], ["feudal_banner", 0.3, 1.3]],
+		# AGR-08 / FOR-08 / MEC-05 / MEC-04 / SEA-09: the terraced field, a vineyard, an olive tree, the press, the well and the war galley
+		[["terrace_field", 1.1, 1.0], ["vineyard", 1.1, 1.0], ["olive_tree", 0.4, 1.3], ["olive_tree", 0.4, 1.3]],
+		[["press", 0.6, 1.3], ["windlass_well", 0.4, 1.3], ["galley", 0.9, 1.1]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -478,7 +486,7 @@ func show_iron_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2, -13.2, -15.0][r]
+		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2, -13.2, -15.0, -16.8, -18.6][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

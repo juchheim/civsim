@@ -1011,6 +1011,29 @@ public class IronChainTests
     }
 
     [Fact]
+    public void The_view_gets_a_towns_terrace_tiles_and_the_civilizations_its_frontier_segments_face()
+    {
+        BronzeFixture iron = TerraceTown(ironChain: true), bronze = TerraceTown(ironChain: false);
+        var none = new List<int>();
+        iron.Economy.IronTerraceTilesForView(0, none);
+        Assert.Empty(none);
+        iron.RunSeasons(10);
+        var tiles = new List<int>();
+        iron.Economy.IronTerraceTilesForView(0, tiles);
+        Assert.Equal(new[] { iron.TerraceTile }, tiles);
+        var bronzeTiles = new List<int>();
+        bronze.RunSeasons(10);
+        bronze.Economy.IronTerraceTilesForView(0, bronzeTiles);
+        Assert.Empty(bronzeTiles);
+
+        Assert.Equal(0, iron.Economy.FrontierFacingMaskAt(0));
+        iron.Economy.FixtureFaceFrontier(0, 2);
+        iron.Economy.FixtureFaceFrontier(0, 5);
+        Assert.Equal((1 << 2) | (1 << 5), iron.Economy.FrontierFacingMaskAt(0));
+        Assert.Equal(0, bronze.Economy.FrontierFacingMaskAt(0));
+    }
+
+    [Fact]
     public void The_view_reads_a_towns_province_seat_the_way_the_rules_do_and_Bronze_has_none()
     {
         (BronzeFixture f, int far) = WithFarProvince("KEY-4", "GOV-07", "TER-08");

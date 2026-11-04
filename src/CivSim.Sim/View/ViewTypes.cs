@@ -82,6 +82,8 @@ public enum CivLook : ushort
     IronArms = 2048,
     /// <summary>STN-12 Ashlar &amp; Columns: temples are drawn with a colonnade.</summary>
     Colonnades = 4096,
+    /// <summary>FOR-08 Grafting: orchards are drawn as trellised vineyards and olive groves.</summary>
+    Grafting = 8192,
 }
 
 /// <summary>Age band by size: child under 14, adult 14 to 44, elder 45 and over (docs/MVP/08 §2.1 "life stage").</summary>

@@ -634,7 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
-                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f), ("wonders", 0.0f, -13.2f, 3.6f), ("rule", 0.0f, -15.0f, 3.0f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f), ("wonders", 0.0f, -13.2f, 3.6f), ("rule", 0.0f, -15.0f, 3.0f), ("trades", 0.0f, -16.8f, 3.4f), ("ships", 0.0f, -18.6f, 3.0f),
                 })
                 {
                     string itemName = item;
@@ -812,6 +812,36 @@ public partial class Game
                     string shot = ruleShot;
                     Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
                     Shot($"rule-{shot}");
+                }
+                break;
+            case "trades-village":
+                // --start-minute=30 --viewer=-1 --dev-trades --dev-blockade --dev-terraces --looks-debug (debug builds): the capital with a press and well, a frontier wall, terraced
+                // fields, vineyards and olives, and a harbor with its galley under blockade; run with --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (tradesShot, tradesZoom) in new[] { ("wide", 10.0f), ("village", 5.0f) })
+                {
+                    float zoom = tradesZoom;
+                    string shot = tradesShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"trades-{shot}");
+                }
+                foreach (var (focus, arg, focusZoom) in new[] { ("works_focus", "frontier", 4.0f), ("harbor_focus", "", 5.5f) })
+                {
+                    string call = focus, a = arg;
+                    float zoom = focusZoom;
+                    Step(() =>
+                    {
+                        Vector3 at = a.Length > 0 ? (Vector3)_visualRenderer!.Call(call, a) : (Vector3)_visualRenderer!.Call(call);
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(zoom); }
+                    }, 2.5f);
+                    Shot($"trades-{(a.Length > 0 ? a : "harbor")}");
                 }
                 break;
             case "iron-life":

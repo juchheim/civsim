@@ -64,6 +64,7 @@ var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: 
 var beacon_fires: Array = []            # {top, seed}: the Great Lighthouse's fire, for the war rig
 var lighthouse_sites: Array = []        # {p, y}: where each Great Lighthouse stands
 var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenarios' cameras
+var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
@@ -408,18 +409,19 @@ func _structure_digest() -> int:
 			h = h * 31 + zig_stage(s)
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
-			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse"]:
+			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley"]:
 				h = h * 31 + w.iron_works(s, wid)
 			h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 			h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 			h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
+			h = h * 31 + int(s.get("facing", 0)) * 19 + hash(w.blockaders_of(int(s.get("index", -1))))
 			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
 		for n in s.structures:
 			h = h * 31 + int(n)
 		h = h * 31 + (1 if _fire_lit(s) else 0)
 		for n in s.get("decor", PackedInt32Array()):
 			h = h * 31 + int(n) + 1
-	h = h * 31 + hash(w.road_meta) + hash(w.road_tiles)
+	h = h * 31 + hash(w.road_meta) + hash(w.road_tiles) + hash(w.terrace_tiles)
 	for i in range(0, w.plots.size(), 2):
 		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1] + (field_kind(w.plots[i]) * 3 if w.plots[i + 1] == 0 else 0)
 	for ci in w.camps.size():
@@ -842,9 +844,11 @@ const CIVIC := {
 	"dome": ["great_dome", 1.35, 1.05, Vector2(0.35, 0.36), 0.62],
 	"library": ["great_library", 1.2, 1.0, Vector2(0.52, 0.3), 0.7],
 	"wsite": ["build_site_1", 2.1, 1.05, Vector2(0.21, 0.17), 0.6],
+	"press": ["press", 1.3, 0.56, Vector2(0.14, 0.11), 0.24],
+	"well": ["windlass_well", 1.3, 0.5, Vector2(0.06, 0.06), 0.14],
 }
 ## Iron works drawn as a civic building: the kind here, the id the sim counts it under, and a name for the site that carries it.
-const CIVIC_WORKS := [["academy", "academy"], ["theatre", "theatre_arena"], ["bathhouse", "bathhouse"], ["crane", "crane"], ["dome", "great_dome"], ["library", "great_library"]]
+const CIVIC_WORKS := [["academy", "academy"], ["theatre", "theatre_arena"], ["bathhouse", "bathhouse"], ["crane", "crane"], ["dome", "great_dome"], ["library", "great_library"], ["press", "press"], ["well", "windlass_well"]]
 ## Iron works whose building under way is shown as a building site beside the village (the sim's id).
 const SITE_KINDS := ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "press", "windlass_well", "great_library", "great_lighthouse", "great_dome"]
 
@@ -895,12 +899,16 @@ func _settlements() -> void:
 	castle_sites.clear()
 	harbor_sites.clear()
 	forge_sites.clear()
+	frontier_sites.clear()
 	aqueduct_sites.clear()
 	beacon_fires.clear()
 	lighthouse_sites.clear()
 	siege_engines.clear()
 	bridge_sites.clear()
 	civic_sites.clear()
+	var terrace_set := {}
+	for tt in w.terrace_tiles:
+		terrace_set[int(tt)] = true
 	# fields and orchards on their plot tiles
 	for pi in range(0, w.plots.size(), 2):
 		var t := w.plots[pi]
@@ -910,13 +918,20 @@ func _settlements() -> void:
 		var xy := w.tile_xy(t)
 		var hv := M7WorldData.hash01(xy.x, xy.y, 301)
 		var h: float = w.heights[t]
-		if w.plots[pi + 1] == 0:
+		if w.plots[pi + 1] == 0 and terrace_set.has(t):
+			# AGR-08: a hillside cut into stepped fields behind stone walls, the walls facing downhill (south)
+			props.add("terrace_field", _xf(c, h, 0.0, 1.0), Color(1, 1, 1, hv))
+		elif w.plots[pi + 1] == 0:
 			props.add(FIELD_MESHES[field_kind(t)], _xf(c, h, PI / 3.0 * int(hv * 3.0) + PI / 6.0 * 0.0, 1.0), Color(1, 1, 1, hv))
+		elif w.has_look(int(w.owner[t]), M7WorldData.LOOK_GRAFTING) and hv < 0.45:
+			# FOR-08: a grafted plot is a trellised vineyard
+			props.add("vineyard", _xf(c, h, PI / 3.0 * int(hv * 6.0), 1.0), Color(1, 1, 1, hv))
 		else:
 			for i in 7:
 				var p := c if i == 6 else c + Vector2(cos(TAU * i / 6.0), sin(TAU * i / 6.0)) * 0.27
 				var hv2 := M7WorldData.hash01(xy.x + i, xy.y, 303)
-				props.add("orchard_tree", _xf(p, h, hv2 * TAU, 0.9 + 0.3 * hv2), _tint(hv2))
+				var grove := "olive_tree" if w.has_look(int(w.owner[t]), M7WorldData.LOOK_GRAFTING) else "orchard_tree"      # FOR-08: an olive grove
+				props.add(grove, _xf(p, h, hv2 * TAU, 0.9 + 0.3 * hv2), _tint(hv2))
 			for i in 6:
 				var p := _rand_in_hex(t, 40 + i, 0.9)
 				props.add("tuft0", _xf(p, h, i * 1.3, 1.0), _tint(0.5))
@@ -1047,7 +1062,7 @@ func _settlements() -> void:
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
 		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
 		# a harbor (SEA-07): quay and piers on the shore, the boats moored between the piers
-		var has_harbor := w.iron_works(s, "harbor") > 0 and _harbor(t, c0, seed, cc)
+		var has_harbor := w.iron_works(s, "harbor") > 0 and _harbor(s, t, c0, seed, cc)
 		_lighthouse(s, t, c0, seed)
 		if sea > 0:
 			_moor_fleet(t, c0, seed, sea, int(s.population), cc, has_harbor)
@@ -1102,6 +1117,7 @@ func _settlements() -> void:
 		if wall_rings > 0:
 			gate_at = _stone_walls(t, c, seed, ring_r, wall_rings, w.iron_works(s, "gatehouse") > 0, gate_pref, siege)
 		_aqueduct(s, c, h0, seed, ring_r if wall_rings > 0 else wall_base, gate_at)
+		_frontier_walls(s, si, c, h0, seed, ring_r if wall_rings > 0 else wall_base)
 		if not siege.is_empty():
 			_siege_camp(c, seed, ring_r if wall_rings > 0 else wall_base + 0.2, siege, cc)
 		_castle(s, t, c, h0, seed, (ring_r + CASTLE_GAP_WALLED) if wall_rings > 0 else wall_base + CASTLE_GAP_OPEN, placed, cc, gate_at)
@@ -1476,6 +1492,51 @@ func _aqueduct(s: Dictionary, c: Vector2, h0: float, seed: float, base_r: float,
 			Vector3(p.x, gy, p.y)), Color(1, 1, 1, seed))
 	aqueduct_sites.append({"p": end_p + dir * 0.6, "y": float(grounds[0])})
 
+## Frontier wall segments (DEF-07): a straight run of wall with towers at its ends, out in the claim on the side facing the civilization each segment answers
+## (the nearest settlement of that civilization), one run for each such civilization, as long as the number of segments.
+func _frontier_walls(s: Dictionary, si: int, c: Vector2, h0: float, seed: float, base_r: float) -> void:
+	var mask := int(s.get("facing", 0))
+	var segments := w.iron_works(s, "frontier_wall_segment")
+	if segments <= 0:
+		return
+	var civ_self := int(s.civ)
+	for foe in 8:
+		if (mask >> foe) & 1 == 0 and mask != 0:
+			continue
+		if mask == 0 and foe != 0:
+			break
+		# the direction of the nearest settlement of the faced civilization (or of any other civilization when the facing is not known)
+		var best := 1e9
+		var dir := Vector2.ZERO
+		for other in w.settlements:
+			var oc := int(other.civ)
+			if oc == civ_self or (mask != 0 and oc != foe):
+				continue
+			var d: Vector2 = w.tile_center(int(other.tile)) - c
+			if d.length() < best and d.length() > 0.1:
+				best = d.length()
+				dir = d.normalized()
+		if dir == Vector2.ZERO:
+			continue
+		var mid := c + dir * (base_r + 1.35)
+		var tangent := dir.rotated(PI * 0.5)
+		var n := clampi(2 + segments * 2, 3, 9)
+		var yaw := -atan2(tangent.y, tangent.x)
+		var seg_len := ArtDefense.SEG * WALL_SCALE
+		for k in n:
+			var p := mid + tangent * ((k - (n - 1) * 0.5) * seg_len * 0.97)
+			var tq := w.tile_at(p)
+			if tq < 0 or not w.is_land(tq) or _river_dist(p) < 0.08:
+				continue
+			props.add("wall_seg", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(0.97, WALL_SCALE, WALL_SCALE)), Vector3(p.x, w.height_at(p), p.y)),
+				Color(1, 1, 1, seed))
+		for end_k: int in [0, n - 1]:
+			var tp: Vector2 = mid + tangent * ((float(end_k) - (n - 1) * 0.5) * seg_len * 0.97)
+			var ttq := w.tile_at(tp)
+			if ttq >= 0 and w.is_land(ttq):
+				props.add("wall_tower", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * WALL_SCALE), Vector3(tp.x, w.height_at(tp), tp.y)), Color(1, 1, 1, seed))
+		frontier_sites.append({"p": mid, "y": w.height_at(mid)})
+
 ## An Iron forge yard (MET-09) at the edge of the village, its front toward the hearth: the bloomery stack, anvil, charcoal and ore, and, when the forge is at
 ## work, a glowing furnace mouth with flame and smoke (the war rig). Returns how far from the hearth it reaches, 0 with no forge.
 func _forge_yard(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array) -> float:
@@ -1823,7 +1884,7 @@ const HARBOR_MOOR := 0.82      # from the hearth tile's centre to where boats li
 
 ## A harbor (SEA-07): a quay on the shore of the first water neighbour (the one `_moor_fleet` picks) and two piers out over the water. True when
 ## it stands (a village on a river with no sea beside it has none).
-func _harbor(t: int, c0: Vector2, seed: float, cc: Color) -> bool:
+func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color) -> bool:
 	for i in 6:
 		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
 		if nb >= 0 and w.is_water(nb):
@@ -1833,6 +1894,23 @@ func _harbor(t: int, c0: Vector2, seed: float, cc: Color) -> bool:
 			props.add("harbor", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * HARBOR_SCALE), Vector3(at.x, 0.0, at.y)),
 				Color(cc.r, cc.g, cc.b, seed))
 			harbor_sites.append({"p": at, "y": 0.0})
+			# a war galley (SEA-09) lies between the piers off the end of the quay; a blockade (a rival's galleys) holds the harbor mouth
+			var tangent := dir.rotated(PI * 0.5)
+			var tint := M7MeshBuilder.lin(cc, 0.5)
+			if w.iron_works(s, "galley") > 0:
+				var gp := c0 + dir * 1.18
+				props.add("galley", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y) + PI * 0.0) * Basis.from_scale(Vector3.ONE * 1.1), Vector3(gp.x, -0.02, gp.y)),
+					Color(cc.r, cc.g, cc.b, seed))
+			var enemy := w.blockaders_of(int(s.get("index", -1)))
+			for k in enemy.size():
+				var civ_b := int(enemy[k])
+				var et := M7MeshBuilder.lin(M7WorldData.civ_color(civ_b), 0.5)
+				for j in 2:
+					var bp := c0 + dir * 2.2 + tangent * (j - 0.5) * 0.7
+					var bt := w.tile_at(bp)
+					if bt >= 0 and w.is_water(bt):
+						props.add("galley", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y) + PI * 0.15 * (1.0 if j == 0 else -1.0)) * Basis.from_scale(Vector3.ONE * 1.1),
+							Vector3(bp.x, -0.02, bp.y)), Color(et.r, et.g, et.b, 0.5))
 			return true
 	return false
 

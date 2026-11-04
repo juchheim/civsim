@@ -515,15 +515,20 @@ public partial class Game : Node3D
         // --dev-faith=PERMILLE: a rival's faith holds that share of the biggest town; --dev-province: it is a province seat under the feudal contract
         int forcedFaith = ArgumentValue("--dev-faith=") is { } faithArg && int.TryParse(faithArg, out int faithShare) ? faithShare : -1;
         bool forcedProvince = HasArgument("--dev-province");
+        // --dev-trades: the biggest town has a press, a windlass well, a frontier wall facing the next civilization and a war galley (with --dev-harbor), and a rival
+        // blockades its harbor (with --dev-blockade); --dev-terraces: two land neighbours of it are terraced fields
+        bool forcedTrades = HasArgument("--dev-trades");
+        bool forcedBlockade = HasArgument("--dev-blockade");
+        bool forcedTerraces = HasArgument("--dev-terraces");
         int forcedSite = ArgumentValue("--dev-site=") is { } siteArg && int.TryParse(siteArg, out int siteStage) ? siteStage : -1;
         int forcedWorkAt = -1;
-        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0 || forcedWonders || forcedFaith >= 0 || forcedProvince)
+        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0 || forcedWonders || forcedFaith >= 0 || forcedProvince || forcedTrades)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedWorkAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedWorkAt])) forcedWorkAt = i;
         // --dev-harbor: the biggest settlement (the viewer's first) with the sea beside it has a harbor
         int forcedHarborAt = -1;
-        if (HasArgument("--dev-harbor") || forcedWonders)
+        if (HasArgument("--dev-harbor") || forcedWonders || forcedBlockade || forcedTrades)
         {
             Span<int> neighbours = stackalloc int[6];
             for (int pass = 0; pass < 2 && forcedHarborAt < 0; pass++)
@@ -588,6 +593,7 @@ public partial class Game : Node3D
                 settlement["faithForeign"] = i < frame.Iron.ForeignFaithPermille.Length ? (int)frame.Iron.ForeignFaithPermille[i] : 0;
                 settlement["faithCiv"] = i < frame.Iron.ForeignFaithCiv.Length ? (int)frame.Iron.ForeignFaithCiv[i] : -1;
                 settlement["missionaries"] = i < frame.Iron.Missionaries.Length ? (int)frame.Iron.Missionaries[i] : 0;
+                settlement["facing"] = i < frame.Iron.FacingMask.Length ? (int)frame.Iron.FacingMask[i] : 0;
                 settlement["provinceSeat"] = i < frame.Iron.ProvinceSeat.Length ? (int)frame.Iron.ProvinceSeat[i] : -1;
                 settlement["contract"] = i < frame.Iron.Contract.Length ? (int)frame.Iron.Contract[i] : 0;
                 settlement["ironBuildKind"] = i < frame.Iron.BuildKind.Length ? (int)frame.Iron.BuildKind[i] : -1;
@@ -601,6 +607,15 @@ public partial class Game : Node3D
                 {
                     settlement["faithForeign"] = forcedFaith;
                     settlement["faithCiv"] = (Math.Max(0, frame.ViewerCiv) + 1) % 4;
+                }
+                if (forcedTrades)
+                {
+                    var tradeWorks = new int[IronWorkKindCount()];
+                    if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(tradeWorks, 0);
+                    foreach (string id in new[] { "press", "windlass_well", "frontier_wall_segment" })
+                        if (IronKindIndex(id) is >= 0 and int tradeAt) tradeWorks[tradeAt] = 1;
+                    settlement["ironWorks"] = tradeWorks;
+                    settlement["facing"] = 1 << ((Math.Max(0, frame.ViewerCiv) + 1) % 4);
                 }
                 if (forcedProvince) { settlement["provinceSeat"] = i; settlement["contract"] = 1; }
                 if (forcedWonders)
@@ -632,7 +647,8 @@ public partial class Game : Node3D
                 var harborWorks = new int[IronWorkKindCount()];
                 if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(harborWorks, 0);
                 int harborAt = IronKindIndex("harbor"), lighthouseAt = IronKindIndex("great_lighthouse");
-                if (harborAt >= 0 && HasArgument("--dev-harbor")) harborWorks[harborAt] = 1;
+                if (harborAt >= 0 && (HasArgument("--dev-harbor") || forcedBlockade || forcedTrades)) harborWorks[harborAt] = 1;
+                if (forcedTrades && IronKindIndex("galley") is >= 0 and int galleyAt) harborWorks[galleyAt] = 1;
                 if (lighthouseAt >= 0 && forcedWonders) harborWorks[lighthouseAt] = 1;
                 settlement["ironWorks"] = harborWorks;
             }
@@ -760,12 +776,57 @@ public partial class Game : Node3D
         }
 #endif
 
+        // terraced fields (AGR-08) and harbor blockades (SEA-09)
+        int[] terraceTiles = frame.Iron.Active ? Slice(frame.Iron.TerraceTiles, frame.Iron.TerraceTileCount) : Array.Empty<int>();
+        int blockadeCount = frame.Iron.Active ? frame.Iron.BlockadeCount : 0;
+        var blockades = new int[blockadeCount * 3];
+        for (int i = 0; i < blockadeCount; i++)
+        {
+            blockades[i * 3] = frame.Iron.BlockadeHarbor[i];
+            blockades[i * 3 + 1] = frame.Iron.BlockadeCiv[i];
+            blockades[i * 3 + 2] = frame.Iron.BlockadeOrigin[i];
+        }
+
+#if DEBUG
+        if (forcedTerraces || forcedBlockade)
+        {
+            int capitalAt = -1;
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (capitalAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[capitalAt])) capitalAt = i;
+            if (capitalAt >= 0 && forcedTerraces)
+            {
+                Span<int> around = stackalloc int[6];
+                int found = CivSim.Sim.World.HexGrid.Neighbors(frame.SettlementTile[capitalAt], frame.Width, frame.Height, around);
+                var extra = new List<int>(terraceTiles);
+                for (int k = 0; k < found && extra.Count < 3; k++) if (world.Biome[around[k]] > 1) extra.Add(around[k]);
+                terraceTiles = extra.ToArray();
+            }
+        }
+#endif
+#if DEBUG
+        if (forcedBlockade && forcedHarborAt >= 0) blockades = new[] { frame.SettlementIndex[forcedHarborAt], (Math.Max(0, frame.ViewerCiv) + 1) % 4, 0 };
+#endif
         var plots = new int[frame.PlotCount * 2];
         for (int i = 0; i < frame.PlotCount; i++)
         {
             plots[i * 2] = frame.PlotTile[i];
             plots[i * 2 + 1] = frame.PlotKind[i];
         }
+#if DEBUG
+        if (forcedTerraces)
+        {
+            // the terraced tiles are fields too: make sure each one is a plot
+            var withTerraces = new List<int>(plots);
+            foreach (int tile in terraceTiles)
+            {
+                bool present = false;
+                for (int i = 0; i < plots.Length; i += 2) if (plots[i] == tile) { present = true; withTerraces[i + 1] = 0; }
+                if (!present) { withTerraces.Add(tile); withTerraces.Add(0); }
+            }
+            plots = withTerraces.ToArray();
+        }
+#endif
 
         byte[] foodOverlay = BuildFoodOverlay(frame);
         byte[] forecastOverlay = BuildFoodForecastOverlay(frame);
@@ -834,6 +895,8 @@ public partial class Game : Node3D
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["sieges"] = sieges,
+            ["terraceTiles"] = terraceTiles,
+            ["blockades"] = blockades,
             ["viewerCiv"] = frame.ViewerCiv,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,

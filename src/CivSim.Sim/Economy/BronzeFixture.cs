@@ -75,6 +75,12 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true,
             extraProjects, forestTiles);
 
+    /// <summary>The fixed-population form of <see cref="CreateFuelScenario"/>, for steady-state fuel and forest-flow screens.</summary>
+    public static BronzeFixture CreateFixedPopulationFuelScenario(ContentPack pack, ulong seed, int people, bool ironChain, bool coppice, int forestTiles,
+        params string[] extraProjects)
+        => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: true, ironChain, ironCamp: true,
+            extraProjects, forestTiles);
+
     /// <summary>A settlement with one hillside in range, for terrace fixtures, in either chapter.</summary>
     public static BronzeFixture CreateTerraceScenario(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: false,

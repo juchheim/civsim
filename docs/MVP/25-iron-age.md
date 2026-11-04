@@ -233,7 +233,7 @@ Required cards: tool coverage and replacement inputs; mine/forge/fuel bottleneck
 
 ## 13. Provisional balance targets and oracle work
 
-Numbers marked P in 26 are hypotheses. No live E4 data exists. The existing era-base 1200 is a catalog input for a first oracle run, not a fitted cost. The following are proposed screens to approve, then fit; they do not amend any B1–B31 threshold.
+Numbers marked P in 26 are hypotheses. The [2026-11-04 preliminary balance screen](balance/m11-iron-balance-screen-2026-11-04.md) contains initial live and fixture results; none are fitted or approved. The existing era-base 1200 is a catalog input for a first oracle run, not a fitted cost. The following remain proposed screens to approve, then fit; they do not amend any B1–B31 threshold.
 
 | ID | Proposed target / diagnostic | Required measurement |
 |---|---|---|
@@ -250,7 +250,7 @@ Oracle extensions: metal/fuel mass balance and wear cohorts; food/city/demograph
 
 ## 14. Proposed M11 acceptance series (B4-xx)
 
-The new prefix distinguishes **E4** gates from M10 B1–B31. All rows are **proposed, unrun**; approval fixes thresholds and protocols. Existing gates retain their exact identifiers, thresholds and protocols. A larger robustness run supplements rather than silently replaces an official M10 cohort.
+The new prefix distinguishes **E4** gates from M10 B1–B31. All rows remain proposed and unapproved. The [2026-11-04 screening report](balance/m11-iron-balance-screen-2026-11-04.md) records preliminary observations but does not complete the proposed acceptance protocols; approval still fixes thresholds and protocols. Existing gates retain their exact identifiers, thresholds and protocols. A larger robustness run supplements rather than silently replaces an official M10 cohort.
 
 | Gate | Exit condition / proposed protocol |
 |---|---|

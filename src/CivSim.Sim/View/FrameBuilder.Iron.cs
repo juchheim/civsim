@@ -22,7 +22,7 @@ public sealed partial class FrameBuilder
         PoliticsSystem pol = match.Politics;
         f.Active = eco.IronChain;
         f.SiegeCount = f.BlockadeCount = f.TributeCount = f.LeagueCount = 0;
-        f.RoadCount = f.RoadTileCount = 0;
+        f.RoadCount = f.RoadTileCount = f.TerraceTileCount = 0;
         for (int k = 0; k < IronFrame.WonderKinds; k++) f.WonderSettlement[k] = -1;
         if (!f.Active) return;
 
@@ -40,6 +40,7 @@ public sealed partial class FrameBuilder
             f.OurFaithPermille[w] = 0; f.ForeignFaithPermille[w] = 0; f.ForeignFaithCiv[w] = -1;
             f.Forge[w] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)eco.ForgeStateAt(s);
             f.ProvinceSeat[w] = -1; f.Contract[w] = 0;
+            f.FacingMask[w] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)eco.FrontierFacingMaskAt(s);
             if (!own || (uint)s >= (uint)_settlementCount)
             {
                 f.Soldiers[w] = f.Scholars[w] = f.Missionaries[w] = 0;
@@ -63,6 +64,25 @@ public sealed partial class FrameBuilder
             f.BuildKind[w] = (sbyte)buildKind;
             f.BuildPermille[w] = (short)permille;
             f.PledgeTo[w] = (short)eco.PledgeOf(s);
+        }
+
+        // Terraces: each seen settlement's raised hillside plots, on the tiles the viewer sees (its own, whole).
+        var terraceTiles = new List<int>();
+        for (int w = 0; w < n; w++)
+        {
+            int s = target.SettlementIndex[w];
+            SettlementViewFlags flags = (SettlementViewFlags)target.SettlementFlags[w];
+            if ((flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != 0 || (uint)s >= (uint)_settlementCount) continue;
+            terraceTiles.Clear();
+            eco.IronTerraceTilesForView(s, terraceTiles);
+            bool own = _omniscient || (flags & SettlementViewFlags.Own) != 0;
+            foreach (int tile in terraceTiles)
+            {
+                if (!own && !Visible(tile)) continue;
+                f.EnsureTerraces(f.TerraceTileCount + 1);
+                f.TerraceTiles[f.TerraceTileCount] = tile; f.TerraceSettlement[f.TerraceTileCount] = w;
+                f.TerraceTileCount++;
+            }
         }
 
         // Paved roads: each linked settlement's road to its capital. The viewer's own come whole; another civilization's only where the viewer sees the tiles.

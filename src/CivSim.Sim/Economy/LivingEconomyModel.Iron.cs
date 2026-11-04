@@ -906,6 +906,23 @@ public sealed partial class LivingEconomyModel
         return idle;
     }
 
+    /// <summary>For the view: the tiles of the terraces (AGR-08) a settlement has raised on its hillsides, in the order they were built.</summary>
+    public void IronTerraceTilesForView(int settlementIndex, List<int> into)
+    {
+        if (!IronChain || (uint)settlementIndex >= (uint)_settlements.Count) return;
+        if (_settlements[settlementIndex].Metal?.IronTerraces is { } tiles) into.AddRange(tiles);
+    }
+
+    /// <summary>For the view: the civilizations the frontier wall segments (DEF-07) of a settlement face, one bit per civilization (0 to 7).</summary>
+    public int FrontierFacingMaskAt(int settlementIndex)
+    {
+        if (!IronChain || (uint)settlementIndex >= (uint)_settlements.Count) return 0;
+        int mask = 0;
+        if (_settlements[settlementIndex].Metal?.IronFacing is { } facing)
+            foreach (int civ in facing) if ((uint)civ < 8) mask |= 1 << civ;
+        return mask;
+    }
+
     /// <summary>For the view: the index of the settlement whose staffed governor (TER-08) governs this one (itself for a seat), or -1: not governed or not the Iron chapter.</summary>
     public int ProvinceSeatAt(int settlementIndex)
         => IronChain && (uint)settlementIndex < (uint)_settlements.Count ? GovernorSeatOf(_settlements[settlementIndex]) : -1;

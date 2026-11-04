@@ -28,6 +28,7 @@ const LOOK_MOULDBOARD := 512     # AGR-10 Heavy Plough
 const LOOK_TILES := 1024         # CER-08 Fired Brick & Tile
 const LOOK_IRON_ARMS := 2048     # WAR-08 Iron Weapons
 const LOOK_COLONNADES := 4096    # STN-12 Ashlar & Columns
+const LOOK_GRAFTING := 8192      # FOR-08 Grafting
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -63,6 +64,8 @@ var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was lea
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
 var sieges := PackedInt32Array()         # stride 6: settlement index in the sim, besieger civ, engines, seasons, wall integrity (permille), origin tile or -1
+var terrace_tiles := PackedInt32Array()  # tiles of terraced fields (AGR-08)
+var blockades := PackedInt32Array()      # stride 3: blockaded harbor's settlement index in the sim, blockader civ, blockader's origin settlement
 var road_meta := PackedInt32Array()      # stride 4: settlement index, start, length, bridged (paved roads to the capital, TRN-07)
 var road_tiles := PackedInt32Array()     # flat tile list, -1 = a tile of someone else's road that is not in sight
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
@@ -104,6 +107,14 @@ func siege_of(sim_index: int) -> Array:
 		if sieges[i] == sim_index:
 			return [sieges[i + 1], sieges[i + 2], sieges[i + 3], sieges[i + 4], sieges[i + 5]]
 	return []
+
+## The civilizations blockading a harbor (by the settlement's index in the sim), one entry per blockade.
+func blockaders_of(sim_index: int) -> Array:
+	var out := []
+	for i in range(0, blockades.size(), 3):
+		if blockades[i] == sim_index:
+			out.append(blockades[i + 1])
+	return out
 
 static func civ_color(civ: int) -> Color:
 	if civ < 0:
@@ -176,10 +187,12 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	if LOOKS_DEBUG:
 		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
 		civ_looks.resize(8)
-		civ_looks.fill(8191)
+		civ_looks.fill(16383)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	sieges = _int_data(d.sieges, 6) if d.has("sieges") else PackedInt32Array()
+	terrace_tiles = _int_data(d.terraceTiles, 1) if d.has("terraceTiles") else PackedInt32Array()
+	blockades = _int_data(d.blockades, 3) if d.has("blockades") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()
 	road_tiles = _int_data(d.roadTiles, 1) if d.has("roadTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

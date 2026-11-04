@@ -95,7 +95,7 @@ public sealed partial class LivingEconomyModel
         return tiles;
     }
 
-    internal IReadOnlyList<B13OuterWoodSnapshot> CaptureB13OuterWoodSnapshots(int civilization, int season)
+    internal IReadOnlyList<B13OuterWoodSnapshot> CaptureB13OuterWoodSnapshots(int civilization, int season, int reach = 8)
     {
         if (!B13WoodTraceEnabled) return Array.Empty<B13OuterWoodSnapshot>();
         var snapshots = new List<B13OuterWoodSnapshot>();
@@ -103,7 +103,7 @@ public sealed partial class LivingEconomyModel
         {
             if (target.Civilization != civilization || Population(target.Id) <= 0) continue;
             var reachable = new SortedSet<int>();
-            foreach (int tile in ReachTiles(target.SiteTile, 8))
+            foreach (int tile in ReachTiles(target.SiteTile, reach))
             {
                 int distance = HexGrid.Distance(target.SiteTile, tile, _world.Width);
                 if (distance <= Radius || IsRivalTile(civilization, tile)) continue;
@@ -118,7 +118,8 @@ public sealed partial class LivingEconomyModel
                 foreach (SettlementState other in _settlements)
                 {
                     if (other.Id == target.Id || Population(other.Id) <= 0) continue;
-                    if (HexGrid.Distance(other.SiteTile, tile, _world.Width) > 8 || IsRivalTile(other.Civilization, tile)) continue;
+                    int otherReach = Done(other.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+                    if (HexGrid.Distance(other.SiteTile, tile, _world.Width) > otherReach || IsRivalTile(other.Civilization, tile)) continue;
                     competitors.Add(other.Id);
                 }
                 snapshots.Add(new B13OuterWoodSnapshot(target.Id, civilization, season, tile, _woodStock[tile], distance,
