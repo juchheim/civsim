@@ -30,7 +30,7 @@ public partial class Startup : Control
     {
         if (IsDevelopmentPresentationRun())
         {
-            ChangeToGameScene();
+            CallDeferred(nameof(ChangeToGameScene)); // the tree is still adding this node; a direct change fails
             return;
         }
 

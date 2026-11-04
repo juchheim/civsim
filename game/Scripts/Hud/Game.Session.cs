@@ -3,6 +3,7 @@ using System.IO;
 using CivSim.Game.Ui;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
+using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using Godot;
 
@@ -120,19 +121,19 @@ public partial class Game
 
     private void StartNewMatch(ulong seed) => StartNewMatch(seed, _uiSettings.Difficulty);
 
-    private void StartNewMatch(ulong seed, Difficulty difficulty)
+    private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode mode = ChapterMode.Bronze)
     {
         if (_contentPack is null) return;
         _onboardingSeen = 0;
         _matchSeed = seed;
         HideEndScreen();
-        ReplaceSession(new SimulationSession(seed, _contentPack, 0, 0, difficulty));
+        ReplaceSession(new SimulationSession(seed, _contentPack, 0, 0, difficulty, mode));
         if (_current is { FocusSlotProject: var slots } && slots[0] < 0 && slots[1] < 0 && slots[2] < 0)
         {
             BeginOpeningHold();
             OpenResearchWeb(-1);
         }
-        ShowToast("New match", ToastKind.Info, $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
+        ShowToast("New match", ToastKind.Info, $"{(mode == ChapterMode.Iron ? "Iron Age. " : "")}Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>

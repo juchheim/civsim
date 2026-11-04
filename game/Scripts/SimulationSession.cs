@@ -56,13 +56,13 @@ public sealed class SimulationSession : IDisposable
     private string? _replayStatus;
 
     public SimulationSession(ulong seed, ContentPack pack, int startMinute = 0, int viewerCiv = 0,
-        Difficulty difficulty = Difficulty.Chieftain)
-        : this(seed, pack, startMinute, viewerCiv, difficulty, null, null)
+        Difficulty difficulty = Difficulty.Chieftain, ChapterMode mode = ChapterMode.Bronze)
+        : this(seed, pack, startMinute, viewerCiv, difficulty, null, null, mode)
     {
     }
 
     private SimulationSession(ulong seed, ContentPack pack, int startMinute, int viewerCiv, Difficulty difficulty,
-        GameSaveData? saveData, Replay? replay)
+        GameSaveData? saveData, Replay? replay, ChapterMode mode = ChapterMode.Bronze)
     {
         if (startMinute < 0) throw new ArgumentOutOfRangeException(nameof(startMinute));
         if (saveData is not null && startMinute != 0) throw new ArgumentException("A saved match cannot also use a start minute.");
@@ -81,7 +81,7 @@ public sealed class SimulationSession : IDisposable
         var archetypes = StandardArchetypes();
         var controls = StandardControls(difficulty);
         _match = MatchModel.Create(seed, pack, World, archetypes, controls, playerCouncil: false, gentleStart: true,
-            rules: ChapterRules.For(saveData?.Mode ?? ChapterMode.Bronze));
+            rules: ChapterRules.For(saveData?.Mode ?? mode));
         // Civilization 0 is the human seat: political orders come from the front end.
         _match.Politics.SetExternalMind(0, true);
 

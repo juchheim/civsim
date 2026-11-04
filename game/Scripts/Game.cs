@@ -140,7 +140,7 @@ public partial class Game : Node3D
             _benchmarkRenderFigureLimit = ReadBenchmarkRenderFigureLimit();
             int startMinute = ReadStartMinute();
             int viewerCiv = ReadViewerCiv();
-            _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty);
+            _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty, ReadChapter());
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);
@@ -311,6 +311,15 @@ public partial class Game : Node3D
                 int.TryParse(arg.Substring("--start-minute=".Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int minute))
                 return Math.Clamp(minute, 0, 240);
         return 0;
+    }
+
+    /// <summary>Launch option <c>--chapter=iron</c> starts the first match in the Iron Age rules; anything else is Bronze.</summary>
+    private static CivSim.Sim.Research.ChapterMode ReadChapter()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+            if (string.Equals(arg, "--chapter=iron", StringComparison.OrdinalIgnoreCase))
+                return CivSim.Sim.Research.ChapterMode.Iron;
+        return CivSim.Sim.Research.ChapterMode.Bronze;
     }
 
     private static int ReadViewerCiv()

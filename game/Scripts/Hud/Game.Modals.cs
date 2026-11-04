@@ -371,6 +371,13 @@ public partial class Game
     private UiSegmented? _difficultySegments;
     private Label? _difficultyBlurb;
     private Difficulty _newMatchDifficulty = Difficulty.Settler;
+    private UiSegmented? _chapterSegments;
+    private Label? _chapterBlurb;
+    private ChapterMode _newMatchChapter = ChapterMode.Bronze;
+
+    private static string ChapterBlurb(ChapterMode mode) => mode == ChapterMode.Iron
+        ? "Play on through the Bronze Age into the Iron Age: soldiers and iron arms, walls and castles, harbors and galleys, leagues, tribute, faith and the three Great Wonders. A longer match; the Iron Age is new and still being tuned."
+        : "The Bronze Age match, as before. It ends when the chapter's clock runs out or a victory is reached.";
 
     private static string DifficultyName(Difficulty level) => level.ToString();
 
@@ -384,7 +391,7 @@ public partial class Game
 
     private void BuildNewMatch()
     {
-        _newMatchModal = MakeModal("newmatch", 610, 330, "New match", "Rivals think harder at higher levels. They never get extra resources or research, at any level.", () => { CloseModal(_newMatchModal!); return true; });
+        _newMatchModal = MakeModal("newmatch", 610, 440, "New match", "Rivals think harder at higher levels. They never get extra resources or research, at any level.", () => { CloseModal(_newMatchModal!); return true; });
         var column = UiKit.Column(UiTokens.Sp3);
         var row = UiKit.Row(UiTokens.Sp3);
         row.AddChild(UiKit.Text("Rivals", "BodyStrong", minWidth: 80));
@@ -397,6 +404,17 @@ public partial class Game
         column.AddChild(row);
         _difficultyBlurb = UiKit.Text(DifficultyBlurb(Difficulty.Settler), "Body", wrap: true);
         column.AddChild(_difficultyBlurb);
+        var chapterRow = UiKit.Row(UiTokens.Sp3);
+        chapterRow.AddChild(UiKit.Text("Chapter", "BodyStrong", minWidth: 80));
+        _chapterSegments = new UiSegmented(new[] { "Bronze", "Iron Age" }, 0, index =>
+        {
+            _newMatchChapter = index == 1 ? ChapterMode.Iron : ChapterMode.Bronze;
+            UiKit.SetText(_chapterBlurb!, ChapterBlurb(_newMatchChapter));
+        }, 96);
+        chapterRow.AddChild(_chapterSegments);
+        column.AddChild(chapterRow);
+        _chapterBlurb = UiKit.Text(ChapterBlurb(ChapterMode.Bronze), "Body", wrap: true);
+        column.AddChild(_chapterBlurb);
         column.AddChild(UiKit.Text("This match ends when you start the new one. Save first if you want to come back.", "CaptionTertiary", wrap: true));
         _newMatchModal.Body.AddChild(column);
         _newMatchModal.Actions.AddChild(UiKit.Ghost("Cancel", () => CloseModal(_newMatchModal), null, UiGlyph.None, UiTokens.ControlM));
@@ -405,7 +423,7 @@ public partial class Game
             _uiSettings.Difficulty = _newMatchDifficulty;
             _uiSettings.Save();
             CloseModal(_newMatchModal);
-            StartNewMatch(unchecked(_matchSeed + 1), _newMatchDifficulty);
+            StartNewMatch(unchecked(_matchSeed + 1), _newMatchDifficulty, _newMatchChapter);
         }, null, UiGlyph.None, UiTokens.ControlM, true));
     }
 
@@ -417,6 +435,9 @@ public partial class Game
         _newMatchDifficulty = _uiSettings.Difficulty;
         int index = Array.IndexOf(DifficultyLevels, _newMatchDifficulty);
         _difficultySegments!.Select(Math.Max(0, index), true);
+        _newMatchChapter = ChapterMode.Bronze;
+        _chapterSegments!.Select(0, true);
+        UiKit.SetText(_chapterBlurb!, ChapterBlurb(ChapterMode.Bronze));
         OpenModal(_newMatchModal);
     }
 
