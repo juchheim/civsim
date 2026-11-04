@@ -156,6 +156,7 @@ public partial class Game
         foreach (string arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--benchmark-", StringComparison.Ordinal) ||
                 arg.StartsWith("--start-minute=", StringComparison.Ordinal) ||
+                arg.StartsWith("--research-era=", StringComparison.Ordinal) || // granted projects are commands: the opening hold would leave them unprocessed
                 arg.StartsWith("--screenshot=", StringComparison.Ordinal) ||
                 arg.StartsWith("--scenario=", StringComparison.Ordinal)) return true;
         return false;

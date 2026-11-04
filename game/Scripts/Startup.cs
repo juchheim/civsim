@@ -207,6 +207,7 @@ public partial class Startup : Control
         return OS.GetCmdlineUserArgs().Any(arg =>
             arg.StartsWith("--benchmark-", StringComparison.Ordinal) ||
             arg.StartsWith("--start-minute=", StringComparison.Ordinal) ||
+            arg.StartsWith("--research-era=", StringComparison.Ordinal) ||
             arg.StartsWith("--screenshot=", StringComparison.Ordinal) ||
             arg.StartsWith("--scenario=", StringComparison.Ordinal) ||
             arg.StartsWith("--shots=", StringComparison.Ordinal));
