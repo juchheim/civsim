@@ -1768,6 +1768,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int adults = 0;
         foreach (var r in records) if (r.Age < 45) adults++;
         int warriorSlots = warriors ? adults / 5 : 0;
+        // The Iron chapter's standing soldiers fight as professionals (training x1.5 in place of the warrior's x1.3, never both) with iron or steel-edge arms
+        // when the settlement holds them, strongest first; the arms are theirs alone.
+        int steelArms = _economy.IronChain ? _economy.GoodStock(settlement, "G-ARMS4").FloorToInt() : 0;
+        int ironArms = _economy.IronChain ? _economy.GoodStock(settlement, "G-ARMS3").FloorToInt() : 0;
         int tinArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2T").FloorToInt() : 0;
         int arsenicalArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2A").FloorToInt() : 0;
         int copperArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
@@ -1782,15 +1786,18 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (var r in records)
         {
             if (r.Wounded) continue;
-            bool warrior = r.Age < 45 && !r.Female && warriorSlots > 0;
+            bool warrior = r.Age < 45 && !r.Female && !r.Soldier && warriorSlots > 0;
             if (warrior) warriorSlots--;
             Fix64 weaponStrength = weapon;
             Fix64 casualtiesTaken = Fix64.One;
-            if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
+            if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
+            else if (r.Soldier && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); }
+            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
             else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
             else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
+            else if (r.Soldier) strength = weaponStrength * Combat.ProfessionalTraining;
             else if (warrior)
             {
                 strength = weaponStrength * Fix64.FromRatio(13, 10);

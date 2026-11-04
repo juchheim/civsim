@@ -1814,7 +1814,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             FigureState figure = _figures[i];
             if (figure.SettlementId != settlement.Id) continue;
             if (figure.Job == EconomyJob.Scout) continue;
-            if (figure.Role != Role.None && figure.Task is MetalTask.Ritual or MetalTask.Records or MetalTask.Administer) continue;
+            if (figure.Role != Role.None && figure.Task is MetalTask.Ritual or MetalTask.Records or MetalTask.Administer or MetalTask.Drill) continue;
             Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
             if (figure.Camp >= 0 && toolWork is not null) available -= toolWork[i];
             if (available <= Fix64.Zero) { figure.Job = EconomyJob.Rest; continue; }

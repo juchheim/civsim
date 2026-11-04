@@ -291,6 +291,16 @@ public sealed partial class LivingEconomyModel
         return n;
     }
 
+    /// <summary>How many adults hold the Soldier role, and how many of them the season's upkeep supplied.</summary>
+    internal (int Soldiers, int Supplied) FixtureSoldiers(int settlementIndex)
+    {
+        int n = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == Role.Soldier) n++;
+        return (n, _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0);
+    }
+
+    internal int FixtureSoldierSlots(int settlementIndex) => SoldierSlots(_settlements[settlementIndex]);
+
     /// <summary>Takes every state role off a settlement's people, as if the post were vacant.</summary>
     internal void FixtureClearRoles(int settlementIndex)
     {

@@ -1206,6 +1206,7 @@ public sealed partial class LivingEconomyModel
         IronKitWant(s, m, plan);
         IronExportWant(s, m, plan, pop);
         IronBuildWants(s, m, plan);
+        IronArmsWant(s, m, plan);
         int reach = ShareReach(civ);
         if (reach >= 0)
         {
@@ -1901,6 +1902,8 @@ public sealed partial class LivingEconomyModel
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
             if (seasons > 0) m.Goods[g] -= m.Goods[g] / seasons;
         }
+
+        if (IronChain) WearIronArms(m);
 
         // 7. Statistics for the harness (T17): labor, people.
         Fix64 work = Fix64.Zero;

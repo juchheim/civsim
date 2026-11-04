@@ -94,11 +94,11 @@ public sealed partial class LivingEconomyModel
     private static class MetalTask
     {
         public const byte None = 0, Mine = 1, Smelt = 2, SmeltArsenic = 3, Charcoal = 4, Craft = 5, Knap = 6, Clay = 7,
-            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Administer = 13, Count = 14;
+            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Administer = 13, Drill = 14, Count = 15;
     }
 
     private static readonly string[] TaskPracticeIds =
-        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe", "council" };
+        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe", "council", "guard" };
 
     /// <summary>The practice id a figure's metal task generates, or null for none (research maps it to a practice index).</summary>
     public static string? TaskPractice(byte task) => task is > 0 and < MetalTask.Count ? TaskPracticeIds[task] : null;
@@ -142,6 +142,8 @@ public sealed partial class LivingEconomyModel
         public Fix64 IronBuildProgress;
         /// <summary>The hillside tiles terraced into fields here (a subset of the settlement's field tiles).</summary>
         public List<int>? IronTerraces;
+        /// <summary>How many of the settlement's staffed soldiers were paid their upkeep this season (Iron chapter); only these fight as professionals.</summary>
+        public int IronSoldiersSupplied;
         /// <summary>Last season's gross want of each shared good, what sister settlements send toward.</summary>
         public readonly Fix64[] ShareWant = new Fix64[SharedGoods.Length];
         public int Forges;
@@ -772,7 +774,7 @@ public sealed partial class LivingEconomyModel
         foreach (FigureState f in _figures)
         {
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
-                f.Role > (IronChain ? Role.Governor : Role.Scribe))
+                f.Role > (IronChain ? Role.Soldier : Role.Scribe))
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }
         ValidateCivic();
@@ -812,6 +814,7 @@ public sealed partial class LivingEconomyModel
         if (source.IronWorks is not null) m.IronWorks = (int[])source.IronWorks.Clone();
         m.IronBuildKind = source.IronBuildKind;
         m.IronBuildProgress = source.IronBuildProgress;
+        m.IronSoldiersSupplied = source.IronSoldiersSupplied;
         if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);
         m.MineHeads.AddRange(source.MineHeads);

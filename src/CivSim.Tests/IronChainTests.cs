@@ -3,6 +3,7 @@ using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 
 namespace CivSim.Tests;
 
@@ -802,6 +803,83 @@ public class IronChainTests
         // And a Bronze town never has a road at all.
         BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "KEY-4", "TRN-07");
         Assert.False(bronze.Economy.FixtureRoadLinked(0));
+    }
+
+    [Fact]
+    public void Standing_soldiers_are_a_tenth_of_the_adults_a_fifth_with_iron_arms_and_only_while_fed()
+    {
+        BronzeFixture none = Iron("KEY-4");
+        BronzeFixture some = Iron("KEY-4", "WAR-07");
+        BronzeFixture more = Iron("KEY-4", "WAR-07", "WAR-08");
+        BronzeFixture bronze = Bronze("KEY-4", "WAR-07");
+        Assert.Equal(0, none.Economy.FixtureSoldierSlots(0));
+        Assert.Equal(0, bronze.Economy.FixtureSoldierSlots(0));
+        int tenth = some.Economy.FixtureSoldierSlots(0);
+        Assert.True(tenth > 0, "WAR-07 should give a town standing soldier slots");
+        int fifth = more.Economy.FixtureSoldierSlots(0); // floors apply to each share, so a fifth is twice a tenth to within one
+        Assert.InRange(fifth, 2 * tenth, 2 * tenth + 1);
+    }
+
+    [Fact]
+    public void Soldiers_are_staffed_with_real_adults_and_eat_a_quarter_ration_each()
+    {
+        BronzeFixture f = Iron("KEY-4", "WAR-07");
+        f.Economy.FixtureSetTier(0, 1);
+        f.RunSeasons(4);
+        (int soldiers, int supplied) = f.Economy.FixtureSoldiers(0);
+        Assert.True(soldiers > 0, "no one was drilled into the guard");
+        Assert.True(soldiers <= f.Economy.FixtureSoldierSlots(0));
+        Assert.Equal(soldiers, supplied);
+        // A Bronze town and a town without WAR-07 never raise a guard.
+        BronzeFixture without = Iron("KEY-4");
+        without.Economy.FixtureSetTier(0, 1);
+        without.RunSeasons(4);
+        Assert.Equal(0, without.Economy.FixtureSoldiers(0).Soldiers);
+        BronzeFixture bronze = Bronze("KEY-4", "WAR-07");
+        bronze.RunSeasons(4);
+        Assert.Equal(0, bronze.Economy.FixtureSoldiers(0).Soldiers);
+    }
+
+    [Fact]
+    public void Iron_arms_are_made_for_the_soldiers_and_wear_out_by_age()
+    {
+        BronzeFixture f = Iron("KEY-4", "MET-09", "WAR-07", "WAR-08");
+        f.Economy.FixtureSetTier(0, 1);
+        f.RunSeasons(4);
+        int soldiers = f.Economy.FixtureSoldiers(0).Soldiers;
+        Assert.True(soldiers > 0);
+        // With a forge and iron in store the standing guard is armed.
+        f.Economy.FixtureStock(0, "G-ARMS3", Fix64.FromInt(10));
+        Fix64 before = f.Economy.GoodStock(0, "G-ARMS3");
+        f.RunSeasons(8);
+        Fix64 after = f.Economy.GoodStock(0, "G-ARMS3");
+        Assert.True(after < before, $"unused arms should wear: {before} to {after}");
+        Assert.True(after > Fix64.Zero, "arms last longer than eight seasons");
+    }
+
+    [Fact]
+    public void Iron_arms_and_professional_training_strengthen_a_fighter_by_exactly_the_documented_amounts()
+    {
+        Assert.Equal(Fix64.FromRatio(24, 10), Combat.IronWeaponStrength(steelEdge: false));
+        Assert.Equal(Fix64.FromRatio(30, 10), Combat.IronWeaponStrength(steelEdge: true));
+        // 2.4 x 1.25 = 3.0: the steel edge is the one bonus, not a second one.
+        Near(Combat.IronWeaponStrength(false) * Fix64.FromRatio(125, 100), Combat.IronWeaponStrength(true));
+        Assert.Equal(Fix64.FromRatio(15, 10), Combat.ProfessionalTraining);
+        Assert.True(Combat.ProfessionalTraining > Fix64.FromRatio(13, 10), "a professional outfights a warrior");
+        Assert.True(Combat.IronWeaponStrength(false) > Combat.E3WeaponStrength("tin"));
+    }
+
+    [Fact]
+    public void The_soldier_count_survives_a_snapshot_round_trip()
+    {
+        BronzeFixture f = Iron("KEY-4", "WAR-07");
+        f.Economy.FixtureSetTier(0, 1);
+        f.RunSeasons(4);
+        byte[] bytes = Snapshot(f.Economy);
+        BronzeFixture g = Iron("KEY-4", "WAR-07");
+        Restore(g.Economy, bytes);
+        Assert.Equal(f.Economy.FixtureSoldiers(0), g.Economy.FixtureSoldiers(0));
+        Assert.Equal(bytes, Snapshot(g.Economy));
     }
 
     private static int ProjectIndex(LivingEconomyModel economy, string id)

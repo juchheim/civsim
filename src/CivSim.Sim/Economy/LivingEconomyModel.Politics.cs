@@ -244,16 +244,21 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>A person who could fight: id, age, sex and whether a wound has laid them up.</summary>
-    public readonly record struct FighterRecord(long Id, int Age, bool Female, bool Wounded);
+    public readonly record struct FighterRecord(long Id, int Age, bool Female, bool Wounded, bool Soldier = false);
 
     /// <summary>Adults and elders of a settlement in ascending id order (children stay out of the fight, docs/MVP/13 §6.1).</summary>
     public void ListFightingAge(int settlementIndex, List<FighterRecord> into)
     {
         int id = _settlements[settlementIndex].Id;
+        // The Iron chapter's standing soldiers (WAR-07): a staffed soldier fights as a professional only if upkeep was paid this season.
+        int supplied = IronChain ? _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0 : 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState f = _figures[i];
-            if (f.SettlementId == id && f.Age >= 14) into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0));
+            if (f.SettlementId != id || f.Age < 14) continue;
+            bool soldier = supplied > 0 && f.Role == Role.Soldier;
+            if (soldier) supplied--;
+            into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0, soldier));
         }
     }
 

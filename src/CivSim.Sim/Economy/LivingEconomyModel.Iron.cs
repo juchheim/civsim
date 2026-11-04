@@ -319,7 +319,7 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 };
+        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0;
 
     private void HashIron(ref StateHasher hash)
     {
@@ -332,6 +332,7 @@ public sealed partial class LivingEconomyModel
             hash.Add(m.IronGoods ?? new Fix64[(int)IronGood.Count]);
             hash.Add(m.IronBuildKind);
             hash.Add(m.IronBuildProgress);
+            hash.Add(m.IronSoldiersSupplied);
             for (int k = 0; k < (int)IronStructure.Count; k++) hash.Add(m.IronWorks is { } w ? w[k] : 0);
             hash.Add(m.IronTerraces?.Count ?? 0);
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) hash.Add(tile);
@@ -352,6 +353,7 @@ public sealed partial class LivingEconomyModel
             WriteFixArray(writer, m.IronGoods ?? new Fix64[(int)IronGood.Count]);
             writer.Write(m.IronBuildKind);
             writer.Write(m.IronBuildProgress.Raw);
+            writer.Write(m.IronSoldiersSupplied);
             for (int k = 0; k < (int)IronStructure.Count; k++) writer.Write(m.IronWorks is { } w ? w[k] : 0);
             writer.Write(m.IronTerraces?.Count ?? 0);
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) writer.Write(tile);
@@ -377,6 +379,8 @@ public sealed partial class LivingEconomyModel
             metal.IronGoods = iron;
             metal.IronBuildKind = reader.ReadInt32();
             metal.IronBuildProgress = Fix64.FromRaw(reader.ReadInt64());
+            metal.IronSoldiersSupplied = reader.ReadInt32();
+            if (metal.IronSoldiersSupplied < 0) throw new InvalidDataException("Negative Iron-chapter soldier count.");
             if (metal.IronBuildKind < -1 || metal.IronBuildKind >= (int)IronStructure.Count || metal.IronBuildProgress < Fix64.Zero)
                 throw new InvalidDataException("Invalid Iron-chapter build state.");
             var works = new int[(int)IronStructure.Count];
@@ -531,6 +535,61 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>What is left of the Admin-span strain: none under a feudal contract, otherwise all of it.</summary>
     private Fix64 SpanStrainFactor(SettlementState s) => UnderFeudalContract(s) ? Fix64.Zero : Fix64.One;
+
+    // ---- soldiers and iron arms (WAR-07, WAR-08) ---------------------------------------------------------
+
+    /// <summary>Upkeep of a standing soldier, in rations a season (docs/MVP/25 Q8 candidate; provisional).</summary>
+    private static readonly Fix64 SoldierUpkeep = Fix64.FromRatio(1, 4);
+
+    /// <summary>
+    /// Standing soldier slots (WAR-07): a tenth of the settlement's working-age adults, a fifth once WAR-08 is known. Capacity is a ceiling, not a free army:
+    /// the slots are staffed with real adults who drill all season instead of working, and are suspended while food is short (security below 0.8).
+    /// </summary>
+    private int SoldierSlots(SettlementState s)
+    {
+        if (!IronChain || !Done(s.Civilization, "WAR-07") || s.FoodSecurity < Fix64.FromRatio(8, 10)) return 0;
+        int adults = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
+        Fix64 share = Done(s.Civilization, "WAR-08") ? Fix64.FromRatio(1, 5) : Fix64.FromRatio(1, 10);
+        return (Fix64.FromInt(adults) * share).FloorToInt();
+    }
+
+    /// <summary>Pays the season's soldier upkeep from food in store; soldiers whose upkeep cannot be paid do not fight as professionals this season.</summary>
+    private void PaySoldierUpkeep(SettlementState s, int soldiers)
+    {
+        MetalState? m = s.Metal;
+        if (!IronChain || m is null) return;
+        Fix64 cost = SoldierUpkeep * soldiers;
+        if (soldiers > 0 && FoodStores(s) >= cost) { ConsumeFoodStocks(s, cost); m.IronSoldiersSupplied = soldiers; }
+        else m.IronSoldiersSupplied = 0;
+    }
+
+    /// <summary>
+    /// Iron arms for the standing soldiers (WAR-08): a set for each soldier in post and one spare, of the best tier the civilization can make (steel-edge
+    /// arms with MET-10). They are wanted only by a settlement with a forge; the want expands through wrought iron or steel, wood and leather or hide.
+    /// </summary>
+    private void IronArmsWant(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "WAR-08")) return;
+        int soldiers = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Role == Role.Soldier) soldiers++;
+        if (soldiers == 0) return;
+        Fix64 have = IronStock(s, IronGood.Arms3) + IronStock(s, IronGood.Arms4);
+        IronGood tier = Done(s.Civilization, "MET-10") ? IronGood.Arms4 : IronGood.Arms3;
+        plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+    }
+
+    /// <summary>Iron arms wear out by age like the Bronze arms: a share of the stock each season, one over the service life (24 seasons iron, 48 steel-edge).</summary>
+    private void WearIronArms(MetalState m)
+    {
+        if (m.IronGoods is not { } iron) return;
+        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4 })
+        {
+            int t = _content.TradeGoodIndex(IronGoodId(g));
+            int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
+            if (seasons > 0 && iron[(int)g] > Fix64.Zero) iron[(int)g] -= iron[(int)g] / seasons;
+        }
+    }
 
     // ---- roads, bridges and relays (TRN-07, TRN-08, COM-08) ------------------------------------------------
 
