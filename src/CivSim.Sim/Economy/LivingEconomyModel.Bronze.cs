@@ -94,11 +94,11 @@ public sealed partial class LivingEconomyModel
     private static class MetalTask
     {
         public const byte None = 0, Mine = 1, Smelt = 2, SmeltArsenic = 3, Charcoal = 4, Craft = 5, Knap = 6, Clay = 7,
-            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Administer = 13, Drill = 14, Count = 15;
+            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Administer = 13, Drill = 14, Preach = 15, Count = 16;
     }
 
     private static readonly string[] TaskPracticeIds =
-        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe", "council", "guard" };
+        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe", "council", "guard", "faith_spread" };
 
     /// <summary>The practice id a figure's metal task generates, or null for none (research maps it to a practice index).</summary>
     public static string? TaskPractice(byte task) => task is > 0 and < MetalTask.Count ? TaskPracticeIds[task] : null;
@@ -144,6 +144,10 @@ public sealed partial class LivingEconomyModel
         public List<int>? IronTerraces;
         /// <summary>The civilizations this settlement's frontier segments face, in the order built (DEF-07).</summary>
         public List<int>? IronFacing;
+        /// <summary>Share of this settlement's people who follow each civilization's faith (BEL-09); index = civilization. Null until a missionary has come.</summary>
+        public Fix64[]? IronFaith;
+        /// <summary>The season each faith last gained converts here, or -1; the soft claim pressure runs only while a missionary keeps coming.</summary>
+        public int[]? IronFaithSeason;
         /// <summary>How many of the settlement's staffed soldiers were paid their upkeep this season (Iron chapter); only these fight as professionals.</summary>
         public int IronSoldiersSupplied;
         /// <summary>Last season's gross want of each shared good, what sister settlements send toward.</summary>
@@ -776,7 +780,7 @@ public sealed partial class LivingEconomyModel
         foreach (FigureState f in _figures)
         {
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
-                f.Role > (IronChain ? Role.Soldier : Role.Scribe))
+                f.Role > (IronChain ? Role.Missionary : Role.Scribe))
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }
         ValidateCivic();
@@ -819,6 +823,8 @@ public sealed partial class LivingEconomyModel
         m.IronSoldiersSupplied = source.IronSoldiersSupplied;
         if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
         if (source.IronFacing is not null) m.IronFacing = new List<int>(source.IronFacing);
+        if (source.IronFaith is not null) m.IronFaith = (Fix64[])source.IronFaith.Clone();
+        if (source.IronFaithSeason is not null) m.IronFaithSeason = (int[])source.IronFaithSeason.Clone();
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);
         m.MineHeads.AddRange(source.MineHeads);
         return m;

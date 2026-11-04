@@ -104,6 +104,14 @@ public sealed class Territory
     public int TotalHabitableWeight => _totalHabitableWeight;
     public Fix64 Dominion(int civ) => _dominion[civ];
 
+    /// <summary>Moves Dominion points from one civilization to another (tribute, DIP-06): the points change hands once, never more than the giver holds.</summary>
+    public void MoveDominion(int from, int to, Fix64 amount)
+    {
+        Fix64 moved = Fix64.Min(Fix64.Max(Fix64.Zero, amount), _dominion[from]);
+        _dominion[from] -= moved;
+        _dominion[to] += moved;
+    }
+
     /// <summary>Share of all habitable land owned by anyone (the "claimed land" of 07b), in basis points.</summary>
     public int ClaimedBasisPoints()
     {

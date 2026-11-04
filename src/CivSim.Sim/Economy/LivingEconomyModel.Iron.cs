@@ -319,7 +319,7 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 };
+        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null;
 
     private void HashIron(ref StateHasher hash)
     {
@@ -338,6 +338,8 @@ public sealed partial class LivingEconomyModel
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) hash.Add(tile);
             hash.Add(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) hash.Add(civ);
+            hash.Add(m.IronFaith?.Length ?? 0);
+            if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { hash.Add(m.IronFaith[k]); hash.Add(m.IronFaithSeason![k]); }
         }
     }
 
@@ -361,6 +363,8 @@ public sealed partial class LivingEconomyModel
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) writer.Write(tile);
             writer.Write(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) writer.Write(civ);
+            writer.Write(m.IronFaith?.Length ?? 0);
+            if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { writer.Write(m.IronFaith[k].Raw); writer.Write(m.IronFaithSeason![k]); }
         }
     }
 
@@ -413,6 +417,16 @@ public sealed partial class LivingEconomyModel
                 int civ = reader.ReadInt32();
                 if (civ < 0) throw new InvalidDataException("Invalid Iron-chapter frontier civilization.");
                 metal.IronFacing!.Add(civ);
+            }
+            int faiths = reader.ReadInt32();
+            if (faiths < 0 || faiths > CivilizationCount) throw new InvalidDataException("Invalid Iron-chapter faith count.");
+            metal.IronFaith = faiths == 0 ? null : new Fix64[faiths];
+            metal.IronFaithSeason = faiths == 0 ? null : new int[faiths];
+            for (int k = 0; k < faiths; k++)
+            {
+                metal.IronFaith![k] = Fix64.FromRaw(reader.ReadInt64());
+                metal.IronFaithSeason![k] = reader.ReadInt32();
+                if (metal.IronFaith[k] < Fix64.Zero || metal.IronFaith[k] > Fix64.One) throw new InvalidDataException("Invalid Iron-chapter faith share.");
             }
         }
     }
@@ -734,6 +748,64 @@ public sealed partial class LivingEconomyModel
         int running = Math.Min(engines, (Stock(s, slot) / EngineUpkeep).FloorToInt());
         if (running > 0) AddStock(s, slot, -EngineUpkeep * running);
         return running;
+    }
+
+    // ---- organized faith (BEL-09) ----------------------------------------------------------------------
+
+    /// <summary>One year of a missionary's conversion: 1% of the eligible non-adherents (docs/MVP/25 §6); a season is a quarter of it.</summary>
+    private static readonly Fix64 ConversionPerSeason = Fix64.FromRatio(1, 400);
+    /// <summary>No settlement holds more than a quarter of its people in one foreign faith.</summary>
+    private static readonly Fix64 ConversionCap = Fix64.FromRatio(1, 4);
+    /// <summary>Extra claim pressure a foreign faith lends its civilization in a settlement where it is spreading, at the cap (BEL-09 soft_claim_pressure +5%).</summary>
+    private static readonly Fix64 FaithClaimPressure = Fix64.FromRatio(5, 100);
+
+    /// <summary>One missionary for each Temple, once the civilization knows Organized Faith (a role staffed by an adult who preaches all season).</summary>
+    private int MissionarySlots(SettlementState s)
+        => IronChain && Done(s.Civilization, "BEL-09") && s.Civic is { Temples: > 0 } c ? c.Temples : 0;
+
+    /// <summary>How many missionaries are in post at a settlement.</summary>
+    public int Missionaries(int settlementIndex)
+    {
+        if (!IronChain) return 0;
+        int n = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == Role.Missionary) n++;
+        return n;
+    }
+
+    /// <summary>The share of a settlement's people who follow a civilization's faith (0 until a missionary has come).</summary>
+    public Fix64 FaithShare(int settlementIndex, int faithCiv)
+        => IronChain && _settlements[settlementIndex].Metal?.IronFaith is { } faith && (uint)faithCiv < (uint)faith.Length ? faith[faithCiv] : Fix64.Zero;
+
+    /// <summary>
+    /// One missionary-season of preaching (BEL-09): converts 1% a year of the people who do not yet follow the faith, never past a quarter of the settlement, never in
+    /// the faith's own civilization. Ownership never changes. Returns the share converted this season.
+    /// </summary>
+    public Fix64 ConvertTo(int settlementIndex, int faithCiv, int season)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        if (!IronChain || faithCiv == s.Civilization || (uint)faithCiv >= (uint)CivilizationCount) return Fix64.Zero;
+        MetalState m = EnsureMetal(s);
+        if (m.IronFaith is null)
+        {
+            m.IronFaith = new Fix64[CivilizationCount];
+            m.IronFaithSeason = new int[CivilizationCount];
+            Array.Fill(m.IronFaithSeason, -1);
+        }
+        Fix64 now = m.IronFaith[faithCiv];
+        Fix64 gain = Fix64.Min(ConversionCap - now, ConversionPerSeason * (Fix64.One - now));
+        if (gain > Fix64.Zero) m.IronFaith[faithCiv] = now + gain;
+        m.IronFaithSeason![faithCiv] = season; // the preacher came, even if the settlement is at its cap
+        return Fix64.Max(Fix64.Zero, gain);
+    }
+
+    /// <summary>
+    /// The claim emission a faith lends its civilization at a settlement, as a share of the settlement's own emission: up to 5% at a quarter converted, and only while a
+    /// missionary keeps coming (this season or the last). It adds to the faith civilization's claim around the town and never moves the town itself.
+    /// </summary>
+    public Fix64 FaithClaimShare(int settlementIndex, int faithCiv, int season)
+    {
+        if (!IronChain || _settlements[settlementIndex].Metal is not { IronFaith: { } faith, IronFaithSeason: { } last } || (uint)faithCiv >= (uint)faith.Length) return Fix64.Zero;
+        return faith[faithCiv] > Fix64.Zero && season - last[faithCiv] <= 1 ? faith[faithCiv] / ConversionCap * FaithClaimPressure : Fix64.Zero;
     }
 
     // ---- roads, bridges and relays (TRN-07, TRN-08, COM-08) ------------------------------------------------
