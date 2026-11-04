@@ -629,9 +629,9 @@ The milestone is done when every automated row passes in the nightly report and 
 
 | # | Test | Target | How measured | Kind |
 |---|---|---|---|---|
-| B1 | **Agency.** Testers use Decrees and can name a decision of *where* or *when* | ≥ 5 of 8 use ≥ 2 Decree kinds unprompted and name one such decision | M9 protocol plus two questions (§19) | Human |
-| B2 | **Bronze is legible.** Testers can say why their tools are or are not bronze | ≥ 5 of 8 | post-match question | Human |
-| B3 | **Want more** after the Bronze end screen; can explain one AI action | ≥ 5 of 8 (P9 repeated) | M9 protocol | Human |
+| B1 | **Agency.** Testers use Decrees and can name a decision of *where* or *when* | ≥ 5 of 8 use ≥ 2 Decree kinds unprompted and name one such decision | M9 protocol plus two questions (§19) | Human; **passed**, reported by the project owner 2026-11-04 |
+| B2 | **Bronze is legible.** Testers can say why their tools are or are not bronze | ≥ 5 of 8 | post-match question | Human; **passed**, reported by the project owner 2026-11-04 |
+| B3 | **Want more** after the Bronze end screen; can explain one AI action | ≥ 5 of 8 (P9 repeated) | M9 protocol | Human; **passed**, reported by the project owner 2026-11-04 |
 | B4 | Every E3 project and KEY-4 shows a visible change | 66/66 emit Completed, Moment, ≥ 1 VisibleChange | event-stream test (C8) | Auto |
 | B5 | **Keystone timing** | Balanced Council KEY-4 median 57–64 min before Year 64; E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
 | B6 | **Chapter end** | Every sample ends by the §3.1 rule: 12 seasons after the first rival KEY-4 or at Year 64; ≤ 40% of Balanced matches reach Year 64 (relaxed 2026-11-03 from 10%: 11/32 = 34% measured, median end 63.5 is in design, and an earlier KEY-4 would re-tune E3 pace and every golden; 07d); the end rule is replay-identical. Report the observed end-time median. | harness, 32 seeds | Auto |
