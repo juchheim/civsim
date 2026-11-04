@@ -248,6 +248,20 @@ func chariot_focus() -> Vector3:
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
 ## Dev aid for scenarios: where the last decor of a kind (temple, chiefhall, woolbales, chariot ...) was placed (the origin when none).
+## Dev aid for scenarios: where the first civic building of a kind ("academy", "theatre", "bathhouse", "crane", "site") stands; the aqueduct for "aqueduct".
+func works_focus(kind: String) -> Vector3:
+	if builder == null:
+		return Vector3.ZERO
+	if kind == "aqueduct":
+		if builder.aqueduct_sites.is_empty():
+			return Vector3.ZERO
+		var a: Dictionary = builder.aqueduct_sites[0]
+		return Vector3(a.p.x, a.y, a.p.y)
+	for cs in builder.civic_sites:
+		if String(cs.kind) == kind:
+			return Vector3(cs.p.x, cs.y, cs.p.y)
+	return Vector3.ZERO
+
 ## Dev aid for scenarios: where the first siege engine stands (the origin when none).
 func siege_focus() -> Vector3:
 	if builder == null or builder.siege_engines.is_empty():
@@ -414,9 +428,9 @@ func show_iron_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(9.0, 18.0)
+	plane.size = Vector2(9.0, 21.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -3.8)
+	floor_mesh.position = Vector3(0.0, -0.01, -5.3)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -443,6 +457,11 @@ func show_iron_gallery() -> Vector3:
 		# MET-09 / WAR-07-09: the forge yard cold and at work, a soldier and a shieldless spearman, a siege engine's frame, a ruined wall and rubble
 		[["forge_yard", 0.6, 1.2], ["forge_yard_hot", 0.6, 1.2], ["person_soldier", 0.25, 1.0], ["person_spear_t4", 0.25, 1.0], ["siege_base", 0.55, 1.2],
 			["wall_seg", 0.3, 1.2], ["wall_ruin", 0.3, 1.2], ["wall_rubble", 0.3, 1.2]],
+		# ART-08 / LRN-05 / MED-06 / MEC-06: the civic works at the size the village draws them
+		[["academy", 0.9, 1.3], ["amphitheatre", 0.9, 1.15], ["bathhouse", 0.6, 1.3], ["crane", 0.5, 1.3], ["aqueduct_end", 0.4, 1.3], ["aqueduct_run", 0.5, 1.3],
+			["aqueduct_run", 0.5, 1.3]],
+		# the building site in its three stages
+		[["build_site_1", 0.7, 1.3], ["build_site_2", 0.7, 1.3], ["build_site_3", 0.7, 1.3]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -450,7 +469,7 @@ func show_iron_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0][r]
+		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

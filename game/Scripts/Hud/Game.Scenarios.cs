@@ -634,7 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
-                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f),
                 })
                 {
                     string itemName = item;
@@ -734,6 +734,35 @@ public partial class Game
                         if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(zoom); }
                     }, 2.5f);
                     Shot($"war-{call}-{_scenario.Count}");
+                }
+                break;
+            case "works-village":
+                // --start-minute=30 --viewer=-1 --dev-works --dev-site=2 [--dev-walls=2] (debug builds): the capital with the Iron civic works, an aqueduct and a building
+                // going up; run with --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (worksShot, worksZoom) in new[] { ("wide", 9.0f), ("village", 5.5f) })
+                {
+                    float zoom = worksZoom;
+                    string shot = worksShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"works-{shot}");
+                }
+                foreach (var kind in new[] { "academy", "theatre", "bathhouse", "crane", "site", "aqueduct" })
+                {
+                    string call = kind;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("works_focus", call);
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(2.7f); }
+                    }, 2.5f);
+                    Shot($"works-{call}");
                 }
                 break;
             case "iron-life":

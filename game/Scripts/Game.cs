@@ -508,8 +508,11 @@ public partial class Game : Node3D
         // --dev-forge=1|2 (idle or at work) and --dev-soldiers=N: the viewer civilization's biggest town has a forge and a standing garrison
         int forcedForge = ArgumentValue("--dev-forge=") is { } forgeArg && int.TryParse(forgeArg, out int forgeState) ? forgeState : -1;
         int forcedSoldiers = ArgumentValue("--dev-soldiers=") is { } soldierArg && int.TryParse(soldierArg, out int soldierCount) ? soldierCount : -1;
+        // --dev-works: it also has an academy, a theatre or arena, a bathhouse, a crane and an aqueduct; --dev-site=1..3: and a press going up (stage 1 to 3)
+        bool forcedWorks = HasArgument("--dev-works");
+        int forcedSite = ArgumentValue("--dev-site=") is { } siteArg && int.TryParse(siteArg, out int siteStage) ? siteStage : -1;
         int forcedWorkAt = -1;
-        if (forcedForge >= 0 || forcedSoldiers >= 0)
+        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedWorkAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedWorkAt])) forcedWorkAt = i;
@@ -584,6 +587,20 @@ public partial class Game : Node3D
             {
                 if (forcedForge >= 0) settlement["forge"] = forcedForge;
                 if (forcedSoldiers >= 0) settlement["soldiers"] = forcedSoldiers;
+                if (forcedWorks || forcedSite > 0)
+                {
+                    var works = new int[IronWorkKindCount()];
+                    if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(works, 0);
+                    if (forcedWorks)
+                        foreach (string id in new[] { "academy", "theatre_arena", "bathhouse", "crane", "aqueduct" })
+                            if (IronKindIndex(id) is >= 0 and int at) works[at] = 1;
+                    settlement["ironWorks"] = works;
+                    if (forcedSite > 0 && IronKindIndex("press") is >= 0 and int pressAt)
+                    {
+                        settlement["ironBuildKind"] = pressAt;
+                        settlement["ironBuildPermille"] = Math.Clamp(forcedSite, 1, 3) * 333 - 200;
+                    }
+                }
             }
             if (i == forcedHarborAt)
             {

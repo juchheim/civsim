@@ -61,6 +61,7 @@ var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
+var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenarios' cameras
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
@@ -405,6 +406,9 @@ func _structure_digest() -> int:
 			h = h * 31 + zig_stage(s)
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
+			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct"]:
+				h = h * 31 + w.iron_works(s, wid)
+			h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
 		for n in s.structures:
 			h = h * 31 + int(n)
@@ -824,7 +828,17 @@ func _ziggurat_site(c: Vector2, h0: float, seed: float) -> Variant:
 const CIVIC := {
 	# kind: [mesh, scale, offset from the hearth, half the footprint (x, z) in mesh units, footprint radius in world units]
 	"temple": ["temple", 1.3, 0.58, Vector2(0.19, 0.23), 0.36],
+	# Iron Age civic works (art_works.gd)
+	"academy": ["academy", 1.3, 0.64, Vector2(0.22, 0.2), 0.38],
+	"theatre": ["amphitheatre", 1.15, 0.86, Vector2(0.31, 0.31), 0.5],
+	"bathhouse": ["bathhouse", 1.3, 0.62, Vector2(0.15, 0.12), 0.28],
+	"crane": ["crane", 1.3, 0.58, Vector2(0.1, 0.2), 0.26],
+	"site": ["build_site_1", 1.3, 0.62, Vector2(0.21, 0.17), 0.32],
 }
+## Iron works drawn as a civic building: the kind here, the id the sim counts it under, and a name for the site that carries it.
+const CIVIC_WORKS := [["academy", "academy"], ["theatre", "theatre_arena"], ["bathhouse", "bathhouse"], ["crane", "crane"]]
+## Iron works whose building under way is shown as a building site beside the village (the sim's id).
+const SITE_KINDS := ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "press", "windlass_well", "great_library", "great_lighthouse", "great_dome"]
 
 ## Where a civic building stands: rings of candidates round the hearth, first one on level, clear ground that is clear of trees, the
 ## banner and what is already placed (`placed` and `placed_r`, the latter in village-scale units). The front (+Z) faces the hearth.
@@ -834,7 +848,7 @@ func _civic_site(c: Vector2, h0: float, seed: float, kind: String, placed: Array
 	var half: Vector2 = spec[3]
 	var foot: float = spec[4]
 	var banner := c + Vector2(0.09, -0.07)
-	for ring in [1.0, 1.3, 1.6]:
+	for ring in [1.0, 1.3, 1.6, 1.95, 2.3]:
 		for k in 12:
 			# north of the hearth first (the default camera then sees the front), then alternately either side of it
 			var a := -PI * 0.5 + (((k + 1) / 2) * (1 if k % 2 == 1 else -1)) * TAU / 12.0
@@ -873,6 +887,7 @@ func _settlements() -> void:
 	castle_sites.clear()
 	harbor_sites.clear()
 	forge_sites.clear()
+	aqueduct_sites.clear()
 	siege_engines.clear()
 	bridge_sites.clear()
 	civic_sites.clear()
@@ -967,6 +982,16 @@ func _settlements() -> void:
 				landmarks_seed.append([tp, 0.6])
 				civic_sites.append({"kind": "temple", "p": tp, "y": tsite.y, "yaw": tsite.yaw, "civ": civ, "seed": seed, "tile": t})
 				decor_spots["temple_built"] = tp
+		# Iron civic works (academy, theatre or arena, bathhouse, crane): each stands on the best level ground left round the hearth
+		for cw in CIVIC_WORKS:
+			if w.iron_works(s, String(cw[1])) > 0:
+				_place_civic(String(cw[0]), s, t, c, h0, seed, placed, placed_r, civ, cc)
+		# a building going up (own towns only, as the sim sends it): its site, in stages
+		var build_k := int(s.get("ironBuildKind", -1))
+		if build_k >= 0 and build_k < w.iron_work_ids.size() and SITE_KINDS.has(String(w.iron_work_ids[build_k])):
+			var pm := int(s.get("ironBuildPermille", 0))
+			if pm > 0:
+				_place_civic("site", s, t, c, h0, seed, placed, placed_r, civ, cc, 1 + mini(2, pm * 3 / 1000))
 		var slot := 0
 		var rmax := 0.0
 		var tiled_roofs := civ >= 0 and w.has_look(civ, M7WorldData.LOOK_TILES)
@@ -1061,6 +1086,7 @@ func _settlements() -> void:
 		var gate_at := Vector2(1e9, 1e9)
 		if wall_rings > 0:
 			gate_at = _stone_walls(t, c, seed, ring_r, wall_rings, w.iron_works(s, "gatehouse") > 0, gate_pref, siege)
+		_aqueduct(s, c, h0, seed, ring_r if wall_rings > 0 else wall_base, gate_at)
 		if not siege.is_empty():
 			_siege_camp(c, seed, ring_r if wall_rings > 0 else wall_base + 0.2, siege, cc)
 		_castle(s, t, c, h0, seed, (ring_r + CASTLE_GAP_WALLED) if wall_rings > 0 else wall_base + CASTLE_GAP_OPEN, placed, cc, gate_at)
@@ -1330,6 +1356,85 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 	return extent
 
 const FORGE_SCALE := 1.2
+
+## A civic building of the Iron Age (art_works.gd) at a free spot by the hearth, its front toward it. `stage` picks the building site's mesh (1 to 3).
+func _place_civic(kind: String, s: Dictionary, t: int, c: Vector2, h0: float, seed: float, placed: Array, placed_r: Array, civ: int, cc: Color,
+		stage: int = 0) -> void:
+	var site = _civic_site(c, h0, seed, kind, placed, placed_r)
+	if site == null:
+		return
+	var spec: Array = CIVIC[kind]
+	var mesh_name: String = spec[0] if stage <= 0 else "build_site_%d" % stage
+	var tp: Vector2 = site.p
+	props.add(mesh_name, _xf(tp, site.y, site.yaw, spec[1]), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, kind.length(), 93)))
+	placed.append(tp)
+	placed_r.append(float(spec[4]) / VS)
+	civic_sites.append({"kind": kind, "p": tp, "y": site.y, "yaw": site.yaw, "civ": civ, "seed": seed, "tile": t})
+
+const AQUEDUCT_SCALE := 1.3
+
+## The aqueduct (BLD-10): a water tower inside the village edge and four spans of arched channel running out from it, leveled over uneven ground (the arches
+## stand taller over dips), toward the nearest river when there is one. The line keeps off the gate, the castle and the civic buildings.
+func _aqueduct(s: Dictionary, c: Vector2, h0: float, seed: float, base_r: float, gate_at: Vector2) -> void:
+	if w.iron_works(s, "aqueduct") <= 0:
+		return
+	var pref := seed * TAU + 1.0
+	var river := _river_near(c)
+	if float(river[0]) < 4.0:
+		var d: Vector2 = (river[1] as Vector2) - c
+		if d.length() > 0.01:
+			pref = atan2(d.y, d.x)
+	var spans := 4
+	var half_end := 0.07 * AQUEDUCT_SCALE
+	var run := 0.3 * AQUEDUCT_SCALE
+	var chosen := INF
+	for k in 12:
+		var a := pref + TAU / 12.0 * (((k + 1) / 2) * (1 if k % 2 == 1 else -1))
+		var dir := Vector2(cos(a), sin(a))
+		var ok := true
+		for j in spans + 1:
+			var p := c + dir * (base_r + half_end + run * (j - 0.5 if j > 0 else -0.3))
+			var tq := w.tile_at(p)
+			if tq < 0 or not w.is_land(tq) or w.biome[tq] >= M7WorldData.Biome.MOUNTAIN:
+				ok = false
+				break
+			if gate_at.distance_to(p) < 0.55:
+				ok = false
+				break
+			for cs in castle_sites:
+				if (cs.p as Vector2).distance_to(p) < 0.6:
+					ok = false
+			for cv in civic_sites:
+				if int(cv.tile) == int(w.tile_at(c)) and (cv.p as Vector2).distance_to(p) < 0.45:
+					ok = false
+		if ok:
+			chosen = a
+			break
+	if chosen == INF:
+		return
+	var dir := Vector2(cos(chosen), sin(chosen))
+	var yaw := -chosen
+	# the deck's level: above the highest ground under the line
+	var grounds: Array = []
+	var level := w.height_at(c + dir * base_r)
+	var end_p := c + dir * (base_r - 0.04)
+	grounds.append(w.height_at(end_p))
+	for j in spans:
+		var p := c + dir * (base_r + half_end + run * (j + 0.5))
+		grounds.append(w.height_at(p))
+	for g in grounds:
+		level = maxf(level, float(g))
+	var deck := level + 0.16 * AQUEDUCT_SCALE
+	var end_sy := clampf((deck - float(grounds[0])) / (0.15 * AQUEDUCT_SCALE), 0.6, 4.0)
+	props.add("aqueduct_end", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(AQUEDUCT_SCALE, AQUEDUCT_SCALE * end_sy, AQUEDUCT_SCALE)),
+		Vector3(end_p.x, float(grounds[0]), end_p.y)), Color(1, 1, 1, seed))
+	for j in spans:
+		var p := c + dir * (base_r + half_end + run * (j + 0.5))
+		var gy: float = grounds[j + 1]
+		var sy := clampf((deck - gy) / (0.14 * AQUEDUCT_SCALE), 0.5, 4.0)
+		props.add("aqueduct_run", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(AQUEDUCT_SCALE, AQUEDUCT_SCALE * sy, AQUEDUCT_SCALE)),
+			Vector3(p.x, gy, p.y)), Color(1, 1, 1, seed))
+	aqueduct_sites.append({"p": end_p + dir * 0.6, "y": float(grounds[0])})
 
 ## An Iron forge yard (MET-09) at the edge of the village, its front toward the hearth: the bloomery stack, anvil, charcoal and ore, and, when the forge is at
 ## work, a glowing furnace mouth with flame and smoke (the war rig). Returns how far from the hearth it reaches, 0 with no forge.
