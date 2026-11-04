@@ -1139,6 +1139,27 @@ public sealed partial class LivingEconomyModel
         for (int k = 0; k <= steps; k++) into.Add(HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _world.Width, _world.Height));
     }
 
+    /// <summary>
+    /// For the view: the tiles of a settlement's paved link to its capital, from the capital to the settlement along the straight line the road, bridge and
+    /// Cohesion rules use, once the road is built (TRN-07), whether or not a needed bridge is yet. False (and nothing added) with no road or for the capital.
+    /// <paramref name="bridged"/> says a bridge stands, so a river tile on the line is crossed; without one the road stops at the river.
+    /// </summary>
+    public bool RoadTilesForView(int settlementIndex, List<int> into, out bool bridged)
+    {
+        bridged = false;
+        if (!IronChain || (uint)settlementIndex >= (uint)_settlements.Count) return false;
+        SettlementState s = _settlements[settlementIndex];
+        if (IronWorksCount(s, IronStructure.Road) == 0) return false;
+        int capital = CapitalOf(s.Civilization);
+        if (capital < 0 || capital == s.Id) return false;
+        bridged = IronWorksCount(s, IronStructure.Bridge) > 0;
+        HexGrid.Coordinates(_settlements[capital].SiteTile, _world.Width, out int fx, out int fy);
+        HexGrid.Coordinates(s.SiteTile, _world.Width, out int tx, out int ty);
+        int steps = Math.Max(1, HexGrid.Distance(_settlements[capital].SiteTile, s.SiteTile, _world.Width));
+        for (int k = 0; k <= steps; k++) into.Add(HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _world.Width, _world.Height));
+        return true;
+    }
+
     private bool RoadWanted(SettlementState s)
     {
         int civ = s.Civilization;

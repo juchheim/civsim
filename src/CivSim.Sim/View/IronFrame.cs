@@ -30,6 +30,16 @@ public sealed class IronFrame
     /// <summary>Own settlements only: the settlement (frame-independent index) this town's build labor is pledged to this season, -1 none.</summary>
     public short[] PledgeTo = Array.Empty<short>();
 
+    // ---- paved roads (TRN-07) and their bridges (TRN-08): one road per settlement linked to its capital ----
+    public int RoadCount;
+    /// <summary>Frame index of the settlement the road runs to, and where its tiles start in <see cref="RoadTiles"/> and how many there are.</summary>
+    public int[] RoadSettlement = Array.Empty<int>(), RoadStart = Array.Empty<int>(), RoadLength = Array.Empty<int>();
+    /// <summary>1 when a bridge stands, so the road crosses a river tile on its line; 0 when the road stops at the river.</summary>
+    public byte[] RoadBridged = Array.Empty<byte>();
+    /// <summary>The road tiles from the capital to the settlement; -1 for a tile of another civilization's road that the viewer cannot see now.</summary>
+    public int[] RoadTiles = Array.Empty<int>();
+    public int RoadTileCount;
+
     // ---- sieges the viewer is party to or sees ----
     public int SiegeCount;
     public int[] SiegeSettlement = Array.Empty<int>(), SiegeBesieger = Array.Empty<int>(), SiegeEngines = Array.Empty<int>(), SiegeSeasons = Array.Empty<int>();
@@ -58,6 +68,19 @@ public sealed class IronFrame
         Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size];
         ForeignFaithPermille = new short[size]; ForeignFaithCiv = new sbyte[size];
         BuildKind = new sbyte[size]; BuildPermille = new short[size]; PledgeTo = new short[size];
+    }
+
+    internal void EnsureRoads(int n)
+    {
+        if (RoadSettlement.Length >= n) return;
+        int size = Math.Max(n, RoadSettlement.Length * 2);
+        RoadSettlement = new int[size]; RoadStart = new int[size]; RoadLength = new int[size]; RoadBridged = new byte[size];
+    }
+
+    internal void EnsureRoadTiles(int n)
+    {
+        if (RoadTiles.Length >= n) return;
+        Array.Resize(ref RoadTiles, Math.Max(n, RoadTiles.Length * 2));
     }
 
     internal void EnsureSieges(int n)

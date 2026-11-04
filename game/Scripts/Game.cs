@@ -505,6 +505,22 @@ public partial class Game : Node3D
         bool forcedGatehouse = HasArgument("--dev-gatehouse");
         int forcedCastle = ArgumentValue("--dev-castle=") is { } castleArg && int.TryParse(castleArg, out int castleStage) ? castleStage : -1;
         bool forcedDefense = forcedWalls > 0 || forcedGatehouse || forcedCastle > 0;
+        // --dev-harbor: the biggest settlement (the viewer's first) with the sea beside it has a harbor
+        int forcedHarborAt = -1;
+        if (HasArgument("--dev-harbor"))
+        {
+            Span<int> neighbours = stackalloc int[6];
+            for (int pass = 0; pass < 2 && forcedHarborAt < 0; pass++)
+                for (int i = 0; i < frame.SettlementCount; i++)
+                {
+                    if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+                    if (pass == 0 && frame.SettlementCiv[i] != Math.Max(0, frame.ViewerCiv)) continue;
+                    int count = CivSim.Sim.World.HexGrid.Neighbors(frame.SettlementTile[i], frame.Width, frame.Height, neighbours);
+                    bool coast = false;
+                    for (int k = 0; k < count; k++) if (world.Biome[neighbours[k]] <= 1) coast = true;
+                    if (coast && (forcedHarborAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedHarborAt])) forcedHarborAt = i;
+                }
+        }
         if (forcedLeanTos > 0 || forcedHouses > 0 || forcedDefense)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
@@ -555,6 +571,14 @@ public partial class Game : Node3D
                 settlement["ironBuildPermille"] = i < frame.Iron.BuildPermille.Length ? (int)frame.Iron.BuildPermille[i] : 0;
             }
 #if DEBUG
+            if (i == forcedHarborAt)
+            {
+                var harborWorks = new int[IronWorkKindCount()];
+                if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(harborWorks, 0);
+                int harborAt = IronKindIndex("harbor");
+                if (harborAt >= 0) harborWorks[harborAt] = 1;
+                settlement["ironWorks"] = harborWorks;
+            }
             if (i == forcedLeanToAt && forcedDefense)
             {
                 var kindsForced = new int[IronWorkKindCount()];
@@ -611,6 +635,43 @@ public partial class Game : Node3D
             trailMeta[i * 5 + 3] = frame.TrailStart[i];
             trailMeta[i * 5 + 4] = frame.TrailLength[i];
         }
+
+        // paved roads (TRN-07): per road (settlement index, start, length, bridged) and one flat list of tiles (-1 = not in sight)
+        int roadCount = frame.Iron.Active ? frame.Iron.RoadCount : 0;
+        var roadMeta = new int[roadCount * 4];
+        for (int i = 0; i < roadCount; i++)
+        {
+            roadMeta[i * 4] = frame.Iron.RoadSettlement[i];
+            roadMeta[i * 4 + 1] = frame.Iron.RoadStart[i];
+            roadMeta[i * 4 + 2] = frame.Iron.RoadLength[i];
+            roadMeta[i * 4 + 3] = frame.Iron.RoadBridged[i];
+        }
+        int[] roadTiles = frame.Iron.Active ? Slice(frame.Iron.RoadTiles, frame.Iron.RoadTileCount) : Array.Empty<int>();
+#if DEBUG
+        // --dev-roads: paved, bridged roads from the capital to the viewer civilization's other towns (or the nearest town) to photograph them
+        if (HasArgument("--dev-roads"))
+        {
+            int capitalAt = -1;
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (capitalAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[capitalAt])) capitalAt = i;
+            var metaList = new List<int>();
+            var tileList = new List<int>();
+            for (int i = 0; i < frame.SettlementCount && capitalAt >= 0; i++)
+            {
+                if (i == capitalAt || (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+                int from = frame.SettlementTile[capitalAt], to = frame.SettlementTile[i];
+                int steps = Math.Max(1, CivSim.Sim.World.HexGrid.Distance(from, to, frame.Width));
+                if (steps > 45) continue;
+                CivSim.Sim.World.HexGrid.Coordinates(from, frame.Width, out int fx, out int fy);
+                CivSim.Sim.World.HexGrid.Coordinates(to, frame.Width, out int tx, out int ty);
+                metaList.AddRange(new[] { i, tileList.Count, steps + 1, 1 });
+                for (int k = 0; k <= steps; k++) tileList.Add(CivSim.Sim.World.HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, frame.Width, frame.Height));
+            }
+            roadMeta = metaList.ToArray();
+            roadTiles = tileList.ToArray();
+        }
+#endif
 
         var plots = new int[frame.PlotCount * 2];
         for (int i = 0; i < frame.PlotCount; i++)
@@ -685,6 +746,8 @@ public partial class Game : Node3D
             ["civLooks"] = ToIntArray(frame.CivLooks, frame.CivLooks.Length),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
+            ["roadMeta"] = roadMeta,
+            ["roadTiles"] = roadTiles,
             ["plots"] = plots,
             ["foodOverlay"] = foodOverlay,
             ["forecastOverlay"] = forecastOverlay,

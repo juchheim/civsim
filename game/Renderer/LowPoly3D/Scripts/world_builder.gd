@@ -51,6 +51,8 @@ var trail_node: MeshInstance3D
 var trail_signature := -1
 var trail_polys: Array = []              # centre lines of the trail ribbons (trees are cleared along them)
 var trails_changed := false
+var road_node: MeshInstance3D
+var road_signature := -1
 var border_signature := -1
 var river_visibility_signature := -1
 var regional_lod := false
@@ -59,6 +61,8 @@ var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
+var harbor_sites: Array = []            # {p, y}: where each harbor stands
+var bridge_sites: Array = []            # {p, y}: where each stone bridge stands
 var castle_sites: Array = []            # {p, y, yaw, stage, civ, tile}: where each castle (DEF-08) stands or is going up
 var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
 var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
@@ -160,7 +164,13 @@ func build() -> Node3D:
 	trail_node.material_override = M7TrailBuilder.make_material()
 	trail_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(trail_node)
+	road_node = MeshInstance3D.new()
+	road_node.name = "Roads"
+	road_node.material_override = M7TrailBuilder.make_material()
+	road_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(road_node)
 	_update_trails()
+	_update_roads()
 	props = M7Batcher.new()
 	_figures()
 	actor_props = _build_props_node("Actors", props)
@@ -198,6 +208,7 @@ func update_frame() -> bool:
 		border_node.mesh = terrain_builder.build_borders(1.0)
 		borders_far_node.mesh = terrain_builder.build_borders(3.2)
 	_update_trails()
+	_update_roads()
 	var geometry_updated := Time.get_ticks_usec()
 	var signature := _structure_digest()
 	var structures_changed := signature != structure_signature
@@ -311,6 +322,14 @@ func _replace_props_node(previous: Node3D, node_name: String, batcher: M7Batcher
 	else:
 		actor_props = node
 
+## Rebuilds the paved roads when a road is finished, gains its bridge, or is seen (TRN-07).
+func _update_roads() -> void:
+	var sig := hash(w.road_meta) * 31 + hash(w.road_tiles)
+	if sig == road_signature:
+		return
+	road_signature = sig
+	road_node.mesh = M7TrailBuilder.build_roads(w, trail_polys)
+
 ## Rebuilds the trail ribbons when the routes, their wear or what is explored along them changes.
 func _update_trails() -> void:
 	var sig := hash(w.trail_meta) * 31 + hash(w.trail_tiles)
@@ -389,6 +408,7 @@ func _structure_digest() -> int:
 		h = h * 31 + (1 if _fire_lit(s) else 0)
 		for n in s.get("decor", PackedInt32Array()):
 			h = h * 31 + int(n) + 1
+	h = h * 31 + hash(w.road_meta) + hash(w.road_tiles)
 	for i in range(0, w.plots.size(), 2):
 		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1] + (field_kind(w.plots[i]) * 3 if w.plots[i + 1] == 0 else 0)
 	for ci in w.camps.size():
@@ -848,6 +868,8 @@ func _settlements() -> void:
 	villages.clear()
 	ziggurat_sites.clear()
 	castle_sites.clear()
+	harbor_sites.clear()
+	bridge_sites.clear()
 	civic_sites.clear()
 	# fields and orchards on their plot tiles
 	for pi in range(0, w.plots.size(), 2):
@@ -982,8 +1004,10 @@ func _settlements() -> void:
 				rmax = maxf(rmax, ((cs.p as Vector2) - c).length() + 0.4)
 		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
 		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
+		# a harbor (SEA-07): quay and piers on the shore, the boats moored between the piers
+		var has_harbor := w.iron_works(s, "harbor") > 0 and _harbor(t, c0, seed, cc)
 		if sea > 0:
-			_moor_fleet(t, c0, seed, sea, int(s.population), cc)
+			_moor_fleet(t, c0, seed, sea, int(s.population), cc, has_harbor)
 		var decor := _village_decor(s.get("decor", PackedInt32Array()), civ, si, flagship)
 		var decor_extent := 0.0
 		if decor.size() > 0:
@@ -1080,6 +1104,8 @@ func _settlements() -> void:
 					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.14 if wool else 1.0),
 						_glide_custom((6 * 8 + 4) if not dark else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
 				break
+
+	_bridges()
 
 ## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
 ## (lean-tos and hide tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
@@ -1452,9 +1478,67 @@ func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) 
 		var tang := a + PI * 0.5
 		props.add("decor_palisade", _xf(q, w.height_at(q), -tang, 1.1), tint)
 
+const HARBOR_SCALE := 1.15
+const HARBOR_MOOR := 0.82      # from the hearth tile's centre to where boats lie between a harbor's piers
+
+## A harbor (SEA-07): a quay on the shore of the first water neighbour (the one `_moor_fleet` picks) and two piers out over the water. True when
+## it stands (a village on a river with no sea beside it has none).
+func _harbor(t: int, c0: Vector2, seed: float, cc: Color) -> bool:
+	for i in 6:
+		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
+		if nb >= 0 and w.is_water(nb):
+			var dir: Vector2 = (w.tile_center(nb) - c0).normalized()
+			var at := c0 + dir * 0.5
+			var yaw := atan2(-dir.x, -dir.y)
+			props.add("harbor", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * HARBOR_SCALE), Vector3(at.x, 0.0, at.y)),
+				Color(cc.r, cc.g, cc.b, seed))
+			harbor_sites.append({"p": at, "y": 0.0})
+			return true
+	return false
+
+## The stone bridges (TRN-08) where a bridged paved road crosses a river: one per run of river tiles on a road, over the nearest river reach,
+## turned to cross the river squarely.
+func _bridges() -> void:
+	var done := {}
+	for ri in range(0, w.road_meta.size(), 4):
+		if w.road_meta[ri + 3] == 0:
+			continue
+		var start := w.road_meta[ri + 1]
+		var length := w.road_meta[ri + 2]
+		var j := 1
+		while j < length - 1:
+			var t := w.road_tiles[start + j]
+			if t < 0 or (w.flags[t] & M7WorldData.FLAG_RIVER) == 0:
+				j += 1
+				continue
+			var j0 := j
+			while j < length - 1 and w.road_tiles[start + j] >= 0 and (w.flags[w.road_tiles[start + j]] & M7WorldData.FLAG_RIVER) != 0:
+				j += 1
+			var jm := (j0 + j - 1) / 2
+			var tm := w.road_tiles[start + jm]
+			var tp := w.road_tiles[start + jm - 1]
+			var tn := w.road_tiles[start + jm + 1]
+			if tm < 0 or tp < 0 or tn < 0 or done.has(tm):
+				continue
+			done[tm] = true
+			var d: Vector2 = (w.tile_center(tn) - w.tile_center(tp)).normalized()
+			var p := w.tile_center(tm)
+			var river := _river_near(p)
+			if float(river[0]) > 0.6:
+				continue
+			p = river[1]
+			var rdir: Vector2 = river[2]
+			if rdir != Vector2.ZERO and absf(d.cross(rdir)) < 0.7:
+				var perp := rdir.rotated(PI * 0.5)
+				d = perp if perp.dot(d) >= 0.0 else -perp
+			var yaw := atan2(-d.y, d.x)
+			var y := maxf(w.height_at(p), 0.0)
+			props.add("bridge", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * 1.0), Vector3(p.x, y, p.y)), Color(1, 1, 1, 0.5))
+			bridge_sites.append({"p": p, "y": y})
+
 ## The boats a village keeps: one to four (by population) moored along the nearest shore or river bank, of the best kind its
 ## civilization knows (1 raft .. 4 outrigger). Nothing happens if there is no water within a short walk.
-func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, cc: Color) -> void:
+func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, cc: Color, quay: bool = false) -> void:
 	var count := clampi(population / 8, 1, 4)
 	var mesh_name := "boat_%d" % tier
 	var anchor := Vector2.ZERO
@@ -1465,7 +1549,7 @@ func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, c
 		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
 		if nb >= 0 and w.is_water(nb):
 			var dir: Vector2 = w.tile_center(nb) - c0
-			anchor = c0 + dir * 0.6
+			anchor = c0 + dir * (HARBOR_MOOR if quay else 0.6)
 			along = dir.normalized().rotated(PI * 0.5)
 			level = 0.004
 			found = true

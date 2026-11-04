@@ -143,3 +143,101 @@ static func _ribbon(w: M7WorldData, run: PackedInt32Array, level: int, trim_star
 			I.append_array([i0, i2, i1, i1, i2, i3])
 	if line.size() > 1:
 		polys.append(line)
+
+# ------------------------------------------------------------------ paved roads (TRN-07)
+
+const ROAD_WIDTH := 0.13
+const ROAD_PAVING := Color("#a69b87")
+const ROAD_KERB := Color("#5c5448")
+const ROAD_LIFT := 0.016
+
+## Builds one mesh for the paved roads of the frame (w.road_meta / w.road_tiles). A road without its bridge stops at the river, so river tiles
+## are gaps in it; a bridged road runs on across them (the bridge itself is a prop, see world_builder.gd `_bridges`). `polys` receives each
+## road's centre lines.
+static func build_roads(w: M7WorldData, polys: Array = []) -> ArrayMesh:
+	var V := PackedVector3Array()
+	var C := PackedColorArray()
+	var N := PackedVector3Array()
+	var U := PackedVector2Array()
+	var I := PackedInt32Array()
+	for ri in range(0, w.road_meta.size(), 4):
+		var start := w.road_meta[ri + 1]
+		var length := w.road_meta[ri + 2]
+		var bridged := w.road_meta[ri + 3] != 0
+		var run := PackedInt32Array()
+		var first := true
+		for j in length:
+			var tile := w.road_tiles[start + j]
+			var gap := tile < 0 or (not bridged and (w.flags[tile] & M7WorldData.FLAG_RIVER) != 0 and j > 0 and j < length - 1)
+			if not gap:
+				run.append(tile)
+			if (gap or j == length - 1) and run.size() >= 2:
+				_road_ribbon(w, run, first and w.road_tiles[start] >= 0, j == length - 1 and not gap, ri * 17 + start, V, C, N, U, I, polys)
+			if gap or j == length - 1:
+				run = PackedInt32Array()
+				first = false
+	var mesh := ArrayMesh.new()
+	if V.size() == 0:
+		return mesh
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = V
+	arr[Mesh.ARRAY_COLOR] = C
+	arr[Mesh.ARRAY_NORMAL] = N
+	arr[Mesh.ARRAY_TEX_UV] = U
+	arr[Mesh.ARRAY_INDEX] = I
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return mesh
+
+## One road: straight and even (a track wanders, a road does not), pale paving between darker kerbs, ending short of the villages it joins.
+static func _road_ribbon(w: M7WorldData, run: PackedInt32Array, trim_start: bool, trim_end: bool, salt: int,
+		V: PackedVector3Array, C: PackedColorArray, N: PackedVector3Array, U: PackedVector2Array, I: PackedInt32Array, polys: Array) -> void:
+	var pts := _smooth(w, run)
+	var total := _length(pts)
+	var from_d := (TRIM + 0.1) if trim_start else 0.0
+	var to_d := total - ((TRIM + 0.1) if trim_end else 0.0)
+	if to_d - from_d < 0.12:
+		return
+	var base := V.size()
+	var line := PackedVector2Array()
+	var offs := [-0.5, -0.46, -0.34, 0.34, 0.46, 0.5]
+	var shades := [ROAD_KERB, ROAD_KERB, ROAD_PAVING, ROAD_PAVING, ROAD_KERB, ROAD_KERB]
+	var alphas := [0.0, 1.0, 1.0, 1.0, 1.0, 0.0]
+	var columns := offs.size()
+	var rows := 0
+	var acc := 0.0
+	for i in pts.size():
+		if i > 0:
+			acc += pts[i].distance_to(pts[i - 1])
+		if acc < from_d or acc > to_d:
+			continue
+		var a := pts[maxi(i - 1, 0)]
+		var b := pts[mini(i + 1, pts.size() - 1)]
+		var dir := (b - a).normalized() if a != b else Vector2.RIGHT
+		var nrm := Vector2(-dir.y, dir.x)
+		var fade := smoothstep(0.0, 1.0, minf(clampf((acc - from_d) / 0.18, 0.0, 1.0), clampf((to_d - acc) / 0.18, 0.0, 1.0)))
+		var pos: Array = []
+		var hs := 0.0
+		for k in columns:
+			var p: Vector2 = pts[i] + nrm * (ROAD_WIDTH * float(offs[k]))
+			pos.append(p)
+			hs = maxf(hs, maxf(w.height_at(p), 0.0))
+		for k in columns:
+			var p2: Vector2 = pos[k]
+			V.append(Vector3(p2.x, hs + ROAD_LIFT, p2.y))
+			N.append(Vector3.UP)
+			U.append(p2 - pts[i])
+			var col := (shades[k] as Color).srgb_to_linear()
+			col.a = float(alphas[k]) * fade
+			C.append(col)
+		line.append(pts[i])
+		rows += 1
+	for r in rows - 1:
+		for k in columns - 1:
+			var i0 := base + r * columns + k
+			var i1 := i0 + 1
+			var i2 := i0 + columns
+			var i3 := i2 + 1
+			I.append_array([i0, i2, i1, i1, i2, i3])
+	if line.size() > 1:
+		polys.append(line)

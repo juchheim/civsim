@@ -634,7 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
-                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f),
                 })
                 {
                     string itemName = item;
@@ -674,6 +674,36 @@ public partial class Game
                     if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(2.6f); }
                 }, 2.5f);
                 Shot("defense-castle");
+                break;
+            case "travel-village":
+                // --start-minute=30 --viewer=-1 --dev-roads --dev-harbor (debug builds): paved roads from the capital with their bridges, and a harbor; run
+                // with --always-on-top so the window keeps drawing
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (travelShot, travelZoom) in new[] { ("wide", 12.0f), ("village", 6.0f) })
+                {
+                    float zoom = travelZoom;
+                    string shot = travelShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"travel-{shot}");
+                }
+                foreach (var (focus, focusZoom) in new[] { ("bridge_focus", 3.0f), ("harbor_focus", 3.2f) })
+                {
+                    string call = focus;
+                    float zoom = focusZoom;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call(call);
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(zoom); }
+                    }, 2.5f);
+                    Shot($"travel-{call}");
+                }
                 break;
             case "iron-life":
                 // --chapter=iron --research-era=5 --start-minute=20: the human civilization is given the first five ages, the sim runs at speed for a

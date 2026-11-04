@@ -60,6 +60,8 @@ var civ_looks := PackedInt32Array()     # per civilization: LOOK_* bits (ard plo
 var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was learned (-1 = not yet)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
+var road_meta := PackedInt32Array()      # stride 4: settlement index, start, length, bridged (paved roads to the capital, TRN-07)
+var road_tiles := PackedInt32Array()     # flat tile list, -1 = a tile of someone else's road that is not in sight
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
 var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibility (0/128/255), claimant+1
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
@@ -165,6 +167,8 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 		civ_looks.fill(2047)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
+	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()
+	road_tiles = _int_data(d.roadTiles, 1) if d.has("roadTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)
 	ghosts = _int_data(d.ghosts, 8) if d.has("ghosts") else PackedInt32Array()
 	state_bytes = d.stateBytes if d.has("stateBytes") else PackedByteArray()

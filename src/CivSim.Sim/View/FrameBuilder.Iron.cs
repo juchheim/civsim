@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
@@ -21,6 +22,7 @@ public sealed partial class FrameBuilder
         PoliticsSystem pol = match.Politics;
         f.Active = eco.IronChain;
         f.SiegeCount = f.BlockadeCount = f.TributeCount = f.LeagueCount = 0;
+        f.RoadCount = f.RoadTileCount = 0;
         for (int k = 0; k < IronFrame.WonderKinds; k++) f.WonderSettlement[k] = -1;
         if (!f.Active) return;
 
@@ -56,6 +58,29 @@ public sealed partial class FrameBuilder
             f.BuildKind[w] = (sbyte)buildKind;
             f.BuildPermille[w] = (short)permille;
             f.PledgeTo[w] = (short)eco.PledgeOf(s);
+        }
+
+        // Paved roads: each linked settlement's road to its capital. The viewer's own come whole; another civilization's only where the viewer sees the tiles.
+        int roadKind = -1;
+        for (int k = 0; k < kinds; k++) if (LivingEconomyModel.IronWorkId(k) == "road") roadKind = k;
+        if (roadKind >= 0)
+        {
+            var line = new List<int>();
+            for (int w = 0; w < n; w++)
+            {
+                int s = target.SettlementIndex[w];
+                SettlementViewFlags flags = (SettlementViewFlags)target.SettlementFlags[w];
+                if ((flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != 0 || (uint)s >= (uint)_settlementCount) continue;
+                if (f.Works[w * kinds + roadKind] == 0) continue;
+                line.Clear();
+                if (!eco.RoadTilesForView(s, line, out bool bridged)) continue;
+                bool own = _omniscient || (flags & SettlementViewFlags.Own) != 0;
+                f.EnsureRoads(f.RoadCount + 1);
+                f.EnsureRoadTiles(f.RoadTileCount + line.Count);
+                int r = f.RoadCount++;
+                f.RoadSettlement[r] = w; f.RoadStart[r] = f.RoadTileCount; f.RoadLength[r] = line.Count; f.RoadBridged[r] = (byte)(bridged ? 1 : 0);
+                foreach (int tile in line) f.RoadTiles[f.RoadTileCount++] = own || Visible(tile) ? tile : -1;
+            }
         }
 
         // Sieges: the viewer's own, or any whose town it can see.

@@ -997,6 +997,25 @@ public class IronChainTests
     }
 
     [Fact]
+    public void The_view_gets_the_road_tiles_once_the_road_stands_with_or_without_its_bridge()
+    {
+        (BronzeFixture f, int far) = WithFarProvince("KEY-4", "TRN-07", "TRN-08");
+        var tiles = new List<int>();
+        Assert.False(f.Economy.RoadTilesForView(far, tiles, out _)); // no road yet
+        f.Economy.FixtureBuildIronStructure(far, "road");
+        Assert.True(f.Economy.RoadTilesForView(far, tiles, out bool bridged));
+        Assert.False(bridged);
+        Assert.Equal(f.Economy.SettlementLite(0).SiteTile, tiles[0]);
+        Assert.Equal(f.Economy.SettlementLite(far).SiteTile, tiles[^1]);
+        f.Economy.FixtureBuildIronStructure(far, "bridge");
+        Assert.True(f.Economy.RoadTilesForView(far, new List<int>(), out bool nowBridged));
+        Assert.True(nowBridged || f.Economy.FixtureRiversOnLink(far) == 0);
+        Assert.False(f.Economy.RoadTilesForView(0, new List<int>(), out _)); // the capital has no road to itself
+        BronzeFixture bronze = Bronze("KEY-4", "TRN-07");
+        Assert.False(bronze.Economy.RoadTilesForView(0, new List<int>(), out _)); // Bronze draws no roads
+    }
+
+    [Fact]
     public void A_complete_paved_link_lends_its_town_claim_tiles_along_the_road_only_with_TRN_07()
     {
         (BronzeFixture f, int far) = WithFarProvince("KEY-4", "TRN-07", "TRN-08");
