@@ -510,15 +510,17 @@ public partial class Game : Node3D
         int forcedSoldiers = ArgumentValue("--dev-soldiers=") is { } soldierArg && int.TryParse(soldierArg, out int soldierCount) ? soldierCount : -1;
         // --dev-works: it also has an academy, a theatre or arena, a bathhouse, a crane and an aqueduct; --dev-site=1..3: and a press going up (stage 1 to 3)
         bool forcedWorks = HasArgument("--dev-works");
+        // --dev-wonders: the biggest town has the Great Dome and the Great Library, and the biggest town with the sea beside it the Great Lighthouse
+        bool forcedWonders = HasArgument("--dev-wonders");
         int forcedSite = ArgumentValue("--dev-site=") is { } siteArg && int.TryParse(siteArg, out int siteStage) ? siteStage : -1;
         int forcedWorkAt = -1;
-        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0)
+        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0 || forcedWonders)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedWorkAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedWorkAt])) forcedWorkAt = i;
         // --dev-harbor: the biggest settlement (the viewer's first) with the sea beside it has a harbor
         int forcedHarborAt = -1;
-        if (HasArgument("--dev-harbor"))
+        if (HasArgument("--dev-harbor") || forcedWonders)
         {
             Span<int> neighbours = stackalloc int[6];
             for (int pass = 0; pass < 2 && forcedHarborAt < 0; pass++)
@@ -586,6 +588,14 @@ public partial class Game : Node3D
             if (i == forcedWorkAt)
             {
                 if (forcedForge >= 0) settlement["forge"] = forcedForge;
+                if (forcedWonders)
+                {
+                    var wonderWorks = new int[IronWorkKindCount()];
+                    if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(wonderWorks, 0);
+                    foreach (string id in new[] { "great_dome", "great_library" })
+                        if (IronKindIndex(id) is >= 0 and int wonderAt) wonderWorks[wonderAt] = 1;
+                    settlement["ironWorks"] = wonderWorks;
+                }
                 if (forcedSoldiers >= 0) settlement["soldiers"] = forcedSoldiers;
                 if (forcedWorks || forcedSite > 0)
                 {
@@ -606,8 +616,9 @@ public partial class Game : Node3D
             {
                 var harborWorks = new int[IronWorkKindCount()];
                 if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(harborWorks, 0);
-                int harborAt = IronKindIndex("harbor");
-                if (harborAt >= 0) harborWorks[harborAt] = 1;
+                int harborAt = IronKindIndex("harbor"), lighthouseAt = IronKindIndex("great_lighthouse");
+                if (harborAt >= 0 && HasArgument("--dev-harbor")) harborWorks[harborAt] = 1;
+                if (lighthouseAt >= 0 && forcedWonders) harborWorks[lighthouseAt] = 1;
                 settlement["ironWorks"] = harborWorks;
             }
             if (i == forcedLeanToAt && forcedDefense)

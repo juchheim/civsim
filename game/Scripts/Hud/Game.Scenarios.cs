@@ -634,7 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
-                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f), ("wonders", 0.0f, -13.2f, 3.6f),
                 })
                 {
                     string itemName = item;
@@ -763,6 +763,36 @@ public partial class Game
                         if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(2.7f); }
                     }, 2.5f);
                     Shot($"works-{call}");
+                }
+                break;
+            case "wonders-village":
+                // --start-minute=30 --viewer=-1 --dev-wonders (debug builds): the capital with the Great Dome and the Great Library, and a coastal town with the Great
+                // Lighthouse; run with --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(false);
+                    _session.SetSpeedIndex(0);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (wondersShot, wondersZoom) in new[] { ("wide", 9.0f), ("village", 5.5f) })
+                {
+                    float zoom = wondersZoom;
+                    string shot = wondersShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"wonders-{shot}");
+                }
+                foreach (var kind in new[] { "dome", "library", "lighthouse" })
+                {
+                    string call = kind;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("works_focus", call);
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(4.2f); }
+                    }, 2.5f);
+                    Shot($"wonders-{call}");
                 }
                 break;
             case "iron-life":

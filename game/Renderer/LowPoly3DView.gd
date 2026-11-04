@@ -252,6 +252,11 @@ func chariot_focus() -> Vector3:
 func works_focus(kind: String) -> Vector3:
 	if builder == null:
 		return Vector3.ZERO
+	if kind == "lighthouse":
+		if builder.lighthouse_sites.is_empty():
+			return Vector3.ZERO
+		var lh: Dictionary = builder.lighthouse_sites[0]
+		return Vector3(lh.p.x, lh.y, lh.p.y)
 	if kind == "aqueduct":
 		if builder.aqueduct_sites.is_empty():
 			return Vector3.ZERO
@@ -428,9 +433,9 @@ func show_iron_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(9.0, 21.0)
+	plane.size = Vector2(9.0, 24.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -5.3)
+	floor_mesh.position = Vector3(0.0, -0.01, -6.8)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -462,6 +467,8 @@ func show_iron_gallery() -> Vector3:
 			["aqueduct_run", 0.5, 1.3]],
 		# the building site in its three stages
 		[["build_site_1", 0.7, 1.3], ["build_site_2", 0.7, 1.3], ["build_site_3", 0.7, 1.3]],
+		# the Wonders: the Great Dome, the Great Library and the Great Lighthouse
+		[["great_dome", 1.4, 1.35], ["great_library", 1.6, 1.2], ["great_lighthouse", 0.8, 1.3]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -469,7 +476,7 @@ func show_iron_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2][r]
+		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2, -13.2][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

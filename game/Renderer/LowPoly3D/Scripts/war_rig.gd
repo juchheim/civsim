@@ -22,6 +22,7 @@ var smoke_factory: Callable
 var holder: Node3D
 var forges: Array = []             # {flame, light, smoke, seed}
 var engines: Array = []            # {arm, stone, site}
+var beacons: Array = []            # {flame, light, smoke, seed}: the Great Lighthouse's fire
 var signature := -1
 
 func _init(builder, parent_node: Node3D, smoke_maker: Callable) -> void:
@@ -38,6 +39,8 @@ func sync() -> void:
 	var sig := 17
 	for f in b.forge_sites:
 		sig = sig * 31 + int(float((f.chimney as Vector3).x) * 1000.0) + int(float((f.chimney as Vector3).z) * 777.0)
+	for bf in b.beacon_fires:
+		sig = sig * 31 + int(float((bf.top as Vector3).x) * 1000.0) + int(float((bf.top as Vector3).z) * 777.0)
 	for e in b.siege_engines:
 		sig = sig * 31 + int(float((e.p as Vector3).x) * 1000.0) + int(float((e.p as Vector3).z) * 777.0) + int(e.k)
 	if sig == signature:
@@ -50,6 +53,25 @@ func sync() -> void:
 	parent.add_child(holder)
 	forges.clear()
 	engines.clear()
+	beacons.clear()
+	for bf in b.beacon_fires:
+		var flame := MeshInstance3D.new()
+		flame.mesh = b.kit.get_mesh("flame")
+		flame.material_override = b.mats.fire
+		flame.position = bf.top
+		holder.add_child(flame)
+		var light := OmniLight3D.new()
+		light.light_color = Color("#ffb04a")
+		light.omni_range = 2.2
+		light.omni_attenuation = 1.3
+		light.shadow_enabled = false
+		light.position = (bf.top as Vector3) + Vector3(0, 0.04, 0)
+		holder.add_child(light)
+		var smoke: GPUParticles3D = smoke_factory.call()
+		M7SignalRig.thicken_smoke(smoke, 0.1, 14, 7.0)
+		smoke.position = (bf.top as Vector3) + Vector3(0, 0.06, 0)
+		holder.add_child(smoke)
+		beacons.append({"flame": flame, "light": light, "smoke": smoke, "seed": float(bf.seed)})
 	for f in b.forge_sites:
 		var flame := MeshInstance3D.new()
 		flame.mesh = b.kit.get_mesh("flame")
@@ -88,6 +110,11 @@ func update(tick: float) -> void:
 		var fs := 0.34 * flick
 		(f.flame as MeshInstance3D).scale = Vector3(fs, fs * 1.1, fs)
 		(f.light as OmniLight3D).light_energy = 0.9 * flick
+	for bc in beacons:
+		var flick2 := 0.85 + 0.15 * sin(seconds * 7.0 + float(bc.seed) * 13.0) + 0.06 * sin(seconds * 19.0)
+		var fs2 := 0.7 * flick2
+		(bc.flame as MeshInstance3D).scale = Vector3(fs2, fs2 * 1.15, fs2)
+		(bc.light as OmniLight3D).light_energy = 1.5 * flick2
 	for e in engines:
 		_play_engine(e, tick)
 

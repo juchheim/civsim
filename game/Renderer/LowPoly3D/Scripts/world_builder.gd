@@ -61,6 +61,8 @@ var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
+var beacon_fires: Array = []            # {top, seed}: the Great Lighthouse's fire, for the war rig
+var lighthouse_sites: Array = []        # {p, y}: where each Great Lighthouse stands
 var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenarios' cameras
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
@@ -406,7 +408,7 @@ func _structure_digest() -> int:
 			h = h * 31 + zig_stage(s)
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
-			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct"]:
+			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse"]:
 				h = h * 31 + w.iron_works(s, wid)
 			h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
@@ -834,9 +836,13 @@ const CIVIC := {
 	"bathhouse": ["bathhouse", 1.3, 0.62, Vector2(0.15, 0.12), 0.28],
 	"crane": ["crane", 1.3, 0.58, Vector2(0.1, 0.2), 0.26],
 	"site": ["build_site_1", 1.3, 0.62, Vector2(0.21, 0.17), 0.32],
+	# the Wonders (art_wonders.gd), and the bigger site one is raised on
+	"dome": ["great_dome", 1.35, 1.05, Vector2(0.35, 0.36), 0.62],
+	"library": ["great_library", 1.2, 1.0, Vector2(0.52, 0.3), 0.7],
+	"wsite": ["build_site_1", 2.1, 1.05, Vector2(0.21, 0.17), 0.6],
 }
 ## Iron works drawn as a civic building: the kind here, the id the sim counts it under, and a name for the site that carries it.
-const CIVIC_WORKS := [["academy", "academy"], ["theatre", "theatre_arena"], ["bathhouse", "bathhouse"], ["crane", "crane"]]
+const CIVIC_WORKS := [["academy", "academy"], ["theatre", "theatre_arena"], ["bathhouse", "bathhouse"], ["crane", "crane"], ["dome", "great_dome"], ["library", "great_library"]]
 ## Iron works whose building under way is shown as a building site beside the village (the sim's id).
 const SITE_KINDS := ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "press", "windlass_well", "great_library", "great_lighthouse", "great_dome"]
 
@@ -888,6 +894,8 @@ func _settlements() -> void:
 	harbor_sites.clear()
 	forge_sites.clear()
 	aqueduct_sites.clear()
+	beacon_fires.clear()
+	lighthouse_sites.clear()
 	siege_engines.clear()
 	bridge_sites.clear()
 	civic_sites.clear()
@@ -991,7 +999,8 @@ func _settlements() -> void:
 		if build_k >= 0 and build_k < w.iron_work_ids.size() and SITE_KINDS.has(String(w.iron_work_ids[build_k])):
 			var pm := int(s.get("ironBuildPermille", 0))
 			if pm > 0:
-				_place_civic("site", s, t, c, h0, seed, placed, placed_r, civ, cc, 1 + mini(2, pm * 3 / 1000))
+				var wonder := String(w.iron_work_ids[build_k]).begins_with("great_")
+				_place_civic("wsite" if wonder else "site", s, t, c, h0, seed, placed, placed_r, civ, cc, 1 + mini(2, pm * 3 / 1000))
 		var slot := 0
 		var rmax := 0.0
 		var tiled_roofs := civ >= 0 and w.has_look(civ, M7WorldData.LOOK_TILES)
@@ -1036,6 +1045,7 @@ func _settlements() -> void:
 		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
 		# a harbor (SEA-07): quay and piers on the shore, the boats moored between the piers
 		var has_harbor := w.iron_works(s, "harbor") > 0 and _harbor(t, c0, seed, cc)
+		_lighthouse(s, t, c0, seed)
 		if sea > 0:
 			_moor_fleet(t, c0, seed, sea, int(s.population), cc, has_harbor)
 		var decor := _village_decor(s.get("decor", PackedInt32Array()), civ, si, flagship)
@@ -1370,6 +1380,31 @@ func _place_civic(kind: String, s: Dictionary, t: int, c: Vector2, h0: float, se
 	placed.append(tp)
 	placed_r.append(float(spec[4]) / VS)
 	civic_sites.append({"kind": kind, "p": tp, "y": site.y, "yaw": site.yaw, "civ": civ, "seed": seed, "tile": t})
+
+const LIGHTHOUSE_SCALE := 1.1
+
+## The Great Lighthouse (SEA-08): on the shore of the first water neighbour (the one the harbor and the boats use), a little way along it from the harbor, with a
+## fire in its lantern (the war rig). Nothing if there is no shore.
+func _lighthouse(s: Dictionary, t: int, c0: Vector2, seed: float) -> void:
+	if w.iron_works(s, "great_lighthouse") <= 0:
+		return
+	for i in 6:
+		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
+		if nb < 0 or not w.is_water(nb):
+			continue
+		var dir: Vector2 = (w.tile_center(nb) - c0).normalized()
+		var tangent := dir.rotated(PI * 0.5)
+		for sgn in [1.0, -1.0]:
+			var p: Vector2 = c0 + dir * 0.4 + tangent * 0.95 * sgn
+			var tq := w.tile_at(p)
+			if tq < 0 or not w.is_land(tq):
+				continue
+			var y := maxf(w.height_at(p), 0.05)
+			props.add("great_lighthouse", _xf(p, y, 0.0, LIGHTHOUSE_SCALE), Color(1, 1, 1, seed))
+			beacon_fires.append({"top": Vector3(p.x, y + 0.74 * LIGHTHOUSE_SCALE, p.y), "seed": seed})
+			lighthouse_sites.append({"p": p, "y": y})
+			return
+		return
 
 const AQUEDUCT_SCALE := 1.3
 
