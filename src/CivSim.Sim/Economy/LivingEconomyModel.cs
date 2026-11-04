@@ -4890,6 +4890,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 _completedProjects[settlement.Civilization][effect.ProjectIndex])
                 capacity = Fix64.Max(capacity, effect.Value.Value);
         }
+        if (IronChain && IronWorksCount(settlement, IronStructure.Harbor) > 0) capacity *= PortGroupCapMult; // SEA-07 port city support, Iron chapter only
         return capacity * Fix64.Clamp(settlement.Cohesion, Fix64.Parse("0.6"), Fix64.Parse("1.2"));
     }
 

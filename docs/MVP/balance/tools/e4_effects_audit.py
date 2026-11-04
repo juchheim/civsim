@@ -27,7 +27,7 @@ BUCKETS = {
 
 
 # Effects wired by a path the string heuristics cannot see, asserted by hand when a batch lands (project id, effect kind).
-WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod"), ("FOR-08", "mod"), ("STN-12", "mod"), ("NUM-07", "mod"), ("MEC-04", "mod"), ("BLD-11", "mod"), ("FOD-09", "rule"), ("FOD-09", "cap"), ("FOD-09", "mod"), ("MED-05", "role"), ("GOV-07", "role"), ("GOV-07", "admin"), ("TER-08", "role"), ("TER-08", "admin"), ("TRD-06", "admin"), ("GOV-08", "cohesion"), ("BEL-08", "cohesion"), ("ART-08", "cohesion"), ("ART-08", "build"), ("SOC-10", "mod"), ("GOV-09", "rule"), ("TER-08", "rule"), ("TRN-07", "build"), ("TRN-08", "build"), ("COM-08", "admin"), ("TRN-07", "mod"), ("TRN-08", "rule"), ("WAR-07", "combat"), ("WAR-07", "role"), ("WAR-08", "combat"), ("DEF-06", "defense"), ("DEF-06", "rule"), ("DEF-07", "claim"), ("DEF-07", "combat"), ("DEF-08", "claim"), ("WAR-09", "combat")}
+WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod"), ("FOR-08", "mod"), ("STN-12", "mod"), ("NUM-07", "mod"), ("MEC-04", "mod"), ("BLD-11", "mod"), ("FOD-09", "rule"), ("FOD-09", "cap"), ("FOD-09", "mod"), ("MED-05", "role"), ("GOV-07", "role"), ("GOV-07", "admin"), ("TER-08", "role"), ("TER-08", "admin"), ("TRD-06", "admin"), ("GOV-08", "cohesion"), ("BEL-08", "cohesion"), ("ART-08", "cohesion"), ("ART-08", "build"), ("SOC-10", "mod"), ("GOV-09", "rule"), ("TER-08", "rule"), ("TRN-07", "build"), ("TRN-08", "build"), ("COM-08", "admin"), ("TRN-07", "mod"), ("TRN-08", "rule"), ("WAR-07", "combat"), ("WAR-07", "role"), ("WAR-08", "combat"), ("DEF-06", "defense"), ("DEF-06", "rule"), ("DEF-07", "claim"), ("DEF-07", "combat"), ("DEF-08", "claim"), ("WAR-09", "combat"), ("TRD-06", "mod"), ("WAY-06", "mod"), ("TRD-07", "reach"), ("HUS-09", "rule"), ("SEA-07", "mod:port_city_cap_support"), ("SEA-09", "combat"), ("SEA-09", "unlock_action")}
 
 
 def projects():
@@ -58,7 +58,7 @@ def main():
             kind = e.get("kind")
             if kind == "mod":
                 detail = f"{e.get('stat')} {e.get('op')} {e.get('value')}"
-                wired = f'"{e.get("stat")}"' in src or (p["id"], "mod") in WIRED_BY_HAND
+                wired = f'"{e.get("stat")}"' in src or (p["id"], "mod") in WIRED_BY_HAND or (p["id"], "mod:" + str(e.get("stat"))) in WIRED_BY_HAND
             elif kind == "build":
                 name = e.get("structure") or e.get("id") or ""
                 detail = name

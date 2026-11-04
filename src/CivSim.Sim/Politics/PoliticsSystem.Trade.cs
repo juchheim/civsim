@@ -183,7 +183,37 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         => Fix64.Max(Fix64.Zero, _economy.TradeNeed(settlement, DecreeArgs.GoodId(good), _trade.Horizon) - Stock(settlement, good));
 
     /// <summary>The gain a side wants before it trades: 10%, 5% with NUM-04 (docs/MVP/13 §4.2).</summary>
-    private Fix64 GainFor(int civ) => civ >= 0 && Done(civ, _bp.Num04) ? _trade.GainNum04 : _trade.Gain;
+    private Fix64 GainFor(int civ)
+    {
+        Fix64 gain = civ >= 0 && Done(civ, _bp.Num04) ? _trade.GainNum04 : _trade.Gain;
+        return civ >= 0 && _economy.IronChain ? gain * TradeFriction(civ) : gain;
+    }
+
+    /// <summary>
+    /// The Iron chapter's trade friction (docs/MVP/25 §8): the margin a side wants before it trades, which is what stands between two settlements and a deal.
+    /// Coinage (TRD-06) takes it to 0.6; written route guides (WAY-06, efficiency x1.25) divide it by 1.25 on top. Neither creates goods, routes or money.
+    /// </summary>
+    internal Fix64 TradeFriction(int civ)
+    {
+        Fix64 friction = Fix64.One;
+        if (_p.Trd06 >= 0 && _research.IsDone(civ, _p.Trd06)) friction *= Fix64.FromRatio(6, 10);
+        if (_p.Way06 >= 0 && _research.IsDone(civ, _p.Way06)) friction /= Fix64.FromRatio(125, 100);
+        return friction;
+    }
+
+    /// <summary>
+    /// Tiles a caravan effectively covers (TRD-07, route range x3): in the Iron chapter a civilization with long-distance routes moves a caravan three times as far in a
+    /// season, but only in a mode it has: on foot with pack animals (HUS-09), or by sea between two harbors (SEA-07). Anything else travels as before.
+    /// </summary>
+    internal int CaravanTiles(int mover, int fromHub, int toHub, int tiles)
+    {
+        if (!_economy.IronChain || tiles == int.MaxValue || _p.Trd07 < 0 || !_research.IsDone(mover, _p.Trd07)) return tiles;
+        bool onFoot = WalkFrom(_sTile[fromHub])[_sTile[toHub]] != int.MaxValue;
+        bool packAnimals = onFoot && _p.Hus09 >= 0 && _research.IsDone(mover, _p.Hus09);
+        bool byHarbor = !onFoot && !IsBlockaded(fromHub) && !IsBlockaded(toHub) && _p.Sea07 >= 0 && _research.IsDone(mover, _p.Sea07) && _economy.HasHarbor(fromHub) && _economy.HasHarbor(toHub);
+        return packAnimals || byHarbor ? Math.Max(1, (tiles + 2) / 3) : tiles;
+    }
+
 
     /// <summary>Both sides gain at the geometric-mean price when the buyer's value is at least (1 + g)² of the seller's.</summary>
     private bool BothGain(Fix64 sellerValue, Fix64 buyerValue, int sellerCiv, int buyerCiv)
@@ -287,11 +317,14 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         => _economy.IronChain && _economy.HasGatehouse(hub) && HexGrid.Distance(_sTile[hub], tile, _width) <= GateControlTiles;
 
     internal bool FixtureGateControls(int hub, int tile) => GateControls(hub, tile);
+    internal Fix64 FixtureGainFor(int civ) => GainFor(civ);
+    internal int FixtureCaravanTiles(int mover, int fromHub, int toHub, int tiles) => CaravanTiles(mover, fromHub, toHub, tiles);
 
     /// <summary>A route is blocked when a third civilization at war with either side owns a tile on the straight line between the hubs.</summary>
     private bool RouteBlocked(int sellerCiv, int buyerCiv, int from, int to)
     {
         if (UnderInvestment(from) || UnderInvestment(to)) return true;
+        if (BlockadeCutsRoute(from, to)) return true;
         bool anyWar = false;
         for (int x = 0; x < _civs && !anyWar; x++)
             if (x != sellerCiv && x != buyerCiv && (sellerCiv >= 0 && _dip.AtWar(x, sellerCiv) || buyerCiv >= 0 && _dip.AtWar(x, buyerCiv))) anyWar = true;
@@ -461,6 +494,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int seller = HubOf(c.SellerCiv, c.SellerFolk, c.Good, selling: true, -1);
         int buyer = HubOf(c.BuyerCiv, c.BuyerFolk, c.Good, selling: false, seller);
         if (seller < 0 || buyer < 0 || seller == buyer) return;
+        if (BlockadeCutsRoute(seller, buyer)) return; // a galley is off one of the harbors: the sea route is shut, the goods stay
         Fix64 load = Fix64.Min(Surplus(seller, c.Good), Shortfall(buyer, c.Good));
         if (load < MinLoad) return;
         Fix64 vs = UnitValue(seller, c.Good), vb = UnitValue(buyer, c.Good);
@@ -481,7 +515,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = mover, TargetCiv = c.BuyerCiv, FromSettlement = seller, ToSettlement = buyer,
-            ArriveSeason = _season + SeasonsFor(travel), Id = _nextPartyId++, Good = c.Good, Cargo = taken, CompactId = c.Id,
+            ArriveSeason = _season + SeasonsFor(CaravanTiles(mover, seller, buyer, travel)), Id = _nextPartyId++, Good = c.Good, Cargo = taken, CompactId = c.Id,
             FolkSeller = c.SellerFolk, Value = Fix64.Sqrt(vs * vb), EscortCount = canEscort ? Math.Min(2, Math.Max(0, ids.Count - 2)) : 0,
         };
         for (int i = 0; i < ids.Count; i++) { caravan.Members.Add(ids[i]); caravan.Strengths.Add(crew[i].Strength); }

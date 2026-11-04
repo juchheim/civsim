@@ -249,6 +249,20 @@ public sealed partial class LivingEconomyModel
     /// <summary>Raises a settlement to a civic tier (0 village, 1 town, 2 city) without the works that normally earn it.</summary>
     internal void FixtureSetTier(int settlementIndex, int tier) => EnsureCivic(_settlements[settlementIndex]).Tier = (byte)tier;
 
+    /// <summary>The first habitable land tile of the economy's own world that is (or is not) beside the sea, for harbor fixtures; -1 when none.</summary>
+    internal int FixtureLandTile(bool coast)
+    {
+        for (int tile = 0; tile < _world.TileCount; tile++)
+        {
+            WorldEconomyTile t = _world.Tile(tile);
+            if ((Biome)t.BiomeId is Biome.Ocean or Biome.Coast or Biome.Peak or Biome.Ice) continue;
+            if (IsPortSite(tile) == coast) return tile;
+        }
+        return -1;
+    }
+
+    internal void FixtureSetSoldiersSupplied(int settlementIndex, int count) => EnsureMetal(_settlements[settlementIndex]).IronSoldiersSupplied = count;
+    internal Fix64 FixtureGroupCap(int settlementIndex) => GroupCap(_settlements[settlementIndex]);
     internal int FixtureSettlementCount => _settlements.Count;
     internal int FixtureCivOf(int settlementIndex) => _settlements[settlementIndex].Civilization;
 

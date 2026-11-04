@@ -82,6 +82,10 @@ public enum PoliticsEventKind : byte
     InvestmentTelemetryStarted,
     /// <summary>A raid on a mining camp set out. Other = target civilization, A = party size, B = target tile.</summary>
     MiningCampRaidLaunched,
+    /// <summary>A galley took station off a harbor. Other = the harbor's civilization, A = harbor settlement, B = the blockader's origin settlement.</summary>
+    BlockadeBegan,
+    /// <summary>A blockade ended. Other = the other civilization, A = harbor settlement, B = 0 lifted (peace, harbor, galley or crew gone), 1 beaten by a relief galley, 2 wrecked.</summary>
+    BlockadeEnded,
 }
 
 /// <summary>Diagnostic-only mining-camp claim-radius alternatives for frontier projection.</summary>
@@ -251,7 +255,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
             Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
-            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09;
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09, Trd06, Trd07, Way06, Hus09, Sea07, Sea09;
 
         public P(ResearchCatalog c)
         {
@@ -264,6 +268,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
             Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
+            Trd06 = c.IndexOf("TRD-06"); Trd07 = c.IndexOf("TRD-07"); Way06 = c.IndexOf("WAY-06"); Hus09 = c.IndexOf("HUS-09"); Sea07 = c.IndexOf("SEA-07"); Sea09 = c.IndexOf("SEA-09");
             Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); War09 = c.IndexOf("WAR-09");
         }
     }
@@ -602,6 +607,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         RecordVisibleRaidWarningsForActiveWithdrawals();
         ResolveExpeditions();
         AdvanceInvestments();
+        AdvanceBlockades();
         AdvanceOccupations();
         RecoverCohesion();
         RunCivMinds();

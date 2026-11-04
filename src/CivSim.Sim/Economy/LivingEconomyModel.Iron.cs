@@ -606,6 +606,22 @@ public sealed partial class LivingEconomyModel
 
     // ---- walls, castles and siege engines (DEF-06 to DEF-08, WAR-09) -------------------------------------
 
+    /// <summary>A land tile with a sea (ocean or coast) tile beside it: a place a ship can tie up. Lakes and rivers are not harbors.</summary>
+    private bool IsPortSite(int tile)
+    {
+        Span<int> neighbors = stackalloc int[6];
+        int count = HexGrid.Neighbors(tile, _world.Width, _world.Height, neighbors);
+        for (int k = 0; k < count; k++)
+            if ((Biome)_world.Tile(neighbors[k]).BiomeId is Biome.Ocean or Biome.Coast) return true;
+        return false;
+    }
+
+    /// <summary>Soldiers who crew a war galley (docs/MVP/26 §4 asks for a crew; four, like an engine, provisional).</summary>
+    private const int GalleyCrew = 4;
+
+    /// <summary>A seaport's group cap multiplier (SEA-07 port_city_cap_support).</summary>
+    private static readonly Fix64 PortGroupCapMult = Fix64.FromRatio(12, 10);
+
     /// <summary>How far a frontier segment reaches: a rival settlement this close is a neighbour worth a wall (hex tiles; provisional).</summary>
     private const int FrontierReach = 6;
     /// <summary>A castle is built on a border town: a rival settlement within this many tiles (provisional).</summary>
@@ -644,6 +660,24 @@ public sealed partial class LivingEconomyModel
             if (best < 0 || o.Civilization < best) best = o.Civilization;
         }
         return best;
+    }
+
+    /// <summary>
+    /// A harbor stands in the settlement (SEA-07). Its port city holds 20% more people in its group cap, so a seaport can grow past an inland town of the same food,
+    /// housing and water; those three still bind separately, so it never creates food, water or houses. It is also the end of a harbor-to-harbor trade route.
+    /// </summary>
+    public bool HasHarbor(int settlementIndex)
+        => IronChain && IronWorksCount(_settlements[settlementIndex], IronStructure.Harbor) > 0;
+
+    /// <summary>A war galley lies at this harbor with a crew of four supplied soldiers in post (SEA-09): the only ship that can blockade.</summary>
+    public bool CrewedGalley(int settlementIndex)
+        => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Harbor) > 0 && IronWorksCount(s, IronStructure.Galley) > 0 &&
+           s.Metal is { } m && m.IronSoldiersSupplied >= GalleyCrew;
+
+    /// <summary>The galley is wrecked or beaten and is gone.</summary>
+    public void LoseGalley(int settlementIndex)
+    {
+        if (IronChain && _settlements[settlementIndex].Metal?.IronWorks is { } works && works[(int)IronStructure.Galley] > 0) works[(int)IronStructure.Galley]--;
     }
 
     /// <summary>A gatehouse stands on the settlement's wall (DEF-06): the wall's intact multiplier rises from 3.0 to 4.5.</summary>
@@ -850,7 +884,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge, Gatehouse, FrontierWall, Castle,
+        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge, Gatehouse, FrontierWall, Castle, Harbor, Galley,
         Count
     }
 
@@ -874,6 +908,10 @@ public sealed partial class LivingEconomyModel
         new("gatehouse", "DEF-06", 30, 12, 0, 6, 0, Stone: true),
         new("frontier_wall_segment", "DEF-07", 12, 4, 0, 2, 0, Stone: true),
         new("castle", "DEF-08", 60, 0, 20, 12, 2, Large: true, Stone: true),
+        // A harbor on a coast site (docs/MVP/26 §3.2): piers of block and timber.
+        new("harbor", "SEA-07", 24, 8, 0, 12, 0, Stone: true),
+        // A war galley (docs/MVP/25 §7): timber and iron fittings, laid down at a harbor.
+        new("galley", "SEA-09", 20, 0, 0, 14, 1),
     };
 
     /// <summary>
@@ -953,6 +991,11 @@ public sealed partial class LivingEconomyModel
             // Defense works follow the wall and the neighbour: a gatehouse on a walled town, a segment toward each close rival, a castle on a walled border town.
             IronStructure.Gatehouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Gatehouse) == 0 && HasStoneWalls(s),
             IronStructure.FrontierWall => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.FrontierWall) < 2 && NextFrontierFacing(s) >= 0,
+            // A coast town of some size builds one harbor: it is the port of every route that leaves by water.
+            IronStructure.Harbor => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Harbor) == 0 && IsPortSite(s.SiteTile) && Population(s.Id) >= 30,
+            // A harbor town with a standing guard keeps one galley: the ship is built once and lost only to a wreck or a defeat.
+            IronStructure.Galley => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Harbor) > 0 && IronWorksCount(s, IronStructure.Galley) == 0 &&
+                Done(s.Civilization, "WAR-07") && s.Metal is { } gm && gm.IronSoldiersSupplied >= GalleyCrew,
             IronStructure.Castle => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Castle) == 0 && Population(s.Id) >= 60 && HasStoneWalls(s) &&
                 NearestForeignDistance(s) <= CastleReach,
             _ => false,
