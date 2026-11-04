@@ -78,6 +78,8 @@ public static class SeenFlag
     public const int Scribes = 16384, Priests = 32768;
     /// <summary>A rival mining camp on an iron deposit seen; recorded only in the Iron chapter, so Bronze beliefs never carry the bit.</summary>
     public const int IronMineCamp = 65536;
+    /// <summary>A rival harbor seen; recorded only in the Iron chapter, like the mining camp bit.</summary>
+    public const int Harbor = 131072;
 }
 
 /// <summary>What one civilization believes about one rival (docs/MVP/14 §3.1, §5).</summary>

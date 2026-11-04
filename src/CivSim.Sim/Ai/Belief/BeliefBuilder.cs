@@ -602,6 +602,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
         if (m.Defenses.Watchers) r.SeenFlags |= SeenFlag.Watchers;
         if (m.Defenses.Hillfort) r.SeenFlags |= SeenFlag.Hillfort;
         if (m.Defenses.StoneWalls) r.SeenFlags |= SeenFlag.StoneWalls;
+        if (eco.IronChain && eco.HasHarbor(s)) r.SeenFlags |= SeenFlag.Harbor;
         for (int k = 0; k < LivingEconomyModel.StructureKindCount; k++)
             if (eco.StructureCount(s, k) > 0) r.StructureKindsSeen |= 1UL << k;
         if (details)

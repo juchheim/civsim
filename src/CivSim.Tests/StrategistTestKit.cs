@@ -307,6 +307,8 @@ internal sealed class ActionRecorder : IStrategistActions
     public readonly List<string> Orders = new();
     public readonly List<(int Settlement, bool Urgent)> DefensePreparationCalls = new();
     public bool Accept = true;
+    /// <summary>Whether a peace order is carried out; a test of a long war turns it off so the war is not ended by the recorder.</summary>
+    public bool PeaceAccepted = true;
     public int Mandate { get; set; }
     public int DecreeCost(DecreeKind kind) => kind == DecreeKind.Levy ? 1 : int.MaxValue;
     public bool IssueDecree(DecreeKind kind, int target, int extra)
@@ -318,13 +320,16 @@ internal sealed class ActionRecorder : IStrategistActions
     public bool RaidMiningCamp(int campId, int partySize) { Orders.Add($"raid-mine {campId} {partySize}"); return Accept; }
     public bool Assault(int targetSettlement) { Orders.Add($"assault {targetSettlement}"); return Accept; }
     public bool DeclareWar(int civ) { Orders.Add($"war {civ}"); return Accept; }
-    public bool MakePeace(int civ) { Orders.Add($"peace {civ}"); return Accept; }
+    public bool MakePeace(int civ) { Orders.Add($"peace {civ}"); return Accept && PeaceAccepted; }
     public bool Ally(int civ) { Orders.Add($"ally {civ}"); return Accept; }
     public bool SetEmbargo(int civ, TradeGood good, bool on) { Orders.Add($"embargo {civ} {good} {on}"); return Accept; }
     public bool SetPosture(Posture posture) { Orders.Add($"posture {posture}"); return Accept; }
     public bool PrioritizePhysicalDefenseBuild(int settlement) { Orders.Add($"defense-build {settlement}"); return Accept; }
     public bool PreparePhysicalDefenseBuild(int settlement, bool urgent)
     { DefensePreparationCalls.Add((settlement, urgent)); Orders.Add($"defense-build {settlement}"); return Accept; }
+    public bool Blockade(int harbor) { Orders.Add($"blockade {harbor}"); return Accept; }
+    public bool ImposeTribute(int civ) { Orders.Add($"tribute {civ}"); return Accept; }
+    public bool FormLeague(int civ) { Orders.Add($"league {civ}"); return Accept; }
     public bool PlaceBeacon(int tile) { Orders.Add($"beacon {tile}"); return Accept; }
     public void RemoveBeacon(int index) => Orders.Add($"unbeacon {index}");
 }

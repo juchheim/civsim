@@ -31,7 +31,7 @@ WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), 
  ("BLD-11", "unlock"), ("DIP-07", "diplo"), ("INQ-04", "mod"), ("BEL-08", "mod"), ("COM-07", "mod"), ("INQ-05", "mod:mec_nrg_project_cost"),
  ("CER-07", "good"), ("CER-07", "rule"), ("CER-08", "good"), ("CER-08", "rule"), ("WOD-07", "good"), ("FOR-08", "rule"), ("MEC-05", "unlock"),
  ("TRN-07", "adopt"), ("COM-08", "adopt"), ("ART-08", "mod"), ("GOV-09", "mod"), ("GOV-08", "mod"),
- ("MET-09", "method"), ("MET-09", "rule"), ("MET-10", "rule"), ("BLD-10", "rule"), ("AGR-10", "rule"), ("MEC-04", "rule"), ("MEC-06", "rule"), ("WOD-08", "rule"), ("BLD-09", "rule"), ("GOV-08", "rule")}
+ ("MET-09", "method"), ("MET-09", "rule"), ("MET-10", "rule"), ("BLD-10", "rule"), ("AGR-10", "rule"), ("MEC-04", "rule"), ("MEC-06", "rule"), ("WOD-08", "rule"), ("BLD-09", "rule"), ("GOV-08", "rule"), ("GOV-07", "rule")}
 
 
 def projects():

@@ -31,6 +31,13 @@ public interface IStrategistActions
     string DescribePrioritizePhysicalDefenseBuild(int settlement) => "order refusal details unavailable";
     bool PlaceBeacon(int tile);
     void RemoveBeacon(int index);
+    // ---- the Iron chapter's levers (docs/MVP/25 §7, §8). Defaults refuse. ----
+    /// <summary>Stations a galley off an enemy harbor (SEA-09).</summary>
+    bool Blockade(int harbor) => false;
+    /// <summary>Ends a war on tributary terms (DIP-06).</summary>
+    bool ImposeTribute(int civ) => false;
+    /// <summary>Founds or joins a league with an ally (DIP-07).</summary>
+    bool FormLeague(int civ) => false;
 
     // ---- the Bronze levers (docs/MVP/22 §4.6, §13.3; WP8a). Defaults keep test recorders compiling: they refuse. ----
     /// <summary>Mandate in hand and its cap (the civilization's own research state).</summary>
@@ -73,6 +80,8 @@ public sealed class StrategistView
     public Belief Belief { get; init; } = null!;
     public StrategicIntent Intent { get; init; } = null!;
     public ResearchCatalog Catalog { get; init; } = null!;
+    /// <summary>The match plays the Iron chapter (public: the mode is announced); the Iron levers are off otherwise.</summary>
+    public bool IronChapter { get; init; }
     /// <summary>Whether this civilization has completed a project (its own research, exact).</summary>
     public Func<int, bool> OwnDone { get; init; } = _ => false;
     /// <summary>Where the reasons go (docs/MVP/14 §11); may be null in tests that do not look.</summary>
@@ -85,7 +94,7 @@ public sealed class StrategistView
     {
         Civ = ctx.Civ, Season = ctx.Season, Tick = ctx.Tick, MatchSeed = ctx.MatchSeed, Spec = ctx.Spec, Profile = ctx.Profile,
         Own = ctx.Own, Belief = ctx.Belief, Intent = ctx.Intent, Catalog = ctx.Catalog, OwnDone = ctx.Research.IsDone,
-        Log = ctx.Log,
+        Log = ctx.Log, IronChapter = ctx.Research.Rules.IsIron,
     };
 }
 
@@ -116,6 +125,9 @@ public sealed class OrdersActions : IStrategistActions
     public int DecreeCost(DecreeKind kind) => _orders.DecreeCost(kind);
     public bool IssueDecree(DecreeKind kind, int target, int extra) => _orders.IssueDecree(kind, target, extra);
     public bool SetEmbargo(int civ, TradeGood good, bool on) => _orders.SetEmbargo(civ, good, on);
+    public bool Blockade(int harbor) => _orders.Blockade(harbor);
+    public bool ImposeTribute(int civ) => _orders.ImposeTribute(civ);
+    public bool FormLeague(int civ) => _orders.FormLeague(civ);
     public bool RaidCaravan(int caravanId, int partySize) => _orders.RaidCaravan(caravanId, partySize);
     public bool RaidMiningCamp(int campId, int partySize) => _orders.RaidMiningCamp(campId, partySize);
     public void UseCouncilDecrees(bool on) => _orders.UseCouncilDecrees(on);

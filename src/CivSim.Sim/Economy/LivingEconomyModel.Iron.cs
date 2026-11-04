@@ -765,6 +765,32 @@ public sealed partial class LivingEconomyModel
         return (Done(s.Civilization, "TRN-07") ? 2 : 1) * (Done(s.Civilization, "COM-08") ? 2 : 1);
     }
 
+    /// <summary>
+    /// How many of a civilization's staffed institutions stand idle (docs/MVP/25 §11 "idle staffed institutions"): an academy with no scholar, a castle with no
+    /// garrison, a galley with no crew, a temple with no missionary once BEL-09 is known. Telemetry for the AI blunder counters; it changes nothing.
+    /// </summary>
+    public int IronIdleInstitutions(int civ)
+    {
+        if (!IronChain) return 0;
+        int idle = 0;
+        foreach (SettlementState s in _settlements)
+        {
+            if (s.Civilization != civ || IsFreeFolk(s)) continue;
+            int scholars = 0, missionaries = 0;
+            foreach (FigureState f in _figures)
+            {
+                if (f.SettlementId != s.Id) continue;
+                if (f.Role == Role.Scholar) scholars++;
+                else if (f.Role == Role.Missionary) missionaries++;
+            }
+            if (Done(civ, "LRN-05") && IronWorksCount(s, IronStructure.Academy) > scholars) idle++;
+            if (IronWorksCount(s, IronStructure.Castle) > 0 && !CastleGarrisoned(s.Id)) idle++;
+            if (IronWorksCount(s, IronStructure.Galley) > 0 && !CrewedGalley(s.Id)) idle++;
+            if (Done(civ, "BEL-09") && s.Civic is { Temples: > 0 } && missionaries == 0) idle++;
+        }
+        return idle;
+    }
+
     /// <summary>The settlement is a province seat or member under a feudal contract (GOV-09): its local defense is stronger.</summary>
     public bool UnderFeudalContractAt(int settlementIndex) => UnderFeudalContract(_settlements[settlementIndex]);
 

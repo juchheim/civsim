@@ -83,6 +83,8 @@ internal sealed class CivOutcome
     public int MandateSeasonsAtCap;
     public int MandateOverflowBlunders;
     public int SiegeWithoutSupplyBlunders;
+    // Iron chapter blunders (docs/MVP/25 §11): seasons with a staffed institution standing idle, and walls besieged by a civilization that knows engines but brought none.
+    public int IronIdleInstitutionSeasons, EnginelessWallSieges;
     public int NakedCaravans;
     public double Legacy => Dominion + Mastery + Firsts + Wonders;
 }
@@ -1756,6 +1758,21 @@ internal static class Tournament
                          seats[ev.Civ].Control.Kind == ControlKind.Ai &&
                          siegeBlunderTracker.ObserveDesertionEvent(ev.Civ, ev.A, ev.B))
                     outcome.Civs[ev.Civ].SiegeWithoutSupplyBlunders++;
+            }
+
+            // Iron chapter blunders, sampled once a season for the AI seats.
+            if (match.Economy.IronChain)
+            {
+                int war09 = match.Research.Catalog.IndexOf("WAR-09");
+                for (int e = politicsEventsBefore; e < match.Politics.Events.Count; e++)
+                {
+                    PoliticsEvent ev = match.Politics.Events[e];
+                    if (ev.Kind == PoliticsEventKind.InvestmentTelemetryStarted && ev.Civ < civs && seats[ev.Civ].Control.Kind == ControlKind.Ai &&
+                        war09 >= 0 && match.Research.IsDone(ev.Civ, war09) && match.Politics.InvestmentAt(ev.A) is { Engines: 0 })
+                        outcome.Civs[ev.Civ].EnginelessWallSieges++;
+                }
+                for (int c = 0; c < civs; c++)
+                    if (seats[c].Control.Kind == ControlKind.Ai && match.Economy.IronIdleInstitutions(c) > 0) outcome.Civs[c].IronIdleInstitutionSeasons++;
             }
 
             // §14 §10.4 unwalled frontier: trigger solely from the AI's current belief snapshot. A threat is

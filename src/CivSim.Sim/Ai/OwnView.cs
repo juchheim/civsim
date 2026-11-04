@@ -51,6 +51,10 @@ public sealed class OwnView
     /// <summary>Exact access held by this civilization; own state is not fogged (docs/MVP/14 §3.1).</summary>
     public bool TinAccess, ArsenicAccess;
     public bool RangedWeapon;
+    /// <summary>Iron chapter, exact own state: ports with a crewed galley in post (ascending), and the civilization's standing in tribute and leagues.</summary>
+    public readonly List<int> CrewedGalleyHomes = new();
+    public bool IsSubject, IsOverlord;
+    public int LeagueSize;
     public Fix64 InsightPerYear, Dominion, Legacy;
     public Posture Posture;
     public readonly List<OwnSettlement> Settlements = new();
@@ -107,6 +111,17 @@ internal static class OwnViewBuilder
                     ownLevy.Departures[settlement] = ownLevy.Departures.GetValueOrDefault(settlement) + 1;
             }
             view.Levies.Add(ownLevy);
+        }
+        view.CrewedGalleyHomes.Clear();
+        view.IsSubject = view.IsOverlord = false;
+        view.LeagueSize = 0;
+        if (economy.IronChain)
+        {
+            foreach (int settlement in ownSettlementById.Values) if (economy.CrewedGalley(settlement)) view.CrewedGalleyHomes.Add(settlement);
+            view.IsSubject = politics.IsSubject(civ);
+            view.IsOverlord = politics.IsOverlord(civ);
+            int league = politics.LeagueOf(civ);
+            view.LeagueSize = league < 0 ? 0 : politics.Leagues[league].Members.Count;
         }
         view.Population = 0;
         view.Adults = 0;

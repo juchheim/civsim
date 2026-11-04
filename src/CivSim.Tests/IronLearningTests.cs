@@ -104,4 +104,22 @@ public sealed class IronLearningTests
         Grant(bronzeRunner, 0, "KEY-3", "KEY-4", "INQ-05");
         Assert.Equal(before, bronze.Research.EffectiveCost(0, mec));
     }
+
+    [Fact]
+    public void Idle_staffed_institutions_are_counted_for_the_blunder_telemetry_and_only_in_the_Iron_chapter()
+    {
+        BronzeFixture f = BronzeFixture.CreateIron(TestPack.Pack, Seed, 60, "KEY-4", "LRN-05");
+        Assert.Equal(0, f.Economy.IronIdleInstitutions(0));
+        f.Economy.FixtureBuildIronStructure(0, "academy");  // no scholar yet
+        Assert.Equal(1, f.Economy.IronIdleInstitutions(0));
+        f.Economy.FixtureBuildIronStructure(0, "castle");   // no garrison
+        f.Economy.FixtureBuildIronStructure(0, "harbor");
+        f.Economy.FixtureBuildIronStructure(0, "galley");   // no crew
+        Assert.Equal(3, f.Economy.IronIdleInstitutions(0));
+        f.Economy.FixtureSetSoldiersSupplied(0, 4);         // a garrison and a crew are in post
+        Assert.Equal(1, f.Economy.IronIdleInstitutions(0));
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "KEY-4", "LRN-05");
+        bronze.Economy.FixtureBuildIronStructure(0, "academy");
+        Assert.Equal(0, bronze.Economy.IronIdleInstitutions(0));
+    }
 }
