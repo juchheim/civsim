@@ -85,6 +85,7 @@ public partial class Game
     private void UpdateCamera()
     {
         if (_visualRenderer is not null) _visualRenderer.Call("set_camera", _target, _yaw, _pitch, _zoom);
+        UpdateSettlementMapLabelScale();
         RefreshCompass();
     }
 
@@ -205,6 +206,7 @@ public partial class Game
     {
         if (_camera is null) return;
         _visualRenderer?.Call("set_camera", _target, _yaw, _pitch, _zoom);
+        UpdateSettlementMapLabelScale();
     }
 
     private bool MapOwnsKeyboard()

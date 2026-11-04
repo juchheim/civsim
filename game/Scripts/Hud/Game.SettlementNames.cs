@@ -57,11 +57,25 @@ public partial class Game
             label.Text = SettlementLabel(settlement);
             Vector3 center = TileCenter(tile % frame.Width, tile / frame.Width);
             label.Position = new Vector3(center.X, _terrainHeights[tile] + 1.35f, center.Z);
+            label.Scale = Vector3.One * SettlementMapLabelScale();
             label.Visible = true;
         }
 
         foreach ((int settlement, Label3D label) in _settlementMapLabels)
             if (!present.Contains(settlement) && GodotObject.IsInstanceValid(label)) label.Visible = false;
+    }
+
+    private float SettlementMapLabelScale()
+    {
+        float zoomOut = Mathf.Clamp((_zoom - 12.0f) / (ZoomMax - 12.0f), 0.0f, 1.0f);
+        return Mathf.Lerp(1.0f, 0.45f, zoomOut);
+    }
+
+    private void UpdateSettlementMapLabelScale()
+    {
+        float scale = SettlementMapLabelScale();
+        foreach (Label3D label in _settlementMapLabels.Values)
+            if (GodotObject.IsInstanceValid(label)) label.Scale = Vector3.One * scale;
     }
 
     private static string CleanSettlementName(string? raw)
