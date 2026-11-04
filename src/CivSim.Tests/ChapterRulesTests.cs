@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.IO;
 using CivSim.Sim.Core;
@@ -84,13 +85,19 @@ public class ChapterRulesTests
     }
 
     [Fact]
-    public void E4_projects_stay_Hidden_even_for_a_civilization_past_KEY4_while_they_are_draft()
+    public void E4_projects_stay_Hidden_in_a_Bronze_match_but_open_in_an_Iron_one_for_a_civilization_past_KEY4()
     {
-        ResearchRig rig = Rig(ChapterRules.Iron);
-        Grant(rig, 0, "KEY-4", season: 20);
-        Assert.Equal(4, rig.Research.Era(0));
+        ResearchRig bronze = Rig(ChapterRules.Bronze);
+        Grant(bronze, 0, "KEY-4", season: 20);
         foreach (ProjectDef p in TestPack.Catalog.Projects)
-            if (p.Era >= 4) Assert.Equal(ProjectState.Hidden, rig.Research.State(0, p.Index));
+            if (p.Era >= 4) Assert.Equal(ProjectState.Hidden, bronze.Research.State(0, p.Index));
+
+        ResearchRig iron = Rig(ChapterRules.Iron);
+        Grant(iron, 0, "KEY-4", season: 20);
+        Assert.Equal(4, iron.Research.Era(0));
+        Assert.Contains(TestPack.Catalog.Projects.Where(p => p.Era == 4), p => iron.Research.State(0, p.Index) != ProjectState.Hidden);
+        foreach (ProjectDef p in TestPack.Catalog.Projects)
+            if (p.Era >= 5) Assert.Equal(ProjectState.Hidden, iron.Research.State(0, p.Index)); // the chapter ends at KEY-5
     }
 
     [Fact]

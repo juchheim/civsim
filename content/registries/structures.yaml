@@ -57,7 +57,7 @@ structures:
   - {id: press, name: Press, class: structure, unlocked_by: MEC-05, labor: 8, materials: "G-WOOD 4, G-IRON 2", effect: "Enables listed wine and oil press recipes"}
   - {id: bridge, name: Bridge, class: structure, unlocked_by: TRN-08, labor: 16, materials: "G-BLOCK 6, G-ASHLAR 2, G-WOOD 2", effect: "Maintains road continuity across river at crossing; no transport-capacity multiplier"}
   - {id: temple_tier2, name: Colonnade / temple tier 2, class: structure, unlocked_by: STN-12, labor: 16, materials: "G-ASHLAR 8, G-WOOD 4", effect: "Classical visual tier; stone eligible construction labor ×0.6, local to stone construction jobs"}
-  - {id: great_dome, name: Great Dome (Wonder), class: wonder, unlocked_by: BLD-11, effect: "Unlock only; construction deferred (Q7); no auto-build"}
+  - {id: great_dome, name: Great Dome (Wonder), class: wonder, unlocked_by: BLD-11, effect: "A buildable Wonder (25 Q7, resolved 2026-11-03); cost provisional; one in the world"}
   - {id: great_library, name: Great Library (Wonder), class: wonder, unlocked_by: LRN-06, effect: "Unlock only; uses existing Wonder framework if later approved"}
   - {id: great_lighthouse, name: Great Lighthouse (Wonder), class: wonder, unlocked_by: SEA-08, effect: "Unlock only; uses existing Wonder framework if later approved"}
   - {id: windlass_well, name: Windlass well, class: structure, unlocked_by: MEC-04, labor: 8, materials: "G-WOOD 4", effect: "Accesses a known water source at depth 2 in this settlement; does not create a source or territory-wide access"}

@@ -74,7 +74,7 @@ public class E3ContentTests
     public void Mandate_and_admin_sums_match_the_spec()
     {
         (ContentSet set, _) = Validated();
-        long Sum(string kind, string field) => set.Projects.Where(p => p.Status == "numeric")
+        long Sum(string kind, string field) => set.Projects.Where(p => p.Status == "numeric" && p.Era <= 3) // the E3 spec; E4 adds its own (TRD-06 span +1)
             .SelectMany(p => p.Effects).Where(e => e.Kind == kind).Sum(e => e.Int(field) ?? 0);
         Assert.Equal(15, Sum("admin", "span"));       // 23 §20.7: 4 + 2 + 3 + 2 + 2 + 2
         Assert.Equal(4, Sum("mandate", "cap"));        // cap 2 + GOV-05 + GOV-06

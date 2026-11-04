@@ -109,7 +109,7 @@ projects:
     name: Public Grain Supply
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [FOD-07, GOV-07]
     effects:
       - {kind: rule, text: "grain transfers from donor stocks only above their 1-season winter reserve; no grain is created"}

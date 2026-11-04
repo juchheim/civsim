@@ -67,7 +67,7 @@ projects:
     name: "Towers & Gatehouses"
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-05, MEC-04]
     effects:
       - {kind: build, structure: gatehouse}
@@ -80,7 +80,7 @@ projects:
     name: Frontier Walls
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-06, TER-08]
     effects:
       - {kind: build, structure: frontier_wall_segment}
@@ -93,7 +93,7 @@ projects:
     name: Castle Building
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-06, BLD-09]
     effects:
       - {kind: build, structure: castle}

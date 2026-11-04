@@ -1972,6 +1972,16 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Runs one recipe for up to <paramref name="planned"/> batches; returns the batches made.</summary>
+    /// <summary>
+    /// What a recipe may draw of a slot. In the Iron chapter the bloom the structure under construction still needs is held back from the kit chain: without that claim the
+    /// chain turns every litre into tools each season and a finished-but-unpaid structure waits forever (seen in the first whole Iron matches).
+    /// </summary>
+    private Fix64 AvailableStock(SettlementState s, int slot)
+    {
+        Fix64 stock = Stock(s, slot);
+        return slot == MetalSlot(MetalGood.Iron) && IronChain ? Fix64.Max(Fix64.Zero, stock - IronBloomReserve(s)) : stock;
+    }
+
     private Fix64 RunRecipe(SettlementState s, CompiledRecipe recipe, Fix64 planned, bool anyMetalKit, ref Fix64 metalPool, ref Fix64 craftPool)
     {
         Fix64 labor = RecipeLabor(s, recipe, anyMetalKit);
@@ -1981,7 +1991,7 @@ public sealed partial class LivingEconomyModel
         for (int i = 0; i < recipe.InputSlots.Length; i++)
         {
             Fix64 have = Fix64.Zero;
-            foreach (int slot in recipe.InputSlots[i]) have += Stock(s, slot);
+            foreach (int slot in recipe.InputSlots[i]) have += AvailableStock(s, slot);
             Fix64 q = InputQuantity(s, recipe, i);
             if (q > Fix64.Zero) batches = Fix64.Min(batches, have / q);
         }
@@ -1991,7 +2001,7 @@ public sealed partial class LivingEconomyModel
             Fix64 need = batches * InputQuantity(s, recipe, i);
             foreach (int slot in recipe.InputSlots[i])
             {
-                Fix64 take = Fix64.Min(need, Stock(s, slot));
+                Fix64 take = Fix64.Min(need, AvailableStock(s, slot));
                 AddStock(s, slot, -take);
                 need -= take;
                 if (need <= Fix64.Zero) break;

@@ -10,7 +10,7 @@ namespace CivSim.Tests;
 public class E4DraftContentTests
 {
     [Fact]
-    public void E4_drafts_are_typed_complete_and_remain_inert()
+    public void E4_rows_are_numeric_typed_and_complete()
     {
         (ContentSet set, Report report) = Validate();
         Project[] e4 = set.Projects.Where(p => p.Era == 4).ToArray();
@@ -18,7 +18,7 @@ public class E4DraftContentTests
         Assert.NotEmpty(e4);
         Assert.All(e4, p =>
         {
-            Assert.Equal("draft", p.Status);
+            Assert.Equal("numeric", p.Status);
             Assert.NotNull(set.CostOf(p));
             Assert.NotEmpty(p.Practice);
             Assert.All(p.Practice, share => Assert.True(share.Share > 0, $"{p.Id} has a non-positive practice share"));
@@ -33,7 +33,7 @@ public class E4DraftContentTests
         ContentPack? pack = PackBuilder.Build(set, report);
         Assert.NotNull(pack);
         var catalog = new ResearchCatalog(pack!);
-        Assert.All(e4, p => Assert.False(catalog.Get(p.Id).Numeric, $"{p.Id} compiled numeric before WP5"));
+        Assert.All(e4, p => Assert.True(catalog.Get(p.Id).Numeric, $"{p.Id} did not compile numeric"));
         Assert.Contains(catalog.Get("FOD-09").Effects, effect => effect.Kind == EffectKind.Cap && effect.Cap == CapKind.Population);
         EffectDef scythe = Assert.Single(catalog.Get("AGR-09").Effects, effect => effect.Kind == EffectKind.Method);
         Assert.Equal("t11", scythe.Tool);
@@ -41,10 +41,10 @@ public class E4DraftContentTests
     }
 
     [Fact]
-    public void E4_cannot_be_promoted_before_WP5()
+    public void E4_cannot_be_left_half_promoted()
     {
-        Report report = MutateProject("COM-07", block => block.Replace("status: draft", "status: numeric", StringComparison.Ordinal));
-        Assert.Contains(report.Issues, i => i.Code == "V21" && i.Message.Contains("COM-07", StringComparison.Ordinal) && i.Message.Contains("remain status: draft", StringComparison.Ordinal));
+        Report report = MutateProject("COM-07", block => block.Replace("status: numeric", "status: draft", StringComparison.Ordinal));
+        Assert.Contains(report.Issues, i => i.Code == "V21" && i.Message.Contains("COM-07", StringComparison.Ordinal) && i.Message.Contains("promoted together", StringComparison.Ordinal));
     }
 
     [Fact]

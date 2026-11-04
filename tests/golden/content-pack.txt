@@ -1,4 +1,4 @@
 format=civsim-content-pack version=1
 projects=519
-bytes=345022
-hash=749f7fb0ca6ea4cba0bccebfbbb821b621df2fa8591aef080bf60723756f46ce
+bytes=345550
+hash=920c92f3ae2da5e6d0f0a0d9e5f4e1d2880a96dd384c3896287742ec6b6eef44

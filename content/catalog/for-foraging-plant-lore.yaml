@@ -101,10 +101,14 @@ projects:
     name: Grafting
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [FOR-07, MET-09]
     effects:
       - {kind: mod, stat: orchard_output, op: mult, value: 2, note: "grafted orchard jobs only"}
+      - {kind: good, id: G-GRAPE}
+      - {kind: good, id: G-OLIVE}
+      - {kind: good, id: G-WINE}
+      - {kind: good, id: G-OILPLANT}
       - {kind: rule, text: "unlocks wine/oil goods from actual produce and MEC-05 press recipe"}
     practice: [{action: farm, share: 100}]
     flavor: "Two harvests grow from a practiced branch."

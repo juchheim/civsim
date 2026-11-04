@@ -218,6 +218,8 @@ internal static class Tournament
     }
 
     public const ulong BaseSeed = 20261019;
+    /// <summary>Harness-only: play the matches under this chapter (the Iron chapter for <c>--mode iron</c>); null is the Bronze chapter every existing check plays.</summary>
+    public static CivSim.Sim.Research.ChapterRules? ChapterOverride { get; set; }
     public static readonly int[] TeamASeats = { 0, 3 };
     public static readonly int[] TeamBSeats = { 1, 2 };
 
@@ -295,7 +297,7 @@ internal static class Tournament
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
         MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls,
-            warlordRaidWithdrawalPolicy: !warlordRaidWithdrawalOffDiagnostic);
+            warlordRaidWithdrawalPolicy: !warlordRaidWithdrawalOffDiagnostic, rules: ChapterOverride);
         if (warlordRaidWithdrawalDiagnostic)
         {
             var traceCivs = new bool[seats.Length];

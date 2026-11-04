@@ -148,6 +148,9 @@ public sealed partial class LivingEconomyModel
         public Fix64[]? IronFaith;
         /// <summary>The settlement (index + 1) whose Wonder this settlement's Iron build labor goes to this season, or 0 (a league contribution, DIP-07).</summary>
         public int IronPledgeTo;
+        /// <summary>Seasons the current Iron structure has stood fully worked and unpaid, and the progress of structures shelved while the town built something it could finish.</summary>
+        public int IronWait;
+        public Fix64[]? IronShelf;
         /// <summary>The season each faith last gained converts here, or -1; the soft claim pressure runs only while a missionary keeps coming.</summary>
         public int[]? IronFaithSeason;
         /// <summary>How many of the settlement's staffed soldiers were paid their upkeep this season (Iron chapter); only these fight as professionals.</summary>
@@ -826,6 +829,8 @@ public sealed partial class LivingEconomyModel
         if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
         if (source.IronFacing is not null) m.IronFacing = new List<int>(source.IronFacing);
         m.IronPledgeTo = source.IronPledgeTo;
+        m.IronWait = source.IronWait;
+        if (source.IronShelf is not null) m.IronShelf = (Fix64[])source.IronShelf.Clone();
         if (source.IronFaith is not null) m.IronFaith = (Fix64[])source.IronFaith.Clone();
         if (source.IronFaithSeason is not null) m.IronFaithSeason = (int[])source.IronFaithSeason.Clone();
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);

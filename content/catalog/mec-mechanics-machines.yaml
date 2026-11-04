@@ -42,7 +42,7 @@ projects:
     name: "Pulley & Windlass"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MEC-03, FIB-05]
     effects:
       - {kind: mod, stat: build_labor, op: pct, value: -0.130435, note: "Equivalent to ×1.15 speed."}
@@ -55,9 +55,10 @@ projects:
     name: "Gears & Screws"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MEC-04, NUM-07]
     effects:
+      - {kind: build, structure: press}
       - {kind: unlock, text: "Unlock press, Archimedean screw, and water-wheel gearing; presses require MEC-05 and recipe inputs; enable mine drainage."}
     practice: [{action: build, share: 100}]
     flavor: "A measured turn moves water uphill."
@@ -66,7 +67,7 @@ projects:
     name: Treadwheel Crane
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [MEC-05]
     effects:
       - {kind: build, structure: crane}

@@ -42,7 +42,7 @@ projects:
     name: Natural Philosophy
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [INQ-03, BEL-08, NUM-07]
     effects:
       - {kind: mod, stat: scholar_insight, op: mult, value: 1.20}
@@ -53,7 +53,7 @@ projects:
     name: "Mechanics & Hydrostatics"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [INQ-04, MEC-05]
     effects:
       - {kind: mod, stat: mec_nrg_project_cost, op: mult, value: 0.90}

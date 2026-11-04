@@ -85,7 +85,7 @@ projects:
     name: "Bureaucracy & Census"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-06, NUM-05]
     effects:
       - {kind: role, id: administrator}
@@ -98,7 +98,7 @@ projects:
     name: "Republic & Assemblies"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-06, SOC-10]
     effects:
       - {kind: mod, stat: commons_insight, op: mult, value: 1.15}
@@ -112,7 +112,7 @@ projects:
     name: Feudal Contract
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-07, WAR-07]
     effects:
       - {kind: rule, text: "active connected province removes distance/span secession pressure; famine, conquest and other crisis secession remain; KEY-5 prerequisite"}

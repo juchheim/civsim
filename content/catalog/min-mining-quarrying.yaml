@@ -82,7 +82,7 @@ projects:
     name: Mine Drainage
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MIN-05, MEC-05]
     effects:
       - {kind: rule, text: "Mine depth 2 with flooded-deposit access. Each flooded deposit requires a drainage installation (1 G-WOOD + 0.2 G-CHAR, 2 ws) and upkeep of 0.1 G-CHAR per season while staffed; no new deposit is created."}

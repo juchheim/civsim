@@ -81,7 +81,7 @@ projects:
     name: Glassblowing
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [CER-06]
     effects:
       - {kind: good, id: G-BLOWNGLASS}
@@ -93,7 +93,7 @@ projects:
     name: "Fired Brick & Tile"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [CER-04, FIR-07]
     effects:
       - {kind: good, id: G-FBRICK}

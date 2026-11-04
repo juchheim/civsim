@@ -321,7 +321,7 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0;
+        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0 || m.IronWait != 0 || m.IronShelf is not null;
 
     private void HashIron(ref StateHasher hash)
     {
@@ -341,6 +341,9 @@ public sealed partial class LivingEconomyModel
             hash.Add(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) hash.Add(civ);
             hash.Add(m.IronPledgeTo);
+            hash.Add(m.IronWait);
+            hash.Add(m.IronShelf?.Length ?? 0);
+            if (m.IronShelf is not null) foreach (Fix64 shelved in m.IronShelf) hash.Add(shelved);
             hash.Add(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { hash.Add(m.IronFaith[k]); hash.Add(m.IronFaithSeason![k]); }
         }
@@ -367,6 +370,9 @@ public sealed partial class LivingEconomyModel
             writer.Write(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) writer.Write(civ);
             writer.Write(m.IronPledgeTo);
+            writer.Write(m.IronWait);
+            writer.Write(m.IronShelf?.Length ?? 0);
+            if (m.IronShelf is not null) foreach (Fix64 shelved in m.IronShelf) writer.Write(shelved.Raw);
             writer.Write(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { writer.Write(m.IronFaith[k].Raw); writer.Write(m.IronFaithSeason![k]); }
         }
@@ -424,6 +430,15 @@ public sealed partial class LivingEconomyModel
             }
             metal.IronPledgeTo = reader.ReadInt32();
             if ((uint)metal.IronPledgeTo > (uint)_settlements.Count) throw new InvalidDataException("Invalid Iron-chapter pledge.");
+            metal.IronWait = reader.ReadInt32();
+            int shelved = reader.ReadInt32();
+            if (metal.IronWait < 0 || shelved < 0 || shelved > (int)IronStructure.Count) throw new InvalidDataException("Invalid Iron-chapter shelf.");
+            metal.IronShelf = shelved == 0 ? null : new Fix64[shelved];
+            for (int k = 0; k < shelved; k++)
+            {
+                metal.IronShelf![k] = Fix64.FromRaw(reader.ReadInt64());
+                if (metal.IronShelf[k] < Fix64.Zero) throw new InvalidDataException("Negative shelved Iron progress.");
+            }
             int faiths = reader.ReadInt32();
             if (faiths < 0 || faiths > CivilizationCount) throw new InvalidDataException("Invalid Iron-chapter faith count.");
             metal.IronFaith = faiths == 0 ? null : new Fix64[faiths];
@@ -783,6 +798,38 @@ public sealed partial class LivingEconomyModel
         if (!IronChain || _settlements[settlementIndex] is not { Metal: { IronBuildKind: >= 0 } m } s) return (-1, 0);
         Fix64 labor = IronLaborOf(s, IronSpecs[m.IronBuildKind]);
         return (m.IronBuildKind, labor <= Fix64.Zero ? 1000 : (int)Math.Clamp((m.IronBuildProgress * 1000 / labor).FloorToInt(), 0, 1000));
+    }
+
+    /// <summary>Adults of a civilization who carry a T11 or a T12 iron kit, and its adults in all (harness and screens: how far iron has spread).</summary>
+    public (int T11, int T12, int Adults) IronKitHolders(int civ)
+    {
+        int t11 = 0, t12 = 0, adults = 0;
+        foreach (FigureState f in _figures)
+        {
+            if (f.Civilization != civ || f.Age < 14) continue;
+            adults++;
+            if (f.Kit == 11) t11++;
+            else if (f.Kit == 12) t12++;
+        }
+        return (t11, t12, adults);
+    }
+
+    /// <summary>What the structure under construction still lacks, as a string of materials short ("block 3/8 wood 2/8"), or "" when it is fully supplied or nothing is being built (screens and the harness).</summary>
+    public string IronBuildShortages(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        if (!IronChain || s.Metal is not { IronBuildKind: >= 0 } m) return "";
+        IronSpec spec = IronSpecs[m.IronBuildKind];
+        var parts = new List<string>();
+        void Check(string name, Fix64 have, int need)
+        {
+            if (need > 0 && have < Fix64.FromInt(need)) parts.Add($"{name} {have.FloorToInt()}/{need}");
+        }
+        Check("block", m.Goods[(int)MetalGood.Block], spec.Block);
+        Check("ashlar", m.Goods[(int)MetalGood.Ashlar], spec.Ashlar);
+        Check("wood", s.Stores[(int)Good.Wood], spec.Wood);
+        Check("bloom", m.Goods[(int)MetalGood.Iron], spec.Bloom);
+        return string.Join(" ", parts);
     }
 
     /// <summary>Soldiers in post and fed this season at a settlement (the supplied count the army uses).</summary>
@@ -1390,14 +1437,106 @@ public sealed partial class LivingEconomyModel
             m.IronBuildKind = -1; // nothing is paid before completion, so there is nothing to refund (labor already spent is lost)
             m.IronBuildProgress = Fix64.Zero;
         }
+        // A structure that is fully worked but has stood unpaid for IronPatienceSeasons does not hold the queue: its progress is shelved and the town turns to something it can finish.
+        if (m.IronBuildKind >= 0)
+        {
+            IronSpec current = IronSpecs[m.IronBuildKind];
+            bool workedOut = m.IronBuildProgress >= IronLaborOf(s, current);
+            m.IronWait = workedOut && !CanPayIronBuild(s, m, current) ? m.IronWait + 1 : 0;
+            if (m.IronWait >= IronPatienceSeasons)
+            {
+                int other = NextWantedIronKind(s, m, civ, skip: m.IronBuildKind, passShelved: false);
+                if (other >= 0) SwitchIronBuild(s, m, other);
+                m.IronWait = 0;
+            }
+        }
         if (m.IronBuildKind < 0)
-            for (int k = 0; k < (int)IronStructure.Count; k++)
-                if (Done(civ, IronSpecs[k].Unlock) && IronBuildWanted(s, (IronStructure)k)) { m.IronBuildKind = k; m.IronBuildProgress = Fix64.Zero; break; }
+        {
+            int next = NextWantedIronKind(s, m, civ, skip: -1, passShelved: false);
+            if (next < 0) next = NextWantedIronKind(s, m, civ, skip: -1, passShelved: true);
+            if (next >= 0) SwitchIronBuild(s, m, next);
+        }
         if (m.IronBuildKind < 0) return;
         IronSpec spec = IronSpecs[m.IronBuildKind];
         if (spec.Block > 0) plan.Terminal[MetalSlot(MetalGood.Block)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Block) - m.Goods[(int)MetalGood.Block]);
         if (spec.Ashlar > 0) plan.Terminal[MetalSlot(MetalGood.Ashlar)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]);
         if (spec.Bloom > 0) plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Bloom) - m.Goods[(int)MetalGood.Iron]);
+    }
+
+    /// <summary>Seasons a fully worked structure may stand unpaid before the town shelves it and builds something else (provisional).</summary>
+    private const int IronPatienceSeasons = 8;
+
+    /// <summary>The first wanted structure kind in enum order (not <paramref name="skip"/>); kinds shelved fully worked and waiting on materials come last unless <paramref name="passShelved"/>.</summary>
+    private int NextWantedIronKind(SettlementState s, MetalState m, int civ, int skip, bool passShelved)
+    {
+        for (int k = 0; k < (int)IronStructure.Count; k++)
+        {
+            if (k == skip || !Done(civ, IronSpecs[k].Unlock) || !IronBuildWanted(s, (IronStructure)k)) continue;
+            if (!passShelved && m.IronShelf is { } shelf && shelf[k] > Fix64.Zero && shelf[k] >= IronLaborOf(s, IronSpecs[k])) continue;
+            return k;
+        }
+        return -1;
+    }
+
+    /// <summary>Makes <paramref name="kind"/> the current build, keeping the progress of the one it replaces on the shelf and bringing back any of its own.</summary>
+    private void SwitchIronBuild(SettlementState s, MetalState m, int kind)
+    {
+        if (m.IronBuildKind >= 0 && m.IronBuildProgress > Fix64.Zero) (m.IronShelf ??= new Fix64[(int)IronStructure.Count])[m.IronBuildKind] = m.IronBuildProgress;
+        m.IronBuildKind = kind;
+        m.IronBuildProgress = Fix64.Zero;
+        if (m.IronShelf is { } shelf) { m.IronBuildProgress = shelf[kind]; shelf[kind] = Fix64.Zero; }
+        m.IronWait = 0;
+    }
+
+    /// <summary>Whether the structure's materials are all in store now (the test <see cref="TryPayIronBuild"/> applies, without paying).</summary>
+    private bool CanPayIronBuild(SettlementState s, MetalState m, IronSpec spec)
+        => m.Goods[(int)MetalGood.Block] >= Fix64.FromInt(spec.Block) && m.Goods[(int)MetalGood.Ashlar] >= Fix64.FromInt(spec.Ashlar) &&
+           m.Goods[(int)MetalGood.Iron] >= Fix64.FromInt(spec.Bloom) && s.Stores[(int)Good.Wood] >= Fix64.FromInt(spec.Wood);
+
+    /// <summary>Work-seasons per litre of stone dressed from a block into ashlar (the E3 recipe: 0.5 with a T8+ kit).</summary>
+    private static readonly Fix64 DressLabor = Fix64.Half;
+
+    /// <summary>The stone work the structure under construction still needs: quarrying the blocks it lacks (MIN-03) and dressing ashlar from them (STN-11).</summary>
+    private Fix64 IronStoneLabor(SettlementState s, MetalState m, IronSpec spec)
+    {
+        Fix64 labor = Fix64.Zero;
+        if (!Done(s.Civilization, "MIN-03")) return labor;
+        Fix64 ashlarShort = Done(s.Civilization, "STN-11") ? Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]) : Fix64.Zero;
+        Fix64 blocksShort = Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Block) + ashlarShort - m.Goods[(int)MetalGood.Block]);
+        if (blocksShort > Fix64.Zero) labor += blocksShort / QuarryRate(s);
+        return labor + ashlarShort * DressLabor;
+    }
+
+    /// <summary>
+    /// Spends the stone share of the season's build labor: quarries the blocks the structure lacks from the stone in range, then dresses ashlar from blocks above what
+    /// the structure needs as blocks. Returns the labor it used.
+    /// </summary>
+    private Fix64 SpendStoneLabor(SettlementState s, MetalState m, IronSpec spec, Fix64 available)
+    {
+        Fix64 used = Fix64.Zero;
+        if (available <= Fix64.Zero || !Done(s.Civilization, "MIN-03")) return used;
+        bool dress = Done(s.Civilization, "STN-11");
+        Fix64 ashlarShort = dress ? Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]) : Fix64.Zero;
+        Fix64 blocksShort = Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Block) + ashlarShort - m.Goods[(int)MetalGood.Block]);
+        if (blocksShort > Fix64.Zero)
+        {
+            Fix64 rate = QuarryRate(s);
+            Fix64 got = TakeRangeStone(s, Fix64.Min(blocksShort, available * rate));
+            m.Goods[(int)MetalGood.Block] += got;
+            used += got / rate;
+        }
+        if (ashlarShort > Fix64.Zero)
+        {
+            Fix64 spare = Fix64.Max(Fix64.Zero, m.Goods[(int)MetalGood.Block] - Fix64.FromInt(spec.Block));
+            Fix64 made = Fix64.Min(Fix64.Min(ashlarShort, spare), (available - used) / DressLabor);
+            if (made > Fix64.Zero)
+            {
+                m.Goods[(int)MetalGood.Block] -= made;
+                m.Goods[(int)MetalGood.Ashlar] += made;
+                used += made * DressLabor;
+            }
+        }
+        return used;
     }
 
     /// <summary>The labor the Iron structure under construction can take this season: what it still needs, within its share of the settlement's work.</summary>
@@ -1408,7 +1547,9 @@ public sealed partial class LivingEconomyModel
             return Fix64.Min(Fix64.Max(Fix64.Zero, IronLaborOf(wonder, IronSpecs[wonder.Metal!.IronBuildKind]) - wonder.Metal.IronBuildProgress), totalWork * IronBuildShare);
         if (m.IronBuildKind < 0) return Fix64.Zero;
         Fix64 remaining = Fix64.Max(Fix64.Zero, IronLaborOf(s, IronSpecs[m.IronBuildKind]) - m.IronBuildProgress);
-        return Fix64.Min(remaining, totalWork * IronBuildShare);
+        // Quarrying and dressing the stone the structure still lacks are part of the same share of work: without a claim of their own they got whatever craft labor was
+        // left over, which in a busy town is none, and every stone building stood finished and unpaid (seen in the first whole Iron matches).
+        return Fix64.Min(remaining + IronStoneLabor(s, m, IronSpecs[m.IronBuildKind]), totalWork * IronBuildShare);
     }
 
     /// <summary>
@@ -1430,7 +1571,8 @@ public sealed partial class LivingEconomyModel
         if (m.IronBuildKind < 0) return Fix64.Zero;
         IronSpec spec = IronSpecs[m.IronBuildKind];
         Fix64 labor = IronLaborOf(s, spec), over = Fix64.Zero;
-        m.IronBuildProgress += plan.IronBuildAssigned;
+        Fix64 stoneUsed = SpendStoneLabor(s, m, spec, plan.IronBuildAssigned);
+        m.IronBuildProgress += plan.IronBuildAssigned - stoneUsed;
         if (m.IronBuildProgress > labor) { over = m.IronBuildProgress - labor; m.IronBuildProgress = labor; }
         if (m.IronBuildProgress < labor || !TryPayIronBuild(s, m, spec)) return over;
         CompleteIronBuild(s, m, (IronStructure)m.IronBuildKind);
@@ -1438,6 +1580,10 @@ public sealed partial class LivingEconomyModel
         m.IronBuildProgress = Fix64.Zero;
         return over;
     }
+
+    /// <summary>The bloom the Iron structure under construction needs at payment, held back from recipes (zero when nothing is being built).</summary>
+    private Fix64 IronBloomReserve(SettlementState s)
+        => s.Metal is { IronBuildKind: >= 0 } m ? Fix64.FromInt(IronSpecs[m.IronBuildKind].Bloom) : Fix64.Zero;
 
     private bool TryPayIronBuild(SettlementState s, MetalState m, IronSpec spec)
     {

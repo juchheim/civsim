@@ -71,7 +71,7 @@ projects:
     name: Coinage
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [TRD-05, MET-07]
     effects:
       - {kind: mod, stat: trade_friction, op: mult, value: 0.60}
@@ -83,7 +83,7 @@ projects:
     name: Long-Distance Trade Routes
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [TRD-06]
     requires_any: [HUS-09, SEA-07]
     effects:

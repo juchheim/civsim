@@ -129,7 +129,7 @@ projects:
     name: Iron Tools
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MET-08]
     effects:
       - {kind: good, id: G-WROUGHT}
@@ -143,11 +143,12 @@ projects:
     name: "Quench & Temper"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MET-09]
     effects:
       - {kind: good, id: G-STEEL}
       - {kind: good, id: G-TOOL12}
+      - {kind: good, id: G-ARMS4}
       - {kind: rule, text: "Unlock make_tool12; T12 durability is ×2 T11. WAR-08 iron arms strength is 2.4; MET-10 steel-edge arms strength is 3.0 (2.4 × 1.25 exactly once)."}
     practice: [{action: smelt, share: 100}]
     flavor: "Heat and water set the edge."

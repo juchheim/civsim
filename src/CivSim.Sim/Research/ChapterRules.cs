@@ -31,6 +31,10 @@ public sealed class ChapterRules
     /// <summary>The Iron chapter: research ceiling 4, KEY-5 ends it.</summary>
     public static ChapterRules Iron { get; } = new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, IronCapYear, IronCountdownSeasons);
 
+    /// <summary>Harness and diagnostics only: the Iron chapter with another cap year and countdown, to watch its systems run longer than the candidate chapter allows.</summary>
+    public static ChapterRules IronWithLimits(int capYear, int countdownSeasons)
+        => new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, capYear, countdownSeasons);
+
     private readonly int? _capYear;
     private readonly int? _countdownSeasons;
 

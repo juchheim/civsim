@@ -85,7 +85,7 @@ projects:
     name: Alphabet
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [COM-06]
     effects:
       - {kind: mod, stat: scribe_learning_output, op: mult, value: 2}
@@ -97,7 +97,7 @@ projects:
     name: Courier Relays
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [COM-07, TRN-07]
     effects:
       - {kind: admin, overreach: 0.20}

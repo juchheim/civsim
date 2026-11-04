@@ -89,7 +89,7 @@ projects:
     name: "Provinces & Governors"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [TER-07, GOV-07]
     effects:
       - {kind: role, id: governor}
@@ -102,7 +102,7 @@ projects:
     name: Frontier Colonies
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [TER-08, SEA-06]
     effects:
       - {kind: rule, text: "one founding band may establish a colony up to 10 sea tiles from a known owned coast, only at unclaimed habitable land with a safe landing, ship, 2-season rations, and normal founding costs; no teleportation or extra population"}

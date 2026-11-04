@@ -29,7 +29,7 @@ projects:
     name: Water Wheel
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [NRG-02, MEC-05]
     gates: [{kind: near, target: River}]
     effects:

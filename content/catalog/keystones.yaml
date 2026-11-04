@@ -77,7 +77,7 @@ keystones:
     era: 4
     enters: 5
     type: K
-    status: draft
+    status: numeric
     requires: [AGR-10, GOV-09, BEL-09, DEF-08]
     breadth: {era: 4, min: 21}
     effects:

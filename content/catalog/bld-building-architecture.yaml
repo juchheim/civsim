@@ -113,7 +113,7 @@ projects:
     name: "True Arch & Vault"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [BLD-07, CER-08]
     effects:
       - {kind: rule, text: "Enable bridge, aqueduct, and large-hall spans without timber support; construction materials and labor are still paid."}
@@ -124,7 +124,7 @@ projects:
     name: Aqueducts
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [BLD-09, NUM-07]
     effects:
       - {kind: build, structure: aqueduct}
@@ -136,11 +136,12 @@ projects:
     name: "Concrete & Domes"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [BLD-09, CHM-03]
     effects:
       - {kind: mod, stat: build_labor, op: pct, value: -0.23077, note: "Eligible construction work; equivalent to ×1.3 speed."}
-      - {kind: unlock, text: "Unlock concrete large-span construction and a dome build option; Great Dome construction is deferred per Q7. SEA-07 separately unlocks harbor use and construction."}
+      - {kind: wonder, structure: great_dome}
+      - {kind: unlock, text: "Unlock concrete large-span construction and a dome build option. The Great Dome is a buildable Wonder (25 Q7, resolved 2026-11-03). SEA-07 separately unlocks harbor use and construction."}
     practice: [{action: build, share: 100}]
     flavor: "Stone takes the shape of the sky."
     moment: "A concrete vault holds after its wooden frame is removed."

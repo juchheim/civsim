@@ -807,6 +807,9 @@ public sealed partial class ResearchSystem : IResearchView
                         int cause = Array.IndexOf(ResearchCatalog.HazardCauses, e.Cause);
                         if (cause >= 0) civ.HazardMult[cause] = civ.HazardMult[cause] * (Fix64.One + (e.Value - Fix64.One) * adopted);
                         break;
+                    // FOD-09's Population cap is not a multiplier: the Iron economy delivers it as physical public grain (docs/MVP/26 §5), so it is not applied here.
+                    case EffectKind.Cap when e.Cap is CapKind.Population:
+                        break;
                     case EffectKind.Cap when e.Cap is { } cap && cap != CapKind.Group:
                         civ.CapMult[(int)cap] = civ.CapMult[(int)cap] * FixMath.Pow(e.Value, e.Take);
                         break;

@@ -121,7 +121,7 @@ projects:
     name: Citizenship
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [SOC-09, GOV-06]
     effects:
       - {kind: mod, stat: distance_contribution_to_cohesion_decay, op: mult, value: 0.5}

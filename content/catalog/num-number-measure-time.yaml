@@ -77,7 +77,7 @@ projects:
     name: "Geometry & Surveying"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-06]
     effects:
       - {kind: mod, stat: infrastructure_efficiency, op: mult, value: 1.15, note: "Surveyed fields, roads and aqueducts only; equivalent labor ×0.869565"}

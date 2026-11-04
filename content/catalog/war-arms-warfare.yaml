@@ -82,7 +82,7 @@ projects:
     name: Professional Armies
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [WAR-05, GOV-07]
     effects:
       - {kind: role, id: soldier, note: "Base ceiling 10% of adults; standing role requires staffing, training and supply."}
@@ -94,7 +94,7 @@ projects:
     name: Iron Weapons
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [WAR-07, MET-09]
     effects:
       - {kind: good, id: G-ARMS3}
@@ -106,10 +106,11 @@ projects:
     name: Siege Engines
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [WAR-07, MEC-05]
     effects:
       - {kind: good, id: G-ENGINE}
+      - {kind: unlock_action, action: siege_assault}
       - {kind: combat, text: "Supplied engine assault reduces matched siege duration to ×0.40; requires engine, crew, transport, supply and time."}
     practice: [{action: guard, share: 100}]
     moment: "A counterweighted arm throws a stone against a wall."

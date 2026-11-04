@@ -71,7 +71,7 @@ projects:
     name: "Periplus & Itineraries"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [WAY-05, COM-07]
     effects:
       - {kind: mod, stat: trade_route_efficiency, op: mult, value: 1.25, note: "Guides require known path and ports."}
@@ -82,7 +82,7 @@ projects:
     name: Grid Cartography
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [WAY-06, NUM-07, LRN-05]
     effects:
       - {kind: reveal, text: "Coastline outlines of the known world only; no unexplored interior."}

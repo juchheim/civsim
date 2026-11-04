@@ -66,7 +66,7 @@ projects:
     name: Tributary States
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-05, WAR-07]
     effects:
       - {kind: diplo, text: "Vassalage: subject pays tribute; up to 25% of its land contributes to Dominion, conserved with no score duplication."}
@@ -77,7 +77,7 @@ projects:
     name: "Leagues & Confederations"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-05, GOV-08]
     effects:
       - {kind: diplo, text: "League: multi-civilization alliance with shared Wonder work only by explicit contributions; no shared ownership or duplicate Wonder."}

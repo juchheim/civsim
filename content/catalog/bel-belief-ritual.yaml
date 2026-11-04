@@ -95,7 +95,7 @@ projects:
     name: "Philosophy & Ethics"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-07, COM-07]
     effects:
       - {kind: mod, stat: scholar_insight, op: pct, value: 0.10}
@@ -107,7 +107,7 @@ projects:
     name: Organized Faith
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-08, TRD-07]
     effects:
       - {kind: role, id: missionary}

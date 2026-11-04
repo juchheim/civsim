@@ -100,6 +100,7 @@ internal static class AiCommand
                 case "--duel": duelA = args[++i]; duelB = args[++i]; break;
                 case "--ladder": ladder = args[++i]; break;
                 case "--ffa": ffa = args[++i]; break;
+                case "--mode": Tournament.ChapterOverride = args[++i].ToLowerInvariant() == "iron" ? CivSim.Sim.Research.ChapterRules.Iron : null; break;
                 case "--check-m6": check = true; break;
                 case "--check-m10": checkM10 = true; break;
                 case "--check-b27": checkB27 = true; break;

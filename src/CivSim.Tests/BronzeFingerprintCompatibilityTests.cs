@@ -9,7 +9,7 @@ namespace CivSim.Tests;
 public class BronzeFingerprintCompatibilityTests
 {
     [Fact]
-    public void E4_draft_effects_and_E4_only_registry_rows_do_not_change_Bronze_checksum()
+    public void E4_effects_and_E4_only_registry_rows_do_not_change_Bronze_checksum()
     {
         ContentPack baseline = BuildPack(ContentFixture.Files());
         var changedFiles = ContentFixture.Files();
@@ -26,7 +26,7 @@ public class BronzeFingerprintCompatibilityTests
 
         Assert.NotEqual(baseline.HashHex, changed.HashHex); // the full content pack still sees all E4 edits
         Assert.Equal(BronzeChecksum(baseline), BronzeChecksum(changed));
-        Assert.False(TestPack.Catalog.Get("AGR-09").Numeric); // draft E4 methods stay inert pending WP5
+        Assert.True(TestPack.Catalog.Get("AGR-09").Numeric); // promoted with the rest of E4; a Bronze match still never reaches it (ChapterRules)
     }
 
     [Fact]

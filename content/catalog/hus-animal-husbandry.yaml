@@ -119,7 +119,7 @@ projects:
     name: "Camels & Caravan Animals"
     era: 4
     type: D
-    status: draft
+    status: numeric
     requires: [HUS-07]
     gates: [{kind: seen, target: Camels or Llamas}]
     effects:

@@ -53,7 +53,7 @@ projects:
     name: Academies
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [LRN-04, BEL-08]
     effects:
       - {kind: build, structure: academy}
@@ -65,7 +65,7 @@ projects:
     name: Great Library
     era: 4
     type: W
-    status: draft
+    status: numeric
     requires: [LRN-05, COM-06]
     effects:
       - {kind: wonder, structure: great_library}

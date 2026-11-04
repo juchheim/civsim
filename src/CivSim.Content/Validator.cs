@@ -536,15 +536,18 @@ public static class Validator
         }
     }
 
-    // ---- V21 E4 draft integrity -------------------------------------------------------------------
-    // E4 data is being typed before runtime activation. Keep every E4 catalog node inert until WP5
-    // establishes mode-aware live and forecast eligibility.
+    // ---- V21 E4 integrity -------------------------------------------------------------------------
+    // E4 was typed as draft first and is promoted as one body: every E4 row is numeric, or none is, so a chapter never
+    // plays half of the Iron Age. The chapter rules (ChapterRules, WP5) keep a Bronze match from reaching any of them.
     private static void CheckE4DraftScope(ContentSet set, Report report)
     {
+        int numeric = set.Projects.Count(p => p.Era == 4 && p.Status != "draft");
         foreach (Project p in set.Projects.Where(p => p.Era == 4))
         {
-            if (p.Status != "draft")
-                report.Error("V21", At(p), $"{p.Id}: E4 projects must remain status: draft until WP5 mode-aware eligibility is implemented");
+            if (numeric > 0 && p.Status == "draft")
+                report.Error("V21", At(p), $"{p.Id}: E4 rows are promoted together; this one is still draft while {numeric} are numeric");
+            if (numeric == 0 && p.Status != "draft")
+                report.Error("V21", At(p), $"{p.Id}: E4 rows are promoted together; this status is not draft");
             if (set.CostOf(p) is null)
                 report.Error("V21", At(p), $"{p.Id}: E4 draft has no computed cost");
             if (p.Effects.Count == 0)

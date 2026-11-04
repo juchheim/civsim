@@ -81,7 +81,7 @@ projects:
     name: Harbors
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [SEA-06, BLD-09]
     effects:
       - {kind: build, structure: harbor}
@@ -94,7 +94,7 @@ projects:
     name: Great Lighthouse
     era: 4
     type: W
-    status: draft
+    status: numeric
     requires: [SEA-07, BLD-11]
     effects:
       - {kind: wonder, structure: great_lighthouse}
@@ -108,7 +108,7 @@ projects:
     name: War Galleys
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-07, WAR-07]
     effects:
       - {kind: unlock_action, action: naval_blockade}

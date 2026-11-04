@@ -98,7 +98,7 @@ projects:
     name: Terracing
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [AGR-06, STN-11]
     effects:
       - {kind: build, structure: terrace, note: "one farmable plot on eligible hill/mountain tile; materials paid"}
@@ -109,7 +109,7 @@ projects:
     name: "Iron Sickle & Scythe"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [AGR-05, MET-09]
     effects:
       - {kind: method, action: farm, rung: 4, name: iron_scythe, mult: 2.0, tool: t11, stage: harvest, note: "crop output only; no population-food grant"}
@@ -120,7 +120,7 @@ projects:
     name: Heavy Plough
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [AGR-09, NRG-02]
     effects:
       - {kind: method, action: till, rung: 1, name: mouldboard, mult: 1.0, note: "heavy-clay eligibility changes; no universal output bonus"}

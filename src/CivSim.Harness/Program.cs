@@ -53,6 +53,7 @@ public static class Program
                 "worldgen" => RunWorldGen(args[1..]),
                 "iron-audit" => IronGeographyAudit.Run(args[1..]),
                 "iron-live" => IronGeographyAudit.RunLive(args[1..]),
+                "iron-match" => IronMatchCommand.Run(args[1..]),
                 "iron-fuel" => IronFuelCheck.Run(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2..]),
                 _ => Usage(),
@@ -72,6 +73,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness iron-fuel --pack FILE [--seeds a,b,c] [--seasons N] [--people N]");
         Console.Error.WriteLine("       civsim-harness iron-audit [--seed N] [--seeds N] [--threads N] [--csv FILE]");
         Console.Error.WriteLine("       civsim-harness iron-live --pack FILE [--seed N] [--seeds N] [--minutes N]");
+        Console.Error.WriteLine("       civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE");
         Console.Error.WriteLine("       civsim-harness economy --pack FILE [--seed N] [--ticks N] [--checksum-every N] [--archetypes Balanced,Grower,Builder,Wanderer] [--complete TICK:CIV:PROJECT] [--record FILE] [--check-golden FILE | --write-golden FILE] [--report-economy] [--report-balance-reference] [--report-c1-reference] [--report-c3-midpoints] [--trace-demography]");
     Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6 | --check-a7 | --check-b7 | --check-b8 | --check-b27 | --check-b28 | --check-b29 | --check-m10 | --exploit) [--seeds N] [--first-seed N] [--minutes N] [--screen-minutes N] [--generations N] [--children N] [--archetype X] [--match-details] [--b28-trace] [--b28-proactive-defense-diagnostic] [--b28-public-era-shadow-diagnostic] [--food-shortage-skip-scouts] [--food-shortage-skip-scouts-chieftain] [--warlord-emergency-food-work-diagnostic] [--warlord-settlement-trace] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-global-force-campaign-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-found-frontier-trajectory] [--warlord-allow-exposed-found-diagnostic] [--a3-defer-warlord-s2-fission-until30] [--warlord-campaign-opportunity-trace] [--warlord-pre-e3-fission-threshold-scale-override X] [--warlord-b30-trace] [--a5-builder-fertility-diagnostic] [--a5-grower-fertility-diagnostic]");

@@ -94,7 +94,7 @@ projects:
     name: "Theatre & Arena"
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [ART-07, BLD-09]
     effects:
       - {kind: build, structure: theatre_arena}
