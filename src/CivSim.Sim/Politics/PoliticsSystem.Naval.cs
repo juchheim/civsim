@@ -133,7 +133,7 @@ public sealed partial class PoliticsSystem
             if (b.BeganSeason >= _season) continue;
 
             // Weather and rocks off the harbor: the base shipwreck odds of any voyage for each season on station (the passage out is not rolled; provisional).
-            if (RollVoyageLost(VoyageBaseRiskPermille, (ulong)(b.Origin * 8191L + b.Harbor) * 37UL + 5UL, _season))
+            if (RollVoyageLost(VoyageBaseRiskPermille, (ulong)(b.Origin * 8191L + b.Harbor) * 37UL + 5UL, _season, b.Civ))
             {
                 _economy.LoseGalley(b.Origin);
                 EndBlockade(i, 2);

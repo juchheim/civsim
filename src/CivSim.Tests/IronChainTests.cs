@@ -1027,6 +1027,45 @@ public class IronChainTests
         return tiles;
     }
 
+    [Fact]
+    public void Roads_and_relays_shorten_the_adoption_lag_of_a_linked_town_by_two_and_four()
+    {
+        (BronzeFixture none, int farNone) = WithFarProvince("KEY-4", "TRN-07", "COM-08");
+        Assert.Equal(1, none.Economy.RoadAdoptionDivisor(farNone)); // no road built
+        (BronzeFixture roads, int farRoads) = WithFarProvince("KEY-4", "TRN-07", "TRN-08");
+        roads.Economy.FixtureBuildIronStructure(farRoads, "road");
+        roads.Economy.FixtureBuildIronStructure(farRoads, "bridge");
+        Assert.Equal(2, roads.Economy.RoadAdoptionDivisor(farRoads));
+        (BronzeFixture relays, int farRelays) = WithFarProvince("KEY-4", "TRN-07", "TRN-08", "COM-08");
+        relays.Economy.FixtureBuildIronStructure(farRelays, "road");
+        relays.Economy.FixtureBuildIronStructure(farRelays, "bridge");
+        Assert.Equal(4, relays.Economy.RoadAdoptionDivisor(farRelays));
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "KEY-4", "TRN-07", "COM-08");
+        Assert.Equal(1, bronze.Economy.RoadAdoptionDivisor(0));
+    }
+
+    [Fact]
+    public void A_theatre_takes_a_tenth_off_the_distance_and_span_unrest_of_its_town()
+    {
+        (BronzeFixture plain, int farPlain) = WithFarProvince("KEY-4", "ART-08");
+        (BronzeFixture venue, int farVenue) = WithFarProvince("KEY-4", "ART-08");
+        venue.Economy.FixtureBuildIronStructure(farVenue, "theatre_arena");
+        foreach ((BronzeFixture f, int far) in new[] { (plain, farPlain), (venue, farVenue) }) { f.Economy.FixtureSetTier(0, 1); f.Economy.FixtureSetTier(far, 1); }
+        (int overPlain, int spanPlain) = plain.Economy.CohesionPressures(farPlain);
+        (int overVenue, int spanVenue) = venue.Economy.CohesionPressures(farVenue);
+        Assert.True(overPlain > 0);
+        Assert.True(overVenue < overPlain && overVenue >= overPlain * 8 / 10 - 1, $"{overPlain} -> {overVenue}");
+        Assert.True(spanVenue <= spanPlain);
+    }
+
+    [Fact]
+    public void A_province_under_a_feudal_contract_defends_fifteen_percent_better()
+    {
+        var plain = new Defenses(false, false, false, false, false, false, false, false, false, false, StoneWalls: true, BronzeRules: true);
+        Assert.Equal(plain.Multiplier() * Fix64.FromRatio(115, 100), (plain with { Feudal = true }).Multiplier());
+        Assert.Equal(plain.Multiplier(), (plain with { Feudal = false }).Multiplier());
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

@@ -14,7 +14,7 @@ namespace CivSim.Tests;
 public sealed class IronTributeTests
 {
     private const ulong Seed = 20261024;
-    private static readonly Lazy<CivSim.Sim.Content.ContentPack> Pack = new(() => TestPack.WithNumeric("KEY-4", "DIP-06"));
+    private static readonly Lazy<CivSim.Sim.Content.ContentPack> Pack = new(() => TestPack.WithNumeric("KEY-4", "DIP-06", "GOV-08"));
     private static readonly Lazy<ResearchCatalog> Catalog = new(() => new ResearchCatalog(Pack.Value));
     private static readonly Lazy<GeneratedWorld> World = new(() => WorldGenerator.Generate(Seed));
     private static readonly EconomyArchetype[] Balanced =
@@ -124,6 +124,27 @@ public sealed class IronTributeTests
         runner.Advance(150);
         Assert.Empty(match.Politics.Tributes);
         Assert.Contains(match.Politics.Events, e => e.Kind == PoliticsEventKind.TributeEnded && e.Civ == 0 && e.B == 0);
+    }
+
+    [Fact]
+    public void A_Republic_waits_a_quarter_longer_after_a_peace_before_it_may_declare_war()
+    {
+        (MatchModel republic, SimRunner runner, _, _) = Rig(ChapterRules.Iron);
+        (MatchModel plain, SimRunner plainRunner, _, _) = Rig(ChapterRules.Iron);
+        runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, Catalog.Value.IndexOf("GOV-08"), 0, 0));
+        runner.Advance(1);
+        foreach (MatchModel m in new[] { republic, plain })
+        {
+            m.Politics.SetWar(0, 1, false);
+            m.Politics.FixtureMakePeace(0, 1);
+        }
+        // Inside the 16-season truce both may break it (with the usual penalty) except the Republic, which may not; and the Republic stays held 4 seasons past it.
+        Assert.False(republic.Politics.OrderWar(0, 1));
+        Assert.True(plain.Politics.OrderWar(0, 1));
+        for (int season = 0; season < 17; season++) { runner.Advance(150); }
+        Assert.False(republic.Politics.OrderWar(0, 1), "17 seasons on, the Republic's longer window is still open");
+        for (int season = 0; season < 4; season++) runner.Advance(150);
+        Assert.True(republic.Politics.OrderWar(0, 1));
     }
 
     private static void Near(Fix64 expected, Fix64 actual)

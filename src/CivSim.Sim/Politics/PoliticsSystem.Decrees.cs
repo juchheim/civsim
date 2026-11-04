@@ -734,7 +734,7 @@ public sealed partial class PoliticsSystem
         h.Add(_foundingsSeen);
         HashTrade(ref h);
         HashInvestments(ref h);
-        if (_economy.IronChain) { HashBlockades(ref h); HashTributes(ref h); }
+        if (_economy.IronChain) { HashBlockades(ref h); HashTributes(ref h); HashLeagues(ref h); }
     }
 
     private void WriteBronze(System.IO.BinaryWriter w)
@@ -779,7 +779,7 @@ public sealed partial class PoliticsSystem
         w.Write(_foundingsSeen);
         WriteTrade(w);
         WriteInvestments(w);
-        if (_economy.IronChain) { WriteBlockades(w); WriteTributes(w); }
+        if (_economy.IronChain) { WriteBlockades(w); WriteTributes(w); WriteLeagues(w); }
     }
 
     private void ReadBronze(System.IO.BinaryReader r)
@@ -837,7 +837,7 @@ public sealed partial class PoliticsSystem
         _foundingsSeen = r.ReadInt32();
         ReadTrade(r);
         ReadInvestments(r);
-        if (_economy.IronChain) { ReadBlockades(r); ReadTributes(r); }
+        if (_economy.IronChain) { ReadBlockades(r); ReadTributes(r); ReadLeagues(r); }
     }
 }
 

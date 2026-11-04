@@ -90,6 +90,10 @@ public enum PoliticsEventKind : byte
     TributeAgreed,
     /// <summary>Tributary terms ended. Other = the other civilization, A = 0 overlord and 1 subject, B = 0 war again, 1 the term ran out, 2 the subject outgrew its terms.</summary>
     TributeEnded,
+    /// <summary>A league was founded or joined. Other = the partner, A = members now, B = 0 the proposer's record and 1 the partner's.</summary>
+    LeagueJoined,
+    /// <summary>A member left a league. Other = -1, A = members before it left.</summary>
+    LeagueEnded,
 }
 
 /// <summary>Diagnostic-only mining-camp claim-radius alternatives for frontier projection.</summary>
@@ -259,7 +263,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
             Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
-            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06;
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06, Dip07, Gov08, Gov09;
 
         public P(ResearchCatalog c)
         {
@@ -272,7 +276,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
             Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
-            Trd06 = c.IndexOf("TRD-06"); Trd07 = c.IndexOf("TRD-07"); Way06 = c.IndexOf("WAY-06"); Hus09 = c.IndexOf("HUS-09"); Sea07 = c.IndexOf("SEA-07"); Sea09 = c.IndexOf("SEA-09"); Dip06 = c.IndexOf("DIP-06");
+            Trd06 = c.IndexOf("TRD-06"); Trd07 = c.IndexOf("TRD-07"); Way06 = c.IndexOf("WAY-06"); Hus09 = c.IndexOf("HUS-09"); Sea07 = c.IndexOf("SEA-07"); Sea09 = c.IndexOf("SEA-09"); Dip06 = c.IndexOf("DIP-06"); Dip07 = c.IndexOf("DIP-07"); Gov08 = c.IndexOf("GOV-08"); Gov09 = c.IndexOf("GOV-09");
             Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); War09 = c.IndexOf("WAR-09");
         }
     }
@@ -614,6 +618,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         AdvanceBlockades();
         AdvanceFaith();
         AdvanceTribute();
+        AdvanceLeagues();
         AdvanceOccupations();
         RecoverCohesion();
         RunCivMinds();
@@ -1909,7 +1914,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4, Hillfort: hillfort, StoneWalls: walls,
             HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive,
             Gatehouse: walls && _economy.IronChain && _research.IsDone(civ, _p.Def06) && _economy.HasGatehouse(settlement),
-            Castle: _economy.IronChain && _research.IsDone(civ, _p.Def08) && _economy.CastleGarrisoned(settlement)));
+            Castle: _economy.IronChain && _research.IsDone(civ, _p.Def08) && _economy.CastleGarrisoned(settlement),
+            Feudal: _economy.IronChain && _p.Gov09 >= 0 && _research.IsDone(civ, _p.Gov09) && _economy.UnderFeudalContractAt(settlement)));
     }
 
     /// <summary>

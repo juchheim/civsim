@@ -17,7 +17,7 @@ public sealed partial class LivingEconomyModel
     /// <summary>Goods that exist only in the Iron chapter. Append only; the order is the slot order in snapshots.</summary>
     private enum IronGood : byte
     {
-        Wrought, Steel, Kit11, Kit12, Arms3, Arms4, Plank, Engine,
+        Wrought, Steel, Kit11, Kit12, Arms3, Arms4, Plank, Engine, BlownGlass, FiredBrick, Tile, Barrel, Grape, Olive, Wine, OilPlant,
         Count
     }
 
@@ -25,6 +25,8 @@ public sealed partial class LivingEconomyModel
     {
         IronGood.Wrought => "G-WROUGHT", IronGood.Steel => "G-STEEL", IronGood.Kit11 => "G-TOOL11", IronGood.Kit12 => "G-TOOL12",
         IronGood.Arms3 => "G-ARMS3", IronGood.Arms4 => "G-ARMS4", IronGood.Plank => "G-PLANK", IronGood.Engine => "G-ENGINE",
+        IronGood.BlownGlass => "G-BLOWNGLASS", IronGood.FiredBrick => "G-FBRICK", IronGood.Tile => "G-TILE", IronGood.Barrel => "G-BARREL",
+        IronGood.Grape => "G-GRAPE", IronGood.Olive => "G-OLIVE", IronGood.Wine => "G-WINE", IronGood.OilPlant => "G-OILPLANT",
         _ => "",
     };
 
@@ -319,7 +321,7 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null;
+        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0;
 
     private void HashIron(ref StateHasher hash)
     {
@@ -338,6 +340,7 @@ public sealed partial class LivingEconomyModel
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) hash.Add(tile);
             hash.Add(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) hash.Add(civ);
+            hash.Add(m.IronPledgeTo);
             hash.Add(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { hash.Add(m.IronFaith[k]); hash.Add(m.IronFaithSeason![k]); }
         }
@@ -363,6 +366,7 @@ public sealed partial class LivingEconomyModel
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) writer.Write(tile);
             writer.Write(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) writer.Write(civ);
+            writer.Write(m.IronPledgeTo);
             writer.Write(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { writer.Write(m.IronFaith[k].Raw); writer.Write(m.IronFaithSeason![k]); }
         }
@@ -418,6 +422,8 @@ public sealed partial class LivingEconomyModel
                 if (civ < 0) throw new InvalidDataException("Invalid Iron-chapter frontier civilization.");
                 metal.IronFacing!.Add(civ);
             }
+            metal.IronPledgeTo = reader.ReadInt32();
+            if ((uint)metal.IronPledgeTo > (uint)_settlements.Count) throw new InvalidDataException("Invalid Iron-chapter pledge.");
             int faiths = reader.ReadInt32();
             if (faiths < 0 || faiths > CivilizationCount) throw new InvalidDataException("Invalid Iron-chapter faith count.");
             metal.IronFaith = faiths == 0 ? null : new Fix64[faiths];
@@ -606,17 +612,161 @@ public sealed partial class LivingEconomyModel
         plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
     }
 
+    /// <summary>
+    /// The Iron chapter's craft goods are wanted in modest standing amounts, one for each twenty people, like the E3 luxuries (docs/MVP/23 §3): blown glass (CER-07),
+    /// fired brick for the roofs of a town (CER-08), pressed wine and oil (FOR-08 and a press), and enough barrels for the liquids in store (WOD-07). What there is
+    /// no producer for stays unmet: grapes and olives come only from grafted orchards, and nothing is created to fill a want.
+    /// </summary>
+    private void IronCraftWants(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        if (!IronChain) return;
+        int civ = s.Civilization;
+        Fix64 perTwenty = Fix64.FromInt((Population(s.Id) + 19) / 20);
+        void Want(IronGood good, Fix64 target)
+        {
+            Fix64 have = IronStock(s, good);
+            if (target > have) plan.Terminal[IronSlot(good)] += target - have;
+        }
+        if (Done(civ, "CER-07") && m.Smelters > 0) Want(IronGood.BlownGlass, perTwenty); // blow_glass runs in a smelter
+        if (Done(civ, "CER-08") && s.Structures[(int)Structure.Kiln] > 0) Want(IronGood.FiredBrick, perTwenty);
+        if (Done(civ, "FOR-08") && Done(civ, "MEC-05") && IronWorksCount(s, IronStructure.Press) > 0)
+        {
+            Want(IronGood.Wine, perTwenty);
+            Want(IronGood.OilPlant, perTwenty);
+        }
+        if (Done(civ, "WOD-07"))
+        {
+            Fix64 liquids = IronStock(s, IronGood.Grape) + IronStock(s, IronGood.Olive) + IronStock(s, IronGood.Wine) + IronStock(s, IronGood.OilPlant);
+            Want(IronGood.Barrel, Fix64.FromInt((liquids / BarrelLitres + Fix64.FromRatio(99, 100)).FloorToInt())); // one barrel to ten litres, rounded up
+        }
+    }
+
+    /// <summary>Litres of wine or oil a barrel holds (provisional).</summary>
+    private static readonly Fix64 BarrelLitres = Fix64.FromInt(10);
+
+    /// <summary>
+    /// Seasonal spoilage of grapes, olives, wine and oil (registry <c>goods.yaml</c>: 20%, 10%, 20%, 10% a season), cut by 40% for the share of them that sits in
+    /// barrels (WOD-07, "liquid storage loss x0.60", one barrel to ten litres). The barrel itself wears out like any good (40 seasons). Barrels in transit are not
+    /// modelled: no compact carries wine or oil.
+    /// </summary>
+    private void SpoilIronLiquids(MetalState m)
+    {
+        if (m.IronGoods is not { } iron) return;
+        Fix64 liquids = iron[(int)IronGood.Grape] + iron[(int)IronGood.Olive] + iron[(int)IronGood.Wine] + iron[(int)IronGood.OilPlant];
+        if (liquids <= Fix64.Zero) return;
+        Fix64 covered = Fix64.Min(Fix64.One, iron[(int)IronGood.Barrel] * BarrelLitres / liquids);
+        Fix64 keep = Fix64.One - Fix64.FromRatio(4, 10) * covered; // share of the usual loss that still happens
+        iron[(int)IronGood.Grape] -= iron[(int)IronGood.Grape] * Fix64.FromRatio(2, 10) * keep;
+        iron[(int)IronGood.Olive] -= iron[(int)IronGood.Olive] * Fix64.FromRatio(1, 10) * keep;
+        iron[(int)IronGood.Wine] -= iron[(int)IronGood.Wine] * Fix64.FromRatio(2, 10) * keep;
+        iron[(int)IronGood.OilPlant] -= iron[(int)IronGood.OilPlant] * Fix64.FromRatio(1, 10) * keep;
+    }
+
     /// <summary>Iron arms and siege engines wear out by age like the Bronze arms: a share of the stock each season, one over the service life (24 seasons iron, 48 steel-edge, 12 for an engine).</summary>
     private void WearIronGoods(MetalState m)
     {
         if (m.IronGoods is not { } iron) return;
-        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4, IronGood.Engine })
+        SpoilIronLiquids(m);
+        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4, IronGood.Engine, IronGood.Barrel })
         {
             int t = _content.TradeGoodIndex(IronGoodId(g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
             if (seasons > 0 && iron[(int)g] > Fix64.Zero) iron[(int)g] -= iron[(int)g] / seasons;
         }
     }
+
+    // ---- Wonders and leagues (LRN-06, SEA-08, BLD-11, DIP-07) -------------------------------------------
+
+    private static bool IsWonder(IronStructure kind) => kind is IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome;
+
+    /// <summary>The research project a Wonder completes, which earns its Legacy.</summary>
+    private static string WonderProject(IronStructure kind) => kind switch
+    {
+        IronStructure.GreatLibrary => "LRN-06", IronStructure.GreatLighthouse => "SEA-08", _ => "BLD-11",
+    };
+
+    /// <summary>The civilization that holds a Wonder, or -1: there is one of each in the world, and it belongs to whoever holds the town it stands in.</summary>
+    private int WonderOwnerCiv(IronStructure kind)
+    {
+        foreach (SettlementState s in _settlements) if (IronWorksCount(s, kind) > 0) return s.Civilization;
+        return -1;
+    }
+
+    /// <summary>True when the civilization holds the Great Lighthouse (SEA-08), the Great Library (LRN-06) or the Great Dome (BLD-11), named by its structure id.</summary>
+    public bool HoldsWonder(int civ, string structure)
+    {
+        if (!IronChain) return false;
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == structure && IsWonder((IronStructure)k)) return WonderOwnerCiv((IronStructure)k) == civ;
+        return false;
+    }
+
+    /// <summary>
+    /// A civilization builds a Wonder in its most populous town of tier 1 or more (a harbor town for the Lighthouse), one at a time, when nobody holds it yet.
+    /// </summary>
+    private bool WonderWanted(SettlementState s, IronStructure kind)
+    {
+        if (s.Civic is not { Tier: >= 1 } || IronWorksCount(s, kind) > 0 || WonderOwnerCiv(kind) >= 0) return false;
+        bool harbor = kind == IronStructure.GreatLighthouse;
+        SettlementState? best = null;
+        foreach (SettlementState o in _settlements)
+        {
+            if (o.Civilization != s.Civilization || o.Civic is not { Tier: >= 1 } || harbor && IronWorksCount(o, IronStructure.Harbor) == 0) continue;
+            if (best is null || Population(o.Id) > Population(best.Id)) best = o;
+        }
+        return best?.Id == s.Id;
+    }
+
+    /// <summary>The settlement a league member's labor is pledged to, if that settlement is still building a Wonder.</summary>
+    private SettlementState? PledgedWonder(MetalState m)
+    {
+        if (m.IronPledgeTo <= 0 || m.IronPledgeTo > _settlements.Count) return null;
+        SettlementState target = _settlements[m.IronPledgeTo - 1];
+        return target.Metal is { IronBuildKind: >= 0 } tm && IsWonder((IronStructure)tm.IronBuildKind) ? target : null;
+    }
+
+    /// <summary>The settlement of a civilization that is building a Wonder now, or -1 (what its league partners may pledge to).</summary>
+    public int WonderUnderConstruction(int civ)
+    {
+        foreach (SettlementState s in _settlements)
+            if (s.Civilization == civ && s.Metal is { IronBuildKind: >= 0 } m && IsWonder((IronStructure)m.IronBuildKind)) return s.Id;
+        return -1;
+    }
+
+    /// <summary>The civilization's most populous town of tier 1 or more: the one it can spare to a league partner's Wonder; -1 when none.</summary>
+    public int LeagueContributor(int civ)
+    {
+        int best = -1;
+        foreach (SettlementState s in _settlements)
+        {
+            if (s.Civilization != civ || s.Civic is not { Tier: >= 1 } || IsFreeFolk(s)) continue;
+            if (best < 0 || Population(s.Id) > Population(best)) best = s.Id;
+        }
+        return best;
+    }
+
+    /// <summary>Points a settlement's Iron build labor at another settlement's Wonder (-1 stops it). Set each season by politics for league members.</summary>
+    public void SetWonderPledge(int settlementIndex, int builderSettlement)
+    {
+        if (!IronChain) return;
+        SettlementState s = _settlements[settlementIndex];
+        if (builderSettlement < 0 && s.Metal is null) return;
+        EnsureMetal(s).IronPledgeTo = builderSettlement < 0 ? 0 : builderSettlement + 1;
+    }
+
+    /// <summary>
+    /// How much faster knowledge reaches a road-linked town (TRN-07 adopt x2, COM-08 adopt x2): the distance lag of its adoption is divided by 2 with paved roads and by
+    /// 4 once courier relays run on them. 1 for a town with no complete road, and always 1 outside the Iron chapter.
+    /// </summary>
+    public int RoadAdoptionDivisor(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        if (!IronChain || !RoadLinked(s)) return 1;
+        return (Done(s.Civilization, "TRN-07") ? 2 : 1) * (Done(s.Civilization, "COM-08") ? 2 : 1);
+    }
+
+    /// <summary>The settlement is a province seat or member under a feudal contract (GOV-09): its local defense is stronger.</summary>
+    public bool UnderFeudalContractAt(int settlementIndex) => UnderFeudalContract(_settlements[settlementIndex]);
 
     // ---- walls, castles and siege engines (DEF-06 to DEF-08, WAR-09) -------------------------------------
 
@@ -628,6 +778,30 @@ public sealed partial class LivingEconomyModel
         for (int k = 0; k < count; k++)
             if ((Biome)_world.Tile(neighbors[k]).BiomeId is Biome.Ocean or Biome.Coast) return true;
         return false;
+    }
+
+    /// <summary>Academies one civilization keeps (provisional): scholars are the largest single Insight role, so they are bounded by buildings, not by demand.</summary>
+    private const int MaxAcademies = 3;
+
+    private int CivWorksCount(int civ, IronStructure kind)
+    {
+        int n = 0;
+        foreach (SettlementState o in _settlements) if (o.Civilization == civ) n += IronWorksCount(o, kind);
+        return n;
+    }
+
+    /// <summary>One scholar for each academy, once the civilization knows LRN-05 (the role is staffed from the town's adults, as a priest is; it does not create a person).</summary>
+    private int ScholarSlots(SettlementState s)
+        => IronChain && Done(s.Civilization, "LRN-05") ? IronWorksCount(s, IronStructure.Academy) : 0;
+
+    /// <summary>Scholars in post across a civilization, for the research system's Insight (48 a year each in the registry).</summary>
+    public int ScholarHeads(int civ)
+    {
+        if (!IronChain) return 0;
+        int n = 0;
+        foreach (FigureState f in _figures)
+            if (f.Role == Role.Scholar && f.Civilization == civ) n++;
+        return n;
     }
 
     /// <summary>Soldiers who crew a war galley (docs/MVP/26 §4 asks for a crew; four, like an engine, provisional).</summary>
@@ -878,6 +1052,23 @@ public sealed partial class LivingEconomyModel
         return plotIndex < blades * GraftedPlotsPerBlade ? Fix64.FromInt(2) : Fix64.One;
     }
 
+    /// <summary>
+    /// A grafted orchard plot also gives a litre of grapes or olives a year (docs/MVP/26 §2.1: 1 L per orchard work-season of the grafted plot): olives on dry ground
+    /// (grassland, savanna, open woodland), grapes on wet or wooded ground (forest, wetland), none elsewhere. They are goods for pressing and trade, not food in store,
+    /// so they feed no one and create no calories.
+    /// </summary>
+    private void HarvestGrafted(SettlementState s, OrchardPlot plot, int plotIndex)
+    {
+        if (!IronChain || GraftedOrchardFactor(s, plotIndex) <= Fix64.One) return;
+        IronGood crop = (Biome)_world.Tile(plot.Tile).BiomeId switch
+        {
+            Biome.GrasslandSteppe or Biome.Savanna or Biome.OpenWoodland => IronGood.Olive,
+            Biome.TemperateForest or Biome.TropicalForest or Biome.Wetland => IronGood.Grape,
+            _ => IronGood.Count,
+        };
+        if (crop != IronGood.Count) AddStock(s, IronSlot(crop), Fix64.One);
+    }
+
     // ---- public grain (FOD-09) ----------------------------------------------------------------------------
 
     /// <summary>The most a town can take in as public grain in a season, as a share of a ration per person (the transfer's capacity limit; provisional).</summary>
@@ -972,7 +1163,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge, Gatehouse, FrontierWall, Castle, Harbor, Galley,
+        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge, Gatehouse, FrontierWall, Castle, Harbor, Galley, Academy, GreatLibrary, GreatLighthouse, GreatDome, Press,
         Count
     }
 
@@ -1000,6 +1191,14 @@ public sealed partial class LivingEconomyModel
         new("harbor", "SEA-07", 24, 8, 0, 12, 0, Stone: true),
         // A war galley (docs/MVP/25 §7): timber and iron fittings, laid down at a harbor.
         new("galley", "SEA-09", 20, 0, 0, 14, 1),
+        // An academy: a hall of block and timber (docs/MVP/26 §3.2).
+        new("academy", "LRN-05", 16, 8, 0, 2, 0, Stone: true),
+        // The three Iron Wonders (docs/MVP/25 Q7: buildable as normal Wonders; the catalog gives no cost, so these are provisional and sized like the E3 ziggurat's 200 work-seasons).
+        new("great_library", "LRN-06", 150, 60, 40, 30, 4, Large: true, Stone: true),
+        new("great_lighthouse", "SEA-08", 120, 40, 30, 40, 4, Large: true, Stone: true),
+        new("great_dome", "BLD-11", 180, 80, 60, 20, 6, Large: true, Stone: true),
+        // A screw press for wine and oil (docs/MVP/26 §3.2): timber and two litres of bloom for the screw.
+        new("press", "MEC-05", 8, 0, 0, 4, 2),
     };
 
     /// <summary>
@@ -1084,6 +1283,13 @@ public sealed partial class LivingEconomyModel
             // A harbor town with a standing guard keeps one galley: the ship is built once and lost only to a wreck or a defeat.
             IronStructure.Galley => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Harbor) > 0 && IronWorksCount(s, IronStructure.Galley) == 0 &&
                 Done(s.Civilization, "WAR-07") && s.Metal is { } gm && gm.IronSoldiersSupplied >= GalleyCrew,
+            // A town of some size builds an academy; a civilization keeps at most three (provisional): each staffed scholar is worth 48 Insight a year.
+            IronStructure.Academy => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Academy) == 0 && Population(s.Id) >= 50 &&
+                CivWorksCount(s.Civilization, IronStructure.Academy) < MaxAcademies,
+            // A press stands where grafted orchards give grapes or olives to press.
+            IronStructure.Press => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Press) == 0 && Done(s.Civilization, "FOR-08") && s.OrchardPlots.Count > 0,
+            IronStructure.GreatLibrary or IronStructure.GreatDome => WonderWanted(s, kind),
+            IronStructure.GreatLighthouse => IronWorksCount(s, IronStructure.Harbor) > 0 && WonderWanted(s, kind),
             IronStructure.Castle => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Castle) == 0 && Population(s.Id) >= 60 && HasStoneWalls(s) &&
                 NearestForeignDistance(s) <= CastleReach,
             _ => false,
@@ -1097,6 +1303,7 @@ public sealed partial class LivingEconomyModel
             IronStructure.WindlassWell => IronWorksCount(s, kind) < 2,
             IronStructure.Gatehouse => IronWorksCount(s, kind) == 0 && HasStoneWalls(s),
             IronStructure.FrontierWall => IronWorksCount(s, kind) < 2 && NextFrontierFacing(s) >= 0,
+            IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome => IronWorksCount(s, kind) == 0 && WonderOwnerCiv(kind) < 0,
             _ => IronWorksCount(s, kind) == 0,
         };
 
@@ -1126,7 +1333,10 @@ public sealed partial class LivingEconomyModel
     /// <summary>The labor the Iron structure under construction can take this season: what it still needs, within its share of the settlement's work.</summary>
     private Fix64 IronBuildLabor(SettlementState s, MetalState m, Fix64 totalWork)
     {
-        if (!IronChain || m.IronBuildKind < 0) return Fix64.Zero;
+        if (!IronChain) return Fix64.Zero;
+        if (PledgedWonder(m) is { } wonder)
+            return Fix64.Min(Fix64.Max(Fix64.Zero, IronLaborOf(wonder, IronSpecs[wonder.Metal!.IronBuildKind]) - wonder.Metal.IronBuildProgress), totalWork * IronBuildShare);
+        if (m.IronBuildKind < 0) return Fix64.Zero;
         Fix64 remaining = Fix64.Max(Fix64.Zero, IronLaborOf(s, IronSpecs[m.IronBuildKind]) - m.IronBuildProgress);
         return Fix64.Min(remaining, totalWork * IronBuildShare);
     }
@@ -1137,7 +1347,17 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private Fix64 RunIronBuild(SettlementState s, MetalState m, MetalPlan plan)
     {
-        if (!IronChain || m.IronBuildKind < 0) return Fix64.Zero;
+        if (!IronChain) return Fix64.Zero;
+        if (PledgedWonder(m) is { } pledgedTo)
+        {
+            // A league member's labor goes into the builder's Wonder instead of its own works: delivered work, never multiplied (DIP-07).
+            Fix64 wonderLabor = IronLaborOf(pledgedTo, IronSpecs[pledgedTo.Metal!.IronBuildKind]);
+            Fix64 room = Fix64.Max(Fix64.Zero, wonderLabor - pledgedTo.Metal.IronBuildProgress);
+            Fix64 given = Fix64.Min(room, plan.IronBuildAssigned);
+            pledgedTo.Metal.IronBuildProgress += given;
+            return plan.IronBuildAssigned - given;
+        }
+        if (m.IronBuildKind < 0) return Fix64.Zero;
         IronSpec spec = IronSpecs[m.IronBuildKind];
         Fix64 labor = IronLaborOf(s, spec), over = Fix64.Zero;
         m.IronBuildProgress += plan.IronBuildAssigned;
@@ -1155,6 +1375,7 @@ public sealed partial class LivingEconomyModel
             m.Goods[(int)MetalGood.Iron] < Fix64.FromInt(spec.Bloom) || s.Stores[(int)Good.Wood] < Fix64.FromInt(spec.Wood)) return false;
         if (m.IronBuildKind == (int)IronStructure.Terrace && NextTerraceTile(s) < 0) return false;
         if (m.IronBuildKind == (int)IronStructure.FrontierWall && NextFrontierFacing(s) < 0) return false;
+        if (IsWonder((IronStructure)m.IronBuildKind) && WonderOwnerCiv((IronStructure)m.IronBuildKind) >= 0) return false; // someone else finished it first: there is one of each
         AddStock(s, MetalSlot(MetalGood.Block), -Fix64.FromInt(spec.Block));
         AddStock(s, MetalSlot(MetalGood.Ashlar), -Fix64.FromInt(spec.Ashlar));
         AddStock(s, MetalSlot(MetalGood.Iron), -Fix64.FromInt(spec.Bloom));
@@ -1166,6 +1387,7 @@ public sealed partial class LivingEconomyModel
     {
         if (kind == IronStructure.FrontierWall) (m.IronFacing ??= new List<int>()).Add(NextFrontierFacing(s)); // before the count rises: the facing is the civ this segment answers
         (m.IronWorks ??= new int[(int)IronStructure.Count])[(int)kind]++;
+        if (IsWonder(kind)) _wondersBuilt.Add((s.Civilization, WonderProject(kind))); // the Wonder's Legacy (docs/MVP/22 §3.3)
         if (kind == IronStructure.Terrace)
         {
             int tile = NextTerraceTile(s);

@@ -145,10 +145,20 @@ public sealed partial class PoliticsSystem
         return LaunchAssault(c, other, requireOdds: false);
     }
 
+    /// <summary>
+    /// A Republic (GOV-08) keeps its voluntary war declarations waiting a quarter longer after a peace: the 16-season truce becomes 20, and it cannot break the truce
+    /// at all. Defense and relief are never delayed, since this gates only declaring war.
+    /// </summary>
+    private bool RepublicDelaysWar(int c, int o)
+        => _economy.IronChain && _p.Gov08 >= 0 && _research.IsDone(c, _p.Gov08) && _dip.InTruce(c, o, _season - RepublicTruceExtra);
+
+    private const int RepublicTruceExtra = 4;
+
     public bool OrderWar(int c, int o)
     {
         if (c == o || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _dip.Allied(c, o)) return false;
         // Breaking a truce is a reputation event (13 §8.1).
+        if (RepublicDelaysWar(c, o)) return false;
         if (_dip.InTruce(c, o, _season)) _dip.AdjustReputation(c, -40);
         // War breaks a non-aggression pact: Relations −60, reputation −30 (DIP-04).
         if (_pacts.Count > 0) BreakPacts(c, o);

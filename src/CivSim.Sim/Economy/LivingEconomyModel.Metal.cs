@@ -829,6 +829,7 @@ public sealed partial class LivingEconomyModel
             if (id == "kiln" && s.Structures[(int)Structure.Kiln] > 0) return true;
             if (id == "smelter" && m is not null && m.Smelters > 0) return true;
             if (id == "forge" && m is not null && m.Forges > 0) return true;
+            if (id == "press" && IronWorksCount(s, IronStructure.Press) > 0) return true;
         }
         return false;
     }
@@ -1208,6 +1209,7 @@ public sealed partial class LivingEconomyModel
         IronBuildWants(s, m, plan);
         IronArmsWant(s, m, plan);
         IronEngineWant(s, m, plan);
+        IronCraftWants(s, m, plan);
         int reach = ShareReach(civ);
         if (reach >= 0)
         {

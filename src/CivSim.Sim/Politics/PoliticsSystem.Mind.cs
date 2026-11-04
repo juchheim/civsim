@@ -334,7 +334,7 @@ public sealed partial class PoliticsSystem
 
     private void ConsiderWar(int c, int o)
     {
-        if (_dip.AtWar(c, o) || _dip.Allied(c, o) || _dip.InTruce(c, o, _season)) return;
+        if (_dip.AtWar(c, o) || _dip.Allied(c, o) || _dip.InTruce(c, o, _season) || RepublicDelaysWar(c, o)) return;
         if (_pacts.Count > 0 && HasPact(c, o)) return;
         if (!_research.IsDone(c, _p.War02)) return;
         Posture posture = (Posture)_posture[c];

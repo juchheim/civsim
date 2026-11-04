@@ -262,6 +262,57 @@ public sealed partial class LivingEconomyModel
     }
 
     internal void FixtureSetSoldiersSupplied(int settlementIndex, int count) => EnsureMetal(_settlements[settlementIndex]).IronSoldiersSupplied = count;
+    /// <summary>Runs the completion step of an Iron structure (counts it, earns a Wonder's Legacy, claims a terrace tile) as a finished build would.</summary>
+    internal void FixtureCompleteIron(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) { SettlementState s = _settlements[settlementIndex]; CompleteIronBuild(s, EnsureMetal(s), (IronStructure)k); return; }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    /// <summary>Starts an Iron structure as the settlement's current build, with no labor in yet.</summary>
+    internal void FixtureStartIronBuild(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) { MetalState m = EnsureMetal(_settlements[settlementIndex]); m.IronBuildKind = k; m.IronBuildProgress = Fix64.Zero; return; }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal Fix64 FixtureIronBuildProgress(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildProgress ?? Fix64.Zero;
+
+    internal int FixtureLuxuryItems(int settlementIndex) => LuxuryItems(_settlements[settlementIndex]);
+    internal void FixtureSpoilLiquids(int settlementIndex) { if (_settlements[settlementIndex].Metal is { } m) SpoilIronLiquids(m); }
+
+    /// <summary>The first habitable land tile whose biome is one of the named ones, for orchard fixtures; -1 when none.</summary>
+    internal int FixtureTileOfBiomes(params Biome[] biomes)
+    {
+        for (int tile = 0; tile < _world.TileCount; tile++) if (Array.IndexOf(biomes, (Biome)_world.Tile(tile).BiomeId) >= 0) return tile;
+        return -1;
+    }
+
+    /// <summary>Plants a mature orchard plot on a tile and runs one harvest of it, as the autumn step does.</summary>
+    internal void FixtureHarvestOrchard(int settlementIndex, int tile)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        s.OrchardPlots.Clear();
+        s.OrchardPlots.Add(new OrchardPlot { Tile = tile, AgeSeasons = 100 });
+        HarvestGrafted(s, s.OrchardPlots[0], 0);
+    }
+
+    /// <summary>How many of a run of fire trials burn a structure, with fresh flammable structures each time (the draw depends on how many remain).</summary>
+    internal int FixtureBurnTrials(int settlementIndex, int trials)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        int burned = 0;
+        for (int i = 0; i < trials; i++)
+        {
+            s.Structures[(int)Structure.ThornBarrier] = i + 1;
+            if (BurnStructure(settlementIndex)) burned++;
+        }
+        s.Structures[(int)Structure.ThornBarrier] = 0;
+        return burned;
+    }
+
     internal Fix64 FixtureGroupCap(int settlementIndex) => GroupCap(_settlements[settlementIndex]);
     internal int FixtureSettlementCount => _settlements.Count;
     internal int FixtureCivOf(int settlementIndex) => _settlements[settlementIndex].Civilization;

@@ -211,6 +211,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         bool onFoot = WalkFrom(_sTile[fromHub])[_sTile[toHub]] != int.MaxValue;
         bool packAnimals = onFoot && _p.Hus09 >= 0 && _research.IsDone(mover, _p.Hus09);
         bool byHarbor = !onFoot && !IsBlockaded(fromHub) && !IsBlockaded(toHub) && _p.Sea07 >= 0 && _research.IsDone(mover, _p.Sea07) && _economy.HasHarbor(fromHub) && _economy.HasHarbor(toHub);
+        if (byHarbor && _economy.HoldsWonder(mover, "great_lighthouse")) return Math.Max(1, (tiles * 5 + 17) / 18); // SEA-08 sea throughput x1.2 on top of the x3
         return packAnimals || byHarbor ? Math.Max(1, (tiles + 2) / 3) : tiles;
     }
 

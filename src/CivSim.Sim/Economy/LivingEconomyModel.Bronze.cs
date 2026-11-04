@@ -146,6 +146,8 @@ public sealed partial class LivingEconomyModel
         public List<int>? IronFacing;
         /// <summary>Share of this settlement's people who follow each civilization's faith (BEL-09); index = civilization. Null until a missionary has come.</summary>
         public Fix64[]? IronFaith;
+        /// <summary>The settlement (index + 1) whose Wonder this settlement's Iron build labor goes to this season, or 0 (a league contribution, DIP-07).</summary>
+        public int IronPledgeTo;
         /// <summary>The season each faith last gained converts here, or -1; the soft claim pressure runs only while a missionary keeps coming.</summary>
         public int[]? IronFaithSeason;
         /// <summary>How many of the settlement's staffed soldiers were paid their upkeep this season (Iron chapter); only these fight as professionals.</summary>
@@ -780,7 +782,7 @@ public sealed partial class LivingEconomyModel
         foreach (FigureState f in _figures)
         {
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
-                f.Role > (IronChain ? Role.Missionary : Role.Scribe))
+                f.Role > (IronChain ? Role.Scholar : Role.Scribe))
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }
         ValidateCivic();
@@ -823,6 +825,7 @@ public sealed partial class LivingEconomyModel
         m.IronSoldiersSupplied = source.IronSoldiersSupplied;
         if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
         if (source.IronFacing is not null) m.IronFacing = new List<int>(source.IronFacing);
+        m.IronPledgeTo = source.IronPledgeTo;
         if (source.IronFaith is not null) m.IronFaith = (Fix64[])source.IronFaith.Clone();
         if (source.IronFaithSeason is not null) m.IronFaithSeason = (int[])source.IronFaithSeason.Clone();
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);

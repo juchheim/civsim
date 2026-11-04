@@ -2765,6 +2765,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (orchard.AgeSeasons < 224) orchard.AgeSeasons++;
             if (season % 4 == 2 && orchard.AgeSeasons is >= 24 and < 224)
                 settlement.Stores[(int)Good.Fruit] += Fix64.FromInt(3) * GraftedOrchardFactor(settlement, i);
+            if (season % 4 == 2 && orchard.AgeSeasons is >= 24 and < 224) HarvestGrafted(settlement, orchard, i);
         }
     }
 

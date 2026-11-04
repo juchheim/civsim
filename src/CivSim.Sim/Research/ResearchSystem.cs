@@ -70,7 +70,7 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
-    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight;
+    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _wonderLibrary;
     private readonly int _soc03, _trd04, _bel05, _bld05, _bld07;
     private long _tick;
 
@@ -106,6 +106,11 @@ public sealed partial class ResearchSystem : IResearchView
         _statScribe = catalog.StatIndex("scribe_output");
         _statPriest = catalog.StatIndex("priest_insight");
         _statRoleInsight = catalog.StatIndex("role_insight");
+        _roleScholar = catalog.RoleIndex("scholar");
+        _statScholar = catalog.StatIndex("scholar_insight");            // INQ-04, BEL-08, LRN-06 (Iron chapter)
+        _statScribeLearning = catalog.StatIndex("scribe_learning_output"); // COM-07
+        _statMecNrgCost = catalog.StatIndex("mec_nrg_project_cost");     // INQ-05
+        _wonderLibrary = catalog.IndexOf("LRN-06");
         _soc03 = catalog.IndexOf("SOC-03");
         _trd04 = catalog.IndexOf("TRD-04");
         _bel05 = catalog.IndexOf("BEL-05");
@@ -245,11 +250,15 @@ public sealed partial class ResearchSystem : IResearchView
         int knowers = 0;
         for (int o = 0; o < _civs.Length; o++)
             if (o != civ && InContact(civ, o) && _civs[o].Done[project]) knowers++;
-        if (knowers > 0) cost = cost * Fix64.Max(_diffusionFloor, Fix64.One - _diffusionStep * knowers);
+        // The Great Library (LRN-06, once built) doubles each knowing civilization's discount; the floor stays, so a cost never goes below it.
+        Fix64 step = _wonderLibrary >= 0 && c.WondersBuilt.BinarySearch(_wonderLibrary) >= 0 ? _diffusionStep * 2 : _diffusionStep;
+        if (knowers > 0) cost = cost * Fix64.Max(_diffusionFloor, Fix64.One - step * knowers);
         int lag = c.Era - def.Era;
         if (lag > 0) cost = cost * FixMath.PowInt(_eraLag, lag);
         foreach (Gate g in def.Gates)
             if (g.Kind == GateKind.Climate && g.Target == c.ClimateTarget) cost = cost * ClimateDiscount;
+        // INQ-05: machine (MEC) and energy (NRG) projects cost 10% less, applied to the current cost like every other discount (no credit for work already done).
+        if (_statMecNrgCost >= 0 && (def.Id.StartsWith("MEC-", StringComparison.Ordinal) || def.Id.StartsWith("NRG-", StringComparison.Ordinal))) cost = cost * c.ModMult[_statMecNrgCost];
         return cost;
     }
 
@@ -715,6 +724,9 @@ public sealed partial class ResearchSystem : IResearchView
             // E3 roles by structure (docs/MVP/22 §8.4): COM-06 ×1.5 scribe output, NUM-06 +4 a Priest, SOC-08 +10% role Insight.
             if (r == _roleScribe && _statScribe >= 0) output = output * civ.ModMult[_statScribe];
             if (r == _rolePriest && _statPriest >= 0) output = output + heads * civ.ModFlat[_statPriest];
+            // The Iron chapter's learning mods apply to one role each (docs/MVP/26 §2.3 "Insight +x%" names its pool): scholars, and the scribes' own output.
+            if (r == _roleScholar && _statScholar >= 0) output = output * civ.ModMult[_statScholar];
+            if (r == _roleScribe && _statScribeLearning >= 0) output = output * civ.ModMult[_statScribeLearning];
             if ((r == _roleScribe || r == _rolePriest) && _statRoleInsight >= 0) output = output * civ.ModMult[_statRoleInsight];
             roles += output;
         }

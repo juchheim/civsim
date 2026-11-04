@@ -155,6 +155,7 @@ public sealed partial class PoliticsSystem
 
     internal Fix64 FixtureFieldStrength(int civ) => FieldStrength(civ);
     internal void FixtureAdvanceTribute() => AdvanceTribute();
+    internal void FixtureMakePeace(int a, int b) => _dip.MakePeace(a, b, _season);
     internal void FixtureAccrueDominion() => AccrueDominionWithTribute();
     internal Fix64 FixtureDominion(int civ) => _territory.Dominion(civ);
 }

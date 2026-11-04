@@ -9,12 +9,14 @@ namespace CivSim.Sim.Politics;
 public readonly record struct Defenses(
     bool ThornBarrier, bool Palisade, bool Watchers, bool Dogs, bool SignalFires, bool AlarmCalls, bool HillSite,
     bool Archery, bool Night, bool RaidedRecently, bool Hillfort = false, bool StoneWalls = false, bool HillfortRefuge = false,
-    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false)
+    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false, bool Feudal = false)
 {
     public static readonly Defenses None = default;
 
     /// <summary>The intact wall multiplier with a gatehouse and towers (docs/MVP/25 §7: 3 to 4.5).</summary>
     public static readonly Fix64 IntactTowerWall = Fix64.FromRatio(9, 2);
+    /// <summary>A province under a feudal contract defends itself 15% better (GOV-09 local_defense x1.15).</summary>
+    public static readonly Fix64 FeudalLocalDefense = Fix64.FromRatio(115, 100);
     /// <summary>A garrisoned castle is a strongpoint: defenders fight at x1.25 (provisional; the catalog names the castle a strongpoint without a number).</summary>
     public static readonly Fix64 CastleStrongpoint = Fix64.FromRatio(5, 4);
 
@@ -41,6 +43,7 @@ public readonly record struct Defenses(
         if (modernBarrier) m = m * barrier;
         if (HillSite) m = m * Fix64.FromRatio(12, 10);
         if (Castle) m = m * CastleStrongpoint;
+        if (Feudal) m = m * FeudalLocalDefense;
         if (Archery && (modernBarrier ? barrier > Fix64.One : ThornBarrier || Palisade)) m = m * Fix64.FromRatio(5, 4);
         return m;
     }

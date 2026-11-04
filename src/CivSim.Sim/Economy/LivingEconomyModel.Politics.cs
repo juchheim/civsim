@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Randomness;
 
 namespace CivSim.Sim.Economy;
 
@@ -146,6 +147,14 @@ public sealed partial class LivingEconomyModel
     public bool BurnStructure(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
+        // CER-08: a town roofed in fired brick and tile catches fire half as often. Roofed means a fired-brick store of at least one for every twenty people; the
+        // draw is keyed on the settlement, the tick and how much is left to burn, so no new state is kept.
+        if (IronChain && Done(s.Civilization, "CER-08") && IronStock(s, IronGood.FiredBrick) >= Fix64.FromInt((Population(s.Id) + 19) / 20))
+        {
+            int left = 0;
+            foreach (int count in s.Structures) left += count;
+            if (Pcg32.ForStream(_seed, 0x46495245UL, (ulong)settlementIndex, Tick * 4096 + left).NextBelow(2) == 0) return false;
+        }
         Structure[] flammable =
         {
             Structure.HideTent, Structure.LeanTo, Structure.DryingRack, Structure.ThornBarrier, Structure.PitHouse,

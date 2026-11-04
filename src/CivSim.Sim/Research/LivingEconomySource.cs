@@ -256,6 +256,8 @@ public sealed class LivingEconomySource : IResearchSource
         int priestRole = _catalog.RoleIndex("priest"), scribeRole = _catalog.RoleIndex("scribe");
         if (priestRole >= 0) heads[priestRole] += _priests[civ];
         if (scribeRole >= 0) heads[scribeRole] += _scribes[civ];
+        int scholarRole = _catalog.RoleIndex("scholar");
+        if (scholarRole >= 0) heads[scholarRole] += Fix64.FromInt(_economy.ScholarHeads(civ)); // Iron chapter only; zero everywhere else
         Fix64 workers = adults + elders;
         (Fix64 insight, Fix64 roles, Fix64 knowHow) = ArchetypeScales(_archetypes[civ]);
         return new InsightInputs
@@ -373,7 +375,7 @@ public sealed class LivingEconomySource : IResearchSource
         if (_scribeAt[civ][settlement] && _com05 >= 0) return 0;
         int home = _economy.SettlementLite(_settlementIndices[civ][0]).SiteTile;
         int there = _economy.SettlementLite(_settlementIndices[civ][settlement]).SiteTile;
-        return HexGrid.Distance(home, there, _world.Width) / 6;
+        return HexGrid.Distance(home, there, _world.Width) / 6 / _economy.RoadAdoptionDivisor(_settlementIndices[civ][settlement]);
     }
 
     public long ChooseInnovator(int civ, int project, int primaryPractice)
