@@ -89,7 +89,8 @@ func sync() -> void:
 		return
 	if not teams.is_empty():
 		for pose in ["a", "b"]:
-			slots["ard_team_" + pose] = _multimesh("ard_team_" + pose, b.mats.figure, teams.size())
+			for team_mesh in ["ard_team_", "plough_team_"]:
+				slots[team_mesh + pose] = _multimesh(team_mesh + pose, b.mats.figure, teams.size())
 	if not carts.is_empty():
 		for pose in ["a", "b"]:
 			slots["ox_cart_" + pose] = _multimesh("ox_cart_" + pose, b.mats.figure, carts.size())
@@ -111,10 +112,10 @@ func _find_fields() -> void:
 			continue
 		var kind: int = b.field_kind(tile)
 		var centre: Vector2 = w.tile_center(tile)
-		if kind == 1 and teams.size() < MAX_TEAMS and (not team_civs.has(civ) or M7WorldData.hash01(tile, 0, 420) < TEAM_SHARE):
+		if (kind == 1 or kind == 3) and teams.size() < MAX_TEAMS and (not team_civs.has(civ) or M7WorldData.hash01(tile, 0, 420) < TEAM_SHARE):
 			team_civs[civ] = true
 			teams.append({
-				"civ": civ, "tile": tile, "centre": centre, "angle": b.field_angle(tile), "id": teams.size(),
+				"civ": civ, "tile": tile, "centre": centre, "angle": b.field_angle(tile), "id": teams.size(), "heavy": kind == 3,
 				"phase": M7WorldData.hash01(tile, 1, 421),
 			})
 		elif kind == 2 and grazers.size() < MAX_GRAZERS:
@@ -259,8 +260,8 @@ func _play_team(team: Dictionary, seconds: float) -> void:
 	var pose := "a" if int(floor(walked / STRIDE)) % 2 == 0 else "b"
 	team["now"] = pos
 	var xf := Transform3D(Basis(Vector3.UP, M7DogRig._face(dir)).scaled(Vector3.ONE * SIZE), Vector3(pos.x, y, pos.y))
-	_put("ard_team_" + pose, xf, float(int(team.civ) % 8), M7WorldData.hash01(int(team.tile), int(team.id), 424))
-	_put_shadow(pos + dir * 0.08 * SIZE, y, dir, 3.4 * SIZE, 1.5)
+	_put(("plough_team_" if team.get("heavy", false) else "ard_team_") + pose, xf, float(int(team.civ) % 8), M7WorldData.hash01(int(team.tile), int(team.id), 424))
+	_put_shadow(pos + dir * 0.08 * SIZE, y, dir, (4.6 if team.get("heavy", false) else 3.4) * SIZE, 1.5)
 
 func _play_grazer(grazer: Dictionary, seconds: float) -> void:
 	var w: M7WorldData = b.w

@@ -405,10 +405,12 @@ static func _flag_z(x: float, xs: Array, zs: Array) -> float:
 # ------------------------------------------------------------------ people
 
 ## Adult figure, ~0.1 tall, facing +Z. tool: "", spear, basket, axe, hoe, pole, hammer, stick
-## Tool-head colour by tier: 0 flaked stone (the base colour), 1 ground and polished stone, 2 copper, 3 bronze.
-const TOOL_TIER_COLORS := [Color("#6c675f"), Color("#a79f8e"), Color("#b4673a"), Color("#c9973c")]
-## Tool tiers a figure can carry: the sim's method rung (0 .. 6+) folded into four looks.
-const TOOL_TIERS := 4
+## Tool-head colour by tier: 0 flaked stone (the base colour), 1 ground and polished stone, 2 copper, 3 bronze, 4 wrought iron
+## (dark blue-grey), 5 tempered steel (bright, pale edge).
+const TOOL_TIER_COLORS := [Color("#6c675f"), Color("#a79f8e"), Color("#b4673a"), Color("#c9973c"), Color("#3f444c"), Color("#cfd8e0")]
+## Tool tiers a figure can carry: the sim's method rung (0 .. 6+) folded into four looks (stone to bronze), plus the iron (4) and
+## steel (5) kits, which come from the kit the figure actually holds (MatchFrame.FigureKit), not from the rung.
+const TOOL_TIERS := 6
 
 static func tool_tier_for_rung(rung: int) -> int:
 	if rung <= 1:
@@ -424,7 +426,7 @@ static func tool_tier_for_rung(rung: int) -> int:
 func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, tier: int = 0, garment: bool = false) -> ArrayMesh:
 	var b := _b(seed)
 	# heads grow a little with each tier (a longer blade, a heavier head) so the step reads at a distance
-	var grow := 1.0 + 0.18 * tier
+	var grow := 1.0 + 0.18 * mini(tier, 3) + (0.06 if tier == 5 else 0.0)   # iron heads are bronze-sized; steel a touch longer
 	var head_color: Color = TOOL_TIER_COLORS[tier]
 	var legc := M7LooksKit.LEGGING if garment else Color("#4a3a2a")
 	# legs
@@ -498,6 +500,15 @@ func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, t
 		"hammer":
 			b.pole(hand, hand + Vector3(0.0, 0.03, 0.012), 0.0026, WOOD_LIGHT)
 			b.box(hand + Vector3(0.0, 0.032, 0.012), Vector3(0.014 * grow, 0.01 * grow, 0.01), STONE if tier == 0 else head_color)
+		"scythe":
+			# AGR-09: a long snath held in both hands and a curved iron blade swung low across the stubble
+			var heel := hand + Vector3(0.0, -0.022, 0.0)
+			b.pole(heel, hand + Vector3(0.004, 0.058, 0.01), 0.0028, WOOD_LIGHT)
+			b.pole(hand + Vector3(0.0, 0.008, 0.0), hand + Vector3(-0.014, 0.014, 0.004), 0.0024, WOOD_LIGHT)   # the short grip
+			var arc := [heel, heel + Vector3(0.012, -0.004, 0.014), heel + Vector3(0.028, -0.008, 0.03), heel + Vector3(0.046, -0.006, 0.042),
+				heel + Vector3(0.064, 0.0, 0.046)]
+			for k in arc.size() - 1:
+				b.pole(arc[k], arc[k + 1], 0.0036, head_color)
 		"bundle":
 			b.box(Vector3(0, 0.02, -0.022), Vector3(0.026, 0.026, 0.016), Color("#a5814f"))
 	b.xf = save
@@ -576,6 +587,9 @@ func _people() -> void:
 			if t in ["spear", "axe", "hoe", "hammer"]:
 				for tier in range(1, TOOL_TIERS):
 					meshes["person_%s_t%d%s" % [t, tier, sfx]] = _person(500 + t.length(), t, 0.0, false, tier, garment)
+		# the iron scythe: iron (t4) and steel (t5) blades only
+		meshes["person_scythe_t4" + sfx] = _person(509, "scythe", 0.0, false, 4, garment)
+		meshes["person_scythe_t5" + sfx] = _person(509, "scythe", 0.0, false, 5, garment)
 		meshes["person_elder" + sfx] = _person(551, "stick", 0.3, true, 0, garment)
 		meshes["person_child" + sfx] = _child(garment)
 	# lying figure on a hide mat (convalescing)

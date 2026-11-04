@@ -74,6 +74,10 @@ public enum CivLook : ushort
     Chiefdom = 128,
     /// <summary>FIB-04 Tailored Clothing: fitted parkas, sleeves, leggings and boots.</summary>
     TailoredClothing = 256,
+    /// <summary>AGR-10 Heavy Plough: deep ridge-and-furrow fields and a heavy ox team drawing a mouldboard plough.</summary>
+    MouldboardPlough = 512,
+    /// <summary>CER-08 Fired Brick &amp; Tile: terracotta tiled roofs on the village houses.</summary>
+    TileRoofs = 1024,
 }
 
 /// <summary>Age band by size: child under 14, adult 14 to 44, elder 45 and over (docs/MVP/08 §2.1 "life stage").</summary>

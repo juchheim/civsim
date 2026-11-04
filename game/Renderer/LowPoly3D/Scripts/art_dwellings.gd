@@ -33,6 +33,8 @@ const LIME := Color("#e2cfa6")
 const LIMEWASH := Color("#dbc69c")
 const OCHRE := Color("#a5532f")
 const TILE := Color("#a8603a")
+const TERRA := Color("#b4492c")         # CER-08 fired roof tile
+const TERRA_DARK := Color("#8a3520")
 const TURF := Color("#7f8c48")
 const CLAY := Color("#a8704a")
 const ASH := Color("#4a4440")
@@ -58,6 +60,10 @@ static func build(kit) -> void:
 	kit.meshes["wattle"] = _wattle(kit)
 	kit.meshes["mudbrick"] = _mudbrick(kit)
 	kit.meshes["longhouse"] = _longhouse(kit)
+	# CER-08 Fired Brick & Tile: the same houses under terracotta roof tiles (the hall already has a tiled pediment)
+	kit.meshes["wattle_tile"] = _wattle(kit, true)
+	kit.meshes["mudbrick_tile"] = _mudbrick(kit, true)
+	kit.meshes["longhouse_tile"] = _longhouse(kit, true)
 	kit.meshes["hall"] = _hall(kit)
 	kit.meshes["camp"] = open_sleeping
 
@@ -275,8 +281,11 @@ static func _pithouse(kit) -> ArrayMesh:
 
 # wattle-and-daub cottage: a stone sill, limewashed wicker walls in an oak frame, a steep hipped thatch in courses with thick eaves
 # and smoke vents at the hips, a log pile under the eaves and a water jar by the door
-static func _wattle(kit) -> ArrayMesh:
+static func _wattle(kit, tiled := false) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(311)
+	var rc := TERRA if tiled else THATCH
+	var rd := TERRA_DARK if tiled else THATCH_DARK
+	var courses := 6 if tiled else 2
 	var wx := 0.066
 	var wz := 0.05
 	var wh := 0.06
@@ -300,12 +309,12 @@ static func _wattle(kit) -> ArrayMesh:
 	var r0 := Vector3(-0.024, 0.138, 0)
 	var r1 := Vector3(0.024, 0.138, 0)
 	var inner := Vector3(0, 0.03, 0)
-	_roof_face(b, e[0], e[1], r1, r0, THATCH, THATCH.lightened(0.09), inner)
-	_roof_face(b, e[2], e[3], r0, r1, THATCH.darkened(0.1), THATCH.darkened(0.05), inner)
-	_roof_face(b, e[3], e[0], r0, r0, THATCH_DARK, THATCH_DARK.lightened(0.05), inner)
-	_roof_face(b, e[1], e[2], r1, r1, THATCH_DARK.darkened(0.06), THATCH_DARK, inner)
-	_eaves(b, e, 0.009, THATCH_DARK.darkened(0.2))
-	b.pole(r0 - Vector3(0.01, 0, 0), r1 + Vector3(0.01, 0, 0), 0.0065, THATCH_DARK.darkened(0.1))
+	_roof_face(b, e[0], e[1], r1, r0, rc, rc.lightened(0.09), inner, courses)
+	_roof_face(b, e[2], e[3], r0, r1, rc.darkened(0.1), rc.darkened(0.05), inner, courses)
+	_roof_face(b, e[3], e[0], r0, r0, rd, rd.lightened(0.05), inner, courses)
+	_roof_face(b, e[1], e[2], r1, r1, rd.darkened(0.06), rd, inner, courses)
+	_eaves(b, e, 0.009, rd.darkened(0.2))
+	b.pole(r0 - Vector3(0.01, 0, 0), r1 + Vector3(0.01, 0, 0), 0.0065, rd.darkened(0.1))
 	for k in 2:
 		var r: Vector3 = r0 if k == 0 else r1
 		var off := Vector3(-0.002 if k == 0 else 0.002, 0.001, 0)
@@ -318,7 +327,7 @@ static func _wattle(kit) -> ArrayMesh:
 
 # mudbrick house: sun-dried walls on a darker splash course, a flat earth roof behind a parapet, a stepped upper room, beam ends,
 # a limewashed door surround, a ladder to the roof terrace and jars and a red drying mat up there
-static func _mudbrick(kit) -> ArrayMesh:
+static func _mudbrick(kit, tiled := false) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(313)
 	var hx := 0.07
 	var hz := 0.05
@@ -326,17 +335,33 @@ static func _mudbrick(kit) -> ArrayMesh:
 	var roof := BRICK.darkened(0.22)
 	b.box(Vector3(0, 0.007, 0), Vector3(hx * 2 + 0.006, 0.014, hz * 2 + 0.006), MUD.darkened(0.2))
 	b.box(Vector3(0, top * 0.5, 0), Vector3(hx * 2, top, hz * 2), BRICK, roof)
-	for sz in [-1.0, 1.0]:
-		b.box(Vector3(0, top + 0.004, sz * (hz - 0.003)), Vector3(hx * 2, 0.008, 0.006), BRICK_LIGHT)
-	for sx in [-1.0, 1.0]:
-		b.box(Vector3(sx * (hx - 0.003), top + 0.004, 0), Vector3(0.006, 0.008, hz * 2 - 0.012), BRICK_LIGHT)
-	# upper room
-	b.box(Vector3(-0.03, top + 0.022, -0.019), Vector3(0.07, 0.044, 0.062), BRICK_LIGHT, roof.lightened(0.08))
-	b.box(Vector3(-0.03, top + 0.046, -0.019), Vector3(0.076, 0.005, 0.068), BRICK_LIGHT.lightened(0.05))
-	b.box(Vector3(-0.03, top + 0.015, 0.0135), Vector3(0.016, 0.028, 0.003), DOOR)
-	for i in 3:
-		var x := -0.055 + 0.025 * i
-		b.pole(Vector3(x, top + 0.036, 0.012), Vector3(x, top + 0.036, 0.021), 0.003, WOOD, 3)
+	if not tiled:
+		for sz in [-1.0, 1.0]:
+			b.box(Vector3(0, top + 0.004, sz * (hz - 0.003)), Vector3(hx * 2, 0.008, 0.006), BRICK_LIGHT)
+		for sx in [-1.0, 1.0]:
+			b.box(Vector3(sx * (hx - 0.003), top + 0.004, 0), Vector3(0.006, 0.008, hz * 2 - 0.012), BRICK_LIGHT)
+		# upper room
+		b.box(Vector3(-0.03, top + 0.022, -0.019), Vector3(0.07, 0.044, 0.062), BRICK_LIGHT, roof.lightened(0.08))
+		b.box(Vector3(-0.03, top + 0.046, -0.019), Vector3(0.076, 0.005, 0.068), BRICK_LIGHT.lightened(0.05))
+		b.box(Vector3(-0.03, top + 0.015, 0.0135), Vector3(0.016, 0.028, 0.003), DOOR)
+		for i in 3:
+			var x := -0.055 + 0.025 * i
+			b.pole(Vector3(x, top + 0.036, 0.012), Vector3(x, top + 0.036, 0.021), 0.003, WOOD, 3)
+	else:
+		# a hipped roof of terracotta tiles over the whole block, eaves overhanging the walls
+		var ex := hx + 0.012
+		var ez := hz + 0.012
+		var ey := top - 0.002
+		var e := [Vector3(-ex, ey, ez), Vector3(ex, ey, ez), Vector3(ex, ey, -ez), Vector3(-ex, ey, -ez)]
+		var r0 := Vector3(-0.03, top + 0.058, 0)
+		var r1 := Vector3(0.03, top + 0.058, 0)
+		var inner := Vector3(0, top * 0.5, 0)
+		_roof_face(b, e[0], e[1], r1, r0, TERRA, TERRA.lightened(0.09), inner, 6)
+		_roof_face(b, e[2], e[3], r0, r1, TERRA.darkened(0.1), TERRA.darkened(0.05), inner, 6)
+		_roof_face(b, e[3], e[0], r0, r0, TERRA_DARK, TERRA_DARK.lightened(0.05), inner, 6)
+		_roof_face(b, e[1], e[2], r1, r1, TERRA_DARK.darkened(0.06), TERRA_DARK, inner, 6)
+		_eaves(b, e, 0.009, TERRA_DARK.darkened(0.2))
+		b.pole(r0 - Vector3(0.008, 0, 0), r1 + Vector3(0.008, 0, 0), 0.0058, TERRA_DARK.darkened(0.1))
 	for i in 5:
 		var x := -0.056 + 0.028 * i
 		b.pole(Vector3(x, top - 0.009, hz - 0.002), Vector3(x, top - 0.009, hz + 0.011), 0.0038, WOOD, 3)
@@ -345,6 +370,8 @@ static func _mudbrick(kit) -> ArrayMesh:
 	b.box(Vector3(0.026, 0.026, hz + 0.002), Vector3(0.024, 0.05, 0.003), DOOR)
 	b.box(Vector3(0.026, 0.056, hz + 0.003), Vector3(0.04, 0.006, 0.005), WOOD)
 	b.box(Vector3(-0.036, 0.048, hz + 0.0015), Vector3(0.014, 0.012, 0.003), DARK)
+	if tiled:
+		return b.commit()
 	# ladder to the roof
 	var l0 := [Vector3(0.05, 0.0, 0.078), Vector3(0.062, 0.0, 0.078)]
 	var l1 := [Vector3(0.05, 0.096, hz + 0.003), Vector3(0.062, 0.096, hz + 0.003)]
@@ -361,8 +388,10 @@ static func _mudbrick(kit) -> ArrayMesh:
 
 # longhouse: a long plank hall on a stone sill, wall posts, a hipped thatch with a sagging ridge and crossed gable horns, smoke
 # vents, a porch over the door and a woodpile along the front
-static func _longhouse(kit) -> ArrayMesh:
+static func _longhouse(kit, tiled := false) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(315)
+	var rc := TERRA if tiled else THATCH
+	var rd := TERRA_DARK if tiled else THATCH_DARK
 	var lx := 0.148
 	var lz := 0.049
 	b.box(Vector3(0, 0.007, 0), Vector3(lx * 2 + 0.012, 0.014, lz * 2 + 0.01), STONE_DARK, STONE)
@@ -384,19 +413,19 @@ static func _longhouse(kit) -> ArrayMesh:
 	var inner := Vector3(0, 0.04, 0)
 	for side in [1.0, -1.0]:
 		for i in 3:
-			var col := THATCH if side > 0.0 else THATCH.darkened(0.1)
+			var col := rc if side > 0.0 else rc.darkened(0.1)
 			if i == 1:
 				col = col.lightened(0.04)
 			b.quad(Vector3(eave_x[i], ey, ez * side), Vector3(eave_x[i + 1], ey, ez * side), ridge[i + 1], ridge[i], col, inner)
 	for sx in [-1.0, 1.0]:
-		b.tri(Vector3(ex * sx, ey, ez), Vector3(ex * sx, ey, -ez), ridge[0] if sx < 0.0 else ridge[3], THATCH_DARK, inner)
-	for f in [0.4, 0.72]:
+		b.tri(Vector3(ex * sx, ey, ez), Vector3(ex * sx, ey, -ez), ridge[0] if sx < 0.0 else ridge[3], rd, inner)
+	for f in ([0.16, 0.32, 0.48, 0.64, 0.8] if tiled else [0.4, 0.72]):
 		var a := Vector3(-ex, ey, ez).lerp(ridge[0], f)
 		var c := Vector3(ex, ey, ez).lerp(ridge[3], f)
-		b.pole(a + Vector3(0.004, 0.002, 0), c + Vector3(-0.004, 0.002, 0), 0.0028, THATCH_DARK, 3)
-	_eaves(b, [Vector3(-ex, ey, ez), Vector3(ex, ey, ez), Vector3(ex, ey, -ez), Vector3(-ex, ey, -ez)], 0.009, THATCH_DARK.darkened(0.2))
+		b.pole(a + Vector3(0.004, 0.002, 0), c + Vector3(-0.004, 0.002, 0), 0.0028, rd, 3)
+	_eaves(b, [Vector3(-ex, ey, ez), Vector3(ex, ey, ez), Vector3(ex, ey, -ez), Vector3(-ex, ey, -ez)], 0.009, rd.darkened(0.2))
 	for i in 3:
-		b.pole(ridge[i] - Vector3(0.006 if i == 0 else 0.0, 0, 0), ridge[i + 1] + Vector3(0.006 if i == 2 else 0.0, 0, 0), 0.0065, THATCH_DARK.darkened(0.12))
+		b.pole(ridge[i] - Vector3(0.006 if i == 0 else 0.0, 0, 0), ridge[i + 1] + Vector3(0.006 if i == 2 else 0.0, 0, 0), 0.0065, rd.darkened(0.12))
 	for k in 2:
 		var r: Vector3 = ridge[0] if k == 0 else ridge[3]
 		var sx := -1.0 if k == 0 else 1.0
@@ -409,7 +438,7 @@ static func _longhouse(kit) -> ArrayMesh:
 			var lo := Vector3(0, ey, ez * side).lerp(Vector3(0, 0.1525, 0), 0.84) + Vector3(0, 0.003, 0)
 			var hi := Vector3(0, ey, ez * side).lerp(Vector3(0, 0.1525, 0), 0.96) + Vector3(0, 0.003, 0)
 			b.quad(lo + Vector3(vx - 0.009, 0, 0), lo + Vector3(vx + 0.009, 0, 0), hi + Vector3(vx + 0.008, 0, 0), hi + Vector3(vx - 0.008, 0, 0),
-				THATCH_DARK.darkened(0.55), inner)
+				rd.darkened(0.55), inner)
 	# porch over the door
 	var pz := 0.1
 	var px := 0.032
@@ -417,7 +446,7 @@ static func _longhouse(kit) -> ArrayMesh:
 	var pry := 0.08
 	for s in [-1.0, 1.0]:
 		b.quad(Vector3(s * px, pey, lz), Vector3(s * px, pey, pz), Vector3(0, pry, pz), Vector3(0, pry, lz),
-			THATCH.lightened(0.05) if s < 0.0 else THATCH.darkened(0.05), Vector3(0, 0.02, 0.075))
+			rc.lightened(0.05) if s < 0.0 else rc.darkened(0.05), Vector3(0, 0.02, 0.075))
 		b.pole(Vector3(s * 0.025, 0, pz - 0.006), Vector3(s * 0.025, pey, pz - 0.006), 0.0035, WOOD)
 	b.tri(Vector3(-px + 0.004, pey, pz - 0.002), Vector3(px - 0.004, pey, pz - 0.002), Vector3(0, pry - 0.004, pz - 0.002), WOOD_LIGHT, Vector3(0, 0.05, 0))
 	_logs(b, Vector3(0.122, 0.0, 0.063), Vector3(0.018, 0.0, 0.0), Vector3(0, 0, 1), WOOD)
@@ -522,7 +551,24 @@ static func _shell(b: M7MeshBuilder, rings: Array, a0: float, arc: float, n: int
 
 ## One roof pitch from the eave edge e0-e1 up to t1-t0 (t0 == t1 for a hip), laid in two thatch courses.
 static func _roof_face(b: M7MeshBuilder, e0: Vector3, e1: Vector3, t1: Vector3, t0: Vector3, col_low: Color, col_high: Color,
-		inner: Vector3) -> void:
+		inner: Vector3, courses := 2) -> void:
+	if courses > 2:
+		# roof tiles: many courses, every other one a shade darker
+		for i in courses:
+			var f0 := float(i) / courses
+			var f1 := float(i + 1) / courses
+			var a0 := e0.lerp(t0, f0)
+			var a1 := e1.lerp(t1, f0)
+			var c0 := e0.lerp(t0, f1)
+			var c1 := e1.lerp(t1, f1)
+			var col := col_low.lerp(col_high, f0)
+			if i % 2 == 1:
+				col = col.darkened(0.08)
+			if i == courses - 1 and t0.is_equal_approx(t1):
+				b.tri(a0, a1, t0, col, inner)
+			else:
+				b.quad(a0, a1, c1, c0, col, inner)
+		return
 	var m0 := e0.lerp(t0, 0.5)
 	var m1 := e1.lerp(t1, 0.5)
 	b.quad(e0, e1, m1, m0, col_low, inner)

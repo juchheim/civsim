@@ -319,7 +319,8 @@ func _update_trails() -> void:
 	trail_node.mesh = M7TrailBuilder.build(w, trail_polys)
 	trails_changed = true
 
-## Which field a plot tile shows: 0 the hoed field, 1 ploughed with the ard (AGR-05), 2 resting under fallow (AGR-07). A third of the
+## Which field a plot tile shows: 0 the hoed field, 1 ploughed with the ard (AGR-05), 2 resting under fallow (AGR-07), 3 ploughed
+## with the mouldboard (AGR-10). A third of the
 ## fields of a fallow-keeping civilization rest at a time, and which ones changes every other year.
 func field_kind(t: int) -> int:
 	var civ: int = w.owner[t]
@@ -327,6 +328,8 @@ func field_kind(t: int) -> int:
 		var xy := w.tile_xy(t)
 		if M7WorldData.hash01(xy.x, xy.y, 313 + w.year / 2) < 0.34:
 			return 2
+	if w.has_look(civ, M7WorldData.LOOK_MOULDBOARD):
+		return 3                  # AGR-10: deep ridge-and-furrow, drawn by a heavy team
 	return 1 if w.has_look(civ, M7WorldData.LOOK_ARD) else 0
 
 ## Angle of a field's furrows (the field meshes run their rows along local X).
@@ -358,7 +361,7 @@ func _fire_lit_for_index(index: int) -> bool:
 			return _fire_lit(s)
 	return false
 
-const FIELD_MESHES := ["field", "field_ard", "field_fallow"]
+const FIELD_MESHES := ["field", "field_ard", "field_fallow", "field_plough"]
 
 func _structure_digest() -> int:
 	var h := 17
@@ -935,6 +938,7 @@ func _settlements() -> void:
 				decor_spots["temple_built"] = tp
 		var slot := 0
 		var rmax := 0.0
+		var tiled_roofs := civ >= 0 and w.has_look(civ, M7WorldData.LOOK_TILES)
 		for it in items:
 			var p := Vector2.ZERO
 			var found := false
@@ -964,7 +968,9 @@ func _settlements() -> void:
 			var d := c - p
 			var ang := atan2(d.x, d.y)
 			var sc := VS * (0.95 + 0.15 * M7WorldData.hash01(t, placed.size(), 5))
-			props.add(it, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
+			# CER-08 Fired Brick & Tile: wattle, mudbrick and long houses wear terracotta tiles
+			var shown_mesh: String = it + "_tile" if tiled_roofs and it in TILED_HOUSES else it
+			props.add(shown_mesh, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
 		if zsite != null:
 			rmax = maxf(rmax, ZIG_OFFSET + 0.3)
 		for cs in civic_sites:
@@ -1059,6 +1065,7 @@ func _settlements() -> void:
 ## (lean-tos and hide tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
 ## do not cover live in the best small house the village knows (or in more longhouses when that is all it has). Generic open-sleeping
 ## placeholders use the small windbreak; a researched Hide Tent has its own, clearly recognizable mesh.
+const TILED_HOUSES := ["wattle", "mudbrick", "longhouse"]
 const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "hide_tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
 const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2}
 const DWELL_MAX_EACH := 10
@@ -1489,6 +1496,9 @@ func _debug_boat_tier(fi: int) -> int:
 ## `--tier-debug` gives every adult a tool and cycles the tier by figure index so all four looks can be seen at once.
 var TIER_DEBUG: bool = "--tier-debug" in OS.get_cmdline_user_args()
 
+## The farm ladder's rung for the iron scythe (AGR-09; ard plough is 3).
+const IRON_SCYTHE_RUNG := 4
+
 const TOOL_BY_ACTIVITY := {
 	0: "plain", 1: "basket", 2: "spear", 3: "pole", 4: "hoe", 5: "axe", 6: "basket", 7: "hammer", 8: "hammer",
 	9: "plain", 10: "plain", 11: "plain", 12: "plain", 15: "bundle", 16: "bundle", 17: "spear", 18: "spear", 19: "spear", 22: "spear",
@@ -1608,11 +1618,21 @@ func _figures() -> void:
 				mesh = "person_spear"
 			# bladed and headed tools show the tier of the method in use: stone, polished stone, copper, bronze
 			var tier := M7MeshKit.tool_tier_for_rung(rung) if rung >= 0 else 0
+			# the iron kits (11, 12) show on the figure that holds one: dark iron, then bright tempered steel (MET-09, MET-10)
+			var kit_tier := (fl >> 20) & 15
+			if kit_tier >= 4:
+				tier = kit_tier
+			# AGR-09 Iron Sickle & Scythe: a farmer on the scythe rung of the farm ladder swings one
+			if act == 4 and rung >= IRON_SCYTHE_RUNG and not (fl & 256):
+				mesh = "person_scythe"
+				tier = maxi(tier, 4)
 			if TIER_DEBUG:
 				var idx := fi / 11
-				mesh = ["person_spear", "person_axe", "person_hoe", "person_hammer"][idx % 4]
+				mesh = ["person_spear", "person_axe", "person_hoe", "person_hammer", "person_scythe"][idx % 5]
 				tier = (idx / 3) % M7MeshKit.TOOL_TIERS
-			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer"]:
+				if mesh == "person_scythe":
+					tier = maxi(tier, 4)
+			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer", "person_scythe"]:
 				mesh += "_t" + str(tier)
 		if civ >= 0 and act != 14 and w.has_look(civ, M7WorldData.LOOK_TAILORED):
 			mesh += "_g"                   # fitted parkas, sleeves, leggings and boots (FIB-04)

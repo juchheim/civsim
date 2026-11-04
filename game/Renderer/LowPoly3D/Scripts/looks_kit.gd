@@ -30,6 +30,7 @@ static func build(kit: M7MeshKit) -> void:
 	_ships(kit)
 	_chariot(kit)
 	_ard_team(kit)
+	_plough_team(kit)
 	_cart(kit)
 
 # ------------------------------------------------------------------ shared pieces
@@ -185,6 +186,40 @@ static func _fields(kit: M7MeshKit) -> void:
 			b.blob(Vector3(px, 0.006, pz), Vector3(0.026, 0.014, 0.022), 5, 3, Color("#4a3626"), 0.12, Color("#3a2a1c"))
 	kit.meshes["field_fallow"] = b.commit()
 
+	# mouldboard-ploughed field (AGR-10 Heavy Plough): few, broad, high ridges of dark turned loam with pale crowns and deep furrows
+	# between them, a hedge at the corners instead of boundary stones
+	b = kit._b(345)
+	var loam := M7MeshKit.SOIL.darkened(0.24)
+	_soil_hex(b, fr, loam.darkened(0.18))
+	var ridges := 6
+	for r in ridges:
+		var z := -fr + (r + 0.5) * (2.0 * fr / ridges)
+		var hw := M7MeshKit._hex_half_width(z, fr) - 0.03
+		if hw < 0.05:
+			continue
+		var hh := 0.04
+		var wdt := 0.05
+		var crown := 0.014
+		b.tag = M7MeshBuilder.TAG_CROP
+		var l0 := Vector3(-hw, 0.004, z - wdt)
+		var l1 := Vector3(hw, 0.004, z - wdt)
+		var t0 := Vector3(-hw, 0.004 + hh, z - crown)
+		var t1 := Vector3(hw, 0.004 + hh, z - crown)
+		var u0 := Vector3(-hw, 0.004 + hh, z + crown)
+		var u1 := Vector3(hw, 0.004 + hh, z + crown)
+		var r0 := Vector3(-hw, 0.004, z + wdt)
+		var r1 := Vector3(hw, 0.004, z + wdt)
+		b.quad(l0, l1, t1, t0, loam.lightened(0.04), Vector3(0, 0, z + 0.05))
+		b.quad(t0, t1, u1, u0, loam.lightened(0.2), Vector3(0, 0, z))
+		b.quad(r0, r1, u1, u0, loam.darkened(0.06), Vector3(0, 0, z - 0.05))
+		b.quad(l0, t0, u0, r0, loam, Vector3(0.0, 0.0, z))
+		b.quad(l1, t1, u1, r1, loam, Vector3(0.0, 0.0, z))
+	b.tag = M7MeshBuilder.TAG_GRASS
+	for i in 6:
+		var corner: Vector2 = _hex_ring(fr * 0.99)[i]
+		b.blob(Vector3(corner.x, 0.012, corner.y), Vector3(0.034, 0.022, 0.03), 5, 3, M7MeshKit.GRASS.darkened(0.12), 0.1)
+	kit.meshes["field_plough"] = b.commit()
+
 # ------------------------------------------------------------------ boats (SEA-05 plank boat, SEA-06 sail)
 
 ## A planked hull along Z, centred, `length` long. Lower and upper strakes are two colours; the ends sweep up into posts.
@@ -336,6 +371,33 @@ static func _ard_team(kit: M7MeshKit) -> void:
 		b.pole(Vector3(0.012, 0.014, 0.0), Vector3(-0.045, 0.074, 0.004), 0.0032, M7MeshKit.WOOD_LIGHT)
 		_mini_person(b, Vector3(-0.07, 0.0, 0.004), PI * 0.5, false, false)
 		kit.meshes["ard_team_%s" % ("a" if phase == 0 else "b")] = b.commit()
+
+## The heavy team of AGR-10: four oxen in two yoked pairs drawing a wheeled mouldboard plough (iron share, coulter, turning board).
+static func _plough_team(kit: M7MeshKit) -> void:
+	var iron := Color("#3f444c")
+	for phase in 2:
+		var b := kit._b(780 + phase)
+		_ox(b, Vector3(0.3, 0, -0.028), phase, OX_DARK)
+		_ox(b, Vector3(0.3, 0, 0.028), 1 - phase, OX_DUN)
+		_ox(b, Vector3(0.17, 0, -0.028), 1 - phase, OX_DUN)
+		_ox(b, Vector3(0.17, 0, 0.028), phase, OX_DARK)
+		for yx in [0.33, 0.2]:
+			b.pole(Vector3(yx, 0.074, -0.044), Vector3(yx, 0.074, 0.044), 0.0038, M7MeshKit.WOOD)
+		b.pole(Vector3(0.2, 0.074, 0.0), Vector3(0.33, 0.074, 0.0), 0.0034, M7MeshKit.WOOD)
+		# the draw-beam to the wheeled forecarriage and the plough body behind it
+		b.pole(Vector3(0.2, 0.072, 0.0), Vector3(0.0, 0.034, 0.0), 0.0036, M7MeshKit.WOOD)
+		for sz in [-1.0, 1.0]:
+			_wheel(b, Vector3(0.05, 0.018, sz * 0.024), 0.018, Vector3.BACK, false, M7MeshKit.WOOD_LIGHT)
+		b.pole(Vector3(0.05, 0.018, -0.024), Vector3(0.05, 0.018, 0.024), 0.003, M7MeshKit.WOOD)
+		b.pole(Vector3(0.03, 0.04, 0.0), Vector3(0.0, 0.034, 0.0), 0.0034, M7MeshKit.WOOD)
+		b.pole(Vector3(0.012, 0.036, 0.0), Vector3(0.016, 0.004, 0.0), 0.003, iron)                  # coulter
+		b.pole(Vector3(0.016, 0.003, 0.0), Vector3(-0.022, 0.0, 0.01), 0.0042, iron)                  # share
+		b.quad(Vector3(0.004, 0.008, 0.004), Vector3(-0.032, 0.004, 0.02), Vector3(-0.032, 0.032, 0.026), Vector3(0.004, 0.038, 0.006),
+			M7MeshKit.WOOD_LIGHT.darkened(0.1), Vector3(0.0, 0.02, -0.02))                           # the turning board
+		for sz in [-1.0, 1.0]:
+			b.pole(Vector3(-0.012, 0.034, sz * 0.008), Vector3(-0.07, 0.078, sz * 0.012), 0.003, M7MeshKit.WOOD_LIGHT)
+		_mini_person(b, Vector3(-0.085, 0.0, 0.004), PI * 0.5, false, false)
+		kit.meshes["plough_team_%s" % ("a" if phase == 0 else "b")] = b.commit()
 
 static func _cart(kit: M7MeshKit) -> void:
 	for phase in 2:

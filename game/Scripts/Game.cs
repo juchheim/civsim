@@ -410,7 +410,9 @@ public partial class Game : Node3D
             figures[o + 2] = frame.FigureCiv[i];
             figures[o + 3] = frame.FigureAge[i];
             figures[o + 4] = frame.FigureActivity[i];
-            figures[o + 5] = frame.FigureFlags[i] | (frame.FigureCarry[i] << 16);   // what is carried rides in the high bits
+            // what is carried rides in bits 16-19, the tool kit held (0 none, 1..5 = kits 8..12: copper to steel) in bits 20-23
+            int kitCode = frame.FigureKit[i] >= 8 ? Math.Min(frame.FigureKit[i] - 7, 15) : 0;
+            figures[o + 5] = frame.FigureFlags[i] | (frame.FigureCarry[i] << 16) | (kitCode << 20);
             figures[o + 6] = frame.FigureToolRung[i];
             figures[o + 7] = frame.FigureSettlement[i];
             figures[o + 8] = (int)(frame.FigureId[i] & 0x3fffffff);
@@ -485,7 +487,9 @@ public partial class Game : Node3D
         // --dev-leanto=N: the capital stands in a camp of N lean-tos and nothing sturdier (the early-village look)
         int forcedLeanTos = ArgumentValue("--dev-leanto=") is { } leanArg && int.TryParse(leanArg, out int leanCount) ? leanCount : -1;
         int forcedLeanToAt = -1;
-        if (forcedLeanTos > 0)
+        // --dev-houses=N: the capital (the same one) stands instead in N wattle houses, N mudbrick houses and N longhouses (photographing roof looks)
+        int forcedHouses = ArgumentValue("--dev-houses=") is { } houseArg && int.TryParse(houseArg, out int houseCount) ? houseCount : -1;
+        if (forcedLeanTos > 0 || forcedHouses > 0)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedLeanToAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedLeanToAt]))
@@ -528,7 +532,8 @@ public partial class Game : Node3D
             if (i == forcedLeanToAt)
             {
                 for (int kind = 1; kind <= 6; kind++) structures[kind] = 0;    // lean-to .. longhouse
-                structures[1] = forcedLeanTos;
+                if (forcedHouses > 0) { structures[4] = structures[5] = structures[6] = forcedHouses; }
+                else structures[1] = forcedLeanTos;
                 settlement["structures"] = structures;
                 settlement["halls"] = 0;
             }

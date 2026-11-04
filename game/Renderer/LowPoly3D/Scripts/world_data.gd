@@ -24,6 +24,8 @@ const LOOK_CHARIOTS := 32
 const LOOK_STATE_CULT := 64
 const LOOK_CHIEFDOM := 128
 const LOOK_TAILORED := 256
+const LOOK_MOULDBOARD := 512     # AGR-10 Heavy Plough
+const LOOK_TILES := 1024         # CER-08 Fired Brick & Tile
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -150,7 +152,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	if LOOKS_DEBUG:
 		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
 		civ_looks.resize(8)
-		civ_looks.fill(511)
+		civ_looks.fill(2047)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

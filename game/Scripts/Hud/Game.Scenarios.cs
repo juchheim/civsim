@@ -606,6 +606,76 @@ public partial class Game
                     Shot($"gallery-{itemName}");
                 }
                 break;
+            case "iron-gallery":
+                // the Iron Age's new meshes beside their older versions on a stage above the map (LowPoly3DView.show_iron_gallery): tool heads from
+                // bronze to steel and the scythe, tiled and thatched houses, ard and mouldboard teams and fields
+                Vector3 ironOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital();
+                }, 1.5f);
+                Step(() =>
+                {
+                    ironOrigin = (Vector3)_visualRenderer!.Call("show_iron_gallery");
+                    _target = ironOrigin;
+                    _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                    _pitch = Mathf.DegToRad(52.0f);
+                    ZoomTo(9.0f);
+                    UpdateCamera();
+                }, 1.5f);
+                Shot("iron-all");
+                foreach (var (item, dx, dz, zoom) in new[]
+                {
+                    ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
+                    ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
+                })
+                {
+                    string itemName = item;
+                    float x = dx, z = dz, zm = zoom;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(itemName == "fields" ? 55.0f : 38.0f);
+                        _target = new Vector3(ironOrigin.X + x, ironOrigin.Y, ironOrigin.Z + z);
+                        ZoomTo(zm);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot($"iron-{itemName}");
+                }
+                break;
+            case "iron-life":
+                // --chapter=iron --research-era=5 --start-minute=20: the human civilization is given the first five ages, the sim runs at speed for a
+                // while so kits and fields appear, then the map is photographed from afar and close up (iron tools, scythes, mouldboard teams, tiled roofs)
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(false);
+                    _session.SetSpeedIndex(3);
+                    FrameCapital();
+                }, float.TryParse(ArgumentValue("--wait="), out float waitSeconds) ? waitSeconds : 90.0f);
+                Step(() => { _session!.SetSpeedIndex(1); FrameCapital(); ZoomTo(7.0f); }, 2.0f);
+                Shot("life-wide");
+                Step(() => ZoomTo(4.0f), 1.2f);
+                Shot("life-village");
+                Step(() => ZoomTo(2.4f), 1.2f);
+                Shot("life-close");
+                for (int i = 0; i < 3; i++)
+                {
+                    int n = i;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("team_focus");
+                        if (at != Vector3.Zero) { _target = at; ZoomTo(1.7f); UpdateCamera(); }
+                    }, 1.0f);
+                    Shot($"life-team-{n}");
+                    Step(() => { }, 3.0f);
+                }
+                break;
             case "burn":
                 // --start-minute=14: learn both projects, run fast until the first fire, then watch it at half speed and the years after
                 Step(() => { FrameCapital(); ZoomTo(6.0f); GrantProject(FindProjectByName("Landscape Burning")); GrantProject(FindProjectByName("Slash-and-Burn")); _session!.SetSpeedIndex(3); }, 0.5f);

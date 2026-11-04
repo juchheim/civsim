@@ -146,6 +146,7 @@ public sealed partial class FrameBuilder
             (_catalog.IndexOf("TRN-05"), CivLook.Carts), (_catalog.IndexOf("WAR-06"), CivLook.Chariots),
             (_catalog.IndexOf("BEL-07"), CivLook.StateCult), (_catalog.IndexOf("SOC-07"), CivLook.Chiefdom),
             (_catalog.IndexOf("FIB-04"), CivLook.TailoredClothing),
+            (_catalog.IndexOf("AGR-10"), CivLook.MouldboardPlough), (_catalog.IndexOf("CER-08"), CivLook.TileRoofs),
         };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
@@ -893,6 +894,7 @@ public sealed partial class FrameBuilder
             target.FigureMethodFallback[w] = (byte)method.Reason;
             target.FigureMethodFallbackTool[w] = (byte)method.RequiredTool;
             target.FigureCarry[w] = (byte)carry;
+            target.FigureKit[w] = (byte)eco.FigureKit(i).Tier;
         }
         target.FigureCount = written;
     }

@@ -45,6 +45,41 @@ public sealed class IronViewTests
     }
 
     [Fact]
+    public void The_Iron_looks_and_the_kit_a_figure_holds_reach_the_frame()
+    {
+        var pack = TestPack.WithNumeric("KEY-4", "AGR-10", "CER-08");
+        var catalog = new ResearchCatalog(pack);
+        MatchModel match = MatchModel.Create(Seed, pack, World.Value, Balanced, default, rules: ChapterRules.Iron);
+        var runner = new SimRunner(match);
+        runner.Advance(5);
+        ushort iron = (ushort)(CivLook.MouldboardPlough | CivLook.TileRoofs);
+        Assert.Equal(0, Frame(match, -1).CivLooks[0] & iron);
+
+        foreach (string project in new[] { "KEY-4", "AGR-10" })
+            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, catalog.IndexOf(project), 0, 0));
+        runner.Advance(2);
+        MatchFrame mouldboard = Frame(match, -1);
+        Assert.Equal((ushort)CivLook.MouldboardPlough, (ushort)(mouldboard.CivLooks[0] & iron));
+        Assert.Equal(0, mouldboard.CivLooks[1] & iron);
+
+        runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, catalog.IndexOf("CER-08"), 0, 0));
+        runner.Advance(2);
+        Assert.Equal(iron, (ushort)(Frame(match, -1).CivLooks[0] & iron));
+
+        // The kit a figure carries goes out with it: none, then a tempered steel kit (12) on the first adult.
+        LivingEconomyModel eco = match.Economy;
+        int adult = -1;
+        for (int i = 0; i < eco.FigureCount && adult < 0; i++)
+            if (eco.Figure(i).Civilization == 0 && eco.Figure(i).Age >= 14) adult = i;
+        Assert.True(adult >= 0);
+        eco.FixtureSetKit(adult, 12, Fix64.FromInt(20));
+        MatchFrame kits = Frame(match, -1);
+        int steel = 0;
+        for (int i = 0; i < kits.FigureCount; i++) if (kits.FigureKit[i] == 12) steel++;
+        Assert.Equal(1, steel);
+    }
+
+    [Fact]
     public void An_Iron_frame_carries_works_staff_and_Wonders_and_a_Bronze_frame_carries_nothing()
     {
         (MatchModel match, SimRunner runner) = Rig(ChapterRules.Iron);

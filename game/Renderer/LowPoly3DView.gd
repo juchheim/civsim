@@ -364,6 +364,62 @@ func show_buildings_gallery() -> Vector3:
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre
 
+## Dev aid for scenarios (iron-gallery): the Iron Age meshes laid out beside their older versions on a plain stage, rows 1.3 apart from
+## the nearest (+z): workers by tool tier (bronze, iron, steel, scythe), houses (thatch / mud roof beside the tiled one), then fields and
+## ox teams (ard beside mouldboard). Returns the stage centre.
+func show_iron_gallery() -> Vector3:
+	var stage := Node3D.new()
+	stage.name = "IronGallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(9.0, 7.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, 0.0)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	var vs := 1.45
+	# [mesh, width it needs, scale]
+	var rows := [
+		# axes, hoes and hammers from bronze to steel, then the scythes
+		[["person_axe_t3", 0.2, 1.0], ["person_axe_t4", 0.2, 1.0], ["person_axe_t5", 0.2, 1.0], ["person_hoe_t3", 0.2, 1.0], ["person_hoe_t4", 0.2, 1.0],
+			["person_hoe_t5", 0.2, 1.0], ["person_hammer_t3", 0.2, 1.0], ["person_hammer_t4", 0.2, 1.0], ["person_hammer_t5", 0.2, 1.0],
+			["person_spear_t3", 0.2, 1.0], ["person_spear_t4", 0.2, 1.0], ["person_scythe_t4", 0.2, 1.0], ["person_scythe_t5", 0.2, 1.0]],
+		[["wattle", 0.42, vs], ["wattle_tile", 0.42, vs], ["mudbrick", 0.42, vs], ["mudbrick_tile", 0.42, vs], ["longhouse", 0.7, vs], ["longhouse_tile", 0.7, vs]],
+		[["ard_team_a", 0.75, 1.2], ["plough_team_a", 0.95, 1.2], ["plough_team_b", 0.95, 1.2]],
+		[["field_ard", 1.1, 1.0], ["field_plough", 1.1, 1.0], ["field_fallow", 1.1, 1.0]],
+	]
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z: float = [2.6, 1.2, -0.1, -1.7][r]
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var civ := i % 4
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			var yaw := 0.0
+			if name.begins_with("person") or name.contains("_team_"):
+				custom = Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0)
+			if name.contains("_team_"):
+				yaw = PI * 0.5
+			batch.add(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * float(item[2])), Vector3(x, 0.0, z)), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	return centre
+
 ## A raid or assault skirmish on the map (see skirmish_rig.gd); returns [id, seconds], or [-1, 0] when it cannot play there.
 func skirmish_start(spec: Dictionary) -> Array:
 	return skirmish_rig.start(spec) if skirmish_rig != null else [-1, 0.0]

@@ -99,6 +99,8 @@ public sealed class MatchFrame
     public byte[] FigureMethodFallbackTool = Array.Empty<byte>();
     /// <summary><see cref="CarryKind"/>.</summary>
     public byte[] FigureCarry = Array.Empty<byte>();
+    /// <summary>The tool kit the figure carries: 0 none, 8 copper, 9 arsenical bronze, 10 tin bronze, 11 wrought iron, 12 tempered steel (<see cref="Economy.LivingEconomyModel.FigureKit"/>).</summary>
+    public byte[] FigureKit = Array.Empty<byte>();
 
     // ---- wild herds (ascending id) ------------------------------------------------------------
     public int HerdCount;
@@ -431,7 +433,7 @@ public sealed class MatchFrame
         Ensure(ref FigureId, n); Ensure(ref FigureCiv, n); Ensure(ref FigureSettlement, n); Ensure(ref FigureTile, n);
         Ensure(ref FigureX, n); Ensure(ref FigureY, n); Ensure(ref FigureActivity, n); Ensure(ref FigureRole, n); Ensure(ref FigureAge, n);
         Ensure(ref FigureHealth, n); Ensure(ref FigureFlags, n); Ensure(ref FigureToolRung, n); Ensure(ref FigureCarry, n);
-        Ensure(ref FigureKnownToolRung, n); Ensure(ref FigureMethodEfficiencyPermille, n);
+        Ensure(ref FigureKnownToolRung, n); Ensure(ref FigureMethodEfficiencyPermille, n); Ensure(ref FigureKit, n);
         Ensure(ref FigureMethodFallback, n); Ensure(ref FigureMethodFallbackTool, n);
     }
 
