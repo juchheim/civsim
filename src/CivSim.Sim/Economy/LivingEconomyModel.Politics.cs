@@ -222,7 +222,7 @@ public sealed partial class LivingEconomyModel
             if (_figures[i].SettlementId == s.Id) _figures.RemoveAt(i);
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
-        if (s.Metal is { } metal) { Array.Clear(metal.Goods); if (metal.IronGoods is not null) Array.Clear(metal.IronGoods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero; metal.IronTerraces = null; metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear(); }
+        if (s.Metal is { } metal) { Array.Clear(metal.Goods); if (metal.IronGoods is not null) Array.Clear(metal.IronGoods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero; metal.IronTerraces = null; metal.IronFacing = null; metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear(); }
         if (s.Civic is not null) s.Civic = new CivicState { Seceded = s.Civic.Seceded };
         s.FissionPending = false;
         s.FireLit = false;

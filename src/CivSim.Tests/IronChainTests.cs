@@ -882,6 +882,119 @@ public class IronChainTests
         Assert.Equal(bytes, Snapshot(g.Economy));
     }
 
+    [Fact]
+    public void A_gatehouse_follows_a_wall_and_lifts_the_intact_wall_from_three_to_four_and_a_half()
+    {
+        BronzeFixture f = Iron("KEY-4", "DEF-06");
+        f.Economy.FixtureSetTier(0, 1);
+        // No wall, no gatehouse: the work has nothing to stand on.
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "gatehouse"));
+        f.Economy.FixtureBuildStructure(0, "stone_walls");
+        Assert.True(f.Economy.FixtureHasStoneWalls(0));
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "gatehouse"));
+        Assert.False(f.Economy.HasGatehouse(0));
+        f.Economy.FixtureBuildIronStructure(0, "gatehouse");
+        Assert.True(f.Economy.HasGatehouse(0));
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "gatehouse"));
+        // The wall's multiplier: 3.0 bare, 4.5 with towers; only on a standing wall.
+        var bare = new Defenses(false, false, false, false, false, false, false, false, false, false, StoneWalls: true, BronzeRules: true);
+        var towers = bare with { Gatehouse = true };
+        Assert.Equal(Fix64.FromRatio(11, 10) * Fix64.FromInt(3), bare.Multiplier());
+        Assert.Equal(Fix64.FromRatio(11, 10) * Fix64.FromRatio(9, 2), towers.Multiplier());
+        Assert.Equal(bare.Multiplier(), (bare with { Gatehouse = false }).Multiplier());
+    }
+
+    [Fact]
+    public void Frontier_segments_face_only_a_close_rival_once_each_and_a_far_one_not_at_all()
+    {
+        BronzeFixture f = Iron("KEY-4", "DEF-06", "DEF-07");
+        f.Economy.FixtureSetTier(0, 1);
+        int rival = -1;
+        for (int i = 1; i < f.Economy.FixtureSettlementCount; i++) if (f.Economy.FixtureCivOf(i) != f.Economy.FixtureCivOf(0)) { rival = i; break; }
+        Assert.True(rival >= 0, "the fixture world has a foreign settlement");
+        int rivalCiv = f.Economy.FixtureCivOf(rival);
+        Assert.Equal(-1, f.Economy.FixtureNextFrontierFacing(0)); // the rival's start is far away
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "frontier_wall_segment"));
+        int site = f.Economy.SettlementLite(0).SiteTile;
+        f.Economy.FixtureMoveSite(rival, site + 2);
+        Assert.Equal(rivalCiv, f.Economy.FixtureNextFrontierFacing(0));
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "frontier_wall_segment"));
+        Assert.False(f.Economy.FrontierWallFacing(0, rivalCiv));
+        f.Economy.FixtureFaceFrontier(0, rivalCiv);
+        Assert.True(f.Economy.FrontierWallFacing(0, rivalCiv));
+        Assert.False(f.Economy.FrontierWallFacing(0, rivalCiv + 1), "a segment faces one neighbour, not the whole realm");
+        Assert.Equal(-1, f.Economy.FixtureNextFrontierFacing(0)); // the one neighbour is already faced
+        // A Bronze economy never reports any of it.
+        BronzeFixture bronze = Bronze("KEY-4");
+        Assert.False(bronze.Economy.FrontierWallFacing(0, rivalCiv));
+        Assert.False(bronze.Economy.HasGatehouse(0));
+    }
+
+    [Fact]
+    public void A_castle_needs_walls_and_a_border_and_anchors_a_claim_only_while_garrisoned()
+    {
+        BronzeFixture f = Iron("KEY-4", "DEF-06", "DEF-08", "WAR-07");
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureAddPeople(0, 80, 25);
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "castle")); // no wall, no neighbour
+        f.Economy.FixtureBuildStructure(0, "stone_walls");
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "castle")); // no border
+        int rival = -1;
+        for (int i = 1; i < f.Economy.FixtureSettlementCount; i++) if (f.Economy.FixtureCivOf(i) != f.Economy.FixtureCivOf(0)) { rival = i; break; }
+        f.Economy.FixtureMoveSite(rival, f.Economy.SettlementLite(0).SiteTile + 4);
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "castle"));
+        Fix64 before = f.Economy.ClaimMultiplier(0);
+        f.Economy.FixtureBuildIronStructure(0, "castle");
+        Assert.False(f.Economy.CastleGarrisoned(0)); // a keep with no soldiers holds nothing
+        Assert.Equal(before, f.Economy.ClaimMultiplier(0));
+        f.RunSeasons(4);
+        if (f.Economy.CastleGarrisoned(0))
+            Assert.True(f.Economy.ClaimMultiplier(0) > before, "a garrisoned castle is a stronger claim");
+        BronzeFixture bronze = Bronze("KEY-4");
+        Assert.False(bronze.Economy.CastleGarrisoned(0));
+    }
+
+    [Fact]
+    public void Engine_fire_takes_two_seasons_for_one_engine_against_a_bare_wall_and_half_again_against_towers()
+    {
+        // One engine, bare wall: 1.0 -> 0.5 -> 0: breach on the second season.
+        Fix64 integrity = Sieges.Batter(Fix64.One, 1, Fix64.FromInt(3));
+        Assert.Equal(Fix64.Half, integrity);
+        Assert.Equal(Fix64.Zero, Sieges.Batter(integrity, 1, Fix64.FromInt(3)));
+        // Two engines breach it in one; no engine does nothing.
+        Assert.Equal(Fix64.Zero, Sieges.Batter(Fix64.One, 2, Fix64.FromInt(3)));
+        Assert.Equal(Fix64.One, Sieges.Batter(Fix64.One, 0, Fix64.FromInt(3)));
+        // Towers (4.5) make the same engine take 3 seasons: 1 - 1/3 each.
+        Fix64 stepped = Fix64.One;
+        int seasons = 0;
+        while (stepped > Fix64.Zero && seasons < 10) { stepped = Sieges.Batter(stepped, 1, Defenses.IntactTowerWall); seasons++; }
+        Assert.Equal(3, seasons);
+        // Never below zero.
+        Assert.Equal(Fix64.Zero, Sieges.Batter(Fix64.FromRatio(1, 10), 3, Fix64.FromInt(3)));
+    }
+
+    [Fact]
+    public void A_professional_army_keeps_a_siege_train_and_its_engines_are_taken_returned_and_fed()
+    {
+        BronzeFixture f = Iron("KEY-4", "WAR-07", "WAR-09", "MET-09");
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureStock(0, "G-ENGINE", Fix64.FromInt(3));
+        Assert.Equal(2, f.Economy.TakeEngines(0, 2));
+        Assert.Equal(Fix64.One, f.Economy.GoodStock(0, "G-ENGINE"));
+        Assert.Equal(1, f.Economy.TakeEngines(0, 5)); // only whole engines in store leave
+        f.Economy.ReturnEngines(0, 2);
+        Assert.Equal(Fix64.FromInt(2), f.Economy.GoodStock(0, "G-ENGINE"));
+        // Charcoal feeds them: 0.2 each a season; none in store, none run.
+        f.Economy.FixtureStock(0, "G-CHAR", Fix64.Zero);
+        Assert.Equal(0, f.Economy.PayEngineUpkeep(0, 2));
+        f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromRatio(3, 10));
+        Assert.Equal(1, f.Economy.PayEngineUpkeep(0, 2));
+        Assert.True(f.Economy.GoodStock(0, "G-CHAR") < Fix64.FromRatio(3, 10));
+        // Bronze: no engines exist at all.
+        BronzeFixture bronze = Bronze("KEY-4");
+        Assert.Equal(0, bronze.Economy.TakeEngines(0, 3));
+    }
+
     private static int ProjectIndex(LivingEconomyModel economy, string id)
     {
         var content = EconomyContent.FromPack(TestPack.Pack);

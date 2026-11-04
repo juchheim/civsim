@@ -142,6 +142,8 @@ public sealed partial class LivingEconomyModel
         public Fix64 IronBuildProgress;
         /// <summary>The hillside tiles terraced into fields here (a subset of the settlement's field tiles).</summary>
         public List<int>? IronTerraces;
+        /// <summary>The civilizations this settlement's frontier segments face, in the order built (DEF-07).</summary>
+        public List<int>? IronFacing;
         /// <summary>How many of the settlement's staffed soldiers were paid their upkeep this season (Iron chapter); only these fight as professionals.</summary>
         public int IronSoldiersSupplied;
         /// <summary>Last season's gross want of each shared good, what sister settlements send toward.</summary>
@@ -816,6 +818,7 @@ public sealed partial class LivingEconomyModel
         m.IronBuildProgress = source.IronBuildProgress;
         m.IronSoldiersSupplied = source.IronSoldiersSupplied;
         if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
+        if (source.IronFacing is not null) m.IronFacing = new List<int>(source.IronFacing);
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);
         m.MineHeads.AddRange(source.MineHeads);
         return m;

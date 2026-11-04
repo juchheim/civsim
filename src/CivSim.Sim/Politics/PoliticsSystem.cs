@@ -251,7 +251,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
             Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
-            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07;
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09;
 
         public P(ResearchCatalog c)
         {
@@ -264,6 +264,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
             Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
+            Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); War09 = c.IndexOf("WAR-09");
         }
     }
 
@@ -285,7 +286,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _tileArray = generated.Tiles.ToArray();
         _passable = HexGrid.BuildWalkingPassability(_tileArray, _width, _height);
         InitVoyages();
-        _territory = new Territory(generated, _civs);
+        _territory = new Territory(generated, _civs) { FlipGuard = FrontierGuarded };
         _dip = new Diplomacy(_civs);
         _posture = new byte[_civs];
         _warlordE3ExpandFissionThresholdOverride = new Fix64?[_civs];
@@ -1874,8 +1875,30 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
             _research.IsDone(civ, _p.Com01), HillSite: false, _research.IsDone(civ, _p.War03), Night: false,
             RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4, Hillfort: hillfort, StoneWalls: walls,
-            HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive));
+            HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive,
+            Gatehouse: walls && _economy.IronChain && _research.IsDone(civ, _p.Def06) && _economy.HasGatehouse(settlement),
+            Castle: _economy.IronChain && _research.IsDone(civ, _p.Def08) && _economy.CastleGarrisoned(settlement)));
     }
+
+    /// <summary>
+    /// True when the tile is within a frontier segment's reach of a settlement of its owner whose built segment faces the challenger (DEF-07): the border cannot be
+    /// flipped across a wall that is not there, and never realm-wide.
+    /// </summary>
+    private bool FrontierGuarded(int tile, int owner, int challenger)
+    {
+        if (!_economy.IronChain) return false;
+        for (int s = 0; s < _sCount; s++)
+        {
+            if (_free[s] || _sCiv[s] != owner || !_research.IsDone(owner, _p.Def07) || !_economy.FrontierWallFacing(s, challenger)) continue;
+            if (HexGrid.Distance(_sTile[s], tile, _width) <= FrontierGuardTiles) return true;
+        }
+        return false;
+    }
+
+    internal bool FixtureFrontierGuarded(int tile, int owner, int challenger) => FrontierGuarded(tile, owner, challenger);
+
+    /// <summary>How far from its settlement a frontier segment guards the border (provisional).</summary>
+    private const int FrontierGuardTiles = 6;
 
     private int ContestedOverlapTiles(int a, int b)
     {

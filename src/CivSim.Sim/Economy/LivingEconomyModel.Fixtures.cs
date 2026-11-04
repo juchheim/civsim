@@ -249,6 +249,24 @@ public sealed partial class LivingEconomyModel
     /// <summary>Raises a settlement to a civic tier (0 village, 1 town, 2 city) without the works that normally earn it.</summary>
     internal void FixtureSetTier(int settlementIndex, int tier) => EnsureCivic(_settlements[settlementIndex]).Tier = (byte)tier;
 
+    internal int FixtureSettlementCount => _settlements.Count;
+    internal int FixtureCivOf(int settlementIndex) => _settlements[settlementIndex].Civilization;
+
+    /// <summary>Moves a settlement's site (a foreign neighbour for the frontier and castle fixtures).</summary>
+    internal void FixtureMoveSite(int settlementIndex, int tile) => _settlements[settlementIndex].SiteTile = tile;
+
+    internal bool FixtureHasStoneWalls(int settlementIndex) => HasStoneWalls(_settlements[settlementIndex]);
+    internal int FixtureNextFrontierFacing(int settlementIndex) => NextFrontierFacing(_settlements[settlementIndex]);
+
+    /// <summary>Gives a settlement a built frontier segment facing a civilization, outright.</summary>
+    internal void FixtureFaceFrontier(int settlementIndex, int civ)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        MetalState m = EnsureMetal(s);
+        (m.IronFacing ??= new List<int>()).Add(civ);
+        (m.IronWorks ??= new int[(int)IronStructure.Count])[(int)IronStructure.FrontierWall]++;
+    }
+
     /// <summary>Places an Iron-chapter structure outright (terrace excluded, since it needs a tile), for effect fixtures.</summary>
     internal void FixtureBuildIronStructure(int settlementIndex, string name)
     {

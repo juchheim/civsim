@@ -36,6 +36,9 @@ public sealed class Territory
 {
     /// <summary>Claim strength is kept in milli-units; T = 0.7.</summary>
     public const int OwnThresholdMilli = 700;
+
+    /// <summary>Asks whether a tile of <c>owner</c> is behind a built frontier segment facing <c>challenger</c>; politics sets it. Null means no tile ever is.</summary>
+    public Func<int, int, int, bool>? FlipGuard { get; set; }
     private const int LeadNumerator = 6, LeadDenominator = 5; // leader must hold 1.2x the runner-up
     public const int CampRadius = 2;
     private const int NoOwner = -1;
@@ -509,8 +512,9 @@ public sealed class Territory
                 {
                     _pendingSeasons[tile] = (byte)(_pendingWho[tile] == want ? Math.Min(255, _pendingSeasons[tile] + 1) : 1);
                     _pendingWho[tile] = (sbyte)want;
-                    // The challenger must lead for a full season before the border moves.
-                    if (_pendingSeasons[tile] > 1)
+                    // The challenger must lead for a full season before the border moves (four across a built frontier segment: flip pressure x0.5, DEF-07).
+                    int needed = _pendingSeasons[tile] > 1 && _owner[tile] >= 0 && want >= 0 && FlipGuard?.Invoke(tile, _owner[tile], want) == true ? 3 : 1;
+                    if (_pendingSeasons[tile] > needed)
                     {
                         _owner[tile] = (sbyte)want;
                         _pendingWho[tile] = -2;

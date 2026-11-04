@@ -1341,12 +1341,13 @@ public sealed partial class LivingEconomyModel
         return c.Tier switch { 2 => Math.Max(eraRadius, _cityRadius), 1 => Math.Max(eraRadius, _townRadius), _ => eraRadius };
     }
 
-    /// <summary>The claim multiplier within the settlement's radius: ×1.25 at a capital with a Palace (GOV-05), else 1.</summary>
+    /// <summary>The claim multiplier within the settlement's radius: ×1.25 at a capital with a Palace (GOV-05), ×1.2 at a garrisoned castle (DEF-08, Iron chapter), else 1.</summary>
     public Fix64 ClaimMultiplier(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
-        if (s.Civic is not { Palaces: > 0 } || !CohesionLive(s) || !HasProject(s.Civilization, "GOV-05")) return Fix64.One;
-        return _capitalClaimMult;
+        Fix64 anchor = IronChain && CastleGarrisoned(settlementIndex) ? CastleClaimMult : Fix64.One;
+        if (s.Civic is not { Palaces: > 0 } || !CohesionLive(s) || !HasProject(s.Civilization, "GOV-05")) return anchor;
+        return _capitalClaimMult * anchor;
     }
 
     /// <summary>The hinterland ring of a City with TER-07 (radius 7 at 50% emission), as (radius, emission share); (0, 0) otherwise.</summary>

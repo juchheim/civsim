@@ -557,6 +557,7 @@ public sealed partial class PoliticsSystem
         ulong stream = RaidStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 104729UL;
         RaidOutcome outcome = Raids.Resolve(raiders, defenders, defenses, ranged, _seed, stream,
             withdrawIfAlerted, preparedWarning);
+        outcome = RepelAtFrontier(outcome, c, e.ToSettlement, stream);
         RaidOutcome? shadowStand = null;
         if (outcome.Withdrew && IsRaidWithdrawalTraceTargetForDiagnostics(o))
             shadowStand = Raids.Resolve(raiders, defenders, defenses, ranged, _seed, stream, withdrawIfAlerted: false);
@@ -593,6 +594,25 @@ public sealed partial class PoliticsSystem
         _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.RaidResolved, o, outcome.Success ? 1 : 0, (loot * Raids.DeliveredLootShare).FloorToInt(), _sTile[e.ToSettlement], fight));
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.RaidResolved, c, outcome.Success ? 2 : 3, loot.FloorToInt(), _sTile[e.ToSettlement], fight));
     }
+
+    /// <summary>
+    /// A raid that would have succeeded crosses the target's built frontier segment (DEF-07) with probability 0.3; otherwise the raiders cannot get over it and
+    /// turn back with no loot (the losses of the fight stand). Only a segment facing the raiders' civilization counts, and only a successful raid is affected.
+    /// </summary>
+    private RaidOutcome RepelAtFrontier(RaidOutcome outcome, int raiderCiv, int targetSettlement, ulong stream)
+    {
+        if (!outcome.Success || outcome.Withdrew || !_economy.IronChain || !_research.IsDone(_sCiv[targetSettlement], _p.Def07) ||
+            !_economy.FrontierWallFacing(targetSettlement, raiderCiv)) return outcome;
+        Pcg32 rng = Pcg32.ForStream(_seed, stream ^ 0x46524F4E54494552UL, (ulong)targetSettlement, _season);
+        if (rng.NextFix01() < Sieges.FrontierRaidSuccess) return outcome;
+        return new RaidOutcome
+        {
+            Success = false, Surprised = outcome.Surprised, SurpriseRoll = outcome.SurpriseRoll, Withdrew = false, Battle = outcome.Battle,
+            LootCapacity = Fix64.Zero, StructuresBurned = 0,
+        };
+    }
+
+    internal RaidOutcome FixtureRepelAtFrontier(RaidOutcome outcome, int raiderCiv, int targetSettlement, ulong stream) => RepelAtFrontier(outcome, raiderCiv, targetSettlement, stream);
 
     private void ArriveMiningCampRaid(Expedition e)
     {

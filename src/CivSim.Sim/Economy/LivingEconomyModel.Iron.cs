@@ -17,14 +17,14 @@ public sealed partial class LivingEconomyModel
     /// <summary>Goods that exist only in the Iron chapter. Append only; the order is the slot order in snapshots.</summary>
     private enum IronGood : byte
     {
-        Wrought, Steel, Kit11, Kit12, Arms3, Arms4, Plank,
+        Wrought, Steel, Kit11, Kit12, Arms3, Arms4, Plank, Engine,
         Count
     }
 
     private static string IronGoodId(IronGood good) => good switch
     {
         IronGood.Wrought => "G-WROUGHT", IronGood.Steel => "G-STEEL", IronGood.Kit11 => "G-TOOL11", IronGood.Kit12 => "G-TOOL12",
-        IronGood.Arms3 => "G-ARMS3", IronGood.Arms4 => "G-ARMS4", IronGood.Plank => "G-PLANK",
+        IronGood.Arms3 => "G-ARMS3", IronGood.Arms4 => "G-ARMS4", IronGood.Plank => "G-PLANK", IronGood.Engine => "G-ENGINE",
         _ => "",
     };
 
@@ -319,7 +319,7 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0;
+        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 };
 
     private void HashIron(ref StateHasher hash)
     {
@@ -336,6 +336,8 @@ public sealed partial class LivingEconomyModel
             for (int k = 0; k < (int)IronStructure.Count; k++) hash.Add(m.IronWorks is { } w ? w[k] : 0);
             hash.Add(m.IronTerraces?.Count ?? 0);
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) hash.Add(tile);
+            hash.Add(m.IronFacing?.Count ?? 0);
+            if (m.IronFacing is not null) foreach (int civ in m.IronFacing) hash.Add(civ);
         }
     }
 
@@ -357,6 +359,8 @@ public sealed partial class LivingEconomyModel
             for (int k = 0; k < (int)IronStructure.Count; k++) writer.Write(m.IronWorks is { } w ? w[k] : 0);
             writer.Write(m.IronTerraces?.Count ?? 0);
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) writer.Write(tile);
+            writer.Write(m.IronFacing?.Count ?? 0);
+            if (m.IronFacing is not null) foreach (int civ in m.IronFacing) writer.Write(civ);
         }
     }
 
@@ -400,6 +404,15 @@ public sealed partial class LivingEconomyModel
                 int tile = reader.ReadInt32();
                 if ((uint)tile >= (uint)_world.TileCount) throw new InvalidDataException("Invalid Iron-chapter terrace tile.");
                 metal.IronTerraces!.Add(tile);
+            }
+            int facings = reader.ReadInt32();
+            if (facings < 0 || facings > 8) throw new InvalidDataException("Invalid Iron-chapter frontier count.");
+            metal.IronFacing = facings == 0 ? null : new List<int>(facings);
+            for (int f = 0; f < facings; f++)
+            {
+                int civ = reader.ReadInt32();
+                if (civ < 0) throw new InvalidDataException("Invalid Iron-chapter frontier civilization.");
+                metal.IronFacing!.Add(civ);
             }
         }
     }
@@ -579,16 +592,114 @@ public sealed partial class LivingEconomyModel
         plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
     }
 
-    /// <summary>Iron arms wear out by age like the Bronze arms: a share of the stock each season, one over the service life (24 seasons iron, 48 steel-edge).</summary>
-    private void WearIronArms(MetalState m)
+    /// <summary>Iron arms and siege engines wear out by age like the Bronze arms: a share of the stock each season, one over the service life (24 seasons iron, 48 steel-edge, 12 for an engine).</summary>
+    private void WearIronGoods(MetalState m)
     {
         if (m.IronGoods is not { } iron) return;
-        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4 })
+        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4, IronGood.Engine })
         {
             int t = _content.TradeGoodIndex(IronGoodId(g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
             if (seasons > 0 && iron[(int)g] > Fix64.Zero) iron[(int)g] -= iron[(int)g] / seasons;
         }
+    }
+
+    // ---- walls, castles and siege engines (DEF-06 to DEF-08, WAR-09) -------------------------------------
+
+    /// <summary>How far a frontier segment reaches: a rival settlement this close is a neighbour worth a wall (hex tiles; provisional).</summary>
+    private const int FrontierReach = 6;
+    /// <summary>A castle is built on a border town: a rival settlement within this many tiles (provisional).</summary>
+    private const int CastleReach = 8;
+    /// <summary>Soldiers needed in post for a castle to hold its region (the catalog says "garrison required"; the Captures minimum is four).</summary>
+    private const int CastleGarrison = 4;
+    /// <summary>Claim strength of a garrisoned castle's settlement (docs/MVP/26 §3.2 "strong claim anchor"; radius is already 5 in the Iron era; provisional).</summary>
+    private static readonly Fix64 CastleClaimMult = Fix64.FromRatio(12, 10);
+    /// <summary>Charcoal an engine in the field burns each season (docs/MVP/26 §3.2; provisional).</summary>
+    private static readonly Fix64 EngineUpkeep = Fix64.FromRatio(1, 5);
+
+    private bool HasStoneWalls(SettlementState s) => s.Structures[(int)Structure.StoneWalls] > 0;
+
+    /// <summary>Hex distance to the nearest settlement of another civilization (Free Folk excluded), or a large number when none.</summary>
+    private int NearestForeignDistance(SettlementState s)
+    {
+        int best = int.MaxValue;
+        foreach (SettlementState o in _settlements)
+        {
+            if (o.Civilization == s.Civilization || o.Civilization < 0 || IsFreeFolk(o)) continue;
+            best = Math.Min(best, HexGrid.Distance(o.SiteTile, s.SiteTile, _world.Width));
+        }
+        return best;
+    }
+
+    private bool IsFaced(SettlementState s, int civ) => s.Metal?.IronFacing?.Contains(civ) == true;
+
+    /// <summary>The lowest-numbered rival civilization with a settlement within <see cref="FrontierReach"/> that none of this settlement's segments face yet; -1 when none.</summary>
+    private int NextFrontierFacing(SettlementState s)
+    {
+        int best = -1;
+        foreach (SettlementState o in _settlements)
+        {
+            if (o.Civilization == s.Civilization || o.Civilization < 0 || IsFreeFolk(o) || IsFaced(s, o.Civilization)) continue;
+            if (HexGrid.Distance(o.SiteTile, s.SiteTile, _world.Width) > FrontierReach) continue;
+            if (best < 0 || o.Civilization < best) best = o.Civilization;
+        }
+        return best;
+    }
+
+    /// <summary>A gatehouse stands on the settlement's wall (DEF-06): the wall's intact multiplier rises from 3.0 to 4.5.</summary>
+    public bool HasGatehouse(int settlementIndex)
+        => IronChain && _settlements[settlementIndex] is { } s && HasStoneWalls(s) && IronWorksCount(s, IronStructure.Gatehouse) > 0;
+
+    /// <summary>A built frontier segment of this settlement faces the civilization (DEF-07): crossing it is harder, and only it.</summary>
+    public bool FrontierWallFacing(int settlementIndex, int civ)
+        => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.FrontierWall) > 0 && IsFaced(s, civ);
+
+    /// <summary>A castle stands here and its garrison is in post and fed (DEF-08, WAR-07): the settlement is a strongpoint and a strong claim anchor.</summary>
+    public bool CastleGarrisoned(int settlementIndex)
+        => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Castle) > 0 && s.Metal is { } m && m.IronSoldiersSupplied >= CastleGarrison;
+
+    /// <summary>
+    /// A professional army keeps a siege train (WAR-09): a forge town with soldiers wants one engine for every four of them, at most two. An engine is
+    /// forged from wood, blocks and wrought iron (<c>make_siege_engine</c>); the want expands through the same graph as the arms.
+    /// </summary>
+    private void IronEngineWant(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "WAR-09")) return;
+        int soldiers = m.IronSoldiersSupplied;
+        int wanted = Math.Min(2, soldiers / 4);
+        if (wanted <= 0) return;
+        plan.Terminal[IronSlot(IronGood.Engine)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(wanted) - IronStock(s, IronGood.Engine));
+    }
+
+    /// <summary>Takes up to <paramref name="max"/> whole engines from a settlement's store for a campaign train; returns how many left.</summary>
+    public int TakeEngines(int settlementIndex, int max)
+    {
+        if (!IronChain || max <= 0) return 0;
+        SettlementState s = _settlements[settlementIndex];
+        int n = Math.Min(max, IronStock(s, IronGood.Engine).FloorToInt());
+        if (n > 0) AddStock(s, IronSlot(IronGood.Engine), -Fix64.FromInt(n));
+        return n;
+    }
+
+    /// <summary>Returns engines to a settlement's store when a siege ends (they came home with the host).</summary>
+    public void ReturnEngines(int settlementIndex, int count)
+    {
+        if (!IronChain || count <= 0) return;
+        AddStock(_settlements[settlementIndex], IronSlot(IronGood.Engine), Fix64.FromInt(count));
+    }
+
+    /// <summary>
+    /// Pays one season of engine upkeep from the home settlement's charcoal (0.2 each) and returns how many engines ran; an engine whose charcoal is not in
+    /// store stands idle that season (docs/MVP/25 §7: the train must be supplied).
+    /// </summary>
+    public int PayEngineUpkeep(int homeSettlement, int engines)
+    {
+        if (!IronChain || engines <= 0 || (uint)homeSettlement >= (uint)_settlements.Count) return 0;
+        SettlementState s = _settlements[homeSettlement];
+        int slot = MetalSlot(MetalGood.Charcoal);
+        int running = Math.Min(engines, (Stock(s, slot) / EngineUpkeep).FloorToInt());
+        if (running > 0) AddStock(s, slot, -EngineUpkeep * running);
+        return running;
     }
 
     // ---- roads, bridges and relays (TRN-07, TRN-08, COM-08) ------------------------------------------------
@@ -739,7 +850,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private enum IronStructure : byte
     {
-        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge,
+        Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge, Gatehouse, FrontierWall, Castle,
         Count
     }
 
@@ -759,6 +870,10 @@ public sealed partial class LivingEconomyModel
         // A paved link from a settlement to its capital (provisional: the catalog gives no road cost). Surveying shortens it; a bridge is the 26 §3.2 row.
         new("road", "TRN-07", 12, 6, 0, 0, 0, Infrastructure: true),
         new("bridge", "TRN-08", 16, 6, 2, 2, 0, Stone: true),
+        // Defense works (docs/MVP/26 §3.2): a gatehouse on a wall, a frontier segment facing one neighbour, a castle on the border.
+        new("gatehouse", "DEF-06", 30, 12, 0, 6, 0, Stone: true),
+        new("frontier_wall_segment", "DEF-07", 12, 4, 0, 2, 0, Stone: true),
+        new("castle", "DEF-08", 60, 0, 20, 12, 2, Large: true, Stone: true),
     };
 
     /// <summary>
@@ -818,7 +933,7 @@ public sealed partial class LivingEconomyModel
         => kind switch
         {
             // A crane is worth building when a large work is wanted and none stands yet (it halves the labor).
-            IronStructure.Crane => IronWorksCount(s, IronStructure.Crane) == 0 && IronBuildWanted(s, IronStructure.Aqueduct),
+            IronStructure.Crane => IronWorksCount(s, IronStructure.Crane) == 0 && (IronBuildWanted(s, IronStructure.Aqueduct) || IronBuildWanted(s, IronStructure.Castle)),
             // A windlass well adds a deep water source where water, not food or housing, holds a town back (at most two).
             IronStructure.WindlassWell => IronWorksCount(s, IronStructure.WindlassWell) < 2 && s.Civic is { Tier: >= 1 } &&
                 WaterCapBase(s) <= Fix64.Min(FoodCap(s), Fix64.Min(HousingCap(s), GroupCap(s))) &&
@@ -835,6 +950,11 @@ public sealed partial class LivingEconomyModel
             IronStructure.Road => RoadWanted(s),
             IronStructure.Bridge => IronWorksCount(s, IronStructure.Road) > 0 && IronWorksCount(s, IronStructure.Bridge) == 0 && RiversOnLink(s) > 0,
             IronStructure.Theatre => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Theatre) == 0 && Population(s.Id) >= 50,
+            // Defense works follow the wall and the neighbour: a gatehouse on a walled town, a segment toward each close rival, a castle on a walled border town.
+            IronStructure.Gatehouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Gatehouse) == 0 && HasStoneWalls(s),
+            IronStructure.FrontierWall => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.FrontierWall) < 2 && NextFrontierFacing(s) >= 0,
+            IronStructure.Castle => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Castle) == 0 && Population(s.Id) >= 60 && HasStoneWalls(s) &&
+                NearestForeignDistance(s) <= CastleReach,
             _ => false,
         };
 
@@ -844,6 +964,8 @@ public sealed partial class LivingEconomyModel
         {
             IronStructure.Terrace => NextTerraceTile(s) >= 0,
             IronStructure.WindlassWell => IronWorksCount(s, kind) < 2,
+            IronStructure.Gatehouse => IronWorksCount(s, kind) == 0 && HasStoneWalls(s),
+            IronStructure.FrontierWall => IronWorksCount(s, kind) < 2 && NextFrontierFacing(s) >= 0,
             _ => IronWorksCount(s, kind) == 0,
         };
 
@@ -901,6 +1023,7 @@ public sealed partial class LivingEconomyModel
         if (m.Goods[(int)MetalGood.Block] < Fix64.FromInt(spec.Block) || m.Goods[(int)MetalGood.Ashlar] < Fix64.FromInt(spec.Ashlar) ||
             m.Goods[(int)MetalGood.Iron] < Fix64.FromInt(spec.Bloom) || s.Stores[(int)Good.Wood] < Fix64.FromInt(spec.Wood)) return false;
         if (m.IronBuildKind == (int)IronStructure.Terrace && NextTerraceTile(s) < 0) return false;
+        if (m.IronBuildKind == (int)IronStructure.FrontierWall && NextFrontierFacing(s) < 0) return false;
         AddStock(s, MetalSlot(MetalGood.Block), -Fix64.FromInt(spec.Block));
         AddStock(s, MetalSlot(MetalGood.Ashlar), -Fix64.FromInt(spec.Ashlar));
         AddStock(s, MetalSlot(MetalGood.Iron), -Fix64.FromInt(spec.Bloom));
@@ -910,6 +1033,7 @@ public sealed partial class LivingEconomyModel
 
     private void CompleteIronBuild(SettlementState s, MetalState m, IronStructure kind)
     {
+        if (kind == IronStructure.FrontierWall) (m.IronFacing ??= new List<int>()).Add(NextFrontierFacing(s)); // before the count rises: the facing is the civ this segment answers
         (m.IronWorks ??= new int[(int)IronStructure.Count])[(int)kind]++;
         if (kind == IronStructure.Terrace)
         {

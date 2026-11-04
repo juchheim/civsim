@@ -9,9 +9,14 @@ namespace CivSim.Sim.Politics;
 public readonly record struct Defenses(
     bool ThornBarrier, bool Palisade, bool Watchers, bool Dogs, bool SignalFires, bool AlarmCalls, bool HillSite,
     bool Archery, bool Night, bool RaidedRecently, bool Hillfort = false, bool StoneWalls = false, bool HillfortRefuge = false,
-    bool BronzeRules = false)
+    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false)
 {
     public static readonly Defenses None = default;
+
+    /// <summary>The intact wall multiplier with a gatehouse and towers (docs/MVP/25 §7: 3 to 4.5).</summary>
+    public static readonly Fix64 IntactTowerWall = Fix64.FromRatio(9, 2);
+    /// <summary>A garrisoned castle is a strongpoint: defenders fight at x1.25 (provisional; the catalog names the castle a strongpoint without a number).</summary>
+    public static readonly Fix64 CastleStrongpoint = Fix64.FromRatio(5, 4);
 
     /// <summary>Product of the defense multipliers on defenders' strength (13 §6.2; Bronze barriers replace each other).</summary>
     public Fix64 Multiplier()
@@ -24,7 +29,8 @@ public readonly record struct Defenses(
             if (ThornBarrier) barrier = Fix64.FromRatio(13, 10);
             if (Palisade) barrier = Fix64.Max(barrier, Fix64.FromInt(2));
             if (Hillfort) barrier = Fix64.Max(barrier, Fix64.FromRatio(5, 2));
-            if (StoneWalls) barrier = Fix64.Max(barrier, Fix64.FromInt(3));
+            // A gatehouse and towers on a standing wall lift its intact multiplier from 3.0 to 4.5 (DEF-06).
+            if (StoneWalls) barrier = Fix64.Max(barrier, Gatehouse ? IntactTowerWall : Fix64.FromInt(3));
         }
         else
         {
@@ -34,6 +40,7 @@ public readonly record struct Defenses(
         }
         if (modernBarrier) m = m * barrier;
         if (HillSite) m = m * Fix64.FromRatio(12, 10);
+        if (Castle) m = m * CastleStrongpoint;
         if (Archery && (modernBarrier ? barrier > Fix64.One : ThornBarrier || Palisade)) m = m * Fix64.FromRatio(5, 4);
         return m;
     }
@@ -195,6 +202,30 @@ public static class Sieges
     public static readonly Fix64 EmptyStoresCapitulationChance = Fix64.FromRatio(70, 100);
     public static readonly Fix64 DesertionPerUnsuppliedSeason = Fix64.FromRatio(10, 100);
     public static readonly int SupplyReachTiles = 8;
+
+    /// <summary>Crew an engine needs (docs/MVP/26 §3.2), drawn from the host's members.</summary>
+    public const int CrewPerEngine = 4;
+    /// <summary>The share of otherwise-successful raids that get across a built frontier segment (DEF-07: raid success x0.3).</summary>
+    public static readonly Fix64 FrontierRaidSuccess = Fix64.FromRatio(3, 10);
+    /// <summary>Engines one host can bring (provisional): a siege train, not an arsenal.</summary>
+    public const int MaxEngines = 3;
+    /// <summary>Seasons an engine lasts in the field before it is spent (G-ENGINE durability, 12 seasons).</summary>
+    public const int EngineSeasons = 12;
+    /// <summary>Share of an intact 3.0 wall one running engine reduces each season (provisional): two seasons for a lone engine against a bare wall, calibrated to the x0.4 intention.</summary>
+    public static readonly Fix64 BreachPerEngine = Fix64.FromRatio(1, 2);
+
+    /// <summary>
+    /// The wall's integrity after a season of engine fire (WAR-09): each running engine takes <see cref="BreachPerEngine"/> of an intact wall, scaled down by a stronger
+    /// wall (a gatehouse's 4.5 against 3.0 makes the same engines take half again as long). Never below zero; zero is a breach.
+    /// </summary>
+    public static Fix64 Batter(Fix64 integrity, int runningEngines, Fix64 wallMultiplier)
+    {
+        if (runningEngines <= 0) return integrity;
+        Fix64 scale = wallMultiplier > Fix64.Zero ? Fix64.FromInt(3) / wallMultiplier : Fix64.One;
+        Fix64 left = integrity - BreachPerEngine * runningEngines * scale;
+        // A thirds-of-a-wall step leaves a rounding crumb that is not a standing wall: anything under a millionth is a breach.
+        return left <= Fix64.FromRaw(4295) ? Fix64.Zero : left;
+    }
 
     /// <summary>Investment requires a host at least 1.2× the settlement's unwalled field strength.</summary>
     public static bool CanInvest(Fix64 besieger, Fix64 unwalledDefenders)

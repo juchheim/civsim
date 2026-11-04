@@ -280,6 +280,14 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         return 0;
     }
 
+    /// <summary>Tiles around a gatehoused hub that its gate controls (provisional).</summary>
+    private const int GateControlTiles = 2;
+
+    private bool GateControls(int hub, int tile)
+        => _economy.IronChain && _economy.HasGatehouse(hub) && HexGrid.Distance(_sTile[hub], tile, _width) <= GateControlTiles;
+
+    internal bool FixtureGateControls(int hub, int tile) => GateControls(hub, tile);
+
     /// <summary>A route is blocked when a third civilization at war with either side owns a tile on the straight line between the hubs.</summary>
     private bool RouteBlocked(int sellerCiv, int buyerCiv, int from, int to)
     {
@@ -293,8 +301,11 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int steps = Math.Max(1, HexGrid.Distance(_sTile[from], _sTile[to], _width));
         for (int k = 0; k < steps; k++)
         {
-            int owner = _territory.OwnerOf(HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _width, _height));
+            int step = HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _width, _height);
+            int owner = _territory.OwnerOf(step);
             if (owner < 0 || owner == sellerCiv || owner == buyerCiv) continue;
+            // A gatehouse holds its approaches: enemy-held ground right at a gated hub does not shut the route (DEF-06). The rest of the line must still be open.
+            if (GateControls(from, step) || GateControls(to, step)) continue;
             if (sellerCiv >= 0 && _dip.AtWar(owner, sellerCiv) || buyerCiv >= 0 && _dip.AtWar(owner, buyerCiv)) return true;
         }
         return false;
