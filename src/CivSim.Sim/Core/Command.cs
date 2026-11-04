@@ -63,6 +63,14 @@ public enum CommandKind : ushort
     SetScoutPolicy = 22,
     /// <summary>A = own settlement index, B = <see cref="RaidResponse"/>; takes effect next season.</summary>
     SetRaidResponse = 23,
+
+    // Iron chapter orders (docs/MVP/25 §7, §8): the same rules as the AI's orders; an order the rules refuse does nothing. Outside the Iron chapter they refuse.
+    /// <summary>A = a rival harbor settlement index: station a crewed galley off it (SEA-09, war with its owner, a harbor you have seen).</summary>
+    Blockade = 24,
+    /// <summary>A = civilization at war with us that we clearly outmatch (DIP-06): end the war on tributary terms.</summary>
+    ImposeTribute = 25,
+    /// <summary>A = allied civilization (DIP-07): found a league with it or bring it into ours.</summary>
+    FormLeague = 26,
 }
 
 /// <summary>How an alerted settlement responds to an ordinary raid. Surprise always forces a normal fight.</summary>

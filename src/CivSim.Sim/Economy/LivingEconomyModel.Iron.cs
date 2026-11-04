@@ -765,6 +765,50 @@ public sealed partial class LivingEconomyModel
         return (Done(s.Civilization, "TRN-07") ? 2 : 1) * (Done(s.Civilization, "COM-08") ? 2 : 1);
     }
 
+    // ---- read-outs for the view layer (all read-only; nothing here changes state) ------------------------
+
+    /// <summary>The number of Iron works kinds, the stride of the frame's per-settlement works counts.</summary>
+    public static int IronWorkKindCount => (int)IronStructure.Count;
+
+    /// <summary>The registry id of an Iron works kind (for the front end's string table), or "" when out of range.</summary>
+    public static string IronWorkId(int kind) => (uint)kind < (uint)IronSpecs.Length ? IronSpecs[kind].Name : "";
+
+    /// <summary>How many of an Iron works kind a settlement holds.</summary>
+    public int IronWorkAt(int settlementIndex, int kind)
+        => IronChain && (uint)kind < (uint)IronStructure.Count ? IronWorksCount(_settlements[settlementIndex], (IronStructure)kind) : 0;
+
+    /// <summary>The Iron structure under construction in a settlement (kind -1 when none) and its progress in permille of its labor.</summary>
+    public (int Kind, int Permille) IronBuildAt(int settlementIndex)
+    {
+        if (!IronChain || _settlements[settlementIndex] is not { Metal: { IronBuildKind: >= 0 } m } s) return (-1, 0);
+        Fix64 labor = IronLaborOf(s, IronSpecs[m.IronBuildKind]);
+        return (m.IronBuildKind, labor <= Fix64.Zero ? 1000 : (int)Math.Clamp((m.IronBuildProgress * 1000 / labor).FloorToInt(), 0, 1000));
+    }
+
+    /// <summary>Soldiers in post and fed this season at a settlement (the supplied count the army uses).</summary>
+    public int SoldiersAt(int settlementIndex) => IronChain ? _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0 : 0;
+
+    public int ScholarsAt(int settlementIndex)
+    {
+        if (!IronChain) return 0;
+        int n = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == Role.Scholar) n++;
+        return n;
+    }
+
+    /// <summary>The settlement a town's Iron build labor is pledged to this season (a league contribution), or -1.</summary>
+    public int PledgeOf(int settlementIndex) => IronChain ? (_settlements[settlementIndex].Metal?.IronPledgeTo ?? 0) - 1 : -1;
+
+    /// <summary>The settlement holding a Wonder (named by its structure id), or -1 when nobody holds it.</summary>
+    public int WonderSettlement(string structure)
+    {
+        if (!IronChain) return -1;
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == structure && IsWonder((IronStructure)k))
+                foreach (SettlementState s in _settlements) if (IronWorksCount(s, (IronStructure)k) > 0) return s.Id;
+        return -1;
+    }
+
     /// <summary>
     /// How many of a civilization's staffed institutions stand idle (docs/MVP/25 §11 "idle staffed institutions"): an academy with no scholar, a castle with no
     /// garrison, a galley with no crew, a temple with no missionary once BEL-09 is known. Telemetry for the AI blunder counters; it changes nothing.

@@ -40,10 +40,12 @@ public partial class Game
     private HFlowContainer? _destinationChips;
     private readonly List<UiButton> _destinationPool = new();
     private OrderRow? _giftRow, _barterRow, _allianceRow, _peaceRow, _raidRow, _warRow, _assaultRow;
+    // Iron chapter orders (docs/MVP/25 §7, §8): shown only when the match plays the Iron chapter.
+    private OrderRow? _leagueRow, _tributeRow, _blockadeRow;
     private VBoxContainer? _partyList;
     private readonly List<(HBoxContainer Root, Label Text, UiProgressBar Bar, UiButton Recall)> _partyRows = new();
     private int _selectedPoliticsCiv = -1, _selectedTargetSettlement = -1;
-    private int _war02 = -1, _trd01 = -1, _trd02 = -1, _dip03 = -1;
+    private int _war02 = -1, _trd01 = -1, _trd02 = -1, _dip03 = -1, _dip06 = -1, _dip07 = -1, _sea09 = -1;
     private readonly List<int> _civOrder = new();
 
     private void CreateDiplomacyDrawer()
@@ -54,6 +56,9 @@ public partial class Game
             _trd01 = _catalog.IndexOf("TRD-01");
             _trd02 = _catalog.IndexOf("TRD-02");
             _dip03 = _catalog.IndexOf("DIP-03");
+            _dip06 = _catalog.IndexOf("DIP-06");
+            _dip07 = _catalog.IndexOf("DIP-07");
+            _sea09 = _catalog.IndexOf("SEA-09");
         }
         _diplomacyDrawer = UiKit.Panel("HudPanel", "DiplomacyDrawer");
         _diplomacyDrawer.Visible = false;
@@ -116,7 +121,8 @@ public partial class Game
         _barterRow = NewOrderRow("Barter", QueueBarter, false, "");
         _allianceRow = NewOrderRow("Form alliance", () => QueueDiplomacyOrder(PlayerCommands.FormAlliance), false, "");
         _peaceRow = NewOrderRow("Make peace", () => QueueDiplomacyOrder(PlayerCommands.MakePeace), false, "");
-        foreach (OrderRow row in new[] { _giftRow, _barterRow, _allianceRow, _peaceRow }) friendly.AddChild(row.Root);
+        _leagueRow = NewOrderRow("Form league", () => QueueDiplomacyOrder(PlayerCommands.FormLeague), false, "");
+        foreach (OrderRow row in new[] { _giftRow, _barterRow, _allianceRow, _peaceRow, _leagueRow }) friendly.AddChild(row.Root);
         var compactControls = UiKit.Row(UiTokens.Sp2);
         _diploCompactGood = new OptionButton { CustomMinimumSize = new Vector2(130, UiTokens.ControlM) };
         foreach (TradeGood good in new[] { TradeGood.Tin, TradeGood.Copper, TradeGood.Bronze, TradeGood.Salt, TradeGood.Gold, TradeGood.Food, TradeGood.Luxury })
@@ -146,7 +152,9 @@ public partial class Game
         hostile.AddChild(raidSizeRow);
         _warRow = NewOrderRow("Declare war", () => QueueDiplomacyOrder(PlayerCommands.DeclareWar), true, "Confirm war");
         _assaultRow = NewOrderRow("Assault", QueueAssault, true, "Confirm assault");
-        foreach (OrderRow row in new[] { _raidRow, _warRow, _assaultRow }) hostile.AddChild(row.Root);
+        _tributeRow = NewOrderRow("Impose tribute", () => QueueDiplomacyOrder(PlayerCommands.ImposeTribute), true, "Confirm terms");
+        _blockadeRow = NewOrderRow("Blockade harbor", QueueBlockade, true, "Confirm blockade");
+        foreach (OrderRow row in new[] { _raidRow, _warRow, _assaultRow, _tributeRow, _blockadeRow }) hostile.AddChild(row.Root);
         detail.AddChild(hostile);
         _hostileBlock = hostile;
 
@@ -209,7 +217,7 @@ public partial class Game
 
     private void TickDiplomacy(float delta)
     {
-        foreach (OrderRow? row in new[] { _raidRow, _warRow, _assaultRow })
+        foreach (OrderRow? row in new[] { _raidRow, _warRow, _assaultRow, _tributeRow, _blockadeRow })
         {
             if (row is null || !row.Confirming) continue;
             row.Timer -= delta;
@@ -453,6 +461,7 @@ public partial class Game
                     occupation = true;
         SetOrder(_peaceRow!, atWar, can && atWar && !occupation, occupation ? "Not while you hold one of their settlements." : "Ends the war. A truce follows.");
 
+        RefreshIronOrders(frame, can, atWar, allied, contacted);
         bool chosenDestination = _selectedTargetSettlement >= 0;
         string raidHint = chosenDestination
             ? "Sends raiders to this settlement. Hurts relations."
@@ -462,7 +471,6 @@ public partial class Game
             raidHint);
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
-        bool chosenDestination = _selectedTargetSettlement >= 0;
         bool rememberedDestination = chosenDestination && IsRememberedDestination(frame, civ, _selectedTargetSettlement);
         SetOrder(_assaultRow!, true, can && atWar,
             !atWar ? "Declare war first." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :
@@ -531,6 +539,35 @@ public partial class Game
             _session.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _selectedTargetSettlement, partySize));
         else
             _session.Queue(PlayerCommands.LaunchRaidAgainst(_session.Tick, 0, _selectedPoliticsCiv, partySize));
+    }
+
+    /// <summary>The Iron chapter's three orders: a league with an ally, tributary terms in a war being won, a galley off a harbor chosen above.</summary>
+    private void RefreshIronOrders(MatchFrame frame, bool can, bool atWar, bool allied, bool contacted)
+    {
+        bool iron = frame.Iron.Active;
+        bool dip06 = HasProjectDone(frame, _dip06), dip07 = HasProjectDone(frame, _dip07), sea09 = HasProjectDone(frame, _sea09);
+        SetOrder(_leagueRow!, iron && allied, can && contacted && allied && dip07,
+            !dip07 ? $"Needs {NeedsName(_dip07)} (research)." : "Founds a league with this ally, or brings it into yours. Partners lend labor to each other's Wonders.");
+        SetOrder(_tributeRow!, iron && atWar, can && atWar && dip06,
+            !dip06 ? $"Needs {NeedsName(_dip06)} (research)." : "Ends the war on tributary terms. Needs about one and a half times their strength; they hand over a tenth of their spare food each season and a quarter of their yearly Dominion.");
+        bool galley = false;
+        int galleyKind = -1;
+        for (int k = 0; k < frame.Iron.WorkKinds; k++) if (LivingEconomyModelWorkId(k) == "galley") galleyKind = k;
+        if (galleyKind >= 0)
+            for (int w = 0; w < frame.SettlementCount; w++)
+                if ((frame.SettlementFlags[w] & (ushort)SettlementViewFlags.Own) != 0 && frame.Iron.Works[w * frame.Iron.WorkKinds + galleyKind] > 0 && frame.Iron.Soldiers[w] >= 4) galley = true;
+        bool chosen = _selectedTargetSettlement >= 0;
+        SetOrder(_blockadeRow!, iron && atWar, can && atWar && sea09 && galley && chosen,
+            !sea09 ? $"Needs {NeedsName(_sea09)} (research)." : !galley ? "Needs a harbor town with a war galley and four soldiers to crew it." :
+            !chosen ? "Choose one of their settlements above: a harbor you have seen." : "Stations a galley off that harbor and shuts its sea routes.");
+    }
+
+    private static string LivingEconomyModelWorkId(int kind) => CivSim.Sim.Economy.LivingEconomyModel.IronWorkId(kind);
+
+    private void QueueBlockade()
+    {
+        if (_session is null || _selectedTargetSettlement < 0) return;
+        _session.Queue(PlayerCommands.Blockade(_session.Tick, 0, _selectedTargetSettlement));
     }
 
     private void QueueAssault()

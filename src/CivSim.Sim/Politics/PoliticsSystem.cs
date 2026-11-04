@@ -491,6 +491,18 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 case CommandKind.SetRaidResponse:
                     ApplyRaidResponseCommand(command);
                     break;
+                case CommandKind.Blockade:
+                    if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderBlockade(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
+                case CommandKind.ImposeTribute:
+                    if (command.A < 0 || command.A >= _civs || command.A == civ) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderTribute(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
+                case CommandKind.FormLeague:
+                    if (command.A < 0 || command.A >= _civs || command.A == civ) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderLeague(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
                 case CommandKind.IssueDecree:
                     QueueDecreeCommand(command);
                     break;

@@ -397,6 +397,26 @@ public sealed partial class FrameBuilder
                     e.Kind = ViewEventKind.VillageJoined; e.Text = ChronicleKey.VillageJoined; e.Tier = ViewEventTier.Milestone;
                     e.Settlement = p.A; e.Tile = TileOf(p.A); e.A = p.B; e.B = 0;
                     break;
+                case PoliticsEventKind.BlockadeBegan:
+                    e.Kind = ViewEventKind.BlockadeBegan; e.Text = ChronicleKey.BlockadeBegan; e.Tier = ViewEventTier.Milestone;
+                    e.Settlement = p.A; e.Tile = TileOf(p.A);
+                    break;
+                case PoliticsEventKind.BlockadeEnded:
+                    e.Kind = ViewEventKind.BlockadeEnded; e.Text = ChronicleKey.BlockadeEnded; e.Tier = ViewEventTier.Info;
+                    e.Settlement = p.A; e.Tile = TileOf(p.A);
+                    break;
+                case PoliticsEventKind.TributeAgreed:
+                    e.Kind = ViewEventKind.TributeAgreed; e.Text = ChronicleKey.TributeAgreed; e.Tier = ViewEventTier.Milestone;
+                    break;
+                case PoliticsEventKind.TributeEnded:
+                    e.Kind = ViewEventKind.TributeEnded; e.Text = ChronicleKey.TributeEnded; e.Tier = ViewEventTier.Milestone;
+                    break;
+                case PoliticsEventKind.LeagueJoined:
+                    e.Kind = ViewEventKind.LeagueJoined; e.Text = ChronicleKey.LeagueJoined; e.Tier = ViewEventTier.Milestone;
+                    break;
+                case PoliticsEventKind.LeagueEnded:
+                    e.Kind = ViewEventKind.LeagueEnded; e.Text = ChronicleKey.LeagueEnded; e.Tier = ViewEventTier.Info;
+                    break;
                 default:
                     continue;
             }
