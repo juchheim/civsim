@@ -28,3 +28,12 @@ No `CommandKind` for either yet: `OrderTribute` is a method like `OrderAssault`,
 ## Checks
 
 Five tests in `IronFaithTests` (staffing, conversion maths and the cap, claim pressure, route-bound spread, blockade cut and snapshot) and four in `IronTributeTests` (rules and refusals, surplus, Dominion conservation, ending and snapshot).
+
+# Batch 4 addendum: findings on the rest of the diplomacy and sea rows
+
+| Row | Finding |
+| --- | --- |
+| TER-09 Frontier Colonies | Already provided. A founding band can already cross water up to 24 tiles with SEA-04 (`SettleReachSea`), which is wider than the catalog's "up to 10 sea tiles from a known owned coast", and none of the extra conditions (ship, two seasons of rations, safe landing) exist for it. Every site TER-09 would allow is already allowed. No code change; tightening sea founding in the Iron chapter would be a new restriction on E3 behaviour, so I recommend leaving it. |
+| TRN-07 claim +10% along built roads | Built. A road-linked town (road, and a bridge where the link crosses a river) with TRN-07 adds a claim of 10% of its own emission, falling off with distance as its normal claim does, on each tile of its link that lies inside its claim radius (`RoadClaimTiles`, `BuildSettlementClaimSources`). It is an addition to the town's claim, not a rewrite of the other civilization's. |
+| WAY-07 Grid Cartography | Display and lever only. "Coastline outlines of the known world" reveals only coast already observed or shared (25 §8), so the simulation has nothing to add; the chart is a WP10 display. "Beacon range +2" is a player lever, and the sim holds only the count of Beacon boons, not a beacon range. Both are left for WP10. |
+| DIP-07 Leagues | Waits for the Wonder pipeline in the culture batch (see above). |

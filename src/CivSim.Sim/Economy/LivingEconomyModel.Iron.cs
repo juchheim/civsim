@@ -824,6 +824,22 @@ public sealed partial class LivingEconomyModel
         return rivers;
     }
 
+    /// <summary>
+    /// The tiles of a settlement's paved link to its capital, from the capital to the settlement along the same straight line the bridge and Cohesion rules use, when the
+    /// link is complete (a road, and a bridge where it crosses a river) and the civilization knows TRN-07. Empty otherwise. Politics adds the road's claim bonus on them.
+    /// </summary>
+    public void RoadClaimTiles(int settlementIndex, List<int> into)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        if (!IronChain || !Done(s.Civilization, "TRN-07") || !RoadLinked(s)) return;
+        int capital = CapitalOf(s.Civilization);
+        if (capital < 0 || capital == s.Id) return;
+        HexGrid.Coordinates(_settlements[capital].SiteTile, _world.Width, out int fx, out int fy);
+        HexGrid.Coordinates(s.SiteTile, _world.Width, out int tx, out int ty);
+        int steps = Math.Max(1, HexGrid.Distance(_settlements[capital].SiteTile, s.SiteTile, _world.Width));
+        for (int k = 0; k <= steps; k++) into.Add(HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, _world.Width, _world.Height));
+    }
+
     private bool RoadWanted(SettlementState s)
     {
         int civ = s.Civilization;

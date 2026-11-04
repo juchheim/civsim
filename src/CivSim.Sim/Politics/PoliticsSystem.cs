@@ -1563,6 +1563,21 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             settlements.Add(new ClaimSource(civ, _sTile[s], _economy.ClaimRadius(s, eraRadius), mult == Fix64.One ? emission : emission * mult));
             (int ring, Fix64 share) = _economy.Hinterland(s);
             if (ring > 0) settlements.Add(new ClaimSource(civ, _sTile[s], ring, emission * share));
+            // Paved roads (TRN-07): the linked town's own claim is 10% stronger on the tiles of its road, where they lie within its radius.
+            if (_economy.IronChain)
+            {
+                var road = new List<int>();
+                _economy.RoadClaimTiles(s, road);
+                if (road.Count > 0)
+                {
+                    int radius = _economy.ClaimRadius(s, eraRadius);
+                    foreach (int tile in road)
+                    {
+                        int d = HexGrid.Distance(_sTile[s], tile, _width);
+                        if (d <= radius) settlements.Add(new ClaimSource(civ, tile, 0, emission * RoadClaimBonus * Fix64.FromInt(radius + 1 - d) / (radius + 1)));
+                    }
+                }
+            }
             // A foreign faith spreading here adds a little claim pressure for the faith's civilization around the town (BEL-09), never a transfer of the town.
             if (_economy.IronChain)
                 for (int faith = 0; faith < _civs; faith++)
@@ -1901,6 +1916,11 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// True when the tile is within a frontier segment's reach of a settlement of its owner whose built segment faces the challenger (DEF-07): the border cannot be
     /// flipped across a wall that is not there, and never realm-wide.
     /// </summary>
+    /// <summary>Paved-road claim bonus (TRN-07: +10% along built roads).</summary>
+    private static readonly Fix64 RoadClaimBonus = Fix64.FromRatio(1, 10);
+
+    internal int FixtureSettlementClaimSourceCount() { var list = new List<ClaimSource>(); BuildSettlementClaimSources(list); return list.Count; }
+
     private bool FrontierGuarded(int tile, int owner, int challenger)
     {
         if (!_economy.IronChain) return false;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -993,6 +994,37 @@ public class IronChainTests
         // Bronze: no engines exist at all.
         BronzeFixture bronze = Bronze("KEY-4");
         Assert.Equal(0, bronze.Economy.TakeEngines(0, 3));
+    }
+
+    [Fact]
+    public void A_complete_paved_link_lends_its_town_claim_tiles_along_the_road_only_with_TRN_07()
+    {
+        (BronzeFixture f, int far) = WithFarProvince("KEY-4", "TRN-07", "TRN-08");
+        var tiles = new List<int>();
+        f.Economy.RoadClaimTiles(far, tiles);
+        Assert.Empty(tiles); // no road yet
+        f.Economy.FixtureBuildIronStructure(far, "road");
+        f.Economy.FixtureBuildIronStructure(far, "bridge"); // a link over a river is incomplete without one
+        f.Economy.RoadClaimTiles(far, tiles);
+        Assert.NotEmpty(tiles);
+        Assert.Equal(f.Economy.SettlementLite(0).SiteTile, tiles[0]);
+        Assert.Equal(f.Economy.SettlementLite(far).SiteTile, tiles[^1]);
+        Assert.Empty(RoadTilesWithoutTrn07());
+        BronzeFixture bronze = BronzeFixture.Create(TestPack.Pack, Seed, 60, true, true, true, true, false, "KEY-4", "TRN-07");
+        var none = new List<int>();
+        bronze.Economy.RoadClaimTiles(0, none);
+        Assert.Empty(none);
+    }
+
+    private static List<int> RoadTilesWithoutTrn07()
+    {
+        // The same link in an economy that does not know the road research: no claim bonus.
+        (BronzeFixture plain, int plainFar) = WithFarProvince("KEY-4", "TRN-08");
+        plain.Economy.FixtureBuildIronStructure(plainFar, "road");
+        plain.Economy.FixtureBuildIronStructure(plainFar, "bridge");
+        var tiles = new List<int>();
+        plain.Economy.RoadClaimTiles(plainFar, tiles);
+        return tiles;
     }
 
     private static int ProjectIndex(LivingEconomyModel economy, string id)
