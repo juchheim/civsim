@@ -59,11 +59,13 @@ var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
+var castle_sites: Array = []            # {p, y, yaw, stage, civ, tile}: where each castle (DEF-08) stands or is going up
 var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
 var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
+const ArtDefense := preload("res://Renderer/LowPoly3D/Scripts/art_defense.gd")
 const VS := 1.45            # village scale: structures are drawn larger than life so they read
 
 func _init(world: M7WorldData, mesh_kit: M7MeshKit, materials: Dictionary) -> void:
@@ -381,6 +383,7 @@ func _structure_digest() -> int:
 			h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
 			h = h * 31 + zig_stage(s)
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
+			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
 		for n in s.structures:
 			h = h * 31 + int(n)
 		h = h * 31 + (1 if _fire_lit(s) else 0)
@@ -844,6 +847,7 @@ func _settlements() -> void:
 	hearths.clear()
 	villages.clear()
 	ziggurat_sites.clear()
+	castle_sites.clear()
 	civic_sites.clear()
 	# fields and orchards on their plot tiles
 	for pi in range(0, w.plots.size(), 2):
@@ -981,8 +985,9 @@ func _settlements() -> void:
 		if sea > 0:
 			_moor_fleet(t, c0, seed, sea, int(s.population), cc)
 		var decor := _village_decor(s.get("decor", PackedInt32Array()), civ, si, flagship)
+		var decor_extent := 0.0
 		if decor.size() > 0:
-			_place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0, landmarks_seed)
+			decor_extent = _place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0, landmarks_seed, int(st[K.STONE_WALLS]) > 0)
 		# lookout tower with a big banner at the edge
 		if st[K.LOOKOUT] > 0:
 			for i in 12:
@@ -1009,6 +1014,21 @@ func _settlements() -> void:
 					continue
 				var tang := a + PI * 0.5
 				props.add("thorn", _xf(q, w.height_at(q), -tang, 1.2 + 0.1 * M7WorldData.hash01(t, i, 8)), Color(1, 1, 1, M7WorldData.hash01(t, i, 9)))
+		# stone walls (DEF-05) ring the village, a gatehouse (DEF-06) towers over its gate, and a castle (DEF-08) holds the ground outside
+		var wall_rings := int(st[K.STONE_WALLS])
+		var wall_base := rmax
+		var gate_pref := seed * TAU
+		if zsite != null:
+			# the ziggurat is wider than the village's own reach: the ring stands outside it, and its gate faces away from it
+			wall_base = maxf(rmax, ZIG_OFFSET + 0.55)
+			var zd: Vector2 = (zsite.p as Vector2) - c
+			gate_pref = atan2(zd.y, zd.x) + PI
+		# the ring stands round the houses and the landmarks and near props that were laid out with them
+		var ring_r := maxf(wall_base + WALL_RING, decor_extent + 0.14)
+		var gate_at := Vector2(1e9, 1e9)
+		if wall_rings > 0:
+			gate_at = _stone_walls(t, c, seed, ring_r, wall_rings, w.iron_works(s, "gatehouse") > 0, gate_pref)
+		_castle(s, t, c, h0, seed, (ring_r + CASTLE_GAP_WALLED) if wall_rings > 0 else wall_base + CASTLE_GAP_OPEN, placed, cc, gate_at)
 		# weir in the nearest water
 		if st[K.WEIR] > 0:
 			for i in 6:
@@ -1210,9 +1230,12 @@ func _village_decor(host_decor, civ: int, si: int, flagship: Dictionary) -> Arra
 ## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
 ## palisade rings the village, `placed` holds the house spots so nothing overlaps.
 func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float, rmax: float, placed: Array, cc: Color,
-		has_thorns: bool, landmarks_seed: Array = []) -> void:
+		has_thorns: bool, landmarks_seed: Array = [], walled: bool = false) -> float:
+	# A stone wall ring (DEF-05) takes the place of the palisade. Houses and the near props and landmarks stay inside it (the ring is drawn
+	# round the farthest of them, see the return value); the far props (cairns, shrines, quarries ...) stand outside it.
 	var near_r := rmax + 0.17
-	var far_r := rmax + 0.3
+	var far_r := rmax + 0.3 + (WALL_CLEAR if walled else 0.0)
+	var extent := 0.0
 	var slot := 0
 	var landmarks := landmarks_seed.duplicate()        # [spot, clear distance] of the big buildings placed so far
 	for kind in decor:
@@ -1223,6 +1246,8 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		var mesh_name := "decor_" + decor_name
 		var tint := Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, kind_i, 11))
 		if decor_name == "palisade":
+			if walled:
+				continue
 			_decor_palisade(t, c, seed, rmax + (0.2 if has_thorns else 0.13), tint)
 			continue
 		var base := far_r if DECOR_FAR.has(decor_name) else near_r
@@ -1256,6 +1281,8 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 			landmarks.append([p, need])
 		placed.append(p)
 		decor_spots[decor_name] = p
+		if not DECOR_FAR.has(decor_name):
+			extent = maxf(extent, p.distance_to(c) + (need * 0.5 if need > 0.2 else 0.1))
 		var d := c - p
 		var ang := atan2(d.x, d.y)
 		var sc := VS * (0.95 + 0.12 * M7WorldData.hash01(t, kind_i, 12))
@@ -1263,6 +1290,152 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		props.add(mesh_name, _xf(p, y, ang, sc), tint)
 		if decor_name == "signal":
 			props.add("flame", _xf(p, y + 0.05 * sc, ang, 0.8), Color(1, 1, 1, seed))
+	return extent
+
+const WALL_RING := 0.26        # from the outermost house to the stone wall ring
+const WALL_CLEAR := 0.45       # props that stood just outside the houses stand this much farther out behind a stone wall
+const WALL_SCALE := 1.2        # the wall pieces are drawn larger than life, like the rest of the village
+const CASTLE_GAP_WALLED := 0.66   # from the stone wall ring to the castle's middle
+const CASTLE_GAP_OPEN := 0.78     # from the outermost house to the castle's middle when the village has no wall
+const CASTLE_SCALE := 1.25
+
+## The stone wall ring of a village (DEF-05): runs of curtain wall round it with towers at intervals, a gate facing a seed-chosen way,
+## and, with a gatehouse (DEF-06), two roofed towers and a bridge room over the gate. A bigger settlement has a higher wall and more towers
+## (`rings` is the sim's count: 1 village, 2 town, 3 city). Segments stop at water and at rivers, as the palisade does.
+func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gatehouse: bool, gate_pref: float) -> Vector2:
+	var n := int(ceil(TAU * ring / (ArtDefense.SEG * WALL_SCALE * 0.97)))
+	var chord := 2.0 * ring * sin(PI / n) * 1.04
+	var sy := 1.0 + 0.2 * (rings - 1)
+	# the gate faces the preferred way unless that is water or a riverbank: then the nearest way (30 degrees at a time) that is not
+	var gate_a := gate_pref
+	for k in 12:
+		var ga := gate_pref + TAU / 12.0 * (((k + 1) / 2) * (1 if k % 2 == 1 else -1))
+		var gq := c + Vector2(cos(ga), sin(ga)) * ring
+		var gt := w.tile_at(gq)
+		if gt >= 0 and w.is_land(gt) and _river_dist(gq) >= 0.14:
+			gate_a = ga
+			break
+	var tower_every := maxi(3, n / (6 + 2 * rings))
+	for i in n:
+		var a := gate_a + TAU * i / n
+		var q := c + Vector2(cos(a), sin(a)) * ring
+		var tq := w.tile_at(q)
+		var tang := a + PI * 0.5
+		if i == 0:
+			# the gate, in the middle of the first slot, its front toward the village
+			var mesh_name := "wall_gatehouse" if gatehouse else "wall_gate"
+			var gb := Basis(Vector3.UP, -tang) * Basis.from_scale(Vector3(WALL_SCALE, WALL_SCALE * sy, WALL_SCALE))
+			props.add(mesh_name, Transform3D(gb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, seed))
+			continue
+		if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.08:
+			continue
+		var segb := Basis(Vector3.UP, -tang) * Basis.from_scale(Vector3(chord / ArtDefense.SEG, WALL_SCALE * sy, WALL_SCALE))
+		props.add("wall_seg", Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, seed))
+		# a tower where this run meets the next
+		if i % tower_every == 0:
+			var ab := a + TAU * 0.5 / n
+			var tp := c + Vector2(cos(ab), sin(ab)) * ring
+			var ttq := w.tile_at(tp)
+			if ttq >= 0 and w.is_land(ttq) and _river_dist(tp) >= 0.08:
+				var tb := Basis(Vector3.UP, -(ab + PI * 0.5)) * Basis.from_scale(Vector3(WALL_SCALE, WALL_SCALE * (1.0 + 0.15 * (rings - 1)), WALL_SCALE))
+				props.add("wall_tower", Transform3D(tb, Vector3(tp.x, w.height_at(tp), tp.y)), Color(1, 1, 1, seed))
+	return c + Vector2(cos(gate_a), sin(gate_a)) * ring
+
+## The castle stage a settlement shows: 4 built, 1 to 3 while one is going up (a third of the labor each), 0 none.
+func castle_stage(s: Dictionary) -> int:
+	if w.iron_works(s, "castle") > 0:
+		return 4
+	var k := w.iron_work_ids.find("castle")
+	if k >= 0 and int(s.get("ironBuildKind", -1)) == k:
+		var pm := int(s.get("ironBuildPermille", 0))
+		return 0 if pm <= 0 else 1 + mini(2, pm * 3 / 1000)
+	return 0
+
+## Ground a castle may stand on: dry land that is not a field, a mountain or a riverbank, within a modest climb of the village's own level.
+func _castle_ground_ok(p: Vector2, h0: float) -> bool:
+	var t := w.tile_at(p)
+	if t < 0 or not w.is_land(t) or absf(w.heights[t] - h0) > 0.35:
+		return false
+	return w.plot_kind[t] < 0 and w.biome[t] < M7WorldData.Biome.MOUNTAIN and _river_dist(p) >= 0.11
+
+## Where a castle stands: on the highest level, clear ground in a ring round the village (a castle holds ground), clear of what is placed.
+func _castle_site(c: Vector2, h0: float, seed: float, radius: float, placed: Array, gate_at: Vector2) -> Variant:
+	var half := Vector2(0.28, 0.27) * CASTLE_SCALE
+	var best: Variant = null
+	var best_score := -1e9
+	for ring_k in 3:
+		for k in 24:
+			var a := seed * TAU + TAU * k / 24.0
+			var p := c + Vector2(cos(a), sin(a)) * (radius + 0.12 * ring_k)
+			if not _castle_ground_ok(p, h0):
+				continue
+			var yaw := atan2((c - p).x, (c - p).y)
+			var y := w.height_at(p)
+			var ok := true
+			for lc in [Vector2(-half.x, -half.y), Vector2(half.x, -half.y), Vector2(half.x, half.y), Vector2(-half.x, half.y)]:
+				var q3: Vector3 = rot_y(yaw) * Vector3(lc.x, 0, lc.y)
+				var q := p + Vector2(q3.x, q3.z)
+				if not _castle_ground_ok(q, h0):
+					ok = false
+					break
+				y = minf(y, w.height_at(q))
+			if not ok:
+				continue
+			for pp in placed:
+				if (pp as Vector2).distance_to(p) < 0.4:
+					ok = false
+					break
+			if ok and gate_at.distance_to(p) < 0.95:
+				ok = false        # the way into the village stays clear
+			if ok:
+				# a ziggurat or temple keeps its ground
+				for zs in ziggurat_sites:
+					if (zs.p as Vector2).distance_to(p) < 0.85:
+						ok = false
+						break
+				for cs in civic_sites:
+					if (cs.p as Vector2).distance_to(p) < 0.7:
+						ok = false
+						break
+			if ok:
+				for tp in tree_points:
+					if (tp as Vector2).distance_squared_to(p) < 0.12:
+						ok = false
+						break
+			if not ok:
+				continue
+			var score := y * 4.0 - ring_k * 0.3 + M7WorldData.hash01(int(a * 100.0), ring_k, 77) * 0.05
+			if score > best_score:
+				best_score = score
+				best = {"p": p, "y": y, "yaw": yaw}
+		if best != null:
+			break
+	return best
+
+## A castle (DEF-08), or the stages of one being raised, beside the village; the owner's banner flies from the keep and, when soldiers
+## are posted, guards stand on its walls.
+func _castle(s: Dictionary, t: int, c: Vector2, h0: float, seed: float, radius: float, placed: Array, cc: Color, gate_at: Vector2) -> void:
+	var stage := castle_stage(s)
+	if stage <= 0:
+		return
+	var site = _castle_site(c, h0, seed, radius, placed, gate_at)
+	if site == null:
+		return
+	var p: Vector2 = site.p
+	var yaw: float = site.yaw
+	var basis := Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * CASTLE_SCALE)
+	props.add("castle_%d" % stage, Transform3D(basis, Vector3(p.x, site.y, p.y)), Color(cc.r, cc.g, cc.b, seed))
+	placed.append(p)
+	castle_sites.append({"p": p, "y": site.y, "yaw": yaw, "stage": stage, "civ": int(s.civ), "tile": t})
+	var guards := mini(int(s.get("soldiers", 0)), 6) if stage == 4 else 0
+	var civ := int(s.civ)
+	for gi in guards:
+		var ang := TAU * gi / 6.0 + 0.4
+		var local := Vector3(cos(ang), 0.0, sin(ang)) * 0.15 * CASTLE_SCALE
+		var gp: Vector3 = rot_y(yaw) * local
+		var wp := p + Vector2(gp.x, gp.z)
+		var gb := Basis(Vector3.UP, yaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.1)
+		props.add("person_spear_t4", Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 ## A ring of palisade segments with a gate, outside the houses (and the thorn hedge if there is one).
 func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) -> void:

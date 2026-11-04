@@ -391,6 +391,16 @@ public partial class Game : Node3D
     /// <summary>Largest per-publish move (in tiles) a figure or herd glides across (walkers cover up to ~4 tiles a second). A farther jump is a relocation: fade out where it was, fade in where it is.</summary>
     private const float MaxGlideTiles = 4.5f;
 
+    private static int IronWorkKindCount() => CivSim.Sim.Economy.LivingEconomyModel.IronWorkKindCount;
+
+    /// <summary>The index of an Iron works kind by its id ("castle", "gatehouse" ...), or -1.</summary>
+    private static int IronKindIndex(string id)
+    {
+        for (int k = 0; k < IronWorkKindCount(); k++)
+            if (CivSim.Sim.Economy.LivingEconomyModel.IronWorkId(k) == id) return k;
+        return -1;
+    }
+
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
         MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null,
         int figureLimit = 0)
@@ -489,7 +499,13 @@ public partial class Game : Node3D
         int forcedLeanToAt = -1;
         // --dev-houses=N: the capital (the same one) stands instead in N wattle houses, N mudbrick houses and N longhouses (photographing roof looks)
         int forcedHouses = ArgumentValue("--dev-houses=") is { } houseArg && int.TryParse(houseArg, out int houseCount) ? houseCount : -1;
-        if (forcedLeanTos > 0 || forcedHouses > 0)
+        // --dev-walls=1..3 [--dev-gatehouse] [--dev-castle=1..4]: the same capital has stone walls (rings 1 to 3), a gatehouse, and a castle going up
+        // (1 to 3) or built (4); to photograph the defenses without playing to the Iron Age
+        int forcedWalls = ArgumentValue("--dev-walls=") is { } wallArg && int.TryParse(wallArg, out int wallCount) ? wallCount : -1;
+        bool forcedGatehouse = HasArgument("--dev-gatehouse");
+        int forcedCastle = ArgumentValue("--dev-castle=") is { } castleArg && int.TryParse(castleArg, out int castleStage) ? castleStage : -1;
+        bool forcedDefense = forcedWalls > 0 || forcedGatehouse || forcedCastle > 0;
+        if (forcedLeanTos > 0 || forcedHouses > 0 || forcedDefense)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedLeanToAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedLeanToAt]))
@@ -528,8 +544,34 @@ public partial class Game : Node3D
                 ["overreach"] = frame.SettlementOverreach[i],
                 ["spanPenalty"] = frame.SettlementSpanPenalty[i],
             };
+            // The Iron chapter's works at this settlement (counts per kind, in the order of "ironWorkIds"), the soldiers posted, and the build under way.
+            if (frame.Iron.Active && frame.Iron.WorkKinds > 0 && (i + 1) * frame.Iron.WorkKinds <= frame.Iron.Works.Length)
+            {
+                var works = new int[frame.Iron.WorkKinds];
+                for (int k = 0; k < works.Length; k++) works[k] = frame.Iron.Works[i * works.Length + k];
+                settlement["ironWorks"] = works;
+                settlement["soldiers"] = i < frame.Iron.Soldiers.Length ? (int)frame.Iron.Soldiers[i] : 0;
+                settlement["ironBuildKind"] = i < frame.Iron.BuildKind.Length ? (int)frame.Iron.BuildKind[i] : -1;
+                settlement["ironBuildPermille"] = i < frame.Iron.BuildPermille.Length ? (int)frame.Iron.BuildPermille[i] : 0;
+            }
 #if DEBUG
-            if (i == forcedLeanToAt)
+            if (i == forcedLeanToAt && forcedDefense)
+            {
+                var kindsForced = new int[IronWorkKindCount()];
+                if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(kindsForced, 0);
+                int castleAt = IronKindIndex("castle"), gateAt = IronKindIndex("gatehouse");
+                if (forcedGatehouse && gateAt >= 0) kindsForced[gateAt] = 1;
+                if (forcedCastle >= 4 && castleAt >= 0) kindsForced[castleAt] = 1;
+                settlement["ironWorks"] = kindsForced;
+                if (forcedWalls > 0) { structures[19] = forcedWalls; settlement["structures"] = structures; }   // Structure.StoneWalls
+                if (forcedCastle is >= 1 and <= 3 && castleAt >= 0)
+                {
+                    settlement["ironBuildKind"] = castleAt;
+                    settlement["ironBuildPermille"] = forcedCastle * 333 - 200;
+                }
+                settlement["soldiers"] = Math.Max(4, (int)settlement.GetValueOrDefault("soldiers", 0));
+            }
+            if (i == forcedLeanToAt && !forcedDefense)
             {
                 for (int kind = 1; kind <= 6; kind++) structures[kind] = 0;    // lean-to .. longhouse
                 if (forcedHouses > 0) { structures[4] = structures[5] = structures[6] = forcedHouses; }
@@ -656,6 +698,9 @@ public partial class Game : Node3D
             var worldFlags = new int[tiles];
             for (int i = 0; i < tiles; i++) worldFlags[i] = world.Flags[i];
             payload["flags"] = worldFlags;
+            var ironIds = new Godot.Collections.Array();
+            for (int k = 0; k < IronWorkKindCount(); k++) ironIds.Add(CivSim.Sim.Economy.LivingEconomyModel.IronWorkId(k));
+            payload["ironWorkIds"] = ironIds;
         }
         return payload;
     }

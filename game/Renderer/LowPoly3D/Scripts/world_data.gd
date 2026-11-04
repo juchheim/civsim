@@ -12,7 +12,7 @@ enum Biome { OCEAN, COAST, ICE, TUNDRA, TAIGA, TEMPERATE_FOREST, OPEN_WOODLAND, 
 	TROPICAL_FOREST, WETLAND, DESERT, MOUNTAIN, PEAK }
 
 enum Kind { HEARTH, LEAN_TO, HIDE_TENT, PIT_HOUSE, WATTLE_HOUSE, MUDBRICK_HOUSE, LONGHOUSE, STORAGE_PIT,
-	DRYING_RACK, GRANARY, KILN, QUERN, THORN_BARRIER, LOOKOUT, WEIR, FIELD, PASTURE, ORCHARD }
+	DRYING_RACK, GRANARY, KILN, QUERN, THORN_BARRIER, LOOKOUT, WEIR, FIELD, PASTURE, ORCHARD, HILLFORT, STONE_WALLS, PALISADE }
 
 ## Bits of civ_looks (CivLook in src/CivSim.Sim/View/ViewTypes.cs): projects that change how land and people look.
 const LOOK_ARD := 1
@@ -69,6 +69,7 @@ var camp_details := [] # [tile, civ, kind, parent, deposit, crew, built, minehea
 var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood
 var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
+var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
 var plots := PackedInt32Array() # flat [tile, kind] pairs
 var plot_kind := PackedInt32Array()   # -1 none, 0 field, 1 orchard
 var reserved := PackedByteArray()     # tiles where wild vegetation is suppressed (settlements, plots)
@@ -82,6 +83,14 @@ static var LOOKS_DEBUG: bool = "--looks-debug" in OS.get_cmdline_user_args()
 ## Whether a civilization knows the project behind a LOOK_* bit.
 func has_look(civ: int, bit: int) -> bool:
 	return civ >= 0 and civ < civ_looks.size() and (civ_looks[civ] & bit) != 0
+
+## How many works of an Iron kind ("castle", "gatehouse" ...) a settlement dictionary shows; zero when the chapter is not Iron.
+func iron_works(s: Dictionary, id: String) -> int:
+	var works: Variant = s.get("ironWorks")
+	if works == null:
+		return 0
+	var k := iron_work_ids.find(id)
+	return int(works[k]) if k >= 0 and k < works.size() else 0
 
 static func civ_color(civ: int) -> Color:
 	if civ < 0:
@@ -103,6 +112,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 		return false
 	var d: Dictionary = value
 	if include_world:
+		iron_work_ids = d.ironWorkIds if d.has("ironWorkIds") else []
 		width = int(d.width)
 		height = int(d.height)
 		biome = _byte_array(d.biome)

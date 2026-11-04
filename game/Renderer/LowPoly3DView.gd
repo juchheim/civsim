@@ -241,6 +241,13 @@ func chariot_focus() -> Vector3:
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
 ## Dev aid for scenarios: where the last decor of a kind (temple, chiefhall, woolbales, chariot ...) was placed (the origin when none).
+## Dev aid for scenarios: where the first castle stands (the origin when none).
+func castle_focus() -> Vector3:
+	if builder == null or builder.castle_sites.is_empty():
+		return Vector3.ZERO
+	var site: Dictionary = builder.castle_sites[0]
+	return Vector3(site.p.x, site.y, site.p.y)
+
 func landmark_focus(kind: String) -> Vector3:
 	if builder == null or not builder.decor_spots.has(kind):
 		return Vector3.ZERO
@@ -375,9 +382,9 @@ func show_iron_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(9.0, 7.0)
+	plane.size = Vector2(9.0, 12.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, 0.0)
+	floor_mesh.position = Vector3(0.0, -0.01, -0.9)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -395,6 +402,10 @@ func show_iron_gallery() -> Vector3:
 		[["wattle", 0.42, vs], ["wattle_tile", 0.42, vs], ["mudbrick", 0.42, vs], ["mudbrick_tile", 0.42, vs], ["longhouse", 0.7, vs], ["longhouse_tile", 0.7, vs]],
 		[["ard_team_a", 0.75, 1.2], ["plough_team_a", 0.95, 1.2], ["plough_team_b", 0.95, 1.2]],
 		[["field_ard", 1.1, 1.0], ["field_plough", 1.1, 1.0], ["field_fallow", 1.1, 1.0]],
+		# DEF-05 / DEF-06: a wall run, a tower, a plain gate and a gatehouse (at the size the village draws them)
+		[["wall_seg", 0.4, 1.2], ["wall_tower", 0.4, 1.2], ["wall_gate", 0.5, 1.2], ["wall_gatehouse", 0.7, 1.2]],
+		# DEF-08: the castle going up, stage by stage, and finished
+		[["castle_1", 1.0, 1.25], ["castle_2", 1.0, 1.25], ["castle_3", 1.0, 1.25], ["castle_4", 1.0, 1.25]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -402,7 +413,7 @@ func show_iron_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.6, 1.2, -0.1, -1.7][r]
+		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

@@ -25,6 +25,7 @@ public partial class Game
         string? name = ArgumentValue("--scenario=");
         if (name is null) return;
         _scenarioDir = ArgumentValue("--shots=") ?? Path.GetTempPath();
+        // A window that is hidden behind others is not redrawn and every shot would show the first frame: launch with --always-on-top.
         Directory.CreateDirectory(_scenarioDir);
         float t = 1.2f;
         void Step(Action run, float wait = 0.7f) { _scenario.Add((t, run)); t += wait; }
@@ -616,11 +617,12 @@ public partial class Game
                     if (_scrimLayer is not null) _scrimLayer.Visible = false;
                     _visualRenderer!.Call("lock_season", 0);
                     _session!.SetPaused(true);
-                    FrameCapital();
+                    FrameCapital(true);
                 }, 1.5f);
                 Step(() =>
                 {
                     ironOrigin = (Vector3)_visualRenderer!.Call("show_iron_gallery");
+                    _moveAnimating = false;
                     _target = ironOrigin;
                     _yaw = _yawTarget = Mathf.DegToRad(0.0f);
                     _pitch = Mathf.DegToRad(52.0f);
@@ -632,6 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f),
                 })
                 {
                     string itemName = item;
@@ -639,12 +642,38 @@ public partial class Game
                     Step(() =>
                     {
                         _pitch = Mathf.DegToRad(itemName == "fields" ? 55.0f : 38.0f);
+                        _moveAnimating = false;
                         _target = new Vector3(ironOrigin.X + x, ironOrigin.Y, ironOrigin.Z + z);
                         ZoomTo(zm);
                         UpdateCamera();
                     }, 3.0f);
                     Shot($"iron-{itemName}");
                 }
+                break;
+            case "defense-village":
+                // --start-minute=30 --viewer=-1 --dev-walls=1..3 [--dev-gatehouse] [--dev-castle=1..4] (debug builds): the capital behind its stone walls with
+                // its castle, from afar and close up; --looks-debug gives it every look
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (defenseShot, defenseZoom) in new[] { ("wide", 8.0f), ("village", 5.0f), ("close", 3.0f) })
+                {
+                    float zoom = defenseZoom;
+                    string shot = defenseShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"defense-{shot}");
+                }
+                Step(() =>
+                {
+                    Vector3 at = (Vector3)_visualRenderer!.Call("castle_focus");
+                    if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(2.6f); }
+                }, 2.5f);
+                Shot("defense-castle");
                 break;
             case "iron-life":
                 // --chapter=iron --research-era=5 --start-minute=20: the human civilization is given the first five ages, the sim runs at speed for a
@@ -905,13 +934,13 @@ public partial class Game
     private void TakeScenarioShot(string name)
     {
         Error error = SaveScreenshot(Path.Combine(_scenarioDir!, name + ".png"));
-        GD.Print($"Scenario shot {name}: {error}");
+        GD.Print($"Scenario shot {name}: {error} (zoom {_zoom:0.0}, target {_target}, tick {_session?.Tick}, frames drawn {Engine.GetFramesDrawn()})");
     }
 
     private void TickScenario(float delta)
     {
         if (!_scenarioActive) return;
-        _scenarioClock += delta;
+        _scenarioClock += Math.Min(delta, 0.25f);   // a hitching frame must not run several steps at once: a shot would capture the picture from before them
         while (_scenarioIndex < _scenario.Count && _scenarioClock >= _scenario[_scenarioIndex].At)
         {
             Action run = _scenario[_scenarioIndex].Run;
