@@ -505,6 +505,14 @@ public partial class Game : Node3D
         bool forcedGatehouse = HasArgument("--dev-gatehouse");
         int forcedCastle = ArgumentValue("--dev-castle=") is { } castleArg && int.TryParse(castleArg, out int castleStage) ? castleStage : -1;
         bool forcedDefense = forcedWalls > 0 || forcedGatehouse || forcedCastle > 0;
+        // --dev-forge=1|2 (idle or at work) and --dev-soldiers=N: the viewer civilization's biggest town has a forge and a standing garrison
+        int forcedForge = ArgumentValue("--dev-forge=") is { } forgeArg && int.TryParse(forgeArg, out int forgeState) ? forgeState : -1;
+        int forcedSoldiers = ArgumentValue("--dev-soldiers=") is { } soldierArg && int.TryParse(soldierArg, out int soldierCount) ? soldierCount : -1;
+        int forcedWorkAt = -1;
+        if (forcedForge >= 0 || forcedSoldiers >= 0)
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (forcedWorkAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedWorkAt])) forcedWorkAt = i;
         // --dev-harbor: the biggest settlement (the viewer's first) with the sea beside it has a harbor
         int forcedHarborAt = -1;
         if (HasArgument("--dev-harbor"))
@@ -567,10 +575,16 @@ public partial class Game : Node3D
                 for (int k = 0; k < works.Length; k++) works[k] = frame.Iron.Works[i * works.Length + k];
                 settlement["ironWorks"] = works;
                 settlement["soldiers"] = i < frame.Iron.Soldiers.Length ? (int)frame.Iron.Soldiers[i] : 0;
+                settlement["forge"] = i < frame.Iron.Forge.Length ? (int)frame.Iron.Forge[i] : 0;
                 settlement["ironBuildKind"] = i < frame.Iron.BuildKind.Length ? (int)frame.Iron.BuildKind[i] : -1;
                 settlement["ironBuildPermille"] = i < frame.Iron.BuildPermille.Length ? (int)frame.Iron.BuildPermille[i] : 0;
             }
 #if DEBUG
+            if (i == forcedWorkAt)
+            {
+                if (forcedForge >= 0) settlement["forge"] = forcedForge;
+                if (forcedSoldiers >= 0) settlement["soldiers"] = forcedSoldiers;
+            }
             if (i == forcedHarborAt)
             {
                 var harborWorks = new int[IronWorkKindCount()];
@@ -673,6 +687,36 @@ public partial class Game : Node3D
         }
 #endif
 
+        // sieges the viewer is party to or sees (WAR-09): per siege (settlement index in the sim, besieger, engines, seasons, wall integrity in permille, the
+        // tile the besieger's host comes from or -1)
+        int siegeCount = frame.Iron.Active ? frame.Iron.SiegeCount : 0;
+        var sieges = new int[siegeCount * 6];
+        for (int i = 0; i < siegeCount; i++)
+        {
+            sieges[i * 6] = frame.Iron.SiegeSettlement[i];
+            sieges[i * 6 + 1] = frame.Iron.SiegeBesieger[i];
+            sieges[i * 6 + 2] = frame.Iron.SiegeEngines[i];
+            sieges[i * 6 + 3] = frame.Iron.SiegeSeasons[i];
+            sieges[i * 6 + 4] = frame.Iron.SiegeIntegrityPermille[i];
+            sieges[i * 6 + 5] = frame.Iron.SiegeOriginTile[i];
+        }
+#if DEBUG
+        // --dev-siege=INTEGRITY (permille, 0 to 1000): the viewer civilization's biggest town is besieged by a rival with three engines; --dev-siege-from=TILE
+        // says where from (otherwise a way the renderer picks)
+        if (ArgumentValue("--dev-siege=") is { } siegeArg && int.TryParse(siegeArg, out int siegeIntegrity))
+        {
+            int besiegedAt = -1;
+            for (int i = 0; i < frame.SettlementCount; i++)
+                if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                    && (besiegedAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[besiegedAt])) besiegedAt = i;
+            if (besiegedAt >= 0)
+            {
+                int from = ArgumentValue("--dev-siege-from=") is { } fromArg && int.TryParse(fromArg, out int fromTile) ? fromTile : -1;
+                sieges = new[] { frame.SettlementIndex[besiegedAt], (Math.Max(0, frame.ViewerCiv) + 1) % 4, 3, 2, Math.Clamp(siegeIntegrity, 0, 1000), from };
+            }
+        }
+#endif
+
         var plots = new int[frame.PlotCount * 2];
         for (int i = 0; i < frame.PlotCount; i++)
         {
@@ -746,6 +790,7 @@ public partial class Game : Node3D
             ["civLooks"] = ToIntArray(frame.CivLooks, frame.CivLooks.Length),
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
+            ["sieges"] = sieges,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,

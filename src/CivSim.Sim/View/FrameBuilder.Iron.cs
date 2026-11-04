@@ -38,6 +38,7 @@ public sealed partial class FrameBuilder
             for (int k = 0; k < kinds; k++)
                 f.Works[w * kinds + k] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)Math.Min(255, eco.IronWorkAt(s, k));
             f.OurFaithPermille[w] = 0; f.ForeignFaithPermille[w] = 0; f.ForeignFaithCiv[w] = -1;
+            f.Forge[w] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)eco.ForgeStateAt(s);
             if (!own || (uint)s >= (uint)_settlementCount)
             {
                 f.Soldiers[w] = f.Scholars[w] = f.Missionaries[w] = 0;
@@ -92,6 +93,8 @@ public sealed partial class FrameBuilder
             f.SiegeSettlement[i] = inv.Settlement; f.SiegeBesieger[i] = inv.Civ; f.SiegeEngines[i] = inv.Engines;
             f.SiegeSeasons[i] = Math.Max(0, target.Season - inv.BeganSeason);
             f.SiegeIntegrityPermille[i] = (short)Math.Clamp((inv.Integrity * 1000).FloorToInt(), 0, 1000);
+            int home = inv.HomeSettlement;
+            f.SiegeOriginTile[i] = (uint)home < (uint)_settlementCount && (_omniscient || inv.Civ == _viewer || Visible(_sTile[home])) ? _sTile[home] : -1;
         }
 
         f.EnsureBlockades(pol.Blockades.Count);

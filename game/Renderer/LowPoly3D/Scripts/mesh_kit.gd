@@ -63,6 +63,7 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_mines.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_defense.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_roads.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_war.gd"),
 ]
 
 func get_mesh(name: String) -> ArrayMesh:
@@ -511,6 +512,20 @@ func _person(seed: int, tool: String, stoop: float = 0.0, elder: bool = false, t
 				heel + Vector3(0.064, 0.0, 0.046)]
 			for k in arc.size() - 1:
 				b.pole(arc[k], arc[k + 1], 0.0036, head_color)
+		"soldier":
+			# WAR-08: an iron-headed spear, an iron helmet and a round shield in the owner's colour on the left arm
+			var iron: Color = TOOL_TIER_COLORS[4]
+			b.pole(hand + Vector3(0, -0.035, -0.01), hand + Vector3(0.004, 0.078, 0.012), 0.0028, WOOD_LIGHT)
+			b.prism(hand + Vector3(0.004, 0.078, 0.012), 0.005, 0.0, 0.018, 4, iron, iron)
+			b.blob(Vector3(0, 0.058, 0), Vector3(0.0138, 0.0108, 0.0138), 7, 3, iron, 0.0)
+			b.box(Vector3(0, 0.049, 0.0125), Vector3(0.004, 0.012, 0.003), iron)
+			var shield_save := b.xf
+			b.xf = b.xf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(-0.03, 0.01, 0.02))
+			b.prism(Vector3(0, -0.002, 0), 0.0195, 0.0195, 0.003, 8, iron, iron)
+			b.tag = M7MeshBuilder.TAG_CIV
+			b.prism(Vector3.ZERO, 0.0175, 0.0175, 0.006, 8, Color.WHITE, Color.WHITE)
+			b.tag = M7MeshBuilder.TAG_PLAIN
+			b.xf = shield_save
 		"bundle":
 			b.box(Vector3(0, 0.02, -0.022), Vector3(0.026, 0.026, 0.016), Color("#a5814f"))
 	b.xf = save
@@ -584,7 +599,7 @@ func _people() -> void:
 	_carry_meshes()
 	for garment in [false, true]:
 		var sfx := "_g" if garment else ""
-		for t in ["", "spear", "basket", "axe", "hoe", "pole", "crook", "hammer", "bundle"]:
+		for t in ["", "spear", "basket", "axe", "hoe", "pole", "crook", "hammer", "bundle", "soldier"]:
 			meshes["person_" + (t if t != "" else "plain") + sfx] = _person(500 + t.length(), t, 0.0, false, 0, garment)
 			if t in ["spear", "axe", "hoe", "hammer"]:
 				for tier in range(1, TOOL_TIERS):

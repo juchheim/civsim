@@ -6,6 +6,7 @@ const M7WorldData = preload("res://Renderer/LowPoly3D/Scripts/world_data.gd")
 const M7MeshKit = preload("res://Renderer/LowPoly3D/Scripts/mesh_kit.gd")
 const M7WorldBuilder = preload("res://Renderer/LowPoly3D/Scripts/world_builder.gd")
 const M7ZigguratRig = preload("res://Renderer/LowPoly3D/Scripts/zig_rig.gd")
+const M7WarRig = preload("res://Renderer/LowPoly3D/Scripts/war_rig.gd")
 const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
 
 var world: M7WorldData
@@ -37,6 +38,7 @@ var dog_rig: M7DogRig
 var farm_rig: M7FarmRig
 var skirmish_rig: M7SkirmishRig
 var zig_rig: M7ZigguratRig
+var war_rig: M7WarRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -76,6 +78,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	skirmish_rig = M7SkirmishRig.new(builder, world_root)
 	zig_rig = M7ZigguratRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	zig_rig.sync()
+	war_rig = M7WarRig.new(builder, world_root, Callable(self, "_make_smoke"))
+	war_rig.sync()
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -102,6 +106,7 @@ func update_frame(frame_data: Dictionary) -> void:
 	dog_rig.sync()
 	farm_rig.sync()
 	zig_rig.sync()
+	war_rig.sync()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
@@ -151,6 +156,8 @@ func set_render_tick(tick: float, profile: bool = false) -> void:
 			parts["farm_update"] = Time.get_ticks_usec() - phase_started
 	if zig_rig != null:
 		zig_rig.update(tick)
+	if war_rig != null:
+		war_rig.update(tick)
 	if profile:
 		var total_usec := Time.get_ticks_usec() - profile_started
 		if total_usec > _render_tick_profile_max_usec:
@@ -241,6 +248,18 @@ func chariot_focus() -> Vector3:
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
 ## Dev aid for scenarios: where the last decor of a kind (temple, chiefhall, woolbales, chariot ...) was placed (the origin when none).
+## Dev aid for scenarios: where the first siege engine stands (the origin when none).
+func siege_focus() -> Vector3:
+	if builder == null or builder.siege_engines.is_empty():
+		return Vector3.ZERO
+	return builder.siege_engines[0].p
+
+## Dev aid for scenarios: where the first forge at work is (the origin when none).
+func forge_focus() -> Vector3:
+	if builder == null or builder.forge_sites.is_empty():
+		return Vector3.ZERO
+	return builder.forge_sites[0].mouth
+
 ## Dev aid for scenarios: where the first harbor / stone bridge stands (the origin when none).
 func harbor_focus() -> Vector3:
 	if builder == null or builder.harbor_sites.is_empty():
@@ -395,9 +414,9 @@ func show_iron_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(9.0, 15.0)
+	plane.size = Vector2(9.0, 18.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -2.3)
+	floor_mesh.position = Vector3(0.0, -0.01, -3.8)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -421,6 +440,9 @@ func show_iron_gallery() -> Vector3:
 		[["castle_1", 1.0, 1.25], ["castle_2", 1.0, 1.25], ["castle_3", 1.0, 1.25], ["castle_4", 1.0, 1.25]],
 		# TRN-08 / SEA-07: a stone bridge and a harbor (its quay at the bottom, its piers running up and away)
 		[["bridge", 0.9, 1.3], ["harbor", 1.4, 1.15]],
+		# MET-09 / WAR-07-09: the forge yard cold and at work, a soldier and a shieldless spearman, a siege engine's frame, a ruined wall and rubble
+		[["forge_yard", 0.6, 1.2], ["forge_yard_hot", 0.6, 1.2], ["person_soldier", 0.25, 1.0], ["person_spear_t4", 0.25, 1.0], ["siege_base", 0.55, 1.2],
+			["wall_seg", 0.3, 1.2], ["wall_ruin", 0.3, 1.2], ["wall_rubble", 0.3, 1.2]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -428,7 +450,7 @@ func show_iron_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4][r]
+		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

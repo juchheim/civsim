@@ -117,6 +117,22 @@ public sealed partial class LivingEconomyModel
     /// <summary>Screen and test switch: turn the Iron chapter's sharing between sister settlements off. On in production.</summary>
     internal bool IronSharingEnabled { get; set; } = true;
 
+    /// <summary>
+    /// For the view: the state of a settlement's forge in the Iron chapter. 0 no forge (or not the Iron chapter), 1 a forge standing idle (nothing in store to
+    /// forge, or the civilization does not yet know MET-09), 2 a forge at work: it knows MET-09, has iron, wrought iron or steel to forge, and adults still
+    /// lacking a worn-in iron kit to forge for (or kits to make for its forgeless sisters).
+    /// </summary>
+    public int ForgeStateAt(int settlementIndex)
+    {
+        if (!IronChain || (uint)settlementIndex >= (uint)_settlements.Count) return 0;
+        SettlementState s = _settlements[settlementIndex];
+        if (s.Metal is not { Forges: > 0 } m || IsFreeFolk(s)) return 0;
+        if (!Done(s.Civilization, "MET-09")) return 1;
+        bool material = IronStock(s, IronGood.Wrought) + IronStock(s, IronGood.Steel) + m.Goods[(int)MetalGood.Iron] > Fix64.Zero;
+        bool wanted = IronKitsLacking(s) > 0 || SisterKitDeficit(s) > Fix64.Zero;
+        return material && wanted ? 2 : 1;
+    }
+
     /// <summary>The distance within which sister settlements share Iron goods: the E3 sharing reach, or none when sharing is switched off.</summary>
     private int IronShareReach(int civ) => IronSharingEnabled ? ShareReach(civ) : -1;
 

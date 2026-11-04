@@ -997,6 +997,20 @@ public class IronChainTests
     }
 
     [Fact]
+    public void The_view_sees_a_forge_idle_without_iron_and_at_work_with_iron_to_forge_for_adults_lacking_kits()
+    {
+        BronzeFixture f = Iron("KEY-4", "MET-09");
+        f.Economy.FixtureBuild(0, "forge");
+        f.Economy.FixtureStock(0, "G-WROUGHT", Fix64.Zero);
+        Assert.Equal(1, f.Economy.ForgeStateAt(0)); // a forge, nothing to forge
+        f.Economy.FixtureStock(0, "G-WROUGHT", Fix64.FromInt(3));
+        Assert.Equal(2, f.Economy.ForgeStateAt(0)); // iron in store and adults without iron kits
+        BronzeFixture bronze = Bronze("KEY-4", "MET-09");
+        bronze.Economy.FixtureBuild(0, "forge");
+        Assert.Equal(0, bronze.Economy.ForgeStateAt(0)); // a Bronze economy draws no Iron forge state
+    }
+
+    [Fact]
     public void The_view_gets_the_road_tiles_once_the_road_stands_with_or_without_its_bridge()
     {
         (BronzeFixture f, int far) = WithFarProvince("KEY-4", "TRN-07", "TRN-08");

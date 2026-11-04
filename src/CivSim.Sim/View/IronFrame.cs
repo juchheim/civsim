@@ -19,6 +19,8 @@ public sealed class IronFrame
     public byte[] Works = Array.Empty<byte>();
     /// <summary>Own settlements only: soldiers in post and fed, scholars, and missionaries.</summary>
     public byte[] Soldiers = Array.Empty<byte>(), Scholars = Array.Empty<byte>(), Missionaries = Array.Empty<byte>();
+    /// <summary>A settlement the viewer sees now: its forge, 0 none, 1 idle, 2 at work (<see cref="LivingEconomyModel.ForgeStateAt"/>).</summary>
+    public byte[] Forge = Array.Empty<byte>();
     /// <summary>A town the viewer sees that is not its own: the share of its people who follow the viewer's faith, in permille (0 for own towns and in an omniscient frame).</summary>
     public short[] OurFaithPermille = Array.Empty<short>();
     /// <summary>Own settlements only: the strongest foreign faith among its people, in permille, and the civilization it belongs to (-1 none).</summary>
@@ -45,6 +47,8 @@ public sealed class IronFrame
     public int[] SiegeSettlement = Array.Empty<int>(), SiegeBesieger = Array.Empty<int>(), SiegeEngines = Array.Empty<int>(), SiegeSeasons = Array.Empty<int>();
     /// <summary>1000 intact, 0 breached.</summary>
     public short[] SiegeIntegrityPermille = Array.Empty<short>();
+    /// <summary>The tile of the besieger's home settlement when the viewer may know it (its own, or in sight), else -1: the direction the engine train comes from.</summary>
+    public int[] SiegeOriginTile = Array.Empty<int>();
 
     // ---- blockades, tributes, leagues ----
     public int BlockadeCount;
@@ -65,7 +69,7 @@ public sealed class IronFrame
         if (Works.Length < n * WorkKinds) Works = new byte[Math.Max(n * WorkKinds, Works.Length * 2)];
         if (Soldiers.Length >= n) return;
         int size = Math.Max(n, Soldiers.Length * 2);
-        Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size];
+        Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size]; Forge = new byte[size];
         ForeignFaithPermille = new short[size]; ForeignFaithCiv = new sbyte[size];
         BuildKind = new sbyte[size]; BuildPermille = new short[size]; PledgeTo = new short[size];
     }
@@ -86,7 +90,7 @@ public sealed class IronFrame
     internal void EnsureSieges(int n)
     {
         if (SiegeSettlement.Length >= n) return;
-        SiegeSettlement = new int[n]; SiegeBesieger = new int[n]; SiegeEngines = new int[n]; SiegeSeasons = new int[n]; SiegeIntegrityPermille = new short[n];
+        SiegeSettlement = new int[n]; SiegeBesieger = new int[n]; SiegeEngines = new int[n]; SiegeSeasons = new int[n]; SiegeIntegrityPermille = new short[n]; SiegeOriginTile = new int[n];
     }
 
     internal void EnsureBlockades(int n)

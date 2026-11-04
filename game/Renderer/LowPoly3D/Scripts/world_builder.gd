@@ -61,6 +61,8 @@ var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
+var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
+var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
 var bridge_sites: Array = []            # {p, y}: where each stone bridge stands
 var castle_sites: Array = []            # {p, y, yaw, stage, civ, tile}: where each castle (DEF-08) stands or is going up
@@ -403,6 +405,7 @@ func _structure_digest() -> int:
 			h = h * 31 + zig_stage(s)
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
+			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
 		for n in s.structures:
 			h = h * 31 + int(n)
 		h = h * 31 + (1 if _fire_lit(s) else 0)
@@ -869,6 +872,8 @@ func _settlements() -> void:
 	ziggurat_sites.clear()
 	castle_sites.clear()
 	harbor_sites.clear()
+	forge_sites.clear()
+	siege_engines.clear()
 	bridge_sites.clear()
 	civic_sites.clear()
 	# fields and orchards on their plot tiles
@@ -1047,11 +1052,17 @@ func _settlements() -> void:
 			wall_base = maxf(rmax, ZIG_OFFSET + 0.55)
 			var zd: Vector2 = (zsite.p as Vector2) - c
 			gate_pref = atan2(zd.y, zd.x) + PI
+		# an Iron forge yard (MET-09) and the garrison's drill ground stand inside the ring too
+		decor_extent = maxf(decor_extent, _forge_yard(s, c, h0, seed, rmax, placed))
+		decor_extent = maxf(decor_extent, _drill(s, c, h0, seed, rmax, placed, civ))
 		# the ring stands round the houses and the landmarks and near props that were laid out with them
 		var ring_r := maxf(wall_base + WALL_RING, decor_extent + 0.14)
+		var siege := _siege_info(s, c, seed)
 		var gate_at := Vector2(1e9, 1e9)
 		if wall_rings > 0:
-			gate_at = _stone_walls(t, c, seed, ring_r, wall_rings, w.iron_works(s, "gatehouse") > 0, gate_pref)
+			gate_at = _stone_walls(t, c, seed, ring_r, wall_rings, w.iron_works(s, "gatehouse") > 0, gate_pref, siege)
+		if not siege.is_empty():
+			_siege_camp(c, seed, ring_r if wall_rings > 0 else wall_base + 0.2, siege, cc)
 		_castle(s, t, c, h0, seed, (ring_r + CASTLE_GAP_WALLED) if wall_rings > 0 else wall_base + CASTLE_GAP_OPEN, placed, cc, gate_at)
 		# weir in the nearest water
 		if st[K.WEIR] > 0:
@@ -1318,6 +1329,118 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 			props.add("flame", _xf(p, y + 0.05 * sc, ang, 0.8), Color(1, 1, 1, seed))
 	return extent
 
+const FORGE_SCALE := 1.2
+
+## An Iron forge yard (MET-09) at the edge of the village, its front toward the hearth: the bloomery stack, anvil, charcoal and ore, and, when the forge is at
+## work, a glowing furnace mouth with flame and smoke (the war rig). Returns how far from the hearth it reaches, 0 with no forge.
+func _forge_yard(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array) -> float:
+	var state := int(s.get("forge", 0))
+	if state <= 0:
+		return 0.0
+	for k in 36:
+		var a := seed * TAU + 1.3 + k * 2.39996
+		var q := c + Vector2(cos(a), sin(a)) * (rmax + 0.2 + 0.03 * (k / 12))
+		if not _ok_site(q, h0):
+			continue
+		var clear := true
+		for pp in placed:
+			if (pp as Vector2).distance_to(q) < 0.36:
+				clear = false
+				break
+		if not clear:
+			continue
+		var yaw := atan2((c - q).x, (c - q).y)
+		var y := w.height_at(q)
+		props.add("forge_yard_hot" if state >= 2 else "forge_yard", _xf(q, y, yaw, FORGE_SCALE), Color(1, 1, 1, seed))
+		placed.append(q)
+		if state >= 2:
+			var rot := rot_y(yaw)
+			var chimney: Vector3 = rot * (Vector3(0, 0.185, -0.05) * FORGE_SCALE)
+			var mouth: Vector3 = rot * (Vector3(0, 0.04, 0.014) * FORGE_SCALE)
+			forge_sites.append({"chimney": Vector3(q.x + chimney.x, y + chimney.y, q.y + chimney.z),
+				"mouth": Vector3(q.x + mouth.x, y + mouth.y, q.y + mouth.z), "seed": seed})
+		return q.distance_to(c) + 0.26
+	return 0.0
+
+## The soldiers posted in a village of the viewer's own (WAR-07): up to six iron-armed soldiers drawn up in two ranks on a drill ground at the edge, facing the
+## hearth. Returns how far it reaches, 0 with none.
+func _drill(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, civ: int) -> float:
+	var count := mini(int(s.get("soldiers", 0)), 6)
+	if count <= 0:
+		return 0.0
+	for k in 36:
+		var a := seed * TAU + 4.1 + k * 2.39996
+		var q := c + Vector2(cos(a), sin(a)) * (rmax + 0.16 + 0.03 * (k / 12))
+		if not _ok_site(q, h0):
+			continue
+		var clear := true
+		for pp in placed:
+			if (pp as Vector2).distance_to(q) < 0.3:
+				clear = false
+				break
+		if not clear:
+			continue
+		var face := atan2((c - q).x, (c - q).y)
+		var across := Vector2(cos(face), -sin(face))    # to the soldiers' right
+		var fwd := (c - q).normalized()
+		for i in count:
+			var rank := i / 3
+			var file := i % 3 - 1
+			var p := q + across * (file * 0.1) - fwd * (rank * 0.1)
+			props.add("person_soldier", _xf(p, w.height_at(p), face, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+		placed.append(q)
+		return q.distance_to(c) + 0.2
+	return 0.0
+
+## The siege laid on a town (WAR-09), from the sim's row: the way the engines stand (toward the besieger's host when known, else a way the seed picks),
+## the wall's integrity, the engines and the besieger. Empty when the town is not besieged.
+func _siege_info(s: Dictionary, c: Vector2, seed: float) -> Dictionary:
+	var row := w.siege_of(int(s.get("index", -1)))
+	if row.is_empty():
+		return {}
+	var angle := seed * TAU + PI
+	var origin := int(row[4])
+	if origin >= 0 and origin < w.width * w.height:
+		var d := w.tile_center(origin) - c
+		if d.length() > 0.01:
+			angle = atan2(d.y, d.x)
+	return {"angle": angle, "integrity": int(row[3]), "engines": int(row[1]), "civ": int(row[0])}
+
+## The besieger's camp: up to four counterweighted engines in an arc outside the wall, facing it (their arms and shot are the war rig's), a stack of shot beside
+## each, tents behind and the besieger's banner.
+func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Color) -> void:
+	var angle: float = siege.angle
+	var count := clampi(int(siege.engines), 1, 4)
+	var civ := int(siege.civ)
+	var tint := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
+	for k in count:
+		var spread := (k - (count - 1) * 0.5) * 0.3
+		var dir := Vector2(cos(angle + spread), sin(angle + spread))
+		var p := c + dir * (ring + 0.75)
+		var tq := w.tile_at(p)
+		if tq < 0 or not w.is_land(tq):
+			continue
+		var y := w.height_at(p)
+		var yaw := atan2((c - p).x, (c - p).y)
+		props.add("siege_base", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * 1.2), Vector3(p.x, y, p.y)), Color(1, 1, 1, 0.5))
+		var impact := c + dir * ring
+		siege_engines.append({"p": Vector3(p.x, y, p.y), "yaw": yaw, "target": Vector3(impact.x, w.height_at(impact) + 0.1, impact.y),
+			"seed": M7WorldData.hash01(int(p.x * 100.0), int(p.y * 100.0), 81), "k": k})
+		var side := Vector2(-dir.y, dir.x)
+		for j in 3:
+			var sp := p + side * (0.12 + 0.03 * j) - dir * 0.04 * j
+			props.add("siege_stone", Transform3D(Basis.from_scale(Vector3.ONE * 1.2), Vector3(sp.x, w.height_at(sp) + 0.012, sp.y)), Color(1, 1, 1, 0.5))
+	# the camp behind the engines
+	for j in 4:
+		var a2 := angle + (j - 1.5) * 0.28
+		var tp := c + Vector2(cos(a2), sin(a2)) * (ring + 1.35)
+		var ttq := w.tile_at(tp)
+		if ttq < 0 or not w.is_land(ttq):
+			continue
+		props.add("hide_tent", _xf(tp, w.height_at(tp), -a2 + PI * 0.5, 1.2), Color(tint.r, tint.g, tint.b, M7WorldData.hash01(j, 3, 82)))
+	var bp := c + Vector2(cos(angle), sin(angle)) * (ring + 1.1)
+	props.add("banner%d" % civ, _xf(bp, w.height_at(bp), -0.4, 1.3), Color(tint.r, tint.g, tint.b, seed))
+
 const WALL_RING := 0.26        # from the outermost house to the stone wall ring
 const WALL_CLEAR := 0.45       # props that stood just outside the houses stand this much farther out behind a stone wall
 const WALL_SCALE := 1.2        # the wall pieces are drawn larger than life, like the rest of the village
@@ -1328,7 +1451,7 @@ const CASTLE_SCALE := 1.25
 ## The stone wall ring of a village (DEF-05): runs of curtain wall round it with towers at intervals, a gate facing a seed-chosen way,
 ## and, with a gatehouse (DEF-06), two roofed towers and a bridge room over the gate. A bigger settlement has a higher wall and more towers
 ## (`rings` is the sim's count: 1 village, 2 town, 3 city). Segments stop at water and at rivers, as the palisade does.
-func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gatehouse: bool, gate_pref: float) -> Vector2:
+func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gatehouse: bool, gate_pref: float, siege: Dictionary = {}) -> Vector2:
 	var n := int(ceil(TAU * ring / (ArtDefense.SEG * WALL_SCALE * 0.97)))
 	var chord := 2.0 * ring * sin(PI / n) * 1.04
 	var sy := 1.0 + 0.2 * (rings - 1)
@@ -1342,6 +1465,10 @@ func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gate
 			gate_a = ga
 			break
 	var tower_every := maxi(3, n / (6 + 2 * rings))
+	# a siege (WAR-09) wears the wall down on the side the engines stand: the lower the integrity, the more runs are broken, then heaped
+	var integrity := int(siege.get("integrity", 1000)) if not siege.is_empty() else 1000
+	var broken := roundi((1.0 - integrity / 1000.0) * 7.0)
+	var breach_i := roundi(fposmod(float(siege.get("angle", 0.0)) - gate_a, TAU) / TAU * n) % n if not siege.is_empty() else 0
 	for i in n:
 		var a := gate_a + TAU * i / n
 		var q := c + Vector2(cos(a), sin(a)) * ring
@@ -1356,9 +1483,13 @@ func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gate
 		if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.08:
 			continue
 		var segb := Basis(Vector3.UP, -tang) * Basis.from_scale(Vector3(chord / ArtDefense.SEG, WALL_SCALE * sy, WALL_SCALE))
-		props.add("wall_seg", Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, seed))
-		# a tower where this run meets the next
-		if i % tower_every == 0:
+		var off_breach := mini(absi(i - breach_i), n - absi(i - breach_i))
+		var seg_mesh := "wall_seg"
+		if broken > 0 and off_breach * 2 <= broken:
+			seg_mesh = "wall_rubble" if (integrity <= 150 and off_breach <= 1) else "wall_ruin"
+		props.add(seg_mesh, Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, seed))
+		# a tower where this run meets the next (a tower beside a breach comes down with it)
+		if i % tower_every == 0 and not (broken > 3 and off_breach <= 2):
 			var ab := a + TAU * 0.5 / n
 			var tp := c + Vector2(cos(ab), sin(ab)) * ring
 			var ttq := w.tile_at(tp)
@@ -1461,7 +1592,7 @@ func _castle(s: Dictionary, t: int, c: Vector2, h0: float, seed: float, radius: 
 		var gp: Vector3 = rot_y(yaw) * local
 		var wp := p + Vector2(gp.x, gp.z)
 		var gb := Basis(Vector3.UP, yaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.1)
-		props.add("person_spear_t4", Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+		props.add("person_soldier", Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 ## A ring of palisade segments with a gate, outside the houses (and the thorn hedge if there is one).
 func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) -> void:
@@ -1871,8 +2002,12 @@ func _figures() -> void:
 			mesh = "person_" + str(TOOL_BY_ACTIVITY.get(act, "plain"))
 			if act == 12 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_HERD_FOLLOWING):
 				mesh = "person_crook"     # herders walk with a crook once they follow the herds (HUS-02)
+			var iron_armed := false
 			if fl & 256:
 				mesh = "person_spear"
+				if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_IRON_ARMS):
+					mesh = "person_soldier"       # iron arms (WAR-08): helmet, shield and an iron spear
+					iron_armed = true
 			# bladed and headed tools show the tier of the method in use: stone, polished stone, copper, bronze
 			var tier := M7MeshKit.tool_tier_for_rung(rung) if rung >= 0 else 0
 			# the iron kits (11, 12) show on the figure that holds one: dark iron, then bright tempered steel (MET-09, MET-10)
@@ -1889,7 +2024,7 @@ func _figures() -> void:
 				tier = (idx / 3) % M7MeshKit.TOOL_TIERS
 				if mesh == "person_scythe":
 					tier = maxi(tier, 4)
-			if tier > 0 and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer", "person_scythe"]:
+			if tier > 0 and not iron_armed and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer", "person_scythe"]:
 				mesh += "_t" + str(tier)
 		if civ >= 0 and act != 14 and w.has_look(civ, M7WorldData.LOOK_TAILORED):
 			mesh += "_g"                   # fitted parkas, sleeves, leggings and boots (FIB-04)

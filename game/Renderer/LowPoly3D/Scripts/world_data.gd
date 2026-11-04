@@ -26,6 +26,7 @@ const LOOK_CHIEFDOM := 128
 const LOOK_TAILORED := 256
 const LOOK_MOULDBOARD := 512     # AGR-10 Heavy Plough
 const LOOK_TILES := 1024         # CER-08 Fired Brick & Tile
+const LOOK_IRON_ARMS := 2048     # WAR-08 Iron Weapons
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -60,6 +61,7 @@ var civ_looks := PackedInt32Array()     # per civilization: LOOK_* bits (ard plo
 var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was learned (-1 = not yet)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
+var sieges := PackedInt32Array()         # stride 6: settlement index in the sim, besieger civ, engines, seasons, wall integrity (permille), origin tile or -1
 var road_meta := PackedInt32Array()      # stride 4: settlement index, start, length, bridged (paved roads to the capital, TRN-07)
 var road_tiles := PackedInt32Array()     # flat tile list, -1 = a tile of someone else's road that is not in sight
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
@@ -93,6 +95,13 @@ func iron_works(s: Dictionary, id: String) -> int:
 		return 0
 	var k := iron_work_ids.find(id)
 	return int(works[k]) if k >= 0 and k < works.size() else 0
+
+## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.
+func siege_of(sim_index: int) -> Array:
+	for i in range(0, sieges.size(), 6):
+		if sieges[i] == sim_index:
+			return [sieges[i + 1], sieges[i + 2], sieges[i + 3], sieges[i + 4], sieges[i + 5]]
+	return []
 
 static func civ_color(civ: int) -> Color:
 	if civ < 0:
@@ -164,9 +173,10 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	if LOOKS_DEBUG:
 		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
 		civ_looks.resize(8)
-		civ_looks.fill(2047)
+		civ_looks.fill(4095)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
+	sieges = _int_data(d.sieges, 6) if d.has("sieges") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()
 	road_tiles = _int_data(d.roadTiles, 1) if d.has("roadTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

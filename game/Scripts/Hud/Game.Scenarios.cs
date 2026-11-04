@@ -634,7 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
-                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f),
                 })
                 {
                     string itemName = item;
@@ -703,6 +703,37 @@ public partial class Game
                         if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(zoom); }
                     }, 2.5f);
                     Shot($"travel-{call}");
+                }
+                break;
+            case "war-village":
+                // --start-minute=30 --viewer=-1 --dev-forge=2 --dev-soldiers=6 --dev-siege=300 [--dev-walls=2 --dev-gatehouse] (debug builds): the capital with a forge at
+                // work, its garrison drawn up, and a siege engine train working the wall down; run with --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(false);
+                    _session.SetSpeedIndex(0);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (warShot, warZoom) in new[] { ("wide", 9.0f), ("village", 5.0f), ("close", 3.0f) })
+                {
+                    float zoom = warZoom;
+                    string shot = warShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"war-{shot}");
+                }
+                foreach (var (focus, focusZoom) in new[] { ("forge_focus", 2.7f), ("siege_focus", 3.0f), ("siege_focus", 3.0f), ("siege_focus", 3.0f) })
+                {
+                    string call = focus;
+                    float zoom = focusZoom;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call(call);
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(zoom); }
+                    }, 2.5f);
+                    Shot($"war-{call}-{_scenario.Count}");
                 }
                 break;
             case "iron-life":
