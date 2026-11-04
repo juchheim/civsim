@@ -68,7 +68,7 @@ public partial class Game
     private float SettlementMapLabelScale()
     {
         float zoomOut = Mathf.Clamp((_zoom - 12.0f) / (ZoomMax - 12.0f), 0.0f, 1.0f);
-        return Mathf.Lerp(1.0f, 0.45f, zoomOut);
+        return Mathf.Lerp(1.0f, 0.45f, zoomOut) * 0.75f;
     }
 
     private void UpdateSettlementMapLabelScale()
