@@ -954,8 +954,8 @@ public partial class Game
                     // The Bronze age (KEY-3) is when Mandate and Decrees open. Say so and where to find them, and keep the notice up until
                     // the player acts on it or dismisses it: a playtest found the one-time coach tip too easy to miss.
                     if (item.A == 3)
-                        ShowToast("Decrees are now available", ToastKind.Milestone,
-                            "Click Decrees in the top bar to found a village, send an expedition, open a mine and more.",
+                        ShowToast("Decrees available", ToastKind.Milestone,
+                            "Found villages, explore, and mine.",
                             actionLabel: "Open Decrees", action: () => ToggleDecrees(true), key: "decrees-unlocked", sticky: true);
                 }
                 else
