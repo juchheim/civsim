@@ -102,8 +102,16 @@ public sealed partial class LivingEconomyModel
     private Fix64 IronWoodFactor(SettlementState s, MetalState m)
     {
         if (m.ForestAtStart <= Fix64.Zero) return Fix64.One;
-        Fix64 share = StandingWoodInRange(s.SiteTile) / m.ForestAtStart;
-        return Fix64.Clamp((share - IronWoodFloor) / (IronWoodFull - IronWoodFloor), Fix64.Zero, Fix64.One);
+        Fix64 standingWood = StandingWoodInRange(s.SiteTile);
+        // Compare the Q32.32 ratio in a wide intermediate before converting it back to Fix64. A tiny positive
+        // forest baseline can make standingWood / ForestAtStart exceed Fix64's representable range; the result
+        // is already saturated at these thresholds, so that ratio never needs to fit in Fix64.
+        Int128 shareRaw = ((Int128)standingWood.Raw << Fix64.FractionalBits) / m.ForestAtStart.Raw;
+        if (shareRaw <= IronWoodFloor.Raw) return Fix64.Zero;
+        if (shareRaw >= IronWoodFull.Raw) return Fix64.One;
+
+        Fix64 share = Fix64.FromRaw(checked((long)shareRaw));
+        return (share - IronWoodFloor) / (IronWoodFull - IronWoodFloor);
     }
 
     /// <summary>Screen and test switch: turn the Iron chapter's sharing between sister settlements off. On in production.</summary>
