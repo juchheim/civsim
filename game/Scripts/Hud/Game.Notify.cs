@@ -289,7 +289,7 @@ public partial class Game
 
     // ---- toasts ------------------------------------------------------------------------------
 
-    private void ShowToast(string title, ToastKind kind, string body, int tile = -1, string actionLabel = "", Action? action = null, string key = "")
+    private void ShowToast(string title, ToastKind kind, string body, int tile = -1, string actionLabel = "", Action? action = null, string key = "", bool sticky = false)
     {
         if (_toastStack is null) return;
         if (key.Length > 0)
@@ -316,7 +316,7 @@ public partial class Game
         slot.Active = true;
         slot.Age = 0;
         slot.Kind = kind;
-        slot.Sticky = kind == ToastKind.Critical;
+        slot.Sticky = kind == ToastKind.Critical || sticky;
         slot.Timer = kind switch { ToastKind.Milestone => 8f, ToastKind.Warning => 6f, _ => 5f };
         slot.Key = key;
         slot.Tile = tile;
@@ -461,7 +461,9 @@ public partial class Game
         if (_ageBanner is null || _catalog is null) return;
         string age = UiText.AgeName(era);
         UiKit.SetText(_ageBannerTitle!, $"The {age} age");
-        UiKit.SetText(_ageBannerText!, $"{_catalog.Projects[project].Name} turned the age.");
+        UiKit.SetText(_ageBannerText!, era == 3
+            ? $"{_catalog.Projects[project].Name} turned the age. Decrees are now available."
+            : $"{_catalog.Projects[project].Name} turned the age.");
         _coachCard!.Visible = false;
         _ageBanner.Modulate = new Color(1, 1, 1, 0);
         _ageBanner.Visible = true;
@@ -490,7 +492,7 @@ public partial class Game
         "A settlement may go hungry this winter. Turn on Food to see where.",
         "Drag to move. Scroll or pinch to zoom. Right-drag (or Option-drag) to turn.",
         "A slot is open. Its share goes to the others until you choose — or turn on Auto-fill.",
-        "KEY-3 unlocked Mandate. Decrees let you choose where to found, explore and mine; open Decrees to preview a call before issuing it.",
+        "Decrees are now available. Click Decrees in the top bar to choose where to found, explore and mine; the forecast card previews each call before you confirm it.",
         "Tin bronze is stronger, but it needs tin. When access runs short, workers fall back to arsenical bronze or copper kits; use the Methods layer to spot the change.",
     };
 
@@ -949,6 +951,12 @@ public partial class Game
                 {
                     AddChronicle(item, $"Your people entered the {UiText.AgeName(item.A)} age through {project}.", ChronicleClass.Age, true);
                     ShowAgeBanner(item.Project, item.A);
+                    // The Bronze age (KEY-3) is when Mandate and Decrees open. Say so and where to find them, and keep the notice up until
+                    // the player acts on it or dismisses it: a playtest found the one-time coach tip too easy to miss.
+                    if (item.A == 3)
+                        ShowToast("Decrees are now available", ToastKind.Milestone,
+                            "Click Decrees in the top bar to found a village, send an expedition, open a mine and more.",
+                            actionLabel: "Open Decrees", action: () => ToggleDecrees(true), key: "decrees-unlocked", sticky: true);
                 }
                 else
                 {
