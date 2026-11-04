@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using Godot;
@@ -96,14 +97,35 @@ public partial class Game
 
         bool freshStart = IsFreshUnassignedMatch();
         if (freshStart && (!IsDevelopmentPresentationRun() || HasArgument("--opening-hold"))) BeginOpeningHold();
+        ApplyResearchEraArgument();
         if (ReadResearchWebArgument()) OpenResearchWeb(-1);
         if (HasArgument("--research-map")) { OpenResearchWeb(-1); SetResearchView(1); }
+        // Developer option: after the map has had a moment to fill in, zoom it out to show everything visible (for screenshots).
+        if (HasArgument("--map-fit")) GetTree().CreateTimer(1.5).Timeout += () => _mapView?.FitVisible();
         ApplyUiOpenArgument();
         if (HasArgument("--paused")) _session?.SetPaused(true);
         UpdatePausedTreatment();
         StartScenarioIfRequested();
         _devVisible = HasArgument("--perf-debug");
         if (_devOverlay is not null) _devOverlay.Visible = _devVisible;
+    }
+
+    /// <summary>
+    /// Developer option <c>--research-era=N</c> (0 to 9): the human civilization is given every project of the ages before N, as if it had played them, so a later
+    /// age can be looked at without playing there. It uses the sim's own project-grant command, so it is recorded like any command; saves and replays of such a match
+    /// are for inspection, not for play.
+    /// </summary>
+    private void ApplyResearchEraArgument()
+    {
+        if (ArgumentValue("--research-era=") is not { } text || !int.TryParse(text, out int era) || _session is null || _catalog is null) return;
+        int granted = 0;
+        foreach (ProjectDef def in _catalog.Projects)
+        {
+            if (!def.Numeric || def.Era >= era) continue;
+            _session.Queue(new Command(_session.Tick, 0, CommandKind.CompleteProject, def.Index, 0, 0));
+            granted++;
+        }
+        GD.Print($"--research-era={era}: granted {granted} projects to the human civilization.");
     }
 
     private static bool HasArgument(string name)
