@@ -48,7 +48,7 @@ public sealed partial class LivingEconomyModel
 
     private static class Role
     {
-        public const byte None = 0, Priest = 1, Scribe = 2;
+        public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7;
     }
 
     private sealed class CivicState
@@ -157,7 +157,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>An E3 project's `cohesion` effect as a term of the target (docs/MVP/23 §1.2).</summary>
-    private readonly record struct CohesionTerm(int Project, int Value, string Scope, int Radius, CivicBuild Structure, bool Wonder);
+    private readonly record struct CohesionTerm(int Project, int Value, string Scope, int Radius, CivicBuild Structure, bool Wonder, bool Iron = false);
 
     private CivicConstants _civic;
     private CohesionTerm[] _cohesionTerms = Array.Empty<CohesionTerm>();
@@ -184,7 +184,7 @@ public sealed partial class LivingEconomyModel
         var terms = new List<CohesionTerm>();
         foreach (EconomyProject p in _content.Projects)
         {
-            if (p.Era != 3) continue;
+            if (p.Era is not (3 or 4)) continue; // E4 terms are kept apart (Iron) and read only when the economy plays the Iron chapter
             CivicBuild structure = CivicBuild.None;
             bool wonder = false;
             for (int i = p.EffectStart; i < p.EffectStart + p.EffectCount; i++)
@@ -200,7 +200,7 @@ public sealed partial class LivingEconomyModel
             {
                 EconomyEffect e = _content.Effects[i];
                 if (e.Kind == "cohesion" && e.Value is { } v)
-                    terms.Add(new CohesionTerm(p.Index, v.RoundToInt(), e.Scope ?? "all", e.Radius ?? 0, structure, wonder));
+                    terms.Add(new CohesionTerm(p.Index, v.RoundToInt(), e.Scope ?? "all", e.Radius ?? 0, structure, wonder, Iron: p.Era == 4));
                 if (e.Kind == "tier")
                 {
                     if (e.Tier == "town" && e.Radius is { } tr) _townRadius = tr;
@@ -303,7 +303,7 @@ public sealed partial class LivingEconomyModel
     {
         Fix64 keep = Fix64.One;
         foreach (EconomyEffect e in _content.Effects)
-            if (e.Kind == "admin" && e.Overreach is { } r && r > Fix64.Zero && _completedProjects[civ][e.ProjectIndex])
+            if (e.Kind == "admin" && e.Overreach is { } r && r > Fix64.Zero && _completedProjects[civ][e.ProjectIndex] && !IsScopedAdminProject(e.ProjectIndex))
                 keep *= Fix64.One - Fix64.Min(Fix64.One, r);
         return Fix64.One - keep;
     }
@@ -396,7 +396,13 @@ public sealed partial class LivingEconomyModel
             if (CapitalOf(civ) == s.Id) scribes++;
             if (Done(civ, "LRN-04")) scribes += 2 * c.Schools;
         }
-        int havePriests = 0, haveScribes = 0;
+        // The Iron chapter's state roles (docs/MVP/26 §3.3): an administrator at the capital (GOV-07) and a governor at each province seat (TER-08).
+        int administrators = IronChain && Done(civ, "GOV-07") && CapitalOf(civ) == s.Id ? 1 : 0;
+        int governors = WantsGovernor(s) ? 1 : 0;
+        int soldiers = SoldierSlots(s);
+        int missionaries = MissionarySlots(s);
+        int scholars = ScholarSlots(s);
+        int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0, haveScholars = 0;
         for (int i = _figures.Count - 1; i >= 0; i--)
         {
             FigureState f = _figures[i];
@@ -404,18 +410,28 @@ public sealed partial class LivingEconomyModel
             bool keep = f.Age is >= 14 and < 60 && f.Camp < 0;
             if (keep && f.Role == Role.Priest && havePriests < priests) { havePriests++; continue; }
             if (keep && f.Role == Role.Scribe && haveScribes < scribes) { haveScribes++; continue; }
+            if (keep && f.Role == Role.Administrator && haveAdministrators < administrators) { haveAdministrators++; continue; }
+            if (keep && f.Role == Role.Governor && haveGovernors < governors) { haveGovernors++; continue; }
+            if (keep && f.Role == Role.Soldier && haveSoldiers < soldiers) { haveSoldiers++; continue; }
+            if (keep && f.Role == Role.Missionary && haveMissionaries < missionaries) { haveMissionaries++; continue; }
+            if (keep && f.Role == Role.Scholar && haveScholars < scholars) { haveScholars++; continue; }
             f.Role = Role.None;
         }
         int adults = 0;
         foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < _figures.Count && (havePriests < priests || haveScribes < scribes); i++)
+        for (int i = 0; i < _figures.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars); i++)
         {
             // Keep at least four other working adults at home.
-            if (havePriests + haveScribes + 4 >= adults) break;
+            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + 4 >= adults) break;
             FigureState f = _figures[i];
             if (f.SettlementId != s.Id || f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
-            else { f.Role = Role.Scribe; haveScribes++; }
+            else if (haveScribes < scribes) { f.Role = Role.Scribe; haveScribes++; }
+            else if (haveAdministrators < administrators) { f.Role = Role.Administrator; haveAdministrators++; }
+            else if (haveGovernors < governors) { f.Role = Role.Governor; haveGovernors++; }
+            else if (haveSoldiers < soldiers) { f.Role = Role.Soldier; haveSoldiers++; }
+            else if (haveMissionaries < missionaries) { f.Role = Role.Missionary; haveMissionaries++; }
+            else { f.Role = Role.Scholar; haveScholars++; }
         }
         Fix64 spent = Fix64.Zero;
         foreach (FigureState f in _figures)
@@ -424,9 +440,10 @@ public sealed partial class LivingEconomyModel
             Fix64 amount = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
             if (amount <= Fix64.Zero) continue;
             Assign(f, EconomyJob.Craft, amount);
-            f.Task = f.Role == Role.Priest ? MetalTask.Ritual : MetalTask.Records;
+            f.Task = f.Role == Role.Priest ? MetalTask.Ritual : f.Role is Role.Administrator or Role.Governor ? MetalTask.Administer : f.Role == Role.Soldier ? MetalTask.Drill : f.Role == Role.Missionary ? MetalTask.Preach : MetalTask.Records; // scholars, like scribes, work at records
             spent += amount;
         }
+        PaySoldierUpkeep(s, haveSoldiers);
         return spent;
     }
 
@@ -685,7 +702,8 @@ public sealed partial class LivingEconomyModel
             CivicBuild.Caravanserai => Fix64.FromInt(8), CivicBuild.Ziggurat => Fix64.FromInt(200), _ => Fix64.Zero,
         };
         labor *= Modifier(civ, "construction_labor");
-        if (b is CivicBuild.Temple or CivicBuild.Palace or CivicBuild.Hall or CivicBuild.Ziggurat) labor *= Modifier(civ, "stone_building_labor");
+        labor *= Modifier(civ, "build_labor"); // BLD-11, MEC-04 (Iron chapter only: exactly 1 until those projects are complete)
+        if (b is CivicBuild.Temple or CivicBuild.Palace or CivicBuild.Hall or CivicBuild.Ziggurat) labor *= Modifier(civ, "stone_building_labor") * Modifier(civ, "stone_build_labor");
         if (b is CivicBuild.Market or CivicBuild.School or CivicBuild.Caravanserai) labor *= Modifier(civ, "timber_building_labor");
         if (b == CivicBuild.Ziggurat)
         {
@@ -1178,6 +1196,7 @@ public sealed partial class LivingEconomyModel
         foreach (CohesionTerm term in _cohesionTerms)
         {
             if (!_completedProjects[civ][term.Project]) continue;
+            if (term.Iron && !IronChain) continue;
             if (term.Wonder && !CivHasZiggurat(civ)) continue;
             Fix64 value = Fix64.FromInt(term.Value) * (term.Wonder && term.Scope == "radius" ? wonderMult : Fix64.One);
             int radius = term.Wonder ? (Fix64.FromInt(term.Radius) * radiusMult).RoundToInt() : term.Radius;
@@ -1188,6 +1207,10 @@ public sealed partial class LivingEconomyModel
                 "radius" => term.Wonder ? Count(c, term.Structure) > 0 || WithinOfStructure(s, term.Structure, radius)
                                         : Count(c, term.Structure) == 0 && WithinOfStructure(s, term.Structure, radius),
                 "capital" => capital == s.Id,
+                // Iron-chapter scopes: ART-08's theatre only lifts a city that has one, and BEL-08's integration bonus only helps a town still carrying the
+                // penalty of being conquered. (Before these were named they fell through to "everywhere".)
+                "local_city" => IronChain && IronWorksCount(s, IronStructure.Theatre) > 0,
+                "diverse_group_integration" => IronChain && c.ConqueredTerm < 0,
                 _ => true,
             };
             if (applies) t += value;
@@ -1210,11 +1233,12 @@ public sealed partial class LivingEconomyModel
         if (housing > Fix64.Zero) t += _civic.Crowding * Fix64.Max(Fix64.Zero, Fix64.FromInt(pop) / housing - Fix64.One);
         if (cap is not null && capital != s.Id)
         {
-            int walk = WalkingTiles(cap.SiteTile, s.SiteTile);
-            Fix64 over = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) / _civic.OverreachDivisor * (Fix64.One - AdminReductionOf(civ));
+            int walk = RoadAdjustedWalk(s, WalkingTiles(cap.SiteTile, s.SiteTile));
+            Fix64 over = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) / _civic.OverreachDivisor * (Fix64.One - AdminReductionAt(s));
             if (Done(civ, "HUS-08") && MostlyOpenGround(s)) over *= Fix64.Half;
+            over *= DistanceStrainFactor(s);
             t -= over;
-            t -= Fix64.FromInt(_civic.SpanPenalty * Math.Max(0, MemberCount(civ) - AdminSpanOf(civ)));
+            t -= Fix64.FromInt(_civic.SpanPenalty * Math.Max(0, MemberCount(civ) - AdminSpanOf(civ))) * SpanStrainFactor(s);
         }
         t += Fix64.FromInt(c.ConqueredTerm);
         return Math.Clamp(t.RoundToInt(), 0, 100);
@@ -1253,6 +1277,8 @@ public sealed partial class LivingEconomyModel
                       m.Goods[(int)MetalGood.DyedCloth] + m.Goods[(int)MetalGood.Silk];
         Fix64 goldWeight = HasProject(s.Civilization, "MET-07") ? Fix64.Max(Fix64.One, Modifier(s.Civilization, "gold_luxury_weight")) : Fix64.One;
         items += m.Goods[(int)MetalGood.Gold] * 10 * goldWeight;
+        // Blown glass, wine and pressed oil are luxuries too in the Iron chapter (a batch of glass makes four).
+        if (IronChain) items += IronStock(s, IronGood.BlownGlass) + IronStock(s, IronGood.Wine) + IronStock(s, IronGood.OilPlant);
         return items.FloorToInt();
     }
 
@@ -1323,12 +1349,13 @@ public sealed partial class LivingEconomyModel
         return c.Tier switch { 2 => Math.Max(eraRadius, _cityRadius), 1 => Math.Max(eraRadius, _townRadius), _ => eraRadius };
     }
 
-    /// <summary>The claim multiplier within the settlement's radius: ×1.25 at a capital with a Palace (GOV-05), else 1.</summary>
+    /// <summary>The claim multiplier within the settlement's radius: ×1.25 at a capital with a Palace (GOV-05), ×1.2 at a garrisoned castle (DEF-08, Iron chapter), else 1.</summary>
     public Fix64 ClaimMultiplier(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
-        if (s.Civic is not { Palaces: > 0 } || !CohesionLive(s) || !HasProject(s.Civilization, "GOV-05")) return Fix64.One;
-        return _capitalClaimMult;
+        Fix64 anchor = IronChain && CastleGarrisoned(settlementIndex) ? CastleClaimMult : Fix64.One;
+        if (s.Civic is not { Palaces: > 0 } || !CohesionLive(s) || !HasProject(s.Civilization, "GOV-05")) return anchor;
+        return _capitalClaimMult * anchor;
     }
 
     /// <summary>The hinterland ring of a City with TER-07 (radius 7 at 50% emission), as (radius, emission share); (0, 0) otherwise.</summary>
@@ -1353,11 +1380,18 @@ public sealed partial class LivingEconomyModel
         if (!CohesionLive(s)) return (0, 0);
         int civ = s.Civilization, capital = CapitalOf(s.Civilization);
         if (capital < 0 || capital == s.Id) return (0, 0);
-        int walk = WalkingTiles(_settlements[capital].SiteTile, s.SiteTile);
+        int walk = RoadAdjustedWalk(s, WalkingTiles(_settlements[capital].SiteTile, s.SiteTile));
         Fix64 overreach = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) /
-            _civic.OverreachDivisor * (Fix64.One - AdminReductionOf(civ));
+            _civic.OverreachDivisor * (Fix64.One - AdminReductionAt(s));
         if (Done(civ, "HUS-08") && MostlyOpenGround(s)) overreach *= Fix64.Half;
-        int spanPenalty = _civic.SpanPenalty * Math.Max(0, MemberCount(civ) - AdminSpanOf(civ));
+        overreach *= DistanceStrainFactor(s);
+        int spanPenalty = (Fix64.FromInt(_civic.SpanPenalty * Math.Max(0, MemberCount(civ) - AdminSpanOf(civ))) * SpanStrainFactor(s)).RoundToInt();
+        // ART-08: a city with a theatre or arena feels 10% less of the unrest that distance and span cause (Iron chapter; the venue's Cohesion target is separate).
+        if (IronChain && IronWorksCount(s, IronStructure.Theatre) > 0)
+        {
+            overreach *= Fix64.FromRatio(9, 10);
+            spanPenalty = (Fix64.FromInt(spanPenalty) * Fix64.FromRatio(9, 10)).RoundToInt();
+        }
         return (Math.Max(0, overreach.RoundToInt()), spanPenalty);
     }
 

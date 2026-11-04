@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
+using CivSim.Sim.Research;
 using CivSim.Sim.View;
 
 namespace CivSim.Game;
@@ -30,6 +31,8 @@ internal sealed class GameSaveData
     public bool IntroDismissed;
     /// <summary>Player-chosen settlement names by settlement index (version 5); cosmetic, outside the sim snapshot.</summary>
     public List<KeyValuePair<int, string>> SettlementNames = new();
+    /// <summary>The chapter the match plays. Bronze saves keep version 5 and carry no mode; an Iron save is version 6.</summary>
+    public ChapterMode Mode = ChapterMode.Bronze;
 
     public Replay ToReplay() => new()
     {
@@ -45,10 +48,14 @@ internal sealed class GameSaveData
 internal static class GameSave
 {
     private const uint Magic = 0x53475343; // "CSGS", little-endian
-    private const uint Version = 5;
+    /// <summary>The newest version this build reads. Bronze saves are still written as <see cref="BronzeVersion"/>.</summary>
+    private const uint Version = 6;
+    private const uint BronzeVersion = 5;
     /// <summary>Version 5 appends the player's settlement names after the difficulty byte.</summary>
     private const uint FirstVersionWithSettlementNames = 5;
     private const int MaxSettlementNames = 4096;
+    /// <summary>Version 6: a chapter-mode byte follows the settlement names. Written only for a non-Bronze chapter (docs/MVP/25 §3).</summary>
+    private const uint FirstVersionWithChapterMode = 6;
     private const uint FirstVersionWithDifficulty = 2;
     /// <summary>Version 3: the sim snapshot carries the Bronze state (Mandate, built Wonders). An older snapshot has a different layout and cannot be restored.</summary>
     private const uint FirstVersionWithBronzeState = 3;
@@ -102,7 +109,7 @@ internal static class GameSave
             using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: false))
             {
                 writer.Write(Magic);
-                writer.Write(Version);
+                writer.Write(data.Mode == ChapterMode.Bronze ? BronzeVersion : Version);
                 writer.Write(data.Seed);
                 writer.Write(data.ViewerCiv);
                 writer.Write(data.Tick);
@@ -137,6 +144,7 @@ internal static class GameSave
                     writer.Write(name.Key);
                     writer.Write(name.Value);
                 }
+                if (data.Mode != ChapterMode.Bronze) writer.Write((byte)data.Mode);
                 writer.Flush();
                 stream.Flush(flushToDisk: true);
             }
@@ -192,6 +200,12 @@ internal static class GameSave
             if (count < 0 || count > MaxSettlementNames) throw new InvalidDataException("Invalid saved settlement name count.");
             for (int i = 0; i < count; i++)
                 data.SettlementNames.Add(new KeyValuePair<int, string>(reader.ReadInt32(), ReadBoundedString(reader, 64)));
+        }
+        if (version >= FirstVersionWithChapterMode)
+        {
+            byte mode = reader.ReadByte();
+            if (mode != (byte)ChapterMode.Iron) throw new InvalidDataException("Invalid saved chapter mode.");
+            data.Mode = (ChapterMode)mode;
         }
         if (!data.PackHash.AsSpan().SequenceEqual(expectedPackHash))
             throw new InvalidDataException("Save content hash differs from the loaded content pack.");

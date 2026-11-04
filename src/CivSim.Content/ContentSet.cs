@@ -165,7 +165,8 @@ public sealed class ContentSet
         .Req("status", S.Enum("draft", "numeric", "tuned")).Req("requires", S.List(S.Str()))
         .Req("breadth", S.Obj().Req("era", S.Int(0, 9)).Req("min", S.Int(1, 200)))
         .Opt("cost", S.Num("0", null, minExclusive: true)).Opt("cost_reason", S.Str())
-        .Req("effects", S.List(S.Obj(allowExtra: true))).Opt("flavor", S.Str()).Opt("moment", S.Str())
+        .Req("effects", S.List(S.Obj(allowExtra: true))).Opt("practice", S.List(S.Obj().Req("action", S.Str()).Req("share", S.Int(1, 100))))
+        .Opt("flavor", S.Str()).Opt("moment", S.Str())
         .Opt("ack", S.List(S.Str())).Opt("ack_reason", S.Str());
 
     private void LoadLineage(string path, ContentValue tree, Ctx ctx)
@@ -263,11 +264,11 @@ public sealed class ContentSet
             .Req("claim_mult", S.Num("0", "10", true)).Req("winter_mult", S.Num("1", "10")).Req("fert_mult", S.Num("0", "10"))
             .Req("mort_child", S.Num("0", "1")).Req("mort_adult", S.Num("0", "1")).Req("mort_elder", S.Num("0", "1"))
             .Req("cost_mod", S.Num("0", "10", true)),
-        "actions" => Rec().Req("class", S.Enum("family", "activity")).Opt("base_rate", S.Num("0", null, true)).Opt("unit", S.Str()),
+        "actions" => Rec().Req("class", S.Enum("family", "activity")).Opt("base_rate", S.Num("0", null, true)).Opt("unit", S.Str()).Opt("introduced_era", S.Int(0, 9)),
         "practice" => S.Obj().Req("id", S.Str()).Req("knowhow", S.Map(S.Int(1, 100))).Opt("knowhow_from_era2", S.Map(S.Int(1, 100))).Opt("note", S.Str()),
         "goods" => Rec().Req("category", S.Enum("food", "food_feast", "material", "processed", "fuel", "metal", "tool", "container", "clothing", "luxury", "shelter", "animal", "ore", "arms"))
             .Req("first_from", S.List(S.Str())).Opt("spoilage", S.Num("0", "1")).Opt("durability", S.Str()).Req("load", S.Num("0", "100")).Opt("per", S.Int(1, 1000))
-            .Req("barter", S.Num("0", "10000")),
+            .Req("barter", S.Num("0", "10000")).Opt("introduced_era", S.Int(0, 9)),
         "structures" => Rec().Req("class", S.Enum("structure", "wonder")).Req("unlocked_by", S.Str()).Opt("labor", S.Num("0")).Opt("labor_note", S.Str())
             .Opt("materials", S.Str()).Opt("effect", S.Str()).Opt("upkeep", S.Str()),
         "tools" => Rec().Req("unlocked_by", S.List(S.Str())).Opt("make_time", S.Num("0")).Opt("inputs", S.Str()).Opt("durability", S.Str()).Opt("enables", S.Str())

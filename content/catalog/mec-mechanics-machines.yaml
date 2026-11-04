@@ -42,26 +42,39 @@ projects:
     name: "Pulley & Windlass"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MEC-03, FIB-05]
     effects:
-      - {kind: prose, text: "Lift loads: tall buildings, deep wells (water access +). Build speed +15%."}
+      - {kind: mod, stat: build_labor, op: pct, value: -0.130435, note: "Equivalent to ×1.15 speed."}
+      - {kind: build, structure: windlass_well, note: "4 G-WOOD, 8 ws; accesses a known water source at depth 2 in that settlement."}
+      - {kind: rule, text: "Windlass access applies only to a known source in that settlement; it creates no new water source or territory-wide access."}
+    practice: [{action: build, share: 100}]
+    flavor: "A small pull raises a great weight."
+    moment: "A counterweight lifts a bucket from the dark."
   - id: MEC-05
     name: "Gears & Screws"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MEC-04, NUM-07]
     effects:
-      - {kind: prose, text: "Presses (olive oil, wine: food & trade +), Archimedes' screw, water-wheel gearing."}
+      - {kind: build, structure: press}
+      - {kind: unlock, text: "Unlock press, Archimedean screw, and water-wheel gearing; presses require MEC-05 and recipe inputs; enable mine drainage."}
+    practice: [{action: build, share: 100}]
+    flavor: "A measured turn moves water uphill."
+    moment: "Interlocking gears turn an endless screw."
   - id: MEC-06
     name: Treadwheel Crane
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [MEC-05]
     effects:
-      - {kind: prose, text: "Build: Crane. Large structures and wonders build ×2."}
+      - {kind: build, structure: crane}
+      - {kind: rule, text: "Eligible large-structure and Wonder construction labor ×0.5 (build ×2), only for jobs staffed at a settlement with a crane."}
+    practice: [{action: build, share: 100}]
+    flavor: "The wheel lifts the weight of a wall."
+    moment: "Workers step inside a wheel and raise a block."
   - id: MEC-07
     name: "Crank & Camshaft"
     era: 5

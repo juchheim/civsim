@@ -95,18 +95,28 @@ projects:
     name: "Philosophy & Ethics"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-07, COM-07]
     effects:
-      - {kind: prose, text: "Reasoned inquiry: Insight +10%; diverse groups cohere (conquered peoples integrate faster)."}
+      - {kind: mod, stat: scholar_insight, op: pct, value: 0.10}
+      - {kind: cohesion, value: 10, scope: diverse_group_integration}
+    practice: [{action: ritual, share: 100}]
+    flavor: "Reason gives strangers a common measure."
+    moment: "A teacher and students dispute a question in public."
   - id: BEL-09
     name: Organized Faith
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-08, TRD-07]
     effects:
-      - {kind: prose, text: "Universal religion spreads along trade routes: Cohesion with *other* civilizations' converts (soft influence, claim pressure abroad). Role: Missionary. *KEY-5 prerequisite.*"}
+      - {kind: role, id: missionary}
+      - {kind: rule, text: "one staffed missionary spends 1 ws/season and converts up to 1% of eligible non-adherent population/year along a connected trade route, capped at 25% of each reached settlement"}
+      - {kind: mod, stat: soft_claim_pressure, op: pct, value: 0.05, note: "other-civ converts in reached settlements while route and conversion persist; never transfers ownership"}
+      - {kind: rule, text: "KEY-5 prerequisite"}
+    practice: [{action: ritual, share: 100}]
+    flavor: "Belief travels along the roads people use."
+    moment: "A traveling teacher is welcomed at a caravan stop."
   - id: BEL-10
     name: Monasticism
     era: 5

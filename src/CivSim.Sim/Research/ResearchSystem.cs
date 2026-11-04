@@ -49,6 +49,9 @@ public sealed partial class ResearchSystem : IResearchView
     /// </summary>
     public const int LastResearchEra = 3;
 
+    /// <summary>The chapter this match plays (docs/MVP/25 §3); Bronze unless the match was built with Iron rules.</summary>
+    public ChapterRules Rules { get; }
+
     private readonly ResearchCatalog _catalog;
     private readonly IResearchSource _source;
     private readonly ulong _seed;
@@ -67,12 +70,13 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
-    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight;
+    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _wonderLibrary;
     private readonly int _soc03, _trd04, _bel05, _bld05, _bld07;
     private long _tick;
 
 
-    public ResearchSystem(ResearchCatalog catalog, IResearchSource source, ulong seed, ReadOnlySpan<ResearchCivSetup> setup)
+    public ResearchSystem(ResearchCatalog catalog, IResearchSource source, ulong seed, ReadOnlySpan<ResearchCivSetup> setup,
+        ChapterRules? rules = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(source);
@@ -80,6 +84,7 @@ public sealed partial class ResearchSystem : IResearchView
         _catalog = catalog;
         _source = source;
         _seed = seed;
+        Rules = rules ?? ChapterRules.Bronze;
         _commonsCoef = catalog.Constant("CommonsCoef");
         _commonsExp = catalog.Constant("CommonsExp");
         _elderCommons = catalog.Constant("ElderCommons");
@@ -101,6 +106,11 @@ public sealed partial class ResearchSystem : IResearchView
         _statScribe = catalog.StatIndex("scribe_output");
         _statPriest = catalog.StatIndex("priest_insight");
         _statRoleInsight = catalog.StatIndex("role_insight");
+        _roleScholar = catalog.RoleIndex("scholar");
+        _statScholar = catalog.StatIndex("scholar_insight");            // INQ-04, BEL-08, LRN-06 (Iron chapter)
+        _statScribeLearning = catalog.StatIndex("scribe_learning_output"); // COM-07
+        _statMecNrgCost = catalog.StatIndex("mec_nrg_project_cost");     // INQ-05
+        _wonderLibrary = catalog.IndexOf("LRN-06");
         _soc03 = catalog.IndexOf("SOC-03");
         _trd04 = catalog.IndexOf("TRD-04");
         _bel05 = catalog.IndexOf("BEL-05");
@@ -240,11 +250,15 @@ public sealed partial class ResearchSystem : IResearchView
         int knowers = 0;
         for (int o = 0; o < _civs.Length; o++)
             if (o != civ && InContact(civ, o) && _civs[o].Done[project]) knowers++;
-        if (knowers > 0) cost = cost * Fix64.Max(_diffusionFloor, Fix64.One - _diffusionStep * knowers);
+        // The Great Library (LRN-06, once built) doubles each knowing civilization's discount; the floor stays, so a cost never goes below it.
+        Fix64 step = _wonderLibrary >= 0 && c.WondersBuilt.BinarySearch(_wonderLibrary) >= 0 ? _diffusionStep * 2 : _diffusionStep;
+        if (knowers > 0) cost = cost * Fix64.Max(_diffusionFloor, Fix64.One - step * knowers);
         int lag = c.Era - def.Era;
         if (lag > 0) cost = cost * FixMath.PowInt(_eraLag, lag);
         foreach (Gate g in def.Gates)
             if (g.Kind == GateKind.Climate && g.Target == c.ClimateTarget) cost = cost * ClimateDiscount;
+        // INQ-05: machine (MEC) and energy (NRG) projects cost 10% less, applied to the current cost like every other discount (no credit for work already done).
+        if (_statMecNrgCost >= 0 && (def.Id.StartsWith("MEC-", StringComparison.Ordinal) || def.Id.StartsWith("NRG-", StringComparison.Ordinal))) cost = cost * c.ModMult[_statMecNrgCost];
         return cost;
     }
 
@@ -383,7 +397,8 @@ public sealed partial class ResearchSystem : IResearchView
             case CommandKind.CompleteProject:
                 // A grant (fixtures, debugging): complete without spending Insight. The economy receives the
                 // same command from its caller, so it is not forwarded again.
-                if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] && _catalog.Projects[command.A].Numeric)
+                if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] && _catalog.Projects[command.A].Numeric
+                    && _catalog.Projects[command.A].Era <= Rules.LastResearchEra) // no grant past the match's ceiling
                     Complete(c, command.A, tick, forwardToEconomy: false);
                 break;
         }
@@ -638,7 +653,7 @@ public sealed partial class ResearchSystem : IResearchView
     {
         int p = def.Index;
         if (civ.Done[p]) return AccessSatisfied(civ, def) ? ProjectState.Completed : ProjectState.Dormant;
-        if (!def.Numeric || def.Era > civ.Era || def.Era > LastResearchEra) return ProjectState.Hidden;
+        if (!def.Numeric || def.Era > civ.Era || def.Era > Rules.LastResearchEra) return ProjectState.Hidden;
         if (!SeenSatisfied(civ, def)) return ProjectState.Hidden;
         int missing = 0;
         foreach (int r in def.Requires) if (!civ.Done[r]) missing++;
@@ -709,6 +724,9 @@ public sealed partial class ResearchSystem : IResearchView
             // E3 roles by structure (docs/MVP/22 §8.4): COM-06 ×1.5 scribe output, NUM-06 +4 a Priest, SOC-08 +10% role Insight.
             if (r == _roleScribe && _statScribe >= 0) output = output * civ.ModMult[_statScribe];
             if (r == _rolePriest && _statPriest >= 0) output = output + heads * civ.ModFlat[_statPriest];
+            // The Iron chapter's learning mods apply to one role each (docs/MVP/26 §2.3 "Insight +x%" names its pool): scholars, and the scribes' own output.
+            if (r == _roleScholar && _statScholar >= 0) output = output * civ.ModMult[_statScholar];
+            if (r == _roleScribe && _statScribeLearning >= 0) output = output * civ.ModMult[_statScribeLearning];
             if ((r == _roleScribe || r == _rolePriest) && _statRoleInsight >= 0) output = output * civ.ModMult[_statRoleInsight];
             roles += output;
         }
@@ -788,6 +806,9 @@ public sealed partial class ResearchSystem : IResearchView
                     case EffectKind.Hazard when e.Cause is not null:
                         int cause = Array.IndexOf(ResearchCatalog.HazardCauses, e.Cause);
                         if (cause >= 0) civ.HazardMult[cause] = civ.HazardMult[cause] * (Fix64.One + (e.Value - Fix64.One) * adopted);
+                        break;
+                    // FOD-09's Population cap is not a multiplier: the Iron economy delivers it as physical public grain (docs/MVP/26 §5), so it is not applied here.
+                    case EffectKind.Cap when e.Cap is CapKind.Population:
                         break;
                     case EffectKind.Cap when e.Cap is { } cap && cap != CapKind.Group:
                         civ.CapMult[(int)cap] = civ.CapMult[(int)cap] * FixMath.Pow(e.Value, e.Take);
@@ -901,6 +922,7 @@ public sealed partial class ResearchSystem : IResearchView
     public void Hash(ref StateHasher h)
     {
         h.Add(_tick);
+        if (Rules.IsIron) h.Add((int)Rules.Mode); // Bronze adds nothing, so legacy checksums are unchanged
         foreach (CivResearch civ in _civs) civ.Hash(ref h);
         foreach (int f in _firstBy) h.Add(f);
         foreach (bool k in _contact) h.Add(k);

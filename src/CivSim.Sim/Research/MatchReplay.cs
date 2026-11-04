@@ -17,11 +17,15 @@ namespace CivSim.Sim.Research;
 public sealed class MatchReplay
 {
     public const uint Magic = 0x52434D53; // "SMCR" little-endian, distinct from the toy and economy replays
+    /// <summary>The Bronze format, unchanged since before M11: no chapter mode on disk.</summary>
     public const uint FormatVersion = 1;
+    /// <summary>The format of a replay that records its chapter mode. Written only for non-Bronze chapters, so Bronze files keep their bytes.</summary>
+    public const uint ModeFormatVersion = 2;
     private readonly EconomyArchetype[] _archetypes;
 
-    private MatchReplay(Replay replay, EconomyArchetype[] archetypes, ulong worldFingerprint, ulong finalChecksum)
+    private MatchReplay(Replay replay, EconomyArchetype[] archetypes, ulong worldFingerprint, ulong finalChecksum, ChapterRules rules)
     {
+        Rules = rules;
         Replay = replay;
         _archetypes = archetypes;
         WorldFingerprint = worldFingerprint;
@@ -29,12 +33,15 @@ public sealed class MatchReplay
     }
 
     public Replay Replay { get; }
+    /// <summary>The chapter the recorded match played; Bronze for every replay written before M11.</summary>
+    public ChapterRules Rules { get; }
     public ReadOnlySpan<EconomyArchetype> Archetypes => _archetypes;
     public ulong WorldFingerprint { get; }
     public ulong FinalChecksum { get; }
 
     /// <summary>Captures a finished run: the commands the runner applied and the checksums it recorded.</summary>
-    public static MatchReplay FromRun(ulong seed, ContentPack pack, ReadOnlySpan<EconomyArchetype> archetypes, SimRunner runner, ulong worldFingerprint)
+    public static MatchReplay FromRun(ulong seed, ContentPack pack, ReadOnlySpan<EconomyArchetype> archetypes, SimRunner runner, ulong worldFingerprint,
+        ChapterRules? rules = null)
     {
         var profiles = new EconomyArchetype[4];
         if (archetypes.Length != profiles.Length) throw new ArgumentException("A match replay needs four archetypes.", nameof(archetypes));
@@ -48,7 +55,7 @@ public sealed class MatchReplay
             Commands = new List<Command>(runner.AppliedCommands),
             Checksums = new List<ChecksumRecord>(runner.Checksums),
         };
-        return new MatchReplay(replay, profiles, worldFingerprint, runner.CurrentChecksum);
+        return new MatchReplay(replay, profiles, worldFingerprint, runner.CurrentChecksum, rules ?? ChapterRules.Bronze);
     }
 
     public ReplayVerification Verify(ContentPack pack)
@@ -60,7 +67,7 @@ public sealed class MatchReplay
         ulong fingerprint = WorldEconomyInput.FromGeneratedWorld(generated).Fingerprint;
         if (fingerprint != WorldFingerprint)
             return new ReplayVerification(false, -1, "Replay world fingerprint differs from the generated world.");
-        MatchModel model = MatchModel.Create(Replay.MatchSeed, pack, generated, _archetypes);
+        MatchModel model = MatchModel.Create(Replay.MatchSeed, pack, generated, _archetypes, ReadOnlySpan<CivSim.Sim.Ai.CivControl>.Empty, rules: Rules);
         ReplayVerification result = ReplayVerifier.Verify(Replay, _ => model, pack.Hash);
         if (!result.Ok) return result;
         ulong actual = model.ComputeChecksum();
@@ -72,7 +79,8 @@ public sealed class MatchReplay
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(Magic);
-        writer.Write(FormatVersion);
+        writer.Write(Rules.IsIron ? ModeFormatVersion : FormatVersion);
+        if (Rules.IsIron) writer.Write((byte)Rules.Mode);
         writer.Write(WorldFingerprint);
         writer.Write(FinalChecksum);
         writer.Write(_archetypes.Length);
@@ -84,8 +92,16 @@ public sealed class MatchReplay
     public static MatchReplay Read(Stream stream)
     {
         using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
-        if (reader.ReadUInt32() != Magic || reader.ReadUInt32() != FormatVersion)
-            throw new InvalidDataException("Unsupported match replay.");
+        if (reader.ReadUInt32() != Magic) throw new InvalidDataException("Unsupported match replay.");
+        uint version = reader.ReadUInt32();
+        if (version != FormatVersion && version != ModeFormatVersion) throw new InvalidDataException("Unsupported match replay.");
+        ChapterRules rules = ChapterRules.Bronze;
+        if (version == ModeFormatVersion)
+        {
+            byte mode = reader.ReadByte();
+            if (mode != (byte)ChapterMode.Iron) throw new InvalidDataException("Unknown match replay chapter mode.");
+            rules = ChapterRules.For((ChapterMode)mode);
+        }
         ulong worldFingerprint = reader.ReadUInt64();
         ulong finalChecksum = reader.ReadUInt64();
         if (reader.ReadInt32() != 4) throw new InvalidDataException("A match replay needs four archetypes.");
@@ -97,6 +113,6 @@ public sealed class MatchReplay
         }
         Replay replay = Replay.Read(stream);
         if (replay.TotalTicks < 0 || replay.ChecksumInterval <= 0) throw new InvalidDataException("Invalid match replay tick count or interval.");
-        return new MatchReplay(replay, archetypes, worldFingerprint, finalChecksum);
+        return new MatchReplay(replay, archetypes, worldFingerprint, finalChecksum, rules);
     }
 }

@@ -81,26 +81,41 @@ projects:
     name: Harbors
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [SEA-06, BLD-09]
     effects:
-      - {kind: prose, text: "Build: Harbor. Ship capacity ×2; port cities grow +20%."}
+      - {kind: build, structure: harbor}
+      - {kind: mod, stat: ship_capacity, op: mult, value: 2}
+      - {kind: mod, stat: port_city_cap_support, op: mult, value: 1.20, note: "Conditional on food, water and housing."}
+    practice: [{action: sail, share: 100}]
+    moment: "Stone piers reach into a sheltered bay."
+    flavor: "The harbor makes a coast a meeting place."
   - id: SEA-08
     name: Great Lighthouse
     era: 4
     type: W
-    status: draft
+    status: numeric
     requires: [SEA-07, BLD-11]
     effects:
-      - {kind: prose, text: "Wonder: Lighthouse. Shipwrecks −50% civilization-wide; sea trade +20%; landmark claim."}
+      - {kind: wonder, structure: great_lighthouse}
+      - {kind: risk, text: "Shipwreck risk ×0.5 civilization-wide for known, maintained routes."}
+      - {kind: mod, stat: sea_trade_throughput, op: mult, value: 1.20}
+      - {kind: claim, text: "Landmark claim uses existing Wonder rules."}
+    practice: [{action: sail, share: 100}]
+    moment: "A beacon burns above a harbor mouth."
+    flavor: "A fixed light marks the coast at night."
   - id: SEA-09
     name: War Galleys
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-07, WAR-07]
     effects:
-      - {kind: prose, text: "Naval combat; blockade enemy harbors."}
+      - {kind: unlock_action, action: naval_blockade}
+      - {kind: combat, text: "Naval combat and harbor blockade; ship/crew combat and blockade require WAR; blockade requirements in 26 §4."}
+    practice: [{action: sail, share: 100}]
+    moment: "A galley crew rows in formation past the harbor chain."
+    flavor: "The harbor is no longer beyond an army's reach."
   - id: SEA-10
     name: "Keeled Ships & Cogs"
     era: 5

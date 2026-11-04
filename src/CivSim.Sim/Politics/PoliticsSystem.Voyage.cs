@@ -112,8 +112,11 @@ public sealed partial class PoliticsSystem
         return sea <= 0 ? 0 : Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
     }
 
-    private bool RollVoyageLost(int risk, ulong entity, int season)
+    internal bool FixtureRollVoyageLost(int risk, ulong entity, int season, int civ) => RollVoyageLost(risk, entity, season, civ);
+
+    private bool RollVoyageLost(int risk, ulong entity, int season, int civ = -1)
     {
+        if (civ >= 0 && risk > 0 && _economy.HoldsWonder(civ, "great_lighthouse")) risk /= 2; // the Great Lighthouse (SEA-08): shipwreck risk x0.5 civilization-wide
         if (risk <= 0) return false;
         Pcg32 roll = Pcg32.ForStream(_seed, VoyageStream, entity, season);
         return roll.NextBelow(1000) < (uint)risk;
@@ -132,7 +135,7 @@ public sealed partial class PoliticsSystem
         if (sea <= 0) return false;
         int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
         ulong entity = (ulong)(e.FromSettlement * 4099L + e.ToSettlement * 7L + (int)e.Kind);
-        if (!RollVoyageLost(risk, entity, _season)) return false;
+        if (!RollVoyageLost(risk, entity, _season, e.Civ)) return false;
         _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.VoyageLost, e.TargetCiv, sea, (int)e.Kind));
         if (e.Kind is ExpeditionKind.Gift or ExpeditionKind.Barter) _economy.GiveGoods(e.FromSettlement, e.Value);
         else if (e.Kind == ExpeditionKind.Caravan) Unload(e.FromSettlement, e.Good, e.Cargo);
@@ -167,7 +170,7 @@ public sealed partial class PoliticsSystem
         if (sea <= 0) return false;
         int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
         ulong entity = (ulong)(fromTile * 8191L + toTile) * 31UL + 4UL;
-        if (!RollVoyageLost(risk, entity, season)) return false;
+        if (!RollVoyageLost(risk, entity, season, civ)) return false;
         _events.Add(new PoliticsEvent(_economy.Tick, (byte)civ, PoliticsEventKind.VoyageLost, -1, sea, 4));
         return true;
     }

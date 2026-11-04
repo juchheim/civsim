@@ -375,10 +375,10 @@ public class ResearchVisibleChangeTests
     [Fact]
     public void Every_numeric_project_announces_a_visible_change_when_it_completes()
     {
-        var rig = new ResearchRig();
+        var rig = new ResearchRig(rules: CivSim.Sim.Research.ChapterRules.Iron); // E4 can be granted only in an Iron match
         ResearchCatalog catalog = rig.Catalog;
         var numeric = catalog.Projects.Where(p => p.Numeric).ToList();
-        Assert.Equal(214, numeric.Count);
+        Assert.Equal(271, numeric.Count);
         foreach (ProjectDef p in numeric) rig.Do(rig.Grant(0, p.Id));
 
         var missing = new List<string>();

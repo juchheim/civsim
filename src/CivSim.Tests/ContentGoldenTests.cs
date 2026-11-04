@@ -42,14 +42,14 @@ public class ContentGoldenTests
     }
 
     [Fact]
-    public void The_first_four_eras_are_numeric_and_the_rest_are_draft()
+    public void The_first_five_eras_are_numeric_and_the_rest_are_draft()
     {
         foreach (Project p in Set.Projects)
         {
-            bool early = p.Era <= 3; // E0-E2 and, since the Bronze specs (docs/MVP/23), E3 with KEY-4
+            bool early = p.Era <= 4; // E0-E2, E3 with KEY-4 (docs/MVP/23) and, promoted together on 2026-11-03, E4 with KEY-5 (docs/MVP/25)
             Assert.Equal(early ? "numeric" : "draft", p.Status);
         }
-        Assert.Equal(214, Set.Projects.Count(p => p.Status == "numeric")); // 148 (E0-E2 and KEY-1..3) + 65 E3 projects + KEY-4
+        Assert.Equal(271, Set.Projects.Count(p => p.Status == "numeric")); // 148 (E0-E2 and KEY-1..3) + 65 E3 projects + KEY-4 + 56 E4 projects + KEY-5
     }
 
     [Fact]
@@ -103,8 +103,8 @@ public class ContentGoldenTests
     public void Method_ladders_are_collected_from_project_effects()
     {
         var ladders = Validator.Ladders(Set);
-        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 6 }, ladders["chop"].Select(r => r.Rung)); // rung 6 by MET-04 or MET-05
-        Assert.Equal(new[] { "STN-01", "STN-02", "STN-04", "STN-08", "MET-03", "MET-04", "MET-05" }, ladders["chop"].Select(r => r.Project.Id));
+        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 6, 7 }, ladders["chop"].Select(r => r.Rung)); // rung 6 by MET-04 or MET-05; E4 rung 7 by MET-09
+        Assert.Equal(new[] { "STN-01", "STN-02", "STN-04", "STN-08", "MET-03", "MET-04", "MET-05", "MET-09" }, ladders["chop"].Select(r => r.Project.Id));
         Assert.Equal(new[] { 1, 2 }, ladders["mine"].Select(r => r.Rung));
         Assert.Equal(new[] { 1, 2, 3, 4, 5 }, ladders["hunt"].Select(r => r.Rung));
         Assert.Equal(new[] { 1, 2, 3, 4 }, ladders["forage"].Select(r => r.Rung));

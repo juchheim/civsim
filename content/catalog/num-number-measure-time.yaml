@@ -77,10 +77,13 @@ projects:
     name: "Geometry & Surveying"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-06]
     effects:
-      - {kind: prose, text: "Land surveying: fields, roads and aqueducts laid out optimally (+15% infrastructure efficiency)."}
+      - {kind: mod, stat: infrastructure_efficiency, op: mult, value: 1.15, note: "Surveyed fields, roads and aqueducts only; equivalent labor ×0.869565"}
+    practice: [{action: count_stores, share: 100}]
+    moment: "Surveyors stretch a cord between marked points."
+    flavor: "A line measured on the ground becomes a reliable plan."
   - id: NUM-08
     name: "Zero & Positional Numerals"
     era: 5

@@ -19,3 +19,9 @@ roles:
   - {id: trader, name: Trader, insight: 0, unlocked_by: TRD-04, staffing: "1 per market"}
   - {id: baker, name: Baker, insight: 0, unlocked_by: FOD-08, staffing: "1 per bakery"}
   - {id: envoy, name: Envoy, insight: 0, unlocked_by: DIP-04, staffing: "1 per civilization, at the capital"}
+  # E4 Iron additions (docs/MVP/26 §3.3); staffing and outputs remain draft proposals.
+  - {id: administrator, name: Administrator, insight: 0, unlocked_by: GOV-07, staffing: "1 per capital or census office; must be staffed"}
+  - {id: governor, name: Governor, insight: 0, unlocked_by: TER-08, staffing: "1 per connected province seat"}
+  - {id: soldier, name: Soldier, insight: 0, unlocked_by: WAR-07, staffing: "ordinary slots floor(0.10 × adults); 20% after WAR-08; supplied and trained"}
+  - {id: missionary, name: Missionary, insight: 0, unlocked_by: BEL-09, staffing: "1 per active faith route or mission"}
+  - {id: physician, name: Physician, insight: 0, unlocked_by: MED-05, staffing: "1 per settlement with medical texts"}

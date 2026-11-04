@@ -51,12 +51,12 @@ public sealed partial class LivingEconomyModel
 
     private sealed class MetalPlan
     {
-        public MetalPlan(int recipes)
+        public MetalPlan(int recipes, int slots)
         {
             Batches = new Fix64[recipes];
-            Want = new Fix64[SlotCount];
-            Terminal = new Fix64[SlotCount];
-            SisterTerminal = new Fix64[SlotCount];
+            Want = new Fix64[slots];
+            Terminal = new Fix64[slots];
+            SisterTerminal = new Fix64[slots];
         }
 
         /// <summary>The part of <see cref="Terminal"/> made or dug for sister settlements.</summary>
@@ -70,6 +70,8 @@ public sealed partial class LivingEconomyModel
         // Labor buckets, in the order figures are assigned to them.
         public Fix64 BuildNeed, BuildRequested, BuildCap, MineNeed, CharcoalNeed, SmeltNeed;
         public Fix64 BuildAssigned, MineAssigned, CharcoalAssigned, SmeltAssigned;
+        /// <summary>The Iron chapter's construction bucket (docs/MVP/26 §3.2): labor wanted and given this season.</summary>
+        public Fix64 IronBuildNeed, IronBuildAssigned;
         /// <summary>Civic build work moved onto the first Forge/Kiln this season so it completes (already inside BuildAssigned).</summary>
         public Fix64 CivicBuildTransfer;
         /// <summary>Why the completion-only transfer did not fire for a first Forge/Kiln (diagnostic; empty when it fired or did not apply).</summary>
@@ -128,16 +130,18 @@ public sealed partial class LivingEconomyModel
     internal bool B12CopperShareTraceEnabled { get; set; }
     internal List<string> B12CopperShareTrace { get; } = new();
     internal Fix64 B12CopperShareShortfallTotal { get; private set; }
-    private readonly EconomyToolTier?[] _tierDefs = new EconomyToolTier?[11];
+    private readonly EconomyToolTier?[] _tierDefs = new EconomyToolTier?[13];
 
     private void CompileRecipes()
     {
         _metalBarter = new Fix64[(int)MetalGood.Count];
         for (int g = 0; g < (int)MetalGood.Count; g++) _metalBarter[g] = _content.BarterValue(MetalGoodId((MetalGood)g));
         foreach (EconomyToolTier tier in _content.ToolTiers)
-            if (tier.Tier is >= 8 and <= 10) _tierDefs[tier.Tier] = tier;
+            if (tier.Tier is >= 8 and <= 12) _tierDefs[tier.Tier] = tier;
 
         var compiled = new List<CompiledRecipe>();
+        var iron = new List<CompiledRecipe>();
+        var merged = new List<CompiledRecipe>();
         foreach (EconomyRecipe r in _content.Recipes)
         {
             bool enabled = r.Outputs.Length > 0;
@@ -156,16 +160,22 @@ public sealed partial class LivingEconomyModel
                 quantities[i] = r.Inputs[i].Quantity;
             }
             int output = r.Outputs.Length > 0 ? SlotOf(r.Outputs[0].Good) : NoSlot;
+            bool touchesIron = output >= IronSlotBase;
+            foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesIron |= slot >= IronSlotBase;
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
-            compiled.Add(new CompiledRecipe
+            var entry = new CompiledRecipe
             {
                 Def = r, InputSlots = slots, InputQuantity = quantities, OutputSlot = output,
                 OutputQuantity = r.Outputs.Length > 0 ? r.Outputs[0].Quantity : Fix64.Zero,
                 Task = TaskOfPractice(r.Practice), IsCharcoal = output == MetalSlot(MetalGood.Charcoal),
                 Enabled = enabled,
-            });
+            };
+            (touchesIron ? iron : compiled).Add(entry);
+            merged.Add(entry);
         }
         _compiledRecipes = compiled.ToArray();
+        _ironRecipes = iron.ToArray();
+        _allRecipes = merged.ToArray();
     }
 
     private int SlotOf(string goodId)
@@ -174,12 +184,15 @@ public sealed partial class LivingEconomyModel
         if (e2 >= 0) return e2;
         for (int g = 0; g < (int)MetalGood.Count; g++)
             if (MetalGoodId((MetalGood)g) == goodId) return MetalSlot((MetalGood)g);
+        for (int g = 0; g < (int)IronGood.Count; g++)
+            if (IronGoodId((IronGood)g) == goodId) return IronSlot((IronGood)g);
         return NoSlot;
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
     {
         if (slot < (int)Good.Count) return s.Stores[slot];
+        if (slot >= IronSlotBase) return s.Metal?.IronGoods is { } iron ? iron[slot - IronSlotBase] : Fix64.Zero;
         int metalSlot = slot - (int)Good.Count;
         if (metalSlot == (int)MetalGood.Ochre && s.Metal is null) return s.SurfaceOchre;
         return s.Metal is { } m ? m.Goods[metalSlot] : Fix64.Zero;
@@ -191,6 +204,11 @@ public sealed partial class LivingEconomyModel
         {
             if (slot == (int)Good.Wood && amount < Fix64.Zero) RecordLocalWoodUse(s, -amount, "metal");
             s.Stores[slot] = Fix64.Max(Fix64.Zero, s.Stores[slot] + amount);
+        }
+        else if (slot >= IronSlotBase)
+        {
+            Fix64[] iron = EnsureMetal(s).IronGoods ??= new Fix64[(int)IronGood.Count];
+            iron[slot - IronSlotBase] = Fix64.Max(Fix64.Zero, iron[slot - IronSlotBase] + amount);
         }
         else
         {
@@ -225,7 +243,7 @@ public sealed partial class LivingEconomyModel
 
     private bool TierKnown(int civ, int tier) => _tierDefs[tier] is { } def && AnyDone(civ, def.UnlockedBy);
 
-    private static int Rank(int tier) => tier switch { 8 => 1, 9 => 2, 10 => 3, _ => 0 };
+    private static int Rank(int tier) => tier switch { 8 => 1, 9 => 2, 10 => 3, 11 => 4, 12 => 5, _ => 0 };
 
     private static MetalGood KitGood(int tier) => tier switch { 8 => MetalGood.Kit8, 9 => MetalGood.Kit9, _ => MetalGood.Kit10 };
 
@@ -258,7 +276,7 @@ public sealed partial class LivingEconomyModel
     private int KitChopRung(FigureState f)
     {
         if (f.Kit == 0) return -1;
-        int rung = f.Kit == 8 ? 5 : 6;
+        int rung = f.Kit == 8 ? 5 : f.Kit >= 11 ? 7 : 6; // iron kits chop at MET-09's rung 7 (docs/MVP/26 §2.2)
         return ChopRungMult(f.Civilization, rung) > Fix64.Zero ? rung : -1;
     }
 
@@ -310,8 +328,13 @@ public sealed partial class LivingEconomyModel
     {
         int rung = KitChopRung(f);
         if (rung < 0) return Fix64.Zero;
-        return BaseRate("chop", Fix64.FromInt(2)) * ChopRungMult(f.Civilization, rung) * KitQuality(f);
+        Fix64 rate = BaseRate("chop", Fix64.FromInt(2)) * ChopRungMult(f.Civilization, rung) * KitQuality(f);
+        // The WOD-08 saw rides on a T12 kit only: chop x1.4 against the T12 iron axe (docs/MVP/26 §2.2).
+        if (f.Kit == 12 && Done(f.Civilization, "WOD-08") && Done(f.Civilization, "MET-10")) rate *= SawChopMult;
+        return rate;
     }
+
+    private static readonly Fix64 SawChopMult = Fix64.FromRatio(14, 10);
 
     private Fix64 BaseRate(string action, Fix64 fallback)
     {
@@ -331,6 +354,8 @@ public sealed partial class LivingEconomyModel
             f.KitLeft -= toolWork[i];
             if (f.KitLeft <= KitBreakLeft(f.Kit)) { f.Kit = 0; f.KitLeft = Fix64.Zero; }
         }
+        // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
+        if (IronChain) IssueIronKits(s, m);
         // Hand out the kits in stock: those without a kit first, then worn kits, then upgrades, oldest kits first.
         var order = new List<int>();
         for (int i = 0; i < _figures.Count; i++)
@@ -614,6 +639,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach); SharePublicGrain(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
@@ -661,7 +687,8 @@ public sealed partial class LivingEconomyModel
         foreach (MiningCampState camp in _camps)
             if (camp.Parent == s.Id) access |= SourceBit(civ, camp.Tile);
         // A workable deposit on own land within mining reach is a source too: the planner opens a camp there when it wants the ore.
-        if ((access & (SourceCopper | SourceArsenic | SourceTin)) != (SourceCopper | SourceArsenic | SourceTin))
+        if ((access & (SourceCopper | SourceArsenic | SourceTin)) != (SourceCopper | SourceArsenic | SourceTin) ||
+            (IronChain && (access & SourceIron) == 0))
             foreach (int tile in ReachTiles(s.SiteTile, MiningReach(civ, s.SiteTile)))
             {
                 byte bit = SourceBit(civ, tile);
@@ -678,6 +705,7 @@ public sealed partial class LivingEconomyModel
             DepositKind.CopperOre => SourceCopper,
             DepositKind.ArsenicalCopper => SourceArsenic,
             DepositKind.Tin => SourceTin,
+            DepositKind.Iron => IronChain ? SourceIron : (byte)0, // iron is a camp source only in the Iron chapter
             _ => 0,
         };
     }
@@ -801,6 +829,7 @@ public sealed partial class LivingEconomyModel
             if (id == "kiln" && s.Structures[(int)Structure.Kiln] > 0) return true;
             if (id == "smelter" && m is not null && m.Smelters > 0) return true;
             if (id == "forge" && m is not null && m.Forges > 0) return true;
+            if (id == "press" && IronWorksCount(s, IronStructure.Press) > 0) return true;
         }
         return false;
     }
@@ -833,7 +862,7 @@ public sealed partial class LivingEconomyModel
     {
         MetalState m = EnsureMetal(s);
         int civ = s.Civilization;
-        var plan = new MetalPlan(_compiledRecipes.Length);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
         plan.Tier = BestCastTier(s);
         m.Reason = DormancyReason(s, plan.Tier);
 
@@ -893,6 +922,7 @@ public sealed partial class LivingEconomyModel
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
         Fix64 chainA = mineA + charA + smeltA;
         plan.BuildNeed = Fix64.Min(plan.BuildNeed, plan.BuildCap);
+        plan.IronBuildNeed = IronBuildLabor(s, m, totalWork);
         Fix64 laborB = Fix64.Max(Fix64.Zero, mineAll + charAll + smeltAll - chainA);
         Fix64 chainCap = cap;
         Fix64 scaleA = chainA <= chainCap || chainA <= Fix64.Zero ? Fix64.One : chainCap / chainA;
@@ -922,7 +952,7 @@ public sealed partial class LivingEconomyModel
             m.ShareWant[k] = Fix64.Max(Fix64.Zero, plan.Want[slot] - plan.SisterTerminal[slot]);
         }
         (plan.MineNeed, plan.CharcoalNeed, plan.SmeltNeed) = ChainLabor(s, plan);
-        plan.Budget = plan.BuildNeed + plan.MineNeed + plan.CharcoalNeed + plan.SmeltNeed;
+        plan.Budget = plan.BuildNeed + plan.IronBuildNeed + plan.MineNeed + plan.CharcoalNeed + plan.SmeltNeed;
         return plan;
     }
 
@@ -1174,6 +1204,12 @@ public sealed partial class LivingEconomyModel
         int civ = s.Civilization;
         if (plan.Tier != 0)
             plan.Terminal[MetalSlot(KitGood(plan.Tier))] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - m.Goods[(int)KitGood(plan.Tier)]);
+        IronKitWant(s, m, plan);
+        IronExportWant(s, m, plan, pop);
+        IronBuildWants(s, m, plan);
+        IronArmsWant(s, m, plan);
+        IronEngineWant(s, m, plan);
+        IronCraftWants(s, m, plan);
         int reach = ShareReach(civ);
         if (reach >= 0)
         {
@@ -1257,7 +1293,9 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "FOD-07")) Want(MetalGood.Salted, Fix64.FromInt(pop) / 2);
         if (Done(civ, "HUS-06")) Want(MetalGood.WoolGarment, Fix64.FromInt((pop + 9) / 10));
         if (Done(civ, "MET-07")) Want(MetalGood.Gold, perTwenty / 10);
-        if (Done(civ, "MET-08")) Want(MetalGood.Iron, Fix64.One);
+        // The standing litre of bloom is, in the Iron chapter, a pump for kits (the forge turns it into wrought iron, then it is smelted again), so a thin
+        // forest throttles it with the rest of the Iron chain (see IronWoodFactor).
+        if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
     }
 
@@ -1308,8 +1346,8 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private Fix64[] FeasibleBatches(SettlementState s, bool[] available, bool[]? blockedOres = null)
     {
-        var potential = new Fix64[SlotCount];
-        for (int slot = 0; slot < SlotCount; slot++) potential[slot] = Stock(s, slot);
+        var potential = new Fix64[PlanSlots];
+        for (int slot = 0; slot < PlanSlots; slot++) potential[slot] = Stock(s, slot);
         MetalState m = s.Metal!;
         int civ = s.Civilization;
         foreach (MetalGood ore in new[] { MetalGood.CopperOre, MetalGood.ArsenicalOre, MetalGood.TinOre, MetalGood.IronOre, MetalGood.Gold, MetalGood.Salt })
@@ -1318,8 +1356,9 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceCopper | AccessCopper)) != 0) potential[MetalSlot(MetalGood.CopperOre)] = Plenty;
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
+        if (IronChain && (m.Access & SourceIron) != 0) potential[MetalSlot(MetalGood.IronOre)] = Plenty; // a camp can open on it
         if (blockedOres is not null)
-            for (int slot = 0; slot < SlotCount; slot++)
+            for (int slot = 0; slot < PlanSlots; slot++)
                 if (blockedOres[slot]) potential[slot] = Stock(s, slot);
         if (Done(civ, "MIN-01") && HasResourceInRange(s, _ochreStock)) potential[MetalSlot(MetalGood.Ochre)] = Plenty;
         if (Done(civ, "MIN-03")) potential[MetalSlot(MetalGood.Block)] = Plenty;
@@ -1352,7 +1391,7 @@ public sealed partial class LivingEconomyModel
         {
             int slot = MetalSlot(ore);
             if (plan.Want[slot] <= m.Goods[(int)ore] || CanObtainOre(s, ore)) continue;
-            blocked ??= new bool[SlotCount];
+            blocked ??= new bool[PlanSlots];
             blocked[slot] = true;
         }
         return blocked;
@@ -1657,6 +1696,13 @@ public sealed partial class LivingEconomyModel
                 if (figure.Task == 0) figure.Task = MetalTask.Build;
                 plan.BuildAssigned += part;
             }
+            else if (plan.IronBuildAssigned < plan.IronBuildNeed)
+            {
+                part = Fix64.Min(amount, plan.IronBuildNeed - plan.IronBuildAssigned);
+                Assign(figure, EconomyJob.Build, part);
+                if (figure.Task == 0) figure.Task = MetalTask.Build;
+                plan.IronBuildAssigned += part;
+            }
             else if (plan.MineAssigned < plan.MineNeed)
             {
                 part = Fix64.Min(amount, plan.MineNeed - plan.MineAssigned);
@@ -1771,6 +1817,7 @@ public sealed partial class LivingEconomyModel
                 m.BuildProgress = Fix64.Zero;
             }
         }
+        spare += RunIronBuild(s, m, plan);
 
         // SOC-08: full-time Miners, Smiths and Potters in Towns and Cities work 30% faster (docs/MVP/22 §8.5).
         Fix64 specialist = s.Civic is { Tier: >= 1 } && Done(civ, "SOC-08") ? _civic.SpecialistRate : Fix64.One;
@@ -1859,6 +1906,8 @@ public sealed partial class LivingEconomyModel
             if (seasons > 0) m.Goods[g] -= m.Goods[g] / seasons;
         }
 
+        if (IronChain) WearIronGoods(m);
+
         // 7. Statistics for the harness (T17): labor, people.
         Fix64 work = Fix64.Zero;
         foreach (FigureState f in _figures) if (f.SettlementId == s.Id) work += f.WorkThisSeason;
@@ -1896,8 +1945,8 @@ public sealed partial class LivingEconomyModel
     private Fix64 CharcoalNeededNow(SettlementState s, MetalPlan plan, int charcoalRecipe)
     {
         int charcoal = MetalSlot(MetalGood.Charcoal);
-        var stock = new Fix64[SlotCount];
-        for (int slot = 0; slot < SlotCount; slot++) stock[slot] = Stock(s, slot);
+        var stock = new Fix64[PlanSlots];
+        for (int slot = 0; slot < PlanSlots; slot++) stock[slot] = Stock(s, slot);
         Fix64 need = Fix64.Zero;
         for (int r = charcoalRecipe + 1; r < _compiledRecipes.Length; r++)
         {
@@ -1923,6 +1972,16 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Runs one recipe for up to <paramref name="planned"/> batches; returns the batches made.</summary>
+    /// <summary>
+    /// What a recipe may draw of a slot. In the Iron chapter the bloom the structure under construction still needs is held back from the kit chain: without that claim the
+    /// chain turns every litre into tools each season and a finished-but-unpaid structure waits forever (seen in the first whole Iron matches).
+    /// </summary>
+    private Fix64 AvailableStock(SettlementState s, int slot)
+    {
+        Fix64 stock = Stock(s, slot);
+        return slot == MetalSlot(MetalGood.Iron) && IronChain ? Fix64.Max(Fix64.Zero, stock - IronBloomReserve(s)) : stock;
+    }
+
     private Fix64 RunRecipe(SettlementState s, CompiledRecipe recipe, Fix64 planned, bool anyMetalKit, ref Fix64 metalPool, ref Fix64 craftPool)
     {
         Fix64 labor = RecipeLabor(s, recipe, anyMetalKit);
@@ -1932,7 +1991,7 @@ public sealed partial class LivingEconomyModel
         for (int i = 0; i < recipe.InputSlots.Length; i++)
         {
             Fix64 have = Fix64.Zero;
-            foreach (int slot in recipe.InputSlots[i]) have += Stock(s, slot);
+            foreach (int slot in recipe.InputSlots[i]) have += AvailableStock(s, slot);
             Fix64 q = InputQuantity(s, recipe, i);
             if (q > Fix64.Zero) batches = Fix64.Min(batches, have / q);
         }
@@ -1942,7 +2001,7 @@ public sealed partial class LivingEconomyModel
             Fix64 need = batches * InputQuantity(s, recipe, i);
             foreach (int slot in recipe.InputSlots[i])
             {
-                Fix64 take = Fix64.Min(need, Stock(s, slot));
+                Fix64 take = Fix64.Min(need, AvailableStock(s, slot));
                 AddStock(s, slot, -take);
                 need -= take;
                 if (need <= Fix64.Zero) break;
@@ -2319,7 +2378,7 @@ public sealed partial class LivingEconomyModel
         for (int g = 0; g < (int)MetalGood.Count; g++)
         {
             MetalGood good = (MetalGood)g;
-            if (good is not (MetalGood.CopperOre or MetalGood.ArsenicalOre or MetalGood.TinOre)) continue;
+            if (good is not (MetalGood.CopperOre or MetalGood.ArsenicalOre or MetalGood.TinOre) && !(IronChain && good == MetalGood.IronOre)) continue;
             bool tierNeeds = plan.Tier switch
             {
                 8 => good == MetalGood.CopperOre,
@@ -2679,6 +2738,7 @@ public sealed partial class LivingEconomyModel
             if (work <= Fix64.Zero || f.Kit == 0) continue;
             Fix64 mod = KitMod(f, "harvest_labor");
             if (mod > Fix64.Zero && mod < Fix64.One) bonus += work * SkillMultiplier(f, SkillFamily.Farm) * (Fix64.One / mod - Fix64.One);
+            bonus += ScytheFarmBonus(f, work);
         }
         return bonus;
     }

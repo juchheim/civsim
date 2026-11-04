@@ -42,3 +42,8 @@ practice:
   - {id: sail, knowhow: {SEA: 70, WAY: 30}}
   - {id: ride, knowhow: {TRN: 60, HUS: 30, WAR: 10}}
   - {id: burn_charcoal, knowhow: {FIR: 60, WOD: 40}}
+  # E4 Iron additions (docs/MVP/26 §3.1); role/system job work markers.
+  - {id: siege_assault, knowhow: {WAR: 60, DEF: 40}}
+  - {id: naval_blockade, knowhow: {WAR: 50, SEA: 50}}
+  - {id: faith_spread, knowhow: {BEL: 80, DIP: 20}}
+  - {id: province_admin, knowhow: {GOV: 60, TER: 40}}

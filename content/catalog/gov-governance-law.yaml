@@ -85,26 +85,41 @@ projects:
     name: "Bureaucracy & Census"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-06, NUM-05]
     effects:
-      - {kind: prose, text: "Role: Administrator. Overreach −25%; planners see full-civilization stats (better allocation)."}
+      - {kind: role, id: administrator}
+      - {kind: admin, overreach: 0.25}
+      - {kind: rule, text: "census planner view sees full own-civilization stats"}
+    practice: [{action: council, share: 100}]
+    flavor: "The ruler can count what distant towns hold."
+    moment: "A clerk tallies stores across a province."
   - id: GOV-08
     name: "Republic & Assemblies"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-06, SOC-10]
     effects:
-      - {kind: prose, text: "Citizen participation: Commons Insight +15%, Cohesion +; slower war declarations."}
+      - {kind: mod, stat: commons_insight, op: mult, value: 1.15}
+      - {kind: cohesion, value: 10}
+      - {kind: mod, stat: voluntary_war_declaration_cooldown, op: mult, value: 1.25}
+      - {kind: rule, text: "immediate defense unaffected"}
+    practice: [{action: council, share: 100}]
+    flavor: "The assembly gives its answer slowly."
+    moment: "Citizens raise hands before a public decision."
   - id: GOV-09
     name: Feudal Contract
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-07, WAR-07]
     effects:
-      - {kind: prose, text: "Vassal lords hold distant land: remote regions don't secede; local defense +. *KEY-5 prerequisite.*"}
+      - {kind: rule, text: "active connected province removes distance/span secession pressure; famine, conquest and other crisis secession remain; KEY-5 prerequisite"}
+      - {kind: mod, stat: local_defense, op: mult, value: 1.15}
+    practice: [{action: council, share: 100}]
+    flavor: "A distant oath binds a nearer defense."
+    moment: "A lord accepts a charter and a local banner."
   - id: GOV-10
     name: "Canon & Common Law"
     era: 5

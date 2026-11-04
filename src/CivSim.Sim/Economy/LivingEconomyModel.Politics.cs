@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Randomness;
 using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
@@ -216,6 +217,14 @@ public sealed partial class LivingEconomyModel
     public bool BurnStructure(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
+        // CER-08: a town roofed in fired brick and tile catches fire half as often. Roofed means a fired-brick store of at least one for every twenty people; the
+        // draw is keyed on the settlement, the tick and how much is left to burn, so no new state is kept.
+        if (IronChain && Done(s.Civilization, "CER-08") && IronStock(s, IronGood.FiredBrick) >= Fix64.FromInt((Population(s.Id) + 19) / 20))
+        {
+            int left = 0;
+            foreach (int count in s.Structures) left += count;
+            if (Pcg32.ForStream(_seed, 0x46495245UL, (ulong)settlementIndex, Tick * 4096 + left).NextBelow(2) == 0) return false;
+        }
         Structure[] flammable =
         {
             Structure.HideTent, Structure.LeanTo, Structure.DryingRack, Structure.ThornBarrier, Structure.PitHouse,
@@ -292,7 +301,7 @@ public sealed partial class LivingEconomyModel
             if (_figures[i].SettlementId == s.Id) _figures.RemoveAt(i);
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
-        if (s.Metal is { } metal) { Array.Clear(metal.Goods); metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear(); }
+        if (s.Metal is { } metal) { Array.Clear(metal.Goods); if (metal.IronGoods is not null) Array.Clear(metal.IronGoods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero; metal.IronTerraces = null; metal.IronFacing = null; metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear(); }
         if (s.Civic is not null) s.Civic = new CivicState { Seceded = s.Civic.Seceded };
         s.FissionPending = false;
         s.FireLit = false;
@@ -314,16 +323,21 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>A person who could fight: id, age, sex and whether a wound has laid them up.</summary>
-    public readonly record struct FighterRecord(long Id, int Age, bool Female, bool Wounded);
+    public readonly record struct FighterRecord(long Id, int Age, bool Female, bool Wounded, bool Soldier = false);
 
     /// <summary>Adults and elders of a settlement in ascending id order (children stay out of the fight, docs/MVP/13 §6.1).</summary>
     public void ListFightingAge(int settlementIndex, List<FighterRecord> into)
     {
         int id = _settlements[settlementIndex].Id;
+        // The Iron chapter's standing soldiers (WAR-07): a staffed soldier fights as a professional only if upkeep was paid this season.
+        int supplied = IronChain ? _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0 : 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState f = _figures[i];
-            if (f.SettlementId == id && f.Age >= 14) into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0));
+            if (f.SettlementId != id || f.Age < 14) continue;
+            bool soldier = supplied > 0 && f.Role == Role.Soldier;
+            if (soldier) supplied--;
+            into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0, soldier));
         }
     }
 

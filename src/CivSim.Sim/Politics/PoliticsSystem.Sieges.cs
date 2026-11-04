@@ -20,6 +20,11 @@ public sealed class Investment
     public SiegeState State { get; internal set; }
     // A one-season override for controlled lifecycle fixtures; never serialized or used by production matches.
     internal Fix64? FixtureStoresAfterRation { get; set; }
+    /// <summary>Siege engines the host carries (WAR-09), and the seasons they have been in the field.</summary>
+    public int Engines { get; internal set; }
+    public int EngineSeasons { get; internal set; }
+    /// <summary>Wall integrity: 1 intact, 0 breached. Only an engine train reduces it.</summary>
+    public Fix64 Integrity { get; internal set; } = Fix64.One;
     public List<long> Members { get; } = new();
     public List<Fix64> Strengths { get; } = new();
 }
@@ -101,6 +106,9 @@ public sealed partial class PoliticsSystem
         }
         int at = 0;
         while (at < _investments.Count && _investments[at].Settlement < settlement) at++;
+        // A host with crew takes the home settlement's engines (WAR-09): four crew for each, up to three.
+        if (_economy.IronChain && _research.IsDone(party.Civ, _p.War09) && party.FromSettlement < _sCount)
+            investment.Engines = _economy.TakeEngines(party.FromSettlement, Math.Min(Sieges.MaxEngines, ids.Count / Sieges.CrewPerEngine));
         _investments.Insert(at, investment);
         _economy.SetUnderInvestment(settlement, true);
         CutInvestmentRoutes(settlement);
@@ -187,6 +195,12 @@ public sealed partial class PoliticsSystem
                 else if (homeDefense > Fix64.FromRatio(8, 10) * force) result = SiegeResult.Sally;
             }
             _economy.BurnStructure(investment.Settlement);
+            if (investment.Engines > 0 && result is SiegeResult.Ongoing or SiegeResult.Capitulated && BatterWalls(investment, supplied, besiegers))
+            {
+                // The wall is breached: the besiegers storm it at once, and the existing assault resolver decides (breach, defenders, casualties).
+                StormBreach(i, investment, besiegers);
+                continue;
+            }
             _economy.AdjustCohesion(investment.Settlement, Fix64.FromRatio(-5, 100));
             if ((uint)investment.HomeSettlement < (uint)_sCount)
                 _economy.AdjustCohesion(investment.HomeSettlement, Fix64.FromRatio(-2, 100));
@@ -212,6 +226,7 @@ public sealed partial class PoliticsSystem
                 if (occupation.Members.Count >= Captures.MinHolders)
                 {
                     _economy.SetUnderInvestment(investment.Settlement, false);
+                    ReturnEngines(investment);
                     Capture(occupation, loser, assimilationPenalty: 10);
                     _events.Add(new PoliticsEvent(_tick, (byte)investment.Civ, PoliticsEventKind.InvestmentCapitulated,
                         loser, investment.Settlement, _season - investment.BeganSeason));
@@ -224,6 +239,76 @@ public sealed partial class PoliticsSystem
             }
         }
         foreach (int settlement in AllInvestedSettlements()) _economy.SetUnderInvestment(settlement, true);
+    }
+
+    /// <summary>
+    /// A season of engine fire (WAR-09). The train needs supply and charcoal from home to run; the engines that run take the wall down at
+    /// <see cref="Sieges.Batter"/>'s rate, and spent engines (twelve seasons in the field) are lost. Returns true on the season the wall is breached.
+    /// </summary>
+    private bool BatterWalls(Investment investment, bool supplied, List<Fighter> besiegers)
+    {
+        int crewed = Math.Min(investment.Engines, besiegers.Count / Sieges.CrewPerEngine);
+        int running = supplied ? _economy.PayEngineUpkeep(investment.HomeSettlement, crewed) : 0;
+        investment.EngineSeasons++;
+        if (investment.EngineSeasons >= Sieges.EngineSeasons) investment.Engines = 0;
+        if (investment.Integrity <= Fix64.Zero) return true;
+        Defenses defenses = DefensesOf(investment.Settlement);
+        investment.Integrity = Sieges.Batter(investment.Integrity, running, defenses.Gatehouse ? Defenses.IntactTowerWall : Fix64.FromInt(3));
+        return investment.Integrity <= Fix64.Zero;
+    }
+
+    /// <summary>
+    /// The storm after a breach: the existing assault resolver against the defenders with the wall gone (a castle's strongpoint and the defenders' home ground still count).
+    /// A win that the besiegers can hold takes the settlement; a rout ends the siege; a stand-off leaves the breach open for next season.
+    /// </summary>
+    private void StormBreach(int index, Investment investment, List<Fighter> besiegers)
+    {
+        int settlement = investment.Settlement, loser = _sCiv[settlement];
+        List<Fighter> defenders = Fighters(settlement, attacking: false, out _, _sTile[settlement]);
+        Defenses breached = DefensesOf(settlement) with { StoneWalls = false, Gatehouse = false };
+        BattleResult result = Captures.Assault(besiegers, defenders, breached, childrenInside: true, _seed,
+            SiegeStream ^ 0x425245414348UL ^ (ulong)settlement ^ (ulong)_season * 7919UL);
+        ApplyCasualties(result.AttackerDead, result.AttackerWounded, "siegeBreach");
+        ApplyCasualties(result.DefenderDead, result.DefenderWounded, "siegeBreach");
+        int fight = PoliticsEvent.PackFight(besiegers.Count, defenders.Count,
+            result.AttackerDead.Count + result.AttackerWounded.Count, result.DefenderDead.Count + result.DefenderWounded.Count);
+        bool won = Captures.CanHold(result);
+        _events.Add(new PoliticsEvent(_tick, (byte)investment.Civ, PoliticsEventKind.AssaultResolved, loser, won ? 1 : 0, settlement, _sTile[settlement], fight));
+        _events.Add(new PoliticsEvent(_tick, (byte)loser, PoliticsEventKind.AssaultResolved, investment.Civ, won ? 2 : 3, settlement, _sTile[settlement], fight));
+        if (won)
+        {
+            var occupation = new Occupation { Civ = investment.Civ, Settlement = settlement, SinceSeason = _season, RequiredSeasons = 0 };
+            for (int m = 0; m < investment.Members.Count; m++)
+            {
+                long id = investment.Members[m];
+                if (!_economy.TryFigure(id, out _) || _economy.IsWounded(id) || result.AttackerDead.Contains(id)) continue;
+                occupation.Members.Add(id); occupation.Strengths.Add(investment.Strengths[m]);
+            }
+            if (occupation.Members.Count >= Captures.MinHolders)
+            {
+                _economy.SetUnderInvestment(settlement, false);
+                ReturnEngines(investment);
+                Capture(occupation, loser, assimilationPenalty: 10);
+                _events.Add(new PoliticsEvent(_tick, (byte)investment.Civ, PoliticsEventKind.InvestmentCapitulated, loser, settlement, _season - investment.BeganSeason));
+                _events.Add(new PoliticsEvent(_tick, (byte)loser, PoliticsEventKind.InvestmentCapitulated, investment.Civ, settlement, _season - investment.BeganSeason));
+                _economy.ClearIdle(investment.Members);
+                _investments.RemoveAt(index);
+                return;
+            }
+        }
+        if (result.Winner == BattleWinner.Defender || won)
+        {
+            _failedCampaigns[investment.Civ * _civs + loser]++;
+            EndInvestment(index, relieved: false);
+        }
+    }
+
+    /// <summary>A siege that ends brings its engines home (the ones not yet spent).</summary>
+    private void ReturnEngines(Investment investment)
+    {
+        if (investment.Engines > 0 && investment.HomeSettlement < _sCount && _sCiv[investment.HomeSettlement] == investment.Civ)
+            _economy.ReturnEngines(investment.HomeSettlement, investment.Engines);
+        investment.Engines = 0;
     }
 
     private List<int> AllInvestedSettlements()
@@ -283,6 +368,7 @@ public sealed partial class PoliticsSystem
     private void EndInvestment(int index, bool relieved)
     {
         Investment investment = _investments[index];
+        ReturnEngines(investment);
         _economy.SetUnderInvestment(investment.Settlement, false);
         _economy.ClearIdle(investment.Members);
         _events.Add(new PoliticsEvent(_tick, (byte)investment.Civ, PoliticsEventKind.InvestmentRelieved,
@@ -345,6 +431,7 @@ public sealed partial class PoliticsSystem
             h.Add(investment.BeganSeason); h.Add(investment.State.BesiegerStrength); h.Add(investment.State.UnwalledDefenderStrength);
             h.Add(investment.State.DefenderStrength); h.Add(investment.State.StoresSeasons); h.Add(investment.State.BesiegerFoodSeasons);
             h.Add(investment.State.Season); h.Add(investment.Members.Count);
+            if (_economy.IronChain) { h.Add(investment.Engines); h.Add(investment.EngineSeasons); h.Add(investment.Integrity); }
             for (int i = 0; i < investment.Members.Count; i++) { h.Add(investment.Members[i]); h.Add(investment.Strengths[i]); }
         }
     }
@@ -359,6 +446,7 @@ public sealed partial class PoliticsSystem
             writer.Write(investment.State.BesiegerStrength.Raw); writer.Write(investment.State.UnwalledDefenderStrength.Raw);
             writer.Write(investment.State.DefenderStrength.Raw); writer.Write(investment.State.StoresSeasons.Raw);
             writer.Write(investment.State.BesiegerFoodSeasons); writer.Write(investment.State.Season);
+            if (_economy.IronChain) { writer.Write(investment.Engines); writer.Write(investment.EngineSeasons); writer.Write(investment.Integrity.Raw); }
             writer.Write(investment.Members.Count);
             for (int i = 0; i < investment.Members.Count; i++)
             { writer.Write(investment.Members[i]); writer.Write(investment.Strengths[i].Raw); }
@@ -379,6 +467,12 @@ public sealed partial class PoliticsSystem
                 State = new SiegeState(Fix64.FromRaw(reader.ReadInt64()), Fix64.FromRaw(reader.ReadInt64()),
                     Fix64.FromRaw(reader.ReadInt64()), Fix64.FromRaw(reader.ReadInt64()), reader.ReadInt32(), reader.ReadInt32()),
             };
+            if (_economy.IronChain)
+            {
+                investment.Engines = reader.ReadInt32(); investment.EngineSeasons = reader.ReadInt32(); investment.Integrity = Fix64.FromRaw(reader.ReadInt64());
+                if (investment.Engines < 0 || investment.Engines > Sieges.MaxEngines || investment.EngineSeasons < 0 || investment.Integrity < Fix64.Zero || investment.Integrity > Fix64.One)
+                    throw new InvalidDataException("Snapshot investment engines are invalid.");
+            }
             int members = reader.ReadInt32();
             if (members < 0 || members > 100_000 || (uint)investment.Settlement >= (uint)_economy.SettlementCount ||
                 (uint)investment.HomeSettlement >= (uint)_economy.SettlementCount || (uint)investment.Civ >= (uint)_civs ||

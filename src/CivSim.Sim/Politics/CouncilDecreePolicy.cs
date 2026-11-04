@@ -58,6 +58,9 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
             if (site < 0 && r.IsDone(civ, "MET-04") && r.IsDone(civ, "MIN-04") && !eco.CivHasOreSource(civ, DepositKind.ArsenicalCopper) &&
                 !eco.CivHasMetalAccess(civ, MetalAccessKind.Tin))
                 site = p.NearestMineSite(civ, DepositKind.ArsenicalCopper);
+            // The Iron chapter's own ore: iron once it knows MET-09 (iron tools) and has no iron of its own (docs/MVP/25 §4).
+            if (site < 0 && IronCouncilNeedsIron(r, eco, civ))
+                site = p.NearestMineSite(civ, DepositKind.Iron);
             if (site >= 0)
             {
                 into.Add(new DecreeRequest(DecreeKind.Mine, site, 0));
@@ -73,6 +76,19 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
             if (seller != int.MinValue)
             {
                 into.Add(new DecreeRequest(DecreeKind.Compact, seller, DecreeArgs.PackCompact(TradeGood.Tin, sell: false)));
+                mandate -= compactCost;
+            }
+        }
+
+        // 2b. Iron by compact (Iron chapter): when it wants iron tools, has no iron source and no mine to open, it buys bloom from a
+        // contacted civilization it has seen digging iron.
+        if (compactCost <= mandate && p.Season % 4 == 0 && IronCouncilNeedsIron(r, eco, civ) && !p.BuysIron(civ) &&
+            p.NearestMineSite(civ, DepositKind.Iron) < 0)
+        {
+            int seller = p.IronSellerFor(civ);
+            if (seller != int.MinValue)
+            {
+                into.Add(new DecreeRequest(DecreeKind.Compact, seller, DecreeArgs.PackCompact(TradeGood.Iron, sell: false)));
                 mandate -= compactCost;
             }
         }
@@ -121,6 +137,10 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
             if (tile >= 0) into.Add(new DecreeRequest(DecreeKind.Expedition, tile, 0));
         }
     }
+
+    /// <summary>The Iron chapter's Council wants iron when it knows iron tools (MET-09) and no settlement can dig iron or has a camp on it.</summary>
+    internal static bool IronCouncilNeedsIron(ResearchViewForDecrees research, LivingEconomyModel economy, int civ)
+        => economy.IronChain && research.IsDone(civ, "MET-09") && !economy.CivHasOreSource(civ, DepositKind.Iron);
 
     /// <summary>
     /// MET-05 is gated on having Tin, so the Council must seek a tin compact after MET-03 unlocks the Tin Bronze route,

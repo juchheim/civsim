@@ -41,10 +41,10 @@ public readonly record struct EconomyEffect(
     string? RoleId = null);
 
 /// <summary>An action's optional base rate; many activities acquire a rate from a method instead.</summary>
-public readonly record struct EconomyAction(string Id, Fix64? BaseRate, string? Unit);
+public readonly record struct EconomyAction(string Id, Fix64? BaseRate, string? Unit, int IntroducedEra = 0);
 
 /// <summary>A good's per-season spoilage fraction. Durable goods have zero spoilage.</summary>
-public readonly record struct EconomyGood(string Id, Fix64 Spoilage);
+public readonly record struct EconomyGood(string Id, Fix64 Spoilage, int IntroducedEra = 0);
 
 /// <summary>
 /// Parses the compiled pack once into ordered economy definitions. Project, effect and registry order
@@ -125,7 +125,7 @@ public sealed partial class EconomyContent
         {
             ContentValue action = sourceActions[i];
             actions[i] = new EconomyAction(RequiredString(action, "id"),
-                action.GetFix("base_rate"), action.GetString("unit"));
+                action.GetFix("base_rate"), action.GetString("unit"), OptionalInt(action, "introduced_era") ?? 0);
         }
 
         IReadOnlyList<ContentValue> sourceGoods = List(registries, "goods");
@@ -133,7 +133,8 @@ public sealed partial class EconomyContent
         for (int i = 0; i < sourceGoods.Count; i++)
         {
             ContentValue good = sourceGoods[i];
-            goods[i] = new EconomyGood(RequiredString(good, "id"), good.GetFix("spoilage") ?? Fix64.Zero);
+            goods[i] = new EconomyGood(RequiredString(good, "id"), good.GetFix("spoilage") ?? Fix64.Zero,
+                OptionalInt(good, "introduced_era") ?? 0);
         }
 
         var content = new EconomyContent(projects, effects.ToArray(), actions, goods);

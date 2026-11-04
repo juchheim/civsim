@@ -23,6 +23,32 @@ internal static class TestPack
 
     public static ContentPack Pack => Cached.Value;
     public static ResearchCatalog Catalog { get; } = new(Cached.Value);
+
+    /// <summary>
+    /// The real content with the named draft projects made numeric, compiled without the validator (rule V21 still forbids a numeric E4 row).
+    /// For tests of what a promoted E4 row does once the mode bounds are in place; never used by a golden.
+    /// </summary>
+    public static ContentPack WithNumeric(params string[] projectIds)
+    {
+        var files = ContentFixture.Files();
+        foreach (string id in projectIds)
+        {
+            bool found = false;
+            for (int i = 0; i < files.Count && !found; i++)
+            {
+                string text = files[i].Text;
+                int at = text.IndexOf("id: " + id + "\n", StringComparison.Ordinal);
+                if (at < 0) continue;
+                int status = text.IndexOf("status: draft", at, StringComparison.Ordinal);
+                if (status < 0) throw new InvalidOperationException($"{id} is not a draft project.");
+                files[i] = (files[i].Path, text[..status] + "status: numeric" + text[(status + "status: draft".Length)..]);
+                found = true;
+            }
+            if (!found) throw new ArgumentException($"Unknown project '{id}'.", nameof(projectIds));
+        }
+        (CivSim.Content.ContentSet set, _) = ContentFixture.Load(files);
+        return ContentPack.FromTree(CivSim.Content.PackBuilder.Compile(set));
+    }
 }
 
 /// <summary>A scripted stand-in for the economy: fixed people, practice and exposure, so research rules can be tested alone.</summary>
@@ -98,7 +124,7 @@ internal sealed class ResearchRig
     public long Tick;
 
     public ResearchRig(int civs = 1, double insightPerYear = 0, bool council = false, int councilDelay = 0, Action<FixedSource>? configure = null,
-        (int Craft, int Kin, int Reach)? leaning = null, ResearchCatalog? catalog = null)
+        (int Craft, int Kin, int Reach)? leaning = null, ResearchCatalog? catalog = null, ChapterRules? rules = null)
     {
         Catalog = catalog ?? TestPack.Catalog;
         Source = insightPerYear > 0 ? FixedSource.WithInsightPerYear(Catalog, civs, insightPerYear) : new FixedSource(Catalog, civs);
@@ -106,7 +132,7 @@ internal sealed class ResearchRig
         var (craft, kin, reach) = leaning ?? (34, 33, 33);
         var setups = new ResearchCivSetup[civs];
         Array.Fill(setups, new ResearchCivSetup(craft, kin, reach, council, councilDelay));
-        Research = new ResearchSystem(Catalog, Source, 1, setups);
+        Research = new ResearchSystem(Catalog, Source, 1, setups, rules);
     }
 
     public int P(string id) => Catalog.IndexOf(id);

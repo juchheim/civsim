@@ -254,6 +254,7 @@ public sealed partial class FrameBuilder
         FillParties(target);
         FillRoutes(pol, target);
         FillOccupations(pol, target);
+        FillIron(match, target);
         FillCivs(match, target);
         FillFocus(match, target);
         FillEconomyCiv(eco, target, season);

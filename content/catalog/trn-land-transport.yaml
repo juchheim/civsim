@@ -82,18 +82,28 @@ projects:
     name: Paved Roads
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [TRN-05, STN-11]
     effects:
-      - {kind: prose, text: "Build: Road. Move ×1.5 on roads; claim strength along roads +; adoption spreads along roads ×2."}
+      - {kind: build, structure: road}
+      - {kind: mod, stat: road_movement, op: mult, value: 1.5}
+      - {kind: adopt, mult: 2}
+      - {kind: claim, text: "Claim strength +10% along built roads."}
+    practice: [{action: haul, share: 100}]
+    moment: "Stone paving reaches beyond the town gate."
+    flavor: "A road keeps its promise in every season."
   - id: TRN-08
     name: Stone Bridges
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [TRN-07, BLD-09]
     effects:
-      - {kind: prose, text: "Build: Bridge. Rivers no longer block roads."}
+      - {kind: build, structure: bridge}
+      - {kind: rule, text: "Road may cross a river where a bridge is physically built; no general river movement bonus."}
+    practice: [{action: haul, share: 100}]
+    moment: "A road crosses the river on stone arches."
+    flavor: "The two banks share one road."
   - id: TRN-09
     name: "Stirrup & Horseshoe"
     era: 5

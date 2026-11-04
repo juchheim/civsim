@@ -82,6 +82,18 @@ public enum PoliticsEventKind : byte
     InvestmentTelemetryStarted,
     /// <summary>A raid on a mining camp set out. Other = target civilization, A = party size, B = target tile.</summary>
     MiningCampRaidLaunched,
+    /// <summary>A galley took station off a harbor. Other = the harbor's civilization, A = harbor settlement, B = the blockader's origin settlement.</summary>
+    BlockadeBegan,
+    /// <summary>A blockade ended. Other = the other civilization, A = harbor settlement, B = 0 lifted (peace, harbor, galley or crew gone), 1 beaten by a relief galley, 2 wrecked.</summary>
+    BlockadeEnded,
+    /// <summary>Tributary terms were agreed. Other = the other civilization, A = 0 on the overlord's record and 1 on the subject's.</summary>
+    TributeAgreed,
+    /// <summary>Tributary terms ended. Other = the other civilization, A = 0 overlord and 1 subject, B = 0 war again, 1 the term ran out, 2 the subject outgrew its terms.</summary>
+    TributeEnded,
+    /// <summary>A league was founded or joined. Other = the partner, A = members now, B = 0 the proposer's record and 1 the partner's.</summary>
+    LeagueJoined,
+    /// <summary>A member left a league. Other = -1, A = members before it left.</summary>
+    LeagueEnded,
 }
 
 /// <summary>Diagnostic-only mining-camp claim-radius alternatives for frontier projection.</summary>
@@ -179,7 +191,7 @@ public sealed class Occupation
 /// lets each civilization's Civ Mind (a plain rule set until M6) choose gifts, barter, raids and wars. The same rules
 /// run for every civilization; the player steers with Posture and Beacons.
 /// </summary>
-public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus
+public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus, IIronTradeSource
 {
     /// <summary>Optional output-only callback for resolved Found donor/child IDs; never consulted by simulation rules.</summary>
     internal Action<int, int, int>? FoundResolvedObserverForDiagnostics { get; set; }
@@ -251,7 +263,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
             Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
-            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07;
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06, Dip07, Gov08, Gov09;
 
         public P(ResearchCatalog c)
         {
@@ -264,6 +276,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
             Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
+            Trd06 = c.IndexOf("TRD-06"); Trd07 = c.IndexOf("TRD-07"); Way06 = c.IndexOf("WAY-06"); Hus09 = c.IndexOf("HUS-09"); Sea07 = c.IndexOf("SEA-07"); Sea09 = c.IndexOf("SEA-09"); Dip06 = c.IndexOf("DIP-06"); Dip07 = c.IndexOf("DIP-07"); Gov08 = c.IndexOf("GOV-08"); Gov09 = c.IndexOf("GOV-09");
+            Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); War09 = c.IndexOf("WAR-09");
         }
     }
 
@@ -285,7 +299,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _tileArray = generated.Tiles.ToArray();
         _passable = HexGrid.BuildWalkingPassability(_tileArray, _width, _height);
         InitVoyages();
-        _territory = new Territory(generated, _civs);
+        _territory = new Territory(generated, _civs) { FlipGuard = FrontierGuarded };
         _dip = new Diplomacy(_civs);
         _posture = new byte[_civs];
         _warlordE3ExpandFissionThresholdOverride = new Fix64?[_civs];
@@ -312,6 +326,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         economy.SiteAdvisor = this;
         economy.TileOwnership = this;
         economy.FreeFolkStatus = this;
+        economy.IronTrade = this;
         InitializeScoutSimulation();
         InitDecrees();
         RefreshSettlements();
@@ -496,6 +511,18 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 case CommandKind.SetRaidResponse:
                     ApplyRaidResponseCommand(command);
                     break;
+                case CommandKind.Blockade:
+                    if (command.A < 0 || command.A >= _sCount) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderBlockade(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
+                case CommandKind.ImposeTribute:
+                    if (command.A < 0 || command.A >= _civs || command.A == civ) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderTribute(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
+                case CommandKind.FormLeague:
+                    if (command.A < 0 || command.A >= _civs || command.A == civ) Refused(command, command.A, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderLeague(civ, command.A)) Refused(command, command.A, OrderRefusalReason.RequirementsNotMet);
+                    break;
                 case CommandKind.IssueDecree:
                     QueueDecreeCommand(command);
                     break;
@@ -630,13 +657,17 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         UpdateTerritory();
         if (_season % 4 == 0)
         {
-            _territory.AccrueDominion();
+            AccrueDominionWithTribute();
             _dip.YearlyDrift();
         }
         DetectContacts();
         RecordVisibleRaidWarningsForActiveWithdrawals();
         ResolveExpeditions();
         AdvanceInvestments();
+        AdvanceBlockades();
+        AdvanceFaith();
+        AdvanceTribute();
+        AdvanceLeagues();
         AdvanceOccupations();
         RecoverCohesion();
         RunCivMinds();
@@ -1586,6 +1617,26 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             settlements.Add(new ClaimSource(civ, _sTile[s], _economy.ClaimRadius(s, eraRadius), mult == Fix64.One ? emission : emission * mult));
             (int ring, Fix64 share) = _economy.Hinterland(s);
             if (ring > 0) settlements.Add(new ClaimSource(civ, _sTile[s], ring, emission * share));
+            // Paved roads (TRN-07): the linked town's own claim is 10% stronger on the tiles of its road, where they lie within its radius.
+            if (_economy.IronChain)
+            {
+                var road = new List<int>();
+                _economy.RoadClaimTiles(s, road);
+                if (road.Count > 0)
+                {
+                    int radius = _economy.ClaimRadius(s, eraRadius);
+                    foreach (int tile in road)
+                    {
+                        int d = HexGrid.Distance(_sTile[s], tile, _width);
+                        if (d <= radius) settlements.Add(new ClaimSource(civ, tile, 0, emission * RoadClaimBonus * Fix64.FromInt(radius + 1 - d) / (radius + 1)));
+                    }
+                }
+            }
+            // A foreign faith spreading here adds a little claim pressure for the faith's civilization around the town (BEL-09), never a transfer of the town.
+            if (_economy.IronChain)
+                for (int faith = 0; faith < _civs; faith++)
+                    if (faith != civ && _economy.FaithClaimShare(s, faith, _season) is { } pressure && pressure > Fix64.Zero)
+                        settlements.Add(new ClaimSource(faith, _sTile[s], _economy.ClaimRadius(s, eraRadius), emission * pressure));
         }
     }
 
@@ -1804,6 +1855,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int adults = 0;
         foreach (var r in records) if (r.Age < 45) adults++;
         int warriorSlots = warriors ? adults / 5 : 0;
+        // The Iron chapter's standing soldiers fight as professionals (training x1.5 in place of the warrior's x1.3, never both) with iron or steel-edge arms
+        // when the settlement holds them, strongest first; the arms are theirs alone.
+        int steelArms = _economy.IronChain ? _economy.GoodStock(settlement, "G-ARMS4").FloorToInt() : 0;
+        int ironArms = _economy.IronChain ? _economy.GoodStock(settlement, "G-ARMS3").FloorToInt() : 0;
         int tinArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2T").FloorToInt() : 0;
         int arsenicalArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2A").FloorToInt() : 0;
         int copperArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
@@ -1818,15 +1873,18 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (var r in records)
         {
             if (r.Wounded) continue;
-            bool warrior = r.Age < 45 && !r.Female && warriorSlots > 0;
+            bool warrior = r.Age < 45 && !r.Female && !r.Soldier && warriorSlots > 0;
             if (warrior) warriorSlots--;
             Fix64 weaponStrength = weapon;
             Fix64 casualtiesTaken = Fix64.One;
-            if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
+            if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
+            else if (r.Soldier && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); }
+            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
             else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
             else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
+            else if (r.Soldier) strength = weaponStrength * Combat.ProfessionalTraining;
             else if (warrior)
             {
                 strength = weaponStrength * Fix64.FromRatio(13, 10);
@@ -1903,8 +1961,36 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
             _research.IsDone(civ, _p.Com01), HillSite: false, _research.IsDone(civ, _p.War03), Night: false,
             RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4, Hillfort: hillfort, StoneWalls: walls,
-            HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive));
+            HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive,
+            Gatehouse: walls && _economy.IronChain && _research.IsDone(civ, _p.Def06) && _economy.HasGatehouse(settlement),
+            Castle: _economy.IronChain && _research.IsDone(civ, _p.Def08) && _economy.CastleGarrisoned(settlement),
+            Feudal: _economy.IronChain && _p.Gov09 >= 0 && _research.IsDone(civ, _p.Gov09) && _economy.UnderFeudalContractAt(settlement)));
     }
+
+    /// <summary>
+    /// True when the tile is within a frontier segment's reach of a settlement of its owner whose built segment faces the challenger (DEF-07): the border cannot be
+    /// flipped across a wall that is not there, and never realm-wide.
+    /// </summary>
+    /// <summary>Paved-road claim bonus (TRN-07: +10% along built roads).</summary>
+    private static readonly Fix64 RoadClaimBonus = Fix64.FromRatio(1, 10);
+
+    internal int FixtureSettlementClaimSourceCount() { var list = new List<ClaimSource>(); BuildSettlementClaimSources(list); return list.Count; }
+
+    private bool FrontierGuarded(int tile, int owner, int challenger)
+    {
+        if (!_economy.IronChain) return false;
+        for (int s = 0; s < _sCount; s++)
+        {
+            if (_free[s] || _sCiv[s] != owner || !_research.IsDone(owner, _p.Def07) || !_economy.FrontierWallFacing(s, challenger)) continue;
+            if (HexGrid.Distance(_sTile[s], tile, _width) <= FrontierGuardTiles) return true;
+        }
+        return false;
+    }
+
+    internal bool FixtureFrontierGuarded(int tile, int owner, int challenger) => FrontierGuarded(tile, owner, challenger);
+
+    /// <summary>How far from its settlement a frontier segment guards the border (provisional).</summary>
+    private const int FrontierGuardTiles = 6;
 
     private int ContestedOverlapTiles(int a, int b)
     {

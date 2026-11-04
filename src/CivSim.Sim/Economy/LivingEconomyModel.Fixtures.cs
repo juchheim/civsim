@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.World;
 
@@ -193,7 +194,220 @@ public sealed partial class LivingEconomyModel
             Fix64 craft = Fix64.Zero;
             return RunRecipe(s, recipe, planned, anyMetalKit: false, ref labor, ref craft);
         }
+        foreach (CompiledRecipe recipe in _ironRecipes)
+            if (recipe.Def.Id == recipeId) return RunIronRecipe(s, recipeId, planned, ref labor);
         throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
+    /// <summary>The sharing reach of a civilization (-1 without SOC-07 or GOV-04) and the hex distance between two settlements, for sharing fixtures.</summary>
+    internal (int Reach, int Distance) FixtureSharing(int civ, int settlementA, int settlementB)
+        => (ShareReach(civ), HexGrid.Distance(_settlements[settlementA].SiteTile, _settlements[settlementB].SiteTile, _world.Width));
+
+    /// <summary>The iron kits the forgeless sisters of a settlement still lack, which that settlement smiths for them; zero when sharing is off or out of reach.</summary>
+    internal Fix64 FixtureSisterKitDeficit(int settlementIndex)
+    {
+        EnsureMetal(_settlements[settlementIndex]);
+        return SisterKitDeficit(_settlements[settlementIndex]);
+    }
+
+    /// <summary>A figure's kit chop rate (work-seasons of wood per work-season), 0 without a usable metal kit, for saw and axe fixtures.</summary>
+    internal Fix64 FixtureKitChopRate(int figureIndex) => KitChopRate(_figures[figureIndex]);
+
+    /// <summary>Places fields until the settlement's allowance is used or no flat tile is left, so a terrace fixture starts with its natural fields full.</summary>
+    internal void FixtureFillNaturalFields(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        while (s.FieldTiles.Count < FieldLimit(s))
+        {
+            int before = s.FieldTiles.Count;
+            PlaceField(s);
+            if (s.FieldTiles.Count == before) break;
+        }
+    }
+
+    internal int FixtureFieldCount(int settlementIndex) => _settlements[settlementIndex].FieldTiles.Count;
+    internal bool FixtureIsTerrace(int settlementIndex, int tile) => IsIronTerrace(_settlements[settlementIndex], tile);
+    internal int FixtureTerraceCount(int settlementIndex) => IronTerraceCount(_settlements[settlementIndex]);
+    internal string FixtureIronBuildState(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        return $"tier {(s.Civic?.Tier ?? 255)} kind {s.Metal?.IronBuildKind} progress {s.Metal?.IronBuildProgress.ToDoubleForDisplay():F2} block {(s.Metal?.Goods[(int)MetalGood.Block] ?? Fix64.Zero).ToDoubleForDisplay():F1} wood {s.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} pop {Population(s.Id)}";
+    }
+    internal int FixtureIronBuildKind(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildKind ?? -1;
+
+    /// <summary>The extra effective farm work a figure's scythe gives for a stated amount of farm work (zero without AGR-09 and a T11 or T12 kit).</summary>
+    internal Fix64 FixtureScytheBonus(int figureIndex, Fix64 work) => ScytheFarmBonus(_figures[figureIndex], work);
+
+    /// <summary>A tile's field yield for a civilization with the plough rule applied, for plough fixtures.</summary>
+    internal Fix64 FixtureFieldBaseYield(int civ, WorldEconomyTile tile) => FieldBaseYield(civ, tile);
+
+    internal Fix64 FixtureWaterCap(int settlementIndex) => WaterCap(_settlements[settlementIndex]);
+    internal Fix64 FixtureWaterCapBase(int settlementIndex) => WaterCapBase(_settlements[settlementIndex]);
+    internal Fix64 FixtureIronSanitationFactor(int settlementIndex) => IronSanitationFactor(_settlements[settlementIndex]);
+    internal Fix64 FixtureMedCare(int civ, Fix64 multiplier) => MedCare(civ, multiplier);
+
+    /// <summary>Raises a settlement to a civic tier (0 village, 1 town, 2 city) without the works that normally earn it.</summary>
+    internal void FixtureSetTier(int settlementIndex, int tier) => EnsureCivic(_settlements[settlementIndex]).Tier = (byte)tier;
+
+    /// <summary>The first habitable land tile of the economy's own world that is (or is not) beside the sea, for harbor fixtures; -1 when none.</summary>
+    internal int FixtureLandTile(bool coast)
+    {
+        for (int tile = 0; tile < _world.TileCount; tile++)
+        {
+            WorldEconomyTile t = _world.Tile(tile);
+            if ((Biome)t.BiomeId is Biome.Ocean or Biome.Coast or Biome.Peak or Biome.Ice) continue;
+            if (IsPortSite(tile) == coast) return tile;
+        }
+        return -1;
+    }
+
+    internal void FixtureSetSoldiersSupplied(int settlementIndex, int count) => EnsureMetal(_settlements[settlementIndex]).IronSoldiersSupplied = count;
+    /// <summary>Runs the completion step of an Iron structure (counts it, earns a Wonder's Legacy, claims a terrace tile) as a finished build would.</summary>
+    internal void FixtureCompleteIron(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) { SettlementState s = _settlements[settlementIndex]; CompleteIronBuild(s, EnsureMetal(s), (IronStructure)k); return; }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    /// <summary>Starts an Iron structure as the settlement's current build, with no labor in yet.</summary>
+    internal void FixtureStartIronBuild(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) { MetalState m = EnsureMetal(_settlements[settlementIndex]); m.IronBuildKind = k; m.IronBuildProgress = Fix64.Zero; return; }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal Fix64 FixtureIronBuildProgress(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildProgress ?? Fix64.Zero;
+
+    internal int FixtureLuxuryItems(int settlementIndex) => LuxuryItems(_settlements[settlementIndex]);
+    internal void FixtureSpoilLiquids(int settlementIndex) { if (_settlements[settlementIndex].Metal is { } m) SpoilIronLiquids(m); }
+
+    /// <summary>The first habitable land tile whose biome is one of the named ones, for orchard fixtures; -1 when none.</summary>
+    internal int FixtureTileOfBiomes(params Biome[] biomes)
+    {
+        for (int tile = 0; tile < _world.TileCount; tile++) if (Array.IndexOf(biomes, (Biome)_world.Tile(tile).BiomeId) >= 0) return tile;
+        return -1;
+    }
+
+    /// <summary>Plants a mature orchard plot on a tile and runs one harvest of it, as the autumn step does.</summary>
+    internal void FixtureHarvestOrchard(int settlementIndex, int tile)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        s.OrchardPlots.Clear();
+        s.OrchardPlots.Add(new OrchardPlot { Tile = tile, AgeSeasons = 100 });
+        HarvestGrafted(s, s.OrchardPlots[0], 0);
+    }
+
+    /// <summary>How many of a run of fire trials burn a structure, with fresh flammable structures each time (the draw depends on how many remain).</summary>
+    internal int FixtureBurnTrials(int settlementIndex, int trials)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        int burned = 0;
+        for (int i = 0; i < trials; i++)
+        {
+            s.Structures[(int)Structure.ThornBarrier] = i + 1;
+            if (BurnStructure(settlementIndex)) burned++;
+        }
+        s.Structures[(int)Structure.ThornBarrier] = 0;
+        return burned;
+    }
+
+    internal Fix64 FixtureGroupCap(int settlementIndex) => GroupCap(_settlements[settlementIndex]);
+    internal int FixtureSettlementCount => _settlements.Count;
+    internal int FixtureCivOf(int settlementIndex) => _settlements[settlementIndex].Civilization;
+
+    /// <summary>Moves a settlement's site (a foreign neighbour for the frontier and castle fixtures).</summary>
+    internal void FixtureMoveSite(int settlementIndex, int tile) => _settlements[settlementIndex].SiteTile = tile;
+
+    internal bool FixtureHasStoneWalls(int settlementIndex) => HasStoneWalls(_settlements[settlementIndex]);
+    internal int FixtureNextFrontierFacing(int settlementIndex) => NextFrontierFacing(_settlements[settlementIndex]);
+
+    /// <summary>Gives a settlement a built frontier segment facing a civilization, outright.</summary>
+    internal void FixtureFaceFrontier(int settlementIndex, int civ)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        MetalState m = EnsureMetal(s);
+        (m.IronFacing ??= new List<int>()).Add(civ);
+        (m.IronWorks ??= new int[(int)IronStructure.Count])[(int)IronStructure.FrontierWall]++;
+    }
+
+    /// <summary>Places an Iron-chapter structure outright (terrace excluded, since it needs a tile), for effect fixtures.</summary>
+    internal void FixtureBuildIronStructure(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name)
+            {
+                SettlementState s = _settlements[settlementIndex];
+                (EnsureMetal(s).IronWorks ??= new int[(int)IronStructure.Count])[k]++;
+                return;
+            }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal bool FixtureIronBuildWanted(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronBuildWanted(_settlements[settlementIndex], (IronStructure)k);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    /// <summary>Runs one public-grain transfer for a civilization and returns the grain units moved.</summary>
+    internal Fix64 FixtureSharePublicGrain(int civ) => SharePublicGrain(civ, Math.Max(0, ShareReach(civ)));
+    internal Fix64 FixtureGrainUnits(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Grain];
+
+    internal Fix64 FixtureIronLabor(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronLaborOf(_settlements[settlementIndex], IronSpecs[k]);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal Fix64 FixtureGraftedFactor(int settlementIndex, int plot) => GraftedOrchardFactor(_settlements[settlementIndex], plot);
+
+    /// <summary>How many adults of a settlement hold a state role ("administrator" or "governor").</summary>
+    internal int FixtureRoleCount(int settlementIndex, string role)
+    {
+        byte id = role switch { "administrator" => Role.Administrator, "governor" => Role.Governor, _ => throw new ArgumentException(role, nameof(role)) };
+        int n = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == id) n++;
+        return n;
+    }
+
+    /// <summary>How many adults hold the Soldier role, and how many of them the season's upkeep supplied.</summary>
+    internal (int Soldiers, int Supplied) FixtureSoldiers(int settlementIndex)
+    {
+        int n = 0;
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == Role.Soldier) n++;
+        return (n, _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0);
+    }
+
+    internal int FixtureSoldierSlots(int settlementIndex) => SoldierSlots(_settlements[settlementIndex]);
+
+    /// <summary>Takes every state role off a settlement's people, as if the post were vacant.</summary>
+    internal void FixtureClearRoles(int settlementIndex)
+    {
+        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id) f.Role = Role.None;
+    }
+
+    internal int FixtureRiversOnLink(int settlementIndex) => RiversOnLink(_settlements[settlementIndex]);
+    internal bool FixtureRoadLinked(int settlementIndex) => RoadLinked(_settlements[settlementIndex]);
+    internal int FixtureGovernorSeat(int settlementIndex) => GovernorSeatOf(_settlements[settlementIndex]);
+
+    /// <summary>The wood factor (0 to 1) that scales the Iron chain's fuel demand for a settlement now, for throttle fixtures.</summary>
+    internal Fix64 FixtureIronWoodFactor(int settlementIndex)
+        => _settlements[settlementIndex].Metal is { } m ? IronWoodFactor(_settlements[settlementIndex], m) : Fix64.One;
+
+    /// <summary>The work-seasons a kit of a tier lasts, and the work left on it when it breaks (the dormancy tail), for wear fixtures.</summary>
+    internal (Fix64 Service, Fix64 BreakLeft) FixtureKitLife(int tier) => (ServiceOf(tier), KitBreakLeft(tier));
+
+    /// <summary>The kit tier each adult of a settlement carries, in figure order (0 for none).</summary>
+    internal int[] FixtureAdultKitTiers(int settlementIndex)
+    {
+        int id = _settlements[settlementIndex].Id;
+        var tiers = new List<int>();
+        foreach (FigureState f in _figures) if (f.SettlementId == id && f.Age >= 14) tiers.Add(f.Kit);
+        return tiers.ToArray();
     }
 
     /// <summary>A figure's kit quality (1.2 new, 0.7 at replacement, 0.5 when it breaks).</summary>
@@ -235,7 +449,7 @@ public sealed partial class LivingEconomyModel
     internal (Fix64 Moved, Fix64 BuildAssigned) FixtureCivicToMetalCompletion(int settlementIndex, Fix64 buildNeed, Fix64 buildAssigned,
         Fix64 civicAssigned, Fix64 civicCanals, Fix64 civicHousing)
     {
-        var plan = new MetalPlan(_compiledRecipes.Length) { BuildNeed = buildNeed, BuildAssigned = buildAssigned };
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots) { BuildNeed = buildNeed, BuildAssigned = buildAssigned };
         Fix64 moved = TransferCivicWorkToMetalCompletion(_settlements[settlementIndex], plan, civicAssigned, civicCanals, civicHousing);
         return (moved, plan.BuildAssigned);
     }

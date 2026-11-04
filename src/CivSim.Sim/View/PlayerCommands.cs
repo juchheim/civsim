@@ -78,6 +78,14 @@ public static class PlayerCommands
     public static Command SetRaidResponse(long tick, int civ, int settlement, RaidResponse response)
         => new(tick, (byte)civ, CommandKind.SetRaidResponse, settlement, (int)response, 0);
 
+    // ---- Iron chapter orders (CommandKind 24 to 26) ----
+    /// <summary>Station a crewed galley off a rival harbor you have seen; the settlement index comes from the frame.</summary>
+    public static Command Blockade(long tick, int civ, int harborSettlement) => new(tick, (byte)civ, CommandKind.Blockade, harborSettlement, 0, 0);
+    /// <summary>End a war you are winning on tributary terms.</summary>
+    public static Command ImposeTribute(long tick, int civ, int onCiv) => new(tick, (byte)civ, CommandKind.ImposeTribute, onCiv, 0, 0);
+    /// <summary>Found a league with an ally, or bring the ally into your league.</summary>
+    public static Command FormLeague(long tick, int civ, int withCiv) => new(tick, (byte)civ, CommandKind.FormLeague, withCiv, 0, 0);
+
     public static Command Decree(long tick, int civ, DecreeKind kind, int target, int extra)
         => new(tick, (byte)civ, CommandKind.IssueDecree, (int)kind, target, extra);
 }

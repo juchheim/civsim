@@ -26,7 +26,7 @@ public static class EffectSpecs
     /// <summary>The six Decrees a Mandate effect may price (docs/MVP/23 §1.2, 22 §4.3).</summary>
     public static readonly string[] Decrees = { "found", "expedition", "mine", "levy", "corvee", "compact" };
 
-    public static readonly string[] CohesionScopes = { "all", "here", "radius", "capital" };
+    public static readonly string[] CohesionScopes = { "all", "here", "radius", "capital", "local_city", "diverse_group_integration" };
 
     private static readonly List<KeyValuePair<string, ObjType>> Specs = Build();
 
@@ -36,10 +36,11 @@ public static class EffectSpecs
         void Add(string kind, ObjType spec) => list.Add(new(kind, spec.Req("kind", S.Str())));
 
         Add("method", S.Obj().Req("action", S.Str()).Req("rung", S.Int(0, 30)).Req("name", S.Str())
-            .Opt("mult", S.Num("1", "100")).Opt("rate", S.Num("0", "1000", minExclusive: true)).Opt("unit", S.Str()).Opt("note", S.Str()));
+            .Opt("mult", S.Num("1", "100")).Opt("rate", S.Num("0", "1000", minExclusive: true)).Opt("unit", S.Str())
+            .Opt("tool", S.Str()).Opt("stage", S.Str()).Opt("note", S.Str()));
         Add("mod", S.Obj().Req("stat", S.Str()).Req("op", S.Enum("pct", "mult", "flat", "set")).Req("value", S.Num("-1000", "1000000"))
-            .Opt("note", S.Str()));
-        Add("cap", S.Obj().Req("cap", S.Enum("food", "lean", "housing", "group")).Opt("mult", S.Num("1", "5")).Opt("take", S.Num("0", "1", minExclusive: true))
+            .Opt("unit", S.Str()).Opt("note", S.Str()));
+        Add("cap", S.Obj().Req("cap", S.Enum("food", "lean", "housing", "group", "population")).Opt("mult", S.Num("1", "5")).Opt("take", S.Num("0", "1", minExclusive: true))
             .Opt("value", S.Int(1, 1_000_000_000)).Opt("note", S.Str()));
         Add("hazard", S.Obj().Req("cause", S.Enum(HazardCauses)).Req("mult", S.Num("0", "2.5", minExclusive: true))
             .Opt("scope", S.Str()).Opt("note", S.Str()));
@@ -53,7 +54,7 @@ public static class EffectSpecs
         Add("era_advance", S.Obj().Req("era", S.Int(1, 9)));
         Add("tier", S.Obj().Req("tier", S.Str()).Opt("min_pop", S.Int(1, 1_000_000)).Opt("needs", S.List(S.Str())).Opt("radius", S.Int(1, 50))
             .Opt("claim_mult", S.Num("0", "10", minExclusive: true)).Opt("note", S.Str()));
-        Add("admin", S.Obj().Opt("span", S.Int(0, 20)).Opt("overreach", S.Num("0", "1")).Opt("note", S.Str()));
+        Add("admin", S.Obj().Opt("span", S.Int(0, 20)).Opt("overreach", S.Num("0", "1")).Opt("scope", S.Enum("active_staffed_connected_province")).Opt("note", S.Str()));
         // decree is checked by the validator (V19) so an unknown Decree is named as such; a mandate effect carries deltas
         Add("mandate", S.Obj().Opt("start", S.Int(0, 10)).Opt("cap", S.Int(-5, 10)).Opt("recharge", S.Int(-10, 10))
             .Opt("decree", S.Str()).Opt("cost", S.Int(0, 5)).Opt("note", S.Str()));

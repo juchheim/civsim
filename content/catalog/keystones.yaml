@@ -77,11 +77,16 @@ keystones:
     era: 4
     enters: 5
     type: K
-    status: draft
+    status: numeric
     requires: [AGR-10, GOV-09, BEL-09, DEF-08]
     breadth: {era: 4, min: 21}
     effects:
-      - {kind: prose, text: "Faith & Fief era; scale 1:5."}
+      - {kind: era_advance, era: 5}
+      - {kind: legacy, text: Keystone}
+      - {kind: rule, text: "Normal keystone event and score only; no free soldiers, castles, population, or E5 systems; do not scale simulation from rep_scale."}
+    practice: [{action: council, share: 100}]
+    moment: "A plough, charter, altar and castle banner are raised together."
+    flavor: "Countryside, lordship, faith and defense hold one realm."
   - id: KEY-6
     name: Printing Revolution
     era: 5

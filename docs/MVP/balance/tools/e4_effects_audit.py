@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""
+E4 effects ledger (M11): lists every typed effect of every E4 project and whether the simulation already has code that reads it.
+
+Run from the repository root:
+    uv run --no-project --with pyyaml python docs/MVP/balance/tools/e4_effects_audit.py > docs/MVP/balance/m11-e4-effects-ledger.md
+
+"Wired" is a heuristic, not a proof: a `mod` is wired when its stat name appears as a string literal in src/CivSim.Sim; a `build` when its
+structure name appears in the economy; a `role` when its id appears in the role code. Output is deterministic (sorted).
+"""
+import glob
+import re
+import sys
+import yaml
+
+BUCKETS = {
+    "WP6 metal and tools": {"MET-09", "MET-10", "WOD-07", "WOD-08", "MIN-07", "MEC-04", "MEC-05"},
+    "WP7 food, water, health, cities, learning": {
+        "AGR-08", "AGR-09", "AGR-10", "FOD-09", "FOR-08", "BLD-09", "BLD-10", "BLD-11", "MED-05", "MED-06", "NRG-03", "MEC-06",
+        "CER-07", "CER-08", "STN-12", "ART-08", "BEL-08", "LRN-05", "LRN-06", "INQ-04", "INQ-05", "COM-07", "NUM-07"},
+    "WP7 state, roles and institutions": {"GOV-07", "GOV-08", "GOV-09", "SOC-10", "TER-08", "TER-09", "COM-08"},
+    "WP8 war, sea, trade, faith and diplomacy": {
+        "WAR-07", "WAR-08", "WAR-09", "DEF-06", "DEF-07", "DEF-08", "SEA-07", "SEA-08", "SEA-09", "DIP-06", "DIP-07", "TRD-06",
+        "TRD-07", "TRN-07", "TRN-08", "HUS-09", "WAY-06", "WAY-07", "BEL-09"},
+    "Keystone": {"KEY-5"},
+}
+
+
+# Effects wired by a path the string heuristics cannot see, asserted by hand when a batch lands (project id, effect kind).
+WIRED_BY_HAND = {("AGR-09", "method"), ("AGR-10", "method"), ("BLD-10", "mod"), ("MED-05", "mod"), ("MED-06", "mod"), ("FOR-08", "mod"), ("STN-12", "mod"), ("NUM-07", "mod"), ("MEC-04", "mod"), ("BLD-11", "mod"), ("FOD-09", "rule"), ("FOD-09", "cap"), ("FOD-09", "mod"), ("MED-05", "role"), ("GOV-07", "role"), ("GOV-07", "admin"), ("TER-08", "role"), ("TER-08", "admin"), ("TRD-06", "admin"), ("GOV-08", "cohesion"), ("BEL-08", "cohesion"), ("ART-08", "cohesion"), ("ART-08", "build"), ("SOC-10", "mod"), ("GOV-09", "rule"), ("TER-08", "rule"), ("TRN-07", "build"), ("TRN-08", "build"), ("COM-08", "admin"), ("TRN-07", "mod"), ("TRN-08", "rule"), ("WAR-07", "combat"), ("WAR-07", "role"), ("WAR-08", "combat"), ("DEF-06", "defense"), ("DEF-06", "rule"), ("DEF-07", "claim"), ("DEF-07", "combat"), ("DEF-08", "claim"), ("WAR-09", "combat"), ("TRD-06", "mod"), ("WAY-06", "mod"), ("TRD-07", "reach"), ("HUS-09", "rule"), ("SEA-07", "mod:port_city_cap_support"), ("SEA-09", "combat"), ("SEA-09", "unlock_action"), ("BEL-09", "role"), ("BEL-09", "rule"), ("BEL-09", "mod"), ("DIP-06", "diplo"), ("TRN-07", "claim"), ("LRN-05", "build"), ("LRN-05", "role"), ("LRN-06", "mod"), ("LRN-06", "rule"), ("LRN-06", "wonder"), ("SEA-08", "wonder"), ("SEA-08", "risk"), ("SEA-08", "mod"),
+ ("BLD-11", "unlock"), ("DIP-07", "diplo"), ("INQ-04", "mod"), ("BEL-08", "mod"), ("COM-07", "mod"), ("INQ-05", "mod:mec_nrg_project_cost"),
+ ("CER-07", "good"), ("CER-07", "rule"), ("CER-08", "good"), ("CER-08", "rule"), ("WOD-07", "good"), ("FOR-08", "rule"), ("MEC-05", "unlock"),
+ ("TRN-07", "adopt"), ("COM-08", "adopt"), ("ART-08", "mod"), ("GOV-09", "mod"), ("GOV-08", "mod"),
+ ("MET-09", "method"), ("MET-09", "rule"), ("MET-10", "rule"), ("BLD-10", "rule"), ("AGR-10", "rule"), ("MEC-04", "rule"), ("MEC-06", "rule"), ("WOD-08", "rule"), ("BLD-09", "rule"), ("GOV-08", "rule"), ("GOV-07", "rule")}
+
+
+def projects():
+    for f in sorted(glob.glob("content/catalog/*.yaml")):
+        d = yaml.safe_load(open(f))
+        plist = d.get("projects") if isinstance(d, dict) else None
+        if plist is None and isinstance(d, dict):
+            for v in d.values():
+                if isinstance(v, list) and v and isinstance(v[0], dict) and "id" in v[0]:
+                    plist = v
+        for p in plist or []:
+            if p.get("era") == 4 or p["id"] == "KEY-5":
+                yield p
+
+
+def source():
+    return "".join(open(f).read() for f in sorted(glob.glob("src/CivSim.Sim/**/*.cs", recursive=True)))
+
+
+def main():
+    src = source()
+    structure_names = lambda s: re.sub(r"[^a-z]", "", s.lower())
+    flat = re.sub(r"[^a-z]", "", src.lower())
+    rows = {}
+    for p in projects():
+        bucket = next((b for b, ids in BUCKETS.items() if p["id"] in ids), "unassigned")
+        for e in p.get("effects", []) or []:
+            kind = e.get("kind")
+            if kind == "mod":
+                detail = f"{e.get('stat')} {e.get('op')} {e.get('value')}"
+                wired = f'"{e.get("stat")}"' in src or (p["id"], "mod") in WIRED_BY_HAND or (p["id"], "mod:" + str(e.get("stat"))) in WIRED_BY_HAND
+            elif kind == "build":
+                name = e.get("structure") or e.get("id") or ""
+                detail = name
+                wired = f'new("{name}"' in src or (structure_names(name) in flat and ("structure." + structure_names(name)) in flat)
+            elif kind == "role":
+                detail = e.get("id", "")
+                wired = f'"{e.get("id")}"' in src or (p["id"], "role") in WIRED_BY_HAND
+            elif kind == "method":
+                detail = f"{e.get('action')} {e.get('name')} {e.get('mult')}"
+                wired = (p["id"], "method") in WIRED_BY_HAND
+            elif kind in ("good",):
+                detail = e.get("id", "")
+                wired = f'"{e.get("id")}"' in src
+            else:
+                detail = (e.get("text") or e.get("id") or "")[:90]
+                wired = (p["id"], kind) in WIRED_BY_HAND
+            rows.setdefault(bucket, []).append((p["id"], p.get("name", ""), kind, detail.replace("|", "/"), wired))
+    out = []
+    out.append("# E4 effects ledger\n")
+    out.append("Generated by `docs/MVP/balance/tools/e4_effects_audit.py` from `content/catalog` and `src/CivSim.Sim`. \"Wired\" is a heuristic: "
+               "the stat, structure, role or good name appears in the simulation source. It is a starting checklist, not a proof that an effect works.\n")
+    total = wired_n = 0
+    for bucket in BUCKETS:
+        items = rows.get(bucket, [])
+        if not items:
+            continue
+        w = sum(1 for r in items if r[4])
+        total += len(items)
+        wired_n += w
+        out.append(f"## {bucket} ({w} of {len(items)} effects wired)\n")
+        out.append("| Project | Name | Kind | Detail | Wired |")
+        out.append("|---|---|---|---|---|")
+        for pid, name, kind, detail, wired in sorted(items):
+            out.append(f"| {pid} | {name} | {kind} | {detail} | {'yes' if wired else 'NO'} |")
+        out.append("")
+    if "unassigned" in rows:
+        out.append("## Unassigned\n")
+        for r in sorted(rows["unassigned"]):
+            out.append(f"- {r[0]} {r[2]} {r[3]}")
+    out.insert(2, f"**{wired_n} of {total} typed effects are wired** (heuristic).\n")
+    sys.stdout.write("\n".join(out) + "\n")
+
+
+if __name__ == "__main__":
+    main()

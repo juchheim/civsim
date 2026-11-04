@@ -210,8 +210,14 @@ public sealed partial class LivingEconomyModel : ISimModel
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 26;
     private const int Radius = 3;
-    /// <summary>The last era whose projects the economy applies (Bronze). A civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
-    private const int MaxEra = 3;
+    /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
+    private const int BronzeMaxEra = 3;
+
+    /// <summary>
+    /// The last era whose projects the economy applies. Bronze unless the match carries chapter rules that say otherwise
+    /// (docs/MVP/25 §3); the research system holds the matching ceiling and both are set together by <c>MatchModel</c>.
+    /// </summary>
+    public int MaxEra { get; init; } = BronzeMaxEra;
 
     private static readonly ulong ClimateStream = Hash64.OfString("economy.climate");
     private static readonly ulong BirthStream = Hash64.OfString("economy.birth");
@@ -874,7 +880,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         int index = command.A;
         if (index < 0 || index >= _completedProjects[command.Civ].Length) return;
         EconomyProject project = _content.Projects[index];
-        if (project.Era <= MaxEra) CompleteProject(command.Civ, index);
+        if (project.Era <= ProjectCeiling) CompleteProject(command.Civ, index);
     }
 
     private void CompleteProject(int civ, int index)
@@ -1808,7 +1814,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             FigureState figure = _figures[i];
             if (figure.SettlementId != settlement.Id) continue;
             if (figure.Job == EconomyJob.Scout) continue;
-            if (figure.Role != Role.None && figure.Task is MetalTask.Ritual or MetalTask.Records) continue;
+            if (figure.Role != Role.None && figure.Task is MetalTask.Ritual or MetalTask.Records or MetalTask.Administer or MetalTask.Drill or MetalTask.Preach) continue;
             Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
             if (figure.Camp >= 0 && toolWork is not null) available -= toolWork[i];
             if (available <= Fix64.Zero) { figure.Job = EconomyJob.Rest; continue; }
@@ -2619,6 +2625,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 soilLossMod = settlement.Civic is not null ? SoilLossModifier(settlement) : Modifier(settlement.Civilization, "soil_fertility_loss");
         foreach (int tile in settlement.FieldTiles)
         {
+            // A terraced hillside plot (Iron chapter): built-up soil, a fixed yield, never flooded.
+            if (IronChain && IsIronTerrace(settlement, tile)) { yield += TerraceYield; continue; }
             WorldEconomyTile input = _world.Tile(tile);
             Fix64 soilRatio = input.SoilFertility <= Fix64.Zero
                 ? Fix64.Parse("0.3")
@@ -2633,11 +2641,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             {
                 _soil[tile] = Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
                 // AGR-06's canals and NUM-06's calendar halve what a flood takes (E2: the whole harvest).
-                if (settlement.Civic is not null) yield += input.FieldYieldPerYear * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement));
+                if (settlement.Civic is not null) yield += FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement));
             }
             else
             {
-                Fix64 fieldYield = input.FieldYieldPerYear * soilRatio;
+                Fix64 fieldYield = FieldBaseYield(settlement.Civilization, input) * soilRatio;
                 if (irrigation != Fix64.One) fieldYield *= irrigation;
                 if (_tendedStandYieldBonus[tile] && factor > Fix64.Zero)
                 {
@@ -2756,7 +2764,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             OrchardPlot orchard = settlement.OrchardPlots[i];
             if (orchard.AgeSeasons < 224) orchard.AgeSeasons++;
             if (season % 4 == 2 && orchard.AgeSeasons is >= 24 and < 224)
-                settlement.Stores[(int)Good.Fruit] += Fix64.FromInt(3);
+                settlement.Stores[(int)Good.Fruit] += Fix64.FromInt(3) * GraftedOrchardFactor(settlement, i);
+            if (season % 4 == 2 && orchard.AgeSeasons is >= 24 and < 224) HarvestGrafted(settlement, orchard, i);
         }
     }
 
@@ -3403,7 +3412,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private int FieldLimit(SettlementState settlement)
         // C1 limits fields to one quarter of the full range. Cultivability is checked
         // separately when a field is placed; barren/orchard tiles still count toward the limit.
-        => E3FieldLimit(settlement, RangeTiles(settlement.SiteTile).Length / 4);
+        => E3FieldLimit(settlement, RangeTiles(settlement.SiteTile).Length / 4) + (IronChain ? IronTerraceCount(settlement) : 0); // terraces add plots, not take them
 
     private void ConsumeFood(SettlementState settlement, bool winter, int season)
     {
@@ -3753,7 +3762,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // points of adult mortality for actual deliveries, not every adult each season.
         if (adult) injuryShare -= Fix64.Parse("0.06");
         Fix64 injury = annual * injuryShare * CauseModifier(civ, "injury", adultExposure: !child) * seasonalScale;
-        if (figure.WoundTreated) injury *= Fix64.Parse("0.7");
+        if (figure.WoundTreated) injury *= MedCare(civ, Fix64.Parse("0.7"));
         // MET-04's arsenic (docs/MVP/23 §15): a per-figure risk for those who co-smelted arsenical bronze this season.
         if (figure.Task == MetalTask.SmeltArsenic) injury *= ArsenicInjury;
         if (adult && figure.Female && figure.PregnancySeasons == 1)
@@ -3762,10 +3771,10 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 deliveriesPerAdult = Fix64.Half * Fix64.Parse("0.13") * FertilityMultiplier(civ);
             Fix64 maternal = annual * Fix64.Parse("0.06") * seasonalScale / deliveriesPerAdult;
             maternal *= CauseModifier(civ, "maternal");
-            if (figure.MidwifeAttended) maternal *= Fix64.Parse("0.6");
+            if (figure.MidwifeAttended) maternal *= MedCare(civ, Fix64.Parse("0.6"));
             injury += maternal;
         }
-        Fix64 diseaseCare = figure.DiseaseTreated ? Fix64.Parse("0.75") : Fix64.One;
+        Fix64 diseaseCare = figure.DiseaseTreated ? MedCare(civ, Fix64.Parse("0.75")) : Fix64.One;
         // E3: epidemics come as discrete outbreaks (docs/MVP/09 §10); the continuous budget is then zero, so they do not count twice.
         bool discrete = DiscreteEpidemics(figure);
         // GOV-04: local famine deaths −50% (docs/MVP/23 §16), half of starvation being local famine (check_e3.py).
@@ -4005,6 +4014,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // A Market town is food-bound: it buds at 85% of min(FoodCap, GroupCap), not of its housing (07d R2).
         Fix64 effectiveCap = IsMarketTown(parent) ? Fix64.Min(foodCap, GroupCap(parent))
             : Fix64.Min(foodCap, Fix64.Min(HousingCap(parent), GroupCap(parent)));
+        effectiveCap = Fix64.Min(effectiveCap, WaterCap(parent)); // Iron chapter, after the civilization's own KEY-4; otherwise no limit
         // Below C 35 volunteers leave sooner: the trigger drops to 75% (docs/MVP/22 §8.3).
         Fix64 trigger = CohesionLive(parent) && CohesionPoints(parent.Cohesion) < _civic.FissionBelow ? _civic.FissionTrigger : Fix64.Parse("0.85");
         bool capPressure = Fix64.FromInt(population) >= effectiveCap * trigger * FissionScaleOf(parent.Civilization, parent.Id);
@@ -4899,6 +4909,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 _completedProjects[settlement.Civilization][effect.ProjectIndex])
                 capacity = Fix64.Max(capacity, effect.Value.Value);
         }
+        if (IronChain && IronWorksCount(settlement, IronStructure.Harbor) > 0) capacity *= PortGroupCapMult; // SEA-07 port city support, Iron chapter only
         return capacity * Fix64.Clamp(settlement.Cohesion, Fix64.Parse("0.6"), Fix64.Parse("1.2"));
     }
 
@@ -6074,6 +6085,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(_lastExpectedHazardsByExactAgeAndCause);
         hash.Add(_lastExpectedWinterShortfallByExactAge);
         HashBronze(ref hash);
+        HashIron(ref hash);
         HashDecrees(ref hash);
         return hash.Finish();
     }
@@ -6164,12 +6176,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(d.WinterShortfallHazard.Raw);
         }
         WriteBronze(writer);
+        WriteIron(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart);
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }
@@ -6307,6 +6320,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 starvation, exposure, injury, predators, violence, senescence, winterShortfall));
         }
         ReadBronze(reader);
+        ReadIron(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -6633,27 +6647,60 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(content.Projects.Length);
         foreach (EconomyProject project in content.Projects)
         { hash.Add(project.Index); hash.Add(Hash64.OfString(project.Id)); hash.Add(project.Era); hash.Add(project.EnterEra); }
-        hash.Add(content.Effects.Length);
-        foreach (EconomyEffect effect in content.Effects)
+        // The legacy Bronze fingerprint represents each E4 draft project by its original single prose
+        // placeholder, so typing draft effects does not alter old checksums. Iron activation needs a
+        // separate full-content fingerprint before any E4 effect can run.
+        int bronzeEffectCount = 0;
+        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era == 4 ? 1 : project.EffectCount;
+        hash.Add(bronzeEffectCount);
+        foreach (EconomyProject project in content.Projects)
         {
-            hash.Add(effect.ProjectIndex); hash.Add(Hash64.OfString(effect.Kind));
-            hash.Add(Hash64.OfString(effect.Action ?? "")); hash.Add(Hash64.OfString(effect.Stat ?? ""));
-            hash.Add(Hash64.OfString(effect.Operation ?? "")); hash.Add(Hash64.OfString(effect.Cap ?? ""));
-            hash.Add(Hash64.OfString(effect.Good ?? "")); hash.Add(Hash64.OfString(effect.Structure ?? ""));
-            hash.Add(Hash64.OfString(effect.Cause ?? "")); hash.Add(Hash64.OfString(effect.Scope ?? ""));
-            AddOptional(ref hash, effect.Rung); AddOptional(ref hash, effect.Value); AddOptional(ref hash, effect.Mult);
-            AddOptional(ref hash, effect.Take); AddOptional(ref hash, effect.Rate); hash.Add(Hash64.OfString(effect.Unit ?? ""));
+            if (project.Era == 4)
+            {
+                AddEffectFingerprint(ref hash, project.Index, "prose");
+                continue;
+            }
+            for (int i = project.EffectStart; i < project.EffectStart + project.EffectCount; i++)
+            {
+                EconomyEffect effect = content.Effects[i];
+                AddEffectFingerprint(ref hash, effect.ProjectIndex, effect.Kind, effect.Action, effect.Stat,
+                    effect.Operation, effect.Cap, effect.Good, effect.Structure, effect.Cause, effect.Scope,
+                    effect.Rung, effect.Value, effect.Mult, effect.Take, effect.Rate, effect.Unit);
+            }
         }
-        hash.Add(content.Actions.Length);
+        int bronzeActionCount = 0;
+        foreach (EconomyAction action in content.Actions) if (action.IntroducedEra <= 3) bronzeActionCount++;
+        hash.Add(bronzeActionCount);
         foreach (EconomyAction action in content.Actions)
         {
+            if (action.IntroducedEra > 3) continue;
             hash.Add(Hash64.OfString(action.Id)); AddOptional(ref hash, action.BaseRate);
             hash.Add(Hash64.OfString(action.Unit ?? ""));
         }
-        hash.Add(content.Goods.Length);
+        int bronzeGoodCount = 0;
+        foreach (EconomyGood good in content.Goods) if (good.IntroducedEra <= 3) bronzeGoodCount++;
+        hash.Add(bronzeGoodCount);
         foreach (EconomyGood good in content.Goods)
-        { hash.Add(Hash64.OfString(good.Id)); hash.Add(good.Spoilage); }
+        {
+            if (good.IntroducedEra > 3) continue;
+            hash.Add(Hash64.OfString(good.Id)); hash.Add(good.Spoilage);
+        }
         return hash.Finish();
+    }
+
+    private static void AddEffectFingerprint(ref StateHasher hash, int projectIndex, string kind,
+        string? action = null, string? stat = null, string? operation = null, string? cap = null,
+        string? good = null, string? structure = null, string? cause = null, string? scope = null,
+        int? rung = null, Fix64? value = null, Fix64? mult = null, Fix64? take = null, Fix64? rate = null,
+        string? unit = null)
+    {
+        hash.Add(projectIndex); hash.Add(Hash64.OfString(kind));
+        hash.Add(Hash64.OfString(action ?? "")); hash.Add(Hash64.OfString(stat ?? ""));
+        hash.Add(Hash64.OfString(operation ?? "")); hash.Add(Hash64.OfString(cap ?? ""));
+        hash.Add(Hash64.OfString(good ?? "")); hash.Add(Hash64.OfString(structure ?? ""));
+        hash.Add(Hash64.OfString(cause ?? "")); hash.Add(Hash64.OfString(scope ?? ""));
+        AddOptional(ref hash, rung); AddOptional(ref hash, value); AddOptional(ref hash, mult);
+        AddOptional(ref hash, take); AddOptional(ref hash, rate); hash.Add(Hash64.OfString(unit ?? ""));
     }
 
     private static void AddOptional(ref StateHasher hash, int? value)

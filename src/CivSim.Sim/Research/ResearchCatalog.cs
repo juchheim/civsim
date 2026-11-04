@@ -25,7 +25,7 @@ public enum EffectKind : byte
     Admin, Mandate, Sanitation,
 }
 
-public enum CapKind : byte { Food = 0, Lean = 1, Housing = 2, Group = 3 }
+public enum CapKind : byte { Food = 0, Lean = 1, Housing = 2, Group = 3, Population = 4 }
 
 /// <summary>What a player would see change when an effect lands (docs/MVP/11 §6 check C8, docs/MVP/08).</summary>
 public enum VisibleChange : byte
@@ -69,6 +69,8 @@ public sealed class EffectDef
     public string? Text { get; init; }
     public string? Cause { get; init; }
     public string? Action { get; init; }
+    public string? Tool { get; init; }
+    public string? Stage { get; init; }
     public string? Note { get; init; }
     public long Int { get; init; }
     /// <summary>`mandate` effect (docs/MVP/23 §1.2): deltas summed from zero over completed projects.</summary>
@@ -364,6 +366,7 @@ public sealed class ResearchCatalog
         "lean" => CapKind.Lean,
         "housing" => CapKind.Housing,
         "group" => CapKind.Group,
+        "population" => CapKind.Population,
         _ => throw new InvalidDataException($"Unknown cap '{text}'."),
     };
 
@@ -469,6 +472,8 @@ public sealed class ResearchCatalog
             Text = e.GetString("text") ?? e.GetString("tier"),
             Cause = e.GetString("cause"),
             Action = e.GetString("action"),
+            Tool = e.GetString("tool"),
+            Stage = e.GetString("stage"),
             Note = e.GetString("note"),
             Int = e.GetInt("era") ?? e.GetInt("rung") ?? 0,
             MandateStart = kind == EffectKind.Mandate ? (int)(e.GetInt("start") ?? 0) : 0,

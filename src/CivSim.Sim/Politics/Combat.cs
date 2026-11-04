@@ -64,6 +64,12 @@ public static class Combat
         "tin" => Fix64.FromRatio(23, 10), _ => throw new ArgumentOutOfRangeException(nameof(weapon))
     };
 
+    /// <summary>Iron weapon strength (docs/MVP/26 §4, WAR-08): 2.4, and 3.0 for a steel edge, which is the 2.4 times 1.25 applied exactly once.</summary>
+    public static Fix64 IronWeaponStrength(bool steelEdge) => steelEdge ? Fix64.FromRatio(30, 10) : Fix64.FromRatio(24, 10);
+
+    /// <summary>A professional soldier's training (WAR-07): x1.5, replacing the warrior's x1.3 rather than stacking with it.</summary>
+    public static readonly Fix64 ProfessionalTraining = Fix64.FromRatio(15, 10);
+
     public static Fix64 TrainedWarriorStrength(string weapon, bool chariotOnOpenTerrain = false)
     {
         Fix64 strength = E3WeaponStrength(weapon) * Fix64.FromRatio(13, 10);

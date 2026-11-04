@@ -119,6 +119,42 @@ public sealed partial class PoliticsSystem
         return false;
     }
 
+    /// <summary>Whether the civilization buys iron bloom through an active compact (Iron chapter).</summary>
+    public bool BuysIron(int civ)
+    {
+        foreach (Compact c in _compacts) if (c.Active && c.BuyerCiv == civ && c.Good == TradeGood.Iron) return true;
+        return false;
+    }
+
+    /// <summary>Whether the civilization sells iron bloom through an active compact: the economy keeps a bloom reserve for it.</summary>
+    public bool SellsIron(int civ)
+    {
+        foreach (Compact c in _compacts) if (c.Active && c.SellerCiv == civ && c.Good == TradeGood.Iron) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Whom the civilization would ask for iron: the nearest contacted civilization at Relations ≥ 0, not at war, with a mining camp on an
+    /// iron deposit this civilization knows of, or int.MinValue. Iron has no Free Folk sellers, and a seller whose iron lies inside its
+    /// settlement's range works it without a camp, so it is not seen: that limit is shared with the Strategist's evidence.
+    /// </summary>
+    public int IronSellerFor(int civ)
+    {
+        int best = int.MinValue, bestDistance = int.MaxValue;
+        for (int i = 0; i < _economy.MiningCampCount; i++)
+        {
+            MiningCampView camp = _economy.MiningCamp(i);
+            int o = camp.Civilization;
+            if (o == civ || camp.Deposit != DepositKind.Iron || !KnowsTile(civ, camp.Tile)) continue;
+            if (!_dip.Contacted(civ, o) || _dip.AtWar(civ, o) || _dip.Relations(civ, o) < 0) continue;
+            int home = NearestOwnSettlement(civ, camp.Tile);
+            if (home < 0) continue;
+            int d = HexGrid.Distance(_sTile[home], camp.Tile, _width);
+            if (d < bestDistance) { best = o; bestDistance = d; }
+        }
+        return best;
+    }
+
     /// <summary>Whether the civilization buys tin through an active compact.</summary>
     public bool BuysTin(int civ)
     {

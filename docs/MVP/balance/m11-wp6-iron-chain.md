@@ -1,0 +1,76 @@
+# M11 WP6 — Iron metal ledger
+
+Records slices 1 to 7 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
+
+## Slice 1: the ledger
+
+- **Where the Iron goods live.** `G-WROUGHT`, `G-STEEL`, `G-TOOL11`, `G-TOOL12`, `G-ARMS3` and `G-ARMS4` are stocked in `MetalState.IronGoods`, a separate array allocated on first use. They are *not* appended to `MetalGood`: the Bronze checksum and snapshot hash and write the whole `MetalState.Goods` array, so appending would change every Bronze checksum.
+- **Slots.** Iron goods take slots after the E3 and Bronze metal goods (`IronSlotBase`), so every existing slot keeps its number. `Stock`/`AddStock`/`SlotOf` route them.
+- **Recipes.** Any recipe that touches an Iron good compiles into `_ironRecipes`, not `_compiledRecipes`, so the Bronze planner (which indexes plan arrays by recipe and slot) never sees them. They run only through `RunIronRecipe`, which reuses `RunRecipe`: the same scarcest-input and labor limits, inputs debited before the output is credited.
+- **Gating.** `LivingEconomyModel.IronChain` (set by `MatchModel` from the chapter rules). Off, the recipes cannot run, nothing Iron is hashed or written, and E4 project completions are not recorded. On, `ProjectCeiling` is one era above `MaxEra` so MET-09 and MET-10 are recorded; the era clamp stays at 3 (see the WP5 audit note).
+- **State.** `HashIron`, `WriteIron` and `ReadIron` add a tagged section only when `IronChain` is on. A captured or destroyed settlement clears its Iron goods with the rest of its metal.
+
+## Slice 2: planner wants and labor
+
+- **Merged recipe list.** In the Iron chapter the planner's recipe list (`_compiledRecipes`) is the content-order merge of the Bronze and Iron recipes (`_allRecipes`), swapped in by the `IronChain` init accessor. Bronze keeps its own list, so its plan arrays and recipe indices are unchanged. Plan arrays are sized `PlanSlots` (the Bronze slots, plus the six Iron goods in the Iron chapter).
+- **The want.** `IronKitWant` (called from `PrimaryWants`) asks for one T11 kit per adult who holds none, in a settlement with a forge that knows MET-09. It rides the existing machinery: kit ← wrought iron ← bloom ← ore, with charcoal and wood, under the same primary chain labor cap as the Bronze kits.
+- **Observed (one 60-person fixture, 60 ore and 40 charcoal in store, no kit use yet):** about 3 kits a season, 15 kits after five seasons, stopping when the stored charcoal ran out. The same fixture in the Bronze chapter makes no Iron goods. This shows the chain runs and is labor-bounded; it is not a fit, and the rates are the provisional numbers from 26.
+- **Idle kits.** Nothing equips or wears a T11 kit yet, so kits accumulate in store up to one per adult and then the want stops. That is bounded, and it is the reason slice 3 (kit use and wear) comes next.
+- **Tests.** The planner makes kits and every litre of ore is accounted for (ore consumed = 4 × bloom-equivalent in iron, wrought and kits); a Bronze settlement with the same stock makes none; an Iron economy restored from a snapshot continues to the same checksum.
+
+## Slice 3: kit use and wear
+
+- **Tiers.** Tools T11 (24 ws) and T12 (48 ws) were already parsed from `tools.yaml`; the tier table now covers 8 to 12, `Rank` gives them 4 and 5, and an Iron kit chops at MET-09's rung 7. Their `mine`, `quarry`, `harvest_labor` and `timber_build_labor` mods apply once per equipped kit through the existing `KitMod`. A figure's `Kit` byte may be 11 or 12 only in the Iron chapter (snapshot validation).
+- **Issue.** `IssueIronKits` runs first in `WearAndIssueKits` when the chapter is on: kitless adults first, then worn kits, then early upgrades, each getting the best Iron tier in store that beats what they carry. The kit moves from store to figure, so it exists once. The Bronze hand-out then serves whoever is left, so a civilization with no iron still equips bronze kits.
+- **Refund.** Retiring an Iron kit early returns nothing (26 §2.2). A Bronze kit upgraded to Iron is still remelted under the existing E3 rule.
+- **Wear.** Unchanged and shared with Bronze: linear quality from 1.2 to 0.7 at replacement and on to 0.5 at the break, scaled by the tier's service life. T12 is therefore exactly twice T11 across the whole curve, including the dormancy tail (tested: 24 vs 48 ws, and break-left doubled).
+- **The want.** `IronKitWant` now counts adults with no iron kit or with an iron kit about to be replaced, less kits in store.
+- **Observed, not a fit (60-person fixture, 200 ore and 120 charcoal in store, so not a sustainable route):** adults holding a T11 kit were 5, 10, 16, 24, 28 of 28 to 29 over the first five seasons, and 29 of 30 through season 14, with no kit worn out in that time. That is above the I-T2 target (70% within 12 seasons of a sustainable route) but the supply here was handed to the settlement, so it says nothing about access research, delivery or fuel, which I-T2 asks to be reported separately.
+
+## Slice 4: iron camps (the trade good is not built)
+
+- **Iron camps.** In the Iron chapter the planner opens a mining camp on a workable iron deposit on own land within mining reach, when it wants iron ore and no deposit in range supplies it. This is the same path copper, arsenical copper and tin already use. Three small changes carry it: an access bit `SourceIron` (64, set only when `IronChain`, so Bronze access masks and hashes never carry it), iron joining the ore loop in `OpenCampsIfNeeded`, and iron counting as obtainable in `FeasibleBatches` so the bloomery is planned and the want exists to open the camp. A camp's digging, hauling and crew rules are the generic ones. The Mine Decree already worked for iron (`OpenMiningCamp` is generic over ore).
+- **Evidence.** In a fixture with no iron in range and one surface deposit four tiles out on own land, the Iron planner opens the camp, digs, hauls and makes T11 kits from it; the Bronze-chapter economy on the same world opens none. Bronze checksum and goldens unchanged.
+- **What this settles from the WP4 audit.** The finding that "the planner never opens iron camps" is closed for the Iron chapter. Ownership is still required (`IsOwnTile`), so the audit's "only deposits nearer a rival" starts (step 4) stay unserved by camps.
+
+## Slice 5: iron as a Compact good (option 1: no embargo)
+
+Decided with the user (2026-11-03): append `TradeGood.Iron = 8` (`Count = 9`), exclude it from embargoes, and teach the Council and the Strategist to buy it.
+
+- **The good.** `TradeGood.Iron` carries iron bloom (`G-IRON`). Because the embargo mask is a `byte` with one bit per good, Iron has no bit: `Embargoes` is false for it and `OrderEmbargo` refuses it, so the embargo storage, hash and snapshot are unchanged. Compacts in iron are refused (`InvalidTarget`) outside the Iron chapter, and the barter lists are fixed arrays that do not include it, so Bronze trade is untouched.
+- **Need and reserve (economy).** In the Iron chapter `TradeNeed("G-IRON")` is the bloom a settlement's own T11 kits still need (kits lacking, less kits in store, less wrought iron in store, at 0.1875 bloom a kit). A settlement that sells iron under an active compact and can dig iron keeps a bloom reserve of a litre per 20 people (`IronExportWant`), so a caravan has a surplus to carry. The economy learns of the sale through `IIronTradeSource`, derived from the snapshotted compacts, so it adds no state of its own.
+- **Council.** In the Iron chapter, a Council that knows MET-09 and has no iron of its own opens an iron mine when one is within reach (the existing Mine Decree), and otherwise buys bloom by compact once a year from the nearest contacted civilization it has seen digging iron (a mining camp on a known iron tile). `IronSellerFor`, `BuysIron` and `SellsIron` are the Politics helpers.
+- **Strategist.** `AddBeliefKnownIronCompactAlternatives` offers the same compact to rivals whose iron camp the belief has seen (`SeenFlag.IronMineCamp`, recorded only in the Iron chapter so Bronze beliefs never carry the bit); `BeliefAllowsCandidate` requires that evidence. The forecaster and the benefit estimate were already generic over the good.
+- **Evidence.** On world 39 (civilization 1 has iron and a camp site civilization 0 can see; civilization 0 has none): the compact is signed in the Iron chapter and refused in Bronze; bloom leaves the seller in caravans and reaches the buyer as bloom, wrought iron or kits; the Council proposes the compact; the Strategist proposes it only for a contacted rival with an iron camp seen; Iron cannot be embargoed. Bronze checksum and goldens unchanged.
+- **Limits.** The evidence for a seller is a *camp*. A civilization whose iron lies inside its settlements' range digs it without a camp and is never seen as a seller, by either policy. Caravans carry what the buyer is short of, not more, and a seller's reserve is small (a litre per 20 people), so supply is thin. This is a working route, not a fitted one. `Relations`, `Travel`, contact and route blockage apply as for tin, so the audit's starts with no capable partner (64 to 80) are still unserved. Iron has no Free Folk sellers. Research must know MET-09 for the Council and Strategist to act; the test pack makes MET-09 numeric for that reason (`TestPack.WithNumeric`), because every E4 row is still a draft.
+
+## Slice 6: sharing between a civilization's own towns
+
+Before this, a daughter town or a town without a forge or iron could not be supplied with iron by its sisters. Now, in the Iron chapter and with the E3 sharing research (SOC-07, reach 15 tiles; GOV-04, reach 20):
+
+- **Kits.** A forge town counts the adults of its *forgeless* sister towns in range (their adults without an iron kit, less kits they already hold) in its own T11 kit target (`SisterKitDeficit`), so it smiths for them. In `ShareMetals`, whole kits then move, best tier first, from a town holding more kits than its own adults lack to a town short of them. The kit leaves one store and enters another, so it exists once.
+- **Bloom.** A town that digs iron smelts extra bloom for forge sisters that dig none (`SisterBloomDeficit`), scaled by its own forest (it burns the fuel). Bloom moves from a town holding more than its own kits need to a forge town that digs no iron. "Digs iron" means a deposit in range or a working camp; a deposit it merely could open a camp on does not count, because a small daughter town can hold that possibility and never be able to act on it.
+- **Isolation.** All of it runs only when `IronChain` is on, so the Bronze economy is unchanged. The sister terms are zero for a town with no sisters (tested), and `IronSharingEnabled` is an internal switch that turns the Iron sharing off, for tests and screens.
+- **Tests.** The sister counts the daughter's adults in its kit want, and not when sharing is off; spare kits move to the daughter only when sharing is on and none are created or lost; spare bloom reaches a sister forge that digs no iron, only when sharing is on; a lone town behaves the same either way.
+- **Limits.** The fixture's daughter town builds its own forge within a few seasons and can reach the parent's iron, so the full pipeline (parent smelts, forges, ships kits to a dependent daughter) was exercised in pieces, not as one run. The demand side and the transfer side are tested separately. Sharing uses the E3 reach rule, so it needs SOC-07 or GOV-04.
+
+## Slice 7: steel, steel-edge kits and the saw
+
+- **Steel and T12.** Once a civilization knows MET-10, the Iron kit target is steel-edge T12 instead of T11: it applies to adults with no iron kit or a worn one, not as an early upgrade of a working kit. The want expands through the existing recipes (kit, steel, wrought iron, bloom, ore, charcoal), under the same wood throttle. Steel and wrought iron in store both count towards the kits that can be made without smelting, since carburizing stored wrought iron is cheap. T11 kits in store are still issued as a fallback.
+- **Saw.** A T12 kit gets chop x1.4 when its civilization knows WOD-08 and MET-10; a T11 kit never does. `G-PLANK` is now an Iron good and `saw_planks` compiles, but nothing wants planks yet: the structures in 26 §3.2 are built from blocks, ashlar and wood, so planks wait for a consumer (ships or buildings that name them).
+- **Tests.** With MET-10 the chain makes steel-edge kits and adults hold more T12 than T11; the saw multiplies exactly 1.4 on T12 and not on T11 (using a pack with MET-09, MET-10 and WOD-08 numeric).
+
+## Evidence
+
+- The T11 hand check in 26 §2.3 reproduces: one kit costs 0.75 G-IRONORE and 1.36875 G-CHAR (8.2125 G-WOOD at 6 per charcoal), with no bloom left over, so the bloomery charge is not counted twice. Labor excluding charcoal burning is 0.65 ws.
+- A Bronze economy and an Iron economy given the same stock behave differently exactly as intended (tests in `IronChainTests`): Bronze refuses the recipe, Iron without MET-09 refuses it, Iron with MET-09 and a forge runs it.
+- A Bronze economy's checksum and snapshot bytes are unchanged by stocking an Iron good.
+
+## Not done (later WP6 slices)
+
+1. **Planner wants beyond T11.** Steel (MET-10) and T12 kits, iron and steel arms (WP8), and sister-settlement sharing of Iron goods are not wanted yet. Mining iron ore for the chain uses the E3 deposit logic, so the WP4 camp gap still applies.
+2. **Live wear distribution** over many seasons and settlements for I-T3 is not measured yet; that needs the whole-match runs.
+3. Iron compacts still need contact, relations and a finite route, so the audit's 64 to 80 starts with no capable partner rely on expansion.
+4. **Fuel (I-T6).** Sustainable metal must be ≤15% of civilian work with no mandatory clear-cut. The WP4 audit found 45.6% of starts cannot sustain 100 adults of T11 replacement on local wood regrowth alone.
+5. **Transport and imports.** Shipping bloom, wrought iron and kits between settlements and across borders, with the captured-forge and imported-kit cases of B4-06.
+6. **Fission.** The fission operating-margin projection copies only `Goods`; Iron goods follow whatever happens to the parent's `MetalState`, which is the same rule as E3 metal, but it is untested for Iron.

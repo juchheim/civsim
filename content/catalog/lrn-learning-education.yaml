@@ -53,18 +53,27 @@ projects:
     name: Academies
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [LRN-04, BEL-08]
     effects:
-      - {kind: prose, text: "Build: Academy. Role: Scholar (Insight 6)."}
+      - {kind: build, structure: academy}
+      - {kind: role, id: scholar, insight: 48, note: "Staffed at one scholar per academy; unlock does not create staff."}
+    practice: [{action: teach, share: 100}]
+    moment: "Students gather in a purpose-built hall."
+    flavor: "Learning has a place and a teacher."
   - id: LRN-06
     name: Great Library
     era: 4
     type: W
-    status: draft
+    status: numeric
     requires: [LRN-05, COM-06]
     effects:
-      - {kind: prose, text: "Wonder: Great Library. Insight +20%; diffusion discount from contacted civilizations doubles."}
+      - {kind: wonder, structure: great_library}
+      - {kind: mod, stat: scholar_insight, op: mult, value: 1.20}
+      - {kind: rule, text: "Doubles diffusion-discount contribution, capped at existing floor 0.5."}
+    practice: [{action: teach, share: 100}]
+    moment: "Scrolls from many cities fill a new hall."
+    flavor: "Knowledge gathered becomes knowledge shared."
   - id: LRN-07
     name: "Monastery & Cathedral Schools"
     era: 5

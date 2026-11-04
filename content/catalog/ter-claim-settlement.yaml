@@ -89,18 +89,26 @@ projects:
     name: "Provinces & Governors"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [TER-07, GOV-07]
     effects:
-      - {kind: prose, text: "Role: Governor. Overreach −30% in governed provinces."}
+      - {kind: role, id: governor}
+      - {kind: admin, overreach: 0.30, scope: active_staffed_connected_province}
+      - {kind: rule, text: "stable province assignment each season"}
+    practice: [{action: mark, share: 100}]
+    flavor: "The province has a seat and a steward."
+    moment: "A governor receives a seal beside a boundary map."
   - id: TER-09
     name: Frontier Colonies
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [TER-08, SEA-06]
     effects:
-      - {kind: prose, text: "Planned colonies across water or far away: fission bands can found overseas settlements."}
+      - {kind: rule, text: "one founding band may establish a colony up to 10 sea tiles from a known owned coast, only at unclaimed habitable land with a safe landing, ship, 2-season rations, and normal founding costs; no teleportation or extra population"}
+    practice: [{action: scout, share: 100}]
+    flavor: "A new settlement is planned beyond the horizon."
+    moment: "A family boards a ship with seed and tools."
   - id: TER-10
     name: Manorial Estates
     era: 5

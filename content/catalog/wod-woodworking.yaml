@@ -79,18 +79,26 @@ projects:
     name: Cooperage
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [WOD-05, MET-09, FOD-05]
     effects:
-      - {kind: prose, text: "Good: Barrels. Bulk liquid storage and shipping: food spoilage in transit −40%."}
+      - {kind: good, id: G-BARREL}
+      - {kind: rule, text: "Liquid storage/shipping loss ×0.60; recipe use and reuse require container return."}
+    practice: [{action: chop, share: 100}]
+    flavor: "The cask carries a harvest farther."
+    moment: "A cooper binds staves with a hoop."
   - id: WOD-08
     name: "Frame & Crosscut Saws"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [WOD-07, MET-10]
     effects:
-      - {kind: prose, text: "▸ Chop: Saw (×1.4 over iron axe); plank output ×2."}
+      - {kind: good, id: G-PLANK}
+      - {kind: rule, text: "T12 saw attachment: chop ×1.4 relative to the T12 iron axe; saw_planks outputs 2 G-PLANK from 1 G-WOOD versus the baseline 1 plank per batch."}
+    practice: [{action: chop, share: 100}]
+    flavor: "A straight cut opens the forest."
+    moment: "Two workers draw a long saw through a log."
   - id: WOD-09
     name: Water-Powered Sawmill
     era: 5

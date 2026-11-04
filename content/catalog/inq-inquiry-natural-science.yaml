@@ -42,18 +42,25 @@ projects:
     name: Natural Philosophy
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [INQ-03, BEL-08, NUM-07]
     effects:
-      - {kind: prose, text: "Rational inquiry: Scholar Insight +20%."}
+      - {kind: mod, stat: scholar_insight, op: mult, value: 1.20}
+    practice: [{action: scout, share: 100}]
+    moment: "A scholar measures a falling weight beside a teacher."
+    flavor: "Nature can be questioned and measured."
   - id: INQ-05
     name: "Mechanics & Hydrostatics"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [INQ-04, MEC-05]
     effects:
-      - {kind: prose, text: "MEC and NRG project costs −10%; buoyancy (ships +10% cargo)."}
+      - {kind: mod, stat: mec_nrg_project_cost, op: mult, value: 0.90}
+      - {kind: mod, stat: ship_cargo_capacity, op: mult, value: 1.10}
+    practice: [{action: scout, share: 100}]
+    moment: "A vessel displaces water in a marked basin."
+    flavor: "A measured principle improves a machine."
   - id: INQ-06
     name: "Optics & Magnetism"
     era: 5

@@ -18,6 +18,9 @@ public sealed class MatchFrame
     /// <summary>Kinds of structure the economy builds; the stride of <see cref="SettlementStructures"/>.</summary>
     public static int StructureKinds => Economy.LivingEconomyModel.StructureKindCount;
 
+    /// <summary>The Iron chapter's block (works, staff, sieges, blockades, tributes, leagues, Wonders); inactive in any other chapter.</summary>
+    public readonly IronFrame Iron = new();
+
     // ---- header -------------------------------------------------------------------------------
     /// <summary>Build number from the builder that wrote it (1, 2, 3, ...).</summary>
     public long Sequence;

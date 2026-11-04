@@ -29,11 +29,15 @@ projects:
     name: Water Wheel
     era: 4
     type: S
-    status: draft
+    status: numeric
     requires: [NRG-02, MEC-05]
     gates: [{kind: near, target: River}]
     effects:
-      - {kind: prose, text: "Build: Water mill. Grinding ×5; powers sawmills, bellows and trip hammers."}
+      - {kind: build, structure: water_mill}
+      - {kind: rule, text: "At a built water mill on River [Near], grind output ×5 and enable water-powered eligible saw, bellows, and trip-hammer jobs. Mechanical labor only; no fuel substitution."}
+    practice: [{action: work_animals, share: 100}]
+    flavor: "The current lends its strength to the mill."
+    moment: "A river turns a wheel beside the mill."
   - id: NRG-04
     name: Horse Collar
     era: 5

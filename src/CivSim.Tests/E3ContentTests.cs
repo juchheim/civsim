@@ -74,7 +74,7 @@ public class E3ContentTests
     public void Mandate_and_admin_sums_match_the_spec()
     {
         (ContentSet set, _) = Validated();
-        long Sum(string kind, string field) => set.Projects.Where(p => p.Status == "numeric")
+        long Sum(string kind, string field) => set.Projects.Where(p => p.Status == "numeric" && p.Era <= 3) // the E3 spec; E4 adds its own (TRD-06 span +1)
             .SelectMany(p => p.Effects).Where(e => e.Kind == kind).Sum(e => e.Int(field) ?? 0);
         Assert.Equal(15, Sum("admin", "span"));       // 23 §20.7: 4 + 2 + 3 + 2 + 2 + 2
         Assert.Equal(4, Sum("mandate", "cap"));        // cap 2 + GOV-05 + GOV-06
@@ -86,7 +86,7 @@ public class E3ContentTests
     {
         (ContentSet set, Report report) = Validated();
         Registry recipes = set.Reg("recipes");
-        Assert.Equal(30, recipes.Records.Count); // 26 of docs/MVP/23 §5 + 4 doc-10 supply crafts (lime, pigment, yarn, cloth; WP6)
+        Assert.Equal(43, recipes.Records.Count); // 30 legacy recipes plus 13 additive E4 recipes.
         ContentValue smelt = recipes.Find("smelt_copper")!;
         Assert.Equal(20, smelt.GetInt("order"));
         Assert.True(smelt.Get("bellows")!.BoolValue);
@@ -103,7 +103,7 @@ public class E3ContentTests
         ContentPack? pack = PackBuilder.Build(set, report);
         Assert.True(pack is not null, ContentFixture.Describe(report));
         ContentValue regs = pack!.Root.Get("registries")!;
-        Assert.Equal(30, regs.Get("recipes")!.Items.Count);
+        Assert.Equal(43, regs.Get("recipes")!.Items.Count);
         ContentValue scribe = regs.Get("roles")!.Items.Single(r => r.GetString("id") == "scribe");
         Assert.Equal("COM-05", scribe.GetString("unlocked_by"));
         Assert.NotNull(scribe.GetString("staffing"));

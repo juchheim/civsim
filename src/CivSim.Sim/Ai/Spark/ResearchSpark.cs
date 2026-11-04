@@ -117,7 +117,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         {
             LastB29ReportForecastForDiagnostics = null;
         }
-        Ensure(ctx.Catalog);
+        Ensure(ctx.Catalog, ctx.Research.Rules.LastResearchEra);
         ForecastCatalog fc = _fc!;
         AiResearchPort port = ctx.Research;
         var readout = new PortReadout(port);
@@ -206,10 +206,10 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private bool IsDefenseResearchProject(int project)
         => project >= 0 && project < _lineageCode.Length && _lineageCode[project] is "DEF" or "WAR";
 
-    private void Ensure(ResearchCatalog catalog)
+    private void Ensure(ResearchCatalog catalog, int ceilingEra)
     {
-        if (_fc is not null && ReferenceEquals(_fc.Catalog, catalog)) return;
-        _fc = new ForecastCatalog(catalog);
+        if (_fc is not null && ReferenceEquals(_fc.Catalog, catalog) && _fc.CeilingEra == ceilingEra) return;
+        _fc = new ForecastCatalog(catalog, ceilingEra);
         _start = new ForecastStart(_fc);
         _front = new ForecastStart(_fc);
         _forecast = new ResearchForecast(_fc, ForecastTuning.PlannerStepsPerSeason);

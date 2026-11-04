@@ -17,6 +17,12 @@ public enum MiningCampResult : byte
 }
 
 /// <summary>Who owns a tile, for the planner's rule that it opens camps only on own land (docs/MVP/23 §7.2). Politics implements it.</summary>
+/// <summary>Whether a civilization has an active contract to sell iron bloom, so its economy keeps a bloom reserve (Iron chapter; docs/MVP/25 §4).</summary>
+public interface IIronTradeSource
+{
+    bool SellsIron(int civ);
+}
+
 public interface ITileOwnership
 {
     /// <summary>The owning civilization of a tile, or -1.</summary>
@@ -88,11 +94,11 @@ public sealed partial class LivingEconomyModel
     private static class MetalTask
     {
         public const byte None = 0, Mine = 1, Smelt = 2, SmeltArsenic = 3, Charcoal = 4, Craft = 5, Knap = 6, Clay = 7,
-            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Count = 13;
+            Fiber = 8, Preserve = 9, Build = 10, Ritual = 11, Records = 12, Administer = 13, Drill = 14, Preach = 15, Count = 16;
     }
 
     private static readonly string[] TaskPracticeIds =
-        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe" };
+        { "", "mine", "smelt", "smelt", "burn_charcoal", "craft", "knap", "clay", "fiber", "preserve", "build", "ritual", "scribe", "council", "guard", "faith_spread" };
 
     /// <summary>The practice id a figure's metal task generates, or null for none (research maps it to a practice index).</summary>
     public static string? TaskPractice(byte task) => task is > 0 and < MetalTask.Count ? TaskPracticeIds[task] : null;
@@ -114,6 +120,8 @@ public sealed partial class LivingEconomyModel
     // Access bits (stores or a sister settlement within the sharing reach hold the metal) and source bits (a workable deposit
     // in range or at an own camp, so the planner may count on mining it).
     private const byte AccessCopper = 1, AccessArsenic = 2, AccessTin = 4, SourceCopper = 8, SourceArsenic = 16, SourceTin = 32;
+    /// <summary>A workable iron deposit on own land within mining reach; set only in the Iron chapter, so Bronze access masks never carry it.</summary>
+    private const byte SourceIron = 64;
 
     /// <summary>Strategic goods that sister settlements share (docs/MVP/22 §5.7), in a fixed order.</summary>
     private static readonly MetalGood[] SharedGoods =
@@ -125,6 +133,28 @@ public sealed partial class LivingEconomyModel
     private sealed class MetalState
     {
         public readonly Fix64[] Goods = new Fix64[(int)MetalGood.Count];
+        /// <summary>The Iron chapter's goods (docs/MVP/25 §4), kept apart from <see cref="Goods"/> so a Bronze checksum and snapshot never see them. Allocated on first use.</summary>
+        public Fix64[]? IronGoods;
+        /// <summary>Iron-chapter structures built here, by <c>IronStructure</c>; null until the first one. Outside <see cref="Goods"/> and the Structures array, so Bronze hashes never see it.</summary>
+        public int[]? IronWorks;
+        /// <summary>The Iron structure under construction (an <c>IronStructure</c> value) or -1, with the labor put into it.</summary>
+        public int IronBuildKind = -1;
+        public Fix64 IronBuildProgress;
+        /// <summary>The hillside tiles terraced into fields here (a subset of the settlement's field tiles).</summary>
+        public List<int>? IronTerraces;
+        /// <summary>The civilizations this settlement's frontier segments face, in the order built (DEF-07).</summary>
+        public List<int>? IronFacing;
+        /// <summary>Share of this settlement's people who follow each civilization's faith (BEL-09); index = civilization. Null until a missionary has come.</summary>
+        public Fix64[]? IronFaith;
+        /// <summary>The settlement (index + 1) whose Wonder this settlement's Iron build labor goes to this season, or 0 (a league contribution, DIP-07).</summary>
+        public int IronPledgeTo;
+        /// <summary>Seasons the current Iron structure has stood fully worked and unpaid, and the progress of structures shelved while the town built something it could finish.</summary>
+        public int IronWait;
+        public Fix64[]? IronShelf;
+        /// <summary>The season each faith last gained converts here, or -1; the soft claim pressure runs only while a missionary keeps coming.</summary>
+        public int[]? IronFaithSeason;
+        /// <summary>How many of the settlement's staffed soldiers were paid their upkeep this season (Iron chapter); only these fight as professionals.</summary>
+        public int IronSoldiersSupplied;
         /// <summary>Last season's gross want of each shared good, what sister settlements send toward.</summary>
         public readonly Fix64[] ShareWant = new Fix64[SharedGoods.Length];
         public int Forges;
@@ -228,6 +258,8 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Who owns tiles (politics); without it the planner treats tiles within four of its own settlements as its own.</summary>
     public ITileOwnership? TileOwnership { get; set; }
+    /// <summary>Politics' view of iron sales; read only in the Iron chapter, derived from snapshotted compacts, never state of its own.</summary>
+    public IIronTradeSource? IronTrade { get; set; }
 
     /// <summary>True from the season the first civilization completes KEY-3: deposits, camps, forests and kits are live.</summary>
     public bool BronzeActive => _bronzeActive;
@@ -752,8 +784,8 @@ public sealed partial class LivingEconomyModel
         }
         foreach (FigureState f in _figures)
         {
-            if (f.Kit is not (0 or 8 or 9 or 10) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
-                f.Role > Role.Scribe)
+            if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
+                f.Role > (IronChain ? Role.Scholar : Role.Scribe))
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }
         ValidateCivic();
@@ -789,6 +821,18 @@ public sealed partial class LivingEconomyModel
             ForestAtStart = source.ForestAtStart, FuelShortSeasons = source.FuelShortSeasons,
         };
         Array.Copy(source.Goods, m.Goods, m.Goods.Length);
+        if (source.IronGoods is not null) m.IronGoods = (Fix64[])source.IronGoods.Clone();
+        if (source.IronWorks is not null) m.IronWorks = (int[])source.IronWorks.Clone();
+        m.IronBuildKind = source.IronBuildKind;
+        m.IronBuildProgress = source.IronBuildProgress;
+        m.IronSoldiersSupplied = source.IronSoldiersSupplied;
+        if (source.IronTerraces is not null) m.IronTerraces = new List<int>(source.IronTerraces);
+        if (source.IronFacing is not null) m.IronFacing = new List<int>(source.IronFacing);
+        m.IronPledgeTo = source.IronPledgeTo;
+        m.IronWait = source.IronWait;
+        if (source.IronShelf is not null) m.IronShelf = (Fix64[])source.IronShelf.Clone();
+        if (source.IronFaith is not null) m.IronFaith = (Fix64[])source.IronFaith.Clone();
+        if (source.IronFaithSeason is not null) m.IronFaithSeason = (int[])source.IronFaithSeason.Clone();
         Array.Copy(source.ShareWant, m.ShareWant, m.ShareWant.Length);
         m.MineHeads.AddRange(source.MineHeads);
         return m;

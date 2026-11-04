@@ -285,6 +285,20 @@ public enum ViewEventKind : ushort
     PactBroken = 67,
     /// <summary>A Free Folk village joined by Invite. Settlement = it, A = people.</summary>
     VillageJoined = 68,
+
+    // ---- Iron: blockades, tribute and leagues (PoliticsEvent kinds, one record per side) ----
+    /// <summary>A galley took station off a harbor. Settlement = the harbor, A = harbor settlement, B = the galley's home settlement.</summary>
+    BlockadeBegan = 69,
+    /// <summary>A blockade ended. Settlement = the harbor, A = harbor settlement, B = 0 lifted, 1 beaten by a relief galley, 2 wrecked.</summary>
+    BlockadeEnded = 70,
+    /// <summary>Tributary terms were agreed. A = 0 on the overlord's record, 1 on the subject's.</summary>
+    TributeAgreed = 71,
+    /// <summary>Tributary terms ended. A = 0 overlord, 1 subject; B = 0 war again, 1 the term ran out, 2 the subject outgrew its terms.</summary>
+    TributeEnded = 72,
+    /// <summary>A league was founded or joined. A = members now, B = 0 on the proposer's record, 1 on the partner's.</summary>
+    LeagueJoined = 73,
+    /// <summary>A member left a league. A = members before.</summary>
+    LeagueEnded = 74,
 }
 
 /// <summary>
@@ -314,6 +328,8 @@ public enum ChronicleKey : ushort
     DecreeRefused = 96, ExpeditionReturned = 97, CompactSigned = 98, CompactEnded = 99, EmbargoSet = 100, EmbargoLifted = 101,
     CaravanRaided = 102, CaravanRaidFailed = 103, TinFolkAppeared = 104, PactSigned = 105, TreatySigned = 106, PactBroken = 107,
     VillageJoined = 108, EmbargoOnUs = 109, DecreePact = 110,
+
+    BlockadeBegan = 111, BlockadeEnded = 112, TributeAgreed = 113, TributeEnded = 114, LeagueJoined = 115, LeagueEnded = 116,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -405,6 +421,12 @@ public static class ViewText
         ChronicleKey.TreatySigned => "chronicle.treaty.signed",
         ChronicleKey.PactBroken => "chronicle.pact.broken",
         ChronicleKey.VillageJoined => "chronicle.settlement.joined",
+        ChronicleKey.BlockadeBegan => "chronicle.blockade.began",
+        ChronicleKey.BlockadeEnded => "chronicle.blockade.ended",
+        ChronicleKey.TributeAgreed => "chronicle.tribute.agreed",
+        ChronicleKey.TributeEnded => "chronicle.tribute.ended",
+        ChronicleKey.LeagueJoined => "chronicle.league.joined",
+        ChronicleKey.LeagueEnded => "chronicle.league.ended",
         _ => "",
     };
 }

@@ -34,3 +34,17 @@ recipes:
   - {id: grind_pigment, name: Grind pigment, unlocked_by: [CHM-01], inputs: {G-OCHRE: 0.2}, outputs: {G-PIGMENT: 1}, labor: 0.05, order: 45, practice: craft, note: "docs/MVP/10 §5.3; ochre from surface outcrops (MIN-01, 0.5 L/ws)"}
   - {id: spin_yarn, name: Spin yarn, unlocked_by: [FIB-06], inputs: {"G-WOOL|G-FIBER": 0.5}, outputs: {G-YARN: 1}, labor: 0.3, order: 45, practice: fiber, note: "docs/MVP/10 §5.3"}
   - {id: weave_cloth, name: Weave cloth, unlocked_by: [FIB-07], inputs: {G-YARN: 2}, outputs: {G-CLOTH: 1}, labor: 0.5, order: 45, practice: fiber, note: "docs/MVP/10 §5.3"}
+  # E4 Iron additions (docs/MVP/26 §2.3); all quantities/labor are provisional.
+  - {id: forge_wrought, name: Forge wrought iron, unlocked_by: [MET-09], structure: [forge], inputs: {G-IRON: 0.5, G-CHAR: 0.25}, outputs: {G-WROUGHT: 0.4}, labor: 0.4, order: 40, practice: smelt}
+  - {id: carburize_steel, name: Carburize steel, unlocked_by: [MET-10], structure: [forge], inputs: {G-WROUGHT: 0.4, G-CHAR: 0.2}, outputs: {G-STEEL: 0.4}, labor: 0.4, order: 41, practice: smelt}
+  - {id: make_tool11, name: Make T11 kit, unlocked_by: [MET-09], structure: [forge], inputs: {G-WROUGHT: 0.15, G-CHAR: 0.15}, outputs: {G-TOOL11: 1}, labor: 0.2, order: 42, practice: smelt}
+  - {id: make_tool12, name: Make T12 kit, unlocked_by: [MET-10], structure: [forge], inputs: {G-STEEL: 0.15, G-CHAR: 0.1}, outputs: {G-TOOL12: 1}, labor: 0.3, order: 42, practice: smelt}
+  - {id: make_iron_arms, name: Make iron arms, unlocked_by: [WAR-08], structure: [forge], inputs: {G-WROUGHT: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS3: 1}, labor: 0.4, order: 42, practice: smelt}
+  - {id: make_steel_arms, name: Make steel arms, unlocked_by: [MET-10, WAR-08], structure: [forge], inputs: {G-STEEL: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS4: 1}, labor: 0.5, order: 42, practice: smelt}
+  - {id: blow_glass, name: Blow glass, unlocked_by: [CER-07], structure: [smelter], inputs: {G-GLASS: 0.5, G-CHAR: 0.5}, outputs: {G-BLOWNGLASS: 4}, labor: 0.3, order: 50, practice: craft}
+  - {id: saw_planks, name: Saw planks, unlocked_by: [WOD-08], inputs: {G-WOOD: 1}, outputs: {G-PLANK: 2}, labor: 0.2, order: 50, practice: craft, note: "T12 saw required"}
+  - {id: fire_brick_tile, name: Fire brick and tile, unlocked_by: [CER-08], structure: [kiln], inputs: {G-CLAY: 1, G-CHAR: 0.2}, outputs: {G-FBRICK: 0.8, G-TILE: 0.2}, labor: 0.3, order: 50, practice: clay}
+  - {id: press_wine, name: Press wine, unlocked_by: [FOR-08, MEC-05], structure: [press], inputs: {G-GRAPE: 2}, outputs: {G-WINE: 1}, labor: 0.2, order: 50, practice: craft}
+  - {id: press_oil, name: Press olive oil, unlocked_by: [FOR-08, MEC-05], structure: [press], inputs: {G-OLIVE: 2}, outputs: {G-OILPLANT: 1}, labor: 0.2, order: 50, practice: craft}
+  - {id: make_siege_engine, name: Make siege engine, unlocked_by: [WAR-09], structure: [forge], inputs: {G-WOOD: 8, G-BLOCK: 4, G-WROUGHT: 0.4}, outputs: {G-ENGINE: 1}, labor: 24, order: 45, practice: craft}
+  - {id: make_barrel, name: Make barrel, unlocked_by: [WOD-07], inputs: {G-WOOD: 1, "G-IRON|G-BRONZE": 0.1}, outputs: {G-BARREL: 1}, labor: 0.4, order: 50, practice: craft}

@@ -129,18 +129,30 @@ projects:
     name: Iron Tools
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MET-08]
     effects:
-      - {kind: prose, text: "▸ Chop: Iron axe; ▸ Till: Iron share; ▸ Quarry: Iron pick. Tools for everyone, not just elites."}
+      - {kind: good, id: G-WROUGHT}
+      - {kind: good, id: G-TOOL11}
+      - {kind: method, action: chop, rung: 7, name: iron_axe, mult: 7.2}
+      - {kind: rule, text: "Apply T11 item modifiers from §2.2; unlock forge_wrought and make_tool11 recipes."}
+    practice: [{action: smelt, share: 100}]
+    flavor: "Bloom becomes an edge for every hand."
+    moment: "Red-hot iron is hammered into an axe edge."
   - id: MET-10
     name: "Quench & Temper"
     era: 4
     type: M
-    status: draft
+    status: numeric
     requires: [MET-09]
     effects:
-      - {kind: prose, text: "Steel edges: tool durability ×2, weapons +25%."}
+      - {kind: good, id: G-STEEL}
+      - {kind: good, id: G-TOOL12}
+      - {kind: good, id: G-ARMS4}
+      - {kind: rule, text: "Unlock make_tool12; T12 durability is ×2 T11. WAR-08 iron arms strength is 2.4; MET-10 steel-edge arms strength is 3.0 (2.4 × 1.25 exactly once)."}
+    practice: [{action: smelt, share: 100}]
+    flavor: "Heat and water set the edge."
+    moment: "A blade hisses as it meets water."
   - id: MET-11
     name: Crucible Steel
     era: 5

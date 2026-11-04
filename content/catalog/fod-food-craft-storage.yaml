@@ -109,10 +109,15 @@ projects:
     name: Public Grain Supply
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [FOD-07, GOV-07]
     effects:
-      - {kind: prose, text: "State grain distribution: city food security +; city population cap +25%."}
+      - {kind: rule, text: "grain transfers from donor stocks only above their 1-season winter reserve; no grain is created"}
+      - {kind: mod, stat: city_food_security_reserve_target, op: set, value: 1, unit: R/person}
+      - {kind: cap, cap: population, mult: 1.25}
+    practice: [{action: preserve, share: 100}]
+    flavor: "The reserve is opened in measured shares."
+    moment: "Officials open a granary as bread is rationed."
   - id: FOD-10
     name: Sugar Refining
     era: 6

@@ -2,7 +2,7 @@ using System;
 
 namespace CivSim.Sim.Research;
 
-/// <summary>Which clause of the Bronze chapter rule ends the match (docs/MVP/22 §3.1).</summary>
+/// <summary>Which clause of the chapter rule ends the match (docs/MVP/22 §3.1; docs/MVP/25 §3 for the Iron chapter, where the keystone is KEY-5).</summary>
 public enum MatchEndReason : byte
 {
     /// <summary>The human completed KEY-4: "The Iron Age dawns".</summary>
@@ -53,8 +53,9 @@ public readonly record struct MatchEnd(MatchEndReason Reason, int EndSeason, int
     {
         ArgumentNullException.ThrowIfNull(research);
         ResearchCatalog catalog = research.Catalog;
-        int keystone = catalog.KeystoneLeaving(ResearchSystem.LastResearchEra);
-        int cap = catalog.ChapterCapYear * SeasonsPerYear - 1;
+        ChapterRules rules = research.Rules;
+        int keystone = catalog.KeystoneLeaving(rules.LastResearchEra);
+        int cap = rules.CapYear(catalog) * SeasonsPerYear - 1;
         var end = new MatchEnd(MatchEndReason.YearCap, cap, -1, -1, -1);
         if (keystone < 0) return end;
 
@@ -70,7 +71,7 @@ public readonly record struct MatchEnd(MatchEndReason Reason, int EndSeason, int
         }
         if (rival >= 0)
         {
-            int countdownEnd = rivalSeason + catalog.ChapterCountdownSeasons;
+            int countdownEnd = rivalSeason + rules.CountdownSeasons(catalog);
             end = end with { CountdownStartSeason = rivalSeason, CountdownCiv = rival };
             if (countdownEnd <= end.EndSeason) end = end with { Reason = MatchEndReason.RivalCountdown, EndSeason = countdownEnd, Civ = rival };
         }

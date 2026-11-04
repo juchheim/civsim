@@ -80,7 +80,8 @@ public sealed class SimulationSession : IDisposable
         WorldView = CivSim.Sim.View.WorldView.FromGenerated(World);
         var archetypes = StandardArchetypes();
         var controls = StandardControls(difficulty);
-        _match = MatchModel.Create(seed, pack, World, archetypes, controls, playerCouncil: false, gentleStart: true);
+        _match = MatchModel.Create(seed, pack, World, archetypes, controls, playerCouncil: false, gentleStart: true,
+            rules: ChapterRules.For(saveData?.Mode ?? ChapterMode.Bronze));
         // Civilization 0 is the human seat: political orders come from the front end.
         _match.Politics.SetExternalMind(0, true);
 
@@ -134,7 +135,7 @@ public sealed class SimulationSession : IDisposable
             }
         }
 
-        MatchYears = _match.Research.Catalog.ChapterCapYear;
+        MatchYears = _match.Rules.CapYear(_match.Research.Catalog);
         _builder = new FrameBuilder(_match, viewerCiv);
         if (saveData is not null)
         {
@@ -210,6 +211,8 @@ public sealed class SimulationSession : IDisposable
     public bool MatchEnded => Volatile.Read(ref _matchEnded) != 0;
     /// <summary>The hard cap of the chapter in years (ChapterCapYear).</summary>
     public int MatchYears { get; }
+    /// <summary>True when the match plays the opt-in Iron chapter, which ends on KEY-5 rather than KEY-4.</summary>
+    public bool IsIron => _match.Rules.IsIron;
     /// <summary>
     /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (3 years = 12 seasons at the start), or -1 while no
     /// countdown runs. Published by the simulation thread with every frame; the human completing KEY-4 ends the match sooner.
@@ -307,6 +310,7 @@ public sealed class SimulationSession : IDisposable
                 Seed = _seed,
                 ViewerCiv = _viewerCiv,
                 Difficulty = _difficulty,
+                Mode = _match.Rules.Mode,
                 Tick = _runner.Tick,
                 ChecksumInterval = _runner.ChecksumInterval,
                 SpeedIndex = Volatile.Read(ref _speedIndex),

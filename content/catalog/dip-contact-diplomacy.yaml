@@ -66,18 +66,24 @@ projects:
     name: Tributary States
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-05, WAR-07]
     effects:
-      - {kind: prose, text: "Diplo: Vassalage (a weaker civilization pays tribute; its land counts 25% toward your Dominion)."}
+      - {kind: diplo, text: "Vassalage: subject pays tribute; up to 25% of its land contributes to Dominion, conserved with no score duplication."}
+    practice: [{action: meet_strangers, share: 100}]
+    moment: "Envoys exchange tribute and hostages at a border."
+    flavor: "A weaker ruler keeps a throne under terms."
   - id: DIP-07
     name: "Leagues & Confederations"
     era: 4
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-05, GOV-08]
     effects:
-      - {kind: prose, text: "Diplo: League (multi-civ alliance; shared Wonder build)."}
+      - {kind: diplo, text: "League: multi-civilization alliance with shared Wonder work only by explicit contributions; no shared ownership or duplicate Wonder."}
+    practice: [{action: meet_strangers, share: 100}]
+    moment: "Several leaders pledge a common expedition."
+    flavor: "Separate banners agree on one undertaking."
   - id: DIP-08
     name: Dynastic Marriages
     era: 5

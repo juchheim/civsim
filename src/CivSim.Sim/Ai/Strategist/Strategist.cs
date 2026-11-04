@@ -96,6 +96,7 @@ public sealed partial class Strategist : IStrategist
 
         DecidePeace(v, s, act);
         DecideWar(v, s, act);
+        DecideIron(v, s, act);
         DecideRaids(v, s, act);
         DecideDiplomacy(v, s, act);
         DecidePosture(v, s, act);
