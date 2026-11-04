@@ -80,6 +80,8 @@ public enum CivLook : ushort
     TileRoofs = 1024,
     /// <summary>WAR-08 Iron Weapons: armed people are drawn as helmeted, shielded soldiers with iron spears.</summary>
     IronArms = 2048,
+    /// <summary>STN-12 Ashlar &amp; Columns: temples are drawn with a colonnade.</summary>
+    Colonnades = 4096,
 }
 
 /// <summary>Age band by size: child under 14, adult 14 to 44, elder 45 and over (docs/MVP/08 §2.1 "life stage").</summary>

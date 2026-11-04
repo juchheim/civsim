@@ -512,9 +512,12 @@ public partial class Game : Node3D
         bool forcedWorks = HasArgument("--dev-works");
         // --dev-wonders: the biggest town has the Great Dome and the Great Library, and the biggest town with the sea beside it the Great Lighthouse
         bool forcedWonders = HasArgument("--dev-wonders");
+        // --dev-faith=PERMILLE: a rival's faith holds that share of the biggest town; --dev-province: it is a province seat under the feudal contract
+        int forcedFaith = ArgumentValue("--dev-faith=") is { } faithArg && int.TryParse(faithArg, out int faithShare) ? faithShare : -1;
+        bool forcedProvince = HasArgument("--dev-province");
         int forcedSite = ArgumentValue("--dev-site=") is { } siteArg && int.TryParse(siteArg, out int siteStage) ? siteStage : -1;
         int forcedWorkAt = -1;
-        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0 || forcedWonders)
+        if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0 || forcedWonders || forcedFaith >= 0 || forcedProvince)
             for (int i = 0; i < frame.SettlementCount; i++)
                 if (frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
                     && (forcedWorkAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedWorkAt])) forcedWorkAt = i;
@@ -581,6 +584,12 @@ public partial class Game : Node3D
                 settlement["ironWorks"] = works;
                 settlement["soldiers"] = i < frame.Iron.Soldiers.Length ? (int)frame.Iron.Soldiers[i] : 0;
                 settlement["forge"] = i < frame.Iron.Forge.Length ? (int)frame.Iron.Forge[i] : 0;
+                settlement["faithOur"] = i < frame.Iron.OurFaithPermille.Length ? (int)frame.Iron.OurFaithPermille[i] : 0;
+                settlement["faithForeign"] = i < frame.Iron.ForeignFaithPermille.Length ? (int)frame.Iron.ForeignFaithPermille[i] : 0;
+                settlement["faithCiv"] = i < frame.Iron.ForeignFaithCiv.Length ? (int)frame.Iron.ForeignFaithCiv[i] : -1;
+                settlement["missionaries"] = i < frame.Iron.Missionaries.Length ? (int)frame.Iron.Missionaries[i] : 0;
+                settlement["provinceSeat"] = i < frame.Iron.ProvinceSeat.Length ? (int)frame.Iron.ProvinceSeat[i] : -1;
+                settlement["contract"] = i < frame.Iron.Contract.Length ? (int)frame.Iron.Contract[i] : 0;
                 settlement["ironBuildKind"] = i < frame.Iron.BuildKind.Length ? (int)frame.Iron.BuildKind[i] : -1;
                 settlement["ironBuildPermille"] = i < frame.Iron.BuildPermille.Length ? (int)frame.Iron.BuildPermille[i] : 0;
             }
@@ -588,6 +597,12 @@ public partial class Game : Node3D
             if (i == forcedWorkAt)
             {
                 if (forcedForge >= 0) settlement["forge"] = forcedForge;
+                if (forcedFaith >= 0)
+                {
+                    settlement["faithForeign"] = forcedFaith;
+                    settlement["faithCiv"] = (Math.Max(0, frame.ViewerCiv) + 1) % 4;
+                }
+                if (forcedProvince) { settlement["provinceSeat"] = i; settlement["contract"] = 1; }
                 if (forcedWonders)
                 {
                     var wonderWorks = new int[IronWorkKindCount()];
@@ -819,6 +834,7 @@ public partial class Game : Node3D
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["sieges"] = sieges,
+            ["viewerCiv"] = frame.ViewerCiv,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,

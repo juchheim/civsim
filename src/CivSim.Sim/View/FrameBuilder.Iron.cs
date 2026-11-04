@@ -39,6 +39,7 @@ public sealed partial class FrameBuilder
                 f.Works[w * kinds + k] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)Math.Min(255, eco.IronWorkAt(s, k));
             f.OurFaithPermille[w] = 0; f.ForeignFaithPermille[w] = 0; f.ForeignFaithCiv[w] = -1;
             f.Forge[w] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)eco.ForgeStateAt(s);
+            f.ProvinceSeat[w] = -1; f.Contract[w] = 0;
             if (!own || (uint)s >= (uint)_settlementCount)
             {
                 f.Soldiers[w] = f.Scholars[w] = f.Missionaries[w] = 0;
@@ -47,6 +48,9 @@ public sealed partial class FrameBuilder
                     f.OurFaithPermille[w] = (short)(eco.FaithShare(s, _viewer) * 1000).FloorToInt();
                 continue;
             }
+            int seat = eco.ProvinceSeatAt(s);
+            f.ProvinceSeat[w] = (short)(seat >= 0 ? target.IndexOfSettlement(seat) : -1);
+            f.Contract[w] = (byte)(eco.UnderFeudalContractAt(s) ? 1 : 0);
             f.Soldiers[w] = (byte)Math.Min(255, eco.SoldiersAt(s));
             f.Scholars[w] = (byte)Math.Min(255, eco.ScholarsAt(s));
             f.Missionaries[w] = (byte)Math.Min(255, eco.Missionaries(s));

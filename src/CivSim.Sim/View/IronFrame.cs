@@ -19,6 +19,9 @@ public sealed class IronFrame
     public byte[] Works = Array.Empty<byte>();
     /// <summary>Own settlements only: soldiers in post and fed, scholars, and missionaries.</summary>
     public byte[] Soldiers = Array.Empty<byte>(), Scholars = Array.Empty<byte>(), Missionaries = Array.Empty<byte>();
+    /// <summary>Own settlements only: the frame index of the province seat that governs it (itself for a seat), -1 none; and 1 when it is under the feudal contract (GOV-09).</summary>
+    public short[] ProvinceSeat = Array.Empty<short>();
+    public byte[] Contract = Array.Empty<byte>();
     /// <summary>A settlement the viewer sees now: its forge, 0 none, 1 idle, 2 at work (<see cref="LivingEconomyModel.ForgeStateAt"/>).</summary>
     public byte[] Forge = Array.Empty<byte>();
     /// <summary>A town the viewer sees that is not its own: the share of its people who follow the viewer's faith, in permille (0 for own towns and in an omniscient frame).</summary>
@@ -69,7 +72,7 @@ public sealed class IronFrame
         if (Works.Length < n * WorkKinds) Works = new byte[Math.Max(n * WorkKinds, Works.Length * 2)];
         if (Soldiers.Length >= n) return;
         int size = Math.Max(n, Soldiers.Length * 2);
-        Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size]; Forge = new byte[size];
+        Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size]; Forge = new byte[size]; ProvinceSeat = new short[size]; Contract = new byte[size];
         ForeignFaithPermille = new short[size]; ForeignFaithCiv = new sbyte[size];
         BuildKind = new sbyte[size]; BuildPermille = new short[size]; PledgeTo = new short[size];
     }

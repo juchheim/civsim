@@ -906,6 +906,10 @@ public sealed partial class LivingEconomyModel
         return idle;
     }
 
+    /// <summary>For the view: the index of the settlement whose staffed governor (TER-08) governs this one (itself for a seat), or -1: not governed or not the Iron chapter.</summary>
+    public int ProvinceSeatAt(int settlementIndex)
+        => IronChain && (uint)settlementIndex < (uint)_settlements.Count ? GovernorSeatOf(_settlements[settlementIndex]) : -1;
+
     /// <summary>The settlement is a province seat or member under a feudal contract (GOV-09): its local defense is stronger.</summary>
     public bool UnderFeudalContractAt(int settlementIndex) => UnderFeudalContract(_settlements[settlementIndex]);
 

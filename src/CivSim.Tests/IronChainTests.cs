@@ -1011,6 +1011,16 @@ public class IronChainTests
     }
 
     [Fact]
+    public void The_view_reads_a_towns_province_seat_the_way_the_rules_do_and_Bronze_has_none()
+    {
+        (BronzeFixture f, int far) = WithFarProvince("KEY-4", "GOV-07", "TER-08");
+        Assert.Equal(f.Economy.FixtureGovernorSeat(far), f.Economy.ProvinceSeatAt(far));
+        Assert.Equal(f.Economy.FixtureGovernorSeat(0), f.Economy.ProvinceSeatAt(0)); // the capital is governed directly
+        BronzeFixture bronze = Bronze("KEY-4", "TER-08");
+        Assert.Equal(-1, bronze.Economy.ProvinceSeatAt(0));
+    }
+
+    [Fact]
     public void The_view_gets_the_road_tiles_once_the_road_stands_with_or_without_its_bridge()
     {
         (BronzeFixture f, int far) = WithFarProvince("KEY-4", "TRN-07", "TRN-08");

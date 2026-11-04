@@ -411,6 +411,8 @@ func _structure_digest() -> int:
 			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse"]:
 				h = h * 31 + w.iron_works(s, wid)
 			h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
+			h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
+			h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
 			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
 		for n in s.structures:
 			h = h * 31 + int(n)
@@ -984,7 +986,8 @@ func _settlements() -> void:
 			if tsite != null:
 				var spec: Array = CIVIC["temple"]
 				var tp: Vector2 = tsite.p
-				props.add(spec[0], _xf(tp, tsite.y, tsite.yaw, spec[1]), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 92)))
+				var temple_mesh: String = "temple_tier2" if w.has_look(civ, M7WorldData.LOOK_COLONNADES) else String(spec[0])   # STN-12: a colonnade
+				props.add(temple_mesh, _xf(tp, tsite.y, tsite.yaw, spec[1]), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 92)))
 				placed.append(tp)
 				placed_r.append(float(spec[4]) / VS)
 				landmarks_seed.append([tp, 0.6])
@@ -1090,6 +1093,8 @@ func _settlements() -> void:
 		# an Iron forge yard (MET-09) and the garrison's drill ground stand inside the ring too
 		decor_extent = maxf(decor_extent, _forge_yard(s, c, h0, seed, rmax, placed))
 		decor_extent = maxf(decor_extent, _drill(s, c, h0, seed, rmax, placed, civ))
+		decor_extent = maxf(decor_extent, _faith_standards(s, c, h0, seed, rmax, placed))
+		decor_extent = maxf(decor_extent, _province_standards(s, si, c, h0, seed, rmax, placed, cc))
 		# the ring stands round the houses and the landmarks and near props that were laid out with them
 		var ring_r := maxf(wall_base + WALL_RING, decor_extent + 0.14)
 		var siege := _siege_info(s, c, seed)
@@ -1501,6 +1506,70 @@ func _forge_yard(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float,
 				"mouth": Vector3(q.x + mouth.x, y + mouth.y, q.y + mouth.z), "seed": seed})
 		return q.distance_to(c) + 0.26
 	return 0.0
+
+## A free spot at the village edge, clear of what is placed, for a small prop: tried round the edge from `phase`. `null` when there is none.
+func _edge_spot(c: Vector2, h0: float, seed: float, rmax: float, placed: Array, phase: float, clear: float = 0.2) -> Variant:
+	for k in 60:
+		var a := seed * TAU + phase + k * 2.39996
+		var q := c + Vector2(cos(a), sin(a)) * (rmax + 0.14 + 0.07 * (k / 12))
+		if not _ok_site(q, h0):
+			continue
+		var free := true
+		for pp in placed:
+			if (pp as Vector2).distance_to(q) < clear:
+				free = false
+				break
+		if free:
+			return q
+	return null
+
+## The standards of a spreading faith (BEL-09): a cairn with a tall pennant in the faith's colour for each share of the town that follows it, 20, 45 and
+## 70 per cent. In a town of the viewer's own it is the strongest foreign faith there; in a rival's town the viewer sees, the viewer's faith. Returns how far
+## it reaches.
+func _faith_standards(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array) -> float:
+	var permille := 0
+	var faith_civ := -1
+	if int(s.get("faithForeign", 0)) > 0:
+		permille = int(s.faithForeign)
+		faith_civ = int(s.get("faithCiv", -1))
+	elif int(s.get("faithOur", 0)) > 0:
+		permille = int(s.faithOur)
+		faith_civ = w.viewer_civ
+	if faith_civ < 0 or permille < 200:
+		return 0.0
+	var count := 1 + (1 if permille >= 450 else 0) + (1 if permille >= 700 else 0)
+	var spot = _edge_spot(c, h0, seed, rmax, placed, 2.2, 0.26)
+	if spot == null:
+		return 0.0
+	var q: Vector2 = spot
+	var tint := M7MeshBuilder.lin(M7WorldData.civ_color(faith_civ), 0.5)
+	var face := atan2((c - q).x, (c - q).y)
+	var across := Vector2(cos(face), -sin(face))
+	for i in count:
+		var p := q + across * ((i - (count - 1) * 0.5) * 0.09)
+		props.add("faith_standard", _xf(p, w.height_at(p), face, 1.3), Color(tint.r, tint.g, tint.b, M7WorldData.hash01(i, 5, 94)))
+	placed.append(q)
+	return q.distance_to(c) + 0.12
+
+## A province seat's standard (TER-08) and the banner of the feudal contract (GOV-09), in the owner's colour, at the village edge: for the viewer's own towns.
+func _province_standards(s: Dictionary, si: int, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, cc: Color) -> float:
+	var extent := 0.0
+	var seat := int(s.get("provinceSeat", -1))
+	if seat >= 0 and seat == si:
+		var spot = _edge_spot(c, h0, seed, rmax, placed, 0.7, 0.24)
+		if spot != null:
+			var q: Vector2 = spot
+			props.add("province_standard", _xf(q, w.height_at(q), atan2((c - q).x, (c - q).y), 1.3), Color(cc.r, cc.g, cc.b, seed))
+			placed.append(q)
+			extent = q.distance_to(c) + 0.12
+	if int(s.get("contract", 0)) > 0:
+		var spot2 = _edge_spot(c, h0, seed, rmax, placed, 3.1, 0.22)
+		if spot2 != null:
+			var q2: Vector2 = spot2
+			props.add("feudal_banner", _xf(q2, w.height_at(q2), atan2((c - q2).x, (c - q2).y), 1.3), Color(cc.r, cc.g, cc.b, seed))
+			placed.append(q2)
+			extent = maxf(extent, q2.distance_to(c) + 0.1)
+	return extent
 
 ## The soldiers posted in a village of the viewer's own (WAR-07): up to six iron-armed soldiers drawn up in two ranks on a drill ground at the edge, facing the
 ## hearth. Returns how far it reaches, 0 with none.

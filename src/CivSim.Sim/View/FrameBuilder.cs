@@ -148,6 +148,7 @@ public sealed partial class FrameBuilder
             (_catalog.IndexOf("FIB-04"), CivLook.TailoredClothing),
             (_catalog.IndexOf("AGR-10"), CivLook.MouldboardPlough), (_catalog.IndexOf("CER-08"), CivLook.TileRoofs),
             (_catalog.IndexOf("WAR-08"), CivLook.IronArms),
+            (_catalog.IndexOf("STN-12"), CivLook.Colonnades),
         };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);

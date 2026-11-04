@@ -27,6 +27,7 @@ const LOOK_TAILORED := 256
 const LOOK_MOULDBOARD := 512     # AGR-10 Heavy Plough
 const LOOK_TILES := 1024         # CER-08 Fired Brick & Tile
 const LOOK_IRON_ARMS := 2048     # WAR-08 Iron Weapons
+const LOOK_COLONNADES := 4096    # STN-12 Ashlar & Columns
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -73,6 +74,7 @@ var camp_details := [] # [tile, civ, kind, parent, deposit, crew, built, minehea
 var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood
 var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
+var viewer_civ := -1                    # the civilization whose view this is (-1 sees everything)
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
 var plots := PackedInt32Array() # flat [tile, kind] pairs
 var plot_kind := PackedInt32Array()   # -1 none, 0 field, 1 orchard
@@ -135,6 +137,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	elif width == 0 or height == 0:
 		push_error("MatchFrame update arrived before initial world data")
 		return false
+	viewer_civ = int(d.viewerCiv) if d.has("viewerCiv") else -1
 	tick = int(d.tick)
 	year = int(d.year)
 	season = int(d.seasonOfYear)
@@ -173,7 +176,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	if LOOKS_DEBUG:
 		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
 		civ_looks.resize(8)
-		civ_looks.fill(4095)
+		civ_looks.fill(8191)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	sieges = _int_data(d.sieges, 6) if d.has("sieges") else PackedInt32Array()
