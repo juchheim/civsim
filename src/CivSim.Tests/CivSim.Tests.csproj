@@ -20,6 +20,7 @@
   <ItemGroup>
     <!-- The research Map's pure layout lives in the Godot project; it has no Godot types, so it is tested here. -->
     <Compile Include="..\..\game\Scripts\Ui\ResearchRadialLayout.cs" Link="Game\ResearchRadialLayout.cs" />
+    <Compile Include="..\..\game\Scripts\Ui\ResearchEraLens.cs" Link="Game\ResearchEraLens.cs" />
   </ItemGroup>
 
   <ItemGroup>

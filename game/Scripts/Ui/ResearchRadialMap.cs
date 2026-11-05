@@ -48,7 +48,8 @@ public partial class ResearchRadialMap : Control
     private ResearchRadialLayout? _layout;
     private RadialNodeLook[] _looks = Array.Empty<RadialNodeLook>();
     private string[] _fieldNames = Array.Empty<string>();
-    private int _selected = -1, _hover = -1, _focusEra, _drawEra, _matchCount;
+    /// <summary>The player's current age (the lens focus is separate: <see cref="LensEra"/>).</summary>
+    private int _selected = -1, _hover = -1, _currentAge = -1, _drawEra, _matchCount;
     private bool _searching;
     private int _themeFilter = -1;
     private string _centerTitle = "", _centerSub = "";
@@ -80,7 +81,9 @@ public partial class ResearchRadialMap : Control
         public readonly int Project;
         public readonly Rect2 Box;
         public readonly string Text;
-        public PlacedLabel(int project, Rect2 box, string text) { Project = project; Box = box; Text = text; }
+        /// <summary>The node's zoomed position when the label was placed: while the lens moves, the label follows its node from here.</summary>
+        public readonly Vector2 Anchor;
+        public PlacedLabel(int project, Rect2 box, string text, Vector2 anchor) { Project = project; Box = box; Text = text; Anchor = anchor; }
     }
     private readonly List<PlacedLabel> _labels = new();
     private readonly List<Rect2> _obstacles = new();
@@ -90,6 +93,30 @@ public partial class ResearchRadialMap : Control
     private float[] _fullWidth = Array.Empty<float>();
     private Vector2[][] _edgeScreen = Array.Empty<Vector2[]>();
     private Rect2[] _edgeBounds = Array.Empty<Rect2>();
+
+    // the era lens: one age full size, the rest thin bands (docs/MVP/research-tree-era-focus-design.md)
+    private ResearchEraLens? _lens, _probe;
+    private float _lensF, _lensTarget;
+    private bool _lensReady, _snapLens;
+    // drawn (lensed) positions and edge polylines, rebuilt only when the focus moves
+    private float[] _lx = Array.Empty<float>(), _ly = Array.Empty<float>();
+    private float[][] _edgeWorld = Array.Empty<float[]>();
+    private float _lensBuilt = float.NaN;
+    // a scrub from a sideways swipe or the rail
+    private bool _lensScrubbing, _scrubBySwipe;
+    private float _scrubFrom, _scrubVelocity, _scrubIdle;
+    private ulong _scrubLastMsec;
+    private float _stepCooldown;
+    private int _labelFrame;
+    // an age opened with the tree up: slide to it after a beat
+    private float _advanceTimer = -1;
+    private int _advanceFrom = -1, _advanceTo = -1;
+    // a collapsed age under the pointer, and per-age counts for its tooltip
+    private int _bandHover = -1;
+    private int[] _ageKnown = Array.Empty<int>(), _ageTotal = Array.Empty<int>(), _ageVisible = Array.Empty<int>();
+    private const float LensTau = 0.11f, DotRadius = 2.5f, LiftedScale = 0.75f, LabelWeight = 0.75f;
+    /// <summary>The focus moved to another age (an integer target), for the host and the rail.</summary>
+    public Action<int>? EraFocused;
 
     // search results: the host passes the matches best-first; the list jumps to one
     private const int MaxResultRows = 5;
@@ -115,6 +142,7 @@ public partial class ResearchRadialMap : Control
     private readonly PanelContainer _legend;
     private readonly UiButton _legendButton;
     private readonly PanelContainer _toolPill;
+    private readonly ResearchEraRail _rail;
 
     private static readonly StyleBoxFlat WellBox = UiTheme.Box(UiTokens.SurfaceSunken, UiTokens.R1, null, 0);
     private static readonly StyleBoxFlat LabelBox = UiTheme.Box(new Color("#1F1B16E0"), 4, null, 0);
@@ -132,6 +160,17 @@ public partial class ResearchRadialMap : Control
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
         SizeFlagsVertical = SizeFlags.ExpandFill;
         CustomMinimumSize = new Vector2(320, 240);
+
+        // the age rail sits under the other overlays (the search results may cover its top)
+        _rail = new ResearchEraRail
+        {
+            AgePicked = era => FocusEra(era, true),
+            Scrubbed = f => ScrubTo(f, true),
+            ScrubEnded = EndScrub,
+            TooltipFor = RailTooltip,
+            Visible = false,
+        };
+        AddChild(_rail);
 
         PanelContainer toolPill = _toolPill = UiKit.Panel("PillPanel", "MapTools");
         toolPill.SetAnchorsPreset(LayoutPreset.TopRight);
@@ -206,18 +245,23 @@ public partial class ResearchRadialMap : Control
         for (int l = 0; l < _fieldNames.Length; l++) _fieldNames[l] = fieldName(l);
         _edgeScreen = new Vector2[_layout.Edges.Length][];
         _edgeBounds = new Rect2[_layout.Edges.Length];
+        _edgeWorld = new float[_layout.Edges.Length][];
         for (int e = 0; e < _layout.Edges.Length; e++)
         {
-            float[] pts = _layout.Edges[e].Points;
-            _edgeScreen[e] = new Vector2[pts.Length / 2];
-            Vector2 min = new(float.MaxValue, float.MaxValue), max = new(float.MinValue, float.MinValue);
-            for (int i = 0; i < pts.Length; i += 2)
-            {
-                min = new Vector2(Math.Min(min.X, pts[i]), Math.Min(min.Y, pts[i + 1]));
-                max = new Vector2(Math.Max(max.X, pts[i]), Math.Max(max.Y, pts[i + 1]));
-            }
-            _edgeBounds[e] = new Rect2(min, max - min);
+            _edgeScreen[e] = new Vector2[_layout.Edges[e].Points.Length / 2];
+            _edgeWorld[e] = new float[_layout.Edges[e].Points.Length];
         }
+        _lens = new ResearchEraLens(_layout);
+        _probe = new ResearchEraLens(_layout);
+        _lx = new float[n];
+        _ly = new float[n];
+        _ageKnown = new int[ResearchCatalog.EraCount];
+        _ageTotal = new int[ResearchCatalog.EraCount];
+        _ageVisible = new int[ResearchCatalog.EraCount];
+        _lensReady = false;
+        _lensF = _lensTarget = 0;
+        _lensBuilt = float.NaN;
+        UpdateLensGeometry();
         _focus = int.MinValue;
         _labelsDirty = true;
         _viewReady = false;
@@ -230,7 +274,8 @@ public partial class ResearchRadialMap : Control
         if (_layout is null) return;
         Array.Copy(looks, _looks, Math.Min(looks.Length, _looks.Length));
         _selected = selected >= 0 && selected < _looks.Length && _looks[selected].Visible ? selected : -1;
-        _focusEra = focusEra;
+        int previousAge = _currentAge;
+        _currentAge = focusEra;
         _searching = searching;
         _centerTitle = centerTitle;
         _centerSub = centerSub;
@@ -243,6 +288,25 @@ public partial class ResearchRadialMap : Control
             maxEra = Math.Max(maxEra, _layout.Era[p]);
         }
         _drawEra = maxEra;
+        CountAges();
+        if (!_lensReady)
+        {
+            // the first frame: the lens opens on the current age
+            _lensReady = true;
+            SnapLens(RingFor(focusEra));
+        }
+        else
+        {
+            if (_lensTarget > MaxRing()) FocusRing(MaxRing(), true, false);
+            // an age opened while the tree is up: after a beat, slide to it, but only if the player was looking at the age they were in
+            if (previousAge >= 0 && focusEra > previousAge && ViewedEra() == previousAge && IsVisibleInTree())
+            {
+                _advanceTimer = 0.6f;
+                _advanceFrom = previousAge;
+                _advanceTo = focusEra;
+                SetProcess(true);
+            }
+        }
         if (_hover >= 0 && !_looks[_hover].Visible) _hover = -1;
         _statusPill.Visible = searching;
         if (!searching) SetSearchResults(Array.Empty<int>(), 0);
@@ -251,6 +315,7 @@ public partial class ResearchRadialMap : Control
         _gateButton.TooltipText = next >= 0 ? $"Go to {_catalog!.Projects[next].Name}, the project that opens the next age" : "Every turning point in your reach is known";
         _focus = int.MinValue;
         _labelsDirty = true;
+        UpdateRail();
         QueueRedraw();
     }
 
@@ -393,6 +458,301 @@ public partial class ResearchRadialMap : Control
         return -1;
     }
 
+    // ---- era lens ----------------------------------------------------------------------------
+
+    /// <summary>The continuous lens focus over ring indices (2.0 = the third ring full size). Setting it snaps (captures and tests).</summary>
+    public float LensEra
+    {
+        get => _lensF;
+        set
+        {
+            if (_lens is null) return;
+            _lensScrubbing = false;
+            float f = Math.Clamp(value, 0, MaxRing());
+            _lensTarget = f;
+            ApplyLens(f);
+        }
+    }
+
+    /// <summary>The age the lens is on or heading to.</summary>
+    public int ViewedEra() => _lens is null || _lens.RingCount == 0 ? 0 : _lens.RingEra[Math.Clamp((int)MathF.Round(_lensTarget), 0, _lens.RingCount - 1)];
+
+    /// <summary>The furthest ring the lens may focus: the furthest age drawn.</summary>
+    public int MaxRing()
+    {
+        if (_lens is null) return 0;
+        int max = 0;
+        for (int i = 0; i < _lens.RingCount; i++) if (_lens.RingEra[i] <= _drawEra) max = i;
+        return max;
+    }
+
+    /// <summary>The ring an age is drawn in, or the nearest one inside it.</summary>
+    private int RingFor(int era)
+    {
+        if (_lens is null) return 0;
+        int ring = 0;
+        for (int i = 0; i < _lens.RingCount; i++) if (_lens.RingEra[i] <= era) ring = i;
+        return Math.Min(ring, MaxRing());
+    }
+
+    /// <summary>The next open of the tree (or switch to the Map) puts the lens straight on its age, with no slide.</summary>
+    public void BeginOpen()
+    {
+        _snapLens = true;
+        _advanceTimer = -1;
+        _lensScrubbing = false;
+        if (_lensReady && _currentAge >= 0) SnapLens(RingFor(_currentAge));
+    }
+
+    /// <summary>Puts the lens on an age: animated unless motion is reduced. Keeps the camera's angle and zoom.</summary>
+    public void FocusEra(int era, bool animate) => FocusRing(RingFor(era), animate, true);
+
+    /// <summary>One age outward (+1) or inward (-1).</summary>
+    public void StepEra(int delta)
+    {
+        if (_lens is null) return;
+        int from = (int)MathF.Round(_lensScrubbing ? _lensF : _lensTarget);
+        FocusRing(Math.Clamp(from + delta, 0, MaxRing()), true, true);
+    }
+
+    /// <summary>Moves the focus continuously (a swipe, the rail thumb); <see cref="EndScrub"/> snaps it to an age.</summary>
+    public void ScrubBy(float df) => ScrubTo(_lensF + df, false);
+
+    public void ScrubTo(float f, bool fromRail)
+    {
+        if (_lens is null) return;
+        ulong now = Time.GetTicksMsec();
+        if (!_lensScrubbing)
+        {
+            _lensScrubbing = true;
+            _scrubFrom = MathF.Round(_lensF);
+            _scrubVelocity = 0;
+            _scrubLastMsec = now;
+        }
+        _scrubBySwipe = !fromRail;
+        _scrubIdle = 0;
+        float next = Math.Clamp(f, 0, MaxRing());
+        float dt = Math.Max(1f / 240f, (now - _scrubLastMsec) / 1000f);
+        if (now != _scrubLastMsec) _scrubVelocity = Mathf.Lerp(_scrubVelocity, (next - _lensF) / dt, 0.5f);
+        _scrubLastMsec = now;
+        _lensTarget = next;
+        ApplyLens(next);
+        SetProcess(true);
+    }
+
+    /// <summary>Ends a scrub: the nearest age the fling points at, never more than one age from where it began.</summary>
+    public void EndScrub()
+    {
+        if (!_lensScrubbing) return;
+        _lensScrubbing = false;
+        float aim = MathF.Round(_lensF + _scrubVelocity * 0.15f);
+        aim = Math.Clamp(aim, _scrubFrom - 1, _scrubFrom + 1);
+        FocusRing((int)Math.Clamp(aim, 0, MaxRing()), true, false);
+    }
+
+    private void FocusRing(int ring, bool animate, bool moveCamera)
+    {
+        if (_lens is null) return;
+        ring = Math.Clamp(ring, 0, MaxRing());
+        _lensScrubbing = false;
+        bool snap = !animate || _snapLens || UiSettings.Current.ReduceMotion || !_viewReady || !IsVisibleInTree();
+        _snapLens = false;
+        bool changed = !Mathf.IsEqualApprox(_lensTarget, ring) || !Mathf.IsEqualApprox(_lensF, ring);
+        _lensTarget = ring;
+        if (moveCamera && _viewReady && Size.X > 2)
+        {
+            // keep the angle and zoom; ease the radius onto the focused ring if the view was on the ring band
+            _probe!.SetFocus(ring);
+            float radius = _center.Length();
+            if (radius > _lens.Hub * 0.5f && _zoom >= MinZoom() * 1.6f)
+            {
+                Vector2 dir = radius > 1 ? _center / radius : Vector2.Up;
+                SetView(dir * _probe.RingMid(_lens.RingEra[ring]), _zoom, !snap);
+            }
+        }
+        if (snap) ApplyLens(ring);
+        else if (changed) SetProcess(true);
+        if (changed) EraFocused?.Invoke(_lens.RingEra[ring]);
+        QueueRedraw();
+    }
+
+    private void SnapLens(int ring)
+    {
+        _lensScrubbing = false;
+        _lensTarget = ring;
+        ApplyLens(ring);
+    }
+
+    private void ApplyLens(float f)
+    {
+        _lensF = f;
+        UpdateLensGeometry();
+        _rail.SetLens(f);
+        QueueRedraw();
+    }
+
+    /// <summary>The rail's chips: every drawn ring, so the next unreached age shows as locked and later ones do not show at all.</summary>
+    private void UpdateRail()
+    {
+        if (_lens is null) return;
+        int count = MaxRing() + 1;
+        Span<int> eras = stackalloc int[count], known = stackalloc int[count], total = stackalloc int[count];
+        for (int i = 0; i < count; i++)
+        {
+            int era = _lens.RingEra[i];
+            eras[i] = era;
+            known[i] = _ageKnown[era];
+            total[i] = _ageTotal[era];
+        }
+        _rail.SetAges(eras, known, total, _currentAge);
+        _rail.SetLens(_lensF);
+        PlaceRail();
+    }
+
+    /// <summary>Docks the rail to the left edge, centred between the tools at the top and the key at the bottom; hidden when there is no room.</summary>
+    private void PlaceRail()
+    {
+        float top = 48, bottom = _legend.Visible ? Math.Max(8, Size.Y - _legend.Position.Y) + 4 : 8;
+        float room = Size.Y - top - bottom;
+        bool show = _lens is not null && _lens.RingCount > 1 && Size.X >= 520 && room >= (MaxRing() + 1) * ResearchEraRail.MinChip + 12;
+        if (_rail.Visible != show) { _rail.Visible = show; QueueRedraw(); }
+        if (!show) return;
+        float height = Math.Min(room, _rail.WantedHeight);
+        _rail.Position = new Vector2(UiTokens.Sp2, top + (room - height) * 0.5f);
+        _rail.Size = new Vector2(ResearchEraRail.RailWidth, height);
+    }
+
+    private string RailTooltip(int era)
+    {
+        if (_catalog is null || _layout is null) return "";
+        if (era > _currentAge)
+        {
+            // what opens it: the turning point that leaves the age before
+            for (int p = 0; p < _layout.Count; p++)
+                if (_layout.Gate[p] && _layout.Era[p] == era - 1)
+                    return $"{UiText.AgeName(era)} age · not reached yet\nOpens with {_catalog.Projects[p].Name}";
+            return $"{UiText.AgeName(era)} age · not reached yet";
+        }
+        (int known, _, int total) = AgeCounts(era);
+        return $"{UiText.AgeName(era)} age · {known} of {total} known{(era == _currentAge ? " · your age" : "")}\nClick to open it · drag to look between ages";
+    }
+
+    /// <summary>Lensed positions, edges and edge bounds for the current focus; nothing is rebuilt while it is still.</summary>
+    private void UpdateLensGeometry()
+    {
+        if (_lens is null || _layout is null) return;
+        if (_lensBuilt == _lensF) return;
+        _lensBuilt = _lensF;
+        _lens.SetFocus(_lensF);
+        _lens.Positions(_lx, _ly);
+        for (int e = 0; e < _edgeWorld.Length; e++)
+        {
+            float[] pts = _edgeWorld[e];
+            _lens.EdgePoints(e, pts);
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            for (int i = 0; i < pts.Length; i += 2)
+            {
+                minX = Math.Min(minX, pts[i]); maxX = Math.Max(maxX, pts[i]);
+                minY = Math.Min(minY, pts[i + 1]); maxY = Math.Max(maxY, pts[i + 1]);
+            }
+            _edgeBounds[e] = new Rect2(minX, minY, maxX - minX, maxY - minY);
+        }
+        _labelsDirty = true;
+    }
+
+    /// <summary>Where a project will be once the lens reaches its target (the lens is pure, so this is cheap).</summary>
+    private Vector2 TargetPos(int p)
+    {
+        if (_probe is null || _layout is null) return Vector2.Zero;
+        _probe.SetFocus(_lensTarget);
+        float r = _probe.Map(_layout.Radius[p]);
+        return new Vector2(Mathf.Cos(_layout.Angle[p]) * r, Mathf.Sin(_layout.Angle[p]) * r);
+    }
+
+    private Vector2 Pos(int p) => new(_lx[p], _ly[p]);
+
+    /// <summary>How open a project's age is: 1 focused, 0 a collapsed band.</summary>
+    private float AgeWeight(int p) => _lens?.Weight(_layout!.Era[p]) ?? 1f;
+
+    /// <summary>A project in a collapsed age that matters right now keeps its mark and name: the selection, the hover, the chain to the focus,
+    /// search matches, what is slotted or queued, and turning points.</summary>
+    private bool IsLifted(int p)
+    {
+        if (_layout!.Gate[p] || p == _selected || p == _hover || _onPath[p] || _unmetDirect[p] || _fogRequired[p]) return true;
+        ref RadialNodeLook look = ref _looks[p];
+        if (_searching && look.Match) return true;
+        if (look.State == ProjectState.Slotted || look.QueueIndex >= 0) return true;
+        // the chain into the focus: what is still missing, and its direct prerequisites (all of known history would flood the bands)
+        if (_focus >= 0 && _upstream[p] && (!IsKnown(p) || Array.IndexOf(_layout.Prerequisites[_focus], p) >= 0)) return true;
+        return false;
+    }
+
+    /// <summary>How much of a project's full presence it has: 1 in the focused age or when lifted, 0 as a dot in a band.</summary>
+    private float Presence(int p) => IsLifted(p) ? 1f : AgeWeight(p);
+
+    /// <summary>The drawn radius of a project's mark.</summary>
+    private float DrawnRadius(int p)
+    {
+        bool gate = _layout!.Gate[p];
+        float full = NodeRadius(gate);
+        if (gate) return full;
+        float w = AgeWeight(p);
+        if (IsLifted(p)) return full * Mathf.Lerp(LiftedScale, 1f, w);
+        return Mathf.Lerp(Math.Min(DotRadius, full), full, w);
+    }
+
+    /// <summary>A project can be pointed at on its own: in an open age, lifted, or a turning point. Dots in a band are never targets.</summary>
+    private bool Pickable(int p) => AgeWeight(p) >= 0.5f || IsLifted(p);
+
+    /// <summary>The collapsed age under a screen point, or -1.</summary>
+    private int BandAt(Vector2 screen)
+    {
+        if (_lens is null) return -1;
+        float r = ToWorld(screen).Length();
+        int ring = _lens.RingAt(r);
+        if (ring < 0 || ring > MaxRing() || _lens.Weights[ring] >= 0.5f) return -1;
+        return _lens.RingEra[ring];
+    }
+
+    private void CountAges()
+    {
+        Array.Clear(_ageKnown);
+        Array.Clear(_ageTotal);
+        Array.Clear(_ageVisible);
+        if (_layout is null) return;
+        for (int p = 0; p < _looks.Length; p++)
+        {
+            if (!_layout.Placed[p] || _layout.Gate[p]) continue;
+            int era = _layout.Era[p];
+            _ageTotal[era]++;
+            if (_looks[p].Visible) _ageVisible[era]++;
+            if (IsKnown(p)) _ageKnown[era]++;
+        }
+    }
+
+    /// <summary>Per age: projects known (learned), seen and placed, for the rail and band tooltips.</summary>
+    public (int Known, int Seen, int Total) AgeCounts(int era) =>
+        (uint)era < (uint)_ageTotal.Length ? (_ageKnown[era], _ageVisible[era], _ageTotal[era]) : (0, 0, 0);
+
+    /// <summary>A point inside an age's band, on screen if it can be, in canvas coordinates (screenshot scenarios).</summary>
+    public Vector2 BandPoint(int era)
+    {
+        if (_lens is null) return GetGlobalRect().GetCenter();
+        Vector2 toward = ToWorld(Usable().GetCenter());
+        Vector2 dir = toward.Length() > 1 ? toward.Normalized() : Vector2.Up;
+        // a little to one side of the view's ray, clear of the age name at 12 o'clock
+        dir = dir.Rotated(0.12f);
+        Vector2 world = dir * _lens.RingMid(era);
+        return GetGlobalTransformWithCanvas() * ToScreen(world.X, world.Y);
+    }
+
+    private string BandTooltip(int era)
+    {
+        (int known, _, int total) = AgeCounts(era);
+        string state = era > _currentAge ? " · not reached yet" : era == _currentAge ? " · your age" : "";
+        return $"{UiText.AgeName(era)} age · {known} of {total} known{state}\nClick to open it";
+    }
+
     // ---- view --------------------------------------------------------------------------------
 
     /// <summary>The part of the control not covered by the tools along the top or the key along the bottom.</summary>
@@ -400,7 +760,8 @@ public partial class ResearchRadialMap : Control
     {
         float top = 48, bottom = _legend.Visible ? Math.Max(8, Size.Y - _legend.Position.Y) + 4 : 8;
         if (top + bottom > Size.Y * 0.6f) { top = 8; bottom = 8; }
-        return new Rect2(8, top, Math.Max(1, Size.X - 16), Math.Max(1, Size.Y - top - bottom));
+        float left = _rail.Visible ? _rail.Position.X + _rail.Size.X + 4 : 8;
+        return new Rect2(left, top, Math.Max(1, Size.X - left - 8), Math.Max(1, Size.Y - top - bottom));
     }
 
     /// <summary>The world centre that puts <paramref name="world"/> in the middle of the usable part at <paramref name="zoom"/>.</summary>
@@ -409,13 +770,16 @@ public partial class ResearchRadialMap : Control
     private Vector2 ToScreen(float x, float y) => new Vector2((x - _center.X) * _zoom, (y - _center.Y) * _zoom) + Size * 0.5f;
     private Vector2 ToWorld(Vector2 screen) => (screen - Size * 0.5f) / _zoom + _center;
 
+    /// <summary>The lensed radius just past the furthest drawn ring and its gap.</summary>
     private float DrawnOuter()
     {
-        if (_layout is null) return 400;
-        float outer = ResearchRadialLayout.CenterRadius;
-        foreach (int era in _layout.Rings) if (era <= _drawEra) outer = _layout.RingOuter[era] + ResearchRadialLayout.RingGap;
-        return outer;
+        if (_layout is null || _lens is null) return 400;
+        if (_lens.RingCount == 0) return _lens.Hub;
+        return _lens.GapEnd[MaxRing()];
     }
+
+    /// <summary>The lensed outer edge of the furthest drawn ring.</summary>
+    private float DrawnRingOuter() => _lens is null || _lens.RingCount == 0 ? DrawnOuter() : _lens.RingEnd[MaxRing()];
 
     private float MinZoom()
     {
@@ -470,8 +834,8 @@ public partial class ResearchRadialMap : Control
         for (int p = 0; p < _looks.Length; p++)
         {
             if (!_looks[p].Visible) continue;
-            min = new Vector2(Math.Min(min.X, _layout.X[p]), Math.Min(min.Y, _layout.Y[p]));
-            max = new Vector2(Math.Max(max.X, _layout.X[p]), Math.Max(max.Y, _layout.Y[p]));
+            min = new Vector2(Math.Min(min.X, _lx[p]), Math.Min(min.Y, _ly[p]));
+            max = new Vector2(Math.Max(max.X, _lx[p]), Math.Max(max.Y, _ly[p]));
             count++;
         }
         if (count == 0)
@@ -486,10 +850,14 @@ public partial class ResearchRadialMap : Control
         return CenterFor((min + max) * 0.5f, Math.Clamp(zoom, MinZoom(), MaxZoom));
     }
 
-    /// <summary>Brings a project into view: always centred when <paramref name="center"/>, else only when it is off screen.</summary>
+    /// <summary>Brings a project into view: always centred when <paramref name="center"/>, else only when it is off screen.
+    /// The lens moves to the project's age first, and the camera aims where the project will be once it has.</summary>
     public void FocusProject(int project, bool center)
     {
         if (_layout is null || (uint)project >= (uint)_looks.Length || !_looks[project].Visible) return;
+        if (_lens is not null && _lensReady && RingFor(_layout.Era[project]) != (int)MathF.Round(_lensTarget))
+            FocusRing(RingFor(_layout.Era[project]), true, false);
+        else if (_snapLens && _lensReady) FocusRing((int)MathF.Round(_lensTarget), false, false);
         if (Size.X < 2 || !IsVisibleInTree())
         {
             _pendingProject = project;
@@ -497,7 +865,8 @@ public partial class ResearchRadialMap : Control
             return;
         }
         if (!_viewReady) { ResetView(project); return; }
-        Vector2 world = new(_layout.X[project], _layout.Y[project]);
+        Vector2 target = TargetPos(project);
+        Vector2 world = target;
         float zoom = _zoom;
         if (center)
         {
@@ -508,9 +877,13 @@ public partial class ResearchRadialMap : Control
             {
                 int missing = FirstMissing(current);
                 if ((uint)missing >= (uint)_looks.Length || !_looks[missing].Visible || missing == project) break;
-                var at = new Vector2(_layout.X[missing], _layout.Y[missing]);
-                min = min.Min(at);
-                max = max.Max(at);
+                // a step in a collapsed age is only a band away: it does not need to be framed
+                if (RingFor(_layout.Era[missing]) == (int)MathF.Round(_lensTarget))
+                {
+                    Vector2 at = TargetPos(missing);
+                    min = min.Min(at);
+                    max = max.Max(at);
+                }
                 current = missing;
             }
             Vector2 extent = max - min + new Vector2(300, 80);
@@ -518,16 +891,15 @@ public partial class ResearchRadialMap : Control
             float fit = Math.Min(usable.Size.X / extent.X, usable.Size.Y / extent.Y);
             zoom = Math.Clamp(Math.Max(zoom, 0.9f), 0.5f, Math.Max(0.5f, fit));
             zoom = Math.Min(zoom, 1.4f);
-            var target = new Vector2(_layout.X[project], _layout.Y[project]);
             world = CenterFor((min + max) * 0.5f, zoom);
             // framing the chain must not leave the project itself at the edge, under the key or the tools
             Rect2 safe = Usable().Grow(-(NodeRadius(_layout.Gate[project]) + 48));
             if (!safe.HasPoint((target - world) * zoom + Size * 0.5f)) world = world.Lerp(CenterFor(target, zoom), 0.5f);
         }
-        Vector2 screen = (new Vector2(_layout.X[project], _layout.Y[project]) - _center) * _zoom + Size * 0.5f;
+        Vector2 screen = (target - _center) * _zoom + Size * 0.5f;
         Rect2 inner = Usable().Grow(-40);
         if (center) SetView(world, zoom, true);
-        else if (!inner.HasPoint(screen)) SetView(CenterFor(new Vector2(_layout.X[project], _layout.Y[project]), zoom), zoom, true);
+        else if (!inner.HasPoint(screen)) SetView(CenterFor(target, zoom), zoom, true);
     }
 
     /// <summary>The opening view: every known project if that is still readable, else the selection at a middle zoom.</summary>
@@ -541,17 +913,24 @@ public partial class ResearchRadialMap : Control
             return;
         }
         Vector2 fit = FitCenter(out float zoom);
-        if (zoom >= 0.5f || (uint)project >= (uint)_looks.Length || !_looks[project].Visible || _layout is null)
+        if (zoom >= 0.5f || _layout is null)
             SetView(fit, Math.Clamp(zoom, 0.5f, 1.4f), false);
+        else if ((uint)project < (uint)_looks.Length && _looks[project].Visible)
+        {
+            // too much to read at once: the selection in its (focused) age at a reading zoom
+            SetView(CenterFor(TargetPos(project), 0.85f), 0.85f, false);
+        }
         else
         {
-            // too much to read at once: the selection at a middle zoom, its neighbourhood around it
-            SetView(CenterFor(new Vector2(_layout.X[project], _layout.Y[project]), 0.75f) * 0.6f + fit * 0.4f, 0.75f, false);
+            // nothing selected: the top of the focused age's ring
+            _probe!.SetFocus(_lensTarget);
+            SetView(CenterFor(new Vector2(0, -_probe.RingMid(ViewedEra())), 0.75f), 0.75f, false);
         }
     }
 
     public override void _Notification(int what)
     {
+        if (what == NotificationMouseExit && _bandHover >= 0) { _bandHover = -1; QueueRedraw(); }
         if (what == NotificationResized || what == NotificationVisibilityChanged)
         {
             // the result list takes what the tools along the top leave
@@ -560,6 +939,7 @@ public partial class ResearchRadialMap : Control
             bool narrow = Size.X < 780;
             _gateButton.Text = narrow ? "" : "Turning point";
             _statusPill.Position = new Vector2(UiTokens.Sp2, room < 240 ? _toolPill.GetCombinedMinimumSize().Y + 2 * UiTokens.Sp2 : UiTokens.Sp2);
+            PlaceRail();
             if (Size.X > 2 && IsVisibleInTree() && _layout is not null)
             {
                 if (!_viewReady) ResetView(_pendingProject >= 0 ? _pendingProject : _selected);
@@ -589,6 +969,45 @@ public partial class ResearchRadialMap : Control
             }
             busy = true;
         }
+        bool lensMoving = false;
+        if (_stepCooldown > 0) { _stepCooldown -= (float)delta; busy = true; }
+        if (_lensScrubbing)
+        {
+            // a sideways swipe has no "release": it ends 150 ms after its last event
+            if (_scrubBySwipe)
+            {
+                _scrubIdle += (float)delta;
+                if (_scrubIdle >= 0.15f) EndScrub();
+            }
+            busy = true;
+            lensMoving = true;
+        }
+        else if (_lens is not null && _lensF != _lensTarget)
+        {
+            if (UiSettings.Current.ReduceMotion) ApplyLens(_lensTarget);
+            else
+            {
+                float k = 1f - (float)Math.Exp(-delta / LensTau);
+                float f = Mathf.Lerp(_lensF, _lensTarget, k);
+                ApplyLens(Math.Abs(f - _lensTarget) < 0.002f ? _lensTarget : f);
+            }
+            busy = true;
+            lensMoving = _lensF != _lensTarget;
+            if (!lensMoving) _labelsDirty = true;
+        }
+        if (_advanceTimer >= 0)
+        {
+            _advanceTimer -= (float)delta;
+            if (_advanceTimer < 0)
+            {
+                FocusEra(_advanceTo, true);
+                int gate = -1;
+                for (int p = 0; p < _looks.Length && _layout is not null; p++)
+                    if (_layout.Gate[p] && _layout.Era[p] == _advanceFrom && _looks[p].Visible) { gate = p; break; }
+                if (gate >= 0) Ping(gate);
+            }
+            busy = true;
+        }
         bool pulsing = (_nextStep >= 0 || TurningPointReady()) && !UiSettings.Current.ReduceMotion;
         if (pulsing)
         {
@@ -603,7 +1022,7 @@ public partial class ResearchRadialMap : Control
         }
         // a pulse alone is slow enough to redraw at ~20 fps; moving the view or a ping needs every frame
         _pulseRedraw += (float)delta;
-        bool moving = _animating || _pingProject >= 0;
+        bool moving = _animating || _pingProject >= 0 || lensMoving;
         if (busy && IsVisibleInTree())
         {
             if (moving || _pulseRedraw >= 0.05f) { _pulseRedraw = 0; QueueRedraw(); }
@@ -617,6 +1036,15 @@ public partial class ResearchRadialMap : Control
     {
         switch (input)
         {
+            // Shift+wheel (and a sideways wheel, which is what macOS makes of Shift+wheel) steps one age per notch; the plain wheel zooms
+            case InputEventMouseButton { ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown, Pressed: true, ShiftPressed: true } wheel:
+                WheelStep(wheel.ButtonIndex == MouseButton.WheelUp ? 1 : -1);
+                AcceptEvent();
+                break;
+            case InputEventMouseButton { ButtonIndex: MouseButton.WheelLeft or MouseButton.WheelRight, Pressed: true } wheel:
+                WheelStep(wheel.ButtonIndex == MouseButton.WheelLeft ? 1 : -1);
+                AcceptEvent();
+                break;
             case InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true } wheel:
                 ZoomAt(wheel.Position, Mathf.Pow(1.15f, Math.Max(1f, wheel.Factor)));
                 AcceptEvent();
@@ -651,6 +1079,12 @@ public partial class ResearchRadialMap : Control
                             ProjectClicked?.Invoke(hit);
                             if (pointer) { FocusProject(hit, true); Ping(hit); }
                         }
+                        else if (BandAt(button.Position) is int band and >= 0)
+                        {
+                            // a click on a collapsed age opens it
+                            FocusEra(band, true);
+                            _bandHover = -1;
+                        }
                     }
                     _pressed = false;
                     _dragging = false;
@@ -678,17 +1112,29 @@ public partial class ResearchRadialMap : Control
                 AcceptEvent();
                 break;
             case InputEventPanGesture pan:
-                // Two-finger scroll zooms, as on the world map (docs/MVP/20 §4.1); drag pans.
-                if (Math.Abs(pan.Delta.Y) > 0.01f) ZoomAt(pan.Position, Mathf.Pow(1.15f, -pan.Delta.Y * 0.5f));
+                // Two-finger scroll zooms, as on the world map (docs/MVP/20 §4.1); drag pans. A sideways swipe scrubs the age lens.
+                if (Math.Abs(pan.Delta.X) > Math.Abs(pan.Delta.Y) && Math.Abs(pan.Delta.X) > 0.01f) ScrubBy(pan.Delta.X * 0.01f);
+                else if (Math.Abs(pan.Delta.Y) > 0.01f) ZoomAt(pan.Position, Mathf.Pow(1.15f, -pan.Delta.Y * 0.5f));
                 AcceptEvent();
                 break;
         }
     }
 
+    /// <summary>One age per wheel notch, but a smooth wheel's stream of tiny events is not a dozen ages.</summary>
+    private void WheelStep(int delta)
+    {
+        if (_stepCooldown > 0) return;
+        _stepCooldown = 0.12f;
+        SetProcess(true);
+        StepEra(delta);
+    }
+
     private void UpdateHover(Vector2 position)
     {
         int hit = HitTest(position);
-        MouseDefaultCursorShape = hit >= 0 ? CursorShape.PointingHand : CursorShape.Arrow;
+        int band = hit < 0 ? BandAt(position) : -1;
+        MouseDefaultCursorShape = hit >= 0 || band >= 0 ? CursorShape.PointingHand : CursorShape.Arrow;
+        if (band != _bandHover) { _bandHover = band; QueueRedraw(); }
         if (hit == _hover) return;
         _hover = hit;
         _labelsDirty = true;
@@ -704,8 +1150,8 @@ public partial class ResearchRadialMap : Control
         float reach = Math.Max(13f, NodeRadius(false) + 6);
         for (int p = 0; p < _looks.Length; p++)
         {
-            if (!_looks[p].Visible) continue;
-            float d = ToScreen(_layout.X[p], _layout.Y[p]).DistanceTo(screen);
+            if (!_looks[p].Visible || !Pickable(p)) continue;
+            float d = ToScreen(_lx[p], _ly[p]).DistanceTo(screen);
             float limit = _layout.Gate[p] ? Math.Max(reach * 1.4f, NodeRadius(true) * 1.3f) : reach;
             if (d <= limit && d < best) { best = d; found = p; }
         }
@@ -715,7 +1161,9 @@ public partial class ResearchRadialMap : Control
     public override string _GetTooltip(Vector2 atPosition)
     {
         int hit = HitTest(atPosition);
-        return hit >= 0 && TooltipFor is not null ? TooltipFor(hit) : "";
+        if (hit >= 0) return TooltipFor is not null ? TooltipFor(hit) : "";
+        int band = BandAt(atPosition);
+        return band >= 0 ? BandTooltip(band) : "";
     }
 
     /// <summary>The nearest known project from <paramref name="from"/> in a screen direction, for arrow keys; -1 when none.</summary>
@@ -729,20 +1177,20 @@ public partial class ResearchRadialMap : Control
             int found0 = -1;
             for (int p = 0; p < _looks.Length; p++)
             {
-                if (!_looks[p].Visible) continue;
-                float d = ToScreen(_layout.X[p], _layout.Y[p]).DistanceTo(Size * 0.5f);
+                if (!_looks[p].Visible || !Pickable(p)) continue;
+                float d = ToScreen(_lx[p], _ly[p]).DistanceTo(Size * 0.5f);
                 if (d < best0) { best0 = d; found0 = p; }
             }
             return found0;
         }
         var dir = new Vector2(dx, dy);
-        Vector2 origin = new(_layout.X[from], _layout.Y[from]);
+        Vector2 origin = Pos(from);
         float best = float.MaxValue;
         int found = -1;
         for (int p = 0; p < _looks.Length; p++)
         {
             if (p == from || !_looks[p].Visible || _looks[p].Filtered) continue;
-            Vector2 v = new Vector2(_layout.X[p], _layout.Y[p]) - origin;
+            Vector2 v = Pos(p) - origin;
             float length = v.Length();
             if (length < 0.01f) continue;
             float cos = v.Dot(dir) / length;
@@ -836,8 +1284,12 @@ public partial class ResearchRadialMap : Control
         DrawStyleBox(WellBox, new Rect2(Vector2.Zero, Size));
         if (_layout is null || _catalog is null) return;
         RebuildHighlight();
+        UpdateLensGeometry();
         if ((_nextStep >= 0 || TurningPointReady()) && !UiSettings.Current.ReduceMotion && !IsProcessing()) SetProcess(true);
-        if (_labelsDirty || !Mathf.IsEqualApprox(_labelZoom, _zoom)) PlaceLabels();
+        // while the lens moves, labels follow their nodes every frame but are re-placed only every 4th frame
+        bool lensMoving = _lensScrubbing || _lensF != _lensTarget;
+        _labelFrame++;
+        if (!Mathf.IsEqualApprox(_labelZoom, _zoom) || (_labelsDirty && (!lensMoving || _labelFrame % 4 == 0))) PlaceLabels();
 
         DrawRings();
         DrawEdges();
@@ -854,27 +1306,33 @@ public partial class ResearchRadialMap : Control
     private void DrawRings()
     {
         ResearchRadialLayout layout = _layout!;
+        ResearchEraLens lens = _lens!;
         Vector2 o = Origin;
         float slot = layout.SlotAngle;
 
         // centre disc
-        float centre = ResearchRadialLayout.CenterRadius * _zoom;
+        float centre = lens.Hub * _zoom;
         DrawCircle(o, centre - 6 * _zoom, UiTokens.WithAlpha(UiTokens.Surface2, 0.55f));
 
         foreach (int era in layout.Rings)
         {
             if (era > _drawEra) break;
-            bool next = era > _focusEra;
-            float inner = layout.RingInner[era] * _zoom, outer = layout.RingOuter[era] * _zoom;
+            bool next = era > _currentAge;
+            float w = lens.Weight(era);
+            float inner = lens.Inner(era) * _zoom, outer = lens.Outer(era) * _zoom;
+            bool hot = era == _bandHover;
             foreach (ResearchRadialLayout.Sector sector in layout.Sectors)
             {
                 Color tint = UiTokens.ThemeFill((ResearchTheme)sector.Theme);
-                tint.A = next ? 0.16f : era == _focusEra ? 0.42f : 0.30f;
+                float open = next ? 0.16f : era == _currentAge ? 0.42f : 0.30f;
+                tint.A = Mathf.Lerp(next ? 0.08f : 0.12f, open, w) + (hot ? 0.10f : 0f);
                 if (_themeFilter >= 0) tint.A *= sector.Theme == _themeFilter ? 1.6f : 0.35f;
                 DrawAnnulus(o, inner, outer, sector.Start - slot * 0.35f, sector.End + slot * 0.35f, tint);
             }
-            Color edge = next ? UiTokens.WithAlpha(UiTokens.TextTertiary, 0.25f) : UiTokens.Border;
-            if (next)
+            Color edge = next ? UiTokens.WithAlpha(UiTokens.TextTertiary, 0.25f) : hot ? UiTokens.WithAlpha(UiTokens.Accent, 0.6f) : UiTokens.Border;
+            // a collapsed band's outlines step back, so a stack of them does not read as one heavy ring
+            if (!hot) edge.A *= Mathf.Lerp(0.45f, 1f, w);
+            if (next && !hot)
             {
                 DrawDashedCircle(o, inner, edge);
                 DrawDashedCircle(o, outer, edge);
@@ -889,7 +1347,7 @@ public partial class ResearchRadialMap : Control
         // field separators inside each track
         if (_zoom >= 0.45f)
         {
-            float from = ResearchRadialLayout.CenterRadius * _zoom, to = (DrawnOuter() - ResearchRadialLayout.RingGap) * _zoom;
+            float from = lens.Hub * _zoom, to = DrawnRingOuter() * _zoom;
             Color line = UiTokens.WithAlpha(UiTokens.TextPrimary, 0.05f);
             for (int w = 0; w < layout.Wedges.Length; w++)
             {
@@ -904,24 +1362,39 @@ public partial class ResearchRadialMap : Control
         for (int p = 0; p < layout.Count; p++)
         {
             if (!layout.Gate[p] || !_looks[p].Visible) continue;
-            float r = layout.Radius[p] * _zoom;
+            float r = lens.Map(layout.Radius[p]) * _zoom;
             bool knownGate = _looks[p].State is ProjectState.Completed or ProjectState.Dormant;
             Color c = UiTokens.WithAlpha(GateColor, knownGate ? 0.15f : _looks[p].TurnsAge ? 0.6f : 0.25f);
             DrawDashedCircle(o, r, c);
         }
 
-        // age names in the empty wedge at 12 o'clock
+        // age names in the empty wedge at 12 o'clock; a collapsed age adds its progress
         Font caps = UiTheme.Caps;
+        float halfWedge = ResearchRadialLayout.LabelGap * 0.5f * slot;
         foreach (int era in layout.Rings)
         {
             if (era > _drawEra) break;
-            float mid = (layout.RingInner[era] + layout.RingOuter[era]) * 0.5f * _zoom;
+            float w = lens.Weight(era);
+            float mid = lens.RingMid(era) * _zoom;
+            float room = (lens.Outer(era) - lens.Inner(era)) * _zoom;
+            if (room < 12 && era != _currentAge) continue;
             string name = UiText.AgeName(era).ToUpperInvariant();
+            if (w < LabelWeight && _ageTotal[era] > 0 && era <= _currentAge + 1)
+            {
+                string withCount = $"{name} · {_ageKnown[era]}/{_ageTotal[era]}";
+                // the wedge widens outward; the count only goes in when it fits between the nearest projects
+                float wide = 2 * mid * Mathf.Sin(halfWedge) + 24;
+                if (caps.GetStringSize(withCount, HorizontalAlignment.Left, -1, UiTokens.FontSmall).X <= wide) name = withCount;
+            }
             Vector2 extent = caps.GetStringSize(name, HorizontalAlignment.Left, -1, UiTokens.FontSmall);
-            float room = (layout.RingOuter[era] - layout.RingInner[era]) * _zoom;
-            if (room < 16 && era != _focusEra) continue;
             Vector2 at = o + new Vector2(-extent.X * 0.5f, -mid + 5);
-            Color color = era == _focusEra ? UiTokens.Accent : era > _focusEra ? UiTokens.TextDisabled : UiTokens.TextTertiary;
+            Color color = era == _currentAge ? UiTokens.Accent : era > _currentAge ? UiTokens.TextDisabled : UiTokens.TextTertiary;
+            if (era == _bandHover) color = UiTokens.TextPrimary;
+            if (w < LabelWeight)
+            {
+                // a backing so the name reads over the band's dots
+                DrawRect(new Rect2(at + new Vector2(-4, -extent.Y + 3), extent + new Vector2(8, 2)), UiTokens.WithAlpha(UiTokens.SurfaceSunken, 0.85f));
+            }
             DrawString(caps, at, name, HorizontalAlignment.Left, -1, UiTokens.FontSmall, color);
         }
 
@@ -946,7 +1419,7 @@ public partial class ResearchRadialMap : Control
         ResearchRadialLayout layout = _layout!;
         Vector2 o = Origin;
         Font caps = UiTheme.Caps;
-        float trackRadius = (DrawnOuter() - ResearchRadialLayout.RingGap) * _zoom + 22;
+        float trackRadius = DrawnRingOuter() * _zoom + 22;
         Rect2 inset = Usable();
         foreach (ResearchRadialLayout.Sector sector in layout.Sectors)
         {
@@ -1028,6 +1501,8 @@ public partial class ResearchRadialMap : Control
                 Color color;
                 float width;
                 bool strong;
+                // a highlighted edge the lens never fades: the missing chain and the focus's own links. Learned history fades like the rest.
+                bool exempt = true;
                 bool dimmed = _looks[edge.From].Filtered || _looks[edge.To].Filtered || (_searching && !_looks[edge.From].Match && !_looks[edge.To].Match);
                 if (focused && _blockerOf[edge.To] == edge.From)
                 {
@@ -1047,6 +1522,7 @@ public partial class ResearchRadialMap : Control
                     bool met = _looks[edge.From].State is ProjectState.Completed or ProjectState.Dormant;
                     color = met ? UiTokens.WithAlpha(UiTokens.TextSecondary, 0.7f) : UiTokens.WithAlpha(UiTokens.Accent, 0.6f);
                     width = 2f;
+                    exempt = !met || edge.To == _focus;
                 }
                 else if (focused && edge.From == _focus)
                 {
@@ -1063,12 +1539,27 @@ public partial class ResearchRadialMap : Control
                     width = 1f;
                 }
                 if (strong != (pass == 1)) continue;
+                // the lens: an edge between two open ages draws as before; one end in a band draws fainter, to the dot; two ends in bands
+                // are hidden. Highlighted edges always draw in full, so a chain stays readable across collapsed ages.
+                float cFrom = Presence(edge.From), cTo = Presence(edge.To);
+                if (!strong || !exempt)
+                {
+                    float lens = Mathf.Lerp(0.6f, 1f, Math.Min(cFrom, cTo)) * Math.Max(cFrom, cTo);
+                    if (lens < 0.02f) continue;
+                    color.A *= lens;
+                }
                 Vector2[] screen = _edgeScreen[e];
-                float[] pts = edge.Points;
+                float[] pts = _edgeWorld[e];
                 for (int i = 0; i < screen.Length; i++) screen[i] = ToScreen(pts[i * 2], pts[i * 2 + 1]);
                 if (edge.Any || fogEdge) DrawDashedPolyline(screen, color, width);
                 else DrawPolyline(screen, color, width, true);
-                if (strong) DrawArrowHead(screen, color, width);
+                if (strong) DrawArrowHead(screen, color, width, DrawnRadius(edge.To));
+                else
+                {
+                    // a stub cap where the edge meets a dot in a band
+                    if (cFrom < 0.5f) DrawCircle(screen[0], 1.5f, color);
+                    if (cTo < 0.5f) DrawCircle(screen[^1], 1.5f, color);
+                }
             }
     }
 
@@ -1094,13 +1585,13 @@ public partial class ResearchRadialMap : Control
         }
     }
 
-    private void DrawArrowHead(Vector2[] points, Color color, float width)
+    private void DrawArrowHead(Vector2[] points, Color color, float width, float tipRadius)
     {
         if (points.Length < 2 || _zoom < 0.45f) return;
         Vector2 tip = points[^1], back = points[^2];
         Vector2 dir = (tip - back).Normalized();
         if (dir == Vector2.Zero) return;
-        tip -= dir * (NodeRadius(false) + 2);
+        tip -= dir * (tipRadius + 2);
         float size = 5 + width;
         Vector2 side = new(-dir.Y, dir.X);
         DrawColoredPolygon(new[] { tip, tip - dir * size + side * size * 0.55f, tip - dir * size - side * size * 0.55f }, color);
@@ -1117,8 +1608,16 @@ public partial class ResearchRadialMap : Control
         for (int p = 0; p < _looks.Length; p++)
         {
             if (!_looks[p].Undiscovered || _looks[p].Visible) continue;
-            Vector2 c = ToScreen(layout.X[p], layout.Y[p]);
+            Vector2 c = ToScreen(_lx[p], _ly[p]);
             if (!view.HasPoint(c)) continue;
+            // a collapsed age hides its fog: only what the focus needs stays
+            float w = AgeWeight(p);
+            if (!_fogRequired[p] && !_breadth[p])
+            {
+                if (w < 0.3f) continue;
+                DrawCircle(c, Math.Max(1.5f, r * 0.3f), UiTokens.WithAlpha(fog, fog.A * w));
+                continue;
+            }
             if (_fogRequired[p])
             {
                 // a prerequisite the player has not found yet: unnamed, but plainly there
@@ -1138,9 +1637,14 @@ public partial class ResearchRadialMap : Control
                 if (!_looks[p].Visible) continue;
                 int want = p == _focus || p == _selected || p == _hover ? 2 : _focus >= 0 && InFocus(p) || _onPath[p] ? 1 : 0;
                 if (want != pass) continue;
-                Vector2 c = ToScreen(layout.X[p], layout.Y[p]);
+                Vector2 c = ToScreen(_lx[p], _ly[p]);
                 if (!view.HasPoint(c)) continue;
                 bool gate = layout.Gate[p];
+                if (!gate && !IsLifted(p) && AgeWeight(p) < 0.5f)
+                {
+                    DrawBandDot(p, c, DrawnRadius(p));
+                    continue;
+                }
                 float alpha = 1f;
                 if (_focus >= 0 && !InFocus(p) && !_onPath[p]) alpha = OutOfFocusAlpha;
                 if (_looks[p].Filtered) alpha = Math.Min(alpha, 0.22f);
@@ -1148,11 +1652,11 @@ public partial class ResearchRadialMap : Control
                 // a turning point never fades to a ghost: its label stays readable, so the mark must match it
                 if (gate) alpha = _searching && !_looks[p].Match ? 0.45f : Math.Max(alpha, 0.6f);
                 if (pass == 2 || _onPath[p]) alpha = 1f;
-                float radius = NodeRadius(gate);
+                float radius = DrawnRadius(p);
                 int theme = gate ? 3 : (int)_catalog!.Projects[p].Theme;
                 if (_searching && _looks[p].Match)
                     DrawArc(c, radius + 6, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.Accent, 0.85f), 2f, true);
-                PaintNode(this, c, radius, _looks[p], theme, gate, alpha, _zoom >= 0.7f);
+                PaintNode(this, c, radius, _looks[p], theme, gate, alpha, _zoom >= 0.7f && radius >= 7f);
                 if (_breadth[p] && !IsKnown(p))
                     DrawArc(c, radius + 4, 0, Mathf.Tau, 32, UiTokens.WithAlpha(UiTokens.Accent, 0.6f), 1.5f, true);
                 if (_unmetDirect[p] && !_onPath[p])
@@ -1178,6 +1682,36 @@ public partial class ResearchRadialMap : Control
                     if (HasFocus()) DrawArc(c, radius + 9, 0, Mathf.Tau, 36, UiTokens.WithAlpha(UiTokens.Accent, 0.35f), 1.5f, true);
                 }
             }
+    }
+
+    /// <summary>A project in a collapsed age: a small dot coloured by its state. Never a click target.</summary>
+    private void DrawBandDot(int p, Vector2 c, float r)
+    {
+        ref RadialNodeLook look = ref _looks[p];
+        Color theme = UiTokens.ThemeColor(_catalog!.Projects[p].Theme);
+        float alpha = 1f;
+        if (_looks[p].Filtered) alpha = 0.3f;
+        if (_searching && !look.Match) alpha = 0.35f;
+        if (_focus >= 0 && !InFocus(p)) alpha = Math.Min(alpha, 0.6f);
+        switch (look.State)
+        {
+            case ProjectState.Completed:
+                DrawCircle(c, r, UiTokens.WithAlpha(theme, 0.85f * alpha));
+                break;
+            case ProjectState.Available:
+                DrawCircle(c, r, UiTokens.WithAlpha(UiTokens.Surface2, alpha));
+                DrawArc(c, r, 0, Mathf.Tau, 12, UiTokens.WithAlpha(theme, alpha), 1.2f, true);
+                break;
+            case ProjectState.Slotted:
+                DrawCircle(c, r, UiTokens.WithAlpha(UiTokens.Accent, alpha));
+                break;
+            case ProjectState.Dormant:
+                DrawCircle(c, r, UiTokens.WithAlpha(UiTokens.Warning, 0.8f * alpha));
+                break;
+            default:
+                DrawCircle(c, r, UiTokens.WithAlpha(UiTokens.TextTertiary, 0.45f * alpha));
+                break;
+        }
     }
 
     /// <summary>Draws one project node: shared by the map and its key.</summary>
@@ -1305,8 +1839,8 @@ public partial class ResearchRadialMap : Control
     private void DrawPing()
     {
         if (_pingProject < 0 || _layout is null || !_looks[_pingProject].Visible) return;
-        Vector2 c = ToScreen(_layout.X[_pingProject], _layout.Y[_pingProject]);
-        float baseR = NodeRadius(_layout.Gate[_pingProject]) + 8;
+        Vector2 c = ToScreen(_lx[_pingProject], _ly[_pingProject]);
+        float baseR = DrawnRadius(_pingProject) + 8;
         float fade = 1f - Math.Clamp((_pingAge - PingSeconds * 0.6f) / (PingSeconds * 0.4f), 0f, 1f);
         if (UiSettings.Current.ReduceMotion)
         {
@@ -1328,7 +1862,7 @@ public partial class ResearchRadialMap : Control
         if (_layout is null || _searching) return;
         int gate = NextTurningPoint();
         if (gate < 0) return;
-        Vector2 at = ToScreen(_layout.X[gate], _layout.Y[gate]);
+        Vector2 at = ToScreen(_lx[gate], _ly[gate]);
         Rect2 room = Usable().Grow(-4);
         if (room.Grow(NodeRadius(true)).HasPoint(at)) return;
 
@@ -1401,16 +1935,21 @@ public partial class ResearchRadialMap : Control
         for (int p = 0; p < _looks.Length; p++)
         {
             if (!_looks[p].Visible) continue;
-            float r = NodeRadius(layout.Gate[p]) + 1;
-            Vector2 q = new Vector2(layout.X[p], layout.Y[p]) * _zoom;
+            // a dot in a collapsed band is no obstacle and has no name; a lifted project keeps both
+            bool lifted = IsLifted(p);
+            float w = AgeWeight(p);
+            if (!lifted && w < 0.5f) continue;
+            float r = DrawnRadius(p) + 1;
+            Vector2 q = Pos(p) * _zoom;
             _obstacles.Add(new Rect2(q - new Vector2(r, r), new Vector2(r * 2, r * 2)));
+            if (!lifted && w < LabelWeight) continue;
             int priority = LabelPriority(p);
             if (priority >= minimum) LabelOrder.Add((p, priority));
         }
         LabelOrder.Sort((a, b) => a.Priority != b.Priority ? b.Priority.CompareTo(a.Priority) : a.Project.CompareTo(b.Project));
 
         // the centre text is not to be covered
-        float centre = ResearchRadialLayout.CenterRadius * _zoom;
+        float centre = _lens!.Hub * _zoom;
         if (centre >= 52)
         {
             float half = Math.Min(centre * 0.85f, 130);
@@ -1421,8 +1960,8 @@ public partial class ResearchRadialMap : Control
         foreach ((int p, int priority) in LabelOrder)
         {
             bool gate = layout.Gate[p];
-            float r = NodeRadius(gate) + (gate ? 4 : 3);
-            Vector2 q = new Vector2(layout.X[p], layout.Y[p]) * _zoom;
+            float r = DrawnRadius(p) + (gate ? 4 : 3);
+            Vector2 q = Pos(p) * _zoom;
             bool important = priority >= 850;
             float maxWidth = important ? 300 : 150;
             float cos = Mathf.Cos(layout.Angle[p]);
@@ -1441,7 +1980,7 @@ public partial class ResearchRadialMap : Control
                 foreach (Rect2 box in candidates)
                 {
                     if (Collides(box, q)) continue;
-                    _labels.Add(new PlacedLabel(p, box, Fit(p, width)));
+                    _labels.Add(new PlacedLabel(p, box, Fit(p, width), q));
                     _obstacles.Add(box);
                     placed = true;
                     break;
@@ -1452,7 +1991,7 @@ public partial class ResearchRadialMap : Control
                 float width = Math.Min(_fullWidth[p], maxWidth);
                 var size = new Vector2(width + 8, LabelHeight);
                 Rect2 box = preferRight ? new Rect2(q + new Vector2(r + 2, -size.Y * 0.5f), size) : new Rect2(q + new Vector2(-r - 2 - size.X, -size.Y * 0.5f), size);
-                _labels.Add(new PlacedLabel(p, box, Fit(p, width)));
+                _labels.Add(new PlacedLabel(p, box, Fit(p, width), q));
                 _obstacles.Add(box);
             }
         }
@@ -1465,7 +2004,7 @@ public partial class ResearchRadialMap : Control
         if (_zoom < 0.6f) return;
         ResearchRadialLayout layout = _layout!;
         Font font = UiTheme.Medium;
-        float radius = (DrawnOuter() - ResearchRadialLayout.RingGap) * _zoom + 6;
+        float radius = DrawnRingOuter() * _zoom + 6;
         foreach (ResearchRadialLayout.Wedge wedge in layout.Wedges)
         {
             bool known = false;
@@ -1478,7 +2017,7 @@ public partial class ResearchRadialMap : Control
             Vector2 anchor = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
             var box = new Rect2(AnchorBox(anchor, angle, size), size);
             if (Collides(box, new Vector2(float.NaN, float.NaN))) continue;
-            _labels.Add(new PlacedLabel(-1 - wedge.Lineage, box, name));
+            _labels.Add(new PlacedLabel(-1 - wedge.Lineage, box, name, Vector2.Zero));
             _obstacles.Add(box);
         }
     }
@@ -1529,7 +2068,7 @@ public partial class ResearchRadialMap : Control
             : $"{done} of {_breadthMin} {UiText.AgeName(_breadthEra)} projects · ringed";
         Font font = UiTheme.Medium;
         Vector2 size = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelFont);
-        Vector2 c = ToScreen(_layout.X[_focus], _layout.Y[_focus]);
+        Vector2 c = ToScreen(_lx[_focus], _ly[_focus]);
         var box = new Rect2(c + new Vector2(-size.X * 0.5f - 8, NodeRadius(true) + 12), size + new Vector2(16, 8));
         Rect2 room = Usable();
         if (box.End.Y > room.End.Y) box.Position = new Vector2(box.Position.X, c.Y - NodeRadius(true) - 12 - box.Size.Y);
@@ -1546,9 +2085,10 @@ public partial class ResearchRadialMap : Control
         var view = new Rect2(Vector2.Zero, Size);
         foreach (PlacedLabel label in _labels)
         {
-            var box = new Rect2(label.Box.Position + shift, label.Box.Size);
-            if (!view.Intersects(box)) continue;
             int p = label.Project;
+            Vector2 follow = p >= 0 ? Pos(p) * _zoom - label.Anchor : Vector2.Zero;
+            var box = new Rect2(label.Box.Position + shift + follow, label.Box.Size);
+            if (!view.Intersects(box)) continue;
             if (p < 0)
             {
                 DrawString(font, box.Position + new Vector2(4, (LabelHeight - font.GetHeight(LabelFont)) * 0.5f + ascent), label.Text,
@@ -1562,6 +2102,9 @@ public partial class ResearchRadialMap : Control
             if (_looks[p].Filtered) alpha = Math.Min(alpha, 0.35f);
             if (_searching && !_looks[p].Match) alpha = Math.Min(alpha, 0.4f);
             if (selected || path) alpha = 1f;
+            // an age's names fade in as it opens past three quarters, and out as it closes
+            if (!IsLifted(p)) alpha *= Math.Clamp((AgeWeight(p) - LabelWeight) / (1f - LabelWeight), 0f, 1f);
+            if (alpha < 0.02f) continue;
             bool gateLabel = _layout!.Gate[p];
             bool knownGate = gateLabel && _looks[p].State is ProjectState.Completed or ProjectState.Dormant;
             bool majorGate = gateLabel && !knownGate && (_looks[p].TurnsAge || selected);
@@ -1593,6 +2136,7 @@ public partial class ResearchRadialMap : Control
     {
         _legend.Visible = visible;
         _legendButton.SetPressedNoSignal(visible);
+        if (_rail is not null) CallDeferred(nameof(PlaceRail));
     }
 
     private PanelContainer BuildLegend()

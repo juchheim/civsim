@@ -39,6 +39,10 @@ public sealed class ResearchRadialLayout
     public float[] RingOuter { get; }
     public float[] GateRadius { get; }
     public int[] Lanes { get; }
+    /// <summary>Per age (index = era): its position in <see cref="Rings"/>, or -1 when the age has no ring.</summary>
+    public int[] RingIndex { get; }
+    /// <summary>The most lanes any ring has.</summary>
+    public int MaxLanes { get; }
     public Sector[] Sectors { get; }
     public Wedge[] Wedges { get; }
     public Edge[] Edges { get; }
@@ -112,6 +116,13 @@ public sealed class ResearchRadialLayout
         }
         ringList.Sort();
         Rings = ringList.ToArray();
+        RingIndex = new int[ResearchCatalog.EraCount];
+        Array.Fill(RingIndex, -1);
+        for (int i = 0; i < Rings.Length; i++)
+        {
+            RingIndex[Rings[i]] = i;
+            MaxLanes = Math.Max(MaxLanes, Lanes[Rings[i]]);
+        }
 
         // radii
         float inner = CenterRadius;

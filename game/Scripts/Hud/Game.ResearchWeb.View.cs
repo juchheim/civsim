@@ -1407,7 +1407,7 @@ public partial class Game
             _footerNoteTimer -= delta;
             if (_footerNoteTimer <= 0 && _footerNote is not null)
             {
-                _footerNote.Text = "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot";
+                _footerNote.Text = DefaultFooterNote();
                 _footerNote.ThemeTypeVariation = "CaptionTertiary";
             }
         }
@@ -1417,6 +1417,10 @@ public partial class Game
             if (_noticeTimer <= 0 && _noticeBar is not null) _noticeBar.Visible = false;
         }
     }
+
+    private string DefaultFooterNote() => _webView == ViewMap
+        ? "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot · PgUp/PgDn change age"
+        : "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot";
 
     /// <summary>Keys that only mean something inside the web. Returns true when handled.</summary>
     private bool HandleWebKey(InputEventKey key)
@@ -1443,6 +1447,13 @@ public partial class Game
                 return true;
             case Key.Home when _webView == ViewMap:
                 _mapView?.FitVisible();
+                return true;
+            // the age lens: one age out (PageUp, ]) or in (PageDown, [)
+            case Key.Pageup or Key.Bracketright when _webView == ViewMap:
+                _mapView?.StepEra(1);
+                return true;
+            case Key.Pagedown or Key.Bracketleft when _webView == ViewMap:
+                _mapView?.StepEra(-1);
                 return true;
             case Key.Slash:
             case Key.F when key.CtrlPressed || key.MetaPressed:

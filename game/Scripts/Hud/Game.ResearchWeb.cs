@@ -527,6 +527,8 @@ public partial class Game
         _backProject = -1;
         if (!wasOpen)
         {
+            // the tree never remembers the age it was looking at: it opens on the current age, or the age of the project it opened for
+            _mapView?.BeginOpen();
             _webView = _uiSettings.ResearchMapView ? ViewMap : ViewChoose;
             _mapCenterNext = _webView == ViewMap;
             _webViewSwitch?.Select(_webView, false);
@@ -613,10 +615,11 @@ public partial class Game
 
     private void SetResearchView(int view)
     {
-        if (view == ViewMap && _webView != ViewMap) _mapCenterNext = true;
+        if (view == ViewMap && _webView != ViewMap) { _mapCenterNext = true; _mapView?.BeginOpen(); }
         _webView = view;
         _webViewSwitch?.Select(view, false);
         ShowResearchView(view);
+        if (_footerNote is not null && _footerNoteTimer <= 0 && _footerNote.Text.StartsWith("Click a project", StringComparison.Ordinal)) _footerNote.Text = DefaultFooterNote();
         if (_canvasScroll is not null) _canvasScroll.ScrollVertical = 0;
         _webSignature = int.MinValue;
         RefreshResearchWebNow();

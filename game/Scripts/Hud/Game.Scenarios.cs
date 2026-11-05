@@ -109,6 +109,52 @@ public partial class Game
                 Step(() => _mapView?.FocusNextTurningPoint(), 1.2f);
                 Shot("map-15-next-turning-point");
                 break;
+            case "map-eras":
+                // --chapter=iron --research-era=4 --start-minute=20 (or --research-era=3 to see a locked next age): the era lens of the Tree.
+                // Focus on Dawn, Roots and Iron; halfway between two ages; a chain through collapsed ages; a search match in a band; a band's
+                // tooltip; 1280x720; Reduce motion. docs/MVP/research-tree-era-focus-design.md §5
+                Step(() => OpenResearchWeb(-1));
+                Step(() => SetResearchView(1), 1.2f);
+                Shot("eras-01-open");
+                Step(() => _mapView?.FocusEra(0, true), 0.9f);
+                Shot("eras-02-dawn");
+                Step(() => _mapView?.FocusEra(2, true), 0.9f);
+                Shot("eras-03-roots");
+                Step(() => _mapView?.FocusEra(4, true), 0.9f);
+                Shot("eras-04-iron");
+                Step(() => _mapView?.ZoomBy(0.5f), 0.8f);
+                Shot("eras-05-iron-wide");
+                Step(() => { if (_mapView is not null) { _mapView.ZoomBy(2f); _mapView.LensEra = 2.5f; } }, 0.8f);
+                Shot("eras-06-mid-scrub");
+                Step(SelectCrossAgeProject, 1.2f);
+                Shot("eras-07-chain");
+                Step(() => _mapView?.FitVisible(), 1.0f);
+                Shot("eras-08-chain-fit");
+                Step(() => { SelectResearchProject(FindDefaultResearchProject()); if (_webSearch is not null) _webSearch.Text = "fire"; _webSignature = int.MinValue; RefreshResearchWebNow(); }, 1.0f);
+                Shot("eras-09-search-in-band");
+                Step(() => { if (_webSearch is not null) _webSearch.Text = ""; _webSignature = int.MinValue; RefreshResearchWebNow(); _mapView?.StepEra(1); }, 0.9f);
+                Step(() =>
+                {
+                    if (_mapView is null) return;
+                    Vector2 at = _mapView.BandPoint(Math.Max(0, _mapView.ViewedEra() - 2));
+                    GetViewport().WarpMouse(at);
+                    Input.ParseInputEvent(new InputEventMouseMotion { Position = at, GlobalPosition = at });
+                }, 0.4f);
+                Step(() =>
+                {
+                    if (_mapView is null) return;
+                    Vector2 at = _mapView.BandPoint(Math.Max(0, _mapView.ViewedEra() - 2)) + new Vector2(1, 0);
+                    Input.ParseInputEvent(new InputEventMouseMotion { Position = at, GlobalPosition = at, Relative = new Vector2(1, 0) });
+                }, 1.6f);
+                Shot("eras-10-band-tooltip");
+                Step(() => GetWindow().Size = new Vector2I(1280, 720), 1.6f);
+                Shot("eras-11-1280");
+                Step(() => InjectKey(Key.Pagedown), 0.9f);
+                Shot("eras-12-1280-pagedown");
+                Step(() => { _uiSettings.ReduceMotion = true; InjectKey(Key.Bracketright); }, 0.15f);
+                Shot("eras-13-reduce-motion");
+                Step(() => _uiSettings.ReduceMotion = false);
+                break;
             case "overlays":
                 Step(() => SetMapOverlay(1));
                 Shot("ov-claims");
@@ -1152,6 +1198,24 @@ public partial class Game
             _scenarioIndex++;
             run();
         }
+    }
+
+    /// <summary>For the era-lens shots: the known project in the furthest age with the most prerequisites in earlier ages, preferring one not learned yet.</summary>
+    private void SelectCrossAgeProject()
+    {
+        if (_mapView?.Layout is not { } layout || _catalog is null) return;
+        int best = -1, bestScore = int.MinValue;
+        for (int p = 0; p < layout.Count; p++)
+        {
+            if (!layout.Placed[p] || layout.Gate[p] || !IsKnownToPlayer(p)) continue;
+            int era = layout.Era[p], older = 0;
+            foreach (int r in layout.Prerequisites[p]) if (layout.Era[r] < era) older++;
+            int score = era * 100 + older * 10 + (StateOf(p) is CivSim.Sim.Research.ProjectState.Completed ? 0 : 5);
+            if (score > bestScore) { bestScore = score; best = p; }
+        }
+        if (best < 0) return;
+        _mapCenterNext = true;
+        SelectResearchProject(best);
     }
 
     private int FindProjectByName(string name)
