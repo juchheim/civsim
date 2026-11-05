@@ -65,7 +65,7 @@ static func _smooth(x: float) -> float:
 ## Rebuilds the crowd when who knows what, the fields, the villages or the trails change.
 func sync() -> void:
 	var w: M7WorldData = b.w
-	var sig := hash(w.civ_looks) * 31 + hash(w.trail_meta) * 17 + hash(w.trail_tiles) + w.year / 2 * 7
+	var sig := hash(w.civ_looks) * 31 + hash(w.iron_looks) * 13 + hash(w.trail_meta) * 17 + hash(w.trail_tiles) + w.year / 2 * 7
 	for i in range(0, w.plots.size(), 2):
 		sig = sig * 31 + w.plots[i] * 3 + w.plots[i + 1] + int(w.owner[w.plots[i]])
 	if sig == signature:
@@ -94,6 +94,7 @@ func sync() -> void:
 	if not carts.is_empty():
 		for pose in ["a", "b"]:
 			slots["ox_cart_" + pose] = _multimesh("ox_cart_" + pose, b.mats.figure, carts.size())
+			slots["camel_train_" + pose] = _multimesh("camel_train_" + pose, b.mats.figure, carts.size())
 	if not grazers.is_empty():
 		slots["animal_heavy"] = _multimesh("animal_heavy", b.mats.animal, grazers.size() * 2)
 	shadow = _multimesh("shadow_disc", b.mats.shadow_disc, teams.size() + carts.size() + grazers.size() * 2)
@@ -125,7 +126,9 @@ func _find_carts() -> void:
 	var w: M7WorldData = b.w
 	for ti in range(0, w.trail_meta.size(), 5):
 		var civ := w.trail_meta[ti + 1]
-		if civ < 0 or not w.has_look(civ, M7WorldData.LOOK_CARTS):
+		# the carts of TRN-05, or on a trade route the camel trains of HUS-09
+		var camels: bool = w.has_iron_look(civ, M7WorldData.IRON_CAMELS) and (w.trail_meta[ti + 2] == 1 or M7WorldData.LOOKS_DEBUG)   # --looks-debug: on every trail
+		if civ < 0 or not (w.has_look(civ, M7WorldData.LOOK_CARTS) or camels):
 			continue
 		var start := w.trail_meta[ti + 3]
 		var length := w.trail_meta[ti + 4]
@@ -135,12 +138,12 @@ func _find_carts() -> void:
 			if tile >= 0:
 				run.append(tile)
 			if (tile < 0 or j == length - 1) and run.size() > 0:
-				_add_cart(run, civ, ti)
+				_add_cart(run, civ, ti, camels)
 				run = PackedInt32Array()
 				if carts.size() >= MAX_CARTS:
 					return
 
-func _add_cart(run: PackedInt32Array, civ: int, trail: int) -> void:
+func _add_cart(run: PackedInt32Array, civ: int, trail: int, camel: bool = false) -> void:
 	if run.size() < 2:
 		return
 	var pts := M7TrailBuilder._smooth(b.w, run)
@@ -156,7 +159,7 @@ func _add_cart(run: PackedInt32Array, civ: int, trail: int) -> void:
 		if carts.size() >= MAX_CARTS:
 			return
 		carts.append({
-			"civ": civ, "tile": run[0], "id": carts.size(), "pts": pts, "cum": cum, "length": total,
+			"civ": civ, "tile": run[0], "id": carts.size(), "pts": pts, "cum": cum, "length": total, "camel": camel,
 			"phase": fmod(M7WorldData.hash01(run[0], trail, 423) + 0.5 * k, 1.0),
 		})
 
@@ -323,7 +326,7 @@ func _play_cart(cart: Dictionary, seconds: float) -> void:
 	var pose := "a" if (not walking or int(floor(s / STRIDE)) % 2 == 0) else "b"
 	cart["now"] = pos
 	var xf := Transform3D(Basis(Vector3.UP, M7DogRig._face(heading)).scaled(Vector3.ONE * SIZE), Vector3(pos.x, y, pos.y))
-	_put("ox_cart_" + pose, xf, float(int(cart.civ) % 8), M7WorldData.hash01(int(cart.tile), int(cart.id), 426))
+	_put(("camel_train_" if cart.get("camel", false) else "ox_cart_") + pose, xf, float(int(cart.civ) % 8), M7WorldData.hash01(int(cart.tile), int(cart.id), 426))
 	_put_shadow(pos + heading * 0.05 * SIZE, y, heading, 3.6 * SIZE, 1.5)
 
 ## Dev aids for scenarios: where the first ard team, resting-field cow and cart are now (the origin when none).

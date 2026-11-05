@@ -30,6 +30,13 @@ const LOOK_IRON_ARMS := 2048     # WAR-08 Iron Weapons
 const LOOK_COLONNADES := 4096    # STN-12 Ashlar & Columns
 const LOOK_GRAFTING := 8192      # FOR-08 Grafting
 
+## Bits of iron_looks (IronFrame.CivLooks): per civilization, the Iron projects that leave small props.
+const IRON_CAMELS := 1      # HUS-09 Camels & Caravan Animals
+const IRON_RELAYS := 2      # COM-08 Courier Relays
+const IRON_BARRELS := 4     # WOD-07 Cooperage
+const IRON_PLANKS := 8      # WOD-08 Frame & Crosscut Saws
+const IRON_GLASS := 16      # CER-07 Glassblowing
+
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
 const FLAG_SPRING := 4
@@ -66,6 +73,9 @@ var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or op
 var sieges := PackedInt32Array()         # stride 6: settlement index in the sim, besieger civ, engines, seasons, wall integrity (permille), origin tile or -1
 var terrace_tiles := PackedInt32Array()  # tiles of terraced fields (AGR-08)
 var blockades := PackedInt32Array()      # stride 3: blockaded harbor's settlement index in the sim, blockader civ, blockader's origin settlement
+var iron_looks := PackedInt32Array()   # per civilization: IRON_* bits
+var tributes := PackedInt32Array()       # stride 2: overlord civ, subject civ
+var leagues := PackedInt32Array()        # one civilization bit mask per league
 var road_meta := PackedInt32Array()      # stride 4: settlement index, start, length, bridged (paved roads to the capital, TRN-07)
 var road_tiles := PackedInt32Array()     # flat tile list, -1 = a tile of someone else's road that is not in sight
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
@@ -115,6 +125,24 @@ func blockaders_of(sim_index: int) -> Array:
 		if blockades[i] == sim_index:
 			out.append(blockades[i + 1])
 	return out
+
+## Whether a civilization has a small-prop look of the Iron Age (an IRON_* bit).
+func has_iron_look(civ: int, bit: int) -> bool:
+	return civ >= 0 and civ < iron_looks.size() and (iron_looks[civ] & bit) != 0
+
+## Whether a civilization pays tribute (is a subject) and to whom (the overlord, or -1).
+func overlord_of(civ: int) -> int:
+	for i in range(0, tributes.size(), 2):
+		if tributes[i + 1] == civ:
+			return tributes[i]
+	return -1
+
+## Whether a civilization sits in a league.
+func in_league(civ: int) -> bool:
+	for m in leagues:
+		if (int(m) >> civ) & 1 == 1:
+			return true
+	return false
 
 static func civ_color(civ: int) -> Color:
 	if civ < 0:
@@ -193,6 +221,12 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	sieges = _int_data(d.sieges, 6) if d.has("sieges") else PackedInt32Array()
 	terrace_tiles = _int_data(d.terraceTiles, 1) if d.has("terraceTiles") else PackedInt32Array()
 	blockades = _int_data(d.blockades, 3) if d.has("blockades") else PackedInt32Array()
+	iron_looks = _int_data(d.ironLooks, 1) if d.has("ironLooks") else PackedInt32Array()
+	if LOOKS_DEBUG:
+		iron_looks.resize(8)
+		iron_looks.fill(31)
+	tributes = _int_data(d.tributes, 2) if d.has("tributes") else PackedInt32Array()
+	leagues = _int_data(d.leagues, 1) if d.has("leagues") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()
 	road_tiles = _int_data(d.roadTiles, 1) if d.has("roadTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)

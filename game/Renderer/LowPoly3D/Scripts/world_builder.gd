@@ -64,6 +64,8 @@ var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: 
 var beacon_fires: Array = []            # {top, seed}: the Great Lighthouse's fire, for the war rig
 var lighthouse_sites: Array = []        # {p, y}: where each Great Lighthouse stands
 var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenarios' cameras
+var chimney_smokes: Array = []          # {pos, seed}: bathhouse chimneys, for the war rig's smoke
+var relay_sites: Array = []             # {p, y}: the courier relay posts
 var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
@@ -415,13 +417,14 @@ func _structure_digest() -> int:
 			h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 			h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
 			h = h * 31 + int(s.get("facing", 0)) * 19 + hash(w.blockaders_of(int(s.get("index", -1))))
+			h = h * 31 + (w.iron_looks[civ] if civ >= 0 and civ < w.iron_looks.size() else 0) * 23 + w.overlord_of(civ) * 29 + (1 if w.in_league(civ) else 0) * 31
 			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
 		for n in s.structures:
 			h = h * 31 + int(n)
 		h = h * 31 + (1 if _fire_lit(s) else 0)
 		for n in s.get("decor", PackedInt32Array()):
 			h = h * 31 + int(n) + 1
-	h = h * 31 + hash(w.road_meta) + hash(w.road_tiles) + hash(w.terrace_tiles)
+	h = h * 31 + hash(w.road_meta) + hash(w.road_tiles) + hash(w.terrace_tiles) + hash(w.iron_looks)
 	for i in range(0, w.plots.size(), 2):
 		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1] + (field_kind(w.plots[i]) * 3 if w.plots[i + 1] == 0 else 0)
 	for ci in w.camps.size():
@@ -900,6 +903,8 @@ func _settlements() -> void:
 	harbor_sites.clear()
 	forge_sites.clear()
 	frontier_sites.clear()
+	chimney_smokes.clear()
+	relay_sites.clear()
 	aqueduct_sites.clear()
 	beacon_fires.clear()
 	lighthouse_sites.clear()
@@ -1108,6 +1113,8 @@ func _settlements() -> void:
 		# an Iron forge yard (MET-09) and the garrison's drill ground stand inside the ring too
 		decor_extent = maxf(decor_extent, _forge_yard(s, c, h0, seed, rmax, placed))
 		decor_extent = maxf(decor_extent, _drill(s, c, h0, seed, rmax, placed, civ))
+		decor_extent = maxf(decor_extent, _goods(s, c, h0, seed, rmax, placed, civ))
+		decor_extent = maxf(decor_extent, _pacts(si, c, h0, seed, rmax, placed, civ, flagship))
 		decor_extent = maxf(decor_extent, _faith_standards(s, c, h0, seed, rmax, placed))
 		decor_extent = maxf(decor_extent, _province_standards(s, si, c, h0, seed, rmax, placed, cc))
 		# the ring stands round the houses and the landmarks and near props that were laid out with them
@@ -1174,6 +1181,7 @@ func _settlements() -> void:
 				break
 
 	_bridges()
+	_relay_posts()
 
 ## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
 ## (lean-tos and hide tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
@@ -1401,6 +1409,10 @@ func _place_civic(kind: String, s: Dictionary, t: int, c: Vector2, h0: float, se
 	placed.append(tp)
 	placed_r.append(float(spec[4]) / VS)
 	civic_sites.append({"kind": kind, "p": tp, "y": site.y, "yaw": site.yaw, "civ": civ, "seed": seed, "tile": t})
+	if kind == "bathhouse":
+		# its furnace chimney draws (art_works.gd: the stack at (-0.08, 0.2, -0.05)); a thin smoke column rises from it
+		var off: Vector3 = rot_y(float(site.yaw)) * (Vector3(-0.08, 0.205, -0.05) * float(spec[1]))
+		chimney_smokes.append({"pos": Vector3(tp.x + off.x, float(site.y) + off.y, tp.y + off.z), "seed": seed})
 
 const LIGHTHOUSE_SCALE := 1.1
 
@@ -1567,6 +1579,84 @@ func _forge_yard(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float,
 				"mouth": Vector3(q.x + mouth.x, y + mouth.y, q.y + mouth.z), "seed": seed})
 		return q.distance_to(c) + 0.26
 	return 0.0
+
+## The stacks of trade goods a village keeps once it has learned the crafts (Iron Age): barrels (WOD-07), sawn planks (WOD-08) and shelves of blown glass
+## (CER-07), each at its own spot at the edge. Returns how far they reach.
+func _goods(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, civ: int) -> float:
+	if not w.iron_looks.size() > civ or civ < 0:
+		return 0.0
+	var extent := 0.0
+	var specs := [[M7WorldData.IRON_BARRELS, "barrel_stack", 5.3], [M7WorldData.IRON_PLANKS, "plank_stack", 0.9], [M7WorldData.IRON_GLASS, "glass_shelf", 2.9]]
+	for sp in specs:
+		if not w.has_iron_look(civ, int(sp[0])):
+			continue
+		var spot = _edge_spot(c, h0, seed, rmax, placed, float(sp[2]), 0.2)
+		if spot == null:
+			continue
+		var q: Vector2 = spot
+		props.add(String(sp[1]), _xf(q, w.height_at(q), atan2((c - q).x, (c - q).y), 1.35), Color(1, 1, 1, seed))
+		placed.append(q)
+		extent = maxf(extent, q.distance_to(c) + 0.1)
+	return extent
+
+## The pacts of the Iron Age on a civilization's greatest village: the overlord's long banner under a chain (a subject paying tribute, DIP-06), and a league
+## standard (DIP-07), both at the edge.
+func _pacts(si: int, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, civ: int, flagship: Dictionary) -> float:
+	if int(flagship.get(civ, -1)) != si:
+		return 0.0
+	var extent := 0.0
+	var overlord := w.overlord_of(civ)
+	if overlord >= 0:
+		var spot = _edge_spot(c, h0, seed, rmax, placed, 4.4, 0.24)
+		if spot != null:
+			var q: Vector2 = spot
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(overlord), 0.5)
+			props.add("vassal_banner", _xf(q, w.height_at(q), atan2((c - q).x, (c - q).y), 1.35), Color(tint.r, tint.g, tint.b, seed))
+			placed.append(q)
+			extent = q.distance_to(c) + 0.1
+	if w.in_league(civ):
+		var spot2 = _edge_spot(c, h0, seed, rmax, placed, 6.0, 0.24)
+		if spot2 != null:
+			var q2: Vector2 = spot2
+			var tint2 := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
+			props.add("league_standard", _xf(q2, w.height_at(q2), atan2((c - q2).x, (c - q2).y), 1.35), Color(tint2.r, tint2.g, tint2.b, seed))
+			placed.append(q2)
+			extent = maxf(extent, q2.distance_to(c) + 0.1)
+	return extent
+
+## Courier relay posts (COM-08): a small stable with a tethered horse beside a paved road, one every few tiles along it, in the owner's colour.
+func _relay_posts() -> void:
+	for ri in range(0, w.road_meta.size(), 4):
+		var sidx := w.road_meta[ri]
+		if sidx < 0 or sidx >= w.settlements.size():
+			continue
+		var civ := int(w.settlements[sidx].civ)
+		if not w.has_iron_look(civ, M7WorldData.IRON_RELAYS):
+			continue
+		var start := w.road_meta[ri + 1]
+		var length := w.road_meta[ri + 2]
+		var tint := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
+		var j := 3
+		while j < length - 3:
+			var tp := w.road_tiles[start + j - 1]
+			var tc := w.road_tiles[start + j]
+			var tn := w.road_tiles[start + j + 1]
+			j += 6
+			if tp < 0 or tc < 0 or tn < 0:
+				continue
+			var d: Vector2 = (w.tile_center(tn) - w.tile_center(tp)).normalized()
+			var side := d.rotated(PI * 0.5)
+			var road_p := w.tile_center(tc)
+			var q := road_p + side * 0.2
+			var tq := w.tile_at(q)
+			if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.12:
+				q = road_p - side * 0.2
+				tq = w.tile_at(q)
+				if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.12:
+					continue
+			var to_road := road_p - q
+			props.add("relay_post", _xf(q, w.height_at(q), atan2(to_road.x, to_road.y), 1.3), Color(tint.r, tint.g, tint.b, 0.5))
+			relay_sites.append({"p": q, "y": w.height_at(q)})
 
 ## A free spot at the village edge, clear of what is placed, for a small prop: tried round the edge from `phase`. `null` when there is none.
 func _edge_spot(c: Vector2, h0: float, seed: float, rmax: float, placed: Array, phase: float, clear: float = 0.2) -> Variant:

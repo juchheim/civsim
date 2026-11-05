@@ -24,7 +24,20 @@ public sealed partial class FrameBuilder
         f.SiegeCount = f.BlockadeCount = f.TributeCount = f.LeagueCount = 0;
         f.RoadCount = f.RoadTileCount = f.TerraceTileCount = 0;
         for (int k = 0; k < IronFrame.WonderKinds; k++) f.WonderSettlement[k] = -1;
+        if (f.CivLooks.Length < _civs) f.CivLooks = new int[_civs];
+        Array.Clear(f.CivLooks);
         if (!f.Active) return;
+        (string Project, int Bit)[] looks =
+        {
+            ("HUS-09", IronFrame.LookCamels), ("COM-08", IronFrame.LookRelays), ("WOD-07", IronFrame.LookBarrels), ("WOD-08", IronFrame.LookPlanks),
+            ("CER-07", IronFrame.LookGlass),
+        };
+        foreach ((string project, int bit) in looks)
+        {
+            int index = _catalog.IndexOf(project);
+            if (index < 0) continue;
+            for (int c = 0; c < _civs; c++) if (match.Research.IsDone(c, index)) f.CivLooks[c] |= bit;
+        }
 
         f.WorkKinds = LivingEconomyModel.IronWorkKindCount;
         int kinds = f.WorkKinds, n = target.SettlementCount;

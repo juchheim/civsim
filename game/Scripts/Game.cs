@@ -807,6 +807,20 @@ public partial class Game : Node3D
 #if DEBUG
         if (forcedBlockade && forcedHarborAt >= 0) blockades = new[] { frame.SettlementIndex[forcedHarborAt], (Math.Max(0, frame.ViewerCiv) + 1) % 4, 0 };
 #endif
+        // small-prop looks of the Iron Age per civilization, and the tributes and leagues the viewer is party to
+        int[] ironLooks = frame.Iron.Active ? (int[])frame.Iron.CivLooks.Clone() : Array.Empty<int>();
+        int tributeCount = frame.Iron.Active ? frame.Iron.TributeCount : 0;
+        var tributes = new int[tributeCount * 2];
+        for (int i = 0; i < tributeCount; i++) { tributes[i * 2] = frame.Iron.TributeOverlord[i]; tributes[i * 2 + 1] = frame.Iron.TributeSubject[i]; }
+        int[] leagues = frame.Iron.Active ? Slice(frame.Iron.LeagueMembers, frame.Iron.LeagueCount) : Array.Empty<int>();
+#if DEBUG
+        {
+            int viewerCivDev = Math.Max(0, frame.ViewerCiv), nextCiv = (viewerCivDev + 1) % 4;
+            if (HasArgument("--dev-tribute")) tributes = new[] { nextCiv, viewerCivDev };
+            if (HasArgument("--dev-league")) leagues = new[] { (1 << viewerCivDev) | (1 << nextCiv) };
+        }
+#endif
+
         var plots = new int[frame.PlotCount * 2];
         for (int i = 0; i < frame.PlotCount; i++)
         {
@@ -895,6 +909,9 @@ public partial class Game : Node3D
             ["trailMeta"] = trailMeta,
             ["trailTiles"] = Slice(frame.TrailTiles, frame.TrailTileCount),
             ["sieges"] = sieges,
+            ["ironLooks"] = ironLooks,
+            ["tributes"] = tributes,
+            ["leagues"] = leagues,
             ["terraceTiles"] = terraceTiles,
             ["blockades"] = blockades,
             ["viewerCiv"] = frame.ViewerCiv,

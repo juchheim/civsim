@@ -634,7 +634,7 @@ public partial class Game
                 {
                     ("tools", 0.0f, 2.6f, 2.2f), ("tools-close", -0.9f, 2.6f, 1.2f), ("tools-close-b", 0.9f, 2.6f, 1.2f),
                     ("houses", 0.0f, 1.2f, 2.7f), ("teams", 0.0f, -0.1f, 2.7f), ("fields", 0.0f, -1.7f, 3.6f),
-                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f), ("wonders", 0.0f, -13.2f, 3.6f), ("rule", 0.0f, -15.0f, 3.0f), ("trades", 0.0f, -16.8f, 3.4f), ("ships", 0.0f, -18.6f, 3.0f),
+                    ("walls", 0.0f, -3.0f, 2.6f), ("castles", 0.0f, -4.6f, 4.2f), ("travel", 0.0f, -6.4f, 3.4f), ("war", 0.0f, -8.0f, 3.2f), ("works", 0.0f, -9.6f, 3.0f), ("sites", 0.0f, -11.2f, 3.0f), ("wonders", 0.0f, -13.2f, 3.6f), ("rule", 0.0f, -15.0f, 3.0f), ("trades", 0.0f, -16.8f, 3.4f), ("ships", 0.0f, -18.6f, 3.0f), ("props", 0.0f, -20.4f, 3.6f),
                 })
                 {
                     string itemName = item;
@@ -843,6 +843,42 @@ public partial class Game
                     }, 2.5f);
                     Shot($"trades-{(a.Length > 0 ? a : "harbor")}");
                 }
+                break;
+            case "props-village":
+                // --start-minute=30 --viewer=-1 --dev-works --dev-roads --dev-tribute --dev-league --looks-debug (debug builds): the capital with trade-goods stacks, a tribute banner and a
+                // league standard, a bathhouse chimney smoking, relay posts along its roads and camel trains on the trade trails; run with --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(false);
+                    _session.SetSpeedIndex(0);
+                    FrameCapital(true);
+                }, 3.0f);
+                foreach (var (propsShot, propsZoom) in new[] { ("wide", 11.0f), ("village", 5.0f), ("close", 3.2f) })
+                {
+                    float zoom = propsZoom;
+                    string shot = propsShot;
+                    Step(() => { _moveAnimating = false; FrameCapital(true); SetZoom(zoom); }, 2.5f);
+                    Shot($"props-{shot}");
+                }
+                foreach (var kind in new[] { "relay", "bathhouse" })
+                {
+                    string call = kind;
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("works_focus", call);
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(3.0f); }
+                    }, 2.5f);
+                    Shot($"props-{call}");
+                }
+                Step(() =>
+                {
+                    Vector3 at = (Vector3)_visualRenderer!.Call("cart_focus");
+                    if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(2.2f); }
+                }, 2.5f);
+                Shot("props-caravan");
                 break;
             case "iron-life":
                 // --chapter=iron --research-era=5 --start-minute=20: the human civilization is given the first five ages, the sim runs at speed for a

@@ -80,6 +80,27 @@ public sealed class IronViewTests
     }
 
     [Fact]
+    public void The_Iron_prop_looks_follow_each_civilizations_own_projects_and_Bronze_has_none()
+    {
+        var pack = TestPack.WithNumeric("KEY-4", "WOD-07", "COM-08");
+        var catalog = new ResearchCatalog(pack);
+        MatchModel match = MatchModel.Create(Seed, pack, World.Value, Balanced, default, rules: ChapterRules.Iron);
+        var runner = new SimRunner(match);
+        runner.Advance(5);
+        Assert.All(Frame(match, -1).Iron.CivLooks, v => Assert.Equal(0, v));
+        foreach (string project in new[] { "KEY-4", "WOD-07" })
+            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, catalog.IndexOf(project), 0, 0));
+        runner.Advance(2);
+        MatchFrame frame = Frame(match, -1);
+        Assert.Equal(IronFrame.LookBarrels, frame.Iron.CivLooks[0] & (IronFrame.LookBarrels | IronFrame.LookRelays));
+        Assert.Equal(0, frame.Iron.CivLooks[1]);
+
+        (MatchModel bronze, SimRunner bronzeRunner) = Rig(ChapterRules.Bronze);
+        bronzeRunner.Advance(5);
+        Assert.All(Frame(bronze, -1).Iron.CivLooks, v => Assert.Equal(0, v));
+    }
+
+    [Fact]
     public void An_Iron_frame_carries_works_staff_and_Wonders_and_a_Bronze_frame_carries_nothing()
     {
         (MatchModel match, SimRunner runner) = Rig(ChapterRules.Iron);

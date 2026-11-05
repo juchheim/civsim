@@ -252,6 +252,11 @@ func chariot_focus() -> Vector3:
 func works_focus(kind: String) -> Vector3:
 	if builder == null:
 		return Vector3.ZERO
+	if kind == "relay":
+		if builder.relay_sites.is_empty():
+			return Vector3.ZERO
+		var rs: Dictionary = builder.relay_sites[0]
+		return Vector3(rs.p.x, rs.y, rs.p.y)
 	if kind == "frontier":
 		if builder.frontier_sites.is_empty():
 			return Vector3.ZERO
@@ -438,9 +443,9 @@ func show_iron_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(9.0, 33.0)
+	plane.size = Vector2(9.0, 36.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -11.3)
+	floor_mesh.position = Vector3(0.0, -0.01, -12.8)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -479,6 +484,9 @@ func show_iron_gallery() -> Vector3:
 		# AGR-08 / FOR-08 / MEC-05 / MEC-04 / SEA-09: the terraced field, a vineyard, an olive tree, the press, the well and the war galley
 		[["terrace_field", 1.1, 1.0], ["vineyard", 1.1, 1.0], ["olive_tree", 0.4, 1.3], ["olive_tree", 0.4, 1.3]],
 		[["press", 0.6, 1.3], ["windlass_well", 0.4, 1.3], ["galley", 0.9, 1.1]],
+		# COM-08 / HUS-09 / WOD-07 / WOD-08 / CER-07 / DIP-06 / DIP-07: the relay post, a camel train, the stacks of goods, the vassal banner and the league standard
+		[["relay_post", 0.6, 1.3], ["camel_train_a", 0.9, 1.2], ["barrel_stack", 0.4, 1.35], ["plank_stack", 0.4, 1.35], ["glass_shelf", 0.4, 1.35],
+			["vassal_banner", 0.3, 1.35], ["league_standard", 0.3, 1.35]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -486,7 +494,7 @@ func show_iron_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2, -13.2, -15.0, -16.8, -18.6][r]
+		var z: float = [2.6, 1.2, -0.1, -1.7, -3.0, -4.6, -6.4, -8.0, -9.6, -11.2, -13.2, -15.0, -16.8, -18.6, -20.4][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5
@@ -495,9 +503,9 @@ func show_iron_gallery() -> Vector3:
 			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
 			var custom := Color(tint.r, tint.g, tint.b, 0.5)
 			var yaw := 0.0
-			if name.begins_with("person") or name.contains("_team_"):
+			if name.begins_with("person") or name.contains("_team_") or name.contains("_train_"):
 				custom = Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0)
-			if name.contains("_team_"):
+			if name.contains("_team_") or name.contains("_train_"):
 				yaw = PI * 0.5
 			batch.add(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * float(item[2])), Vector3(x, 0.0, z)), custom, false)
 			x += float(item[1]) * 0.5

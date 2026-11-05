@@ -22,7 +22,8 @@ var smoke_factory: Callable
 var holder: Node3D
 var forges: Array = []             # {flame, light, smoke, seed}
 var engines: Array = []            # {arm, stone, site}
-var beacons: Array = []            # {flame, light, smoke, seed}: the Great Lighthouse's fire
+var beacons: Array = []
+var chimneys: Array = []           # {smoke}: bathhouse chimneys            # {flame, light, smoke, seed}: the Great Lighthouse's fire
 var signature := -1
 
 func _init(builder, parent_node: Node3D, smoke_maker: Callable) -> void:
@@ -41,6 +42,8 @@ func sync() -> void:
 		sig = sig * 31 + int(float((f.chimney as Vector3).x) * 1000.0) + int(float((f.chimney as Vector3).z) * 777.0)
 	for bf in b.beacon_fires:
 		sig = sig * 31 + int(float((bf.top as Vector3).x) * 1000.0) + int(float((bf.top as Vector3).z) * 777.0)
+	for ch in b.chimney_smokes:
+		sig = sig * 31 + int(float((ch.pos as Vector3).x) * 1000.0) + int(float((ch.pos as Vector3).z) * 777.0)
 	for e in b.siege_engines:
 		sig = sig * 31 + int(float((e.p as Vector3).x) * 1000.0) + int(float((e.p as Vector3).z) * 777.0) + int(e.k)
 	if sig == signature:
@@ -54,6 +57,14 @@ func sync() -> void:
 	forges.clear()
 	engines.clear()
 	beacons.clear()
+	chimneys.clear()
+	for ch in b.chimney_smokes:
+		var puff: GPUParticles3D = smoke_factory.call()
+		M7SignalRig.thicken_smoke(puff, 0.07, 10, 5.0)
+		puff.amount_ratio = 0.7
+		puff.position = ch.pos
+		holder.add_child(puff)
+		chimneys.append({"smoke": puff})
 	for bf in b.beacon_fires:
 		var flame := MeshInstance3D.new()
 		flame.mesh = b.kit.get_mesh("flame")
