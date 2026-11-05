@@ -2069,7 +2069,7 @@ public sealed partial class LivingEconomyModel
         Fix64 haulDivisor = Done(s.Civilization, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
         Fix64 inRange = Fix64.Zero;
         foreach (int tile in RangeTiles(s.SiteTile))
-            if (IsForestTile(tile) && !IsRivalTile(s.Civilization, tile)) inRange += _woodStock[tile];
+            if (IsForestTile(tile) && !IsRivalTile(s.Civilization, tile)) inRange += StandingWoodAvailableToIron(tile);
         if (planned > Fix64.Zero && inRange > Fix64.Zero)
         {
             Fix64 perBatch = burn + woodPer / plan.MeanChopRate;
@@ -2081,14 +2081,22 @@ public sealed partial class LivingEconomyModel
                 int most = -1;
                 foreach (int tile in RangeTiles(s.SiteTile))
                 {
-                    if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile) || _woodStock[tile] <= Fix64.Zero) continue;
-                    Fix64 take = Fix64.Min(_woodStock[tile], _woodStock[tile] * share);
-                    if (most < 0 || _woodStock[tile] > _woodStock[most]) most = tile;
+                    if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
+                    Fix64 available = StandingWoodAvailableToIron(tile);
+                    if (available <= Fix64.Zero) continue;
+                    Fix64 take = Fix64.Min(available, available * share);
+                    if (most < 0 || available > StandingWoodAvailableToIron(most)) most = tile;
                     RecordB13StandingWoodRemoval(tile, take, "metal", _woodStock[tile]);
                     _woodStock[tile] -= take;
                     taken += take;
                 }
-                if (most >= 0 && taken < wood) { Fix64 rest = Fix64.Min(wood - taken, _woodStock[most]); RecordB13StandingWoodRemoval(most, rest, "metal", _woodStock[most]); _woodStock[most] -= rest; taken += rest; }
+                if (most >= 0 && taken < wood)
+                {
+                    Fix64 rest = Fix64.Min(wood - taken, StandingWoodAvailableToIron(most));
+                    RecordB13StandingWoodRemoval(most, rest, "metal", _woodStock[most]);
+                    _woodStock[most] -= rest;
+                    taken += rest;
+                }
                 Fix64 done = taken / woodPer;
                 SpendLabor(done * perBatch, true, ref metalPool, ref craftPool);
                 made += done;
@@ -2102,10 +2110,12 @@ public sealed partial class LivingEconomyModel
             if (planned <= Fix64.Zero || metalPool + craftPool <= Fix64.Zero) break;
             int distance = HexGrid.Distance(s.SiteTile, tile, _world.Width);
             if (distance <= Radius) continue;
-            if (!IsForestTile(tile) || _woodStock[tile] <= Fix64.Zero || IsRivalTile(s.Civilization, tile)) continue;
+            if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
+            Fix64 available = StandingWoodAvailableToIron(tile);
+            if (available <= Fix64.Zero) continue;
             Fix64 haul = HaulPerLitreTile * distance / haulDivisor;
             Fix64 perBatch = burn + woodPer / plan.MeanChopRate + haul;
-            Fix64 batches = Fix64.Min(planned, _woodStock[tile] / woodPer);
+            Fix64 batches = Fix64.Min(planned, available / woodPer);
             if (perBatch > Fix64.Zero) batches = Fix64.Min(batches, (metalPool + craftPool) / perBatch);
             if (batches <= Fix64.Zero) continue;
             RecordB13StandingWoodRemoval(tile, batches * woodPer, "metal", _woodStock[tile]);
@@ -2120,6 +2130,13 @@ public sealed partial class LivingEconomyModel
         if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * recipe.OutputQuantity;
         AddMetalStat(s.Civilization, StatCharcoalWood, woodUsed);
         return made;
+    }
+
+    /// <summary>Iron wood harvesting, fuel and builds leave each forest tile at or above the game's 5 L cleared-woodland threshold.</summary>
+    private Fix64 StandingWoodAvailableToIron(int tile)
+    {
+        Fix64 reserve = IronChain ? _bronzeConstants.ClearedBelow : Fix64.Zero;
+        return Fix64.Max(Fix64.Zero, _woodStock[tile] - reserve);
     }
 
     /// <summary>Tiles within <paramref name="reach"/> of a site, nearest first, then by id (derived and cached; never state).</summary>
@@ -2221,7 +2238,7 @@ public sealed partial class LivingEconomyModel
             {
                 if (rest <= Fix64.Zero) break;
                 if (!IsForestTile(t)) continue;
-                Fix64 take = Fix64.Min(rest, _woodStock[t]);
+                Fix64 take = Fix64.Min(rest, StandingWoodAvailableToIron(t));
                 RecordB13StandingWoodRemoval(t, take, "metal", _woodStock[t]);
                 _woodStock[t] -= take;
                 rest -= take;
@@ -2636,7 +2653,7 @@ public sealed partial class LivingEconomyModel
         {
             if (got >= amount) break;
             if (!IsForestTile(tile)) continue;
-            Fix64 take = Fix64.Min(amount - got, _woodStock[tile]);
+            Fix64 take = Fix64.Min(amount - got, StandingWoodAvailableToIron(tile));
             if (commit) { RecordB13StandingWoodRemoval(tile, take, "metal", _woodStock[tile]); _woodStock[tile] -= take; }
             got += take;
         }
@@ -2683,14 +2700,15 @@ public sealed partial class LivingEconomyModel
         Fix64 standing = Fix64.Zero;
         bool forest = false;
         foreach (int tile in RangeTiles(s.SiteTile))
-            if (IsForestTile(tile)) { standing += _woodStock[tile]; forest = true; }
+            if (IsForestTile(tile)) { standing += StandingWoodAvailableToIron(tile); forest = true; }
         if (!forest) foreach (int tile in RangeTiles(s.SiteTile)) standing += _woodStock[tile];
         if (standing <= Fix64.Zero) return Fix64.Zero;
         Fix64 want = Fix64.Min(amount, standing), share = want / standing, taken = Fix64.Zero;
         foreach (int tile in RangeTiles(s.SiteTile))
         {
             if (forest && !IsForestTile(tile)) continue;
-            Fix64 take = Fix64.Min(_woodStock[tile], _woodStock[tile] * share);
+            Fix64 available = forest ? StandingWoodAvailableToIron(tile) : _woodStock[tile];
+            Fix64 take = Fix64.Min(available, available * share);
             RecordB13StandingWoodRemoval(tile, take, "chop", _woodStock[tile]);
             _woodStock[tile] -= take;
             taken += take;

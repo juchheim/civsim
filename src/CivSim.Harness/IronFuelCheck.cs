@@ -37,6 +37,8 @@ internal static class IronFuelCheck
         new("iron-low-wood", true, true, 4, false),
         new("iron-low-wood-carts", true, true, 4, false, Carts: true),
         new("iron-low-wood-no-coppice-carts", true, false, 4, false, Carts: true),
+        new("bronze-low-wood-carts", false, true, 4, false, Carts: true),
+        new("bronze-low-wood-no-coppice-carts", false, false, 4, false, Carts: true),
         new("iron-no-coppice", true, false, 13, false),
         new("bronze-no-coppice", false, false, 13, false),
         new("iron-import-loss", true, true, 13, true),
@@ -52,11 +54,12 @@ internal static class IronFuelCheck
         public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShareAt12, IronKitShareAfter12Route, IronRouteWoodRetention, IronKitShare, FuelShortShare, Bloom, Wrought;
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
         public int IronCampBuiltSeason, IronToolsUnlockedSeason, IronRouteActivatedSeason;
+        public int ForestClearThresholdCrossings;
         public ulong Seed;
     }
 
     private sealed record ForestTrace(Fix64 Standing, Fix64 Regrowth, Fix64 MetalRemoved,
-        Fix64 ChopRemoved, Fix64 CivicRemoved, Fix64 OtherRemoved)
+        Fix64 ChopRemoved, Fix64 CivicRemoved, Fix64 OtherRemoved, int ClearThresholdCrossings)
     {
         public Fix64 TotalRemoved => MetalRemoved + ChopRemoved + CivicRemoved + OtherRemoved;
     }
@@ -135,6 +138,21 @@ internal static class IronFuelCheck
         L("work-share screen:");
         foreach (string v in workVerdicts) L("  " + v);
         L();
+        L("Forest clearing diagnostic (tile crossings below the simulation's 5 L cleared-woodland threshold, full run):");
+        L("scenario                       seeds with crossings  total tile crossings  max in one seed");
+        foreach (Scenario sc in Scenarios)
+        {
+            if (!rowsByScenario.TryGetValue(sc.Name, out Dictionary<ulong, Row>? clearRows)) continue;
+            int seedsWithCrossings = 0, totalCrossings = 0, maxCrossings = 0;
+            foreach (Row row in clearRows.Values)
+            {
+                if (row.ForestClearThresholdCrossings > 0) seedsWithCrossings++;
+                totalCrossings += row.ForestClearThresholdCrossings;
+                maxCrossings = Math.Max(maxCrossings, row.ForestClearThresholdCrossings);
+            }
+            L($"{sc.Name,-30} {seedsWithCrossings,3}/{clearRows.Count,-14} {totalCrossings,8} {maxCrossings,19}");
+        }
+        L();
         L("I-T2 sustainable-route checkpoint (12 complete seasons after camp and MET-09 are both available):");
         L("Coverage counts all adult kit holders as a conservative proxy; the proposed I-T2 denominator is tool workers.");
         L("scenario                    route-ready season range  adult T11+ mean/min/max  seeds >=70%  route-wood mean/min");
@@ -158,6 +176,8 @@ internal static class IronFuelCheck
         foreach ((string iron, string bronze) in new[]
                  {
                      ("iron", "bronze-reference"), ("iron-low-wood", "bronze-low-wood"),
+                     ("iron-low-wood-carts", "bronze-low-wood-carts"),
+                     ("iron-low-wood-no-coppice-carts", "bronze-low-wood-no-coppice-carts"),
                      ("iron-no-coppice", "bronze-no-coppice"),
                      ("iron-low-wood-no-coppice", "bronze-low-wood-no-coppice"),
                      ("iron-wood-rich", "bronze-wood-rich"),
@@ -166,6 +186,7 @@ internal static class IronFuelCheck
             if (!rowsByScenario.TryGetValue(iron, out Dictionary<ulong, Row>? ironRows) ||
                 !rowsByScenario.TryGetValue(bronze, out Dictionary<ulong, Row>? bronzeRows)) continue;
             Fix64 deltaFuel = Fix64.Zero, deltaRemoval = Fix64.Zero, deltaAllCuts = Fix64.Zero, deltaRegrowth = Fix64.Zero, deltaWood = Fix64.Zero;
+            Fix64 deltaForestClearings = Fix64.Zero;
             int paired = 0;
             foreach ((ulong seed, Row ir) in ironRows)
             {
@@ -175,12 +196,14 @@ internal static class IronFuelCheck
                 deltaAllCuts += ir.TotalStandingRemoval - br.TotalStandingRemoval;
                 deltaRegrowth += ir.ForestRegrowth - br.ForestRegrowth;
                 deltaWood += Ratio(ir.WoodEnd, ir.WoodStart) - Ratio(br.WoodEnd, br.WoodStart);
+                deltaForestClearings += Fix64.FromInt(ir.ForestClearThresholdCrossings - br.ForestClearThresholdCrossings);
                 paired++;
             }
             if (paired == 0) continue;
             L($"  {iron,-19} vs {bronze,-19} n={paired}: metal-charcoal wood {(deltaFuel / paired).ToDoubleForDisplay():F2} L/season; " +
               $"standing metal removal {(deltaRemoval / paired).ToDoubleForDisplay():F2}, all standing cuts {(deltaAllCuts / paired).ToDoubleForDisplay():F2}; " +
               $"regrowth {(deltaRegrowth / paired).ToDoubleForDisplay():F2}; " +
+              $"clear-threshold crossings {Signed(deltaForestClearings / paired)} /seed; " +
               $"end/start wood delta {(deltaWood / paired).ToDoubleForDisplay():F2}");
         }
         L();
@@ -190,11 +213,12 @@ internal static class IronFuelCheck
                      ("iron", "iron-no-coppice"), ("iron-low-wood", "iron-low-wood-no-coppice"),
                      ("iron-low-wood-carts", "iron-low-wood-no-coppice-carts"),
                      ("bronze-reference", "bronze-no-coppice"), ("bronze-low-wood", "bronze-low-wood-no-coppice"),
+                     ("bronze-low-wood-carts", "bronze-low-wood-no-coppice-carts"),
                  })
         {
             if (!rowsByScenario.TryGetValue(coppiced, out Dictionary<ulong, Row>? coppicedRows) ||
                 !rowsByScenario.TryGetValue(uncoppiced, out Dictionary<ulong, Row>? uncoppicedRows)) continue;
-            Fix64 deltaRegrowth = Fix64.Zero, deltaCuts = Fix64.Zero, deltaRetention = Fix64.Zero;
+            Fix64 deltaRegrowth = Fix64.Zero, deltaCuts = Fix64.Zero, deltaRetention = Fix64.Zero, deltaClearings = Fix64.Zero;
             Fix64 deltaFuelShort = Fix64.Zero, deltaKits = Fix64.Zero;
             int paired = 0;
             foreach ((ulong seed, Row coppicedRow) in coppicedRows)
@@ -203,6 +227,7 @@ internal static class IronFuelCheck
                 deltaRegrowth += coppicedRow.ForestRegrowth - uncoppicedRow.ForestRegrowth;
                 deltaCuts += coppicedRow.TotalStandingRemoval - uncoppicedRow.TotalStandingRemoval;
                 deltaRetention += Ratio(coppicedRow.WoodEnd, coppicedRow.WoodStart) - Ratio(uncoppicedRow.WoodEnd, uncoppicedRow.WoodStart);
+                deltaClearings += Fix64.FromInt(coppicedRow.ForestClearThresholdCrossings - uncoppicedRow.ForestClearThresholdCrossings);
                 deltaFuelShort += uncoppicedRow.FuelShortShare - coppicedRow.FuelShortShare;
                 deltaKits += coppicedRow.IronKitShare - uncoppicedRow.IronKitShare;
                 paired++;
@@ -211,6 +236,7 @@ internal static class IronFuelCheck
             L($"  {coppiced,-28} vs {uncoppiced,-32} n={paired}: regrowth {Signed(deltaRegrowth / paired)} L/season; " +
               $"all standing cuts {Signed(deltaCuts / paired)} L/season; " +
               $"end/start stock {Signed(deltaRetention / paired)}; " +
+              $"clear-threshold crossings {Signed(deltaClearings / paired)} /seed; " +
               $"NoFuel fallback reduction {Signed(deltaFuelShort / paired * Fix64.FromInt(100))} pp; " +
               $"T11+ holder change {Signed(deltaKits / paired * Fix64.FromInt(100))} pp");
         }
@@ -274,6 +300,7 @@ internal static class IronFuelCheck
         row.Share = labor > Fix64.Zero ? (end.MetalLabor - mid.MetalLabor) / labor : Fix64.Zero;
         row.CharcoalWoodPerSeason = (end.CharcoalWood - mid.CharcoalWood + end.FireSettingWood - mid.FireSettingWood) / window;
         row.WoodEnd = woodEnd.Standing;
+        row.ForestClearThresholdCrossings = woodEnd.ClearThresholdCrossings;
         row.FuelShortShare = Fix64.FromRatio(fuelShort, window);
         row.MetalCharcoalWood = (end.CharcoalWood - mid.CharcoalWood) / window;
         row.ForestRegrowth = (woodEnd.Regrowth - woodMid.Regrowth) / window;
@@ -303,6 +330,7 @@ internal static class IronFuelCheck
 
         Fix64 outerRegrowth = Fix64.Zero, outerMetalRemoved = Fix64.Zero;
         Fix64 outerChopRemoved = Fix64.Zero, outerCivicRemoved = Fix64.Zero, outerOtherRemoved = Fix64.Zero;
+        int outerClearThresholdCrossings = 0;
         foreach (B13TileWoodSnapshot tile in economy.CaptureB13TileWoodSnapshots(0))
         {
             if (!outerForestTiles.Contains(tile.Tile)) continue;
@@ -311,10 +339,12 @@ internal static class IronFuelCheck
             outerChopRemoved += tile.ChopRemoved;
             outerCivicRemoved += tile.CivicRemoved;
             outerOtherRemoved += tile.OtherRemoved;
+            outerClearThresholdCrossings += tile.ClearThresholdCrossings;
         }
         return new ForestTrace(local.StandingForestWood + outerStanding,
             local.Regrowth + outerRegrowth, local.MetalRemoved + outerMetalRemoved,
-            local.ChopRemoved + outerChopRemoved, local.CivicRemoved + outerCivicRemoved, local.OtherRemoved + outerOtherRemoved);
+            local.ChopRemoved + outerChopRemoved, local.CivicRemoved + outerCivicRemoved, local.OtherRemoved + outerOtherRemoved,
+            local.ClearThresholdCrossings + outerClearThresholdCrossings);
     }
 
     private static Fix64 Ratio(Fix64 end, Fix64 start) => start <= Fix64.Zero ? Fix64.One : end / start;

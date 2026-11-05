@@ -1,5 +1,7 @@
 # M11 WP6 — Fuel check (I-T6)
 
+**Historical screen:** the later fixed-population, tile-level forest screen in [the 2026-11-05 Iron balance report](m11-iron-balance-screen-2026-11-04.md) supersedes this report's provisional clear-cut verdict and aggregate-only forest measurements. Keep this file as the record of the original throttle decision and its calibration history.
+
 **Gate (25 §14, I-T6):** "Sustainable metal not >15% of civilian work in steady state; no mandatory clear-cut. Full replacement/fuel/haul accounting; stress import loss and low-wood starts."
 
 **Result.** The labor clause passes with a wide margin. The "no mandatory clear-cut" clause is **not met** for a settlement with a modest forest: on the 13-forested-tile fixture the Iron chain strips the standing wood within about 30 years, and it stays safe only with a forest of about 30 tiles. The Bronze economy already thins that small forest, so the Iron chain is not the only cause, but it roughly triples the charcoal draw. This is the warning in [26 §8](../26-e4-iron-specs.md) (fuel is a central risk) showing up in the live economy. No fix has been implemented; options are in §5 and the choice is yours.
