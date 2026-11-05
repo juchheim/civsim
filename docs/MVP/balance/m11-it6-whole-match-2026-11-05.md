@@ -116,9 +116,9 @@ The full output is preserved in [the post-hub screen output](m11-it6-iron-hubs-s
 
 | Measure | Post-hub result | Reading |
 |---|---:|---|
-| Route exposure | 32 seats: 29 mature-qualified, 3 route-censored before the 12-season maturity screen, 0 with no Iron route | Diagnostic only; censored seats are not passes |
+| Route exposure | 32 seats: 29 mature-qualified, 1 route-censored before the 12-season maturity screen, 2 with no MET-09 plus issued-kit exposure | Diagnostic only; censored and no-route seats are not passes |
 | Mature fuel cutoff | 19/29 pass, 10/29 fail | Better than the earlier same-seed screen (17/29 pass, 12/29 fail), but still fails the approved per-seat requirement. Failures cluster in seeds `20261020`, `20261023` and `20261026` |
-| Mature demand aggregate | 179/3,400 eligible settlement-seasons short (5.26%); 271.33/4,883.13 L planned unmet (5.56%) | Pooled rates do not override the per-seat cutoff |
+| Mature demand aggregate | 555/14,934 eligible settlement-seasons short (3.72%); 968.41/14,480.57 L planned unmet (6.69%) | Pooled rates do not override the per-seat cutoff |
 | Mature rolling work windows | 941 windows across 29 seats; maximum 12.58%; 0 above 15% | Passes this eight-seed work-share screen; the earlier screen had one window at 15.20% |
 | Clearing episodes | 1,453 total: 57 chop, 1,396 civic, 0 pre-MET-09 metal, 0 post-MET-09 Iron metal, 0 other | The zero Iron-attributed crossing allowance is met in this diagnostic |
 | Match length | 77.2–83.0 simulated minutes | Natural terminal condition; this remains far below the 80-match acceptance sample |
