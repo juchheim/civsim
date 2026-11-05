@@ -101,5 +101,27 @@ The full harness output is preserved in [the spatial comparison result](m11-it6-
 
 Same-seed Bronze whole matches were capped at 82 minutes but ended naturally after 59.0–64.0 simulated minutes, before the Iron matches. Their total clearing counts are therefore not valid equal-duration controls. No conclusion about Iron *excess total* clearing is drawn from that comparison.
 
-**Disposition:** the accounting ledgers reconcile exactly and the approved Iron-specific clearing allowance had zero observed crossings in this screen. The approved mature work-share screen has one observed exceedance, and the approved fuel screen fails in 12/29 mature seats plus one low-wood fixture seed. One default-reach, no-Coppicing fixture seed is fuel-censored. The eight-match sample is insufficient for final acceptance. I-T6 remains open; the approved cutoffs are fixed for the acceptance run. No production balance parameters were changed by this accounting work.
+**Pre-hub disposition:** the accounting ledgers reconcile exactly and the approved Iron-specific clearing allowance had zero observed crossings in this screen. The approved mature work-share screen had one observed exceedance, and the approved fuel screen failed in 12/29 mature seats plus one low-wood fixture seed. One default-reach, no-Coppicing fixture seed was fuel-censored. The eight-match sample was insufficient for final acceptance. I-T6 remained open; the approved cutoffs were fixed for the acceptance run. No production balance parameters were changed by that accounting work.
+
+## Post-hub catchment diagnostic
+
+The post-KEY-4 Iron fuel hub implementation is recorded in source revision `f0cdfaa` (`Add catchment-aware Iron fuel hubs`). It leaves the approved cutoffs and recipe, reserve, and clearing rules unchanged. The same natural cohort and seed block was rerun with content-pack SHA-256 `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9`:
+
+```sh
+dotnet run --project src/CivSim.Cli -c Release -- build-pack --out /tmp/civsim-iron-hubs.pack
+dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-iron-hubs.pack --seed 20261019 --seeds 8 --it6-accounting
+```
+
+The full output is preserved in [the post-hub screen output](m11-it6-iron-hubs-screen-output-2026-11-05.txt).
+
+| Measure | Post-hub result | Reading |
+|---|---:|---|
+| Route exposure | 32 seats: 29 mature-qualified, 3 route-censored before the 12-season maturity screen, 0 with no Iron route | Diagnostic only; censored seats are not passes |
+| Mature fuel cutoff | 19/29 pass, 10/29 fail | Better than the earlier same-seed screen (17/29 pass, 12/29 fail), but still fails the approved per-seat requirement. Failures cluster in seeds `20261020`, `20261023` and `20261026` |
+| Mature demand aggregate | 179/3,400 eligible settlement-seasons short (5.26%); 271.33/4,883.13 L planned unmet (5.56%) | Pooled rates do not override the per-seat cutoff |
+| Mature rolling work windows | 941 windows across 29 seats; maximum 12.58%; 0 above 15% | Passes this eight-seed work-share screen; the earlier screen had one window at 15.20% |
+| Clearing episodes | 1,453 total: 57 chop, 1,396 civic, 0 pre-MET-09 metal, 0 post-MET-09 Iron metal, 0 other | The zero Iron-attributed crossing allowance is met in this diagnostic |
+| Match length | 77.2–83.0 simulated minutes | Natural terminal condition; this remains far below the 80-match acceptance sample |
+
+All forest, local-wood, combined wood, and kit ledgers reconciled to zero residual in each match. The mature work-share measure improved and two additional seats met both fuel limits, while ten seats still failed the fuel cutoff. Thus catchment hubs and siting improve this diagnostic but do not solve low-wood failures on every map; I-T6 remains open. This is not the acceptance run and does not authorize a cutoff change.
 
