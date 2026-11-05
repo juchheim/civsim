@@ -313,13 +313,13 @@ public partial class Game : Node3D
         return 0;
     }
 
-    /// <summary>Launch option <c>--chapter=iron</c> starts the first match in the Iron Age rules; anything else is Bronze.</summary>
+    /// <summary>Every new match plays through the Iron Age. Launch option <c>--chapter=bronze</c> (development only) starts the first match in the shorter Bronze rules.</summary>
     private static CivSim.Sim.Research.ChapterMode ReadChapter()
     {
         foreach (string arg in OS.GetCmdlineUserArgs())
-            if (string.Equals(arg, "--chapter=iron", StringComparison.OrdinalIgnoreCase))
-                return CivSim.Sim.Research.ChapterMode.Iron;
-        return CivSim.Sim.Research.ChapterMode.Bronze;
+            if (string.Equals(arg, "--chapter=bronze", StringComparison.OrdinalIgnoreCase))
+                return CivSim.Sim.Research.ChapterMode.Bronze;
+        return CivSim.Sim.Research.ChapterMode.Iron;
     }
 
     private static int ReadViewerCiv()

@@ -121,7 +121,7 @@ public partial class Game
 
     private void StartNewMatch(ulong seed) => StartNewMatch(seed, _uiSettings.Difficulty);
 
-    private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode mode = ChapterMode.Bronze)
+    private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode mode = ChapterMode.Iron)
     {
         if (_contentPack is null) return;
         _onboardingSeen = 0;
@@ -133,7 +133,7 @@ public partial class Game
             BeginOpeningHold();
             OpenResearchWeb(-1);
         }
-        ShowToast("New match", ToastKind.Info, $"{(mode == ChapterMode.Iron ? "Iron Age. " : "")}Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
+        ShowToast("New match", ToastKind.Info, $"{(mode == ChapterMode.Iron ? "" : "Bronze Age. ")}Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>
