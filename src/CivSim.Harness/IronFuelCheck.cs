@@ -37,6 +37,8 @@ internal static class IronFuelCheck
         new("bronze-no-coppice", false, false, 13, false),
         new("iron-import-loss", true, true, 13, true),
         new("bronze-low-wood", false, true, 4, false),
+        new("iron-low-wood-no-coppice", true, false, 4, false),
+        new("bronze-low-wood-no-coppice", false, false, 4, false),
         new("iron-wood-rich", true, true, 30, false),
         new("bronze-wood-rich", false, true, 30, false),
     };
@@ -131,7 +133,9 @@ internal static class IronFuelCheck
         foreach ((string iron, string bronze) in new[]
                  {
                      ("iron", "bronze-reference"), ("iron-low-wood", "bronze-low-wood"),
-                     ("iron-no-coppice", "bronze-no-coppice"), ("iron-wood-rich", "bronze-wood-rich"),
+                     ("iron-no-coppice", "bronze-no-coppice"),
+                     ("iron-low-wood-no-coppice", "bronze-low-wood-no-coppice"),
+                     ("iron-wood-rich", "bronze-wood-rich"),
                  })
         {
             if (!rowsByScenario.TryGetValue(iron, out Dictionary<ulong, Row>? ironRows) ||
@@ -153,6 +157,35 @@ internal static class IronFuelCheck
               $"standing metal removal {(deltaRemoval / paired).ToDoubleForDisplay():F2}, all standing cuts {(deltaAllCuts / paired).ToDoubleForDisplay():F2}; " +
               $"regrowth {(deltaRegrowth / paired).ToDoubleForDisplay():F2}; " +
               $"end/start wood delta {(deltaWood / paired).ToDoubleForDisplay():F2}");
+        }
+        L();
+        L("paired Coppicing effect (Coppicing minus no-Coppicing, same seeds):");
+        foreach ((string coppiced, string uncoppiced) in new[]
+                 {
+                     ("iron", "iron-no-coppice"), ("iron-low-wood", "iron-low-wood-no-coppice"),
+                     ("bronze-reference", "bronze-no-coppice"), ("bronze-low-wood", "bronze-low-wood-no-coppice"),
+                 })
+        {
+            if (!rowsByScenario.TryGetValue(coppiced, out Dictionary<ulong, Row>? coppicedRows) ||
+                !rowsByScenario.TryGetValue(uncoppiced, out Dictionary<ulong, Row>? uncoppicedRows)) continue;
+            Fix64 deltaRegrowth = Fix64.Zero, deltaCuts = Fix64.Zero, deltaRetention = Fix64.Zero;
+            Fix64 deltaFuelShort = Fix64.Zero, deltaKits = Fix64.Zero;
+            int paired = 0;
+            foreach ((ulong seed, Row coppicedRow) in coppicedRows)
+            {
+                if (!uncoppicedRows.TryGetValue(seed, out Row? uncoppicedRow)) continue;
+                deltaRegrowth += coppicedRow.ForestRegrowth - uncoppicedRow.ForestRegrowth;
+                deltaCuts += coppicedRow.TotalStandingRemoval - uncoppicedRow.TotalStandingRemoval;
+                deltaRetention += Ratio(coppicedRow.WoodEnd, coppicedRow.WoodStart) - Ratio(uncoppicedRow.WoodEnd, uncoppicedRow.WoodStart);
+                deltaFuelShort += uncoppicedRow.FuelShortShare - coppicedRow.FuelShortShare;
+                deltaKits += coppicedRow.IronKitShare - uncoppicedRow.IronKitShare;
+                paired++;
+            }
+            if (paired == 0) continue;
+            L($"  {coppiced,-28} vs {uncoppiced,-32} n={paired}: regrowth {Signed(deltaRegrowth / paired)} L/season; " +
+              $"all standing cuts {Signed(deltaCuts / paired)} L/season; " +
+              $"end/start stock {Signed(deltaRetention / paired)}; " +
+              $"fuel-short reduction {Signed(deltaFuelShort / paired)} pp; T11+ holder change {Signed(deltaKits / paired)} pp");
         }
         L();
         L("all-cuts counts standing-wood removals attributed to metal, chopping, civic and other use across the charcoal haul radius. mass-resid is Δstock − regrowth + all cuts; 0.000 means the traced forest stock balances over the window.");
@@ -240,6 +273,12 @@ internal static class IronFuelCheck
 
     private static Fix64 Ratio(Fix64 end, Fix64 start) => start <= Fix64.Zero ? Fix64.One : end / start;
     private static string Pct(Fix64 v) => (v * 100).ToDoubleForDisplay().ToString("F1", CultureInfo.InvariantCulture) + "%";
+    private static string Signed(Fix64 v)
+    {
+        double display = v.ToDoubleForDisplay();
+        if (Math.Abs(display) < 0.005) display = 0;
+        return display.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture);
+    }
     private static Fix64 Mean(List<Row> rows, Func<Row, Fix64> f) { Fix64 t = Fix64.Zero; foreach (Row r in rows) t += f(r); return t / rows.Count; }
     private static Fix64 Max(List<Row> rows, Func<Row, Fix64> f) { Fix64 m = f(rows[0]); foreach (Row r in rows) if (f(r) > m) m = f(r); return m; }
     private static Fix64 Min(List<Row> rows, Func<Row, Fix64> f) { Fix64 m = f(rows[0]); foreach (Row r in rows) if (f(r) < m) m = f(r); return m; }
