@@ -400,5 +400,24 @@ internal static class IronMatchCommand
             output.AppendLine($"    mature rolling windows: {rollingWindows} 12-season windows after 12-season route maturity; max share={(rollingWindows == 0 ? "n/a" : Pct(maxRollingShare, Fix64.One))}" +
                 (rollingWindows == 0 ? "" : $" at seasons {maxWindowStart}–{maxWindowEnd}, chain/work={F(maxWindowChain)}/{F(maxWindowWork)} (metal/craft/facility={F(maxWindowMetal)}/{F(maxWindowKitCraft)}/{F(maxWindowFacility)} ws)"));
         }
+        IT6FuelSiteSnapshot[] fuelSites = economy.CaptureIT6FuelSites().Where(x => x.ShortSeasons > 0).OrderByDescending(x => x.Unmet).Take(12).ToArray();
+        if (fuelSites.Length > 0)
+        {
+            output.AppendLine("  fuel-short settlement hotspots (top 12 by unmet charcoal; wood is measured before each short burn, end-state supply is current at match end):");
+            output.AppendLine("    civ site pop short/demand unmet/plan-L mean-reach/usable/in-range/outer/local-wood-at-short-L remaining-work mean-factor baseline/end-reach/end-usable/tiles local-charcoal own/other-settlements-in-reach");
+            foreach (IT6FuelSiteSnapshot site in fuelSites)
+            {
+                Fix64 shortRate = Fix64.FromRatio(site.ShortSeasons, site.DemandSeasons);
+                Fix64 unmetShare = site.Planned > Fix64.Zero ? site.Unmet / site.Planned : Fix64.Zero;
+                Fix64 count = Fix64.FromInt(site.ShortSeasons);
+                output.AppendLine($"    c{site.Civilization} s{site.SettlementId} pop={site.Population} {site.ShortSeasons}/{site.DemandSeasons} ({Pct(shortRate, Fix64.One)}) " +
+                    $"{F(site.Unmet)}/{F(site.Planned)} L ({Pct(unmetShare, Fix64.One)}) " +
+                    $"{F(site.ShortfallReachWood / count)}/{F(site.ShortfallHarvestableWood / count)}/" +
+                    $"{F(site.ShortfallInRangeWood / count)}/{F(site.ShortfallOuterReachWood / count)}/{F(site.ShortfallLocalWood / count)} " +
+                    $"work={F(site.ShortfallRemainingWork / count)} " +
+                    $"factor={Pct(site.ShortfallWoodFactor / count, Fix64.One)} baseline={F(site.ForestBaseline)} end-reach={F(site.ReachWoodNow)}/usable={F(site.HarvestableWoodNow)} on {site.HarvestableForestTiles} tiles " +
+                    $"local-charcoal={F(site.CharcoalStock)} own/other-neighbors={site.OwnSettlementsInReach}/{site.OtherSettlementsInReach}");
+            }
+        }
     }
 }

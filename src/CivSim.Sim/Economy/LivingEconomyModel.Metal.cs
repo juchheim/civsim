@@ -2052,6 +2052,16 @@ public sealed partial class LivingEconomyModel
     {
         fuelShort = false;
         Fix64 plannedCharcoal = planned * recipe.OutputQuantity;
+        bool traceFuelSupply = IT6AccountingTraceEnabled && IronChain && Done(s.Civilization, "MET-09");
+        Fix64 reachableWoodBefore = Fix64.Zero, harvestableWoodBefore = Fix64.Zero;
+        Fix64 inRangeWoodBefore = Fix64.Zero, outerReachWoodBefore = Fix64.Zero;
+        Fix64 localWoodBefore = Fix64.Zero, woodFactorBefore = Fix64.Zero;
+        if (traceFuelSupply)
+        {
+            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore) = IT6ReachWood(s);
+            localWoodBefore = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
+            woodFactorBefore = IronWoodFactor(s, m);
+        }
         Fix64 woodPer = recipe.InputQuantity[0];
         Fix64 burn = RecipeLabor(s, recipe, plan.AnyMetalKit);
         Fix64 made = Fix64.Zero;
@@ -2140,7 +2150,9 @@ public sealed partial class LivingEconomyModel
         }
         if (planned > Fix64.FromRatio(1, 100) && metalPool + craftPool > Fix64.FromRatio(1, 100)) fuelShort = true;
         Fix64 unmetCharcoal = fuelShort ? planned * recipe.OutputQuantity : Fix64.Zero;
-        RecordIT6CharcoalPlan(s.Civilization, plannedCharcoal, unmetCharcoal, Done(s.Civilization, "MET-09"));
+        RecordIT6CharcoalPlan(s, plannedCharcoal, unmetCharcoal, Done(s.Civilization, "MET-09"), fuelShort,
+            reachableWoodBefore, harvestableWoodBefore, inRangeWoodBefore, outerReachWoodBefore,
+            localWoodBefore, metalPool + craftPool, woodFactorBefore);
         if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * recipe.OutputQuantity;
         AddMetalStat(s.Civilization, StatCharcoalWood, woodUsed);
         RecordIT6CharcoalHaul(s.Civilization, haulLabor);

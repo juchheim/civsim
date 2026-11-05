@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
 
@@ -12,6 +14,14 @@ internal readonly record struct IT6AccountingSnapshot(
     Fix64 IronOreMined, Fix64 IronFireSettingWood, Fix64 CharcoalHaulLabor, Fix64 OreHaulLabor, Fix64 IronOreHaulLabor,
     int MetalFuelShortSeasons, int IronEraFuelShortSeasons,
     int IronEraFuelDemandSeasons, Fix64 IronEraCharcoalPlan, Fix64 IronEraCharcoalUnmet);
+
+internal readonly record struct IT6FuelSiteSnapshot(
+    int SettlementId, int Civilization, int Population, int DemandSeasons, int ShortSeasons,
+    Fix64 Planned, Fix64 Unmet, Fix64 ShortfallReachWood, Fix64 ShortfallHarvestableWood,
+    Fix64 ShortfallInRangeWood, Fix64 ShortfallOuterReachWood, Fix64 ShortfallLocalWood,
+    Fix64 ShortfallRemainingWork, Fix64 ShortfallWoodFactor, Fix64 ForestBaseline,
+    Fix64 ReachWoodNow, Fix64 HarvestableWoodNow, int HarvestableForestTiles,
+    Fix64 LocalWoodNow, Fix64 CharcoalStock, int OwnSettlementsInReach, int OtherSettlementsInReach);
 
 public sealed partial class LivingEconomyModel
 {
@@ -26,7 +36,15 @@ public sealed partial class LivingEconomyModel
         public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
     }
 
+    private sealed class IT6FuelSiteFlow
+    {
+        public int DemandSeasons, ShortSeasons;
+        public Fix64 Planned, Unmet, ShortfallReachWood, ShortfallHarvestableWood, ShortfallInRangeWood,
+            ShortfallOuterReachWood, ShortfallLocalWood, ShortfallRemainingWork, ShortfallWoodFactor;
+    }
+
     private IT6CivFlow[]? _it6CivFlows;
+    private Dictionary<int, IT6FuelSiteFlow>? _it6FuelSiteFlows;
     internal bool IT6AccountingTraceEnabled { get; set; }
 
     internal IT6AccountingSnapshot CaptureIT6Accounting(int civilization)
@@ -40,6 +58,58 @@ public sealed partial class LivingEconomyModel
             f.IronFireSettingWood, f.CharcoalHaulLabor, f.OreHaulLabor, f.IronOreHaulLabor,
             f.MetalFuelShortSeasons, f.IronEraFuelShortSeasons,
             f.IronEraFuelDemandSeasons, f.IronEraCharcoalPlan, f.IronEraCharcoalUnmet);
+    }
+
+    internal IReadOnlyList<IT6FuelSiteSnapshot> CaptureIT6FuelSites()
+    {
+        if (!IT6AccountingTraceEnabled || _it6FuelSiteFlows is null) return Array.Empty<IT6FuelSiteSnapshot>();
+        var result = new List<IT6FuelSiteSnapshot>(_it6FuelSiteFlows.Count);
+        foreach ((int settlementId, IT6FuelSiteFlow flow) in _it6FuelSiteFlows)
+        {
+            int settlementIndex = -1;
+            for (int i = 0; i < _settlements.Count; i++)
+                if (_settlements[i].Id == settlementId) { settlementIndex = i; break; }
+            if (settlementIndex < 0) continue;
+            SettlementState s = _settlements[settlementIndex];
+            if (s.Metal is not { } m) continue;
+            (Fix64 raw, Fix64 available, int availableTiles, _, _) = IT6ReachWood(s);
+            int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+            int ownInReach = 0, otherInReach = 0;
+            foreach (SettlementState other in _settlements)
+            {
+                if (other.Id == s.Id || Population(other.Id) <= 0 ||
+                    HexGrid.Distance(s.SiteTile, other.SiteTile, _world.Width) > reach) continue;
+                if (other.Civilization == s.Civilization) ownInReach++;
+                else otherInReach++;
+            }
+            result.Add(new IT6FuelSiteSnapshot(settlementId, s.Civilization, Population(s.Id), flow.DemandSeasons, flow.ShortSeasons,
+                flow.Planned, flow.Unmet, flow.ShortfallReachWood, flow.ShortfallHarvestableWood,
+                flow.ShortfallInRangeWood, flow.ShortfallOuterReachWood, flow.ShortfallLocalWood,
+                flow.ShortfallRemainingWork, flow.ShortfallWoodFactor, m.ForestAtStart, raw, available, availableTiles,
+                Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve), m.Goods[(int)MetalGood.Charcoal],
+                ownInReach, otherInReach));
+        }
+        return result;
+    }
+
+    private (Fix64 Raw, Fix64 Harvestable, int Tiles, Fix64 InRange, Fix64 OuterReach) IT6ReachWood(SettlementState s)
+    {
+        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        Fix64 raw = Fix64.Zero, harvestable = Fix64.Zero, inRange = Fix64.Zero, outerReach = Fix64.Zero;
+        int tiles = 0;
+        foreach (int tile in ReachTiles(s.SiteTile, reach))
+        {
+            if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
+            Fix64 stock = _woodStock[tile];
+            raw += stock;
+            Fix64 available = StandingWoodAvailableToIron(tile);
+            if (available <= Fix64.Zero) continue;
+            harvestable += available;
+            if (HexGrid.Distance(s.SiteTile, tile, _world.Width) <= Radius) inRange += available;
+            else outerReach += available;
+            tiles++;
+        }
+        return (raw, harvestable, tiles, inRange, outerReach);
     }
 
     private IT6CivFlow IT6Flow(int civilization)
@@ -124,12 +194,29 @@ public sealed partial class LivingEconomyModel
         if (ironEra) flow.IronEraFuelShortSeasons++;
     }
 
-    private void RecordIT6CharcoalPlan(int civilization, Fix64 planned, Fix64 unmet, bool ironEra)
+    private void RecordIT6CharcoalPlan(SettlementState settlement, Fix64 planned, Fix64 unmet, bool ironEra,
+        bool fuelShort, Fix64 reachableWood, Fix64 harvestableWood, Fix64 inRangeWood, Fix64 outerReachWood,
+        Fix64 localWood, Fix64 remainingWork, Fix64 woodFactor)
     {
         if (!IT6AccountingTraceEnabled || !IronChain || !ironEra || planned <= Fix64.Zero) return;
-        IT6CivFlow flow = IT6Flow(civilization);
+        IT6CivFlow flow = IT6Flow(settlement.Civilization);
         flow.IronEraFuelDemandSeasons++;
         flow.IronEraCharcoalPlan += planned;
         flow.IronEraCharcoalUnmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));
+        _it6FuelSiteFlows ??= new Dictionary<int, IT6FuelSiteFlow>();
+        if (!_it6FuelSiteFlows.TryGetValue(settlement.Id, out IT6FuelSiteFlow? site))
+            _it6FuelSiteFlows.Add(settlement.Id, site = new IT6FuelSiteFlow());
+        site.DemandSeasons++;
+        site.Planned += planned;
+        site.Unmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));
+        if (!fuelShort) return;
+        site.ShortSeasons++;
+        site.ShortfallReachWood += reachableWood;
+        site.ShortfallHarvestableWood += harvestableWood;
+        site.ShortfallInRangeWood += inRangeWood;
+        site.ShortfallOuterReachWood += outerReachWood;
+        site.ShortfallLocalWood += localWood;
+        site.ShortfallRemainingWork += remainingWork;
+        site.ShortfallWoodFactor += woodFactor;
     }
 }
