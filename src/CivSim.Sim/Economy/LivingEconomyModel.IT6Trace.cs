@@ -10,7 +10,8 @@ internal readonly record struct IT6AccountingSnapshot(
     Fix64 Kit11ToolWork, Fix64 Kit12ToolWork, int Kit11Breaks, int Kit12Breaks, int Kit11Upgrades,
     Fix64 KitRecipeLabor, Fix64 MetalFacilityBuildLabor, Fix64 IronRecipeCharcoal,
     Fix64 IronOreMined, Fix64 IronFireSettingWood, Fix64 CharcoalHaulLabor, Fix64 OreHaulLabor, Fix64 IronOreHaulLabor,
-    int MetalFuelShortSeasons, int IronEraFuelShortSeasons);
+    int MetalFuelShortSeasons, int IronEraFuelShortSeasons,
+    int IronEraFuelDemandSeasons, Fix64 IronEraCharcoalPlan, Fix64 IronEraCharcoalUnmet);
 
 public sealed partial class LivingEconomyModel
 {
@@ -21,7 +22,8 @@ public sealed partial class LivingEconomyModel
         public int Kit11Breaks, Kit12Breaks, Kit11Upgrades;
         public Fix64 KitRecipeLabor, MetalFacilityBuildLabor, IronRecipeCharcoal;
         public Fix64 IronOreMined, IronFireSettingWood, CharcoalHaulLabor, OreHaulLabor, IronOreHaulLabor;
-        public int MetalFuelShortSeasons, IronEraFuelShortSeasons;
+        public int MetalFuelShortSeasons, IronEraFuelShortSeasons, IronEraFuelDemandSeasons;
+        public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
     }
 
     private IT6CivFlow[]? _it6CivFlows;
@@ -36,7 +38,8 @@ public sealed partial class LivingEconomyModel
             f.Kit11ToolWork, f.Kit12ToolWork, f.Kit11Breaks, f.Kit12Breaks, f.Kit11Upgrades,
             f.KitRecipeLabor, f.MetalFacilityBuildLabor, f.IronRecipeCharcoal, f.IronOreMined,
             f.IronFireSettingWood, f.CharcoalHaulLabor, f.OreHaulLabor, f.IronOreHaulLabor,
-            f.MetalFuelShortSeasons, f.IronEraFuelShortSeasons);
+            f.MetalFuelShortSeasons, f.IronEraFuelShortSeasons,
+            f.IronEraFuelDemandSeasons, f.IronEraCharcoalPlan, f.IronEraCharcoalUnmet);
     }
 
     private IT6CivFlow IT6Flow(int civilization)
@@ -119,5 +122,14 @@ public sealed partial class LivingEconomyModel
         IT6CivFlow flow = IT6Flow(civilization);
         flow.MetalFuelShortSeasons++;
         if (ironEra) flow.IronEraFuelShortSeasons++;
+    }
+
+    private void RecordIT6CharcoalPlan(int civilization, Fix64 planned, Fix64 unmet, bool ironEra)
+    {
+        if (!IT6AccountingTraceEnabled || !IronChain || !ironEra || planned <= Fix64.Zero) return;
+        IT6CivFlow flow = IT6Flow(civilization);
+        flow.IronEraFuelDemandSeasons++;
+        flow.IronEraCharcoalPlan += planned;
+        flow.IronEraCharcoalUnmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));
     }
 }

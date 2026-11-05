@@ -10,6 +10,13 @@ using CivSim.Sim.World;
 
 namespace CivSim.Harness;
 
+internal static class IT6FuelGate
+{
+    public static readonly Fix64 MaxShortRate = Fix64.FromRatio(5, 100);
+    public static readonly Fix64 MaxUnmetPlanShare = Fix64.FromRatio(1, 100);
+    public const int MinDemandSeasons = 12;
+}
+
 /// <summary>
 /// The fuel check of docs/MVP/25 I-T6 on the live economy: "sustainable metal is not more than 15% of civilian work in steady state, and
 /// no mandatory clear-cut", measured on one-settlement fixtures in the Iron chapter against the same settlement in the Bronze chapter,
@@ -53,6 +60,8 @@ internal static class IronFuelCheck
     {
         public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShareAt12, IronKitShareAfter12Route,
             IronRouteWoodRetention, IronKitShare14To44AtRoute, IronKitShare45PlusAtRoute, IronKitShare, FuelShortShare, Bloom, Wrought;
+        public int IronEraFuelDemandSeasons, IronEraFuelShortSeasons;
+        public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
         public int IronCampBuiltSeason, IronToolsUnlockedSeason, IronRouteActivatedSeason, IronFirstKitSeason;
         public int ForestClearThresholdCrossings;
@@ -134,6 +143,29 @@ internal static class IronFuelCheck
             L($"{sc.Name,-19} {rows.Count + (skipped > 0 ? "/" + seeds.Count : ""),5}  {Pct(meanShare),7} / {Pct(maxShare),-7}       {meanWood.ToDoubleForDisplay(),5:F2} L       {meanRegrowth.ToDoubleForDisplay(),5:F2} L       {meanAllCuts.ToDoubleForDisplay(),5:F2} L      {meanResidual.ToDoubleForDisplay(),6:F3} L       {meanMetalCharcoal.ToDoubleForDisplay(),5:F2} L         {meanMetalCut.ToDoubleForDisplay(),5:F2} L          {meanRatio.ToDoubleForDisplay(),5:F2} / {minRatio.ToDoubleForDisplay(),-5:F2}        {meanSteady.ToDoubleForDisplay(),5:F2}     {Pct(meanShort),5}/{Pct(maxShort),-5}      {Pct(meanKitsAt12),4}/{Pct(meanKitsAfter12Route),4}/{Pct(meanKits),4}     {meanBloom.ToDoubleForDisplay():F2}");
             bool shareOk = maxShare <= ShareCeiling;
             workVerdicts.Add($"{sc.Name}: work share {(shareOk ? "within" : "ABOVE")} {Pct(ShareCeiling)} on every seed (max {Pct(maxShare)})");
+        }
+        L();
+        L("I-T6 planned-charcoal shortfall (final half; demand-seasons count only seasons with a positive charcoal-production plan after existing charcoal stock):");
+        L($"approved per-seed cutoff: shortfall rate <= {Pct(IT6FuelGate.MaxShortRate)} and unmet / planned charcoal <= {Pct(IT6FuelGate.MaxUnmetPlanShare)}; fewer than {IT6FuelGate.MinDemandSeasons} demand-seasons is censored");
+        L("scenario                  plan demand seasons mean/max  shortfall rate mean/max  planned charcoal mean L/seed  unmet mean L/seed  unmet share mean/max");
+        foreach (Scenario sc in Scenarios)
+        {
+            if (!sc.Iron || !rowsByScenario.TryGetValue(sc.Name, out Dictionary<ulong, Row>? fuelRows)) continue;
+            var rows = new List<Row>(fuelRows.Values);
+            Fix64 meanShortRate = Mean(rows, FuelShortRate), maxShortRate = Max(rows, FuelShortRate);
+            Fix64 meanUnmetShare = Mean(rows, FuelUnmetShare), maxUnmetShare = Max(rows, FuelUnmetShare);
+            L($"{sc.Name,-25} {Mean(rows, r => Fix64.FromInt(r.IronEraFuelDemandSeasons)).ToDoubleForDisplay(),6:F1}/{Max(rows, r => Fix64.FromInt(r.IronEraFuelDemandSeasons)).ToDoubleForDisplay(),-6:F0}         " +
+              $"{Pct(meanShortRate),6}/{Pct(maxShortRate),-6}        {Mean(rows, r => r.IronEraCharcoalPlan).ToDoubleForDisplay(),8:F2}            " +
+              $"{Mean(rows, r => r.IronEraCharcoalUnmet).ToDoubleForDisplay(),8:F2}       {Pct(meanUnmetShare),6}/{Pct(maxUnmetShare),-6}");
+            int fuelPass = 0, fuelCensored = 0;
+            foreach (Row row in rows)
+            {
+                if (row.IronEraFuelDemandSeasons < IT6FuelGate.MinDemandSeasons) fuelCensored++;
+                else if (FuelShortRate(row) <= IT6FuelGate.MaxShortRate && FuelUnmetShare(row) <= IT6FuelGate.MaxUnmetPlanShare) fuelPass++;
+                else L($"  cutoff miss seed {row.Seed}: short {row.IronEraFuelShortSeasons}/{row.IronEraFuelDemandSeasons} ({Pct(FuelShortRate(row))}); " +
+                      $"unmet {row.IronEraCharcoalUnmet.ToDoubleForDisplay():F4}/{row.IronEraCharcoalPlan.ToDoubleForDisplay():F4} L ({Pct(FuelUnmetShare(row))})");
+            }
+            L($"  per-seed cutoff: {fuelPass}/{rows.Count - fuelCensored} eligible pass; {fuelCensored} censored");
         }
         L();
         L("work-share screen:");
@@ -257,12 +289,14 @@ internal static class IronFuelCheck
             sc.Carts ? new[] { "MET-08", "MET-09", "TRN-05" } : new[] { "MET-08", "MET-09" });
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
+        e.IT6AccountingTraceEnabled = sc.Iron;
         int window = seasons / 2;
         int charcoalReach = sc.Carts ? FuelFixtureCartCharcoalReach : FuelFixtureCharcoalReach;
         HashSet<int> outerForestTiles = new();
         ForestTrace woodStart = CaptureReachableWood(e, -1, outerForestTiles, charcoalReach);
         var row = new Row { Seed = seed, WoodStart = woodStart.Standing };
         MetalStatistics mid = default;
+        IT6AccountingSnapshot fuelMid = default;
         ForestTrace woodMid = default!, woodEnd = default!;
         int fuelShort = 0;
         int ironCampBuiltSeason = 0, ironToolsUnlockedSeason = 0, ironRouteActivatedSeason = 0, ironFirstKitSeason = 0;
@@ -286,6 +320,7 @@ internal static class IronFuelCheck
             if (s == window - 1)
             {
                 mid = e.MetalStats(0);
+                fuelMid = e.CaptureIT6Accounting(0);
                 woodMid = CaptureReachableWood(e, s, outerForestTiles, charcoalReach);
                 row.WoodMid = woodMid.Standing;
             }
@@ -301,12 +336,17 @@ internal static class IronFuelCheck
             if (s >= window && e.Metal(BronzeFixture.Settlement).Reason == MethodFallbackReason.NoFuel) fuelShort++;
         }
         MetalStatistics end = e.MetalStats(0);
+        IT6AccountingSnapshot fuelEnd = e.CaptureIT6Accounting(0);
         Fix64 labor = end.Labor - mid.Labor;
         row.Share = labor > Fix64.Zero ? (end.MetalLabor - mid.MetalLabor) / labor : Fix64.Zero;
         row.CharcoalWoodPerSeason = (end.CharcoalWood - mid.CharcoalWood + end.FireSettingWood - mid.FireSettingWood) / window;
         row.WoodEnd = woodEnd.Standing;
         row.ForestClearThresholdCrossings = woodEnd.ClearThresholdCrossings;
         row.FuelShortShare = Fix64.FromRatio(fuelShort, window);
+        row.IronEraFuelDemandSeasons = fuelEnd.IronEraFuelDemandSeasons - fuelMid.IronEraFuelDemandSeasons;
+        row.IronEraFuelShortSeasons = fuelEnd.IronEraFuelShortSeasons - fuelMid.IronEraFuelShortSeasons;
+        row.IronEraCharcoalPlan = fuelEnd.IronEraCharcoalPlan - fuelMid.IronEraCharcoalPlan;
+        row.IronEraCharcoalUnmet = fuelEnd.IronEraCharcoalUnmet - fuelMid.IronEraCharcoalUnmet;
         row.MetalCharcoalWood = (end.CharcoalWood - mid.CharcoalWood) / window;
         row.ForestRegrowth = (woodEnd.Regrowth - woodMid.Regrowth) / window;
         row.MetalStandingRemoval = (woodEnd.MetalRemoved - woodMid.MetalRemoved) / window;
@@ -354,6 +394,12 @@ internal static class IronFuelCheck
     }
 
     private static Fix64 Ratio(Fix64 end, Fix64 start) => start <= Fix64.Zero ? Fix64.One : end / start;
+    private static Fix64 FuelShortRate(Row row) => row.IronEraFuelDemandSeasons > 0
+        ? Fix64.FromRatio(row.IronEraFuelShortSeasons, row.IronEraFuelDemandSeasons)
+        : Fix64.Zero;
+    private static Fix64 FuelUnmetShare(Row row) => row.IronEraCharcoalPlan > Fix64.Zero
+        ? row.IronEraCharcoalUnmet / row.IronEraCharcoalPlan
+        : Fix64.Zero;
     private static string SeasonRange(List<Row> rows, Func<Row, int> season)
     {
         int min = season(rows[0]), max = min;

@@ -2051,6 +2051,7 @@ public sealed partial class LivingEconomyModel
         ref Fix64 metalPool, ref Fix64 craftPool, out bool fuelShort)
     {
         fuelShort = false;
+        Fix64 plannedCharcoal = planned * recipe.OutputQuantity;
         Fix64 woodPer = recipe.InputQuantity[0];
         Fix64 burn = RecipeLabor(s, recipe, plan.AnyMetalKit);
         Fix64 made = Fix64.Zero;
@@ -2138,6 +2139,8 @@ public sealed partial class LivingEconomyModel
             m.ClampTile = tile;
         }
         if (planned > Fix64.FromRatio(1, 100) && metalPool + craftPool > Fix64.FromRatio(1, 100)) fuelShort = true;
+        Fix64 unmetCharcoal = fuelShort ? planned * recipe.OutputQuantity : Fix64.Zero;
+        RecordIT6CharcoalPlan(s.Civilization, plannedCharcoal, unmetCharcoal, Done(s.Civilization, "MET-09"));
         if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * recipe.OutputQuantity;
         AddMetalStat(s.Civilization, StatCharcoalWood, woodUsed);
         RecordIT6CharcoalHaul(s.Civilization, haulLabor);
