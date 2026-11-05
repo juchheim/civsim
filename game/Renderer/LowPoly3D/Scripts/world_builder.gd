@@ -948,7 +948,7 @@ func _draw_plots(terrace_set: Dictionary) -> void:
 		var hv := M7WorldData.hash01(xy.x, xy.y, 301)
 		var h := w.height_at(p)
 		if kind == 0:
-			var mesh := "terrace_field" if terrace_set.has(tile) else FIELD_MESHES[field_kind(tile)]
+			var mesh: String = "terrace_field" if terrace_set.has(tile) else FIELD_MESHES[field_kind(tile)]
 			var angle := 0.0 if terrace_set.has(tile) else PI / 3.0 * int(hv * 3.0)
 			props.add(mesh, _xf(p, h, angle, scale), Color(1, 1, 1, hv))
 		elif w.has_look(int(w.owner[tile]), M7WorldData.LOOK_GRAFTING) and hv < 0.45:
