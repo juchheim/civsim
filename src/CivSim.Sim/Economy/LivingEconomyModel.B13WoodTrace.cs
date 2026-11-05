@@ -14,7 +14,11 @@ internal readonly record struct B13WoodSnapshot(int SettlementId, int Civilizati
 
 internal readonly record struct B13TileWoodSnapshot(int Tile, Fix64 Initial, Fix64 Standing, Fix64 Regrowth,
     Fix64 ChopRemoved, Fix64 MetalRemoved, Fix64 CivicRemoved, Fix64 OtherRemoved,
-    Fix64 ClearThresholdRemoval, int ClearThresholdCrossings, int[] OverlappingSettlements);
+    Fix64 ClearThresholdRemoval, int ClearThresholdCrossings,
+    Fix64 ChopClearThresholdRemoval, Fix64 MetalClearThresholdRemoval, Fix64 CivicClearThresholdRemoval, Fix64 OtherClearThresholdRemoval,
+    int ChopClearThresholdCrossings, int MetalClearThresholdCrossings, int CivicClearThresholdCrossings, int OtherClearThresholdCrossings,
+    Fix64 IronRemoved, Fix64 IronClearThresholdRemoval, int IronClearThresholdCrossings,
+    int ForestState, int[] OverlappingSettlements);
 
 internal readonly record struct B13OuterWoodSnapshot(int SettlementId, int Civilization, int Season, int Tile,
     Fix64 Standing, int Distance, bool IsForest, int[] Competitors);
@@ -29,8 +33,11 @@ public sealed partial class LivingEconomyModel
 
     private sealed class B13TileWoodFlow
     {
-        public Fix64 Regrowth, ChopRemoved, MetalRemoved, CivicRemoved, OtherRemoved, ClearThresholdRemoval;
-        public int ClearThresholdCrossings;
+        public Fix64 Regrowth, ChopRemoved, MetalRemoved, CivicRemoved, OtherRemoved, IronRemoved, ClearThresholdRemoval;
+        public Fix64 ChopClearThresholdRemoval, MetalClearThresholdRemoval, CivicClearThresholdRemoval, OtherClearThresholdRemoval;
+        public Fix64 IronClearThresholdRemoval;
+        public int ClearThresholdCrossings, ChopClearThresholdCrossings, MetalClearThresholdCrossings, CivicClearThresholdCrossings, OtherClearThresholdCrossings;
+        public int IronClearThresholdCrossings;
     }
 
     private SortedList<int, B13LocalWoodFlow>? _b13LocalWoodFlows;
@@ -90,7 +97,13 @@ public sealed partial class LivingEconomyModel
             tiles.Add(new B13TileWoodSnapshot(tile, initial, _woodStock[tile], f?.Regrowth ?? Fix64.Zero,
                 f?.ChopRemoved ?? Fix64.Zero, f?.MetalRemoved ?? Fix64.Zero, f?.CivicRemoved ?? Fix64.Zero,
                 f?.OtherRemoved ?? Fix64.Zero, f?.ClearThresholdRemoval ?? Fix64.Zero,
-                f?.ClearThresholdCrossings ?? 0, overlaps.ToArray()));
+                f?.ClearThresholdCrossings ?? 0,
+                f?.ChopClearThresholdRemoval ?? Fix64.Zero, f?.MetalClearThresholdRemoval ?? Fix64.Zero,
+                f?.CivicClearThresholdRemoval ?? Fix64.Zero, f?.OtherClearThresholdRemoval ?? Fix64.Zero,
+                f?.ChopClearThresholdCrossings ?? 0, f?.MetalClearThresholdCrossings ?? 0,
+                f?.CivicClearThresholdCrossings ?? 0, f?.OtherClearThresholdCrossings ?? 0,
+                f?.IronRemoved ?? Fix64.Zero, f?.IronClearThresholdRemoval ?? Fix64.Zero, f?.IronClearThresholdCrossings ?? 0,
+                _forestState[tile], overlaps.ToArray()));
         }
         return tiles;
     }
@@ -162,6 +175,9 @@ public sealed partial class LivingEconomyModel
         return flow;
     }
 
+    private string B13MetalWoodCause(SettlementState settlement)
+        => IronChain && Done(settlement.Civilization, "MET-09") ? "iron" : "metal";
+
     private void RecordB13WoodRegrowth(int tile, Fix64 amount)
     {
         if (!B13WoodTraceEnabled || amount <= Fix64.Zero || !IsForestTile(tile)) return;
@@ -177,6 +193,7 @@ public sealed partial class LivingEconomyModel
         switch (category)
         {
             case "chop": flow.ChopRemoved += amount; break;
+            case "iron": flow.MetalRemoved += amount; flow.IronRemoved += amount; break;
             case "metal": flow.MetalRemoved += amount; break;
             case "civic": flow.CivicRemoved += amount; break;
             default: flow.OtherRemoved += amount; break;
@@ -186,6 +203,14 @@ public sealed partial class LivingEconomyModel
         {
             flow.ClearThresholdCrossings++;
             flow.ClearThresholdRemoval += amount;
+            switch (category)
+            {
+                case "chop": flow.ChopClearThresholdCrossings++; flow.ChopClearThresholdRemoval += amount; break;
+                case "iron": flow.MetalClearThresholdCrossings++; flow.MetalClearThresholdRemoval += amount; flow.IronClearThresholdCrossings++; flow.IronClearThresholdRemoval += amount; break;
+                case "metal": flow.MetalClearThresholdCrossings++; flow.MetalClearThresholdRemoval += amount; break;
+                case "civic": flow.CivicClearThresholdCrossings++; flow.CivicClearThresholdRemoval += amount; break;
+                default: flow.OtherClearThresholdCrossings++; flow.OtherClearThresholdRemoval += amount; break;
+            }
         }
     }
 }

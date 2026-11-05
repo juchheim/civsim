@@ -355,8 +355,14 @@ public sealed partial class LivingEconomyModel
         {
             FigureState f = _figures[i];
             if (f.SettlementId != s.Id || f.Kit == 0) continue;
+            int wornTier = f.Kit;
+            RecordIT6IronKitWork(civ, wornTier, toolWork[i]);
             f.KitLeft -= toolWork[i];
-            if (f.KitLeft <= KitBreakLeft(f.Kit)) { f.Kit = 0; f.KitLeft = Fix64.Zero; }
+            if (f.KitLeft <= KitBreakLeft(f.Kit))
+            {
+                RecordIT6IronKitBreak(civ, wornTier);
+                f.Kit = 0; f.KitLeft = Fix64.Zero;
+            }
         }
         // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
         if (IronChain) IssueIronKits(s, m);
@@ -1897,6 +1903,7 @@ public sealed partial class LivingEconomyModel
         }
         if (traceSettlement) MetalDebug!.AppendLine();
         m.FuelShortSeasons = fuelShort ? m.FuelShortSeasons + 1 : 0;
+        RecordIT6FuelShort(civ, fuelShort, Done(civ, "MET-09"));
         if (arsenic && Done(civ, "MET-04"))
             foreach (FigureState f in _figures)
                 if (f.SettlementId == s.Id && f.Task == MetalTask.Smelt) f.Task = MetalTask.SmeltArsenic;
@@ -1924,6 +1931,7 @@ public sealed partial class LivingEconomyModel
         // T17 counts mining, charcoal and smelting (22 §5.6); building the forge and furnaces is construction.
         AddMetalStat(civ, StatMetalLabor, plan.MineAssigned + plan.CharcoalAssigned + plan.SmeltAssigned - idleMetal + plan.CampWork);
         AddMetalStat(civ, StatPeopleSeasons, Fix64.FromInt(Population(s.Id)));
+        RecordIT6MetalFacilityBuild(civ, plan.BuildAssigned);
         OpenCampsIfNeeded(s, plan, season);
     }
 
@@ -2003,6 +2011,7 @@ public sealed partial class LivingEconomyModel
             if (q > Fix64.Zero) batches = Fix64.Min(batches, have / q);
         }
         if (batches <= Fix64.Zero) return Fix64.Zero;
+        RecordIT6Recipe(s, recipe, batches);
         for (int i = 0; i < recipe.InputSlots.Length; i++)
         {
             Fix64 need = batches * InputQuantity(s, recipe, i);
@@ -2046,6 +2055,7 @@ public sealed partial class LivingEconomyModel
         Fix64 burn = RecipeLabor(s, recipe, plan.AnyMetalKit);
         Fix64 made = Fix64.Zero;
         Fix64 woodUsed = Fix64.Zero;
+        Fix64 haulLabor = Fix64.Zero;
         // From cut wood first.
         Fix64 stored = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
         if (stored > Fix64.Zero && planned > Fix64.Zero)
@@ -2086,14 +2096,14 @@ public sealed partial class LivingEconomyModel
                     if (available <= Fix64.Zero) continue;
                     Fix64 take = Fix64.Min(available, available * share);
                     if (most < 0 || available > StandingWoodAvailableToIron(most)) most = tile;
-                    RecordB13StandingWoodRemoval(tile, take, "metal", _woodStock[tile]);
+                    RecordB13StandingWoodRemoval(tile, take, B13MetalWoodCause(s), _woodStock[tile]);
                     _woodStock[tile] -= take;
                     taken += take;
                 }
                 if (most >= 0 && taken < wood)
                 {
                     Fix64 rest = Fix64.Min(wood - taken, StandingWoodAvailableToIron(most));
-                    RecordB13StandingWoodRemoval(most, rest, "metal", _woodStock[most]);
+                    RecordB13StandingWoodRemoval(most, rest, B13MetalWoodCause(s), _woodStock[most]);
                     _woodStock[most] -= rest;
                     taken += rest;
                 }
@@ -2118,17 +2128,19 @@ public sealed partial class LivingEconomyModel
             Fix64 batches = Fix64.Min(planned, available / woodPer);
             if (perBatch > Fix64.Zero) batches = Fix64.Min(batches, (metalPool + craftPool) / perBatch);
             if (batches <= Fix64.Zero) continue;
-            RecordB13StandingWoodRemoval(tile, batches * woodPer, "metal", _woodStock[tile]);
+            RecordB13StandingWoodRemoval(tile, batches * woodPer, B13MetalWoodCause(s), _woodStock[tile]);
             _woodStock[tile] -= batches * woodPer;
             SpendLabor(batches * perBatch, true, ref metalPool, ref craftPool);
             made += batches;
             woodUsed += batches * woodPer;
+            haulLabor += batches * haul;
             planned -= batches;
             m.ClampTile = tile;
         }
         if (planned > Fix64.FromRatio(1, 100) && metalPool + craftPool > Fix64.FromRatio(1, 100)) fuelShort = true;
         if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * recipe.OutputQuantity;
         AddMetalStat(s.Civilization, StatCharcoalWood, woodUsed);
+        RecordIT6CharcoalHaul(s.Civilization, haulLabor);
         return made;
     }
 
@@ -2223,6 +2235,7 @@ public sealed partial class LivingEconomyModel
     {
         MetalState m = s.Metal!;
         MetalGood good = OreGood(_world.Deposit(tile).Kind)!.Value;
+        Fix64 ironFireWood = Fix64.Zero;
         Fix64 litres = Fix64.Min(want, Fix64.Min(_ore[tile], productive * rate));
         if (litres <= Fix64.Zero) return Fix64.Zero;
         MineRate(s.Civilization, tile, mineHead, out bool fireSetting);
@@ -2239,7 +2252,7 @@ public sealed partial class LivingEconomyModel
                 if (rest <= Fix64.Zero) break;
                 if (!IsForestTile(t)) continue;
                 Fix64 take = Fix64.Min(rest, StandingWoodAvailableToIron(t));
-                RecordB13StandingWoodRemoval(t, take, "metal", _woodStock[t]);
+                RecordB13StandingWoodRemoval(t, take, B13MetalWoodCause(s), _woodStock[t]);
                 _woodStock[t] -= take;
                 rest -= take;
             }
@@ -2251,11 +2264,13 @@ public sealed partial class LivingEconomyModel
                 if (fire > Fix64.Zero && shaft > Fix64.Zero) litres -= rest / _bronzeConstants.FireSettingWood * (Fix64.One - shaft / fire);
             }
             AddMetalStat(s.Civilization, StatFireSettingWood, wood - rest);
+            if (good == MetalGood.IronOre) ironFireWood = wood - rest;
         }
         litres = Fix64.Max(Fix64.Zero, Fix64.Min(litres, _ore[tile]));
         _ore[tile] -= litres;
         m.Goods[(int)good] += litres;
         AddMetalStat(s.Civilization, StatOreMined, litres);
+        if (good == MetalGood.IronOre) RecordIT6IronOre(s.Civilization, litres, ironFireWood);
         return litres;
     }
 
@@ -2364,6 +2379,7 @@ public sealed partial class LivingEconomyModel
                         if (B12CopperShareTraceEnabled && s.Id == 11 && season is >= 255 and <= 267 && good == MetalGood.CopperOre)
                             copperCampDug += dug;
                         Fix64 spent = dug * perLitre;
+                        RecordIT6OreHaul(civ, dug * haul, good == MetalGood.IronOre);
                         used += spent;
                         net -= dug;
                         PracticeFigure(f, SkillFamily.Gather, spent);
@@ -2654,7 +2670,7 @@ public sealed partial class LivingEconomyModel
             if (got >= amount) break;
             if (!IsForestTile(tile)) continue;
             Fix64 take = Fix64.Min(amount - got, StandingWoodAvailableToIron(tile));
-            if (commit) { RecordB13StandingWoodRemoval(tile, take, "metal", _woodStock[tile]); _woodStock[tile] -= take; }
+            if (commit) { RecordB13StandingWoodRemoval(tile, take, B13MetalWoodCause(s), _woodStock[tile]); _woodStock[tile] -= take; }
             got += take;
         }
         return got;
