@@ -280,7 +280,8 @@ public partial class ResearchRadialMap : Control
         _centerTitle = centerTitle;
         _centerSub = centerSub;
         _matchCount = 0;
-        int maxEra = focusEra + 1;
+        // Only the ages the player has reached are drawn; the next one stays out of sight until it opens (a visible project further on still shows its age).
+        int maxEra = focusEra;
         for (int p = 0; p < _looks.Length; p++)
         {
             if (!_looks[p].Visible) continue;

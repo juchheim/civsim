@@ -47,21 +47,21 @@ public class ResearchEraLensTests
             int era = Layout.Rings[i];
             Assert.Equal(1f, lens.Weight(era));
             Assert.Equal(lens.FocusInner, lens.Inner(era), 3);
-            Assert.Equal(Layout.Lanes[era] * ResearchRadialLayout.LaneSpacing, lens.Outer(era) - lens.Inner(era), 3);
+            Assert.Equal(Layout.Lanes[era] * ResearchEraLens.FocusLane, lens.Outer(era) - lens.Inner(era), 3);
             Assert.Equal(lens.FocusInner, lens.Map(Layout.RingInner[era]), 2);
         }
     }
 
     [Fact]
-    public void Lane_zero_neighbours_of_the_focused_ring_are_at_least_60_apart()
+    public void Lane_zero_neighbours_of_the_focused_ring_are_at_least_44_apart()
     {
         var lens = new ResearchEraLens(Layout);
         for (int i = 0; i < lens.RingCount; i++)
         {
             lens.SetFocus(i);
-            float laneZero = lens.Inner(Layout.Rings[i]) + ResearchRadialLayout.LaneSpacing * 0.5f;
+            float laneZero = lens.Inner(Layout.Rings[i]) + ResearchEraLens.FocusLane * 0.5f;
             float spacing = laneZero * Layout.SlotAngle;
-            Assert.True(spacing >= 60f, $"{Layout.Rings[i]}: lane-0 neighbours are {spacing:0.0} apart");
+            Assert.True(spacing >= 44f, $"{Layout.Rings[i]}: lane-0 neighbours are {spacing:0.0} apart");
         }
     }
 
@@ -85,7 +85,7 @@ public class ResearchEraLensTests
                 worst = Math.Max(worst, MathF.Sqrt(dx * dx + dy * dy));
             }
         }
-        Assert.True(worst <= 6f, $"a project moved {worst:0.00} units for a focus change of 0.01");
+        Assert.True(worst <= 8f, $"a project moved {worst:0.00} units for a focus change of 0.01");
     }
 
     [Fact]

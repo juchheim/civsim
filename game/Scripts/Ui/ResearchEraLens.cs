@@ -12,9 +12,11 @@ namespace CivSim.Game.Ui;
 public sealed class ResearchEraLens
 {
     public const float FullLane = ResearchRadialLayout.LaneSpacing, DotLane = 7f;
+    /// <summary>The focused ring's lanes are drawn this far apart: roomier than the layout's own, so the era in view fills more of the screen.</summary>
+    public const float FocusLane = 56f;
     public const float FullGap = ResearchRadialLayout.RingGap, DotGap = 14f;
     /// <summary>The focused ring's inner edge is never nearer the centre than this, and never so near that lane-0 neighbours are closer than <see cref="MinLaneArc"/>.</summary>
-    public const float MinFocusInner = 760f, MinLaneArc = 62f;
+    public const float MinFocusInner = 480f, MinLaneArc = 44f;
     public const float HubMin = 200f;
 
     public int RingCount { get; }
@@ -154,7 +156,7 @@ public sealed class ResearchEraLens
         for (int i = 0; i < RingCount; i++)
         {
             Weights[i] = WeightAt(i, f);
-            LaneSpacing[i] = Lerp(DotLane, FullLane, Weights[i]);
+            LaneSpacing[i] = Lerp(DotLane, FocusLane, Weights[i]);
         }
         var block = new float[RingCount];
         for (int i = 0; i < RingCount; i++)
