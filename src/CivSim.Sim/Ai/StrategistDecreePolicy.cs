@@ -543,7 +543,8 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
     {
         return candidate.Kind switch
         {
-            DecreeKind.Found or DecreeKind.Mine or DecreeKind.Expedition or DecreeKind.Levy => ForecastBenefit(candidate.Kind, forecast),
+            DecreeKind.Found => ForecastBenefit(candidate.Kind, forecast) * politics.Economy.IronFuelSitingMultiplier(civ, candidate.Target),
+            DecreeKind.Mine or DecreeKind.Expedition or DecreeKind.Levy => ForecastBenefit(candidate.Kind, forecast),
             DecreeKind.Compact => CompactBenefit(politics, civ, candidate, forecast) + Fix64.FromInt(forecast.RelationsDelta),
             DecreeKind.Corvee => CorveeApproximation(politics, candidate.Target, forecast),
             _ => Fix64.Zero,

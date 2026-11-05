@@ -4463,6 +4463,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int best = -1;
         Fix64 bestScore = Fix64.MinValue;
+        int bestFuelSite = -1;
+        Fix64 bestFuelSiteScore = Fix64.MinValue;
+        Fix64 bestFuelSiteRawFood = Fix64.Zero, bestFuelSiteMultiplier = Fix64.Zero;
+        bool ironSiting = IronFuelHubsEnabled(parent.Civilization);
         int reach = Math.Max(14, SiteAdvisor?.SettleReach(parent.Civilization) ?? 14);
         FissionSiteDiagnostics? diagnostics = recordDiagnostics ? FissionSiteDiagnosticsForDiagnostics : null;
         int[]? rejections = diagnostics is null ? null : new int[6];
@@ -4513,7 +4517,18 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 multiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
                 ? SiteAdvisor.PreviewMultiplier(parent.Civilization, tile, previewBeaconTile, replacedBeaconIndex)
                 : SiteAdvisor.Multiplier(parent.Civilization, tile);
+            Fix64 ironFuelScore = ironSiting ? IronFuelCatchmentScore(parent.Civilization, tile) : Fix64.Zero;
+            multiplier *= IronFuelSitingMultiplier(parent.Civilization, tile);
             Fix64 score = rawFood * multiplier;
+            if (ironSiting && ironFuelScore > Fix64.Zero &&
+                (score > bestFuelSiteScore || score == bestFuelSiteScore &&
+                    (bestFuelSite < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, bestFuelSite, _world.Width, _world.Height))))
+            {
+                bestFuelSite = tile;
+                bestFuelSiteScore = score;
+                bestFuelSiteRawFood = rawFood;
+                bestFuelSiteMultiplier = multiplier;
+            }
             if (legalRawFood is not null)
             {
                 legalRawFood.Add((tile, rawFood));
@@ -4541,6 +4556,15 @@ public sealed partial class LivingEconomyModel : ISimModel
                     selectedMultiplier = multiplier;
                 }
             }
+        }
+        // When the map offers one, a post-KEY-4 fission must settle within productive standing or growing forest at charcoal range.
+        // Keep the food-scored fallback only for maps with no legal fuel site in this parent's frontier.
+        if (bestFuelSite >= 0)
+        {
+            best = bestFuelSite;
+            bestScore = bestFuelSiteScore;
+            selectedRawFood = bestFuelSiteRawFood;
+            selectedMultiplier = bestFuelSiteMultiplier;
         }
         if (diagnostics is not null)
         {

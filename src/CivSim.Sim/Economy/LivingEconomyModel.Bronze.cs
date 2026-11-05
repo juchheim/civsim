@@ -122,6 +122,8 @@ public sealed partial class LivingEconomyModel
     private const byte AccessCopper = 1, AccessArsenic = 2, AccessTin = 4, SourceCopper = 8, SourceArsenic = 16, SourceTin = 32;
     /// <summary>A workable iron deposit on own land within mining reach; set only in the Iron chapter, so Bronze access masks never carry it.</summary>
     private const byte SourceIron = 64;
+    /// <summary>Iron ore is supplied to a wooded production hub by a sister settlement within the sharing reach.</summary>
+    private const byte AccessIron = 128;
 
     /// <summary>Strategic goods that sister settlements share (docs/MVP/22 §5.7), in a fixed order.</summary>
     private static readonly MetalGood[] SharedGoods =

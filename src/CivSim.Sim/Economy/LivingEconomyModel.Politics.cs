@@ -85,7 +85,7 @@ public sealed partial class LivingEconomyModel
             if (!farEnough || SiteAdvisor is not null && !SiteAdvisor.Allows(civ, tile)) continue;
             Fix64 score = _siteFoodScores[tile] * (SiteAdvisor is null
                 ? Fix64.One
-                : SiteAdvisor.PreviewMultiplier(civ, tile, beaconTile, replacedBeaconIndex));
+                : SiteAdvisor.PreviewMultiplier(civ, tile, beaconTile, replacedBeaconIndex)) * IronFuelSitingMultiplier(civ, tile);
             if (score >= Fix64.Zero) localCandidates.Add((tile, score));
         }
 

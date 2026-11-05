@@ -30,6 +30,12 @@ public sealed partial class LivingEconomyModel
     }
 
     internal Fix64 FixtureFertilityMultiplier(int civ) => FertilityMultiplier(civ);
+    internal int FixtureWorldWidth => _world.Width;
+    internal int FixtureWorldTileCount => _world.TileCount;
+    internal bool FixtureIsHabitableSite(int tile) => IsHabitableSite(tile);
+
+    internal int FixtureChooseFissionSite(int settlementIndex)
+        => ChooseFissionSite(_settlements[settlementIndex], checked((int)_seasonsCompleted), recordDiagnostics: false);
 
     /// <summary>Completes projects for a civilization at any tick (the economy side of a research grant).</summary>
     internal void FixtureComplete(int civ, params string[] projectIds)
@@ -92,7 +98,11 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Sets a tile's standing wood (a forest burned off, or a clearing).</summary>
-    internal void FixtureSetWood(int tile, Fix64 litres) => _woodStock[tile] = litres;
+    internal void FixtureSetWood(int tile, Fix64 litres)
+    {
+        _woodStock[tile] = litres;
+        InvalidateIronFuelHubAssignments();
+    }
 
     /// <summary>Sets the raw stone in a settlement's quarry range to a known total for civic masonry fixtures.</summary>
     internal void FixtureSetRangeStone(int settlementIndex, Fix64 litres)
@@ -318,7 +328,11 @@ public sealed partial class LivingEconomyModel
     internal int FixtureCivOf(int settlementIndex) => _settlements[settlementIndex].Civilization;
 
     /// <summary>Moves a settlement's site (a foreign neighbour for the frontier and castle fixtures).</summary>
-    internal void FixtureMoveSite(int settlementIndex, int tile) => _settlements[settlementIndex].SiteTile = tile;
+    internal void FixtureMoveSite(int settlementIndex, int tile)
+    {
+        _settlements[settlementIndex].SiteTile = tile;
+        InvalidateIronFuelHubAssignments();
+    }
 
     internal bool FixtureHasStoneWalls(int settlementIndex) => HasStoneWalls(_settlements[settlementIndex]);
     internal int FixtureNextFrontierFacing(int settlementIndex) => NextFrontierFacing(_settlements[settlementIndex]);

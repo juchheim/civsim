@@ -482,6 +482,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private void BronzeSeasonStart(int season)
     {
+        InvalidateIronFuelHubAssignments();
         for (int i = 0; i < _settlements.Count; i++)
         {
             SettlementState s = _settlements[i];
@@ -704,6 +705,7 @@ public sealed partial class LivingEconomyModel
                 byte bit = SourceBit(civ, tile);
                 if (bit != 0 && (access & bit) == 0 && IsOwnTile(civ, tile)) access |= bit;
             }
+        if (IronFuelHubsEnabled(civ) && IronOreSupplierForHub(s) is not null) access |= AccessIron;
         return access;
     }
 
@@ -1223,6 +1225,12 @@ public sealed partial class LivingEconomyModel
         IronArmsWant(s, m, plan);
         IronEngineWant(s, m, plan);
         IronCraftWants(s, m, plan);
+        Fix64 ironHubOreNeed = SisterIronOreDeficit(s);
+        if (ironHubOreNeed > Fix64.Zero)
+        {
+            plan.Terminal[MetalSlot(MetalGood.IronOre)] += ironHubOreNeed;
+            plan.SisterTerminal[MetalSlot(MetalGood.IronOre)] += ironHubOreNeed;
+        }
         int reach = ShareReach(civ);
         if (reach >= 0)
         {
@@ -1369,7 +1377,7 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceCopper | AccessCopper)) != 0) potential[MetalSlot(MetalGood.CopperOre)] = Plenty;
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
-        if (IronChain && (m.Access & SourceIron) != 0) potential[MetalSlot(MetalGood.IronOre)] = Plenty; // a camp can open on it
+        if (IronChain && (m.Access & (SourceIron | AccessIron)) != 0) potential[MetalSlot(MetalGood.IronOre)] = Plenty; // own or shared hub supply
         if (blockedOres is not null)
             for (int slot = 0; slot < PlanSlots; slot++)
                 if (blockedOres[slot]) potential[slot] = Stock(s, slot);
@@ -1414,6 +1422,7 @@ public sealed partial class LivingEconomyModel
     private bool CanObtainOre(SettlementState s, MetalGood ore)
     {
         MetalState m = s.Metal!;
+        if (ore == MetalGood.IronOre && (m.Access & AccessIron) != 0) return true;
         byte stored = ore switch { MetalGood.CopperOre => AccessCopper, MetalGood.ArsenicalOre => AccessArsenic, _ => AccessTin };
         if ((m.Access & stored) != 0) return true;
         int civ = s.Civilization;
@@ -1499,13 +1508,16 @@ public sealed partial class LivingEconomyModel
         }
         if (m.BuildKind == MetalBuild.None)
         {
+            bool ironHubNeedsChain = IronChain && Done(civ, "MET-09") && IronFuelHubFor(s).Id == s.Id &&
+                (IronKitsLacking(s) > 0 || SisterKitDeficit(s) > Fix64.Zero);
             bool smelting = plan.Want[MetalSlot(MetalGood.CopperOre)] > Fix64.Zero || plan.Want[MetalSlot(MetalGood.ArsenicalOre)] > Fix64.Zero ||
                             plan.Want[MetalSlot(MetalGood.TinOre)] > Fix64.Zero || plan.Want[MetalSlot(MetalGood.Copper)] > Fix64.Zero ||
                             plan.Want[MetalSlot(MetalGood.Bronze)] > Fix64.Zero || plan.Want[MetalSlot(MetalGood.ArsenicalBronze)] > Fix64.Zero ||
-                            plan.Tier != 0; // kits need smelted metal even before the furnace exists to plan it
-            bool casting = plan.Tier != 0 || plan.Terminal[MetalSlot(MetalGood.Arms1)] > Fix64.Zero;
+                            plan.Tier != 0 || ironHubNeedsChain && m.Forges > 0; // Iron hubs need a bloomery even without a local Bronze tier
+            bool casting = plan.Tier != 0 || plan.Terminal[MetalSlot(MetalGood.Arms1)] > Fix64.Zero || ironHubNeedsChain;
             // Every settlement that can cast builds its own forge, then a furnace (docs/MVP/23 §7.3: the chain is per settlement).
-            if (Done(civ, "MET-03") && m.Forges == 0 && casting && MaterialsObtainable(s, MetalBuild.Forge)) m.BuildKind = MetalBuild.Forge;
+            bool mayBuildForge = !IronFuelHubsEnabled(civ) || !Done(civ, "MET-09") || IronFuelHubFor(s).Id == s.Id;
+            if (Done(civ, "MET-03") && m.Forges == 0 && casting && mayBuildForge && MaterialsObtainable(s, MetalBuild.Forge)) m.BuildKind = MetalBuild.Forge;
             else if (smelting && m.Forges > 0 && s.Structures[(int)Structure.Kiln] == 0 && m.Smelters == 0 && CanBuild(civ, Structure.Kiln) &&
                      MaterialsObtainable(s, MetalBuild.Kiln)) m.BuildKind = MetalBuild.Kiln;
             else if (smelting && m.Forges > 0 && Done(civ, "FIR-09") && m.Smelters == 0 && MaterialsObtainable(s, MetalBuild.Smelter)) m.BuildKind = MetalBuild.Smelter;
@@ -2434,6 +2446,7 @@ public sealed partial class LivingEconomyModel
         {
             MetalGood good = (MetalGood)g;
             if (good is not (MetalGood.CopperOre or MetalGood.ArsenicalOre or MetalGood.TinOre) && !(IronChain && good == MetalGood.IronOre)) continue;
+            if (good == MetalGood.IronOre && (m.Access & AccessIron) != 0 && (m.Access & SourceIron) == 0) continue;
             bool tierNeeds = plan.Tier switch
             {
                 8 => good == MetalGood.CopperOre,

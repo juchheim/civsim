@@ -5,6 +5,7 @@ using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
+using CivSim.Sim.World;
 
 namespace CivSim.Tests;
 
@@ -417,6 +418,80 @@ public class IronChainTests
         Assert.Equal(0, shared.Economy.Metal(daughter).Forges);
         Assert.True(shared.Economy.FixtureSisterKitDeficit(0) >= Fix64.FromInt(5), "the parent should count the daughter's adults");
         Assert.Equal(Fix64.Zero, alone.Economy.FixtureSisterKitDeficit(0));
+    }
+
+    [Fact]
+    public void Key4_assigns_iron_kit_work_to_the_best_forest_catchment_and_biases_siting_toward_hauled_wood()
+    {
+        BronzeFixture siting = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "KEY-4");
+        int preferredSite = siting.Economy.FixtureChooseFissionSite(0);
+        Assert.True(preferredSite >= 0);
+        Assert.True(siting.Economy.FixtureIronFuelCatchmentScoreAt(0, preferredSite) > Fix64.Zero,
+            "post-KEY-4 fission should choose a productive-forest site when one is available");
+
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "KEY-4", "MET-08", "MET-09");
+        foreach (int tile in f.ForestTiles) f.Economy.FixtureSetWood(tile, Fix64.FromInt(5));
+        int parentTile = f.Economy.SettlementLite(0).SiteTile;
+        int hubSite = -1, hauledForest = -1;
+        Fix64 bestFuel = Fix64.Zero;
+        int bestHaulDistance = int.MaxValue;
+        for (int site = 0; site < f.Economy.FixtureWorldTileCount; site++)
+        {
+            int fromParent = HexGrid.Distance(parentTile, site, f.Economy.FixtureWorldWidth);
+            if (!f.Economy.FixtureIsHabitableSite(site) || fromParent is < 7 or > 14 ||
+                HexGrid.Distance(f.IronTile, site, f.Economy.FixtureWorldWidth) <= 8 ||
+                f.Economy.FixtureHasLocalIronOreSourceAt(0, site)) continue;
+            int forest = -1, forestDistance = int.MaxValue;
+            foreach (int tile in f.ForestTiles)
+            {
+                int forestFromParent = HexGrid.Distance(parentTile, tile, f.Economy.FixtureWorldWidth);
+                int fromSite = HexGrid.Distance(site, tile, f.Economy.FixtureWorldWidth);
+                if (forestFromParent > 3 || fromSite is < 4 or > 8 || fromSite >= forestDistance) continue;
+                forest = tile;
+                forestDistance = fromSite;
+            }
+            if (forest < 0) continue;
+            Fix64 score = f.Economy.FixtureIronFuelCatchmentScoreAt(0, site);
+            if (forestDistance > bestHaulDistance || forestDistance == bestHaulDistance && score <= bestFuel) continue;
+            bestFuel = score;
+            bestHaulDistance = forestDistance;
+            hubSite = site;
+            hauledForest = forest;
+        }
+        Assert.True(hubSite >= 0, "the fixture should offer a sharing-range wooded hub site away from the iron mine");
+        f.Economy.FixtureSetWood(hauledForest, Fix64.FromInt(10_000));
+        int daughter = f.Economy.FoundByDecree(0, hubSite, Fix64.FromRatio(2, 5), minDaughter: 6, startCohesion: 60);
+        Assert.True(daughter >= 0);
+        f.RunSeasons(1); // register the daughter in the shared metal economy
+        f.Economy.FixtureSetWood(hauledForest, Fix64.FromInt(10_000)); // restore productive catchment after the founding season
+        f.Economy.FixtureBuild(daughter, "forge");
+        f.Economy.FixtureBuild(daughter, "smelter");
+        f.Economy.FixtureAddMiningCamp(0, f.IronTile, crew: 4, built: true);
+        Assert.True(f.Economy.FixtureHasLocalIronOreSource(0));
+
+        int daughterTile = f.Economy.SettlementLite(daughter).SiteTile;
+        Fix64 daughterCatchment = f.Economy.FixtureIronFuelCatchmentScore(daughter);
+        Fix64 parentCatchment = f.Economy.FixtureIronFuelCatchmentScore(0);
+        int hub = daughterCatchment > parentCatchment ? daughter : 0; // parent wins exact ties by lower settlement id
+        int nonHub = hub == daughter ? 0 : daughter;
+        Assert.Equal(daughter, hub);
+        Assert.False(f.Economy.FixtureHasLocalIronOreSource(hub), "the wooded daughter should rely on its sister mine");
+        Assert.Equal(0, f.Economy.FixtureIronOreSupplierForHub(hub));
+        Assert.True(f.Economy.FixtureIsIronFuelHub(hub));
+        Assert.False(f.Economy.FixtureIsIronFuelHub(nonHub));
+        Assert.True(f.Economy.FixtureSisterKitDeficit(hub) >= Fix64.FromInt(5), "the hub should plan for its forged sister too");
+        Assert.False(f.Economy.FixtureSisterKitDeficit(nonHub) > Fix64.Zero, "the non-hub should not duplicate the hub's target");
+        Assert.True(f.Economy.FixtureIronFuelSitingMultiplier(0, f.ForestTiles[0]) > Fix64.One);
+
+        f.Economy.FixtureStock(hub, "G-CHAR", Fix64.Zero);
+        f.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(20));
+        f.RunSeasons(1);
+        Assert.True(f.Economy.GoodStock(hub, "G-IRONORE") > Fix64.Zero,
+            "the selected ore supplier should send raw ore to the wooded hub");
+        f.Economy.FixtureStock(hub, "G-CHAR", Fix64.FromInt(3));
+        Assert.True(f.Economy.FixtureRunRecipe(hub, "bloomery", Fix64.One, Fix64.FromInt(10)) > Fix64.Zero);
+        Assert.True(f.Economy.GoodStock(hub, "G-IRON") > Fix64.Zero,
+            "the hub should run the charcoal-consuming bloomery on the supplied ore");
     }
 
     [Fact]
