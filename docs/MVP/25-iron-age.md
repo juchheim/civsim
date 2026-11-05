@@ -233,7 +233,7 @@ Required cards: tool coverage and replacement inputs; mine/forge/fuel bottleneck
 
 ## 13. Provisional balance targets and oracle work
 
-Numbers marked P in 26 are hypotheses. The [2026-11-04 preliminary balance screen](balance/m11-iron-balance-screen-2026-11-04.md) contains initial live and fixture results; none are fitted or approved. The existing era-base 1200 is a catalog input for a first oracle run, not a fitted cost. The following remain proposed screens to approve, then fit; they do not amend any B1–B31 threshold.
+Numbers marked P in 26 are hypotheses. The [2026-11-04 preliminary balance screen](balance/m11-iron-balance-screen-2026-11-04.md) contains initial live and fixture results; the observations do not by themselves fit or approve targets. The existing era-base 1200 is a catalog input for a first oracle run, not a fitted cost. The following remain proposed screens to approve, then fit, except where approval is recorded in a linked report; they do not amend any B1–B31 threshold.
 
 | ID | Proposed target / diagnostic | Required measurement |
 |---|---|---|
@@ -242,7 +242,7 @@ Numbers marked P in 26 are hypotheses. The [2026-11-04 preliminary balance scree
 | I-T3 | T12 lifetime exactly 2× T11; no simultaneous kit/project double multiplier | Deterministic fixture plus live wear distribution |
 | I-T4 | FoodCap on a matched E3 anchor rises 1.4–1.8×; city concentration rises without free food | Non-river, river, hill, inland and coastal fixtures; physical mass balance |
 | I-T5 | Engine assault materially beats matched investment; test catalog's 60% time reduction | Supplied isolated wall/tower/castle trials and live relief/attrition; no claimed pass from formula alone |
-| I-T6 | Sustainable metal not >15% of civilian work in steady state; no mandatory clear-cut | Full replacement/fuel/haul accounting; stress import loss and low-wood starts; [whole-match accounting and proposed clearing approval protocol](balance/m11-it6-whole-match-2026-11-05.md) |
+| I-T6 | **Approved screen:** full-chain work ≤15% in every mature rolling 12-season window; zero post-MET-09 Iron-attributed 5 L clearing crossings; fuel-short rate ≤5% and unmet planned charcoal ≤1% | Full replacement/fuel/haul accounting; stress import loss and low-wood starts; [whole-match accounting and approved clearing/fuel protocol](balance/m11-it6-whole-match-2026-11-05.md). Validation and B4-06 remain open |
 | I-T7 | Admin keeps normal settled cores near E3 Cohesion bands while crisis secession remains possible | Per-season exposure, remote/captured settlements, count incomplete exposure and cascade rate |
 | I-T8 | Map fill, Dominion share and City share | **Diagnostic only** until current E3 trajectories are re-anchored; no guessed E4 population/land acceptance band |
 

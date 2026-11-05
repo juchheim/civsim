@@ -278,6 +278,23 @@ internal static class IronMatchCommand
         static string Pct(Fix64 numerator, Fix64 denominator) => denominator <= Fix64.Zero
             ? "n/a"
             : (100 * numerator.ToDoubleForDisplay() / denominator.ToDoubleForDisplay()).ToString("F2", CultureInfo.InvariantCulture) + "%";
+        static string FuelSummary(IT6AccountingSnapshot from, IT6AccountingSnapshot to)
+        {
+            int shortSeasons = to.IronEraFuelShortSeasons - from.IronEraFuelShortSeasons;
+            int demandSeasons = to.IronEraFuelDemandSeasons - from.IronEraFuelDemandSeasons;
+            Fix64 planned = to.IronEraCharcoalPlan - from.IronEraCharcoalPlan;
+            Fix64 unmet = to.IronEraCharcoalUnmet - from.IronEraCharcoalUnmet;
+            return $"short {shortSeasons}/{demandSeasons} demand-seasons ({Pct(Fix64.FromInt(shortSeasons), Fix64.FromInt(demandSeasons))}); unmet {F(unmet)}/{F(planned)} L planned ({Pct(unmet, planned)})";
+        }
+        static string FuelVerdict(IT6AccountingSnapshot from, IT6AccountingSnapshot to)
+        {
+            int demandSeasons = to.IronEraFuelDemandSeasons - from.IronEraFuelDemandSeasons;
+            if (demandSeasons < IT6FuelGate.MinDemandSeasons) return $"CENSORED (<{IT6FuelGate.MinDemandSeasons} demand-seasons)";
+            Fix64 shortRate = Fix64.FromRatio(to.IronEraFuelShortSeasons - from.IronEraFuelShortSeasons, demandSeasons);
+            Fix64 plan = to.IronEraCharcoalPlan - from.IronEraCharcoalPlan;
+            Fix64 unmetShare = plan > Fix64.Zero ? (to.IronEraCharcoalUnmet - from.IronEraCharcoalUnmet) / plan : Fix64.Zero;
+            return shortRate <= IT6FuelGate.MaxShortRate && unmetShare <= IT6FuelGate.MaxUnmetPlanShare ? "PASS" : "FAIL";
+        }
         static Fix64 LocalUse(LocalWoodLedger x) => x.HearthUse + x.FuelUse + x.MetalUse + x.GoodsUse + x.CivicUse + x.StructureUse + x.OtherUse;
         static Fix64 LocalIn(LocalWoodLedger x) => x.ChopIn + x.CivicIn + x.OtherIn;
         ForestLedger endForest = CaptureForest(economy);
@@ -322,6 +339,7 @@ internal static class IronMatchCommand
         }
         Fix64 kitBalanceResidual = produced11 + produced12 - issued11 - issued12 - kit11Stock - kit12Stock;
         output.AppendLine($"  kits world: T11 made/issued/held/stored={F(produced11)}/{F(issued11)}/{kit11Holders}/{F(kit11Stock)}; T12={F(produced12)}/{F(issued12)}/{kit12Holders}/{F(kit12Stock)}; make-issue-store residual={F(kitBalanceResidual)} kits");
+        output.AppendLine($"  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= {Pct(IT6FuelGate.MaxShortRate, Fix64.One)}, unmet / planned charcoal <= {Pct(IT6FuelGate.MaxUnmetPlanShare, Fix64.One)}, minimum {IT6FuelGate.MinDemandSeasons} demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock");
         output.AppendLine("  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:");
         for (int c = 0; c < routeSeason.Length; c++)
         {
@@ -329,6 +347,7 @@ internal static class IronMatchCommand
             IT6AccountingSnapshot trace = economy.CaptureIT6Accounting(c);
             Fix64 wholeChainLabor = end.MetalLabor + trace.KitRecipeLabor + trace.MetalFacilityBuildLabor;
             output.AppendLine($"  c{c} {Archetypes[c]} all-match metal/work={F(end.MetalLabor)}/{F(end.Labor)}; full-chain share={Pct(wholeChainLabor, end.Labor)}; kits made/issued T11={F(trace.Kit11Produced)}/{F(trace.Kit11Issued)} T12={F(trace.Kit12Produced)}/{F(trace.Kit12Issued)}; tool-ws used T11/T12={F(trace.Kit11ToolWork)}/{F(trace.Kit12ToolWork)}; breaks T11/T12={trace.Kit11Breaks}/{trace.Kit12Breaks}; T11 upgrades={trace.Kit11Upgrades}; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal={F(end.Charcoal)}/{F(end.CharcoalWood)}/{F(end.FireSettingWood)}/{F(trace.IronRecipeCharcoal)}; ore mined all/Iron={F(end.OreMined)}/{F(trace.IronOreMined)} L; Iron fire-setting wood={F(trace.IronFireSettingWood)} L; haul-ws charcoal/all-ore/Iron-ore={F(trace.CharcoalHaulLabor)}/{F(trace.OreHaulLabor)}/{F(trace.IronOreHaulLabor)}; metal-facility build-ws={F(trace.MetalFacilityBuildLabor)}; fuel-short settlement-seasons all/Iron-era={trace.MetalFuelShortSeasons}/{trace.IronEraFuelShortSeasons}");
+            output.AppendLine($"    post-MET-09 charcoal plan: {FuelSummary(default, trace)}");
             if (routeSeason[c] < 0)
             {
                 output.AppendLine("    route window: no MET-09 + issued-Iron-kit exposure");
@@ -347,7 +366,7 @@ internal static class IronMatchCommand
             Fix64 matureChain = (end.MetalLabor - steadyStats[c].MetalLabor) +
                 (trace.KitRecipeLabor - steadyTrace[c].KitRecipeLabor) +
                 (trace.MetalFacilityBuildLabor - steadyTrace[c].MetalFacilityBuildLabor);
-            output.AppendLine($"    route ramp: seasons {routeSeason[c]}–{steadySeason[c]} (12 complete after first issue), chain/work={F(routeChain)}/{F(routeWork)} ({Pct(routeChain, routeWork)}), Iron-era fuel-short settlement-seasons={steadyTrace[c].IronEraFuelShortSeasons - routeTrace[c].IronEraFuelShortSeasons}; post-ramp seasons={endSeason - steadySeason[c]}, chain/work={F(matureChain)}/{F(matureWork)} ({Pct(matureChain, matureWork)}), Iron-era fuel-short settlement-seasons={trace.IronEraFuelShortSeasons - steadyTrace[c].IronEraFuelShortSeasons}");
+            output.AppendLine($"    route ramp: seasons {routeSeason[c]}–{steadySeason[c]} (12 complete after first issue), chain/work={F(routeChain)}/{F(routeWork)} ({Pct(routeChain, routeWork)}), fuel {FuelSummary(routeTrace[c], steadyTrace[c])}; post-ramp seasons={endSeason - steadySeason[c]}, chain/work={F(matureChain)}/{F(matureWork)} ({Pct(matureChain, matureWork)}), fuel {FuelSummary(steadyTrace[c], trace)}; fuel-cutoff={FuelVerdict(steadyTrace[c], trace)}");
             Fix64 maxRollingShare = Fix64.Zero;
             int rollingWindows = 0;
             int maxWindowStart = -1, maxWindowEnd = -1;
