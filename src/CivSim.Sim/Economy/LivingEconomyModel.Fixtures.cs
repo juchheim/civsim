@@ -410,6 +410,15 @@ public sealed partial class LivingEconomyModel
         return tiers.ToArray();
     }
 
+    /// <summary>The age and kit tier of each adult in figure order, for fixture-only mixed-age coverage diagnostics.</summary>
+    internal (int Age, int Tier)[] FixtureAdultKitCohort(int settlementIndex)
+    {
+        int id = _settlements[settlementIndex].Id;
+        var cohort = new List<(int Age, int Tier)>();
+        foreach (FigureState f in _figures) if (f.SettlementId == id && f.Age >= 14) cohort.Add((f.Age, f.Kit));
+        return cohort.ToArray();
+    }
+
     /// <summary>A figure's kit quality (1.2 new, 0.7 at replacement, 0.5 when it breaks).</summary>
     internal Fix64 FixtureKitQuality(int figureIndex) => KitQuality(_figures[figureIndex]);
 

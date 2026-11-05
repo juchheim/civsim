@@ -12,7 +12,7 @@
 - The initial 80 successful match reports used source baseline `df591663c53bf1db0475545e9001dd86e02bec34`. Fourteen calibration seeds that had crashed or exited without a trace were rerun on the arithmetic fix `dfd5d92ee5df3ce98d8a91bc058cc74a8f779120`; all 14 completed. The fix changes only how an oversized wood ratio is saturated before narrowing; representable Q32.32 ratios keep the existing arithmetic. These runs combine into 78 calibration matches plus the original 16 held-out matches.
 - Calibration seeds (78): `20261101–20261102, 20261106–20261108, 20261110–20261127, 20261130–20261138, 20261142, 20261146–20261150, 20261154–20261155, 20261158–20261160, 20261162, 20261181, 20261185–20261187, 20261189–20261206, 20261209–20261219, 20261221`.
 - Held-out seeds (16): `20261165–20261180`.
-- Per-match and per-seat output: [CSV](m11-iron-balance-screen-2026-11-04.csv). The 2026-11-05 fixture rerun used content pack SHA-256 `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9` and source base `76dafcc` plus the working-tree changes recorded in this follow-up. It ran eight same-seed Iron/Bronze pairs (`20261019–20261026`), 240 seasons, fixed population, with both the default 8-tile charcoal reach and TRN-05's 12-tile reach, with and without Coppicing. The final candidate run uses the 50%/70% aggregate throttle band. The harness records every crossing below 5 L for each forest tile in the charcoal catchment over the full run, in addition to reconciling forest stock, regrowth and standing-wood removals.
+- Per-match and per-seat output: [CSV](m11-iron-balance-screen-2026-11-04.csv). The 2026-11-05 fixture rerun used content pack SHA-256 `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9` and source base `b1f8908` plus the working-tree fixture diagnostics recorded in this follow-up. It ran eight same-seed Iron/Bronze pairs (`20261019–20261026`), 240 seasons, fixed population, with both the default 8-tile charcoal reach and TRN-05's 12-tile reach, with and without Coppicing. The final candidate run uses the 50%/70% aggregate throttle band. The harness records every crossing below 5 L for each forest tile in the charcoal catchment over the full run, and separately reports MET-09 completion, camp construction, first T11 kit delivery and adult/elder kit coverage.
 - Reproduce the fixture run with `dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-fuel --pack /tmp/civsim-iron-balance.pack --seasons 240 --seeds 20261019,20261020,20261021,20261022,20261023,20261024,20261025,20261026`.
 - The Iron fuel guard measures its starting baseline and live stock across the charcoal catchment (8 tiles, or 12 with TRN-05), matching the actual charcoal haul path. Iron-related fuel, fire-setting, mine/camp construction and wood harvesting leave each initial forest tile at or above the game's 5 L cleared-woodland threshold. Bronze retains its E0–E3 baseline. After MET-09, the planner no longer requests new Bronze kits for adults already covered by Iron re-kit demand; existing Bronze kits can still be used until replaced. The final candidate uses a 50%/70% aggregate demand-throttle band; recipe quantities and fuel costs are unchanged.
 
@@ -89,6 +89,16 @@ The route clock starts at the later of the fixture's Iron camp being built and M
 | Iron, low wood with TRN-05 and Coppicing | 92.9% / 82.1% / 96.4% | 8/8 | 0.87 / 0.53 |
 | Iron, low wood with TRN-05, no Coppicing | 91.5% / 75.0% / 96.4% | 8/8 | 0.87 / 0.53 |
 | Iron, wood rich | 93.3% / 82.1% / 96.4% | 8/8 | 0.98 / 0.97 |
+
+Across the fixture block, MET-09 completes in season 1, the camp is built in seasons 2–3, and the first adult holds a T11 kit in seasons 4–7 (seasons 4–6 in low-wood variants). The age-band diagnostic reports T11+ coverage after the 12-season route window; the all-adult total remains the conservative screen.
+
+| Route | MET-09 complete | Camp built | First adult holds T11+ | T11+ age 14–44 / age 45+ at route checkpoint (mean) |
+|---|---:|---:|---:|---:|
+| Standard Iron | s1 | s2–3 | s4–7 | 100.0% / 73.2% |
+| Iron, low wood with Coppicing | s1 | s2–3 | s4–6 | 92.3% / 51.8% |
+| Iron, low wood without Coppicing | s1 | s2–3 | s4–6 | 91.1% / 44.6% |
+| Iron, low wood with TRN-05 and Coppicing | s1 | s2–3 | s4–6 | 100.0% / 71.4% |
+| Iron, low wood with TRN-05, no Coppicing | s1 | s2–3 | s4–6 | 98.8% / 69.6% |
 
 Seed `20261026` remains the local low-wood outlier. At default reach it reaches 35.7% with Coppicing and 25.0% without. With TRN-05's 12-tile reach, it reaches 82.1% with Coppicing and 75.0% without, retaining 0.53 of catchment wood at the checkpoint in both cases. Across the eight seeds, TRN-05 with or without Coppicing clears the 70% screen in 8/8. Coppicing adds 2.12 L/season of low-wood cart-route regrowth and 2.10 L/season of standing cuts, providing more replacement margin while staying above the 5 L per-tile reserve. The default-reach variants remain at 7/8. Standard-route coverage passes all eight seeds with and without Coppicing. The one-time 70-kit delivery result is not used as evidence for I-T2.
 
