@@ -66,6 +66,7 @@ var plot_display_scale := PackedFloat32Array()
 var plot_layout_signature := 0
 var _plot_occupants := {}  # tile -> [[world position, clearance radius], ...] for visible settlement content
 var _settlement_core_tiles := {}
+var _settlement_tiles := {}
 var _allow_plot_layout := false
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
 var beacon_fires: Array = []            # {top, seed}: the Great Lighthouse's fire, for the war rig
@@ -844,11 +845,13 @@ func _prepare_plot_visual_layout() -> void:
 	plot_display_scale.fill(0.0)
 	_plot_occupants.clear()
 	_settlement_core_tiles.clear()
+	_settlement_tiles.clear()
 	for s in w.settlements:
-		if bool(s.get("remembered")):
-			continue
 		var tile := int(s.tile)
 		if tile < 0 or tile >= count:
+			continue
+		_settlement_tiles[tile] = true
+		if bool(s.get("remembered")):
 			continue
 		_settlement_core_tiles[tile] = true
 		var centre: Vector2 = w.tile_center(tile)
@@ -856,6 +859,37 @@ func _prepare_plot_visual_layout() -> void:
 		# so a core-tile field can only survive as a tiny cue at the tile edge.
 		_reserve_plot_visual(centre, 0.30)
 		_reserve_plot_visual(centre + Vector2(0.09, -0.07), 0.07)
+
+## Deposits remain tied to their economic tile. On settlement or structure tiles, use a smaller edge marker
+## and leave enough room for the hearth, buildings, and any compact plot cue.
+func _deposit_visual_placement(tile: int, preferred: Vector2) -> Array:
+	var occupants: Array = _plot_occupants.get(tile, [])
+	if not _settlement_tiles.has(tile) and occupants.is_empty() and plot_mode(tile) != 2:
+		return [preferred, 1.0]
+	var centre: Vector2 = w.tile_center(tile)
+	var candidate_radius := 0.42 if _settlement_tiles.has(tile) else 0.34
+	var best_position := centre
+	var best_clearance := -INF
+	for side in 6:
+		var direction: Vector2 = M7WorldData.corner((tile + side) % 6).normalized()
+		var candidate := centre + direction * candidate_radius
+		var clearance := INF
+		if _settlement_tiles.has(tile) and occupants.is_empty():
+			clearance = candidate.distance_to(centre) - 0.30
+		for occupied in occupants:
+			clearance = minf(clearance, candidate.distance_to(occupied[0]) - float(occupied[1]))
+		if plot_mode(tile) == 1:
+			clearance = minf(clearance, candidate.distance_to(centre) - 0.25)
+		elif plot_mode(tile) == 2:
+			clearance = minf(clearance, candidate.distance_to(plot_position(tile)) - (0.05 + 0.3 * plot_display_scale[tile]))
+		if clearance > best_clearance:
+			best_clearance = clearance
+			best_position = candidate
+	var minimum_clearance := 0.025 + DEPOSIT_SCALE * 0.17 * 0.35
+	if best_clearance < minimum_clearance:
+		return []
+	var scale_factor := clampf((best_clearance - 0.025) / (DEPOSIT_SCALE * 0.17), 0.35, 0.65)
+	return [best_position, scale_factor]
 
 func _finish_plot_visual_layout() -> void:
 	var signature := 17
@@ -2327,15 +2361,23 @@ func _deposits() -> void:
 				# the camp's tents, hearth and banner stand at +(0.12, 0.05) (`_camps`): dig on the far side of the tile from them
 				a = MINE_AWAY_FROM_CAMP + (M7WorldData.hash01(t, 17) - 0.5) * 1.1
 				p = w.tile_center(t) + Vector2(cos(a), sin(a)) * 0.22
+		var display_scale := DEPOSIT_SCALE
+		if not gallery.has(t):
+			var placement := _deposit_visual_placement(t, p)
+			if placement.is_empty():
+				continue
+			p = placement[0]
+			display_scale *= float(placement[1])
+		if mesh.begins_with("deposit_mine"):
 			var civ: int = int(camps[t][0]) if camps.has(t) else (w.owner[t] if t < w.owner.size() else -1)
 			var cc := M7MeshBuilder.lin(M7WorldData.civ_color(civ) if civ >= 0 else Color("#9c8466"), 0.5)
-			props.add(mesh + tall, _xf(p, w.height_at(p), yaw, DEPOSIT_SCALE), Color(cc.r, cc.g, cc.b, seed))
+			props.add(mesh + tall, _xf(p, w.height_at(p), yaw, display_scale), Color(cc.r, cc.g, cc.b, seed))
 			continue
-		props.add(mesh + tall, _xf(p, w.height_at(p), yaw, DEPOSIT_SCALE), Color(1, 1, 1, seed))
+		props.add(mesh + tall, _xf(p, w.height_at(p), yaw, display_scale), Color(1, 1, 1, seed))
 
 ## What the deposit props depend on: the e3 overlay (kind, worked bit) and each mining camp's tile, civilization and mine head.
 func _deposit_digest() -> int:
-	var h := hash(w.e3_overlay_bytes)
+	var h := hash(w.e3_overlay_bytes) * 31 + structure_signature
 	for cd in w.camp_details:
 		if int(cd[2]) == 1:
 			h = int((h * 31 + int(cd[0]) * 17 + int(cd[1]) * 3 + int(cd[7])) & 0x7fffffff)
@@ -2604,6 +2646,38 @@ func _open_ground(t: int) -> bool:
 	var b := int(w.biome[t])
 	return b == B.TUNDRA or b == B.GRASSLAND or b == B.SAVANNA or b == B.OPEN_WOODLAND or b == B.DESERT
 
+## Keep wildlife visuals out of settlement cores without changing their simulated tile.
+func _herd_display_position(p: Vector2, id: int) -> Array:
+	var tile := w.tile_at(p)
+	if tile < 0 or not _settlement_tiles.has(tile):
+		return [p, true]
+	var origin: Vector2 = w.tile_center(tile)
+	var frontier: Array = [tile]
+	var seen := {tile: true}
+	var first_direction := int(M7WorldData.hash01(id, tile, 94) * 6.0)
+	for depth in 3:
+		var next_frontier: Array = []
+		var candidates: Array[int] = []
+		for current in frontier:
+			for step in 6:
+				var neighbour := w.neighbour(int(current), (step + first_direction) % 6)
+				if neighbour < 0 or seen.has(neighbour):
+					continue
+				seen[neighbour] = true
+				if not w.is_land(neighbour) or (neighbour < w.visibility.size() and w.visibility[neighbour] == 0):
+					continue
+				next_frontier.append(neighbour)
+				if _settlement_tiles.has(neighbour):
+					continue
+				candidates.append(neighbour)
+		if not candidates.is_empty():
+			candidates.sort()
+			var choice := int(M7WorldData.hash01(id, tile, 95) * candidates.size()) % candidates.size()
+			var destination := int(candidates[choice])
+			return [w.tile_center(destination) + (p - origin) * 0.5, true]
+		frontier = next_frontier
+	return [p, false]
+
 func _herds() -> void:
 	var n := 0
 	for hi in range(0, w.herds.size(), 7):
@@ -2619,6 +2693,13 @@ func _herds() -> void:
 		var moved := pmx >= 0 and (pmx != mx or pmy != my)
 		if moved:
 			pp = w.map_to_world2(float(pmx), float(pmy))
+		var display_now := _herd_display_position(p, id)
+		if not bool(display_now[1]):
+			continue
+		p = display_now[0]
+		if moved:
+			var display_previous := _herd_display_position(pp, id)
+			pp = display_previous[0] if bool(display_previous[1]) else p
 		var cfg: Array = SPECIES[sp]
 		var cnt := clampi(int(round(animals / 7.0)), 2, 7)
 		var heading := M7WorldData.hash01(id, 0, 1) * TAU
@@ -2630,7 +2711,7 @@ func _herds() -> void:
 			var r := 0.055 * sqrt(i + 0.5) * float(cfg[2])
 			var q := p + Vector2(cos(a), sin(a)) * r
 			var t := w.tile_at(q)
-			if t < 0 or not w.is_land(t):
+			if t < 0 or not w.is_land(t) or _settlement_tiles.has(t):
 				continue
 			var hv := M7WorldData.hash01(id + i, 0, 2)
 			var offset := pp - p
@@ -2643,12 +2724,12 @@ func _herds() -> void:
 			props.add(cfg[0], _xf(q, w.heights[t], heading + (hv - 0.5) * 1.4, float(cfg[2]) * (0.85 + 0.25 * hv)),
 				_glide_custom(sp * 8 + bin, mode_offset, hv, dy, offset))
 			n += 1
-		_herders(p, pp, moved, heading, cnt, id, pmx < 0)
+		_herders(p, pp, moved, heading, cnt, id, pmx < 0, _settlement_tiles)
 	stats.animals = n
 
 ## Herd following (HUS-02): one or two herders walk beside a wild herd on the land of a civilization that knows it, one on each
 ## flank, moving with it. They glide like any other figure.
-func _herders(p: Vector2, pp: Vector2, moved: bool, heading: float, animals: int, id: int, fresh: bool) -> void:
+func _herders(p: Vector2, pp: Vector2, moved: bool, heading: float, animals: int, id: int, fresh: bool, settlement_tiles: Dictionary) -> void:
 	var here: int = w.tile_at(p)
 	var keeper: int = w.owner[here] if here >= 0 else -1
 	if keeper < 0 or animals < 3 or not w.has_look(keeper, M7WorldData.LOOK_HERD_FOLLOWING):
@@ -2659,7 +2740,7 @@ func _herders(p: Vector2, pp: Vector2, moved: bool, heading: float, animals: int
 	for i in (2 if animals >= 5 else 1):
 		var q := p + side * (0.11 if i == 0 else -0.12) - travel * (0.0 if i == 0 else 0.06)
 		var tile := w.tile_at(q)
-		if tile < 0 or not w.is_land(tile):
+		if tile < 0 or not w.is_land(tile) or settlement_tiles.has(tile):
 			continue
 		var hv := M7WorldData.hash01(id + i, 0, 3)
 		var offset := Vector2.ZERO
