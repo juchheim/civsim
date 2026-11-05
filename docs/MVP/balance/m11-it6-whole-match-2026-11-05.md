@@ -6,7 +6,7 @@ I-T6 in [25 §13](../25-iron-age.md#13-provisional-balance-targets-and-oracle-wo
 
 ## Reproduction
 
-- Source baseline: `d2770d2` (Iron route access and age coverage); whole-match accounting revision: `1513a70`, with fuel plan metrics and cutoff reporting added in this follow-up.
+- Source baseline: `d2770d2` (Iron route access and age coverage); approved fuel accounting and cutoff instrumentation revision: `5b779d1` (extends the whole-match accounting in `1513a70`).
 - Content pack SHA-256: `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9`.
 - Natural Iron cohort: four Warlord AI seats (Builder, Grower, Warlord, Sage), default Iron chapter limits, no research grant, played to chapter end. The current screen uses seeds `20261019–20261026`.
 - Build the current-content pack with `dotnet run --project src/CivSim.Cli -c Release --no-restore -- build-pack --out /tmp/civsim-it6-current.pack`.
