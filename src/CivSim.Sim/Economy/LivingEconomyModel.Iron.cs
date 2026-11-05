@@ -41,6 +41,9 @@ public sealed partial class LivingEconomyModel
     /// <summary>Every compiled recipe in content order (ascending order, then id): the Bronze list with the Iron recipes in place.</summary>
     private CompiledRecipe[] _allRecipes = Array.Empty<CompiledRecipe>();
     private bool _ironChain;
+    // Derived once per season from current catchments; deliberately absent from hashes and snapshots.
+    private int[] _ironFuelHubAssignments = Array.Empty<int>();
+    private bool _ironFuelHubAssignmentsReady;
 
     /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
     private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0);
@@ -68,14 +71,16 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// The Iron chapter's first claim on the chain (docs/MVP/25 §4): a T11 kit for every adult who does not hold one, wanted only by a settlement
-    /// with a forge that knows MET-09. The want expands backwards through the same recipe graph as the Bronze kits (kit, wrought iron, bloom, ore,
-    /// charcoal, wood) and is bounded by the same labor cap. Kits wait in store until kit use and wear arrive (a later WP6 slice).
+    /// with a forge that knows MET-09. After KEY-4, the best reachable forest catchment is the local smithing hub; it plans for all settlements
+    /// assigned to it, and whole kits travel through existing sharing. The want expands through the same recipe graph and labor cap.
     /// </summary>
     private void IronKitWant(SettlementState s, MetalState m, MetalPlan plan)
     {
         if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "MET-09")) return;
-        // Adults who hold no iron kit, or whose iron kit is about to be replaced, here and in the forgeless sister settlements this one smiths for,
-        // less the kits already made and waiting (the sisters' own stores are netted in their deficit).
+        bool hubs = IronFuelHubsEnabled(s.Civilization);
+        if (hubs && IronFuelHubFor(s).Id != s.Id) return;
+        // Adults who hold no iron kit, or whose iron kit is about to be replaced, here and in settlements assigned to this hub,
+        // less kits already made and waiting (each sister's own stores are netted in its deficit).
         Fix64 needKits = Fix64.FromInt(IronKitsLacking(s)) + SisterKitDeficit(s);
         // A thin forest asks for fewer new and replacement kits, but iron already in store (smelted earlier or imported by compact) is always worth forging
         // into kits: that costs a quarter of a litre of charcoal a kit, where smelting the ore costs six times more.
@@ -139,12 +144,127 @@ public sealed partial class LivingEconomyModel
         if (s.Metal is not { Forges: > 0 } m || IsFreeFolk(s)) return 0;
         if (!Done(s.Civilization, "MET-09")) return 1;
         bool material = IronStock(s, IronGood.Wrought) + IronStock(s, IronGood.Steel) + m.Goods[(int)MetalGood.Iron] > Fix64.Zero;
-        bool wanted = IronKitsLacking(s) > 0 || SisterKitDeficit(s) > Fix64.Zero;
+        bool wanted = (!IronFuelHubsEnabled(s.Civilization) || IronFuelHubFor(s).Id == s.Id) &&
+            (IronKitsLacking(s) > 0 || SisterKitDeficit(s) > Fix64.Zero);
         return material && wanted ? 2 : 1;
     }
 
     /// <summary>The distance within which sister settlements share Iron goods: the E3 sharing reach, or none when sharing is switched off.</summary>
     private int IronShareReach(int civ) => IronSharingEnabled ? ShareReach(civ) : -1;
+
+    /// <summary>Iron production can be concentrated only after KEY-4 enables the Iron chapter's existing sister-town sharing network.</summary>
+    private bool IronFuelHubsEnabled(int civ) => IronChain && Done(civ, "KEY-4") && IronShareReach(civ) >= 0;
+
+    private void InvalidateIronFuelHubAssignments()
+    {
+        _ironFuelHubAssignments = Array.Empty<int>();
+        _ironFuelHubAssignmentsReady = false;
+    }
+
+    /// <summary>
+    /// The wood endowment visible to a prospective Iron smith. Forest at radii 4 through the charcoal reach is weighted most: it remains
+    /// available to Iron after radius-3 local cutting, while haul cost falls with distance. Nearby forest still contributes, but at a lower
+    /// weight because household and building uses compete for it. Growth adds an annual renewal signal so recovering forest remains viable.
+    /// </summary>
+    private Fix64 IronFuelCatchmentScore(int civ, int site)
+    {
+        int reach = Done(civ, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        Fix64 score = Fix64.Zero;
+        foreach (int tile in ReachTiles(site, reach))
+        {
+            if (!IsForestTile(tile) || IsRivalTile(civ, tile)) continue;
+            int distance = HexGrid.Distance(site, tile, _world.Width);
+            Fix64 weight = distance <= Radius
+                ? Fix64.FromRatio(1, 4)
+                : Fix64.FromRatio(reach + 1 - distance, reach - Radius + 1);
+            Fix64 standing = StandingWoodAvailableToIron(tile);
+            Fix64 annualGrowth = _world.Tile(tile).WoodGrowthPerYear;
+            score += (standing + annualGrowth) * weight;
+        }
+        return score;
+    }
+
+    /// <summary>
+    /// Bounded preference used when an Iron-era daughter site is chosen. Food and political fit remain the base score; productive wood in
+    /// the charcoal haul catchment can raise it by up to 30 percent.
+    /// </summary>
+    internal Fix64 IronFuelSitingMultiplier(int civ, int tile)
+    {
+        if (!IronFuelHubsEnabled(civ) || (uint)tile >= (uint)_world.TileCount) return Fix64.One;
+        Fix64 fuelScore = IronFuelCatchmentScore(civ, tile);
+        return Fix64.One + Fix64.Min(Fix64.FromRatio(3, 10), fuelScore / Fix64.FromInt(100));
+    }
+
+    /// <summary>
+    /// Assigns a settlement to the highest-scoring local-maximum smith site it can directly share with. Local maxima make every selected hub
+    /// an actual producer even where a civilization's settlement graph is wider than one sharing radius. Assignments are derived once per
+    /// season, need no serialized state, and use settlement id as a stable tie-break. If no reachable forest has stock or growth, production
+    /// remains local as a fallback.
+    /// </summary>
+    private SettlementState IronFuelHubFor(SettlementState s)
+    {
+        if (!IronFuelHubsEnabled(s.Civilization) || (uint)s.Id >= (uint)_settlements.Count) return s;
+        EnsureIronFuelHubAssignments();
+        int hub = _ironFuelHubAssignments[s.Id];
+        return (uint)hub < (uint)_settlements.Count ? _settlements[hub] : s;
+    }
+
+    private void EnsureIronFuelHubAssignments()
+    {
+        if (_ironFuelHubAssignmentsReady && _ironFuelHubAssignments.Length == _settlements.Count) return;
+
+        int count = _settlements.Count;
+        var scores = new Fix64[count];
+        var eligible = new bool[count];
+        var localMaximum = new bool[count];
+        var assignments = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            SettlementState settlement = _settlements[i];
+            assignments[i] = i;
+            if (settlement.Metal is null || IsFreeFolk(settlement) || Population(settlement.Id) <= 0) continue;
+            eligible[i] = true;
+            scores[i] = IronFuelCatchmentScore(settlement.Civilization, settlement.SiteTile);
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (!eligible[i] || scores[i] <= Fix64.Zero) continue;
+            SettlementState candidate = _settlements[i];
+            int reach = IronShareReach(candidate.Civilization);
+            bool isMaximum = true;
+            for (int j = 0; j < count; j++)
+            {
+                if (i == j || !eligible[j]) continue;
+                SettlementState other = _settlements[j];
+                if (other.Civilization != candidate.Civilization ||
+                    HexGrid.Distance(candidate.SiteTile, other.SiteTile, _world.Width) > reach) continue;
+                if (scores[j] > scores[i] || (scores[j] == scores[i] && other.Id < candidate.Id))
+                { isMaximum = false; break; }
+            }
+            localMaximum[i] = isMaximum;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (!eligible[i]) continue;
+            SettlementState settlement = _settlements[i];
+            int reach = IronShareReach(settlement.Civilization);
+            int best = -1;
+            for (int j = 0; j < count; j++)
+            {
+                if (!localMaximum[j]) continue;
+                SettlementState candidate = _settlements[j];
+                if (candidate.Civilization != settlement.Civilization ||
+                    HexGrid.Distance(settlement.SiteTile, candidate.SiteTile, _world.Width) > reach) continue;
+                if (best < 0 || scores[j] > scores[best] || (scores[j] == scores[best] && candidate.Id < _settlements[best].Id)) best = j;
+            }
+            if (best >= 0) assignments[i] = best;
+        }
+
+        _ironFuelHubAssignments = assignments;
+        _ironFuelHubAssignmentsReady = true;
+    }
 
     /// <summary>Adults of a settlement with no iron kit, or whose iron kit is about to wear out.</summary>
     private int IronKitsLacking(SettlementState s)
@@ -166,32 +286,110 @@ public sealed partial class LivingEconomyModel
         => other != s && other.Civilization == s.Civilization && other.Metal is not null && !IsFreeFolk(other) && Population(other.Id) > 0 &&
            HexGrid.Distance(other.SiteTile, s.SiteTile, _world.Width) <= reach;
 
+    /// <summary>Whether this site has its own workable iron source (in range, at a camp, or on its own land within mining reach).</summary>
+    private bool HasLocalIronOreSource(SettlementState s)
+        => HasLocalIronOreSourceAt(s.Civilization, s.SiteTile, s.Id);
+
+    private bool HasLocalIronOreSourceAt(int civ, int siteTile, int settlementId)
+    {
+        foreach (int tile in RangeTiles(siteTile))
+        {
+            bool mineHead = settlementId >= 0 && _settlements[settlementId].Metal is { } m && m.MineHeads.Contains(tile);
+            if (SourceBit(civ, tile) == SourceIron && MineRate(civ, tile, mineHead, out _) > Fix64.Zero) return true;
+        }
+        foreach (MiningCampState camp in _camps)
+            if (camp.Parent == settlementId && SourceBit(civ, camp.Tile) == SourceIron &&
+                MineRate(civ, camp.Tile, camp.MineHead, out _) > Fix64.Zero) return true;
+        foreach (int tile in ReachTiles(siteTile, MiningReach(civ, siteTile)))
+            if (IsOwnTile(civ, tile) && SourceBit(civ, tile) == SourceIron && MineRate(civ, tile, false, out _) > Fix64.Zero) return true;
+        return false;
+    }
+
     /// <summary>
-    /// The iron kits the forgeless sister settlements within the sharing reach still lack (their adults without an iron kit, less kits they
-    /// already hold). A forge settlement smiths for them, as it casts Bronze kits for sisters (docs/MVP/22 §5.7). Zero without the sharing
-    /// research (SOC-07 or GOV-04).
+    /// Chooses one direct sister supplier for a wooded hub that has no local mine source. Active mines win, then the closest source, then
+    /// settlement id. A single supplier per hub keeps its ore target from being duplicated across every nearby mine town.
+    /// </summary>
+    private SettlementState? IronOreSupplierForHub(SettlementState hub)
+    {
+        if (!IronFuelHubsEnabled(hub.Civilization) || !Done(hub.Civilization, "MET-09") ||
+            hub.Metal is not { Forges: > 0, Smelters: > 0 } || HasLocalIronOreSource(hub)) return null;
+        int reach = IronShareReach(hub.Civilization);
+        SettlementState? best = null;
+        bool bestDigging = false;
+        int bestDistance = int.MaxValue;
+        foreach (SettlementState candidate in _settlements)
+        {
+            if (!IronSister(hub, candidate, reach) || !HasLocalIronOreSource(candidate)) continue;
+            bool digging = CanDig(candidate, MetalGood.IronOre);
+            int distance = HexGrid.Distance(hub.SiteTile, candidate.SiteTile, _world.Width);
+            if (best is null || digging && !bestDigging || digging == bestDigging &&
+                (distance < bestDistance || distance == bestDistance && candidate.Id < best.Id))
+            {
+                best = candidate;
+                bestDigging = digging;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>Iron ore a hub can actually consume after its current bloom stock and ore store are counted.</summary>
+    private Fix64 IronFuelOreNeed(SettlementState hub)
+    {
+        if (hub.Metal is not { } m) return Fix64.Zero;
+        Fix64 bloomNeed = Fix64.Max(Fix64.Zero, IronBloomNeed(hub) - m.Goods[(int)MetalGood.Iron]);
+        return Fix64.Max(Fix64.Zero, bloomNeed * Fix64.FromInt(4) - m.Goods[(int)MetalGood.IronOre]);
+    }
+
+    /// <summary>The current ore deficit of hubs for which this settlement is the sole selected local mine supplier.</summary>
+    private Fix64 SisterIronOreDeficit(SettlementState supplier)
+    {
+        if (!IronFuelHubsEnabled(supplier.Civilization)) return Fix64.Zero;
+        int reach = IronShareReach(supplier.Civilization);
+        Fix64 need = Fix64.Zero;
+        foreach (SettlementState hub in _settlements)
+        {
+            if (!IronSister(supplier, hub, reach) || IronFuelHubFor(hub).Id != hub.Id) continue;
+            if (IronOreSupplierForHub(hub)?.Id == supplier.Id) need += IronFuelOreNeed(hub);
+        }
+        return need;
+    }
+
+    /// <summary>
+    /// The iron kits assigned sister settlements within the sharing reach still lack (their adults without an iron kit, less kits they already
+    /// hold). Before KEY-4 the existing forgeless-sister rule applies; after KEY-4 the catchment hub smiths for assigned sisters, including one
+    /// that already has an idle forge. Zero without the sharing research (SOC-07 or GOV-04).
     /// </summary>
     private Fix64 SisterKitDeficit(SettlementState s)
     {
         int reach = IronShareReach(s.Civilization);
         if (reach < 0) return Fix64.Zero;
+        bool hubs = IronFuelHubsEnabled(s.Civilization);
+        if (hubs && IronFuelHubFor(s).Id != s.Id) return Fix64.Zero;
         Fix64 deficit = Fix64.Zero;
         foreach (SettlementState sister in _settlements)
         {
-            if (!IronSister(s, sister, reach) || sister.Metal!.Forges > 0) continue;
+            if (!IronSister(s, sister, reach)) continue;
+            if (hubs)
+            {
+                if (IronFuelHubFor(sister).Id != s.Id) continue;
+            }
+            else if (sister.Metal!.Forges > 0) continue;
             deficit += Fix64.Max(Fix64.Zero, Fix64.FromInt(IronKitsLacking(sister)) - IronKitsInStore(sister));
         }
         return deficit;
     }
 
     /// <summary>
-    /// The bloom the forge sisters not digging iron themselves still lack, which a settlement that can dig iron smelts for them (stateless, from
-    /// the sisters' kits and stores), scaled by this settlement's forest: the smelting fuel is its own.
+    /// Before KEY-4, the bloom forge sisters without a mine still lack, which a local iron source smelts from their kit and store deficit.
+    /// After KEY-4 this stays zero: raw ore is supplied to the catchment hub so bloomery fuel is burned at the wooded producer.
     /// </summary>
     private Fix64 SisterBloomDeficit(SettlementState s, MetalState m)
     {
         int reach = IronShareReach(s.Civilization);
         if (reach < 0 || ((m.Access & SourceIron) == 0 && !CanDig(s, MetalGood.IronOre))) return Fix64.Zero;
+        // Once hubs are active, raw ore travels to the wood-rich hub; bloom is made where its charcoal catchment is.
+        if (IronFuelHubsEnabled(s.Civilization)) return Fix64.Zero;
         Fix64 deficit = Fix64.Zero;
         foreach (SettlementState sister in _settlements)
         {
@@ -204,11 +402,28 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// Moves Iron kits and bloom between sister settlements of a civilization (called from <c>ShareMetals</c> in the Iron chapter, after the Bronze goods):
-    /// whole kits, best tier first, from settlements holding more than their own adults lack to those short of them; bloom from settlements holding
-    /// more than their own kits need to forge settlements without iron. Nothing is created: each move debits the donor as it credits the receiver.
+    /// whole kits, best tier first, from settlements holding more than their own adults lack to those short of them; bloom goes to a production hub
+    /// that lacks its own iron source. Nothing is created: each move debits the donor as it credits the receiver.
     /// </summary>
     private void ShareIronGoods(int civ, int reach)
     {
+        // Raw ore moves to the wooded hub; the bloomery and forge both consume charcoal there.
+        for (int r = 0; r < _settlements.Count; r++)
+        {
+            SettlementState hub = _settlements[r];
+            if (hub.Civilization != civ || hub.Metal is not { } hm || IsFreeFolk(hub) || Population(hub.Id) == 0 ||
+                IronFuelHubFor(hub).Id != hub.Id) continue;
+            SettlementState? supplier = IronOreSupplierForHub(hub);
+            if (supplier?.Metal is not { } sm) continue;
+            Fix64 need = IronFuelOreNeed(hub);
+            Fix64 localReserve = IronFuelHubFor(supplier).Id == supplier.Id ? IronFuelOreNeed(supplier) : Fix64.Zero;
+            Fix64 surplus = Fix64.Max(Fix64.Zero, sm.Goods[(int)MetalGood.IronOre] - localReserve);
+            Fix64 move = Fix64.Min(need, surplus);
+            if (move <= Epsilon) continue;
+            sm.Goods[(int)MetalGood.IronOre] -= move;
+            hm.Goods[(int)MetalGood.IronOre] += move;
+        }
+
         for (int r = 0; r < _settlements.Count; r++)
         {
             SettlementState receiver = _settlements[r];
@@ -235,6 +450,8 @@ public sealed partial class LivingEconomyModel
         {
             SettlementState receiver = _settlements[r];
             if (receiver.Civilization != civ || receiver.Metal is not { Forges: > 0 } rm || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
+            if (IronFuelHubsEnabled(civ) && IronFuelHubFor(receiver).Id != receiver.Id) continue;
+            if (IronFuelHubsEnabled(civ) && IronOreSupplierForHub(receiver) is not null) continue;
             if (CanDig(receiver, MetalGood.IronOre)) continue;
             Fix64 need = IronBloomNeed(receiver) - rm.Goods[(int)MetalGood.Iron];
             for (int d = 0; d < _settlements.Count && need > Epsilon; d++)
@@ -278,10 +495,38 @@ public sealed partial class LivingEconomyModel
     private Fix64 IronBloomNeed(SettlementState s)
     {
         if (!Done(s.Civilization, "MET-09")) return Fix64.Zero;
-        Fix64 kits = Fix64.Max(Fix64.Zero, Fix64.FromInt(IronKitsLacking(s)) - IronStock(s, IronGood.Kit11) - IronStock(s, IronGood.Kit12));
+        if (IronFuelHubsEnabled(s.Civilization) && IronFuelHubFor(s).Id != s.Id) return Fix64.Zero;
+        Fix64 kits = Fix64.Max(Fix64.Zero, Fix64.FromInt(IronKitsLacking(s)) - IronKitsInStore(s)) + SisterKitDeficit(s);
         Fix64 inStore = IronStock(s, IronGood.Wrought) * Fix64.FromRatio(5, 4);
         return Fix64.Max(Fix64.Zero, kits * BloomPerKit - inStore);
     }
+
+    internal bool FixtureIsIronFuelHub(int settlementIndex)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
+        return !IronFuelHubsEnabled(_settlements[settlementIndex].Civilization) ||
+            IronFuelHubFor(_settlements[settlementIndex]).Id == _settlements[settlementIndex].Id;
+    }
+
+    internal bool FixtureHasLocalIronOreSource(int settlementIndex)
+        => HasLocalIronOreSource(_settlements[settlementIndex]);
+
+    internal bool FixtureHasLocalIronOreSourceAt(int civ, int siteTile)
+        => HasLocalIronOreSourceAt(civ, siteTile, settlementId: -1);
+
+    internal int FixtureIronOreSupplierForHub(int settlementIndex)
+        => IronOreSupplierForHub(_settlements[settlementIndex])?.Id ?? -1;
+
+    internal Fix64 FixtureIronFuelCatchmentScore(int settlementIndex)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
+        SettlementState s = _settlements[settlementIndex];
+        return IronFuelCatchmentScore(s.Civilization, s.SiteTile);
+    }
+
+    internal Fix64 FixtureIronFuelSitingMultiplier(int civ, int tile) => IronFuelSitingMultiplier(civ, tile);
+
+    internal Fix64 FixtureIronFuelCatchmentScoreAt(int civ, int tile) => IronFuelCatchmentScore(civ, tile);
 
     /// <summary>
     /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): those with no kit first, then worn kits, then early upgrades, oldest
