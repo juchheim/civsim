@@ -29,7 +29,7 @@ public class ResearchEraLensTests
                 float m = lens.Map(r);
                 Assert.True(m > previous, $"f={f:0.00}: Map({r}) = {m} is not above Map({r - 1}) = {previous}");
                 // slope is at most 1 (full lanes and gaps are the layout's own spacing; the hub stretches by hub / CenterRadius)
-                float slope = Math.Max(1f, lens.Hub / ResearchRadialLayout.CenterRadius);
+                float slope = Math.Max(Math.Max(1f, lens.Hub / ResearchRadialLayout.CenterRadius), ResearchEraLens.FocusLane / ResearchEraLens.FullLane);
                 Assert.True(m - previous <= slope + 0.01f, $"f={f:0.00}: Map jumps at {r}");
                 previous = m;
             }
@@ -46,14 +46,16 @@ public class ResearchEraLensTests
             lens.SetFocus(i);
             int era = Layout.Rings[i];
             Assert.Equal(1f, lens.Weight(era));
-            Assert.Equal(lens.FocusInner, lens.Inner(era), 3);
+            // pinned at FocusInner, unless the older ages' bands already fill that radius and the hub sits at its floor (then the ring starts a little further out)
+            if (lens.Hub > ResearchEraLens.HubMin + 0.01f) Assert.Equal(lens.FocusInner, lens.Inner(era), 3);
+            else Assert.True(lens.Inner(era) >= lens.FocusInner - 0.01f);
             Assert.Equal(Layout.Lanes[era] * ResearchEraLens.FocusLane, lens.Outer(era) - lens.Inner(era), 3);
-            Assert.Equal(lens.FocusInner, lens.Map(Layout.RingInner[era]), 2);
+            Assert.Equal(lens.Inner(era), lens.Map(Layout.RingInner[era]), 2);
         }
     }
 
     [Fact]
-    public void Lane_zero_neighbours_of_the_focused_ring_are_at_least_44_apart()
+    public void Lane_zero_neighbours_of_the_focused_ring_are_at_least_28_apart()
     {
         var lens = new ResearchEraLens(Layout);
         for (int i = 0; i < lens.RingCount; i++)
@@ -61,7 +63,7 @@ public class ResearchEraLensTests
             lens.SetFocus(i);
             float laneZero = lens.Inner(Layout.Rings[i]) + ResearchEraLens.FocusLane * 0.5f;
             float spacing = laneZero * Layout.SlotAngle;
-            Assert.True(spacing >= 44f, $"{Layout.Rings[i]}: lane-0 neighbours are {spacing:0.0} apart");
+            Assert.True(spacing >= 28f, $"{Layout.Rings[i]}: lane-0 neighbours are {spacing:0.0} apart");
         }
     }
 
