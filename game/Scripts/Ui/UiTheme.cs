@@ -132,6 +132,7 @@ public static class UiTheme
             theme.SetStylebox("panel", name, box);
         }
         PanelStyle("HudPanel", Box(UiTokens.Surface1, UiTokens.R2, UiTokens.Border, 1, UiTokens.Sp3, UiTokens.Sp2, 6, 2, 0.30f));
+        PanelStyle("TimeClusterPanel", Box(UiTokens.Surface1, UiTokens.R2, UiTokens.Border, 1, UiTokens.Sp3, 4, 6, 2, 0.30f));
         PanelStyle("CardPanel", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 10, 10, 4, 0.35f));
         PanelStyle("MomentCard", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 8, 10, 4, 0.35f));
         PanelStyle("InnerCard", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 10));

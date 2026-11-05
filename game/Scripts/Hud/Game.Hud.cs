@@ -253,7 +253,7 @@ public partial class Game
         foreach (ColorRect? bar in _pauseFrame)
             if (bar is not null) UiKit.SetVisible(bar, paused);
         UpdatePausedPill(paused);
-        UpdatePauseButton();
+        UpdatePauseLogo();
     }
 
     private void CreateDevOverlay()

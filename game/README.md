@@ -33,8 +33,8 @@ speed, `T` research, `O` diplomacy, `C` Chronicle, `H`/`F1` help, `B` Beacon mod
 closes the topmost layer (popover, drawer, web, modal); with nothing open it opens the
 game menu. Typing in the search field never moves the camera.
 
-**Time.** The top band shows the date, a dominant Pause/Resume button and ½×/1×/2×/4×.
-While paused the Resume button turns gold, a "PAUSED" pill appears, and the viewport
+**Time.** The top band shows the date, the animated logo as the pause control and ½×/1×/2×/4×.
+While time runs the logo animates; while paused it rests on its still frame with a gold ring, a "PAUSED" pill appears, and the viewport
 gets a gold frame and a light scrim. A new match starts paused ("opening hold") through
 the first research choice, then resumes when the research web closes. Orders given while
 paused show as *pending*.

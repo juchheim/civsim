@@ -14,13 +14,14 @@ public partial class Game
     private UiButton? _peopleTopButton;
     private UiProgressBar? _ageBar;
     private UiSeasonDial? _seasonDial;
-    private UiButton? _pauseButton;
+    private UiLogoButton? _pauseLogo;
     private UiSegmented? _speedControl;
     private UiButton? _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu;
     private PanelContainer? _chronicleBadge;
     private Label? _chronicleBadgeLabel;
     private Control? _civDivider, _civAgeBlock, _civStatsBlock;
     private int _lastSeasonOfYear = -1;
+    private const int LogoSize = 90, LogoSlotWidth = 72;
 
     private static void AnchorTo(Control c, float ax0, float ay0, float ax1, float ay1, float l, float t, float r, float b,
         Control.GrowDirection growH = Control.GrowDirection.End, Control.GrowDirection growV = Control.GrowDirection.End)
@@ -76,7 +77,7 @@ public partial class Game
         _hudRoot!.AddChild(_civCard);
 
         // Time cluster
-        _timeCluster = UiKit.Panel("HudPanel", "TimeCluster");
+        _timeCluster = UiKit.Panel("TimeClusterPanel", "TimeCluster");
         _timeCluster.CustomMinimumSize = new Vector2(0, TopBandHeight);
         var timeRow = UiKit.Row(UiTokens.Sp3);
         _replayChip = UiKit.Chip("REPLAY", UiGlyph.Play, UiTokens.Info, "ChipPanelInfo");
@@ -91,10 +92,12 @@ public partial class Game
         dateColumn.AddChild(_yearLabel);
         dateColumn.AddChild(_seasonLabel);
         timeRow.AddChild(dateColumn);
-        _pauseButton = UiKit.Secondary("Pause", TogglePause, "Pause (Space). You can still choose research and give orders.", UiGlyph.Pause);
-        _pauseButton.CustomMinimumSize = new Vector2(128, UiTokens.ControlM);
-        _pauseButton.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        timeRow.AddChild(_pauseButton);
+        // The logo is larger than the band: it hangs 13 px over the top and bottom edges of the cluster panel.
+        _pauseLogo = new UiLogoButton(TogglePause, LogoSize) { Name = "PauseLogo", TooltipText = "Pause (Space). You can still choose research and give orders." };
+        var logoSlot = new Control { MouseFilter = Control.MouseFilterEnum.Ignore, CustomMinimumSize = new Vector2(LogoSlotWidth, TopBandHeight - 8), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        logoSlot.AddChild(_pauseLogo);
+        AnchorTo(_pauseLogo, 0.5f, 0.5f, 0.5f, 0.5f, -LogoSize / 2f, -LogoSize / 2f, LogoSize / 2f, LogoSize / 2f, Control.GrowDirection.Both, Control.GrowDirection.Both);
+        timeRow.AddChild(logoSlot);
         _speedControl = new UiSegmented(new[] { "½×", "1×", "2×", "4×" }, 1, index => _session?.SetSpeedIndex(index), 40);
         _speedControl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         for (int i = 0; i < 4; i++) _speedControl.SetTooltip(i, "Game speed ([ and ])");
@@ -154,7 +157,7 @@ public partial class Game
         if (_civSettlementsLabel is not null) _civSettlementsLabel.Visible = !_compact;
 
         AnchorTo(_timeCluster, 0.5f, 0, 0.5f, 0, 0, m, 0, m + TopBandHeight, Control.GrowDirection.Both);
-        AnchorTo(_pausedPill, 0.5f, 0, 0.5f, 0, 0, m + TopBandHeight + 8, 0, m + TopBandHeight + 44, Control.GrowDirection.Both);
+        AnchorTo(_pausedPill, 0.5f, 0, 0.5f, 0, 0, m + TopBandHeight + 16, 0, m + TopBandHeight + 52, Control.GrowDirection.Both);
         AnchorTo(_topRight, 1, 0, 1, 0, 0, m, -m, m + TopBandHeight, Control.GrowDirection.Begin);
 
         foreach (UiButton? button in new[] { _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu })
@@ -256,18 +259,21 @@ public partial class Game
         UpdatePausedTreatment();
     }
 
-    private void UpdatePauseButton()
+    /// <summary>The animated logo is the pause control: it plays while time runs and rests (with a gold ring) while paused.</summary>
+    private void UpdatePauseLogo()
     {
-        if (_pauseButton is null || _session is null) return;
+        if (_pauseLogo is null || _session is null) return;
         bool finished = _session.MatchEnded || _session.ReplayFinished;
         bool paused = _session.Paused;
-        UiKit.SetText(_pauseButton, finished ? "Match over" : paused ? "Resume" : "Pause");
-        _pauseButton.Glyph = paused && !finished ? UiGlyph.Play : UiGlyph.Pause;
-        _pauseButton.Disabled = finished;
-        UiKit.SetVariation(_pauseButton, paused && !finished ? "PrimaryIcon" : "SecondaryIcon");
-        _pauseButton.TooltipText = finished
+        if (_pauseLogo.Disabled != finished) _pauseLogo.Disabled = finished;
+        bool playing = !finished && !paused;
+        if (_pauseLogo.Playing != playing) _pauseLogo.Playing = playing;
+        bool ring = paused && !finished;
+        if (_pauseLogo.Highlight != ring) _pauseLogo.Highlight = ring;
+        string tip = finished
             ? "This match has ended."
             : paused ? "Resume (Space)." : "Pause (Space). You can still choose research and give orders.";
+        if (_pauseLogo.TooltipText != tip) _pauseLogo.TooltipText = tip;
     }
 
     private void UpdatePausedPill(bool paused)
