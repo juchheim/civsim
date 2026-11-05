@@ -321,6 +321,8 @@ public sealed partial class LivingEconomyModel
                 break;
             }
             if (give == 0) continue;
+            int oldTier = f.Kit;
+            Fix64 oldLeft = f.KitLeft;
             if (f.Kit is >= 8 and <= 10 && f.KitLeft > Fix64.Zero && _tierDefs[f.Kit] is { } old)
             {
                 Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
@@ -328,6 +330,7 @@ public sealed partial class LivingEconomyModel
                 AddMetalStat(civ, StatRemeltCopper, copper);
             }
             AddStock(s, IronSlot(give == 12 ? IronGood.Kit12 : IronGood.Kit11), -Fix64.One);
+            RecordIT6IronKitIssued(civ, give, oldTier, oldLeft);
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
         }
