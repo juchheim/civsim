@@ -1,5 +1,7 @@
 # M12 WP-E5-1: E5 oracle screens (2026-11-05)
 
+**Superseded in part:** the pacing section ("4.7× / 27 minutes") is replaced by the forward estimate in [m12-wp4-reanchor](m12-wp4-reanchor.md); everything else stands.
+
 **Status:** fixture and accounting screens only, the E5 counterpart of [m11-wp2-oracle-fit](m11-wp2-oracle-fit.md). Nothing here fits live E5 (none exists), approves a band, promotes content or changes E0–E4. All values marked P in the scripts are hypotheses. Written against `main` at `6d6df44`; the Iron chapter was still being balanced, so every Iron-derived input is a placeholder to re-anchor.
 
 ## Reproducibility

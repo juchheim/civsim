@@ -10,8 +10,11 @@ import argparse
 import importlib.util
 import math
 from pathlib import Path
+import sys
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from e5_anchors import LIVE_E4  # noqa: E402
 _spec = importlib.util.spec_from_file_location("e5_power_oracle", HERE / "e5_power_oracle.py")
 pw = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pw)
@@ -153,6 +156,12 @@ def part_staffing():
     print(f"  Reading: at a 10% army the new institutions fit with almost no slack even at full machine coverage ({pool:.1f} freed against")
     print(f"  {demand:.1f} wanted); a war footing at 20% soldiers does not fit, so staffing, not research, limits an E5 civilization. This is")
     print("  the F-T6 'idle institution' risk in numbers: build order must follow the pool, or monasteries and hospitals sit empty.")
+    a = LIVE_E4["adults_at_key5_median"]
+    live_sold = 100 * LIVE_E4["soldiers_share_of_adults_median"]
+    live_other = 100 * (1 + LIVE_E4["missionaries_median"]) / a
+    print(f"  Live E4 anchor ({LIVE_E4['label']}): soldiers {live_sold:.1f}, scholars {100 * 1 / a:.2f} and missionaries {100 * LIVE_E4['missionaries_median'] / a:.2f} per 100 adults,")
+    print(f"  with {LIVE_E4['idle_scholars_median']} idle scholar seats per civilization. So natural play staffs the army (about the 10% slot) and almost nothing else: the")
+    print(f"  institutional demand assumed above ({sum(v for k, v in STAFF_PER_100_ADULTS.items() if not k.startswith('soldiers')):.1f} per 100 adults beyond soldiers) is ~{sum(v for k, v in STAFF_PER_100_ADULTS.items() if not k.startswith('soldiers')) / live_other:.0f}x what the live Iron economy staffs today.")
 
 
 def check():

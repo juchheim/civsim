@@ -14,10 +14,14 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import math
 from math import isclose
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+import sys
+sys.path.insert(0, str(HERE))
+from e5_anchors import LIVE_E4  # noqa: E402
 _spec = importlib.util.spec_from_file_location("e4_research_oracle", HERE / "e4_research_oracle.py")
 e4 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(e4)
@@ -185,13 +189,16 @@ def report(projects):
     print(f"  09 11.2 model Insight/min at the end of E4 -> E5: {MODEL_INSIGHT[4]:,.0f} -> {MODEL_INSIGHT[5]:,.0f} ({MODEL_INSIGHT[5] / MODEL_INSIGHT[4]:.2f}x)")
     print("  Caution: the 09 table's Insight column predates the current EraBase, so its absolute level is stale (the same")
     print("  1.8x to 1.9x gap appears for E4 and E5); only the ratios are comparable. E5 needs ~4.0x the E4 rate; the model grows ~3.8x.")
-    live_e4_minutes = 20.0  # m11-wp11: natural play, KEY-4 -> KEY-5 about 20 minutes (live, descriptive)
+    live_e4_minutes = LIVE_E4["key4_to_key5_minutes"]  # e5_anchors.py: natural play, KEY-4 -> KEY-5 (live, descriptive)
     live_e4_rate = e4_total / live_e4_minutes
-    print(f"\n  Live anchor (m11-wp11): E4 took ~{live_e4_minutes:.0f} min for {e4_total:,.0f} => ~{live_e4_rate:,.0f} Insight/min on average.")
+    print(f"\n  Live anchor ({LIVE_E4['label']}): E4 took ~{live_e4_minutes:.0f} min for {e4_total:,.0f} => ~{live_e4_rate:,.0f} Insight/min on average.")
     print("  If the E5 average rate is g x that live E4 average, E5 (candidate + backfill) takes:")
     for g in (2, 3, 4, 5):
         print(f"    g = {g}: {e5_all / (live_e4_rate * g):5.1f} min")
-    print("  So KEY-6 needs ~4.7x the live E4 rate to land at 17.5 minutes. Population growth alone (~3x) gives ~27 minutes.")
+    need = e5_all / 17.5 / live_e4_rate
+    print(f"  So KEY-6 needs ~{need:.1f}x the live E4 *average* rate to land at 17.5 minutes (the E4 average sits well below its own end rate,")
+    print("  because population and Insight grow all through the era; see the forward estimate below).")
+    forward_estimate(e4_total, e5_all)
 
 
 # ---- Insight budget (02 §8.1; balance.yaml): a settlement-level fixture --------------------
@@ -204,6 +211,38 @@ def insight_per_year(adults_per_settlement, settlements, scholars, monasteries, 
     commons = COMMONS_COEF * settlements * adults_per_settlement ** COMMONS_EXP * commons_mult
     roles = scholars * OUT_SCHOLAR * scholar_mult + monasteries * OUT_MONASTERY * monastery_mult
     return CALIB * (commons + roles)
+
+
+def forward_estimate(e4_cost, e5_cost_total):
+    """Time to finish E5 if Insight starts at the live end-of-E4 level and keeps growing with population (exponential, rate r per minute).
+
+    Calibration: the same model run backwards over the live E4 interval must reproduce the E4 candidate cost, or it is not trusted.
+    """
+    a = LIVE_E4["adults_at_key5_median"]
+    n = LIVE_E4["settlements_at_key5_median"]
+    sch = LIVE_E4["scholars_at_key5_median"]
+    r0 = LIVE_E4["growth_per_minute"]
+    t4 = LIVE_E4["key4_to_key5_minutes"]
+    print("\n== Forward pacing estimate (Insight starts at the live end-of-E4 level and keeps growing; not a fit)")
+    print(f"  live end-of-E4 fixture: {a} adults in {n} settlements ({a / n:.1f} each), {sch} scholar(s); Commons = 4.8 x adults^0.85 per settlement, x1.6")
+    for label, cm in (("no E4 Insight modifiers taken", 1.0), ("COM-07 and GOV-08 taken (x1.2075)", 1.05 * 1.15)):
+        i_end = insight_per_year(a / n, n, sch, 0, commons_mult=cm)
+        implied_e4 = i_end * (1 - math.exp(-r0 * t4)) / r0
+        print(f"  {label}: Insight at KEY-5 ~{i_end:,.0f}/min; run backwards at r={r0:.2f} over {t4:.0f} min it implies an E4 cost of {implied_e4:,.0f} "
+              f"vs the candidate's {e4_cost:,.0f} ({100 * (implied_e4 / e4_cost - 1):+.0f}%)")
+    i0 = insight_per_year(a / n, n, sch, 0, commons_mult=1.0)
+    i0m = insight_per_year(a / n, n, sch, 0, commons_mult=1.05 * 1.15)
+    print(f"  E5 candidate + backfill cost {e5_cost_total:,.0f}. Minutes to finish if Insight keeps growing at r per minute:")
+    print(f"    {'r':>5s} | {'no-modifier start':>18s} | {'modifier start':>15s} | modifier start + E5 Insight projects (+12% on average, rough)")
+    for r in (0.03, 0.04, 0.06, 0.08):
+        t_a = math.log(1 + e5_cost_total * r / i0) / r
+        t_b = math.log(1 + e5_cost_total * r / i0m) / r
+        t_c = math.log(1 + e5_cost_total * r / (i0m * 1.12)) / r
+        print(f"    {r:5.2f} | {t_a:18.1f} | {t_b:15.1f} | {t_c:.1f}")
+    print("  Reading: run backwards, the no-modifier version reproduces the live E4 cost within about 11% (it runs a little rich), and the version")
+    print("  with COM-07 and GOV-08 assumed taken overshoots by a third, so the no-modifier column is the better calibrated one. On it, KEY-6 lands")
+    print("  near 21 minutes at E4-like growth (6% a minute) and 25 at 4%: 15 to 40% above the 16.75 to 18.25 projection, but far less than a")
+    print("  flat-average reading suggests. If growth falls to 3% a minute (towns saturating) E5 runs near 28 minutes.")
 
 
 def insight_budget():
