@@ -404,7 +404,7 @@ internal static class IronMatchCommand
         if (fuelSites.Length > 0)
         {
             output.AppendLine("  fuel-short settlement hotspots (top 12 by unmet charcoal; wood is measured before each short burn, end-state supply is current at match end):");
-            output.AppendLine("    civ site pop short/demand unmet/plan-L mean-reach/usable/in-range/outer/local-wood-at-short-L remaining-work mean-factor baseline/end-reach/end-usable/tiles local-charcoal own/other-settlements-in-reach");
+            output.AppendLine("    civ site pop short/demand unmet/plan-L mean-reach/usable/in-range/outer/local-wood-at-short-L remaining-work mean-factor baseline/end-reach/end-usable/tiles next-10-reach/raw/usable/tiles nearest-next-forest local-charcoal own/other-settlements-in-reach");
             foreach (IT6FuelSiteSnapshot site in fuelSites)
             {
                 Fix64 shortRate = Fix64.FromRatio(site.ShortSeasons, site.DemandSeasons);
@@ -416,6 +416,7 @@ internal static class IronMatchCommand
                     $"{F(site.ShortfallInRangeWood / count)}/{F(site.ShortfallOuterReachWood / count)}/{F(site.ShortfallLocalWood / count)} " +
                     $"work={F(site.ShortfallRemainingWork / count)} " +
                     $"factor={Pct(site.ShortfallWoodFactor / count, Fix64.One)} baseline={F(site.ForestBaseline)} end-reach={F(site.ReachWoodNow)}/usable={F(site.HarvestableWoodNow)} on {site.HarvestableForestTiles} tiles " +
+                    $"next-10={F(site.BeyondReachRawWood)}/{F(site.BeyondReachHarvestableWood)} on {site.BeyondReachForestTiles} tiles, nearest={site.NearestBeyondReachForestDistance} " +
                     $"local-charcoal={F(site.CharcoalStock)} own/other-neighbors={site.OwnSettlementsInReach}/{site.OtherSettlementsInReach}");
             }
         }

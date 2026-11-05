@@ -33,6 +33,8 @@ public sealed partial class LivingEconomyModel
     internal int FixtureWorldWidth => _world.Width;
     internal int FixtureWorldTileCount => _world.TileCount;
     internal bool FixtureIsHabitableSite(int tile) => IsHabitableSite(tile);
+    internal bool FixtureIsForestTile(int tile) => IsForestTile(tile);
+    internal bool FixtureIsRivalTile(int civ, int tile) => IsRivalTile(civ, tile);
 
     internal int FixtureChooseFissionSite(int settlementIndex)
         => ChooseFissionSite(_settlements[settlementIndex], checked((int)_seasonsCompleted), recordDiagnostics: false);

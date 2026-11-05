@@ -101,11 +101,22 @@ public sealed partial class LivingEconomyModel
     /// <summary>Forest stock Iron's charcoal chain can reach, excluding rival-held tiles.</summary>
     private Fix64 IronForestWoodInReach(SettlementState s)
     {
-        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        int reach = IronFuelCharcoalReach(s);
         Fix64 total = Fix64.Zero;
         foreach (int tile in ReachTiles(s.SiteTile, reach))
             if (IsForestTile(tile) && !IsRivalTile(s.Civilization, tile)) total += _woodStock[tile];
         return total;
+    }
+
+    /// <summary>
+    /// Once Iron domestic sharing is available, any Iron fuel consumer can add that network's reach to the ordinary charcoal reach.
+    /// Existing per-litre haul work is still charged for every tile outside the local cutting radius.
+    /// </summary>
+    private int IronFuelCharcoalReach(SettlementState s)
+    {
+        int charcoalReach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        if (!IronFuelHubsEnabled(s.Civilization)) return charcoalReach;
+        return charcoalReach + IronShareReach(s.Civilization);
     }
 
     /// <summary>
@@ -166,9 +177,10 @@ public sealed partial class LivingEconomyModel
     /// available to Iron after radius-3 local cutting, while haul cost falls with distance. Nearby forest still contributes, but at a lower
     /// weight because household and building uses compete for it. Growth adds an annual renewal signal so recovering forest remains viable.
     /// </summary>
-    private Fix64 IronFuelCatchmentScore(int civ, int site)
+    private Fix64 IronFuelCatchmentScore(int civ, int site, bool includeSharedReach = false)
     {
         int reach = Done(civ, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        if (includeSharedReach && IronFuelHubsEnabled(civ)) reach += IronShareReach(civ);
         Fix64 score = Fix64.Zero;
         foreach (int tile in ReachTiles(site, reach))
         {
@@ -191,7 +203,7 @@ public sealed partial class LivingEconomyModel
     internal Fix64 IronFuelSitingMultiplier(int civ, int tile)
     {
         if (!IronFuelHubsEnabled(civ) || (uint)tile >= (uint)_world.TileCount) return Fix64.One;
-        Fix64 fuelScore = IronFuelCatchmentScore(civ, tile);
+        Fix64 fuelScore = IronFuelCatchmentScore(civ, tile, includeSharedReach: true);
         return Fix64.One + Fix64.Min(Fix64.FromRatio(3, 10), fuelScore / Fix64.FromInt(100));
     }
 
@@ -224,7 +236,7 @@ public sealed partial class LivingEconomyModel
             assignments[i] = i;
             if (settlement.Metal is null || IsFreeFolk(settlement) || Population(settlement.Id) <= 0) continue;
             eligible[i] = true;
-            scores[i] = IronFuelCatchmentScore(settlement.Civilization, settlement.SiteTile);
+            scores[i] = IronFuelCatchmentScore(settlement.Civilization, settlement.SiteTile, includeSharedReach: true);
         }
 
         for (int i = 0; i < count; i++)
@@ -517,6 +529,10 @@ public sealed partial class LivingEconomyModel
     internal int FixtureIronOreSupplierForHub(int settlementIndex)
         => IronOreSupplierForHub(_settlements[settlementIndex])?.Id ?? -1;
 
+    internal Fix64 FixtureIronFuelOreNeed(int settlementIndex) => IronFuelOreNeed(_settlements[settlementIndex]);
+
+    internal void FixtureShareIronGoods(int civ) => ShareIronGoods(civ, IronShareReach(civ));
+
     internal Fix64 FixtureIronFuelCatchmentScore(int settlementIndex)
     {
         if ((uint)settlementIndex >= (uint)_settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
@@ -527,6 +543,8 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureIronFuelSitingMultiplier(int civ, int tile) => IronFuelSitingMultiplier(civ, tile);
 
     internal Fix64 FixtureIronFuelCatchmentScoreAt(int civ, int tile) => IronFuelCatchmentScore(civ, tile);
+
+    internal int FixtureIronFuelCharcoalReach(int settlementIndex) => IronFuelCharcoalReach(_settlements[settlementIndex]);
 
     /// <summary>
     /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): those with no kit first, then worn kits, then early upgrades, oldest

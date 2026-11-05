@@ -2097,7 +2097,7 @@ public sealed partial class LivingEconomyModel
         }
         // Then the range's standing stock, cut across its forest tiles in proportion to what each holds (clamps move through
         // the woods, as metal_sim.py draws), so coppiced stands regrow everywhere; then beyond the range, nearest first, hauled.
-        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        int reach = IronFuelCharcoalReach(s);
         int[] tiles = ReachTiles(s.SiteTile, reach);
         Fix64 haulDivisor = Done(s.Civilization, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
         Fix64 inRange = Fix64.Zero;
@@ -2182,7 +2182,7 @@ public sealed partial class LivingEconomyModel
     private int[] ReachTiles(int site, int reach)
     {
         int[]? cached = _reachTiles[site];
-        if (cached is not null && cached.Length > 0 && HexGrid.Distance(site, cached[^1], _world.Width) >= Math.Min(reach, 12)) return Filter(cached, site, reach);
+        if (cached is not null && cached.Length > 0 && HexGrid.Distance(site, cached[^1], _world.Width) >= reach) return Filter(cached, site, reach);
         var list = new List<int>();
         int max = Math.Max(reach, 12);
         int width = _world.Width, height = _world.Height;

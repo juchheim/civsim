@@ -1,6 +1,6 @@
 # M11 I-T6 whole-match accounting and clearing approval protocol
 
-**Status:** the user approved the clearing event definition, zero Iron-attributed allowance, and every-window work-share rule on 2026-11-05. The user delegated the fuel cutoff choice; the cutoff below is fixed before the acceptance run. The eight-seed results remain diagnostic and do not close B4-06.
+**Status:** the user approved the clearing event definition, zero Iron-attributed allowance, and every-window work-share rule on 2026-11-05. The user delegated the fuel cutoff choice; the cutoff below remains fixed. The expanded domestic-reach screen passes all 30 mature-qualified seats, but its eight-match sample is below the approved 80-match acceptance sample. The acceptance run is still required to close B4-06.
 
 I-T6 in [25 §13](../25-iron-age.md#13-provisional-balance-targets-and-oracle-work) proposes that sustainable metal use no more than 15% of civilian work in steady state and require no mandatory clear-cut. It requires full replacement, fuel and haul accounting, including import-loss and low-wood stresses. The game already defines a clearing transition: an original forest tile that falls below 5 L becomes cleared woodland ([23 §7.4](../23-e3-bronze-specs.md#74-forest-stock-clearing-and-regrowth)). This document defines an approval-ready measurement and records which decisions still need explicit approval.
 
@@ -124,4 +124,29 @@ The full output is preserved in [the post-hub screen output](m11-it6-iron-hubs-s
 | Match length | 77.2–83.0 simulated minutes | Natural terminal condition; this remains far below the 80-match acceptance sample |
 
 All forest, local-wood, combined wood, and kit ledgers reconciled to zero residual in each match. The mature work-share measure improved and two additional seats met both fuel limits, while ten seats still failed the fuel cutoff. Thus catchment hubs and siting improve this diagnostic but do not solve low-wood failures on every map; I-T6 remains open. This is not the acceptance run and does not authorize a cutoff change.
+
+## Expanded domestic charcoal reach screen
+
+The final local-access trial gives every Iron fuel consumer the existing domestic sharing radius in addition to the ordinary charcoal reach, once KEY-4 and SOC-07 or GOV-04 enable the sharing network. TRN-05 still raises the base charcoal radius from 8 to 12 and lowers haul work. The resulting reach is 23/27 tiles with SOC-07, or 28/32 with GOV-04, without TRN-05/with TRN-05. All forest beyond the normal radius-3 cutting area retains the existing per-litre, per-tile haul charge; the 5 L reserve, recipe, and approved cutoffs are unchanged. Catchment scoring and the I-T6 trace use the same effective radius.
+
+This applies to every Iron fuel consumer, not only the assigned kit hub. In seed `20261023`, settlement c2/s36 still made local metal goods after its kit work was assigned elsewhere. The hub-only trial left its fuel reach at the normal 8 tiles. Its next 10-tile band contained 5,350.50 L of harvestable wood across 250 forest tiles, with the nearest productive tile 14 tiles away. Adding the domestic sharing radius to all fuel consumers makes those nearby stands reachable while the hub continues to concentrate kit production.
+
+The natural cohort `20261019–20261026` was rerun with content-pack SHA-256 `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9`. Full output is in [the expanded-reach screen](m11-it6-iron-hubs-extended-reach-screen-output-2026-11-05.txt).
+
+| Measure | Expanded-reach result | Reading |
+|---|---:|---|
+| Route exposure | 32 seats: 30 mature-qualified, 2 with no MET-09 plus issued-kit exposure; no route-censored seats | Diagnostic only; no-route seats are reported and are not counted as passes |
+| Mature fuel cutoff | 30/30 pass; 0/15,528 eligible demand-seasons short and 0/14,635.50 L planned unmet | Meets both approved per-seat fuel limits in this diagnostic |
+| Mature rolling work windows | 957 across 30 seats; maximum 14.34%; 0 above 15% | Passes the every-window rule in the diagnostic; the maximum is seed `20261022`, Grower, seasons 275–287 |
+| Clearing episodes | 1,552 total; 0 post-MET-09 Iron-era metal-attributed crossings | Meets the zero Iron-attributed allowance in the diagnostic |
+| Ledger residuals | Forest, local wood, combined wood, and kits: 0.00 in every match | Reconciles |
+| Match length | 77.8–82.5 simulated minutes | Natural terminal condition; only 8 of the required 80 matches |
+
+The earlier hub-only reach trials still failed one or more hotspot seats. Extending reach to every Iron fuel consumer cleared those misses in this cohort without changing the approved cutoffs, and all 957 mature work windows remain below 15%. This is the first local-access design ready for the predeclared acceptance run; it is not itself acceptance and does not close I-T6.
+
+## Deferred option: cross-civilization wood-for-ore Compacts
+
+Direct wood-for-iron-ore trade is shelved while domestic Iron fuel reach is tested. The current Compact good list includes Iron bloom but no Wood or Iron Ore, and a Compact carries one good. A caravan loads up to seller surplus and the buyer's next four seasons of shortfall; there is no finite cargo capacity. A trade-based I-T6 fix would first need explicit source reserves, shipment capacity and labor, delivery losses, and per-civilization wood/clearing accounting. Otherwise it could move fuel across the map without charging the harvest, haul work, or forest impact to either side.
+
+Revisit this option if the expanded domestic catchment still leaves mature-qualified fuel failures or the 80-match acceptance run fails. The next comparison should test a controlled wood-for-ore exchange against domestic hauling, with both sides' forest stock, reserves, work and deliveries reconciled under the existing cutoffs. The approved cutoffs remain fixed.
 

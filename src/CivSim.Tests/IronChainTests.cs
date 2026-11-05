@@ -480,19 +480,58 @@ public class IronChainTests
         Assert.Equal(0, f.Economy.FixtureIronOreSupplierForHub(hub));
         Assert.True(f.Economy.FixtureIsIronFuelHub(hub));
         Assert.False(f.Economy.FixtureIsIronFuelHub(nonHub));
+        int charcoalReach = f.Economy.FixtureIronFuelCharcoalReach(hub);
+        Assert.True(charcoalReach > 8, "the active hub should use its existing domestic sharing reach for charcoal catchment");
+        Assert.Equal(charcoalReach, f.Economy.FixtureIronFuelCharcoalReach(nonHub));
         Assert.True(f.Economy.FixtureSisterKitDeficit(hub) >= Fix64.FromInt(5), "the hub should plan for its forged sister too");
         Assert.False(f.Economy.FixtureSisterKitDeficit(nonHub) > Fix64.Zero, "the non-hub should not duplicate the hub's target");
         Assert.True(f.Economy.FixtureIronFuelSitingMultiplier(0, f.ForestTiles[0]) > Fix64.One);
 
-        f.Economy.FixtureStock(hub, "G-CHAR", Fix64.Zero);
+        foreach (string good in new[] { "G-IRON", "G-IRONORE", "G-WROUGHT", "G-STEEL", "G-TOOL11", "G-TOOL12", "G-CHAR" })
+            f.Economy.FixtureStock(hub, good, -f.Economy.GoodStock(hub, good));
         f.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(20));
-        f.RunSeasons(1);
+        Assert.True(f.Economy.FixtureIronFuelOreNeed(hub) > Fix64.Zero, "the test hub needs raw ore before its supplier is asked to send it");
+        f.Economy.FixtureShareIronGoods(0);
         Assert.True(f.Economy.GoodStock(hub, "G-IRONORE") > Fix64.Zero,
-            "the selected ore supplier should send raw ore to the wooded hub");
+            "the selected supplier should fill the hub's raw ore need before production consumes it");
+        Fix64 bloomBeforeOreSupply = f.Economy.GoodStock(hub, "G-IRON");
+        f.RunSeasons(1);
+        Assert.True(f.Economy.GoodStock(hub, "G-IRONORE") > Fix64.Zero || f.Economy.GoodStock(hub, "G-IRON") > bloomBeforeOreSupply,
+            $"the selected ore supplier should send raw ore to the wooded hub, where it may already have been smelted (supplier={f.Economy.FixtureIronOreSupplierForHub(hub)}, parent ore={f.Economy.GoodStock(0, "G-IRONORE")}, hub ore={f.Economy.GoodStock(hub, "G-IRONORE")}, hub bloom={f.Economy.GoodStock(hub, "G-IRON")}, hub charcoal={f.Economy.GoodStock(hub, "G-CHAR")})");
         f.Economy.FixtureStock(hub, "G-CHAR", Fix64.FromInt(3));
         Assert.True(f.Economy.FixtureRunRecipe(hub, "bloomery", Fix64.One, Fix64.FromInt(10)) > Fix64.Zero);
         Assert.True(f.Economy.GoodStock(hub, "G-IRON") > Fix64.Zero,
             "the hub should run the charcoal-consuming bloomery on the supplied ore");
+
+        int hubTile = f.Economy.SettlementLite(hub).SiteTile;
+        int parentSite = f.Economy.SettlementLite(0).SiteTile;
+        int remoteForest = -1;
+        int bestRemoteDistance = int.MaxValue;
+        for (int tile = 0; tile < f.Economy.FixtureWorldTileCount; tile++)
+        {
+            if (!f.Economy.FixtureIsForestTile(tile) || f.Economy.FixtureIsRivalTile(0, tile)) continue;
+            int distance = HexGrid.Distance(hubTile, tile, f.Economy.FixtureWorldWidth);
+            int parentDistance = HexGrid.Distance(parentSite, tile, f.Economy.FixtureWorldWidth);
+            if (distance < 9 || distance > charcoalReach || parentDistance < distance || distance >= bestRemoteDistance) continue;
+            remoteForest = tile;
+            bestRemoteDistance = distance;
+        }
+        Assert.True(remoteForest >= 0, "the map should have productive forest inside hub sharing reach but beyond ordinary charcoal reach");
+        for (int tile = 0; tile < f.Economy.FixtureWorldTileCount; tile++)
+        {
+            if (!f.Economy.FixtureIsForestTile(tile) ||
+                HexGrid.Distance(hubTile, tile, f.Economy.FixtureWorldWidth) > charcoalReach) continue;
+            f.Economy.FixtureSetWood(tile, Fix64.FromInt(5));
+        }
+        f.Economy.FixtureSetWood(remoteForest, Fix64.FromInt(10_000));
+        f.Economy.FixtureStock(hub, "G-WOOD", -f.Economy.GoodStock(hub, "G-WOOD"));
+        f.Economy.FixtureStock(hub, "G-CHAR", -f.Economy.GoodStock(hub, "G-CHAR"));
+        f.Economy.FixtureStock(hub, "G-IRONORE", -f.Economy.GoodStock(hub, "G-IRONORE"));
+        f.Economy.FixtureStock(hub, "G-IRONORE", Fix64.FromInt(100));
+        Fix64 remoteBefore = f.Economy.StandingWood(remoteForest);
+        f.RunSeasons(1);
+        Assert.True(f.Economy.StandingWood(remoteForest) < remoteBefore,
+            "the hub should harvest a forest 9+ tiles away through domestic catchment reach and pay the normal haul cost");
     }
 
     [Fact]

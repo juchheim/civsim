@@ -21,6 +21,7 @@ internal readonly record struct IT6FuelSiteSnapshot(
     Fix64 ShortfallInRangeWood, Fix64 ShortfallOuterReachWood, Fix64 ShortfallLocalWood,
     Fix64 ShortfallRemainingWork, Fix64 ShortfallWoodFactor, Fix64 ForestBaseline,
     Fix64 ReachWoodNow, Fix64 HarvestableWoodNow, int HarvestableForestTiles,
+    Fix64 BeyondReachRawWood, Fix64 BeyondReachHarvestableWood, int BeyondReachForestTiles, int NearestBeyondReachForestDistance,
     Fix64 LocalWoodNow, Fix64 CharcoalStock, int OwnSettlementsInReach, int OtherSettlementsInReach);
 
 public sealed partial class LivingEconomyModel
@@ -73,7 +74,8 @@ public sealed partial class LivingEconomyModel
             SettlementState s = _settlements[settlementIndex];
             if (s.Metal is not { } m) continue;
             (Fix64 raw, Fix64 available, int availableTiles, _, _) = IT6ReachWood(s);
-            int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+            int reach = IronFuelCharcoalReach(s);
+            (Fix64 beyondRaw, Fix64 beyondAvailable, int beyondTiles, int nearestBeyond) = IT6WoodInAnnulus(s, reach, reach + 10);
             int ownInReach = 0, otherInReach = 0;
             foreach (SettlementState other in _settlements)
             {
@@ -86,6 +88,7 @@ public sealed partial class LivingEconomyModel
                 flow.Planned, flow.Unmet, flow.ShortfallReachWood, flow.ShortfallHarvestableWood,
                 flow.ShortfallInRangeWood, flow.ShortfallOuterReachWood, flow.ShortfallLocalWood,
                 flow.ShortfallRemainingWork, flow.ShortfallWoodFactor, m.ForestAtStart, raw, available, availableTiles,
+                beyondRaw, beyondAvailable, beyondTiles, nearestBeyond,
                 Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve), m.Goods[(int)MetalGood.Charcoal],
                 ownInReach, otherInReach));
         }
@@ -94,7 +97,7 @@ public sealed partial class LivingEconomyModel
 
     private (Fix64 Raw, Fix64 Harvestable, int Tiles, Fix64 InRange, Fix64 OuterReach) IT6ReachWood(SettlementState s)
     {
-        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        int reach = IronFuelCharcoalReach(s);
         Fix64 raw = Fix64.Zero, harvestable = Fix64.Zero, inRange = Fix64.Zero, outerReach = Fix64.Zero;
         int tiles = 0;
         foreach (int tile in ReachTiles(s.SiteTile, reach))
@@ -110,6 +113,24 @@ public sealed partial class LivingEconomyModel
             tiles++;
         }
         return (raw, harvestable, tiles, inRange, outerReach);
+    }
+
+    private (Fix64 Raw, Fix64 Harvestable, int Tiles, int Nearest) IT6WoodInAnnulus(SettlementState s, int innerReach, int outerReach)
+    {
+        Fix64 raw = Fix64.Zero, harvestable = Fix64.Zero;
+        int tiles = 0, nearest = int.MaxValue;
+        foreach (int tile in ReachTiles(s.SiteTile, outerReach))
+        {
+            int distance = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+            if (distance <= innerReach || !IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
+            raw += _woodStock[tile];
+            Fix64 available = StandingWoodAvailableToIron(tile);
+            if (available <= Fix64.Zero) continue;
+            harvestable += available;
+            tiles++;
+            nearest = Math.Min(nearest, distance);
+        }
+        return (raw, harvestable, tiles, nearest == int.MaxValue ? -1 : nearest);
     }
 
     private IT6CivFlow IT6Flow(int civilization)
