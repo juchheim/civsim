@@ -106,7 +106,11 @@ projects:
     status: draft
     requires: [WOD-08, NRG-03]
     effects:
-      - {kind: prose, text: "Build: Sawmill [Near: River]. ▸ Saw: Mill ×4."}
+      - {kind: build, structure: sawmill}
+      - {kind: rule, text: "At a built sawmill on a river a powered sawyer's plank output is x4 over a T12 hand saw; the job needs a power unit and G-PLANK output is ledgered."}
+    practice: [{action: craft, share: 100}]
+    flavor: "The river draws the saw through the log."
+    moment: "A frame saw rises and falls beside the race."
   - id: WOD-10
     name: "Timber Framing & Trusses"
     era: 5
@@ -114,7 +118,11 @@ projects:
     status: draft
     requires: [WOD-08, NUM-07]
     effects:
-      - {kind: prose, text: "Large roof spans: halls, barns, shipyards. Building size cap +50%."}
+      - {kind: mod, stat: building_size_cap, op: mult, value: 1.5, note: "halls, barns, shipyards and workshops"}
+      - {kind: rule, text: "Large roof spans: trusses carry halls and shipyards without interior posts."}
+    practice: [{action: build, share: 100}]
+    flavor: "Long roofs rest on short beams."
+    moment: "Carpenters raise a truss over an open hall."
   - id: WOD-11
     name: Steam Sawmill
     era: 7

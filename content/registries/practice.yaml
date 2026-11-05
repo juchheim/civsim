@@ -47,3 +47,6 @@ practice:
   - {id: naval_blockade, knowhow: {WAR: 50, SEA: 50}}
   - {id: faith_spread, knowhow: {BEL: 80, DIP: 20}}
   - {id: province_admin, knowhow: {GOV: 60, TER: 40}}
+  # E5 Faith & Fief additions (docs/MVP/27 §5).
+  - {id: fire_cannon, knowhow: {WAR: 50, CHM: 30, MET: 20}}
+  - {id: pilgrimage, knowhow: {BEL: 70, TRN: 30}}

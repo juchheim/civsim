@@ -48,3 +48,18 @@ recipes:
   - {id: press_oil, name: Press olive oil, unlocked_by: [FOR-08, MEC-05], structure: [press], inputs: {G-OLIVE: 2}, outputs: {G-OILPLANT: 1}, labor: 0.2, order: 50, practice: craft}
   - {id: make_siege_engine, name: Make siege engine, unlocked_by: [WAR-09], structure: [forge], inputs: {G-WOOD: 8, G-BLOCK: 4, G-WROUGHT: 0.4}, outputs: {G-ENGINE: 1}, labor: 24, order: 45, practice: craft}
   - {id: make_barrel, name: Make barrel, unlocked_by: [WOD-07], inputs: {G-WOOD: 1, "G-IRON|G-BRONZE": 0.1}, outputs: {G-BARREL: 1}, labor: 0.4, order: 50, practice: craft}
+  # E5 Faith & Fief additions (docs/MVP/27 §5, e5_power_oracle / e5_combat_oracle); all quantities and labor are provisional.
+  - {id: make_pig_iron, name: Smelt pig iron, unlocked_by: [MET-12], structure: [blast_furnace], inputs: {G-IRONORE: 4, G-CHAR: 3}, outputs: {G-PIG: 2}, labor: 0.8, order: 60, practice: smelt, note: "x4 iron per furnace-season at half the bloomery's charcoal per litre (P)"}
+  - {id: cast_iron_goods, name: Cast iron goods, unlocked_by: [MET-12], structure: [blast_furnace], inputs: {G-PIG: 1, G-CLAY: 0.2}, outputs: {G-CAST: 1}, labor: 0.4, order: 61, practice: smelt}
+  - {id: cast_cannon, name: Cast a cannon, unlocked_by: [WAR-12], structure: [blast_furnace], inputs: {G-PIG: 2, G-WOOD: 6}, outputs: {G-CANNON: 1}, labor: 30, order: 62, practice: smelt}
+  - {id: crucible_steel, name: Crucible steel, unlocked_by: [MET-11], structure: [forge], inputs: {G-STEEL: 0.4, G-CLAY: 0.3, G-CHAR: 0.4}, outputs: {G-CSTEEL: 0.3}, labor: 0.6, order: 63, practice: smelt}
+  - {id: make_crucible_arms, name: Make crucible-steel arms, unlocked_by: [MET-11], structure: [forge], inputs: {G-CSTEEL: 0.2, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS5: 1}, labor: 0.5, order: 64, practice: smelt}
+  - {id: make_powder, name: Make gunpowder, unlocked_by: [CHM-07], structure: [powder_mill], inputs: {G-SALTPETER: 0.75, G-SULFUR: 0.1, G-CHAR: 0.15}, outputs: {G-POWDER: 1}, labor: 0.4, order: 65, practice: craft}
+  - {id: make_crossbow, name: Make a crossbow, unlocked_by: [WAR-11], inputs: {G-WOOD: 1, "G-IRON|G-WROUGHT": 0.1, G-CORD: 0.2}, outputs: {G-CROSSBOW: 1}, labor: 0.6, order: 66, practice: craft}
+  - {id: make_horseshoe, name: Forge horseshoes, unlocked_by: [TRN-09], structure: [forge], inputs: {G-WROUGHT: 0.1}, outputs: {G-HORSESHOE: 4}, labor: 0.2, order: 67, practice: smelt}
+  - {id: distill_spirits, name: Distill spirits, unlocked_by: [CHM-06], structure: [kiln], inputs: {G-WINE: 2, G-CHAR: 0.1}, outputs: {G-SPIRITS: 1}, labor: 0.3, order: 68, practice: craft}
+  - {id: fire_porcelain, name: Fire porcelain, unlocked_by: [CER-09], structure: [kiln], inputs: {G-CLAY: 1, G-CHAR: 0.6}, outputs: {G-PORCELAIN: 0.5}, labor: 0.6, order: 69, practice: clay}
+  - {id: grind_spectacles, name: Grind spectacles, unlocked_by: [CER-10], inputs: {G-BLOWNGLASS: 0.2, G-WOOD: 0.05}, outputs: {G-SPECTACLES: 1}, labor: 0.5, order: 70, practice: craft}
+  - {id: make_paper, name: Make paper, unlocked_by: [COM-09], inputs: {G-CLOTH: 0.5}, outputs: {G-PAPER: 2}, labor: 0.3, order: 71, practice: fiber}
+  - {id: print_book, name: Print a book, unlocked_by: [COM-10], structure: [print_shop], inputs: {G-PAPER: 4, G-PIGMENT: 0.1}, outputs: {G-BOOK: 1}, labor: 0.8, order: 72, practice: scribe}
+  - {id: copy_manuscript, name: Copy a manuscript, unlocked_by: [ART-09], structure: [monastery], inputs: {G-PAPER: 4, G-PIGMENT: 0.3, G-GOLD: 0.01}, outputs: {G-MANUSCRIPT: 1}, labor: 6, order: 73, practice: scribe}

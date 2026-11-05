@@ -109,7 +109,11 @@ projects:
     status: draft
     requires: [CER-08, FIR-10, TRD-07]
     effects:
-      - {kind: prose, text: "Good: Porcelain, a top-tier luxury export."}
+      - {kind: good, id: "G-PORCELAIN"}
+      - {kind: rule, text: "Recipe fire_porcelain needs a kiln with flues (FIR-10). Porcelain is a top-tier luxury export for compacts and trade routes; it creates no food or tools."}
+    practice: [{action: clay, share: 100}]
+    flavor: "Clay fired until it rings like a bell."
+    moment: "A white bowl is lifted from the kiln, thin as an eggshell."
   - id: CER-10
     name: Lens Grinding
     era: 5
@@ -117,7 +121,11 @@ projects:
     status: draft
     requires: [CER-07, INQ-06]
     effects:
-      - {kind: prose, text: "Good: Spectacles. Elders keep working and teaching longer: Elder Insight +25%. Leads to telescopes."}
+      - {kind: good, id: "G-SPECTACLES"}
+      - {kind: mod, stat: elder_insight, op: mult, value: 1.25, note: "Elder Commons Insight only, and only for elders who hold spectacles (1 each, durable 80 seasons)"}
+    practice: [{action: craft, share: 100}]
+    flavor: "Old eyes read again."
+    moment: "An elder reads fine script through two polished lenses."
   - id: CER-11
     name: Plate Glass
     era: 6

@@ -255,18 +255,18 @@ public sealed partial class EconomyContent
             hash.Add(Hash64.OfString(g.Id)); hash.Add(Hash64.OfString(g.Category)); hash.Add(g.Barter); hash.Add(g.ServiceSeasons);
         }
         // Preserve the legacy effect sequence used by Bronze snapshots. Before WP3 every E4
-        // project compiled to one prose effect; E5+ effects were already present in the old
-        // fingerprint and remain included here. Iron-mode activation will use a separate full
-        // content fingerprint.
+        // project, and before M12 WP-E5-2 every E5 project, compiled to one prose effect; E6+ effects
+        // were already present in the old fingerprint and remain included here. Iron-mode and
+        // Fief-mode activation will use a separate full content fingerprint.
         int legacyEffects = 0;
         foreach (EconomyProject project in _projects)
-            legacyEffects += project.Era == 4 ? 1 : project.EffectCount;
+            legacyEffects += project.Era is 4 or 5 ? 1 : project.EffectCount;
         hash.Add(legacyEffects);
         foreach (EconomyProject project in _projects)
         {
-            if (project.Era == 4)
+            if (project.Era is 4 or 5)
             {
-                // Match the EconomyEffect values produced by the legacy prose-only row.
+                // Match the EconomyEffect values produced by the legacy prose-only row (E5 is typed as draft in M12 WP-E5-2, the same way).
                 hash.Add(-1); hash.Add(Fix64.FromInt(-1)); hash.Add(-1);
                 hash.Add(Hash64.OfString("")); hash.Add(-1); hash.Add(Fix64.FromInt(-1));
                 hash.Add(Hash64.OfString("")); hash.Add(-1);

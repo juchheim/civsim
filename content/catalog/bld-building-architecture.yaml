@@ -152,7 +152,13 @@ projects:
     status: draft
     requires: [BLD-11, STN-13]
     effects:
-      - {kind: prose, text: "Wonder: Cathedral. +Cohesion civilization-wide; pilgrimage trade."}
+      - {kind: wonder, structure: gothic_cathedral}
+      - {kind: cohesion, value: 3, scope: all}
+      - {kind: mod, stat: pilgrimage_trade, op: mult, value: 1.1, note: "routes ending at the cathedral's settlement (P)"}
+      - {kind: rule, text: "Needs master masons (STN-13); one in the world; cost provisional like the other Wonders."}
+    practice: [{action: build, share: 100}]
+    flavor: "Stone made to look like light."
+    moment: "A vault rises over a nave while glass fills the windows."
   - id: BLD-13
     name: Renaissance Architecture
     era: 6

@@ -145,7 +145,11 @@ projects:
     status: draft
     requires: [HNT-06, GOV-09]
     effects:
-      - {kind: prose, text: "Managed hunting grounds: game never collapses in reserves; noble prestige (+Cohesion among elites)."}
+      - {kind: rule, text: "Reserved grounds inside own territory: game stock in a reserve tile never falls below half its carrying capacity (P), and the reserve is closed to ordinary hunting by non-owners; hunting inside it needs a hunter and falconer."}
+      - {kind: cohesion, value: 2, scope: here, note: "among elites of a settlement holding a reserve"}
+    practice: [{action: hunt, share: 100}]
+    flavor: "The forest belongs to the lord's hawk."
+    moment: "A hawk is loosed over a fenced wood."
   - id: HNT-12
     name: Deep-Sea Fishing Fleets
     era: 6

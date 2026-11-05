@@ -127,7 +127,11 @@ projects:
     status: draft
     requires: [GOV-09, BEL-09]
     effects:
-      - {kind: prose, text: "Courts: dispute and crime events −50%; contracts (+trade)."}
+      - {kind: mod, stat: dispute_crime_events, op: mult, value: 0.5}
+      - {kind: mod, stat: contract_trade, op: mult, value: 1.05, note: "written contracts (P)"}
+    practice: [{action: council, share: 100}]
+    flavor: "The law is written, and so are the debts."
+    moment: "A judge reads a written contract aloud in a hall of law."
   - id: GOV-11
     name: "Charters & Parliaments"
     era: 5
@@ -135,7 +139,11 @@ projects:
     status: draft
     requires: [GOV-10, TRD-08]
     effects:
-      - {kind: prose, text: "Representative bodies: taxes accepted (+admin capacity); town charters (cities +10% growth)."}
+      - {kind: admin, span: 1, note: "taxes accepted by representative bodies"}
+      - {kind: mod, stat: city_growth, op: mult, value: 1.1, note: "chartered towns only"}
+    practice: [{action: council, share: 100}]
+    flavor: "A town holds its liberties by charter."
+    moment: "Burghers receive a sealed charter and a banner."
   - id: GOV-12
     name: Nation-State
     era: 6

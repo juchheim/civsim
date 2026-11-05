@@ -123,7 +123,11 @@ projects:
     status: draft
     requires: [SEA-06, WOD-10]
     effects:
-      - {kind: prose, text: "Sturdy hulls: open-sea routes; cargo ×2."}
+      - {kind: mod, stat: ship_cargo, op: mult, value: 2.0}
+      - {kind: rule, text: "Keeled cogs may take open-sea routes inside the existing reach; crossing rules between landmasses stay as in docs 21 until E6."}
+    practice: [{action: sail, share: 100}]
+    flavor: "A deep keel holds the sea."
+    moment: "A cog with a high stern wallows out of a harbor."
   - id: SEA-11
     name: "Lateen Sail & Sternpost Rudder"
     era: 5
@@ -131,7 +135,10 @@ projects:
     status: draft
     requires: [SEA-10]
     effects:
-      - {kind: prose, text: "Sail upwind: sea route speed +40%."}
+      - {kind: mod, stat: sea_route_speed, op: mult, value: 1.4}
+    practice: [{action: sail, share: 100}]
+    flavor: "The wind can be worked from the side."
+    moment: "A lateen sail swings and the ship points closer to the wind."
   - id: SEA-12
     name: "Caravels & Ocean Voyages"
     era: 6

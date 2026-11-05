@@ -6647,15 +6647,15 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(content.Projects.Length);
         foreach (EconomyProject project in content.Projects)
         { hash.Add(project.Index); hash.Add(Hash64.OfString(project.Id)); hash.Add(project.Era); hash.Add(project.EnterEra); }
-        // The legacy Bronze fingerprint represents each E4 draft project by its original single prose
-        // placeholder, so typing draft effects does not alter old checksums. Iron activation needs a
-        // separate full-content fingerprint before any E4 effect can run.
+        // The legacy Bronze fingerprint represents each E4 and E5 draft project by its original single prose
+        // placeholder, so typing draft effects does not alter old checksums. Iron or Fief activation needs a
+        // separate full-content fingerprint before any E4 or E5 effect can run.
         int bronzeEffectCount = 0;
-        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era == 4 ? 1 : project.EffectCount;
+        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era is 4 or 5 ? 1 : project.EffectCount;
         hash.Add(bronzeEffectCount);
         foreach (EconomyProject project in content.Projects)
         {
-            if (project.Era == 4)
+            if (project.Era is 4 or 5)
             {
                 AddEffectFingerprint(ref hash, project.Index, "prose");
                 continue;

@@ -135,7 +135,11 @@ projects:
     status: draft
     requires: [HUS-06, AGR-07]
     effects:
-      - {kind: prose, text: "Herd yields ×1.5; stronger draft animals."}
+      - {kind: mod, stat: herd_yield, op: mult, value: 1.5, note: "meat, milk and wool from bred herds"}
+      - {kind: mod, stat: draft_strength, op: mult, value: 1.2, note: "stronger draft animals (P)"}
+    practice: [{action: herd, share: 100}]
+    flavor: "The best ram sires the flock."
+    moment: "A herder picks the strongest ewe for the ram."
   - id: HUS-11
     name: "Fodder Crops & Stall-Feeding"
     era: 6

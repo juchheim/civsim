@@ -91,7 +91,10 @@ projects:
     status: draft
     requires: [DIP-07, GOV-09]
     effects:
-      - {kind: prose, text: "Alliances survive leader deaths; chance of peaceful inheritance of a Free Folk region."}
+      - {kind: diplo, text: "Alliances survive a leader's death instead of lapsing; each season a Free Folk region within 8 tiles of an ally may join by peaceful inheritance with a small chance (P 2%), never as an instant transfer and never by score rank."}
+    practice: [{action: meet_strangers, share: 100}]
+    flavor: "Two houses become one claim."
+    moment: "Two heirs are betrothed beneath a shared banner."
   - id: DIP-09
     name: Resident Embassies
     era: 6

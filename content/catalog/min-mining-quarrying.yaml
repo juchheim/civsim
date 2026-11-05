@@ -96,7 +96,11 @@ projects:
     status: draft
     requires: [MIN-07, NUM-07]
     effects:
-      - {kind: prose, text: "Reveal: Ore veins within territory. Mine yield +25%."}
+      - {kind: reveal, text: "Ore veins within the civilization's own territory become known."}
+      - {kind: mod, stat: mine_yield, op: mult, value: 1.25, note: "known deposits in own territory only"}
+    practice: [{action: mine, share: 100}]
+    flavor: "The mountain is read before it is dug."
+    moment: "Surveyors mark veins on a plan before a shovel is lifted."
   - id: MIN-09
     name: Coal Mining
     era: 6

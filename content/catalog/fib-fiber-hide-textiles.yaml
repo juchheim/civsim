@@ -126,7 +126,11 @@ projects:
     status: draft
     requires: [FIB-08, MEC-07, SOC-11]
     effects:
-      - {kind: prose, text: "▸ Weave: Treadle loom ×2."}
+      - {kind: mod, stat: weave_output, op: mult, value: 2.0, note: "a weaver at a treadle loom; hand-powered, no power source"}
+      - {kind: rule, text: "A treadle loom is a crafted kit (6 G-PLANK, P) held by a weaver; it wears out and is not a structure."}
+    practice: [{action: fiber, share: 100}]
+    flavor: "Feet take over the shuttle's rhythm."
+    moment: "A weaver treads and the cloth lengthens."
   - id: FIB-11
     name: Spinning Wheel
     era: 5
@@ -134,7 +138,11 @@ projects:
     status: draft
     requires: [FIB-06, MEC-07]
     effects:
-      - {kind: prose, text: "▸ Spin: Wheel ×3."}
+      - {kind: mod, stat: spin_output, op: mult, value: 3.0, note: "a spinner at a wheel; hand-powered, no power source"}
+      - {kind: rule, text: "A spinning wheel is a crafted kit (1 G-WHEEL, 3 G-PLANK, P) held by a spinner."}
+    practice: [{action: fiber, share: 100}]
+    flavor: "A turning wheel makes thread faster than fingers."
+    moment: "A wheel hums and a thread draws out."
   - id: FIB-12
     name: "Flying Shuttle & Spinning Jenny"
     era: 6

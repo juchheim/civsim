@@ -1,0 +1,207 @@
+# 27 — Faith & Fief (E5): Mills, Monasteries, Cannon and the Closing of the Old World
+
+> **Planning draft, 2026-11-05. D1 (E5 as a default-off FiefChapter including E4) and D4 (Fief-only claim upkeep) are confirmed by the user; everything else is unapproved, unbuilt and unfitted.** It is the E5 counterpart of [25 — Iron Age](25-iron-age.md): scope, audit, mechanisms, acceptance gates and a work breakdown. It was written while the Iron chapter (E4) is still being balanced by another session, so it is built to **start without touching any file that balance work is changing** (§9) and to **wait for E4 sign-off before anything numeric is promoted**.
+>
+> Audit baseline: `main` at `6d6df44` (since then `43a1648` made the Iron chapter the game's default for new matches; the sim default in `ChapterRules` is unchanged, and Fief stays opt-in on top of it). Every claim marked *(verified)* was read from the catalog, registries or source on that commit. Claims marked *(assumed)* come from older design docs or from the E4 notes and must be re-checked after the E4 balance lands.
+
+## 1. Which age is next, and why
+
+The Iron chapter ends at the player's own **KEY-5 Feudal Order** ([25 §3](25-iron-age.md)). KEY-5 *enters* **E5 Faith & Fief** (the Medieval era, [01 §8](01-game-structure.md)), which is therefore the next age, and **KEY-6 Printing Revolution** is the keystone that leaves it.
+
+| Check | Finding |
+|---|---|
+| Newest completed age | E4 Iron: all 57 nodes promoted to `numeric` ([m11-wp11](balance/m11-wp11-whole-match.md)); under whole-match balancing by another session. |
+| Is any E5 content live? | No. `ChapterRules` has two modes, Bronze (ceiling 3) and Iron (ceiling 4) *(verified, `src/CivSim.Sim/Research/ChapterRules.cs`)*. In Iron mode E5 is Hidden. |
+| E5 catalog state | 49 regular projects plus KEY-6, all `status: draft`, with **prose-only effects** (`kind: prose`) and no costs, practice, flavor or Moments *(verified, e.g. MET-12, BLD-12)*. E4 rows were typed the same way in its WP3. |
+| Era row | `content/registries/eras.yaml` E5: base cost 6,000, breadth 16, representation 1:5, claim radius 5, reach 25, child/adult/elder mortality 0.029 / 0.0105 / 0.051 *(verified)*. |
+
+The working name for the new match rules is **FiefChapter** (E4 and E5 both play; KEY-6 ends the match). Milestone name: **M12**.
+
+## 2. What Faith & Fief should feel like
+
+Iron spread tools and gave the state reach. Faith & Fief is where the countryside, the church and the town **start to pull against each other**, and where machines and gunpowder arrive. The player still sets three research slots and watches planners carry out the result.
+
+| Tension | What pushes | What answers it |
+|---|---|---|
+| **Land against coin** | Manors, three-field farming, heavy cavalry and castles bind power to land. Guilds, banking, charters and parliaments bind it to towns and money. | Manorial estates cheapen rural claims; charters and banking grow cities and fund Wonders. Each has a real upkeep. |
+| **Faith as an institution** | Monasteries preserve and farm, pilgrims move trade, a cathedral lifts the whole realm, hospitals and courts take over duties the state did alone. | Monks and scholars are real adults taken off other work. An empty monastery produces nothing (the lesson of E4's idle academies). |
+| **Wheel, wind and furnace** | Mills turn rivers and wind into work; the blast furnace multiplies iron ×4. | Mills need a site and a gear train. The blast furnace is **a charcoal hog**: E5 is the second, harder fuel crunch (§5.2). |
+| **Wall against powder** | Concentric castles double a castle's defense; gunpowder makes walls 70% less effective, but needs saltpeter and a cast-iron foundry. | Whoever has the powder chain breaks walls; whoever lacks it must keep investment, relief or peace as options. |
+
+Also in this era: epidemics bite harder as towns grow (plague weight rises, [09 §10.2](09-population-and-health.md)), and open-sea ships appear (cogs, lateen sails, compass), but **the oceans open only at KEY-6** (catalog text), so E5 prepares sea power rather than playing it out.
+
+## 3. Scope audit
+
+### 3.1 Inventory *(verified from `content/catalog`)*
+
+**49 regular projects (Craft 18, Kin 13, Reach 18) + KEY-6 = 50 nodes.** This matches [03 §4.1](03-research-catalog.md) exactly, so unlike E4 there is **no count discrepancy to resolve**. The 49 fall naturally into seven systems; each system becomes one work package (§9).
+
+| System | Projects (id: intent in a few words) |
+|---|---|
+| **A. Power and machines** (7) | MEC-07 crank & camshaft (mill-driven crafts ×2) · NRG-04 horse collar (draft ×2) · NRG-05 windmill (milling without rivers, drainage) · WOD-09 water sawmill (saw mill ×4) · FIB-10 treadle loom (×2) · FIB-11 spinning wheel (×3) · MEC-08 mechanical clock (work +5%, clock tower) |
+| **B. Iron, fire, powder, glass** (8) | MET-11 crucible steel (arms +20%, luxury blades) · MET-12 blast furnace & cast iron (iron ×4, cannon, parts) · FIR-10 chimneys (winter deaths −40%) · CHM-06 distillation · CHM-07 gunpowder (**needs Saltpeter**) · CER-09 porcelain (luxury export) · CER-10 lens grinding (spectacles, Elder Insight +25%) · MIN-08 mine surveying (reveal veins, yield +25%) |
+| **C. Land and food** (5) | AGR-11 three-field rotation (land productivity +50%) · HUS-10 selective breeding · HNT-11 game reserves & falconry · TER-10 manorial estates (farm-tile claim upkeep −30%) · WOD-10 timber framing (building size +50%) |
+| **D. Faith, learning, craft of the mind** (14) | BEL-10 monasticism · BEL-11 pilgrimage routes · ART-09 illuminated manuscripts · LRN-07 cathedral schools · LRN-08 universities · BLD-12 **Gothic Cathedral (Wonder)** · STN-13 master masons · COM-09 paper · COM-10 movable type · NUM-08 zero & positional numerals · NUM-09 algebra · INQ-06 optics & magnetism · MED-07 hospitals · MED-08 quarantine |
+| **E. Law, money, guilds** (6) | GOV-10 canon & common law · GOV-11 charters & parliaments · SOC-11 guilds · TRD-08 banking · TRD-09 double-entry bookkeeping · DIP-08 dynastic marriages |
+| **F. War** (5) | DEF-09 concentric castles · WAR-10 heavy cavalry · WAR-11 crossbows & longbows · WAR-12 gunpowder weapons · TRN-09 stirrup & horseshoe |
+| **G. Sea and maps** (4) | SEA-10 keeled ships & cogs · SEA-11 lateen sail & sternpost rudder · WAY-08 magnetic compass · WAY-09 portolan charts & astrolabe |
+
+### 3.2 KEY-6 closure *(verified by hand from `requires`)*
+
+KEY-6 requires **COM-10, TRD-09, WAY-08, LRN-08** and **16 completed E5 projects**. The in-era critical path is exactly the 12 projects COM-09, COM-10, NUM-08, NUM-09, TRD-08, TRD-09, INQ-06, WAY-08, BEL-10, GOV-10, LRN-07, LRN-08, which matches [04 §2](04-research-paths.md) (12 critical, 4 free picks).
+
+Two findings that shape the design:
+
+1. **No Craft project is on the path.** All 12 are Reach or Kin. The 18 Craft projects (mills, blast furnace, looms, powder) are optional, so natural play will reach them only through the Council's leaning and free picks, **and E4's whole-match run showed that optional systems barely run when research finishes in the last minutes** ([m11-wp11](balance/m11-wp11-whole-match.md)). E5 therefore needs the same two answers E4 got: a `--grant-e5` harness mode to exercise systems when research is not the bottleneck, and pacing that gives them time to matter.
+2. **Closure leaves E3/E4 alone.** COM-10 needs MEC-05 and MET-06, WAY-08 needs WAY-07, LRN-08 needs LRN-05/GOV-10, so a civilization that skipped Roman-style learning in E4 still has an EraLag-discounted route, but the *land* route through HUS and the *sea* route through SEA-07 must both stay viable (the E4 rule that geography cannot soft-lock a keystone applies again).
+
+### 3.3 Code ceilings *(verified unless noted)*
+
+| Boundary | State on `6d6df44` | Consequence for E5 |
+|---|---|---|
+| Chapter modes | `ChapterMode` = Bronze 0, Iron 1 | Add `Fief = 2`, default off, append-only. |
+| Research ceiling | `ChapterRules.LastResearchEra` is 3 (Bronze) or 4 (Iron) | Fief carries 5. Hidden above it stays the rule. |
+| Economy ceiling | `EconomyMaxEra` returns 3 **in both modes**; Iron is delivered through an `IronChain` flag and a `ProjectCeiling = MaxEra + 1` shim *(WP5 audit; re-verify)* | **Do not add a second flag.** Era-4 and era-5 demography, fission and reach rows need an explicit per-chapter economy profile. This is a shared table the E4 balancer may also be editing, so it is decided jointly (§9, D3). |
+| Forecast / Spark | `ForecastResult` has `Key1..Key5`; `Key5` is eligible only inside an Iron ceiling | Add `Key6` and a KEY-6 closure policy as new fields, not by reinterpreting Key5. |
+| Replay / save / hash | Iron uses replay format 2, save version 5, extra hash and snapshot trailer; Bronze bytes unchanged | Fief appends the next versions; Bronze and Iron bytes must stay exact. |
+| Frame / view | `IronFrame` is empty unless Iron | Add a `FiefFrame` block under the same rule; arrays only grow. |
+| Generic visual kit | [08 §13](08-ui-and-world-display.md): bespoke Moments only for E0–E4 | E5 uses the generic kit (badge burst, tint, modular building kit), see §8. |
+
+## 4. What E4 leaves for E5 to build on
+
+| E5 project | Builds on (E4 system) | What to watch |
+|---|---|---|
+| DEF-09 concentric castles | DEF-08 castle + garrison, WAR-09 engine train | Castles sit uncrewed in natural E4 play; ×2 defense must require the garrison. |
+| WAR-12 gunpowder weapons | WAR-09 engines, wall integrity (1000 = intact) | Cannon is a new breaching tool on the same integrity track, not a second siege system. |
+| MET-12 blast furnace | MET-10 steel, forge chain, I-T6 fuel accounting | The I-T6 fuel screen is the template; ×4 iron must be paid for in charcoal. |
+| BEL-10 monasticism | BEL-09 missionaries, LRN-05 academies | Academies rarely got a scholar in E4; monasteries must not repeat that. |
+| BLD-12 Gothic Cathedral | Wonder mechanism (Library, Lighthouse, Dome) | **No Wonder was finished in natural E4 play**: stone and wood in a town's range ran out. |
+| MED-07 / MED-08 | MED-06 baths, outbreak model | Plague weight is 0.1 at E4, 0.15 at E6; hospital −20%, quarantine ×0.75 roll. |
+| TER-10 manorial estates, GOV-10/11 | Provinces, governors, feudal contract (distance strain only) | The catalog's "claim upkeep" has **no counterpart in the sim today** *(verified: no `ClaimUpkeep` in `src/CivSim.Sim`)*; it needs a definition (§5.3). |
+| SEA-10/11, WAY-08/09 | Harbors, galleys, blockade | Open-sea routes are new; island-crossing rules are in [21](21-island-crossing.md). |
+| NRG-05, WOD-09, FIB-10/11, MEC-07 | E4 water mill | **The E4 water mill has no grinding model to multiply** ([m11-wp7](balance/m11-wp7-food-water-health.md)). E5 is about mills, so this gap must be closed first (§5.1). |
+
+## 5. New mechanisms (proposed bounded interpretations)
+
+Each is a hypothesis for the E5 oracle to fit, in the same style as 25/26. "Physical" means it spends or moves ledgered goods, labor or sites; nothing is a bare multiplier.
+
+### 5.1 Mechanical power ledger (system A)
+A mill is a **site plus a power source plus a job**. Sources: water wheel (river tile, E4), windmill (open tile, NRG-05), horse gin (animals, NRG-04). Each source yields *power hours* per season; jobs (grinding, sawing, hammering, fulling, bellows) consume power hours and multiply the labor they replace. Treadle loom and spinning wheel are hand-powered kits that raise textile output per worker, not mills. Mills in the same town share a power budget so ×2 and ×4 effects cannot stack without sources. This also fixes the E4 water-mill gap (a grinding job to multiply). The clock tower is a civic structure with a small Cohesion effect, not a global +5% multiplier on everything.
+
+### 5.2 Blast furnace and the second fuel crunch (system B)
+Blast furnace output is ×4 iron (pig iron, G-PIG), **cast iron** goods and cannon bodies, but at a charcoal cost per litre that is *higher* than the bloomery's and with a bellows power draw (§5.1). No coal exists until E6 (MIN-09), so the furnace competes with houses and ships for forest. The I-T6 protocol (full-chain work share, clearing crossings, unmet planned charcoal) is reused as **F-T6**. Crucible steel (MET-11) is a luxury sub-chain (clay crucibles from CER, trade goods), not a bulk upgrade.
+
+### 5.3 Land, estates and food (system C)
+- **Three-field rotation (+50% land productivity):** implemented as fallow-and-rotation on field tiles, trading a fraction of tiles per season for the yield gain, so it is a physical change in output per tile and cannot exceed the food-cap oracle.
+- **Manorial estates:** define "claim upkeep" first. Proposal: an existing small per-tile claim cost (labor or grain) for held farm tiles is introduced in Fief mode only, then reduced 30% by TER-10, so the project has something to cheapen. Needs approval (D4).
+- Selective breeding, game reserves and timber framing use existing herd, game and building-size primitives; no new subsystem.
+
+### 5.4 Faith, learning and knowledge (system D)
+- **Monasteries (BEL-10)** are real structures staffed by monks (adults off other work). Insight +16 each is paid only while staffed. "Knowledge never lost" has no counterpart in the sim today *(verified: no knowledge-loss rule)*. Proposal: a settlement capture or collapse can lose a **local** Know-how pool and a scholar; a monastery keeps a copy that restores it. This gives the sentence a real meaning without inventing global tech loss.
+- **Universities, cathedral schools, paper, movable type, zero, algebra:** distinct Insight sources with the same staffing rule and the existing global diffusion-discount cap (a mechanism cannot reach zero cost). Movable type's "diffusion ×1.5" is subject to that cap.
+- **Gothic Cathedral** is a normal Wonder (like the Great Dome in E4), with explicit stone, wood and master-mason labor. Because no E4 Wonder finished in natural play, the Wonder stone/wood problem is solved **once, before** adding a fifth Wonder (§9, WP-E5-0).
+- **Hospitals and quarantine** are staffed structures and a route-level rule on the existing outbreak model; plague is not scripted.
+- **Pilgrimage routes** are real trips along completed roads, with the trade bonus paid only on traveled routes.
+
+### 5.5 Law, money and guilds (system E)
+Banking and double-entry change **trade friction and Wonder funding** without minting money: credit moves existing goods earlier; it creates none. Guild "craft quality +20%" is bounded to tool service life and recipe waste, not output; apprentice speed ×1.5 is a training-time rule. Charters and parliaments raise city growth and admin capacity with the E4 rule that benefits stop when the staff or structure is absent. Dynastic marriages protect alliances across leader change and give a bounded chance of inheriting a Free Folk region; it must not transfer land instantly or by score rank.
+
+### 5.6 War (system F)
+Heavy cavalry, crossbow/longbow and gunpowder weapons extend the existing combat tables by fixed-ratio rows (the E3/E4 oracle approach, `combat_e3.py`, `e4_combat_oracle.py`). Heavy cavalry needs horses in the herd and the stirrup/horseshoe kit; crossbows and longbows need wood/iron and a trained levy; gunpowder needs the powder chain (saltpeter deposit, charcoal, sulfur, a foundry). Walls are still not assaulted without a breach: the cannon joins engines as a way to reduce integrity, with powder as a consumed good per shot. Concentric castles ×2 apply to a **garrisoned** castle only.
+
+### 5.7 Sea and maps (system G)
+Cogs, lateen sails and the compass raise cargo, speed and reduce losses on routes the harbors already open; portolan charts extend the E4 "observed coast only" visibility rule (no omniscience). Open-sea crossing is **prepared, not delivered**: KEY-6 text says "oceans open", so the new crossing rules arrive with E6, and E5 only reduces shipwreck losses and speeds routes that already work.
+
+## 6. Match structure: the FiefChapter contract
+
+| Mode / civilization state | Research | Economy / systems | Ending |
+|---|---|---|---|
+| Bronze, Iron | exactly as today | exactly as today | unchanged (Bronze KEY-4, Iron KEY-5) |
+| Fief, before own KEY-4 | E4 and E5 Hidden | nothing past E3 | KEY-5 does **not** end this mode |
+| Fief, after own KEY-4 | E4 opens as in Iron | Iron systems active | unchanged until a civilization has KEY-5 |
+| Fief, after own KEY-5 | E5 opens (or glimpses) by prerequisite and gate | E5 systems eligible; each still needs its local inputs, site, staff | human KEY-6, first rival KEY-6 + 12 seasons, or the hard cap |
+| Fief, after own KEY-6 | E6 Hidden | E5 economy continues, no E6 systems | countdown or cap as above |
+
+- **Candidate cap and countdown (not approved):** Iron's live natural-play numbers are KEY-4 at about minute 60 and KEY-5 at about minute 79 to 81 ([m11-wp11](balance/m11-wp11-whole-match.md)). The older model gives E5 about 16.75 to 18.25 minutes ([07c §10.1](07c-e0-e2-checks.md), [09 §11.2](09-population-and-health.md)), so KEY-6 would land near minute 97 to 100. A first candidate is **cap Year 120, countdown 12 seasons**, then refit once the E4 pacing fix is known.
+- Dominion victory stays as it is (direct ownership, ≥50% and 2× runner-up for 5 years; tribute never counts as land), and early Dominion endings are reported separately from KEY-6 and cap endings.
+- A Bronze or Iron save never becomes Fief implicitly; Fief writes the next replay, save and snapshot versions, and Bronze and Iron bytes and hashes stay identical.
+- Representation: keep **the simulation at 1:1** as in E4's Q3. The catalog's 1:5 is applied only to the **view** if the figure budget (≤ 600 per civilization) is exceeded; the old model has 2,559 people per civilization at the end of E5, so this is a measurement the first `--grant-e5` runs must make.
+
+## 7. Provisional targets (F-xx; none fitted, none approved)
+
+| ID | Target / diagnostic | Measurement |
+|---|---|---|
+| F-T1 | Own KEY-5 → KEY-6 near the model's 16.75 to 18.25 minutes, after the E4 era base is settled; cap-ending rate ≤ 10% | 80+ matches, held-out block, censored/captured seats shown |
+| F-T2 | Mill coverage: ≥ 60% of grain milled by water or wind within 12 seasons of the power source existing in towns that have a site | Per-town power-hour ledger; no ×-stacking without a source |
+| F-T3 | Blast furnace: iron ×4 only inside a measured charcoal budget; full-chain work share ≤ 15% in every mature 12-season window; zero blast-furnace-attributed forest-clearing crossings; fuel-short ≤ 5% | The I-T6 protocol reused on the same fixtures plus low-wood starts |
+| F-T4 | Food: three-field gives +50% productivity on rotated tiles with the fallow cost shown; matched anchors rise inside the oracle cap | Physical mass balance, five geography fixtures |
+| F-T5 | Gunpowder walls −70% only with powder, cannon and a built breach; concentric ×2 only when garrisoned; engines/investment still viable | Supplied isolated trials plus live relief/attrition |
+| F-T6 | Every E5 institution (monastery, university, hospital, cathedral, clock tower, mill) shows staffed/working, queued, or dormant with a reason within a season | Blunder counter; "idle institution" rate near zero |
+| F-T7 | Plague/pox deaths follow the 09 §10 shares; quarantine halves imports; no scripted event | Per-cause attribution by exposure from own KEY-5 |
+| F-T8 | Map fill, Dominion and City share | Diagnostic only until re-anchored on the live E4 trajectory |
+
+## 8. View layer
+
+Build views last. E5 uses the **generic kit** of [08 §13](08-ui-and-world-display.md): badge burst for Moments, tool tint for method rungs, the modular era building kit with a type sign for structures, banner swaps for institutions. The visual read of E5 is manors and three-field strips, windmills on ridges, monasteries and a cathedral skyline, castle towers, cogs on sea lanes, and a few smoking blast furnaces. Cards needed: mill power by town, blast furnace and charcoal budget, monastery/university staffing, hospital and outbreak map, cannon and siege integrity, guild/bank/charter effect, KEY-6 countdown. The game text must say KEY-6 / Printing Revolution only in Fief mode.
+
+## 9. Work breakdown and what can start now
+
+The E4 balancer is changing Iron constants, fuel/economy code and goldens. E5 work is split so the first stage touches **only new files**:
+
+| WP | Deliverable | Needs E4 sign-off? | Files |
+|---|---|---|---|
+| **WP-E5-0 Wonder and range fix** | Decide how stone and wood reach a town's Wonder (smaller costs, sister-town sharing, wider quarry reach). This is the E4 gap, solved for both ages together | **Yes, joint with the E4 balancer** | shared economy |
+| WP-E5-1 Scope and oracle | **First pass done 2026-11-05** ([report](balance/m12-wp1-oracle-fit.md)): `e5_research_oracle.py`, `e5_power_oracle.py` (power and blast-furnace fuel), `e5_combat_oracle.py`, `e5_economy_oracle.py`. Re-run and re-anchor on the live E4 trajectory after each E4 rebase | Reads E4 results; **no** | new tool files only |
+| WP-E5-2 Content typing | **Done 2026-11-05 on branch `codex/e5-fief`**: all 49 + KEY-6 rows typed in place (typed effects, practice, flavor, moment; every row stays `draft`), 16 goods, 11 structures, 4 roles, 2 actions, 2 practice rows and 14 recipes added, validator rule V22 (E5 promoted together, typed only), content-pack golden refreshed. Details in [m12-wp2-content-typing](balance/m12-wp2-content-typing.md) | No (draft rows are inert) | `content/catalog/*.yaml` E5 rows, registries |
+| WP-E5-3 Geography audit | Saltpeter reach (1.5 per 1,000 land in caves and arid/volcanic zones), river and wind sites, horse availability, over 10,000 seeds, as WP4 did for iron | No (read-only) | new harness command and report |
+| WP-E5-4 Mode plumbing | `ChapterMode.Fief`, ceilings, KEY-6 end rule, replay/save/hash versions, `Key6` forecast field, isolation tests | Small and additive, yes review | `ChapterRules`, `MatchEnd`, `MatchModel` |
+| WP-E5-5 Power, food, fire | Systems A, B, C (§5.1–5.3) | Yes (builds on the fuel chain) | new files + `LivingEconomyModel.*` partials |
+| WP-E5-6 Faith and learning | System D | Yes (staffing rule from E4) | |
+| WP-E5-7 Law and money | System E | Yes | |
+| WP-E5-8 War and sea | Systems F, G | Yes | |
+| WP-E5-9 AI and forecast | Spark KEY-6 closure, Strategist powder/cannon logic, Council, blunder telemetry | Yes | |
+| WP-E5-10 View and game | `FiefFrame`, cards, text, generic kit | Last | |
+| WP-E5-11 Promotion and whole-match | Promote all 50 rows together (no half-promoted age), `fief-match` and `--grant-e5` | Yes | |
+| WP-E5-12 Large sample and playtest | 80+ matches, held-out cohort, human test | Yes, and only when the whole age works | |
+
+**Safe to start today, in parallel with E4 balancing:** WP-E5-1, WP-E5-2 (on its own branch, see D6) and WP-E5-3. Everything else waits for the E4 balance sign-off.
+
+## 10. Acceptance series B5-xx (all proposed)
+
+| Gate | Condition |
+|---|---|
+| B5-01 Isolation | Toy, worldgen, research, politics, Bronze **and Iron** goldens and checksums byte-identical; E5 inert before own KEY-5 and throughout Bronze and Iron modes even with a numeric E5 pack |
+| B5-02 Completeness | All 50 nodes typed, requirements/costs/practice/flavor/moment present (V22); strict validator clean; registry references resolve. **Typing done; promotion to numeric is still ahead** |
+| B5-03 Determinism | 1,000 Fief matches replay exactly; snapshot continuation exact; macOS arm64 and Windows x64 produce the same fief-v1 golden |
+| B5-04 Mode and end | All three end clauses, ties, human/headless, KEY-5 continuation, KEY-6 threshold, old-save modes, mode-bearing new saves |
+| B5-05 Pacing | F-T1 after the E4 pacing is settled; no imputation of uncompleted KEY-6 |
+| B5-06 Power, fuel | F-T2, F-T3; exact input/output conservation; mill loss, site loss, captured furnace |
+| B5-07 Food, health | F-T4, F-T7; no mass creation |
+| B5-08 Siege | F-T5; no wall assault without breach; powder consumption conserved |
+| B5-09 Institutions | F-T6; no unstaffed benefit; knowledge-copy and capture cases |
+| B5-10 AI | A1–A8 in Fief mode, Legend ≥ 60% vs Warlord, ≥ 80 mirrored duels; fog fuzz for deposits, powder stock, fleets |
+| B5-11 Performance | Mean tick ≤ 4 ms, GC ≤ 16 ms; figure budget at E5 p95 population |
+| B5-12 Comprehension | ≥ 5/8 uncoached players explain a mill/fuel bottleneck and one faith or money effect |
+| B5-13 Integration | Full Release suite and strict validation green; golden changes isolated and explained; user approves merge |
+
+## 11. Decisions
+
+| ID | Question | Recommendation | Needs the user? |
+|---|---|---|---|
+| D1 | Is the next age E5 Faith & Fief, as a default-off FiefChapter that includes E4? | Yes | **Confirmed 2026-11-05** |
+| D2 | Finish the whole age before any playtest, as you decided for Iron | Yes (matches the standing rule) | No |
+| D3 | Raise the economy ceiling through a per-chapter economy profile instead of another flag | Yes; coordinate with the E4 balancer on the shared tables | Only if the balancer disagrees |
+| D4 | Define "claim upkeep" for TER-10 in Fief mode only | Yes, a small per-tile grain/labor cost | **Confirmed 2026-11-05** (size to be fitted by the oracle) |
+| D5 | Keep the simulation at 1:1; use 1:5 only to draw if the figure budget breaks | Yes | No |
+| D6 | Branch and worktree: do E5 work in its own worktree and branch (like `civsim-e4`), never in the shared main tree | Yes; content-pack golden is refreshed only at merge time | No |
+| D7 | Which cut is acceptable if time runs short (tactical cavalry detail, bespoke art)? | None by default, same rule as 25 §15: no catalog promise is dropped silently | No |
+
+## 12. Risks
+
+- **E4 may change under E5.** A new E4 era base, cap or fuel rule moves every E5 baseline. Re-anchor after each E4 rebase, and keep E5 numbers as oracle inputs until then.
+- **The content-pack golden is shared.** Typing E5 YAML changes the pack hash, so two sessions editing YAML will collide on `tests/golden/content-pack.txt`. Refresh it once, at merge.
+- **Craft is optional, so Craft systems may never run.** Mitigation: `--grant-e5`, plus keeping the Council's leaning for Craft honest in the oracle.
+- **Blast furnace can break the fuel balance again.** Fit it with the I-T6 protocol before promoting MET-12.
+- **Too many institutions.** Monastery, university, hospital, cathedral, mills all need adults; E4's idle-academy result says to check staffing before adding more.
+- **Gunpowder can erase siege decisions.** Compare full force tables, not isolated −70% text.
+- **Plague may need a story.** The historical Black Death is not scripted here; if playtests want one, add it as a bounded shock after the base rates are fitted.

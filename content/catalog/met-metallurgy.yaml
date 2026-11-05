@@ -160,7 +160,12 @@ projects:
     status: draft
     requires: [MET-10, CER-08, TRD-07]
     effects:
-      - {kind: prose, text: "Good: High-grade steel. Arms +20%; luxury blades as trade goods."}
+      - {kind: good, id: "G-CSTEEL"}
+      - {kind: good, id: "G-ARMS5"}
+      - {kind: rule, text: "Recipes crucible_steel and make_crucible_arms. Crucible-steel arms strength is 3.6 (the MET-10 steel edge 3.0 x 1.2 exactly once; never stacked on top of it). Crucible steel is rare and a luxury trade good."}
+    practice: [{action: smelt, share: 100}]
+    flavor: "A small pot of fire makes the finest edge."
+    moment: "A crucible is lifted white-hot from the furnace."
   - id: MET-12
     name: "Blast Furnace & Cast Iron"
     era: 5
@@ -168,7 +173,14 @@ projects:
     status: draft
     requires: [MET-10, NRG-03]
     effects:
-      - {kind: prose, text: "Build: Blast furnace. Iron output ×4; cast iron pots, cannon, machine parts."}
+      - {kind: build, structure: blast_furnace}
+      - {kind: good, id: "G-PIG"}
+      - {kind: good, id: "G-CAST"}
+      - {kind: mod, stat: furnace_iron_output, op: mult, value: 4.0, note: "per furnace-season over a bloomery, at half the bloomery's charcoal per litre of iron (P, e5_power_oracle)"}
+      - {kind: rule, text: "A furnace needs a bellows power unit. Cast-iron goods (pots, parts, cannon bodies) come from pig iron. Iron demand is capped by recipes, not open-ended. No coal exists before E6, so the furnace competes with homes and ships for forest."}
+    practice: [{action: smelt, share: 100}]
+    flavor: "The fire is driven until the iron runs."
+    moment: "Iron runs from the furnace in a bright stream."
   - id: MET-13
     name: Coke Smelting
     era: 6

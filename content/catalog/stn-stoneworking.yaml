@@ -165,7 +165,12 @@ projects:
     status: draft
     requires: [STN-12, SOC-11]
     effects:
-      - {kind: prose, text: "Role: Master mason. Large stone works +50% speed; required for Gothic Cathedral (BLD-12)."}
+      - {kind: role, id: master_mason}
+      - {kind: mod, stat: large_stone_works_speed, op: mult, value: 1.5, note: "large stone works supervised by a staffed master mason"}
+      - {kind: rule, text: "Required to raise the Gothic Cathedral (BLD-12)."}
+    practice: [{action: build, share: 100}]
+    flavor: "The lodge keeps the secret of the arch."
+    moment: "A master mason traces a rib vault on the floor."
   - id: STN-14
     name: Synthetic Abrasives
     era: 8

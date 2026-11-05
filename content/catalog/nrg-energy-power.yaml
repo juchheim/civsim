@@ -45,7 +45,11 @@ projects:
     status: draft
     requires: [NRG-02, HUS-07]
     effects:
-      - {kind: prose, text: "Horses pull without choking: draft power ×2 where horses are available."}
+      - {kind: mod, stat: draft_power, op: mult, value: 2.0, note: "ploughing and hauling where the settlement holds horses"}
+      - {kind: rule, text: "Needs G-HORSE held in the settlement; ploughing labor halves where horses are available and is unchanged elsewhere."}
+    practice: [{action: work_animals, share: 100}]
+    flavor: "The yoke moves from the neck to the shoulders."
+    moment: "A horse leans into a collar and the plough moves."
   - id: NRG-05
     name: Windmill
     era: 5
@@ -53,7 +57,11 @@ projects:
     status: draft
     requires: [NRG-03, MEC-07]
     effects:
-      - {kind: prose, text: "Build: Windmill. Milling without rivers; drainage pumps (reclaim wetlands)."}
+      - {kind: build, structure: windmill}
+      - {kind: rule, text: "A built windmill supplies 4 power units at 80% availability on any open tile for grinding and mill-driven jobs, so milling no longer needs a river; drainage pumps reclaim wetland tiles to field only while a pump job is staffed."}
+    practice: [{action: craft, share: 100}]
+    flavor: "The wind turns the grain to flour."
+    moment: "Sails turn on a ridge and the millstones begin."
   - id: NRG-06
     name: Steam Engine
     era: 6

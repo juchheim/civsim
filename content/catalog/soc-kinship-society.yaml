@@ -135,7 +135,11 @@ projects:
     status: draft
     requires: [SOC-10, TRD-07]
     effects:
-      - {kind: prose, text: "Craft quality +20%; apprenticeship speed ×1.5 for craft roles."}
+      - {kind: mod, stat: craft_quality, op: mult, value: 1.2, note: "durability and waste of non-kit crafted goods; tool service life is unchanged (no double multiplier with T12)"}
+      - {kind: mod, stat: apprenticeship_speed, op: mult, value: 1.5, note: "craft roles"}
+    practice: [{action: craft, share: 100}]
+    flavor: "A trade keeps its own standards."
+    moment: "Guild masters mark a finished piece with their sign."
   - id: SOC-12
     name: Middle Class
     era: 6

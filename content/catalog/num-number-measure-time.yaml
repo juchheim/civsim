@@ -91,7 +91,11 @@ projects:
     status: draft
     requires: [NUM-07, LRN-05]
     effects:
-      - {kind: prose, text: "Efficient calculation: trade and admin +15%."}
+      - {kind: mod, stat: trade_volume, op: mult, value: 1.15}
+      - {kind: mod, stat: admin_capacity, op: mult, value: 1.15}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "An empty place holds a value."
+    moment: "A clerk writes a zero to hold a column."
   - id: NUM-09
     name: Algebra
     era: 5
@@ -99,7 +103,10 @@ projects:
     status: draft
     requires: [NUM-08]
     effects:
-      - {kind: prose, text: "Abstract problem-solving: Scholar Insight +15%."}
+      - {kind: mod, stat: scholar_insight, op: mult, value: 1.15, note: "staffed scholars only"}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "Unknown quantities yield to rules."
+    moment: "A scholar balances an equation on a slate."
   - id: NUM-10
     name: "Logarithms & Analytic Geometry"
     era: 6

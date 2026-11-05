@@ -113,3 +113,20 @@ goods:
   - {id: G-WINE, name: Wine, category: food, first_from: [FOR-08], spoilage: 0.2, load: 0.5, barter: 3, introduced_era: 4}
   - {id: G-OILPLANT, name: Pressed olive oil, category: food, first_from: [FOR-08], spoilage: 0.1, load: 0.5, barter: 3, introduced_era: 4}
   - {id: G-ENGINE, name: Counterweighted siege engine, category: tool, first_from: [WAR-09], durability: 12 seasons, load: 0, barter: 12, introduced_era: 4}
+  # E5 Faith & Fief additions (docs/MVP/27 §5); every quantity is provisional and no E5 row is numeric yet.
+  - {id: G-SALTPETER, name: Saltpeter, category: ore, first_from: [CHM-07], durability: durable, load: 1, barter: 8, introduced_era: 5}
+  - {id: G-SULFUR, name: Sulfur, category: ore, first_from: [CHM-07], durability: durable, load: 1, barter: 6, introduced_era: 5}
+  - {id: G-PIG, name: Pig iron, category: metal, first_from: [MET-12], durability: durable, load: 1, barter: 10, introduced_era: 5}
+  - {id: G-CAST, name: Cast-iron goods, category: metal, first_from: [MET-12], durability: durable, load: 1, barter: 16, introduced_era: 5}
+  - {id: G-CSTEEL, name: Crucible steel, category: metal, first_from: [MET-11], durability: durable, load: 1, barter: 40, introduced_era: 5}
+  - {id: G-ARMS5, name: Crucible-steel arms, category: arms, first_from: [MET-11], durability: 48 seasons, load: 0.5, barter: 60, introduced_era: 5}
+  - {id: G-POWDER, name: Gunpowder, category: material, first_from: [CHM-07], durability: durable, load: 1, barter: 20, introduced_era: 5}
+  - {id: G-CANNON, name: Cannon, category: arms, first_from: [WAR-12], durability: 60 seasons, load: 4, barter: 80, introduced_era: 5}
+  - {id: G-CROSSBOW, name: Crossbow, category: arms, first_from: [WAR-11], durability: 40 seasons, load: 0.5, barter: 6, introduced_era: 5}
+  - {id: G-HORSESHOE, name: Horseshoe, category: tool, first_from: [TRN-09], durability: 12 seasons, load: 0.2, barter: 1, introduced_era: 5}
+  - {id: G-SPIRITS, name: Distilled spirits, category: luxury, first_from: [CHM-06], spoilage: 0.01, load: 0.5, barter: 14, introduced_era: 5}
+  - {id: G-PORCELAIN, name: Porcelain, category: luxury, first_from: [CER-09], durability: durable, load: 0.4, barter: 40, introduced_era: 5}
+  - {id: G-SPECTACLES, name: Spectacles, category: tool, first_from: [CER-10], durability: 80 seasons, load: 0.05, barter: 12, introduced_era: 5}
+  - {id: G-PAPER, name: Paper, category: material, first_from: [COM-09], durability: durable, load: 0.1, barter: 2, introduced_era: 5}
+  - {id: G-BOOK, name: Printed book, category: luxury, first_from: [COM-10], durability: durable, load: 0.3, barter: 6, introduced_era: 5}
+  - {id: G-MANUSCRIPT, name: Illuminated manuscript, category: luxury, first_from: [ART-09], durability: durable, load: 0.3, barter: 60, introduced_era: 5}

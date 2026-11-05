@@ -82,7 +82,11 @@ projects:
     status: draft
     requires: [MEC-05, NRG-03]
     effects:
-      - {kind: prose, text: "Convert rotation: trip hammers, fulling mills, bellows. Mill-driven crafts ×2."}
+      - {kind: mod, stat: mill_craft_output, op: mult, value: 2.0, note: "trip hammers, fulling stocks and bellows; only a worker holding a power unit"}
+      - {kind: rule, text: "Power is ledgered: a water wheel supplies 5 power units, a windmill 4 at 80% availability, a horse gin 2 (P, docs 27 5.1). A powered craft worker's output is x2; a worker without a unit gets no multiplier."}
+    practice: [{action: craft, share: 100}]
+    flavor: "A turning wheel learns to strike."
+    moment: "A cam lifts a hammer that falls by itself."
   - id: MEC-08
     name: Mechanical Clock
     era: 5
@@ -90,7 +94,12 @@ projects:
     status: draft
     requires: [MEC-07, NUM-06]
     effects:
-      - {kind: prose, text: "Time discipline: all scheduled work +5%; Build: Clock tower (+Cohesion)."}
+      - {kind: build, structure: clock_tower}
+      - {kind: mod, stat: scheduled_work, op: mult, value: 1.05, note: "only within 6 tiles of a built clock tower (P); not a global multiplier"}
+      - {kind: cohesion, value: 2, scope: radius, radius: 6, note: "settlements within 6 tiles of a built clock tower"}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "Hours become a thing that can be counted aloud."
+    moment: "A bell strikes the hour across the market."
   - id: MEC-09
     name: Precision Instruments
     era: 6

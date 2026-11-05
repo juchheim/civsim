@@ -25,3 +25,8 @@ roles:
   - {id: soldier, name: Soldier, insight: 0, unlocked_by: WAR-07, staffing: "ordinary slots floor(0.10 × adults); 20% after WAR-08; supplied and trained"}
   - {id: missionary, name: Missionary, insight: 0, unlocked_by: BEL-09, staffing: "1 per active faith route or mission"}
   - {id: physician, name: Physician, insight: 0, unlocked_by: MED-05, staffing: "1 per settlement with medical texts"}
+  # E5 Faith & Fief additions (docs/MVP/27 §5); staffing and outputs are proposals.
+  - {id: monk, name: Monk, insight: 0, unlocked_by: BEL-10, staffing: "4 per monastery; adults taken off other work"}
+  - {id: master_mason, name: Master mason, insight: 0, unlocked_by: STN-13, staffing: "1 per large stone work; required for the Gothic Cathedral"}
+  - {id: knight, name: Knight, insight: 0, unlocked_by: WAR-10, staffing: "a soldier with a horse and steel arms; at most a quarter of soldier slots"}
+  - {id: gunner, name: Gunner, insight: 0, unlocked_by: WAR-12, staffing: "4 crew per cannon"}

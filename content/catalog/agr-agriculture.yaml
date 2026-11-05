@@ -135,7 +135,11 @@ projects:
     status: draft
     requires: [AGR-10, AGR-03]
     effects:
-      - {kind: prose, text: "Land productivity +50%."}
+      - {kind: mod, stat: field_output, op: mult, value: 1.5, note: "rotated fields: cropped share 1/2 to 2/3 (x1.333) with a legume yield x1.125 (P, e5_economy_oracle)"}
+      - {kind: rule, text: "One field in three lies fallow each year and is grazed; the +50% is physical (cropped share and legume nitrogen), not a free multiplier on top of the Heavy Plough."}
+    practice: [{action: farm, share: 100}]
+    flavor: "Every field rests in its turn."
+    moment: "Three strips lie side by side: wheat, beans, fallow."
   - id: AGR-12
     name: "Four-Course Rotation & Enclosure"
     era: 6

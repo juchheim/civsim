@@ -128,7 +128,12 @@ projects:
     status: draft
     requires: [FIR-09, STN-11]
     effects:
-      - {kind: prose, text: "Indoor heat without smoke: winter deaths −40%, respiratory disease −30%, housing comfort +."}
+      - {kind: hazard, cause: exposure, mult: 0.6, scope: winter}
+      - {kind: hazard, cause: endemic, mult: 0.925, scope: respiratory, note: "30% off the respiratory share, about a quarter of the endemic cause (P)"}
+      - {kind: rule, text: "Housing comfort rises where hearths are fitted with flues; fine kilns for porcelain need flues."}
+    practice: [{action: smelt, share: 50}, {action: tend_fire, share: 50}]
+    flavor: "Smoke finds a way out."
+    moment: "Smoke climbs a new chimney instead of filling the hall."
   - id: FIR-11
     name: Coal Firing
     era: 6

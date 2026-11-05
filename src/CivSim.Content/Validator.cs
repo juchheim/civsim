@@ -42,6 +42,7 @@ public static class Validator
         CheckHazardCoverage(set, report);
         CheckHasGatesAndDecrees(set, report);
         CheckE4DraftScope(set, report);
+        CheckE5DraftScope(set, report);
 
         if (cycle is null && !report.HasErrorsOf("V2"))
         {
@@ -559,6 +560,32 @@ public static class Validator
                 report.Error("V21", At(p), $"{p.Id}: E4 draft needs flavor text");
             if (string.IsNullOrWhiteSpace(p.Moment))
                 report.Error("V21", At(p), $"{p.Id}: E4 draft needs Moment text");
+        }
+    }
+
+    // ---- V22 E5 integrity -------------------------------------------------------------------------
+    // E5 follows the E4 pattern (docs/MVP/27): typed as draft first, then promoted as one body, so a chapter never plays half of the
+    // Faith & Fief age. Moments are optional in the game (E5 uses the generic kit) but the rows carry one, so they are required here too.
+    private static void CheckE5DraftScope(ContentSet set, Report report)
+    {
+        int numeric = set.Projects.Count(p => p.Era == 5 && p.Status != "draft");
+        foreach (Project p in set.Projects.Where(p => p.Era == 5))
+        {
+            if (numeric > 0 && p.Status == "draft")
+                report.Error("V22", At(p), $"{p.Id}: E5 rows are promoted together; this one is still draft while {numeric} are numeric");
+            if (numeric == 0 && p.Status != "draft")
+                report.Error("V22", At(p), $"{p.Id}: E5 rows are promoted together; this status is not draft");
+            if (set.CostOf(p) is null)
+                report.Error("V22", At(p), $"{p.Id}: E5 draft has no computed cost");
+            if (p.Effects.Count == 0)
+                report.Error("V22", At(p), $"{p.Id}: E5 draft needs at least one typed effect");
+            foreach (Effect e in p.Effects)
+                if (e.Kind == EffectSpecs.Prose)
+                    report.Error("V22", $"{p.File}:{e.Line}", $"{p.Id}: E5 draft effects must be typed; prose effects are not allowed");
+            if (string.IsNullOrWhiteSpace(p.Flavor))
+                report.Error("V22", At(p), $"{p.Id}: E5 draft needs flavor text");
+            if (string.IsNullOrWhiteSpace(p.Moment))
+                report.Error("V22", At(p), $"{p.Id}: E5 draft needs Moment text");
         }
     }
 
