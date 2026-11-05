@@ -6,7 +6,7 @@ I-T6 in [25 §13](../25-iron-age.md#13-provisional-balance-targets-and-oracle-wo
 
 ## Reproduction
 
-- Source baseline: `d2770d2` (Iron route access and age coverage); approved fuel accounting and cutoff instrumentation revision: `5b779d1` (extends the whole-match accounting in `1513a70`).
+- Source baseline: `d2770d2` (Iron route access and age coverage); approved fuel accounting and cutoff instrumentation revision: `5b779d1` (extends the whole-match accounting in `1513a70`); spatial fuel diagnostic revision: `0a62944` (read-only trace only).
 - Content pack SHA-256: `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9`.
 - Natural Iron cohort: four Warlord AI seats (Builder, Grower, Warlord, Sage), default Iron chapter limits, no research grant, played to chapter end. The current screen uses seeds `20261019–20261026`.
 - Build the current-content pack with `dotnet run --project src/CivSim.Cli -c Release --no-restore -- build-pack --out /tmp/civsim-it6-current.pack`.
@@ -66,6 +66,21 @@ Eight natural Iron matches completed at 78.0–83.0 simulated minutes each, usin
 | Fixed-pop fuel stresses, final 120 of 240 seasons | Standard Iron, standard-reach no-Coppicing, cart-reach low wood with and without Coppicing, import loss, and wood-rich: 8/8 seeds pass each. Default-reach low wood with Coppicing: 7/8 pass; seed `20261026` fails at 6/120 short seasons (5.00%) and 0.1056/0.6738 L unmet (15.7%). Default-reach low wood without Coppicing: 7 pass, 1 seed has no planned-charcoal demand and is censored. | The fuel cutoff catches the default-reach low-wood Coppicing outlier. TRN-05 cart reach passes this screen with and without Coppicing. A censored no-demand seed is not counted as a pass |
 
 The per-match trace also records Iron recipe charcoal, charcoal wood, fire-setting wood, Iron/all-ore mined, charcoal/ore haul work, facility construction, kit craft work, and tool service work. The fixed-pop fuel screen applies the same two cutoffs per seed to the final 120 seasons; all tested scenarios report zero Iron-attributed crossings. Coppicing remains optional for the clearing rule and increases low-wood replacement margin; these runs do not prove whole-match sustainability.
+
+## Spatial diagnosis of fuel-short settlements
+
+The read-only `--it6-accounting` trace now reports wood available to each fuel-short settlement immediately before its short burn: raw standing stock and harvestable stock above the game's 5 L/tile reserve, split between the normal radius-3 cutting area and the wider charcoal reach (8 tiles, or 12 with TRN-05 carts). It also reports local stored wood, remaining work, and the settlement's current match-end catchment stock. These per-settlement catchments overlap, so their values must not be added together.
+
+| Natural match | Whole-map forest stock, opening → end; regrowth | Fuel-short settlement evidence |
+|---|---|---|
+| Seed `20261026` | 26,420.00 → 22,399.98 L; 22,231.95 L regrowth; zero stock-ledger residual | c1/s91 had 37/37 demand-seasons short with no reachable or harvestable wood at any recorded short burn and none at match end. c0/s14 had 71/71 with the same zero-wood pattern. c3/s35 had 50/52; mean reachable stock was 10.46 L but only 0.46 L was above the per-tile reserve, all outside radius 3; its end catchment held 10.00 L raw and 0.00 L harvestable. |
+| Seed `20261020` | 51,000.00 → 46,803.90 L; 34,960.32 L regrowth; zero stock-ledger residual | c1/s11 had 57/61 demand-seasons short; at short burns it averaged 37.95 L raw but only 2.85 L harvestable, all outside radius 3; at match end only 5.00 L raw and 0.00 L harvestable remained in reach. |
+
+This rules out **whole-map exhaustion** as the explanation for these failures: both maps finish with most of their opening forest stock, while particular settlements have no local wood or almost no wood above the 5 L reserve. The evidence points first to **settlement-level supply distribution and transport reach**, with the reserve threshold making thinly stocked catchments unusable for Iron fuel.
+
+It is not only a case of permanently empty catchments. In seed `20261026`, c1/s1 was short in 10/46 demand-seasons despite averaging 281.34 L raw and 34.18 L harvestable across its full reach before short burns; its match-end catchment had 186.95 L harvestable. All of that harvestable stock was beyond radius 3 and required hauling. This is consistent with a transient or haul-cost bottleneck, but the trace does not yet prove whether each such event is caused by haul work, overlapping use, or a demand spike. The reported neighbor counts alone do not establish competition. The fixed-population 30-forest-tile “wood-rich” fixture passes the fuel cutoff in all eight seeds, supporting sensitivity to supply around the settlement, but it is not a matched natural-map counterfactual.
+
+**Diagnosis:** adding more wood to the world globally is not currently supported as the needed fix. The next discriminating balance experiment should add or compare nearby forest/usable stock or hauling reach around the affected sites, while preserving total match duration and the approved cutoffs. Keep the distinction between a local zero-stock failure and a shortfall with outer-reach stock in the acceptance report.
 
 Same-seed Bronze whole matches were capped at 82 minutes but ended naturally after 59.0–64.0 simulated minutes, before the Iron matches. Their total clearing counts are therefore not valid equal-duration controls. No conclusion about Iron *excess total* clearing is drawn from that comparison.
 
