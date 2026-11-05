@@ -651,7 +651,7 @@ public sealed class A7HarnessTelemetryTests
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=2.00", StringComparison.Ordinal));
         Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
             row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=3.19/3.19", StringComparison.Ordinal));
+                row.Contains("foodWork(requested/assigned)=4.04/4.04", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,

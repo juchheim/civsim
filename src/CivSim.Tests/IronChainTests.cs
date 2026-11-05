@@ -308,7 +308,8 @@ public class IronChainTests
 
     private static void ThinTheForest(BronzeFixture f, int percent)
     {
-        foreach (int tile in f.ForestTiles) f.Economy.FixtureSetWood(tile, Fix64.FromInt(30 * percent / 100));
+        // The Iron fuel guard measures the whole charcoal catchment, so thin all of it (the fixture's own forest tiles are only part).
+        f.Economy.FixtureThinCharcoalCatchment(BronzeFixture.Settlement, percent);
     }
 
     [Fact]

@@ -94,6 +94,18 @@ public sealed partial class LivingEconomyModel
     /// <summary>Sets a tile's standing wood (a forest burned off, or a clearing).</summary>
     internal void FixtureSetWood(int tile, Fix64 litres) => _woodStock[tile] = litres;
 
+    /// <summary>
+    /// Scales the standing wood of every forest tile in a settlement's charcoal catchment to a percentage of its starting stock. The Iron fuel
+    /// guard judges the whole catchment (ef575c3), so a thin-forest fixture must thin all of it, not only the fixture's own forest tiles.
+    /// </summary>
+    internal void FixtureThinCharcoalCatchment(int settlementIndex, int percent)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        foreach (int tile in ReachTiles(s.SiteTile, reach))
+            if (IsForestTile(tile)) _woodStock[tile] = _world.Tile(tile).InitialWood * percent / 100;
+    }
+
     /// <summary>Sets the raw stone in a settlement's quarry range to a known total for civic masonry fixtures.</summary>
     internal void FixtureSetRangeStone(int settlementIndex, Fix64 litres)
     {
