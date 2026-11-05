@@ -35,7 +35,8 @@ internal static class IronFuelCheck
     private const int FuelFixtureCharcoalReach = 8;
     private const int FuelFixtureCartCharcoalReach = 12;
 
-    private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint, bool Carts = false);
+    private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint,
+        bool Carts = false, FuelForestPlacement? SpatialPlacement = null);
 
     private static readonly Scenario[] Scenarios =
     {
@@ -54,6 +55,12 @@ internal static class IronFuelCheck
         new("bronze-low-wood-no-coppice", false, false, 4, false),
         new("iron-wood-rich", true, true, 30, false),
         new("bronze-wood-rich", false, true, 30, false),
+        new("iron-near-8", true, false, 4, false, SpatialPlacement: FuelForestPlacement.Nearby),
+        new("iron-haul-8", true, false, 4, false, SpatialPlacement: FuelForestPlacement.HaulOnly),
+        new("iron-far-8", true, false, 4, false, SpatialPlacement: FuelForestPlacement.CartOnly),
+        new("iron-near-12", true, false, 4, false, Carts: true, SpatialPlacement: FuelForestPlacement.Nearby),
+        new("iron-haul-12", true, false, 4, false, Carts: true, SpatialPlacement: FuelForestPlacement.HaulOnly),
+        new("iron-far-12", true, false, 4, false, Carts: true, SpatialPlacement: FuelForestPlacement.CartOnly),
     };
 
     private sealed class Row
@@ -79,11 +86,13 @@ internal static class IronFuelCheck
         string? packPath = null;
         var seeds = new List<ulong> { 20261019, 20261020, 20261021, 20261022, 20261023, 20261024, 20261025, 20261026 };
         int seasons = 40, people = 60;
+        bool spatialOnly = false;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
                 case "--pack": packPath = args[++i]; break;
+                case "--spatial-only": spatialOnly = true; break;
                 case "--seeds":
                     seeds.Clear();
                     foreach (string part in args[++i].Split(',')) seeds.Add(ulong.Parse(part, CultureInfo.InvariantCulture));
@@ -96,17 +105,21 @@ internal static class IronFuelCheck
         if (packPath is null) throw new ArgumentException("iron-fuel needs --pack FILE (civsim build-pack --out FILE).");
         if (seasons < 8 || seasons % 2 != 0) throw new ArgumentException("--seasons must be an even number of at least 8.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        Console.Write(Report(pack, seeds, seasons, people));
+        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly));
         return 0;
     }
 
-    internal static string Report(ContentPack pack, IReadOnlyList<ulong> seeds, int seasons, int people, int scenarioLimit = int.MaxValue)
+    internal static string Report(ContentPack pack, IReadOnlyList<ulong> seeds, int seasons, int people,
+        int scenarioLimit = int.MaxValue, bool spatialOnly = false)
     {
         var sb = new StringBuilder();
         void L(string text = "") => sb.Append(text).Append('\n');
         int window = seasons / 2;
-        L($"iron-fuel: {seeds.Count} seeds, {seasons} seasons ({window}-season steady-state window), fixed {people}-person fixture settlement");
-        L($"I-T6: metal chain <= {Pct(ShareCeiling)} of civilian work; compare forest stock and fuel flows with the same-seed Bronze control");
+        L($"iron-fuel{(spatialOnly ? " --spatial-only" : "")}: {seeds.Count} seeds, {seasons} seasons ({window}-season steady-state window), fixed {people}-person fixture settlement");
+        L(spatialOnly
+            ? $"I-T6 spatial supply/reach counterfactual; apply the approved per-seed fuel cutoff (work-share ceiling {Pct(ShareCeiling)})."
+            : $"I-T6: metal chain <= {Pct(ShareCeiling)} of civilian work; compare forest stock and fuel flows with the same-seed Bronze control");
+        L("spatial controls: four matched 30 L forest tiles (120 L opening stock; no Coppicing; up to 2 L/season base regrowth below the per-tile cap) placed at radii 1–3 (near), 4–8 (haul), or 9–12 (far); other wood within radius 12 is removed. Reach 8 is default; TRN-05 gives reach 12 and its lower haul cost.");
         L();
         L("scenario            seeds  metal-share(mean/max)  char+fire/season  regrowth/season  all-cuts/season  mass-resid  metal-char/season  metal-cut/season  reachable wood end/start(mean/min)  end/mid  NoFuel fallback(mean/max)  T11+ at fixture12/12 after route/end  bloom+wrought");
         var workVerdicts = new List<string>();
@@ -114,6 +127,7 @@ internal static class IronFuelCheck
         int shown = 0;
         foreach (Scenario sc in Scenarios)
         {
+            if (spatialOnly && sc.SpatialPlacement is null) continue;
             if (shown++ >= scenarioLimit) break;
             var rows = new List<Row>();
             int skipped = 0;
@@ -186,9 +200,12 @@ internal static class IronFuelCheck
             L($"{sc.Name,-30} {seedsWithCrossings,3}/{clearRows.Count,-14} {totalCrossings,8} {maxCrossings,19}");
         }
         L();
-        L("I-T2 sustainable-route checkpoint (12 complete seasons after camp and MET-09 are both available):");
-        L("Coverage counts all adult kit holders as a conservative proxy; the proposed I-T2 denominator is tool workers.");
-        L("scenario                    MET-09/camp/first-kit seasons   all-adult T11+ mean/min/max  seeds >=70%  T11+ age14-44/45+  route-wood mean/min");
+        if (!spatialOnly)
+        {
+            L("I-T2 sustainable-route checkpoint (12 complete seasons after camp and MET-09 are both available):");
+            L("Coverage counts all adult kit holders as a conservative proxy; the proposed I-T2 denominator is tool workers.");
+            L("scenario                    MET-09/camp/first-kit seasons   all-adult T11+ mean/min/max  seeds >=70%  T11+ age14-44/45+  route-wood mean/min");
+        }
         foreach (string name in new[] { "iron", "iron-low-wood", "iron-low-wood-carts", "iron-low-wood-no-coppice-carts", "iron-no-coppice", "iron-low-wood-no-coppice", "iron-import-loss", "iron-wood-rich" })
         {
             if (!rowsByScenario.TryGetValue(name, out Dictionary<ulong, Row>? routeRows)) continue;
@@ -207,7 +224,7 @@ internal static class IronFuelCheck
                       $"reachable forest retention {row.IronRouteWoodRetention.ToDoubleForDisplay():F2}");
         }
         L();
-        L("paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):");
+        if (!spatialOnly) L("paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):");
         foreach ((string iron, string bronze) in new[]
                  {
                      ("iron", "bronze-reference"), ("iron-low-wood", "bronze-low-wood"),
@@ -242,7 +259,7 @@ internal static class IronFuelCheck
               $"end/start wood delta {(deltaWood / paired).ToDoubleForDisplay():F2}");
         }
         L();
-        L("paired Coppicing effect (Coppicing minus no-Coppicing, same seeds):");
+        if (!spatialOnly) L("paired Coppicing effect (Coppicing minus no-Coppicing, same seeds):");
         foreach ((string coppiced, string uncoppiced) in new[]
                  {
                      ("iron", "iron-no-coppice"), ("iron-low-wood", "iron-low-wood-no-coppice"),
@@ -279,14 +296,16 @@ internal static class IronFuelCheck
         L("NoFuel is the settlement's reported metal-method fallback, not a raw count of charcoal shortfalls. all-cuts counts standing-wood removals attributed to metal, chopping, civic and other use across the charcoal haul radius. mass-resid = Δstock − regrowth + all cuts; 0.000 means the traced forest stock balances over the window.");
         L("end/mid is the steady-state slope of standing wood over the window (1.00 = flat; below 1 it is still being drawn down). end/start includes the one-time kit build-out.");
         L("Reading: population and age mix are fixed; grain is topped up each season, and forge/kiln/smelter start built. This isolates fuel and labor, not a whole match.");
-        L("The Bronze reference has the same iron site but makes no iron (the chain is Iron-chapter only), so the difference between it and 'iron' is the Iron chain's cost.");
+        if (!spatialOnly) L("The Bronze reference has the same iron site but makes no iron (the chain is Iron-chapter only), so the difference between it and 'iron' is the Iron chain's cost.");
         return sb.ToString();
     }
 
     private static Row RunOne(ContentPack pack, ulong seed, Scenario sc, int seasons, int people)
     {
-        BronzeFixture f = BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles,
-            sc.Carts ? new[] { "MET-08", "MET-09", "TRN-05" } : new[] { "MET-08", "MET-09" });
+        string[] projects = sc.Carts ? new[] { "MET-08", "MET-09", "TRN-05" } : new[] { "MET-08", "MET-09" };
+        BronzeFixture f = sc.SpatialPlacement is { } placement
+            ? BronzeFixture.CreateFixedPopulationSpatialFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, placement, projects)
+            : BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, projects);
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
         e.IT6AccountingTraceEnabled = sc.Iron;

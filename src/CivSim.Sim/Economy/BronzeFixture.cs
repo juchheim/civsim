@@ -7,6 +7,17 @@ using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
 
+/// <summary>Where controlled fuel-fixture forest is placed relative to the settlement's radius-3 cutting area.</summary>
+public enum FuelForestPlacement
+{
+    /// <summary>Tiles lie within radius 3, so no charcoal haul is needed.</summary>
+    Nearby,
+    /// <summary>Tiles lie at radii 4–8, so charcoal requires hauling within the default reach.</summary>
+    HaulOnly,
+    /// <summary>Tiles lie at radii 9–12, so charcoal requires the cart-extended reach.</summary>
+    CartOnly,
+}
+
 /// <summary>
 /// The economy fixture of docs/MVP/22 §16 B12 and B13 (the live counterpart of <c>metal_sim.py</c>): one settlement of a
 /// given size on a generated map, its radius-3 range given 13 forest tiles of 30 L (22 §5.5), a copper-ore surface
@@ -81,13 +92,20 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: true, ironChain, ironCamp: true,
             extraProjects, forestTiles);
 
+    /// <summary>A fixed-population spatial counterfactual with forest at a controlled distance from the settlement.</summary>
+    public static BronzeFixture CreateFixedPopulationSpatialFuelScenario(ContentPack pack, ulong seed, int people, bool ironChain,
+        bool coppice, int forestTiles, FuelForestPlacement placement, params string[] extraProjects)
+        => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: true, ironChain, ironCamp: true,
+            extraProjects, forestTiles, fuelForestPlacement: placement);
+
     /// <summary>A settlement with one hillside in range, for terrace fixtures, in either chapter.</summary>
     public static BronzeFixture CreateTerraceScenario(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: false,
             extraProjects, forestCount: 13, terrace: true);
 
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
-        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13, bool terrace = false)
+        bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13,
+        bool terrace = false, FuelForestPlacement? fuelForestPlacement = null)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -143,11 +161,48 @@ internal sealed class BronzeFixture
             deposits[terraceTile] = default;
         }
         var forest = new List<int>();
-        for (int i = 3; i < range.Count && forest.Count < forestCount; i++) forest.Add(range[i]);
-        forest.Remove(terraceTile);
-        foreach (int t in range)
-            if (!forest.Contains(t) && tiles[t].InitialWood >= Fix64.FromInt(15)) tiles[t] = tiles[t] with { InitialWood = Fix64.FromInt(4) };
-        foreach (int t in forest) tiles[t] = tiles[t] with { BiomeId = (int)Biome.TemperateForest, InitialWood = Fix64.FromInt(30), WoodGrowthPerYear = Fix64.FromInt(2) };
+        if (fuelForestPlacement is { } placement)
+        {
+            int minDistance = placement switch
+            {
+                FuelForestPlacement.Nearby => 1,
+                FuelForestPlacement.HaulOnly => 4,
+                FuelForestPlacement.CartOnly => 9,
+                _ => throw new ArgumentOutOfRangeException(nameof(fuelForestPlacement)),
+            };
+            int maxDistance = placement switch
+            {
+                FuelForestPlacement.Nearby => 3,
+                FuelForestPlacement.HaulOnly => 8,
+                FuelForestPlacement.CartOnly => 12,
+                _ => throw new ArgumentOutOfRangeException(nameof(fuelForestPlacement)),
+            };
+            var candidates = new List<(int Tile, int Distance)>();
+            for (int t = 0; t < tiles.Length; t++)
+            {
+                int d = HexGrid.Distance(start, t, source.Width);
+                bool land = tiles[t].BiomeId is not ((int)Biome.Ocean or (int)Biome.Coast or (int)Biome.Ice or (int)Biome.Peak);
+                if (d <= 12 && land)
+                    tiles[t] = tiles[t] with { InitialWood = Fix64.Zero, WoodGrowthPerYear = Fix64.Zero };
+                if (d >= minDistance && d <= maxDistance && land && deposits[t].Kind == DepositKind.None)
+                    candidates.Add((t, d));
+            }
+            candidates.Sort((a, b) => a.Distance != b.Distance ? b.Distance.CompareTo(a.Distance) : a.Tile.CompareTo(b.Tile));
+            if (candidates.Count < forestCount)
+                throw new InvalidOperationException($"The fixture start needs {forestCount} land tiles at radii {minDistance}–{maxDistance}.");
+            for (int i = 0; i < forestCount; i++) forest.Add(candidates[i].Tile);
+            foreach (int t in forest)
+                tiles[t] = tiles[t] with { BiomeId = (int)Biome.TemperateForest, InitialWood = Fix64.FromInt(30), WoodGrowthPerYear = Fix64.FromInt(2) };
+        }
+        else
+        {
+            for (int i = 3; i < range.Count && forest.Count < forestCount; i++) forest.Add(range[i]);
+            forest.Remove(terraceTile);
+            foreach (int t in range)
+                if (!forest.Contains(t) && tiles[t].InitialWood >= Fix64.FromInt(15)) tiles[t] = tiles[t] with { InitialWood = Fix64.FromInt(4) };
+            foreach (int t in forest)
+                tiles[t] = tiles[t] with { BiomeId = (int)Biome.TemperateForest, InitialWood = Fix64.FromInt(30), WoodGrowthPerYear = Fix64.FromInt(2) };
+        }
         var starts = new int[source.CivilizationCount];
         for (int c = 0; c < starts.Length; c++) starts[c] = source.StartingTile(c);
         var world = new WorldEconomyInput(source.Width, source.Height, tiles, starts, source.Herds, deposits);
