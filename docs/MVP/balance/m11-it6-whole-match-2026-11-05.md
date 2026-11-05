@@ -15,6 +15,12 @@ I-T6 in [25 §13](../25-iron-age.md#13-provisional-balance-targets-and-oracle-wo
 - Run the matched spatial supply/reach comparison with the same fixture population and seed block using `dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-fuel --pack /tmp/civsim-it6-current.pack --seasons 240 --seeds 20261019,20261020,20261021,20261022,20261023,20261024,20261025,20261026 --spatial-only`.
 - A Bronze comparison screen was also run on the same seeds with `--minutes 82 --it6-accounting --bronze-control`. Those Bronze matches reached their normal terminal condition after 59.0–64.0 simulated minutes, earlier than their Iron counterparts; do not use their whole-match clearing totals as duration-matched causal comparisons.
 
+## Held-out acceptance preregistration
+
+Before the acceptance run, freeze the current rule at source revision `f20e9eb6f81c7862ef853b4ab1a70fc59faf42cc`, content-pack SHA-256 `85f436c611870c6a34d75dc56a8624c702d2e3810a5c1ed3edd6daef05ae7ee9`, and natural-match seed block `20261101–20261180` (80 consecutive seeds, four Warlord AI archetypes per match). The approved limits remain unchanged: zero post-MET-09 Iron-attributed clearing crossings; no mature rolling 12-season full-chain work-share window above 15%; and, per mature-qualified seat, fuel-short demand settlement-seasons ≤5.00%, planned charcoal unmet ≤1.00%, and at least 12 eligible demand seasons. Run every seed through the natural Iron chapter terminal condition with no research grant. Classify all 320 seats, retain every match output, and report route-censored/no-route seats separately; those seats do not count as passes. Any mature-qualified failure, ledger residual, or incomplete 80-match block leaves I-T6 open. Do not alter source, pack, cutoffs, or seed block after observing any result.
+
+Acceptance command pattern: `dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-it6-current.pack --seed 20261101 --seeds 80 --it6-accounting`.
+
 The trace is read-only and excluded from simulation state. It records whole-map original forest tiles once (never summing overlapping settlement catchments), all settlement wood stores, kit output/issuance/service use, the metal work ledger, Iron ore and fire-setting, charcoal use and wood, and haul labor. World transfers of stored goods remain internal to the aggregate. Forest and local-stock residuals are calculated from fixed-point flows.
 
 ## Accounting definitions
