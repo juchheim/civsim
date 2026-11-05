@@ -66,6 +66,7 @@ static func _smooth(x: float) -> float:
 func sync() -> void:
 	var w: M7WorldData = b.w
 	var sig := hash(w.civ_looks) * 31 + hash(w.iron_looks) * 13 + hash(w.trail_meta) * 17 + hash(w.trail_tiles) + w.year / 2 * 7
+	sig = sig * 31 + b.plot_layout_signature
 	for i in range(0, w.plots.size(), 2):
 		sig = sig * 31 + w.plots[i] * 3 + w.plots[i + 1] + int(w.owner[w.plots[i]])
 	if sig == signature:
@@ -107,6 +108,10 @@ func _find_fields() -> void:
 			continue
 		var tile := w.plots[i]
 		if not w.is_land(tile):
+			continue
+		# Full field tiles have room for the plough team or grazers. Compact edge
+		# patches preserve the visual cue but are too small for those crowds.
+		if b.plot_mode(tile) != 1:
 			continue
 		var civ: int = w.owner[tile]
 		if civ < 0:
