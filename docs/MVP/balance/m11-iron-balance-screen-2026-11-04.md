@@ -12,7 +12,7 @@
 - The initial 80 successful match reports used source baseline `df591663c53bf1db0475545e9001dd86e02bec34`. Fourteen calibration seeds that had crashed or exited without a trace were rerun on the arithmetic fix `dfd5d92ee5df3ce98d8a91bc058cc74a8f779120`; all 14 completed. The fix changes only how an oversized wood ratio is saturated before narrowing; representable Q32.32 ratios keep the existing arithmetic. These runs combine into 78 calibration matches plus the original 16 held-out matches.
 - Calibration seeds (78): `20261101–20261102, 20261106–20261108, 20261110–20261127, 20261130–20261138, 20261142, 20261146–20261150, 20261154–20261155, 20261158–20261160, 20261162, 20261181, 20261185–20261187, 20261189–20261206, 20261209–20261219, 20261221`.
 - Held-out seeds (16): `20261165–20261180`.
-- Per-match and per-seat output: [CSV](m11-iron-balance-screen-2026-11-04.csv). The 2026-11-05 follow-up used the current `main` source base (`6ec1c97`) plus the changes in this worktree. It reran eight same-seed Iron/Bronze pairs (`20261019–20261026`), 240 seasons, fixed population, and the default 8-tile charcoal reach (no TRN-05). It traces all forest stock in that reach and reconciles regrowth against metal, chopping, civic and other standing-wood cuts.
+- Per-match and per-seat output: [CSV](m11-iron-balance-screen-2026-11-04.csv). The 2026-11-05 follow-up used source base `6ec1c97` plus the changes now recorded in `ef575c3`. It reran eight same-seed Iron/Bronze pairs (`20261019–20261026`), 240 seasons, fixed population, and the default 8-tile charcoal reach (no TRN-05). It traces all forest stock in that reach and reconciles regrowth against metal, chopping, civic and other standing-wood cuts. A follow-up sensitivity on `ef575c3` added TRN-05's 12-tile charcoal reach to both low-wood Iron variants, with and without Coppicing.
 - The Iron fuel guard now measures both its starting baseline and live stock across the charcoal catchment (8 tiles, or the cart reach with TRN-05), matching the actual charcoal haul path. Bronze retains its E0–E3 local-range baseline. After MET-09, the planner no longer requests new Bronze kits for adults already covered by the Iron re-kit demand; existing Bronze kits can still be used until replaced. The 55%/75% Iron wood thresholds, recipe quantities and fuel costs are unchanged.
 
 ## Whole-match pacing screen (I-T1)
@@ -38,7 +38,7 @@ KEY-4→KEY-5 exposure by archetype (mean simulated minutes; only seats reaching
 
 ## I-T6 fuel and work screen
 
-Fixture: one fixed 60-person settlement with the live E3 age mix, grain topped up each season, forge/kiln/smelter present and an iron camp site four tiles away. Population stays fixed so the Iron/Bronze comparison does not include demographic drift. There are 240 seasons per scenario; the table measures the final 120. Eight seeds (`20261019–20261026`) are paired across identical maps. The wood balance includes all forest tiles in the fixture's actual 8-tile charcoal reach; TRN-05 is not completed here. All standing-wood removal categories and regrowth are traced. “T11+ at fixture 12” starts its clock before camp setup; the separate I-T2 table measures 12 full seasons after a built camp.
+Fixture: one fixed 60-person settlement with the live E3 age mix, grain topped up each season, forge/kiln/smelter present and an iron camp site four tiles away. Population stays fixed so the Iron/Bronze comparison does not include demographic drift. There are 240 seasons per scenario; the table measures the final 120. Eight seeds (`20261019–20261026`) are paired across identical maps. The wood balance includes all forest tiles in the fixture's actual charcoal catchment: eight tiles without TRN-05 and twelve with it. All standing-wood removal categories and regrowth are traced. “T11+ at fixture 12” starts its clock before camp setup; the separate I-T2 table measures 12 full seasons after both a built camp and MET-09 are available. Its current coverage metric counts all adults, a conservative proxy for the proposed tool-worker denominator.
 
 | Scenario | Metal work mean/max | Regrowth / all cuts (L/season) | Stock-flow residual (L/season) | Reachable wood end/start mean/min | End/mid | NoFuel fallback mean/max | T11+ at fixture12 / route12 / end |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -64,21 +64,23 @@ This supports “Coppicing is optional but substantially increases sustainable w
 
 ## I-T2 sustainable-route check
 
-The route clock starts after the fixture's own Iron camp is built; it activates in seasons 2–3 in this seed block. Coverage is measured after 12 complete seasons following that activation. The table reports per-seed coverage, not the final holder ratio after 240 seasons.
+The route clock starts at the later of the fixture's Iron camp being built and MET-09 completing; both are available in seasons 2–3 in this seed block (MET-09 completes in season 1 for seed `20261026`). Coverage is measured after 12 complete seasons following route readiness. The table reports per-seed coverage, not the final holder ratio after 240 seasons. Since the documented target says “tool workers” and this harness counts every adult, these values are a conservative screen rather than a formal I-T2 verdict.
 
-| Route | T11+ mean / min / max | Seeds at or above 70% | Reachable forest at checkpoint, mean / min |
+| Route | All-adult T11+ proxy, mean / min / max | Seeds at or above 70% | Reachable forest at checkpoint, mean / min |
 |---|---:|---:|---:|
 | Standard Iron | 93.3% / 82.1% / 96.4% | 8/8 | 0.86 / 0.63 |
 | Iron, low wood with Coppicing | 78.1% / 25.0% / 89.3% | 7/8 | 0.75 / 0.51 |
 | Iron, no Coppicing | 92.4% / 82.1% / 96.4% | 8/8 | 0.81 / 0.52 |
 | Iron, low wood without Coppicing | 78.6% / 25.0% / 89.3% | 7/8 | 0.72 / 0.37 |
+| Iron, low wood with TRN-05 and Coppicing | 91.1% / 71.4% / 96.4% | 8/8 | 0.87 / 0.56 |
+| Iron, low wood with TRN-05, no Coppicing | 91.1% / 67.9% / 96.4% | 7/8 | 0.87 / 0.57 |
 | Iron, wood rich | 93.3% / 82.1% / 96.4% | 8/8 | 0.98 / 0.97 |
 
-Seed `20261026` is the low-wood outlier: 25.0% T11+ coverage with Coppicing and 25.0% without. At that checkpoint, reachable forest is 0.51 of its starting stock with Coppicing and 0.37 without; the forest guard is below its production floor. This is a per-seed miss for the low-wood route screen and remains open. Standard-route coverage passes all eight seeds. The one-time 70-kit delivery result is not used as evidence for I-T2.
+Seed `20261026` remains the local low-wood outlier: 25.0% T11+ coverage with Coppicing and without it at the default 8-tile reach. At that checkpoint, reachable forest is 0.51 of its starting stock with Coppicing and 0.37 without; the forest guard has reached its production floor. With TRN-05's 12-tile reach, the same seed reaches 71.4% with Coppicing while retaining 0.56 of catchment wood; without Coppicing it reaches 67.9% and retains 0.57. Across the eight seeds, TRN-05 plus Coppicing clears the 70% screen in 8/8; TRN-05 without Coppicing remains 7/8, with the outlier 2.1 percentage points short. Coppicing raises low-wood cart-route regrowth by 2.20 L/season and all standing cuts by 2.21 L/season, so the extra throughput closes the measured outlier gap without lowering the 55%/75% guard. Standard-route coverage passes all eight seeds with and without Coppicing. The one-time 70-kit delivery result is not used as evidence for I-T2.
 
 ## Other screens and remaining gates
 
-- **I-T2:** the standard built-camp route reaches at least 70% T11+ coverage in all eight seeds after 12 full route seasons. The low-wood route reaches the target in seven of eight; seed `20261026` stalls at 25% when the wood guard reaches its floor. The one-time kit-delivery result is not evidence for I-T2. The low-wood per-seed miss remains open.
+- **I-T2:** the standard route reaches at least 70% all-adult T11+ coverage in all eight seeds after 12 full route-ready seasons. The default low-wood route reaches it in seven of eight; seed `20261026` stalls at 25% when the wood guard reaches its floor. TRN-05's extended catchment with Coppicing reaches the screen in eight of eight; without Coppicing, the outlier reaches 67.9%, 2.1 points short. This identifies a transport-plus-forestry path through the low-wood miss without changing the wood thresholds. The all-adult proxy and fixture scope leave the proposed tool-worker I-T2 gate open; the one-time kit-delivery result is not evidence for it.
 - **I-T3:** deterministic fixture confirms T12 service life is exactly 48 vs T11's 24 work-seasons. Live mixed-age wear/replacement distribution remains open.
 - **I-T4:** one stipulated aqueduct/grain fixture reaches the proposed 1.4× lower bound. The required terrain set and physical mass-balance/live-mode comparison remain open.
 - **I-T5:** the selected isolated siege fixture expresses the candidate 0.40 duration multiplier. No natural match began an investment, so engine-vs-investment and relief/attrition comparison remain open.

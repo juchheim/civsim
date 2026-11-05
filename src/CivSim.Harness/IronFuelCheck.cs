@@ -26,14 +26,17 @@ internal static class IronFuelCheck
     private static readonly Fix64 ShareCeiling = Fix64.FromRatio(15, 100);
     /// <summary>Default charcoal haul reach in balance.yaml; the fuel fixture does not grant TRN-05 carts.</summary>
     private const int FuelFixtureCharcoalReach = 8;
+    private const int FuelFixtureCartCharcoalReach = 12;
 
-    private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint);
+    private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint, bool Carts = false);
 
     private static readonly Scenario[] Scenarios =
     {
         new("bronze-reference", false, true, 13, false),
         new("iron", true, true, 13, false),
         new("iron-low-wood", true, true, 4, false),
+        new("iron-low-wood-carts", true, true, 4, false, Carts: true),
+        new("iron-low-wood-no-coppice-carts", true, false, 4, false, Carts: true),
         new("iron-no-coppice", true, false, 13, false),
         new("bronze-no-coppice", false, false, 13, false),
         new("iron-import-loss", true, true, 13, true),
@@ -48,7 +51,7 @@ internal static class IronFuelCheck
     {
         public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShareAt12, IronKitShareAfter12Route, IronRouteWoodRetention, IronKitShare, FuelShortShare, Bloom, Wrought;
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
-        public int IronRouteActivatedSeason;
+        public int IronCampBuiltSeason, IronToolsUnlockedSeason, IronRouteActivatedSeason;
         public ulong Seed;
     }
 
@@ -132,9 +135,10 @@ internal static class IronFuelCheck
         L("work-share screen:");
         foreach (string v in workVerdicts) L("  " + v);
         L();
-        L("I-T2 sustainable-route checkpoint (12 complete seasons after the Iron camp is built):");
-        L("scenario                    camp season range  T11+ coverage mean/min/max  seeds >=70%  route-wood mean/min");
-        foreach (string name in new[] { "iron", "iron-low-wood", "iron-no-coppice", "iron-low-wood-no-coppice", "iron-import-loss", "iron-wood-rich" })
+        L("I-T2 sustainable-route checkpoint (12 complete seasons after camp and MET-09 are both available):");
+        L("Coverage counts all adult kit holders as a conservative proxy; the proposed I-T2 denominator is tool workers.");
+        L("scenario                    route-ready season range  adult T11+ mean/min/max  seeds >=70%  route-wood mean/min");
+        foreach (string name in new[] { "iron", "iron-low-wood", "iron-low-wood-carts", "iron-low-wood-no-coppice-carts", "iron-no-coppice", "iron-low-wood-no-coppice", "iron-import-loss", "iron-wood-rich" })
         {
             if (!rowsByScenario.TryGetValue(name, out Dictionary<ulong, Row>? routeRows)) continue;
             var rows = new List<Row>(routeRows.Values);
@@ -146,7 +150,8 @@ internal static class IronFuelCheck
               $"{Mean(rows, r => r.IronRouteWoodRetention).ToDoubleForDisplay(),4:F2}/{Min(rows, r => r.IronRouteWoodRetention).ToDoubleForDisplay(),4:F2}");
             foreach (Row row in rows)
                 if (row.IronKitShareAfter12Route < Fix64.FromRatio(70, 100))
-                    L($"  miss seed {row.Seed}: T11+ {Pct(row.IronKitShareAfter12Route)}, reachable forest retention {row.IronRouteWoodRetention.ToDoubleForDisplay():F2}");
+                    L($"  miss seed {row.Seed}: camp s{row.IronCampBuiltSeason}, MET-09 s{row.IronToolsUnlockedSeason}, route-ready s{row.IronRouteActivatedSeason}; " +
+                      $"T11+ {Pct(row.IronKitShareAfter12Route)}, reachable forest retention {row.IronRouteWoodRetention.ToDoubleForDisplay():F2}");
         }
         L();
         L("paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):");
@@ -183,6 +188,7 @@ internal static class IronFuelCheck
         foreach ((string coppiced, string uncoppiced) in new[]
                  {
                      ("iron", "iron-no-coppice"), ("iron-low-wood", "iron-low-wood-no-coppice"),
+                     ("iron-low-wood-carts", "iron-low-wood-no-coppice-carts"),
                      ("bronze-reference", "bronze-no-coppice"), ("bronze-low-wood", "bronze-low-wood-no-coppice"),
                  })
         {
@@ -218,40 +224,47 @@ internal static class IronFuelCheck
 
     private static Row RunOne(ContentPack pack, ulong seed, Scenario sc, int seasons, int people)
     {
-        BronzeFixture f = BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, "MET-08", "MET-09");
+        BronzeFixture f = BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles,
+            sc.Carts ? new[] { "MET-08", "MET-09", "TRN-05" } : new[] { "MET-08", "MET-09" });
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
         int window = seasons / 2;
+        int charcoalReach = sc.Carts ? FuelFixtureCartCharcoalReach : FuelFixtureCharcoalReach;
         HashSet<int> outerForestTiles = new();
-        ForestTrace woodStart = CaptureReachableWood(e, -1, outerForestTiles);
+        ForestTrace woodStart = CaptureReachableWood(e, -1, outerForestTiles, charcoalReach);
         var row = new Row { Seed = seed, WoodStart = woodStart.Standing };
         MetalStatistics mid = default;
         ForestTrace woodMid = default!, woodEnd = default!;
         int fuelShort = 0;
-        int ironRouteActivatedSeason = 0;
+        int ironCampBuiltSeason = 0, ironToolsUnlockedSeason = 0, ironRouteActivatedSeason = 0;
         for (int s = 0; s < seasons; s++)
         {
             if (sc.LoseIronAtMidpoint && s == window && f.IronTile >= 0) e.FixtureExhaust(f.IronTile);
             f.RunSeasons(1);
-            if (sc.Iron && ironRouteActivatedSeason == 0)
+            if (sc.Iron && ironCampBuiltSeason == 0)
                 for (int c = 0; c < e.MiningCampCount; c++)
                 {
                     MiningCampView view = e.MiningCamp(c);
-                    if (view.Deposit == DepositKind.Iron && view.Built) { ironRouteActivatedSeason = s + 1; break; }
+                    if (view.Deposit == DepositKind.Iron && view.Built) { ironCampBuiltSeason = s + 1; break; }
                 }
+            if (sc.Iron && ironToolsUnlockedSeason == 0 && e.HasCompletedProject(0, "MET-09")) ironToolsUnlockedSeason = s + 1;
+            if (ironRouteActivatedSeason == 0 && ironCampBuiltSeason > 0 && ironToolsUnlockedSeason > 0)
+                ironRouteActivatedSeason = Math.Max(ironCampBuiltSeason, ironToolsUnlockedSeason);
+            row.IronCampBuiltSeason = ironCampBuiltSeason;
+            row.IronToolsUnlockedSeason = ironToolsUnlockedSeason;
             row.IronRouteActivatedSeason = ironRouteActivatedSeason;
             if (s == window - 1)
             {
                 mid = e.MetalStats(0);
-                woodMid = CaptureReachableWood(e, s, outerForestTiles);
+                woodMid = CaptureReachableWood(e, s, outerForestTiles, charcoalReach);
                 row.WoodMid = woodMid.Standing;
             }
-            if (s == seasons - 1) woodEnd = CaptureReachableWood(e, s, outerForestTiles);
+            if (s == seasons - 1) woodEnd = CaptureReachableWood(e, s, outerForestTiles, charcoalReach);
             if (s == 11) row.IronKitShareAt12 = IronKitCoverage(e);
             if (ironRouteActivatedSeason > 0 && s + 1 == ironRouteActivatedSeason + 12)
             {
                 row.IronKitShareAfter12Route = IronKitCoverage(e);
-                ForestTrace routeWood = CaptureReachableWood(e, s, outerForestTiles);
+                ForestTrace routeWood = CaptureReachableWood(e, s, outerForestTiles, charcoalReach);
                 row.IronRouteWoodRetention = Ratio(routeWood.Standing, row.WoodStart);
             }
             if (s >= window && e.Metal(BronzeFixture.Settlement).Reason == MethodFallbackReason.NoFuel) fuelShort++;
@@ -274,14 +287,14 @@ internal static class IronFuelCheck
         return row;
     }
 
-    private static ForestTrace CaptureReachableWood(LivingEconomyModel economy, int season, HashSet<int> outerForestTiles)
+    private static ForestTrace CaptureReachableWood(LivingEconomyModel economy, int season, HashSet<int> outerForestTiles, int reach)
     {
         B13WoodSnapshot local = default;
         foreach (B13WoodSnapshot snapshot in economy.CaptureB13WoodSnapshots(season))
             if (snapshot.SettlementId == BronzeFixture.Settlement) { local = snapshot; break; }
 
         Fix64 outerStanding = Fix64.Zero;
-        foreach (B13OuterWoodSnapshot snapshot in economy.CaptureB13OuterWoodSnapshots(0, season, FuelFixtureCharcoalReach))
+        foreach (B13OuterWoodSnapshot snapshot in economy.CaptureB13OuterWoodSnapshots(0, season, reach))
         {
             if (snapshot.SettlementId != BronzeFixture.Settlement || !snapshot.IsForest) continue;
             outerForestTiles.Add(snapshot.Tile);
