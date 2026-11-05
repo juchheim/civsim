@@ -6,6 +6,7 @@ using System.Text;
 using CivSim.Sim.Content;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Harness;
 
@@ -45,9 +46,9 @@ internal static class IronFuelCheck
 
     private sealed class Row
     {
-        public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShare, FuelShortShare, Bloom, Wrought;
+        public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShareAt12, IronKitShareAfter12Route, IronRouteWoodRetention, IronKitShare, FuelShortShare, Bloom, Wrought;
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
-        public int Adults;
+        public int IronRouteActivatedSeason;
         public ulong Seed;
     }
 
@@ -91,7 +92,7 @@ internal static class IronFuelCheck
         L($"iron-fuel: {seeds.Count} seeds, {seasons} seasons ({window}-season steady-state window), fixed {people}-person fixture settlement");
         L($"I-T6: metal chain <= {Pct(ShareCeiling)} of civilian work; compare forest stock and fuel flows with the same-seed Bronze control");
         L();
-        L("scenario            seeds  metal-share(mean/max)  char+fire/season  regrowth/season  all-cuts/season  mass-resid  metal-char/season  metal-cut/season  reachable wood end/start(mean/min)  end/mid  fuel-short(mean/max)  iron-kits  bloom+wrought");
+        L("scenario            seeds  metal-share(mean/max)  char+fire/season  regrowth/season  all-cuts/season  mass-resid  metal-char/season  metal-cut/season  reachable wood end/start(mean/min)  end/mid  NoFuel fallback(mean/max)  T11+ at fixture12/12 after route/end  bloom+wrought");
         var workVerdicts = new List<string>();
         var rowsByScenario = new Dictionary<string, Dictionary<ulong, Row>>(StringComparer.Ordinal);
         int shown = 0;
@@ -119,15 +120,34 @@ internal static class IronFuelCheck
             Fix64 meanRatio = Mean(rows, r => Ratio(r.WoodEnd, r.WoodStart)), minRatio = Min(rows, r => Ratio(r.WoodEnd, r.WoodStart));
             Fix64 meanSteady = Mean(rows, r => Ratio(r.WoodEnd, r.WoodMid));
             Fix64 meanShort = Mean(rows, r => r.FuelShortShare), maxShort = Max(rows, r => r.FuelShortShare);
+            Fix64 meanKitsAt12 = Mean(rows, r => r.IronKitShareAt12);
+            Fix64 meanKitsAfter12Route = Mean(rows, r => r.IronKitShareAfter12Route);
             Fix64 meanKits = Mean(rows, r => r.IronKitShare);
             Fix64 meanBloom = Mean(rows, r => r.Bloom + r.Wrought);
-            L($"{sc.Name,-19} {rows.Count + (skipped > 0 ? "/" + seeds.Count : ""),5}  {Pct(meanShare),7} / {Pct(maxShare),-7}       {meanWood.ToDoubleForDisplay(),5:F2} L       {meanRegrowth.ToDoubleForDisplay(),5:F2} L       {meanAllCuts.ToDoubleForDisplay(),5:F2} L      {meanResidual.ToDoubleForDisplay(),6:F3} L       {meanMetalCharcoal.ToDoubleForDisplay(),5:F2} L         {meanMetalCut.ToDoubleForDisplay(),5:F2} L          {meanRatio.ToDoubleForDisplay(),5:F2} / {minRatio.ToDoubleForDisplay(),-5:F2}        {meanSteady.ToDoubleForDisplay(),5:F2}     {Pct(meanShort),5}/{Pct(maxShort),-5}     {Pct(meanKits),5}      {meanBloom.ToDoubleForDisplay():F2}");
+            L($"{sc.Name,-19} {rows.Count + (skipped > 0 ? "/" + seeds.Count : ""),5}  {Pct(meanShare),7} / {Pct(maxShare),-7}       {meanWood.ToDoubleForDisplay(),5:F2} L       {meanRegrowth.ToDoubleForDisplay(),5:F2} L       {meanAllCuts.ToDoubleForDisplay(),5:F2} L      {meanResidual.ToDoubleForDisplay(),6:F3} L       {meanMetalCharcoal.ToDoubleForDisplay(),5:F2} L         {meanMetalCut.ToDoubleForDisplay(),5:F2} L          {meanRatio.ToDoubleForDisplay(),5:F2} / {minRatio.ToDoubleForDisplay(),-5:F2}        {meanSteady.ToDoubleForDisplay(),5:F2}     {Pct(meanShort),5}/{Pct(maxShort),-5}      {Pct(meanKitsAt12),4}/{Pct(meanKitsAfter12Route),4}/{Pct(meanKits),4}     {meanBloom.ToDoubleForDisplay():F2}");
             bool shareOk = maxShare <= ShareCeiling;
             workVerdicts.Add($"{sc.Name}: work share {(shareOk ? "within" : "ABOVE")} {Pct(ShareCeiling)} on every seed (max {Pct(maxShare)})");
         }
         L();
         L("work-share screen:");
         foreach (string v in workVerdicts) L("  " + v);
+        L();
+        L("I-T2 sustainable-route checkpoint (12 complete seasons after the Iron camp is built):");
+        L("scenario                    camp season range  T11+ coverage mean/min/max  seeds >=70%  route-wood mean/min");
+        foreach (string name in new[] { "iron", "iron-low-wood", "iron-no-coppice", "iron-low-wood-no-coppice", "iron-import-loss", "iron-wood-rich" })
+        {
+            if (!rowsByScenario.TryGetValue(name, out Dictionary<ulong, Row>? routeRows)) continue;
+            var rows = new List<Row>(routeRows.Values);
+            int passes = 0;
+            foreach (Row row in rows) if (row.IronKitShareAfter12Route >= Fix64.FromRatio(70, 100)) passes++;
+            L($"{name,-27} {Min(rows, r => Fix64.FromInt(r.IronRouteActivatedSeason)).FloorToInt(),2}-" +
+              $"{Max(rows, r => Fix64.FromInt(r.IronRouteActivatedSeason)).FloorToInt(),-2}             " +
+              $"{Pct(Mean(rows, r => r.IronKitShareAfter12Route)),5}/{Pct(Min(rows, r => r.IronKitShareAfter12Route)),5}/{Pct(Max(rows, r => r.IronKitShareAfter12Route)),5}             {passes}/{rows.Count}         " +
+              $"{Mean(rows, r => r.IronRouteWoodRetention).ToDoubleForDisplay(),4:F2}/{Min(rows, r => r.IronRouteWoodRetention).ToDoubleForDisplay(),4:F2}");
+            foreach (Row row in rows)
+                if (row.IronKitShareAfter12Route < Fix64.FromRatio(70, 100))
+                    L($"  miss seed {row.Seed}: T11+ {Pct(row.IronKitShareAfter12Route)}, reachable forest retention {row.IronRouteWoodRetention.ToDoubleForDisplay():F2}");
+        }
         L();
         L("paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):");
         foreach ((string iron, string bronze) in new[]
@@ -185,10 +205,11 @@ internal static class IronFuelCheck
             L($"  {coppiced,-28} vs {uncoppiced,-32} n={paired}: regrowth {Signed(deltaRegrowth / paired)} L/season; " +
               $"all standing cuts {Signed(deltaCuts / paired)} L/season; " +
               $"end/start stock {Signed(deltaRetention / paired)}; " +
-              $"fuel-short reduction {Signed(deltaFuelShort / paired)} pp; T11+ holder change {Signed(deltaKits / paired)} pp");
+              $"NoFuel fallback reduction {Signed(deltaFuelShort / paired * Fix64.FromInt(100))} pp; " +
+              $"T11+ holder change {Signed(deltaKits / paired * Fix64.FromInt(100))} pp");
         }
         L();
-        L("all-cuts counts standing-wood removals attributed to metal, chopping, civic and other use across the charcoal haul radius. mass-resid is Δstock − regrowth + all cuts; 0.000 means the traced forest stock balances over the window.");
+        L("NoFuel is the settlement's reported metal-method fallback, not a raw count of charcoal shortfalls. all-cuts counts standing-wood removals attributed to metal, chopping, civic and other use across the charcoal haul radius. mass-resid = Δstock − regrowth + all cuts; 0.000 means the traced forest stock balances over the window.");
         L("end/mid is the steady-state slope of standing wood over the window (1.00 = flat; below 1 it is still being drawn down). end/start includes the one-time kit build-out.");
         L("Reading: population and age mix are fixed; grain is topped up each season, and forge/kiln/smelter start built. This isolates fuel and labor, not a whole match.");
         L("The Bronze reference has the same iron site but makes no iron (the chain is Iron-chapter only), so the difference between it and 'iron' is the Iron chain's cost.");
@@ -207,10 +228,18 @@ internal static class IronFuelCheck
         MetalStatistics mid = default;
         ForestTrace woodMid = default!, woodEnd = default!;
         int fuelShort = 0;
+        int ironRouteActivatedSeason = 0;
         for (int s = 0; s < seasons; s++)
         {
             if (sc.LoseIronAtMidpoint && s == window && f.IronTile >= 0) e.FixtureExhaust(f.IronTile);
             f.RunSeasons(1);
+            if (sc.Iron && ironRouteActivatedSeason == 0)
+                for (int c = 0; c < e.MiningCampCount; c++)
+                {
+                    MiningCampView view = e.MiningCamp(c);
+                    if (view.Deposit == DepositKind.Iron && view.Built) { ironRouteActivatedSeason = s + 1; break; }
+                }
+            row.IronRouteActivatedSeason = ironRouteActivatedSeason;
             if (s == window - 1)
             {
                 mid = e.MetalStats(0);
@@ -218,6 +247,13 @@ internal static class IronFuelCheck
                 row.WoodMid = woodMid.Standing;
             }
             if (s == seasons - 1) woodEnd = CaptureReachableWood(e, s, outerForestTiles);
+            if (s == 11) row.IronKitShareAt12 = IronKitCoverage(e);
+            if (ironRouteActivatedSeason > 0 && s + 1 == ironRouteActivatedSeason + 12)
+            {
+                row.IronKitShareAfter12Route = IronKitCoverage(e);
+                ForestTrace routeWood = CaptureReachableWood(e, s, outerForestTiles);
+                row.IronRouteWoodRetention = Ratio(routeWood.Standing, row.WoodStart);
+            }
             if (s >= window && e.Metal(BronzeFixture.Settlement).Reason == MethodFallbackReason.NoFuel) fuelShort++;
         }
         MetalStatistics end = e.MetalStats(0);
@@ -232,10 +268,7 @@ internal static class IronFuelCheck
         row.TotalStandingRemoval = (woodEnd.TotalRemoved - woodMid.TotalRemoved) / window;
         row.WoodBalanceResidual = ((woodEnd.Standing - woodMid.Standing) - (woodEnd.Regrowth - woodMid.Regrowth) +
             (woodEnd.TotalRemoved - woodMid.TotalRemoved)) / window;
-        int adults = 0, iron = 0;
-        foreach (int tier in e.FixtureAdultKitTiers(BronzeFixture.Settlement)) { adults++; if (tier >= 11) iron++; }
-        row.Adults = adults;
-        row.IronKitShare = adults == 0 ? Fix64.Zero : Fix64.FromRatio(iron, adults);
+        row.IronKitShare = IronKitCoverage(e);
         row.Bloom = e.GoodStock(BronzeFixture.Settlement, "G-IRON");
         row.Wrought = e.GoodStock(BronzeFixture.Settlement, "G-WROUGHT");
         return row;
@@ -272,6 +305,12 @@ internal static class IronFuelCheck
     }
 
     private static Fix64 Ratio(Fix64 end, Fix64 start) => start <= Fix64.Zero ? Fix64.One : end / start;
+    private static Fix64 IronKitCoverage(LivingEconomyModel economy)
+    {
+        int adults = 0, iron = 0;
+        foreach (int tier in economy.FixtureAdultKitTiers(BronzeFixture.Settlement)) { adults++; if (tier >= 11) iron++; }
+        return adults == 0 ? Fix64.Zero : Fix64.FromRatio(iron, adults);
+    }
     private static string Pct(Fix64 v) => (v * 100).ToDoubleForDisplay().ToString("F1", CultureInfo.InvariantCulture) + "%";
     private static string Signed(Fix64 v)
     {

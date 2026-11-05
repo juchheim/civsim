@@ -88,13 +88,23 @@ public sealed partial class LivingEconomyModel
         plan.Terminal[IronSlot(steel ? IronGood.Kit12 : IronGood.Kit11)] = Fix64.Max(Fix64.Zero, wanted - IronKitsInStore(s));
     }
 
-    /// <summary>The standing-wood share (of what the settlement's range held when its metal economy began) above which the Iron chain asks for fuel in full.</summary>
+    /// <summary>The standing-wood share (of the charcoal catchment when the settlement's Iron economy began) above which the Iron chain asks for fuel in full.</summary>
     private static readonly Fix64 IronWoodFull = Fix64.FromRatio(75, 100);
     /// <summary>...and at or below which it asks for none: the forest is left to recover (docs/MVP/25 I-T6, "no mandatory clear-cut").</summary>
     private static readonly Fix64 IronWoodFloor = Fix64.FromRatio(55, 100);
 
+    /// <summary>Forest stock Iron's charcoal chain can reach, excluding rival-held tiles.</summary>
+    private Fix64 IronForestWoodInReach(SettlementState s)
+    {
+        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        Fix64 total = Fix64.Zero;
+        foreach (int tile in ReachTiles(s.SiteTile, reach))
+            if (IsForestTile(tile) && !IsRivalTile(s.Civilization, tile)) total += _woodStock[tile];
+        return total;
+    }
+
     /// <summary>
-    /// How much of the Iron chain's fuel demand the settlement's forest allows, from 0 to 1: the standing wood in range as a share of its
+    /// How much of the Iron chain's fuel demand the settlement's forest allows, from 0 to 1: the standing wood in charcoal reach as a share of its
     /// start, scaled linearly between <see cref="IronWoodFloor"/> and <see cref="IronWoodFull"/>. It is stateless (recomputed from the forest each season) and
     /// governs only what the Iron chain *wants*: kits already made keep working, bloom and wrought iron in store are still forged, and the Bronze chain
     /// is untouched. A settlement with no forest baseline is not throttled (it has no wood to protect and the chain will find none to burn).
@@ -102,7 +112,7 @@ public sealed partial class LivingEconomyModel
     private Fix64 IronWoodFactor(SettlementState s, MetalState m)
     {
         if (m.ForestAtStart <= Fix64.Zero) return Fix64.One;
-        Fix64 standingWood = StandingWoodInRange(s.SiteTile);
+        Fix64 standingWood = IronForestWoodInReach(s);
         // Compare the Q32.32 ratio in a wide intermediate before converting it back to Fix64. A tiny positive
         // forest baseline can make standingWood / ForestAtStart exceed Fix64's representable range; the result
         // is already saturated at these thresholds, so that ratio never needs to fit in Fix64.

@@ -226,7 +226,11 @@ public sealed partial class LivingEconomyModel
     private MetalState EnsureMetal(SettlementState s)
     {
         if (s.Metal is { } existing) return existing;
-        var m = new MetalState { ForestAtStart = StandingWoodInRange(s.SiteTile) };
+        var m = new MetalState
+        {
+            // The Iron fuel guard covers the same forest catchment charcoal can haul from; preserve the E0–E3 local-range baseline.
+            ForestAtStart = IronChain ? IronForestWoodInReach(s) : StandingWoodInRange(s.SiteTile),
+        };
         m.Goods[(int)MetalGood.Ochre] = s.SurfaceOchre;
         s.SurfaceOchre = Fix64.Zero;
         s.Metal = m;
@@ -1202,7 +1206,10 @@ public sealed partial class LivingEconomyModel
     private void PrimaryWants(SettlementState s, MetalState m, MetalPlan plan, int pop, int needKits)
     {
         int civ = s.Civilization;
-        if (plan.Tier != 0)
+        // MET-09's Iron kits replace the ordinary tier's re-kit demand. Asking for both tiers duplicates a kit for the same adult,
+        // wastes charcoal on Bronze casts, and competes with the sustainable Iron route's first 12-season equipment cohort.
+        bool ironRekit = IronChain && Done(civ, "MET-09");
+        if (plan.Tier != 0 && !ironRekit)
             plan.Terminal[MetalSlot(KitGood(plan.Tier))] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - m.Goods[(int)KitGood(plan.Tier)]);
         IronKitWant(s, m, plan);
         IronExportWant(s, m, plan, pop);
