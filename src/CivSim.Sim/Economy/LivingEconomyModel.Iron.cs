@@ -472,6 +472,7 @@ public sealed partial class LivingEconomyModel
                     if (move <= Fix64.Zero) continue;
                     AddStock(donor, IronSlot(kit), -move);
                     AddStock(receiver, IronSlot(kit), move);
+                    RecordIT6KitTransfer(donor, receiver, t, move);
                     need -= move;
                     surplus -= move;
                 }
@@ -612,7 +613,7 @@ public sealed partial class LivingEconomyModel
                 AddMetalStat(civ, StatRemeltCopper, copper);
             }
             AddStock(s, IronSlot(give == 12 ? IronGood.Kit12 : IronGood.Kit11), -Fix64.One);
-            RecordIT6IronKitIssued(civ, give, oldTier, oldLeft);
+            RecordIT6IronKitIssued(s, give, oldTier, oldLeft);
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
         }

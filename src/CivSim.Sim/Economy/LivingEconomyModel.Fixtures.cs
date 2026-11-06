@@ -73,11 +73,15 @@ public sealed partial class LivingEconomyModel
         f.KitLeft = tier == 0 ? Fix64.Zero : left;
     }
 
+    /// <summary>Applies the same kit wear and break accounting used by a live work season.</summary>
+    internal void FixtureWearKit(int figureIndex, Fix64 work) => ApplyKitWear(_figures[figureIndex], work);
+
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
     internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
 
     /// <summary>Sets the remaining ore for a deposit in a deterministic economy fixture.</summary>
     internal void FixtureSetOreRemaining(int tile, Fix64 amount) => _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+    internal Fix64 FixtureOreRemaining(int tile) => _ore[tile];
 
     /// <summary>Adds a populated mining camp at a chosen deposit for view and lifecycle fixtures.</summary>
     internal void FixtureAddMiningCamp(int parentSettlementIndex, int tile, int crew = 4, bool built = true, bool mineHead = false)
@@ -638,7 +642,11 @@ public sealed partial class LivingEconomyModel
     {
         int id = _settlements[settlementIndex].Id;
         for (int i = _figures.Count - 1; i >= 0 && count > 0; i--)
-            if (_figures[i].SettlementId == id) { _figures.RemoveAt(i); count--; }
+            if (_figures[i].SettlementId == id)
+            {
+                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].Kit, Fix64.One);
+                _figures.RemoveAt(i); count--;
+            }
     }
 
     internal Fix64 FixtureHousingTarget(int settlementIndex) => HousingTarget(_settlements[settlementIndex]);

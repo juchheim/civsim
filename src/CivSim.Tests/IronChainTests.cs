@@ -165,13 +165,41 @@ public class IronChainTests
         f.RunSeasons(3);
 
         Fix64 kits = e.GoodStock(0, "G-TOOL11");
-        // Every litre of ore went through the bloomery (2 ore -> 0.5 bloom -> 0.4 wrought at the forge -> 0.15 wrought a kit).
+        // Every litre of ore went through the bloomery (2 ore -> 0.5 bloom -> 0.4 wrought at the forge -> 0.08 wrought a kit).
         int held = 0;
         foreach (int t in e.FixtureAdultKitTiers(0)) if (t == 11) held++;
         Assert.True(held > 0, "kits made should reach hands");
         Fix64 allKits = kits + Fix64.FromInt(held);
-        Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + allKits * F("0.15")) * F("1.25");
+        Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + allKits * F("0.08")) * F("1.25");
         Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromInt(4));
+    }
+
+    [Fact]
+    public void Iron_mine_exhaustion_stops_new_extraction_and_forging_after_stores_are_cleared()
+    {
+        BronzeFixture f = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 60, "MET-08", "MET-09");
+        LivingEconomyModel e = f.Economy;
+        e.IT6AccountingTraceEnabled = true;
+        e.FixtureSetOreRemaining(f.IronTile, Fix64.FromInt(20));
+        e.FixtureAddMiningCamp(0, f.IronTile, crew: 4, built: true, mineHead: true);
+        e.FixtureStock(0, "G-CHAR", Fix64.FromInt(100));
+        f.RunSeasons(1);
+
+        IT6AccountingSnapshot mined = e.CaptureIT6Accounting(0);
+        Assert.True(mined.IronOreMined > Fix64.Zero, "the controlled Iron deposit should supply the working camp");
+        Assert.Equal(Fix64.FromInt(20) - mined.IronOreMined, e.FixtureOreRemaining(f.IronTile));
+        e.FixtureExhaust(f.IronTile);
+        foreach (string good in new[] { "G-IRONORE", "G-IRON", "G-WROUGHT", "G-STEEL", "G-TOOL11", "G-TOOL12", "G-CHAR" })
+            e.FixtureStock(0, good, -e.GoodStock(0, good));
+        f.RunSeasons(2);
+
+        IT6AccountingSnapshot exhausted = e.CaptureIT6Accounting(0);
+        Assert.Equal(mined.IronOreMined, exhausted.IronOreMined);
+        Assert.Equal(mined.Kit11Produced, exhausted.Kit11Produced);
+        Assert.Equal(mined.Kit12Produced, exhausted.Kit12Produced);
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-IRONORE"));
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-IRON"));
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-WROUGHT"));
     }
 
     [Fact]
@@ -209,6 +237,40 @@ public class IronChainTests
     }
 
     [Fact]
+    public void A_captured_forge_keeps_its_inventory_and_wear_cohorts_and_can_resume_production()
+    {
+        BronzeFixture f = Iron("MET-08", "MET-09");
+        LivingEconomyModel e = f.Economy;
+        e.IT6AccountingTraceEnabled = true;
+        e.FixtureComplete(1, "MET-08", "MET-09");
+        e.FixtureStock(0, "G-WROUGHT", Fix64.FromInt(2));
+        e.FixtureStock(0, "G-CHAR", Fix64.FromInt(4));
+        e.FixtureStock(0, "G-TOOL11", Fix64.FromInt(3));
+        e.FixtureStock(0, "G-TOOL12", Fix64.FromInt(2));
+        int t11 = FirstAdult(e), t12 = -1;
+        for (int i = t11 + 1; i < e.FigureCount; i++) if (e.Figure(i).Age >= 14) { t12 = i; break; }
+        Assert.True(t12 >= 0);
+        e.FixtureSetKit(t11, 11, Fix64.FromInt(17));
+        e.FixtureSetKit(t12, 12, Fix64.FromInt(29));
+        Fix64 before = e.GoodStock(0, "G-IRONORE") + e.GoodStock(0, "G-IRON") + e.GoodStock(0, "G-WROUGHT") +
+            e.GoodStock(0, "G-STEEL") + e.GoodStock(0, "G-TOOL11") + e.GoodStock(0, "G-TOOL12") + Fix64.FromInt(2);
+        int forges = e.FixtureMetalBuildState(0).Forges;
+
+        e.TransferSettlement(0, 1);
+
+        Fix64 after = e.GoodStock(0, "G-IRONORE") + e.GoodStock(0, "G-IRON") + e.GoodStock(0, "G-WROUGHT") +
+            e.GoodStock(0, "G-STEEL") + e.GoodStock(0, "G-TOOL11") + e.GoodStock(0, "G-TOOL12") + Fix64.FromInt(2);
+        Assert.Equal(before, after);
+        Assert.Equal(forges, e.FixtureMetalBuildState(0).Forges);
+        Assert.Equal(0, e.IronKitHolders(0).T11 + e.IronKitHolders(0).T12);
+        Assert.Equal(2, e.IronKitHolders(1).T11 + e.IronKitHolders(1).T12);
+        Assert.Equal(11, e.FigureKit(t11).Tier);
+        Assert.Equal(12, e.FigureKit(t12).Tier);
+        Assert.Equal(Fix64.One, e.FixtureRunRecipe(0, "make_tool11", Fix64.One, Fix64.FromInt(10)));
+        Assert.Equal(Fix64.One, e.CaptureIT6Accounting(1).Kit11Produced);
+    }
+
+    [Fact]
     public void T12_lasts_exactly_twice_as_long_as_T11_and_neither_counts_as_a_Bronze_kit()
     {
         BronzeFixture f = Iron("MET-08", "MET-09", "MET-10");
@@ -218,6 +280,34 @@ public class IronChainTests
         Assert.Equal(Fix64.FromInt(60), s12);
         Near(s11 * Fix64.FromInt(2), s12);
         Near(b11 * Fix64.FromInt(2), b12); // the dormancy tail scales with the service life, so the whole curve is stretched exactly 2x
+    }
+
+    [Fact]
+    public void Mixed_T11_and_T12_wear_breaks_at_their_independent_exact_lifetimes()
+    {
+        BronzeFixture f = Iron("MET-08", "MET-09", "MET-10");
+        LivingEconomyModel e = f.Economy;
+        e.IT6AccountingTraceEnabled = true;
+        int t11 = FirstAdult(e), t12 = -1;
+        for (int i = t11 + 1; i < e.FigureCount; i++) if (e.Figure(i).Age >= 14) { t12 = i; break; }
+        Assert.True(t12 >= 0);
+        (Fix64 s11, Fix64 b11) = e.FixtureKitLife(11);
+        (Fix64 s12, Fix64 b12) = e.FixtureKitLife(12);
+        e.FixtureSetKit(t11, 11, s11);
+        e.FixtureSetKit(t12, 12, s12);
+        Fix64 firstInterval = s11 - b11;
+        e.FixtureWearKit(t11, firstInterval);
+        e.FixtureWearKit(t12, firstInterval);
+        Assert.Equal(0, e.FigureKit(t11).Tier);
+        Assert.Equal(12, e.FigureKit(t12).Tier);
+        e.FixtureWearKit(t12, (s12 - b12) - firstInterval);
+
+        IT6AccountingSnapshot trace = e.CaptureIT6Accounting(0);
+        Assert.Equal(0, e.FigureKit(t12).Tier);
+        Assert.Equal(1, trace.Kit11Breaks);
+        Assert.Equal(1, trace.Kit12Breaks);
+        Assert.Equal(firstInterval, trace.Kit11ToolWork);
+        Assert.Equal(firstInterval * Fix64.FromInt(2), trace.Kit12ToolWork);
     }
 
     [Fact]
@@ -246,15 +336,27 @@ public class IronChainTests
         {
             BronzeFixture f = Iron("MET-08", "MET-09", "MET-10");
             LivingEconomyModel e = f.Economy;
+            e.IT6AccountingTraceEnabled = true;
             int adult = FirstAdult(e);
             e.FixtureSetKit(adult, oldTier, Fix64.FromInt(20));
             e.FixtureStock(0, "G-TOOL12", Fix64.FromInt(100)); // enough for the kitless first, so the upgrade is served too
+            Fix64 initialIronKits = e.GoodStock(0, "G-TOOL11") + e.GoodStock(0, "G-TOOL12") +
+                Fix64.FromInt(e.IronKitHolders(0).T11 + e.IronKitHolders(0).T12);
             Fix64 remelted = e.MetalStats(0).RemeltCopper;
             f.RunSeasons(1);
             Assert.Equal(12, e.FigureKit(adult).Tier);
             Fix64 returned = e.MetalStats(0).RemeltCopper - remelted;
             if (refunds) Assert.True(returned > Fix64.Zero, "a Bronze kit retired early is remelted");
             else Assert.Equal(Fix64.Zero, returned);           // an Iron kit is never refunded
+            if (oldTier == 11)
+            {
+                IT6AccountingSnapshot trace = e.CaptureIT6Accounting(0);
+                Fix64 finalIronKits = e.GoodStock(0, "G-TOOL11") + e.GoodStock(0, "G-TOOL12") +
+                    Fix64.FromInt(e.IronKitHolders(0).T11 + e.IronKitHolders(0).T12);
+                Assert.Equal(1, trace.Kit11Upgrades);
+                Assert.Equal(Fix64.Zero, initialIronKits + trace.Kit11Produced + trace.Kit12Produced -
+                    Fix64.FromInt(trace.Kit11Breaks + trace.Kit12Breaks + trace.Kit11Upgrades) - trace.Kit11Retired - trace.Kit12Retired - finalIronKits);
+            }
         }
     }
 
@@ -334,6 +436,29 @@ public class IronChainTests
     }
 
     [Fact]
+    public void Total_catchment_fuel_loss_stops_new_Iron_kit_production()
+    {
+        BronzeFixture f = BronzeFixture.CreateFuelScenario(TestPack.Pack, Seed, 60, ironChain: true, coppice: true, forestTiles: 13, "MET-08", "MET-09");
+        LivingEconomyModel e = f.Economy;
+        e.IT6AccountingTraceEnabled = true;
+        f.RunSeasons(1); // record the productive forest baseline before the controlled loss
+        IT6AccountingSnapshot before = e.CaptureIT6Accounting(0);
+        ThinTheForest(f, 0);
+        e.FixtureStock(0, "G-WOOD", -e.GoodStock(0, "G-WOOD"));
+        e.FixtureStock(0, "G-CHAR", -e.GoodStock(0, "G-CHAR"));
+        foreach (string good in new[] { "G-IRONORE", "G-IRON", "G-WROUGHT", "G-STEEL", "G-TOOL11", "G-TOOL12" })
+            e.FixtureStock(0, good, -e.GoodStock(0, good));
+        e.FixtureStock(0, "G-IRONORE", Fix64.FromInt(60));
+        f.RunSeasons(4);
+
+        IT6AccountingSnapshot trace = e.CaptureIT6Accounting(0);
+        Assert.Equal(before.Kit11Produced, trace.Kit11Produced);
+        Assert.Equal(before.Kit12Produced, trace.Kit12Produced);
+        Assert.Equal(Fix64.FromInt(60), e.GoodStock(0, "G-IRONORE"));
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-WROUGHT"));
+    }
+
+    [Fact]
     public void Iron_already_in_store_is_still_forged_into_kits_when_the_forest_is_thin()
     {
         BronzeFixture f = BronzeFixture.CreateFuelScenario(TestPack.Pack, Seed, 60, ironChain: true, coppice: true, forestTiles: 13, "MET-08", "MET-09");
@@ -379,10 +504,20 @@ public class IronChainTests
         foreach (bool sharing in new[] { true, false })
         {
             (BronzeFixture f, int daughter) = WithDaughter(sharing);
+            f.Economy.IT6AccountingTraceEnabled = true;
             f.Economy.FixtureStock(0, "G-TOOL11", Fix64.FromInt(40)); // far more than the parent's own adults lack
             Fix64 before = AllIronKits(f.Economy, 0, daughter);
             f.RunSeasons(1);
             Assert.Equal(before, AllIronKits(f.Economy, 0, daughter)); // moving kits creates and destroys none (no new smithing in a season with this stock)
+            if (sharing)
+            {
+                int parentId = f.Economy.SettlementLite(0).Id, daughterId = f.Economy.SettlementLite(daughter).Id;
+                IT6FuelSiteSnapshot source = Assert.Single(f.Economy.CaptureIT6FuelSites(), x => x.SettlementId == parentId);
+                IT6FuelSiteSnapshot receiver = Assert.Single(f.Economy.CaptureIT6FuelSites(), x => x.SettlementId == daughterId);
+                Assert.True(source.Kit11Sent >= Fix64.One);
+                Assert.Equal(source.Kit11Sent, receiver.Kit11Received);
+                Assert.Equal(Fix64.Zero, receiver.Kit12Received);
+            }
             if (sharing) daughterHolders = IronKitHolders(f.Economy, daughter); else aloneHolders = IronKitHolders(f.Economy, daughter);
         }
         Assert.True(daughterHolders > 0, "the daughter's adults should hold kits the parent could spare");

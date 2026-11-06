@@ -1,6 +1,6 @@
 # M11 WP6 — Iron metal ledger
 
-Records slices 1 to 7 of WP6 (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)) and what the later slices still owe. Nothing here is a balance claim: every quantity is the provisional number from 26, and no live planner uses the recipes yet.
+Records the implemented WP6 slices (forging, carbon and steel, tool wear, fuel, transport; [25 §4](../25-iron-age.md), [26 §2.3](../26-e4-iron-specs.md)). The candidate material and service values are hypotheses from 26; the I-T6 limits and accepted screen are recorded separately in the [whole-match approval report](m11-it6-whole-match-2026-11-05.md). B4-06 case evidence and remaining I-T2/I-T3 work are tracked in the [B4-06 closeout](m11-b4-06-metal-fuel-acceptance-2026-11-06.md).
 
 ## Slice 1: the ledger
 
@@ -20,10 +20,10 @@ Records slices 1 to 7 of WP6 (forging, carbon and steel, tool wear, fuel, transp
 
 ## Slice 3: kit use and wear
 
-- **Tiers.** Tools T11 (24 ws) and T12 (48 ws) were already parsed from `tools.yaml`; the tier table now covers 8 to 12, `Rank` gives them 4 and 5, and an Iron kit chops at MET-09's rung 7. Their `mine`, `quarry`, `harvest_labor` and `timber_build_labor` mods apply once per equipped kit through the existing `KitMod`. A figure's `Kit` byte may be 11 or 12 only in the Iron chapter (snapshot validation).
+- **Tiers.** Tools T11 (30 ws) and T12 (60 ws) are parsed from `tools.yaml`; the tier table covers 8 to 12, `Rank` gives them 4 and 5, and an Iron kit applies the current MET-09 modifiers. Their `mine`, `quarry`, `harvest_labor` and `timber_build_labor` mods apply once per equipped kit through the existing `KitMod`. A figure's `Kit` byte may be 11 or 12 only in the Iron chapter (snapshot validation).
 - **Issue.** `IssueIronKits` runs first in `WearAndIssueKits` when the chapter is on: kitless adults first, then worn kits, then early upgrades, each getting the best Iron tier in store that beats what they carry. The kit moves from store to figure, so it exists once. The Bronze hand-out then serves whoever is left, so a civilization with no iron still equips bronze kits.
 - **Refund.** Retiring an Iron kit early returns nothing (26 §2.2). A Bronze kit upgraded to Iron is still remelted under the existing E3 rule.
-- **Wear.** Unchanged and shared with Bronze: linear quality from 1.2 to 0.7 at replacement and on to 0.5 at the break, scaled by the tier's service life. T12 is therefore exactly twice T11 across the whole curve, including the dormancy tail (tested: 24 vs 48 ws, and break-left doubled).
+- **Wear.** Unchanged and shared with Bronze: linear quality from 1.2 to 0.7 at replacement and on to 0.5 at the break, scaled by the tier's service life. T12 is exactly twice T11 across the whole curve, including the dormancy tail (tested: 30 vs 60 service ws, and break-left doubled).
 - **The want.** `IronKitWant` now counts adults with no iron kit or with an iron kit about to be replaced, less kits in store.
 - **Observed, not a fit (60-person fixture, 200 ore and 120 charcoal in store, so not a sustainable route):** adults holding a T11 kit were 5, 10, 16, 24, 28 of 28 to 29 over the first five seasons, and 29 of 30 through season 14, with no kit worn out in that time. That is above the I-T2 target (70% within 12 seasons of a sustainable route) but the supply here was handed to the settlement, so it says nothing about access research, delivery or fuel, which I-T2 asks to be reported separately.
 
@@ -68,11 +68,10 @@ Before this, a daughter town or a town without a forge or iron could not be supp
 - A Bronze economy and an Iron economy given the same stock behave differently exactly as intended (tests in `IronChainTests`): Bronze refuses the recipe, Iron without MET-09 refuses it, Iron with MET-09 and a forge runs it.
 - A Bronze economy's checksum and snapshot bytes are unchanged by stocking an Iron good.
 
-## Not done (later WP6 slices)
+## B4-06 closeout status
 
-1. **Planner wants beyond T11.** Steel (MET-10) and T12 kits, iron and steel arms (WP8), and sister-settlement sharing of Iron goods are not wanted yet. Mining iron ore for the chain uses the E3 deposit logic, so the WP4 camp gap still applies.
-2. **Live wear distribution** over many seasons and settlements for I-T3 is not measured yet; that needs the whole-match runs.
-3. Iron compacts still need contact, relations and a finite route, so the audit's 64 to 80 starts with no capable partner rely on expansion.
-4. **Fuel (I-T6).** Sustainable metal must be ≤15% of civilian work with no mandatory clear-cut. The WP4 audit found 45.6% of starts cannot sustain 100 adults of T11 replacement on local wood regrowth alone. Post-KEY-4 catchment hubs move raw ore to the wooded bloomery/forge and bias eligible fission sites toward productive charcoal catchments. The eight-seed natural diagnostic raised mature-seat fuel-cutoff passes from 17/29 to 19/29 and reduced the maximum mature rolling work share from 15.20% to 12.58%; ten mature seats still fail fuel. Iron-attributed clearings remain zero, but the diagnostic is below the 80-match acceptance sample and does not close I-T6. See the [post-hub accounting record](m11-it6-whole-match-2026-11-05.md#post-hub-catchment-diagnostic).
-5. **Transport and imports.** Shipping bloom, wrought iron and kits between settlements and across borders, with the captured-forge and imported-kit cases of B4-06.
-6. **Fission.** The fission operating-margin projection copies only `Goods`; Iron goods follow whatever happens to the parent's `MetalState`, which is the same rule as E3 metal, but it is untested for Iron.
+The I-T6 balance screen is closed under its separately approved protocol. The current closeout adds live tool-worker denominator accounting plus deterministic checks for delivery, mine exhaustion, total fuel loss, capture, mixed-tier wear, and upgrades. The linked B4-06 report records those case results and the new whole-match I-T2 screen. Keep B4-06 open until the I-T2 run has enough uncensored, fuel-qualified settlement observations and the I-T3 live wear distribution is recorded.
+
+The existing Iron Compact carries bloom (`G-IRON`); finished T11/T12 kits move between same-civilization settlements by the domestic sharing rule. No cross-civilization Compact for finished kits is implemented. The closeout report labels the tested delivery path so it does not imply foreign kit trade.
+
+The Iron-fission operating-margin projection still copies only Bronze `Goods`; Iron goods follow the existing `MetalState` behavior. This is outside the B4-06 metal/fuel cases and remains a separate WP6 follow-up.

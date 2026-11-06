@@ -272,6 +272,20 @@ public sealed partial class LivingEconomyModel
         return (_bronzeConstants.BreakQuality - _bronzeConstants.ReplaceQuality) / slope;
     }
 
+    private void ApplyKitWear(FigureState figure, Fix64 work)
+    {
+        if (figure.Kit == 0) return;
+        int tier = figure.Kit;
+        RecordIT6IronKitWork(figure.Civilization, tier, work);
+        figure.KitLeft -= work;
+        if (figure.KitLeft <= KitBreakLeft(tier))
+        {
+            RecordIT6IronKitBreak(figure.Civilization, tier);
+            figure.Kit = 0;
+            figure.KitLeft = Fix64.Zero;
+        }
+    }
+
     /// <summary>The figure's kit multiplier for a stat, applied once whatever the civilization knows (docs/MVP/23 §1.3).</summary>
     private Fix64 KitMod(FigureState f, string stat)
         => f.Kit != 0 && _tierDefs[f.Kit] is { } def ? def.Mod(stat) : Fix64.One;
@@ -355,14 +369,7 @@ public sealed partial class LivingEconomyModel
         {
             FigureState f = _figures[i];
             if (f.SettlementId != s.Id || f.Kit == 0) continue;
-            int wornTier = f.Kit;
-            RecordIT6IronKitWork(civ, wornTier, toolWork[i]);
-            f.KitLeft -= toolWork[i];
-            if (f.KitLeft <= KitBreakLeft(f.Kit))
-            {
-                RecordIT6IronKitBreak(civ, wornTier);
-                f.Kit = 0; f.KitLeft = Fix64.Zero;
-            }
+            ApplyKitWear(f, toolWork[i]);
         }
         // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
         if (IronChain) IssueIronKits(s, m);
@@ -407,6 +414,7 @@ public sealed partial class LivingEconomyModel
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
         }
+        RecordIT6ToolWorkers(s, toolWork);
     }
 
     // ---- access, sharing and the best tier ---------------------------------------------------------

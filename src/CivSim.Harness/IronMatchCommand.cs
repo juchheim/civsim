@@ -33,6 +33,16 @@ internal static class IronMatchCommand
     private readonly record struct LocalWoodLedger(Fix64 Stock, Fix64 ChopIn, Fix64 CivicIn, Fix64 OtherIn,
         Fix64 HearthUse, Fix64 FuelUse, Fix64 MetalUse, Fix64 GoodsUse, Fix64 CivicUse, Fix64 StructureUse, Fix64 OtherUse);
 
+    private sealed class IT2RouteRecord
+    {
+        public required int SettlementId;
+        public required int StartSeason;
+        public required int UnlockSeason;
+        public required IT6FuelSiteSnapshot Start;
+        public IT6FuelSiteSnapshot? End;
+        public int EndSeason = -1;
+    }
+
     public static int Run(string[] args)
     {
         string? packPath = null;
@@ -91,6 +101,7 @@ internal static class IronMatchCommand
         var steadyTrace = new IT6AccountingSnapshot[civs];
         var statsHistory = new List<MetalStatistics>[civs];
         var traceHistory = new List<IT6AccountingSnapshot>[civs];
+        var it2Routes = new Dictionary<int, IT2RouteRecord>();
         for (int c = 0; c < civs; c++)
         {
             statsHistory[c] = new List<MetalStatistics> { match.Economy.MetalStats(c) };
@@ -118,6 +129,29 @@ internal static class IronMatchCommand
             if (it6Accounting)
             {
                 int season = (int)(runner.Tick / 150L);
+                foreach (IT6FuelSiteSnapshot site in match.Economy.CaptureIT6FuelSites())
+                {
+                    if (!it2Routes.TryGetValue(site.SettlementId, out IT2RouteRecord? route) &&
+                        site.Kit11Issued + site.Kit12Issued > Fix64.Zero)
+                    {
+                        int unlockSeason = research.IsDone(site.Civilization, met09)
+                            ? checked((int)(research.CompletedTick(site.Civilization, met09) / 150L))
+                            : -1;
+                        route = new IT2RouteRecord
+                        {
+                            SettlementId = site.SettlementId,
+                            StartSeason = season,
+                            UnlockSeason = unlockSeason,
+                            Start = site,
+                        };
+                        it2Routes.Add(site.SettlementId, route);
+                    }
+                    if (route is not null && route.End is null && season >= route.StartSeason + 12)
+                    {
+                        route.End = site;
+                        route.EndSeason = season;
+                    }
+                }
                 for (int c = 0; c < civs; c++)
                 {
                     IT6AccountingSnapshot trace = match.Economy.CaptureIT6Accounting(c);
@@ -226,7 +260,8 @@ internal static class IronMatchCommand
         L($"peak soldiers per civ: {string.Join(", ", peakSoldiers.Select((v, c) => $"c{c} {v}"))}");
         L($"final legacy per civ: {string.Join(", ", Enumerable.Range(0, civs).Select(c => $"c{c} {(research.Legacy(c) + match.Politics.Territory.Dominion(c)).ToDoubleForDisplay():F0}"))}");
         if (it6Accounting) AppendIT6Accounting(o, (int)(runner.Tick / 150L), match.Economy, startForest, startWood,
-            routeSeason, steadySeason, routeStats, routeTrace, steadyStats, steadyTrace, statsHistory, traceHistory);
+            routeSeason, steadySeason, routeStats, routeTrace, steadyStats, steadyTrace, statsHistory, traceHistory,
+            it2Routes.Values.OrderBy(x => x.SettlementId).ToArray());
         L();
         return o.ToString();
     }
@@ -272,7 +307,7 @@ internal static class IronMatchCommand
         ForestLedger startForest, LocalWoodLedger startWood, int[] routeSeason, int[] steadySeason,
         MetalStatistics[] routeStats, IT6AccountingSnapshot[] routeTrace,
         MetalStatistics[] steadyStats, IT6AccountingSnapshot[] steadyTrace,
-        List<MetalStatistics>[] statsHistory, List<IT6AccountingSnapshot>[] traceHistory)
+        List<MetalStatistics>[] statsHistory, List<IT6AccountingSnapshot>[] traceHistory, IT2RouteRecord[] it2Routes)
     {
         static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
         static string Pct(Fix64 numerator, Fix64 denominator) => denominator <= Fix64.Zero
@@ -321,13 +356,23 @@ internal static class IronMatchCommand
         output.AppendLine($"  game clearing rule: each tile crossing from >=5 L to <5 L; crossings={crossings} by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other={chopCrossings}/{metalCrossings - ironCrossings}/{ironCrossings}/{civicCrossings}/{otherCrossings}; currently cleared tiles={endForest.ClearedAtEnd} (grassland={endForest.GrasslandAtEnd})");
 
         Fix64 produced11 = Fix64.Zero, produced12 = Fix64.Zero, issued11 = Fix64.Zero, issued12 = Fix64.Zero;
+        Fix64 kit11Received = Fix64.Zero, kit12Received = Fix64.Zero, kit11Sent = Fix64.Zero, kit12Sent = Fix64.Zero;
+        Fix64 kit11Retired = Fix64.Zero, kit12Retired = Fix64.Zero;
         Fix64 kit11Stock = Fix64.Zero, kit12Stock = Fix64.Zero;
         int kit11Holders = 0, kit12Holders = 0;
+        int kit11Breaks = 0, kit12Breaks = 0, kit11Upgrades = 0;
+        foreach (IT6FuelSiteSnapshot site in economy.CaptureIT6FuelSites())
+        {
+            kit11Received += site.Kit11Received; kit12Received += site.Kit12Received;
+            kit11Sent += site.Kit11Sent; kit12Sent += site.Kit12Sent;
+        }
         for (int c = 0; c < routeSeason.Length; c++)
         {
             IT6AccountingSnapshot t = economy.CaptureIT6Accounting(c);
             produced11 += t.Kit11Produced; produced12 += t.Kit12Produced;
             issued11 += t.Kit11Issued; issued12 += t.Kit12Issued;
+            kit11Breaks += t.Kit11Breaks; kit12Breaks += t.Kit12Breaks; kit11Upgrades += t.Kit11Upgrades;
+            kit11Retired += t.Kit11Retired; kit12Retired += t.Kit12Retired;
             (int t11, int t12, _) = economy.IronKitHolders(c);
             kit11Holders += t11; kit12Holders += t12;
             for (int s = 0; s < economy.SettlementCount; s++)
@@ -337,9 +382,51 @@ internal static class IronMatchCommand
                 kit12Stock += economy.GoodStock(s, "G-TOOL12");
             }
         }
-        Fix64 kitBalanceResidual = produced11 + produced12 - issued11 - issued12 - kit11Stock - kit12Stock;
-        output.AppendLine($"  kits world: T11 made/issued/held/stored={F(produced11)}/{F(issued11)}/{kit11Holders}/{F(kit11Stock)}; T12={F(produced12)}/{F(issued12)}/{kit12Holders}/{F(kit12Stock)}; make-issue-store residual={F(kitBalanceResidual)} kits");
+        Fix64 kit11BalanceResidual = produced11 + kit11Received - kit11Sent - Fix64.FromInt(kit11Breaks + kit11Upgrades) - kit11Retired - Fix64.FromInt(kit11Holders) - kit11Stock;
+        Fix64 kit12BalanceResidual = produced12 + kit12Received - kit12Sent - Fix64.FromInt(kit12Breaks) - kit12Retired - Fix64.FromInt(kit12Holders) - kit12Stock;
+        output.AppendLine($"  kits world: T11 made/received/sent/issued/broken/upgraded/retired/held/stored={F(produced11)}/{F(kit11Received)}/{F(kit11Sent)}/{F(issued11)}/{kit11Breaks}/{kit11Upgrades}/{F(kit11Retired)}/{kit11Holders}/{F(kit11Stock)}; residual={F(kit11BalanceResidual)}; T12={F(produced12)}/{F(kit12Received)}/{F(kit12Sent)}/{F(issued12)}/{kit12Breaks}/0/{F(kit12Retired)}/{kit12Holders}/{F(kit12Stock)}; residual={F(kit12BalanceResidual)} kits");
         output.AppendLine($"  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= {Pct(IT6FuelGate.MaxShortRate, Fix64.One)}, unmet / planned charcoal <= {Pct(IT6FuelGate.MaxUnmetPlanShare, Fix64.One)}, minimum {IT6FuelGate.MinDemandSeasons} demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock");
+        output.AppendLine("  I-T2 settlement route screen (first local kit issue, then 12 complete seasons; this is a diagnostic run, not an approved I-T2 balance verdict): a qualified window must meet the approved fuel cutoff with 12/12 demand-seasons");
+        output.AppendLine("    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ made11/12 received11/12 issued11/12 upgrades fuel-short/demand rate unmet/plan result");
+        int it2Pass = 0, it2Fail = 0, it2Censored = 0;
+        foreach (IT2RouteRecord route in it2Routes)
+        {
+            if (route.End is not { } finish)
+            {
+                output.AppendLine($"    s{route.SettlementId} {route.StartSeason}–<+12 owner=c{route.Start.Civilization} MET-09={route.UnlockSeason} no 12-season endpoint; CENSORED");
+                it2Censored++;
+                continue;
+            }
+            IT6FuelSiteSnapshot start = route.Start;
+            int demand = finish.DemandSeasons - start.DemandSeasons;
+            int shortSeasons = finish.ShortSeasons - start.ShortSeasons;
+            Fix64 planned = finish.Planned - start.Planned;
+            Fix64 unmet = finish.Unmet - start.Unmet;
+            Fix64 shortRate = demand > 0 ? Fix64.FromRatio(shortSeasons, demand) : Fix64.Zero;
+            Fix64 unmetShare = planned > Fix64.Zero ? unmet / planned : Fix64.Zero;
+            int workers = finish.ToolWorkers;
+            int ironWorkers = finish.T11ToolWorkers + finish.T12ToolWorkers;
+            Fix64 coverage = workers > 0 ? Fix64.FromRatio(ironWorkers, workers) : Fix64.Zero;
+            string result;
+            if (finish.Civilization != start.Civilization) result = "CENSORED captured/owner changed";
+            else if (route.UnlockSeason < 0) result = "CENSORED MET-09 not recorded";
+            else if (demand < IT6FuelGate.MinDemandSeasons) result = $"CENSORED fuel demand {demand}/12";
+            else if (shortRate > IT6FuelGate.MaxShortRate || unmetShare > IT6FuelGate.MaxUnmetPlanShare) result = "FAIL fuel cutoff";
+            else if (workers <= 0) result = "CENSORED no tool workers at endpoint";
+            else if (coverage >= Fix64.FromRatio(70, 100)) result = "PASS screen";
+            else result = "FAIL coverage";
+            if (result.StartsWith("PASS", StringComparison.Ordinal)) it2Pass++;
+            else if (result.StartsWith("FAIL", StringComparison.Ordinal)) it2Fail++;
+            else it2Censored++;
+            output.AppendLine($"    s{route.SettlementId} {route.StartSeason}–{route.EndSeason} c{start.Civilization}->c{finish.Civilization} MET-09={route.UnlockSeason} " +
+                $"{workers} {finish.T11ToolWorkers}/{finish.T12ToolWorkers} {Pct(Fix64.FromInt(ironWorkers), Fix64.FromInt(workers))} " +
+                $"{finish.T11ToolWorkers14To44}/{finish.T12ToolWorkers14To44} {finish.T11ToolWorkers45Plus}/{finish.T12ToolWorkers45Plus} " +
+                $"{F(finish.Kit11Produced - start.Kit11Produced)}/{F(finish.Kit12Produced - start.Kit12Produced)} " +
+                $"{F(finish.Kit11Received - start.Kit11Received)}/{F(finish.Kit12Received - start.Kit12Received)} " +
+                $"{F(finish.Kit11Issued - start.Kit11Issued)}/{F(finish.Kit12Issued - start.Kit12Issued)} {finish.Kit11Upgrades - start.Kit11Upgrades} " +
+                $"{shortSeasons}/{demand} {Pct(shortRate, Fix64.One)} {F(unmet)}/{F(planned)} {Pct(unmetShare, Fix64.One)} {result}");
+        }
+        output.AppendLine($"    I-T2 diagnostic totals: {it2Pass} screen pass, {it2Fail} fail, {it2Censored} censored; endpoint tool-worker coverage uses actual positive toolWork, split by ages 14–44 and 45+");
         output.AppendLine("  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:");
         for (int c = 0; c < routeSeason.Length; c++)
         {
