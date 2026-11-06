@@ -297,11 +297,22 @@ public partial class Game : Node3D
 
     private static ulong ReadSeed()
     {
-        foreach (string arg in OS.GetCmdlineUserArgs())
+        string[] args = OS.GetCmdlineUserArgs();
+        foreach (string arg in args)
             if (arg.StartsWith("--seed=", StringComparison.Ordinal) &&
                 ulong.TryParse(arg.Substring(7), NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong seed))
                 return seed;
-        return 20261019UL;
+        // Scripted captures, benchmarks and scenarios depend on a reproducible world.
+        if (args.Any(arg =>
+                arg.StartsWith("--benchmark-", StringComparison.Ordinal) ||
+                arg.StartsWith("--start-minute=", StringComparison.Ordinal) ||
+                arg.StartsWith("--research-era=", StringComparison.Ordinal) ||
+                arg.StartsWith("--screenshot=", StringComparison.Ordinal) ||
+                arg.StartsWith("--scenario=", StringComparison.Ordinal) ||
+                arg.StartsWith("--shots=", StringComparison.Ordinal)))
+            return 20261019UL;
+        // A normal player launch gets a fresh world every time.
+        return (ulong)Random.Shared.NextInt64(1, 1_000_000_000);
     }
 
     private static int ReadStartMinute()
