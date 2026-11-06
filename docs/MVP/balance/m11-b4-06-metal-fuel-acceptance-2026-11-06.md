@@ -14,12 +14,16 @@ The first preregistered attempt used source `a443c069883017c4d5ba2c43b68d7ef863b
 
 The source `b00bb1b5ec7335315de3e957ccdd783f855dc738` and seeds `20261601–20261680` had been preregistered but the run had not started. Before launch, the I-T3 review added the remaining-life trace; that preregistration is superseded. Freeze source `60e1e025e2d3e1d140994214d6f6fe0958682728`, pack SHA-256 `eb08cfd11137c0c52a1b9955665355d5d1279d9464c5609f55dd190eeb2b288d`, and the next unused natural-match seeds `20261701–20261780` (80 matches, four Warlord seats each). Run each match to the natural Iron chapter end with `--it6-accounting`; do not change seeds, code, pack, or the approved cutoffs after starting. Command:
 
+That `20261701–20261780` block was started and then stopped after early reports showed nonzero T11 residuals (+2 in seed `20261701`, +3 in seed `20261721`). All partial reports from that block are invalid for acceptance. The missing event was a worn Iron kit overwritten by the Bronze handout while the Iron kit was still in its negative-remaining-life dormancy tail. The lifecycle is now recorded as retirement. Diagnostic reruns of the two affected seeds both closed all sites: `20261701` had zero world residual and `96/96` exact site ledgers; `20261721` had zero world residual and `114/114` exact site ledgers. These reruns are diagnostic only.
+
+The active preregistration supersedes the earlier blocks before acceptance. Freeze source `db7b253721fd48df39678b317e57782a5794867a`, pack SHA-256 `eb08cfd11137c0c52a1b9955665355d5d1279d9464c5609f55dd190eeb2b288d`, and natural-match seeds `20261801–20261880` (80 matches, four Warlord seats each). Run each match to the natural Iron chapter end with `--it6-accounting`; do not change seeds, code, pack, or approved cutoffs after starting. Command:
+
 ```sh
 dotnet run --project src/CivSim.Cli -c Release --no-restore -- build-pack --out /tmp/civsim-b406-acceptance.pack
-dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-b406-acceptance.pack --seed 20261701 --seeds 80 --it6-accounting
+dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-b406-acceptance.pack --seed 20261801 --seeds 80 --it6-accounting
 ```
 
-The trace changes are diagnostic only and are excluded from simulation state. They record current-season tool workers and site-level kit made, issued, received, sent, and upgraded. Whole-match kit conservation treats issuance as a move from store to holder; it accounts for broken kits, every retired/replaced Iron kit, deaths/razing, current holders, store inventory, settlement fission/refugee relocation, and internal delivery. The reported per-tier world residual and every site residual must be zero for a match to be ledger-valid.
+The trace changes are diagnostic only and are excluded from simulation state. They record current-season tool workers and site-level kit made, issued, received, sent, and upgraded. Whole-match kit conservation treats issuance as a move from store to holder; it accounts for broken kits, Iron kits replaced by either tier, deaths/razing, current holders, store inventory, settlement fission/refugee relocation, and internal delivery. The reported per-tier world residual and every site residual must be zero for a match to be ledger-valid.
 
 ## Deterministic B4-06 case matrix
 
@@ -59,4 +63,4 @@ This closes I-T3's deterministic lifetime, multiplier, and live mixed-tier distr
 
 ## I-T2 acceptance results
 
-Pending the fresh preregistered 80-match run. The existing fixed-population replacement screens are in the [I-T6 acceptance report](m11-it6-whole-match-2026-11-05.md); they cover T11/T12 service and replacement but do not substitute for the new actual tool-worker denominator. The acceptance run will report every settlement's actual tool-worker coverage, access and delivery path, mixed-age exposure, fuel eligibility, and whole-match kit residuals. No I-T2 pass is claimed until the run results and uncensored, fuel-qualified observations are recorded.
+Pending the active preregistered 80-match run. The existing fixed-population replacement screens are in the [I-T6 acceptance report](m11-it6-whole-match-2026-11-05.md); they cover T11/T12 service and replacement but do not substitute for the new actual tool-worker denominator. The acceptance run will report every settlement's actual tool-worker coverage, access and delivery path, mixed-age exposure, fuel eligibility, and whole-match kit residuals. No I-T2 pass is claimed until the run results and uncensored, fuel-qualified observations are recorded.
