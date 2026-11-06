@@ -2089,7 +2089,7 @@ public sealed partial class LivingEconomyModel
         Fix64 localWoodBefore = Fix64.Zero, woodFactorBefore = Fix64.Zero;
         if (traceFuelSupply)
         {
-            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore) = IT6ReachWood(s);
+            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore, _) = IT6ReachWood(s);
             localWoodBefore = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
             woodFactorBefore = IronWoodFactor(s, m);
         }
@@ -2117,7 +2117,7 @@ public sealed partial class LivingEconomyModel
         // Then the range's standing stock, cut across its forest tiles in proportion to what each holds (clamps move through
         // the woods, as metal_sim.py draws), so coppiced stands regrow everywhere; then beyond the range, nearest first, hauled.
         int reach = IronFuelCharcoalReach(s);
-        int[] tiles = ReachTiles(s.SiteTile, reach);
+        (int Tile, int HaulDistance)[] tiles = IronFuelWoodSources(s, reach);
         Fix64 haulDivisor = Done(s.Civilization, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
         Fix64 inRange = Fix64.Zero;
         foreach (int tile in RangeTiles(s.SiteTile))
@@ -2157,10 +2157,10 @@ public sealed partial class LivingEconomyModel
                 m.ClampTile = most;
             }
         }
-        foreach (int tile in tiles)
+        foreach ((int tile, int routeDistance) in tiles)
         {
             if (planned <= Fix64.Zero || metalPool + craftPool <= Fix64.Zero) break;
-            int distance = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+            int distance = routeDistance;
             if (distance <= Radius) continue;
             if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
             Fix64 available = StandingWoodAvailableToIron(tile);

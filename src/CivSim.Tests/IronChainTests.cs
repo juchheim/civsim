@@ -758,6 +758,27 @@ public class IronChainTests
         Assert.True(charcoalReach >= 8 + shareReach + 8,
             "every Iron fuel consumer should combine the ordinary charcoal radius, existing domestic sharing reach, and the eight-tile hauling margin");
         Assert.Equal(charcoalReach, f.Economy.FixtureIronFuelCharcoalReach(nonHub));
+        int hubTile = f.Economy.SettlementLite(hub).SiteTile;
+        int nonHubTile = f.Economy.SettlementLite(nonHub).SiteTile;
+        int hubOnlyForest = -1;
+        for (int tile = 0; tile < f.Economy.FixtureWorldTileCount; tile++)
+        {
+            if (!f.Economy.FixtureIsForestTile(tile) || f.Economy.FixtureIsRivalTile(0, tile)) continue;
+            int fromHub = HexGrid.Distance(hubTile, tile, f.Economy.FixtureWorldWidth);
+            int fromMember = HexGrid.Distance(nonHubTile, tile, f.Economy.FixtureWorldWidth);
+            if (fromHub <= 3 || fromHub > charcoalReach || fromMember <= charcoalReach) continue;
+            hubOnlyForest = tile;
+            break;
+        }
+        Assert.True(hubOnlyForest >= 0, "the fixture should have forest inside the hub catchment but beyond the member's direct haul range");
+        f.Economy.FixtureSetWood(hubOnlyForest, Fix64.FromInt(500));
+        Assert.Equal(hub, f.Economy.FixtureIronFuelHubAssignment(nonHub));
+        Assert.True(f.Economy.FixtureIronFuelHaulDistanceToTile(nonHub, hubOnlyForest) < 0,
+            "ordinary access must remain local before the hub-fuel candidate is enabled");
+        f.Economy.IronHubFuelSharingEnabled = true;
+        Assert.Equal(HexGrid.Distance(nonHubTile, hubTile, f.Economy.FixtureWorldWidth) +
+            HexGrid.Distance(hubTile, hubOnlyForest, f.Economy.FixtureWorldWidth),
+            f.Economy.FixtureIronFuelHaulDistanceToTile(nonHub, hubOnlyForest));
         Assert.True(f.Economy.FixtureSisterKitDeficit(hub) == Fix64.Zero,
             "the hub should not plan a qualified satellite's own kit demand twice");
         Assert.False(f.Economy.FixtureSisterKitDeficit(nonHub) > Fix64.Zero, "the non-hub should not duplicate the hub's target");

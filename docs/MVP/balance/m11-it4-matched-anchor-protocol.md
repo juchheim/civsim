@@ -14,6 +14,18 @@ For the physical ledger, record a common interval's beginning stocks, locally pr
 
 `tools/it4-matched-anchor-template.csv` is the input shape for the audit script. The script requires all five fixture labels, checks the stock equation with a scale-aware tolerance, and prints E4/E3 FoodCap and City-share changes. It does not simulate the economy, infer causal effects, enforce the proposed band, or claim a gate pass. Use actual matched runtime observations as inputs; synthetic values are not evidence.
 
+## Candidate measurement contract (proposal only; no threshold approval)
+
+The current CSV is a one-summary-row-per-geography smoke-check. It cannot preserve matched pairs, sample counts, or distributions, so it is insufficient as the runner's raw output. Keep it as a hand-audit format if useful; have the future runtime runner emit one observation row per matched pair and season, with at least: pair ID, seed, fixture label, start tile, arm (E3 anchor/E4 treatment), civilization and settlement IDs, season relative to the treatment's own KEY-4, whether that civilization has entered KEY-4, population, age-band counts, tier, FoodCap, and City-tier population. Include the match/state checksum and code/content baseline in a run manifest. Do not pool across geography or count an E4 row before own KEY-4.
+
+Candidate descriptive statistics, without pass/fail cutoffs, are:
+
+- For each fixture and observation horizon, calculate the within-pair FoodCap ratio (`E4 FoodCap / E3 FoodCap`) and report its sample count, median, mean, p10/p90 and range. Report fixture results separately and then a clearly labeled pooled summary.
+- Define City concentration as `population in City-tier settlements / all population` in each arm. Report the within-pair percentage-point change and the share of matched pairs with a positive change, with the distribution and denominator by fixture. This makes “city concentration rises” measurable; the pass threshold and required coverage remain for approval.
+- For every observed interval, output the physical ledger at both settlement and system level: opening stock + local production + imports − consumption − exports/transfers − loss − closing stock. Include transfer IDs with donor and receiver, and donor population/need/stores before and after transfer so reserve preservation can be checked. Report residuals and reserve violations as diagnostics; the existing script's scale-aware residual tolerance applies only to the arithmetic audit, not to an I-T4 acceptance threshold.
+
+Smallest runner addition: a separate deterministic `it4-anchor` harness command (or isolated harness class) that selects verified start fixtures, runs matched E3 and E4 arms from the same generated-world seed and start state, and writes the raw pair/season rows plus manifest. It should sample at a fixed season offset from the E4 arm's own KEY-4 and use the corresponding offset in the E3 arm. Before implementing state cloning, verify the existing `MatchModel` snapshot/restore path can reproduce the same pre-treatment state in both arms; if not, seed and start-tile matching alone must be labeled a weaker match. Add ledger counters at the food production, transfer, consumption, loss, and closing-stock boundaries rather than reconstructing production from stock deltas. This command is a diagnostic and must not change gameplay behavior.
+
 ## Open work
 
 - Add or expose a deterministic runtime fixture runner that instantiates the five geographic pairs and reports pre/post KEY-4 values from the live E3 food, cap and settlement-tier equations.

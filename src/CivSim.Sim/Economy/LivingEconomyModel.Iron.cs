@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.World;
@@ -124,7 +125,8 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private int IronFuelCharcoalReach(SettlementState s)
     {
-        return IronFuelDomesticCharcoalReach(s) + (IronFuelHubsEnabled(s.Civilization) ? IronFuelReachBuffer : 0);
+        int margin = IronFuelReachBufferOverride >= 0 ? IronFuelReachBufferOverride : IronFuelReachBuffer;
+        return IronFuelDomesticCharcoalReach(s) + (IronFuelHubsEnabled(s.Civilization) ? margin : 0);
     }
 
     /// <summary>Local catchment used for siting and the forest throttle; physical hauling can reach four tiles farther.</summary>
@@ -138,6 +140,38 @@ public sealed partial class LivingEconomyModel
     {
         int charcoalReach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
         return IronFuelHubsEnabled(s.Civilization) ? charcoalReach + IronShareReach(s.Civilization) : charcoalReach;
+    }
+
+    /// <summary>Unique forest tiles accessible directly or through one directly assigned hub, ordered by charged route distance.</summary>
+    private (int Tile, int HaulDistance)[] IronFuelWoodSources(SettlementState s, int reach)
+    {
+        // Preserve the production path's original ReachTiles ordering and avoid the sharing-map work unless the diagnostic
+        // candidate is explicitly enabled. The distance tie order is already nearest-first in ReachTiles.
+        if (!IronHubFuelSharingEnabled || !IronFuelHubsEnabled(s.Civilization))
+            return ReachTiles(s.SiteTile, reach)
+                .Select(tile => (Tile: tile, HaulDistance: HexGrid.Distance(s.SiteTile, tile, _world.Width)))
+                .ToArray();
+
+        var distanceByTile = new Dictionary<int, int>();
+        foreach (int tile in ReachTiles(s.SiteTile, reach))
+            distanceByTile[tile] = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+
+        SettlementState hub = IronFuelHubFor(s);
+        if (hub.Id != s.Id)
+        {
+            int memberToHub = HexGrid.Distance(s.SiteTile, hub.SiteTile, _world.Width);
+            int hubReach = IronFuelCharcoalReach(hub);
+            foreach (int tile in ReachTiles(hub.SiteTile, hubReach))
+            {
+                int viaHubDistance = memberToHub + HexGrid.Distance(hub.SiteTile, tile, _world.Width);
+                if (!distanceByTile.TryGetValue(tile, out int directDistance) || viaHubDistance < directDistance)
+                    distanceByTile[tile] = viaHubDistance;
+            }
+        }
+
+        return distanceByTile.Select(pair => (pair.Key, pair.Value))
+            .OrderBy(pair => pair.Value).ThenBy(pair => pair.Key)
+            .Select(pair => (Tile: pair.Key, HaulDistance: pair.Value)).ToArray();
     }
 
     /// <summary>
@@ -174,6 +208,10 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Screen and test switch: turn the Iron chapter's sharing between sister settlements off. On in production.</summary>
     internal bool IronSharingEnabled { get; set; } = true;
+    /// <summary>Controlled candidate: an Iron settlement may haul from its directly assigned fuel hub's catchment. Off in production pending acceptance.</summary>
+    internal bool IronHubFuelSharingEnabled { get; set; }
+    /// <summary>Optional diagnostic override for the Iron fuel-haul margin; -1 preserves the current default.</summary>
+    internal int IronFuelReachBufferOverride { get; set; } = -1;
 
     /// <summary>
     /// For the view: the state of a settlement's forge in the Iron chapter. 0 no forge (or not the Iron chapter), 1 a forge standing idle (nothing in store to
@@ -678,6 +716,14 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureIronFuelCatchmentScoreAt(int civ, int tile) => IronFuelCatchmentScore(civ, tile);
 
     internal int FixtureIronFuelCharcoalReach(int settlementIndex) => IronFuelCharcoalReach(_settlements[settlementIndex]);
+
+    internal int FixtureIronFuelHaulDistanceToTile(int settlementIndex, int tile)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        foreach ((int sourceTile, int haulDistance) in IronFuelWoodSources(s, IronFuelCharcoalReach(s)))
+            if (sourceTile == tile) return haulDistance;
+        return -1;
+    }
 
     /// <summary>
     /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): current tool workers who lack an Iron tier first, then other adults who
