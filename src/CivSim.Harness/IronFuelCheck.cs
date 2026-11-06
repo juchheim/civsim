@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using CivSim.Sim.Content;
 using CivSim.Sim.Economy;
@@ -31,18 +32,19 @@ internal static class IronFuelCheck
 {
     /// <summary>I-T6's ceiling on the share of civilian work the metal chain may take.</summary>
     private static readonly Fix64 ShareCeiling = Fix64.FromRatio(15, 100);
-    /// <summary>Default charcoal haul reach in balance.yaml; the fuel fixture does not grant TRN-05 carts.</summary>
-    private const int FuelFixtureCharcoalReach = 8;
-    private const int FuelFixtureCartCharcoalReach = 12;
-
     private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint,
-        bool Carts = false, FuelForestPlacement? SpatialPlacement = null);
+        bool Carts = false, bool IronHubs = false, bool Gov04Sharing = false, bool T12 = false, FuelForestPlacement? SpatialPlacement = null);
 
     private static readonly Scenario[] Scenarios =
     {
         new("bronze-reference", false, true, 13, false),
         new("iron", true, true, 13, false),
         new("iron-low-wood", true, true, 4, false),
+        new("iron-hub-low-wood", true, true, 4, false, IronHubs: true),
+        new("iron-hub-low-wood-no-coppice", true, false, 4, false, IronHubs: true),
+        new("iron-hub-gov04-low-wood", true, true, 4, false, IronHubs: true, Gov04Sharing: true),
+        new("iron-hub-import-loss", true, true, 13, true, IronHubs: true),
+        new("iron-hub-low-wood-t12", true, true, 4, false, IronHubs: true, T12: true),
         new("iron-low-wood-carts", true, true, 4, false, Carts: true),
         new("iron-low-wood-no-coppice-carts", true, false, 4, false, Carts: true),
         new("bronze-low-wood-carts", false, true, 4, false, Carts: true),
@@ -67,6 +69,8 @@ internal static class IronFuelCheck
     {
         public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShareAt12, IronKitShareAfter12Route,
             IronRouteWoodRetention, IronKitShare14To44AtRoute, IronKitShare45PlusAtRoute, IronKitShare, FuelShortShare, Bloom, Wrought;
+        public Fix64 Kit11Issued, Kit12Issued, Kit11ToolWork, Kit12ToolWork;
+        public int Kit11Breaks, Kit12Breaks;
         public int IronEraFuelDemandSeasons, IronEraFuelShortSeasons;
         public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
@@ -87,12 +91,14 @@ internal static class IronFuelCheck
         var seeds = new List<ulong> { 20261019, 20261020, 20261021, 20261022, 20261023, 20261024, 20261025, 20261026 };
         int seasons = 40, people = 60;
         bool spatialOnly = false;
+        string? scenarioName = null;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
                 case "--pack": packPath = args[++i]; break;
                 case "--spatial-only": spatialOnly = true; break;
+                case "--scenario": scenarioName = args[++i]; break;
                 case "--seeds":
                     seeds.Clear();
                     foreach (string part in args[++i].Split(',')) seeds.Add(ulong.Parse(part, CultureInfo.InvariantCulture));
@@ -105,13 +111,16 @@ internal static class IronFuelCheck
         if (packPath is null) throw new ArgumentException("iron-fuel needs --pack FILE (civsim build-pack --out FILE).");
         if (seasons < 8 || seasons % 2 != 0) throw new ArgumentException("--seasons must be an even number of at least 8.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly));
+        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName));
         return 0;
     }
 
     internal static string Report(ContentPack pack, IReadOnlyList<ulong> seeds, int seasons, int people,
-        int scenarioLimit = int.MaxValue, bool spatialOnly = false)
+        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null)
     {
+        Scenario[] selectedScenarios = Scenarios
+            .Where(sc => scenarioName is null || string.Equals(sc.Name, scenarioName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
         var sb = new StringBuilder();
         void L(string text = "") => sb.Append(text).Append('\n');
         int window = seasons / 2;
@@ -120,12 +129,13 @@ internal static class IronFuelCheck
             ? $"I-T6 spatial supply/reach counterfactual; apply the approved per-seed fuel cutoff (work-share ceiling {Pct(ShareCeiling)})."
             : $"I-T6: metal chain <= {Pct(ShareCeiling)} of civilian work; compare forest stock and fuel flows with the same-seed Bronze control");
         L("spatial controls: four matched 30 L forest tiles (120 L opening stock; no Coppicing; up to 2 L/season base regrowth below the per-tile cap) placed at radii 1–3 (near), 4–8 (haul), or 9–12 (far); other wood within radius 12 is removed. Reach 8 is default; TRN-05 gives reach 12 and its lower haul cost.");
+        L("Iron hub controls: KEY-4 enables catchment-aware hubs; existing SOC-07 sharing reaches 15 tiles, GOV-04 reaches 20, and Iron physical charcoal hauling extends 8 tiles beyond that domestic reach.");
         L();
         L("scenario            seeds  metal-share(mean/max)  char+fire/season  regrowth/season  all-cuts/season  mass-resid  metal-char/season  metal-cut/season  reachable wood end/start(mean/min)  end/mid  NoFuel fallback(mean/max)  T11+ at fixture12/12 after route/end  bloom+wrought");
         var workVerdicts = new List<string>();
         var rowsByScenario = new Dictionary<string, Dictionary<ulong, Row>>(StringComparer.Ordinal);
         int shown = 0;
-        foreach (Scenario sc in Scenarios)
+        foreach (Scenario sc in selectedScenarios)
         {
             if (spatialOnly && sc.SpatialPlacement is null) continue;
             if (shown++ >= scenarioLimit) break;
@@ -162,7 +172,7 @@ internal static class IronFuelCheck
         L("I-T6 planned-charcoal shortfall (final half; demand-seasons count only seasons with a positive charcoal-production plan after existing charcoal stock):");
         L($"approved per-seed cutoff: shortfall rate <= {Pct(IT6FuelGate.MaxShortRate)} and unmet / planned charcoal <= {Pct(IT6FuelGate.MaxUnmetPlanShare)}; fewer than {IT6FuelGate.MinDemandSeasons} demand-seasons is censored");
         L("scenario                  plan demand seasons mean/max  shortfall rate mean/max  planned charcoal mean L/seed  unmet mean L/seed  unmet share mean/max");
-        foreach (Scenario sc in Scenarios)
+        foreach (Scenario sc in selectedScenarios)
         {
             if (!sc.Iron || !rowsByScenario.TryGetValue(sc.Name, out Dictionary<ulong, Row>? fuelRows)) continue;
             var rows = new List<Row>(fuelRows.Values);
@@ -182,12 +192,35 @@ internal static class IronFuelCheck
             L($"  per-seed cutoff: {fuelPass}/{rows.Count - fuelCensored} eligible pass; {fuelCensored} censored");
         }
         L();
+        L("I-T6 tool service and replacement activity (full fixed-population fixture run):");
+        L("scenario                         T11 issued mean  tool-ws/kit  breaks (seeds, total, max)   T12 issued mean  tool-ws/kit  breaks (seeds, total, max)");
+        foreach (Scenario sc in selectedScenarios)
+        {
+            if (!sc.Iron || !rowsByScenario.TryGetValue(sc.Name, out Dictionary<ulong, Row>? toolRows)) continue;
+            var rows = new List<Row>(toolRows.Values);
+            Fix64 issued11 = Fix64.Zero, issued12 = Fix64.Zero, toolWork11 = Fix64.Zero, toolWork12 = Fix64.Zero;
+            int breakSeeds11 = 0, breakSeeds12 = 0, totalBreaks11 = 0, totalBreaks12 = 0, maxBreaks11 = 0, maxBreaks12 = 0;
+            foreach (Row row in rows)
+            {
+                issued11 += row.Kit11Issued; issued12 += row.Kit12Issued;
+                toolWork11 += row.Kit11ToolWork; toolWork12 += row.Kit12ToolWork;
+                if (row.Kit11Breaks > 0) breakSeeds11++;
+                if (row.Kit12Breaks > 0) breakSeeds12++;
+                totalBreaks11 += row.Kit11Breaks; totalBreaks12 += row.Kit12Breaks;
+                maxBreaks11 = Math.Max(maxBreaks11, row.Kit11Breaks);
+                maxBreaks12 = Math.Max(maxBreaks12, row.Kit12Breaks);
+            }
+            Fix64 toolRate11 = issued11 > Fix64.Zero ? toolWork11 / issued11 : Fix64.Zero;
+            Fix64 toolRate12 = issued12 > Fix64.Zero ? toolWork12 / issued12 : Fix64.Zero;
+            L($"{sc.Name,-32} {Mean(rows, r => r.Kit11Issued).ToDoubleForDisplay(),7:F1}       {toolRate11.ToDoubleForDisplay(),6:F2}    ({breakSeeds11}/{rows.Count}, {totalBreaks11}, {maxBreaks11})              {Mean(rows, r => r.Kit12Issued).ToDoubleForDisplay(),7:F1}       {toolRate12.ToDoubleForDisplay(),6:F2}    ({breakSeeds12}/{rows.Count}, {totalBreaks12}, {maxBreaks12})");
+        }
+        L();
         L("work-share screen:");
         foreach (string v in workVerdicts) L("  " + v);
         L();
         L("Forest clearing diagnostic (tile crossings below the simulation's 5 L cleared-woodland threshold, full run):");
         L("scenario                       seeds with crossings  total tile crossings  max in one seed");
-        foreach (Scenario sc in Scenarios)
+        foreach (Scenario sc in selectedScenarios)
         {
             if (!rowsByScenario.TryGetValue(sc.Name, out Dictionary<ulong, Row>? clearRows)) continue;
             int seedsWithCrossings = 0, totalCrossings = 0, maxCrossings = 0;
@@ -302,15 +335,22 @@ internal static class IronFuelCheck
 
     private static Row RunOne(ContentPack pack, ulong seed, Scenario sc, int seasons, int people)
     {
-        string[] projects = sc.Carts ? new[] { "MET-08", "MET-09", "TRN-05" } : new[] { "MET-08", "MET-09" };
+        var projects = new List<string> { "MET-08", "MET-09" };
+        if (sc.Carts) projects.Add("TRN-05");
+        if (sc.IronHubs)
+        {
+            projects.Add("KEY-4");
+            if (sc.Gov04Sharing) projects.Add("GOV-04");
+        }
+        if (sc.T12) projects.Add("MET-10");
         BronzeFixture f = sc.SpatialPlacement is { } placement
-            ? BronzeFixture.CreateFixedPopulationSpatialFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, placement, projects)
-            : BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, projects);
+            ? BronzeFixture.CreateFixedPopulationSpatialFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, placement, projects.ToArray())
+            : BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, projects.ToArray());
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
         e.IT6AccountingTraceEnabled = sc.Iron;
         int window = seasons / 2;
-        int charcoalReach = sc.Carts ? FuelFixtureCartCharcoalReach : FuelFixtureCharcoalReach;
+        int charcoalReach = e.FixtureIronFuelCharcoalReach(BronzeFixture.Settlement);
         HashSet<int> outerForestTiles = new();
         ForestTrace woodStart = CaptureReachableWood(e, -1, outerForestTiles, charcoalReach);
         var row = new Row { Seed = seed, WoodStart = woodStart.Standing };
@@ -374,6 +414,12 @@ internal static class IronFuelCheck
             (woodEnd.TotalRemoved - woodMid.TotalRemoved)) / window;
         row.IronKitShare = IronKitCoverage(e);
         row.IronFirstKitSeason = ironFirstKitSeason;
+        row.Kit11Issued = fuelEnd.Kit11Issued;
+        row.Kit12Issued = fuelEnd.Kit12Issued;
+        row.Kit11ToolWork = fuelEnd.Kit11ToolWork;
+        row.Kit12ToolWork = fuelEnd.Kit12ToolWork;
+        row.Kit11Breaks = fuelEnd.Kit11Breaks;
+        row.Kit12Breaks = fuelEnd.Kit12Breaks;
         row.Bloom = e.GoodStock(BronzeFixture.Settlement, "G-IRON");
         row.Wrought = e.GoodStock(BronzeFixture.Settlement, "G-WROUGHT");
         return row;

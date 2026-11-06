@@ -1,0 +1,192 @@
+iron-fuel: 8 seeds, 240 seasons (120-season steady-state window), fixed 60-person fixture settlement
+I-T6: metal chain <= 15.0% of civilian work; compare forest stock and fuel flows with the same-seed Bronze control
+spatial controls: four matched 30 L forest tiles (120 L opening stock; no Coppicing; up to 2 L/season base regrowth below the per-tile cap) placed at radii 1–3 (near), 4–8 (haul), or 9–12 (far); other wood within radius 12 is removed. Reach 8 is default; TRN-05 gives reach 12 and its lower haul cost.
+Iron hub controls: KEY-4 enables catchment-aware hubs; existing SOC-07 sharing reaches 15 tiles, GOV-04 reaches 20, and Iron physical charcoal hauling extends 8 tiles beyond that domestic reach.
+
+scenario            seeds  metal-share(mean/max)  char+fire/season  regrowth/season  all-cuts/season  mass-resid  metal-char/season  metal-cut/season  reachable wood end/start(mean/min)  end/mid  NoFuel fallback(mean/max)  T11+ at fixture12/12 after route/end  bloom+wrought
+bronze-reference        8     1.7% / 1.9%           0.60 L        5.10 L        5.10 L       0.000 L        0.60 L          0.00 L           0.99 / 0.98          1.00      0.0%/0.0%       0.0%/0.0%/0.0%     0.00
+iron                    8     1.7% / 1.8%           0.73 L        5.10 L        5.10 L       0.000 L        0.73 L          0.00 L           0.99 / 0.98          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.52
+iron-low-wood           8     1.5% / 2.0%           0.58 L        4.75 L        4.78 L       0.000 L        0.58 L          0.40 L           0.79 / 0.17          0.99      0.4%/3.3%       92.9%/92.9%/92.0%     0.45
+iron-hub-low-wood       8     1.8% / 2.0%           0.65 L        4.94 L        4.96 L       0.000 L        0.65 L          0.47 L           0.99 / 0.99          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.51
+iron-hub-low-wood-no-coppice     8     1.5% / 1.7%           0.54 L        2.85 L        2.84 L       0.000 L        0.54 L          0.54 L           0.99 / 0.99          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.52
+iron-hub-gov04-low-wood     8     1.8% / 2.0%           0.65 L        4.94 L        4.96 L       0.000 L        0.65 L          0.47 L           0.99 / 0.99          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.51
+iron-hub-import-loss     8     0.9% / 1.1%           0.32 L        5.22 L        5.21 L       0.000 L        0.32 L          0.00 L           1.00 / 1.00          1.00      0.0%/0.0%       96.4%/96.4%/84.8%     0.00
+iron-low-wood-carts     8     1.6% / 1.9%           0.63 L        4.83 L        4.82 L       0.000 L        0.63 L          0.45 L           0.93 / 0.73          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.51
+iron-low-wood-no-coppice-carts     8     1.3% / 1.5%           0.53 L        2.73 L        2.72 L       0.000 L        0.53 L          0.53 L           0.93 / 0.72          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.50
+bronze-low-wood-carts     8     1.2% / 1.5%           0.37 L        4.73 L        4.75 L       0.000 L        0.37 L          0.37 L           0.92 / 0.68          1.00      0.0%/0.0%       0.0%/0.0%/0.0%     0.00
+bronze-low-wood-no-coppice-carts     8     1.2% / 1.4%           0.38 L        2.55 L        2.57 L       0.000 L        0.38 L          0.38 L           0.92 / 0.67          1.00      0.0%/0.0%       0.0%/0.0%/0.0%     0.00
+iron-no-coppice         8     1.7% / 1.8%           0.73 L        5.10 L        5.10 L       0.000 L        0.73 L          0.00 L           0.99 / 0.98          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.52
+bronze-no-coppice       8     1.7% / 1.9%           0.60 L        5.10 L        5.10 L       0.000 L        0.60 L          0.00 L           0.99 / 0.98          1.00      0.0%/0.0%       0.0%/0.0%/0.0%     0.00
+iron-import-loss        8     0.9% / 1.1%           0.32 L        5.10 L        5.10 L       0.000 L        0.32 L          0.00 L           0.99 / 0.98          1.00      0.0%/0.0%       96.4%/96.4%/84.8%     0.00
+bronze-low-wood         8     1.2% / 1.5%           0.34 L        4.69 L        4.71 L       0.000 L        0.34 L          0.34 L           0.76 / 0.00          1.00     12.5%/100.0%      0.0%/0.0%/0.0%     0.00
+iron-low-wood-no-coppice     8     1.3% / 1.7%           0.47 L        2.66 L        2.66 L       0.000 L        0.47 L          0.47 L           0.80 / 0.17          1.00      0.0%/0.0%       89.7%/89.7%/91.5%     0.46
+bronze-low-wood-no-coppice     8     1.1% / 1.4%           0.33 L        2.50 L        2.51 L       0.000 L        0.33 L          0.33 L           0.76 / 0.00          1.00     12.5%/100.0%      0.0%/0.0%/0.0%     0.00
+iron-wood-rich          8     1.7% / 1.8%           0.70 L        5.10 L        5.10 L       0.000 L        0.70 L          0.00 L           1.00 / 0.99          1.00      0.0%/0.0%       96.4%/96.4%/100.0%     0.51
+bronze-wood-rich        8     1.7% / 1.7%           0.58 L        5.10 L        5.10 L       0.000 L        0.58 L          0.00 L           1.00 / 0.99          1.00      0.0%/0.0%       0.0%/0.0%/0.0%     0.00
+iron-near-8             8     0.0% / 0.0%           0.00 L        2.00 L        2.00 L       0.000 L        0.00 L          0.00 L           0.17 / 0.17          1.00      0.0%/0.0%       49.6%/49.6%/33.9%     0.04
+iron-haul-8             8     1.6% / 1.7%           0.54 L        0.62 L        0.54 L       0.000 L        0.54 L          0.54 L           0.86 / 0.81          1.11      0.0%/0.0%       51.8%/54.0%/100.0%     0.53
+iron-far-8              8     0.0% / 0.0%           0.00 L        0.00 L        0.00 L       0.000 L        0.00 L          0.00 L           1.00 / 1.00          1.00     100.0%/100.0%      0.0%/0.0%/0.0%     0.00
+iron-near-12            8     0.0% / 0.0%           0.00 L        2.00 L        2.00 L       0.000 L        0.00 L          0.00 L           0.17 / 0.17          1.00      0.0%/0.0%       50.4%/50.4%/33.9%     0.02
+iron-haul-12            8     1.5% / 1.5%           0.54 L        0.62 L        0.54 L       0.000 L        0.54 L          0.54 L           0.86 / 0.83          1.11      0.0%/0.0%       54.9%/55.8%/100.0%     0.51
+iron-far-12             8     1.4% / 1.5%           0.52 L        0.62 L        0.52 L       0.000 L        0.52 L          0.52 L           0.87 / 0.83          1.13      0.0%/0.0%       54.9%/56.2%/100.0%     0.51
+
+I-T6 planned-charcoal shortfall (final half; demand-seasons count only seasons with a positive charcoal-production plan after existing charcoal stock):
+approved per-seed cutoff: shortfall rate <= 5.0% and unmet / planned charcoal <= 1.0%; fewer than 12 demand-seasons is censored
+scenario                  plan demand seasons mean/max  shortfall rate mean/max  planned charcoal mean L/seed  unmet mean L/seed  unmet share mean/max
+iron                       120.0/120              0.0%/0.0%             14.65                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-low-wood              114.1/120              0.5%/4.2%             11.63                0.01         1.9%/15.0% 
+  cutoff miss seed 20261026: short 5/120 (4.2%); unmet 0.0878/0.5860 L (15.0%)
+  per-seed cutoff: 7/8 eligible pass; 0 censored
+iron-hub-low-wood          113.1/120              0.0%/0.0%             12.96                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-hub-low-wood-no-coppice   48.1/90               0.0%/0.0%             10.86                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-hub-gov04-low-wood    113.1/120              0.0%/0.0%             12.96                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-hub-import-loss       120.0/120              0.0%/0.0%              6.42                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-low-wood-carts        118.6/120              0.0%/0.0%             12.50                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-low-wood-no-coppice-carts   50.8/99               0.0%/0.0%             10.59                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-no-coppice            120.0/120              0.0%/0.0%             14.65                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-import-loss           120.0/120              0.0%/0.0%              6.42                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-low-wood-no-coppice    45.0/90               0.0%/0.0%              9.50                0.00         0.0%/0.0%  
+  per-seed cutoff: 7/7 eligible pass; 1 censored
+iron-wood-rich             120.0/120              0.0%/0.0%             14.04                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-near-8                  0.0/0                0.0%/0.0%              0.00                0.00         0.0%/0.0%  
+  per-seed cutoff: 0/0 eligible pass; 8 censored
+iron-haul-8                 26.9/28               0.0%/0.0%             10.73                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-far-8                 120.0/120            100.0%/100.0%          147.80              147.80       100.0%/100.0%
+  cutoff miss seed 20261019: short 120/120 (100.0%); unmet 147.8646/147.8646 L (100.0%)
+  cutoff miss seed 20261020: short 120/120 (100.0%); unmet 147.8646/147.8646 L (100.0%)
+  cutoff miss seed 20261021: short 120/120 (100.0%); unmet 147.7628/147.7628 L (100.0%)
+  cutoff miss seed 20261022: short 120/120 (100.0%); unmet 147.7525/147.7525 L (100.0%)
+  cutoff miss seed 20261023: short 120/120 (100.0%); unmet 147.8646/147.8646 L (100.0%)
+  cutoff miss seed 20261024: short 120/120 (100.0%); unmet 147.8023/147.8023 L (100.0%)
+  cutoff miss seed 20261025: short 120/120 (100.0%); unmet 147.6154/147.6154 L (100.0%)
+  cutoff miss seed 20261026: short 120/120 (100.0%); unmet 147.8646/147.8646 L (100.0%)
+  per-seed cutoff: 0/8 eligible pass; 0 censored
+iron-near-12                 0.0/0                0.0%/0.0%              0.00                0.00         0.0%/0.0%  
+  per-seed cutoff: 0/0 eligible pass; 8 censored
+iron-haul-12                25.9/30               0.0%/0.0%             10.75                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+iron-far-12                 25.0/29               0.0%/0.0%             10.48                0.00         0.0%/0.0%  
+  per-seed cutoff: 8/8 eligible pass; 0 censored
+
+I-T6 tool service and replacement activity (full fixed-population fixture run):
+scenario                         T11 issued mean  tool-ws/kit  breaks (seeds, total, max)   T12 issued mean  tool-ws/kit  breaks (seeds, total, max)
+iron                                49.2        19.46    (8/8, 11, 2)                  0.0         0.00    (0/8, 0, 0)
+iron-low-wood                       46.6        19.89    (5/8, 14, 9)                  0.0         0.00    (0/8, 0, 0)
+iron-hub-low-wood                   50.6        19.80    (5/8, 6, 2)                  0.0         0.00    (0/8, 0, 0)
+iron-hub-low-wood-no-coppice        51.0        19.78    (8/8, 8, 1)                  0.0         0.00    (0/8, 0, 0)
+iron-hub-gov04-low-wood             50.6        19.80    (5/8, 6, 2)                  0.0         0.00    (0/8, 0, 0)
+iron-hub-import-loss                42.4        21.32    (8/8, 43, 8)                  0.0         0.00    (0/8, 0, 0)
+iron-low-wood-carts                 50.2        19.87    (6/8, 9, 3)                  0.0         0.00    (0/8, 0, 0)
+iron-low-wood-no-coppice-carts      51.4        19.59    (7/8, 7, 1)                  0.0         0.00    (0/8, 0, 0)
+iron-no-coppice                     49.2        19.46    (8/8, 11, 2)                  0.0         0.00    (0/8, 0, 0)
+iron-import-loss                    42.4        21.32    (8/8, 43, 8)                  0.0         0.00    (0/8, 0, 0)
+iron-low-wood-no-coppice            46.0        19.53    (8/8, 10, 3)                  0.0         0.00    (0/8, 0, 0)
+iron-wood-rich                      48.1        19.44    (8/8, 14, 3)                  0.0         0.00    (0/8, 0, 0)
+iron-near-8                         13.9        14.50    (8/8, 35, 6)                  0.0         0.00    (0/8, 0, 0)
+iron-haul-8                         49.6        19.50    (8/8, 10, 2)                  0.0         0.00    (0/8, 0, 0)
+iron-far-8                           0.0         0.00    (0/8, 0, 0)                  0.0         0.00    (0/8, 0, 0)
+iron-near-12                        14.1        14.97    (8/8, 37, 6)                  0.0         0.00    (0/8, 0, 0)
+iron-haul-12                        50.0        19.49    (8/8, 9, 2)                  0.0         0.00    (0/8, 0, 0)
+iron-far-12                         49.6        19.65    (8/8, 11, 2)                  0.0         0.00    (0/8, 0, 0)
+
+work-share screen:
+  bronze-reference: work share within 15.0% on every seed (max 1.9%)
+  iron: work share within 15.0% on every seed (max 1.8%)
+  iron-low-wood: work share within 15.0% on every seed (max 2.0%)
+  iron-hub-low-wood: work share within 15.0% on every seed (max 2.0%)
+  iron-hub-low-wood-no-coppice: work share within 15.0% on every seed (max 1.7%)
+  iron-hub-gov04-low-wood: work share within 15.0% on every seed (max 2.0%)
+  iron-hub-import-loss: work share within 15.0% on every seed (max 1.1%)
+  iron-low-wood-carts: work share within 15.0% on every seed (max 1.9%)
+  iron-low-wood-no-coppice-carts: work share within 15.0% on every seed (max 1.5%)
+  bronze-low-wood-carts: work share within 15.0% on every seed (max 1.5%)
+  bronze-low-wood-no-coppice-carts: work share within 15.0% on every seed (max 1.4%)
+  iron-no-coppice: work share within 15.0% on every seed (max 1.8%)
+  bronze-no-coppice: work share within 15.0% on every seed (max 1.9%)
+  iron-import-loss: work share within 15.0% on every seed (max 1.1%)
+  bronze-low-wood: work share within 15.0% on every seed (max 1.5%)
+  iron-low-wood-no-coppice: work share within 15.0% on every seed (max 1.7%)
+  bronze-low-wood-no-coppice: work share within 15.0% on every seed (max 1.4%)
+  iron-wood-rich: work share within 15.0% on every seed (max 1.8%)
+  bronze-wood-rich: work share within 15.0% on every seed (max 1.7%)
+  iron-near-8: work share within 15.0% on every seed (max 0.0%)
+  iron-haul-8: work share within 15.0% on every seed (max 1.7%)
+  iron-far-8: work share within 15.0% on every seed (max 0.0%)
+  iron-near-12: work share within 15.0% on every seed (max 0.0%)
+  iron-haul-12: work share within 15.0% on every seed (max 1.5%)
+  iron-far-12: work share within 15.0% on every seed (max 1.5%)
+
+Forest clearing diagnostic (tile crossings below the simulation's 5 L cleared-woodland threshold, full run):
+scenario                       seeds with crossings  total tile crossings  max in one seed
+bronze-reference                 0/8                     0                   0
+iron                             0/8                     0                   0
+iron-low-wood                    0/8                     0                   0
+iron-hub-low-wood                0/8                     0                   0
+iron-hub-low-wood-no-coppice     0/8                     0                   0
+iron-hub-gov04-low-wood          0/8                     0                   0
+iron-hub-import-loss             0/8                     0                   0
+iron-low-wood-carts              0/8                     0                   0
+iron-low-wood-no-coppice-carts   0/8                     0                   0
+bronze-low-wood-carts            8/8                    93                  23
+bronze-low-wood-no-coppice-carts   8/8                    49                  10
+iron-no-coppice                  0/8                     0                   0
+bronze-no-coppice                0/8                     0                   0
+iron-import-loss                 0/8                     0                   0
+bronze-low-wood                  8/8                    93                  23
+iron-low-wood-no-coppice         0/8                     0                   0
+bronze-low-wood-no-coppice       8/8                    49                  10
+iron-wood-rich                   0/8                     0                   0
+bronze-wood-rich                 0/8                     0                   0
+iron-near-8                      0/8                     0                   0
+iron-haul-8                      0/8                     0                   0
+iron-far-8                       0/8                     0                   0
+iron-near-12                     0/8                     0                   0
+iron-haul-12                     0/8                     0                   0
+iron-far-12                      0/8                     0                   0
+
+I-T2 sustainable-route checkpoint (12 complete seasons after camp and MET-09 are both available):
+Coverage counts all adult kit holders as a conservative proxy; the proposed I-T2 denominator is tool workers.
+scenario                    MET-09/camp/first-kit seasons   all-adult T11+ mean/min/max  seeds >=70%  T11+ age14-44/45+  route-wood mean/min
+iron                        1-1  /2-3  /2-5   96.4%/96.4%/96.4%             8/8         100.0%/85.7%           0.93/0.79
+iron-low-wood               1-1  /2-3  /2-5   92.9%/67.9%/96.4%             7/8         97.6%/78.6%           0.78/0.17
+  miss seed 20261026: MET-09 s1, camp s2, first T11 held s4; T11+ 67.9%, age14-44 81.0%, age45+ 28.6%, reachable forest retention 0.17
+iron-low-wood-carts         1-1  /2-3  /2-5   96.4%/96.4%/96.4%             8/8         100.0%/85.7%           0.91/0.66
+iron-low-wood-no-coppice-carts 1-1  /2-3  /2-5   96.4%/96.4%/96.4%             8/8         100.0%/85.7%           0.91/0.65
+iron-no-coppice             1-1  /2-3  /2-5   96.4%/96.4%/96.4%             8/8         100.0%/85.7%           0.86/0.63
+iron-low-wood-no-coppice    1-1  /2-3  /2-5   89.7%/42.9%/96.4%             7/8         93.5%/78.6%           0.80/0.37
+  miss seed 20261026: MET-09 s1, camp s2, first T11 held s4; T11+ 42.9%, age14-44 47.6%, age45+ 28.6%, reachable forest retention 0.37
+iron-import-loss            1-1  /2-3  /2-5   96.4%/96.4%/96.4%             8/8         100.0%/85.7%           0.93/0.79
+iron-wood-rich              1-1  /2-3  /2-5   96.4%/96.4%/96.4%             8/8         100.0%/85.7%           1.00/0.99
+
+paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):
+  iron                vs bronze-reference    n=8: metal-charcoal wood 0.14 L/season; standing metal removal 0.00, all standing cuts 0.00; regrowth 0.00; clear-threshold crossings 0.00 /seed; end/start wood delta 0.00
+  iron-low-wood       vs bronze-low-wood     n=8: metal-charcoal wood 0.24 L/season; standing metal removal 0.07, all standing cuts 0.07; regrowth 0.06; clear-threshold crossings -11.63 /seed; end/start wood delta 0.03
+  iron-low-wood-carts vs bronze-low-wood-carts n=8: metal-charcoal wood 0.25 L/season; standing metal removal 0.07, all standing cuts 0.07; regrowth 0.10; clear-threshold crossings -11.63 /seed; end/start wood delta 0.01
+  iron-low-wood-no-coppice-carts vs bronze-low-wood-no-coppice-carts n=8: metal-charcoal wood 0.15 L/season; standing metal removal 0.15, all standing cuts 0.15; regrowth 0.18; clear-threshold crossings -6.13 /seed; end/start wood delta 0.01
+  iron-no-coppice     vs bronze-no-coppice   n=8: metal-charcoal wood 0.14 L/season; standing metal removal 0.00, all standing cuts 0.00; regrowth 0.00; clear-threshold crossings 0.00 /seed; end/start wood delta 0.00
+  iron-low-wood-no-coppice vs bronze-low-wood-no-coppice n=8: metal-charcoal wood 0.15 L/season; standing metal removal 0.15, all standing cuts 0.15; regrowth 0.16; clear-threshold crossings -6.13 /seed; end/start wood delta 0.04
+  iron-wood-rich      vs bronze-wood-rich    n=8: metal-charcoal wood 0.12 L/season; standing metal removal 0.00, all standing cuts -0.00; regrowth -0.00; clear-threshold crossings 0.00 /seed; end/start wood delta 0.00
+
+paired Coppicing effect (Coppicing minus no-Coppicing, same seeds):
+  iron                         vs iron-no-coppice                  n=8: regrowth 0.00 L/season; all standing cuts 0.00 L/season; end/start stock 0.00; clear-threshold crossings 0.00 /seed; NoFuel fallback reduction 0.00 pp; T11+ holder change 0.00 pp
+  iron-low-wood                vs iron-low-wood-no-coppice         n=8: regrowth +2.09 L/season; all standing cuts +2.12 L/season; end/start stock 0.00; clear-threshold crossings 0.00 /seed; NoFuel fallback reduction -0.42 pp; T11+ holder change +0.45 pp
+  iron-low-wood-carts          vs iron-low-wood-no-coppice-carts   n=8: regrowth +2.10 L/season; all standing cuts +2.11 L/season; end/start stock 0.00; clear-threshold crossings 0.00 /seed; NoFuel fallback reduction 0.00 pp; T11+ holder change 0.00 pp
+  bronze-reference             vs bronze-no-coppice                n=8: regrowth 0.00 L/season; all standing cuts 0.00 L/season; end/start stock 0.00; clear-threshold crossings 0.00 /seed; NoFuel fallback reduction 0.00 pp; T11+ holder change 0.00 pp
+  bronze-low-wood              vs bronze-low-wood-no-coppice       n=8: regrowth +2.19 L/season; all standing cuts +2.20 L/season; end/start stock 0.00; clear-threshold crossings +5.50 /seed; NoFuel fallback reduction 0.00 pp; T11+ holder change 0.00 pp
+  bronze-low-wood-carts        vs bronze-low-wood-no-coppice-carts n=8: regrowth +2.18 L/season; all standing cuts +2.18 L/season; end/start stock 0.00; clear-threshold crossings +5.50 /seed; NoFuel fallback reduction 0.00 pp; T11+ holder change 0.00 pp
+
+NoFuel is the settlement's reported metal-method fallback, not a raw count of charcoal shortfalls. all-cuts counts standing-wood removals attributed to metal, chopping, civic and other use across the charcoal haul radius. mass-resid = Δstock − regrowth + all cuts; 0.000 means the traced forest stock balances over the window.
+end/mid is the steady-state slope of standing wood over the window (1.00 = flat; below 1 it is still being drawn down). end/start includes the one-time kit build-out.
+Reading: population and age mix are fixed; grain is topped up each season, and forge/kiln/smelter start built. This isolates fuel and labor, not a whole match.
+The Bronze reference has the same iron site but makes no iron (the chain is Iron-chapter only), so the difference between it and 'iron' is the Iron chain's cost.
