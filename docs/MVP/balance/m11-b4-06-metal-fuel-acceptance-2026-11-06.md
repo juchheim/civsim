@@ -8,14 +8,16 @@ B4-06 requires I-T2/I-T3/I-T6, exact material accounting, and imported-kit, mine
 
 The harness now records actual settlement tool workers as adults with positive `toolWork` during the season, after that season's kit issue. The I-T2 diagnostic starts a settlement window at its first T11/T12 kit issue and ends after 12 complete seasons. Its fuel gate requires 12/12 seasons with positive planned charcoal demand, so a shorter route exposure is censored rather than counted as a pass. Coverage and its age bands are reported even when the fuel window is censored. The report separates MET-09 access season, local kit production, exact sister-settlement kit deliveries, issuance, and T11-to-T12 upgrades. Captured sites are censored for the I-T2 denominator because ownership changes within the measurement window.
 
-Before the run, freeze source commit `a443c069883017c4d5ba2c43b68d7ef863bcd2cf`, pack SHA-256 `eb08cfd11137c0c52a1b9955665355d5d1279d9464c5609f55dd190eeb2b288d`, and natural-match seeds `20261501–20261580` (80 matches, four Warlord seats each). Run each match to the natural Iron chapter end with `--it6-accounting`; do not change seeds, code, pack, or the approved cutoffs after starting. Command:
+The first preregistered attempt used source `a443c069883017c4d5ba2c43b68d7ef863bcd2cf` and seeds `20261501–20261580`. It was stopped after two matches when the whole-match T11 residual was nonzero (+1 and +3 kits); neither result is accepted. The trace defect was kit relocation/lifecycle accounting, not simulation behavior. The corrected trace was validated separately on seed `20261999`: all `109/109` settlement kit ledgers closed exactly, with T11 and T12 world residuals both zero. This diagnostic seed is not part of the acceptance sample.
+
+Before the fresh run, freeze source commit `b00bb1b5ec7335315de3e957ccdd783f855dc738`, pack SHA-256 `eb08cfd11137c0c52a1b9955665355d5d1279d9464c5609f55dd190eeb2b288d`, and natural-match seeds `20261601–20261680` (80 matches, four Warlord seats each). Run each match to the natural Iron chapter end with `--it6-accounting`; do not change seeds, code, pack, or the approved cutoffs after starting. Command:
 
 ```sh
 dotnet run --project src/CivSim.Cli -c Release --no-restore -- build-pack --out /tmp/civsim-b406-acceptance.pack
-dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-b406-acceptance.pack --seed 20261501 --seeds 80 --it6-accounting
+dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-b406-acceptance.pack --seed 20261601 --seeds 80 --it6-accounting
 ```
 
-The trace changes are diagnostic only and are excluded from simulation state. They record current-season tool workers and site-level kit made, issued, received, sent, and upgraded. Whole-match kit conservation now treats issuance as a move from store to holder; it accounts for broken kits, T11 retirement on upgrade, deaths/razing, current holders, store inventory, and internal delivery. The reported per-tier residual must be zero.
+The trace changes are diagnostic only and are excluded from simulation state. They record current-season tool workers and site-level kit made, issued, received, sent, and upgraded. Whole-match kit conservation treats issuance as a move from store to holder; it accounts for broken kits, every retired/replaced Iron kit, deaths/razing, current holders, store inventory, settlement fission/refugee relocation, and internal delivery. The reported per-tier world residual and every site residual must be zero for a match to be ledger-valid.
 
 ## Deterministic B4-06 case matrix
 
@@ -33,4 +35,4 @@ The instrumentation refactors live wear and fixture wear through the same helper
 
 ## I-T2 and I-T3 run results
 
-Pending the preregistered 80-match run. The existing fixed-population replacement screens are in the [I-T6 acceptance report](m11-it6-whole-match-2026-11-05.md); they cover T11/T12 service and replacement but do not substitute for the new actual tool-worker denominator. The natural-match screen will separately report mixed-age and mixed-tier exposure. No I-T2 or I-T3 pass is claimed until this section is updated with uncensored observations.
+Pending the fresh preregistered 80-match run. The existing fixed-population replacement screens are in the [I-T6 acceptance report](m11-it6-whole-match-2026-11-05.md); they cover T11/T12 service and replacement but do not substitute for the new actual tool-worker denominator. The natural-match screen will separately report mixed-age and mixed-tier exposure. No I-T2 or I-T3 pass is claimed until this section is updated with uncensored observations.
