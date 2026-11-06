@@ -355,7 +355,7 @@ public class IronChainTests
                     Fix64.FromInt(e.IronKitHolders(0).T11 + e.IronKitHolders(0).T12);
                 Assert.Equal(1, trace.Kit11Upgrades);
                 Assert.Equal(Fix64.Zero, initialIronKits + trace.Kit11Produced + trace.Kit12Produced -
-                    Fix64.FromInt(trace.Kit11Breaks + trace.Kit12Breaks + trace.Kit11Upgrades) - trace.Kit11Retired - trace.Kit12Retired - finalIronKits);
+                    Fix64.FromInt(trace.Kit11Breaks + trace.Kit12Breaks) - trace.Kit11Retired - trace.Kit12Retired - finalIronKits);
             }
         }
     }

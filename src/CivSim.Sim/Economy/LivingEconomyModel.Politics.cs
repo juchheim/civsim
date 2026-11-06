@@ -246,7 +246,7 @@ public sealed partial class LivingEconomyModel
         for (int i = 0; i < _figures.Count; i++)
         {
             if (_figures[i].Id != figureId) continue;
-            RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].Kit, Fix64.One);
+            RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One);
             _figures.RemoveAt(i);
             return true;
         }
@@ -271,6 +271,7 @@ public sealed partial class LivingEconomyModel
         for (int i = 0; i < _figures.Count; i++)
             if (_figures[i].Id == figureId)
             {
+                RecordIT6KitRelocation(_figures[i].SettlementId, to.Id, _figures[i].Kit, Fix64.One);
                 _figures[i].SettlementId = to.Id;
                 _figures[i].Civilization = to.Civilization;
                 _figures[i].Role = 0;
@@ -301,7 +302,7 @@ public sealed partial class LivingEconomyModel
         for (int i = _figures.Count - 1; i >= 0; i--)
             if (_figures[i].SettlementId == s.Id)
             {
-                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].Kit, Fix64.One);
+                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One);
                 _figures.RemoveAt(i);
             }
         Array.Clear(s.Structures);
@@ -310,8 +311,8 @@ public sealed partial class LivingEconomyModel
         {
             if (metal.IronGoods is { } iron)
             {
-                RecordIT6IronKitRetired(s.Civilization, 11, iron[(int)IronGood.Kit11]);
-                RecordIT6IronKitRetired(s.Civilization, 12, iron[(int)IronGood.Kit12]);
+                RecordIT6IronKitRetired(s.Civilization, s.Id, 11, iron[(int)IronGood.Kit11]);
+                RecordIT6IronKitRetired(s.Civilization, s.Id, 12, iron[(int)IronGood.Kit12]);
                 Array.Clear(iron);
             }
             Array.Clear(metal.Goods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero;
@@ -386,7 +387,11 @@ public sealed partial class LivingEconomyModel
         _settlements.Add(camp);
         foreach (long id in figureIds)
             for (int i = 0; i < _figures.Count; i++)
-                if (_figures[i].Id == id) { _figures[i].SettlementId = camp.Id; _figures[i].Civilization = civ; break; }
+                if (_figures[i].Id == id)
+                {
+                    RecordIT6KitRelocation(_figures[i].SettlementId, camp.Id, _figures[i].Kit, Fix64.One);
+                    _figures[i].SettlementId = camp.Id; _figures[i].Civilization = civ; break;
+                }
         camp.FireLit = false;
         return camp.Id;
     }

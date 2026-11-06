@@ -280,7 +280,7 @@ public sealed partial class LivingEconomyModel
         figure.KitLeft -= work;
         if (figure.KitLeft <= KitBreakLeft(tier))
         {
-            RecordIT6IronKitBreak(figure.Civilization, tier);
+            RecordIT6IronKitBreak(figure.Civilization, figure.SettlementId, tier);
             figure.Kit = 0;
             figure.KitLeft = Fix64.Zero;
         }

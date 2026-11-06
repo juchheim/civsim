@@ -132,7 +132,7 @@ internal static class IronMatchCommand
                 foreach (IT6FuelSiteSnapshot site in match.Economy.CaptureIT6FuelSites())
                 {
                     if (!it2Routes.TryGetValue(site.SettlementId, out IT2RouteRecord? route) &&
-                        site.Kit11Issued + site.Kit12Issued > Fix64.Zero)
+                        site.Kit11Issued + site.Kit12Issued + site.Kit11Received + site.Kit12Received > Fix64.Zero)
                     {
                         int unlockSeason = research.IsDone(site.Civilization, met09)
                             ? checked((int)(research.CompletedTick(site.Civilization, met09) / 150L))
@@ -361,30 +361,28 @@ internal static class IronMatchCommand
         Fix64 kit11Stock = Fix64.Zero, kit12Stock = Fix64.Zero;
         int kit11Holders = 0, kit12Holders = 0;
         int kit11Breaks = 0, kit12Breaks = 0, kit11Upgrades = 0;
-        foreach (IT6FuelSiteSnapshot site in economy.CaptureIT6FuelSites())
+        IT6FuelSiteSnapshot[] kitSites = economy.CaptureIT6FuelSites().ToArray();
+        foreach (IT6FuelSiteSnapshot site in kitSites)
         {
+            produced11 += site.Kit11Produced; produced12 += site.Kit12Produced;
+            issued11 += site.Kit11Issued; issued12 += site.Kit12Issued;
             kit11Received += site.Kit11Received; kit12Received += site.Kit12Received;
             kit11Sent += site.Kit11Sent; kit12Sent += site.Kit12Sent;
+            kit11Breaks += site.Kit11Breaks; kit12Breaks += site.Kit12Breaks; kit11Upgrades += site.Kit11Upgrades;
+            kit11Retired += site.Kit11Retired; kit12Retired += site.Kit12Retired;
+            kit11Holders += site.Kit11Holders; kit12Holders += site.Kit12Holders;
+            kit11Stock += site.Kit11Stock; kit12Stock += site.Kit12Stock;
         }
-        for (int c = 0; c < routeSeason.Length; c++)
-        {
-            IT6AccountingSnapshot t = economy.CaptureIT6Accounting(c);
-            produced11 += t.Kit11Produced; produced12 += t.Kit12Produced;
-            issued11 += t.Kit11Issued; issued12 += t.Kit12Issued;
-            kit11Breaks += t.Kit11Breaks; kit12Breaks += t.Kit12Breaks; kit11Upgrades += t.Kit11Upgrades;
-            kit11Retired += t.Kit11Retired; kit12Retired += t.Kit12Retired;
-            (int t11, int t12, _) = economy.IronKitHolders(c);
-            kit11Holders += t11; kit12Holders += t12;
-            for (int s = 0; s < economy.SettlementCount; s++)
-            {
-                if (economy.SettlementLite(s).Civilization != c) continue;
-                kit11Stock += economy.GoodStock(s, "G-TOOL11");
-                kit12Stock += economy.GoodStock(s, "G-TOOL12");
-            }
-        }
-        Fix64 kit11BalanceResidual = produced11 + kit11Received - kit11Sent - Fix64.FromInt(kit11Breaks + kit11Upgrades) - kit11Retired - Fix64.FromInt(kit11Holders) - kit11Stock;
+        Fix64 kit11BalanceResidual = produced11 + kit11Received - kit11Sent - Fix64.FromInt(kit11Breaks) - kit11Retired - Fix64.FromInt(kit11Holders) - kit11Stock;
         Fix64 kit12BalanceResidual = produced12 + kit12Received - kit12Sent - Fix64.FromInt(kit12Breaks) - kit12Retired - Fix64.FromInt(kit12Holders) - kit12Stock;
-        output.AppendLine($"  kits world: T11 made/received/sent/issued/broken/upgraded/retired/held/stored={F(produced11)}/{F(kit11Received)}/{F(kit11Sent)}/{F(issued11)}/{kit11Breaks}/{kit11Upgrades}/{F(kit11Retired)}/{kit11Holders}/{F(kit11Stock)}; residual={F(kit11BalanceResidual)}; T12={F(produced12)}/{F(kit12Received)}/{F(kit12Sent)}/{F(issued12)}/{kit12Breaks}/0/{F(kit12Retired)}/{kit12Holders}/{F(kit12Stock)}; residual={F(kit12BalanceResidual)} kits");
+        output.AppendLine($"  kits world: T11 made/received/sent/issued/broken/early-upgrades/retired/held/stored={F(produced11)}/{F(kit11Received)}/{F(kit11Sent)}/{F(issued11)}/{kit11Breaks}/{kit11Upgrades}/{F(kit11Retired)}/{kit11Holders}/{F(kit11Stock)}; residual={F(kit11BalanceResidual)}; T12={F(produced12)}/{F(kit12Received)}/{F(kit12Sent)}/{F(issued12)}/{kit12Breaks}/0/{F(kit12Retired)}/{kit12Holders}/{F(kit12Stock)}; residual={F(kit12BalanceResidual)} kits");
+        var siteResiduals = kitSites.Select(site => (Site: site,
+            R11: site.Kit11Produced + site.Kit11Received - site.Kit11Sent - Fix64.FromInt(site.Kit11Breaks) - site.Kit11Retired - Fix64.FromInt(site.Kit11Holders) - site.Kit11Stock,
+            R12: site.Kit12Produced + site.Kit12Received - site.Kit12Sent - Fix64.FromInt(site.Kit12Breaks) - site.Kit12Retired - Fix64.FromInt(site.Kit12Holders) - site.Kit12Stock))
+            .Where(x => x.R11 != Fix64.Zero || x.R12 != Fix64.Zero).ToArray();
+        output.AppendLine($"  settlement kit ledgers: {kitSites.Length - siteResiduals.Length}/{kitSites.Length} exact; nonzero residual sites={siteResiduals.Length}");
+        foreach (var site in siteResiduals)
+            output.AppendLine($"    c{site.Site.Civilization} s{site.Site.SettlementId} T11={F(site.R11)} (made/received/sent/broken/retired/held/stored={F(site.Site.Kit11Produced)}/{F(site.Site.Kit11Received)}/{F(site.Site.Kit11Sent)}/{site.Site.Kit11Breaks}/{F(site.Site.Kit11Retired)}/{site.Site.Kit11Holders}/{F(site.Site.Kit11Stock)}); T12={F(site.R12)}");
         output.AppendLine($"  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= {Pct(IT6FuelGate.MaxShortRate, Fix64.One)}, unmet / planned charcoal <= {Pct(IT6FuelGate.MaxUnmetPlanShare, Fix64.One)}, minimum {IT6FuelGate.MinDemandSeasons} demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock");
         output.AppendLine("  I-T2 settlement route screen (first local kit issue, then 12 complete seasons; this is a diagnostic run, not an approved I-T2 balance verdict): a qualified window must meet the approved fuel cutoff with 12/12 demand-seasons");
         output.AppendLine("    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ made11/12 received11/12 issued11/12 upgrades fuel-short/demand rate unmet/plan result");

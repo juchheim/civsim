@@ -3943,7 +3943,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void RecordDeath(FigureState figure, EconomyDeathCause cause, HazardBreakdown hazards, int season)
     {
-        RecordIT6IronKitRetired(figure.Civilization, figure.Kit, Fix64.One);
+        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One);
         int band = figure.Age < 14 ? 0 : figure.Age < 45 ? 1 : 2;
         _lastDeathsByCause[(int)cause]++;
         _lastDeathsByCauseAndAgeBand[band * DeathCauseCount + (int)cause]++;
@@ -4380,7 +4380,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             daughter.BuildTarget = Structure.Palisade;
         _settlements.Add(daughter);
         for (int i = 0; i < _figures.Count; i++)
-            if (selected[i]) { _figures[i].SettlementId = daughter.Id; _figures[i].Camp = -1; _figures[i].Role = 0; }
+            if (selected[i])
+            {
+                RecordIT6KitRelocation(parent.Id, daughter.Id, _figures[i].Kit, Fix64.One);
+                _figures[i].SettlementId = daughter.Id; _figures[i].Camp = -1; _figures[i].Role = 0;
+            }
         SplitMetal(parent, daughter);
         for (int good = 0; good < parent.Stores.Length; good++)
         {
