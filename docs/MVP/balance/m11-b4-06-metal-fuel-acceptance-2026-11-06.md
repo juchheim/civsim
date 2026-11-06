@@ -8,7 +8,7 @@ B4-06 requires I-T2/I-T3/I-T6, exact material accounting, and imported-kit, mine
 
 The harness now records actual settlement tool workers as adults with positive `toolWork` during the season, after that season's kit issue. The I-T2 diagnostic starts a settlement window at its first T11/T12 kit issue and ends after 12 complete seasons. Its fuel gate requires 12/12 seasons with positive planned charcoal demand, so a shorter route exposure is censored rather than counted as a pass. Coverage and its age bands are reported even when the fuel window is censored. The report separates MET-09 access season, local kit production, exact sister-settlement kit deliveries, issuance, and T11-to-T12 upgrades. Captured sites are censored for the I-T2 denominator because ownership changes within the measurement window.
 
-Before the run, freeze source commit `TBD`, pack SHA-256 `eb08cfd11137c0c52a1b9955665355d5d1279d9464c5609f55dd190eeb2b288d`, and natural-match seeds `20261501–20261580` (80 matches, four Warlord seats each). Run each match to the natural Iron chapter end with `--it6-accounting`; do not change seeds, code, pack, or the approved cutoffs after starting. Command:
+Before the run, freeze source commit `a443c069883017c4d5ba2c43b68d7ef863bcd2cf`, pack SHA-256 `eb08cfd11137c0c52a1b9955665355d5d1279d9464c5609f55dd190eeb2b288d`, and natural-match seeds `20261501–20261580` (80 matches, four Warlord seats each). Run each match to the natural Iron chapter end with `--it6-accounting`; do not change seeds, code, pack, or the approved cutoffs after starting. Command:
 
 ```sh
 dotnet run --project src/CivSim.Cli -c Release --no-restore -- build-pack --out /tmp/civsim-b406-acceptance.pack
