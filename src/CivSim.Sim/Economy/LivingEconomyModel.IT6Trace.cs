@@ -230,7 +230,7 @@ public sealed partial class LivingEconomyModel
     {
         int count = 0;
         foreach (FigureState figure in _figures)
-            if (figure.SettlementId == settlementId && figure.Age >= 14 && figure.Kit == tier) count++;
+            if (figure.SettlementId == settlementId && figure.Kit == tier) count++;
         return count;
     }
 

@@ -76,6 +76,13 @@ public sealed partial class LivingEconomyModel
     /// <summary>Applies the same kit wear and break accounting used by a live work season.</summary>
     internal void FixtureWearKit(int figureIndex, Fix64 work) => ApplyKitWear(_figures[figureIndex], work);
 
+    /// <summary>Runs live kit wear and issue with zero tool work, for lifecycle accounting fixtures.</summary>
+    internal void FixtureWearAndIssueKits(int settlementIndex, int tier)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        WearAndIssueKits(settlement, EnsureMetal(settlement), tier, new Fix64[_figures.Count]);
+    }
+
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
     internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
 

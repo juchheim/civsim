@@ -353,6 +353,30 @@ public class IronChainTests
     }
 
     [Fact]
+    public void A_Bronze_replacement_retires_an_Iron_kit_still_in_its_dormancy_tail()
+    {
+        BronzeFixture f = Iron("MET-09");
+        LivingEconomyModel e = f.Economy;
+        e.IT6AccountingTraceEnabled = true;
+        int adult = FirstAdult(e);
+        (_, Fix64 breakLeft) = e.FixtureKitLife(11);
+        Assert.True(breakLeft < Fix64.Zero, "T11 has a negative-remaining-service dormancy tail");
+        for (int i = 0; i < e.FigureCount; i++)
+            if (i != adult && e.Figure(i).Age >= 14) e.FixtureSetKit(i, 10, Fix64.FromInt(20));
+        e.FixtureStock(0, "G-TOOL11", -e.GoodStock(0, "G-TOOL11"));
+        e.FixtureSetKit(adult, 11, Fix64.Zero);
+        e.FixtureStock(0, "G-TOOL10", Fix64.One);
+        Assert.Equal(Fix64.Zero, e.GoodStock(0, "G-TOOL11"));
+        Assert.Equal(Fix64.One, e.GoodStock(0, "G-TOOL10"));
+        e.FixtureWearAndIssueKits(0, 10);
+
+        Assert.Equal(10, e.FigureKit(adult).Tier);
+        IT6AccountingSnapshot trace = e.CaptureIT6Accounting(0);
+        Assert.Equal(Fix64.One, trace.Kit11Retired);
+        Assert.Equal(0, trace.Kit11Breaks);
+    }
+
+    [Fact]
     public void An_early_upgrade_from_T11_to_T12_gives_no_metal_back_but_a_Bronze_kit_still_remelts()
     {
         foreach ((int oldTier, bool refunds) in new[] { (11, false), (10, true) })

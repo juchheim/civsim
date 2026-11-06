@@ -410,6 +410,11 @@ public sealed partial class LivingEconomyModel
                 m.Goods[(int)MetalGood.Copper] += copper;
                 AddMetalStat(civ, StatRemeltCopper, copper);
             }
+            // A worn Iron kit can still be in its dormancy tail (KitLeft <= 0 but
+            // above the break point). If Iron stock cannot replace it, the Bronze
+            // hand-out below may overwrite it; account for that physical retirement.
+            if (f.Kit is 11 or 12)
+                RecordIT6IronKitRetired(civ, s.Id, f.Kit, Fix64.One);
             m.Goods[(int)KitGood(give)] -= Fix64.One;
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
