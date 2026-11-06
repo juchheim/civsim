@@ -311,6 +311,29 @@ public class IronChainTests
     }
 
     [Fact]
+    public void I_T3_live_wear_trace_bins_remaining_service_by_kit_tier_without_changing_state()
+    {
+        BronzeFixture f = Iron("MET-09", "MET-10");
+        LivingEconomyModel e = f.Economy;
+        int first = FirstAdult(e);
+        int second = first + 1;
+        int third = second + 1;
+        e.FixtureSetKit(first, 11, F("-1"));
+        e.FixtureSetKit(second, 11, Fix64.FromInt(6)); // 20% remaining is in the [20,40) bin.
+        e.FixtureSetKit(third, 12, Fix64.FromInt(48)); // 80% remaining is in the >=80% bin.
+        ulong before = e.ComputeChecksum();
+
+        IT3WearDistribution wear = e.CaptureIT3WearDistribution(0);
+
+        Assert.Equal(2, wear.T11Total);
+        Assert.Equal(1, wear.T11BelowZero);
+        Assert.Equal(1, wear.T11Under40);
+        Assert.Equal(1, wear.T12Total);
+        Assert.Equal(1, wear.T12AtLeast80);
+        Assert.Equal(before, e.ComputeChecksum());
+    }
+
+    [Fact]
     public void Iron_kits_move_from_store_to_adults_once_and_wear_with_their_tool_work()
     {
         BronzeFixture f = Iron("MET-08", "MET-09");

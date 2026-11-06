@@ -33,7 +33,8 @@ internal static class IronFuelCheck
     /// <summary>I-T6's ceiling on the share of civilian work the metal chain may take.</summary>
     private static readonly Fix64 ShareCeiling = Fix64.FromRatio(15, 100);
     private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint,
-        bool Carts = false, bool IronHubs = false, bool Gov04Sharing = false, bool T12 = false, FuelForestPlacement? SpatialPlacement = null);
+        bool Carts = false, bool IronHubs = false, bool Gov04Sharing = false, bool T12 = false,
+        FuelForestPlacement? SpatialPlacement = null, bool MixedT12 = false);
 
     private static readonly Scenario[] Scenarios =
     {
@@ -45,6 +46,7 @@ internal static class IronFuelCheck
         new("iron-hub-gov04-low-wood", true, true, 4, false, IronHubs: true, Gov04Sharing: true),
         new("iron-hub-import-loss", true, true, 13, true, IronHubs: true),
         new("iron-hub-low-wood-t12", true, true, 4, false, IronHubs: true, T12: true),
+        new("iron-hub-low-wood-mixed-t12", true, true, 4, false, IronHubs: true, MixedT12: true),
         new("iron-low-wood-carts", true, true, 4, false, Carts: true),
         new("iron-low-wood-no-coppice-carts", true, false, 4, false, Carts: true),
         new("bronze-low-wood-carts", false, true, 4, false, Carts: true),
@@ -76,6 +78,9 @@ internal static class IronFuelCheck
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
         public int IronCampBuiltSeason, IronToolsUnlockedSeason, IronRouteActivatedSeason, IronFirstKitSeason;
         public int ForestClearThresholdCrossings;
+        public int T12UnlockSeason;
+        public int T11ToT12Upgrades;
+        public IT3WearDistribution? WearAtRoute12, WearAfterT12Unlock, WearAtEnd;
         public ulong Seed;
     }
 
@@ -90,7 +95,9 @@ internal static class IronFuelCheck
         string? packPath = null;
         var seeds = new List<ulong> { 20261019, 20261020, 20261021, 20261022, 20261023, 20261024, 20261025, 20261026 };
         int seasons = 40, people = 60;
+        bool seasonsSpecified = false;
         bool spatialOnly = false;
+        bool it3Wear = false;
         string? scenarioName = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -98,28 +105,32 @@ internal static class IronFuelCheck
             {
                 case "--pack": packPath = args[++i]; break;
                 case "--spatial-only": spatialOnly = true; break;
+                case "--it3-wear": it3Wear = true; break;
                 case "--scenario": scenarioName = args[++i]; break;
                 case "--seeds":
                     seeds.Clear();
                     foreach (string part in args[++i].Split(',')) seeds.Add(ulong.Parse(part, CultureInfo.InvariantCulture));
                     break;
-                case "--seasons": seasons = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--seasons": seasons = int.Parse(args[++i], CultureInfo.InvariantCulture); seasonsSpecified = true; break;
                 case "--people": people = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
         if (packPath is null) throw new ArgumentException("iron-fuel needs --pack FILE (civsim build-pack --out FILE).");
+        if (it3Wear && !seasonsSpecified) seasons = 240;
         if (seasons < 8 || seasons % 2 != 0) throw new ArgumentException("--seasons must be an even number of at least 8.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName));
+        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName, it3Wear: it3Wear));
         return 0;
     }
 
     internal static string Report(ContentPack pack, IReadOnlyList<ulong> seeds, int seasons, int people,
-        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null)
+        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null, bool it3Wear = false)
     {
         Scenario[] selectedScenarios = Scenarios
             .Where(sc => scenarioName is null || string.Equals(sc.Name, scenarioName, StringComparison.OrdinalIgnoreCase))
+            .Where(sc => !sc.MixedT12 || it3Wear)
+            .Where(sc => !it3Wear || sc.Name is "iron-hub-low-wood-t12" or "iron-hub-low-wood-mixed-t12")
             .ToArray();
         var sb = new StringBuilder();
         void L(string text = "") => sb.Append(text).Append('\n');
@@ -256,6 +267,23 @@ internal static class IronFuelCheck
                       $"T11+ {Pct(row.IronKitShareAfter12Route)}, age14-44 {Pct(row.IronKitShare14To44AtRoute)}, age45+ {Pct(row.IronKitShare45PlusAtRoute)}, " +
                       $"reachable forest retention {row.IronRouteWoodRetention.ToDoubleForDisplay():F2}");
         }
+        if (it3Wear)
+        {
+            L();
+            L("I-T3 live wear distribution (read-only; fraction of tier service remaining; bins are <0, [0,20), [20,40), [40,60), [60,80), >=80%; rows are per seed)");
+            L("scenario / seed / checkpoint           T11 bins <0,0-20,20-40,40-60,60-80,80+       T12 bins <0,0-20,20-40,40-60,60-80,80+");
+            foreach (Scenario sc in selectedScenarios.Where(x => x.Name is "iron-hub-low-wood-t12" or "iron-hub-low-wood-mixed-t12"))
+            {
+                if (!rowsByScenario.TryGetValue(sc.Name, out Dictionary<ulong, Row>? wearRows)) continue;
+                foreach (Row row in wearRows.Values.OrderBy(x => x.Seed))
+                {
+                    if (row.WearAtRoute12 is { } routeWear) L($"{sc.Name} / {row.Seed} / route+12                 {FormatWear(routeWear)}");
+                    if (row.WearAfterT12Unlock is { } unlockWear) L($"{sc.Name} / {row.Seed} / MET-10+12 seasons (s{row.T12UnlockSeason + 12}) {FormatWear(unlockWear)}");
+                    if (row.WearAtEnd is { } endWear) L($"{sc.Name} / {row.Seed} / end (T11-to-T12 upgrades={row.T11ToT12Upgrades}) {FormatWear(endWear)}");
+                }
+            }
+            L("Mixed case preloads 40 T11 kits, grants MET-10 after 120 seasons, and adds 10 T12 kits so the planner exercises upgrades; this is a controlled wear fixture, not a production-supply result.");
+        }
         L();
         if (!spatialOnly) L("paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):");
         foreach ((string iron, string bronze) in new[]
@@ -349,6 +377,7 @@ internal static class IronFuelCheck
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
         e.IT6AccountingTraceEnabled = sc.Iron;
+        if (sc.MixedT12) e.FixtureStock(BronzeFixture.Settlement, "G-TOOL11", Fix64.FromInt(40));
         int window = seasons / 2;
         int charcoalReach = e.FixtureIronFuelCharcoalReach(BronzeFixture.Settlement);
         HashSet<int> outerForestTiles = new();
@@ -363,6 +392,12 @@ internal static class IronFuelCheck
         {
             if (sc.LoseIronAtMidpoint && s == window && f.IronTile >= 0) e.FixtureExhaust(f.IronTile);
             f.RunSeasons(1);
+            if (sc.MixedT12 && s == seasons / 2 - 1)
+            {
+                e.FixtureComplete(0, "MET-10");
+                e.FixtureStock(BronzeFixture.Settlement, "G-TOOL12", Fix64.FromInt(10));
+                row.T12UnlockSeason = s + 1;
+            }
             if (sc.Iron && ironCampBuiltSeason == 0)
                 for (int c = 0; c < e.MiningCampCount; c++)
                 {
@@ -391,7 +426,10 @@ internal static class IronFuelCheck
                 (row.IronKitShare14To44AtRoute, row.IronKitShare45PlusAtRoute) = IronKitAgeCoverage(e);
                 ForestTrace routeWood = CaptureReachableWood(e, s, outerForestTiles, charcoalReach);
                 row.IronRouteWoodRetention = Ratio(routeWood.Standing, row.WoodStart);
+                if (sc.T12 || sc.MixedT12) row.WearAtRoute12 = e.CaptureIT3WearDistribution(0);
             }
+            if (sc.MixedT12 && row.T12UnlockSeason > 0 && s + 1 == row.T12UnlockSeason + 12)
+                row.WearAfterT12Unlock = e.CaptureIT3WearDistribution(0);
             if (s >= window && e.Metal(BronzeFixture.Settlement).Reason == MethodFallbackReason.NoFuel) fuelShort++;
         }
         MetalStatistics end = e.MetalStats(0);
@@ -420,6 +458,8 @@ internal static class IronFuelCheck
         row.Kit12ToolWork = fuelEnd.Kit12ToolWork;
         row.Kit11Breaks = fuelEnd.Kit11Breaks;
         row.Kit12Breaks = fuelEnd.Kit12Breaks;
+        row.T11ToT12Upgrades = fuelEnd.Kit11Upgrades;
+        if (sc.T12 || sc.MixedT12) row.WearAtEnd = e.CaptureIT3WearDistribution(0);
         row.Bloom = e.GoodStock(BronzeFixture.Settlement, "G-IRON");
         row.Wrought = e.GoodStock(BronzeFixture.Settlement, "G-WROUGHT");
         return row;
@@ -497,6 +537,11 @@ internal static class IronFuelCheck
     }
 
     private static string Pct(Fix64 v) => (v * 100).ToDoubleForDisplay().ToString("F1", CultureInfo.InvariantCulture) + "%";
+
+    private static string FormatWear(IT3WearDistribution d)
+        => $"{d.T11BelowZero},{d.T11Under20},{d.T11Under40},{d.T11Under60},{d.T11Under80},{d.T11AtLeast80} / " +
+           $"{d.T12BelowZero},{d.T12Under20},{d.T12Under40},{d.T12Under60},{d.T12Under80},{d.T12AtLeast80} " +
+           $"(n={d.T11Total}/{d.T12Total})";
     private static string Signed(Fix64 v)
     {
         double display = v.ToDoubleForDisplay();

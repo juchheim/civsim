@@ -32,6 +32,15 @@ internal readonly record struct IT6FuelSiteSnapshot(
     int ToolWorkers14To44, int T11ToolWorkers14To44, int T12ToolWorkers14To44,
     int ToolWorkers45Plus, int T11ToolWorkers45Plus, int T12ToolWorkers45Plus);
 
+/// <summary>Counts of live T11/T12 holders by remaining service fraction; diagnostic only.</summary>
+internal readonly record struct IT3WearDistribution(
+    int T11BelowZero, int T11Under20, int T11Under40, int T11Under60, int T11Under80, int T11AtLeast80,
+    int T12BelowZero, int T12Under20, int T12Under40, int T12Under60, int T12Under80, int T12AtLeast80)
+{
+    public int T11Total => T11BelowZero + T11Under20 + T11Under40 + T11Under60 + T11Under80 + T11AtLeast80;
+    public int T12Total => T12BelowZero + T12Under20 + T12Under40 + T12Under60 + T12Under80 + T12AtLeast80;
+}
+
 public sealed partial class LivingEconomyModel
 {
     private sealed class IT6CivFlow
@@ -78,6 +87,41 @@ public sealed partial class LivingEconomyModel
             f.IronFireSettingWood, f.CharcoalHaulLabor, f.OreHaulLabor, f.IronOreHaulLabor,
             f.MetalFuelShortSeasons, f.IronEraFuelShortSeasons,
             f.IronEraFuelDemandSeasons, f.IronEraCharcoalPlan, f.IronEraCharcoalUnmet);
+    }
+
+    /// <summary>Read-only histogram of equipped Iron kits' remaining KitLeft, normalized by that tier's service life.</summary>
+    internal IT3WearDistribution CaptureIT3WearDistribution(int civilization)
+    {
+        if ((uint)civilization >= (uint)_completedProjects.Length) return default;
+        int t11Below = 0, t11_20 = 0, t11_40 = 0, t11_60 = 0, t11_80 = 0, t11High = 0;
+        int t12Below = 0, t12_20 = 0, t12_40 = 0, t12_60 = 0, t12_80 = 0, t12High = 0;
+        foreach (FigureState figure in _figures)
+        {
+            if (figure.Civilization != civilization || figure.Kit is not (11 or 12)) continue;
+            int bin = RemainingServiceBin(figure.KitLeft, ServiceOf(figure.Kit));
+            if (figure.Kit == 11)
+            {
+                switch (bin) { case 0: t11Below++; break; case 1: t11_20++; break; case 2: t11_40++; break; case 3: t11_60++; break; case 4: t11_80++; break; default: t11High++; break; }
+            }
+            else
+            {
+                switch (bin) { case 0: t12Below++; break; case 1: t12_20++; break; case 2: t12_40++; break; case 3: t12_60++; break; case 4: t12_80++; break; default: t12High++; break; }
+            }
+        }
+        return new IT3WearDistribution(t11Below, t11_20, t11_40, t11_60, t11_80, t11High,
+            t12Below, t12_20, t12_40, t12_60, t12_80, t12High);
+    }
+
+    // Bin 0 is negative remaining service (the documented dormancy tail); bins 1–5 are [0,20), [20,40), …, [80,100+)%.
+    private static int RemainingServiceBin(Fix64 remaining, Fix64 service)
+    {
+        if (remaining < Fix64.Zero) return 0;
+        Fix64 percent = service > Fix64.Zero ? remaining * Fix64.FromInt(100) / service : Fix64.Zero;
+        if (percent < Fix64.FromInt(20)) return 1;
+        if (percent < Fix64.FromInt(40)) return 2;
+        if (percent < Fix64.FromInt(60)) return 3;
+        if (percent < Fix64.FromInt(80)) return 4;
+        return 5;
     }
 
     internal IReadOnlyList<IT6FuelSiteSnapshot> CaptureIT6FuelSites()
