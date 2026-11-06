@@ -97,11 +97,19 @@ public sealed partial class LivingEconomyModel
     private static readonly Fix64 IronWoodFull = Fix64.FromRatio(70, 100);
     /// <summary>Provisional aggregate forest-share threshold where the Iron chain's demand factor reaches zero.</summary>
     private static readonly Fix64 IronWoodFloor = Fix64.FromRatio(50, 100);
+    /// <summary>Extra forest margin beyond shared-settlement reach for physical charcoal hauling.</summary>
+    private const int IronFuelReachBuffer = 8;
+    /// <summary>Smaller siting margin keeps new Iron hubs centered on reachable stands rather than the outer haul edge.</summary>
+    private const int IronFuelSitingBuffer = 4;
+    /// <summary>Consolidated hub traffic makes each outer-band charcoal haul 25% more labor-efficient; distance remains charged.</summary>
+    private static readonly Fix64 IronFuelOuterHaulMultiplier = Fix64.FromRatio(3, 4);
+    /// <summary>Extra facility-construction capacity between KEY-4 and MET-09 prepares the Iron chain before its mature-work window.</summary>
+    private static readonly Fix64 IronPreRouteBuildCapMultiplier = Fix64.FromRatio(3, 2);
 
     /// <summary>Forest stock Iron's charcoal chain can reach, excluding rival-held tiles.</summary>
     private Fix64 IronForestWoodInReach(SettlementState s)
     {
-        int reach = IronFuelCharcoalReach(s);
+        int reach = IronFuelPlanningReach(s);
         Fix64 total = Fix64.Zero;
         foreach (int tile in ReachTiles(s.SiteTile, reach))
             if (IsForestTile(tile) && !IsRivalTile(s.Civilization, tile)) total += _woodStock[tile];
@@ -109,14 +117,25 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>
-    /// Once Iron domestic sharing is available, any Iron fuel consumer can add that network's reach to the ordinary charcoal reach.
+    /// Once Iron domestic sharing is available, any Iron fuel consumer can add that network's reach plus an eight-tile forest margin to physical charcoal hauling.
     /// Existing per-litre haul work is still charged for every tile outside the local cutting radius.
     /// </summary>
     private int IronFuelCharcoalReach(SettlementState s)
     {
+        return IronFuelDomesticCharcoalReach(s) + (IronFuelHubsEnabled(s.Civilization) ? IronFuelReachBuffer : 0);
+    }
+
+    /// <summary>Local catchment used for siting and the forest throttle; physical hauling can reach four tiles farther.</summary>
+    private int IronFuelPlanningReach(SettlementState s)
+    {
+        return IronFuelDomesticCharcoalReach(s) + (IronFuelHubsEnabled(s.Civilization) ? IronFuelSitingBuffer : 0);
+    }
+
+    /// <summary>Existing charcoal radius plus domestic sharing reach, before Iron's outer physical-haul margin.</summary>
+    private int IronFuelDomesticCharcoalReach(SettlementState s)
+    {
         int charcoalReach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
-        if (!IronFuelHubsEnabled(s.Civilization)) return charcoalReach;
-        return charcoalReach + IronShareReach(s.Civilization);
+        return IronFuelHubsEnabled(s.Civilization) ? charcoalReach + IronShareReach(s.Civilization) : charcoalReach;
     }
 
     /// <summary>
@@ -180,7 +199,7 @@ public sealed partial class LivingEconomyModel
     private Fix64 IronFuelCatchmentScore(int civ, int site, bool includeSharedReach = false)
     {
         int reach = Done(civ, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
-        if (includeSharedReach && IronFuelHubsEnabled(civ)) reach += IronShareReach(civ);
+        if (includeSharedReach && IronFuelHubsEnabled(civ)) reach += IronShareReach(civ) + IronFuelSitingBuffer;
         Fix64 score = Fix64.Zero;
         foreach (int tile in ReachTiles(site, reach))
         {

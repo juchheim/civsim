@@ -39,13 +39,14 @@ public sealed partial class LivingEconomyModel
 
     private sealed class IT6FuelSiteFlow
     {
+        public int SettlementId;
         public int DemandSeasons, ShortSeasons;
         public Fix64 Planned, Unmet, ShortfallReachWood, ShortfallHarvestableWood, ShortfallInRangeWood,
             ShortfallOuterReachWood, ShortfallLocalWood, ShortfallRemainingWork, ShortfallWoodFactor;
     }
 
     private IT6CivFlow[]? _it6CivFlows;
-    private Dictionary<int, IT6FuelSiteFlow>? _it6FuelSiteFlows;
+    private List<IT6FuelSiteFlow>? _it6FuelSiteFlows;
     internal bool IT6AccountingTraceEnabled { get; set; }
 
     internal IT6AccountingSnapshot CaptureIT6Accounting(int civilization)
@@ -65,8 +66,9 @@ public sealed partial class LivingEconomyModel
     {
         if (!IT6AccountingTraceEnabled || _it6FuelSiteFlows is null) return Array.Empty<IT6FuelSiteSnapshot>();
         var result = new List<IT6FuelSiteSnapshot>(_it6FuelSiteFlows.Count);
-        foreach ((int settlementId, IT6FuelSiteFlow flow) in _it6FuelSiteFlows)
+        foreach (IT6FuelSiteFlow flow in _it6FuelSiteFlows)
         {
+            int settlementId = flow.SettlementId;
             int settlementIndex = -1;
             for (int i = 0; i < _settlements.Count; i++)
                 if (_settlements[i].Id == settlementId) { settlementIndex = i; break; }
@@ -92,6 +94,7 @@ public sealed partial class LivingEconomyModel
                 Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve), m.Goods[(int)MetalGood.Charcoal],
                 ownInReach, otherInReach));
         }
+        result.Sort((a, b) => a.SettlementId.CompareTo(b.SettlementId));
         return result;
     }
 
@@ -224,9 +227,15 @@ public sealed partial class LivingEconomyModel
         flow.IronEraFuelDemandSeasons++;
         flow.IronEraCharcoalPlan += planned;
         flow.IronEraCharcoalUnmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));
-        _it6FuelSiteFlows ??= new Dictionary<int, IT6FuelSiteFlow>();
-        if (!_it6FuelSiteFlows.TryGetValue(settlement.Id, out IT6FuelSiteFlow? site))
-            _it6FuelSiteFlows.Add(settlement.Id, site = new IT6FuelSiteFlow());
+        _it6FuelSiteFlows ??= new List<IT6FuelSiteFlow>();
+        IT6FuelSiteFlow? site = null;
+        foreach (IT6FuelSiteFlow candidate in _it6FuelSiteFlows)
+            if (candidate.SettlementId == settlement.Id) { site = candidate; break; }
+        if (site is null)
+        {
+            site = new IT6FuelSiteFlow { SettlementId = settlement.Id };
+            _it6FuelSiteFlows.Add(site);
+        }
         site.DemandSeasons++;
         site.Planned += planned;
         site.Unmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));

@@ -481,7 +481,9 @@ public class IronChainTests
         Assert.True(f.Economy.FixtureIsIronFuelHub(hub));
         Assert.False(f.Economy.FixtureIsIronFuelHub(nonHub));
         int charcoalReach = f.Economy.FixtureIronFuelCharcoalReach(hub);
-        Assert.True(charcoalReach > 8, "the active hub should use its existing domestic sharing reach for charcoal catchment");
+        int shareReach = f.Economy.FixtureSharing(0, hub, nonHub).Reach;
+        Assert.True(charcoalReach >= 8 + shareReach + 8,
+            "every Iron fuel consumer should combine the ordinary charcoal radius, existing domestic sharing reach, and the eight-tile hauling margin");
         Assert.Equal(charcoalReach, f.Economy.FixtureIronFuelCharcoalReach(nonHub));
         Assert.True(f.Economy.FixtureSisterKitDeficit(hub) >= Fix64.FromInt(5), "the hub should plan for its forged sister too");
         Assert.False(f.Economy.FixtureSisterKitDeficit(nonHub) > Fix64.Zero, "the non-hub should not duplicate the hub's target");
@@ -503,35 +505,37 @@ public class IronChainTests
         Assert.True(f.Economy.GoodStock(hub, "G-IRON") > Fix64.Zero,
             "the hub should run the charcoal-consuming bloomery on the supplied ore");
 
-        int hubTile = f.Economy.SettlementLite(hub).SiteTile;
-        int parentSite = f.Economy.SettlementLite(0).SiteTile;
+        BronzeFixture reachFixture = BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed + 1, 60, "KEY-4", "SOC-07", "MET-08", "MET-09");
+        int reachSite = reachFixture.Economy.SettlementLite(0).SiteTile;
+        int extendedReach = reachFixture.Economy.FixtureIronFuelCharcoalReach(0);
+        int normalAndSharingReach = extendedReach - 8;
         int remoteForest = -1;
-        int bestRemoteDistance = int.MaxValue;
-        for (int tile = 0; tile < f.Economy.FixtureWorldTileCount; tile++)
+        for (int tile = 0; tile < reachFixture.Economy.FixtureWorldTileCount; tile++)
         {
-            if (!f.Economy.FixtureIsForestTile(tile) || f.Economy.FixtureIsRivalTile(0, tile)) continue;
-            int distance = HexGrid.Distance(hubTile, tile, f.Economy.FixtureWorldWidth);
-            int parentDistance = HexGrid.Distance(parentSite, tile, f.Economy.FixtureWorldWidth);
-            if (distance < 9 || distance > charcoalReach || parentDistance < distance || distance >= bestRemoteDistance) continue;
+            if (!reachFixture.Economy.FixtureIsForestTile(tile) || reachFixture.Economy.FixtureIsRivalTile(0, tile)) continue;
+            int distance = HexGrid.Distance(reachSite, tile, reachFixture.Economy.FixtureWorldWidth);
+            if (distance <= normalAndSharingReach || distance > extendedReach) continue;
             remoteForest = tile;
-            bestRemoteDistance = distance;
+            break;
         }
-        Assert.True(remoteForest >= 0, "the map should have productive forest inside hub sharing reach but beyond ordinary charcoal reach");
-        for (int tile = 0; tile < f.Economy.FixtureWorldTileCount; tile++)
+        Assert.True(remoteForest >= 0, "the map should have productive forest in the eight-tile hauling margin beyond ordinary plus sharing reach");
+        reachFixture.Economy.FixtureBuild(0, "forge");
+        reachFixture.Economy.FixtureBuild(0, "smelter");
+        reachFixture.Economy.FixtureAddMiningCamp(0, reachFixture.IronTile, crew: 4, built: true);
+        for (int tile = 0; tile < reachFixture.Economy.FixtureWorldTileCount; tile++)
         {
-            if (!f.Economy.FixtureIsForestTile(tile) ||
-                HexGrid.Distance(hubTile, tile, f.Economy.FixtureWorldWidth) > charcoalReach) continue;
-            f.Economy.FixtureSetWood(tile, Fix64.FromInt(5));
+            if (!reachFixture.Economy.FixtureIsForestTile(tile) ||
+                HexGrid.Distance(reachSite, tile, reachFixture.Economy.FixtureWorldWidth) > extendedReach) continue;
+            reachFixture.Economy.FixtureSetWood(tile, Fix64.FromInt(5));
         }
-        f.Economy.FixtureSetWood(remoteForest, Fix64.FromInt(10_000));
-        f.Economy.FixtureStock(hub, "G-WOOD", -f.Economy.GoodStock(hub, "G-WOOD"));
-        f.Economy.FixtureStock(hub, "G-CHAR", -f.Economy.GoodStock(hub, "G-CHAR"));
-        f.Economy.FixtureStock(hub, "G-IRONORE", -f.Economy.GoodStock(hub, "G-IRONORE"));
-        f.Economy.FixtureStock(hub, "G-IRONORE", Fix64.FromInt(100));
-        Fix64 remoteBefore = f.Economy.StandingWood(remoteForest);
-        f.RunSeasons(1);
-        Assert.True(f.Economy.StandingWood(remoteForest) < remoteBefore,
-            "the hub should harvest a forest 9+ tiles away through domestic catchment reach and pay the normal haul cost");
+        reachFixture.Economy.FixtureSetWood(remoteForest, Fix64.FromInt(10_000));
+        foreach (string good in new[] { "G-WOOD", "G-IRON", "G-IRONORE", "G-WROUGHT", "G-STEEL", "G-TOOL11", "G-TOOL12", "G-CHAR" })
+            reachFixture.Economy.FixtureStock(0, good, -reachFixture.Economy.GoodStock(0, good));
+        reachFixture.Economy.FixtureStock(0, "G-IRONORE", Fix64.FromInt(100));
+        Fix64 remoteBefore = reachFixture.Economy.StandingWood(remoteForest);
+        reachFixture.RunSeasons(1);
+        Assert.True(reachFixture.Economy.StandingWood(remoteForest) < remoteBefore,
+            "the hub should harvest forest just beyond ordinary sharing reach and pay the normal distance-based haul cost");
     }
 
     [Fact]

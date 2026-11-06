@@ -927,6 +927,8 @@ public sealed partial class LivingEconomyModel
             (mineAll, charAll, smeltAll) = ChainLabor(s, plan);
         }
         plan.BuildCap = totalWork * _bronzeConstants.PushCap * BuildCapMultiplier;
+        if (IronFuelHubsEnabled(civ) && !Done(civ, "MET-09"))
+            plan.BuildCap *= IronPreRouteBuildCapMultiplier;
         plan.BuildNeed = plan.BuildRequested;
         Fix64 cap = totalWork * _bronzeConstants.ChainCap * ChainCapMultiplier;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
@@ -2147,6 +2149,8 @@ public sealed partial class LivingEconomyModel
             Fix64 available = StandingWoodAvailableToIron(tile);
             if (available <= Fix64.Zero) continue;
             Fix64 haul = HaulPerLitreTile * distance / haulDivisor;
+            if (IronFuelHubsEnabled(s.Civilization) && distance > IronFuelDomesticCharcoalReach(s))
+                haul *= IronFuelOuterHaulMultiplier;
             Fix64 perBatch = burn + woodPer / plan.MeanChopRate + haul;
             Fix64 batches = Fix64.Min(planned, available / woodPer);
             if (perBatch > Fix64.Zero) batches = Fix64.Min(batches, (metalPool + craftPool) / perBatch);
