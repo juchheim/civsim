@@ -18,9 +18,10 @@ internal readonly record struct IT6AccountingSnapshot(
 
 internal readonly record struct IT6FuelSiteSnapshot(
     int SettlementId, int Civilization, int Population, int DemandSeasons, int ShortSeasons,
+    int IronFuelHubId, int Forges, int Smelters,
     Fix64 Planned, Fix64 Unmet, Fix64 ShortfallReachWood, Fix64 ShortfallHarvestableWood,
     Fix64 ShortfallInRangeWood, Fix64 ShortfallOuterReachWood, Fix64 ShortfallLocalWood,
-    Fix64 ShortfallRemainingWork, Fix64 ShortfallWoodFactor, Fix64 ForestBaseline,
+    Fix64 ShortfallRemainingWork, Fix64 ShortfallWoodFactor, Fix64 ForestBaseline, Fix64 IronProductionWoodFactor,
     Fix64 ReachWoodNow, Fix64 HarvestableWoodNow, int HarvestableForestTiles,
     Fix64 BeyondReachRawWood, Fix64 BeyondReachHarvestableWood, int BeyondReachForestTiles, int NearestBeyondReachForestDistance,
     Fix64 LocalWoodNow, Fix64 CharcoalStock, int OwnSettlementsInReach, int OtherSettlementsInReach,
@@ -40,6 +41,9 @@ internal readonly record struct IT3WearDistribution(
     public int T11Total => T11BelowZero + T11Under20 + T11Under40 + T11Under60 + T11Under80 + T11AtLeast80;
     public int T12Total => T12BelowZero + T12Under20 + T12Under40 + T12Under60 + T12Under80 + T12AtLeast80;
 }
+
+/// <summary>Read-only provenance for a whole-kit domestic delivery; used to include every route producer in I-T2 fuel qualification.</summary>
+internal readonly record struct IT6KitTransferSnapshot(int Season, int FromSettlementId, int ToSettlementId, int Tier, Fix64 Quantity);
 
 public sealed partial class LivingEconomyModel
 {
@@ -73,7 +77,11 @@ public sealed partial class LivingEconomyModel
 
     private IT6CivFlow[]? _it6CivFlows;
     private List<IT6FuelSiteFlow>? _it6FuelSiteFlows;
+    private List<IT6KitTransferSnapshot>? _it6KitTransfers;
     internal bool IT6AccountingTraceEnabled { get; set; }
+
+    internal IReadOnlyList<IT6KitTransferSnapshot> CaptureIT6KitTransfers()
+        => IT6AccountingTraceEnabled && _it6KitTransfers is not null ? _it6KitTransfers : Array.Empty<IT6KitTransferSnapshot>();
 
     internal IT6AccountingSnapshot CaptureIT6Accounting(int civilization)
     {
@@ -154,9 +162,11 @@ public sealed partial class LivingEconomyModel
                 else otherInReach++;
             }
             result.Add(new IT6FuelSiteSnapshot(s.Id, s.Civilization, Population(s.Id), flow.DemandSeasons, flow.ShortSeasons,
+                IronFuelHubFor(s).Id, m?.Forges ?? 0, m?.Smelters ?? 0,
                 flow.Planned, flow.Unmet, flow.ShortfallReachWood, flow.ShortfallHarvestableWood,
                 flow.ShortfallInRangeWood, flow.ShortfallOuterReachWood, flow.ShortfallLocalWood,
-                flow.ShortfallRemainingWork, flow.ShortfallWoodFactor, m?.ForestAtStart ?? Fix64.Zero, raw, available, availableTiles,
+                flow.ShortfallRemainingWork, flow.ShortfallWoodFactor, m?.ForestAtStart ?? Fix64.Zero,
+                m is null ? Fix64.Zero : IronWoodFactor(s, m), raw, available, availableTiles,
                 beyondRaw, beyondAvailable, beyondTiles, nearestBeyond,
                 Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve), m is null ? Fix64.Zero : m.Goods[(int)MetalGood.Charcoal],
                 ownInReach, otherInReach, flow.Kit11Produced, flow.Kit12Produced, flow.Kit11Issued, flow.Kit12Issued,
@@ -234,8 +244,13 @@ public sealed partial class LivingEconomyModel
         return count;
     }
 
-    private void RecordIT6KitTransfer(SettlementState donor, SettlementState receiver, int tier, Fix64 quantity)
+    private void RecordIT6KitTransfer(SettlementState donor, SettlementState receiver, int tier, Fix64 quantity, int season)
     {
+        if (IT6AccountingTraceEnabled && IronChain && donor.Id != receiver.Id && quantity > Fix64.Zero)
+        {
+            _it6KitTransfers ??= new List<IT6KitTransferSnapshot>();
+            _it6KitTransfers.Add(new IT6KitTransferSnapshot(season, donor.Id, receiver.Id, tier, quantity));
+        }
         RecordIT6KitRelocation(donor.Id, receiver.Id, tier, quantity);
     }
 

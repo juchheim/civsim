@@ -38,8 +38,13 @@ internal static class IronMatchCommand
         public required int SettlementId;
         public required int StartSeason;
         public required int UnlockSeason;
+        public required int HubId;
         public required IT6FuelSiteSnapshot Start;
+        public required Dictionary<int, IT6FuelSiteSnapshot> FuelStartsBySite;
+        public Dictionary<int, IT6FuelSiteSnapshot>? FuelEndsBySite;
         public IT6FuelSiteSnapshot? End;
+        public IT6FuelSiteSnapshot? FuelEnd;
+        public bool HubChanged;
         public int EndSeason = -1;
     }
 
@@ -129,7 +134,9 @@ internal static class IronMatchCommand
             if (it6Accounting)
             {
                 int season = (int)(runner.Tick / 150L);
-                foreach (IT6FuelSiteSnapshot site in match.Economy.CaptureIT6FuelSites())
+                IT6FuelSiteSnapshot[] seasonSites = match.Economy.CaptureIT6FuelSites().ToArray();
+                var sitesById = seasonSites.ToDictionary(site => site.SettlementId);
+                foreach (IT6FuelSiteSnapshot site in seasonSites)
                 {
                     if (!it2Routes.TryGetValue(site.SettlementId, out IT2RouteRecord? route) &&
                         site.Kit11Issued + site.Kit12Issued + site.Kit11Received + site.Kit12Received > Fix64.Zero)
@@ -142,14 +149,24 @@ internal static class IronMatchCommand
                             SettlementId = site.SettlementId,
                             StartSeason = season,
                             UnlockSeason = unlockSeason,
+                            HubId = site.IronFuelHubId,
                             Start = site,
+                            FuelStartsBySite = seasonSites.Where(candidate => candidate.Civilization == site.Civilization)
+                                .ToDictionary(candidate => candidate.SettlementId),
                         };
                         it2Routes.Add(site.SettlementId, route);
                     }
-                    if (route is not null && route.End is null && season >= route.StartSeason + 12)
+                    if (route is not null && route.End is null)
                     {
-                        route.End = site;
-                        route.EndSeason = season;
+                        if (site.IronFuelHubId != route.HubId) route.HubChanged = true;
+                        if (season >= route.StartSeason + 12)
+                        {
+                            route.End = site;
+                            route.EndSeason = season;
+                            if (sitesById.TryGetValue(route.HubId, out IT6FuelSiteSnapshot fuelEnd)) route.FuelEnd = fuelEnd;
+                            route.FuelEndsBySite = seasonSites.Where(candidate => candidate.Civilization == route.Start.Civilization)
+                                .ToDictionary(candidate => candidate.SettlementId);
+                        }
                     }
                 }
                 for (int c = 0; c < civs; c++)
@@ -384,8 +401,8 @@ internal static class IronMatchCommand
         foreach (var site in siteResiduals)
             output.AppendLine($"    c{site.Site.Civilization} s{site.Site.SettlementId} T11={F(site.R11)} (made/received/sent/broken/retired/held/stored={F(site.Site.Kit11Produced)}/{F(site.Site.Kit11Received)}/{F(site.Site.Kit11Sent)}/{site.Site.Kit11Breaks}/{F(site.Site.Kit11Retired)}/{site.Site.Kit11Holders}/{F(site.Site.Kit11Stock)}); T12={F(site.R12)}");
         output.AppendLine($"  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= {Pct(IT6FuelGate.MaxShortRate, Fix64.One)}, unmet / planned charcoal <= {Pct(IT6FuelGate.MaxUnmetPlanShare, Fix64.One)}, minimum {IT6FuelGate.MinDemandSeasons} demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock");
-        output.AppendLine("  I-T2 settlement route screen (first local kit issue, then 12 complete seasons; this is a diagnostic run, not an approved I-T2 balance verdict): a qualified window must meet the approved fuel cutoff with 12/12 demand-seasons");
-        output.AppendLine("    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ made11/12 received11/12 issued11/12 upgrades fuel-short/demand rate unmet/plan result");
+        output.AppendLine("  I-T2 settlement route screen (first kit issue or sister delivery, then 12 complete seasons; fuel follows per-tier kit transfers to sites that produced the supplied tier during the window; relay-only or stock-only sources are censored): qualify over summed producer-site demand-seasons, with at least 12");
+        output.AppendLine("    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ holders11/12 stock11/12 population hub start/end hub F/S site F/S hub-wood-factor hub-reach/baseline site-wood-factor site-reach/baseline made11/12 received11/12 issued11/12 upgrades fuel-sites short/demand rate unmet/plan result");
         int it2Pass = 0, it2Fail = 0, it2Censored = 0;
         foreach (IT2RouteRecord route in it2Routes)
         {
@@ -396,10 +413,68 @@ internal static class IronMatchCommand
                 continue;
             }
             IT6FuelSiteSnapshot start = route.Start;
-            int demand = finish.DemandSeasons - start.DemandSeasons;
-            int shortSeasons = finish.ShortSeasons - start.ShortSeasons;
-            Fix64 planned = finish.Planned - start.Planned;
-            Fix64 unmet = finish.Unmet - start.Unmet;
+            IT6FuelSiteSnapshot? fuelEnd = route.FuelEnd;
+            var fuelProducerTiers = new HashSet<(int SettlementId, int Tier)>();
+            var fuelProducerIds = new HashSet<int>();
+            var unprovenSource = false;
+            var transfers = economy.CaptureIT6KitTransfers();
+            foreach (int tier in new[] { 11, 12 })
+            {
+                Fix64 startProduced = tier == 11 ? route.Start.Kit11Produced : route.Start.Kit12Produced;
+                Fix64 finishProduced = tier == 11 ? finish.Kit11Produced : finish.Kit12Produced;
+                if (finishProduced > startProduced) fuelProducerTiers.Add((route.SettlementId, tier));
+
+                var supplyNodes = new HashSet<int> { route.SettlementId };
+                bool expanded;
+                do
+                {
+                    expanded = false;
+                    foreach (var transfer in transfers)
+                    {
+                        if (transfer.Tier != tier || transfer.Season < route.StartSeason || transfer.Season > route.EndSeason ||
+                            !supplyNodes.Contains(transfer.ToSettlementId)) continue;
+                        if (supplyNodes.Add(transfer.FromSettlementId)) expanded = true;
+                        fuelProducerTiers.Add((transfer.FromSettlementId, tier));
+                    }
+                } while (expanded);
+            }
+            int demand = 0, shortSeasons = 0;
+            Fix64 planned = Fix64.Zero, unmet = Fix64.Zero;
+            var sourceLabels = new List<string>();
+            Dictionary<int, IT6FuelSiteSnapshot>? fuelEndsBySite = route.FuelEndsBySite;
+            foreach ((int producerId, int tier) in fuelProducerTiers.OrderBy(x => x.SettlementId).ThenBy(x => x.Tier))
+            {
+                if (!route.FuelStartsBySite.TryGetValue(producerId, out IT6FuelSiteSnapshot producerStart) ||
+                    fuelEndsBySite is null || !fuelEndsBySite.TryGetValue(producerId, out IT6FuelSiteSnapshot producerEnd))
+                {
+                    unprovenSource = true;
+                    continue;
+                }
+                Fix64 sourceStartProduced = tier == 11 ? producerStart.Kit11Produced : producerStart.Kit12Produced;
+                Fix64 sourceEndProduced = tier == 11 ? producerEnd.Kit11Produced : producerEnd.Kit12Produced;
+                if (producerStart.Civilization != start.Civilization || producerEnd.Civilization != start.Civilization ||
+                    producerStart.Population <= 0 || producerEnd.Population <= 0 || sourceEndProduced <= sourceStartProduced)
+                {
+                    unprovenSource = true;
+                    continue;
+                }
+                fuelProducerIds.Add(producerId);
+            }
+            foreach (int producerId in fuelProducerIds.OrderBy(id => id))
+            {
+                if (!route.FuelStartsBySite.TryGetValue(producerId, out IT6FuelSiteSnapshot producerStart) ||
+                    fuelEndsBySite is null || !fuelEndsBySite.TryGetValue(producerId, out IT6FuelSiteSnapshot producerEnd))
+                {
+                    unprovenSource = true;
+                    continue;
+                }
+                demand += producerEnd.DemandSeasons - producerStart.DemandSeasons;
+                shortSeasons += producerEnd.ShortSeasons - producerStart.ShortSeasons;
+                planned += producerEnd.Planned - producerStart.Planned;
+                unmet += producerEnd.Unmet - producerStart.Unmet;
+            }
+            sourceLabels.AddRange(fuelProducerIds.OrderBy(id => id).Select(id => id.ToString(CultureInfo.InvariantCulture)));
+            if (fuelProducerIds.Count == 0) unprovenSource = true;
             Fix64 shortRate = demand > 0 ? Fix64.FromRatio(shortSeasons, demand) : Fix64.Zero;
             Fix64 unmetShare = planned > Fix64.Zero ? unmet / planned : Fix64.Zero;
             int workers = finish.ToolWorkers;
@@ -408,6 +483,9 @@ internal static class IronMatchCommand
             string result;
             if (finish.Civilization != start.Civilization) result = "CENSORED captured/owner changed";
             else if (route.UnlockSeason < 0) result = "CENSORED MET-09 not recorded";
+            else if (route.HubChanged) result = "CENSORED assigned hub changed";
+            else if (fuelEnd is null) result = "CENSORED fuel producer missing";
+            else if (unprovenSource) result = "CENSORED kit source not produced in window";
             else if (demand < IT6FuelGate.MinDemandSeasons) result = $"CENSORED fuel demand {demand}/12";
             else if (shortRate > IT6FuelGate.MaxShortRate || unmetShare > IT6FuelGate.MaxUnmetPlanShare) result = "FAIL fuel cutoff";
             else if (workers <= 0) result = "CENSORED no tool workers at endpoint";
@@ -419,10 +497,14 @@ internal static class IronMatchCommand
             output.AppendLine($"    s{route.SettlementId} {route.StartSeason}–{route.EndSeason} c{start.Civilization}->c{finish.Civilization} MET-09={route.UnlockSeason} " +
                 $"{workers} {finish.T11ToolWorkers}/{finish.T12ToolWorkers} {Pct(Fix64.FromInt(ironWorkers), Fix64.FromInt(workers))} " +
                 $"{finish.T11ToolWorkers14To44}/{finish.T12ToolWorkers14To44} {finish.T11ToolWorkers45Plus}/{finish.T12ToolWorkers45Plus} " +
+                $"{finish.Kit11Holders}/{finish.Kit12Holders} {F(finish.Kit11Stock)}/{F(finish.Kit12Stock)} {finish.Population} {route.HubId}/{finish.IronFuelHubId} " +
+                $"{fuelEnd?.Forges ?? 0}/{fuelEnd?.Smelters ?? 0} {finish.Forges}/{finish.Smelters} " +
+                $"{Pct(fuelEnd?.IronProductionWoodFactor ?? Fix64.Zero, Fix64.One)} {F(fuelEnd?.ReachWoodNow ?? Fix64.Zero)}/{F(fuelEnd?.ForestBaseline ?? Fix64.Zero)} " +
+                $"{Pct(finish.IronProductionWoodFactor, Fix64.One)} {F(finish.ReachWoodNow)}/{F(finish.ForestBaseline)} " +
                 $"{F(finish.Kit11Produced - start.Kit11Produced)}/{F(finish.Kit12Produced - start.Kit12Produced)} " +
                 $"{F(finish.Kit11Received - start.Kit11Received)}/{F(finish.Kit12Received - start.Kit12Received)} " +
                 $"{F(finish.Kit11Issued - start.Kit11Issued)}/{F(finish.Kit12Issued - start.Kit12Issued)} {finish.Kit11Upgrades - start.Kit11Upgrades} " +
-                $"{shortSeasons}/{demand} {Pct(shortRate, Fix64.One)} {F(unmet)}/{F(planned)} {Pct(unmetShare, Fix64.One)} {result}");
+                $"[{string.Join(',', sourceLabels)}] {shortSeasons}/{demand} {Pct(shortRate, Fix64.One)} {F(unmet)}/{F(planned)} {Pct(unmetShare, Fix64.One)} {result}");
         }
         output.AppendLine($"    I-T2 diagnostic totals: {it2Pass} screen pass, {it2Fail} fail, {it2Censored} censored; endpoint tool-worker coverage uses actual positive toolWork, split by ages 14–44 and 45+");
         output.AppendLine("  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:");

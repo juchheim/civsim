@@ -73,14 +73,22 @@ public sealed partial class LivingEconomyModel
         f.KitLeft = tier == 0 ? Fix64.Zero : left;
     }
 
+    internal Fix64 FixtureKitLeft(int figureIndex) => _figures[figureIndex].KitLeft;
+
     /// <summary>Applies the same kit wear and break accounting used by a live work season.</summary>
     internal void FixtureWearKit(int figureIndex, Fix64 work) => ApplyKitWear(_figures[figureIndex], work);
 
     /// <summary>Runs live kit wear and issue with zero tool work, for lifecycle accounting fixtures.</summary>
-    internal void FixtureWearAndIssueKits(int settlementIndex, int tier)
+    internal void FixtureWearAndIssueKits(int settlementIndex, int tier, params int[] toolWorkerFigureIndices)
     {
         SettlementState settlement = _settlements[settlementIndex];
-        WearAndIssueKits(settlement, EnsureMetal(settlement), tier, new Fix64[_figures.Count]);
+        var toolWork = new Fix64[_figures.Count];
+        foreach (int figureIndex in toolWorkerFigureIndices)
+        {
+            if ((uint)figureIndex >= (uint)_figures.Count) throw new ArgumentOutOfRangeException(nameof(toolWorkerFigureIndices));
+            if (_figures[figureIndex].SettlementId == settlement.Id) toolWork[figureIndex] = Fix64.One;
+        }
+        WearAndIssueKits(settlement, EnsureMetal(settlement), tier, toolWork);
     }
 
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
@@ -215,6 +223,24 @@ public sealed partial class LivingEconomyModel
             case "mine_head": if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile); break;
             default: throw new ArgumentException($"Unknown metal structure '{structure}'.", nameof(structure));
         }
+    }
+
+    internal void FixtureSetMetalFacilities(int settlementIndex, int forges, int smelters)
+    {
+        if (forges < 0) throw new ArgumentOutOfRangeException(nameof(forges));
+        if (smelters < 0) throw new ArgumentOutOfRangeException(nameof(smelters));
+        MetalState m = EnsureMetal(_settlements[settlementIndex]);
+        m.Forges = forges;
+        m.Smelters = smelters;
+        InvalidateIronFuelHubAssignments();
+    }
+
+    internal void FixtureSetLastToolWorker(int figureIndex, bool worked)
+    {
+        FigureState figure = _figures[figureIndex];
+        figure.Job = worked ? EconomyJob.Farm : EconomyJob.Rest;
+        figure.WorkThisSeason = worked ? Fix64.One : Fix64.Zero;
+        figure.Task = 0;
     }
 
     /// <summary>Runs one recipe at a settlement for up to <paramref name="planned"/> batches with <paramref name="labor"/> work-seasons; returns the batches made.</summary>

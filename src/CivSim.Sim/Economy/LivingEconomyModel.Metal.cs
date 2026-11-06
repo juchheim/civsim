@@ -371,8 +371,12 @@ public sealed partial class LivingEconomyModel
             if (f.SettlementId != s.Id || f.Kit == 0) continue;
             ApplyKitWear(f, toolWork[i]);
         }
-        // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
-        if (IronChain) IssueIronKits(s, m);
+        // Move idle Iron kits to current tool workers before making new assignments, then hand out any stock.
+        if (IronChain)
+        {
+            ReassignIdleIronKitsToToolWorkers(s, toolWork);
+            IssueIronKits(s, m, toolWork);
+        }
         // Hand out the kits in stock: those without a kit first, then worn kits, then upgrades, oldest kits first.
         var order = new List<int>();
         for (int i = 0; i < _figures.Count; i++)
@@ -663,7 +667,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
-            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach); SharePublicGrain(civ, reach); }
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
