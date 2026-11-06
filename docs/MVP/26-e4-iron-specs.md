@@ -49,8 +49,8 @@ These are additions for later transcription; append-only. Existing E3 bloomery, 
 |---|---|---|---|---|
 | `G-WROUGHT` | Forged wrought iron / metal | MET-09 | durable / 1 / 18 **P** | Intermediate; made from bloom. |
 | `G-STEEL` | Carburized steel edge stock / metal | MET-10 | durable / 1 / 30 **P** | Edge stock, not bulk industrial steel. |
-| `G-TOOL11` | Wrought iron tool kit (T11) / tool | MET-09 | 24 tool-ws / 0.3 / 14 **P** | Broad iron kit. |
-| `G-TOOL12` | Tempered steel-edge kit (T12) / tool | MET-10 | 48 tool-ws / 0.3 / 24 **P** | T12 service is exactly twice T11. |
+| `G-TOOL11` | Wrought iron tool kit (T11) / tool | MET-09 | 30 tool-ws / 0.3 / 14 **P** | Broad iron kit; service was raised from 24 to reduce replacement-chain work. |
+| `G-TOOL12` | Tempered steel-edge kit (T12) / tool | MET-10 | 60 tool-ws / 0.3 / 24 **P** | T12 service remains exactly twice T11. |
 | `G-ARMS3` | Iron arms / arms | WAR-08 | 24 seasons / 0.5 / 18 **P** | Weapon strength **2.4 P**; consumes actual iron and wood/leather. |
 | `G-ARMS4` | Tempered-edge arms / arms | MET-10 | 48 seasons / 0.5 / 30 **P** | Weapon strength **3.0 P** (= 2.4 × 1.25 from MET-10 once); no duplicate WAR-08/MET-10 +25% stack. |
 | `G-FBRICK` | Fired brick / material | CER-08 | durable / 1 / 0.4 **P** | Separate from E2 mudbrick. |
@@ -70,8 +70,8 @@ As with 23 §4, performance is per equipped kit, using its modifiers once. Do no
 
 | Tier | Kit / output | Unlock | Service | Per-kit mods |
 |---|---|---|---:|---|
-| T11 | G-TOOL11, 1 kit | MET-09 | 24 ws | Chop yield/rate ×7.2 vs untooled base (and ×1.2 vs T10 ×6); mine ×1.5; quarry ×1.5; harvest labor ×0.75; timber construction labor ×0.80. **P** |
-| T12 | G-TOOL12, 1 kit | MET-10 | 48 ws | Same base work-rate modifiers as T11; service life ×2 only. **P** durability intention ×2. |
+| T11 | G-TOOL11, 1 kit | MET-09 | 30 ws | Chop yield/rate ×9 vs untooled base (and ×1.5 vs T10 ×6); mine ×2 (vs T10 ×1.3); quarry ×1.5; harvest labor ×0.75; timber construction labor ×0.80. **P** |
+| T12 | G-TOOL12, 1 kit | MET-10 | 60 ws | Same base work-rate modifiers as T11; service life ×2 only. **P** durability intention ×2. |
 | Saw attachment | WOD-08 on T12 only | WOD-08 + MET-10 | T12 kit wear | Chop ×1.4 relative to the T12 iron axe; `saw_planks` outputs 2 G-PLANK from 1 G-WOOD vs 1 baseline. The ×1.4 is catalog intention; plank yield is bounded to ×2 per work batch. **P** labor accounting. |
 
 Rates compose by the equipped kit: a T12 kit replaces T11, and WOD-08 saw modifies T12 where the saw job is equipped. Harvest `×0.75 labor` is applied to harvest work only; timber construction `×0.80 labor` applies timber structures only. No free tools, auto-upgrade, or metal refund on retirement. Mixed kits wear independently.
@@ -84,7 +84,7 @@ All quantities and labor values are **P**. Existing E3 `bloomery` remains unchan
 |---|---|---:|---|---|
 | `forge_wrought` | 0.5 G-IRON + 0.25 G-CHAR → 0.4 G-WROUGHT | 0.4 ws | 40 / forge | MET-09 |
 | `carburize_steel` | 0.4 G-WROUGHT + 0.2 G-CHAR → 0.4 G-STEEL | 0.4 ws | 41 / forge | MET-10 |
-| `make_tool11` | 0.15 G-WROUGHT + 0.15 G-CHAR → 1 G-TOOL11 | 0.2 ws | 42 / forge | MET-09 |
+| `make_tool11` | 0.08 G-WROUGHT + 0.08 G-CHAR → 1 G-TOOL11 | 0.2 ws | 42 / forge | MET-09 |
 | `make_tool12` | 0.15 G-STEEL + 0.10 G-CHAR → 1 G-TOOL12 | 0.3 ws | 42 / forge | MET-10 |
 | `make_iron_arms` | 0.25 G-WROUGHT + 0.4 G-WOOD + 0.3 G-LEATHER (or hide) → 1 G-ARMS3 | 0.4 ws | 42 / forge | WAR-08 |
 | `make_steel_arms` | 0.25 G-STEEL + 0.4 G-WOOD + 0.3 G-LEATHER (or hide) → 1 G-ARMS4 | 0.5 ws | 42 / forge | MET-10 + WAR-08 |
@@ -96,7 +96,7 @@ All quantities and labor values are **P**. Existing E3 `bloomery` remains unchan
 | `make_siege_engine` | 8 G-WOOD + 4 G-BLOCK + 0.4 G-WROUGHT → 1 G-ENGINE | 24 ws (includes assembly) | 45 / forge | WAR-09 |
 | `make_barrel` | 1 G-WOOD + 0.1 G-IRON (or 0.1 G-BRONZE) → 1 G-BARREL | 0.4 ws | 50 / — | WOD-07 |
 
-**Hand check: one T11 kit embodied charcoal/wood (warning, not a pass).** A T11 kit's 0.15 G-WROUGHT input is 0.375 of the `forge_wrought` batch, so its upstream share is **0.1875 G-IRON and 0.09375 G-CHAR**. The kit recipe adds 0.15 G-CHAR, making 0.24375 charcoal for forging and kit fabrication. Locally making the 0.1875 bloom consumes another 0.75 G-IRONORE and 1.125 G-CHAR in the unchanged E3 bloomery. Total is **0.75 G-IRONORE + 1.36875 G-CHAR**. At 6 G-WOOD/charcoal, this is **8.2125 G-WOOD per T11 kit**. Labor: bloomery `0.3 ws` + wrought forging `0.15 ws` + kit making `0.2 ws` + charcoal burning `1.36875 × 0.4 = 0.5475 ws` = **about 1.1975 ws**, excluding mining, hauling, tool wear, and rounding. This fuel burden is a warning requiring oracle/live fit, not a pass. The ledger must avoid double-counting any bloomery charge.
+**Hand check: one T11 kit embodied charcoal/wood (warning, not a pass).** A T11 kit's 0.08 G-WROUGHT input is 0.2 of the `forge_wrought` batch, so its upstream share is **0.1 G-IRON and 0.05 G-CHAR**. The kit recipe adds 0.08 G-CHAR, making 0.13 charcoal for forging and kit fabrication. Locally making the 0.1 bloom consumes another 0.4 G-IRONORE and 0.6 G-CHAR in the unchanged E3 bloomery. Total is **0.4 G-IRONORE + 0.73 G-CHAR**. At 6 G-WOOD/charcoal, this is **4.38 G-WOOD per T11 kit**. Labor: bloomery `0.16 ws` + wrought forging `0.08 ws` + kit making `0.2 ws` + charcoal burning `0.73 × 0.4 = 0.292 ws` = **about 0.732 ws**, excluding mining, hauling, tool wear, and rounding. This fuel burden is a warning requiring oracle/live fit, not a pass. The ledger must avoid double-counting any bloomery charge.
 
 ## 3. Actions, structures and roles
 
@@ -223,7 +223,7 @@ Each row specifies the existing YAML identity, type, prerequisites and gates exa
 | MEC-04 Pulley & Windlass | M / 1200 | MEC-03, FIB-05 | `mod(build_labor,pct:-0.130435)` (×1.15 speed); unlocks a buildable windlass well (4 G-WOOD, 8 ws **P**) to access a known water source at depth 2 in that settlement; no new water source or territory-wide access. | build | A counterweight lifts a bucket from the dark. “A small pull raises a great weight.” | Windlass/well job; movement/build. |
 | MEC-05 Gears & Screws | M / 1200 | MEC-04, NUM-07 | Unlock press, Archimedean screw, water-wheel gearing; presses require MEC-05 and inputs; enable mine drainage. | build | Interlocking gears turn an endless screw. “A measured turn moves water uphill.” | Press/screw/wheel machinery; recipe/action. |
 | MEC-06 Treadwheel Crane | S / 1440 | MEC-05 | `build(crane)`; eligible large structure and Wonder labor ×0.5 with crane present. | build | Workers step inside a wheel and raise a block. “The wheel lifts the weight of a wall.” | Crane; construction. |
-| MET-09 Iron Tools | M / 1200 | MET-08 | `good(G-WROUGHT,G-TOOL11)`; `method(chop, iron_axe, mult:7.2)`; T11 item mods in §2.2; unlock forge_wrought/make_tool11. | smelt | Red-hot iron is hammered into an axe edge. “Bloom becomes an edge for every hand.” | Iron tools; tool tier/metal recipe. |
+| MET-09 Iron Tools | M / 1200 | MET-08 | `good(G-WROUGHT,G-TOOL11)`; `method(chop, iron_axe, mult:9)`; T11 item mods in §2.2; unlock forge_wrought/make_tool11. | smelt | Red-hot iron is hammered into an axe edge. “Bloom becomes an edge for every hand.” | Iron tools; tool tier/metal recipe. |
 | MET-10 Quench & Temper | M / 1200 | MET-09 | `good(G-STEEL,G-TOOL12)`; unlock T12 recipe; T12 durability ×2 T11; arms: WAR-08 iron weapon strength 2.4, and MET-10 steel-edge strength 3.0 (2.4 × 1.25 exactly once). | smelt | A blade hisses as it meets water. “Heat and water set the edge.” | Tempered edge; recipe/tool/arms. |
 | MIN-07 Mine Drainage | M / 1200 | MIN-05, MEC-05 | `rule(mine_depth:2,flooded_deposit_access:true)`; each flooded deposit requires a drainage installation of 1 G-WOOD + 0.2 G-CHAR and 2 ws, then upkeep 0.1 G-CHAR per season while staffed; no new deposit. | mine | A screw lifts pooled water from a lower gallery. “The mine descends beyond the waterline.” | Deep mine/drainage work; mining. |
 | NRG-03 Water Wheel | S / 1440 | NRG-02, MEC-05; **Near: River** | `build(water_mill)`; grind output ×5; enables water-powered eligible saw/bellows/trip hammer labor. | work_animals | A river turns a wheel beside the mill. “The current lends its strength to the mill.” | River mill; power and grinding; gate checked at use. |
@@ -375,7 +375,7 @@ This is an integration checklist for a future approved implementation, not a cod
 
 1. **Counts:** 56 regular (15 + 17 + 24) and one KEY-5. Brief's 59 remains unreconciled (Q1).
 2. **Costs (recounted against the 56 rows):** Craft has 12 M + 3 S = 18,720; Kin has 4 M + 3 S + 9 I + 1 D = 26,520; Reach has 9 M + 7 S + 6 I + 2 W = 36,480. Totals are M 25, S 13, I 15, D 1, W 2 and **81,720 regular list-cost**; KEY-5 is 3,000. This is simple catalog arithmetic only, not a closure or timing result.
-3. **T11 embodied fuel:** the complete ore-to-kit chain is estimated at 0.75 ore and 8.2125 wood via 1.36875 charcoal with about 1.1975 ws, excluding mining/haul. The substantial fuel burden is a warning requiring oracle/live fit, not a pass.
+3. **T11 embodied fuel:** the complete ore-to-kit chain is estimated at 0.4 ore and 4.38 wood via 0.73 charcoal with about 0.732 ws, excluding mining/haul. The fuel burden remains provisional and requires oracle/live fit.
 4. **No performance conclusions:** no target cadence, yield, annual Insight, unit balance, city population, route coverage, map fill, score timing, performance, or AI quality is measured by this document.
 5. **KEY-5 route:** source requires four named projects plus 21 E4 completions. Candidate routes in 25 and current path graph should be recomputed with OR/gate semantics, but no threshold is changed.
 6. **Potential remaining ambiguity:** barrel return accounting, E4 Wonder construction costs, diplomacy/league implementation, exact provincial service radius, and sea-combat scope need explicit system design before YAML/code promotion. Bounds above are proposals, not silently closed decisions.

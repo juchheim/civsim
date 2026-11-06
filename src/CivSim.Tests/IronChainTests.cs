@@ -74,22 +74,22 @@ public class IronChainTests
         e.FixtureStock(0, Char, charStock);
         Fix64 labor = Fix64.FromInt(10), laborLeft = labor;
 
-        // 0.15 G-WROUGHT is 0.375 of a forge batch, which needs 0.1875 G-IRON, which is 0.375 of a bloomery batch.
-        Fix64 bloom = e.FixtureRunRecipe(0, "bloomery", F("0.375"), laborLeft);
-        Fix64 forge = e.FixtureRunRecipe(0, "forge_wrought", F("0.375"), laborLeft);
+        // 0.08 G-WROUGHT is 0.2 of a forge batch, which needs 0.1 G-IRON, which is 0.2 of a bloomery batch.
+        Fix64 bloom = e.FixtureRunRecipe(0, "bloomery", F("0.2"), laborLeft);
+        Fix64 forge = e.FixtureRunRecipe(0, "forge_wrought", F("0.2"), laborLeft);
         Fix64 kit = e.FixtureRunRecipe(0, "make_tool11", Fix64.One, laborLeft);
-        Near(F("0.375"), bloom);
-        Near(F("0.375"), forge);
+        Near(F("0.2"), bloom);
+        Near(F("0.2"), forge);
         Near(Fix64.One, kit);
 
-        Near(F("0.75"), oreStock - e.GoodStock(0, Ore));                // 0.75 G-IRONORE
-        Near(F("1.36875"), charStock - e.GoodStock(0, Char));           // 1.36875 G-CHAR = 8.2125 G-WOOD at 6 per charcoal
-        Near(F("8.2125"), (charStock - e.GoodStock(0, Char)) * Fix64.FromInt(6));
+        Near(F("0.4"), oreStock - e.GoodStock(0, Ore));                  // 0.4 G-IRONORE
+        Near(F("0.73"), charStock - e.GoodStock(0, Char));              // 0.73 G-CHAR = 4.38 G-WOOD at 6 per charcoal
+        Near(F("4.38"), (charStock - e.GoodStock(0, Char)) * Fix64.FromInt(6));
         Near(Fix64.Zero, e.GoodStock(0, "G-IRON"));                     // no bloom left over: the bloomery charge is not counted twice
         Near(Fix64.Zero, e.GoodStock(0, "G-WROUGHT"));
         Near(Fix64.One, e.GoodStock(0, "G-TOOL11"));
-        // Labor excluding charcoal burning: bloomery 0.3 + forging 0.15 + kit 0.2 = 0.65 ws (the doc's 1.1975 adds 0.5475 for the charcoal).
-        Near(F("0.65"), F("0.8") * F("0.375") + F("0.4") * F("0.375") + F("0.2"));
+        // Labor excluding charcoal burning: bloomery 0.16 + forging 0.08 + kit 0.2 = 0.44 ws (the doc's 0.732 adds 0.292 for the charcoal).
+        Near(F("0.44"), F("0.8") * F("0.2") + F("0.4") * F("0.2") + F("0.2"));
     }
 
     [Fact]
@@ -214,8 +214,8 @@ public class IronChainTests
         BronzeFixture f = Iron("MET-08", "MET-09", "MET-10");
         (Fix64 s11, Fix64 b11) = f.Economy.FixtureKitLife(11);
         (Fix64 s12, Fix64 b12) = f.Economy.FixtureKitLife(12);
-        Assert.Equal(Fix64.FromInt(24), s11);
-        Assert.Equal(Fix64.FromInt(48), s12);
+        Assert.Equal(Fix64.FromInt(30), s11);
+        Assert.Equal(Fix64.FromInt(60), s12);
         Near(s11 * Fix64.FromInt(2), s12);
         Near(b11 * Fix64.FromInt(2), b12); // the dormancy tail scales with the service life, so the whole curve is stretched exactly 2x
     }

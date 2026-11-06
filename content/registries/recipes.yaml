@@ -37,7 +37,7 @@ recipes:
   # E4 Iron additions (docs/MVP/26 §2.3); all quantities/labor are provisional.
   - {id: forge_wrought, name: Forge wrought iron, unlocked_by: [MET-09], structure: [forge], inputs: {G-IRON: 0.5, G-CHAR: 0.25}, outputs: {G-WROUGHT: 0.4}, labor: 0.4, order: 40, practice: smelt}
   - {id: carburize_steel, name: Carburize steel, unlocked_by: [MET-10], structure: [forge], inputs: {G-WROUGHT: 0.4, G-CHAR: 0.2}, outputs: {G-STEEL: 0.4}, labor: 0.4, order: 41, practice: smelt}
-  - {id: make_tool11, name: Make T11 kit, unlocked_by: [MET-09], structure: [forge], inputs: {G-WROUGHT: 0.15, G-CHAR: 0.15}, outputs: {G-TOOL11: 1}, labor: 0.2, order: 42, practice: smelt}
+  - {id: make_tool11, name: Make T11 kit, unlocked_by: [MET-09], structure: [forge], inputs: {G-WROUGHT: 0.08, G-CHAR: 0.08}, outputs: {G-TOOL11: 1}, labor: 0.2, order: 42, practice: smelt}
   - {id: make_tool12, name: Make T12 kit, unlocked_by: [MET-10], structure: [forge], inputs: {G-STEEL: 0.15, G-CHAR: 0.1}, outputs: {G-TOOL12: 1}, labor: 0.3, order: 42, practice: smelt}
   - {id: make_iron_arms, name: Make iron arms, unlocked_by: [WAR-08], structure: [forge], inputs: {G-WROUGHT: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS3: 1}, labor: 0.4, order: 42, practice: smelt}
   - {id: make_steel_arms, name: Make steel arms, unlocked_by: [MET-10, WAR-08], structure: [forge], inputs: {G-STEEL: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS4: 1}, labor: 0.5, order: 42, practice: smelt}

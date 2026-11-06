@@ -99,8 +99,8 @@ goods:
   # E4 Iron additions (docs/MVP/26 §2.1); draft content, values provisional.
   - {id: G-WROUGHT, name: Forged wrought iron, category: metal, first_from: [MET-09], durability: durable, load: 1, barter: 18, introduced_era: 4}
   - {id: G-STEEL, name: Carburized steel edge stock, category: metal, first_from: [MET-10], durability: durable, load: 1, barter: 30, introduced_era: 4}
-  - {id: G-TOOL11, name: Wrought iron tool kit (T11), category: tool, first_from: [MET-09], durability: 24 tool-ws, load: 0.3, barter: 14, introduced_era: 4}
-  - {id: G-TOOL12, name: Tempered steel-edge kit (T12), category: tool, first_from: [MET-10], durability: 48 tool-ws, load: 0.3, barter: 24, introduced_era: 4}
+  - {id: G-TOOL11, name: Wrought iron tool kit (T11), category: tool, first_from: [MET-09], durability: 30 tool-ws, load: 0.3, barter: 14, introduced_era: 4}
+  - {id: G-TOOL12, name: Tempered steel-edge kit (T12), category: tool, first_from: [MET-10], durability: 60 tool-ws, load: 0.3, barter: 24, introduced_era: 4}
   - {id: G-ARMS3, name: Iron arms, category: arms, first_from: [WAR-08], durability: 24 seasons, load: 0.5, barter: 18, introduced_era: 4}
   - {id: G-ARMS4, name: Tempered-edge arms, category: arms, first_from: [MET-10], durability: 48 seasons, load: 0.5, barter: 30, introduced_era: 4}
   - {id: G-FBRICK, name: Fired brick, category: material, first_from: [CER-08], durability: durable, load: 1, barter: 0.4, introduced_era: 4}

@@ -83,7 +83,7 @@ public sealed partial class LivingEconomyModel
         // less kits already made and waiting (each sister's own stores are netted in its deficit).
         Fix64 needKits = Fix64.FromInt(IronKitsLacking(s)) + SisterKitDeficit(s);
         // A thin forest asks for fewer new and replacement kits, but iron already in store (smelted earlier or imported by compact) is always worth forging
-        // into kits: that costs a quarter of a litre of charcoal a kit, where smelting the ore costs six times more.
+        // into kits: when wrought stock is already available, the kit recipe uses only 0.08 L of direct charcoal.
         // With MET-10 the kits wanted are steel-edge T12 (replacing a worn or missing kit, never an early upgrade of a working one); steel and wrought
         // iron in store both count, since carburizing stored wrought iron is cheap (0.2 charcoal for 0.4 steel).
         bool steel = Done(s.Civilization, "MET-10");
@@ -500,10 +500,10 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Wrought iron in one T11 kit (docs/MVP/26 §2.3).</summary>
-    private static readonly Fix64 WroughtPerKit = Fix64.FromRatio(15, 100);
+    private static readonly Fix64 WroughtPerKit = Fix64.FromRatio(8, 100);
 
-    /// <summary>Iron bloom in one T11 kit: 0.15 wrought, and a forge batch turns 0.5 bloom into 0.4 wrought (docs/MVP/26 §2.3).</summary>
-    private static readonly Fix64 BloomPerKit = Fix64.FromRatio(1875, 10000);
+    /// <summary>Iron bloom in one T11 kit: 0.08 wrought, and a forge batch turns 0.5 bloom into 0.4 wrought (docs/MVP/26 §2.3).</summary>
+    private static readonly Fix64 BloomPerKit = Fix64.FromRatio(1, 10);
 
     /// <summary>
     /// A settlement that sells iron under a compact keeps a bloom reserve of a litre per 20 people on top of its own chain's need, so a
