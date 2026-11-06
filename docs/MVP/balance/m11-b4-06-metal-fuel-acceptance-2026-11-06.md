@@ -1,6 +1,6 @@
 # B4-06 metal and fuel closeout
 
-**Status:** deterministic B4-06 cases and I-T3 service/wear verification pass. The actual tool-worker I-T2 screen is pending the preregistered run below. I-T6's separately approved balance screen remains closed under its existing report.
+**Status:** deterministic B4-06 cases and I-T3 service/wear verification pass. The preregistered 20261901–20261980 block was futility-stopped after 32 matches: it found I-T2 failures and one mature I-T6 fuel-cutoff failure. B4-06 remains open on the current source. The earlier I-T6 acceptance remains historical evidence for its frozen candidate; it does not override this new failure.
 
 ## Scope and frozen screen
 
@@ -69,4 +69,12 @@ This closes I-T3's deterministic lifetime, multiplier, and live mixed-tier distr
 
 ## I-T2 acceptance results
 
-The `20261801–20261880` preregistered block failed I-T2 as reported above. The next preregistered 80-match block is pending on the satellite-production and source-tracing implementation. The existing fixed-population replacement screens are in the [I-T6 acceptance report](m11-it6-whole-match-2026-11-05.md); they cover T11/T12 service and replacement but do not substitute for the actual tool-worker denominator. No I-T2 pass is claimed until the new run's per-window coverage, fuel cutoffs, and whole-match ledgers are recorded.
+The `20261801–20261880` block failed I-T2 as reported above. The next frozen block used source `8c866b4ba94ee01a86ec161c00f775916dc30313`, the recorded pack hash, approved cutoffs and seeds `20261901–20261980`; it was stopped for futility after the first 32 unique matches because a mature I-T6 fuel cutoff and multiple I-T2 screens failed. Its output is preserved in the [futility output](m11-b4-06-futility-output-2026-11-06.txt). The remaining 48 seeds were not run, so this is a failed diagnostic block, not an acceptance result; the used seed block is consumed and will not be reused.
+
+Across the 32 complete matches, the per-settlement screen reported 852 pass, 8 fail and 2,074 censored windows. The eight failures were three coverage misses and five fuel-cutoff misses. Coverage missed in seed `20261928` s47 (2/3 tool workers, 66.67%), seed `20261945` s44 (2/4, 50.00%), and seed `20261965` s32 (5/11, 45.45%). In seed `20261965`, s2, s13, s23, s34 and s55 also failed the producer-site fuel cutoff. Pooled coverage among non-fuel-failing screen rows was 5,308/5,343 (99.34%); it does not waive these per-window failures.
+
+The same seed `20261965` failed the mature per-civilization I-T6 fuel cutoff: c2 had 159/381 short demand-seasons (41.73%) and 242.97/609.56 L unmet (39.86%), exceeding both approved limits. Of the 32 completed matches, this was the only mature fuel-cutoff failure. Kit ledgers were exact in all 32 matches, all forest/local-wood residuals were zero, no Iron-era metal clearing crossing occurred, and no mature rolling work-share window exceeded 15% (maximum 11.80%). Those passing ledgers, clearing and work-share checks do not offset the fuel or coverage failures.
+
+Seed `20261965`'s map-level forest stock remained substantial, but c2's fuel-short settlements typically had under 5 L of harvestable wood inside their 40-tile physical reach while productive stands began at distances 41–48. This points to local hauling reach as the fuel failure's cause, rather than exhaustion of the whole map. The next candidate will widen the physical reach and the hub planning/siting catchment, retain distance-based hauling cost, and rerun the failing seed diagnostically before another preregistration. The other fixed-population replacement screens remain in the [I-T6 acceptance report](m11-it6-whole-match-2026-11-05.md); they do not substitute for this natural-match failure or the actual tool-worker denominator.
+
+No I-T2 or current-source I-T6 pass is claimed. A new acceptance block will be preregistered only after the next candidate and its controlled diagnostic are frozen.
