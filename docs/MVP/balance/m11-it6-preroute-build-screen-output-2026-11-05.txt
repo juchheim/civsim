@@ -1,0 +1,410 @@
+== iron-match seed 20261019: 81.0 minutes simulated, chapter end RivalCountdown at season 323 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     59.0   77.9      37     27    1312   317   128     609       65        0        3      2
+c1  Grower      59.0   77.9      37     23    1185   535     0     641       78        1        3      2
+c2  Warlord     58.1   79.6      31     29    1189   374     0     530       54        1        2      1
+c3  Sage        58.6   77.9      35     20     929   400     0     450       45        0        2      1
+iron works built (all settlements):
+  windlass_well             4    2    2    0
+  terrace                   0    7    0    0
+  road                      8    0   12    2
+  academy                   0    1    1    0
+  press                     0    0    1    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 18; (nothing wanted) x1 (0%), academy x4 (32%), road x2 (70%), windlass_well x2 (64%)
+  c1: villages 16; academy x1 (80%), crane x1 (26%), harbor x1 (100%), press x1 (100%), road x2 (9%), terrace x1 (100%)
+  c2: villages 23; (nothing wanted) x3 (0%), academy x3 (49%)
+  c3: villages 18; academy x1 (100%), theatre_arena x1 (74%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 2 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks wood: 1 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 1 towns
+  windlass_well lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 18  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 65, c1 78, c2 54, c3 45
+final legacy per civ: c0 4686, c1 4131, c2 4219, c3 3947
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2462 stock=60460.00->55082.71 L; regrowth=35369.79 L; removed chop/metal/civic/other=7890.10/26910.03/5946.96/0.00 L (Iron-era subset=21845.46 L); residual=0.00 L
+  local wood stores=0.00->810.05 L; inflow=21470.87 L; use=20660.82 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=297 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=11/0/0/286/0; currently cleared tiles=79 (grassland=0)
+  kits world: T11 made/issued/held/stored=1960.09/1900.00/1626/60.09; T12=148.09/136.00/128/12.09; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=2201.88/34194.02; full-chain share=8.65%; kits made/issued T11=411.20/399.00 T12=148.09/136.00; tool-ws used T11/T12=3565.58/195.22; breaks T11/T12=0/0; T11 upgrades=6; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1232.66/7395.99/244.26/940.12; ore mined all/Iron=812.31/542.07 L; Iron fire-setting wood=178.68 L; haul-ws charcoal/all-ore/Iron-ore=15.95/27.22/14.88; metal-facility build-ws=629.65; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/915 demand-seasons (0.00%); unmet 0.00/1007.43 L planned (0.00%)
+    route ramp: seasons 261–273 (12 complete after first issue), chain/work=653.17/3167.49 (20.62%), fuel short 0/170 demand-seasons (0.00%); unmet 0.00/323.41 L planned (0.00%); post-ramp seasons=51, chain/work=1277.33/18190.48 (7.02%), fuel short 0/733 demand-seasons (0.00%); unmet 0.00/659.89 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 40 12-season windows after 12-season route maturity; max share=11.74% at seasons 273–285, chain/work=414.12/3526.71 (metal/craft/facility=326.14/24.52/63.47 ws)
+  c1 Grower all-match metal/work=2306.06/36769.20; full-chain share=8.08%; kits made/issued T11=649.28/635.00 T12=0.00/0.00; tool-ws used T11/T12=4652.44/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1339.34/8036.04/121.69/1044.56; ore mined all/Iron=850.93/597.12 L; Iron fire-setting wood=110.64 L; haul-ws charcoal/all-ore/Iron-ore=16.22/26.21/14.93; metal-facility build-ws=536.75; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/939 demand-seasons (0.00%); unmet 0.00/1081.26 L planned (0.00%)
+    route ramp: seasons 261–273 (12 complete after first issue), chain/work=574.38/3285.34 (17.48%), fuel short 0/179 demand-seasons (0.00%); unmet 0.00/311.89 L planned (0.00%); post-ramp seasons=51, chain/work=1281.82/20935.93 (6.12%), fuel short 0/747 demand-seasons (0.00%); unmet 0.00/739.45 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 40 12-season windows after 12-season route maturity; max share=9.60% at seasons 273–285, chain/work=372.33/3878.85 (metal/craft/facility=307.67/22.41/42.26 ws)
+  c2 Warlord all-match metal/work=1814.73/32148.03; full-chain share=7.46%; kits made/issued T11=432.35/413.00 T12=0.00/0.00; tool-ws used T11/T12=2725.14/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1017.45/6104.68/84.71/788.12; ore mined all/Iron=669.48/462.03 L; Iron fire-setting wood=75.93 L; haul-ws charcoal/all-ore/Iron-ore=15.04/20.29/9.83; metal-facility build-ws=498.38; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/681 demand-seasons (0.00%); unmet 0.00/833.76 L planned (0.00%)
+    route ramp: seasons 261–273 (12 complete after first issue), chain/work=450.61/2901.49 (15.53%), fuel short 0/117 demand-seasons (0.00%); unmet 0.00/247.83 L planned (0.00%); post-ramp seasons=51, chain/work=1172.63/16952.43 (6.92%), fuel short 0/553 demand-seasons (0.00%); unmet 0.00/570.44 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 40 12-season windows after 12-season route maturity; max share=11.20% at seasons 289–301, chain/work=429.34/3833.99 (metal/craft/facility=347.52/28.54/53.28 ws)
+  c3 Sage all-match metal/work=1600.02/28532.70; full-chain share=7.72%; kits made/issued T11=467.25/453.00 T12=0.00/0.00; tool-ws used T11/T12=3625.65/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=917.74/5506.44/98.38/723.91; ore mined all/Iron=617.94/417.33 L; Iron fire-setting wood=80.84 L; haul-ws charcoal/all-ore/Iron-ore=7.91/20.95/13.14; metal-facility build-ws=509.20; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/667 demand-seasons (0.00%); unmet 0.00/768.61 L planned (0.00%)
+    route ramp: seasons 265–277 (12 complete after first issue), chain/work=527.98/2663.55 (19.82%), fuel short 0/116 demand-seasons (0.00%); unmet 0.00/270.76 L planned (0.00%); post-ramp seasons=47, chain/work=958.61/13455.79 (7.12%), fuel short 0/543 demand-seasons (0.00%); unmet 0.00/478.49 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 36 12-season windows after 12-season route maturity; max share=8.92% at seasons 277–289, chain/work=266.23/2984.72 (metal/craft/facility=200.07/16.30/49.86 ws)
+
+== iron-match seed 20261020: 81.5 minutes simulated, chapter end RivalCountdown at season 325 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     65.4      -      18     18     787   241     9     373       10        0        0      0
+c1  Grower      61.1      -      25     29    1425   507     0     568       14        0        3      0
+c2  Warlord     65.0      -      21     17     923   376     0     391       23        0        0      0
+c3  Sage        59.0   78.3      40     34    1508   266    24     577       43        2        4      5
+iron works built (all settlements):
+  windlass_well             2    3    2    3
+  academy                   0    0    0    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 14; (nothing wanted) x3 (0%), great_dome x1 (11%)
+  c1: villages 22; academy x3 (74%), harbor x1 (86%), theatre_arena x3 (33%)
+  c2: villages 12; press x1 (74%), windlass_well x4 (83%)
+  c3: villages 25; academy x1 (100%), harbor x2 (81%), theatre_arena x3 (47%), windlass_well x3 (82%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy fully supplied: 1 towns
+  academy lacks block: 1 towns
+  academy lacks wood: 1 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+  windlass_well lacks wood: 4 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 18  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 14, c1 24, c2 41, c3 64
+final legacy per civ: c0 3219, c1 4370, c2 3569, c3 5311
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2260 stock=51000.00->47638.07 L; regrowth=31810.29 L; removed chop/metal/civic/other=7422.93/22955.37/4793.91/0.00 L (Iron-era subset=16743.47 L); residual=0.00 L
+  local wood stores=0.00->959.76 L; inflow=21400.99 L; use=20441.23 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=211 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=2/0/0/209/0; currently cleared tiles=60 (grassland=0)
+  kits world: T11 made/issued/held/stored=1677.01/1623.00/1390/54.01; T12=46.74/34.00/33/12.74; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=1279.71/21554.73; full-chain share=7.93%; kits made/issued T11=273.99/264.00 T12=13.23/9.00; tool-ws used T11/T12=1618.10/2.24; breaks T11/T12=0/0; T11 upgrades=1; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=663.05/3978.32/86.43/450.36; ore mined all/Iron=441.19/260.22 L; Iron fire-setting wood=74.55 L; haul-ws charcoal/all-ore/Iron-ore=7.12/17.17/9.05; metal-facility build-ws=371.11; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/427 demand-seasons (0.00%); unmet 0.00/490.46 L planned (0.00%)
+    route ramp: seasons 275–287 (12 complete after first issue), chain/work=260.35/2128.86 (12.23%), fuel short 0/97 demand-seasons (0.00%); unmet 0.00/146.42 L planned (0.00%); post-ramp seasons=39, chain/work=732.34/10334.01 (7.09%), fuel short 0/323 demand-seasons (0.00%); unmet 0.00/333.36 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 28 12-season windows after 12-season route maturity; max share=10.06% at seasons 288–300, chain/work=259.90/2582.84 (metal/craft/facility=216.19/12.11/31.61 ws)
+  c1 Grower all-match metal/work=2252.92/33441.00; full-chain share=9.01%; kits made/issued T11=622.64/604.00 T12=0.00/0.00; tool-ws used T11/T12=3813.25/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1260.01/7560.07/238.09/915.64; ore mined all/Iron=844.09/524.65 L; Iron fire-setting wood=174.26 L; haul-ws charcoal/all-ore/Iron-ore=16.86/39.44/17.66; metal-facility build-ws=636.28; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/947 demand-seasons (0.00%); unmet 0.00/992.70 L planned (0.00%)
+    route ramp: seasons 267–279 (12 complete after first issue), chain/work=620.95/3240.65 (19.16%), fuel short 0/195 demand-seasons (0.00%); unmet 0.00/359.48 L planned (0.00%); post-ramp seasons=47, chain/work=1192.14/17310.28 (6.89%), fuel short 0/736 demand-seasons (0.00%); unmet 0.00/614.55 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 36 12-season windows after 12-season route maturity; max share=8.75% at seasons 279–291, chain/work=329.15/3761.60 (metal/craft/facility=252.75/20.02/56.37 ws)
+  c2 Warlord all-match metal/work=1684.29/23086.71; full-chain share=9.47%; kits made/issued T11=436.62/423.00 T12=0.00/0.00; tool-ws used T11/T12=2448.08/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=907.64/5445.84/80.08/654.21; ore mined all/Iron=613.36/373.94 L; Iron fire-setting wood=70.29 L; haul-ws charcoal/all-ore/Iron-ore=13.50/28.40/11.92; metal-facility build-ws=415.72; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/503 demand-seasons (0.00%); unmet 0.00/674.42 L planned (0.00%)
+    route ramp: seasons 281–293 (12 complete after first issue), chain/work=483.74/2641.88 (18.31%), fuel short 0/121 demand-seasons (0.00%); unmet 0.00/279.82 L planned (0.00%); post-ramp seasons=33, chain/work=726.82/9464.04 (7.68%), fuel short 0/372 demand-seasons (0.00%); unmet 0.00/370.61 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 22 12-season windows after 12-season route maturity; max share=9.85% at seasons 293–305, chain/work=301.52/3059.87 (metal/craft/facility=228.53/24.86/48.12 ws)
+  c3 Sage all-match metal/work=2105.42/32380.26; full-chain share=9.62%; kits made/issued T11=343.76/332.00 T12=33.51/25.00; tool-ws used T11/T12=2473.33/13.49; breaks T11/T12=0/0; T11 upgrades=1; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1052.72/6316.33/102.59/682.88; ore mined all/Iron=731.57/402.48 L; Iron fire-setting wood=87.83 L; haul-ws charcoal/all-ore/Iron-ore=21.94/25.09/7.37; metal-facility build-ws=932.30; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/886 demand-seasons (0.00%); unmet 0.00/733.24 L planned (0.00%)
+    route ramp: seasons 268–280 (12 complete after first issue), chain/work=578.75/3200.23 (18.08%), fuel short 0/181 demand-seasons (0.00%); unmet 0.00/285.35 L planned (0.00%); post-ramp seasons=46, chain/work=1046.17/16381.94 (6.39%), fuel short 0/690 demand-seasons (0.00%); unmet 0.00/425.65 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 35 12-season windows after 12-season route maturity; max share=8.08% at seasons 311–323, chain/work=384.69/4761.77 (metal/craft/facility=299.34/11.53/73.83 ws)
+
+== iron-match seed 20261021: 81.0 minutes simulated, chapter end RivalCountdown at season 323 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     59.3   78.0      40     32    1366   438    48     604       67        2        4      4
+c1  Grower      64.7      -      20     14     854   286     0     430       22        0        0      1
+c2  Warlord     66.3      -      16     12     723    78     0     340       16        0        0      0
+c3  Sage        59.8   78.3      33     35    1241   269     0     545       15        0        2      2
+iron works built (all settlements):
+  windlass_well             4    4    2    2
+  academy                   2    1    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 26; academy x2 (100%), great_dome x1 (93%), theatre_arena x2 (24%), windlass_well x1 (92%)
+  c1: villages 10; (nothing wanted) x1 (0%), academy x2 (0%), windlass_well x1 (97%)
+  c2: villages 9; (nothing wanted) x1 (0%), harbor x1 (0%), windlass_well x1 (100%)
+  c3: villages 32; academy x3 (31%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 2 towns
+  windlass_well lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 16  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 67, c1 22, c2 16, c3 17
+final legacy per civ: c0 5453, c1 3354, c2 2821, c3 4928
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2286 stock=42510.00->39986.54 L; regrowth=28507.48 L; removed chop/metal/civic/other=7598.61/19547.24/3885.09/0.00 L (Iron-era subset=13117.38 L); residual=0.00 L
+  local wood stores=0.00->752.17 L; inflow=18064.36 L; use=17312.19 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=205 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=13/0/0/192/0; currently cleared tiles=36 (grassland=1)
+  kits world: T11 made/issued/held/stored=1300.42/1255.00/1071/45.42; T12=56.46/49.00/48/7.46; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=2396.58/35490.85; full-chain share=8.78%; kits made/issued T11=568.21/554.00 T12=56.46/49.00; tool-ws used T11/T12=4336.35/71.18; breaks T11/T12=0/0; T11 upgrades=14; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1400.57/8403.42/218.88/1016.45; ore mined all/Iron=922.91/581.56 L; Iron fire-setting wood=186.19 L; haul-ws charcoal/all-ore/Iron-ore=19.38/31.35/13.89; metal-facility build-ws=589.15; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/873 demand-seasons (0.00%); unmet 0.00/1090.51 L planned (0.00%)
+    route ramp: seasons 258–270 (12 complete after first issue), chain/work=583.30/3213.90 (18.15%), fuel short 0/149 demand-seasons (0.00%); unmet 0.00/360.92 L planned (0.00%); post-ramp seasons=54, chain/work=1346.75/19527.26 (6.90%), fuel short 0/710 demand-seasons (0.00%); unmet 0.00/707.19 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 43 12-season windows after 12-season route maturity; max share=8.66% at seasons 280–292, chain/work=328.97/3796.78 (metal/craft/facility=242.22/22.89/63.86 ws)
+  c1 Grower all-match metal/work=1225.24/25554.80; full-chain share=6.24%; kits made/issued T11=320.96/309.00 T12=0.00/0.00; tool-ws used T11/T12=1618.90/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=738.12/4428.71/69.91/471.95; ore mined all/Iron=522.07/267.12 L; Iron fire-setting wood=66.75 L; haul-ws charcoal/all-ore/Iron-ore=4.17/19.24/7.34; metal-facility build-ws=305.85; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/315 demand-seasons (0.00%); unmet 0.00/488.60 L planned (0.00%)
+    route ramp: seasons 286–298 (12 complete after first issue), chain/work=246.06/3191.30 (7.71%), fuel short 0/111 demand-seasons (0.00%); unmet 0.00/156.90 L planned (0.00%); post-ramp seasons=26, chain/work=406.57/8520.35 (4.77%), fuel short 0/194 demand-seasons (0.00%); unmet 0.00/314.02 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 15 12-season windows after 12-season route maturity; max share=6.49% at seasons 300–312, chain/work=238.82/3681.97 (metal/craft/facility=199.55/19.60/19.67 ws)
+  c2 Warlord all-match metal/work=808.00/19840.37; full-chain share=5.62%; kits made/issued T11=88.19/84.00 T12=0.00/0.00; tool-ws used T11/T12=354.80/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=359.57/2157.43/32.05/153.12; ore mined all/Iron=291.81/96.76 L; Iron fire-setting wood=22.48 L; haul-ws charcoal/all-ore/Iron-ore=0.89/7.45/2.36; metal-facility build-ws=290.13; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/234 demand-seasons (0.00%); unmet 0.00/179.44 L planned (0.00%)
+    route ramp: seasons 291–303 (12 complete after first issue), chain/work=192.33/2410.96 (7.98%), fuel short 0/81 demand-seasons (0.00%); unmet 0.00/101.92 L planned (0.00%); post-ramp seasons=21, chain/work=166.20/5450.65 (3.05%), fuel short 0/146 demand-seasons (0.00%); unmet 0.00/69.13 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 10 12-season windows after 12-season route maturity; max share=3.26% at seasons 303–315, chain/work=96.18/2950.67 (metal/craft/facility=66.41/3.63/26.14 ws)
+  c3 Sage all-match metal/work=1842.59/30705.74; full-chain share=8.63%; kits made/issued T11=323.07/308.00 T12=0.00/0.00; tool-ws used T11/T12=1620.58/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=867.39/5204.37/73.96/509.66; ore mined all/Iron=637.73/299.93 L; Iron fire-setting wood=59.54 L; haul-ws charcoal/all-ore/Iron-ore=13.83/18.04/6.15; metal-facility build-ws=741.42; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/705 demand-seasons (0.00%); unmet 0.00/542.45 L planned (0.00%)
+    route ramp: seasons 275–287 (12 complete after first issue), chain/work=437.72/3309.92 (13.22%), fuel short 0/161 demand-seasons (0.00%); unmet 0.00/203.34 L planned (0.00%); post-ramp seasons=37, chain/work=856.56/13060.40 (6.56%), fuel short 0/530 demand-seasons (0.00%); unmet 0.00/312.96 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 26 12-season windows after 12-season route maturity; max share=6.97% at seasons 287–299, chain/work=265.56/3811.73 (metal/craft/facility=191.64/11.56/62.36 ws)
+
+== iron-match seed 20261022: 82.0 minutes simulated, chapter end RivalCountdown at season 327 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     78.9      -       0      7     261     0     0     140        0        0        0      0
+c1  Grower      57.4   79.4      37     29    1640   552     0     945       40        2        2      2
+c2  Warlord     58.6   81.1      28     20     887   255     0     439       56        0        2      0
+c3  Sage        56.4   78.9      37     28    1415   433    64     631       28        1        3      3
+iron works built (all settlements):
+  windlass_well             0    4    3    3
+  terrace                   0    1    0    1
+  road                      0    0    4    0
+  academy                   0    3    0    1
+  press                     0    0    0    1
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 6; (nothing wanted) x1 (0%)
+  c1: villages 21; academy x2 (57%), theatre_arena x3 (66%), windlass_well x3 (66%)
+  c2: villages 16; academy x1 (100%), harbor x2 (74%), road x1 (59%)
+  c3: villages 20; academy x2 (73%), harbor x1 (100%), theatre_arena x4 (72%), windlass_well x1 (66%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 1 towns
+  harbor lacks wood: 1 towns
+  terrace lacks block: 2 towns
+  terrace lacks wood: 2 towns
+  theatre_arena lacks block: 2 towns
+  theatre_arena lacks wood: 3 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 8  raids 14  assaults 12  captured 10  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 0, c1 40, c2 56, c3 28
+final legacy per civ: c0 2208, c1 5182, c2 3643, c3 5474
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2146 stock=45950.00->41911.01 L; regrowth=23006.03 L; removed chop/metal/civic/other=3644.77/19741.30/3658.94/0.00 L (Iron-era subset=17107.67 L); residual=0.00 L
+  local wood stores=0.00->375.55 L; inflow=20024.41 L; use=19648.86 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=134 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=0/0/0/134/0; currently cleared tiles=39 (grassland=0)
+  kits world: T11 made/issued/held/stored=1528.40/1492.00/1240/36.40; T12=74.82/64.00/64/10.82; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=52.95/8589.44; full-chain share=1.10%; kits made/issued T11=0.00/0.00 T12=0.00/0.00; tool-ws used T11/T12=0.00/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=28.94/173.62/0.00/0.00; ore mined all/Iron=30.50/0.00 L; Iron fire-setting wood=0.00 L; haul-ws charcoal/all-ore/Iron-ore=0.44/0.00/0.00; metal-facility build-ws=41.28; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/0 demand-seasons (n/a); unmet 0.00/0.00 L planned (n/a)
+    route window: no MET-09 + issued-Iron-kit exposure
+  c1 Grower all-match metal/work=2580.67/44820.82; full-chain share=8.42%; kits made/issued T11=651.25/631.00 T12=0.00/0.00; tool-ws used T11/T12=4024.17/0.00; breaks T11/T12=3/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1365.52/8193.15/71.91/1110.23; ore mined all/Iron=880.67/642.38 L; Iron fire-setting wood=53.08 L; haul-ws charcoal/all-ore/Iron-ore=33.08/34.73/25.85; metal-facility build-ws=1064.03; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1166 demand-seasons (0.00%); unmet 0.00/1223.25 L planned (0.00%)
+    route ramp: seasons 257–269 (12 complete after first issue), chain/work=497.51/3336.88 (14.91%), fuel short 0/162 demand-seasons (0.00%); unmet 0.00/167.57 L planned (0.00%); post-ramp seasons=59, chain/work=2418.51/28282.45 (8.55%), fuel short 0/993 demand-seasons (0.00%); unmet 0.00/1043.34 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 48 12-season windows after 12-season route maturity; max share=13.57% at seasons 269–281, chain/work=510.87/3763.89 (metal/craft/facility=385.26/15.21/110.40 ws)
+  c2 Warlord all-match metal/work=1106.44/28015.36; full-chain share=6.38%; kits made/issued T11=317.75/312.00 T12=0.00/0.00; tool-ws used T11/T12=2010.50/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=656.81/3940.85/96.15/510.74; ore mined all/Iron=423.73/289.57 L; Iron fire-setting wood=74.27 L; haul-ws charcoal/all-ore/Iron-ore=11.92/16.39/10.83; metal-facility build-ws=616.42; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/463 demand-seasons (0.00%); unmet 0.00/569.34 L planned (0.00%)
+    route ramp: seasons 266–278 (12 complete after first issue), chain/work=134.48/2254.53 (5.97%), fuel short 0/70 demand-seasons (0.00%); unmet 0.00/33.29 L planned (0.00%); post-ramp seasons=50, chain/work=1014.76/14482.04 (7.01%), fuel short 0/389 demand-seasons (0.00%); unmet 0.00/533.16 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 39 12-season windows after 12-season route maturity; max share=9.14% at seasons 290–302, chain/work=305.97/3349.06 (metal/craft/facility=228.62/17.99/59.37 ws)
+  c3 Sage all-match metal/work=2051.85/36196.60; full-chain share=8.02%; kits made/issued T11=559.40/549.00 T12=74.82/64.00; tool-ws used T11/T12=3844.47/40.62; breaks T11/T12=0/0; T11 upgrades=25; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1200.42/7202.51/174.63/930.74; ore mined all/Iron=782.71/534.20 L; Iron fire-setting wood=151.77 L; haul-ws charcoal/all-ore/Iron-ore=18.60/28.32/19.34; metal-facility build-ws=716.79; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1082 demand-seasons (0.00%); unmet 0.00/1026.69 L planned (0.00%)
+    route ramp: seasons 254–266 (12 complete after first issue), chain/work=182.03/2753.36 (6.61%), fuel short 0/131 demand-seasons (0.00%); unmet 0.00/46.45 L planned (0.00%); post-ramp seasons=62, chain/work=1800.66/21663.53 (8.31%), fuel short 0/943 demand-seasons (0.00%); unmet 0.00/976.90 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 51 12-season windows after 12-season route maturity; max share=11.77% at seasons 275–287, chain/work=407.13/3459.60 (metal/craft/facility=320.30/26.60/60.23 ws)
+
+== iron-match seed 20261023: 83.2 minutes simulated, chapter end RivalCountdown at season 332 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     63.9   81.8      35     13     842    47    38     403       58        0        3      0
+c1  Grower      58.7   80.1      41     28    1879   399     0     930       91        4        4      6
+c2  Warlord     61.3   80.7      36     29    1338   295     0     573       50        0        3      1
+c3  Sage        67.2      -      11     14     468   154     0     214        0        0        0      0
+iron works built (all settlements):
+  windlass_well             0    8    3    0
+  theatre_arena             0    1    0    0
+  academy                   0    4    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 9; academy x2 (100%), great_library x1 (1%), harbor x1 (100%)
+  c1: villages 14; (nothing wanted) x1 (0%), aqueduct x2 (8%), theatre_arena x3 (55%), windlass_well x8 (62%)
+  c2: villages 25; academy x2 (85%), harbor x1 (100%), road x1 (57%)
+  c3: villages 12; windlass_well x2 (60%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 3 towns
+  academy lacks wood: 3 towns
+  harbor lacks block: 2 towns
+  harbor lacks wood: 2 towns
+  windlass_well lacks wood: 4 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 10  raids 4  assaults 10  captured 10  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 2
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 62, c1 95, c2 64, c3 0
+final legacy per civ: c0 3899, c1 6181, c2 4307, c3 2638
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2396 stock=62730.00->58847.77 L; regrowth=22494.81 L; removed chop/metal/civic/other=5219.04/17459.83/3698.18/0.00 L (Iron-era subset=13474.05 L); residual=0.00 L
+  local wood stores=0.00->416.80 L; inflow=16921.65 L; use=16504.85 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=129 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=17/0/0/112/0; currently cleared tiles=21 (grassland=0)
+  kits world: T11 made/issued/held/stored=1070.63/1041.00/895/29.63; T12=41.70/40.00/38/1.70; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=421.16/22772.93; full-chain share=3.89%; kits made/issued T11=61.93/60.00 T12=41.70/40.00; tool-ws used T11/T12=619.63/82.35; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=233.26/1399.59/2.97/152.99; ore mined all/Iron=174.87/86.71 L; Iron fire-setting wood=2.87 L; haul-ws charcoal/all-ore/Iron-ore=13.20/3.74/0.07; metal-facility build-ws=440.78; fuel-short settlement-seasons all/Iron-era=30/0
+    post-MET-09 charcoal plan: short 0/409 demand-seasons (0.00%); unmet 0.00/165.33 L planned (0.00%)
+    route ramp: seasons 283–295 (12 complete after first issue), chain/work=93.95/2521.98 (3.73%), fuel short 0/74 demand-seasons (0.00%); unmet 0.00/28.22 L planned (0.00%); post-ramp seasons=38, chain/work=305.13/10887.93 (2.80%), fuel short 0/293 demand-seasons (0.00%); unmet 0.00/132.22 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 27 12-season windows after 12-season route maturity; max share=3.81% at seasons 295–307, chain/work=113.17/2973.12 (metal/craft/facility=62.57/5.38/45.22 ws)
+  c1 Grower all-match metal/work=2626.99/51256.62; full-chain share=7.46%; kits made/issued T11=468.39/458.00 T12=0.00/0.00; tool-ws used T11/T12=2880.43/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1284.86/7709.17/170.57/782.17; ore mined all/Iron=925.54/459.22 L; Iron fire-setting wood=121.01 L; haul-ws charcoal/all-ore/Iron-ore=13.51/36.84/15.86; metal-facility build-ws=1102.19; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1446 demand-seasons (0.00%); unmet 0.00/938.09 L planned (0.00%)
+    route ramp: seasons 259–271 (12 complete after first issue), chain/work=537.89/3922.07 (13.71%), fuel short 0/209 demand-seasons (0.00%); unmet 0.00/204.26 L planned (0.00%); post-ramp seasons=62, chain/work=1760.23/32353.44 (5.44%), fuel short 0/1220 demand-seasons (0.00%); unmet 0.00/722.97 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 51 12-season windows after 12-season route maturity; max share=6.65% at seasons 277–289, chain/work=323.41/4864.01 (metal/craft/facility=210.12/8.50/104.79 ws)
+  c2 Warlord all-match metal/work=1752.24/31969.75; full-chain share=7.69%; kits made/issued T11=357.65/348.00 T12=0.00/0.00; tool-ws used T11/T12=2518.37/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=973.17/5839.04/188.10/745.31; ore mined all/Iron=649.61/445.50 L; Iron fire-setting wood=122.97 L; haul-ws charcoal/all-ore/Iron-ore=22.05/32.95/23.91; metal-facility build-ws=633.59; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/937 demand-seasons (0.00%); unmet 0.00/829.87 L planned (0.00%)
+    route ramp: seasons 270–282 (12 complete after first issue), chain/work=361.35/2694.82 (13.41%), fuel short 0/147 demand-seasons (0.00%); unmet 0.00/184.37 L planned (0.00%); post-ramp seasons=51, chain/work=1332.23/17894.08 (7.45%), fuel short 0/780 demand-seasons (0.00%); unmet 0.00/634.62 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 40 12-season windows after 12-season route maturity; max share=9.95% at seasons 282–294, chain/work=323.41/3248.97 (metal/craft/facility=246.33/10.19/66.89 ws)
+  c3 Sage all-match metal/work=634.49/14760.85; full-chain share=6.79%; kits made/issued T11=182.65/175.00 T12=0.00/0.00; tool-ws used T11/T12=647.43/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=329.67/1978.00/33.08/264.69; ore mined all/Iron=211.36/150.41 L; Iron fire-setting wood=33.08 L; haul-ws charcoal/all-ore/Iron-ore=5.16/7.19/2.27; metal-facility build-ws=331.34; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/204 demand-seasons (0.00%); unmet 0.00/269.90 L planned (0.00%)
+    route ramp: seasons 301–313 (12 complete after first issue), chain/work=280.61/1811.35 (15.49%), fuel short 0/60 demand-seasons (0.00%); unmet 0.00/89.26 L planned (0.00%); post-ramp seasons=20, chain/work=354.69/3308.49 (10.72%), fuel short 0/141 demand-seasons (0.00%); unmet 0.00/179.49 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 9 12-season windows after 12-season route maturity; max share=13.14% at seasons 313–325, chain/work=251.71/1915.00 (metal/craft/facility=188.01/17.68/46.01 ws)
+
+== iron-match seed 20261024: 81.0 minutes simulated, chapter end RivalCountdown at season 323 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     62.0   80.7      24     23     796   237     0     363        9        0        3      1
+c1  Grower      62.0   80.7      28     26    1180   411     0     504       28        1        1      2
+c2  Warlord     57.6   78.3      35     35    1408   363     0     608       59        1        1      1
+c3  Sage        59.6   78.0      43     16     850   416    32     556       83        0        4      2
+iron works built (all settlements):
+  windlass_well             2    3    2    5
+  road                      0    0    2    0
+  academy                   0    2    1    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 20; academy x3 (66%)
+  c1: villages 20; (nothing wanted) x1 (0%), academy x1 (100%), harbor x1 (8%), press x1 (100%), windlass_well x2 (100%)
+  c2: villages 32; academy x1 (61%), great_dome x1 (23%), theatre_arena x1 (37%)
+  c3: villages 11; academy x1 (0%), crane x2 (40%), theatre_arena x1 (100%), windlass_well x1 (0%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 2 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 16  assaults 16  captured 14  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 5
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 12, c1 28, c2 61, c3 83
+final legacy per civ: c0 3491, c1 3568, c2 5727, c3 4126
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2806 stock=67090.00->61710.18 L; regrowth=25682.11 L; removed chop/metal/civic/other=5284.15/21237.47/4540.32/0.00 L (Iron-era subset=17826.12 L); residual=0.00 L
+  local wood stores=0.00->618.98 L; inflow=18932.50 L; use=18313.52 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=158 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=1/0/0/157/0; currently cleared tiles=49 (grassland=1)
+  kits world: T11 made/issued/held/stored=1763.85/1726.00/1427/37.85; T12=32.68/32.00/32/0.68; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=1145.41/21347.36; full-chain share=7.34%; kits made/issued T11=280.99/273.00 T12=0.00/0.00; tool-ws used T11/T12=1845.44/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=654.41/3926.48/78.88/511.82; ore mined all/Iron=445.00/309.07 L; Iron fire-setting wood=70.25 L; haul-ws charcoal/all-ore/Iron-ore=11.68/20.95/14.72; metal-facility build-ws=365.44; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/410 demand-seasons (0.00%); unmet 0.00/529.26 L planned (0.00%)
+    route ramp: seasons 268–280 (12 complete after first issue), chain/work=198.02/1890.71 (10.47%), fuel short 0/72 demand-seasons (0.00%); unmet 0.00/111.31 L planned (0.00%); post-ramp seasons=44, chain/work=809.89/10538.11 (7.69%), fuel short 0/333 demand-seasons (0.00%); unmet 0.00/408.27 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 33 12-season windows after 12-season route maturity; max share=12.47% at seasons 310–322, chain/work=425.87/3415.79 (metal/craft/facility=339.02/16.50/70.34 ws)
+  c1 Grower all-match metal/work=1566.49/25394.10; full-chain share=8.64%; kits made/issued T11=486.79/474.00 T12=0.00/0.00; tool-ws used T11/T12=2930.75/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=922.69/5536.12/89.82/709.42; ore mined all/Iron=592.27/403.77 L; Iron fire-setting wood=75.04 L; haul-ws charcoal/all-ore/Iron-ore=12.68/20.50/10.28; metal-facility build-ws=530.02; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/683 demand-seasons (0.00%); unmet 0.00/759.35 L planned (0.00%)
+    route ramp: seasons 268–280 (12 complete after first issue), chain/work=480.85/2630.71 (18.28%), fuel short 0/157 demand-seasons (0.00%); unmet 0.00/248.69 L planned (0.00%); post-ramp seasons=44, chain/work=921.71/13273.15 (6.94%), fuel short 0/516 demand-seasons (0.00%); unmet 0.00/492.90 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 33 12-season windows after 12-season route maturity; max share=9.49% at seasons 280–292, chain/work=273.16/2877.78 (metal/craft/facility=208.05/13.73/51.37 ws)
+  c2 Warlord all-match metal/work=2146.95/36597.17; full-chain share=7.68%; kits made/issued T11=448.30/433.00 T12=0.00/0.00; tool-ws used T11/T12=3096.87/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1076.40/6458.40/167.41/770.88; ore mined all/Iron=731.37/450.89 L; Iron fire-setting wood=132.88 L; haul-ws charcoal/all-ore/Iron-ore=11.81/30.27/16.03; metal-facility build-ws=573.97; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/978 demand-seasons (0.00%); unmet 0.00/822.68 L planned (0.00%)
+    route ramp: seasons 255–267 (12 complete after first issue), chain/work=371.44/2987.04 (12.43%), fuel short 0/126 demand-seasons (0.00%); unmet 0.00/185.93 L planned (0.00%); post-ramp seasons=57, chain/work=1410.23/20243.50 (6.97%), fuel short 0/840 demand-seasons (0.00%); unmet 0.00/617.51 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 46 12-season windows after 12-season route maturity; max share=9.33% at seasons 267–279, chain/work=310.99/3334.27 (metal/craft/facility=239.66/18.86/52.48 ws)
+  c3 Sage all-match metal/work=1091.67/33452.47; full-chain share=4.42%; kits made/issued T11=547.77/546.00 T12=32.68/32.00; tool-ws used T11/T12=3513.19/18.89; breaks T11/T12=0/0; T11 upgrades=26; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=875.37/5252.20/76.72/834.22; ore mined all/Iron=503.19/460.58 L; Iron fire-setting wood=65.44 L; haul-ws charcoal/all-ore/Iron-ore=29.19/3.14/1.80; metal-facility build-ws=268.86; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/315 demand-seasons (0.00%); unmet 0.00/865.86 L planned (0.00%)
+    route ramp: seasons 259–271 (12 complete after first issue), chain/work=260.21/2843.98 (9.15%), fuel short 0/38 demand-seasons (0.00%); unmet 0.00/83.45 L planned (0.00%); post-ramp seasons=53, chain/work=1108.42/18510.96 (5.99%), fuel short 0/275 demand-seasons (0.00%); unmet 0.00/779.70 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 42 12-season windows after 12-season route maturity; max share=10.35% at seasons 273–285, chain/work=378.60/3659.20 (metal/craft/facility=319.50/31.56/27.54 ws)
+
+== iron-match seed 20261025: 82.2 minutes simulated, chapter end RivalCountdown at season 328 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     61.5   80.7      33     27    1152   259    74     483       44        1        2      1
+c1  Grower      60.4   79.2      37     25    1329   452     0     663       73        3        5      6
+c2  Warlord     57.9      -      24     31    1050   350     0     560       31        0        1      0
+c3  Sage           -      -       0      6     189     0     0      75        0        0        0      0
+iron works built (all settlements):
+  windlass_well             2    5    2    0
+  academy                   1    4    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 20; (nothing wanted) x1 (0%), academy x2 (8%), great_dome x1 (100%), windlass_well x3 (80%)
+  c1: villages 15; (nothing wanted) x1 (0%), aqueduct x1 (0%), road x1 (76%), theatre_arena x3 (69%), windlass_well x4 (68%)
+  c2: villages 27; (nothing wanted) x1 (0%), academy x3 (54%)
+  c3: villages 6; 
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 1 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks bloom: 1 towns
+  great_dome lacks wood: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+  windlass_well lacks wood: 4 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 6  raids 24  assaults 6  captured 6  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 46, c1 81, c2 45, c3 0
+final legacy per civ: c0 4299, c1 5089, c2 4702, c3 2117
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2474 stock=57470.00->53908.23 L; regrowth=27603.11 L; removed chop/metal/civic/other=7391.41/19634.95/4138.51/0.00 L (Iron-era subset=15219.61 L); residual=0.00 L
+  local wood stores=0.00->602.68 L; inflow=20934.52 L; use=20331.84 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=153 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=10/0/0/143/0; currently cleared tiles=36 (grassland=5)
+  kits world: T11 made/issued/held/stored=1346.03/1320.00/1061/26.03; T12=87.04/77.00/74/10.04; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=1858.47/31048.86; full-chain share=8.20%; kits made/issued T11=356.13/348.00 T12=87.04/77.00; tool-ws used T11/T12=3194.14/146.44; breaks T11/T12=0/0; T11 upgrades=17; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=991.47/5948.83/108.52/729.00; ore mined all/Iron=696.51/458.97 L; Iron fire-setting wood=75.57 L; haul-ws charcoal/all-ore/Iron-ore=13.42/26.24/15.84; metal-facility build-ws=589.78; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/784 demand-seasons (0.00%); unmet 0.00/807.06 L planned (0.00%)
+    route ramp: seasons 259–271 (12 complete after first issue), chain/work=488.98/2715.88 (18.00%), fuel short 0/129 demand-seasons (0.00%); unmet 0.00/292.94 L planned (0.00%); post-ramp seasons=58, chain/work=1178.58/18044.07 (6.53%), fuel short 0/644 demand-seasons (0.00%); unmet 0.00/485.22 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 47 12-season windows after 12-season route maturity; max share=7.65% at seasons 272–284, chain/work=247.51/3233.69 (metal/craft/facility=187.07/14.52/45.93 ws)
+  c1 Grower all-match metal/work=2399.03/36926.16; full-chain share=8.65%; kits made/issued T11=566.87/557.00 T12=0.00/0.00; tool-ws used T11/T12=3370.58/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1257.45/7544.72/125.05/976.91; ore mined all/Iron=905.01/622.50 L; Iron fire-setting wood=104.61 L; haul-ws charcoal/all-ore/Iron-ore=18.36/31.89/17.25; metal-facility build-ws=682.43; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1025 demand-seasons (0.00%); unmet 0.00/1059.75 L planned (0.00%)
+    route ramp: seasons 259–271 (12 complete after first issue), chain/work=499.81/2874.68 (17.39%), fuel short 0/189 demand-seasons (0.00%); unmet 0.00/250.64 L planned (0.00%); post-ramp seasons=58, chain/work=1622.77/21214.29 (7.65%), fuel short 0/821 demand-seasons (0.00%); unmet 0.00/790.49 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 47 12-season windows after 12-season route maturity; max share=12.93% at seasons 271–283, chain/work=466.23/3605.70 (metal/craft/facility=375.45/20.51/70.27 ws)
+  c2 Warlord all-match metal/work=2083.98/33180.05; full-chain share=8.74%; kits made/issued T11=423.03/415.00 T12=0.00/0.00; tool-ws used T11/T12=2595.94/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1052.95/6317.71/120.35/732.69; ore mined all/Iron=785.07/463.05 L; Iron fire-setting wood=105.38 L; haul-ws charcoal/all-ore/Iron-ore=12.60/22.65/11.94; metal-facility build-ws=729.79; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/906 demand-seasons (0.00%); unmet 0.00/766.31 L planned (0.00%)
+    route ramp: seasons 270–282 (12 complete after first issue), chain/work=589.17/3185.46 (18.50%), fuel short 0/173 demand-seasons (0.00%); unmet 0.00/326.98 L planned (0.00%); post-ramp seasons=47, chain/work=1149.17/15832.03 (7.26%), fuel short 0/719 demand-seasons (0.00%); unmet 0.00/418.32 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 36 12-season windows after 12-season route maturity; max share=8.62% at seasons 282–294, chain/work=295.19/3423.57 (metal/craft/facility=212.13/15.59/67.47 ws)
+  c3 Sage all-match metal/work=158.27/3582.72; full-chain share=6.79%; kits made/issued T11=0.00/0.00 T12=0.00/0.00; tool-ws used T11/T12=0.00/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=54.34/326.06/0.00/7.40; ore mined all/Iron=60.96/7.54 L; Iron fire-setting wood=0.00 L; haul-ws charcoal/all-ore/Iron-ore=0.00/3.34/0.15; metal-facility build-ws=84.87; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/0 demand-seasons (n/a); unmet 0.00/0.00 L planned (n/a)
+    route window: no MET-09 + issued-Iron-kit exposure
+
+== iron-match seed 20261026: 79.5 minutes simulated, chapter end RivalCountdown at season 317 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     55.5   76.3      46     27    1257   118    89     577       44        2        4      4
+c1  Grower      59.1   79.2      29     26    1315   373     0     606       13        1        2      3
+c2  Warlord     63.3      -      18     18     742   164     0     296        8        0        0      0
+c3  Sage        60.2      -      21     28    1111   327     0     462       12        0        2      0
+iron works built (all settlements):
+  windlass_well             2    4    1    2
+  theatre_arena             1    0    0    0
+  road                      1    0    0    0
+  academy                   2    2    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 20; great_dome x2 (55%), road x1 (65%), theatre_arena x3 (34%), windlass_well x1 (100%)
+  c1: villages 19; (nothing wanted) x1 (0%), academy x5 (44%), windlass_well x1 (100%)
+  c2: villages 14; (nothing wanted) x1 (0%), windlass_well x3 (97%)
+  c3: villages 23; academy x3 (24%), windlass_well x2 (76%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 1 towns
+  academy lacks wood: 1 towns
+  windlass_well lacks wood: 5 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 8  raids 12  assaults 12  captured 12  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 71, c1 28, c2 16, c3 16
+final legacy per civ: c0 6480, c1 3806, c2 2919, c3 3294
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=1368 stock=26420.00->23267.40 L; regrowth=21190.15 L; removed chop/metal/civic/other=3739.39/17785.23/2818.13/0.00 L (Iron-era subset=13889.44 L); residual=0.00 L
+  local wood stores=0.00->695.10 L; inflow=19462.23 L; use=18767.12 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=153 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=3/0/0/150/0; currently cleared tiles=40 (grassland=0)
+  kits world: T11 made/issued/held/stored=1204.35/1169.00/982/35.35; T12=107.32/98.00/89/9.32; make-issue-store residual=0.00 kits
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=1584.73/34348.50; full-chain share=6.78%; kits made/issued T11=188.33/182.00 T12=107.32/98.00; tool-ws used T11/T12=1556.26/221.22; breaks T11/T12=0/0; T11 upgrades=12; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=802.46/4814.78/176.65/563.73; ore mined all/Iron=563.00/327.44 L; Iron fire-setting wood=83.32 L; haul-ws charcoal/all-ore/Iron-ore=18.10/15.36/9.52; metal-facility build-ws=673.43; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/745 demand-seasons (0.00%); unmet 0.00/631.93 L planned (0.00%)
+    route ramp: seasons 244–256 (12 complete after first issue), chain/work=335.06/2742.56 (12.22%), fuel short 0/107 demand-seasons (0.00%); unmet 0.00/116.48 L planned (0.00%); post-ramp seasons=62, chain/work=1252.75/20464.38 (6.12%), fuel short 0/628 demand-seasons (0.00%); unmet 0.00/502.04 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 51 12-season windows after 12-season route maturity; max share=8.18% at seasons 256–268, chain/work=255.64/3125.18 (metal/craft/facility=170.52/8.42/76.70 ws)
+  c1 Grower all-match metal/work=1743.81/35619.87; full-chain share=7.22%; kits made/issued T11=445.31/434.00 T12=0.00/0.00; tool-ws used T11/T12=2566.82/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=934.29/5605.74/37.08/655.26; ore mined all/Iron=658.20/368.61 L; Iron fire-setting wood=22.56 L; haul-ws charcoal/all-ore/Iron-ore=41.28/18.25/8.62; metal-facility build-ws=738.44; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/712 demand-seasons (0.00%); unmet 0.00/740.36 L planned (0.00%)
+    route ramp: seasons 259–271 (12 complete after first issue), chain/work=457.41/3425.77 (13.35%), fuel short 0/96 demand-seasons (0.00%); unmet 0.00/175.15 L planned (0.00%); post-ramp seasons=47, chain/work=1240.90/17948.71 (6.91%), fuel short 0/607 demand-seasons (0.00%); unmet 0.00/556.49 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 36 12-season windows after 12-season route maturity; max share=12.78% at seasons 271–283, chain/work=501.77/3925.16 (metal/craft/facility=368.43/28.79/104.56 ws)
+  c2 Warlord all-match metal/work=864.27/16352.22; full-chain share=7.96%; kits made/issued T11=194.53/188.00 T12=0.00/0.00; tool-ws used T11/T12=958.99/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=443.12/2658.74/17.64/310.76; ore mined all/Iron=309.51/179.67 L; Iron fire-setting wood=15.75 L; haul-ws charcoal/all-ore/Iron-ore=13.26/9.31/5.02; metal-facility build-ws=399.25; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/313 demand-seasons (0.00%); unmet 0.00/323.01 L planned (0.00%)
+    route ramp: seasons 277–289 (12 complete after first issue), chain/work=370.85/2078.29 (17.84%), fuel short 0/119 demand-seasons (0.00%); unmet 0.00/162.17 L planned (0.00%); post-ramp seasons=29, chain/work=320.78/6554.61 (4.89%), fuel short 0/184 demand-seasons (0.00%); unmet 0.00/142.86 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 18 12-season windows after 12-season route maturity; max share=5.72% at seasons 289–301, chain/work=140.68/2459.11 (metal/craft/facility=91.09/8.25/41.33 ws)
+  c3 Sage all-match metal/work=1495.28/26591.96; full-chain share=8.09%; kits made/issued T11=376.17/365.00 T12=0.00/0.00; tool-ws used T11/T12=2224.65/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=760.45/4562.68/25.87/558.13; ore mined all/Iron=508.34/320.88 L; Iron fire-setting wood=21.30 L; haul-ws charcoal/all-ore/Iron-ore=24.04/15.06/9.66; metal-facility build-ws=580.81; fuel-short settlement-seasons all/Iron-era=7/0
+    post-MET-09 charcoal plan: short 0/554 demand-seasons (0.00%); unmet 0.00/595.21 L planned (0.00%)
+    route ramp: seasons 266–278 (12 complete after first issue), chain/work=407.98/2883.66 (14.15%), fuel short 0/108 demand-seasons (0.00%); unmet 0.00/187.12 L planned (0.00%); post-ramp seasons=40, chain/work=959.47/12267.49 (7.82%), fuel short 0/440 demand-seasons (0.00%); unmet 0.00/396.76 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 29 12-season windows after 12-season route maturity; max share=10.40% at seasons 278–290, chain/work=334.51/3216.19 (metal/craft/facility=247.77/19.62/67.12 ws)
+
