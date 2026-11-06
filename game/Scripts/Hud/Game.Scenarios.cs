@@ -222,6 +222,18 @@ public partial class Game
                 Step(ShowEndScreen);
                 Shot("end");
                 break;
+            case "era-report":
+                // --start-minute=20 --viewer=0 (not -1): a fake age change, then Continue, then close Projects.
+                Step(() => _session!.SetPaused(false));
+                Step(() => HandleEvent(new ViewEvent { Kind = ViewEventKind.EraAdvanced, A = 3, Project = 0, Tick = _current!.Tick, Civ = (sbyte)Math.Max(0, _current.ViewerCiv), Other = -1, Settlement = -1, Figure = -1, Tile = -1, Tier = ViewEventTier.Milestone }, Math.Max(0, _current!.ViewerCiv), _current!), 0.6f);
+                Step(() => GD.Print($"SCN era report open={_eraReportOpen} paused={_session!.Paused}"));
+                Shot("era-report");
+                Step(ContinueFromEraReport, 0.8f);
+                Step(() => GD.Print($"SCN after continue web={_researchWebVisible} paused={_session!.Paused}"));
+                Shot("era-projects");
+                Step(CloseResearchWeb, 0.8f);
+                Step(() => GD.Print($"SCN after close paused={_session!.Paused}"));
+                break;
             case "zoom":
                 Step(() => ZoomTo(ZoomPresets[1]), 1.0f);
                 Shot("zoom-z1");

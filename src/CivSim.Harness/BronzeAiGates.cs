@@ -307,7 +307,7 @@ internal static class BronzeAiGates
             var standing = Scoring.Of(match, civ);
             metrics[0] += sign * standing.Dominion.ToDoubleForDisplay();
             metrics[1] += sign * standing.Mastery.ToDoubleForDisplay();
-            metrics[2] += sign * standing.Firsts.ToDoubleForDisplay();
+            metrics[2] += sign * standing.Thriving.ToDoubleForDisplay();
             metrics[3] += sign * standing.Wonders.ToDoubleForDisplay();
             metrics[4] += sign * standing.Legacy.ToDoubleForDisplay();
             ownedWeight += sign * match.Politics.Territory.OwnedWeight(civ);
@@ -455,7 +455,7 @@ internal static class BronzeAiGates
                 int ownedWeight = match.Politics.Territory.OwnedWeight(civ);
                 parts.Add($"{label}:civ{civ} legacy={legacy:F1} parts(D/M/F/W)=" +
                     $"{standing.Dominion.ToDoubleForDisplay():F1}/{standing.Mastery.ToDoubleForDisplay():F1}/" +
-                    $"{standing.Firsts.ToDoubleForDisplay():F1}/{standing.Wonders.ToDoubleForDisplay():F1} " +
+                    $"{standing.Thriving.ToDoubleForDisplay():F1}/{standing.Wonders.ToDoubleForDisplay():F1} " +
                     $"E3foundings(total/natural/decree)={totalE3Foundings}/{naturalFoundings}/{decreeFoundings} " +
                     $"owned(tiles/weight)={ownedTiles}/{ownedWeight} " +
                     $"done(F/E/M/L/C/Cm)={counts[1]}/{counts[2]}/{counts[3]}/{counts[4]}/{counts[5]}/{counts[6]} refused={refused}");

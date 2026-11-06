@@ -63,10 +63,11 @@ constants:
   - {id: DiffusionFloor, value: 0.5, unit: share, source: "02 §8.3"}
   # E3 Bronze constants (docs/MVP/23 §12)
   - {id: LegacyMasteryPerEra, value: 2, unit: "× (era + 1) per project", source: "22 §3.3"}
-  - {id: LegacyFirstPerEra, value: 3, unit: "× (era + 1)", source: "22 §3.3"}
+  - {id: LegacyFirstPerEra, value: 0, unit: "× (era + 1)", source: "22 §3.3; 2026-11-06 Firsts pay no Legacy, the race is flavor only"}
+  - {id: LegacyThrivingDivisor, value: 5, unit: "√people ÷ this per season × (1 − famine) × (1 − disease)", source: "22 §3.3 (Thriving replaces Firsts, 2026-11-06)"}
   - {id: LegacyFirstKeystoneMult, value: 4, unit: "× First", source: "22 §3.3 (Keystones and Wonders)"}
   - {id: LegacyWonderBuiltPerEra, value: 25, unit: "× (era + 1)", source: "22 §3.3"}
-  - {id: ChapterCountdownSeasons, value: 12, unit: seasons, source: "22 §3.1"}
+  - {id: ChapterCountdownSeasons, value: 24, unit: seasons, source: "22 §3.1; 6 years since 2026-11-06 so a pivot is not a death sentence"}
   - {id: ChapterCapYear, value: 64, unit: year, source: "22 §3.1"}
   - {id: OutCity, value: 1, unit: "Insight/yr (× RoleScale 8 = 8)", source: "22 §8.1 (SOC-09)"}
   - {id: MandateRechargeMin, value: 4, unit: seasons, source: "22 §4.2"}

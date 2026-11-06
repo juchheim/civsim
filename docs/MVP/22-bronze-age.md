@@ -131,6 +131,18 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 | **Wonder built** (new) | `25 × L(e)` | — | — | 75 (Megalith) | 100 (Ziggurat) |
 | **Dominion** | 100 × share of claimed land per year (unchanged, 07b R8) | | | | |
 
+**Revision 2026-11-06: Firsts out, Thriving in; the countdown is 6 years.** Firsts rewarded finishing the same projects fastest, so a civ that detoured to fix a weakness (food, disease, metal) lost Legacy for it, and the leader took 54% of all Firsts while Firsts made up about 15% of a score but 58% of the winner's average lead (40 Chieftain free-for-all matches, 64 minutes, 8 seeds × 5 seatings). Now:
+
+| Component | Rule |
+|---|---|
+| **Mastery** | unchanged: `2 × L(e)` per completed project, so every project in an age pays the same |
+| **First** | still recorded (Pioneer, the world-first toast and Chronicle line) but pays **0** (`LegacyFirstPerEra = 0`) |
+| **Thriving** (replaces Firsts) | each season `√people ÷ LegacyThrivingDivisor (5) × (1 − worst-settlement famine) × (1 − disease share)`; the square root stops a bigger civ simply out-running a smaller one, and fixing a famine or plague pays directly |
+| **Wonder built**, **Dominion** | unchanged |
+| **Countdown** after a rival's last keystone | `ChapterCountdownSeasons` 12 → **24** (Iron `IronCountdownSeasons` too), so a pivot is not a death sentence |
+
+Measured on the same 40 matches: Thriving gap between winner and runner-up 344 → 35; no match decided by more than 1,000 (was 11 of 40); median margin unchanged (~370); win rates 22–31% across the five archetypes; split Dominion 54%, Mastery 32%, Thriving 14% (T24 band for the old Firsts share was 12–20%). Dominion is now the largest part of the lead (about 72% of the average gap) and is the next snowball to examine. The `ThrivingLegacy` field and `CivThrivingLegacy` frame array took over the `FirstsLegacy` storage slots, so snapshots keep their layout. The research and politics goldens and `content-pack.txt` were refreshed for this change.
+
 **Historical check (per civilization, four civs).** At minute 33 the earlier-fit units gave Mastery ~440 and Firsts ~260: **53% / 29% / 17%**. At the earlier chapter end near minute 46 they gave Mastery ~780, Firsts ~420, Wonders ~40: **48% / 33% / 18% / 2%**. Under the old rule that match was about Dominion 30%, Mastery 10%, **Firsts 60%**. These scores need a fresh run for the current ~61-minute KEY-4 projection. The units remain era-proportional and do not grow with EraBase.
 
 Every A-gate (A1–A6) must be re-measured under the new units in M10 (§16); A5's archetype fit is expected to move because wins no longer hinge on the Firsts race.

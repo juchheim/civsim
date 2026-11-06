@@ -80,9 +80,9 @@ public class SparkBenchTests
 }
 
 /// <summary>One civilization's research outcome in a bench match.</summary>
-internal sealed record CivOutcome(int Civ, bool Ai, double Key1, double Key2, double Key3, int Firsts, double Mastery, double FirstsLegacy, int Done, string Notes = "")
+internal sealed record CivOutcome(int Civ, bool Ai, double Key1, double Key2, double Key3, int Firsts, double Mastery, double ThrivingLegacy, int Done, string Notes = "")
 {
-    public double Legacy => Mastery + FirstsLegacy;
+    public double Legacy => Mastery + ThrivingLegacy;
 }
 
 /// <summary>One bench match.</summary>
@@ -146,7 +146,7 @@ internal static class SparkBenchKit
         for (int c = 0; c < civs.Length; c++)
             civs[c] = new CivOutcome(c, aiSeats.Contains(c), ForecastTestKit.KeyMinute(r, c, 1), ForecastTestKit.KeyMinute(r, c, 2),
                 ForecastTestKit.KeyMinute(r, c, 3), Enumerable.Range(0, r.Catalog.Count).Count(p => r.FirstBy(p) == c),
-                r.MasteryLegacy(c).ToDoubleForDisplay(), r.FirstsLegacy(c).ToDoubleForDisplay(), r.DoneCount(c), Notes(r, c));
+                r.MasteryLegacy(c).ToDoubleForDisplay(), r.ThrivingLegacy(c).ToDoubleForDisplay(), r.DoneCount(c), Notes(r, c));
         long rollouts = 0;
         int decisions = 0;
         if (match.Ai is { } system)

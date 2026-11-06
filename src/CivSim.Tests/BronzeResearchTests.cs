@@ -25,7 +25,7 @@ public class BronzeLegacyTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
-    public void Mastery_and_Firsts_scale_with_the_era_not_the_cost(int era)
+    public void Mastery_scales_with_the_era_and_being_first_pays_nothing(int era)
     {
         var rig = new ResearchRig(civs: 2);
         ProjectDef plain = First(rig.Catalog, era, p => !p.IsKeystone && p.Type != ProjectType.Wonder);
@@ -33,9 +33,12 @@ public class BronzeLegacyTests
         rig.Do(rig.Grant(1, plain.Id));
         Assert.Equal(Fix64.FromInt(2 * (era + 1)), rig.Research.MasteryLegacy(0));
         Assert.Equal(Fix64.FromInt(2 * (era + 1)), rig.Research.MasteryLegacy(1));
-        Assert.Equal(Fix64.FromInt(3 * (era + 1)), rig.Research.FirstsLegacy(0));
-        Assert.Equal(Fix64.Zero, rig.Research.FirstsLegacy(1)); // second to finish: Mastery only
-        Assert.Equal(Fix64.FromInt(2 * (era + 1)) + Fix64.FromInt(3 * (era + 1)), rig.Research.Legacy(0));
+        // The first to finish is still recorded (a story for the Chronicle) but earns the same as the second (2026-11-06).
+        Assert.True(rig.Research.IsPioneer(0, plain.Index));
+        Assert.False(rig.Research.IsPioneer(1, plain.Index));
+        Assert.Equal(Fix64.Zero, rig.Catalog.FirstUnits(plain));
+        Assert.Equal(rig.Research.ThrivingLegacy(0), rig.Research.ThrivingLegacy(1));
+        Assert.Equal(rig.Research.MasteryLegacy(0) + rig.Research.ThrivingLegacy(0), rig.Research.Legacy(0));
     }
 
     [Theory]
@@ -43,28 +46,27 @@ public class BronzeLegacyTests
     [InlineData(1, "KEY-2")]
     [InlineData(2, "KEY-3")]
     [InlineData(3, "KEY-4")]
-    public void A_Keystone_First_is_four_times_a_First(int era, string key)
+    public void A_Keystone_earns_Mastery_only(int era, string key)
     {
         var rig = new ResearchRig();
         rig.Do(rig.Grant(0, key));
-        Assert.Equal(Fix64.FromInt(12 * (era + 1)), rig.Research.FirstsLegacy(0)); // 12, 24, 36, 48
         Assert.Equal(Fix64.FromInt(2 * (era + 1)), rig.Research.MasteryLegacy(0));
+        Assert.Equal(Fix64.Zero, rig.Catalog.FirstUnits(rig.Catalog.Get(key)));
     }
 
     [Fact]
-    public void The_Wonder_First_is_four_times_a_First_and_a_built_Wonder_adds_25_per_era()
+    public void A_built_Wonder_adds_25_per_era()
     {
         var rig = new ResearchRig(civs: 2);
         ProjectDef ziggurat = rig.Catalog.Get("BLD-08");
         Assert.Equal(ProjectType.Wonder, ziggurat.Type);
         Assert.False(rig.Research.AwardWonderBuilt(0, ziggurat.Index)); // not researched yet
         rig.Do(rig.Grant(0, "BLD-08"));
-        Assert.Equal(Fix64.FromInt(48), rig.Research.FirstsLegacy(0));
         Assert.Equal(Fix64.Zero, rig.Research.WondersLegacy(0));
         Assert.True(rig.Research.AwardWonderBuilt(0, ziggurat.Index));
         Assert.False(rig.Research.AwardWonderBuilt(0, ziggurat.Index)); // once per civilization
         Assert.Equal(Fix64.FromInt(100), rig.Research.WondersLegacy(0));
-        Assert.Equal(Fix64.FromInt(8 + 48 + 100), rig.Research.Legacy(0));
+        Assert.Equal(rig.Research.MasteryLegacy(0) + rig.Research.ThrivingLegacy(0) + Fix64.FromInt(100), rig.Research.Legacy(0));
         Assert.True(rig.Research.WonderBuilt(0, ziggurat.Index));
         Assert.False(rig.Research.WonderBuilt(1, ziggurat.Index));
         // Only Wonders can be built.
@@ -78,7 +80,6 @@ public class BronzeLegacyTests
         var rig = new ResearchRig();
         ProjectDef megalith = rig.Catalog.Projects.First(p => p.Numeric && p.Type == ProjectType.Wonder && p.Era == 2);
         rig.Do(rig.Grant(0, megalith.Id));
-        Assert.Equal(Fix64.FromInt(36), rig.Research.FirstsLegacy(0));
         Assert.True(rig.Research.AwardWonderBuilt(0, megalith.Index));
         Assert.Equal(Fix64.FromInt(75), rig.Research.WondersLegacy(0));
     }
@@ -93,7 +94,7 @@ public class BronzeLegacyTests
             Assert.Equal(catalog.MasteryUnits(p).FloorToInt(), fc.Mastery[p.Index]);
             Assert.Equal(catalog.FirstUnits(p), fc.FirstPoints[p.Index]);
         }
-        Assert.Equal(Fix64.FromInt(48), fc.FirstPoints[catalog.IndexOf("KEY-4")]);
+        Assert.Equal(Fix64.Zero, fc.FirstPoints[catalog.IndexOf("KEY-4")]);
         Assert.Equal(8, fc.Mastery[catalog.IndexOf("MET-03")]);
     }
 
@@ -101,10 +102,30 @@ public class BronzeLegacyTests
     public void The_units_come_from_the_pack_and_the_old_ones_are_gone()
     {
         ResearchCatalog c = TestPack.Catalog;
-        Assert.Equal((2, 3, 4, 25), (c.LegacyMasteryPerEra, c.LegacyFirstPerEra, c.LegacyFirstKeystoneMult, c.LegacyWonderBuiltPerEra));
-        Assert.Equal((12, 64, 4), (c.ChapterCountdownSeasons, c.ChapterCapYear, c.MandateRechargeMin));
-        // A First no longer grows with EraBase: E3's EraBase is 400, its First 12 for a regular project.
-        Assert.Equal(Fix64.FromInt(12), c.FirstUnits(c.Get("MET-03")));
+        Assert.Equal((2, 0, 25, 5), (c.LegacyMasteryPerEra, c.LegacyFirstPerEra, c.LegacyWonderBuiltPerEra, c.LegacyThrivingDivisor));
+        Assert.Equal((24, 64, 4), (c.ChapterCountdownSeasons, c.ChapterCapYear, c.MandateRechargeMin));
+        Assert.Equal(Fix64.Zero, c.FirstUnits(c.Get("MET-03")));
+    }
+
+    [Fact]
+    public void Thriving_pays_for_fed_and_healthy_people_and_famine_or_disease_cost_it()
+    {
+        Fix64 Earned(UrgencySignals signals, int people)
+        {
+            var rig = new ResearchRig();
+            rig.Source.PeoplePerSettlement = Fix64.FromInt(people);
+            rig.Source.Signals = signals;
+            rig.Run(8 * ResearchSystem.SeasonTicks);
+            return rig.Research.ThrivingLegacy(0);
+        }
+        Fix64 well = Earned(default, 100);
+        Assert.True(well > Fix64.Zero);
+        Assert.True(Earned(new UrgencySignals(Fix64.Half, Fix64.Zero, Fix64.Zero, Fix64.Zero), 100) < well);
+        Assert.True(Earned(new UrgencySignals(Fix64.Zero, Fix64.Zero, Fix64.Half, Fix64.Zero), 100) < well);
+        Assert.Equal(Fix64.Zero, Earned(new UrgencySignals(Fix64.One, Fix64.Zero, Fix64.Zero, Fix64.Zero), 100));
+        // Four times the people earn twice the points, not four times: a bigger civilization does not simply outrun a smaller one.
+        Fix64 big = Earned(default, 400);
+        Assert.True(big > well && big < well * 3);
     }
 }
 
@@ -379,7 +400,7 @@ public class BronzeEraTests
         Fix64 listCost = rig.Catalog.Projects[leftover].Cost;
         Assert.Equal(listCost, rig.Research.EffectiveCost(0, leftover)); // in-era: no lag
 
-        Fix64 firstsBefore = rig.Research.FirstsLegacy(0);
+        Fix64 masteryBefore = rig.Research.MasteryLegacy(0);
         rig.Do(rig.Slot(0, 0, "KEY-4"));
         rig.Run(2 * Season);
         Assert.True(rig.Research.IsDone(0, key4));
@@ -390,7 +411,7 @@ public class BronzeEraTests
         // Nothing of E4 or later can be researched or even glimpsed, and no keystone can be chased.
         foreach (ProjectDef p in rig.Catalog.Projects.Where(p => p.Era >= 4))
             Assert.Equal(ProjectState.Hidden, rig.Research.State(0, p.Index));
-        Assert.Equal(Fix64.FromInt(48), rig.Research.FirstsLegacy(0) - firstsBefore); // KEY-4's First
+        Assert.Equal(Fix64.FromInt(8), rig.Research.MasteryLegacy(0) - masteryBefore); // KEY-4's Mastery, and no First
     }
 
     [Fact]
@@ -569,7 +590,7 @@ public class BronzeChapterTests
     }
 
     [Fact]
-    public void Clause_two_twelve_seasons_after_the_first_rival_completes_KEY4()
+    public void Clause_two_twenty_four_seasons_after_the_first_rival_completes_KEY4()
     {
         ResearchRig rig = FourCivs();
         Key4At(rig, 2, season: 6);
@@ -578,17 +599,17 @@ public class BronzeChapterTests
         {
             MatchEnd end = MatchEnd.Evaluate(rig.Research, human);
             Assert.Equal(MatchEndReason.RivalCountdown, end.Reason);
-            Assert.Equal(6 + 12, end.EndSeason);
+            Assert.Equal(6 + 24, end.EndSeason);
             Assert.Equal(2, end.Civ);
             Assert.Equal((6, 2), (end.CountdownStartSeason, end.CountdownCiv));
             Assert.True(end.CountdownRunning);
-            Assert.Equal((18 + 1) * (long)Season, end.EndTick);
-            Assert.False(end.IsOver(19 * Season - 1));
-            Assert.True(end.IsOver(19 * Season));
-            Assert.Equal(12, end.SeasonsLeft(6 * Season + 5)); // "3 years left" as the countdown appears
-            Assert.Equal(1, end.SeasonsLeft(17 * Season));
-            Assert.Equal(0, end.SeasonsLeft(18 * Season));      // the final season
-            Assert.Equal(0, end.SeasonsLeft(19 * Season));      // over
+            Assert.Equal((30 + 1) * (long)Season, end.EndTick);
+            Assert.False(end.IsOver(31 * Season - 1));
+            Assert.True(end.IsOver(31 * Season));
+            Assert.Equal(24, end.SeasonsLeft(6 * Season + 5)); // "6 years left" as the countdown appears
+            Assert.Equal(1, end.SeasonsLeft(29 * Season));
+            Assert.Equal(0, end.SeasonsLeft(30 * Season));      // the final season
+            Assert.Equal(0, end.SeasonsLeft(31 * Season));      // over
         }
     }
 
@@ -609,7 +630,7 @@ public class BronzeChapterTests
         Assert.Equal(MatchEndReason.RivalCountdown, MatchEnd.Evaluate(rig.Research, humanSeat: -1).Reason);
         // Another seat as the human: civilization 0 is just a rival, and it is not the first one.
         MatchEnd other = MatchEnd.Evaluate(rig.Research, humanSeat: 1);
-        Assert.Equal((MatchEndReason.RivalCountdown, 18, 2), (other.Reason, other.EndSeason, other.Civ));
+        Assert.Equal((MatchEndReason.RivalCountdown, 30, 2), (other.Reason, other.EndSeason, other.Civ));
     }
 
     [Fact]
@@ -617,14 +638,14 @@ public class BronzeChapterTests
     {
         ResearchRig late = FourCivs();
         Key4At(late, 2, season: 6);
-        Key4At(late, 0, season: 25);
+        Key4At(late, 0, season: 40);
         MatchEnd end = MatchEnd.Evaluate(late.Research, 0);
-        Assert.Equal((MatchEndReason.RivalCountdown, 18), (end.Reason, end.EndSeason));
+        Assert.Equal((MatchEndReason.RivalCountdown, 30), (end.Reason, end.EndSeason));
 
         ResearchRig tie = FourCivs();
         Key4At(tie, 2, season: 6);
-        Key4At(tie, 0, season: 18);
-        Assert.Equal((MatchEndReason.HumanKeystone, 18), (MatchEnd.Evaluate(tie.Research, 0).Reason, MatchEnd.Evaluate(tie.Research, 0).EndSeason));
+        Key4At(tie, 0, season: 30);
+        Assert.Equal((MatchEndReason.HumanKeystone, 30), (MatchEnd.Evaluate(tie.Research, 0).Reason, MatchEnd.Evaluate(tie.Research, 0).EndSeason));
     }
 
     [Fact]
@@ -637,7 +658,7 @@ public class BronzeChapterTests
         Assert.Equal(-1, end.CountdownStartSeason);
         // A headless match has no human clause: the same history leaves Year 64 or the (human-as-rival) countdown.
         MatchEnd headless = MatchEnd.Evaluate(rig.Research, -1);
-        Assert.Equal((MatchEndReason.RivalCountdown, 52), (headless.Reason, headless.EndSeason));
+        Assert.Equal((MatchEndReason.RivalCountdown, 64), (headless.Reason, headless.EndSeason));
     }
 
     [Fact]
@@ -650,7 +671,7 @@ public class BronzeChapterTests
         Assert.Equal(250, end.CountdownStartSeason); // the countdown is real, the cap just comes first
         // A countdown ending exactly on the cap is still the countdown.
         ResearchRig exact = FourCivs();
-        Key4At(exact, 1, season: 243);
+        Key4At(exact, 1, season: 231);
         Assert.Equal((MatchEndReason.RivalCountdown, 255), (MatchEnd.Evaluate(exact.Research, -1).Reason, MatchEnd.Evaluate(exact.Research, -1).EndSeason));
     }
 
@@ -686,7 +707,7 @@ public class BronzeChapterTests
         MatchEnd second = Play(out ulong c2, out _);
         Assert.Equal(first, second);
         Assert.Equal(c1, c2);
-        Assert.Equal((MatchEndReason.HumanKeystone, 5), (first.Reason, first.EndSeason)); // season 5 beats 2 + 12
+        Assert.Equal((MatchEndReason.HumanKeystone, 5), (first.Reason, first.EndSeason)); // season 5 beats 2 + 24
         Assert.Equal(6L * Season, first.EndTick);
 
         // A snapshot restore reads the same completion ticks.
@@ -703,7 +724,7 @@ public class BronzeChapterTests
     public void A_Council_match_reaches_KEY4_through_research_and_the_chapter_ends_by_the_rule()
     {
         // The whole path in the living economy: E3 projects research, complete and apply; KEY-4 completes; the earlier
-        // of its full 12-season countdown and the Year-64 cap closes the chapter.
+        // of its full 24-season countdown and the Year-64 cap closes the chapter.
         var balanced = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel match = MatchModel.Create(777, TestPack.Pack, balanced);
         var runner = new SimRunner(match);
@@ -713,7 +734,7 @@ public class BronzeChapterTests
         Assert.InRange(end.CountdownCiv, 0, 3);
         Assert.True(match.Research.IsDone(end.CountdownCiv, key4));
         Assert.Equal(4, match.Research.Era(end.CountdownCiv));
-        int countdownEnd = end.CountdownStartSeason + 12;
+        int countdownEnd = end.CountdownStartSeason + 24;
         int capSeason = 64 * MatchEnd.SeasonsPerYear - 1;
         Assert.Equal(countdownEnd <= capSeason ? MatchEndReason.RivalCountdown : MatchEndReason.YearCap, end.Reason);
         Assert.Equal(Math.Min(countdownEnd, capSeason), end.EndSeason);

@@ -98,7 +98,7 @@ public partial class Game
 
     private void LayoutModals()
     {
-        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal })
+        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _eraModal, _newMatchModal })
         {
             if (view is null) continue;
             float w = Math.Min(view.Width, _logicalSize.X - 2 * Margin);
@@ -125,6 +125,7 @@ public partial class Game
         BuildConfirm();
         BuildNewMatch();
         BuildEndScreen(seed);
+        BuildEraReport();
         BuildGameMenu();
         if (!_introDismissed && (!IsDevelopmentPresentationRun() || forceIntro)) ShowIntroModal(false);
     }
@@ -531,7 +532,7 @@ public partial class Game
         var grid = new GridContainer { Columns = 5 };
         grid.AddThemeConstantOverride("h_separation", UiTokens.Sp4);
         grid.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        foreach (string h in new[] { "", "PEOPLE", "LEGACY", "FIRSTS", "LAND" }) grid.AddChild(UiKit.Text(h, "EyebrowTertiary"));
+        foreach (string h in new[] { "", "PEOPLE", "LEGACY", "THRIVING", "LAND" }) grid.AddChild(UiKit.Text(h, "EyebrowTertiary"));
         for (int rank = 0; rank < order.Length; rank++)
         {
             int civ = order[rank];
@@ -541,11 +542,11 @@ public partial class Game
             grid.AddChild(who);
             grid.AddChild(UiKit.Text(civ == viewer ? "Your people" : UiText.CivName(civ), civ == viewer ? "BodyStrong" : "Body", ellipsis: true));
             grid.AddChild(UiKit.Text(FormatFixed(frame.CivLegacy[civ]), "Num"));
-            grid.AddChild(UiKit.Text(FormatFixed(frame.CivFirstsLegacy[civ]), "Num"));
+            grid.AddChild(UiKit.Text(FormatFixed(frame.CivThrivingLegacy[civ]), "Num"));
             grid.AddChild(UiKit.Text($"{frame.CivLandBasisPoints[civ] / 100.0:F1}%", "Num"));
         }
         left.AddChild(grid);
-        left.AddChild(UiKit.Text("Legacy = points for knowledge mastered plus world firsts. Land = share of claimed land.", "CaptionTertiary", wrap: true));
+        left.AddChild(UiKit.Text("Legacy = points for knowledge mastered, land held and thriving people (fed and healthy). Land = share of claimed land.", "CaptionTertiary", wrap: true));
         if (_session is not null)
             left.AddChild(UiKit.Text($"Rivals played at {DifficultyName(_session.Difficulty)}.", "CaptionTertiary", wrap: true));
 
@@ -642,10 +643,10 @@ public partial class Game
             if (item.Kind is ViewEventKind.EraAdvanced)
             {
                 // A rival completing the chapter keystone starts the countdown (KEY-4 in Bronze, docs/MVP/22 §3.1; KEY-5 in Iron, docs/MVP/25 §3):
-                // 3 years to finish or the age closes.
+                // A few years (SimulationSession.CountdownYears) to finish or the age closes.
                 if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
                     ShowToast($"{(_session.IsIron ? "The Feudal Order" : "The Iron Age")} is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
-                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or in 3 years, or at Year {_session.MatchYears}.",
+                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or in {_session.CountdownYears} years, or at Year {_session.MatchYears}.",
                         key: $"rival-era-{item.Civ}-{item.A}");
                 _endTimeline.Add(item);
                 if (_endTimeline.Count > 64) _endTimeline.RemoveAt(0);

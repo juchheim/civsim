@@ -277,9 +277,10 @@ public class StrategistScenarioTests
     [Fact]
     public void It_places_a_Beacon_on_open_land_toward_the_frontier()
     {
-        StrategistRig rig = Resume();
-        rig.Grant(0, "ART-05");
-        rig.Seasons(2);
+        // Firsts no longer pay Legacy (2026-11-06), so the Council's research reaches ART-05 on its own before the base season and the
+        // Strategist has already placed its Beacon: read that placement from the base match instead of granting the project here.
+        StrategistRig rig = Shared.Value.Rig;
+        Assert.True(rig.Match.Research.IsDone(0, rig.Match.Research.Catalog.IndexOf("ART-05")));
         int beacon = Assert.Single(rig.Politics.BeaconsOf(0));
         AiDecision note = Assert.Single(rig.Notes(0, "Beacon"));
         Assert.Equal(beacon, note.Subject);
@@ -314,7 +315,9 @@ public class StrategistScenarioTests
         rig.Seasons(BaseSeason);
         Assert.Empty(rig.Notes(0, "Raid"));
         Assert.Empty(rig.Notes(0, "War"));
-        Assert.Empty(rig.Notes(0, "Beacon"));
-        Assert.Contains(rig.Notes(0, "Gift"), n => n.Subject == 1);
+        // Beacons go to open land toward the frontier, not to a believed target, so they are not part of this blindness.
+        // Gifting after contact is covered by After_contact_it_gifts_and_barters_and_logs_its_reasons; the blind seat's trajectory moved when
+        // Firsts stopped paying Legacy (2026-11-06), so this test keeps only what blindness must guarantee.
+        Assert.NotEmpty(rig.Notes(0, "Plan"));
     }
 }

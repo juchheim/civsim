@@ -115,9 +115,8 @@ public sealed class A7HarnessTelemetryTests
 
         Assert.Equal(baseline.Checksum, observed.Checksum);
         Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
-        for (int civ = 0; civ < observed.Civs.Length; civ++)
-            Assert.Equal(observed.Civs[civ].Firsts,
-                observed.FfaFirstClaims.Where(claim => claim.Civ == civ).Sum(claim => (double)claim.Points), 2);
+        // Firsts pay no Legacy since 2026-11-06: the claims are still recorded, with no points (the outcome's "Firsts" column is Thriving).
+        Assert.All(observed.FfaFirstClaims, claim => Assert.Equal(0, (double)claim.Points, 2));
     }
 
     [Fact]
@@ -651,7 +650,7 @@ public sealed class A7HarnessTelemetryTests
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=2.00", StringComparison.Ordinal));
         Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
             row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=4.04/4.04", StringComparison.Ordinal));
+                row.Contains("foodWork(requested/assigned)=3.19/3.19", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,

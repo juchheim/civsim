@@ -315,7 +315,7 @@ public sealed class MatchFrame
     public short[] CivBreadthDone = Array.Empty<short>(), CivBreadthNeeded = Array.Empty<short>();
     /// <summary>Bronze Age metals some settlement of the civ holds in stores: bit 0 copper, 1 arsenical, 2 tin (the research [Has] gates). Filled for the viewer's own civ only, and 0 before the Bronze Age begins.</summary>
     public byte[] CivMetalAccess = Array.Empty<byte>();
-    public long[] CivLegacy = Array.Empty<long>(), CivFirstsLegacy = Array.Empty<long>(), CivDominion = Array.Empty<long>();
+    public long[] CivLegacy = Array.Empty<long>(), CivThrivingLegacy = Array.Empty<long>(), CivDominion = Array.Empty<long>();
     public int[] CivLandBasisPoints = Array.Empty<int>();
     /// <summary><see cref="Core.Posture"/>; Raid posture shows as warpaint, so it is public.</summary>
     public byte[] CivPosture = Array.Empty<byte>();
@@ -325,6 +325,13 @@ public sealed class MatchFrame
     /// <summary>Private (zero unless <see cref="CivViewFlags.Detailed"/>): people, settlements, Insight per year (Fix64 raw), projects done.</summary>
     public int[] CivPopulation = Array.Empty<int>(), CivSettlements = Array.Empty<int>(), CivProjectsDone = Array.Empty<int>();
     public long[] CivInsightPerYear = Array.Empty<long>();
+    /// <summary>
+    /// The era report's view of a civilization: filled for the viewer's own civ and for every civ it has met (contact is what
+    /// shares these numbers), zero for the rest. People, settlements, projects done, Insight per year (Fix64 raw), and the net
+    /// growth of each good in its stores since the match began ([civ × <see cref="StoreSlots"/> + slot], raw Q32.32).
+    /// </summary>
+    public int[] CivIntelPopulation = Array.Empty<int>(), CivIntelSettlements = Array.Empty<int>(), CivIntelProjectsDone = Array.Empty<int>();
+    public long[] CivIntelInsightPerYear = Array.Empty<long>(), CivGoodsGained = Array.Empty<long>();
     /// <summary>
     /// Private (zero unless <see cref="CivViewFlags.Detailed"/>): Mandate in hand, its cap and the seasons until the next point
     /// (0 when full or not yet unlocked), docs/MVP/22 §4.2. The top bar draws pips from these.
@@ -541,9 +548,11 @@ public sealed class MatchFrame
     {
         if (CivFlags.Length >= n) return;
         CivFlags = new ushort[n]; CivEra = new byte[n]; CivBreadthDone = new short[n]; CivBreadthNeeded = new short[n]; CivMetalAccess = new byte[n];
-        CivLegacy = new long[n]; CivFirstsLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
+        CivLegacy = new long[n]; CivThrivingLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
         CivPosture = new byte[n]; CivRelations = new short[n]; CivWeaponTier = new byte[n]; CivPopulation = new int[n];
         CivSettlements = new int[n]; CivProjectsDone = new int[n]; CivInsightPerYear = new long[n];
+        CivIntelPopulation = new int[n]; CivIntelSettlements = new int[n]; CivIntelProjectsDone = new int[n];
+        CivIntelInsightPerYear = new long[n]; CivGoodsGained = new long[n * StoreSlots];
         CivMandate = new byte[n]; CivMandateCap = new byte[n]; CivMandateNext = new byte[n];
         CivEmbargoByViewer = new byte[n]; CivEmbargoOnViewer = new byte[n];
     }

@@ -180,7 +180,7 @@ public class SparkPlannerTests
         // 14 §6.4: when the Strategist reads a threat, DEF and WAR projects jump in priority. Two identical matches reach the
         // same season end (the real Strategist and Spark have decided); the Spark then re-plans once with the threat reading
         // the Strategist would hand it, calm in one copy and urgent in the other.
-        (int First, bool Reasoned, string Plan) Planned(Sim.Numerics.Fix64 urgency)
+        (int First, bool Reasoned, string Plan, int Direct) Planned(Sim.Numerics.Fix64 urgency)
         {
             MatchModel match = ForecastTestKit.Match(777, Warlord, CivControl.Council, CivControl.Council, CivControl.Council);
             new SimRunner(match).Advance(8 * ForecastTestKit.TicksPerMinute);
@@ -213,13 +213,17 @@ public class SparkPlannerTests
             // Reasons are logged for slots a decision changed (14 §11), including when a military-path pick is also part of a keystone path.
             var pathChanges = match.Ai.Log.Entries.Where(e => e.Civ == 0 && e.Tick >= tick && e.Layer == "Spark" && MilitaryPath(e.Subject)).ToArray();
             bool reasoned = pathChanges.Length == 0 || pathChanges.All(e => !string.IsNullOrWhiteSpace(e.Reason));
-            return (first, reasoned, string.Join(" ", plan.Select(q => cat.Projects[q].Id)));
+            int direct = -1;
+            for (int i = 0; i < plan.Count && direct < 0; i++) if (Military(plan[i])) direct = i;
+            return (first, reasoned, string.Join(" ", plan.Select(q => cat.Projects[q].Id)), direct);
         }
         var calm = Planned(Sim.Numerics.Fix64.Zero);
         var threatened = Planned(Sim.Numerics.Fix64.One);
         // Urgent: a DEF/WAR project or its prerequisite path among the first three, before the calm plan reaches it.
         Assert.True(threatened.First is >= 0 and <= 2, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
-        Assert.True(calm.First < 0 || calm.First > threatened.First, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
+        // A DEF/WAR project itself (not just a prerequisite that also serves other goals) comes sooner under threat than when calm.
+        Assert.True(threatened.Direct is >= 0 and <= 2, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
+        Assert.True(calm.Direct < 0 || calm.Direct > threatened.Direct, $"threatened: {threatened.Plan} | calm: {calm.Plan}");
         Assert.True(threatened.Reasoned, $"a slotted defense pick logs its reason: {threatened.Plan}");
     }
 

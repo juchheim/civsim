@@ -268,6 +268,34 @@ public class ViewFrameTests
     }
 
     [Fact]
+    public void The_era_report_numbers_follow_contact_not_sight()
+    {
+        WatchedMatch w = ViewKit.Watched.Value;
+        MatchFrame f = w.ViewerFrame, all = w.OmniFrame;
+        int slots = MatchFrame.StoreSlots;
+        long ownGain = 0;
+        for (int slot = 0; slot < slots; slot++) ownGain += f.CivGoodsGained[slot];
+        Assert.True(ownGain > 0, "a people that has stored goods for 30 years has gained some");
+        Assert.Equal(all.CivPopulation[0], f.CivIntelPopulation[0]);
+        Assert.Equal(all.CivProjectsDone[0], f.CivIntelProjectsDone[0]);
+        for (int c = 0; c < f.CivCount; c++)
+        {
+            bool shared = c == 0 || ((CivViewFlags)f.CivFlags[c] & CivViewFlags.Contacted) != 0;
+            for (int slot = 0; slot < slots; slot++)
+            {
+                long seen = f.CivGoodsGained[c * slots + slot];
+                if (shared) Assert.Equal(all.CivGoodsGained[c * slots + slot], seen);
+                else Assert.Equal(0L, seen);
+            }
+            if (shared) { Assert.Equal(all.CivIntelPopulation[c], f.CivIntelPopulation[c]); continue; }
+            Assert.Equal(0, f.CivIntelPopulation[c]);
+            Assert.Equal(0, f.CivIntelSettlements[c]);
+            Assert.Equal(0, f.CivIntelProjectsDone[c]);
+            Assert.Equal(0L, f.CivIntelInsightPerYear[c]);
+        }
+    }
+
+    [Fact]
     public void A_viewer_sees_its_own_people_and_only_what_they_see_of_others()
     {
         WatchedMatch w = ViewKit.Watched.Value;

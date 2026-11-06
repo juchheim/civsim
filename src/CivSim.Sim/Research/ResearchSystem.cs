@@ -172,9 +172,9 @@ public sealed partial class ResearchSystem : IResearchView
     public bool IsPioneer(int civ, int project) => _civs[civ].Pioneer[project];
     public int FirstBy(int project) => _firstBy[project];
     public long CompletedTick(int civ, int project) => _civs[civ].DoneTick[project];
-    public Fix64 Legacy(int civ) => _civs[civ].MasteryLegacy + _civs[civ].FirstsLegacy + _civs[civ].WondersLegacy;
+    public Fix64 Legacy(int civ) => _civs[civ].MasteryLegacy + _civs[civ].ThrivingLegacy + _civs[civ].WondersLegacy;
     public Fix64 WondersLegacy(int civ) => _civs[civ].WondersLegacy;
-    public Fix64 FirstsLegacy(int civ) => _civs[civ].FirstsLegacy;
+    public Fix64 ThrivingLegacy(int civ) => _civs[civ].ThrivingLegacy;
     public Fix64 MasteryLegacy(int civ) => _civs[civ].MasteryLegacy;
     public void EnableDiagnosticGenerationCounters()
     {
@@ -331,6 +331,7 @@ public sealed partial class ResearchSystem : IResearchView
         {
             CivResearch civ = _civs[c];
             RefreshPeople(c);
+            AccrueThriving(c);
             GenerateKnowHow(c);
             _fissions.Clear();
             _source.DrainFissions(c, _fissions);
@@ -586,8 +587,8 @@ public sealed partial class ResearchSystem : IResearchView
         {
             _firstBy[p] = c;
             civ.Pioneer[p] = true;
+            // Being first is a story, not a score (2026-11-06): it pays only what FirstUnits says, which the pack sets to zero.
             Fix64 points = _catalog.FirstUnits(def);
-            civ.FirstsLegacy += points;
             Emit((byte)c, ResearchEventKind.FirstClaimed, p, points.FloorToInt(), 0);
         }
 
@@ -690,6 +691,21 @@ public sealed partial class ResearchSystem : IResearchView
     }
 
     // ---- Insight and Know-how -------------------------------------------------------------
+
+    /// <summary>
+    /// Thriving Legacy (docs/MVP/22 §3.3): each season a civilization earns √people ÷ divisor, scaled by one minus its worst
+    /// settlement's famine and by one minus its disease share. It pays for fixing a weakness as much as for any road through the
+    /// tree, and the square root keeps a bigger civilization from simply outrunning a smaller one.
+    /// </summary>
+    private void AccrueThriving(int c)
+    {
+        Fix64 people = Fix64.Zero;
+        for (int s = 0; s < CivResearch.MaxSettlements; s++) people += _people[c][s];
+        if (people <= Fix64.Zero) return;
+        UrgencySignals signals = _source.GetSignals(c);
+        Fix64 wellbeing = (Fix64.One - Fix64.Clamp(signals.Famine, Fix64.Zero, Fix64.One)) * (Fix64.One - Fix64.Clamp(signals.Disease, Fix64.Zero, Fix64.One));
+        _civs[c].ThrivingLegacy += Fix64.Sqrt(people) * wellbeing / Fix64.FromInt(_catalog.LegacyThrivingDivisor);
+    }
 
     private void RefreshPeople(int c)
     {

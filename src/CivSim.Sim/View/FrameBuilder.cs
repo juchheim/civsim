@@ -1305,17 +1305,24 @@ public sealed partial class FrameBuilder
             target.CivBreadthNeeded[c] = (short)_catalog.EraBreadth[Math.Min(era, ResearchCatalog.EraCount - 1)];
             target.CivMetalAccess[c] = (byte)(_omniscient || c == _viewer ? MetalAccessBits(match.Economy, c) : 0);
             target.CivLegacy[c] = research.Legacy(c).Raw;
-            target.CivFirstsLegacy[c] = research.FirstsLegacy(c).Raw;
+            target.CivThrivingLegacy[c] = research.ThrivingLegacy(c).Raw;
             target.CivDominion[c] = pol.Territory.Dominion(c).Raw;
             target.CivLandBasisPoints[c] = pol.Territory.ShareBasisPoints(c);
             target.CivPosture[c] = (byte)pol.PostureOf(c);
             target.CivRelations[c] = (short)(_omniscient || c == _viewer ? 0 : dip.Relations(_viewer, c));
             target.CivWeaponTier[c] = WeaponTier(research, c);
-            if (self)
-            {
-                int population = 0, settlements = 0;
+            bool intel = self || (flags & CivViewFlags.Contacted) != 0;
+            int population = 0, settlements = 0;
+            if (intel)
                 for (int s = 0; s < _settlementCount; s++)
                     if (_sCiv[s] == c && !_sFree[s] && _sPop[s] > 0) { population += _sPop[s]; settlements++; }
+            target.CivIntelPopulation[c] = population; target.CivIntelSettlements[c] = settlements;
+            target.CivIntelProjectsDone[c] = intel ? research.DoneCount(c) : 0;
+            target.CivIntelInsightPerYear[c] = intel ? research.InsightPerYear(c).Raw : 0;
+            for (int slot = 0; slot < MatchFrame.StoreSlots; slot++)
+                target.CivGoodsGained[c * MatchFrame.StoreSlots + slot] = intel ? match.Economy.GoodsGained(c, slot).Raw : 0;
+            if (self)
+            {
                 target.CivPopulation[c] = population;
                 target.CivSettlements[c] = settlements;
                 target.CivProjectsDone[c] = research.DoneCount(c);

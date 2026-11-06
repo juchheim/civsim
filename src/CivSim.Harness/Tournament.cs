@@ -1391,7 +1391,7 @@ internal static class Tournament
                     {
                         Standing standing = Scoring.Of(match, c);
                         double legacy = standing.Dominion.ToDoubleForDisplay() + standing.Mastery.ToDoubleForDisplay() +
-                            standing.Firsts.ToDoubleForDisplay() + standing.Wonders.ToDoubleForDisplay();
+                            standing.Thriving.ToDoubleForDisplay() + standing.Wonders.ToDoubleForDisplay();
                         if (legacy > leaderLegacy) { leaderLegacy = legacy; leaderAtCheckpoint = c; }
                     }
                     for (int c = 0; c < civs; c++)
@@ -1423,8 +1423,8 @@ internal static class Tournament
                             $"fissions={fissions} meanFoodSecurity={(settlements == 0 ? 0 : foodSecurity.ToDoubleForDisplay() / settlements):F2} " +
                             $"insightGenerated={insight.ToDoubleForDisplay():F2} completedProjects={match.Research.DoneCount(c)} " +
                             $"cumulativeFirstClaimPoints={firsts} D={score.Dominion.ToDoubleForDisplay():F1} " +
-                            $"M={score.Mastery.ToDoubleForDisplay():F1} F={score.Firsts.ToDoubleForDisplay():F1} " +
-                            $"Legacy={(score.Dominion + score.Mastery + score.Firsts + score.Wonders).ToDoubleForDisplay():F1}");
+                            $"M={score.Mastery.ToDoubleForDisplay():F1} F={score.Thriving.ToDoubleForDisplay():F1} " +
+                            $"Legacy={(score.Dominion + score.Mastery + score.Thriving + score.Wonders).ToDoubleForDisplay():F1}");
                     }
                 }
             }
@@ -2451,7 +2451,7 @@ internal static class Tournament
             Standing s = Scoring.Of(match, c);
             o.Dominion = s.Dominion.ToDoubleForDisplay();
             o.Mastery = s.Mastery.ToDoubleForDisplay();
-            o.Firsts = s.Firsts.ToDoubleForDisplay();
+            o.Firsts = s.Thriving.ToDoubleForDisplay();
             o.Wonders = s.Wonders.ToDoubleForDisplay();
             o.Projects = match.Research.DoneCount(c);
             if (match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark)
@@ -2589,7 +2589,7 @@ internal static class Tournament
                 Standing standing = Scoring.Of(match, civ);
                 dominion += standing.Dominion.ToDoubleForDisplay();
                 mastery += standing.Mastery.ToDoubleForDisplay();
-                firsts += standing.Firsts.ToDoubleForDisplay();
+                firsts += standing.Thriving.ToDoubleForDisplay();
                 wonders += standing.Wonders.ToDoubleForDisplay();
                 insight += match.Research.InsightPerYear(civ).ToDoubleForDisplay();
                 projects += match.Research.DoneCount(civ);
@@ -2674,7 +2674,7 @@ internal static class Tournament
                 insightPerYear += match.Research.InsightPerYear(civ).ToDoubleForDisplay();
                 doneProjects += match.Research.DoneCount(civ);
                 mastery += Scoring.Of(match, civ).Mastery.ToDoubleForDisplay();
-                firstsScore += Scoring.Of(match, civ).Firsts.ToDoubleForDisplay();
+                firstsScore += Scoring.Of(match, civ).Thriving.ToDoubleForDisplay();
             }
             IReadOnlyList<ResearchEvent> events = match.Research.Events;
             for (int e = firstClaimEventStart; e < events.Count; e++)

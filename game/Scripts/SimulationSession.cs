@@ -211,10 +211,12 @@ public sealed class SimulationSession : IDisposable
     public bool MatchEnded => Volatile.Read(ref _matchEnded) != 0;
     /// <summary>The hard cap of the chapter in years (ChapterCapYear).</summary>
     public int MatchYears { get; }
+    /// <summary>Years between a rival's final keystone and the end of the age.</summary>
+    public int CountdownYears => Math.Max(1, _match.Rules.CountdownSeasons(_match.Research.Catalog) / 4);
     /// <summary>True when the match plays the opt-in Iron chapter, which ends on KEY-5 rather than KEY-4.</summary>
     public bool IsIron => _match.Rules.IsIron;
     /// <summary>
-    /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (3 years = 12 seasons at the start), or -1 while no
+    /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (6 years = 24 seasons at the start), or -1 while no
     /// countdown runs. Published by the simulation thread with every frame; the human completing KEY-4 ends the match sooner.
     /// </summary>
     public int ChapterSeasonsLeft => Volatile.Read(ref _chapterSeasonsLeft);

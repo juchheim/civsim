@@ -23,7 +23,7 @@ public sealed class ChapterRules
     public const int IronCapYear = 96;
 
     /// <summary>Candidate Iron countdown after the first rival's KEY-5, in seasons (docs/MVP/25 §3).</summary>
-    public const int IronCountdownSeasons = 12;
+    public const int IronCountdownSeasons = 24;
 
     /// <summary>The Bronze chapter exactly as before M11: research ceiling 3, KEY-4 ends it, cap and countdown from the catalog.</summary>
     public static ChapterRules Bronze { get; } = new(ChapterMode.Bronze, ResearchSystem.LastResearchEra, null, null);

@@ -1006,7 +1006,7 @@ public partial class Game
                 if (item.Civ == viewer)
                 {
                     AddChronicle(item, $"Your people entered the {UiText.AgeName(item.A)} age through {project}.", ChronicleClass.Age, true);
-                    ShowAgeBanner(item.Project, item.A);
+                    if (!TryShowEraReport(item, frame, viewer)) ShowAgeBanner(item.Project, item.A);
                     // The Bronze age (KEY-3) is when Mandate and Decrees open. Say so and where to find them, and keep the notice up until
                     // the player acts on it or dismisses it: a playtest found the one-time coach tip too easy to miss.
                     if (item.A == 3)

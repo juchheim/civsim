@@ -105,6 +105,7 @@ public partial class Game
         foreach (ToastView toast in _toasts) DismissToast(toast);
         _endScreenShown = false;
         _endScreenDismissed = false;
+        ResetEraReport();
         _openingHold = false;
         _openingHoldAssignmentPending = false;
         _pinnedTile = -1;

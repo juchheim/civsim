@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
@@ -75,8 +76,10 @@ public class AiScaffoldTests
         Assert.False(ctx.Orders.PlaceBeacon(100));                         // ART-05 first
         // The port can set slots like a player: Available project accepted, Hidden refused.
         int forOne = ctx.Catalog.IndexOf("FOR-01"), hidden = ctx.Catalog.IndexOf("STN-05");
-        ctx.Research.SetSlot(2, ctx.Catalog.IndexOf("WAY-01"));
-        Assert.Equal(ctx.Catalog.IndexOf("WAY-01"), match.Research.Slot(0, 2));
+        // Which project is Available at this moment depends on the Council's picks, so take the first one that is (2026-11-06).
+        int available = Enumerable.Range(0, ctx.Catalog.Count).First(p => match.Research.State(0, p) == ProjectState.Available);
+        ctx.Research.SetSlot(2, available);
+        Assert.Equal(available, match.Research.Slot(0, 2));
         ctx.Research.SetSlot(1, hidden);
         Assert.NotEqual(hidden, match.Research.Slot(0, 1));
         _ = forOne;

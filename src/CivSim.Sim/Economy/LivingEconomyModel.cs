@@ -343,6 +343,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         /// <summary>Ochre collected before the Bronze goods store is activated.</summary>
         public Fix64 SurfaceOchre;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
+        /// <summary>Stock of every store slot at the last season end, for the era report's goods-gained readout (never hashed).</summary>
+        public Fix64[]? GainBaseline;
         // Remaining work capacity across each fractional inventory of tools.
         public readonly Fix64[] ToolRemainingWork = new Fix64[(int)Good.Count];
         public readonly int[] Structures = new int[(int)Structure.Count];
@@ -857,6 +859,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (_tick % SeasonTicks == 0)
         {
             EndSeason(checked((int)_seasonsCompleted));
+            TrackGoodsGained();
             FinishB28WoodLedger();
             FinishB28AffordabilityLedgers();
             _seasonsCompleted++;

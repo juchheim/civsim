@@ -39,7 +39,7 @@ public class ChapterRulesTests
         Assert.Equal(ResearchSystem.LastResearchEra + 1, iron.LastResearchEra);
         Assert.Equal(ResearchSystem.LastResearchEra, iron.EconomyMaxEra);
         Assert.Equal(96, iron.CapYear(TestPack.Catalog));
-        Assert.Equal(12, iron.CountdownSeasons(TestPack.Catalog));
+        Assert.Equal(24, iron.CountdownSeasons(TestPack.Catalog));
         Assert.Same(iron, ChapterRules.For(ChapterMode.Iron));
         Assert.Same(ChapterRules.Bronze, ChapterRules.For(ChapterMode.Bronze));
     }
