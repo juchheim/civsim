@@ -58,12 +58,9 @@ public sealed partial class PoliticsSystem
         if (!_economy.IronChain || (uint)overlord >= (uint)_civs || (uint)subject >= (uint)_civs || overlord == subject) return false;
         if (_p.Dip06 < 0 || !_research.IsDone(overlord, _p.Dip06) || !_dip.AtWar(overlord, subject)) return false;
         if (IsSubject(overlord) || IsOverlord(subject) || IsSubject(subject)) return false;
-        foreach (Occupation occ in _occupations)
-            if (occ.Civ == overlord && _sCiv[occ.Settlement] == subject || occ.Civ == subject && _sCiv[occ.Settlement] == overlord) return false;
-        foreach (Investment investment in _investments)
-            if (investment.Civ == overlord && investment.TargetCiv == subject || investment.Civ == subject && investment.TargetCiv == overlord) return false;
         if (FieldStrength(overlord) < FieldStrength(subject) * TributeOdds) return false;
-        _dip.MakePeace(overlord, subject, _season);
+        // Terms end the war, so they obey the same lock as peace: no assault on the road, besieging or holding in either direction.
+        if (!TryEndWar(overlord, subject)) return false;
         _tributes.Add(new Tribute { Overlord = overlord, Subject = subject, SinceSeason = _season });
         _tributes.Sort((a, b) => a.Subject.CompareTo(b.Subject));
         _events.Add(new PoliticsEvent(_tick, (byte)overlord, PoliticsEventKind.TributeAgreed, subject, 0, 0));

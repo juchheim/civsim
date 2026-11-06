@@ -431,10 +431,9 @@ public sealed partial class PoliticsSystem
     {
         int since = _warSince[a * _civs + b];
         int age = _season - since;
-        if (HasUnresolvedAssault(a, b)) return;
         bool weary = age >= 12 || _failedCampaigns[a * _civs + b] >= 2 || _failedCampaigns[b * _civs + a] >= 2;
         if (!weary || age < 4) return;
-        _dip.MakePeace(a, b, _season);
+        if (!TryEndWar(a, b)) return;
         _events.Add(new PoliticsEvent(_tick, (byte)a, PoliticsEventKind.PeaceMade, b, age, 0));
         _events.Add(new PoliticsEvent(_tick, (byte)b, PoliticsEventKind.PeaceMade, a, age, 0));
         _failedCampaigns[a * _civs + b] = 0;
