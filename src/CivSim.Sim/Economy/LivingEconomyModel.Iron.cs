@@ -103,8 +103,8 @@ public sealed partial class LivingEconomyModel
     private const int IronFuelSitingBuffer = 4;
     /// <summary>Consolidated hub traffic makes each outer-band charcoal haul 25% more labor-efficient; distance remains charged.</summary>
     private static readonly Fix64 IronFuelOuterHaulMultiplier = Fix64.FromRatio(3, 4);
-    /// <summary>Extra facility-construction capacity between KEY-4 and MET-09 prepares the Iron chain before its mature-work window.</summary>
-    private static readonly Fix64 IronPreRouteBuildCapMultiplier = Fix64.FromRatio(3, 2);
+    /// <summary>Double metal-facility construction capacity between KEY-4 and MET-09 to prepare the Iron chain before its mature-work window.</summary>
+    private static readonly Fix64 IronPreRouteBuildCapMultiplier = Fix64.FromInt(2);
 
     /// <summary>Forest stock Iron's charcoal chain can reach, excluding rival-held tiles.</summary>
     private Fix64 IronForestWoodInReach(SettlementState s)
