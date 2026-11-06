@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.World;
@@ -43,6 +44,7 @@ public sealed partial class LivingEconomyModel
     private bool _ironChain;
     // Derived once per season from current catchments; deliberately absent from hashes and snapshots.
     private int[] _ironFuelHubAssignments = Array.Empty<int>();
+    private bool[] _ironLocalKitProducers = Array.Empty<bool>();
     private bool _ironFuelHubAssignmentsReady;
 
     /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
@@ -70,18 +72,19 @@ public sealed partial class LivingEconomyModel
     private Fix64 IronStock(SettlementState s, IronGood good) => Stock(s, IronSlot(good));
 
     /// <summary>
-    /// The Iron chapter's first claim on the chain (docs/MVP/25 §4): a T11 kit for every adult who does not hold one, wanted only by a settlement
-    /// with a forge that knows MET-09. After KEY-4, the best reachable forest catchment is the local smithing hub; it plans for all settlements
-    /// assigned to it, and whole kits travel through existing sharing. The want expands through the same recipe graph and labor cap.
+    /// The Iron chapter's first claim on the chain (docs/MVP/25 §4): a T11 kit for every adult who does not hold one, wanted by a settlement
+    /// with a forge that knows MET-09. After KEY-4, the best reachable forest catchment is the fuel hub; it plans for assigned settlements
+    /// without a qualified local smith, while an existing satellite forge with a full local wood factor can cover its own adults. Whole kits
+    /// travel through existing sharing. The want expands through the same recipe graph and labor cap.
     /// </summary>
     private void IronKitWant(SettlementState s, MetalState m, MetalPlan plan)
     {
         if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "MET-09")) return;
         bool hubs = IronFuelHubsEnabled(s.Civilization);
-        if (hubs && IronFuelHubFor(s).Id != s.Id) return;
-        // Adults who hold no iron kit, or whose iron kit is about to be replaced, here and in settlements assigned to this hub,
-        // less kits already made and waiting (each sister's own stores are netted in its deficit).
-        Fix64 needKits = Fix64.FromInt(IronKitsLacking(s)) + SisterKitDeficit(s);
+        bool localSatellite = hubs && IronLocalKitProducer(s);
+        if (hubs && IronFuelHubFor(s).Id != s.Id && !localSatellite) return;
+        // A local satellite owns its own kit demand. Fuel hubs plan for other assigned settlements, less kits already made and waiting.
+        Fix64 needKits = Fix64.FromInt(IronKitsLacking(s)) + (localSatellite ? Fix64.Zero : SisterKitDeficit(s));
         // A thin forest asks for fewer new and replacement kits, but iron already in store (smelted earlier or imported by compact) is always worth forging
         // into kits: when wrought stock is already available, the kit recipe uses only 0.08 L of direct charcoal.
         // With MET-10 the kits wanted are steel-edge T12 (replacing a worn or missing kit, never an early upgrade of a working one); steel and wrought
@@ -122,7 +125,8 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private int IronFuelCharcoalReach(SettlementState s)
     {
-        return IronFuelDomesticCharcoalReach(s) + (IronFuelHubsEnabled(s.Civilization) ? IronFuelReachBuffer : 0);
+        int margin = IronFuelReachBufferOverride >= 0 ? IronFuelReachBufferOverride : IronFuelReachBuffer;
+        return IronFuelDomesticCharcoalReach(s) + (IronFuelHubsEnabled(s.Civilization) ? margin : 0);
     }
 
     /// <summary>Local catchment used for siting and the forest throttle; physical hauling can reach four tiles farther.</summary>
@@ -136,6 +140,38 @@ public sealed partial class LivingEconomyModel
     {
         int charcoalReach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
         return IronFuelHubsEnabled(s.Civilization) ? charcoalReach + IronShareReach(s.Civilization) : charcoalReach;
+    }
+
+    /// <summary>Unique forest tiles accessible directly or through one directly assigned hub, ordered by charged route distance.</summary>
+    private (int Tile, int HaulDistance)[] IronFuelWoodSources(SettlementState s, int reach)
+    {
+        // Preserve the production path's original ReachTiles ordering and avoid the sharing-map work unless the diagnostic
+        // candidate is explicitly enabled. The distance tie order is already nearest-first in ReachTiles.
+        if (!IronHubFuelSharingEnabled || !IronFuelHubsEnabled(s.Civilization))
+            return ReachTiles(s.SiteTile, reach)
+                .Select(tile => (Tile: tile, HaulDistance: HexGrid.Distance(s.SiteTile, tile, _world.Width)))
+                .ToArray();
+
+        var distanceByTile = new Dictionary<int, int>();
+        foreach (int tile in ReachTiles(s.SiteTile, reach))
+            distanceByTile[tile] = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+
+        SettlementState hub = IronFuelHubFor(s);
+        if (hub.Id != s.Id)
+        {
+            int memberToHub = HexGrid.Distance(s.SiteTile, hub.SiteTile, _world.Width);
+            int hubReach = IronFuelCharcoalReach(hub);
+            foreach (int tile in ReachTiles(hub.SiteTile, hubReach))
+            {
+                int viaHubDistance = memberToHub + HexGrid.Distance(hub.SiteTile, tile, _world.Width);
+                if (!distanceByTile.TryGetValue(tile, out int directDistance) || viaHubDistance < directDistance)
+                    distanceByTile[tile] = viaHubDistance;
+            }
+        }
+
+        return distanceByTile.Select(pair => (pair.Key, pair.Value))
+            .OrderBy(pair => pair.Value).ThenBy(pair => pair.Key)
+            .Select(pair => (Tile: pair.Key, HaulDistance: pair.Value)).ToArray();
     }
 
     /// <summary>
@@ -159,8 +195,23 @@ public sealed partial class LivingEconomyModel
         return (share - IronWoodFloor) / (IronWoodFull - IronWoodFloor);
     }
 
+    /// <summary>
+    /// Existing satellite facilities may make their own kits when the site's local forest reaches the full Iron wood factor. This uses idle
+    /// forge/smelter capacity at a productive site without making a second facility investment or assigning its sisters' demand twice.
+    /// </summary>
+    private bool IronLocalKitProducer(SettlementState s)
+    {
+        if (!IronFuelHubsEnabled(s.Civilization) || (uint)s.Id >= (uint)_settlements.Count) return false;
+        EnsureIronFuelHubAssignments();
+        return (uint)s.Id < (uint)_ironLocalKitProducers.Length && _ironLocalKitProducers[s.Id];
+    }
+
     /// <summary>Screen and test switch: turn the Iron chapter's sharing between sister settlements off. On in production.</summary>
     internal bool IronSharingEnabled { get; set; } = true;
+    /// <summary>Controlled candidate: an Iron settlement may haul from its directly assigned fuel hub's catchment. Off in production pending acceptance.</summary>
+    internal bool IronHubFuelSharingEnabled { get; set; }
+    /// <summary>Optional diagnostic override for the Iron fuel-haul margin; -1 preserves the current default.</summary>
+    internal int IronFuelReachBufferOverride { get; set; } = -1;
 
     /// <summary>
     /// For the view: the state of a settlement's forge in the Iron chapter. 0 no forge (or not the Iron chapter), 1 a forge standing idle (nothing in store to
@@ -188,6 +239,7 @@ public sealed partial class LivingEconomyModel
     private void InvalidateIronFuelHubAssignments()
     {
         _ironFuelHubAssignments = Array.Empty<int>();
+        _ironLocalKitProducers = Array.Empty<bool>();
         _ironFuelHubAssignmentsReady = false;
     }
 
@@ -227,10 +279,10 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>
-    /// Assigns a settlement to the highest-scoring local-maximum smith site it can directly share with. Local maxima make every selected hub
-    /// an actual producer even where a civilization's settlement graph is wider than one sharing radius. Assignments are derived once per
-    /// season, need no serialized state, and use settlement id as a stable tie-break. If no reachable forest has stock or growth, production
-    /// remains local as a fallback.
+    /// Assigns a settlement to the highest-scoring local-maximum smith site it can directly share with. A hub must already have both a forge
+    /// and smelter so it can make kits from supplied ore; local maxima keep every selected hub an actual producer even where a civilization's
+    /// settlement graph is wider than one sharing radius. Assignments are derived once per season, need no serialized state, and use settlement
+    /// id as a stable tie-break. If no reachable forest has stock or growth, production remains local as a fallback.
     /// </summary>
     private SettlementState IronFuelHubFor(SettlementState s)
     {
@@ -246,6 +298,7 @@ public sealed partial class LivingEconomyModel
 
         int count = _settlements.Count;
         var scores = new Fix64[count];
+        var live = new bool[count];
         var eligible = new bool[count];
         var localMaximum = new bool[count];
         var assignments = new int[count];
@@ -254,7 +307,8 @@ public sealed partial class LivingEconomyModel
             SettlementState settlement = _settlements[i];
             assignments[i] = i;
             if (settlement.Metal is null || IsFreeFolk(settlement) || Population(settlement.Id) <= 0) continue;
-            eligible[i] = true;
+            live[i] = true;
+            eligible[i] = settlement.Metal is { Forges: > 0, Smelters: > 0 };
             scores[i] = IronFuelCatchmentScore(settlement.Civilization, settlement.SiteTile, includeSharedReach: true);
         }
 
@@ -278,7 +332,7 @@ public sealed partial class LivingEconomyModel
 
         for (int i = 0; i < count; i++)
         {
-            if (!eligible[i]) continue;
+            if (!live[i]) continue;
             SettlementState settlement = _settlements[i];
             int reach = IronShareReach(settlement.Civilization);
             int best = -1;
@@ -293,7 +347,18 @@ public sealed partial class LivingEconomyModel
             if (best >= 0) assignments[i] = best;
         }
 
+        var localProducers = new bool[count];
+        for (int i = 0; i < count; i++)
+        {
+            SettlementState settlement = _settlements[i];
+            if (assignments[i] == i || settlement.Metal is not { Forges: > 0, Smelters: > 0 } m || m.ForestAtStart <= Fix64.Zero ||
+                !(HasLocalIronOreSource(settlement) || IronStock(settlement, IronGood.Wrought) > Fix64.Zero ||
+                  IronStock(settlement, IronGood.Steel) > Fix64.Zero || m.Goods[(int)MetalGood.Iron] > Fix64.Zero ||
+                  m.Goods[(int)MetalGood.IronOre] > Fix64.Zero)) continue;
+            localProducers[i] = IronWoodFactor(settlement, m) >= Fix64.One;
+        }
         _ironFuelHubAssignments = assignments;
+        _ironLocalKitProducers = localProducers;
         _ironFuelHubAssignmentsReady = true;
     }
 
@@ -308,6 +373,70 @@ public sealed partial class LivingEconomyModel
             if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
         }
         return lacking;
+    }
+
+    /// <summary>Adults who did tool work last season and lack a usable T11/T12 kit; sharing runs before the next season's assignments.</summary>
+    private int IronToolWorkersLacking(SettlementState s)
+    {
+        int lacking = 0;
+        foreach (FigureState f in _figures)
+        {
+            if (f.SettlementId != s.Id || f.Age < 14 || f.WorkThisSeason <= Fix64.Zero) continue;
+            bool didToolWork = f.Job is EconomyJob.Farm or EconomyJob.Chop or EconomyJob.Gather or EconomyJob.Craft or EconomyJob.Build ||
+                f.Task is MetalTask.Build or MetalTask.Mine or MetalTask.Charcoal or MetalTask.Smelt or MetalTask.SmeltArsenic;
+            if (!didToolWork) continue;
+            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
+        }
+        return lacking;
+    }
+
+    /// <summary>Reassigns an idle, service-positive Iron kit to a current tool worker who has no usable Iron tier.</summary>
+    private void ReassignIdleIronKitsToToolWorkers(SettlementState s, Fix64[] toolWork)
+    {
+        var recipients = new List<int>();
+        var donors = new List<int>();
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState f = _figures[i];
+            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (toolWork[i] > Fix64.Zero && (f.Kit == 0 || f.KitLeft <= Fix64.Zero || Rank(f.Kit) < Rank(11)))
+                recipients.Add(i);
+            else if (toolWork[i] <= Fix64.Zero && f.Kit is 11 or 12 && f.KitLeft > Fix64.Zero)
+                donors.Add(i);
+        }
+        if (recipients.Count == 0 || donors.Count == 0) return;
+
+        recipients.Sort((a, b) =>
+        {
+            int byWork = toolWork[b].CompareTo(toolWork[a]);
+            if (byWork != 0) return byWork;
+            FigureState fa = _figures[a], fb = _figures[b];
+            int byState = (fa.Kit == 0 ? 0 : fa.KitLeft <= Fix64.Zero ? 1 : 2)
+                .CompareTo(fb.Kit == 0 ? 0 : fb.KitLeft <= Fix64.Zero ? 1 : 2);
+            return byState != 0 ? byState : fa.Id.CompareTo(fb.Id);
+        });
+        // Give up the least remaining service first; all transferred wear stays with the kit.
+        donors.Sort((a, b) => _figures[a].KitLeft.CompareTo(_figures[b].KitLeft));
+
+        int moves = Math.Min(recipients.Count, donors.Count);
+        for (int i = 0; i < moves; i++)
+        {
+            FigureState recipient = _figures[recipients[i]], donor = _figures[donors[i]];
+            byte tier = donor.Kit;
+            Fix64 left = donor.KitLeft;
+            if (recipient.Kit is >= 8 and <= 10 && recipient.KitLeft > Fix64.Zero && _tierDefs[recipient.Kit] is { } old)
+            {
+                Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
+                s.Metal!.Goods[(int)MetalGood.Copper] += copper;
+                AddMetalStat(s.Civilization, StatRemeltCopper, copper);
+            }
+            if (recipient.Kit is 11 or 12)
+                RecordIT6IronKitRetired(s.Civilization, s.Id, recipient.Kit, Fix64.One);
+            donor.Kit = 0;
+            donor.KitLeft = Fix64.Zero;
+            recipient.Kit = tier;
+            recipient.KitLeft = left;
+        }
     }
 
     private Fix64 IronKitsInStore(SettlementState s) => IronStock(s, IronGood.Kit11) + IronStock(s, IronGood.Kit12);
@@ -404,6 +533,7 @@ public sealed partial class LivingEconomyModel
             if (hubs)
             {
                 if (IronFuelHubFor(sister).Id != s.Id) continue;
+                if (IronLocalKitProducer(sister)) continue;
             }
             else if (sister.Metal!.Forges > 0) continue;
             deficit += Fix64.Max(Fix64.Zero, Fix64.FromInt(IronKitsLacking(sister)) - IronKitsInStore(sister));
@@ -433,10 +563,10 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// Moves Iron kits and bloom between sister settlements of a civilization (called from <c>ShareMetals</c> in the Iron chapter, after the Bronze goods):
-    /// whole kits, best tier first, from settlements holding more than their own adults lack to those short of them; bloom goes to a production hub
-    /// that lacks its own iron source. Nothing is created: each move debits the donor as it credits the receiver.
+    /// whole kits, best tier first, serve current tool workers before the broader adult target; bloom goes to a production hub that lacks its own iron source.
+    /// Nothing is created: each move debits the donor as it credits the receiver.
     /// </summary>
-    private void ShareIronGoods(int civ, int reach)
+    private void ShareIronGoods(int civ, int reach, int season)
     {
         // Raw ore moves to the wooded hub; the bloomery and forge both consume charcoal there.
         for (int r = 0; r < _settlements.Count; r++)
@@ -455,28 +585,9 @@ public sealed partial class LivingEconomyModel
             hm.Goods[(int)MetalGood.IronOre] += move;
         }
 
-        for (int r = 0; r < _settlements.Count; r++)
-        {
-            SettlementState receiver = _settlements[r];
-            if (receiver.Civilization != civ || receiver.Metal is not { } rm || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
-            Fix64 need = Fix64.FromInt(IronKitsLacking(receiver)) - IronKitsInStore(receiver);
-            for (int d = 0; d < _settlements.Count && need >= Fix64.One; d++)
-            {
-                if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
-                SettlementState donor = _settlements[d];
-                Fix64 surplus = IronKitsInStore(donor) - Fix64.FromInt(IronKitsLacking(donor));
-                for (int t = 12; t >= 11 && surplus >= Fix64.One && need >= Fix64.One; t--)
-                {
-                    IronGood kit = t == 12 ? IronGood.Kit12 : IronGood.Kit11;
-                    Fix64 move = Fix64.FromInt(Fix64.Min(Fix64.Min(need, surplus), IronStock(donor, kit)).FloorToInt());
-                    if (move <= Fix64.Zero) continue;
-                    AddStock(donor, IronSlot(kit), -move);
-                    AddStock(receiver, IronSlot(kit), move);
-                    need -= move;
-                    surplus -= move;
-                }
-            }
-        }
+        ShareIronKitStock(civ, reach, toolWorkersOnly: true, season);
+        ShareIronKitStock(civ, reach, toolWorkersOnly: false, season);
+
         for (int r = 0; r < _settlements.Count; r++)
         {
             SettlementState receiver = _settlements[r];
@@ -495,6 +606,35 @@ public sealed partial class LivingEconomyModel
                 donor.Metal.Goods[(int)MetalGood.Iron] -= move;
                 rm.Goods[(int)MetalGood.Iron] += move;
                 need -= move;
+            }
+        }
+    }
+
+    private void ShareIronKitStock(int civ, int reach, bool toolWorkersOnly, int season)
+    {
+        for (int r = 0; r < _settlements.Count; r++)
+        {
+            SettlementState receiver = _settlements[r];
+            if (receiver.Civilization != civ || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
+            int receiverNeed = toolWorkersOnly ? IronToolWorkersLacking(receiver) : IronKitsLacking(receiver);
+            Fix64 need = Fix64.Max(Fix64.Zero, Fix64.FromInt(receiverNeed) - IronKitsInStore(receiver));
+            for (int d = 0; d < _settlements.Count && need >= Fix64.One; d++)
+            {
+                if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
+                SettlementState donor = _settlements[d];
+                int donorNeed = toolWorkersOnly ? IronToolWorkersLacking(donor) : IronKitsLacking(donor);
+                Fix64 surplus = IronKitsInStore(donor) - Fix64.FromInt(donorNeed);
+                for (int t = 12; t >= 11 && surplus >= Fix64.One && need >= Fix64.One; t--)
+                {
+                    IronGood kit = t == 12 ? IronGood.Kit12 : IronGood.Kit11;
+                    Fix64 move = Fix64.FromInt(Fix64.Min(Fix64.Min(need, surplus), IronStock(donor, kit)).FloorToInt());
+                    if (move <= Fix64.Zero) continue;
+                    AddStock(donor, IronSlot(kit), -move);
+                    AddStock(receiver, IronSlot(kit), move);
+                    RecordIT6KitTransfer(donor, receiver, t, move, season);
+                    need -= move;
+                    surplus -= move;
+                }
             }
         }
     }
@@ -539,6 +679,12 @@ public sealed partial class LivingEconomyModel
             IronFuelHubFor(_settlements[settlementIndex]).Id == _settlements[settlementIndex].Id;
     }
 
+    internal int FixtureIronFuelHubAssignment(int settlementIndex)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
+        return IronFuelHubFor(_settlements[settlementIndex]).Id;
+    }
+
     internal bool FixtureHasLocalIronOreSource(int settlementIndex)
         => HasLocalIronOreSource(_settlements[settlementIndex]);
 
@@ -550,7 +696,13 @@ public sealed partial class LivingEconomyModel
 
     internal Fix64 FixtureIronFuelOreNeed(int settlementIndex) => IronFuelOreNeed(_settlements[settlementIndex]);
 
-    internal void FixtureShareIronGoods(int civ) => ShareIronGoods(civ, IronShareReach(civ));
+    internal void FixtureShareIronGoods(int civ) => ShareIronGoods(civ, IronShareReach(civ), season: 0);
+
+    internal bool FixtureIronLocalKitProducer(int settlementIndex)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
+        return IronLocalKitProducer(_settlements[settlementIndex]);
+    }
 
     internal Fix64 FixtureIronFuelCatchmentScore(int settlementIndex)
     {
@@ -565,12 +717,21 @@ public sealed partial class LivingEconomyModel
 
     internal int FixtureIronFuelCharcoalReach(int settlementIndex) => IronFuelCharcoalReach(_settlements[settlementIndex]);
 
+    internal int FixtureIronFuelHaulDistanceToTile(int settlementIndex, int tile)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        foreach ((int sourceTile, int haulDistance) in IronFuelWoodSources(s, IronFuelCharcoalReach(s)))
+            if (sourceTile == tile) return haulDistance;
+        return -1;
+    }
+
     /// <summary>
-    /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): those with no kit first, then worn kits, then early upgrades, oldest
-    /// first, each getting the best Iron tier in store that beats what they carry. An early upgrade of a Bronze kit remelts it as the E3 rule does;
-    /// an Iron kit is never refunded on retirement. The kit moves from store to figure, so it exists once.
+    /// Hands the settlement's Iron kits to its adults (docs/MVP/26 §2.2): current tool workers who lack an Iron tier first, then other adults who
+    /// lack an Iron tier, then T11 holders needing an early T12 upgrade. Within each group, no-kit and worn-kit holders precede other candidates;
+    /// each gets the best Iron tier in store that beats what they carry. Bronze kits remelt as the E3 rule does; Iron kits are never refunded.
+    /// The kit moves from store to figure, so it exists once.
     /// </summary>
-    private void IssueIronKits(SettlementState s, MetalState m)
+    private void IssueIronKits(SettlementState s, MetalState m, Fix64[] toolWork)
     {
         if (m.IronGoods is null) return;
         int civ = s.Civilization;
@@ -586,8 +747,16 @@ public sealed partial class LivingEconomyModel
         order.Sort((a, b) =>
         {
             FigureState fa = _figures[a], fb = _figures[b];
-            int pa = fa.Kit == 0 ? 0 : fa.KitLeft <= Fix64.Zero ? 1 : 2, pb = fb.Kit == 0 ? 0 : fb.KitLeft <= Fix64.Zero ? 1 : 2;
+            // The balance target is coverage of actual tool workers. When stock is scarce, give current tool workers an Iron kit before
+            // adults not assigned to tool work; among existing T11 holders, keep upgrades behind adults who still lack any Iron tier.
+            bool aNeedsIron = fa.Kit == 0 || fa.KitLeft <= Fix64.Zero || Rank(fa.Kit) < Rank(11);
+            bool bNeedsIron = fb.Kit == 0 || fb.KitLeft <= Fix64.Zero || Rank(fb.Kit) < Rank(11);
+            int pa = aNeedsIron ? (toolWork[a] > Fix64.Zero ? 0 : 1) : (toolWork[a] > Fix64.Zero ? 2 : 3);
+            int pb = bNeedsIron ? (toolWork[b] > Fix64.Zero ? 0 : 1) : (toolWork[b] > Fix64.Zero ? 2 : 3);
             if (pa != pb) return pa.CompareTo(pb);
+            int byState = (fa.Kit == 0 ? 0 : fa.KitLeft <= Fix64.Zero ? 1 : 2)
+                .CompareTo(fb.Kit == 0 ? 0 : fb.KitLeft <= Fix64.Zero ? 1 : 2);
+            if (byState != 0) return byState;
             int byLeft = fa.KitLeft.CompareTo(fb.KitLeft);
             return byLeft != 0 ? byLeft : fa.Id.CompareTo(fb.Id);
         });
@@ -612,7 +781,7 @@ public sealed partial class LivingEconomyModel
                 AddMetalStat(civ, StatRemeltCopper, copper);
             }
             AddStock(s, IronSlot(give == 12 ? IronGood.Kit12 : IronGood.Kit11), -Fix64.One);
-            RecordIT6IronKitIssued(civ, give, oldTier, oldLeft);
+            RecordIT6IronKitIssued(s, give, oldTier, oldLeft);
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
         }

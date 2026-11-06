@@ -73,11 +73,30 @@ public sealed partial class LivingEconomyModel
         f.KitLeft = tier == 0 ? Fix64.Zero : left;
     }
 
+    internal Fix64 FixtureKitLeft(int figureIndex) => _figures[figureIndex].KitLeft;
+
+    /// <summary>Applies the same kit wear and break accounting used by a live work season.</summary>
+    internal void FixtureWearKit(int figureIndex, Fix64 work) => ApplyKitWear(_figures[figureIndex], work);
+
+    /// <summary>Runs live kit wear and issue with zero tool work, for lifecycle accounting fixtures.</summary>
+    internal void FixtureWearAndIssueKits(int settlementIndex, int tier, params int[] toolWorkerFigureIndices)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        var toolWork = new Fix64[_figures.Count];
+        foreach (int figureIndex in toolWorkerFigureIndices)
+        {
+            if ((uint)figureIndex >= (uint)_figures.Count) throw new ArgumentOutOfRangeException(nameof(toolWorkerFigureIndices));
+            if (_figures[figureIndex].SettlementId == settlement.Id) toolWork[figureIndex] = Fix64.One;
+        }
+        WearAndIssueKits(settlement, EnsureMetal(settlement), tier, toolWork);
+    }
+
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
     internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
 
     /// <summary>Sets the remaining ore for a deposit in a deterministic economy fixture.</summary>
     internal void FixtureSetOreRemaining(int tile, Fix64 amount) => _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+    internal Fix64 FixtureOreRemaining(int tile) => _ore[tile];
 
     /// <summary>Adds a populated mining camp at a chosen deposit for view and lifecycle fixtures.</summary>
     internal void FixtureAddMiningCamp(int parentSettlementIndex, int tile, int crew = 4, bool built = true, bool mineHead = false)
@@ -204,6 +223,24 @@ public sealed partial class LivingEconomyModel
             case "mine_head": if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile); break;
             default: throw new ArgumentException($"Unknown metal structure '{structure}'.", nameof(structure));
         }
+    }
+
+    internal void FixtureSetMetalFacilities(int settlementIndex, int forges, int smelters)
+    {
+        if (forges < 0) throw new ArgumentOutOfRangeException(nameof(forges));
+        if (smelters < 0) throw new ArgumentOutOfRangeException(nameof(smelters));
+        MetalState m = EnsureMetal(_settlements[settlementIndex]);
+        m.Forges = forges;
+        m.Smelters = smelters;
+        InvalidateIronFuelHubAssignments();
+    }
+
+    internal void FixtureSetLastToolWorker(int figureIndex, bool worked)
+    {
+        FigureState figure = _figures[figureIndex];
+        figure.Job = worked ? EconomyJob.Farm : EconomyJob.Rest;
+        figure.WorkThisSeason = worked ? Fix64.One : Fix64.Zero;
+        figure.Task = 0;
     }
 
     /// <summary>Runs one recipe at a settlement for up to <paramref name="planned"/> batches with <paramref name="labor"/> work-seasons; returns the batches made.</summary>
@@ -638,7 +675,11 @@ public sealed partial class LivingEconomyModel
     {
         int id = _settlements[settlementIndex].Id;
         for (int i = _figures.Count - 1; i >= 0 && count > 0; i--)
-            if (_figures[i].SettlementId == id) { _figures.RemoveAt(i); count--; }
+            if (_figures[i].SettlementId == id)
+            {
+                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One);
+                _figures.RemoveAt(i); count--;
+            }
     }
 
     internal Fix64 FixtureHousingTarget(int settlementIndex) => HousingTarget(_settlements[settlementIndex]);

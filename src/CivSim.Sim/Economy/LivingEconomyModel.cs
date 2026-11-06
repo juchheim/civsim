@@ -301,6 +301,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public int SettlementId;
         public int Age;
         public bool Female;
+        /// <summary>Whether the figure used any metal-tool work in the preceding completed season.</summary>
+        public bool WorkedWithToolLastSeason;
         public Fix64 Health = Fix64.One;
         public Fix64 Hunger;
         public Fix64 Warmth = Fix64.One;
@@ -486,6 +488,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     public bool FoodWorkAttributionTraceEnabled { get; set; }
     /// <summary>Report-only estimate at pending fissions; never serialized, hashed, or read by simulation decisions.</summary>
     public bool FissionOperatingFoodMarginTraceEnabled { get; set; }
+    /// <summary>Controlled candidate: preserve last-season active Iron-kit coverage on both sides of settlement fission.</summary>
+    internal bool IronFissionCoveragePreservingForDiagnostics { get; set; }
     public int[]? FissionOperatingFoodMarginCivsForDiagnostics { get; set; }
     private readonly List<string> _fissionOperatingFoodMarginTraces = new();
     public IReadOnlyList<string> FissionOperatingFoodMarginTraces => _fissionOperatingFoodMarginTraces;
@@ -3946,6 +3950,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void RecordDeath(FigureState figure, EconomyDeathCause cause, HazardBreakdown hazards, int season)
     {
+        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One);
         int band = figure.Age < 14 ? 0 : figure.Age < 45 ? 1 : 2;
         _lastDeathsByCause[(int)cause]++;
         _lastDeathsByCauseAndAgeBand[band * DeathCauseCount + (int)cause]++;
@@ -4161,17 +4166,22 @@ public sealed partial class LivingEconomyModel : ISimModel
                 parent.Id == parent.Civilization)
                 _firstGenerationDaughterSettlementIdsForDiagnostics.Add(daughter.Id);
             if (daughter is null) parent.FissionPending = false;
-            Record(daughter is null ? $"cancelled:{cohortResult}" : $"splitSuccess:daughter=s{daughter.Id};{cohortResult}", site, daughterCount);
+            Record(daughter is null ? $"cancelled:{cohortResult};sample={cohort.Result}" :
+                $"splitSuccess:daughter=s{daughter.Id};{cohortResult};sample={cohort.Result}", site, daughterCount);
         }
     }
 
     private string FissionCohortSummary(SettlementState parent)
     {
         int children = 0, adultWomen = 0, adultMen = 0, elders = 0, skilledAdults = 0;
+        int lastSeasonToolWorkers = 0, ironKitHolders = 0, activeIronKitWorkers = 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != parent.Id) continue;
+            if (figure.WorkedWithToolLastSeason && figure.Age >= 14) lastSeasonToolWorkers++;
+            if (figure.Kit is 11 or 12) ironKitHolders++;
+            if (figure.WorkedWithToolLastSeason && figure.Age >= 14 && figure.Kit is 11 or 12) activeIronKitWorkers++;
             if (figure.Age < 14) children++;
             else if (figure.Age < 45)
             {
@@ -4180,16 +4190,20 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             else elders++;
         }
-        return $"cohort(children={children},adultWomen14to44={adultWomen},adultMen14to44={adultMen},elders45plus={elders},skilledAdults14to44={skilledAdults})";
+        return $"cohort(children={children},adultWomen14to44={adultWomen},adultMen14to44={adultMen},elders45plus={elders},skilledAdults14to44={skilledAdults},lastSeasonToolWorkers={lastSeasonToolWorkers},ironKitHolders={ironKitHolders},activeIronKitWorkers={activeIronKitWorkers})";
     }
 
     private string FissionSelectedCohortSummary(SettlementState parent, bool[] selectedFigures)
     {
         int children = 0, adultWomen = 0, adultMen = 0, elders = 0;
+        int lastSeasonToolWorkers = 0, ironKitHolders = 0, activeIronKitWorkers = 0;
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != parent.Id || !selectedFigures[i]) continue;
+            if (figure.WorkedWithToolLastSeason && figure.Age >= 14) lastSeasonToolWorkers++;
+            if (figure.Kit is 11 or 12) ironKitHolders++;
+            if (figure.WorkedWithToolLastSeason && figure.Age >= 14 && figure.Kit is 11 or 12) activeIronKitWorkers++;
             if (figure.Age < 14) children++;
             else if (figure.Age < 45)
             {
@@ -4197,7 +4211,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             else elders++;
         }
-        return $"daughterSample(children={children},adultWomen14to44={adultWomen},adultMen14to44={adultMen},elders45plus={elders})";
+        return $"daughterSample(children={children},adultWomen14to44={adultWomen},adultMen14to44={adultMen},elders45plus={elders},lastSeasonToolWorkers={lastSeasonToolWorkers},ironKitHolders={ironKitHolders},activeIronKitWorkers={activeIronKitWorkers})";
     }
 
     private FissionCohortSample SelectFissionCohort(SettlementState parent, int daughterCount, int season, ulong stream)
@@ -4207,10 +4221,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             FigureState figure = _figures[i];
             if (figure.SettlementId != parent.Id) continue;
-            candidates.Add(new FissionFigureCandidate(i, figure.Id, figure.Age, figure.Female, IsSkilled(figure)));
+            candidates.Add(new FissionFigureCandidate(i, figure.Id, figure.Age, figure.Female, IsSkilled(figure),
+                figure.Kit, figure.WorkedWithToolLastSeason));
         }
         return FissionCohortSampler.Select(_seed, stream, parent.Id, season, _figures.Count,
-            daughterCount, candidates);
+            daughterCount, candidates, IronFissionCoveragePreservingForDiagnostics);
     }
 
     private bool AppliesToFissionOperatingFoodMarginDiagnostic(int civ)
@@ -4382,7 +4397,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             daughter.BuildTarget = Structure.Palisade;
         _settlements.Add(daughter);
         for (int i = 0; i < _figures.Count; i++)
-            if (selected[i]) { _figures[i].SettlementId = daughter.Id; _figures[i].Camp = -1; _figures[i].Role = 0; }
+            if (selected[i])
+            {
+                RecordIT6KitRelocation(parent.Id, daughter.Id, _figures[i].Kit, Fix64.One);
+                _figures[i].SettlementId = daughter.Id; _figures[i].Camp = -1; _figures[i].Role = 0;
+            }
         SplitMetal(parent, daughter);
         for (int good = 0; good < parent.Stores.Length; good++)
         {

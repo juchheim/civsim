@@ -10,19 +10,41 @@ namespace CivSim.Sim.Economy;
 internal readonly record struct IT6AccountingSnapshot(
     Fix64 Kit11Produced, Fix64 Kit12Produced, Fix64 Kit11Issued, Fix64 Kit12Issued,
     Fix64 Kit11ToolWork, Fix64 Kit12ToolWork, int Kit11Breaks, int Kit12Breaks, int Kit11Upgrades,
+    Fix64 Kit11Retired, Fix64 Kit12Retired,
     Fix64 KitRecipeLabor, Fix64 MetalFacilityBuildLabor, Fix64 IronRecipeCharcoal,
     Fix64 IronOreMined, Fix64 IronFireSettingWood, Fix64 CharcoalHaulLabor, Fix64 OreHaulLabor, Fix64 IronOreHaulLabor,
     int MetalFuelShortSeasons, int IronEraFuelShortSeasons,
     int IronEraFuelDemandSeasons, Fix64 IronEraCharcoalPlan, Fix64 IronEraCharcoalUnmet);
 
 internal readonly record struct IT6FuelSiteSnapshot(
-    int SettlementId, int Civilization, int Population, int DemandSeasons, int ShortSeasons,
+    int SettlementId, int Civilization, int SiteTile, int Population, int DemandSeasons, int ShortSeasons,
+    int IronFuelHubId, int Forges, int Smelters, int FuelReach,
     Fix64 Planned, Fix64 Unmet, Fix64 ShortfallReachWood, Fix64 ShortfallHarvestableWood,
     Fix64 ShortfallInRangeWood, Fix64 ShortfallOuterReachWood, Fix64 ShortfallLocalWood,
-    Fix64 ShortfallRemainingWork, Fix64 ShortfallWoodFactor, Fix64 ForestBaseline,
-    Fix64 ReachWoodNow, Fix64 HarvestableWoodNow, int HarvestableForestTiles,
+    Fix64 ShortfallRemainingWork, Fix64 ShortfallWoodFactor, Fix64 ForestBaseline, Fix64 IronProductionWoodFactor,
+    Fix64 ReachWoodNow, Fix64 HarvestableWoodNow, Fix64 ReachWoodGrowthPerYear, int HarvestableForestTiles,
     Fix64 BeyondReachRawWood, Fix64 BeyondReachHarvestableWood, int BeyondReachForestTiles, int NearestBeyondReachForestDistance,
-    Fix64 LocalWoodNow, Fix64 CharcoalStock, int OwnSettlementsInReach, int OtherSettlementsInReach);
+    Fix64 LocalWoodNow, Fix64 WoodExportableNow, Fix64 IronOreStock, Fix64 IronOreExportableNow,
+    Fix64 CharcoalStock, int OwnSettlementsInReach, int OtherSettlementsInReach,
+    Fix64 Kit11Produced, Fix64 Kit12Produced, Fix64 Kit11Issued, Fix64 Kit12Issued, int Kit11Upgrades,
+    Fix64 Kit11Received, Fix64 Kit12Received, Fix64 Kit11Sent, Fix64 Kit12Sent,
+    int Kit11Breaks, int Kit12Breaks, Fix64 Kit11Retired, Fix64 Kit12Retired,
+    int Kit11Holders, int Kit12Holders, Fix64 Kit11Stock, Fix64 Kit12Stock,
+    int ToolWorkers, int T11ToolWorkers, int T12ToolWorkers,
+    int ToolWorkers14To44, int T11ToolWorkers14To44, int T12ToolWorkers14To44,
+    int ToolWorkers45Plus, int T11ToolWorkers45Plus, int T12ToolWorkers45Plus);
+
+/// <summary>Counts of live T11/T12 holders by remaining service fraction; diagnostic only.</summary>
+internal readonly record struct IT3WearDistribution(
+    int T11BelowZero, int T11Under20, int T11Under40, int T11Under60, int T11Under80, int T11AtLeast80,
+    int T12BelowZero, int T12Under20, int T12Under40, int T12Under60, int T12Under80, int T12AtLeast80)
+{
+    public int T11Total => T11BelowZero + T11Under20 + T11Under40 + T11Under60 + T11Under80 + T11AtLeast80;
+    public int T12Total => T12BelowZero + T12Under20 + T12Under40 + T12Under60 + T12Under80 + T12AtLeast80;
+}
+
+/// <summary>Read-only provenance for a whole-kit domestic delivery; used to include every route producer in I-T2 fuel qualification.</summary>
+internal readonly record struct IT6KitTransferSnapshot(int Season, int FromSettlementId, int ToSettlementId, int Tier, Fix64 Quantity);
 
 public sealed partial class LivingEconomyModel
 {
@@ -31,6 +53,7 @@ public sealed partial class LivingEconomyModel
         public Fix64 Kit11Produced, Kit12Produced, Kit11Issued, Kit12Issued;
         public Fix64 Kit11ToolWork, Kit12ToolWork;
         public int Kit11Breaks, Kit12Breaks, Kit11Upgrades;
+        public Fix64 Kit11Retired, Kit12Retired;
         public Fix64 KitRecipeLabor, MetalFacilityBuildLabor, IronRecipeCharcoal;
         public Fix64 IronOreMined, IronFireSettingWood, CharcoalHaulLabor, OreHaulLabor, IronOreHaulLabor;
         public int MetalFuelShortSeasons, IronEraFuelShortSeasons, IronEraFuelDemandSeasons;
@@ -43,11 +66,23 @@ public sealed partial class LivingEconomyModel
         public int DemandSeasons, ShortSeasons;
         public Fix64 Planned, Unmet, ShortfallReachWood, ShortfallHarvestableWood, ShortfallInRangeWood,
             ShortfallOuterReachWood, ShortfallLocalWood, ShortfallRemainingWork, ShortfallWoodFactor;
+        public Fix64 Kit11Produced, Kit12Produced, Kit11Issued, Kit12Issued;
+        public Fix64 Kit11Received, Kit12Received, Kit11Sent, Kit12Sent;
+        public int Kit11Upgrades;
+        public int Kit11Breaks, Kit12Breaks;
+        public Fix64 Kit11Retired, Kit12Retired;
+        public int ToolWorkers, T11ToolWorkers, T12ToolWorkers;
+        public int ToolWorkers14To44, T11ToolWorkers14To44, T12ToolWorkers14To44;
+        public int ToolWorkers45Plus, T11ToolWorkers45Plus, T12ToolWorkers45Plus;
     }
 
     private IT6CivFlow[]? _it6CivFlows;
     private List<IT6FuelSiteFlow>? _it6FuelSiteFlows;
+    private List<IT6KitTransferSnapshot>? _it6KitTransfers;
     internal bool IT6AccountingTraceEnabled { get; set; }
+
+    internal IReadOnlyList<IT6KitTransferSnapshot> CaptureIT6KitTransfers()
+        => IT6AccountingTraceEnabled && _it6KitTransfers is not null ? _it6KitTransfers : Array.Empty<IT6KitTransferSnapshot>();
 
     internal IT6AccountingSnapshot CaptureIT6Accounting(int civilization)
     {
@@ -56,28 +91,69 @@ public sealed partial class LivingEconomyModel
             return default;
         return new IT6AccountingSnapshot(f.Kit11Produced, f.Kit12Produced, f.Kit11Issued, f.Kit12Issued,
             f.Kit11ToolWork, f.Kit12ToolWork, f.Kit11Breaks, f.Kit12Breaks, f.Kit11Upgrades,
+            f.Kit11Retired, f.Kit12Retired,
             f.KitRecipeLabor, f.MetalFacilityBuildLabor, f.IronRecipeCharcoal, f.IronOreMined,
             f.IronFireSettingWood, f.CharcoalHaulLabor, f.OreHaulLabor, f.IronOreHaulLabor,
             f.MetalFuelShortSeasons, f.IronEraFuelShortSeasons,
             f.IronEraFuelDemandSeasons, f.IronEraCharcoalPlan, f.IronEraCharcoalUnmet);
     }
 
+    /// <summary>Read-only histogram of equipped Iron kits' remaining KitLeft, normalized by that tier's service life.</summary>
+    internal IT3WearDistribution CaptureIT3WearDistribution(int civilization)
+    {
+        if ((uint)civilization >= (uint)_completedProjects.Length) return default;
+        int t11Below = 0, t11_20 = 0, t11_40 = 0, t11_60 = 0, t11_80 = 0, t11High = 0;
+        int t12Below = 0, t12_20 = 0, t12_40 = 0, t12_60 = 0, t12_80 = 0, t12High = 0;
+        foreach (FigureState figure in _figures)
+        {
+            if (figure.Civilization != civilization || figure.Kit is not (11 or 12)) continue;
+            int bin = RemainingServiceBin(figure.KitLeft, ServiceOf(figure.Kit));
+            if (figure.Kit == 11)
+            {
+                switch (bin) { case 0: t11Below++; break; case 1: t11_20++; break; case 2: t11_40++; break; case 3: t11_60++; break; case 4: t11_80++; break; default: t11High++; break; }
+            }
+            else
+            {
+                switch (bin) { case 0: t12Below++; break; case 1: t12_20++; break; case 2: t12_40++; break; case 3: t12_60++; break; case 4: t12_80++; break; default: t12High++; break; }
+            }
+        }
+        return new IT3WearDistribution(t11Below, t11_20, t11_40, t11_60, t11_80, t11High,
+            t12Below, t12_20, t12_40, t12_60, t12_80, t12High);
+    }
+
+    // Bin 0 is negative remaining service (the documented dormancy tail); bins 1–5 are [0,20), [20,40), …, [80,100+)%.
+    private static int RemainingServiceBin(Fix64 remaining, Fix64 service)
+    {
+        if (remaining < Fix64.Zero) return 0;
+        Fix64 percent = service > Fix64.Zero ? remaining * Fix64.FromInt(100) / service : Fix64.Zero;
+        if (percent < Fix64.FromInt(20)) return 1;
+        if (percent < Fix64.FromInt(40)) return 2;
+        if (percent < Fix64.FromInt(60)) return 3;
+        if (percent < Fix64.FromInt(80)) return 4;
+        return 5;
+    }
+
     internal IReadOnlyList<IT6FuelSiteSnapshot> CaptureIT6FuelSites()
     {
         if (!IT6AccountingTraceEnabled || _it6FuelSiteFlows is null) return Array.Empty<IT6FuelSiteSnapshot>();
-        var result = new List<IT6FuelSiteSnapshot>(_it6FuelSiteFlows.Count);
-        foreach (IT6FuelSiteFlow flow in _it6FuelSiteFlows)
+        var result = new List<IT6FuelSiteSnapshot>(_settlements.Count);
+        // Enumerate every live settlement, not only those that have emitted a trace
+        // event. This makes end-state stock and kit-holder accounting world-complete.
+        foreach (SettlementState s in _settlements)
         {
-            int settlementId = flow.SettlementId;
-            int settlementIndex = -1;
-            for (int i = 0; i < _settlements.Count; i++)
-                if (_settlements[i].Id == settlementId) { settlementIndex = i; break; }
-            if (settlementIndex < 0) continue;
-            SettlementState s = _settlements[settlementIndex];
-            if (s.Metal is not { } m) continue;
-            (Fix64 raw, Fix64 available, int availableTiles, _, _) = IT6ReachWood(s);
-            int reach = IronFuelCharcoalReach(s);
-            (Fix64 beyondRaw, Fix64 beyondAvailable, int beyondTiles, int nearestBeyond) = IT6WoodInAnnulus(s, reach, reach + 10);
+            IT6FuelSiteFlow? flow = null;
+            foreach (IT6FuelSiteFlow candidate in _it6FuelSiteFlows)
+                if (candidate.SettlementId == s.Id) { flow = candidate; break; }
+            flow ??= new IT6FuelSiteFlow { SettlementId = s.Id };
+            MetalState? m = s.Metal;
+            Fix64 raw = Fix64.Zero, available = Fix64.Zero, reachGrowth = Fix64.Zero, beyondRaw = Fix64.Zero, beyondAvailable = Fix64.Zero;
+            int availableTiles = 0, beyondTiles = 0, nearestBeyond = -1, reach = 0;
+            if (m is not null)
+            {
+                (raw, available, availableTiles, _, _, reachGrowth) = IT6ReachWood(s);
+                reach = IronFuelCharcoalReach(s);
+                (beyondRaw, beyondAvailable, beyondTiles, nearestBeyond) = IT6WoodInAnnulus(s, reach, reach + 10);
+            }
             int ownInReach = 0, otherInReach = 0;
             foreach (SettlementState other in _settlements)
             {
@@ -86,36 +162,53 @@ public sealed partial class LivingEconomyModel
                 if (other.Civilization == s.Civilization) ownInReach++;
                 else otherInReach++;
             }
-            result.Add(new IT6FuelSiteSnapshot(settlementId, s.Civilization, Population(s.Id), flow.DemandSeasons, flow.ShortSeasons,
+            Fix64 localWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
+            Fix64 fourSeasonWoodNeed = TradeNeed(s.Id, "G-WOOD", 4);
+            Fix64 ironOreStock = GoodStock(s.Id, "G-IRONORE");
+            Fix64 fourSeasonIronOreNeed = TradeNeed(s.Id, "G-IRONORE", 4);
+            Fix64 woodExportable = Fix64.Max(Fix64.Zero, localWood - Fix64.Max(Fix64.Zero, fourSeasonWoodNeed - WoodReserve));
+            Fix64 ironOreExportable = Fix64.Max(Fix64.Zero, ironOreStock - fourSeasonIronOreNeed);
+            result.Add(new IT6FuelSiteSnapshot(s.Id, s.Civilization, s.SiteTile, Population(s.Id), flow.DemandSeasons, flow.ShortSeasons,
+                IronFuelHubFor(s).Id, m?.Forges ?? 0, m?.Smelters ?? 0, reach,
                 flow.Planned, flow.Unmet, flow.ShortfallReachWood, flow.ShortfallHarvestableWood,
                 flow.ShortfallInRangeWood, flow.ShortfallOuterReachWood, flow.ShortfallLocalWood,
-                flow.ShortfallRemainingWork, flow.ShortfallWoodFactor, m.ForestAtStart, raw, available, availableTiles,
+                flow.ShortfallRemainingWork, flow.ShortfallWoodFactor, m?.ForestAtStart ?? Fix64.Zero,
+                m is null ? Fix64.Zero : IronWoodFactor(s, m), raw, available, reachGrowth, availableTiles,
                 beyondRaw, beyondAvailable, beyondTiles, nearestBeyond,
-                Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve), m.Goods[(int)MetalGood.Charcoal],
-                ownInReach, otherInReach));
+                localWood, woodExportable, ironOreStock, ironOreExportable,
+                m is null ? Fix64.Zero : m.Goods[(int)MetalGood.Charcoal],
+                ownInReach, otherInReach, flow.Kit11Produced, flow.Kit12Produced, flow.Kit11Issued, flow.Kit12Issued,
+                flow.Kit11Upgrades, flow.Kit11Received, flow.Kit12Received, flow.Kit11Sent, flow.Kit12Sent,
+                flow.Kit11Breaks, flow.Kit12Breaks, flow.Kit11Retired, flow.Kit12Retired,
+                CountIronKitHolders(s.Id, 11), CountIronKitHolders(s.Id, 12),
+                IronStock(s, IronGood.Kit11), IronStock(s, IronGood.Kit12),
+                flow.ToolWorkers, flow.T11ToolWorkers, flow.T12ToolWorkers,
+                flow.ToolWorkers14To44, flow.T11ToolWorkers14To44, flow.T12ToolWorkers14To44,
+                flow.ToolWorkers45Plus, flow.T11ToolWorkers45Plus, flow.T12ToolWorkers45Plus));
         }
         result.Sort((a, b) => a.SettlementId.CompareTo(b.SettlementId));
         return result;
     }
 
-    private (Fix64 Raw, Fix64 Harvestable, int Tiles, Fix64 InRange, Fix64 OuterReach) IT6ReachWood(SettlementState s)
+    private (Fix64 Raw, Fix64 Harvestable, int Tiles, Fix64 InRange, Fix64 OuterReach, Fix64 Growth) IT6ReachWood(SettlementState s)
     {
         int reach = IronFuelCharcoalReach(s);
-        Fix64 raw = Fix64.Zero, harvestable = Fix64.Zero, inRange = Fix64.Zero, outerReach = Fix64.Zero;
+        Fix64 raw = Fix64.Zero, harvestable = Fix64.Zero, inRange = Fix64.Zero, outerReach = Fix64.Zero, growth = Fix64.Zero;
         int tiles = 0;
-        foreach (int tile in ReachTiles(s.SiteTile, reach))
+        foreach ((int tile, int haulDistance) in IronFuelWoodSources(s, reach))
         {
             if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
+            growth += _world.Tile(tile).WoodGrowthPerYear;
             Fix64 stock = _woodStock[tile];
             raw += stock;
             Fix64 available = StandingWoodAvailableToIron(tile);
             if (available <= Fix64.Zero) continue;
             harvestable += available;
-            if (HexGrid.Distance(s.SiteTile, tile, _world.Width) <= Radius) inRange += available;
+            if (haulDistance <= Radius) inRange += available;
             else outerReach += available;
             tiles++;
         }
-        return (raw, harvestable, tiles, inRange, outerReach);
+        return (raw, harvestable, tiles, inRange, outerReach, growth);
     }
 
     private (Fix64 Raw, Fix64 Harvestable, int Tiles, int Nearest) IT6WoodInAnnulus(SettlementState s, int innerReach, int outerReach)
@@ -142,12 +235,93 @@ public sealed partial class LivingEconomyModel
         return _it6CivFlows[civilization] ??= new IT6CivFlow();
     }
 
+    private IT6FuelSiteFlow IT6SiteFlow(int settlementId)
+    {
+        _it6FuelSiteFlows ??= new List<IT6FuelSiteFlow>();
+        foreach (IT6FuelSiteFlow candidate in _it6FuelSiteFlows)
+            if (candidate.SettlementId == settlementId) return candidate;
+        var flow = new IT6FuelSiteFlow { SettlementId = settlementId };
+        _it6FuelSiteFlows.Add(flow);
+        return flow;
+    }
+
+    private int CountIronKitHolders(int settlementId, int tier)
+    {
+        int count = 0;
+        foreach (FigureState figure in _figures)
+            if (figure.SettlementId == settlementId && figure.Kit == tier) count++;
+        return count;
+    }
+
+    private void RecordIT6KitTransfer(SettlementState donor, SettlementState receiver, int tier, Fix64 quantity, int season)
+    {
+        if (IT6AccountingTraceEnabled && IronChain && donor.Id != receiver.Id && quantity > Fix64.Zero)
+        {
+            _it6KitTransfers ??= new List<IT6KitTransferSnapshot>();
+            _it6KitTransfers.Add(new IT6KitTransferSnapshot(season, donor.Id, receiver.Id, tier, quantity));
+        }
+        RecordIT6KitRelocation(donor.Id, receiver.Id, tier, quantity);
+    }
+
+    private void RecordIT6KitRelocation(int fromSettlementId, int toSettlementId, int tier, Fix64 quantity)
+    {
+        if (!IT6AccountingTraceEnabled || !IronChain || fromSettlementId == toSettlementId || quantity <= Fix64.Zero) return;
+        IT6FuelSiteFlow from = IT6SiteFlow(fromSettlementId), to = IT6SiteFlow(toSettlementId);
+        if (tier == 11) { from.Kit11Sent += quantity; to.Kit11Received += quantity; }
+        else if (tier == 12) { from.Kit12Sent += quantity; to.Kit12Received += quantity; }
+    }
+
+    private void RecordIT6ToolWorkers(SettlementState settlement, Fix64[] toolWork)
+    {
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState figure = _figures[i];
+            if (figure.SettlementId == settlement.Id)
+                figure.WorkedWithToolLastSeason = figure.Age >= 14 && toolWork[i] > Fix64.Zero;
+        }
+        if (!IT6AccountingTraceEnabled || !IronChain) return;
+        IT6FuelSiteFlow flow = IT6SiteFlow(settlement.Id);
+        flow.ToolWorkers = flow.T11ToolWorkers = flow.T12ToolWorkers = 0;
+        flow.ToolWorkers14To44 = flow.T11ToolWorkers14To44 = flow.T12ToolWorkers14To44 = 0;
+        flow.ToolWorkers45Plus = flow.T11ToolWorkers45Plus = flow.T12ToolWorkers45Plus = 0;
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            FigureState figure = _figures[i];
+            if (figure.SettlementId != settlement.Id || figure.Age < 14 || toolWork[i] <= Fix64.Zero) continue;
+            flow.ToolWorkers++;
+            if (figure.Age < 45) flow.ToolWorkers14To44++;
+            else flow.ToolWorkers45Plus++;
+            if (figure.Kit == 11)
+            {
+                flow.T11ToolWorkers++;
+                if (figure.Age < 45) flow.T11ToolWorkers14To44++;
+                else flow.T11ToolWorkers45Plus++;
+            }
+            else if (figure.Kit == 12)
+            {
+                flow.T12ToolWorkers++;
+                if (figure.Age < 45) flow.T12ToolWorkers14To44++;
+                else flow.T12ToolWorkers45Plus++;
+            }
+        }
+    }
+
     private void RecordIT6Recipe(SettlementState settlement, CompiledRecipe recipe, Fix64 batches)
     {
         if (!IT6AccountingTraceEnabled || !IronChain || batches <= Fix64.Zero) return;
         IT6CivFlow flow = IT6Flow(settlement.Civilization);
-        if (recipe.OutputSlot == IronSlot(IronGood.Kit11)) flow.Kit11Produced += batches * OutputQuantity(settlement, recipe);
-        if (recipe.OutputSlot == IronSlot(IronGood.Kit12)) flow.Kit12Produced += batches * OutputQuantity(settlement, recipe);
+        if (recipe.OutputSlot == IronSlot(IronGood.Kit11))
+        {
+            Fix64 output = batches * OutputQuantity(settlement, recipe);
+            flow.Kit11Produced += output;
+            IT6SiteFlow(settlement.Id).Kit11Produced += output;
+        }
+        if (recipe.OutputSlot == IronSlot(IronGood.Kit12))
+        {
+            Fix64 output = batches * OutputQuantity(settlement, recipe);
+            flow.Kit12Produced += output;
+            IT6SiteFlow(settlement.Id).Kit12Produced += output;
+        }
         if (recipe.Def.Id is "make_tool11" or "make_tool12")
             flow.KitRecipeLabor += batches * RecipeLabor(settlement, recipe, anyMetalKit: true);
 
@@ -157,29 +331,58 @@ public sealed partial class LivingEconomyModel
                     flow.IronRecipeCharcoal += batches * InputQuantity(settlement, recipe, i);
     }
 
-    private void RecordIT6IronKitIssued(int civilization, int tier, int oldTier, Fix64 oldLeft)
+    private void RecordIT6IronKitIssued(SettlementState settlement, int tier, int oldTier, Fix64 oldLeft)
     {
         if (!IT6AccountingTraceEnabled || !IronChain) return;
-        IT6CivFlow flow = IT6Flow(civilization);
-        if (tier == 11) flow.Kit11Issued += Fix64.One;
-        else if (tier == 12) flow.Kit12Issued += Fix64.One;
-        if (oldTier == 11 && tier == 12 && oldLeft > Fix64.Zero) flow.Kit11Upgrades++;
+        IT6CivFlow flow = IT6Flow(settlement.Civilization);
+        IT6FuelSiteFlow site = IT6SiteFlow(settlement.Id);
+        if (tier == 11) { flow.Kit11Issued += Fix64.One; site.Kit11Issued += Fix64.One; }
+        else if (tier == 12) { flow.Kit12Issued += Fix64.One; site.Kit12Issued += Fix64.One; }
+        // Any held Iron kit that is replaced leaves the inventory, whether it was
+        // upgraded early or reached the replacement point at its own tier.
+        if (oldTier is 11 or 12)
+        {
+            RecordIT6IronKitRetired(settlement.Civilization, settlement.Id, oldTier, Fix64.One);
+            if (oldTier == 11 && tier == 12 && oldLeft > Fix64.Zero)
+            {
+                flow.Kit11Upgrades++;
+                site.Kit11Upgrades++;
+            }
+        }
     }
 
     private void RecordIT6IronKitWork(int civilization, int tier, Fix64 work)
     {
-        if (!IT6AccountingTraceEnabled || !IronChain || work <= Fix64.Zero) return;
+        if (!IT6AccountingTraceEnabled || !IronChain || work <= Fix64.Zero || (uint)civilization >= (uint)_completedProjects.Length) return;
         IT6CivFlow flow = IT6Flow(civilization);
         if (tier == 11) flow.Kit11ToolWork += work;
         else if (tier == 12) flow.Kit12ToolWork += work;
     }
 
-    private void RecordIT6IronKitBreak(int civilization, int tier)
+    private void RecordIT6IronKitBreak(int civilization, int settlementId, int tier)
     {
         if (!IT6AccountingTraceEnabled || !IronChain) return;
+        IT6FuelSiteFlow site = IT6SiteFlow(settlementId);
+        if (tier == 11) site.Kit11Breaks++;
+        else if (tier == 12) site.Kit12Breaks++;
+        else return;
+        if ((uint)civilization >= (uint)_completedProjects.Length) return;
         IT6CivFlow flow = IT6Flow(civilization);
         if (tier == 11) flow.Kit11Breaks++;
-        else if (tier == 12) flow.Kit12Breaks++;
+        else flow.Kit12Breaks++;
+    }
+
+    private void RecordIT6IronKitRetired(int civilization, int settlementId, int tier, Fix64 quantity)
+    {
+        if (!IT6AccountingTraceEnabled || !IronChain || quantity <= Fix64.Zero) return;
+        IT6FuelSiteFlow site = IT6SiteFlow(settlementId);
+        if (tier == 11) site.Kit11Retired += quantity;
+        else if (tier == 12) site.Kit12Retired += quantity;
+        else return;
+        if ((uint)civilization >= (uint)_completedProjects.Length) return;
+        IT6CivFlow flow = IT6Flow(civilization);
+        if (tier == 11) flow.Kit11Retired += quantity;
+        else flow.Kit12Retired += quantity;
     }
 
     private void RecordIT6MetalFacilityBuild(int civilization, Fix64 labor)
@@ -227,15 +430,7 @@ public sealed partial class LivingEconomyModel
         flow.IronEraFuelDemandSeasons++;
         flow.IronEraCharcoalPlan += planned;
         flow.IronEraCharcoalUnmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));
-        _it6FuelSiteFlows ??= new List<IT6FuelSiteFlow>();
-        IT6FuelSiteFlow? site = null;
-        foreach (IT6FuelSiteFlow candidate in _it6FuelSiteFlows)
-            if (candidate.SettlementId == settlement.Id) { site = candidate; break; }
-        if (site is null)
-        {
-            site = new IT6FuelSiteFlow { SettlementId = settlement.Id };
-            _it6FuelSiteFlows.Add(site);
-        }
+        IT6FuelSiteFlow site = IT6SiteFlow(settlement.Id);
         site.DemandSeasons++;
         site.Planned += planned;
         site.Unmet += Fix64.Min(planned, Fix64.Max(Fix64.Zero, unmet));

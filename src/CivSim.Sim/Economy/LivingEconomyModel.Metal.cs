@@ -272,6 +272,20 @@ public sealed partial class LivingEconomyModel
         return (_bronzeConstants.BreakQuality - _bronzeConstants.ReplaceQuality) / slope;
     }
 
+    private void ApplyKitWear(FigureState figure, Fix64 work)
+    {
+        if (figure.Kit == 0) return;
+        int tier = figure.Kit;
+        RecordIT6IronKitWork(figure.Civilization, tier, work);
+        figure.KitLeft -= work;
+        if (figure.KitLeft <= KitBreakLeft(tier))
+        {
+            RecordIT6IronKitBreak(figure.Civilization, figure.SettlementId, tier);
+            figure.Kit = 0;
+            figure.KitLeft = Fix64.Zero;
+        }
+    }
+
     /// <summary>The figure's kit multiplier for a stat, applied once whatever the civilization knows (docs/MVP/23 §1.3).</summary>
     private Fix64 KitMod(FigureState f, string stat)
         => f.Kit != 0 && _tierDefs[f.Kit] is { } def ? def.Mod(stat) : Fix64.One;
@@ -355,17 +369,14 @@ public sealed partial class LivingEconomyModel
         {
             FigureState f = _figures[i];
             if (f.SettlementId != s.Id || f.Kit == 0) continue;
-            int wornTier = f.Kit;
-            RecordIT6IronKitWork(civ, wornTier, toolWork[i]);
-            f.KitLeft -= toolWork[i];
-            if (f.KitLeft <= KitBreakLeft(f.Kit))
-            {
-                RecordIT6IronKitBreak(civ, wornTier);
-                f.Kit = 0; f.KitLeft = Fix64.Zero;
-            }
+            ApplyKitWear(f, toolWork[i]);
         }
-        // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
-        if (IronChain) IssueIronKits(s, m);
+        // Move idle Iron kits to current tool workers before making new assignments, then hand out any stock.
+        if (IronChain)
+        {
+            ReassignIdleIronKitsToToolWorkers(s, toolWork);
+            IssueIronKits(s, m, toolWork);
+        }
         // Hand out the kits in stock: those without a kit first, then worn kits, then upgrades, oldest kits first.
         var order = new List<int>();
         for (int i = 0; i < _figures.Count; i++)
@@ -403,10 +414,16 @@ public sealed partial class LivingEconomyModel
                 m.Goods[(int)MetalGood.Copper] += copper;
                 AddMetalStat(civ, StatRemeltCopper, copper);
             }
+            // A worn Iron kit can still be in its dormancy tail (KitLeft <= 0 but
+            // above the break point). If Iron stock cannot replace it, the Bronze
+            // hand-out below may overwrite it; account for that physical retirement.
+            if (f.Kit is 11 or 12)
+                RecordIT6IronKitRetired(civ, s.Id, f.Kit, Fix64.One);
             m.Goods[(int)KitGood(give)] -= Fix64.One;
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
         }
+        RecordIT6ToolWorkers(s, toolWork);
     }
 
     // ---- access, sharing and the best tier ---------------------------------------------------------
@@ -650,7 +667,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
-            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach); SharePublicGrain(civ, reach); }
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
@@ -2072,7 +2089,7 @@ public sealed partial class LivingEconomyModel
         Fix64 localWoodBefore = Fix64.Zero, woodFactorBefore = Fix64.Zero;
         if (traceFuelSupply)
         {
-            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore) = IT6ReachWood(s);
+            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore, _) = IT6ReachWood(s);
             localWoodBefore = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
             woodFactorBefore = IronWoodFactor(s, m);
         }
@@ -2100,7 +2117,7 @@ public sealed partial class LivingEconomyModel
         // Then the range's standing stock, cut across its forest tiles in proportion to what each holds (clamps move through
         // the woods, as metal_sim.py draws), so coppiced stands regrow everywhere; then beyond the range, nearest first, hauled.
         int reach = IronFuelCharcoalReach(s);
-        int[] tiles = ReachTiles(s.SiteTile, reach);
+        (int Tile, int HaulDistance)[] tiles = IronFuelWoodSources(s, reach);
         Fix64 haulDivisor = Done(s.Civilization, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
         Fix64 inRange = Fix64.Zero;
         foreach (int tile in RangeTiles(s.SiteTile))
@@ -2140,10 +2157,10 @@ public sealed partial class LivingEconomyModel
                 m.ClampTile = most;
             }
         }
-        foreach (int tile in tiles)
+        foreach ((int tile, int routeDistance) in tiles)
         {
             if (planned <= Fix64.Zero || metalPool + craftPool <= Fix64.Zero) break;
-            int distance = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+            int distance = routeDistance;
             if (distance <= Radius) continue;
             if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
             Fix64 available = StandingWoodAvailableToIron(tile);

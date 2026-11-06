@@ -1,0 +1,6 @@
+fixture,e3_food_cap,e4_food_cap,e3_city_population,e3_population,e4_city_population,e4_population,begin_food,produced,imports,consumed,exports,loss,end_food
+non_river,,,,,,,,,,,,,
+river,,,,,,,,,,,,,
+hill,,,,,,,,,,,,,
+inland,,,,,,,,,,,,,
+coastal,,,,,,,,,,,,,
