@@ -1,6 +1,6 @@
 # M11 I-T6 whole-match accounting and clearing approval protocol
 
-**Status:** the user approved the clearing event definition, zero Iron-attributed allowance, and every-window work-share rule on 2026-11-05. The user delegated the fuel cutoff choice; the cutoff below remains fixed. The first held-out candidate failed three mature-seat fuel cutoffs and one work window, so its 80-match run was stopped after 47 completed matches; that failure is preserved below. The latest candidate passed an eight-seed readiness screen and the three known hotspot matches, but I-T6 remains open until a fresh 80-match acceptance block passes.
+**Status:** the user approved the clearing event definition, zero Iron-attributed allowance, and every-window work-share rule on 2026-11-05. The user delegated the fuel cutoff choice; the cutoff below remains fixed. The first held-out candidate failed three mature-seat fuel cutoffs and one work window, so its 80-match run was stopped after 47 completed matches; that failure is preserved below. The second candidate completed all 80 held-out matches: all 277 work-evaluable mature seats passed fuel limits, Iron-attributed clearings remained zero, and all ledgers reconciled, but four mature work-share windows exceeded 15% (maximum 16.81%). I-T6 remains open on the work-share gate.
 
 I-T6 in [25 §13](../25-iron-age.md#13-provisional-balance-targets-and-oracle-work) proposes that sustainable metal use no more than 15% of civilian work in steady state and require no mandatory clear-cut. It requires full replacement, fuel and haul accounting, including import-loss and low-wood stresses. The game already defines a clearing transition: an original forest tile that falls below 5 L becomes cleared woodland ([23 §7.4](../23-e3-bronze-specs.md#74-forest-stock-clearing-and-regrowth)). This document defines an approval-ready measurement and records which decisions still need explicit approval.
 
@@ -46,7 +46,7 @@ That trial sequence was superseded. The current readiness candidate uses an eigh
 
 The candidate was screened on the previous natural cohort `20261019–20261026` (diagnostic, not held out): 30 mature seats, all fuel cutoffs passed, no mature rolling work window over 15% (maximum 13.57%), zero Iron-attributed crossings, and zero forest, local-wood, combined-wood, or kit-ledger residuals. It was also rerun on the three known hotspot matches `20261112`, `20261153`, and `20261154`: all mature-qualified seats passed fuel and work, with seed `20261154` Builder's maximum at 14.73%. These outputs are preserved in [the readiness-screen output](m11-it6-preroute-build-screen-output-2026-11-05.txt). The candidate now needs a fresh held-out acceptance block; this readiness evidence does not close I-T6.
 
-## Second held-out acceptance preregistration
+## Second held-out acceptance preregistration and result
 
 Freeze the candidate at the source revision and content-pack SHA-256 recorded below before starting this block. Use natural-match seeds `20261201–20261280` (80 consecutive seeds; four Warlord AI archetypes per match), the fixed fuel cutoffs above, zero Iron-attributed crossings, and the every-window 15% mature work-share ceiling. Run all matches to their natural Iron chapter terminal condition with no research grant. Classify every seat; route-censored and no-route seats are reported, not counted as passes. Preserve every output. Any mature-qualified failure, ledger residual, or incomplete block leaves I-T6 open. Do not change source, pack, seed block, or approved cutoffs after the first result.
 
@@ -57,6 +57,28 @@ Freeze the candidate at the source revision and content-pack SHA-256 recorded be
 **Acceptance command:** `dotnet run --project src/CivSim.Harness/CivSim.Harness.csproj -c Release --no-build -- iron-match --pack /tmp/civsim-it6-acceptance.pack --seed 20261201 --seeds 80 --it6-accounting`.
 
 The trace is read-only and excluded from simulation state. It records whole-map original forest tiles once (never summing overlapping settlement catchments), all settlement wood stores, kit output/issuance/service use, the metal work ledger, Iron ore and fire-setting, charcoal use and wood, and haul labor. World transfers of stored goods remain internal to the aggregate. Forest and local-stock residuals are calculated from fixed-point flows.
+
+### Acceptance result: failed work-share gate, complete 80/80
+
+All 80 preregistered matches completed on frozen source `c753d58f991ee0252e2600f426cf16aaa4ab7c43` and the recorded pack hash. The complete output is preserved in [the second acceptance output](m11-it6-acceptance-output-2026-11-05.txt). No source, pack, seed, or cutoff changed during the run.
+
+| Measure | Result | Reading |
+|---|---:|---|
+| Match and seat coverage | 80/80 matches; 320 seats | Full preregistered block completed |
+| Mature work-share coverage | 277 seats; 9,617 rolling 12-season windows | 15 route-exposed seats ended before a full mature rolling window; 2 late-route seats did not reach the 12-season route-maturity screen; 26 seats had no MET-09 plus issued-kit exposure |
+| Mature fuel cutoffs | All 277 work-evaluable mature seats passed both fuel limits; across all route-ramp traces, 289 pass and 3 are fuel-censored | No mature-qualified fuel failure |
+| Mature work share | 4 of 277 seats had a window above 15%; maximum 16.81% | **Fails I-T6.** All four occurred in the first mature rolling window after route ramp |
+| Iron-attributed clearing | 0 crossings; 14,837 total crossings (843 chop, 13,994 civic, 0 metal-before-MET-09, 0 Iron-era metal, 0 other) | Approved zero-Iron-crossing allowance passes |
+| Ledgers | Forest, local wood, combined wood, and kits each had 0.00 residual in all 80 matches | Reconciles |
+
+| Seed | Civilization | Window | Chain / work | Metal / craft / facility work | Share |
+|---|---|---:|---:|---:|---:|
+| `20261201` | Sage | 275–287 | 428.94 / 2,552.25 | 334.49 / 20.93 / 73.52 | 16.81% |
+| `20261224` | Sage | 274–286 | 582.81 / 3,705.18 | 468.25 / 19.96 / 94.60 | 15.73% |
+| `20261247` | Grower | 281–293 | 470.35 / 2,999.83 | 358.71 / 25.81 / 85.82 | 15.68% |
+| `20261278` | Warlord | 278–290 | 483.17 / 3,111.46 | 401.49 / 16.69 / 64.99 | 15.53% |
+
+These four misses all start on the first mature rolling window following the route ramp. The numerator is dominated by metal-chain work; facility construction contributes 64.99–94.60 work-seasons, while kit craft contributes 16.69–25.81. Preserve the approved ramp and 15% every-window rule. A next candidate must reduce real chain/build work or increase useful output per work while retaining kit service, fuel, forest, and ledger performance. The fixed acceptance block is consumed and must not be reused as held-out evidence.
 
 ## Accounting definitions
 
@@ -187,7 +209,7 @@ The earlier hub-only reach trials still failed one or more hotspot seats. Extend
 
 ## Deferred option: cross-civilization wood-for-ore Compacts
 
-Direct wood-for-iron-ore trade is shelved while domestic Iron fuel reach is tested. The current Compact good list includes Iron bloom but no Wood or Iron Ore, and a Compact carries one good. A caravan loads up to seller surplus and the buyer's next four seasons of shortfall; there is no finite cargo capacity. A trade-based I-T6 fix would first need explicit source reserves, shipment capacity and labor, delivery losses, and per-civilization wood/clearing accounting. Otherwise it could move fuel across the map without charging the harvest, haul work, or forest impact to either side.
+Direct wood-for-iron-ore trade remains shelved. The completed acceptance found no mature-qualified fuel failure; its remaining failures are four work-share windows. Cross-civilization trade would add no direct remedy for those work-share misses. The current Compact good list includes Iron bloom but no Wood or Iron Ore, and a Compact carries one good. A caravan loads up to seller surplus and the buyer's next four seasons of shortfall; there is no finite cargo capacity. A trade-based I-T6 fix would first need explicit source reserves, shipment capacity and labor, delivery losses, and per-civilization wood/clearing accounting. Otherwise it could move fuel across the map without charging the harvest, haul work, or forest impact to either side.
 
-Revisit this option if the expanded domestic catchment still leaves mature-qualified fuel failures or the 80-match acceptance run fails. The next comparison should test a controlled wood-for-ore exchange against domestic hauling, with both sides' forest stock, reserves, work and deliveries reconciled under the existing cutoffs. The approved cutoffs remain fixed.
+Revisit this option if future controlled diagnostics show domestic forest access is again the binding fuel constraint, or if a domestic fuel change cannot meet the approved fuel cutoffs. Do not reopen the Compact model solely to address the current work-share failures. When revisited, compare a controlled wood-for-ore exchange against domestic hauling, with both sides' forest stock, reserves, work and deliveries reconciled under the existing cutoffs. The approved cutoffs remain fixed.
 
