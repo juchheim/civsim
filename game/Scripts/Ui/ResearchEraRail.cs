@@ -25,7 +25,7 @@ public partial class ResearchEraRail : Control
     private Vector2 _pressAt;
     private float _pressF;
 
-    private static readonly StyleBoxFlat Back = UiTheme.Box(new Color("#1F1B16D9"), 12, UiTokens.Border, 1);
+    private static readonly StyleBoxFlat Back = UiTheme.Box(UiTokens.SurfaceMap, 12, UiTokens.Border, 1);
     private static readonly StyleBoxFlat Thumb = UiTheme.Box(UiTokens.WithAlpha(UiTokens.Accent, 0.16f), 9, UiTokens.WithAlpha(UiTokens.Accent, 0.7f), 1);
 
     public ResearchEraRail()

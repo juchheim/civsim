@@ -21,6 +21,7 @@ public partial class Game
         var label = new Label3D
         {
             Text = text,
+            Font = UiTheme.DisplayNum,
             FontSize = 64,
             OutlineSize = 18,
             PixelSize = 0.00055f,

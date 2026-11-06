@@ -394,7 +394,7 @@ public partial class Game
             chip.CustomMinimumSize = new Vector2(150, UiTokens.ControlM);
             chip.ClipText = true;
             chip.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-            chip.AddThemeFontSizeOverride("font_size", 14);
+            chip.AddThemeFontSizeOverride("font_size", UiTokens.FontSmall);
             _replaceChips[slot] = chip;
             _replaceRow.AddChild(chip);
         }
@@ -411,7 +411,7 @@ public partial class Game
         {
             int orIndex = i;
             UiButton button = UiKit.Secondary("", () => _orActions[orIndex]?.Invoke(), null, UiGlyph.None, UiTokens.ControlS, true);
-            button.AddThemeFontSizeOverride("font_size", 14);
+            button.AddThemeFontSizeOverride("font_size", UiTokens.FontSmall);
             button.ClipText = true;
             button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             button.CustomMinimumSize = new Vector2(150, UiTokens.ControlS);

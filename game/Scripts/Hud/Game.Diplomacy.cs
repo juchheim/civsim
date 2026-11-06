@@ -239,12 +239,9 @@ public partial class Game
     private void LayoutDiplomacyDrawer(float top)
     {
         if (_diplomacyDrawer is null) return;
-        float m = Margin;
-        float width = _compact ? 520 : 610;
-        float height = Math.Min(_compact ? 560 : 664, _logicalSize.Y - top - m - 60);
-        AnchorTo(_diplomacyDrawer, 1, 0, 1, 0, -m - width, top, -m, top + height, Control.GrowDirection.Begin);
-        _drawerFullHeight = height;
-        _diplomacyDrawer.CustomMinimumSize = new Vector2(width, _civOrder.Count > 0 ? height : 0);
+        // The wide dock width (list + detail). Full dock height once someone is met; before that, only as tall as its message.
+        _drawerFullHeight = DockMaxHeight;
+        PlaceDock(_diplomacyDrawer, DockWideWidth, _civOrder.Count > 0 ? _drawerFullHeight : 0);
     }
 
     private float _drawerFullHeight;
@@ -257,7 +254,7 @@ public partial class Game
         _diplomacyOpen = open;
         if (open)
         {
-            if (_chronicleOpen) ToggleChronicle(false);
+            CloseOtherDocks("diplomacy");
             if (_researchWebVisible) CloseResearchWeb();
             if (_current is not null) RefreshDiplomacy(_current);
             _diplomacyDrawer.Modulate = new Color(1, 1, 1, 0);
@@ -270,6 +267,7 @@ public partial class Game
             UiKit.Fade(_diplomacyDrawer, false, UiTokens.BaseCloseS);
             _ui.Remove(_diplomacyLayer!);
         }
+        LayoutNotifications();
     }
 
     private string RelationWord(int relations) => relations <= -40 ? "Hostile" : relations < 0 ? "Cold" : relations <= 40 ? "Neutral" : "Warm";
@@ -288,8 +286,9 @@ public partial class Game
         UiKit.SetVisible(_diploEmptyLabel!, _civOrder.Count == 0 || !own);
         UiKit.SetText(_diploEmptyLabel!, !own ? "Orders are available only when you play your own civilization."
             : _civOrder.Count == 0 ? "You haven't met anyone yet. Scouts and growing borders will find your neighbours." : "");
-        _diplomacyDrawer!.CustomMinimumSize = new Vector2(_diplomacyDrawer.CustomMinimumSize.X, _civOrder.Count > 0 ? _drawerFullHeight : 0);
-        if (_civOrder.Count == 0) _diplomacyDrawer.ResetSize();
+        bool full = _civOrder.Count > 0;
+        if (full != _diplomacyDrawer!.CustomMinimumSize.Y > 0) PlaceDock(_diplomacyDrawer, DockWideWidth, full ? _drawerFullHeight : 0);
+        if (!full) _diplomacyDrawer.ResetSize();
         _civList.GetParent<Control>().Visible = _civOrder.Count > 0;
         _diplomacyDetail!.GetParent<Control>().Visible = _civOrder.Count > 0 && own;
         if (_civOrder.Count == 0) return;

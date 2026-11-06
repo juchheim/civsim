@@ -12,7 +12,8 @@ public partial class Game
     private UiButton? _compassButton, _claimsButton, _foodButton, _methodsButton, _resourcesButton, _depositsButton, _tradeButton, _cohesionButton, _forestButton, _beaconButton;
     private Label? _layersLabel;
     private Control? _legendClaims, _legendFood, _legendMethods, _legendResources, _legendDeposits, _legendTrade, _legendCohesion, _legendForest, _legendBeacon;
-    private Control? _railDivider;
+    private Control? _railDivider, _markersDivider;
+    private Label? _markersLabel;
 
     private void CreateRail()
     {
@@ -26,22 +27,29 @@ public partial class Game
         _layersLabel = UiKit.Text("LAYERS", "EyebrowTertiary");
         _layersLabel.HorizontalAlignment = HorizontalAlignment.Center;
         column.AddChild(_layersLabel);
+        // Two groups (docs/MVP/ui-ux-pass2.md §7). LAYERS tint the map and replace each other; MARKERS draw on top of any layer.
+        // Every button has its own mark, so the icon-only rail of compact windows stays readable.
         _claimsButton = RailToggle("Claims", UiGlyph.LayerClaims, "Who holds the land, and how firmly", () => SetMapOverlay(1));
         _foodButton = RailToggle("Food", UiGlyph.LayerFood, "Which settlements have enough food", () => SetMapOverlay(2));
         _methodsButton = RailToggle("Methods", UiGlyph.LayerMethods, "How good your people's tools are", () => SetMapOverlay(3));
-        _resourcesButton = RailToggle("Resources", UiGlyph.LayerResources, "Identified resources and geological clues (R)", () => SetResourcesVisible(!_resourcesVisible));
-        _depositsButton = RailToggle("Deposits", UiGlyph.LayerResources, "Identified deposits and geological clues.", () => SetMapOverlay(4));
-        _tradeButton = RailToggle("Trade", UiGlyph.Flags, "Active compact routes; tin routes are highlighted.", () => SetMapOverlay(5));
-        _cohesionButton = RailToggle("Cohesion", UiGlyph.People, "Settlement Cohesion bands.", () => SetMapOverlay(6));
-        _forestButton = RailToggle("Forest", UiGlyph.LayerFood, "Visible forest stock bands.", () => SetMapOverlay(7));
+        _depositsButton = RailToggle("Deposits", UiGlyph.LayerDeposits, "Identified deposits and geological clues.", () => SetMapOverlay(4));
+        _tradeButton = RailToggle("Trade", UiGlyph.LayerTrade, "Active compact routes; tin routes are highlighted.", () => SetMapOverlay(5));
+        _cohesionButton = RailToggle("Cohesion", UiGlyph.LayerCohesion, "Settlement Cohesion bands.", () => SetMapOverlay(6));
+        _forestButton = RailToggle("Forest", UiGlyph.LayerForest, "Visible forest stock bands.", () => SetMapOverlay(7));
+        _resourcesButton = RailToggle("Resources", UiGlyph.LayerResources, "Identified resources and geological clues (R). Shows on top of any layer.", () => SetResourcesVisible(!_resourcesVisible));
         column.AddChild(_claimsButton);
         column.AddChild(_foodButton);
         column.AddChild(_methodsButton);
-        column.AddChild(_resourcesButton);
         column.AddChild(_depositsButton);
         column.AddChild(_tradeButton);
         column.AddChild(_cohesionButton);
         column.AddChild(_forestButton);
+        _markersDivider = UiKit.Divider();
+        column.AddChild(_markersDivider);
+        _markersLabel = UiKit.Text("MARKERS", "EyebrowTertiary");
+        _markersLabel.HorizontalAlignment = HorizontalAlignment.Center;
+        column.AddChild(_markersLabel);
+        column.AddChild(_resourcesButton);
         _beaconButton = RailToggle("Beacon", UiGlyph.Beacon, "A Beacon biases scouting and future settlement sites. Beacon mode (B) previews its influence and settlement fit before placing, moving, or removing.", ToggleBeaconMode);
         _beaconButton.Visible = false;
         column.AddChild(_beaconButton);
@@ -65,7 +73,7 @@ public partial class Game
             CustomMinimumSize = new Vector2(73, 54),
             TooltipText = tooltip,
         };
-        button.AddThemeFontSizeOverride("font_size", 14);
+        button.AddThemeFontSizeOverride("font_size", UiTokens.FontSmall);
         button.Pressed += pressed;
         return button;
     }
@@ -212,6 +220,7 @@ public partial class Game
             }
         }
         if (_layersLabel is not null) _layersLabel.Visible = !_compact;
+        if (_markersLabel is not null) _markersLabel.Visible = !_compact;
         if (_legendCard is not null)
         {
             _legendCard.Position = new Vector2(m + width + 8, top);

@@ -145,11 +145,11 @@ public partial class ResearchRadialMap : Control
     private readonly ResearchEraRail _rail;
 
     private static readonly StyleBoxFlat WellBox = UiTheme.Box(UiTokens.SurfaceSunken, UiTokens.R1, null, 0);
-    private static readonly StyleBoxFlat LabelBox = UiTheme.Box(new Color("#1F1B16E0"), 4, null, 0);
-    private static readonly StyleBoxFlat LabelBoxSelected = UiTheme.Box(new Color("#2A251EF2"), 4, UiTokens.Accent, 1);
-    private static readonly StyleBoxFlat LabelBoxGate = UiTheme.Box(new Color("#2A251EF5"), 4, UiTokens.WithAlpha(new Color("#E2D3A6"), 0.8f), 1);
-    private static readonly StyleBoxFlat LabelBoxPath = UiTheme.Box(new Color("#2A251EF2"), 4, UiTokens.WithAlpha(UiTokens.Accent, 0.55f), 1);
-    private static readonly StyleBoxFlat TrackPill = UiTheme.Box(new Color("#1F1B16D9"), 12, UiTokens.Border, 1);
+    private static readonly StyleBoxFlat LabelBox = UiTheme.Box(UiTokens.SurfaceMapLabel, 4, null, 0);
+    private static readonly StyleBoxFlat LabelBoxSelected = UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 4, UiTokens.Accent, 1);
+    private static readonly StyleBoxFlat LabelBoxGate = UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 4, UiTokens.WithAlpha(new Color("#E2D3A6"), 0.8f), 1);
+    private static readonly StyleBoxFlat LabelBoxPath = UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 4, UiTokens.WithAlpha(UiTokens.Accent, 0.55f), 1);
+    private static readonly StyleBoxFlat TrackPill = UiTheme.Box(UiTokens.SurfaceMap, 12, UiTokens.Border, 1);
     private static readonly Color GateColor = new("#E2D3A6");
 
     public ResearchRadialMap()
@@ -1883,7 +1883,7 @@ public partial class ResearchRadialMap : Control
 
         bool ready = _looks[gate].State is ProjectState.Available or ProjectState.Slotted;
         float glow = ready && !UiSettings.Current.ReduceMotion ? 0.5f + 0.5f * Mathf.Sin(_pulse / 1.6f * Mathf.Tau) : 0.5f;
-        DrawStyleBox(UiTheme.Box(new Color("#2A251EF5"), 14, UiTokens.WithAlpha(GateColor, 0.55f + 0.4f * glow), 2), box);
+        DrawStyleBox(UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 14, UiTokens.WithAlpha(GateColor, 0.55f + 0.4f * glow), 2), box);
         UiDraw.Glyph(this, UiGlyph.Gem, new Rect2(box.Position + new Vector2(8, 5), new Vector2(18, 18)), GateColor, 1.6f);
         DrawString(font, box.Position + new Vector2(32, 5 + font.GetAscent(LabelFont) + (18 - font.GetHeight(LabelFont)) * 0.5f), text, HorizontalAlignment.Left, -1, LabelFont, UiTokens.TextPrimary);
     }

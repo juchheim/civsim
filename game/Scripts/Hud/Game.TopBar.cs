@@ -19,7 +19,12 @@ public partial class Game
     private UiButton? _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu;
     private PanelContainer? _chronicleBadge;
     private Label? _chronicleBadgeLabel;
-    private Control? _civDivider, _civAgeBlock, _civStatsBlock;
+    private Control? _civDivider, _civAgeBlock, _civStatsBlock, _dateColumn;
+    private HBoxContainer? _timeLeftWing, _timeRightWing;
+    private bool _topRightIconsOnly;
+
+    /// <summary>Measured wing width (left = right) of the time cluster at the last layout, for the --ui-debug report.</summary>
+    private float _timeWingWidth;
     private int _lastSeasonOfYear = -1;
     private const int LogoSize = 90, LogoSlotWidth = 72;
 
@@ -46,7 +51,7 @@ public partial class Game
         _civNameLabel = UiKit.Text("YOUR PEOPLE", "Eyebrow", ellipsis: true);
         _civNameLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         nameRow.AddChild(_civNameLabel);
-        _peopleTopButton = UiKit.IconButton(UiGlyph.People, "Your people: what slows them down, what they hold, who does what", OpenPeoplePanel, 30, 16);
+        _peopleTopButton = UiKit.IconButton(UiGlyph.People, "People & Stores (Y): what slows your people down, what they hold, who does what", OpenPeoplePanel, 30, 16);
         _peopleTopButton.FocusMode = Control.FocusModeEnum.All;
         _peopleTopButton.CustomMinimumSize = new Vector2(30, 26);
         nameRow.AddChild(_peopleTopButton);
@@ -74,34 +79,54 @@ public partial class Game
         _civAgeBlock.AddChild(ageRow);
         cardRow.AddChild(_civAgeBlock);
         _civCard.AddChild(cardRow);
+        // The whole card opens People & Stores (Y): a 377 × 64 target instead of the 30 × 26 icon it used to be (ui-ux-pass2 §4).
+        _civCard.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
+        _civCard.MouseEntered += () => UiKit.SetVariation(_civCard, "HudPanelHover");
+        _civCard.MouseExited += () => UiKit.SetVariation(_civCard, "HudPanel");
+        _civCard.GuiInput += input =>
+        {
+            if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) { OpenPeoplePanel(); _civCard.AcceptEvent(); }
+        };
         _hudRoot!.AddChild(_civCard);
 
-        // Time cluster
+        // Time cluster: two wings of equal width either side of the logo, so the logo sits on the screen's centre line.
+        // The left wing holds the season dial and the date; the right wing the speed control (and the replay chip).
         _timeCluster = UiKit.Panel("TimeClusterPanel", "TimeCluster");
         _timeCluster.CustomMinimumSize = new Vector2(0, TopBandHeight);
         var timeRow = UiKit.Row(UiTokens.Sp3);
-        _replayChip = UiKit.Chip("REPLAY", UiGlyph.Play, UiTokens.Info, "ChipPanelInfo");
-        _replayChip.Visible = false;
-        timeRow.AddChild(_replayChip);
+        _timeLeftWing = UiKit.Row(UiTokens.Sp3);
+        _timeLeftWing.Name = "TimeLeftWing";
+        _timeLeftWing.MouseFilter = Control.MouseFilterEnum.Ignore;
+        _timeLeftWing.Alignment = BoxContainer.AlignmentMode.Center;
         _seasonDial = new UiSeasonDial();
-        timeRow.AddChild(_seasonDial);
-        var dateColumn = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(96, 0) };
-        dateColumn.AddThemeConstantOverride("separation", -2);
-        _yearLabel = UiKit.Text("Year 1", "NumTitle");
-        _seasonLabel = UiKit.Text("SPRING", "Eyebrow");
-        dateColumn.AddChild(_yearLabel);
-        dateColumn.AddChild(_seasonLabel);
-        timeRow.AddChild(dateColumn);
+        _timeLeftWing.AddChild(_seasonDial);
+        _dateColumn = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        _dateColumn.AddThemeConstantOverride("separation", -3);
+        _yearLabel = UiKit.Text("Year 1", "NumYear");
+        _seasonLabel = UiKit.Text("SPRING", "Eyebrow", ellipsis: true);
+        _dateColumn.AddChild(_yearLabel);
+        _dateColumn.AddChild(_seasonLabel);
+        _timeLeftWing.AddChild(_dateColumn);
+        timeRow.AddChild(_timeLeftWing);
         // The logo is larger than the band: it hangs 13 px over the top and bottom edges of the cluster panel.
         _pauseLogo = new UiLogoButton(TogglePause, LogoSize) { Name = "PauseLogo", TooltipText = "Pause (Space). You can still choose research and give orders." };
         var logoSlot = new Control { MouseFilter = Control.MouseFilterEnum.Ignore, CustomMinimumSize = new Vector2(LogoSlotWidth, TopBandHeight - 8), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         logoSlot.AddChild(_pauseLogo);
         AnchorTo(_pauseLogo, 0.5f, 0.5f, 0.5f, 0.5f, -LogoSize / 2f, -LogoSize / 2f, LogoSize / 2f, LogoSize / 2f, Control.GrowDirection.Both, Control.GrowDirection.Both);
         timeRow.AddChild(logoSlot);
-        _speedControl = new UiSegmented(new[] { "½×", "1×", "2×", "4×" }, 1, index => _session?.SetSpeedIndex(index), 40);
+        _timeRightWing = UiKit.Row(UiTokens.Sp3);
+        _timeRightWing.Name = "TimeRightWing";
+        _timeRightWing.MouseFilter = Control.MouseFilterEnum.Ignore;
+        _timeRightWing.Alignment = BoxContainer.AlignmentMode.Center;
+        _speedControl = new UiSegmented(new[] { "½×", "1×", "2×", "4×" }, 1, index => _session?.SetSpeedIndex(index), 42);
         _speedControl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         for (int i = 0; i < 4; i++) _speedControl.SetTooltip(i, "Game speed ([ and ])");
-        timeRow.AddChild(_speedControl);
+        _timeRightWing.AddChild(_speedControl);
+        _replayChip = UiKit.Chip("REPLAY", UiGlyph.Play, UiTokens.Info, "ChipPanelInfo");
+        _replayChip.Visible = false;
+        _replayChip.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        _timeRightWing.AddChild(_replayChip);
+        timeRow.AddChild(_timeRightWing);
         _timeCluster.AddChild(timeRow);
         _hudRoot.AddChild(_timeCluster);
 
@@ -121,14 +146,13 @@ public partial class Game
         _topRight = UiKit.Panel("HudPanel", "TopRight");
         _topRight.CustomMinimumSize = new Vector2(0, TopBandHeight);
         var rightRow = UiKit.Row(UiTokens.Sp1);
-        _btnDecrees = UiKit.Ghost("Decrees", () => ToggleDecrees(), "Mandate and civic orders", UiGlyph.People, UiTokens.ControlM);
+        _btnDecrees = UiKit.Ghost("Decrees", () => ToggleDecrees(), "Mandate and civic orders", UiGlyph.Lock, UiTokens.ControlM);
         _btnDiplomacy = UiKit.Ghost("Diplomacy", () => ToggleDiplomacy(), "Your neighbours and your orders (O)", UiGlyph.Flags, UiTokens.ControlM);
         _btnChronicle = UiKit.Ghost("Chronicle", () => ToggleChronicle(), "Your people's story (C)", UiGlyph.Scroll, UiTokens.ControlM);
         _btnMenu = UiKit.Ghost("Menu", () => ToggleGameMenu(), "Save, load, replays and settings (Esc)", UiGlyph.Menu, UiTokens.ControlM);
         _chronicleBadge = UiKit.Panel("BadgePanel", null, UiKit.MouseFilter.Ignore);
         _chronicleBadge.Visible = false;
-        _chronicleBadgeLabel = UiKit.Text("1", "Num", UiTokens.TextOnAccent);
-        _chronicleBadgeLabel.AddThemeFontSizeOverride("font_size", 12);
+        _chronicleBadgeLabel = UiKit.Text("1", "NumBadge", UiTokens.TextOnAccent);
         _chronicleBadge.AddChild(_chronicleBadgeLabel);
         _chronicleBadge.SetAnchorsPreset(Control.LayoutPreset.TopRight);
         _chronicleBadge.GrowHorizontal = Control.GrowDirection.Begin;
@@ -141,31 +165,68 @@ public partial class Game
         rightRow.AddChild(_btnMenu);
         _topRight.AddChild(rightRow);
         _hudRoot.AddChild(_topRight);
+        UpdateDecreesButton();
     }
 
     private void LayoutTopBar()
     {
         if (_civCard is null || _timeCluster is null || _topRight is null || _pausedPill is null) return;
         float m = Margin;
-        float civWidth = _compact ? 233 : 377;
-        AnchorTo(_civCard, 0, 0, 0, 0, m, m, m + civWidth, m + TopBandHeight);
-        _civCard.CustomMinimumSize = new Vector2(civWidth, TopBandHeight);
         if (_civAgeBlock is not null) _civAgeBlock.Visible = true;
         if (_civDivider is not null) _civDivider.Visible = !_compact;
         if (_ageBar is not null) _ageBar.Visible = !_compact;
         if (_ageCountLabel is not null) _ageCountLabel.Visible = !_compact;
         if (_civSettlementsLabel is not null) _civSettlementsLabel.Visible = !_compact;
 
-        AnchorTo(_timeCluster, 0.5f, 0, 0.5f, 0, 0, m, 0, m + TopBandHeight, Control.GrowDirection.Both);
         AnchorTo(_pausedPill, 0.5f, 0, 0.5f, 0, 0, m + TopBandHeight + 16, 0, m + TopBandHeight + 52, Control.GrowDirection.Both);
         AnchorTo(_topRight, 1, 0, 1, 0, 0, m, -m, m + TopBandHeight, Control.GrowDirection.Begin);
+
+        // Wing width: what the longest date ("Year 888" over "16 YEARS LEFT") needs, and never less than the speed side.
+        float dateWidth = Math.Max(
+            UiTheme.DisplayNum.GetStringSize("Year 888", HorizontalAlignment.Left, -1, UiTokens.FontYear).X,
+            UiTheme.Caps.GetStringSize("16 YEARS LEFT", HorizontalAlignment.Left, -1, UiTokens.FontSmall).X);
+        dateWidth = MathF.Ceiling(dateWidth) + 2;
+        float dialWidth = _seasonDial?.CustomMinimumSize.X ?? 34;
+        float speedWidth = _speedControl?.GetCombinedMinimumSize().X ?? 170;
+        // In a replay the REPLAY chip joins the speed control, and both wings widen together.
+        float replayWidth = _replayChip is { Visible: true } chip ? UiTokens.Sp3 + chip.GetCombinedMinimumSize().X : 0;
+        float wing = Math.Max(dialWidth + UiTokens.Sp3 + dateWidth, speedWidth + replayWidth);
+        const float clusterChrome = UiTokens.Sp3 * 2 + UiTokens.Sp3 * 2 + LogoSlotWidth;              // panel padding + row gaps + logo slot
+
+        // Room left between the civ card and the top-right cluster, measured from the centre line.
+        // Compact windows give the civ card whatever the centred cluster leaves (233 to 296, √φ steps), so the people's name fits.
+        float half = _logicalSize.X / 2f;
+        float civWidth = _compact ? Math.Clamp(MathF.Floor(half - m - UiTokens.Sp3 - clusterChrome / 2f - wing), 233, 296) : 377;
+        AnchorTo(_civCard, 0, 0, 0, 0, m, m, m + civWidth, m + TopBandHeight);
+        _civCard.CustomMinimumSize = new Vector2(civWidth, TopBandHeight);
+        float civActual = Math.Max(civWidth, _civCard.GetCombinedMinimumSize().X);
+        float leftRoom = half - (m + civActual) - UiTokens.Sp3;
+        float labelled = TopRightLabelledWidth();
+        float iconOnly = 4 * UiTokens.ControlM + 3 * UiTokens.Sp1 + 2 * UiTokens.Sp3;
+        _topRightIconsOnly = _compact || half - (m + labelled) - UiTokens.Sp3 < clusterChrome / 2f + wing;
+        float rightRoom = half - (m + (_topRightIconsOnly ? iconOnly : labelled)) - UiTokens.Sp3;
+        float maxWing = Math.Min(leftRoom, rightRoom) - clusterChrome / 2f;
+        if (wing > maxWing)
+        {
+            // Too narrow for the full date: keep the wings equal and let the season line ellipsize.
+            wing = Math.Max(Math.Max(dialWidth + UiTokens.Sp3 + 89, speedWidth + replayWidth), MathF.Floor(maxWing));
+            dateWidth = wing - dialWidth - UiTokens.Sp3;
+        }
+        _timeWingWidth = wing;
+        if (_dateColumn is not null) _dateColumn.CustomMinimumSize = new Vector2(dateWidth, 0);
+        if (_timeLeftWing is not null) _timeLeftWing.CustomMinimumSize = new Vector2(wing, 0);
+        if (_timeRightWing is not null) _timeRightWing.CustomMinimumSize = new Vector2(wing, 0);
+        float clusterWidth = 2 * wing + clusterChrome;
+        AnchorTo(_timeCluster, 0.5f, 0, 0.5f, 0, -clusterWidth / 2f, m, clusterWidth / 2f, m + TopBandHeight, Control.GrowDirection.Both);
+        if (HasArgument("--ui-debug"))
+            GD.Print($"UIDEBUG topbar logical={_logicalSize} wing={wing} cluster={clusterWidth} leftRoom={leftRoom} rightRoom={rightRoom} iconsOnly={_topRightIconsOnly}");
 
         foreach (UiButton? button in new[] { _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu })
         {
             if (button is null) continue;
             string label = button == _btnDecrees ? "Decrees" : button == _btnDiplomacy ? "Diplomacy" : button == _btnChronicle ? "Chronicle" : "Menu";
-            UiGlyph glyph = button == _btnDecrees ? UiGlyph.People : button == _btnDiplomacy ? UiGlyph.Flags : button == _btnChronicle ? UiGlyph.Scroll : UiGlyph.Menu;
-            if (_compact)
+            UiGlyph glyph = button == _btnDecrees ? DecreesGlyph : button == _btnDiplomacy ? UiGlyph.Flags : button == _btnChronicle ? UiGlyph.Scroll : UiGlyph.Menu;
+            if (_topRightIconsOnly)
             {
                 button.Text = "";
                 button.ThemeTypeVariation = "IconButton";
@@ -181,7 +242,31 @@ public partial class Game
             }
             button.Glyph = glyph;
         }
+        UpdateDecreesButton();
         UpdatePausedTreatment();
+    }
+
+    /// <summary>Decrees wear a seal; until they unlock, a lock, so the button says "not yet" before it is pressed.</summary>
+    /// <remarks>With labels the lock reads "Decrees, locked"; as a lone icon a lock says nothing, so there the seal stays and dims.</remarks>
+    private UiGlyph DecreesGlyph => _decreesUnlocked || _topRightIconsOnly ? UiGlyph.Seal : UiGlyph.Lock;
+
+    private void UpdateDecreesButton()
+    {
+        if (_btnDecrees is null) return;
+        _btnDecrees.Glyph = DecreesGlyph;
+        _btnDecrees.SelfModulate = !_decreesUnlocked && _topRightIconsOnly ? new Color(1, 1, 1, 0.6f) : Colors.White;
+        _btnDecrees.TooltipText = _decreesUnlocked
+            ? "Decrees: found villages, explore, mine, levy, compacts and corvée (spends Mandate)"
+            : $"Decrees unlock with {DecreeUnlockProjectName()}. Click to see what they will do.";
+    }
+
+    /// <summary>Width of the top-right cluster with its text labels (Decrees, Diplomacy, Chronicle, Menu).</summary>
+    private static float TopRightLabelledWidth()
+    {
+        float width = 2 * UiTokens.Sp3 + 3 * UiTokens.Sp1;
+        foreach (string label in new[] { "Decrees", "Diplomacy", "Chronicle", "Menu" })
+            width += UiTheme.Medium.GetStringSize(label, HorizontalAlignment.Left, -1, UiTokens.FontBody).X + 2 * UiTokens.Sp3 + 16 + UiTokens.Sp1;
+        return MathF.Ceiling(width);
     }
 
     private void RefreshTopBar(MatchFrame frame)
@@ -205,9 +290,9 @@ public partial class Game
         if (seasonsLeft >= 0)
         {
             int yearsLeft = Math.Max(1, (seasonsLeft + 3) / 4);
-            UiKit.SetText(_seasonLabel!, $"IRON AGE · {yearsLeft} {(yearsLeft == 1 ? "YEAR" : "YEARS")} LEFT");
+            UiKit.SetText(_seasonLabel!, $"{yearsLeft} {(yearsLeft == 1 ? "YEAR" : "YEARS")} LEFT");
             _seasonLabel!.AddThemeColorOverride("font_color", UiTokens.Warning);
-            _seasonLabel.TooltipText = "The match ends when your people reach the Iron Age, in this countdown, or at the Year 64 cap.";
+            _seasonLabel.TooltipText = $"A rival has reached the {UiText.AgeName(_session.IsIron ? 5 : 4)} age. The match ends when your people get there too, when this countdown runs out, or at the Year {_session.MatchYears} cap.";
         }
         else
         {
@@ -219,7 +304,11 @@ public partial class Game
         _seasonDial!.Set(frame.SeasonOfYear & 3, frame.TickInSeason / 150.0f);
 
         bool replay = _session.IsReplay;
-        UiKit.SetVisible(_replayChip!, replay);
+        if (_replayChip!.Visible != replay)
+        {
+            _replayChip.Visible = replay;
+            LayoutTopBar();
+        }
         if (_speedControl is not null)
         {
             double speed = _session.Speed;
@@ -228,8 +317,8 @@ public partial class Game
         }
         string rank = LegacyRankText(frame, civ);
         string tip = $"Your people. Next age: complete {needed} regular {UiText.AgeName(era)} Age projects and meet the turning point's prerequisites. A star adds to this count; a link marks a required prerequisite or one possible route, as shown in Needs.{rank}";
-        _civCard!.TooltipText = tip;
-        _civCard.MouseFilter = Control.MouseFilterEnum.Pass;
+        _civCard!.TooltipText = "Click for People & Stores (Y). " + tip;
+        _civCard.MouseFilter = Control.MouseFilterEnum.Stop;
     }
 
     private static string LegacyRankText(MatchFrame frame, int civ)

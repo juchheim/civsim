@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CivSim.Game.Ui;
 using CivSim.Sim.View;
 using Godot;
 
@@ -38,10 +39,11 @@ public partial class Game
                 label = new Label3D
                 {
                     Name = $"SettlementMapLabel_{settlement}",
+                    Font = UiTheme.DisplaySemi,
                     FontSize = 48,
                     OutlineSize = 12,
                     PixelSize = 0.00055f,
-                    Modulate = new Color("#fff1cf"),
+                    Modulate = UiTokens.Parchment,
                     OutlineModulate = new Color(0.055f, 0.045f, 0.03f, 0.98f),
                     Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                     FixedSize = true,

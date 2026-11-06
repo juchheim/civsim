@@ -102,7 +102,9 @@ public partial class Game
         {
             if (view is null) continue;
             float w = Math.Min(view.Width, _logicalSize.X - 2 * Margin);
-            float h = Math.Min(view.Height, _logicalSize.Y - 2 * Margin);
+            // Height 0 means "as tall as the content": a golden rectangle is a fine frame for a sheet that fills it, but on the
+            // three-line intro it left a dead band above the button (ui-ux-pass2 §9).
+            float h = view.Height <= 0 ? 0 : Math.Min(view.Height, _logicalSize.Y - 2 * Margin);
             view.Panel.AnchorLeft = view.Panel.AnchorRight = 0.5f;
             view.Panel.AnchorTop = view.Panel.AnchorBottom = 0.5f;
             view.Panel.OffsetLeft = -w / 2; view.Panel.OffsetRight = w / 2;
@@ -131,7 +133,7 @@ public partial class Game
 
     private void BuildIntro()
     {
-        _introModal = MakeModal("intro", 610, 377, "The Spark", "You are your people's curiosity.", () => { DismissIntro(); return true; });
+        _introModal = MakeModal("intro", 610, 0, "The Spark", "You are your people's curiosity.", () => { DismissIntro(); return true; });
         var steps = UiKit.Column(UiTokens.Sp3);
         string[] texts =
         {
@@ -194,6 +196,7 @@ public partial class Game
             new[] { "Pause or resume", "", "", "Space" },
             new[] { "Slower / faster", "", "", "[ and ]" },
             new[] { "Research", "", "", "T" },
+            new[] { "People & Stores", "Click your people's card", "Click your people's card", "Y" },
             new[] { "Diplomacy", "", "", "O" },
             new[] { "Chronicle", "", "", "C" },
             new[] { "Resources layer", "", "", "R" },
@@ -235,7 +238,11 @@ public partial class Game
             ("Claims", "Who holds the land, and how firmly. A stronger colour means a stronger claim; 70 or more makes land yours."),
             ("Food", "Which settlements have enough food: green is well fed, then tight, short and famine. In autumn and winter it shows the forecast for late winter."),
             ("Methods", "How good your people's tools are. Purple tiles use newer tools, blue older ones, and orange tiles know a better method they can't use yet."),
-            ("Resources", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all."),
+            ("Deposits", "Identified deposits and mines: tin, copper ores and arsenical copper, unidentified clues, worked deposits and what lies within mining reach."),
+            ("Trade", "Active compact routes between peoples; tin routes and caravans are highlighted."),
+            ("Cohesion", "How firmly each settlement holds together: strong, steady, strained or fraying. Hover a settlement for why."),
+            ("Forest", "How much wood is left on the tiles you can see now: dense, medium, low or depleted."),
+            ("Resources (marker)", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all. Markers show on top of any layer."),
         };
         foreach ((string title, string text) in entries)
         {
@@ -340,7 +347,7 @@ public partial class Game
 
     private void BuildConfirm()
     {
-        _confirmModal = MakeModal("confirm", 377, 233, "Are you sure?", "", () => { CloseModal(_confirmModal!); return true; });
+        _confirmModal = MakeModal("confirm", 377, 0, "Are you sure?", "", () => { CloseModal(_confirmModal!); return true; });
         _confirmBody = UiKit.Text("", "Body", wrap: true);
         _confirmModal.Body.AddChild(_confirmBody);
         _confirmModal.Actions.AddChild(UiKit.Ghost("Cancel", () => CloseModal(_confirmModal), null, UiGlyph.None, UiTokens.ControlM, true));
@@ -440,8 +447,7 @@ public partial class Game
             _ui.Remove(_gameMenuLayer!);
             return;
         }
-        if (_chronicleOpen) ToggleChronicle(false);
-        if (_diplomacyOpen) ToggleDiplomacy(false);
+        CloseOtherDocks("");
         if (_researchWebVisible) CloseResearchWeb();
         foreach (Node child in _gameMenu.Body.GetChildren()) { _gameMenu.Body.RemoveChild(child); child.QueueFree(); }
         var column = UiKit.Column(2);

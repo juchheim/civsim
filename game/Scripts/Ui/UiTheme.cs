@@ -2,48 +2,101 @@ using Godot;
 
 namespace CivSim.Game.Ui;
 
-/// <summary>Fonts and the single Theme the whole HUD uses. Built once; state changes swap theme type variations, never per-control overrides.</summary>
+/// <summary>
+/// Fonts and the single Theme the whole HUD uses. Built once; state changes swap theme type variations, never per-control overrides.
+/// One family, Commissioner (variable: wght, slnt, FLAR, VOLM), in two voices: the flared display voice for anything 20 px and up,
+/// and the plain text voice (no flare) for everything at reading size. docs/MVP/ui-typography.md.
+/// </summary>
 public static class UiTheme
 {
-    public static readonly string[] FontNames =
-        { "Avenir Next", "Segoe UI", "SF Pro Text", "Helvetica Neue", "Inter", "Noto Sans", "Arial" };
+    public const string FontPath = "res://assets/fonts/commissioner/Commissioner-Variable.ttf";
+
+    /// <summary>System fonts behind Commissioner, only for glyphs it lacks (✓ ✗ → ★ and non-Latin scripts).</summary>
+    public static readonly string[] FallbackNames =
+        { "Avenir Next", "Segoe UI", "SF Pro Text", "Helvetica Neue", "Noto Sans", "Arial" };
 
     private static Theme? _theme;
-    private static Font? _regular, _medium, _bold;
-    private static FontVariation? _caps, _num, _numBold;
+    private static FontFile? _family;
+    private static FontVariation? _regular, _medium, _bold, _caps, _num, _numBold;
+    private static FontVariation? _display, _displaySemi, _displayLead, _displayNum;
 
-    public static Font Regular => _regular ??= MakeFont(400);
-    public static Font Medium => _medium ??= MakeFont(500);
-    public static Font Bold => _bold ??= MakeFont(600);
+    // Text voice: no flare, slightly heavier than nominal because light text on dark surfaces needs it at 14 to 16 px.
+    public static FontVariation Regular => _regular ??= Voice(UiTokens.WeightRegular, 0);
+    public static FontVariation Medium => _medium ??= Voice(UiTokens.WeightMedium, 0);
+    public static FontVariation Bold => _bold ??= Voice(UiTokens.WeightBold, 0);
 
-    /// <summary>Medium weight with a little tracking, for ALL-CAPS eyebrows.</summary>
-    public static FontVariation Caps => _caps ??= new FontVariation { BaseFont = Medium, SpacingGlyph = 1 };
+    /// <summary>Semibold with a little tracking, for ALL-CAPS eyebrows.</summary>
+    public static FontVariation Caps => _caps ??= Voice(UiTokens.WeightCaps, 0, spacing: 1);
 
-    /// <summary>Tabular numerals; changing numbers should not make a row jitter.</summary>
-    public static FontVariation Num => _num ??= MakeNum(Regular);
-    public static FontVariation NumBold => _numBold ??= MakeNum(Bold);
+    /// <summary>Numbers. Commissioner has no tabular figures (no tnum), so every changing number also sits in a fixed-width, aligned slot.</summary>
+    public static FontVariation Num => _num ??= Voice(UiTokens.WeightRegular, 0, numbers: true);
+    public static FontVariation NumBold => _numBold ??= Voice(UiTokens.WeightBold, 0, numbers: true);
 
-    private static Font MakeFont(int weight)
-        => new SystemFont
-        {
-            FontNames = FontNames,
-            FontWeight = weight,
-            Antialiasing = TextServer.FontAntialiasing.Gray,
-            Hinting = TextServer.Hinting.Light,
-            SubpixelPositioning = TextServer.SubpixelPositioning.Auto,
-            GenerateMipmaps = false,
-            AllowSystemFallback = true,
-        };
+    // Display voice: full flare (FLAR 100) for titles, headings and big numbers (20 px and up).
+    public static FontVariation Display => _display ??= Voice(UiTokens.WeightDisplay, UiTokens.FlareDisplay, UiTokens.VolumeDisplay);
+    public static FontVariation DisplaySemi => _displaySemi ??= Voice(UiTokens.WeightDisplaySemi, UiTokens.FlareDisplay, UiTokens.VolumeDisplay);
+    public static FontVariation DisplayNum => _displayNum ??= Voice(UiTokens.WeightDisplay, UiTokens.FlareDisplay, UiTokens.VolumeDisplay, numbers: true);
 
-    private static FontVariation MakeNum(Font baseFont)
+    /// <summary>The 18 px bridge step between the two voices: half flare.</summary>
+    public static FontVariation DisplayLead => _displayLead ??= Voice(UiTokens.WeightDisplaySemi, UiTokens.FlareLead, 0);
+
+    /// <summary>The variable font file. Falls back to loading the TTF directly when the project has not been imported yet.</summary>
+    public static FontFile Family
     {
-        var variation = new FontVariation { BaseFont = baseFont };
-        var features = new Godot.Collections.Dictionary { ["tnum"] = 1 };
-        variation.OpentypeFeatures = features;
+        get
+        {
+            if (_family is not null) return _family;
+            FontFile? file = ResourceLoader.Exists(FontPath) ? ResourceLoader.Load<FontFile>(FontPath) : null;
+            if (file is null)
+            {
+                file = new FontFile();
+                if (file.LoadDynamicFont(ProjectSettings.GlobalizePath(FontPath)) != Error.Ok)
+                    GD.PushWarning($"UiTheme: could not load {FontPath}; text falls back to system fonts.");
+            }
+            file.Antialiasing = TextServer.FontAntialiasing.Gray;
+            file.Hinting = TextServer.Hinting.Light;
+            file.SubpixelPositioning = TextServer.SubpixelPositioning.Auto;
+            file.GenerateMipmaps = false;
+            file.AllowSystemFallback = true;
+            file.Fallbacks = new Godot.Collections.Array<Font>
+            {
+                new SystemFont { FontNames = FallbackNames, FontWeight = 500, Antialiasing = TextServer.FontAntialiasing.Gray, AllowSystemFallback = true },
+            };
+            return _family = file;
+        }
+    }
+
+    private static FontVariation Voice(int weight, int flare, int volume = 0, int spacing = 0, bool numbers = false)
+    {
+        TextServer ts = TextServerManager.GetPrimaryInterface();
+        var axes = new Godot.Collections.Dictionary
+        {
+            [ts.NameToTag("wght")] = weight,
+            [ts.NameToTag("FLAR")] = flare,
+            [ts.NameToTag("VOLM")] = volume,
+            [ts.NameToTag("slnt")] = 0,
+        };
+        var variation = new FontVariation { BaseFont = Family, VariationOpentype = axes, SpacingGlyph = spacing };
+        // Lining case forms keep ( ) – × aligned with figures; tnum is asked for in case a future cut gains it (ignored today).
+        if (numbers) variation.OpentypeFeatures = new Godot.Collections.Dictionary { [ts.NameToTag("tnum")] = 1 };
         return variation;
     }
 
-    public static Theme Build() => _theme ??= CreateTheme();
+    /// <summary>
+    /// Extra pixels between wrapped lines so the line pitch is <paramref name="size"/> × <paramref name="leading"/>
+    /// (φ for reading text, √φ for headings). Godot adds line_spacing only between lines, so single lines keep their height.
+    /// </summary>
+    public static int Leading(Font font, int size, double leading)
+        => System.Math.Max(0, (int)System.Math.Round(size * leading) - (int)System.Math.Round(font.GetHeight(size)));
+
+    public static Theme Build()
+    {
+        if (_theme is not null) return _theme;
+        // Controls outside the HUD theme (Label3D map labels, boot messages) fall back to the text voice too.
+        ThemeDB.FallbackFont = Regular;
+        ThemeDB.FallbackFontSize = UiTokens.FontBody;
+        return _theme = CreateTheme();
+    }
 
     public static StyleBoxFlat Box(Color fill, int radius = UiTokens.R2, Color? border = null, int borderWidth = 1,
         int padH = UiTokens.Sp3, int padV = UiTokens.Sp2, int shadow = 0, int shadowY = 0, float shadowAlpha = 0.3f)
@@ -85,44 +138,50 @@ public static class UiTheme
         theme.SetColor("font_color", "Label", UiTokens.TextPrimary);
         theme.SetFont("font", "Label", Regular);
         theme.SetFontSize("font_size", "Label", UiTokens.FontBody);
-        theme.SetConstant("line_spacing", "Label", 3);
+        theme.SetConstant("line_spacing", "Label", Leading(Regular, UiTokens.FontBody, UiTokens.LeadingText));
         theme.SetColor("font_outline_color", "Label", new Color(0, 0, 0, 0));
         theme.SetConstant("outline_size", "Label", 0);
 
-        void LabelStyle(string name, Font font, int size, Color color, int lineSpacing)
+        // Every style takes its leading from the scale: φ for reading text, √φ for display and caps.
+        void LabelStyle(string name, Font font, int size, Color color, double leading)
         {
             theme.SetTypeVariation(name, "Label");
             theme.SetFont("font", name, font);
             theme.SetFontSize("font_size", name, size);
             theme.SetColor("font_color", name, color);
-            theme.SetConstant("line_spacing", name, lineSpacing);
+            theme.SetConstant("line_spacing", name, Leading(font, size, leading));
         }
-        LabelStyle("Display", Bold, UiTokens.FontDisplay, UiTokens.TextPrimary, 4);
-        LabelStyle("Title", Bold, UiTokens.FontTitle, UiTokens.TextPrimary, 3);
-        LabelStyle("Heading", Medium, UiTokens.FontHeading, UiTokens.TextPrimary, 3);
-        LabelStyle("Body", Regular, UiTokens.FontBody, UiTokens.TextPrimary, 4);
-        LabelStyle("BodySecondary", Regular, UiTokens.FontBody, UiTokens.TextSecondary, 4);
-        LabelStyle("BodyStrong", Medium, UiTokens.FontBody, UiTokens.TextPrimary, 4);
-        LabelStyle("BodyStrongSecondary", Medium, UiTokens.FontBody, UiTokens.TextSecondary, 4);
-        LabelStyle("BodyStrongAccent", Medium, UiTokens.FontBody, UiTokens.Accent, 4);
-        LabelStyle("CaptionSuccess", Regular, UiTokens.FontSmall, UiTokens.Success, 3);
-        LabelStyle("CaptionWarning", Regular, UiTokens.FontSmall, UiTokens.Warning, 3);
-        LabelStyle("Eyebrow", Caps, UiTokens.FontSmall, UiTokens.TextSecondary, 2);
-        LabelStyle("EyebrowTertiary", Caps, UiTokens.FontSmall, UiTokens.TextTertiary, 2);
-        LabelStyle("EyebrowAccent", Caps, UiTokens.FontSmall, UiTokens.Accent, 2);
-        LabelStyle("MomentHeading", Medium, 18, UiTokens.TextPrimary, 2);
-        LabelStyle("MomentBody", Regular, 14, UiTokens.TextSecondary, 2);
-        LabelStyle("MomentCaption", Regular, 12, UiTokens.TextTertiary, 2);
-        LabelStyle("MomentEyebrow", Caps, 12, UiTokens.Accent, 2);
-        LabelStyle("Caption", Regular, UiTokens.FontSmall, UiTokens.TextSecondary, 3);
-        LabelStyle("CaptionTertiary", Regular, UiTokens.FontSmall, UiTokens.TextTertiary, 3);
-        LabelStyle("CaptionAccent", Regular, UiTokens.FontSmall, UiTokens.Accent, 3);
-        LabelStyle("Num", Num, UiTokens.FontSmall, UiTokens.TextSecondary, 3);
-        LabelStyle("NumBody", Num, UiTokens.FontBody, UiTokens.TextPrimary, 3);
-        LabelStyle("NumStrong", NumBold, UiTokens.FontBody, UiTokens.TextPrimary, 3);
-        // Section titles inside sheets: one step above body, below the sheet title.
-        LabelStyle("SectionTitle", Bold, 18, UiTokens.TextPrimary, 3);
-        LabelStyle("NumTitle", NumBold, UiTokens.FontTitle, UiTokens.TextPrimary, 3);
+        const double text = UiTokens.LeadingText, tight = UiTokens.LeadingDisplay;
+        // Display voice (flared)
+        LabelStyle("Display", Display, UiTokens.FontDisplay, UiTokens.TextPrimary, tight);
+        LabelStyle("Title", Display, UiTokens.FontTitle, UiTokens.TextPrimary, tight);
+        LabelStyle("Heading", DisplaySemi, UiTokens.FontHeading, UiTokens.TextPrimary, tight);
+        LabelStyle("NumTitle", DisplayNum, UiTokens.FontTitle, UiTokens.TextPrimary, tight);
+        LabelStyle("NumYear", DisplayNum, UiTokens.FontYear, UiTokens.TextPrimary, tight);
+        // Bridge step (half flare): section titles inside sheets, moment headings.
+        LabelStyle("SectionTitle", DisplayLead, UiTokens.FontLead, UiTokens.TextPrimary, tight);
+        LabelStyle("MomentHeading", DisplayLead, UiTokens.FontLead, UiTokens.TextPrimary, tight);
+        // Text voice (no flare)
+        LabelStyle("Body", Regular, UiTokens.FontBody, UiTokens.TextPrimary, text);
+        LabelStyle("BodySecondary", Regular, UiTokens.FontBody, UiTokens.TextSecondary, text);
+        LabelStyle("BodyStrong", Medium, UiTokens.FontBody, UiTokens.TextPrimary, text);
+        LabelStyle("BodyStrongSecondary", Medium, UiTokens.FontBody, UiTokens.TextSecondary, text);
+        LabelStyle("BodyStrongAccent", Medium, UiTokens.FontBody, UiTokens.Accent, text);
+        LabelStyle("CaptionSuccess", Regular, UiTokens.FontSmall, UiTokens.Success, text);
+        LabelStyle("CaptionWarning", Regular, UiTokens.FontSmall, UiTokens.Warning, text);
+        LabelStyle("Eyebrow", Caps, UiTokens.FontSmall, UiTokens.TextSecondary, tight);
+        LabelStyle("EyebrowTertiary", Caps, UiTokens.FontSmall, UiTokens.TextTertiary, tight);
+        LabelStyle("EyebrowAccent", Caps, UiTokens.FontSmall, UiTokens.Accent, tight);
+        LabelStyle("MomentBody", Regular, UiTokens.FontSmall, UiTokens.TextSecondary, text);
+        LabelStyle("MomentCaption", Regular, UiTokens.FontMicro, UiTokens.TextTertiary, text);
+        LabelStyle("MomentEyebrow", Caps, UiTokens.FontMicro, UiTokens.Accent, tight);
+        LabelStyle("Caption", Regular, UiTokens.FontSmall, UiTokens.TextSecondary, text);
+        LabelStyle("CaptionTertiary", Regular, UiTokens.FontSmall, UiTokens.TextTertiary, text);
+        LabelStyle("CaptionAccent", Regular, UiTokens.FontSmall, UiTokens.Accent, text);
+        LabelStyle("Num", Num, UiTokens.FontSmall, UiTokens.TextSecondary, text);
+        LabelStyle("NumBody", Num, UiTokens.FontBody, UiTokens.TextPrimary, text);
+        LabelStyle("NumStrong", NumBold, UiTokens.FontBody, UiTokens.TextPrimary, text);
+        LabelStyle("NumBadge", NumBold, UiTokens.FontMicro, UiTokens.TextOnAccent, tight);
 
         // Panels
         theme.SetStylebox("panel", "PanelContainer", Box(UiTokens.Surface1, UiTokens.R2, UiTokens.Border));
@@ -149,27 +208,32 @@ public static class UiTheme
         // Sheet sections and table rows: a roomier sunken well, and rows that share one padding so headers line up with cells.
         PanelStyle("SectionPanel", Box(UiTokens.SurfaceSunken, UiTokens.R2, null, 0, UiTokens.Sp3 + 3, UiTokens.Sp3 + 1));
         PanelStyle("TableRow", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, UiTokens.Sp2, 6));
-        PanelStyle("TableRowAlt", Box(new Color("#F3ECDD0B"), UiTokens.R1, null, 0, UiTokens.Sp2, 6));
+        PanelStyle("TableRowAlt", Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.043f), UiTokens.R1, null, 0, UiTokens.Sp2, 6));
         PanelStyle("TableHead", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, UiTokens.Sp2, 2));
-        PanelStyle("ChipPanel", Box(new Color("#F3ECDD14"), 13, UiTokens.Border, 1, 10, 2));
+        PanelStyle("ChipPanel", Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.08f), 13, UiTokens.Border, 1, 10, 2));
         PanelStyle("ChipPanelAccent", Box(UiTokens.WithAlpha(UiTokens.Accent, 0.16f), 13, UiTokens.Accent, 1, 10, 2));
         PanelStyle("ChipPanelWarning", Box(UiTokens.WarningDark, 13, UiTokens.Warning, 1, 10, 2));
         PanelStyle("ChipPanelDanger", Box(UiTokens.DangerDark, 13, UiTokens.Danger, 1, 10, 2));
         PanelStyle("ChipPanelSuccess", Box(UiTokens.SuccessDark, 13, UiTokens.Success, 1, 10, 2));
-        PanelStyle("ChipPanelInfo", Box(new Color("#22394D"), 13, UiTokens.Info, 1, 10, 2));
+        PanelStyle("ChipPanelInfo", Box(UiTokens.InfoDark, 13, UiTokens.Info, 1, 10, 2));
         PanelStyle("BadgePanel", Box(UiTokens.Accent, 9, null, 0, 6, 0));
         PanelStyle("BadgePanelDanger", Box(UiTokens.Danger, 9, null, 0, 6, 0));
+        // UI pass 2: a parchment badge for the accent-filled Research web button (an accent badge would vanish on it), and the
+        // hover state of the civ card, which is now a button that opens People & Stores.
+        PanelStyle("BadgePanelInk", Box(UiTokens.Parchment, 9, UiTokens.AccentPressed, 1, 6, 0));
+        PanelStyle("HudPanelHover", Box(UiTokens.Surface2Hover, UiTokens.R2, UiTokens.BorderStrong, 1, UiTokens.Sp3, UiTokens.Sp2, 6, 2, 0.30f));
 
         theme.SetStylebox("panel", "TooltipPanel", Box(UiTokens.Surface3, UiTokens.R2, UiTokens.BorderStrong, 1, UiTokens.Sp3, UiTokens.Sp2, 12, 4, 0.4f));
         theme.SetColor("font_color", "TooltipLabel", UiTokens.TextPrimary);
-        theme.SetFontSize("font_size", "TooltipLabel", UiTokens.FontSmall + 1);
+        theme.SetFontSize("font_size", "TooltipLabel", UiTokens.FontSmall);
         theme.SetFont("font", "TooltipLabel", Regular);
+        theme.SetConstant("line_spacing", "TooltipLabel", Leading(Regular, UiTokens.FontSmall, UiTokens.LeadingText));
 
         // Buttons
         theme.SetStylebox("normal", "Button", Box(UiTokens.Surface2, UiTokens.R2, UiTokens.BorderStrong, 1, 21, 6));
-        theme.SetStylebox("hover", "Button", Box(new Color("#38322A"), UiTokens.R2, UiTokens.BorderStrong, 1, 21, 6));
-        theme.SetStylebox("pressed", "Button", Box(new Color("#423B31"), UiTokens.R2, UiTokens.BorderStrong, 1, 21, 6));
-        theme.SetStylebox("disabled", "Button", Box(new Color("#25201B"), UiTokens.R2, UiTokens.Border, 1, 21, 6));
+        theme.SetStylebox("hover", "Button", Box(UiTokens.Surface2Hover, UiTokens.R2, UiTokens.BorderStrong, 1, 21, 6));
+        theme.SetStylebox("pressed", "Button", Box(UiTokens.Surface2Pressed, UiTokens.R2, UiTokens.BorderStrong, 1, 21, 6));
+        theme.SetStylebox("disabled", "Button", Box(UiTokens.SurfaceDisabled, UiTokens.R2, UiTokens.Border, 1, 21, 6));
         theme.SetStylebox("focus", "Button", FocusRing(UiTokens.R2 + 2));
         theme.SetFont("font", "Button", Medium);
         theme.SetFontSize("font_size", "Button", UiTokens.FontBody);
@@ -222,14 +286,14 @@ public static class UiTheme
                 return b;
             }
             ButtonStyle("Primary" + suffix, PrimaryBox(UiTokens.Accent), PrimaryBox(UiTokens.AccentHover), PrimaryBox(UiTokens.AccentPressed),
-                PrimaryBox(new Color("#4A4234")), UiTokens.TextOnAccent, UiTokens.TextOnAccent, UiTokens.TextDisabled);
-            ButtonStyle("Secondary" + suffix, SecondaryBox(UiTokens.Surface2, UiTokens.BorderStrong), SecondaryBox(new Color("#38322A"), UiTokens.BorderStrong),
-                SecondaryBox(new Color("#423B31"), UiTokens.BorderStrong), SecondaryBox(new Color("#25201B"), UiTokens.Border),
+                PrimaryBox(UiTokens.AccentDisabled), UiTokens.TextOnAccent, UiTokens.TextOnAccent, UiTokens.TextDisabled);
+            ButtonStyle("Secondary" + suffix, SecondaryBox(UiTokens.Surface2, UiTokens.BorderStrong), SecondaryBox(UiTokens.Surface2Hover, UiTokens.BorderStrong),
+                SecondaryBox(UiTokens.Surface2Pressed, UiTokens.BorderStrong), SecondaryBox(UiTokens.SurfaceDisabled, UiTokens.Border),
                 UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled);
             ButtonStyle("Ghost" + suffix, GhostBox(new Color(0, 0, 0, 0)), GhostBox(UiTokens.Hover), GhostBox(UiTokens.Pressed),
                 GhostBox(new Color(0, 0, 0, 0)), UiTokens.TextSecondary, UiTokens.TextPrimary, UiTokens.TextDisabled);
-            ButtonStyle("Danger" + suffix, SecondaryBox(UiTokens.DangerDark, UiTokens.Danger), SecondaryBox(new Color("#612B28"), UiTokens.Danger),
-                SecondaryBox(new Color("#3B1B19"), UiTokens.Danger), SecondaryBox(new Color("#25201B"), UiTokens.Border),
+            ButtonStyle("Danger" + suffix, SecondaryBox(UiTokens.DangerDark, UiTokens.Danger), SecondaryBox(UiTokens.DangerHover, UiTokens.Danger),
+                SecondaryBox(UiTokens.DangerPressed, UiTokens.Danger), SecondaryBox(UiTokens.SurfaceDisabled, UiTokens.Border),
                 UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled);
         }
 
@@ -277,13 +341,13 @@ public static class UiTheme
             UiTokens.TextSecondary, UiTokens.TextPrimary, UiTokens.TextDisabled);
 
         // Interactive chips (theme filters etc.)
-        ButtonStyle("ChipButton", Box(new Color("#F3ECDD14"), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2), Box(new Color("#F3ECDD24"), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2),
-            Box(UiTokens.WithAlpha(UiTokens.Accent, 0.18f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), Box(new Color("#F3ECDD0A"), 18, UiTokens.Border, 1, UiTokens.Sp3, 2),
+        ButtonStyle("ChipButton", Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.08f), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2), Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.14f), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2),
+            Box(UiTokens.WithAlpha(UiTokens.Accent, 0.18f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.04f), 18, UiTokens.Border, 1, UiTokens.Sp3, 2),
             UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled,
             Box(UiTokens.WithAlpha(UiTokens.Accent, 0.26f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), UiTokens.Accent);
 
-        ButtonStyle("ChipButtonIcon", Box(new Color("#F3ECDD14"), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2), Box(new Color("#F3ECDD24"), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2),
-            Box(UiTokens.WithAlpha(UiTokens.Accent, 0.18f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), Box(new Color("#F3ECDD0A"), 18, UiTokens.Border, 1, UiTokens.Sp3, 2),
+        ButtonStyle("ChipButtonIcon", Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.08f), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2), Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.14f), 18, UiTokens.BorderStrong, 1, UiTokens.Sp3, 2),
+            Box(UiTokens.WithAlpha(UiTokens.Accent, 0.18f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), Box(UiTokens.WithAlpha(UiTokens.Parchment, 0.04f), 18, UiTokens.Border, 1, UiTokens.Sp3, 2),
             UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled,
             Box(UiTokens.WithAlpha(UiTokens.Accent, 0.26f), 18, UiTokens.Accent, 1, UiTokens.Sp3, 2), UiTokens.Accent);
         foreach (string state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled" })
@@ -300,8 +364,8 @@ public static class UiTheme
             Box(UiTokens.WithAlpha(UiTokens.Accent, 0.12f), UiTokens.R1, null, 0, UiTokens.Sp3, 4));
 
         // Project cards: bordered, transparent until hover
-        ButtonStyle("CardButton", Box(new Color("#00000000"), UiTokens.R1, null, 0, 0, 0), Box(UiTokens.Hover, UiTokens.R1, null, 0, 0, 0),
-            Box(UiTokens.Pressed, UiTokens.R1, null, 0, 0, 0), Box(new Color("#00000000"), UiTokens.R1, null, 0, 0, 0),
+        ButtonStyle("CardButton", Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, 0, 0), Box(UiTokens.Hover, UiTokens.R1, null, 0, 0, 0),
+            Box(UiTokens.Pressed, UiTokens.R1, null, 0, 0, 0), Box(new Color(0, 0, 0, 0), UiTokens.R1, null, 0, 0, 0),
             UiTokens.TextPrimary, UiTokens.TextPrimary, UiTokens.TextDisabled);
 
         // Text fields

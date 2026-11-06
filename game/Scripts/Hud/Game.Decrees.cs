@@ -19,60 +19,116 @@ public partial class Game
     private DecreeKind _pendingDecree;
     private int _pendingTarget, _pendingExtra;
 
+    private VBoxContainer? _decreeBody;
+    private Control? _decreeLockedBlock, _decreeControls;
+    private Label? _decreeLockedLead;
+    private bool _decreesUnlocked;
+
     private void CreateDecreePanel()
     {
         _decreePanel = UiKit.Panel("HudPanel", "DecreePanel");
         _decreePanel.Visible = false;
-        var col = UiKit.Column(UiTokens.Sp2);
+        var root = UiKit.Column(UiTokens.Sp2);
         var header = UiKit.Row(UiTokens.Sp2);
         header.AddChild(UiKit.Text("Decrees", "Heading"));
         header.AddChild(UiKit.Spacer(expand: true));
         header.AddChild(UiKit.IconButton(UiGlyph.Close, "Close", () => ToggleDecrees(false), 36, 16));
-        col.AddChild(header);
-        _decreeMandate = UiKit.Text("Mandate · locked", "Body");
+        root.AddChild(header);
+        var col = UiKit.Column(UiTokens.Sp2);
+        col.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _decreeBody = col;
+        _decreeMandate = UiKit.Text("Mandate · locked", "Body", wrap: true);
         col.AddChild(_decreeMandate);
-        _decreeHint = UiKit.Text($"Reach {DecreeUnlockProjectName()} to issue a Decree.", "Caption", wrap: true, minWidth: 280);
+        _decreeHint = UiKit.Text($"Reach {DecreeUnlockProjectName()} to issue a Decree.", "Caption", wrap: true);
         col.AddChild(_decreeHint);
-        col.AddChild(UiKit.Text("CHOOSE A PLACE", "EyebrowTertiary"));
+
+        // Locked: say what Decrees will do instead of showing a column of disabled buttons and an empty list (ui-ux-pass2 §5).
+        var locked = UiKit.Column(UiTokens.Sp2);
+        _decreeLockedBlock = locked;
+        locked.AddChild(UiKit.Text("WHAT DECREES WILL LET YOU DO", "EyebrowTertiary"));
+        _decreeLockedLead = UiKit.Text("", "BodySecondary", wrap: true);
+        foreach (string line in new[]
+                 {
+                     "Found a village, send an expedition or open a mine on a tile you pick.",
+                     "Raise a levy against a neighbour, or propose a trade compact.",
+                     "Call a corvée to speed building at your capital.",
+                 })
+        {
+            var row = UiKit.Row(UiTokens.Sp2);
+            row.AddChild(new UiIcon(UiGlyph.Seal, 16, UiTokens.TextTertiary) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin });
+            Label text = UiKit.Text(line, "BodySecondary", wrap: true);
+            text.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            row.AddChild(text);
+            locked.AddChild(row);
+        }
+        locked.AddChild(UiKit.Text("Each Decree spends Mandate, which builds up over the seasons.", "CaptionTertiary", wrap: true));
+        col.AddChild(locked);
+
+        var controls = UiKit.Column(UiTokens.Sp2);
+        _decreeControls = controls;
+        controls.AddChild(UiKit.Text("CHOOSE A PLACE", "EyebrowTertiary"));
         _decreeFound = UiKit.Secondary("Found a village", () => ArmDecree(DecreeKind.Found), "Choose a tile on the map.");
         _decreeExplore = UiKit.Secondary("Send an expedition", () => ArmDecree(DecreeKind.Expedition), "Choose a tile to explore.");
         _decreeMine = UiKit.Secondary("Open a mine", () => ArmDecree(DecreeKind.Mine), "Choose a known deposit.");
-        col.AddChild(_decreeFound); col.AddChild(_decreeExplore); col.AddChild(_decreeMine);
-        col.AddChild(UiKit.Text("DIPLOMACY", "EyebrowTertiary"));
+        controls.AddChild(_decreeFound); controls.AddChild(_decreeExplore); controls.AddChild(_decreeMine);
+        controls.AddChild(UiKit.Text("DIPLOMACY", "EyebrowTertiary"));
+        // Neighbour on its own line, then good and direction: the three side by side did not fit the narrow dock.
+        _decreePartner = new OptionButton { CustomMinimumSize = new Vector2(0, UiTokens.ControlM), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = "The neighbour for a levy or a compact." };
+        controls.AddChild(_decreePartner);
         var selectors = UiKit.Row(UiTokens.Sp2);
-        _decreePartner = new OptionButton { CustomMinimumSize = new Vector2(150, UiTokens.ControlM), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _decreeGood = new OptionButton { CustomMinimumSize = new Vector2(112, UiTokens.ControlM) };
+        _decreeGood = new OptionButton { CustomMinimumSize = new Vector2(112, UiTokens.ControlM), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         foreach (TradeGood good in new[] { TradeGood.Tin, TradeGood.Copper, TradeGood.Bronze, TradeGood.Salt, TradeGood.Gold, TradeGood.Food, TradeGood.Luxury })
             _decreeGood.AddItem(good.ToString(), (int)good);
         _decreeSell = new CheckButton { Text = "Sell", ButtonPressed = false, TooltipText = "Off: buy this good · On: sell this good" };
-        selectors.AddChild(_decreePartner); selectors.AddChild(_decreeGood); selectors.AddChild(_decreeSell);
-        col.AddChild(selectors);
-        var actions = UiKit.Row(UiTokens.Sp2);
+        selectors.AddChild(_decreeGood); selectors.AddChild(_decreeSell);
+        controls.AddChild(selectors);
+        var actions = new HFlowContainer();
+        actions.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
+        actions.AddThemeConstantOverride("v_separation", UiTokens.Sp2);
         _decreeLevy = UiKit.Secondary("Raise levy", QueueLevy, "Gather your host against the selected neighbour.");
         actions.AddChild(_decreeLevy);
-        var compact = UiKit.Secondary("Propose compact", QueueCompact, "Offer a standing route for the selected good.");
-        actions.AddChild(compact);
-        col.AddChild(actions);
+        _decreeCompact = UiKit.Secondary("Propose compact", QueueCompact, "Offer a standing route for the selected good.");
+        actions.AddChild(_decreeCompact);
+        controls.AddChild(actions);
+        controls.AddChild(UiKit.Text("AT HOME", "EyebrowTertiary"));
         _decreeCorvee = UiKit.Secondary("Corvée · capital", QueueCorvee, "Speed building at your first settlement.");
-        col.AddChild(_decreeCorvee);
-        _decreeForecast = UiKit.Text("", "Caption", wrap: true, minWidth: 280);
+        controls.AddChild(_decreeCorvee);
+        col.AddChild(controls);
+        _decreeForecast = UiKit.Text("", "Caption", wrap: true);
         col.AddChild(_decreeForecast);
         _decreeConfirm = UiKit.Primary("Confirm Decree", ConfirmDecree, "Issue the forecasted Decree.");
         _decreeConfirm.Visible = false;
         col.AddChild(_decreeConfirm);
-        _decreePanel.AddChild(col);
+        ScrollContainer scroll = UiKit.Scroll(col);
+        scroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        root.AddChild(scroll);
+        _decreePanel.AddChild(root);
         _hudRoot!.AddChild(_decreePanel);
         _decreeLayer = RegisterLayer("decrees", false, () => { ToggleDecrees(false); return true; });
     }
 
+    private UiButton? _decreeCompact;
+
     private void LayoutDecreePanel()
     {
         if (_decreePanel is null) return;
-        float m = Margin;
-        float width = _compact ? 360 : 470;
-        float top = m + TopBandHeight + 12;
-        AnchorTo(_decreePanel, 1, 0, 1, 0, -m - width, top, -m, top + (_compact ? 460 : 500), Control.GrowDirection.Begin);
-        _decreePanel.CustomMinimumSize = new Vector2(width, 0);
+        FitDecreePanel();
+    }
+
+    /// <summary>The Decrees panel is as tall as what it holds, up to the dock's full height (then it scrolls).</summary>
+    private void FitDecreePanel()
+    {
+        if (_decreePanel is null || _decreeBody is null || _decreeBody.GetParent() is not Control scroll) return;
+        // Measured from the laid-out sizes (wrapped labels only know their height once they know their width): the panel's
+        // chrome (header, padding) plus the body's height, capped at the dock. Refreshed while open, so it settles in a frame.
+        float chrome = _decreePanel.Size.Y - scroll.Size.Y;
+        float content = chrome + _decreeBody.GetCombinedMinimumSize().Y;
+        float height = MathF.Ceiling(Math.Min(content, DockMaxHeight));
+        if (Math.Abs(_decreePanel.CustomMinimumSize.Y - height) > 0.5f || Math.Abs(_decreePanel.CustomMinimumSize.X - DockNarrowWidth) > 0.5f)
+        {
+            PlaceDock(_decreePanel, DockNarrowWidth, height);
+            _decreePanel.ResetSize();
+        }
     }
 
     private void ToggleDecrees(bool? force = null)
@@ -80,10 +136,12 @@ public partial class Game
         if (_decreePanel is null) return;
         bool open = force ?? !_decreeOpen;
         if (open == _decreeOpen) return;
+        if (open) CloseOtherDocks("decrees");
         _decreeOpen = open;
         _decreePanel.Visible = open;
-        if (open) { _ui.Push(_decreeLayer!); if (_current is not null) RefreshDecrees(_current); }
+        if (open) { _ui.Push(_decreeLayer!); if (_current is not null) RefreshDecrees(_current); CallDeferred(nameof(FitDecreePanel)); }
         else { _ui.Remove(_decreeLayer!); _decreeMapMode = false; }
+        LayoutNotifications();
     }
 
     private void ArmDecree(DecreeKind kind)
@@ -115,6 +173,7 @@ public partial class Game
         UiKit.SetText(_decreeForecast!, result);
         UiKit.SetVisible(_decreeConfirm!, f.Allowed);
         UiKit.SetText(_decreeConfirm!, $"Confirm · {f.Cost} Mandate");
+        CallDeferred(nameof(FitDecreePanel));
     }
 
     /// <summary>For a founding refused because no settlement can spare people: what each settlement in reach is short of, as lines after the rule.</summary>
@@ -178,6 +237,7 @@ public partial class Game
         int civ = Math.Max(0, _current?.ViewerCiv ?? 0);
         _session.Queue(PlayerCommands.Decree(_session.Tick, civ, _pendingDecree, _pendingTarget, _pendingExtra));
         _decreeConfirm!.Visible = false; _decreeForecast!.Text = "Decree queued for the end of this season.";
+        CallDeferred(nameof(FitDecreePanel));
     }
 
     private void RefreshDecrees(MatchFrame frame)
@@ -189,6 +249,14 @@ public partial class Game
             ? $"Mandate · {frame.FocusMandate}/{frame.FocusMandateCap} · next in {frame.FocusMandateNextSeason} seasons"
             : $"Mandate · locked until {unlockProject}");
         UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : $"Reach {unlockProject} to issue a Decree.");
+        bool layoutChanged = UiKit.SetVisible2(_decreeLockedBlock!, !available) | UiKit.SetVisible2(_decreeControls!, available);
+        if (_decreesUnlocked != available)
+        {
+            _decreesUnlocked = available;
+            UpdateDecreesButton();
+        }
+        if (_decreeOpen) CallDeferred(nameof(FitDecreePanel));
+        _ = layoutChanged;
         foreach (UiButton? button in new[] { _decreeFound, _decreeExplore, _decreeMine, _decreeLevy, _decreeCorvee })
             if (button is not null) button.Disabled = !available || !(_session?.CanIssueCommands ?? false);
         if (_decreePartner is null) return;
@@ -201,6 +269,7 @@ public partial class Game
         int index = _decreePartner.GetItemIndex(selected);
         if (index >= 0) _decreePartner.Select(index);
         _decreeLevy!.Disabled = !available || selected < 0 || !(_session?.CanIssueCommands ?? false);
+        _decreeCompact!.Disabled = !available || !(_session?.CanIssueCommands ?? false);
     }
 
     private void QueueLevy()

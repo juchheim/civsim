@@ -52,6 +52,7 @@ public partial class Game
     }
 
     private readonly PeopleBarRow[] _peopleWorkRows = new PeopleBarRow[PeopleWork.Length];
+    private Label? _peopleWorkNobody;
     private readonly int[] _peopleActivityCounts = new int[23];
     private readonly List<int> _peopleScoutSettlementIds = new();
     private readonly Button[] _peopleScoutButtons = new Button[4];
@@ -231,6 +232,9 @@ public partial class Game
         var workList = UiKit.Column(UiTokens.Sp1);
         for (int i = 0; i < PeopleWork.Length; i++) _peopleWorkRows[i] = BuildPeopleBarRow(workList, PeopleWork[i].Name);
         work.Body.AddChild(workList);
+        // Jobs nobody holds fold into one line under the list, so the rows that matter are not lost among zeros (ui-ux-pass2 §8).
+        _peopleWorkNobody = UiKit.Text("", "CaptionTertiary", wrap: true);
+        work.Body.AddChild(_peopleWorkNobody);
         work.Body.AddChild(UiKit.Spacer(height: UiTokens.Sp1));
         work.Body.AddChild(PeopleSubhead("NOT AT WORK"));
         var other = PeopleFlow();
@@ -623,16 +627,20 @@ public partial class Game
     {
         RefreshPeopleScoutControls(frame);
         int population = _peopleCensus.Population;
+        var nobody = new System.Text.StringBuilder();
         for (int i = 0; i < _peopleWorkRows.Length; i++)
         {
             PeopleBarRow row = _peopleWorkRows[i];
             int count = _peopleActivityCounts[(int)PeopleWork[i].Activity];
-            UiKit.SetVisible(row.Root, true);
+            UiKit.SetVisible(row.Root, count > 0);
+            if (count == 0) nobody.Append(nobody.Length == 0 ? "" : " · ").Append(PeopleWork[i].Name);
             UiKit.SetText(row.Count, count.ToString("N0"));
             row.Bar.SetValue(population > 0 ? count / (float)population : 0, false);
             SetTone(row.Name, count > 0 ? UiTokens.TextPrimary : UiTokens.TextTertiary);
             SetTone(row.Count, count > 0 ? UiTokens.TextPrimary : UiTokens.TextTertiary);
         }
+        UiKit.SetText(_peopleWorkNobody!, nobody.Length == 0 ? "" : "None at the moment: " + nobody);
+        UiKit.SetVisible(_peopleWorkNobody!, nobody.Length > 0);
         UiKit.SetText(_peopleChildren!, _peopleCensus.Children.ToString("N0"));
         UiKit.SetText(_peopleRecovering!, _peopleCensus.Recovering.ToString("N0"));
         UiKit.SetText(_peopleResting!, _peopleCensus.Resting.ToString("N0"));

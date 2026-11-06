@@ -189,19 +189,32 @@ public partial class Game
         column.MouseFilter = Control.MouseFilterEnum.Ignore;
         column.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         column.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        view.Title = UiKit.Text("", "BodyStrong", ellipsis: true);
+        view.Title = UiKit.Text("", "BodyStrong", wrap: true);
+        view.Title.MaxLinesVisible = 2;
+        view.Title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         view.Body = UiKit.Text("", "Caption", wrap: true);
         view.Body.MaxLinesVisible = 3;
         view.Body.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         column.AddChild(view.Title);
         column.AddChild(view.Body);
-        row.AddChild(column);
-        view.Action = UiKit.Ghost("Go there", null, null, UiGlyph.None, UiTokens.ControlS);
-        view.Action.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        // The action sits under the text, left-aligned with it (ui-ux-pass2 §3): as a middle column it squeezed the title and
+        // body to half the card ("You met the ..."), and it read as a third, unrelated column.
+        view.Action = UiKit.Ghost("Go there", null, null, UiGlyph.None, 30);
+        // A text link: no padding, so it lines up with the title and body above it.
+        foreach (string state in new[] { "normal", "hover", "pressed", "focus", "hover_pressed" })
+            view.Action.AddThemeStyleboxOverride(state, new StyleBoxEmpty());
+        view.Action.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        view.Action.AddThemeColorOverride("font_color", UiTokens.Accent);
+        view.Action.AddThemeColorOverride("font_hover_color", UiTokens.AccentHover);
         view.Action.Pressed += () => { view.Callback?.Invoke(); DismissToast(view); };
-        row.AddChild(view.Action);
-        row.AddChild(UiKit.IconButton(UiGlyph.Close, "Dismiss notification", () => DismissToast(view), 28, 14));
+        column.AddChild(view.Action);
+        row.AddChild(column);
+        var close = UiKit.IconButton(UiGlyph.Close, "Dismiss notification", () => DismissToast(view), 28, 14);
+        close.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
+        row.AddChild(close);
         panel.AddChild(row);
+        // The wrapper is a plain Control, so it must be told how tall the card's text has become (a wrapped title, an action line).
+        panel.MinimumSizeChanged += () => FitToast(view, panel);
         view.Bar = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
         view.Bar.SetAnchorsPreset(Control.LayoutPreset.LeftWide);
         view.Bar.OffsetRight = 3;
@@ -217,17 +230,37 @@ public partial class Game
         return view;
     }
 
+    private float _toastBaseHeight = 72;
+
+    /// <summary>Right of the layer rail, never on it (at 1600 × 900 the rail's lowest buttons used to sit under the card).</summary>
+    private float MomentLeft => Margin + Math.Max(_compact ? 55 : 89, _rail?.GetCombinedMinimumSize().X ?? 0) + UiTokens.Sp3;
+
+    private void FitToast(ToastView view, PanelContainer panel)
+    {
+        float height = Math.Max(_toastBaseHeight, panel.GetCombinedMinimumSize().Y);
+        if (Math.Abs(view.Root.CustomMinimumSize.Y - height) > 0.5f) view.Root.CustomMinimumSize = new Vector2(view.Root.CustomMinimumSize.X, height);
+    }
+
     private void LayoutNotifications()
     {
         if (_toastStack is null || _momentCard is null || _ageBanner is null || _coachCard is null || _hintPill is null) return;
         float m = Margin;
         float bottom = m + FocusBarHeight + UiTokens.Sp1;
-        float toastWidth = _compact ? 340 : 440;
-        foreach (ToastView view in _toasts) view.Root.CustomMinimumSize = new Vector2(toastWidth, _compact ? 64 : 72);
-        AnchorTo(_toastStack, 1, 1, 1, 1, -m - toastWidth, -bottom - 3 * 80, -m, -bottom, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
+        float toastWidth = _compact ? 377 : 440;
+        _toastBaseHeight = _compact ? 64 : 72;
+        foreach (ToastView view in _toasts)
+        {
+            view.Root.CustomMinimumSize = new Vector2(toastWidth, _toastBaseHeight);
+            if (view.Root.GetChild(0) is PanelContainer panel) FitToast(view, panel);
+        }
+        // Toasts keep to the open map: with a dock panel open they stand just left of it instead of covering its lower part.
+        float dock = OpenDockWidth;
+        float right = m + (dock > 0 ? dock + UiTokens.Sp3 : 0);
+        AnchorTo(_toastStack, 1, 1, 1, 1, -right - toastWidth, -bottom - 3 * 80, -right, -bottom, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
         float momentWidth = _compact ? 280 : 320;
         float momentHeight = _compact ? 112 : 128;
-        float momentLeft = m + (_compact ? 63 : 0);
+        // Right of the layer rail, never on it (the rail's lowest buttons used to sit under the card at 1600 × 900).
+        float momentLeft = MomentLeft;
         AnchorTo(_momentCard, 0, 1, 0, 1, momentLeft, -bottom - momentHeight, momentLeft + momentWidth, -bottom, Control.GrowDirection.End, Control.GrowDirection.Begin);
         _momentCard.CustomMinimumSize = new Vector2(momentWidth, momentHeight);
         float coachWidth = _compact ? 466 : 610;
@@ -252,11 +285,15 @@ public partial class Game
     {
         _clock += delta;
         TickResearchWeb(delta);
+        // While the research web or People & Stores covers the map, toasts wait out of sight (their timers hold) and come back
+        // when the sheet closes, instead of covering the sheet's inspector (ui-ux-pass2 §2).
+        bool sheetOpen = _researchWebVisible || _peopleOpen;
+        if (_toastStack is not null) UiKit.SetVisible(_toastStack, !sheetOpen);
         foreach (ToastView view in _toasts)
         {
             if (!view.Active) continue;
             view.Age += delta;
-            if (view.Sticky) continue;
+            if (view.Sticky || sheetOpen) continue;
             view.Timer -= delta;
             if (view.Timer <= 0) DismissToast(view);
         }
@@ -349,6 +386,28 @@ public partial class Game
         if (kind == ToastKind.Critical && _uiSettings.PauseOnDanger && _session is { Paused: false }) _session.SetPaused(true);
     }
 
+    /// <summary>
+    /// A rival reaching a new age is news, not your milestone: it uses the quieter Info style (the accent is kept for your own
+    /// achievements), and rivals entering the same age while the toast is up share one card ("Star Folk and Wave Folk entered
+    /// the Hunters age") instead of stacking one card each (ui-ux-pass2 §3).
+    /// </summary>
+    private void ShowRivalAgeToast(int civ, int era)
+    {
+        string key = $"rival-age-{era}";
+        foreach (ToastView view in _toasts)
+        {
+            if (!view.Active || view.Key != key) continue;
+            if (!view.Title.Text.Contains(UiText.CivName(civ), StringComparison.Ordinal))
+            {
+                string names = view.Title.Text[..view.Title.Text.LastIndexOf(" entered", StringComparison.Ordinal)];
+                UiKit.SetText(view.Title, $"{names.Replace(" and ", ", ", StringComparison.Ordinal)} and {UiText.CivName(civ)} entered the {UiText.AgeName(era)} age");
+                view.Timer = Math.Max(view.Timer, 5f);
+            }
+            return;
+        }
+        ShowToast($"{UiText.CivName(civ)} entered the {UiText.AgeName(era)} age", ToastKind.Info, "", key: key);
+    }
+
     private void DismissToast(ToastView view)
     {
         if (!view.Active) return;
@@ -417,7 +476,7 @@ public partial class Game
         float bottom = m + FocusBarHeight + UiTokens.Sp1;
         float width = _compact ? 280 : 320;
         float height = Math.Max(_compact ? 112 : 128, _momentPanel.GetCombinedMinimumSize().Y);
-        float left = m + (_compact ? 63 : 0);
+        float left = MomentLeft;
         AnchorTo(_momentCard, 0, 1, 0, 1, left, -bottom - height, left + width, -bottom, Control.GrowDirection.End, Control.GrowDirection.Begin);
         _momentCard.CustomMinimumSize = new Vector2(width, height);
     }
@@ -636,13 +695,9 @@ public partial class Game
     private void LayoutDrawers()
     {
         if (_chronicleDrawer is null) return;
-        float m = Margin;
-        float top = m + TopBandHeight + 13;
-        float width = _compact ? 320 : 377;
-        float height = _compact ? Math.Min(233, _logicalSize.Y - top - 200) : Math.Min(377, _logicalSize.Y - top - 140);
-        AnchorTo(_chronicleDrawer, 1, 0, 1, 0, -m - width, top, -m, top + height, Control.GrowDirection.Begin);
-        _chronicleDrawer.CustomMinimumSize = new Vector2(width, height);
-        LayoutDiplomacyDrawer(top);
+        // The Chronicle is a long list: it takes the dock's full height (it was 377 tall, 233 in compact windows).
+        PlaceDock(_chronicleDrawer, DockNarrowWidth, DockMaxHeight);
+        LayoutDiplomacyDrawer(DockTop);
     }
 
     private void ToggleChronicle(bool? force = null)
@@ -653,7 +708,7 @@ public partial class Game
         _chronicleOpen = open;
         if (open)
         {
-            if (_diplomacyOpen) ToggleDiplomacy(false);
+            CloseOtherDocks("chronicle");
             if (_researchWebVisible) CloseResearchWeb();
             _chronicleUnread = 0;
             _chronicleUnseenCritical = false;
@@ -668,6 +723,7 @@ public partial class Game
             UiKit.Fade(_chronicleDrawer, false, UiTokens.BaseCloseS);
             _ui.Remove(_chronicleLayer!);
         }
+        LayoutNotifications();
         UpdateChronicleBadge();
     }
 
@@ -961,7 +1017,7 @@ public partial class Game
                 else
                 {
                     AddChronicle(item, $"The {UiText.CivName(item.Civ)} entered the {UiText.AgeName(item.A)} age.", ChronicleClass.World, false);
-                    ShowToast($"{UiText.CivName(item.Civ)} entered a new age", ToastKind.Milestone, $"The {UiText.AgeName(item.A)} age.", key: $"rival-age-{item.Civ}-{item.A}");
+                    ShowRivalAgeToast(item.Civ, item.A);
                 }
                 break;
             case ViewEventKind.Adopted:
@@ -1119,8 +1175,7 @@ public partial class Game
     private void CloseDrawersAndMenus()
     {
         if (_peopleOpen) ClosePeoplePanel();
-        if (_chronicleOpen) ToggleChronicle(false);
-        if (_diplomacyOpen) ToggleDiplomacy(false);
+        CloseOtherDocks("");
         ToggleGameMenu(false);
     }
 }

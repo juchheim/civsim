@@ -84,6 +84,9 @@ Dev arguments: `--ui-open=…`, `--scenario=…` (+ `--shots=dir`), `--opening-h
 
 ## 1. Design tokens
 
+> **Superseded in part (2026-11):** fonts (§1.1), the type scale (§1.2) and the colour values (§1.4) are now those of
+> [ui-typography.md](ui-typography.md) (Commissioner, φ quarter-step scale, Living Ages palette). Everything else here stands.
+
 ### 1.1 Fonts
 
 | Token | Value |

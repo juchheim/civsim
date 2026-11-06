@@ -11,6 +11,7 @@ using CivSim.Sim.View;
 using CivSim.Sim.World;
 using CivSim.Sim.Research;
 using CivSim.Game.Looks;
+using CivSim.Game.Ui;
 using Godot;
 
 namespace CivSim.Game;
@@ -1152,8 +1153,9 @@ public partial class Game : Node3D
                    "dotnet run --project src/CivSim.Cli -c Release -- build-pack --out civsim.pack\n\n" + details,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        label.AddThemeFontSizeOverride("font_size", 24);
-        label.AddThemeColorOverride("font_color", new Color("#f3efe4"));
+        label.AddThemeFontOverride("font", UiTheme.Regular);
+        label.AddThemeFontSizeOverride("font_size", UiTokens.FontHeading);
+        label.AddThemeColorOverride("font_color", UiTokens.TextPrimary);
         layer.AddChild(label);
     }
 

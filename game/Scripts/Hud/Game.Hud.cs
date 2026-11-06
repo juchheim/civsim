@@ -32,6 +32,38 @@ public partial class Game
 
     private int Margin => _compact ? UiTokens.Sp3 : UiTokens.Sp4;
 
+    // ---- the right dock (docs/MVP/ui-ux-pass2.md §1) ------------------------------------------------
+    // Decrees, Diplomacy and the Chronicle share one column on the right: the same top edge (under the top bar), the same right
+    // edge, and the same lowest edge (above the focus bar). Only one is open at a time. Two widths in a golden ratio: the wide
+    // one (Diplomacy's list and detail) is at most 0.382 of the screen so the map keeps the major share; the narrow one
+    // (lists and forms) is the wide one ÷ φ. The floors keep the controls usable in small or scaled windows.
+    private const float Phi = 1.618034f;
+    private float DockTop => Margin + TopBandHeight + UiTokens.Sp3;
+    private float DockMaxHeight => Math.Max(233, _logicalSize.Y - DockTop - (Margin + FocusBarHeight + UiTokens.Sp3));
+    private float DockWideWidth => MathF.Round(Math.Clamp(_logicalSize.X * (1 - 1 / Phi), 520, 610));
+    private float DockNarrowWidth => MathF.Round(DockWideWidth / Phi);
+
+    /// <summary>Width of whichever dock panel is open, or 0.</summary>
+    private float OpenDockWidth => _diplomacyOpen ? DockWideWidth : _chronicleOpen || _decreeOpen ? DockNarrowWidth : 0;
+
+    /// <summary>Places a dock panel: top-right, <paramref name="height"/> tall (0 lets it size to its content, growing down).</summary>
+    private void PlaceDock(Control panel, float width, float height)
+    {
+        float top = DockTop;
+        AnchorTo(panel, 1, 0, 1, 0, -Margin - width, top, -Margin, top + height, Control.GrowDirection.Begin, Control.GrowDirection.End);
+        panel.CustomMinimumSize = new Vector2(width, height);
+    }
+
+    /// <summary>Opening one dock panel closes the others, so they never stack on top of each other.</summary>
+    private void CloseOtherDocks(string keep)
+    {
+        // A panel opening under a resting cursor would otherwise leave the hover card floating on top of it.
+        if (_pinnedTile < 0) HideTileCard();
+        if (keep != "chronicle" && _chronicleOpen) ToggleChronicle(false);
+        if (keep != "diplomacy" && _diplomacyOpen) ToggleDiplomacy(false);
+        if (keep != "decrees" && _decreeOpen) ToggleDecrees(false);
+    }
+
     private void CreateHud(ulong seed)
     {
         _uiSettings = UiSettings.Load();
@@ -230,6 +262,7 @@ public partial class Game
         TickNotifications((float)delta);
         TickDiplomacy((float)delta);
         TickFocusBar((float)delta);
+        if (_decreeOpen) FitDecreePanel();
         TickTileCard((float)delta);
         TickCamera((float)delta);
         TickPulses((float)delta);

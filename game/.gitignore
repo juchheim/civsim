@@ -2,3 +2,4 @@
 *.import
 !assets/ui/loading/ATG-after-video-screen.png.import
 !assets/ui/hud/*.import
+!assets/fonts/**/*.import

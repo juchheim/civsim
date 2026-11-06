@@ -68,8 +68,7 @@ public partial class Game
         summary.AddChild(_researchButton);
         _newBadge = UiKit.Panel("BadgePanel", null, UiKit.MouseFilter.Ignore);
         _newBadge.Visible = false;
-        _newBadgeLabel = UiKit.Text("1 new", "Num", UiTokens.TextOnAccent);
-        _newBadgeLabel.AddThemeFontSizeOverride("font_size", 12);
+        _newBadgeLabel = UiKit.Text("1 new", "NumBadge", UiTokens.TextOnAccent);
         _newBadge.AddChild(_newBadgeLabel);
         _newBadge.SetAnchorsPreset(Control.LayoutPreset.TopRight);
         _newBadge.GrowHorizontal = Control.GrowDirection.Begin;
@@ -222,6 +221,13 @@ public partial class Game
             }
             UpdateSlotCard(slot, frame, project, weightSum);
         }
+        // The one accent button on the HUD goes to the action the player owes: while a slot waits for a choice (and the elders
+        // are not choosing), Research web is a primary button; once all three are working it steps back to secondary.
+        bool owed = !frame.FocusCouncil && !_session.IsReplay && frame.FocusCiv == frame.ViewerCiv &&
+                    (frame.FocusSlotProject[0] < 0 || frame.FocusSlotProject[1] < 0 || frame.FocusSlotProject[2] < 0);
+        UiKit.SetVariation(_researchButton!, owed ? "PrimaryIcon" : "SecondaryIcon");
+        UiKit.SetVariation(_newBadge!, owed ? "BadgePanelInk" : "BadgePanel");
+        _newBadgeLabel!.AddThemeColorOverride("font_color", UiTokens.TextOnAccent);
         _updatingFocusBar = false;
     }
 
@@ -316,7 +322,8 @@ public partial class Game
                 {
                     UiKit.SetText(view.Cta, "+ Choose a project");
                     view.Cta.AddThemeColorOverride("font_color", UiTokens.Accent);
-                    UiKit.SetText(view.Hint, "Its share goes to the others until you choose");
+                    // Say what this slot is worth instead of repeating the same sentence three times (the rule is in the tooltip).
+                    UiKit.SetText(view.Hint, $"Worth {UiText.SlotShare[slot]} points");
                 }
                 UiKit.SetText(view.Eta, "");
                 view.Root.TooltipText = "This slot is open. Its share goes to the other slots until you choose.";

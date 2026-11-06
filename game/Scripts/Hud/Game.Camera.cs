@@ -285,6 +285,7 @@ public partial class Game
         if (_ui.TopIsModal)
         {
             if (code is Key.H or Key.F1 && _helpOpen) { ToggleHelp(false); GetViewport().SetInputAsHandled(); }
+            else if (code == Key.Y && _peopleOpen) { ClosePeoplePanel(); GetViewport().SetInputAsHandled(); }
             return;
         }
         if (code == Key.T) { if (_researchWebVisible) CloseResearchWeb(); else OpenResearchWeb(-1); GetViewport().SetInputAsHandled(); return; }
@@ -298,6 +299,7 @@ public partial class Game
         {
             case Key.O: ToggleDiplomacy(); break;
             case Key.C: ToggleChronicle(); break;
+            case Key.Y: OpenPeoplePanel(); break;   // ui-ux-pass2 §4: "Your people" (P is pause)
             case Key.R: SetResourcesVisible(!_resourcesVisible); break;
             case Key.B: ToggleBeaconMode(); break;
             case Key.F or Key.Home: FrameCapital(); break;
