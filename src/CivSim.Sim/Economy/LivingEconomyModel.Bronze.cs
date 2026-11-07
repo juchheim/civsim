@@ -214,6 +214,7 @@ public sealed partial class LivingEconomyModel
             RemeltShare = K("UpgradeRemeltShare", "0.5");
             PushCap = K("MetalPushLaborCap", "0.10");
             ChainCap = K("MetalChainLaborCap", "0.30");
+            IronPostRouteChainCap = K("IronPostRouteChainLaborCap", "0.45");
             SpareArms = K("WarriorSpareKits", "2").FloorToInt();
             FireSettingWood = K("FireSettingWoodPerL", "0.5");
             ClearedBelow = K("ForestClearedBelow", "5");
@@ -229,7 +230,7 @@ public sealed partial class LivingEconomyModel
 
         public readonly int CampCrew, CampCrewShaft, CampMinCrew, CampRadius, ShareReach, ShareReachGov04, SpareArms, GrassSeasons;
         public readonly int CharcoalReach, CharcoalReachCarts, MineReach, MineReachCarts, MineReachWater;
-        public readonly Fix64 CampBand, CampEmit, HaulWaterDiv, AccessMin, ReplaceQuality, BreakQuality, RemeltShare, PushCap, ChainCap;
+        public readonly Fix64 CampBand, CampEmit, HaulWaterDiv, AccessMin, ReplaceQuality, BreakQuality, RemeltShare, PushCap, ChainCap, IronPostRouteChainCap;
         public readonly Fix64 FireSettingWood, ClearedBelow, GrassBelow, RestoreAt;
     }
 

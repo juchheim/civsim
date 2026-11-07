@@ -119,6 +119,7 @@ constants:
   - {id: UpgradeRemeltShare, value: 0.5, unit: share of kit metal, source: "§4.1 (decided here)"}
   - {id: MetalPushLaborCap, value: 0.10, unit: share of labor, source: "§7.3 (decided here)"}
   - {id: MetalChainLaborCap, value: 0.30, unit: share of labor, source: "§7.3; 07d B12 (decided 2026-10-31)"}
+  - {id: IronPostRouteChainLaborCap, value: 0.45, unit: share of labor, source: "I-T2 coverage candidate calibration (2026-11-06)"}
   - {id: WarriorSpareKits, value: 2, unit: kits, source: "§4.2 (decided here)"}
   - {id: MilitiaArmsShareFortify, value: 0.25, unit: "× adults", source: "§4.2 (decided here)"}
   - {id: FireSettingWoodPerL, value: 0.5, unit: L wood per L ore, source: "22 §5.2"}
