@@ -642,8 +642,8 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// Moves one idle, service-positive holder to a sister settlement with recent tool work but no idle Iron holder.
-    /// The receiver keeps the kit on an otherwise idle adult; its end-of-season local reassignment then gives it to
-    /// whichever adults actually did tool work this season, including workers who were not active last season.
+    /// The receiver keeps the kit on an otherwise idle adult when possible; a settlement with no spare adult can
+    /// receive it directly on a recent toolworker who lacks a live Iron kit.
     /// </summary>
     private void ShareIdleIronKitHolders(int civ, int reach, int season)
     {
@@ -653,20 +653,34 @@ public sealed partial class LivingEconomyModel
             if (receiver.Civilization != civ || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
             bool hasRecentToolWork = false;
             bool hasIdleIronHolder = false;
+            bool hasServicePositiveIronHolder = false;
             int reserveFigure = -1;
+            int uncoveredToolWorker = -1;
             for (int i = 0; i < _figures.Count; i++)
             {
                 FigureState figure = _figures[i];
                 if (figure.SettlementId != receiver.Id || figure.Age < 14) continue;
                 hasRecentToolWork |= figure.WorkedWithToolLastSeason;
-                if (!figure.WorkedWithToolLastSeason && figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                bool hasServicePositiveIronKit = (figure.Kit is 11 or 12) && figure.KitLeft > Fix64.Zero;
+                hasServicePositiveIronHolder |= hasServicePositiveIronKit;
+                if (!figure.WorkedWithToolLastSeason && hasServicePositiveIronKit)
                     hasIdleIronHolder = true;
                 if (!figure.WorkedWithToolLastSeason && figure.Kit is not (11 or 12) && reserveFigure < 0)
                     reserveFigure = i;
+                if (figure.WorkedWithToolLastSeason && !hasServicePositiveIronKit && uncoveredToolWorker < 0)
+                    uncoveredToolWorker = i;
             }
-            if (!hasRecentToolWork || hasIdleIronHolder || reserveFigure < 0) continue;
+            if (!hasRecentToolWork || hasIdleIronHolder) continue;
 
-            FigureState recipient = _figures[reserveFigure];
+            // Do not let one direct handoff start a new route for a tiny cohort that has no
+            // spare adult or established Iron holder. Direct placement is a top-up after the
+            // settlement already has a service-positive holder; ordinary idle adults can seed it.
+            int recipientFigure = reserveFigure >= 0 ? reserveFigure :
+                hasServicePositiveIronHolder ? uncoveredToolWorker : -1;
+            if (recipientFigure < 0) continue;
+            FigureState recipient = _figures[recipientFigure];
+            bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
+                season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
             for (int d = 0; d < _settlements.Count; d++)
             {
                 if (d == r) continue;
@@ -699,10 +713,15 @@ public sealed partial class LivingEconomyModel
                 int growthBuffer = recentToolWorkers >= 3 ? 2 : 1;
                 bool lastReboundHolder = Population(donor.Id) >= 20 &&
                     servicePositiveIronHolders == recentToolWorkers + growthBuffer + 1 &&
-                    (recentToolWorkers <= 2 || season - donor.LastFissionSeason is >= 0 and <= 12);
+                    (recentToolWorkers <= 2 || donor.Fissions > 0 &&
+                        season - donor.LastFissionSeason is >= 0 and <= 12);
                 if (lastReboundHolder)
                     growthBuffer++;
                 int minimumHolderReserve = recentToolWorkers + growthBuffer;
+                // A daughter that is still establishing its first tool route may need one more
+                // holder from a sister; retain at least one donor spare beyond recent toolworkers.
+                if (recentFissionDaughterCoverageGap && minimumHolderReserve > recentToolWorkers + 1)
+                    minimumHolderReserve--;
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
                 for (int i = 0; i < _figures.Count; i++)
