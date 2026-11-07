@@ -462,3 +462,34 @@ Across the six natural-end diagnostic matches, the I-T2 screen recorded **305 pa
 - `/tmp/civsim-b406-v24-ledger-20263223.txt`
 
 This resolves the reproduced qualifying I-T2 failures in the targeted matches, but is diagnostic evidence only. The complete fixed 13-seed v24 screen was not rerun, and the 80-match v18 acceptance block remains consumed. The next unused natural-match seed remains `20263261`; this source change requires a fresh preregistration before any acceptance run. B4-06 remains open until a fresh, complete acceptance block passes every unchanged I-T2 and I-T6 gate.
+
+## v25 compact-fission rebound reserve and fresh acceptance freeze
+
+The current-main fixed screen exposed one new qualifying I-T2 miss on seed `20262102`: settlement `s108` ended its seasons `325–337` window at **2/3 (66.67%)**, after starting at 3/3. Fuel passed (`0/31` short demand-seasons; `0.00/25.46 L` unmet/planned), all `113/113` settlement-kit ledgers were exact, and whole-match material residuals were zero. At season 325, `s108` had been created by fission one season earlier and immediately split again. The old compact reserve rule left the larger parent with two holders for one active toolworker while the daughter took three holders for two workers; the parent grew to three toolworkers, and a sister holder arrived only at the final endpoint season.
+
+Source commit `040cdc4c4319c8dd3e1aa19450e6c885406a5213` broadens the compact fission reserve rule. When a compact fission has an active parent and a fresh daughter with one or two recent toolworkers, and the available holders can preserve both sides' current 70% coverage, it reserves two rebound holders for the parent and leaves the daughter at its current coverage floor. Sister sharing can supply later daughter growth. The targeted replay of `20262102` now gives `s108` three holders for three endpoint toolworkers (100%); it records **51 I-T2 passes, 0 failures, and 57 censored windows**, with all `113/113` settlement-kit ledgers exact.
+
+The fixed 13-seed diagnostic set completed under the v25 code and unchanged pack/options. The reserve change was not reachable in the six reused completed reports for seeds `20262061`, `20262062`, `20262081`, `20262082`, `20262083`, and `20262101`; report traces contain no compact fission needing the new allocation. Seed `20262102` is the targeted replay above. The other six seeds were replayed after the change. Across all 13 matches, I-T2 recorded **632 passes, 0 failures, and 695 censored windows**. All **1,403/1,403** settlement-kit ledgers were exact; forest, local-wood, and world-kit residuals were zero; there were no Iron-era metal-clearing crossings or mature I-T6 cutoff failures; all **50/50 qualified fuel cutoff checks passed**; and the maximum mature rolling chain-work share was **10.75%**, below the 15% diagnostic cap. Censored windows remain neither passes nor failures. Raw reports:
+
+- `/tmp/civsim-b406-810942a-fixed-20262061.txt`
+- `/tmp/civsim-b406-810942a-fixed-20262062.txt`
+- `/tmp/civsim-b406-fixed-v25-20262063.txt`
+- `/tmp/civsim-b406-810942a-fixed-20262081.txt`
+- `/tmp/civsim-b406-810942a-fixed-20262082.txt`
+- `/tmp/civsim-b406-810942a-fixed-20262083.txt`
+- `/tmp/civsim-b406-810942a-fixed-20262101.txt`
+- `/tmp/civsim-b406-postreserve-target-20262102.txt`
+- `/tmp/civsim-b406-fixed-v25-20262103.txt`
+- `/tmp/civsim-b406-fixed-v25-20262104.txt`
+- `/tmp/civsim-b406-fixed-v25-20262121.txt`
+- `/tmp/civsim-b406-fixed-v25-20262122.txt`
+- `/tmp/civsim-b406-fixed-v25-20262123.txt`
+
+Freeze source commit `040cdc4c4319c8dd3e1aa19450e6c885406a5213`, the **352,205-byte** pack `/tmp/civsim-b406-iron45-main.pack` (SHA-256 `2fc1d22db07fbd0967e916b9bc471f6bcbce939b3203a9513d5ef27c56cb754b`), the approved I-T6 cutoffs (shortfall rate at most 5%, unmet/planned charcoal at most 1%, and at least 12 positive planned-charcoal demand-seasons), and options `--it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving`. Use the next-unused natural-match seeds `20263261–20263340` (80 matches, four Warlord seats each) in four disjoint 20-seed shards. Preserve every raw report. Do not change source, pack, options, seed block, or cutoffs after the first acceptance result. At the first qualifying I-T2 or I-T6 failure, stop all shards and consume the complete 80-seed block. B4-06 remains open unless every match completes and every unchanged per-settlement I-T2 and per-civilization I-T6 gate passes. All earlier blocks, including `20263181–20263260`, remain consumed. The next unused natural-match seed after this frozen block is `20263341`.
+
+```sh
+dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45-main.pack --seed 20263261 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v25-acceptance-20263261-3280.txt
+dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45-main.pack --seed 20263281 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v25-acceptance-20263281-3300.txt
+dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45-main.pack --seed 20263301 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v25-acceptance-20263301-3320.txt
+dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45-main.pack --seed 20263321 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v25-acceptance-20263321-3340.txt
+```
