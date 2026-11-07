@@ -658,6 +658,7 @@ public sealed partial class LivingEconomyModel
             int uncoveredToolWorker = -1;
             int receiverRecentToolWorkers = 0;
             int coveredRecentToolWorkers = 0;
+            var uncoveredToolWorkers = new List<int>();
             for (int i = 0; i < _figures.Count; i++)
             {
                 FigureState figure = _figures[i];
@@ -674,8 +675,11 @@ public sealed partial class LivingEconomyModel
                     hasIdleIronHolder = true;
                 if (!figure.WorkedWithToolLastSeason && figure.Kit is not (11 or 12) && reserveFigure < 0)
                     reserveFigure = i;
-                if (figure.WorkedWithToolLastSeason && !hasServicePositiveIronKit && uncoveredToolWorker < 0)
-                    uncoveredToolWorker = i;
+                if (figure.WorkedWithToolLastSeason && !hasServicePositiveIronKit)
+                {
+                    if (uncoveredToolWorker < 0) uncoveredToolWorker = i;
+                    uncoveredToolWorkers.Add(i);
+                }
             }
             bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
                 season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
@@ -685,12 +689,18 @@ public sealed partial class LivingEconomyModel
             // Do not let one direct handoff start a new route for a tiny cohort that has no
             // spare adult or established Iron holder. Direct placement is a top-up after the
             // settlement already has a service-positive holder; ordinary idle adults can seed it.
+            bool coverageTopUp = receiverBelowCoverageThreshold && hasServicePositiveIronHolder;
             int recipientFigure = reserveFigure >= 0 ? reserveFigure :
                 hasServicePositiveIronHolder ? uncoveredToolWorker : -1;
-            if (recipientFigure < 0) continue;
-            FigureState recipient = _figures[recipientFigure];
+            int transfersNeeded = coverageTopUp
+                ? (receiverRecentToolWorkers * 7 + 9) / 10 - coveredRecentToolWorkers
+                : 1;
+            if (transfersNeeded <= 0 || (!coverageTopUp && recipientFigure < 0) ||
+                (coverageTopUp && uncoveredToolWorkers.Count == 0)) continue;
+            int nextUncoveredWorker = 0;
             for (int d = 0; d < _settlements.Count; d++)
             {
+                if (transfersNeeded <= 0) break;
                 if (d == r) continue;
                 SettlementState donor = _settlements[d];
                 if (!IronSister(receiver, donor, reach)) continue;
@@ -757,25 +767,29 @@ public sealed partial class LivingEconomyModel
                     int byWear = _figures[a].KitLeft.CompareTo(_figures[b].KitLeft);
                     return byWear != 0 ? byWear : _figures[a].Id.CompareTo(_figures[b].Id);
                 });
-                if (donors.Count == 0) continue;
-
-                FigureState donorFigure = _figures[donors[0]];
-                byte tier = donorFigure.Kit;
-                Fix64 left = donorFigure.KitLeft;
-                if (recipient.Kit is >= 8 and <= 10 && recipient.KitLeft > Fix64.Zero && _tierDefs[recipient.Kit] is { } old)
+                int donorCapacity = Math.Min(donors.Count, servicePositiveIronHolders - minimumHolderReserve);
+                int moves = Math.Min(transfersNeeded, donorCapacity);
+                for (int moveIndex = 0; moveIndex < moves; moveIndex++)
                 {
-                    Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
-                    receiver.Metal.Goods[(int)MetalGood.Copper] += copper;
-                    AddMetalStat(civ, StatRemeltCopper, copper);
+                    FigureState recipient = _figures[coverageTopUp ? uncoveredToolWorkers[nextUncoveredWorker++] : recipientFigure];
+                    FigureState donorFigure = _figures[donors[moveIndex]];
+                    byte tier = donorFigure.Kit;
+                    Fix64 left = donorFigure.KitLeft;
+                    if (recipient.Kit is >= 8 and <= 10 && recipient.KitLeft > Fix64.Zero && _tierDefs[recipient.Kit] is { } old)
+                    {
+                        Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
+                        receiver.Metal.Goods[(int)MetalGood.Copper] += copper;
+                        AddMetalStat(civ, StatRemeltCopper, copper);
+                    }
+                    if (recipient.Kit is 11 or 12)
+                        RecordIT6IronKitRetired(civ, receiver.Id, recipient.Kit, Fix64.One);
+                    donorFigure.Kit = 0;
+                    donorFigure.KitLeft = Fix64.Zero;
+                    recipient.Kit = tier;
+                    recipient.KitLeft = left;
+                    RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season, holderTransfer: true);
+                    transfersNeeded--;
                 }
-                if (recipient.Kit is 11 or 12)
-                    RecordIT6IronKitRetired(civ, receiver.Id, recipient.Kit, Fix64.One);
-                donorFigure.Kit = 0;
-                donorFigure.KitLeft = Fix64.Zero;
-                recipient.Kit = tier;
-                recipient.KitLeft = left;
-                RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season, holderTransfer: true);
-                break;
             }
         }
     }
