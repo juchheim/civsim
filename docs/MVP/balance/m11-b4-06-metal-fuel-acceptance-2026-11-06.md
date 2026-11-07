@@ -1,6 +1,6 @@
 # B4-06 metal and fuel closeout
 
-**Status:** deterministic B4-06 cases and I-T3 service/wear verification pass. Acceptance block `20262701–20262780` was futility-stopped after 10 natural-end matches when seed `20262723` failed I-T2 at s46. The narrower post-fission holder guard in source commit `c0eaf24233c28efbf1a26cffcd75b2357840a4c8` passed targeted replays and the fixed 13-seed diagnostic screen (469 I-T2 passes, 0 failures, 833 censored windows; exact ledgers and no fuel-cutoff failures). The fresh acceptance block `20262781–20262860` is preregistered. B4-06 remains open until all 80 matches pass.
+**Status:** deterministic B4-06 cases and I-T3 service/wear verification pass. The v3 acceptance block `20262781–20262860` was futility-stopped after 16 natural-end matches when seed `20262824` failed I-T2 at s89 (2/3 equipped, 66.67%). The failure is a post-fission settlement coverage gap with no measured fuel shortage. Completed matches had exact forest, local-wood, world-kit and settlement-kit ledgers; no mature I-T6 cutoff failures or Iron-era-metal clearing crossings; and maximum mature rolling chain-work share was 10.22%. The entire 80-seed block is consumed. B4-06 remains open while the s89 transfer/coverage cause is diagnosed.
 
 ## Scope and frozen screen
 
@@ -311,3 +311,10 @@ dotnet /tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harn
 dotnet /tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45.pack --seed 20262821 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-holder-v3-acceptance-20262821-2840.txt
 dotnet /tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45.pack --seed 20262841 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-holder-v3-acceptance-20262841-2860.txt
 ```
+
+
+## v3 acceptance futility stop
+
+The frozen `20262781–20262860` block was futility-stopped after **16 natural-end matches** when seed `20262824` failed I-T2 at s89. Its route window `271–283` ended at **2/3 equipped (66.67%)**; producer-site fuel passed (0/41 short demand-seasons; 0.00/53.40 L unmet/planned). The partial block recorded **623 I-T2 passes, 1 failure, and 921 censored windows**. All **1,698/1,698 settlement-kit ledgers** were exact, all 16 forest/local-wood and world-kit ledgers closed exactly, there were no mature I-T6 cutoff failures or Iron-era-metal clearing crossings, and maximum mature rolling chain-work share was **10.22%**. Stop all shards at this qualifying failure and consume the full seed range; do not reuse `20262781–20262860`.
+
+The failure route belongs to daughter s89, created from s62 at season 262. The fission cohort had three recent toolworkers but no Iron-kit holders; the daughter sample had one recent toolworker and no holders. During its route window s89 made no T11 kits and began at 0/0 route coverage, then ended with 2/3 active workers equipped. The trace recorded two counted T11 holder receipts and one holder retirement/change; the shortfall is therefore a coverage/transfer allocation issue, not a shortage of forest, fuel, or kit accounting. The four stopped-shard reports are `/tmp/civsim-b406-holder-v3-acceptance-20262781-2800.txt`, `/tmp/civsim-b406-holder-v3-acceptance-20262801-2820.txt`, `/tmp/civsim-b406-holder-v3-acceptance-20262821-2840.txt`, and `/tmp/civsim-b406-holder-v3-acceptance-20262841-2860.txt`. The next unused natural-match seed is `20262861`; any repair needs a new fixed diagnostic screen and a new preregistered block before acceptance.
