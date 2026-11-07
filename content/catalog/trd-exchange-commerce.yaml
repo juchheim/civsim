@@ -84,6 +84,8 @@ projects:
     era: 4
     type: I
     status: numeric
+    cost: 3600
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TRD-06]
     requires_any: [HUS-09, SEA-07]
     effects:

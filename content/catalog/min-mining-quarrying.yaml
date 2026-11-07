@@ -83,6 +83,8 @@ projects:
     era: 4
     type: M
     status: numeric
+    cost: 2400
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MIN-05, MEC-05]
     effects:
       - {kind: rule, text: "Mine depth 2 with flooded-deposit access. Each flooded deposit requires a drainage installation (1 G-WOOD + 0.2 G-CHAR, 2 ws) and upkeep of 0.1 G-CHAR per season while staffed; no new deposit is created."}

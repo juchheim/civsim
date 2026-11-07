@@ -67,6 +67,8 @@ projects:
     era: 4
     type: I
     status: numeric
+    cost: 3600
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [DIP-05, WAR-07]
     effects:
       - {kind: diplo, text: "Vassalage: subject pays tribute; up to 25% of its land contributes to Dominion, conserved with no score duplication."}
@@ -78,6 +80,8 @@ projects:
     era: 4
     type: I
     status: numeric
+    cost: 3600
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [DIP-05, GOV-08]
     effects:
       - {kind: diplo, text: "League: multi-civilization alliance with shared Wonder work only by explicit contributions; no shared ownership or duplicate Wonder."}

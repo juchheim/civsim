@@ -81,6 +81,8 @@ projects:
     era: 4
     type: S
     status: numeric
+    cost: 2880
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [DEF-06, TER-08]
     effects:
       - {kind: build, structure: frontier_wall_segment}
@@ -94,6 +96,8 @@ projects:
     era: 4
     type: S
     status: numeric
+    cost: 2880
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [DEF-06, BLD-09]
     effects:
       - {kind: build, structure: castle}
