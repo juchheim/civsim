@@ -465,6 +465,16 @@ internal static class IronMatchCommand
         int kit11Holders = 0, kit12Holders = 0;
         int kit11Breaks = 0, kit12Breaks = 0, kit11Upgrades = 0;
         IT6FuelSiteSnapshot[] kitSites = economy.CaptureIT6FuelSites().ToArray();
+        IT6FuelSiteSnapshot[] ironHubs = kitSites.Where(site => site.IronFuelHubId == site.SettlementId).ToArray();
+        if (ironHubs.Length > 0)
+        {
+            output.AppendLine("  Iron fuel hubs and selected ore suppliers (end of match):");
+            foreach (IT6FuelSiteSnapshot hub in ironHubs)
+            {
+                int supplier = economy.FixtureIronOreSupplierForHub(hub.SettlementId);
+                output.AppendLine($"    s{hub.SettlementId} local-ore={economy.FixtureHasLocalIronOreSource(hub.SettlementId)} supplier={(supplier >= 0 ? $"s{supplier}" : "none")} ore-need={F(economy.FixtureIronFuelOreNeed(hub.SettlementId))}");
+            }
+        }
         foreach (IT6FuelSiteSnapshot site in kitSites)
         {
             produced11 += site.Kit11Produced; produced12 += site.Kit12Produced;
