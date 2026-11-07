@@ -683,22 +683,32 @@ public sealed partial class LivingEconomyModel
             }
             bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
                 season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
-            bool receiverBelowCoverageThreshold = receiverRecentToolWorkers > 0 && coveredRecentToolWorkers * 10 < receiverRecentToolWorkers * 7;
+            int projectedCoverageFloor = (receiverRecentToolWorkers + 1) * 7 / 10 +
+                ((receiverRecentToolWorkers + 1) * 7 % 10 == 0 ? 0 : 1);
+            int directCoverageTarget = Math.Min(receiverRecentToolWorkers, projectedCoverageFloor);
+            bool receiverNeedsProjectedCoverage = coveredRecentToolWorkers < directCoverageTarget ||
+                (projectedCoverageFloor > receiverRecentToolWorkers && reserveFigure >= 0);
+            bool freshDaughterCoverageSeed = recentFissionDaughterCoverageGap &&
+                !hasServicePositiveIronHolder && uncoveredToolWorkers.Count > 0;
             if (!hasRecentToolWork || hasIdleIronHolder) continue;
 
-            // Do not let one direct handoff start a new route for a tiny cohort that has no
-            // spare adult or established Iron holder. Direct placement is a top-up after the
-            // settlement already has a service-positive holder; ordinary idle adults can seed it.
-            bool coverageTopUp = receiverBelowCoverageThreshold && hasServicePositiveIronHolder;
+            // Existing route holders normally gate a batch top-up. A fresh fission daughter
+            // with uncovered recent toolworkers may seed its current 70% floor at once, so a
+            // single first handoff does not consume the whole 12-season response window.
+            // Ordinary idle adults can still seed other receivers one holder at a time.
+            bool coverageTopUp = receiverNeedsProjectedCoverage &&
+                (hasServicePositiveIronHolder || freshDaughterCoverageSeed);
             int recipientFigure = reserveFigure >= 0 ? reserveFigure :
                 hasServicePositiveIronHolder ? uncoveredToolWorker : -1;
-            int coverageTransfersNeeded = (receiverRecentToolWorkers * 7 + 9) / 10 - coveredRecentToolWorkers;
-            // Keep one ready holder beyond the current coverage floor when the receiver has an
-            // idle adult to carry it. A new toolworker can appear after this sharing pass, too
-            // late for a same-season sister delivery to count toward the 12-season checkpoint.
-            int reboundBufferFigure = coverageTopUp && reserveFigure >= 0 ? reserveFigure : -1;
+            int directTransfersNeeded = Math.Max(0, directCoverageTarget - coveredRecentToolWorkers);
+            // Aim for the 70% floor after one more worker joins, while assigning all available
+            // current uncovered workers first. If that projected floor exceeds the current
+            // cohort, keep one additional holder on an idle adult when one is available.
+            int reboundBufferFigure = coverageTopUp && reserveFigure >= 0 &&
+                coveredRecentToolWorkers + directTransfersNeeded < projectedCoverageFloor
+                ? reserveFigure : -1;
             int transfersNeeded = coverageTopUp
-                ? coverageTransfersNeeded + (reboundBufferFigure >= 0 ? 1 : 0)
+                ? directTransfersNeeded + (reboundBufferFigure >= 0 ? 1 : 0)
                 : 1;
             if (transfersNeeded <= 0 || (!coverageTopUp && recipientFigure < 0) ||
                 (coverageTopUp && uncoveredToolWorkers.Count == 0)) continue;
@@ -756,9 +766,13 @@ public sealed partial class LivingEconomyModel
                 // meets the screen to share idle reserve above the projected floor. Project
                 // one additional worker to preserve the donor's rebound coverage: a 3-worker
                 // donor keeps three holders (enough for 3/4) while a 2/3 receiver can reach 3/3.
-                if (receiverBelowCoverageThreshold && recentToolWorkers > 0 &&
+                if (receiverNeedsProjectedCoverage && recentToolWorkers > 0 &&
                     donorCoveredRecentToolWorkers * 10 >= recentToolWorkers * 7)
-                    minimumHolderReserve = ((recentToolWorkers + 1) * 7 + 9) / 10;
+                {
+                    int currentCoverageFloor = (recentToolWorkers * 7 + 9) / 10;
+                    int recentReboundReserve = lastReboundHolder ? recentToolWorkers + growthBuffer : 0;
+                    minimumHolderReserve = Math.Max(currentCoverageFloor, recentReboundReserve);
+                }
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
                 for (int i = 0; i < _figures.Count; i++)
