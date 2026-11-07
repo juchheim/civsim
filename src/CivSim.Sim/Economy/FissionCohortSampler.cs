@@ -216,15 +216,28 @@ internal static class FissionCohortSampler
             }
         }
         if (!MeetsCurrentToolCoverage(selected, candidates)) return false;
-        return HasHolderGrowthBuffer(daughterWorkers, daughterHolders) &&
-            HasHolderGrowthBuffer(parentWorkers, parentHolders);
+        int totalHolders = daughterHolders + parentHolders;
+        (int parentNeed, int daughterNeed) = FissionHolderRequirements(candidates.Count, parentWorkers,
+            daughterWorkers, totalHolders);
+        return parentHolders >= parentNeed && daughterHolders >= daughterNeed;
     }
 
-    private static bool HasHolderGrowthBuffer(int workers, int holders)
+    private static int HolderNeed(int workers, int growthBuffer)
+        => workers == 0 ? 0 : (workers * 7 + 9) / 10 + growthBuffer;
+
+    private static (int ParentNeed, int DaughterNeed) FissionHolderRequirements(int parentPopulation,
+        int parentWorkers, int daughterWorkers, int totalHolders)
     {
-        if (workers == 0) return true;
-        int coverageHolders = (workers * 7 + 9) / 10;
-        return holders >= coverageHolders + 1;
+        // A small split with one recent toolworker on each side and exactly four holders leaves no
+        // flexible kit after the usual one-spare allocation. Protect the retained parent against a
+        // two-worker rebound; the daughter keeps the 70% floor. Other fissions keep the one-spare rule.
+        if (parentPopulation <= 20 && parentWorkers == 1 && daughterWorkers == 1 && totalHolders == 4)
+        {
+            int parentNeed = HolderNeed(parentWorkers, growthBuffer: 2);
+            return (parentNeed, HolderNeed(daughterWorkers, growthBuffer: 0));
+        }
+
+        return (HolderNeed(parentWorkers, growthBuffer: 1), HolderNeed(daughterWorkers, growthBuffer: 1));
     }
 
     private static bool PreserveCurrentToolCoverageHolderBuffer(bool[] selected,
@@ -291,8 +304,9 @@ internal static class FissionCohortSampler
                 else parentHolders++;
             }
         }
-        int daughterNeed = daughterWorkers == 0 ? 0 : (daughterWorkers * 7 + 9) / 10 + 1;
-        int parentNeed = parentWorkers == 0 ? 0 : (parentWorkers * 7 + 9) / 10 + 1;
+        int totalHolders = daughterHolders + parentHolders;
+        (int parentNeed, int daughterNeed) = FissionHolderRequirements(candidates.Count, parentWorkers,
+            daughterWorkers, totalHolders);
         return System.Math.Max(0, daughterNeed - daughterHolders) +
             System.Math.Max(0, parentNeed - parentHolders);
     }
