@@ -4013,7 +4013,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         if (_holdSettlements) return;
         if (ShouldPreserveCityTown(parent)) { parent.FissionPending = false; return; }
-        if (parent.FissionPending || season - parent.LastFissionSeason < 4) return;
+        if (parent.FissionPending || parent.Fissions > 0 && season - parent.LastFissionSeason < 4) return;
         // Free Folk (refugee camps, seceded towns, Tin Folk) grow to their cap but do not bud: a daughter would join the
         // civilization whose id the camp still carries (docs/MVP/22 §6.4).
         if (IsFreeFolk(parent)) return;
@@ -4140,7 +4140,8 @@ public sealed partial class LivingEconomyModel : ISimModel
                     $"daughterCount={daughterCount} selectedSite={site} {cohortSummary} {daughterCohortSummary} result={result}");
             }
             if (ShouldPreserveCityTown(parent)) { parent.FissionPending = false; Record("cancelled:preserveCityTown"); continue; }
-            if (season - parent.LastFissionSeason < 4) { parent.FissionPending = false; Record("cancelled:cooldown"); continue; }
+            if (parent.Fissions > 0 && season - parent.LastFissionSeason < 4)
+            { parent.FissionPending = false; Record("cancelled:cooldown"); continue; }
             if (Fix64.FromInt(population) * DaughterShare < MinimumDaughterPopulation)
             { parent.FissionPending = false; Record("cancelled:belowMinimumDaughterPopulation"); continue; }
             int daughterCount = (Fix64.FromInt(population) * DaughterShare).RoundToInt();
@@ -4393,6 +4394,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         out string cohortResult)
     {
         SettlementState daughter = NewSettlement(parent.Civilization, site);
+        daughter.LastFissionSeason = season;
         if (CivilizationHasPhysicalDefensePlan(parent.Civilization))
             daughter.BuildTarget = Structure.Palisade;
         _settlements.Add(daughter);
