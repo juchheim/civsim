@@ -690,10 +690,13 @@ public sealed partial class LivingEconomyModel
                 // A settlement may have other tool work, or a large unassigned holder pool,
                 // before its Iron route has actually served a worker. Keep those kits local
                 // until an Iron-equipped worker establishes that the surplus is idle. During
-                // the route ramp, retain one additional holder above the recent toolworker
-                // count so a single newly active worker does not immediately lose its kit.
+                // the route ramp, retain a second additional holder for larger recent cohorts:
+                // a one-season assignment dip can otherwise release several kits just before
+                // the cohort rebounds. Keep the original one-holder buffer for small cohorts so
+                // they can still supply under-covered sister settlements.
                 if (!hadActiveIronToolWorkersLastSeason) continue;
-                int minimumHolderReserve = recentToolWorkers + 1;
+                int growthBuffer = recentToolWorkers >= 3 ? 2 : 1;
+                int minimumHolderReserve = recentToolWorkers + growthBuffer;
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
                 for (int i = 0; i < _figures.Count; i++)
