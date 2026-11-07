@@ -1,6 +1,6 @@
 # 28. Production gap: why the civilization builds less than it researches
 
-Status: fixes 2 to 5 applied 2026-11-07. Fix 6 (Iron pacing) applied the same day; the items in §7 are open.
+Status: fixes 2 to 5 applied 2026-11-07. Fixes 6 and 7 (Iron pacing) applied the same day; the items in §8 are open.
 
 A full playthrough to the end of the Iron Age showed a civilization that had researched far more building types than it
 had built. Diagnosis was done with a scratch `gap` harness over four-seed Iron matches (seeds 20261019 to 20261022, four
@@ -83,27 +83,47 @@ the Iron Age, so `tests/golden/politics-v1.txt` was refreshed with this change.
 
 The first KEY-5 comes at about year 76 to 82 and most Iron building types unlock in the 5 to 12 minutes before it. The
 chapter ended 24 seasons (6 years) after it, so those types were unlocked and then the match was over. The countdown is
-now `ChapterRules.IronCountdownSeasons` = 72 (18 years) and the hard cap `IronCapYear` = 130 (was 96, which an 18-year
-countdown would have hit).
+`ChapterRules.IronCountdownSeasons` and the hard cap `IronCapYear` is 130 (was 96, which a longer countdown would have hit).
 
-Four-seed Iron matches, with the §2 to §5 changes (cap raised to 400 and the run to minute 160 so only the countdown
-varies):
+Four-seed Iron matches, with the §2 to §5 changes, only the countdown varying (cap raised to 400, run to minute 160):
 
 | Countdown after first KEY-5 | Iron types built | Unbuilt types unlocked in the last 10 min | Match ends (min) | People per civ |
 |---|---|---|---|---|
-| 24 seasons (before) | 32% | 106 | 85 | 1328 |
+| 24 seasons (original) | 32% | 106 | 85 | 1328 |
 | 48 | 40% | 82 | 91 | 1607 |
-| 72 (chosen) | 47% | 26 | 97 | 1799 |
+| 72 | 47% | 26 | 97 | 1799 |
 | 120 | 51% | 0 | 109 | 2127 |
 
-72 captures most of the gain for about 12 more minutes of play; beyond it the extra years add few new types. The
-Bronze chapter has the same shape (33 of 41 unbuilt Bronze types unlocked in the last 10 minutes, year cap 64) and was
-left alone.
+A longer countdown alone buys build time by letting every civilization finish nearly all of the age (272 types unlocked
+at 72 seasons), which is not wanted: the age should end with some research left undone. §7 buys the build time another way
+and the countdown is set to 48.
 
-A longer countdown also gives a trailing civilization more time to reach its own KEY-5 before the match ends, which
-changes who wins the Iron endgame; the Iron acceptance gates were not rerun for this change.
+## 7. Late Iron projects cost more
 
-## 7. Still open
+The 28 numeric Iron projects at prerequisite depth 3 or more inside E4 (the Great Library, Dome and Lighthouse
+projects, castles, the aqueduct, the academy, the harbor, the bathhouse and the rest of the late chain; keystone KEY-5
+excluded) now cost twice their derived cost (`cost` and `cost_reason` in their catalog entries; the derived cost is
+1200 x the type multiplier). Research slows toward the end of the age, so unlocks arrive spread out instead of in a rush,
+and KEY-5 (which needs AGR-10, GOV-09, BEL-09 and DEF-08) comes later.
+
+Four-seed Iron matches (cap raised to 400, run to minute 170):
+
+| Late cost | Countdown | Types unlocked of ~272 | Iron types built | Median minutes from a building unlock to the match end | Match ends (min) |
+|---|---|---|---|---|---|
+| x1 | 36 seasons | 225 | 36% | 7.5 | 88 |
+| x2 | 36 | 235 | 48% | 10.5 | 95 |
+| **x2** | **48 (chosen)** | **248** | **48%** | **13.2** | **98** |
+| x2 | 72 | 268 | 49% | 18.2 | 104 |
+| x3 | 36 | 230 | 45% | n/a | 97 |
+| x3 | 72 | 264 | 47% | n/a | 106 |
+
+x3 does no better than x2. The chosen setting gives a building about 13 minutes to be built before the match ends and
+leaves about 24 types never unlocked. The late-cost overrides were written by script from the derived costs (the cost
+does not follow a later change of the era base cost by itself).
+
+The Iron acceptance gates (including the research pace band) were not rerun for this change.
+
+## 8. Still open
 
 * Gatehouses are now possible but still rare, and castles still never get built: they sit late in the one-at-a-time Iron
   build order and a castle also needs a close foreign neighbour.

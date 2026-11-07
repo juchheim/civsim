@@ -82,6 +82,8 @@ projects:
     era: 4
     type: S
     status: numeric
+    cost: 2880
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SEA-06, BLD-09]
     effects:
       - {kind: build, structure: harbor}
@@ -95,6 +97,8 @@ projects:
     era: 4
     type: W
     status: numeric
+    cost: 4800
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SEA-07, BLD-11]
     effects:
       - {kind: wonder, structure: great_lighthouse}
@@ -109,6 +113,8 @@ projects:
     era: 4
     type: M
     status: numeric
+    cost: 2400
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SEA-07, WAR-07]
     effects:
       - {kind: unlock_action, action: naval_blockade}

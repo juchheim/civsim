@@ -113,6 +113,8 @@ projects:
     era: 4
     type: I
     status: numeric
+    cost: 3600
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [GOV-07, WAR-07]
     effects:
       - {kind: rule, text: "active connected province removes distance/span secession pressure; famine, conquest and other crisis secession remain; KEY-5 prerequisite"}

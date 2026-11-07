@@ -92,6 +92,8 @@ projects:
     era: 4
     type: M
     status: numeric
+    cost: 2400
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WOD-07, MET-10]
     effects:
       - {kind: good, id: G-PLANK}

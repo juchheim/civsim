@@ -54,6 +54,8 @@ projects:
     era: 4
     type: S
     status: numeric
+    cost: 2880
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [LRN-04, BEL-08]
     effects:
       - {kind: build, structure: academy}
@@ -66,6 +68,8 @@ projects:
     era: 4
     type: W
     status: numeric
+    cost: 4800
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [LRN-05, COM-06]
     effects:
       - {kind: wonder, structure: great_library}

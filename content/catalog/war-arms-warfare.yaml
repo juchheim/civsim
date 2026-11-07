@@ -95,6 +95,8 @@ projects:
     era: 4
     type: M
     status: numeric
+    cost: 2400
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAR-07, MET-09]
     effects:
       - {kind: good, id: G-ARMS3}
@@ -107,6 +109,8 @@ projects:
     era: 4
     type: M
     status: numeric
+    cost: 2400
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAR-07, MEC-05]
     effects:
       - {kind: good, id: G-ENGINE}

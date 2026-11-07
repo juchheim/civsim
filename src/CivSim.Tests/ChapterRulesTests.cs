@@ -41,7 +41,7 @@ public class ChapterRulesTests
         Assert.Equal(ChapterRules.IronCapYear, iron.CapYear(TestPack.Catalog));
         Assert.Equal(ChapterRules.IronCountdownSeasons, iron.CountdownSeasons(TestPack.Catalog));
         Assert.Equal(130, iron.CapYear(TestPack.Catalog));
-        Assert.Equal(72, iron.CountdownSeasons(TestPack.Catalog));
+        Assert.Equal(48, iron.CountdownSeasons(TestPack.Catalog));
         Assert.Same(iron, ChapterRules.For(ChapterMode.Iron));
         Assert.Same(ChapterRules.Bronze, ChapterRules.For(ChapterMode.Bronze));
     }

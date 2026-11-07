@@ -103,6 +103,8 @@ projects:
     era: 4
     type: I
     status: numeric
+    cost: 3600
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TER-08, SEA-06]
     effects:
       - {kind: rule, text: "one founding band may establish a colony up to 10 sea tiles from a known owned coast, only at unclaimed habitable land with a safe landing, ship, 2-season rations, and normal founding costs; no teleportation or extra population"}

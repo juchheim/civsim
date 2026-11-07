@@ -121,6 +121,8 @@ projects:
     era: 4
     type: M
     status: numeric
+    cost: 2400
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [AGR-09, NRG-02]
     effects:
       - {kind: method, action: till, rung: 1, name: mouldboard, mult: 1.0, note: "heavy-clay eligibility changes; no universal output bonus"}
