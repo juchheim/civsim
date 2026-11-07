@@ -1,6 +1,6 @@
 # 28. Production gap: why the civilization builds less than it researches
 
-Status: fixes 2 to 4 applied 2026-11-07. Fix 1 (Iron pacing) and fix 5 are open.
+Status: fixes 2 to 5 applied 2026-11-07. Iron pacing and the items at the end of §5 are open.
 
 A full playthrough to the end of the Iron Age showed a civilization that had researched far more building types than it
 had built. Diagnosis was done with a scratch `gap` harness over four-seed Iron matches (seeds 20261019 to 20261022, four
@@ -14,7 +14,7 @@ Warlord AIs, the same setup as `iron-match`).
 | Stone walls took the settlement's one basic build slot while unaffordable | fixed (§2) |
 | Food work took 70 to 85% of every settlement's labor, so construction got 2 to 3% | softened (§3) |
 | Stone walls could not be paid for at all (§4) | fixed |
-| One Iron building at a time per settlement, at `IronBuildShare` 0.10 of its work | open (§5) |
+| One Iron building at a time per settlement, at 0.10 of its work | share raised to 0.20 (§5) |
 | Eight build unlocks have no simulation behind them (totem, marker, seasonal camp, shrine, signal post, potter's workshop, water mill, temple tier 2) | open |
 | The player has no build command; construction is planner-driven | open |
 
@@ -63,11 +63,26 @@ every civilization before this change, even when the match was run to minute 120
 
 Test: `Stone_walls_are_raised_from_stone_quarried_within_reach_without_dressed_ashlar`.
 
-## 5. Still open
+## 5. Iron build share
+
+The Iron construction bucket (one Iron structure under way per settlement, with the stone it still lacks) could take
+at most 0.10 of a settlement's work. It is now the constant `IronBuildLaborShare`, set to 0.20.
+
+| Share | Iron types built | People per civilization | Structures per civilization |
+|---|---|---|---|
+| 0.10 | 24% | 1315 | 809 |
+| 0.20 | 32% | 1328 | 824 |
+| 0.30 | 32% | 1311 | 810 |
+| 0.40 | 32% | 1311 | 800 |
+
+(Four-seed Iron matches, with the §2 to §4 changes. 0.20 is the lowest share on the plateau; more labor does not help
+because the remaining types wait on the one-at-a-time build order, not on labor.) The 24-minute politics golden reaches
+the Iron Age, so `tests/golden/politics-v1.txt` was refreshed with this change.
+
+## 6. Still open
 
 * Iron pacing (the match ends about 25 minutes into the age; running the same matches to minute 120 raises the Iron
   share built from 20% to 48%).
-* `IronBuildShare` 0.10. In scratch runs a share of 0.25 with the food cap took Iron types built from 23% to 35%.
 * Gatehouses are now possible but still rare, and castles still never get built: they sit late in the one-at-a-time Iron
   build order and a castle also needs a close foreign neighbour.
 * The eight dead unlocks, and a way for the player to see (or steer) what a town is waiting on.

@@ -2022,9 +2022,6 @@ public sealed partial class LivingEconomyModel
         return labor;
     }
 
-    /// <summary>The share of a settlement's work the Iron construction bucket may take in a season, beside the metal chain and civic works (provisional).</summary>
-    private static readonly Fix64 IronBuildShare = Fix64.FromRatio(1, 10);
-
     /// <summary>Crop output of a terraced hillside plot, in the same unit as a tile's field yield (provisional; a flat tile yields 0.6 to 3.0 by biome).</summary>
     private static readonly Fix64 TerraceYield = Fix64.FromInt(2);
 
@@ -2229,12 +2226,12 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain) return Fix64.Zero;
         if (PledgedWonder(m) is { } wonder)
-            return Fix64.Min(Fix64.Max(Fix64.Zero, IronLaborOf(wonder, IronSpecs[wonder.Metal!.IronBuildKind]) - wonder.Metal.IronBuildProgress), totalWork * IronBuildShare);
+            return Fix64.Min(Fix64.Max(Fix64.Zero, IronLaborOf(wonder, IronSpecs[wonder.Metal!.IronBuildKind]) - wonder.Metal.IronBuildProgress), totalWork * _civic.IronBuildShare);
         if (m.IronBuildKind < 0) return Fix64.Zero;
         Fix64 remaining = Fix64.Max(Fix64.Zero, IronLaborOf(s, IronSpecs[m.IronBuildKind]) - m.IronBuildProgress);
         // Quarrying and dressing the stone the structure still lacks are part of the same share of work: without a claim of their own they got whatever craft labor was
         // left over, which in a busy town is none, and every stone building stood finished and unpaid (seen in the first whole Iron matches).
-        return Fix64.Min(remaining + IronStoneLabor(s, m, IronSpecs[m.IronBuildKind]), totalWork * IronBuildShare);
+        return Fix64.Min(remaining + IronStoneLabor(s, m, IronSpecs[m.IronBuildKind]), totalWork * _civic.IronBuildShare);
     }
 
     /// <summary>
