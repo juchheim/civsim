@@ -452,6 +452,13 @@ The v24 diagnostic replays used the current 352,205-byte pack `/tmp/civsim-b406-
 | `20263202` | s89 ends at 2/2 (100%) but is censored for no kit production; s78 ends at 2/2 and is censored at 11/12 fuel-demand seasons | 54 / 0 / 48 |
 | `20263223` | s89 ends at 7/7 (100%); passes. s78 ends at 2/2 (100%) but is censored for no kit production | 43 / 0 / 52 |
 
-Across the six natural-end diagnostic matches, the I-T2 screen recorded **305 passes, 0 failures, and 308 censored windows**. Censored windows are not passes. Each match reported all four civilizations passing the approved I-T6 fuel cutoff; the cutoff remains shortfall rate at most 5%, unmet/planned charcoal at most 1%, and at least 12 positive planned-charcoal demand-seasons. The four file-captured reports show exact whole-match forest, local-wood, world-kit, and settlement-kit ledgers, with no Iron-era metal-clearing crossings. Compact ledger extracts for the final two replays are recorded at `/tmp/civsim-b406-v24-ledger-20263202.txt` and `/tmp/civsim-b406-v24-ledger-20263223.txt`.
+Across the six natural-end diagnostic matches, the I-T2 screen recorded **305 passes, 0 failures, and 308 censored windows**. Censored windows are not passes. Each match reported all four civilizations passing the approved I-T6 fuel cutoff; the cutoff remains shortfall rate at most 5%, unmet/planned charcoal at most 1%, and at least 12 positive planned-charcoal demand-seasons. Across all six, forest, local-wood, world-kit, and settlement-kit ledgers close exactly (**645/645** settlement-kit ledgers exact), with zero Iron-era metal-clearing crossings. The six reports are:
+
+- `/tmp/civsim-b406-v24-target-20262061.txt`
+- `/tmp/civsim-b406-v24-target-20262101.txt`
+- `/tmp/civsim-b406-v24-target-20263181.txt`
+- `/tmp/civsim-b406-v24-target-20263183.txt`
+- `/tmp/civsim-b406-v24-ledger-20263202.txt`
+- `/tmp/civsim-b406-v24-ledger-20263223.txt`
 
 This resolves the reproduced qualifying I-T2 failures in the targeted matches, but is diagnostic evidence only. The complete fixed 13-seed v24 screen was not rerun, and the 80-match v18 acceptance block remains consumed. The next unused natural-match seed remains `20263261`; this source change requires a fresh preregistration before any acceptance run. B4-06 remains open until a fresh, complete acceptance block passes every unchanged I-T2 and I-T6 gate.
