@@ -947,10 +947,11 @@ public sealed partial class LivingEconomyModel
         if (IronFuelHubsEnabled(civ) && !Done(civ, "MET-09"))
             plan.BuildCap *= IronPreRouteBuildCapMultiplier;
         plan.BuildNeed = plan.BuildRequested;
-        Fix64 chainCapLimit = IronChain && Done(civ, "MET-09")
-            ? _bronzeConstants.IronPostRouteChainCap
-            : _bronzeConstants.ChainCap;
-        Fix64 cap = totalWork * chainCapLimit * ChainCapMultiplier;
+        Fix64 cap = totalWork * _bronzeConstants.ChainCap * ChainCapMultiplier;
+        // Preserve the calibration's original fixed-point operation order: base cap first, then the post-route ratio.
+        // The mathematically equivalent absolute cap can round differently and shift discrete kit transfers.
+        if (IronChain && Done(civ, "MET-09"))
+            cap *= _bronzeConstants.IronPostRouteChainCap / _bronzeConstants.ChainCap;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
