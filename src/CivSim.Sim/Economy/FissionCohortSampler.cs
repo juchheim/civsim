@@ -228,10 +228,11 @@ internal static class FissionCohortSampler
     private static (int ParentNeed, int DaughterNeed) FissionHolderRequirements(int parentPopulation,
         int parentWorkers, int daughterWorkers, int totalHolders)
     {
-        // A small split with one recent toolworker on each side and exactly four holders leaves no
-        // flexible kit after the usual one-spare allocation. Protect the retained parent against a
-        // two-worker rebound; the daughter keeps the 70% floor. Other fissions keep the one-spare rule.
-        if (parentPopulation <= 20 && parentWorkers == 1 && daughterWorkers == 1 && totalHolders == 4)
+        // A small fission can put an established parent inside an active 12-season route window.
+        // Preserve a second parent reserve for wear and worker rebound; the fresh daughter keeps
+        // current coverage and can top up through sister sharing. Without this asymmetry, the
+        // daughter can take the parent's only replacement kit and leave the route below target.
+        if (parentPopulation <= 20 && daughterWorkers == 1 && parentWorkers > 0 && totalHolders >= 4)
         {
             int parentNeed = HolderNeed(parentWorkers, growthBuffer: 2);
             return (parentNeed, HolderNeed(daughterWorkers, growthBuffer: 0));
