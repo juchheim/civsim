@@ -1,6 +1,6 @@
 # B4-06 metal and fuel closeout
 
-**Status:** deterministic B4-06 cases and I-T3 service/wear verification pass. The latest preregistered block, `20262621–20262700`, was futility-stopped after 8 natural-end matches when seed `20262622` failed I-T2 at s75. A narrowly targeted holder rebound guard passed the fixed 13-seed diagnostic screen and the earlier s68 and s52 replays. Candidate source `a4ff782ff7966d3883c07503a1a3e80ef46eba8d` is frozen for a new acceptance block, `20262701–20262780`, which is preregistered but has not started. B4-06 remains open until the complete acceptance block passes.
+**Status:** deterministic B4-06 cases and I-T3 service/wear verification pass. The latest completed acceptance block, `20262621–20262700`, was futility-stopped after 8 natural-end matches when seed `20262622` failed I-T2 at s75. A narrowly targeted holder rebound guard passed the fixed 13-seed diagnostic screen and the earlier s68 and s52 replays. Candidate source `a4ff782ff7966d3883c07503a1a3e80ef46eba8d` is frozen for the preregistered replacement block `20262701–20262780`, which is now running. B4-06 remains open until all 80 matches pass.
 
 ## Scope and frozen screen
 
