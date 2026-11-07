@@ -656,12 +656,19 @@ public sealed partial class LivingEconomyModel
             bool hasServicePositiveIronHolder = false;
             int reserveFigure = -1;
             int uncoveredToolWorker = -1;
+            int receiverRecentToolWorkers = 0;
+            int coveredRecentToolWorkers = 0;
             for (int i = 0; i < _figures.Count; i++)
             {
                 FigureState figure = _figures[i];
                 if (figure.SettlementId != receiver.Id || figure.Age < 14) continue;
                 hasRecentToolWork |= figure.WorkedWithToolLastSeason;
                 bool hasServicePositiveIronKit = (figure.Kit is 11 or 12) && figure.KitLeft > Fix64.Zero;
+                if (figure.WorkedWithToolLastSeason)
+                {
+                    receiverRecentToolWorkers++;
+                    if (hasServicePositiveIronKit) coveredRecentToolWorkers++;
+                }
                 hasServicePositiveIronHolder |= hasServicePositiveIronKit;
                 if (!figure.WorkedWithToolLastSeason && hasServicePositiveIronKit)
                     hasIdleIronHolder = true;
@@ -670,6 +677,9 @@ public sealed partial class LivingEconomyModel
                 if (figure.WorkedWithToolLastSeason && !hasServicePositiveIronKit && uncoveredToolWorker < 0)
                     uncoveredToolWorker = i;
             }
+            bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
+                season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
+            bool receiverBelowCoverageThreshold = receiverRecentToolWorkers > 0 && coveredRecentToolWorkers * 10 < receiverRecentToolWorkers * 7;
             if (!hasRecentToolWork || hasIdleIronHolder) continue;
 
             // Do not let one direct handoff start a new route for a tiny cohort that has no
@@ -679,8 +689,6 @@ public sealed partial class LivingEconomyModel
                 hasServicePositiveIronHolder ? uncoveredToolWorker : -1;
             if (recipientFigure < 0) continue;
             FigureState recipient = _figures[recipientFigure];
-            bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
-                season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
             for (int d = 0; d < _settlements.Count; d++)
             {
                 if (d == r) continue;
@@ -688,6 +696,7 @@ public sealed partial class LivingEconomyModel
                 if (!IronSister(receiver, donor, reach)) continue;
                 bool hadActiveIronToolWorkersLastSeason = false;
                 int recentToolWorkers = 0;
+                int donorCoveredRecentToolWorkers = 0;
                 int servicePositiveIronHolders = 0;
                 foreach (FigureState figure in _figures)
                 {
@@ -696,7 +705,10 @@ public sealed partial class LivingEconomyModel
                     {
                         recentToolWorkers++;
                         if (figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                        {
+                            donorCoveredRecentToolWorkers++;
                             hadActiveIronToolWorkersLastSeason = true;
+                        }
                     }
                     if (figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
                         servicePositiveIronHolders++;
@@ -722,6 +734,13 @@ public sealed partial class LivingEconomyModel
                 // holder from a sister; retain at least one donor spare beyond recent toolworkers.
                 if (recentFissionDaughterCoverageGap && minimumHolderReserve > recentToolWorkers + 1)
                     minimumHolderReserve--;
+                // When a sister is below the 70% route screen, allow a donor that currently
+                // meets the screen to share idle reserve above the projected floor. Project
+                // one additional worker to preserve the donor's rebound coverage: a 3-worker
+                // donor keeps three holders (enough for 3/4) while a 2/3 receiver can reach 3/3.
+                if (receiverBelowCoverageThreshold && recentToolWorkers > 0 &&
+                    donorCoveredRecentToolWorkers * 10 >= recentToolWorkers * 7)
+                    minimumHolderReserve = ((recentToolWorkers + 1) * 7 + 9) / 10;
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
                 for (int i = 0; i < _figures.Count; i++)
