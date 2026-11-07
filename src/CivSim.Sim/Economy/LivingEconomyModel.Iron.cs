@@ -691,13 +691,17 @@ public sealed partial class LivingEconomyModel
                 // before its Iron route has actually served a worker. Keep those kits local
                 // until an Iron-equipped worker establishes that the surplus is idle. During
                 // the route ramp, retain a second additional holder for larger recent cohorts.
-                // Also keep the last otherwise-shareable holder when a larger town has only one
-                // or two recent toolworkers; those towns can rebound within the I-T2 window.
-                // Smaller towns keep the original one-holder buffer so they can supply sisters.
+                // In a larger town with a small recent cohort, keep its last spare for a worker
+                // rebound. After a recent fission, do the same when the active cohort is larger;
+                // the split can leave a just-large-enough reserve that would otherwise be shared.
+                // Smaller towns keep the existing reserve so they can supply under-covered sisters.
                 if (!hadActiveIronToolWorkersLastSeason) continue;
-                bool lastReboundHolder = Population(donor.Id) >= 20 && recentToolWorkers <= 2 &&
-                    servicePositiveIronHolders == recentToolWorkers + 2;
-                int growthBuffer = recentToolWorkers >= 3 || lastReboundHolder ? 2 : 1;
+                int growthBuffer = recentToolWorkers >= 3 ? 2 : 1;
+                bool lastReboundHolder = Population(donor.Id) >= 20 &&
+                    servicePositiveIronHolders == recentToolWorkers + growthBuffer + 1 &&
+                    (recentToolWorkers <= 2 || season - donor.LastFissionSeason is >= 0 and <= 12);
+                if (lastReboundHolder)
+                    growthBuffer++;
                 int minimumHolderReserve = recentToolWorkers + growthBuffer;
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
