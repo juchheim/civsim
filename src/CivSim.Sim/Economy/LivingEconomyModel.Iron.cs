@@ -210,6 +210,8 @@ public sealed partial class LivingEconomyModel
     internal bool IronSharingEnabled { get; set; } = true;
     /// <summary>Controlled candidate: an Iron settlement may haul from its directly assigned fuel hub's catchment. Off in production pending acceptance.</summary>
     internal bool IronHubFuelSharingEnabled { get; set; }
+    /// <summary>Diagnostic candidate: deliver stored kits first to settlements with the lowest active tool-worker coverage. Off in production pending acceptance.</summary>
+    internal bool IronKitCoveragePriorityForDiagnostics { get; set; }
     /// <summary>Optional diagnostic override for the Iron fuel-haul margin; -1 preserves the current default.</summary>
     internal int IronFuelReachBufferOverride { get; set; } = -1;
 
@@ -381,14 +383,24 @@ public sealed partial class LivingEconomyModel
         int lacking = 0;
         foreach (FigureState f in _figures)
         {
-            if (f.SettlementId != s.Id || f.Age < 14 || f.WorkThisSeason <= Fix64.Zero) continue;
-            bool didToolWork = f.Job is EconomyJob.Farm or EconomyJob.Chop or EconomyJob.Gather or EconomyJob.Craft or EconomyJob.Build ||
-                f.Task is MetalTask.Build or MetalTask.Mine or MetalTask.Charcoal or MetalTask.Smelt or MetalTask.SmeltArsenic;
-            if (!didToolWork) continue;
+            if (f.SettlementId != s.Id || f.Age < 14 || !DidToolWorkForIronCoverage(f)) continue;
             if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
         }
         return lacking;
     }
+
+    private int IronToolWorkers(SettlementState s)
+    {
+        int workers = 0;
+        foreach (FigureState f in _figures)
+            if (f.SettlementId == s.Id && f.Age >= 14 && DidToolWorkForIronCoverage(f)) workers++;
+        return workers;
+    }
+
+    private static bool DidToolWorkForIronCoverage(FigureState f)
+        => f.WorkThisSeason > Fix64.Zero &&
+            (f.Job is EconomyJob.Farm or EconomyJob.Chop or EconomyJob.Gather or EconomyJob.Craft or EconomyJob.Build ||
+             f.Task is MetalTask.Build or MetalTask.Mine or MetalTask.Charcoal or MetalTask.Smelt or MetalTask.SmeltArsenic);
 
     /// <summary>Reassigns an idle, service-positive Iron kit to a current tool worker who has no usable Iron tier.</summary>
     private void ReassignIdleIronKitsToToolWorkers(SettlementState s, Fix64[] toolWork)
@@ -598,7 +610,7 @@ public sealed partial class LivingEconomyModel
             Fix64 need = IronBloomNeed(receiver) - rm.Goods[(int)MetalGood.Iron];
             for (int d = 0; d < _settlements.Count && need > Epsilon; d++)
             {
-                if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
+            if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
                 SettlementState donor = _settlements[d];
                 Fix64 surplus = donor.Metal!.Goods[(int)MetalGood.Iron] - IronBloomNeed(donor);
                 Fix64 move = Fix64.Min(need, surplus);
@@ -612,15 +624,38 @@ public sealed partial class LivingEconomyModel
 
     private void ShareIronKitStock(int civ, int reach, bool toolWorkersOnly, int season)
     {
+        var receivers = new List<(SettlementState Site, int Missing, int Workers)>();
         for (int r = 0; r < _settlements.Count; r++)
         {
             SettlementState receiver = _settlements[r];
             if (receiver.Civilization != civ || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
             int receiverNeed = toolWorkersOnly ? IronToolWorkersLacking(receiver) : IronKitsLacking(receiver);
+            int activeWorkers = toolWorkersOnly && IronKitCoveragePriorityForDiagnostics ? IronToolWorkers(receiver) : 0;
+            receivers.Add((receiver, IronKitCoveragePriorityForDiagnostics && toolWorkersOnly ? receiverNeed : 0, activeWorkers));
+        }
+
+        if (toolWorkersOnly && IronKitCoveragePriorityForDiagnostics)
+        {
+            // Compare uncovered-worker shares exactly; avoid float ordering in this deterministic allocation.
+            receivers.Sort((left, right) =>
+            {
+                int leftEquippedTimesRightWorkers = (left.Workers - left.Missing) * right.Workers;
+                int rightEquippedTimesLeftWorkers = (right.Workers - right.Missing) * left.Workers;
+                int byCoverage = leftEquippedTimesRightWorkers.CompareTo(rightEquippedTimesLeftWorkers);
+                if (byCoverage != 0) return byCoverage;
+                int byMissing = right.Missing.CompareTo(left.Missing);
+                return byMissing != 0 ? byMissing : left.Site.Id.CompareTo(right.Site.Id);
+            });
+        }
+
+        foreach (var entry in receivers)
+        {
+            SettlementState receiver = entry.Site;
+            int receiverNeed = toolWorkersOnly ? IronToolWorkersLacking(receiver) : IronKitsLacking(receiver);
             Fix64 need = Fix64.Max(Fix64.Zero, Fix64.FromInt(receiverNeed) - IronKitsInStore(receiver));
             for (int d = 0; d < _settlements.Count && need >= Fix64.One; d++)
             {
-                if (d == r || !IronSister(receiver, _settlements[d], reach)) continue;
+                if (d == receiver.Id || !IronSister(receiver, _settlements[d], reach)) continue;
                 SettlementState donor = _settlements[d];
                 int donorNeed = toolWorkersOnly ? IronToolWorkersLacking(donor) : IronKitsLacking(donor);
                 Fix64 surplus = IronKitsInStore(donor) - Fix64.FromInt(donorNeed);
