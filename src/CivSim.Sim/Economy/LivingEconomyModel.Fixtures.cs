@@ -183,6 +183,24 @@ public sealed partial class LivingEconomyModel
         _settlements[settlementIndex].Structures[kind]++;
     }
 
+    internal bool FixtureEarlyWorkWanted(int settlementIndex, string structure)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        SettlementState s = _settlements[settlementIndex];
+        return EarlyWorkWanted(s, (Structure)kind, checked((int)_seasonsCompleted), Population(s.Id));
+    }
+
+    internal void FixtureSetCivilization(int settlementIndex, int civ) => _settlements[settlementIndex].Civilization = civ;
+    internal void FixtureSetStoredCohesion(int settlementIndex, Fix64 value) => _settlements[settlementIndex].Cohesion = value;
+    internal void FixtureSetStructureCount(int settlementIndex, string structure, int count)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        _settlements[settlementIndex].Structures[kind] = count;
+    }
+    internal Fix64 FixtureStoredCohesion(int settlementIndex) => _settlements[settlementIndex].Cohesion;
+    internal Fix64 FixtureStorageFactor(int settlementIndex) => StorageFactor(_settlements[settlementIndex]);
     internal int FixtureBuildTarget(int settlementIndex) => (int)_settlements[settlementIndex].BuildTarget;
     internal Fix64 FixtureBuildProgress(int settlementIndex) => _settlements[settlementIndex].BuildProgress;
     internal void FixtureSetBuildProgress(int settlementIndex, Fix64 progress) => _settlements[settlementIndex].BuildProgress = progress;
@@ -702,6 +720,9 @@ public sealed partial class LivingEconomyModel
     internal int FixtureFieldLimit(int settlementIndex) => FieldLimit(_settlements[settlementIndex]);
     internal Fix64 FixtureFieldLaborNeed(int settlementIndex) => FieldLaborNeed(_settlements[settlementIndex]);
     internal Fix64 FixtureIrrigation(int settlementIndex, int tile) => IrrigationFactor(_settlements[settlementIndex], tile, out _);
+    internal void FixtureSetNearRiver(int settlementIndex, bool near) => _nearRiver[_settlements[settlementIndex].SiteTile] = near;
+    internal void FixtureSetTemples(int settlementIndex, int temples) => EnsureCivic(_settlements[settlementIndex]).Temples = temples;
+    internal Fix64 FixtureGrainFoodMult(int settlementIndex) => SettlementFoodValueMult(_settlements[settlementIndex], Good.Grain);
     internal int FixtureCohesionTarget(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];

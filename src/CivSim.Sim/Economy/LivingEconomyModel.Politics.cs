@@ -229,7 +229,7 @@ public sealed partial class LivingEconomyModel
         {
             Structure.HideTent, Structure.LeanTo, Structure.DryingRack, Structure.ThornBarrier, Structure.PitHouse,
             Structure.WattleHouse, Structure.Longhouse, Structure.Granary, Structure.StoragePit, Structure.Lookout,
-            Structure.Kiln, Structure.Quern, Structure.Palisade,
+            Structure.Kiln, Structure.Quern, Structure.Palisade, Structure.Totem, Structure.Marker, Structure.SignalPost, Structure.PottersWorkshop,
         };
         foreach (Structure structure in flammable)
         {

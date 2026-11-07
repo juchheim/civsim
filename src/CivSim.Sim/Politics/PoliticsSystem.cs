@@ -1617,6 +1617,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             settlements.Add(new ClaimSource(civ, _sTile[s], _economy.ClaimRadius(s, eraRadius), mult == Fix64.One ? emission : emission * mult));
             (int ring, Fix64 share) = _economy.Hinterland(s);
             if (ring > 0) settlements.Add(new ClaimSource(civ, _sTile[s], ring, emission * share));
+            // A totem claims +0.3 around its camp (BEL-02, radius 2) and a shrine +0.5 (BEL-05, radius 3): absolute emissions, added to the settlement's own (docs/MVP/29).
+            if (_totemKind >= 0 && _economy.StructureCount(s, _totemKind) > 0) settlements.Add(new ClaimSource(civ, _sTile[s], 2, TotemClaim));
+            if (_shrineKind >= 0 && _economy.StructureCount(s, _shrineKind) > 0) settlements.Add(new ClaimSource(civ, _sTile[s], 3, ShrineClaim));
             // Paved roads (TRN-07): the linked town's own claim is 10% stronger on the tiles of its road, where they lie within its radius.
             if (_economy.IronChain)
             {
@@ -1642,13 +1645,52 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
 
     private void BuildSeasonalCampClaimSources(List<ClaimSource> camps)
     {
+        // Markers (TER-03) are cairns at a settlement's camps: each of the first camps of a settlement, in camp order, claims 30% stronger, one per marker; a settlement
+        // with markers and no camp claims the same extra from home (docs/MVP/29).
+        int[] markersLeft = _markerKind >= 0 ? new int[_sCount] : Array.Empty<int>();
+        int[] campsOf = _markerKind >= 0 ? new int[_sCount] : Array.Empty<int>();
+        if (_markerKind >= 0)
+            for (int s = 0; s < _sCount; s++) if (!_free[s]) markersLeft[s] = _economy.StructureCount(s, _markerKind);
         foreach ((int tile, int settlement, int civ) in _camps)
         {
             if (settlement >= _sCount || _free[settlement] || _sCiv[settlement] != civ) continue;
             // A band's seasonal camp claims at half its emission, three quarters with Camp Circuits (07b §9.4).
             Fix64 share = _research.IsDone(civ, _p.Ter02) ? Fix64.FromRatio(3, 4) : Fix64.Half;
-            camps.Add(new ClaimSource(civ, tile, Territory.CampRadius, EmissionOf(settlement) * share));
+            Fix64 emission = EmissionOf(settlement) * share;
+            if (_markerKind >= 0)
+            {
+                campsOf[settlement]++;
+                if (markersLeft[settlement] > 0) { markersLeft[settlement]--; emission *= MarkerClaimMult; }
+            }
+            camps.Add(new ClaimSource(civ, tile, Territory.CampRadius, emission));
         }
+        if (_markerKind < 0) return;
+        for (int s = 0; s < _sCount; s++)
+        {
+            if (_free[s] || campsOf[s] > 0 || markersLeft[s] <= 0) continue;
+            int civ = _sCiv[s];
+            Fix64 share = _research.IsDone(civ, _p.Ter02) ? Fix64.FromRatio(3, 4) : Fix64.Half;
+            for (int k = 0; k < markersLeft[s]; k++) camps.Add(new ClaimSource(civ, _sTile[s], Territory.CampRadius, EmissionOf(s) * share * (MarkerClaimMult - Fix64.One)));
+        }
+    }
+
+    // Structure kinds of the early unlocks (docs/MVP/29), resolved once; -1 when the content does not name them.
+    private static readonly int _totemKind = LivingEconomyModel.StructureIndex("totem"), _markerKind = LivingEconomyModel.StructureIndex("marker"),
+        _shrineKind = LivingEconomyModel.StructureIndex("shrine"), _signalPostKind = LivingEconomyModel.StructureIndex("signal_post");
+
+    /// <summary>Claim emission of a totem (BEL-02 +0.3, radius 2), of a shrine (BEL-05 +0.5, radius 3), and a marker's camp multiplier (TER-03 +30%).</summary>
+    private static readonly Fix64 TotemClaim = Fix64.FromRatio(3, 10), ShrineClaim = Fix64.Half, MarkerClaimMult = Fix64.FromRatio(13, 10);
+
+    /// <summary>Tiles within which a signal post raises the alarm of its civilization's settlements (COM-04: 20 tiles).</summary>
+    private const int SignalReach = 20;
+
+    private bool SignalPostNear(int settlement, int civ)
+    {
+        if (_signalPostKind < 0) return false;
+        for (int other = 0; other < _sCount; other++)
+            if (_sCiv[other] == civ && !_free[other] && _economy.StructureCount(other, _signalPostKind) > 0 &&
+                HexGrid.Distance(_sTile[settlement], _sTile[other], _width) <= SignalReach) return true;
+        return false;
     }
 
     private void BuildMiningCampClaimSources(List<ClaimSource> camps)
@@ -1958,7 +2000,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 }
             }
         }
-        return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04),
+        return WithPostureDefenses(civ, new Defenses(thorn, palisade, watchers, _research.IsDone(civ, _p.Hus01), _research.IsDone(civ, _p.Com04) && SignalPostNear(settlement, civ),
             _research.IsDone(civ, _p.Com01), HillSite: false, _research.IsDone(civ, _p.War03), Night: false,
             RaidedRecently: _season - _dip.LastRaidOnAny(civ) <= 4, Hillfort: hillfort, StoneWalls: walls,
             HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive,
@@ -1988,6 +2030,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     }
 
     internal bool FixtureFrontierGuarded(int tile, int owner, int challenger) => FrontierGuarded(tile, owner, challenger);
+
+    internal Defenses FixtureDefensesOf(int settlement) => DefensesOf(settlement);
+
+    internal List<ClaimSource> FixtureCampClaimSources() { var list = new List<ClaimSource>(); BuildSeasonalCampClaimSources(list); return list; }
+
+    internal int FixtureCampCountOf(int settlement) { int n = 0; foreach ((int _, int s, int _) in _camps) if (s == settlement) n++; return n; }
 
     /// <summary>How far from its settlement a frontier segment guards the border (provisional).</summary>
     private const int FrontierGuardTiles = 6;

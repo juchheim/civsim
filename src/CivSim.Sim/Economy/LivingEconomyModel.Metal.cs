@@ -884,8 +884,13 @@ public sealed partial class LivingEconomyModel
         if (id is "make_wheel" or "build_cart" or "build_chariot") labor *= Modifier(s.Civilization, "wheel_and_cart_labor");
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
+        // A water mill turns the saw, the bellows and the forge hammer (NRG-03): half the labor for the sawyers and smiths of a mill town, the charcoal unchanged.
+        if (IronChain && IronWorksCount(s, IronStructure.WaterMill) > 0 && (r.Def.Bellows || IsMillPowered(id))) labor *= _civic.MillLabor;
         return labor;
     }
+
+    private static bool IsMillPowered(string recipeId)
+        => recipeId is "saw_planks" or "forge_wrought" or "carburize_steel" or "make_tool11" or "make_tool12" or "make_iron_arms" or "make_steel_arms";
 
     private MetalPlan PlanMetal(SettlementState s, Fix64 totalWork)
     {

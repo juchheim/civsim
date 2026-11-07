@@ -26,7 +26,7 @@ public static class EffectSpecs
     /// <summary>The six Decrees a Mandate effect may price (docs/MVP/23 §1.2, 22 §4.3).</summary>
     public static readonly string[] Decrees = { "found", "expedition", "mine", "levy", "corvee", "compact" };
 
-    public static readonly string[] CohesionScopes = { "all", "here", "radius", "capital", "local_city", "diverse_group_integration" };
+    public static readonly string[] CohesionScopes = { "all", "here", "radius", "capital", "local_city", "diverse_group_integration", "colonnade" };
 
     private static readonly List<KeyValuePair<string, ObjType>> Specs = Build();
 

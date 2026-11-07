@@ -1351,6 +1351,79 @@ public class IronChainTests
     }
 
     [Fact]
+    public void A_river_town_with_fields_builds_a_water_mill_and_an_inland_town_does_not()
+    {
+        BronzeFixture f = Iron("KEY-4", "NRG-03");
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureFood(0, 8, Fix64.One, 0, Fix64.Zero, Fix64.Zero, 0);
+        Assert.True(f.Economy.FixtureFieldCount(0) >= 6, "the fixture town has fields to grind");
+        f.Economy.FixtureSetNearRiver(0, false);
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "water_mill"));
+        f.Economy.FixtureSetNearRiver(0, true);
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "water_mill"));
+        f.Economy.FixtureBuildIronStructure(0, "water_mill");
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "water_mill")); // one to a town
+    }
+
+    [Fact]
+    public void A_water_mill_raises_grain_food_value_for_up_to_two_hundred_people_and_only_in_the_Iron_chapter()
+    {
+        BronzeFixture f = Iron("KEY-4", "NRG-03");
+        f.Economy.FixtureSetTier(0, 1);
+        Fix64 before = f.Economy.FixtureGrainFoodMult(0);
+        f.Economy.FixtureBuildIronStructure(0, "water_mill");
+        Fix64 after = f.Economy.FixtureGrainFoodMult(0);
+        Assert.Equal(before * (Fix64.One + Fix64.FromRatio(1, 10)), after); // a small town is fully served: +10%
+        BronzeFixture bronze = Bronze("KEY-4", "NRG-03");
+        bronze.Economy.FixtureSetTier(0, 1);
+        Fix64 bronzeBefore = bronze.Economy.FixtureGrainFoodMult(0);
+        bronze.Economy.FixtureBuildIronStructure(0, "water_mill");
+        Assert.Equal(bronzeBefore, bronze.Economy.FixtureGrainFoodMult(0)); // a Bronze economy never reads Iron works
+    }
+
+    [Fact]
+    public void A_water_mill_halves_forge_labor_and_leaves_the_charcoal_alone()
+    {
+        Fix64 Smith(bool mill)
+        {
+            BronzeFixture f = Iron("MET-09", "NRG-03");
+            if (mill) f.Economy.FixtureBuildIronStructure(0, "water_mill");
+            f.Economy.FixtureStock(0, "G-IRON", Fix64.FromInt(2));
+            f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(2));
+            // 0.4 work-seasons of forge labor: one unit by hand, two by water.
+            return f.Economy.FixtureRunRecipe(0, "forge_wrought", Fix64.FromInt(3), Fix64.FromRatio(4, 10));
+        }
+        Assert.Equal(Fix64.One, Smith(false));
+        Assert.Equal(Fix64.FromInt(2), Smith(true));
+    }
+
+    [Fact]
+    public void A_water_mill_waits_for_its_wheel()
+    {
+        BronzeFixture f = Iron("KEY-4", "NRG-03");
+        f.Economy.FixtureStock(0, "G-BLOCK", Fix64.FromInt(6));
+        f.Economy.FixtureStock(0, "G-WOOD", Fix64.FromInt(8));
+        f.Economy.FixtureStartIronBuild(0, "water_mill");
+        Assert.Equal("wheel 0/1", f.Economy.IronBuildShortages(0));
+        f.Economy.FixtureStock(0, "G-WHEEL", Fix64.One);
+        Assert.Equal("", f.Economy.IronBuildShortages(0));
+    }
+
+    [Fact]
+    public void A_colonnade_is_wanted_only_in_a_temple_town_and_lifts_that_towns_cohesion_target_by_four()
+    {
+        BronzeFixture f = Iron("KEY-4", "STN-12");
+        f.Economy.FixtureSetTier(0, 1);
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "temple_tier2")); // no Temple
+        f.Economy.FixtureSetTemples(0, 1);
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "temple_tier2"));
+        int before = f.Economy.FixtureCohesionTarget(0);
+        f.Economy.FixtureBuildIronStructure(0, "temple_tier2");
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "temple_tier2"));
+        Assert.Equal(before + 4, f.Economy.FixtureCohesionTarget(0));
+    }
+
+    [Fact]
     public void A_walled_town_builds_its_gatehouse_before_the_other_Iron_works_it_wants()
     {
         BronzeFixture f = Iron("KEY-4", "DEF-06", "MEC-04");

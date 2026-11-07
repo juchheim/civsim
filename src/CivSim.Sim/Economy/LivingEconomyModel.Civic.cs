@@ -137,6 +137,9 @@ public sealed partial class LivingEconomyModel
             ManureSheep = K("ManureSheepPer4", "6");
             BakeryValue = K("BakeryGrainValue", "0.2");
             BakeryPeople = K("BakeryPeople", "40");
+            MillValue = K("MillGrainValue", "0.1");
+            MillPeople = K("MillPeople", "200");
+            MillLabor = K("MillLaborMult", "0.5");
             HorseTameShare = K("HorseTameShare", "0.15");
             HorsePerPasture = K("HorsePerPasture", "2").RoundToInt();
             HorseLabor = K("HorseTameLabor", "1");
@@ -156,7 +159,7 @@ public sealed partial class LivingEconomyModel
             HinterlandRadius, WallCutStone, WallLabor, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
         public readonly Fix64 Step, WorkMid, WorkRange, WorkSlope, FissionTrigger, Famine, Crowding, OverreachDivisor, DemoteShare,
             HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, FoodShareCap, IronBuildShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
-            BakeryPeople, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
+            BakeryPeople, MillValue, MillPeople, MillLabor, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
             BuildWood, Deadwood;
     }
 
@@ -1190,7 +1193,8 @@ public sealed partial class LivingEconomyModel
         {
             if (s.Structures[(int)Structure.Hearth] > 0) t += Fix64.FromInt(5);
             if (Done(civ, "SOC-05")) t += Fix64.FromInt(8);
-            if (Done(civ, "BEL-05") && cap is not null && HexGrid.Distance(cap.SiteTile, s.SiteTile, _world.Width) <= 20) t += Fix64.FromInt(3);
+            // BEL-05: within twenty tiles of the capital, or of a shrine of the civilization (docs/MVP/29); either one, never both.
+            if (Done(civ, "BEL-05") && (cap is not null && HexGrid.Distance(cap.SiteTile, s.SiteTile, _world.Width) <= 20 || OwnShrineWithin(s, ShrineReach))) t += Fix64.FromInt(3);
             if (Done(civ, "GOV-03")) t += Fix64.FromInt(3);
         }
         t += Fix64.FromInt(Math.Min(5, LuxuryItems(s) * 10 / Math.Max(1, pop)));
@@ -1212,6 +1216,8 @@ public sealed partial class LivingEconomyModel
                 // Iron-chapter scopes: ART-08's theatre only lifts a city that has one, and BEL-08's integration bonus only helps a town still carrying the
                 // penalty of being conquered. (Before these were named they fell through to "everywhere".)
                 "local_city" => IronChain && IronWorksCount(s, IronStructure.Theatre) > 0,
+                // STN-12's colonnade lifts the Temple town that raised it.
+                "colonnade" => IronChain && IronWorksCount(s, IronStructure.Colonnade) > 0,
                 "diverse_group_integration" => IronChain && c.ConqueredTerm < 0,
                 _ => true,
             };

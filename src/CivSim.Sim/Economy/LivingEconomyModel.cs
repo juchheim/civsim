@@ -208,7 +208,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (chop) l.ChopInflows += amount; else l.OtherInflows += amount;
     }
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 27;
+    public const int SnapshotVersion = 29;
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -272,8 +272,14 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         Hearth, LeanTo, HideTent, PitHouse, WattleHouse, MudbrickHouse, Longhouse,
         StoragePit, DryingRack, Granary, Kiln, Quern, ThornBarrier, Lookout, Weir,
-        Field, Pasture, Orchard, Hillfort, StoneWalls, Palisade, Count
+        Field, Pasture, Orchard, Hillfort, StoneWalls, Palisade,
+        // Appended for the unlocks that did nothing (docs/MVP/29). Hashed only while non-zero; the no-build sentinel stays at StructureNoneHashed.
+        Totem, Marker, Shrine, SignalPost, PottersWorkshop, Count
     }
+
+    /// <summary>The value the checksum has always written for "nothing queued" (Structure.Count before the appended kinds).</summary>
+    private const byte StructureNoneHashed = 21;
+    private const int StructureKindsFirst = (int)Structure.Palisade + 1;
 
     private enum SkillFamily : byte { Forage, Hunt, Fish, Farm, Chop, Gather, Herd, Count }
 
@@ -2963,6 +2969,31 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (candidate == Structure.Field) PlaceField(settlement);
         else if (candidate == Structure.Orchard) PlaceOrchard(settlement);
         else if (candidate == Structure.Weir) RebuildWeirOwnership();
+        else if (candidate == Structure.Totem) NudgeCohesion(settlement, TotemCohesion / 100);
+        else if (candidate == Structure.Shrine) NudgeCohesionNear(settlement, ShrineReach, ShrineCohesion / 100);
+    }
+
+    /// <summary>Wood-pole and pilgrimage constants (docs/MVP/29; provisional): a totem steadies its own camp, a shrine every own settlement within twenty tiles (BEL-05).</summary>
+    private static readonly Fix64 TotemCohesion = Fix64.FromInt(2), ShrineCohesion = Fix64.FromInt(2);
+    private const int ShrineReach = 20, ShrineSpacing = 6, MarkersPerSettlement = 2, PottersMinPop = 25;
+    private static readonly Fix64 PotterySpoilage = Fix64.Parse("0.8");
+
+    private void NudgeCohesion(SettlementState s, Fix64 change)
+        => s.Cohesion = Fix64.Clamp(s.Cohesion + change, Fix64.Parse("0.6"), Fix64.Parse("1.2"));
+
+    // Before KEY-3 the stored factor is the Cohesion; from then on the target model takes over and the nudge washes out (the same rule as the E0-E2 research effects).
+    private void NudgeCohesionNear(SettlementState shrine, int reach, Fix64 change)
+    {
+        foreach (SettlementState o in _settlements)
+            if (o.Civilization == shrine.Civilization && HexGrid.Distance(o.SiteTile, shrine.SiteTile, _world.Width) <= reach) NudgeCohesion(o, change);
+    }
+
+    /// <summary>True when another settlement of the same civilization has a shrine within <paramref name="tiles"/> tiles (or this one has).</summary>
+    private bool OwnShrineWithin(SettlementState s, int tiles)
+    {
+        foreach (SettlementState o in _settlements)
+            if (o.Civilization == s.Civilization && o.Structures[(int)Structure.Shrine] > 0 && HexGrid.Distance(o.SiteTile, s.SiteTile, _world.Width) <= tiles) return true;
+        return false;
     }
 
     private bool HasBuildCandidate(SettlementState settlement, int season)
@@ -3233,12 +3264,16 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (CanBuild(settlement.Civilization, Structure.Kiln) && settlement.Structures[(int)Structure.Kiln] == 0 &&
             settlement.Stores[(int)Good.Clay] >= Fix64.FromInt(3) &&
             settlement.Stores[(int)Good.Stone] >= Fix64.FromInt(2)) return Structure.Kiln;
+        if (EarlyWorkWanted(settlement, Structure.PottersWorkshop, season, population)) return Structure.PottersWorkshop;
         if (CanBuild(settlement.Civilization, Structure.Quern) && settlement.Structures[(int)Structure.Quern] == 0 &&
             settlement.Stores[(int)Good.Stone] >= Fix64.One) return Structure.Quern;
         if (CanBuild(settlement.Civilization, Structure.ThornBarrier) && settlement.Structures[(int)Structure.ThornBarrier] == 0 &&
             settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(2)) return Structure.ThornBarrier;
         if (CanBuild(settlement.Civilization, Structure.Lookout) && settlement.Structures[(int)Structure.Lookout] == 0 &&
             settlement.Stores[(int)Good.Wood] >= Fix64.One) return Structure.Lookout;
+        // The cheap works of belief, territory and warning (docs/MVP/29): one pole, up to two cairns, one signal post, one spaced shrine.
+        foreach (Structure early in new[] { Structure.Totem, Structure.Marker, Structure.SignalPost, Structure.Shrine })
+            if (EarlyWorkWanted(settlement, early, season, population)) return early;
         if (CanBuild(settlement.Civilization, Structure.Hillfort) && settlement.Structures[(int)Structure.Hillfort] == 0 &&
             HasHillfortSite(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10)) return Structure.Hillfort;
         if (CanBuild(settlement.Civilization, Structure.Palisade) && settlement.Structures[(int)Structure.Palisade] == 0 &&
@@ -3258,6 +3293,25 @@ public sealed partial class LivingEconomyModel : ISimModel
             settlement.Stores[(int)Good.Sapling] >= Fix64.One)
             return Structure.Orchard;
         return Structure.Count;
+    }
+
+    /// <summary>
+    /// Whether the settlement wants one of the works its research unlocked without any other effect before (docs/MVP/29): a totem for a camp of eight, up to two
+    /// markers from ten, a signal post from twelve, a shrine from twenty at least six tiles from another, a potter's workshop beside a kiln from twenty-five.
+    /// </summary>
+    private bool EarlyWorkWanted(SettlementState s, Structure kind, int season, int population)
+    {
+        if (!CanBuild(s.Civilization, kind)) return false;
+        bool wanted = kind switch
+        {
+            Structure.Totem => s.Structures[(int)Structure.Totem] == 0 && population >= 8,
+            Structure.Marker => s.Structures[(int)Structure.Marker] < MarkersPerSettlement && population >= 10,
+            Structure.SignalPost => s.Structures[(int)Structure.SignalPost] == 0 && population >= 12,
+            Structure.Shrine => s.Structures[(int)Structure.Shrine] == 0 && population >= 20 && !OwnShrineWithin(s, ShrineSpacing),
+            Structure.PottersWorkshop => s.Structures[(int)Structure.PottersWorkshop] == 0 && s.Structures[(int)Structure.Kiln] > 0 && population >= PottersMinPop,
+            _ => false,
+        };
+        return wanted && CanPayStructure(s, kind, season);
     }
 
     private bool CanBuild(int civ, Structure structure)
@@ -3280,7 +3334,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Kiln => "kiln", Structure.Quern => "quern", Structure.ThornBarrier => "thorn_barrier",
         Structure.Lookout => "lookout_post", Structure.Weir => "weir", Structure.Field => "field",
         Structure.Pasture => "pasture", Structure.Orchard => "orchard", Structure.Hillfort => "hillfort",
-        Structure.StoneWalls => "stone_walls", Structure.Palisade => "palisade", _ => "",
+        Structure.StoneWalls => "stone_walls", Structure.Palisade => "palisade",
+        Structure.Totem => "totem", Structure.Marker => "marker", Structure.Shrine => "shrine", Structure.SignalPost => "signal_post",
+        Structure.PottersWorkshop => "potters_workshop", _ => "",
     };
 
     private static Fix64 BuildLabor(Structure structure) => structure switch
@@ -3293,7 +3349,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Kiln => Fix64.FromInt(2), Structure.Quern => Fix64.Parse("0.5"),
         Structure.ThornBarrier => Fix64.Parse("0.6"), Structure.Lookout => Fix64.Parse("0.5"),
         Structure.Weir => Fix64.Parse("1.5"), Structure.Pasture => Fix64.Parse("0.2"), Structure.Orchard => Fix64.One,
-        Structure.Field => Fix64.One, _ => Fix64.One,
+        Structure.Field => Fix64.One,
+        // Registry labor (structures.yaml); the totem and the signal post list none, so they take the lookout's order of cost (provisional, docs/MVP/29).
+        Structure.Totem => Fix64.Parse("0.3"), Structure.Marker => Fix64.Parse("0.3"), Structure.Shrine => Fix64.FromInt(2),
+        Structure.SignalPost => Fix64.Parse("0.5"), Structure.PottersWorkshop => Fix64.FromInt(2), _ => Fix64.One,
     };
 
     private Fix64 StructureBuildLabor(SettlementState settlement, Structure structure)
@@ -3377,6 +3436,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Palisade => s.Stores[(int)Good.Wood] >= PalisadeRequiredWood((int)Tier(s.Id), season),
         Structure.StoragePit or Structure.Field => true,
         Structure.DryingRack => s.Stores[(int)Good.Wood] >= Fix64.Half,
+        Structure.Totem or Structure.SignalPost => s.Stores[(int)Good.Wood] >= Fix64.One,
+        Structure.Marker => s.Stores[(int)Good.Stone] >= Fix64.One || s.Stores[(int)Good.Wood] >= Fix64.One,
+        Structure.Shrine => s.Stores[(int)Good.Stone] >= Fix64.FromInt(4),
+        Structure.PottersWorkshop => s.Stores[(int)Good.Wood] >= Fix64.FromInt(3) && s.Stores[(int)Good.Clay] >= Fix64.FromInt(2),
         _ => false,
     };
 
@@ -3410,6 +3473,12 @@ public sealed partial class LivingEconomyModel : ISimModel
                 PayWallStone(s);
                 break;
             case Structure.DryingRack: s.Stores[(int)Good.Wood] -= Fix64.Half; break;
+            case Structure.Totem: case Structure.SignalPost: s.Stores[(int)Good.Wood] -= Fix64.One; break;
+            case Structure.Marker:
+                if (s.Stores[(int)Good.Stone] >= Fix64.One) s.Stores[(int)Good.Stone] -= Fix64.One; else s.Stores[(int)Good.Wood] -= Fix64.One;
+                break;
+            case Structure.Shrine: s.Stores[(int)Good.Stone] -= Fix64.FromInt(4); break;
+            case Structure.PottersWorkshop: s.Stores[(int)Good.Wood] -= Fix64.FromInt(3); s.Stores[(int)Good.Clay] -= Fix64.FromInt(2); break;
         }
     }
 
@@ -3527,11 +3596,18 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (amount > Fix64.Zero) ConsumeMetalFood(s, amount);
     }
 
-    private void SpoilFood(SettlementState settlement)
+    /// <summary>How much of a season's spoilage stored food suffers: a granary 0.25, a pit 0.5, and a potter's workshop (CER-04: jars for the whole store) a further 0.8.</summary>
+    private Fix64 StorageFactor(SettlementState settlement)
     {
-        Fix64 storageFactor = settlement.Structures[(int)Structure.Granary] > 0
+        Fix64 factor = settlement.Structures[(int)Structure.Granary] > 0
             ? Fix64.Parse("0.25")
             : settlement.Structures[(int)Structure.StoragePit] > 0 ? Fix64.Half : Fix64.One;
+        return settlement.Structures[(int)Structure.PottersWorkshop] > 0 ? factor * PotterySpoilage : factor;
+    }
+
+    private void SpoilFood(SettlementState settlement)
+    {
+        Fix64 storageFactor = StorageFactor(settlement);
         Fix64 modifier = Modifier(settlement.Civilization, "spoilage_of_stored_food");
         for (int i = 0; i < FoodGoods.Length; i++)
         {
@@ -4901,9 +4977,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (winterNeedAtCapacity <= Fix64.Zero) return Fix64.Zero;
         Fix64 winterProductionShare = Fix64.Clamp(winterIncome / winterNeedAtCapacity, Fix64.Zero, Fix64.One);
 
-        Fix64 storageFactor = settlement.Structures[(int)Structure.Granary] > 0
-            ? Fix64.Parse("0.25")
-            : settlement.Structures[(int)Structure.StoragePit] > 0 ? Fix64.Half : Fix64.One;
+        Fix64 storageFactor = StorageFactor(settlement);
         Fix64 retainedFood = Fix64.Zero;
         Fix64 carryoverFood = Fix64.Zero;
         foreach (int tile in RangeTiles(settlement.SiteTile))
@@ -6152,15 +6226,18 @@ public sealed partial class LivingEconomyModel : ISimModel
             // Keep the pre-Bronze checksum stream stable. Fortification slots extend the structure
             // array, and the appended enum members move Count (the old no-build sentinel).
             // They are unreachable until KEY-3, so hash them only once the Bronze simulation is live.
-            byte buildTarget = !_bronzeActive && s.BuildTarget == Structure.Count
-                ? (byte)Structure.Hillfort : (byte)s.BuildTarget;
+            byte buildTarget = s.BuildTarget == Structure.Count
+                ? (_bronzeActive ? StructureNoneHashed : (byte)Structure.Hillfort) : (byte)s.BuildTarget;
             hash.Add(s.BuildProgress); hash.Add(s.DryingMudbrick); hash.Add(buildTarget); hash.Add(s.Fissions); hash.Add(s.LastFissionSeason);
             if (s.LastIronHolderShareSeason != -1000)
             { hash.Add(0x49524F4E53484152UL); hash.Add(s.LastIronHolderShareSeason); }
             hash.Add(s.Cohesion); hash.Add(s.Stores);
             if (HasProject(s.Civilization, "MIN-01")) { hash.Add(0x535552464F434852UL); hash.Add(s.SurfaceOchre); }
-            int hashedStructures = _bronzeActive ? s.Structures.Length : (int)Structure.Hillfort;
+            int hashedStructures = _bronzeActive ? StructureKindsFirst : (int)Structure.Hillfort;
             for (int structure = 0; structure < hashedStructures; structure++) hash.Add(s.Structures[structure]);
+            // Kinds added after the first checksums were fixed enter the stream only while they stand, so a match that raises none keeps its checksum.
+            for (int structure = StructureKindsFirst; structure < s.Structures.Length; structure++)
+                if (s.Structures[structure] > 0) { hash.Add(structure); hash.Add(s.Structures[structure]); }
             if (!_bronzeActive && s.Structures[(int)Structure.Palisade] > 0)
             { hash.Add((int)Structure.Palisade); hash.Add(s.Structures[(int)Structure.Palisade]); }
             hash.Add(s.DomesticSmallStock); hash.Add(s.DomesticCattle); hash.Add(s.DomesticPigs);

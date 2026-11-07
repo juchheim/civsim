@@ -143,6 +143,9 @@ constants:
   - {id: MarketTownRoutes, value: 2, unit: routes, source: "22 §8.5 (TRD-05)"}
   - {id: BakeryGrainValue, value: 0.2, unit: share, source: "22 §12 (FOD-08)"}
   - {id: BakeryPeople, value: 40, unit: people, source: "22 §12 (FOD-08)"}
+  - {id: MillGrainValue, value: 0.1, unit: share, source: "docs/MVP/29 (NRG-03 water mill, provisional): half the bakery's 0.2; grinding is already partly in FOR-05 and FOD-05"}
+  - {id: MillPeople, value: 200, unit: people, source: "docs/MVP/29 (NRG-03, provisional): water grinds x5 of the bakery's 40 (registry water_mill, grind x5)"}
+  - {id: MillLaborMult, value: 0.5, unit: multiplier, source: "docs/MVP/29 (NRG-03, provisional): water does the mechanical half of saw, bellows and forge-hammer work"}
   - {id: HorseTameShare, value: 0.15, unit: per year, source: "22 §12 (HUS-07)"}
   - {id: HorsePerPasture, value: 2, unit: per tile, source: "22 §12 (HUS-07)"}
   - {id: HorseTameLabor, value: 1, unit: ws, source: "22 §12 (HUS-07)"}
