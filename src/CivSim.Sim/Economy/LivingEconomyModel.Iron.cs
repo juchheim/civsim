@@ -587,6 +587,7 @@ public sealed partial class LivingEconomyModel
 
         ShareIronKitStock(civ, reach, toolWorkersOnly: true, season);
         ShareIronKitStock(civ, reach, toolWorkersOnly: false, season);
+        ShareIdleIronKitHolders(civ, reach, season);
 
         for (int r = 0; r < _settlements.Count; r++)
         {
@@ -635,6 +636,88 @@ public sealed partial class LivingEconomyModel
                     need -= move;
                     surplus -= move;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Moves one idle, service-positive holder to a sister settlement with recent tool work but no idle Iron holder.
+    /// The receiver keeps the kit on an otherwise idle adult; its end-of-season local reassignment then gives it to
+    /// whichever adults actually did tool work this season, including workers who were not active last season.
+    /// </summary>
+    private void ShareIdleIronKitHolders(int civ, int reach, int season)
+    {
+        for (int r = 0; r < _settlements.Count; r++)
+        {
+            SettlementState receiver = _settlements[r];
+            if (receiver.Civilization != civ || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) == 0) continue;
+            bool hasRecentToolWork = false;
+            bool hasIdleIronHolder = false;
+            int reserveFigure = -1;
+            for (int i = 0; i < _figures.Count; i++)
+            {
+                FigureState figure = _figures[i];
+                if (figure.SettlementId != receiver.Id || figure.Age < 14) continue;
+                hasRecentToolWork |= figure.WorkedWithToolLastSeason;
+                if (!figure.WorkedWithToolLastSeason && figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                    hasIdleIronHolder = true;
+                if (!figure.WorkedWithToolLastSeason && figure.Kit is not (11 or 12) && reserveFigure < 0)
+                    reserveFigure = i;
+            }
+            if (!hasRecentToolWork || hasIdleIronHolder || reserveFigure < 0) continue;
+
+            FigureState recipient = _figures[reserveFigure];
+            for (int d = 0; d < _settlements.Count; d++)
+            {
+                if (d == r) continue;
+                SettlementState donor = _settlements[d];
+                if (!IronSister(receiver, donor, reach)) continue;
+                bool hadActiveIronToolWorkersLastSeason = false;
+                foreach (FigureState figure in _figures)
+                    if (figure.SettlementId == donor.Id && figure.Age >= 14 && figure.WorkedWithToolLastSeason &&
+                        figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                    {
+                        hadActiveIronToolWorkersLastSeason = true;
+                        break;
+                    }
+                // A settlement may have other tool work, or a large unassigned holder pool,
+                // before its Iron route has actually served a worker. Keep those kits local
+                // until an Iron-equipped worker establishes that the surplus is idle.
+                if (!hadActiveIronToolWorkersLastSeason) continue;
+                var donors = new List<int>();
+                for (int i = 0; i < _figures.Count; i++)
+                {
+                    FigureState figure = _figures[i];
+                    if (figure.SettlementId == donor.Id && figure.Age >= 14 && !figure.WorkedWithToolLastSeason &&
+                        figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                        donors.Add(i);
+                }
+                donors.Sort((a, b) =>
+                {
+                    int byTier = _figures[b].Kit.CompareTo(_figures[a].Kit);
+                    if (byTier != 0) return byTier;
+                    int byWear = _figures[a].KitLeft.CompareTo(_figures[b].KitLeft);
+                    return byWear != 0 ? byWear : _figures[a].Id.CompareTo(_figures[b].Id);
+                });
+                if (donors.Count == 0) continue;
+
+                FigureState donorFigure = _figures[donors[0]];
+                byte tier = donorFigure.Kit;
+                Fix64 left = donorFigure.KitLeft;
+                if (recipient.Kit is >= 8 and <= 10 && recipient.KitLeft > Fix64.Zero && _tierDefs[recipient.Kit] is { } old)
+                {
+                    Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
+                    receiver.Metal.Goods[(int)MetalGood.Copper] += copper;
+                    AddMetalStat(civ, StatRemeltCopper, copper);
+                }
+                if (recipient.Kit is 11 or 12)
+                    RecordIT6IronKitRetired(civ, receiver.Id, recipient.Kit, Fix64.One);
+                donorFigure.Kit = 0;
+                donorFigure.KitLeft = Fix64.Zero;
+                recipient.Kit = tier;
+                recipient.KitLeft = left;
+                RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season);
+                break;
             }
         }
     }
