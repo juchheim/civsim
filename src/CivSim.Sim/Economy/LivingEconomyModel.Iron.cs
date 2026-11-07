@@ -1657,8 +1657,12 @@ public sealed partial class LivingEconomyModel
     /// <summary>A seaport's group cap multiplier (SEA-07 port_city_cap_support).</summary>
     private static readonly Fix64 PortGroupCapMult = Fix64.FromRatio(12, 10);
 
-    /// <summary>How far a frontier segment reaches: a rival settlement this close is a neighbour worth a wall (hex tiles; provisional).</summary>
-    private const int FrontierReach = 6;
+    /// <summary>
+    /// How far a frontier segment reaches: a rival settlement this close is a neighbour worth a wall (hex tiles; provisional). Twelve is where two Iron claims
+    /// meet (two radii of 5 and a gap of 2), the same border a castle stands on; at six no segment was built in 48 civilizations (docs/MVP/28 §9). It only picks the
+    /// neighbour a segment faces: the tiles the segment guards are <c>PoliticsSystem.FrontierGuardTiles</c> from the town.
+    /// </summary>
+    private const int FrontierReach = 12;
     /// <summary>
     /// A castle is built on a border town: a rival settlement within this many tiles (provisional). Twelve is two Iron-era claim radii (5 + 5) and a gap of two
     /// tiles, the distance at which two civilizations' claims meet; eight left castles with 1 town in 40 on the measured maps (docs/MVP/28 §9).
@@ -2232,7 +2236,7 @@ public sealed partial class LivingEconomyModel
         return -1;
     }
 
-    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.Crane, IronStructure.Castle };
+    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle };
 
     private bool IronKindOpen(SettlementState s, MetalState m, int civ, int k, bool passShelved)
     {

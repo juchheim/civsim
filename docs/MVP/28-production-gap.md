@@ -189,6 +189,32 @@ The stone was the main cause: priority alone moved nothing (towns started the wo
 still depends on a neighbour within 12 tiles, so interior towns do not build one; that is intended.
 
 Tests: `A_walled_town_builds_its_gatehouse_before_the_other_Iron_works_it_wants`, and the castle test now checks the
-12 and 13 tile edges. Goldens (toy, research, politics, content pack) are unchanged. Not done: frontier wall segments
-(reach 6, still 0 built; it shares its constant with the border-flip guard, so it was left alone), and the Iron acceptance
-gates were not rerun for this change.
+12 and 13 tile edges. Goldens (toy, research, politics, content pack) are unchanged. The Iron acceptance gates were not rerun
+for this change.
+
+## 10. Frontier wall segments
+
+Segments (DEF-07, 12 work-seasons, up to two per town, each facing one rival civilization) were built 0 times in 48
+civilizations: a town wanted one only when a rival settlement lay within 6 tiles. That reach only chooses which neighbour a
+segment faces; the tiles it guards are a separate constant in the politics system (`FrontierGuardTiles`, 6 tiles from the
+town), so (correcting the note in §9's first version) the reach could be widened without touching the border-flip guard.
+
+* `FrontierReach` is now 12, the same border distance as a castle (two claim radii of 5 and a gap of 2).
+* The frontier segment joins the gatehouse, crane and castle at the front of the Iron build order. It is cheap and is wanted
+  only by a town with a close rival.
+
+Same 12 seeds (48 civilizations), before and after:
+
+| | Castles and gatehouses build (§9) | + frontier reach 12 and priority |
+|---|---|---|
+| Frontier segments built | 0 | **56** |
+| Gatehouses / castles | 159 / 37 | 151 / 30 |
+| All Iron works | 2697 | 2742 |
+| People per civilization | 1781 | 1746 |
+| Own KEY-4 to KEY-5, mean | 24.9 min | 25.1 |
+| Wars / raids / assaults / captures | 68 / 198 / 66 / 58 | 66 / 190 / 68 / 62 |
+
+Gatehouse and castle counts moved by the run-to-run noise of a changed match (the matches diverge once any build order
+differs); pacing, population and the war events did not move beyond it. Test: the frontier test now checks the 12 and 13
+tile edges. The raid-repel and flip-guard rules themselves were not changed, and this run does not measure how many
+raids they turned back.

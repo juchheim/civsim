@@ -1331,6 +1331,11 @@ public class IronChainTests
         Assert.Equal(-1, f.Economy.FixtureNextFrontierFacing(0)); // the rival's start is far away
         Assert.False(f.Economy.FixtureIronBuildWanted(0, "frontier_wall_segment"));
         int site = f.Economy.SettlementLite(0).SiteTile;
+        // Twelve tiles is where two claims meet and still counts as a neighbour; thirteen does not.
+        f.Economy.FixtureMoveSite(rival, site + 13);
+        Assert.Equal(-1, f.Economy.FixtureNextFrontierFacing(0));
+        f.Economy.FixtureMoveSite(rival, site + 12);
+        Assert.Equal(rivalCiv, f.Economy.FixtureNextFrontierFacing(0));
         f.Economy.FixtureMoveSite(rival, site + 2);
         Assert.Equal(rivalCiv, f.Economy.FixtureNextFrontierFacing(0));
         Assert.True(f.Economy.FixtureIronBuildWanted(0, "frontier_wall_segment"));
