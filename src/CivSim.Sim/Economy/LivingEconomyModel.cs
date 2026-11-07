@@ -1728,6 +1728,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         bool emergencyFoodWork = FullFoodWorkWhenShortForCivsForDiagnostics is { } emergencyFoodCivs &&
             (uint)settlement.Civilization < (uint)emergencyFoodCivs.Length && emergencyFoodCivs[settlement.Civilization] &&
             EmergencyFoodWorkEligibleForDiagnostics(season, settlement.FoodSecurity, stores, need, enabled: true);
+        // Construction labor floor: once the metal age has begun, food may not take more than FoodShareCapOutsideHunger of the plannable
+        // work unless the settlement is actually short of food (rule 1). The rest stays for building, materials and civic works, which
+        // otherwise got 2-3% of a settlement's labor and starved every late structure of its stone and hands (docs/MVP/28).
+        if (metalPlan is not null && settlement.LedgerFoodShareRule != 1)
+            foodShare = Fix64.Min(foodShare, _civic.FoodShareCap);
         foodShare = EmergencyFoodWorkShare(foodShare, emergencyFoodWork);
         if (settlement.Civic is { } civicTraceFood) civicTraceFood.TraceFoodShare = foodShare;
         Fix64 foodWork = totalWork * foodShare;
@@ -3128,6 +3133,47 @@ public sealed partial class LivingEconomyModel : ISimModel
         => settlement.Structures[(int)Structure.Palisade] > 0 || settlement.Structures[(int)Structure.Hillfort] > 0 ||
            settlement.Structures[(int)Structure.StoneWalls] > 0;
 
+    /// <summary>Walls are researched and the settlement has not yet built its tier's allowance of them.</summary>
+    /// <summary>Cut stone one wall ring takes: <c>StoneWallsCutStonePerRing</c> per ring (a Town's ring is twice the Village's, a City's three times).</summary>
+    /// <summary>Build labor of a Village wall ring (<c>StoneWallsLaborPerRing</c>), quarrying and dressing included, for forecasts.</summary>
+    internal int WallRingWork => _civic.WallLabor;
+
+    private int WallCutStoneCost(SettlementState s) => _civic.WallCutStone * ((int)Tier(s.Id) + 1);
+
+    /// <summary>Stone a wall ring can be raised from: dressed ashlar in hand plus the quarryable stone within 8 tiles.</summary>
+    private Fix64 WallStoneAvailable(SettlementState s)
+    {
+        Fix64 total = CutStoneHeld(s, blocksToo: false);
+        foreach (int tile in ReachTiles(s.SiteTile, 8))
+            if (_stoneStock[tile] > Fix64.Zero && !IsRivalTile(s.Civilization, tile)) total += _stoneStock[tile];
+        return total;
+    }
+
+    /// <summary>
+    /// A wall ring uses dressed ashlar first and is raised from stone quarried and dressed on site for the rest, as civic
+    /// buildings gather their own stone. The ring's build labor (<c>StoneWallsLaborPerRing</c>) covers that quarrying, hauling and
+    /// dressing; the ashlar craft step runs on leftover labor and never fed walls.
+    /// </summary>
+    private void PayWallStone(SettlementState s)
+    {
+        Fix64 left = Fix64.FromInt(WallCutStoneCost(s));
+        foreach (int tile in ReachTiles(s.SiteTile, 8))
+        {
+            if (left <= Fix64.Zero) break;
+            if (_stoneStock[tile] <= Fix64.Zero || IsRivalTile(s.Civilization, tile)) continue;
+            Fix64 take = Fix64.Min(left, _stoneStock[tile]);
+            _stoneStock[tile] -= take;
+            left -= take;
+        }
+        // Ashlar already dressed is the last resort: Iron works and civic buildings need it and it costs craft labor to make.
+        if (left > Fix64.Zero && s.Metal is { } metal)
+            metal.Goods[(int)MetalGood.Ashlar] -= Fix64.Min(left, metal.Goods[(int)MetalGood.Ashlar]);
+    }
+
+    private bool WallsAreWanted(SettlementState settlement)
+        => CanBuild(settlement.Civilization, Structure.StoneWalls) &&
+           settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1;
+
     private Structure SelectBuildCandidate(SettlementState settlement, int season)
     {
         int population = Population(settlement.Id);
@@ -3182,8 +3228,10 @@ public sealed partial class LivingEconomyModel : ISimModel
             HasHillfortSite(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10)) return Structure.Hillfort;
         if (CanBuild(settlement.Civilization, Structure.Palisade) && settlement.Structures[(int)Structure.Palisade] == 0 &&
             settlement.Stores[(int)Good.Wood] >= PalisadeRequiredWood((int)Tier(settlement.Id), season)) return Structure.Palisade;
-        if (CanBuild(settlement.Civilization, Structure.StoneWalls) &&
-            settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1)
+        // Walls take the single basic build slot only once their cut stone is in hand. Picking them earlier parked the slot on a
+        // project that could not be paid for (60+ cut stone, wanted separately through CivicCutStoneWant) and starved every
+        // later basic build (weir, pasture, orchard) for the rest of the match.
+        if (WallsAreWanted(settlement) && CanPayStructure(settlement, Structure.StoneWalls, season))
             return Structure.StoneWalls;
         if (CanBuild(settlement.Civilization, Structure.Weir) &&
             CanPlaceWeir(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&
@@ -3235,7 +3283,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private Fix64 StructureBuildLabor(SettlementState settlement, Structure structure)
     {
-        if (structure == Structure.StoneWalls) return Fix64.FromInt(30 * ((int)Tier(settlement.Id) + 1));
+        if (structure == Structure.StoneWalls) return Fix64.FromInt(_civic.WallLabor * ((int)Tier(settlement.Id) + 1));
         if (structure == Structure.Palisade) return Fix64.FromInt(6 * ((int)Tier(settlement.Id) + 1));
         return BuildLabor(structure);
     }
@@ -3310,7 +3358,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Structure.Granary => s.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(80),
         Structure.Orchard => s.Stores[(int)Good.Sapling] >= Fix64.One,
         Structure.Hillfort => s.Stores[(int)Good.Wood] >= Fix64.FromInt(10),
-        Structure.StoneWalls => CutStoneHeld(s, blocksToo: false) >= Fix64.FromInt(60 * ((int)Tier(s.Id) + 1)),
+        Structure.StoneWalls => WallStoneAvailable(s) >= Fix64.FromInt(WallCutStoneCost(s)),
         Structure.Palisade => s.Stores[(int)Good.Wood] >= PalisadeRequiredWood((int)Tier(s.Id), season),
         Structure.StoragePit or Structure.Field => true,
         Structure.DryingRack => s.Stores[(int)Good.Wood] >= Fix64.Half,
@@ -3344,8 +3392,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             case Structure.Hillfort: s.Stores[(int)Good.Wood] -= Fix64.FromInt(10); break;
             case Structure.Palisade: s.Stores[(int)Good.Wood] -= PalisadeWoodCost((int)Tier(s.Id)); break;
             case Structure.StoneWalls:
-                if (s.Metal is { } metal)
-                    metal.Goods[(int)MetalGood.Ashlar] -= Fix64.FromInt(60 * ((int)Tier(s.Id) + 1));
+                PayWallStone(s);
                 break;
             case Structure.DryingRack: s.Stores[(int)Good.Wood] -= Fix64.Half; break;
         }

@@ -23,6 +23,45 @@ public sealed class BronzeDefenseBuildTests
     }
 
     [Fact]
+    public void Unaffordable_stone_walls_do_not_hold_the_basic_build_slot()
+    {
+        BronzeFixture fixture = BronzeFixture.Create(TestPack.Pack, Seed, 60, false, true, true, true, "DEF-03");
+        LivingEconomyModel economy = fixture.Economy;
+        fixture.RunSeasons(40); // let the earlier basic builds (storage, shelter, fields) settle
+        economy.FixtureComplete(0, "DEF-05"); // stone_walls unlock
+        economy.FixtureBuildStructure(0, "palisade");
+        int walls = LivingEconomyModel.StructureIndex("stone_walls");
+
+        // No stone within reach: the slot must not be parked on walls, whatever else it picks.
+        economy.FixtureSetReachStone(0, Fix64.Zero);
+        economy.FixtureSetBuildTarget(0, "palisade");
+        economy.FixtureHasBuildCandidate(0);
+        Assert.NotEqual(walls, economy.FixtureBuildTarget(0));
+    }
+
+    [Fact]
+    public void Stone_walls_are_raised_from_stone_quarried_within_reach_without_dressed_ashlar()
+    {
+        BronzeFixture fixture = BronzeFixture.Create(TestPack.Pack, Seed, 60, false, true, true, true, "DEF-03");
+        LivingEconomyModel economy = fixture.Economy;
+        fixture.RunSeasons(40);
+        economy.FixtureComplete(0, "DEF-05");
+        economy.FixtureBuildStructure(0, "palisade");
+        economy.FixtureSetReachStone(0, Fix64.FromInt(500)); // raw stone only: no ashlar was ever dressed
+        int walls = LivingEconomyModel.StructureIndex("stone_walls");
+        Fix64 before = economy.FixtureReachStone(0);
+
+        economy.FixtureSetBuildTarget(0, "palisade");
+        economy.FixtureHasBuildCandidate(0);
+        Assert.Equal(walls, economy.FixtureBuildTarget(0));
+        economy.FixtureSetBuildProgress(0, Fix64.FromInt(1000));
+        economy.FixtureBuildIfReady(0);
+
+        Assert.True(economy.FixtureHasStoneWalls(0));
+        Assert.True(economy.FixtureReachStone(0) < before); // the ring took its stone from the quarryable ground
+    }
+
+    [Fact]
     public void Defense_priority_respects_unlocks_resources_and_existing_defenses()
     {
         GeneratedWorld world = WorldGenerator.Generate(Seed);

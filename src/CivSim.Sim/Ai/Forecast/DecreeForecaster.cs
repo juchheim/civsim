@@ -168,9 +168,11 @@ public static class DecreeForecaster
         int totalRings = (int)pol.Economy.Tier(settlement) + 1;
         int current = pol.Economy.StructureCount(settlement, wallKind);
         int remainingRings = Math.Max(1, totalRings - current);
-        Fix64 effort = Fix64.FromInt(90 * remainingRings); // 30 wall work-seasons + ~60 quarry/dress work (§7.2)
+        // A ring's build labor already covers its quarrying, hauling and dressing (docs/MVP/28 §4); it was 30 ws plus ~60 of stone work (§7.2).
+        Fix64 ringEffort = Fix64.FromInt(pol.Economy.WallRingWork);
+        Fix64 effort = ringEffort * remainingRings;
         (int buildKind, Fix64 share) = pol.Economy.SettlementBuild(settlement);
-        if (buildKind == wallKind) effort = Fix64.Max(Fix64.Zero, effort - Fix64.FromInt(90) * share);
+        if (buildKind == wallKind) effort = Fix64.Max(Fix64.Zero, effort - ringEffort * share);
         Fix64 workPerSeason = Fix64.Max(Fix64.One, Fix64.FromRatio((long)population * 45, 100)); // calibrated to the §7.2 village, ~2 years
         Fix64 corveeRate = workPerSeason * Fix64.FromRatio(3, 2);
         Fix64 acceleratedEffort = corveeRate * Fix64.FromInt(2);

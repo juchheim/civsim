@@ -119,10 +119,14 @@ public sealed partial class LivingEconomyModel
             DemoteShare = K("TierDemoteShare", "0.85");
             DemoteSeasons = K("TierDemoteSeasons", "4").RoundToInt();
             HinterlandRadius = K("HinterlandRadius", "7").RoundToInt();
+            WallCutStone = K("StoneWallsCutStonePerRing", "60").RoundToInt();
+            WallLabor = K("StoneWallsLaborPerRing", "30").RoundToInt();
             HinterlandEmit = K("HinterlandEmit", "0.5");
             CapitalClaimMult = K("CapitalClaimMult", "1.25");
             SpecialistRate = K("SpecialistRateMult", "1.3");
             LaborShare = K("CivicLaborShare", "0.10");
+            FoodShareCap = K("FoodShareCapOutsideHunger", "0.65");
+            IronBuildShare = K("IronBuildLaborShare", "0.20"); // the share of a settlement's work the Iron construction bucket may take in a season, beside the metal chain and civic works
             CityTempleLaborMultiplier = K("CityTempleLaborMultiplier", "1.5");
             MarketEvery = K("MarketEvery", "4").RoundToInt();
             CanalRiverDist = K("CanalRiverDist", "2").RoundToInt();
@@ -149,9 +153,9 @@ public sealed partial class LivingEconomyModel
 
         public readonly int Base, FissionBelow, SecessionBelow, SecessionSeasons, Raided, RaidedBel01, RaidYears, LossPer2Pct,
             OverreachFree, SpanPenalty, Conquered, ConqueredRecovery, ConqueredStart, TownMinPop, CityMinPop, DemoteSeasons,
-            HinterlandRadius, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
+            HinterlandRadius, WallCutStone, WallLabor, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
         public readonly Fix64 Step, WorkMid, WorkRange, WorkSlope, FissionTrigger, Famine, Crowding, OverreachDivisor, DemoteShare,
-            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
+            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, FoodShareCap, IronBuildShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
             BakeryPeople, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
             BuildWood, Deadwood;
     }
@@ -732,8 +736,6 @@ public sealed partial class LivingEconomyModel
     private int CivicCutStoneWant(SettlementState s)
     {
         int civicNeed = s.Civic is { BuildKind: not CivicBuild.None } c ? CivicMaterials(c.BuildKind).Cut : 0;
-        if (s.BuildTarget == Structure.StoneWalls)
-            return Math.Max(civicNeed, 60 * ((int)Tier(s.Id) + 1));
         return civicNeed;
     }
 

@@ -389,7 +389,7 @@ Deposits deplete by the ore taken (tracked; effectively inexhaustible in the cha
 | Bakery | FOD-08 | 4 | clay 4 L, stone 4 L | Grain food value +20% for 40 people; one Baker | wood 2 L/season | Town or City |
 | Canal | AGR-06 | 1 per field tile | — | Irrigated field: yield ×1.5 (×2 Arid or Desert, soil counts 100); flood loss ×0.5 | 0.1 ws/tile/yr | field tile within 2 of a river |
 | Hillfort | DEF-04 | 15 | wood 10 L | Defense ×2.5; refuge for non-combatants and stores of own settlements within 6: loot ×0.25 | 0.2 ws/yr | hill tile within 4 of the settlement |
-| Stone walls | DEF-05 | 30 per Village ring (×2 Town, ×3 City) | cut stone 60 L per Village ring (×2, ×3) | Defense ×3; no assault (investment only); loot ×0.25 outside the walls; do not burn | 0.5 ws/yr per ring | any settlement |
+| Stone walls | DEF-05 | 15 per Village ring (×2 Town, ×3 City), quarrying and dressing included (28 §4; was 30) | stone 20 L per Village ring (×2, ×3), quarried within 8 tiles (was cut stone 60 L) | Defense ×3; no assault (investment only); loot ×0.25 outside the walls; do not burn | 0.5 ws/yr per ring | any settlement |
 | Ziggurat (Wonder) | BLD-08 | 200 | cut stone 80 L, mudbrick 400 | Cohesion +15 within 8, +5 everywhere; claim +1.5 radius 8 | — | a City, 1 per civ |
 
 ```yaml
@@ -408,7 +408,7 @@ Deposits deplete by the ore taken (tracked; effectively inexhaustible in the cha
   - {id: bakery, name: Bakery, class: structure, unlocked_by: FOD-08, labor: 4, materials: "clay 4 L, stone 4 L", effect: "Town or City; grain food value +20% for 40 people; one Baker", upkeep: wood 2 L/season}
   - {id: canal, name: Canal, class: structure, unlocked_by: AGR-06, labor_note: "1.0 per field tile within 2 of a river", materials: "—", effect: "Irrigated field: yield ×1.5 (×2 on Arid and Desert, soil counts 100); flood loss ×0.5", upkeep: "0.1 ws/tile/yr"}
   - {id: hillfort, name: Hillfort, class: structure, unlocked_by: DEF-04, labor: 15, materials: wood 10 L, effect: "On a hill within 4; defense ×2.5; refuge within 6: raid loot ×0.25", upkeep: "0.2 ws/yr"}
-  - {id: stone_walls, name: Stone walls, class: structure, unlocked_by: DEF-05, labor_note: "30 per Village ring (×2 Town, ×3 City)", materials: "cut stone 60 L per Village ring (×2, ×3)", effect: "Defense ×3; no assault in E3 (investment only); loot ×0.25 outside the walls; do not burn", upkeep: "0.5 ws/yr per ring"}
+  - {id: stone_walls, name: Stone walls, class: structure, unlocked_by: DEF-05, labor_note: "15 per Village ring (×2 Town, ×3 City), quarrying and dressing included", materials: "stone 20 L per Village ring (×2, ×3), quarried within 8 tiles", effect: "Defense ×3; no assault in E3 (investment only); loot ×0.25 outside the walls; do not burn", upkeep: "0.5 ws/yr per ring"}
   - {id: ziggurat, name: Ziggurat (Wonder), class: wonder, unlocked_by: BLD-08, labor: 200, materials: "cut stone 80 L, mudbrick 400", effect: "At a City; Cohesion +15 within 8, +5 everywhere; claim +1.5 radius 8", upkeep: "—"}
 ```
 
