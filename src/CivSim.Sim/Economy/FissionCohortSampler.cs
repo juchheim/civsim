@@ -106,7 +106,11 @@ internal static class FissionCohortSampler
             selected[figureIndex] = true;
             moved++;
         }
+        bool hasCurrentIronToolWorkers = candidates.Any(figure => figure.WorkedWithToolLastSeason &&
+            figure.Age >= 14 && figure.Kit is 11 or 12);
         bool coverageSwap = preserveCurrentToolCoverage && PreserveCurrentToolCoverage(selected, candidates);
+        if (preserveCurrentToolCoverage && hasCurrentIronToolWorkers && !MeetsCurrentToolCoverage(selected, candidates))
+            return new FissionCohortSample(new bool[figureCount], "ironToolCoverageCannotBePreserved");
         if (preserveCurrentToolCoverage && BalanceIdleKitHolderShare(selected, candidates)) coverageSwap = true;
         return moved < 6
             ? new FissionCohortSample(selected, "daughterSampleBelowSixMembers")
@@ -181,7 +185,9 @@ internal static class FissionCohortSampler
                 if (equipped) parentEquipped++;
             }
         }
-        return MeetsCoverage(daughterEquipped, daughterWorkers) && MeetsCoverage(parentEquipped, parentWorkers);
+        bool hasToolWorkers = daughterWorkers + parentWorkers > 0;
+        return (!hasToolWorkers || daughterWorkers > 0 && parentWorkers > 0) &&
+            MeetsCoverage(daughterEquipped, daughterWorkers) && MeetsCoverage(parentEquipped, parentWorkers);
     }
 
     private static bool MeetsCoverage(int equipped, int workers)
@@ -205,8 +211,11 @@ internal static class FissionCohortSampler
                 if (equipped) parentEquipped++;
             }
         }
-        return System.Math.Max(0, daughterWorkers * 7 - daughterEquipped * 10) +
+        int deficit = System.Math.Max(0, daughterWorkers * 7 - daughterEquipped * 10) +
             System.Math.Max(0, parentWorkers * 7 - parentEquipped * 10);
+        if (daughterWorkers + parentWorkers > 0 && (daughterWorkers == 0 || parentWorkers == 0))
+            deficit += candidates.Count * 7 + 1;
+        return deficit;
     }
 
     private static bool HasRequiredDaughterRepresentatives(bool[] selected,
