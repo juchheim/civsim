@@ -1,6 +1,6 @@
 # 28. Production gap: why the civilization builds less than it researches
 
-Status: fixes 2 to 5 applied 2026-11-07. Iron pacing and the items at the end of §5 are open.
+Status: fixes 2 to 5 applied 2026-11-07. Fix 6 (Iron pacing) applied the same day; the items in §7 are open.
 
 A full playthrough to the end of the Iron Age showed a civilization that had researched far more building types than it
 had built. Diagnosis was done with a scratch `gap` harness over four-seed Iron matches (seeds 20261019 to 20261022, four
@@ -79,10 +79,33 @@ at most 0.10 of a settlement's work. It is now the constant `IronBuildLaborShare
 because the remaining types wait on the one-at-a-time build order, not on labor.) The 24-minute politics golden reaches
 the Iron Age, so `tests/golden/politics-v1.txt` was refreshed with this change.
 
-## 6. Still open
+## 6. Iron pacing: a longer tail
 
-* Iron pacing (the match ends about 25 minutes into the age; running the same matches to minute 120 raises the Iron
-  share built from 20% to 48%).
+The first KEY-5 comes at about year 76 to 82 and most Iron building types unlock in the 5 to 12 minutes before it. The
+chapter ended 24 seasons (6 years) after it, so those types were unlocked and then the match was over. The countdown is
+now `ChapterRules.IronCountdownSeasons` = 72 (18 years) and the hard cap `IronCapYear` = 130 (was 96, which an 18-year
+countdown would have hit).
+
+Four-seed Iron matches, with the §2 to §5 changes (cap raised to 400 and the run to minute 160 so only the countdown
+varies):
+
+| Countdown after first KEY-5 | Iron types built | Unbuilt types unlocked in the last 10 min | Match ends (min) | People per civ |
+|---|---|---|---|---|
+| 24 seasons (before) | 32% | 106 | 85 | 1328 |
+| 48 | 40% | 82 | 91 | 1607 |
+| 72 (chosen) | 47% | 26 | 97 | 1799 |
+| 120 | 51% | 0 | 109 | 2127 |
+
+72 captures most of the gain for about 12 more minutes of play; beyond it the extra years add few new types. The
+Bronze chapter has the same shape (33 of 41 unbuilt Bronze types unlocked in the last 10 minutes, year cap 64) and was
+left alone.
+
+A longer countdown also gives a trailing civilization more time to reach its own KEY-5 before the match ends, which
+changes who wins the Iron endgame; the Iron acceptance gates were not rerun for this change.
+
+## 7. Still open
+
 * Gatehouses are now possible but still rare, and castles still never get built: they sit late in the one-at-a-time Iron
   build order and a castle also needs a close foreign neighbour.
 * The eight dead unlocks, and a way for the player to see (or steer) what a town is waiting on.
+* Bronze pacing, if the same tail problem is wanted fixed there.
