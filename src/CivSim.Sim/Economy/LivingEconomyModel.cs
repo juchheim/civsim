@@ -3149,6 +3149,21 @@ public sealed partial class LivingEconomyModel : ISimModel
         return total;
     }
 
+    /// <summary>Quarries up to <paramref name="amount"/> litres from the stone within 8 tiles that no rival holds; returns what it took.</summary>
+    private Fix64 TakeReachStone(SettlementState s, Fix64 amount)
+    {
+        Fix64 left = amount;
+        foreach (int tile in ReachTiles(s.SiteTile, 8))
+        {
+            if (left <= Fix64.Zero) break;
+            if (_stoneStock[tile] <= Fix64.Zero || IsRivalTile(s.Civilization, tile)) continue;
+            Fix64 take = Fix64.Min(left, _stoneStock[tile]);
+            _stoneStock[tile] -= take;
+            left -= take;
+        }
+        return amount - left;
+    }
+
     /// <summary>
     /// A wall ring uses dressed ashlar first and is raised from stone quarried and dressed on site for the rest, as civic
     /// buildings gather their own stone. The ring's build labor (<c>StoneWallsLaborPerRing</c>) covers that quarrying, hauling and

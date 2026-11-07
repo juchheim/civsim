@@ -1659,8 +1659,11 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>How far a frontier segment reaches: a rival settlement this close is a neighbour worth a wall (hex tiles; provisional).</summary>
     private const int FrontierReach = 6;
-    /// <summary>A castle is built on a border town: a rival settlement within this many tiles (provisional).</summary>
-    private const int CastleReach = 8;
+    /// <summary>
+    /// A castle is built on a border town: a rival settlement within this many tiles (provisional). Twelve is two Iron-era claim radii (5 + 5) and a gap of two
+    /// tiles, the distance at which two civilizations' claims meet; eight left castles with 1 town in 40 on the measured maps (docs/MVP/28 §9).
+    /// </summary>
+    private const int CastleReach = 12;
     /// <summary>Soldiers needed in post for a castle to hold its region (the catalog says "garrison required"; the Captures minimum is four).</summary>
     private const int CastleGarrison = 4;
     /// <summary>Claim strength of a garrisoned castle's settlement (docs/MVP/26 §3.2 "strong claim anchor"; radius is already 5 in the Iron era; provisional).</summary>
@@ -2217,13 +2220,24 @@ public sealed partial class LivingEconomyModel
     /// <summary>The first wanted structure kind in enum order (not <paramref name="skip"/>); kinds shelved fully worked and waiting on materials come last unless <paramref name="passShelved"/>.</summary>
     private int NextWantedIronKind(SettlementState s, MetalState m, int civ, int skip, bool passShelved)
     {
-        for (int k = 0; k < (int)IronStructure.Count; k++)
+        // Defense works are taken first (docs/MVP/28 §9): they are wanted only by a walled town (gatehouse) or a walled border town (castle, with the crane that halves
+        // its labor), they are cheap or rare, and at the end of the enum order they were reached by 1 walled town in 20.
+        foreach (IronStructure first in DefenseFirst)
         {
-            if (k == skip || !Done(civ, IronSpecs[k].Unlock) || !IronBuildWanted(s, (IronStructure)k)) continue;
-            if (!passShelved && m.IronShelf is { } shelf && shelf[k] > Fix64.Zero && shelf[k] >= IronLaborOf(s, IronSpecs[k])) continue;
-            return k;
+            int d = (int)first;
+            if (d != skip && IronKindOpen(s, m, civ, d, passShelved)) return d;
         }
+        for (int k = 0; k < (int)IronStructure.Count; k++)
+            if (k != skip && IronKindOpen(s, m, civ, k, passShelved)) return k;
         return -1;
+    }
+
+    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.Crane, IronStructure.Castle };
+
+    private bool IronKindOpen(SettlementState s, MetalState m, int civ, int k, bool passShelved)
+    {
+        if (!Done(civ, IronSpecs[k].Unlock) || !IronBuildWanted(s, (IronStructure)k)) return false;
+        return passShelved || m.IronShelf is not { } shelf || shelf[k] <= Fix64.Zero || shelf[k] < IronLaborOf(s, IronSpecs[k]);
     }
 
     /// <summary>Makes <paramref name="kind"/> the current build, keeping the progress of the one it replaces on the shelf and bringing back any of its own.</summary>
@@ -2269,7 +2283,10 @@ public sealed partial class LivingEconomyModel
         if (blocksShort > Fix64.Zero)
         {
             Fix64 rate = QuarryRate(s);
-            Fix64 got = TakeRangeStone(s, Fix64.Min(blocksShort, available * rate));
+            Fix64 wanted = Fix64.Min(blocksShort, available * rate);
+            Fix64 got = TakeRangeStone(s, wanted);
+            // The ground within three tiles is spent by the time Iron works are wanted (docs/MVP/28 §9): quarry on from the wider reach civic buildings and walls use.
+            if (got < wanted) got += TakeReachStone(s, wanted - got);
             m.Goods[(int)MetalGood.Block] += got;
             used += got / rate;
         }

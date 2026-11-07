@@ -1346,6 +1346,20 @@ public class IronChainTests
     }
 
     [Fact]
+    public void A_walled_town_builds_its_gatehouse_before_the_other_Iron_works_it_wants()
+    {
+        BronzeFixture f = Iron("KEY-4", "DEF-06", "MEC-04");
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureAddPeople(0, 40, 25);
+        f.Economy.FixtureBuildStructure(0, "stone_walls");
+        // The gatehouse is later in the order than the windlass well; the town still takes it first.
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "windlass_well"));
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "gatehouse"));
+        f.RunSeasons(2);
+        Assert.Equal("gatehouse", LivingEconomyModel.IronWorkId(f.Economy.FixtureIronBuildKind(0)));
+    }
+
+    [Fact]
     public void A_castle_needs_walls_and_a_border_and_anchors_a_claim_only_while_garrisoned()
     {
         BronzeFixture f = Iron("KEY-4", "DEF-06", "DEF-08", "WAR-07");
@@ -1358,6 +1372,12 @@ public class IronChainTests
         for (int i = 1; i < f.Economy.FixtureSettlementCount; i++) if (f.Economy.FixtureCivOf(i) != f.Economy.FixtureCivOf(0)) { rival = i; break; }
         f.Economy.FixtureMoveSite(rival, f.Economy.SettlementLite(0).SiteTile + 4);
         Assert.True(f.Economy.FixtureIronBuildWanted(0, "castle"));
+        // The border is where two claims meet: twelve tiles (two Iron claim radii and a gap of two) still counts, thirteen does not.
+        f.Economy.FixtureMoveSite(rival, f.Economy.SettlementLite(0).SiteTile + 12);
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "castle"));
+        f.Economy.FixtureMoveSite(rival, f.Economy.SettlementLite(0).SiteTile + 13);
+        Assert.False(f.Economy.FixtureIronBuildWanted(0, "castle"));
+        f.Economy.FixtureMoveSite(rival, f.Economy.SettlementLite(0).SiteTile + 4);
         Fix64 before = f.Economy.ClaimMultiplier(0);
         f.Economy.FixtureBuildIronStructure(0, "castle");
         Assert.False(f.Economy.CastleGarrisoned(0)); // a keep with no soldiers holds nothing

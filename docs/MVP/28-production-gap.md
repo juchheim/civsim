@@ -121,11 +121,74 @@ x3 does no better than x2. The chosen setting gives a building about 13 minutes 
 leaves about 24 types never unlocked. The late-cost overrides were written by script from the derived costs (the cost
 does not follow a later change of the era base cost by itself).
 
-The Iron acceptance gates (including the research pace band) were not rerun for this change.
+## 7a. Pacing check against the 2026-11-04 refit (I-T1)
+
+Only I-T1 (own KEY-4 to KEY-5 pacing, `25 §13`) is touched by the §5 to §7 changes, and it has no approved band yet
+(`balance/m11-it1-pacing-reconciliation-2026-11-06.md`), so this is a comparison, not a pass or fail. Same harness, same
+seeds `20264001` to `20264024` (24 matches, four Warlord seats each, run to the natural chapter end), two builds: the
+parent of the walls fix (`a482e0d`, cap 96, countdown 24) and current main (cap 130, countdown 48, all changes in this document).
+
+| | Before (a482e0d) | Now (main) |
+|---|---|---|
+| Seats reaching KEY-4 / KEY-5 | 94/96, 75/96 | 95/96, 83/96 |
+| Own KEY-4 to KEY-5, mean / median | 19.6 / 19.4 min | 25.2 / 25.1 min |
+| p10 to p90, range | 17.7 to 22.2, 16.4 to 26.3 | 22.1 to 28.3, 19.8 to 34.3 |
+| KEY-4 reached, mean minute | 63.8 | 64.6 |
+| Chapter length, median | 85.7 min | 95.8 min |
+| Year-cap endings | 0/24 | 0/24 |
+| Iron projects done per seat / people per seat | 41.1 / 1191 | 50.1 / 1720 |
+
+The "before" arm reproduces the 11-04 refit (19.6 mean), so the comparison is sound. KEY-4 comes at the same time; the
+whole 5.6 minute (29%) slowdown is the age's second half, which is what the doubled late-project cost was meant to do.
+The cap is never reached. B4-06 (metal and fuel) was run by another session on a pack with the same hash as current main
+and has open I-T2 coverage misses; those were not re-attributed here.
+
+**Decision (user, 2026-11-07): keep about 25 minutes from KEY-4 to KEY-5.** The late-project multiplier stays x2 and the
+countdown 48. This is the user's sign-off on the pacing these changes produce; it is not a formal I-T1 acceptance band
+(25 §13 still lists the band as TBD), so any later refit starts from this 25.2 minute mean (p10 to p90 22.1 to 28.3).
 
 ## 8. Still open
 
-* Gatehouses are now possible but still rare, and castles still never get built: they sit late in the one-at-a-time Iron
-  build order and a castle also needs a close foreign neighbour.
+* Gatehouses and castles: addressed in §9.
 * The eight dead unlocks, and a way for the player to see (or steer) what a town is waiting on.
 * Bronze pacing, if the same tail problem is wanted fixed there.
+
+## 9. Gatehouses and castles
+
+On current main (12 four-seed matches, 48 civilizations, 1131 towns, census at the match end) the defense works were nearly
+absent: 805 towns had stone walls and 316 wanted a gatehouse, but 41 had one; a castle needs a rival settlement within
+8 tiles and only 30 towns had one, 7 of them walled and large enough, so 1 castle was built. Frontier wall segments (rival
+within 6 tiles) were built 0 times. Three causes, in the order they were found:
+
+* **Stone.** Iron works quarry their blocks only from the stone within 3 tiles of the town, which is spent by the time they
+  are wanted (the same shortage as §4). Towns finished the labor of a structure and then waited for blocks that never came
+  ("gatehouse lacks block" was the commonest stuck reason). Iron works now fall back to the stone within 8 tiles that no
+  rival holds, the reach walls already use (`TakeReachStone`).
+* **Queue order.** A town builds the first wanted structure in a fixed order, and the gatehouse (9th) and castle (11th) came
+  behind terraces, roads, bridges, aqueducts, bathhouses and theatres. The gatehouse, the crane and the castle are now taken
+  first. They are wanted only by a walled town, or by a walled border town for the castle, so this does not crowd out
+  towns without walls.
+* **Castle reach.** A rival within 12 tiles (two Iron claim radii of 5 and a gap of 2: where two civilizations' claims meet)
+  instead of 8. A castle still needs walls, 60 people, and a garrison of four supplied soldiers to do anything.
+
+Same 12 seeds, three builds:
+
+| | Before | Defense first | Defense first + 8-tile stone |
+|---|---|---|---|
+| Gatehouses | 42 | 38 | **159** |
+| Castles | 1 | 4 | **37** |
+| All Iron works | 1990 | 1986 | **2697** |
+| Aqueducts / bathhouses / theatres | 6 / 2 / 11 | 7 / 10 / 11 | **70 / 88 / 87** |
+| Academies | 49 | 35 | 123 |
+| Roads / bridges | 598 / 258 | 612 / 275 | 706 / 341 |
+| People per civilization | 1778 | 1773 | 1781 |
+| Own KEY-4 to KEY-5, mean | 25.1 min | 25.4 | 24.9 |
+
+The stone was the main cause: priority alone moved nothing (towns started the work and then stalled on blocks), and the
+8-tile stone alone is what lifted every stone-built structure. Pacing and population did not change. Castle building
+still depends on a neighbour within 12 tiles, so interior towns do not build one; that is intended.
+
+Tests: `A_walled_town_builds_its_gatehouse_before_the_other_Iron_works_it_wants`, and the castle test now checks the
+12 and 13 tile edges. Goldens (toy, research, politics, content pack) are unchanged. Not done: frontier wall segments
+(reach 6, still 0 built; it shares its constant with the border-flip guard, so it was left alone), and the Iron acceptance
+gates were not rerun for this change.
