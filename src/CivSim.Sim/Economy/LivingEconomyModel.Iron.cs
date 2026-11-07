@@ -632,7 +632,7 @@ public sealed partial class LivingEconomyModel
                     if (move <= Fix64.Zero) continue;
                     AddStock(donor, IronSlot(kit), -move);
                     AddStock(receiver, IronSlot(kit), move);
-                    RecordIT6KitTransfer(donor, receiver, t, move, season);
+                    RecordIT6KitTransfer(donor, receiver, t, move, season, holderTransfer: false);
                     need -= move;
                     surplus -= move;
                 }
@@ -689,11 +689,11 @@ public sealed partial class LivingEconomyModel
                 }
                 // A settlement may have other tool work, or a large unassigned holder pool,
                 // before its Iron route has actually served a worker. Keep those kits local
-                // until an Iron-equipped worker establishes that the surplus is idle. Once the
-                // route is proven, retain enough holders to cover 70% of recent toolworkers;
-                // one equipped worker must not make a larger undercovered crew donate its reserve.
+                // until an Iron-equipped worker establishes that the surplus is idle. During
+                // the route ramp, retain one additional holder above the recent toolworker
+                // count so a single newly active worker does not immediately lose its kit.
                 if (!hadActiveIronToolWorkersLastSeason) continue;
-                int minimumHolderReserve = (recentToolWorkers * 7 + 9) / 10;
+                int minimumHolderReserve = recentToolWorkers + 1;
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
                 for (int i = 0; i < _figures.Count; i++)
@@ -727,7 +727,7 @@ public sealed partial class LivingEconomyModel
                 donorFigure.KitLeft = Fix64.Zero;
                 recipient.Kit = tier;
                 recipient.KitLeft = left;
-                RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season);
+                RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season, holderTransfer: true);
                 break;
             }
         }

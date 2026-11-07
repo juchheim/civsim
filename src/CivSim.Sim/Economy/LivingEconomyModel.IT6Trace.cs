@@ -44,7 +44,7 @@ internal readonly record struct IT3WearDistribution(
 }
 
 /// <summary>Read-only provenance for a whole-kit domestic delivery; used to include every route producer in I-T2 fuel qualification.</summary>
-internal readonly record struct IT6KitTransferSnapshot(int Season, int FromSettlementId, int ToSettlementId, int Tier, Fix64 Quantity);
+internal readonly record struct IT6KitTransferSnapshot(int Season, int FromSettlementId, int ToSettlementId, int Tier, Fix64 Quantity, bool HolderTransfer);
 
 public sealed partial class LivingEconomyModel
 {
@@ -253,12 +253,13 @@ public sealed partial class LivingEconomyModel
         return count;
     }
 
-    private void RecordIT6KitTransfer(SettlementState donor, SettlementState receiver, int tier, Fix64 quantity, int season)
+    private void RecordIT6KitTransfer(SettlementState donor, SettlementState receiver, int tier, Fix64 quantity, int season,
+        bool holderTransfer)
     {
         if (IT6AccountingTraceEnabled && IronChain && donor.Id != receiver.Id && quantity > Fix64.Zero)
         {
             _it6KitTransfers ??= new List<IT6KitTransferSnapshot>();
-            _it6KitTransfers.Add(new IT6KitTransferSnapshot(season, donor.Id, receiver.Id, tier, quantity));
+            _it6KitTransfers.Add(new IT6KitTransferSnapshot(season, donor.Id, receiver.Id, tier, quantity, holderTransfer));
         }
         RecordIT6KitRelocation(donor.Id, receiver.Id, tier, quantity);
     }

@@ -112,6 +112,13 @@ internal static class FissionCohortSampler
         if (preserveCurrentToolCoverage && hasCurrentIronToolWorkers && !MeetsCurrentToolCoverage(selected, candidates))
             return new FissionCohortSample(new bool[figureCount], "ironToolCoverageCannotBePreserved");
         if (preserveCurrentToolCoverage && BalanceIdleKitHolderShare(selected, candidates)) coverageSwap = true;
+        if (preserveCurrentToolCoverage && hasCurrentIronToolWorkers &&
+            !MeetsCurrentToolCoverageWithHolderBuffer(selected, candidates))
+        {
+            if (!PreserveCurrentToolCoverageHolderBuffer(selected, candidates))
+                return new FissionCohortSample(new bool[figureCount], "ironToolCoverageCannotBePreserved");
+            coverageSwap = true;
+        }
         return moved < 6
             ? new FissionCohortSample(selected, "daughterSampleBelowSixMembers")
             : new FissionCohortSample(selected, coverageSwap
@@ -188,6 +195,106 @@ internal static class FissionCohortSampler
         bool hasToolWorkers = daughterWorkers + parentWorkers > 0;
         return (!hasToolWorkers || daughterWorkers > 0 && parentWorkers > 0) &&
             MeetsCoverage(daughterEquipped, daughterWorkers) && MeetsCoverage(parentEquipped, parentWorkers);
+    }
+
+    private static bool MeetsCurrentToolCoverageWithHolderBuffer(bool[] selected,
+        IReadOnlyList<FissionFigureCandidate> candidates)
+    {
+        int daughterWorkers = 0, parentWorkers = 0, daughterHolders = 0, parentHolders = 0;
+        foreach (FissionFigureCandidate figure in candidates)
+        {
+            bool daughter = selected[figure.FigureIndex];
+            if (figure.Age >= 14 && figure.WorkedWithToolLastSeason)
+            {
+                if (daughter) daughterWorkers++;
+                else parentWorkers++;
+            }
+            if (figure.Age >= 14 && figure.Kit is 11 or 12)
+            {
+                if (daughter) daughterHolders++;
+                else parentHolders++;
+            }
+        }
+        if (!MeetsCurrentToolCoverage(selected, candidates)) return false;
+        return HasHolderGrowthBuffer(daughterWorkers, daughterHolders) &&
+            HasHolderGrowthBuffer(parentWorkers, parentHolders);
+    }
+
+    private static bool HasHolderGrowthBuffer(int workers, int holders)
+    {
+        if (workers == 0) return true;
+        int coverageHolders = (workers * 7 + 9) / 10;
+        return holders >= coverageHolders + 1;
+    }
+
+    private static bool PreserveCurrentToolCoverageHolderBuffer(bool[] selected,
+        IReadOnlyList<FissionFigureCandidate> candidates)
+    {
+        bool[] original = (bool[])selected.Clone();
+        int previousDeficit = CurrentHolderGrowthBufferDeficit(selected, candidates);
+        int maximumSwaps = candidates.Count / 2;
+        for (int pass = 0; pass < maximumSwaps && previousDeficit > 0; pass++)
+        {
+            int bestDaughterIndex = -1, bestParentIndex = -1, bestDeficit = previousDeficit;
+            for (int selectedIndex = 0; selectedIndex < candidates.Count; selectedIndex++)
+            {
+                FissionFigureCandidate movingBack = candidates[selectedIndex];
+                if (!selected[movingBack.FigureIndex]) continue;
+                selected[movingBack.FigureIndex] = false;
+                for (int parentIndex = 0; parentIndex < candidates.Count; parentIndex++)
+                {
+                    FissionFigureCandidate movingOut = candidates[parentIndex];
+                    if (selected[movingOut.FigureIndex]) continue;
+                    selected[movingOut.FigureIndex] = true;
+                    if (HasRequiredDaughterRepresentatives(selected, candidates) &&
+                        MeetsCurrentToolCoverage(selected, candidates))
+                    {
+                        int deficit = CurrentHolderGrowthBufferDeficit(selected, candidates);
+                        if (deficit < bestDeficit)
+                        {
+                            bestDeficit = deficit;
+                            bestDaughterIndex = selectedIndex;
+                            bestParentIndex = parentIndex;
+                        }
+                    }
+                    selected[movingOut.FigureIndex] = false;
+                }
+                selected[movingBack.FigureIndex] = true;
+            }
+
+            if (bestDaughterIndex < 0) break;
+            selected[candidates[bestDaughterIndex].FigureIndex] = false;
+            selected[candidates[bestParentIndex].FigureIndex] = true;
+            previousDeficit = bestDeficit;
+            if (MeetsCurrentToolCoverageWithHolderBuffer(selected, candidates)) return true;
+        }
+
+        Array.Copy(original, selected, selected.Length);
+        return false;
+    }
+
+    private static int CurrentHolderGrowthBufferDeficit(bool[] selected,
+        IReadOnlyList<FissionFigureCandidate> candidates)
+    {
+        int daughterWorkers = 0, parentWorkers = 0, daughterHolders = 0, parentHolders = 0;
+        foreach (FissionFigureCandidate figure in candidates)
+        {
+            bool daughter = selected[figure.FigureIndex];
+            if (figure.Age >= 14 && figure.WorkedWithToolLastSeason)
+            {
+                if (daughter) daughterWorkers++;
+                else parentWorkers++;
+            }
+            if (figure.Age >= 14 && figure.Kit is 11 or 12)
+            {
+                if (daughter) daughterHolders++;
+                else parentHolders++;
+            }
+        }
+        int daughterNeed = daughterWorkers == 0 ? 0 : (daughterWorkers * 7 + 9) / 10 + 1;
+        int parentNeed = parentWorkers == 0 ? 0 : (parentWorkers * 7 + 9) / 10 + 1;
+        return System.Math.Max(0, daughterNeed - daughterHolders) +
+            System.Math.Max(0, parentNeed - parentHolders);
     }
 
     private static bool MeetsCoverage(int equipped, int workers)
