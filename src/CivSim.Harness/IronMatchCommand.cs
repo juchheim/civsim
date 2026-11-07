@@ -72,6 +72,7 @@ internal static class IronMatchCommand
         bool ironFissionCoveragePreserving = false;
         bool bronzeControl = false;
         int ironFuelReachBufferOverride = -1;
+        Fix64 ironChainCapMultiplier = Fix64.One;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -87,21 +88,23 @@ internal static class IronMatchCommand
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
                 case "--iron-hub-fuel-sharing": ironHubFuelSharing = true; break;
                 case "--iron-fission-coverage-preserving": ironFissionCoveragePreserving = true; break;
+                case "--iron-chain-cap-multiplier": ironChainCapMultiplier = Fix64.Parse(args[++i]); break;
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--cap-years N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--cap-years N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-chain-cap-multiplier X] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
+        if (ironChainCapMultiplier <= Fix64.Zero || ironChainCapMultiplier > Fix64.FromInt(3)) throw new ArgumentOutOfRangeException(nameof(ironChainCapMultiplier));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, capYears, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
+        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, capYears, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, ironHubFuelSharing, ironFissionCoveragePreserving, ironChainCapMultiplier, bronzeControl, ironFuelReachBufferOverride));
         return 0;
     }
 
-    private static string Play(ulong seed, ContentPack pack, int minutes, int capYears, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
+    private static string Play(ulong seed, ContentPack pack, int minutes, int capYears, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, Fix64 ironChainCapMultiplier, bool bronzeControl, int ironFuelReachBufferOverride)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -113,6 +116,7 @@ internal static class IronMatchCommand
         match.Economy.IT6AccountingTraceEnabled = it6Accounting;
         match.Economy.IronHubFuelSharingEnabled = ironHubFuelSharing;
         match.Economy.IronFissionCoveragePreservingForDiagnostics = ironFissionCoveragePreserving;
+        match.Economy.IronPostRouteChainCapMultiplierForDiagnostics = ironChainCapMultiplier;
         match.Economy.IronFuelReachBufferOverride = ironFuelReachBufferOverride;
         FissionSiteDiagnostics? fissionDiagnostics = ironFissionCoveragePreserving ? new FissionSiteDiagnostics() : null;
         if (fissionDiagnostics is not null) match.Economy.FissionSiteDiagnosticsForDiagnostics = fissionDiagnostics;

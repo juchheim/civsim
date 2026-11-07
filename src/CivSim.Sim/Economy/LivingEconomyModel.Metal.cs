@@ -113,6 +113,8 @@ public sealed partial class LivingEconomyModel
     internal Fix64 MineHeadWood { get; set; } = Fix64.FromInt(6);
     /// <summary>Screen only: multiplies the metal chain's labor cap (MetalChainLaborCap, not the build cap). 1 in production.</summary>
     internal Fix64 ChainCapMultiplier { get; set; } = Fix64.One;
+    /// <summary>Diagnostic candidate: multiplies the chain labor cap after MET-09 only. 1 in production.</summary>
+    internal Fix64 IronPostRouteChainCapMultiplierForDiagnostics { get; set; } = Fix64.One;
     /// <summary>Screen only: multiplies the metal build cap (forge, furnaces, mine heads). 1 in production.</summary>
     internal Fix64 BuildCapMultiplier { get; set; } = Fix64.One;
     /// <summary>Whether the completion-only transfer may take Market-town housing labor for a funded first facility's final sliver.</summary>
@@ -948,6 +950,7 @@ public sealed partial class LivingEconomyModel
             plan.BuildCap *= IronPreRouteBuildCapMultiplier;
         plan.BuildNeed = plan.BuildRequested;
         Fix64 cap = totalWork * _bronzeConstants.ChainCap * ChainCapMultiplier;
+        if (IronChain && Done(civ, "MET-09")) cap *= IronPostRouteChainCapMultiplierForDiagnostics;
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
