@@ -692,8 +692,13 @@ public sealed partial class LivingEconomyModel
             bool coverageTopUp = receiverBelowCoverageThreshold && hasServicePositiveIronHolder;
             int recipientFigure = reserveFigure >= 0 ? reserveFigure :
                 hasServicePositiveIronHolder ? uncoveredToolWorker : -1;
+            int coverageTransfersNeeded = (receiverRecentToolWorkers * 7 + 9) / 10 - coveredRecentToolWorkers;
+            // Keep one ready holder beyond the current coverage floor when the receiver has an
+            // idle adult to carry it. A new toolworker can appear after this sharing pass, too
+            // late for a same-season sister delivery to count toward the 12-season checkpoint.
+            int reboundBufferFigure = coverageTopUp && reserveFigure >= 0 ? reserveFigure : -1;
             int transfersNeeded = coverageTopUp
-                ? (receiverRecentToolWorkers * 7 + 9) / 10 - coveredRecentToolWorkers
+                ? coverageTransfersNeeded + (reboundBufferFigure >= 0 ? 1 : 0)
                 : 1;
             if (transfersNeeded <= 0 || (!coverageTopUp && recipientFigure < 0) ||
                 (coverageTopUp && uncoveredToolWorkers.Count == 0)) continue;
@@ -723,6 +728,9 @@ public sealed partial class LivingEconomyModel
                     if (figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
                         servicePositiveIronHolders++;
                 }
+                bool recentFissionDaughterDonor = donor.Fissions == 0 &&
+                    season - donor.LastFissionSeason is >= 0 and <= 12;
+                if (recentFissionDaughterDonor) continue;
                 // A settlement may have other tool work, or a large unassigned holder pool,
                 // before its Iron route has actually served a worker. Keep those kits local
                 // until an Iron-equipped worker establishes that the surplus is idle. During
@@ -769,9 +777,31 @@ public sealed partial class LivingEconomyModel
                 });
                 int donorCapacity = Math.Min(donors.Count, servicePositiveIronHolders - minimumHolderReserve);
                 int moves = Math.Min(transfersNeeded, donorCapacity);
+                bool lowCohortLargeDonor = Population(donor.Id) >= 20 && recentToolWorkers <= 2;
+                if (lowCohortLargeDonor && season - donor.LastIronHolderShareSeason <= 12) continue;
+                if (lowCohortLargeDonor)
+                {
+                    // Large, low-cohort settlements can rebound sharply within one I-T2
+                    // window. Keep 70% of their current holder pool plus one projected
+                    // worker, and don't draw it down again during that 12-season window.
+                    int reboundReserve = ((servicePositiveIronHolders + 1) * 7 + 9) / 10;
+                    moves = Math.Min(moves, Math.Max(0, servicePositiveIronHolders - reboundReserve));
+                }
                 for (int moveIndex = 0; moveIndex < moves; moveIndex++)
                 {
-                    FigureState recipient = _figures[coverageTopUp ? uncoveredToolWorkers[nextUncoveredWorker++] : recipientFigure];
+                    int recipientIndex;
+                    if (coverageTopUp && nextUncoveredWorker < uncoveredToolWorkers.Count)
+                        recipientIndex = uncoveredToolWorkers[nextUncoveredWorker++];
+                    else if (coverageTopUp && reboundBufferFigure >= 0)
+                    {
+                        recipientIndex = reboundBufferFigure;
+                        reboundBufferFigure = -1;
+                    }
+                    else if (!coverageTopUp)
+                        recipientIndex = recipientFigure;
+                    else
+                        break;
+                    FigureState recipient = _figures[recipientIndex];
                     FigureState donorFigure = _figures[donors[moveIndex]];
                     byte tier = donorFigure.Kit;
                     Fix64 left = donorFigure.KitLeft;
@@ -790,6 +820,8 @@ public sealed partial class LivingEconomyModel
                     RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season, holderTransfer: true);
                     transfersNeeded--;
                 }
+                if (moves > 0 && lowCohortLargeDonor)
+                    donor.LastIronHolderShareSeason = season;
             }
         }
     }

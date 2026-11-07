@@ -208,7 +208,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (chop) l.ChopInflows += amount; else l.OtherInflows += amount;
     }
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 26;
+    public const int SnapshotVersion = 27;
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -382,6 +382,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Structure BuildTarget;
         public int Fissions;
         public int LastFissionSeason = -1000;
+        public int LastIronHolderShareSeason = -1000;
         public Fix64 Cohesion = Fix64.One;
         public Fix64 DomesticSmallStock;
         public Fix64 DomesticCattle;
@@ -4395,6 +4396,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         SettlementState daughter = NewSettlement(parent.Civilization, site);
         daughter.LastFissionSeason = season;
+        if (IronHubFuelSharingEnabled) daughter.LastIronHolderShareSeason = season;
         if (CivilizationHasPhysicalDefensePlan(parent.Civilization))
             daughter.BuildTarget = Structure.Palisade;
         _settlements.Add(daughter);
@@ -6091,6 +6093,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             byte buildTarget = !_bronzeActive && s.BuildTarget == Structure.Count
                 ? (byte)Structure.Hillfort : (byte)s.BuildTarget;
             hash.Add(s.BuildProgress); hash.Add(s.DryingMudbrick); hash.Add(buildTarget); hash.Add(s.Fissions); hash.Add(s.LastFissionSeason);
+            if (s.LastIronHolderShareSeason != -1000)
+            { hash.Add(0x49524F4E53484152UL); hash.Add(s.LastIronHolderShareSeason); }
             hash.Add(s.Cohesion); hash.Add(s.Stores);
             if (HasProject(s.Civilization, "MIN-01")) { hash.Add(0x535552464F434852UL); hash.Add(s.SurfaceOchre); }
             int hashedStructures = _bronzeActive ? s.Structures.Length : (int)Structure.Hillfort;
@@ -6183,6 +6187,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(s.LateWinterForecast.Raw); writer.Write(s.LateWinterFoodShare.Raw);
             writer.Write(s.FarmWorkThisYear.Raw); writer.Write(s.BuildProgress.Raw); writer.Write(s.DryingMudbrick.Raw); writer.Write((byte)s.BuildTarget);
             writer.Write(s.Fissions); writer.Write(s.LastFissionSeason); writer.Write(s.Cohesion.Raw); writer.Write(s.FissionPending);
+            writer.Write(s.LastIronHolderShareSeason);
             writer.Write(s.DomesticSmallStock.Raw); writer.Write(s.DomesticCattle.Raw); writer.Write(s.DomesticPigs.Raw);
             writer.Write(s.FireLit); writer.Write(s.FireKeeperId); writer.Write(s.UnattendedFireTicks);
             writer.Write(s.UnderInvestment);
@@ -6311,6 +6316,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             s.BuildTarget = (Structure)reader.ReadByte();
             s.Fissions = reader.ReadInt32(); s.LastFissionSeason = reader.ReadInt32(); s.Cohesion = Fix64.FromRaw(reader.ReadInt64());
             s.FissionPending = reader.ReadBoolean();
+            s.LastIronHolderShareSeason = reader.ReadInt32();
             s.DomesticSmallStock = Fix64.FromRaw(reader.ReadInt64());
             s.DomesticCattle = Fix64.FromRaw(reader.ReadInt64()); s.DomesticPigs = Fix64.FromRaw(reader.ReadInt64());
             s.FireLit = reader.ReadBoolean(); s.FireKeeperId = reader.ReadInt64(); s.UnattendedFireTicks = reader.ReadByte();
@@ -6642,6 +6648,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             BuildTarget = source.BuildTarget,
             Fissions = source.Fissions,
             LastFissionSeason = source.LastFissionSeason,
+            LastIronHolderShareSeason = source.LastIronHolderShareSeason,
             Cohesion = source.Cohesion,
             DomesticSmallStock = source.DomesticSmallStock,
             DomesticCattle = source.DomesticCattle,
