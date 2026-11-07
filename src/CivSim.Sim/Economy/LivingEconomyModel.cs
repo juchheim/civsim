@@ -1727,6 +1727,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         bool emergencyFoodWork = FullFoodWorkWhenShortForCivsForDiagnostics is { } emergencyFoodCivs &&
             (uint)settlement.Civilization < (uint)emergencyFoodCivs.Length && emergencyFoodCivs[settlement.Civilization] &&
             EmergencyFoodWorkEligibleForDiagnostics(season, settlement.FoodSecurity, stores, need, enabled: true);
+        // Construction labor floor: once the metal age has begun, food may not take more than FoodShareCapOutsideHunger of the plannable
+        // work unless the settlement is actually short of food (rule 1). The rest stays for building, materials and civic works, which
+        // otherwise got 2-3% of a settlement's labor and starved every late structure of its stone and hands (docs/MVP/28).
+        if (metalPlan is not null && settlement.LedgerFoodShareRule != 1)
+            foodShare = Fix64.Min(foodShare, _civic.FoodShareCap);
         foodShare = EmergencyFoodWorkShare(foodShare, emergencyFoodWork);
         if (settlement.Civic is { } civicTraceFood) civicTraceFood.TraceFoodShare = foodShare;
         Fix64 foodWork = totalWork * foodShare;
@@ -3127,6 +3132,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         => settlement.Structures[(int)Structure.Palisade] > 0 || settlement.Structures[(int)Structure.Hillfort] > 0 ||
            settlement.Structures[(int)Structure.StoneWalls] > 0;
 
+    /// <summary>Walls are researched and the settlement has not yet built its tier's allowance of them.</summary>
+    private bool WallsAreWanted(SettlementState settlement)
+        => CanBuild(settlement.Civilization, Structure.StoneWalls) &&
+           settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1;
+
     private Structure SelectBuildCandidate(SettlementState settlement, int season)
     {
         int population = Population(settlement.Id);
@@ -3181,8 +3191,10 @@ public sealed partial class LivingEconomyModel : ISimModel
             HasHillfortSite(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10)) return Structure.Hillfort;
         if (CanBuild(settlement.Civilization, Structure.Palisade) && settlement.Structures[(int)Structure.Palisade] == 0 &&
             settlement.Stores[(int)Good.Wood] >= PalisadeRequiredWood((int)Tier(settlement.Id), season)) return Structure.Palisade;
-        if (CanBuild(settlement.Civilization, Structure.StoneWalls) &&
-            settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1)
+        // Walls take the single basic build slot only once their cut stone is in hand. Picking them earlier parked the slot on a
+        // project that could not be paid for (60+ cut stone, wanted separately through CivicCutStoneWant) and starved every
+        // later basic build (weir, pasture, orchard) for the rest of the match.
+        if (WallsAreWanted(settlement) && CanPayStructure(settlement, Structure.StoneWalls, season))
             return Structure.StoneWalls;
         if (CanBuild(settlement.Civilization, Structure.Weir) &&
             CanPlaceWeir(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&

@@ -123,6 +123,7 @@ public sealed partial class LivingEconomyModel
             CapitalClaimMult = K("CapitalClaimMult", "1.25");
             SpecialistRate = K("SpecialistRateMult", "1.3");
             LaborShare = K("CivicLaborShare", "0.10");
+            FoodShareCap = K("FoodShareCapOutsideHunger", "0.65");
             CityTempleLaborMultiplier = K("CityTempleLaborMultiplier", "1.5");
             MarketEvery = K("MarketEvery", "4").RoundToInt();
             CanalRiverDist = K("CanalRiverDist", "2").RoundToInt();
@@ -151,7 +152,7 @@ public sealed partial class LivingEconomyModel
             OverreachFree, SpanPenalty, Conquered, ConqueredRecovery, ConqueredStart, TownMinPop, CityMinPop, DemoteSeasons,
             HinterlandRadius, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
         public readonly Fix64 Step, WorkMid, WorkRange, WorkSlope, FissionTrigger, Famine, Crowding, OverreachDivisor, DemoteShare,
-            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
+            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, FoodShareCap, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
             BakeryPeople, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
             BuildWood, Deadwood;
     }
@@ -732,7 +733,8 @@ public sealed partial class LivingEconomyModel
     private int CivicCutStoneWant(SettlementState s)
     {
         int civicNeed = s.Civic is { BuildKind: not CivicBuild.None } c ? CivicMaterials(c.BuildKind).Cut : 0;
-        if (s.BuildTarget == Structure.StoneWalls)
+        // Wanted while walls are merely allowed, not only while they hold the build slot: the slot is given to walls once the stone exists.
+        if (s.BuildTarget == Structure.StoneWalls || WallsAreWanted(s))
             return Math.Max(civicNeed, 60 * ((int)Tier(s.Id) + 1));
         return civicNeed;
     }
