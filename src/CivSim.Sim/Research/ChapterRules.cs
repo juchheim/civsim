@@ -19,11 +19,18 @@ public enum ChapterMode : byte
 /// </summary>
 public sealed class ChapterRules
 {
-    /// <summary>Candidate Iron hard cap in years (docs/MVP/25 §3).</summary>
-    public const int IronCapYear = 96;
+    /// <summary>
+    /// Iron hard cap in years. Was 96 (docs/MVP/25 §3); raised so it cannot cut the lengthened countdown short: the first KEY-5 comes at
+    /// about year 76 to 82, so an 18-year countdown ends near year 97 (docs/MVP/28 §6).
+    /// </summary>
+    public const int IronCapYear = 130;
 
-    /// <summary>Candidate Iron countdown after the first rival's KEY-5, in seasons (docs/MVP/25 §3).</summary>
-    public const int IronCountdownSeasons = 24;
+    /// <summary>
+    /// Iron countdown after the first rival's KEY-5, in seasons: 18 years. Was 24 (docs/MVP/25 §3). Most Iron buildings unlock in the last
+    /// minutes of research, and at 24 the match ended before a town could build them; measured on four-seed matches, Iron types built went
+    /// 32% (24), 40% (48), 47% (72), 51% (120) (docs/MVP/28 §6).
+    /// </summary>
+    public const int IronCountdownSeasons = 72;
 
     /// <summary>The Bronze chapter exactly as before M11: research ceiling 3, KEY-4 ends it, cap and countdown from the catalog.</summary>
     public static ChapterRules Bronze { get; } = new(ChapterMode.Bronze, ResearchSystem.LastResearchEra, null, null);
