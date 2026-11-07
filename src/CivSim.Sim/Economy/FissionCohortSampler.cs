@@ -232,7 +232,13 @@ internal static class FissionCohortSampler
         // Preserve a second parent reserve for wear and worker rebound; the fresh daughter keeps
         // current coverage and can top up through sister sharing. Without this asymmetry, the
         // daughter can take the parent's only replacement kit and leave the route below target.
-        if (parentPopulation <= 20 && daughterWorkers == 1 && parentWorkers > 0 && totalHolders >= 4)
+        // Compact fissions can leave a larger parent with a small but already-active Iron
+        // cohort. When that parent keeps one or two workers, bias the limited spare pool
+        // toward its rebound capacity and leave the fresh daughter at current coverage.
+        // Sister sharing can grow the daughter later; a late parent top-up can miss its
+        // 12-season I-T2 endpoint entirely.
+        if (parentPopulation <= 24 && daughterWorkers is 1 or 2 && parentWorkers > 0 &&
+            totalHolders >= HolderNeed(parentWorkers, growthBuffer: 2) + HolderNeed(daughterWorkers, growthBuffer: 0))
         {
             int parentNeed = HolderNeed(parentWorkers, growthBuffer: 2);
             return (parentNeed, HolderNeed(daughterWorkers, growthBuffer: 0));
