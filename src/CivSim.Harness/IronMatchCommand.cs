@@ -594,6 +594,15 @@ internal static class IronMatchCommand
             if (result.StartsWith("FAIL", StringComparison.Ordinal))
             {
                 output.AppendLine($"      route kit/workers start={start.T11ToolWorkers + start.T12ToolWorkers}/{start.ToolWorkers} end={ironWorkers}/{workers}; source accounting is T11/T12 made,received,sent,issued,broken,retired,holder-change,stock-change");
+                foreach (IT6KitTransferSnapshot transfer in transfers
+                             .Where(transfer => transfer.Season >= route.StartSeason && transfer.Season <= route.EndSeason &&
+                                 (transfer.FromSettlementId == route.SettlementId || transfer.ToSettlementId == route.SettlementId))
+                             .OrderBy(transfer => transfer.Season).ThenBy(transfer => transfer.FromSettlementId)
+                             .ThenBy(transfer => transfer.ToSettlementId).ThenBy(transfer => transfer.Tier))
+                {
+                    string channel = transfer.HolderTransfer ? "holder" : "stock";
+                    output.AppendLine($"        season {transfer.Season}: T{transfer.Tier} {channel} s{transfer.FromSettlementId}->s{transfer.ToSettlementId} qty={F(transfer.Quantity)}");
+                }
                 foreach (int producerId in fuelProducerIds.Append(route.SettlementId).Distinct().OrderBy(id => id))
                 {
                     if (!route.FuelStartsBySite.TryGetValue(producerId, out IT6FuelSiteSnapshot producerStart) ||
