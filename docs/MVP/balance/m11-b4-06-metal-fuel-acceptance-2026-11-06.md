@@ -436,3 +436,22 @@ dotnet /tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harn
 ```
 
 The v18 acceptance block is consumed. The first failure was seed `20263181`, settlement `s40`, seasons 293–305, with endpoint coverage `2/3` (66.67%) and passing fuel (`0/40` short demand-seasons; `0.00/67.36 L` unmet/planned). Four shards were running independently; additional matches completed before they were interrupted. In total, 14 matches reached natural end, with **553 I-T2 passes, 4 failures, and 872 censored windows**. The other qualified failures were `20263183` s69 at `2/3` (1/1 start, 2/3 end), `20263202` s89 at `2/3` (2/3 start and end), and `20263223` s78 at `4/7` (57.14%; 1/7 start). All four had qualified fuel and passed its cutoff; all `14/14` completed settlement-kit ledgers were exact, with no whole-match resource residuals or I-T6 cutoff failures. The seeds show that the fission reserve repair fixed its targeted miss but did not close broader route coverage gaps involving worker growth, holder transfer timing, and kit wear/production. Preserve the four shard outputs listed above. The whole `20263181–20263260` block is consumed; the next unused natural-match seed is `20263261`.
+
+## v24 compact-donor reserve repair and targeted failure replays
+
+Source commit `8611d38a244d9e45dcd07d33a8aeab9ead03672c` narrows the projected donor reserve to compact settlements (population below 20), while preserving the existing coverage floor for larger producers and the stronger reserve after recent fission or a known rebound. This responds to two regressions: v22's s47 miss in a small donor and v23's s105 miss after applying the projected reserve to every donor. The sharing pass can also complete a final rebound-buffer top-up after all currently uncovered workers have been covered. The same patch corrects T12 bloom-equivalent demand and stored steel credit, extends fuel-hub ore sourcing to its configured planning reach, and accounts for the added labor when ore hauling exceeds normal sharing reach.
+
+The v24 diagnostic replays used the current 352,205-byte pack `/tmp/civsim-b406-iron45-main.pack` (SHA-256 `2fc1d22db07fbd0967e916b9bc471f6bcbce939b3203a9513d5ef27c56cb754b`) with `--it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving`. The fixed-screen regression seeds and the four v18 failure seeds were replayed to natural end:
+
+| Seed | Targeted route outcome | I-T2 screen pass / fail / censored |
+| --- | --- | ---: |
+| `20262061` | s47 now ends at 5/5 (100%); passes | 53 / 0 / 44 |
+| `20262101` | Former s105 window ends at 1/1 (100%), but is censored because no connected kit source produced in the window | 60 / 0 / 49 |
+| `20263181` | s40 now ends at 3/3 (100%); passes | 42 / 0 / 62 |
+| `20263183` | s69 ends at 4/4 (100%), but is censored because no connected kit source produced in the window | 53 / 0 / 53 |
+| `20263202` | s89 ends at 2/2 (100%) but is censored for no kit production; s78 ends at 2/2 and is censored at 11/12 fuel-demand seasons | 54 / 0 / 48 |
+| `20263223` | s89 ends at 7/7 (100%); passes. s78 ends at 2/2 (100%) but is censored for no kit production | 43 / 0 / 52 |
+
+Across the six natural-end diagnostic matches, the I-T2 screen recorded **305 passes, 0 failures, and 308 censored windows**. Censored windows are not passes. Each match reported all four civilizations passing the approved I-T6 fuel cutoff; the cutoff remains shortfall rate at most 5%, unmet/planned charcoal at most 1%, and at least 12 positive planned-charcoal demand-seasons. The four file-captured reports show exact whole-match forest, local-wood, world-kit, and settlement-kit ledgers, with no Iron-era metal-clearing crossings. Compact ledger extracts for the final two replays are recorded at `/tmp/civsim-b406-v24-ledger-20263202.txt` and `/tmp/civsim-b406-v24-ledger-20263223.txt`.
+
+This resolves the reproduced qualifying I-T2 failures in the targeted matches, but is diagnostic evidence only. The complete fixed 13-seed v24 screen was not rerun, and the 80-match v18 acceptance block remains consumed. The next unused natural-match seed remains `20263261`; this source change requires a fresh preregistration before any acceptance run. B4-06 remains open until a fresh, complete acceptance block passes every unchanged I-T2 and I-T6 gate.
