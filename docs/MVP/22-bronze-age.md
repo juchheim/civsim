@@ -315,7 +315,7 @@ The combat round (13 §7.2) is unchanged (k = 0.06; 40% of casualties die; MED-0
 |---|---|---:|---|---|
 | Palisade (E2) | DEF-03 | ×2.0 | burnable | 6 ws, 8 L wood (×2 Village) |
 | **Hillfort** | DEF-04 | **×2.5** (replaces palisade) | refuge on a hill within 4 tiles for the non-combatants and stores of every own settlement within 6: raid loot ×0.25 | 15 ws, 10 L wood |
-| **Stone walls** | DEF-05 | **×3.0** (replaces) | **cannot be assaulted in E3** (no siege engines until E4): investment only (§7.4); raiders loot outside the walls only (×0.25); do not burn | 30 ws + 60 L cut stone per Village ring; ×2 Town, ×3 City |
+| **Stone walls** | DEF-05 | **×3.0** (replaces) | **cannot be assaulted in E3** (no siege engines until E4): investment only (§7.4); raiders loot outside the walls only (×0.25); do not burn | 15 ws + 20 L stone quarried within 8 tiles per Village ring; ×2 Town, ×3 City (was 30 ws + 60 L cut stone; see [28 §4](28-production-gap.md)) |
 | Archery behind barriers, hill site, home ground | (13) | ×1.25, ×1.2, ×1.1 | unchanged | |
 
 Walls are a two-year project for a village (about 90 ws with quarrying and dressing); **Corvée** cuts that by a third, which is exactly the "build walls before their bronze arrives" decision.
@@ -527,7 +527,7 @@ Effect primitives as in [11 §1](11-e0-e2-project-specs.md#1-effect-primitives-s
 | TER-06 | Boundary Stones & Land Rights | I | TER-05, GOV-03 | Rule(own tiles flip only after a 30% lead held 2 seasons) · Admin(Overreach −10%) · Claim(mining camps radius 2) | mark |
 | TER-07 | City-States & Hinterlands | I | TER-06, SOC-09 | Claim(each City: hinterland ring to radius 7 at 50% emission) | mark |
 | DEF-04 | Earthworks & Hillforts | S | DEF-03, MIN-03 | Build(Hillfort on a hill within 4: 15 ws, 10 L wood) · Defense(×2.5, refuge within 6: raid loot ×0.25) | build, guard |
-| DEF-05 | Stone Walls | S | DEF-04, STN-11 | Build(Walls: 30 ws + 60 L cut stone per Village; ×2 Town, ×3 City) · Defense(×3; no assault, investment only; loot ×0.25) | build, guard |
+| DEF-05 | Stone Walls | S | DEF-04, STN-11 | Build(Walls: 15 ws + 20 L stone per Village; ×2 Town, ×3 City; 28 §4) · Defense(×3; no assault, investment only; loot ×0.25) | build, guard |
 | DIP-04 | Envoys & Oaths | I | DIP-03, GOV-04 | Diplo(Non-aggression pact: 8 years; breaking −60 Relations, reputation −30) · Role(Envoy) · Mandate(Compact costs 0) | meet strangers |
 | DIP-05 | Written Treaties | I | DIP-04, COM-05 | Diplo(Border treaty: the current line is fixed for 10 years) · Rule(compacts survive Relations down to −30) | meet strangers, scribe |
 | WAR-05 | Bronze Arms & Shields | M | WAR-04, (MET-04 \| MET-05) | Good(G-ARMS2: 0.3 L bronze; 2.1 arsenical, 2.3 tin) · Combat(shields: casualties taken ×0.7) · Rule(militia carry bronze spears from stock) | fight, smelt |

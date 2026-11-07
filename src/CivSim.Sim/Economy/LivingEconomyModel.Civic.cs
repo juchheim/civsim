@@ -119,6 +119,8 @@ public sealed partial class LivingEconomyModel
             DemoteShare = K("TierDemoteShare", "0.85");
             DemoteSeasons = K("TierDemoteSeasons", "4").RoundToInt();
             HinterlandRadius = K("HinterlandRadius", "7").RoundToInt();
+            WallCutStone = K("StoneWallsCutStonePerRing", "60").RoundToInt();
+            WallLabor = K("StoneWallsLaborPerRing", "30").RoundToInt();
             HinterlandEmit = K("HinterlandEmit", "0.5");
             CapitalClaimMult = K("CapitalClaimMult", "1.25");
             SpecialistRate = K("SpecialistRateMult", "1.3");
@@ -150,7 +152,7 @@ public sealed partial class LivingEconomyModel
 
         public readonly int Base, FissionBelow, SecessionBelow, SecessionSeasons, Raided, RaidedBel01, RaidYears, LossPer2Pct,
             OverreachFree, SpanPenalty, Conquered, ConqueredRecovery, ConqueredStart, TownMinPop, CityMinPop, DemoteSeasons,
-            HinterlandRadius, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
+            HinterlandRadius, WallCutStone, WallLabor, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
         public readonly Fix64 Step, WorkMid, WorkRange, WorkSlope, FissionTrigger, Famine, Crowding, OverreachDivisor, DemoteShare,
             HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, FoodShareCap, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
             BakeryPeople, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
@@ -733,9 +735,6 @@ public sealed partial class LivingEconomyModel
     private int CivicCutStoneWant(SettlementState s)
     {
         int civicNeed = s.Civic is { BuildKind: not CivicBuild.None } c ? CivicMaterials(c.BuildKind).Cut : 0;
-        // Wanted while walls are merely allowed, not only while they hold the build slot: the slot is given to walls once the stone exists.
-        if (s.BuildTarget == Structure.StoneWalls || WallsAreWanted(s))
-            return Math.Max(civicNeed, 60 * ((int)Tier(s.Id) + 1));
         return civicNeed;
     }
 

@@ -145,6 +145,21 @@ public sealed partial class LivingEconomyModel
         if (range.Length > 0) _stoneStock[range[0]] = Fix64.Max(Fix64.Zero, litres);
     }
 
+    /// <summary>Sets the raw stone within 8 tiles of a settlement (what a wall ring may be raised from) to a known total.</summary>
+    internal void FixtureSetReachStone(int settlementIndex, Fix64 litres)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        foreach (int tile in ReachTiles(s.SiteTile, 8)) _stoneStock[tile] = Fix64.Zero;
+        _stoneStock[s.SiteTile] = Fix64.Max(Fix64.Zero, litres);
+    }
+
+    internal Fix64 FixtureReachStone(int settlementIndex)
+    {
+        Fix64 total = Fix64.Zero;
+        foreach (int tile in ReachTiles(_settlements[settlementIndex].SiteTile, 8)) total += _stoneStock[tile];
+        return total;
+    }
+
     internal Fix64 FixtureRangeStone(int settlementIndex)
     {
         Fix64 total = Fix64.Zero;
