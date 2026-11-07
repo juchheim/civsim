@@ -673,17 +673,28 @@ public sealed partial class LivingEconomyModel
                 SettlementState donor = _settlements[d];
                 if (!IronSister(receiver, donor, reach)) continue;
                 bool hadActiveIronToolWorkersLastSeason = false;
+                int recentToolWorkers = 0;
+                int servicePositiveIronHolders = 0;
                 foreach (FigureState figure in _figures)
-                    if (figure.SettlementId == donor.Id && figure.Age >= 14 && figure.WorkedWithToolLastSeason &&
-                        figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                {
+                    if (figure.SettlementId != donor.Id || figure.Age < 14) continue;
+                    if (figure.WorkedWithToolLastSeason)
                     {
-                        hadActiveIronToolWorkersLastSeason = true;
-                        break;
+                        recentToolWorkers++;
+                        if (figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                            hadActiveIronToolWorkersLastSeason = true;
                     }
+                    if (figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
+                        servicePositiveIronHolders++;
+                }
                 // A settlement may have other tool work, or a large unassigned holder pool,
                 // before its Iron route has actually served a worker. Keep those kits local
-                // until an Iron-equipped worker establishes that the surplus is idle.
+                // until an Iron-equipped worker establishes that the surplus is idle. Once the
+                // route is proven, retain enough holders to cover 70% of recent toolworkers;
+                // one equipped worker must not make a larger undercovered crew donate its reserve.
                 if (!hadActiveIronToolWorkersLastSeason) continue;
+                int minimumHolderReserve = (recentToolWorkers * 7 + 9) / 10;
+                if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
                 for (int i = 0; i < _figures.Count; i++)
                 {
