@@ -259,6 +259,9 @@ internal sealed class BronzeFixture
         }
     }
 
+    /// <summary>Runs one tick carrying a player command (fixture only).</summary>
+    public void Apply(Command command) => Economy.Step(_tick++, new[] { command });
+
     /// <summary>Runs whole seasons without adding external food; used to make shortage fixtures reproducible.</summary>
     public void RunSeasonsWithoutFoodTopUp(int seasons)
     {

@@ -126,7 +126,7 @@ public sealed class MatchModel : ISimModel
         Politics.Step(tick, commands);
         _economyCommands.Clear();
         foreach (Command command in commands)
-            if (command.Kind is CommandKind.CompleteProject or CommandKind.SetScoutPolicy) _economyCommands.Add(command);
+            if (command.Kind is CommandKind.CompleteProject or CommandKind.SetScoutPolicy or CommandKind.SetBuildFocus) _economyCommands.Add(command);
         _completions.Clear();
         Research.TakeCompletions(_completions);
         foreach ((int civ, int project) in _completions)

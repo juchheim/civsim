@@ -218,6 +218,10 @@ public partial class Game
                 Step(() => ZoomTo(ZoomPresets[2]), 1.2f);
                 Shot("tile-pinned-z2");
                 break;
+            case "build-panel":
+                // Docs/MVP/30: the Building tab for a town with a fixable stop, one with a stop nothing can fix, and the result of asking for another structure. --start-minute=30 --viewer=1.
+                BuildPanelScenario((run, wait) => Step(run, wait), shot => Shot(shot));
+                break;
             case "end":
                 Step(ShowEndScreen);
                 Shot("end");

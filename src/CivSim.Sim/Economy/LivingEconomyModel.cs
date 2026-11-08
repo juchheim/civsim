@@ -208,7 +208,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (chop) l.ChopInflows += amount; else l.OtherInflows += amount;
     }
     public const int SeasonTicks = 150;
-    public const int SnapshotVersion = 29;
+    public const int SnapshotVersion = 30;
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -893,6 +893,11 @@ public sealed partial class LivingEconomyModel : ISimModel
                 settlement.ScoutPolicy = (ScoutPolicy)command.B;
             return;
         }
+        if (command.Kind == CommandKind.SetBuildFocus)
+        {
+            ApplyBuildFocus(command);
+            return;
+        }
         if (command.Kind != CommandKind.CompleteProject) return;
         int index = command.A;
         if (index < 0 || index >= _completedProjects[command.Civ].Length) return;
@@ -1119,6 +1124,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             AdvanceOrchards(settlement, season);
             Fix64 orchardFruitYield = Fix64.Max(Fix64.Zero, settlement.Stores[(int)Good.Fruit] - orchardFruitBefore);
             AdvanceDomesticHerds(settlement, season);
+            AdvanceBuildFocus(settlement, season);
             PlanAndWork(settlement, season);
             if (FoodWorkAttributionTraceEnabled && _foodWorkAttribution.TryGetValue(settlement.Id, out FoodWorkAttribution workTrace))
                 _foodWorkAttribution[settlement.Id] = workTrace with { OrchardFruitYield = orchardFruitYield };
@@ -1781,6 +1787,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 woodTarget = proactivePalisade
             ? ProactivePalisadeWoodTarget(settlement, season, metalPlan is not null)
             : metalPlan is not null ? fuelTarget : SeasonalFuelReserveTarget(settlement, season);
+        // A player's build focus that is short of wood asks the woodcutters for it on top of the fuel the town keeps (docs/MVP/30); zero without a focus.
+        Fix64 focusWoodNeed = BuildFocusWoodNeed(settlement, season);
+        woodTarget += focusWoodNeed;
         Fix64 woodStock = settlement.Stores[(int)Good.Wood];
         bool proactiveWoodShortfall = proactivePalisade && woodStock < woodTarget;
         Fix64 ordinaryMaterialWork = B28MaterialWork(totalWork, foodWork, ordinaryBuildWork, proactive: false);
@@ -1831,8 +1840,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         // Reserve Chop work for the hearth fuel buffer and Bronze wood needs. The ordinary
         // and proactive paths use the traced effective yield (~1.8 L/work); metal-plan estimates stay unchanged.
         Fix64 woodShortWork = Fix64.Zero;
+        // With a focus short of wood, all of the material work may go to the axe, not just half of it (the lever of docs/MVP/30; unchanged without a focus).
         woodShortWork = B28WoodShortWork(materialWork, settlement.Stores[(int)Good.Wood], woodTarget,
-            metalPlan is not null, proactivePalisade, seasonalFuelReserve: metalPlan is null && !proactivePalisade);
+            metalPlan is not null, proactivePalisade || focusWoodNeed > Fix64.Zero, seasonalFuelReserve: metalPlan is null && !proactivePalisade);
         if (_b28PreparedDefenseLedgers.TryGetValue(settlement.Id, out B28PreparedDefenseLedger? preparedWork))
         {
             preparedWork.Food = foodWork;
@@ -3256,100 +3266,6 @@ public sealed partial class LivingEconomyModel : ISimModel
     private bool WallsAreWanted(SettlementState settlement)
         => CanBuild(settlement.Civilization, Structure.StoneWalls) &&
            settlement.Structures[(int)Structure.StoneWalls] < (int)Tier(settlement.Id) + 1;
-
-    private Structure SelectBuildCandidate(SettlementState settlement, int season)
-    {
-        int population = Population(settlement.Id);
-        bool needsHousing = HousingCap(settlement) < (ShouldBuildMarketHousingAhead(settlement)
-            ? HousingTarget(settlement) : Fix64.FromInt(population + 8));
-        bool hasWarmShelter = settlement.Structures[(int)Structure.PitHouse] > 0 ||
-            settlement.Structures[(int)Structure.WattleHouse] > 0 || settlement.Structures[(int)Structure.MudbrickHouse] > 0 ||
-            settlement.Structures[(int)Structure.Longhouse] > 0;
-        bool hasBasicShelter = hasWarmShelter || settlement.Structures[(int)Structure.LeanTo] > 0 ||
-            settlement.Structures[(int)Structure.HideTent] > 0;
-        bool extraLeanToForMarketCandidate = settlement.Civic is null &&
-            ShouldBuildMarketHousingAhead(settlement) && needsHousing;
-        if (CanBuild(settlement.Civilization, Structure.StoragePit) && settlement.Structures[(int)Structure.StoragePit] == 0 &&
-            FoodStores(settlement) >= Fix64.FromInt(5)) return Structure.StoragePit;
-        if (CanBuild(settlement.Civilization, Structure.DryingRack) && settlement.Structures[(int)Structure.DryingRack] == 0 &&
-            settlement.Stores[(int)Good.Wood] >= Fix64.Half && settlement.Stores[(int)Good.Meat] >= Fix64.FromInt(2)) return Structure.DryingRack;
-        if (CanBuild(settlement.Civilization, Structure.Granary) && settlement.Structures[(int)Structure.Granary] == 0 &&
-            settlement.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(80)) return Structure.Granary;
-        if (CanBuild(settlement.Civilization, Structure.PitHouse) && !hasWarmShelter && hasBasicShelter &&
-            WarmthDeficit(settlement, true) > 0 && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(4)) return Structure.PitHouse;
-        if (CanBuild(settlement.Civilization, Structure.WattleHouse) && !hasWarmShelter && hasBasicShelter &&
-            WarmthDeficit(settlement, true) > 0 && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&
-            settlement.Stores[(int)Good.Clay] >= Fix64.FromInt(2)) return Structure.WattleHouse;
-        if (CanBuild(settlement.Civilization, Structure.LeanTo) && (!hasBasicShelter || extraLeanToForMarketCandidate) &&
-            (needsHousing || WarmthDeficit(settlement, true) > 0) && settlement.Stores[(int)Good.Wood] >= Fix64.One)
-            return Structure.LeanTo;
-        if (CanBuild(settlement.Civilization, Structure.Hearth) && settlement.Structures[(int)Structure.Hearth] == 0 &&
-            settlement.Stores[(int)Good.Stone] >= Fix64.Half) return Structure.Hearth;
-        if (CanBuild(settlement.Civilization, Structure.Field) && FieldLimit(settlement) > settlement.FieldTiles.Count)
-            return Structure.Field;
-        if (CanBuild(settlement.Civilization, Structure.PitHouse) && settlement.Structures[(int)Structure.PitHouse] == 0 &&
-            needsHousing && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(4)) return Structure.PitHouse;
-        if (CanBuild(settlement.Civilization, Structure.HideTent) && settlement.Structures[(int)Structure.HideTent] == 0 &&
-            settlement.Stores[(int)Good.Hide] >= Fix64.FromInt(3) && settlement.Stores[(int)Good.Wood] >= Fix64.One)
-            return Structure.HideTent;
-        if (CanBuild(settlement.Civilization, Structure.WattleHouse) && needsHousing && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&
-            settlement.Stores[(int)Good.Clay] >= Fix64.FromInt(2)) return Structure.WattleHouse;
-        if (CanBuild(settlement.Civilization, Structure.MudbrickHouse) && needsHousing &&
-            settlement.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(60)) return Structure.MudbrickHouse;
-        if (CanBuild(settlement.Civilization, Structure.Longhouse) && needsHousing && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(12) &&
-            settlement.Stores[(int)Good.Clay] >= Fix64.FromInt(4)) return Structure.Longhouse;
-        if (CanBuild(settlement.Civilization, Structure.Kiln) && settlement.Structures[(int)Structure.Kiln] == 0 &&
-            settlement.Stores[(int)Good.Clay] >= Fix64.FromInt(3) &&
-            settlement.Stores[(int)Good.Stone] >= Fix64.FromInt(2)) return Structure.Kiln;
-        if (EarlyWorkWanted(settlement, Structure.PottersWorkshop, season, population)) return Structure.PottersWorkshop;
-        if (CanBuild(settlement.Civilization, Structure.Quern) && settlement.Structures[(int)Structure.Quern] == 0 &&
-            settlement.Stores[(int)Good.Stone] >= Fix64.One) return Structure.Quern;
-        if (CanBuild(settlement.Civilization, Structure.ThornBarrier) && settlement.Structures[(int)Structure.ThornBarrier] == 0 &&
-            settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(2)) return Structure.ThornBarrier;
-        if (CanBuild(settlement.Civilization, Structure.Lookout) && settlement.Structures[(int)Structure.Lookout] == 0 &&
-            settlement.Stores[(int)Good.Wood] >= Fix64.One) return Structure.Lookout;
-        // The cheap works of belief, territory and warning (docs/MVP/29): one pole, up to two cairns, one signal post, one spaced shrine.
-        foreach (Structure early in new[] { Structure.Totem, Structure.Marker, Structure.SignalPost, Structure.Shrine })
-            if (EarlyWorkWanted(settlement, early, season, population)) return early;
-        if (CanBuild(settlement.Civilization, Structure.Hillfort) && settlement.Structures[(int)Structure.Hillfort] == 0 &&
-            HasHillfortSite(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(10)) return Structure.Hillfort;
-        if (CanBuild(settlement.Civilization, Structure.Palisade) && settlement.Structures[(int)Structure.Palisade] == 0 &&
-            settlement.Stores[(int)Good.Wood] >= PalisadeRequiredWood((int)Tier(settlement.Id), season)) return Structure.Palisade;
-        // Walls take the single basic build slot only once their cut stone is in hand. Picking them earlier parked the slot on a
-        // project that could not be paid for (60+ cut stone, wanted separately through CivicCutStoneWant) and starved every
-        // later basic build (weir, pasture, orchard) for the rest of the match.
-        if (WallsAreWanted(settlement) && CanPayStructure(settlement, Structure.StoneWalls, season))
-            return Structure.StoneWalls;
-        if (CanBuild(settlement.Civilization, Structure.Weir) &&
-            CanPlaceWeir(settlement) && settlement.Stores[(int)Good.Wood] >= Fix64.FromInt(3) &&
-            settlement.Stores[(int)Good.Stone] >= Fix64.FromInt(2)) return Structure.Weir;
-        if (CanBuild(settlement.Civilization, Structure.Pasture) && settlement.Structures[(int)Structure.Pasture] < PastureLimit(settlement) &&
-            settlement.Stores[(int)Good.Wood] >= Fix64.One)
-            return Structure.Pasture;
-        if (CanBuild(settlement.Civilization, Structure.Orchard) && CanPlaceOrchard(settlement) &&
-            settlement.Stores[(int)Good.Sapling] >= Fix64.One)
-            return Structure.Orchard;
-        return Structure.Count;
-    }
-
-    /// <summary>
-    /// Whether the settlement wants one of the works its research unlocked without any other effect before (docs/MVP/29): a totem for a camp of eight, up to two
-    /// markers from ten, a signal post from twelve, a shrine from twenty at least six tiles from another, a potter's workshop beside a kiln from twenty-five.
-    /// </summary>
-    private bool EarlyWorkWanted(SettlementState s, Structure kind, int season, int population)
-    {
-        if (!CanBuild(s.Civilization, kind)) return false;
-        bool wanted = kind switch
-        {
-            Structure.Totem => s.Structures[(int)Structure.Totem] == 0 && population >= 8,
-            Structure.Marker => s.Structures[(int)Structure.Marker] < MarkersPerSettlement && population >= 10,
-            Structure.SignalPost => s.Structures[(int)Structure.SignalPost] == 0 && population >= 12,
-            Structure.Shrine => s.Structures[(int)Structure.Shrine] == 0 && population >= 20 && !OwnShrineWithin(s, ShrineSpacing),
-            Structure.PottersWorkshop => s.Structures[(int)Structure.PottersWorkshop] == 0 && s.Structures[(int)Structure.Kiln] > 0 && population >= PottersMinPop,
-            _ => false,
-        };
-        return wanted && CanPayStructure(s, kind, season);
-    }
 
     private bool CanBuild(int civ, Structure structure)
     {
@@ -6318,6 +6234,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         HashBronze(ref hash);
         HashIron(ref hash);
         HashDecrees(ref hash);
+        HashBuildFocus(ref hash);
         return hash.Finish();
     }
 
@@ -6408,6 +6325,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(d.WinterShortfallHazard.Raw);
         }
         WriteBronze(writer);
+        WriteBuildFocus(writer); // before the Iron block, so a Bronze economy reading an Iron snapshot still ends with unread bytes
         WriteIron(writer);
     }
 
@@ -6553,6 +6471,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 starvation, exposure, injury, predators, violence, senescence, winterShortfall));
         }
         ReadBronze(reader);
+        ReadBuildFocus(reader);
         ReadIron(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
@@ -6781,6 +6700,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _lastDeathEvents.AddRange(source._lastDeathEvents);
         CopyBronzeFrom(source);
         CopyDecreesFrom(source);
+        CopyBuildFocusFrom(source);
     }
 
     private static FigureState CloneFigure(FigureState source) => new()

@@ -78,6 +78,13 @@ public static class PlayerCommands
     public static Command SetRaidResponse(long tick, int civ, int settlement, RaidResponse response)
         => new(tick, (byte)civ, CommandKind.SetRaidResponse, settlement, (int)response, 0);
 
+    // ---- build agency (CommandKind 27, docs/MVP/30) ----
+    /// <summary>Ask an own settlement to build a structure next; <paramref name="code"/> is a <c>LivingEconomyModel.FocusCode</c>. Free; refused if the town cannot be asked for it.</summary>
+    public static Command SetBuildFocus(long tick, int civ, int settlement, int code) => new(tick, (byte)civ, CommandKind.SetBuildFocus, settlement, code, 0);
+    /// <summary>Set a structure aside for now (Iron works and civic buildings): the slot goes to the next wanted one.</summary>
+    public static Command SkipBuild(long tick, int civ, int settlement, int code) => new(tick, (byte)civ, CommandKind.SetBuildFocus, settlement, code, 1);
+    public static Command ClearBuildFocus(long tick, int civ, int settlement) => new(tick, (byte)civ, CommandKind.SetBuildFocus, settlement, -1, 0);
+
     // ---- Iron chapter orders (CommandKind 24 to 26) ----
     /// <summary>Station a crewed galley off a rival harbor you have seen; the settlement index comes from the frame.</summary>
     public static Command Blockade(long tick, int civ, int harborSettlement) => new(tick, (byte)civ, CommandKind.Blockade, harborSettlement, 0, 0);

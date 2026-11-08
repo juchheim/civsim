@@ -27,6 +27,20 @@ public sealed class SimulationSession : IDisposable
     private readonly MatchModel _match;
     private readonly SimRunner _runner;
     private readonly FrameBuilder _builder;
+
+    /// <summary>Whether published frames carry each own settlement's build outlook (the Building tab is open); off keeps the frame build allocation-free.</summary>
+    public bool WantBuildOutlooks
+    {
+        get => _builder.WantBuildOutlooks;
+        set
+        {
+            if (_builder.WantBuildOutlooks == value) return;
+            _builder.WantBuildOutlooks = value;
+            if (value) { Volatile.Write(ref _republish, 1); _wake.Set(); } // a paused match publishes nothing on its own
+        }
+    }
+
+    private int _republish;
     private readonly Thread _thread;
     private readonly object _stateLock = new();
     private readonly AutoResetEvent _wake = new(false);
@@ -356,6 +370,8 @@ public sealed class SimulationSession : IDisposable
         {
             if (Paused)
             {
+                if (Interlocked.Exchange(ref _republish, 0) == 1)
+                    lock (_stateLock) Frames.BuildAndPublish(_builder, _match);
                 _wake.WaitOne(200);
                 continue;
             }

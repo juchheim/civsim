@@ -71,6 +71,14 @@ public enum CommandKind : ushort
     ImposeTribute = 25,
     /// <summary>A = allied civilization (DIP-07): found a league with it or bring it into ours.</summary>
     FormLeague = 26,
+
+    // Build agency (docs/MVP/30). Applied by the economy, like SetScoutPolicy; free; the AI never issues it.
+    /// <summary>
+    /// A = own settlement index, B = a build focus code (<c>LivingEconomyModel.FocusCode</c>: a basic structure by its index, an Iron work by 64 + kind, a civic
+    /// building by 128 + kind) or -1 to clear the settlement's focus, C = 1 to set that structure aside for now instead of preferring it (Iron works and civic buildings only).
+    /// An order the rules refuse changes nothing.
+    /// </summary>
+    SetBuildFocus = 27,
 }
 
 /// <summary>How an alerted settlement responds to an ordinary raid. Surprise always forces a normal fight.</summary>

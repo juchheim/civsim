@@ -476,7 +476,15 @@ public sealed partial class LivingEconomyModel
             c.BuildKind = cityEnabler;
             c.BuildProgress = Fix64.Zero;
         }
-        else if (c.BuildKind == CivicBuild.None || !CanStillBuild(s, c.BuildKind))
+        else if (cityEnabler == CivicBuild.None && BuildFocusPrefers(s, BuildTrack.Civic, out int focusCivic) && (CivicBuild)focusCivic != c.BuildKind &&
+                 CivicGate(s, c, (CivicBuild)focusCivic, includeAppetite: false).Open && CanStillBuild(s, (CivicBuild)focusCivic))
+        {
+            // The player asked for this one (docs/MVP/30). Like a Corvée, a switch starts the new structure from nothing; the civic slot keeps no shelf.
+            c.BuildKind = (CivicBuild)focusCivic;
+            c.BuildProgress = Fix64.Zero;
+        }
+        else if (c.BuildKind == CivicBuild.None || !CanStillBuild(s, c.BuildKind) ||
+                 (cityEnabler == CivicBuild.None && BuildFocusSkips(s, BuildTrack.Civic, (int)c.BuildKind)))
         {
             c.BuildKind = ChooseCivic(s, c);
             c.BuildProgress = Fix64.Zero;
@@ -595,23 +603,19 @@ public sealed partial class LivingEconomyModel
         return labor;
     }
 
+    /// <summary>
+    /// The civic building the settlement raises next: the first of <see cref="CivicOrder"/> whose gate is open (docs/MVP/23 §8). The Market goes to the
+    /// civilization's largest settlements (one more per MarketEvery); from the moment it is chosen the settlement keeps its people (07d R2), and it opens once 40
+    /// live there. A Hall waits until the bricks are in store. A structure the player has set aside (docs/MVP/30) is passed over.
+    /// </summary>
     private CivicBuild ChooseCivic(SettlementState s, CivicState c)
     {
-        int civ = s.Civilization;
-        int pop = Population(s.Id);
-        // The Market goes to the civilization's largest settlements (one more per MarketEvery); from the moment it is chosen the
-        // settlement keeps its people (07d R2), and it opens once 40 live there (docs/MVP/23 §8).
-        if (Done(civ, "TRD-04") && c.Markets == 0 && AmongLargest(s, 1 + (MemberCount(civ) - 1) / Math.Max(1, _civic.MarketEvery)))
-            return CivicBuild.Market;
-        bool townish = c.Tier >= (byte)SettlementTier.Town;
-        if (Done(civ, "GOV-05") && !CivHasPalace(civ) && PalaceSite(civ) == s.Id) return CivicBuild.Palace;
-        if (Done(civ, "BEL-06") && townish && c.Temples == 0) return CivicBuild.Temple;
-        if (Done(civ, "LRN-04") && townish && c.Schools == 0) return CivicBuild.School;
-        if (Done(civ, "FOD-08") && townish && c.Bakeries == 0 && HasProject(civ, "AGR-02")) return CivicBuild.Bakery;
-        if (Done(civ, "TRD-05") && townish && c.Caravanserais == 0 && (TradeRoutes?.RoutesAt(s.Id) ?? 0) >= _civic.MarketTownRoutes)
-            return CivicBuild.Caravanserai;
-        if (Done(civ, "BLD-07") && c.Markets > 0 && HousingCap(s) < HousingTarget(s) && s.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(120)) return CivicBuild.Hall;
-        if (Done(civ, "BLD-08") && c.Tier == (byte)SettlementTier.City && !CivHasZiggurat(civ)) return CivicBuild.Ziggurat;
+        foreach (CivicBuild b in CivicOrder)
+        {
+            if (!CivicGate(s, c, b, includeAppetite: true).Open || BuildFocusSkips(s, BuildTrack.Civic, (int)b)) continue;
+            if (b == CivicBuild.Hall && s.Stores[(int)Good.Mudbrick] < Fix64.FromInt(120)) continue;
+            return b;
+        }
         return CivicBuild.None;
     }
 

@@ -193,6 +193,7 @@ public partial class Game
             case "people-stores": OpenPeoplePanel(PeopleTab.Stores, int.MinValue); break;
             case "people-work": OpenPeoplePanel(PeopleTab.Work, int.MinValue); break;
             case "people-research": OpenPeoplePanel(PeopleTab.Research, int.MinValue); break;
+            case "people-building": OpenPeoplePanel(PeopleTab.Building, int.MinValue); break;
             case "end": ShowEndScreen(); break;
             case "intro": ShowIntroModal(true); break;
         }
