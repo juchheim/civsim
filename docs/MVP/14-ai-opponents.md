@@ -474,3 +474,6 @@ At minute 33 Firsts are about half of Legacy (Dominion ~800, Mastery ~220, First
 The decision-model changes compiled with `dotnet build CivSim.slnx` (0 warnings, 0 errors). No new match tournament or balance measurements were run for this update; the existing acceptance figures above remain the 2026-10-20 results.
 
 Note (2026-11-08): A1 is now ≥ 80% (was 85%), judged on 40 seeds (80 mirrored matches) in acceptance-quality runs. At 200 matches each the Warlord wins 80 to 81% on the current build, `040cdc4` and the pre-production-gap build `a482e0d`, so it was not a regression; at 33 minutes it only ties the Council bot (52%) because Firsts no longer pay Legacy, which is where the old 94% came from. The Warlord AI is unchanged. See docs/MVP/28 §13.
+
+Note (2026-11-08): A5 at the 64-minute horizon read Grower 36.1% on 288 appearances (Builder 28.1, Wanderer 19.1, Warlord 15.3, Sage 26.4), because the Grower's extra towns win Dominion now that Firsts pay nothing. Grower fertility and food capacity are 1.06 (were 1.12 and 1.11) and Sage fertility and adult mortality are 1.0 (were 1.05 and 0.95); the 72-seed result is Builder 26.4, Grower 26.7, Wanderer 25.3, Warlord 23.6, Sage 22.9. The research scales of §17.2 are unchanged. See docs/MVP/28 §14.
+

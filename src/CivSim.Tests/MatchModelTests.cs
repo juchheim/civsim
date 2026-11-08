@@ -54,14 +54,14 @@ public class MatchModelTests
     public void A5_builder_fertility_diagnostic_changes_only_builder_fertility()
     {
         MatchModel match = NewMatch();
-        Assert.Equal(Fix64.Parse("1.12"), match.Economy.FixtureFertilityMultiplier(0));
+        Assert.Equal(Fix64.Parse("1.06"), match.Economy.FixtureFertilityMultiplier(0));
         Assert.Equal(Fix64.One, match.Economy.FixtureFertilityMultiplier(1));
 
         match.Economy.BuilderFertilityMultiplierForDiagnostics = Fix64.Parse("1.1");
 
-        Assert.Equal(Fix64.Parse("1.12"), match.Economy.FixtureFertilityMultiplier(0));
+        Assert.Equal(Fix64.Parse("1.06"), match.Economy.FixtureFertilityMultiplier(0));
         Assert.Equal(Fix64.Parse("1.1"), match.Economy.FixtureFertilityMultiplier(1));
-        Assert.Equal(Fix64.Parse("1.05"), match.Economy.FixtureFertilityMultiplier(2));
+        Assert.Equal(Fix64.One, match.Economy.FixtureFertilityMultiplier(2));
         Assert.Equal(Fix64.One, match.Economy.FixtureFertilityMultiplier(3));
     }
 

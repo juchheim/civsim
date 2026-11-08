@@ -291,3 +291,18 @@ Decision (project owner, 2026-11-08): the A1 bar becomes 80%, judged on 40 seeds
 (`M10AiAcceptanceStatus.A1Target`, `MinimumA1Seeds`). The Warlord AI is unchanged. The 16-match duel still feeds A7 and the
 telemetry gates. A sampled true rate of 80 to 81% sits at the bar, so a future A1 miss at 80 matches is within about
 +/-5 points of noise; read it against the 200-match figures above before acting on it.
+
+## 14. A5 (archetype balance)
+
+At the 64-minute chapter horizon A5 failed on the current build: 72 free-for-all seeds (288 appearances per archetype,
+`ai --ffa warlord --seeds 72 --minutes 64`) give Builder 28.1%, **Grower 36.1%**, Wanderer 19.1%, Warlord 15.3%, Sage 26.4%
+against a 30% cap. The 24-seed run had read Sage at 33%, which was noise.
+
+The Grower won by growing: 15.5 towns against 11.4 to 12.9, so 1,680 Dominion against 1,522 to 1,609, with Mastery and the
+Thriving part level. The archetype table of doc 14 §17 was fitted when Firsts paid Legacy and decided matches; with Firsts at
+0 (the Legacy redesign of 2026-11-06) the economy bonuses that buy settlements count for more.
+
+Change (`LivingEconomyModel.Profile`): Grower fertility 1.12 to 1.06 and food capacity 1.11 to 1.06; Sage fertility 1.05 to
+1.0 and adult mortality 0.95 to 1.0. Builder, Wanderer, Warlord and the research scales are unchanged. Result on 72 seeds:
+Builder 26.4%, Grower 26.7%, Wanderer 25.3%, Warlord 23.6%, Sage 22.9%. A1 to A4 play Balanced AIs and are unaffected.
+`research-v1` changed on purpose (its bot is a Grower); toy and politics did not.

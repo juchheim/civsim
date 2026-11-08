@@ -43,7 +43,18 @@ public class FogFairnessTests
             if (season == 40) { label = "before contact"; beforeContact = true; }
             else if (contactSeason > 0 && season == contactSeason + 3) { label = "after contact"; afterContact = true; }
             else if (season == 120 && match.Research.Era(Observer) >= 2) { label = "mid E2"; midE2 = true; }
-            if (label is null) { runner.Advance(1); continue; }
+            if (label is null)
+            {
+                // The positive control (a seen change must move the belief) needs a rival town in plain sight, which the retuned Grower no longer
+                // guarantees at the three labelled checkpoints, so it also looks at the seasons between them.
+                if (season > 40 && season % 10 == 0 && seenSettlementChecks + seenWeaponChecks == 0)
+                {
+                    if (TrySeenSettlement(match, controls, tick)) seenSettlementChecks++;
+                    if (TrySeenWeapon(match, controls, tick)) seenWeaponChecks++;
+                }
+                runner.Advance(1);
+                continue;
+            }
 
             // Seen: the belief must notice (copies of the match as it stands, before the pair below advances it).
             if (season > 40)

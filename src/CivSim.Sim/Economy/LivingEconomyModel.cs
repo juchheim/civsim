@@ -4075,15 +4075,17 @@ public sealed partial class LivingEconomyModel : ISimModel
         return eraMultiplier * Profile(civ).Fertility;
     }
 
+    // Grower fertility 1.12 to 1.06 and food capacity 1.11 to 1.06, Sage fertility 1.05 to 1.0 and adult mortality 0.95 to 1.0 (docs/MVP/14 §17.4): with Firsts paying
+    // nothing, the Grower's extra towns won 36% of free-for-alls on 288 appearances; the new values give every archetype 22.9 to 26.7%.
     // The Warlord's adult mortality is ×1.0, not 07's ×1.3: the balance model had no war and stood war deaths in with
     // mortality; since M5 raids and assaults kill fighters in the simulation itself (docs/MVP/14 §17).
     private ArchetypeProfile Profile(int civ) => _archetypes[civ] switch
     {
-        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.12"), Fix64.Parse("1.11"), Fix64.One, Fix64.Zero),
+        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.06"), Fix64.Parse("1.06"), Fix64.One, Fix64.Zero),
         EconomyArchetype.Builder => new ArchetypeProfile(BuilderFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.00"), Fix64.Parse("1.07"), Fix64.One, Fix64.Parse("-0.02")),
         EconomyArchetype.Wanderer => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         EconomyArchetype.Warlord => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
-        EconomyArchetype.Sage => new ArchetypeProfile(Fix64.Parse("1.05"), Fix64.One, Fix64.Parse("0.95"), Fix64.Zero),
+        EconomyArchetype.Sage => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         _ => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
     };
 
