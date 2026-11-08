@@ -56,6 +56,7 @@ func _init() -> void:
 const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_dwellings.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_yard.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_basics.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_decor.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_landmarks.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_civic.gd"),

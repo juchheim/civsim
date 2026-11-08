@@ -419,7 +419,7 @@ func _structure_digest() -> int:
 			h = h * 31 + zig_stage(s)
 			h = h * 31 + mini(int(s.get("temples", 0)), 1)
 			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
-			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley"]:
+			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley", "water_mill", "temple_tier2"]:
 				h = h * 31 + w.iron_works(s, wid)
 			h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 			h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
@@ -1119,15 +1119,19 @@ func _settlements() -> void:
 		# items to lay out on a sunflower spiral around the hearth
 		var items := _dwellings(st, int(s.get("halls", 0)), int(s.population))
 		var extras := [[K.STORAGE_PIT, "storagepit", 3], [K.DRYING_RACK, "dryingrack", 2], [K.GRANARY, "granary", 2],
-			[K.KILN, "kiln", 1], [K.QUERN, "quern", 2]]
+			[K.KILN, "kiln", 1], [K.QUERN, "quern", 2], [K.TOTEM, "totem", 1]]
 		var ins := 2
 		for ex in extras:
-			var n := mini(int(st[ex[0]]), 4)
+			var n := mini(_built(st, ex[0]), 4)
 			if n > 0:
 				n = maxi(n, ex[2])
 			for j in n:
 				items.insert(mini(ins, items.size()), ex[1])
 				ins += 3
+		# a potter's workshop (CER-04) stands next to the kiln it needs: the next free spot on the spiral
+		if _built(st, K.POTTERS_WORKSHOP) > 0:
+			var kiln_at := items.find("kiln")
+			items.insert(kiln_at + 1 if kiln_at >= 0 else mini(ins, items.size()), "potters_workshop")
 		var placed := []
 		var placed_r := []
 		var landmarks_seed := []
@@ -1161,6 +1165,8 @@ func _settlements() -> void:
 				landmarks_seed.append([tp, 0.6])
 				civic_sites.append({"kind": "temple", "p": tp, "y": tsite.y, "yaw": tsite.yaw, "civ": civ, "seed": seed, "tile": t})
 				decor_spots["temple_built"] = tp
+				if w.iron_works(s, "temple_tier2") > 0:
+					_colonnade(tsite, h0, cc, t, placed, placed_r)
 		# Iron civic works (academy, theatre or arena, bathhouse, crane): each stands on the best level ground left round the hearth
 		for cw in CIVIC_WORKS:
 			if w.iron_works(s, String(cw[1])) > 0:
@@ -1225,6 +1231,7 @@ func _settlements() -> void:
 		if decor.size() > 0:
 			decor_extent = _place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0, landmarks_seed, int(st[K.STONE_WALLS]) > 0)
 		# lookout tower with a big banner at the edge
+		var edge_taken := []     # where the lookout and the signal post stand
 		if st[K.LOOKOUT] > 0:
 			for i in 12:
 				var a := TAU * i / 12.0 + seed * 3.0
@@ -1233,7 +1240,16 @@ func _settlements() -> void:
 					props.add("lookout", _xf(q, w.height_at(q), a, VS), Color(cc.r, cc.g, cc.b, seed))
 					props.add("banner_small%d" % civ, _xf(q, w.height_at(q) + 0.285 * VS, -0.4, VS), Color(cc.r, cc.g, cc.b, seed))
 					_reserve_plot_visual(q, 0.18)
+					edge_taken.append(q)
 					break
+		# a signal post (COM-04): a braced mast with a brazier at the edge, on another bearing than the lookout
+		if _built(st, K.SIGNAL_POST) > 0:
+			var post = _edge_site(c, h0, seed * TAU + 1.3, rmax + 0.17, 0.2, placed, edge_taken)
+			if post != null:
+				props.add("signal_post", _xf(post.p, post.y, post.yaw, VS), Color(cc.r, cc.g, cc.b, seed))
+				_reserve_plot_visual(post.p, 0.16)
+				placed.append(post.p)
+				edge_taken.append(post.p)
 		# thorn barrier ring with a gate
 		if st[K.THORN_BARRIER] > 0:
 			var ring := rmax + 0.13
@@ -1270,6 +1286,7 @@ func _settlements() -> void:
 		decor_extent = maxf(decor_extent, _province_standards(s, si, c, h0, seed, rmax, placed, cc))
 		# the ring stands round the houses and the landmarks and near props that were laid out with them
 		var ring_r := maxf(wall_base + WALL_RING, decor_extent + 0.14)
+		_outer_works(s, c, h0, seed, (ring_r if wall_rings > 0 else maxf(wall_base, decor_extent)), placed, cc)
 		var siege := _siege_info(s, c, seed)
 		var gate_at := Vector2(1e9, 1e9)
 		if wall_rings > 0:
@@ -1346,7 +1363,8 @@ func _settlements() -> void:
 ## placeholders use the small windbreak; a researched Hide Tent has its own, clearly recognizable mesh.
 const TILED_HOUSES := ["wattle", "mudbrick", "longhouse"]
 const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "hide_tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
-const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2}
+const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2,
+	"totem": 0.06, "potters_workshop": 0.15}
 const DWELL_MAX_EACH := 10
 const DWELL_MAX_TOTAL := 36
 
@@ -1597,6 +1615,136 @@ func _lighthouse(s: Dictionary, t: int, c0: Vector2, seed: float) -> void:
 			beacon_fires.append({"top": Vector3(p.x, y + 0.74 * LIGHTHOUSE_SCALE, p.y), "seed": seed})
 			lighthouse_sites.append({"p": p, "y": y})
 			return
+		return
+
+## How many structures of a Kind a settlement dictionary shows; zero when the frame carries fewer kinds than the renderer knows.
+func _built(st: Array, kind: int) -> int:
+	return int(st[kind]) if kind >= 0 and kind < st.size() else 0
+
+## A free spot for a lone structure on a ring round the village: twelve bearings from `from_angle`, then the same a little farther out, the first on level
+## clear ground that is `clear` from everything in `placed` and `taken` and clear of trees. Returns {p, y, yaw} (the front turned toward the hearth) or null.
+func _edge_site(c: Vector2, h0: float, from_angle: float, radius: float, clear: float, placed: Array, taken: Array) -> Variant:
+	for extra in [0.0, 0.09, 0.18]:
+		for i in 12:
+			var a := from_angle + TAU * i / 12.0
+			var q := c + Vector2(cos(a), sin(a)) * (radius + float(extra))
+			if not _ok_site(q, h0):
+				continue
+			var ok := true
+			for pp in placed:
+				if (pp as Vector2).distance_to(q) < clear:
+					ok = false
+					break
+			if ok:
+				for pp in taken:
+					if (pp as Vector2).distance_to(q) < clear:
+						ok = false
+						break
+			if ok:
+				for tp in tree_points:
+					if (tp as Vector2).distance_squared_to(q) < 0.0144:
+						ok = false
+						break
+			if ok:
+				return {"p": q, "y": w.height_at(q), "yaw": atan2((c - q).x, (c - q).y)}
+	return null
+
+## The seasonal camps (politics camps, kind 0) the frame shows for a settlement, by its index in the sim.
+func _seasonal_camps_of(sim_index: int) -> int:
+	var n := 0
+	for cd in w.camp_details:
+		if int(cd[2]) == 0 and int(cd[3]) == sim_index:
+			n += 1
+	return n
+
+## What a settlement raises beyond its houses (docs/MVP/29): the pilgrimage shrine (BEL-05) on a bearing outside the walls or the far props, the markers
+## (TER-03) its seasonal camps do not carry (`_camps` puts one on each camp; a settlement with none, or with more markers than camps, shows the rest here),
+## and the water mill (NRG-03) on the river bank. `outer` is the radius the village, its landmarks and its wall ring reach.
+func _outer_works(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float, placed: Array, cc: Color) -> void:
+	var K := M7WorldData.Kind
+	var st: Array = s.structures
+	var tint := Color(cc.r, cc.g, cc.b, seed)
+	var taken := []
+	if _built(st, K.SHRINE) > 0:
+		var shrine = _edge_site(c, h0, seed * TAU + 2.4, outer + 0.3, 0.3, placed, taken)
+		if shrine != null:
+			props.add("shrine", _xf(shrine.p, shrine.y, shrine.yaw, VS), tint)
+			_reserve_plot_visual(shrine.p, 0.22)
+			placed.append(shrine.p)
+			taken.append(shrine.p)
+	var loose := mini(_built(st, K.MARKER), MARKERS_SHOWN) - _seasonal_camps_of(int(s.get("index", -1)))
+	for k in maxi(loose, 0):
+		var marker = _edge_site(c, h0, seed * TAU + 4.1 + 1.7 * k, outer + 0.2, 0.2, placed, taken)
+		if marker != null:
+			props.add("marker", _xf(marker.p, marker.y, marker.yaw + 0.9 * k, 1.3), tint)
+			_reserve_plot_visual(marker.p, 0.1)
+			placed.append(marker.p)
+			taken.append(marker.p)
+	_water_mill(s, c, h0, seed, outer, placed, tint)
+
+const MARKERS_SHOWN := 2         # the sim raises at most two per settlement
+const MILL_SCALE := 1.3
+const MILL_BANK := 0.2           # from the river's middle to the mill's middle: the wheel stands at the water's edge
+
+## The water mill (NRG-03) on the bank of the nearest river reach beyond the village (outside `outer` + 0.3, within a short ride of it), on the side toward
+## the hearth, its wheel (+X) toward the water and its door toward the village. Nothing if there is no river or no level, clear ground beside one.
+func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float, placed: Array, tint: Color) -> void:
+	if w.iron_works(s, "water_mill") <= 0:
+		return
+	var best_d := 1e9
+	var best_p := Vector2.ZERO
+	var best_n := Vector2.ZERO
+	for sgi in river_segs:
+		var a2: Vector2 = sgi[0]
+		var b2: Vector2 = sgi[1]
+		var m := (a2 + b2) * 0.5
+		var d := m.distance_to(c)
+		if d < outer + 0.3 or d > outer + 1.4 or d >= best_d or a2.distance_squared_to(b2) < 0.000001:
+			continue
+		var n := (b2 - a2).normalized().rotated(PI * 0.5)
+		if n.dot(c - m) < 0.0:
+			n = -n
+		var p := m + n * MILL_BANK
+		var tp := w.tile_at(p)
+		if tp < 0 or not w.is_land(tp) or w.biome[tp] >= M7WorldData.Biome.MOUNTAIN or absf(w.heights[tp] - w.height_at(m)) > 0.1 or _river_dist(p) < 0.1:
+			continue
+		var clear := true
+		for pp in placed:
+			if (pp as Vector2).distance_to(p) < 0.35:
+				clear = false
+				break
+		if clear:
+			best_d = d
+			best_p = p
+			best_n = n
+	if best_d >= 1e9:
+		return
+	props.add("water_mill", _xf(best_p, w.height_at(best_p), atan2(best_n.y, -best_n.x), MILL_SCALE), tint)
+	_reserve_plot_visual(best_p, 0.3)
+	placed.append(best_p)
+
+## The colonnade (STN-12 `temple_tier2`) a Temple town adds: a stoa on the flank of the temple, on whichever side (right first) has level, free ground.
+## `tsite` is the temple's site ({p, y, yaw}); the temple is drawn at CIVIC["temple"]'s scale, and the stoa runs along its length.
+func _colonnade(tsite: Dictionary, h0: float, cc: Color, t: int, placed: Array, placed_r: Array) -> void:
+	var spec: Array = CIVIC["temple"]
+	var sc: float = spec[1]
+	var yaw: float = tsite.yaw
+	var tp: Vector2 = tsite.p
+	for side in [1.0, -1.0]:
+		var off: Vector3 = rot_y(yaw) * (Vector3(float(side) * (float(spec[3].x) + 0.14), 0.0, 0.0) * sc)
+		var q := tp + Vector2(off.x, off.z)
+		var ok := true
+		for end in [-1.0, 0.0, 1.0]:
+			var e3: Vector3 = rot_y(yaw) * (Vector3(0.0, 0.0, float(end) * 0.2) * sc)
+			if not _ok_site(q + Vector2(e3.x, e3.z), h0):
+				ok = false
+				break
+		if not ok:
+			continue
+		props.add("colonnade", _xf(q, w.height_at(q), yaw + PI * 0.5, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 94)))
+		_reserve_plot_visual(q, 0.3)
+		placed.append(q)
+		placed_r.append(0.2)
 		return
 
 const AQUEDUCT_SCALE := 1.3
@@ -2268,6 +2416,11 @@ func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, c
 		props.add(mesh_name, _xf(q, y, yaw, 1.0), Color(cc.r, cc.g, cc.b, hv))
 
 func _camps() -> void:
+	# markers (TER-03): the sim raises one at each seasonal camp of a settlement, up to its count; a settlement's camps are taken in the frame's order
+	var marker_budget := {}
+	for s in w.settlements:
+		if not bool(s.get("remembered")):
+			marker_budget[int(s.get("index", -1))] = mini(_built(s.structures, M7WorldData.Kind.MARKER), MARKERS_SHOWN)
 	for ci in w.camps.size():
 		var cp: Array = w.camps[ci]
 		var t := int(cp[0])
@@ -2285,6 +2438,11 @@ func _camps() -> void:
 		if _camp_fire_lit(ci):
 			props.add("flame", _xf(c + Vector2(0.03, 0.12), h + 0.003, seed, 0.6), Color(1, 1, 1, seed))
 		props.add("banner_small%d" % civ, _xf(c + Vector2(-0.07, -0.02), h, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
+		if ci < w.camp_details.size() and int(w.camp_details[ci][2]) == 0:
+			var parent := int(w.camp_details[ci][3])
+			if int(marker_budget.get(parent, 0)) > 0:
+				marker_budget[parent] = int(marker_budget[parent]) - 1
+				props.add("marker", _xf(c + Vector2(-0.1, 0.09), h, seed * TAU + 1.0, 1.3), Color(cc.r, cc.g, cc.b, seed))
 
 # ------------------------------------------------------------------ deposits
 
