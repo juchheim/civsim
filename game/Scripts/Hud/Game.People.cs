@@ -16,7 +16,7 @@ namespace CivSim.Game;
 /// </summary>
 public partial class Game
 {
-    private enum PeopleTab { Overview, Stores, Work, Research }
+    private enum PeopleTab { Overview, Stores, Work, Research, Building }
 
     private sealed class PeopleBarRow
     {
@@ -56,7 +56,7 @@ public partial class Game
     private readonly int[] _peopleActivityCounts = new int[23];
     private readonly List<int> _peopleScoutSettlementIds = new();
     private readonly Button[] _peopleScoutButtons = new Button[4];
-    private readonly Control?[] _peoplePanes = new Control?[4];
+    private readonly Control?[] _peoplePanes = new Control?[5];
     private readonly List<int> _peopleScopeIds = new();
     private readonly PeopleScopeSummary _peopleSummary = new();
     private PeopleCensus _peopleCensus;
@@ -88,7 +88,7 @@ public partial class Game
     private readonly FlowRow[] _laborRows = new FlowRow[6];
     private readonly Label[] _lossLabels = new Label[6];
 
-    private static readonly string[] PeopleTabNames = { "Overview", "Stores", "Work", "Research" };
+    private static readonly string[] PeopleTabNames = { "Overview", "Stores", "Work", "Research", "Building" };
 
     private void CreatePeoplePanel()
     {
@@ -124,6 +124,7 @@ public partial class Game
         _peopleTabs.SetTooltip(1, "What you hold, how long it lasts and where the food goes.");
         _peopleTabs.SetTooltip(2, "Who does what, and where better methods are blocked.");
         _peopleTabs.SetTooltip(3, "What research is under way and what learned projects are doing.");
+        _peopleTabs.SetTooltip(4, "What each town is building, what it is waiting on and why, and what to build first instead.");
         tabRow.AddChild(_peopleTabs);
         tabRow.AddChild(UiKit.Spacer(expand: true));
         var showing = UiKit.Text("Showing", "Caption");
@@ -146,6 +147,7 @@ public partial class Game
         _peoplePanes[(int)PeopleTab.Stores] = BuildPeopleStoresPane();
         _peoplePanes[(int)PeopleTab.Work] = BuildPeopleWorkPane();
         _peoplePanes[(int)PeopleTab.Research] = BuildPeopleResearchPane();
+        _peoplePanes[(int)PeopleTab.Building] = BuildPeopleBuildingPane();
         for (int i = 0; i < _peoplePanes.Length; i++)
         {
             Control pane = _peoplePanes[i]!;
@@ -428,6 +430,7 @@ public partial class Game
     {
         if (!_peopleOpen) return;
         _peopleOpen = false;
+        if (_session is not null) _session.WantBuildOutlooks = false;
         if (_peopleRoot is not null) _peopleRoot.Visible = false;
         if (_peopleLayer is not null) _ui.Remove(_peopleLayer);
         UpdatePausedTreatment();
@@ -456,6 +459,7 @@ public partial class Game
             PeopleTab.Overview => "Food numbers are for the last full season. Winter risk shows in autumn and winter.",
             PeopleTab.Stores => "R is a ration: one adult's food for a season. Stock is live; flows are for the last full season.",
             PeopleTab.Work => "Counts are live; the work split is for the last full season.",
+            PeopleTab.Building => "Read once a season from the town's own build rules. A request lasts up to six years and never goes ahead of shelter, warmth, food stores or the first fields.",
             _ => "Gains are estimates: what last season would have lost without each project.",
         });
     }
@@ -510,6 +514,7 @@ public partial class Game
 
     private void RefreshPeoplePanel(MatchFrame frame)
     {
+        if (_session is not null) _session.WantBuildOutlooks = _peopleOpen && _peopleTab == PeopleTab.Building;
         if (!_peopleOpen || _peopleRoot is null || _catalog is null) return;
         int civ = frame.FocusCiv;
         if ((uint)civ >= (uint)frame.CivCount) return;
@@ -524,6 +529,7 @@ public partial class Game
             case PeopleTab.Stores: RefreshPeopleStores(frame); break;
             case PeopleTab.Work: RefreshPeopleWork(frame, civ); break;
             case PeopleTab.Research: RefreshPeopleResearch(frame, civ); break;
+            case PeopleTab.Building: RefreshPeopleBuilding(frame); break;
         }
     }
 

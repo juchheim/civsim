@@ -176,6 +176,8 @@ public sealed class MatchFrame
     public long[] SettlementFoodStores = Array.Empty<long>();
     /// <summary>Per-season numbers, <see cref="EconField.Stride"/> longs per row (see <see cref="EconField"/>).</summary>
     public long[] SettlementEcon = Array.Empty<long>();
+    /// <summary>What each own settlement is building and waiting on (docs/MVP/30), refreshed once a season and whenever the player's focus changes; null elsewhere.</summary>
+    public Economy.BuildOutlook?[] SettlementBuild = Array.Empty<Economy.BuildOutlook?>();
     /// <summary>Samples kept per settlement (oldest first); <see cref="SettlementHistory"/> holds [(w × HistoryLength + sample) × series + series].</summary>
     public byte[] SettlementHistoryCount = Array.Empty<byte>();
     /// <summary>Hundredths of a unit (people and permille as they are), one sample per season boundary.</summary>
@@ -478,6 +480,7 @@ public sealed class MatchFrame
         }
         Ensure(ref SettlementStores, rows * StoreSlots);
         Ensure(ref SettlementEcon, rows * EconField.Stride);
+        Ensure(ref SettlementBuild, rows);
         Ensure(ref SettlementHistory, rows * HistoryLength * HistorySeriesCount);
     }
 

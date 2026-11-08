@@ -82,7 +82,7 @@ godot-mono --path game --resolution 1280x720 -- --scenario=assign --shots=/tmp/c
 
 Scenarios live in `Scripts/Hud/Game.Scenarios.cs` (`assign`, `paused-assign`, `replace`,
 `almost`, `map`, `overlays`, `moments`, `toasts`, `menu`, `diplomacy`, `tile`, `end`, `zoom`,
-`popovers`, `session`, `input`, `dev`, `looks`, `looks-gallery`). Other options: `--opening-hold` (use the paused
+`popovers`, `session`, `input`, `dev`, `looks`, `looks-gallery`, `build-panel`: the Building tab, `--start-minute=35 --viewer=2`; `--ui-open=people-building` opens it). Other options: `--opening-hold` (use the paused
 start in a capture), `--paused`, `--ui-scale=1.3`, `--reduce-motion`, `--research-map`,
 `--ui-debug`.
 

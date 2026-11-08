@@ -738,4 +738,74 @@ public sealed partial class LivingEconomyModel
         foreach (int tile in _settlements[settlementIndex].FieldTiles) if (_nearRiver[tile]) n++;
         return n;
     }
+
+    // The original expression of IronBuildWanted, kept verbatim as the oracle the gate-based version is tested against (BuildOutlookTests).
+    private bool IronBuildWantedLegacy(SettlementState s, IronStructure kind)
+        => kind switch
+        {
+            // A crane is worth building when a large work is wanted and none stands yet (it halves the labor).
+            IronStructure.Crane => IronWorksCount(s, IronStructure.Crane) == 0 && (IronBuildWantedLegacy(s, IronStructure.Aqueduct) || IronBuildWantedLegacy(s, IronStructure.Castle)),
+            // A windlass well adds a deep water source where water, not food or housing, holds a town back (at most two).
+            IronStructure.WindlassWell => IronWorksCount(s, IronStructure.WindlassWell) < 2 && s.Civic is { Tier: >= 1 } &&
+                WaterCapBase(s) <= Fix64.Min(FoodCap(s), Fix64.Min(HousingCap(s), GroupCap(s))) &&
+                Fix64.FromInt(Population(s.Id)) >= WaterCapBase(s) * Fix64.FromRatio(85, 100) && IronWorksCount(s, IronStructure.Aqueduct) == 0,
+            IronStructure.Terrace => Population(s.Id) >= 12 && NextTerraceTile(s) >= 0 && NaturalFieldsFull(s),
+            // A town on the way to its water limit builds an aqueduct only if water is what holds it back (not food, housing or its group).
+            IronStructure.Aqueduct => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Aqueduct) == 0 &&
+                WaterCapBase(s) <= Fix64.Min(FoodCap(s), Fix64.Min(HousingCap(s), GroupCap(s))) &&
+                Fix64.FromInt(Population(s.Id)) >= WaterCapBase(s) * Fix64.FromRatio(85, 100),
+            // Baths pay off where people are dense enough for outbreaks to bite.
+            IronStructure.Bathhouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Bathhouse) == 0 && Population(s.Id) >= 40,
+            // One venue per city: a town of fifty or more that has none builds one (it lifts that city's Cohesion target).
+            // A paved link to the capital pays where there is distance strain to relieve; a bridge where that link crosses a river.
+            IronStructure.Road => RoadWanted(s),
+            IronStructure.Bridge => IronWorksCount(s, IronStructure.Road) > 0 && IronWorksCount(s, IronStructure.Bridge) == 0 && RiversOnLink(s) > 0,
+            IronStructure.Theatre => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Theatre) == 0 && Population(s.Id) >= 50,
+            // Defense works follow the wall and the neighbour: a gatehouse on a walled town, a segment toward each close rival, a castle on a walled border town.
+            IronStructure.Gatehouse => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Gatehouse) == 0 && HasStoneWalls(s),
+            IronStructure.FrontierWall => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.FrontierWall) < 2 && NextFrontierFacing(s) >= 0,
+            // A coast town of some size builds one harbor: it is the port of every route that leaves by water.
+            IronStructure.Harbor => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Harbor) == 0 && IsPortSite(s.SiteTile) && Population(s.Id) >= 30,
+            // A harbor town with a standing guard keeps one galley: the ship is built once and lost only to a wreck or a defeat.
+            IronStructure.Galley => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Harbor) > 0 && IronWorksCount(s, IronStructure.Galley) == 0 &&
+                Done(s.Civilization, "WAR-07") && s.Metal is { } gm && gm.IronSoldiersSupplied >= GalleyCrew,
+            // A town of some size builds an academy; a civilization keeps at most three (provisional): each staffed scholar is worth 48 Insight a year.
+            IronStructure.Academy => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Academy) == 0 && Population(s.Id) >= 50 &&
+                CivWorksCount(s.Civilization, IronStructure.Academy) < MaxAcademies,
+            // A press stands where grafted orchards give grapes or olives to press.
+            IronStructure.Press => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Press) == 0 && Done(s.Civilization, "FOR-08") && s.OrchardPlots.Count > 0,
+            // A river town with fields to grind for builds a water mill; a town with a Temple raises its colonnade.
+            IronStructure.WaterMill => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.WaterMill) == 0 && _nearRiver[s.SiteTile] && s.FieldTiles.Count >= MillFields,
+            IronStructure.Colonnade => s.Civic is { Tier: >= 1, Temples: > 0 } && IronWorksCount(s, IronStructure.Colonnade) == 0,
+            IronStructure.GreatLibrary or IronStructure.GreatDome => WonderWanted(s, kind),
+            IronStructure.GreatLighthouse => IronWorksCount(s, IronStructure.Harbor) > 0 && WonderWanted(s, kind),
+            IronStructure.Castle => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Castle) == 0 && Population(s.Id) >= 60 && HasStoneWalls(s) &&
+                NearestForeignDistance(s) <= CastleReach,
+            _ => false,
+        };
+
+
+    internal bool FixtureIronBuildWantedLegacy(int settlementIndex, int kind) => IronBuildWantedLegacy(_settlements[settlementIndex], (IronStructure)kind);
+    internal bool FixtureIronBuildWantedGate(int settlementIndex, int kind) => IronBuildWanted(_settlements[settlementIndex], (IronStructure)kind);
+
+    /// <summary>The basic structure kind the planner would pick now (<c>Structure.Count</c> when none).</summary>
+    internal int FixtureSelectBuildCandidate(int settlementIndex)
+        => (int)SelectBuildCandidate(_settlements[settlementIndex], checked((int)_seasonsCompleted));
+    internal static int FixtureStructureCount => (int)Structure.Count;
+    internal int FixtureCivicBuildKind(int settlementIndex) => (int)(_settlements[settlementIndex].Civic?.BuildKind ?? CivicBuild.None);
+    internal static int FixtureCivicKindCount => (int)CivicBuild.Ziggurat + 1;
+    internal int FixtureIronKindCount => (int)IronStructure.Count;
+    internal Fix64 FixtureWood(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Wood];
+    /// <summary>Lays fields until the settlement is at its allowance or the ground runs out (so the planner's field rule is satisfied in a fixture).</summary>
+    internal int FixtureFillFields(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        while (FieldLimit(s) > s.FieldTiles.Count)
+        {
+            int before = s.FieldTiles.Count;
+            PlaceField(s);
+            if (s.FieldTiles.Count == before) break;
+        }
+        return s.FieldTiles.Count;
+    }
 }
