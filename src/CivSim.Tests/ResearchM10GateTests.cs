@@ -14,30 +14,34 @@ public sealed class ResearchM10GateTests
     }
 
     [Theory]
-    [InlineData(MatchEndReason.RivalCountdown, 112, 100, 4, 4, 12, 255, true)]
-    [InlineData(MatchEndReason.YearCap, 255, -1, -1, -1, 12, 255, true)]
-    [InlineData(MatchEndReason.YearCap, 255, 250, -1, 2, 12, 255, true)]
-    [InlineData(MatchEndReason.YearCap, 255, 100, -1, 4, 12, 255, false)]
-    [InlineData(MatchEndReason.RivalCountdown, 111, 100, 4, 4, 12, 255, false)]
-    [InlineData(MatchEndReason.RivalCountdown, 112, 100, 3, 4, 12, 255, false)]
-    [InlineData(MatchEndReason.YearCap, 255, -1, -1, 2, 12, 255, false)]
-    public void B6_end_reason_and_season_follow_countdown_or_cap(
+    // A rival finished at season 100: the countdown closes the chapter exactly countdownSeasons later.
+    [InlineData(MatchEndReason.RivalCountdown, 112, 100, 4, 4, 12, true)]
+    [InlineData(MatchEndReason.RivalCountdown, 111, 100, 4, 4, 12, false)]
+    [InlineData(MatchEndReason.RivalCountdown, 112, 100, 3, 4, 12, false)]
+    // The human finished first (or in the window): their clause closes it sooner, never later.
+    [InlineData(MatchEndReason.HumanKeystone, 105, 100, 0, 4, 12, true)]
+    [InlineData(MatchEndReason.HumanKeystone, 113, 100, 0, 4, 12, false)]
+    // Nobody finished: the chapter is open (no end season); a made-up cap end is wrong.
+    [InlineData(MatchEndReason.None, MatchEnd.NoEndSeason, -1, -1, -1, 12, true)]
+    [InlineData(MatchEndReason.YearCap, 255, -1, -1, -1, 12, false)]
+    [InlineData(MatchEndReason.RivalCountdown, 255, 243, -1, 2, 12, false)]
+    public void B6_end_reason_and_season_follow_the_countdown_or_stay_open(
         MatchEndReason reason, int endSeason, int countdownStartSeason, int civ, int countdownCiv,
-        int countdownSeasons, int capSeason, bool expected)
+        int countdownSeasons, bool expected)
     {
         var end = new MatchEnd(reason, endSeason, civ, countdownStartSeason, countdownCiv);
-        Assert.Equal(expected, ResearchM10.IsB6EndRuleCorrect(end, countdownSeasons, capSeason));
+        Assert.Equal(expected, ResearchM10.IsB6EndRuleCorrect(end, countdownSeasons));
     }
 
     [Theory]
-    [InlineData(1, 32, true)]
-    [InlineData(11, 32, true)]
-    [InlineData(12, 32, true)]
-    [InlineData(13, 32, false)]
-    [InlineData(4, 10, true)]
+    [InlineData(32, 32, true)]
+    [InlineData(20, 32, true)]
+    [InlineData(19, 32, false)]
+    [InlineData(6, 10, true)]
     [InlineData(5, 10, false)]
     [InlineData(0, 0, false)]
     [InlineData(-1, 32, false)]
-    public void B6_year_cap_rate_allows_at_most_forty_percent(int yearCapMatches, int matches, bool expected) =>
-        Assert.Equal(expected, ResearchM10.IsB6YearCapRateInRange(yearCapMatches, matches));
+    [InlineData(33, 32, false)]
+    public void B6_closed_rate_needs_at_least_sixty_percent_of_chapters_closed_within_the_horizon(int closedMatches, int matches, bool expected) =>
+        Assert.Equal(expected, ResearchM10.IsB6ClosedRateInRange(closedMatches, matches));
 }

@@ -332,7 +332,7 @@ internal static class ResearchE3
                 if (best >= 0) Console.WriteLine($"[t{minute:F0}] {eco.DescribeCivic(best)}");
             }
             MatchEnd chapter = match.EndOfMatch();
-            bool ended = chapter.Reason != MatchEndReason.YearCap && chapter.IsOver(runner.Tick);
+            bool ended = chapter.IsOver(runner.Tick);
             if (ended && double.IsNaN(result.Civs[0].End.Minute))
                 for (int c = 0; c < civs; c++) Sample(result.Civs[c].End, c, minute, match);
             bool all = ended;

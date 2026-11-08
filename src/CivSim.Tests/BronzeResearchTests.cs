@@ -103,7 +103,7 @@ public class BronzeLegacyTests
     {
         ResearchCatalog c = TestPack.Catalog;
         Assert.Equal((2, 0, 25, 5), (c.LegacyMasteryPerEra, c.LegacyFirstPerEra, c.LegacyWonderBuiltPerEra, c.LegacyThrivingDivisor));
-        Assert.Equal((24, 85, 4), (c.ChapterCountdownSeasons, c.ChapterCapYear, c.MandateRechargeMin));
+        Assert.Equal((24, 4), (c.ChapterCountdownSeasons, c.MandateRechargeMin));
         Assert.Equal(Fix64.Zero, c.FirstUnits(c.Get("MET-03")));
     }
 
@@ -577,16 +577,36 @@ public class BronzeChapterTests
     }
 
     [Fact]
-    public void With_no_KEY4_the_chapter_ends_at_Year_64()
+    public void With_no_KEY4_the_chapter_has_no_end_there_is_no_year_cap()
     {
-        MatchEnd end = MatchEnd.Evaluate(FourCivs().Research, humanSeat: 0);
-        Assert.Equal(MatchEndReason.YearCap, end.Reason);
-        Assert.Equal(64 * 4 - 1, end.EndSeason);
-        Assert.Equal(64 * 600L, end.EndTick);
-        Assert.False(end.IsOver(64 * 600L - 1));
-        Assert.True(end.IsOver(64 * 600L));
-        Assert.False(end.CountdownRunning);
-        Assert.Equal(-1, end.CountdownCiv);
+        foreach (int human in new[] { -1, 0 })
+        {
+            MatchEnd end = MatchEnd.Evaluate(FourCivs().Research, human);
+            Assert.Equal(MatchEndReason.None, end.Reason);
+            Assert.Equal(MatchEnd.NoEndSeason, end.EndSeason);
+            Assert.Equal(MatchEnd.Open, end);
+            Assert.False(end.HasEnd);
+            Assert.Equal(long.MaxValue, end.EndTick);
+            Assert.False(end.CountdownRunning);
+            Assert.Equal((-1, -1, -1), (end.Civ, end.CountdownCiv, end.CountdownStartSeason));
+            // However long the match runs, nothing ends it and nothing overflows.
+            foreach (long tick in new[] { 0L, 64 * 600L, 85 * 600L, 1_000_000L, long.MaxValue / 2, long.MaxValue })
+            {
+                Assert.False(end.IsOver(tick));
+                Assert.Equal(-1, end.SeasonsLeft(tick));
+            }
+        }
+    }
+
+    [Fact]
+    public void The_obsolete_YearCap_reason_keeps_its_number_and_is_never_produced()
+    {
+        Assert.Equal((byte)3, (byte)MatchEndReason.YearCap);
+        Assert.Equal(new[] { (byte)0, (byte)1, (byte)2, (byte)3 }, Enum.GetValues<MatchEndReason>().Select(r => (byte)r).Order().ToArray());
+        ResearchRig rig = FourCivs();
+        Assert.NotEqual(MatchEndReason.YearCap, MatchEnd.Evaluate(rig.Research, 0).Reason);
+        Key4At(rig, 1, season: 400);
+        Assert.NotEqual(MatchEndReason.YearCap, MatchEnd.Evaluate(rig.Research, -1).Reason);
     }
 
     [Fact]
@@ -656,23 +676,26 @@ public class BronzeChapterTests
         MatchEnd end = MatchEnd.Evaluate(rig.Research, 0);
         Assert.Equal((MatchEndReason.HumanKeystone, 40), (end.Reason, end.EndSeason));
         Assert.Equal(-1, end.CountdownStartSeason);
-        // A headless match has no human clause: the same history leaves Year 64 or the (human-as-rival) countdown.
+        // A headless match has no human clause: the same history makes civilization 0 a rival and the countdown closes it.
         MatchEnd headless = MatchEnd.Evaluate(rig.Research, -1);
-        Assert.Equal((MatchEndReason.RivalCountdown, 64), (headless.Reason, headless.EndSeason));
+        Assert.Equal((MatchEndReason.RivalCountdown, 40 + 24), (headless.Reason, headless.EndSeason));
     }
 
     [Fact]
-    public void Clause_three_the_year_cap_wins_when_the_countdown_would_run_past_it()
+    public void The_countdown_is_never_cut_short_however_late_the_first_KEY4_comes()
     {
-        ResearchRig rig = FourCivs();
-        Key4At(rig, 1, season: 250);
-        MatchEnd end = MatchEnd.Evaluate(rig.Research, -1);
-        Assert.Equal((MatchEndReason.YearCap, 255), (end.Reason, end.EndSeason));
-        Assert.Equal(250, end.CountdownStartSeason); // the countdown is real, the cap just comes first
-        // A countdown ending exactly on the cap is still the countdown.
-        ResearchRig exact = FourCivs();
-        Key4At(exact, 1, season: 231);
-        Assert.Equal((MatchEndReason.RivalCountdown, 255), (MatchEnd.Evaluate(exact.Research, -1).Reason, MatchEnd.Evaluate(exact.Research, -1).EndSeason));
+        // The old Year-64 cap would have won here; with no cap the countdown always runs its full length.
+        foreach (int season in new[] { 250, 400, 100_000 })
+        {
+            ResearchRig rig = FourCivs();
+            Key4At(rig, 1, season: season);
+            MatchEnd end = MatchEnd.Evaluate(rig.Research, -1);
+            Assert.Equal((MatchEndReason.RivalCountdown, season + 24, 1), (end.Reason, end.EndSeason, end.Civ));
+            Assert.Equal(season, end.CountdownStartSeason);
+            Assert.True(end.CountdownRunning);
+            Assert.False(end.IsOver((season + 24) * (long)Season));
+            Assert.True(end.IsOver((season + 25) * (long)Season));
+        }
     }
 
     [Fact]
@@ -721,23 +744,25 @@ public class BronzeChapterTests
     }
 
     [Fact]
-    public void A_Council_match_reaches_KEY4_through_research_and_the_chapter_ends_by_the_rule()
+    public void A_Council_match_reaches_KEY4_through_research_and_the_chapter_ends_by_the_countdown()
     {
-        // The whole path in the living economy: E3 projects research, complete and apply; KEY-4 completes; the earlier
-        // of its full 24-season countdown and the Year-64 cap closes the chapter.
+        // The whole path in the living economy: E3 projects research, complete and apply; KEY-4 completes; the full countdown then
+        // closes the chapter. There is no year cap, so the match is simulated until the first KEY-4 appears (bounded at 120 minutes).
         var balanced = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel match = MatchModel.Create(777, TestPack.Pack, balanced);
         var runner = new SimRunner(match);
         int key4 = match.Research.Catalog.IndexOf("KEY-4");
-        runner.Advance(64 * 600L - runner.Tick);
         MatchEnd end = match.EndOfMatch(-1);
+        while (end.CountdownCiv < 0 && runner.Tick < 120 * 600L)
+        {
+            runner.Advance(Season);
+            end = match.EndOfMatch(-1);
+        }
         Assert.InRange(end.CountdownCiv, 0, 3);
         Assert.True(match.Research.IsDone(end.CountdownCiv, key4));
         Assert.Equal(4, match.Research.Era(end.CountdownCiv));
-        int countdownEnd = end.CountdownStartSeason + 24;
-        int capSeason = 64 * MatchEnd.SeasonsPerYear - 1;
-        Assert.Equal(countdownEnd <= capSeason ? MatchEndReason.RivalCountdown : MatchEndReason.YearCap, end.Reason);
-        Assert.Equal(Math.Min(countdownEnd, capSeason), end.EndSeason);
+        Assert.Equal((MatchEndReason.RivalCountdown, end.CountdownStartSeason + 24), (end.Reason, end.EndSeason));
+        Assert.False(end.IsOver(runner.Tick));
         // E4 stays hidden for everyone, and Mandate has been recharging since KEY-3.
         for (int c = 0; c < 4; c++)
         {

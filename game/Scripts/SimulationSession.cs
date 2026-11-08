@@ -22,7 +22,7 @@ public sealed class SimulationSession : IDisposable
     private const int TicksPerSecond = 10;
     private const int PublishEveryTicks = 10;
     // The Bronze chapter (docs/MVP/22 §3.1) ends the match at the end of the season in which the human completes KEY-4, 12 seasons
-    // after the first rival does, or at Year 64. The rule lives in the sim (MatchEnd) so replays and saves agree on it.
+    // after the first rival does (there is no year cap). The rule lives in the sim (MatchEnd) so replays and saves agree on it.
 
     private readonly MatchModel _match;
     private readonly SimRunner _runner;
@@ -149,7 +149,6 @@ public sealed class SimulationSession : IDisposable
             }
         }
 
-        MatchYears = _match.Rules.CapYear(_match.Research.Catalog);
         _builder = new FrameBuilder(_match, viewerCiv);
         if (saveData is not null)
         {
@@ -223,8 +222,6 @@ public sealed class SimulationSession : IDisposable
     public bool Paused => Volatile.Read(ref _paused) != 0;
     public double Speed => SpeedAt(Volatile.Read(ref _speedIndex));
     public bool MatchEnded => Volatile.Read(ref _matchEnded) != 0;
-    /// <summary>The hard cap of the chapter in years (ChapterCapYear).</summary>
-    public int MatchYears { get; }
     /// <summary>Years between a rival's final keystone and the end of the age.</summary>
     public int CountdownYears => Math.Max(1, _match.Rules.CountdownSeasons(_match.Research.Catalog) / 4);
     /// <summary>True when the match plays the opt-in Iron chapter, which ends on KEY-5 rather than KEY-4.</summary>

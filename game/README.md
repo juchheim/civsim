@@ -98,7 +98,7 @@ renderer as per-civilization `CivLooks` bits (`CivLook` in `src/CivSim.Sim/View/
 boat tier. Two scenarios photograph them: `looks-gallery` lays every mesh out on a stage off the map's
 west edge, and `looks` tours the map (`--start-minute=30 --viewer=-1 --looks-grant` gives every
 civilization the projects of the first three ages, keystones aside, and lets them settle in first;
-`--looks-debug` forces every look on instead). The simulation ends the match at year 64, so start before it.
+`--looks-debug` forces every look on instead). The match has no year cap: it ends only when a keystone clause fires (a human keystone or a rival's countdown).
 
 For a sustained renderer sample, build optimized managed assemblies and run one
 zoom level at a time:

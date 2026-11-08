@@ -26,7 +26,6 @@ public class ChapterRulesTests
         Assert.Same(ChapterRules.Bronze, rig.Research.Rules);
         Assert.Equal(ChapterMode.Bronze, rig.Research.Rules.Mode);
         Assert.Equal(ResearchSystem.LastResearchEra, rig.Research.Rules.LastResearchEra);
-        Assert.Equal(TestPack.Catalog.ChapterCapYear, rig.Research.Rules.CapYear(TestPack.Catalog));
         Assert.Equal(TestPack.Catalog.ChapterCountdownSeasons, rig.Research.Rules.CountdownSeasons(TestPack.Catalog));
         Assert.Equal(ResearchSystem.LastResearchEra, rig.Research.Rules.EconomyMaxEra);
     }
@@ -38,9 +37,7 @@ public class ChapterRulesTests
         Assert.Equal(ChapterMode.Iron, iron.Mode);
         Assert.Equal(ResearchSystem.LastResearchEra + 1, iron.LastResearchEra);
         Assert.Equal(ResearchSystem.LastResearchEra, iron.EconomyMaxEra);
-        Assert.Equal(ChapterRules.IronCapYear, iron.CapYear(TestPack.Catalog));
         Assert.Equal(ChapterRules.IronCountdownSeasons, iron.CountdownSeasons(TestPack.Catalog));
-        Assert.Equal(130, iron.CapYear(TestPack.Catalog));
         Assert.Equal(48, iron.CountdownSeasons(TestPack.Catalog));
         Assert.Same(iron, ChapterRules.For(ChapterMode.Iron));
         Assert.Same(ChapterRules.Bronze, ChapterRules.For(ChapterMode.Bronze));
@@ -51,7 +48,7 @@ public class ChapterRulesTests
     {
         foreach ((ChapterRules rules, MatchEndReason expected) in new[]
         {
-            (ChapterRules.Bronze, MatchEndReason.HumanKeystone), (ChapterRules.Iron, MatchEndReason.YearCap),
+            (ChapterRules.Bronze, MatchEndReason.HumanKeystone), (ChapterRules.Iron, MatchEndReason.None),
         })
         {
             ResearchRig rig = Rig(rules);
@@ -62,19 +59,22 @@ public class ChapterRulesTests
         ResearchRig iron = Rig(ChapterRules.Iron);
         Grant(iron, 2, "KEY-4", season: 6);
         MatchEnd end = MatchEnd.Evaluate(iron.Research, humanSeat: 0);
-        Assert.Equal((MatchEndReason.YearCap, -1), (end.Reason, end.CountdownCiv));
-        Assert.Equal(ChapterRules.IronCapYear * 4 - 1, end.EndSeason);
+        Assert.Equal((MatchEndReason.None, -1), (end.Reason, end.CountdownCiv));
+        Assert.Equal(MatchEnd.NoEndSeason, end.EndSeason);
     }
 
     [Fact]
-    public void Iron_with_no_KEY5_ends_at_the_cap_year()
+    public void Iron_with_no_KEY5_has_no_end_and_the_countdown_variant_is_the_only_override()
     {
         MatchEnd end = MatchEnd.Evaluate(Rig(ChapterRules.Iron).Research, humanSeat: 0);
-        Assert.Equal(MatchEndReason.YearCap, end.Reason);
-        long capTick = ChapterRules.IronCapYear * 600L;
-        Assert.Equal(capTick, end.EndTick);
-        Assert.False(end.IsOver(capTick - 1));
-        Assert.True(end.IsOver(capTick));
+        Assert.Equal(MatchEndReason.None, end.Reason);
+        Assert.False(end.HasEnd);
+        Assert.Equal(long.MaxValue, end.EndTick);
+        Assert.False(end.IsOver(long.MaxValue));
+        ChapterRules shorter = ChapterRules.IronWithCountdown(8);
+        Assert.Equal(ChapterMode.Iron, shorter.Mode);
+        Assert.Equal(8, shorter.CountdownSeasons(TestPack.Catalog));
+        Assert.Equal(ChapterRules.Iron.LastResearchEra, shorter.LastResearchEra);
     }
 
     [Fact]

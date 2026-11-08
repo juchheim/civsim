@@ -662,7 +662,7 @@ public sealed class A7HarnessTelemetryTests
     }
 
     [Fact]
-    public void Tournament_stops_and_scores_at_the_chapter_cap_even_when_more_minutes_were_requested()
+    public void Tournament_stops_and_scores_at_its_horizon_when_no_keystone_clause_fires()
     {
         Player[] seats =
         {
@@ -673,10 +673,10 @@ public sealed class A7HarnessTelemetryTests
         };
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
-        // A one-year cap ends at four seasons (one simulated minute); request three minutes to catch
-        // regressions where the harness keeps recording post-chapter AI scores or telemetry.
-        MatchOutcome match = Tournament.Play(PackWithChapterCapYear(1), Tournament.BaseSeed,
-            seats, archetypes, minutes: 3);
+        // There is no year cap (docs/MVP/28 §17): a chapter in which nobody completes KEY-4 has no end, so the horizon alone bounds
+        // the match. One simulated minute is four seasons; the harness must stop and score exactly there.
+        MatchOutcome match = Tournament.Play(TestPack.Pack, Tournament.BaseSeed,
+            seats, archetypes, minutes: 1);
 
         Assert.Equal(600, match.FinalTick);
         Assert.Equal(4, match.SeasonsProcessed);
@@ -692,42 +692,14 @@ public sealed class A7HarnessTelemetryTests
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
         // Make the complete research tree cheap and immediately eligible so this stays a small harness regression,
-        // while retaining the real KEY-4 end rule and a Year 64 cap.
+        // while retaining the real KEY-4 end rule; the 64-minute horizon only bounds a runaway match.
         MatchOutcome match = Tournament.Play(PackWithFastResearch(), Tournament.BaseSeed,
             seats, archetypes, minutes: 64);
 
-        Assert.True(match.FinalTick < 64 * 600, $"Expected the KEY-4 countdown before Year 64, got tick {match.FinalTick}.");
+        Assert.True(match.FinalTick < 64 * 600, $"Expected the KEY-4 countdown before the 64-minute horizon, got tick {match.FinalTick}.");
         Assert.Equal(match.FinalTick / 150, match.SeasonsProcessed);
         Assert.Equal(0, match.FinalTick % 150); // the match closes only after a complete season advance
         Assert.All(match.Civs, civ => Assert.True(civ.Projects > 0));
-    }
-
-    private static ContentPack PackWithChapterCapYear(int year)
-    {
-        ContentValue root = TestPack.Pack.Root;
-        ContentValue balance = root.Get("balance")!;
-        ContentValue constants = balance.Get("constants")!;
-        var changedConstants = new List<ContentValue>();
-        foreach (ContentValue constant in constants.Items)
-        {
-            if (constant.GetString("id") != "ChapterCapYear")
-            {
-                changedConstants.Add(constant);
-                continue;
-            }
-
-            changedConstants.Add(ContentValue.MapOf(constant.Entries.Select(entry =>
-                new KeyValuePair<string, ContentValue>(entry.Key,
-                    entry.Key == "value" ? ContentValue.Of((long)year) : entry.Value))));
-        }
-
-        ContentValue changedBalance = ContentValue.MapOf(balance.Entries.Select(entry =>
-            new KeyValuePair<string, ContentValue>(entry.Key,
-                entry.Key == "constants" ? ContentValue.ListOf(changedConstants) : entry.Value)));
-        ContentValue changedRoot = ContentValue.MapOf(root.Entries.Select(entry =>
-            new KeyValuePair<string, ContentValue>(entry.Key,
-                entry.Key == "balance" ? changedBalance : entry.Value)));
-        return ContentPack.FromTree(changedRoot);
     }
 
     private static ContentPack PackWithFastResearch()

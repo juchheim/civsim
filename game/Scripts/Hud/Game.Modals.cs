@@ -513,7 +513,7 @@ public partial class Game
         _endModal.Title.Text = _session?.EndReason == MatchEndReason.HumanKeystone || frame.CivEra[viewer] >= endEra
             ? (ironChapter ? "The Feudal Order is raised" : "The Iron Age dawns")
             : _session?.EndReason == MatchEndReason.RivalCountdown ? (ironChapter ? "The Feudal Order has come" : "The Iron Age has come")
-            : $"{_session?.MatchYears ?? 64} years have passed";
+            : "The age has closed";
         int myRank = Array.IndexOf(order, viewer) + 1;
         string leader = order[0] == viewer ? "Your people lead" : $"The {UiText.CivName(order[0])} lead";
         _endModal.Subtitle.Text = $"{leader} the world in Legacy. Your people finished {myRank} of {frame.CivCount}.";
@@ -646,7 +646,7 @@ public partial class Game
                 // A few years (SimulationSession.CountdownYears) to finish or the age closes.
                 if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
                     ShowToast($"{(_session.IsIron ? "The Feudal Order" : "The Iron Age")} is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
-                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or in {_session.CountdownYears} years, or at Year {_session.MatchYears}.",
+                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or {_session.CountdownYears} years after a rival does.",
                         key: $"rival-era-{item.Civ}-{item.A}");
                 _endTimeline.Add(item);
                 if (_endTimeline.Count > 64) _endTimeline.RemoveAt(0);

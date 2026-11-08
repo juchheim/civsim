@@ -64,7 +64,7 @@ internal static class IronMatchCommand
     {
         string? packPath = null;
         ulong first = 20261019;
-        int seeds = 1, minutes = 110, capYears = ChapterRules.IronCapYear, countdown = ChapterRules.IronCountdownSeasons;
+        int seeds = 1, minutes = 110, countdown = ChapterRules.IronCountdownSeasons;
         bool grantE4 = false;
         bool it6Accounting = false;
         bool it6SupplyDiagnostic = false;
@@ -80,7 +80,6 @@ internal static class IronMatchCommand
                 case "--seed": first = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
-                case "--cap-years": capYears = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--countdown": countdown = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--grant-e4": grantE4 = true; break;
                 case "--it6-accounting": it6Accounting = true; break;
@@ -90,24 +89,24 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--cap-years N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, capYears, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
+        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
         return 0;
     }
 
-    private static string Play(ulong seed, ContentPack pack, int minutes, int capYears, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
+    private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
         for (int c = 0; c < controls.Length; c++) controls[c] = CivControl.Ai(Difficulty.Warlord, Archetypes[c]);
         ChapterRules rules = bronzeControl ? ChapterRules.Bronze :
-            capYears == ChapterRules.IronCapYear && countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithLimits(capYears, countdown);
+            countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithCountdown(countdown);
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
         match.Economy.B13WoodTraceEnabled = it6Accounting;
         match.Economy.IT6AccountingTraceEnabled = it6Accounting;
@@ -269,7 +268,7 @@ internal static class IronMatchCommand
         var o = new StringBuilder();
         void L(string text = "") => o.Append(text).Append('\n');
         string Min(long tick) => tick < 0 ? "-" : (tick / 600.0).ToString("F1", CultureInfo.InvariantCulture);
-        L($"== {(bronzeControl ? "bronze-control" : "iron-match")} seed {seed}: {runner.Tick / 600.0:F1} minutes simulated, chapter end {end.Reason} at season {end.EndSeason} (ended: {end.IsOver(runner.Tick)})");
+        L($"== {(bronzeControl ? "bronze-control" : "iron-match")} seed {seed}: {runner.Tick / 600.0:F1} minutes simulated, chapter end {end.Reason} at season {(end.HasEnd ? end.EndSeason.ToString(CultureInfo.InvariantCulture) : "none")} (ended: {end.IsOver(runner.Tick)})");
         L($"{"civ",-4}{"arch",-9}{"KEY-4",7}{"KEY-5",7}{"E4 done",8}{"settl",7}{"people",8}{"T11",6}{"T12",6}{"adults",8}{"soldiers",9}{"scholars",9}{"missions",9}{"idleS",7}");
         for (int c = 0; c < civs; c++)
         {

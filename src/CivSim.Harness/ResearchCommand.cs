@@ -95,7 +95,7 @@ internal static class ResearchCommand
         }
         if (checkM10)
         {
-            // B5 and B6 (docs/MVP/22 §16): play to the end of the Bronze chapter; --minutes only bounds a runaway match.
+            // B5 and B6 (docs/MVP/22 §16): play to the end of the Bronze chapter; --minutes bounds a match nobody finishes (there is no year cap).
             ContentPack m10Pack = ContentPack.Load(File.ReadAllBytes(packPath));
             if (seedGiven && seeds is null) seeds = new List<ulong> { seed };
             return ResearchM10.Execute(m10Pack, seeds, minutesGiven ? minutes : 70, humanSeat);
@@ -200,7 +200,7 @@ internal static class ResearchCommand
     {
         MatchEnd end = match.EndOfMatch(-1);
         string civ = end.Civ >= 0 ? $", civ{end.Civ}" : "";
-        return $"chapter: Iron (ceiling E{match.Rules.LastResearchEra}, ends season {end.EndSeason} by {end.Reason}{civ})";
+        return $"chapter: Iron (ceiling E{match.Rules.LastResearchEra}, {(end.HasEnd ? $"ends season {end.EndSeason} by {end.Reason}{civ}" : "no end until a keystone clause fires")})";
     }
 
     private static void Trace(MatchModel match, int minute, int civ)

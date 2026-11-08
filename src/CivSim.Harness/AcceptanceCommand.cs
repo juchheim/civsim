@@ -46,6 +46,7 @@ internal static class AcceptanceCommand
         string? packPath = null;
         bool s1 = false, s1Probe = false, s12 = false, s13 = false, s15 = false;
         int matches = 1_000, minutes = 10, sampleMinutes = 10;
+        bool minutesGiven = false;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -57,7 +58,7 @@ internal static class AcceptanceCommand
                 case "--s13": s13 = true; break;
                 case "--s15": s15 = true; break;
                 case "--matches": matches = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
-                case "--minutes": minutes = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
+                case "--minutes": minutes = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); minutesGiven = true; break;
                 case "--sample-minutes": sampleMinutes = int.Parse(Next(args, ref i), CultureInfo.InvariantCulture); break;
                 default: throw new ArgumentException($"Unknown option '{args[i]}'.");
             }
@@ -82,7 +83,7 @@ internal static class AcceptanceCommand
             else replayPassed = RunReplayGateForHorizon(matches, minutes, () => RunReplayGate(pack, matches, minutes), out diagnosticS1);
             pass &= replayPassed;
         }
-        if (s12) pass &= RunChapterGate(pack);
+        if (s12) pass &= RunChapterGate(pack, minutesGiven ? minutes : DefaultChapterGateMinutes);
         if (s13) pass &= RunTickGateForHorizon(sampleMinutes, () => RunTickGate(pack, sampleMinutes), out _);
         if (s15)
         {
@@ -174,33 +175,41 @@ internal static class AcceptanceCommand
         ? "S15 DIAGNOSTIC (horizon shorter than 64-minute acceptance window)"
         : passed ? "S15 PASS" : "S15 FAIL";
 
+    /// <summary>S12 horizon when --minutes is not given. The chapter has no year cap (docs/MVP/28 §17); this only bounds a match nobody finishes.</summary>
+    internal const int DefaultChapterGateMinutes = 120;
+
     internal static bool IsExactChapterEnd(long tick, MatchEnd end) => end.IsOver(tick) && tick == end.EndTick;
 
-    private static bool RunChapterGate(ContentPack pack)
+    /// <summary>
+    /// A run stopped exactly where it should: on the rule tick if the chapter closed, otherwise exactly on the horizon (a chapter with no
+    /// cap has no end until a keystone clause fires, so an unfinished match simply runs to its horizon).
+    /// </summary>
+    internal static bool IsExactRunEnd(long tick, MatchEnd end, long horizonTick) =>
+        end.IsOver(tick) ? tick == end.EndTick : tick == horizonTick;
+
+    private static bool RunChapterGate(ContentPack pack, int horizonMinutes)
     {
         const double budgetSeconds = 30.0;
-        const long ticksPerYear = ResearchSystem.SeasonTicks * MatchEnd.SeasonsPerYear;
         var archetypes = new[]
         {
             EconomyArchetype.Balanced, EconomyArchetype.Balanced,
             EconomyArchetype.Balanced, EconomyArchetype.Balanced,
         };
-        int capYear = new ResearchCatalog(pack).ChapterCapYear;
-        if (capYear <= 0) throw new InvalidDataException($"S12 requires a positive chapter cap year; pack has {capYear}.");
-        long capTick = checked((long)capYear * ticksPerYear);
+        if (horizonMinutes <= 0) throw new InvalidDataException($"S12 requires a positive horizon in minutes; got {horizonMinutes}.");
+        long horizonTick = checked((long)horizonMinutes * 600);
         MatchModel match = MatchModel.Create(FirstSeed, pack, archetypes);
         var runner = new SimRunner(match);
         var timer = Stopwatch.StartNew();
         MatchEnd end = match.EndOfMatch();
         bool timedOut = false;
-        while (!end.IsOver(runner.Tick) && runner.Tick < capTick)
+        while (!end.IsOver(runner.Tick) && runner.Tick < horizonTick)
         {
             if (timer.Elapsed.TotalSeconds >= budgetSeconds)
             {
                 timedOut = true;
                 break;
             }
-            long remaining = capTick - runner.Tick;
+            long remaining = horizonTick - runner.Tick;
             int chunk = (int)Math.Min(ResearchSystem.SeasonTicks, remaining);
             runner.Advance(chunk);
             end = match.EndOfMatch();
@@ -208,14 +217,15 @@ internal static class AcceptanceCommand
         timer.Stop();
         double elapsed = timer.Elapsed.TotalSeconds;
         bool overDeadline = timedOut || elapsed > budgetSeconds;
-        bool endedAtRuleTick = end.IsOver(runner.Tick) && runner.Tick == end.EndTick;
-        bool reachedCap = runner.Tick >= capTick;
+        bool endedAtRuleTick = IsExactChapterEnd(runner.Tick, end);
+        bool reachedHorizon = runner.Tick >= horizonTick;
         bool pass = !overDeadline && endedAtRuleTick;
-        Console.WriteLine($"S12 headless Bronze chapter: four Balanced AIs; seed {FirstSeed}; reason {end.Reason}; simulated tick {runner.Tick}, rule end tick {end.EndTick}, cap tick {capTick}; elapsed {elapsed:F3} s (limit {budgetSeconds:F0} s); checksum {runner.CurrentChecksum:x16}");
+        string ruleEnd = end.HasEnd ? end.EndTick.ToString(CultureInfo.InvariantCulture) : "none";
+        Console.WriteLine($"S12 headless Bronze chapter: four Balanced AIs; seed {FirstSeed}; reason {end.Reason}; simulated tick {runner.Tick}, rule end tick {ruleEnd}, horizon tick {horizonTick}; elapsed {elapsed:F3} s (limit {budgetSeconds:F0} s); checksum {runner.CurrentChecksum:x16}");
         if (overDeadline) Console.WriteLine(timedOut
             ? $"S12 stopped at tick {runner.Tick}: reached the {budgetSeconds:F0}-second deadline between season advances."
             : $"S12 exceeded the {budgetSeconds:F0}-second deadline during its final season advance.");
-        else if (reachedCap && !endedAtRuleTick) Console.WriteLine($"S12 stopped at the chapter cap tick {capTick}, but the end rule did not report a completed chapter.");
+        else if (reachedHorizon && !endedAtRuleTick) Console.WriteLine($"S12 stopped at the {horizonMinutes}-minute horizon (tick {horizonTick}) without the chapter closing: no keystone clause fired (there is no year cap).");
         else if (!endedAtRuleTick) Console.WriteLine("S12 failed: simulated tick does not match the chapter end rule.");
         Console.WriteLine(pass ? "S12 PASS" : "S12 FAIL");
         return pass;
@@ -251,8 +261,9 @@ internal static class AcceptanceCommand
                     runner.Advance((int)Math.Min(ResearchSystem.SeasonTicks, remaining));
                     end = model.EndOfMatch();
                 }
-                if (!IsExactChapterEnd(runner.Tick, end))
-                    throw new InvalidDataException($"Chapter did not end exactly within the {minutes}-minute horizon (tick {runner.Tick}, rule end tick {end.EndTick}, reason {end.Reason}).");
+                // With no year cap a match nobody finishes runs to the horizon; either way it must stop exactly where the rule or the horizon says.
+                if (!IsExactRunEnd(runner.Tick, end, capTicks))
+                    throw new InvalidDataException($"Match did not stop exactly at the chapter end or the {minutes}-minute horizon (tick {runner.Tick}, rule end tick {(end.HasEnd ? end.EndTick.ToString(CultureInfo.InvariantCulture) : "none")}, reason {end.Reason}).");
 
                 ulong recordedFinal = runner.CurrentChecksum;
                 MatchReplay recorded = MatchReplay.FromRun(seed, pack, archetypes, runner,
