@@ -114,7 +114,7 @@ public sealed class MatchModel : ISimModel
 
     /// <summary>
     /// When the Bronze chapter ends as things stand (docs/MVP/22 §3.1): at the end of the season in which the human completes
-    /// KEY-4, 12 seasons after the first rival does, or at Year 64. Pass the human's civilization, or -1 for a headless match.
+    /// KEY-4, or the chapter countdown after the first rival does (there is no year cap; a chapter in which nobody completes the keystone has no end, MatchEnd.Open). Pass the human's civilization, or -1 for a headless match.
     /// A pure function of the checksummed research state, so every replay and restore agrees on it.
     /// </summary>
     public MatchEnd EndOfMatch(int humanSeat = -1) => MatchEnd.Evaluate(Research, humanSeat);

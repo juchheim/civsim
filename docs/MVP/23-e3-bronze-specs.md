@@ -537,7 +537,6 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 | LegacyFirstKeystoneMult | 4 | × First | 22 §3.3 (Keystones and Wonders) |
 | LegacyWonderBuiltPerEra | 25 | × (era + 1) | 22 §3.3 |
 | ChapterCountdownSeasons | 12 | seasons | 22 §3.1 |
-| ChapterCapYear | 64 | year | 22 §3.1 |
 | OutCity | 1 | Insight/yr (× RoleScale 8 = 8) | 22 §8.1 (SOC-09) |
 | **Mandate and Decrees** (base Mandate: KEY-3's `mandate` effect) | | | |
 | MandateRechargeMin | 4 | seasons | 22 §4.2 |

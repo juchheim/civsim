@@ -292,7 +292,7 @@ public partial class Game
             int yearsLeft = Math.Max(1, (seasonsLeft + 3) / 4);
             UiKit.SetText(_seasonLabel!, $"{yearsLeft} {(yearsLeft == 1 ? "YEAR" : "YEARS")} LEFT");
             _seasonLabel!.AddThemeColorOverride("font_color", UiTokens.Warning);
-            _seasonLabel.TooltipText = $"A rival has reached the {UiText.AgeName(_session.IsIron ? 5 : 4)} age. The match ends when your people get there too, when this countdown runs out, or at the Year {_session.MatchYears} cap.";
+            _seasonLabel.TooltipText = $"A rival has reached the {UiText.AgeName(_session.IsIron ? 5 : 4)} age. The match ends when your people get there too, or when this countdown runs out.";
         }
         else
         {

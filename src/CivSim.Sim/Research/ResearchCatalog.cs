@@ -267,7 +267,6 @@ public sealed class ResearchCatalog
         LegacyWonderBuiltPerEra = Constant("LegacyWonderBuiltPerEra").FloorToInt();
         LegacyThrivingDivisor = Constant("LegacyThrivingDivisor").FloorToInt();
         ChapterCountdownSeasons = Constant("ChapterCountdownSeasons").FloorToInt();
-        ChapterCapYear = Constant("ChapterCapYear").FloorToInt();
         MandateRechargeMin = Constant("MandateRechargeMin").FloorToInt();
     }
 
@@ -283,8 +282,6 @@ public sealed class ResearchCatalog
     public int LegacyThrivingDivisor { get; }
     /// <summary>Seasons between the first rival's last keystone and the end of the chapter (docs/MVP/22 §3.1).</summary>
     public int ChapterCountdownSeasons { get; }
-    /// <summary>The hard cap of the chapter, in years of 600 ticks.</summary>
-    public int ChapterCapYear { get; }
     public int MandateRechargeMin { get; }
 
     /// <summary>Mastery Legacy for completing a project: <c>2 × (era + 1)</c>.</summary>

@@ -336,3 +336,30 @@ that reached the keystone before the chapter's countdown closed it:
 Era lengths: E0 6.7 to 8.1 minutes, E1 13.9 to 16.5, E2 21.2 to 28.4, E3 19.1 to 19.5 (KEY-4 means are cut off by the 6-year
 countdown after the first rival, so the E3 figure understates the slowdown). A 6-minute-tail intermediate run with x1.5 gives
 KEY-1 7.6, KEY-2 22.5, KEY-3 46.8.
+
+## 17. The year cap is removed (project owner, 2026-11-08)
+
+Decision: the chapter's hard year cap is a legacy rule and is removed for both chapters (Bronze `ChapterCapYear`, last 85 and before that
+64; Iron `ChapterRules.IronCapYear`, 130). A chapter now ends only by (1) the human completing its last keystone, or (2) the countdown
+after the first rival completes it (`ChapterCountdownSeasons` 24 seasons in Bronze, `IronCountdownSeasons` 48 in Iron). Reasons: the cap
+only ever cut off the slow civilization's chapter at an arbitrary year, it had to be raised each time a cost change moved the keystone
+(64, 85, 96, 130), and with the countdown a rival already forces every contested chapter to a close.
+
+What changed:
+- **No end is representable.** `MatchEnd` starts from `MatchEnd.Open`: reason `MatchEndReason.None` (0), `EndSeason = MatchEnd.NoEndSeason`
+  (`int.MaxValue`), `HasEnd = false`, `EndTick = long.MaxValue`, `IsOver(tick)` always false and `SeasonsLeft(tick) = -1`, so nothing
+  overflows and every `while (!end.IsOver(tick) && tick < horizon)` loop keeps working unchanged. `MatchEndReason.YearCap = 3` stays as an
+  obsolete, never-produced member so the number is not reused and old data still names it. `ChapterRules.CapYear`, `IronCapYear`,
+  `ResearchCatalog.ChapterCapYear` and the `ChapterCapYear` constant are gone (the content pack and `tests/golden/content-pack.txt`
+  changed with the constant); `IronWithLimits(cap, countdown)` became `IronWithCountdown(countdown)`; `iron-match --cap-years` is removed.
+- **A match nobody finishes never ends by itself.** Every headless harness loop is bounded by its own `--minutes` horizon (tournaments,
+  `research`, `ai`, `politics`, `iron-match`, `acceptance --s1/--s15`). S12 (`acceptance --s12`) now takes its horizon from `--minutes`
+  (default 120) and still requires the chapter to end exactly on its rule tick; a chapter that has not closed by the horizon fails S12. S1
+  accepts a match that runs to its horizon exactly when no clause has fired.
+- **B6 (22 §16) is redefined.** The old clause "at most 40% of Balanced matches reach Year 64" becomes "at least 60% of Balanced matches
+  close within `--minutes` by the countdown or the human keystone" (the same tolerance read the other way round), plus the unchanged check that every sample's end
+  equals the rule (open when nobody finished, otherwise first rival + countdown, or the human sooner) and replay identity.
+- **Game.** The HUD tooltips and the countdown toast no longer mention a Year cap; the end screen shows "The age has closed" only in the
+  unreachable case of an ended match with neither clause (the title for the two real endings is unchanged).
+- **Consequence to watch.** The game still ends when the human or a rival finishes the keystone, so a long human game is bounded by the
+  AI; an AI-only match that stalls (for example all civilizations collapse) now runs until the user quits. Goldens are unaffected because no golden reached a cap.

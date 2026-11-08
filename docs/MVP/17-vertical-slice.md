@@ -22,7 +22,7 @@
 - **One human against three AI civilizations** ([D14](06-next-steps.md#2-decisions-i-made-that-you-may-want-to-override)) on the 160 × 100 map in neighbour pairs ([12 §9](12-world-generation.md#9-start-placement)). Seed is selectable; a daily seed is a stretch.
 - **Current Standard pace projection:** KEY-1 at ~6.5, KEY-2 at ~20.75, KEY-3 at ~41.5, KEY-4 at ~61.25; E3 takes ~19.75 minutes. Roots and Bronze Primary intervals average about 1.15 and 1.18 minutes in the mean-field model, and later eras rise further ([07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24)). Fresh live acceptance is pending, including the Year-64 cap headroom check. Quick pace is available for testing.
 - **The match ends when the first civilization completes KEY-3** (the Age of Metal), or at a 40-minute cap. The **end screen** shows Legacy standings (claimed-land Dominion, Mastery, Firsts), a timeline of each civilization's Keystones, and the AI's own "why" log ([14 §11](14-ai-opponents.md#11-explainability)). Dominion victory is off (it needs E7).
-- **Superseded from M10 (Bronze):** the match runs through E3 and ends when the human completes KEY-4, 3 years after the first rival does, or at Year 64, scored with per-era Legacy units ([22 §3](22-bronze-age.md#3-match-structure)).
+- **Superseded from M10 (Bronze):** the match runs through E3 and ends when the human completes KEY-4, after the countdown that follows the first rival's keystone (no year cap since 2026-11-08, [28 §17](28-production-gap.md)), scored with per-era Legacy units ([22 §3](22-bronze-age.md#3-match-structure)).
 
 ### 2.2 Built (in scope)
 
@@ -186,8 +186,8 @@ The milestone gates of the Bronze chapter. How each row is measured, and the tar
 | B2 | **Human** Bronze is legible: testers can say why their tools are or are not bronze | ≥ 5 of 8 (passed, reported by the owner 2026-11-04) | 22 §5.7 |
 | B3 | **Human** Want to continue after the Bronze end screen and explain one AI action | ≥ 5 of 8 (passed, reported by the owner 2026-11-04) | P9 |
 | B4 | Every E3 project and KEY-4 shows a visible change | 66/66 | C8 |
-| B5 | KEY-4 timing; E3 duration | Updated projection: KEY-4 ≈ 61.25; E3 ≈ 19.75 min; live M10 rerun pending, KEY-4 must complete before Year 64 | 22 §3.2 |
-| B6 | Chapter end | median 44–48 min; ≤ 40% of Balanced matches reach Year 64 (relaxed from 10% on 2026-11-03; 22 §16) | 22 §3.1 |
+| B5 | KEY-4 timing; E3 duration | Updated projection: KEY-4 ≈ 61.25; E3 ≈ 19.75 min; live M10 rerun pending, KEY-4 must complete within the horizon (no year cap) | 22 §3.2 |
+| B6 | Chapter end | median 44–48 min; ≥ 60% of Balanced matches close within the horizon (was: ≤ 40% reach Year 64, relaxed from 10% on 2026-11-03; the cap was removed 2026-11-08, 28 §17; 22 §16) | 22 §3.1 |
 | B7 | Hands-off loses to engaged at the chapter end | ≥ 65% | P8 |
 | B8 | Decrees pay: paired enabled-minus-disabled Legacy | ≥ 60% of seed pairs positive; cohort mean delta > 0 | 22 §16 |
 | B9 | FoodCap E3 (C1-E3) | 88 → 190 ±10% | 22 §9 |

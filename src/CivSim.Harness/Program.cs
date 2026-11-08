@@ -83,6 +83,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]");
         Console.Error.WriteLine("       civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N] [--trace-seed N | --trace-all-seeds]");
         Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 [--s1-probe] | --s12 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");
+        Console.Error.WriteLine("         --s12 plays one headless chapter to its end (default horizon 120 minutes; --minutes overrides); there is no year cap, so a chapter nobody finishes fails S12.");
         Console.Error.WriteLine("         --s1-probe runs a bounded diagnostic replay probe (max 32 matches, 64 minutes); always INCOMPLETE, exit 2.");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");
         return 2;

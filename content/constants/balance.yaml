@@ -68,7 +68,6 @@ constants:
   - {id: LegacyFirstKeystoneMult, value: 4, unit: "× First", source: "22 §3.3 (Keystones and Wonders)"}
   - {id: LegacyWonderBuiltPerEra, value: 25, unit: "× (era + 1)", source: "22 §3.3"}
   - {id: ChapterCountdownSeasons, value: 24, unit: seasons, source: "22 §3.1; 6 years since 2026-11-06 so a pivot is not a death sentence"}
-  - {id: ChapterCapYear, value: 85, unit: year, source: "22 §3.1; 64 until the late E0-E3 costs doubled (docs/MVP/28 §16)"}
   - {id: OutCity, value: 1, unit: "Insight/yr (× RoleScale 8 = 8)", source: "22 §8.1 (SOC-09)"}
   - {id: MandateRechargeMin, value: 4, unit: seasons, source: "22 §4.2"}
   - {id: DecreeCostFound, value: 2, unit: Mandate, source: "22 §4.3 (Compact 0 with DIP-04)"}

@@ -464,7 +464,7 @@ public partial class Game
                 // keystones, which end the match), let them settle in at speed, then tour what the looks leave on the map: a village with
                 // its temple and chief's hall, the people, an ard team and the resting fields, a cart on its trail, the ships, a chariot.
                 // Without --looks-grant the tour shows whatever the civilizations have learned by themselves; --looks-debug forces every
-                // look on instead. The sim ends the match at year 64, so start before that.
+                // look on instead. The match has no year cap (it ends only by a keystone clause).
                 if (HasArgument("--looks-grant"))
                 {
                     Step(() =>
