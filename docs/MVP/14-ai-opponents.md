@@ -235,6 +235,8 @@ Note (2026-11-02): Legend's research forecast looked 4 eras ahead until the E3 b
 
 Note (2026-11-02): Chieftain's Council-prior share rose from 5% to 20% so A4 (Chieftain vs Warlord) lands inside 25-40%. On mirrored 80-match blocks the unchanged Chieftain won 44% and 41% (about 42%); at 20% it wins 36% and 34% (about 35%). Horizon 1, a one-season threat delay and yearly re-planning were also screened; none beat the prior change enough to justify making Chieftain think like a Settler (07d).
 
+Note (2026-11-08): the M10 check (`ai --check-m10`) now judges A4 on 40 seeds (80 mirrored matches) in acceptance-quality runs, as A2 and B31 already use 32. On the 16 matches of an 8-seed run A4 read 50 to 56% on three builds whose 80-match rate is 35 to 38% (clean pre-production-gap build 36%, B4-06 frozen source 38%, current main 35%); the 25 to 40% target and the Chieftain AI are unchanged (28 §12).
+
 At **every** level: same fog, same rules, same resources. Imperfection at the lower levels comes from shallower thinking and slower reactions, which still look like plausible decisions, never from random nonsense.
 
 ## 10. Measuring smart: the AI harness

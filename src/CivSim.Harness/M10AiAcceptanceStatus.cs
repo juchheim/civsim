@@ -11,6 +11,11 @@ internal static class M10AiAcceptanceStatus
     /// 8 seeds carry about +/-12 points of noise and cannot resolve them.
     /// </summary>
     internal const int MinimumWideSampleSeeds = 32;
+    /// <summary>
+    /// A4 (Chieftain against Warlord, 25 to 40%) is judged on this many seeds (80 mirrored matches), the block size its tuning used (docs/MVP/14 §9.2). On the
+    /// 16 matches of an 8-seed run it read 50 to 56% on three builds that win 35 to 38% over 80 (docs/MVP/28 §12); the bar is unchanged.
+    /// </summary>
+    internal const int MinimumA4Seeds = 40;
 
     internal enum Result
     {

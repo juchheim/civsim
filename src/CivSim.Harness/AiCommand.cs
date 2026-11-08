@@ -1047,7 +1047,9 @@ internal static class AiCommand
         Gate("A3 win", a3.WinRateA >= 0.70, $"{a3.WinRateA * 100:F0}%");
 
         Console.WriteLine("== A4: Chieftain vs Warlord, Chieftain wins 25-40%");
-        Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", seeds, minutes, archetype, firstSeed);
+        // The 25 to 40% band is narrow against 16 matches' +/-12 points of noise, so acceptance-quality runs judge A4 on 40 seeds (80 matches); diagnostics keep the requested seeds.
+        int a4Seeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumA4Seeds);
+        Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", a4Seeds, minutes, archetype, firstSeed);
         Gate("A4", a4.WinRateA >= 0.25 && a4.WinRateA <= 0.40, $"{a4.WinRateA * 100:F0}% over {a4.Matches} matches");
 
         // Three free-for-all seeds per duel seed (24 seeds, 120 matches at --seeds 8): at 25% the binomial error of a win

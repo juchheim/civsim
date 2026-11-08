@@ -263,3 +263,12 @@ regression is guarded only by the A7 gate.
 
 Not rerun after the fix: A1 to A5 and the rest of the M10 AI set (about two hours at the load on this machine).
 
+## 12. A4 (Chieftain against Warlord)
+
+The M10 gate A4 failed on three builds (50%, 56%, 56%), one of them the clean build before this work. Eighty mirrored matches
+(`ai --duel chieftain warlord --seeds 40 --minutes 64`) give 36% at `a482e0d`, 38% at `040cdc4` and 35% at `a7147be`, all
+inside the 25 to 40% target. The 16-match sample of an 8-seed run carries about +/-12 points of noise, so the miss was
+sampling, not the AI or the economy. Following the A2 precedent, acceptance-quality runs now judge A4 on 40 seeds
+(`M10AiAcceptanceStatus.MinimumA4Seeds`, signed off by the project owner 2026-11-08); the target and the AI are unchanged.
+A1 shows the same noise (75%, 88%, 81% on the same three builds at 16 matches) and was not changed.
+
