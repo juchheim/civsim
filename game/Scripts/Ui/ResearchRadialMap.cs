@@ -1433,6 +1433,7 @@ public partial class ResearchRadialMap : Control
             string name = UiText.ThemeNames[sector.Theme].ToUpperInvariant();
             Vector2 extent = caps.GetStringSize(name, HorizontalAlignment.Left, -1, UiTokens.FontSmall);
             var size = new Vector2(extent.X + 22, 18);
+            if (size.X > inset.Size.X || size.Y > inset.Size.Y) continue;
             Vector2 topLeft = AnchorBox(anchor, angle, size).Clamp(inset.Position, inset.End - size);
             DrawStyleBox(TrackPill, new Rect2(topLeft - new Vector2(7, 3), size + new Vector2(14, 6)));
             float alpha = _themeFilter >= 0 && _themeFilter != sector.Theme ? 0.4f : 1f;
