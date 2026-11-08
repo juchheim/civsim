@@ -7,6 +7,8 @@ projects:
     era: 0
     type: S
     status: numeric
+    cost: 53
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WOD-01]
     effects:
       - {kind: build, structure: thorn_barrier}
@@ -33,6 +35,8 @@ projects:
     era: 2
     type: S
     status: numeric
+    cost: 360
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [DEF-02, WOD-03]
     effects:
       - {kind: build, structure: palisade, note: "settlement defense ×2"}

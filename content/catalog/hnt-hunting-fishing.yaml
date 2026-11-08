@@ -19,6 +19,8 @@ projects:
     era: 0
     type: M
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-01, WOD-01]
     effects:
       - {kind: unlock_action, action: hunt, note: ambush}
@@ -33,6 +35,8 @@ projects:
     era: 0
     type: M
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-02, STN-04]
     effects:
       - {kind: method, action: hunt, rung: 2, name: Stone-tipped spear, rate: 2.2, unit: R/ws}
@@ -59,6 +63,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-04, WOD-02]
     ack: [V11]
     ack_reason: "The atlatl is slower per hour than a cooperative drive but safer and needs fewer hunters (10 §4.2)."
@@ -74,6 +80,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-05, STN-06, FIB-01]
     effects:
       - {kind: method, action: hunt, rung: 5, name: Bow, rate: 3.0, unit: R/ws, note: "solo; small game prey class"}
@@ -88,6 +96,8 @@ projects:
     era: 1
     type: D
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-03, STN-07]
     gates: [{kind: near, target: Water}]
     effects:
@@ -105,6 +115,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-07, FIB-05]
     effects:
       - {kind: method, action: fish, rung: 2, name: Hooks, rate: 3.2, unit: R/ws, note: lines and nets}
@@ -117,6 +129,8 @@ projects:
     era: 2
     type: S
     status: numeric
+    cost: 360
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HNT-08, WOD-03]
     effects:
       - {kind: build, structure: weir, note: "passive 2.0 R/season, ×3 in salmon runs"}

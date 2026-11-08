@@ -20,6 +20,8 @@ projects:
     era: 0
     type: I
     status: numeric
+    cost: 66
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [ART-01, COM-02]
     effects:
       - {kind: know_how, text: "+20%"}
@@ -45,6 +47,8 @@ projects:
     era: 1
     type: D
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [ART-02, STN-07]
     effects:
       - {kind: cohesion, value: 3}

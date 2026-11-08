@@ -32,6 +32,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TER-02, BEL-02]
     effects:
       - {kind: build, structure: marker, note: "cairn or totem, claim +30% within radius 2"}
@@ -55,6 +57,8 @@ projects:
     era: 2
     type: I
     status: numeric
+    cost: 450
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TER-04, SOC-06]
     effects:
       - {kind: rule, text: "fission sites scored by quality and Beacons; new villages start with claim ×1.5"}
@@ -79,6 +83,8 @@ projects:
     era: 3
     type: I
     status: numeric
+    cost: 1200
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TER-06, SOC-09]
     effects:
       - {kind: claim, text: "each City: a hinterland ring to radius 7 at 50% emission"}

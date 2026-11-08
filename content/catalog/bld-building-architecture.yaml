@@ -7,6 +7,8 @@ projects:
     era: 0
     type: S
     status: numeric
+    cost: 53
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WOD-01]
     effects:
       - {kind: build, structure: lean_to, note: "houses 4, warmth +1"}
@@ -34,6 +36,8 @@ projects:
     era: 1
     type: S
     status: numeric
+    cost: 120
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [BLD-02, WOD-02]
     effects:
       - {kind: build, structure: pit_house, note: "houses 6, warmth +2"}
@@ -73,6 +77,8 @@ projects:
     era: 2
     type: S
     status: numeric
+    cost: 360
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [BLD-04, SOC-05]
     effects:
       - {kind: build, structure: longhouse, note: houses 25}
@@ -99,6 +105,8 @@ projects:
     era: 3
     type: W
     status: numeric
+    cost: 1600
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [BLD-07, BEL-06]
     effects:
       - {kind: wonder, structure: ziggurat, note: "at a City: 200 ws, cut stone 80 L, mudbrick 400"}

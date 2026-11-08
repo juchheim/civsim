@@ -20,6 +20,8 @@ projects:
     era: 0
     type: D
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [STN-02]
     effects:
       - {kind: good, id: G-RAWHIDE}
@@ -46,6 +48,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIB-03, STN-07]
     effects:
       - {kind: good, id: G-TAILORED, note: "warmth +2"}
@@ -73,6 +77,8 @@ projects:
     era: 2
     type: M
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIB-05]
     requires_any: [HUS-03, AGR-02]
     effects:
@@ -85,6 +91,8 @@ projects:
     era: 2
     type: M
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIB-06]
     effects:
       - {kind: good, id: G-CLOTH, note: "warmth +1, trade staple"}

@@ -60,6 +60,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAY-04, NUM-06]
     effects:
       - {kind: mod, stat: open_sea_reach, op: mult, value: 2, note: "11 → 22 tiles from land; with Sail 15 → 30"}

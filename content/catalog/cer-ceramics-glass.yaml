@@ -47,6 +47,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [CER-03, MEC-03]
     effects:
       - {kind: method, action: pottery, rung: 1, name: "Potter's wheel", mult: 3, note: "by a Potter at a Potter's workshop"}
@@ -60,6 +62,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [CER-04, CHM-03]
     effects:
       - {kind: good, id: G-FAIENCE, note: "luxury, barter 8; recipe faience at a Kiln"}
@@ -71,6 +75,8 @@ projects:
     era: 3
     type: D
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [CER-05, FIR-09]
     effects:
       - {kind: good, id: G-GLASS, note: "luxury, barter 12; needs a Smelter"}

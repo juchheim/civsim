@@ -103,7 +103,7 @@ public class BronzeLegacyTests
     {
         ResearchCatalog c = TestPack.Catalog;
         Assert.Equal((2, 0, 25, 5), (c.LegacyMasteryPerEra, c.LegacyFirstPerEra, c.LegacyWonderBuiltPerEra, c.LegacyThrivingDivisor));
-        Assert.Equal((24, 64, 4), (c.ChapterCountdownSeasons, c.ChapterCapYear, c.MandateRechargeMin));
+        Assert.Equal((24, 85, 4), (c.ChapterCountdownSeasons, c.ChapterCapYear, c.MandateRechargeMin));
         Assert.Equal(Fix64.Zero, c.FirstUnits(c.Get("MET-03")));
     }
 

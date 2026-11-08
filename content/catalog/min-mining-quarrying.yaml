@@ -31,6 +31,8 @@ projects:
     era: 2
     type: D
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MIN-02]
     effects:
       - {kind: unlock_action, action: quarry, note: "2 L/ws"}
@@ -57,6 +59,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MIN-04, FIR-08]
     effects:
       - {kind: method, action: mine, rung: 2, name: Fire-setting, mult: 2.25, note: "×1.5 on Shaft; 0.5 L wood per L ore"}

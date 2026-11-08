@@ -21,6 +21,8 @@ projects:
     era: 0
     type: D
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIR-01, STN-02]
     effects:
       - {kind: unlock_action, action: make_fire}
@@ -35,6 +37,8 @@ projects:
     era: 0
     type: S
     status: numeric
+    cost: 53
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIR-02]
     effects:
       - {kind: build, structure: hearth}
@@ -49,6 +53,8 @@ projects:
     era: 0
     type: M
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIR-01, WOD-01]
     effects:
       - {kind: mod, stat: wooden_tool_durability, op: pct, value: 0.5, note: "Wooden tool durability, +50%"}
@@ -100,6 +106,8 @@ projects:
     era: 2
     type: D
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIR-07, WOD-03]
     effects:
       - {kind: good, id: G-CHAR}

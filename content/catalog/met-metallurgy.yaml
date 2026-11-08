@@ -21,6 +21,8 @@ projects:
     era: 2
     type: D
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MET-01, FIR-07, INQ-03]
     effects:
       - {kind: good, id: G-COPPER}
@@ -49,6 +51,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MET-03, MIN-04]
     gates: [{kind: has, target: Arsenic ore}]
     effects:
@@ -86,6 +90,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [ART-06]
     requires_any: [MET-04, MET-05]
     effects:
@@ -115,6 +121,8 @@ projects:
     era: 3
     type: D
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIR-09]
     requires_any: [MET-04, MET-05]
     effects:

@@ -7,6 +7,8 @@ projects:
     era: 0
     type: M
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FIB-01]
     effects:
       - {kind: mod, stat: carry, op: set, value: 1.3, note: "Carry, 1.0 → 1.3 L"}
@@ -18,6 +20,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TRN-01, HUS-01]
     effects:
       - {kind: mod, stat: carry, op: flat, value: 2, note: "Carry, +2 L per dog"}
@@ -30,6 +34,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TRN-02, FIB-03]
     gates: [{kind: climate, target: Cold}]
     effects:
@@ -54,6 +60,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [TRN-04, MEC-03, NRG-01]
     effects:
       - {kind: method, action: haul, rung: 1, name: Ox cart, mult: 5, note: "6 L a cart; on flat and trail tiles; needs a cart and an ox pair"}

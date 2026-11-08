@@ -34,6 +34,8 @@ projects:
     era: 2
     type: M
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [AGR-02]
     effects:
       - {kind: mod, stat: field_yield, op: mult, value: 1.08, note: "Field yield, ×1.08"}
@@ -71,6 +73,8 @@ projects:
     era: 3
     type: S
     status: numeric
+    cost: 960
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [AGR-05, NUM-04]
     gates: [{kind: near, target: River}]
     effects:

@@ -306,3 +306,33 @@ Change (`LivingEconomyModel.Profile`): Grower fertility 1.12 to 1.06 and food ca
 1.0 and adult mortality 0.95 to 1.0. Builder, Wanderer, Warlord and the research scales are unchanged. Result on 72 seeds:
 Builder 26.4%, Grower 26.7%, Wanderer 25.3%, Warlord 23.6%, Sage 22.9%. A1 to A4 play Balanced AIs and are unaffected.
 `research-v1` changed on purpose (its bot is a Grower); toy and politics did not.
+
+## 15. Late unlocks are intended (project owner, 2026-11-08)
+
+The survey of 120 matches (docs/MVP/28 §13 data) showed most Bronze civilizations unlock bakery, caravanserai, megalith, school and
+stone walls only in the last 10 minutes of the 64-minute chapter, so those buildings are rarely standing at the end. Decision:
+every era keeps late unlocks, as the payoff the era's research builds toward; the research pacing and unlock times are not changed.
+What the survey does show as defects, separate from this, is a building that is unlocked with time to spare and still never built:
+drying rack (0 of 320 civilizations built one; its rule needs two fresh meat in store, which the town eats first), caravanserai
+(0 of 5 to 15 that had it early), hillfort (55%), weir (69%) and the granary (87%, bricks). Those are rule or supply problems, not pacing.
+
+## 16. Late projects cost more in every era (project owner, 2026-11-08)
+
+Method of §7, applied to E0 to E3: the 87 numeric non-keystone projects at prerequisite depth 3 or more inside their era
+(16 in E0, 18 in E1, 26 in E2, 27 in E3) cost twice their derived cost (`base_cost` of the era x type multiplier; `cost` and
+`cost_reason` in their catalog entries, written by script, so they do not follow a later change of an era base cost).
+Keystones are excluded. `ChapterCapYear` goes 64 to 85 as a step; the cap itself is then removed (the year cap is a legacy rule).
+
+Eight-seed Warlord against Council duels (16 matches, 64 civilizations), no cap, run to minute 140. Means are of the civilizations
+that reached the keystone before the chapter's countdown closed it:
+
+| Keystone | Old costs | x2 late costs | Change |
+|---|---|---|---|
+| KEY-1 | 6.7 | 8.1 | +21% |
+| KEY-2 | 20.6 | 24.6 | +19% |
+| KEY-3 | 41.8 (61 of 64 civs) | 53.0 (60) | +27% |
+| KEY-4 | 60.9 (49) | 72.5 (50) | +19% |
+
+Era lengths: E0 6.7 to 8.1 minutes, E1 13.9 to 16.5, E2 21.2 to 28.4, E3 19.1 to 19.5 (KEY-4 means are cut off by the 6-year
+countdown after the first rival, so the E3 figure understates the slowdown). A 6-minute-tail intermediate run with x1.5 gives
+KEY-1 7.6, KEY-2 22.5, KEY-3 46.8.

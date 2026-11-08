@@ -21,6 +21,8 @@ projects:
     era: 0
     type: M
     status: numeric
+    cost: 44
+    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FOR-01, WOD-01]
     effects:
       - {kind: rule, text: "Forage, roots and tubers open"}
@@ -51,6 +53,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FOR-03, STN-06]
     effects:
       - {kind: method, action: forage, rung: 3, name: Wild-grass sickle, mult: 2.4, note: on stand tiles}
@@ -65,6 +69,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FOR-04, STN-05]
     effects:
       - {kind: mod, stat: cereal_food_value, op: pct, value: 0.25, note: "Cereal food value, +25%"}
@@ -77,6 +83,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [FOR-04, WAY-02]
     effects:
       - {kind: method, action: forage, rung: 4, name: Tended stands, mult: 2.4, note: stand regrowth x2}
@@ -90,6 +98,8 @@ projects:
     era: 2
     type: D
     status: numeric
+    cost: 300
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [AGR-01, WOD-03]
     effects:
       - {kind: build, structure: orchard, note: "matures in 6 yrs, then 3 R/tile/yr"}

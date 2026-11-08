@@ -7,6 +7,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WOD-02]
     effects:
       - {kind: mod, stat: heavy_object_handling, op: pct, value: 0.3, note: "Heavy-object handling, +30%"}
@@ -31,6 +33,8 @@ projects:
     era: 3
     type: D
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MEC-02, WOD-05]
     effects:
       - {kind: good, id: G-WHEEL}

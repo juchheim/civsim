@@ -19,6 +19,8 @@ projects:
     era: 2
     type: I
     status: numeric
+    cost: 450
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [GOV-01, SOC-05]
     effects:
       - {kind: role, id: chief}
@@ -31,6 +33,8 @@ projects:
     era: 2
     type: I
     status: numeric
+    cost: 450
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [GOV-02, LRN-02]
     effects:
       - {kind: hazard, cause: violence, mult: 0.84}
@@ -56,6 +60,8 @@ projects:
     era: 3
     type: I
     status: numeric
+    cost: 1200
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [GOV-04, SOC-09]
     effects:
       - {kind: build, structure: palace, note: "the capital: 30 ws, mudbrick 200, stone blocks or cut stone 20 L"}
@@ -72,6 +78,8 @@ projects:
     era: 3
     type: I
     status: numeric
+    cost: 1200
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [GOV-05, COM-05]
     effects:
       - {kind: cohesion, value: 5, scope: all}
