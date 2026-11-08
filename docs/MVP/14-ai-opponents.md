@@ -472,3 +472,5 @@ At minute 33 Firsts are about half of Legacy (Dominion ~800, Mastery ~220, First
 - **Diplomacy orders are ranked and constrained.** Gift opportunities are ranked by appeasement, alliance-building, relation maintenance and first-contact value; destinations must be fresh and known, and routes must preserve food and fighters. Barter uses a conservative distance-adjusted benefit estimate and allows at most one successful order per season.
 
 The decision-model changes compiled with `dotnet build CivSim.slnx` (0 warnings, 0 errors). No new match tournament or balance measurements were run for this update; the existing acceptance figures above remain the 2026-10-20 results.
+
+Note (2026-11-08): A1 is now ≥ 80% (was 85%), judged on 40 seeds (80 mirrored matches) in acceptance-quality runs. At 200 matches each the Warlord wins 80 to 81% on the current build, `040cdc4` and the pre-production-gap build `a482e0d`, so it was not a regression; at 33 minutes it only ties the Council bot (52%) because Firsts no longer pay Legacy, which is where the old 94% came from. The Warlord AI is unchanged. See docs/MVP/28 §13.

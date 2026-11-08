@@ -272,3 +272,22 @@ sampling, not the AI or the economy. Following the A2 precedent, acceptance-qual
 (`M10AiAcceptanceStatus.MinimumA4Seeds`, signed off by the project owner 2026-11-08); the target and the AI are unchanged.
 A1 shows the same noise (75%, 88%, 81% on the same three builds at 16 matches) and was not changed.
 
+
+## 13. A1 (Warlord against the Council bot) re-fitted to 80%
+
+A1 (target 85% on Legacy) read 75 to 88% on 16-match samples. Two hundred mirrored matches each
+(`ai --duel warlord council --seeds 100 --minutes 64`) give 80% at the current main, 81% at `040cdc4` and 81% at `a482e0d`
+(the build before this work), so this is not a regression from the production fixes and not sampling noise: at 200 matches
+the error is about +/-3 points and 85% is out of reach. Mean Legacy is 6,185 against 5,171, with the Warlord holding 25% of
+the land to the Council bot's 14%.
+
+At the original 33-minute horizon the same duel is a tie (52%, Legacy 2,609 against 2,594, 200 matches). The 85% bar (94%
+in doc 14 §18) was set when Firsts paid Legacy and the Warlord's research tempo converted straight into points; Firsts now
+pay 0 (the Legacy redesign of 2026-11-06), so the Warlord's lead builds only through the second half. Tuning attempts on
+the Warlord are recorded in doc 07d (Keystone tempo, rival-pace override, Found threshold, first-expansion cap) and none
+held across the other gates.
+
+Decision (project owner, 2026-11-08): the A1 bar becomes 80%, judged on 40 seeds (80 matches) in acceptance-quality runs
+(`M10AiAcceptanceStatus.A1Target`, `MinimumA1Seeds`). The Warlord AI is unchanged. The 16-match duel still feeds A7 and the
+telemetry gates. A sampled true rate of 80 to 81% sits at the bar, so a future A1 miss at 80 matches is within about
++/-5 points of noise; read it against the 200-match figures above before acting on it.

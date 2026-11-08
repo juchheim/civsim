@@ -1025,9 +1025,12 @@ internal static class AiCommand
             return ok;
         }
 
-        Console.WriteLine("== A1: Warlord AI vs the Council bot (mirrored seeds), >= 85% on Legacy");
+        Console.WriteLine($"== A1: Warlord AI vs the Council bot (mirrored seeds), >= {M10AiAcceptanceStatus.A1Target * 100:F0}% on Legacy");
         a1 = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed);
-        Gate("A1", a1.WinRateA >= 0.85, $"{a1.WinRateA * 100:F0}% over {a1.Matches} matches");
+        // Judged on 40 seeds (80 matches) in acceptance-quality runs, like A4. The 16 matches above still feed A7 and the telemetry gates unchanged.
+        Tournament.DuelResult a1Verdict = diagnostic || seeds >= M10AiAcceptanceStatus.MinimumA1Seeds
+            ? a1 : Tournament.Duel(pack, "warlord", "council", M10AiAcceptanceStatus.MinimumA1Seeds, minutes, archetype, firstSeed);
+        Gate("A1", a1Verdict.WinRateA >= M10AiAcceptanceStatus.A1Target, $"{a1Verdict.WinRateA * 100:F0}% over {a1Verdict.Matches} matches");
 
         // A2 sits close to its bar on 16 matches (the Grower duel is 74% over 240 matches but reads 69% on the exact 8-seed
         // cohort), so acceptance-quality runs judge it on at least 32 seeds; diagnostic runs keep the requested seeds.
