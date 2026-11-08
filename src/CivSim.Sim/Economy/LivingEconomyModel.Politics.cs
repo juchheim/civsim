@@ -243,41 +243,34 @@ public sealed partial class LivingEconomyModel
     /// <summary>Removes a figure from the world (battle death). Returns false if there is no such figure.</summary>
     public bool KillFigure(long figureId)
     {
-        for (int i = 0; i < _figures.Count; i++)
-        {
-            if (_figures[i].Id != figureId) continue;
-            RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One);
-            _figures.RemoveAt(i);
-            return true;
-        }
-        return false;
+        int index = FigureIndex(figureId);
+        if (index < 0) return false;
+        FigureState figure = _figures[index];
+        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One);
+        _figures.RemoveAt(index);
+        return true;
     }
 
     /// <summary>Wounds a figure for the given number of seasons: out of work and out of the fight.</summary>
     public void WoundFigure(long figureId, int seasons)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId)
-            {
-                _figures[i].WoundSeasons = (byte)Math.Clamp(Math.Max(_figures[i].WoundSeasons, seasons), 0, 255);
-                return;
-            }
+        int index = FigureIndex(figureId);
+        if (index >= 0)
+            _figures[index].WoundSeasons = (byte)Math.Clamp(Math.Max(_figures[index].WoundSeasons, seasons), 0, 255);
     }
 
     /// <summary>Moves a figure to another settlement (fleeing refugees, assimilated survivors).</summary>
     public void RelocateFigure(long figureId, int settlementIndex)
     {
         SettlementState to = _settlements[settlementIndex];
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId)
-            {
-                RecordIT6KitRelocation(_figures[i].SettlementId, to.Id, _figures[i].Kit, Fix64.One);
-                _figures[i].SettlementId = to.Id;
-                _figures[i].Civilization = to.Civilization;
-                _figures[i].Role = 0;
-                _figures[i].Camp = -1;
-                return;
-            }
+        int index = FigureIndex(figureId);
+        if (index < 0) return;
+        FigureState figure = _figures[index];
+        RecordIT6KitRelocation(figure.SettlementId, to.Id, figure.Kit, Fix64.One);
+        figure.SettlementId = to.Id;
+        figure.Civilization = to.Civilization;
+        figure.Role = 0;
+        figure.Camp = -1;
     }
 
     /// <summary>
@@ -333,9 +326,8 @@ public sealed partial class LivingEconomyModel
 
     public bool IsWounded(long figureId)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId) return _figures[i].WoundSeasons > 0;
-        return false;
+        int index = FigureIndex(figureId);
+        return index >= 0 && _figures[index].WoundSeasons > 0;
     }
 
     /// <summary>A person who could fight: id, age, sex and whether a wound has laid them up.</summary>
@@ -371,10 +363,25 @@ public sealed partial class LivingEconomyModel
 
     public bool TryFigure(long figureId, out FigureView view)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId) { view = Figure(i); return true; }
+        int index = FigureIndex(figureId);
+        if (index >= 0) { view = Figure(index); return true; }
         view = default;
         return false;
+    }
+
+    /// <summary>Finds a figure by id. The figure list stays in ascending id order as people are added or removed.</summary>
+    private int FigureIndex(long figureId)
+    {
+        int low = 0, high = _figures.Count - 1;
+        while (low <= high)
+        {
+            int middle = low + ((high - low) >> 1);
+            long id = _figures[middle].Id;
+            if (id == figureId) return middle;
+            if (id < figureId) low = middle + 1;
+            else high = middle - 1;
+        }
+        return -1;
     }
 
     /// <summary>
@@ -386,12 +393,14 @@ public sealed partial class LivingEconomyModel
         SettlementState camp = NewSettlement(civ, siteTile);
         _settlements.Add(camp);
         foreach (long id in figureIds)
-            for (int i = 0; i < _figures.Count; i++)
-                if (_figures[i].Id == id)
-                {
-                    RecordIT6KitRelocation(_figures[i].SettlementId, camp.Id, _figures[i].Kit, Fix64.One);
-                    _figures[i].SettlementId = camp.Id; _figures[i].Civilization = civ; break;
-                }
+        {
+            int index = FigureIndex(id);
+            if (index < 0) continue;
+            FigureState figure = _figures[index];
+            RecordIT6KitRelocation(figure.SettlementId, camp.Id, figure.Kit, Fix64.One);
+            figure.SettlementId = camp.Id;
+            figure.Civilization = civ;
+        }
         camp.FireLit = false;
         return camp.Id;
     }

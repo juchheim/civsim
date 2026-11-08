@@ -472,7 +472,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     // settlement's rows before the matrix is reused; this is derived state and is
     // intentionally absent from snapshots.
     private Fix64[,] _actionWorkScratch = new Fix64[0, (int)SkillFamily.Count];
+    private Fix64[] _toolWorkScratch = Array.Empty<Fix64>();
     private readonly List<int> _actionWorkTouchedRows = new();
+    private readonly List<long> _seasonDeathIdsScratch = new();
+    private readonly List<FigureState> _seasonBirthMothersScratch = new();
     private readonly int[] _lastDeathsByCause = new int[DeathCauseCount];
     private readonly int[] _lastDeathsByCauseAndAgeBand = new int[DeathCauseCount * 3];
     private readonly Fix64[] _lastExpectedHazardsByCauseAndAgeBand = new Fix64[DeathCauseCount * 3];
@@ -986,19 +989,19 @@ public sealed partial class LivingEconomyModel : ISimModel
         FigureState? keeper = null;
         if (settlement.FireKeeperId >= 0)
         {
-            for (int i = 0; i < _figures.Count; i++)
+            int index = FigureIndex(settlement.FireKeeperId);
+            if (index >= 0)
             {
-                FigureState candidate = _figures[i];
-                if (candidate.Id == settlement.FireKeeperId && candidate.SettlementId == settlement.Id && CanKeepFire(candidate))
-                { keeper = candidate; break; }
+                FigureState candidate = _figures[index];
+                if (candidate.SettlementId == settlement.Id && CanKeepFire(candidate)) keeper = candidate;
             }
         }
         if (keeper is null)
         {
             settlement.FireKeeperId = FindFireKeeper(settlement);
             if (settlement.FireKeeperId < 0) return Fix64.Zero;
-            for (int i = 0; i < _figures.Count; i++)
-                if (_figures[i].Id == settlement.FireKeeperId) { keeper = _figures[i]; break; }
+            int index = FigureIndex(settlement.FireKeeperId);
+            if (index >= 0) keeper = _figures[index];
         }
         if (keeper is null) return Fix64.Zero;
 
@@ -1039,13 +1042,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             if (!settlement.FireLit) continue;
 
-            bool keeperPresent = false;
-            for (int i = 0; i < _figures.Count; i++)
-            {
-                FigureState figure = _figures[i];
-                if (figure.Id == settlement.FireKeeperId && figure.SettlementId == settlement.Id && CanKeepFire(figure))
-                { keeperPresent = true; break; }
-            }
+            int keeperIndex = FigureIndex(settlement.FireKeeperId);
+            bool keeperPresent = keeperIndex >= 0 && _figures[keeperIndex].SettlementId == settlement.Id &&
+                CanKeepFire(_figures[keeperIndex]);
             if (keeperPresent)
             {
                 settlement.UnattendedFireTicks = 0;
@@ -1648,7 +1647,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         _actionWorkTouchedRows.Clear();
         if (actionWork.GetLength(0) < _figures.Count)
         {
-            actionWork = new Fix64[_figures.Count, (int)SkillFamily.Count];
+            int capacity = Math.Max(16, actionWork.GetLength(0));
+            while (capacity < _figures.Count) capacity *= 2;
+            actionWork = new Fix64[capacity, (int)SkillFamily.Count];
             _actionWorkScratch = actionWork;
         }
         Fix64 totalWork = Fix64.Zero, baseCapacity = Fix64.Zero;
@@ -1701,7 +1702,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (settlement.Metal is not null && CivInBronze(settlement.Civilization))
         {
             metalPlan = PlanMetal(settlement, totalWork);
-            toolWork = new Fix64[_figures.Count];
+            if (_toolWorkScratch.Length < _figures.Count)
+            {
+                int capacity = Math.Max(16, _toolWorkScratch.Length);
+                while (capacity < _figures.Count) capacity *= 2;
+                _toolWorkScratch = new Fix64[capacity];
+            }
+            Array.Clear(_toolWorkScratch, 0, _figures.Count);
+            toolWork = _toolWorkScratch;
             // Mining-camp crews dig first (docs/MVP/22 §5.2); what the face does not need of them works at home this season.
             metalPlan.CampWork = WorkCamps(settlement, metalPlan, toolWork, season);
             totalWork -= metalPlan.CampWork;
@@ -3714,8 +3722,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         int eligibleAttempts = 0, conceptions = 0, fertileWomenDeaths = 0, pregnantWomenDeaths = 0;
         Fix64 trackedFoodCap = Fix64.Zero, trackedHousingCap = Fix64.Zero, trackedDensity = Fix64.Zero;
         Fix64 trackedCrowding = Fix64.Zero, trackedBaseChance = Fix64.Zero, trackedChance = Fix64.Zero;
-        var deadIds = new List<long>();
-        var birthMothers = new List<FigureState>();
+        List<long> deadIds = _seasonDeathIdsScratch;
+        deadIds.Clear();
+        List<FigureState> birthMothers = _seasonBirthMothersScratch;
+        birthMothers.Clear();
         // The food and housing caps do not change during the pass over the settlement's figures, so work them out once,
         // when the first fertile woman needs them.
         Fix64 conceptionCap = Fix64.Zero;
@@ -3819,26 +3829,27 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         int deathsHere = deadIds.Count;
-        int read = 0, write = 0;
-        for (; read < _figures.Count; read++)
+        if (deathsHere > 0)
         {
-            if (deadIds.Count > 0 && deadIds[0] == _figures[read].Id)
+            int write = 0, deadIndex = 0;
+            for (int read = 0; read < _figures.Count; read++)
             {
-                deadIds.RemoveAt(0);
-                continue;
+                FigureState figure = _figures[read];
+                if (deadIndex < deathsHere && deadIds[deadIndex] == figure.Id)
+                {
+                    deadIndex++;
+                    if (figure.Id == settlement.FireKeeperId) settlement.FireKeeperId = -1;
+                    continue;
+                }
+                _figures[write++] = figure;
             }
-            _figures[write++] = _figures[read];
+            if (write < _figures.Count) _figures.RemoveRange(write, _figures.Count - write);
         }
-        if (write < _figures.Count) _figures.RemoveRange(write, _figures.Count - write);
-        for (int i = 0; i < _settlements.Count; i++)
+        if (settlement.FireKeeperId >= 0)
         {
-            SettlementState current = _settlements[i];
-            if (current.FireKeeperId < 0) continue;
-            bool keeperRemains = false;
-            for (int j = 0; j < _figures.Count; j++)
-                if (_figures[j].Id == current.FireKeeperId && _figures[j].SettlementId == current.Id)
-                { keeperRemains = true; break; }
-            if (!keeperRemains) current.FireKeeperId = -1;
+            int keeperIndex = FigureIndex(settlement.FireKeeperId);
+            if (keeperIndex < 0 || _figures[keeperIndex].SettlementId != settlement.Id)
+                settlement.FireKeeperId = -1;
         }
         foreach (FigureState mother in birthMothers) AddBirth(settlement, mother);
         if (FoodWorkAttributionTraceEnabled)
@@ -4647,8 +4658,8 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void MoveFigure(long figureId, int settlementId)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId) { _figures[i].SettlementId = settlementId; return; }
+        int index = FigureIndex(figureId);
+        if (index >= 0) _figures[index].SettlementId = settlementId;
     }
 
     private int ChooseFissionSite(SettlementState parent, int season, int previewBeaconTile = -1, int replacedBeaconIndex = -1,
@@ -6704,10 +6715,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             long keeperId = _settlements[i].FireKeeperId;
             if (keeperId < 0) continue;
-            bool found = false;
-            for (int j = 0; j < _figures.Count; j++)
-                if (_figures[j].Id == keeperId && _figures[j].SettlementId == _settlements[i].Id) { found = true; break; }
-            if (!found) throw new InvalidDataException("Snapshot firekeeper is missing from its settlement.");
+            int keeperIndex = FigureIndex(keeperId);
+            if (keeperIndex < 0 || _figures[keeperIndex].SettlementId != _settlements[i].Id)
+                throw new InvalidDataException("Snapshot firekeeper is missing from its settlement.");
         }
         for (int i = 0; i < _lastDeathsByCause.Length; i++)
             if (_lastDeathsByCause[i] < 0) throw new InvalidDataException("Snapshot contains a negative death count.");
