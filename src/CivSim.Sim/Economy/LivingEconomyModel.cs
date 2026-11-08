@@ -1737,11 +1737,18 @@ public sealed partial class LivingEconomyModel : ISimModel
         // Construction labor floor: once the metal age has begun, food may not take more than FoodShareCapOutsideHunger of the plannable
         // work unless the settlement is actually short of food (rule 1). The rest stays for building, materials and civic works, which
         // otherwise got 2-3% of a settlement's labor and starved every late structure of its stone and hands (docs/MVP/28).
+        Fix64 capWithheldShare = Fix64.Zero;
         if (metalPlan is not null && settlement.LedgerFoodShareRule != 1)
-            foodShare = Fix64.Min(foodShare, _civic.FoodShareCap);
+        {
+            Fix64 capped = Fix64.Min(foodShare, _civic.FoodShareCap);
+            capWithheldShare = foodShare - capped;
+            foodShare = capped;
+        }
         foodShare = EmergencyFoodWorkShare(foodShare, emergencyFoodWork);
+        if (foodShare >= Fix64.One) capWithheldShare = Fix64.Zero;
         if (settlement.Civic is { } civicTraceFood) civicTraceFood.TraceFoodShare = foodShare;
         Fix64 foodWork = totalWork * foodShare;
+        Fix64 capWithheld = totalWork * capWithheldShare;
         Fix64 foodWorkRequested = foodWork;
         // Civic labor comes out of what food leaves, never out of the food work (docs/MVP/23 §8 structures are built in plenty).
         // A queued Palisade keeps its urgent build labor ahead of civic work: a daughter with less than a season of stores
@@ -1792,6 +1799,12 @@ public sealed partial class LivingEconomyModel : ISimModel
             ? B28MaterialWork(totalWork, foodWork, buildWork, proactive: true)
             : B28MaterialWork(totalWork, foodWork, buildWork, proactive: false);
         materialWork -= herdWork;
+        // The cap above reserves labor for building, materials and civic works. Building takes at most a few percent and material work 18%, so labor the
+        // cap withheld from food that nothing else wants goes back to food rather than standing idle (A7 idle labor, docs/MVP/28 §11).
+        // It is taken last, after every other use of a figure's capacity, so it never crowds out the building the cap exists for.
+        Fix64 foodOverflow = capWithheld > Fix64.Zero
+            ? Fix64.Min(capWithheld, Fix64.Max(Fix64.Zero, totalWork - foodWork - buildWork - materialWork - herdWork)) : Fix64.Zero;
+        Fix64 foodOverflowStart = foodOverflow;
         settlement.LedgerFoodWork = foodWork;
         settlement.LedgerBuildWork = buildWork;
         settlement.LedgerMaterialWork = materialWork;
@@ -1933,8 +1946,24 @@ public sealed partial class LivingEconomyModel : ISimModel
                 available -= amount;
                 materialRemaining -= amount;
             }
+            if (foodOverflow > Fix64.Zero && available > Fix64.Zero)
+            {
+                Fix64 amount = Fix64.Min(available, foodOverflow);
+                EconomyJob job = PickFoodJob(settlement, season, foodOrdinal++, figure,
+                    huntPartyTarget, ref huntersAssigned);
+                Assign(figure, job, amount);
+                if (job == EconomyJob.Hunt) figure.HuntWorkThisSeason += amount;
+                SkillFamily? foodSkill = SkillForJob(job);
+                if (foodSkill.HasValue) actionWork[i, (int)foodSkill.Value] += amount;
+                AccumulateJob(job, amount, ref forageWork, ref huntWork, ref fishWork, ref farmWork, ref preserveWork);
+                if (toolWork is not null && job == EconomyJob.Farm) toolWork[i] += amount;
+                available -= amount;
+                foodOverflow -= amount;
+            }
             if (figure.WorkThisSeason <= Fix64.Zero) figure.Job = EconomyJob.Rest;
         }
+        foodWork += foodOverflowStart - foodOverflow;
+        settlement.LedgerFoodWork = foodWork;
         Fix64 foodWorkAssigned = foodWork - foodRemaining;
 
         // The baseline food mix assumes roughly 70% forage and 30% scavenging. Keep

@@ -218,3 +218,48 @@ Gatehouse and castle counts moved by the run-to-run noise of a changed match (th
 differs); pacing, population and the war events did not move beyond it. Test: the frontier test now checks the 12 and 13
 tile edges. The raid-repel and flip-guard rules themselves were not changed, and this run does not measure how many
 raids they turned back.
+
+## 11. Gate check, and an idle-labor regression this work caused
+
+The formal gates were run against current `main` (`dc2147f`) on 2026-11-07, with baselines at the clean parent of this work
+(`a482e0d`) and at the B4-06 session's frozen source (`040cdc4`). Several are samples smaller than the formal one and are
+marked.
+
+| Gate | Result |
+|---|---|
+| Goldens (toy, research, politics, content pack), strict validation, 1115 tests | pass; the same two unrelated tests fail as before |
+| S1 replay determinism (probe, 32 of 1,000 matches) | 32/32 identical |
+| S15 no crash or invalid state (probe, 24 of 1,000 matches, 64 min) | 24/24 clean |
+| S12 headless chapter time | 8.9 s against 30 s: pass |
+| S13 tick time and GC (10-minute window, shared machine) | 1.79 ms average against 4 ms, longest GC pause 1 ms against 16 ms: pass |
+| B5 Bronze research timing | pass; KEY-4 median 61.6 min (61.5 at `040cdc4`); B6 shows the same two-seed diagnostic miss on both builds |
+| Politics M10 (8 seeds, diagnostic) | same as `040cdc4`: settlements 11.7 against 11.6, Legacy split 54.8/31.8/13.4 against 54.9/31.6/13.5, claimed land 37.2% against 35.7% |
+| B4-06 fixed 13-seed screen, the other session's options | 571 I-T2 passes, **1 fail**, 771 censored (632/0/695 at `040cdc4`); kit ledgers 1414/1414 exact; no residuals; no Iron-era clearing crossings; mature work share at most 11.0% |
+| M10 AI A1 | 81%, 88% at `040cdc4`, 75% at `a482e0d`: noise at 16 matches, no trend |
+| M10 AI A2, A3 | pass |
+| M10 AI A4 (Chieftain wins 25 to 40%) | fails on all three builds: 50%, 56%, 56% |
+| M10 AI A5 (no archetype above 30%) | Grower and Sage fail on all three builds: 40.6%/35.4%, 36.5%/35.4%, 39.6%/35.4% |
+| M10 AI A7 idle labor | **regressed by this work**, see below |
+
+A4 and A5 were already failing at `a482e0d`, before any of this work; they are not touched here.
+
+**The one B4-06 failure** is the capital `s0` of seed `20262121`, seasons 264 to 276: 45 tool workers, 30 holders (66.67%),
+fuel passed. On `040cdc4` and on `2127eef` (frontier only) the same seed gives 51 passes, 0 failures: `s0`'s window was
+censored there. The failure appears only with `dc2147f`; it is the worker-growth against holder-supply class of miss that
+the B4-06 session has been chasing, and one window in 13 matches does not show whether the unlock work makes it more
+likely. The B4-06 acceptance block will say.
+
+**A7 idle labor.** The M10 blunder detector flags a settlement where more than 15% of working-age adults did no work in a
+season while its food security was under 1. It read 0 at `a482e0d`, and 16 seasons (1.0 per match) from `02c59ca`, the
+first commit of this work, onward; with the food-labor cap switched off in the pack it read 0 again. Cause: the cap (§3)
+holds food to 65% of plannable labor, but building takes a few percent and material work at most 18%, so the labor the
+cap withheld had nowhere to go and the adults stood idle. Fix: labor the cap withheld from food that nothing else wants is
+returned to food. It is taken last, after every other use of a figure's capacity: the first version assigned it before
+building and material work and cost 9% of the Iron works, so the order matters. Same 12 four-seed Iron matches before and
+after (`dc2147f` against the fix): Iron works 2966 to 3092, people 1795 to 1812, own KEY-4 to KEY-5 25.3 to 25.5 minutes;
+A7 idle labor 0 seasons, pass. Goldens and tests are unchanged by the fix (the 24-minute politics match never reaches a
+season where the cap binds with spare labor). No unit test pins this: the Bronze fixture never runs food-short, so the
+regression is guarded only by the A7 gate.
+
+Not rerun after the fix: A1 to A5 and the rest of the M10 AI set (about two hours at the load on this machine).
+
