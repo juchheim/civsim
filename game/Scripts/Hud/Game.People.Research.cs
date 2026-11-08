@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -220,14 +221,19 @@ public partial class Game
             UiKit.SetText(row.Projection, projection);
             SetTone(row.Projection, tone);
         }
-        if (frame.FocusQueueCount > 0)
+        List<int> queue = EffectiveResearchQueue(frame);
+        bool queuePending = _session is not null && Array.Exists(_session.PendingCommands,
+            command => command.Civ == frame.FocusCiv && command.Kind is CommandKind.QueueProject or CommandKind.DequeueProject);
+        if (queue.Count > 0)
         {
-            var names = new List<string>(frame.FocusQueueCount);
-            for (int i = 0; i < frame.FocusQueueCount; i++)
-                if ((uint)frame.FocusQueue[i] < (uint)_catalog!.Count) names.Add(_catalog.Projects[frame.FocusQueue[i]].Name);
-            UiKit.SetText(_queueLine!, "Up next: " + string.Join(", ", names));
+            var names = new List<string>(queue.Count);
+            foreach (int project in queue)
+                if ((uint)project < (uint)_catalog!.Count) names.Add(_catalog.Projects[project].Name);
+            UiKit.SetText(_queueLine!, "Up next: " + string.Join(", ", names) + (queuePending ? " · changes queued until resume" : ""));
         }
-        else UiKit.SetText(_queueLine!, "Nothing is queued behind these.");
+        else UiKit.SetText(_queueLine!, queuePending
+            ? "Nothing is queued behind these yet; queued changes take effect when you resume."
+            : "Nothing is queued behind these.");
     }
 
     private void EnsureStructureIds()

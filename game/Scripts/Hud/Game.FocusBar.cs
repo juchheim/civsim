@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Research;
 using ResearchTheme = CivSim.Sim.Research.Theme;
 using CivSim.Sim.View;
@@ -199,12 +200,14 @@ public partial class Game
         if (_catalog is null || _session is null) return;
         _updatingFocusBar = true;
         ObserveFocusProgress(frame);
+        bool council = EffectiveCouncil(frame);
 
         long insightRaw = frame.FocusCiv >= 0 && frame.FocusCiv < frame.CivCount ? frame.CivInsightPerYear[frame.FocusCiv] : 0;
         string insight = UiText.FormatInsight(insightRaw);
         UiKit.SetText(_insightLabel!, $"{insight} Insight/yr");
-        _insightLabel!.TooltipText = "Insight is your research speed. More people, elders and learning raise it." + (frame.FocusQueueCount > 0 ? $" {frame.FocusQueueCount} waiting in the queue." : "");
-        _autoFillToggle!.SetPressedNoSignal(frame.FocusCouncil);
+        int queuedProjects = EffectiveResearchQueue(frame).Count;
+        _insightLabel!.TooltipText = "Insight is your research speed. More people, elders and learning raise it." + (queuedProjects > 0 ? $" {queuedProjects} waiting in the queue." : "");
+        _autoFillToggle!.SetPressedNoSignal(council);
         _autoFillToggle.Disabled = frame.FocusCiv != frame.ViewerCiv || _session.IsReplay;
 
         int weightSum = 0;
@@ -219,11 +222,11 @@ public partial class Game
                 if (project < 0 && _lastSlotProject[slot] >= 0) _slotCards[slot].OpenedAgo = 0;
                 _lastSlotProject[slot] = project;
             }
-            UpdateSlotCard(slot, frame, project, weightSum);
+            UpdateSlotCard(slot, frame, project, weightSum, council);
         }
         // The one accent button on the HUD goes to the action the player owes: while a slot waits for a choice (and the elders
         // are not choosing), Research web is a primary button; once all three are working it steps back to secondary.
-        bool owed = !frame.FocusCouncil && !_session.IsReplay && frame.FocusCiv == frame.ViewerCiv &&
+        bool owed = !council && !_session.IsReplay && frame.FocusCiv == frame.ViewerCiv &&
                     (frame.FocusSlotProject[0] < 0 || frame.FocusSlotProject[1] < 0 || frame.FocusSlotProject[2] < 0);
         UiKit.SetVariation(_researchButton!, owed ? "PrimaryIcon" : "SecondaryIcon");
         UiKit.SetVariation(_newBadge!, owed ? "BadgePanelInk" : "BadgePanel");
@@ -242,7 +245,17 @@ public partial class Game
         tween.TweenProperty(view.Content, "modulate:a", 1.0f, 0.22).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
     }
 
-    private void UpdateSlotCard(int slot, MatchFrame frame, int project, int weightSum)
+    private bool EffectiveCouncil(MatchFrame frame)
+    {
+        bool enabled = frame.FocusCouncil;
+        if (_session is null || !_session.Paused) return enabled;
+        foreach (Command command in _session.PendingCommands)
+            if (command.Civ == frame.FocusCiv && command.Kind == CommandKind.SetCouncil)
+                enabled = command.A != 0;
+        return enabled;
+    }
+
+    private void UpdateSlotCard(int slot, MatchFrame frame, int project, int weightSum, bool council)
     {
         SlotCardView view = _slotCards[slot];
         bool pending = _pendingProject[slot] != -2;
@@ -281,7 +294,7 @@ public partial class Game
                 UiKit.SetText(view.Name, def.Name);
             }
             else view.Bar.Fill = UiTokens.TextTertiary;
-            view.Dashed.Color = frame.FocusCouncil ? UiTokens.TextTertiary : UiTokens.Accent;
+            view.Dashed.Color = council ? UiTokens.TextTertiary : UiTokens.Accent;
         }
 
         bool showBar = mode is SlotMode.Working or SlotMode.Done;
@@ -312,7 +325,7 @@ public partial class Game
                 break;
             default:
                 UiKit.SetText(view.Eyebrow, eyebrow);
-                if (frame.FocusCouncil)
+                if (council)
                 {
                     UiKit.SetText(view.Cta, "The elders will choose soon");
                     view.Cta.AddThemeColorOverride("font_color", UiTokens.TextSecondary);
@@ -334,6 +347,7 @@ public partial class Game
 
     private void TickFocusBar(float delta)
     {
+        bool council = _current is null || EffectiveCouncil(_current);
         for (int slot = 0; slot < 3; slot++)
         {
             SlotCardView view = _slotCards[slot];
@@ -344,7 +358,7 @@ public partial class Game
                 if (view.DoneTimer <= 0 && _current is not null) { view.DoneTimer = 0; RefreshFocusBar(_current); }
             }
             if (view.OpenedAgo < 99) view.OpenedAgo += delta;
-            bool pulse = view.Mode == SlotMode.Open && (!_uiSettings.PlayedBefore || view.OpenedAgo < 3.0f) && _current is { FocusCouncil: false };
+            bool pulse = view.Mode == SlotMode.Open && (!_uiSettings.PlayedBefore || view.OpenedAgo < 3.0f) && !council;
             view.Dashed.SetPulse(pulse);
         }
     }
@@ -410,10 +424,12 @@ public partial class Game
     private void SetAutoFill(bool enabled)
     {
         if (_session is null || _current is null || !_session.CanIssueCommands) return;
-        _session.Queue(PlayerCommands.SetCouncil(_session.Tick, _current.FocusCiv, enabled));
+        QueueCommand(PlayerCommands.SetCouncil(_session.Tick, _current.FocusCiv, enabled));
         ShowFooterNote(enabled
-            ? "Auto-fill is on. The elders fill empty slots after one season; your choices stay."
-            : "Auto-fill is off. Empty slots wait for you.");
+            ? _session.Paused ? "Auto-fill is queued; the elders can fill empty slots after you resume. Your choices stay."
+                : "Auto-fill is on. The elders fill empty slots after one season; your choices stay."
+            : _session.Paused ? "Turning auto-fill off is queued; empty slots will wait after you resume."
+                : "Auto-fill is off. Empty slots wait for you.");
     }
 
     // ---- right-click menu --------------------------------------------------------------------
@@ -462,7 +478,7 @@ public partial class Game
         int theirs = _current.FocusSlotProject[to];
         if (mine < 0) return;
         // The research system swaps ranks when the project is already slotted, so one command moves both.
-        _session.Queue(PlayerCommands.SetSlot(_session.Tick, _current.FocusCiv, to, mine));
+        QueueCommand(PlayerCommands.SetSlot(_session.Tick, _current.FocusCiv, to, mine));
         MarkPending(to, mine);
         MarkPending(from, theirs >= 0 ? theirs : -1);
         ShowFooterNote($"{_catalog!.Projects[mine].Name} moved to {UiText.SlotNames[to]}.");
@@ -473,7 +489,7 @@ public partial class Game
         if (_session is null || _current is null) return;
         int project = _current.FocusSlotProject[slot];
         if (project < 0) return;
-        _session.Queue(PlayerCommands.ClearSlot(_session.Tick, _current.FocusCiv, slot));
+        QueueCommand(PlayerCommands.ClearSlot(_session.Tick, _current.FocusCiv, slot));
         MarkPending(slot, -1);
         ShowFooterNote($"{_catalog!.Projects[project].Name} keeps its {_current.FocusSlotPermille[slot] / 10}% and waits.");
     }

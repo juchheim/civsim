@@ -1,5 +1,6 @@
 using System;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Politics;
 using CivSim.Sim.View;
 using Godot;
@@ -235,7 +236,7 @@ public partial class Game
     {
         if (_session is null || !_session.CanIssueCommands) return;
         int civ = Math.Max(0, _current?.ViewerCiv ?? 0);
-        _session.Queue(PlayerCommands.Decree(_session.Tick, civ, _pendingDecree, _pendingTarget, _pendingExtra));
+        QueueCommand(PlayerCommands.Decree(_session.Tick, civ, _pendingDecree, _pendingTarget, _pendingExtra));
         _decreeConfirm!.Visible = false; _decreeForecast!.Text = "Decree queued for the end of this season.";
         CallDeferred(nameof(FitDecreePanel));
     }
@@ -248,7 +249,13 @@ public partial class Game
         UiKit.SetText(_decreeMandate, available
             ? $"Mandate · {frame.FocusMandate}/{frame.FocusMandateCap} · next in {frame.FocusMandateNextSeason} seasons"
             : $"Mandate · locked until {unlockProject}");
-        UiKit.SetText(_decreeHint!, available ? $"{frame.FocusPendingDecrees} Decrees resolve at season's end." : $"Reach {unlockProject} to issue a Decree.");
+        int queuedDecrees = 0;
+        if (_session is not null)
+            foreach (Command command in _session.PendingCommands)
+                if (command.Civ == frame.ViewerCiv && command.Kind == CommandKind.IssueDecree) queuedDecrees++;
+        string resolving = frame.FocusPendingDecrees == 1 ? "1 Decree resolves at season's end." : $"{frame.FocusPendingDecrees} Decrees resolve at season's end.";
+        if (queuedDecrees > 0) resolving += $" {queuedDecrees} more queued until you resume.";
+        UiKit.SetText(_decreeHint!, available ? resolving : $"Reach {unlockProject} to issue a Decree.");
         bool layoutChanged = UiKit.SetVisible2(_decreeLockedBlock!, !available) | UiKit.SetVisible2(_decreeControls!, available);
         if (_decreesUnlocked != available)
         {
@@ -326,10 +333,21 @@ public partial class Game
     {
         if (_current is null || _session is null || !_session.CanIssueCommands || _selectedPoliticsCiv < 0 || _diploCompactGood is null) return;
         TradeGood good = (TradeGood)_diploCompactGood.GetItemId(_diploCompactGood.Selected);
-        byte mask = _current.CivEmbargoByViewer[_selectedPoliticsCiv];
-        bool on = (mask & (1 << (int)good)) == 0;
-        _session.Queue(PlayerCommands.SetEmbargo(_session.Tick, Math.Max(0, _current.ViewerCiv), _selectedPoliticsCiv, good, on));
-        ShowToast(on ? "Embargo set" : "Embargo lifted", ToastKind.Info, $"{good} trade with {UiText.CivName(_selectedPoliticsCiv)}.", key: "embargo");
+        bool on = !EmbargoAfterQueuedOrders(_current, _selectedPoliticsCiv, good);
+        QueueCommand(PlayerCommands.SetEmbargo(_session.Tick, Math.Max(0, _current.ViewerCiv), _selectedPoliticsCiv, good, on));
+        string action = on ? "Embargo set" : "Embargo lifted";
+        ShowToast(_session.Paused ? $"{action} · queued" : action, ToastKind.Info,
+            _session.Paused ? $"{good} trade changes when you resume." : $"{good} trade with {UiText.CivName(_selectedPoliticsCiv)}.", key: "embargo");
+    }
+
+    private bool EmbargoAfterQueuedOrders(MatchFrame frame, int civ, TradeGood good)
+    {
+        bool embargoed = (frame.CivEmbargoByViewer[civ] & (1 << (int)good)) != 0;
+        if (_session is null) return embargoed;
+        foreach (Command command in _session.PendingCommands)
+            if (command.Civ == frame.ViewerCiv && command.Kind == CommandKind.SetEmbargo && command.A == civ && command.B == (int)good)
+                embargoed = command.C != 0;
+        return embargoed;
     }
 
     private void PreviewAndQueue(DecreeKind kind, int target, int extra)

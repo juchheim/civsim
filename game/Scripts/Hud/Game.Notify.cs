@@ -497,7 +497,7 @@ public partial class Game
     {
         if (_momentPick is null || _momentCard is null || !_momentCard.Visible) return;
         bool summary = _momentProject == -2;
-        bool canPick = summary || (_current is { FocusCouncil: false } && FirstOpenSlot() >= 0);
+        bool canPick = summary || (_current is not null && !EffectiveCouncil(_current) && FirstOpenSlot() >= 0);
         _momentPick.Visible = canPick;
     }
 
@@ -623,7 +623,7 @@ public partial class Game
                 { tip = 11; break; }
         if (tip < 0 && !_researchWebVisible && frame.FocusCiv == viewer && !TipSeen(0) &&
             (frame.FocusSlotProject[0] >= 0 || frame.FocusSlotProject[1] >= 0 || frame.FocusSlotProject[2] >= 0)) tip = 0;
-        if (tip < 0 && !TipSeen(9) && TipSeen(0) && !frame.FocusCouncil && FirstOpenSlot() >= 0 && !_researchWebVisible) tip = 9;
+        if (tip < 0 && !TipSeen(9) && TipSeen(0) && !EffectiveCouncil(frame) && FirstOpenSlot() >= 0 && !_researchWebVisible) tip = 9;
         if (tip >= 0) RequestCoachTip(tip);
     }
 

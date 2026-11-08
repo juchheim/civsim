@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -836,11 +837,27 @@ public partial class Game
         for (int i = 0; i < frame.FigureCount; i++)
             if (frame.FigureSettlement[i] == _peopleSelectedScoutSettlement && frame.FigureActivity[i] == (byte)FigureActivity.Scout)
                 activeScouts++;
-        ScoutPolicy policy = (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow];
+        ScoutPolicy policy = EffectiveScoutPolicy(frame.ViewerCiv, _peopleSelectedScoutSettlement,
+            (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow], out bool policyQueued);
         UiKit.SetText(_peopleScoutStatus,
-            $"{SettlementLabel(_peopleSelectedScoutSettlement)} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season.");
+            $"{SettlementLabel(_peopleSelectedScoutSettlement)} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season." +
+            (policyQueued ? $" {policy} is queued; it takes effect next season after you resume." : ""));
         for (int i = 0; i < _peopleScoutButtons.Length; i++)
             _peopleScoutButtons[i].SetPressedNoSignal(i == (int)policy);
+    }
+
+    private ScoutPolicy EffectiveScoutPolicy(int civ, int settlement, ScoutPolicy current, out bool queued)
+    {
+        queued = false;
+        if (_session is null) return current;
+        foreach (Command command in _session.PendingCommands)
+        {
+            if (command.Civ != civ || command.Kind != CommandKind.SetScoutPolicy || command.A != settlement ||
+                command.B < (int)ScoutPolicy.Auto || command.B > (int)ScoutPolicy.Two) continue;
+            current = (ScoutPolicy)command.B;
+            queued = true;
+        }
+        return current;
     }
 
     private static bool IsOwnPeopleSettlement(MatchFrame frame, int index)
@@ -862,7 +879,7 @@ public partial class Game
     {
         if (_session is null || _current is null || _peopleSelectedScoutSettlement < 0) return;
         if (policy == ScoutPolicy.Two && !HasWayfindingOne(_current)) return;
-        _session.Queue(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
+        QueueCommand(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
             _peopleSelectedScoutSettlement, policy));
     }
 }

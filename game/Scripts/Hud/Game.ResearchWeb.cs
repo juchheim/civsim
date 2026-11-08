@@ -710,7 +710,8 @@ public partial class Game
     private int QueueIndexOf(int project)
     {
         if (_current is null) return -1;
-        for (int i = 0; i < _current.FocusQueueCount; i++) if (_current.FocusQueue[i] == project) return i;
+        List<int> queue = EffectiveResearchQueue(_current);
+        for (int i = 0; i < queue.Count; i++) if (queue[i] == project) return i;
         return -1;
     }
 

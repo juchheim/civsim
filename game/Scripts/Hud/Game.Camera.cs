@@ -584,7 +584,7 @@ public partial class Game
 
         if (TryGetOwnBeaconIndex(tile, out int beaconIndex))
         {
-            _session.Queue(PlayerCommands.RemoveBeacon(_session.Tick, 0, beaconIndex));
+            QueueCommand(PlayerCommands.RemoveBeacon(_session.Tick, 0, beaconIndex));
             SetBeaconMode(false);
             string nextStep = _session.Paused
                 ? "The removal starts when you resume. Press B after it takes effect to place a replacement."
@@ -593,9 +593,12 @@ public partial class Game
             return;
         }
 
-        _session.Queue(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width, replaceIfFull: true));
+        QueueCommand(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width, replaceIfFull: true));
         SetBeaconMode(false);
-        ShowToast("Beacon placed", ToastKind.Info, "If all Beacon slots were used, your nearest Beacon moved here.", tile, key: $"beacon-placed-{tile}");
+        ShowToast(_session.Paused ? "Beacon placement queued" : "Beacon placed", ToastKind.Info,
+            _session.Paused
+                ? "It starts when you resume. If all Beacon slots are used, your nearest Beacon will move here."
+                : "If all Beacon slots were used, your nearest Beacon moved here.", tile, key: $"beacon-placed-{tile}");
     }
 
     private bool TryGetOwnBeaconIndex(int tile, out int beaconIndex)

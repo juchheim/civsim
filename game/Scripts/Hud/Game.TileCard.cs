@@ -345,11 +345,13 @@ public partial class Game
             for (int i = 0; i < frame.FigureCount; i++)
                 if (frame.FigureSettlement[i] == settlement && frame.FigureActivity[i] == (byte)FigureActivity.Scout)
                     activeScouts++;
-            UiKit.SetText(_tileScoutStatus!, $"Scouting · {activeScouts} active this season · changes next season");
-            byte policy = frame.SettlementScoutPolicy[s];
+            ScoutPolicy policy = EffectiveScoutPolicy(frame.ViewerCiv, settlement,
+                (ScoutPolicy)frame.SettlementScoutPolicy[s], out bool policyQueued);
+            UiKit.SetText(_tileScoutStatus!, $"Scouting · {activeScouts} active this season" +
+                (policyQueued ? $" · {policy} queued for next season after resume" : " · changes next season"));
             for (int i = 0; i < _tileScoutButtons.Length; i++)
             {
-                _tileScoutButtons[i].SetPressedNoSignal((byte)i == policy);
+                _tileScoutButtons[i].SetPressedNoSignal(i == (int)policy);
                 _tileScoutButtons[i].Disabled = !(_session?.CanIssueCommands ?? false) ||
                     i == (int)ScoutPolicy.Two && !HasWayfindingOne(frame);
             }
@@ -368,7 +370,7 @@ public partial class Game
             if (_current.SettlementTile[s] != _pinnedTile || _current.SettlementCiv[s] != _current.ViewerCiv ||
                 (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != SettlementViewFlags.Own)
                 continue;
-            _session.Queue(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
+            QueueCommand(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
                 _current.SettlementIndex[s], policy));
             return;
         }

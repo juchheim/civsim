@@ -46,9 +46,11 @@ public partial class Game
     private OrderRow? _leagueRow, _tributeRow, _blockadeRow;
     private VBoxContainer? _partyList;
     private readonly List<(HBoxContainer Root, Label Text, UiProgressBar Bar, UiButton Recall)> _partyRows = new();
+    private readonly List<Label> _pendingPartyRows = new();
     private int _selectedPoliticsCiv = -1, _selectedTargetSettlement = -1;
     private int _war02 = -1, _trd01 = -1, _trd02 = -1, _dip03 = -1, _dip06 = -1, _dip07 = -1, _sea09 = -1;
     private readonly List<int> _civOrder = new();
+    private readonly record struct ProjectedRelation(bool AtWar, bool Allied, bool InTruce, bool WarQueued, bool PeaceQueued, bool AllianceQueued, bool AssaultQueued);
 
     private void CreateDiplomacyDrawer()
     {
@@ -315,15 +317,35 @@ public partial class Game
 
         int target = _selectedPoliticsCiv;
         CivViewFlags flags = (CivViewFlags)frame.CivFlags[target];
-        bool contacted = (flags & CivViewFlags.Contacted) != 0, atWar = (flags & CivViewFlags.AtWar) != 0;
-        bool allied = (flags & CivViewFlags.Allied) != 0, truce = (flags & CivViewFlags.InTruce) != 0;
+        ProjectedRelation relation = RelationAfterQueuedOrders(frame, target);
+        bool contacted = (flags & CivViewFlags.Contacted) != 0, atWar = relation.AtWar;
+        bool allied = relation.Allied, truce = relation.InTruce;
         if (_diploCompactAction is not null)
             _diploCompactAction.Disabled = !(_session?.CanIssueCommands ?? false) || !frame.FocusMandateUnlocked || atWar || !contacted;
         if (_diploEmbargoAction is not null)
+        {
             _diploEmbargoAction.Disabled = !(_session?.CanIssueCommands ?? false) || !contacted;
+            if (_diploCompactGood is not null && _diploCompactGood.Selected >= 0)
+            {
+                TradeGood good = (TradeGood)_diploCompactGood.GetItemId(_diploCompactGood.Selected);
+                bool embargoed = EmbargoAfterQueuedOrders(frame, target, good);
+                bool queued = false;
+                if (_session is not null)
+                    foreach (Command command in _session.PendingCommands)
+                        if (command.Civ == frame.ViewerCiv && command.Kind == CommandKind.SetEmbargo && command.A == target && command.B == (int)good)
+                            queued = true;
+                _diploEmbargoAction.Text = queued ? (embargoed ? "Embargo queued" : "Lift queued") : (embargoed ? "Lift embargo" : "Set embargo");
+            }
+        }
         _diploEmblem!.Civ = target;
         UiKit.SetText(_diploName!, UiText.CivName(target));
-        (string status, string variation) = atWar ? ("AT WAR", "ChipPanelDanger") : allied ? ("ALLIED", "ChipPanelSuccess") : truce ? ("IN TRUCE", "ChipPanelInfo") : contacted ? ("CONTACTED", "ChipPanel") : ("KNOWN ONLY", "ChipPanel");
+        (string status, string variation) = atWar
+            ? (relation.WarQueued && (flags & CivViewFlags.AtWar) == 0 ? "WAR QUEUED" : "AT WAR", "ChipPanelDanger")
+            : allied
+                ? (relation.AllianceQueued && (flags & CivViewFlags.Allied) == 0 ? "ALLIANCE QUEUED" : "ALLIED", "ChipPanelSuccess")
+                : truce
+                    ? (relation.PeaceQueued ? "PEACE QUEUED" : "IN TRUCE", "ChipPanelInfo")
+                    : contacted ? ("CONTACTED", "ChipPanel") : ("KNOWN ONLY", "ChipPanel");
         UiKit.SetChipText(_diploStatusChip!, status);
         UiKit.SetVariation(_diploStatusChip!, variation);
         int relations = frame.CivRelations[target];
@@ -341,20 +363,90 @@ public partial class Game
         UiKit.SetVisible(_diploAi!, ai.Length > 0);
 
         RefreshDestinations(frame, target);
-        RefreshOrders(frame, target, contacted, atWar, allied, truce, relations);
+        RefreshOrders(frame, target, contacted, atWar, allied, truce, relations, relation.AssaultQueued);
         RefreshParties(frame);
     }
 
-    private static int RelationRank(MatchFrame frame, int civ)
+    private ProjectedRelation RelationAfterQueuedOrders(MatchFrame frame, int civ)
     {
-        CivViewFlags f = (CivViewFlags)frame.CivFlags[civ];
-        return (f & CivViewFlags.AtWar) != 0 ? 0 : (f & CivViewFlags.Allied) != 0 ? 1 : (f & CivViewFlags.Contacted) != 0 ? 2 : 3;
+        CivViewFlags flags = (CivViewFlags)frame.CivFlags[civ];
+        bool atWar = (flags & CivViewFlags.AtWar) != 0;
+        bool allied = (flags & CivViewFlags.Allied) != 0;
+        bool truce = (flags & CivViewFlags.InTruce) != 0;
+        bool warQueued = false, peaceQueued = false, allianceQueued = false, assaultQueued = false;
+        if (_session is not null)
+        {
+            foreach (Command command in _session.PendingCommands)
+            {
+                if (command.Civ != frame.ViewerCiv) continue;
+                switch (command.Kind)
+                {
+                    case CommandKind.DeclareWar when command.A == civ:
+                        atWar = true;
+                        allied = false;
+                        warQueued = true;
+                        break;
+                    case CommandKind.MakePeace when command.A == civ:
+                        atWar = false;
+                        allied = false;
+                        truce = true;
+                        peaceQueued = true;
+                        break;
+                    case CommandKind.FormAlliance when command.A == civ:
+                        atWar = false;
+                        allied = true;
+                        truce = false;
+                        allianceQueued = true;
+                        break;
+                    case CommandKind.LaunchAssault:
+                        int targetCiv = command.A == -1 ? command.B - 1 : SettlementOwner(frame, command.A);
+                        if (targetCiv == civ) assaultQueued = true;
+                        break;
+                }
+            }
+        }
+        return new ProjectedRelation(atWar, allied, truce, warQueued, peaceQueued, allianceQueued, assaultQueued);
+    }
+
+    private static int SettlementOwner(MatchFrame frame, int settlement)
+    {
+        for (int i = 0; i < frame.SettlementCount; i++)
+            if (frame.SettlementIndex[i] == settlement) return frame.SettlementCiv[i];
+        return -1;
+    }
+
+    private bool HasPendingDiplomaticOrder(MatchFrame frame, int civ, CommandKind kind)
+    {
+        if (_session is null) return false;
+        foreach (Command command in _session.PendingCommands)
+        {
+            if (command.Civ != frame.ViewerCiv || command.Kind != kind) continue;
+            int target = kind switch
+            {
+                CommandKind.SendGift or CommandKind.SendBarter or CommandKind.DeclareWar or CommandKind.MakePeace or
+                    CommandKind.FormAlliance or CommandKind.ImposeTribute or CommandKind.FormLeague => command.A,
+                CommandKind.LaunchRaidAgainst => command.A,
+                CommandKind.LaunchRaid or CommandKind.Blockade => SettlementOwner(frame, command.A),
+                _ => -1,
+            };
+            if (target == civ) return true;
+        }
+        return false;
+    }
+
+    private int RelationRank(MatchFrame frame, int civ)
+    {
+        ProjectedRelation relation = RelationAfterQueuedOrders(frame, civ);
+        return relation.AtWar ? 0 : relation.Allied ? 1 : (frame.CivFlags[civ] & (ushort)CivViewFlags.Contacted) != 0 ? 2 : 3;
     }
 
     private string CivStatusText(MatchFrame frame, int civ)
     {
         CivViewFlags f = (CivViewFlags)frame.CivFlags[civ];
-        string state = (f & CivViewFlags.AtWar) != 0 ? "At war" : (f & CivViewFlags.Allied) != 0 ? "Allied" : (f & CivViewFlags.InTruce) != 0 ? "Truce"
+        ProjectedRelation relation = RelationAfterQueuedOrders(frame, civ);
+        string state = relation.AtWar ? (relation.WarQueued && (f & CivViewFlags.AtWar) == 0 ? "War queued" : "At war")
+            : relation.Allied ? (relation.AllianceQueued && (f & CivViewFlags.Allied) == 0 ? "Alliance queued" : "Allied")
+            : relation.InTruce ? (relation.PeaceQueued ? "Peace queued" : "Truce")
             : (f & CivViewFlags.Contacted) != 0 ? RelationWord(frame.CivRelations[civ]) : "Seen from afar";
         return $"{state} · {UiText.AgeName(frame.CivEra[civ])}";
     }
@@ -453,19 +545,22 @@ public partial class Game
         if (!enabled) CancelConfirm(row);
     }
 
-    private void RefreshOrders(MatchFrame frame, int civ, bool contacted, bool atWar, bool allied, bool truce, int relations)
+    private void RefreshOrders(MatchFrame frame, int civ, bool contacted, bool atWar, bool allied, bool truce, int relations, bool assaultQueued)
     {
         bool trd01 = HasProjectDone(frame, _trd01), trd02 = HasProjectDone(frame, _trd02), war02 = HasProjectDone(frame, _war02), dip03 = HasProjectDone(frame, _dip03);
+        bool giftQueued = HasPendingDiplomaticOrder(frame, civ, CommandKind.SendGift);
+        bool barterQueued = HasPendingDiplomaticOrder(frame, civ, CommandKind.SendBarter);
+        bool raidQueued = HasPendingDiplomaticOrder(frame, civ, CommandKind.LaunchRaid) || HasPendingDiplomaticOrder(frame, civ, CommandKind.LaunchRaidAgainst);
         bool barterInFlight = false;
         for (int i = 0; i < frame.PartyCount; i++)
             if (frame.PartyCiv[i] == frame.ViewerCiv && frame.PartyTargetCiv[i] == civ && frame.PartyKind[i] == (byte)PartyKind.Barter) barterInFlight = true;
         bool can = _session?.CanIssueCommands ?? false;
         if (_diploCompactAction is not null) _diploCompactAction.TooltipText = CompactAcceptanceHint(frame.ViewerCiv, civ);
 
-        SetOrder(_giftRow!, true, can && contacted && !atWar && trd01,
-            !trd01 ? $"Needs {NeedsName(_trd01)} (research)." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." : "Carries food to them. Improves relations.");
-        SetOrder(_barterRow!, true, can && contacted && !atWar && trd02 && relations > 0 && !barterInFlight,
-            !trd02 ? $"Needs {NeedsName(_trd02)} (research)." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." :
+        SetOrder(_giftRow!, true, can && contacted && !atWar && trd01 && !giftQueued,
+            giftQueued ? "Gift queued; it starts when you resume." : !trd01 ? $"Needs {NeedsName(_trd01)} (research)." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." : "Carries food to them. Improves relations.");
+        SetOrder(_barterRow!, true, can && contacted && !atWar && trd02 && relations > 0 && !barterInFlight && !barterQueued,
+            barterQueued ? "Barter queued; it starts when you resume." : !trd02 ? $"Needs {NeedsName(_trd02)} (research)." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." :
             relations <= 0 ? $"Needs warmer relations (above 0; now {relations})." : barterInFlight ? "A barter trip is already on the way." : "Trades your surplus for theirs.");
         SetOrder(_allianceRow!, !allied, can && contacted && !atWar && !allied && relations > 40 && dip03,
             !dip03 ? $"Needs {NeedsName(_dip03)}: both of you must know it." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." :
@@ -478,19 +573,19 @@ public partial class Game
                     occupation = true;
         SetOrder(_peaceRow!, atWar, can && atWar && !occupation, occupation ? "Not while you hold one of their settlements." : "Ends the war. A truce follows.");
 
-        RefreshIronOrders(frame, can, atWar, allied, contacted);
+        RefreshIronOrders(frame, civ, can, atWar, allied, contacted);
         bool chosenDestination = _selectedTargetSettlement >= 0;
         string raidHint = chosenDestination
             ? "Sends raiders to this settlement. Hurts relations."
             : "Sends raiders to their closest settlement, even if it is out of sight. Hurts relations.";
-        SetOrder(_raidRow!, true, can && contacted && war02 && !allied && !truce,
-            !war02 ? $"Needs {NeedsName(_war02)} (research)." : !contacted ? "Meet them first." : allied ? "You can't raid an ally." : truce ? "Not during a truce." :
+        SetOrder(_raidRow!, true, can && contacted && war02 && !allied && !truce && !raidQueued,
+            raidQueued ? "Raid queued; it starts when you resume." : !war02 ? $"Needs {NeedsName(_war02)} (research)." : !contacted ? "Meet them first." : allied ? "You can't raid an ally." : truce ? "Not during a truce." :
             raidHint);
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
         bool rememberedDestination = chosenDestination && IsRememberedDestination(frame, civ, _selectedTargetSettlement);
-        SetOrder(_assaultRow!, true, can && atWar,
-            !atWar ? "Declare war first." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :
+        SetOrder(_assaultRow!, true, can && atWar && !assaultQueued,
+            assaultQueued ? "Assault queued; it starts when you resume." : !atWar ? "Declare war first." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :
             rememberedDestination ? "Marches to its last known site; it may be empty or its population may have changed." : "Tries to take the selected settlement.");
     }
 
@@ -508,7 +603,7 @@ public partial class Game
                 var bar = new UiProgressBar(6) { CustomMinimumSize = new Vector2(89, 6), SizeFlagsHorizontal = Control.SizeFlags.Fill };
                 var recall = UiKit.Ghost("Recall", null, "Survivors head home.", UiGlyph.None, 30);
                 int captured = ordinal;
-                recall.Pressed += () => { if (_session is not null && _current is not null) _session.Queue(PlayerCommands.RecallParty(_session.Tick, 0, captured)); };
+                recall.Pressed += () => { if (_session is not null && _current is not null) QueueCommand(PlayerCommands.RecallParty(_session.Tick, 0, captured)); };
                 row.AddChild(text);
                 row.AddChild(bar);
                 row.AddChild(recall);
@@ -525,7 +620,62 @@ public partial class Game
             ordinal++;
         }
         for (int i = ordinal; i < _partyRows.Count; i++) _partyRows[i].Root.Visible = false;
-        UiKit.SetVisible(_diploNoParties!, ordinal == 0);
+        int pendingOrdinal = 0;
+        void AddPending(string text)
+        {
+            if (pendingOrdinal >= _pendingPartyRows.Count)
+            {
+                Label pending = UiKit.Text("", "CaptionAccent", wrap: true);
+                _partyList!.AddChild(pending);
+                _pendingPartyRows.Add(pending);
+            }
+            Label label = _pendingPartyRows[pendingOrdinal++];
+            label.Visible = true;
+            UiKit.SetText(label, $"{text} · queued until you resume");
+        }
+
+        if (_session is not null)
+        {
+            foreach (Command command in _session.PendingCommands)
+            {
+                if (command.Civ != frame.ViewerCiv) continue;
+                switch (command.Kind)
+                {
+                    case CommandKind.SendGift:
+                        AddPending($"Gift to {UiText.CivName(command.A)}");
+                        break;
+                    case CommandKind.SendBarter:
+                        AddPending($"Barter with {UiText.CivName(command.A)}");
+                        break;
+                    case CommandKind.LaunchRaid:
+                    {
+                        int owner = command.A >= 0 ? SettlementOwner(frame, command.A) : -1;
+                        AddPending(owner >= 0 ? $"Raid on {UiText.CivName(owner)}" : "Raid");
+                        break;
+                    }
+                    case CommandKind.LaunchRaidAgainst:
+                        AddPending($"Raid on {UiText.CivName(command.A)}");
+                        break;
+                    case CommandKind.LaunchAssault:
+                    {
+                        int owner = command.A == -1 ? command.B - 1 : SettlementOwner(frame, command.A);
+                        AddPending(owner >= 0 ? $"Assault on {UiText.CivName(owner)}" : "Assault");
+                        break;
+                    }
+                    case CommandKind.Blockade:
+                    {
+                        int owner = SettlementOwner(frame, command.A);
+                        AddPending(owner >= 0 ? $"Blockade at {UiText.CivName(owner)}" : "Blockade");
+                        break;
+                    }
+                    case CommandKind.RecallParty:
+                        AddPending($"Recall order for party {command.A + 1}");
+                        break;
+                }
+            }
+        }
+        for (int i = pendingOrdinal; i < _pendingPartyRows.Count; i++) _pendingPartyRows[i].Visible = false;
+        UiKit.SetVisible(_diploNoParties!, ordinal == 0 && pendingOrdinal == 0);
     }
 
     // ---- orders ------------------------------------------------------------------------------
@@ -533,19 +683,19 @@ public partial class Game
     private void QueueDiplomacyOrder(Func<long, int, int, Command> create)
     {
         if (_session is null || _selectedPoliticsCiv < 0) return;
-        _session.Queue(create(_session.Tick, 0, _selectedPoliticsCiv));
+        QueueCommand(create(_session.Tick, 0, _selectedPoliticsCiv));
     }
 
     private void QueueGift()
     {
         if (_session is null || _selectedPoliticsCiv < 0) return;
-        _session.Queue(PlayerCommands.SendGift(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
+        QueueCommand(PlayerCommands.SendGift(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
     }
 
     private void QueueBarter()
     {
         if (_session is null || _selectedPoliticsCiv < 0) return;
-        _session.Queue(PlayerCommands.SendBarter(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
+        QueueCommand(PlayerCommands.SendBarter(_session.Tick, 0, _selectedPoliticsCiv, _selectedTargetSettlement));
     }
 
     private void QueueRaid()
@@ -553,20 +703,23 @@ public partial class Game
         if (_session is null || _current is null || _selectedPoliticsCiv < 0) return;
         int partySize = _raidPartySize is null ? 4 : Math.Max(4, _raidPartySize.GetSelectedId());
         if (_selectedTargetSettlement >= 0)
-            _session.Queue(PlayerCommands.LaunchRaid(_session.Tick, 0, _selectedTargetSettlement, partySize));
+            QueueCommand(PlayerCommands.LaunchRaid(_session.Tick, 0, _selectedTargetSettlement, partySize));
         else
-            _session.Queue(PlayerCommands.LaunchRaidAgainst(_session.Tick, 0, _selectedPoliticsCiv, partySize));
+            QueueCommand(PlayerCommands.LaunchRaidAgainst(_session.Tick, 0, _selectedPoliticsCiv, partySize));
     }
 
     /// <summary>The Iron chapter's three orders: a league with an ally, tributary terms in a war being won, a galley off a harbor chosen above.</summary>
-    private void RefreshIronOrders(MatchFrame frame, bool can, bool atWar, bool allied, bool contacted)
+    private void RefreshIronOrders(MatchFrame frame, int civ, bool can, bool atWar, bool allied, bool contacted)
     {
         bool iron = frame.Iron.Active;
         bool dip06 = HasProjectDone(frame, _dip06), dip07 = HasProjectDone(frame, _dip07), sea09 = HasProjectDone(frame, _sea09);
-        SetOrder(_leagueRow!, iron && allied, can && contacted && allied && dip07,
-            !dip07 ? $"Needs {NeedsName(_dip07)} (research)." : "Founds a league with this ally, or brings it into yours. Partners lend labor to each other's Wonders.");
-        SetOrder(_tributeRow!, iron && atWar, can && atWar && dip06,
-            !dip06 ? $"Needs {NeedsName(_dip06)} (research)." : "Ends the war on tributary terms. Needs about one and a half times their strength; they hand over a tenth of their spare food each season and a quarter of their yearly Dominion.");
+        bool leagueQueued = HasPendingDiplomaticOrder(frame, civ, CommandKind.FormLeague);
+        bool tributeQueued = HasPendingDiplomaticOrder(frame, civ, CommandKind.ImposeTribute);
+        bool blockadeQueued = HasPendingDiplomaticOrder(frame, civ, CommandKind.Blockade);
+        SetOrder(_leagueRow!, iron && allied, can && contacted && allied && dip07 && !leagueQueued,
+            leagueQueued ? "League proposal queued; it starts when you resume." : !dip07 ? $"Needs {NeedsName(_dip07)} (research)." : "Founds a league with this ally, or brings it into yours. Partners lend labor to each other's Wonders.");
+        SetOrder(_tributeRow!, iron && atWar, can && atWar && dip06 && !tributeQueued,
+            tributeQueued ? "Tribute terms queued; they are offered when you resume." : !dip06 ? $"Needs {NeedsName(_dip06)} (research)." : "Ends the war on tributary terms. Needs about one and a half times their strength; they hand over a tenth of their spare food each season and a quarter of their yearly Dominion.");
         bool galley = false;
         int galleyKind = -1;
         for (int k = 0; k < frame.Iron.WorkKinds; k++) if (LivingEconomyModelWorkId(k) == "galley") galleyKind = k;
@@ -574,8 +727,8 @@ public partial class Game
             for (int w = 0; w < frame.SettlementCount; w++)
                 if ((frame.SettlementFlags[w] & (ushort)SettlementViewFlags.Own) != 0 && frame.Iron.Works[w * frame.Iron.WorkKinds + galleyKind] > 0 && frame.Iron.Soldiers[w] >= 4) galley = true;
         bool chosen = _selectedTargetSettlement >= 0;
-        SetOrder(_blockadeRow!, iron && atWar, can && atWar && sea09 && galley && chosen,
-            !sea09 ? $"Needs {NeedsName(_sea09)} (research)." : !galley ? "Needs a harbor town with a war galley and four soldiers to crew it." :
+        SetOrder(_blockadeRow!, iron && atWar, can && atWar && sea09 && galley && chosen && !blockadeQueued,
+            blockadeQueued ? "Blockade queued; it starts when you resume." : !sea09 ? $"Needs {NeedsName(_sea09)} (research)." : !galley ? "Needs a harbor town with a war galley and four soldiers to crew it." :
             !chosen ? "Choose one of their settlements above: a harbor you have seen." : "Stations a galley off that harbor and shuts its sea routes.");
     }
 
@@ -584,15 +737,15 @@ public partial class Game
     private void QueueBlockade()
     {
         if (_session is null || _selectedTargetSettlement < 0) return;
-        _session.Queue(PlayerCommands.Blockade(_session.Tick, 0, _selectedTargetSettlement));
+        QueueCommand(PlayerCommands.Blockade(_session.Tick, 0, _selectedTargetSettlement));
     }
 
     private void QueueAssault()
     {
         if (_session is null || _current is null) return;
         if (_selectedTargetSettlement >= 0)
-            _session.Queue(PlayerCommands.LaunchAssault(_session.Tick, 0, _selectedTargetSettlement, _selectedPoliticsCiv));
+            QueueCommand(PlayerCommands.LaunchAssault(_session.Tick, 0, _selectedTargetSettlement, _selectedPoliticsCiv));
         else
-            _session.Queue(PlayerCommands.LaunchAssaultAgainst(_session.Tick, 0, _selectedPoliticsCiv));
+            QueueCommand(PlayerCommands.LaunchAssaultAgainst(_session.Tick, 0, _selectedPoliticsCiv));
     }
 }

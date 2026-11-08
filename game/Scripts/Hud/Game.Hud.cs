@@ -254,6 +254,51 @@ public partial class Game
         UpdatePausedTreatment();
     }
 
+    /// <summary>Queues a player command and refreshes the affected paused UI from its pending-command projection.</summary>
+    private void QueueCommand(Command command)
+    {
+        if (_session is null) return;
+        _session.Queue(command);
+        if (!_session.Paused || _current is null) return;
+
+        UpdatePausedTreatment();
+        switch (command.Kind)
+        {
+            case CommandKind.DeclareWar:
+            case CommandKind.MakePeace:
+            case CommandKind.FormAlliance:
+            case CommandKind.FormLeague:
+            case CommandKind.ImposeTribute:
+            case CommandKind.SendGift:
+            case CommandKind.SendBarter:
+            case CommandKind.LaunchRaid:
+            case CommandKind.LaunchRaidAgainst:
+            case CommandKind.LaunchAssault:
+            case CommandKind.RecallParty:
+            case CommandKind.Blockade:
+            case CommandKind.SetEmbargo:
+                if (_diplomacyOpen) RefreshDiplomacy(_current);
+                break;
+            case CommandKind.SetScoutPolicy:
+                if (_peopleOpen) RefreshPeopleScoutControls(_current);
+                if (_tileCard is { Visible: true } && _pinnedTile >= 0) RefreshTileCardNow(_hoverScreen);
+                break;
+            case CommandKind.SetCouncil:
+                RefreshFocusBar(_current);
+                if (_researchWebVisible) RefreshResearchWeb(_current);
+                break;
+            case CommandKind.QueueProject:
+            case CommandKind.DequeueProject:
+                RefreshFocusBar(_current);
+                if (_researchWebVisible) RefreshResearchWeb(_current);
+                RefreshQueuePopover();
+                break;
+            case CommandKind.IssueDecree:
+                if (_decreeOpen) RefreshDecrees(_current);
+                break;
+        }
+    }
+
     /// <summary>Per-rendered-frame work that must be cheap: timers, tweens' companions, the hover card.</summary>
     private void TickHud(double delta)
     {
@@ -342,7 +387,7 @@ public partial class Game
     }
 
     private bool IsFreshUnassignedMatch() =>
-        _session is { Tick: < 100, IsReplay: false } && _current is { FocusCiv: 0, FocusCouncil: false } &&
+        _session is { Tick: < 100, IsReplay: false } && _current is { FocusCiv: 0 } && !EffectiveCouncil(_current) &&
         _current.FocusSlotProject[0] < 0 && _current.FocusSlotProject[1] < 0 && _current.FocusSlotProject[2] < 0;
 
     private string YearText(MatchFrame frame) => $"Year {frame.Year + 1}";

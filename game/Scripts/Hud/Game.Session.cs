@@ -102,6 +102,12 @@ public partial class Game
         _momentProject = -1;
         if (_momentCard is not null) _momentCard.Visible = false;
         for (int s = 0; s < 3; s++) { _pendingProject[s] = -2; _lastSlotProject[s] = -2; _slotCards[s].Mode = SlotMode.Open; _slotCards[s].Project = -2; _slotCards[s].DoneTimer = 0; }
+        foreach (Command command in _session.PendingCommands)
+            if (command.Civ == _current!.FocusCiv && command.Kind == CommandKind.SetSlot && (uint)command.A < 3u)
+            {
+                _pendingProject[command.A] = command.B;
+                _pendingTick[command.A] = _current.Tick;
+            }
         foreach (ToastView toast in _toasts) DismissToast(toast);
         _endScreenShown = false;
         _endScreenDismissed = false;

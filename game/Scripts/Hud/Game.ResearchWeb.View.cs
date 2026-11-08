@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using Godot;
@@ -40,9 +41,10 @@ public partial class Game
             hash.Add(EffectiveSlotProject(s));
             hash.Add(frame.FocusSlotPermille[s] / 10);
         }
-        hash.Add(frame.FocusQueueCount);
-        for (int q = 0; q < frame.FocusQueueCount; q++) hash.Add(frame.FocusQueue[q]);
-        hash.Add(frame.FocusCouncil);
+        List<int> queue = EffectiveResearchQueue(frame);
+        hash.Add(queue.Count);
+        foreach (int project in queue) hash.Add(project);
+        hash.Add(EffectiveCouncil(frame));
         hash.Add(frame.FocusEra);
         hash.Add(_session?.Paused ?? false);
         return hash.ToHashCode();
@@ -56,7 +58,7 @@ public partial class Game
         UpdateStrip(frame);
         UpdateQueueChip(frame);
         _updatingFocusBar = true;
-        _webAutoFill?.SetPressedNoSignal(frame.FocusCouncil);
+        _webAutoFill?.SetPressedNoSignal(EffectiveCouncil(frame));
         if (_webAutoFill is not null) _webAutoFill.Disabled = frame.FocusCiv != frame.ViewerCiv || (_session?.IsReplay ?? false);
         _updatingFocusBar = false;
         _navCards.Clear();
@@ -667,7 +669,11 @@ public partial class Game
     private void UpdateQueueChip(MatchFrame frame)
     {
         if (_queueChip is null) return;
-        UiKit.SetText(_queueChip, frame.FocusQueueCount > 0 ? $"Queue {frame.FocusQueueCount}" : "Queue");
+        List<int> queue = EffectiveResearchQueue(frame);
+        bool pending = _session is not null && Array.Exists(_session.PendingCommands,
+            command => command.Civ == frame.FocusCiv && command.Kind is CommandKind.QueueProject or CommandKind.DequeueProject);
+        UiKit.SetText(_queueChip, queue.Count > 0 ? $"Queue {queue.Count}{(pending ? "*" : "")}" : pending ? "Queue *" : "Queue");
+        _queueChip.TooltipText = pending ? "Queue changes are waiting for you to resume." : "Projects waiting to start.";
     }
 
     private void ToggleQueuePopover()
@@ -675,15 +681,34 @@ public partial class Game
         if (_queuePopover is null || _current is null || _catalog is null || _queueChip is null) return;
         if (_queuePopover.Visible) { CloseQueuePopover(); return; }
         CloseLeaningPopover();
+        PopulateQueuePopover();
+        Vector2 pos = _queueChip.GlobalPosition;
+        _queuePopover.OpenRightAligned(pos.X + _queueChip.Size.X, pos.Y + _queueChip.Size.Y + 6, 377);
+        _queueLayer = RegisterLayer("queue", false, () => { CloseQueuePopover(); return true; });
+        _ui.Push(_queueLayer);
+    }
+
+    private void RefreshQueuePopover()
+    {
+        if (_queuePopover is { Visible: true }) PopulateQueuePopover();
+    }
+
+    private void PopulateQueuePopover()
+    {
+        if (_queuePopover is null || _current is null || _catalog is null || _queueChip is null) return;
         VBoxContainer body = UiKit.Column(UiTokens.Sp2);
         body.CustomMinimumSize = new Vector2(377, 0);
         body.AddChild(UiKit.Text("Waiting in line", "Heading"));
-        if (_current.FocusQueueCount == 0)
+        List<int> queue = EffectiveResearchQueue(_current);
+        bool pending = _session is not null && Array.Exists(_session.PendingCommands,
+            command => command.Civ == _current.FocusCiv && command.Kind is CommandKind.QueueProject or CommandKind.DequeueProject);
+        if (pending) body.AddChild(UiKit.Text("Queue changes start when you resume.", "CaptionAccent", wrap: true));
+        if (queue.Count == 0)
             body.AddChild(UiKit.Text("Nothing queued. Queue a project and it starts by itself when a slot opens.", "BodySecondary", wrap: true));
-        for (int i = 0; i < _current.FocusQueueCount; i++)
+        for (int i = 0; i < queue.Count; i++)
         {
             int queueIndex = i;
-            int project = _current.FocusQueue[i];
+            int project = queue[i];
             if ((uint)project >= (uint)_catalog.Count) continue;
             ProjectDef def = _catalog.Projects[project];
             var row = UiKit.Row(UiTokens.Sp2);
@@ -694,10 +719,22 @@ public partial class Game
         }
         foreach (Node child in _queuePopover.Body.GetChildren()) { _queuePopover.Body.RemoveChild(child); child.QueueFree(); }
         _queuePopover.Body.AddChild(body);
-        Vector2 pos = _queueChip.GlobalPosition;
-        _queuePopover.OpenRightAligned(pos.X + _queueChip.Size.X, pos.Y + _queueChip.Size.Y + 6, 377);
-        _queueLayer = RegisterLayer("queue", false, () => { CloseQueuePopover(); return true; });
-        _ui.Push(_queueLayer);
+    }
+
+    private List<int> EffectiveResearchQueue(MatchFrame frame)
+    {
+        var queue = new List<int>(frame.FocusQueueCount + 4);
+        for (int i = 0; i < frame.FocusQueueCount; i++) queue.Add(frame.FocusQueue[i]);
+        if (_session is null) return queue;
+        foreach (Command command in _session.PendingCommands)
+        {
+            if (command.Civ != frame.FocusCiv) continue;
+            if (command.Kind == CommandKind.QueueProject)
+                queue.Add(command.A);
+            else if (command.Kind == CommandKind.DequeueProject && (uint)command.A < (uint)queue.Count)
+                queue.RemoveAt(command.A);
+        }
+        return queue;
     }
 
     private void CloseQueuePopover()
@@ -710,7 +747,8 @@ public partial class Game
     private void DequeueAt(int index)
     {
         if (_session is null || _current is null) return;
-        _session.Queue(PlayerCommands.Dequeue(_session.Tick, _current.FocusCiv, index));
+        QueueCommand(PlayerCommands.Dequeue(_session.Tick, _current.FocusCiv, index));
+        if (_session.Paused) ShowFooterNote("Removing that project is queued until you resume.");
     }
 
     private void ToggleLeaningPopover()
@@ -718,14 +756,25 @@ public partial class Game
         if (_leaningPopover is null || _current is null) return;
         if (_leaningPopover.Visible) { CloseLeaningPopover(); return; }
         CloseQueuePopover();
+        int[] leanings = EffectiveLeanings(_current);
         for (int i = 0; i < 3; i++)
         {
-            if (_leaningSliders[i] is HSlider slider) slider.Value = _current.FocusLeaning[i];
-            if (_leaningValues[i] is Label label) label.Text = $"{_current.FocusLeaning[i]}%";
+            if (_leaningSliders[i] is HSlider slider) slider.Value = leanings[i];
+            if (_leaningValues[i] is Label label) label.Text = $"{leanings[i]}%";
         }
         _leaningPopover.Open(new Vector2(UiTokens.Sp4 + 8, _logicalSize.Y - 330), 377);
         _leaningLayer = RegisterLayer("leaning", false, () => { CloseLeaningPopover(); return true; });
         _ui.Push(_leaningLayer);
+    }
+
+    private int[] EffectiveLeanings(MatchFrame frame)
+    {
+        int[] values = { frame.FocusLeaning[0], frame.FocusLeaning[1], frame.FocusLeaning[2] };
+        if (_session is null) return values;
+        foreach (Command command in _session.PendingCommands)
+            if (command.Civ == frame.FocusCiv && command.Kind == CommandKind.SetLeaning && (uint)command.A < 3u && command.B is >= 0 and <= 100)
+                values[command.A] = command.B;
+        return values;
     }
 
     private void CloseLeaningPopover()
@@ -745,8 +794,13 @@ public partial class Game
         int assigned = 0;
         for (int i = 0; i < 3; i++) { values[i] = values[i] * 100 / total; assigned += values[i]; }
         for (int i = 0; assigned < 100; i = (i + 1) % 3, assigned++) values[i]++;
-        for (int i = 0; i < 3; i++) _session.Queue(PlayerCommands.SetLeaning(_session.Tick, _current.FocusCiv, i, values[i]));
-        ShowFooterNote("The elders' leaning is set.");
+        for (int i = 0; i < 3; i++)
+        {
+            if (_leaningSliders[i] is HSlider slider && (int)slider.Value != values[i]) slider.Value = values[i];
+            if (_leaningValues[i] is Label label) label.Text = $"{values[i]}%";
+            QueueCommand(PlayerCommands.SetLeaning(_session.Tick, _current.FocusCiv, i, values[i]));
+        }
+        ShowFooterNote(_session.Paused ? "The elders' leaning is queued until you resume." : "The elders' leaning is set.");
     }
 
     // ---- inspector ---------------------------------------------------------------------------
@@ -766,8 +820,9 @@ public partial class Game
         hash.Add(frame.FocusEra);
         hash.Add(_session?.Paused ?? false);
         for (int s = 0; s < 3; s++) { hash.Add(EffectiveSlotProject(s)); hash.Add(frame.FocusSlotPermille[s] / 20); }
-        hash.Add(frame.FocusQueueCount);
-        for (int q = 0; q < frame.FocusQueueCount; q++) hash.Add(frame.FocusQueue[q]);
+        List<int> queue = EffectiveResearchQueue(frame);
+        hash.Add(queue.Count);
+        foreach (int project in queue) hash.Add(project);
         if (def is not null)
         {
             hash.Add(StateOf(def.Index));
@@ -991,15 +1046,18 @@ public partial class Game
                 }
                 break;
             case ProjectState.Glimpsed:
+            {
+                int queuedCount = EffectiveResearchQueue(frame).Count;
                 primary = false;
                 _cta = queueIndex >= 0 ? CtaKind.Disabled : CtaKind.Queue;
-                disabled = queueIndex >= 0 || frame.FocusQueueCount >= 8;
+                disabled = queueIndex >= 0 || queuedCount >= 8;
                 text = queueIndex >= 0 ? $"Queued · #{queueIndex + 1} in line" : "Queue — starts when it's ready";
                 MissingPrerequisite(def, out int missing, out bool hidden);
                 why = missing >= 0 ? $"Why can't I start this? It needs {_catalog!.Projects[missing].Name} first."
                     : hidden ? "Why can't I start this? One step before it is still undiscovered."
                     : $"Why can't I start this? {AlmostSub(def)}.";
                 break;
+            }
             case ProjectState.Hidden:
                 _cta = CtaKind.Disabled;
                 disabled = true;
@@ -1065,7 +1123,7 @@ public partial class Game
                     Or(occupant >= 0 ? $"{slot + 1} {UiText.SlotNames[slot]} · replaces {Name(slot)}" : $"{slot + 1} {UiText.SlotNames[slot]}", () => AssignSelectedToSlot(captured));
                 }
                 if (queueIndex >= 0) Or("Remove from queue", RemoveSelectedFromQueue);
-                else if (shown < 3 && frame.FocusQueueCount < 8) Or("Queue", QueueSelected, "Start it by itself when a slot opens");
+                else if (shown < 3 && EffectiveResearchQueue(frame).Count < 8) Or("Queue", QueueSelected, "Start it by itself when a slot opens");
             }
             else if (slotOf >= 0 && state is ProjectState.Available or ProjectState.Slotted)
             {
@@ -1324,7 +1382,7 @@ public partial class Game
         if (state is not (ProjectState.Available or ProjectState.Slotted)) return;
         int previousSlot = SlotOfProject(project);
         int displaced = EffectiveSlotProject(slot);
-        _session.Queue(PlayerCommands.SetSlot(_session.Tick, _current.FocusCiv, slot, project));
+        QueueCommand(PlayerCommands.SetSlot(_session.Tick, _current.FocusCiv, slot, project));
         if (_session.Paused)
         {
             MarkPending(slot, project);
@@ -1363,8 +1421,8 @@ public partial class Game
     private void QueueSelected()
     {
         if (_session is null || _current is null || _selectedResearchProject < 0 || !_session.CanIssueCommands) return;
-        _session.Queue(PlayerCommands.Enqueue(_session.Tick, _current.FocusCiv, _selectedResearchProject));
-        ShowFooterNote($"{_catalog!.Projects[_selectedResearchProject].Name} added to the queue.");
+        QueueCommand(PlayerCommands.Enqueue(_session.Tick, _current.FocusCiv, _selectedResearchProject));
+        ShowFooterNote($"{_catalog!.Projects[_selectedResearchProject].Name} added to the queue.{(_session.Paused ? " It starts when you resume." : "")}");
     }
 
     private void RemoveSelectedFromQueue()
@@ -1372,8 +1430,8 @@ public partial class Game
         if (_session is null || _current is null || _selectedResearchProject < 0) return;
         int index = QueueIndexOf(_selectedResearchProject);
         if (index < 0) return;
-        _session.Queue(PlayerCommands.Dequeue(_session.Tick, _current.FocusCiv, index));
-        ShowFooterNote($"{_catalog!.Projects[_selectedResearchProject].Name} removed from the queue.");
+        QueueCommand(PlayerCommands.Dequeue(_session.Tick, _current.FocusCiv, index));
+        ShowFooterNote($"{_catalog!.Projects[_selectedResearchProject].Name} removed from the queue.{(_session.Paused ? " when you resume." : "")}");
     }
 
     private void UpdateNewBadge()
@@ -1395,7 +1453,7 @@ public partial class Game
         string name = _catalog.Projects[project].Name;
         UiKit.SetText(_noticeLabel!, slot >= 0 ? $"{name} is done. {UiText.SlotNames[slot]} is open." : $"{name} is done.");
         _noticeButton!.Text = slot >= 0 ? $"Pick for {UiText.SlotNames[slot]}" : "";
-        _noticeButton.Visible = slot >= 0 && !(_current?.FocusCouncil ?? false);
+        _noticeButton.Visible = slot >= 0 && _current is not null && !EffectiveCouncil(_current);
         _noticeBar!.Visible = true;
         _noticeTimer = 8.0f;
     }

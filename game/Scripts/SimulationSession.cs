@@ -230,6 +230,9 @@ public sealed class SimulationSession : IDisposable
     public bool CanSave => _initialStartMinute == 0 && !_replayMode;
     public bool CanIssueCommands => !_replayMode && !MatchEnded;
 
+    /// <summary>Commands waiting for the next simulation tick, including while the match is paused.</summary>
+    public Command[] PendingCommands => _commands.ToArray();
+
     internal static SimulationSession Restore(GameSaveData save, ContentPack pack)
         => new(save.Seed, pack, 0, save.ViewerCiv, save.Difficulty, save, null);
 

@@ -369,9 +369,11 @@ public partial class Game
     {
         if (_pausedPill is null || _pausedPillLabel is null) return;
         bool hide = _researchWebVisible || _ui.AnyModal;
+        int queued = _session?.PendingCommands.Length ?? 0;
+        string pending = queued == 0 ? "" : queued == 1 ? " · 1 change queued" : $" · {queued} changes queued";
         UiKit.SetText(_pausedPillLabel, _openingHold
-            ? "PAUSED · choose a first project, or press Space to start"
-            : "PAUSED · Space to resume");
+            ? $"PAUSED · choose a first project{pending}"
+            : $"PAUSED{pending} · Space to resume");
         bool show = paused && !hide;
         if (_pausedPill.Visible != show) UiKit.Fade(_pausedPill, show);
     }
