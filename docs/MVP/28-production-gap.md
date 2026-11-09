@@ -371,3 +371,9 @@ Spark's response to a threat (DEF-01 at 53 and WAR-01 at 44 no longer entered it
 40 would have needed about 160), a Strategist losing a settlement to the scripted Rusher, and the Strategist's first gift
 (delayed from season 75 to 190). With the seven back at their derived cost all three pass. The gates A1 to A4 passed with the
 doubling in place, so this is a design choice for the early game, not a rescue of a failing gate.
+
+### 14a. Re-fit after the slower pacing (2026-11-09)
+
+With the late costs of §16 and the DEF and WAR projects kept at their derived cost, A5 on 72 seeds read Grower 34.0% at 1.06. Fertility and capacity
+at 1.0 give Grower 20.8% (48 seeds), 1.04 gives 31.2% (48 seeds), 1.03 gives Builder 25.0%, Grower 28.5%, Wanderer 21.9%, Warlord 25.7% and
+Sage 24.0% on 72 seeds. Grower fertility and food capacity are now 1.03; Sage stays at 1.0. `research-v1` changed on purpose (its bot is a Grower).
