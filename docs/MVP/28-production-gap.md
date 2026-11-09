@@ -410,5 +410,7 @@ Measured (`--first-seed 20261019 --minutes 100`; B27 blunders per match, recover
 main plus the detector change alone 4/32 (63/64); main plus both changes 0/32 (63/64), 8 seeds 0/16 (31/32). The one unrecovered
 seat (seed 20261024 civ 2) reaches KEY-3 at minute 73 of 100 and is out of time, as it is on main. Detector alone is not enough and the AI
 change alone is not enough (4 to 5 of 16 on 8 seeds).
+Other gates, main against main plus both changes (`--minutes 100`): A1 (Warlord vs Council, 40 seeds, 80 matches) 86% against 86%; A3 (Warlord vs
+Rusher, 40 seeds, 80 matches) 81% against 81%; with 20 seeds (40 matches) both are 82% against 82%. The politics and toy goldens are unchanged.
 
 Open: tin access after an ore source exists takes 10 to 38 seasons in these matches. That is an economy question, not a route decision, and was not investigated here.
