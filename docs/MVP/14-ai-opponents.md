@@ -477,3 +477,5 @@ Note (2026-11-08): A1 is now ≥ 80% (was 85%), judged on 40 seeds (80 mirrored 
 
 Note (2026-11-08): A5 at the 64-minute horizon read Grower 36.1% on 288 appearances (Builder 28.1, Wanderer 19.1, Warlord 15.3, Sage 26.4), because the Grower's extra towns win Dominion now that Firsts pay nothing. Grower fertility and food capacity are 1.06 (were 1.12 and 1.11) and Sage fertility and adult mortality are 1.0 (were 1.05 and 0.95); the 72-seed result is Builder 26.4, Grower 26.7, Wanderer 25.3, Warlord 23.6, Sage 22.9. The research scales of §17.2 are unchanged. See docs/MVP/28 §14.
 
+Note (2026-11-09): A3 is now judged on 40 seeds (80 mirrored matches) in acceptance-quality runs, like A1 and A4; the survive and win bars are unchanged. At the slower E0-E3 pacing the Warlord wins 81% of 80 matches against the Rusher and loses a settlement in 1 of 80 (62% on 16). See docs/MVP/28 §19.
+

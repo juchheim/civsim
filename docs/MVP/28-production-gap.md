@@ -440,8 +440,11 @@ Final main (Release build, pack from `content/`), horizon 100 minutes, no year c
 | B29 / B30 / B31 | pass / pass / 53% | |
 | S12 | pass; chapter ends on its rule tick 44,700, run takes 27.8 s of 30 | |
 
-Open: A3 win reads 62% on the 16 matches the check plays and 81% on 80; A1, A2 and A4 are already judged on wider samples, A3 is
-not (proposal, needs owner sign-off). B28 is unchanged by this work.
+Decisions (project owner, 2026-11-09): (1) A3 is judged on 40 seeds (80 matches) in acceptance-quality runs, like A1 and A4
+(`M10AiAcceptanceStatus.MinimumA3Seeds`); its win rate reads 62% on the 16 matches an 8-seed run plays and 81% on 80, the bars are
+unchanged. (2) The B27 detector counts a dormant option as unanswered only while the civilization has no ore source of that kind
+(§18): tin takes 10 to 38 seasons to flow after a camp is ordered, so the old rule flagged a legitimate wait. B28 is unchanged by
+this work.
 
 KEY-4 in the Council duels arrives around minute 69 to 72 (first civilization about 68), not the 78 first estimated from the
 per-era slowdown: the late costs add 19 to 27% per era but E3 itself (about 20 minutes) is unchanged.

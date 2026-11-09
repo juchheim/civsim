@@ -1044,7 +1044,9 @@ internal static class AiCommand
         }
 
         Console.WriteLine("== A3: Warlord AI vs Rusher: loses no settlement in >= 80% of matches, wins >= 70%");
-        Tournament.DuelResult a3 = Tournament.Duel(pack, "warlord", "rusher", seeds, minutes, archetype, firstSeed);
+        // Judged on 40 seeds (80 matches) in acceptance-quality runs, like A1 and A4: the 16 matches of an 8-seed run read 62% on a build that wins 81% over 80 (docs/MVP/28 §19).
+        int a3Seeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumA3Seeds);
+        Tournament.DuelResult a3 = Tournament.Duel(pack, "warlord", "rusher", a3Seeds, minutes, archetype, firstSeed);
         double clean = 1.0 - (double)a3.MatchesWithLossA / a3.Matches;
         Gate("A3 survive", clean >= 0.80, $"{clean * 100:F0}% of matches without a lost settlement");
         Gate("A3 win", a3.WinRateA >= 0.70, $"{a3.WinRateA * 100:F0}%");

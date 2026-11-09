@@ -23,6 +23,11 @@ internal static class M10AiAcceptanceStatus
     /// </summary>
     internal const int MinimumA1Seeds = 40;
     internal const double A1Target = 0.80;
+    /// <summary>
+    /// A3 (Warlord against the Rusher: no settlement lost in at least 80% of matches, wins at least 70%) is judged on this many seeds (80 mirrored matches). On the
+    /// 16 matches of an 8-seed run the win rate read 62% and 81% on builds that win 81% over 80 (docs/MVP/28 §19); the bars are unchanged. Owner sign-off 2026-11-09.
+    /// </summary>
+    internal const int MinimumA3Seeds = 40;
 
     internal enum Result
     {
