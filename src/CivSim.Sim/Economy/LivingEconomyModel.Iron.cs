@@ -695,7 +695,9 @@ public sealed partial class LivingEconomyModel
             }
             bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
                 season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
-            int projectedToolWorkers = receiverRecentToolWorkers + 2;
+            bool largeRelayRebound = receiverRecentToolWorkers >= 40 && Population(receiver.Id) >= 110 &&
+                !IronLocalKitProducer(receiver);
+            int projectedToolWorkers = receiverRecentToolWorkers + (largeRelayRebound ? 3 : 2);
             int projectedCoverageFloor = projectedToolWorkers * 7 / 10 +
                 (projectedToolWorkers * 7 % 10 == 0 ? 0 : 1);
             int directCoverageTarget = Math.Min(receiverRecentToolWorkers, projectedCoverageFloor);
@@ -765,7 +767,9 @@ public sealed partial class LivingEconomyModel
                 // the split can leave a just-large-enough reserve that would otherwise be shared.
                 // Smaller towns keep the existing reserve so they can supply under-covered sisters.
                 if (!hadActiveIronToolWorkersLastSeason) continue;
-                int growthBuffer = recentToolWorkers >= 3 ? 2 : 1;
+                // A two-worker projection is a large share of a compact settlement's workforce.
+                // Keep one rebound holder there so a 4–5 worker donor can still supply an uncovered sister.
+                int growthBuffer = recentToolWorkers >= 3 && Population(donor.Id) >= 20 ? 2 : 1;
                 bool lastReboundHolder = Population(donor.Id) >= 20 &&
                     servicePositiveIronHolders == recentToolWorkers + growthBuffer + 1 &&
                     (recentToolWorkers <= 2 || donor.Fissions > 0 &&
