@@ -439,8 +439,10 @@ public sealed class A7HarnessTelemetryTests
         };
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
-        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 32);
-        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 32,
+        // The Rusher's first raid on a Warlord settlement lands at season 145 (minute 36) with the pacing of docs/MVP/28 §16, against
+        // season 112 (minute 28) before it; 40 minutes leaves a margin.
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 40);
+        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 40,
             warlordCombatCasualtyTrace: true);
 
         Assert.False(baseline.WarlordCombatCasualtyTraceEnabled);
@@ -654,11 +656,17 @@ public sealed class A7HarnessTelemetryTests
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("scoutWork=0.00", StringComparison.Ordinal) &&
-                // 4.89 against the baseline's 3.19: the released scout reserve becomes food work. It read 5.31 before the late-project
-                // cost doubling of docs/MVP/28 §16 changed the 16-minute match (the baseline row above did not move).
-                row.Contains("foodWork(requested/assigned)=4.89/4.89", StringComparison.Ordinal));
+            row => row.Contains("season=34 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
+                row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal) &&
+                // 5.10 against the baseline's 2.97 at the same season: the released scout reserve becomes food work. This pin was season 35
+                // (5.31 against 3.19) before the late-project cost doubling of docs/MVP/28 §16. In the candidate run settlement s3 now
+                // alternates between short seasons (scouts released) and seasons it is not short (scouts back at 2.00), and season 35 falls
+                // on a not-short one (opening food 12.00 against a need of 11.00), so the pin moves to the neighbouring short season.
+                row.Contains("foodWork(requested/assigned)=5.10/5.10", StringComparison.Ordinal));
+        Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
+            row => row.Contains("season=34 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
+                row.Contains("foodShort=True", StringComparison.Ordinal) &&
+                row.Contains("foodWork(requested/assigned)=2.97/2.97", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("civ=1/rusher", StringComparison.Ordinal) && row.Contains("foodShort=True", StringComparison.Ordinal) &&
                 row.Contains("scoutWork=2.00", StringComparison.Ordinal));

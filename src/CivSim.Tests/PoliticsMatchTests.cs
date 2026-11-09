@@ -71,9 +71,8 @@ public class PoliticsMatchTests
     public void Peaceful_neighbours_exchange_gifts_and_barter_and_their_relations_grow()
     {
         var rig = new Rig();
-        // Give late-contact neighbours enough seasons to exchange gifts and raise relations. Late projects cost twice as much
-        // since docs/MVP/28 §16, so the second pair meets about three minutes later than it did at 30 minutes.
-        rig.Minutes(36);
+        // Give late-contact neighbours enough seasons to exchange gifts and raise relations.
+        rig.Minutes(30);
         PoliticsSystem p = rig.Politics;
         Assert.True(p.Gifts > 0, "no gifts were delivered");
         Assert.True(p.BarterTrips > 0, "no barter trip completed");

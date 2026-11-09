@@ -408,7 +408,9 @@ public class MetalEconomyTests
         var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel live = MatchModel.Create(Seed, TestPack.Pack, FogFairnessHarness.World, archetypes);
         var runner = new SimRunner(live);
-        foreach (long at in new[] { 4_537L, 9_001L, 27_000L + 37 })
+        // Bronze begins at tick 27900 to 28200 (minute 46.5 to 47) in this match since docs/MVP/28 §16 (minute 37 before), so the last
+        // restore moved from tick 27037 to 29037 to stay inside the Bronze Age.
+        foreach (long at in new[] { 4_537L, 9_001L, 29_000L + 37 })
         {
             runner.Advance(at - runner.Tick);
             using var stream = new MemoryStream();

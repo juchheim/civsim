@@ -100,10 +100,6 @@ public class StrategistScenarioTests
         StrategistRig rig = Resume();
         rig.Grant(0, "GOV-02");
         rig.Grant(1, "WAR-01", "HNT-02", "HNT-03", "HNT-04", "WAR-02", "GOV-01", "SOC-05", "GOV-02");
-        // The Council's civilization 1 is much weaker than civilization 0 at this point of the base match since docs/MVP/28 §16 (the
-        // Strategist reads a force ratio of 3.2 and goes to war on it instead of fortifying), so the neighbour that appears as a raider is
-        // given the people a credible raider has.
-        foreach (int settlement in rig.SettlementsOf(1)) rig.Match.Economy.FixtureAddPeople(settlement, 40, 25);
         Assert.True(rig.Politics.OrderPosture(1, Posture.Raid));
         rig.Politics.Diplomacy.Set(0, 1, -50);
         rig.Seasons(2);
@@ -225,8 +221,11 @@ public class StrategistScenarioTests
         StrategistRig rig = Resume();
         rig.Grant(1, Bows);
         rig.Politics.SetWar(1, 0, true);
-        rig.Seasons(2);
-        Assert.False(rig.Politics.Diplomacy.AtWar(0, 1));
+        // Peace cannot be made while an assault between the two is on the road (TryEndWar). Civilization 1 now launches one at once, so the
+        // peace comes when it resolves (7 seasons here) instead of within 2; the Strategist must still make it, with the same reason.
+        int waited = 0;
+        while (rig.Politics.Diplomacy.AtWar(0, 1) && waited < 10) { rig.Seasons(1); waited++; }
+        Assert.False(rig.Politics.Diplomacy.AtWar(0, 1), $"still at war after {waited} seasons");
         Assert.True(rig.Politics.Diplomacy.InTruce(0, 1, rig.Politics.Season));
         Assert.Contains(rig.Notes(0, "Peace"), n => n.Subject == 1 && n.Reason.Contains("cannot win"));
         Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.PeaceMade && e.Civ == 0);
@@ -242,9 +241,6 @@ public class StrategistScenarioTests
         walled.Grant(1, "DEF-01", "DEF-02", "WOD-03", "DEF-03");
         foreach (int settlement in walled.SettlementsOf(1)) walled.Match.Economy.FixtureBuildStructure(settlement, "palisade");
         walled.Grant(1, Bows); // and warriors with bows behind it (13 §5.5: "palisade + warriors", 5% success)
-        // The young daughter settlements this base match holds have one or two fighters; people are added so that every walled
-        // settlement really has warriors behind its palisade.
-        foreach (int settlement in walled.SettlementsOf(1)) walled.Match.Economy.FixtureAddPeople(settlement, 12, 25);
         walled.Politics.Diplomacy.Set(0, 1, -40);
         walled.Seasons(8);
         Assert.True(!walled.Notes(0, "Raid").Any(), string.Join(" || ", walled.Log.Entries.Where(e => e.Civ == 0 && e.Season > BaseSeason && e.Kind.StartsWith("Raid")).Select(e => $"{e.Season} {e.Kind} {e.Reason}")) + " ## " + string.Join(" ", walled.Match.Ai!.SeatOf(0)!.Belief.Rivals[1].Settlements.Select(b => $"s{b.Settlement} seen{b.LastSeenSeason} pop{b.PopulationEstimate} f{b.FightersEstimate} d{b.DefendingStrengthEstimate} pal{b.PalisadeSeen} w{b.WatchersSeen}")));
@@ -286,8 +282,12 @@ public class StrategistScenarioTests
     {
         // Firsts no longer pay Legacy (2026-11-06), so the Council's research reaches ART-05 on its own before the base season and the
         // Strategist has already placed its Beacon: read that placement from the base match instead of granting the project here.
-        StrategistRig rig = Shared.Value.Rig;
-        Assert.True(rig.Match.Research.IsDone(0, rig.Match.Research.Catalog.IndexOf("ART-05")));
+        // Late projects cost more since docs/MVP/28 §16, so ART-05 lands a few seasons after the base season: resume the base match and
+        // run until the Strategist has placed its first Beacon.
+        StrategistRig rig = Resume();
+        int waited = 0;
+        while (!rig.Politics.BeaconsOf(0).Any() && waited < 24) { rig.Seasons(1); waited++; }
+        Assert.True(rig.Match.Research.IsDone(0, rig.Match.Research.Catalog.IndexOf("ART-05")), $"no Beacon after {waited} seasons");
         int beacon = Assert.Single(rig.Politics.BeaconsOf(0));
         AiDecision note = Assert.Single(rig.Notes(0, "Beacon"));
         Assert.Equal(beacon, note.Subject);
