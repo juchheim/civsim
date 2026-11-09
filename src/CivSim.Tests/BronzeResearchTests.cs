@@ -724,18 +724,21 @@ public class BronzeChapterTests
     public void A_Council_match_reaches_KEY4_through_research_and_the_chapter_ends_by_the_rule()
     {
         // The whole path in the living economy: E3 projects research, complete and apply; KEY-4 completes; the earlier
-        // of its full 24-season countdown and the Year-64 cap closes the chapter.
+        // of its full 24-season countdown and the year cap closes the chapter.
         var balanced = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel match = MatchModel.Create(777, TestPack.Pack, balanced);
         var runner = new SimRunner(match);
         int key4 = match.Research.Catalog.IndexOf("KEY-4");
-        runner.Advance(64 * 600L - runner.Tick);
+        // KEY-4 came at minute 61 in this seed until docs/MVP/28 §16 doubled the late projects of E0 to E3; it now comes at about
+        // minute 70 (it reads 70.25), so the run has to be long enough for it, plus the start of its countdown.
+        runner.Advance(73 * 600L - runner.Tick);
         MatchEnd end = match.EndOfMatch(-1);
         Assert.InRange(end.CountdownCiv, 0, 3);
         Assert.True(match.Research.IsDone(end.CountdownCiv, key4));
         Assert.Equal(4, match.Research.Era(end.CountdownCiv));
         int countdownEnd = end.CountdownStartSeason + 24;
-        int capSeason = 64 * MatchEnd.SeasonsPerYear - 1;
+        // NOTE for the year-cap removal: this still reads the cap from the pack (85 now, was 64 when the test was written).
+        int capSeason = match.Research.Catalog.ChapterCapYear * MatchEnd.SeasonsPerYear - 1;
         Assert.Equal(countdownEnd <= capSeason ? MatchEndReason.RivalCountdown : MatchEndReason.YearCap, end.Reason);
         Assert.Equal(Math.Min(countdownEnd, capSeason), end.EndSeason);
         // E4 stays hidden for everyone, and Mandate has been recharging since KEY-3.

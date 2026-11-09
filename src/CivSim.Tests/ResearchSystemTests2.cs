@@ -56,7 +56,9 @@ public class ResearchDiffusionTests
         ResearchSystemTestsHelper.ReachEra(rig, 1);
         Close(Fix64.FromInt(22) * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("STN-01")));
         // Snowshoes & Skis [Climate: Cold]: cost x0.7 in a cold home
-        Close(Fix64.FromInt(50) * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("TRN-03")));
+        // The base cost is read from the pack: TRN-03 is a late era-1 project whose cost docs/MVP/28 §16 doubled.
+        Fix64 snowGear = TestPack.Catalog.Projects[rig.P("TRN-03")].Cost;
+        Close(snowGear * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("TRN-03")));
         ResearchSystemTestsHelper.ReachEra(rig, 2);
         Close(Fix64.FromInt(22) * Fix64.Parse("0.7") * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("STN-01")));
     }

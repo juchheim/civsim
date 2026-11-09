@@ -93,10 +93,37 @@ public class ContentGoldenTests
     public void Costs_follow_era_base_times_type_multiplier()
     {
         Assert.Equal(Fix64.FromInt(22), Set.CostOf(Set.ById["STN-01"]));                 // E0, M
-        Assert.Equal(Fix64.FromInt(22) * Set.TypeMult("S")!.Value, Set.CostOf(Set.ById["BLD-01"])); // E0, S (1.2)
-        Assert.Equal(Fix64.FromInt(150) * Set.TypeMult("I")!.Value, Set.CostOf(Set.ById["SOC-06"])); // E2, I (1.5)
+        Assert.Equal(Set.EraBase(1)!.Value * Set.TypeMult("S")!.Value, Set.CostOf(Set.ById["BLD-02"])); // E1, S, no override
+        Assert.Equal(Fix64.FromInt(150) * Set.TypeMult("I")!.Value, Set.CostOf(Set.ById["TRD-03"])); // E2, I (1.5), no override
+        Assert.Equal(Fix64.FromInt(150) * Set.TypeMult("I")!.Value * 2, Set.CostOf(Set.ById["SOC-06"])); // overridden: 2x (docs/MVP/28 §16)
         Assert.Equal(Fix64.FromInt(55), Set.CostOf(Set.ById["KEY-1"]));                  // E0 keystone, 2.5 x 22
         Assert.Equal(Fix64.FromInt(375), Set.CostOf(Set.ById["KEY-3"]));                  // 2.5 x 150 = 375
+    }
+
+    [Fact]
+    public void Cost_overrides_state_their_reason_and_the_late_project_doublings_are_exactly_twice_the_derived_cost()
+    {
+        // Late projects of E0 to E3 (docs/MVP/28 §16) and of E4 (§7) carry cost = 2 x EraBase x type multiplier, written as a
+        // whole number, with a cost_reason that cites the document. The derived cost is the base the doubling is checked against.
+        var doubled = new List<Project>();
+        foreach (Project p in Set.Regular)
+        {
+            if (p.CostOverride is not { } cost) continue;
+            Assert.False(string.IsNullOrWhiteSpace(p.CostReason), $"{p.Id} overrides its cost without a cost_reason");
+            bool late16 = p.CostReason!.Contains("docs/MVP/28 §16", StringComparison.Ordinal);
+            bool late7 = p.CostReason.Contains("docs/MVP/28 §7", StringComparison.Ordinal);
+            if (!late16 && !late7) continue;
+            Assert.True(late16 ? p.Era is >= 0 and <= 3 : p.Era == 4, $"{p.Id}: era {p.Era} does not match its reason: {p.CostReason}");
+            Fix64 derived = Set.EraBase(p.Era)!.Value * Set.TypeMult(p.Type)!.Value;
+            Fix64 twice = derived * 2;
+            Assert.Equal(Fix64.FromInt(twice.RoundToInt()), cost); // whole number nearest to 2 x derived
+            Assert.True(Fix64.Abs(cost - twice) <= Fix64.Half, $"{p.Id}: cost {cost} vs 2 x derived {twice}");
+            // Exactly twice when the doubled cost is a whole number (an S project at 22 x 1.2 = 26.4 doubles to 52.8, written 53).
+            if (twice.Raw % Fix64.OneRaw == 0) Assert.Equal(twice, cost);
+            doubled.Add(p);
+        }
+        Assert.Equal(87, doubled.Count(p => p.CostReason!.Contains("§16", StringComparison.Ordinal)));
+        Assert.Equal(28, doubled.Count(p => p.CostReason!.Contains("§7", StringComparison.Ordinal)));
     }
 
     [Fact]

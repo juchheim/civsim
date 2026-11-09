@@ -71,8 +71,9 @@ public class PoliticsMatchTests
     public void Peaceful_neighbours_exchange_gifts_and_barter_and_their_relations_grow()
     {
         var rig = new Rig();
-        // Give late-contact neighbours enough seasons to exchange gifts and raise relations.
-        rig.Minutes(30);
+        // Give late-contact neighbours enough seasons to exchange gifts and raise relations. Late projects cost twice as much
+        // since docs/MVP/28 §16, so the second pair meets about three minutes later than it did at 30 minutes.
+        rig.Minutes(36);
         PoliticsSystem p = rig.Politics;
         Assert.True(p.Gifts > 0, "no gifts were delivered");
         Assert.True(p.BarterTrips > 0, "no barter trip completed");
@@ -455,7 +456,9 @@ public class PoliticsMatchTests
     public void Barter_shares_what_each_side_has_seen_of_the_traded_materials()
     {
         var rig = new Rig();
-        rig.Minutes(21);
+        // Trade skills arrive later since docs/MVP/28 §16 (late projects cost twice as much): the first barter trip of this
+        // fixture happened within 12 seasons from minute 21 before and from minute 24 now; 27 leaves a margin.
+        rig.Minutes(27);
         ulong goods = 0;
         foreach (string name in new[] { "Clay", "Native copper", "Salt", "Tin", "Gold or Silver", "Coal", "Silk moths" })
         {

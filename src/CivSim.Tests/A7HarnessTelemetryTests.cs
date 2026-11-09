@@ -655,7 +655,10 @@ public sealed class A7HarnessTelemetryTests
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=5.31/5.31", StringComparison.Ordinal));
+                row.Contains("scoutWork=0.00", StringComparison.Ordinal) &&
+                // 4.89 against the baseline's 3.19: the released scout reserve becomes food work. It read 5.31 before the late-project
+                // cost doubling of docs/MVP/28 §16 changed the 16-minute match (the baseline row above did not move).
+                row.Contains("foodWork(requested/assigned)=4.89/4.89", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("civ=1/rusher", StringComparison.Ordinal) && row.Contains("foodShort=True", StringComparison.Ordinal) &&
                 row.Contains("scoutWork=2.00", StringComparison.Ordinal));
