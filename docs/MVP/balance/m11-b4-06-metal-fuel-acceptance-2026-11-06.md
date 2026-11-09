@@ -631,3 +631,39 @@ dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harn
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263541 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v29-acceptance-20263541-3560.txt
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263561 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v29-acceptance-20263561-3580.txt
 ```
+
+## v29 corrected-scope acceptance result — block consumed
+
+The frozen block `20263501–20263580` stopped at its first qualifying failure, seed `20263523`, settlement s1, seasons `318–330`. Its endpoint had **39 of 57 actual toolworkers equipped (68.42%)**, below the unchanged 70% target. Fuel passed (`0/32` short demand-seasons; `0.00/78.44 L` unmet/planned). The route began at `1/15`; s1 received 44 T11 kits, sent five, and issued 14 while its population remained near 120. Seasonal toolworker demand spiked from 8 to 50 and then 57 near the endpoint. During the spike, s1 sent two holders after recent toolworker counts rose from 7 to 17 and another after they rose from 8 to 50. The immediate cause is an abrupt work-allocation surge that the previous-season sharing reserve did not anticipate.
+
+Twelve matches reached natural end before the shards stopped. Partial totals are **545 I-T2 passes, 1 failure, and 645 censored windows**. All **45/45 qualified I-T6 fuel cutoffs passed**; maximum mature rolling full-chain work-share was **9.91%**. All **1,309/1,309 settlement-kit ledgers** were exact; forest, local-wood, and world-kit ledgers reconciled with zero residuals; there were **zero Iron-era-metal clearing crossings**. The complete v29 block is consumed by the failure; next unused seed is `20263581`. Preserve the four raw shard reports:
+
+- `/tmp/civsim-b406-v29-acceptance-20263501-3520.txt`
+- `/tmp/civsim-b406-v29-acceptance-20263521-3540.txt`
+- `/tmp/civsim-b406-v29-acceptance-20263541-3560.txt`
+- `/tmp/civsim-b406-v29-acceptance-20263561-3580.txt`
+
+A natural-end replay with per-season fuel/site diagnostics confirmed the rapid toolworker swings and reproduced the same s1 endpoint (39/57). A first donor guard using last season's own coverage did not change any transfers or the route result, because inter-settlement sharing runs before the current season's work assignments. Raw replay: `/tmp/civsim-b406-v29-diagnostic-20263523.txt`; guard diagnostic: `/tmp/civsim-b406-v30-target-20263523.txt`.
+
+## v31 additional donor reserve candidate
+
+The candidate raises the sharing reserve for donors with at least three recent toolworkers from two spare holders to three. On the natural-end replay of seed `20263523`, s1 now ends at **27/27 toolworkers equipped**; the whole match reports **60 I-T2 passes, 0 failures, and 32 censored windows**. All four qualified I-T6 cutoffs passed; the maximum mature rolling full-chain share was **7.70%**; all **96/96 settlement-kit ledgers** were exact; forest and local-wood residuals were zero; and there were no Iron-era-metal clearing crossings. Raw target replay: `/tmp/civsim-b406-v31-target-20263523.txt`. This is targeted evidence only.
+
+The fixed 13-seed diagnostic screen did **not** clear this broader rule. It recorded **647 I-T2 passes, 1 failure, and 713 censored windows**. Seed `20262104`, s85, failed at seasons `363–375` with **2/4 toolworkers equipped (50%)**; fuel passed (`0/20` short demand-seasons; `0.00/20.58 L` unmet/planned). The route began at 1/3 and received one holder from s76 during the window. All **50/50 qualified I-T6 cutoffs passed**, maximum mature rolling full-chain work-share was **9.71%**, all **1,450/1,450 settlement-kit ledgers** were exact, material ledgers had zero residuals, and there were no Iron-era-metal clearing crossings. Thus the reserve increase fixes the target replay but causes an I-T2 regression elsewhere; this candidate is rejected. The next unused acceptance seed remains `20263581` because no new acceptance block has started. Raw screen reports:
+
+- `/tmp/civsim-b406-v31-screen-20262061-2063.txt`
+- `/tmp/civsim-b406-v31-screen-20262081-2083.txt`
+- `/tmp/civsim-b406-v31-screen-20262101-2104.txt`
+- `/tmp/civsim-b406-v31-screen-20262121-2123.txt`
+
+## v39–v41 targeted I-T2 follow-up — no candidate accepted
+
+Astra's independent trace explains the v29 s1 failure: the settlement is a kit relay with no local kit production. Its route ended in seasons `318–330` with 39 of 57 actual toolworkers equipped, below the 40 required for 70%. Toolworker demand jumped from 8 in season 328 to 50 in season 329 and 57 by season 330. s1 received 11 kits from s4 and 2 stored kits from s26; s26's last two kits were produced after the season-start sharing pass, so they could not reach s1 before the endpoint. The fuel cutoff passed, so forest/charcoal supply does not explain this row.
+
+Three targeted candidate checks used the unchanged pack and options. They are diagnostics, not acceptance samples:
+
+- **v39**, a one-holder larger reserve for large relay towns, fixed s1 at **40/57** in seed `20263523`; seed `20262081` still had an I-T2 failure at s99 (**2/4**, 50%) and seed `20262104` had no I-T2 failure. The rule is rejected pending a broader screen.
+- **v40**, a second kit-stock sharing pass after settlement work, left s1 at **37/57** in seed `20263523`; the other two spot checks had no I-T2 failures. The timing change is rejected.
+- **v41**, the v39 reserve restricted to relay towns with population at least 110, again fixed s1 at **40/57**, but seed `20262081` still had the s99 **2/4** failure. Seed `20262104` had no I-T2 failure. The candidate is not accepted; no full diagnostic screen or fresh acceptance block was run.
+
+All three spot checks passed the I-T6 cutoff and had exact settlement-kit ledgers. Raw reports: v39 `/tmp/civsim-b406-v39-target-20263523.txt`, `/tmp/civsim-b406-v39-target-20262081.txt`, `/tmp/civsim-b406-v39-target-20262104.txt`; v40 `/tmp/civsim-b406-v40-target-20263523.txt`, `/tmp/civsim-b406-v40-target-20262081.txt`, `/tmp/civsim-b406-v40-target-20262104.txt`; v41 `/tmp/civsim-b406-v41-target-20263523.txt`, `/tmp/civsim-b406-v41-target-20262081.txt`, `/tmp/civsim-b406-v41-target-20262104.txt`. The implementation tree is restored to the v29 sharing reserve. The next unused acceptance seed remains `20263581`.
