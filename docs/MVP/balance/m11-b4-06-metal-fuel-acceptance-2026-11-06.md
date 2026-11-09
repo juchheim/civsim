@@ -537,3 +537,17 @@ Across the 16 natural matches, I-T2 recorded **801 passes, 1 failure, and 845 ce
 - `/tmp/civsim-b406-regrowth6-acceptance-20263281-3300.txt`
 - `/tmp/civsim-b406-regrowth6-acceptance-20263301-3320.txt`
 - `/tmp/civsim-b406-regrowth6-acceptance-20263321-3340.txt`
+
+## v27 compact-parent fission reserve and targeted replays
+
+The seed `20263304` trace showed that the compact-parent reserve rule used the pre-split population. The s51 split had 33 people, but the remaining parent had 20; before the split it had five recent toolworkers and six holders. The old sample gave daughter s88 four workers and four holders, leaving s51 one worker and two holders. The parent then rebounded to three toolworkers by the route-window endpoint and failed at 2/3. `FissionHolderRequirements` now receives the post-split parent size, and the compact-parent case applies when either side has only one or two recent toolworkers and the total holder pool can meet the buffered parent and current daughter floors. The corrected replay keeps four holders with the parent and gives three to the daughter; s51 ends its route window at 3/3.
+
+Replaying the failure seed with that correction ends s51's `312–324` route window at **3/3 (100%)**, with `73 I-T2 passes, 0 failures, and 27 censored windows`. Targeted natural-end replays also clear the four earlier v18 failures (`20263181`, `20263183`, `20263202`, `20263223`), the v25 compact-fission case (`20262102`, s108 at 2/2), and the original low-wood fuel hotspot (`20261965`). Across all seven matches, I-T2 records **392 passes, 0 failures, and 345 censored windows**; all **27/27 qualified I-T6 fuel cutoffs pass**; maximum mature work-share is **10.15%**; settlement-kit ledgers are **784/784 exact**; residuals are zero; and Iron-era-metal clearing crossings are zero. These are targeted diagnostics, not acceptance. The next unused natural-match block is `20263341–20263420`; freeze it against the committed source and unchanged pack/options/cutoffs before launch. Raw reports:
+
+- `/tmp/civsim-b406-postfission-target-20263304.txt`
+- `/tmp/civsim-b406-postfission-target-20263181.txt`
+- `/tmp/civsim-b406-postfission-target-20263183.txt`
+- `/tmp/civsim-b406-postfission-target-20263202.txt`
+- `/tmp/civsim-b406-postfission-target-20263223.txt`
+- `/tmp/civsim-b406-postfission-target-20262102.txt`
+- `/tmp/civsim-b406-postfission-target-20261965.txt`
