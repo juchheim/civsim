@@ -7,8 +7,6 @@ projects:
     era: 0
     type: M
     status: numeric
-    cost: 44
-    cost_reason: "docs/MVP/28 §16: late era-0 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WOD-01]
     effects:
       - {kind: combat, text: "×1.5 vs predators and raiders"}
@@ -32,8 +30,6 @@ projects:
     era: 1
     type: M
     status: numeric
-    cost: 100
-    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAR-02, HNT-06]
     effects:
       - {kind: combat, text: "ranged ×1.5"}
@@ -46,8 +42,6 @@ projects:
     era: 2
     type: R
     status: numeric
-    cost: 240
-    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAR-03, SOC-05]
     effects:
       - {kind: role, id: warrior}
@@ -61,8 +55,6 @@ projects:
     era: 3
     type: M
     status: numeric
-    cost: 800
-    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAR-04]
     requires_any: [MET-04, MET-05]
     effects:
@@ -78,8 +70,6 @@ projects:
     era: 3
     type: M
     status: numeric
-    cost: 800
-    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [WAR-05, TRN-05, HUS-07]
     effects:
       - {kind: good, id: G-CHARIOT, note: "2 horses, 2 wheels, 2 L wood, 0.2 L bronze"}

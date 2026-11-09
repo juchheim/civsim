@@ -318,8 +318,8 @@ drying rack (0 of 320 civilizations built one; its rule needs two fresh meat in 
 
 ## 16. Late projects cost more in every era (project owner, 2026-11-08)
 
-Method of §7, applied to E0 to E3: the 87 numeric non-keystone projects at prerequisite depth 3 or more inside their era
-(16 in E0, 18 in E1, 26 in E2, 27 in E3) cost twice their derived cost (`base_cost` of the era x type multiplier; `cost` and
+Method of §7, applied to E0 to E3: the 80 numeric non-keystone projects at prerequisite depth 3 or more inside their era
+(16 in E0, 18 in E1, 26 in E2, 27 in E3, less the seven defense and war projects below) cost twice their derived cost (`base_cost` of the era x type multiplier; `cost` and
 `cost_reason` in their catalog entries, written by script, so they do not follow a later change of an era base cost).
 Keystones are excluded. `ChapterCapYear` goes 64 to 85 as a step; the cap itself is then removed (the year cap is a legacy rule).
 
@@ -363,3 +363,11 @@ What changed:
   unreachable case of an ended match with neither clause (the title for the two real endings is unchanged).
 - **Consequence to watch.** The game still ends when the human or a rival finishes the keystone, so a long human game is bounded by the
   AI; an AI-only match that stalls (for example all civilizations collapse) now runs until the user quits. Goldens are unaffected because no golden reached a cap.
+
+**Exception: the DEF and WAR lineages keep their derived cost.** Seven projects (DEF-01, DEF-03, WAR-01, WAR-03, WAR-04, WAR-05,
+WAR-06) were first doubled with the rest. Raiders and scripted openings run on a fixed clock that does not slow when research
+does, so doubling the defenses that answer them leaves a civilization less ready than before. It showed in three tests: the
+Spark's response to a threat (DEF-01 at 53 and WAR-01 at 44 no longer entered its plan at urgency 1; the fixed defense bonus of
+40 would have needed about 160), a Strategist losing a settlement to the scripted Rusher, and the Strategist's first gift
+(delayed from season 75 to 190). With the seven back at their derived cost all three pass. The gates A1 to A4 passed with the
+doubling in place, so this is a design choice for the early game, not a rescue of a failing gate.

@@ -122,7 +122,7 @@ public class ContentGoldenTests
             if (twice.Raw % Fix64.OneRaw == 0) Assert.Equal(twice, cost);
             doubled.Add(p);
         }
-        Assert.Equal(87, doubled.Count(p => p.CostReason!.Contains("§16", StringComparison.Ordinal)));
+        Assert.Equal(80, doubled.Count(p => p.CostReason!.Contains("§16", StringComparison.Ordinal)));
         Assert.Equal(28, doubled.Count(p => p.CostReason!.Contains("§7", StringComparison.Ordinal)));
     }
 

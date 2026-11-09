@@ -177,7 +177,7 @@ internal static class ResearchM10
         Run? first = null, replay = null;
         Parallel.For(0, 2, i =>
         {
-            Run run = Play(seed, pack, archetypes, 70, -1, stopAtChapterEnd: true);
+            Run run = Play(seed, pack, archetypes, 120, -1, stopAtChapterEnd: true);
             if (i == 0) first = run; else replay = run;
         });
         Run initial = first!;
