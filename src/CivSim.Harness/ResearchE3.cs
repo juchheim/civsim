@@ -104,7 +104,7 @@ internal static class ResearchE3
             for (int a = 0; a < 4; a += 2) { pairs++; if (r.Touch[a, a + 1] > 0) touchPaired++; }
         }
         text.AppendLine();
-        text.AppendLine($"Timing: KEY-3 median {F(Median(k3))}, KEY-4 median {F(Median(k4))} (current projection 61.25; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
+        text.AppendLine($"Timing: KEY-3 median {F(Median(k3))}, KEY-4 median {F(Median(k4))} (current projection 71.5; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
         text.AppendLine($"T10 people per civ at KEY-4: median {F(Median(people))} (range {F(Min(people))}-{F(Max(people))}; historical target 170, 120-230; rebaseline at current cadence)");
         text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (range {F(Min(setts))}-{F(Max(setts))}; historical target 7, 5-10; rebaseline at current cadence)");
         text.AppendLine($"B17 Town/City rates at KEY-4 {P(MeanOf(towns))}/{P(MeanOf(cities))}; at chapter end {P(MeanOf(townsEnd))}/{P(MeanOf(citiesEnd))} (historical thresholds; rebaseline at current cadence)");

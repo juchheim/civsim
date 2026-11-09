@@ -420,3 +420,28 @@ Other gates, main against main plus both changes (`--minutes 100`): A1 (Warlord 
 Rusher, 40 seeds, 80 matches) 81% against 81%; with 20 seeds (40 matches) both are 82% against 82%. The politics and toy goldens are unchanged.
 
 Open: tin access after an ore source exists takes 10 to 38 seasons in these matches. That is an economy question, not a route decision, and was not investigated here.
+
+## 19. Gate results after the pacing change (2026-11-09)
+
+Final main (Release build, pack from `content/`), horizon 100 minutes, no year cap:
+
+| Gate | Result | Bar |
+|---|---|---|
+| A1 Warlord vs Council | 86% (80 matches) | 80% |
+| A2 Grower / Builder / Wanderer | 75% / 91% / 77% (64 matches each) | 70% |
+| A3 survive / win | 100% / 62% on 16 matches; 99% (1 settlement lost in 80) / 81% on 80 matches | 80% / 70% |
+| A4 | 34% (80 matches) | 25 to 40% |
+| A5 (24 seeds) | Builder 29.2, Grower 26.0, Wanderer 28.1, Warlord 21.9, Sage 19.8; 72 seeds with Grower 1.03: 25.0 / 28.5 / 21.9 / 25.7 / 24.0 | 30% |
+| A7 | keystone stalls, dithering, starvation, undefended loss, herd crash, idle labor: all 0 | 0 |
+| B5 KEY-4 median | 71.5 min (window re-fitted from 57 to 64 to 66.5 to 74.5); E3 duration median 20.7 (pass) | see below |
+| B6 | 32/32 chapters closed by the countdown within the horizon, median end minute 74.6, replay-identical | 60% closed |
+| B27 | recovery 31/32, dormant-route blunders 0/16 | 80% / 0.10 |
+| B28 | 66% (19 of 29); 67% on the old build (2 of 3) | 80%, long-standing miss |
+| B29 / B30 / B31 | pass / pass / 53% | |
+| S12 | pass; chapter ends on its rule tick 44,700, run takes 27.8 s of 30 | |
+
+Open: A3 win reads 62% on the 16 matches the check plays and 81% on 80; A1, A2 and A4 are already judged on wider samples, A3 is
+not (proposal, needs owner sign-off). B28 is unchanged by this work.
+
+KEY-4 in the Council duels arrives around minute 69 to 72 (first civilization about 68), not the 78 first estimated from the
+per-era slowdown: the late costs add 19 to 27% per era but E3 itself (about 20 minutes) is unchanged.

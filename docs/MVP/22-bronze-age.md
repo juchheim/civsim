@@ -17,7 +17,7 @@ Roots ends with villages, fields and a chief. Bronze is **the age of metal, wall
 | # | Decision | Section |
 |---|----------|---------|
 | B-D1 | **The Bronze chapter:** the match ends when the human completes KEY-4, or the countdown after the first rival does (6 years since 2026-11-06). **There is no year cap** (removed 2026-11-08, [28 §17](28-production-gap.md)). Legacy decides. Harness matches use the same rule without the human clause | §3.1 |
-| B-D2 | **Current cadence projection:** KEY-3 ≈ 41.5 → KEY-4 ≈ 61.25 at Standard, E3 ≈ 19.75 min; EraBase E2/E3 = **150/400**. These are model projections; fresh live acceptance and Year-64 headroom checks are pending | §3.2, §15, 07c §10.1 |
+| B-D2 | **Current cadence projection:** KEY-3 ≈ 41.5 → KEY-4 ≈ 61.25 at Standard, E3 ≈ 19.75 min (before docs/MVP/28 §16; with the doubled late costs, measured 2026-11-09: KEY-3 ≈ 52, KEY-4 ≈ 71.5); EraBase E2/E3 = **150/400**. These are model projections; fresh live acceptance and Year-64 headroom checks are pending | §3.2, §15, 07c §10.1 |
 | B-D3 | **Legacy units per era** replace `First = EraBase × 0.5`: Mastery `2 × (era + 1)`, First `3 × (era + 1)` (×4 Keystones and Wonders), built Wonder `25 × (era + 1)`. Dominion unchanged. Restores the 50/30/15/5 split | §3.3 |
 | B-D4 | **Mandate and six Decrees**, unlocked at KEY-3 and grown by GOV/COM/BEL research; the AI uses the same levers | §4 |
 | B-D5 | **Tin is scarce and placed on purpose:** per continent one contested middle field between the pair, two far placers and one island placer; **arsenical copper is guaranteed** within 25 tiles but deep (Shaft Mining). Bronze is always possible; *good* bronze is a strategic question | §5.1 |
@@ -115,7 +115,7 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 |---|---:|---:|---:|---|
 | KEY-3 | 41.5 | 30.1–35.0 measured before cadence updates | **41.5 projection** | rerun live C5 |
 | E3 duration (own KEY-3 → own KEY-4) | 19.75 | — | **19.75 projection** | rerun live M10 |
-| KEY-4, Council median | 61.25 | — | **61.25 projection** | complete before the Year-64 cap; rerun M10 |
+| KEY-4, Council median | 71.5 | — | **71.5 measured (61.25 before docs/MVP/28 §16)** | complete before the Year-64 cap; rerun M10 |
 | First KEY-4 in the world | — | — | timing projection pending | fresh M10 run |
 | Chapter end, median | — | — | countdown after first KEY-4 (no year cap) | share of chapters closed within the horizon |
 | Decision cadence | historical 34 s per in-era completion (07 F10) | — | current live acceptance pending; mean-field Primary interval is ~71 s | — |
@@ -597,7 +597,7 @@ Budgets: 60 fps at Z0–Z2 with 1,600 figures, the new structures and all overla
 |---|---|---|---|---|---|
 | T1 | KEY-3 | 41.5 min (projection) | live C5 rerun pending | updated live-mode oracle | balance_sim projection |
 | T2 | **E3 duration** (own KEY-3 → own KEY-4) | **19.75 min (projection)** | live M10 rerun pending | current EraBase E3=400 projection | balance_sim projection |
-| T3 | **KEY-4** (Council median) | **61.25 min (projection)** | confirm completion within the horizon | current KEY-3 + E3 projection | balance_sim projection |
+| T3 | **KEY-4** (Council median) | **71.5 min (measured 2026-11-09; was 61.25 projection)** | confirm completion within the horizon | current KEY-3 + E3 projection | balance_sim projection |
 | T4 | **EraBase E3** | **400** (D/M 400, S 480, R 320, I 600, W 800, K 1,000) | fresh live fit after M10 acceptance | tuned to slow Bronze; replaces the earlier 150 live fit | fit.py projection; acceptance pending |
 | T5 | Insight per minute | ~330 at KEY-3 → 650–800 at KEY-4 | ±20% | live 300–440 at minute 35 (E2 tech) + E3 roles | live |
 | T6 | Know-how share of progress | 13–20% | — | 07 F4; live 17–18% | existing |
@@ -645,7 +645,7 @@ The milestone is done when every automated row passes in the nightly report and 
 | B2 | **Bronze is legible.** Testers can say why their tools are or are not bronze | ≥ 5 of 8 | post-match question | Human; **passed**, reported by the project owner 2026-11-04 |
 | B3 | **Want more** after the Bronze end screen; can explain one AI action | ≥ 5 of 8 (P9 repeated) | M9 protocol | Human; **passed**, reported by the project owner 2026-11-04 |
 | B4 | Every E3 project and KEY-4 shows a visible change | 66/66 emit Completed, Moment, ≥ 1 VisibleChange | event-stream test (C8) | Auto |
-| B5 | **Keystone timing** | Balanced Council KEY-4 median 57–64 min; E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
+| B5 | **Keystone timing** | Balanced Council KEY-4 median 66.5–74.5 min (was 57–64 before the doubled late costs of docs/MVP/28 §16); E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
 | B6 | **Chapter end** | Every sample ends by the §3.1 rule: `ChapterCountdownSeasons` after the first rival KEY-4, or sooner by the human clause, and a sample with no KEY-4 reports the chapter as open (no end season). **Redefined 2026-11-08 with the year cap's removal:** at least 60% of Balanced matches close within `--minutes` (the old clause allowed at most 40% to reach the Year-64 cap, relaxed 2026-11-03 from 10%; the same tolerance now reads as the closed share); the end rule is replay-identical. Report the observed end-time median. | harness, 32 seeds | Auto |
 | B7 | **Hands-off loses to engaged** at the chapter end | ≥ 65% (P8 at the new horizon) | Settler proxy vs Council, mirrored | Auto |
 | B8 | **Decrees pay** | paired enabled-minus-disabled Legacy is positive in ≥ 60% of 32 matched seed pairs, and cohort mean paired Legacy delta is positive | mirrored Grower duels; raw match wins are diagnostic | Auto |
