@@ -282,6 +282,11 @@ public sealed partial class LivingEconomyModel
         if ((uint)newCiv >= (uint)_completedProjects.Length) throw new ArgumentOutOfRangeException(nameof(newCiv));
         SettlementState s = _settlements[settlementIndex];
         s.Civilization = newCiv;
+        // Tool durability depends on the owner's research (wooden, hafted and Tool5 modifiers), and the work left in the
+        // stock may not exceed what the stock can hold (the snapshot validator's rule). A captor with less research
+        // has shorter-lived tools: cap the captured stock's remaining work at the new owner's capacity.
+        for (int good = 0; good < s.ToolRemainingWork.Length; good++)
+            s.ToolRemainingWork[good] = Fix64.Min(s.ToolRemainingWork[good], s.Stores[good] * ToolDurability(s, (Good)good));
         for (int i = 0; i < _figures.Count; i++)
             if (_figures[i].SettlementId == s.Id) { _figures[i].Civilization = newCiv; _figures[i].Role = 0; }
         if (s.Civic is { } civic) civic.BuildKind = CivicBuild.None;

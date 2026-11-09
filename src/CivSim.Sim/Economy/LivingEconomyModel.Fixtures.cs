@@ -65,6 +65,16 @@ public sealed partial class LivingEconomyModel
         AddStock(_settlements[settlementIndex], slot, amount);
     }
 
+    /// <summary>Adds whole tools to a settlement's stores with a full measure of work left on each at its owner's durability.</summary>
+    internal void FixtureStockTool(int settlementIndex, string goodId, int count)
+    {
+        int slot = SlotOf(goodId);
+        if (slot == NoSlot || slot >= (int)Good.Count) throw new ArgumentException($"'{goodId}' is not a durable tool.", nameof(goodId));
+        SettlementState s = _settlements[settlementIndex];
+        s.Stores[slot] += Fix64.FromInt(count);
+        s.ToolRemainingWork[slot] += Fix64.FromInt(count) * ToolDurability(s, (Good)slot);
+    }
+
     /// <summary>Gives a figure a kit of a tier with work-seasons left on it (0 removes the kit).</summary>
     internal void FixtureSetKit(int figureIndex, int tier, Fix64 left)
     {
