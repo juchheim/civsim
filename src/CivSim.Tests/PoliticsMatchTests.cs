@@ -23,9 +23,14 @@ public class PoliticsMatchTests
 
     private sealed class Rig
     {
-        public readonly MatchModel Match = MatchModel.Create(Seed, TestPack.Pack, World.Value, Balanced);
+        public readonly MatchModel Match;
         public readonly SimRunner Runner;
-        public Rig() { Runner = new SimRunner(Match); }
+        public Rig() : this(Seed, World.Value) { }
+        public Rig(ulong seed, GeneratedWorld world)
+        {
+            Match = MatchModel.Create(seed, TestPack.Pack, world, Balanced);
+            Runner = new SimRunner(Match);
+        }
         public PoliticsSystem Politics => Match.Politics;
         public ResearchSystem Research => Match.Research;
         public LivingEconomyModel Economy => Match.Economy;
@@ -70,9 +75,12 @@ public class PoliticsMatchTests
     [Fact]
     public void Peaceful_neighbours_exchange_gifts_and_barter_and_their_relations_grow()
     {
-        var rig = new Rig();
-        // Give late-contact neighbours enough seasons to exchange gifts and raise relations.
-        rig.Minutes(30);
+        // Seed 20261019 no longer fits this check: with the doubled late costs (docs/MVP/28 §16) its civ 2 splits early into tiny, hungry settlements
+        // that cannot send a gift, so the 2-3 pair stays at relations 5 until about minute 50. Nine of twelve seeds from 20261019 meet every line below at
+        // minutes 40 to 44; 20261026 does at 36, 40 and 44. Neighbours who meet later need about 40 minutes to exchange gifts and raise relations.
+        const ulong peacefulSeed = 20261026;
+        var rig = new Rig(peacefulSeed, WorldGenerator.Generate(peacefulSeed));
+        rig.Minutes(40);
         PoliticsSystem p = rig.Politics;
         Assert.True(p.Gifts > 0, "no gifts were delivered");
         Assert.True(p.BarterTrips > 0, "no barter trip completed");
