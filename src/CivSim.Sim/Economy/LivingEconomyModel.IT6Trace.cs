@@ -17,7 +17,7 @@ internal readonly record struct IT6AccountingSnapshot(
     int IronEraFuelDemandSeasons, Fix64 IronEraCharcoalPlan, Fix64 IronEraCharcoalUnmet);
 
 internal readonly record struct IT6FuelSiteSnapshot(
-    int SettlementId, int Civilization, int SiteTile, int Population, int DemandSeasons, int ShortSeasons,
+    int SettlementId, int Civilization, bool IsFreeFolk, int SiteTile, int Population, int DemandSeasons, int ShortSeasons,
     int IronFuelHubId, int Forges, int Smelters, int FuelReach,
     Fix64 Planned, Fix64 Unmet, Fix64 ShortfallReachWood, Fix64 ShortfallHarvestableWood,
     Fix64 ShortfallInRangeWood, Fix64 ShortfallOuterReachWood, Fix64 ShortfallLocalWood,
@@ -168,7 +168,7 @@ public sealed partial class LivingEconomyModel
             Fix64 fourSeasonIronOreNeed = TradeNeed(s.Id, "G-IRONORE", 4);
             Fix64 woodExportable = Fix64.Max(Fix64.Zero, localWood - Fix64.Max(Fix64.Zero, fourSeasonWoodNeed - WoodReserve));
             Fix64 ironOreExportable = Fix64.Max(Fix64.Zero, ironOreStock - fourSeasonIronOreNeed);
-            result.Add(new IT6FuelSiteSnapshot(s.Id, s.Civilization, s.SiteTile, Population(s.Id), flow.DemandSeasons, flow.ShortSeasons,
+            result.Add(new IT6FuelSiteSnapshot(s.Id, s.Civilization, IsFreeFolk(s), s.SiteTile, Population(s.Id), flow.DemandSeasons, flow.ShortSeasons,
                 IronFuelHubFor(s).Id, m?.Forges ?? 0, m?.Smelters ?? 0, reach,
                 flow.Planned, flow.Unmet, flow.ShortfallReachWood, flow.ShortfallHarvestableWood,
                 flow.ShortfallInRangeWood, flow.ShortfallOuterReachWood, flow.ShortfallLocalWood,
