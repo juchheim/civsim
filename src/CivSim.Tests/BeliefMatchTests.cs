@@ -20,7 +20,8 @@ namespace CivSim.Tests;
 [Collection("Frame timing")]
 public class BeliefMatchTests
 {
-    private const int Seasons = 124;
+    // Mid-E2 came at season 124 until the late-project cost doubling of docs/MVP/28 §16 slowed research by about 20%; 148 is the same point.
+    private const int Seasons = 148;
     private static readonly CivControl[] Controls =
     {
         CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Warlord), CivControl.Council,

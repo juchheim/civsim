@@ -100,6 +100,10 @@ public class StrategistScenarioTests
         StrategistRig rig = Resume();
         rig.Grant(0, "GOV-02");
         rig.Grant(1, "WAR-01", "HNT-02", "HNT-03", "HNT-04", "WAR-02", "GOV-01", "SOC-05", "GOV-02");
+        // The Council's civilization 1 is much weaker than civilization 0 at this point of the base match since docs/MVP/28 §16 (the
+        // Strategist reads a force ratio of 3.2 and goes to war on it instead of fortifying), so the neighbour that appears as a raider is
+        // given the people a credible raider has.
+        foreach (int settlement in rig.SettlementsOf(1)) rig.Match.Economy.FixtureAddPeople(settlement, 40, 25);
         Assert.True(rig.Politics.OrderPosture(1, Posture.Raid));
         rig.Politics.Diplomacy.Set(0, 1, -50);
         rig.Seasons(2);
@@ -238,6 +242,9 @@ public class StrategistScenarioTests
         walled.Grant(1, "DEF-01", "DEF-02", "WOD-03", "DEF-03");
         foreach (int settlement in walled.SettlementsOf(1)) walled.Match.Economy.FixtureBuildStructure(settlement, "palisade");
         walled.Grant(1, Bows); // and warriors with bows behind it (13 §5.5: "palisade + warriors", 5% success)
+        // The young daughter settlements this base match holds have one or two fighters; people are added so that every walled
+        // settlement really has warriors behind its palisade.
+        foreach (int settlement in walled.SettlementsOf(1)) walled.Match.Economy.FixtureAddPeople(settlement, 12, 25);
         walled.Politics.Diplomacy.Set(0, 1, -40);
         walled.Seasons(8);
         Assert.True(!walled.Notes(0, "Raid").Any(), string.Join(" || ", walled.Log.Entries.Where(e => e.Civ == 0 && e.Season > BaseSeason && e.Kind.StartsWith("Raid")).Select(e => $"{e.Season} {e.Kind} {e.Reason}")) + " ## " + string.Join(" ", walled.Match.Ai!.SeatOf(0)!.Belief.Rivals[1].Settlements.Select(b => $"s{b.Settlement} seen{b.LastSeenSeason} pop{b.PopulationEstimate} f{b.FightersEstimate} d{b.DefendingStrengthEstimate} pal{b.PalisadeSeen} w{b.WatchersSeen}")));
