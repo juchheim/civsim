@@ -272,6 +272,61 @@ public class StrategistSecureTinTests
     }
 
     [Fact]
+    public void Dormant_tin_recovery_mine_holds_the_mandate_from_exploring_and_levying_until_a_new_mine_is_no_longer_on_offer()
+    {
+        Assert.True(StrategistDecreePolicy.DefersToDormantRecovery(DecreeKind.Expedition));
+        Assert.True(StrategistDecreePolicy.DefersToDormantRecovery(DecreeKind.Levy));
+        Assert.False(StrategistDecreePolicy.DefersToDormantRecovery(DecreeKind.Mine));
+        Assert.False(StrategistDecreePolicy.DefersToDormantRecovery(DecreeKind.Found));
+        Assert.False(StrategistDecreePolicy.DefersToDormantRecovery(DecreeKind.Compact));
+        Assert.False(StrategistDecreePolicy.DefersToDormantRecovery(DecreeKind.Corvee));
+
+        CivControl ai = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
+        var rig = new StrategistRig(MatchSeed, MatchWorld.Value,
+            new[] { ai, CivControl.Council, CivControl.Council, CivControl.Council });
+        rig.Grant(0, "KEY-3", "MET-03", "MET-05");
+        int own = rig.SettlementsOf(0)[0];
+        int tinTile = Enumerable.Range(0, MatchWorld.Value.Tiles.Length)
+            .Where(t => MatchWorld.Value.Tiles[t].Deposit == DepositKind.Tin && MatchWorld.Value.Tiles[t].DepositDepth < 2)
+            .OrderBy(t => HexGrid.Distance(rig.Politics.SettlementTileOf(own), t, MatchWorld.Value.Width)).First();
+        // Put the civilization's village five tiles from the deposit: inside mining reach, outside its own working range.
+        PlaceSettlementInSight(rig.Politics, own, Enumerable.Range(0, MatchWorld.Value.Tiles.Length)
+            .First(t => HexGrid.Distance(tinTile, t, MatchWorld.Value.Width) == 5));
+        Assert.False(rig.Match.Economy.CivHasMetalAccess(0, MetalAccessKind.Tin));
+        Assert.False(rig.Match.Economy.CivHasMetalAccess(0, MetalAccessKind.Arsenic));
+
+        var belief = new Belief(0, 4, TestPack.Catalog.Count,
+            new MapKnowledge(MatchWorld.Value.Tiles.ToArray(), MatchWorld.Value.Width, MatchWorld.Value.Height))
+        { Season = rig.Season };
+        belief.Map.MarkExplored(tinTile);
+        belief.Map.RecordDepositKnowledge(tinTile);
+        belief.Map.RecordOwner(tinTile, -1, belief.Season);
+        var candidates = new List<DecreeRequest>();
+        StrategistDecreePolicy.AddBeliefKnownMineAlternatives(rig.Politics, 0, belief, candidates);
+        Assert.Contains(candidates, c => c.Kind == DecreeKind.Mine && c.Target == tinTile);
+        var forecasts = candidates.Select(c => DecreeForecaster.Forecast(rig.Politics, 0, c.Kind, c.Target, c.Extra, belief)).ToList();
+
+        int idx = candidates.FindIndex(c => c.Kind == DecreeKind.Mine && c.Target == tinTile);
+        Assert.True(StrategistDecreePolicy.HasDormantMetalRecoveryMine(rig.Politics, 0, belief, GrandPlan.SecureTin, candidates, forecasts),
+            $"allowed={forecasts[idx].Allowed} why={forecasts[idx].LikelyRefusal} metal={forecasts[idx].MetalValue} success={forecasts[idx].SuccessPermille} cost={forecasts[idx].Cost} ore={rig.Match.Economy.CivHasOreSource(0, DepositKind.Tin)}");
+        // Without a Mine candidate there is nothing to hold the Mandate for.
+        Assert.False(StrategistDecreePolicy.HasDormantMetalRecoveryMine(rig.Politics, 0, belief, GrandPlan.SecureTin,
+            new List<DecreeRequest>(), new List<DecreeForecast>()));
+
+        // Once the civilization has a camp on that deposit, an order there would only be refused (AlreadyOpen): the tile is
+        // no longer offered, so nothing is held back for it.
+        rig.Match.Economy.FixtureAddMiningCamp(own, tinTile);
+        Assert.True(rig.Match.Economy.CivHasOreSource(0, DepositKind.Tin));
+        Assert.True(rig.Match.Economy.MineTileAlreadyServed(0, tinTile));
+        Assert.False(rig.Match.Economy.MineTileAlreadyServed(1, tinTile));
+        candidates.Clear();
+        StrategistDecreePolicy.AddBeliefKnownMineAlternatives(rig.Politics, 0, belief, candidates);
+        Assert.DoesNotContain(candidates, c => c.Kind == DecreeKind.Mine && c.Target == tinTile);
+        forecasts = candidates.Select(c => DecreeForecaster.Forecast(rig.Politics, 0, c.Kind, c.Target, c.Extra, belief)).ToList();
+        Assert.False(StrategistDecreePolicy.HasDormantMetalRecoveryMine(rig.Politics, 0, belief, GrandPlan.SecureTin, candidates, forecasts));
+    }
+
+    [Fact]
     public void Levy_forecast_rejects_allied_targets()
     {
         CivControl ai = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);

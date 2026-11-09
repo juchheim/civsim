@@ -377,3 +377,46 @@ doubling in place, so this is a design choice for the early game, not a rescue o
 With the late costs of §16 and the DEF and WAR projects kept at their derived cost, A5 on 72 seeds read Grower 34.0% at 1.06. Fertility and capacity
 at 1.0 give Grower 20.8% (48 seeds), 1.04 gives 31.2% (48 seeds), 1.03 gives Builder 25.0%, Grower 28.5%, Wanderer 21.9%, Warlord 25.7% and
 Sage 24.0% on 72 seeds. Grower fertility and food capacity are now 1.03; Sage stays at 1.0. `research-v1` changed on purpose (its bot is a Grower).
+
+
+## 18. B27 after the slower research (follow-up to 16, 2026-11-08)
+
+After §16 doubled 80 late E0-E3 projects, `ai --check-b27 --seeds 8 --first-seed 20261019 --minutes 100` went from 0/16 dormant-route
+blunders (pass) to 6/16 = 0.375 per match (fail); recovery stayed at 31/32. On 16 seeds: 0/32 before, 9/32 = 0.281 after. The AI code
+under `src/CivSim.Sim/Ai` did not change between the two builds, so the cause is the pace, not a rule.
+
+**Cause.** Every decree costs one Mandate point, and the recovery order (Open a mine on a known Tin deposit, which only exists once
+MET-05 is done) is one of several candidates for the same point. The Mandate economy is research-linked: GOV-05 and GOV-06 each add +1 to the
+cap, COM-06 and BEL-07 shorten the recharge (8 seasons per point at the start). All four were among the doubled projects, so at the
+season a civilization finishes MET-05 without tin its cap is still 2 and a point takes about 6 to 8 seasons to come back. In the old build
+the cap read 3 or 4 on about a third of the sampled trace lines for seasons 180 to 300 (869 of 2552 at 4; the new-build lines come only from
+blunder seats, so that comparison is biased toward scarcity) and every dormant option was answered within 4 seasons; in the new build the
+answer took 7 to 54 seasons. Three things then decided who got the point:
+- **Exploring beat mining.** A Tin Mine is worth about 3 to 13 of metal plus the SecureTin bonus of 50, so about 52 to 62 net; an Expedition is
+  worth twice the unexplored tiles it would reveal, 98 to 179 in these traces. The Expedition that won was often refused `OutOfReach` by the live route
+  (the forecaster uses a 90% route prior), which costs nothing, so it was chosen again every season (seed 20261020 civ 0: Expedition@5444 for 13
+  seasons) until the Mandate reached its cap and the 8-season route cooldown finally armed. A tin-folk Levy (4 per person, up to 270) took the
+  point every six seasons or so on seeds 20261021 and 20261025 (20 and 50 seasons) with no raid following it.
+- **The wait after a good order was counted as inaction.** Once the Mine order opened a camp, tin access still took 10 to 38 seasons to appear
+  (seed 20261025 civ 0: camp ordered at season 224, tin at 262; the cause of that latency was not investigated). The detector credits a recovery order only in the season it
+  is selected, and a second site or a known tin seller keeps `dormantOption` true, so nine quiet seasons later the same civilization was
+  reported as a blunder.
+- The 8-season threshold equals one Mandate recharge, so any other decree (even a Found) spent in the window already uses it up.
+
+**Fix (AI).** While a civilization has neither Tin nor Arsenic and an allowed, positive-value Mine candidate on a believed Tin or
+arsenical-copper deposit exists, `StrategistDecreePolicy` skips Expedition and Levy candidates (it logs a `DecreeReserve` entry), so the
+point goes to the Mine. Mine candidates on a Tin or arsenical tile the civilization already has a camp on or works from a village (the
+executor's AlreadyOpen and InRange verdicts, which come back as NoSite) are no longer offered (`LivingEconomyModel.MineTileAlreadyServed`),
+which also lets the second-site recovery that the policy comment promises actually be tried. Found, Corvee and Compact are untouched.
+
+**Fix (detector).** `M10TelemetryRules.IsUnansweredDormantOption`: an option is unanswered only while the civilization has no ore source of that
+kind (`CivHasOreSource`: its own camp, or a workable deposit inside a village's range). The remaining wait is production latency.
+
+Measured (`--first-seed 20261019 --minutes 100`; B27 blunders per match, recovery in brackets): old build 0/32 (64/64); main 9/32 (63/64);
+main plus the detector change alone 4/32 (63/64); main plus both changes 0/32 (63/64), 8 seeds 0/16 (31/32). The one unrecovered
+seat (seed 20261024 civ 2) reaches KEY-3 at minute 73 of 100 and is out of time, as it is on main. Detector alone is not enough and the AI
+change alone is not enough (4 to 5 of 16 on 8 seeds).
+Other gates, main against main plus both changes (`--minutes 100`): A1 (Warlord vs Council, 40 seeds, 80 matches) 86% against 86%; A3 (Warlord vs
+Rusher, 40 seeds, 80 matches) 81% against 81%; with 20 seeds (40 matches) both are 82% against 82%. The politics and toy goldens are unchanged.
+
+Open: tin access after an ore source exists takes 10 to 38 seasons in these matches. That is an economy question, not a route decision, and was not investigated here.

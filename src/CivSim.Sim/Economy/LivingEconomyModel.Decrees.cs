@@ -92,6 +92,22 @@ public sealed partial class LivingEconomyModel
         return false;
     }
 
+    /// <summary>
+    /// Whether an <c>Open a mine</c> Decree on <paramref name="tile"/> would add nothing for <paramref name="civ"/>: one of its own camps is
+    /// already on the tile, or the tile lies inside the working range of one of its settlements (the executor's AlreadyOpen and InRange
+    /// verdicts, which read as a NoSite refusal). Only the civilization's own state is consulted.
+    /// </summary>
+    public bool MineTileAlreadyServed(int civ, int tile)
+    {
+        if (unchecked((uint)tile) >= unchecked((uint)_world.TileCount)) return false;
+        foreach (MiningCampState camp in _camps)
+            if (camp.Tile == tile && _settlements[camp.Parent].Civilization == civ) return true;
+        foreach (SettlementState s in _settlements)
+            if (s.Civilization == civ && !IsFreeFolk(s) && Population(s.Id) > 0 &&
+                HexGrid.Distance(s.SiteTile, tile, _world.Width) <= Radius) return true;
+        return false;
+    }
+
     /// <summary>Mining reach from a settlement in tiles: 8, 12 with carts (TRN-05), 16 from a river or coast with plank boats (SEA-05).</summary>
     public int MiningReachFrom(int settlementIndex)
     {
