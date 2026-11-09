@@ -493,3 +493,25 @@ dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/Civ
 dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45-main.pack --seed 20263301 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v25-acceptance-20263301-3320.txt
 dotnet /private/tmp/civsim-b406-final/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-iron45-main.pack --seed 20263321 --seeds 20 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v25-acceptance-20263321-3340.txt
 ```
+
+## Post-refit forest renewal diagnostic
+
+The v25 acceptance freeze above predates the user's late-project research-cost and pacing refit. Its source and pack were not used for acceptance; seed block `20263261–20263340` remains unused, but must be frozen again against the refitted source and pack. The refitted main snapshot is commit `0cc3ea0135e06ee835a043537d9fa140f77cc9ad`, pack SHA-256 `9a943604fe9c0b61de7dbecf7ab206ff0d4d02e59ec1e0a14cd038724fff189d`.
+
+On the refitted pack with the v25 options, seed `20261965` still failed both approved mature fuel cutoffs. The original 36-tile margin gave c0 `505/971` short demand-seasons (52.01%) and `1595.48/2230.84 L` unmet (71.52%); c2 gave `572/1145` (49.96%) and `2696.42/3677.89 L` (73.31%). Across the match's 606 forest tiles, stock fell from `17,890` to `6,216 L`; regrowth was `34,952 L`, versus `46,626 L` removed. The forest and local-wood ledgers reconciled, with no Iron-attributed clearing.
+
+Widening physical haul reach alone did not resolve the drawdown. Same-seed reach `56` left c0 at 47.33% short / 67.99% unmet and c2 at 37.42% / 69.07%; reach `76` and `100` produced the same results, c0 49.43% / 69.91% and c2 41.59% / 67.57%. The widest candidate ended with no harvestable wood in either civ's extended catchment. This indicates a renewal/supply-rate problem after the refit, rather than a remaining haul-radius problem.
+
+Controlled growth trials kept the 5 L/tile reserve, I-T6 cutoffs, 36-tile haul margin, hub sharing and fission coverage option fixed. Raising `WoodGrowthPerYear` from `2` to `4` (0.5 to 1 L/season on forest tiles; Coppicing continued to double local growth) improved but did not pass seed `20261965`: c0 remained at 31.35% short / 48.06% unmet and c2 at 18.45% / 23.71% at reach 36. The reach-56 control also failed (c0 28.78% / 45.29%; c2 22.86% / 21.24%).
+
+The candidate sets `WoodGrowthPerYear` to `6` (1.5 L/season on forest tiles, with Coppicing still providing 2× local growth). On seed `20261965`, all four civs passed fuel; c2, the closest, had `5/1253` mature post-ramp short seasons (0.40%) and `12.00/1947.97 L` unmet (0.62%). I-T2 recorded 33 passes, 0 failures, 64 censored windows; the maximum mature work-share was 10.15%. All `106/106` settlement kit ledgers were exact, forest/local-wood residuals were zero, and there were zero Iron-attributed clearing crossings. The match ended naturally at season 426. Raw reports:
+
+- `/tmp/civsim-b406-post-refit-regrowth6-reach36-20261965.txt`
+- `/tmp/civsim-b406-post-refit-regrowth6-replay-20263181.txt`
+- `/tmp/civsim-b406-post-refit-regrowth6-replay-20263183.txt`
+- `/tmp/civsim-b406-post-refit-regrowth6-replay-20263202.txt`
+- `/tmp/civsim-b406-post-refit-regrowth6-replay-20263223.txt`
+
+The four prior v18 I-T2 failure seeds `20263181`, `20263183`, `20263202` and `20263223` all ended naturally under this candidate. Together they record 212 I-T2 passes, 0 failures and 217 censored windows; all four civs passed their qualified fuel cutoffs in every replay. Maximum mature work-share was 9.53%. This is a targeted diagnostic screen, not acceptance. The approved cutoffs and zero Iron-attributed clearing allowance remain unchanged. Cross-civilization wood-for-ore trade remains shelved: the event-time inventory diagnostic found c2 had no estimated spare ore and foreign stored-wood surplus fell well short of its growing seasonal deficit.
+
+The regrowth candidate is ready for a fresh 80-match acceptance freeze. B4-06 remains open until that block completes naturally and every per-settlement I-T2 and per-civilization I-T6 gate passes.

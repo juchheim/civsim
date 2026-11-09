@@ -138,7 +138,7 @@ Herding labor: 0.1 ws per 10 small stock or 4 cattle per season. Domestic herds 
 ## 5. Material actions
 
 ### 5.1 Chop wood (the template ladder, 02 §12)
-**Base rate 2.0 L of wood per ws.** Forest tiles hold 30 L of standing wood and regrow 0.5 L/season (×2 with WOD-04 Coppicing). Deadwood: 2 L/tile/year.
+**Base rate 2.0 L of wood per ws.** Forest tiles hold 30 L of standing wood and regrow 1.5 L/season (×2 with WOD-04 Coppicing, to 3 L/season). Deadwood: 2 L/tile/year.
 
 | Rung | Method | Unlocked by | Tool | MethodMult | Wood / ws |
 |------|--------|-------------|------|-----------:|----------:|
