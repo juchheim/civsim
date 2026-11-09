@@ -556,6 +556,10 @@ func set_overlay(mode: int) -> void:
 		mats.terrain.set_shader_parameter("overlay_mode", overlay_mode)
 		mats.terrain.set_shader_parameter("claim_overlay_strength", 1.35 if overlay_mode == 1 else 0.0)
 
+func set_supply_network_visible(enabled: bool) -> void:
+	if builder != null:
+		builder.set_supply_network_visible(enabled)
+
 ## Preview the Beacon's exact hex influence field and the hovered site's relative fit.
 ## site_fit is -1 when the tile is unexplored, otherwise 0..1.
 func set_beacon_preview(tile: int, site_fit: float) -> void:

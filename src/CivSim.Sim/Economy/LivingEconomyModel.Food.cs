@@ -232,6 +232,7 @@ public sealed partial class LivingEconomyModel
                     Fix64 move = Fix64.Min(deficit, surplus);
                     ConsumeStoredFoodValue(donor, move);
                     GiveGoods(r, move);
+                    RecordSupplyTransfer(donor.Id, receiver.Id, "G-FOOD", move);
                     deficit -= move;
                 }
             }

@@ -8,6 +8,8 @@ using CivSim.Sim.World;
 
 namespace CivSim.Sim.Politics;
 
+internal readonly record struct PoliticsSupplyTransfer(int FromSettlement, int ToSettlement, string GoodId, Fix64 Quantity);
+
 /// <summary>A weaker civilization paying tribute to a stronger one under terms (DIP-06, docs/MVP/25 §8).</summary>
 public sealed class Tribute
 {
@@ -24,6 +26,10 @@ public sealed class Tribute
 /// </summary>
 public sealed partial class PoliticsSystem
 {
+    private readonly List<PoliticsSupplyTransfer> _tributeTransfers = new();
+
+    internal IReadOnlyList<PoliticsSupplyTransfer> TributeTransfers => _tributeTransfers;
+
     /// <summary>Share of each subject settlement's food surplus handed over a season (provisional).</summary>
     private static readonly Fix64 TributeSurplusShare = Fix64.FromRatio(1, 10);
     /// <summary>Share of the subject's yearly Dominion flow that moves to the overlord (DIP-06).</summary>
@@ -93,7 +99,11 @@ public sealed partial class PoliticsSystem
                 int dest = NearestSettlementOf(t.Overlord, _sTile[s]);
                 if (dest < 0) continue;
                 Fix64 taken = _economy.TakeGoods(s, due, LootPreference.FoodOnly);
-                if (taken > Fix64.Zero) _economy.GiveGoods(dest, taken);
+                if (taken > Fix64.Zero)
+                {
+                    _economy.GiveGoods(dest, taken);
+                    _tributeTransfers.Add(new PoliticsSupplyTransfer(s, dest, "G-FOOD", taken));
+                }
             }
         }
     }

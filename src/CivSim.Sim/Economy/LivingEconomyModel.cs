@@ -1074,6 +1074,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void EndSeason(int season)
     {
+        _supplyTransfers.Clear();
         if (FoodWorkAttributionTraceEnabled)
         {
             _foodWorkAttribution.Clear();

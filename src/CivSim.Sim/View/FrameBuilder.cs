@@ -257,6 +257,7 @@ public sealed partial class FrameBuilder
         FillHerdsAndPredators(eco, target);
         FillParties(target);
         FillRoutes(pol, target);
+        FillSupplyTransfers(eco, pol, target);
         FillOccupations(pol, target);
         FillIron(match, target);
         FillCivs(match, target);
@@ -504,7 +505,9 @@ public sealed partial class FrameBuilder
             _pMembers[p] = e.Members.Count;
             _pArrive[p] = e.ArriveSeason;
             _pGood[p] = (byte)e.Good;
-            _pCargo[p] = (int)Math.Clamp((e.Cargo * 1000).FloorToInt(), 0, int.MaxValue);
+            Fix64 visibleCargo = e.Kind == ExpeditionKind.Gift ||
+                e.Kind == ExpeditionKind.Barter && (e.Leg == 0 || e.Good == TradeGood.None) ? e.Value : e.Cargo;
+            _pCargo[p] = (int)Math.Clamp((visibleCargo * 1000).FloorToInt(), 0, int.MaxValue);
             _pId[p] = e.Id;
         }
     }

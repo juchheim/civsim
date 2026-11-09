@@ -633,6 +633,7 @@ public sealed partial class LivingEconomyModel
         if (slot < (int)Good.Count && ToolDurability(from, (Good)slot) > Fix64.Zero) return Fix64.Zero;
         AddStock(from, slot, -moved);
         AddStock(to, slot, moved);
+        RecordSupplyTransfer(from.Id, to.Id, goodId, moved);
         return moved;
     }
 

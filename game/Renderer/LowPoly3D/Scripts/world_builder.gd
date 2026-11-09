@@ -53,6 +53,8 @@ var trail_polys: Array = []              # centre lines of the trail ribbons (tr
 var trails_changed := false
 var road_node: MeshInstance3D
 var road_signature := -1
+var supply_node: MeshInstance3D
+var supply_dirty := true
 var border_signature := -1
 var river_visibility_signature := -1
 var regional_lod := false
@@ -86,6 +88,7 @@ var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
 const ArtDefense := preload("res://Renderer/LowPoly3D/Scripts/art_defense.gd")
+const SupplyBuilder := preload("res://Renderer/LowPoly3D/Scripts/supply_builder.gd")
 const VS := 1.45            # village scale: structures are drawn larger than life so they read
 
 func _init(world: M7WorldData, mesh_kit: M7MeshKit, materials: Dictionary) -> void:
@@ -185,6 +188,12 @@ func build() -> Node3D:
 	road_node.material_override = M7TrailBuilder.make_material()
 	road_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(road_node)
+	supply_node = MeshInstance3D.new()
+	supply_node.name = "SupplyNetworks"
+	supply_node.material_override = SupplyBuilder.make_material()
+	supply_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	supply_node.visible = false
+	root.add_child(supply_node)
 	_update_trails()
 	_update_roads()
 	props = M7Batcher.new()
@@ -225,6 +234,10 @@ func update_frame() -> bool:
 		borders_far_node.mesh = terrain_builder.build_borders(3.2)
 	_update_trails()
 	_update_roads()
+	if supply_node.visible:
+		_update_supply_network()
+	else:
+		supply_dirty = true
 	var geometry_updated := Time.get_ticks_usec()
 	var signature := _structure_digest()
 	var structures_changed := signature != structure_signature
@@ -268,6 +281,18 @@ func update_frame() -> bool:
 			" actor_groups=", actor_multimeshes.size(),
 			" structure_changed=", structures_changed)
 	return structures_changed
+
+func _update_supply_network() -> void:
+	if supply_node != null:
+		supply_node.mesh = SupplyBuilder.build(w)
+		supply_dirty = false
+
+func set_supply_network_visible(enabled: bool) -> void:
+	if supply_node == null:
+		return
+	if enabled and (supply_node.mesh == null or supply_dirty):
+		_update_supply_network()
+	supply_node.visible = enabled
 
 ## Swap vegetation meshes and use compact actor silhouettes at regional zoom.
 ## Mesh swaps retain the existing MultiMesh buffers and draw-call grouping.

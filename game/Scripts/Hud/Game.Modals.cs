@@ -241,6 +241,7 @@ public partial class Game
             ("Methods", "How good your people's tools are. Purple tiles use newer tools, blue older ones, and orange tiles know a better method they can't use yet."),
             ("Deposits", "Identified deposits and mines: tin, copper ores and arsenical copper, unidentified clues, worked deposits and what lies within mining reach."),
             ("Trade", "Active compact routes between peoples; tin routes and caravans are highlighted."),
+            ("Supply", "Directional links show settlement-to-settlement goods: internal sharing, trade, gifts, barter and tribute. Inspect a settlement to see what it sends and receives. Orange or red rings mark shortages."),
             ("Cohesion", "How firmly each settlement holds together: strong, steady, strained or fraying. Hover a settlement for why."),
             ("Forest", "How much wood is left on the tiles you can see now: dense, medium, low or depleted."),
             ("Resources (marker)", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all. Markers show on top of any layer."),

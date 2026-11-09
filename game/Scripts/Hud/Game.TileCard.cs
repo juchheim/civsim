@@ -5,6 +5,7 @@ using CivSim.Game.Ui;
 using CivSim.Sim.Economy;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
+using CivSim.Sim.Politics;
 using Godot;
 
 namespace CivSim.Game;
@@ -235,33 +236,40 @@ public partial class Game
         _tileFallbackRow!.Visible = work.Fallbacks > 0;
         if (work.Fallbacks > 0) UiKit.SetText(_tileFallback!, $"{work.Fallbacks} use older tools — {work.FirstRequirement}");
 
-        _tileExtra!.Visible = shift;
-        if (shift)
+        int supplySettlement = _mapOverlay == 8 && visibility == TileVisibility.Visible ? SettlementAtTile(frame, tile) : -1;
+        bool showSupply = supplySettlement >= 0;
+        _tileExtra!.Visible = shift || showSupply;
+        if (shift || showSupply)
         {
-            string claims = visibility == TileVisibility.Visible
-                ? $"{ClaimText(frame.Claimant[tile], frame.Claim[tile], frame)} · {ClaimText(frame.Claimant2[tile], frame.Claim2[tile], frame)} · {ClaimText(frame.Claimant3[tile], frame.Claim3[tile], frame)}"
-                : visibility == TileVisibility.Explored ? "last seen only" : "beyond sight";
-            string extra = $"Claims: {claims}\nElevation {world.Elevation[tile]}";
-            if (work.Fallbacks > 0 && work.FirstDetail.Length > 0) extra += $"\n{work.FirstDetail}";
-            if (visibility == TileVisibility.Visible) extra += $"\nForest stock band {frame.ForestBand[tile]}";
-            if (visibility == TileVisibility.Visible)
+            string extra = "";
+            if (shift)
             {
-                for (int camp = 0; camp < frame.CampCount; camp++)
+                string claims = visibility == TileVisibility.Visible
+                    ? $"{ClaimText(frame.Claimant[tile], frame.Claim[tile], frame)} · {ClaimText(frame.Claimant2[tile], frame.Claim2[tile], frame)} · {ClaimText(frame.Claimant3[tile], frame.Claim3[tile], frame)}"
+                    : visibility == TileVisibility.Explored ? "last seen only" : "beyond sight";
+                extra = $"Claims: {claims}\nElevation {world.Elevation[tile]}";
+                if (work.Fallbacks > 0 && work.FirstDetail.Length > 0) extra += $"\n{work.FirstDetail}";
+                if (visibility == TileVisibility.Visible) extra += $"\nForest stock band {frame.ForestBand[tile]}";
+                if (visibility == TileVisibility.Visible)
                 {
-                    if (frame.CampTile[camp] != tile || frame.CampKind[camp] != (byte)CampKind.Mining) continue;
-                    string mineral = frame.CampDeposit[camp] == 0 ? "unknown deposit" : SpacedName(((DepositKind)frame.CampDeposit[camp]).ToString());
-                    extra += $"\nMining camp: {mineral} · crew {frame.CampCrew[camp]} · {(frame.CampBuilt[camp] != 0 ? "built" : "work camp")}{(frame.CampMineHead[camp] != 0 ? " · minehead" : "")}";
+                    for (int camp = 0; camp < frame.CampCount; camp++)
+                    {
+                        if (frame.CampTile[camp] != tile || frame.CampKind[camp] != (byte)CampKind.Mining) continue;
+                        string mineral = frame.CampDeposit[camp] == 0 ? "unknown deposit" : SpacedName(((DepositKind)frame.CampDeposit[camp]).ToString());
+                        extra += $"\nMining camp: {mineral} · crew {frame.CampCrew[camp]} · {(frame.CampBuilt[camp] != 0 ? "built" : "work camp")}{(frame.CampMineHead[camp] != 0 ? " · minehead" : "")}";
+                    }
+                }
+                for (int s = 0; s < frame.SettlementCount; s++)
+                {
+                    if (frame.SettlementTile[s] != tile || (frame.SettlementFlags[s] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+                    bool own = frame.SettlementCiv[s] == frame.ViewerCiv;
+                    if (!own && visibility != TileVisibility.Visible) continue;
+                    extra += $"\nCohesion: {CohesionName(frame.SettlementCohesion[s])}";
+                    if (own && (frame.SettlementOverreach[s] != 0 || frame.SettlementSpanPenalty[s] != 0))
+                        extra += $" · overreach {frame.SettlementOverreach[s]} · span strain {frame.SettlementSpanPenalty[s]}";
                 }
             }
-            for (int s = 0; s < frame.SettlementCount; s++)
-            {
-                if (frame.SettlementTile[s] != tile || (frame.SettlementFlags[s] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
-                bool own = frame.SettlementCiv[s] == frame.ViewerCiv;
-                if (!own && visibility != TileVisibility.Visible) continue;
-                extra += $"\nCohesion: {CohesionName(frame.SettlementCohesion[s])}";
-                if (own && (frame.SettlementOverreach[s] != 0 || frame.SettlementSpanPenalty[s] != 0))
-                    extra += $" · overreach {frame.SettlementOverreach[s]} · span strain {frame.SettlementSpanPenalty[s]}";
-            }
+            if (showSupply) extra += (extra.Length > 0 ? "\n\n" : "") + SupplyNetworkDetails(frame, supplySettlement);
             UiKit.SetText(_tileExtra, extra);
         }
         bool showHint = !pinned && !shift && _tileHintsShown < 12;
@@ -282,6 +290,98 @@ public partial class Game
                 return frame.SettlementIndex[s];
         }
         return -1;
+    }
+
+    private static int SettlementAtTile(MatchFrame frame, int tile)
+    {
+        for (int i = 0; i < frame.SettlementCount; i++)
+            if (frame.SettlementTile[i] == tile && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0)
+                return frame.SettlementIndex[i];
+        return -1;
+    }
+
+    private string SupplyNetworkDetails(MatchFrame frame, int settlement)
+    {
+        var sends = new List<string>();
+        var receives = new List<string>();
+        int moreSends = 0, moreReceives = 0;
+
+        void AddLine(bool outgoing, string line)
+        {
+            List<string> list = outgoing ? sends : receives;
+            if (list.Count < 4) list.Add(line);
+            else if (outgoing) moreSends++;
+            else moreReceives++;
+        }
+
+        for (int i = 0; i < frame.SupplyTransferCount; i++)
+        {
+            int from = frame.SupplyTransferFrom[i], to = frame.SupplyTransferTo[i];
+            string kind = frame.SupplyTransferKind[i] == 1 ? "Tribute" : "Shared";
+            string cargo = $"{kind} · {SupplyGoodLabel(frame.SupplyTransferGood[i])} · {FormatSupplyAmount(frame.SupplyTransferAmount[i] / 4294967296.0)}";
+            if (from == settlement) AddLine(true, $"{SettlementLabel(to)}: {cargo}");
+            if (to == settlement) AddLine(false, $"{SettlementLabel(from)}: {cargo}");
+        }
+        for (int i = 0; i < frame.RouteCount; i++)
+        {
+            int from = frame.RouteSellerSettlement[i], to = frame.RouteBuyerSettlement[i];
+            string good = Enum.GetName(typeof(TradeGood), frame.RouteGood[i]) ?? "Goods";
+            string cargo = $"Trade · {good} · {FormatSupplyAmount(frame.RouteVolumePermille[i] / 1000.0)}";
+            if (from == settlement) AddLine(true, $"{SettlementLabel(to)}: {cargo}");
+            if (to == settlement) AddLine(false, $"{SettlementLabel(from)}: {cargo}");
+        }
+        for (int i = 0; i < frame.PartyCount; i++)
+        {
+            PartyKind kind = (PartyKind)frame.PartyKind[i];
+            if (kind is not (PartyKind.Gift or PartyKind.Barter or PartyKind.Caravan)) continue;
+            int from = frame.PartyFrom[i], to = frame.PartyTo[i];
+            string item = frame.PartyGood[i] == 0 ? "Food" : Enum.GetName(typeof(TradeGood), frame.PartyGood[i]) ?? "Goods";
+            string label = kind switch { PartyKind.Gift => "Gift", PartyKind.Barter => "Barter", _ => "Caravan" };
+            string cargo = $"{label} · {item} · {FormatSupplyAmount(frame.PartyCargoPermille[i] / 1000.0)} · en route";
+            if (from == settlement) AddLine(true, $"{SettlementLabel(to)}: {cargo}");
+            if (to == settlement) AddLine(false, $"{SettlementLabel(from)}: {cargo}");
+        }
+
+        int row = frame.IndexOfSettlement(settlement);
+        var result = new System.Text.StringBuilder("SUPPLY NETWORKS");
+        if (row >= 0 && frame.SettlementFood[row] >= 2)
+            result.Append(frame.SettlementFood[row] >= 3 ? "\nFood shortage: famine" : "\nFood shortage: short");
+        if (row >= 0 && (frame.SettlementFlags[row] & (ushort)SettlementViewFlags.Own) != 0)
+        {
+            int econ = row * EconField.Stride;
+            if (frame.SettlementEcon[econ + EconField.Valid] != 0 &&
+                frame.SettlementEcon[econ + EconField.BlockerNeed] > frame.SettlementEcon[econ + EconField.BlockerHave])
+                result.Append("\nBuilding materials short");
+        }
+        AppendGroup(result, "Sends", sends, moreSends);
+        AppendGroup(result, "Receives", receives, moreReceives);
+        if (sends.Count == 0 && receives.Count == 0 && moreSends == 0 && moreReceives == 0)
+            result.Append("\nNo goods moving to or from this settlement this season.");
+        return result.ToString();
+    }
+
+    private static void AppendGroup(System.Text.StringBuilder text, string heading, List<string> lines, int more)
+    {
+        if (lines.Count == 0 && more == 0) return;
+        text.Append($"\n{heading}:");
+        foreach (string line in lines) text.Append($"\n· {line}");
+        if (more > 0) text.Append($"\n· and {more} more");
+    }
+
+    private static string FormatSupplyAmount(double value)
+        => value <= 0 ? "amount unavailable" : value.ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string SupplyGoodLabel(string id)
+    {
+        string code = id.StartsWith("G-", StringComparison.Ordinal) ? id[2..] : id;
+        return code switch
+        {
+            "FOOD" => "Food", "CUORE" => "Copper ore", "ASORE" => "Arsenical ore", "TINORE" => "Tin ore",
+            "IRONORE" => "Iron ore", "COPPER" => "Copper", "BRONZE" => "Bronze", "ABRONZE" => "Arsenical bronze",
+            "WOOD" => "Wood", "GRAIN" => "Grain", "STONE" => "Stone", "CLAY" => "Clay", "TIN" => "Tin",
+            "IRON" => "Iron", "SALT" => "Salt", "GOLD" => "Gold", "TOOL11" => "Iron kit", "TOOL12" => "Iron kit",
+            _ => code.Replace("_", " ").ToLowerInvariant(),
+        };
     }
 
     private void RefreshRenameRow(int settlement, bool pinned)

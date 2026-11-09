@@ -558,6 +558,7 @@ public sealed partial class LivingEconomyModel
 
                     donor.Stores[wood] -= moved;
                     receiver.Stores[wood] += moved;
+                    RecordSupplyTransfer(donor.Id, receiver.Id, "G-WOOD", moved);
                     RecordLocalWoodUse(donor, moved, "other");
                     RecordLocalWoodInflow(receiver, moved, chop: false);
                     deficit -= moved;
@@ -638,6 +639,7 @@ public sealed partial class LivingEconomyModel
                             receiverTransfer += move;
                         dm.Goods[g] -= move;
                         rm.Goods[g] += move;
+                        RecordSupplyTransfer(donor.Id, receiver.Id, MetalGoodId(SharedGoods[k]), move);
                         need -= move;
                     }
                 }
@@ -662,6 +664,7 @@ public sealed partial class LivingEconomyModel
                         if (move <= Fix64.Zero) continue;
                         dm.Goods[g] -= move;
                         rm.Goods[g] += move;
+                        RecordSupplyTransfer(donor.Id, receiver.Id, MetalGoodId((MetalGood)g), move);
                         need -= move;
                         surplus -= move;
                     }

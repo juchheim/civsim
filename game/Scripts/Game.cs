@@ -10,6 +10,7 @@ using CivSim.Sim.Content;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
 using CivSim.Sim.Research;
+using CivSim.Sim.Politics;
 using CivSim.Game.Looks;
 using CivSim.Game.Ui;
 using Godot;
@@ -593,6 +594,13 @@ public partial class Game : Node3D
                 ["overreach"] = frame.SettlementOverreach[i],
                 ["spanPenalty"] = frame.SettlementSpanPenalty[i],
             };
+            int supplyShortage = frame.SettlementFood[i] >= 2 ? frame.SettlementFood[i] : 0;
+            int econAt = i * EconField.Stride;
+            if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Own) != 0 &&
+                frame.SettlementEcon[econAt + EconField.Valid] != 0 &&
+                frame.SettlementEcon[econAt + EconField.BlockerNeed] > frame.SettlementEcon[econAt + EconField.BlockerHave])
+                supplyShortage = Math.Max(supplyShortage, 2);
+            settlement["supplyShortage"] = supplyShortage;
             // The Iron chapter's works at this settlement (counts per kind, in the order of "ironWorkIds"), the soldiers posted, and the build under way.
             if (frame.Iron.Active && frame.Iron.WorkKinds > 0 && (i + 1) * frame.Iron.WorkKinds <= frame.Iron.Works.Length)
             {
@@ -855,6 +863,7 @@ public partial class Game : Node3D
 #endif
 
         byte[] foodOverlay = BuildFoodOverlay(frame);
+        Godot.Collections.Array supplyFlows = BuildSupplyFlows(frame);
         byte[] forecastOverlay = BuildFoodForecastOverlay(frame);
         byte[] methodOverlay = BuildMethodOverlay(frame);
         byte[] methodFallbackOverlay = BuildMethodFallbackOverlay(frame);
@@ -906,6 +915,7 @@ public partial class Game : Node3D
             ["overlayBytes"] = overlayBytes,
             ["e3OverlayBytes"] = e3OverlayBytes,
             ["forestOverlay"] = forestOverlay,
+            ["supplyFlows"] = supplyFlows,
             ["figures"] = figures,
             ["renderedFigureCount"] = renderedFigureCount,
             ["ghosts"] = ghosts,
@@ -999,6 +1009,40 @@ public partial class Game : Node3D
             data[tile * stride + 3] = frame.PartyGood[i] == 1 ? (byte)4 : (byte)3;
         }
         return data;
+    }
+
+    private static Godot.Collections.Array BuildSupplyFlows(MatchFrame frame)
+    {
+        var flows = new Godot.Collections.Array();
+        void Add(int fromSettlement, int toSettlement, byte kind, string good, double amount)
+        {
+            int fromRow = frame.IndexOfSettlement(fromSettlement), toRow = frame.IndexOfSettlement(toSettlement);
+            if (fromRow < 0 || toRow < 0) return;
+            flows.Add(new Godot.Collections.Dictionary
+            {
+                ["from"] = frame.SettlementTile[fromRow], ["to"] = frame.SettlementTile[toRow],
+                ["kind"] = kind, ["good"] = good, ["amount"] = amount,
+            });
+        }
+
+        for (int i = 0; i < frame.SupplyTransferCount; i++)
+            Add(frame.SupplyTransferFrom[i], frame.SupplyTransferTo[i],
+                frame.SupplyTransferKind[i] == 1 ? (byte)3 : (byte)0, frame.SupplyTransferGood[i],
+                frame.SupplyTransferAmount[i] / 4294967296.0);
+        for (int i = 0; i < frame.RouteCount; i++)
+        {
+            string good = Enum.GetName(typeof(TradeGood), frame.RouteGood[i]) ?? "Goods";
+            Add(frame.RouteSellerSettlement[i], frame.RouteBuyerSettlement[i], 1, good, frame.RouteVolumePermille[i] / 1000.0);
+        }
+        for (int i = 0; i < frame.PartyCount; i++)
+        {
+            PartyKind kind = (PartyKind)frame.PartyKind[i];
+            if (kind is not (PartyKind.Gift or PartyKind.Barter or PartyKind.Caravan)) continue;
+            byte flowKind = kind is PartyKind.Gift or PartyKind.Barter ? (byte)2 : (byte)1;
+            string good = frame.PartyGood[i] == 0 ? "Food" : Enum.GetName(typeof(TradeGood), frame.PartyGood[i]) ?? "Goods";
+            Add(frame.PartyFrom[i], frame.PartyTo[i], flowKind, good, frame.PartyCargoPermille[i] / 1000.0);
+        }
+        return flows;
     }
 
     private static T[] Slice<T>(T[] values, int count)

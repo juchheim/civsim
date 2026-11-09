@@ -584,6 +584,7 @@ public sealed partial class LivingEconomyModel
             if (move <= Epsilon) continue;
             sm.Goods[(int)MetalGood.IronOre] -= move;
             hm.Goods[(int)MetalGood.IronOre] += move;
+            RecordSupplyTransfer(supplier.Id, hub.Id, MetalGoodId(MetalGood.IronOre), move);
             int extraHaulDistance = Math.Max(0, HexGrid.Distance(supplier.SiteTile, hub.SiteTile, _world.Width) - IronShareReach(civ));
             if (extraHaulDistance > 0)
             {
@@ -615,6 +616,7 @@ public sealed partial class LivingEconomyModel
                 if (move <= Epsilon) continue;
                 donor.Metal.Goods[(int)MetalGood.Iron] -= move;
                 rm.Goods[(int)MetalGood.Iron] += move;
+                RecordSupplyTransfer(donor.Id, receiver.Id, MetalGoodId(MetalGood.Iron), move);
                 need -= move;
             }
         }
@@ -641,6 +643,7 @@ public sealed partial class LivingEconomyModel
                     if (move <= Fix64.Zero) continue;
                     AddStock(donor, IronSlot(kit), -move);
                     AddStock(receiver, IronSlot(kit), move);
+                    RecordSupplyTransfer(donor.Id, receiver.Id, IronGoodId(kit), move);
                     RecordIT6KitTransfer(donor, receiver, t, move, season, holderTransfer: false);
                     need -= move;
                     surplus -= move;
@@ -1994,6 +1997,7 @@ public sealed partial class LivingEconomyModel
                 if (units <= Epsilon) continue;
                 donor.Stores[(int)Good.Grain] -= units;
                 receiver.Stores[(int)Good.Grain] += units;
+                RecordSupplyTransfer(donor.Id, receiver.Id, "G-GRAIN", units);
                 need -= units * receiverValue;
                 movedTotal += units;
             }

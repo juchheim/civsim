@@ -256,6 +256,8 @@ public sealed partial class LivingEconomyModel
     private void RecordIT6KitTransfer(SettlementState donor, SettlementState receiver, int tier, Fix64 quantity, int season,
         bool holderTransfer)
     {
+        if (holderTransfer && tier is 11 or 12 && donor.Id != receiver.Id && quantity > Fix64.Zero)
+            RecordSupplyTransfer(donor.Id, receiver.Id, tier == 11 ? "G-TOOL11" : "G-TOOL12", quantity);
         if (IT6AccountingTraceEnabled && IronChain && donor.Id != receiver.Id && quantity > Fix64.Zero)
         {
             _it6KitTransfers ??= new List<IT6KitTransferSnapshot>();

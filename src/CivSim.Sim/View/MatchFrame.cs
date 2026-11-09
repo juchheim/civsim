@@ -299,6 +299,15 @@ public sealed class MatchFrame
     public int[] RouteVolumePermille = Array.Empty<int>();
     public int[] RouteDeliveries = Array.Empty<int>(), RouteSinceSeason = Array.Empty<int>();
 
+    // ---- settlement supply transfers: current internal sharing and tribute deliveries ----------------------
+    public int SupplyTransferCount;
+    public int[] SupplyTransferFrom = Array.Empty<int>(), SupplyTransferTo = Array.Empty<int>();
+    /// <summary>0 internal sharing, 1 tribute; good ids are registry-style ids such as G-WOOD.</summary>
+    public byte[] SupplyTransferKind = Array.Empty<byte>();
+    public string[] SupplyTransferGood = Array.Empty<string>();
+    /// <summary>Transferred amount in raw Q32.32 units.</summary>
+    public long[] SupplyTransferAmount = Array.Empty<long>();
+
     // ---- occupations --------------------------------------------------------------------------
     public int OccupationCount;
     public sbyte[] OccupationCiv = Array.Empty<sbyte>();
@@ -538,6 +547,15 @@ public sealed class MatchFrame
         Ensure(ref RouteCompact, n); Ensure(ref RouteSellerCiv, n); Ensure(ref RouteBuyerCiv, n); Ensure(ref RouteSellerSettlement, n);
         Ensure(ref RouteBuyerSettlement, n); Ensure(ref RouteFromTile, n); Ensure(ref RouteToTile, n); Ensure(ref RouteGood, n);
         Ensure(ref RouteVolumePermille, n); Ensure(ref RouteDeliveries, n); Ensure(ref RouteSinceSeason, n);
+    }
+
+    internal void EnsureSupplyTransfers(int n)
+    {
+        if (SupplyTransferFrom.Length >= n) return;
+        int size = Math.Max(n, Math.Max(8, SupplyTransferFrom.Length * 2));
+        Array.Resize(ref SupplyTransferFrom, size); Array.Resize(ref SupplyTransferTo, size);
+        Array.Resize(ref SupplyTransferKind, size); Array.Resize(ref SupplyTransferGood, size);
+        Array.Resize(ref SupplyTransferAmount, size);
     }
 
     internal void EnsureOccupations(int n)

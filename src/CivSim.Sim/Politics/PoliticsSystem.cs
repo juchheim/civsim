@@ -666,6 +666,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         AdvanceInvestments();
         AdvanceBlockades();
         AdvanceFaith();
+        _tributeTransfers.Clear();
         AdvanceTribute();
         AdvanceLeagues();
         AdvanceOccupations();
