@@ -164,6 +164,10 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
                 if (CandidateNetEv(forecast, gross, Fix64.One) > Fix64.Zero) { positivePaidAlternative = true; break; }
             }
 
+        // A civilization that has researched its tin or arsenical bronze but holds neither metal has all of that research
+        // Dormant. Opening the mine is its recovery, so it goes before exploring or levying (docs/MVP/28 §16 pacing note).
+        bool dormantRecoveryReady = HasDormantMetalRecoveryMine(politics, civ, _belief, _intent.Plan, _candidates, _forecasts);
+        bool dormantRecoveryLogged = false;
         int bestIndex = -1;
         Fix64 bestValue = Fix64.Zero;
         bool reserveLogged = false;
@@ -184,6 +188,18 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
                 Describe(candidate, forecast, gross, value, secureTinBonus, foundFrontierBonus)));
             // A zero-valued candidate should not consume Mandate or suppress another action.
             if (value <= Fix64.Zero) continue;
+            if (dormantRecoveryReady && DefersToDormantRecovery(candidate.Kind))
+            {
+                if (!dormantRecoveryLogged)
+                {
+                    dormantRecoveryLogged = true;
+                    _log.Add(new AiDecision((long)politics.Season * ResearchSystem.SeasonTicks, politics.Season, civ,
+                        "Strategist", "DecreeReserve", (int)candidate.Kind, (int)DecreeKind.Mine,
+                        Fix64.FromInt(mandate.Mandate(civ)),
+                        $"held Mandate for a Dormant tin/arsenical recovery mine; skipped {candidate.Kind}"));
+                }
+                continue;
+            }
             if (ShouldReserveFrontierFoundMandate(candidate, politics.DecreeCost(civ, candidate.Kind),
                     mandate.Mandate(civ), politics.DecreeCost(civ, DecreeKind.Found), frontierFoundOpportunity,
                     urgentDefense: defenseBonus > Fix64.Zero))
@@ -225,6 +241,31 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
         _log.Add(new AiDecision((long)politics.Season * ResearchSystem.SeasonTicks, politics.Season, civ,
             "Strategist", "Decree", (int)chosen.Kind, chosen.Target, bestValue,
             $"chosen; {Describe(chosen, chosenForecast, chosenGross, bestValue, chosenSecureTinBonus, chosenFoundFrontierBonus)}"));
+    }
+
+    /// <summary>The route decrees that give way to a Dormant recovery mine: exploring and levying a Tin Folk village.</summary>
+    internal static bool DefersToDormantRecovery(DecreeKind kind) => kind is DecreeKind.Expedition or DecreeKind.Levy;
+
+    /// <summary>
+    /// True when the civilization holds neither Tin nor Arsenic (so its Bronze research is Dormant or about to be) and an
+    /// allowed, positive-value Mine candidate on a believed Tin or arsenical-copper deposit is on the table. Candidate generation
+    /// already drops tiles the civilization works or has a camp on, so such a Mine opens a new source: the recovery action.
+    /// </summary>
+    internal static bool HasDormantMetalRecoveryMine(PoliticsSystem politics, int civ, Belief belief, GrandPlan plan,
+        IReadOnlyList<DecreeRequest> candidates, IReadOnlyList<DecreeForecast> forecasts)
+    {
+        LivingEconomyModel economy = politics.Economy;
+        if (economy.CivHasMetalAccess(civ, MetalAccessKind.Tin) || economy.CivHasMetalAccess(civ, MetalAccessKind.Arsenic)) return false;
+        for (int i = 0; i < candidates.Count && i < forecasts.Count; i++)
+        {
+            DecreeRequest candidate = candidates[i];
+            if (candidate.Kind != DecreeKind.Mine || !forecasts[i].Allowed ||
+                !belief.Map.TryTile(candidate.Target, out CivSim.Sim.World.WorldTile known) ||
+                known.Deposit is not (CivSim.Sim.World.DepositKind.Tin or CivSim.Sim.World.DepositKind.ArsenicalCopper)) continue;
+            Fix64 gross = ForecastBenefit(DecreeKind.Mine, forecasts[i]) + SecureTinBonus(plan, belief, candidate);
+            if (CandidateNetEv(forecasts[i], gross, Fix64.One) > Fix64.Zero) return true;
+        }
+        return false;
     }
 
     internal static bool ShouldPreferMandateSpender(bool atMandateCap, bool positivePaidAlternative, int candidateCost)
@@ -313,6 +354,9 @@ internal sealed class StrategistDecreePolicy : IDecreePolicy
                     CivSim.Sim.World.DepositKind.ArsenicalCopper => !arsenicalNeeded,
                     _ => true,
                 }) continue;
+            // A second Tin or arsenical mine is a real recovery; an order on a tile the civilization already works or
+            // has a camp on is only refused (AlreadyOpen, InRange) and would hold the season's one decree for nothing.
+            if (known.Deposit != CivSim.Sim.World.DepositKind.CopperOre && economy.MineTileAlreadyServed(civ, tile)) continue;
             var request = new DecreeRequest(DecreeKind.Mine, tile, 0);
             if (BeliefAllowsCandidate(belief, civ, request) && !Contains(candidates, request)) candidates.Add(request);
         }

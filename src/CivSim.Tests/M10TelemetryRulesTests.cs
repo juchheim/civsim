@@ -204,6 +204,25 @@ public sealed class M10TelemetryRulesTests
     }
 
     [Fact]
+    public void Dormant_option_is_answered_once_an_ore_source_of_its_kind_is_in_place()
+    {
+        static bool Unanswered(ProjectState met04, bool arsenicOption, bool arsenicSource, ProjectState met05, bool tinOption,
+            bool tinSource, bool anyAccess = false)
+            => M10TelemetryRules.IsUnansweredDormantOption(met04, arsenicOption, arsenicSource, met05, tinOption, tinSource, anyAccess);
+
+        Assert.True(Unanswered(ProjectState.Completed, false, false, ProjectState.Dormant, true, false));
+        Assert.True(Unanswered(ProjectState.Dormant, true, false, ProjectState.Hidden, false, false));
+        // A camp or in-range deposit of the option's kind means the recovery is under way.
+        Assert.False(Unanswered(ProjectState.Completed, false, false, ProjectState.Dormant, true, true));
+        Assert.False(Unanswered(ProjectState.Dormant, true, true, ProjectState.Hidden, false, false));
+        // An ore source of the other kind does not answer this option.
+        Assert.True(Unanswered(ProjectState.Completed, false, true, ProjectState.Dormant, true, false));
+        // No option, or any metal access, is not an unanswered option.
+        Assert.False(Unanswered(ProjectState.Completed, false, false, ProjectState.Dormant, false, false));
+        Assert.False(Unanswered(ProjectState.Completed, false, false, ProjectState.Dormant, true, false, anyAccess: true));
+    }
+
+    [Fact]
     public void Suicide_raid_threshold_is_strictly_below_thirty_percent()
     {
         var launch = new PoliticsEvent(10, 0, PoliticsEventKind.RaidLaunched, 1, 5, 9);
