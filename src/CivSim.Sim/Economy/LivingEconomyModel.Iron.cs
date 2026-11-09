@@ -695,8 +695,9 @@ public sealed partial class LivingEconomyModel
             }
             bool recentFissionDaughterCoverageGap = receiver.Fissions == 0 &&
                 season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
-            int projectedCoverageFloor = (receiverRecentToolWorkers + 1) * 7 / 10 +
-                ((receiverRecentToolWorkers + 1) * 7 % 10 == 0 ? 0 : 1);
+            int projectedToolWorkers = receiverRecentToolWorkers + 2;
+            int projectedCoverageFloor = projectedToolWorkers * 7 / 10 +
+                (projectedToolWorkers * 7 % 10 == 0 ? 0 : 1);
             int directCoverageTarget = Math.Min(receiverRecentToolWorkers, projectedCoverageFloor);
             bool receiverNeedsProjectedCoverage = coveredRecentToolWorkers < directCoverageTarget ||
                 (projectedCoverageFloor > receiverRecentToolWorkers && reserveFigure >= 0);
@@ -713,7 +714,7 @@ public sealed partial class LivingEconomyModel
             int recipientFigure = reserveFigure >= 0 ? reserveFigure :
                 hasServicePositiveIronHolder ? uncoveredToolWorker : -1;
             int directTransfersNeeded = Math.Max(0, directCoverageTarget - coveredRecentToolWorkers);
-            // Aim for the 70% floor after one more worker joins, while assigning all available
+            // Aim for the 70% floor after two more workers join, while assigning all available
             // current uncovered workers first. If that projected floor exceeds the current
             // cohort, keep one additional holder on an idle adult when one is available.
             int reboundBufferFigure = coverageTopUp && reserveFigure >= 0 &&

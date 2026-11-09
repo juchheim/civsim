@@ -217,8 +217,8 @@ internal static class FissionCohortSampler
         }
         if (!MeetsCurrentToolCoverage(selected, candidates)) return false;
         int totalHolders = daughterHolders + parentHolders;
-        (int parentNeed, int daughterNeed) = FissionHolderRequirements(candidates.Count, parentWorkers,
-            daughterWorkers, totalHolders);
+        (int parentNeed, int daughterNeed) = FissionHolderRequirements(candidates.Count - selected.Count(value => value),
+            parentWorkers, daughterWorkers, totalHolders);
         return parentHolders >= parentNeed && daughterHolders >= daughterNeed;
     }
 
@@ -232,12 +232,14 @@ internal static class FissionCohortSampler
         // Preserve a second parent reserve for wear and worker rebound; the fresh daughter keeps
         // current coverage and can top up through sister sharing. Without this asymmetry, the
         // daughter can take the parent's only replacement kit and leave the route below target.
-        // Compact fissions can leave a larger parent with a small but already-active Iron
-        // cohort. When that parent keeps one or two workers, bias the limited spare pool
-        // toward its rebound capacity and leave the fresh daughter at current coverage.
+        // Use the parent's post-split population here: the pre-split cohort can be over 24
+        // even when the remaining parent is compact. Compact fissions with a one- or
+        // two-worker cohort on either side bias limited spare holders toward parent rebound
+        // capacity and leave the fresh daughter at its current coverage floor.
         // Sister sharing can grow the daughter later; a late parent top-up can miss its
         // 12-season I-T2 endpoint entirely.
-        if (parentPopulation <= 24 && daughterWorkers is 1 or 2 && parentWorkers > 0 &&
+        if (parentPopulation <= 24 && parentWorkers > 0 && daughterWorkers > 0 &&
+            (daughterWorkers is 1 or 2 || parentWorkers is 1 or 2) &&
             totalHolders >= HolderNeed(parentWorkers, growthBuffer: 2) + HolderNeed(daughterWorkers, growthBuffer: 0))
         {
             int parentNeed = HolderNeed(parentWorkers, growthBuffer: 2);
@@ -312,8 +314,8 @@ internal static class FissionCohortSampler
             }
         }
         int totalHolders = daughterHolders + parentHolders;
-        (int parentNeed, int daughterNeed) = FissionHolderRequirements(candidates.Count, parentWorkers,
-            daughterWorkers, totalHolders);
+        (int parentNeed, int daughterNeed) = FissionHolderRequirements(candidates.Count - selected.Count(value => value),
+            parentWorkers, daughterWorkers, totalHolders);
         return System.Math.Max(0, daughterNeed - daughterHolders) +
             System.Math.Max(0, parentNeed - parentHolders);
     }

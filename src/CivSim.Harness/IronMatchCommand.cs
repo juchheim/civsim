@@ -45,6 +45,7 @@ internal static class IronMatchCommand
         public IT6FuelSiteSnapshot? End;
         public IT6FuelSiteSnapshot? FuelEnd;
         public bool HubChanged;
+        public bool FreeFolkObserved;
         public int EndSeason = -1;
     }
 
@@ -221,12 +222,14 @@ internal static class IronMatchCommand
                             Start = site,
                             FuelStartsBySite = seasonSites.Where(candidate => candidate.Civilization == site.Civilization)
                                 .ToDictionary(candidate => candidate.SettlementId),
+                            FreeFolkObserved = site.IsFreeFolk,
                         };
                         it2Routes.Add(site.SettlementId, route);
                     }
                     if (route is not null && route.End is null)
                     {
                         if (site.IronFuelHubId != route.HubId) route.HubChanged = true;
+                        route.FreeFolkObserved |= site.IsFreeFolk;
                         if (season >= route.StartSeason + 12)
                         {
                             route.End = site;
@@ -576,7 +579,8 @@ internal static class IronMatchCommand
             int ironWorkers = finish.T11ToolWorkers + finish.T12ToolWorkers;
             Fix64 coverage = workers > 0 ? Fix64.FromRatio(ironWorkers, workers) : Fix64.Zero;
             string result;
-            if (finish.Civilization != start.Civilization) result = "CENSORED captured/owner changed";
+            if (route.FreeFolkObserved) result = "CENSORED Free Folk outside civ kit network";
+            else if (finish.Civilization != start.Civilization) result = "CENSORED captured/owner changed";
             else if (route.UnlockSeason < 0) result = "CENSORED MET-09 not recorded";
             else if (route.HubChanged) result = "CENSORED assigned hub changed";
             else if (fuelEnd is null) result = "CENSORED fuel producer missing";

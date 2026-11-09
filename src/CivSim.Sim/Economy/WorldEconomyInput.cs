@@ -197,7 +197,7 @@ public sealed class WorldEconomyInput
                 (int)source.Biome, (int)source.Climate, soil, yearlyPlantYield * 2, springYield * Fix64.FromRatio(2, 5),
                 summerYield * Fix64.FromRatio(2, 5), autumnYield * Fix64.FromRatio(2, 5),
                 winterYield * Fix64.FromRatio(2, 5), herdInitial, herdGrowth,
-                wood, Fix64.FromInt(2), fishPerSeason * 2, fishPerSeason * 4, Fix64.FromInt(4) * soil,
+                wood, Fix64.FromInt(6), fishPerSeason * 2, fishPerSeason * 4, Fix64.FromInt(4) * soil,
                 fresh, source.Deposit == DepositKind.Clay,
                 source.Deposit is DepositKind.Stone or DepositKind.Flint,
                 source.Deposit == DepositKind.Flint,
