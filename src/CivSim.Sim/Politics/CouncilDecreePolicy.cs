@@ -105,12 +105,12 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
         bool proposedExpedition = false;
         if (direction == CivilizationDirection.Discovery && mandate >= cap)
         {
-            int expeditionCost = p.DecreeCost(civ, DecreeKind.Expedition);
-            int tile = expeditionCost <= mandate ? p.ChooseExpeditionTarget(civ) : -1;
+            int capExpeditionCost = p.DecreeCost(civ, DecreeKind.Expedition);
+            int tile = capExpeditionCost <= mandate ? p.ChooseExpeditionTarget(civ) : -1;
             if (tile >= 0)
             {
                 into.Add(new DecreeRequest(DecreeKind.Expedition, tile, 0));
-                mandate -= expeditionCost;
+                mandate -= capExpeditionCost;
                 proposedExpedition = true;
             }
         }

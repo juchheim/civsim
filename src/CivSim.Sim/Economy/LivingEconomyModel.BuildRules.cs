@@ -1,4 +1,5 @@
 using System;
+using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
