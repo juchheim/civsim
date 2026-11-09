@@ -27,7 +27,7 @@ public partial class Game
         public bool Open;
     }
 
-    private ModalView? _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal;
+    private ModalView? _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal, _directionModal;
     private bool _introPanelVisible, _helpOpen, _gameMenuOpen, _endScreenShown, _endScreenDismissed, _introDismissed;
     private UiPopover? _gameMenu;
     private UiLayer? _gameMenuLayer;
@@ -98,7 +98,7 @@ public partial class Game
 
     private void LayoutModals()
     {
-        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _eraModal, _newMatchModal })
+        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _eraModal, _newMatchModal, _directionModal })
         {
             if (view is null) continue;
             float w = Math.Min(view.Width, _logicalSize.X - 2 * Margin);
@@ -469,6 +469,7 @@ public partial class Game
         Row("Load game…", AskLoadQuickMatch, saveExists, saveExists ? null : "No save yet.", "F9");
         Row("Save replay", SaveLatestReplay, _session.CanSave);
         Row("Watch last replay", WatchLatestReplay, replayExists, replayExists ? null : "No replay yet.");
+        Row("Civilization direction…", ToggleCivilizationDirection, true, "Guide future autonomous research, construction and politics.");
         column.AddChild(UiKit.Divider());
         Row("Settings…", OpenSettings);
         Row("Help", () => ToggleHelp(true), true, null, "H");

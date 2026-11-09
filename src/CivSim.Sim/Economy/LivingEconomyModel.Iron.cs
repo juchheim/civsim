@@ -2236,6 +2236,20 @@ public sealed partial class LivingEconomyModel
     /// <summary>The first wanted structure kind in enum order (not <paramref name="skip"/>); kinds shelved fully worked and waiting on materials come last unless <paramref name="passShelved"/>.</summary>
     private int NextWantedIronKind(SettlementState s, MetalState m, int civ, int skip, bool passShelved)
     {
+        CivilizationDirection direction = Guidance?.DirectionOf(civ) ?? CivilizationDirection.Balanced;
+        if (direction != CivilizationDirection.Balanced)
+        {
+            int preferred = -1, bestPreference = 0;
+            for (int k = 0; k < (int)IronStructure.Count; k++)
+            {
+                if (k == skip || !IronKindOpen(s, m, civ, k, passShelved)) continue;
+                int preference = CivilizationGuidance.BuildPreference(direction, IronWorkId(k));
+                if (preference <= bestPreference) continue;
+                preferred = k;
+                bestPreference = preference;
+            }
+            if (preferred >= 0) return preferred;
+        }
         // Defense works are taken first (docs/MVP/28 §9): they are wanted only by a walled town (gatehouse) or a walled border town (castle, with the crane that halves
         // its labor), they are cheap or rare, and at the end of the enum order they were reached by 1 walled town in 20.
         foreach (IronStructure first in DefenseFirst)

@@ -1,5 +1,6 @@
 using System;
 using CivSim.Sim.Ai;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
@@ -234,6 +235,7 @@ public sealed partial class FrameBuilder
         target.TickInSeason = (int)(eco.Tick % LivingEconomyModel.SeasonTicks);
         target.LastWinterHarsh = eco.LastWinterWasHarsh;
         target.ViewerCiv = _viewer;
+        target.ViewerDirection = _omniscient ? CivilizationDirection.Balanced : match.Guidance.DirectionOf(_viewer);
         target.Width = _width;
         target.Height = _height;
         target.TotalFigures = eco.FigureCount;

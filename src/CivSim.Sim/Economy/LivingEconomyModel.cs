@@ -16,6 +16,8 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel : ISimModel
 {
+    /// <summary>The shared civilization directions, null for standalone economy fixtures that use Balanced defaults.</summary>
+    internal CivilizationGuidance? Guidance { get; set; }
     private static readonly Fix64 B28EstimatedWoodPerChopWork = Fix64.FromRatio(9, 5);
     internal bool ProactiveBronzeDefenseForDiagnostics { get; set; }
     private readonly List<int> _b28ProactiveDefenseSettlements = new();

@@ -1,5 +1,6 @@
 using System;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.View;
 using Godot;
 
@@ -16,7 +17,7 @@ public partial class Game
     private UiSeasonDial? _seasonDial;
     private UiLogoButton? _pauseLogo;
     private UiSegmented? _speedControl;
-    private UiButton? _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu;
+    private UiButton? _btnDecrees, _btnDiplomacy, _btnDirection, _btnChronicle, _btnMenu;
     private PanelContainer? _chronicleBadge;
     private Label? _chronicleBadgeLabel;
     private Control? _civDivider, _civAgeBlock, _civStatsBlock, _dateColumn;
@@ -148,6 +149,7 @@ public partial class Game
         var rightRow = UiKit.Row(UiTokens.Sp1);
         _btnDecrees = UiKit.Ghost("Decrees", () => ToggleDecrees(), "Mandate and civic orders", UiGlyph.Lock, UiTokens.ControlM);
         _btnDiplomacy = UiKit.Ghost("Diplomacy", () => ToggleDiplomacy(), "Your neighbours and your orders (O)", UiGlyph.Flags, UiTokens.ControlM);
+        _btnDirection = UiKit.Ghost("Direction", ToggleCivilizationDirection, "Set your civilization's direction", UiGlyph.CompassRose, UiTokens.ControlM);
         _btnChronicle = UiKit.Ghost("Chronicle", () => ToggleChronicle(), "Your people's story (C)", UiGlyph.Scroll, UiTokens.ControlM);
         _btnMenu = UiKit.Ghost("Menu", () => ToggleGameMenu(), "Save, load, replays and settings (Esc)", UiGlyph.Menu, UiTokens.ControlM);
         _chronicleBadge = UiKit.Panel("BadgePanel", null, UiKit.MouseFilter.Ignore);
@@ -161,6 +163,7 @@ public partial class Game
         _btnChronicle.AddChild(_chronicleBadge);
         rightRow.AddChild(_btnDecrees);
         rightRow.AddChild(_btnDiplomacy);
+        rightRow.AddChild(_btnDirection);
         rightRow.AddChild(_btnChronicle);
         rightRow.AddChild(_btnMenu);
         _topRight.AddChild(rightRow);
@@ -202,7 +205,7 @@ public partial class Game
         float civActual = Math.Max(civWidth, _civCard.GetCombinedMinimumSize().X);
         float leftRoom = half - (m + civActual) - UiTokens.Sp3;
         float labelled = TopRightLabelledWidth();
-        float iconOnly = 4 * UiTokens.ControlM + 3 * UiTokens.Sp1 + 2 * UiTokens.Sp3;
+        float iconOnly = 5 * UiTokens.ControlM + 4 * UiTokens.Sp1 + 2 * UiTokens.Sp3;
         _topRightIconsOnly = _compact || half - (m + labelled) - UiTokens.Sp3 < clusterChrome / 2f + wing;
         float rightRoom = half - (m + (_topRightIconsOnly ? iconOnly : labelled)) - UiTokens.Sp3;
         float maxWing = Math.Min(leftRoom, rightRoom) - clusterChrome / 2f;
@@ -221,11 +224,13 @@ public partial class Game
         if (HasArgument("--ui-debug"))
             GD.Print($"UIDEBUG topbar logical={_logicalSize} wing={wing} cluster={clusterWidth} leftRoom={leftRoom} rightRoom={rightRoom} iconsOnly={_topRightIconsOnly}");
 
-        foreach (UiButton? button in new[] { _btnDecrees, _btnDiplomacy, _btnChronicle, _btnMenu })
+        foreach (UiButton? button in new[] { _btnDecrees, _btnDiplomacy, _btnDirection, _btnChronicle, _btnMenu })
         {
             if (button is null) continue;
-            string label = button == _btnDecrees ? "Decrees" : button == _btnDiplomacy ? "Diplomacy" : button == _btnChronicle ? "Chronicle" : "Menu";
-            UiGlyph glyph = button == _btnDecrees ? DecreesGlyph : button == _btnDiplomacy ? UiGlyph.Flags : button == _btnChronicle ? UiGlyph.Scroll : UiGlyph.Menu;
+            string label = button == _btnDecrees ? "Decrees" : button == _btnDiplomacy ? "Diplomacy" :
+                button == _btnDirection ? "Direction" : button == _btnChronicle ? "Chronicle" : "Menu";
+            UiGlyph glyph = button == _btnDecrees ? DecreesGlyph : button == _btnDiplomacy ? UiGlyph.Flags :
+                button == _btnDirection ? UiGlyph.CompassRose : button == _btnChronicle ? UiGlyph.Scroll : UiGlyph.Menu;
             if (_topRightIconsOnly)
             {
                 button.Text = "";
@@ -263,8 +268,8 @@ public partial class Game
     /// <summary>Width of the top-right cluster with its text labels (Decrees, Diplomacy, Chronicle, Menu).</summary>
     private static float TopRightLabelledWidth()
     {
-        float width = 2 * UiTokens.Sp3 + 3 * UiTokens.Sp1;
-        foreach (string label in new[] { "Decrees", "Diplomacy", "Chronicle", "Menu" })
+        float width = 2 * UiTokens.Sp3 + 4 * UiTokens.Sp1;
+        foreach (string label in new[] { "Decrees", "Diplomacy", "Direction", "Chronicle", "Menu" })
             width += UiTheme.Medium.GetStringSize(label, HorizontalAlignment.Left, -1, UiTokens.FontBody).X + 2 * UiTokens.Sp3 + 16 + UiTokens.Sp1;
         return MathF.Ceiling(width);
     }
@@ -302,6 +307,7 @@ public partial class Game
         }
         _lastSeasonOfYear = frame.SeasonOfYear;
         _seasonDial!.Set(frame.SeasonOfYear & 3, frame.TickInSeason / 150.0f);
+        RefreshCivilizationDirectionUi(frame);
 
         bool replay = _session.IsReplay;
         if (_replayChip!.Visible != replay)

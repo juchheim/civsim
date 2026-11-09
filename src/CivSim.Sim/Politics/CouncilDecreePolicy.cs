@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.World;
 
@@ -45,6 +46,9 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
         if (mandate <= 0) return;
         int cap = r.MandateCap(civ);
         LivingEconomyModel eco = p.Economy;
+        CivilizationDirection direction = p.Guidance?.DirectionOf(civ) ?? CivilizationDirection.Balanced;
+        if (direction == CivilizationDirection.Growth) foundFill = Numerics.Fix64.FromRatio(60, 100);
+        else if (direction == CivilizationDirection.Prosperity) foundFill = Numerics.Fix64.FromRatio(80, 100);
 
         // 1. The ore the metal chain needs.
         int mineCost = p.DecreeCost(civ, DecreeKind.Mine);
@@ -98,7 +102,19 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
         int founded = p.DecreesDone(civ, DecreeKind.Found);
         int natural = p.E3Foundings(civ) - founded;
         bool proposedFound = false;
-        if (mandate >= cap && foundCost <= mandate && founded < MaxFoundsPerAge && natural >= founded + 1)
+        bool proposedExpedition = false;
+        if (direction == CivilizationDirection.Discovery && mandate >= cap)
+        {
+            int expeditionCost = p.DecreeCost(civ, DecreeKind.Expedition);
+            int tile = expeditionCost <= mandate ? p.ChooseExpeditionTarget(civ) : -1;
+            if (tile >= 0)
+            {
+                into.Add(new DecreeRequest(DecreeKind.Expedition, tile, 0));
+                mandate -= expeditionCost;
+                proposedExpedition = true;
+            }
+        }
+        if (!proposedExpedition && mandate >= cap && foundCost <= mandate && founded < MaxFoundsPerAge && natural >= founded + 1)
         {
             int tile = p.ChooseFoundSite(civ, foundFill);
             if (tile >= 0)
@@ -131,7 +147,7 @@ public sealed class CouncilDecreePolicy : IDecreePolicy
 
         // 5. Rather than sit at the cap: an Expedition where the most is unknown (deposits, Tin Folk, rivals).
         int expeditionCost = p.DecreeCost(civ, DecreeKind.Expedition);
-        if (!proposedFound && mandate >= cap && expeditionCost <= mandate)
+        if (!proposedFound && !proposedExpedition && mandate >= cap && expeditionCost <= mandate)
         {
             int tile = p.ChooseExpeditionTarget(civ);
             if (tile >= 0) into.Add(new DecreeRequest(DecreeKind.Expedition, tile, 0));

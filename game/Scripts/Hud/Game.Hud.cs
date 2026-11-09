@@ -118,6 +118,7 @@ public partial class Game
         foreach (Control? top in new Control?[] { _toastStack, _momentCard, _ageBanner, _coachCard, _hintPill, _tileCard })
             if (top is not null) _hudRoot.MoveChild(top, _hudRoot.GetChildCount() - 1);
         CreateModals(seed);
+        CreateCivilizationDirectionModal();
         CreateDevOverlay();
 
         DisplayServer.WindowSetMinSize(new Vector2I(1280, 720));
@@ -188,6 +189,7 @@ public partial class Game
             case "chronicle": ToggleChronicle(true); break;
             case "help": ToggleHelp(true); break;
             case "settings": OpenSettings(); break;
+            case "direction": ToggleCivilizationDirection(); break;
             case "menu": ToggleGameMenu(true); break;
             case "people": OpenPeoplePanel(); break;
             case "people-stores": OpenPeoplePanel(PeopleTab.Stores, int.MinValue); break;
@@ -287,6 +289,9 @@ public partial class Game
             case CommandKind.SetCouncil:
                 RefreshFocusBar(_current);
                 if (_researchWebVisible) RefreshResearchWeb(_current);
+                break;
+            case CommandKind.SetCivilizationDirection:
+                RefreshCivilizationDirectionUi(_current);
                 break;
             case CommandKind.QueueProject:
             case CommandKind.DequeueProject:

@@ -36,7 +36,9 @@ public sealed partial class PoliticsSystem
         for (int c = 0; c < _civs; c++)
             for (int o = 0; o < _civs; o++)
             {
-                if (c == o || _externalMind[c] || !_dip.Contacted(c, o)) continue;
+                // A human seat stays hands-on in Balanced. Choosing a direction opts the autonomous Civ Mind into
+                // future discretionary decisions; explicit commands still use the same order rules in every direction.
+                if (c == o || _externalMind[c] && DirectionOf(c) == CivilizationDirection.Balanced || !_dip.Contacted(c, o)) continue;
                 if (c < o) MaybeAlly(c, o);
                 if (_dip.Allied(c, o)) continue;
                 if (_dip.AtWar(c, o))
@@ -145,7 +147,8 @@ public sealed partial class PoliticsSystem
     {
         if (!_research.IsDone(c, _p.Trd01)) return false;
         int rel = _dip.Relations(c, o);
-        if (rel < Diplomacy.HostileBelow || rel > 60 || _season - _dip.LastGift(c, o) < GiftIntervalSeasons) return false;
+        int interval = DirectionOf(c) == CivilizationDirection.Prosperity ? GiftIntervalSeasons / 2 : GiftIntervalSeasons;
+        if (rel < Diplomacy.HostileBelow || rel > 60 || _season - _dip.LastGift(c, o) < interval) return false;
         if ((Posture)_posture[c] is Posture.Raid) return false;
         return TryGift(c, o);
     }
@@ -174,7 +177,8 @@ public sealed partial class PoliticsSystem
     private bool ConsiderBarter(int a, int b)
     {
         if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02)) return false;
-        if (_dip.Relations(a, b) <= 0 || _season - _dip.LastBarter(a, b) < BarterIntervalSeasons) return false;
+        int interval = DirectionOf(a) == CivilizationDirection.Prosperity ? BarterIntervalSeasons / 2 : BarterIntervalSeasons;
+        if (_dip.Relations(a, b) <= 0 || _season - _dip.LastBarter(a, b) < interval) return false;
         return TryBarter(a, b);
     }
 
@@ -227,9 +231,11 @@ public sealed partial class PoliticsSystem
         if (!_research.IsDone(c, _p.War02)) return false;
         Posture posture = (Posture)_posture[c];
         if (posture is Posture.Fortify or Posture.Prosper) return false;
+        CivilizationDirection direction = DirectionOf(c);
+        if (AvoidsDiscretionaryConflict(direction) && posture != Posture.Raid) return false;
         if (_dip.InTruce(c, o, _season) || _season - _dip.LastRaidBy(c, o) < RaidCooldownSeasons) return false;
         if (_pacts.Count > 0 && HasPact(c, o)) return false;
-        bool wants = posture == Posture.Raid || _dip.Relations(c, o) < Diplomacy.HostileBelow ||
+        bool wants = posture == Posture.Raid || direction == CivilizationDirection.Offensive || _dip.Relations(c, o) < Diplomacy.HostileBelow ||
                      (_archetypes[c] == EconomyArchetype.Warlord && Hungry(c) && _dip.Relations(c, o) < 10);
         if (!wants) return false;
         return LaunchRaid(c, o, forecast: true);
@@ -339,8 +345,10 @@ public sealed partial class PoliticsSystem
         if (!_research.IsDone(c, _p.War02)) return;
         Posture posture = (Posture)_posture[c];
         if (posture is Posture.Fortify or Posture.Prosper) return;
+        CivilizationDirection direction = DirectionOf(c);
+        if (AvoidsDiscretionaryConflict(direction) && posture != Posture.Raid) return;
         if (_dip.Relations(c, o) >= Diplomacy.HostileBelow) return;
-        if (posture != Posture.Raid && _archetypes[c] != EconomyArchetype.Warlord) return;
+        if (posture != Posture.Raid && direction != CivilizationDirection.Offensive && _archetypes[c] != EconomyArchetype.Warlord) return;
         // A war of conquest needs the field: one and a half times the rival's strength (13 §8.4).
         if (FieldStrength(c) < FieldStrength(o) * Fix64.FromRatio(15, 10)) return;
         _dip.DeclareWar(c, o);
@@ -351,7 +359,12 @@ public sealed partial class PoliticsSystem
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.WarDeclared, c, 1, 0));
     }
 
-    private bool ConsiderCampaign(int c, int o) => LaunchAssault(c, o, requireOdds: true);
+    private bool ConsiderCampaign(int c, int o)
+    {
+        CivilizationDirection direction = DirectionOf(c);
+        if (AvoidsDiscretionaryConflict(direction) && (Posture)_posture[c] != Posture.Raid) return false;
+        return LaunchAssault(c, o, requireOdds: true);
+    }
 
     /// <summary>
     /// Sends the field army against the rival's nearest settlement. With <paramref name="requireOdds"/> it goes only with 1.5
@@ -431,7 +444,9 @@ public sealed partial class PoliticsSystem
     {
         int since = _warSince[a * _civs + b];
         int age = _season - since;
-        bool weary = age >= 12 || _failedCampaigns[a * _civs + b] >= 2 || _failedCampaigns[b * _civs + a] >= 2;
+        CivilizationDirection direction = DirectionOf(a);
+        int peaceAfter = AvoidsDiscretionaryConflict(direction) ? 8 : 12;
+        bool weary = age >= peaceAfter || _failedCampaigns[a * _civs + b] >= 2 || _failedCampaigns[b * _civs + a] >= 2;
         if (!weary || age < 4) return;
         if (!TryEndWar(a, b)) return;
         _events.Add(new PoliticsEvent(_tick, (byte)a, PoliticsEventKind.PeaceMade, b, age, 0));
@@ -439,6 +454,12 @@ public sealed partial class PoliticsSystem
         _failedCampaigns[a * _civs + b] = 0;
         _failedCampaigns[b * _civs + a] = 0;
     }
+
+    private CivilizationDirection DirectionOf(int civ) => Guidance?.DirectionOf(civ) ?? CivilizationDirection.Balanced;
+
+    private static bool AvoidsDiscretionaryConflict(CivilizationDirection direction)
+        => direction is CivilizationDirection.Defensive or CivilizationDirection.Growth or
+            CivilizationDirection.Prosperity or CivilizationDirection.Discovery;
 
     /// <summary>Whether an assault between the pair is still traveling, investing, or holding an occupation.</summary>
     private bool HasUnresolvedAssault(int a, int b)

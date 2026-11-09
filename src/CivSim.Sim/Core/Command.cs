@@ -79,6 +79,8 @@ public enum CommandKind : ushort
     /// An order the rules refuse changes nothing.
     /// </summary>
     SetBuildFocus = 27,
+    /// <summary>A = <see cref="CivilizationDirection"/>; a persistent preference for future autonomous decisions.</summary>
+    SetCivilizationDirection = 28,
 }
 
 /// <summary>How an alerted settlement responds to an ordinary raid. Surprise always forces a normal fight.</summary>

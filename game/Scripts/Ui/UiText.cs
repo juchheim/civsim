@@ -317,6 +317,7 @@ public static class UiText
     public static string OrderNoun(int command) => command switch
     {
         (int)CivSim.Sim.Core.CommandKind.SetSlot => "Your research choice",
+        (int)CivSim.Sim.Core.CommandKind.SetCivilizationDirection => "Your civilization direction",
         (int)CivSim.Sim.Core.CommandKind.QueueProject => "Queueing",
         (int)CivSim.Sim.Core.CommandKind.SendGift => "Your gift",
         (int)CivSim.Sim.Core.CommandKind.SendBarter => "Your barter trip",

@@ -36,6 +36,8 @@ public sealed class MatchFrame
     public bool LastWinterHarsh;
     /// <summary>The civilization this frame is filtered for; -1 omniscient.</summary>
     public int ViewerCiv;
+    /// <summary>Private direction of the viewer's civilization; Balanced in omniscient/no-player frames.</summary>
+    public Core.CivilizationDirection ViewerDirection;
     public int Width, Height;
     /// <summary>All figures alive, seen or not (a debug and stats number; the HUD must not show it for rivals).</summary>
     public int TotalFigures;

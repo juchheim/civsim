@@ -32,6 +32,10 @@ public sealed class MatchModel : ISimModel
         Research = research;
         Source = source;
         Politics = politics;
+        Guidance = new CivilizationGuidance(economy.CivilizationCount);
+        economy.Guidance = Guidance;
+        research.Guidance = Guidance;
+        politics.Guidance = Guidance;
         source.FreeFolk = politics;
     }
 
@@ -42,6 +46,8 @@ public sealed class MatchModel : ISimModel
     public ResearchSystem Research { get; }
     public LivingEconomySource Source { get; }
     public PoliticsSystem Politics { get; }
+    /// <summary>Shared civilization directions used by autonomous research, construction and politics.</summary>
+    public CivilizationGuidance Guidance { get; }
     /// <summary>The AI civilizations' minds; null when every civilization is on the Council.</summary>
     public AiSystem? Ai { get; }
 
@@ -121,6 +127,8 @@ public sealed class MatchModel : ISimModel
 
     public void Step(long tick, ReadOnlySpan<Command> commands)
     {
+        // Direction changes are visible to all consumers in this same tick, including Council fills during research.
+        Guidance.Apply(commands);
         Research.Step(tick, commands);
         Ai?.AfterResearchStep(tick);
         Politics.Step(tick, commands);
@@ -152,6 +160,7 @@ public sealed class MatchModel : ISimModel
         Research.Hash(ref hasher);
         Politics.Hash(ref hasher);
         Ai?.Hash(ref hasher);
+        Guidance.Hash(ref hasher);
         return hasher.Finish();
     }
 
@@ -170,6 +179,7 @@ public sealed class MatchModel : ISimModel
             writer.Write(ModeTrailerVersion);
             writer.Write((byte)Rules.Mode);
         }
+        Guidance.WriteOptionalTrailer(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -183,5 +193,6 @@ public sealed class MatchModel : ISimModel
             if (reader.ReadUInt32() != ModeTrailerMagic || reader.ReadInt32() != ModeTrailerVersion || reader.ReadByte() != (byte)Rules.Mode)
                 throw new InvalidDataException("The snapshot was not written by an Iron-chapter match.");
         }
+        Guidance.ReadOptionalTrailer(reader);
     }
 }

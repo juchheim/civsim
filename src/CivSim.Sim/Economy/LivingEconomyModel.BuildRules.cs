@@ -164,10 +164,40 @@ public sealed partial class LivingEconomyModel
     {
         BasicCtx ctx = MakeBasicCtx(settlement, season);
         Structure focus = BasicFocusKind(settlement);
-        for (int rule = 0; rule < (int)BasicRule.Count; rule++)
+        // Foundation, housing and food-safety work always comes first.
+        for (int rule = 0; rule < FoundationRuleCount; rule++)
         {
-            // A player's focus goes in right after the foundation rules, and only if it is learned, allowed here and paid for.
-            if (rule == FoundationRuleCount && focus != Structure.Count && BasicFocusReady(settlement, focus, season)) return focus;
+            Structure kind = BasicRuleKind(rule);
+            if (!CanBuild(settlement.Civilization, kind)) continue;
+            if (!BasicRuleWanted(settlement, rule, ref ctx)) continue;
+            if (!BasicNeedsMet(settlement, kind, season)) continue;
+            return kind;
+        }
+
+        // A valid direct player focus retains priority over civilization direction.
+        if (focus != Structure.Count && BasicFocusReady(settlement, focus, season)) return focus;
+
+        CivilizationDirection direction = Guidance?.DirectionOf(settlement.Civilization) ?? CivilizationDirection.Balanced;
+        if (direction != CivilizationDirection.Balanced)
+        {
+            Structure preferred = Structure.Count;
+            int bestPreference = 0;
+            for (int rule = FoundationRuleCount; rule < (int)BasicRule.Count; rule++)
+            {
+                Structure kind = BasicRuleKind(rule);
+                if (!CanBuild(settlement.Civilization, kind) || !BasicRuleWanted(settlement, rule, ref ctx) ||
+                    !BasicNeedsMet(settlement, kind, season)) continue;
+                int preference = CivilizationGuidance.BuildPreference(direction, StructureId(kind));
+                if (preference <= bestPreference) continue;
+                preferred = kind;
+                bestPreference = preference;
+            }
+            if (preferred != Structure.Count) return preferred;
+        }
+
+        // No preferred candidate is ready; use the existing stable order as the fallback.
+        for (int rule = FoundationRuleCount; rule < (int)BasicRule.Count; rule++)
+        {
             Structure kind = BasicRuleKind(rule);
             if (!CanBuild(settlement.Civilization, kind)) continue;
             if (!BasicRuleWanted(settlement, rule, ref ctx)) continue;

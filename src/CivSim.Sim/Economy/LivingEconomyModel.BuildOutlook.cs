@@ -171,7 +171,11 @@ public sealed partial class LivingEconomyModel
 
     private void AddBasicItems(SettlementState s, int season, ref BasicCtx ctx, int focusCode, bool focusSkip, List<BuildItem> items)
     {
-        Structure pick = SelectBuildCandidate(s, season);
+        // A structure with invested work is sticky until it completes or becomes invalid; show the live target even if
+        // a newly selected civilization direction would prefer another one on the next planning decision.
+        Structure pick = s.BuildProgress > Fix64.Zero && s.BuildTarget != Structure.Count && CanBuild(s.Civilization, s.BuildTarget)
+            ? s.BuildTarget
+            : SelectBuildCandidate(s, season);
         var seen = new bool[BasicTrackKinds];
         for (int rule = 0; rule < (int)BasicRule.Count; rule++)
         {

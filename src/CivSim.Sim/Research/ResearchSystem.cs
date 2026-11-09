@@ -26,6 +26,8 @@ public readonly record struct ResearchCivSetup(int LeaningCraft, int LeaningKin,
 /// </summary>
 public sealed partial class ResearchSystem : IResearchView
 {
+    /// <summary>The shared civilization directions, null for standalone research fixtures that use Balanced defaults.</summary>
+    internal CivilizationGuidance? Guidance { get; set; }
     /// <summary>Insight, Know-how and slot progress advance every 10 ticks (docs/MVP/05 §3.2).</summary>
     public const int StepTicks = 10;
     public const int SeasonTicks = 150;

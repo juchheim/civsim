@@ -23,6 +23,9 @@ public static class PlayerCommands
 
     // ---- levers (PoliticsSystem.Step) ----
     public static Command SetPosture(long tick, int civ, Posture posture) => new(tick, (byte)civ, CommandKind.SetPosture, (int)posture, 0, 0);
+    /// <summary>Sets the civilization-wide preference used by future autonomous decisions.</summary>
+    public static Command SetCivilizationDirection(long tick, int civ, CivilizationDirection direction)
+        => new(tick, (byte)civ, CommandKind.SetCivilizationDirection, (int)direction, 0, 0);
     /// <summary>A Beacon on a tile; replace the nearest existing Beacon if at capacity when requested.</summary>
     public static Command PlaceBeacon(long tick, int civ, int tile, int width, bool replaceIfFull = false)
         => new(tick, (byte)civ, CommandKind.PlaceBeacon, tile % width, tile / width, replaceIfFull ? 1 : 0);

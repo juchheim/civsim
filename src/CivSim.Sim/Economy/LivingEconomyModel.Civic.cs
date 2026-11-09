@@ -610,6 +610,22 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private CivicBuild ChooseCivic(SettlementState s, CivicState c)
     {
+        CivilizationDirection direction = Guidance?.DirectionOf(s.Civilization) ?? CivilizationDirection.Balanced;
+        if (direction != CivilizationDirection.Balanced)
+        {
+            CivicBuild preferred = CivicBuild.None;
+            int bestPreference = 0;
+            foreach (CivicBuild b in CivicOrder)
+            {
+                if (!CivicGate(s, c, b, includeAppetite: true).Open || BuildFocusSkips(s, BuildTrack.Civic, (int)b) ||
+                    b == CivicBuild.Hall && s.Stores[(int)Good.Mudbrick] < Fix64.FromInt(120)) continue;
+                int preference = CivilizationGuidance.BuildPreference(direction, CivicStructureId(b));
+                if (preference <= bestPreference) continue;
+                preferred = b;
+                bestPreference = preference;
+            }
+            if (preferred != CivicBuild.None) return preferred;
+        }
         foreach (CivicBuild b in CivicOrder)
         {
             if (!CivicGate(s, c, b, includeAppetite: true).Open || BuildFocusSkips(s, BuildTrack.Civic, (int)b)) continue;

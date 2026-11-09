@@ -39,6 +39,12 @@ gets a gold frame and a light scrim. A new match starts paused ("opening hold") 
 the first research choice, then resumes when the research web closes. Orders given while
 paused show as *pending*.
 
+**Civilization direction.** The top-bar Direction control and game menu offer Balanced,
+Defensive, Offensive, Growth, Prosperity, and Discovery. A non-Balanced direction guides
+autonomous research (when Auto-fill is on), construction, Council decrees, and the Civ Mind;
+it also enables discretionary diplomacy and military decisions. Direct orders keep priority,
+and the control does not replace the separate Posture setting.
+
 **Menu.** Save, load, replay save/watch, settings (UI size 100/115/130 %, reduce
 motion, hints, tips, pause in web, pause on danger), help, new match and quit.
 Saves and the latest replay are stored under Godot's user-data directory in
@@ -76,7 +82,7 @@ phrased in plain English from the content pack (`Ui/UiText.cs`).
 Development captures (UI only; none of these touch simulation state):
 
 ```bash
-godot-mono --path game --resolution 1600x900 -- --screenshot=/tmp/civsim-ui.png [--ui-open=web|map|inspector-almost|replace|diplomacy|chronicle|help|settings|menu|end|intro]
+godot-mono --path game --resolution 1600x900 -- --screenshot=/tmp/civsim-ui.png [--ui-open=web|map|inspector-almost|replace|diplomacy|direction|chronicle|help|settings|menu|end|intro]
 godot-mono --path game --resolution 1280x720 -- --scenario=assign --shots=/tmp/civsim-shots   # scripted walk-through, one PNG per step
 ```
 

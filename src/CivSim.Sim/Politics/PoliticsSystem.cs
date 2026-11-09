@@ -193,6 +193,8 @@ public sealed class Occupation
 /// </summary>
 public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegistry, ITileOwnership, IFreeFolkStatus, IIronTradeSource
 {
+    /// <summary>The shared civilization directions, null for standalone politics fixtures that use Balanced defaults.</summary>
+    internal CivilizationGuidance? Guidance { get; set; }
     /// <summary>Optional output-only callback for resolved Found donor/child IDs; never consulted by simulation rules.</summary>
     internal Action<int, int, int>? FoundResolvedObserverForDiagnostics { get; set; }
     /// <summary>Optional output-only observer for combat casualties; never consulted by simulation rules.</summary>
