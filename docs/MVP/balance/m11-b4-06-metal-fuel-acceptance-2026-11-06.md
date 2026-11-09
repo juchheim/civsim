@@ -562,3 +562,42 @@ dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harn
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263381 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-regrowth6-acceptance-20263381-3400.txt
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263401 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-regrowth6-acceptance-20263401-3420.txt
 ```
+
+## v27 refitted-pacing acceptance result — block consumed
+
+The frozen v27 block `20263341–20263420` stopped at its first qualifying I-T2 failure, seed `20263362`, settlement s4, seasons `295–307`. Its endpoint had 3 of 5 actual toolworkers equipped (60%); the route began at 1/1. Fuel passed in the same window (0/29 short demand-seasons; 0.00/112.14 L unmet/planned). Transfers show two additional T11 holders arriving in season 307, just after the failed window endpoint. This was a worker-growth and delivery-timing miss.
+
+Six matches reached natural end before the shards were stopped: `20263341`, `20263342`, `20263361`, `20263362`, `20263381`, and `20263401`. They recorded **297 I-T2 passes, 1 failure, and 318 censored windows**. All **23/23 qualified I-T6 fuel cutoffs passed**; the maximum mature rolling work-share was **10.49%**. All **652/652 settlement-kit ledgers** were exact, forest/local-wood/world-kit ledgers reconciled with zero residuals, and there were no Iron-era-metal clearing crossings. The complete v27 block is consumed; next unused seed is `20263421`. Raw reports:
+
+- `/tmp/civsim-b406-regrowth6-acceptance-20263341-3360.txt`
+- `/tmp/civsim-b406-regrowth6-acceptance-20263361-3380.txt`
+- `/tmp/civsim-b406-regrowth6-acceptance-20263381-3400.txt`
+- `/tmp/civsim-b406-regrowth6-acceptance-20263401-3420.txt`
+
+## v28 two-worker rebound buffer and targeted regression screen
+
+Source commit `e432b94c8a88fb48ce62f3bfd5daf4cdbe69353d` projects the receiver's 70% coverage floor two recent toolworkers ahead instead of one, and preserves a spare holder where the projected floor exceeds the current cohort. This addresses s4's jump from one route worker to five: the v27 sharing pass delivered two kits at the window endpoint, while the two-worker buffer equips a fourth worker within the window.
+
+Eight fixed diagnostic matches completed naturally with the unchanged 367,538-byte pack and approved options: `20263362`, `20263304`, `20263181`, `20263183`, `20263202`, `20263223`, `20262102`, and `20261965`. The former s4 failure now ends at **4/5 (80%)**. The fixed-screen and former v18/v25 fission regressions have no qualifying I-T2 failures; the low-wood hotspot remains within the approved fuel cutoffs. Across all eight matches, I-T2 recorded **463 passes, 0 failures, and 376 censored windows**; all **31/31 qualified fuel cutoffs passed**; maximum mature rolling work-share was **10.09%**; all **895/895 settlement-kit ledgers** were exact; world/local material residuals were zero; and Iron-era-metal clearing crossings were zero. This is targeted diagnostic evidence, not acceptance.
+
+Raw reports:
+
+- `/tmp/civsim-b406-v28-target-20263362.txt`
+- `/tmp/civsim-b406-v28-target-20263304.txt`
+- `/tmp/civsim-b406-v28-target-20263181.txt`
+- `/tmp/civsim-b406-v28-target-20263183.txt`
+- `/tmp/civsim-b406-v28-target-20263202.txt`
+- `/tmp/civsim-b406-v28-target-20263223.txt`
+- `/tmp/civsim-b406-v28-target-20262102.txt`
+- `/tmp/civsim-b406-v28-target-20261965.txt`
+
+## v28 refitted-pacing acceptance freeze
+
+Freeze source commit `e432b94c8a88fb48ce62f3bfd5daf4cdbe69353d`, the unchanged content pack `/tmp/civsim-b406-acceptance-regrowth6.pack` (**367,538 bytes**, SHA-256 `9a943604fe9c0b61de7dbecf7ab206ff0d4d02e59ec1e0a14cd038724fff189d`), the approved I-T6 cutoffs (shortfall rate ≤5.00%, unmet/planned charcoal ≤1.00%, at least 12 positive planned-charcoal demand-seasons), and options `--minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving`. The fresh natural-match block is `20263421–20263500` (80 matches, four Warlord seats each), in four disjoint 20-seed shards. The 130-minute limit is a safety horizon; every match must end naturally. Preserve every raw report. Do not change source, pack, options, seed block or cutoffs after the first acceptance result. At the first qualifying I-T2 or I-T6 failure, stop every shard and consume the complete block. Censored windows are not passes. B4-06 remains open unless every match completes and every unchanged per-settlement I-T2 and per-civilization I-T6 gate passes. All earlier blocks, including `20263341–20263420`, remain consumed. The next unused natural-match seed after this block is `20263501`.
+
+```sh
+dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263421 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v28-acceptance-20263421-3440.txt
+dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263441 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v28-acceptance-20263441-3460.txt
+dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263461 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v28-acceptance-20263461-3480.txt
+dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263481 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v28-acceptance-20263481-3500.txt
+```
