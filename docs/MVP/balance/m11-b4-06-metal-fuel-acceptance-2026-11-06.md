@@ -601,3 +601,14 @@ dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harn
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263461 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v28-acceptance-20263461-3480.txt
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263481 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-v28-acceptance-20263481-3500.txt
 ```
+
+## v28 two-worker buffer acceptance result — block consumed
+
+The frozen block `20263421–20263500` stopped at its first qualifying failure, seed `20263465`, settlement s66, seasons `361–373`. The endpoint had 1 of 3 actual toolworkers equipped (33.33%); the route began at 1/3. Fuel passed (`0/12` short demand-seasons; `0.00/2.62 L` unmet/planned). During the window s66 produced 1.77 T12 kits, issued one, retired one worn holder, received no kits, and ended with 0.77 T12 in stock. Its population was four. This is a local kit-replenishment miss at a tiny settlement; the two-worker coverage buffer cannot help when no donor delivery reaches it. Whether a broader same-civilization delivery range can supply a donor remains to be tested.
+
+Nineteen matches reached natural end before the four shards were interrupted. Partial totals are **865 I-T2 passes, 1 failure, and 1,102 censored windows**. All **70/70 qualified I-T6 fuel cutoffs passed**; maximum mature rolling work-share was **10.57%**. All **2,125/2,125 settlement-kit ledgers** were exact; forest, local-wood, and world-kit ledgers reconciled with zero residuals; there were **zero Iron-era-metal clearing crossings**. The full v28 block is consumed by the failure; next unused seed is `20263501`. Preserve the interrupted shard reports:
+
+- `/tmp/civsim-b406-v28-acceptance-20263421-3440.txt`
+- `/tmp/civsim-b406-v28-acceptance-20263441-3460.txt`
+- `/tmp/civsim-b406-v28-acceptance-20263461-3480.txt`
+- `/tmp/civsim-b406-v28-acceptance-20263481-3500.txt`
