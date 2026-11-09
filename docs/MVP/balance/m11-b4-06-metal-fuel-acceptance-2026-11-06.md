@@ -526,3 +526,14 @@ dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harn
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263301 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-regrowth6-acceptance-20263301-3320.txt
 dotnet /Users/ejuchheim/.codex/worktrees/b406-after-refit/CivSim/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll iron-match --pack /tmp/civsim-b406-acceptance-regrowth6.pack --seed 20263321 --seeds 20 --minutes 130 --it6-accounting --iron-hub-fuel-sharing --iron-fuel-reach-buffer 36 --iron-fission-coverage-preserving > /tmp/civsim-b406-regrowth6-acceptance-20263321-3340.txt
 ```
+
+## v26 refitted-pacing acceptance result — block consumed
+
+The frozen `20263261–20263340` block was stopped at its first qualifying failure, as preregistered. Sixteen matches completed naturally (four from each shard); seed `20263304` failed I-T2 at settlement s51 in seasons `312–324`: its endpoint had 2 of 3 actual toolworkers equipped (66.67%). The route began at 1/4. The trace shows s51 received five T11 kits and sent four, with holder transfers from sisters s15 and s29; it made and issued no kits locally and ended with two T11 holders and no T11 stock. During the same window, s51 split to daughter s88 at season 323; the fission sample preserved coverage for the parent and daughter cohorts at that point. The route-window failure is therefore a later endpoint coverage miss, not an I-T6 fuel miss. Keep the I-T2 requirement unchanged.
+
+Across the 16 natural matches, I-T2 recorded **801 passes, 1 failure, and 845 censored windows**. All **56/56 qualified I-T6 fuel cutoffs passed**; the maximum mature rolling work-share was **9.58%**. Forest, local-wood and world-kit residuals were zero in every match; there were no Iron-era-metal clearing crossings; and all **1,812/1,812 settlement-kit ledgers** were exact. The failure consumes the full frozen block `20263261–20263340`; the next unused seed is `20263341`. B4-06 remains open pending an I-T2 fix and a fresh acceptance block. Raw reports:
+
+- `/tmp/civsim-b406-regrowth6-acceptance-20263261-3280.txt`
+- `/tmp/civsim-b406-regrowth6-acceptance-20263281-3300.txt`
+- `/tmp/civsim-b406-regrowth6-acceptance-20263301-3320.txt`
+- `/tmp/civsim-b406-regrowth6-acceptance-20263321-3340.txt`
