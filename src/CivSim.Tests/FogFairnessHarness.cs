@@ -31,15 +31,26 @@ public static class FogFairnessHarness
         CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Grower), CivControl.Council,
     };
 
-    public static MatchModel NewMatch(CivControl[] controls) => MatchModel.Create(Seed, TestPack.Pack, World, Balanced, controls);
+    private static readonly System.Collections.Generic.Dictionary<ulong, GeneratedWorld> OtherWorlds = new();
+    private static GeneratedWorld WorldOf(ulong seed)
+    {
+        if (seed == Seed) return World;
+        lock (OtherWorlds)
+        {
+            if (!OtherWorlds.TryGetValue(seed, out GeneratedWorld? world)) OtherWorlds[seed] = world = WorldGenerator.Generate(seed);
+            return world;
+        }
+    }
+
+    public static MatchModel NewMatch(CivControl[] controls, ulong seed = Seed) => MatchModel.Create(seed, TestPack.Pack, WorldOf(seed), Balanced, controls);
 
     /// <summary>An exact copy of a match through its snapshot (the copy's checksum equals the source's).</summary>
-    public static MatchModel Clone(MatchModel source, CivControl[] controls)
+    public static MatchModel Clone(MatchModel source, CivControl[] controls, ulong seed = Seed)
     {
         using var stream = new MemoryStream();
         using (var w = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) source.WriteSnapshot(w);
         stream.Position = 0;
-        MatchModel copy = NewMatch(controls);
+        MatchModel copy = NewMatch(controls, seed);
         using (var r = new BinaryReader(stream)) copy.ReadSnapshot(r);
         return copy;
     }

@@ -86,7 +86,10 @@ public class FogFairnessTests
     public void Bronze_unseen_compact_caravan_and_mandate_changes_do_not_change_the_observers_choices()
     {
         CivControl[] controls = FogFairnessHarness.DefaultControls();
-        MatchModel match = FogFairnessHarness.NewMatch(controls);
+        // Seed 20261019 no longer fits: with the slower E0-E3 pacing (docs/MVP/28 §16) every rival's force is inside the observer's sight by the time its Mandate
+        // unlocks (season ~220), so there is no hidden force to perturb. Seed 20261021 still has rivals out of sight at its checkpoint (season ~247).
+        const ulong bronzeSeed = 20261021;
+        MatchModel match = FogFairnessHarness.NewMatch(controls, bronzeSeed);
         var runner = new SimRunner(match);
 
         // Wait for the observer and a rival to enter E3. Stop one tick before the season boundary,
@@ -116,8 +119,8 @@ public class FogFairnessTests
         // Perturb only hidden route ownership, rival-to-rival Relations, and a hidden rival's actual fighter force,
         // alongside an unseen compact/caravan and Mandate change. Compare the planner output before advancing too,
         // so a candidate filter cannot silently consult those live values.
-        MatchModel a = FogFairnessHarness.Clone(match, controls);
-        MatchModel b = FogFairnessHarness.Clone(match, controls);
+        MatchModel a = FogFairnessHarness.Clone(match, controls, bronzeSeed);
+        MatchModel b = FogFairnessHarness.Clone(match, controls, bronzeSeed);
         EnsureCompactMandate(a, Observer);
         EnsureCompactMandate(b, Observer);
         ClearTinBuyCompacts(a, Observer);
