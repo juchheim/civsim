@@ -1790,9 +1790,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 woodTarget = proactivePalisade
             ? ProactivePalisadeWoodTarget(settlement, season, metalPlan is not null)
             : metalPlan is not null ? fuelTarget : SeasonalFuelReserveTarget(settlement, season);
-        // A player's build focus that is short of wood asks the woodcutters for it on top of the fuel the town keeps (docs/MVP/30); zero without a focus.
+        // Build procurement is separate from build-slot selection: a wanted structure can ask for timber before it is affordable,
+        // while foundation ordering and the affordability gate still decide what is actually built.
+        Fix64 buildWoodNeed = BasicBuildWoodProcurementNeed(settlement, season);
+        // A player's build focus and the autonomous planner both ask for timber on top of the fuel buffer.
         Fix64 focusWoodNeed = BuildFocusWoodNeed(settlement, season);
-        woodTarget += focusWoodNeed;
+        Fix64 constructionWoodNeed = Fix64.Max(buildWoodNeed, focusWoodNeed);
+        woodTarget += constructionWoodNeed;
         Fix64 woodStock = settlement.Stores[(int)Good.Wood];
         bool proactiveWoodShortfall = proactivePalisade && woodStock < woodTarget;
         Fix64 ordinaryMaterialWork = B28MaterialWork(totalWork, foodWork, ordinaryBuildWork, proactive: false);
@@ -1843,9 +1847,18 @@ public sealed partial class LivingEconomyModel : ISimModel
         // Reserve Chop work for the hearth fuel buffer and Bronze wood needs. The ordinary
         // and proactive paths use the traced effective yield (~1.8 L/work); metal-plan estimates stay unchanged.
         Fix64 woodShortWork = Fix64.Zero;
-        // With a focus short of wood, all of the material work may go to the axe, not just half of it (the lever of docs/MVP/30; unchanged without a focus).
+        bool constructionWoodShortfall = constructionWoodNeed > Fix64.Zero;
+        // A small timber quota must take only its own fraction of a worker; the balance remains available for gathering or craft.
         woodShortWork = B28WoodShortWork(materialWork, settlement.Stores[(int)Good.Wood], woodTarget,
-            metalPlan is not null, proactivePalisade || focusWoodNeed > Fix64.Zero, seasonalFuelReserve: metalPlan is null && !proactivePalisade);
+            metalPlan is not null, proactivePalisade, seasonalFuelReserve: metalPlan is null && !proactivePalisade,
+            constructionWoodShortfall: constructionWoodShortfall);
+        if (!HasResourceInRange(settlement, _woodStock)) woodShortWork = Fix64.Zero;
+        bool gatherDemand = HasGatherableMaterialDemand(settlement);
+        bool craftToolDemand = HasCraftableToolDemand(settlement);
+        // When the town can also gather inputs or replace tools, keep half of the material budget moving those chains.
+        // An isolated construction-wood gap can still use the full share and clear more quickly.
+        if (constructionWoodShortfall && (gatherDemand || craftToolDemand))
+            woodShortWork = Fix64.Min(woodShortWork, materialWork * Fix64.Half);
         if (_b28PreparedDefenseLedgers.TryGetValue(settlement.Id, out B28PreparedDefenseLedger? preparedWork))
         {
             preparedWork.Food = foodWork;
@@ -1951,18 +1964,54 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (available > Fix64.Zero && materialRemaining > Fix64.Zero)
             {
                 Fix64 amount = Fix64.Min(available, materialRemaining);
-                // Keyed on the figure's own id, not its place in the global list, so deaths elsewhere cannot reshuffle this civilization's jobs (the fog-fairness rule, docs/MVP/15 D10).
-                long rotation = figure.Id % 3;
-                EconomyJob job = rotation == 0 ? EconomyJob.Craft : rotation == 1 ? EconomyJob.Chop : EconomyJob.Gather;
-                // Fuel-targeted woodcutters go first while stores are short of the hearth and kiln reserve.
-                if (woodShortWork > Fix64.Zero && job != EconomyJob.Chop) job = EconomyJob.Chop;
-                if (job == EconomyJob.Chop) woodShortWork -= Fix64.Min(woodShortWork, amount);
-                Assign(figure, job, amount);
-                if (job == EconomyJob.Chop) chopWork += amount;
-                else if (job == EconomyJob.Gather) gatherWork += amount;
-                else craftWork += amount;
-                if (job == EconomyJob.Chop) actionWork[i, (int)SkillFamily.Chop] += amount;
-                else if (job == EconomyJob.Gather) actionWork[i, (int)SkillFamily.Gather] += amount;
+                // Figure IDs keep attribution stable, but rotate the residual worker's fallback job each season so a small
+                // settlement cannot permanently omit gathering or crafting. A wood quota is consumed only by the exact
+                // fraction it needs; excess labor on that same worker still enters the fallback pool.
+                Fix64 chopAmount = Fix64.Min(woodShortWork, amount);
+                if (chopAmount > Fix64.Zero)
+                {
+                    Assign(figure, EconomyJob.Chop, chopAmount);
+                    chopWork += chopAmount;
+                    actionWork[i, (int)SkillFamily.Chop] += chopAmount;
+                    woodShortWork -= chopAmount;
+                }
+                Fix64 fallbackAmount = amount - chopAmount;
+                if (fallbackAmount > Fix64.Zero)
+                {
+                    Fix64 gatherAmount = Fix64.Zero;
+                    Fix64 craftAmount = Fix64.Zero;
+                    if (gatherDemand && craftToolDemand)
+                    {
+                        gatherAmount = fallbackAmount * Fix64.Half;
+                        craftAmount = fallbackAmount - gatherAmount;
+                    }
+                    else if (gatherDemand) gatherAmount = fallbackAmount;
+                    else if (craftToolDemand) craftAmount = fallbackAmount;
+                    else
+                    {
+                        // When no concrete demand is visible, deterministic seasonal rotation prevents permanent job lock-in.
+                        long rotation = ((figure.Id % 3) + (season % 3) + (settlement.Id % 3)) % 3;
+                        if (rotation == 0) craftAmount = fallbackAmount;
+                        else if (rotation == 1)
+                        {
+                            Assign(figure, EconomyJob.Chop, fallbackAmount);
+                            chopWork += fallbackAmount;
+                            actionWork[i, (int)SkillFamily.Chop] += fallbackAmount;
+                        }
+                        else gatherAmount = fallbackAmount;
+                    }
+                    if (gatherAmount > Fix64.Zero)
+                    {
+                        Assign(figure, EconomyJob.Gather, gatherAmount);
+                        gatherWork += gatherAmount;
+                        actionWork[i, (int)SkillFamily.Gather] += gatherAmount;
+                    }
+                    if (craftAmount > Fix64.Zero)
+                    {
+                        Assign(figure, EconomyJob.Craft, craftAmount);
+                        craftWork += craftAmount;
+                    }
+                }
                 if (toolWork is not null) toolWork[i] += amount;
                 available -= amount;
                 materialRemaining -= amount;
@@ -2018,7 +2067,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 forageStockBeforeHarvest = FoodWorkAttributionTraceEnabled ? ReachableForageStock(settlement) : Fix64.Zero;
         Fix64 foodBeforeForage = FoodStores(settlement);
         Fix64 foraged = Harvest(settlement, EconomyJob.Forage, productiveForageWork, forageRate * forageMod, Good.Plant, _forageStock, 1);
-        WearActionTool(settlement, "forage", appliedForageWork, forageRate * forageMod);
+        WearActionTool(settlement, "forage", appliedForageWork, Fix64.Parse("3.2"), forageMod);
         PracticeSkill(actionWork, SkillFamily.Forage);
         ReclassifyForage(settlement, foraged, season % 4);
         RecordAction(settlement, ActionForage, forageWork, appliedForageWork, productiveForageWork * forageRate * forageMod, foraged,
@@ -2057,7 +2106,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         else if (huntWork > Fix64.Zero)
             Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2, Fix64.Zero);
-        WearActionTool(settlement, "hunt", appliedHuntWork, rate, huntersAssigned);
+        WearActionTool(settlement, "hunt", appliedHuntWork, huntBase, Fix64.One, huntersAssigned);
         PracticeSkill(actionWork, SkillFamily.Hunt);
         RecordAction(settlement, ActionHunt, huntWork, appliedHuntWork, productiveHuntWork * rate, huntedUnits,
             FoodStores(settlement) - foodBeforeHunt);
@@ -2114,7 +2163,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                     Fix64.Min(SkillWeightedWork(actionWork, SkillFamily.Chop) * chopRate, WoodChopLimit(settlement, metalPlan) + E3FuelNeed(settlement, season % 4 == 3))));
             else
                 Harvest(settlement, EconomyJob.Chop, SkillWeightedWork(actionWork, SkillFamily.Chop), chopRate, Good.Wood, _woodStock, 4);
-            WearActionTool(settlement, "chop", appliedChopWork, chopRate);
+            WearActionTool(settlement, "chop", appliedChopWork, Fix64.FromInt(2), Modifier(settlement.Civilization, "wood_yield"));
             PracticeSkill(actionWork, SkillFamily.Chop);
         }
         Fix64 choppedWood = Fix64.Max(Fix64.Zero, settlement.Stores[(int)Good.Wood] - woodBeforeChop);
@@ -2123,6 +2172,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             Fix64 gatherUsed = GatherMaterials(settlement, gatherWork, SkillWeightedWork(actionWork, SkillFamily.Gather));
             ScaleSkillWork(actionWork, SkillFamily.Gather, gatherWork, gatherUsed);
+            // If the requested raw inputs were fulfilled or unavailable, give the unused share to the craft bucket.
+            // Crafting has no skill attribution, so this can be redirected without changing figure-level skill state.
+            craftWork += Fix64.Max(Fix64.Zero, gatherWork - gatherUsed);
             PracticeSkill(actionWork, SkillFamily.Gather);
         }
         Fix64 craftLeft = Fix64.Zero;
@@ -2658,7 +2710,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 if (remainingWork <= Fix64.Zero) break;
             }
         }
-        WearActionTool(settlement, "fish", physicalWork, rate);
+        WearActionTool(settlement, "fish", physicalWork, Fix64.One);
         return harvested;
     }
 
@@ -2741,6 +2793,22 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (work <= Fix64.Zero) return Fix64.Zero;
         Fix64 remaining = work;
         int civ = settlement.Civilization;
+        // Working tools keep the settlement's other production productive, so maintain them before optional equipment and stockpiles.
+        if (HasProject(civ, "STN-08"))
+            MakeGoods(settlement, ref remaining, Good.Tool7, Fix64.Parse("0.3"), Good.Stone, Fix64.Parse("0.4"), targetStock: Fix64.FromInt(2));
+        if (HasProject(civ, "STN-06"))
+            MakeGoods(settlement, ref remaining, Good.Tool6, Fix64.Parse("0.09"), Good.Flint, Fix64.Parse("0.2"), Good.Wood, Fix64.Parse("0.1"), Fix64.FromInt(2));
+        if (HasProject(civ, "STN-05"))
+            MakeGoods(settlement, ref remaining, Good.Tool5, Fix64.Parse("0.07"), Good.Flint, Fix64.Parse("0.25"), targetStock: Fix64.FromInt(2));
+        if (HasProject(civ, "STN-04"))
+            MakeGoods(settlement, ref remaining, Good.Tool4, Fix64.Parse("0.12"), Good.Stone, Fix64.Parse("0.3"), Good.Wood, Fix64.Parse("0.1"), Fix64.FromInt(2));
+        if (HasProject(civ, "STN-03"))
+            MakeGoods(settlement, ref remaining, Good.Tool3, Fix64.Parse("0.08"), Good.Stone, Fix64.Parse("0.28"), targetStock: Fix64.FromInt(2));
+        if (HasProject(civ, "STN-02"))
+            MakeGoods(settlement, ref remaining, Good.Tool2, Fix64.Parse("0.08"), Good.Stone, Fix64.Parse("0.4"), targetStock: Fix64.FromInt(2));
+        if (HasProject(civ, "STN-01"))
+            MakeGoods(settlement, ref remaining, Good.Tool1, Fix64.Parse("0.05"), Good.Stone, Fix64.Parse("0.3"), targetStock: Fix64.FromInt(2));
+
         if (HasProject(civ, "FOR-07"))
             MakeGoods(settlement, ref remaining, Good.Sapling, Fix64.Parse("0.1"), Good.Wood,
                 Fix64.Parse("0.1"), targetStock: Fix64.One);
@@ -2784,21 +2852,6 @@ public sealed partial class LivingEconomyModel : ISimModel
             MakeGoods(settlement, ref remaining, Good.Leather, Fix64.Parse("0.2"), Good.Hide, Fix64.One, targetStock: Fix64.FromInt(6));
         if (HasProject(civ, "FIB-04"))
             MakeGoods(settlement, ref remaining, Good.Tailored, Fix64.Parse("0.3"), Good.Leather, Fix64.FromInt(3), Good.Bone, Fix64.Parse("0.3"), Fix64.One);
-
-        if (HasProject(civ, "STN-08"))
-            MakeGoods(settlement, ref remaining, Good.Tool7, Fix64.Parse("0.3"), Good.Stone, Fix64.Parse("0.4"), targetStock: Fix64.FromInt(2));
-        if (HasProject(civ, "STN-06"))
-            MakeGoods(settlement, ref remaining, Good.Tool6, Fix64.Parse("0.09"), Good.Flint, Fix64.Parse("0.2"), Good.Wood, Fix64.Parse("0.1"), Fix64.FromInt(2));
-        if (HasProject(civ, "STN-05"))
-            MakeGoods(settlement, ref remaining, Good.Tool5, Fix64.Parse("0.07"), Good.Flint, Fix64.Parse("0.25"), targetStock: Fix64.FromInt(2));
-        if (HasProject(civ, "STN-04"))
-            MakeGoods(settlement, ref remaining, Good.Tool4, Fix64.Parse("0.12"), Good.Stone, Fix64.Parse("0.3"), Good.Wood, Fix64.Parse("0.1"), Fix64.FromInt(2));
-        if (HasProject(civ, "STN-03"))
-            MakeGoods(settlement, ref remaining, Good.Tool3, Fix64.Parse("0.08"), Good.Stone, Fix64.Parse("0.28"), targetStock: Fix64.FromInt(2));
-        if (HasProject(civ, "STN-02"))
-            MakeGoods(settlement, ref remaining, Good.Tool2, Fix64.Parse("0.08"), Good.Stone, Fix64.Parse("0.4"), targetStock: Fix64.FromInt(2));
-        if (HasProject(civ, "STN-01"))
-            MakeGoods(settlement, ref remaining, Good.Tool1, Fix64.Parse("0.05"), Good.Stone, Fix64.Parse("0.3"), targetStock: Fix64.FromInt(2));
 
         if (HasProject(civ, "BLD-05") && remaining > Fix64.Zero)
         {
@@ -2860,13 +2913,63 @@ public sealed partial class LivingEconomyModel : ISimModel
         work -= batch * workPerUnit;
     }
 
+    /// <summary>Whether gathering can satisfy a live construction input or a missing tool's immediate raw-material input.</summary>
+    private bool HasGatherableMaterialDemand(SettlementState settlement)
+    {
+        int civ = settlement.Civilization;
+        BasicCtx ctx = MakeBasicCtx(settlement, checked((int)_seasonsCompleted));
+        for (int rule = 0; rule < (int)BasicRule.Count; rule++)
+        {
+            Structure kind = BasicRuleKind(rule);
+            if (!BasicGate(settlement, kind).Open || !BasicRuleWanted(settlement, rule, ref ctx)) continue;
+            int count = BasicNeeds(settlement, kind, checked((int)_seasonsCompleted), out BuildNeed first, out BuildNeed second);
+            if (GatherableBasicNeed(settlement, first)) return true;
+            if (count > 1 && GatherableBasicNeed(settlement, second)) return true;
+        }
+
+        if (HasProject(civ, "STN-08") && settlement.Stores[(int)Good.Tool7] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Stone] < Fix64.Parse("0.4") && HasResourceInRange(settlement, _stoneStock)) return true;
+        if (HasProject(civ, "STN-06") && HasProject(civ, "MIN-01") && settlement.Stores[(int)Good.Tool6] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Flint] < Fix64.Parse("0.2") && HasResourceInRange(settlement, _flintStock)) return true;
+        if (HasProject(civ, "STN-05") && HasProject(civ, "MIN-01") && settlement.Stores[(int)Good.Tool5] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Flint] < Fix64.Parse("0.25") && HasResourceInRange(settlement, _flintStock)) return true;
+        if (HasProject(civ, "STN-04") && settlement.Stores[(int)Good.Tool4] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Stone] < Fix64.Parse("0.3") && HasResourceInRange(settlement, _stoneStock)) return true;
+        if (HasProject(civ, "STN-03") && settlement.Stores[(int)Good.Tool3] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Stone] < Fix64.Parse("0.28") && HasResourceInRange(settlement, _stoneStock)) return true;
+        if (HasProject(civ, "STN-02") && settlement.Stores[(int)Good.Tool2] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Stone] < Fix64.Parse("0.4") && HasResourceInRange(settlement, _stoneStock)) return true;
+        return HasProject(civ, "STN-01") && settlement.Stores[(int)Good.Tool1] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Stone] < Fix64.Parse("0.3") && HasResourceInRange(settlement, _stoneStock);
+    }
+
+    private bool GatherableBasicNeed(SettlementState settlement, BuildNeed need)
+    {
+        if (!need.Short || need.Slot < 0) return false;
+        return (need.Slot == (int)Good.Stone && HasResourceInRange(settlement, _stoneStock)) ||
+            (need.Slot == (int)Good.Clay && (HasProject(settlement.Civilization, "CER-01") || HasProject(settlement.Civilization, "BLD-05")) &&
+             HasResourceInRange(settlement, _clayStock));
+    }
+
+    /// <summary>Whether the craft step has enough input to replace a missing basic tool in the near term.</summary>
+    private bool HasCraftableToolDemand(SettlementState settlement)
+    {
+        int civ = settlement.Civilization;
+        Fix64 wood = settlement.Stores[(int)Good.Wood], stone = settlement.Stores[(int)Good.Stone], flint = settlement.Stores[(int)Good.Flint];
+        if (HasProject(civ, "STN-08") && settlement.Stores[(int)Good.Tool7] < Fix64.FromInt(2) && stone >= Fix64.Parse("0.4")) return true;
+        if (HasProject(civ, "STN-06") && settlement.Stores[(int)Good.Tool6] < Fix64.FromInt(2) && flint >= Fix64.Parse("0.2") && wood >= Fix64.Parse("0.1")) return true;
+        if (HasProject(civ, "STN-05") && settlement.Stores[(int)Good.Tool5] < Fix64.FromInt(2) && flint >= Fix64.Parse("0.25")) return true;
+        if (HasProject(civ, "STN-04") && settlement.Stores[(int)Good.Tool4] < Fix64.FromInt(2) && stone >= Fix64.Parse("0.3") && wood >= Fix64.Parse("0.1")) return true;
+        if (HasProject(civ, "STN-03") && settlement.Stores[(int)Good.Tool3] < Fix64.FromInt(2) && stone >= Fix64.Parse("0.28")) return true;
+        if (HasProject(civ, "STN-02") && settlement.Stores[(int)Good.Tool2] < Fix64.FromInt(2) && stone >= Fix64.Parse("0.4")) return true;
+        return HasProject(civ, "STN-01") && settlement.Stores[(int)Good.Tool1] < Fix64.FromInt(2) && stone >= Fix64.Parse("0.3");
+    }
+
     private Fix64 GatherMaterials(SettlementState settlement, Fix64 work, Fix64 productiveWork)
     {
         int civ = settlement.Civilization;
-        Fix64 remaining = settlement.Stores[(int)Good.Tool1] >= Fix64.One
-            ? Fix64.Min(work, AvailableToolWork(settlement, Good.Tool1))
-            : work;
-        Fix64 remainingProductive = work <= Fix64.Zero ? Fix64.Zero : productiveWork * remaining / work;
+        Fix64 remaining = work;
+        Fix64 remainingProductive = productiveWork;
         Fix64 startingRemaining = remaining;
         if (HasProject(civ, "MIN-01"))
         {
@@ -2894,14 +2997,16 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         if (HasProject(civ, "CER-01") || HasProject(civ, "BLD-05"))
         {
-            Fix64 clayWork = Fix64.Min(remaining * Fix64.Parse("0.4"), Fix64.Max(Fix64.Zero, Fix64.FromInt(10) - settlement.Stores[(int)Good.Clay]) / Fix64.FromInt(3));
-            if (clayWork > Fix64.Zero && HasResourceInRange(settlement, _clayStock))
+            Fix64 clayNeed = Fix64.Max(Fix64.Zero, Fix64.FromInt(10) - settlement.Stores[(int)Good.Clay]);
+            Fix64 clayAvailable = ResourceInRange(settlement, _clayStock, clayNeed);
+            Fix64 clayWork = Fix64.Min(remaining * Fix64.Parse("0.4"), Fix64.Min(clayNeed, clayAvailable) / Fix64.FromInt(3));
+            if (clayWork > Fix64.Zero)
             {
                 Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * clayWork / remaining;
                 Fix64 rate = GatherRate(settlement,
                     ActionRate("gather_clay", Fix64.FromInt(3), settlement, "gather_clay"), clayWork);
                 Fix64 gathered = Harvest(settlement, EconomyJob.Gather, productive,
-                    rate, Good.Clay, _clayStock, 6);
+                    rate, Good.Clay, _clayStock, 6, clayNeed);
                 WearGatherTool(settlement, clayWork);
                 remaining -= clayWork;
                 remainingProductive -= productive;
@@ -2923,12 +3028,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         if (HasProject(civ, "FIB-01"))
         {
-            Fix64 fiberWork = Fix64.Min(remaining * Fix64.Parse("0.4"), Fix64.Max(Fix64.Zero, Fix64.FromInt(6) - settlement.Stores[(int)Good.Fiber]) / Fix64.Parse("0.5"));
+            Fix64 fiberNeed = Fix64.Max(Fix64.Zero, Fix64.FromInt(6) - settlement.Stores[(int)Good.Fiber]);
+            Fix64 fiberAvailable = ResourceInRange(settlement, _forageStock, fiberNeed);
+            Fix64 fiberWork = Fix64.Min(remaining * Fix64.Parse("0.4"), Fix64.Min(fiberNeed, fiberAvailable) / Fix64.Parse("0.5"));
             if (fiberWork > Fix64.Zero)
             {
                 Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * fiberWork / remaining;
                 Fix64 rate = GatherRate(settlement, Fix64.Parse("0.5"), fiberWork);
-                Fix64 gathered = Harvest(settlement, EconomyJob.Gather, productive, rate, Good.Fiber, _forageStock, 1);
+                Fix64 gathered = Harvest(settlement, EconomyJob.Gather, productive, rate, Good.Fiber, _forageStock, 1, fiberNeed);
                 WearGatherTool(settlement, fiberWork);
                 remaining -= fiberWork;
                 remainingProductive -= productive;
@@ -2936,12 +3043,22 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         if (remaining > Fix64.Zero)
         {
-            Fix64 rate = GatherRate(settlement, Fix64.One, remaining);
-            Fix64 gathered = Harvest(settlement, EconomyJob.Gather, remainingProductive, rate, Good.Stone, _stoneStock, 5,
-                Fix64.Max(Fix64.Zero, Fix64.FromInt(20) - settlement.Stores[(int)Good.Stone]));
-            WearGatherTool(settlement, remaining);
+            Fix64 stoneNeed = Fix64.Max(Fix64.Zero, Fix64.FromInt(20) - settlement.Stores[(int)Good.Stone]);
+            if (stoneNeed > Fix64.Zero && HasResourceInRange(settlement, _stoneStock))
+            {
+                Fix64 rate = GatherRate(settlement, Fix64.One, remaining);
+                Fix64 availableStone = ResourceInRange(settlement, _stoneStock, stoneNeed);
+                Fix64 stoneWork = Fix64.Min(remaining, availableStone / Fix64.Max(rate, Fix64.FromRatio(1, 100)));
+                Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * stoneWork / remaining;
+                Fix64 gathered = Harvest(settlement, EconomyJob.Gather, productive, rate, Good.Stone, _stoneStock, 5, stoneNeed);
+                if (stoneWork > Fix64.Zero)
+                {
+                    WearGatherTool(settlement, stoneWork);
+                    remaining -= stoneWork;
+                }
+            }
         }
-        return startingRemaining;
+        return startingRemaining - remaining;
     }
 
     private Fix64 HarvestSurfaceOchre(SettlementState settlement, Fix64 work, Fix64 rate, Fix64 maximum)
@@ -2984,43 +3101,47 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void BuildIfReady(SettlementState settlement, int season)
     {
-        if (settlement.BuildProgress <= Fix64.Zero) return;
-        Structure candidate = settlement.BuildTarget;
-        if (candidate != Structure.Count && IsPhysicalDefense(candidate) && !CanBuild(settlement.Civilization, candidate))
-            return; // Keep an AI-prepared defense queued until its public technology unlocks.
-        if (candidate == Structure.Count || !CanBuild(settlement.Civilization, candidate))
+        // A settlement has one basic build target at a time, but accumulated work left over after a completion
+        // can carry into the next wanted structure in the same season. The bound prevents a malformed zero-labor
+        // rule or fixture state from looping forever.
+        for (int completed = 0; completed < (int)Structure.Count && settlement.BuildProgress > Fix64.Zero; completed++)
         {
-            candidate = SelectBuildCandidate(settlement, season);
-            settlement.BuildTarget = candidate;
-        }
-        if (candidate == Structure.Count) return;
-        if (candidate == Structure.Orchard && !CanPlaceOrchard(settlement))
-        {
+            Structure candidate = settlement.BuildTarget;
+            if (candidate != Structure.Count && IsPhysicalDefense(candidate) && !CanBuild(settlement.Civilization, candidate))
+                return; // Keep an AI-prepared defense queued until its public technology unlocks.
+            if (candidate == Structure.Count || !CanBuild(settlement.Civilization, candidate))
+            {
+                candidate = SelectBuildCandidate(settlement, season);
+                settlement.BuildTarget = candidate;
+            }
+            if (candidate == Structure.Count) return;
+            if (candidate == Structure.Orchard && !CanPlaceOrchard(settlement))
+            {
+                settlement.BuildTarget = Structure.Count;
+                return;
+            }
+            if (candidate == Structure.Weir && !CanPlaceWeir(settlement))
+            {
+                settlement.BuildTarget = Structure.Count;
+                return;
+            }
+            Fix64 labor = StructureBuildLabor(settlement, candidate);
+            if (labor <= Fix64.Zero || settlement.BuildProgress < labor || !CanPayStructure(settlement, candidate, season)) return;
+            Fix64 woodBeforePayment = settlement.Stores[(int)Good.Wood];
+            PayStructure(settlement, candidate);
+            RecordLocalWoodUse(settlement, woodBeforePayment - settlement.Stores[(int)Good.Wood], "structure");
+            settlement.Structures[(int)candidate]++;
+            if (ProactiveBronzeDefenseForDiagnostics && candidate == Structure.Palisade)
+                B28DefenseBuildRows.Add($"season={_tick / SeasonTicks} civ={settlement.Civilization} settlement=s{settlement.Id} palisade-built");
+            if (candidate == Structure.Palisade) _b28ProactiveDefenseSettlements.Remove(settlement.Id);
+            settlement.BuildProgress -= labor;
             settlement.BuildTarget = Structure.Count;
-            return;
+            if (candidate == Structure.Field) PlaceField(settlement);
+            else if (candidate == Structure.Orchard) PlaceOrchard(settlement);
+            else if (candidate == Structure.Weir) RebuildWeirOwnership();
+            else if (candidate == Structure.Totem) NudgeCohesion(settlement, TotemCohesion / 100);
+            else if (candidate == Structure.Shrine) NudgeCohesionNear(settlement, ShrineReach, ShrineCohesion / 100);
         }
-        if (candidate == Structure.Weir && !CanPlaceWeir(settlement))
-        {
-            settlement.BuildTarget = Structure.Count;
-            return;
-        }
-        Fix64 labor = StructureBuildLabor(settlement, candidate);
-        if (settlement.BuildProgress < labor) return;
-        if (!CanPayStructure(settlement, candidate, season)) return;
-        Fix64 woodBeforePayment = settlement.Stores[(int)Good.Wood];
-        PayStructure(settlement, candidate);
-        RecordLocalWoodUse(settlement, woodBeforePayment - settlement.Stores[(int)Good.Wood], "structure");
-        settlement.Structures[(int)candidate]++;
-        if (ProactiveBronzeDefenseForDiagnostics && candidate == Structure.Palisade)
-            B28DefenseBuildRows.Add($"season={_tick / SeasonTicks} civ={settlement.Civilization} settlement=s{settlement.Id} palisade-built");
-        if (candidate == Structure.Palisade) _b28ProactiveDefenseSettlements.Remove(settlement.Id);
-        settlement.BuildProgress -= labor;
-        settlement.BuildTarget = Structure.Count;
-        if (candidate == Structure.Field) PlaceField(settlement);
-        else if (candidate == Structure.Orchard) PlaceOrchard(settlement);
-        else if (candidate == Structure.Weir) RebuildWeirOwnership();
-        else if (candidate == Structure.Totem) NudgeCohesion(settlement, TotemCohesion / 100);
-        else if (candidate == Structure.Shrine) NudgeCohesionNear(settlement, ShrineReach, ShrineCohesion / 100);
     }
 
     /// <summary>Wood-pole and pilgrimage constants (docs/MVP/29; provisional): a totem steadies its own camp, a shrine every own settlement within twenty tiles (BEL-05).</summary>
@@ -3169,11 +3290,13 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     internal static Fix64 B28WoodShortWork(Fix64 materialWork, Fix64 woodStock, Fix64 woodTarget,
-        bool metalPlanAvailable, bool proactivePalisade, bool seasonalFuelReserve = false)
+        bool metalPlanAvailable, bool proactivePalisade, bool seasonalFuelReserve = false,
+        bool constructionWoodShortfall = false)
     {
-        if (!metalPlanAvailable && !proactivePalisade && !seasonalFuelReserve) return Fix64.Zero;
-        Fix64 cap = proactivePalisade ? materialWork : materialWork * Fix64.Half;
-        Fix64 yieldEstimate = proactivePalisade || seasonalFuelReserve ? B28EstimatedWoodPerChopWork : Fix64.FromInt(8);
+        if (!metalPlanAvailable && !proactivePalisade && !seasonalFuelReserve && !constructionWoodShortfall) return Fix64.Zero;
+        Fix64 cap = proactivePalisade || constructionWoodShortfall ? materialWork : materialWork * Fix64.Half;
+        Fix64 yieldEstimate = proactivePalisade || seasonalFuelReserve || constructionWoodShortfall
+            ? B28EstimatedWoodPerChopWork : Fix64.FromInt(8);
         return Fix64.Min(cap, Fix64.Max(Fix64.Zero, woodTarget - woodStock) / yieldEstimate);
     }
 
@@ -5428,31 +5551,94 @@ public sealed partial class LivingEconomyModel : ISimModel
         int huntPartySize = int.MaxValue, Fix64 toolWork = default)
     {
         int civ = settlement.Civilization;
-        Fix64 baseRate = fallback;
-        for (int i = 0; i < _content.Actions.Length; i++)
-            if (_content.Actions[i].Id == baseAction && _content.Actions[i].BaseRate is { } rate) { baseRate = rate; break; }
+        Fix64 baseRate = ActionBaseRate(baseAction, fallback);
+        if (toolWork > Fix64.Zero)
+            return BlendedActionRate(settlement, baseRate, methodAction, huntPartySize, toolWork);
 
         int bestRung = BestActionRung(settlement, methodAction, huntPartySize);
-        Fix64? bestRate = null;
+        return MethodRateAtRung(settlement, baseRate, methodAction, huntPartySize, bestRung, Fix64.Zero);
+    }
+
+    private Fix64 ActionBaseRate(string baseAction, Fix64 fallback)
+    {
+        for (int i = 0; i < _content.Actions.Length; i++)
+            if (_content.Actions[i].Id == baseAction && _content.Actions[i].BaseRate is { } rate) return rate;
+        return fallback;
+    }
+
+    /// <summary>
+    /// Uses the best method while its tools have service remaining, then falls through lower methods. A worn tool's
+    /// remaining service is only one tranche; the rest of the assigned work keeps producing at the next method rate.
+    /// </summary>
+    private Fix64 BlendedActionRate(SettlementState settlement, Fix64 baseRate, string action, int huntPartySize, Fix64 work)
+    {
+        Fix64 totalWork = work;
+        Fix64 remainingWork = work;
+        Fix64 totalYield = Fix64.Zero;
+        int highestRung = int.MaxValue;
+        Fix64[] usedService = new Fix64[(int)Good.Count];
+        while (remainingWork > Fix64.Zero)
+        {
+            int rung = BestActionRungWithService(settlement, action, huntPartySize, highestRung, usedService);
+            if (rung < 0)
+            {
+                totalYield += remainingWork * ActionFallbackRate(settlement, action, huntPartySize, baseRate, remainingWork);
+                break;
+            }
+
+            Fix64 service = MethodToolService(settlement, action, rung, usedService);
+            if (service <= Fix64.Zero)
+            {
+                highestRung = rung - 1;
+                continue;
+            }
+            Fix64 tranche = Fix64.Min(remainingWork, service);
+            Fix64 methodRate = MethodRateAtRung(settlement, baseRate, action, huntPartySize, rung, tranche);
+            Fix64 fallbackRate = ActionFallbackRate(settlement, action, huntPartySize, baseRate, tranche);
+            // A worn or inferior tool must never make this tranche worse than its no-tool fallback.
+            if (methodRate <= fallbackRate)
+            {
+                highestRung = rung - 1;
+                continue;
+            }
+            totalYield += tranche * methodRate;
+            remainingWork -= tranche;
+            AddMethodToolService(usedService, action, rung, tranche);
+            highestRung = rung - 1;
+        }
+        return totalYield / totalWork;
+    }
+
+    private Fix64 ActionFallbackRate(SettlementState settlement, string action, int huntPartySize,
+        Fix64 suppliedFallback, Fix64 work)
+        => action == "hunt"
+            ? ScavengeRate(settlement, huntPartySize, work)
+            : suppliedFallback;
+
+    private Fix64 MethodRateAtRung(SettlementState settlement, Fix64 baseRate, string action, int huntPartySize,
+        int rung, Fix64 toolWork)
+    {
+        if (rung < 0) return baseRate;
+        Fix64 methodRate = baseRate;
         for (int i = 0; i < _content.Effects.Length; i++)
         {
             EconomyEffect effect = _content.Effects[i];
-            if (effect.Kind == "method" && effect.Action == methodAction && effect.Rung == bestRung &&
-                _completedProjects[civ][effect.ProjectIndex])
+            if (effect.Kind == "method" && effect.Action == action && effect.Rung == rung &&
+                _completedProjects[settlement.Civilization][effect.ProjectIndex])
             {
-                bestRate = effect.Rate ?? (effect.Mult is { } mult ? baseRate * mult : baseRate);
+                methodRate = effect.Rate ?? (effect.Mult is { } mult ? baseRate * mult : baseRate);
                 break;
             }
         }
-        if (bestRung < 0) return baseRate;
+
         Fix64 quality = toolWork > Fix64.Zero
-            ? AverageMethodToolQuality(settlement, methodAction, bestRung, toolWork)
-            : MethodToolQuality(settlement, methodAction, bestRung);
-        Fix64 result = (bestRate ?? baseRate) * quality;
-        if (methodAction is "hunt" or "scavenge")
+            ? AverageMethodToolQuality(settlement, action, rung, toolWork)
+            : MethodToolQuality(settlement, action, rung);
+        Fix64 result = methodRate * quality;
+        if (action is "hunt" or "scavenge")
         {
-            result *= HuntRateModifier(civ, huntPartySize);
-            if (methodAction == "hunt" && bestRung == 1) result *= Modifier(civ, "hunt_r1");
+            result *= HuntRateModifier(settlement.Civilization, huntPartySize);
+            if (action == "hunt" && rung == 1) result *= Modifier(settlement.Civilization, "hunt_r1");
         }
         return result;
     }
@@ -5469,6 +5655,40 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (rung > bestRung) bestRung = rung;
         }
         return bestRung;
+    }
+
+    private int BestActionRungWithService(SettlementState settlement, string action, int huntPartySize, int belowRung,
+        Fix64[]? usedService = null)
+    {
+        int bestRung = -1;
+        for (int i = 0; i < _content.Effects.Length; i++)
+        {
+            EconomyEffect effect = _content.Effects[i];
+            if (effect.Kind != "method" || effect.Action != action || effect.Rung is not { } rung || rung >= belowRung ||
+                !_completedProjects[settlement.Civilization][effect.ProjectIndex] ||
+                !HasRequiredTool(settlement, action, rung) || !HuntPartyMatches(action, rung, huntPartySize) ||
+                MethodToolService(settlement, action, rung, usedService) <= Fix64.Zero) continue;
+            if (rung > bestRung) bestRung = rung;
+        }
+        return bestRung;
+    }
+
+    private Fix64 MethodToolService(SettlementState settlement, string action, int rung, Fix64[]? usedService = null)
+    {
+        Good tool = ToolForMethod(action, rung);
+        if (tool == Good.Count) return Fix64.MaxValue;
+        Fix64 available = Fix64.Max(Fix64.Zero, AvailableToolWork(settlement, tool) - (usedService?[(int)tool] ?? Fix64.Zero));
+        if (action == "fish" && rung == 2)
+            available = Fix64.Min(available, Fix64.Max(Fix64.Zero,
+                AvailableToolWork(settlement, Good.Net) - (usedService?[(int)Good.Net] ?? Fix64.Zero)));
+        return available;
+    }
+
+    private static void AddMethodToolService(Fix64[] usedService, string action, int rung, Fix64 work)
+    {
+        Good tool = ToolForMethod(action, rung);
+        if (tool != Good.Count) usedService[(int)tool] += work;
+        if (action == "fish" && rung == 2) usedService[(int)Good.Net] += work;
     }
 
     private Fix64 HuntRateModifier(int civ, int partySize)
@@ -5488,20 +5708,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64 LimitActionWorkByTool(SettlementState settlement, string action, Fix64 work,
         int huntPartySize = int.MaxValue)
     {
-        if (work <= Fix64.Zero) return Fix64.Zero;
-        int rung = BestActionRung(settlement, action, huntPartySize);
-        if (rung < 0 && action == "hunt")
-        {
-            action = "scavenge";
-            rung = BestActionRung(settlement, action, huntPartySize);
-        }
-        if (rung < 0) return work;
-        Good tool = ToolForMethod(action, rung);
-        if (tool == Good.Count) return work;
-        Fix64 remaining = AvailableToolWork(settlement, tool);
-        if (action == "fish" && rung == 2)
-            remaining = Fix64.Min(remaining, AvailableToolWork(settlement, Good.Net));
-        return Fix64.Min(work, remaining);
+        // Tool service changes the rate after its supply is spent; it does not erase the rest of the assigned work.
+        return Fix64.Max(Fix64.Zero, work);
     }
 
     private Fix64 AvailableToolWork(SettlementState settlement, Good good)
@@ -5721,30 +5929,60 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     private void WearActionTool(SettlementState settlement, string action, Fix64 actionWork,
-        Fix64 rate, int huntPartySize = int.MaxValue)
+        Fix64 methodBaseRate, Fix64 outputModifier = default, int huntPartySize = int.MaxValue)
     {
-        if (actionWork <= Fix64.Zero || rate <= Fix64.Zero) return;
-        int bestRung = BestActionRung(settlement, action, huntPartySize);
-        if (bestRung < 0 && action == "hunt")
+        if (actionWork <= Fix64.Zero) return;
+        if (outputModifier <= Fix64.Zero) outputModifier = Fix64.One;
+        Fix64 remainingWork = actionWork;
+        int highestRung = int.MaxValue;
+        while (remainingWork > Fix64.Zero)
         {
-            WearActionTool(settlement, "scavenge", actionWork, rate, huntPartySize);
-            return;
+            int rung = BestActionRungWithService(settlement, action, huntPartySize, highestRung);
+            if (rung < 0)
+            {
+                if (action == "hunt")
+                    WearActionTool(settlement, "scavenge", remainingWork, ActionBaseRate("scavenge", Fix64.Parse("0.9")),
+                        HasProject(settlement.Civilization, "HUS-01") ? Fix64.Parse("1.3") : Fix64.One, huntPartySize);
+                break;
+            }
+            Fix64 tranche = Fix64.Min(remainingWork, MethodToolService(settlement, action, rung));
+            Fix64 methodRate = MethodRateAtRung(settlement, methodBaseRate, action, huntPartySize, rung, tranche) * outputModifier;
+            Fix64 fallbackRate = ActionFallbackRate(settlement, action, huntPartySize, methodBaseRate, tranche) * outputModifier;
+            if (methodRate <= fallbackRate)
+            {
+                highestRung = rung - 1;
+                continue;
+            }
+            Good tool = ToolForMethod(action, rung);
+            if (tool != Good.Count) WearTool(settlement, tool, tranche);
+            if (action == "fish" && rung == 2) WearTool(settlement, Good.Net, tranche);
+            remainingWork -= tranche;
+            highestRung = rung - 1;
         }
-        Good tool = ToolForMethod(action, bestRung);
-        if (tool != Good.Count) WearTool(settlement, tool, actionWork);
-        if (action == "fish" && bestRung == 2) WearTool(settlement, Good.Net, actionWork);
     }
 
     private Fix64 GatherRate(SettlementState settlement, Fix64 baseRate, Fix64 toolWork = default)
-        => settlement.Stores[(int)Good.Tool1] >= Fix64.One
-            ? baseRate * (toolWork > Fix64.Zero
-                ? AverageMethodToolQuality(settlement, "chop", 1, toolWork)
-                : ToolQuality(settlement, Good.Tool1)) : baseRate;
+    {
+        if (toolWork <= Fix64.Zero || settlement.Stores[(int)Good.Tool1] < Fix64.One) return baseRate;
+        Fix64 usefulToolWork = UsefulGatherToolWork(settlement, toolWork);
+        if (usefulToolWork <= Fix64.Zero) return baseRate;
+        Fix64 toolRate = baseRate * AverageMethodToolQuality(settlement, "chop", 1, usefulToolWork);
+        return (toolRate * usefulToolWork + baseRate * (toolWork - usefulToolWork)) / toolWork;
+    }
+
+    private Fix64 UsefulGatherToolWork(SettlementState settlement, Fix64 work)
+    {
+        if (work <= Fix64.Zero || settlement.Stores[(int)Good.Tool1] < Fix64.One) return Fix64.Zero;
+        Fix64 service = Fix64.Min(work, AvailableToolWork(settlement, Good.Tool1));
+        return service > Fix64.Zero && AverageMethodToolQuality(settlement, "chop", 1, service) > Fix64.One
+            ? service
+            : Fix64.Zero;
+    }
 
     private void WearGatherTool(SettlementState settlement, Fix64 work)
     {
-        if (work > Fix64.Zero && settlement.Stores[(int)Good.Tool1] >= Fix64.One)
-            WearTool(settlement, Good.Tool1, work);
+        Fix64 usefulToolWork = UsefulGatherToolWork(settlement, work);
+        if (usefulToolWork > Fix64.Zero) WearTool(settlement, Good.Tool1, usefulToolWork);
     }
 
     private bool HasRequiredTool(SettlementState settlement, string action, int rung)

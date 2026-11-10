@@ -112,7 +112,7 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// What a structure takes from the stores, as the planner reads it: it will not pick the structure until every line is met. These can differ from
-    /// <see cref="CanPayStructure"/> (a storage pit is paid with nothing but is only chosen once five rations are in store; a drying rack wants meat to dry).
+    /// <see cref="CanPayStructure"/> (a storage pit is paid with nothing but is only chosen once five rations are in store).
     /// Returns how many lines it wrote (at most 2) to <paramref name="first"/> and <paramref name="second"/>.
     /// </summary>
     private int BasicNeeds(SettlementState s, Structure kind, int season, out BuildNeed first, out BuildNeed second)
@@ -123,7 +123,9 @@ public sealed partial class LivingEconomyModel
         switch (kind)
         {
             case Structure.StoragePit: first = new BuildNeed(-1, FoodStores(s), Fix64.FromInt(5)); return 1;
-            case Structure.DryingRack: first = Store(Good.Wood, Fix64.Half); second = Store(Good.Meat, Fix64.FromInt(2)); return 2;
+            // The rack exists to preserve meat before the settlement can hold a two-unit fresh-meat surplus.
+            // Requiring that surplus here made the structure self-defeating; its only paid cost is wood.
+            case Structure.DryingRack: first = Store(Good.Wood, Fix64.Half); return 1;
             case Structure.Granary: first = Store(Good.Mudbrick, Fix64.FromInt(80)); return 1;
             case Structure.PitHouse: first = Store(Good.Wood, Fix64.FromInt(4)); return 1;
             case Structure.WattleHouse: case Structure.PottersWorkshop:
@@ -155,6 +157,93 @@ public sealed partial class LivingEconomyModel
     {
         int n = BasicNeeds(s, kind, season, out BuildNeed a, out BuildNeed b);
         return (n < 1 || !a.Short) && (n < 2 || !b.Short);
+    }
+
+    /// <summary>
+    /// The wood shortage of the first wanted basic structure that can be supplied here, whether or not it is affordable yet.
+    /// This is procurement only: the construction selector below still requires all materials before it opens a build slot.
+    /// </summary>
+    private Fix64 BasicBuildWoodProcurementNeed(SettlementState settlement, int season)
+    {
+        BasicCtx ctx = MakeBasicCtx(settlement, season);
+        // Foundation needs outrank a focus, just as they do in SelectBuildCandidate.
+        for (int rule = 0; rule < FoundationRuleCount; rule++)
+        {
+            Fix64 need = BasicRuleWoodProcurementNeed(settlement, season, rule, ref ctx);
+            if (need > Fix64.Zero) return need;
+        }
+
+        // A valid focus comes next, matching the affordable-build planner's preference ordering.
+        Structure focus = BasicFocusKind(settlement);
+        if (focus != Structure.Count && BasicGate(settlement, focus).Open)
+        {
+            Fix64 need = BasicStructureWoodProcurementNeed(settlement, focus, season);
+            if (need > Fix64.Zero) return need;
+        }
+
+        Fix64 toolWoodNeed = BasicToolWoodProcurementNeed(settlement);
+        if (toolWoodNeed > Fix64.Zero) return toolWoodNeed;
+
+        // When civilization guidance is active, use its highest-priority wanted wood build.
+        CivilizationDirection direction = Guidance?.DirectionOf(settlement.Civilization) ?? CivilizationDirection.Balanced;
+        if (direction != CivilizationDirection.Balanced)
+        {
+            Fix64 preferredNeed = Fix64.Zero;
+            int bestPreference = 0;
+            for (int rule = FoundationRuleCount; rule < (int)BasicRule.Count; rule++)
+            {
+                Structure kind = BasicRuleKind(rule);
+                if (!BasicGate(settlement, kind).Open || !BasicRuleWanted(settlement, rule, ref ctx)) continue;
+                Fix64 need = BasicStructureWoodProcurementNeed(settlement, kind, season);
+                int preference = need > Fix64.Zero ? CivilizationGuidance.BuildPreference(direction, StructureId(kind)) : 0;
+                if (preference <= bestPreference) continue;
+                preferredNeed = need;
+                bestPreference = preference;
+            }
+            if (preferredNeed > Fix64.Zero) return preferredNeed;
+        }
+
+        // Stable fallback order, still limited to wanted and sourceable works.
+        for (int rule = FoundationRuleCount; rule < (int)BasicRule.Count; rule++)
+        {
+            Fix64 need = BasicRuleWoodProcurementNeed(settlement, season, rule, ref ctx);
+            if (need > Fix64.Zero) return need;
+        }
+        return Fix64.Zero;
+    }
+
+    private Fix64 BasicRuleWoodProcurementNeed(SettlementState settlement, int season, int rule, ref BasicCtx ctx)
+    {
+        Structure kind = BasicRuleKind(rule);
+        return BasicGate(settlement, kind).Open && BasicRuleWanted(settlement, rule, ref ctx)
+            ? BasicStructureWoodProcurementNeed(settlement, kind, season)
+            : Fix64.Zero;
+    }
+
+    private Fix64 BasicStructureWoodProcurementNeed(SettlementState settlement, Structure kind, int season)
+    {
+        int count = BasicNeeds(settlement, kind, season, out BuildNeed first, out BuildNeed second);
+        if (count == 0) return Fix64.Zero;
+        bool allInputsSourceable = true;
+        if (first.Short && first.Slot >= 0 && SupplyOf(settlement, first.Slot).Kind != SupplyKind.Flowing) allInputsSourceable = false;
+        if (count > 1 && second.Short && second.Slot >= 0 && SupplyOf(settlement, second.Slot).Kind != SupplyKind.Flowing) allInputsSourceable = false;
+        if (!allInputsSourceable) return Fix64.Zero;
+        if (first.Slot == (int)Good.Wood && first.Short && SupplyOf(settlement, first.Slot).Kind == SupplyKind.Flowing)
+            return first.Need;
+        if (count > 1 && second.Slot == (int)Good.Wood && second.Short && SupplyOf(settlement, second.Slot).Kind == SupplyKind.Flowing)
+            return second.Need;
+        return Fix64.Zero;
+    }
+
+    private Fix64 BasicToolWoodProcurementNeed(SettlementState settlement)
+    {
+        int civ = settlement.Civilization;
+        Fix64 wood = settlement.Stores[(int)Good.Wood];
+        if (HasProject(civ, "STN-06") && settlement.Stores[(int)Good.Tool6] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Flint] >= Fix64.Parse("0.2") && wood < Fix64.Parse("0.1")) return Fix64.Parse("0.1");
+        if (HasProject(civ, "STN-04") && settlement.Stores[(int)Good.Tool4] < Fix64.FromInt(2) &&
+            settlement.Stores[(int)Good.Stone] >= Fix64.Parse("0.3") && wood < Fix64.Parse("0.1")) return Fix64.Parse("0.1");
+        return Fix64.Zero;
     }
 
     /// <summary>

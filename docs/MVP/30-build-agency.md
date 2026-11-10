@@ -1,6 +1,6 @@
 # 30. What a town is waiting on, and what the player can do about it
 
-Status: the readout, the panel and the build-focus order are implemented (2026-11-08). The other options in §7 are proposals.
+Status: the readout, panel and build-focus order are implemented (2026-11-08). Autonomous timber procurement and demand-based material routing were added (2026-11-10), followed by tool-service fallback, drying-rack eligibility and same-season build-progress carry-through (2026-11-10). Options 2, 3, 5, 6, 7 and 8 in §7 remain proposals.
 Numbers marked (P) are provisional.
 
 ## 1. The problem
@@ -17,9 +17,10 @@ Consequences found in the code and measured in §5:
 
 * On the basic list a structure that cannot be paid for is simply skipped, so "waiting on materials" is invisible: the town builds
   something else, or nothing.
-* The materials are not gathered *for* the structure. Gatherers work to fixed stock levels (clay to 10, stone to 20, bricks to 200,
-  wood to a fuel reserve), so a structure whose price is above those levels (the granary at 80 bricks) is never reached by design.
-* A town builds **at most one basic structure a season**, so even affordable cheap works queue for years.
+* Before the 2026-11-10 routing changes, materials were not gathered *for* the structure. Raw gatherers worked to fixed stock levels,
+  and material jobs were pinned to figure IDs. Bricks had a 200-unit target, but their clay/straw inputs and craft time were not
+  protected for the granary's 80-brick cost.
+* A town completes **at most one basic structure a season**, even if its assigned build work exceeds the labor needed. This is now resolved: leftover progress can complete further eligible structures in the same season.
 * Some rules cannot be met by any town on some sites (no river for a weir, no hill for a hillfort, a village cannot raise a Town
   building), and nothing said so.
 
@@ -72,7 +73,7 @@ The levers below are the ones the code really offers. None is invented. Where th
 | Blocker | Levers (what works) | If none |
 |---|---|---|
 | A good needs a project | **Learn the project** (the exact one: CER-01 clay, BLD-05 bricks, FOR-07 saplings, MIN-03 quarrying, STN-11 dressing, MET-09 iron) | |
-| Wood short (basic list) | **Ask for the structure** (build focus): the town's material workers go to the axe for it, up to all of the material share instead of half | |
+| Wood short (basic list) | The planner now cuts timber for its first wanted, sourceable basic build; **ask for another structure** (build focus) to redirect that demand. A focused shortage can use all material work for timber instead of half. | |
 | Iron bloom short, no ore | **Buy iron** by Compact; **Open a mine** on iron ore | |
 | Stone, timber or clay with none in reach | | "There is no stone left within three tiles of this town, and stone does not grow back" and similar. The only routes are new ground: **Found a village** near the deposit, which the panel names but cannot do for you. |
 | Clay with no deposit, before the Bronze Age | | "no clay deposit within three tiles, and clay can be dug from the ground only once your civilization reaches the Bronze Age (KEY-3)" |
@@ -83,8 +84,8 @@ The levers below are the ones the code really offers. None is invented. Where th
 | Slow supply (a flowing good, nothing to order) | | "Nothing you can order speeds this up; it is a matter of seasons." Redirect is still offered. |
 
 Not levers, and said so: trade cannot move wood, stone, clay or bricks (a Compact carries only tin, copper, bronze, salt, gold,
-food, luxuries and iron). The material share of a town's work (about 18%) and its split between timber, clay and crafts is not
-player-controlled.
+food, luxuries and iron). The material share of a town's work (about 18%) is not player-controlled; the economy routes it from
+fuel, construction, gathering and basic-tool needs, then rotates any remaining work by season.
 
 ## 4. Redirect: `SetBuildFocus` (CommandKind 27)
 
@@ -102,7 +103,7 @@ player may ask for a house the town does not yet need. A refused order changes n
 
 | Slot | Prefer (`C` = 0) | Skip (`C` = 1) |
 |---|---|---|
-| Basic | goes into the planner's order right after the foundation rules (storage pit, drying rack, granary, warm homes, lean-to, hearth, first fields) *if it is learned, allowed and paid for*; otherwise the planner carries on as before. Holds no materials and no labor. If it is short of wood, the wood target rises by what it lacks and all (not half) of the material work may cut timber | not offered (an unaffordable structure is already skipped) |
+| Basic | goes into the planner's order right after the foundation rules (storage pit, drying rack, granary, warm homes, lean-to, hearth, first fields) *if it is learned, allowed and paid for*; otherwise the planner carries on as before. Holds no materials and no labor. If the focused structure is short of wood, its wood target rises; the same procurement now also runs for the first wanted, sourceable basic structure, including foundations. A focused timber shortage can use all material work instead of half. | not offered (an unaffordable structure is already skipped) |
 | Iron | the slot switches to it at once; the labor in the one it replaces is shelved and returns when that work is chosen again; it is exempt from the 8-season patience rule, because the player chose to wait | the slot goes to the next wanted work, or empties, with the labor shelved; the skipped work is not picked again |
 | Civic | the civic slot switches to it; **the labor already in the previous civic building is lost** (as with a Corvée; the panel says so) | the slot is re-chosen without it |
 
@@ -123,7 +124,7 @@ player may ask for a house the town does not yet need. A refused order changes n
 `civsim-harness build-census --pack civsim.pack` (new; `BuildCensusCommand.cs`) plays whole AI matches (four Warlord-level AIs, as
 `iron-match`) and reads every town's `BuildOutlook` once every four seasons. It changes nothing in the match.
 
-First run: seed 20264001, Iron chapter, 60 minutes (so before the Iron works unlock), 37 towns, 779 town-samples.
+Historical first run (before the 2026-11-10 follow-up fixes): seed 20264001, Iron chapter, 60 minutes (so before the Iron works unlock), 37 towns, 779 town-samples. The rates below are the baseline that motivated the fixes, not a post-fix measurement.
 
 ### 5.1 What towns are doing
 
@@ -168,14 +169,16 @@ no high ground 108; Market ruled out because the town is not among the largest 1
 1. **A rule that cannot be met here.** No river for a weir, no high ground for a hillfort, a village too small for a shrine, not the
    capital site for a Palace, not among the largest towns for a Market, fewer than two routes for a caravanserai, no Market for a Hall.
    These are correct rules, but nothing told the player. The panel now does, with the cause.
-2. **The structure's price is above what the gatherers work to (granary, mudbrick house, longhouse, kiln, orchard).** Gatherers keep
-   fixed stock levels (clay 10, stone 20, wood for fuel), not what the structure needs. The granary at 80 bricks was reached in 1% of
-   town-samples. There is no lever for bricks; the honest options are to learn the project that adds the input, or to build something else.
-3. **One structure a season.** `BuildIfReady` completes at most one basic structure a season. Cheap affordable works (lookout, thorn
-   barrier, totem, marker, signal post, pasture) sit "affordable but waiting" in 70% to 80% of samples, and in half the civilizations
-   none was built in the whole match. The census also prints how often labor was already enough for one more at the end of a season.
-4. **A rule that is a dead letter: the drying rack.** It is chosen only when 2 rations of *fresh meat* are in store, but meat is the
-   first thing the town eats, so the stock is never there: 0 built in 702 samples. (Proposed fix in §8, not changed here.)
+2. **Input and craft work were not aimed at the structure.** Gatherers kept fixed stock levels (clay 10, stone 20, wood for fuel),
+   not what the structure needed. Although bricks had a 200-unit target, the granary's 80 bricks were present in only 1% of the
+   historical town-samples because clay, straw and craft work were not reliably allocated to them. There is no lever for bricks; the
+   options are to learn the project that adds the input, or to build something else.
+3. **One structure a season (historical).** `BuildIfReady` used to complete at most one basic structure a season. Cheap affordable works
+   (lookout, thorn barrier, totem, marker, signal post, pasture) sat "affordable but waiting" in 70% to 80% of samples. `BuildIfReady`
+   now spends leftover progress on further eligible structures during that season, stopping when progress, materials or candidates run out.
+4. **A rule that was a dead letter: the drying rack (resolved).** It used to require 2 rations of *fresh meat* in store, but meat is
+   the first thing the town eats. The planner now requires only its half-unit wood cost, so the rack can be built before a meat surplus
+   exists and can preserve future meat. The 0-built result in 702 samples is historical.
 5. **Slot order.** The civic and Iron slots hold their target until built; a Temple that needs 120 bricks and cut stone holds the
    civic slot while a School or Bakery the town could build waits. Redirect addresses this.
 
@@ -213,7 +216,7 @@ Clicks are per town per era (an era is 20 to 30 minutes).
 | 6 | **Bounded queue per town (depth 1 to 3)** | an ordered list instead of one entry | more clicks and a queue editor | yes | none |
 | 7 | **Per-structure "never build this"** (civilization-wide) | one bitmask | a toggle per structure | no (stops wasted labor on works the player does not want) | none for the AI |
 | 8 | **Build-out / Balanced / Safe stances** priced in Mandate | a civ setting that changes planner order and build share | one control | yes, but opaque | touches gates A1 to A7 if the AI can pick one; human-only is a hidden bonus |
-| 9 | **Relax specific planner overrides** (more than one cheap work a season when labor allows; a drying-rack rule that can be met) | small code changes | none | yes, directly, for cheap works and the rack | changes every civilization, AI included: the A-gates and the pacing check must be rerun |
+| 9 | **Relax specific planner overrides** (same-season basic builds; a drying-rack rule that can be met; fallback after tool wear) (implemented) | small code changes | none | yes, directly, for cheap works and the rack | changes every civilization, AI included: rerun the A-gates and pacing check |
 
 ## 8. Recommendation
 
@@ -222,23 +225,24 @@ Clicks are per town per era (an era is 20 to 30 minutes).
 2. **Next, add the civilization-wide wishlist (option 2) on the same state.** It answers "I researched the Shrine and never saw one"
    with one click rather than one per town and adds no new planner hook. Bound it at 3 starred structures, keep the foundation guard,
    and expire a star after 6 years as the focus does.
-3. **Treat option 9 as a balance patch, not an agency feature.** The one-a-season limit is the largest measured cause for cheap works and
-   the drying rack's meat rule is a plain bug. Both change all civilizations, so measure them with the M10 gates and the I-T1 pacing
-   check, as docs/28 did for its changes.
+3. **Option 9's follow-up fixes are in.** Leftover build progress now carries through to other eligible basic structures in the same
+   season, the drying rack can be selected with its wood cost, and action work falls back to lower methods when tool service runs out.
+   The baseline census above predates these changes; rerun it with the M10 gates and the I-T1 pacing check for post-fix balance data.
 4. **Do not build options 5 and 8:** each hides a perk or an opaque stance, which is what the player objected to. Build option 3 only if
    playtests show the wishlist is not enough.
 
 ## 9. What was built and what was not
 
 Built: the readout (`BuildOutlook`, `BuildText`), the Building tab, the `SetBuildFocus` command and its hooks in the three planners, the
-wood lever, the "built nowhere" list, the `build-census` harness command, tests (`BuildOutlookTests`, `BuildFocusTests`,
+autonomous timber procurement and demand-based material routing, tool-service fallback, drying-rack eligibility, same-season build-progress
+carry-through, the "built nowhere" list, the `build-census` harness command, tests (`BuildOutlookTests`, `BuildFocusTests`,
 `BuildTextTests`) and this document.
 
 Proposed, not built: options 2, 3, 6, 7, 8, 9; a Corvée that aims at a basic structure other than walls; a shelf for civic progress
 so that switching the civic building does not lose labor; per-good icons (the UI kit has none, so goods are named in words).
 
-Not changed: the planners' rules and order, the labor split, the one-structure-a-season limit, the drying rack rule, balance constants,
-the content pack.
+Not changed: the planners' order, the labor split and budgets, balance constants, or the content pack. The build loop still works on one
+target at a time, and only leftover assigned progress can finish another target in the same season.
 
 ### 9.0 Screenshots
 
