@@ -246,7 +246,7 @@ public sealed partial class LivingEconomyModel
         int index = FigureIndex(figureId);
         if (index < 0) return false;
         FigureState figure = _figures[index];
-        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One);
+        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One, "battle-death");
         _figures.RemoveAt(index);
         return true;
     }
@@ -300,7 +300,7 @@ public sealed partial class LivingEconomyModel
         for (int i = _figures.Count - 1; i >= 0; i--)
             if (_figures[i].SettlementId == s.Id)
             {
-                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One);
+                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One, "settlement-raze-holder");
                 _figures.RemoveAt(i);
             }
         Array.Clear(s.Structures);
@@ -309,8 +309,8 @@ public sealed partial class LivingEconomyModel
         {
             if (metal.IronGoods is { } iron)
             {
-                RecordIT6IronKitRetired(s.Civilization, s.Id, 11, iron[(int)IronGood.Kit11]);
-                RecordIT6IronKitRetired(s.Civilization, s.Id, 12, iron[(int)IronGood.Kit12]);
+                RecordIT6IronKitRetired(s.Civilization, s.Id, 11, iron[(int)IronGood.Kit11], "settlement-raze-stock");
+                RecordIT6IronKitRetired(s.Civilization, s.Id, 12, iron[(int)IronGood.Kit12], "settlement-raze-stock");
                 Array.Clear(iron);
             }
             Array.Clear(metal.Goods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero;

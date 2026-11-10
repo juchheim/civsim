@@ -4048,7 +4048,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void RecordDeath(FigureState figure, EconomyDeathCause cause, HazardBreakdown hazards, int season)
     {
-        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One);
+        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One, $"natural-death:{cause}");
         int band = figure.Age < 14 ? 0 : figure.Age < 45 ? 1 : 2;
         _lastDeathsByCause[(int)cause]++;
         _lastDeathsByCauseAndAgeBand[band * DeathCauseCount + (int)cause]++;

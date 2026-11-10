@@ -46,6 +46,18 @@ internal readonly record struct IT3WearDistribution(
 /// <summary>Read-only provenance for a whole-kit domestic delivery; used to include every route producer in I-T2 fuel qualification.</summary>
 internal readonly record struct IT6KitTransferSnapshot(int Season, int FromSettlementId, int ToSettlementId, int Tier, Fix64 Quantity, bool HolderTransfer);
 
+/// <summary>Optional decision context for a successful Iron holder transfer, used by focused I-T2 route diagnostics.</summary>
+internal readonly record struct IT2KitShareDecisionSnapshot(
+    int Season, int DonorId, int ReceiverId, int DonorPopulation,
+    int DonorRecentToolWorkers, int DonorCoveredRecentToolWorkers, int DonorServicePositiveHolders,
+    int DonorGrowthBuffer, int DonorMinimumHolderReserve, int DonorCapacity, int PlannedMoves,
+    int ReceiverRecentToolWorkers, int ReceiverCoveredRecentToolWorkers,
+    int ReceiverProjectedToolWorkers, int ReceiverProjectedCoverageFloor,
+    bool ReceiverNeedsProjectedCoverage, bool ReceiverHadIdleHolder);
+
+/// <summary>Optional reason trace for Iron kits removed from a settlement's holder or stock ledger.</summary>
+internal readonly record struct IT2KitRetirementSnapshot(int Season, int SettlementId, int Tier, Fix64 Quantity, string Reason);
+
 public sealed partial class LivingEconomyModel
 {
     private sealed class IT6CivFlow
@@ -80,9 +92,35 @@ public sealed partial class LivingEconomyModel
     private List<IT6FuelSiteFlow>? _it6FuelSiteFlows;
     private List<IT6KitTransferSnapshot>? _it6KitTransfers;
     internal bool IT6AccountingTraceEnabled { get; set; }
+    internal bool IT2KitShareTraceEnabled { get; set; }
+    private List<IT2KitShareDecisionSnapshot>? _it2KitShareDecisions;
+    private List<IT2KitRetirementSnapshot>? _it2KitRetirements;
 
     internal IReadOnlyList<IT6KitTransferSnapshot> CaptureIT6KitTransfers()
         => IT6AccountingTraceEnabled && _it6KitTransfers is not null ? _it6KitTransfers : Array.Empty<IT6KitTransferSnapshot>();
+
+    internal IReadOnlyList<IT2KitShareDecisionSnapshot> CaptureIT2KitShareDecisions()
+        => IT2KitShareTraceEnabled && _it2KitShareDecisions is not null ? _it2KitShareDecisions : Array.Empty<IT2KitShareDecisionSnapshot>();
+
+    internal IReadOnlyList<IT2KitRetirementSnapshot> CaptureIT2KitRetirements()
+        => IT2KitShareTraceEnabled && _it2KitRetirements is not null ? _it2KitRetirements : Array.Empty<IT2KitRetirementSnapshot>();
+
+    private void RecordIT2KitShareDecision(int season, SettlementState donor, SettlementState receiver,
+        int donorRecentToolWorkers, int donorCoveredRecentToolWorkers, int donorServicePositiveHolders,
+        int donorGrowthBuffer, int donorMinimumHolderReserve, int donorCapacity, int plannedMoves,
+        int receiverRecentToolWorkers, int receiverCoveredRecentToolWorkers,
+        int receiverProjectedToolWorkers, int receiverProjectedCoverageFloor,
+        bool receiverNeedsProjectedCoverage, bool receiverHadIdleHolder)
+    {
+        if (!IT2KitShareTraceEnabled || donor.Id == receiver.Id) return;
+        _it2KitShareDecisions ??= new List<IT2KitShareDecisionSnapshot>();
+        _it2KitShareDecisions.Add(new IT2KitShareDecisionSnapshot(season, donor.Id, receiver.Id, Population(donor.Id),
+            donorRecentToolWorkers, donorCoveredRecentToolWorkers, donorServicePositiveHolders,
+            donorGrowthBuffer, donorMinimumHolderReserve, donorCapacity, plannedMoves,
+            receiverRecentToolWorkers, receiverCoveredRecentToolWorkers,
+            receiverProjectedToolWorkers, receiverProjectedCoverageFloor,
+            receiverNeedsProjectedCoverage, receiverHadIdleHolder));
+    }
 
     internal IT6AccountingSnapshot CaptureIT6Accounting(int civilization)
     {
@@ -345,7 +383,7 @@ public sealed partial class LivingEconomyModel
         // upgraded early or reached the replacement point at its own tier.
         if (oldTier is 11 or 12)
         {
-            RecordIT6IronKitRetired(settlement.Civilization, settlement.Id, oldTier, Fix64.One);
+            RecordIT6IronKitRetired(settlement.Civilization, settlement.Id, oldTier, Fix64.One, "replaced-by-issued-iron-kit");
             if (oldTier == 11 && tier == 12 && oldLeft > Fix64.Zero)
             {
                 flow.Kit11Upgrades++;
@@ -375,9 +413,14 @@ public sealed partial class LivingEconomyModel
         else flow.Kit12Breaks++;
     }
 
-    private void RecordIT6IronKitRetired(int civilization, int settlementId, int tier, Fix64 quantity)
+    private void RecordIT6IronKitRetired(int civilization, int settlementId, int tier, Fix64 quantity, string reason)
     {
         if (!IT6AccountingTraceEnabled || !IronChain || quantity <= Fix64.Zero) return;
+        if (IT2KitShareTraceEnabled && tier is 11 or 12)
+        {
+            _it2KitRetirements ??= new List<IT2KitRetirementSnapshot>();
+            _it2KitRetirements.Add(new IT2KitRetirementSnapshot((int)(Tick / 150L), settlementId, tier, quantity, reason));
+        }
         IT6FuelSiteFlow site = IT6SiteFlow(settlementId);
         if (tier == 11) site.Kit11Retired += quantity;
         else if (tier == 12) site.Kit12Retired += quantity;

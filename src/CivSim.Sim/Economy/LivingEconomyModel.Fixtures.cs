@@ -720,7 +720,7 @@ public sealed partial class LivingEconomyModel
         for (int i = _figures.Count - 1; i >= 0 && count > 0; i--)
             if (_figures[i].SettlementId == id)
             {
-                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One);
+                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One, "fixture-settlement-removal");
                 _figures.RemoveAt(i); count--;
             }
     }

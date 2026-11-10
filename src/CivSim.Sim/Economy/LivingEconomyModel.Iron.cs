@@ -505,7 +505,7 @@ public sealed partial class LivingEconomyModel
                 AddMetalStat(s.Civilization, StatRemeltCopper, copper);
             }
             if (recipient.Kit is 11 or 12)
-                RecordIT6IronKitRetired(s.Civilization, s.Id, recipient.Kit, Fix64.One);
+                RecordIT6IronKitRetired(s.Civilization, s.Id, recipient.Kit, Fix64.One, "holder-redistribution");
             donor.Kit = 0;
             donor.KitLeft = Fix64.Zero;
             recipient.Kit = tier;
@@ -841,8 +841,8 @@ public sealed partial class LivingEconomyModel
                 // the split can leave a just-large-enough reserve that would otherwise be shared.
                 // Smaller towns keep the existing reserve so they can supply under-covered sisters.
                 if (!hadActiveIronToolWorkersLastSeason) continue;
-                // A two-worker projection is a large share of a compact settlement's workforce.
-                // Keep one rebound holder there so a 4–5 worker donor can still supply an uncovered sister.
+                // Start with one spare holder for compact donors; the projected-coverage branch
+                // below adds route growth and attrition reserves when the donor already covers workers.
                 int growthBuffer = recentToolWorkers >= 3 && Population(donor.Id) >= 20 ? 2 : 1;
                 bool lastReboundHolder = Population(donor.Id) >= 20 &&
                     servicePositiveIronHolders == recentToolWorkers + growthBuffer + 1 &&
@@ -855,19 +855,24 @@ public sealed partial class LivingEconomyModel
                 // holder from a sister; retain at least one donor spare beyond recent toolworkers.
                 if (recentFissionDaughterCoverageGap && minimumHolderReserve > recentToolWorkers + 1)
                     minimumHolderReserve--;
+                int donorProjectedGrowthBuffer = growthBuffer;
                 // When filling a sister's projected coverage, a donor that currently meets
-                // its own 70% floor may share only above the floor projected for its recent
-                // cohort plus a small growth buffer. Preserve the stronger full buffer after
-                // a recent split or at a known rebound boundary.
+                // its own 70% floor may share only above its own projected floor. Compact
+                // donors keep an extra holder for within-window attrition; recent splits and
+                // known rebound boundaries retain their existing reserve.
                 if (receiverNeedsProjectedCoverage && recentToolWorkers > 0 &&
                     donorCoveredRecentToolWorkers * 10 >= recentToolWorkers * 7)
                 {
                     int currentCoverageFloor = (recentToolWorkers * 7 + 9) / 10;
-                    int projectedDonorCoverageFloor = ((recentToolWorkers + growthBuffer) * 7 + 9) / 10;
                     bool compactDonorNeedsProjectedReserve = Population(donor.Id) < 20;
+                    // Compact import-dependent sites face the same two-worker route rebound
+                    // as receivers and need one holder to absorb a death or replacement during
+                    // the window. Keep both in their reserve before relaying a sister's kit.
+                    donorProjectedGrowthBuffer += compactDonorNeedsProjectedReserve ? 1 : 0;
+                    int projectedDonorCoverageFloor = ((recentToolWorkers + donorProjectedGrowthBuffer) * 7 + 9) / 10;
                     int recentReboundReserve = lastReboundHolder || recentlyFissionedDonor
                         ? recentToolWorkers + growthBuffer
-                        : compactDonorNeedsProjectedReserve ? projectedDonorCoverageFloor : 0;
+                        : compactDonorNeedsProjectedReserve ? projectedDonorCoverageFloor + 1 : 0;
                     minimumHolderReserve = Math.Max(currentCoverageFloor, recentReboundReserve);
                 }
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
@@ -916,6 +921,10 @@ public sealed partial class LivingEconomyModel
                     FigureState donorFigure = _figures[donors[moveIndex]];
                     byte tier = donorFigure.Kit;
                     Fix64 left = donorFigure.KitLeft;
+                    RecordIT2KitShareDecision(season, donor, receiver, recentToolWorkers, donorCoveredRecentToolWorkers,
+                        servicePositiveIronHolders, donorProjectedGrowthBuffer, minimumHolderReserve, donorCapacity, moves,
+                        receiverRecentToolWorkers, coveredRecentToolWorkers, projectedToolWorkers, projectedCoverageFloor,
+                        receiverNeedsProjectedCoverage, hasIdleIronHolder);
                     if (recipient.Kit is >= 8 and <= 10 && recipient.KitLeft > Fix64.Zero && _tierDefs[recipient.Kit] is { } old)
                     {
                         Fix64 copper = old.MetalPerKit * _bronzeConstants.RemeltShare;
@@ -923,7 +932,7 @@ public sealed partial class LivingEconomyModel
                         AddMetalStat(civ, StatRemeltCopper, copper);
                     }
                     if (recipient.Kit is 11 or 12)
-                        RecordIT6IronKitRetired(civ, receiver.Id, recipient.Kit, Fix64.One);
+                        RecordIT6IronKitRetired(civ, receiver.Id, recipient.Kit, Fix64.One, "holder-share-replacement");
                     donorFigure.Kit = 0;
                     donorFigure.KitLeft = Fix64.Zero;
                     recipient.Kit = tier;

@@ -69,6 +69,7 @@ internal static class IronMatchCommand
         bool grantE4 = false;
         bool it6Accounting = false;
         bool it6SupplyDiagnostic = false;
+        bool it2KitTrace = false;
         bool ironHubFuelSharing = false;
         bool ironFissionCoveragePreserving = false;
         bool bronzeControl = false;
@@ -85,23 +86,24 @@ internal static class IronMatchCommand
                 case "--grant-e4": grantE4 = true; break;
                 case "--it6-accounting": it6Accounting = true; break;
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
+                case "--it2-kit-trace": it2KitTrace = true; it6Accounting = true; break;
                 case "--iron-hub-fuel-sharing": ironHubFuelSharing = true; break;
                 case "--iron-fission-coverage-preserving": ironFissionCoveragePreserving = true; break;
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
+        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace, ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
         return 0;
     }
 
-    private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
+    private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -111,6 +113,7 @@ internal static class IronMatchCommand
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
         match.Economy.B13WoodTraceEnabled = it6Accounting;
         match.Economy.IT6AccountingTraceEnabled = it6Accounting;
+        match.Economy.IT2KitShareTraceEnabled = it2KitTrace;
         match.Economy.IronHubFuelSharingEnabled = ironHubFuelSharing;
         match.Economy.IronFissionCoveragePreservingForDiagnostics = ironFissionCoveragePreserving;
         match.Economy.IronFuelReachBufferOverride = ironFuelReachBufferOverride;
@@ -138,6 +141,7 @@ internal static class IronMatchCommand
         var importHistory = it6SupplyDiagnostic ? new List<IT6WoodImportOpportunity>() : null;
         IT6FuelSiteSnapshot[]? previousFuelSites = null;
         var lastCatchmentCaptureSeason = new Dictionary<int, int>();
+        var it2KitTraceHistory = it2KitTrace ? new List<(int Season, IT6FuelSiteSnapshot[] Sites)>() : null;
         for (int c = 0; c < civs; c++)
         {
             statsHistory[c] = new List<MetalStatistics> { match.Economy.MetalStats(c) };
@@ -166,6 +170,8 @@ internal static class IronMatchCommand
             {
                 int season = (int)(runner.Tick / 150L);
                 IT6FuelSiteSnapshot[] seasonSites = match.Economy.CaptureIT6FuelSites().ToArray();
+                if (it2KitTraceHistory is not null && season is >= 298 and <= 312)
+                    it2KitTraceHistory.Add((season, seasonSites.Where(site => site.SettlementId is 69 or 75 or 76).ToArray()));
                 fuelHistory?.Add((season, seasonSites));
                 if (catchmentHistory is not null)
                 {
@@ -365,6 +371,9 @@ internal static class IronMatchCommand
             if (fuelHistory is not null && catchmentHistory is not null)
                 AppendIT6SupplyDiagnostic(o, world, fuelHistory, catchmentHistory,
                     importHistory is null ? Array.Empty<IT6WoodImportOpportunity>() : importHistory);
+            if (it2KitTraceHistory is not null)
+                AppendIT2KitShareTrace(o, it2KitTraceHistory, match.Economy.CaptureIT2KitShareDecisions(),
+                    match.Economy.CaptureIT6KitTransfers(), match.Economy.CaptureIT2KitRetirements());
         }
         L();
         return o.ToString();
@@ -748,6 +757,46 @@ internal static class IronMatchCommand
                     $"local-charcoal={F(site.CharcoalStock)} own/other-neighbors={site.OwnSettlementsInReach}/{site.OtherSettlementsInReach}");
             }
         }
+    }
+
+    private static void AppendIT2KitShareTrace(StringBuilder output,
+        IReadOnlyList<(int Season, IT6FuelSiteSnapshot[] Sites)> history,
+        IReadOnlyList<IT2KitShareDecisionSnapshot> decisions,
+        IReadOnlyList<IT6KitTransferSnapshot> transfers,
+        IReadOnlyList<IT2KitRetirementSnapshot> retirements)
+    {
+        static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
+        output.AppendLine("I-T2 focused kit-sharing trace for s69, s75, and s76, seasons 298–312:");
+        var previous = new Dictionary<int, IT6FuelSiteSnapshot>();
+        foreach ((int season, IT6FuelSiteSnapshot[] sites) in history)
+        {
+            foreach (IT6FuelSiteSnapshot site in sites.OrderBy(item => item.SettlementId))
+            {
+                bool existed = previous.TryGetValue(site.SettlementId, out IT6FuelSiteSnapshot before);
+                output.AppendLine($"  site season={season} s{site.SettlementId} freeFolk={site.IsFreeFolk} pop={site.Population} workers={site.ToolWorkers} kitWorkers={site.T11ToolWorkers + site.T12ToolWorkers} holders={site.Kit11Holders + site.Kit12Holders} " +
+                    $"dReceived={F(site.Kit11Received + site.Kit12Received - (existed ? before.Kit11Received + before.Kit12Received : Fix64.Zero))} " +
+                    $"dSent={F(site.Kit11Sent + site.Kit12Sent - (existed ? before.Kit11Sent + before.Kit12Sent : Fix64.Zero))} " +
+                    $"dRetired={F(site.Kit11Retired + site.Kit12Retired - (existed ? before.Kit11Retired + before.Kit12Retired : Fix64.Zero))} " +
+                    $"dBroken={(site.Kit11Breaks + site.Kit12Breaks - (existed ? before.Kit11Breaks + before.Kit12Breaks : 0))} " +
+                    $"dMade={F(site.Kit11Produced + site.Kit12Produced - (existed ? before.Kit11Produced + before.Kit12Produced : Fix64.Zero))} " +
+                    $"dIssued={F(site.Kit11Issued + site.Kit12Issued - (existed ? before.Kit11Issued + before.Kit12Issued : Fix64.Zero))} " +
+                    $"stock={F(site.Kit11Stock + site.Kit12Stock)}");
+                previous[site.SettlementId] = site;
+            }
+        }
+        foreach (IT2KitShareDecisionSnapshot decision in decisions.Where(item => item.Season is >= 298 and <= 312 &&
+                     (item.DonorId is 69 or 75 or 76 || item.ReceiverId is 69 or 75 or 76)))
+            output.AppendLine($"  decision season={decision.Season} s{decision.DonorId}->s{decision.ReceiverId} donor-pop={decision.DonorPopulation} " +
+                $"donor-workers={decision.DonorRecentToolWorkers} covered={decision.DonorCoveredRecentToolWorkers} holders={decision.DonorServicePositiveHolders} " +
+                $"growth-buffer={decision.DonorGrowthBuffer} reserve={decision.DonorMinimumHolderReserve} capacity={decision.DonorCapacity} planned-moves={decision.PlannedMoves}; " +
+                $"receiver-workers={decision.ReceiverRecentToolWorkers} covered={decision.ReceiverCoveredRecentToolWorkers} projected={decision.ReceiverProjectedToolWorkers}/{decision.ReceiverProjectedCoverageFloor} " +
+                $"needs-projection={decision.ReceiverNeedsProjectedCoverage} has-idle-holder={decision.ReceiverHadIdleHolder}");
+        foreach (IT6KitTransferSnapshot transfer in transfers.Where(item => item.Season is >= 298 and <= 312 && item.HolderTransfer &&
+                     (item.FromSettlementId is 69 or 75 or 76 || item.ToSettlementId is 69 or 75 or 76)))
+            output.AppendLine($"  transfer season={transfer.Season} T{transfer.Tier} s{transfer.FromSettlementId}->s{transfer.ToSettlementId} qty={F(transfer.Quantity)}");
+        foreach (IT2KitRetirementSnapshot retirement in retirements.Where(item => item.Season is >= 298 and <= 312 &&
+                     item.SettlementId is 69 or 75 or 76))
+            output.AppendLine($"  retirement season={retirement.Season} s{retirement.SettlementId} T{retirement.Tier} qty={F(retirement.Quantity)} reason={retirement.Reason}");
     }
 
     private static void AppendIT6SupplyDiagnostic(StringBuilder output, GeneratedWorld world,
