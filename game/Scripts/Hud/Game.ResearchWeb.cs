@@ -29,6 +29,21 @@ public partial class Game
     /// <summary>The viewer's latest project completed while the web was closed; the next open lands on it instead of the last selection.</summary>
     private int _completedWhileClosed = -1;
     private bool _replaceRowOpen;
+    /// <summary>Near-full-screen research web: no width cap, over the top bar, inspector at a fixed narrow width.</summary>
+    private bool _webExpanded;
+    private UiButton? _webExpandButton;
+    private PanelContainer? _inspectorHost;
+
+    // Full-screen stage (expanded Tree view): the map fills the window and these float over it. The widgets are reparented, never copied.
+    private VBoxContainer? _webRoot, _canvasColumn;
+    private HBoxContainer? _webHeader, _webStrip, _webFooter, _webBody;
+    private Control? _webOverlay;
+    private PanelContainer? _webTopBar, _webDock, _inspectorCard;
+    private BoxContainer? _webDockBox;
+    private VBoxContainer? _inspectorCardBody;
+    private UiButton? _inspectorTab;
+    private bool _webStageApplied, _inspectorCollapsed;
+    private float _stageTop, _stageDockTop;
 
     // slot strip
     private sealed class StripChip
@@ -123,10 +138,12 @@ public partial class Game
         _webPanel = UiKit.Panel("SheetPanel", "ResearchWeb");
         _webPanel.Visible = false;
         var root = UiKit.Column(UiTokens.Sp3);
+        _webRoot = root;
         _webPanel.AddChild(root);
 
         // Header
         var header = UiKit.Row(UiTokens.Sp3);
+        _webHeader = header;
         header.AddChild(UiKit.Text("Research", "Title"));
         _webViewSwitch = new UiSegmented(new[] { "Available", "Tree" }, 0, SetResearchView, 88);
         _webViewSwitch.SetTooltip(0, "Projects you can start now");
@@ -165,11 +182,15 @@ public partial class Game
             _webSearch.AcceptEvent();
         };
         header.AddChild(_webSearch);
+        _webExpandButton = UiKit.IconButton(UiGlyph.Expand, "Expand the tree (F)", ToggleWebExpanded);
+        header.AddChild(_webExpandButton);
         header.AddChild(UiKit.IconButton(UiGlyph.Close, "Close (Esc)", CloseResearchWeb));
         root.AddChild(header);
 
         // Slot strip
         var stripRow = UiKit.Row(UiTokens.Sp2);
+        _webStrip = stripRow;
+        stripRow.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         float[] ratios = { 1.0f, 0.618f, 0.382f };
         for (int slot = 0; slot < 3; slot++)
         {
@@ -185,8 +206,10 @@ public partial class Game
 
         // Body
         var body = UiKit.Row(UiTokens.Sp4);
+        _webBody = body;
         body.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         var canvasColumn = UiKit.Column(UiTokens.Sp2);
+        _canvasColumn = canvasColumn;
         canvasColumn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         canvasColumn.SizeFlagsStretchRatio = 0.618f;
         canvasColumn.CustomMinimumSize = new Vector2(360, 0);
@@ -214,12 +237,14 @@ public partial class Game
         inspectorHost.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         inspectorHost.SizeFlagsStretchRatio = 0.382f;
         inspectorHost.CustomMinimumSize = new Vector2(300, 0);
+        _inspectorHost = inspectorHost;
         BuildInspector(inspectorHost);
         body.AddChild(inspectorHost);
         root.AddChild(body);
 
         // Footer
         var footer = UiKit.Row(UiTokens.Sp3);
+        _webFooter = footer;
         _webAutoFill = new UiToggle("Auto-fill", false, enabled => { if (!_updatingFocusBar) SetAutoFill(enabled); })
         {
             TooltipText = "When a slot opens, the elders pick a project after one season. Your own choices stay.",
@@ -235,6 +260,7 @@ public partial class Game
         _footerNote.HorizontalAlignment = HorizontalAlignment.Right;
         footer.AddChild(_footerNote);
         root.AddChild(footer);
+        BuildWebStage();
         _hudRoot.AddChild(_webPanel);
 
         _queuePopover = new UiPopover("CardPanel") { Dismissed = CloseQueuePopover };
@@ -500,13 +526,252 @@ public partial class Game
     private void LayoutResearchWeb()
     {
         if (_webPanel is null) return;
+        ApplyWebStage();
         float m = Margin;
-        float width = Math.Min(1597, _logicalSize.X - 2 * m);
-        float top = m + TopBandHeight + (_compact ? 8 : 4);
-        float bottom = _logicalSize.Y - m;
-        AnchorTo(_webPanel, 0.5f, 0, 0.5f, 0, -width / 2, top, width / 2, bottom, Control.GrowDirection.Both);
-        _webPanel.CustomMinimumSize = new Vector2(width, bottom - top);
-        _webPanel.Size = new Vector2(width, bottom - top);
+        if (_webStageApplied)
+        {
+            // full screen: the map is the panel; the controls float over it
+            AnchorTo(_webPanel, 0, 0, 0, 0, 0, 0, _logicalSize.X, _logicalSize.Y, Control.GrowDirection.End);
+            _webPanel.CustomMinimumSize = _logicalSize;
+            _webPanel.Size = _logicalSize;
+            PositionWebStage();
+        }
+        else
+        {
+            float width = _webExpanded ? _logicalSize.X - 2 * m : Math.Min(1597, _logicalSize.X - 2 * m);
+            float top = m + TopBandHeight + (_compact ? 8 : 4);
+            float bottom = _logicalSize.Y - m;
+            AnchorTo(_webPanel, 0.5f, 0, 0.5f, 0, -width / 2, top, width / 2, bottom, Control.GrowDirection.Both);
+            _webPanel.CustomMinimumSize = new Vector2(width, bottom - top);
+            _webPanel.Size = new Vector2(width, bottom - top);
+            _webPanel.Position = new Vector2((_logicalSize.X - width) / 2, top);
+        }
+        ApplyWebExpandedLook();
+    }
+
+    // ---- full-screen stage -------------------------------------------------------------------
+
+    /// <summary>Expanded Tree view: the map fills the window and everything else floats over it.</summary>
+    private bool WantsWebStage => _webExpanded && _webView == ViewMap;
+
+    private void BuildWebStage()
+    {
+        _webOverlay = new Control { Name = "WebStage", MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+        _webPanel!.AddChild(_webOverlay);
+
+        _webTopBar = UiKit.Panel("HudPanel", "WebTopBar");
+        _webOverlay.AddChild(_webTopBar);
+
+        _webDock = UiKit.Panel("HudPanel", "WebDock");
+        _webDockBox = new BoxContainer { Vertical = false };
+        _webDockBox.AddThemeConstantOverride("separation", UiTokens.Sp3);
+        _webDock.AddChild(_webDockBox);
+        _webOverlay.AddChild(_webDock);
+
+        _inspectorCard = UiKit.Panel("CardPanel", "WebInspectorCard");
+        _inspectorCardBody = UiKit.Column(UiTokens.Sp2);
+        var head = UiKit.Row(UiTokens.Sp2);
+        head.AddChild(UiKit.Text("SELECTED PROJECT", "EyebrowTertiary"));
+        head.AddChild(UiKit.Spacer(expand: true));
+        head.AddChild(UiKit.IconButton(UiGlyph.ChevronRight, "Hide details (I)", ToggleInspectorCard, UiTokens.ControlS, 16));
+        _inspectorCardBody.AddChild(head);
+        _inspectorCard.AddChild(_inspectorCardBody);
+        _webOverlay.AddChild(_inspectorCard);
+
+        _inspectorTab = UiKit.Secondary("Details", ToggleInspectorCard, "Show the selected project (I)", UiGlyph.ChevronDown, UiTokens.ControlS);
+        _inspectorTab.Visible = false;
+        _webOverlay.AddChild(_inspectorTab);
+    }
+
+    private static void MoveTo(Control child, Node parent, int index = -1)
+    {
+        Node? old = child.GetParent();
+        if (old != parent)
+        {
+            old?.RemoveChild(child);
+            parent.AddChild(child);
+        }
+        if (index >= 0) parent.MoveChild(child, Math.Min(index, parent.GetChildCount() - 1));
+    }
+
+    private static void ResetAnchors(Control c)
+    {
+        c.AnchorLeft = c.AnchorTop = c.AnchorRight = c.AnchorBottom = 0;
+        c.OffsetLeft = c.OffsetTop = c.OffsetRight = c.OffsetBottom = 0;
+        c.GrowHorizontal = Control.GrowDirection.End;
+        c.GrowVertical = Control.GrowDirection.End;
+    }
+
+    /// <summary>Switches between the sheet layout and the full-screen stage. Idempotent; safe to call on every layout.</summary>
+    private void ApplyWebStage()
+    {
+        if (_webPanel is null || _webRoot is null || _webOverlay is null || _mapView is null) return;
+        bool want = WantsWebStage;
+        if (want == _webStageApplied) return;
+        if (GetViewport().GuiIsDragging()) return; // reparenting mid-drag would cancel it; the next layout retries
+        Control? focus = GetViewport().GuiGetFocusOwner();
+        if (want) EnterWebStage(); else LeaveWebStage();
+        _webStageApplied = want;
+        // reparenting drops focus
+        if (focus is not null && GodotObject.IsInstanceValid(focus)) focus.CallDeferred(Control.MethodName.GrabFocus);
+    }
+
+    private void EnterWebStage()
+    {
+        MoveTo(_webHeader!, _webTopBar!, 0);
+        MoveTo(_webStrip!, _webDockBox!, 0);
+        MoveTo(_webFooter!, _webDockBox!, 1);
+        MoveTo(_inspectorHost!, _inspectorCardBody!, 1);
+        MoveTo(_noticeBar!, _webOverlay!);
+        _webPanel!.ThemeTypeVariation = "WebStagePanel";
+        _webOverlay!.Visible = true;
+        for (int slot = 0; slot < 3; slot++) _strip[slot].Root.SizeFlagsStretchRatio = 1f; // equal chips: the dock is narrower than the sheet
+        _queueChip!.CustomMinimumSize = new Vector2(120, 55);
+        RaiseWebStage(true);
+    }
+
+    private void LeaveWebStage()
+    {
+        MoveTo(_webHeader!, _webRoot!, 0);
+        MoveTo(_webStrip!, _webRoot!, 1);
+        MoveTo(_webBody!, _webRoot!, 2);
+        MoveTo(_webFooter!, _webRoot!, 3);
+        MoveTo(_inspectorHost!, _webBody!, 1);
+        MoveTo(_noticeBar!, _canvasColumn!, 0);
+        ResetAnchors(_noticeBar!);
+        ResetAnchors(_webHeader!);
+        _webPanel!.ThemeTypeVariation = "SheetPanel";
+        _webOverlay!.Visible = false;
+        float[] ratios = { 1.0f, 0.618f, 0.382f };
+        for (int slot = 0; slot < 3; slot++) _strip[slot].Root.SizeFlagsStretchRatio = ratios[slot];
+        _queueChip!.CustomMinimumSize = new Vector2(144, 55);
+        _mapView!.SetOverlayInsets(0, 0, 0, 0, false, 0);
+        RaiseWebStage(false);
+    }
+
+    /// <summary>
+    /// The top bar and the left rail are drawn above the web (spec §3.4). In the full-screen stage the web goes over them too,
+    /// but still under toasts, the People sheet and modals. Same CanvasLayer, so only the child order changes.
+    /// </summary>
+    private void RaiseWebStage(bool over)
+    {
+        if (_hudRoot is null || _webScrim is null || _webPanel is null) return;
+        var sheet = new List<Control> { _webScrim, _webPanel };
+        if (_queuePopover is not null) sheet.Add(_queuePopover);
+        if (_leaningPopover is not null) sheet.Add(_leaningPopover);
+        void PlaceBefore(Control c, Control anchor)
+        {
+            int at = anchor.GetIndex();
+            _hudRoot.MoveChild(c, c.GetIndex() < at ? at - 1 : at);
+        }
+        if (over)
+        {
+            // scrim, panel, pause bars (so the frame still shows), popovers, all just under the toasts
+            Control anchor = _toastStack ?? (Control)_hudRoot.GetChild(_hudRoot.GetChildCount() - 1);
+            var order = new List<Control> { _webScrim, _webPanel };
+            foreach (ColorRect? bar in _pauseFrame) if (bar is not null) order.Add(bar);
+            if (_queuePopover is not null) order.Add(_queuePopover);
+            if (_leaningPopover is not null) order.Add(_leaningPopover);
+            foreach (Control c in order) PlaceBefore(c, anchor);
+        }
+        else
+        {
+            // back where they were built: the pause bars first; scrim, panel and popovers just under the People sheet
+            for (int i = 0; i < _pauseFrame.Length; i++)
+                if (_pauseFrame[i] is { } bar) _hudRoot.MoveChild(bar, i);
+            Control? anchor = _peopleRoot as Control ?? _civCard;
+            if (anchor is null) return;
+            foreach (Control c in sheet) PlaceBefore(c, anchor);
+        }
+    }
+
+    /// <summary>Places the floating controls and tells the map how much of its area they cover.</summary>
+    private void PositionWebStage()
+    {
+        if (_webTopBar is null || _webDock is null || _inspectorCard is null || _inspectorTab is null || _noticeBar is null || _mapView is null) return;
+        float m = _compact ? 8 : 12;
+        float W = _logicalSize.X, H = _logicalSize.Y;
+        _webDockBox!.Vertical = _compact;
+
+        AnchorTo(_webTopBar, 0, 0, 1, 0, m, m, -m, m);
+        float barHeight = Math.Max(_webTopBar.GetCombinedMinimumSize().Y, 44);
+        float top = m + barHeight + m;
+        _stageTop = top;
+
+        // the card is never narrower than what its chips need
+        float cardWidth = Math.Max(_compact ? 300 : W >= 2200 ? 380 : 340, _inspectorCard.GetCombinedMinimumSize().X);
+        bool showCard = !_inspectorCollapsed;
+        _inspectorCard.Visible = showCard;
+        _inspectorTab.Visible = !showCard;
+        AnchorTo(_inspectorCard, 1, 0, 1, 1, -(m + cardWidth), top, -m, -m, Control.GrowDirection.Begin);
+        _inspectorHost!.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _inspectorHost.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        _inspectorHost.CustomMinimumSize = new Vector2(0, 0);
+        const float tabWidth = 120;
+        AnchorTo(_inspectorTab, 1, 0, 1, 0, -(m + tabWidth), top, -m, top, Control.GrowDirection.Begin);
+
+        // the slot chips and footer controls sit in a second bar right under the top bar, beside the card
+        float dockRight = showCard ? m + cardWidth + m : m;
+        AnchorTo(_webDock, 0, 0, 1, 0, m, top, -dockRight, top);
+        float dockHeight = _webDock.GetCombinedMinimumSize().Y;
+        float mapTop = top + dockHeight + m;
+        _stageDockTop = top + dockHeight + 6; // where popovers hang from
+
+        AnchorTo(_noticeBar, 0.5f, 0, 0.5f, 0, 0, mapTop, 0, mapTop, Control.GrowDirection.Both);
+
+        // with the card collapsed its tab sits at the right end of the dock row, so the dock gives it room
+        if (!showCard) AnchorTo(_webDock, 0, 0, 1, 0, m, top, -(m + tabWidth + m), top);
+        _mapView.SetOverlayInsets(0, mapTop, showCard ? cardWidth + m : 0, m, true, showCard ? 0 : 0);
+    }
+
+    private void ToggleInspectorCard()
+    {
+        if (!_webStageApplied) return;
+        _inspectorCollapsed = !_inspectorCollapsed;
+        PositionWebStage();
+    }
+
+    /// <summary>Inspector width, toggle glyph and footer hint for the current expanded state.</summary>
+    private void ApplyWebExpandedLook()
+    {
+        if (_inspectorHost is not null && !_webStageApplied)
+        {
+            if (_webExpanded)
+            {
+                // fixed width: the extra room all goes to the tree; the slot buttons (150 wide minimum) still fit
+                _inspectorHost.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+                _inspectorHost.CustomMinimumSize = new Vector2(_compact ? 300 : 360, 0);
+            }
+            else
+            {
+                _inspectorHost.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                _inspectorHost.SizeFlagsStretchRatio = 0.382f;
+                _inspectorHost.CustomMinimumSize = new Vector2(300, 0);
+            }
+        }
+        if (_webExpandButton is not null)
+        {
+            _webExpandButton.Glyph = _webExpanded ? UiGlyph.Collapse : UiGlyph.Expand;
+            _webExpandButton.TooltipText = _webExpanded ? "Restore size (F)" : "Expand the tree (F)";
+        }
+        if (_footerNote is not null) _footerNote.Visible = !_webExpanded;
+        if (_webExpandButton is not null && _webStageApplied) _webExpandButton.TooltipText = "Restore size (F)";
+    }
+
+    private void ToggleWebExpanded()
+    {
+        _webExpanded = !_webExpanded;
+        _uiSettings.ResearchExpanded = _webExpanded;
+        _uiSettings.Save();
+        // the popovers were placed once at open time, so they would end up misplaced
+        CloseQueuePopover();
+        CloseLeaningPopover();
+        _inspectorCollapsed = false;
+        LayoutResearchWeb();
+        _mapCenterNext = true; // the layout changed under the map: keep the zoom, re-centre on the selection
+        _webSignature = int.MinValue;
+        RefreshResearchWebNow();
+        if (_webView == ViewMap) CallDeferred(nameof(ScrollToSelected));
     }
 
     // ---- open / close ------------------------------------------------------------------------
@@ -527,6 +792,7 @@ public partial class Game
         _backProject = -1;
         if (!wasOpen)
         {
+            _webExpanded = _uiSettings.ResearchExpanded;
             // the tree never remembers the age it was looking at: it opens on the current age, or the age of the project it opened for
             _mapView?.BeginOpen();
             _webView = _uiSettings.ResearchMapView ? ViewMap : ViewChoose;
@@ -628,6 +894,9 @@ public partial class Game
 
     private void ShowResearchView(int view)
     {
+        // the stage must be in place before the map becomes visible, so its first fit already knows the insets
+        _webView = view;
+        LayoutResearchWeb();
         if (_canvasScroll is not null) _canvasScroll.Visible = view == ViewChoose;
         if (_mapView is not null) _mapView.Visible = view == ViewMap;
     }
@@ -744,6 +1013,7 @@ public partial class Game
         if (fromPath && _selectedResearchProject >= 0 && _selectedResearchProject != project) _backProject = _selectedResearchProject;
         else if (!fromPath) _backProject = -1;
         _selectedResearchProject = project;
+        if (_webStageApplied && _inspectorCollapsed) { _inspectorCollapsed = false; PositionWebStage(); }
         _replaceRowOpen = false;
         _inspSignature = int.MinValue;
         _webSignature = int.MinValue;

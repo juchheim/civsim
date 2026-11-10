@@ -762,7 +762,7 @@ public partial class Game
             if (_leaningSliders[i] is HSlider slider) slider.Value = leanings[i];
             if (_leaningValues[i] is Label label) label.Text = $"{leanings[i]}%";
         }
-        _leaningPopover.Open(new Vector2(UiTokens.Sp4 + 8, _logicalSize.Y - 330), 377);
+        _leaningPopover.Open(new Vector2(UiTokens.Sp4 + 8, _webStageApplied ? _stageDockTop : _logicalSize.Y - 330), 377);
         _leaningLayer = RegisterLayer("leaning", false, () => { CloseLeaningPopover(); return true; });
         _ui.Push(_leaningLayer);
     }
@@ -1477,7 +1477,7 @@ public partial class Game
     }
 
     private string DefaultFooterNote() => _webView == ViewMap
-        ? "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot · PgUp/PgDn change age"
+        ? "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot · PgUp/PgDn change age · F expand"
         : "Click a project to see it · Double-click or Enter to start · 1 2 3 choose a slot";
 
     /// <summary>Keys that only mean something inside the web. Returns true when handled.</summary>
@@ -1512,6 +1512,12 @@ public partial class Game
                 return true;
             case Key.Pagedown or Key.Bracketleft when _webView == ViewMap:
                 _mapView?.StepEra(-1);
+                return true;
+            case Key.I when _webStageApplied && !key.CtrlPressed && !key.MetaPressed:
+                ToggleInspectorCard();
+                return true;
+            case Key.F when !key.CtrlPressed && !key.MetaPressed && !key.AltPressed:
+                ToggleWebExpanded();
                 return true;
             case Key.Slash:
             case Key.F when key.CtrlPressed || key.MetaPressed:

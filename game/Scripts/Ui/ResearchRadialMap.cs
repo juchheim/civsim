@@ -221,6 +221,51 @@ public partial class ResearchRadialMap : Control
 
     public ResearchRadialLayout? Layout => _layout;
 
+    // Full-screen stage: the control covers the whole window and the host floats a top bar, a dock and a details card over it.
+    // These are how much of each edge is covered; the tools, key, age rail and the centring of the view keep clear of them.
+    private float _insetL, _insetT, _insetR, _insetB, _pillRightInset;
+    private bool _toolsLeft;
+
+    public void SetOverlayInsets(float left, float top, float right, float bottom, bool toolsLeft, float pillRight)
+    {
+        _insetL = left; _insetT = top; _insetR = right; _insetB = bottom; _toolsLeft = toolsLeft; _pillRightInset = pillRight;
+        PlaceOverlays();
+        PlaceRail();
+    }
+
+    /// <summary>Tool pill, result list and key, kept clear of the host's overlays.</summary>
+    private void PlaceOverlays()
+    {
+        if (_toolPill is null || _statusPill is null || _legend is null) return;
+        float sp = UiTokens.Sp2;
+        if (_toolsLeft)
+        {
+            _toolPill.AnchorLeft = _toolPill.AnchorRight = 0;
+            _toolPill.GrowHorizontal = GrowDirection.End;
+            _toolPill.OffsetLeft = _toolPill.OffsetRight = _insetL + sp;
+        }
+        else
+        {
+            _toolPill.AnchorLeft = _toolPill.AnchorRight = 1;
+            _toolPill.GrowHorizontal = GrowDirection.Begin;
+            _toolPill.OffsetLeft = _toolPill.OffsetRight = -(_insetR + sp);
+        }
+        _toolPill.OffsetTop = _toolPill.OffsetBottom = _insetT + sp;
+
+        float width = _toolsLeft ? 320 : Math.Clamp(Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * sp, 220, 320);
+        _statusPill.CustomMinimumSize = new Vector2(width, 0);
+        if (_toolsLeft)
+            _statusPill.Position = new Vector2(Math.Max(sp, Size.X - _insetR - _pillRightInset - sp - Math.Max(width, _statusPill.Size.X)), _insetT + sp);
+        else
+        {
+            float room = Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * sp;
+            _statusPill.Position = new Vector2(sp, room < 240 ? _toolPill.GetCombinedMinimumSize().Y + 2 * sp + _insetT : sp + _insetT);
+        }
+
+        _legend.OffsetLeft = _insetL + sp;
+        _legend.OffsetBottom = _legend.OffsetTop = -(_insetB + sp);
+    }
+
     public void SetCatalog(ResearchCatalog catalog, Func<int, string> fieldName)
     {
         if (ReferenceEquals(_catalog, catalog) && _layout is not null) return;
@@ -613,13 +658,13 @@ public partial class ResearchRadialMap : Control
     /// <summary>Docks the rail to the left edge, centred between the tools at the top and the key at the bottom; hidden when there is no room.</summary>
     private void PlaceRail()
     {
-        float top = 48, bottom = _legend.Visible ? Math.Max(8, Size.Y - _legend.Position.Y) + 4 : 8;
+        float top = _insetT + 48, bottom = _legend.Visible ? Math.Max(_insetB + 8, Size.Y - _legend.Position.Y) + 4 : _insetB + 8;
         float room = Size.Y - top - bottom;
-        bool show = _lens is not null && _lens.RingCount > 1 && Size.X >= 520 && room >= (MaxRing() + 1) * ResearchEraRail.MinChip + 12;
+        bool show = _lens is not null && _lens.RingCount > 1 && Size.X - _insetL - _insetR >= 520 && room >= (MaxRing() + 1) * ResearchEraRail.MinChip + 12;
         if (_rail.Visible != show) { _rail.Visible = show; QueueRedraw(); }
         if (!show) return;
         float height = Math.Min(room, _rail.WantedHeight);
-        _rail.Position = new Vector2(UiTokens.Sp2, top + (room - height) * 0.5f);
+        _rail.Position = new Vector2(_insetL + UiTokens.Sp2, top + (room - height) * 0.5f);
         _rail.Size = new Vector2(ResearchEraRail.RailWidth, height);
     }
 
@@ -759,10 +804,10 @@ public partial class ResearchRadialMap : Control
     /// <summary>The part of the control not covered by the tools along the top or the key along the bottom.</summary>
     private Rect2 Usable()
     {
-        float top = 48, bottom = _legend.Visible ? Math.Max(8, Size.Y - _legend.Position.Y) + 4 : 8;
-        if (top + bottom > Size.Y * 0.6f) { top = 8; bottom = 8; }
-        float left = _rail.Visible ? _rail.Position.X + _rail.Size.X + 4 : 8;
-        return new Rect2(left, top, Math.Max(1, Size.X - left - 8), Math.Max(1, Size.Y - top - bottom));
+        float top = _insetT + 48, bottom = _legend.Visible ? Math.Max(_insetB + 8, Size.Y - _legend.Position.Y) + 4 : _insetB + 8;
+        if (top + bottom > Size.Y * 0.6f) { top = _insetT + 8; bottom = _insetB + 8; }
+        float left = _rail.Visible ? _rail.Position.X + _rail.Size.X + 4 : _insetL + 8;
+        return new Rect2(left, top, Math.Max(1, Size.X - _insetR - left - 8), Math.Max(1, Size.Y - top - bottom));
     }
 
     /// <summary>The world centre that puts <paramref name="world"/> in the middle of the usable part at <paramref name="zoom"/>.</summary>
@@ -935,11 +980,9 @@ public partial class ResearchRadialMap : Control
         if (what == NotificationResized || what == NotificationVisibilityChanged)
         {
             // the result list takes what the tools along the top leave
-            float room = Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * UiTokens.Sp2;
-            _statusPill.CustomMinimumSize = new Vector2(Math.Clamp(room, 220, 320), 0);
-            bool narrow = Size.X < 780;
+            bool narrow = Size.X - _insetL - _insetR < 780;
             _gateButton.Text = narrow ? "" : "Turning point";
-            _statusPill.Position = new Vector2(UiTokens.Sp2, room < 240 ? _toolPill.GetCombinedMinimumSize().Y + 2 * UiTokens.Sp2 : UiTokens.Sp2);
+            PlaceOverlays();
             PlaceRail();
             if (Size.X > 2 && IsVisibleInTree() && _layout is not null)
             {

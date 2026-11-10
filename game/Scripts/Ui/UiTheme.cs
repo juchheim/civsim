@@ -196,6 +196,7 @@ public static class UiTheme
         PanelStyle("MomentCard", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 8, 10, 4, 0.35f));
         PanelStyle("InnerCard", Box(UiTokens.Surface2, UiTokens.R1, UiTokens.BorderStrong, 1, UiTokens.Sp3, 10));
         PanelStyle("SheetPanel", Box(UiTokens.Surface3, UiTokens.R3, UiTokens.BorderStrong, 1, UiTokens.Sp4, UiTokens.Sp4, 21, 8, 0.45f));
+        PanelStyle("WebStagePanel", Box(UiTokens.Surface1, 0, null, 0, 0, 0));
         PanelStyle("ToastPanel", Box(UiTokens.Surface2, UiTokens.R2, UiTokens.BorderStrong, 1, UiTokens.Sp3, UiTokens.Sp2, 10, 4, 0.35f));
         PanelStyle("PillPanel", Box(UiTokens.Surface1, 17, UiTokens.Border, 1, UiTokens.Sp3, 6));
         PanelStyle("PausedPill", Box(UiTokens.Surface2, 17, UiTokens.Accent, 1, UiTokens.Sp3, 6, 6, 2, 0.3f));

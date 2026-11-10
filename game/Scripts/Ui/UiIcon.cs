@@ -12,6 +12,8 @@ public enum UiGlyph
     EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler, Link,
     // UI pass 2 (docs/MVP/ui-ux-pass2.md §7): one distinct mark per map layer, and a seal for Decrees (it used to borrow People).
     Seal, LayerForest, LayerDeposits, LayerTrade, LayerCohesion,
+    // Expand / collapse a panel to near full screen (research tree).
+    Expand, Collapse,
 }
 
 /// <summary>Draws every icon the HUD uses with CanvasItem primitives, so no emoji or icon font is needed.</summary>
@@ -157,6 +159,22 @@ public static class UiDraw
                 ci.DrawLine(P(0.2f, 0.5f), P(0.8f, 0.5f), color, line);
                 ci.DrawLine(P(0.2f, 0.7f), P(0.8f, 0.7f), color, line);
                 break;
+            case UiGlyph.Expand:
+            case UiGlyph.Collapse:
+            {
+                // four corner brackets: pointing out (expand) or in (collapse)
+                bool inward = glyph == UiGlyph.Collapse;
+                float a = inward ? 0.42f : 0.14f, b = inward ? 0.58f : 0.86f, arm = 0.22f;
+                float[] xs = { a, b }, ys = { a, b };
+                for (int ix = 0; ix < 2; ix++)
+                    for (int iy = 0; iy < 2; iy++)
+                    {
+                        float x = xs[ix], y = ys[iy];
+                        float dx = (ix == 0 ? 1 : -1) * arm * (inward ? -1 : 1), dy = (iy == 0 ? 1 : -1) * arm * (inward ? -1 : 1);
+                        ci.DrawPolyline(new[] { P(x + dx, y), P(x, y), P(x, y + dy) }, color, line);
+                    }
+                break;
+            }
             case UiGlyph.Spark:
                 ci.DrawColoredPolygon(new[]
                 {
