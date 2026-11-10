@@ -93,7 +93,11 @@ public sealed partial class LivingEconomyModel
         Fix64 iron = IronStock(s, IronGood.Wrought) + m.Goods[(int)MetalGood.Iron] * Fix64.FromRatio(4, 5) + (steel ? IronStock(s, IronGood.Steel) : Fix64.Zero);
         Fix64 fromStore = iron / WroughtPerKit;
         Fix64 wanted = Fix64.Max(needKits * IronWoodFactor(s, m), Fix64.Min(needKits, fromStore));
-        plan.Terminal[IronSlot(steel ? IronGood.Kit12 : IronGood.Kit11)] = Fix64.Max(Fix64.Zero, wanted - IronKitsInStore(s));
+        IronGood targetKit = steel ? IronGood.Kit12 : IronGood.Kit11;
+        IronGood otherTierKit = steel ? IronGood.Kit11 : IronGood.Kit12;
+        // ExpandWants subtracts stock of the selected output tier from this terminal target.
+        // Pre-net the other tier only, since either tier can satisfy the shared holder deficit.
+        plan.Terminal[IronSlot(targetKit)] = Fix64.Max(Fix64.Zero, wanted - IronStock(s, otherTierKit));
     }
 
     /// <summary>Provisional aggregate forest-share threshold where the Iron chain's demand factor reaches full strength.</summary>
