@@ -70,6 +70,7 @@ internal static class IronMatchCommand
         bool it6Accounting = false;
         bool it6SupplyDiagnostic = false;
         bool it2KitTrace = false;
+        int ironKitTraceSettlement = -1, ironKitTraceFromSeason = int.MinValue, ironKitTraceThroughSeason = int.MaxValue;
         bool ironHubFuelSharing = false;
         bool ironFissionCoveragePreserving = false;
         bool bronzeControl = false;
@@ -87,23 +88,33 @@ internal static class IronMatchCommand
                 case "--it6-accounting": it6Accounting = true; break;
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
                 case "--it2-kit-trace": it2KitTrace = true; it6Accounting = true; break;
+                case "--iron-kit-production-trace":
+                    ironKitTraceSettlement = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    ironKitTraceFromSeason = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    ironKitTraceThroughSeason = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    it6Accounting = true;
+                    break;
                 case "--iron-hub-fuel-sharing": ironHubFuelSharing = true; break;
                 case "--iron-fission-coverage-preserving": ironFissionCoveragePreserving = true; break;
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace, ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
+        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
+            ironKitTraceSettlement, ironKitTraceFromSeason, ironKitTraceThroughSeason,
+            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
         return 0;
     }
 
-    private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace, bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
+    private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
+        int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -117,6 +128,14 @@ internal static class IronMatchCommand
         match.Economy.IronHubFuelSharingEnabled = ironHubFuelSharing;
         match.Economy.IronFissionCoveragePreservingForDiagnostics = ironFissionCoveragePreserving;
         match.Economy.IronFuelReachBufferOverride = ironFuelReachBufferOverride;
+        var ironKitProductionTrace = ironKitTraceSettlement >= 0 ? new StringBuilder() : null;
+        if (ironKitProductionTrace is not null)
+        {
+            match.Economy.MetalDebug = ironKitProductionTrace;
+            match.Economy.MetalDebugSettlementId = ironKitTraceSettlement;
+            match.Economy.MetalDebugSeasonFrom = ironKitTraceFromSeason;
+            match.Economy.MetalDebugSeasonThrough = ironKitTraceThroughSeason;
+        }
         FissionSiteDiagnostics? fissionDiagnostics = ironFissionCoveragePreserving ? new FissionSiteDiagnostics() : null;
         if (fissionDiagnostics is not null) match.Economy.FissionSiteDiagnosticsForDiagnostics = fissionDiagnostics;
         var runner = new SimRunner(match);
@@ -374,6 +393,11 @@ internal static class IronMatchCommand
             if (it2KitTraceHistory is not null)
                 AppendIT2KitShareTrace(o, it2KitTraceHistory, match.Economy.CaptureIT2KitShareDecisions(),
                     match.Economy.CaptureIT6KitTransfers(), match.Economy.CaptureIT2KitRetirements());
+        }
+        if (ironKitProductionTrace is not null)
+        {
+            L($"Iron kit production trace for s{ironKitTraceSettlement}, seasons {ironKitTraceFromSeason}–{ironKitTraceThroughSeason} (pre-craft inputs/plans, then planned→made recipe outputs and remaining metal/craft pools):");
+            o.Append(ironKitProductionTrace);
         }
         L();
         return o.ToString();

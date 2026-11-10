@@ -464,6 +464,18 @@ public sealed partial class LivingEconomyModel
         return lacking;
     }
 
+    /// <summary>Toolworkers from the previous season who still lack a usable Iron kit; available before this season's work is assigned.</summary>
+    private int IronToolWorkersLackingLastSeason(SettlementState s)
+    {
+        int lacking = 0;
+        foreach (FigureState f in _figures)
+        {
+            if (f.SettlementId != s.Id || f.Age < 14 || !f.WorkedWithToolLastSeason) continue;
+            if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
+        }
+        return lacking;
+    }
+
     /// <summary>Reassigns an idle, service-positive Iron kit to a current tool worker who has no usable Iron tier.</summary>
     private void ReassignIdleIronKitsToToolWorkers(SettlementState s, Fix64[] toolWork)
     {
@@ -1100,6 +1112,36 @@ public sealed partial class LivingEconomyModel
     }
 
     // ---- recipes --------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Finishes planned T12 kits from steel already on hand before the current season makes more steel.
+    /// In a thin settlement the pooled metal work can run out while the normal recipe order converts a
+    /// small steel reserve into another fraction; prioritizing the issue kit first lets existing steel
+    /// cover current tool workers without increasing the seasonal labor or fuel budget.
+    /// </summary>
+    private Fix64 PrioritizeExistingIronKit12(SettlementState s, MetalState m, MetalPlan plan,
+        ref Fix64 metalPool, ref Fix64 craftPool)
+    {
+        if (!IronChain || !Done(s.Civilization, "MET-10") || IronToolWorkersLacking(s) <= 0) return Fix64.Zero;
+        for (int r = 0; r < _compiledRecipes.Length; r++)
+        {
+            CompiledRecipe recipe = _compiledRecipes[r];
+            if (recipe.Def.Id != "make_tool12" || plan.Batches[r] <= Fix64.Zero || !RecipeAvailable(s, recipe)) continue;
+            Fix64 steelPerBatch = Fix64.Zero;
+            for (int input = 0; input < recipe.InputSlots.Length; input++)
+                if (Array.IndexOf(recipe.InputSlots[input], IronSlot(IronGood.Steel)) >= 0)
+                    steelPerBatch += InputQuantity(s, recipe, input);
+            if (steelPerBatch <= Fix64.Zero) return Fix64.Zero;
+            Fix64 alreadyAvailableSteel = IronStock(s, IronGood.Steel);
+            Fix64 existingSteelCap = alreadyAvailableSteel / steelPerBatch;
+            Fix64 plannedFromExistingSteel = Fix64.Min(plan.Batches[r], existingSteelCap);
+            if (plannedFromExistingSteel <= Fix64.Zero) return Fix64.Zero;
+            Fix64 made = RunRecipe(s, recipe, plannedFromExistingSteel, plan.AnyMetalKit, ref metalPool, ref craftPool);
+            if (made > Fix64.Zero) RecordRecipe(s.Civilization, recipe, made, OutputQuantity(s, recipe));
+            return made;
+        }
+        return Fix64.Zero;
+    }
 
     /// <summary>
     /// Runs one Iron recipe as the craft step would (docs/MVP/26 §2.3): the same scarcest-input and labor limits as <see cref="RunRecipe"/>, inputs

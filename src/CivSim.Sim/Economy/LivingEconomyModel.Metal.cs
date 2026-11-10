@@ -82,6 +82,7 @@ public sealed partial class LivingEconomyModel
         public Fix64 CampWork;
         public Fix64 TotalWork;
         public Fix64 PushCap;
+        public bool IronKitCapMarginApplied;
         public Fix64 PrimaryChain;
         public Fix64 SecondaryChain;
         public Fix64 PrimaryScale = Fix64.One;
@@ -95,6 +96,9 @@ public sealed partial class LivingEconomyModel
     private Fix64[] _metalBarter = Array.Empty<Fix64>();
     /// <summary>Harness tracing of the craft step; null (and free) in matches.</summary>
     internal System.Text.StringBuilder? MetalDebug;
+    internal int MetalDebugSettlementId = -1;
+    internal int MetalDebugSeasonFrom = int.MinValue;
+    internal int MetalDebugSeasonThrough = int.MaxValue;
     private SortedSet<int>? _b12MiningTraceCaptured;
     private SortedList<int, int>? _b12T18FirstCastSeason;
     internal bool B12MiningWantTraceEnabled { get; set; }
@@ -965,6 +969,15 @@ public sealed partial class LivingEconomyModel
         // The mathematically equivalent absolute cap can round differently and shift discrete kit transfers.
         if (IronChain && Done(civ, "MET-09"))
             cap *= _bronzeConstants.IronPostRouteChainCap / _bronzeConstants.ChainCap;
+        // Compact hubs that already have steel but still lack Iron-equipped tool workers can finish kit batches
+        // just below the ordinary chain limit. Give those sites a small 10% margin to clear existing intermediates.
+        bool ironKitCapMargin = IronChain && IronFuelHubsEnabled(civ) && Done(civ, "MET-10") && IronFuelHubFor(s).Id == s.Id &&
+            Population(s.Id) < 20 && IronToolWorkersLackingLastSeason(s) > 0 && IronStock(s, IronGood.Steel) > Fix64.Zero;
+        if (ironKitCapMargin)
+        {
+            cap *= Fix64.FromRatio(11, 10);
+            plan.IronKitCapMarginApplied = true;
+        }
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
@@ -1924,7 +1937,9 @@ public sealed partial class LivingEconomyModel
         Fix64 metalPool = (plan.CharcoalAssigned + plan.SmeltAssigned) * specialist + spare;
         bool arsenic = false;
         bool fuelShort = false;
-        bool traceSettlement = MetalDebug is not null;
+        bool traceSettlement = MetalDebug is not null &&
+            (MetalDebugSettlementId < 0 || s.Id == MetalDebugSettlementId) &&
+            season >= MetalDebugSeasonFrom && season <= MetalDebugSeasonThrough;
         if (traceSettlement)
         {
             Fix64 rangeStone = Fix64.Zero;
@@ -1932,19 +1947,52 @@ public sealed partial class LivingEconomyModel
             Fix64 dressPlan = Fix64.Zero;
             for (int r = 0; r < _compiledRecipes.Length; r++)
                 if (_compiledRecipes[r].Def.Id == "dress_stone") { dressPlan = plan.Batches[r]; break; }
-            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2}");
+            var ironPlan = new System.Text.StringBuilder();
+            for (int r = 0; r < _compiledRecipes.Length; r++)
+            {
+                CompiledRecipe recipe = _compiledRecipes[r];
+                if (recipe.OutputSlot < IronSlotBase) continue;
+                if (ironPlan.Length > 0) ironPlan.Append(' ');
+                ironPlan.Append(recipe.Def.Id).Append('=').Append(plan.Batches[r].ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} metalPool {metalPool.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2} " +
+                $"work={plan.TotalWork.ToDoubleForDisplay():F2} pushCap={plan.PushCap.ToDoubleForDisplay():F2} kitCapMargin={plan.IronKitCapMarginApplied} chainPrimary={plan.PrimaryChain.ToDoubleForDisplay():F2}x{plan.PrimaryScale.ToDoubleForDisplay():F2} chainSecondary={plan.SecondaryChain.ToDoubleForDisplay():F2}x{plan.SecondaryScale.ToDoubleForDisplay():F2} assigned(mine/char/smelt)={plan.MineAssigned.ToDoubleForDisplay():F2}/{plan.CharcoalAssigned.ToDoubleForDisplay():F2}/{plan.SmeltAssigned.ToDoubleForDisplay():F2} " +
+                $"ironStock ore={m.Goods[(int)MetalGood.IronOre].ToDoubleForDisplay():F2} iron={m.Goods[(int)MetalGood.Iron].ToDoubleForDisplay():F2} charcoal={m.Goods[(int)MetalGood.Charcoal].ToDoubleForDisplay():F2} wrought={IronStock(s, IronGood.Wrought).ToDoubleForDisplay():F2} steel={IronStock(s, IronGood.Steel).ToDoubleForDisplay():F2} T11={IronStock(s, IronGood.Kit11).ToDoubleForDisplay():F2} T12={IronStock(s, IronGood.Kit12).ToDoubleForDisplay():F2}; ironPlan {ironPlan}");
         }
+        Fix64 earlyIronKit12Made = Fix64.Zero;
+        bool earlyIronKit12Attempted = false;
         for (int r = 0; r < _compiledRecipes.Length; r++)
         {
             CompiledRecipe recipe = _compiledRecipes[r];
+            if (recipe.IsCharcoal)
+            {
+                if (plan.Batches[r] > Fix64.Zero && RecipeAvailable(s, recipe))
+                {
+                    Fix64 charcoalMade = BurnCharcoal(s, m, recipe, plan,
+                        Fix64.Min(plan.Batches[r], CharcoalNeededNow(s, plan, r)), ref metalPool, ref craftLeft, out fuelShort);
+                    if (traceSettlement)
+                        MetalDebug!.Append($" {recipe.Def.Id}:{plan.Batches[r].ToDoubleForDisplay():F2}->{charcoalMade.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                    if (charcoalMade > Fix64.Zero) RecordRecipe(civ, recipe, charcoalMade, OutputQuantity(s, recipe));
+                }
+                if (!earlyIronKit12Attempted)
+                {
+                    earlyIronKit12Attempted = true;
+                    earlyIronKit12Made = PrioritizeExistingIronKit12(s, m, plan, ref metalPool, ref craftLeft);
+                    if (traceSettlement)
+                        MetalDebug!.Append($" early-existing-steel-tool12:{earlyIronKit12Made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                }
+                continue;
+            }
             if (plan.Batches[r] <= Fix64.Zero || !RecipeAvailable(s, recipe)) continue;
+            Fix64 planned = recipe.Def.Id == "make_tool12"
+                ? Fix64.Max(Fix64.Zero, plan.Batches[r] - earlyIronKit12Made)
+                : plan.Batches[r];
+            if (planned <= Fix64.Zero) continue;
             if (recipe.OutputSlot == MetalSlot(MetalGood.Ashlar)) QuarryBlocks(s, m, plan, ref craftLeft);
             if (recipe.OutputSlot == MetalSlot(MetalGood.Salted)) PanSalt(s, m, plan, season, ref craftLeft);
-            Fix64 made = recipe.IsCharcoal
-                ? BurnCharcoal(s, m, recipe, plan, Fix64.Min(plan.Batches[r], CharcoalNeededNow(s, plan, r)), ref metalPool, ref craftLeft, out fuelShort)
-                : RunRecipe(s, recipe, plan.Batches[r], plan.AnyMetalKit, ref metalPool, ref craftLeft);
+            Fix64 made = RunRecipe(s, recipe, planned, plan.AnyMetalKit, ref metalPool, ref craftLeft);
             if (traceSettlement)
-                MetalDebug!.Append($" {recipe.Def.Id}:{plan.Batches[r].ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                MetalDebug!.Append($" {recipe.Def.Id}:{planned.ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
             if (made <= Fix64.Zero) continue;
             RecordRecipe(civ, recipe, made, OutputQuantity(s, recipe));
             if (recipe.Def.Id == "cosmelt_arsenical") arsenic = true;
