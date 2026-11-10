@@ -565,12 +565,19 @@ public partial class Game
         SetOrder(_allianceRow!, !allied, can && contacted && !atWar && !allied && relations > 40 && dip03,
             !dip03 ? $"Needs {NeedsName(_dip03)}: both of you must know it." : !contacted ? "Meet them first." : atWar ? "Not while you're at war." :
             relations <= 40 ? $"Needs warmer relations (above 40; now {relations})." : "You defend each other.");
-        bool occupation = false;
+        bool occupation = false, ownOccupation = false, assaultInFlight = false;
         for (int i = 0; i < frame.OccupationCount; i++)
             for (int s = 0; s < frame.SettlementCount; s++)
-                if (frame.SettlementIndex[s] == frame.OccupationSettlement[i] &&
-                    (frame.OccupationCiv[i] == frame.ViewerCiv && frame.SettlementCiv[s] == civ || frame.OccupationCiv[i] == civ && frame.SettlementCiv[s] == frame.ViewerCiv))
-                    occupation = true;
+            {
+                if (frame.SettlementIndex[s] != frame.OccupationSettlement[i]) continue;
+                bool usHolding = frame.OccupationCiv[i] == frame.ViewerCiv && frame.SettlementCiv[s] == civ;
+                bool theyHolding = frame.OccupationCiv[i] == civ && frame.SettlementCiv[s] == frame.ViewerCiv;
+                occupation |= usHolding || theyHolding;
+                ownOccupation |= usHolding;
+            }
+        for (int i = 0; i < frame.PartyCount; i++)
+            if (frame.PartyCiv[i] == frame.ViewerCiv && frame.PartyTargetCiv[i] == civ && frame.PartyKind[i] == (byte)PartyKind.Assault)
+                assaultInFlight = true;
         SetOrder(_peaceRow!, atWar, can && atWar && !occupation, occupation ? "Not while you hold one of their settlements." : "Ends the war. A truce follows.");
 
         RefreshIronOrders(frame, civ, can, atWar, allied, contacted);
@@ -584,8 +591,8 @@ public partial class Game
         SetOrder(_warRow!, !atWar, can && contacted && !atWar && !allied,
             !contacted ? "Meet them first." : allied ? "End the alliance first." : "Breaks any truce and harms your reputation. Lets you assault.");
         bool rememberedDestination = chosenDestination && IsRememberedDestination(frame, civ, _selectedTargetSettlement);
-        SetOrder(_assaultRow!, true, can && atWar && !assaultQueued,
-            assaultQueued ? "Assault queued; it starts when you resume." : !atWar ? "Declare war first." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :
+        SetOrder(_assaultRow!, true, can && atWar && !assaultQueued && !assaultInFlight && !ownOccupation,
+            assaultQueued ? "Assault queued; it starts when you resume." : !atWar ? "Declare war first." : assaultInFlight ? "An assault against them is already traveling." : ownOccupation ? "Your people are occupying one of their settlements. Another assault can launch once the occupation ends." : !chosenDestination ? "Your civilization chooses its closest campaign target. Choose a settlement above to direct it." :
             rememberedDestination ? "Marches to its last known site; it may be empty or its population may have changed." : "Tries to take the selected settlement.");
     }
 
