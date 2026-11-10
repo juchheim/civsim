@@ -55,6 +55,7 @@ var road_node: MeshInstance3D
 var road_signature := -1
 var supply_node: MeshInstance3D
 var supply_dirty := true
+var supply_signature := -1
 var border_signature := -1
 var river_visibility_signature := -1
 var regional_lod := false
@@ -234,10 +235,13 @@ func update_frame() -> bool:
 		borders_far_node.mesh = terrain_builder.build_borders(3.2)
 	_update_trails()
 	_update_roads()
-	if supply_node.visible:
-		_update_supply_network()
-	else:
-		supply_dirty = true
+	var next_supply_signature := _supply_digest()
+	if next_supply_signature != supply_signature:
+		if supply_node.visible:
+			_update_supply_network()
+		else:
+			supply_dirty = true
+			supply_signature = next_supply_signature
 	var geometry_updated := Time.get_ticks_usec()
 	var signature := _structure_digest()
 	var structures_changed := signature != structure_signature
@@ -284,8 +288,22 @@ func update_frame() -> bool:
 
 func _update_supply_network() -> void:
 	if supply_node != null:
-		supply_node.mesh = SupplyBuilder.build(w)
+		var network := SupplyBuilder.build(w)
+		for label in supply_node.get_children():
+			supply_node.remove_child(label)
+			label.queue_free()
+		supply_node.mesh = network["mesh"]
+		for label in network["labels"]:
+			supply_node.add_child(label)
 		supply_dirty = false
+		supply_signature = _supply_digest()
+
+func _supply_digest() -> int:
+	var digest := hash(w.supply_flows)
+	for settlement in w.settlements:
+		digest = hash([digest, int(settlement.get("tile", -1)), int(settlement.get("supplyShortage", 0)),
+			bool(settlement.get("remembered", false))])
+	return digest
 
 func set_supply_network_visible(enabled: bool) -> void:
 	if supply_node == null:

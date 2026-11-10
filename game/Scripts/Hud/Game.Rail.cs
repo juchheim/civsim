@@ -136,14 +136,14 @@ public partial class Game
         AddSwatch(trade, new Color("#f2ad1e"), "Tin route or caravan");
 
         supply.AddChild(UiKit.Text("SUPPLY NETWORKS", "EyebrowTertiary"));
-        AddSwatch(supply, new Color("#6bd887"), "Shared food");
-        AddSwatch(supply, new Color("#67aef2"), "Shared materials and tools");
-        AddSwatch(supply, new Color("#47d1d1"), "Trade route or caravan");
-        AddSwatch(supply, new Color("#c28cff"), "Gift or barter in transit");
-        AddSwatch(supply, new Color("#f0aa42"), "Tribute");
-        AddSwatch(supply, new Color("#f0a847"), "Short food or building materials");
-        AddSwatch(supply, new Color("#f45e54"), "Food famine");
-        supply.AddChild(UiKit.Text("Arrowheads point to the receiving settlement. Orange rings mark shortages; red rings mark famine.", "CaptionTertiary", wrap: true, minWidth: 207));
+        AddSupplyLineSwatch(supply, new Color("#00d982"), "Shared food");
+        AddSupplyLineSwatch(supply, new Color("#368dff"), "Shared materials and tools");
+        AddSupplyLineSwatch(supply, new Color("#00dce8"), "Trade route or caravan");
+        AddSupplyLineSwatch(supply, new Color("#c16bff"), "Gift or barter in transit");
+        AddSupplyLineSwatch(supply, new Color("#ff9b22"), "Tribute");
+        AddSwatch(supply, new Color("#ffb226"), "Short food or building materials");
+        AddSwatch(supply, new Color("#ff4c43"), "Food famine");
+        supply.AddChild(UiKit.Text("Line colors show transfer type. Labels name the good and amount; arrowheads point to the receiver. Rings mark shortages.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         cohesion.AddChild(UiKit.Text("COHESION", "EyebrowTertiary"));
         AddSwatch(cohesion, new Color("#338C38"), "Strong");
@@ -198,6 +198,23 @@ public partial class Game
         var row = UiKit.Row(UiTokens.Sp2);
         var swatch = new ColorRect { Color = color, CustomMinimumSize = new Vector2(13, 13), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddChild(swatch);
+        row.AddChild(UiKit.Text(text, "Caption", wrap: true, minWidth: 180));
+        parent.AddChild(row);
+    }
+
+    private static void AddSupplyLineSwatch(VBoxContainer parent, Color color, string text)
+    {
+        var row = UiKit.Row(UiTokens.Sp1);
+        var line = new ColorRect
+        {
+            Color = color,
+            CustomMinimumSize = new Vector2(20, 4),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        var arrow = UiKit.Text("▶", "Caption", color, minWidth: 12);
+        row.AddChild(line);
+        row.AddChild(arrow);
         row.AddChild(UiKit.Text(text, "Caption", wrap: true, minWidth: 180));
         parent.AddChild(row);
     }
