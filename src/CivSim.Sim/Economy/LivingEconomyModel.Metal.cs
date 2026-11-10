@@ -926,12 +926,18 @@ public sealed partial class LivingEconomyModel
 
         // Kits and arms come first; the other goods get what is left of the push cap (docs/MVP/23 §7.3).
         PrimaryWants(s, m, plan, pop, needKits);
-        var primaryTerminal = (Fix64[])plan.Terminal.Clone();
+        var primaryTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
+        SecondaryWants(s, m, plan, pop);
+        var fullTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
+        Fix64 ironFuelDemandScale = IronFuelTerminalDemandScale(s, plan, fullTerminalUnscaled);
+        Fix64[] primaryTerminal = ScaleIronFuelTerminalDemand(primaryTerminalUnscaled, ironFuelDemandScale);
+        Fix64[] fullTerminal = ScaleIronFuelTerminalDemand(fullTerminalUnscaled, ironFuelDemandScale);
+        Array.Copy(primaryTerminal, plan.Terminal, plan.Terminal.Length);
         ExpandWants(s, plan);
         var primaryBatches = (Fix64[])plan.Batches.Clone();
         var primaryWant = (Fix64[])plan.Want.Clone();
         (Fix64 mineA, Fix64 charA, Fix64 smeltA) = ChainLabor(s, plan);
-        SecondaryWants(s, m, plan, pop);
+        Array.Copy(fullTerminal, plan.Terminal, plan.Terminal.Length);
         ExpandWants(s, plan);
         (Fix64 mineAll, Fix64 charAll, Fix64 smeltAll) = ChainLabor(s, plan);
 
@@ -941,7 +947,6 @@ public sealed partial class LivingEconomyModel
             // The ore wants stay in the plan above so a MineHead is still chosen; the labor and batches of everything that
             // would consume an ore nobody can dig are planned again without it.
             plan.BlockedOres = blocked;
-            Fix64[] fullTerminal = (Fix64[])plan.Terminal.Clone();
             Array.Copy(primaryTerminal, plan.Terminal, plan.Terminal.Length);
             ExpandWants(s, plan);
             primaryBatches = (Fix64[])plan.Batches.Clone();

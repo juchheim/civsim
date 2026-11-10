@@ -200,6 +200,76 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>
+    /// Limits only new Iron-chain terminal wants to the wood the settlement can physically burn this season. The ordinary forest
+    /// factor is useful for hub siting, but its zero-baseline fallback cannot distinguish a fuel-poor site from an unmeasured one.
+    /// Existing charcoal and intermediate metal stocks are already netted by <see cref="ExpandWants"/> and remain usable.
+    /// </summary>
+    private Fix64 IronFuelTerminalDemandScale(SettlementState s, MetalPlan plan, Fix64[] fullTerminal)
+    {
+        if (!IronChain || !Done(s.Civilization, "MET-09")) return Fix64.One;
+
+        Fix64 localWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
+        Fix64 availableWood = localWood + IT6ReachWood(s).Harvestable;
+        Array.Copy(fullTerminal, plan.Terminal, plan.Terminal.Length);
+        ExpandWants(s, plan);
+        Fix64 fullWoodDemand = PlannedCharcoalWood(s, plan);
+        if (fullWoodDemand <= availableWood) return Fix64.One;
+
+        Fix64[] baselineTerminal = (Fix64[])fullTerminal.Clone();
+        for (int slot = 0; slot < baselineTerminal.Length; slot++)
+            if (IsIronFuelDemandSlot(slot)) baselineTerminal[slot] = Fix64.Zero;
+        Array.Copy(baselineTerminal, plan.Terminal, plan.Terminal.Length);
+        ExpandWants(s, plan);
+        Fix64 baselineWoodDemand = PlannedCharcoalWood(s, plan);
+        if (baselineWoodDemand >= availableWood || fullWoodDemand <= baselineWoodDemand) return Fix64.Zero;
+
+        Fix64 scale = Fix64.Clamp((availableWood - baselineWoodDemand) / (fullWoodDemand - baselineWoodDemand), Fix64.Zero, Fix64.One);
+        // Fixed-point recipe expansion can move by a small amount when fractional terminal batches cross an output boundary.
+        // Recheck the actual plan after scaling and correct it a few times so the final demand stays inside the fuel budget.
+        for (int correction = 0; correction < 4; correction++)
+        {
+            Fix64[] scaled = ScaleIronFuelTerminalDemand(fullTerminal, scale);
+            Array.Copy(scaled, plan.Terminal, plan.Terminal.Length);
+            ExpandWants(s, plan);
+            Fix64 scaledWoodDemand = PlannedCharcoalWood(s, plan);
+            if (scaledWoodDemand <= availableWood) return scale;
+            if (scaledWoodDemand <= baselineWoodDemand) return Fix64.Zero;
+            Fix64 correctionScale = Fix64.Clamp((availableWood - baselineWoodDemand) / (scaledWoodDemand - baselineWoodDemand), Fix64.Zero, Fix64.One);
+            if (correctionScale >= Fix64.One) return scale;
+            scale *= correctionScale;
+        }
+        return scale;
+    }
+
+    private static Fix64[] ScaleIronFuelTerminalDemand(Fix64[] terminal, Fix64 scale)
+    {
+        var result = (Fix64[])terminal.Clone();
+        if (scale >= Fix64.One) return result;
+        for (int slot = 0; slot < result.Length; slot++)
+            if (IsIronFuelDemandSlot(slot)) result[slot] *= scale;
+        return result;
+    }
+
+    private static bool IsIronFuelDemandSlot(int slot)
+        => slot == MetalSlot(MetalGood.Iron) ||
+           slot == IronSlot(IronGood.Wrought) || slot == IronSlot(IronGood.Steel) ||
+           slot == IronSlot(IronGood.Kit11) || slot == IronSlot(IronGood.Kit12) ||
+           slot == IronSlot(IronGood.Arms3) || slot == IronSlot(IronGood.Arms4) ||
+           slot == IronSlot(IronGood.Engine);
+
+    private Fix64 PlannedCharcoalWood(SettlementState s, MetalPlan plan)
+    {
+        Fix64 wood = Fix64.Zero;
+        for (int r = 0; r < _compiledRecipes.Length; r++)
+        {
+            CompiledRecipe recipe = _compiledRecipes[r];
+            if (recipe.IsCharcoal && plan.Batches[r] > Fix64.Zero)
+                wood += plan.Batches[r] * InputQuantity(s, recipe, 0);
+        }
+        return wood;
+    }
+
+    /// <summary>
     /// Existing satellite facilities may make their own kits when the site's local forest reaches the full Iron wood factor. This uses idle
     /// forge/smelter capacity at a productive site without making a second facility investment or assigning its sisters' demand twice.
     /// </summary>
