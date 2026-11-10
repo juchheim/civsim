@@ -5,9 +5,11 @@ extends RefCounted
 const OUTLINE_COLOR := Color(0.035, 0.025, 0.02, 0.94)
 const LINE_HALF_WIDTH := 0.067
 const OUTLINE_HALF_WIDTH := 0.125
+const PARALLEL_LANE_SPACING := 0.56
+const CARGO_LABEL_OFFSET := 0.32
 const LINE_LIFT := 0.31
-const ARROW_LENGTH := 0.46
-const ARROW_HALF_WIDTH := 0.23
+const ARROW_LENGTH := 0.42
+const ARROW_HALF_WIDTH := 0.16
 
 static func make_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -26,14 +28,32 @@ static func build(w: M7WorldData) -> Dictionary:
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
 	var labels: Array[Label3D] = []
+	var pair_counts: Dictionary = {}
+	for flow in w.supply_flows:
+		var from_tile := int(flow.get("from", -1))
+		var to_tile := int(flow.get("to", -1))
+		if from_tile < 0 or from_tile >= w.width * w.height or to_tile < 0 or to_tile >= w.width * w.height or from_tile == to_tile:
+			continue
+		var key := _pair_key(from_tile, to_tile)
+		pair_counts[key] = int(pair_counts.get(key, 0)) + 1
+	var pair_used: Dictionary = {}
 	for i in w.supply_flows.size():
 		var flow: Dictionary = w.supply_flows[i]
 		var from_tile := int(flow.get("from", -1))
 		var to_tile := int(flow.get("to", -1))
 		if from_tile < 0 or from_tile >= w.width * w.height or to_tile < 0 or to_tile >= w.width * w.height or from_tile == to_tile:
 			continue
-		if _add_link(w, from_tile, to_tile, _link_colour(flow), i, vertices, normals, colors):
-			labels.append(_flow_label(w, from_tile, to_tile, flow, i))
+		var key := _pair_key(from_tile, to_tile)
+		var ordinal := int(pair_used.get(key, 0))
+		pair_used[key] = ordinal + 1
+		var lane := (float(ordinal) - float(pair_counts[key] - 1) * 0.5) * PARALLEL_LANE_SPACING
+		if from_tile > to_tile:
+			lane = -lane
+		if _add_link(w, from_tile, to_tile, _link_colour(flow), lane, vertices, normals, colors):
+			var label_fraction := 0.53
+			if pair_counts[key] > 1:
+				label_fraction = lerpf(0.34, 0.66, float(ordinal) / float(pair_counts[key] - 1))
+			labels.append(_flow_label(w, from_tile, to_tile, flow, lane, label_fraction))
 	for settlement in w.settlements:
 		if bool(settlement.get("remembered", false)):
 			continue
@@ -51,6 +71,11 @@ static func build(w: M7WorldData) -> Dictionary:
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return {"mesh": mesh, "labels": labels}
 
+static func _pair_key(from_tile: int, to_tile: int) -> String:
+	var lower := mini(from_tile, to_tile)
+	var upper := maxi(from_tile, to_tile)
+	return "%d:%d" % [lower, upper]
+
 static func _link_colour(flow: Dictionary) -> Color:
 	var kind := int(flow.get("kind", 0))
 	if kind == 1:
@@ -64,7 +89,7 @@ static func _link_colour(flow: Dictionary) -> Color:
 		return Color("#00d982") # food shared within a realm
 	return Color("#368dff") # internal materials and tools
 
-static func _add_link(w: M7WorldData, from_tile: int, to_tile: int, colour: Color, lane_index: int,
+static func _add_link(w: M7WorldData, from_tile: int, to_tile: int, colour: Color, lane: float,
 		vertices: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray) -> bool:
 	var from := w.tile_center(from_tile)
 	var to := w.tile_center(to_tile)
@@ -73,7 +98,6 @@ static func _add_link(w: M7WorldData, from_tile: int, to_tile: int, colour: Colo
 		return false
 	var direction := delta.normalized()
 	var side := Vector2(-direction.y, direction.x)
-	var lane := float((lane_index % 7) - 3) * 0.11
 	from += side * lane + direction * 0.36
 	to += side * lane - direction * 0.43
 	if from.distance_to(to) < 0.35:
@@ -84,7 +108,7 @@ static func _add_link(w: M7WorldData, from_tile: int, to_tile: int, colour: Colo
 	# Two large arrowheads make direction legible at a glance, including on long routes.
 	for fraction in [0.40, 0.73]:
 		var center := from.lerp(to, fraction)
-		_add_arrow(w, center, direction, side, ARROW_LENGTH + 0.12, ARROW_HALF_WIDTH + 0.10,
+		_add_arrow(w, center, direction, side, ARROW_LENGTH + 0.08, ARROW_HALF_WIDTH + 0.06,
 			LINE_LIFT + 0.005, OUTLINE_COLOR, vertices, normals, colors)
 		_add_arrow(w, center, direction, side, ARROW_LENGTH, ARROW_HALF_WIDTH,
 			LINE_LIFT + 0.025, colour, vertices, normals, colors)
@@ -109,23 +133,26 @@ static func _add_arrow(w: M7WorldData, center: Vector2, direction: Vector2, side
 		_world_point(w, base + side * half_width, lift),
 		_world_point(w, base - side * half_width, lift), tint, vertices, normals, colors)
 
-static func _flow_label(w: M7WorldData, from_tile: int, to_tile: int, flow: Dictionary, lane_index: int) -> Label3D:
+static func _flow_label(w: M7WorldData, from_tile: int, to_tile: int, flow: Dictionary, lane: float,
+		fraction: float) -> Label3D:
 	var from := w.tile_center(from_tile)
 	var to := w.tile_center(to_tile)
-	var direction := (to - from).normalized()
+	var delta := to - from
+	var direction := delta.normalized()
 	var side := direction.orthogonal()
-	var lane := float((lane_index % 7) - 3) * 0.11
-	var center := from.lerp(to, 0.53) + side * lane
+	var line_from := from + side * lane + direction * 0.36
+	var line_to := to + side * lane - direction * 0.43
+	var center := line_from.lerp(line_to, fraction) + side * CARGO_LABEL_OFFSET
 	var cargo := String(flow.get("label", flow.get("good", "Goods")))
 	var amount := float(flow.get("amount", 0.0))
 	if amount > 0.0:
 		cargo += " · " + str(snappedf(amount, 0.1))
 	var label := Label3D.new()
 	label.text = cargo
-	label.font_size = 32
-	label.outline_size = 12
+	label.font_size = 26
+	label.outline_size = 10
 	label.pixel_size = 0.00055
-	label.modulate = Color("#fff4dd")
+	label.modulate = _link_colour(flow).lightened(0.25)
 	label.outline_modulate = Color(0.035, 0.025, 0.02, 1.0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.fixed_size = true
@@ -134,7 +161,7 @@ static func _flow_label(w: M7WorldData, from_tile: int, to_tile: int, flow: Dict
 	label.double_sided = true
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.render_priority = 13
-	label.position = Vector3(center.x, w.height_at(center) + 0.82, center.y)
+	label.position = Vector3(center.x, w.height_at(center) + 1.35, center.y)
 	return label
 
 static func _add_shortage_ring(w: M7WorldData, tile: int, severity: int, vertices: PackedVector3Array,

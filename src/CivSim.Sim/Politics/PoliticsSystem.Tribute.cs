@@ -91,6 +91,7 @@ public sealed partial class PoliticsSystem
             if (_dip.AtWar(t.Overlord, t.Subject)) { EndTribute(i, 0); continue; }                       // 0: war again
             if (_season - t.SinceSeason >= _trade.TreatySeasons) { EndTribute(i, 1); continue; }          // 1: the term ran out
             if (FieldStrength(t.Subject) > FieldStrength(t.Overlord)) { EndTribute(i, 2); continue; }     // 2: the subject outgrew its terms
+            if (HasFoodExportShortage(t.Subject)) continue;
             for (int s = 0; s < _sCount; s++)
             {
                 if (_sCiv[s] != t.Subject || _free[s]) continue;

@@ -17,6 +17,7 @@ public sealed partial class PoliticsSystem
     private const int ForecastTrials = 12;
     private static readonly Fix64 GiftValue = Fix64.FromInt(5);
     private static readonly Fix64 BarterValue = Fix64.FromInt(6);
+    private static readonly Fix64 FoodExportSafetyFloor = Fix64.FromRatio(9, 10);
     private static readonly Fix64 TradeGain = Fix64.FromRatio(11, 10);
     private static readonly Fix64 LifeValue = Fix64.FromInt(8);
     private static readonly Fix64 RaidRelationsCost = Fix64.FromInt(6);
@@ -156,7 +157,8 @@ public sealed partial class PoliticsSystem
     /// <summary>Sends a gift party if the hard rules allow (TRD-01, contact, no war, food to spare); desirability is the caller's.</summary>
     private bool TryGift(int c, int o, int targetSettlement = -1)
     {
-        if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _season - _dip.LastGift(c, o) < 2) return false;
+        if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) ||
+            _season - _dip.LastGift(c, o) < 2 || HasFoodExportShortage(c)) return false;
         (int origin, int target) = ClosestPair(c, o, targetSettlement);
         if (origin < 0) return false;
         int travel = Travel(c, _sTile[origin], _sTile[target]);
@@ -186,7 +188,7 @@ public sealed partial class PoliticsSystem
     private bool TryBarter(int a, int b, int targetSettlement = -1)
     {
         if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02) || _dip.Relations(a, b) <= 0 ||
-            !_dip.Contacted(a, b) || _dip.AtWar(a, b) || _season - _dip.LastBarter(a, b) < 2) return false;
+            !_dip.Contacted(a, b) || _dip.AtWar(a, b) || _season - _dip.LastBarter(a, b) < 2 || HasFoodExportShortage(a)) return false;
         foreach (Expedition e in _expeditions)
             if (e.Kind == ExpeditionKind.Barter && (e.Civ == a && e.TargetCiv == b || e.Civ == b && e.TargetCiv == a)) return false;
         (int origin, int target) = ClosestPair(a, b, targetSettlement);
@@ -223,6 +225,15 @@ public sealed partial class PoliticsSystem
     {
         for (int s = 0; s < _sCount; s++)
             if (_sCiv[s] == civ && !_free[s] && _economy.SettlementLite(s).LastFoodSecurity < Fix64.FromRatio(8, 10)) return true;
+        return false;
+    }
+
+    /// <summary>Food gifts and barter wait until every settlement in the sender's civilization is above the short-food band.</summary>
+    private bool HasFoodExportShortage(int civ)
+    {
+        for (int s = 0; s < _sCount; s++)
+            if (_sCiv[s] == civ && !_free[s] && _sPop[s] > 0 &&
+                _economy.SettlementLite(s).LastFoodSecurity < FoodExportSafetyFloor) return true;
         return false;
     }
 
@@ -529,6 +540,7 @@ public sealed partial class PoliticsSystem
     private void ArriveGift(Expedition e)
     {
         if (!TargetStillThere(e)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
+        if (HasFoodExportShortage(e.Civ)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
         // Spoilage on the road costs a tenth; the goods become the recipients' (13 §4.1).
         _economy.GiveGoods(e.ToSettlement, e.Value * Fix64.FromRatio(9, 10));
         int delta = Math.Max(2, 10 - 2 * Math.Max(0, _dip.GiftsThisYear(e.Civ, e.TargetCiv) - 1));
@@ -542,6 +554,7 @@ public sealed partial class PoliticsSystem
         if (e.Leg == 0)
         {
             if (!TargetStillThere(e)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
+            if (HasFoodExportShortage(e.Civ)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
             // In the Bronze Age the partner answers with trade goods valued by scarcity (docs/MVP/22 §6.1), else food for food.
             (TradeGood good, Fix64 quantity) = ChooseBarterGood(e.Civ, e.FromSettlement, e.ToSettlement, e.Value);
             if (good != TradeGood.None)

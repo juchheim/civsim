@@ -492,6 +492,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     /// </summary>
     private void SendCaravan(Compact c)
     {
+        if (c.Good == TradeGood.Food && c.SellerCiv >= 0 && HasFoodExportShortage(c.SellerCiv)) return;
         int seller = HubOf(c.SellerCiv, c.SellerFolk, c.Good, selling: true, -1);
         int buyer = HubOf(c.BuyerCiv, c.BuyerFolk, c.Good, selling: false, seller);
         if (seller < 0 || buyer < 0 || seller == buyer) return;
@@ -544,6 +545,11 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int buyer = e.ToSettlement, seller = e.FromSettlement;
         bool buyerOk = unchecked((uint)buyer) < unchecked((uint)_sCount) && _sPop[buyer] > 0;
         if (!buyerOk || c is null)
+        {
+            if (unchecked((uint)seller) < unchecked((uint)_sCount)) Unload(seller, e.Good, e.Cargo);
+            return;
+        }
+        if (e.Good == TradeGood.Food && c.SellerCiv >= 0 && HasFoodExportShortage(c.SellerCiv))
         {
             if (unchecked((uint)seller) < unchecked((uint)_sCount)) Unload(seller, e.Good, e.Cargo);
             return;
