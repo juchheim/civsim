@@ -425,6 +425,7 @@ public sealed partial class LivingEconomyModel
     internal void FixtureMoveSite(int settlementIndex, int tile)
     {
         _settlements[settlementIndex].SiteTile = tile;
+        InvalidateForageSettlementOwners();
         InvalidateIronFuelHubAssignments();
     }
 

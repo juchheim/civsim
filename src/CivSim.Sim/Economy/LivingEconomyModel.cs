@@ -437,6 +437,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private readonly ulong _seed;
     private readonly EconomyContent _content;
+    private readonly EconomyEffect[][] _methodEffectsByAction;
     private readonly WorldEconomyInput _world;
     private readonly ulong _contentFingerprint;
     private readonly Fix64[] _forageStock;
@@ -456,6 +457,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly bool _hasIndividualHerds;
     private readonly int[][] _rangeTiles;
     private readonly int[][] _fortificationRangeTiles;
+    // Derived from settlement sites in list order. A tile keeps the same first owner as new settlements append.
+    private int[]? _forageSettlementByTile;
+    private int _forageSettlementCountAtBuild = -1;
     private readonly Fix64[] _siteFoodScores;
     private readonly int[] _fieldOwner;
     private readonly bool[] _tendedStandYieldBonus;
@@ -554,6 +558,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _seed = seed;
         _gentleStart = gentleStart;
         _content = content;
+        _methodEffectsByAction = BuildMethodEffectsByAction(content);
         _world = world;
         _archetypes = new EconomyArchetype[world.CivilizationCount];
         if (archetypes.IsEmpty) Array.Fill(_archetypes, EconomyArchetype.Balanced);
@@ -755,7 +760,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 foodCap = FoodCap(s);
         Fix64 housingCap = HousingCap(s);
         Fix64 groupCap = GroupCap(s);
-        Fix64 leanFoodCapacity = LeanFoodCapacity(s);
+        Fix64 leanFoodCapacity = foodCap * LeanFoodShare(s.Civilization);
         return new SettlementView(s.Id, s.Civilization, s.SiteTile, Population(s.Id), FoodStores(s),
             foodCap, housingCap, groupCap, Fix64.Min(foodCap, Fix64.Min(housingCap, groupCap)),
             s.FoodSecurity, s.LateWinterFoodShare, s.LateWinterForecast, C2LateWinterCapacityShare(s),
@@ -1388,10 +1393,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         // M2 inputs retain the original 40%-accessible representation; stocks here are total plants.
         growth /= Fix64.Parse("0.4");
         if (_forestState.Length > 0 && _forestState[tile] != 0) growth *= ClearedForageFactor(tile);
-        for (int i = 0; i < _settlements.Count; i++)
+        int owner = FirstSettlementForageOwner(tile);
+        if (owner >= 0)
         {
-            SettlementState settlement = _settlements[i];
-            if (HexGrid.Distance(tile, settlement.SiteTile, _world.Width) > Radius) continue;
+            SettlementState settlement = _settlements[owner];
             int civ = settlement.Civilization;
             if (season == 3) growth *= Modifier(civ, "winter_forage_stock");
             if (season == 2) growth *= Modifier(civ, "autumn_forage");
@@ -1401,7 +1406,6 @@ public sealed partial class LivingEconomyModel : ISimModel
                 growth *= Fix64.Parse("1.6");
             if (HasProject(civ, "FOR-06") && input.WildGrainStand)
                 growth *= Fix64.FromInt(2);
-            break;
         }
         if (includeTransientEvents)
         {
@@ -1409,6 +1413,28 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (_wildfireSeasonsRemaining[tile] > 0) growth *= Fix64.Parse("1.4");
         }
         return growth;
+    }
+
+    private int FirstSettlementForageOwner(int tile)
+    {
+        if (_forageSettlementByTile is null || _forageSettlementByTile.Length != _world.TileCount ||
+            _forageSettlementCountAtBuild != _settlements.Count)
+        {
+            int[] owners = new int[_world.TileCount];
+            Array.Fill(owners, -1);
+            for (int settlementIndex = 0; settlementIndex < _settlements.Count; settlementIndex++)
+                foreach (int rangeTile in RangeTiles(_settlements[settlementIndex].SiteTile))
+                    if (owners[rangeTile] < 0) owners[rangeTile] = settlementIndex;
+            _forageSettlementByTile = owners;
+            _forageSettlementCountAtBuild = _settlements.Count;
+        }
+        return _forageSettlementByTile[tile];
+    }
+
+    private void InvalidateForageSettlementOwners()
+    {
+        _forageSettlementByTile = null;
+        _forageSettlementCountAtBuild = -1;
     }
 
     private Fix64 ForageStockCapacity(int tile, int currentSeason, int year)
@@ -4825,6 +4851,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 meatValue = FoodValue(Good.Meat, settlement);
         Fix64 fishValue = Fix64.Zero;
         bool hasFishValue = false;
+        Fix64 reachableForageShare = ReachableForageShare(civ);
+        Fix64 springForageValue = SeasonalForageFoodValue(settlement, 0);
+        Fix64 summerForageValue = SeasonalForageFoodValue(settlement, 1);
+        Fix64 autumnForageValue = SeasonalForageFoodValue(settlement, 2);
+        Fix64 winterForageValue = SeasonalForageFoodValue(settlement, 3);
         foreach (int tile in RangeTiles(settlement.SiteTile))
         {
             WorldEconomyTile input = _world.Tile(tile);
@@ -4833,8 +4864,15 @@ public sealed partial class LivingEconomyModel : ISimModel
                 // FoodCap is based on normal renewable yield. Droughts and the short-lived
                 // +40% wildfire pulse change this year's harvest, not a settlement's
                 // sustainable population capacity.
+                Fix64 foodValue = season switch
+                {
+                    0 => springForageValue,
+                    1 => summerForageValue,
+                    2 => autumnForageValue,
+                    _ => winterForageValue,
+                };
                 Fix64 plants = SeasonalForageRegrowth(tile, season, includeTransientEvents: false) *
-                    ReachableForageShare(civ) * SeasonalForageFoodValue(settlement, season);
+                    reachableForageShare * foodValue;
                 plantIncome += plants;
                 if (season == 3) winterIncome += plants;
             }
@@ -5403,10 +5441,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64 HuntInjuryRate(SettlementState settlement, int partySize)
     {
         int rung = -1;
-        foreach (EconomyEffect effect in _content.Effects)
+        foreach (EconomyEffect effect in MethodEffectsFor("hunt"))
         {
-            if (effect.Kind != "method" || effect.Action != "hunt" || effect.Rung is null ||
-                !_completedProjects[settlement.Civilization][effect.ProjectIndex] ||
+            if (effect.Rung is null || !_completedProjects[settlement.Civilization][effect.ProjectIndex] ||
                 !HuntPartyMatches("hunt", effect.Rung.Value, partySize) ||
                 !HasRequiredTool(settlement, "hunt", effect.Rung.Value) || effect.Rung.Value <= rung) continue;
             rung = effect.Rung.Value;
@@ -5434,11 +5471,9 @@ public sealed partial class LivingEconomyModel : ISimModel
 
         int bestRung = BestActionRung(settlement, methodAction, huntPartySize);
         Fix64? bestRate = null;
-        for (int i = 0; i < _content.Effects.Length; i++)
+        foreach (EconomyEffect effect in MethodEffectsFor(methodAction))
         {
-            EconomyEffect effect = _content.Effects[i];
-            if (effect.Kind == "method" && effect.Action == methodAction && effect.Rung == bestRung &&
-                _completedProjects[civ][effect.ProjectIndex])
+            if (effect.Rung == bestRung && _completedProjects[civ][effect.ProjectIndex])
             {
                 bestRate = effect.Rate ?? (effect.Mult is { } mult ? baseRate * mult : baseRate);
                 break;
@@ -5460,15 +5495,54 @@ public sealed partial class LivingEconomyModel : ISimModel
     private int BestActionRung(SettlementState settlement, string action, int huntPartySize)
     {
         int bestRung = -1;
-        for (int i = 0; i < _content.Effects.Length; i++)
+        foreach (EconomyEffect effect in MethodEffectsFor(action))
         {
-            EconomyEffect effect = _content.Effects[i];
-            if (effect.Kind != "method" || effect.Action != action || effect.Rung is not { } rung ||
-                !_completedProjects[settlement.Civilization][effect.ProjectIndex] ||
+            if (effect.Rung is not { } rung || !_completedProjects[settlement.Civilization][effect.ProjectIndex] ||
                 !HasRequiredTool(settlement, action, rung) || !HuntPartyMatches(action, rung, huntPartySize)) continue;
             if (rung > bestRung) bestRung = rung;
         }
         return bestRung;
+    }
+
+    private ReadOnlySpan<EconomyEffect> MethodEffectsFor(string action)
+    {
+        ReadOnlySpan<EconomyAction> actions = _content.Actions;
+        for (int i = 0; i < actions.Length; i++)
+            if (actions[i].Id == action) return _methodEffectsByAction[i];
+        return ReadOnlySpan<EconomyEffect>.Empty;
+    }
+
+    private static EconomyEffect[][] BuildMethodEffectsByAction(EconomyContent content)
+    {
+        ReadOnlySpan<EconomyAction> actions = content.Actions;
+        ReadOnlySpan<EconomyEffect> effects = content.Effects;
+        int[] counts = new int[actions.Length];
+        for (int i = 0; i < effects.Length; i++)
+        {
+            EconomyEffect effect = effects[i];
+            if (effect.Kind != "method" || effect.Action is not { } action) continue;
+            int actionIndex = FindActionIndex(actions, action);
+            if (actionIndex >= 0) counts[actionIndex]++;
+        }
+
+        EconomyEffect[][] grouped = new EconomyEffect[actions.Length][];
+        for (int i = 0; i < grouped.Length; i++) grouped[i] = new EconomyEffect[counts[i]];
+        Array.Clear(counts);
+        for (int i = 0; i < effects.Length; i++)
+        {
+            EconomyEffect effect = effects[i];
+            if (effect.Kind != "method" || effect.Action is not { } action) continue;
+            int actionIndex = FindActionIndex(actions, action);
+            if (actionIndex >= 0) grouped[actionIndex][counts[actionIndex]++] = effect;
+        }
+        return grouped;
+    }
+
+    private static int FindActionIndex(ReadOnlySpan<EconomyAction> actions, string action)
+    {
+        for (int i = 0; i < actions.Length; i++)
+            if (actions[i].Id == action) return i;
+        return -1;
     }
 
     private Fix64 HuntRateModifier(int civ, int partySize)
@@ -5576,10 +5650,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (action == "fish" && rung == 2) tools[toolCount++] = Good.Net;
 
         Fix64 available = work;
-        Fix64[] quantities = new Fix64[toolCount];
-        Fix64[] remaining = new Fix64[toolCount];
-        Fix64[] durability = new Fix64[toolCount];
-        Fix64[] active = new Fix64[toolCount];
+        Span<Fix64> quantities = stackalloc Fix64[2];
+        Span<Fix64> remaining = stackalloc Fix64[2];
+        Span<Fix64> durability = stackalloc Fix64[2];
+        Span<Fix64> active = stackalloc Fix64[2];
         for (int i = 0; i < toolCount; i++)
         {
             Good good = tools[i];
@@ -6663,6 +6737,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void CopySnapshotStateFrom(LivingEconomyModel source)
     {
+        InvalidateForageSettlementOwners();
         _tick = source._tick;
         _seasonsCompleted = source._seasonsCompleted;
         _nextFigureId = source._nextFigureId;

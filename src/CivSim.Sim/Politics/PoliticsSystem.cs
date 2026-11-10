@@ -696,7 +696,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             var v = _economy.SettlementLite(i);
             _sCiv[i] = v.Civilization;
             _sTile[i] = v.SiteTile;
-            _sPop[i] = _economy.Population(v.Id);
+            _sPop[i] = 0;
+        }
+        for (int i = 0; i < _economy.FigureCount; i++)
+        {
+            FigureView figure = _economy.Figure(i);
+            if ((uint)figure.SettlementId < (uint)_sCount) _sPop[figure.SettlementId]++;
         }
     }
 
