@@ -1021,7 +1021,7 @@ public partial class Game : Node3D
             flows.Add(new Godot.Collections.Dictionary
             {
                 ["from"] = frame.SettlementTile[fromRow], ["to"] = frame.SettlementTile[toRow],
-                ["kind"] = kind, ["good"] = good, ["amount"] = amount,
+                ["kind"] = kind, ["good"] = good, ["label"] = SupplyGoodLabel(good), ["amount"] = amount,
             });
         }
 
