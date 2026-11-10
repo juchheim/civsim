@@ -1865,7 +1865,11 @@ public partial class ResearchRadialMap : Control
         int gate = NextTurningPoint();
         if (gate < 0) return;
         Vector2 at = ToScreen(_lx[gate], _ly[gate]);
-        Rect2 room = Usable().Grow(-4);
+        Rect2 usable = Usable();
+        // The control can briefly be smaller than its overlays during layout. Keep the
+        // inset positive before using it for hit tests or positioning.
+        if (usable.Size.X <= 8 || usable.Size.Y <= 8) return;
+        Rect2 room = usable.Grow(-4);
         if (room.Grow(NodeRadius(true)).HasPoint(at)) return;
 
         Vector2 from = room.GetCenter();
@@ -1876,6 +1880,9 @@ public partial class ResearchRadialMap : Control
         string text = name + "  " + (dir.Y < -0.6f ? "↑" : dir.Y > 0.6f ? "↓" : dir.X < 0 ? "←" : "→");
         Vector2 extent = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelFont);
         var size = new Vector2(extent.X + 40, 28);
+        // A long project name may not fit in a narrow map. Drawing no pointer is
+        // preferable to clamping it with inverted bounds (and leaving a stale hitbox).
+        if (size.X > room.Size.X || size.Y > room.Size.Y) return;
         // where the ray from the middle leaves the usable area, with the tab pulled wholly inside it
         Vector2 edge = from + dir * ExitDistance(from, dir, room);
         var box = new Rect2((edge - size * 0.5f).Clamp(room.Position, room.End - size), size);
