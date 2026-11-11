@@ -220,6 +220,11 @@ public sealed partial class LivingEconomyModel
         if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
         return StructureBuildLabor(_settlements[settlementIndex], (Structure)kind);
     }
+    /// <summary>The timber the player's build focus asks woodcutters for at this town (0 without one), and the planner's own procurement ask.</summary>
+    internal Fix64 FixtureBuildFocusWoodNeed(int settlementIndex)
+        => BuildFocusWoodNeed(_settlements[settlementIndex], checked((int)_seasonsCompleted));
+    internal Fix64 FixturePlannerWoodNeed(int settlementIndex)
+        => BasicBuildWoodProcurementNeed(_settlements[settlementIndex], checked((int)_seasonsCompleted));
     internal void FixtureBuildIfReady(int settlementIndex)
         => BuildIfReady(_settlements[settlementIndex], checked((int)_seasonsCompleted));
     internal void FixtureSetBuildTarget(int settlementIndex, string structure)
