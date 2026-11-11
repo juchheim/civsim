@@ -3141,7 +3141,17 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             Structure candidate = settlement.BuildTarget;
             if (candidate != Structure.Count && IsPhysicalDefense(candidate) && !CanBuild(settlement.Civilization, candidate))
-                return; // Keep an AI-prepared defense queued until its public technology unlocks.
+            {
+                // An AI-prepared defense stays queued until its public technology unlocks, holding the labor already done for it. That wait
+                // can last many seasons, so it must not starve the foundation (food storage, shelter, hearth, first fields): when one of
+                // those is paid for it is built first, from the same accumulated labor, and the AI queues the defense again afterwards.
+                BasicCtx foundationCtx = MakeBasicCtx(settlement, season);
+                Structure foundation = SelectFoundationCandidate(settlement, season, ref foundationCtx);
+                // A field with no free plot is no use to it either; building one would only drop the queued defense.
+                if (foundation == Structure.Count || (foundation == Structure.Field && !CanPlaceField(settlement))) return;
+                settlement.BuildTarget = foundation;
+                continue;
+            }
             if (candidate == Structure.Count || !CanBuild(settlement.Civilization, candidate))
             {
                 candidate = SelectBuildCandidate(settlement, season);

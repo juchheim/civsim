@@ -50,6 +50,14 @@ public sealed partial class LivingEconomyModel
         }
     }
 
+    /// <summary>Marks a project as not learned for a civilization (a test staging hook, for example a defense whose technology has not unlocked yet).</summary>
+    internal void FixtureForget(int civ, string projectId)
+    {
+        int index = ProjectIndex(projectId);
+        if (index < 0) throw new ArgumentException($"Unknown project '{projectId}'.", nameof(projectId));
+        _completedProjects[civ][index] = false;
+    }
+
     /// <summary>Adds people of one age to a settlement (healthy, unskilled).</summary>
     internal void FixtureAddPeople(int settlementIndex, int count, int age)
     {

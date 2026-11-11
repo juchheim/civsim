@@ -86,11 +86,12 @@ public class FogFairnessTests
     public void Bronze_unseen_compact_caravan_and_mandate_changes_do_not_change_the_observers_choices()
     {
         CivControl[] controls = FogFairnessHarness.DefaultControls();
-        // Seed 20261019 no longer fits: with the slower E0-E3 pacing (docs/MVP/28 §16) every rival's force is inside the observer's sight by the time its Mandate
-        // unlocks (season ~220), so there is no hidden force to perturb. Seed 20261021 fitted until the settlement build and material changes of 2026-11-10
-        // (16b4c01): on it the Council rival (civ 1) now never founds a second settlement and never unlocks its Mandate, so the checkpoint is never reached
-        // (as on 20261022). Seed 20261020 reaches the checkpoint with rivals out of sight.
-        const ulong bronzeSeed = 20261020;
+        // The test needs a trajectory where the observer and a Council rival both reach their Mandate with the rival's force still out of the observer's
+        // sight, and where the observer has no Tin access yet. That depends on the economy's pacing, so the seed is re-picked when pacing changes:
+        // 20261019 stopped fitting with the slower E0-E3 pacing (docs/MVP/28 section 16: every rival's force is in sight by the time its Mandate unlocks);
+        // 20261021 and 20261022 stopped fitting with the build and material changes of 2026-11-10 (16b4c01), after which a queued but not yet unlocked
+        // Palisade held the build slot and starved the foundation (fixed by yielding to the foundation, LockedDefenseQueueTests). Seed 20261022 fits again.
+        const ulong bronzeSeed = 20261022;
         MatchModel match = FogFairnessHarness.NewMatch(controls, bronzeSeed);
         var runner = new SimRunner(match);
 

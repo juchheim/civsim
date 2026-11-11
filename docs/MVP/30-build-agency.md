@@ -24,6 +24,16 @@ Consequences found in the code and measured in §5:
 * Some rules cannot be met by any town on some sites (no river for a weir, no hill for a hillfort, a village cannot raise a Town
   building), and nothing said so.
 
+### 1.1 A queued defense no longer starves the foundation (2026-11-11)
+
+An AI can queue a Palisade ahead of its technology (DEF-03): the labor done so far is held on the slot, and `BuildIfReady` used to return
+until the project unlocked. On a seed where the unlock was a hundred seasons away that left the town's only basic slot blocked for the whole
+wait: no storage pit, food stuck at 12 against the 22 a gift or barter needs, and the Strategist never gifted
+(`After_contact_it_gifts_and_barters_and_logs_its_reasons`). Now, while the queued defense is not yet buildable, a **paid-for foundation
+rule** (storage, shelter against the cold, hearth, first fields: the rules before `FoundationRuleCount`) is built first from the same labor,
+and the AI queues the defense again afterwards. If no foundation can be built the defense stays queued exactly as before. A field with no
+free plot does not count. No golden moves (they play no Strategist seat); `LockedDefenseQueueTests` covers it.
+
 ## 2. The readout
 
 `LivingEconomyModel.BuildOutlookFor(settlementIndex)` (new, `LivingEconomyModel.BuildOutlook.cs`) returns one immutable `BuildOutlook`

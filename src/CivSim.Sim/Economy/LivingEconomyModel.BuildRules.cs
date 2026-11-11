@@ -247,14 +247,12 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>
-    /// The structure the planner builds next: the first rule, in order, whose structure is learned, wanted by the settlement and paid for from
-    /// the stores. Nothing here is kept between calls; the planner asks again every season.
+    /// The first foundation rule (food storage, shelter against the cold, the hearth, the first fields) whose structure is learned, wanted
+    /// by the settlement and paid for from the stores, or <see cref="Structure.Count"/>. These outrank everything else the planner builds, and
+    /// a defense queued ahead of its technology (see <see cref="BuildIfReady"/>) steps aside for them.
     /// </summary>
-    private Structure SelectBuildCandidate(SettlementState settlement, int season)
+    private Structure SelectFoundationCandidate(SettlementState settlement, int season, ref BasicCtx ctx)
     {
-        BasicCtx ctx = MakeBasicCtx(settlement, season);
-        Structure focus = BasicFocusKind(settlement);
-        // Foundation, housing and food-safety work always comes first.
         for (int rule = 0; rule < FoundationRuleCount; rule++)
         {
             Structure kind = BasicRuleKind(rule);
@@ -263,6 +261,20 @@ public sealed partial class LivingEconomyModel
             if (!BasicNeedsMet(settlement, kind, season)) continue;
             return kind;
         }
+        return Structure.Count;
+    }
+
+    /// <summary>
+    /// The structure the planner builds next: the first rule, in order, whose structure is learned, wanted by the settlement and paid for from
+    /// the stores. Nothing here is kept between calls; the planner asks again every season.
+    /// </summary>
+    private Structure SelectBuildCandidate(SettlementState settlement, int season)
+    {
+        BasicCtx ctx = MakeBasicCtx(settlement, season);
+        Structure focus = BasicFocusKind(settlement);
+        // Foundation, housing and food-safety work always comes first.
+        Structure foundation = SelectFoundationCandidate(settlement, season, ref ctx);
+        if (foundation != Structure.Count) return foundation;
 
         // A valid direct player focus retains priority over civilization direction.
         if (focus != Structure.Count && BasicFocusReady(settlement, focus, season)) return focus;
