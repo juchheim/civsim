@@ -174,9 +174,18 @@ public sealed class A7HarnessTelemetryTests
         string[] builderParentRows = deferred.FfaFoodDemographyTraces
             .Where(row => row.Contains("seat=Builder/c1", StringComparison.Ordinal) &&
                 row.Contains("settlement=s1", StringComparison.Ordinal)).ToArray();
-        Assert.Contains(builderParentRows, row => row.Contains("season=40", StringComparison.Ordinal) &&
+        // The Builder parent first goes fission-pending at season 55 on this seed (it was season 40 or earlier before the
+        // E0-E3 pacing and settlement-economy changes). By default it splits at season 56; the deferral must instead hold it
+        // pending through season 64, so the season-56 and season-64 rows are the "deferred" evidence.
+        string[] defaultBuilderParentRows = traceOnly.FfaFoodDemographyTraces
+            .Where(row => row.Contains("seat=Builder/c1", StringComparison.Ordinal) &&
+                row.Contains("settlement=s1", StringComparison.Ordinal)).ToArray();
+        Assert.Contains(defaultBuilderParentRows, row => row.Contains("season=56", StringComparison.Ordinal) &&
+            row.Contains("fission(pending/firstPending/firstSplit/splits)=False/s55/s56/1", StringComparison.Ordinal));
+        Assert.Contains(builderParentRows, row => row.Contains("season=56", StringComparison.Ordinal) &&
+            row.Contains("fission(pending/firstPending/firstSplit/splits)=True/s55/never/0", StringComparison.Ordinal));
+        Assert.Contains(builderParentRows, row => row.Contains("season=64", StringComparison.Ordinal) &&
             row.Contains("fission(pending/firstPending/firstSplit/splits)=True/", StringComparison.Ordinal));
-        Assert.Contains(builderParentRows, row => row.Contains("season=64", StringComparison.Ordinal));
         Assert.Contains(builderParentRows, row => row.Contains("season=80", StringComparison.Ordinal) &&
             row.Contains("fission(pending/firstPending/firstSplit/splits)=False/", StringComparison.Ordinal));
         // The deferral holds the pending fission through season 64; whether it then splits (it now does, at season 65, once the
