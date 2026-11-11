@@ -138,7 +138,7 @@ public partial class Game
             for (int c = 1; c < 10; c++) grid.AddChild(UiKit.Text("—", "BodySecondary"));
         }
         _eraContent.AddChild(grid);
-        _eraContent.AddChild(UiKit.Text("Legacy = points for knowledge mastered, land held and thriving people (fed and healthy). Top goods = what grew most in each people's stores this age (net of eating, burning and trading). Numbers for a people come from meeting them.", "CaptionTertiary", wrap: true));
+        _eraContent.AddChild(UiKit.Text("Legacy includes Mastery, accumulated Dominion, thriving people and built Wonders. Land is current share of claimed land. Top goods = what grew most in each people's stores this age (net of eating, burning and trading). Numbers for a people come from meeting them.", "CaptionTertiary", wrap: true));
 
         // ---- three columns ----------------------------------------------------------------------
         var columns = UiKit.Row(UiTokens.Sp4);

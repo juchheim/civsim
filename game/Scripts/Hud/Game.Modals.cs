@@ -531,10 +531,10 @@ public partial class Game
         right.SizeFlagsStretchRatio = 0.382f;
 
         left.AddChild(UiKit.Text("STANDINGS", "EyebrowTertiary"));
-        var grid = new GridContainer { Columns = 5 };
+        var grid = new GridContainer { Columns = 6 };
         grid.AddThemeConstantOverride("h_separation", UiTokens.Sp4);
         grid.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        foreach (string h in new[] { "", "PEOPLE", "LEGACY", "THRIVING", "LAND" }) grid.AddChild(UiKit.Text(h, "EyebrowTertiary"));
+        foreach (string h in new[] { "", "PEOPLE", "LEGACY", "DOMINION", "THRIVING", "LAND" }) grid.AddChild(UiKit.Text(h, "EyebrowTertiary"));
         for (int rank = 0; rank < order.Length; rank++)
         {
             int civ = order[rank];
@@ -544,11 +544,12 @@ public partial class Game
             grid.AddChild(who);
             grid.AddChild(UiKit.Text(civ == viewer ? "Your people" : UiText.CivName(civ), civ == viewer ? "BodyStrong" : "Body", ellipsis: true));
             grid.AddChild(UiKit.Text(FormatFixed(frame.CivLegacy[civ]), "Num"));
+            grid.AddChild(UiKit.Text(FormatFixed(frame.CivDominion[civ]), "Num"));
             grid.AddChild(UiKit.Text(FormatFixed(frame.CivThrivingLegacy[civ]), "Num"));
             grid.AddChild(UiKit.Text($"{frame.CivLandBasisPoints[civ] / 100.0:F1}%", "Num"));
         }
         left.AddChild(grid);
-        left.AddChild(UiKit.Text("Legacy = points for knowledge mastered, land held and thriving people (fed and healthy). Land = share of claimed land.", "CaptionTertiary", wrap: true));
+        left.AddChild(UiKit.Text("Legacy includes Mastery, Dominion, thriving people and built Wonders. Dominion is accumulated from land held over time; Land is your current share of claimed land.", "CaptionTertiary", wrap: true));
         if (_session is not null)
             left.AddChild(UiKit.Text($"Rivals played at {DifficultyName(_session.Difficulty)}.", "CaptionTertiary", wrap: true));
 

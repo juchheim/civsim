@@ -1309,7 +1309,9 @@ public sealed partial class FrameBuilder
             target.CivBreadthDone[c] = (short)research.DoneInEra(c, era);
             target.CivBreadthNeeded[c] = (short)_catalog.EraBreadth[Math.Min(era, ResearchCatalog.EraCount - 1)];
             target.CivMetalAccess[c] = (byte)(_omniscient || c == _viewer ? MetalAccessBits(match.Economy, c) : 0);
-            target.CivLegacy[c] = research.Legacy(c).Raw;
+            // The public Legacy total must match Scoring.Of: research legacy plus accumulated Dominion.
+            // ResearchSystem.Legacy contains Mastery, Thriving and Wonders; Territory owns Dominion.
+            target.CivLegacy[c] = (research.Legacy(c) + pol.Territory.Dominion(c)).Raw;
             target.CivThrivingLegacy[c] = research.ThrivingLegacy(c).Raw;
             target.CivDominion[c] = pol.Territory.Dominion(c).Raw;
             target.CivLandBasisPoints[c] = pol.Territory.ShareBasisPoints(c);

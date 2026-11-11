@@ -323,7 +323,7 @@ public sealed class MatchFrame
     public int CivCount;
     /// <summary><see cref="CivViewFlags"/> relative to the viewer.</summary>
     public ushort[] CivFlags = Array.Empty<ushort>();
-    /// <summary>Public: era, keystone breadth, Legacy, Firsts, Dominion and land share, posture and Relations with the viewer.</summary>
+    /// <summary>Public: era, keystone breadth, total Legacy, Dominion, current land share, posture and Relations with the viewer.</summary>
     public byte[] CivEra = Array.Empty<byte>();
     public short[] CivBreadthDone = Array.Empty<short>(), CivBreadthNeeded = Array.Empty<short>();
     /// <summary>Bronze Age metals some settlement of the civ holds in stores: bit 0 copper, 1 arsenical, 2 tin (the research [Has] gates). Filled for the viewer's own civ only, and 0 before the Bronze Age begins.</summary>
