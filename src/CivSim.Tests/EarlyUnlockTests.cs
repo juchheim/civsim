@@ -23,7 +23,9 @@ public sealed class EarlyUnlockTests
     private static void Raise(LivingEconomyModel e, int settlement, string structure)
     {
         e.FixtureSetBuildTarget(settlement, structure);
-        e.FixtureSetBuildProgress(settlement, Fix64.FromInt(20));
+        // Exactly the labor the work costs: BuildIfReady carries any surplus into the next wanted structure in the
+        // same season (16b4c01), which would raise a storage pit or another marker and muddy what is being measured.
+        e.FixtureSetBuildProgress(settlement, e.FixtureStructureBuildLabor(settlement, structure));
         e.FixtureBuildIfReady(settlement);
     }
 

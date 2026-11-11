@@ -214,6 +214,12 @@ public sealed partial class LivingEconomyModel
     internal int FixtureBuildTarget(int settlementIndex) => (int)_settlements[settlementIndex].BuildTarget;
     internal Fix64 FixtureBuildProgress(int settlementIndex) => _settlements[settlementIndex].BuildProgress;
     internal void FixtureSetBuildProgress(int settlementIndex, Fix64 progress) => _settlements[settlementIndex].BuildProgress = progress;
+    internal Fix64 FixtureStructureBuildLabor(int settlementIndex, string structure)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        return StructureBuildLabor(_settlements[settlementIndex], (Structure)kind);
+    }
     internal void FixtureBuildIfReady(int settlementIndex)
         => BuildIfReady(_settlements[settlementIndex], checked((int)_seasonsCompleted));
     internal void FixtureSetBuildTarget(int settlementIndex, string structure)
