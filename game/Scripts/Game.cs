@@ -707,6 +707,10 @@ public partial class Game : Node3D
             if (decor is { Length: > 0 } && frame.SettlementCiv[i] == frame.FocusCiv) settlement["decor"] = decor;
             settlements.Add(settlement);
         }
+#if DEBUG
+        // --dev-core-gallery: six settlements dressed as one of each stage for the settlement-core captures (Game.CoreGallery.cs)
+        if (HasArgument("--dev-core-gallery")) ApplyCoreGallery(frame, world, settlements);
+#endif
 
         var monuments = new int[frame.MonumentCount * 5];
         for (int i = 0; i < frame.MonumentCount; i++)

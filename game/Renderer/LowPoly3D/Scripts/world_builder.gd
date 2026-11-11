@@ -88,6 +88,10 @@ var tree_points := PackedVector2Array()   # where full-size trees stand (the meg
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
+## --core-layout: the settlement-core prototype (docs/MVP/31 WP1, WP2; core_layout.gd) draws every live settlement on its seven-hex slot map
+## instead of the spiral below. Off by default; with it off nothing here changes.
+var CORE_LAYOUT: bool = "--core-layout" in OS.get_cmdline_user_args()
+var core: M7CoreLayout
 const ArtDefense := preload("res://Renderer/LowPoly3D/Scripts/art_defense.gd")
 const SupplyBuilder := preload("res://Renderer/LowPoly3D/Scripts/supply_builder.gd")
 const VS := 1.45            # village scale: structures are drawn larger than life so they read
@@ -167,6 +171,13 @@ func build() -> Node3D:
 	props = M7Batcher.new()
 	props.chunk_size = STATIC_CHUNK_SIZE
 	props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
+	if CORE_LAYOUT:
+		# the staged core (docs/MVP/31a): ring-2 hexes a settlement reserves are village ground, so no trees grow there
+		if core == null:
+			core = M7CoreLayout.new(self)
+		for rt in core.reserved_ring2():
+			if int(w.reserved[rt]) == 0:
+				w.reserved[rt] = 1
 	_vegetation()
 	vegetation_props = _build_props_node("Vegetation", props)
 	props = M7Batcher.new()
@@ -721,6 +732,11 @@ func _vegetation() -> void:
 			trees = int(round(trees * (0.7 + 0.6 * grove)))
 		if near:
 			trees = trees / 2
+			if CORE_LAYOUT:
+				# the core's ring of hexes is the village's ground: grass only, no trees, bushes or rocks under the houses
+				trees = 0
+				bushes = 0
+				rocks = 0
 		if river:
 			trees = trees * 2 / 3
 			reeds += 2
@@ -1129,6 +1145,10 @@ func _settlements() -> void:
 		terrace_set[int(tt)] = true
 
 	var flagship := _flagships()
+	if CORE_LAYOUT:
+		if core == null:
+			core = M7CoreLayout.new(self)
+		core.begin()
 	for si in w.settlements.size():
 		var s: Dictionary = w.settlements[si]
 		var t := int(s.tile)
@@ -1152,6 +1172,9 @@ func _settlements() -> void:
 		hearths.append(Vector3(c.x, h0, c.y))
 		if bool(s.get("remembered")):
 			villages.append(Vector3(c.x, c.y, 0.25))
+			continue
+		if CORE_LAYOUT:
+			core.settlement(si, s, c, flagship)
 			continue
 		if st[K.HEARTH] > 0:
 			props.add("hearth", _xf(c, h0, seed * TAU, VS), Color(1, 1, 1, seed))
@@ -1398,7 +1421,25 @@ func _settlements() -> void:
 	_relay_posts()
 	_allow_plot_layout = false
 	_finish_plot_visual_layout()
+	if CORE_LAYOUT:
+		_apply_garden_cues()
 	_draw_plots(terrace_set)
+	if CORE_LAYOUT:
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--layout-dump="):
+				core.write_dump(arg.trim_prefix("--layout-dump="))
+
+## Core layout: plots the sim keeps on a core hex are drawn as the garden cues core_layout.gd chose (a compact patch, or hidden).
+func _apply_garden_cues() -> void:
+	for tile in core.garden_cues:
+		var cue: Array = core.garden_cues[tile]
+		if float(cue[1]) <= 0.0:
+			plot_display_mode[tile] = 0
+		else:
+			plot_display_mode[tile] = 2
+			plot_display_position[tile] = cue[0]
+			plot_display_scale[tile] = cue[1]
+		plot_layout_signature = plot_layout_signature * 31 + int(tile) * 7 + int(plot_display_mode[tile]) + roundi(float(cue[1]) * 1000.0)
 
 ## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
 ## (lean-tos and hide tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses

@@ -738,6 +738,41 @@ public partial class Game
                 }, 2.5f);
                 Shot("defense-castle");
                 break;
+            case "core-gallery":
+                // --start-minute=30 --viewer=-1 --dev-core-gallery --looks-debug [--core-layout] [--layout-dump=FILE] (debug builds): one settlement of each
+                // stage (docs/MVP/31 WP1), each from the same camera; shots are named before_<stage> without --core-layout and after_<stage> with it.
+                // Run with --always-on-top so the window keeps drawing.
+                string corePrefix = HasArgument("--core-layout") ? "after" : "before";
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    foreach (Label3D label in _settlementMapLabels.Values) if (GodotObject.IsInstanceValid(label)) label.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 4.0f);
+                foreach (string coreStage in new[] { "band", "village", "town", "city", "iron", "coastal" })
+                {
+                    string stageName = coreStage;
+                    foreach (var (view, zoom, pitch) in new[] { ("", 5.0f, 50.0f), ("_top", 6.0f, 80.0f), ("_close", 3.0f, 42.0f), ("_wide", 8.5f, 80.0f), ("_wideangle", 7.0f, 48.0f) })
+                    {
+                        string suffix = view;
+                        float zm = zoom, pt = pitch;
+                        Step(() =>
+                        {
+                            Vector3 at = (Vector3)_visualRenderer!.Call("core_gallery_focus", stageName);
+                            if (at == Vector3.Zero) return;
+                            _moveAnimating = false;
+                            _target = at;
+                            _yaw = _yawTarget = 0.0f;
+                            _pitch = Mathf.DegToRad(pt);
+                            SetZoom(zm);
+                        }, 2.5f);
+                        Shot($"{corePrefix}_{stageName}{suffix}");
+                    }
+                }
+                break;
             case "travel-village":
                 // --start-minute=30 --viewer=-1 --dev-roads --dev-harbor (debug builds): paved roads from the capital with their bridges, and a harbor; run
                 // with --always-on-top so the window keeps drawing
