@@ -214,6 +214,20 @@ public sealed partial class LivingEconomyModel
     internal int FixtureBuildTarget(int settlementIndex) => (int)_settlements[settlementIndex].BuildTarget;
     internal Fix64 FixtureBuildProgress(int settlementIndex) => _settlements[settlementIndex].BuildProgress;
     internal void FixtureSetBuildProgress(int settlementIndex, Fix64 progress) => _settlements[settlementIndex].BuildProgress = progress;
+    internal Fix64 FixtureStructureBuildLabor(int settlementIndex, string structure)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        return StructureBuildLabor(_settlements[settlementIndex], (Structure)kind);
+    }
+    /// <summary>The timber the player's build focus asks woodcutters for at this town (0 without one), and the planner's own procurement ask.</summary>
+    internal Fix64 FixtureBuildFocusWoodNeed(int settlementIndex)
+        => BuildFocusWoodNeed(_settlements[settlementIndex], checked((int)_seasonsCompleted));
+    internal Fix64 FixturePlannerWoodNeed(int settlementIndex)
+        => BasicBuildWoodProcurementNeed(_settlements[settlementIndex], checked((int)_seasonsCompleted));
+    /// <summary>The wood a queued Palisade plus the active metal plan's fuel asks the town to hold this season (the part the Palisade itself adds to the quota).</summary>
+    internal Fix64 FixtureProactivePalisadeWoodTarget(int settlementIndex)
+        => ProactivePalisadeWoodTarget(_settlements[settlementIndex], checked((int)_seasonsCompleted), metalPlanAvailable: true);
     internal void FixtureBuildIfReady(int settlementIndex)
         => BuildIfReady(_settlements[settlementIndex], checked((int)_seasonsCompleted));
     internal void FixtureSetBuildTarget(int settlementIndex, string structure)

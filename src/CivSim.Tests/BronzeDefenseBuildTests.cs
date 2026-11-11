@@ -51,6 +51,16 @@ public sealed class BronzeDefenseBuildTests
         int walls = LivingEconomyModel.StructureIndex("stone_walls");
         Fix64 before = economy.FixtureReachStone(0);
 
+        // After 16b4c01's material routing the town has the wood and clay for a dwelling at season 40, and the planner ranks housing
+        // ahead of walls (it picked a wattle house here, where before it could not pay for one and fell through to walls). Give it the housing it asks for so that the question left is whether walls are next.
+        for (int guard = 0; guard < 20; guard++)
+        {
+            economy.FixtureSetBuildTarget(0, "palisade");
+            economy.FixtureHasBuildCandidate(0);
+            string next = LivingEconomyModel.StructureName(economy.FixtureBuildTarget(0));
+            if (next is not ("pit_house" or "wattle_daub_house" or "mudbrick_house" or "longhouse" or "lean_to")) break;
+            economy.FixtureBuildStructure(0, next);
+        }
         economy.FixtureSetBuildTarget(0, "palisade");
         economy.FixtureHasBuildCandidate(0);
         Assert.Equal(walls, economy.FixtureBuildTarget(0));
@@ -392,6 +402,8 @@ public sealed class BronzeDefenseBuildTests
         control.Economy.FixtureStock(0, "G-WOOD", -control.Economy.GoodStock(0, "G-WOOD"));
         defense.Economy.FixtureStock(0, "G-WOOD", -defense.Economy.GoodStock(0, "G-WOOD"));
         defense.Economy.FixtureSetBuildTarget(0, "palisade");
+        Fix64 palisadeAndFuelTarget = defense.Economy.FixtureProactivePalisadeWoodTarget(0);
+        Assert.True(palisadeAndFuelTarget >= Fix64.FromInt(8 + 6)); // a tier-0 Palisade's 8 L and the metal plan's 6 L fuel floor
 
         control.RunSeasons(1);
         defense.RunSeasons(1);
@@ -400,8 +412,10 @@ public sealed class BronzeDefenseBuildTests
         Assert.True(CountJob(defense.Economy, EconomyJob.Chop) > CountJob(control.Economy, EconomyJob.Chop));
         Assert.True(defense.Economy.GoodStock(0, "G-WOOD") > control.Economy.GoodStock(0, "G-WOOD"));
         // The active metal plan reserves at least six wood for fuel. Scouts must
-        // keep being released until the full Palisade-plus-fuel target is met.
-        Assert.True(defense.Economy.GoodStock(0, "G-WOOD") < Fix64.FromInt(17));
+        // keep being released until the full Palisade-plus-fuel target is met, so the season ends short of it.
+        // (This was a fixed 17 L until 16b4c01: tool-service fallback and the planner's own timber procurement lifted the town's
+        // chopping from 8.9 L to 21.4 L in this season, so the bound is now the target itself, 21.8 L, not a capacity guess.)
+        Assert.True(defense.Economy.GoodStock(0, "G-WOOD") < palisadeAndFuelTarget);
         Assert.Equal(Fix64.One, defense.Economy.SettlementLite(0).LateWinterFoodForecast);
     }
 

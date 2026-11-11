@@ -173,7 +173,10 @@ public sealed class BuildFocusTests
     [Fact]
     public void A_focus_for_timber_sends_woodcutters_for_it()
     {
-        // Two identical towns that are short of wood for a longhouse (12 L); one has asked for it.
+        // Two identical towns that are short of wood for a pit house (4 L); one has asked for it.
+        // Since 16b4c01 the town's own planner also sends woodcutters for whatever it wants next (so the old longhouse setup, 12 L,
+        // saturated the town's chopping labor either way and the two woodpiles came out equal). The pit house is asked for because it
+        // raises the timber request above the planner's own (4 L against 2 L), and the requests themselves are checked directly too.
         static BronzeFixture Short()
         {
             BronzeFixture f = Bronze();
@@ -184,8 +187,15 @@ public sealed class BuildFocusTests
             return f;
         }
         BronzeFixture plain = Short(), asked = Short();
-        asked.Apply(PlayerCommands.SetBuildFocus(asked.Tick, 0, 0, BasicCode("longhouse")));
+        Assert.Equal(Fix64.Zero, asked.Economy.FixtureBuildFocusWoodNeed(0));
+        asked.Apply(PlayerCommands.SetBuildFocus(asked.Tick, 0, 0, BasicCode("pit_house")));
         plain.Apply(new Command(plain.Tick, 0, CommandKind.None, 0, 0, 0)); // keep the two on the same tick
+        Fix64 ask = asked.Economy.FixtureBuildFocusWoodNeed(0);
+        _output.WriteLine($"focus asks {ask.ToDoubleForDisplay():F1} L; planner alone asks {plain.Economy.FixturePlannerWoodNeed(0).ToDoubleForDisplay():F1} L");
+        Assert.Equal(Fix64.FromInt(4), ask);
+        Assert.Equal(Fix64.Zero, plain.Economy.FixtureBuildFocusWoodNeed(0));
+        // The ask reaches the town's timber procurement and the woodcutters bring in more than the planner alone sent them for.
+        Assert.Equal(ask, asked.Economy.FixturePlannerWoodNeed(0));
         plain.RunSeasons(2); asked.RunSeasons(2);
         _output.WriteLine($"wood plain {plain.Economy.FixtureWood(0).ToDoubleForDisplay():F1} asked {asked.Economy.FixtureWood(0).ToDoubleForDisplay():F1}");
         Assert.True(asked.Economy.FixtureWood(0) > plain.Economy.FixtureWood(0));
