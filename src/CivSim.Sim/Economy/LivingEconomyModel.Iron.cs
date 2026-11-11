@@ -156,9 +156,11 @@ public sealed partial class LivingEconomyModel
                 .Select(tile => (Tile: tile, HaulDistance: HexGrid.Distance(s.SiteTile, tile, _world.Width)))
                 .ToArray();
 
-        var distanceByTile = new Dictionary<int, int>();
+        // Candidate (tile, distance) pairs from the direct catchment and, when assigned, through the hub. A tile reachable both ways keeps
+        // its shorter distance. Sorting by tile id then distance makes the first pair per tile the shortest, with no hash-ordered collection.
+        var candidates = new List<(int Tile, int HaulDistance)>();
         foreach (int tile in ReachTiles(s.SiteTile, reach))
-            distanceByTile[tile] = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+            candidates.Add((tile, HexGrid.Distance(s.SiteTile, tile, _world.Width)));
 
         SettlementState hub = IronFuelHubFor(s);
         if (hub.Id != s.Id)
@@ -166,16 +168,16 @@ public sealed partial class LivingEconomyModel
             int memberToHub = HexGrid.Distance(s.SiteTile, hub.SiteTile, _world.Width);
             int hubReach = IronFuelCharcoalReach(hub);
             foreach (int tile in ReachTiles(hub.SiteTile, hubReach))
-            {
-                int viaHubDistance = memberToHub + HexGrid.Distance(hub.SiteTile, tile, _world.Width);
-                if (!distanceByTile.TryGetValue(tile, out int directDistance) || viaHubDistance < directDistance)
-                    distanceByTile[tile] = viaHubDistance;
-            }
+                candidates.Add((tile, memberToHub + HexGrid.Distance(hub.SiteTile, tile, _world.Width)));
         }
 
-        return distanceByTile.Select(pair => (pair.Key, pair.Value))
-            .OrderBy(pair => pair.Value).ThenBy(pair => pair.Key)
-            .Select(pair => (Tile: pair.Key, HaulDistance: pair.Value)).ToArray();
+        candidates.Sort((a, b) => a.Tile != b.Tile ? a.Tile.CompareTo(b.Tile) : a.HaulDistance.CompareTo(b.HaulDistance));
+        var unique = new List<(int Tile, int HaulDistance)>(candidates.Count);
+        foreach (var candidate in candidates)
+            if (unique.Count == 0 || unique[^1].Tile != candidate.Tile)
+                unique.Add(candidate);
+
+        return unique.OrderBy(pair => pair.HaulDistance).ThenBy(pair => pair.Tile).ToArray();
     }
 
     /// <summary>
