@@ -880,7 +880,7 @@ public sealed partial class PoliticsSystem
         for (int tile = 0; tile < _generated.TileCount; tile++)
         {
             WorldTile t = _generated.TileAt(tile);
-            if (t.HabitableWeight == 0 || t.Biome == Biome.Mountain) continue;
+            if (t.HabitableWeight == 0 || t.Biome == Biome.Mountain || !_economy.IsCleanCoreSite(tile)) continue;
             bool clear = true;
             for (int s = 0; s < _sCount && clear; s++)
                 if (HexGrid.Distance(_sTile[s], tile, _width) < 7) clear = false;

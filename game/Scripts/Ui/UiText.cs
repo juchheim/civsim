@@ -376,6 +376,8 @@ public static class UiText
                 "No settlement in reach can spare settlers yet. One needs 20 or more people, to be at least 60% full, and not to have sent settlers out in the past year.",
             (CivSim.Sim.Politics.DecreeKind.Found, 6) =>
                 "A village can't go there. The land must be known, unclaimed, and well clear of other villages.",
+            (CivSim.Sim.Politics.DecreeKind.Found, 9) =>
+                "The ground there is poor for a village. Try a spot nearby.",
             (CivSim.Sim.Politics.DecreeKind.Found, 7) =>
                 "None of your settlements is close enough to send settlers there.",
             (CivSim.Sim.Politics.DecreeKind.Expedition, 5) =>

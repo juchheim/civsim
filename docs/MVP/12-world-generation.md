@@ -231,6 +231,8 @@ Both members of each pair: start score within ±5%; guarantee distances within �
 
 The M2 implementation compares ten nearest-distance samples after repairs: freshwater, clay, native copper, flint, wolves, small herd, large game, the nearest two herds, and wild grain. Each distance is normalized by its allowed radius. The average normalized distance may differ by at most 20% between pair members (a maximum aggregate score delta of 2,000 across ten samples). This supplies a deterministic interpretation for the design's parity target.
 
+After the repairs, any metal, salt or coal deposit in a start's core (the start tile and ring 1) moves with its point mirror to the nearest free land tile two or three hexes away; the wild-grain repair seeds rings 2 and 3, never the core ([31 §3.3](31-settlement-core-reserve-plan.md)). The start itself never moves, so the fairness result stands.
+
 ### 11.2 Expansion simulation
 Run the territory model of [07b](07b-territory-findings.md) (claims + fission + frontier race, 4× Balanced trajectories) on the candidate world. **Accept if every civilization's simulated E7 land share is within ±15% of the mean** **and no civilization is below its settlement target for more than 8 seasons in E1–E7** (an early warning of a boxed-in start, [07b §9.5](07b-territory-findings.md#95-model-fixes-exact-symmetry-and-mirror-invariant-tie-breaks-2026-10-18)) (relative), e.g. 22–30% when the mean is 26%. Equal room isn't equal land: the frontier race decides shares (07b T9), so this check catches maps where one civilization must go the long way round a lake or ridge.
 

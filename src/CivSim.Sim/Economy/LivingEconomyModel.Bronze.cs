@@ -13,7 +13,9 @@ public enum MetalAccessKind : byte { Copper, Arsenic, Tin }
 /// <summary>Why the Decree or the planner could not open a mining camp (docs/MVP/22 §4.3, 23 §7.2).</summary>
 public enum MiningCampResult : byte
 {
-    Opened, NotBronze, NoDeposit, NotUnlocked, NeedsShaftMining, RivalOwned, OutOfReach, NoParent, NoCrew, AlreadyOpen, InRange
+    Opened, NotBronze, NoDeposit, NotUnlocked, NeedsShaftMining, RivalOwned, OutOfReach, NoParent, NoCrew, AlreadyOpen, InRange,
+    /// <summary>The deposit lies in a living settlement's reserved core (docs/MVP/31 §3.3). Appended: values are never renumbered.</summary>
+    InSettlementCore,
 }
 
 /// <summary>Who owns a tile, for the planner's rule that it opens camps only on own land (docs/MVP/23 §7.2). Politics implements it.</summary>

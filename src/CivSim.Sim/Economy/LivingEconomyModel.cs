@@ -457,6 +457,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly bool _hasIndividualHerds;
     private readonly int[][] _rangeTiles;
     private readonly int[][] _fortificationRangeTiles;
+    /// <summary>The reserved core radius (content <c>SettlementCoreRadius</c>, docs/MVP/31 §3.1), below the working range.</summary>
+    private readonly int _coreRadius;
+    /// <summary>Per tile: no valuable deposit lies in the core a settlement on it would have (docs/MVP/31 §3.3, WP4).</summary>
+    private readonly bool[] _coreClean;
     // Derived from settlement sites in list order. A tile keeps the same first owner as new settlements append.
     private int[]? _forageSettlementByTile;
     private int _forageSettlementCountAtBuild = -1;
@@ -615,6 +619,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
         _rangeTiles = BuildRangeTiles(world, Radius);
         _fortificationRangeTiles = BuildRangeTiles(world, 4);
+        _coreRadius = Math.Clamp(content.Constant("SettlementCoreRadius", Fix64.FromInt(DefaultSettlementCoreRadius)).FloorToInt(), 0, Radius - 1);
+        _coreClean = BuildCoreClean(world, BuildRangeTiles(world, _coreRadius));
         _siteFoodScores = new Fix64[world.TileCount];
         for (int tile = 0; tile < world.TileCount; tile++) _siteFoodScores[tile] = SiteFoodScore(tile);
 
@@ -1111,6 +1117,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 roll < 55 ? Fix64.Parse("1.15") : Fix64.Parse("1.08");
         }
 
+        ReleaseCorePlots();
         AdvanceWildfires(season);
         RegrowResources(season % 4);
         if (_hasIndividualHerds) AdvanceWildHerdBehavior(season);
@@ -3151,6 +3158,11 @@ public sealed partial class LivingEconomyModel : ISimModel
                 settlement.BuildTarget = Structure.Count;
                 return;
             }
+            if (candidate == Structure.Field && !CanPlaceField(settlement))
+            {
+                settlement.BuildTarget = Structure.Count;
+                return;
+            }
             Fix64 labor = StructureBuildLabor(settlement, candidate);
             if (labor <= Fix64.Zero || settlement.BuildProgress < labor || !CanPayStructure(settlement, candidate, season)) return;
             Fix64 woodBeforePayment = settlement.Stores[(int)Good.Wood];
@@ -3591,7 +3603,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         foreach (int tile in RangeTiles(settlement.SiteTile))
         {
-            if (tile != settlement.SiteTile && _fieldOwner[tile] < 0 && !IsOrchardOccupied(tile) && IsOrchardGround(tile))
+            if (tile != settlement.SiteTile && _fieldOwner[tile] < 0 && !IsOrchardOccupied(tile) && IsOrchardGround(tile) &&
+                IsPlotTile(settlement, tile))
                 return true;
         }
         return false;
@@ -3604,7 +3617,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         foreach (int tile in RangeTiles(settlement.SiteTile))
         {
             if (tile == settlement.SiteTile || _fieldOwner[tile] >= 0 || !IsOrchardGround(tile)) continue;
-            if (IsOrchardOccupied(tile)) continue;
+            if (IsOrchardOccupied(tile) || !IsPlotTile(settlement, tile)) continue;
             WorldEconomyTile input = _world.Tile(tile);
             Fix64 score = input.SoilFertility + input.SpringForage + input.SummerForage + input.AutumnForage;
             if (best < 0 || score > bestScore || score == bestScore && tile < best)
@@ -3639,6 +3652,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         foreach (int tile in RangeTiles(settlement.SiteTile))
         {
             if (_fieldOwner[tile] >= 0 || IsOrchardOccupied(tile) || _world.Tile(tile).FieldYieldPerYear <= Fix64.Zero) continue;
+            if (!IsPlotTile(settlement, tile)) continue; // the settlement core holds the village only (docs/MVP/31 §3.3)
             Fix64 score = _world.Tile(tile).FieldYieldPerYear + _soil[tile];
             if (score > bestScore || score == bestScore && tile < best)
             {
@@ -4744,7 +4758,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         bool ironSiting = IronFuelHubsEnabled(parent.Civilization);
         int reach = Math.Max(14, SiteAdvisor?.SettleReach(parent.Civilization) ?? 14);
         FissionSiteDiagnostics? diagnostics = recordDiagnostics ? FissionSiteDiagnosticsForDiagnostics : null;
-        int[]? rejections = diagnostics is null ? null : new int[6];
+        int[]? rejections = diagnostics is null ? null : new int[(int)FissionSiteRejectionReason.Count];
         List<(int Tile, Fix64 Food)>? legalRawFood = diagnostics is null ? null : new List<(int Tile, Fix64 Food)>();
         int legalSites = 0;
         int rawBestTile = -1;
@@ -4755,6 +4769,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (!IsHabitable(tile))
             {
                 if (rejections is not null) rejections[(int)FissionSiteRejectionReason.Uninhabitable]++;
+                continue;
+            }
+            if (!_coreClean[tile])
+            {
+                if (rejections is not null) rejections[(int)FissionSiteRejectionReason.CoreDeposit]++;
                 continue;
             }
             int parentDistance = HexGrid.Distance(tile, parent.SiteTile, _world.Width);

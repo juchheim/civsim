@@ -285,6 +285,7 @@ Each compact delivery is a **caravan party** on the road (pack animals, carts wi
 
 ### 6.4 Tin Folk
 - **When the first civilization in the world completes KEY-3**, each far or island tin placer that is not owned by a civilization and lies ≥ 8 tiles from any settlement gets a **Free Folk village of 24** (9 adults, 2 elders, 13 children; E2 technology; a palisade; claim radius 3): *"Traders speak of the tin-folk of the western hills."* Typical maps get **3–6**.
+- The village stands **two hexes** from its placer (three if no tile at two will do), so the tin lies outside its core ([31 §3.3](31-settlement-core-reserve-plan.md)); with no such tile no village appears there.
 - Tin Folk mine and smelt their placer, grow to their food cap, defend at 0.8 strength behind their palisade, never raid, and accept compacts like any Strategist (with a fixed "trade-seeking" policy).
 - Three ways to their tin: **trade** (a Compact), **invite** them (§4.3, after 8 seasons of trade), or **take** them (raid or capture; reputation −5 for a raid, −10 for a capture, Relations −20 with every civilization that traded with them).
 - Spawning at the first KEY-3 (around minute 30) keeps the worldgen, research and politics goldens (12 and 24 minutes) unchanged until then. Seeding neutral peoples at world generation is the later, cleaner version (§19).

@@ -85,7 +85,7 @@ public sealed partial class LivingEconomyModel
             case BasicRule.ShelterLeanTo:
                 return (!c.HasBasicShelter || c.ExtraLeanTo) && (c.NeedsHousing || BasicCold(s, ref c));
             case BasicRule.Hearth: return built[(int)Structure.Hearth] == 0;
-            case BasicRule.Field: return FieldLimit(s) > s.FieldTiles.Count;
+            case BasicRule.Field: return FieldLimit(s) > s.FieldTiles.Count && CanPlaceField(s);
             case BasicRule.HousePitHouse: return built[(int)Structure.PitHouse] == 0 && c.NeedsHousing;
             case BasicRule.HideTent: return built[(int)Structure.HideTent] == 0;
             case BasicRule.HouseWattleHouse:

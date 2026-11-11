@@ -227,7 +227,8 @@ public static class DecreeForecaster
         // digs that itself), a camp already open there, a parent short of wood or of a free crew. A rival's claim and the ore left
         // stay hidden, so they are not judged here.
         MiningCampResult camp = pol.Economy.CheckOpenMiningCamp(civ, tile);
-        return camp is MiningCampResult.RivalOwned or MiningCampResult.NoDeposit ? 0 : PoliticsSystem.MiningRefusal(camp);
+        // A deposit in another settlement's core can only be a rival's or a stranger's village, which fog may hide: not judged either.
+        return camp is MiningCampResult.RivalOwned or MiningCampResult.NoDeposit or MiningCampResult.InSettlementCore ? 0 : PoliticsSystem.MiningRefusal(camp);
     }
 
     private static int ClaimRadius(PoliticsSystem pol, int civ) => pol.ClaimRadiusOfEra(pol.DecreeResearch.Era(civ));

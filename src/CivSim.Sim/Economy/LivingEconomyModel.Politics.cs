@@ -57,7 +57,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     public BeaconSitePreview PreviewBeaconSite(int civ, int beaconTile, int replacedBeaconIndex = -1)
     {
-        if ((uint)beaconTile >= (uint)_world.TileCount || !IsHabitable(beaconTile))
+        if ((uint)beaconTile >= (uint)_world.TileCount || !IsHabitable(beaconTile) || !_coreClean[beaconTile])
             return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
 
         var parents = new List<SettlementState>();
@@ -77,7 +77,7 @@ public sealed partial class LivingEconomyModel
         var localCandidates = new List<(int Tile, Fix64 Score)>(768);
         for (int tile = 0; tile < _world.TileCount; tile++)
         {
-            if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile)) continue;
+            if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile) || !_coreClean[tile]) continue;
             bool farEnough = true;
             for (int s = 0; s < _settlements.Count; s++)
                 if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)

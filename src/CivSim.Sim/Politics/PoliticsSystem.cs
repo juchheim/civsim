@@ -111,6 +111,8 @@ public enum OrderRefusalReason : byte
     InvalidTarget = 1, RequirementsNotMet = 2, InvalidState = 3,
     // Decrees (docs/MVP/22 §4.5); append only.
     NoMandate = 4, NoDonor = 5, NoSite = 6, OutOfReach = 7, Rejected = 8,
+    /// <summary>A metal, salt or coal deposit lies in the village's core (docs/MVP/31 §3.3); the text names it only if the player knows it.</summary>
+    CoreDeposit = 9,
 }
 
 /// <summary>
@@ -568,6 +570,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
 
     public bool Allows(int civ, int tile)
     {
+        if (!_economy.IsCleanCoreSite(tile)) return false; // no village over a deposit (docs/MVP/31 §3.3)
         int owner = _territory.OwnerOf(tile);
         if (owner != -1 && owner != civ) return false;
         for (int s = 0; s < _sCount; s++)

@@ -170,11 +170,18 @@ public partial class Game
         DecreeForecast f = _session.PreviewDecree(civ, _pendingDecree, _pendingTarget, _pendingExtra);
         string result = f.Allowed
             ? $"Elders expect {f.SuccessPermille / 10.0:0.#}% success · {f.People} people · about {f.Tiles} tiles · {f.Seasons} seasons. Mandate {f.MandateAfter} after."
-            : $"The elders advise against it. {MineRefusalDetail(_pendingDecree, (int)f.LikelyRefusal, _pendingTarget) ?? UiText.DecreeRefusal(_pendingDecree, (int)f.LikelyRefusal)}{FoundRefusalDetail(_pendingDecree, f.LikelyRefusal, civ, _pendingTarget)} Nothing will be spent.";
+            : $"The elders advise against it. {MineRefusalDetail(_pendingDecree, (int)f.LikelyRefusal, _pendingTarget) ?? CoreDepositRefusalDetail(_pendingDecree, f.LikelyRefusal, _pendingTarget) ?? UiText.DecreeRefusal(_pendingDecree, (int)f.LikelyRefusal)}{FoundRefusalDetail(_pendingDecree, f.LikelyRefusal, civ, _pendingTarget)} Nothing will be spent.";
         UiKit.SetText(_decreeForecast!, result);
         UiKit.SetVisible(_decreeConfirm!, f.Allowed);
         UiKit.SetText(_decreeConfirm!, $"Confirm · {f.Cost} Mandate");
         CallDeferred(nameof(FitDecreePanel));
+    }
+
+    /// <summary>For a founding refused because a deposit lies in the village's core: names it only if the player knows it (docs/MVP/31 §7.1).</summary>
+    private string? CoreDepositRefusalDetail(DecreeKind kind, OrderRefusalReason reason, int tile)
+    {
+        if (kind != DecreeKind.Found || reason != OrderRefusalReason.CoreDeposit || _current is null || _session is null) return null;
+        return CivSim.Sim.View.SiteText.CoreDepositRefusal(_session.WorldView, _current.KnownDeposits, tile);
     }
 
     /// <summary>For a founding refused because no settlement can spare people: what each settlement in reach is short of, as lines after the rule.</summary>

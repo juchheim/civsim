@@ -130,7 +130,8 @@ public sealed partial class LivingEconomyModel
             case Structure.Orchard:
                 return CanPlaceOrchard(s) ? BuildGate.Pass : Stop(BuildCause.Site, BuildWhy.NoFreeGround);
             case Structure.Field:
-                return FieldLimit(s) <= s.FieldTiles.Count ? Stop(BuildCause.Cap, BuildWhy.FieldsFull, FieldLimit(s)) : BuildGate.Pass;
+                if (FieldLimit(s) <= s.FieldTiles.Count) return Stop(BuildCause.Cap, BuildWhy.FieldsFull, FieldLimit(s));
+                return CanPlaceField(s) ? BuildGate.Pass : Stop(BuildCause.Site, BuildWhy.NoFreeGround);
             default: return BuildGate.Pass; // lean-to, pit house, wattle, mudbrick house, longhouse: as many as there is room and material for
         }
     }

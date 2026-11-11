@@ -2266,7 +2266,7 @@ public sealed partial class LivingEconomyModel
         int best = -1;
         foreach (int tile in RangeTiles(s.SiteTile))
         {
-            if ((Biome)_world.Tile(tile).BiomeId != Biome.Mountain || _fieldOwner[tile] >= 0 || IsOrchardOccupied(tile)) continue;
+            if ((Biome)_world.Tile(tile).BiomeId != Biome.Mountain || _fieldOwner[tile] >= 0 || IsOrchardOccupied(tile) || !IsPlotTile(s, tile)) continue;
             if (best < 0 || tile < best) best = tile;
         }
         return best;
@@ -2277,9 +2277,7 @@ public sealed partial class LivingEconomyModel
     {
         int natural = s.FieldTiles.Count - IronTerraceCount(s);
         if (natural >= FieldLimit(s) - IronTerraceCount(s)) return true;
-        foreach (int tile in RangeTiles(s.SiteTile))
-            if (_fieldOwner[tile] < 0 && !IsOrchardOccupied(tile) && _world.Tile(tile).FieldYieldPerYear > Fix64.Zero) return false;
-        return true;
+        return !CanPlaceField(s);
     }
 
     /// <summary>Whether the settlement wants this Iron work now: every gate of <see cref="IronGate"/> is open, the town's own appetite included.</summary>

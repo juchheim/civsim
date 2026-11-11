@@ -121,10 +121,7 @@ public sealed partial class LivingEconomyModel
     /// <summary>Whether a free plot of ground exists where the settlement could still lay a field (the planner can place one).</summary>
     public bool CanPlaceAnotherField(int settlementIndex)
     {
-        SettlementState s = _settlements[settlementIndex];
-        foreach (int tile in RangeTiles(s.SiteTile))
-            if (_fieldOwner[tile] < 0 && !IsOrchardOccupied(tile) && _world.Tile(tile).FieldYieldPerYear > Fix64.Zero) return true;
-        return false;
+        return CanPlaceField(_settlements[settlementIndex]);
     }
 
     /// <summary>

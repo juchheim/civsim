@@ -2678,6 +2678,7 @@ public sealed partial class LivingEconomyModel
         foreach (MiningCampState other in _camps)
             if (other.Tile == tile && (!AllowSecondCampOnTile || other.Parent == parent.Id)) return MiningCampResult.AlreadyOpen;
         foreach (SettlementState s in _settlements) if (s.SiteTile == tile) return MiningCampResult.NoDeposit;
+        if (InReservedCore(tile, null)) return MiningCampResult.InSettlementCore; // no camp in a living settlement's core (docs/MVP/31 §3.3)
         if (TakeWood(parent, tile, Fix64.FromInt(2), commit: false) < Fix64.FromInt(2)) return MiningCampResult.NoCrew;
         // A camp takes its crew from the parent; leave at least half the parent's working adults at home.
         if (FreeMiningCrew(parent) < _bronzeConstants.CampMinCrew * 2) return MiningCampResult.NoCrew;
