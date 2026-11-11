@@ -51,6 +51,16 @@ public sealed class BronzeDefenseBuildTests
         int walls = LivingEconomyModel.StructureIndex("stone_walls");
         Fix64 before = economy.FixtureReachStone(0);
 
+        // After 16b4c01's material routing the town has the wood and clay for a dwelling at season 40, and the planner ranks housing
+        // ahead of walls (it picked a wattle house here, where before it could not pay for one and fell through to walls). Give it the housing it asks for so that the question left is whether walls are next.
+        for (int guard = 0; guard < 20; guard++)
+        {
+            economy.FixtureSetBuildTarget(0, "palisade");
+            economy.FixtureHasBuildCandidate(0);
+            string next = LivingEconomyModel.StructureName(economy.FixtureBuildTarget(0));
+            if (next is not ("pit_house" or "wattle_daub_house" or "mudbrick_house" or "longhouse" or "lean_to")) break;
+            economy.FixtureBuildStructure(0, next);
+        }
         economy.FixtureSetBuildTarget(0, "palisade");
         economy.FixtureHasBuildCandidate(0);
         Assert.Equal(walls, economy.FixtureBuildTarget(0));
