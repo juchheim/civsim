@@ -45,13 +45,21 @@ public sealed class FissionOperatingFoodMarginTests
             new(5, 105, 18, true, false, 11, true),
             new(6, 106, 26, false, false, 11, true),
             new(7, 107, 35, false, false, 0, true),
+            // Idle holders supply the per-side growth buffer that fission now also requires on top of the
+            // 70% coverage floor (eff4831, 12c4c4c); without them no split can keep both sides buffered.
+            new(8, 108, 29, false, false, 11, false),
+            new(9, 109, 33, true, false, 11, false),
+            new(10, 110, 21, false, false, 11, false),
+            new(11, 111, 38, false, false, 11, false),
+            new(12, 112, 27, false, false, 11, false),
+            new(13, 113, 40, false, false, 11, false),
         };
 
         FissionCohortSample? balanced = null;
         for (ulong seed = 0; seed < 64 && balanced is null; seed++)
         {
-            FissionCohortSample original = FissionCohortSampler.Select(seed, 0x5678, 2, 18, 8, 6, candidates);
-            FissionCohortSample candidate = FissionCohortSampler.Select(seed, 0x5678, 2, 18, 8, 6, candidates,
+            FissionCohortSample original = FissionCohortSampler.Select(seed, 0x5678, 2, 18, 14, 6, candidates);
+            FissionCohortSample candidate = FissionCohortSampler.Select(seed, 0x5678, 2, 18, 14, 6, candidates,
                 preserveCurrentToolCoverage: true);
             if (original.Success && !MeetsBothCoverage(original.DaughterFigures, candidates) &&
                 candidate.Result.Contains("CoveragePreserved", StringComparison.Ordinal))
