@@ -280,11 +280,12 @@ public class StrategistScenarioTests
     [Fact]
     public void It_places_a_Beacon_on_open_land_toward_the_frontier()
     {
-        // Firsts no longer pay Legacy (2026-11-06), so the Council's research reaches ART-05 on its own before the base season and the
-        // Strategist has already placed its Beacon: read that placement from the base match instead of granting the project here.
-        // Late projects cost more since docs/MVP/28 §16, so ART-05 lands a few seasons after the base season: resume the base match and
-        // run until the Strategist has placed its first Beacon.
-        StrategistRig rig = Resume();
+        // Firsts no longer pay Legacy (2026-11-06), so the Council's research reaches ART-05 on its own and the Strategist places its Beacon without a grant.
+        // When it lands depends on the economy's pacing: late projects cost more since docs/MVP/28 §16 (Beacon after the base season), and the
+        // settlement build and material changes of 2026-11-10 (16b4c01) moved it before the base season (season 98 on this seed). A resumed match
+        // starts with an empty AI log (the log is not part of the snapshot), so read the placement and its note from the base match when it is
+        // already there, otherwise resume and run until the Strategist has placed its first Beacon.
+        StrategistRig rig = Shared.Value.Rig.Politics.BeaconsOf(0).Any() ? Shared.Value.Rig : Resume();
         int waited = 0;
         while (!rig.Politics.BeaconsOf(0).Any() && waited < 24) { rig.Seasons(1); waited++; }
         Assert.True(rig.Match.Research.IsDone(0, rig.Match.Research.Catalog.IndexOf("ART-05")), $"no Beacon after {waited} seasons");
