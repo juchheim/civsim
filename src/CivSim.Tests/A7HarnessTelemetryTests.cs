@@ -659,23 +659,20 @@ public sealed class A7HarnessTelemetryTests
         Assert.Equal(defaultPath.Civs.Select(c => c.Legacy), baseline.Civs.Select(c => c.Legacy));
         Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=2.00", StringComparison.Ordinal));
+        // Pinned at season 32 of settlement s3: the baseline keeps its 2.00 scout reserve and puts 3.10 into food work, while the
+        // candidate releases the reserve (scoutWork=0.00) and assigns 5.65, so the released scout work becomes food work. The pin was
+        // season 35 (3.19 against 5.31), then season 34 (2.97 against 5.10), before the 2026-11-10 settlement material and build
+        // reliability changes (16b4c01: timber procurement, material routing, same-season build carry-through; docs/MVP/30-build-agency.md,
+        // which says it changes every civilization). After them the baseline auto-scout policy also sheds a scout in some short seasons
+        // (scoutWork=1.00 at seasons 31, 34, 35, 38), so only a season where the baseline still holds both scouts compares like with like.
         Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=3.19/3.19", StringComparison.Ordinal));
+            row => row.Contains("season=32 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
+                row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=2.00", StringComparison.Ordinal) &&
+                row.Contains("foodWork(requested/assigned)=3.10/3.10", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal));
-        Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("season=34 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
+            row => row.Contains("season=32 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
                 row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal) &&
-                // 5.10 against the baseline's 2.97 at the same season: the released scout reserve becomes food work. This pin was season 35
-                // (5.31 against 3.19) before the late-project cost doubling of docs/MVP/28 §16. In the candidate run settlement s3 now
-                // alternates between short seasons (scouts released) and seasons it is not short (scouts back at 2.00), and season 35 falls
-                // on a not-short one (opening food 12.00 against a need of 11.00), so the pin moves to the neighbouring short season.
-                row.Contains("foodWork(requested/assigned)=5.10/5.10", StringComparison.Ordinal));
-        Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("season=34 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodShort=True", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=2.97/2.97", StringComparison.Ordinal));
+                row.Contains("foodWork(requested/assigned)=5.65/5.65", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("civ=1/rusher", StringComparison.Ordinal) && row.Contains("foodShort=True", StringComparison.Ordinal) &&
                 row.Contains("scoutWork=2.00", StringComparison.Ordinal));
