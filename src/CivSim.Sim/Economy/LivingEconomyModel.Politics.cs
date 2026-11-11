@@ -397,6 +397,7 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState camp = NewSettlement(civ, siteTile);
         _settlements.Add(camp);
+        IndexSettlementSite(camp);
         foreach (long id in figureIds)
         {
             int index = FigureIndex(id);

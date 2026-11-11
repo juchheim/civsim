@@ -44,6 +44,151 @@ public sealed class SettlementCoreTests
     }
 
     [Fact]
+    public void Queued_outer_builds_claim_resume_and_release_their_home_hex()
+    {
+        BronzeFixture f = Town();
+        LivingEconomyModel e = f.Economy;
+        e.FixtureStartIronBuild(0, "academy");
+        int tile = OuterRows(e, 0).Single(row => row.District == (byte)CoreDistrict.Learning).Tile;
+        Assert.True(tile >= 0);
+        Assert.True(e.IsReservedCoreTile(tile));
+
+        e.FixtureShelfIronBuild(0);
+        Assert.False(e.IsReservedCoreTile(tile));
+        e.FixtureStartIronBuild(0, "academy");
+        Assert.True(e.IsReservedCoreTile(tile));
+        e.FixtureDropIronBuild(0);
+        Assert.False(e.IsReservedCoreTile(tile));
+
+        e.FixtureCompleteIron(0, "academy");
+        Assert.True(e.IsReservedCoreTile(tile));
+        e.FixtureSetCivicBuildTarget(0, "ziggurat");
+        Assert.Contains(OuterRows(e, 0), row => row.District == (byte)CoreDistrict.Ziggurat);
+        e.FixtureCivic(0, "ziggurat");
+        Assert.Contains(OuterRows(e, 0), row => row.District == (byte)CoreDistrict.Ziggurat);
+    }
+
+    [Fact]
+    public void City_homes_use_current_and_last_year_population_with_the_two_thresholds()
+    {
+        BronzeFixture f = Town();
+        LivingEconomyModel e = f.Economy;
+        e.FixtureSetTier(0, (int)SettlementTier.City);
+        int population = e.Population(e.SettlementLite(0).Id);
+        e.FixtureAddPeople(0, 100 - population, 25);
+        e.FixtureSetPeopleLastYear(0, 125);
+
+        var rows = OuterRows(e, 0);
+        Assert.Contains(rows, row => row.District == (byte)CoreDistrict.HomesC && row.Tile >= 0);
+        Assert.DoesNotContain(rows, row => row.District == (byte)CoreDistrict.HomesD);
+
+        // A current dip is held for the year; the year-end head count then releases Homes C.
+        e.FixtureSetPeopleLastYear(0, 100);
+        Assert.DoesNotContain(OuterRows(e, 0), row => row.District == (byte)CoreDistrict.HomesC);
+        e.FixtureAddPeople(0, 80, 25);
+        Assert.Contains(OuterRows(e, 0), row => row.District == (byte)CoreDistrict.HomesD && row.Tile >= 0);
+    }
+
+    [Fact]
+    public void Neighbor_guards_prevent_claims_inside_a_core_and_duplicate_outer_tiles()
+    {
+        BronzeFixture f = Town();
+        LivingEconomyModel e = f.Economy;
+        int site = e.FixtureSiteTile(0);
+        int neighbor = Ring(site, 4).First(Land);
+        e.FixtureMoveSite(1, neighbor);
+        e.FixtureCompleteIron(0, "academy");
+        e.FixtureCompleteIron(0, "castle");
+        e.FixtureCompleteIron(1, "academy");
+        var first = OuterRows(e, 0).Where(row => row.Tile >= 0).ToArray();
+        var second = OuterRows(e, 1).Where(row => row.Tile >= 0).ToArray();
+        Assert.Empty(first.Select(row => row.Tile).Intersect(second.Select(row => row.Tile)));
+        foreach (var row in first) Assert.True(HexGrid.Distance(neighbor, row.Tile, Width) > 1);
+        foreach (var row in second) Assert.True(HexGrid.Distance(site, row.Tile, Width) > 1);
+        Assert.All(first, row => Assert.Equal(2, HexGrid.Distance(site, row.Tile, Width)));
+        Assert.All(second, row => Assert.Equal(2, HexGrid.Distance(neighbor, row.Tile, Width)));
+    }
+
+    [Fact]
+    public void Newly_claimed_plots_release_at_the_next_season_start_including_a_neighbors_field()
+    {
+        BronzeFixture f = Town();
+        LivingEconomyModel e = f.Economy;
+        int site = e.FixtureSiteTile(0);
+        e.FixtureCompleteIron(0, "academy");
+        e.FixtureCompleteIron(0, "castle");
+        e.FixtureCompleteIron(0, "bathhouse");
+        e.FixtureCompleteIron(0, "great_library");
+
+        bool SharedWithNeighbor(int tile) => HexGrid.Distance(tile, e.FixtureSiteTile(1), Width) is >= 2 and <= 3;
+        int neighbor = Ring(site, 4).Where(Land).First(tile =>
+        {
+            e.FixtureMoveSite(1, tile);
+            int[] candidate = OuterRows(e, 0).Where(row => row.Tile >= 0).Select(row => row.Tile).ToArray();
+            return candidate.Length >= 4 && candidate.Any(SharedWithNeighbor) && candidate.Count(t => !SharedWithNeighbor(t)) >= 3;
+        });
+        Assert.Equal(neighbor, e.FixtureSiteTile(1));
+        var claimed = OuterRows(e, 0).Where(row => row.Tile >= 0).Select(row => row.Tile).ToArray();
+        Assert.True(claimed.Length >= 4);
+        int neighborField = claimed.First(SharedWithNeighbor);
+        int[] ownPlots = claimed.Where(tile => tile != neighborField).Take(3).ToArray();
+        int field = ownPlots[0], orchard = ownPlots[1], terrace = ownPlots[2];
+        e.FixtureForcePlot(0, field, kind: 0);
+        e.FixtureAddCanal(0, field);
+        e.FixtureForcePlot(0, orchard, kind: 1);
+        e.FixtureForcePlot(0, terrace, kind: 2);
+        e.FixtureForcePlot(1, neighborField, kind: 0);
+
+        Assert.True(e.IsReservedCoreTile(field));
+        Assert.True(e.IsReservedCoreTile(orchard));
+        Assert.True(e.IsReservedCoreTile(terrace));
+        Assert.True(e.IsReservedCoreTile(neighborField));
+        e.FixtureReleaseCorePlots();
+        Assert.Equal(-1, e.FixtureFieldOwner(field));
+        Assert.Equal(-1, e.FixtureFieldOwner(terrace));
+        Assert.Equal(-1, e.FixtureFieldOwner(neighborField));
+        Assert.DoesNotContain(orchard, Enumerable.Range(0, e.FixtureOrchardCount(0)).Select(i => e.FixtureOrchardTile(0, i)));
+        Assert.Equal(0, e.FixtureTerraceWorks(0));
+    }
+
+    [Fact]
+    public void Razing_releases_outer_claims_and_capture_keeps_completed_buildings()
+    {
+        BronzeFixture f = Town();
+        LivingEconomyModel e = f.Economy;
+        e.FixtureCompleteIron(0, "academy");
+        int tile = OuterRows(e, 0).Single(row => row.District == (byte)CoreDistrict.Learning).Tile;
+        Assert.True(e.IsReservedCoreTile(tile));
+        e.TransferSettlement(0, 1);
+        Assert.True(e.IsReservedCoreTile(tile));
+        e.RazeSettlement(0);
+        Assert.False(e.IsReservedCoreTile(tile));
+        Assert.Empty(OuterRows(e, 0));
+    }
+
+    [Fact]
+    public void Mid_season_snapshot_after_a_queued_district_matches_eight_continuous_seasons()
+    {
+        var continuous = new LivingEconomyModel(Seed, EconomyContent.FromPack(TestPack.Pack), Input.Value) { IronChain = true };
+        long tick = 0;
+        for (; tick < LivingEconomyModel.SeasonTicks / 2; tick++)
+            continuous.Step(tick, ReadOnlySpan<Command>.Empty);
+        continuous.FixtureStartIronBuild(0, "academy");
+        byte[] snapshot = Snapshot(continuous);
+
+        var resumed = new LivingEconomyModel(Seed, EconomyContent.FromPack(TestPack.Pack), Input.Value) { IronChain = true };
+        Restore(resumed, snapshot);
+        Assert.Equal(continuous.ComputeChecksum(), resumed.ComputeChecksum());
+        long end = tick + 8L * LivingEconomyModel.SeasonTicks;
+        for (; tick < end; tick++)
+        {
+            continuous.Step(tick, ReadOnlySpan<Command>.Empty);
+            resumed.Step(tick, ReadOnlySpan<Command>.Empty);
+        }
+        Assert.Equal(continuous.ComputeChecksum(), resumed.ComputeChecksum());
+    }
+
+    [Fact]
     public void ReleaseCorePlots_frees_every_field_orchard_and_terrace_a_save_holds_in_a_core_and_keeps_the_rest()
     {
         BronzeFixture live = Town();
@@ -101,12 +246,21 @@ public sealed class SettlementCoreTests
         BronzeFixture f = Town();
         LivingEconomyModel e = f.Economy;
         int site = e.FixtureSiteTile(0);
+        e.FixtureStartIronBuild(0, "academy");
+        var claimed = OuterRows(e, 0).Where(row => row.Tile >= 0).Select(row => row.Tile).ToArray();
+        Assert.NotEmpty(claimed);
         e.FixtureFillNaturalFields(0);
         Assert.True(e.FixtureFieldCount(0) > 0);
         while (e.FixturePlaceOrchard(0)) { }
         Assert.True(e.FixtureOrchardCount(0) > 0);
         int terrace = e.FixtureNextTerraceTile(0);
         Assert.True(terrace < 0 || HexGrid.Distance(site, terrace, Width) > 1);
+        foreach (int tile in claimed)
+        {
+            Assert.DoesNotContain(tile, Enumerable.Range(0, e.FixtureFieldCount(0)).Select(i => e.FixtureFieldTile(0, i)));
+            Assert.DoesNotContain(tile, Enumerable.Range(0, e.FixtureOrchardCount(0)).Select(i => e.FixtureOrchardTile(0, i)));
+            Assert.NotEqual(tile, terrace);
+        }
         AssertNoPlotInAnyCore(e);
 
         // Every free tile left is in the core: the planner neither wants a field nor sees ground for one or for an orchard.
@@ -192,13 +346,20 @@ public sealed class SettlementCoreTests
         (MatchModel match, SimRunner runner) = LiveMatch(seed);
         LivingEconomyModel e = match.Economy;
         GeneratedWorld world = WorldGenerator.Generate(seed);
+        WorldEconomyInput worldInput = WorldEconomyInput.FromGeneratedWorld(world);
         int width = world.Width;
         int plotsSeen = 0, checkedSites = 0;
+        int outerClaimsSeen = 0;
+        var outerClaimsPreviousBoundary = new bool[e.FixtureWorldTileCount];
         while (runner.Tick < minutes * 600L)
         {
             int before = e.SettlementCount;
             runner.Advance(LivingEconomyModel.SeasonTicks);
-            plotsSeen += CheckCores(e, width, newSince: before, $"seed {seed} tick {runner.Tick}");
+            // A claim added after ReleaseCorePlots runs at a boundary may keep its old plot for that season; it must be gone at the next boundary.
+            (int plots, int claims) = CheckCores(e, worldInput, width, outerClaimsPreviousBoundary, newSince: before,
+                $"seed {seed} tick {runner.Tick}");
+            plotsSeen += plots;
+            outerClaimsSeen += claims;
             // WP4: every settlement, the starts and Tin Folk included, stands on a clean core (no grandfathered ones in a new game).
             for (int i = checkedSites; i < e.SettlementCount; i++)
                 Assert.True(CleanCore(world, e.Settlement(i).SiteTile),
@@ -207,6 +368,8 @@ public sealed class SettlementCoreTests
         }
         Assert.True(plotsSeen > 0, $"seed {seed}: the match placed no plot in {minutes} minutes, so it tests nothing");
         Assert.True(checkedSites > 4, $"seed {seed}: no settlement was founded after the start, so siting is not tested");
+        if (minutes >= 110)
+            Assert.True(outerClaimsSeen > 0, $"seed {seed}: no settlement claimed an outer hex in {minutes} minutes");
     }
 
     internal static bool CleanCore(GeneratedWorld world, int site)
@@ -218,19 +381,45 @@ public sealed class SettlementCoreTests
     }
 
     /// <summary>Checks every plot against every living settlement's core; returns the plots seen.</summary>
-    private static int CheckCores(LivingEconomyModel e, int width, int newSince, string where)
+    private static (int Plots, int Claims) CheckCores(LivingEconomyModel e, WorldEconomyInput world, int width,
+        bool[] outerClaimsPreviousBoundary, int newSince, string where)
     {
         int n = e.SettlementCount;
         var sites = new int[n];
         var living = new bool[n];
         for (int i = 0; i < n; i++) { SettlementView v = e.Settlement(i); sites[i] = v.SiteTile; living[i] = v.Population > 0; }
         int seen = 0;
+        int claims = 0;
+        var claimedByTile = new int[e.FixtureWorldTileCount];
+        Array.Fill(claimedByTile, -1);
+        int[] outerTiles = new int[(int)CoreDistrict.Count];
+        byte[] outerDistricts = new byte[(int)CoreDistrict.Count];
+        byte[] outerPositions = new byte[(int)CoreDistrict.Count];
+        for (int s = 0; s < n; s++)
+        {
+            if (!living[s]) continue;
+            int count = e.OuterCoreHexes(s, outerTiles, outerDistricts, outerPositions);
+            for (int row = 0; row < count; row++)
+            {
+                int tile = outerTiles[row];
+                if (tile < 0) continue;
+                claims++;
+                Assert.Equal(2, HexGrid.Distance(sites[s], tile, width));
+                Assert.True(SettlementCoreGrowth.IsUsableStatic(world, tile), $"{where}: claimed tile {tile} is statically unusable");
+                Assert.Equal(-1, claimedByTile[tile]);
+                claimedByTile[tile] = s;
+                for (int other = 0; other < n; other++)
+                    if (other != s && living[other] && HexGrid.Distance(sites[other], tile, width) <= 1)
+                        Assert.Fail($"{where}: claimed tile {tile} lies in settlement {other}'s core");
+            }
+        }
         void Check(int owner, int tile, string kind)
         {
             seen++;
             for (int i = 0; i < newSince && i < n; i++)
-                if (living[i] && HexGrid.Distance(sites[i], tile, width) <= 1)
-                    Assert.Fail($"{where}: a {kind} of settlement {owner} on tile {tile} lies in the core of living settlement {i}");
+                if (living[i] && (HexGrid.Distance(sites[i], tile, width) <= 1 ||
+                    (claimedByTile[tile] == i && outerClaimsPreviousBoundary[tile])))
+                    Assert.Fail($"{where}: a {kind} of settlement {owner} on tile {tile} lies on a claim of living settlement {i}");
         }
         var terraces = new List<int>();
         for (int s = 0; s < n; s++)
@@ -244,7 +433,21 @@ public sealed class SettlementCoreTests
             }
             for (int j = 0; j < e.OrchardCount(s); j++) Check(s, e.OrchardTileAt(s, j), "orchard");
         }
-        return seen;
+        Array.Clear(outerClaimsPreviousBoundary);
+        for (int tile = 0; tile < claimedByTile.Length; tile++)
+            if (claimedByTile[tile] >= 0) outerClaimsPreviousBoundary[tile] = true;
+        return (seen, claims);
+    }
+
+    private static (int Tile, byte District, byte Position)[] OuterRows(LivingEconomyModel economy, int settlement)
+    {
+        int[] tiles = new int[(int)CoreDistrict.Count];
+        byte[] districts = new byte[(int)CoreDistrict.Count];
+        byte[] positions = new byte[(int)CoreDistrict.Count];
+        int count = economy.OuterCoreHexes(settlement, tiles, districts, positions);
+        var rows = new (int Tile, byte District, byte Position)[count];
+        for (int i = 0; i < count; i++) rows[i] = (tiles[i], districts[i], positions[i]);
+        return rows;
     }
 
     private static void AssertNoPlotInAnyCore(LivingEconomyModel e)

@@ -457,10 +457,16 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly bool _hasIndividualHerds;
     private readonly int[][] _rangeTiles;
     private readonly int[][] _fortificationRangeTiles;
+    private readonly List<int>?[] _settlementSitesWithinTwoByTile;
     /// <summary>The reserved core radius (content <c>SettlementCoreRadius</c>, docs/MVP/31 §3.1), below the working range.</summary>
     private readonly int _coreRadius;
     /// <summary>Per tile: no valuable deposit lies in the core a settlement on it would have (docs/MVP/31 §3.3, WP4).</summary>
     private readonly bool[] _coreClean;
+    /// <summary>Static gate direction and ring-two usability, derived from immutable world geography (docs/MVP/31b §2.2).</summary>
+    private readonly byte[] _coreFront;
+    private readonly bool[] _outerUsable;
+    private readonly int _coreHomesFirst;
+    private readonly int _coreHomesStep;
     // Derived from settlement sites in list order. A tile keeps the same first owner as new settlements append.
     private int[]? _forageSettlementByTile;
     private int _forageSettlementCountAtBuild = -1;
@@ -619,8 +625,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
         _rangeTiles = BuildRangeTiles(world, Radius);
         _fortificationRangeTiles = BuildRangeTiles(world, 4);
+        _settlementSitesWithinTwoByTile = new List<int>?[world.TileCount];
         _coreRadius = Math.Clamp(content.Constant("SettlementCoreRadius", Fix64.FromInt(DefaultSettlementCoreRadius)).FloorToInt(), 0, Radius - 1);
         _coreClean = BuildCoreClean(world, BuildRangeTiles(world, _coreRadius));
+        _coreFront = BuildCoreFront(world);
+        _outerUsable = BuildOuterUsable(world);
+        _coreHomesFirst = Math.Max(0, content.Constant("SettlementCoreHomesFirst", Fix64.FromInt(120)).FloorToInt());
+        _coreHomesStep = Math.Max(0, content.Constant("SettlementCoreHomesStep", Fix64.FromInt(60)).FloorToInt());
         _siteFoodScores = new Fix64[world.TileCount];
         for (int tile = 0; tile < world.TileCount; tile++) _siteFoodScores[tile] = SiteFoodScore(tile);
 
@@ -631,6 +642,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             _completedProjects[civ] = new bool[projectCount];
             var settlement = NewSettlement(civ, world.StartingTile(civ));
             _settlements.Add(settlement);
+            IndexSettlementSite(settlement);
             SeedPopulation(settlement);
             settlement.Stores[(int)Good.Plant] = Fix64.FromInt(3);
             settlement.Stores[(int)Good.Meat] = Fix64.FromInt(2);
@@ -4673,6 +4685,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (CivilizationHasPhysicalDefensePlan(parent.Civilization))
             daughter.BuildTarget = Structure.Palisade;
         _settlements.Add(daughter);
+        IndexSettlementSite(daughter);
         for (int i = 0; i < _figures.Count; i++)
             if (selected[i])
             {
@@ -6767,6 +6780,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             s.ScoutPolicy = (ScoutPolicy)scoutPolicy;
             _settlements.Add(s);
         }
+        RebuildSettlementSiteIndex();
         _figures.Clear();
         int figureCount = ReadCount(reader, 2_000_000);
         for (int i = 0; i < figureCount; i++)
@@ -7030,6 +7044,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _settlements.Clear();
         foreach (SettlementState settlement in source._settlements)
             _settlements.Add(CloneSettlement(settlement));
+        RebuildSettlementSiteIndex();
         RebuildWeirOwnership();
         _figures.Clear();
         foreach (FigureState figure in source._figures) _figures.Add(CloneFigure(figure));

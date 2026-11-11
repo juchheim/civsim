@@ -356,6 +356,7 @@ public sealed partial class LivingEconomyModel
         if (unchecked((uint)nominalCiv) >= unchecked((uint)_completedProjects.Length)) throw new ArgumentOutOfRangeException(nameof(nominalCiv));
         SettlementState s = NewSettlement(nominalCiv, siteTile);
         _settlements.Add(s);
+        IndexSettlementSite(s);
         for (int i = 0; i < adults; i++) AddFigure(nominalCiv, s.Id, 16 + (i * 3) % 26, i % 2 == 0);
         for (int i = 0; i < elders; i++) AddFigure(nominalCiv, s.Id, 50 + i * 4, i % 2 == 1);
         for (int i = 0; i < children; i++) AddFigure(nominalCiv, s.Id, 1 + i % 13, i % 2 == 0);
