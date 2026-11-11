@@ -225,6 +225,9 @@ public sealed partial class LivingEconomyModel
         => BuildFocusWoodNeed(_settlements[settlementIndex], checked((int)_seasonsCompleted));
     internal Fix64 FixturePlannerWoodNeed(int settlementIndex)
         => BasicBuildWoodProcurementNeed(_settlements[settlementIndex], checked((int)_seasonsCompleted));
+    /// <summary>The wood a queued Palisade plus the active metal plan's fuel asks the town to hold this season (the part the Palisade itself adds to the quota).</summary>
+    internal Fix64 FixtureProactivePalisadeWoodTarget(int settlementIndex)
+        => ProactivePalisadeWoodTarget(_settlements[settlementIndex], checked((int)_seasonsCompleted), metalPlanAvailable: true);
     internal void FixtureBuildIfReady(int settlementIndex)
         => BuildIfReady(_settlements[settlementIndex], checked((int)_seasonsCompleted));
     internal void FixtureSetBuildTarget(int settlementIndex, string structure)
