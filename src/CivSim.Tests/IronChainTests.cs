@@ -515,7 +515,9 @@ public class IronChainTests
     public void A_thin_forest_stops_the_Iron_chain_asking_for_fuel_and_a_full_one_does_not()
     {
         Fix64 oreUsed = Fix64.Zero, oreUsedThin = Fix64.Zero, kits = Fix64.Zero, kitsThin = Fix64.Zero;
-        foreach (int percent in new[] { 100, 40 })
+        // The thin forest is 20% of its start, not 40%: since de16f51 tripled forest renewal (2 to 6 per tile per season) a 40% forest regrows past the
+        // 50% floor of the Iron wood factor during the four seasons run here and the chain legitimately resumes.
+        foreach (int percent in new[] { 100, 20 })
         {
             BronzeFixture f = BronzeFixture.CreateFuelScenario(TestPack.Pack, Seed, 60, ironChain: true, coppice: true, forestTiles: 13, "MET-08", "MET-09");
             f.RunSeasons(1); // the metal economy begins and records the forest it started with
