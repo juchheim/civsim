@@ -65,6 +65,12 @@ public sealed partial class LivingEconomyModel
         for (int i = 0; i < count; i++) AddFigure(s.Civilization, s.Id, age, i % 2 == 0);
     }
 
+    internal void FixtureSetPeopleLastYear(int settlementIndex, int people)
+    {
+        if (people < 0) throw new ArgumentOutOfRangeException(nameof(people));
+        EnsureCivic(_settlements[settlementIndex]).PeopleLastYear = people;
+    }
+
     /// <summary>Adds (or with a negative amount removes) a good in a settlement's stores.</summary>
     internal void FixtureStock(int settlementIndex, string goodId, Fix64 amount)
     {
@@ -404,6 +410,31 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
     }
 
+    internal void FixtureShelfIronBuild(int settlementIndex)
+    {
+        MetalState metal = EnsureMetal(_settlements[settlementIndex]);
+        if (metal.IronBuildKind < 0) return;
+        if (metal.IronBuildProgress > Fix64.Zero)
+            (metal.IronShelf ??= new Fix64[(int)IronStructure.Count])[metal.IronBuildKind] = metal.IronBuildProgress;
+        metal.IronBuildKind = -1;
+        metal.IronBuildProgress = Fix64.Zero;
+    }
+
+    internal void FixtureDropIronBuild(int settlementIndex)
+    {
+        MetalState metal = EnsureMetal(_settlements[settlementIndex]);
+        metal.IronBuildKind = -1;
+        metal.IronBuildProgress = Fix64.Zero;
+    }
+
+    internal void FixtureAddCanal(int settlementIndex, int tile)
+    {
+        CivicState civic = EnsureCivic(_settlements[settlementIndex]);
+        if (!_settlements[settlementIndex].FieldTiles.Contains(tile))
+            throw new ArgumentException("A fixture canal must be placed on one of this settlement's fields.", nameof(tile));
+        if (!civic.Canals.Contains(tile)) civic.Canals.Add(tile);
+    }
+
     internal Fix64 FixtureIronBuildProgress(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildProgress ?? Fix64.Zero;
 
     internal int FixtureLuxuryItems(int settlementIndex) => LuxuryItems(_settlements[settlementIndex]);
@@ -447,6 +478,7 @@ public sealed partial class LivingEconomyModel
     internal void FixtureMoveSite(int settlementIndex, int tile)
     {
         _settlements[settlementIndex].SiteTile = tile;
+        RebuildSettlementSiteIndex();
         InvalidateForageSettlementOwners();
         InvalidateIronFuelHubAssignments();
     }

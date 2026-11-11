@@ -6,12 +6,11 @@ using CivSim.Sim.World;
 namespace CivSim.Sim.Economy;
 
 /// <summary>
-/// The reserved settlement core (docs/MVP/31 §3, WP3): the site tile and every tile within <see cref="SettlementCoreRadius"/> of it
-/// (the centre hex and ring 1, seven hexes) hold the village only. No field, orchard, Iron terrace or mining camp may stand on the core
-/// of any living settlement, its own or a neighbour's. Gathering, hunting, fishing and wood still count across the whole radius-3 range,
-/// and in-range mining of a deposit already under a village goes on (the grandfather rule of 31 §5.4; WP4 keeps new cores clean).
-/// The core is derived from the site tile, so it adds no saved state. Everything here is integer hex distance in ascending settlement
-/// order (D1 to D10).
+/// The reserved settlement core (docs/MVP/31 and 31b): the site and ring 1, plus outer districts in ring 2, hold the village only.
+/// No field, orchard, Iron terrace, mining camp or new seasonal camp may stand on a claimed hex of any living settlement. Gathering,
+/// hunting, fishing and wood still count across the whole radius-3 range, and in-range mining of a grandfathered deposit continues.
+/// Claims are derived from saved buildings, city population and immutable world facts, so they add no saved state. Everything here is
+/// integer hex distance in ascending settlement order (D1 to D10).
 /// </summary>
 public sealed partial class LivingEconomyModel
 {
@@ -25,7 +24,7 @@ public sealed partial class LivingEconomyModel
     /// Whether <paramref name="tile"/> lies in the reserved core of any living settlement (one with people), so no plot or mining camp may
     /// use it. This is the single answer the planner, the build gates, the view and the tests share.
     /// </summary>
-    public bool IsReservedCoreTile(int tile) => (uint)tile < (uint)_world.TileCount && InReservedCore(tile, null);
+    public bool IsReservedCoreTile(int tile) => tile >= 0 && tile < _world.TileCount && InReservedCore(tile, null);
 
     /// <summary>
     /// <see cref="IsReservedCoreTile"/> for the economy's own placement code. <paramref name="living"/> is a settlement the caller knows is
@@ -35,12 +34,196 @@ public sealed partial class LivingEconomyModel
     {
         int width = _world.Width;
         if (living is not null && HexGrid.Distance(living.SiteTile, tile, width) <= _coreRadius) return true;
-        foreach (SettlementState other in _settlements)
+        List<int>? candidates = _settlementSitesWithinTwoByTile[tile];
+        if (candidates is null) return false;
+        Span<int> claimTiles = stackalloc int[(int)CoreDistrict.Count];
+        Span<sbyte> positions = stackalloc sbyte[(int)CoreDistrict.Count];
+        foreach (int settlementIndex in candidates)
         {
-            if (ReferenceEquals(other, living) || HexGrid.Distance(other.SiteTile, tile, width) > _coreRadius) continue;
-            if (Population(other.Id) > 0) return true;
+            SettlementState other = _settlements[settlementIndex];
+            if (Population(other.Id) <= 0) continue;
+            int distance = HexGrid.Distance(other.SiteTile, tile, width);
+            if (distance <= _coreRadius) return true;
+            if (distance != 2 || CoreDistrictMask(other) == 0) continue;
+            OuterClaims(other, claimTiles, positions);
+            for (int district = 0; district < (int)CoreDistrict.Count; district++)
+                if (claimTiles[district] == tile) return true;
         }
         return false;
+    }
+
+    /// <summary>Ring-two claims, returned in district-priority order. Present but unhoused districts have tile -1 and position 255.</summary>
+    public int OuterCoreHexes(int settlementIndex, Span<int> tiles, Span<byte> districts, Span<byte> positions)
+    {
+        if (settlementIndex < 0 || settlementIndex >= _settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
+        RequireOuterOutput(tiles.Length, districts.Length, positions.Length);
+        Span<int> byDistrict = stackalloc int[(int)CoreDistrict.Count];
+        Span<sbyte> positionByDistrict = stackalloc sbyte[(int)CoreDistrict.Count];
+        SettlementState settlement = _settlements[settlementIndex];
+        OuterClaims(settlement, byDistrict, positionByDistrict);
+        return CopyOuterRows(CoreDistrictMask(settlement), byDistrict, positionByDistrict, tiles, districts, positions);
+    }
+
+    /// <summary>The static gate/front direction (0..5) for a settlement row.</summary>
+    public int CoreFront(int settlementIndex)
+    {
+        if (settlementIndex < 0 || settlementIndex >= _settlements.Count) throw new ArgumentOutOfRangeException(nameof(settlementIndex));
+        return _coreFront[_settlements[settlementIndex].SiteTile];
+    }
+
+    /// <summary>Runs the outer-hex rule for a gallery site without changing the match state.</summary>
+    public int PreviewOuterCore(int site, ushort districtMask, Span<int> tiles, Span<byte> districts, Span<byte> positions)
+    {
+        if (site < 0 || site >= _world.TileCount) throw new ArgumentOutOfRangeException(nameof(site));
+        RequireOuterOutput(tiles.Length, districts.Length, positions.Length);
+        SettlementState? represented = null;
+        int settlementId = int.MaxValue;
+        foreach (SettlementState other in _settlements)
+            if (other.SiteTile == site && Population(other.Id) > 0)
+            {
+                represented = other;
+                settlementId = other.Id;
+                break;
+            }
+        Span<int> byDistrict = stackalloc int[(int)CoreDistrict.Count];
+        Span<sbyte> positionByDistrict = stackalloc sbyte[(int)CoreDistrict.Count];
+        OuterClaims(site, settlementId, districtMask, represented, byDistrict, positionByDistrict);
+        return CopyOuterRows(districtMask, byDistrict, positionByDistrict, tiles, districts, positions);
+    }
+
+    private static void RequireOuterOutput(int tiles, int districts, int positions)
+    {
+        int count = (int)CoreDistrict.Count;
+        if (tiles < count || districts < count || positions < count)
+            throw new ArgumentException($"Outer-core output spans must each hold at least {count} rows.");
+    }
+
+    private static int CopyOuterRows(ushort mask, Span<int> byDistrict, Span<sbyte> positionByDistrict,
+        Span<int> tiles, Span<byte> districts, Span<byte> positions)
+    {
+        int count = 0;
+        foreach (byte district in SettlementCoreGrowth.Priority)
+        {
+            if ((mask & (1 << district)) == 0) continue;
+            tiles[count] = byDistrict[district];
+            districts[count] = district;
+            positions[count] = positionByDistrict[district] < 0 ? byte.MaxValue : (byte)positionByDistrict[district];
+            count++;
+        }
+        return count;
+    }
+
+    private ushort CoreDistrictMask(SettlementState s)
+    {
+        if (Population(s.Id) <= 0) return 0;
+        ushort mask = 0;
+        CivicState? civic = s.Civic;
+        if (civic is not null)
+        {
+            if (civic.Ziggurats > 0 || civic.BuildKind == CivicBuild.Ziggurat) Add(ref mask, CoreDistrict.Ziggurat);
+            if (civic.Tier == (byte)SettlementTier.City)
+            {
+                int people = Math.Max(Population(s.Id), civic.PeopleLastYear);
+                if (people >= _coreHomesFirst) Add(ref mask, CoreDistrict.HomesC);
+                if (people >= _coreHomesFirst + _coreHomesStep) Add(ref mask, CoreDistrict.HomesD);
+            }
+        }
+        if (HasIronDistrict(s, IronStructure.GreatDome)) Add(ref mask, CoreDistrict.GreatDome);
+        if (HasIronDistrict(s, IronStructure.GreatLibrary)) Add(ref mask, CoreDistrict.GreatLibrary);
+        if (HasIronDistrict(s, IronStructure.Castle)) Add(ref mask, CoreDistrict.Citadel);
+        if (HasIronDistrict(s, IronStructure.Academy)) Add(ref mask, CoreDistrict.Learning);
+        if (HasIronDistrict(s, IronStructure.Theatre)) Add(ref mask, CoreDistrict.Civic);
+        if (HasIronDistrict(s, IronStructure.Bathhouse)) Add(ref mask, CoreDistrict.Health);
+        return mask;
+    }
+
+    private static void Add(ref ushort mask, CoreDistrict district) => mask |= (ushort)(1 << (int)district);
+
+    private static bool HasIronDistrict(SettlementState s, IronStructure structure)
+    {
+        if (s.Metal is not { } metal) return false;
+        int index = (int)structure;
+        return metal.IronBuildKind == index || (metal.IronWorks is { } works && index < works.Length && works[index] > 0);
+    }
+
+    private int OuterClaims(SettlementState s, Span<int> tiles, Span<sbyte> positionOf)
+        => OuterClaims(s.SiteTile, s.Id, CoreDistrictMask(s), s, tiles, positionOf);
+
+    private int OuterClaims(int site, int settlementId, ushort districtMask, SettlementState? represented,
+        Span<int> tiles, Span<sbyte> positionOf)
+    {
+        int districtCount = (int)CoreDistrict.Count;
+        if (tiles.Length < districtCount || positionOf.Length < districtCount)
+            throw new ArgumentException("Outer-claim scratch spans are too small.");
+        tiles[..districtCount].Fill(-1);
+        positionOf[..districtCount].Fill(-1);
+        districtMask &= (ushort)((1 << districtCount) - 1);
+        if (districtMask == 0) return 0;
+
+        ushort usable = 0;
+        int front = _coreFront[site];
+        for (int position = 0; position < SettlementCoreGrowth.OuterPositions; position++)
+        {
+            int tile = SettlementCoreGrowth.PositionTile(site, front, position, _world.Width, _world.Height);
+            if (tile < 0 || !_outerUsable[tile] || IsOuterGuarded(tile, settlementId, represented)) continue;
+            usable |= (ushort)(1 << position);
+        }
+
+        ushort claimed = SettlementCoreGrowth.Assign(usable, districtMask, positionOf);
+        int count = 0;
+        foreach (byte district in SettlementCoreGrowth.Priority)
+        {
+            int position = positionOf[district];
+            if (position < 0) continue;
+            tiles[district] = SettlementCoreGrowth.PositionTile(site, front, position, _world.Width, _world.Height);
+            count++;
+        }
+        _ = claimed;
+        return count;
+    }
+
+    private void IndexSettlementSite(SettlementState settlement)
+    {
+        int site = settlement.SiteTile;
+        foreach (int tile in _rangeTiles[site])
+        {
+            if (HexGrid.Distance(site, tile, _world.Width) > 2) continue;
+            (_settlementSitesWithinTwoByTile[tile] ??= new List<int>(2)).Add(settlement.Id);
+        }
+    }
+
+    private void RebuildSettlementSiteIndex()
+    {
+        Array.Clear(_settlementSitesWithinTwoByTile, 0, _settlementSitesWithinTwoByTile.Length);
+        foreach (SettlementState settlement in _settlements) IndexSettlementSite(settlement);
+    }
+
+    private bool IsOuterGuarded(int tile, int settlementId, SettlementState? represented)
+    {
+        List<int>? candidates = _settlementSitesWithinTwoByTile[tile];
+        if (candidates is null) return false;
+        foreach (int settlementIndex in candidates)
+        {
+            SettlementState other = _settlements[settlementIndex];
+            if (ReferenceEquals(other, represented) || Population(other.Id) <= 0) continue;
+            int distance = HexGrid.Distance(other.SiteTile, tile, _world.Width);
+            if (distance <= _coreRadius || (other.Id < settlementId && distance <= 2)) return true;
+        }
+        return false;
+    }
+
+    private static byte[] BuildCoreFront(WorldEconomyInput world)
+    {
+        var front = new byte[world.TileCount];
+        for (int site = 0; site < front.Length; site++) front[site] = (byte)SettlementCoreGrowth.Front(world, site);
+        return front;
+    }
+
+    private static bool[] BuildOuterUsable(WorldEconomyInput world)
+    {
+        var usable = new bool[world.TileCount];
+        for (int tile = 0; tile < usable.Length; tile++) usable[tile] = SettlementCoreGrowth.IsUsableStatic(world, tile);
+        return usable;
     }
 
     /// <summary>

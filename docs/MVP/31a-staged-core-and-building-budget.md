@@ -1,7 +1,8 @@
 # 31a. The growing core and the building budget: room for every building the game will ever have
 
-Status: plan and renderer prototype (2026-11-10), an addendum to [31](31-settlement-core-reserve-plan.md). Nothing in the simulation is
-implemented. Numbers marked (M) were measured, (E) are estimates, (P) are proposals. How each was measured is in §7.
+Status: plan, renderer prototype and WP6a simulation implementation (2026-11-11), an addendum to
+[31](31-settlement-core-reserve-plan.md). WP6b and WP6c remain open. Numbers marked (M) were measured, (E) are estimates, (P) are
+proposals. How each was measured is in §7 and [31b §5.6](31b-outer-hex-growth-spec.md#56-wp6a-enforced-rule-check).
 
 ## 0. In plain words
 
@@ -486,6 +487,10 @@ The owner approved all six recommendations above:
 Earlier decisions that still stand (doc 31 §10): keep gathering on core hexes; drop the extra ring; new villages avoid
 undiscovered deposits; draw only what a village built; walls are one evolving line (picture only); old saves keep loading.
 
-Status: renderer prototype (flag `--core-layout`) and checker exist uncommitted in worktrees
-`.claude/worktrees/agent-afd063ce7ba43f74e` (v1, 7-hex) and `agent-a2ddcf3c980c17cde` (v2, staged core); `core-audit` command in
-`agent-a9c09503b5af7a984`. Next: WP3 (sim: plot-free core and hex-by-hex assignment), after the Iron acceptance rerun.
+Status (2026-11-11): WP6a is implemented on `codex/wp6a-outer-hex`: districts and City homes are derived from saved building and
+population state, `OuterCoreHexes` exposes the sim's deterministic answer, plots are released at the next season boundary, and new
+seasonal camps avoid claimed tiles. The simulation keeps no extra save data. Build, strict validation, all 1,177 tests including the
+four-seed slow gate, and the toy, research, politics, worldgen, Bronze and content-pack golden checks pass. The four-seed enforced
+audit is in [31b §5.6](31b-outer-hex-growth-spec.md#56-wp6a-enforced-rule-check). Next: WP6b (append frame data and have the renderer
+read the sim's result); WP6c then makes that layout the default. The renderer prototype and gallery checker remain in the separate
+renderer worktrees listed above.

@@ -1,18 +1,19 @@
 # 31b. Outer-hex growth: the simulation decides, the renderer draws (WP6 spec)
 
-Status: implementation spec (2026-11-11) for the next settlement-core work package, on top of WP3 (plot-free seven-hex core) and WP4
-(clean-core siting) on branch `settlement-core-integration`. Nothing here is implemented. Numbers marked (M) were measured, (E) are
-estimates, (P) are proposals. §5.5 says exactly how each number was obtained.
+Status: WP6a simulation implementation is complete on `codex/wp6a-outer-hex` (2026-11-11); WP6b frame and renderer work and WP6c
+default-layout work remain open. This spec builds on WP3 (plot-free seven-hex core) and WP4 (clean-core siting). Numbers marked (M)
+were measured, (E) are estimates, (P) are proposals. §5.5 documents the pre-implementation shadow method; §5.6 records the enforced
+WP6a result.
 
 Read first: [31](31-settlement-core-reserve-plan.md) (the seven-hex core, WP3/WP4) and [31a](31a-staged-core-and-building-budget.md)
 (the growing core and the building budget; the owner approved all six of its decisions on 2026-11-10).
 
 ## 0. In plain words
 
-**What is wrong today.** The simulation keeps fields off a settlement's own hex and the six around it. But a city with a castle, an
-academy or a Wonder needs more room, and the approved design gives it **one more hex from the next ring out for each big building**.
-Right now only the renderer prototype picks those extra hexes, using its own guesses. The simulation does not know about them, so it
-can (and does) put a field on the very hex where the renderer draws the academy.
+**What was wrong before WP6a.** The simulation kept fields off a settlement's own hex and the six around it, while the approved design
+gives a city **one more hex from the next ring out for each big building**. Before WP6a, only the renderer prototype picked those extra
+hexes. WP6a now computes and enforces them in the simulation. Until WP6b sends those rows in the frame, the renderer still picks them
+independently, so a live picture can disagree with the sim's claims.
 
 **The fix.** Move the choice into the simulation as a fixed rule, and make the renderer only read the answer:
 
@@ -32,12 +33,10 @@ can (and does) put a field on the very hex where the renderer draws the academy.
   back only after its population has stayed under the threshold through a whole year, so it does not flicker.
 * **Nothing new is saved.** The hexes are worked out from what is built, so old saves and replays need no conversion.
 
-**What it costs (measured on 4 Iron games, see §5).** Nothing before minute 60 (no settlement has a big building yet). By minute 110
-almost every City has grown: a City holds **3.4 outer hexes** on average (from 0 to 7), a growing Town **1.6**; villages none. Over a
-whole game each new outer hex pushes out about **0.8 plots** (0.54 fields, 0.29 orchards; never a terrace, never a neighbour's plot).
-The best field land a settlement can still reach falls by **about 0.5% overall** on top of WP3's 0.9% (1.3% for Cities, 0.8% for Towns),
-an estimate from base tile yields. Two neighbours never wanted the same hex, no outer hex ever fell in another village's core, no
-building ever lacked room, and a building moved to another hex 23 times in four games (out of about 585 claims).
+**What it costs.** The shadow estimate before enforcing the rule (four Iron games, §5.2–5.4) gave 3.36 outer hexes per City and 1.18
+per Town at minute 110, with about 0.5% lower best-k field yield overall. The enforced four-game run (§5.6) gives 3.30 per City and
+1.13 per Town, with a measured 0.24% best-k yield reduction by minute 110. It observed no duplicate, unusable or in-another-core
+claims, and no Town or City short of free ground at that checkpoint. There were 16 district moves between minutes 90 and 110.
 
 **Work:** WP6a (rule and tests in the simulation, about 4 days), WP6b (send the hexes to the renderer and delete its own choosing,
 about 3 days), WP6c (make the new layout the default and delete the old spiral, about 2 days).
@@ -46,15 +45,14 @@ about 3 days), WP6c (make the new layout the default and delete the old spiral, 
 during a game and would turn the whole city round), and each building has a fixed home spot instead of "fill the next hexes, then hand
 them out by affinity" (which moved the academy when a castle arrived).
 
-**Questions for the owner** are in §6.3: (1) should a City still take homes hexes at 120 and 180 people? They are a quarter of all
-outer hexes (recommended: yes, keep them); (2) may a city's gate side ignore roads and trails, facing only the sea or the river (or a
-fixed side)? That keeps the city from turning round when a road arrives (recommended: yes).
+The owner approved both stability decisions on 2026-11-10: (1) Cities take homes hexes at 120 and 180 people; (2) the city's gate side
+ignores roads and trails, facing only the sea, the river or a fixed side. They are recorded in §6.3.
 
 ## 1. The rule
 
 ### 1.1 Size classes, by structure id
 
-Every one of the 60 entries in `content/registries/structures.yaml` falls in exactly one class (WP6a adds a test that fails when a new
+Every one of the 60 entries in `content/registries/structures.yaml` falls in exactly one class (the WP6a registry test fails when a new
 id is not classified; this is how owner decision 5, "every new building upgrades an old one or joins a district", is enforced until the
 content schema carries a size field).
 
@@ -108,7 +106,7 @@ registry structure. E5 (`codex/e5-fief`, not merged) adds: `gothic_cathedral` (i
 
 **Directions.** The rule uses the renderer's angular numbering (`world_data.gd neighbour()`): on odd-r offset rows, 0 = x + 1;
 1 = row + 1, x + (odd ? 1 : 0); 2 = row + 1, x − (odd ? 0 : 1); 3 = x − 1; 4 = row − 1, x − (odd ? 0 : 1); 5 = row − 1, x + (odd ? 1 : 0);
-off the map gives −1. `HexGrid.Neighbors` lists neighbours in a different, non-angular order and must not be used for this. WP6a adds
+off the map gives −1. `HexGrid.Neighbors` lists neighbours in a different, non-angular order and must not be used for this. WP6a added
 `HexGrid.Step(tile, direction, width, height)` with this table and a test that compares it with `Neighbors` as sets.
 
 **The Front** (the gate side, the direction the ring-1 quarters are counted from), static for the whole match:
@@ -183,7 +181,7 @@ Input: the 12 usable flags and the set of present districts. Output: a position 
    `home − d`, and p0 (straight out of the gate) last regardless of distance.
 3. A district left without a position is **unhoused**: it claims nothing. The sim never blocks a build for it.
 
-Properties (each is a WP6a test, checked exhaustively over all 2^9 present sets and many usable sets):
+Properties (each is a WP6a test, checked exhaustively over all 2^9 present sets and all 2^12 usable-position masks):
 
 * a district whose home is usable is always on its home, whatever else is present (so it never moves);
 * the number of hexes claimed is `min(present districts, usable positions)`; adding a district adds exactly one hex while one is free;
@@ -270,8 +268,11 @@ In `src/CivSim.Sim/Economy/LivingEconomyModel.SettlementCore.cs`:
   `int PreviewOuterCore(int site, ushort districtMask, ...)` (same rule, today's living settlements, writes nothing);
 * constants `SettlementCoreHomesFirst`, `SettlementCoreHomesStep` read like `SettlementCoreRadius`.
 
-Performance: the extra work is one mask read per settlement at distance 2 of a queried tile, and the guard scan only for the ~10 to 30%
-of settlements with a district. Budget: season step on Iron 110 at most +3% (E); measured in the WP6a gate.
+Performance: a derived tile index limits claim and guard checks to settlement sites within two hexes; the index is rebuilt after
+snapshot restore and model copy, and extended when settlements are founded. A one-seed 110-minute live audit took 139.14 seconds here
+versus 137.96 seconds on the base branch (+0.9% wall time); the resulting paths differ by one settlement, so this is an indicative
+end-to-end comparison rather than an isolated season-step benchmark. The full slow suite fell from about 58 minutes with the global
+scan to 8m41s with the local index. The ≤3% season-step budget is met by the end-to-end comparison, with that measurement caveat.
 
 ### 2.3 Planner, forecasts and workers
 
@@ -467,7 +468,7 @@ whole buildings on rivers the renderer cannot draw, so river hexes stay skipped.
 in pass 2 (variant "spare first") gave 20 moves against 25 in the same shelf-holding set-up: not worth the odd-looking placements (a castle
 by the gate), so pass 2 stays purely angular.
 
-### 5.5 How it was measured
+### 5.5 How the shadow was measured
 
 * Rule implementation: `outeraudit/Program.cs` in the session scratchpad: `Step` as `world_data.gd neighbour()`, Front as §1.3, positions
   as §1.3 (checked at distance 2 on every evaluation), usability as §1.5, two passes as §1.6, districts as §1.2 from `IronWorks`,
@@ -476,44 +477,76 @@ by the gate), so pass 2 stays purely angular.
   quoted in §0 and §5.2), `river=0`, `pref=spare`, `homes=0`. All 20 runs and the aggregation are in `outeraudit/runs/`.
 * Not measured: the enforced rule's effect on food, growth or AI choices; frame and season-step time; Faith & Fief (no E5 games exist).
 
+### 5.6 WP6a enforced-rule check
+
+Command: `dotnet run --project src/CivSim.Harness -c Release -- core-audit --pack civsim.pack --live-only --seeds 4 --first-seed 1
+--minutes 60,90,110 --outer`. It completed in 717 seconds on the WP6a branch. These are live results with claimed tiles enforced,
+not the shadow estimate above.
+
+| Minute | Settlements (Village/Band, Town, City) | Mean claims: Town / City | Claims added / released / moved since prior sample | Yield change | Other checks |
+|---|---|---|---|---|---|
+| 60 | No outer districts present | 0 / 0 | 0 / 0 / 0 | 0.00% | no duplicate, unusable, in-core claims or camps on claims |
+| 90 | 315, 69, 39 | 0.30 / 2.03 | 115 / 14 / 1 | −0.02% | 0 duplicate, unusable or in-core claims; 9 seasonal camps on claims |
+| 110 | 273, 53, 97 | 1.13 / 3.30 | 489 / 210 / 16 | −0.24% | 0 duplicate, unusable or in-core claims; 34 seasonal camps on claims |
+
+At minute 110, 33 of 53 Towns and 92 of 97 Cities hold at least one outer hex; all 97 Cities have one or more homes hexes. The claim
+distributions are 20/14/11/8 Towns with 0/1/2/3 claims and 5/11/17/15/26/14/7/2 Cities with 0 through 7. No Town or City is short of
+free cultivable ground and no district is unhoused at this checkpoint. Best-k base field yield across 5,440 fields is 12,075 without
+outer claims and 12,046 with them (−0.24%). The 90→110 yield effect is smaller than the pre-run shadow estimate (−0.50% overall);
+this is an expected second-order difference because fields actually move and the economy and AI choices then diverge. The measured
+one-season claim gate passes: plots present when a new outer claim is made are removed at the following `ReleaseCorePlots` boundary.
+The 34 camps are camp records that happen to remain on claimed tiles at the sample; new seasonal-camp placement checks the same
+`IsReservedCoreTile` rule before choosing a tile.
+
+Verification: Release build (0 warnings/errors); `CIVSIM_SLOW=1 dotnet test CivSim.slnx -c Release --no-restore --verbosity quiet`
+passed 1,177/1,177 in 8m41s, including all four seeds to Iron minute 110, determinism, ordering, skip, shelving, release and snapshot
+tests. `validate --strict` passed (509 projects, 10 keystones, 33 lineages, zero warnings/errors). The toy, worldgen, 12-minute
+research and 24-minute politics goldens remained unchanged and passed. The content-pack golden changed for the two homes thresholds;
+the Bronze chapter golden changed because City homes and ziggurat claims release plots, and the updated Bronze golden passed twice
+from fresh runs. Replay corpus regeneration remains outside WP6a.
+
 ## 6. Risks, goldens and open questions
 
 ### 6.1 Goldens and replays
 
 | Golden | Expected | Why |
 |---|---|---|
-| `toy-v1` | unchanged | no economy |
-| `worldgen-v1` | unchanged | world generation untouched |
-| `research-v1` (12 min) | unchanged (E) | no City or Iron work by minute 12; verify in WP6a |
-| `politics-v1` (24 min) | unchanged (E) unless a seasonal camp or a City appears by minute 24; verify | no Iron, no City expected |
-| `bronze-v1` (Bronze chapter end, about minute 74) | **moves** (E) | Bronze Cities take homes hexes and ziggurats claim hexes, so fields move; this golden already failed on main at 381e713 (WP3 commit note), re-record with the reason |
-| `content-pack.txt` | **moves** | the two new constants |
-| Replay corpus | Bronze and Iron replays with Cities diverge | as with WP3; regenerate and say so in the commit |
+| `toy-v1` | unchanged, checked | no economy |
+| `worldgen-v1` | unchanged, checked | world generation untouched |
+| `research-v1` (12 min) | unchanged, checked | no City or Iron work by minute 12 |
+| `politics-v1` (24 min) | unchanged, checked | no outer district appears by minute 24 |
+| `bronze-v1` (Bronze chapter end, about minute 74) | **changed and checked** | Bronze City homes and ziggurat claims change plot release; checksum `f5879601ca18dca7` |
+| `content-pack.txt` | **changed and checked** | two new homes thresholds; hash `c64e0118248f986d2a86aa6aa9f0818274b2ad05f431efafb179915c7b42c940` |
+| Replay corpus | Not regenerated in WP6a | Bronze and Iron replays with Cities diverge; regeneration remains in WP7 |
 
 ### 6.2 Risks
 
-1. **Food.** A City loses about 1.3% of its best field land (E) on top of WP3, and 5 of 139 Towns and Cities run short of free cultivable
-   hexes at minute 110 (M). Watch the Iron acceptance food gates after WP6a; the doc-31 ring-4 fallback is the lever if a gap shows.
-2. **Seasonal camps on claimed hexes** (34 at minute 110). WP6a makes politics place new seasonal camps off `IsReservedCoreTile` (core and
-   outer hexes); existing ones expire with their season round. The renderer draws a camp on a claimed hex as a marker at the hex edge
-   until then. This moves the politics golden only if such a camp is placed by minute 24.
-3. **Performance.** `InReservedCore` gains a scan for settlements at distance 2; bounded by the mask-zero fast path. Gate: +3% season step.
+1. **Food.** The pre-WP6a shadow estimated a 1.34% City and 0.50% overall best-k yield loss on top of WP3, and 5 of 139 Towns and
+   Cities short of free cultivable hexes. The enforced minute-110 run measured −0.24% overall and zero short-ground cases. No ring-4
+   fallback is indicated at this horizon; later eras and longer games still need watching.
+2. **Seasonal camps on claimed hexes** (34 camp records at minute 110). New seasonal-camp placement checks `IsReservedCoreTile` (core
+   and outer hexes); the sample still found camp records on claims. The renderer draws a camp on a claimed hex as a marker at the hex edge
+   until that camp expires. The politics golden was unchanged at 24 minutes because no outer district had appeared by then.
+3. **Performance.** `InReservedCore` and the ring-two guard use a derived per-tile list of sites within two hexes. The one-seed
+   end-to-end 110-minute comparison was +0.9% wall time (139.14s vs 137.96s on base); see §5.6 for the limitation that the two runs
+   follow slightly different paths.
 4. **Moves look like jumps** (23 in four games): a building redrawn on a neighbouring hex when another district arrives. Accepted; storing
    arrival order (§2.1) is the fix if the owner minds.
 5. **The picture rotates once** for settlements whose renderer Front came from a trail: WP6b switches them to the sim's static Front.
 6. **E5 merge.** `codex/e5-fief` must append `CoreDistrict.Cathedral` (home p9, priority after Great Library) and classify its 11
    structures; the §4 registry test forces this.
-7. **Shadow vs enforced.** All numbers come from games where fields did not actually move; WP6a gate (5) re-measures with the rule on.
+7. **Shadow vs enforced.** §§5.2–5.4 are shadow results. The enforced four-seed check is now in §5.6; differences reflect fields
+   moving and the subsequent economy and AI changes.
 
-### 6.3 Questions that need the owner
+### 6.3 Owner decisions (confirmed 2026-11-10)
 
-1. **Homes hexes for big Cities.** Today's design gives a City one outer hex of houses at 120 people and a second at 180. They are 31% of
+1. **Homes hexes for big Cities: approved.** The design gives a City one outer hex of houses at 120 people and a second at 180. They are 31% of
    all outer hexes a City takes and about a quarter of the field land the rule costs (E: −1.34% with them, about −1.0% without, for
-   Cities). Without them the extra people are drawn as denser houses in the seven core hexes. **Recommendation: keep them**; a big city
-   should look bigger than a town, and the cost is small.
-2. **Gate side ignores roads.** 31a let the gate face the nearest trail or road. Roads appear during a match, so the whole city would turn
-   and every big building would change hex. The spec instead faces the sea, else the river, else a fixed side. **Recommendation: accept**
-   (roads still run to the gate; they just do not choose it).
+   Cities). Without them the extra people are drawn as denser houses in the seven core hexes. They stay in the rule; the enforced run saw
+   97 Cities with at least one homes hex.
+2. **Gate side ignores roads: approved.** 31a let the gate face the nearest trail or road. Roads appear during a match, so the whole
+   city would turn and every big building would change hex. The spec instead faces the sea, else the river, else a fixed side; roads
+   still run to the gate but do not choose it.
 
 Decided here without the owner (design autonomy, all reversible): river hexes are never built on; a set-aside build gives its hex back;
 each district has a fixed home spot; seasonal camps keep off outer hexes; the hex table of §1.4.

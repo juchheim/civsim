@@ -110,6 +110,8 @@ constants:
   - {id: MiningCampEmit, value: 0.75, unit: "×", source: "22 §5.2"}
   - {id: MiningCampRadius, value: 1, unit: "tiles (2 with TER-06)", source: "22 §5.2"}
   - {id: SettlementCoreRadius, value: 1, unit: "tiles (centre + ring 1)", source: "31 §3.1: no field, orchard, terrace or mining camp on a living settlement's core"}
+  - {id: SettlementCoreHomesFirst, value: 120, unit: people, source: "31a §3.2, 31b §1.2: a City takes its first homes hex at 120 people"}
+  - {id: SettlementCoreHomesStep, value: 60, unit: people, source: "31a §3.2, 31b §1.2: a City takes its second homes hex at 180 people"}
   - {id: HaulWaterDiv, value: 3, unit: "÷ haul labor on water", source: "22 §5.2 (SEA-05)"}
   - {id: MetalAccessMin, value: 0.05, unit: L, source: "22 §5.7"}
   - {id: AccessShareReach, value: 15, unit: tiles, source: "22 §5.7"}

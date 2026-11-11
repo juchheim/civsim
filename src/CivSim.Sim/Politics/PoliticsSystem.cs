@@ -741,7 +741,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             var ownCamps = new List<ClaimSource>();
             foreach ((int tile, int _, int campCiv) in _camps) if (campCiv == civ) ownCamps.Add(new ClaimSource(civ, tile, Territory.CampRadius, Fix64.Zero));
             int radius = _eraRadius[Math.Min(era, _eraRadius.Length - 1)];
-            foreach (int tile in _territory.ChooseCompactCampSites(civ, _sTile[s], radius, own, ownCamps, rivals, 2))
+            foreach (int tile in _territory.ChooseCompactCampSites(civ, _sTile[s], radius, own, ownCamps, rivals, 2,
+                excluded: _economy.IsReservedCoreTile))
                 _camps.Add((tile, s, civ));
             _campsPlaced[s] = true;
         }
