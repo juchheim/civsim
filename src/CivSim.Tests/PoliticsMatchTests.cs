@@ -314,6 +314,10 @@ public class PoliticsMatchTests
         int civ1Before = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 1);
         int civ0Before = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 0);
 
+        // The first-contact roll sets the starting Relations (anything from hostile to friendly, and it moves with the economy that feeds the
+        // roll's modifiers), so measure the capture's own -70 against where the pair stood rather than assuming a hostile start.
+        int relationsBefore = rig.Politics.Diplomacy.Relations(0, 1);
+
         Assert.True(rig.Politics.Occupy(0, target));
         rig.Seasons(1);
         Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.Captured);
@@ -324,7 +328,7 @@ public class PoliticsMatchTests
         int civ1After = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 1);
         int civ0After = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 0);
         Assert.True(civ0After > civ0Before - 3 && civ1After > civ1Before - popBefore + 1);
-        Assert.True(rig.Politics.Diplomacy.Relations(0, 1) <= -70 + 10);
+        Assert.InRange(rig.Politics.Diplomacy.Relations(0, 1), Math.Max(-100, relationsBefore - 70) - 10, Math.Max(-100, relationsBefore - 70) + 10);
         Assert.Equal(1, rig.Politics.CaptureCount);
         // The captured are unsettled: Cohesion starts 0.2 down and recovers 0.02 a season.
         Fix64 cohesion = rig.Economy.SettlementCohesion(target);
