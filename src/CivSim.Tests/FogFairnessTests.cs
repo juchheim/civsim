@@ -87,8 +87,10 @@ public class FogFairnessTests
     {
         CivControl[] controls = FogFairnessHarness.DefaultControls();
         // Seed 20261019 no longer fits: with the slower E0-E3 pacing (docs/MVP/28 §16) every rival's force is inside the observer's sight by the time its Mandate
-        // unlocks (season ~220), so there is no hidden force to perturb. Seed 20261021 still has rivals out of sight at its checkpoint (season ~247).
-        const ulong bronzeSeed = 20261021;
+        // unlocks (season ~220), so there is no hidden force to perturb. Seed 20261021 fitted until the settlement build and material changes of 2026-11-10
+        // (16b4c01): on it the Council rival (civ 1) now never founds a second settlement and never unlocks its Mandate, so the checkpoint is never reached
+        // (as on 20261022). Seed 20261020 reaches the checkpoint with rivals out of sight.
+        const ulong bronzeSeed = 20261020;
         MatchModel match = FogFairnessHarness.NewMatch(controls, bronzeSeed);
         var runner = new SimRunner(match);
 
