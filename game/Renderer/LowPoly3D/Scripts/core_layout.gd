@@ -871,7 +871,7 @@ func _houses(s: Dictionary, st: Array, decor: Array) -> void:
 		heart_quota = mini(3, maxi(0, heart_free - 1))
 	var free := _free_small([Q.HOMES_A, Q.HOMES_B, Q.HOMES_C, Q.HOMES_D]) + heart_quota
 	var per := 3 if _stage == 3 else (2 if _stage == 2 else 1)
-	var houses: Array = wb._dwellings(st, int(s.get("halls", 0)), int(s.population), free * per)
+	var houses: Array = wb._dwellings(st, int(s.get("halls", 0)), free * per)
 	var big := []
 	var small := []
 	for h in houses:

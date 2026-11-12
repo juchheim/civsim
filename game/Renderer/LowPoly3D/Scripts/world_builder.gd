@@ -513,7 +513,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 	h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
 	if not bool(s.get("remembered")):
 		h = h * 31 + core.stage_of(s)
-		h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), int(s.population), core.dwelling_capacity(s))
+		h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), core.dwelling_capacity(s))
 		for stock_flag in ["woolStock", "chariotStock", "barrelStock", "plankStock", "blownGlassStock"]:
 			h = h * 31 + (1 if bool(s.get(stock_flag, false)) else 0)
 		h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
@@ -1348,132 +1348,47 @@ func _apply_garden_cues() -> void:
 			plot_display_scale[tile] = cue[1]
 		plot_layout_signature = plot_layout_signature * 31 + int(tile) * 7 + int(plot_display_mode[tile]) + roundi(float(cue[1]) * 1000.0)
 
-## Dwellings a village shows: what it has built, newest first, not an even mix of everything it ever knew. Outgrown types
-## (lean-tos and hide tents once there are permanent houses, and so on up the ladder) are drawn no more; the people the built houses
-## do not cover live in the best small house the village knows (or in more longhouses when that is all it has). Generic open-sleeping
-## placeholders use the small windbreak; a researched Hide Tent has its own, clearly recognizable mesh.
+## Housing visuals show built structures only. Unhoused population and researched-but-unbuilt housing do not add or replace buildings.
 const TILED_HOUSES := ["wattle", "mudbrick", "longhouse"]
-const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "hide_tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
-const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2,
+const DWELL_DRAW_ORDER := ["hall", "longhouse", "mudbrick", "wattle", "pithouse", "hide_tent", "leanto"]
+const DWELL_RADIUS := {"leanto": 0.085, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2,
 	"totem": 0.06, "potters_workshop": 0.15}
-func _dwelling_signature(st: Array, halls: int, pop: int, visual_capacity: int) -> int:
-	var K := M7WorldData.Kind
-	var shown_hall := halls
-	var shown_longhouse := int(st[K.LONGHOUSE])
-	var shown_mudbrick := int(st[K.MUDBRICK_HOUSE])
-	var shown_wattle := int(st[K.WATTLE_HOUSE])
-	var shown_pithouse := int(st[K.PIT_HOUSE])
-	var shown_hide_tent := int(st[K.HIDE_TENT])
-	var shown_leanto := int(st[K.LEAN_TO])
-	if shown_pithouse + shown_wattle + shown_mudbrick + shown_longhouse > 0:
-		shown_hide_tent = 0
-		shown_leanto = 0
-	if shown_wattle + shown_mudbrick + shown_longhouse > 0:
-		shown_pithouse = 0
-	if shown_mudbrick + shown_longhouse > 0:
-		shown_wattle = 0
-	var covered := shown_hall * int(DWELL_CAPACITY.hall) + shown_longhouse * int(DWELL_CAPACITY.longhouse) \
-		+ shown_mudbrick * int(DWELL_CAPACITY.mudbrick) + shown_wattle * int(DWELL_CAPACITY.wattle) \
-		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_hide_tent * int(DWELL_CAPACITY.hide_tent) \
-		+ shown_leanto * int(DWELL_CAPACITY.leanto)
-	var short := maxi(0, pop - covered)
-	var filler := "leanto" if int(st[K.LEAN_TO]) > 0 else "tent"
-	if int(st[K.HIDE_TENT]) > 0: filler = "hide_tent"
-	if int(st[K.PIT_HOUSE]) > 0: filler = "pithouse"
-	if int(st[K.WATTLE_HOUSE]) > 0: filler = "wattle"
-	if int(st[K.MUDBRICK_HOUSE]) > 0: filler = "mudbrick"
-	if short > 0 and filler in ["tent", "leanto", "hide_tent"] and int(st[K.LONGHOUSE]) > 0 and int(st[K.PIT_HOUSE]) + int(st[K.WATTLE_HOUSE]) + int(st[K.MUDBRICK_HOUSE]) == 0:
-		filler = "longhouse"
+
+func _dwelling_builds(st: Array, halls: int) -> Dictionary:
+	return {
+		"leanto": int(st[M7WorldData.Kind.LEAN_TO]), "hide_tent": int(st[M7WorldData.Kind.HIDE_TENT]),
+		"pithouse": int(st[M7WorldData.Kind.PIT_HOUSE]), "wattle": int(st[M7WorldData.Kind.WATTLE_HOUSE]),
+		"mudbrick": int(st[M7WorldData.Kind.MUDBRICK_HOUSE]), "longhouse": int(st[M7WorldData.Kind.LONGHOUSE]), "hall": halls,
+	}
+
+func _dwelling_signature(st: Array, halls: int, visual_capacity: int) -> int:
+	var built := _dwelling_builds(st, halls)
 	var remaining := maxi(0, visual_capacity)
 	var signature := 17
-	var count := mini(shown_hall, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("hall")
-		signature = signature * 31 + count
-		remaining -= count
-	count = mini(shown_longhouse, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("longhouse")
-		signature = signature * 31 + count
-		remaining -= count
-	count = mini(shown_mudbrick, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("mudbrick")
-		signature = signature * 31 + count
-		remaining -= count
-	count = mini(shown_wattle, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("wattle")
-		signature = signature * 31 + count
-		remaining -= count
-	count = mini(shown_pithouse, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("pithouse")
-		signature = signature * 31 + count
-		remaining -= count
-	count = mini(shown_hide_tent, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("hide_tent")
-		signature = signature * 31 + count
-		remaining -= count
-	count = mini(shown_leanto, remaining)
-	if count > 0:
-		signature = signature * 31 + hash("leanto")
-		signature = signature * 31 + count
-		remaining -= count
-	if remaining > 0:
-		var extra := mini(ceili(float(short) / float(DWELL_CAPACITY[filler])) if short > 0 else 0, remaining)
-		if shown_hall + shown_longhouse + shown_mudbrick + shown_wattle + shown_pithouse + shown_hide_tent + shown_leanto + extra == 0 and pop > 0:
-			extra = 1
-			filler = "tent"
-		if extra > 0:
-			signature = signature * 31 + hash(filler)
-			signature = signature * 31 + extra
+	for nm in DWELL_DRAW_ORDER:
+		var count := mini(maxi(0, int(built[nm])), remaining)
+		if count > 0:
+			signature = signature * 31 + hash(nm)
+			signature = signature * 31 + count
+			remaining -= count
+		if remaining <= 0:
+			break
 	return signature
 
 func _item_radius(mesh_name: String) -> float:
 	return DWELL_RADIUS.get(mesh_name, 0.075)
 
-func _dwellings(st: Array, halls: int, pop: int, visual_capacity: int) -> Array:
-	var K := M7WorldData.Kind
-	var built := {
-		"leanto": int(st[K.LEAN_TO]), "tent": 0, "hide_tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
-		"wattle": int(st[K.WATTLE_HOUSE]), "mudbrick": int(st[K.MUDBRICK_HOUSE]), "longhouse": int(st[K.LONGHOUSE]),
-		"hall": halls}
-	# The first shelter is a lean-to (BLD-01); BLD-02's crafted hide tent has a distinct silhouette from the generic placeholder.
-	var filler := "leanto" if built.leanto > 0 else "tent"
-	if built.hide_tent > 0:
-		filler = "hide_tent"
-	for nm in ["pithouse", "wattle", "mudbrick"]:
-		if built[nm] > 0:
-			filler = nm
-	var shown := built.duplicate()
-	if built.pithouse + built.wattle + built.mudbrick + built.longhouse > 0:
-		shown.leanto = 0
-		shown.hide_tent = 0
-	if built.wattle + built.mudbrick + built.longhouse > 0:
-		shown.pithouse = 0
-	if built.mudbrick + built.longhouse > 0:
-		shown.wattle = 0
-	var covered := 0
-	for nm in shown:
-		covered += int(shown[nm]) * int(DWELL_CAPACITY[nm])
-	var short := maxi(0, pop - covered)
+func _dwellings(st: Array, halls: int, visual_capacity: int) -> Array:
+	var built := _dwelling_builds(st, halls)
 	var out := []
-	for nm in ["hall", "longhouse", "mudbrick", "wattle", "pithouse", "hide_tent", "tent", "leanto"]:
-		var count := mini(int(shown[nm]), maxi(0, visual_capacity - out.size()))
+	var remaining := maxi(0, visual_capacity)
+	for nm in DWELL_DRAW_ORDER:
+		var count := mini(maxi(0, int(built[nm])), remaining)
 		for i in count:
 			out.append(nm)
-		if out.size() >= visual_capacity:
-			return out
-	if short > 0:
-		if filler in ["tent", "leanto", "hide_tent"] and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
-			filler = "longhouse"
-		var more := mini(ceili(float(short) / float(DWELL_CAPACITY[filler])), maxi(0, visual_capacity - out.size()))
-		for i in more:
-			out.append(filler)
-	if out.is_empty() and pop > 0 and visual_capacity > 0:
-		out.append("tent")
+		remaining -= count
+		if remaining <= 0:
+			break
 	return out
 
 ## Kinds that sit on the village edge rather than among the houses.
