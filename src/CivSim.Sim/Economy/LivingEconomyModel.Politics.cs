@@ -74,13 +74,18 @@ public sealed partial class LivingEconomyModel
         }
         if (parents.Count == 0) return new BeaconSitePreview(false, Fix64.Zero, pendingSplits, pendingSplitsChoosingTile);
 
+        int[] populations = FillSettlementPopulationScratch();
         var localCandidates = new List<(int Tile, Fix64 Score)>(768);
         for (int tile = 0; tile < _world.TileCount; tile++)
         {
             if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile) || !_coreClean[tile]) continue;
+            bool existingSite = false;
+            for (int s = 0; s < _settlements.Count; s++)
+                if (_settlements[s].SiteTile == tile) { existingSite = true; break; }
+            if (existingSite && !IsAbandonedSiteFor(civ, tile)) continue;
             bool farEnough = true;
             for (int s = 0; s < _settlements.Count; s++)
-                if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
+                if (populations[s] > 0 && HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
                 { farEnough = false; break; }
             if (!farEnough || SiteAdvisor is not null && !SiteAdvisor.Allows(civ, tile)) continue;
             Fix64 score = _siteFoodScores[tile] * (SiteAdvisor is null

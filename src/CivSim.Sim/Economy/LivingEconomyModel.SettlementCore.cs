@@ -14,11 +14,41 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel
 {
+    private int[] _settlementPopulationScratch = Array.Empty<int>();
+
     /// <summary>The core radius used when the content pack has no <c>SettlementCoreRadius</c> constant.</summary>
     public const int DefaultSettlementCoreRadius = SettlementCoreRules.CoreRadius;
 
     /// <summary>Tiles from the site that belong to the reserved core: 1 means the centre hex and ring 1 (docs/MVP/31 §3.1).</summary>
     public int SettlementCoreRadius => _coreRadius;
+
+    private int SettlementAtSite(int site)
+    {
+        for (int i = 0; i < _settlements.Count; i++)
+            if (_settlements[i].SiteTile == site) return i;
+        return -1;
+    }
+
+    private int FindAbandonedSettlement(int civ, int site)
+    {
+        int settlement = SettlementAtSite(site);
+        if (settlement < 0) return -1;
+        SettlementState state = _settlements[settlement];
+        return state.Civilization == civ && !IsFreeFolk(state) && Population(state.Id) == 0 ? settlement : -1;
+    }
+
+    private int[] FillSettlementPopulationScratch()
+    {
+        int count = _settlements.Count;
+        if (_settlementPopulationScratch.Length < count) Array.Resize(ref _settlementPopulationScratch, count);
+        Array.Clear(_settlementPopulationScratch, 0, count);
+        for (int i = 0; i < _figures.Count; i++)
+        {
+            int settlement = _figures[i].SettlementId;
+            if ((uint)settlement < (uint)count) _settlementPopulationScratch[settlement]++;
+        }
+        return _settlementPopulationScratch;
+    }
 
     /// <summary>
     /// Whether <paramref name="tile"/> lies in the reserved core of any living settlement (one with people), so no plot or mining camp may

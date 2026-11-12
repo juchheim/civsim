@@ -940,6 +940,18 @@ public partial class Game
                     else if (item.A != 1) ShowToast("A new settlement", ToastKind.Info, "Your people have split and spread out.", item.Tile);
                     break;
                 }
+            case ViewEventKind.SettlementAbandoned:
+                {
+                    const string text = "No one remains at this settlement. The site can be resettled.";
+                    AddChronicle(item, "Your settlement has been abandoned.", ChronicleClass.Danger, true);
+                    ShowToast("Settlement abandoned", ToastKind.Critical, text, item.Tile, key: "settlement-abandoned");
+                    _chronicleUnseenCritical |= !_chronicleOpen;
+                    break;
+                }
+            case ViewEventKind.SettlementRevived:
+                AddChronicle(item, "Your people returned to an abandoned settlement.", ChronicleClass.People, true);
+                ShowToast("Settlement resettled", ToastKind.Info, "A new band has made the settlement active again.", item.Tile, key: "settlement-revived");
+                break;
             case ViewEventKind.StructureBuilt:
                 {
                     string name = StructureName(item.A);

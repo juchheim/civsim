@@ -130,6 +130,8 @@ public sealed partial class LivingEconomyModel
     {
         if (unchecked((uint)donorIndex) >= unchecked((uint)_settlements.Count) || !IsHabitableSite(siteTile)) return -1;
         SettlementState parent = _settlements[donorIndex];
+        int existingSite = SettlementAtSite(siteTile);
+        if (existingSite >= 0 && !IsAbandonedSiteFor(parent.Civilization, siteTile)) return -1;
         int season = checked((int)_seasonsCompleted);
         if (season - parent.LastFissionSeason < 4) return -1;
         int population = Population(parent.Id);
@@ -143,6 +145,10 @@ public sealed partial class LivingEconomyModel
         daughter.Cohesion = Fix64.Clamp(Fix64.Parse("0.6") + Fix64.FromRatio(6, 1000) * startCohesion, Fix64.Parse("0.6"), Fix64.Parse("1.2"));
         return daughter.Id;
     }
+
+    /// <summary>Whether a zero-population site can be repopulated by this civilization.</summary>
+    public bool IsAbandonedSiteFor(int civ, int siteTile)
+        => FindAbandonedSettlement(civ, siteTile) >= 0;
 
     // ---- the levy host ----------------------------------------------------------------------------------
 

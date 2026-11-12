@@ -27,6 +27,7 @@ public sealed partial class FrameBuilder
     private int _prevSettlements;
     private byte[] _prevStructures = Array.Empty<byte>();
     private bool[] _prevFire = Array.Empty<bool>();
+    private int[] _prevPopulation = Array.Empty<int>();
     private byte[] _prevFood = Array.Empty<byte>(), _prevForecast = Array.Empty<byte>();
     private const int MaxAnnounced = 32;
     private readonly int[] _announcedKey = new int[MaxAnnounced];
@@ -57,7 +58,7 @@ public sealed partial class FrameBuilder
     {
         _birthsByCiv = new int[_civs];
         _deathsByCivCause = new int[_civs * 8];
-        _prevFire = new bool[128]; _prevFood = new byte[128]; _prevForecast = new byte[128];
+        _prevFire = new bool[128]; _prevFood = new byte[128]; _prevForecast = new byte[128]; _prevPopulation = new int[128];
         _prevStructures = new byte[128 * MatchFrame.StructureKinds];
         _fromResearch = new ViewEvent[256];
         _fromPolitics = new ViewEvent[128];
@@ -436,7 +437,7 @@ public sealed partial class FrameBuilder
         if (_prevFire.Length < n)
         {
             int size = Math.Max(n, Math.Max(16, _prevFire.Length * 2));
-            Array.Resize(ref _prevFire, size); Array.Resize(ref _prevFood, size); Array.Resize(ref _prevForecast, size);
+            Array.Resize(ref _prevFire, size); Array.Resize(ref _prevFood, size); Array.Resize(ref _prevForecast, size); Array.Resize(ref _prevPopulation, size);
             Array.Resize(ref _prevStructures, size * kinds);
         }
         bool primed = _eventsPrimed;
@@ -494,6 +495,20 @@ public sealed partial class FrameBuilder
             }
             else if (reports)
             {
+                if (_prevPopulation[s] > 0 && _sPop[s] == 0)
+                {
+                    ViewEvent abandoned = New(tick, ViewEventKind.SettlementAbandoned, ChronicleKey.SettlementAbandoned,
+                        ViewEventTier.Critical, _sCiv[s], -1);
+                    abandoned.Settlement = s; abandoned.Tile = _sTile[s];
+                    Append(abandoned);
+                }
+                else if (_prevPopulation[s] == 0 && _sPop[s] > 0)
+                {
+                    ViewEvent revived = New(tick, ViewEventKind.SettlementRevived, ChronicleKey.SettlementRevived,
+                        ViewEventTier.Info, _sCiv[s], -1);
+                    revived.Settlement = s; revived.Tile = _sTile[s];
+                    Append(revived);
+                }
                 for (int k = 0; k < kinds; k++)
                 {
                     int now = Math.Min(255, eco.StructureCount(s, k)), before = _prevStructures[s * kinds + k];
@@ -520,6 +535,7 @@ public sealed partial class FrameBuilder
             _prevFire[s] = fire;
             _prevFood[s] = food;
             _prevForecast[s] = forecast;
+            _prevPopulation[s] = _sPop[s];
         }
         _prevSettlements = n;
         AnnounceIncoming(tick, primed);

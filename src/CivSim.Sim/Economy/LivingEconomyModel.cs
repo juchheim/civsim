@@ -4679,13 +4679,69 @@ public sealed partial class LivingEconomyModel : ISimModel
     private SettlementState? SplitSettlement(SettlementState parent, int site, int daughterCount, int season, bool[] selected,
         out string cohortResult)
     {
-        SettlementState daughter = NewSettlement(parent.Civilization, site);
+        int existingSite = SettlementAtSite(site);
+        SettlementState daughter;
+        if (existingSite >= 0)
+        {
+            int abandonedSite = FindAbandonedSettlement(parent.Civilization, site);
+            if (abandonedSite != existingSite)
+            {
+                cohortResult = "siteAlreadySettled";
+                return null;
+            }
+            daughter = _settlements[existingSite];
+            // Keep the site's surviving land, buildings and stock, while giving its new community a fresh start.
+            daughter.Fissions = 0;
+            daughter.LastFissionSeason = season;
+            daughter.FissionPending = false;
+            daughter.UnderInvestment = false;
+            daughter.FoodSecurity = Fix64.One;
+            daughter.LastSeasonFoodStoresBeforeConsumption = Fix64.Zero;
+            daughter.LateWinterForecast = Fix64.One;
+            daughter.LateWinterFoodShare = Fix64.One;
+            daughter.FarmWorkThisYear = Fix64.Zero;
+            daughter.Cohesion = Fix64.One;
+            daughter.LastIronHolderShareSeason = -1000;
+            daughter.UnattendedFireTicks = 0;
+            daughter.LedgerValid = false;
+            Array.Clear(daughter.LedgerStartStores);
+            Array.Clear(daughter.LedgerGathered);
+            Array.Clear(daughter.LedgerAssigned);
+            Array.Clear(daughter.LedgerApplied);
+            Array.Clear(daughter.LedgerRequested);
+            Array.Clear(daughter.LedgerHarvested);
+            Array.Clear(daughter.LedgerOutput);
+            Array.Clear(daughter.LedgerEatenByGood);
+            Array.Clear(daughter.LedgerHazard);
+            daughter.LedgerStart = daughter.LedgerBeforeEat = daughter.LedgerNeed = daughter.LedgerEaten =
+                daughter.LedgerAfterSpoil = daughter.LedgerEnd = daughter.LedgerCapacity = daughter.LedgerPlannable =
+                daughter.LedgerFoodWork = daughter.LedgerBuildWork = daughter.LedgerMaterialWork = daughter.LedgerHerdWork =
+                daughter.LedgerCivicWork = Fix64.Zero;
+            daughter.LedgerFoodShareRule = 0;
+            if (daughter.Civic is { } civic)
+            {
+                civic.Tier = 0;
+                civic.DemoteSeasons = 0;
+                civic.WorkMult = Fix64.One;
+                civic.FoodValueMult = Fix64.One;
+                civic.BakeryShare = Fix64.Zero;
+                civic.LowSeasons = 0;
+                civic.RaidedSeason = -1000;
+                civic.ConqueredTerm = 0;
+                civic.DeathsThisYear = civic.DeathsLastYear = civic.PeopleLastYear = 0;
+                civic.Target = -1;
+            }
+        }
+        else
+        {
+            daughter = NewSettlement(parent.Civilization, site);
+            _settlements.Add(daughter);
+            IndexSettlementSite(daughter);
+        }
         daughter.LastFissionSeason = season;
         if (IronHubFuelSharingEnabled) daughter.LastIronHolderShareSeason = season;
         if (CivilizationHasPhysicalDefensePlan(parent.Civilization))
             daughter.BuildTarget = Structure.Palisade;
-        _settlements.Add(daughter);
-        IndexSettlementSite(daughter);
         for (int i = 0; i < _figures.Count; i++)
             if (selected[i])
             {
@@ -4773,8 +4829,14 @@ public sealed partial class LivingEconomyModel : ISimModel
     private int ChooseFissionSite(SettlementState parent, int season, int previewBeaconTile = -1, int replacedBeaconIndex = -1,
         bool recordDiagnostics = true)
     {
+        int[] populations = FillSettlementPopulationScratch();
         int best = -1;
         Fix64 bestScore = Fix64.MinValue;
+        int bestAbandonedSite = -1;
+        Fix64 bestAbandonedScore = Fix64.MinValue;
+        int bestAbandonedFuelSite = -1;
+        Fix64 bestAbandonedFuelScore = Fix64.MinValue;
+        Fix64 bestAbandonedRawFood = Fix64.Zero, bestAbandonedMultiplier = Fix64.Zero;
         int bestFuelSite = -1;
         Fix64 bestFuelSiteScore = Fix64.MinValue;
         Fix64 bestFuelSiteRawFood = Fix64.Zero, bestFuelSiteMultiplier = Fix64.Zero;
@@ -4799,6 +4861,9 @@ public sealed partial class LivingEconomyModel : ISimModel
                 if (rejections is not null) rejections[(int)FissionSiteRejectionReason.CoreDeposit]++;
                 continue;
             }
+            int existingSite = SettlementAtSite(tile);
+            bool abandonedSite = existingSite >= 0 && IsAbandonedSiteFor(parent.Civilization, tile);
+            if (existingSite >= 0 && !abandonedSite) continue;
             int parentDistance = HexGrid.Distance(tile, parent.SiteTile, _world.Width);
             if (parentDistance < Radius * 2 + 1)
             {
@@ -4812,7 +4877,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             bool farEnough = true;
             for (int s = 0; s < _settlements.Count; s++)
-                if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
+                if (populations[s] > 0 && HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
                 { farEnough = false; break; }
             if (!farEnough)
             {
@@ -4837,6 +4902,24 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 ironFuelScore = ironSiting ? IronFuelCatchmentScore(parent.Civilization, tile) : Fix64.Zero;
             multiplier *= IronFuelSitingMultiplier(parent.Civilization, tile);
             Fix64 score = rawFood * multiplier;
+            if (abandonedSite)
+            {
+                if (score > bestAbandonedScore || score == bestAbandonedScore &&
+                    (bestAbandonedSite < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, bestAbandonedSite, _world.Width, _world.Height)))
+                {
+                    bestAbandonedSite = tile;
+                    bestAbandonedScore = score;
+                    bestAbandonedRawFood = rawFood;
+                    bestAbandonedMultiplier = multiplier;
+                }
+                if (ironSiting && ironFuelScore > Fix64.Zero &&
+                    (score > bestAbandonedFuelScore || score == bestAbandonedFuelScore &&
+                        (bestAbandonedFuelSite < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, bestAbandonedFuelSite, _world.Width, _world.Height))))
+                {
+                    bestAbandonedFuelSite = tile;
+                    bestAbandonedFuelScore = score;
+                }
+            }
             if (ironSiting && ironFuelScore > Fix64.Zero &&
                 (score > bestFuelSiteScore || score == bestFuelSiteScore &&
                     (bestFuelSite < 0 || PreferFissionTieCandidate(parent.SiteTile, tile, bestFuelSite, _world.Width, _world.Height))))
@@ -4876,7 +4959,27 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         // When the map offers one, a post-KEY-4 fission must settle within productive standing or growing forest at charcoal range.
         // Keep the food-scored fallback only for maps with no legal fuel site in this parent's frontier.
-        if (bestFuelSite >= 0)
+        if (bestAbandonedSite >= 0)
+        {
+            if (bestAbandonedFuelSite >= 0)
+            {
+                best = bestAbandonedFuelSite;
+                bestScore = bestAbandonedFuelScore;
+                selectedRawFood = _siteFoodScores[best];
+                selectedMultiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
+                    ? SiteAdvisor.PreviewMultiplier(parent.Civilization, best, previewBeaconTile, replacedBeaconIndex)
+                    : SiteAdvisor.Multiplier(parent.Civilization, best);
+                selectedMultiplier *= IronFuelSitingMultiplier(parent.Civilization, best);
+            }
+            else
+            {
+                best = bestAbandonedSite;
+                bestScore = bestAbandonedScore;
+                selectedRawFood = bestAbandonedRawFood;
+                selectedMultiplier = bestAbandonedMultiplier;
+            }
+        }
+        else if (bestFuelSite >= 0)
         {
             best = bestFuelSite;
             bestScore = bestFuelSiteScore;

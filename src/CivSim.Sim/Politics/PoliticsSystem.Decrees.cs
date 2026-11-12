@@ -305,6 +305,8 @@ public sealed partial class PoliticsSystem
     {
         donor = -1;
         if (unchecked((uint)tile) >= unchecked((uint)_tileArray.Length) || !_economy.IsHabitableSite(tile)) return OrderRefusalReason.NoSite;
+        for (int s = 0; s < _sCount; s++)
+            if (_sTile[s] == tile && (_sPop[s] > 0 || _sCiv[s] != civ || _free[s])) return OrderRefusalReason.NoSite;
         int owner = _territory.OwnerOf(tile);
         if (owner >= 0 && owner != civ) return OrderRefusalReason.NoSite;
         if (FreeFolkOwns(tile)) return OrderRefusalReason.NoSite;
