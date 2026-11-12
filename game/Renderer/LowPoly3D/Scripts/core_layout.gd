@@ -62,13 +62,13 @@ const REASSIGN := [Q.HOMES_A, Q.WORKS, Q.SACRED, Q.HOMES_B, Q.WATCH]
 const STAGES := ["band", "village", "town", "city"]
 ## Kinds that may stand outside the core (§4.7).
 const OUTER_KINDS := ["paddock", "water_mill", "marker", "charcoal", "quarry", "aqueduct_span", "lighthouse", "frontier_wall", "siege"]
-## Knowledge props (DecorTable) that are dressing beside a host, with the quarters the host stands in.
+## Optional props for explicit debug-gallery fixtures and local goods, placed beside their host.
 const DRESSING := {
 	"hideframe": [Q.HOMES_A, Q.HOMES_B, Q.HEART], "loom": [Q.HOMES_A, Q.HOMES_B, Q.HEART], "woolbales": [Q.HOMES_B, Q.HOMES_A, Q.WORKS, Q.HEART],
 	"pots": [Q.WORKS, Q.HEART], "bricks": [Q.WORKS, Q.HEART], "baskets": [Q.WORKS, Q.HEART], "woodwork": [Q.WORKS, Q.HEART],
 	"sledge": [Q.WORKS, Q.HEART], "grave": [Q.SACRED, Q.HEART],
 }
-## Knowledge props that duplicate a built structure: never drawn in the core layout (§4.6).
+## Props that duplicate a built structure: never drawn in the core layout (§4.6).
 const DUPLICATES := ["totem", "shrine", "signal", "palisade"]
 
 var wb: M7WorldBuilder       # owns the props batcher and the site lists the rigs read
@@ -293,7 +293,7 @@ func _build_hexes() -> void:
 func _front_of() -> void:
 	_water_front = false
 	for i in 6:
-		var d := (i + int(_seed * 6.0)) % 6         # the order world_builder._harbor and _moor_fleet use, so the harbor stands in the Front
+		var d := (i + int(_seed * 6.0)) % 6         # the shoreline order world_builder._harbor uses, so the harbor stands in the Front
 		var nb := w.neighbour(_t, d)
 		if nb >= 0 and w.is_water(nb):
 			_front = d
@@ -655,7 +655,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 		"x": banner_at.x, "z": banner_at.y, "r": 0.02, "group": hearth_group})
 
 	var decor: Array = []
-	for k in wb._village_decor(s.get("decor", PackedInt32Array()), _civ, si, flagship):
+	for k in wb._village_decor(s, _civ, si, flagship):
 		var ki := int(k)
 		if ki >= 0 and ki < M7MeshKit.DECOR_NAMES.size():
 			decor.append(String(M7MeshKit.DECOR_NAMES[ki]))
@@ -829,8 +829,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	if build_pm > 0 and build_id in ["windlass_well", "aqueduct"]:
 		_small([Q.FRONT, Q.WORKS, Q.HOMES_B], "site", site_mesh, 0.7)
 	if _civ >= 0 and _civ < w.iron_looks.size():
-		for sp in [[M7WorldData.IRON_BARRELS, "barrel_stack"], [M7WorldData.IRON_PLANKS, "plank_stack"], [M7WorldData.IRON_GLASS, "glass_shelf"]]:
-			if w.has_iron_look(_civ, int(sp[0])):
+		for sp in [[M7WorldData.IRON_BARRELS, "barrel_stack", "barrelStock"], [M7WorldData.IRON_PLANKS, "plank_stack", "plankStock"], [M7WorldData.IRON_GLASS, "glass_shelf", "blownGlassStock"]]:
+			if w.has_iron_look(_civ, int(sp[0])) and bool(s.get(String(sp[2]), false)):
 				_small([Q.WORKS, Q.HOMES_B, Q.FRONT], String(sp[1]).trim_suffix("_stack").trim_suffix("_shelf"), String(sp[1]), 1.35)
 	_flags(s, si, flagship)
 	if decor.has("skypole"):
@@ -1263,7 +1263,7 @@ func _piece_record(mesh_name: String, q: Vector2, phi: float, half: Vector2, tie
 	_record({"kind": "perimeter", "mesh": mesh_name, "quarter": "perimeter", "slot": "edge", "chain": "perimeter", "tier": tier, "slot_hex": w.tile_at(q),
 		"x": q.x, "z": q.y, "r": half.length(), "perimeter": true, "box": [q.x, q.y, half.x, half.y, phi]})
 
-# ------------------------------------------------------------------ the water front (§4.2 Front): weir, or the harbor quay and its boats
+# ------------------------------------------------------------------ the water front (§4.2 Front): weir or the built harbor quay
 
 func _waterfront(s: Dictionary, st: Array) -> void:
 	var K := M7WorldData.Kind
@@ -1309,10 +1309,6 @@ func _waterfront(s: Dictionary, st: Array) -> void:
 				wb.props.add("weir", wb._xf(bq, w.height_at(bq) + 0.02, yaw, 0.55), Color(1, 1, 1, _seed))
 				_record({"kind": "weir", "mesh": "weir", "quarter": "front", "slot": "river", "chain": "water", "tier": "weir", "slot_hex": w.tile_at(bq),
 					"x": bq.x, "z": bq.y, "r": 0.0, "box": [bq.x, bq.y, 0.155 * 0.55, 0.067 * 0.55, -yaw]})
-	var civ := _civ
-	var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
-	if sea > 0:
-		wb._moor_fleet(_t, _c0, _seed, sea, int(s.population), _cc, harbor)
 
 # ------------------------------------------------------------------ outer works (§4.7)
 

@@ -780,7 +780,7 @@ func _dogs() -> void:
 	meshes["dog_travois"] = b.commit()
 
 
-# ------------------------------------------------------------------ village decor (see game/Scripts/DecorTable.cs)
+# ------------------------------------------------------------------ village decor (explicit debug-gallery pieces and locally present goods)
 
 ## Index = the decor kind the host sends; mesh name = "decor_" + name.
 const DECOR_NAMES := ["totem", "cairn", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",

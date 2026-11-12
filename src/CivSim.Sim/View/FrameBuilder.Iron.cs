@@ -48,6 +48,7 @@ public sealed partial class FrameBuilder
             SettlementViewFlags flags = (SettlementViewFlags)target.SettlementFlags[w];
             bool remembered = (flags & SettlementViewFlags.Remembered) != 0;
             bool own = (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) == SettlementViewFlags.Own;
+            f.PropGoods[w] = 0;
             for (int k = 0; k < kinds; k++)
                 f.Works[w * kinds + k] = remembered || (uint)s >= (uint)_settlementCount ? (byte)0 : (byte)Math.Min(255, eco.IronWorkAt(s, k));
             f.OurFaithPermille[w] = 0; f.ForeignFaithPermille[w] = 0; f.ForeignFaithCiv[w] = -1;
@@ -62,6 +63,11 @@ public sealed partial class FrameBuilder
                     f.OurFaithPermille[w] = (short)(eco.FaithShare(s, _viewer) * 1000).FloorToInt();
                 continue;
             }
+            byte propGoods = 0;
+            if (eco.GoodStock(s, "G-BARREL").Raw > 0) propGoods |= IronFrame.PropBarrelStock;
+            if (eco.GoodStock(s, "G-PLANK").Raw > 0) propGoods |= IronFrame.PropPlankStock;
+            if (eco.GoodStock(s, "G-BLOWNGLASS").Raw > 0) propGoods |= IronFrame.PropBlownGlassStock;
+            f.PropGoods[w] = propGoods;
             int seat = eco.ProvinceSeatAt(s);
             f.ProvinceSeat[w] = (short)(seat >= 0 ? target.IndexOfSettlement(seat) : -1);
             f.Contract[w] = (byte)(eco.UnderFeudalContractAt(s) ? 1 : 0);

@@ -19,6 +19,11 @@ public sealed class IronFrame
     /// <summary>One int per civilization: bits of <c>Look*</c> for the projects it has completed (HUS-09, COM-08, WOD-07, WOD-08, CER-07). Zero outside the Iron chapter.</summary>
     public int[] CivLooks = Array.Empty<int>();
 
+    // ---- per settlement: actual stock behind settlement props, separate from the project looks above ----
+    public const byte PropBarrelStock = 1, PropPlankStock = 2, PropBlownGlassStock = 4;
+    /// <summary>Own settlements only: bit mask for local barrel, plank, and blown-glass stock; zero elsewhere.</summary>
+    public byte[] PropGoods = Array.Empty<byte>();
+
     // ---- per settlement (frame index) ----
     /// <summary>Count of each Iron works kind in a settlement the viewer sees now (zero for one it only remembers).</summary>
     public byte[] Works = Array.Empty<byte>();
@@ -82,6 +87,7 @@ public sealed class IronFrame
     {
         if (WorkKinds <= 0) return;
         if (Works.Length < n * WorkKinds) Works = new byte[Math.Max(n * WorkKinds, Works.Length * 2)];
+        if (PropGoods.Length < n) Array.Resize(ref PropGoods, Math.Max(n, PropGoods.Length * 2));
         if (Soldiers.Length >= n) return;
         int size = Math.Max(n, Soldiers.Length * 2);
         Soldiers = new byte[size]; Scholars = new byte[size]; Missionaries = new byte[size]; OurFaithPermille = new short[size]; Forge = new byte[size]; FacingMask = new byte[size]; ProvinceSeat = new short[size]; Contract = new byte[size];

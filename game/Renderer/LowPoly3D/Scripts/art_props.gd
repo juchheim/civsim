@@ -1,7 +1,7 @@
-## Iron Age small props: the courier relay post (COM-08), the camel caravan (HUS-09), the stacks of trade goods (barrels WOD-07, planks WOD-08, glass CER-07), the
-## vassal banner (DIP-06 tribute) and the league standard (DIP-07).
+## Iron Age props: stock-backed displays of barrels (WOD-07), planks (WOD-08) and glass (CER-07), camel caravans (HUS-09), and diplomatic banners.
 ##
-## Laid out by world_builder.gd (`_relay_posts`, `_goods`, `_pacts`) and played by farm_rig.gd (the camel train). Same units as the rest of the kit (1.0 = one tile
+## The goods and banners are laid out by world_builder.gd (`_goods`, `_pacts`) and the camel train by farm_rig.gd. The relay-post mesh remains unplaced until
+## the frame can report a built relay. Same units as the rest of the kit (1.0 = one tile
 ## column, an adult is ~0.1 tall). Land props face +Z; the camel train is a rig mesh and faces +X like the ox cart.
 ##
 ##   relay_post       a small stone stable under a tiled roof with a hitching rail, a tethered horse and a pennant in the owner's colour
