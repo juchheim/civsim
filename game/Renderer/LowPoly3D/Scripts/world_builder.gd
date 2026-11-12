@@ -7,6 +7,9 @@ const RIVER_GRID_SIZE := 4.0
 const RIVER_SEARCH_RADIUS := 2.0
 const STATIC_CHUNK_SIZE := 40.0
 const STATIC_DETAIL_CHUNK_SIZE := 12.0
+const SETTLEMENT_LAYOUT_ARRAYS := ["hearths", "villages", "ziggurat_sites", "castle_sites", "harbor_sites", "forge_sites",
+	"frontier_sites", "chimney_smokes", "relay_sites", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines",
+	"bridge_sites", "civic_sites"]
 
 const SPECIES := [
 	# mesh, colour, scale
@@ -38,11 +41,17 @@ var herd_multimeshes := {}
 var deposit_props: Node3D
 var deposit_multimeshes := {}
 var deposit_signature := -1
+var deposit_placement_signature := -1
 var herds_dirty := false   # herds and beacons rebuild one frame after people, so a publish never costs two frames' worth
 var border_node: MeshInstance3D
 var borders_far_node: MeshInstance3D
 var river_node: MeshInstance3D
 var structure_signature := -1
+var settlement_layout_cache := {}
+var _active_visual_records: Array = []
+var _capture_visual_records := false
+var last_settlement_layout_rebuilds := 0
+var _camp_parent_fire_by_index := {}
 var rig: M7MonumentRig
 var boat_probe := Vector2.ZERO          # the last boat placed (dev scenarios aim the camera at it)
 var chariot_probe := Vector2.ZERO       # the last chariot placed (dev scenarios aim the camera at it)
@@ -63,14 +72,15 @@ var figure_tints := PackedColorArray()
 var freefolk_tint: Color
 var hearths := []          # world positions of settlement hearths (index = settlement)
 var villages := []         # Vector3(x, z, radius) of trampled ground
-var plot_display_mode := PackedByteArray() # 0 hidden by higher-priority content, 1 full tile, 2 compact edge patch
+var plot_display_mode := PackedByteArray() # 0 hidden by a simulation claim, 1 full tile
 var plot_display_position := PackedVector2Array()
 var plot_display_scale := PackedFloat32Array()
 var plot_layout_signature := 0
-var _plot_occupants := {}  # tile -> [[world position, clearance radius], ...] for visible settlement content
-var _settlement_core_tiles := {}
+var _visual_occupants := {}  # tile -> [[world position, clearance radius], ...] for deposit-marker placement
+var _deposit_tiles := {}     # tiles with a visible marker, so only they need feature occupancy records
+var _deposit_near_tiles := {} # tiles whose centre or neighbours include a visible deposit marker
+var _claimed_core_tiles := {}
 var _settlement_tiles := {}
-var _allow_plot_layout := false
 var civic_sites: Array = []               # {kind, p, y, yaw, civ, seed, tile}: where each civic building (temple ...) stands, for its rig
 var beacon_fires: Array = []            # {top, seed}: the Great Lighthouse's fire, for the war rig
 var lighthouse_sites: Array = []        # {p, y}: where each Great Lighthouse stands
@@ -88,9 +98,7 @@ var tree_points := PackedVector2Array()   # where full-size trees stand (the meg
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
-## --core-layout: the settlement-core prototype (docs/MVP/31 WP1, WP2; core_layout.gd) draws every live settlement on its seven-hex slot map
-## instead of the spiral below. Off by default; with it off nothing here changes.
-var CORE_LAYOUT: bool = "--core-layout" in OS.get_cmdline_user_args()
+## Every live settlement uses the simulation's claimed core layout.
 var core: M7CoreLayout
 const ArtDefense := preload("res://Renderer/LowPoly3D/Scripts/art_defense.gd")
 const SupplyBuilder := preload("res://Renderer/LowPoly3D/Scripts/supply_builder.gd")
@@ -171,13 +179,12 @@ func build() -> Node3D:
 	props = M7Batcher.new()
 	props.chunk_size = STATIC_CHUNK_SIZE
 	props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
-	if CORE_LAYOUT:
-		# the staged core (docs/MVP/31a): ring-2 hexes a settlement reserves are village ground, so no trees grow there
-		if core == null:
-			core = M7CoreLayout.new(self)
-		for rt in core.reserved_ring2():
-			if int(w.reserved[rt]) == 0:
-				w.reserved[rt] = 1
+	# The frame's claimed core and outer hexes are village ground, so no trees grow under them.
+	if core == null:
+		core = M7CoreLayout.new(self)
+	for rt in core.reserved_ring2():
+		if int(w.reserved[rt]) == 0:
+			w.reserved[rt] = 1
 	_vegetation()
 	vegetation_props = _build_props_node("Vegetation", props)
 	props = M7Batcher.new()
@@ -185,6 +192,7 @@ func build() -> Node3D:
 	props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
 	var t3 := Time.get_ticks_msec()
 	_settlements()
+	_refresh_camp_fire_cache()
 	_camps()
 	settlement_props = _build_props_node("SettlementProps", props)
 	structure_signature = _structure_digest()
@@ -233,6 +241,8 @@ func build() -> Node3D:
 ## Apply a newly published MatchFrame without rebuilding the terrain or vegetation.
 func update_frame() -> bool:
 	var started := Time.get_ticks_usec()
+	last_settlement_layout_rebuilds = 0
+	_refresh_camp_fire_cache()
 	var new_river_signature := _visibility_digest()
 	if new_river_signature != river_visibility_signature:
 		river_visibility_signature = new_river_signature
@@ -255,7 +265,11 @@ func update_frame() -> bool:
 			supply_signature = next_supply_signature
 	var geometry_updated := Time.get_ticks_usec()
 	var signature := _structure_digest()
+	var digest_finished := Time.get_ticks_usec()
 	var structures_changed := signature != structure_signature
+	var layout_finished := digest_finished
+	var camps_finished := digest_finished
+	var settlement_upload_finished := digest_finished
 	if structures_changed:
 		structure_signature = signature
 		hearths.clear()
@@ -264,17 +278,23 @@ func update_frame() -> bool:
 		props.chunk_size = STATIC_CHUNK_SIZE
 		props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
 		_settlements()
+		layout_finished = Time.get_ticks_usec()
 		_camps()
+		camps_finished = Time.get_ticks_usec()
 		settlement_multimeshes = props.update_existing(settlement_props, kit, _material_for, settlement_multimeshes)
+		settlement_upload_finished = Time.get_ticks_usec()
 		props = M7Batcher.new()
 	rig.set_monuments(w.monuments, structure_signature)
+	var rig_finished := Time.get_ticks_usec()
 	var new_deposit_signature := _deposit_digest()
+	var deposit_digest_finished := Time.get_ticks_usec()
 	if new_deposit_signature != deposit_signature:
 		deposit_signature = new_deposit_signature
 		props = M7Batcher.new()
 		_deposits()
 		deposit_multimeshes = props.update_existing(deposit_props, kit, _material_for, deposit_multimeshes)
 		props = M7Batcher.new()
+	var deposits_finished := Time.get_ticks_usec()
 	var settlements_updated := Time.get_ticks_usec()
 	props = M7Batcher.new()
 	var people_started := Time.get_ticks_usec()
@@ -289,6 +309,14 @@ func update_frame() -> bool:
 	if "--perf-debug" in OS.get_cmdline_user_args():
 		print("M7A_FRAME_SCENE geometry=", (geometry_updated - started) / 1000.0,
 			" settlements=", (settlements_updated - geometry_updated) / 1000.0,
+			" settlement_layouts=", last_settlement_layout_rebuilds,
+			" structure_digest=", (digest_finished - geometry_updated) / 1000.0,
+			" layout=", (layout_finished - digest_finished) / 1000.0,
+			" camps=", (camps_finished - layout_finished) / 1000.0,
+			" settlement_upload=", (settlement_upload_finished - camps_finished) / 1000.0,
+			" monument_rig=", (rig_finished - settlement_upload_finished) / 1000.0,
+			" deposit_digest=", (deposit_digest_finished - rig_finished) / 1000.0,
+			" deposit_build_upload=", (deposits_finished - deposit_digest_finished) / 1000.0,
 			" people=", (people_finished - people_started) / 1000.0,
 			" herds=", (herds_finished - people_finished) / 1000.0,
 			" actor_build=", (actors_batched - settlements_updated) / 1000.0,
@@ -443,14 +471,14 @@ func _fire_lit(s: Dictionary) -> bool:
 
 ## Whether the fire of camp `ci` is burning: a camp keeps embers from the settlement that sent it out.
 func _camp_fire_lit(ci: int) -> bool:
-	return ci < w.camp_details.size() and _fire_lit_for_index(int(w.camp_details[ci][3]))
+	return ci < w.camp_details.size() and bool(_camp_parent_fire_by_index.get(int(w.camp_details[ci][3]), false))
 
-## Whether the fire of the settlement with this sim index (a camp's parent) is burning.
-func _fire_lit_for_index(index: int) -> bool:
+func _refresh_camp_fire_cache() -> void:
+	_camp_parent_fire_by_index.clear()
 	for s in w.settlements:
-		if int(s.get("index", -1)) == index:
-			return _fire_lit(s)
-	return false
+		var index := int(s.get("index", -1))
+		if index >= 0:
+			_camp_parent_fire_by_index[index] = _fire_lit(s)
 
 const FIELD_MESHES := ["field", "field_ard", "field_fallow", "field_plough"]
 
@@ -459,33 +487,7 @@ func _structure_digest() -> int:
 	var flagships := _flagships()
 	for si in w.settlements.size():
 		var s: Dictionary = w.settlements[si]
-		h = h * 31 + int(s.tile)
-		var civ := int(s.civ)
-		h = h * 31 + civ
-		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
-		h = h * 31 + sea
-		h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
-		if not bool(s.get("remembered")):
-			h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), int(s.population))
-			if sea > 0:
-				h = h * 31 + clampi(int(s.population) / 8, 1, 4)
-			h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
-			h = h * 31 + zig_stage(s)
-			h = h * 31 + mini(int(s.get("temples", 0)), 1)
-			h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
-			for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley", "water_mill", "temple_tier2"]:
-				h = h * 31 + w.iron_works(s, wid)
-			h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
-			h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
-			h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
-			h = h * 31 + int(s.get("facing", 0)) * 19 + hash(w.blockaders_of(int(s.get("index", -1))))
-			h = h * 31 + (w.iron_looks[civ] if civ >= 0 and civ < w.iron_looks.size() else 0) * 23 + w.overlord_of(civ) * 29 + (1 if w.in_league(civ) else 0) * 31
-			h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
-		for n in s.structures:
-			h = h * 31 + int(n)
-		h = h * 31 + (1 if _fire_lit(s) else 0)
-		for n in s.get("decor", PackedInt32Array()):
-			h = h * 31 + int(n) + 1
+		h = h * 31 + _settlement_layout_digest(si, s, flagships, 0)
 	h = h * 31 + hash(w.road_meta) + hash(w.road_tiles) + hash(w.terrace_tiles) + hash(w.iron_looks)
 	for i in range(0, w.plots.size(), 2):
 		h = h * 31 + w.plots[i] * 7 + w.plots[i + 1] + (field_kind(w.plots[i]) * 3 if w.plots[i + 1] == 0 else 0)
@@ -493,6 +495,50 @@ func _structure_digest() -> int:
 		var c: Array = w.camps[ci]
 		h = h * 31 + int(c[0]) * 7 + int(c[1])
 		h = h * 31 + (1 if _camp_fire_lit(ci) else 0)
+	return h
+
+## Inputs to one settlement's cached layout. `environment` covers shared occupancy and plots that can affect its outer works.
+func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, environment: int) -> int:
+	var h := 17
+	h = h * 31 + int(s.tile)
+	h = h * 31 + int(s.get("coreFront", 255))
+	for outer in s.get("coreOuter", []):
+		for value in outer:
+			h = h * 31 + int(value)
+	var civ := int(s.civ)
+	h = h * 31 + civ
+	h = h * 31 + environment
+	h = h * 31 + (1 if bool(s.get("remembered")) else 0)
+	h = h * 31 + hash(String(s.get("coreGallery", "")))
+	h = h * 31 + hash(String(s.get("coreStage", "")))
+	var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
+	h = h * 31 + sea
+	h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
+	if not bool(s.get("remembered")):
+		h = h * 31 + core.stage_of(s)
+		h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), int(s.population), core.dwelling_capacity(s))
+		if sea > 0:
+			h = h * 31 + clampi(int(s.population) / 8, 1, 4)
+		h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
+		h = h * 31 + zig_stage(s)
+		h = h * 31 + mini(int(s.get("temples", 0)), 1)
+		h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
+		for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley", "water_mill", "temple_tier2"]:
+			h = h * 31 + w.iron_works(s, wid)
+		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
+		h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
+		h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
+		h = h * 31 + int(s.get("facing", 0)) * 19 + hash(w.blockaders_of(int(s.get("index", -1))))
+		h = h * 31 + (w.iron_looks[civ] if civ >= 0 and civ < w.iron_looks.size() else 0) * 23 + w.overlord_of(civ) * 29 + (1 if w.in_league(civ) else 0) * 31
+		h = h * 31 + int(s.get("forge", 0)) * 5 + hash(w.siege_of(int(s.get("index", -1))))
+	var K := M7WorldData.Kind
+	for kind in s.structures.size():
+		if kind in [K.LEAN_TO, K.HIDE_TENT, K.PIT_HOUSE, K.WATTLE_HOUSE, K.MUDBRICK_HOUSE, K.LONGHOUSE]:
+			continue # _dwelling_signature covers only houses the core can display
+		h = h * 31 + int(s.structures[kind])
+	h = h * 31 + (1 if _fire_lit(s) else 0)
+	for n in s.get("decor", PackedInt32Array()):
+		h = h * 31 + int(n) + 1
 	return h
 
 func _border_digest() -> int:
@@ -732,11 +778,10 @@ func _vegetation() -> void:
 			trees = int(round(trees * (0.7 + 0.6 * grove)))
 		if near:
 			trees = trees / 2
-			if CORE_LAYOUT:
-				# the core's ring of hexes is the village's ground: grass only, no trees, bushes or rocks under the houses
-				trees = 0
-				bushes = 0
-				rocks = 0
+			# the core's ring of hexes is the village's ground: grass only, no trees, bushes or rocks under the houses
+			trees = 0
+			bushes = 0
+			rocks = 0
 		if river:
 			trees = trees * 2 / 3
 			reeds += 2
@@ -862,7 +907,7 @@ func _ok_site(p: Vector2, h0: float) -> bool:
 		return false
 	if absf(w.heights[t] - h0) > 0.06:
 		return false
-	if w.plot_kind[t] >= 0 and not _allow_plot_layout:
+	if w.plot_kind[t] >= 0:
 		return false
 	if w.biome[t] >= M7WorldData.Biome.MOUNTAIN:
 		return false
@@ -876,24 +921,25 @@ func plot_mode(tile: int) -> int:
 func plot_position(tile: int) -> Vector2:
 	return plot_display_position[tile] if tile >= 0 and tile < plot_display_position.size() else w.tile_center(tile)
 
-## Record the visual footprint of a higher-priority settlement feature. Economic plots remain on their original tiles;
-## this map only determines where their meshes and farm crews can be shown without colliding with the feature.
-func _reserve_plot_visual(p: Vector2, radius: float) -> void:
+## Record settlement features so deposit markers can shift to clear positions. Plots stay on their tiles and are hidden only when
+## the simulation claims that tile.
+func _record_visual_occupancy(p: Vector2, radius: float) -> void:
 	var r := maxf(radius, 0.04)
-	var rings := maxi(1, ceili(r / 0.12))
-	var touched := {}
-	for ring in range(rings + 1):
-		var rr := r * float(ring) / float(rings)
-		var samples := 1 if ring == 0 else 12
-		for i in samples:
-			var sample := p if ring == 0 else p + Vector2(cos(TAU * float(i) / samples), sin(TAU * float(i) / samples)) * rr
-			var tile := w.tile_at(sample)
-			if tile >= 0:
-				touched[tile] = true
-	for tile in touched:
-		var occupants: Array = _plot_occupants.get(tile, [])
-		occupants.append([p, r])
-		_plot_occupants[tile] = occupants
+	var centre_tile := w.tile_at(p)
+	if centre_tile < 0 or not _deposit_near_tiles.has(centre_tile):
+		return
+	if _capture_visual_records:
+		_active_visual_records.append([p, r])
+	if _deposit_tiles.has(centre_tile):
+		var centre_occupants: Array = _visual_occupants.get(centre_tile, [])
+		centre_occupants.append([p, r])
+		_visual_occupants[centre_tile] = centre_occupants
+	for d in 6:
+		var tile := w.neighbour(centre_tile, d)
+		if tile >= 0 and _deposit_tiles.has(tile) and p.distance_to(w.tile_center(tile)) <= r + 0.58:
+			var neighbour_occupants: Array = _visual_occupants.get(tile, [])
+			neighbour_occupants.append([p, r])
+			_visual_occupants[tile] = neighbour_occupants
 
 func _prepare_plot_visual_layout() -> void:
 	var count := w.width * w.height
@@ -902,9 +948,23 @@ func _prepare_plot_visual_layout() -> void:
 	plot_display_position.resize(count)
 	plot_display_scale.resize(count)
 	plot_display_scale.fill(0.0)
-	_plot_occupants.clear()
-	_settlement_core_tiles.clear()
+	_visual_occupants.clear()
+	_deposit_tiles.clear()
+	_deposit_near_tiles.clear()
+	_claimed_core_tiles.clear()
 	_settlement_tiles.clear()
+	var deposit_bytes: PackedByteArray = w.e3_overlay_bytes
+	if deposit_bytes.size() == count * 4:
+		for tile in count:
+			if deposit_bytes[tile * 4] > 0:
+				_deposit_tiles[tile] = true
+				_deposit_near_tiles[tile] = true
+				for d in 6:
+					var neighbour := w.neighbour(tile, d)
+					if neighbour >= 0:
+						_deposit_near_tiles[neighbour] = true
+	if core != null:
+		_claimed_core_tiles = core._sim_claimed_tiles.duplicate()
 	for s in w.settlements:
 		var tile := int(s.tile)
 		if tile < 0 or tile >= count:
@@ -912,17 +972,75 @@ func _prepare_plot_visual_layout() -> void:
 		_settlement_tiles[tile] = true
 		if bool(s.get("remembered")):
 			continue
-		_settlement_core_tiles[tile] = true
 		var centre: Vector2 = w.tile_center(tile)
-		# People gather and sleep around the hearth. Keep that whole small ring clear,
-		# so a core-tile field can only survive as a tiny cue at the tile edge.
-		_reserve_plot_visual(centre, 0.30)
-		_reserve_plot_visual(centre + Vector2(0.09, -0.07), 0.07)
+		# People gather and sleep around the hearth. Keep deposit markers clear of this area.
+		_record_visual_occupancy(centre, 0.30)
+		_record_visual_occupancy(centre + Vector2(0.09, -0.07), 0.07)
 
-## Deposits remain tied to their economic tile. On settlement or structure tiles, use a smaller edge marker
-## and leave enough room for the hearth, buildings, and any compact plot cue.
+func _merge_batcher_groups(target: M7Batcher, source_groups: Dictionary) -> void:
+	for key in source_groups:
+		var source: Dictionary = source_groups[key]
+		var destination = target.groups.get(key)
+		if destination == null:
+			destination = {"mesh": source.mesh, "count": 0, "buffer": PackedFloat32Array()}
+			target.groups[key] = destination
+		var buffer: PackedFloat32Array = destination.buffer
+		buffer.append_array(source.buffer)
+		destination.count += int(source.count)
+
+func _settlement_claims_signature() -> int:
+	var claims := core._sim_claimed_tiles.keys()
+	claims.sort()
+	var h := 17
+	for tile in claims:
+		h = h * 31 + int(tile)
+	return h
+
+func _settlement_layout_environment(s: Dictionary, claims_signature: int) -> int:
+	var h := claims_signature
+	var terrace := {}
+	for tile in w.terrace_tiles:
+		terrace[int(tile)] = true
+	var site := int(s.get("tile", -1))
+	for d in 7:
+		var tile := site if d == 0 else w.neighbour(site, d - 1)
+		if tile >= 0 and tile < w.plot_kind.size():
+			h = h * 31 + tile * 7 + int(w.plot_kind[tile])
+	for row in s.get("coreOuter", []):
+		var tile := int(row[0])
+		if tile < 0 or tile >= w.plot_kind.size():
+			continue
+		h = h * 31 + tile * 7 + int(w.plot_kind[tile]) + (1 if terrace.has(tile) else 0) * 13
+	return h
+
+func _apply_settlement_layout_cache(cache: Dictionary) -> void:
+	_merge_batcher_groups(props, cache.get("groups", {}))
+	for field in SETTLEMENT_LAYOUT_ARRAYS:
+		var rows: Array = cache.get(field, [])
+		get(field).append_array(rows)
+	for record in cache.get("visual_records", []):
+		_record_visual_occupancy(record[0], float(record[1]))
+	var row_offset := core._group - int(cache.get("group_start", 0))
+	var cached_rows: Array = cache.get("layout_rows", []).duplicate(true)
+	for row in cached_rows:
+		for item in row.get("items", []):
+			item["group"] = int(item.get("group", 0)) + row_offset
+	core._rows.append_array(cached_rows)
+	core._group += int(cache.get("group_count", 0))
+	for cue in cache.get("garden_cues", {}):
+		core.garden_cues[cue] = cache.garden_cues[cue]
+	for name in cache.get("gallery", {}):
+		core.gallery[name] = cache.gallery[name]
+	for name in cache.get("decor_spots", {}):
+		decor_spots[name] = cache.decor_spots[name]
+	if bool(cache.get("boat_probe_changed", false)):
+		boat_probe = cache.boat_probe
+	if bool(cache.get("chariot_probe_changed", false)):
+		chariot_probe = cache.chariot_probe
+
+## Deposits remain tied to their economic tile. Move and scale their marker on a settlement feature tile to keep it legible.
 func _deposit_visual_placement(tile: int, preferred: Vector2) -> Array:
-	var occupants: Array = _plot_occupants.get(tile, [])
+	var occupants: Array = _visual_occupants.get(tile, [])
 	if not _settlement_tiles.has(tile) and occupants.is_empty() and plot_mode(tile) != 2:
 		return [preferred, 1.0]
 	var centre: Vector2 = w.tile_center(tile)
@@ -950,46 +1068,19 @@ func _deposit_visual_placement(tile: int, preferred: Vector2) -> Array:
 	var scale_factor := clampf((best_clearance - 0.025) / (DEPOSIT_SCALE * 0.17), 0.35, 0.65)
 	return [best_position, scale_factor]
 
+## Keep economic plots at their actual tile and full scale. Core claims suppress them until the sim releases them.
 func _finish_plot_visual_layout() -> void:
 	var signature := 17
 	for pi in range(0, w.plots.size(), 2):
 		var tile := int(w.plots[pi])
 		if tile < 0 or tile >= plot_display_mode.size():
 			continue
-		var centre: Vector2 = w.tile_center(tile)
-		var occupants: Array = _plot_occupants.get(tile, [])
-		if occupants.is_empty():
-			plot_display_mode[tile] = 1
-			plot_display_position[tile] = centre
-			plot_display_scale[tile] = 1.0
-		else:
-			# A compact patch sits at the clearest edge of the hex. The core tile is
-			# always treated this way, leaving its hearth, banner and resting figures legible.
-			var best_position := centre
-			var best_clearance := -INF
-			var candidate_radius := 0.42 if _settlement_core_tiles.has(tile) else 0.34
-			for side in 6:
-				var direction: Vector2 = M7WorldData.corner((tile + side) % 6).normalized()
-				var candidate := centre + direction * candidate_radius
-				var clearance := INF
-				for occupied in occupants:
-					clearance = minf(clearance, candidate.distance_to(occupied[0]) - float(occupied[1]))
-				if clearance > best_clearance:
-					best_clearance = clearance
-					best_position = candidate
-			var patch_scale := 0.0
-			if best_clearance >= 0.15:
-				patch_scale = 0.28
-			elif best_clearance >= 0.075:
-				patch_scale = 0.14
-			if patch_scale > 0.0:
-				plot_display_mode[tile] = 2
-				plot_display_position[tile] = best_position
-				plot_display_scale[tile] = patch_scale
-		signature = signature * 31 + tile * 7 + int(w.plots[pi + 1]) + int(plot_display_mode[tile])
-		var pos: Vector2 = plot_display_position[tile]
-		signature = signature * 31 + roundi(pos.x * 1000.0) + roundi(pos.y * 1000.0) * 3
-		signature = signature * 31 + roundi(plot_display_scale[tile] * 1000.0)
+		if _claimed_core_tiles.has(tile):
+			continue
+		plot_display_mode[tile] = 1
+		plot_display_position[tile] = w.tile_center(tile)
+		plot_display_scale[tile] = 1.0
+		signature = signature * 31 + tile * 7 + int(w.plots[pi + 1]) + 1
 	plot_layout_signature = signature
 
 func _draw_plots(terrace_set: Dictionary) -> void:
@@ -1122,9 +1213,13 @@ func _civic_site(c: Vector2, h0: float, seed: float, kind: String, placed: Array
 	return null
 
 func _settlements() -> void:
-	var K := M7WorldData.Kind
+	var profile_started := Time.get_ticks_usec()
+	if core == null:
+		core = M7CoreLayout.new(self)
+	core.begin()
+	var profile_claims := Time.get_ticks_usec()
 	_prepare_plot_visual_layout()
-	_allow_plot_layout = true
+	var profile_plot_prep := Time.get_ticks_usec()
 	hearths.clear()
 	villages.clear()
 	ziggurat_sites.clear()
@@ -1145,293 +1240,112 @@ func _settlements() -> void:
 		terrace_set[int(tt)] = true
 
 	var flagship := _flagships()
-	if CORE_LAYOUT:
-		if core == null:
-			core = M7CoreLayout.new(self)
-		core.begin()
+	var claims_signature := _settlement_claims_signature()
+	last_settlement_layout_rebuilds = 0
 	for si in w.settlements.size():
 		var s: Dictionary = w.settlements[si]
-		var t := int(s.tile)
-		var civ := int(s.civ)
-		var st: Array = s.structures
-		var cc := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
-		var h0: float = w.heights[t]
-		var c0 := w.tile_center(t)
-		# hearth: the tile centre, or nudged off a river
-		var c := c0
-		if _river_dist(c0) < 0.14:
+		var tile := int(s.tile)
+		var h0: float = w.heights[tile]
+		var centre := w.tile_center(tile)
+		var hearth := centre
+		if _river_dist(centre) < 0.14:
 			for i in 12:
-				var a := TAU * i / 12.0
-				var q := c0 + Vector2(cos(a), sin(a)) * 0.2
-				if _ok_site(q, h0) and _river_dist(q) > 0.16:
-					c = q
+				var angle := TAU * i / 12.0
+				var candidate := centre + Vector2(cos(angle), sin(angle)) * 0.2
+				if _ok_site(candidate, h0) and _river_dist(candidate) > 0.16:
+					hearth = candidate
 					break
-		_reserve_plot_visual(c, 0.13)
-		_reserve_plot_visual(c + Vector2(0.09, -0.07), 0.07)
-		var seed := float(t % 997) / 997.0
-		hearths.append(Vector3(c.x, h0, c.y))
 		if bool(s.get("remembered")):
-			villages.append(Vector3(c.x, c.y, 0.25))
+			settlement_layout_cache.erase(si)
+			_record_visual_occupancy(hearth, 0.13)
+			_record_visual_occupancy(hearth + Vector2(0.09, -0.07), 0.07)
+			hearths.append(Vector3(hearth.x, h0, hearth.y))
+			villages.append(Vector3(hearth.x, hearth.y, 0.25))
 			continue
-		if CORE_LAYOUT:
-			core.settlement(si, s, c, flagship)
+		var layout_signature := _settlement_layout_digest(si, s, flagship, _settlement_layout_environment(s, claims_signature))
+		var cached: Dictionary = settlement_layout_cache.get(si, {})
+		if int(cached.get("signature", -1)) == layout_signature:
+			_apply_settlement_layout_cache(cached)
 			continue
-		if st[K.HEARTH] > 0:
-			props.add("hearth", _xf(c, h0, seed * TAU, VS), Color(1, 1, 1, seed))
-			if _fire_lit(s):
-				props.add("flame", _xf(c, h0 + 0.004, seed * TAU, VS), Color(1, 1, 1, seed))
-		props.add("banner%d" % civ, _xf(c + Vector2(0.09, -0.07), h0, -0.4, VS), Color(cc.r, cc.g, cc.b, seed))
+		last_settlement_layout_rebuilds += 1
+		var outer_props: M7Batcher = props
+		props = M7Batcher.new()
+		props.chunk_size = STATIC_CHUNK_SIZE
+		props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
+		var array_starts := {}
+		for field in SETTLEMENT_LAYOUT_ARRAYS:
+			array_starts[field] = get(field).size()
+		var rows_start := core._rows.size()
+		var group_start := core._group
+		var garden_before: Dictionary = core.garden_cues.duplicate(true)
+		var gallery_before: Dictionary = core.gallery.duplicate(true)
+		var decor_before: Dictionary = decor_spots.duplicate(true)
+		var boat_before := boat_probe
+		var chariot_before := chariot_probe
+		_active_visual_records = []
+		_capture_visual_records = true
+		_record_visual_occupancy(hearth, 0.13)
+		_record_visual_occupancy(hearth + Vector2(0.09, -0.07), 0.07)
+		hearths.append(Vector3(hearth.x, h0, hearth.y))
+		core.settlement(si, s, hearth, flagship)
+		_capture_visual_records = false
+		var result := {"signature": layout_signature, "groups": props.groups, "visual_records": _active_visual_records.duplicate(true),
+			"group_start": group_start, "group_count": core._group - group_start,
+			"layout_rows": core._rows.slice(rows_start)}
+		for field in SETTLEMENT_LAYOUT_ARRAYS:
+			var entries: Array = get(field)
+			result[field] = entries.slice(int(array_starts[field]))
+		var changed_cues := {}
+		for cue in core.garden_cues:
+			if not garden_before.has(cue) or garden_before[cue] != core.garden_cues[cue]:
+				changed_cues[cue] = core.garden_cues[cue]
+		result["garden_cues"] = changed_cues
+		var changed_gallery := {}
+		for name in core.gallery:
+			if not gallery_before.has(name) or gallery_before[name] != core.gallery[name]:
+				changed_gallery[name] = core.gallery[name]
+		result["gallery"] = changed_gallery
+		var changed_decor := {}
+		for name in decor_spots:
+			if not decor_before.has(name) or decor_before[name] != decor_spots[name]:
+				changed_decor[name] = decor_spots[name]
+		result["decor_spots"] = changed_decor
+		result["boat_probe_changed"] = boat_probe != boat_before
+		result["boat_probe"] = boat_probe
+		result["chariot_probe_changed"] = chariot_probe != chariot_before
+		result["chariot_probe"] = chariot_probe
+		props = outer_props
+		_merge_batcher_groups(props, result.groups)
+		settlement_layout_cache[si] = result
 
-		# items to lay out on a sunflower spiral around the hearth
-		var items := _dwellings(st, int(s.get("halls", 0)), int(s.population))
-		var extras := [[K.STORAGE_PIT, "storagepit", 3], [K.DRYING_RACK, "dryingrack", 2], [K.GRANARY, "granary", 2],
-			[K.KILN, "kiln", 1], [K.QUERN, "quern", 2], [K.TOTEM, "totem", 1]]
-		var ins := 2
-		for ex in extras:
-			var n := mini(_built(st, ex[0]), 4)
-			if n > 0:
-				n = maxi(n, ex[2])
-			for j in n:
-				items.insert(mini(ins, items.size()), ex[1])
-				ins += 3
-		# a potter's workshop (CER-04) stands next to the kiln it needs: the next free spot on the spiral
-		if _built(st, K.POTTERS_WORKSHOP) > 0:
-			var kiln_at := items.find("kiln")
-			items.insert(kiln_at + 1 if kiln_at >= 0 else mini(ins, items.size()), "potters_workshop")
-		var placed := []
-		var placed_r := []
-		var landmarks_seed := []
-		# the ziggurat (BLD-08) takes the heart of the city: houses spiral round it, the stair faces the hearth
-		var zs := zig_stage(s)
-		var zsite = _ziggurat_site(c, h0, seed) if zs > 0 else null
-		if zsite != null:
-			placed.append(zsite.p)
-			placed_r.append(0.36)
-			_reserve_plot_visual(zsite.p, 0.54)
-			landmarks_seed.append([zsite.p, 0.8])
-			var zp: Vector2 = zsite.p
-			props.add(M7MeshKit.ZIG_MESHES[zs - 1], _xf(zp, zsite.y, zsite.yaw, ZIG_SCALE),
-				Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 91)))
-			if zs == 4:
-				var o: Vector3 = rot_y(zsite.yaw) * (Vector3(-0.056, 0.314, -0.09) * ZIG_SCALE)
-				props.add("banner%d" % civ, _xf(zp + Vector2(o.x, o.z), zsite.y + o.y, -0.4, 1.0), Color(cc.r, cc.g, cc.b, seed))
-			ziggurat_sites.append({"p": zp, "y": zsite.y, "yaw": zsite.yaw, "stage": zs, "civ": civ, "seed": seed, "tile": t})
-			decor_spots["ziggurat"] = zp
-		# the temple (BEL-06), one drawn, beside the ziggurat when the city has both
-		if int(s.get("temples", 0)) > 0:
-			var tsite = _civic_site(c, h0, seed, "temple", placed, placed_r)
-			if tsite != null:
-				var spec: Array = CIVIC["temple"]
-				var tp: Vector2 = tsite.p
-				var temple_mesh: String = "temple_tier2" if w.has_look(civ, M7WorldData.LOOK_COLONNADES) else String(spec[0])   # STN-12: a colonnade
-				props.add(temple_mesh, _xf(tp, tsite.y, tsite.yaw, spec[1]), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 92)))
-				placed.append(tp)
-				placed_r.append(float(spec[4]) / VS)
-				_reserve_plot_visual(tp, float(spec[4]) + 0.12)
-				landmarks_seed.append([tp, 0.6])
-				civic_sites.append({"kind": "temple", "p": tp, "y": tsite.y, "yaw": tsite.yaw, "civ": civ, "seed": seed, "tile": t})
-				decor_spots["temple_built"] = tp
-				if w.iron_works(s, "temple_tier2") > 0:
-					_colonnade(tsite, h0, cc, t, placed, placed_r)
-		# Iron civic works (academy, theatre or arena, bathhouse, crane): each stands on the best level ground left round the hearth
-		for cw in CIVIC_WORKS:
-			if w.iron_works(s, String(cw[1])) > 0:
-				_place_civic(String(cw[0]), s, t, c, h0, seed, placed, placed_r, civ, cc)
-		# a building going up (own towns only, as the sim sends it): its site, in stages
-		var build_k := int(s.get("ironBuildKind", -1))
-		if build_k >= 0 and build_k < w.iron_work_ids.size() and SITE_KINDS.has(String(w.iron_work_ids[build_k])):
-			var pm := int(s.get("ironBuildPermille", 0))
-			if pm > 0:
-				var wonder := String(w.iron_work_ids[build_k]).begins_with("great_")
-				_place_civic("wsite" if wonder else "site", s, t, c, h0, seed, placed, placed_r, civ, cc, 1 + mini(2, pm * 3 / 1000))
-		var slot := 0
-		var rmax := 0.0
-		var tiled_roofs := civ >= 0 and w.has_look(civ, M7WorldData.LOOK_TILES)
-		for it in items:
-			var p := Vector2.ZERO
-			var found := false
-			var ri := _item_radius(it)
-			while slot < 160:
-				var a := slot * 2.39996 + seed * TAU
-				var r := 0.112 * VS * sqrt(slot + 3.2)
-				slot += 1
-				var q := c + Vector2(cos(a), sin(a)) * r
-				if not _ok_site(q, h0):
-					continue
-				var clear := true
-				for k in placed.size():
-					if (placed[k] as Vector2).distance_to(q) < (placed_r[k] + ri) * VS:
-						clear = false
-						break
-				if not clear:
-					continue
-				p = q
-				found = true
-				break
-			if not found:
-				break
-			placed.append(p)
-			placed_r.append(ri)
-			_reserve_plot_visual(p, ri * VS + 0.04)
-			rmax = maxf(rmax, p.distance_to(c))
-			var d := c - p
-			var ang := atan2(d.x, d.y)
-			var sc := VS * (0.95 + 0.15 * M7WorldData.hash01(t, placed.size(), 5))
-			# CER-08 Fired Brick & Tile: wattle, mudbrick and long houses wear terracotta tiles
-			var shown_mesh: String = it + "_tile" if tiled_roofs and it in TILED_HOUSES else it
-			props.add(shown_mesh, _xf(p, w.height_at(p), ang, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, placed.size(), 6)))
-		if zsite != null:
-			rmax = maxf(rmax, ZIG_OFFSET + 0.3)
-		for cs in civic_sites:
-			if int(cs.tile) == t:
-				rmax = maxf(rmax, ((cs.p as Vector2) - c).length() + 0.4)
-		villages.append(Vector3(c.x, c.y, rmax * 0.75 + 0.08))
-		var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
-		# a harbor (SEA-07): quay and piers on the shore, the boats moored between the piers
-		var has_harbor := w.iron_works(s, "harbor") > 0 and _harbor(s, t, c0, seed, cc)
-		_lighthouse(s, t, c0, seed)
-		if sea > 0:
-			_moor_fleet(t, c0, seed, sea, int(s.population), cc, has_harbor)
-		var decor := _village_decor(s.get("decor", PackedInt32Array()), civ, si, flagship)
-		var decor_extent := 0.0
-		if decor.size() > 0:
-			decor_extent = _place_decor(decor, t, c, c0, h0, seed, rmax, placed, cc, st[K.THORN_BARRIER] > 0, landmarks_seed, int(st[K.STONE_WALLS]) > 0)
-		# lookout tower with a big banner at the edge
-		var edge_taken := []     # where the lookout and the signal post stand
-		if st[K.LOOKOUT] > 0:
-			for i in 12:
-				var a := TAU * i / 12.0 + seed * 3.0
-				var q := c + Vector2(cos(a), sin(a)) * (rmax + 0.12)
-				if _ok_site(q, h0):
-					props.add("lookout", _xf(q, w.height_at(q), a, VS), Color(cc.r, cc.g, cc.b, seed))
-					props.add("banner_small%d" % civ, _xf(q, w.height_at(q) + 0.285 * VS, -0.4, VS), Color(cc.r, cc.g, cc.b, seed))
-					_reserve_plot_visual(q, 0.18)
-					edge_taken.append(q)
-					break
-		# a signal post (COM-04): a braced mast with a brazier at the edge, on another bearing than the lookout
-		if _built(st, K.SIGNAL_POST) > 0:
-			var post = _edge_site(c, h0, seed * TAU + 1.3, rmax + 0.17, 0.2, placed, edge_taken)
-			if post != null:
-				props.add("signal_post", _xf(post.p, post.y, post.yaw, VS), Color(cc.r, cc.g, cc.b, seed))
-				_reserve_plot_visual(post.p, 0.16)
-				placed.append(post.p)
-				edge_taken.append(post.p)
-		# thorn barrier ring with a gate
-		if st[K.THORN_BARRIER] > 0:
-			var ring := rmax + 0.13
-			var nseg := int(ceil(TAU * ring / (0.11 * 1.2)))
-			var gate := int(seed * nseg)
-			for i in nseg:
-				if i == gate or i == (gate + 1) % nseg:
-					continue
-				var a := TAU * (i + 0.5) / nseg
-				var q := c + Vector2(cos(a), sin(a)) * ring * (1.0 + 0.08 * sin(a * 3.0 + seed * 7.0) + 0.04 * (M7WorldData.hash01(t, i, 7) - 0.5))
-				if M7WorldData.hash01(t, i, 10) < 0.04:
-					continue
-				var tq := w.tile_at(q)
-				if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.08:
-					continue
-				var tang := a + PI * 0.5
-				props.add("thorn", _xf(q, w.height_at(q), -tang, 1.2 + 0.1 * M7WorldData.hash01(t, i, 8)), Color(1, 1, 1, M7WorldData.hash01(t, i, 9)))
-				_reserve_plot_visual(q, 0.08)
-		# stone walls (DEF-05) ring the village, a gatehouse (DEF-06) towers over its gate, and a castle (DEF-08) holds the ground outside
-		var wall_rings := int(st[K.STONE_WALLS])
-		var wall_base := rmax
-		var gate_pref := seed * TAU
-		if zsite != null:
-			# the ziggurat is wider than the village's own reach: the ring stands outside it, and its gate faces away from it
-			wall_base = maxf(rmax, ZIG_OFFSET + 0.55)
-			var zd: Vector2 = (zsite.p as Vector2) - c
-			gate_pref = atan2(zd.y, zd.x) + PI
-		# an Iron forge yard (MET-09) and the garrison's drill ground stand inside the ring too
-		decor_extent = maxf(decor_extent, _forge_yard(s, c, h0, seed, rmax, placed))
-		decor_extent = maxf(decor_extent, _drill(s, c, h0, seed, rmax, placed, civ))
-		decor_extent = maxf(decor_extent, _goods(s, c, h0, seed, rmax, placed, civ))
-		decor_extent = maxf(decor_extent, _pacts(si, c, h0, seed, rmax, placed, civ, flagship))
-		decor_extent = maxf(decor_extent, _faith_standards(s, c, h0, seed, rmax, placed))
-		decor_extent = maxf(decor_extent, _province_standards(s, si, c, h0, seed, rmax, placed, cc))
-		# the ring stands round the houses and the landmarks and near props that were laid out with them
-		var ring_r := maxf(wall_base + WALL_RING, decor_extent + 0.14)
-		_outer_works(s, c, h0, seed, (ring_r if wall_rings > 0 else maxf(wall_base, decor_extent)), placed, cc)
-		var siege := _siege_info(s, c, seed)
-		var gate_at := Vector2(1e9, 1e9)
-		if wall_rings > 0:
-			gate_at = _stone_walls(t, c, seed, ring_r, wall_rings, w.iron_works(s, "gatehouse") > 0, gate_pref, siege)
-		_aqueduct(s, c, h0, seed, ring_r if wall_rings > 0 else wall_base, gate_at)
-		_frontier_walls(s, si, c, h0, seed, ring_r if wall_rings > 0 else wall_base)
-		if not siege.is_empty():
-			_siege_camp(c, seed, ring_r if wall_rings > 0 else wall_base + 0.2, siege, cc)
-		_castle(s, t, c, h0, seed, (ring_r + CASTLE_GAP_WALLED) if wall_rings > 0 else wall_base + CASTLE_GAP_OPEN, placed, cc, gate_at)
-		# weir in the nearest water
-		if st[K.WEIR] > 0:
-			for i in 6:
-				var nb := w.neighbour(t, i)
-				if nb >= 0 and w.is_water(nb):
-					var q := (c0 + w.tile_center(nb)) * 0.5 + (w.tile_center(nb) - c0) * 0.12
-					props.add("weir", _xf(q, -0.02, atan2((w.tile_center(nb) - c0).x, (w.tile_center(nb) - c0).y), 1.0), Color(1, 1, 1, seed))
-					_reserve_plot_visual(q, 0.14)
-					break
-			# a weir across the river where it passes the village
-			var best := 1e9
-			var bq := Vector2.ZERO
-			var bd := Vector2.ZERO
-			for sgi in river_segs:
-				var a2: Vector2 = sgi[0]
-				if a2.distance_to(c) > 0.9:
-					continue
-				var dd := absf(a2.distance_to(c) - 0.42)
-				if dd < best:
-					best = dd
-					bq = a2
-					bd = (sgi[1] as Vector2) - a2
-			if best < 0.3:
-				props.add("weir", _xf(bq, w.height_at(bq) + 0.02, atan2(bd.x, bd.y), 0.55), Color(1, 1, 1, seed))
-				_reserve_plot_visual(bq, 0.12)
-		# pasture: a fenced paddock with a few sheep on a free neighbour tile
-		if st[K.PASTURE] > 0:
-			for i in 6:
-				var nb := w.neighbour(t, (i + int(seed * 6.0)) % 6)
-				if nb < 0 or not w.is_land(nb) or (w.plot_kind[nb] >= 0 and not _allow_plot_layout) or w.biome[nb] >= M7WorldData.Biome.MOUNTAIN:
-					continue
-				if w.flags[nb] & M7WorldData.FLAG_RIVER:
-					continue
-				var pc := w.tile_center(nb)
-				var ph: float = w.heights[nb]
-				_reserve_plot_visual(pc, 0.32)
-				var pr := 0.3
-				for e in 6:
-					var a0 := M7WorldData.corner(e) / M7WorldData.R * pr
-					var a1 := M7WorldData.corner((e + 1) % 6) / M7WorldData.R * pr
-					for half in 2:
-						var q := pc + a0.lerp(a1, 0.25 + 0.5 * half)
-						var dd := a1 - a0
-						props.add("fence", _xf(q, ph, -atan2(dd.y, dd.x), 1.15), Color(1, 1, 1, 0.5))
-				# wool breeds (HUS-06) fill the paddock: a bigger flock of fuller fleeces
-				var wool := w.has_look(civ, M7WorldData.LOOK_WOOL)
-				for j in (10 if wool else 4):
-					var q := pc + Vector2(cos(j * 1.7 + seed), sin(j * 1.7 + seed)) * (0.06 + 0.04 * j)
-					if wool:
-						q = pc + Vector2(cos(j * 2.39996 + seed), sin(j * 2.39996 + seed)) * (0.045 * sqrt(j + 0.6))
-					var dark := j == 2 or (wool and j == 7)
-					props.add("animal_woolly", _xf(q, ph, j * 2.1 + seed, 1.14 if wool else 1.0),
-						_glide_custom((6 * 8 + 4) if not dark else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
-				break
-
+	var profile_settlements := Time.get_ticks_usec()
 	_bridges()
+	var profile_bridges := Time.get_ticks_usec()
 	_relay_posts()
-	_allow_plot_layout = false
+	var profile_relays := Time.get_ticks_usec()
 	_finish_plot_visual_layout()
-	if CORE_LAYOUT:
-		_apply_garden_cues()
+	_apply_garden_cues()
 	_draw_plots(terrace_set)
-	if CORE_LAYOUT:
-		for arg in OS.get_cmdline_user_args():
-			if arg.begins_with("--layout-dump="):
-				core.write_dump(arg.trim_prefix("--layout-dump="))
+	var profile_plots := Time.get_ticks_usec()
+	deposit_placement_signature = _deposit_placement_digest()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--layout-dump="):
+			core.write_dump(arg.trim_prefix("--layout-dump="))
+	if OS.get_cmdline_user_args().has("--perf-debug"):
+		print("M7A_SETTLEMENT_PHASE claims=", (profile_claims - profile_started) / 1000.0,
+			" plot_prep=", (profile_plot_prep - profile_claims) / 1000.0,
+			" layouts=", (profile_settlements - profile_plot_prep) / 1000.0,
+			" bridges=", (profile_bridges - profile_settlements) / 1000.0,
+			" relays=", (profile_relays - profile_bridges) / 1000.0,
+			" plots=", (profile_plots - profile_relays) / 1000.0,
+			" total=", (profile_plots - profile_started) / 1000.0)
 
-## Core layout: plots the sim keeps on a core hex are drawn as the garden cues core_layout.gd chose (a compact patch, or hidden).
+## Suppress plots on every simulation-claimed core or outer tile.
 func _apply_garden_cues() -> void:
 	for tile in core.garden_cues:
+		if _claimed_core_tiles.has(tile):
+			plot_display_mode[tile] = 0
+			continue
 		var cue: Array = core.garden_cues[tile]
 		if float(cue[1]) <= 0.0:
 			plot_display_mode[tile] = 0
@@ -1449,67 +1363,85 @@ const TILED_HOUSES := ["wattle", "mudbrick", "longhouse"]
 const DWELL_CAPACITY := {"leanto": 4, "tent": 5, "hide_tent": 5, "pithouse": 6, "wattle": 8, "mudbrick": 8, "longhouse": 25, "hall": 30}
 const DWELL_RADIUS := {"leanto": 0.085, "tent": 0.08, "hide_tent": 0.08, "pithouse": 0.105, "wattle": 0.1, "mudbrick": 0.095, "longhouse": 0.165, "hall": 0.2,
 	"totem": 0.06, "potters_workshop": 0.15}
-const DWELL_MAX_EACH := 10
-const DWELL_MAX_TOTAL := 36
-
-func _dwelling_signature(st: Array, halls: int, pop: int) -> int:
+func _dwelling_signature(st: Array, halls: int, pop: int, visual_capacity: int) -> int:
 	var K := M7WorldData.Kind
-	var built_hide_tent := int(st[K.HIDE_TENT])
-	var built_leanto := int(st[K.LEAN_TO])
-	var built_pithouse := int(st[K.PIT_HOUSE])
-	var built_wattle := int(st[K.WATTLE_HOUSE])
-	var built_mudbrick := int(st[K.MUDBRICK_HOUSE])
-	var built_longhouse := int(st[K.LONGHOUSE])
-	var shown_hall := mini(halls, DWELL_MAX_EACH)
-	var shown_longhouse := mini(built_longhouse, DWELL_MAX_EACH)
-	var shown_mudbrick := mini(built_mudbrick, DWELL_MAX_EACH)
-	var shown_wattle := mini(built_wattle, DWELL_MAX_EACH)
-	var shown_pithouse := mini(built_pithouse, DWELL_MAX_EACH)
-	var shown_hide_tent := mini(built_hide_tent, DWELL_MAX_EACH)
-	var shown_leanto := mini(built_leanto, DWELL_MAX_EACH)
-	if built_pithouse + built_wattle + built_mudbrick + built_longhouse > 0:
+	var shown_hall := halls
+	var shown_longhouse := int(st[K.LONGHOUSE])
+	var shown_mudbrick := int(st[K.MUDBRICK_HOUSE])
+	var shown_wattle := int(st[K.WATTLE_HOUSE])
+	var shown_pithouse := int(st[K.PIT_HOUSE])
+	var shown_hide_tent := int(st[K.HIDE_TENT])
+	var shown_leanto := int(st[K.LEAN_TO])
+	if shown_pithouse + shown_wattle + shown_mudbrick + shown_longhouse > 0:
 		shown_hide_tent = 0
 		shown_leanto = 0
-	if built_wattle + built_mudbrick + built_longhouse > 0:
+	if shown_wattle + shown_mudbrick + shown_longhouse > 0:
 		shown_pithouse = 0
-	if built_mudbrick + built_longhouse > 0:
+	if shown_mudbrick + shown_longhouse > 0:
 		shown_wattle = 0
 	var covered := shown_hall * int(DWELL_CAPACITY.hall) + shown_longhouse * int(DWELL_CAPACITY.longhouse) \
 		+ shown_mudbrick * int(DWELL_CAPACITY.mudbrick) + shown_wattle * int(DWELL_CAPACITY.wattle) \
 		+ shown_pithouse * int(DWELL_CAPACITY.pithouse) + shown_hide_tent * int(DWELL_CAPACITY.hide_tent) \
 		+ shown_leanto * int(DWELL_CAPACITY.leanto)
 	var short := maxi(0, pop - covered)
-	var extra_type := ""
-	var extra_count := 0
-	if short > 0:
-		var filler := "leanto" if built_leanto > 0 else "tent"
-		if built_hide_tent > 0:
-			filler = "hide_tent"
-		if built_pithouse > 0:
-			filler = "pithouse"
-		if built_wattle > 0:
-			filler = "wattle"
-		if built_mudbrick > 0:
-			filler = "mudbrick"
-		if (filler == "tent" or filler == "leanto" or filler == "hide_tent") and built_longhouse > 0 and built_pithouse + built_wattle + built_mudbrick == 0:
-			filler = "longhouse"
-		extra_type = filler
-		extra_count = mini(ceili(float(short) / float(DWELL_CAPACITY[filler])), maxi(0, DWELL_MAX_TOTAL \
-			- shown_hall - shown_longhouse - shown_mudbrick - shown_wattle - shown_pithouse - shown_hide_tent - shown_leanto))
-	if shown_hall + shown_longhouse + shown_mudbrick + shown_wattle + shown_pithouse + shown_hide_tent + shown_leanto + extra_count == 0 and pop > 0:
-		extra_type = "tent"
-		extra_count = 1
+	var filler := "leanto" if int(st[K.LEAN_TO]) > 0 else "tent"
+	if int(st[K.HIDE_TENT]) > 0: filler = "hide_tent"
+	if int(st[K.PIT_HOUSE]) > 0: filler = "pithouse"
+	if int(st[K.WATTLE_HOUSE]) > 0: filler = "wattle"
+	if int(st[K.MUDBRICK_HOUSE]) > 0: filler = "mudbrick"
+	if short > 0 and filler in ["tent", "leanto", "hide_tent"] and int(st[K.LONGHOUSE]) > 0 and int(st[K.PIT_HOUSE]) + int(st[K.WATTLE_HOUSE]) + int(st[K.MUDBRICK_HOUSE]) == 0:
+		filler = "longhouse"
+	var remaining := maxi(0, visual_capacity)
 	var signature := 17
-	for count in [shown_hall, shown_longhouse, shown_mudbrick, shown_wattle, shown_pithouse, shown_hide_tent, shown_leanto]:
+	var count := mini(shown_hall, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("hall")
 		signature = signature * 31 + count
-	signature = signature * 31 + (hash(extra_type) if extra_count > 0 else 0)
-	signature = signature * 31 + extra_count
+		remaining -= count
+	count = mini(shown_longhouse, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("longhouse")
+		signature = signature * 31 + count
+		remaining -= count
+	count = mini(shown_mudbrick, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("mudbrick")
+		signature = signature * 31 + count
+		remaining -= count
+	count = mini(shown_wattle, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("wattle")
+		signature = signature * 31 + count
+		remaining -= count
+	count = mini(shown_pithouse, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("pithouse")
+		signature = signature * 31 + count
+		remaining -= count
+	count = mini(shown_hide_tent, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("hide_tent")
+		signature = signature * 31 + count
+		remaining -= count
+	count = mini(shown_leanto, remaining)
+	if count > 0:
+		signature = signature * 31 + hash("leanto")
+		signature = signature * 31 + count
+		remaining -= count
+	if remaining > 0:
+		var extra := mini(ceili(float(short) / float(DWELL_CAPACITY[filler])) if short > 0 else 0, remaining)
+		if shown_hall + shown_longhouse + shown_mudbrick + shown_wattle + shown_pithouse + shown_hide_tent + shown_leanto + extra == 0 and pop > 0:
+			extra = 1
+			filler = "tent"
+		if extra > 0:
+			signature = signature * 31 + hash(filler)
+			signature = signature * 31 + extra
 	return signature
 
 func _item_radius(mesh_name: String) -> float:
 	return DWELL_RADIUS.get(mesh_name, 0.075)
 
-func _dwellings(st: Array, halls: int, pop: int) -> Array:
+func _dwellings(st: Array, halls: int, pop: int, visual_capacity: int) -> Array:
 	var K := M7WorldData.Kind
 	var built := {
 		"leanto": int(st[K.LEAN_TO]), "tent": 0, "hide_tent": int(st[K.HIDE_TENT]), "pithouse": int(st[K.PIT_HOUSE]),
@@ -1522,9 +1454,7 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 	for nm in ["pithouse", "wattle", "mudbrick"]:
 		if built[nm] > 0:
 			filler = nm
-	var shown := {}
-	for nm in built:
-		shown[nm] = mini(int(built[nm]), DWELL_MAX_EACH)
+	var shown := built.duplicate()
 	if built.pithouse + built.wattle + built.mudbrick + built.longhouse > 0:
 		shown.leanto = 0
 		shown.hide_tent = 0
@@ -1538,17 +1468,18 @@ func _dwellings(st: Array, halls: int, pop: int) -> Array:
 	var short := maxi(0, pop - covered)
 	var out := []
 	for nm in ["hall", "longhouse", "mudbrick", "wattle", "pithouse", "hide_tent", "tent", "leanto"]:
-		for i in int(shown[nm]):
+		var count := mini(int(shown[nm]), maxi(0, visual_capacity - out.size()))
+		for i in count:
 			out.append(nm)
+		if out.size() >= visual_capacity:
+			return out
 	if short > 0:
-		if (filler == "tent" or filler == "leanto" or filler == "hide_tent") and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
+		if filler in ["tent", "leanto", "hide_tent"] and built.longhouse > 0 and built.pithouse + built.wattle + built.mudbrick == 0:
 			filler = "longhouse"
-		var more := ceili(float(short) / float(DWELL_CAPACITY[filler]))
+		var more := mini(ceili(float(short) / float(DWELL_CAPACITY[filler])), maxi(0, visual_capacity - out.size()))
 		for i in more:
-			if out.size() >= DWELL_MAX_TOTAL:
-				break
 			out.append(filler)
-	if out.is_empty() and pop > 0:
+	if out.is_empty() and pop > 0 and visual_capacity > 0:
 		out.append("tent")
 	return out
 
@@ -1649,7 +1580,7 @@ func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float
 		var sc := VS * (0.95 + 0.12 * M7WorldData.hash01(t, kind_i, 12))
 		var y := w.height_at(p)
 		props.add(mesh_name, _xf(p, y, ang, sc), tint)
-		_reserve_plot_visual(p, maxf(0.12, need * VS + 0.04))
+		_record_visual_occupancy(p, maxf(0.12, need * VS + 0.04))
 		if decor_name == "signal":
 			props.add("flame", _xf(p, y + 0.05 * sc, ang, 0.8), Color(1, 1, 1, seed))
 	return extent
@@ -1666,7 +1597,7 @@ func _place_civic(kind: String, s: Dictionary, t: int, c: Vector2, h0: float, se
 	var mesh_name: String = spec[0] if stage <= 0 else "build_site_%d" % stage
 	var tp: Vector2 = site.p
 	props.add(mesh_name, _xf(tp, site.y, site.yaw, spec[1]), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, kind.length(), 93)))
-	_reserve_plot_visual(tp, float(spec[4]) + 0.12)
+	_record_visual_occupancy(tp, float(spec[4]) + 0.12)
 	placed.append(tp)
 	placed_r.append(float(spec[4]) / VS)
 	civic_sites.append({"kind": kind, "p": tp, "y": site.y, "yaw": site.yaw, "civ": civ, "seed": seed, "tile": t})
@@ -1695,7 +1626,7 @@ func _lighthouse(s: Dictionary, t: int, c0: Vector2, seed: float) -> void:
 				continue
 			var y := maxf(w.height_at(p), 0.05)
 			props.add("great_lighthouse", _xf(p, y, 0.0, LIGHTHOUSE_SCALE), Color(1, 1, 1, seed))
-			_reserve_plot_visual(p, 0.42)
+			_record_visual_occupancy(p, 0.42)
 			beacon_fires.append({"top": Vector3(p.x, y + 0.74 * LIGHTHOUSE_SCALE, p.y), "seed": seed})
 			lighthouse_sites.append({"p": p, "y": y})
 			return
@@ -1753,7 +1684,7 @@ func _outer_works(s: Dictionary, c: Vector2, h0: float, seed: float, outer: floa
 		var shrine = _edge_site(c, h0, seed * TAU + 2.4, outer + 0.3, 0.3, placed, taken)
 		if shrine != null:
 			props.add("shrine", _xf(shrine.p, shrine.y, shrine.yaw, VS), tint)
-			_reserve_plot_visual(shrine.p, 0.22)
+			_record_visual_occupancy(shrine.p, 0.22)
 			placed.append(shrine.p)
 			taken.append(shrine.p)
 	var loose := mini(_built(st, K.MARKER), MARKERS_SHOWN) - _seasonal_camps_of(int(s.get("index", -1)))
@@ -1761,7 +1692,7 @@ func _outer_works(s: Dictionary, c: Vector2, h0: float, seed: float, outer: floa
 		var marker = _edge_site(c, h0, seed * TAU + 4.1 + 1.7 * k, outer + 0.2, 0.2, placed, taken)
 		if marker != null:
 			props.add("marker", _xf(marker.p, marker.y, marker.yaw + 0.9 * k, 1.3), tint)
-			_reserve_plot_visual(marker.p, 0.1)
+			_record_visual_occupancy(marker.p, 0.1)
 			placed.append(marker.p)
 			taken.append(marker.p)
 	_water_mill(s, c, h0, seed, outer, placed, tint)
@@ -1772,7 +1703,7 @@ const MILL_BANK := 0.2           # from the river's middle to the mill's middle:
 
 ## The water mill (NRG-03) on the bank of the nearest river reach beyond the village (outside `outer` + 0.3, within a short ride of it), on the side toward
 ## the hearth, its wheel (+X) toward the water and its door toward the village. Nothing if there is no river or no level, clear ground beside one.
-func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float, placed: Array, tint: Color) -> void:
+func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float, placed: Array, tint: Color, claimed: Dictionary = {}, avoid_footprints: Array = []) -> void:
 	if w.iron_works(s, "water_mill") <= 0:
 		return
 	var best_d := 1e9
@@ -1790,7 +1721,7 @@ func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float
 			n = -n
 		var p := m + n * MILL_BANK
 		var tp := w.tile_at(p)
-		if tp < 0 or not w.is_land(tp) or w.biome[tp] >= M7WorldData.Biome.MOUNTAIN or absf(w.heights[tp] - w.height_at(m)) > 0.1 or _river_dist(p) < 0.1:
+		if tp < 0 or claimed.has(tp) or not w.is_land(tp) or w.biome[tp] >= M7WorldData.Biome.MOUNTAIN or absf(w.heights[tp] - w.height_at(m)) > 0.1 or _river_dist(p) < 0.1:
 			continue
 		var clear := true
 		for pp in placed:
@@ -1798,13 +1729,19 @@ func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float
 				clear = false
 				break
 		if clear:
+			for footprint in avoid_footprints:
+				var at: Vector2 = footprint[0]
+				if at.distance_to(p) < float(footprint[1]) + 0.32:
+					clear = false
+					break
+		if clear:
 			best_d = d
 			best_p = p
 			best_n = n
 	if best_d >= 1e9:
 		return
 	props.add("water_mill", _xf(best_p, w.height_at(best_p), atan2(best_n.y, -best_n.x), MILL_SCALE), tint)
-	_reserve_plot_visual(best_p, 0.3)
+	_record_visual_occupancy(best_p, 0.3)
 	placed.append(best_p)
 
 ## The colonnade (STN-12 `temple_tier2`) a Temple town adds: a stoa on the flank of the temple, on whichever side (right first) has level, free ground.
@@ -1826,7 +1763,7 @@ func _colonnade(tsite: Dictionary, h0: float, cc: Color, t: int, placed: Array, 
 		if not ok:
 			continue
 		props.add("colonnade", _xf(q, w.height_at(q), yaw + PI * 0.5, sc), Color(cc.r, cc.g, cc.b, M7WorldData.hash01(t, 0, 94)))
-		_reserve_plot_visual(q, 0.3)
+		_record_visual_occupancy(q, 0.3)
 		placed.append(q)
 		placed_r.append(0.2)
 		return
@@ -1888,14 +1825,14 @@ func _aqueduct(s: Dictionary, c: Vector2, h0: float, seed: float, base_r: float,
 	var end_sy := clampf((deck - float(grounds[0])) / (0.15 * AQUEDUCT_SCALE), 0.6, 4.0)
 	props.add("aqueduct_end", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(AQUEDUCT_SCALE, AQUEDUCT_SCALE * end_sy, AQUEDUCT_SCALE)),
 		Vector3(end_p.x, float(grounds[0]), end_p.y)), Color(1, 1, 1, seed))
-	_reserve_plot_visual(end_p, 0.22)
+	_record_visual_occupancy(end_p, 0.22)
 	for j in spans:
 		var p := c + dir * (base_r + half_end + run * (j + 0.5))
 		var gy: float = grounds[j + 1]
 		var sy := clampf((deck - gy) / (0.14 * AQUEDUCT_SCALE), 0.5, 4.0)
 		props.add("aqueduct_run", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(AQUEDUCT_SCALE, AQUEDUCT_SCALE * sy, AQUEDUCT_SCALE)),
 			Vector3(p.x, gy, p.y)), Color(1, 1, 1, seed))
-		_reserve_plot_visual(p, 0.18)
+		_record_visual_occupancy(p, 0.18)
 	aqueduct_sites.append({"p": end_p + dir * 0.6, "y": float(grounds[0])})
 
 ## Frontier wall segments (DEF-07): a straight run of wall with towers at its ends, out in the claim on the side facing the civilization each segment answers
@@ -1936,13 +1873,13 @@ func _frontier_walls(s: Dictionary, si: int, c: Vector2, h0: float, seed: float,
 				continue
 			props.add("wall_seg", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(0.97, WALL_SCALE, WALL_SCALE)), Vector3(p.x, w.height_at(p), p.y)),
 				Color(1, 1, 1, seed))
-			_reserve_plot_visual(p, 0.14)
+			_record_visual_occupancy(p, 0.14)
 		for end_k: int in [0, n - 1]:
 			var tp: Vector2 = mid + tangent * ((float(end_k) - (n - 1) * 0.5) * seg_len * 0.97)
 			var ttq := w.tile_at(tp)
 			if ttq >= 0 and w.is_land(ttq):
 				props.add("wall_tower", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * WALL_SCALE), Vector3(tp.x, w.height_at(tp), tp.y)), Color(1, 1, 1, seed))
-				_reserve_plot_visual(tp, 0.18)
+				_record_visual_occupancy(tp, 0.18)
 		frontier_sites.append({"p": mid, "y": w.height_at(mid)})
 
 ## An Iron forge yard (MET-09) at the edge of the village, its front toward the hearth: the bloomery stack, anvil, charcoal and ore, and, when the forge is at
@@ -1966,7 +1903,7 @@ func _forge_yard(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float,
 		var yaw := atan2((c - q).x, (c - q).y)
 		var y := w.height_at(q)
 		props.add("forge_yard_hot" if state >= 2 else "forge_yard", _xf(q, y, yaw, FORGE_SCALE), Color(1, 1, 1, seed))
-		_reserve_plot_visual(q, 0.34)
+		_record_visual_occupancy(q, 0.34)
 		placed.append(q)
 		if state >= 2:
 			var rot := rot_y(yaw)
@@ -2053,7 +1990,7 @@ func _relay_posts() -> void:
 					continue
 			var to_road := road_p - q
 			props.add("relay_post", _xf(q, w.height_at(q), atan2(to_road.x, to_road.y), 1.3), Color(tint.r, tint.g, tint.b, 0.5))
-			_reserve_plot_visual(q, 0.2)
+			_record_visual_occupancy(q, 0.2)
 			relay_sites.append({"p": q, "y": w.height_at(q)})
 
 ## A free spot at the village edge, clear of what is placed, for a small prop: tried round the edge from `phase`. `null` when there is none.
@@ -2069,7 +2006,7 @@ func _edge_spot(c: Vector2, h0: float, seed: float, rmax: float, placed: Array, 
 				free = false
 				break
 		if free:
-			_reserve_plot_visual(q, maxf(0.12, clear))
+			_record_visual_occupancy(q, maxf(0.12, clear))
 			return q
 	return null
 
@@ -2182,7 +2119,7 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 		var y := w.height_at(p)
 		var yaw := atan2((c - p).x, (c - p).y)
 		props.add("siege_base", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * 1.2), Vector3(p.x, y, p.y)), Color(1, 1, 1, 0.5))
-		_reserve_plot_visual(p, 0.28)
+		_record_visual_occupancy(p, 0.28)
 		var impact := c + dir * ring
 		siege_engines.append({"p": Vector3(p.x, y, p.y), "yaw": yaw, "target": Vector3(impact.x, w.height_at(impact) + 0.1, impact.y),
 			"seed": M7WorldData.hash01(int(p.x * 100.0), int(p.y * 100.0), 81), "k": k})
@@ -2190,7 +2127,7 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 		for j in 3:
 			var sp := p + side * (0.12 + 0.03 * j) - dir * 0.04 * j
 			props.add("siege_stone", Transform3D(Basis.from_scale(Vector3.ONE * 1.2), Vector3(sp.x, w.height_at(sp) + 0.012, sp.y)), Color(1, 1, 1, 0.5))
-			_reserve_plot_visual(sp, 0.08)
+			_record_visual_occupancy(sp, 0.08)
 	# the camp behind the engines
 	for j in 4:
 		var a2 := angle + (j - 1.5) * 0.28
@@ -2199,10 +2136,10 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 		if ttq < 0 or not w.is_land(ttq):
 			continue
 		props.add("hide_tent", _xf(tp, w.height_at(tp), -a2 + PI * 0.5, 1.2), Color(tint.r, tint.g, tint.b, M7WorldData.hash01(j, 3, 82)))
-		_reserve_plot_visual(tp, 0.16)
+		_record_visual_occupancy(tp, 0.16)
 	var bp := c + Vector2(cos(angle), sin(angle)) * (ring + 1.1)
 	props.add("banner%d" % civ, _xf(bp, w.height_at(bp), -0.4, 1.3), Color(tint.r, tint.g, tint.b, seed))
-	_reserve_plot_visual(bp, 0.16)
+	_record_visual_occupancy(bp, 0.16)
 
 const WALL_RING := 0.26        # from the outermost house to the stone wall ring
 const WALL_CLEAR := 0.45       # props that stood just outside the houses stand this much farther out behind a stone wall
@@ -2242,7 +2179,7 @@ func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gate
 			var mesh_name := "wall_gatehouse" if gatehouse else "wall_gate"
 			var gb := Basis(Vector3.UP, -tang) * Basis.from_scale(Vector3(WALL_SCALE, WALL_SCALE * sy, WALL_SCALE))
 			props.add(mesh_name, Transform3D(gb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, seed))
-			_reserve_plot_visual(q, 0.22)
+			_record_visual_occupancy(q, 0.22)
 			continue
 		if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.08:
 			continue
@@ -2252,7 +2189,7 @@ func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gate
 		if broken > 0 and off_breach * 2 <= broken:
 			seg_mesh = "wall_rubble" if (integrity <= 150 and off_breach <= 1) else "wall_ruin"
 		props.add(seg_mesh, Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, seed))
-		_reserve_plot_visual(q, 0.14)
+		_record_visual_occupancy(q, 0.14)
 		# a tower where this run meets the next (a tower beside a breach comes down with it)
 		if i % tower_every == 0 and not (broken > 3 and off_breach <= 2):
 			var ab := a + TAU * 0.5 / n
@@ -2261,7 +2198,7 @@ func _stone_walls(t: int, c: Vector2, seed: float, ring: float, rings: int, gate
 			if ttq >= 0 and w.is_land(ttq) and _river_dist(tp) >= 0.08:
 				var tb := Basis(Vector3.UP, -(ab + PI * 0.5)) * Basis.from_scale(Vector3(WALL_SCALE, WALL_SCALE * (1.0 + 0.15 * (rings - 1)), WALL_SCALE))
 				props.add("wall_tower", Transform3D(tb, Vector3(tp.x, w.height_at(tp), tp.y)), Color(1, 1, 1, seed))
-				_reserve_plot_visual(tp, 0.18)
+				_record_visual_occupancy(tp, 0.18)
 	return c + Vector2(cos(gate_a), sin(gate_a)) * ring
 
 ## The castle stage a settlement shows: 4 built, 1 to 3 while one is going up (a third of the labor each), 0 none.
@@ -2279,7 +2216,7 @@ func _castle_ground_ok(p: Vector2, h0: float) -> bool:
 	var t := w.tile_at(p)
 	if t < 0 or not w.is_land(t) or absf(w.heights[t] - h0) > 0.35:
 		return false
-	return (w.plot_kind[t] < 0 or _allow_plot_layout) and w.biome[t] < M7WorldData.Biome.MOUNTAIN and _river_dist(p) >= 0.11
+	return w.plot_kind[t] < 0 and w.biome[t] < M7WorldData.Biome.MOUNTAIN and _river_dist(p) >= 0.11
 
 ## Where a castle stands: on the highest level, clear ground in a ring round the village (a castle holds ground), clear of what is placed.
 func _castle_site(c: Vector2, h0: float, seed: float, radius: float, placed: Array, gate_at: Vector2) -> Variant:
@@ -2348,7 +2285,7 @@ func _castle(s: Dictionary, t: int, c: Vector2, h0: float, seed: float, radius: 
 	var yaw: float = site.yaw
 	var basis := Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * CASTLE_SCALE)
 	props.add("castle_%d" % stage, Transform3D(basis, Vector3(p.x, site.y, p.y)), Color(cc.r, cc.g, cc.b, seed))
-	_reserve_plot_visual(p, 0.48)
+	_record_visual_occupancy(p, 0.48)
 	placed.append(p)
 	castle_sites.append({"p": p, "y": site.y, "yaw": yaw, "stage": stage, "civ": int(s.civ), "tile": t})
 	var guards := mini(int(s.get("soldiers", 0)), 6) if stage == 4 else 0
@@ -2381,16 +2318,18 @@ const HARBOR_MOOR := 0.82      # from the hearth tile's centre to where boats li
 
 ## A harbor (SEA-07): a quay on the shore of the first water neighbour (the one `_moor_fleet` picks) and two piers out over the water. True when
 ## it stands (a village on a river with no sea beside it has none).
-func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color) -> bool:
-	for i in 6:
-		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
+func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_override: int = -1) -> bool:
+	var directions := 1 if front_override >= 0 else 6
+	for i in directions:
+		var direction := front_override if front_override >= 0 else (i + int(seed * 6.0)) % 6
+		var nb: int = w.neighbour(t, direction)
 		if nb >= 0 and w.is_water(nb):
 			var dir: Vector2 = (w.tile_center(nb) - c0).normalized()
 			var at := c0 + dir * 0.5
 			var yaw := atan2(-dir.x, -dir.y)
 			props.add("harbor", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * HARBOR_SCALE), Vector3(at.x, 0.0, at.y)),
 				Color(cc.r, cc.g, cc.b, seed))
-			_reserve_plot_visual(at, 0.42)
+			_record_visual_occupancy(at, 0.42)
 			harbor_sites.append({"p": at, "y": 0.0})
 			# a war galley (SEA-09) lies between the piers off the end of the quay; a blockade (a rival's galleys) holds the harbor mouth
 			var tangent := dir.rotated(PI * 0.5)
@@ -2450,20 +2389,22 @@ func _bridges() -> void:
 			var yaw := atan2(-d.y, d.x)
 			var y := maxf(w.height_at(p), 0.0)
 			props.add("bridge", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3.ONE * 1.0), Vector3(p.x, y, p.y)), Color(1, 1, 1, 0.5))
-			_reserve_plot_visual(p, 0.2)
+			_record_visual_occupancy(p, 0.2)
 			bridge_sites.append({"p": p, "y": y})
 
 ## The boats a village keeps: one to four (by population) moored along the nearest shore or river bank, of the best kind its
 ## civilization knows (1 raft .. 4 outrigger). Nothing happens if there is no water within a short walk.
-func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, cc: Color, quay: bool = false) -> void:
+func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, cc: Color, quay: bool = false, front_override: int = -1) -> void:
 	var count := clampi(population / 8, 1, 4)
 	var mesh_name := "boat_%d" % tier
 	var anchor := Vector2.ZERO
 	var along := Vector2.ZERO
 	var level := 0.0
 	var found := false
-	for i in 6:
-		var nb: int = w.neighbour(t, (i + int(seed * 6.0)) % 6)
+	var directions := 1 if front_override >= 0 else 6
+	for i in directions:
+		var direction := front_override if front_override >= 0 else (i + int(seed * 6.0)) % 6
+		var nb: int = w.neighbour(t, direction)
 		if nb >= 0 and w.is_water(nb):
 			var dir: Vector2 = w.tile_center(nb) - c0
 			anchor = c0 + dir * (HARBOR_MOOR if quay else 0.6)
@@ -2619,11 +2560,18 @@ func _deposits() -> void:
 
 ## What the deposit props depend on: the e3 overlay (kind, worked bit) and each mining camp's tile, civilization and mine head.
 func _deposit_digest() -> int:
-	var h := hash(w.e3_overlay_bytes) * 31 + structure_signature
+	var h := hash(w.e3_overlay_bytes) * 31 + deposit_placement_signature
 	for cd in w.camp_details:
 		if int(cd[2]) == 1:
 			h = int((h * 31 + int(cd[0]) * 17 + int(cd[1]) * 3 + int(cd[7])) & 0x7fffffff)
 	return h
+
+## Deposit positions depend on the visible settlement occupancy and plot placement, not every change to settlement structure counts.
+func _deposit_placement_digest() -> int:
+	var h := (hash(_visual_occupants) * 31 + hash(_settlement_tiles)) * 31 + plot_layout_signature
+	h = h * 31 + hash(plot_display_mode)
+	h = h * 31 + hash(plot_display_position)
+	return h * 31 + hash(plot_display_scale)
 
 ## tile -> [civ, mine head 0/1] for every mining camp in the frame (camp_details kind 1; the camp stands on the deposit it digs).
 func _mining_camps_by_tile() -> Dictionary:

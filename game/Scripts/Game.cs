@@ -416,7 +416,7 @@ public partial class Game : Node3D
 
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
         MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null,
-        int figureLimit = 0)
+        int figureLimit = 0, SimulationSession? session = null)
     {
         int tiles = frame.Width * frame.Height;
         const int figureStride = 11, herdStride = 7;
@@ -571,6 +571,18 @@ public partial class Game : Node3D
                     && (forcedTempleAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedTempleAt]))
                     forcedTempleAt = i;
 #endif
+        var coreOuterBySettlement = new Godot.Collections.Array[frame.SettlementCount];
+        for (int i = 0; i < coreOuterBySettlement.Length; i++) coreOuterBySettlement[i] = new Godot.Collections.Array();
+        for (int row = 0; row < frame.CoreOuterCount; row++)
+        {
+            int settlementRow = frame.CoreOuterSettlement[row];
+            if ((uint)settlementRow >= (uint)coreOuterBySettlement.Length) continue;
+            var outer = new Godot.Collections.Array();
+            outer.Add(frame.CoreOuterTile[row]);
+            outer.Add((int)frame.CoreOuterDistrict[row]);
+            outer.Add((int)frame.CoreOuterPosition[row]);
+            coreOuterBySettlement[settlementRow].Add(outer);
+        }
         for (int i = 0; i < frame.SettlementCount; i++)
         {
             var structures = new int[kinds];
@@ -587,6 +599,8 @@ public partial class Game : Node3D
                 ["temples"] = (int)frame.SettlementTemples[i],
                 ["ziggurats"] = (int)frame.SettlementZiggurats[i],
                 ["zigguratPermille"] = (int)frame.SettlementZigguratPermille[i],
+                ["coreFront"] = (int)frame.SettlementCoreFront[i],
+                ["coreOuter"] = coreOuterBySettlement[i],
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
                 ["fireLit"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.FireLit) != 0,
                 ["index"] = frame.SettlementIndex[i],
@@ -709,7 +723,7 @@ public partial class Game : Node3D
         }
 #if DEBUG
         // --dev-core-gallery: six settlements dressed as one of each stage for the settlement-core captures (Game.CoreGallery.cs)
-        if (HasArgument("--dev-core-gallery")) ApplyCoreGallery(frame, world, settlements);
+        if (HasArgument("--dev-core-gallery") && session is not null) ApplyCoreGallery(frame, world, settlements, session);
 #endif
 
         var monuments = new int[frame.MonumentCount * 5];
@@ -959,6 +973,10 @@ public partial class Game : Node3D
             var ironIds = new Godot.Collections.Array();
             for (int k = 0; k < IronWorkKindCount(); k++) ironIds.Add(CivSim.Sim.Economy.LivingEconomyModel.IronWorkId(k));
             payload["ironWorkIds"] = ironIds;
+            var coreDistrictIds = new Godot.Collections.Array();
+            foreach (string name in Enum.GetNames<CoreDistrict>())
+                if (name != nameof(CoreDistrict.Count)) coreDistrictIds.Add(name);
+            payload["coreDistrictIds"] = coreDistrictIds;
         }
         return payload;
     }
@@ -1495,7 +1513,7 @@ public partial class Game : Node3D
         {
             long started = Stopwatch.GetTimestamp();
             var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds,
-                DecorTable.Known(frame, _catalog), _benchmarkRenderFigureLimit);
+                DecorTable.Known(frame, _catalog), _benchmarkRenderFigureLimit, _session);
             double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _visualRenderer.Call("update_frame", payload);
             if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))
@@ -1524,7 +1542,7 @@ public partial class Game : Node3D
             ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
         AddChild(_visualRenderer);
         _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true,
-            decor: DecorTable.Known(frame, _catalog), figureLimit: _benchmarkRenderFigureLimit));
+            decor: DecorTable.Known(frame, _catalog), figureLimit: _benchmarkRenderFigureLimit, session: session));
         _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
     }
 

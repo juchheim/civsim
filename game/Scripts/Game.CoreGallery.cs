@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using CivSim.Sim.View;
+using CivSim.Sim.World;
 
 namespace CivSim.Game;
 
 /// <summary>
-/// Development-only (debug builds) staging for the settlement-core prototype (docs/MVP/31 WP1, WP2): <c>--dev-core-gallery</c> dresses six live
+/// Development-only (debug builds) staging for the settlement core (docs/MVP/31 WP1, WP2, WP6c): <c>--dev-core-gallery</c> dresses six live
 /// settlements as one of each stage (Band, Village, Town, City, a walled Iron city with castle and Wonder, a coastal town) so the scenario
-/// <c>core-gallery</c> can photograph them with and without <c>--core-layout</c>. It edits only the renderer's copy of the frame (the payload
+/// <c>core-gallery</c> can photograph the default layout. It edits only the renderer's copy of the frame (the payload
 /// dictionaries), never the simulation, like the other <c>--dev-*</c> flags in <see cref="BuildFramePayload"/>.
 /// </summary>
 public partial class Game
@@ -54,7 +55,7 @@ public partial class Game
 
     /// <summary>Picks the coastal town (the biggest live settlement beside the sea) and five more (biggest first: Iron city, city, town, village, band)
     /// and overwrites their renderer dictionaries with the gallery's contents.</summary>
-    private static void ApplyCoreGallery(MatchFrame frame, WorldView world, Godot.Collections.Array settlements)
+    private static void ApplyCoreGallery(MatchFrame frame, WorldView world, Godot.Collections.Array settlements, SimulationSession session)
     {
         var order = new List<int>();
         for (int i = 0; i < frame.SettlementCount && i < settlements.Count; i++)
@@ -75,13 +76,13 @@ public partial class Game
         {
             while (next < order.Count && order[next] == coastal) next++;
             if (next >= order.Count) break;
-            DressGallery((Godot.Collections.Dictionary)settlements[order[next]], stage);
+            DressGallery((Godot.Collections.Dictionary)settlements[order[next]], stage, session);
             next++;
         }
-        if (coastal >= 0) DressGallery((Godot.Collections.Dictionary)settlements[coastal], GalleryCoastal);
+        if (coastal >= 0) DressGallery((Godot.Collections.Dictionary)settlements[coastal], GalleryCoastal, session);
     }
 
-    private static void DressGallery(Godot.Collections.Dictionary settlement, GalleryStage stage)
+    private static void DressGallery(Godot.Collections.Dictionary settlement, GalleryStage stage, SimulationSession session)
     {
         var structures = new int[MatchFrame.StructureKinds];
         structures[SHearth] = 1;
@@ -109,6 +110,30 @@ public partial class Game
         settlement["decor"] = stage.Decor;
         settlement["coreStage"] = stage.Stage;
         settlement["coreGallery"] = stage.Name;
+        ushort districtMask = 0;
+        if (stage.Ziggurats > 0) Add(ref districtMask, CoreDistrict.Ziggurat);
+        if (Array.IndexOf(stage.Works, "great_dome") >= 0) Add(ref districtMask, CoreDistrict.GreatDome);
+        if (Array.IndexOf(stage.Works, "great_library") >= 0) Add(ref districtMask, CoreDistrict.GreatLibrary);
+        if (Array.IndexOf(stage.Works, "castle") >= 0) Add(ref districtMask, CoreDistrict.Citadel);
+        if (Array.IndexOf(stage.Works, "academy") >= 0) Add(ref districtMask, CoreDistrict.Learning);
+        if (Array.IndexOf(stage.Works, "theatre_arena") >= 0) Add(ref districtMask, CoreDistrict.Civic);
+        if (Array.IndexOf(stage.Works, "bathhouse") >= 0) Add(ref districtMask, CoreDistrict.Health);
+        if (stage.Stage == "city" && stage.Population >= 120) Add(ref districtMask, CoreDistrict.HomesC);
+        if (stage.Stage == "city" && stage.Population >= 180) Add(ref districtMask, CoreDistrict.HomesD);
+        Span<int> tiles = stackalloc int[(int)CoreDistrict.Count];
+        Span<byte> districts = stackalloc byte[(int)CoreDistrict.Count];
+        Span<byte> positions = stackalloc byte[(int)CoreDistrict.Count];
+        int rowCount = session.PreviewOuterCore((int)settlement["tile"], districtMask, tiles, districts, positions);
+        var outerRows = new Godot.Collections.Array();
+        for (int i = 0; i < rowCount; i++)
+        {
+            var row = new Godot.Collections.Array();
+            row.Add(tiles[i]); row.Add((int)districts[i]); row.Add((int)positions[i]);
+            outerRows.Add(row);
+        }
+        settlement["coreOuter"] = outerRows;
     }
+
+    private static void Add(ref ushort mask, CoreDistrict district) => mask |= (ushort)(1 << (int)district);
 #endif
 }

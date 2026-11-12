@@ -91,6 +91,7 @@ var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, 
 var settlements: Array = []
 var viewer_civ := -1                    # the civilization whose view this is (-1 sees everything)
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
+var core_district_ids: Array = []       # CoreDistrict names in the order used by each settlement's coreOuter rows
 var plots := PackedInt32Array() # flat [tile, kind] pairs
 var plot_kind := PackedInt32Array()   # -1 none, 0 field, 1 orchard
 var reserved := PackedByteArray()     # tiles where wild vegetation is suppressed (settlements, plots)
@@ -167,6 +168,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	var d: Dictionary = value
 	if include_world:
 		iron_work_ids = d.ironWorkIds if d.has("ironWorkIds") else []
+		core_district_ids = d.coreDistrictIds if d.has("coreDistrictIds") else []
 		width = int(d.width)
 		height = int(d.height)
 		biome = _byte_array(d.biome)
@@ -250,6 +252,11 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 			camp_details.append([int(camps[i][0]), int(camps[i][1]), int(ck[i]), int(cp[i]), int(cd[i]), int(cr[i]), int(cb[i]), int(cm[i])])
 	herds = _int_data(d.herds, 7)
 	settlements = d.settlements
+	for settlement in settlements:
+		if not settlement.has("coreFront"):
+			settlement["coreFront"] = 255
+		if not settlement.has("coreOuter"):
+			settlement["coreOuter"] = []
 	plots = _int_data(d.plots, 2)
 	plot_kind.fill(-1)
 	for i in range(0, plots.size(), 2):

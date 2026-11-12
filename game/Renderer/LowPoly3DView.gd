@@ -310,7 +310,7 @@ func castle_focus() -> Vector3:
 	return Vector3(site.p.x, site.y, site.p.y)
 
 ## Dev aid for the core-gallery scenario: the site tile of the settlement --dev-core-gallery dressed as `name` (the origin when none). Read
-## from the frame, so the camera is the same with and without --core-layout.
+## from the frame, so gallery captures use the same camera as the default game.
 func core_gallery_focus(name: String) -> Vector3:
 	if world == null:
 		return Vector3.ZERO
@@ -923,8 +923,7 @@ func _apply_season(season: int) -> void:
 func _set_villages() -> void:
 	var values := PackedVector4Array()
 	var limit := 8 if camera_distance < 10.0 else (12 if camera_distance < 24.0 else (6 if camera_distance > 38.0 else 16))
-	if builder.CORE_LAYOUT:
-		limit = 48     # a staged core lists one patch per ring-2 hex (core_layout.gd)
+	limit = 48     # the growing core lists one ground patch per claimed ring-2 hex
 	var nearest: Array = builder.villages.duplicate()
 	nearest.sort_custom(func(a: Vector3, b: Vector3) -> bool:
 		return Vector2(a.x - camera_focus.x, a.y - camera_focus.z).length_squared() < \

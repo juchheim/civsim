@@ -1,9 +1,10 @@
 # 31b. Outer-hex growth: the simulation decides, the renderer draws (WP6 spec)
 
-Status: WP6a simulation implementation is complete on `codex/wp6a-outer-hex` (2026-11-11); WP6b frame and renderer work and WP6c
-default-layout work remain open. This spec builds on WP3 (plot-free seven-hex core) and WP4 (clean-core siting). Numbers marked (M)
-were measured, (E) are estimates, (P) are proposals. §5.5 documents the pre-implementation shadow method; §5.6 records the enforced
-WP6a result.
+Status: WP6a is merged to `main` at `142e92e`; WP6b frame and renderer implementation and layout checks passed on
+`codex/wp6b-frame-renderer` (2026-11-11); WP6c is implemented on `codex/wp6c-default-core`. The original WP6c timing comparison
+showed an Iron average and tail regression; the follow-up optimization reduced both in a short smoke run, with the full comparison
+pending in §3.3. This spec builds on WP3 (plot-free seven-hex core) and WP4 (clean-core siting). Numbers marked (M) were measured,
+(E) are estimates, (P) are proposals. §5.5 documents the pre-implementation shadow method; §5.6 records the enforced WP6a result.
 
 Read first: [31](31-settlement-core-reserve-plan.md) (the seven-hex core, WP3/WP4) and [31a](31a-staged-core-and-building-budget.md)
 (the growing core and the building budget; the owner approved all six of its decisions on 2026-11-10).
@@ -12,8 +13,8 @@ Read first: [31](31-settlement-core-reserve-plan.md) (the seven-hex core, WP3/WP
 
 **What was wrong before WP6a.** The simulation kept fields off a settlement's own hex and the six around it, while the approved design
 gives a city **one more hex from the next ring out for each big building**. Before WP6a, only the renderer prototype picked those extra
-hexes. WP6a now computes and enforces them in the simulation. Until WP6b sends those rows in the frame, the renderer still picks them
-independently, so a live picture can disagree with the sim's claims.
+hexes. WP6a computes and enforces them in the simulation. WP6b sends those rows in the view frame, and the renderer reads them so the
+live picture follows the simulation's claims. WP6c will make that layout the default.
 
 **The fix.** Move the choice into the simulation as a fixed rule, and make the renderer only read the answer:
 
@@ -38,8 +39,8 @@ per Town at minute 110, with about 0.5% lower best-k field yield overall. The en
 1.13 per Town, with a measured 0.24% best-k yield reduction by minute 110. It observed no duplicate, unusable or in-another-core
 claims, and no Town or City short of free ground at that checkpoint. There were 16 district moves between minutes 90 and 110.
 
-**Work:** WP6a (rule and tests in the simulation, about 4 days), WP6b (send the hexes to the renderer and delete its own choosing,
-about 3 days), WP6c (make the new layout the default and delete the old spiral, about 2 days).
+**Work:** WP6a (complete: rule and tests in the simulation), WP6b (complete: send the hexes to the renderer and delete its own
+choosing), WP6c (implemented: make the new layout the default and remove the old spiral and plot squeeze; see the timing results in §3.3).
 
 **Two changes from 31a, decided here** (both for stability): the gate side no longer follows the nearest trail or road (those appear
 during a game and would turn the whole city round), and each building has a fixed home spot instead of "fill the next hexes, then hand
@@ -64,7 +65,7 @@ content schema carries a size field).
 | Small | no (ring 1) | `hearth`, `lean_to`, `hide_tent`, `pit_house`, `wattle_daub_house`, `mudbrick_house`, `storage_pit`, `drying_rack`, `kiln`, `quern`, `totem`, `lookout_post`, `signal_post`, `shrine`, `bakery`, `smelter`, `windlass_well`, `aqueduct` (its tower; the spans are outside) | |
 | Perimeter | no (the wall line) | `thorn_barrier`, `palisade`, `stone_walls`, `gatehouse` | |
 | Edge | no (the waterfront) | `weir`, `harbor` | |
-| Outer work | **never on an outer hex** | `field`, `orchard`, `pasture`, `terrace`, `canal`, `mining_camp`, `mine_head`, `marker`, `seasonal_camp`, `hillfort`, `megalith`, `great_lighthouse`, `water_mill`, `road`, `bridge`, `frontier_wall_segment` | plots and camps have tiles in the sim; the rest are drawn by the renderer, which must keep them off outer hexes (WP6b) |
+| Outer work | **never on an outer hex** | `field`, `orchard`, `pasture`, `terrace`, `canal`, `mining_camp`, `mine_head`, `marker`, `seasonal_camp`, `hillfort`, `megalith`, `great_lighthouse`, `water_mill`, `road`, `bridge`, `frontier_wall_segment` | plots and camps have tiles in the sim; the renderer keeps other works off claimed hexes (WP6b) |
 
 18 small + 10 half + 3 whole ring-1 + 7 outer districts + 4 perimeter + 2 edge + 16 outer works = 60. The galley is a ship, not a
 registry structure. E5 (`codex/e5-fief`, not merged) adds: `gothic_cathedral` (its own Wonder district, owner decision 4),
@@ -342,7 +343,7 @@ content-pack golden refreshed for the two constants; politics and bronze goldens
 | `src/CivSim.Tests/ViewFrameTests.cs` | rows equal `OuterCoreHexes` for current settlements; none for remembered; front in 0..5 |
 | `game/Scripts/Game.cs`, `game/Scripts/Game.CoreGallery.cs` | payload fields; gallery via `PreviewOuterCore` |
 | `game/Renderer/LowPoly3D/Scripts/core_layout.gd` | **delete** `ring2_demand`, `ring2_tiles`, `RING2_ORDER`, `RING2_WISH`, `_foreign_core`, `_front_of` and the affinity loop in `_assign_quarters`; read `coreFront` and `coreOuter` instead (district name → quarter `Q`); `reserved_ring2()` returns the frame's tiles; `_outer()` skips every claimed hex of every settlement (paddock, markers, charcoal, quarry, lighthouse); the dump gains `sim_outer` rows and `front` |
-| `game/Renderer/LowPoly3D/Scripts/world_builder.gd` | `_structure_digest` hashes `coreFront` and `coreOuter` (the village is rebuilt when a hex is claimed); harbor and moored fleet face `coreFront` under `--core-layout` |
+| `game/Renderer/LowPoly3D/Scripts/world_builder.gd` | `_structure_digest` hashes `coreFront` and `coreOuter` (the village is rebuilt when a hex is claimed); harbor and moored fleet face `coreFront` |
 | `game/Renderer/LowPoly3D/Scripts/world_data.gd` | keep the two new keys on settlement dictionaries |
 | `tools/check_core_layout.py` | check 6 (§4.2) |
 
@@ -350,16 +351,63 @@ content-pack golden refreshed for the two constants; politics and bronze goldens
 renderer's ring-2 hexes identical to the sim's rows for every settlement; no garden cue, paddock, marker, quarry, charcoal clamp or
 lighthouse on a claimed hex; `grep` finds none of the deleted names in `core_layout.gd`; frame build time within 5% of WP6a.
 
-### 3.3 WP6c: the core layout becomes the default (about 2 days)
+**WP6b result (2026-11-11):** the implementation and layout checks passed. Focused `ViewFrameTests` passed 12/12; the Godot project
+scan/parser passed; none of the deleted chooser names remain in `core_layout.gd`. The gallery passed with 9 settlements, 8 outer
+claims, 622 items and 17,084 footprint pairs. Live Iron minute-110 seeds 1–4 passed: seed 1 had 113 settlements / 51 claims / 7,687
+items; seed 2 had 119 / 78 / 8,595; seed 3 had 103 / 81 / 7,267; seed 4 had 110 / 61 / 7,236. Seeds 3 and 4 reported two and one
+plots still on claimed tiles, respectively, for next-season release review. Frame time is unverified: WP6a recorded no baseline, so
+the ±5% comparison cannot be computed from its results.
+
+### 3.3 WP6c: the core layout becomes the default
 
 | File | Change |
 |---|---|
-| `game/Renderer/LowPoly3D/Scripts/world_builder.gd` | `CORE_LAYOUT` true by default (a `--spiral` debug flag only for one release, then gone); delete the sunflower-spiral branch of the settlements loop and `_dwellings`' `DWELL_MAX_TOTAL` / `DWELL_MAX_EACH` caps, replaced by the slot capacity of the homes quarters (ring 1 plus Homes C and D) |
-| `game/Renderer/LowPoly3D/Scripts/core_layout.gd` | drop `--core-v1` and the seven-hex-only path; garden cues stay only for old saves until their first season |
-| capture scenario and docs | `core-gallery` without the flag; screenshots in `builds/core-gallery-v3/` |
+| `game/Renderer/LowPoly3D/Scripts/world_builder.gd` | make the simulation-claimed core universal; delete the sunflower-spiral settlement branch and dwelling caps; house count is limited by the homes quarters (ring 1 plus Homes C and D), with the existing Town/City clustering rules; remove plot edge-squeezing and hide plots only while their tiles are simulation-claimed |
+| `game/Renderer/LowPoly3D/Scripts/core_layout.gd` | remove `--core-v1` and the seven-hex-only layout; read ring-2 claims for every settlement, with pasture paddocks placed on an available claimed ring-2 tile |
+| capture scenario and docs | run `core-gallery` with no layout flag; capture screenshots in `builds/core-gallery-v3/` |
 
-**Exit gate:** the game draws the core layout with no flag; checker passes as in WP6b; the gallery and seeds 1 to 4 screenshots reviewed
-by the owner; frame time within 5% of the spiral; no references to `DWELL_MAX_TOTAL` remain.
+**Exit gate:** the game draws the core layout with no layout flag; checker passes as in WP6b; gallery and seeds 1 to 4 screenshots are
+captured for owner review; median `M7A_FRAME_GDSCRIPT scene=` time is within 5% of the spiral on the `deposits` and Iron scenarios;
+no `DWELL_MAX_TOTAL` or `DWELL_MAX_EACH` references remain in source.
+
+**WP6c result (2026-11-11):** the default gallery runs without a layout flag; the sunflower-spiral branch, plot squeeze and dwelling
+count caps are removed; pastures use an available simulation-claimed ring-2 tile. The gallery checker passed with 11 settlements,
+8 outer claims, 634 items and 17,243 footprint pairs. Seed 1 and 2 live Iron captures at minute 110 passed with 113 settlements /
+51 claims / 7,687 items and 119 settlements / 78 claims / 8,598 items, respectively. Seed 3 and 4 gallery captures at minute 30
+also passed (9 / 8 / 593 and 8 / 8 / 584); starting a second live Iron game at minute 110 took about 16 minutes, so the last two image sets use the faster
+gallery scenario. Screenshots are in `builds/core-gallery-v3/`.
+
+Timing was measured on an Apple M4 with Godot 4.7.2 using `M7A_FRAME_GDSCRIPT scene=` (milliseconds; same seed and scenario on the
+spiral baseline and the default core):
+
+| Scenario | Spiral median / mean / p95 | Default core median / mean / p95 | Median change |
+|---|---:|---:|---:|
+| `deposits` (8 frames each) | 6.80 / 7.70 / 12.20 | 6.58 / 7.55 / 11.46 | -3.2% |
+| Iron (44 spiral, 44 core frames) | 7.94 / 17.86 / 36.16 | 7.96 / 20.53 / 42.15 | +0.3% |
+
+The typical frame (median) stays within 5% in both scenarios. Iron's average is 14.9% higher and its p95 is 16.6% higher.
+
+**WP6c performance follow-up (2026-11-12; Apple M4, Godot 4.7.2, seed 1):** Settlement layouts now cache per settlement; shared
+claims and local plots that affect a settlement invalidate the relevant entries. Deposit props now depend on their actual placement
+inputs, so an unrelated structure change no longer rebuilds every deposit marker.
+
+The same 15-second `iron-life` run (start minute 20, with all six camera captures) measured:
+
+| Run | Samples | Median / mean / p95 (`scene=`, ms) |
+|---|---:|---:|
+| Spiral baseline | 44 | 7.94 / 17.86 / 36.16 |
+| Default core before cache | 44 | 7.96 / 20.53 / 42.15 |
+| Default core after cache | 84 | 7.95 / 11.79 / 21.92 |
+
+The renderer emitted more samples after the optimization because updates completed more often during the same scenario window, so
+these are same-seed scenario measurements rather than paired frames. The median is unchanged; mean time is 34% below the spiral
+baseline and p95 is 39% lower. A longer `--wait=90` run also completed all six captures: 382 samples, median 7.82 ms, mean
+11.15 ms and p95 27.67 ms. This longer run has no matching spiral trace.
+
+The `deposits` scenario also passes the median gate: seed 1 at minute 30 measured 6.80 ms (8 spiral samples) versus 5.52 ms (7
+optimized samples), an 18.8% reduction. Its short trace includes one 34.67 ms initial-update spike, so the sample is too small for a
+useful deposits mean or tail comparison. Updates that rebuild many settlement layouts can still spike, but the Iron mean and p95
+regression against the spiral are resolved.
 
 ## 4. Tests
 
@@ -532,7 +580,7 @@ from fresh runs. Replay corpus regeneration remains outside WP6a.
    follow slightly different paths.
 4. **Moves look like jumps** (23 in four games): a building redrawn on a neighbouring hex when another district arrives. Accepted; storing
    arrival order (§2.1) is the fix if the owner minds.
-5. **The picture rotates once** for settlements whose renderer Front came from a trail: WP6b switches them to the sim's static Front.
+5. **The picture rotated once** for settlements whose renderer Front came from a trail: WP6b now uses the sim's static Front.
 6. **E5 merge.** `codex/e5-fief` must append `CoreDistrict.Cathedral` (home p9, priority after Great Library) and classify its 11
    structures; the §4 registry test forces this.
 7. **Shadow vs enforced.** §§5.2–5.4 are shadow results. The enforced four-seed check is now in §5.6; differences reflect fields

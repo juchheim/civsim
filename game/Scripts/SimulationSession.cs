@@ -281,6 +281,13 @@ public sealed class SimulationSession : IDisposable
             return DecreeForecaster.Forecast(_match.Politics, civ, kind, target, extra, belief: null);
     }
 
+    /// <summary>Read-only outer-core preview for the renderer's debug gallery, synchronized with the simulation thread.</summary>
+    internal int PreviewOuterCore(int site, ushort districtMask, Span<int> tiles, Span<byte> districts, Span<byte> positions)
+    {
+        lock (_stateLock)
+            return _match.Economy.PreviewOuterCore(site, districtMask, tiles, districts, positions);
+    }
+
     /// <summary>Read-only Beacon placement estimate, synchronized with the deterministic simulation thread.</summary>
     public BeaconSitePreview PreviewBeaconPlacement(int civ, int tile)
     {

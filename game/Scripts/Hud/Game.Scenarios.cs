@@ -739,10 +739,10 @@ public partial class Game
                 Shot("defense-castle");
                 break;
             case "core-gallery":
-                // --start-minute=30 --viewer=-1 --dev-core-gallery --looks-debug [--core-layout] [--layout-dump=FILE] (debug builds): one settlement of each
-                // stage (docs/MVP/31 WP1), each from the same camera; shots are named before_<stage> without --core-layout and after_<stage> with it.
+                // --start-minute=30 --viewer=-1 --dev-core-gallery --looks-debug [--layout-dump=FILE] (debug builds): one settlement of each
+                // stage (docs/MVP/31 WP6c), each captured with the default core layout.
                 // Run with --always-on-top so the window keeps drawing.
-                string corePrefix = HasArgument("--core-layout") ? "after" : "before";
+                const string corePrefix = "core";
                 Step(() =>
                 {
                     if (_hudLayer is not null) _hudLayer.Visible = false;

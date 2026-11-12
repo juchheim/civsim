@@ -164,6 +164,14 @@ public sealed class MatchFrame
     /// <summary>Ziggurats standing at each settlement (BLD-08 Wonder), and the permille of the next one raised while it is under way. Zero for remembered settlements.</summary>
     public byte[] SettlementZiggurats = Array.Empty<byte>();
     public short[] SettlementZigguratPermille = Array.Empty<short>();
+    /// <summary>The static core gate direction (0..5), or 255 for a remembered settlement.</summary>
+    public byte[] SettlementCoreFront = Array.Empty<byte>();
+    /// <summary>Outer-core districts in frame-row order, then district priority. Unhoused rows have tile -1 and position 255.</summary>
+    public int CoreOuterCount;
+    public int[] CoreOuterTile = Array.Empty<int>();
+    public int[] CoreOuterSettlement = Array.Empty<int>();
+    public byte[] CoreOuterDistrict = Array.Empty<byte>();
+    public byte[] CoreOuterPosition = Array.Empty<byte>();
 
     // ---- economy of the viewer's own settlements (zero elsewhere): the "Your people" sheet --------
     /// <summary>Goods a settlement can hold; the stride of <see cref="SettlementStores"/>.</summary>
@@ -482,6 +490,7 @@ public sealed class MatchFrame
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
             Ensure(ref SettlementTemples, n); Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
+            Ensure(ref SettlementCoreFront, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
         int rows = SettlementIndex.Length;
@@ -493,6 +502,12 @@ public sealed class MatchFrame
         Ensure(ref SettlementEcon, rows * EconField.Stride);
         Ensure(ref SettlementBuild, rows);
         Ensure(ref SettlementHistory, rows * HistoryLength * HistorySeriesCount);
+    }
+
+    internal void EnsureCoreOuter(int n)
+    {
+        Ensure(ref CoreOuterTile, n); Ensure(ref CoreOuterSettlement, n);
+        Ensure(ref CoreOuterDistrict, n); Ensure(ref CoreOuterPosition, n);
     }
 
     internal void EnsurePayoff(int projects)

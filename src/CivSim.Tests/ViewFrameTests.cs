@@ -211,6 +211,10 @@ public class ViewFrameTests
         }
 
         Assert.Equal(eco.SettlementCount, f.SettlementCount);
+        int outerRow = 0;
+        var outerTiles = new int[(int)CoreDistrict.Count];
+        var outerDistricts = new byte[(int)CoreDistrict.Count];
+        var outerPositions = new byte[(int)CoreDistrict.Count];
         for (int s = 0; s < eco.SettlementCount; s++)
         {
             var lite = eco.SettlementLite(s);
@@ -226,7 +230,17 @@ public class ViewFrameTests
             Assert.Equal(Math.Min(255, eco.TempleCount(s)), f.SettlementTemples[s]);
             Assert.Equal(Math.Min(255, ziggurats), f.SettlementZiggurats[s]);
             Assert.Equal(zigguratPermille, f.SettlementZigguratPermille[s]);
+            Assert.InRange(f.SettlementCoreFront[s], (byte)0, (byte)5);
+            int count = eco.OuterCoreHexes(s, outerTiles, outerDistricts, outerPositions);
+            for (int row = 0; row < count; row++, outerRow++)
+            {
+                Assert.Equal(s, f.CoreOuterSettlement[outerRow]);
+                Assert.Equal(outerTiles[row], f.CoreOuterTile[outerRow]);
+                Assert.Equal(outerDistricts[row], f.CoreOuterDistrict[outerRow]);
+                Assert.Equal(outerPositions[row], f.CoreOuterPosition[outerRow]);
+            }
         }
+        Assert.Equal(outerRow, f.CoreOuterCount);
 
         for (int t = 0; t < f.Visibility.Length; t++)
         {
@@ -336,6 +350,24 @@ public class ViewFrameTests
             Assert.Equal(0, f.SettlementTemples[index]);
             Assert.Equal(0, f.SettlementZiggurats[index]);
             Assert.Equal(0, f.SettlementZigguratPermille[index]);
+        }
+        var outerCounts = new int[f.SettlementCount];
+        for (int i = 0; i < f.CoreOuterCount; i++)
+        {
+            int row = f.CoreOuterSettlement[i];
+            Assert.InRange(row, 0, f.SettlementCount - 1);
+            Assert.Equal(0, f.SettlementFlags[row] & (ushort)SettlementViewFlags.Remembered);
+            outerCounts[row]++;
+        }
+        for (int i = 0; i < f.SettlementCount; i++)
+        {
+            bool remembered = (f.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0;
+            if (remembered)
+            {
+                Assert.Equal(byte.MaxValue, f.SettlementCoreFront[i]);
+                Assert.Equal(0, outerCounts[i]);
+            }
+            else Assert.InRange(f.SettlementCoreFront[i], (byte)0, (byte)5);
         }
         // A rival's private numbers are not in the frame; public ones are.
         for (int c = 1; c < f.CivCount; c++)

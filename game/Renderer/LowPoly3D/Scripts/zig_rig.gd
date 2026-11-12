@@ -106,7 +106,7 @@ func _make_site(z: Dictionary) -> Dictionary:
 ## A point in the ziggurat's own space (z toward the hearth, scaled by SC) as a world position.
 func _world(z: Dictionary, local: Vector3) -> Vector3:
 	var p: Vector2 = z.p
-	var sc := float(z.get("scale", SC))     # the core layout (--core-layout) may draw it smaller to fit its hex
+	var sc := float(z.get("scale", SC))     # the core layout may draw it smaller to fit its hex
 	var o: Vector3 = M7WorldBuilder.rot_y(float(z.yaw)) * (Vector3(local.x, 0.0, local.z) * sc)
 	var y := float(z.y) + local.y * sc
 	if local.y <= 0.0:

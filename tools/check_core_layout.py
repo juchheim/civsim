@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks a settlement-core layout dump (docs/MVP/31 WP1, WP2).
 
-The dump is written by the renderer when the game runs with ``--core-layout --layout-dump=FILE``
+The dump is written by the renderer when the game runs with ``--layout-dump=FILE``
 (game/Renderer/LowPoly3D/Scripts/core_layout.gd). For every live settlement it checks:
 
 1. no prop centre lies outside the seven-hex core, except the outer works of 31 section 4.7
@@ -12,17 +12,19 @@ The dump is written by the renderer when the game runs with ``--core-layout --la
    and its banner are one group);
 4. at most one tier of each upgrade chain is drawn (perimeter, gate, sacred, council, watch,
    food store, pottery, metal, water, grinding, shelter);
-5. the growing core (docs/MVP/31a): every reserved ring-2 hex lies at hex distance exactly 2 from
-   the site and outside every other settlement's seven-hex core; there is one reserved hex per
-   ring-2 district; each whole-hex building of a settlement with ring-2 hexes is drawn whole (never
-   dropped or halved); and no garden cue stands on a reserved ring-2 hex.
+5. the growing core (docs/MVP/31b): sim_outer is exactly the renderer's housed ring-2 rows;
+   positions and district ids are valid, claims do not overlap each other or another core, every
+   housed whole-hex building stands on its simulation tile, and no outer work or garden cue stands
+   on any claimed tile. Plots still present on claims are reported for next-season release review.
+6. when --frame is supplied, coreFront and coreOuter match an independent harness frame.
 
-Usage: python3 tools/check_core_layout.py DUMP.json [--quiet]
+Usage: python3 tools/check_core_layout.py DUMP.json [--frame FRAME.json] [--quiet]
 Exit status 0 when every check passes, 1 otherwise.
 """
 import json
 import math
 import sys
+import argparse
 
 S = 0.8660254037844386
 TOLERANCE = 0.002  # metres of overlap ignored (float noise)
@@ -66,9 +68,6 @@ def hex_distance(a, b, width):
     qa, ra, sa = cube(a, width)
     qb, rb, sb = cube(b, width)
     return max(abs(qa - qb), abs(ra - rb), abs(sa - sb))
-
-
-WHOLE_KINDS = ("temple", "academy", "theatre", "bathhouse", "castle", "ziggurat", "dome", "library")
 
 
 def box_corners(b):
@@ -116,15 +115,21 @@ def overlap(i, j):
     return i["r"] + j["r"] - math.hypot(i["x"] - j["x"], i["z"] - j["z"])
 
 
-def check(path, quiet=False):
+def check(path, quiet=False, frame_path=None):
     data = json.load(open(path))
     width, height = data["width"], data["height"]
     plots = set(data["plots"][0::2])
     problems = []
-    totals = {"settlements": 0, "items": 0, "outer": 0, "pairs": 0}
+    totals = {"settlements": 0, "items": 0, "outer": 0, "pairs": 0, "outer_claims": 0}
     by_stage = {}
-    sites = [r["tile"] for r in data["settlements"]]
-    grown = 0
+    district_ids = data.get("core_district_ids", [])
+    rows = data["settlements"]
+    claims = set()
+    for row in rows:
+        claims.update(t for t in row.get("core_tiles", []) if t >= 0)
+        claims.update(int(outer[0]) for outer in row.get("sim_outer", []) if int(outer[0]) >= 0)
+    outer_owner = {}
+    plot_claims = []
     for row in data["settlements"]:
         totals["settlements"] += 1
         by_stage[row["stage"]] = by_stage.get(row["stage"], 0) + 1
@@ -132,10 +137,60 @@ def check(path, quiet=False):
         core = set(t for t in row["core_tiles"] if t >= 0)
         items = row["items"]
         totals["items"] += len(items)
+        if row.get("front", -1) not in range(6):
+            problems.append(f"{label}: front {row.get('front')} is outside 0..5")
+        outer_rows = row.get("sim_outer", [])
+        housed_tiles = []
+        housed_districts = []
+        unhoused_districts = []
+        seen_districts = set()
+        for tile, district, position in outer_rows:
+            if district < 0 or district >= len(district_ids):
+                problems.append(f"{label}: invalid core district id {district}")
+                continue
+            name = district_ids[district]
+            if district in seen_districts:
+                problems.append(f"{label}: district {name} appears more than once in sim_outer")
+            seen_districts.add(district)
+            if tile < 0:
+                if tile != -1 or position != 255:
+                    problems.append(f"{label}: malformed unhoused {name} row [{tile}, {district}, {position}]")
+                unhoused_districts.append(name)
+                continue
+            totals["outer_claims"] += 1
+            housed_tiles.append(tile)
+            housed_districts.append(name)
+            if position not in range(12):
+                problems.append(f"{label}: {name} has invalid outer position {position}")
+            if hex_distance(row["tile"], tile, width) != 2:
+                problems.append(f"{label}: claimed hex {tile} is not at distance 2")
+            previous = outer_owner.get(tile)
+            if previous is not None:
+                problems.append(f"{label}: claimed hex {tile} is also claimed by settlement {previous}")
+            else:
+                outer_owner[tile] = row["settlement"]
+            for other in rows:
+                if other is row:
+                    continue
+                if tile in set(t for t in other.get("core_tiles", []) if t >= 0):
+                    problems.append(f"{label}: claimed hex {tile} lies in settlement {other['settlement']}'s seven-hex core")
+        if housed_districts != sorted(housed_districts, key=lambda name: district_ids.index(name)):
+            problems.append(f"{label}: sim_outer districts are not in priority order")
+        if housed_tiles != row.get("rendered_outer_tiles", []):
+            problems.append(f"{label}: renderer outer tiles do not equal the housed sim_outer tiles")
+        if housed_districts != row.get("rendered_outer_districts", []):
+            problems.append(f"{label}: renderer outer districts do not equal the housed sim_outer districts")
+        if unhoused_districts != row.get("unhoused_districts", []):
+            problems.append(f"{label}: unhoused districts are not listed accurately")
         for it in items:
             tile = tile_at(it["x"], it["z"], width, height)
             if it.get("outer"):
                 totals["outer"] += 1
+                slot_tile = int(it.get("slot_hex", tile))
+                if slot_tile < 0:
+                    slot_tile = tile
+                if slot_tile in claims:
+                    problems.append(f"{label}: outer work {it['kind']} stands on claimed tile {slot_tile}")
                 if tile in plots and it["kind"] not in ("water_mill", "aqueduct_span", "frontier_wall", "siege"):
                     problems.append(f"{label}: outer work {it['kind']} stands on plot tile {tile}")
                 continue
@@ -152,29 +207,22 @@ def check(path, quiet=False):
                 d = overlap(i, j)
                 if d > TOLERANCE:
                     problems.append(f"{label}: {i['kind']} ({i['quarter']} {i['slot']}) and {j['kind']} ({j['quarter']} {j['slot']}) overlap by {d:.3f}")
-        ring2 = row.get("ring2_tiles", [])
-        districts = row.get("ring2_districts", [])
-        if ring2:
-            grown += 1
-            if len(ring2) != len(districts):
-                problems.append(f"{label}: {len(ring2)} ring-2 hexes for {len(districts)} districts")
-            for t in ring2:
-                d = hex_distance(row["tile"], t, width)
-                if d != 2:
-                    problems.append(f"{label}: reserved hex {t} is {d} from the site, not 2")
-                for other in sites:
-                    if other != row["tile"] and hex_distance(other, t, width) <= 1:
-                        problems.append(f"{label}: reserved hex {t} lies in the core of the settlement at {other}")
-            for it in items:
-                if it["kind"] == "garden" and tile_at(it["x"], it["z"], width, height) in ring2:
-                    problems.append(f"{label}: a garden cue stands on reserved hex {tile_at(it['x'], it['z'], width, height)}")
-                if it["kind"] in WHOLE_KINDS and it["slot"] != "whole":
-                    problems.append(f"{label}: {it['kind']} is drawn at {it['slot']}, not whole")
-            for k in row["dropped"]:
-                if k in WHOLE_KINDS:
-                    problems.append(f"{label}: whole-hex building {k} was dropped")
-            if not quiet and row["gallery"]:
-                print(f"{label}: ring 2 {dict(zip(districts, ring2))}")
+        for it in items:
+            tile = tile_at(it["x"], it["z"], width, height)
+            if it["kind"] == "garden" and tile in claims:
+                problems.append(f"{label}: a garden cue stands on claimed hex {tile}")
+        for district, kind in row.get("core_expected_items", []):
+            if district < 0 or district >= len(district_ids):
+                continue
+            sim_row = next((r for r in outer_rows if r[1] == district and r[0] >= 0), None)
+            if sim_row is None:
+                continue
+            tile = int(sim_row[0])
+            matches = [it for it in items if it["kind"] == kind]
+            if not matches:
+                problems.append(f"{label}: housed {district_ids[district]} building {kind} is missing or dropped")
+            elif not any(it["slot"] == "whole" and int(it.get("slot_hex", -1)) == tile for it in matches):
+                problems.append(f"{label}: housed {district_ids[district]} building {kind} is not whole on sim tile {tile}")
         tiers = {}
         for it in items:
             if it.get("chain"):
@@ -185,7 +233,28 @@ def check(path, quiet=False):
         if not quiet and row["gallery"]:
             chains = ", ".join(f"{c}={'/'.join(sorted(t))}" for c, t in sorted(tiers.items()))
             print(f"{label}: {len(items)} items; quarters {row['active_quarters']}; chains {chains}; dropped {row['dropped']}")
-    print(f"checked {totals['settlements']} settlements {by_stage} ({grown} with ring-2 hexes), {totals['items']} items ({totals['outer']} outer works), {totals['pairs']} footprint pairs")
+    for tile in sorted(plots & claims):
+        plot_claims.append(tile)
+    print(f"checked {totals['settlements']} settlements {by_stage} ({totals['outer_claims']} outer claims), {totals['items']} items ({totals['outer']} outer works), {totals['pairs']} footprint pairs")
+    if plot_claims:
+        print(f"reported {len(plot_claims)} plots still on claimed tiles (check whether each claim is from this season): {plot_claims[:20]}")
+    if frame_path:
+        frame = json.load(open(frame_path))
+        if int(frame.get("tick", -1)) != int(data.get("tick", -2)):
+            problems.append(f"frame tick {frame.get('tick')} differs from renderer tick {data.get('tick')}")
+        frame_by_tile = {int(s["tile"]): s for s in frame.get("settlements", [])}
+        for row in rows:
+            source = frame_by_tile.get(int(row["tile"]))
+            if source is None:
+                problems.append(f"settlement at {row['tile']} is absent from harness frame")
+                continue
+            expected_front = int(source.get("coreFront", 255))
+            expected_outer = source.get("coreOuter", [])
+            if row.get("front") != expected_front:
+                problems.append(f"settlement at {row['tile']}: front {row.get('front')} differs from frame {expected_front}")
+            if row.get("sim_outer", []) != expected_outer:
+                problems.append(f"settlement at {row['tile']}: sim_outer differs from harness frame")
+        print(f"cross-checked renderer claims against {frame_path}")
     for p in problems:
         print("FAIL", p)
     print("PASS" if not problems else f"{len(problems)} problem(s)")
@@ -193,7 +262,9 @@ def check(path, quiet=False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(__doc__)
-        sys.exit(2)
-    sys.exit(check(sys.argv[1], "--quiet" in sys.argv))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("dump")
+    parser.add_argument("--frame", help="optional independent civsim-harness view --dump-frame JSON")
+    parser.add_argument("--quiet", action="store_true")
+    args = parser.parse_args()
+    sys.exit(check(args.dump, args.quiet, args.frame))

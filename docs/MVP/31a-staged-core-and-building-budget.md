@@ -407,14 +407,15 @@ In the worktree `agent-a2ddcf3c980c17cde` (branch `worktree-agent-a2ddcf3c980c17
 from `agent-afd063ce7ba43f74e`: `core_layout.gd` computes the districts a settlement needs, reserves ring-2 hexes in the fixed order of
 §3.3 (using the renderer's own view of terrain, rivers, known deposits and other settlements' cores, since the sim does not send them
 yet), assigns districts by affinity, places each whole building on its district hex, extends the wall round every hex in use, paints
-village ground on each reserved hex and keeps trees and garden cues off them. `--core-v1` draws the old seven-hex prototype. The
-`core-gallery` capture gains a wide top view and a wide angled view. `tools/check_core_layout.py` gains check 5 (reserved hexes at
+village ground on each reserved hex and keeps trees and garden cues off them. During the prototype, `--core-v1` selected the old
+seven-hex layout; WP6c removed that switch and made the simulation-claimed layout the default. The `core-gallery` capture gains a
+wide top view and a wide angled view. `tools/check_core_layout.py` gains check 5 (reserved hexes at
 distance 2, outside other cores, one per district, every whole building drawn whole and none dropped, no garden cue on a reserved hex).
 
-Command: `Godot --path game --resolution 1600x900 --always-on-top -- --scenario=core-gallery --start-minute=20 --viewer=-1
---dev-core-gallery --looks-debug --core-layout --layout-dump=F --shots=DIR`. Images in `builds/core-gallery-v2/`: `v1_*` are the
-seven-hex prototype, `after_*` the grown core (`_wide`, `_wideangle`, `_top`, `_close` and the default view per stage). The checker passes
-on 9 settlements, 592 items, 15,574 footprint pairs (M).
+Current command: `Godot --path game --resolution 1600x900 --always-on-top -- --scenario=core-gallery --start-minute=30 --viewer=-1
+--dev-core-gallery --looks-debug --layout-dump=F --shots=DIR`. Images in `builds/core-gallery-v2/`: `v1_*` are the seven-hex
+prototype, `after_*` the grown core (`_wide`, `_wideangle`, `_top`, `_close` and the default view per stage). The checker passes on
+9 settlements, 592 items, 15,574 footprint pairs (M).
 
 ### 5.2 What the images show
 

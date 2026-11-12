@@ -948,6 +948,8 @@ public sealed partial class FrameBuilder
         for (int s = _seenSettlements; s < n; s++) _seenSeason[s] = -1;
         _seenSettlements = Math.Max(_seenSettlements, n);
         target.EnsureSettlements(n);
+        target.EnsureCoreOuter(n * (int)CoreDistrict.Count);
+        target.CoreOuterCount = 0;
         int kinds = MatchFrame.StructureKinds;
         int written = 0;
         for (int s = 0; s < n; s++)
@@ -979,6 +981,7 @@ public sealed partial class FrameBuilder
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
                 target.SettlementHalls[w] = 0; target.SettlementTemples[w] = 0; target.SettlementZiggurats[w] = 0; target.SettlementZigguratPermille[w] = 0;
+                target.SettlementCoreFront[w] = byte.MaxValue;
                 continue;
             }
             var lite = eco.SettlementLite(s);
@@ -1009,6 +1012,12 @@ public sealed partial class FrameBuilder
             (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
             target.SettlementZiggurats[w] = (byte)Math.Min(255, ziggurats);
             target.SettlementZigguratPermille[w] = (short)Math.Clamp(zigguratPermille, 0, 1000);
+            target.SettlementCoreFront[w] = (byte)eco.CoreFront(s);
+            int outerOffset = target.CoreOuterCount;
+            int outerCount = eco.OuterCoreHexes(s,
+                target.CoreOuterTile.AsSpan(outerOffset), target.CoreOuterDistrict.AsSpan(outerOffset), target.CoreOuterPosition.AsSpan(outerOffset));
+            for (int row = 0; row < outerCount; row++) target.CoreOuterSettlement[outerOffset + row] = w;
+            target.CoreOuterCount += outerCount;
             if (eco.DefenseStructures(s, lookout: false) > 0) flags |= SettlementViewFlags.ThornBarrier;
             if (eco.DefenseStructures(s, lookout: true) > 0) flags |= SettlementViewFlags.Lookout;
             if (PalisadeStructure >= 0 && eco.StructureCount(s, PalisadeStructure) > 0)

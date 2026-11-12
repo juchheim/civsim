@@ -1,4 +1,4 @@
-## The settlement core (docs/MVP/31 §4, work packages WP1 and WP2): a renderer-only prototype behind the `--core-layout` launch flag.
+## The default settlement core (docs/MVP/31 §4, work packages WP1, WP2 and WP6c), drawn from simulation claims.
 ##
 ## Every live settlement is drawn on a fixed slot map of its seven-hex core (its own hex and the six around it) instead of the sunflower
 ## spiral of world_builder.gd `_settlements`. Each core hex has seven sub-slots: s0 at its centre and petals s1..s6 at PETAL from it (petal
@@ -10,10 +10,8 @@
 ## pottery yard, one metal yard, one water work. Knowledge props that duplicate built structures (totem, shrine, signal, palisade) are not
 ## drawn; the other knowledge props are dressing beside their host building (§4.6).
 ##
-## The simulation is unchanged, so a field or orchard may still lie on a core hex. Such a plot is drawn as a small garden cue: on a core hex
-## that holds nothing it is a patch at the hex centre (radius GARDEN_OPEN_R); otherwise it takes a free petal (GARDEN_PETAL_R) or, failing
-## that, the gap between two petals toward a hex corner (GARDEN_GAP_R) when that gap is clear of every core item; with no room it is hidden.
-## Its footprint is listed in the layout dump like any other item, so the checker proves it collides with nothing.
+## The simulation enforces site, ring-1 and outer claims. A plot can remain on a newly claimed hex until the next-season release; the
+## renderer hides it there until the simulation releases it, and never puts a garden cue on a claimed hex.
 ##
 ## `--layout-dump=FILE` writes every settlement prop with its hex, sub-slot, footprint and chain tier to FILE (JSON) each time the
 ## settlements are laid out; game/tools/check_core_layout.py checks it.
@@ -26,7 +24,7 @@ const HALF_R := 0.19         # a half-hex item: s0 and two adjacent petals (gran
 const HALF_OFF := 0.15       # from the hex centre to a half-hex item, toward the corner between its two petals
 const WHOLE_R := 0.42        # a whole-hex building (temple, academy, castle, Wonder)
 const FRONT_WHOLE_R := 0.36  # a whole-hex building in the Front quarter keeps clear of the gate
-const HEART3_OFF := 0.29     # the Heart landmark (chief's hall) stands behind the hearth on three petals
+const HEART3_OFF := 0.32     # the Heart landmark (chief's hall) stands behind the hearth on three petals
 const HEART3_R := 0.2
 const PERIM := 0.465         # from a hex centre to the perimeter line (0.035 inside the hex boundary)
 const PERIM_THORN := 0.48    # the thorn hedge is bushier and stands a little farther out
@@ -44,19 +42,8 @@ const QN := 16
 const Q_NAMES := ["heart", "front", "homes_a", "homes_b", "workshops", "watch", "sacred",
 	"citadel", "learning", "civic", "health", "wonder_a", "wonder_b", "wonder_c", "homes_c", "homes_d"]
 const Q_OFFSET := [0, 0, 1, -1, 2, -2, 3]
-## The staged core (docs/MVP/31a §3): districts that take a ring-2 hex, and the direction (in hex steps from the Front, 0..6) each would
-## like to face. They are given out in this order (priority) among the ring-2 hexes the rule reserved; each takes the free reserved hex
-## that faces its wish most squarely.
-const RING2_WISH := {Q.WONDER_A: 3.0, Q.CITADEL: -2.0, Q.WONDER_B: -2.8, Q.WONDER_C: 2.8, Q.LEARNING: 2.2, Q.CIVIC: 1.6, Q.HEALTH: 1.0,
-	Q.HOMES_C: -1.2, Q.HOMES_D: 1.2}
-## The fixed order in which ring-2 hexes are reserved: [corner (true) or edge (false), offset from the Front]. Back first, the Front last,
-## corners before edges at the same angle; an edge hex at offset k lies between the corner hexes at k and k + 1.
-const RING2_ORDER := [[true, 3], [false, 2], [false, 3], [true, 2], [true, 4], [false, 1], [false, 4], [true, 1], [true, 5], [false, 0],
-	[false, 5], [true, 0]]
-const STAGED_REACH := 1.2    # terrain village-ground radius round the hearth once a core has ring-2 hexes
+const VILLAGE_GROUND := 1.2  # terrain village-ground radius round every settlement hearth
 const RING2_GROUND := 0.5    # and round each ring-2 hex's centre
-## --core-v1 draws the seven-hex prototype (docs/MVP/31 WP1) for comparison; the staged core is the default under --core-layout.
-var STAGED: bool = not ("--core-v1" in OS.get_cmdline_user_args())
 ## Quarters that move to the next free hex when theirs is water, mountain or off the map (§4.2); the Front stays on its water.
 const REASSIGN := [Q.HOMES_A, Q.WORKS, Q.SACRED, Q.HOMES_B, Q.WATCH]
 const STAGES := ["band", "village", "town", "city"]
@@ -77,7 +64,9 @@ var gallery := {}            # coreGallery name -> Vector3 (hearth), for the cap
 var garden_cues := {}        # plot tile -> [position, scale] for world_builder._draw_plots
 var _rows: Array = []        # the layout dump, one row per settlement
 var _hd := {}                # mesh -> [footprint radius, AABB centre (x, z)] at scale 1
-var _trail_set := {}
+var _sim_core_tiles := {}     # tiles claimed by any live settlement's site and ring 1
+var _sim_outer_tiles := {}    # tiles claimed by any live settlement's sim-computed outer districts
+var _sim_claimed_tiles := {}  # union of all living settlements' core and outer claims
 
 # the settlement being laid out
 var _si := 0
@@ -97,9 +86,9 @@ var _qhex_all: Array = []    # per quarter: the hex index it would hold (the dum
 var _items: Array = []
 var _dropped: Array = []
 var _group := 0
-var _foreign_core := {}      # tile -> site tile of the settlement whose seven-hex core holds it
-var _ring2: Array = []       # this settlement's reserved ring-2 hexes: [tile, centre, wish direction]
-var _ring2_q: Array = []     # the districts that asked for them, in priority order
+var _ring2: Array = []       # this settlement's sim rows: [tile, district, position, renderer hex index]
+var _unhoused_quarters := {} # renderer quarter -> true for present districts without a sim-assigned tile
+var _gate_i := -2            # selected perimeter edge; reused after the early slot reservation
 var _whole_n := 0            # whole-hex districts beyond the Sacred one (the staged rule's count)
 
 func _init(builder: M7WorldBuilder) -> void:
@@ -111,102 +100,85 @@ func begin() -> void:
 	_rows.clear()
 	gallery.clear()
 	garden_cues.clear()
-	_trail_set.clear()
-	for t in w.trail_tiles:
-		if t >= 0:
-			_trail_set[int(t)] = true
-	for t in w.road_tiles:
-		if t >= 0:
-			_trail_set[int(t)] = true
-	_foreign_core.clear()
+	_group = 0
+	_sim_core_tiles.clear()
+	_sim_outer_tiles.clear()
+	_sim_claimed_tiles.clear()
 	for s in w.settlements:
-		if bool(s.get("remembered")):
+		if bool(s.get("remembered")) or int(s.get("population", 0)) <= 0:
 			continue
 		var st := int(s.tile)
-		_foreign_core[st] = st
+		_sim_core_tiles[st] = true
+		_sim_claimed_tiles[st] = true
 		for d in 6:
 			var nb := w.neighbour(st, d)
 			if nb >= 0:
-				_foreign_core[nb] = st
+				_sim_core_tiles[nb] = true
+				_sim_claimed_tiles[nb] = true
+		for row in s.get("coreOuter", []):
+			var tile := int(row[0])
+			if tile >= 0:
+				_sim_outer_tiles[tile] = true
+				_sim_claimed_tiles[tile] = true
 
-# ------------------------------------------------------------------ the staged core (docs/MVP/31a §3)
+# ------------------------------------------------------------------ simulation-claimed outer hexes (docs/MVP/31b §3.2)
 
-## The districts a settlement needs a ring-2 hex for, in priority order. One per whole-hex district other than the Sacred one (the temple
-## keeps its ring-1 hex): Wonders, the citadel (castle), the ziggurat, learning (academy), civic (theatre or arena), health (bathhouse);
-## a City of 120 people or more also takes a hex of homes, and a second at 180. The simulation would compute the same count from its own structure counts (31a §3.2).
-func ring2_demand(s: Dictionary) -> Array:
-	var out := []
-	var wonders := [Q.WONDER_A, Q.WONDER_C]
-	for wid in ["great_dome", "great_library"]:
-		if w.iron_works(s, wid) > 0 and not wonders.is_empty():
-			out.append(wonders.pop_front())
-	var build_k := int(s.get("ironBuildKind", -1))
-	var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
-	if int(s.get("ironBuildPermille", 0)) > 0 and build_id.begins_with("great_") and build_id != "great_lighthouse" and not wonders.is_empty():
-		out.append(wonders.pop_front())
-	if wb.castle_stage(s) > 0:
-		out.append(Q.CITADEL)
-	if wb.zig_stage(s) > 0:
-		out.append(Q.WONDER_B)
-	if w.iron_works(s, "academy") > 0:
-		out.append(Q.LEARNING)
-	if w.iron_works(s, "theatre_arena") > 0:
-		out.append(Q.CIVIC)
-	if w.iron_works(s, "bathhouse") > 0:
-		out.append(Q.HEALTH)
-	# a City's homes spill into ring 2 by head count: one hex at 120 people, a second at 180 (31a §3.2)
-	if stage_of(s) == 3:
-		var homes := clampi(int(s.population) / 60 - 1, 0, 2)
-		if homes >= 1:
-			out.append(Q.HOMES_C)
-		if homes >= 2:
-			out.append(Q.HOMES_D)
-	return out
-
-## The ring-2 hexes a settlement reserves: the first `n` usable hexes in RING2_ORDER. Usable: on the map, land below mountain, no deposit
-## the viewer knows of (the sim would use every deposit), no river through its middle, and not in another settlement's seven-hex core.
-func ring2_tiles(t: int, front: int, n: int) -> Array:
-	var out := []
-	if n <= 0:
-		return out
-	for e in RING2_ORDER:
-		if out.size() >= n:
-			break
-		var k := front + int(e[1])
-		var r1 := w.neighbour(t, posmod(k, 6))
-		if r1 < 0:
-			continue
-		var tile := w.neighbour(r1, posmod(k if bool(e[0]) else k + 1, 6))
-		if tile < 0 or not w.is_land(tile) or w.biome[tile] >= M7WorldData.Biome.MOUNTAIN:
-			continue
-		if w.e3_overlay_bytes.size() == w.width * w.height * 4 and int(w.e3_overlay_bytes[tile * 4]) > 1:
-			continue
-		if _foreign_core.has(tile) and int(_foreign_core[tile]) != t:
-			continue
-		if wb._river_dist(w.tile_center(tile)) < 0.2:
-			continue
-		var wish := float(e[1]) if bool(e[0]) else float(e[1]) + 0.5
-		out.append([tile, w.tile_center(tile), wish])
-	return out
-
-## Pre-pass for world_builder (before the vegetation): the ring-2 tiles every live settlement reserves, so no trees grow under them.
+## Pre-pass for world_builder (before the vegetation): the frame's claimed outer tiles, so no trees grow under them.
 func reserved_ring2() -> Array:
 	begin()
 	var out := []
-	if not STAGED:
-		return out
 	for s in w.settlements:
-		if bool(s.get("remembered")):
+		if bool(s.get("remembered")) or int(s.get("population", 0)) <= 0:
 			continue
-		var demand := ring2_demand(s)
-		if demand.is_empty():
-			continue
-		_t = int(s.tile)
-		_seed = float(_t % 997) / 997.0
-		_front_of()
-		for r in ring2_tiles(_t, _front, demand.size()):
-			out.append(int(r[0]))
+		for row in s.get("coreOuter", []):
+			if int(row[0]) >= 0:
+				out.append(int(row[0]))
 	return out
+
+func _quarter_for_district(district: int) -> int:
+	if district < 0 or district >= w.core_district_ids.size():
+		return -1
+	match String(w.core_district_ids[district]):
+		"Ziggurat": return Q.WONDER_B
+		"GreatDome": return Q.WONDER_A
+		"GreatLibrary": return Q.WONDER_C
+		"Citadel": return Q.CITADEL
+		"Learning": return Q.LEARNING
+		"Civic": return Q.CIVIC
+		"Health": return Q.HEALTH
+		"HomesC": return Q.HOMES_C
+		"HomesD": return Q.HOMES_D
+	return -1
+
+func _district_name(district: int) -> String:
+	return String(w.core_district_ids[district]) if district >= 0 and district < w.core_district_ids.size() else "district_%d" % district
+
+func _expected_whole_items(s: Dictionary) -> Array:
+	var expected := []
+	for row in _ring2:
+		if int(row[0]) < 0:
+			continue
+		var district := int(row[1])
+		var name := _district_name(district)
+		var item := ""
+		match name:
+			"Ziggurat":
+				if wb.zig_stage(s) > 0: item = "ziggurat"
+			"GreatDome":
+				if w.iron_works(s, "great_dome") > 0: item = "dome"
+			"GreatLibrary":
+				if w.iron_works(s, "great_library") > 0: item = "library"
+			"Citadel":
+				if wb.castle_stage(s) > 0: item = "castle"
+			"Learning":
+				if w.iron_works(s, "academy") > 0: item = "academy"
+			"Civic":
+				if w.iron_works(s, "theatre_arena") > 0: item = "theatre"
+			"Health":
+				if w.iron_works(s, "bathhouse") > 0: item = "bathhouse"
+		if item != "":
+			expected.append([district, item])
+	return expected
 
 ## The stage a settlement is drawn at: Band, Village, Town or City (0..3). The frame does not carry the sim's tier (LivingEconomyModel
 ## Civic().Tier), so it is read from what the renderer sees: no permanent house and under 20 people is a Band; 90 people and a temple or
@@ -227,6 +199,23 @@ func stage_of(s: Dictionary) -> int:
 	if pop >= 60:
 		return 2
 	return 1
+
+## Maximum house meshes that could fit before other core items take their slots. The frame digest uses this natural ceiling so
+## additional population or house counts stop invalidating the village after every possible home quarter is full.
+func dwelling_capacity(s: Dictionary) -> int:
+	var stage := stage_of(s)
+	if stage == 0:
+		return 5 # the Heart has five usable petals after the hearth and way in
+	if stage == 1:
+		return 10 # Homes A plus the Village's three Heart petals
+	var slots := 14 # Homes A and B in ring 1
+	for row in s.get("coreOuter", []):
+		if int(row[0]) < 0:
+			continue
+		var district := _district_name(int(row[1]))
+		if district == "HomesC" or district == "HomesD":
+			slots += 7
+	return slots * (3 if stage == 3 else 2)
 
 static func _dir(d: int) -> Vector2:
 	var a := deg_to_rad(60.0 * posmod(d, 6))
@@ -277,9 +266,12 @@ func _build_hexes() -> void:
 				ok = false
 			slots[k] = 0 if ok else 3
 		_hex.append({"tile": tile, "c": centre, "dir": hi - 1, "land": land, "use": false, "slots": slots})
-	# the staged core: ring-2 hexes the rule reserved (index 7 on); `dir` is the direction whose petals face the Heart (d + 3)
+	# Outer rows are supplied by the frame. Keep the full list for the dump, including unhoused districts.
 	for r in _ring2:
-		var centre: Vector2 = r[1]
+		r[3] = -1
+		if int(r[0]) < 0:
+			continue
+		var centre := w.tile_center(int(r[0]))
 		var slots := [0, 0, 0, 0, 0, 0, 0]
 		for k in 7:
 			var p := centre if k == 0 else centre + _dir(k - 1) * PETAL
@@ -287,28 +279,9 @@ func _build_hexes() -> void:
 			var ok := tp >= 0 and w.is_land(tp) and w.biome[tp] < M7WorldData.Biome.MOUNTAIN and wb._river_dist(p) >= SMALL_R + RIVER_CLEAR
 			slots[k] = 0 if ok else 3
 		var ang := atan2((centre - _c0).y, (centre - _c0).x)
-		_hex.append({"tile": int(r[0]), "c": centre, "dir": posmod(roundi(ang / (PI / 3.0)), 6), "land": true, "use": false, "slots": slots,
-			"wish": float(r[2])})
-
-func _front_of() -> void:
-	_water_front = false
-	for i in 6:
-		var d := (i + int(_seed * 6.0)) % 6         # the order world_builder._harbor and _moor_fleet use, so the harbor stands in the Front
-		var nb := w.neighbour(_t, d)
-		if nb >= 0 and w.is_water(nb):
-			_front = d
-			_water_front = true
-			return
-	for d in 6:
-		var nb := w.neighbour(_t, d)
-		if nb >= 0 and w.is_land(nb) and (w.flags[nb] & M7WorldData.FLAG_RIVER) != 0:
-			_front = d
-			return
-	for d in 6:
-		if _trail_set.has(w.neighbour(_t, d)):
-			_front = d
-			return
-	_front = _t % 6
+		var hi := _hex.size()
+		_hex.append({"tile": int(r[0]), "c": centre, "dir": posmod(roundi(ang / (PI / 3.0)), 6), "land": true, "use": false, "slots": slots})
+		r[3] = hi
 
 func _assign_quarters() -> void:
 	_qhex_all = []
@@ -334,21 +307,17 @@ func _assign_quarters() -> void:
 				_qhex_all[q] = d + 1
 				taken[d] = true
 				break
-	# ring-2 districts: in priority order, each takes the free reserved hex facing its wish most squarely (ties: lower hex index)
-	var free2 := []
-	for hi in range(7, _hex.size()):
-		free2.append(hi)
-	for q in _ring2_q:
-		var best := -1
-		var best_d := INF
-		for hi in free2:
-			var d := absf(angle_difference(float(_hex[hi].wish) * PI / 3.0, float(RING2_WISH[q]) * PI / 3.0))
-			if d < best_d - 0.001:
-				best_d = d
-				best = hi
-		if best >= 0:
-			_qhex_all[q] = best
-			free2.erase(best)
+	# The simulation assigns each district to its exact tile and angular position.
+	_unhoused_quarters.clear()
+	for r in _ring2:
+		var q := _quarter_for_district(int(r[1]))
+		if q < 0:
+			continue
+		if int(r[0]) < 0:
+			_unhoused_quarters[q] = true
+			_dropped.append("no_room_" + _district_name(int(r[1])))
+		else:
+			_qhex_all[q] = int(r[3])
 	for hi in range(7, _hex.size()):
 		_hex[hi].use = true
 	_qhex = _qhex_all.duplicate()
@@ -424,10 +393,11 @@ func _take_whole(prefs: Array) -> int:
 		var hi: int = _qhex[q]
 		if hi <= 0:
 			continue
+		var outer := hi >= 7
 		var ok := true
 		for k in 7:
 			var v: int = _hex[hi].slots[k]
-			if v == 1 or v == 3 or (v == 2 and q != Q.FRONT):
+			if v == 1 or (v == 3 and not outer) or (v == 2 and q != Q.FRONT):
 				ok = false
 				break
 		if ok:
@@ -445,7 +415,7 @@ func _record(entry: Dictionary) -> void:
 	entry["hex"] = w.tile_at(at)
 	_items.append(entry)
 	if not bool(entry.get("outer", false)):
-		wb._reserve_plot_visual(at, float(entry.get("r", 0.1)))
+		wb._record_visual_occupancy(at, float(entry.get("r", 0.1)))
 
 ## Draws a mesh centred (by its bounds) on `at`, scaled to fit radius `fit` but never above `nominal`. Returns the scale.
 func _put(mesh_name: String, at: Vector2, yaw: float, fit: float, nominal: float, tint: Color, meta: Dictionary, y: float = INF) -> float:
@@ -487,6 +457,10 @@ func _half(prefs: Array, kind: String, mesh_name: String, nominal: float, chain:
 
 func _whole(prefs: Array, kind: String, mesh_name: String, nominal: float, chain: String = "", tier: String = "", fixed_scale: float = 0.0) -> Variant:
 	var hi := _take_whole(prefs)
+	var district_q := int(prefs[0]) if not prefs.is_empty() else -1
+	var shown_scale := fixed_scale
+	if shown_scale <= 0.0 and _unhoused_quarters.has(district_q):
+		shown_scale = nominal * 0.7
 	if hi < 0:
 		# overflow (§4.4): half size on three petals of the Workshops hex, else listed only
 		var half = _take_half([Q.WORKS])
@@ -494,7 +468,7 @@ func _whole(prefs: Array, kind: String, mesh_name: String, nominal: float, chain
 			_dropped.append(kind)
 			return null
 		var hp: Vector2 = (_hex[half[0]].c as Vector2) + _dir(half[1]).rotated(deg_to_rad(30.0)) * HALF_OFF
-		var hs := _put(mesh_name, hp, _face(hp), HALF_R, nominal, _tint(_items.size()),
+		var hs := _put(mesh_name, hp, _face(hp), HALF_R, nominal * (0.7 if _unhoused_quarters.has(district_q) else 1.0), _tint(_items.size()),
 			_meta(kind, half[0], "half:s%d+s%d" % [half[1] + 1, posmod(half[1] + 1, 6) + 1], chain, tier))
 		return [half[0], hp, hs]
 	var p: Vector2 = _hex[hi].c
@@ -503,9 +477,9 @@ func _whole(prefs: Array, kind: String, mesh_name: String, nominal: float, chain
 		p -= _dir(_front) * (WHOLE_R - FRONT_WHOLE_R)
 		fit = FRONT_WHOLE_R
 	var s: float
-	if fixed_scale > 0.0:
+	if shown_scale > 0.0:
 		var f := _foot(mesh_name)
-		s = fixed_scale
+		s = shown_scale
 		var yaw := _face(p)
 		var o: Vector3 = M7WorldBuilder.rot_y(yaw) * Vector3((f[1] as Vector2).x, 0.0, (f[1] as Vector2).y) * s
 		wb.props.add(mesh_name, wb._xf(p - Vector2(o.x, o.z), w.height_at(p), yaw, s), _tint(_items.size()))
@@ -588,19 +562,16 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	_items = []
 	_dropped = []
 	var st: Array = s.structures
-	_front_of()
-	_ring2_q = ring2_demand(s) if STAGED else []
-	_ring2 = ring2_tiles(_t, _front, _ring2_q.size())
-	if _ring2.size() < _ring2_q.size():
-		# fewer usable hexes than districts: the homes give way first, then the lowest-priority districts double up (§3.5)
-		var keep := []
-		for q in _ring2_q:
-			if q != Q.HOMES_C and q != Q.HOMES_D:
-				keep.append(q)
-		for q in [Q.HOMES_C, Q.HOMES_D]:
-			if keep.size() < _ring2.size() and _ring2_q.has(q):
-				keep.append(q)
-		_ring2_q = keep.slice(0, _ring2.size())
+	_front = int(s.get("coreFront", 255))
+	if _front < 0 or _front >= 6:
+		_front = _t % 6
+	var front_tile := w.neighbour(_t, _front)
+	_water_front = front_tile >= 0 and w.is_water(front_tile)
+	_ring2 = []
+	_unhoused_quarters.clear()
+	_gate_i = -2
+	for row in s.get("coreOuter", []):
+		_ring2.append([int(row[0]), int(row[1]), int(row[2]), -1])
 	_build_hexes()
 	_assign_quarters()
 	# s0 of the Heart holds the hearth and banner; the Heart petal toward the Front is the way in (gate passage or quay); so is the Front
@@ -668,7 +639,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	var big := [Q.SACRED, Q.HOMES_B, Q.FRONT, Q.WATCH]
 	for wid in [["great_dome", "dome", "great_dome", 1.35], ["great_library", "library", "great_library", 1.2]]:
 		if w.iron_works(s, String(wid[0])) > 0:
-			var r = _whole([Q.WONDER_A, Q.WONDER_C] + big, String(wid[1]), String(wid[2]), float(wid[3]))
+			var wonder_q := Q.WONDER_A if String(wid[0]) == "great_dome" else Q.WONDER_C
+			var r = _whole([wonder_q] + big, String(wid[1]), String(wid[2]), float(wid[3]))
 			if r != null:
 				wb.civic_sites.append({"kind": String(wid[1]), "p": r[1], "y": w.height_at(r[1]), "yaw": _face(r[1]), "civ": _civ, "seed": _seed, "tile": _t})
 	var build_k := int(s.get("ironBuildKind", -1))
@@ -676,7 +648,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	var build_pm := int(s.get("ironBuildPermille", 0))
 	var site_mesh := "build_site_%d" % (1 + mini(2, build_pm * 3 / 1000))
 	if build_pm > 0 and build_id.begins_with("great_") and build_id != "great_lighthouse":
-		_whole([Q.WONDER_A, Q.WONDER_C] + big, "wonder_site", site_mesh, 2.1)
+		var build_q := Q.WONDER_A if build_id == "great_dome" else Q.WONDER_C
+		_whole([build_q] + big, "wonder_site", site_mesh, 2.1)
 	var cstage: int = wb.castle_stage(s)
 	if cstage > 0:
 		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", "castle_%d" % cstage, 1.25)
@@ -729,14 +702,18 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 
 	# ---- the Heart landmark: the council chain (council ring, chief's hall; the palace has no mesh yet)
 	if decor.has("chiefhall"):
-		var hp := [posmod(_front + 2, 6) + 1, posmod(_front + 3, 6) + 1, posmod(_front + 4, 6) + 1]
-		if _hex[0].slots[hp[0]] == 0 and _hex[0].slots[hp[1]] == 0 and _hex[0].slots[hp[2]] == 0:
-			for k in hp:
-				_hex[0].slots[k] = 1
-			var lp := _c0 + _dir(_front + 3) * HEART3_OFF
-			_put("decor_chiefhall", lp, _face(lp) if lp.distance_to(_c) > 0.01 else 0.0, HEART3_R, CORE_VS, _tint(91), _meta("chiefhall", 0, "heart3", "council", "chiefhall"))
-		elif _half([Q.HOMES_B, Q.SACRED, Q.WORKS, Q.HOMES_A], "chiefhall", "decor_chiefhall", CORE_VS, "council", "chiefhall") == null:
-			_dropped.append("chiefhall")
+		if _stage == 0:
+			# A Band's thorn perimeter encloses only the Heart; keep the hall within one petal instead of crossing that wall.
+			_small([Q.HEART], "chiefhall", "decor_chiefhall", CORE_VS, "council", "chiefhall")
+		else:
+			var hp := [posmod(_front + 2, 6) + 1, posmod(_front + 3, 6) + 1, posmod(_front + 4, 6) + 1]
+			if _hex[0].slots[hp[0]] == 0 and _hex[0].slots[hp[1]] == 0 and _hex[0].slots[hp[2]] == 0:
+				for k in hp:
+					_hex[0].slots[k] = 1
+				var lp := _c0 + _dir(_front + 3) * HEART3_OFF
+				_put("decor_chiefhall", lp, _face(lp) if lp.distance_to(_c) > 0.01 else 0.0, HEART3_R, CORE_VS, _tint(91), _meta("chiefhall", 0, "heart3", "council", "chiefhall"))
+			elif _half([Q.HOMES_B, Q.SACRED, Q.WORKS, Q.HOMES_A], "chiefhall", "decor_chiefhall", CORE_VS, "council", "chiefhall") == null:
+				_dropped.append("chiefhall")
 	elif decor.has("council"):
 		_small([Q.HEART], "council", "decor_council", CORE_VS, "council", "council_ring")
 
@@ -855,9 +832,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	_outer(s, si, st, decor, aqueduct_at)
 	for d in dropped_dup:
 		_dropped.append(d)
-	var reach: float = [0.45, 0.85, 1.0, 1.1][_stage] if _hex.size() <= 7 else STAGED_REACH
-	wb.villages.append(Vector3(_c.x, _c.y, reach))
-	# a staged core's ring-2 hexes are village ground too: one trampled-earth patch per hex (the terrain shader's village list)
+	wb.villages.append(Vector3(_c.x, _c.y, VILLAGE_GROUND))
+	# Claimed ring-2 hexes are village ground too: one trampled-earth patch per hex (the terrain shader's village list).
 	for hi in range(7, _hex.size()):
 		wb.villages.append(Vector3((_hex[hi].c as Vector2).x, (_hex[hi].c as Vector2).y, RING2_GROUND))
 	var core_tiles := []
@@ -870,32 +846,25 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	for q in QN:
 		if _qhex[q] >= 0:
 			active.append(Q_NAMES[q])
+	var sim_outer := []
+	var rendered_outer_tiles := []
+	var rendered_outer_districts := []
+	var unhoused_districts := []
+	for r in _ring2:
+		sim_outer.append([int(r[0]), int(r[1]), int(r[2])])
+		if int(r[0]) >= 0:
+			rendered_outer_tiles.append(int(r[0]))
+			rendered_outer_districts.append(_district_name(int(r[1])))
+		else:
+			unhoused_districts.append(_district_name(int(r[1])))
 	_rows.append({"settlement": si, "tile": _t, "civ": _civ, "stage": STAGES[_stage], "gallery": name, "front": _front, "water_front": _water_front,
-		"population": int(s.population), "core_tiles": core_tiles, "ring2_tiles": _ring2.map(func(r): return int(r[0])),
-		"ring2_districts": _ring2_q.map(func(q): return Q_NAMES[q]), "quarters": quarters, "active_quarters": active, "items": _items, "dropped": _dropped})
+		"population": int(s.population), "core_tiles": core_tiles, "sim_outer": sim_outer, "rendered_outer_tiles": rendered_outer_tiles,
+		"rendered_outer_districts": rendered_outer_districts, "unhoused_districts": unhoused_districts, "core_expected_items": _expected_whole_items(s), "quarters": quarters,
+		"active_quarters": active, "items": _items, "dropped": _dropped})
 
 func _houses(s: Dictionary, st: Array, decor: Array) -> void:
-	var houses: Array = wb._dwellings(st, int(s.get("halls", 0)), int(s.population))
 	var tiled: bool = _civ >= 0 and w.has_look(_civ, M7WorldData.LOOK_TILES)
-	var home_q := [Q.HOMES_A, Q.HOMES_B, Q.HOMES_C, Q.HOMES_D]
-	if _stage <= 1:
-		home_q.append(Q.HEART)
-	var big := []
-	var small := []
-	for h in houses:
-		if h == "hall" or h == "longhouse":
-			big.append(h)
-		else:
-			small.append(h)
-	var halves := 0
 	var homes_free := _free_small([Q.HOMES_A, Q.HOMES_B, Q.HOMES_C, Q.HOMES_D])
-	for h in big:
-		var mesh_name: String = h + "_tile" if tiled and h in M7WorldBuilder.TILED_HOUSES else h
-		# a hall or longhouse gets its half-hex (three sub-slots) only while every house still fits one to a sub-slot
-		if halves < 2 and houses.size() + 2 * (halves + 1) <= homes_free and _half([Q.HOMES_A, Q.HOMES_B, Q.HOMES_C, Q.HOMES_D], "house_" + h, mesh_name, CORE_VS, "shelter", "houses") != null:
-			halves += 1
-		else:
-			small.push_front(h)
 	# the Heart lends a Band all its petals but two for its stores, a Village up to three
 	var heart_free := 0
 	for k in range(1, 7):
@@ -907,7 +876,24 @@ func _houses(s: Dictionary, st: Array, decor: Array) -> void:
 	elif _stage == 1:
 		heart_quota = mini(3, maxi(0, heart_free - 1))
 	var free := _free_small([Q.HOMES_A, Q.HOMES_B, Q.HOMES_C, Q.HOMES_D]) + heart_quota
-	var per := 1
+	var per := 3 if _stage == 3 else (2 if _stage == 2 else 1)
+	var houses: Array = wb._dwellings(st, int(s.get("halls", 0)), int(s.population), free * per)
+	var big := []
+	var small := []
+	for h in houses:
+		if h == "hall" or h == "longhouse":
+			big.append(h)
+		else:
+			small.append(h)
+	var halves := 0
+	for h in big:
+		var mesh_name: String = h + "_tile" if tiled and h in M7WorldBuilder.TILED_HOUSES else h
+		# a hall or longhouse gets its half-hex (three sub-slots) only while every house still fits one to a sub-slot
+		if halves < 2 and houses.size() + 2 * (halves + 1) <= homes_free and _half([Q.HOMES_A, Q.HOMES_B, Q.HOMES_C, Q.HOMES_D], "house_" + h, mesh_name, CORE_VS, "shelter", "houses") != null:
+			halves += 1
+		else:
+			small.push_front(h)
+	per = 1
 	if small.size() > free:
 		per = 2 if _stage == 2 else (3 if _stage == 3 else 1)
 	var heart_used := 0
@@ -1008,6 +994,9 @@ func _gardens() -> void:
 		var tile := int(_hex[hi].tile)
 		if tile < 0 or not w.is_land(tile) or w.plot_kind[tile] < 0:
 			continue
+		if _sim_claimed_tiles.has(tile):
+			_dropped.append("hidden_claimed_plot_%d" % tile)
+			continue
 		if hi >= 7:
 			# a reserved ring-2 hex: the staged rule releases its plot at the next season start (31a §3.4); until the sim does, it is not drawn
 			garden_cues[tile] = [Vector2.ZERO, 0.0]
@@ -1097,12 +1086,16 @@ func _outline_and_gate() -> Array:
 			if nb >= 0 and used.has(nb):
 				continue
 			edges.append([hi, k, nb])
+	if _gate_i != -2:
+		return [used, edges, _gate_i]
 	# the gate: on the land edge facing the Front most squarely (the Front hex's own outer edge on a land front)
-	var gate_i := -1
 	var best := -INF
+	var gate_i := -1
 	for i in edges.size():
 		var e: Array = edges[i]
 		if int(e[2]) < 0 or not w.is_land(int(e[2])):
+			continue
+		if _tile_has_whole_outer_claim(int(_hex[e[0]].tile)):
 			continue
 		var mid: Vector2 = (_hex[e[0]].c as Vector2) + _dir(e[1]) * 0.5
 		if wb._river_dist(mid) < 0.14:
@@ -1113,10 +1106,20 @@ func _outline_and_gate() -> Array:
 			gate_i = i
 	return [used, edges, gate_i]
 
+func _tile_has_whole_outer_claim(tile: int) -> bool:
+	for row in _ring2:
+		if int(row[0]) != tile:
+			continue
+		var q := _quarter_for_district(int(row[1]))
+		if q in [Q.CITADEL, Q.LEARNING, Q.CIVIC, Q.HEALTH, Q.WONDER_A, Q.WONDER_B, Q.WONDER_C]:
+			return true
+	return false
+
 ## Keeps the sub-slots under the gate (or gatehouse) and its approach clear.
 func _reserve_gate() -> void:
 	var outline := _outline_and_gate()
 	var gate_i: int = outline[2]
+	_gate_i = gate_i
 	if gate_i < 0:
 		return
 	var e: Array = outline[1][gate_i]
@@ -1270,7 +1273,7 @@ func _waterfront(s: Dictionary, st: Array) -> void:
 	var harbor := false
 	if w.iron_works(s, "harbor") > 0:
 		var before := wb.harbor_sites.size()
-		harbor = wb._harbor(s, _t, _c0, _seed, _cc)
+		harbor = wb._harbor(s, _t, _c0, _seed, _cc, _front)
 		if harbor and wb.harbor_sites.size() > before:
 			var hs: Dictionary = wb.harbor_sites[-1]
 			var hp: Vector2 = hs.p
@@ -1312,11 +1315,11 @@ func _waterfront(s: Dictionary, st: Array) -> void:
 	var civ := _civ
 	var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
 	if sea > 0:
-		wb._moor_fleet(_t, _c0, _seed, sea, int(s.population), _cc, harbor)
+		wb._moor_fleet(_t, _c0, _seed, sea, int(s.population), _cc, harbor, _front)
 
 # ------------------------------------------------------------------ outer works (§4.7)
 
-func _ring2_tiles() -> Array:
+func _outer_candidates() -> Array:
 	var seen := {}
 	for hx in _hex:
 		seen[int(hx.tile)] = true
@@ -1327,7 +1330,7 @@ func _ring2_tiles() -> Array:
 			continue
 		for k in 6:
 			var nb := w.neighbour(r1, (k + _front) % 6)
-			if nb >= 0 and not seen.has(nb):
+			if nb >= 0 and not seen.has(nb) and not _sim_claimed_tiles.has(nb):
 				seen[nb] = true
 				out.append(nb)
 	return out
@@ -1335,7 +1338,7 @@ func _ring2_tiles() -> Array:
 func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> void:
 	var K := M7WorldData.Kind
 	var tint := Color(_cc.r, _cc.g, _cc.b, _seed)
-	var ring2 := _ring2_tiles()
+	var ring2 := _outer_candidates()
 	var taken := {}
 	# the aqueduct's spans first (a line feature); nothing else stands on a tile they cross
 	if aqueduct_at != null:
@@ -1397,10 +1400,18 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 	if w.iron_works(s, "water_mill") > 0:
 		var before := wb.props.instance_count
 		var mills_before: int = _count_groups("water_mill")
-		wb._water_mill(s, _c, _h0, _seed, 1.15, [], tint)
+		var mill_clearance: Array = []
+		for item in _items:
+			var radius := float(item.get("r", 0.0))
+			if item.has("box"):
+				var box: Array = item["box"]
+				radius = maxf(radius, Vector2(float(box[2]), float(box[3])).length())
+			mill_clearance.append([Vector2(float(item.x), float(item.z)), radius])
+		wb._water_mill(s, _c, _h0, _seed, 1.15, [], tint, _sim_claimed_tiles, mill_clearance)
 		if _count_groups("water_mill") > mills_before:
-			_record({"kind": "water_mill", "mesh": "water_mill", "quarter": "outer", "slot": "river", "chain": "grinding", "tier": "water_mill", "slot_hex": -1,
-				"x": _last_xf("water_mill").x, "z": _last_xf("water_mill").y, "r": 0.3, "outer": true})
+			var mill_at := _last_xf("water_mill")
+			_record({"kind": "water_mill", "mesh": "water_mill", "quarter": "outer", "slot": "river", "chain": "grinding", "tier": "water_mill", "slot_hex": w.tile_at(mill_at),
+				"x": mill_at.x, "z": mill_at.y, "r": 0.3, "outer": true})
 	if w.iron_works(s, "great_lighthouse") > 0:
 		_lighthouse(ring2)
 	wb._frontier_walls(s, si, _c, _h0, _seed, 1.25)
@@ -1444,7 +1455,7 @@ func _paddock(tile: int) -> void:
 		var dark := j == 2 or (wool and j == 7)
 		wb.props.add("animal_woolly", wb._xf(q, ph, j * 2.1 + _seed, 1.14 if wool else 1.0),
 			M7WorldBuilder._glide_custom((6 * 8 + 4) if not dark else (9 * 8 + 3), 0, 0.5, 0.0, Vector2.ZERO))
-	wb._reserve_plot_visual(pc, 0.32)
+		wb._record_visual_occupancy(pc, 0.32)
 	_record({"kind": "paddock", "mesh": "fence", "quarter": "outer", "slot": "ring2", "chain": "", "tier": "", "slot_hex": tile,
 		"x": pc.x, "z": pc.y, "r": 0.32, "outer": true})
 
@@ -1469,7 +1480,7 @@ func _lighthouse(ring2: Array) -> void:
 		return
 	var y := maxf(w.height_at(shore), 0.05)
 	wb.props.add("great_lighthouse", wb._xf(shore, y, 0.0, M7WorldBuilder.LIGHTHOUSE_SCALE), Color(1, 1, 1, _seed))
-	wb._reserve_plot_visual(shore, 0.42)
+	wb._record_visual_occupancy(shore, 0.42)
 	wb.beacon_fires.append({"top": Vector3(shore.x, y + 0.74 * M7WorldBuilder.LIGHTHOUSE_SCALE, shore.y), "seed": _seed})
 	wb.lighthouse_sites.append({"p": shore, "y": y})
 	_record({"kind": "lighthouse", "mesh": "great_lighthouse", "quarter": "outer", "slot": "shore", "chain": "", "tier": "", "slot_hex": best,
@@ -1487,7 +1498,7 @@ func _aqueduct_spans(at: Array) -> void:
 	for j in 3:
 		var p := start + u * run * (j + 0.5)
 		var tq := w.tile_at(p)
-		if tq < 0 or not w.is_land(tq):
+		if tq < 0 or _sim_claimed_tiles.has(tq) or not w.is_land(tq):
 			break
 		grounds.append([p, w.height_at(p)])
 		level = maxf(level, w.height_at(p))
@@ -1508,7 +1519,7 @@ func _aqueduct_spans(at: Array) -> void:
 
 func write_dump(path: String) -> void:
 	var out := {"width": w.width, "height": w.height, "tick": w.tick, "petal": PETAL, "small_r": SMALL_R, "half_r": HALF_R, "whole_r": WHOLE_R,
-		"plots": Array(w.plots), "settlements": _rows}
+		"plots": Array(w.plots), "core_district_ids": w.core_district_ids, "settlements": _rows}
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		push_error("cannot write layout dump " + path)
