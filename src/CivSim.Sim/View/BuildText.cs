@@ -300,14 +300,15 @@ public static class BuildText
         {
             (BuildTrack track, string id) = keys[g];
             List<BuildItem> items = groups[g];
-            int done = 0, shorts = 0, blocked = 0, waiting = 0, notNeeded = 0;
+            bool built = false;
+            int shorts = 0, blocked = 0, waiting = 0, notNeeded = 0;
             var shortGoods = new List<(string Key, int Count)>();
             var blockWhy = new List<(string Key, int Count)>();
             foreach (BuildItem item in items)
             {
+                if (item.BuiltCount > 0) built = true;
                 switch (item.Status)
                 {
-                    case BuildStatus.Done: done++; break;
                     case BuildStatus.Short or BuildStatus.Current when item.AnyShort:
                         shorts++;
                         foreach (BuildNeed n in item.Needs)
@@ -321,7 +322,7 @@ public static class BuildText
                     case BuildStatus.NotNeeded: notNeeded++; break;
                 }
             }
-            if (done > 0) continue;
+            if (built) continue;
             var parts = new List<string>();
             if (shorts > 0) parts.Add($"short of {Top(shortGoods)} in {shorts} {(shorts == 1 ? "town" : "towns")}");
             if (waiting > 0) parts.Add($"affordable but waiting its turn in {waiting}");

@@ -60,7 +60,7 @@ public enum BuildVerdict : byte
 
 /// <summary>One structure a settlement could build, as the planner and the rules see it this season.</summary>
 public sealed record BuildItem(
-    BuildTrack Track, int Kind, string Id, BuildStatus Status, BuildGate Gate, BuildNeed[] Needs, GoodSupply[] Supplies,
+    BuildTrack Track, int Kind, string Id, int BuiltCount, BuildStatus Status, BuildGate Gate, BuildNeed[] Needs, GoodSupply[] Supplies,
     Fix64 Labor, Fix64 Progress, bool CanFocus, BuildWhy FocusWhy, bool IsFocus, bool IsSkipped, BuildVerdict Verdict, BuildLever[] Levers)
 {
     /// <summary>The code the SetBuildFocus command takes for this structure.</summary>
@@ -336,7 +336,7 @@ public sealed partial class LivingEconomyModel
         // Everything is in hand and the work itself is what is left.
         if (status == BuildStatus.Current && !anyShort && progress < labor) gate = Stop(BuildCause.Labor, BuildWhy.None);
         else if (status == BuildStatus.Current && anyShort) gate = Stop(BuildCause.Materials, BuildWhy.None);
-        return new BuildItem(track, kind, id, status, gate, needs, supplies, labor, progress, canFocus, why, focusCode == code && !focusSkip,
+        return new BuildItem(track, kind, id, FocusBuiltCount(s, code), status, gate, needs, supplies, labor, progress, canFocus, why, focusCode == code && !focusSkip,
             focusCode == code && focusSkip, verdict, levers.ToArray());
     }
 

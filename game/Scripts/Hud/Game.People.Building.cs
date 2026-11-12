@@ -634,7 +634,7 @@ public partial class Game
         int stone = LivingEconomyModel.StoreSlotCount > 0 ? Array.FindIndex(Enumerable.Range(0, LivingEconomyModel.StoreSlotCount).ToArray(), s => LivingEconomyModel.StoreSlotId(s) == "G-STONE") : 9;
         var one = CivSim.Sim.Numerics.Fix64.One;
         BuildItem Make(string id, int kind, BuildStatus status, BuildGate gate, BuildNeed[] needs, GoodSupply[] supplies, BuildVerdict verdict, BuildLever[] levers)
-            => new(BuildTrack.Basic, kind, id, status, gate, needs, supplies, one, CivSim.Sim.Numerics.Fix64.Zero, false, BuildWhy.None, false, false, verdict, levers);
+            => new(BuildTrack.Basic, kind, id, 0, status, gate, needs, supplies, one, CivSim.Sim.Numerics.Fix64.Zero, false, BuildWhy.None, false, false, verdict, levers);
         var items = new[]
         {
             Make("hearth", 0, BuildStatus.Short, new BuildGate(BuildCause.Materials, BuildWhy.None),
