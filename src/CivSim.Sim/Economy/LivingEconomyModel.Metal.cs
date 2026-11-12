@@ -369,11 +369,10 @@ public sealed partial class LivingEconomyModel
     {
         int civ = s.Civilization;
         // Wear by the season's tool work; a kit that cannot be replaced is worked on to its break point (the dormancy tail).
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Kit == 0) continue;
-            ApplyKitWear(f, toolWork[i]);
+            if (f.Kit == 0) continue;
+            ApplyKitWear(f, toolWork[f.Index]);
         }
         // Move idle Iron kits to current tool workers before making new assignments, then hand out any stock.
         if (IronChain)
@@ -383,11 +382,10 @@ public sealed partial class LivingEconomyModel
         }
         // Hand out the kits in stock: those without a kit first, then worn kits, then upgrades, oldest kits first.
         var order = new List<int>();
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
-            if (f.Kit == 0 || f.KitLeft <= Fix64.Zero || (tier != 0 && Rank(f.Kit) < Rank(tier))) order.Add(i);
+            if (f.Age < 14) continue;
+            if (f.Kit == 0 || f.KitLeft <= Fix64.Zero || (tier != 0 && Rank(f.Kit) < Rank(tier))) order.Add(f.Index);
         }
         order.Sort((a, b) =>
         {
@@ -911,10 +909,9 @@ public sealed partial class LivingEconomyModel
         int adults = 0, needKits = 0, rung6Adults = 0;
         Fix64 chopSum = Fix64.Zero;
         Fix64 e2Chop = ActionRate("chop", Fix64.FromInt(2), s, "chop") * Modifier(civ, "wood_yield");
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             adults++;
             if (f.Kit is 9 or 10) rung6Adults++;
             Fix64 kitRate = KitChopRate(f);
@@ -1100,13 +1097,12 @@ public sealed partial class LivingEconomyModel
             B12T18PlanSnapshots ??= new List<B12T18PlanSnapshot>();
             Fix64 adultUnusedWork = Fix64.Zero;
             Fix64 childUnusedWork = Fix64.Zero;
-            foreach (FigureState figure in _figures)
-                if (figure.SettlementId == s.Id)
-                {
-                    Fix64 unused = Fix64.Max(Fix64.Zero, WorkCapacity(figure) - figure.WorkThisSeason);
-                    if (figure.Age >= 14) adultUnusedWork += unused;
-                    else childUnusedWork += unused;
-                }
+            foreach (FigureState figure in Residents(s.Id))
+            {
+                Fix64 unused = Fix64.Max(Fix64.Zero, WorkCapacity(figure) - figure.WorkThisSeason);
+                if (figure.Age >= 14) adultUnusedWork += unused;
+                else childUnusedWork += unused;
+            }
             B12T18PlanSnapshots.Add(new B12T18PlanSnapshot(s.Id, s.Civilization, season, plan.Tier,
                 censusMetal.BuildKind.ToString(), plan.Adults, plan.Rung6Adults, censusMetal.Forges, censusMetal.Smelters, plan.TotalWork, plan.PushCap,
                 s.FoodSecurity, s.LateWinterForecast,
@@ -2001,8 +1997,8 @@ public sealed partial class LivingEconomyModel
         m.FuelShortSeasons = fuelShort ? m.FuelShortSeasons + 1 : 0;
         RecordIT6FuelShort(civ, fuelShort, Done(civ, "MET-09"));
         if (arsenic && Done(civ, "MET-04"))
-            foreach (FigureState f in _figures)
-                if (f.SettlementId == s.Id && f.Task == MetalTask.Smelt) f.Task = MetalTask.SmeltArsenic;
+            foreach (FigureState f in Residents(s.Id))
+                if (f.Task == MetalTask.Smelt) f.Task = MetalTask.SmeltArsenic;
 
         // 5. Kits: wear by this season's tool work, then hand out what was cast.
         WearAndIssueKits(s, m, plan.Tier, toolWork);
@@ -2020,7 +2016,7 @@ public sealed partial class LivingEconomyModel
 
         // 7. Statistics for the harness (T17): labor, people.
         Fix64 work = Fix64.Zero;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id) work += f.WorkThisSeason;
+        foreach (FigureState f in Residents(s.Id)) work += f.WorkThisSeason;
         AddMetalStat(civ, StatLabor, work);
         // Metal labor is what the chain used: the reserved labor less what the recipes left idle, plus the camp crews' work.
         Fix64 idleMetal = Fix64.Min(metalPool, plan.CharcoalAssigned + plan.SmeltAssigned + spare);
@@ -2317,8 +2313,8 @@ public sealed partial class LivingEconomyModel
     private Fix64 QuarryRate(SettlementState s)
     {
         Fix64 best = Fix64.One;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == s.Id && f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
+        foreach (FigureState f in Residents(s.Id))
+            if (f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
         return BaseRate("quarry", Fix64.FromInt(2)) * best;
     }
 
@@ -2392,7 +2388,7 @@ public sealed partial class LivingEconomyModel
     private int CampCrewCount(MiningCampState camp)
     {
         int n = 0;
-        foreach (FigureState f in _figures) if (f.Camp == camp.Id) n++;
+        foreach (FigureState f in Residents(camp.Parent)) if (f.Camp == camp.Id) n++;
         return n;
     }
 
@@ -2412,18 +2408,17 @@ public sealed partial class LivingEconomyModel
         {
             MiningCampState camp = _camps[c];
             SettlementState parent = _settlements[camp.Parent];
-            foreach (FigureState f in _figures)
-                if (f.Camp == camp.Id && f.SettlementId != parent.Id) f.Camp = -1;
             int cap = Math.Clamp(camp.Target, _bronzeConstants.CampMinCrew, CampCrewCap(parent.Civilization));
             int crew = CampCrewCount(camp);
-            for (int i = _figures.Count - 1; i >= 0 && crew > cap; i--)
-                if (_figures[i].Camp == camp.Id) { _figures[i].Camp = -1; crew--; }
+            List<FigureState> residents = Residents(parent.Id);
+            for (int i = residents.Count - 1; i >= 0 && crew > cap; i--)
+                if (residents[i].Camp == camp.Id) { residents[i].Camp = -1; crew--; }
             if (crew < cap)
             {
-                for (int i = 0; i < _figures.Count && crew < cap; i++)
+                for (int i = 0; i < residents.Count && crew < cap; i++)
                 {
-                    FigureState f = _figures[i];
-                    if (f.SettlementId != parent.Id || f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
+                    FigureState f = residents[i];
+                    if (f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
                     if (f.Id == parent.FireKeeperId) continue;
                     f.Camp = camp.Id;
                     crew++;
@@ -2432,7 +2427,7 @@ public sealed partial class LivingEconomyModel
             bool exhausted = _ore[camp.Tile] <= Fix64.Zero;
             if (exhausted || crew < _bronzeConstants.CampMinCrew || Population(parent.Id) == 0 || !CivInBronze(parent.Civilization))
             {
-                foreach (FigureState f in _figures) if (f.Camp == camp.Id) f.Camp = -1;
+                foreach (FigureState f in residents) if (f.Camp == camp.Id) f.Camp = -1;
                 _camps.RemoveAt(c);
             }
         }
@@ -2457,10 +2452,9 @@ public sealed partial class LivingEconomyModel
             Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor;
             Fix64 idle = Fix64.Zero;
             int crewCount = 0;
-            for (int i = 0; i < _figures.Count; i++)
+            foreach (FigureState f in Residents(s.Id))
             {
-                FigureState f = _figures[i];
-                if (f.Camp != camp.Id || f.SettlementId != s.Id) continue;
+                if (f.Camp != camp.Id) continue;
                 Fix64 available = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
                 if (available <= Fix64.Zero) continue;
                 Fix64 used = Fix64.Zero;
@@ -2503,7 +2497,7 @@ public sealed partial class LivingEconomyModel
                 if (used <= Fix64.Zero) continue;
                 Assign(f, EconomyJob.Gather, used);
                 if (f.Task == 0) f.Task = MetalTask.Mine;
-                toolWork[i] += used;
+                toolWork[f.Index] += used;
                 total += used;
             }
             // The crew follows the need: one more miner while ore falls short, one fewer while a miner's work goes unused.
@@ -2655,10 +2649,10 @@ public sealed partial class LivingEconomyModel
         };
         _camps.Add(camp);
         int crew = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(parent.Id))
         {
             if (crew >= cap) break;
-            if (f.SettlementId != parent.Id || f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
+            if (f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
             if (f.Id == parent.FireKeeperId) continue;
             f.Camp = camp.Id;
             crew++;
@@ -2688,8 +2682,8 @@ public sealed partial class LivingEconomyModel
     private int FreeMiningCrew(SettlementState parent)
     {
         int free = 0;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == parent.Id && f.Camp < 0 && f.Age is >= 14 and < 45 && f.WoundSeasons == 0 && f.IllnessSeasons == 0) free++;
+        foreach (FigureState f in Residents(parent.Id))
+            if (f.Camp < 0 && f.Age is >= 14 and < 45 && f.WoundSeasons == 0 && f.IllnessSeasons == 0) free++;
         return free;
     }
 

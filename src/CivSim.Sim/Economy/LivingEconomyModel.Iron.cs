@@ -442,10 +442,9 @@ public sealed partial class LivingEconomyModel
     private int IronKitsLacking(SettlementState s)
     {
         int lacking = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
         }
         return lacking;
@@ -455,9 +454,9 @@ public sealed partial class LivingEconomyModel
     private int IronToolWorkersLacking(SettlementState s)
     {
         int lacking = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id || f.Age < 14 || f.WorkThisSeason <= Fix64.Zero) continue;
+            if (f.Age < 14 || f.WorkThisSeason <= Fix64.Zero) continue;
             bool didToolWork = f.Job is EconomyJob.Farm or EconomyJob.Chop or EconomyJob.Gather or EconomyJob.Craft or EconomyJob.Build ||
                 f.Task is MetalTask.Build or MetalTask.Mine or MetalTask.Charcoal or MetalTask.Smelt or MetalTask.SmeltArsenic;
             if (!didToolWork) continue;
@@ -470,9 +469,9 @@ public sealed partial class LivingEconomyModel
     private int IronToolWorkersLackingLastSeason(SettlementState s)
     {
         int lacking = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id || f.Age < 14 || !f.WorkedWithToolLastSeason) continue;
+            if (f.Age < 14 || !f.WorkedWithToolLastSeason) continue;
             if (Rank(f.Kit) < Rank(11) || f.KitLeft <= ExpectedSeasonWear) lacking++;
         }
         return lacking;
@@ -483,10 +482,10 @@ public sealed partial class LivingEconomyModel
     {
         var recipients = new List<int>();
         var donors = new List<int>();
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            int i = f.Index;
+            if (f.Age < 14) continue;
             if (toolWork[i] > Fix64.Zero && (f.Kit == 0 || f.KitLeft <= Fix64.Zero || Rank(f.Kit) < Rank(11)))
                 recipients.Add(i);
             else if (toolWork[i] <= Fix64.Zero && f.Kit is 11 or 12 && f.KitLeft > Fix64.Zero)
@@ -759,10 +758,10 @@ public sealed partial class LivingEconomyModel
             int receiverRecentToolWorkers = 0;
             int coveredRecentToolWorkers = 0;
             var uncoveredToolWorkers = new List<int>();
-            for (int i = 0; i < _figures.Count; i++)
+            foreach (FigureState figure in Residents(receiver.Id))
             {
-                FigureState figure = _figures[i];
-                if (figure.SettlementId != receiver.Id || figure.Age < 14) continue;
+                int i = figure.Index;
+                if (figure.Age < 14) continue;
                 hasRecentToolWork |= figure.WorkedWithToolLastSeason;
                 bool hasServicePositiveIronKit = (figure.Kit is 11 or 12) && figure.KitLeft > Fix64.Zero;
                 if (figure.WorkedWithToolLastSeason)
@@ -826,9 +825,9 @@ public sealed partial class LivingEconomyModel
                 int recentToolWorkers = 0;
                 int donorCoveredRecentToolWorkers = 0;
                 int servicePositiveIronHolders = 0;
-                foreach (FigureState figure in _figures)
+                foreach (FigureState figure in Residents(donor.Id))
                 {
-                    if (figure.SettlementId != donor.Id || figure.Age < 14) continue;
+                    if (figure.Age < 14) continue;
                     if (figure.WorkedWithToolLastSeason)
                     {
                         recentToolWorkers++;
@@ -891,12 +890,11 @@ public sealed partial class LivingEconomyModel
                 }
                 if (servicePositiveIronHolders <= minimumHolderReserve) continue;
                 var donors = new List<int>();
-                for (int i = 0; i < _figures.Count; i++)
+                foreach (FigureState figure in Residents(donor.Id))
                 {
-                    FigureState figure = _figures[i];
-                    if (figure.SettlementId == donor.Id && figure.Age >= 14 && !figure.WorkedWithToolLastSeason &&
+                    if (figure.Age >= 14 && !figure.WorkedWithToolLastSeason &&
                         figure.Kit is 11 or 12 && figure.KitLeft > Fix64.Zero)
-                        donors.Add(i);
+                        donors.Add(figure.Index);
                 }
                 donors.Sort((a, b) =>
                 {
@@ -1064,10 +1062,10 @@ public sealed partial class LivingEconomyModel
         int top = Done(civ, "MET-10") ? 12 : Done(civ, "MET-09") ? 11 : 0;
         if (top == 0) return;
         var order = new List<int>();
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            int i = f.Index;
+            if (f.Age < 14) continue;
             if (f.Kit == 0 || f.KitLeft <= Fix64.Zero || Rank(f.Kit) < Rank(top)) order.Add(i);
         }
         order.Sort((a, b) =>
@@ -1362,7 +1360,7 @@ public sealed partial class LivingEconomyModel
 
     private bool HasStaffedRole(SettlementState s, byte role)
     {
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Role == role && f.Age is >= 14 and < 60) return true;
+        foreach (FigureState f in Residents(s.Id)) if (f.Role == role && f.Age is >= 14 and < 60) return true;
         return false;
     }
 
@@ -1453,7 +1451,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain || !Done(s.Civilization, "WAR-07") || s.FoodSecurity < Fix64.FromRatio(8, 10)) return 0;
         int adults = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
+        foreach (FigureState f in Residents(s.Id)) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
         Fix64 share = Done(s.Civilization, "WAR-08") ? Fix64.FromRatio(1, 5) : Fix64.FromRatio(1, 10);
         return (Fix64.FromInt(adults) * share).FloorToInt();
     }
@@ -1476,7 +1474,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain || m.Forges <= 0 || !Done(s.Civilization, "WAR-08")) return;
         int soldiers = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Role == Role.Soldier) soldiers++;
+        foreach (FigureState f in Residents(s.Id)) if (f.Role == Role.Soldier) soldiers++;
         if (soldiers == 0) return;
         Fix64 have = IronStock(s, IronGood.Arms3) + IronStock(s, IronGood.Arms4);
         IronGood tier = Done(s.Civilization, "MET-10") ? IronGood.Arms4 : IronGood.Arms3;
@@ -1696,7 +1694,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain) return 0;
         int n = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == Role.Scholar) n++;
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) if (f.Role == Role.Scholar) n++;
         return n;
     }
 
@@ -1725,9 +1723,8 @@ public sealed partial class LivingEconomyModel
         {
             if (s.Civilization != civ || IsFreeFolk(s)) continue;
             int scholars = 0, missionaries = 0;
-            foreach (FigureState f in _figures)
+            foreach (FigureState f in Residents(s.Id))
             {
-                if (f.SettlementId != s.Id) continue;
                 if (f.Role == Role.Scholar) scholars++;
                 else if (f.Role == Role.Missionary) missionaries++;
             }
@@ -1947,7 +1944,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain) return 0;
         int n = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == Role.Missionary) n++;
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) if (f.Role == Role.Missionary) n++;
         return n;
     }
 
@@ -2074,7 +2071,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain || !Done(s.Civilization, "FOR-08")) return Fix64.One;
         int blades = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age >= 14 && f.Kit >= 11) blades++;
+        foreach (FigureState f in Residents(s.Id)) if (f.Age >= 14 && f.Kit >= 11) blades++;
         return plotIndex < blades * GraftedPlotsPerBlade ? Fix64.FromInt(2) : Fix64.One;
     }
 

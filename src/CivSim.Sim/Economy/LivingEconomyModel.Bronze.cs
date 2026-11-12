@@ -469,9 +469,9 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState s = _settlements[settlementIndex];
         int adults = 0, k8 = 0, k9 = 0, k10 = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             adults++;
             if (f.Kit == 8) k8++; else if (f.Kit == 9) k9++; else if (f.Kit == 10) k10++;
         }
@@ -531,17 +531,17 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         Fix64 sum = Fix64.Zero;
         int n = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id || f.Kit is not (9 or 10) || KitChopRung(f) != 6) continue;
+            if (f.Kit is not (9 or 10) || KitChopRung(f) != 6) continue;
             sum += KitChopRate(f);
             n++;
         }
         // The stone reference is the polished axe (rung 4) at the kits' mean quality, the E2 end of the ladder (docs/MVP/23 §6.3).
         Fix64 quality = Fix64.Zero;
         int q = 0;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == s.Id && f.Kit is 9 or 10) { quality += KitQuality(f); q++; }
+        foreach (FigureState f in Residents(s.Id))
+            if (f.Kit is 9 or 10) { quality += KitQuality(f); q++; }
         Fix64 stone = BaseRate("chop", Fix64.FromInt(2)) * MethodMult(s.Civilization, "chop", 4) * (q == 0 ? Fix64.One : quality / q);
         return (n == 0 ? Fix64.Zero : sum / n, stone);
     }
@@ -581,7 +581,7 @@ public sealed partial class LivingEconomyModel
         if (s.Metal is not null && CivInBronze(s.Civilization))
         {
             Fix64 total = Fix64.Zero;
-            foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Camp < 0) total += WorkCapacity(f);
+            foreach (FigureState f in Residents(s.Id)) if (f.Camp < 0) total += WorkCapacity(f);
             MetalPlan plan = PlanMetal(s, total);
             text.Append($" || plan tier {plan.Tier} budget {plan.Budget.ToDoubleForDisplay():F2} of {total.ToDoubleForDisplay():F1} build {plan.BuildNeed.ToDoubleForDisplay():F2} mine {plan.MineNeed.ToDoubleForDisplay():F2} char {plan.CharcoalNeed.ToDoubleForDisplay():F2} smelt {plan.SmeltNeed.ToDoubleForDisplay():F2}");
             for (int r = 0; r < _compiledRecipes.Length; r++)

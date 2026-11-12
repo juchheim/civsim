@@ -23,11 +23,7 @@ public sealed partial class LivingEconomyModel
     public int SettlementCoreRadius => _coreRadius;
 
     private int SettlementAtSite(int site)
-    {
-        for (int i = 0; i < _settlements.Count; i++)
-            if (_settlements[i].SiteTile == site) return i;
-        return -1;
-    }
+        => (uint)site < (uint)_settlementAtTile.Length ? _settlementAtTile[site] : -1;
 
     private int FindAbandonedSettlement(int civ, int site)
     {
@@ -41,12 +37,7 @@ public sealed partial class LivingEconomyModel
     {
         int count = _settlements.Count;
         if (_settlementPopulationScratch.Length < count) Array.Resize(ref _settlementPopulationScratch, count);
-        Array.Clear(_settlementPopulationScratch, 0, count);
-        for (int i = 0; i < _figures.Count; i++)
-        {
-            int settlement = _figures[i].SettlementId;
-            if ((uint)settlement < (uint)count) _settlementPopulationScratch[settlement]++;
-        }
+        for (int i = 0; i < count; i++) _settlementPopulationScratch[i] = Population(i);
         return _settlementPopulationScratch;
     }
 
@@ -215,6 +206,8 @@ public sealed partial class LivingEconomyModel
     private void IndexSettlementSite(SettlementState settlement)
     {
         int site = settlement.SiteTile;
+        if ((uint)site < (uint)_settlementAtTile.Length && _settlementAtTile[site] < 0)
+            _settlementAtTile[site] = settlement.Id;
         foreach (int tile in _rangeTiles[site])
         {
             if (HexGrid.Distance(site, tile, _world.Width) > 2) continue;
@@ -225,6 +218,7 @@ public sealed partial class LivingEconomyModel
     private void RebuildSettlementSiteIndex()
     {
         Array.Clear(_settlementSitesWithinTwoByTile, 0, _settlementSitesWithinTwoByTile.Length);
+        Array.Fill(_settlementAtTile, -1);
         foreach (SettlementState settlement in _settlements) IndexSettlementSite(settlement);
     }
 

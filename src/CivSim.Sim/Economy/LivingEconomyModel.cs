@@ -305,6 +305,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     private sealed class FigureState
     {
         public long Id;
+        /// <summary>Current position in the canonical global figure list; rebuilt after compaction and restore.</summary>
+        public int Index;
         public int Civilization;
         public int SettlementId;
         public int Age;
@@ -345,9 +347,18 @@ public sealed partial class LivingEconomyModel : ISimModel
         public bool Infected;
     }
 
+    private sealed class FoodNeedPrefix
+    {
+        public int Version = -1;
+        public Fix64[] Normal = Array.Empty<Fix64>();
+        public Fix64[] Cold = Array.Empty<Fix64>();
+    }
+
     private sealed class SettlementState
     {
         public int Id;
+        /// <summary>Invalidates derived resident-age demand prefixes; never serialized or hashed.</summary>
+        public int ResidentVersion;
         public int Civilization;
         public int SiteTile;
         /// <summary>Ochre collected before the Bronze goods store is activated.</summary>
@@ -458,6 +469,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly int[][] _rangeTiles;
     private readonly int[][] _fortificationRangeTiles;
     private readonly List<int>?[] _settlementSitesWithinTwoByTile;
+    private readonly int[] _settlementAtTile;
+    private readonly int[] _settlementTooCloseStamp;
+    private int _settlementExclusionGeneration;
+    private readonly List<int> _fissionCandidateTilesScratch = new(768);
     /// <summary>The reserved core radius (content <c>SettlementCoreRadius</c>, docs/MVP/31 §3.1), below the working range.</summary>
     private readonly int _coreRadius;
     /// <summary>Per tile: no valuable deposit lies in the core a settlement on it would have (docs/MVP/31 §3.3, WP4).</summary>
@@ -484,6 +499,12 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly bool _gentleStart;
     private readonly List<SettlementState> _settlements = new();
     private readonly List<FigureState> _figures = new();
+    private readonly List<int> _pendingDeathIndexes = new();
+    // The global figure list remains the canonical id-ordered serialization/checksum sequence. These derived,
+    // id-ordered resident lists make settlement-local work proportional to that settlement's population instead
+    // of repeatedly filtering every person in the world.
+    private readonly List<List<FigureState>> _residentsBySettlement = new();
+    private readonly List<FoodNeedPrefix> _foodNeedPrefixes = new();
     // Scratch work matrix used by PlanAndWork. Values are cleared for the previous
     // settlement's rows before the matrix is reused; this is derived state and is
     // intentionally absent from snapshots.
@@ -626,6 +647,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         _rangeTiles = BuildRangeTiles(world, Radius);
         _fortificationRangeTiles = BuildRangeTiles(world, 4);
         _settlementSitesWithinTwoByTile = new List<int>?[world.TileCount];
+        _settlementAtTile = new int[world.TileCount];
+        Array.Fill(_settlementAtTile, -1);
+        _settlementTooCloseStamp = new int[world.TileCount];
         _coreRadius = Math.Clamp(content.Constant("SettlementCoreRadius", Fix64.FromInt(DefaultSettlementCoreRadius)).FloorToInt(), 0, Radius - 1);
         _coreClean = BuildCoreClean(world, BuildRangeTiles(world, _coreRadius));
         _coreFront = BuildCoreFront(world);
@@ -750,12 +774,11 @@ public sealed partial class LivingEconomyModel : ISimModel
     public int AgeBandPopulation(int settlementIndex, int ageBand)
     {
         if (ageBand < 0 || ageBand >= 3) throw new ArgumentOutOfRangeException(nameof(ageBand));
-        int settlementId = _settlements[settlementIndex].Id;
+        List<FigureState> residents = Residents(_settlements[settlementIndex].Id);
         int count = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        for (int i = 0; i < residents.Count; i++)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlementId) continue;
+            FigureState figure = residents[i];
             bool matches = ageBand == 0 ? figure.Age < 14 : ageBand == 1 ? figure.Age is >= 14 and < 45 : figure.Age >= 45;
             if (matches) count++;
         }
@@ -765,10 +788,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     /// <summary>Effective figure work capacity attached to a settlement, for report-only harness diagnostics.</summary>
     public Fix64 DiagnosticEffectiveWorkCapacity(int settlementIndex)
     {
-        int settlementId = _settlements[settlementIndex].Id;
+        List<FigureState> residents = Residents(_settlements[settlementIndex].Id);
         Fix64 total = Fix64.Zero;
-        foreach (FigureState figure in _figures)
-            if (figure.SettlementId == settlementId) total += WorkCapacity(figure);
+        foreach (FigureState figure in residents) total += WorkCapacity(figure);
         return total;
     }
 
@@ -814,11 +836,113 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     public int Population(int settlementId)
+        => (uint)settlementId < (uint)_settlements.Count ? Residents(settlementId).Count : 0;
+
+    private List<FigureState> Residents(int settlementId)
     {
-        int count = 0;
+        if ((uint)settlementId >= (uint)_settlements.Count)
+            throw new ArgumentOutOfRangeException(nameof(settlementId));
+        while (_residentsBySettlement.Count <= settlementId)
+        {
+            _residentsBySettlement.Add(new List<FigureState>());
+            _foodNeedPrefixes.Add(new FoodNeedPrefix());
+        }
+        return _residentsBySettlement[settlementId];
+    }
+
+    private void InvalidateResidentDerived(int settlementId)
+    {
+        SettlementState settlement = _settlements[settlementId];
+        unchecked { settlement.ResidentVersion++; }
+    }
+
+    private void AddResident(FigureState figure, int settlementId)
+    {
+        List<FigureState> residents = Residents(settlementId);
+        if (residents.Count == 0 || residents[^1].Id < figure.Id)
+        {
+            residents.Add(figure);
+        }
+        else
+        {
+            int low = 0, high = residents.Count;
+            while (low < high)
+            {
+                int middle = low + ((high - low) >> 1);
+                if (residents[middle].Id < figure.Id) low = middle + 1;
+                else high = middle;
+            }
+            residents.Insert(low, figure);
+        }
+        InvalidateResidentDerived(settlementId);
+    }
+
+    private void RemoveResident(FigureState figure)
+    {
+        int settlementId = figure.SettlementId;
+        List<FigureState> residents = Residents(settlementId);
+        int at = residents.IndexOf(figure);
+        if (at < 0) throw new InvalidOperationException($"Figure {figure.Id} is missing from settlement {settlementId}'s resident census.");
+        residents.RemoveAt(at);
+        InvalidateResidentDerived(settlementId);
+    }
+
+    private void MoveResident(FigureState figure, int settlementId)
+    {
+        if (figure.SettlementId == settlementId) return;
+        RemoveResident(figure);
+        figure.SettlementId = settlementId;
+        figure.Camp = -1;
+        AddResident(figure, settlementId);
+    }
+
+    private void RemoveFigureAt(int index)
+    {
+        FigureState figure = _figures[index];
+        RemoveResident(figure);
+        _figures.RemoveAt(index);
+        for (int i = index; i < _figures.Count; i++) _figures[i].Index = i;
+    }
+
+    private void CompactPendingDeaths()
+    {
+        if (_pendingDeathIndexes.Count == 0) return;
+        _pendingDeathIndexes.Sort();
+        int write = 0, deadIndex = 0;
+        for (int read = 0; read < _figures.Count; read++)
+        {
+            if (deadIndex < _pendingDeathIndexes.Count && _pendingDeathIndexes[deadIndex] == read)
+            {
+                deadIndex++;
+                continue;
+            }
+            FigureState figure = _figures[read];
+            figure.Index = write;
+            _figures[write++] = figure;
+        }
+        if (write < _figures.Count) _figures.RemoveRange(write, _figures.Count - write);
+        _pendingDeathIndexes.Clear();
+    }
+
+    private void RebuildResidentCensus()
+    {
+        _pendingDeathIndexes.Clear();
+        _residentsBySettlement.Clear();
+        _foodNeedPrefixes.Clear();
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            _residentsBySettlement.Add(new List<FigureState>());
+            _foodNeedPrefixes.Add(new FoodNeedPrefix());
+            _settlements[i].ResidentVersion = 0;
+        }
         for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == settlementId) count++;
-        return count;
+        {
+            FigureState figure = _figures[i];
+            figure.Index = i;
+            if ((uint)figure.SettlementId >= (uint)_settlements.Count)
+                throw new InvalidOperationException($"Figure {figure.Id} references missing settlement {figure.SettlementId}.");
+            _residentsBySettlement[figure.SettlementId].Add(figure);
+        }
     }
 
     public Fix64 FoodStores(int settlementIndex) => FoodStores(_settlements[settlementIndex]);
@@ -995,10 +1119,9 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private long FindFireKeeper(SettlementState settlement)
     {
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId == settlement.Id && CanKeepFire(figure)) return figure.Id;
+            if (CanKeepFire(figure)) return figure.Id;
         }
         return -1;
     }
@@ -1164,6 +1287,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (season % 4 == 2) settlement.LateWinterForecast = ForecastWinterFood(settlement, ScoutPlan.Empty);
         }
 
+        CompactPendingDeaths();
         if (!_holdPopulation && season % 4 == 3) AgePopulationByOneYear(firstFigureIdBornThisSeason);
         if (_bronzeActive) CivicSeasonEnd(season);
         _deadwoodUsed = null;
@@ -1707,11 +1831,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             _actionWorkScratch = actionWork;
         }
         Fix64 totalWork = Fix64.Zero, baseCapacity = Fix64.Zero;
-        for (int i = 0; i < _figures.Count; i++)
+        List<FigureState> residents = Residents(settlement.Id);
+        for (int r = 0; r < residents.Count; r++)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id) continue;
-            _actionWorkTouchedRows.Add(i);
+            FigureState figure = residents[r];
+            _actionWorkTouchedRows.Add(figure.Index);
             figure.Job = EconomyJob.None;
             figure.WorkThisSeason = Fix64.Zero;
             figure.HuntWorkThisSeason = Fix64.Zero;
@@ -1762,7 +1886,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 while (capacity < _figures.Count) capacity *= 2;
                 _toolWorkScratch = new Fix64[capacity];
             }
-            Array.Clear(_toolWorkScratch, 0, _figures.Count);
+            foreach (FigureState figure in residents) _toolWorkScratch[figure.Index] = Fix64.Zero;
             toolWork = _toolWorkScratch;
             // Mining-camp crews dig first (docs/MVP/22 §5.2); what the face does not need of them works at home this season.
             metalPlan.CampWork = WorkCamps(settlement, metalPlan, toolWork, season);
@@ -1920,10 +2044,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 assignedHerdWork = Fix64.Zero;
         Fix64 assignedBuildWork = Fix64.Zero;
         int foodOrdinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        for (int r = 0; r < residents.Count; r++)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id) continue;
+            FigureState figure = residents[r];
+            int i = figure.Index;
             if (figure.Job == EconomyJob.Scout) continue;
             if (figure.Role != Role.None && figure.Task is MetalTask.Ritual or MetalTask.Records or MetalTask.Administer or MetalTask.Drill or MetalTask.Preach) continue;
             Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
@@ -2086,10 +2210,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         // party otherwise consumes 40–60% of early food labor at the lower rung-0 rate.
         Fix64 scavengingBudget = foodWork * Fix64.Parse("0.30");
         Fix64 excessScavengingWork = Fix64.Max(Fix64.Zero, huntWork - scavengingBudget);
-        for (int i = _figures.Count - 1; i >= 0 && excessScavengingWork > Fix64.Zero; i--)
+        for (int ordinal = residents.Count - 1; ordinal >= 0 && excessScavengingWork > Fix64.Zero; ordinal--)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id || figure.HuntWorkThisSeason <= Fix64.Zero) continue;
+            FigureState figure = residents[ordinal];
+            int i = figure.Index;
+            if (figure.HuntWorkThisSeason <= Fix64.Zero) continue;
             Fix64 shifted = Fix64.Min(figure.HuntWorkThisSeason, excessScavengingWork);
             figure.HuntWorkThisSeason -= shifted;
             actionWork[i, (int)SkillFamily.Hunt] -= shifted;
@@ -2129,10 +2254,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 productiveHuntWork = SkillWeightedWork(actionWork, SkillFamily.Hunt);
         Fix64 huntedYield = Fix64.Zero;
         Fix64 huntInjuryRate = HuntInjuryRate(settlement, huntersAssigned);
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId == settlement.Id && figure.HuntWorkThisSeason > Fix64.Zero)
+            if (figure.HuntWorkThisSeason > Fix64.Zero)
                 figure.HuntingInjuryHazard = figure.HuntWorkThisSeason * huntInjuryRate;
         }
         if (hasHunt)
@@ -2312,10 +2436,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         // Patient and provider ties are resolved in stable ascending figure-id order.
         for (int priority = 0; priority < 2; priority++)
         {
-            for (int i = 0; i < _figures.Count; i++)
+            foreach (FigureState patient in Residents(settlement.Id))
             {
-                FigureState patient = _figures[i];
-                if (patient.SettlementId != settlement.Id) continue;
                 if (priority == 0)
                 {
                     if (midwives && (patient.Age == 0 || patient.PregnancySeasons == 1) &&
@@ -2431,18 +2553,17 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         FigureState? chosen = null;
         int chosenIndex = -1;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            if (i == excludedFirst || i == excludedSecond) continue;
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id || figure.Job != EconomyJob.None || figure.Age is < 14 or >= 45 ||
+            if (figure.Index == excludedFirst || figure.Index == excludedSecond) continue;
+            if (figure.Job != EconomyJob.None || figure.Age is < 14 or >= 45 ||
                 figure.Role != Role.None || figure.Camp >= 0 || figure.IllnessSeasons > 0 || figure.WoundSeasons > 0 ||
                 figure.PregnancySeasons > 0 || WorkCapacity(figure) <= figure.CareWorkThisSeason + figure.FireWorkThisSeason)
                 continue;
             if (chosen is null || figure.Health > chosen.Health || figure.Health == chosen.Health && figure.Id < chosen.Id)
             {
                 chosen = figure;
-                chosenIndex = i;
+                chosenIndex = figure.Index;
             }
         }
         return chosenIndex;
@@ -2459,10 +2580,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         // MED-01 specifies 0.1 ws per patient-season. Wound care and midwifery use
         // that same provisional cost until their own work rates are specified.
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState provider in Residents(patient.SettlementId))
         {
-            FigureState provider = _figures[i];
-            if (provider.SettlementId != patient.SettlementId || provider.Id == patient.Id ||
+            if (provider.Id == patient.Id ||
                 provider.Age < 14 || provider.IllnessSeasons > 0 || provider.WoundSeasons > 0 ||
                 provider.PregnancySeasons == 1 ||
                 WorkCapacity(provider) - provider.CareWorkThisSeason - provider.FireWorkThisSeason < CarePatientWork) continue;
@@ -3707,10 +3827,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (winter) settlement.LateWinterFoodShare = security;
 
         Fix64 unmet = Fix64.One - security;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id) continue;
             figure.Hunger = Fix64.Clamp(figure.Hunger + unmet * Fix64.Parse("0.45") - security * Fix64.Parse("0.18"),
                 Fix64.Zero, Fix64.One);
             figure.Rest = Fix64.Clamp(figure.Rest + Fix64.Parse("0.25") - figure.WorkThisSeason * Fix64.Parse("0.35"),
@@ -3809,10 +3927,11 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (winter && _lastWinterWasHarsh && requiredWarmth > 0) requiredWarmth++;
         int fertileWomen = 0, women14To24 = 0, women25To34 = 0, women35To44 = 0;
         int pregnantWomen = 0, sickFertileWomen = 0, woundedFertileWomen = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        List<FigureState> residents = Residents(settlement.Id);
+        for (int i = 0; i < residents.Count; i++)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id || !figure.Female || figure.Age is < 14 or >= 45) continue;
+            FigureState figure = residents[i];
+            if (!figure.Female || figure.Age is < 14 or >= 45) continue;
             fertileWomen++;
             if (figure.Age < 25) women14To24++;
             else if (figure.Age < 35) women25To34++;
@@ -3836,10 +3955,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         bool conceptionCapKnown = false;
 
         int warmthOrdinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        for (int i = 0; i < residents.Count; i++)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id) continue;
+            FigureState figure = residents[i];
             if (figure.HuntingInjuryHazard > Fix64.Zero && figure.WoundSeasons == 0 &&
                 Pcg32.ForStream(_seed, HuntingWoundStream, (ulong)figure.Id, season).NextFix01() < figure.HuntingInjuryHazard)
                 figure.WoundSeasons = 2;
@@ -3935,19 +4053,22 @@ public sealed partial class LivingEconomyModel : ISimModel
         int deathsHere = deadIds.Count;
         if (deathsHere > 0)
         {
-            int write = 0, deadIndex = 0;
-            for (int read = 0; read < _figures.Count; read++)
+            int residentWrite = 0, residentDeadIndex = 0;
+            for (int read = 0; read < residents.Count; read++)
             {
-                FigureState figure = _figures[read];
-                if (deadIndex < deathsHere && deadIds[deadIndex] == figure.Id)
+                FigureState figure = residents[read];
+                if (residentDeadIndex < deathsHere && deadIds[residentDeadIndex] == figure.Id)
                 {
-                    deadIndex++;
+                    residentDeadIndex++;
+                    _pendingDeathIndexes.Add(figure.Index);
                     if (figure.Id == settlement.FireKeeperId) settlement.FireKeeperId = -1;
                     continue;
                 }
-                _figures[write++] = figure;
+                residents[residentWrite++] = figure;
             }
-            if (write < _figures.Count) _figures.RemoveRange(write, _figures.Count - write);
+            if (residentWrite < residents.Count) residents.RemoveRange(residentWrite, residents.Count - residentWrite);
+
+            InvalidateResidentDerived(settlement.Id);
         }
         if (settlement.FireKeeperId >= 0)
         {
@@ -3972,10 +4093,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int fertileWomen = 0;
         int sickFertileWomen = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id || !figure.Female || figure.Age is < 14 or >= 45) continue;
+            if (!figure.Female || figure.Age is < 14 or >= 45) continue;
             fertileWomen++;
             if (figure.IllnessSeasons > 0) sickFertileWomen++;
         }
@@ -3993,9 +4113,15 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void AgePopulationByOneYear(long firstFigureIdBornThisSeason)
     {
+        bool aged = false;
         for (int i = 0; i < _figures.Count; i++)
             if (_figures[i].Id < firstFigureIdBornThisSeason && _figures[i].Age < 99)
+            {
                 _figures[i].Age++;
+                aged = true;
+            }
+        if (aged)
+            foreach (SettlementState settlement in _settlements) InvalidateResidentDerived(settlement.Id);
     }
 
     private void RebuildCohortAgeState(SettlementState settlement)
@@ -4462,10 +4588,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int children = 0, adultWomen = 0, adultMen = 0, elders = 0, skilledAdults = 0;
         int lastSeasonToolWorkers = 0, ironKitHolders = 0, activeIronKitWorkers = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(parent.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != parent.Id) continue;
             if (figure.WorkedWithToolLastSeason && figure.Age >= 14) lastSeasonToolWorkers++;
             if (figure.Kit is 11 or 12) ironKitHolders++;
             if (figure.WorkedWithToolLastSeason && figure.Age >= 14 && figure.Kit is 11 or 12) activeIronKitWorkers++;
@@ -4484,10 +4608,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int children = 0, adultWomen = 0, adultMen = 0, elders = 0;
         int lastSeasonToolWorkers = 0, ironKitHolders = 0, activeIronKitWorkers = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(parent.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != parent.Id || !selectedFigures[i]) continue;
+            int i = figure.Index;
+            if (!selectedFigures[i]) continue;
             if (figure.WorkedWithToolLastSeason && figure.Age >= 14) lastSeasonToolWorkers++;
             if (figure.Kit is 11 or 12) ironKitHolders++;
             if (figure.WorkedWithToolLastSeason && figure.Age >= 14 && figure.Kit is 11 or 12) activeIronKitWorkers++;
@@ -4504,11 +4628,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     private FissionCohortSample SelectFissionCohort(SettlementState parent, int daughterCount, int season, ulong stream)
     {
         var candidates = new List<FissionFigureCandidate>();
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(parent.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != parent.Id) continue;
-            candidates.Add(new FissionFigureCandidate(i, figure.Id, figure.Age, figure.Female, IsSkilled(figure),
+            candidates.Add(new FissionFigureCandidate(figure.Index, figure.Id, figure.Age, figure.Female, IsSkilled(figure),
                 figure.Kit, figure.WorkedWithToolLastSeason));
         }
         return FissionCohortSampler.Select(_seed, stream, parent.Id, season, _figures.Count,
@@ -4625,10 +4747,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int children = 0, adults = 0, elders = 0;
         Fix64 adultWork = Fix64.Zero;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(parent.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != parent.Id || daughterFigures[i] != inDaughter) continue;
+            int i = figure.Index;
+            if (daughterFigures[i] != inDaughter) continue;
             if (figure.Age < 14) children++;
             else if (figure.Age < 45)
             {
@@ -4658,10 +4780,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         ClimateBand climate = (ClimateBand)_world.Tile(projected.SiteTile).ClimateId;
         int requiredWarmth = WarmthRequirement(climate, winter);
         int warmthOrdinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(sourceParentId))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != sourceParentId || daughterFigures[i] != inDaughter) continue;
+            int i = figure.Index;
+            if (daughterFigures[i] != inDaughter) continue;
             Fix64 need = figure.Age < 14 ? Fix64.Parse("0.6") : figure.Age >= 45 ? Fix64.Parse("0.8") : Fix64.One;
             if (requiredWarmth > FigureWarmthTier(projected, figure, population, warmthOrdinal)) need *= Fix64.Parse("1.15");
             total += need;
@@ -4742,12 +4864,35 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (IronHubFuelSharingEnabled) daughter.LastIronHolderShareSeason = season;
         if (CivilizationHasPhysicalDefensePlan(parent.Civilization))
             daughter.BuildTarget = Structure.Palisade;
-        for (int i = 0; i < _figures.Count; i++)
-            if (selected[i])
+        List<FigureState> parentResidents = Residents(parent.Id);
+        List<FigureState> daughterResidents = Residents(daughter.Id);
+        int originalResidents = parentResidents.Count;
+        int parentWrite = 0;
+        bool movedAny = false;
+        for (int residentIndex = 0; residentIndex < originalResidents; residentIndex++)
+        {
+            FigureState figure = parentResidents[residentIndex];
+            if (!selected[figure.Index])
             {
-                RecordIT6KitRelocation(parent.Id, daughter.Id, _figures[i].Kit, Fix64.One);
-                _figures[i].SettlementId = daughter.Id; _figures[i].Camp = -1; _figures[i].Role = 0;
+                parentResidents[parentWrite++] = figure;
+                continue;
             }
+            RecordIT6KitRelocation(parent.Id, daughter.Id, figure.Kit, Fix64.One);
+            figure.SettlementId = daughter.Id;
+            figure.Camp = -1;
+            figure.Role = 0;
+            if (daughterResidents.Count == 0 || daughterResidents[^1].Id < figure.Id)
+                daughterResidents.Add(figure);
+            else
+                AddResident(figure, daughter.Id);
+            movedAny = true;
+        }
+        if (parentWrite < parentResidents.Count) parentResidents.RemoveRange(parentWrite, parentResidents.Count - parentWrite);
+        if (movedAny)
+        {
+            InvalidateResidentDerived(parent.Id);
+            InvalidateResidentDerived(daughter.Id);
+        }
         SplitMetal(parent, daughter);
         for (int good = 0; good < parent.Stores.Length; good++)
         {
@@ -4823,7 +4968,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void MoveFigure(long figureId, int settlementId)
     {
         int index = FigureIndex(figureId);
-        if (index >= 0) _figures[index].SettlementId = settlementId;
+        if (index >= 0) MoveResident(_figures[index], settlementId);
     }
 
     private int ChooseFissionSite(SettlementState parent, int season, int previewBeaconTile = -1, int replacedBeaconIndex = -1,
@@ -4849,8 +4994,23 @@ public sealed partial class LivingEconomyModel : ISimModel
         int rawBestTile = -1;
         Fix64 rawBestFood = Fix64.MinValue, rawBestMultiplier = Fix64.Zero, rawBestScore = Fix64.Zero;
         Fix64 selectedRawFood = Fix64.Zero, selectedMultiplier = Fix64.Zero;
-        for (int tile = 0; tile < _world.TileCount; tile++)
+        int exclusionGeneration = 0;
+        if (diagnostics is null)
         {
+            BuildFissionCandidateTiles(parent.SiteTile, reach, _fissionCandidateTilesScratch);
+            exclusionGeneration = unchecked(++_settlementExclusionGeneration);
+            if (exclusionGeneration == 0)
+            {
+                Array.Clear(_settlementTooCloseStamp);
+                exclusionGeneration = _settlementExclusionGeneration = 1;
+            }
+            for (int s = 0; s < _settlements.Count; s++)
+                if (populations[s] > 0) MarkSettlementExclusion(_settlements[s].SiteTile, exclusionGeneration);
+        }
+        int scanCount = diagnostics is null ? _fissionCandidateTilesScratch.Count : _world.TileCount;
+        for (int candidateIndex = 0; candidateIndex < scanCount; candidateIndex++)
+        {
+            int tile = diagnostics is null ? _fissionCandidateTilesScratch[candidateIndex] : candidateIndex;
             if (!IsHabitable(tile))
             {
                 if (rejections is not null) rejections[(int)FissionSiteRejectionReason.Uninhabitable]++;
@@ -4875,10 +5035,11 @@ public sealed partial class LivingEconomyModel : ISimModel
                 if (rejections is not null) rejections[(int)FissionSiteRejectionReason.BeyondReach]++;
                 continue;
             }
-            bool farEnough = true;
-            for (int s = 0; s < _settlements.Count; s++)
-                if (populations[s] > 0 && HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
-                { farEnough = false; break; }
+            bool farEnough = diagnostics is null ? _settlementTooCloseStamp[tile] != exclusionGeneration : true;
+            if (diagnostics is not null)
+                for (int s = 0; s < _settlements.Count; s++)
+                    if (populations[s] > 0 && HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
+                    { farEnough = false; break; }
             if (!farEnough)
             {
                 if (rejections is not null) rejections[(int)FissionSiteRejectionReason.TooCloseToAnotherSettlement]++;
@@ -5002,6 +5163,42 @@ public sealed partial class LivingEconomyModel : ISimModel
         return best;
     }
 
+    private void BuildFissionCandidateTiles(int center, int radius, List<int> into)
+    {
+        into.Clear();
+        int width = _world.Width, height = _world.Height;
+        int centerX = center % width, centerY = center / width;
+        int centerQ = centerX - (centerY - (centerY & 1)) / 2;
+        for (int y = Math.Max(0, centerY - radius); y <= Math.Min(height - 1, centerY + radius); y++)
+        {
+            int dr = y - centerY;
+            int dqMin = Math.Max(-radius, -radius - dr);
+            int dqMax = Math.Min(radius, radius - dr);
+            int rowOffset = (y - (y & 1)) / 2;
+            int firstX = Math.Max(0, centerQ + dqMin + rowOffset);
+            int lastX = Math.Min(width - 1, centerQ + dqMax + rowOffset);
+            for (int x = firstX; x <= lastX; x++) into.Add(y * width + x);
+        }
+    }
+
+    private void MarkSettlementExclusion(int center, int generation)
+    {
+        const int exclusionRadius = Radius * 2;
+        int width = _world.Width, height = _world.Height;
+        int centerX = center % width, centerY = center / width;
+        int centerQ = centerX - (centerY - (centerY & 1)) / 2;
+        for (int y = Math.Max(0, centerY - exclusionRadius); y <= Math.Min(height - 1, centerY + exclusionRadius); y++)
+        {
+            int dr = y - centerY;
+            int dqMin = Math.Max(-exclusionRadius, -exclusionRadius - dr);
+            int dqMax = Math.Min(exclusionRadius, exclusionRadius - dr);
+            int rowOffset = (y - (y & 1)) / 2;
+            int firstX = Math.Max(0, centerQ + dqMin + rowOffset);
+            int lastX = Math.Min(width - 1, centerQ + dqMax + rowOffset);
+            for (int x = firstX; x <= lastX; x++) _settlementTooCloseStamp[y * width + x] = generation;
+        }
+    }
+
     // The generated map is point-symmetric. Resolve equal food scores in the same parent-relative direction,
     // so mirrored parents with mirrored candidate sets choose mirrored fission sites.
     internal static bool PreferFissionTieCandidate(int parentTile, int candidateTile, int currentBestTile, int width, int height)
@@ -5060,7 +5257,12 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void AddFigure(int civ, int settlementId, int age, bool female)
     {
-        _figures.Add(new FigureState { Id = _nextFigureId++, Civilization = civ, SettlementId = settlementId, Age = age, Female = female });
+        var figure = new FigureState
+        {
+            Id = _nextFigureId++, Index = _figures.Count, Civilization = civ, SettlementId = settlementId, Age = age, Female = female
+        };
+        _figures.Add(figure);
+        AddResident(figure, settlementId);
     }
 
     private int ProjectIndex(string projectId)
@@ -5405,17 +5607,29 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private Fix64 FoodNeed(SettlementState settlement, bool winter, bool includeHarshWinter, Fix64[]? byAgeBand)
     {
-        int population = Population(settlement.Id);
+        List<FigureState> residents = Residents(settlement.Id);
+        int population = residents.Count;
         Fix64 total = Fix64.Zero;
         ClimateBand climate = (ClimateBand)_world.Tile(settlement.SiteTile).ClimateId;
         int requiredWarmth = WarmthRequirement(climate, winter);
         if (winter && includeHarshWinter && _lastWinterWasHarsh && requiredWarmth > 0) requiredWarmth++;
-        int warmthOrdinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
+
+        // Shelter and clothing seats are assigned by figure-id ordinal. Their warmth is therefore a
+        // non-increasing step function over this ordered census. Prefix sums let capacity, palace-site,
+        // fission and forecast queries reuse exact per-person fixed-point needs without rescanning people.
+        if (byAgeBand is null)
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id) continue;
-            Fix64 need = figure.Age < 14 ? Fix64.Parse("0.6") : figure.Age >= 45 ? Fix64.Parse("0.8") : Fix64.One;
+            EnsureFoodNeedPrefixes(settlement, residents);
+            FoodNeedPrefix prefix = _foodNeedPrefixes[settlement.Id];
+            int firstCold = FirstColdResident(settlement, population, requiredWarmth);
+            return prefix.Normal[firstCold] + prefix.Cold[population] - prefix.Cold[firstCold];
+        }
+
+        int warmthOrdinal = 0;
+        for (int i = 0; i < population; i++)
+        {
+            FigureState figure = residents[i];
+            Fix64 need = BaseFoodNeed(figure);
             if (requiredWarmth > FigureWarmthTier(settlement, figure, population, warmthOrdinal)) need *= Fix64.Parse("1.15");
             if (byAgeBand is not null)
             {
@@ -5426,6 +5640,42 @@ public sealed partial class LivingEconomyModel : ISimModel
             warmthOrdinal++;
         }
         return total;
+    }
+
+    private void EnsureFoodNeedPrefixes(SettlementState settlement, List<FigureState> residents)
+    {
+        FoodNeedPrefix prefix = _foodNeedPrefixes[settlement.Id];
+        int count = residents.Count;
+        if (prefix.Version == settlement.ResidentVersion && prefix.Normal.Length >= count + 1 && prefix.Cold.Length >= count + 1)
+            return;
+
+        if (prefix.Normal.Length < count + 1) Array.Resize(ref prefix.Normal, count + 1);
+        if (prefix.Cold.Length < count + 1) Array.Resize(ref prefix.Cold, count + 1);
+        prefix.Normal[0] = Fix64.Zero;
+        prefix.Cold[0] = Fix64.Zero;
+        Fix64 coldMultiplier = Fix64.Parse("1.15");
+        for (int i = 0; i < count; i++)
+        {
+            Fix64 normalNeed = BaseFoodNeed(residents[i]);
+            prefix.Normal[i + 1] = prefix.Normal[i] + normalNeed;
+            prefix.Cold[i + 1] = prefix.Cold[i] + normalNeed * coldMultiplier;
+        }
+        prefix.Version = settlement.ResidentVersion;
+    }
+
+    private static Fix64 BaseFoodNeed(FigureState figure)
+        => figure.Age < 14 ? Fix64.Parse("0.6") : figure.Age >= 45 ? Fix64.Parse("0.8") : Fix64.One;
+
+    private int FirstColdResident(SettlementState settlement, int population, int requiredWarmth)
+    {
+        int low = 0, high = population;
+        while (low < high)
+        {
+            int middle = low + ((high - low) >> 1);
+            if (WarmthTierAtOrdinal(settlement, population, middle) < requiredWarmth) high = middle;
+            else low = middle + 1;
+        }
+        return low;
     }
 
     private Fix64 ForecastWinterFood(SettlementState settlement, ScoutPlan plannedScouts)
@@ -5463,9 +5713,8 @@ public sealed partial class LivingEconomyModel : ISimModel
 
         Fix64 totalWork = Fix64.Zero;
         Fix64 unavailableWork = plannedScouts.Work;
-        foreach (FigureState figure in _figures)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            if (figure.SettlementId != settlement.Id) continue;
             totalWork += WorkCapacity(figure);
             if (figure.Job == EconomyJob.Scout)
             {
@@ -5499,10 +5748,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 forageWork = Fix64.Zero, huntWork = Fix64.Zero, fishWork = Fix64.Zero;
         Fix64 forageSkillWork = Fix64.Zero, huntSkillWork = Fix64.Zero, fishSkillWork = Fix64.Zero;
         int ordinal = 0;
-        for (int figureIndex = 0; figureIndex < _figures.Count; figureIndex++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[figureIndex];
-            if (figure.SettlementId != settlement.Id || figure.Job == EconomyJob.Scout ||
+            int figureIndex = figure.Index;
+            if (figure.Job == EconomyJob.Scout ||
                 figure.Task is MetalTask.Ritual or MetalTask.Records ||
                 plannedScouts.Contains(figureIndex) || foodRemaining <= Fix64.Zero) continue;
             Fix64 available = WorkCapacity(figure) - figure.CareWorkThisSeason - figure.FireWorkThisSeason;
@@ -5613,16 +5862,17 @@ public sealed partial class LivingEconomyModel : ISimModel
         int population = Population(settlement.Id);
         int total = 0;
         int warmthOrdinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId != settlement.Id) continue;
             total += FigureWarmthTier(settlement, figure, population, warmthOrdinal++);
         }
         return population == 0 ? 0 : total / population;
     }
 
     private int FigureWarmthTier(SettlementState settlement, FigureState figure, int population, int ordinal)
+        => WarmthTierAtOrdinal(settlement, population, ordinal);
+
+    private int WarmthTierAtOrdinal(SettlementState settlement, int population, int ordinal)
     {
         int warmShelterSeats = 6 * settlement.Structures[(int)Structure.PitHouse] +
             8 * settlement.Structures[(int)Structure.WattleHouse] +
@@ -5658,14 +5908,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (required == 0) return 0;
         int deficit = 0;
         int warmthOrdinal = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId == settlement.Id)
-            {
-                deficit += Math.Max(0, required - FigureWarmthTier(settlement, figure, population, warmthOrdinal));
-                warmthOrdinal++;
-            }
+            deficit += Math.Max(0, required - FigureWarmthTier(settlement, figure, population, warmthOrdinal++));
         }
         return deficit;
     }
@@ -5673,10 +5918,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     private int PlannedHuntPartySize(SettlementState settlement)
     {
         int hunters = 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId == settlement.Id && figure.Age >= 14 &&
+            if (figure.Age >= 14 &&
                 figure.IllnessSeasons == 0 && figure.WoundSeasons == 0 && WorkCapacity(figure) > Fix64.Zero)
                 hunters++;
         }
@@ -5943,10 +6187,9 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         if (assignedWork <= Fix64.Zero || appliedWork >= assignedWork) return;
         Fix64 scale = appliedWork / assignedWork;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState figure in Residents(settlement.Id))
         {
-            FigureState figure = _figures[i];
-            if (figure.SettlementId == settlement.Id) figure.HuntWorkThisSeason *= scale;
+            figure.HuntWorkThisSeason *= scale;
         }
     }
 
@@ -6910,6 +7153,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             _figures.Add(figure);
         }
+        RebuildResidentCensus();
         for (int i = 0; i < _lastDeathsByCause.Length; i++) _lastDeathsByCause[i] = reader.ReadInt32();
         for (int i = 0; i < _lastDeathsByCauseAndAgeBand.Length; i++)
             _lastDeathsByCauseAndAgeBand[i] = reader.ReadInt32();
@@ -7151,6 +7395,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         RebuildWeirOwnership();
         _figures.Clear();
         foreach (FigureState figure in source._figures) _figures.Add(CloneFigure(figure));
+        RebuildResidentCensus();
         Array.Copy(source._lastDeathsByCause, _lastDeathsByCause, _lastDeathsByCause.Length);
         Array.Copy(source._lastDeathsByCauseAndAgeBand, _lastDeathsByCauseAndAgeBand, _lastDeathsByCauseAndAgeBand.Length);
         Array.Copy(source._lastExpectedHazardsByCauseAndAgeBand, _lastExpectedHazardsByCauseAndAgeBand,

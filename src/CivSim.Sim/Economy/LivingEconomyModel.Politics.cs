@@ -252,7 +252,7 @@ public sealed partial class LivingEconomyModel
         if (index < 0) return false;
         FigureState figure = _figures[index];
         RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One, "battle-death");
-        _figures.RemoveAt(index);
+        RemoveFigureAt(index);
         return true;
     }
 
@@ -272,7 +272,7 @@ public sealed partial class LivingEconomyModel
         if (index < 0) return;
         FigureState figure = _figures[index];
         RecordIT6KitRelocation(figure.SettlementId, to.Id, figure.Kit, Fix64.One);
-        figure.SettlementId = to.Id;
+        MoveResident(figure, to.Id);
         figure.Civilization = to.Civilization;
         figure.Role = 0;
         figure.Camp = -1;
@@ -292,8 +292,7 @@ public sealed partial class LivingEconomyModel
         // has shorter-lived tools: cap the captured stock's remaining work at the new owner's capacity.
         for (int good = 0; good < s.ToolRemainingWork.Length; good++)
             s.ToolRemainingWork[good] = Fix64.Min(s.ToolRemainingWork[good], s.Stores[good] * ToolDurability(s, (Good)good));
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == s.Id) { _figures[i].Civilization = newCiv; _figures[i].Role = 0; }
+        foreach (FigureState figure in Residents(s.Id)) { figure.Civilization = newCiv; figure.Role = 0; }
         if (s.Civic is { } civic) civic.BuildKind = CivicBuild.None;
         s.FissionPending = false;
     }
@@ -306,7 +305,7 @@ public sealed partial class LivingEconomyModel
             if (_figures[i].SettlementId == s.Id)
             {
                 RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One, "settlement-raze-holder");
-                _figures.RemoveAt(i);
+                RemoveFigureAt(i);
             }
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
@@ -329,9 +328,7 @@ public sealed partial class LivingEconomyModel
     /// <summary>Figures of a settlement as (id, age, female, wounded) in ascending id order, for building a party.</summary>
     public void ListFigures(int settlementIndex, List<FigureView> into)
     {
-        int id = _settlements[settlementIndex].Id;
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == id) into.Add(Figure(i));
+        foreach (FigureState figure in Residents(_settlements[settlementIndex].Id)) into.Add(Figure(figure.Index));
     }
 
     public bool IsWounded(long figureId)
@@ -349,10 +346,9 @@ public sealed partial class LivingEconomyModel
         int id = _settlements[settlementIndex].Id;
         // The Iron chapter's standing soldiers (WAR-07): a staffed soldier fights as a professional only if upkeep was paid this season.
         int supplied = IronChain ? _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0 : 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             bool soldier = supplied > 0 && f.Role == Role.Soldier;
             if (soldier) supplied--;
             into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0, soldier));
@@ -363,11 +359,13 @@ public sealed partial class LivingEconomyModel
     public void ListMiningCampCrew(int campId, List<FighterRecord> into)
     {
         if (campId < 0) return;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (MiningCampState camp in _camps)
         {
-            FigureState f = _figures[i];
-            if (f.Camp == campId && f.Age >= 14)
-                into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0));
+            if (camp.Id != campId) continue;
+            foreach (FigureState figure in Residents(camp.Parent))
+                if (figure.Camp == campId && figure.Age >= 14)
+                    into.Add(new FighterRecord(figure.Id, figure.Age, figure.Female, figure.WoundSeasons > 0));
+            return;
         }
     }
 
@@ -409,7 +407,7 @@ public sealed partial class LivingEconomyModel
             if (index < 0) continue;
             FigureState figure = _figures[index];
             RecordIT6KitRelocation(figure.SettlementId, camp.Id, figure.Kit, Fix64.One);
-            figure.SettlementId = camp.Id;
+            MoveResident(figure, camp.Id);
             figure.Civilization = civ;
         }
         camp.FireLit = false;

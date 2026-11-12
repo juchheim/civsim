@@ -410,10 +410,11 @@ public sealed partial class LivingEconomyModel
         int missionaries = MissionarySlots(s);
         int scholars = ScholarSlots(s);
         int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0, haveScholars = 0;
-        for (int i = _figures.Count - 1; i >= 0; i--)
+        List<FigureState> residents = Residents(s.Id);
+        for (int i = residents.Count - 1; i >= 0; i--)
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Role == Role.None) continue;
+            FigureState f = residents[i];
+            if (f.Role == Role.None) continue;
             bool keep = f.Age is >= 14 and < 60 && f.Camp < 0;
             if (keep && f.Role == Role.Priest && havePriests < priests) { havePriests++; continue; }
             if (keep && f.Role == Role.Scribe && haveScribes < scribes) { haveScribes++; continue; }
@@ -425,13 +426,13 @@ public sealed partial class LivingEconomyModel
             f.Role = Role.None;
         }
         int adults = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < _figures.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars); i++)
+        foreach (FigureState f in residents) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
+        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars); i++)
         {
             // Keep at least four other working adults at home.
             if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + 4 >= adults) break;
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
+            FigureState f = residents[i];
+            if (f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
             else if (haveScribes < scribes) { f.Role = Role.Scribe; haveScribes++; }
             else if (haveAdministrators < administrators) { f.Role = Role.Administrator; haveAdministrators++; }
@@ -441,9 +442,9 @@ public sealed partial class LivingEconomyModel
             else { f.Role = Role.Scholar; haveScholars++; }
         }
         Fix64 spent = Fix64.Zero;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in residents)
         {
-            if (f.SettlementId != s.Id || f.Role == Role.None) continue;
+            if (f.Role == Role.None) continue;
             Fix64 amount = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
             if (amount <= Fix64.Zero) continue;
             Assign(f, EconomyJob.Craft, amount);
@@ -915,8 +916,8 @@ public sealed partial class LivingEconomyModel
         Fix64 batches = Fix64.Min(missing / output, (metal.Goods[(int)MetalGood.Block] + rangeStone) / blockInput);
         Fix64 blocksToQuarry = Fix64.Max(Fix64.Zero, batches * blockInput - metal.Goods[(int)MetalGood.Block]);
         bool anyMetalKit = false;
-        foreach (FigureState figure in _figures)
-            if (figure.SettlementId == s.Id && KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
+        foreach (FigureState figure in Residents(s.Id))
+            if (KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
         return blocksToQuarry / quarryRate + batches * RecipeLabor(s, recipe, anyMetalKit);
     }
 
@@ -961,8 +962,8 @@ public sealed partial class LivingEconomyModel
         labor = Fix64.Max(Fix64.Zero, labor - gotBlocks / quarryRate);
 
         bool anyMetalKit = false;
-        foreach (FigureState figure in _figures)
-            if (figure.SettlementId == s.Id && KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
+        foreach (FigureState figure in Residents(s.Id))
+            if (KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
         Fix64 dressLabor = RecipeLabor(s, recipe, anyMetalKit);
         if (dressLabor <= Fix64.Zero) return labor;
         batches = Fix64.Min(batches, Fix64.Min(metal.Goods[(int)MetalGood.Block] / blockInput, labor / dressLabor));
@@ -1319,7 +1320,7 @@ public sealed partial class LivingEconomyModel
         c.Seceded = true;
         c.LowSeasons = 0;
         c.Tier = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id) { f.Role = Role.None; f.Camp = -1; }
+        foreach (FigureState f in Residents(s.Id)) { f.Role = Role.None; f.Camp = -1; }
         for (int i = _camps.Count - 1; i >= 0; i--) if (_camps[i].Parent == s.Id) _camps.RemoveAt(i);
         _secessions.Add(s.Id);
     }
@@ -1365,7 +1366,7 @@ public sealed partial class LivingEconomyModel
         c.LowSeasons = 0;
         c.Tier = Math.Min(c.Tier, (byte)1);
         s.Cohesion = CohesionFactor(_civic.ConqueredStart);
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id) f.Role = Role.None;
+        foreach (FigureState f in Residents(s.Id)) f.Role = Role.None;
         return true;
     }
 
@@ -1427,9 +1428,8 @@ public sealed partial class LivingEconomyModel
     public (int Priests, int Scribes) RoleHeads(int settlementIndex)
     {
         int id = _settlements[settlementIndex].Id, priests = 0, scribes = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(id))
         {
-            if (f.SettlementId != id) continue;
             if (f.Role == Role.Priest) priests++;
             else if (f.Role == Role.Scribe) scribes++;
         }
