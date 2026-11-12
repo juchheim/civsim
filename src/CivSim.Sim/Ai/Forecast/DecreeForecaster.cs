@@ -339,6 +339,10 @@ public static class DecreeForecaster
                 if (belief.Season - folk.LastSeenSeason is >= 0 and <= 2 && HexGrid.Distance(folk.Tile, tile, width) < 9)
                     return OrderRefusalReason.NoSite;
         }
+        // Player forecasts have no separate belief snapshot. Founders can detect a valuable deposit in the reserved core even
+        // when the player has not identified it, so keep the preview consistent with PoliticsSystem.FoundCheck. AI forecasts
+        // retain their belief-fair view of deposits outside the known map.
+        if (belief is null && !pol.Economy.IsCleanCoreSite(tile)) return OrderRefusalReason.CoreDeposit;
         if (!inReach) return OrderRefusalReason.OutOfReach;
         if (bestDonor < 0) return OrderRefusalReason.NoDonor;
         people = (pol.SettlementPopulationOf(bestDonor) * 2 + 2) / 5;
