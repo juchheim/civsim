@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using CivSim.Sim.Core;
 using CivSim.Sim.Content;
+using CivSim.Sim.Economy;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
 using CivSim.Sim.Research;
@@ -414,8 +415,25 @@ public partial class Game : Node3D
         return -1;
     }
 
+    private static readonly int WoolStoreSlot = StoreSlotIndex("G-WOOL");
+    private static readonly int ChariotStoreSlot = StoreSlotIndex("G-CHARIOT");
+
+    private static int StoreSlotIndex(string id)
+    {
+        for (int slot = 0; slot < MatchFrame.StoreSlots; slot++)
+            if (LivingEconomyModel.StoreSlotId(slot) == id) return slot;
+        return -1;
+    }
+
+    private static bool HasLocalStock(MatchFrame frame, int settlement, int slot)
+    {
+        if (slot < 0) return false;
+        int at = settlement * MatchFrame.StoreSlots + slot;
+        return (uint)at < (uint)frame.SettlementStores.Length && frame.SettlementStores[at] > 0;
+    }
+
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
-        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null,
+        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null,
         int figureLimit = 0, SimulationSession? session = null)
     {
         int tiles = frame.Width * frame.Height;
@@ -588,6 +606,7 @@ public partial class Game : Node3D
             var structures = new int[kinds];
             for (int kind = 0; kind < kinds; kind++)
                 structures[kind] = frame.SettlementStructures[i * kinds + kind];
+            byte ironPropGoods = frame.Iron.Active && i < frame.Iron.PropGoods.Length ? frame.Iron.PropGoods[i] : (byte)0;
             var settlement = new Godot.Collections.Dictionary
             {
                 ["tile"] = frame.SettlementTile[i],
@@ -607,6 +626,11 @@ public partial class Game : Node3D
                 ["cohesion"] = frame.SettlementCohesion[i],
                 ["overreach"] = frame.SettlementOverreach[i],
                 ["spanPenalty"] = frame.SettlementSpanPenalty[i],
+                ["woolStock"] = HasLocalStock(frame, i, WoolStoreSlot),
+                ["chariotStock"] = HasLocalStock(frame, i, ChariotStoreSlot),
+                ["barrelStock"] = (ironPropGoods & IronFrame.PropBarrelStock) != 0,
+                ["plankStock"] = (ironPropGoods & IronFrame.PropPlankStock) != 0,
+                ["blownGlassStock"] = (ironPropGoods & IronFrame.PropBlownGlassStock) != 0,
             };
             int supplyShortage = frame.SettlementFood[i] >= 2 ? frame.SettlementFood[i] : 0;
             int econAt = i * EconField.Stride;
@@ -717,8 +741,6 @@ public partial class Game : Node3D
                 settlement["zigguratPermille"] = forcedZigguratStage >= 4 ? 0 : forcedZigguratStage * 333 - 200;
             }
 #endif
-            // Props the focus civilization's knowledge leaves in its own villages (DecorTable); rivals' settlements show none.
-            if (decor is { Length: > 0 } && frame.SettlementCiv[i] == frame.FocusCiv) settlement["decor"] = decor;
             settlements.Add(settlement);
         }
 #if DEBUG
@@ -1513,7 +1535,7 @@ public partial class Game : Node3D
         {
             long started = Stopwatch.GetTimestamp();
             var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds,
-                DecorTable.Known(frame, _catalog), _benchmarkRenderFigureLimit, _session);
+                _benchmarkRenderFigureLimit, _session);
             double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _visualRenderer.Call("update_frame", payload);
             if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))
@@ -1542,7 +1564,7 @@ public partial class Game : Node3D
             ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
         AddChild(_visualRenderer);
         _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true,
-            decor: DecorTable.Known(frame, _catalog), figureLimit: _benchmarkRenderFigureLimit, session: session));
+            figureLimit: _benchmarkRenderFigureLimit, session: session));
         _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
     }
 

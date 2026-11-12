@@ -8,7 +8,7 @@ const RIVER_SEARCH_RADIUS := 2.0
 const STATIC_CHUNK_SIZE := 40.0
 const STATIC_DETAIL_CHUNK_SIZE := 12.0
 const SETTLEMENT_LAYOUT_ARRAYS := ["hearths", "villages", "ziggurat_sites", "castle_sites", "harbor_sites", "forge_sites",
-	"frontier_sites", "chimney_smokes", "relay_sites", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines",
+	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines",
 	"bridge_sites", "civic_sites"]
 
 const SPECIES := [
@@ -86,7 +86,6 @@ var beacon_fires: Array = []            # {top, seed}: the Great Lighthouse's fi
 var lighthouse_sites: Array = []        # {p, y}: where each Great Lighthouse stands
 var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenarios' cameras
 var chimney_smokes: Array = []          # {pos, seed}: bathhouse chimneys, for the war rig's smoke
-var relay_sites: Array = []             # {p, y}: the courier relay posts
 var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
@@ -511,14 +510,12 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 	h = h * 31 + (1 if bool(s.get("remembered")) else 0)
 	h = h * 31 + hash(String(s.get("coreGallery", "")))
 	h = h * 31 + hash(String(s.get("coreStage", "")))
-	var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
-	h = h * 31 + sea
 	h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
 	if not bool(s.get("remembered")):
 		h = h * 31 + core.stage_of(s)
 		h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), int(s.population), core.dwelling_capacity(s))
-		if sea > 0:
-			h = h * 31 + clampi(int(s.population) / 8, 1, 4)
+		for stock_flag in ["woolStock", "chariotStock", "barrelStock", "plankStock", "blownGlassStock"]:
+			h = h * 31 + (1 if bool(s.get(stock_flag, false)) else 0)
 		h = h * 31 + (1 if int(flagships.get(civ, -1)) == si else 0)
 		h = h * 31 + zig_stage(s)
 		h = h * 31 + mini(int(s.get("temples", 0)), 1)
@@ -1228,7 +1225,6 @@ func _settlements() -> void:
 	forge_sites.clear()
 	frontier_sites.clear()
 	chimney_smokes.clear()
-	relay_sites.clear()
 	aqueduct_sites.clear()
 	beacon_fires.clear()
 	lighthouse_sites.clear()
@@ -1321,8 +1317,6 @@ func _settlements() -> void:
 	var profile_settlements := Time.get_ticks_usec()
 	_bridges()
 	var profile_bridges := Time.get_ticks_usec()
-	_relay_posts()
-	var profile_relays := Time.get_ticks_usec()
 	_finish_plot_visual_layout()
 	_apply_garden_cues()
 	_draw_plots(terrace_set)
@@ -1336,8 +1330,7 @@ func _settlements() -> void:
 			" plot_prep=", (profile_plot_prep - profile_claims) / 1000.0,
 			" layouts=", (profile_settlements - profile_plot_prep) / 1000.0,
 			" bridges=", (profile_bridges - profile_settlements) / 1000.0,
-			" relays=", (profile_relays - profile_bridges) / 1000.0,
-			" plots=", (profile_plots - profile_relays) / 1000.0,
+			" plots=", (profile_plots - profile_bridges) / 1000.0,
 			" total=", (profile_plots - profile_started) / 1000.0)
 
 ## Suppress plots on every simulation-claimed core or outer tile.
@@ -1500,27 +1493,24 @@ func _flagships() -> Dictionary:
 			best[civ] = si
 	return best
 
-## The props a village shows: what the focus civilization's knowledge earned (DecorTable.cs, passed from the host) and what any
-## civilization's looks add (CivLook bits): fleece bales (HUS-06), a parked chariot (WAR-06) and, in its greatest village, the
-## stepped temple (BEL-07) and the chief's hall (SOC-07). Landmarks come first so they get the best ground.
+## The props a village shows: explicitly supplied debug decor, built civic halls, and stock-backed goods. Knowledge can change their
+## appearance, but a researched craft alone does not place its props in a settlement.
 func _village_decor(host_decor, civ: int, si: int, flagship: Dictionary) -> Array:
 	var out := []
 	var names: Array = M7MeshKit.DECOR_NAMES
-	if int(flagship.get(civ, -1)) == si:
-		if w.has_look(civ, M7WorldData.LOOK_STATE_CULT):
-			out.append(names.find("temple"))
-		if w.has_look(civ, M7WorldData.LOOK_CHIEFDOM):
-			out.append(names.find("chiefhall"))
+	var settlement: Dictionary = w.settlements[si]
+	if int(flagship.get(civ, -1)) == si and int(settlement.get("halls", 0)) > 0 and w.has_look(civ, M7WorldData.LOOK_CHIEFDOM):
+		out.append(names.find("chiefhall"))
 	for k in host_decor:
 		out.append(int(k))
-	if w.has_look(civ, M7WorldData.LOOK_WOOL):
+	if bool(settlement.get("woolStock", false)) and w.has_look(civ, M7WorldData.LOOK_WOOL):
 		out.append(names.find("woolbales"))
-	if w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
+	if bool(settlement.get("chariotStock", false)) and w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
 		out.append(names.find("chariot"))
 	return out
 
-## Props a village earns from what its people know (see DecorTable.cs). Placed on an outward spiral clear of the houses; the
-## palisade rings the village, `placed` holds the house spots so nothing overlaps.
+## Props explicitly supplied for a settlement. Placed on an outward spiral clear of the houses; the palisade rings the village,
+## and `placed` holds the house spots so nothing overlaps.
 func _place_decor(decor, t: int, c: Vector2, c0: Vector2, h0: float, seed: float, rmax: float, placed: Array, cc: Color,
 		has_thorns: bool, landmarks_seed: Array = [], walled: bool = false) -> float:
 	# A stone wall ring (DEF-05) takes the place of the palisade. Houses and the near props and landmarks stay inside it (the ring is drawn
@@ -1914,15 +1904,15 @@ func _forge_yard(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float,
 		return q.distance_to(c) + 0.26
 	return 0.0
 
-## The stacks of trade goods a village keeps once it has learned the crafts (Iron Age): barrels (WOD-07), sawn planks (WOD-08) and shelves of blown glass
-## (CER-07), each at its own spot at the edge. Returns how far they reach.
+## Stocked trade goods: barrels (WOD-07), sawn planks (WOD-08) and shelves of blown glass (CER-07), each at its own spot at the edge.
+## Returns how far they reach.
 func _goods(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, civ: int) -> float:
 	if not w.iron_looks.size() > civ or civ < 0:
 		return 0.0
 	var extent := 0.0
-	var specs := [[M7WorldData.IRON_BARRELS, "barrel_stack", 5.3], [M7WorldData.IRON_PLANKS, "plank_stack", 0.9], [M7WorldData.IRON_GLASS, "glass_shelf", 2.9]]
+	var specs := [[M7WorldData.IRON_BARRELS, "barrel_stack", 5.3, "barrelStock"], [M7WorldData.IRON_PLANKS, "plank_stack", 0.9, "plankStock"], [M7WorldData.IRON_GLASS, "glass_shelf", 2.9, "blownGlassStock"]]
 	for sp in specs:
-		if not w.has_iron_look(civ, int(sp[0])):
+		if not w.has_iron_look(civ, int(sp[0])) or not bool(s.get(String(sp[3]), false)):
 			continue
 		var spot = _edge_spot(c, h0, seed, rmax, placed, float(sp[2]), 0.2)
 		if spot == null:
@@ -1957,41 +1947,6 @@ func _pacts(si: int, c: Vector2, h0: float, seed: float, rmax: float, placed: Ar
 			placed.append(q2)
 			extent = maxf(extent, q2.distance_to(c) + 0.1)
 	return extent
-
-## Courier relay posts (COM-08): a small stable with a tethered horse beside a paved road, one every few tiles along it, in the owner's colour.
-func _relay_posts() -> void:
-	for ri in range(0, w.road_meta.size(), 4):
-		var sidx := w.road_meta[ri]
-		if sidx < 0 or sidx >= w.settlements.size():
-			continue
-		var civ := int(w.settlements[sidx].civ)
-		if not w.has_iron_look(civ, M7WorldData.IRON_RELAYS):
-			continue
-		var start := w.road_meta[ri + 1]
-		var length := w.road_meta[ri + 2]
-		var tint := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
-		var j := 3
-		while j < length - 3:
-			var tp := w.road_tiles[start + j - 1]
-			var tc := w.road_tiles[start + j]
-			var tn := w.road_tiles[start + j + 1]
-			j += 6
-			if tp < 0 or tc < 0 or tn < 0:
-				continue
-			var d: Vector2 = (w.tile_center(tn) - w.tile_center(tp)).normalized()
-			var side := d.rotated(PI * 0.5)
-			var road_p := w.tile_center(tc)
-			var q := road_p + side * 0.2
-			var tq := w.tile_at(q)
-			if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.12:
-				q = road_p - side * 0.2
-				tq = w.tile_at(q)
-				if tq < 0 or not w.is_land(tq) or _river_dist(q) < 0.12:
-					continue
-			var to_road := road_p - q
-			props.add("relay_post", _xf(q, w.height_at(q), atan2(to_road.x, to_road.y), 1.3), Color(tint.r, tint.g, tint.b, 0.5))
-			_record_visual_occupancy(q, 0.2)
-			relay_sites.append({"p": q, "y": w.height_at(q)})
 
 ## A free spot at the village edge, clear of what is placed, for a small prop: tried round the edge from `phase`. `null` when there is none.
 func _edge_spot(c: Vector2, h0: float, seed: float, rmax: float, placed: Array, phase: float, clear: float = 0.2) -> Variant:
@@ -2314,9 +2269,8 @@ func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) 
 		props.add("decor_palisade", _xf(q, w.height_at(q), -tang, 1.1), tint)
 
 const HARBOR_SCALE := 1.15
-const HARBOR_MOOR := 0.82      # from the hearth tile's centre to where boats lie between a harbor's piers
 
-## A harbor (SEA-07): a quay on the shore of the first water neighbour (the one `_moor_fleet` picks) and two piers out over the water. True when
+## A harbor (SEA-07): a quay on the shore of the first water neighbour and two piers out over the water. True when
 ## it stands (a village on a river with no sea beside it has none).
 func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_override: int = -1) -> bool:
 	var directions := 1 if front_override >= 0 else 6
@@ -2392,53 +2346,6 @@ func _bridges() -> void:
 			_record_visual_occupancy(p, 0.2)
 			bridge_sites.append({"p": p, "y": y})
 
-## The boats a village keeps: one to four (by population) moored along the nearest shore or river bank, of the best kind its
-## civilization knows (1 raft .. 4 outrigger). Nothing happens if there is no water within a short walk.
-func _moor_fleet(t: int, c0: Vector2, seed: float, tier: int, population: int, cc: Color, quay: bool = false, front_override: int = -1) -> void:
-	var count := clampi(population / 8, 1, 4)
-	var mesh_name := "boat_%d" % tier
-	var anchor := Vector2.ZERO
-	var along := Vector2.ZERO
-	var level := 0.0
-	var found := false
-	var directions := 1 if front_override >= 0 else 6
-	for i in directions:
-		var direction := front_override if front_override >= 0 else (i + int(seed * 6.0)) % 6
-		var nb: int = w.neighbour(t, direction)
-		if nb >= 0 and w.is_water(nb):
-			var dir: Vector2 = w.tile_center(nb) - c0
-			anchor = c0 + dir * (HARBOR_MOOR if quay else 0.6)
-			along = dir.normalized().rotated(PI * 0.5)
-			level = 0.004
-			found = true
-			break
-	if not found:
-		# the river bank about a short walk from the hearth, not under the houses
-		var best := 1e9
-		for sgi in river_segs:
-			var a2: Vector2 = sgi[0]
-			var dist := a2.distance_to(c0)
-			if dist > 1.2:
-				continue
-			var gap := absf(dist - 0.7)
-			if gap < best:
-				best = gap
-				anchor = a2
-				along = ((sgi[1] as Vector2) - a2).normalized()
-				level = -1.0
-				found = true
-	if not found or along == Vector2.ZERO:
-		return
-	for k in count:
-		var off := (k - (count - 1) * 0.5) * (0.2 if tier < 5 else 0.36)
-		var q := anchor + along * off
-		var tq := w.tile_at(q)
-		if tq < 0:
-			continue
-		var y := (maxf(w.height_at(q), 0.0) + 0.012) if level < 0.0 else level
-		var hv := M7WorldData.hash01(t, k, 31)
-		var yaw := atan2(along.x, along.y) + (hv - 0.5) * 0.35
-		props.add(mesh_name, _xf(q, y, yaw, 1.0), Color(cc.r, cc.g, cc.b, hv))
 
 func _camps() -> void:
 	# markers (TER-03): the sim raises one at each seasonal camp of a settlement, up to its count; a settlement's camps are taken in the frame's order

@@ -49,7 +49,7 @@ const REASSIGN := [Q.HOMES_A, Q.WORKS, Q.SACRED, Q.HOMES_B, Q.WATCH]
 const STAGES := ["band", "village", "town", "city"]
 ## Kinds that may stand outside the core (§4.7).
 const OUTER_KINDS := ["paddock", "water_mill", "marker", "charcoal", "quarry", "aqueduct_span", "lighthouse", "frontier_wall", "siege"]
-## Knowledge props (DecorTable) that are dressing beside a host, with the quarters the host stands in.
+## Dressing props and their preferred quarters beside a host.
 const DRESSING := {
 	"hideframe": [Q.HOMES_A, Q.HOMES_B, Q.HEART], "loom": [Q.HOMES_A, Q.HOMES_B, Q.HEART], "woolbales": [Q.HOMES_B, Q.HOMES_A, Q.WORKS, Q.HEART],
 	"pots": [Q.WORKS, Q.HEART], "bricks": [Q.WORKS, Q.HEART], "baskets": [Q.WORKS, Q.HEART], "woodwork": [Q.WORKS, Q.HEART],
@@ -679,8 +679,6 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	var sacred_tier := ""
 	if int(s.get("temples", 0)) > 0:
 		sacred_tier = "temple_colonnade" if w.has_look(_civ, M7WorldData.LOOK_COLONNADES) or w.iron_works(s, "temple_tier2") > 0 else "temple"
-	elif decor.has("temple"):
-		sacred_tier = "stepped_temple"
 	elif wb._built(st, K.SHRINE) > 0:
 		sacred_tier = "shrine"
 	elif wb._built(st, K.TOTEM) > 0:
@@ -772,10 +770,6 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	if build_pm > 0 and build_id in ["crane", "press"]:
 		if _half(yard_q, "site", site_mesh, 1.3) == null:
 			_dropped.append("site")
-	if sacred_tier == "stepped_temple":
-		if _half([Q.SACRED, Q.HOMES_B, Q.WORKS, Q.HEART], "temple", "decor_temple", CORE_VS, "sacred", sacred_tier) == null:
-			_small([Q.SACRED, Q.HOMES_B, Q.WORKS, Q.HEART], "temple", "decor_temple", CORE_VS, "sacred", sacred_tier)
-
 	# ---- houses (§4.3): one per sub-slot of the Homes quarters (and up to three Heart petals in a Village, the Heart in a Band), then
 	# clusters of two in a Town and three in a City; the rest are implied by the clusters
 	_houses(s, st, decor)
@@ -806,8 +800,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	if build_pm > 0 and build_id in ["windlass_well", "aqueduct"]:
 		_small([Q.FRONT, Q.WORKS, Q.HOMES_B], "site", site_mesh, 0.7)
 	if _civ >= 0 and _civ < w.iron_looks.size():
-		for sp in [[M7WorldData.IRON_BARRELS, "barrel_stack"], [M7WorldData.IRON_PLANKS, "plank_stack"], [M7WorldData.IRON_GLASS, "glass_shelf"]]:
-			if w.has_iron_look(_civ, int(sp[0])):
+		for sp in [[M7WorldData.IRON_BARRELS, "barrel_stack", "barrelStock"], [M7WorldData.IRON_PLANKS, "plank_stack", "plankStock"], [M7WorldData.IRON_GLASS, "glass_shelf", "blownGlassStock"]]:
+			if w.has_iron_look(_civ, int(sp[0])) and bool(s.get(String(sp[2]), false)):
 				_small([Q.WORKS, Q.HOMES_B, Q.FRONT], String(sp[1]).trim_suffix("_stack").trim_suffix("_shelf"), String(sp[1]), 1.35)
 	_flags(s, si, flagship)
 	if decor.has("skypole"):
@@ -1312,11 +1306,6 @@ func _waterfront(s: Dictionary, st: Array) -> void:
 				wb.props.add("weir", wb._xf(bq, w.height_at(bq) + 0.02, yaw, 0.55), Color(1, 1, 1, _seed))
 				_record({"kind": "weir", "mesh": "weir", "quarter": "front", "slot": "river", "chain": "water", "tier": "weir", "slot_hex": w.tile_at(bq),
 					"x": bq.x, "z": bq.y, "r": 0.0, "box": [bq.x, bq.y, 0.155 * 0.55, 0.067 * 0.55, -yaw]})
-	var civ := _civ
-	var sea: int = w.sea_tier[civ] if civ >= 0 and civ < w.sea_tier.size() else 0
-	if sea > 0:
-		wb._moor_fleet(_t, _c0, _seed, sea, int(s.population), _cc, harbor, _front)
-
 # ------------------------------------------------------------------ outer works (§4.7)
 
 func _outer_candidates() -> Array:
