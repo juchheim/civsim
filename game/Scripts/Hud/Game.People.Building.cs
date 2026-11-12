@@ -22,7 +22,7 @@ public partial class Game
     private bool _rebuildingBuildPicker;
     private int _buildSelected = -1;
     private Label? _buildHeadline, _buildFocusLabel, _buildAltNote, _buildNothing;
-    private VBoxContainer? _buildNowBox, _buildWaitingBox, _buildBlockedBox, _buildAltBox, _buildNotBuiltBox;
+    private VBoxContainer? _buildNowBox, _buildExistingBox, _buildWaitingBox, _buildBlockedBox, _buildAltBox, _buildNotBuiltBox;
     private IReadOnlyList<BuildText.NotBuilt> _buildNotBuilt = Array.Empty<BuildText.NotBuilt>();
     private Control? _buildFocusRow;
     private UiButton? _buildClear;
@@ -31,6 +31,7 @@ public partial class Game
     private (int Settlement, int Code, bool Skip) _buildPending = (-1, -1, false);
     private int _buildShownPendingCode = -2;
     private int _buildTownsKey;
+    private int _buildShownExistingKey = int.MinValue;
 
     private BuildNames? _buildNamesCache;
 
@@ -74,6 +75,11 @@ public partial class Game
         _buildFocusRow = focus;
         now.Body.AddChild(focus);
 
+        PeopleSection existing = NewPeopleSection("Already built in this town", "BuildingExisting",
+            "Researched buildings and works standing here. Choose another town above to inspect it.");
+        _buildExistingBox = UiKit.Column(UiTokens.Sp1);
+        existing.Body.AddChild(_buildExistingBox);
+
         PeopleSection waiting = NewPeopleSection("What it is waiting on", "BuildingWaiting",
             "Things the town wants and has learned how to build but cannot pay for yet. Each says what is short, where it would come from and what you can do.");
         _buildWaitingBox = UiKit.Column(UiTokens.Sp3);
@@ -98,7 +104,7 @@ public partial class Game
         unbuilt.Body.AddChild(_buildNotBuiltBox);
 
         var body = UiKit.Row(UiTokens.Sp3);
-        body.AddChild(PeopleColumn(0.56f, now, waiting, blocked));
+        body.AddChild(PeopleColumn(0.56f, now, existing, waiting, blocked));
         body.AddChild(PeopleColumn(0.44f, alternatives, unbuilt));
         ScrollContainer scroll = PeopleScroll(body);
         _buildScroll = scroll;
@@ -140,8 +146,9 @@ public partial class Game
         _rebuildingBuildPicker = false;
         _buildPicker.Disabled = _buildSettlementIds.Count <= 1;
 
-        BuildOutlook? outlook = _buildSelected >= 0 && rows.TryGetValue(_buildSelected, out int row) && (uint)row < (uint)frame.SettlementBuild.Length
-            ? frame.SettlementBuild[row] : null;
+        int selectedRow = _buildSelected >= 0 && rows.TryGetValue(_buildSelected, out int selectedAt) ? selectedAt : -1;
+        BuildOutlook? outlook = selectedRow >= 0 && (uint)selectedRow < (uint)frame.SettlementBuild.Length
+            ? frame.SettlementBuild[selectedRow] : null;
         bool canIssue = _session?.CanIssueCommands ?? false;
         if (_buildPending.Settlement == _buildSelected && outlook is not null &&
             outlook.FocusCode == _buildPending.Code && outlook.FocusIsSkip == _buildPending.Skip) _buildPending = (-1, -1, false);
@@ -152,13 +159,15 @@ public partial class Game
         int townsKey = 0;
         foreach (BuildOutlook? town in allTowns) townsKey = unchecked(townsKey * 31 + (town?.Season ?? -1) + 17 * (town?.FocusCode ?? 0));
         bool townsChanged = townsKey != _buildTownsKey;
-        if (ReferenceEquals(outlook, _buildShown) && canIssue == _buildShownCanIssue && pendingCode == _buildShownPendingCode && !townsChanged) return;
+        int existingKey = ExistingItemsKey(frame, selectedRow);
+        if (ReferenceEquals(outlook, _buildShown) && canIssue == _buildShownCanIssue && pendingCode == _buildShownPendingCode && !townsChanged && existingKey == _buildShownExistingKey) return;
         _buildTownsKey = townsKey;
+        _buildShownExistingKey = existingKey;
         _buildNotBuilt = BuildText.NotBuiltAnywhere(allTowns, BuildNamesForUi);
         _buildShown = outlook;
         _buildShownCanIssue = canIssue;
         _buildShownPendingCode = pendingCode;
-        RenderBuildOutlook(outlook, canIssue);
+        RenderBuildOutlook(outlook, canIssue, frame, selectedRow);
     }
 
     private static bool SameList(List<int> a, List<int> b)
@@ -177,10 +186,11 @@ public partial class Game
         }
     }
 
-    private void RenderBuildOutlook(BuildOutlook? o, bool canIssue)
+    private void RenderBuildOutlook(BuildOutlook? o, bool canIssue, MatchFrame frame, int settlementRow)
     {
-        ClearChildren(_buildNowBox!); ClearChildren(_buildWaitingBox!); ClearChildren(_buildBlockedBox!); ClearChildren(_buildAltBox!); ClearChildren(_buildNotBuiltBox!);
+        ClearChildren(_buildNowBox!); ClearChildren(_buildExistingBox!); ClearChildren(_buildWaitingBox!); ClearChildren(_buildBlockedBox!); ClearChildren(_buildAltBox!); ClearChildren(_buildNotBuiltBox!);
         RenderNotBuilt(BuildNamesForUi);
+        RenderExistingHere(frame, settlementRow);
         BuildNames names = BuildNamesForUi;
         if (o is null || o.Items.Length == 0)
         {
@@ -268,6 +278,96 @@ public partial class Game
             foreach (BuildItem item in rows) _buildAltBox.AddChild(AlternativeRow(item, o, names, canIssue));
         }
         if (!anyAlt) _buildAltBox!.AddChild(UiKit.Text("Nothing else can be asked of this town right now.", "CaptionTertiary", wrap: true));
+    }
+
+    private void RenderExistingHere(MatchFrame frame, int settlementRow)
+    {
+        if ((uint)settlementRow >= (uint)frame.SettlementCount)
+        {
+            _buildExistingBox!.AddChild(UiKit.Text("No settlement selected.", "CaptionTertiary"));
+            return;
+        }
+
+        bool any = false;
+        int structureBase = settlementRow * MatchFrame.StructureKinds;
+        var basic = UiKit.Column(UiTokens.Sp1 / 2);
+        for (int kind = 0; kind < MatchFrame.StructureKinds; kind++)
+        {
+            int count = frame.SettlementStructures[structureBase + kind];
+            if (count == 0) continue;
+            if (!any)
+            {
+                _buildExistingBox!.AddChild(PeopleSubhead("HOMES AND PUBLIC WORKS"));
+                any = true;
+            }
+            basic.AddChild(BuiltItemRow(UiText.StructureName(LivingEconomyModel.StructureName(kind)), count));
+        }
+        if (basic.GetChildCount() > 0) _buildExistingBox!.AddChild(basic);
+
+        bool hasIron = false;
+        var iron = UiKit.Column(UiTokens.Sp1 / 2);
+        int ironBase = settlementRow * frame.Iron.WorkKinds;
+        if (frame.Iron.Active && frame.Iron.WorkKinds > 0)
+        {
+            for (int kind = 0; kind < frame.Iron.WorkKinds; kind++)
+            {
+                int count = frame.Iron.Works[ironBase + kind];
+                if (count == 0) continue;
+                if (!hasIron)
+                {
+                    _buildExistingBox!.AddChild(PeopleSubhead("IRON WORKS"));
+                    hasIron = true;
+                    any = true;
+                }
+                iron.AddChild(BuiltItemRow(UiText.StructureName(LivingEconomyModel.IronWorkId(kind)), count));
+            }
+        }
+        if (iron.GetChildCount() > 0) _buildExistingBox!.AddChild(iron);
+
+        bool hasCivic = false;
+        var civic = UiKit.Column(UiTokens.Sp1 / 2);
+        int civicBase = settlementRow * MatchFrame.CivicStructureKinds;
+        for (int kind = 0; kind < MatchFrame.CivicStructureKinds; kind++)
+        {
+            int count = frame.SettlementCivicStructures[civicBase + kind];
+            if (count == 0) continue;
+            if (!hasCivic)
+            {
+                _buildExistingBox!.AddChild(PeopleSubhead("CIVIC BUILDINGS"));
+                hasCivic = true;
+                any = true;
+            }
+            civic.AddChild(BuiltItemRow(UiText.StructureName(LivingEconomyModel.CivicStructureName(kind + 1)), count));
+        }
+        if (civic.GetChildCount() > 0) _buildExistingBox!.AddChild(civic);
+
+        if (!any) _buildExistingBox!.AddChild(UiKit.Text("Nothing has been built here yet.", "CaptionTertiary", wrap: true));
+    }
+
+    private static int ExistingItemsKey(MatchFrame frame, int settlementRow)
+    {
+        if ((uint)settlementRow >= (uint)frame.SettlementCount) return -1;
+        int key = 17;
+        int structureBase = settlementRow * MatchFrame.StructureKinds;
+        for (int kind = 0; kind < MatchFrame.StructureKinds; kind++) key = unchecked(key * 31 + frame.SettlementStructures[structureBase + kind]);
+        int civicBase = settlementRow * MatchFrame.CivicStructureKinds;
+        for (int kind = 0; kind < MatchFrame.CivicStructureKinds; kind++) key = unchecked(key * 31 + frame.SettlementCivicStructures[civicBase + kind]);
+        if (frame.Iron.Active && frame.Iron.WorkKinds > 0)
+        {
+            int ironBase = settlementRow * frame.Iron.WorkKinds;
+            for (int kind = 0; kind < frame.Iron.WorkKinds; kind++) key = unchecked(key * 31 + frame.Iron.Works[ironBase + kind]);
+        }
+        return key;
+    }
+
+    private static Control BuiltItemRow(string name, int count)
+    {
+        var row = UiKit.Row(UiTokens.Sp2);
+        Label item = UiKit.Text(name, "Body", wrap: true);
+        item.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(item);
+        row.AddChild(UiKit.Cell($"×{count}", "NumBody", 44, right: true));
+        return row;
     }
 
     private void RenderNotBuilt(BuildNames names)
@@ -508,7 +608,8 @@ public partial class Game
             if (PickBuildTown(o => o.Items.Any(i => i.Verdict == BuildVerdict.Unresolvable && i.Status is BuildStatus.Short or BuildStatus.Blocked), "unresolvable")) return;
             // No town of this match is in such a state: draw a hand-made outlook through the same renderer (printed so a capture is never mistaken for live data).
             GD.Print("SCN build-panel unresolvable: SYNTHETIC outlook, not live data");
-            RenderBuildOutlook(SyntheticStuckOutlook(), true);
+            if (_current is null) return;
+            RenderBuildOutlook(SyntheticStuckOutlook(), true, _current, _current.IndexOfSettlement(_buildSelected));
             _buildShown = null;
         }, 1.0f);
         shot("build-2-unresolvable");

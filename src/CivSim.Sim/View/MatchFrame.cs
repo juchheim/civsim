@@ -17,6 +17,8 @@ public sealed class MatchFrame
     private const int ReservedTrailTiles = ReservedTrailCount * 400;
     /// <summary>Kinds of structure the economy builds; the stride of <see cref="SettlementStructures"/>.</summary>
     public static int StructureKinds => Economy.LivingEconomyModel.StructureKindCount;
+    /// <summary>Learned civic building kinds; the stride of <see cref="SettlementCivicStructures"/>.</summary>
+    public const int CivicStructureKinds = 8;
 
     /// <summary>The Iron chapter's block (works, staff, sieges, blockades, tributes, leagues, Wonders); inactive in any other chapter.</summary>
     public readonly IronFrame Iron = new();
@@ -157,6 +159,8 @@ public sealed class MatchFrame
     public int[] SettlementSeenSeason = Array.Empty<int>();
     /// <summary>Structure counts, <see cref="StructureKinds"/> per settlement: [i × StructureKinds + kind] (kind names: LivingEconomyModel.StructureName). Zero for remembered settlements.</summary>
     public byte[] SettlementStructures = Array.Empty<byte>();
+    /// <summary>Civic building counts, <see cref="CivicStructureKinds"/> per settlement in market, temple, palace, school, bakery, hall, caravanserai, ziggurat order. Zero for remembered settlements.</summary>
+    public byte[] SettlementCivicStructures = Array.Empty<byte>();
     /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
     public byte[] SettlementHalls = Array.Empty<byte>();
     /// <summary>Temples standing at each settlement (BEL-06; a civic building outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
@@ -493,6 +497,7 @@ public sealed class MatchFrame
             Ensure(ref SettlementCoreFront, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
+        Ensure(ref SettlementCivicStructures, SettlementIndex.Length * CivicStructureKinds);
         int rows = SettlementIndex.Length;
         if (SettlementFoodStores.Length < rows)
         {

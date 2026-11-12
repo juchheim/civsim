@@ -980,6 +980,7 @@ public sealed partial class FrameBuilder
                 target.SettlementSmallStock[w] = 0; target.SettlementCattle[w] = 0; target.SettlementPigs[w] = 0;
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
+                Array.Clear(target.SettlementCivicStructures, w * MatchFrame.CivicStructureKinds, MatchFrame.CivicStructureKinds);
                 target.SettlementHalls[w] = 0; target.SettlementTemples[w] = 0; target.SettlementZiggurats[w] = 0; target.SettlementZigguratPermille[w] = 0;
                 target.SettlementCoreFront[w] = byte.MaxValue;
                 continue;
@@ -1007,6 +1008,16 @@ public sealed partial class FrameBuilder
             if (own) flags |= SettlementViewFlags.Own;
             for (int k = 0; k < kinds; k++)
                 target.SettlementStructures[structureBase + k] = (byte)Math.Min(255, eco.StructureCount(s, k));
+            CivicReadout civic = eco.Civic(s);
+            int civicBase = w * MatchFrame.CivicStructureKinds;
+            target.SettlementCivicStructures[civicBase] = (byte)Math.Min(255, civic.Markets);
+            target.SettlementCivicStructures[civicBase + 1] = (byte)Math.Min(255, civic.Temples);
+            target.SettlementCivicStructures[civicBase + 2] = (byte)Math.Min(255, civic.Palaces);
+            target.SettlementCivicStructures[civicBase + 3] = (byte)Math.Min(255, civic.Schools);
+            target.SettlementCivicStructures[civicBase + 4] = (byte)Math.Min(255, civic.Bakeries);
+            target.SettlementCivicStructures[civicBase + 5] = (byte)Math.Min(255, civic.Halls);
+            target.SettlementCivicStructures[civicBase + 6] = (byte)Math.Min(255, civic.Caravanserais);
+            target.SettlementCivicStructures[civicBase + 7] = (byte)Math.Min(255, civic.Ziggurats);
             target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
             target.SettlementTemples[w] = (byte)Math.Min(255, eco.TempleCount(s));
             (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
