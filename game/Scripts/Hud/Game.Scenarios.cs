@@ -713,6 +713,56 @@ public partial class Game
                     Shot($"iron-{itemName}");
                 }
                 break;
+            case "fief-gallery":
+                // the Faith & Fief meshes (docs/MVP/32) on a stage above the map (LowPoly3DView.show_fief_gallery): windmill and blast furnace, monastery,
+                // concentric castle, Gothic Cathedral, each in its states and stages
+                Vector3 fiefOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 1.5f);
+                Step(() =>
+                {
+                    fiefOrigin = (Vector3)_visualRenderer!.Call("show_fief_gallery");
+                    _moveAnimating = false;
+                    _target = fiefOrigin;
+                    _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                    _pitch = Mathf.DegToRad(52.0f);
+                    ZoomTo(9.0f);
+                    UpdateCamera();
+                }, 1.5f);
+                Shot("fief-all");
+                foreach (var (item, dx, dz, zoom, pitchDeg, yawDeg) in new[]
+                {
+                    // rows: z 2.4 power (windmill x -1.2 / -0.6, furnaces 0.15 / 1.05), 0.2 monastery, -2.2 castles (x -2.5 .. 2.5), -5.2 cathedrals (x -1.8 .. 1.8)
+                    ("power", 0.0f, 2.4f, 3.4f, 38.0f, 0.0f), ("windmill", -0.9f, 2.4f, 1.6f, 26.0f, 0.0f), ("windmill-side", -0.9f, 2.4f, 1.6f, 26.0f, 70.0f),
+                    ("furnace", 0.6f, 2.4f, 1.9f, 30.0f, 0.0f), ("furnace-back", 0.6f, 2.4f, 1.9f, 34.0f, 150.0f),
+                    ("monastery", 0.0f, 0.2f, 3.4f, 40.0f, 0.0f), ("monastery-close", -0.55f, 0.2f, 1.9f, 36.0f, 0.0f), ("monastery-idle", 0.45f, 0.2f, 1.9f, 36.0f, 0.0f),
+                    ("monastery-back", -0.55f, 0.2f, 2.0f, 36.0f, 160.0f),
+                    ("castle", 0.0f, -2.2f, 5.2f, 40.0f, 0.0f), ("castle-close", 1.25f, -2.2f, 2.2f, 34.0f, 0.0f), ("castle-idle", 2.5f, -2.2f, 2.2f, 34.0f, 0.0f),
+                    ("castle-back", 1.25f, -2.2f, 2.2f, 34.0f, 160.0f),
+                    ("cathedral", 0.0f, -5.2f, 4.2f, 36.0f, 0.0f), ("cathedral-front", 1.8f, -5.0f, 2.1f, 20.0f, 0.0f),
+                    ("cathedral-side", 1.8f, -5.2f, 2.1f, 26.0f, 65.0f), ("cathedral-back", 1.8f, -5.2f, 2.1f, 30.0f, 155.0f), ("cathedral-stages", -0.6f, -5.2f, 2.6f, 30.0f, 25.0f),
+                })
+                {
+                    string itemName = item;
+                    float x = dx, z = dz, zm = zoom, pitch = pitchDeg, yaw = yawDeg;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(pitch);
+                        _yaw = _yawTarget = Mathf.DegToRad(yaw);
+                        _moveAnimating = false;
+                        _target = new Vector3(fiefOrigin.X + x, fiefOrigin.Y, fiefOrigin.Z + z);
+                        ZoomTo(zm);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot($"fief-{itemName}");
+                }
+                break;
             case "defense-village":
                 // --start-minute=30 --viewer=-1 --dev-walls=1..3 [--dev-gatehouse] [--dev-castle=1..4] (debug builds): the capital behind its stone walls with
                 // its castle, from afar and close up; --looks-debug gives it every look

@@ -115,7 +115,8 @@ Each entry gives the silhouette, the parts, the states, and a reuse note. Footpr
 
 ### 4.5 Monastery (BEL-10, P0)
 - **Silhouette:** a walled cloister with a church, a bell gable, a walled garden and a few farm plots outside.
-- **Parts:** church (nave and transept, cross on the gable), cloister square with a covered walk, dormitory range, bell gable,
+- **Parts:** church (nave and transept, cross on the gable), a **round stone tower** (cylindrical, about three times the height of the church wall,
+  a raised doorway, belfry openings and a conical cap with a cross: the monastery's landmark, added after the first capture did not read as a monastery), cloister square with a covered walk, dormitory range, bell gable,
   fish pond, kitchen garden (crop tags), a gate. The owner's colour on the banner and church door only.
 - **States (important):** **staffed** (4 monks: smoke from the kitchen, a figure at the garden, a bell flicker at the hour),
   **queued** (site scaffolded), **dormant** (shutters closed, no smoke, the garden brown, a small "empty" glyph at overview zoom).
@@ -335,6 +336,13 @@ cosmetic path as the ox cart in `farm_rig` and need no sim state.
 5. **P1 buildings and figures:** university, hospital, clock tower, sawmill, powder mill, print shop; monk, knight, gunner, pilgrim.
 6. **P1 effects:** pilgrimage line, siege breach, cannon, outbreak and quarantine.
 7. **P2 polish.**
+
+**Status (2026-11-13): step 3 (P0 buildings) is built as meshes, not wired.** Meshes live in `art_fief_power.gd` (`windmill`, `windmill_body`,
+`windmill_sails`, `blast_furnace`, `blast_furnace_cold`), `art_fief_faith.gd` (`monastery`, `monastery_idle`, `monastery_site`,
+`gothic_cathedral_1..4`) and `art_fief_war.gd` (`concentric_1..4`, `concentric_4_idle`), registered last in `ART_PASSES`, and are photographed by
+`--scenario=fief-gallery` (`LowPoly3DView.show_fief_gallery`). Nothing places them in a match yet: that needs the `FiefFrame` (§9). The windmill
+sails are a separate mesh so a rig can turn them; smoke and flame at the furnace, and the monastery's kitchen smoke, belong to the war rig and come
+with the wiring. Not started: three-field strips and the cog (the rest of P0), and all P1 and P2 items.
 
 The dev gallery (the same one that checks Iron works) should have one capture per mesh and per state before any of it goes into a match.
 

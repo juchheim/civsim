@@ -524,6 +524,57 @@ func show_iron_gallery() -> Vector3:
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre
 
+## Dev aid for scenarios (fief-gallery, docs/MVP/32): the Faith & Fief meshes on a plain stage, rows 2.2 apart from the nearest (+z): the windmill
+## (with and without its sails) and the blast furnace hot and banked, the monastery staffed, dormant and as a site, the concentric castle in its four
+## stages and idle, and the Gothic Cathedral in its four stages. Returns the stage centre.
+func show_fief_gallery() -> Vector3:
+	var stage := Node3D.new()
+	stage.name = "FiefGallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(11.0, 18.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, -2.4)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	# [mesh, width it needs, scale]; a windmill_body gets its sails fitted at the hub
+	var rows := [
+		[["windmill", 0.6, 1.5], ["windmill_body", 0.6, 1.5], ["blast_furnace", 0.9, 1.25], ["blast_furnace_cold", 0.9, 1.25]],
+		[["monastery", 0.95, 1.2], ["monastery_idle", 0.95, 1.2], ["monastery_site", 0.95, 1.2]],
+		[["concentric_1", 1.25, 1.1], ["concentric_2", 1.25, 1.1], ["concentric_3", 1.25, 1.1], ["concentric_4", 1.25, 1.1], ["concentric_4_idle", 1.25, 1.1]],
+		[["gothic_cathedral_1", 1.2, 1.25], ["gothic_cathedral_2", 1.2, 1.25], ["gothic_cathedral_3", 1.2, 1.25], ["gothic_cathedral_4", 1.2, 1.25]],
+	]
+	var hub := Vector3(0.0, 0.245, 0.075)
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z: float = [2.4, 0.2, -2.2, -5.2][r]
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(i % 4), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			var s := float(item[2])
+			var at := Vector3(x, 0.0, z)
+			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), at), custom, false)
+			if name == "windmill_body":
+				batch.add("windmill_sails", Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), at + hub * s), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	return centre
+
 ## A raid or assault skirmish on the map (see skirmish_rig.gd); returns [id, seconds], or [-1, 0] when it cannot play there.
 func skirmish_start(spec: Dictionary) -> Array:
 	return skirmish_rig.start(spec) if skirmish_rig != null else [-1, 0.0]

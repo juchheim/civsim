@@ -70,6 +70,10 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_faith.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_trades.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_props.gd"),
+	# Faith & Fief (E5), docs/MVP/32: new meshes only, none replaces an older one
+	preload("res://Renderer/LowPoly3D/Scripts/art_fief_power.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_fief_faith.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_fief_war.gd"),
 ]
 
 func get_mesh(name: String) -> ArrayMesh:
