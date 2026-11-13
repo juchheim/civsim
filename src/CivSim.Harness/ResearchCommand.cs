@@ -81,7 +81,7 @@ internal static class ResearchCommand
             // Every golden and report below is a Bronze protocol (docs/MVP/25 §3); an Iron run is the plain match only.
             if (checkGolden is not null || writeGolden is not null || checkBronzeGolden is not null || writeBronzeGolden is not null || checkM10 ||
                 reportDecrees || checkB21 || c1e3 || reportE3 || metalFixture || reportMetal || checkC5)
-                throw new ArgumentException("--mode iron runs the plain match only; goldens and the M10 reports are Bronze protocols.");
+                throw new ArgumentException("--mode iron and --mode fief run the plain match only; goldens and the M10 reports are Bronze protocols.");
         }
         if (checkBronzeGolden is not null || writeBronzeGolden is not null)
         {
@@ -192,15 +192,16 @@ internal static class ResearchCommand
     {
         "bronze" => ChapterRules.Bronze,
         "iron" => ChapterRules.Iron,
-        _ => throw new ArgumentException($"Unknown chapter mode '{text}'; use bronze or iron."),
+        "fief" => ChapterRules.Fief,
+        _ => throw new ArgumentException($"Unknown chapter mode '{text}'; use bronze, iron or fief."),
     };
 
-    /// <summary>The chapter line of an Iron run: the mode and how the match would end as things stand (headless, so no human clause).</summary>
+    /// <summary>The chapter line of an Iron or Fief run: the mode and how the match would end as things stand (headless, so no human clause).</summary>
     private static string DescribeChapter(MatchModel match)
     {
         MatchEnd end = match.EndOfMatch(-1);
         string civ = end.Civ >= 0 ? $", civ{end.Civ}" : "";
-        return $"chapter: Iron (ceiling E{match.Rules.LastResearchEra}, {(end.HasEnd ? $"ends season {end.EndSeason} by {end.Reason}{civ}" : "no end until a keystone clause fires")})";
+        return $"chapter: {match.Rules.Mode} (ceiling E{match.Rules.LastResearchEra}, {(end.HasEnd ? $"ends season {end.EndSeason} by {end.Reason}{civ}" : "no end until a keystone clause fires")})";
     }
 
     private static void Trace(MatchModel match, int minute, int civ)

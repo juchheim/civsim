@@ -90,7 +90,7 @@ public readonly record struct MatchEnd(MatchEndReason Reason, int EndSeason, int
             if (c == humanSeat) humanSeason = season;
             else if (tick < rivalTick) { rivalTick = tick; rivalSeason = season; rival = c; }
         }
-        if (rival >= 0)
+        if (rival >= 0 && rules.HasRivalCountdown)
         {
             int countdownEnd = rivalSeason + rules.CountdownSeasons(catalog);
             end = end with { CountdownStartSeason = rivalSeason, CountdownCiv = rival };

@@ -81,7 +81,7 @@ public sealed class MatchModel : ISimModel
         if (!controls.IsEmpty && controls.Length != profiles.Length) throw new ArgumentException("One control per civilization.", nameof(controls));
         for (int c = 0; c < controls.Length; c++)
             if (controls[c].Kind == ControlKind.Ai) profiles[c] = controls[c].Spec.Archetype;
-        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart) { MaxEra = rules.EconomyMaxEra, IronChain = rules.IsIron };
+        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart) { MaxEra = rules.EconomyMaxEra, IronChain = rules.IsIron, FiefChain = rules.IsFief };
         var source = new LivingEconomySource(economy, world, generated, catalog, profiles);
         var setups = new ResearchCivSetup[profiles.Length];
         for (int c = 0; c < setups.Length; c++)
@@ -171,9 +171,9 @@ public sealed class MatchModel : ISimModel
         Politics.WriteSnapshot(writer);
         Research.WriteSnapshot(writer);
         Ai?.Write(writer);
-        // A Bronze snapshot is byte-identical to one written before M11. An Iron one carries a trailer, so a Bronze match
-        // that reads it sees unread bytes and an Iron match that reads a Bronze snapshot runs out of data: neither converts silently.
-        if (Rules.IsIron)
+        // A Bronze snapshot is byte-identical to one written before M11. An Iron or Fief one carries a trailer with its mode byte, so a Bronze match
+        // that reads it sees unread bytes, an Iron match refuses a Fief snapshot and a Fief match an Iron one: no mode converts silently.
+        if (Rules.HasMode)
         {
             writer.Write(ModeTrailerMagic);
             writer.Write(ModeTrailerVersion);
@@ -188,10 +188,10 @@ public sealed class MatchModel : ISimModel
         Politics.ReadSnapshot(reader);
         Research.ReadSnapshot(reader);
         Ai?.Read(reader);
-        if (Rules.IsIron)
+        if (Rules.HasMode)
         {
             if (reader.ReadUInt32() != ModeTrailerMagic || reader.ReadInt32() != ModeTrailerVersion || reader.ReadByte() != (byte)Rules.Mode)
-                throw new InvalidDataException("The snapshot was not written by an Iron-chapter match.");
+                throw new InvalidDataException("The snapshot was not written by a match of this chapter mode.");
         }
         Guidance.ReadOptionalTrailer(reader);
     }

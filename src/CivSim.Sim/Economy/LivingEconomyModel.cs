@@ -7035,7 +7035,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain };
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain, FiefChain = FiefChain };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }

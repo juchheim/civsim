@@ -79,8 +79,8 @@ public sealed class MatchReplay
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(Magic);
-        writer.Write(Rules.IsIron ? ModeFormatVersion : FormatVersion);
-        if (Rules.IsIron) writer.Write((byte)Rules.Mode);
+        writer.Write(Rules.HasMode ? ModeFormatVersion : FormatVersion);
+        if (Rules.HasMode) writer.Write((byte)Rules.Mode);
         writer.Write(WorldFingerprint);
         writer.Write(FinalChecksum);
         writer.Write(_archetypes.Length);
@@ -99,7 +99,7 @@ public sealed class MatchReplay
         if (version == ModeFormatVersion)
         {
             byte mode = reader.ReadByte();
-            if (mode != (byte)ChapterMode.Iron) throw new InvalidDataException("Unknown match replay chapter mode.");
+            if (mode != (byte)ChapterMode.Iron && mode != (byte)ChapterMode.Fief) throw new InvalidDataException("Unknown match replay chapter mode.");
             rules = ChapterRules.For((ChapterMode)mode);
         }
         ulong worldFingerprint = reader.ReadUInt64();

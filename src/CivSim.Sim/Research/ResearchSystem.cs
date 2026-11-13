@@ -940,7 +940,7 @@ public sealed partial class ResearchSystem : IResearchView
     public void Hash(ref StateHasher h)
     {
         h.Add(_tick);
-        if (Rules.IsIron) h.Add((int)Rules.Mode); // Bronze adds nothing, so legacy checksums are unchanged
+        if (Rules.HasMode) h.Add((int)Rules.Mode); // Bronze adds nothing, so legacy checksums are unchanged; Iron (1) and Fief (2) differ
         foreach (CivResearch civ in _civs) civ.Hash(ref h);
         foreach (int f in _firstBy) h.Add(f);
         foreach (bool k in _contact) h.Add(k);

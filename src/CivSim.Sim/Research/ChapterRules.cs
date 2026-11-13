@@ -9,6 +9,11 @@ public enum ChapterMode : byte
     Bronze = 0,
     /// <summary>The opt-in Iron chapter: E4 opens after a civilization's own KEY-4 and KEY-5 ends the match.</summary>
     Iron = 1,
+    /// <summary>
+    /// The opt-in Faith &amp; Fief chapter (docs/MVP/27): E4 and E5 both play, E5 opens after a civilization's own KEY-5, and KEY-6 ends the match.
+    /// It contains the Iron chapter, so every Iron system runs in it. Appended after Iron; never renumber.
+    /// </summary>
+    Fief = 2,
 }
 
 /// <summary>
@@ -37,13 +42,21 @@ public sealed class ChapterRules
     public static ChapterRules IronWithCountdown(int countdownSeasons)
         => new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, countdownSeasons);
 
+    /// <summary>
+    /// The Faith &amp; Fief chapter: research ceiling 5, KEY-6 ends it, and **no rival countdown** (user decision D11, docs/MVP/27 §6, 2026-11-13). The
+    /// chapter ends only when the human completes KEY-6; a match nobody finishes is open (<see cref="MatchEnd.Open"/>) and every headless loop bounds
+    /// itself by its own horizon, as for an Iron match nobody finishes (docs/MVP/28 §17).
+    /// </summary>
+    public static ChapterRules Fief { get; } = new(ChapterMode.Fief, ResearchSystem.LastResearchEra + 2, null, rivalCountdown: false);
+
     private readonly int? _countdownSeasons;
 
-    private ChapterRules(ChapterMode mode, int lastResearchEra, int? countdownSeasons)
+    private ChapterRules(ChapterMode mode, int lastResearchEra, int? countdownSeasons, bool rivalCountdown = true)
     {
         Mode = mode;
         LastResearchEra = lastResearchEra;
         _countdownSeasons = countdownSeasons;
+        HasRivalCountdown = rivalCountdown;
     }
 
     public ChapterMode Mode { get; }
@@ -57,7 +70,23 @@ public sealed class ChapterRules
     /// </summary>
     public int EconomyMaxEra => ResearchSystem.LastResearchEra;
 
-    public bool IsIron => Mode == ChapterMode.Iron;
+    /// <summary>
+    /// True when the Iron systems run: the Iron chapter and the Faith &amp; Fief chapter, which contains it (E4 is played in both). This is
+    /// **not** the mode identity; use <see cref="HasMode"/> for what is written to saves, replays, snapshots and hashes, and <see cref="IsFief"/> for E5.
+    /// </summary>
+    public bool IsIron => Mode is ChapterMode.Iron or ChapterMode.Fief;
+
+    /// <summary>True in the Faith &amp; Fief chapter: E5 opens after a civilization's own KEY-5.</summary>
+    public bool IsFief => Mode == ChapterMode.Fief;
+
+    /// <summary>
+    /// True for any chapter other than the legacy Bronze one. Such a match writes its mode byte into replays, saves, snapshots and the research
+    /// checksum, so Bronze bytes and hashes stay exactly as they were and no mode converts silently into another.
+    /// </summary>
+    public bool HasMode => Mode != ChapterMode.Bronze;
+
+    /// <summary>False when a rival completing the last keystone starts no clock (Faith &amp; Fief); the chapter then ends only on the human's completion.</summary>
+    public bool HasRivalCountdown { get; }
 
     public int CountdownSeasons(ResearchCatalog catalog) => _countdownSeasons ?? catalog.ChapterCountdownSeasons;
 
@@ -65,6 +94,7 @@ public sealed class ChapterRules
     {
         ChapterMode.Bronze => Bronze,
         ChapterMode.Iron => Iron,
+        ChapterMode.Fief => Fief,
         _ => throw new ArgumentOutOfRangeException(nameof(mode)),
     };
 }
