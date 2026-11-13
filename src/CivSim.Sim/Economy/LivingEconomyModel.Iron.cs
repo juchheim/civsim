@@ -55,6 +55,11 @@ public sealed partial class LivingEconomyModel
     private int[] _ironOreSupplierGenerationByHub = Array.Empty<int>();
     private int[] _ironOreSupplierIdByHub = Array.Empty<int>();
     private int _ironOreSupplierGeneration = 1;
+    private readonly record struct IronFuelWoodSourceKey(int SiteTile, int Reach, int HubId, int HubTile, int HubReach);
+    // The ordered (tile, distance) forest search is geometry only. Keep one derived version per settlement; the
+    // key covers reach and the assigned hub, so research or catchment changes naturally select a fresh version.
+    private IronFuelWoodSourceKey[] _ironFuelWoodSourceKeys = Array.Empty<IronFuelWoodSourceKey>();
+    private (int Tile, int HaulDistance)[][] _ironFuelWoodSourceCache = Array.Empty<(int Tile, int HaulDistance)[]>();
 
     internal void InvalidateIronOreSupplierAssignments()
     {
@@ -166,14 +171,36 @@ public sealed partial class LivingEconomyModel
     /// <summary>Unique forest tiles accessible directly or through one directly assigned hub, ordered by charged route distance.</summary>
     private (int Tile, int HaulDistance)[] IronFuelWoodSources(SettlementState s, int reach)
     {
+        bool sharedMode = IronHubFuelSharingEnabled && IronFuelHubsEnabled(s.Civilization);
+        SettlementState hub = sharedMode ? IronFuelHubFor(s) : s;
+        int hubReach = sharedMode && hub.Id != s.Id ? IronFuelCharcoalReach(hub) : -1;
+        bool cacheable = (uint)s.Id < (uint)_settlements.Count && ReferenceEquals(_settlements[s.Id], s);
+        IronFuelWoodSourceKey key = new(s.SiteTile, reach, sharedMode ? hub.Id : -1,
+            sharedMode ? hub.SiteTile : -1, hubReach);
+        if (cacheable)
+        {
+            if (_ironFuelWoodSourceCache.Length != _settlements.Count)
+            {
+                Array.Resize(ref _ironFuelWoodSourceCache, _settlements.Count);
+                Array.Resize(ref _ironFuelWoodSourceKeys, _settlements.Count);
+            }
+            if (_ironFuelWoodSourceCache[s.Id] is { } cached && _ironFuelWoodSourceKeys[s.Id] == key)
+                return cached;
+        }
+
         // Preserve the production path's original ReachTiles ordering and avoid the sharing-map work unless the diagnostic
         // candidate is explicitly enabled. The distance tie order is already nearest-first in ReachTiles.
-        if (!IronHubFuelSharingEnabled || !IronFuelHubsEnabled(s.Civilization))
+        if (!sharedMode)
         {
             ReadOnlySpan<int> tiles = ReachTiles(s.SiteTile, reach);
             var sources = new (int Tile, int HaulDistance)[tiles.Length];
             for (int i = 0; i < tiles.Length; i++)
                 sources[i] = (tiles[i], HexGrid.Distance(s.SiteTile, tiles[i], _world.Width));
+            if (cacheable)
+            {
+                _ironFuelWoodSourceKeys[s.Id] = key;
+                _ironFuelWoodSourceCache[s.Id] = sources;
+            }
             return sources;
         }
 
@@ -183,11 +210,9 @@ public sealed partial class LivingEconomyModel
         foreach (int tile in ReachTiles(s.SiteTile, reach))
             candidates.Add((tile, HexGrid.Distance(s.SiteTile, tile, _world.Width)));
 
-        SettlementState hub = IronFuelHubFor(s);
         if (hub.Id != s.Id)
         {
             int memberToHub = HexGrid.Distance(s.SiteTile, hub.SiteTile, _world.Width);
-            int hubReach = IronFuelCharcoalReach(hub);
             foreach (int tile in ReachTiles(hub.SiteTile, hubReach))
                 candidates.Add((tile, memberToHub + HexGrid.Distance(hub.SiteTile, tile, _world.Width)));
         }
@@ -198,7 +223,13 @@ public sealed partial class LivingEconomyModel
             if (unique.Count == 0 || unique[^1].Tile != candidate.Tile)
                 unique.Add(candidate);
 
-        return unique.OrderBy(pair => pair.HaulDistance).ThenBy(pair => pair.Tile).ToArray();
+        var result = unique.OrderBy(pair => pair.HaulDistance).ThenBy(pair => pair.Tile).ToArray();
+        if (cacheable)
+        {
+            _ironFuelWoodSourceKeys[s.Id] = key;
+            _ironFuelWoodSourceCache[s.Id] = result;
+        }
+        return result;
     }
 
     /// <summary>
