@@ -314,6 +314,15 @@ public sealed partial class LivingEconomyModel
         figure.Task = 0;
     }
 
+    internal void FixtureSetWorkedWithToolLastSeason(int figureIndex, bool worked)
+        => _figures[figureIndex].WorkedWithToolLastSeason = worked;
+
+    internal void FixtureSetLastIronHolderShareSeason(int settlementIndex, int season)
+        => _settlements[settlementIndex].LastIronHolderShareSeason = season;
+
+    internal void FixtureSetLastFissionSeason(int settlementIndex, int season)
+        => _settlements[settlementIndex].LastFissionSeason = season;
+
     /// <summary>Runs one recipe at a settlement for up to <paramref name="planned"/> batches with <paramref name="labor"/> work-seasons; returns the batches made.</summary>
     internal Fix64 FixtureRunRecipe(int settlementIndex, string recipeId, Fix64 planned, Fix64 labor)
     {

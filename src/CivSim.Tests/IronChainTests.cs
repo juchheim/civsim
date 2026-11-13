@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
@@ -657,6 +658,222 @@ public class IronChainTests
         Assert.Equal(daughter, transfer.ToSettlementId);
         Assert.Equal(11, transfer.Tier);
         Assert.Equal(Fix64.One, transfer.Quantity);
+    }
+
+    [Fact]
+    public void A_recently_relayed_iron_route_recovers_one_idle_holder_after_its_workers_disappear()
+    {
+        (BronzeFixture f, int daughter) = WithDaughter(sharing: true);
+        LivingEconomyModel e = f.Economy;
+        int[] donorAdults = new int[6];
+        for (int i = 0; i < e.FigureCount; i++)
+        {
+            if (e.Figure(i).Age < 14) continue;
+            e.FixtureSetWorkedWithToolLastSeason(i, worked: false);
+            if (e.Figure(i).SettlementId == 0)
+            {
+                for (int j = 0; j < donorAdults.Length; j++)
+                    if (donorAdults[j] == 0) { donorAdults[j] = i + 1; break; }
+            }
+        }
+        Assert.All(donorAdults, value => Assert.True(value > 0));
+        for (int j = 0; j < donorAdults.Length; j++)
+            e.FixtureSetKit(donorAdults[j] - 1, 11, Fix64.FromInt(20));
+        e.FixtureSetWorkedWithToolLastSeason(donorAdults[0] - 1, worked: true);
+        e.FixtureSetLastIronHolderShareSeason(daughter, season: -1);
+        e.IT6AccountingTraceEnabled = true;
+
+        e.FixtureShareIronGoods(0);
+
+        Assert.Equal(1, IronKitHolders(e, daughter));
+        IT6KitTransferSnapshot transfer = Assert.Single(e.CaptureIT6KitTransfers(), x => x.HolderTransfer);
+        Assert.Equal(0, transfer.FromSettlementId);
+        Assert.Equal(daughter, transfer.ToSettlementId);
+        Assert.Equal(11, transfer.Tier);
+    }
+
+    [Fact]
+    public void An_expired_iron_route_marker_does_not_seed_a_holder_without_recent_tool_work()
+    {
+        (BronzeFixture f, int daughter) = WithDaughter(sharing: true);
+        LivingEconomyModel e = f.Economy;
+        int[] donorAdults = new int[6];
+        for (int i = 0; i < e.FigureCount; i++)
+        {
+            if (e.Figure(i).Age < 14) continue;
+            e.FixtureSetWorkedWithToolLastSeason(i, worked: false);
+            if (e.Figure(i).SettlementId == 0)
+            {
+                for (int j = 0; j < donorAdults.Length; j++)
+                    if (donorAdults[j] == 0) { donorAdults[j] = i + 1; break; }
+            }
+        }
+        Assert.All(donorAdults, value => Assert.True(value > 0));
+        for (int j = 0; j < donorAdults.Length; j++)
+            e.FixtureSetKit(donorAdults[j] - 1, 11, Fix64.FromInt(20));
+        e.FixtureSetWorkedWithToolLastSeason(donorAdults[0] - 1, worked: true);
+        e.FixtureSetLastIronHolderShareSeason(daughter, season: -13);
+
+        e.FixtureShareIronGoods(0);
+
+        Assert.Equal(0, IronKitHolders(e, daughter));
+        Assert.Empty(e.CaptureIT6KitTransfers());
+    }
+
+    [Fact]
+    public void A_large_three_to_five_worker_donor_keeps_rebound_coverage_but_shares_above_its_reserve()
+    {
+        foreach ((int startingHolders, int expectedTransfers) in new[] { (7, 0), (8, 1) })
+        {
+            (BronzeFixture f, int daughter) = WithDaughter(sharing: true);
+            LivingEconomyModel e = f.Economy;
+            var donorAdults = new List<int>();
+            int receiverWorker = -1;
+            for (int i = 0; i < e.FigureCount; i++)
+            {
+                if (e.Figure(i).Age < 14) continue;
+                e.FixtureSetWorkedWithToolLastSeason(i, worked: false);
+                e.FixtureSetKit(i, 0, Fix64.Zero);
+                if (e.Figure(i).SettlementId == 0) donorAdults.Add(i);
+                else if (e.Figure(i).SettlementId == daughter && receiverWorker < 0) receiverWorker = i;
+            }
+            Assert.True(donorAdults.Count >= 10);
+            Assert.True(receiverWorker >= 0);
+            Assert.True(e.Population(e.SettlementLite(0).Id) >= 20,
+                $"fixture parent population is {e.Population(e.SettlementLite(0).Id)}");
+
+            // Treat the parent as a settled, non-fissioning donor; its three current workers
+            // are a small snapshot of the larger cohort that can emerge during the route window.
+            e.FixtureSetLastFissionSeason(0, -1000);
+            e.FixtureSetLastFissionSeason(daughter, -1000);
+            e.FixtureSetLastIronHolderShareSeason(0, -13);
+            for (int i = 0; i < 3; i++) e.FixtureSetWorkedWithToolLastSeason(donorAdults[i], worked: true);
+            e.FixtureSetWorkedWithToolLastSeason(receiverWorker, worked: true);
+            for (int i = 0; i < startingHolders; i++)
+                e.FixtureSetKit(donorAdults[i], 11, Fix64.FromInt(20));
+            e.IT6AccountingTraceEnabled = true;
+            Fix64 totalBefore = AllIronKits(e, 0, daughter);
+
+            e.FixtureShareIronGoods(0);
+
+            int donorTransfers = e.CaptureIT6KitTransfers().Count(x => x.HolderTransfer && x.FromSettlementId == e.SettlementLite(0).Id);
+            Assert.Equal(expectedTransfers, donorTransfers);
+            Assert.Equal(startingHolders - expectedTransfers, IronKitHolders(e, 0));
+            Assert.Equal(expectedTransfers, IronKitHolders(e, daughter));
+            Assert.Equal(totalBefore, AllIronKits(e, 0, daughter));
+
+            // A ten-worker rebound must still have the 70% screen floor after an allowed relay.
+            for (int i = 0; i < donorAdults.Count; i++)
+                e.FixtureSetWorkedWithToolLastSeason(donorAdults[i], worked: i < 10);
+            int coveredReboundWorkers = 0;
+            for (int i = 0; i < 10; i++)
+                if (e.FigureKit(donorAdults[i]).Tier is 11 or 12) coveredReboundWorkers++;
+            Assert.True(coveredReboundWorkers >= 7, $"expected at least 7/10 rebound workers covered, got {coveredReboundWorkers}/10");
+        }
+    }
+
+    [Fact]
+    public void A_rebound_protected_donor_can_top_up_a_sister_below_current_coverage_during_cooldown()
+    {
+        (BronzeFixture f, int daughter) = WithDaughter(sharing: true);
+        LivingEconomyModel e = f.Economy;
+        var donorAdults = new List<int>();
+        var receiverAdults = new List<int>();
+        for (int settlement = 0; settlement < e.SettlementCount; settlement++)
+        {
+            e.FixtureSetLastFissionSeason(settlement, -1000);
+            e.FixtureSetLastIronHolderShareSeason(settlement, -1000);
+        }
+        for (int i = 0; i < e.FigureCount; i++)
+        {
+            if (e.Figure(i).Age < 14) continue;
+            e.FixtureSetWorkedWithToolLastSeason(i, worked: false);
+            e.FixtureSetKit(i, 0, Fix64.Zero);
+            if (e.Figure(i).SettlementId == e.SettlementLite(0).Id) donorAdults.Add(i);
+            else if (e.Figure(i).SettlementId == e.SettlementLite(daughter).Id) receiverAdults.Add(i);
+        }
+        Assert.True(donorAdults.Count >= 8);
+        Assert.True(receiverAdults.Count >= 3);
+
+        // A large donor has two active toolworkers and eight holders; its last relay was
+        // one season ago. The sister has three current workers and only two equipped.
+        for (int i = 0; i < 2; i++)
+        {
+            e.FixtureSetWorkedWithToolLastSeason(donorAdults[i], worked: true);
+            e.FixtureSetKit(donorAdults[i], 11, Fix64.FromInt(20));
+        }
+        for (int i = 2; i < 8; i++) e.FixtureSetKit(donorAdults[i], 11, Fix64.FromInt(20));
+        for (int i = 0; i < 3; i++) e.FixtureSetWorkedWithToolLastSeason(receiverAdults[i], worked: true);
+        for (int i = 0; i < 2; i++) e.FixtureSetKit(receiverAdults[i], 11, Fix64.FromInt(20));
+        e.FixtureSetLastIronHolderShareSeason(0, -1);
+        e.IT6AccountingTraceEnabled = true;
+        Fix64 totalBefore = AllIronKits(e, 0, daughter);
+
+        e.FixtureShareIronGoods(0);
+
+        IT6KitTransferSnapshot transfer = Assert.Single(e.CaptureIT6KitTransfers(), x =>
+            x.HolderTransfer && x.FromSettlementId == e.SettlementLite(0).Id &&
+            x.ToSettlementId == e.SettlementLite(daughter).Id);
+        Assert.Equal(11, transfer.Tier);
+        Assert.Equal(7, IronKitHolders(e, 0));
+        int equippedReceiverWorkers = 0;
+        for (int i = 0; i < 3; i++)
+            if (e.FigureKit(receiverAdults[i]).Tier is 11 or 12) equippedReceiverWorkers++;
+        Assert.Equal(3, equippedReceiverWorkers);
+        Assert.Equal(totalBefore, AllIronKits(e, 0, daughter));
+    }
+
+    [Fact]
+    public void An_older_undercovered_receiver_with_an_idle_iron_holder_gets_a_coverage_top_up()
+    {
+        (BronzeFixture f, int daughter) = WithDaughter(sharing: true);
+        LivingEconomyModel e = f.Economy;
+        e.FixtureAddPeople(0, 14, 25);
+        e.FixtureAddPeople(daughter, 8, 25);
+        var donorAdults = new List<int>();
+        var receiverAdults = new List<int>();
+        for (int settlement = 0; settlement < e.SettlementCount; settlement++)
+        {
+            e.FixtureSetLastFissionSeason(settlement, -1000);
+            e.FixtureSetLastIronHolderShareSeason(settlement, -1000);
+        }
+        for (int i = 0; i < e.FigureCount; i++)
+        {
+            if (e.Figure(i).Age < 14) continue;
+            e.FixtureSetWorkedWithToolLastSeason(i, worked: false);
+            e.FixtureSetKit(i, 0, Fix64.Zero);
+            if (e.Figure(i).SettlementId == e.SettlementLite(0).Id) donorAdults.Add(i);
+            else if (e.Figure(i).SettlementId == e.SettlementLite(daughter).Id) receiverAdults.Add(i);
+        }
+        Assert.True(donorAdults.Count >= 14);
+        Assert.True(receiverAdults.Count >= 8);
+
+        // This older daughter has six current toolworkers, only two equipped, and an idle
+        // service-positive holder. Its age puts it outside the fresh-fission seed grace.
+        for (int i = 0; i < 4; i++)
+        {
+            e.FixtureSetWorkedWithToolLastSeason(donorAdults[i], worked: true);
+            e.FixtureSetKit(donorAdults[i], 11, Fix64.FromInt(20));
+        }
+        for (int i = 4; i < 14; i++) e.FixtureSetKit(donorAdults[i], 11, Fix64.FromInt(20));
+        for (int i = 0; i < 6; i++) e.FixtureSetWorkedWithToolLastSeason(receiverAdults[i], worked: true);
+        for (int i = 0; i < 2; i++) e.FixtureSetKit(receiverAdults[i], 12, Fix64.FromInt(20));
+        e.FixtureSetKit(receiverAdults[6], 12, Fix64.FromInt(20));
+        e.IT6AccountingTraceEnabled = true;
+        Fix64 totalBefore = AllIronKits(e, 0, daughter);
+
+        e.FixtureShareIronGoods(0);
+
+        int transfers = e.CaptureIT6KitTransfers().Count(x =>
+            x.HolderTransfer && x.FromSettlementId == e.SettlementLite(0).Id &&
+            x.ToSettlementId == e.SettlementLite(daughter).Id);
+        Assert.Equal(3, transfers);
+        Assert.Equal(11, IronKitHolders(e, 0));
+        int equippedReceiverWorkers = 0;
+        for (int i = 0; i < 6; i++)
+            if (e.FigureKit(receiverAdults[i]).Tier is 11 or 12) equippedReceiverWorkers++;
+        Assert.True(equippedReceiverWorkers >= 5, $"expected at least 5/6 receiver workers equipped, got {equippedReceiverWorkers}/6");
+        Assert.Equal(totalBefore, AllIronKits(e, 0, daughter));
     }
 
     [Fact]

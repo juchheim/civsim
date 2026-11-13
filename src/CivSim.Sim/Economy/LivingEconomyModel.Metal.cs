@@ -966,11 +966,19 @@ public sealed partial class LivingEconomyModel
         // The mathematically equivalent absolute cap can round differently and shift discrete kit transfers.
         if (IronChain && Done(civ, "MET-09"))
             cap *= _bronzeConstants.IronPostRouteChainCap / _bronzeConstants.ChainCap;
-        // Compact hubs that already have steel but still lack Iron-equipped tool workers can finish kit batches
-        // just below the ordinary chain limit. Give those sites a small 10% margin to clear existing intermediates.
-        bool ironKitCapMargin = IronChain && IronFuelHubsEnabled(civ) && Done(civ, "MET-10") && IronFuelHubFor(s).Id == s.Id &&
+        // A local Iron hub that is below the 70% usable-holder floor gets a production margin until the next season's
+        // coverage recovers. The 20% margin closes short route windows where the ordinary push cap leaves a few workers
+        // unequipped; it expires as soon as the floor is met. Compact steel batches keep their existing 10% margin.
+        bool undercoveredIronKitHub = IronChain && IronFuelHubsEnabled(civ) && Done(civ, "MET-09") &&
+            IronFuelHubFor(s).Id == s.Id && IronToolWorkersBelowCoverageFloorLastSeason(s);
+        bool compactSteelKitBatch = IronChain && IronFuelHubsEnabled(civ) && Done(civ, "MET-10") && IronFuelHubFor(s).Id == s.Id &&
             Population(s.Id) < 20 && IronToolWorkersLackingLastSeason(s) > 0 && IronStock(s, IronGood.Steel) > Fix64.Zero;
-        if (ironKitCapMargin)
+        if (undercoveredIronKitHub)
+        {
+            cap *= Fix64.FromRatio(6, 5);
+            plan.IronKitCapMarginApplied = true;
+        }
+        else if (compactSteelKitBatch)
         {
             cap *= Fix64.FromRatio(11, 10);
             plan.IronKitCapMarginApplied = true;

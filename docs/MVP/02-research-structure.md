@@ -93,11 +93,11 @@ The catalog validator ([06-next-steps.md](06-next-steps.md) §4) checks which `[
 | Seen: Native copper | KEY-3 (~309) | **Start guarantee:** an outcrop within 20 tiles |
 | Seen: Wolves | KEY-4 (~297) | **Start guarantee:** wolves are a common predator in all non-desert biomes |
 | Seen: Wild goats or sheep | KEY-4 (~293) | **Start guarantee:** a small wild herd species (goat, sheep, or camelid in the Americas-like biome set) within 25 tiles |
-| Seen: Gold or Silver | KEY-5 (~191) | **Continental guarantee:** at least one deposit on every continent with a start (often contested) |
+| Seen: Gold or Silver | — | MET-07 opens optional precious-metal luxury trade; the KEY-5 route no longer depends on finding gold or silver |
 | Seen: Coal | KEY-7 (~132) | **Continental guarantee** |
 | Seen: Oil seep | KEY-10 (~50) | **Continental guarantee** (shallow or offshore) |
 
-All other `[Seen]` gates (salt, silk moths, wild horses, camels or llamas) gate optional branches, so geography makes them luxuries, not locks. Continental guarantees are deliberately **few and contestable**: Coal and Oil fields become flashpoints, which is good for the "occupy the map" competition.
+All other `[Seen]` gates (including gold or silver, salt, silk moths, wild horses, camels or llamas) gate optional branches, so geography makes them luxuries, not locks. Continental guarantees are deliberately **few and contestable**: Coal and Oil fields become flashpoints, which is good for the "occupy the map" competition.
 
 ## 7. Project states
 

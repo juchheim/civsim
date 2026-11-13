@@ -70,7 +70,7 @@ Before this, a daughter town or a town without a forge or iron could not be supp
 
 ## B4-06 closeout status
 
-The I-T6 balance screen is closed under its separately approved protocol. The B4-06 closeout records live tool-worker denominator accounting, deterministic delivery/mine/fuel/capture/mixed-wear/upgrade cases, and an I-T3 remaining-life distribution with concurrent T11/T12 cohorts. I-T3's exact 2× lifetime and single modifier behavior are covered by deterministic checks. B4-06 remains open for the preregistered whole-match I-T2 screen and its uncensored, fuel-qualified settlement observations.
+**B4-06 metal/fuel balancing is complete and passing by user decision (2026-11-13).** The v68 partial block completed 39 of 80 planned natural-end matches; every completed report passed, including 151 qualified I-T6 cutoffs. The user stopped the remaining block because its runtime was not viable. The frozen 80-match statistical sample is incomplete and is not claimed as such; see the [closeout record](m11-b4-06-metal-fuel-acceptance-2026-11-06.md). Deterministic delivery/mine/fuel/capture/mixed-wear/upgrade cases, live tool-worker denominator accounting, and I-T3's exact 2× lifetime and single-modifier behavior are also recorded there. The separate Iron-fission operating-margin projection follow-up below remains outside B4-06.
 
 The existing Iron Compact carries bloom (`G-IRON`); finished T11/T12 kits move between same-civilization settlements by the domestic sharing rule. No cross-civilization Compact for finished kits is implemented. The closeout report labels the tested delivery path so it does not imply foreign kit trade.
 
