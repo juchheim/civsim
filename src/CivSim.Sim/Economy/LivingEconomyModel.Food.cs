@@ -215,9 +215,15 @@ public sealed partial class LivingEconomyModel
         if (s.Civic is not { } c) return Fix64.One;
         Fix64 mult = c.FoodValueMult;
         if (good == Good.Grain && c.BakeryShare > Fix64.Zero) mult *= Fix64.One + _civic.BakeryValue * c.BakeryShare;
-        // A water mill grinds for up to MillPeople (NRG-03, Iron chapter only): the same shape as the bakery, a tenth of the grain's value.
-        if (good == Good.Grain && IronChain && MillFactor(s) > Fix64.Zero)
-            mult *= Fix64.One + _civic.MillValue * MillFactor(s) * Fix64.Min(Fix64.One, _civic.MillPeople / Math.Max(1, Population(s.Id)));
+        // Iron keeps the original water-mill rule byte-for-byte. Fief grain value is proportional to the share of residents
+        // covered by source capacity and the grinding job's allocation from the shared power ledger.
+        if (good == Good.Grain && IronChain)
+        {
+            if (FiefChain)
+                mult *= Fix64.One + _civic.MillValue * MillPower(s).GrainCoverage;
+            else if (MillFactor(s) > Fix64.Zero)
+                mult *= Fix64.One + _civic.MillValue * MillFactor(s) * Fix64.Min(Fix64.One, _civic.MillPeople / Math.Max(1, Population(s.Id)));
+        }
         return mult;
     }
 

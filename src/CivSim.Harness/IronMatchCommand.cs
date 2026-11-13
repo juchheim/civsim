@@ -61,6 +61,35 @@ internal static class IronMatchCommand
         public Fix64 Planned, BaselineUnmet, CounterfactualUnmet, Shipped, Arrived, UsedAgainstFuel, EndingWoodStock, InTransit;
     }
 
+    private sealed class FiefPowerWindow
+    {
+        public required int SettlementId;
+        public required int Civilization;
+        public required int StartSeason;
+        public int Samples;
+        public int WaterSources, WindSources;
+        public Fix64 PopulationSeasons, GrainMilledPeopleSeasons;
+        public Fix64 AvailablePowerHours, GrindingUsed, SawingUsed, CraftUsed, UnusedPowerHours;
+
+        public void Add(MillPowerLedgerSnapshot row)
+        {
+            Samples++;
+            Civilization = row.Civilization;
+            WaterSources = row.WaterMillSources;
+            WindSources = row.WindmillSources;
+            PopulationSeasons += Fix64.FromInt(row.Population);
+            GrainMilledPeopleSeasons += row.GrainMilledPeople;
+            AvailablePowerHours += row.AvailablePowerHours;
+            GrindingUsed += row.GrindingUsed;
+            SawingUsed += row.SawingUsed;
+            CraftUsed += row.CraftUsed;
+            UnusedPowerHours += row.UnusedPowerHours;
+        }
+
+        public Fix64 GrainCoverage => PopulationSeasons > Fix64.Zero ? GrainMilledPeopleSeasons / PopulationSeasons : Fix64.Zero;
+        public bool Complete => Samples >= 12;
+    }
+
     public static int Run(string[] args)
     {
         string? packPath = null;
@@ -74,7 +103,7 @@ internal static class IronMatchCommand
         bool ironHubFuelSharing = false;
         bool ironFissionCoveragePreserving = false;
         bool bronzeControl = false;
-        bool noBuildWood = false, noChopReach = false, noStoneShare = false, fief = false, grantE5 = false, noFurnace = false;
+        bool noBuildWood = false, noChopReach = false, noStoneShare = false, fief = false, grantE5 = false, noFurnace = false, fiefPowerLedger = false;
         int ironFuelReachBufferOverride = -1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -92,6 +121,7 @@ internal static class IronMatchCommand
                 case "--fief": fief = true; break;
                 case "--no-furnace": noFurnace = true; break;
                 case "--grant-e5": grantE5 = true; break;
+                case "--fief-power-ledger": fiefPowerLedger = true; break;
                 case "--it6-accounting": it6Accounting = true; break;
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
                 case "--it2-kit-trace": it2KitTrace = true; it6Accounting = true; break;
@@ -106,22 +136,23 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
+        if (fiefPowerLedger && !fief) throw new ArgumentException("--fief-power-ledger requires --fief.");
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
         for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
             ironKitTraceSettlement, ironKitTraceFromSeason, ironKitTraceThroughSeason,
-            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace));
+            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace, fiefPowerLedger));
         return 0;
     }
 
     private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
         int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
-        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false)
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -172,6 +203,7 @@ internal static class IronMatchCommand
         IT6FuelSiteSnapshot[]? previousFuelSites = null;
         var lastCatchmentCaptureSeason = new Dictionary<int, int>();
         var it2KitTraceHistory = it2KitTrace ? new List<(int Season, IT6FuelSiteSnapshot[] Sites)>() : null;
+        var fiefPowerWindows = fiefPowerLedger ? new SortedDictionary<int, FiefPowerWindow>() : null;
         for (int c = 0; c < civs; c++)
         {
             statsHistory[c] = new List<MetalStatistics> { match.Economy.MetalStats(c) };
@@ -305,6 +337,21 @@ internal static class IronMatchCommand
                     }
                 }
             }
+            if (fiefPowerWindows is not null)
+            {
+                int season = checked((int)(runner.Tick / 150L));
+                foreach (MillPowerLedgerSnapshot row in match.Economy.CaptureMillPowerSnapshots(season))
+                {
+                    bool hasSource = row.WaterMillSources + row.WindmillSources > 0;
+                    if (!fiefPowerWindows.TryGetValue(row.SettlementId, out FiefPowerWindow? window))
+                    {
+                        if (!hasSource) continue;
+                        window = new FiefPowerWindow { SettlementId = row.SettlementId, Civilization = row.Civilization, StartSeason = season };
+                        fiefPowerWindows.Add(row.SettlementId, window);
+                    }
+                    if (!window.Complete && season < window.StartSeason + 12) window.Add(row);
+                }
+            }
             for (int c = 0; c < civs; c++)
             {
                 if (match.Economy.IronIdleInstitutions(c) > 0) idleSeasons[c]++;
@@ -344,6 +391,7 @@ internal static class IronMatchCommand
                 L($"  c{c} {Archetypes[c]}: {e5} E5 projects, KEY-6 {(k6 < 0 ? "-" : (k6 / 600.0).ToString("F1", CultureInfo.InvariantCulture))}");
             }
         }
+        if (fiefPowerWindows is not null) AppendFiefPowerLedger(o, fiefPowerWindows.Values);
         // Iron works by kind, per civilization.
         L("iron works built (all settlements):");
         for (int k = 0; k < LivingEconomyModel.IronWorkKindCount; k++)
@@ -442,6 +490,45 @@ internal static class IronMatchCommand
         }
         L();
         return o.ToString();
+    }
+
+    private static void AppendFiefPowerLedger(StringBuilder output, IEnumerable<FiefPowerWindow> sourceWindows)
+    {
+        FiefPowerWindow[] windows = sourceWindows.OrderBy(window => window.SettlementId).ToArray();
+        FiefPowerWindow[] complete = windows.Where(window => window.Complete).ToArray();
+        FiefPowerWindow[] censored = windows.Where(window => !window.Complete).ToArray();
+        Fix64 populationSeasons = Fix64.Zero, grainMilledPeopleSeasons = Fix64.Zero;
+        Fix64 available = Fix64.Zero, grinding = Fix64.Zero, sawing = Fix64.Zero, craft = Fix64.Zero, unused = Fix64.Zero;
+        int passing = 0;
+        foreach (FiefPowerWindow window in complete)
+        {
+            populationSeasons += window.PopulationSeasons;
+            grainMilledPeopleSeasons += window.GrainMilledPeopleSeasons;
+            available += window.AvailablePowerHours;
+            grinding += window.GrindingUsed;
+            sawing += window.SawingUsed;
+            craft += window.CraftUsed;
+            unused += window.UnusedPowerHours;
+            if (window.GrainCoverage >= Fix64.FromRatio(60, 100)) passing++;
+        }
+        static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
+        static string Pct(Fix64 numerator, Fix64 denominator) => denominator <= Fix64.Zero
+            ? "n/a"
+            : (100 * numerator.ToDoubleForDisplay() / denominator.ToDoubleForDisplay()).ToString("F1", CultureInfo.InvariantCulture) + "%";
+
+        output.AppendLine("F-T2 mill power ledger (12 seasons from first source; grain coverage is adult-equivalent capacity, not a separate flour-stock measure):");
+        string verdict = complete.Length == 0 ? "n/a (no complete 12-season source window)" :
+            grainMilledPeopleSeasons / populationSeasons >= Fix64.FromRatio(60, 100) ? "PASS" : "BELOW TARGET";
+        output.AppendLine($"  completed town windows={complete.Length}; censored={censored.Length}; weighted grain coverage={Pct(grainMilledPeopleSeasons, populationSeasons)} (target >=60%: {verdict}); town windows meeting 60%={passing}/{complete.Length}");
+        if (complete.Length > 0)
+            output.AppendLine($"  power-hours offered={F(available)}; allocated grind/saw/craft={F(grinding)}/{F(sawing)}/{F(craft)}; unused={F(unused)}; residual={F(available - grinding - sawing - craft - unused)}");
+        foreach (FiefPowerWindow window in windows)
+        {
+            string coverage = window.PopulationSeasons > Fix64.Zero ? Pct(window.GrainMilledPeopleSeasons, window.PopulationSeasons) : "n/a";
+            string end = (window.StartSeason + Math.Min(11, window.Samples - 1)).ToString(CultureInfo.InvariantCulture);
+            output.AppendLine($"  s{window.SettlementId} c{window.Civilization} seasons {window.StartSeason}–{end}: {coverage}, sources water/wind {window.WaterSources}/{window.WindSources}, power {F(window.GrindingUsed + window.SawingUsed + window.CraftUsed)}/{F(window.AvailablePowerHours)} hours" +
+                (window.Complete ? string.Empty : $" (censored {window.Samples}/12)"));
+        }
     }
 
     private static ForestLedger CaptureForest(LivingEconomyModel economy)

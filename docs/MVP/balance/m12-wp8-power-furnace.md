@@ -17,8 +17,14 @@
 - **The furnace barely moves fuel**: with it on, metal wood removal is 291,862 L against 294,230 L off (-0.8%), kits made unchanged, 121 fuel-gate PASS and 0 FAIL both ways, forest ledgers close. The reason matches the oracle: iron demand is only the kits (no cast iron or cannon yet), and the bloomery step is a small share of charcoal once kits are issued. The furnace's real value arrives with cast iron and gunpowder (the war slice), not before.
 - Stuck towns are still mostly short of **blocks** (131), as in Iron.
 
-## Not done in this slice
-Horse collar and the horse-gin idea (needs a draft-power model), a power-unit ledger (the oracle says it only matters above 300 adults; the mill model here is per town), cast-iron goods and cannon (no goods slots yet), crucible steel, clock tower, the other six E5 systems, AI use of any of it, the game view, and the promotion of the rows.
+## F-T2 follow-up: shared power ledger and coverage diagnostic (2026-11-13)
+
+The Fief simulation now derives one deterministic seasonal power budget per town from its built water and wind sources. A water mill contributes 5 worker-season power hours; a windmill contributes 4 × 80% = 3.2 expected hours. The budget funds the oracle's modeled grinding, sawing and powered-craft demand in that priority order. Labor savings and blast-furnace output/fuel use use the same job coverage fractions, so work cannot claim power that another job already spent. Unused power is reported explicitly. Iron and Bronze keep their previous rules.
+
+The read-only `iron-match --fief --fief-power-ledger` report opens a 12-season window when each town first has a water or wind source. It reports town windows, population-weighted grain coverage, source counts, offered/allocated/unused power hours, and windows censored by the match horizon. Grain coverage is the resident share within the existing `MillPeople` throughput cap, adjusted for wind availability and the grinding allocation. It is a capacity proxy: the economy has no separate flour store, so this is not a physical grain-mass audit. One 130-minute promoted-pack run (seed 20261019) recorded 20 complete town windows, 77.6% population-weighted coverage and zero censored windows; 18 of 20 towns met 60%, while two fell below. This is an encouraging first screen, not a fitted pass: more seeds are needed, and the per-town misses remain visible.
+
+## Still open
+Horse-gin power (needs a draft-power model), F-T2's live-match target assessment, the full F-T4 geography/oracle, cast-iron goods and cannon (no goods slots yet), crucible steel, clock tower, the other E5 systems, AI use of any of it, the game view, and promotion of the rows.
 
 ## Reproduce the promoted pack
 Copy `content/` to a scratch folder, change `status: draft` to `status: numeric` on every `era: 5` row and on KEY-6 (V22 wants all or none), then `civsim build-pack --content <folder> --out e5.pack` and run `iron-match --pack e5.pack --fief --grant-e5 --minutes 130`.

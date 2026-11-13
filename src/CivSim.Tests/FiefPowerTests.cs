@@ -72,9 +72,12 @@ public class FiefPowerTests
         Fix64 windLabor = wind.Economy.FixtureBatch(0, "forge_wrought").Labor;
         Assert.Equal(plain / 2, waterLabor);                                              // the Iron chapter's water-mill rule, unchanged
         Assert.True(windLabor < plain && windLabor > waterLabor, "a windmill helps, less than a water wheel");
-        Assert.Equal(plain * Fix64.FromRatio(6, 10), windLabor);                          // 1 - (1 - 1/2) x 4/5
+        Assert.InRange((windLabor - plain * Fix64.FromRatio(5, 8)).Raw, -8L, 8L);        // grind and saw take priority; 3/4 of craft demand is powered
         Assert.True(wind.Economy.FixtureGrainValue(0) > none.Economy.FixtureGrainValue(0));
         Assert.True(wind.Economy.FixtureGrainValue(0) < water.Economy.FixtureGrainValue(0));
+        var windLedger = wind.Economy.FixtureMillPowerLedger(0);
+        Assert.InRange((windLedger.AvailablePowerHours - Fix64.Parse("3.2")).Raw, -4L, 4L); // 4 units at 80% availability
+        Assert.Equal(Fix64.FromRatio(4, 5), windLedger.GrainCoverage);                    // existing 200-person mill cap
 
         BronzeFixture iron = Iron("NRG-05");
         Fix64 ironPlain = iron.Economy.FixtureBatch(0, "forge_wrought").Labor;
@@ -83,10 +86,47 @@ public class FiefPowerTests
     }
 
     [Fact]
+    public void A_town_spends_one_shared_power_budget_in_grinding_sawing_craft_priority_and_reports_grain_coverage()
+    {
+        BronzeFixture powered = Fief("NRG-03", "WOD-09");
+        powered.Economy.FixtureAddPeople(0, 200, 25);
+        powered.Economy.FixtureSetTier(0, 1);
+        powered.Economy.FixtureSetIronWork(0, "water_mill", 1);
+        powered.Economy.FixtureSetIronWork(0, "sawmill", 1);
+
+        var ledger = powered.Economy.FixtureMillPowerLedger(0, season: 7);
+        Assert.Equal(1, ledger.WaterMillSources);
+        Assert.Equal(0, ledger.WindmillSources);
+        Assert.Equal(Fix64.FromInt(5), ledger.AvailablePowerHours);
+        Assert.Equal(Fix64.FromInt(300) * Fix64.FromRatio(6, 100) / Fix64.FromInt(5), ledger.GrindingDemand);
+        Assert.Equal(ledger.GrindingDemand, ledger.GrindingUsed);                       // food has first call on power
+        Assert.Equal(Fix64.FromInt(300) * Fix64.FromRatio(2, 100) / Fix64.FromInt(4), ledger.SawingDemand);
+        Assert.Equal(ledger.AvailablePowerHours - ledger.GrindingUsed, ledger.SawingUsed); // the remaining 1.4 hours
+        Assert.Equal(Fix64.Zero, ledger.CraftUsed);                                     // no budget remains for hammer/bellows
+        Assert.Equal(Fix64.Zero, ledger.UnusedPowerHours);
+        Assert.Equal(ledger.AvailablePowerHours,
+            ledger.GrindingUsed + ledger.SawingUsed + ledger.CraftUsed + ledger.UnusedPowerHours);
+        Assert.Equal(Fix64.FromRatio(2, 3), ledger.GrainCoverage);                       // 200 of 300 residents have mill capacity
+        Assert.Equal(Fix64.FromInt(200), ledger.GrainMilledPeople);
+
+        BronzeFixture handPowered = Fief("NRG-03", "WOD-09");
+        handPowered.Economy.FixtureAddPeople(0, 200, 25);
+        handPowered.Economy.FixtureSetTier(0, 1);
+        handPowered.Economy.FixtureSetIronWork(0, "sawmill", 1);
+        Fix64 handLabor = handPowered.Economy.FixtureBatch(0, "saw_planks").Labor;
+        Fix64 sharedLabor = powered.Economy.FixtureBatch(0, "saw_planks").Labor;
+        Assert.InRange((sharedLabor - handLabor * Fix64.FromRatio(3, 10)).Raw, -16L, 16L); // only 14/15 of the saw job is powered
+
+        var snapshots = powered.Economy.CaptureMillPowerSnapshots(7);
+        Assert.Contains(snapshots, row => row.SettlementId == ledger.SettlementId && row.Season == 7 && row.GrainCoverage == ledger.GrainCoverage);
+    }
+
+    [Fact]
     public void A_sawmill_saws_planks_at_a_quarter_of_the_labor_and_the_textile_tools_cut_spinning_and_weaving()
     {
         BronzeFixture f = Fief("WOD-08", "WOD-09", "FIB-06", "FIB-07", "FIB-10", "FIB-11");
         Fix64 hand = f.Economy.FixtureBatch(0, "saw_planks").Labor;
+        f.Economy.FixtureSetIronWork(0, "water_mill", 1);
         f.Economy.FixtureSetIronWork(0, "sawmill", 1);
         Assert.Equal(hand / 4, f.Economy.FixtureBatch(0, "saw_planks").Labor);
 

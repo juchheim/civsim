@@ -874,7 +874,7 @@ public sealed partial class LivingEconomyModel
     private Fix64 OutputQuantity(SettlementState s, CompiledRecipe r)
     {
         Fix64 q = BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
-        return FurnaceActive(s, r) ? q * FurnaceOutputMult : q;
+        return FurnaceActive(s, r) ? q * FurnaceOutputFactor(s) : q;
     }
 
     private Fix64 InputQuantity(SettlementState s, CompiledRecipe r, int input)
@@ -884,8 +884,9 @@ public sealed partial class LivingEconomyModel
             q *= Modifier(s.Civilization, "charcoal_per_smelt");
         if (FurnaceActive(s, r))
         {
-            // A furnace batch: four times the iron from four times the ore and twice the charcoal (so half the charcoal per litre).
-            q *= Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0 ? FurnaceCharcoalMult : FurnaceOutputMult;
+            // The furnace's x4 output and x2 charcoal use only apply to the share of craft work covered by the shared ledger.
+            q *= Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0
+                ? FurnaceInputAndLaborFactor(s) : FurnaceOutputFactor(s);
         }
         return q;
     }
@@ -897,8 +898,20 @@ public sealed partial class LivingEconomyModel
         if (id is "make_wheel" or "build_cart" or "build_chariot") labor *= Modifier(s.Civilization, "wheel_and_cart_labor");
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
-        // A water mill turns the saw, the bellows and the forge hammer (NRG-03): half the labor for the sawyers and smiths of a mill town, the charcoal unchanged.
-        if (IronChain && (r.Def.Bellows || IsMillPowered(id)) && MillLaborFactor(s) is var millFactor && millFactor != Fix64.One) labor *= millFactor;
+        // Outside Fief preserve Iron's water-mill rule. In Fief these jobs draw from one budget in priority order:
+        // grinding, sawing, then powered craft and bellows work.
+        if (IronChain && (r.Def.Bellows || IsMillPowered(id)))
+        {
+            if (FiefChain)
+            {
+                bool sawing = id == "saw_planks";
+                Fix64 poweredLabor = sawing && IronWorksCount(s, IronStructure.Sawmill) > 0 && Done(s.Civilization, "WOD-09")
+                    ? SawmillLaborMult : _civic.MillLabor;
+                labor *= MillPoweredLaborFactor(s, sawing ? MillPowerJob.Sawing : MillPowerJob.Craft, poweredLabor);
+            }
+            else if (MillLaborFactor(s) is var millFactor && millFactor != Fix64.One)
+                labor *= millFactor;
+        }
         return FiefRecipeLabor(s, r, labor);
     }
 
