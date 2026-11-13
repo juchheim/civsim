@@ -29,12 +29,12 @@ Two things stand out. First, the interval is almost uncensored now, because the 
 
 ## What this does to E5 pacing
 
-The plan's decisions (D8: match Iron, D9: doubling) leave one question open: match which number, 25 (the target) or 20 (what Iron measures today)?
+The plan's decisions are D8 (E5 aims for 25 minutes, decided by the user on 2026-11-13 after seeing this report) and D9 (doubling). The numbers below are what each choice implies.
 
 - **Cost:** the whole E5 age (all 49 projects plus KEY-6) costs about **402,600** Insight; the 16-project rush costs about 150,200. The doubling touches only **7 of 49** E5 projects (BLD-12, GOV-11, LRN-08, SEA-11, TRD-09, WAR-12, WAY-09), so it is a minor lever.
 - **Calibration:** the Commons-and-roles formula explains only 45% of what Iron civilizations really spend, so the forward estimate is scaled by 2.22 (a one-anchor calibration, not a fit).
 - **Result:** if E5 civilizations research the whole age as Iron ones do, KEY-6 takes about **19 minutes at Iron-like growth (6% a minute)**, 17 to 25 across 8% to 3%. A civilization that rushes KEY-6 finishes in about 10. So E5 as typed already lands **close to Iron's measured 20 minutes**.
-- **To reach the 25-minute target instead,** the era base must rise by about 58% at 6% growth (base about 9,500), or by 17% to 117% across 4% to 8% growth. To hold Iron's measured 20, keep the base near 6,000 to 6,300.
+- **To reach the 25-minute target (chosen),** the era base must rise by about 58% at 6% growth (base about 9,500), or by 17% to 117% across 4% to 8% growth. To hold Iron's measured 20, keep the base near 6,000 to 6,300.
 
 ## Other findings for E5
 
