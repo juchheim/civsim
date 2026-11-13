@@ -128,7 +128,7 @@ public sealed class StrategistDecreeValueTests
         int walls = LivingEconomyModel.StructureIndex("stone_walls");
         stateType.GetField("BuildTarget", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .SetValue(state, Enum.ToObject(stateType.GetField("BuildTarget", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.FieldType, walls));
-        stateType.GetField("BuildProgress", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(state, Fix64.FromInt(24));
+        stateType.GetField("BuildProgress", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.SetValue(state, Fix64.FromInt(3)); // 20% of a Village ring (15 ws, docs/MVP/28 §4): the old 24 of 30 left 18 work-seasons
         int ownTile = rig.Politics.SettlementTileOf(own);
         int close = Enumerable.Range(0, world.Tiles.Length).First(t => HexGrid.Distance(ownTile, t, world.Width) == 1);
         int far = Enumerable.Range(0, world.Tiles.Length).First(t => HexGrid.Distance(ownTile, t, world.Width) >= 30);

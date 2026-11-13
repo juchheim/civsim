@@ -27,7 +27,7 @@ public partial class Game
         public bool Open;
     }
 
-    private ModalView? _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal;
+    private ModalView? _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal, _directionModal;
     private bool _introPanelVisible, _helpOpen, _gameMenuOpen, _endScreenShown, _endScreenDismissed, _introDismissed;
     private UiPopover? _gameMenu;
     private UiLayer? _gameMenuLayer;
@@ -98,11 +98,13 @@ public partial class Game
 
     private void LayoutModals()
     {
-        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _newMatchModal })
+        foreach (ModalView? view in new[] { _introModal, _helpModal, _settingsModal, _confirmModal, _endModal, _eraModal, _newMatchModal, _directionModal })
         {
             if (view is null) continue;
             float w = Math.Min(view.Width, _logicalSize.X - 2 * Margin);
-            float h = Math.Min(view.Height, _logicalSize.Y - 2 * Margin);
+            // Height 0 means "as tall as the content": a golden rectangle is a fine frame for a sheet that fills it, but on the
+            // three-line intro it left a dead band above the button (ui-ux-pass2 §9).
+            float h = view.Height <= 0 ? 0 : Math.Min(view.Height, _logicalSize.Y - 2 * Margin);
             view.Panel.AnchorLeft = view.Panel.AnchorRight = 0.5f;
             view.Panel.AnchorTop = view.Panel.AnchorBottom = 0.5f;
             view.Panel.OffsetLeft = -w / 2; view.Panel.OffsetRight = w / 2;
@@ -123,6 +125,7 @@ public partial class Game
         BuildConfirm();
         BuildNewMatch();
         BuildEndScreen(seed);
+        BuildEraReport();
         BuildGameMenu();
         if (!_introDismissed && (!IsDevelopmentPresentationRun() || forceIntro)) ShowIntroModal(false);
     }
@@ -131,7 +134,7 @@ public partial class Game
 
     private void BuildIntro()
     {
-        _introModal = MakeModal("intro", 610, 377, "The Spark", "You are your people's curiosity.", () => { DismissIntro(); return true; });
+        _introModal = MakeModal("intro", 610, 0, "The Spark", "You are your people's curiosity.", () => { DismissIntro(); return true; });
         var steps = UiKit.Column(UiTokens.Sp3);
         string[] texts =
         {
@@ -194,6 +197,7 @@ public partial class Game
             new[] { "Pause or resume", "", "", "Space" },
             new[] { "Slower / faster", "", "", "[ and ]" },
             new[] { "Research", "", "", "T" },
+            new[] { "People & Stores", "Click your people's card", "Click your people's card", "Y" },
             new[] { "Diplomacy", "", "", "O" },
             new[] { "Chronicle", "", "", "C" },
             new[] { "Resources layer", "", "", "R" },
@@ -235,7 +239,12 @@ public partial class Game
             ("Claims", "Who holds the land, and how firmly. A stronger colour means a stronger claim; 70 or more makes land yours."),
             ("Food", "Which settlements have enough food: green is well fed, then tight, short and famine. In autumn and winter it shows the forecast for late winter."),
             ("Methods", "How good your people's tools are. Purple tiles use newer tools, blue older ones, and orange tiles know a better method they can't use yet."),
-            ("Resources", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all."),
+            ("Deposits", "Identified deposits and mines: tin, copper ores and arsenical copper, unidentified clues, worked deposits and what lies within mining reach."),
+            ("Trade", "Active compact routes between peoples; tin routes and caravans are highlighted."),
+            ("Supply", "Directional links show settlement-to-settlement goods: internal sharing, trade, gifts, barter and tribute. Inspect a settlement to see what it sends and receives. Orange or red rings mark shortages."),
+            ("Cohesion", "How firmly each settlement holds together: strong, steady, strained or fraying. Hover a settlement for why."),
+            ("Forest", "How much wood is left on the tiles you can see now: dense, medium, low or depleted."),
+            ("Resources (marker)", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all. Markers show on top of any layer."),
         };
         foreach ((string title, string text) in entries)
         {
@@ -340,7 +349,7 @@ public partial class Game
 
     private void BuildConfirm()
     {
-        _confirmModal = MakeModal("confirm", 377, 233, "Are you sure?", "", () => { CloseModal(_confirmModal!); return true; });
+        _confirmModal = MakeModal("confirm", 377, 0, "Are you sure?", "", () => { CloseModal(_confirmModal!); return true; });
         _confirmBody = UiKit.Text("", "Body", wrap: true);
         _confirmModal.Body.AddChild(_confirmBody);
         _confirmModal.Actions.AddChild(UiKit.Ghost("Cancel", () => CloseModal(_confirmModal), null, UiGlyph.None, UiTokens.ControlM, true));
@@ -440,8 +449,7 @@ public partial class Game
             _ui.Remove(_gameMenuLayer!);
             return;
         }
-        if (_chronicleOpen) ToggleChronicle(false);
-        if (_diplomacyOpen) ToggleDiplomacy(false);
+        CloseOtherDocks("");
         if (_researchWebVisible) CloseResearchWeb();
         foreach (Node child in _gameMenu.Body.GetChildren()) { _gameMenu.Body.RemoveChild(child); child.QueueFree(); }
         var column = UiKit.Column(2);
@@ -461,6 +469,7 @@ public partial class Game
         Row("Load game…", AskLoadQuickMatch, saveExists, saveExists ? null : "No save yet.", "F9");
         Row("Save replay", SaveLatestReplay, _session.CanSave);
         Row("Watch last replay", WatchLatestReplay, replayExists, replayExists ? null : "No replay yet.");
+        Row("Civilization direction…", ToggleCivilizationDirection, true, "Guide future autonomous research, construction and politics.");
         column.AddChild(UiKit.Divider());
         Row("Settings…", OpenSettings);
         Row("Help", () => ToggleHelp(true), true, null, "H");
@@ -506,7 +515,7 @@ public partial class Game
         _endModal.Title.Text = _session?.EndReason == MatchEndReason.HumanKeystone || frame.CivEra[viewer] >= endEra
             ? (ironChapter ? "The Feudal Order is raised" : "The Iron Age dawns")
             : _session?.EndReason == MatchEndReason.RivalCountdown ? (ironChapter ? "The Feudal Order has come" : "The Iron Age has come")
-            : $"{_session?.MatchYears ?? 64} years have passed";
+            : "The age has closed";
         int myRank = Array.IndexOf(order, viewer) + 1;
         string leader = order[0] == viewer ? "Your people lead" : $"The {UiText.CivName(order[0])} lead";
         _endModal.Subtitle.Text = $"{leader} the world in Legacy. Your people finished {myRank} of {frame.CivCount}.";
@@ -522,10 +531,10 @@ public partial class Game
         right.SizeFlagsStretchRatio = 0.382f;
 
         left.AddChild(UiKit.Text("STANDINGS", "EyebrowTertiary"));
-        var grid = new GridContainer { Columns = 5 };
+        var grid = new GridContainer { Columns = 6 };
         grid.AddThemeConstantOverride("h_separation", UiTokens.Sp4);
         grid.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
-        foreach (string h in new[] { "", "PEOPLE", "LEGACY", "FIRSTS", "LAND" }) grid.AddChild(UiKit.Text(h, "EyebrowTertiary"));
+        foreach (string h in new[] { "", "PEOPLE", "LEGACY", "DOMINION", "THRIVING", "LAND" }) grid.AddChild(UiKit.Text(h, "EyebrowTertiary"));
         for (int rank = 0; rank < order.Length; rank++)
         {
             int civ = order[rank];
@@ -535,11 +544,12 @@ public partial class Game
             grid.AddChild(who);
             grid.AddChild(UiKit.Text(civ == viewer ? "Your people" : UiText.CivName(civ), civ == viewer ? "BodyStrong" : "Body", ellipsis: true));
             grid.AddChild(UiKit.Text(FormatFixed(frame.CivLegacy[civ]), "Num"));
-            grid.AddChild(UiKit.Text(FormatFixed(frame.CivFirstsLegacy[civ]), "Num"));
+            grid.AddChild(UiKit.Text(FormatFixed(frame.CivDominion[civ]), "Num"));
+            grid.AddChild(UiKit.Text(FormatFixed(frame.CivThrivingLegacy[civ]), "Num"));
             grid.AddChild(UiKit.Text($"{frame.CivLandBasisPoints[civ] / 100.0:F1}%", "Num"));
         }
         left.AddChild(grid);
-        left.AddChild(UiKit.Text("Legacy = points for knowledge mastered plus world firsts. Land = share of claimed land.", "CaptionTertiary", wrap: true));
+        left.AddChild(UiKit.Text("Legacy includes Mastery, Dominion, thriving people and built Wonders. Dominion is accumulated from land held over time; Land is your current share of claimed land.", "CaptionTertiary", wrap: true));
         if (_session is not null)
             left.AddChild(UiKit.Text($"Rivals played at {DifficultyName(_session.Difficulty)}.", "CaptionTertiary", wrap: true));
 
@@ -636,10 +646,10 @@ public partial class Game
             if (item.Kind is ViewEventKind.EraAdvanced)
             {
                 // A rival completing the chapter keystone starts the countdown (KEY-4 in Bronze, docs/MVP/22 §3.1; KEY-5 in Iron, docs/MVP/25 §3):
-                // 3 years to finish or the age closes.
+                // A few years (SimulationSession.CountdownYears) to finish or the age closes.
                 if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
                     ShowToast($"{(_session.IsIron ? "The Feudal Order" : "The Iron Age")} is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
-                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or in 3 years, or at Year {_session.MatchYears}.",
+                        $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or {_session.CountdownYears} years after a rival does.",
                         key: $"rival-era-{item.Civ}-{item.A}");
                 _endTimeline.Add(item);
                 if (_endTimeline.Count > 64) _endTimeline.RemoveAt(0);

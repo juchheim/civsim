@@ -49,7 +49,7 @@ public sealed class CivResearch
     public Fix64 EraBoonInsight = Fix64.One;
     public int BeaconBoons;
     public Fix64 MasteryLegacy;
-    public Fix64 FirstsLegacy;
+    public Fix64 ThrivingLegacy;
     /// <summary>Legacy for Wonders that stand built (docs/MVP/22 §3.3), and the Wonder projects already paid for.</summary>
     public Fix64 WondersLegacy;
     public readonly List<int> WondersBuilt = new();
@@ -146,7 +146,7 @@ public sealed class CivResearch
         h.Add(EraBoonInsight);
         h.Add(BeaconBoons);
         h.Add(MasteryLegacy);
-        h.Add(FirstsLegacy);
+        h.Add(ThrivingLegacy);
         // Bronze state only once it exists, so matches that never reach KEY-3 or build a Wonder keep their checksums.
         if (WondersBuilt.Count > 0) { h.Add(WondersLegacy); h.Add(WondersBuilt.Count); foreach (int w in WondersBuilt) h.Add(w); }
         if (MandateUnlocked) { h.Add(0x4D414E44415445UL); h.Add(Mandate); h.Add(MandateCounter); h.Add(MandateEarned); h.Add(MandateSpent); }
@@ -172,7 +172,7 @@ public sealed class CivResearch
         w.Write(EraBoonInsight.Raw);
         w.Write(BeaconBoons);
         w.Write(MasteryLegacy.Raw);
-        w.Write(FirstsLegacy.Raw);
+        w.Write(ThrivingLegacy.Raw);
         w.Write(WondersLegacy.Raw);
         w.Write(WondersBuilt.Count);
         foreach (int wonder in WondersBuilt) w.Write(wonder);
@@ -221,7 +221,7 @@ public sealed class CivResearch
         EraBoonInsight = Fix64.FromRaw(r.ReadInt64());
         BeaconBoons = r.ReadInt32();
         MasteryLegacy = Fix64.FromRaw(r.ReadInt64());
-        FirstsLegacy = Fix64.FromRaw(r.ReadInt64());
+        ThrivingLegacy = Fix64.FromRaw(r.ReadInt64());
         WondersLegacy = Fix64.FromRaw(r.ReadInt64());
         int wonders = r.ReadInt32();
         WondersBuilt.Clear();

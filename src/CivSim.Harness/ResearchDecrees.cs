@@ -92,7 +92,7 @@ internal static class ResearchDecrees
             text.Append(r.Log);
         }
         text.AppendLine();
-        text.AppendLine($"Timing: KEY-4 median {F(Median(k4))} (current projection 61.25; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
+        text.AppendLine($"Timing: KEY-4 median {F(Median(k4))} (current projection 71.5; fresh acceptance pending), E3 duration median {F(Median(e3))} (current projection 19.75)");
         text.AppendLine($"T11 settlements per civ at KEY-4: median {F(Median(setts))} (historical target 7, 5-10; rebaseline at current cadence)");
         text.AppendLine($"T14 claimed land at KEY-4: median {P(Median(claimed))} (historical target 30-42%; rebaseline at current cadence)");
         text.AppendLine($"T15 paired borders touching at each civ's own KEY-4: {touch}/{borderSamples} civs (target >= 75%)");

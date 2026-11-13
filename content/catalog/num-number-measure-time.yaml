@@ -54,6 +54,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [NUM-04, COM-05]
     effects:
       - {kind: admin, span: 2, overreach: 0.20}
@@ -65,6 +67,8 @@ projects:
     era: 3
     type: M
     status: numeric
+    cost: 800
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [NUM-05, BEL-06]
     effects:
       - {kind: mod, stat: field_yield, op: pct, value: 0.1}

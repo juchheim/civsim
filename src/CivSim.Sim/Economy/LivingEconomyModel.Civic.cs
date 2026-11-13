@@ -119,10 +119,14 @@ public sealed partial class LivingEconomyModel
             DemoteShare = K("TierDemoteShare", "0.85");
             DemoteSeasons = K("TierDemoteSeasons", "4").RoundToInt();
             HinterlandRadius = K("HinterlandRadius", "7").RoundToInt();
+            WallCutStone = K("StoneWallsCutStonePerRing", "60").RoundToInt();
+            WallLabor = K("StoneWallsLaborPerRing", "30").RoundToInt();
             HinterlandEmit = K("HinterlandEmit", "0.5");
             CapitalClaimMult = K("CapitalClaimMult", "1.25");
             SpecialistRate = K("SpecialistRateMult", "1.3");
             LaborShare = K("CivicLaborShare", "0.10");
+            FoodShareCap = K("FoodShareCapOutsideHunger", "0.65");
+            IronBuildShare = K("IronBuildLaborShare", "0.20"); // the share of a settlement's work the Iron construction bucket may take in a season, beside the metal chain and civic works
             CityTempleLaborMultiplier = K("CityTempleLaborMultiplier", "1.5");
             MarketEvery = K("MarketEvery", "4").RoundToInt();
             CanalRiverDist = K("CanalRiverDist", "2").RoundToInt();
@@ -133,6 +137,9 @@ public sealed partial class LivingEconomyModel
             ManureSheep = K("ManureSheepPer4", "6");
             BakeryValue = K("BakeryGrainValue", "0.2");
             BakeryPeople = K("BakeryPeople", "40");
+            MillValue = K("MillGrainValue", "0.1");
+            MillPeople = K("MillPeople", "200");
+            MillLabor = K("MillLaborMult", "0.5");
             HorseTameShare = K("HorseTameShare", "0.15");
             HorsePerPasture = K("HorsePerPasture", "2").RoundToInt();
             HorseLabor = K("HorseTameLabor", "1");
@@ -149,10 +156,10 @@ public sealed partial class LivingEconomyModel
 
         public readonly int Base, FissionBelow, SecessionBelow, SecessionSeasons, Raided, RaidedBel01, RaidYears, LossPer2Pct,
             OverreachFree, SpanPenalty, Conquered, ConqueredRecovery, ConqueredStart, TownMinPop, CityMinPop, DemoteSeasons,
-            HinterlandRadius, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
+            HinterlandRadius, WallCutStone, WallLabor, MarketEvery, CanalRiverDist, ArdPerPair, ArdPerPairNrg02, HorsePerPasture, MarketTownRoutes;
         public readonly Fix64 Step, WorkMid, WorkRange, WorkSlope, FissionTrigger, Famine, Crowding, OverreachDivisor, DemoteShare,
-            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
-            BakeryPeople, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
+            HinterlandEmit, CapitalClaimMult, SpecialistRate, LaborShare, FoodShareCap, IronBuildShare, CityTempleLaborMultiplier, CanalLabor, ManureCattle, ManureSheep, BakeryValue,
+            BakeryPeople, MillValue, MillPeople, MillLabor, HorseTameShare, HorseLabor, MarketTownFoodCap, PlagueR0, PlagueCfr, Inflow, HearthPeople, KilnWood,
             BuildWood, Deadwood;
     }
 
@@ -403,10 +410,11 @@ public sealed partial class LivingEconomyModel
         int missionaries = MissionarySlots(s);
         int scholars = ScholarSlots(s);
         int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0, haveScholars = 0;
-        for (int i = _figures.Count - 1; i >= 0; i--)
+        List<FigureState> residents = Residents(s.Id);
+        for (int i = residents.Count - 1; i >= 0; i--)
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Role == Role.None) continue;
+            FigureState f = residents[i];
+            if (f.Role == Role.None) continue;
             bool keep = f.Age is >= 14 and < 60 && f.Camp < 0;
             if (keep && f.Role == Role.Priest && havePriests < priests) { havePriests++; continue; }
             if (keep && f.Role == Role.Scribe && haveScribes < scribes) { haveScribes++; continue; }
@@ -418,13 +426,13 @@ public sealed partial class LivingEconomyModel
             f.Role = Role.None;
         }
         int adults = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < _figures.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars); i++)
+        foreach (FigureState f in residents) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
+        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars); i++)
         {
             // Keep at least four other working adults at home.
             if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + 4 >= adults) break;
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
+            FigureState f = residents[i];
+            if (f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
             else if (haveScribes < scribes) { f.Role = Role.Scribe; haveScribes++; }
             else if (haveAdministrators < administrators) { f.Role = Role.Administrator; haveAdministrators++; }
@@ -434,9 +442,9 @@ public sealed partial class LivingEconomyModel
             else { f.Role = Role.Scholar; haveScholars++; }
         }
         Fix64 spent = Fix64.Zero;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in residents)
         {
-            if (f.SettlementId != s.Id || f.Role == Role.None) continue;
+            if (f.Role == Role.None) continue;
             Fix64 amount = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
             if (amount <= Fix64.Zero) continue;
             Assign(f, EconomyJob.Craft, amount);
@@ -469,7 +477,15 @@ public sealed partial class LivingEconomyModel
             c.BuildKind = cityEnabler;
             c.BuildProgress = Fix64.Zero;
         }
-        else if (c.BuildKind == CivicBuild.None || !CanStillBuild(s, c.BuildKind))
+        else if (cityEnabler == CivicBuild.None && BuildFocusPrefers(s, BuildTrack.Civic, out int focusCivic) && (CivicBuild)focusCivic != c.BuildKind &&
+                 CivicGate(s, c, (CivicBuild)focusCivic, includeAppetite: false).Open && CanStillBuild(s, (CivicBuild)focusCivic))
+        {
+            // The player asked for this one (docs/MVP/30). Like a Corvée, a switch starts the new structure from nothing; the civic slot keeps no shelf.
+            c.BuildKind = (CivicBuild)focusCivic;
+            c.BuildProgress = Fix64.Zero;
+        }
+        else if (c.BuildKind == CivicBuild.None || !CanStillBuild(s, c.BuildKind) ||
+                 (cityEnabler == CivicBuild.None && BuildFocusSkips(s, BuildTrack.Civic, (int)c.BuildKind)))
         {
             c.BuildKind = ChooseCivic(s, c);
             c.BuildProgress = Fix64.Zero;
@@ -588,23 +604,35 @@ public sealed partial class LivingEconomyModel
         return labor;
     }
 
+    /// <summary>
+    /// The civic building the settlement raises next: the first of <see cref="CivicOrder"/> whose gate is open (docs/MVP/23 §8). The Market goes to the
+    /// civilization's largest settlements (one more per MarketEvery); from the moment it is chosen the settlement keeps its people (07d R2), and it opens once 40
+    /// live there. A Hall waits until the bricks are in store. A structure the player has set aside (docs/MVP/30) is passed over.
+    /// </summary>
     private CivicBuild ChooseCivic(SettlementState s, CivicState c)
     {
-        int civ = s.Civilization;
-        int pop = Population(s.Id);
-        // The Market goes to the civilization's largest settlements (one more per MarketEvery); from the moment it is chosen the
-        // settlement keeps its people (07d R2), and it opens once 40 live there (docs/MVP/23 §8).
-        if (Done(civ, "TRD-04") && c.Markets == 0 && AmongLargest(s, 1 + (MemberCount(civ) - 1) / Math.Max(1, _civic.MarketEvery)))
-            return CivicBuild.Market;
-        bool townish = c.Tier >= (byte)SettlementTier.Town;
-        if (Done(civ, "GOV-05") && !CivHasPalace(civ) && PalaceSite(civ) == s.Id) return CivicBuild.Palace;
-        if (Done(civ, "BEL-06") && townish && c.Temples == 0) return CivicBuild.Temple;
-        if (Done(civ, "LRN-04") && townish && c.Schools == 0) return CivicBuild.School;
-        if (Done(civ, "FOD-08") && townish && c.Bakeries == 0 && HasProject(civ, "AGR-02")) return CivicBuild.Bakery;
-        if (Done(civ, "TRD-05") && townish && c.Caravanserais == 0 && (TradeRoutes?.RoutesAt(s.Id) ?? 0) >= _civic.MarketTownRoutes)
-            return CivicBuild.Caravanserai;
-        if (Done(civ, "BLD-07") && c.Markets > 0 && HousingCap(s) < HousingTarget(s) && s.Stores[(int)Good.Mudbrick] >= Fix64.FromInt(120)) return CivicBuild.Hall;
-        if (Done(civ, "BLD-08") && c.Tier == (byte)SettlementTier.City && !CivHasZiggurat(civ)) return CivicBuild.Ziggurat;
+        CivilizationDirection direction = Guidance?.DirectionOf(s.Civilization) ?? CivilizationDirection.Balanced;
+        if (direction != CivilizationDirection.Balanced)
+        {
+            CivicBuild preferred = CivicBuild.None;
+            int bestPreference = 0;
+            foreach (CivicBuild b in CivicOrder)
+            {
+                if (!CivicGate(s, c, b, includeAppetite: true).Open || BuildFocusSkips(s, BuildTrack.Civic, (int)b) ||
+                    b == CivicBuild.Hall && s.Stores[(int)Good.Mudbrick] < Fix64.FromInt(120)) continue;
+                int preference = CivilizationGuidance.BuildPreference(direction, CivicStructureId(b));
+                if (preference <= bestPreference) continue;
+                preferred = b;
+                bestPreference = preference;
+            }
+            if (preferred != CivicBuild.None) return preferred;
+        }
+        foreach (CivicBuild b in CivicOrder)
+        {
+            if (!CivicGate(s, c, b, includeAppetite: true).Open || BuildFocusSkips(s, BuildTrack.Civic, (int)b)) continue;
+            if (b == CivicBuild.Hall && s.Stores[(int)Good.Mudbrick] < Fix64.FromInt(120)) continue;
+            return b;
+        }
         return CivicBuild.None;
     }
 
@@ -732,8 +760,6 @@ public sealed partial class LivingEconomyModel
     private int CivicCutStoneWant(SettlementState s)
     {
         int civicNeed = s.Civic is { BuildKind: not CivicBuild.None } c ? CivicMaterials(c.BuildKind).Cut : 0;
-        if (s.BuildTarget == Structure.StoneWalls)
-            return Math.Max(civicNeed, 60 * ((int)Tier(s.Id) + 1));
         return civicNeed;
     }
 
@@ -890,8 +916,8 @@ public sealed partial class LivingEconomyModel
         Fix64 batches = Fix64.Min(missing / output, (metal.Goods[(int)MetalGood.Block] + rangeStone) / blockInput);
         Fix64 blocksToQuarry = Fix64.Max(Fix64.Zero, batches * blockInput - metal.Goods[(int)MetalGood.Block]);
         bool anyMetalKit = false;
-        foreach (FigureState figure in _figures)
-            if (figure.SettlementId == s.Id && KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
+        foreach (FigureState figure in Residents(s.Id))
+            if (KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
         return blocksToQuarry / quarryRate + batches * RecipeLabor(s, recipe, anyMetalKit);
     }
 
@@ -936,8 +962,8 @@ public sealed partial class LivingEconomyModel
         labor = Fix64.Max(Fix64.Zero, labor - gotBlocks / quarryRate);
 
         bool anyMetalKit = false;
-        foreach (FigureState figure in _figures)
-            if (figure.SettlementId == s.Id && KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
+        foreach (FigureState figure in Residents(s.Id))
+            if (KitChopRate(figure) > Fix64.Zero) { anyMetalKit = true; break; }
         Fix64 dressLabor = RecipeLabor(s, recipe, anyMetalKit);
         if (dressLabor <= Fix64.Zero) return labor;
         batches = Fix64.Min(batches, Fix64.Min(metal.Goods[(int)MetalGood.Block] / blockInput, labor / dressLabor));
@@ -1188,7 +1214,8 @@ public sealed partial class LivingEconomyModel
         {
             if (s.Structures[(int)Structure.Hearth] > 0) t += Fix64.FromInt(5);
             if (Done(civ, "SOC-05")) t += Fix64.FromInt(8);
-            if (Done(civ, "BEL-05") && cap is not null && HexGrid.Distance(cap.SiteTile, s.SiteTile, _world.Width) <= 20) t += Fix64.FromInt(3);
+            // BEL-05: within twenty tiles of the capital, or of a shrine of the civilization (docs/MVP/29); either one, never both.
+            if (Done(civ, "BEL-05") && (cap is not null && HexGrid.Distance(cap.SiteTile, s.SiteTile, _world.Width) <= 20 || OwnShrineWithin(s, ShrineReach))) t += Fix64.FromInt(3);
             if (Done(civ, "GOV-03")) t += Fix64.FromInt(3);
         }
         t += Fix64.FromInt(Math.Min(5, LuxuryItems(s) * 10 / Math.Max(1, pop)));
@@ -1210,6 +1237,8 @@ public sealed partial class LivingEconomyModel
                 // Iron-chapter scopes: ART-08's theatre only lifts a city that has one, and BEL-08's integration bonus only helps a town still carrying the
                 // penalty of being conquered. (Before these were named they fell through to "everywhere".)
                 "local_city" => IronChain && IronWorksCount(s, IronStructure.Theatre) > 0,
+                // STN-12's colonnade lifts the Temple town that raised it.
+                "colonnade" => IronChain && IronWorksCount(s, IronStructure.Colonnade) > 0,
                 "diverse_group_integration" => IronChain && c.ConqueredTerm < 0,
                 _ => true,
             };
@@ -1291,7 +1320,7 @@ public sealed partial class LivingEconomyModel
         c.Seceded = true;
         c.LowSeasons = 0;
         c.Tier = 0;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id) { f.Role = Role.None; f.Camp = -1; }
+        foreach (FigureState f in Residents(s.Id)) { f.Role = Role.None; f.Camp = -1; }
         for (int i = _camps.Count - 1; i >= 0; i--) if (_camps[i].Parent == s.Id) _camps.RemoveAt(i);
         _secessions.Add(s.Id);
     }
@@ -1337,7 +1366,7 @@ public sealed partial class LivingEconomyModel
         c.LowSeasons = 0;
         c.Tier = Math.Min(c.Tier, (byte)1);
         s.Cohesion = CohesionFactor(_civic.ConqueredStart);
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id) f.Role = Role.None;
+        foreach (FigureState f in Residents(s.Id)) f.Role = Role.None;
         return true;
     }
 
@@ -1399,9 +1428,8 @@ public sealed partial class LivingEconomyModel
     public (int Priests, int Scribes) RoleHeads(int settlementIndex)
     {
         int id = _settlements[settlementIndex].Id, priests = 0, scribes = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(id))
         {
-            if (f.SettlementId != id) continue;
             if (f.Role == Role.Priest) priests++;
             else if (f.Role == Role.Scribe) scribes++;
         }

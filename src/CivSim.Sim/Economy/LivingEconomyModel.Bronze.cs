@@ -13,7 +13,9 @@ public enum MetalAccessKind : byte { Copper, Arsenic, Tin }
 /// <summary>Why the Decree or the planner could not open a mining camp (docs/MVP/22 §4.3, 23 §7.2).</summary>
 public enum MiningCampResult : byte
 {
-    Opened, NotBronze, NoDeposit, NotUnlocked, NeedsShaftMining, RivalOwned, OutOfReach, NoParent, NoCrew, AlreadyOpen, InRange
+    Opened, NotBronze, NoDeposit, NotUnlocked, NeedsShaftMining, RivalOwned, OutOfReach, NoParent, NoCrew, AlreadyOpen, InRange,
+    /// <summary>The deposit lies in a living settlement's reserved core (docs/MVP/31 §3.3). Appended: values are never renumbered.</summary>
+    InSettlementCore,
 }
 
 /// <summary>Who owns a tile, for the planner's rule that it opens camps only on own land (docs/MVP/23 §7.2). Politics implements it.</summary>
@@ -122,6 +124,8 @@ public sealed partial class LivingEconomyModel
     private const byte AccessCopper = 1, AccessArsenic = 2, AccessTin = 4, SourceCopper = 8, SourceArsenic = 16, SourceTin = 32;
     /// <summary>A workable iron deposit on own land within mining reach; set only in the Iron chapter, so Bronze access masks never carry it.</summary>
     private const byte SourceIron = 64;
+    /// <summary>Iron ore is supplied to a wooded production hub by a sister settlement within the sharing reach.</summary>
+    private const byte AccessIron = 128;
 
     /// <summary>Strategic goods that sister settlements share (docs/MVP/22 §5.7), in a fixed order.</summary>
     private static readonly MetalGood[] SharedGoods =
@@ -212,6 +216,7 @@ public sealed partial class LivingEconomyModel
             RemeltShare = K("UpgradeRemeltShare", "0.5");
             PushCap = K("MetalPushLaborCap", "0.10");
             ChainCap = K("MetalChainLaborCap", "0.30");
+            IronPostRouteChainCap = K("IronPostRouteChainLaborCap", "0.45");
             SpareArms = K("WarriorSpareKits", "2").FloorToInt();
             FireSettingWood = K("FireSettingWoodPerL", "0.5");
             ClearedBelow = K("ForestClearedBelow", "5");
@@ -227,7 +232,7 @@ public sealed partial class LivingEconomyModel
 
         public readonly int CampCrew, CampCrewShaft, CampMinCrew, CampRadius, ShareReach, ShareReachGov04, SpareArms, GrassSeasons;
         public readonly int CharcoalReach, CharcoalReachCarts, MineReach, MineReachCarts, MineReachWater;
-        public readonly Fix64 CampBand, CampEmit, HaulWaterDiv, AccessMin, ReplaceQuality, BreakQuality, RemeltShare, PushCap, ChainCap;
+        public readonly Fix64 CampBand, CampEmit, HaulWaterDiv, AccessMin, ReplaceQuality, BreakQuality, RemeltShare, PushCap, ChainCap, IronPostRouteChainCap;
         public readonly Fix64 FireSettingWood, ClearedBelow, GrassBelow, RestoreAt;
     }
 
@@ -464,9 +469,9 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState s = _settlements[settlementIndex];
         int adults = 0, k8 = 0, k9 = 0, k10 = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             adults++;
             if (f.Kit == 8) k8++; else if (f.Kit == 9) k9++; else if (f.Kit == 10) k10++;
         }
@@ -526,17 +531,17 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         Fix64 sum = Fix64.Zero;
         int n = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id || f.Kit is not (9 or 10) || KitChopRung(f) != 6) continue;
+            if (f.Kit is not (9 or 10) || KitChopRung(f) != 6) continue;
             sum += KitChopRate(f);
             n++;
         }
         // The stone reference is the polished axe (rung 4) at the kits' mean quality, the E2 end of the ladder (docs/MVP/23 §6.3).
         Fix64 quality = Fix64.Zero;
         int q = 0;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == s.Id && f.Kit is 9 or 10) { quality += KitQuality(f); q++; }
+        foreach (FigureState f in Residents(s.Id))
+            if (f.Kit is 9 or 10) { quality += KitQuality(f); q++; }
         Fix64 stone = BaseRate("chop", Fix64.FromInt(2)) * MethodMult(s.Civilization, "chop", 4) * (q == 0 ? Fix64.One : quality / q);
         return (n == 0 ? Fix64.Zero : sum / n, stone);
     }
@@ -576,7 +581,7 @@ public sealed partial class LivingEconomyModel
         if (s.Metal is not null && CivInBronze(s.Civilization))
         {
             Fix64 total = Fix64.Zero;
-            foreach (FigureState f in _figures) if (f.SettlementId == s.Id && f.Camp < 0) total += WorkCapacity(f);
+            foreach (FigureState f in Residents(s.Id)) if (f.Camp < 0) total += WorkCapacity(f);
             MetalPlan plan = PlanMetal(s, total);
             text.Append($" || plan tier {plan.Tier} budget {plan.Budget.ToDoubleForDisplay():F2} of {total.ToDoubleForDisplay():F1} build {plan.BuildNeed.ToDoubleForDisplay():F2} mine {plan.MineNeed.ToDoubleForDisplay():F2} char {plan.CharcoalNeed.ToDoubleForDisplay():F2} smelt {plan.SmeltNeed.ToDoubleForDisplay():F2}");
             for (int r = 0; r < _compiledRecipes.Length; r++)
@@ -630,6 +635,7 @@ public sealed partial class LivingEconomyModel
         if (slot < (int)Good.Count && ToolDurability(from, (Good)slot) > Fix64.Zero) return Fix64.Zero;
         AddStock(from, slot, -moved);
         AddStock(to, slot, moved);
+        RecordSupplyTransfer(from.Id, to.Id, goodId, moved);
         return moved;
     }
 

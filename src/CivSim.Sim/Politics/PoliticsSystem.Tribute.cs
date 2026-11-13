@@ -8,6 +8,8 @@ using CivSim.Sim.World;
 
 namespace CivSim.Sim.Politics;
 
+internal readonly record struct PoliticsSupplyTransfer(int FromSettlement, int ToSettlement, string GoodId, Fix64 Quantity);
+
 /// <summary>A weaker civilization paying tribute to a stronger one under terms (DIP-06, docs/MVP/25 §8).</summary>
 public sealed class Tribute
 {
@@ -24,6 +26,10 @@ public sealed class Tribute
 /// </summary>
 public sealed partial class PoliticsSystem
 {
+    private readonly List<PoliticsSupplyTransfer> _tributeTransfers = new();
+
+    internal IReadOnlyList<PoliticsSupplyTransfer> TributeTransfers => _tributeTransfers;
+
     /// <summary>Share of each subject settlement's food surplus handed over a season (provisional).</summary>
     private static readonly Fix64 TributeSurplusShare = Fix64.FromRatio(1, 10);
     /// <summary>Share of the subject's yearly Dominion flow that moves to the overlord (DIP-06).</summary>
@@ -58,12 +64,9 @@ public sealed partial class PoliticsSystem
         if (!_economy.IronChain || (uint)overlord >= (uint)_civs || (uint)subject >= (uint)_civs || overlord == subject) return false;
         if (_p.Dip06 < 0 || !_research.IsDone(overlord, _p.Dip06) || !_dip.AtWar(overlord, subject)) return false;
         if (IsSubject(overlord) || IsOverlord(subject) || IsSubject(subject)) return false;
-        foreach (Occupation occ in _occupations)
-            if (occ.Civ == overlord && _sCiv[occ.Settlement] == subject || occ.Civ == subject && _sCiv[occ.Settlement] == overlord) return false;
-        foreach (Investment investment in _investments)
-            if (investment.Civ == overlord && investment.TargetCiv == subject || investment.Civ == subject && investment.TargetCiv == overlord) return false;
         if (FieldStrength(overlord) < FieldStrength(subject) * TributeOdds) return false;
-        _dip.MakePeace(overlord, subject, _season);
+        // Terms end the war, so they obey the same lock as peace: no assault on the road, besieging or holding in either direction.
+        if (!TryEndWar(overlord, subject)) return false;
         _tributes.Add(new Tribute { Overlord = overlord, Subject = subject, SinceSeason = _season });
         _tributes.Sort((a, b) => a.Subject.CompareTo(b.Subject));
         _events.Add(new PoliticsEvent(_tick, (byte)overlord, PoliticsEventKind.TributeAgreed, subject, 0, 0));
@@ -88,6 +91,7 @@ public sealed partial class PoliticsSystem
             if (_dip.AtWar(t.Overlord, t.Subject)) { EndTribute(i, 0); continue; }                       // 0: war again
             if (_season - t.SinceSeason >= _trade.TreatySeasons) { EndTribute(i, 1); continue; }          // 1: the term ran out
             if (FieldStrength(t.Subject) > FieldStrength(t.Overlord)) { EndTribute(i, 2); continue; }     // 2: the subject outgrew its terms
+            if (HasFoodExportShortage(t.Subject)) continue;
             for (int s = 0; s < _sCount; s++)
             {
                 if (_sCiv[s] != t.Subject || _free[s]) continue;
@@ -96,7 +100,11 @@ public sealed partial class PoliticsSystem
                 int dest = NearestSettlementOf(t.Overlord, _sTile[s]);
                 if (dest < 0) continue;
                 Fix64 taken = _economy.TakeGoods(s, due, LootPreference.FoodOnly);
-                if (taken > Fix64.Zero) _economy.GiveGoods(dest, taken);
+                if (taken > Fix64.Zero)
+                {
+                    _economy.GiveGoods(dest, taken);
+                    _tributeTransfers.Add(new PoliticsSupplyTransfer(s, dest, "G-FOOD", taken));
+                }
             }
         }
     }

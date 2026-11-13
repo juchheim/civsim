@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
@@ -23,7 +24,13 @@ internal static class FrameDump
         {
             var structures = new int[kinds];
             for (int k = 0; k < kinds; k++) structures[k] = f.SettlementStructures[i * kinds + k];
-            settlements.Add(new { tile = f.SettlementTile[i], civ = (int)f.SettlementCiv[i], population = f.SettlementPopulation[i], food = (int)f.SettlementFood[i], structures, temples = (int)f.SettlementTemples[i], ziggurats = (int)f.SettlementZiggurats[i], zigguratPermille = (int)f.SettlementZigguratPermille[i] });
+            var coreOuter = new List<int[]>();
+            for (int row = 0; row < f.CoreOuterCount; row++)
+                if (f.CoreOuterSettlement[row] == i)
+                    coreOuter.Add(new[] { f.CoreOuterTile[row], f.CoreOuterDistrict[row], f.CoreOuterPosition[row] });
+            settlements.Add(new { index = f.SettlementIndex[i], tile = f.SettlementTile[i], civ = (int)f.SettlementCiv[i], population = f.SettlementPopulation[i], food = (int)f.SettlementFood[i], structures,
+                temples = (int)f.SettlementTemples[i], ziggurats = (int)f.SettlementZiggurats[i], zigguratPermille = (int)f.SettlementZigguratPermille[i],
+                coreFront = (int)f.SettlementCoreFront[i], coreOuter });
         }
         var plots = new List<int[]>();
         for (int i = 0; i < f.PlotCount; i++) plots.Add(new[] { f.PlotTile[i], f.PlotKind[i] });
@@ -39,6 +46,7 @@ internal static class FrameDump
             campBuilt = Slice(f.CampBuilt, f.CampCount), campMineHead = Slice(f.CampMineHead, f.CampCount),
             beacons = Slice(f.BeaconTile, f.BeaconCount),
             figures, herds, settlements, plots,
+            coreDistrictIds = System.Enum.GetNames<CoreDistrict>().Where(name => name != nameof(CoreDistrict.Count)).ToArray(),
         };
         File.WriteAllText(path, JsonSerializer.Serialize(doc));
         System.Console.WriteLine($"wrote frame {path} ({f.FigureCount} figures, {f.SettlementCount} settlements, {f.HerdCount} herds)");

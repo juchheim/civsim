@@ -62,6 +62,7 @@ public static class WorldGenerator
         ApplyStartGuarantees(work, starts, coastDistance);
         PlaceBronzeGeography(work, starts);
         ApplyContinentalGuarantees(work);
+        KeepStartCoresClean(work, starts);
         BuildSurfaceEvidence(work, starts);
         SortFauna(work);
 
@@ -946,18 +947,67 @@ public static class WorldGenerator
         }
         if (CountWildGrainWithin(w, start, 10) < 4)
         {
-            Span<int> neighbors = stackalloc int[6];
-            int count = HexGrid.Neighbors(start, w.Width, w.Height, neighbors);
+            // Seed the stands in ring 2, just outside the village core where fields may later stand (docs/MVP/31 §3.3), then ring 3.
             int placed = 0;
-            SetPointFlag(w, start, TileFlags.WildGrain);
-            placed++;
-            for (int n = 0; n < count && placed < 4; n++)
-            {
-                if (!w.Tiles[neighbors[n]].IsLand || w.Tiles[neighbors[n]].Continent != 0) continue;
-                SetPointFlag(w, neighbors[n], TileFlags.WildGrain);
-                placed++;
-            }
+            for (int ring = SettlementCoreRules.CoreRadius + 1; ring <= SettlementCoreRules.CoreRadius + 2 && placed < 4; ring++)
+                for (int i = 0; i < w.Count && placed < 4; i++)
+                {
+                    if (HexGrid.Distance(start, i, w.Width) != ring) continue;
+                    if (!w.Tiles[i].IsLand || w.Tiles[i].Continent != 0 || (w.Tiles[i].Flags & TileFlags.WildGrain) != 0) continue;
+                    SetPointFlag(w, i, TileFlags.WildGrain);
+                    placed++;
+                }
             w.Repairs++;
+        }
+    }
+
+    /// <summary>
+    /// Clean start cores (docs/MVP/31 §3.3, §9.1): a metal, salt or coal deposit within <see cref="SettlementCoreRules.CoreRadius"/> of a
+    /// west start moves, with its point mirror, to the nearest free land tile two or three hexes from that start (lowest index on ties).
+    /// The start stays where the fairness search put it; only the deposit moves.
+    /// </summary>
+    private static void KeepStartCoresClean(Work w, int[] starts)
+    {
+        const int core = SettlementCoreRules.CoreRadius;
+        for (int s = 0; s < 2; s++)
+        {
+            int start = starts[s];
+            for (int i = 0; i < w.Count; i++)
+            {
+                if (HexGrid.Distance(start, i, w.Width) > core || !SettlementCoreRules.IsValuableCoreDeposit(w.Tiles[i].Deposit)) continue;
+                int target = -1, targetDistance = int.MaxValue;
+                for (int t = 0; t < w.Count; t++)
+                {
+                    int d = HexGrid.Distance(start, t, w.Width);
+                    if (d <= core || d > core + 2 || d > targetDistance) continue;
+                    WorldTile tile = w.Tiles[t];
+                    if (!tile.IsLand || tile.Continent != 0 || tile.Deposit != DepositKind.None || tile.Biome is Biome.Peak or Biome.Ice) continue;
+                    bool inCore = false;
+                    foreach (int other in starts) if (HexGrid.Distance(other, t, w.Width) <= core) inCore = true;
+                    if (inCore) continue;
+                    if (d < targetDistance || t < target) { target = t; targetDistance = d; }
+                }
+                if (target < 0) throw new InvalidOperationException("No free tile beside a start for a deposit moved out of its core.");
+                WorldTile from = w.Tiles[i];
+                DepositKind kind = from.Deposit;
+                byte amount = from.DepositAmount, depth = from.DepositDepth;
+                MarkPointSymmetricTile(w, i, tile =>
+                {
+                    tile.Deposit = DepositKind.None;
+                    tile.DepositAmount = 0;
+                    tile.DepositDepth = 0;
+                    return tile;
+                });
+                MarkPointSymmetricTile(w, target, tile =>
+                {
+                    ApplyDepositHost(ref tile, kind, depth);
+                    tile.Deposit = kind;
+                    tile.DepositAmount = amount;
+                    tile.DepositDepth = depth;
+                    return tile;
+                });
+                w.Repairs++;
+            }
         }
     }
 

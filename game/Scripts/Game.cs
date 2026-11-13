@@ -7,10 +7,13 @@ using System.Linq;
 using System.Threading;
 using CivSim.Sim.Core;
 using CivSim.Sim.Content;
+using CivSim.Sim.Economy;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
 using CivSim.Sim.Research;
+using CivSim.Sim.Politics;
 using CivSim.Game.Looks;
+using CivSim.Game.Ui;
 using Godot;
 
 namespace CivSim.Game;
@@ -297,11 +300,22 @@ public partial class Game : Node3D
 
     private static ulong ReadSeed()
     {
-        foreach (string arg in OS.GetCmdlineUserArgs())
+        string[] args = OS.GetCmdlineUserArgs();
+        foreach (string arg in args)
             if (arg.StartsWith("--seed=", StringComparison.Ordinal) &&
                 ulong.TryParse(arg.Substring(7), NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong seed))
                 return seed;
-        return 20261019UL;
+        // Scripted captures, benchmarks and scenarios depend on a reproducible world.
+        if (args.Any(arg =>
+                arg.StartsWith("--benchmark-", StringComparison.Ordinal) ||
+                arg.StartsWith("--start-minute=", StringComparison.Ordinal) ||
+                arg.StartsWith("--research-era=", StringComparison.Ordinal) ||
+                arg.StartsWith("--screenshot=", StringComparison.Ordinal) ||
+                arg.StartsWith("--scenario=", StringComparison.Ordinal) ||
+                arg.StartsWith("--shots=", StringComparison.Ordinal)))
+            return 20261019UL;
+        // A normal player launch gets a fresh world every time.
+        return (ulong)Random.Shared.NextInt64(1, 1_000_000_000);
     }
 
     private static int ReadStartMinute()
@@ -401,9 +415,26 @@ public partial class Game : Node3D
         return -1;
     }
 
+    private static readonly int WoolStoreSlot = StoreSlotIndex("G-WOOL");
+    private static readonly int ChariotStoreSlot = StoreSlotIndex("G-CHARIOT");
+
+    private static int StoreSlotIndex(string id)
+    {
+        for (int slot = 0; slot < MatchFrame.StoreSlots; slot++)
+            if (LivingEconomyModel.StoreSlotId(slot) == id) return slot;
+        return -1;
+    }
+
+    private static bool HasLocalStock(MatchFrame frame, int settlement, int slot)
+    {
+        if (slot < 0) return false;
+        int at = settlement * MatchFrame.StoreSlots + slot;
+        return (uint)at < (uint)frame.SettlementStores.Length && frame.SettlementStores[at] > 0;
+    }
+
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
-        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null, int[]? decor = null,
-        int figureLimit = 0)
+        MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null,
+        int figureLimit = 0, SimulationSession? session = null)
     {
         int tiles = frame.Width * frame.Height;
         const int figureStride = 11, herdStride = 7;
@@ -558,11 +589,24 @@ public partial class Game : Node3D
                     && (forcedTempleAt < 0 || frame.SettlementPopulation[i] > frame.SettlementPopulation[forcedTempleAt]))
                     forcedTempleAt = i;
 #endif
+        var coreOuterBySettlement = new Godot.Collections.Array[frame.SettlementCount];
+        for (int i = 0; i < coreOuterBySettlement.Length; i++) coreOuterBySettlement[i] = new Godot.Collections.Array();
+        for (int row = 0; row < frame.CoreOuterCount; row++)
+        {
+            int settlementRow = frame.CoreOuterSettlement[row];
+            if ((uint)settlementRow >= (uint)coreOuterBySettlement.Length) continue;
+            var outer = new Godot.Collections.Array();
+            outer.Add(frame.CoreOuterTile[row]);
+            outer.Add((int)frame.CoreOuterDistrict[row]);
+            outer.Add((int)frame.CoreOuterPosition[row]);
+            coreOuterBySettlement[settlementRow].Add(outer);
+        }
         for (int i = 0; i < frame.SettlementCount; i++)
         {
             var structures = new int[kinds];
             for (int kind = 0; kind < kinds; kind++)
                 structures[kind] = frame.SettlementStructures[i * kinds + kind];
+            byte ironPropGoods = frame.Iron.Active && i < frame.Iron.PropGoods.Length ? frame.Iron.PropGoods[i] : (byte)0;
             var settlement = new Godot.Collections.Dictionary
             {
                 ["tile"] = frame.SettlementTile[i],
@@ -574,13 +618,27 @@ public partial class Game : Node3D
                 ["temples"] = (int)frame.SettlementTemples[i],
                 ["ziggurats"] = (int)frame.SettlementZiggurats[i],
                 ["zigguratPermille"] = (int)frame.SettlementZigguratPermille[i],
+                ["coreFront"] = (int)frame.SettlementCoreFront[i],
+                ["coreOuter"] = coreOuterBySettlement[i],
                 ["remembered"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0,
                 ["fireLit"] = (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.FireLit) != 0,
                 ["index"] = frame.SettlementIndex[i],
                 ["cohesion"] = frame.SettlementCohesion[i],
                 ["overreach"] = frame.SettlementOverreach[i],
                 ["spanPenalty"] = frame.SettlementSpanPenalty[i],
+                ["woolStock"] = HasLocalStock(frame, i, WoolStoreSlot),
+                ["chariotStock"] = HasLocalStock(frame, i, ChariotStoreSlot),
+                ["barrelStock"] = (ironPropGoods & IronFrame.PropBarrelStock) != 0,
+                ["plankStock"] = (ironPropGoods & IronFrame.PropPlankStock) != 0,
+                ["blownGlassStock"] = (ironPropGoods & IronFrame.PropBlownGlassStock) != 0,
             };
+            int supplyShortage = frame.SettlementFood[i] >= 2 ? frame.SettlementFood[i] : 0;
+            int econAt = i * EconField.Stride;
+            if ((frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Own) != 0 &&
+                frame.SettlementEcon[econAt + EconField.Valid] != 0 &&
+                frame.SettlementEcon[econAt + EconField.BlockerNeed] > frame.SettlementEcon[econAt + EconField.BlockerHave])
+                supplyShortage = Math.Max(supplyShortage, 2);
+            settlement["supplyShortage"] = supplyShortage;
             // The Iron chapter's works at this settlement (counts per kind, in the order of "ironWorkIds"), the soldiers posted, and the build under way.
             if (frame.Iron.Active && frame.Iron.WorkKinds > 0 && (i + 1) * frame.Iron.WorkKinds <= frame.Iron.Works.Length)
             {
@@ -683,10 +741,12 @@ public partial class Game : Node3D
                 settlement["zigguratPermille"] = forcedZigguratStage >= 4 ? 0 : forcedZigguratStage * 333 - 200;
             }
 #endif
-            // Props the focus civilization's knowledge leaves in its own villages (DecorTable); rivals' settlements show none.
-            if (decor is { Length: > 0 } && frame.SettlementCiv[i] == frame.FocusCiv) settlement["decor"] = decor;
             settlements.Add(settlement);
         }
+#if DEBUG
+        // --dev-core-gallery: six settlements dressed as one of each stage for the settlement-core captures (Game.CoreGallery.cs)
+        if (HasArgument("--dev-core-gallery") && session is not null) ApplyCoreGallery(frame, world, settlements, session);
+#endif
 
         var monuments = new int[frame.MonumentCount * 5];
         for (int i = 0; i < frame.MonumentCount; i++)
@@ -843,6 +903,7 @@ public partial class Game : Node3D
 #endif
 
         byte[] foodOverlay = BuildFoodOverlay(frame);
+        Godot.Collections.Array supplyFlows = BuildSupplyFlows(frame);
         byte[] forecastOverlay = BuildFoodForecastOverlay(frame);
         byte[] methodOverlay = BuildMethodOverlay(frame);
         byte[] methodFallbackOverlay = BuildMethodFallbackOverlay(frame);
@@ -894,6 +955,7 @@ public partial class Game : Node3D
             ["overlayBytes"] = overlayBytes,
             ["e3OverlayBytes"] = e3OverlayBytes,
             ["forestOverlay"] = forestOverlay,
+            ["supplyFlows"] = supplyFlows,
             ["figures"] = figures,
             ["renderedFigureCount"] = renderedFigureCount,
             ["ghosts"] = ghosts,
@@ -933,6 +995,10 @@ public partial class Game : Node3D
             var ironIds = new Godot.Collections.Array();
             for (int k = 0; k < IronWorkKindCount(); k++) ironIds.Add(CivSim.Sim.Economy.LivingEconomyModel.IronWorkId(k));
             payload["ironWorkIds"] = ironIds;
+            var coreDistrictIds = new Godot.Collections.Array();
+            foreach (string name in Enum.GetNames<CoreDistrict>())
+                if (name != nameof(CoreDistrict.Count)) coreDistrictIds.Add(name);
+            payload["coreDistrictIds"] = coreDistrictIds;
         }
         return payload;
     }
@@ -987,6 +1053,40 @@ public partial class Game : Node3D
             data[tile * stride + 3] = frame.PartyGood[i] == 1 ? (byte)4 : (byte)3;
         }
         return data;
+    }
+
+    private static Godot.Collections.Array BuildSupplyFlows(MatchFrame frame)
+    {
+        var flows = new Godot.Collections.Array();
+        void Add(int fromSettlement, int toSettlement, byte kind, string good, double amount)
+        {
+            int fromRow = frame.IndexOfSettlement(fromSettlement), toRow = frame.IndexOfSettlement(toSettlement);
+            if (fromRow < 0 || toRow < 0) return;
+            flows.Add(new Godot.Collections.Dictionary
+            {
+                ["from"] = frame.SettlementTile[fromRow], ["to"] = frame.SettlementTile[toRow],
+                ["kind"] = kind, ["good"] = good, ["label"] = SupplyGoodLabel(good), ["amount"] = amount,
+            });
+        }
+
+        for (int i = 0; i < frame.SupplyTransferCount; i++)
+            Add(frame.SupplyTransferFrom[i], frame.SupplyTransferTo[i],
+                frame.SupplyTransferKind[i] == 1 ? (byte)3 : (byte)0, frame.SupplyTransferGood[i],
+                frame.SupplyTransferAmount[i] / 4294967296.0);
+        for (int i = 0; i < frame.RouteCount; i++)
+        {
+            string good = Enum.GetName(typeof(TradeGood), frame.RouteGood[i]) ?? "Goods";
+            Add(frame.RouteSellerSettlement[i], frame.RouteBuyerSettlement[i], 1, good, frame.RouteVolumePermille[i] / 1000.0);
+        }
+        for (int i = 0; i < frame.PartyCount; i++)
+        {
+            PartyKind kind = (PartyKind)frame.PartyKind[i];
+            if (kind is not (PartyKind.Gift or PartyKind.Barter or PartyKind.Caravan)) continue;
+            byte flowKind = kind is PartyKind.Gift or PartyKind.Barter ? (byte)2 : (byte)1;
+            string good = frame.PartyGood[i] == 0 ? "Food" : Enum.GetName(typeof(TradeGood), frame.PartyGood[i]) ?? "Goods";
+            Add(frame.PartyFrom[i], frame.PartyTo[i], flowKind, good, frame.PartyCargoPermille[i] / 1000.0);
+        }
+        return flows;
     }
 
     private static T[] Slice<T>(T[] values, int count)
@@ -1141,8 +1241,9 @@ public partial class Game : Node3D
                    "dotnet run --project src/CivSim.Cli -c Release -- build-pack --out civsim.pack\n\n" + details,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        label.AddThemeFontSizeOverride("font_size", 24);
-        label.AddThemeColorOverride("font_color", new Color("#f3efe4"));
+        label.AddThemeFontOverride("font", UiTheme.Regular);
+        label.AddThemeFontSizeOverride("font_size", UiTokens.FontHeading);
+        label.AddThemeColorOverride("font_color", UiTokens.TextPrimary);
         layer.AddChild(label);
     }
 
@@ -1434,7 +1535,7 @@ public partial class Game : Node3D
         {
             long started = Stopwatch.GetTimestamp();
             var payload = BuildFramePayload(frame, _session.WorldView, includeWorld: false, _previous, _session.Frames.Figures, _session.Frames.Herds,
-                DecorTable.Known(frame, _catalog), _benchmarkRenderFigureLimit);
+                _benchmarkRenderFigureLimit, _session);
             double payloadMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _visualRenderer.Call("update_frame", payload);
             if (OS.GetCmdlineUserArgs().Contains("--perf-debug"))
@@ -1463,7 +1564,7 @@ public partial class Game : Node3D
             ?? throw new InvalidOperationException("Could not instantiate the M7a low-poly renderer.");
         AddChild(_visualRenderer);
         _visualRenderer.Call("setup_frame", BuildFramePayload(frame, session.WorldView, includeWorld: true,
-            decor: DecorTable.Known(frame, _catalog), figureLimit: _benchmarkRenderFigureLimit));
+            figureLimit: _benchmarkRenderFigureLimit, session: session));
         _camera = _visualRenderer.GetNode<Camera3D>("Camera3D");
     }
 

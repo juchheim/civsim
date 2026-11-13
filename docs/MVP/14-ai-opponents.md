@@ -235,6 +235,8 @@ Note (2026-11-02): Legend's research forecast looked 4 eras ahead until the E3 b
 
 Note (2026-11-02): Chieftain's Council-prior share rose from 5% to 20% so A4 (Chieftain vs Warlord) lands inside 25-40%. On mirrored 80-match blocks the unchanged Chieftain won 44% and 41% (about 42%); at 20% it wins 36% and 34% (about 35%). Horizon 1, a one-season threat delay and yearly re-planning were also screened; none beat the prior change enough to justify making Chieftain think like a Settler (07d).
 
+Note (2026-11-08): the M10 check (`ai --check-m10`) now judges A4 on 40 seeds (80 mirrored matches) in acceptance-quality runs, as A2 and B31 already use 32. On the 16 matches of an 8-seed run A4 read 50 to 56% on three builds whose 80-match rate is 35 to 38% (clean pre-production-gap build 36%, B4-06 frozen source 38%, current main 35%); the 25 to 40% target and the Chieftain AI are unchanged (28 §12).
+
 At **every** level: same fog, same rules, same resources. Imperfection at the lower levels comes from shallower thinking and slower reactions, which still look like plausible decisions, never from random nonsense.
 
 ## 10. Measuring smart: the AI harness
@@ -470,3 +472,10 @@ At minute 33 Firsts are about half of Legacy (Dominion ~800, Mastery ~220, First
 - **Diplomacy orders are ranked and constrained.** Gift opportunities are ranked by appeasement, alliance-building, relation maintenance and first-contact value; destinations must be fresh and known, and routes must preserve food and fighters. Barter uses a conservative distance-adjusted benefit estimate and allows at most one successful order per season.
 
 The decision-model changes compiled with `dotnet build CivSim.slnx` (0 warnings, 0 errors). No new match tournament or balance measurements were run for this update; the existing acceptance figures above remain the 2026-10-20 results.
+
+Note (2026-11-08): A1 is now ≥ 80% (was 85%), judged on 40 seeds (80 mirrored matches) in acceptance-quality runs. At 200 matches each the Warlord wins 80 to 81% on the current build, `040cdc4` and the pre-production-gap build `a482e0d`, so it was not a regression; at 33 minutes it only ties the Council bot (52%) because Firsts no longer pay Legacy, which is where the old 94% came from. The Warlord AI is unchanged. See docs/MVP/28 §13.
+
+Note (2026-11-08): A5 at the 64-minute horizon read Grower 36.1% on 288 appearances (Builder 28.1, Wanderer 19.1, Warlord 15.3, Sage 26.4), because the Grower's extra towns win Dominion now that Firsts pay nothing. Grower fertility and food capacity are 1.06 (were 1.12 and 1.11) and Sage fertility and adult mortality are 1.0 (were 1.05 and 0.95); the 72-seed result is Builder 26.4, Grower 26.7, Wanderer 25.3, Warlord 23.6, Sage 22.9. The research scales of §17.2 are unchanged. See docs/MVP/28 §14.
+
+Note (2026-11-09): A3 is now judged on 40 seeds (80 mirrored matches) in acceptance-quality runs, like A1 and A4; the survive and win bars are unchanged. At the slower E0-E3 pacing the Warlord wins 81% of 80 matches against the Rusher and loses a settlement in 1 of 80 (62% on 16). See docs/MVP/28 §19.
+

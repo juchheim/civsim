@@ -56,13 +56,15 @@ public class ResearchDiffusionTests
         ResearchSystemTestsHelper.ReachEra(rig, 1);
         Close(Fix64.FromInt(22) * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("STN-01")));
         // Snowshoes & Skis [Climate: Cold]: cost x0.7 in a cold home
-        Close(Fix64.FromInt(50) * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("TRN-03")));
+        // The base cost is read from the pack: TRN-03 is a late era-1 project whose cost docs/MVP/28 §16 doubled.
+        Fix64 snowGear = TestPack.Catalog.Projects[rig.P("TRN-03")].Cost;
+        Close(snowGear * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("TRN-03")));
         ResearchSystemTestsHelper.ReachEra(rig, 2);
         Close(Fix64.FromInt(22) * Fix64.Parse("0.7") * Fix64.Parse("0.7"), rig.Research.EffectiveCost(0, rig.P("STN-01")));
     }
 
     [Fact]
-    public void The_first_civilization_to_finish_a_project_earns_Pioneer_and_Legacy()
+    public void The_first_civilization_to_finish_a_project_earns_Pioneer_but_no_extra_Legacy()
     {
         var rig = new ResearchRig(civs: 2);
         rig.Do(rig.Grant(0, "FIR-03"));
@@ -70,16 +72,16 @@ public class ResearchDiffusionTests
         Assert.Equal(0, rig.Research.FirstBy(rig.P("FIR-03")));
         Assert.True(rig.Research.IsPioneer(0, rig.P("FIR-03")));
         Assert.False(rig.Research.IsPioneer(1, rig.P("FIR-03")));
-        Assert.Equal(Fix64.FromInt(3), rig.Research.FirstsLegacy(0)); // First = 3 x (era + 1) (docs/MVP/22 §3.3)
-        Assert.Equal(Fix64.Zero, rig.Research.FirstsLegacy(1));
+        Assert.Equal(rig.Research.MasteryLegacy(0), rig.Research.MasteryLegacy(1)); // Firsts pay no Legacy (2026-11-06)
+        Assert.Equal(rig.Research.ThrivingLegacy(0), rig.Research.ThrivingLegacy(1));
         // Pioneer: +10% to the project's own modifiers, for that civilization only (Commons +10% becomes +11%)
         Close(Fix64.Parse("1.11"), rig.Research.ModifierMultiplier(0, "commons_insight"));
         Close(Fix64.Parse("1.1"), rig.Research.ModifierMultiplier(1, "commons_insight"));
         Assert.Single(rig.Events(ResearchEventKind.FirstClaimed, "FIR-03"));
-        // Keystones are worth four times a First (docs/MVP/22 §3.3): 13 era-0 projects at 3 plus KEY-1 at 12
+        // Mastery counts every completion alike, keystones included: 13 era-0 projects and KEY-1 at 2 each
         var keys = new ResearchRig();
         ResearchInsightTests.GrantEraOne(keys);
-        Assert.Equal(Fix64.FromInt(13 * 3 + 12), keys.Research.FirstsLegacy(0));
+        Assert.Equal(Fix64.FromInt(14 * 2), keys.Research.MasteryLegacy(0));
     }
 }
 

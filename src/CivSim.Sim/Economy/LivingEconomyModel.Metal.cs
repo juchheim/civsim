@@ -82,6 +82,7 @@ public sealed partial class LivingEconomyModel
         public Fix64 CampWork;
         public Fix64 TotalWork;
         public Fix64 PushCap;
+        public bool IronKitCapMarginApplied;
         public Fix64 PrimaryChain;
         public Fix64 SecondaryChain;
         public Fix64 PrimaryScale = Fix64.One;
@@ -95,6 +96,9 @@ public sealed partial class LivingEconomyModel
     private Fix64[] _metalBarter = Array.Empty<Fix64>();
     /// <summary>Harness tracing of the craft step; null (and free) in matches.</summary>
     internal System.Text.StringBuilder? MetalDebug;
+    internal int MetalDebugSettlementId = -1;
+    internal int MetalDebugSeasonFrom = int.MinValue;
+    internal int MetalDebugSeasonThrough = int.MaxValue;
     private SortedSet<int>? _b12MiningTraceCaptured;
     private SortedList<int, int>? _b12T18FirstCastSeason;
     internal bool B12MiningWantTraceEnabled { get; set; }
@@ -272,6 +276,20 @@ public sealed partial class LivingEconomyModel
         return (_bronzeConstants.BreakQuality - _bronzeConstants.ReplaceQuality) / slope;
     }
 
+    private void ApplyKitWear(FigureState figure, Fix64 work)
+    {
+        if (figure.Kit == 0) return;
+        int tier = figure.Kit;
+        RecordIT6IronKitWork(figure.Civilization, tier, work);
+        figure.KitLeft -= work;
+        if (figure.KitLeft <= KitBreakLeft(tier))
+        {
+            RecordIT6IronKitBreak(figure.Civilization, figure.SettlementId, tier);
+            figure.Kit = 0;
+            figure.KitLeft = Fix64.Zero;
+        }
+    }
+
     /// <summary>The figure's kit multiplier for a stat, applied once whatever the civilization knows (docs/MVP/23 §1.3).</summary>
     private Fix64 KitMod(FigureState f, string stat)
         => f.Kit != 0 && _tierDefs[f.Kit] is { } def ? def.Mod(stat) : Fix64.One;
@@ -351,28 +369,23 @@ public sealed partial class LivingEconomyModel
     {
         int civ = s.Civilization;
         // Wear by the season's tool work; a kit that cannot be replaced is worked on to its break point (the dormancy tail).
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Kit == 0) continue;
-            int wornTier = f.Kit;
-            RecordIT6IronKitWork(civ, wornTier, toolWork[i]);
-            f.KitLeft -= toolWork[i];
-            if (f.KitLeft <= KitBreakLeft(f.Kit))
-            {
-                RecordIT6IronKitBreak(civ, wornTier);
-                f.Kit = 0; f.KitLeft = Fix64.Zero;
-            }
+            if (f.Kit == 0) continue;
+            ApplyKitWear(f, toolWork[f.Index]);
         }
-        // The Iron chapter hands out its own kits first; the Bronze hand-out below then only serves who is left.
-        if (IronChain) IssueIronKits(s, m);
+        // Move idle Iron kits to current tool workers before making new assignments, then hand out any stock.
+        if (IronChain)
+        {
+            ReassignIdleIronKitsToToolWorkers(s, toolWork);
+            IssueIronKits(s, m, toolWork);
+        }
         // Hand out the kits in stock: those without a kit first, then worn kits, then upgrades, oldest kits first.
         var order = new List<int>();
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
-            if (f.Kit == 0 || f.KitLeft <= Fix64.Zero || (tier != 0 && Rank(f.Kit) < Rank(tier))) order.Add(i);
+            if (f.Age < 14) continue;
+            if (f.Kit == 0 || f.KitLeft <= Fix64.Zero || (tier != 0 && Rank(f.Kit) < Rank(tier))) order.Add(f.Index);
         }
         order.Sort((a, b) =>
         {
@@ -403,10 +416,16 @@ public sealed partial class LivingEconomyModel
                 m.Goods[(int)MetalGood.Copper] += copper;
                 AddMetalStat(civ, StatRemeltCopper, copper);
             }
+            // A worn Iron kit can still be in its dormancy tail (KitLeft <= 0 but
+            // above the break point). If Iron stock cannot replace it, the Bronze
+            // hand-out below may overwrite it; account for that physical retirement.
+            if (f.Kit is 11 or 12)
+                RecordIT6IronKitRetired(civ, s.Id, f.Kit, Fix64.One, "bronze-kit-overwrite");
             m.Goods[(int)KitGood(give)] -= Fix64.One;
             f.Kit = (byte)give;
             f.KitLeft = ServiceOf(give);
         }
+        RecordIT6ToolWorkers(s, toolWork);
     }
 
     // ---- access, sharing and the best tier ---------------------------------------------------------
@@ -482,6 +501,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private void BronzeSeasonStart(int season)
     {
+        InvalidateIronFuelHubAssignments();
         for (int i = 0; i < _settlements.Count; i++)
         {
             SettlementState s = _settlements[i];
@@ -540,6 +560,7 @@ public sealed partial class LivingEconomyModel
 
                     donor.Stores[wood] -= moved;
                     receiver.Stores[wood] += moved;
+                    RecordSupplyTransfer(donor.Id, receiver.Id, "G-WOOD", moved);
                     RecordLocalWoodUse(donor, moved, "other");
                     RecordLocalWoodInflow(receiver, moved, chop: false);
                     deficit -= moved;
@@ -620,6 +641,7 @@ public sealed partial class LivingEconomyModel
                             receiverTransfer += move;
                         dm.Goods[g] -= move;
                         rm.Goods[g] += move;
+                        RecordSupplyTransfer(donor.Id, receiver.Id, MetalGoodId(SharedGoods[k]), move);
                         need -= move;
                     }
                 }
@@ -644,12 +666,13 @@ public sealed partial class LivingEconomyModel
                         if (move <= Fix64.Zero) continue;
                         dm.Goods[g] -= move;
                         rm.Goods[g] += move;
+                        RecordSupplyTransfer(donor.Id, receiver.Id, MetalGoodId((MetalGood)g), move);
                         need -= move;
                         surplus -= move;
                     }
                 }
             }
-            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach); SharePublicGrain(civ, reach); }
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
@@ -704,6 +727,7 @@ public sealed partial class LivingEconomyModel
                 byte bit = SourceBit(civ, tile);
                 if (bit != 0 && (access & bit) == 0 && IsOwnTile(civ, tile)) access |= bit;
             }
+        if (IronFuelHubsEnabled(civ) && IronOreSupplierForHub(s) is not null) access |= AccessIron;
         return access;
     }
 
@@ -865,8 +889,13 @@ public sealed partial class LivingEconomyModel
         if (id is "make_wheel" or "build_cart" or "build_chariot") labor *= Modifier(s.Civilization, "wheel_and_cart_labor");
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
+        // A water mill turns the saw, the bellows and the forge hammer (NRG-03): half the labor for the sawyers and smiths of a mill town, the charcoal unchanged.
+        if (IronChain && IronWorksCount(s, IronStructure.WaterMill) > 0 && (r.Def.Bellows || IsMillPowered(id))) labor *= _civic.MillLabor;
         return labor;
     }
+
+    private static bool IsMillPowered(string recipeId)
+        => recipeId is "saw_planks" or "forge_wrought" or "carburize_steel" or "make_tool11" or "make_tool12" or "make_iron_arms" or "make_steel_arms";
 
     private MetalPlan PlanMetal(SettlementState s, Fix64 totalWork)
     {
@@ -880,10 +909,9 @@ public sealed partial class LivingEconomyModel
         int adults = 0, needKits = 0, rung6Adults = 0;
         Fix64 chopSum = Fix64.Zero;
         Fix64 e2Chop = ActionRate("chop", Fix64.FromInt(2), s, "chop") * Modifier(civ, "wood_yield");
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(s.Id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != s.Id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             adults++;
             if (f.Kit is 9 or 10) rung6Adults++;
             Fix64 kitRate = KitChopRate(f);
@@ -899,12 +927,18 @@ public sealed partial class LivingEconomyModel
 
         // Kits and arms come first; the other goods get what is left of the push cap (docs/MVP/23 §7.3).
         PrimaryWants(s, m, plan, pop, needKits);
-        var primaryTerminal = (Fix64[])plan.Terminal.Clone();
+        var primaryTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
+        SecondaryWants(s, m, plan, pop);
+        var fullTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
+        Fix64 ironFuelDemandScale = IronFuelTerminalDemandScale(s, plan, fullTerminalUnscaled);
+        Fix64[] primaryTerminal = ScaleIronFuelTerminalDemand(primaryTerminalUnscaled, ironFuelDemandScale);
+        Fix64[] fullTerminal = ScaleIronFuelTerminalDemand(fullTerminalUnscaled, ironFuelDemandScale);
+        Array.Copy(primaryTerminal, plan.Terminal, plan.Terminal.Length);
         ExpandWants(s, plan);
         var primaryBatches = (Fix64[])plan.Batches.Clone();
         var primaryWant = (Fix64[])plan.Want.Clone();
         (Fix64 mineA, Fix64 charA, Fix64 smeltA) = ChainLabor(s, plan);
-        SecondaryWants(s, m, plan, pop);
+        Array.Copy(fullTerminal, plan.Terminal, plan.Terminal.Length);
         ExpandWants(s, plan);
         (Fix64 mineAll, Fix64 charAll, Fix64 smeltAll) = ChainLabor(s, plan);
 
@@ -914,7 +948,6 @@ public sealed partial class LivingEconomyModel
             // The ore wants stay in the plan above so a MineHead is still chosen; the labor and batches of everything that
             // would consume an ore nobody can dig are planned again without it.
             plan.BlockedOres = blocked;
-            Fix64[] fullTerminal = (Fix64[])plan.Terminal.Clone();
             Array.Copy(primaryTerminal, plan.Terminal, plan.Terminal.Length);
             ExpandWants(s, plan);
             primaryBatches = (Fix64[])plan.Batches.Clone();
@@ -925,8 +958,31 @@ public sealed partial class LivingEconomyModel
             (mineAll, charAll, smeltAll) = ChainLabor(s, plan);
         }
         plan.BuildCap = totalWork * _bronzeConstants.PushCap * BuildCapMultiplier;
+        if (IronFuelHubsEnabled(civ) && !Done(civ, "MET-09"))
+            plan.BuildCap *= IronPreRouteBuildCapMultiplier;
         plan.BuildNeed = plan.BuildRequested;
         Fix64 cap = totalWork * _bronzeConstants.ChainCap * ChainCapMultiplier;
+        // Preserve the calibration's original fixed-point operation order: base cap first, then the post-route ratio.
+        // The mathematically equivalent absolute cap can round differently and shift discrete kit transfers.
+        if (IronChain && Done(civ, "MET-09"))
+            cap *= _bronzeConstants.IronPostRouteChainCap / _bronzeConstants.ChainCap;
+        // A local Iron hub that is below the 70% usable-holder floor gets a production margin until the next season's
+        // coverage recovers. The 20% margin closes short route windows where the ordinary push cap leaves a few workers
+        // unequipped; it expires as soon as the floor is met. Compact steel batches keep their existing 10% margin.
+        bool undercoveredIronKitHub = IronChain && IronFuelHubsEnabled(civ) && Done(civ, "MET-09") &&
+            IronFuelHubFor(s).Id == s.Id && IronToolWorkersBelowCoverageFloorLastSeason(s);
+        bool compactSteelKitBatch = IronChain && IronFuelHubsEnabled(civ) && Done(civ, "MET-10") && IronFuelHubFor(s).Id == s.Id &&
+            Population(s.Id) < 20 && IronToolWorkersLackingLastSeason(s) > 0 && IronStock(s, IronGood.Steel) > Fix64.Zero;
+        if (undercoveredIronKitHub)
+        {
+            cap *= Fix64.FromRatio(6, 5);
+            plan.IronKitCapMarginApplied = true;
+        }
+        else if (compactSteelKitBatch)
+        {
+            cap *= Fix64.FromRatio(11, 10);
+            plan.IronKitCapMarginApplied = true;
+        }
         if (s.FoodSecurity < Fix64.FromRatio(8, 10)) cap *= Fix64.Half;
         // Building the forge, furnaces and mine heads is construction, not the push: it takes up to another tenth of the
         // work (MetalPushLaborCap bounds the chain itself, docs/MVP/23 §7.3), so a slow build cannot starve the kits.
@@ -1049,13 +1105,12 @@ public sealed partial class LivingEconomyModel
             B12T18PlanSnapshots ??= new List<B12T18PlanSnapshot>();
             Fix64 adultUnusedWork = Fix64.Zero;
             Fix64 childUnusedWork = Fix64.Zero;
-            foreach (FigureState figure in _figures)
-                if (figure.SettlementId == s.Id)
-                {
-                    Fix64 unused = Fix64.Max(Fix64.Zero, WorkCapacity(figure) - figure.WorkThisSeason);
-                    if (figure.Age >= 14) adultUnusedWork += unused;
-                    else childUnusedWork += unused;
-                }
+            foreach (FigureState figure in Residents(s.Id))
+            {
+                Fix64 unused = Fix64.Max(Fix64.Zero, WorkCapacity(figure) - figure.WorkThisSeason);
+                if (figure.Age >= 14) adultUnusedWork += unused;
+                else childUnusedWork += unused;
+            }
             B12T18PlanSnapshots.Add(new B12T18PlanSnapshot(s.Id, s.Civilization, season, plan.Tier,
                 censusMetal.BuildKind.ToString(), plan.Adults, plan.Rung6Adults, censusMetal.Forges, censusMetal.Smelters, plan.TotalWork, plan.PushCap,
                 s.FoodSecurity, s.LateWinterForecast,
@@ -1223,6 +1278,12 @@ public sealed partial class LivingEconomyModel
         IronArmsWant(s, m, plan);
         IronEngineWant(s, m, plan);
         IronCraftWants(s, m, plan);
+        Fix64 ironHubOreNeed = SisterIronOreDeficit(s);
+        if (ironHubOreNeed > Fix64.Zero)
+        {
+            plan.Terminal[MetalSlot(MetalGood.IronOre)] += ironHubOreNeed;
+            plan.SisterTerminal[MetalSlot(MetalGood.IronOre)] += ironHubOreNeed;
+        }
         int reach = ShareReach(civ);
         if (reach >= 0)
         {
@@ -1369,7 +1430,7 @@ public sealed partial class LivingEconomyModel
         if ((m.Access & (SourceCopper | AccessCopper)) != 0) potential[MetalSlot(MetalGood.CopperOre)] = Plenty;
         if ((m.Access & (SourceArsenic | AccessArsenic)) != 0) potential[MetalSlot(MetalGood.ArsenicalOre)] = Plenty;
         if ((m.Access & (SourceTin | AccessTin)) != 0) potential[MetalSlot(MetalGood.TinOre)] = Plenty;
-        if (IronChain && (m.Access & SourceIron) != 0) potential[MetalSlot(MetalGood.IronOre)] = Plenty; // a camp can open on it
+        if (IronChain && (m.Access & (SourceIron | AccessIron)) != 0) potential[MetalSlot(MetalGood.IronOre)] = Plenty; // own or shared hub supply
         if (blockedOres is not null)
             for (int slot = 0; slot < PlanSlots; slot++)
                 if (blockedOres[slot]) potential[slot] = Stock(s, slot);
@@ -1414,6 +1475,7 @@ public sealed partial class LivingEconomyModel
     private bool CanObtainOre(SettlementState s, MetalGood ore)
     {
         MetalState m = s.Metal!;
+        if (ore == MetalGood.IronOre && (m.Access & AccessIron) != 0) return true;
         byte stored = ore switch { MetalGood.CopperOre => AccessCopper, MetalGood.ArsenicalOre => AccessArsenic, _ => AccessTin };
         if ((m.Access & stored) != 0) return true;
         int civ = s.Civilization;
@@ -1499,13 +1561,16 @@ public sealed partial class LivingEconomyModel
         }
         if (m.BuildKind == MetalBuild.None)
         {
+            bool ironHubNeedsChain = IronChain && Done(civ, "MET-09") && IronFuelHubFor(s).Id == s.Id &&
+                (IronKitsLacking(s) > 0 || SisterKitDeficit(s) > Fix64.Zero);
             bool smelting = plan.Want[MetalSlot(MetalGood.CopperOre)] > Fix64.Zero || plan.Want[MetalSlot(MetalGood.ArsenicalOre)] > Fix64.Zero ||
                             plan.Want[MetalSlot(MetalGood.TinOre)] > Fix64.Zero || plan.Want[MetalSlot(MetalGood.Copper)] > Fix64.Zero ||
                             plan.Want[MetalSlot(MetalGood.Bronze)] > Fix64.Zero || plan.Want[MetalSlot(MetalGood.ArsenicalBronze)] > Fix64.Zero ||
-                            plan.Tier != 0; // kits need smelted metal even before the furnace exists to plan it
-            bool casting = plan.Tier != 0 || plan.Terminal[MetalSlot(MetalGood.Arms1)] > Fix64.Zero;
+                            plan.Tier != 0 || ironHubNeedsChain && m.Forges > 0; // Iron hubs need a bloomery even without a local Bronze tier
+            bool casting = plan.Tier != 0 || plan.Terminal[MetalSlot(MetalGood.Arms1)] > Fix64.Zero || ironHubNeedsChain;
             // Every settlement that can cast builds its own forge, then a furnace (docs/MVP/23 §7.3: the chain is per settlement).
-            if (Done(civ, "MET-03") && m.Forges == 0 && casting && MaterialsObtainable(s, MetalBuild.Forge)) m.BuildKind = MetalBuild.Forge;
+            bool mayBuildForge = !IronFuelHubsEnabled(civ) || !Done(civ, "MET-09") || IronFuelHubFor(s).Id == s.Id;
+            if (Done(civ, "MET-03") && m.Forges == 0 && casting && mayBuildForge && MaterialsObtainable(s, MetalBuild.Forge)) m.BuildKind = MetalBuild.Forge;
             else if (smelting && m.Forges > 0 && s.Structures[(int)Structure.Kiln] == 0 && m.Smelters == 0 && CanBuild(civ, Structure.Kiln) &&
                      MaterialsObtainable(s, MetalBuild.Kiln)) m.BuildKind = MetalBuild.Kiln;
             else if (smelting && m.Forges > 0 && Done(civ, "FIR-09") && m.Smelters == 0 && MaterialsObtainable(s, MetalBuild.Smelter)) m.BuildKind = MetalBuild.Smelter;
@@ -1876,7 +1941,9 @@ public sealed partial class LivingEconomyModel
         Fix64 metalPool = (plan.CharcoalAssigned + plan.SmeltAssigned) * specialist + spare;
         bool arsenic = false;
         bool fuelShort = false;
-        bool traceSettlement = MetalDebug is not null;
+        bool traceSettlement = MetalDebug is not null &&
+            (MetalDebugSettlementId < 0 || s.Id == MetalDebugSettlementId) &&
+            season >= MetalDebugSeasonFrom && season <= MetalDebugSeasonThrough;
         if (traceSettlement)
         {
             Fix64 rangeStone = Fix64.Zero;
@@ -1884,19 +1951,52 @@ public sealed partial class LivingEconomyModel
             Fix64 dressPlan = Fix64.Zero;
             for (int r = 0; r < _compiledRecipes.Length; r++)
                 if (_compiledRecipes[r].Def.Id == "dress_stone") { dressPlan = plan.Batches[r]; break; }
-            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2}");
+            var ironPlan = new System.Text.StringBuilder();
+            for (int r = 0; r < _compiledRecipes.Length; r++)
+            {
+                CompiledRecipe recipe = _compiledRecipes[r];
+                if (recipe.OutputSlot < IronSlotBase) continue;
+                if (ironPlan.Length > 0) ironPlan.Append(' ');
+                ironPlan.Append(recipe.Def.Id).Append('=').Append(plan.Batches[r].ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} metalPool {metalPool.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2} " +
+                $"work={plan.TotalWork.ToDoubleForDisplay():F2} pushCap={plan.PushCap.ToDoubleForDisplay():F2} kitCapMargin={plan.IronKitCapMarginApplied} chainPrimary={plan.PrimaryChain.ToDoubleForDisplay():F2}x{plan.PrimaryScale.ToDoubleForDisplay():F2} chainSecondary={plan.SecondaryChain.ToDoubleForDisplay():F2}x{plan.SecondaryScale.ToDoubleForDisplay():F2} assigned(mine/char/smelt)={plan.MineAssigned.ToDoubleForDisplay():F2}/{plan.CharcoalAssigned.ToDoubleForDisplay():F2}/{plan.SmeltAssigned.ToDoubleForDisplay():F2} " +
+                $"ironStock ore={m.Goods[(int)MetalGood.IronOre].ToDoubleForDisplay():F2} iron={m.Goods[(int)MetalGood.Iron].ToDoubleForDisplay():F2} charcoal={m.Goods[(int)MetalGood.Charcoal].ToDoubleForDisplay():F2} wrought={IronStock(s, IronGood.Wrought).ToDoubleForDisplay():F2} steel={IronStock(s, IronGood.Steel).ToDoubleForDisplay():F2} T11={IronStock(s, IronGood.Kit11).ToDoubleForDisplay():F2} T12={IronStock(s, IronGood.Kit12).ToDoubleForDisplay():F2}; ironPlan {ironPlan}");
         }
+        Fix64 earlyIronKit12Made = Fix64.Zero;
+        bool earlyIronKit12Attempted = false;
         for (int r = 0; r < _compiledRecipes.Length; r++)
         {
             CompiledRecipe recipe = _compiledRecipes[r];
+            if (recipe.IsCharcoal)
+            {
+                if (plan.Batches[r] > Fix64.Zero && RecipeAvailable(s, recipe))
+                {
+                    Fix64 charcoalMade = BurnCharcoal(s, m, recipe, plan,
+                        Fix64.Min(plan.Batches[r], CharcoalNeededNow(s, plan, r)), ref metalPool, ref craftLeft, out fuelShort);
+                    if (traceSettlement)
+                        MetalDebug!.Append($" {recipe.Def.Id}:{plan.Batches[r].ToDoubleForDisplay():F2}->{charcoalMade.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                    if (charcoalMade > Fix64.Zero) RecordRecipe(civ, recipe, charcoalMade, OutputQuantity(s, recipe));
+                }
+                if (!earlyIronKit12Attempted)
+                {
+                    earlyIronKit12Attempted = true;
+                    earlyIronKit12Made = PrioritizeExistingIronKit12(s, m, plan, ref metalPool, ref craftLeft);
+                    if (traceSettlement)
+                        MetalDebug!.Append($" early-existing-steel-tool12:{earlyIronKit12Made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                }
+                continue;
+            }
             if (plan.Batches[r] <= Fix64.Zero || !RecipeAvailable(s, recipe)) continue;
+            Fix64 planned = recipe.Def.Id == "make_tool12"
+                ? Fix64.Max(Fix64.Zero, plan.Batches[r] - earlyIronKit12Made)
+                : plan.Batches[r];
+            if (planned <= Fix64.Zero) continue;
             if (recipe.OutputSlot == MetalSlot(MetalGood.Ashlar)) QuarryBlocks(s, m, plan, ref craftLeft);
             if (recipe.OutputSlot == MetalSlot(MetalGood.Salted)) PanSalt(s, m, plan, season, ref craftLeft);
-            Fix64 made = recipe.IsCharcoal
-                ? BurnCharcoal(s, m, recipe, plan, Fix64.Min(plan.Batches[r], CharcoalNeededNow(s, plan, r)), ref metalPool, ref craftLeft, out fuelShort)
-                : RunRecipe(s, recipe, plan.Batches[r], plan.AnyMetalKit, ref metalPool, ref craftLeft);
+            Fix64 made = RunRecipe(s, recipe, planned, plan.AnyMetalKit, ref metalPool, ref craftLeft);
             if (traceSettlement)
-                MetalDebug!.Append($" {recipe.Def.Id}:{plan.Batches[r].ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                MetalDebug!.Append($" {recipe.Def.Id}:{planned.ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
             if (made <= Fix64.Zero) continue;
             RecordRecipe(civ, recipe, made, OutputQuantity(s, recipe));
             if (recipe.Def.Id == "cosmelt_arsenical") arsenic = true;
@@ -1905,8 +2005,8 @@ public sealed partial class LivingEconomyModel
         m.FuelShortSeasons = fuelShort ? m.FuelShortSeasons + 1 : 0;
         RecordIT6FuelShort(civ, fuelShort, Done(civ, "MET-09"));
         if (arsenic && Done(civ, "MET-04"))
-            foreach (FigureState f in _figures)
-                if (f.SettlementId == s.Id && f.Task == MetalTask.Smelt) f.Task = MetalTask.SmeltArsenic;
+            foreach (FigureState f in Residents(s.Id))
+                if (f.Task == MetalTask.Smelt) f.Task = MetalTask.SmeltArsenic;
 
         // 5. Kits: wear by this season's tool work, then hand out what was cast.
         WearAndIssueKits(s, m, plan.Tier, toolWork);
@@ -1924,7 +2024,7 @@ public sealed partial class LivingEconomyModel
 
         // 7. Statistics for the harness (T17): labor, people.
         Fix64 work = Fix64.Zero;
-        foreach (FigureState f in _figures) if (f.SettlementId == s.Id) work += f.WorkThisSeason;
+        foreach (FigureState f in Residents(s.Id)) work += f.WorkThisSeason;
         AddMetalStat(civ, StatLabor, work);
         // Metal labor is what the chain used: the reserved labor less what the recipes left idle, plus the camp crews' work.
         Fix64 idleMetal = Fix64.Min(metalPool, plan.CharcoalAssigned + plan.SmeltAssigned + spare);
@@ -2058,7 +2158,7 @@ public sealed partial class LivingEconomyModel
         Fix64 localWoodBefore = Fix64.Zero, woodFactorBefore = Fix64.Zero;
         if (traceFuelSupply)
         {
-            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore) = IT6ReachWood(s);
+            (reachableWoodBefore, harvestableWoodBefore, _, inRangeWoodBefore, outerReachWoodBefore, _) = IT6ReachWood(s);
             localWoodBefore = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve);
             woodFactorBefore = IronWoodFactor(s, m);
         }
@@ -2085,8 +2185,8 @@ public sealed partial class LivingEconomyModel
         }
         // Then the range's standing stock, cut across its forest tiles in proportion to what each holds (clamps move through
         // the woods, as metal_sim.py draws), so coppiced stands regrow everywhere; then beyond the range, nearest first, hauled.
-        int reach = Done(s.Civilization, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
-        int[] tiles = ReachTiles(s.SiteTile, reach);
+        int reach = IronFuelCharcoalReach(s);
+        (int Tile, int HaulDistance)[] tiles = IronFuelWoodSources(s, reach);
         Fix64 haulDivisor = Done(s.Civilization, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
         Fix64 inRange = Fix64.Zero;
         foreach (int tile in RangeTiles(s.SiteTile))
@@ -2126,15 +2226,17 @@ public sealed partial class LivingEconomyModel
                 m.ClampTile = most;
             }
         }
-        foreach (int tile in tiles)
+        foreach ((int tile, int routeDistance) in tiles)
         {
             if (planned <= Fix64.Zero || metalPool + craftPool <= Fix64.Zero) break;
-            int distance = HexGrid.Distance(s.SiteTile, tile, _world.Width);
+            int distance = routeDistance;
             if (distance <= Radius) continue;
             if (!IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
             Fix64 available = StandingWoodAvailableToIron(tile);
             if (available <= Fix64.Zero) continue;
             Fix64 haul = HaulPerLitreTile * distance / haulDivisor;
+            if (IronFuelHubsEnabled(s.Civilization) && distance > IronFuelDomesticCharcoalReach(s))
+                haul *= IronFuelOuterHaulMultiplier;
             Fix64 perBatch = burn + woodPer / plan.MeanChopRate + haul;
             Fix64 batches = Fix64.Min(planned, available / woodPer);
             if (perBatch > Fix64.Zero) batches = Fix64.Min(batches, (metalPool + craftPool) / perBatch);
@@ -2170,7 +2272,7 @@ public sealed partial class LivingEconomyModel
     private int[] ReachTiles(int site, int reach)
     {
         int[]? cached = _reachTiles[site];
-        if (cached is not null && cached.Length > 0 && HexGrid.Distance(site, cached[^1], _world.Width) >= Math.Min(reach, 12)) return Filter(cached, site, reach);
+        if (cached is not null && cached.Length > 0 && HexGrid.Distance(site, cached[^1], _world.Width) >= reach) return Filter(cached, site, reach);
         var list = new List<int>();
         int max = Math.Max(reach, 12);
         int width = _world.Width, height = _world.Height;
@@ -2219,8 +2321,8 @@ public sealed partial class LivingEconomyModel
     private Fix64 QuarryRate(SettlementState s)
     {
         Fix64 best = Fix64.One;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == s.Id && f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
+        foreach (FigureState f in Residents(s.Id))
+            if (f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
         return BaseRate("quarry", Fix64.FromInt(2)) * best;
     }
 
@@ -2294,7 +2396,7 @@ public sealed partial class LivingEconomyModel
     private int CampCrewCount(MiningCampState camp)
     {
         int n = 0;
-        foreach (FigureState f in _figures) if (f.Camp == camp.Id) n++;
+        foreach (FigureState f in Residents(camp.Parent)) if (f.Camp == camp.Id) n++;
         return n;
     }
 
@@ -2314,18 +2416,17 @@ public sealed partial class LivingEconomyModel
         {
             MiningCampState camp = _camps[c];
             SettlementState parent = _settlements[camp.Parent];
-            foreach (FigureState f in _figures)
-                if (f.Camp == camp.Id && f.SettlementId != parent.Id) f.Camp = -1;
             int cap = Math.Clamp(camp.Target, _bronzeConstants.CampMinCrew, CampCrewCap(parent.Civilization));
             int crew = CampCrewCount(camp);
-            for (int i = _figures.Count - 1; i >= 0 && crew > cap; i--)
-                if (_figures[i].Camp == camp.Id) { _figures[i].Camp = -1; crew--; }
+            List<FigureState> residents = Residents(parent.Id);
+            for (int i = residents.Count - 1; i >= 0 && crew > cap; i--)
+                if (residents[i].Camp == camp.Id) { residents[i].Camp = -1; crew--; }
             if (crew < cap)
             {
-                for (int i = 0; i < _figures.Count && crew < cap; i++)
+                for (int i = 0; i < residents.Count && crew < cap; i++)
                 {
-                    FigureState f = _figures[i];
-                    if (f.SettlementId != parent.Id || f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
+                    FigureState f = residents[i];
+                    if (f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
                     if (f.Id == parent.FireKeeperId) continue;
                     f.Camp = camp.Id;
                     crew++;
@@ -2334,7 +2435,7 @@ public sealed partial class LivingEconomyModel
             bool exhausted = _ore[camp.Tile] <= Fix64.Zero;
             if (exhausted || crew < _bronzeConstants.CampMinCrew || Population(parent.Id) == 0 || !CivInBronze(parent.Civilization))
             {
-                foreach (FigureState f in _figures) if (f.Camp == camp.Id) f.Camp = -1;
+                foreach (FigureState f in residents) if (f.Camp == camp.Id) f.Camp = -1;
                 _camps.RemoveAt(c);
             }
         }
@@ -2359,10 +2460,9 @@ public sealed partial class LivingEconomyModel
             Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor;
             Fix64 idle = Fix64.Zero;
             int crewCount = 0;
-            for (int i = 0; i < _figures.Count; i++)
+            foreach (FigureState f in Residents(s.Id))
             {
-                FigureState f = _figures[i];
-                if (f.Camp != camp.Id || f.SettlementId != s.Id) continue;
+                if (f.Camp != camp.Id) continue;
                 Fix64 available = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
                 if (available <= Fix64.Zero) continue;
                 Fix64 used = Fix64.Zero;
@@ -2405,7 +2505,7 @@ public sealed partial class LivingEconomyModel
                 if (used <= Fix64.Zero) continue;
                 Assign(f, EconomyJob.Gather, used);
                 if (f.Task == 0) f.Task = MetalTask.Mine;
-                toolWork[i] += used;
+                toolWork[f.Index] += used;
                 total += used;
             }
             // The crew follows the need: one more miner while ore falls short, one fewer while a miner's work goes unused.
@@ -2434,6 +2534,7 @@ public sealed partial class LivingEconomyModel
         {
             MetalGood good = (MetalGood)g;
             if (good is not (MetalGood.CopperOre or MetalGood.ArsenicalOre or MetalGood.TinOre) && !(IronChain && good == MetalGood.IronOre)) continue;
+            if (good == MetalGood.IronOre && (m.Access & AccessIron) != 0 && (m.Access & SourceIron) == 0) continue;
             bool tierNeeds = plan.Tier switch
             {
                 8 => good == MetalGood.CopperOre,
@@ -2556,10 +2657,10 @@ public sealed partial class LivingEconomyModel
         };
         _camps.Add(camp);
         int crew = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(parent.Id))
         {
             if (crew >= cap) break;
-            if (f.SettlementId != parent.Id || f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
+            if (f.Camp >= 0 || f.Age is < 14 or >= 45 || f.WoundSeasons > 0 || f.IllnessSeasons > 0) continue;
             if (f.Id == parent.FireKeeperId) continue;
             f.Camp = camp.Id;
             crew++;
@@ -2579,6 +2680,7 @@ public sealed partial class LivingEconomyModel
         foreach (MiningCampState other in _camps)
             if (other.Tile == tile && (!AllowSecondCampOnTile || other.Parent == parent.Id)) return MiningCampResult.AlreadyOpen;
         foreach (SettlementState s in _settlements) if (s.SiteTile == tile) return MiningCampResult.NoDeposit;
+        if (InReservedCore(tile, null)) return MiningCampResult.InSettlementCore; // no camp in a living settlement's core (docs/MVP/31 §3.3)
         if (TakeWood(parent, tile, Fix64.FromInt(2), commit: false) < Fix64.FromInt(2)) return MiningCampResult.NoCrew;
         // A camp takes its crew from the parent; leave at least half the parent's working adults at home.
         if (FreeMiningCrew(parent) < _bronzeConstants.CampMinCrew * 2) return MiningCampResult.NoCrew;
@@ -2588,8 +2690,8 @@ public sealed partial class LivingEconomyModel
     private int FreeMiningCrew(SettlementState parent)
     {
         int free = 0;
-        foreach (FigureState f in _figures)
-            if (f.SettlementId == parent.Id && f.Camp < 0 && f.Age is >= 14 and < 45 && f.WoundSeasons == 0 && f.IllnessSeasons == 0) free++;
+        foreach (FigureState f in Residents(parent.Id))
+            if (f.Camp < 0 && f.Age is >= 14 and < 45 && f.WoundSeasons == 0 && f.IllnessSeasons == 0) free++;
         return free;
     }
 

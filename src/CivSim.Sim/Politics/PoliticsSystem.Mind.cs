@@ -17,6 +17,7 @@ public sealed partial class PoliticsSystem
     private const int ForecastTrials = 12;
     private static readonly Fix64 GiftValue = Fix64.FromInt(5);
     private static readonly Fix64 BarterValue = Fix64.FromInt(6);
+    private static readonly Fix64 FoodExportSafetyFloor = Fix64.FromRatio(9, 10);
     private static readonly Fix64 TradeGain = Fix64.FromRatio(11, 10);
     private static readonly Fix64 LifeValue = Fix64.FromInt(8);
     private static readonly Fix64 RaidRelationsCost = Fix64.FromInt(6);
@@ -36,7 +37,9 @@ public sealed partial class PoliticsSystem
         for (int c = 0; c < _civs; c++)
             for (int o = 0; o < _civs; o++)
             {
-                if (c == o || _externalMind[c] || !_dip.Contacted(c, o)) continue;
+                // A human seat stays hands-on in Balanced. Choosing a direction opts the autonomous Civ Mind into
+                // future discretionary decisions; explicit commands still use the same order rules in every direction.
+                if (c == o || _externalMind[c] && DirectionOf(c) == CivilizationDirection.Balanced || !_dip.Contacted(c, o)) continue;
                 if (c < o) MaybeAlly(c, o);
                 if (_dip.Allied(c, o)) continue;
                 if (_dip.AtWar(c, o))
@@ -145,7 +148,8 @@ public sealed partial class PoliticsSystem
     {
         if (!_research.IsDone(c, _p.Trd01)) return false;
         int rel = _dip.Relations(c, o);
-        if (rel < Diplomacy.HostileBelow || rel > 60 || _season - _dip.LastGift(c, o) < GiftIntervalSeasons) return false;
+        int interval = DirectionOf(c) == CivilizationDirection.Prosperity ? GiftIntervalSeasons / 2 : GiftIntervalSeasons;
+        if (rel < Diplomacy.HostileBelow || rel > 60 || _season - _dip.LastGift(c, o) < interval) return false;
         if ((Posture)_posture[c] is Posture.Raid) return false;
         return TryGift(c, o);
     }
@@ -153,7 +157,8 @@ public sealed partial class PoliticsSystem
     /// <summary>Sends a gift party if the hard rules allow (TRD-01, contact, no war, food to spare); desirability is the caller's.</summary>
     private bool TryGift(int c, int o, int targetSettlement = -1)
     {
-        if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) || _season - _dip.LastGift(c, o) < 2) return false;
+        if (!_research.IsDone(c, _p.Trd01) || !_dip.Contacted(c, o) || _dip.AtWar(c, o) ||
+            _season - _dip.LastGift(c, o) < 2 || HasFoodExportShortage(c)) return false;
         (int origin, int target) = ClosestPair(c, o, targetSettlement);
         if (origin < 0) return false;
         int travel = Travel(c, _sTile[origin], _sTile[target]);
@@ -174,7 +179,8 @@ public sealed partial class PoliticsSystem
     private bool ConsiderBarter(int a, int b)
     {
         if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02)) return false;
-        if (_dip.Relations(a, b) <= 0 || _season - _dip.LastBarter(a, b) < BarterIntervalSeasons) return false;
+        int interval = DirectionOf(a) == CivilizationDirection.Prosperity ? BarterIntervalSeasons / 2 : BarterIntervalSeasons;
+        if (_dip.Relations(a, b) <= 0 || _season - _dip.LastBarter(a, b) < interval) return false;
         return TryBarter(a, b);
     }
 
@@ -182,7 +188,7 @@ public sealed partial class PoliticsSystem
     private bool TryBarter(int a, int b, int targetSettlement = -1)
     {
         if (!_research.IsDone(a, _p.Trd02) || !_research.IsDone(b, _p.Trd02) || _dip.Relations(a, b) <= 0 ||
-            !_dip.Contacted(a, b) || _dip.AtWar(a, b) || _season - _dip.LastBarter(a, b) < 2) return false;
+            !_dip.Contacted(a, b) || _dip.AtWar(a, b) || _season - _dip.LastBarter(a, b) < 2 || HasFoodExportShortage(a)) return false;
         foreach (Expedition e in _expeditions)
             if (e.Kind == ExpeditionKind.Barter && (e.Civ == a && e.TargetCiv == b || e.Civ == b && e.TargetCiv == a)) return false;
         (int origin, int target) = ClosestPair(a, b, targetSettlement);
@@ -222,14 +228,25 @@ public sealed partial class PoliticsSystem
         return false;
     }
 
+    /// <summary>Food gifts and barter wait until every settlement in the sender's civilization is above the short-food band.</summary>
+    private bool HasFoodExportShortage(int civ)
+    {
+        for (int s = 0; s < _sCount; s++)
+            if (_sCiv[s] == civ && !_free[s] && _sPop[s] > 0 &&
+                _economy.SettlementLite(s).LastFoodSecurity < FoodExportSafetyFloor) return true;
+        return false;
+    }
+
     private bool ConsiderRaid(int c, int o)
     {
         if (!_research.IsDone(c, _p.War02)) return false;
         Posture posture = (Posture)_posture[c];
         if (posture is Posture.Fortify or Posture.Prosper) return false;
+        CivilizationDirection direction = DirectionOf(c);
+        if (AvoidsDiscretionaryConflict(direction) && posture != Posture.Raid) return false;
         if (_dip.InTruce(c, o, _season) || _season - _dip.LastRaidBy(c, o) < RaidCooldownSeasons) return false;
         if (_pacts.Count > 0 && HasPact(c, o)) return false;
-        bool wants = posture == Posture.Raid || _dip.Relations(c, o) < Diplomacy.HostileBelow ||
+        bool wants = posture == Posture.Raid || direction == CivilizationDirection.Offensive || _dip.Relations(c, o) < Diplomacy.HostileBelow ||
                      (_archetypes[c] == EconomyArchetype.Warlord && Hungry(c) && _dip.Relations(c, o) < 10);
         if (!wants) return false;
         return LaunchRaid(c, o, forecast: true);
@@ -339,8 +356,10 @@ public sealed partial class PoliticsSystem
         if (!_research.IsDone(c, _p.War02)) return;
         Posture posture = (Posture)_posture[c];
         if (posture is Posture.Fortify or Posture.Prosper) return;
+        CivilizationDirection direction = DirectionOf(c);
+        if (AvoidsDiscretionaryConflict(direction) && posture != Posture.Raid) return;
         if (_dip.Relations(c, o) >= Diplomacy.HostileBelow) return;
-        if (posture != Posture.Raid && _archetypes[c] != EconomyArchetype.Warlord) return;
+        if (posture != Posture.Raid && direction != CivilizationDirection.Offensive && _archetypes[c] != EconomyArchetype.Warlord) return;
         // A war of conquest needs the field: one and a half times the rival's strength (13 §8.4).
         if (FieldStrength(c) < FieldStrength(o) * Fix64.FromRatio(15, 10)) return;
         _dip.DeclareWar(c, o);
@@ -351,7 +370,12 @@ public sealed partial class PoliticsSystem
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.WarDeclared, c, 1, 0));
     }
 
-    private bool ConsiderCampaign(int c, int o) => LaunchAssault(c, o, requireOdds: true);
+    private bool ConsiderCampaign(int c, int o)
+    {
+        CivilizationDirection direction = DirectionOf(c);
+        if (AvoidsDiscretionaryConflict(direction) && (Posture)_posture[c] != Posture.Raid) return false;
+        return LaunchAssault(c, o, requireOdds: true);
+    }
 
     /// <summary>
     /// Sends the field army against the rival's nearest settlement. With <paramref name="requireOdds"/> it goes only with 1.5
@@ -431,15 +455,22 @@ public sealed partial class PoliticsSystem
     {
         int since = _warSince[a * _civs + b];
         int age = _season - since;
-        if (HasUnresolvedAssault(a, b)) return;
-        bool weary = age >= 12 || _failedCampaigns[a * _civs + b] >= 2 || _failedCampaigns[b * _civs + a] >= 2;
+        CivilizationDirection direction = DirectionOf(a);
+        int peaceAfter = AvoidsDiscretionaryConflict(direction) ? 8 : 12;
+        bool weary = age >= peaceAfter || _failedCampaigns[a * _civs + b] >= 2 || _failedCampaigns[b * _civs + a] >= 2;
         if (!weary || age < 4) return;
-        _dip.MakePeace(a, b, _season);
+        if (!TryEndWar(a, b)) return;
         _events.Add(new PoliticsEvent(_tick, (byte)a, PoliticsEventKind.PeaceMade, b, age, 0));
         _events.Add(new PoliticsEvent(_tick, (byte)b, PoliticsEventKind.PeaceMade, a, age, 0));
         _failedCampaigns[a * _civs + b] = 0;
         _failedCampaigns[b * _civs + a] = 0;
     }
+
+    private CivilizationDirection DirectionOf(int civ) => Guidance?.DirectionOf(civ) ?? CivilizationDirection.Balanced;
+
+    private static bool AvoidsDiscretionaryConflict(CivilizationDirection direction)
+        => direction is CivilizationDirection.Defensive or CivilizationDirection.Growth or
+            CivilizationDirection.Prosperity or CivilizationDirection.Discovery;
 
     /// <summary>Whether an assault between the pair is still traveling, investing, or holding an occupation.</summary>
     private bool HasUnresolvedAssault(int a, int b)
@@ -509,6 +540,7 @@ public sealed partial class PoliticsSystem
     private void ArriveGift(Expedition e)
     {
         if (!TargetStillThere(e)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
+        if (HasFoodExportShortage(e.Civ)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
         // Spoilage on the road costs a tenth; the goods become the recipients' (13 §4.1).
         _economy.GiveGoods(e.ToSettlement, e.Value * Fix64.FromRatio(9, 10));
         int delta = Math.Max(2, 10 - 2 * Math.Max(0, _dip.GiftsThisYear(e.Civ, e.TargetCiv) - 1));
@@ -522,6 +554,7 @@ public sealed partial class PoliticsSystem
         if (e.Leg == 0)
         {
             if (!TargetStillThere(e)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
+            if (HasFoodExportShortage(e.Civ)) { _economy.GiveGoods(e.FromSettlement, e.Value); return; }
             // In the Bronze Age the partner answers with trade goods valued by scarcity (docs/MVP/22 §6.1), else food for food.
             (TradeGood good, Fix64 quantity) = ChooseBarterGood(e.Civ, e.FromSettlement, e.ToSettlement, e.Value);
             if (good != TradeGood.None)
@@ -847,7 +880,7 @@ public sealed partial class PoliticsSystem
         for (int tile = 0; tile < _generated.TileCount; tile++)
         {
             WorldTile t = _generated.TileAt(tile);
-            if (t.HabitableWeight == 0 || t.Biome == Biome.Mountain) continue;
+            if (t.HabitableWeight == 0 || t.Biome == Biome.Mountain || !_economy.IsCleanCoreSite(tile)) continue;
             bool clear = true;
             for (int s = 0; s < _sCount && clear; s++)
                 if (HexGrid.Distance(_sTile[s], tile, _width) < 7) clear = false;

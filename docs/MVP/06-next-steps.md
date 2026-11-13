@@ -78,7 +78,7 @@ During this design pass the catalog tables were parsed and checked by a throwawa
 | Keystone era | Keystone named prerequisites are in the era being left | ✅ |
 | Cross-theme | ≥ 35% of each lineage's E1+ projects have a cross-theme prerequisite | ✅ all 33 lineages (after 25 historically motivated links were added) |
 | Reachability | Every project is reachable from the starters | ✅ 519/519 |
-| Gate criticality | Which `[Seen]` gates block keystones if never satisfied | 7 critical gates, all covered by world-generation guarantees (02 §6.1) |
+| Gate criticality | Which `[Seen]` gates block keystones if never satisfied | 6 critical gates, all covered by world-generation guarantees (02 §6.1) |
 | Critical path vs. breadth | Breadth N exceeds the in-era critical path by 3–4 | ✅ (04 §2), except KEY-1 (2, accepted for onboarding) and KEY-4 (3 by 04 §2's path, 5 by the balance model's parse; [07](07-balance-findings.md) F9) |
 | Openings | Example strategies are legal sequences | ✅ Grower, Builder, Wanderer |
 | Diagram generation | Mermaid maps in 04 are generated from the tables | ✅ 13 diagrams parse and render |

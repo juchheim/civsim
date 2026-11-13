@@ -285,6 +285,7 @@ public partial class Game
         if (_ui.TopIsModal)
         {
             if (code is Key.H or Key.F1 && _helpOpen) { ToggleHelp(false); GetViewport().SetInputAsHandled(); }
+            else if (code == Key.Y && _peopleOpen) { ClosePeoplePanel(); GetViewport().SetInputAsHandled(); }
             return;
         }
         if (code == Key.T) { if (_researchWebVisible) CloseResearchWeb(); else OpenResearchWeb(-1); GetViewport().SetInputAsHandled(); return; }
@@ -298,6 +299,7 @@ public partial class Game
         {
             case Key.O: ToggleDiplomacy(); break;
             case Key.C: ToggleChronicle(); break;
+            case Key.Y: OpenPeoplePanel(); break;   // ui-ux-pass2 §4: "Your people" (P is pause)
             case Key.R: SetResourcesVisible(!_resourcesVisible); break;
             case Key.B: ToggleBeaconMode(); break;
             case Key.F or Key.Home: FrameCapital(); break;
@@ -582,7 +584,7 @@ public partial class Game
 
         if (TryGetOwnBeaconIndex(tile, out int beaconIndex))
         {
-            _session.Queue(PlayerCommands.RemoveBeacon(_session.Tick, 0, beaconIndex));
+            QueueCommand(PlayerCommands.RemoveBeacon(_session.Tick, 0, beaconIndex));
             SetBeaconMode(false);
             string nextStep = _session.Paused
                 ? "The removal starts when you resume. Press B after it takes effect to place a replacement."
@@ -591,9 +593,12 @@ public partial class Game
             return;
         }
 
-        _session.Queue(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width, replaceIfFull: true));
+        QueueCommand(PlayerCommands.PlaceBeacon(_session.Tick, 0, tile, _width, replaceIfFull: true));
         SetBeaconMode(false);
-        ShowToast("Beacon placed", ToastKind.Info, "If all Beacon slots were used, your nearest Beacon moved here.", tile, key: $"beacon-placed-{tile}");
+        ShowToast(_session.Paused ? "Beacon placement queued" : "Beacon placed", ToastKind.Info,
+            _session.Paused
+                ? "It starts when you resume. If all Beacon slots are used, your nearest Beacon will move here."
+                : "If all Beacon slots were used, your nearest Beacon moved here.", tile, key: $"beacon-placed-{tile}");
     }
 
     private bool TryGetOwnBeaconIndex(int tile, out int beaconIndex)

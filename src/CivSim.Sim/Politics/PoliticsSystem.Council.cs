@@ -96,6 +96,7 @@ public sealed partial class PoliticsSystem
                 Fix64 score = _economy.SiteFood(t);
                 if (score <= Fix64.Zero) continue;
                 score *= Multiplier(civ, t);
+                score *= _economy.IronFuelSitingMultiplier(civ, t);
                 if (NearUsableDeposit(civ, t)) score = score * Fix64.FromRatio(3, 2);
                 if (score <= bestScore) continue;
                 if (FoundCheck(civ, t, out int donor) != 0 || donor < 0 || _economy.PopulationFill(donor) < minFill) continue;

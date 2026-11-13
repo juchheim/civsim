@@ -101,7 +101,7 @@ public class CliTests
         (int c2, string paths) = Run("paths", "--content", ContentFixture.ContentDir);
         Assert.Equal(0, c2);
         Assert.Contains("KEY-10", paths);
-        Assert.Contains("338", paths);
+        Assert.Contains("337", paths);
 
         (int c3, string gates) = Run("gates", "--content", ContentFixture.ContentDir);
         Assert.Equal(0, c3);

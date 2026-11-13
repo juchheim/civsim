@@ -57,7 +57,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     public BeaconSitePreview PreviewBeaconSite(int civ, int beaconTile, int replacedBeaconIndex = -1)
     {
-        if ((uint)beaconTile >= (uint)_world.TileCount || !IsHabitable(beaconTile))
+        if ((uint)beaconTile >= (uint)_world.TileCount || !IsHabitable(beaconTile) || !_coreClean[beaconTile])
             return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
 
         var parents = new List<SettlementState>();
@@ -74,18 +74,23 @@ public sealed partial class LivingEconomyModel
         }
         if (parents.Count == 0) return new BeaconSitePreview(false, Fix64.Zero, pendingSplits, pendingSplitsChoosingTile);
 
+        int[] populations = FillSettlementPopulationScratch();
         var localCandidates = new List<(int Tile, Fix64 Score)>(768);
         for (int tile = 0; tile < _world.TileCount; tile++)
         {
-            if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile)) continue;
+            if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile) || !_coreClean[tile]) continue;
+            bool existingSite = false;
+            for (int s = 0; s < _settlements.Count; s++)
+                if (_settlements[s].SiteTile == tile) { existingSite = true; break; }
+            if (existingSite && !IsAbandonedSiteFor(civ, tile)) continue;
             bool farEnough = true;
             for (int s = 0; s < _settlements.Count; s++)
-                if (HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
+                if (populations[s] > 0 && HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
                 { farEnough = false; break; }
             if (!farEnough || SiteAdvisor is not null && !SiteAdvisor.Allows(civ, tile)) continue;
             Fix64 score = _siteFoodScores[tile] * (SiteAdvisor is null
                 ? Fix64.One
-                : SiteAdvisor.PreviewMultiplier(civ, tile, beaconTile, replacedBeaconIndex));
+                : SiteAdvisor.PreviewMultiplier(civ, tile, beaconTile, replacedBeaconIndex)) * IronFuelSitingMultiplier(civ, tile);
             if (score >= Fix64.Zero) localCandidates.Add((tile, score));
         }
 
@@ -229,7 +234,7 @@ public sealed partial class LivingEconomyModel
         {
             Structure.HideTent, Structure.LeanTo, Structure.DryingRack, Structure.ThornBarrier, Structure.PitHouse,
             Structure.WattleHouse, Structure.Longhouse, Structure.Granary, Structure.StoragePit, Structure.Lookout,
-            Structure.Kiln, Structure.Quern, Structure.Palisade,
+            Structure.Kiln, Structure.Quern, Structure.Palisade, Structure.Totem, Structure.Marker, Structure.SignalPost, Structure.PottersWorkshop,
         };
         foreach (Structure structure in flammable)
         {
@@ -243,39 +248,34 @@ public sealed partial class LivingEconomyModel
     /// <summary>Removes a figure from the world (battle death). Returns false if there is no such figure.</summary>
     public bool KillFigure(long figureId)
     {
-        for (int i = 0; i < _figures.Count; i++)
-        {
-            if (_figures[i].Id != figureId) continue;
-            _figures.RemoveAt(i);
-            return true;
-        }
-        return false;
+        int index = FigureIndex(figureId);
+        if (index < 0) return false;
+        FigureState figure = _figures[index];
+        RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One, "battle-death");
+        RemoveFigureAt(index);
+        return true;
     }
 
     /// <summary>Wounds a figure for the given number of seasons: out of work and out of the fight.</summary>
     public void WoundFigure(long figureId, int seasons)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId)
-            {
-                _figures[i].WoundSeasons = (byte)Math.Clamp(Math.Max(_figures[i].WoundSeasons, seasons), 0, 255);
-                return;
-            }
+        int index = FigureIndex(figureId);
+        if (index >= 0)
+            _figures[index].WoundSeasons = (byte)Math.Clamp(Math.Max(_figures[index].WoundSeasons, seasons), 0, 255);
     }
 
     /// <summary>Moves a figure to another settlement (fleeing refugees, assimilated survivors).</summary>
     public void RelocateFigure(long figureId, int settlementIndex)
     {
         SettlementState to = _settlements[settlementIndex];
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId)
-            {
-                _figures[i].SettlementId = to.Id;
-                _figures[i].Civilization = to.Civilization;
-                _figures[i].Role = 0;
-                _figures[i].Camp = -1;
-                return;
-            }
+        int index = FigureIndex(figureId);
+        if (index < 0) return;
+        FigureState figure = _figures[index];
+        RecordIT6KitRelocation(figure.SettlementId, to.Id, figure.Kit, Fix64.One);
+        MoveResident(figure, to.Id);
+        figure.Civilization = to.Civilization;
+        figure.Role = 0;
+        figure.Camp = -1;
     }
 
     /// <summary>
@@ -287,8 +287,12 @@ public sealed partial class LivingEconomyModel
         if ((uint)newCiv >= (uint)_completedProjects.Length) throw new ArgumentOutOfRangeException(nameof(newCiv));
         SettlementState s = _settlements[settlementIndex];
         s.Civilization = newCiv;
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == s.Id) { _figures[i].Civilization = newCiv; _figures[i].Role = 0; }
+        // Tool durability depends on the owner's research (wooden, hafted and Tool5 modifiers), and the work left in the
+        // stock may not exceed what the stock can hold (the snapshot validator's rule). A captor with less research
+        // has shorter-lived tools: cap the captured stock's remaining work at the new owner's capacity.
+        for (int good = 0; good < s.ToolRemainingWork.Length; good++)
+            s.ToolRemainingWork[good] = Fix64.Min(s.ToolRemainingWork[good], s.Stores[good] * ToolDurability(s, (Good)good));
+        foreach (FigureState figure in Residents(s.Id)) { figure.Civilization = newCiv; figure.Role = 0; }
         if (s.Civic is { } civic) civic.BuildKind = CivicBuild.None;
         s.FissionPending = false;
     }
@@ -298,10 +302,24 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState s = _settlements[settlementIndex];
         for (int i = _figures.Count - 1; i >= 0; i--)
-            if (_figures[i].SettlementId == s.Id) _figures.RemoveAt(i);
+            if (_figures[i].SettlementId == s.Id)
+            {
+                RecordIT6IronKitRetired(_figures[i].Civilization, _figures[i].SettlementId, _figures[i].Kit, Fix64.One, "settlement-raze-holder");
+                RemoveFigureAt(i);
+            }
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
-        if (s.Metal is { } metal) { Array.Clear(metal.Goods); if (metal.IronGoods is not null) Array.Clear(metal.IronGoods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero; metal.IronTerraces = null; metal.IronFacing = null; metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear(); }
+        if (s.Metal is { } metal)
+        {
+            if (metal.IronGoods is { } iron)
+            {
+                RecordIT6IronKitRetired(s.Civilization, s.Id, 11, iron[(int)IronGood.Kit11], "settlement-raze-stock");
+                RecordIT6IronKitRetired(s.Civilization, s.Id, 12, iron[(int)IronGood.Kit12], "settlement-raze-stock");
+                Array.Clear(iron);
+            }
+            Array.Clear(metal.Goods); metal.IronWorks = null; metal.IronBuildKind = -1; metal.IronBuildProgress = Fix64.Zero;
+            metal.IronTerraces = null; metal.IronFacing = null; metal.Forges = 0; metal.Smelters = 0; metal.MineHeads.Clear();
+        }
         if (s.Civic is not null) s.Civic = new CivicState { Seceded = s.Civic.Seceded };
         s.FissionPending = false;
         s.FireLit = false;
@@ -310,16 +328,13 @@ public sealed partial class LivingEconomyModel
     /// <summary>Figures of a settlement as (id, age, female, wounded) in ascending id order, for building a party.</summary>
     public void ListFigures(int settlementIndex, List<FigureView> into)
     {
-        int id = _settlements[settlementIndex].Id;
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].SettlementId == id) into.Add(Figure(i));
+        foreach (FigureState figure in Residents(_settlements[settlementIndex].Id)) into.Add(Figure(figure.Index));
     }
 
     public bool IsWounded(long figureId)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId) return _figures[i].WoundSeasons > 0;
-        return false;
+        int index = FigureIndex(figureId);
+        return index >= 0 && _figures[index].WoundSeasons > 0;
     }
 
     /// <summary>A person who could fight: id, age, sex and whether a wound has laid them up.</summary>
@@ -331,10 +346,9 @@ public sealed partial class LivingEconomyModel
         int id = _settlements[settlementIndex].Id;
         // The Iron chapter's standing soldiers (WAR-07): a staffed soldier fights as a professional only if upkeep was paid this season.
         int supplied = IronChain ? _settlements[settlementIndex].Metal?.IronSoldiersSupplied ?? 0 : 0;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (FigureState f in Residents(id))
         {
-            FigureState f = _figures[i];
-            if (f.SettlementId != id || f.Age < 14) continue;
+            if (f.Age < 14) continue;
             bool soldier = supplied > 0 && f.Role == Role.Soldier;
             if (soldier) supplied--;
             into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0, soldier));
@@ -345,20 +359,37 @@ public sealed partial class LivingEconomyModel
     public void ListMiningCampCrew(int campId, List<FighterRecord> into)
     {
         if (campId < 0) return;
-        for (int i = 0; i < _figures.Count; i++)
+        foreach (MiningCampState camp in _camps)
         {
-            FigureState f = _figures[i];
-            if (f.Camp == campId && f.Age >= 14)
-                into.Add(new FighterRecord(f.Id, f.Age, f.Female, f.WoundSeasons > 0));
+            if (camp.Id != campId) continue;
+            foreach (FigureState figure in Residents(camp.Parent))
+                if (figure.Camp == campId && figure.Age >= 14)
+                    into.Add(new FighterRecord(figure.Id, figure.Age, figure.Female, figure.WoundSeasons > 0));
+            return;
         }
     }
 
     public bool TryFigure(long figureId, out FigureView view)
     {
-        for (int i = 0; i < _figures.Count; i++)
-            if (_figures[i].Id == figureId) { view = Figure(i); return true; }
+        int index = FigureIndex(figureId);
+        if (index >= 0) { view = Figure(index); return true; }
         view = default;
         return false;
+    }
+
+    /// <summary>Finds a figure by id. The figure list stays in ascending id order as people are added or removed.</summary>
+    private int FigureIndex(long figureId)
+    {
+        int low = 0, high = _figures.Count - 1;
+        while (low <= high)
+        {
+            int middle = low + ((high - low) >> 1);
+            long id = _figures[middle].Id;
+            if (id == figureId) return middle;
+            if (id < figureId) low = middle + 1;
+            else high = middle - 1;
+        }
+        return -1;
     }
 
     /// <summary>
@@ -369,9 +400,16 @@ public sealed partial class LivingEconomyModel
     {
         SettlementState camp = NewSettlement(civ, siteTile);
         _settlements.Add(camp);
+        IndexSettlementSite(camp);
         foreach (long id in figureIds)
-            for (int i = 0; i < _figures.Count; i++)
-                if (_figures[i].Id == id) { _figures[i].SettlementId = camp.Id; _figures[i].Civilization = civ; break; }
+        {
+            int index = FigureIndex(id);
+            if (index < 0) continue;
+            FigureState figure = _figures[index];
+            RecordIT6KitRelocation(figure.SettlementId, camp.Id, figure.Kit, Fix64.One);
+            MoveResident(figure, camp.Id);
+            figure.Civilization = civ;
+        }
         camp.FireLit = false;
         return camp.Id;
     }

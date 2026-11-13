@@ -124,7 +124,7 @@ These are the load-bearing nodes of the web. The research-web UI should give the
 | Seen: Native copper | MET-01 | **Yes** (start guarantee) |
 | Seen: Wolves | HUS-01 | **Yes** (start guarantee) |
 | Seen: Wild goats or sheep | HUS-03 | **Yes** (start guarantee) |
-| Seen: Gold or Silver | MET-07 | **Yes** (continental guarantee) |
+| Seen: Gold or Silver | MET-07 | No (precious-metal luxury; basic coinage uses base-metal casting) |
 | Seen: Coal | MIN-09 | **Yes** (continental guarantee) |
 | Seen: Oil seep | MIN-13 | **Yes** (continental guarantee) |
 | Seen: Salt | MIN-06 | No (10 projects downstream) |

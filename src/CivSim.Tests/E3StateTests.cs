@@ -585,7 +585,9 @@ public class E3StateTests
         var archetypes = new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         MatchModel live = MatchModel.Create(Seed, TestPack.Pack, FogFairnessHarness.World, archetypes);
         var runner = new SimRunner(live);
-        long at = 26_100 + 23; // minute 43.5, mid-season, with Markets, roles and live Cohesion
+        // Minute 52, mid-season, with Markets, roles and live Cohesion. KEY-3 comes about 20% later since docs/MVP/28 §16 (Cohesion
+        // first goes live at minute 46 in this seed, 18 settlements live by 52), so the snapshot moved from minute 43.5 to 52.
+        long at = 31_200 + 23;
         runner.Advance(at);
         using var stream = new MemoryStream();
         using (var w = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) live.WriteSnapshot(w);

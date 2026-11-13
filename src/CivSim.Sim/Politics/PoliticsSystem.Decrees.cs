@@ -305,6 +305,8 @@ public sealed partial class PoliticsSystem
     {
         donor = -1;
         if (unchecked((uint)tile) >= unchecked((uint)_tileArray.Length) || !_economy.IsHabitableSite(tile)) return OrderRefusalReason.NoSite;
+        for (int s = 0; s < _sCount; s++)
+            if (_sTile[s] == tile && (_sPop[s] > 0 || _sCiv[s] != civ || _free[s])) return OrderRefusalReason.NoSite;
         int owner = _territory.OwnerOf(tile);
         if (owner >= 0 && owner != civ) return OrderRefusalReason.NoSite;
         if (FreeFolkOwns(tile)) return OrderRefusalReason.NoSite;
@@ -316,6 +318,8 @@ public sealed partial class PoliticsSystem
             if (_sCiv[s] == civ && !_free[s]) { if (d < ownMin) return OrderRefusalReason.NoSite; }
             else if (d < _rules.RivalMinDist) return OrderRefusalReason.NoSite;
         }
+        // The founders see the outcrop even when the player has not found it (docs/MVP/31 §7.1).
+        if (!_economy.IsCleanCoreSite(tile)) return OrderRefusalReason.CoreDeposit;
         bool anyInReach = false;
         Fix64 bestFill = Fix64.MinValue;
         for (int s = 0; s < _sCount; s++)

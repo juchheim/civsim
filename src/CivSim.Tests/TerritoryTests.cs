@@ -280,6 +280,23 @@ public class TerritoryTests
     }
 
     [Fact]
+    public void Compact_seasonal_camps_skip_reserved_core_tiles_and_choose_an_alternative()
+    {
+        Territory t = NewTerritory();
+        int home = Start(0);
+        var own = new List<ClaimSource> { new(0, home, 9, Fix64.FromInt(6)) };
+        List<int> baseline = t.ChooseCompactCampSites(0, home, 3, own, None, None, 2);
+        Assert.Equal(2, baseline.Count);
+
+        int excluded = baseline[0];
+        List<int> filtered = t.ChooseCompactCampSites(0, home, 3, own, None, None, 2, tile => tile == excluded);
+
+        Assert.Equal(2, filtered.Count);
+        Assert.DoesNotContain(excluded, filtered);
+        Assert.NotEqual(filtered[0], filtered[1]);
+    }
+
+    [Fact]
     public void Camp_path_support_reports_only_a_camp_needed_to_keep_a_pair_owned_tile()
     {
         Territory t = NewTerritory();

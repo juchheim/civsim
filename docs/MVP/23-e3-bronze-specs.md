@@ -349,7 +349,7 @@ Ard is a labor rung: 22's "Till r3" is placed on `farm`, whose rung 2 already ha
 Deposits deplete by the ore taken (tracked; effectively inexhaustible in the chapter, 22 §5.6). WP3 adds `has_gate: "Arsenic ore"` to `arsenical_copper` and `has_gate: Tin` to `tin` in `deposits.yaml` so the validator can map MET-04's and MET-05's `[Has]` gates to deposits.
 
 ### 7.2 Mining jobs and mining camps (22 §5.2)
-- **In range** (radius 3 of a settlement) a known deposit is worked as a settlement job. **Beyond it** a **mining camp** is needed: opened by the *Open a mine* Decree on any known deposit within mining reach (8 walking tiles; 12 with TRN-05; 16 along rivers and coasts with SEA-05), or by the planner on deposits inside its own owned tiles.
+- **In range** (radius 3 of a settlement) a known deposit is worked as a settlement job. **Beyond it** a **mining camp** is needed: opened by the *Open a mine* Decree on any known deposit within mining reach (8 walking tiles; 12 with TRN-05; 16 along rivers and coasts with SEA-05), or by the planner on deposits inside its own owned tiles. No camp opens on a tile in a living settlement's core (its site and ring 1, [31 §3.3](31-settlement-core-reserve-plan.md)); a village that already stands on a deposit keeps working it in range.
 - A camp is a `mining_camp` structure (2 ws, 2 L wood) with **4 miners** (6 with MIN-04) from the parent, counted in the parent's cohorts. **Before MIN-04 it works depth-1 deposits from a surface pit; with MIN-04 it builds a `mine_head` (4 ws, 6 L wood) to dig depth-2 ore at the Shaft rung** (22 put the mine head on every camp, but also made it MIN-04's unlock; §21 C3).
 - Claim: radius 1 at 75% of a six-person band's emission (Emit = √6 × 0.75 ≈ 1.84 ≥ T 0.7 across its radius), radius 2 with TER-06. Not a settlement for fission, Insight, Admin span or Dominion weight; a raid target (22 §7.5). Closes when the deposit is exhausted or fewer than 2 miners remain.
 - **Hauling** ore to the parent is the `haul` job: 0.1 ws per L per 4 walking tiles at rung 0, ÷5 by cart on flat and trail tiles, ÷3 by plank boat on water.
@@ -389,7 +389,7 @@ Deposits deplete by the ore taken (tracked; effectively inexhaustible in the cha
 | Bakery | FOD-08 | 4 | clay 4 L, stone 4 L | Grain food value +20% for 40 people; one Baker | wood 2 L/season | Town or City |
 | Canal | AGR-06 | 1 per field tile | — | Irrigated field: yield ×1.5 (×2 Arid or Desert, soil counts 100); flood loss ×0.5 | 0.1 ws/tile/yr | field tile within 2 of a river |
 | Hillfort | DEF-04 | 15 | wood 10 L | Defense ×2.5; refuge for non-combatants and stores of own settlements within 6: loot ×0.25 | 0.2 ws/yr | hill tile within 4 of the settlement |
-| Stone walls | DEF-05 | 30 per Village ring (×2 Town, ×3 City) | cut stone 60 L per Village ring (×2, ×3) | Defense ×3; no assault (investment only); loot ×0.25 outside the walls; do not burn | 0.5 ws/yr per ring | any settlement |
+| Stone walls | DEF-05 | 15 per Village ring (×2 Town, ×3 City), quarrying and dressing included (28 §4; was 30) | stone 20 L per Village ring (×2, ×3), quarried within 8 tiles (was cut stone 60 L) | Defense ×3; no assault (investment only); loot ×0.25 outside the walls; do not burn | 0.5 ws/yr per ring | any settlement |
 | Ziggurat (Wonder) | BLD-08 | 200 | cut stone 80 L, mudbrick 400 | Cohesion +15 within 8, +5 everywhere; claim +1.5 radius 8 | — | a City, 1 per civ |
 
 ```yaml
@@ -408,7 +408,7 @@ Deposits deplete by the ore taken (tracked; effectively inexhaustible in the cha
   - {id: bakery, name: Bakery, class: structure, unlocked_by: FOD-08, labor: 4, materials: "clay 4 L, stone 4 L", effect: "Town or City; grain food value +20% for 40 people; one Baker", upkeep: wood 2 L/season}
   - {id: canal, name: Canal, class: structure, unlocked_by: AGR-06, labor_note: "1.0 per field tile within 2 of a river", materials: "—", effect: "Irrigated field: yield ×1.5 (×2 on Arid and Desert, soil counts 100); flood loss ×0.5", upkeep: "0.1 ws/tile/yr"}
   - {id: hillfort, name: Hillfort, class: structure, unlocked_by: DEF-04, labor: 15, materials: wood 10 L, effect: "On a hill within 4; defense ×2.5; refuge within 6: raid loot ×0.25", upkeep: "0.2 ws/yr"}
-  - {id: stone_walls, name: Stone walls, class: structure, unlocked_by: DEF-05, labor_note: "30 per Village ring (×2 Town, ×3 City)", materials: "cut stone 60 L per Village ring (×2, ×3)", effect: "Defense ×3; no assault in E3 (investment only); loot ×0.25 outside the walls; do not burn", upkeep: "0.5 ws/yr per ring"}
+  - {id: stone_walls, name: Stone walls, class: structure, unlocked_by: DEF-05, labor_note: "15 per Village ring (×2 Town, ×3 City), quarrying and dressing included", materials: "stone 20 L per Village ring (×2, ×3), quarried within 8 tiles", effect: "Defense ×3; no assault in E3 (investment only); loot ×0.25 outside the walls; do not burn", upkeep: "0.5 ws/yr per ring"}
   - {id: ziggurat, name: Ziggurat (Wonder), class: wonder, unlocked_by: BLD-08, labor: 200, materials: "cut stone 80 L, mudbrick 400", effect: "At a City; Cohesion +15 within 8, +5 everywhere; claim +1.5 radius 8", upkeep: "—"}
 ```
 
@@ -537,7 +537,6 @@ New constants for `content/constants/balance.yaml` (`{id, value, unit, source}`)
 | LegacyFirstKeystoneMult | 4 | × First | 22 §3.3 (Keystones and Wonders) |
 | LegacyWonderBuiltPerEra | 25 | × (era + 1) | 22 §3.3 |
 | ChapterCountdownSeasons | 12 | seasons | 22 §3.1 |
-| ChapterCapYear | 64 | year | 22 §3.1 |
 | OutCity | 1 | Insight/yr (× RoleScale 8 = 8) | 22 §8.1 (SOC-09) |
 | **Mandate and Decrees** (base Mandate: KEY-3's `mandate` effect) | | | |
 | MandateRechargeMin | 4 | seasons | 22 §4.2 |

@@ -12,8 +12,8 @@ public sealed partial class FrameBuilder
 {
     private const uint StateMagic = 0x57454956; // "VIEW"
     // 5 and 6: economy state (Your people sheet). 7: remembered-owner ticks (scout map observation ticks).
-    // 8: persistent deposit discoveries and unidentified geological clues.
-    private const int StateVersion = 8;
+    // 8: persistent deposit discoveries and unidentified geological clues. 9: settlement-population event baselines.
+    private const int StateVersion = 9;
 
     public void WriteState(BinaryWriter w)
     {
@@ -45,6 +45,7 @@ public sealed partial class FrameBuilder
         {
             w.Write(_prevFire[s]); w.Write(_prevFood[s]); w.Write(_prevForecast[s]);
             w.Write(_prevStructures, s * kinds, kinds);
+            w.Write(_prevPopulation[s]);
         }
         w.Write(_announcedCount);
         for (int i = 0; i < _announcedCount; i++) { w.Write(_announcedKey[i]); w.Write(_announcedArrive[i]); }
@@ -119,6 +120,7 @@ public sealed partial class FrameBuilder
         if (_prevFire.Length < settlements)
         {
             Array.Resize(ref _prevFire, settlements); Array.Resize(ref _prevFood, settlements); Array.Resize(ref _prevForecast, settlements);
+            Array.Resize(ref _prevPopulation, settlements);
             Array.Resize(ref _prevStructures, settlements * kinds);
         }
         for (int s = 0; s < settlements; s++)
@@ -127,6 +129,10 @@ public sealed partial class FrameBuilder
             byte[] structures = r.ReadBytes(kinds);
             if (structures.Length != kinds) throw new InvalidDataException("Truncated view state.");
             Buffer.BlockCopy(structures, 0, _prevStructures, s * kinds, kinds);
+            _prevPopulation[s] = version >= 9
+                ? r.ReadInt32()
+                : s < _economy.SettlementCount ? _economy.Population(s) : 0;
+            if (_prevPopulation[s] < 0) throw new InvalidDataException("Bad settlement population baseline.");
         }
         _prevSettlements = settlements;
         int announced = r.ReadInt32();

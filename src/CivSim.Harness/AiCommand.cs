@@ -1025,9 +1025,12 @@ internal static class AiCommand
             return ok;
         }
 
-        Console.WriteLine("== A1: Warlord AI vs the Council bot (mirrored seeds), >= 85% on Legacy");
+        Console.WriteLine($"== A1: Warlord AI vs the Council bot (mirrored seeds), >= {M10AiAcceptanceStatus.A1Target * 100:F0}% on Legacy");
         a1 = Tournament.Duel(pack, "warlord", "council", seeds, minutes, archetype, firstSeed);
-        Gate("A1", a1.WinRateA >= 0.85, $"{a1.WinRateA * 100:F0}% over {a1.Matches} matches");
+        // Judged on 40 seeds (80 matches) in acceptance-quality runs, like A4. The 16 matches above still feed A7 and the telemetry gates unchanged.
+        Tournament.DuelResult a1Verdict = diagnostic || seeds >= M10AiAcceptanceStatus.MinimumA1Seeds
+            ? a1 : Tournament.Duel(pack, "warlord", "council", M10AiAcceptanceStatus.MinimumA1Seeds, minutes, archetype, firstSeed);
+        Gate("A1", a1Verdict.WinRateA >= M10AiAcceptanceStatus.A1Target, $"{a1Verdict.WinRateA * 100:F0}% over {a1Verdict.Matches} matches");
 
         // A2 sits close to its bar on 16 matches (the Grower duel is 74% over 240 matches but reads 69% on the exact 8-seed
         // cohort), so acceptance-quality runs judge it on at least 32 seeds; diagnostic runs keep the requested seeds.
@@ -1041,13 +1044,17 @@ internal static class AiCommand
         }
 
         Console.WriteLine("== A3: Warlord AI vs Rusher: loses no settlement in >= 80% of matches, wins >= 70%");
-        Tournament.DuelResult a3 = Tournament.Duel(pack, "warlord", "rusher", seeds, minutes, archetype, firstSeed);
+        // Judged on 40 seeds (80 matches) in acceptance-quality runs, like A1 and A4: the 16 matches of an 8-seed run read 62% on a build that wins 81% over 80 (docs/MVP/28 §19).
+        int a3Seeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumA3Seeds);
+        Tournament.DuelResult a3 = Tournament.Duel(pack, "warlord", "rusher", a3Seeds, minutes, archetype, firstSeed);
         double clean = 1.0 - (double)a3.MatchesWithLossA / a3.Matches;
         Gate("A3 survive", clean >= 0.80, $"{clean * 100:F0}% of matches without a lost settlement");
         Gate("A3 win", a3.WinRateA >= 0.70, $"{a3.WinRateA * 100:F0}%");
 
         Console.WriteLine("== A4: Chieftain vs Warlord, Chieftain wins 25-40%");
-        Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", seeds, minutes, archetype, firstSeed);
+        // The 25 to 40% band is narrow against 16 matches' +/-12 points of noise, so acceptance-quality runs judge A4 on 40 seeds (80 matches); diagnostics keep the requested seeds.
+        int a4Seeds = diagnostic ? seeds : Math.Max(seeds, M10AiAcceptanceStatus.MinimumA4Seeds);
+        Tournament.DuelResult a4 = Tournament.Duel(pack, "chieftain", "warlord", a4Seeds, minutes, archetype, firstSeed);
         Gate("A4", a4.WinRateA >= 0.25 && a4.WinRateA <= 0.40, $"{a4.WinRateA * 100:F0}% over {a4.Matches} matches");
 
         // Three free-for-all seeds per duel seed (24 seeds, 120 matches at --seeds 8): at 25% the binomial error of a win

@@ -39,6 +39,12 @@ gets a gold frame and a light scrim. A new match starts paused ("opening hold") 
 the first research choice, then resumes when the research web closes. Orders given while
 paused show as *pending*.
 
+**Civilization direction.** The top-bar Direction control and game menu offer Balanced,
+Defensive, Offensive, Growth, Prosperity, and Discovery. A non-Balanced direction guides
+autonomous research (when Auto-fill is on), construction, Council decrees, and the Civ Mind;
+it also enables discretionary diplomacy and military decisions. Direct orders keep priority,
+and the control does not replace the separate Posture setting.
+
 **Menu.** Save, load, replay save/watch, settings (UI size 100/115/130 %, reduce
 motion, hints, tips, pause in web, pause on danger), help, new match and quit.
 Saves and the latest replay are stored under Godot's user-data directory in
@@ -76,13 +82,13 @@ phrased in plain English from the content pack (`Ui/UiText.cs`).
 Development captures (UI only; none of these touch simulation state):
 
 ```bash
-godot-mono --path game --resolution 1600x900 -- --screenshot=/tmp/civsim-ui.png [--ui-open=web|map|inspector-almost|replace|diplomacy|chronicle|help|settings|menu|end|intro]
+godot-mono --path game --resolution 1600x900 -- --screenshot=/tmp/civsim-ui.png [--ui-open=web|map|inspector-almost|replace|diplomacy|direction|chronicle|help|settings|menu|end|intro]
 godot-mono --path game --resolution 1280x720 -- --scenario=assign --shots=/tmp/civsim-shots   # scripted walk-through, one PNG per step
 ```
 
 Scenarios live in `Scripts/Hud/Game.Scenarios.cs` (`assign`, `paused-assign`, `replace`,
 `almost`, `map`, `overlays`, `moments`, `toasts`, `menu`, `diplomacy`, `tile`, `end`, `zoom`,
-`popovers`, `session`, `input`, `dev`, `looks`, `looks-gallery`). Other options: `--opening-hold` (use the paused
+`popovers`, `session`, `input`, `dev`, `looks`, `looks-gallery`, `build-panel`: the Building tab, `--start-minute=35 --viewer=2`; `--ui-open=people-building` opens it). Other options: `--opening-hold` (use the paused
 start in a capture), `--paused`, `--ui-scale=1.3`, `--reduce-motion`, `--research-map`,
 `--ui-debug`.
 
@@ -98,7 +104,7 @@ renderer as per-civilization `CivLooks` bits (`CivLook` in `src/CivSim.Sim/View/
 boat tier. Two scenarios photograph them: `looks-gallery` lays every mesh out on a stage off the map's
 west edge, and `looks` tours the map (`--start-minute=30 --viewer=-1 --looks-grant` gives every
 civilization the projects of the first three ages, keystones aside, and lets them settle in first;
-`--looks-debug` forces every look on instead). The simulation ends the match at year 64, so start before it.
+`--looks-debug` forces every look on instead). The match has no year cap: it ends only when a keystone clause fires (a human keystone or a rival's countdown).
 
 For a sustained renderer sample, build optimized managed assemblies and run one
 zoom level at a time:

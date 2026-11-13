@@ -115,9 +115,8 @@ public sealed class A7HarnessTelemetryTests
 
         Assert.Equal(baseline.Checksum, observed.Checksum);
         Assert.Equal(baseline.Civs.Select(c => c.Legacy), observed.Civs.Select(c => c.Legacy));
-        for (int civ = 0; civ < observed.Civs.Length; civ++)
-            Assert.Equal(observed.Civs[civ].Firsts,
-                observed.FfaFirstClaims.Where(claim => claim.Civ == civ).Sum(claim => (double)claim.Points), 2);
+        // Firsts pay no Legacy since 2026-11-06: the claims are still recorded, with no points (the outcome's "Firsts" column is Thriving).
+        Assert.All(observed.FfaFirstClaims, claim => Assert.Equal(0, (double)claim.Points, 2));
     }
 
     [Fact]
@@ -175,9 +174,18 @@ public sealed class A7HarnessTelemetryTests
         string[] builderParentRows = deferred.FfaFoodDemographyTraces
             .Where(row => row.Contains("seat=Builder/c1", StringComparison.Ordinal) &&
                 row.Contains("settlement=s1", StringComparison.Ordinal)).ToArray();
-        Assert.Contains(builderParentRows, row => row.Contains("season=40", StringComparison.Ordinal) &&
+        // The Builder parent first goes fission-pending at season 55 on this seed (it was season 40 or earlier before the
+        // E0-E3 pacing and settlement-economy changes). By default it splits at season 56; the deferral must instead hold it
+        // pending through season 64, so the season-56 and season-64 rows are the "deferred" evidence.
+        string[] defaultBuilderParentRows = traceOnly.FfaFoodDemographyTraces
+            .Where(row => row.Contains("seat=Builder/c1", StringComparison.Ordinal) &&
+                row.Contains("settlement=s1", StringComparison.Ordinal)).ToArray();
+        Assert.Contains(defaultBuilderParentRows, row => row.Contains("season=56", StringComparison.Ordinal) &&
+            row.Contains("fission(pending/firstPending/firstSplit/splits)=False/s55/s56/1", StringComparison.Ordinal));
+        Assert.Contains(builderParentRows, row => row.Contains("season=56", StringComparison.Ordinal) &&
+            row.Contains("fission(pending/firstPending/firstSplit/splits)=True/s55/never/0", StringComparison.Ordinal));
+        Assert.Contains(builderParentRows, row => row.Contains("season=64", StringComparison.Ordinal) &&
             row.Contains("fission(pending/firstPending/firstSplit/splits)=True/", StringComparison.Ordinal));
-        Assert.Contains(builderParentRows, row => row.Contains("season=64", StringComparison.Ordinal));
         Assert.Contains(builderParentRows, row => row.Contains("season=80", StringComparison.Ordinal) &&
             row.Contains("fission(pending/firstPending/firstSplit/splits)=False/", StringComparison.Ordinal));
         // The deferral holds the pending fission through season 64; whether it then splits (it now does, at season 65, once the
@@ -440,8 +448,10 @@ public sealed class A7HarnessTelemetryTests
         };
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
-        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 32);
-        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 32,
+        // The Rusher's first raid on a Warlord settlement lands at season 145 (minute 36) with the pacing of docs/MVP/28 §16, against
+        // season 112 (minute 28) before it; 40 minutes leaves a margin.
+        MatchOutcome baseline = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 40);
+        MatchOutcome observed = Tournament.Play(TestPack.Pack, 20261022, seats, archetypes, minutes: 40,
             warlordCombatCasualtyTrace: true);
 
         Assert.False(baseline.WarlordCombatCasualtyTraceEnabled);
@@ -649,21 +659,27 @@ public sealed class A7HarnessTelemetryTests
         Assert.Equal(defaultPath.Civs.Select(c => c.Legacy), baseline.Civs.Select(c => c.Legacy));
         Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
             row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=2.00", StringComparison.Ordinal));
+        // Pinned at season 32 of settlement s3: the baseline keeps its 2.00 scout reserve and puts 3.10 into food work, while the
+        // candidate releases the reserve (scoutWork=0.00) and assigns 5.65, so the released scout work becomes food work. The pin was
+        // season 35 (3.19 against 5.31), then season 34 (2.97 against 5.10), before the 2026-11-10 settlement material and build
+        // reliability changes (16b4c01: timber procurement, material routing, same-season build carry-through; docs/MVP/30-build-agency.md,
+        // which says it changes every civilization). After them the baseline auto-scout policy also sheds a scout in some short seasons
+        // (scoutWork=1.00 at seasons 31, 34, 35, 38), so only a season where the baseline still holds both scouts compares like with like.
         Assert.Contains(baseline.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=4.04/4.04", StringComparison.Ordinal));
+            row => row.Contains("season=32 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
+                row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=2.00", StringComparison.Ordinal) &&
+                row.Contains("foodWork(requested/assigned)=3.10/3.10", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal));
-        Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
-            row => row.Contains("season=35 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
-                row.Contains("foodWork(requested/assigned)=5.31/5.31", StringComparison.Ordinal));
+            row => row.Contains("season=32 settlement=s3 civ=3/warlord", StringComparison.Ordinal) &&
+                row.Contains("foodShort=True", StringComparison.Ordinal) && row.Contains("scoutWork=0.00", StringComparison.Ordinal) &&
+                row.Contains("foodWork(requested/assigned)=5.65/5.65", StringComparison.Ordinal));
         Assert.Contains(candidate.WarlordFoodWorkAttributionTraces,
             row => row.Contains("civ=1/rusher", StringComparison.Ordinal) && row.Contains("foodShort=True", StringComparison.Ordinal) &&
                 row.Contains("scoutWork=2.00", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Tournament_stops_and_scores_at_the_chapter_cap_even_when_more_minutes_were_requested()
+    public void Tournament_stops_and_scores_at_its_horizon_when_no_keystone_clause_fires()
     {
         Player[] seats =
         {
@@ -674,10 +690,10 @@ public sealed class A7HarnessTelemetryTests
         };
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
-        // A one-year cap ends at four seasons (one simulated minute); request three minutes to catch
-        // regressions where the harness keeps recording post-chapter AI scores or telemetry.
-        MatchOutcome match = Tournament.Play(PackWithChapterCapYear(1), Tournament.BaseSeed,
-            seats, archetypes, minutes: 3);
+        // There is no year cap (docs/MVP/28 §17): a chapter in which nobody completes KEY-4 has no end, so the horizon alone bounds
+        // the match. One simulated minute is four seasons; the harness must stop and score exactly there.
+        MatchOutcome match = Tournament.Play(TestPack.Pack, Tournament.BaseSeed,
+            seats, archetypes, minutes: 1);
 
         Assert.Equal(600, match.FinalTick);
         Assert.Equal(4, match.SeasonsProcessed);
@@ -693,42 +709,14 @@ public sealed class A7HarnessTelemetryTests
         EconomyArchetype[] archetypes = Enumerable.Repeat(EconomyArchetype.Balanced, 4).ToArray();
 
         // Make the complete research tree cheap and immediately eligible so this stays a small harness regression,
-        // while retaining the real KEY-4 end rule and a Year 64 cap.
+        // while retaining the real KEY-4 end rule; the 64-minute horizon only bounds a runaway match.
         MatchOutcome match = Tournament.Play(PackWithFastResearch(), Tournament.BaseSeed,
             seats, archetypes, minutes: 64);
 
-        Assert.True(match.FinalTick < 64 * 600, $"Expected the KEY-4 countdown before Year 64, got tick {match.FinalTick}.");
+        Assert.True(match.FinalTick < 64 * 600, $"Expected the KEY-4 countdown before the 64-minute horizon, got tick {match.FinalTick}.");
         Assert.Equal(match.FinalTick / 150, match.SeasonsProcessed);
         Assert.Equal(0, match.FinalTick % 150); // the match closes only after a complete season advance
         Assert.All(match.Civs, civ => Assert.True(civ.Projects > 0));
-    }
-
-    private static ContentPack PackWithChapterCapYear(int year)
-    {
-        ContentValue root = TestPack.Pack.Root;
-        ContentValue balance = root.Get("balance")!;
-        ContentValue constants = balance.Get("constants")!;
-        var changedConstants = new List<ContentValue>();
-        foreach (ContentValue constant in constants.Items)
-        {
-            if (constant.GetString("id") != "ChapterCapYear")
-            {
-                changedConstants.Add(constant);
-                continue;
-            }
-
-            changedConstants.Add(ContentValue.MapOf(constant.Entries.Select(entry =>
-                new KeyValuePair<string, ContentValue>(entry.Key,
-                    entry.Key == "value" ? ContentValue.Of((long)year) : entry.Value))));
-        }
-
-        ContentValue changedBalance = ContentValue.MapOf(balance.Entries.Select(entry =>
-            new KeyValuePair<string, ContentValue>(entry.Key,
-                entry.Key == "constants" ? ContentValue.ListOf(changedConstants) : entry.Value)));
-        ContentValue changedRoot = ContentValue.MapOf(root.Entries.Select(entry =>
-            new KeyValuePair<string, ContentValue>(entry.Key,
-                entry.Key == "balance" ? changedBalance : entry.Value)));
-        return ContentPack.FromTree(changedRoot);
     }
 
     private static ContentPack PackWithFastResearch()

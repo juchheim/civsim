@@ -89,58 +89,25 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>
-    /// The first dwelling, shelter or store the settlement wants whose materials are short, when none of the wanted ones can be
-    /// paid for. Mirrors <see cref="SelectBuildCandidate"/> for housing, warmth and storage and changes nothing.
+    /// The first structure of the basic list the settlement wants whose materials are short, when the planner finds nothing it can pay for. It is the
+    /// first line of <see cref="BuildOutlookFor"/>'s basic track, kept as a light per-season readout for the frame. Changes nothing.
     /// </summary>
     public BuildBlockerReadout BuildBlocker(int settlementIndex)
     {
+        var none = new BuildBlockerReadout(-1, -1, Fix64.Zero, Fix64.Zero);
         SettlementState s = _settlements[settlementIndex];
-        int population = Population(s.Id);
-        bool needsHousing = HousingCap(s) < (ShouldBuildMarketHousingAhead(s) ? HousingTarget(s) : Fix64.FromInt(population + 8));
-        bool hasWarmShelter = s.Structures[(int)Structure.PitHouse] > 0 || s.Structures[(int)Structure.WattleHouse] > 0 ||
-            s.Structures[(int)Structure.MudbrickHouse] > 0 || s.Structures[(int)Structure.Longhouse] > 0;
-        bool hasBasicShelter = hasWarmShelter || s.Structures[(int)Structure.LeanTo] > 0 || s.Structures[(int)Structure.HideTent] > 0;
-        bool extraLeanTo = s.Civic is null && ShouldBuildMarketHousingAhead(s) && needsHousing;
-        bool cold = WarmthDeficit(s, true) > 0;
-        int wood = (int)Good.Wood, clay = (int)Good.Clay, brick = (int)Good.Mudbrick, stone = (int)Good.Stone;
-
-        BuildBlockerReadout first = default;
-        bool any = false;
-        // Each wanted item: its structure, then what it takes (good slot, amount) in order; null slot ends the list.
-        bool Want(Structure structure, bool wanted, ReadOnlySpan<(int Slot, int Amount, int Hundredths)> needs)
+        int season = checked((int)_seasonsCompleted);
+        if (SelectBuildCandidate(s, season) != Structure.Count) return none;
+        BasicCtx ctx = MakeBasicCtx(s, season);
+        for (int rule = 0; rule < (int)BasicRule.Count; rule++)
         {
-            if (!wanted || !CanBuild(s.Civilization, structure)) return false;
-            for (int i = 0; i < needs.Length; i++)
-            {
-                Fix64 need = needs[i].Hundredths > 0 ? Fix64.FromRatio(needs[i].Hundredths, 100) : Fix64.FromInt(needs[i].Amount);
-                Fix64 have = needs[i].Slot < 0 ? FoodStores(s) : s.Stores[needs[i].Slot];
-                if (have >= need) continue;
-                if (!any) { first = new BuildBlockerReadout((int)structure, needs[i].Slot, have, need); any = true; }
-                return true;
-            }
-            return false;
+            Structure kind = BasicRuleKind(rule);
+            if (!CanBuild(s.Civilization, kind) || !BasicRuleWanted(s, rule, ref ctx)) continue;
+            int n = BasicNeeds(s, kind, season, out BuildNeed a, out BuildNeed b);
+            if (n >= 1 && a.Short) return new BuildBlockerReadout((int)kind, a.Slot, a.Have, a.Need);
+            if (n >= 2 && b.Short) return new BuildBlockerReadout((int)kind, b.Slot, b.Have, b.Need);
         }
-
-        bool affordable = false;
-        bool Check(Structure structure, bool wanted, ReadOnlySpan<(int Slot, int Amount, int Hundredths)> needs)
-        {
-            if (!wanted || !CanBuild(s.Civilization, structure)) return false;
-            bool short_ = Want(structure, true, needs);
-            if (!short_) affordable = true;
-            return short_;
-        }
-
-        Check(Structure.StoragePit, s.Structures[(int)Structure.StoragePit] == 0, stackalloc[] { (-1, 5, 0) });
-        Check(Structure.Granary, s.Structures[(int)Structure.Granary] == 0, stackalloc[] { (brick, 80, 0) });
-        Check(Structure.PitHouse, !hasWarmShelter && hasBasicShelter && cold, stackalloc[] { (wood, 4, 0) });
-        Check(Structure.WattleHouse, !hasWarmShelter && hasBasicShelter && cold, stackalloc[] { (wood, 3, 0), (clay, 2, 0) });
-        Check(Structure.LeanTo, (!hasBasicShelter || extraLeanTo) && (needsHousing || cold), stackalloc[] { (wood, 1, 0) });
-        Check(Structure.Hearth, s.Structures[(int)Structure.Hearth] == 0, stackalloc[] { (stone, 0, 50) });
-        Check(Structure.PitHouse, s.Structures[(int)Structure.PitHouse] == 0 && needsHousing, stackalloc[] { (wood, 4, 0) });
-        Check(Structure.WattleHouse, needsHousing, stackalloc[] { (wood, 3, 0), (clay, 2, 0) });
-        Check(Structure.MudbrickHouse, needsHousing, stackalloc[] { (brick, 60, 0) });
-        Check(Structure.Longhouse, needsHousing, stackalloc[] { (wood, 12, 0), (clay, 4, 0) });
-        return any && !affordable ? first : new BuildBlockerReadout(-1, -1, Fix64.Zero, Fix64.Zero);
+        return none;
     }
 
     // ---- research payoff ------------------------------------------------------------------------

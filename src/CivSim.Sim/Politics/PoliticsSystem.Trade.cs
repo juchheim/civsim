@@ -492,6 +492,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     /// </summary>
     private void SendCaravan(Compact c)
     {
+        if (c.Good == TradeGood.Food && c.SellerCiv >= 0 && HasFoodExportShortage(c.SellerCiv)) return;
         int seller = HubOf(c.SellerCiv, c.SellerFolk, c.Good, selling: true, -1);
         int buyer = HubOf(c.BuyerCiv, c.BuyerFolk, c.Good, selling: false, seller);
         if (seller < 0 || buyer < 0 || seller == buyer) return;
@@ -544,6 +545,11 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int buyer = e.ToSettlement, seller = e.FromSettlement;
         bool buyerOk = unchecked((uint)buyer) < unchecked((uint)_sCount) && _sPop[buyer] > 0;
         if (!buyerOk || c is null)
+        {
+            if (unchecked((uint)seller) < unchecked((uint)_sCount)) Unload(seller, e.Good, e.Cargo);
+            return;
+        }
+        if (e.Good == TradeGood.Food && c.SellerCiv >= 0 && HasFoodExportShortage(c.SellerCiv))
         {
             if (unchecked((uint)seller) < unchecked((uint)_sCount)) Unload(seller, e.Good, e.Cargo);
             return;
@@ -829,21 +835,21 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         }
     }
 
-    /// <summary>The village stands beside its placer: the nearest habitable tile within 2 that holds no deposit, lowest index on ties; else the placer itself.</summary>
+    /// <summary>The village stands two hexes from its placer (three if none at two will do): a habitable tile holding no deposit with a clean core, lowest index on ties; -1 if none.</summary>
     private int FolkSite(int placer)
     {
+        // Two hexes from the placer, so the tin lies outside the village core (docs/MVP/31 §3.3); three only when no tile at two will do.
         int best = -1, bestDistance = int.MaxValue;
         HexGrid.Coordinates(placer, _width, out int px, out int py);
-        for (int y = Math.Max(0, py - 2); y <= Math.Min(_height - 1, py + 2); y++)
-            for (int x = Math.Max(0, px - 3); x <= Math.Min(_width - 1, px + 3); x++)
+        for (int y = Math.Max(0, py - 3); y <= Math.Min(_height - 1, py + 3); y++)
+            for (int x = Math.Max(0, px - 4); x <= Math.Min(_width - 1, px + 4); x++)
             {
                 int t = y * _width + x;
                 int d = HexGrid.Distance(placer, t, _width);
-                if (d == 0 || d > 2 || !_economy.IsHabitableSite(t) || _tileArray[t].Deposit != DepositKind.None) continue;
+                if (d is < 2 or > 3 || !_economy.IsHabitableSite(t) || _tileArray[t].Deposit != DepositKind.None || !_economy.IsCleanCoreSite(t)) continue;
                 if (d < bestDistance || d == bestDistance && t < best) { best = t; bestDistance = d; }
             }
-        if (best >= 0) return best;
-        return _economy.IsHabitableSite(placer) ? placer : -1;
+        return best;
     }
 
     private int NearestCivTo(int tile)

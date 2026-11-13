@@ -23,6 +23,8 @@ projects:
     era: 1
     type: M
     status: numeric
+    cost: 100
+    cost_reason: "docs/MVP/28 §16: late era-1 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [HUS-01, WAY-02]
     effects:
       - {kind: method, action: herd, rung: 0, name: Herd following, mult: 2, note: "herd fear decays , drives can't push it off"}

@@ -55,7 +55,9 @@ public static class Program
                 "iron-live" => IronGeographyAudit.RunLive(args[1..]),
                 "e5-audit" => E5GeographyAudit.Run(args[1..]),
                 "iron-match" => IronMatchCommand.Run(args[1..]),
+                "build-census" => BuildCensusCommand.Run(args[1..]),
                 "iron-fuel" => IronFuelCheck.Run(args[1..]),
+                "core-audit" => CoreAuditCommand.Run(args[1..]),
                 "replay" when args.Length >= 3 && args[1] == "verify" => VerifyReplay(args[2..]),
                 _ => Usage(),
             };
@@ -71,11 +73,13 @@ public static class Program
     {
         Console.Error.WriteLine("usage: civsim-harness toy [--seed N] [--ticks N] [--checksum-every N] [--check-golden FILE | --write-golden FILE | --record FILE]");
         Console.Error.WriteLine("       civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]");
-        Console.Error.WriteLine("       civsim-harness iron-fuel --pack FILE [--seeds a,b,c] [--seasons N] [--people N] [--spatial-only]");
+        Console.Error.WriteLine("       civsim-harness iron-fuel --pack FILE [--seeds a,b,c] [--seasons N] [--people N] [--spatial-only] [--scenario NAME]");
         Console.Error.WriteLine("       civsim-harness iron-audit [--seed N] [--seeds N] [--threads N] [--csv FILE]");
         Console.Error.WriteLine("       civsim-harness e5-audit [--seed N] [--seeds N] [--threads N] [--csv FILE]");
         Console.Error.WriteLine("       civsim-harness iron-live --pack FILE [--seed N] [--seeds N] [--minutes N]");
         Console.Error.WriteLine("       civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N]");
+        Console.Error.WriteLine("       civsim-harness build-census --pack FILE [--seed N] [--seeds N] [--minutes N] [--mode iron|bronze]");
+        Console.Error.WriteLine("       civsim-harness core-audit --pack FILE [--seeds N] [--first-seed N] [--minutes a,b,c] [--pack-seeds N] [--static-only | --live-only] [--outer]");
         Console.Error.WriteLine("       civsim-harness replay verify FILE");
         Console.Error.WriteLine("       civsim-harness economy --pack FILE [--seed N] [--ticks N] [--checksum-every N] [--archetypes Balanced,Grower,Builder,Wanderer] [--complete TICK:CIV:PROJECT] [--record FILE] [--check-golden FILE | --write-golden FILE] [--report-economy] [--report-balance-reference] [--report-c1-reference] [--report-c3-midpoints] [--trace-demography]");
     Console.Error.WriteLine("       civsim-harness ai --pack FILE (--duel A B | --ladder a,b,c | --ffa LEVEL | --check-m6 | --check-a7 | --check-b7 | --check-b8 | --check-b27 | --check-b28 | --check-b29 | --check-m10 | --exploit) [--seeds N] [--first-seed N] [--minutes N] [--screen-minutes N] [--generations N] [--children N] [--archetype X] [--match-details] [--b28-trace] [--b28-proactive-defense-diagnostic] [--b28-public-era-shadow-diagnostic] [--food-shortage-skip-scouts] [--food-shortage-skip-scouts-chieftain] [--warlord-emergency-food-work-diagnostic] [--warlord-settlement-trace] [--warlord-rival-pace-override X] [--warlord-firsts-eta-pessimism-seasons N] [--warlord-nonconquer-raid-posture-streak N] [--warlord-max-campaign-origin-diagnostic] [--warlord-global-force-campaign-diagnostic] [--warlord-frontier-early-bonus-override X] [--warlord-e3-fission-threshold-override X] [--warlord-defense-research-bonus-override X] [--warlord-keystone-tempo-override X] [--warlord-e2-closure-slot-diagnostic] [--warlord-defense-urgency-shadow-diagnostic] [--warlord-found-funnel] [--warlord-found-frontier-trajectory] [--warlord-allow-exposed-found-diagnostic] [--a3-defer-warlord-s2-fission-until30] [--warlord-campaign-opportunity-trace] [--warlord-pre-e3-fission-threshold-scale-override X] [--warlord-b30-trace] [--a5-builder-fertility-diagnostic] [--a5-grower-fertility-diagnostic]");
@@ -83,6 +87,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness view --pack FILE [--seed N] [--minutes N] [--viewer CIV|-1] [--every TICKS] [--compare]");
         Console.Error.WriteLine("       civsim-harness politics --pack FILE --check-m10 [--seed N] [--seeds N] [--minutes N] [--trace-seed N | --trace-all-seeds]");
         Console.Error.WriteLine("       civsim-harness acceptance --pack FILE (--s1 [--s1-probe] | --s12 | --s13 | --s15) [--matches N] [--minutes N] [--sample-minutes N]");
+        Console.Error.WriteLine("         --s12 plays one headless chapter to its end (default horizon 120 minutes; --minutes overrides); there is no year cap, so a chapter nobody finishes fails S12.");
         Console.Error.WriteLine("         --s1-probe runs a bounded diagnostic replay probe (max 32 matches, 64 minutes); always INCOMPLETE, exit 2.");
         Console.Error.WriteLine("       civsim-harness replay verify FILE --pack FILE");
         return 2;

@@ -67,6 +67,8 @@ projects:
     era: 4
     type: S
     status: numeric
+    cost: 2880
+    cost_reason: "docs/MVP/28 §7: late Iron project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [MED-05, BLD-10]
     effects:
       - {kind: build, structure: bathhouse}

@@ -145,11 +145,11 @@ public partial class ResearchRadialMap : Control
     private readonly ResearchEraRail _rail;
 
     private static readonly StyleBoxFlat WellBox = UiTheme.Box(UiTokens.SurfaceSunken, UiTokens.R1, null, 0);
-    private static readonly StyleBoxFlat LabelBox = UiTheme.Box(new Color("#1F1B16E0"), 4, null, 0);
-    private static readonly StyleBoxFlat LabelBoxSelected = UiTheme.Box(new Color("#2A251EF2"), 4, UiTokens.Accent, 1);
-    private static readonly StyleBoxFlat LabelBoxGate = UiTheme.Box(new Color("#2A251EF5"), 4, UiTokens.WithAlpha(new Color("#E2D3A6"), 0.8f), 1);
-    private static readonly StyleBoxFlat LabelBoxPath = UiTheme.Box(new Color("#2A251EF2"), 4, UiTokens.WithAlpha(UiTokens.Accent, 0.55f), 1);
-    private static readonly StyleBoxFlat TrackPill = UiTheme.Box(new Color("#1F1B16D9"), 12, UiTokens.Border, 1);
+    private static readonly StyleBoxFlat LabelBox = UiTheme.Box(UiTokens.SurfaceMapLabel, 4, null, 0);
+    private static readonly StyleBoxFlat LabelBoxSelected = UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 4, UiTokens.Accent, 1);
+    private static readonly StyleBoxFlat LabelBoxGate = UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 4, UiTokens.WithAlpha(new Color("#E2D3A6"), 0.8f), 1);
+    private static readonly StyleBoxFlat LabelBoxPath = UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 4, UiTokens.WithAlpha(UiTokens.Accent, 0.55f), 1);
+    private static readonly StyleBoxFlat TrackPill = UiTheme.Box(UiTokens.SurfaceMap, 12, UiTokens.Border, 1);
     private static readonly Color GateColor = new("#E2D3A6");
 
     public ResearchRadialMap()
@@ -220,6 +220,51 @@ public partial class ResearchRadialMap : Control
     // ---- data --------------------------------------------------------------------------------
 
     public ResearchRadialLayout? Layout => _layout;
+
+    // Full-screen stage: the control covers the whole window and the host floats a top bar, a dock and a details card over it.
+    // These are how much of each edge is covered; the tools, key, age rail and the centring of the view keep clear of them.
+    private float _insetL, _insetT, _insetR, _insetB, _pillRightInset;
+    private bool _toolsLeft;
+
+    public void SetOverlayInsets(float left, float top, float right, float bottom, bool toolsLeft, float pillRight)
+    {
+        _insetL = left; _insetT = top; _insetR = right; _insetB = bottom; _toolsLeft = toolsLeft; _pillRightInset = pillRight;
+        PlaceOverlays();
+        PlaceRail();
+    }
+
+    /// <summary>Tool pill, result list and key, kept clear of the host's overlays.</summary>
+    private void PlaceOverlays()
+    {
+        if (_toolPill is null || _statusPill is null || _legend is null) return;
+        float sp = UiTokens.Sp2;
+        if (_toolsLeft)
+        {
+            _toolPill.AnchorLeft = _toolPill.AnchorRight = 0;
+            _toolPill.GrowHorizontal = GrowDirection.End;
+            _toolPill.OffsetLeft = _toolPill.OffsetRight = _insetL + sp;
+        }
+        else
+        {
+            _toolPill.AnchorLeft = _toolPill.AnchorRight = 1;
+            _toolPill.GrowHorizontal = GrowDirection.Begin;
+            _toolPill.OffsetLeft = _toolPill.OffsetRight = -(_insetR + sp);
+        }
+        _toolPill.OffsetTop = _toolPill.OffsetBottom = _insetT + sp;
+
+        float width = _toolsLeft ? 320 : Math.Clamp(Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * sp, 220, 320);
+        _statusPill.CustomMinimumSize = new Vector2(width, 0);
+        if (_toolsLeft)
+            _statusPill.Position = new Vector2(Math.Max(sp, Size.X - _insetR - _pillRightInset - sp - Math.Max(width, _statusPill.Size.X)), _insetT + sp);
+        else
+        {
+            float room = Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * sp;
+            _statusPill.Position = new Vector2(sp, room < 240 ? _toolPill.GetCombinedMinimumSize().Y + 2 * sp + _insetT : sp + _insetT);
+        }
+
+        _legend.OffsetLeft = _insetL + sp;
+        _legend.OffsetBottom = _legend.OffsetTop = -(_insetB + sp);
+    }
 
     public void SetCatalog(ResearchCatalog catalog, Func<int, string> fieldName)
     {
@@ -613,13 +658,13 @@ public partial class ResearchRadialMap : Control
     /// <summary>Docks the rail to the left edge, centred between the tools at the top and the key at the bottom; hidden when there is no room.</summary>
     private void PlaceRail()
     {
-        float top = 48, bottom = _legend.Visible ? Math.Max(8, Size.Y - _legend.Position.Y) + 4 : 8;
+        float top = _insetT + 48, bottom = _legend.Visible ? Math.Max(_insetB + 8, Size.Y - _legend.Position.Y) + 4 : _insetB + 8;
         float room = Size.Y - top - bottom;
-        bool show = _lens is not null && _lens.RingCount > 1 && Size.X >= 520 && room >= (MaxRing() + 1) * ResearchEraRail.MinChip + 12;
+        bool show = _lens is not null && _lens.RingCount > 1 && Size.X - _insetL - _insetR >= 520 && room >= (MaxRing() + 1) * ResearchEraRail.MinChip + 12;
         if (_rail.Visible != show) { _rail.Visible = show; QueueRedraw(); }
         if (!show) return;
         float height = Math.Min(room, _rail.WantedHeight);
-        _rail.Position = new Vector2(UiTokens.Sp2, top + (room - height) * 0.5f);
+        _rail.Position = new Vector2(_insetL + UiTokens.Sp2, top + (room - height) * 0.5f);
         _rail.Size = new Vector2(ResearchEraRail.RailWidth, height);
     }
 
@@ -759,10 +804,10 @@ public partial class ResearchRadialMap : Control
     /// <summary>The part of the control not covered by the tools along the top or the key along the bottom.</summary>
     private Rect2 Usable()
     {
-        float top = 48, bottom = _legend.Visible ? Math.Max(8, Size.Y - _legend.Position.Y) + 4 : 8;
-        if (top + bottom > Size.Y * 0.6f) { top = 8; bottom = 8; }
-        float left = _rail.Visible ? _rail.Position.X + _rail.Size.X + 4 : 8;
-        return new Rect2(left, top, Math.Max(1, Size.X - left - 8), Math.Max(1, Size.Y - top - bottom));
+        float top = _insetT + 48, bottom = _legend.Visible ? Math.Max(_insetB + 8, Size.Y - _legend.Position.Y) + 4 : _insetB + 8;
+        if (top + bottom > Size.Y * 0.6f) { top = _insetT + 8; bottom = _insetB + 8; }
+        float left = _rail.Visible ? _rail.Position.X + _rail.Size.X + 4 : _insetL + 8;
+        return new Rect2(left, top, Math.Max(1, Size.X - _insetR - left - 8), Math.Max(1, Size.Y - top - bottom));
     }
 
     /// <summary>The world centre that puts <paramref name="world"/> in the middle of the usable part at <paramref name="zoom"/>.</summary>
@@ -935,11 +980,9 @@ public partial class ResearchRadialMap : Control
         if (what == NotificationResized || what == NotificationVisibilityChanged)
         {
             // the result list takes what the tools along the top leave
-            float room = Size.X - _toolPill.GetCombinedMinimumSize().X - 3 * UiTokens.Sp2;
-            _statusPill.CustomMinimumSize = new Vector2(Math.Clamp(room, 220, 320), 0);
-            bool narrow = Size.X < 780;
+            bool narrow = Size.X - _insetL - _insetR < 780;
             _gateButton.Text = narrow ? "" : "Turning point";
-            _statusPill.Position = new Vector2(UiTokens.Sp2, room < 240 ? _toolPill.GetCombinedMinimumSize().Y + 2 * UiTokens.Sp2 : UiTokens.Sp2);
+            PlaceOverlays();
             PlaceRail();
             if (Size.X > 2 && IsVisibleInTree() && _layout is not null)
             {
@@ -1433,6 +1476,7 @@ public partial class ResearchRadialMap : Control
             string name = UiText.ThemeNames[sector.Theme].ToUpperInvariant();
             Vector2 extent = caps.GetStringSize(name, HorizontalAlignment.Left, -1, UiTokens.FontSmall);
             var size = new Vector2(extent.X + 22, 18);
+            if (size.X > inset.Size.X || size.Y > inset.Size.Y) continue;
             Vector2 topLeft = AnchorBox(anchor, angle, size).Clamp(inset.Position, inset.End - size);
             DrawStyleBox(TrackPill, new Rect2(topLeft - new Vector2(7, 3), size + new Vector2(14, 6)));
             float alpha = _themeFilter >= 0 && _themeFilter != sector.Theme ? 0.4f : 1f;
@@ -1864,7 +1908,11 @@ public partial class ResearchRadialMap : Control
         int gate = NextTurningPoint();
         if (gate < 0) return;
         Vector2 at = ToScreen(_lx[gate], _ly[gate]);
-        Rect2 room = Usable().Grow(-4);
+        Rect2 usable = Usable();
+        // The control can briefly be smaller than its overlays during layout. Keep the
+        // inset positive before using it for hit tests or positioning.
+        if (usable.Size.X <= 8 || usable.Size.Y <= 8) return;
+        Rect2 room = usable.Grow(-4);
         if (room.Grow(NodeRadius(true)).HasPoint(at)) return;
 
         Vector2 from = room.GetCenter();
@@ -1875,6 +1923,9 @@ public partial class ResearchRadialMap : Control
         string text = name + "  " + (dir.Y < -0.6f ? "↑" : dir.Y > 0.6f ? "↓" : dir.X < 0 ? "←" : "→");
         Vector2 extent = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelFont);
         var size = new Vector2(extent.X + 40, 28);
+        // A long project name may not fit in a narrow map. Drawing no pointer is
+        // preferable to clamping it with inverted bounds (and leaving a stale hitbox).
+        if (size.X > room.Size.X || size.Y > room.Size.Y) return;
         // where the ray from the middle leaves the usable area, with the tab pulled wholly inside it
         Vector2 edge = from + dir * ExitDistance(from, dir, room);
         var box = new Rect2((edge - size * 0.5f).Clamp(room.Position, room.End - size), size);
@@ -1883,7 +1934,7 @@ public partial class ResearchRadialMap : Control
 
         bool ready = _looks[gate].State is ProjectState.Available or ProjectState.Slotted;
         float glow = ready && !UiSettings.Current.ReduceMotion ? 0.5f + 0.5f * Mathf.Sin(_pulse / 1.6f * Mathf.Tau) : 0.5f;
-        DrawStyleBox(UiTheme.Box(new Color("#2A251EF5"), 14, UiTokens.WithAlpha(GateColor, 0.55f + 0.4f * glow), 2), box);
+        DrawStyleBox(UiTheme.Box(UiTokens.SurfaceMapLabelStrong, 14, UiTokens.WithAlpha(GateColor, 0.55f + 0.4f * glow), 2), box);
         UiDraw.Glyph(this, UiGlyph.Gem, new Rect2(box.Position + new Vector2(8, 5), new Vector2(18, 18)), GateColor, 1.6f);
         DrawString(font, box.Position + new Vector2(32, 5 + font.GetAscent(LabelFont) + (18 - font.GetHeight(LabelFont)) * 0.5f), text, HorizontalAlignment.Left, -1, LabelFont, UiTokens.TextPrimary);
     }

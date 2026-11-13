@@ -265,8 +265,8 @@ public sealed class ResearchCatalog
         LegacyFirstPerEra = Constant("LegacyFirstPerEra").FloorToInt();
         LegacyFirstKeystoneMult = Constant("LegacyFirstKeystoneMult").FloorToInt();
         LegacyWonderBuiltPerEra = Constant("LegacyWonderBuiltPerEra").FloorToInt();
+        LegacyThrivingDivisor = Constant("LegacyThrivingDivisor").FloorToInt();
         ChapterCountdownSeasons = Constant("ChapterCountdownSeasons").FloorToInt();
-        ChapterCapYear = Constant("ChapterCapYear").FloorToInt();
         MandateRechargeMin = Constant("MandateRechargeMin").FloorToInt();
     }
 
@@ -278,10 +278,10 @@ public sealed class ResearchCatalog
     /// <summary>Multiplier on a First for a Keystone or a Wonder.</summary>
     public int LegacyFirstKeystoneMult { get; }
     public int LegacyWonderBuiltPerEra { get; }
+    /// <summary>Thriving Legacy per season is √people ÷ this, scaled by how little famine and disease the people suffer.</summary>
+    public int LegacyThrivingDivisor { get; }
     /// <summary>Seasons between the first rival's last keystone and the end of the chapter (docs/MVP/22 §3.1).</summary>
     public int ChapterCountdownSeasons { get; }
-    /// <summary>The hard cap of the chapter, in years of 600 ticks.</summary>
-    public int ChapterCapYear { get; }
     public int MandateRechargeMin { get; }
 
     /// <summary>Mastery Legacy for completing a project: <c>2 × (era + 1)</c>.</summary>

@@ -10,6 +10,10 @@ public enum UiGlyph
     Lock, Queue, ClockRing, Warning, Danger, Info, Hammer, Hearth, Compass, Gem, People, Hut, Flags, Scroll, Menu, Spark, Globe,
     Age, LayerClaims, LayerFood, LayerMethods, LayerResources, Beacon, CompassRose, Spring, Summer, Autumn, Winter, Search, Dot, Star, StarOutline,
     EmblemSun, EmblemWave, EmblemLeaf, EmblemStar, EmblemMountain, EmblemFlame, EmblemMoon, EmblemAntler, Link,
+    // UI pass 2 (docs/MVP/ui-ux-pass2.md §7): one distinct mark per map layer, and a seal for Decrees (it used to borrow People).
+    Seal, LayerForest, LayerDeposits, LayerTrade, LayerCohesion,
+    // Expand / collapse a panel to near full screen (research tree).
+    Expand, Collapse,
 }
 
 /// <summary>Draws every icon the HUD uses with CanvasItem primitives, so no emoji or icon font is needed.</summary>
@@ -155,6 +159,22 @@ public static class UiDraw
                 ci.DrawLine(P(0.2f, 0.5f), P(0.8f, 0.5f), color, line);
                 ci.DrawLine(P(0.2f, 0.7f), P(0.8f, 0.7f), color, line);
                 break;
+            case UiGlyph.Expand:
+            case UiGlyph.Collapse:
+            {
+                // four corner brackets: pointing out (expand) or in (collapse)
+                bool inward = glyph == UiGlyph.Collapse;
+                float a = inward ? 0.42f : 0.14f, b = inward ? 0.58f : 0.86f, arm = 0.22f;
+                float[] xs = { a, b }, ys = { a, b };
+                for (int ix = 0; ix < 2; ix++)
+                    for (int iy = 0; iy < 2; iy++)
+                    {
+                        float x = xs[ix], y = ys[iy];
+                        float dx = (ix == 0 ? 1 : -1) * arm * (inward ? -1 : 1), dy = (iy == 0 ? 1 : -1) * arm * (inward ? -1 : 1);
+                        ci.DrawPolyline(new[] { P(x + dx, y), P(x, y), P(x, y + dy) }, color, line);
+                    }
+                break;
+            }
             case UiGlyph.Spark:
                 ci.DrawColoredPolygon(new[]
                 {
@@ -264,8 +284,34 @@ public static class UiDraw
                     }
                     break;
                 }
+            case UiGlyph.Seal:
+                ci.DrawColoredPolygon(new[] { P(0.38f, 0.6f), P(0.28f, 0.92f), P(0.4f, 0.84f), P(0.48f, 0.66f) }, color);
+                ci.DrawColoredPolygon(new[] { P(0.62f, 0.6f), P(0.72f, 0.92f), P(0.6f, 0.84f), P(0.52f, 0.66f) }, color);
+                ci.DrawArc(P(0.5f, 0.4f), Q(0.28f), 0, Mathf.Tau, 28, color, line, true);
+                ci.DrawCircle(P(0.5f, 0.4f), Q(0.13f), color);
+                break;
+            case UiGlyph.LayerForest:
+                ci.DrawColoredPolygon(new[] { P(0.5f, 0.08f), P(0.8f, 0.44f), P(0.66f, 0.44f), P(0.86f, 0.7f), P(0.14f, 0.7f), P(0.34f, 0.44f), P(0.2f, 0.44f) }, color);
+                ci.DrawLine(P(0.5f, 0.68f), P(0.5f, 0.92f), color, line + 0.5f);
+                break;
+            case UiGlyph.LayerDeposits:
+                ci.DrawPolyline(new[] { P(0.16f, 0.64f), P(0.34f, 0.3f), P(0.64f, 0.2f), P(0.86f, 0.46f), P(0.74f, 0.8f), P(0.32f, 0.84f), P(0.16f, 0.64f) }, color, line);
+                ci.DrawPolyline(new[] { P(0.34f, 0.3f), P(0.5f, 0.52f), P(0.86f, 0.46f) }, color, Math.Max(1.2f, line * 0.7f));
+                ci.DrawLine(P(0.5f, 0.52f), P(0.32f, 0.84f), color, Math.Max(1.2f, line * 0.7f));
+                break;
+            case UiGlyph.LayerTrade:
+                ci.DrawPolyline(new[] { P(0.22f, 0.72f), P(0.36f, 0.46f), P(0.5f, 0.5f), P(0.64f, 0.54f), P(0.78f, 0.28f) }, color, line);
+                ci.DrawCircle(P(0.22f, 0.72f), Q(0.11f), color);
+                ci.DrawCircle(P(0.78f, 0.28f), Q(0.11f), color);
+                break;
+            case UiGlyph.LayerCohesion:
+                ci.DrawPolyline(new[] { P(0.5f, 0.24f), P(0.24f, 0.72f), P(0.76f, 0.72f), P(0.5f, 0.24f) }, color, Math.Max(1.2f, line * 0.8f));
+                ci.DrawCircle(P(0.5f, 0.24f), Q(0.12f), color);
+                ci.DrawCircle(P(0.24f, 0.72f), Q(0.12f), color);
+                ci.DrawCircle(P(0.76f, 0.72f), Q(0.12f), color);
+                break;
             default:
-                if (glyph >= UiGlyph.EmblemSun) DrawEmblemShape(ci, glyph, o, s, color, line);
+                if (glyph >= UiGlyph.EmblemSun && glyph <= UiGlyph.EmblemAntler) DrawEmblemShape(ci, glyph, o, s, color, line);
                 break;
         }
     }

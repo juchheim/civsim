@@ -211,6 +211,10 @@ public class ViewFrameTests
         }
 
         Assert.Equal(eco.SettlementCount, f.SettlementCount);
+        int outerRow = 0;
+        var outerTiles = new int[(int)CoreDistrict.Count];
+        var outerDistricts = new byte[(int)CoreDistrict.Count];
+        var outerPositions = new byte[(int)CoreDistrict.Count];
         for (int s = 0; s < eco.SettlementCount; s++)
         {
             var lite = eco.SettlementLite(s);
@@ -226,7 +230,17 @@ public class ViewFrameTests
             Assert.Equal(Math.Min(255, eco.TempleCount(s)), f.SettlementTemples[s]);
             Assert.Equal(Math.Min(255, ziggurats), f.SettlementZiggurats[s]);
             Assert.Equal(zigguratPermille, f.SettlementZigguratPermille[s]);
+            Assert.InRange(f.SettlementCoreFront[s], (byte)0, (byte)5);
+            int count = eco.OuterCoreHexes(s, outerTiles, outerDistricts, outerPositions);
+            for (int row = 0; row < count; row++, outerRow++)
+            {
+                Assert.Equal(s, f.CoreOuterSettlement[outerRow]);
+                Assert.Equal(outerTiles[row], f.CoreOuterTile[outerRow]);
+                Assert.Equal(outerDistricts[row], f.CoreOuterDistrict[outerRow]);
+                Assert.Equal(outerPositions[row], f.CoreOuterPosition[outerRow]);
+            }
         }
+        Assert.Equal(outerRow, f.CoreOuterCount);
 
         for (int t = 0; t < f.Visibility.Length; t++)
         {
@@ -265,6 +279,34 @@ public class ViewFrameTests
         Assert.Equal(a.FigureCount, w.ViewerFrame.FigureCount);
         Assert.True(a.FigureId.AsSpan(0, a.FigureCount).SequenceEqual(w.ViewerFrame.FigureId.AsSpan(0, a.FigureCount)));
         Assert.True(a.FigureX.AsSpan(0, a.FigureCount).SequenceEqual(w.ViewerFrame.FigureX.AsSpan(0, a.FigureCount)));
+    }
+
+    [Fact]
+    public void The_era_report_numbers_follow_contact_not_sight()
+    {
+        WatchedMatch w = ViewKit.Watched.Value;
+        MatchFrame f = w.ViewerFrame, all = w.OmniFrame;
+        int slots = MatchFrame.StoreSlots;
+        long ownGain = 0;
+        for (int slot = 0; slot < slots; slot++) ownGain += f.CivGoodsGained[slot];
+        Assert.True(ownGain > 0, "a people that has stored goods for 30 years has gained some");
+        Assert.Equal(all.CivPopulation[0], f.CivIntelPopulation[0]);
+        Assert.Equal(all.CivProjectsDone[0], f.CivIntelProjectsDone[0]);
+        for (int c = 0; c < f.CivCount; c++)
+        {
+            bool shared = c == 0 || ((CivViewFlags)f.CivFlags[c] & CivViewFlags.Contacted) != 0;
+            for (int slot = 0; slot < slots; slot++)
+            {
+                long seen = f.CivGoodsGained[c * slots + slot];
+                if (shared) Assert.Equal(all.CivGoodsGained[c * slots + slot], seen);
+                else Assert.Equal(0L, seen);
+            }
+            if (shared) { Assert.Equal(all.CivIntelPopulation[c], f.CivIntelPopulation[c]); continue; }
+            Assert.Equal(0, f.CivIntelPopulation[c]);
+            Assert.Equal(0, f.CivIntelSettlements[c]);
+            Assert.Equal(0, f.CivIntelProjectsDone[c]);
+            Assert.Equal(0L, f.CivIntelInsightPerYear[c]);
+        }
     }
 
     [Fact]
@@ -308,6 +350,24 @@ public class ViewFrameTests
             Assert.Equal(0, f.SettlementTemples[index]);
             Assert.Equal(0, f.SettlementZiggurats[index]);
             Assert.Equal(0, f.SettlementZigguratPermille[index]);
+        }
+        var outerCounts = new int[f.SettlementCount];
+        for (int i = 0; i < f.CoreOuterCount; i++)
+        {
+            int row = f.CoreOuterSettlement[i];
+            Assert.InRange(row, 0, f.SettlementCount - 1);
+            Assert.Equal(0, f.SettlementFlags[row] & (ushort)SettlementViewFlags.Remembered);
+            outerCounts[row]++;
+        }
+        for (int i = 0; i < f.SettlementCount; i++)
+        {
+            bool remembered = (f.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0;
+            if (remembered)
+            {
+                Assert.Equal(byte.MaxValue, f.SettlementCoreFront[i]);
+                Assert.Equal(0, outerCounts[i]);
+            }
+            else Assert.InRange(f.SettlementCoreFront[i], (byte)0, (byte)5);
         }
         // A rival's private numbers are not in the frame; public ones are.
         for (int c = 1; c < f.CivCount; c++)

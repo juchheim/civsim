@@ -58,6 +58,8 @@ projects:
     era: 2
     type: I
     status: numeric
+    cost: 450
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SOC-04, FOD-05]
     effects:
       - {kind: unlock_action, action: feast, note: "0.5 R per guest, Cohesion +8 for a year"}
@@ -70,6 +72,8 @@ projects:
     era: 2
     type: I
     status: numeric
+    cost: 450
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SOC-05, BLD-06]
     effects:
       - {kind: tier, tier: village}
@@ -83,6 +87,8 @@ projects:
     era: 2
     type: I
     status: numeric
+    cost: 450
+    cost_reason: "docs/MVP/28 §16: late era-2 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SOC-06, GOV-02]
     effects:
       - {kind: cap, cap: group, value: 2000, note: per polity core}
@@ -108,6 +114,8 @@ projects:
     era: 3
     type: I
     status: numeric
+    cost: 1200
+    cost_reason: "docs/MVP/28 §16: late era-3 project (prerequisite depth >= 3) costs 2x the derived cost so research slows toward the end of the age"
     requires: [SOC-08, AGR-06]
     effects:
       - {kind: tier, tier: city, min_pop: 90, needs: [temple, palace], radius: 6}

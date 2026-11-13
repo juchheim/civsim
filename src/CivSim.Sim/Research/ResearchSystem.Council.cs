@@ -1,4 +1,5 @@
 using System;
+using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Research;
@@ -182,7 +183,10 @@ public sealed partial class ResearchSystem
             : knowHow >= Fix64.Half ? CouncilReason.KnowHow
             : civ.Leaning[(int)(def.Theme == Theme.Keystone ? Theme.Craft : def.Theme)] > 40 ? CouncilReason.Leaning
             : CouncilReason.Cheap;
-        return leaning * (Fix64.One + urgency) * (Fix64.One + opportunity) * keyFactor / cost;
+        Fix64 score = leaning * (Fix64.One + urgency) * (Fix64.One + opportunity) * keyFactor / cost;
+        CivilizationDirection direction = Guidance?.DirectionOf(c) ?? CivilizationDirection.Balanced;
+        string lineage = def.Lineage >= 0 ? _catalog.LineageCodes[def.Lineage] : string.Empty;
+        return score * CivilizationDirectionResearch.Weight(direction, def, lineage);
     }
 
     /// <summary>

@@ -29,10 +29,22 @@ public sealed partial class FrameBuilder
     private readonly byte[] _projectionInfo = new byte[9];
     private readonly int[] _projectionProject = { -1, -1, -1 }, _projectionSeason = { -1, -1, -1 };
 
+    // What each own settlement is building (docs/MVP/30): read once a season, and again when the player's focus changes.
+    private BuildOutlook?[] _build = Array.Empty<BuildOutlook?>();
+    /// <summary>
+    /// Whether the frame carries each own settlement's <see cref="BuildOutlook"/>. Off by default: an outlook is a fresh object graph per settlement a season, and
+    /// the frame build is allocation-free while nobody looks. The front end turns it on while the Building tab is open.
+    /// </summary>
+    public volatile bool WantBuildOutlooks;
+    private long[] _buildStamp = Array.Empty<long>();
+
     private void EnsureEconScratch(int n)
     {
         if (_econStamp.Length >= n) return;
         int old = _econStamp.Length, size = Math.Max(n, Math.Max(128, old * 2));
+        Array.Resize(ref _build, size);
+        Array.Resize(ref _buildStamp, size);
+        for (int i = old; i < size; i++) _buildStamp[i] = -1;
         Array.Resize(ref _econStamp, size);
         Array.Resize(ref _econ, size * EconField.Stride);
         Array.Resize(ref _hist, size);
@@ -60,6 +72,7 @@ public sealed partial class FrameBuilder
             {
                 Array.Clear(target.SettlementStores, w * slots, slots);
                 Array.Clear(target.SettlementEcon, w * stride, stride);
+                target.SettlementBuild[w] = null;
                 target.SettlementFoodStores[w] = 0;
                 target.SettlementHistoryCount[w] = 0;
                 continue;
@@ -77,6 +90,18 @@ public sealed partial class FrameBuilder
                 sampled = true;
             }
             Array.Copy(_econ, s * stride, target.SettlementEcon, w * stride, stride);
+            if (WantBuildOutlooks)
+            {
+                int focus = eco.BuildFocusAt(s, out bool focusSkip);
+                long buildKey = ((long)season << 20) ^ ((long)(focus + 1) << 1) ^ (focusSkip ? 1L : 0L);
+                if (_buildStamp[s] != buildKey)
+                {
+                    _build[s] = eco.BuildOutlookFor(s);
+                    _buildStamp[s] = buildKey;
+                }
+                target.SettlementBuild[w] = _build[s];
+            }
+            else target.SettlementBuild[w] = null;
             layout = unchecked(layout * 31 + s + 1);
         }
 

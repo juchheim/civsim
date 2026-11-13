@@ -6,6 +6,8 @@
 ## faith standard, the owner for the others).
 ##
 ##   temple_tier2       a peristyle temple: a stepped podium, a whitewashed cella ringed by columns, an entablature with the owner's frieze and a pedimented roof
+##   colonnade          STN-12: the stone colonnade a Temple town adds beside its temple: a stylobate, six columns carrying a lintel with the owner's frieze, a tiled gable
+##                      roof over a plastered back wall; runs along local X and is symmetric front to back, so the builder can turn it either way
 ##   faith_standard     a cairn with a tall pole and a long pennant in the colour of the faith's civilization: one planted for each share of a town that follows it
 ##   province_standard  a plinth with a seal, a tall pole with two stacked pennants and a gold knob: the seat of a governor's province
 ##   feudal_banner      a short pole and crossbar with a hanging banner marked with a chevron: a town under the feudal contract
@@ -26,6 +28,7 @@ const CIV := M7MeshBuilder.TAG_CIV
 
 static func build(kit) -> void:
 	kit.meshes["temple_tier2"] = _temple(kit)
+	kit.meshes["colonnade"] = _colonnade(kit)
 	kit.meshes["faith_standard"] = _faith_standard(kit)
 	kit.meshes["province_standard"] = _province_standard(kit)
 	kit.meshes["feudal_banner"] = _feudal_banner(kit)
@@ -67,6 +70,36 @@ static func _temple(kit) -> ArrayMesh:
 	for sz in [-1.0, 1.0]:
 		b.tri(Vector3(-hx + 0.01, 0.132, (hz - 0.01) * sz), Vector3(hx - 0.01, 0.132, (hz - 0.01) * sz), Vector3(0, 0.19, (hz - 0.01) * sz), LIME, inner)
 	b.prism(Vector3(0, 0.152, hz - 0.003), 0.02, 0.02, 0.003, 10, GOLD, GOLD)
+	return b.commit()
+
+static func _colonnade(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1014)
+	b.tag = PLAIN
+	var hx := 0.23
+	var hz := 0.06
+	# a stylobate of two courses, the back wall in limewash with three shallow recesses, and a row of six columns along each face
+	b.box(Vector3(0, 0.008, 0), Vector3(hx * 2.0 + 0.03, 0.016, hz * 2.0 + 0.03), STONE_DARK, STONE)
+	b.box(Vector3(0, 0.019, 0), Vector3(hx * 2.0 + 0.01, 0.01, hz * 2.0 + 0.01), STONE, STONE_LIGHT)
+	b.box(Vector3(0, 0.07, 0), Vector3(hx * 2.0 - 0.02, 0.1, 0.018), LIME, LIME_TOP)
+	for sx in [-0.14, 0.0, 0.14]:
+		for sz in [-1.0, 1.0]:
+			b.box(Vector3(sx, 0.058, sz * 0.0095), Vector3(0.05, 0.062, 0.002), ARCH)
+	for k in 6:
+		var x := -0.175 + 0.07 * k
+		for sz in [-1.0, 1.0]:
+			_column(b, x, sz * (hz - 0.012), 0.098)
+	# the entablature across the top: a lintel course, the owner's frieze on both faces, and a tiled gable above it, closed by a plain pediment at each end
+	b.box(Vector3(0, 0.121, 0), Vector3(hx * 2.0 + 0.01, 0.016, hz * 2.0 - 0.004), STONE_LIGHT, LIME_TOP)
+	b.tag = CIV
+	for sz in [-1.0, 1.0]:
+		b.box(Vector3(0, 0.134, sz * (hz - 0.004)), Vector3(hx * 2.0 + 0.01, 0.01, 0.008), Color.WHITE)
+	b.tag = PLAIN
+	var inner := Vector3(0, 0.12, 0)
+	for side in [-1.0, 1.0]:
+		var col := ROOF if side > 0.0 else ROOF.darkened(0.12)
+		b.quad(Vector3(-hx - 0.008, 0.139, (hz + 0.006) * side), Vector3(hx + 0.008, 0.139, (hz + 0.006) * side), Vector3(hx + 0.008, 0.176, 0), Vector3(-hx - 0.008, 0.176, 0), col, inner)
+	for sx in [-1.0, 1.0]:
+		b.tri(Vector3(sx * (hx + 0.008), 0.139, hz + 0.006), Vector3(sx * (hx + 0.008), 0.139, -hz - 0.006), Vector3(sx * (hx + 0.008), 0.176, 0), LIME, inner)
 	return b.commit()
 
 static func _faith_standard(kit) -> ArrayMesh:

@@ -74,6 +74,16 @@ public sealed class IronTributeTests
     }
 
     [Fact]
+    public void Terms_are_refused_while_either_sides_assault_is_still_on_the_road()
+    {
+        (MatchModel match, _, _, _) = Rig(ChapterRules.Iron);
+        Assert.True(match.Politics.OrderAssaultAgainst(1, 0) || match.Politics.OrderAssaultAgainst(0, 1), "a fixture assault must be able to leave");
+        Assert.False(match.Politics.OrderTribute(0, 1), "terms may not end a war with an army still marching");
+        Assert.True(match.Politics.Diplomacy.AtWar(0, 1));
+        Assert.Empty(match.Politics.Tributes);
+    }
+
+    [Fact]
     public void The_subject_hands_over_a_tenth_of_its_food_surplus_each_season()
     {
         (MatchModel match, _, _, _) = Rig(ChapterRules.Iron);

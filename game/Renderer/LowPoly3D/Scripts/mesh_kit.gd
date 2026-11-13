@@ -56,6 +56,7 @@ func _init() -> void:
 const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_dwellings.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_yard.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_basics.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_decor.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_landmarks.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_civic.gd"),
@@ -779,7 +780,7 @@ func _dogs() -> void:
 	meshes["dog_travois"] = b.commit()
 
 
-# ------------------------------------------------------------------ village decor (see game/Scripts/DecorTable.cs)
+# ------------------------------------------------------------------ village decor (explicit debug-gallery pieces and locally present goods)
 
 ## Index = the decor kind the host sends; mesh name = "decor_" + name.
 const DECOR_NAMES := ["totem", "cairn", "hideframe", "pots", "loom", "shrine", "signal", "charcoal", "furnace",

@@ -168,9 +168,11 @@ public static class DecreeForecaster
         int totalRings = (int)pol.Economy.Tier(settlement) + 1;
         int current = pol.Economy.StructureCount(settlement, wallKind);
         int remainingRings = Math.Max(1, totalRings - current);
-        Fix64 effort = Fix64.FromInt(90 * remainingRings); // 30 wall work-seasons + ~60 quarry/dress work (§7.2)
+        // A ring's build labor already covers its quarrying, hauling and dressing (docs/MVP/28 §4); it was 30 ws plus ~60 of stone work (§7.2).
+        Fix64 ringEffort = Fix64.FromInt(pol.Economy.WallRingWork);
+        Fix64 effort = ringEffort * remainingRings;
         (int buildKind, Fix64 share) = pol.Economy.SettlementBuild(settlement);
-        if (buildKind == wallKind) effort = Fix64.Max(Fix64.Zero, effort - Fix64.FromInt(90) * share);
+        if (buildKind == wallKind) effort = Fix64.Max(Fix64.Zero, effort - ringEffort * share);
         Fix64 workPerSeason = Fix64.Max(Fix64.One, Fix64.FromRatio((long)population * 45, 100)); // calibrated to the §7.2 village, ~2 years
         Fix64 corveeRate = workPerSeason * Fix64.FromRatio(3, 2);
         Fix64 acceleratedEffort = corveeRate * Fix64.FromInt(2);
@@ -225,7 +227,8 @@ public static class DecreeForecaster
         // digs that itself), a camp already open there, a parent short of wood or of a free crew. A rival's claim and the ore left
         // stay hidden, so they are not judged here.
         MiningCampResult camp = pol.Economy.CheckOpenMiningCamp(civ, tile);
-        return camp is MiningCampResult.RivalOwned or MiningCampResult.NoDeposit ? 0 : PoliticsSystem.MiningRefusal(camp);
+        // A deposit in another settlement's core can only be a rival's or a stranger's village, which fog may hide: not judged either.
+        return camp is MiningCampResult.RivalOwned or MiningCampResult.NoDeposit or MiningCampResult.InSettlementCore ? 0 : PoliticsSystem.MiningRefusal(camp);
     }
 
     private static int ClaimRadius(PoliticsSystem pol, int civ) => pol.ClaimRadiusOfEra(pol.DecreeResearch.Era(civ));
@@ -336,6 +339,10 @@ public static class DecreeForecaster
                 if (belief.Season - folk.LastSeenSeason is >= 0 and <= 2 && HexGrid.Distance(folk.Tile, tile, width) < 9)
                     return OrderRefusalReason.NoSite;
         }
+        // Player forecasts have no separate belief snapshot. Founders can detect a valuable deposit in the reserved core even
+        // when the player has not identified it, so keep the preview consistent with PoliticsSystem.FoundCheck. AI forecasts
+        // retain their belief-fair view of deposits outside the known map.
+        if (belief is null && !pol.Economy.IsCleanCoreSite(tile)) return OrderRefusalReason.CoreDeposit;
         if (!inReach) return OrderRefusalReason.OutOfReach;
         if (bestDonor < 0) return OrderRefusalReason.NoDonor;
         people = (pol.SettlementPopulationOf(bestDonor) * 2 + 2) / 5;

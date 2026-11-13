@@ -612,11 +612,11 @@ public sealed class Territory
     /// It can return zero-gain sites and is used for seasonal-camp placement.
     /// </summary>
     public List<int> ChooseCompactCampSites(int civ, int settlementTile, int radius, IReadOnlyList<ClaimSource> own,
-        IReadOnlyList<ClaimSource> ownCamps, IReadOnlyList<ClaimSource> rivals, int count)
-        => ChooseCampSites(civ, settlementTile, radius, own, ownCamps, rivals, count, compact: true);
+        IReadOnlyList<ClaimSource> ownCamps, IReadOnlyList<ClaimSource> rivals, int count, Func<int, bool>? excluded = null)
+        => ChooseCampSites(civ, settlementTile, radius, own, ownCamps, rivals, count, compact: true, excluded: excluded);
 
     private List<int> ChooseCampSites(int civ, int settlementTile, int radius, IReadOnlyList<ClaimSource> own,
-        IReadOnlyList<ClaimSource> ownCamps, IReadOnlyList<ClaimSource> rivals, int count, bool compact)
+        IReadOnlyList<ClaimSource> ownCamps, IReadOnlyList<ClaimSource> rivals, int count, bool compact, Func<int, bool>? excluded = null)
     {
         var sites = new List<int>();
         var selected = new SortedSet<int>();
@@ -629,7 +629,7 @@ public sealed class Territory
             int best = -1, bestGain = compact ? int.MaxValue : 0, bestRivalDistance = int.MaxValue;
             for (int tile = 0; tile < _tiles.Length; tile++)
             {
-                if (selected.Contains(tile)) continue;
+                if (selected.Contains(tile) || excluded?.Invoke(tile) == true) continue;
                 if (!IsCampSiteLegal(civ, settlementTile, tile, radius, rivals)) continue;
                 int gain = CampGain(tile, civ, covered);
                 if (compact)

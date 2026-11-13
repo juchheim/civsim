@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using CivSim.Game.Ui;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
@@ -16,7 +17,7 @@ namespace CivSim.Game;
 /// </summary>
 public partial class Game
 {
-    private enum PeopleTab { Overview, Stores, Work, Research }
+    private enum PeopleTab { Overview, Stores, Work, Research, Building }
 
     private sealed class PeopleBarRow
     {
@@ -52,10 +53,11 @@ public partial class Game
     }
 
     private readonly PeopleBarRow[] _peopleWorkRows = new PeopleBarRow[PeopleWork.Length];
+    private Label? _peopleWorkNobody;
     private readonly int[] _peopleActivityCounts = new int[23];
     private readonly List<int> _peopleScoutSettlementIds = new();
     private readonly Button[] _peopleScoutButtons = new Button[4];
-    private readonly Control?[] _peoplePanes = new Control?[4];
+    private readonly Control?[] _peoplePanes = new Control?[5];
     private readonly List<int> _peopleScopeIds = new();
     private readonly PeopleScopeSummary _peopleSummary = new();
     private PeopleCensus _peopleCensus;
@@ -87,7 +89,7 @@ public partial class Game
     private readonly FlowRow[] _laborRows = new FlowRow[6];
     private readonly Label[] _lossLabels = new Label[6];
 
-    private static readonly string[] PeopleTabNames = { "Overview", "Stores", "Work", "Research" };
+    private static readonly string[] PeopleTabNames = { "Overview", "Stores", "Work", "Research", "Building" };
 
     private void CreatePeoplePanel()
     {
@@ -123,6 +125,7 @@ public partial class Game
         _peopleTabs.SetTooltip(1, "What you hold, how long it lasts and where the food goes.");
         _peopleTabs.SetTooltip(2, "Who does what, and where better methods are blocked.");
         _peopleTabs.SetTooltip(3, "What research is under way and what learned projects are doing.");
+        _peopleTabs.SetTooltip(4, "What each town is building, what it is waiting on and why, and what to build first instead.");
         tabRow.AddChild(_peopleTabs);
         tabRow.AddChild(UiKit.Spacer(expand: true));
         var showing = UiKit.Text("Showing", "Caption");
@@ -145,6 +148,7 @@ public partial class Game
         _peoplePanes[(int)PeopleTab.Stores] = BuildPeopleStoresPane();
         _peoplePanes[(int)PeopleTab.Work] = BuildPeopleWorkPane();
         _peoplePanes[(int)PeopleTab.Research] = BuildPeopleResearchPane();
+        _peoplePanes[(int)PeopleTab.Building] = BuildPeopleBuildingPane();
         for (int i = 0; i < _peoplePanes.Length; i++)
         {
             Control pane = _peoplePanes[i]!;
@@ -231,6 +235,9 @@ public partial class Game
         var workList = UiKit.Column(UiTokens.Sp1);
         for (int i = 0; i < PeopleWork.Length; i++) _peopleWorkRows[i] = BuildPeopleBarRow(workList, PeopleWork[i].Name);
         work.Body.AddChild(workList);
+        // Jobs nobody holds fold into one line under the list, so the rows that matter are not lost among zeros (ui-ux-pass2 §8).
+        _peopleWorkNobody = UiKit.Text("", "CaptionTertiary", wrap: true);
+        work.Body.AddChild(_peopleWorkNobody);
         work.Body.AddChild(UiKit.Spacer(height: UiTokens.Sp1));
         work.Body.AddChild(PeopleSubhead("NOT AT WORK"));
         var other = PeopleFlow();
@@ -424,6 +431,7 @@ public partial class Game
     {
         if (!_peopleOpen) return;
         _peopleOpen = false;
+        if (_session is not null) _session.WantBuildOutlooks = false;
         if (_peopleRoot is not null) _peopleRoot.Visible = false;
         if (_peopleLayer is not null) _ui.Remove(_peopleLayer);
         UpdatePausedTreatment();
@@ -452,6 +460,7 @@ public partial class Game
             PeopleTab.Overview => "Food numbers are for the last full season. Winter risk shows in autumn and winter.",
             PeopleTab.Stores => "R is a ration: one adult's food for a season. Stock is live; flows are for the last full season.",
             PeopleTab.Work => "Counts are live; the work split is for the last full season.",
+            PeopleTab.Building => "Read once a season from the town's own build rules. A request lasts up to six years and never goes ahead of shelter, warmth, food stores or the first fields.",
             _ => "Gains are estimates: what last season would have lost without each project.",
         });
     }
@@ -506,6 +515,7 @@ public partial class Game
 
     private void RefreshPeoplePanel(MatchFrame frame)
     {
+        if (_session is not null) _session.WantBuildOutlooks = _peopleOpen && _peopleTab == PeopleTab.Building;
         if (!_peopleOpen || _peopleRoot is null || _catalog is null) return;
         int civ = frame.FocusCiv;
         if ((uint)civ >= (uint)frame.CivCount) return;
@@ -520,6 +530,7 @@ public partial class Game
             case PeopleTab.Stores: RefreshPeopleStores(frame); break;
             case PeopleTab.Work: RefreshPeopleWork(frame, civ); break;
             case PeopleTab.Research: RefreshPeopleResearch(frame, civ); break;
+            case PeopleTab.Building: RefreshPeopleBuilding(frame); break;
         }
     }
 
@@ -623,16 +634,20 @@ public partial class Game
     {
         RefreshPeopleScoutControls(frame);
         int population = _peopleCensus.Population;
+        var nobody = new System.Text.StringBuilder();
         for (int i = 0; i < _peopleWorkRows.Length; i++)
         {
             PeopleBarRow row = _peopleWorkRows[i];
             int count = _peopleActivityCounts[(int)PeopleWork[i].Activity];
-            UiKit.SetVisible(row.Root, true);
+            UiKit.SetVisible(row.Root, count > 0);
+            if (count == 0) nobody.Append(nobody.Length == 0 ? "" : " · ").Append(PeopleWork[i].Name);
             UiKit.SetText(row.Count, count.ToString("N0"));
             row.Bar.SetValue(population > 0 ? count / (float)population : 0, false);
             SetTone(row.Name, count > 0 ? UiTokens.TextPrimary : UiTokens.TextTertiary);
             SetTone(row.Count, count > 0 ? UiTokens.TextPrimary : UiTokens.TextTertiary);
         }
+        UiKit.SetText(_peopleWorkNobody!, nobody.Length == 0 ? "" : "None at the moment: " + nobody);
+        UiKit.SetVisible(_peopleWorkNobody!, nobody.Length > 0);
         UiKit.SetText(_peopleChildren!, _peopleCensus.Children.ToString("N0"));
         UiKit.SetText(_peopleRecovering!, _peopleCensus.Recovering.ToString("N0"));
         UiKit.SetText(_peopleResting!, _peopleCensus.Resting.ToString("N0"));
@@ -828,11 +843,27 @@ public partial class Game
         for (int i = 0; i < frame.FigureCount; i++)
             if (frame.FigureSettlement[i] == _peopleSelectedScoutSettlement && frame.FigureActivity[i] == (byte)FigureActivity.Scout)
                 activeScouts++;
-        ScoutPolicy policy = (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow];
+        ScoutPolicy policy = EffectiveScoutPolicy(frame.ViewerCiv, _peopleSelectedScoutSettlement,
+            (ScoutPolicy)frame.SettlementScoutPolicy[selectedRow], out bool policyQueued);
         UiKit.SetText(_peopleScoutStatus,
-            $"{SettlementLabel(_peopleSelectedScoutSettlement)} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season.");
+            $"{SettlementLabel(_peopleSelectedScoutSettlement)} has {activeScouts} {(activeScouts == 1 ? "scout" : "scouts")} out this season." +
+            (policyQueued ? $" {policy} is queued; it takes effect next season after you resume." : ""));
         for (int i = 0; i < _peopleScoutButtons.Length; i++)
             _peopleScoutButtons[i].SetPressedNoSignal(i == (int)policy);
+    }
+
+    private ScoutPolicy EffectiveScoutPolicy(int civ, int settlement, ScoutPolicy current, out bool queued)
+    {
+        queued = false;
+        if (_session is null) return current;
+        foreach (Command command in _session.PendingCommands)
+        {
+            if (command.Civ != civ || command.Kind != CommandKind.SetScoutPolicy || command.A != settlement ||
+                command.B < (int)ScoutPolicy.Auto || command.B > (int)ScoutPolicy.Two) continue;
+            current = (ScoutPolicy)command.B;
+            queued = true;
+        }
+        return current;
     }
 
     private static bool IsOwnPeopleSettlement(MatchFrame frame, int index)
@@ -854,7 +885,7 @@ public partial class Game
     {
         if (_session is null || _current is null || _peopleSelectedScoutSettlement < 0) return;
         if (policy == ScoutPolicy.Two && !HasWayfindingOne(_current)) return;
-        _session.Queue(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
+        QueueCommand(PlayerCommands.SetScoutPolicy(_session.Tick, _current.ViewerCiv,
             _peopleSelectedScoutSettlement, policy));
     }
 }

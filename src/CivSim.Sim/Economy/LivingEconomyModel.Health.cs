@@ -145,9 +145,8 @@ public sealed partial class LivingEconomyModel
             if (c.Outbreak == 0) continue;
             // 60% of cases in the first season, 40% in the second (09 §10.3); the sick rest and are paler.
             Fix64 p = c.AttackRate * (c.OutbreakSeason == 1 ? Fix64.FromRatio(6, 10) : Fix64.FromRatio(4, 10));
-            foreach (FigureState f in _figures)
+            foreach (FigureState f in Residents(s.Id))
             {
-                if (f.SettlementId != s.Id) continue;
                 if (Pcg32.ForStream(_seed, InfectionStream, (ulong)f.Id, season).NextFix01() >= p) continue;
                 f.Infected = true;
                 if (f.IllnessSeasons == 0) f.IllnessSeasons = 1;
@@ -173,9 +172,8 @@ public sealed partial class LivingEconomyModel
     {
         Fix64 sum = Fix64.Zero;
         int n = 0;
-        foreach (FigureState f in _figures)
+        foreach (FigureState f in Residents(s.Id))
         {
-            if (f.SettlementId != s.Id) continue;
             n++;
             sum += f.Age < 14 ? Fix64.FromRatio(3, 2) : f.Age >= 45 ? Fix64.FromInt(2) : Fix64.One;
         }

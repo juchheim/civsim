@@ -12,37 +12,37 @@ public enum ChapterMode : byte
 }
 
 /// <summary>
-/// The per-match chapter rules (docs/MVP/25 §3): the research ceiling, the keystone that ends the match, and its cap and
-/// countdown. <see cref="Bronze"/> reproduces the constants that were hard-coded before M11 (<see cref="ResearchSystem.LastResearchEra"/>
+/// The per-match chapter rules (docs/MVP/25 §3): the research ceiling, the keystone that ends the match, and its
+/// countdown. There is no year cap (removed 2026-11-08, docs/MVP/28 §17).
+/// <see cref="Bronze"/> reproduces the constants that were hard-coded before M11 (<see cref="ResearchSystem.LastResearchEra"/>
 /// and the catalog's chapter constants), so a match built without rules is byte-identical to one built before this type existed.
-/// <para>The Iron cap year and countdown are candidate values awaiting the oracle fit (docs/MVP/25 §3), not approved thresholds.</para>
+/// <para>The Iron countdown is a candidate value awaiting the oracle fit (docs/MVP/25 §3), not an approved threshold.</para>
 /// </summary>
 public sealed class ChapterRules
 {
-    /// <summary>Candidate Iron hard cap in years (docs/MVP/25 §3).</summary>
-    public const int IronCapYear = 96;
+    /// <summary>
+    /// Iron countdown after the first rival's KEY-5, in seasons: 12 years. Was 24 (docs/MVP/25 §3). Most Iron buildings unlock in the last
+    /// minutes of research, and at 24 the match ended before a town could build them. 72 gave the time but let almost every type unlock, so
+    /// it is 48 together with a doubled cost for the late Iron projects (docs/MVP/28 §6 and §7).
+    /// </summary>
+    public const int IronCountdownSeasons = 48;
 
-    /// <summary>Candidate Iron countdown after the first rival's KEY-5, in seasons (docs/MVP/25 §3).</summary>
-    public const int IronCountdownSeasons = 12;
-
-    /// <summary>The Bronze chapter exactly as before M11: research ceiling 3, KEY-4 ends it, cap and countdown from the catalog.</summary>
-    public static ChapterRules Bronze { get; } = new(ChapterMode.Bronze, ResearchSystem.LastResearchEra, null, null);
+    /// <summary>The Bronze chapter exactly as before M11: research ceiling 3, KEY-4 ends it, countdown from the catalog.</summary>
+    public static ChapterRules Bronze { get; } = new(ChapterMode.Bronze, ResearchSystem.LastResearchEra, null);
 
     /// <summary>The Iron chapter: research ceiling 4, KEY-5 ends it.</summary>
-    public static ChapterRules Iron { get; } = new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, IronCapYear, IronCountdownSeasons);
+    public static ChapterRules Iron { get; } = new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, IronCountdownSeasons);
 
-    /// <summary>Harness and diagnostics only: the Iron chapter with another cap year and countdown, to watch its systems run longer than the candidate chapter allows.</summary>
-    public static ChapterRules IronWithLimits(int capYear, int countdownSeasons)
-        => new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, capYear, countdownSeasons);
+    /// <summary>Harness and diagnostics only: the Iron chapter with another countdown, to watch its systems run longer (or shorter) than the candidate chapter allows.</summary>
+    public static ChapterRules IronWithCountdown(int countdownSeasons)
+        => new(ChapterMode.Iron, ResearchSystem.LastResearchEra + 1, countdownSeasons);
 
-    private readonly int? _capYear;
     private readonly int? _countdownSeasons;
 
-    private ChapterRules(ChapterMode mode, int lastResearchEra, int? capYear, int? countdownSeasons)
+    private ChapterRules(ChapterMode mode, int lastResearchEra, int? countdownSeasons)
     {
         Mode = mode;
         LastResearchEra = lastResearchEra;
-        _capYear = capYear;
         _countdownSeasons = countdownSeasons;
     }
 
@@ -58,8 +58,6 @@ public sealed class ChapterRules
     public int EconomyMaxEra => ResearchSystem.LastResearchEra;
 
     public bool IsIron => Mode == ChapterMode.Iron;
-
-    public int CapYear(ResearchCatalog catalog) => _capYear ?? catalog.ChapterCapYear;
 
     public int CountdownSeasons(ResearchCatalog catalog) => _countdownSeasons ?? catalog.ChapterCountdownSeasons;
 

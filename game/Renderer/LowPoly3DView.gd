@@ -309,6 +309,18 @@ func castle_focus() -> Vector3:
 	var site: Dictionary = builder.castle_sites[0]
 	return Vector3(site.p.x, site.y, site.p.y)
 
+## Dev aid for the core-gallery scenario: the site tile of the settlement --dev-core-gallery dressed as `name` (the origin when none). Read
+## from the frame, so gallery captures use the same camera as the default game.
+func core_gallery_focus(name: String) -> Vector3:
+	if world == null:
+		return Vector3.ZERO
+	for s in world.settlements:
+		if String(s.get("coreGallery", "")) == name:
+			var t := int(s.tile)
+			var c := world.tile_center(t)
+			return Vector3(c.x, maxf(world.heights[t], 0.0), c.y)
+	return Vector3.ZERO
+
 func landmark_focus(kind: String) -> Vector3:
 	if builder == null or not builder.decor_spots.has(kind):
 		return Vector3.ZERO
@@ -555,6 +567,10 @@ func set_overlay(mode: int) -> void:
 	if mats.has("terrain"):
 		mats.terrain.set_shader_parameter("overlay_mode", overlay_mode)
 		mats.terrain.set_shader_parameter("claim_overlay_strength", 1.35 if overlay_mode == 1 else 0.0)
+
+func set_supply_network_visible(enabled: bool) -> void:
+	if builder != null:
+		builder.set_supply_network_visible(enabled)
 
 ## Preview the Beacon's exact hex influence field and the hovered site's relative fit.
 ## site_fit is -1 when the tile is unexplored, otherwise 0..1.
@@ -907,6 +923,7 @@ func _apply_season(season: int) -> void:
 func _set_villages() -> void:
 	var values := PackedVector4Array()
 	var limit := 8 if camera_distance < 10.0 else (12 if camera_distance < 24.0 else (6 if camera_distance > 38.0 else 16))
+	limit = 48     # the growing core lists one ground patch per claimed ring-2 hex
 	var nearest: Array = builder.villages.duplicate()
 	nearest.sort_custom(func(a: Vector3, b: Vector3) -> bool:
 		return Vector2(a.x - camera_focus.x, a.y - camera_focus.z).length_squared() < \

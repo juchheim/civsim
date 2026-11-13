@@ -168,11 +168,20 @@ public sealed partial class PoliticsSystem
         return true;
     }
 
+    /// <summary>
+    /// The only door out of a war. Peace, a weary-war peace and tributary terms all end a war here, and none may do so while an assault between the pair is still on the road,
+    /// investing or holding a settlement. Nothing else in the simulation may call <c>Diplomacy.MakePeace</c> (AssaultPeaceLockTests scans for it).
+    /// </summary>
+    private bool TryEndWar(int a, int b)
+    {
+        if (!_dip.AtWar(a, b) || HasUnresolvedAssault(a, b)) return false;
+        _dip.MakePeace(a, b, _season);
+        return true;
+    }
+
     public bool OrderPeace(int c, int o)
     {
-        if (c == o || !_dip.AtWar(c, o)) return false;
-        if (HasUnresolvedAssault(c, o)) return false;
-        _dip.MakePeace(c, o, _season);
+        if (c == o || !TryEndWar(c, o)) return false;
         _events.Add(new PoliticsEvent(_tick, (byte)c, PoliticsEventKind.PeaceMade, o, _season - _warSince[c * _civs + o], 0));
         _events.Add(new PoliticsEvent(_tick, (byte)o, PoliticsEventKind.PeaceMade, c, _season - _warSince[c * _civs + o], 0));
         return true;

@@ -17,6 +17,8 @@ public sealed class MatchFrame
     private const int ReservedTrailTiles = ReservedTrailCount * 400;
     /// <summary>Kinds of structure the economy builds; the stride of <see cref="SettlementStructures"/>.</summary>
     public static int StructureKinds => Economy.LivingEconomyModel.StructureKindCount;
+    /// <summary>Learned civic building kinds; the stride of <see cref="SettlementCivicStructures"/>.</summary>
+    public const int CivicStructureKinds = 8;
 
     /// <summary>The Iron chapter's block (works, staff, sieges, blockades, tributes, leagues, Wonders); inactive in any other chapter.</summary>
     public readonly IronFrame Iron = new();
@@ -36,6 +38,8 @@ public sealed class MatchFrame
     public bool LastWinterHarsh;
     /// <summary>The civilization this frame is filtered for; -1 omniscient.</summary>
     public int ViewerCiv;
+    /// <summary>Private direction of the viewer's civilization; Balanced in omniscient/no-player frames.</summary>
+    public Core.CivilizationDirection ViewerDirection;
     public int Width, Height;
     /// <summary>All figures alive, seen or not (a debug and stats number; the HUD must not show it for rivals).</summary>
     public int TotalFigures;
@@ -155,6 +159,8 @@ public sealed class MatchFrame
     public int[] SettlementSeenSeason = Array.Empty<int>();
     /// <summary>Structure counts, <see cref="StructureKinds"/> per settlement: [i × StructureKinds + kind] (kind names: LivingEconomyModel.StructureName). Zero for remembered settlements.</summary>
     public byte[] SettlementStructures = Array.Empty<byte>();
+    /// <summary>Civic building counts, <see cref="CivicStructureKinds"/> per settlement in market, temple, palace, school, bakery, hall, caravanserai, ziggurat order. Zero for remembered settlements.</summary>
+    public byte[] SettlementCivicStructures = Array.Empty<byte>();
     /// <summary>Halls standing at each settlement (a civic dwelling outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
     public byte[] SettlementHalls = Array.Empty<byte>();
     /// <summary>Temples standing at each settlement (BEL-06; a civic building outside <see cref="SettlementStructures"/>). Zero for remembered settlements.</summary>
@@ -162,6 +168,14 @@ public sealed class MatchFrame
     /// <summary>Ziggurats standing at each settlement (BLD-08 Wonder), and the permille of the next one raised while it is under way. Zero for remembered settlements.</summary>
     public byte[] SettlementZiggurats = Array.Empty<byte>();
     public short[] SettlementZigguratPermille = Array.Empty<short>();
+    /// <summary>The static core gate direction (0..5), or 255 for a remembered settlement.</summary>
+    public byte[] SettlementCoreFront = Array.Empty<byte>();
+    /// <summary>Outer-core districts in frame-row order, then district priority. Unhoused rows have tile -1 and position 255.</summary>
+    public int CoreOuterCount;
+    public int[] CoreOuterTile = Array.Empty<int>();
+    public int[] CoreOuterSettlement = Array.Empty<int>();
+    public byte[] CoreOuterDistrict = Array.Empty<byte>();
+    public byte[] CoreOuterPosition = Array.Empty<byte>();
 
     // ---- economy of the viewer's own settlements (zero elsewhere): the "Your people" sheet --------
     /// <summary>Goods a settlement can hold; the stride of <see cref="SettlementStores"/>.</summary>
@@ -176,6 +190,8 @@ public sealed class MatchFrame
     public long[] SettlementFoodStores = Array.Empty<long>();
     /// <summary>Per-season numbers, <see cref="EconField.Stride"/> longs per row (see <see cref="EconField"/>).</summary>
     public long[] SettlementEcon = Array.Empty<long>();
+    /// <summary>What each own settlement is building and waiting on (docs/MVP/30), refreshed once a season and whenever the player's focus changes; null elsewhere.</summary>
+    public Economy.BuildOutlook?[] SettlementBuild = Array.Empty<Economy.BuildOutlook?>();
     /// <summary>Samples kept per settlement (oldest first); <see cref="SettlementHistory"/> holds [(w × HistoryLength + sample) × series + series].</summary>
     public byte[] SettlementHistoryCount = Array.Empty<byte>();
     /// <summary>Hundredths of a unit (people and permille as they are), one sample per season boundary.</summary>
@@ -297,6 +313,15 @@ public sealed class MatchFrame
     public int[] RouteVolumePermille = Array.Empty<int>();
     public int[] RouteDeliveries = Array.Empty<int>(), RouteSinceSeason = Array.Empty<int>();
 
+    // ---- settlement supply transfers: current internal sharing and tribute deliveries ----------------------
+    public int SupplyTransferCount;
+    public int[] SupplyTransferFrom = Array.Empty<int>(), SupplyTransferTo = Array.Empty<int>();
+    /// <summary>0 internal sharing, 1 tribute; good ids are registry-style ids such as G-WOOD.</summary>
+    public byte[] SupplyTransferKind = Array.Empty<byte>();
+    public string[] SupplyTransferGood = Array.Empty<string>();
+    /// <summary>Transferred amount in raw Q32.32 units.</summary>
+    public long[] SupplyTransferAmount = Array.Empty<long>();
+
     // ---- occupations --------------------------------------------------------------------------
     public int OccupationCount;
     public sbyte[] OccupationCiv = Array.Empty<sbyte>();
@@ -310,12 +335,12 @@ public sealed class MatchFrame
     public int CivCount;
     /// <summary><see cref="CivViewFlags"/> relative to the viewer.</summary>
     public ushort[] CivFlags = Array.Empty<ushort>();
-    /// <summary>Public: era, keystone breadth, Legacy, Firsts, Dominion and land share, posture and Relations with the viewer.</summary>
+    /// <summary>Public: era, keystone breadth, total Legacy, Dominion, current land share, posture and Relations with the viewer.</summary>
     public byte[] CivEra = Array.Empty<byte>();
     public short[] CivBreadthDone = Array.Empty<short>(), CivBreadthNeeded = Array.Empty<short>();
     /// <summary>Bronze Age metals some settlement of the civ holds in stores: bit 0 copper, 1 arsenical, 2 tin (the research [Has] gates). Filled for the viewer's own civ only, and 0 before the Bronze Age begins.</summary>
     public byte[] CivMetalAccess = Array.Empty<byte>();
-    public long[] CivLegacy = Array.Empty<long>(), CivFirstsLegacy = Array.Empty<long>(), CivDominion = Array.Empty<long>();
+    public long[] CivLegacy = Array.Empty<long>(), CivThrivingLegacy = Array.Empty<long>(), CivDominion = Array.Empty<long>();
     public int[] CivLandBasisPoints = Array.Empty<int>();
     /// <summary><see cref="Core.Posture"/>; Raid posture shows as warpaint, so it is public.</summary>
     public byte[] CivPosture = Array.Empty<byte>();
@@ -325,6 +350,13 @@ public sealed class MatchFrame
     /// <summary>Private (zero unless <see cref="CivViewFlags.Detailed"/>): people, settlements, Insight per year (Fix64 raw), projects done.</summary>
     public int[] CivPopulation = Array.Empty<int>(), CivSettlements = Array.Empty<int>(), CivProjectsDone = Array.Empty<int>();
     public long[] CivInsightPerYear = Array.Empty<long>();
+    /// <summary>
+    /// The era report's view of a civilization: filled for the viewer's own civ and for every civ it has met (contact is what
+    /// shares these numbers), zero for the rest. People, settlements, projects done, Insight per year (Fix64 raw), and the net
+    /// growth of each good in its stores since the match began ([civ × <see cref="StoreSlots"/> + slot], raw Q32.32).
+    /// </summary>
+    public int[] CivIntelPopulation = Array.Empty<int>(), CivIntelSettlements = Array.Empty<int>(), CivIntelProjectsDone = Array.Empty<int>();
+    public long[] CivIntelInsightPerYear = Array.Empty<long>(), CivGoodsGained = Array.Empty<long>();
     /// <summary>
     /// Private (zero unless <see cref="CivViewFlags.Detailed"/>): Mandate in hand, its cap and the seasons until the next point
     /// (0 when full or not yet unlocked), docs/MVP/22 §4.2. The top bar draws pips from these.
@@ -462,8 +494,10 @@ public sealed class MatchFrame
             Ensure(ref SettlementSmallStock, n); Ensure(ref SettlementCattle, n); Ensure(ref SettlementPigs, n);
             Ensure(ref SettlementSeenSeason, n); Ensure(ref SettlementHalls, n);
             Ensure(ref SettlementTemples, n); Ensure(ref SettlementZiggurats, n); Ensure(ref SettlementZigguratPermille, n);
+            Ensure(ref SettlementCoreFront, n);
         }
         Ensure(ref SettlementStructures, SettlementIndex.Length * StructureKinds);
+        Ensure(ref SettlementCivicStructures, SettlementIndex.Length * CivicStructureKinds);
         int rows = SettlementIndex.Length;
         if (SettlementFoodStores.Length < rows)
         {
@@ -471,7 +505,14 @@ public sealed class MatchFrame
         }
         Ensure(ref SettlementStores, rows * StoreSlots);
         Ensure(ref SettlementEcon, rows * EconField.Stride);
+        Ensure(ref SettlementBuild, rows);
         Ensure(ref SettlementHistory, rows * HistoryLength * HistorySeriesCount);
+    }
+
+    internal void EnsureCoreOuter(int n)
+    {
+        Ensure(ref CoreOuterTile, n); Ensure(ref CoreOuterSettlement, n);
+        Ensure(ref CoreOuterDistrict, n); Ensure(ref CoreOuterPosition, n);
     }
 
     internal void EnsurePayoff(int projects)
@@ -530,6 +571,15 @@ public sealed class MatchFrame
         Ensure(ref RouteVolumePermille, n); Ensure(ref RouteDeliveries, n); Ensure(ref RouteSinceSeason, n);
     }
 
+    internal void EnsureSupplyTransfers(int n)
+    {
+        if (SupplyTransferFrom.Length >= n) return;
+        int size = Math.Max(n, Math.Max(8, SupplyTransferFrom.Length * 2));
+        Array.Resize(ref SupplyTransferFrom, size); Array.Resize(ref SupplyTransferTo, size);
+        Array.Resize(ref SupplyTransferKind, size); Array.Resize(ref SupplyTransferGood, size);
+        Array.Resize(ref SupplyTransferAmount, size);
+    }
+
     internal void EnsureOccupations(int n)
     {
         if (OccupationCiv.Length >= n) return;
@@ -541,9 +591,11 @@ public sealed class MatchFrame
     {
         if (CivFlags.Length >= n) return;
         CivFlags = new ushort[n]; CivEra = new byte[n]; CivBreadthDone = new short[n]; CivBreadthNeeded = new short[n]; CivMetalAccess = new byte[n];
-        CivLegacy = new long[n]; CivFirstsLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
+        CivLegacy = new long[n]; CivThrivingLegacy = new long[n]; CivDominion = new long[n]; CivLandBasisPoints = new int[n];
         CivPosture = new byte[n]; CivRelations = new short[n]; CivWeaponTier = new byte[n]; CivPopulation = new int[n];
         CivSettlements = new int[n]; CivProjectsDone = new int[n]; CivInsightPerYear = new long[n];
+        CivIntelPopulation = new int[n]; CivIntelSettlements = new int[n]; CivIntelProjectsDone = new int[n];
+        CivIntelInsightPerYear = new long[n]; CivGoodsGained = new long[n * StoreSlots];
         CivMandate = new byte[n]; CivMandateCap = new byte[n]; CivMandateNext = new byte[n];
         CivEmbargoByViewer = new byte[n]; CivEmbargoOnViewer = new byte[n];
     }

@@ -11,6 +11,23 @@ internal static class M10AiAcceptanceStatus
     /// 8 seeds carry about +/-12 points of noise and cannot resolve them.
     /// </summary>
     internal const int MinimumWideSampleSeeds = 32;
+    /// <summary>
+    /// A4 (Chieftain against Warlord, 25 to 40%) is judged on this many seeds (80 mirrored matches), the block size its tuning used (docs/MVP/14 §9.2). On the
+    /// 16 matches of an 8-seed run it read 50 to 56% on three builds that win 35 to 38% over 80 (docs/MVP/28 §12); the bar is unchanged.
+    /// </summary>
+    internal const int MinimumA4Seeds = 40;
+    /// <summary>
+    /// A1 (Warlord against the Council bot) is judged on this many seeds (80 mirrored matches) against <see cref="A1Target"/>. The 85% bar dates from the 33-minute
+    /// scoring in which Firsts paid Legacy (94%); with Firsts paying 0 the Warlord only ties the Council bot at minute 33 (52%) and wins 80 to 81% at the 64-minute
+    /// chapter horizon, the same on three builds over 200 matches each (docs/MVP/28 §13). Owner sign-off 2026-11-08.
+    /// </summary>
+    internal const int MinimumA1Seeds = 40;
+    internal const double A1Target = 0.80;
+    /// <summary>
+    /// A3 (Warlord against the Rusher: no settlement lost in at least 80% of matches, wins at least 70%) is judged on this many seeds (80 mirrored matches). On the
+    /// 16 matches of an 8-seed run the win rate read 62% and 81% on builds that win 81% over 80 (docs/MVP/28 §19); the bars are unchanged. Owner sign-off 2026-11-09.
+    /// </summary>
+    internal const int MinimumA3Seeds = 40;
 
     internal enum Result
     {

@@ -96,6 +96,17 @@ internal static class M10TelemetryRules
         => (uint)civ < (uint)civilizationCount && huntedToExtinctionByCiv == civ;
 
     /// <summary>
+    /// Whether a known recovery option is still unanswered while the civilization has no metal access: its Bronze project is Dormant, the
+    /// option exists, and the civilization has no ore source of that kind yet. With an ore source in place (its own camp or a deposit in
+    /// a village's range) the recovery has been taken and the remaining wait is production latency, which is not a missed route.
+    /// </summary>
+    public static bool IsUnansweredDormantOption(ProjectState met04, bool arsenicOption, bool arsenicSourceInPlace,
+        ProjectState met05, bool tinOption, bool tinSourceInPlace, bool hasAnyMetalAccess)
+        => !hasAnyMetalAccess &&
+            (met05 == ProjectState.Dormant && tinOption && !tinSourceInPlace ||
+             met04 == ProjectState.Dormant && arsenicOption && !arsenicSourceInPlace);
+
+    /// <summary>
     /// A dormant route is a blunder only when a known recovery option remains available for more than eight
     /// consecutive seasons and the civilization has not taken a recovery action or issued a recovery order.
     /// The caller must reset <paramref name="optionSeasons"/> when dormancy or the matching option ends.

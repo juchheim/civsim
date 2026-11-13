@@ -4,7 +4,7 @@
 ##
 ##   bridge    a stone arch bridge along local X, 0.56 long, deck 0.15 wide, ends ramped down to the road; its feet sit below the ground
 ##   harbor    a quay and two timber piers; the quay is on the land side (+Z) and the piers run out over the water (-Z). Origin at the shoreline
-##             at sea level. Moored boats lie between the piers (see `_moor_fleet`).
+##             at sea level. Built galleys are drawn between the piers when present.
 extends RefCounted
 
 const STONE := Color("#8f8a80")

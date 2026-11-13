@@ -142,7 +142,7 @@ public enum SettlementViewFlags : ushort
     Occupied = 8,
     /// <summary>Not in sight now: owner and head count are as last seen, structures are not shown.</summary>
     Remembered = 16,
-    /// <summary>Nobody lives here (razed or abandoned).</summary>
+    /// <summary>Nobody lives here; the abandoned site can be resettled.</summary>
     Empty = 32,
     ThornBarrier = 64,
     Palisade = 128,
@@ -309,6 +309,11 @@ public enum ViewEventKind : ushort
     LeagueJoined = 73,
     /// <summary>A member left a league. A = members before.</summary>
     LeagueEnded = 74,
+    // ---- settlement lifecycle (derived by the view builder; append-only) ----
+    /// <summary>A settlement went from having residents to none. Tile = abandoned site.</summary>
+    SettlementAbandoned = 75,
+    /// <summary>Residents returned to an existing abandoned settlement. Tile = resettled site.</summary>
+    SettlementRevived = 76,
 }
 
 /// <summary>
@@ -340,6 +345,7 @@ public enum ChronicleKey : ushort
     VillageJoined = 108, EmbargoOnUs = 109, DecreePact = 110,
 
     BlockadeBegan = 111, BlockadeEnded = 112, TributeAgreed = 113, TributeEnded = 114, LeagueJoined = 115, LeagueEnded = 116,
+    SettlementAbandoned = 117, SettlementRevived = 118,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -437,6 +443,8 @@ public static class ViewText
         ChronicleKey.TributeEnded => "chronicle.tribute.ended",
         ChronicleKey.LeagueJoined => "chronicle.league.joined",
         ChronicleKey.LeagueEnded => "chronicle.league.ended",
+        ChronicleKey.SettlementAbandoned => "alert.settlement.abandoned",
+        ChronicleKey.SettlementRevived => "chronicle.settlement.revived",
         _ => "",
     };
 }

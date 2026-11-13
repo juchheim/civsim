@@ -154,8 +154,11 @@ internal sealed class BronzeFixture
         int terraceTile = -1;
         if (terrace)
         {
-            // One hillside in range that is neither a deposit tile nor forest: the last non-deposit tile of the range.
-            for (int i = range.Count - 1; i >= 3 && terraceTile < 0; i--) if (i >= 16 || range.Count < 17) terraceTile = range[i];
+            // One hillside in range that is neither a deposit tile nor forest: the last non-deposit tile of the range outside the core.
+            // Outside the reserved core (docs/MVP/31 §3.3): a terrace never stands in ring 1.
+            for (int i = range.Count - 1; i >= 3 && terraceTile < 0; i--)
+                if ((i >= 16 || range.Count < 17) && HexGrid.Distance(start, range[i], source.Width) > LivingEconomyModel.DefaultSettlementCoreRadius)
+                    terraceTile = range[i];
             if (terraceTile < 0) throw new InvalidOperationException("The fixture start has no spare tile for a hillside.");
             tiles[terraceTile] = tiles[terraceTile] with { BiomeId = (int)Biome.Mountain, FieldYieldPerYear = Fix64.Zero, InitialWood = Fix64.Zero };
             deposits[terraceTile] = default;
@@ -258,6 +261,9 @@ internal sealed class BronzeFixture
             for (int t = 0; t < LivingEconomyModel.SeasonTicks; t++) Economy.Step(_tick++, ReadOnlySpan<Command>.Empty);
         }
     }
+
+    /// <summary>Runs one tick carrying a player command (fixture only).</summary>
+    public void Apply(Command command) => Economy.Step(_tick++, new[] { command });
 
     /// <summary>Runs whole seasons without adding external food; used to make shortage fixtures reproducible.</summary>
     public void RunSeasonsWithoutFoodTopUp(int seasons)

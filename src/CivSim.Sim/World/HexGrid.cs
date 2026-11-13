@@ -52,6 +52,31 @@ public static class HexGrid
     }
 
     /// <summary>
+    /// Steps in the renderer's angular direction order on an odd-r offset map: east, southeast, southwest,
+    /// west, northwest, northeast. Returns -1 when the step leaves the map (docs/MVP/31b §1.3).
+    /// </summary>
+    public static int Step(int index, int direction, int width, int height)
+    {
+        if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+        if (direction < 0 || direction >= 6) throw new ArgumentOutOfRangeException(nameof(direction));
+        if (index < 0 || (long)index >= (long)width * height) return -1;
+
+        int x = index % width, y = index / width;
+        bool odd = (y & 1) != 0;
+        int nx = x, ny = y;
+        switch (direction)
+        {
+            case 0: nx++; break;
+            case 1: ny++; nx += odd ? 1 : 0; break;
+            case 2: ny++; nx -= odd ? 0 : 1; break;
+            case 3: nx--; break;
+            case 4: ny--; nx -= odd ? 0 : 1; break;
+            case 5: ny--; nx += odd ? 1 : 0; break;
+        }
+        return nx < 0 || nx >= width || ny < 0 || ny >= height ? -1 : checked(ny * width + nx);
+    }
+
+    /// <summary>
     /// Exact 180° axial rotation for even-sized odd-r maps. With even height, this is the index
     /// reversal also used by the reference territory model, but the transform is derived in axial
     /// space so callers do not mistake offset-coordinate reflection for hex rotation.

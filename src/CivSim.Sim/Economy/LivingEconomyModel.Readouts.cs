@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
+
+/// <summary>A good moved between settlements during the latest completed season.</summary>
+internal readonly record struct SettlementSupplyTransfer(int FromSettlement, int ToSettlement, string GoodId, Fix64 Quantity);
 
 /// <summary>
 /// Read-only numbers for the player's Stores and Overview views: every good in stock, storage capacity, the growth caps,
@@ -10,6 +14,17 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel
 {
+    private readonly List<SettlementSupplyTransfer> _supplyTransfers = new();
+
+    /// <summary>Economy stock transfers from the latest completed season, for the player-facing map layer.</summary>
+    internal IReadOnlyList<SettlementSupplyTransfer> SupplyTransfers => _supplyTransfers;
+
+    private void RecordSupplyTransfer(int fromSettlement, int toSettlement, string goodId, Fix64 quantity)
+    {
+        if (fromSettlement == toSettlement || quantity <= Fix64.Zero) return;
+        _supplyTransfers.Add(new SettlementSupplyTransfer(fromSettlement, toSettlement, goodId, quantity));
+    }
+
     private const int FoodGoodCount = 9;
 
     /// <summary>Lines of <see cref="FoodLedgerLines"/>: start, gathered, eaten, spoiled, lost to full stores, end, need.</summary>

@@ -16,8 +16,8 @@ Roots ends with villages, fields and a chief. Bronze is **the age of metal, wall
 
 | # | Decision | Section |
 |---|----------|---------|
-| B-D1 | **The Bronze chapter:** the match ends when the human completes KEY-4, or 3 years after the first rival does, or at Year 64. Legacy decides. Harness matches use the same rule without the human clause | §3.1 |
-| B-D2 | **Current cadence projection:** KEY-3 ≈ 41.5 → KEY-4 ≈ 61.25 at Standard, E3 ≈ 19.75 min; EraBase E2/E3 = **150/400**. These are model projections; fresh live acceptance and Year-64 headroom checks are pending | §3.2, §15, 07c §10.1 |
+| B-D1 | **The Bronze chapter:** the match ends when the human completes KEY-4, or the countdown after the first rival does (6 years since 2026-11-06). **There is no year cap** (removed 2026-11-08, [28 §17](28-production-gap.md)). Legacy decides. Harness matches use the same rule without the human clause | §3.1 |
+| B-D2 | **Current cadence projection:** KEY-3 ≈ 41.5 → KEY-4 ≈ 61.25 at Standard, E3 ≈ 19.75 min (before docs/MVP/28 §16; with the doubled late costs, measured 2026-11-09: KEY-3 ≈ 52, KEY-4 ≈ 71.5); EraBase E2/E3 = **150/400**. These are model projections; fresh live acceptance and Year-64 headroom checks are pending | §3.2, §15, 07c §10.1 |
 | B-D3 | **Legacy units per era** replace `First = EraBase × 0.5`: Mastery `2 × (era + 1)`, First `3 × (era + 1)` (×4 Keystones and Wonders), built Wonder `25 × (era + 1)`. Dominion unchanged. Restores the 50/30/15/5 split | §3.3 |
 | B-D4 | **Mandate and six Decrees**, unlocked at KEY-3 and grown by GOV/COM/BEL research; the AI uses the same levers | §4 |
 | B-D5 | **Tin is scarce and placed on purpose:** per continent one contested middle field between the pair, two far placers and one island placer; **arsenical copper is guaranteed** within 25 tiles but deep (Shaft Mining). Bronze is always possible; *good* bronze is a strategic question | §5.1 |
@@ -103,8 +103,8 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 - **The match ends at the end of the season in which the first of these happens:**
   1. **the human completes KEY-4** ("The Iron Age dawns"), or
   2. **12 seasons (3 years) after the first rival completes KEY-4.** A top-centre countdown appears at once: "The Iron Age is coming: 3 years left." The human can still end it sooner by completing KEY-4, or
-  3. **Year 64** (the hard cap; 1.5 × the KEY-4 target).
-- **Headless and AI-only matches** (harness, tournaments, every automated gate) use clauses 2 and 3: the first KEY-4 + 12 seasons, or Year 64. The game's human clause is the only difference, and `--human-seat N` in the harness emulates it.
+  3. ~~**Year 64** (the hard cap; 1.5 × the KEY-4 target).~~ **Removed 2026-11-08** ([28 §17](28-production-gap.md)): the year cap was a legacy safety net from the first slice, not a design goal. With the late-project costs of 28 §16 the Bronze chapter no longer fits a fixed cap, and a cap that sits just past the expected KEY-4 turns a slow civilization's chapter into an arbitrary cut-off. The chapter now ends only by clause 1 or 2. A chapter in which nobody completes KEY-4 has **no end** (`MatchEnd.Open`, reason `None`, `EndSeason = NoEndSeason`); the enum value `YearCap = 3` is kept as an obsolete member so old data still reads.
+- **Headless and AI-only matches** (harness, tournaments, every automated gate) use clause 2 only: the first KEY-4 + `ChapterCountdownSeasons`. Because no clause need ever fire, every headless loop is bounded by its own `--minutes` horizon. The game's human clause is the only other difference, and `--human-seat N` in the harness emulates it.
 - **Scoring:** Legacy (§3.3) at the end. The end screen keeps standings, the Keystone timeline and each AI's "why" log, and adds the Bronze summary (tin sources, walls, compacts, wars, the largest city).
 - **Why this rule.** Ending when *anyone* reaches the next keystone (the old slice) punished slow and experimental play; ending only when the human does lets a leader farm Legacy forever. The countdown gives the race a finish line, gives the laggard three years of comeback, and makes **"when do I close the age?"** a real decision for a leading player (complete KEY-4 now and bank the First, or stay to finish walls and a Wonder until a rival forces the end).
 - **Dominion victory** stays enabled and is unreachable in the chapter (§11). Apex: not applicable.
@@ -115,9 +115,9 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 |---|---:|---:|---:|---|
 | KEY-3 | 41.5 | 30.1–35.0 measured before cadence updates | **41.5 projection** | rerun live C5 |
 | E3 duration (own KEY-3 → own KEY-4) | 19.75 | — | **19.75 projection** | rerun live M10 |
-| KEY-4, Council median | 61.25 | — | **61.25 projection** | complete before the Year-64 cap; rerun M10 |
-| First KEY-4 in the world | — | — | earlier than Year 64; timing projection pending | fresh M10 run |
-| Chapter end, median | — | — | countdown after first KEY-4 or Year 64 cap | reevaluate Year-64 share |
+| KEY-4, Council median | 71.5 | — | **71.5 measured (61.25 before docs/MVP/28 §16)** | complete before the Year-64 cap; rerun M10 |
+| First KEY-4 in the world | — | — | timing projection pending | fresh M10 run |
+| Chapter end, median | — | — | countdown after first KEY-4 (no year cap) | share of chapters closed within the horizon |
 | Decision cadence | historical 34 s per in-era completion (07 F10) | — | current live acceptance pending; mean-field Primary interval is ~71 s | — |
 
 ### 3.3 Legacy units per era
@@ -131,13 +131,25 @@ The Bronze Age (in game terms, the Chalcolithic through the Late Bronze Age: Uru
 | **Wonder built** (new) | `25 × L(e)` | — | — | 75 (Megalith) | 100 (Ziggurat) |
 | **Dominion** | 100 × share of claimed land per year (unchanged, 07b R8) | | | | |
 
+**Revision 2026-11-06: Firsts out, Thriving in; the countdown is 6 years.** Firsts rewarded finishing the same projects fastest, so a civ that detoured to fix a weakness (food, disease, metal) lost Legacy for it, and the leader took 54% of all Firsts while Firsts made up about 15% of a score but 58% of the winner's average lead (40 Chieftain free-for-all matches, 64 minutes, 8 seeds × 5 seatings). Now:
+
+| Component | Rule |
+|---|---|
+| **Mastery** | unchanged: `2 × L(e)` per completed project, so every project in an age pays the same |
+| **First** | still recorded (Pioneer, the world-first toast and Chronicle line) but pays **0** (`LegacyFirstPerEra = 0`) |
+| **Thriving** (replaces Firsts) | each season `√people ÷ LegacyThrivingDivisor (5) × (1 − worst-settlement famine) × (1 − disease share)`; the square root stops a bigger civ simply out-running a smaller one, and fixing a famine or plague pays directly |
+| **Wonder built**, **Dominion** | unchanged |
+| **Countdown** after a rival's last keystone | `ChapterCountdownSeasons` 12 → **24** (Iron `IronCountdownSeasons` too), so a pivot is not a death sentence |
+
+Measured on the same 40 matches: Thriving gap between winner and runner-up 344 → 35; no match decided by more than 1,000 (was 11 of 40); median margin unchanged (~370); win rates 22–31% across the five archetypes; split Dominion 54%, Mastery 32%, Thriving 14% (T24 band for the old Firsts share was 12–20%). Dominion is now the largest part of the lead (about 72% of the average gap) and is the next snowball to examine. The `ThrivingLegacy` field and `CivThrivingLegacy` frame array took over the `FirstsLegacy` storage slots, so snapshots keep their layout. The research and politics goldens and `content-pack.txt` were refreshed for this change.
+
 **Historical check (per civilization, four civs).** At minute 33 the earlier-fit units gave Mastery ~440 and Firsts ~260: **53% / 29% / 17%**. At the earlier chapter end near minute 46 they gave Mastery ~780, Firsts ~420, Wonders ~40: **48% / 33% / 18% / 2%**. Under the old rule that match was about Dominion 30%, Mastery 10%, **Firsts 60%**. These scores need a fresh run for the current ~61-minute KEY-4 projection. The units remain era-proportional and do not grow with EraBase.
 
 Every A-gate (A1–A6) must be re-measured under the new units in M10 (§16); A5's archetype fit is expected to move because wins no longer hinge on the Firsts race.
 
 ### 3.4 Representation and budgets
 - **1 figure = 1 person** through E3 (01 §8, 07 F6). The current live-mode projection is about **375 people per civ at KEY-4** (§15), or ~1,500 figures for four civs; rerun the Year-64 peak and render-budget checks before M10 acceptance.
-- Headless chapter (to Year 64, four AIs): **≤ 30 s**; tick ≤ 4 ms mean, no GC pause over 16 ms (S12/S13 extended).
+- Headless chapter (to its end, four AIs; S12 horizon 120 minutes by default): **≤ 30 s**; tick ≤ 4 ms mean, no GC pause over 16 ms (S12/S13 extended).
 
 ---
 
@@ -273,6 +285,7 @@ Each compact delivery is a **caravan party** on the road (pack animals, carts wi
 
 ### 6.4 Tin Folk
 - **When the first civilization in the world completes KEY-3**, each far or island tin placer that is not owned by a civilization and lies ≥ 8 tiles from any settlement gets a **Free Folk village of 24** (9 adults, 2 elders, 13 children; E2 technology; a palisade; claim radius 3): *"Traders speak of the tin-folk of the western hills."* Typical maps get **3–6**.
+- The village stands **two hexes** from its placer (three if no tile at two will do), so the tin lies outside its core ([31 §3.3](31-settlement-core-reserve-plan.md)); with no such tile no village appears there.
 - Tin Folk mine and smelt their placer, grow to their food cap, defend at 0.8 strength behind their palisade, never raid, and accept compacts like any Strategist (with a fixed "trade-seeking" policy).
 - Three ways to their tin: **trade** (a Compact), **invite** them (§4.3, after 8 seasons of trade), or **take** them (raid or capture; reputation −5 for a raid, −10 for a capture, Relations −20 with every civilization that traded with them).
 - Spawning at the first KEY-3 (around minute 30) keeps the worldgen, research and politics goldens (12 and 24 minutes) unchanged until then. Seeding neutral peoples at world generation is the later, cleaner version (§19).
@@ -303,7 +316,7 @@ The combat round (13 §7.2) is unchanged (k = 0.06; 40% of casualties die; MED-0
 |---|---|---:|---|---|
 | Palisade (E2) | DEF-03 | ×2.0 | burnable | 6 ws, 8 L wood (×2 Village) |
 | **Hillfort** | DEF-04 | **×2.5** (replaces palisade) | refuge on a hill within 4 tiles for the non-combatants and stores of every own settlement within 6: raid loot ×0.25 | 15 ws, 10 L wood |
-| **Stone walls** | DEF-05 | **×3.0** (replaces) | **cannot be assaulted in E3** (no siege engines until E4): investment only (§7.4); raiders loot outside the walls only (×0.25); do not burn | 30 ws + 60 L cut stone per Village ring; ×2 Town, ×3 City |
+| **Stone walls** | DEF-05 | **×3.0** (replaces) | **cannot be assaulted in E3** (no siege engines until E4): investment only (§7.4); raiders loot outside the walls only (×0.25); do not burn | 15 ws + 20 L stone quarried within 8 tiles per Village ring; ×2 Town, ×3 City (was 30 ws + 60 L cut stone; see [28 §4](28-production-gap.md)) |
 | Archery behind barriers, hill site, home ground | (13) | ×1.25, ×1.2, ×1.1 | unchanged | |
 
 Walls are a two-year project for a village (about 90 ws with quarrying and dressing); **Corvée** cuts that by a third, which is exactly the "build walls before their bronze arrives" decision.
@@ -515,7 +528,7 @@ Effect primitives as in [11 §1](11-e0-e2-project-specs.md#1-effect-primitives-s
 | TER-06 | Boundary Stones & Land Rights | I | TER-05, GOV-03 | Rule(own tiles flip only after a 30% lead held 2 seasons) · Admin(Overreach −10%) · Claim(mining camps radius 2) | mark |
 | TER-07 | City-States & Hinterlands | I | TER-06, SOC-09 | Claim(each City: hinterland ring to radius 7 at 50% emission) | mark |
 | DEF-04 | Earthworks & Hillforts | S | DEF-03, MIN-03 | Build(Hillfort on a hill within 4: 15 ws, 10 L wood) · Defense(×2.5, refuge within 6: raid loot ×0.25) | build, guard |
-| DEF-05 | Stone Walls | S | DEF-04, STN-11 | Build(Walls: 30 ws + 60 L cut stone per Village; ×2 Town, ×3 City) · Defense(×3; no assault, investment only; loot ×0.25) | build, guard |
+| DEF-05 | Stone Walls | S | DEF-04, STN-11 | Build(Walls: 15 ws + 20 L stone per Village; ×2 Town, ×3 City; 28 §4) · Defense(×3; no assault, investment only; loot ×0.25) | build, guard |
 | DIP-04 | Envoys & Oaths | I | DIP-03, GOV-04 | Diplo(Non-aggression pact: 8 years; breaking −60 Relations, reputation −30) · Role(Envoy) · Mandate(Compact costs 0) | meet strangers |
 | DIP-05 | Written Treaties | I | DIP-04, COM-05 | Diplo(Border treaty: the current line is fixed for 10 years) · Rule(compacts survive Relations down to −30) | meet strangers, scribe |
 | WAR-05 | Bronze Arms & Shields | M | WAR-04, (MET-04 \| MET-05) | Good(G-ARMS2: 0.3 L bronze; 2.1 arsenical, 2.3 tin) · Combat(shields: casualties taken ×0.7) · Rule(militia carry bronze spears from stock) | fight, smelt |
@@ -585,7 +598,7 @@ Budgets: 60 fps at Z0–Z2 with 1,600 figures, the new structures and all overla
 |---|---|---|---|---|---|
 | T1 | KEY-3 | 41.5 min (projection) | live C5 rerun pending | updated live-mode oracle | balance_sim projection |
 | T2 | **E3 duration** (own KEY-3 → own KEY-4) | **19.75 min (projection)** | live M10 rerun pending | current EraBase E3=400 projection | balance_sim projection |
-| T3 | **KEY-4** (Council median) | **61.25 min (projection)** | confirm completion before Year 64 | current KEY-3 + E3 projection | balance_sim projection |
+| T3 | **KEY-4** (Council median) | **71.5 min (measured 2026-11-09; was 61.25 projection)** | confirm completion within the horizon | current KEY-3 + E3 projection | balance_sim projection |
 | T4 | **EraBase E3** | **400** (D/M 400, S 480, R 320, I 600, W 800, K 1,000) | fresh live fit after M10 acceptance | tuned to slow Bronze; replaces the earlier 150 live fit | fit.py projection; acceptance pending |
 | T5 | Insight per minute | ~330 at KEY-3 → 650–800 at KEY-4 | ±20% | live 300–440 at minute 35 (E2 tech) + E3 roles | live |
 | T6 | Know-how share of progress | 13–20% | — | 07 F4; live 17–18% | existing |
@@ -610,7 +623,7 @@ Budgets: 60 fps at Z0–Z2 with 1,600 figures, the new structures and all overla
 | T25 | Cohesion | settlements 60–80 typical; 0.03–0.08 secessions per civ per E3; > 2 in one civ within 2 years in < 2% of matches | — | §8.3; rebaseline in 07d §2/§11 | cohesion_sim (new) |
 | T26 | Tin Folk | 3–6 per map at the first KEY-3; ≥ 1 compact with one in ≥ 50% of matches | — | §6.4 | harness |
 | T27 | Mandate | Historical 7–9 earned and 5–8 Decrees over 13 minutes; current projection ≈13 earned over 19.75 minutes, budget review pending | — | §4.2 | live harness rerun |
-| T28 | Figures and tick | ≤ 1,600 figures at Year 64; tick ≤ 4 ms mean | — | §3.4 | harness |
+| T28 | Figures and tick | ≤ 1,600 figures at the chapter end; tick ≤ 4 ms mean | — | §3.4 | harness |
 
 ### 15.2 What the Python oracle must be extended to model
 1. **`balance_sim.py` live mode:** `InsightCalibration` 1.6 on the whole formula, adults from the exact-age reference (07c §6), E3 roles by structure (one Priest per Temple, Scribes per Palace and School, +8 per City) instead of shares, and a settlement-count curve from the live harness or the territory model instead of `pop ÷ 15`. Then `fit.py` re-fits EraBase[3] (T4).
@@ -633,8 +646,8 @@ The milestone is done when every automated row passes in the nightly report and 
 | B2 | **Bronze is legible.** Testers can say why their tools are or are not bronze | ≥ 5 of 8 | post-match question | Human; **passed**, reported by the project owner 2026-11-04 |
 | B3 | **Want more** after the Bronze end screen; can explain one AI action | ≥ 5 of 8 (P9 repeated) | M9 protocol | Human; **passed**, reported by the project owner 2026-11-04 |
 | B4 | Every E3 project and KEY-4 shows a visible change | 66/66 emit Completed, Moment, ≥ 1 VisibleChange | event-stream test (C8) | Auto |
-| B5 | **Keystone timing** | Balanced Council KEY-4 median 57–64 min before Year 64; E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
-| B6 | **Chapter end** | Every sample ends by the §3.1 rule: 12 seasons after the first rival KEY-4 or at Year 64; ≤ 40% of Balanced matches reach Year 64 (relaxed 2026-11-03 from 10%: 11/32 = 34% measured, median end 63.5 is in design, and an earlier KEY-4 would re-tune E3 pace and every golden; 07d); the end rule is replay-identical. Report the observed end-time median. | harness, 32 seeds | Auto |
+| B5 | **Keystone timing** | Balanced Council KEY-4 median 66.5–74.5 min (was 57–64 before the doubled late costs of docs/MVP/28 §16); E3 duration median and each civilization within 19.75 ±25% (14.81–24.69 min) | `research --check-m10`, seeds 20261019 and 777; opening-bot timing still needs separate coverage | Auto |
+| B6 | **Chapter end** | Every sample ends by the §3.1 rule: `ChapterCountdownSeasons` after the first rival KEY-4, or sooner by the human clause, and a sample with no KEY-4 reports the chapter as open (no end season). **Redefined 2026-11-08 with the year cap's removal:** at least 60% of Balanced matches close within `--minutes` (the old clause allowed at most 40% to reach the Year-64 cap, relaxed 2026-11-03 from 10%; the same tolerance now reads as the closed share); the end rule is replay-identical. Report the observed end-time median. | harness, 32 seeds | Auto |
 | B7 | **Hands-off loses to engaged** at the chapter end | ≥ 65% (P8 at the new horizon) | Settler proxy vs Council, mirrored | Auto |
 | B8 | **Decrees pay** | paired enabled-minus-disabled Legacy is positive in ≥ 60% of 32 matched seed pairs, and cohort mean paired Legacy delta is positive | mirrored Grower duels; raw match wins are diagnostic | Auto |
 | B9 | FoodCap E3 (C1-E3) | 88 → 190 ±10% | check_e3 + live fixture | Auto |

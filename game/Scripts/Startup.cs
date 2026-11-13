@@ -122,7 +122,8 @@ public partial class Startup : Control
             Disabled = true,
             MouseDefaultCursorShape = CursorShape.PointingHand,
         };
-        _startButton.AddThemeFontSizeOverride("font_size", 28);
+        _startButton.AddThemeFontOverride("font", UiTheme.Display);
+        _startButton.AddThemeFontSizeOverride("font_size", UiTokens.FontYear);
         _startButton.AnchorLeft = 0.5f;
         _startButton.AnchorTop = 0.68f;
         _startButton.AnchorRight = 0.5f;

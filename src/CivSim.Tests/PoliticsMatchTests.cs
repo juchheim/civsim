@@ -23,9 +23,14 @@ public class PoliticsMatchTests
 
     private sealed class Rig
     {
-        public readonly MatchModel Match = MatchModel.Create(Seed, TestPack.Pack, World.Value, Balanced);
+        public readonly MatchModel Match;
         public readonly SimRunner Runner;
-        public Rig() { Runner = new SimRunner(Match); }
+        public Rig() : this(Seed, World.Value) { }
+        public Rig(ulong seed, GeneratedWorld world)
+        {
+            Match = MatchModel.Create(seed, TestPack.Pack, world, Balanced);
+            Runner = new SimRunner(Match);
+        }
         public PoliticsSystem Politics => Match.Politics;
         public ResearchSystem Research => Match.Research;
         public LivingEconomyModel Economy => Match.Economy;
@@ -70,9 +75,12 @@ public class PoliticsMatchTests
     [Fact]
     public void Peaceful_neighbours_exchange_gifts_and_barter_and_their_relations_grow()
     {
-        var rig = new Rig();
-        // Give late-contact neighbours enough seasons to exchange gifts and raise relations.
-        rig.Minutes(30);
+        // Seed 20261019 no longer fits this check: with the doubled late costs (docs/MVP/28 §16) its civ 2 splits early into tiny, hungry settlements
+        // that cannot send a gift, so the 2-3 pair stays at relations 5 until about minute 50. Nine of twelve seeds from 20261019 meet every line below at
+        // minutes 40 to 44; 20261026 does at 36, 40 and 44. Neighbours who meet later need about 40 minutes to exchange gifts and raise relations.
+        const ulong peacefulSeed = 20261026;
+        var rig = new Rig(peacefulSeed, WorldGenerator.Generate(peacefulSeed));
+        rig.Minutes(40);
         PoliticsSystem p = rig.Politics;
         Assert.True(p.Gifts > 0, "no gifts were delivered");
         Assert.True(p.BarterTrips > 0, "no barter trip completed");
@@ -306,6 +314,10 @@ public class PoliticsMatchTests
         int civ1Before = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 1);
         int civ0Before = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 0);
 
+        // The first-contact roll sets the starting Relations (anything from hostile to friendly, and it moves with the economy that feeds the
+        // roll's modifiers), so measure the capture's own -70 against where the pair stood rather than assuming a hostile start.
+        int relationsBefore = rig.Politics.Diplomacy.Relations(0, 1);
+
         Assert.True(rig.Politics.Occupy(0, target));
         rig.Seasons(1);
         Assert.Contains(rig.Politics.Events, e => e.Kind == PoliticsEventKind.Captured);
@@ -316,7 +328,7 @@ public class PoliticsMatchTests
         int civ1After = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 1);
         int civ0After = Enumerable.Range(0, rig.Economy.FigureCount).Count(i => rig.Economy.Figure(i).Civilization == 0);
         Assert.True(civ0After > civ0Before - 3 && civ1After > civ1Before - popBefore + 1);
-        Assert.True(rig.Politics.Diplomacy.Relations(0, 1) <= -70 + 10);
+        Assert.InRange(rig.Politics.Diplomacy.Relations(0, 1), Math.Max(-100, relationsBefore - 70) - 10, Math.Max(-100, relationsBefore - 70) + 10);
         Assert.Equal(1, rig.Politics.CaptureCount);
         // The captured are unsettled: Cohesion starts 0.2 down and recovers 0.02 a season.
         Fix64 cohesion = rig.Economy.SettlementCohesion(target);
@@ -455,7 +467,9 @@ public class PoliticsMatchTests
     public void Barter_shares_what_each_side_has_seen_of_the_traded_materials()
     {
         var rig = new Rig();
-        rig.Minutes(21);
+        // Trade skills arrive later since docs/MVP/28 §16 (late projects cost twice as much): the first barter trip of this
+        // fixture happened within 12 seasons from minute 21 before and from minute 24 now; 27 leaves a margin.
+        rig.Minutes(27);
         ulong goods = 0;
         foreach (string name in new[] { "Clay", "Native copper", "Salt", "Tin", "Gold or Silver", "Coal", "Silk moths" })
         {

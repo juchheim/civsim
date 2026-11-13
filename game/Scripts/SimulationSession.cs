@@ -22,11 +22,25 @@ public sealed class SimulationSession : IDisposable
     private const int TicksPerSecond = 10;
     private const int PublishEveryTicks = 10;
     // The Bronze chapter (docs/MVP/22 §3.1) ends the match at the end of the season in which the human completes KEY-4, 12 seasons
-    // after the first rival does, or at Year 64. The rule lives in the sim (MatchEnd) so replays and saves agree on it.
+    // after the first rival does (there is no year cap). The rule lives in the sim (MatchEnd) so replays and saves agree on it.
 
     private readonly MatchModel _match;
     private readonly SimRunner _runner;
     private readonly FrameBuilder _builder;
+
+    /// <summary>Whether published frames carry each own settlement's build outlook (the Building tab is open); off keeps the frame build allocation-free.</summary>
+    public bool WantBuildOutlooks
+    {
+        get => _builder.WantBuildOutlooks;
+        set
+        {
+            if (_builder.WantBuildOutlooks == value) return;
+            _builder.WantBuildOutlooks = value;
+            if (value) { Volatile.Write(ref _republish, 1); _wake.Set(); } // a paused match publishes nothing on its own
+        }
+    }
+
+    private int _republish;
     private readonly Thread _thread;
     private readonly object _stateLock = new();
     private readonly AutoResetEvent _wake = new(false);
@@ -135,7 +149,6 @@ public sealed class SimulationSession : IDisposable
             }
         }
 
-        MatchYears = _match.Rules.CapYear(_match.Research.Catalog);
         _builder = new FrameBuilder(_match, viewerCiv);
         if (saveData is not null)
         {
@@ -209,12 +222,12 @@ public sealed class SimulationSession : IDisposable
     public bool Paused => Volatile.Read(ref _paused) != 0;
     public double Speed => SpeedAt(Volatile.Read(ref _speedIndex));
     public bool MatchEnded => Volatile.Read(ref _matchEnded) != 0;
-    /// <summary>The hard cap of the chapter in years (ChapterCapYear).</summary>
-    public int MatchYears { get; }
+    /// <summary>Years between a rival's final keystone and the end of the age.</summary>
+    public int CountdownYears => Math.Max(1, _match.Rules.CountdownSeasons(_match.Research.Catalog) / 4);
     /// <summary>True when the match plays the opt-in Iron chapter, which ends on KEY-5 rather than KEY-4.</summary>
     public bool IsIron => _match.Rules.IsIron;
     /// <summary>
-    /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (3 years = 12 seasons at the start), or -1 while no
+    /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (6 years = 24 seasons at the start), or -1 while no
     /// countdown runs. Published by the simulation thread with every frame; the human completing KEY-4 ends the match sooner.
     /// </summary>
     public int ChapterSeasonsLeft => Volatile.Read(ref _chapterSeasonsLeft);
@@ -227,6 +240,9 @@ public sealed class SimulationSession : IDisposable
     public string ReplayStatus => Volatile.Read(ref _replayStatus) ?? "Replay is playing.";
     public bool CanSave => _initialStartMinute == 0 && !_replayMode;
     public bool CanIssueCommands => !_replayMode && !MatchEnded;
+
+    /// <summary>Commands waiting for the next simulation tick, including while the match is paused.</summary>
+    public Command[] PendingCommands => _commands.ToArray();
 
     internal static SimulationSession Restore(GameSaveData save, ContentPack pack)
         => new(save.Seed, pack, 0, save.ViewerCiv, save.Difficulty, save, null);
@@ -263,6 +279,13 @@ public sealed class SimulationSession : IDisposable
     {
         lock (_stateLock)
             return DecreeForecaster.Forecast(_match.Politics, civ, kind, target, extra, belief: null);
+    }
+
+    /// <summary>Read-only outer-core preview for the renderer's debug gallery, synchronized with the simulation thread.</summary>
+    internal int PreviewOuterCore(int site, ushort districtMask, Span<int> tiles, Span<byte> districts, Span<byte> positions)
+    {
+        lock (_stateLock)
+            return _match.Economy.PreviewOuterCore(site, districtMask, tiles, districts, positions);
     }
 
     /// <summary>Read-only Beacon placement estimate, synchronized with the deterministic simulation thread.</summary>
@@ -351,6 +374,8 @@ public sealed class SimulationSession : IDisposable
         {
             if (Paused)
             {
+                if (Interlocked.Exchange(ref _republish, 0) == 1)
+                    lock (_stateLock) Frames.BuildAndPublish(_builder, _match);
                 _wake.WaitOne(200);
                 continue;
             }

@@ -67,7 +67,7 @@ public partial class UiToggle : Button
     {
         float h = Size.Y;
         var track = new Rect2(0, (h - 20) * 0.5f, 34, 20);
-        Color trackColor = ButtonPressed ? UiTokens.Accent : new Color("#16130F");
+        Color trackColor = ButtonPressed ? UiTokens.Accent : UiTokens.SurfaceSunkenSolid;
         DrawRoundedRect(this, track, 10, trackColor, ButtonPressed ? null : UiTokens.BorderStrong);
         float knobX = ButtonPressed ? track.Position.X + 34 - 18 : track.Position.X + 2;
         DrawCircle(new Vector2(knobX + 8, track.Position.Y + 10), 8, ButtonPressed ? UiTokens.TextOnAccent : UiTokens.TextTertiary);
@@ -359,6 +359,14 @@ public static class UiKit
     public static void SetVisible(CanvasItem item, bool visible)
     {
         if (item.Visible != visible) item.Visible = visible;
+    }
+
+    /// <summary>Like <see cref="SetVisible"/>, and says whether anything changed.</summary>
+    public static bool SetVisible2(CanvasItem item, bool visible)
+    {
+        if (item.Visible == visible) return false;
+        item.Visible = visible;
+        return true;
     }
 
     private static UiButton MakeButton(string text, string variation, Action? pressed, string? tooltip, UiGlyph icon, int height, bool focus)

@@ -1,5 +1,6 @@
 using System;
 using CivSim.Sim.Ai;
+using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
@@ -234,6 +235,7 @@ public sealed partial class FrameBuilder
         target.TickInSeason = (int)(eco.Tick % LivingEconomyModel.SeasonTicks);
         target.LastWinterHarsh = eco.LastWinterWasHarsh;
         target.ViewerCiv = _viewer;
+        target.ViewerDirection = _omniscient ? CivilizationDirection.Balanced : match.Guidance.DirectionOf(_viewer);
         target.Width = _width;
         target.Height = _height;
         target.TotalFigures = eco.FigureCount;
@@ -257,6 +259,7 @@ public sealed partial class FrameBuilder
         FillHerdsAndPredators(eco, target);
         FillParties(target);
         FillRoutes(pol, target);
+        FillSupplyTransfers(eco, pol, target);
         FillOccupations(pol, target);
         FillIron(match, target);
         FillCivs(match, target);
@@ -504,7 +507,9 @@ public sealed partial class FrameBuilder
             _pMembers[p] = e.Members.Count;
             _pArrive[p] = e.ArriveSeason;
             _pGood[p] = (byte)e.Good;
-            _pCargo[p] = (int)Math.Clamp((e.Cargo * 1000).FloorToInt(), 0, int.MaxValue);
+            Fix64 visibleCargo = e.Kind == ExpeditionKind.Gift ||
+                e.Kind == ExpeditionKind.Barter && (e.Leg == 0 || e.Good == TradeGood.None) ? e.Value : e.Cargo;
+            _pCargo[p] = (int)Math.Clamp((visibleCargo * 1000).FloorToInt(), 0, int.MaxValue);
             _pId[p] = e.Id;
         }
     }
@@ -943,6 +948,8 @@ public sealed partial class FrameBuilder
         for (int s = _seenSettlements; s < n; s++) _seenSeason[s] = -1;
         _seenSettlements = Math.Max(_seenSettlements, n);
         target.EnsureSettlements(n);
+        target.EnsureCoreOuter(n * (int)CoreDistrict.Count);
+        target.CoreOuterCount = 0;
         int kinds = MatchFrame.StructureKinds;
         int written = 0;
         for (int s = 0; s < n; s++)
@@ -973,7 +980,9 @@ public sealed partial class FrameBuilder
                 target.SettlementSmallStock[w] = 0; target.SettlementCattle[w] = 0; target.SettlementPigs[w] = 0;
                 target.SettlementSeenSeason[w] = _seenSeason[s];
                 Array.Clear(target.SettlementStructures, structureBase, kinds);
+                Array.Clear(target.SettlementCivicStructures, w * MatchFrame.CivicStructureKinds, MatchFrame.CivicStructureKinds);
                 target.SettlementHalls[w] = 0; target.SettlementTemples[w] = 0; target.SettlementZiggurats[w] = 0; target.SettlementZigguratPermille[w] = 0;
+                target.SettlementCoreFront[w] = byte.MaxValue;
                 continue;
             }
             var lite = eco.SettlementLite(s);
@@ -999,11 +1008,27 @@ public sealed partial class FrameBuilder
             if (own) flags |= SettlementViewFlags.Own;
             for (int k = 0; k < kinds; k++)
                 target.SettlementStructures[structureBase + k] = (byte)Math.Min(255, eco.StructureCount(s, k));
+            CivicReadout civic = eco.Civic(s);
+            int civicBase = w * MatchFrame.CivicStructureKinds;
+            target.SettlementCivicStructures[civicBase] = (byte)Math.Min(255, civic.Markets);
+            target.SettlementCivicStructures[civicBase + 1] = (byte)Math.Min(255, civic.Temples);
+            target.SettlementCivicStructures[civicBase + 2] = (byte)Math.Min(255, civic.Palaces);
+            target.SettlementCivicStructures[civicBase + 3] = (byte)Math.Min(255, civic.Schools);
+            target.SettlementCivicStructures[civicBase + 4] = (byte)Math.Min(255, civic.Bakeries);
+            target.SettlementCivicStructures[civicBase + 5] = (byte)Math.Min(255, civic.Halls);
+            target.SettlementCivicStructures[civicBase + 6] = (byte)Math.Min(255, civic.Caravanserais);
+            target.SettlementCivicStructures[civicBase + 7] = (byte)Math.Min(255, civic.Ziggurats);
             target.SettlementHalls[w] = (byte)Math.Min(255, eco.HallCount(s));
             target.SettlementTemples[w] = (byte)Math.Min(255, eco.TempleCount(s));
             (int ziggurats, int zigguratPermille) = eco.ZigguratView(s);
             target.SettlementZiggurats[w] = (byte)Math.Min(255, ziggurats);
             target.SettlementZigguratPermille[w] = (short)Math.Clamp(zigguratPermille, 0, 1000);
+            target.SettlementCoreFront[w] = (byte)eco.CoreFront(s);
+            int outerOffset = target.CoreOuterCount;
+            int outerCount = eco.OuterCoreHexes(s,
+                target.CoreOuterTile.AsSpan(outerOffset), target.CoreOuterDistrict.AsSpan(outerOffset), target.CoreOuterPosition.AsSpan(outerOffset));
+            for (int row = 0; row < outerCount; row++) target.CoreOuterSettlement[outerOffset + row] = w;
+            target.CoreOuterCount += outerCount;
             if (eco.DefenseStructures(s, lookout: false) > 0) flags |= SettlementViewFlags.ThornBarrier;
             if (eco.DefenseStructures(s, lookout: true) > 0) flags |= SettlementViewFlags.Lookout;
             if (PalisadeStructure >= 0 && eco.StructureCount(s, PalisadeStructure) > 0)
@@ -1304,18 +1329,27 @@ public sealed partial class FrameBuilder
             target.CivBreadthDone[c] = (short)research.DoneInEra(c, era);
             target.CivBreadthNeeded[c] = (short)_catalog.EraBreadth[Math.Min(era, ResearchCatalog.EraCount - 1)];
             target.CivMetalAccess[c] = (byte)(_omniscient || c == _viewer ? MetalAccessBits(match.Economy, c) : 0);
-            target.CivLegacy[c] = research.Legacy(c).Raw;
-            target.CivFirstsLegacy[c] = research.FirstsLegacy(c).Raw;
+            // The public Legacy total must match Scoring.Of: research legacy plus accumulated Dominion.
+            // ResearchSystem.Legacy contains Mastery, Thriving and Wonders; Territory owns Dominion.
+            target.CivLegacy[c] = (research.Legacy(c) + pol.Territory.Dominion(c)).Raw;
+            target.CivThrivingLegacy[c] = research.ThrivingLegacy(c).Raw;
             target.CivDominion[c] = pol.Territory.Dominion(c).Raw;
             target.CivLandBasisPoints[c] = pol.Territory.ShareBasisPoints(c);
             target.CivPosture[c] = (byte)pol.PostureOf(c);
             target.CivRelations[c] = (short)(_omniscient || c == _viewer ? 0 : dip.Relations(_viewer, c));
             target.CivWeaponTier[c] = WeaponTier(research, c);
-            if (self)
-            {
-                int population = 0, settlements = 0;
+            bool intel = self || (flags & CivViewFlags.Contacted) != 0;
+            int population = 0, settlements = 0;
+            if (intel)
                 for (int s = 0; s < _settlementCount; s++)
                     if (_sCiv[s] == c && !_sFree[s] && _sPop[s] > 0) { population += _sPop[s]; settlements++; }
+            target.CivIntelPopulation[c] = population; target.CivIntelSettlements[c] = settlements;
+            target.CivIntelProjectsDone[c] = intel ? research.DoneCount(c) : 0;
+            target.CivIntelInsightPerYear[c] = intel ? research.InsightPerYear(c).Raw : 0;
+            for (int slot = 0; slot < MatchFrame.StoreSlots; slot++)
+                target.CivGoodsGained[c * MatchFrame.StoreSlots + slot] = intel ? match.Economy.GoodsGained(c, slot).Raw : 0;
+            if (self)
+            {
                 target.CivPopulation[c] = population;
                 target.CivSettlements[c] = settlements;
                 target.CivProjectsDone[c] = research.DoneCount(c);

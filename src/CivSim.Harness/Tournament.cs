@@ -1391,7 +1391,7 @@ internal static class Tournament
                     {
                         Standing standing = Scoring.Of(match, c);
                         double legacy = standing.Dominion.ToDoubleForDisplay() + standing.Mastery.ToDoubleForDisplay() +
-                            standing.Firsts.ToDoubleForDisplay() + standing.Wonders.ToDoubleForDisplay();
+                            standing.Thriving.ToDoubleForDisplay() + standing.Wonders.ToDoubleForDisplay();
                         if (legacy > leaderLegacy) { leaderLegacy = legacy; leaderAtCheckpoint = c; }
                     }
                     for (int c = 0; c < civs; c++)
@@ -1423,8 +1423,8 @@ internal static class Tournament
                             $"fissions={fissions} meanFoodSecurity={(settlements == 0 ? 0 : foodSecurity.ToDoubleForDisplay() / settlements):F2} " +
                             $"insightGenerated={insight.ToDoubleForDisplay():F2} completedProjects={match.Research.DoneCount(c)} " +
                             $"cumulativeFirstClaimPoints={firsts} D={score.Dominion.ToDoubleForDisplay():F1} " +
-                            $"M={score.Mastery.ToDoubleForDisplay():F1} F={score.Firsts.ToDoubleForDisplay():F1} " +
-                            $"Legacy={(score.Dominion + score.Mastery + score.Firsts + score.Wonders).ToDoubleForDisplay():F1}");
+                            $"M={score.Mastery.ToDoubleForDisplay():F1} F={score.Thriving.ToDoubleForDisplay():F1} " +
+                            $"Legacy={(score.Dominion + score.Mastery + score.Thriving + score.Wonders).ToDoubleForDisplay():F1}");
                     }
                 }
             }
@@ -2124,8 +2124,12 @@ internal static class Tournament
                     bool tinAccess = match.Economy.CivHasMetalAccess(c, MetalAccessKind.Tin);
                     bool arsenicAccess = match.Economy.CivHasMetalAccess(c, MetalAccessKind.Arsenic);
                     bool hasAnyMetalAccess = tinAccess || arsenicAccess;
-                    bool dormantOption = !hasAnyMetalAccess &&
-                        (met05State == ProjectState.Dormant && tinOption || met04State == ProjectState.Dormant && arsenicOption);
+                    // Once the civilization holds an ore source of the option's kind (its own camp, or a deposit inside a village's
+                    // range), the recovery has been taken: the wait that remains is production, not a missed option (docs/MVP/28 §16).
+                    bool tinSourceInPlace = match.Economy.CivHasOreSource(c, DepositKind.Tin);
+                    bool arsenicSourceInPlace = match.Economy.CivHasOreSource(c, DepositKind.ArsenicalCopper);
+                    bool dormantOption = M10TelemetryRules.IsUnansweredDormantOption(met04State, arsenicOption, arsenicSourceInPlace,
+                        met05State, tinOption, tinSourceInPlace, hasAnyMetalAccess);
                     bool recoveryAction = dormantOption &&
                         (tinOption && recoveryTinOrder[c] || arsenicOption && recoveryArsenicOrder[c]);
                     dormantOptionSeasons[c] = dormantOption && !recoveryAction ? dormantOptionSeasons[c] + 1 : 0;
@@ -2178,7 +2182,7 @@ internal static class Tournament
                                 $"option(tin={tinOption},ars={arsenicOption}) MET04={met04State} MET05={met05State} " +
                                 $"dormantStreak={dormantOptionSeasons[c]} recoveryAction={recoveryAction} " +
                                 $"mandate={match.Research.Mandate(c)}/{match.Research.MandateCap(c)} mineCost={match.Politics.DecreeCost(c, DecreeKind.Mine)} " +
-                                $"plan=[{plan}] selected=[{selected}] topRouteCandidates=[{candidates}]");
+                                $"plan=[{plan}] selected=[{selected}] oreSource(tin={tinSourceInPlace},ars={arsenicSourceInPlace}) topRouteCandidates=[{candidates}]");
                     }
 
                     o.MandateSeasonsAtCap = match.Politics.MandateSeasonsAtCap(c);
@@ -2451,7 +2455,7 @@ internal static class Tournament
             Standing s = Scoring.Of(match, c);
             o.Dominion = s.Dominion.ToDoubleForDisplay();
             o.Mastery = s.Mastery.ToDoubleForDisplay();
-            o.Firsts = s.Firsts.ToDoubleForDisplay();
+            o.Firsts = s.Thriving.ToDoubleForDisplay();
             o.Wonders = s.Wonders.ToDoubleForDisplay();
             o.Projects = match.Research.DoneCount(c);
             if (match.Ai?.SeatOf(c)?.Spark is ResearchSpark spark)
@@ -2589,7 +2593,7 @@ internal static class Tournament
                 Standing standing = Scoring.Of(match, civ);
                 dominion += standing.Dominion.ToDoubleForDisplay();
                 mastery += standing.Mastery.ToDoubleForDisplay();
-                firsts += standing.Firsts.ToDoubleForDisplay();
+                firsts += standing.Thriving.ToDoubleForDisplay();
                 wonders += standing.Wonders.ToDoubleForDisplay();
                 insight += match.Research.InsightPerYear(civ).ToDoubleForDisplay();
                 projects += match.Research.DoneCount(civ);
@@ -2674,7 +2678,7 @@ internal static class Tournament
                 insightPerYear += match.Research.InsightPerYear(civ).ToDoubleForDisplay();
                 doneProjects += match.Research.DoneCount(civ);
                 mastery += Scoring.Of(match, civ).Mastery.ToDoubleForDisplay();
-                firstsScore += Scoring.Of(match, civ).Firsts.ToDoubleForDisplay();
+                firstsScore += Scoring.Of(match, civ).Thriving.ToDoubleForDisplay();
             }
             IReadOnlyList<ResearchEvent> events = match.Research.Events;
             for (int e = firstClaimEventStart; e < events.Count; e++)

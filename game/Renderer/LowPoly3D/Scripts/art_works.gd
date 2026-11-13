@@ -10,6 +10,8 @@
 ##   crane            a timber mast and jib over a man-sized treadwheel, a rope and a stone on its hook, blocks stacked beside it
 ##   aqueduct_run     one 0.3 long span of channel carried on arches, deck 0.14 up (the builder stretches it to level ground); runs along local X
 ##   aqueduct_end     the water tower where the aqueduct comes into the village: a basin on a stone pier with a spout
+##   water_mill       NRG-03: a timber mill on a stone footing with a tiled gable roof, an overshot wheel on its +X side fed by a trestle flume with a sluice gate; the builder
+##                    sets it on the river bank with +X toward the water
 ##   build_site_1..3  foundations, walls rising on scaffolding, walls up with roof timbers on
 extends RefCounted
 
@@ -36,6 +38,7 @@ static func build(kit) -> void:
 	kit.meshes["crane"] = _crane(kit)
 	kit.meshes["aqueduct_run"] = _aqueduct_run(kit)
 	kit.meshes["aqueduct_end"] = _aqueduct_end(kit)
+	kit.meshes["water_mill"] = _water_mill(kit)
 	for stage in range(1, 4):
 		kit.meshes["build_site_%d" % stage] = _site(kit, stage)
 
@@ -221,6 +224,71 @@ static func _aqueduct_end(kit) -> ArrayMesh:
 	b.pole(Vector3(-0.05, 0.1, 0), Vector3(-0.09, 0.07, 0), 0.006, STONE_DARK)
 	b.box(Vector3(-0.1, 0.012, 0), Vector3(0.07, 0.024, 0.05), STONE_DARK, STONE)
 	b.box(Vector3(-0.1, 0.026, 0), Vector3(0.06, 0.004, 0.04), WATER)
+	return b.commit()
+
+# ------------------------------------------------------------------ water mill
+
+static func _water_mill(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(986)
+	b.tag = PLAIN
+	var hx := 0.1
+	var hz := 0.075
+	# a stone footing and a plank-sided body (vertical boards in two tones), a tiled gable roof along X
+	b.box(Vector3(0, 0.012, 0), Vector3(hx * 2.0 + 0.03, 0.024, hz * 2.0 + 0.03), STONE_DARK, STONE)
+	b.box(Vector3(0, 0.07, 0), Vector3(hx * 2.0, 0.092, hz * 2.0), WOOD_LIGHT, WOOD_LIGHT.lightened(0.1))
+	for i in 10:
+		var x := -hx + 0.02 * (i + 0.5)
+		for sz in [-1.0, 1.0]:
+			b.box(Vector3(x, 0.07, sz * (hz + 0.0015)), Vector3(0.006, 0.092, 0.003), WOOD)
+	_gable(b, hx + 0.012, hz + 0.014, 0.116, 0.062, ROOF)
+	b.box(Vector3(0, 0.178, 0), Vector3(hx * 2.0 + 0.03, 0.006, 0.01), ROOF_DARK)
+	# a door and a loading hatch on the village side (-X) with sacks stacked before it, a window on the front (+Z)
+	b.box(Vector3(-hx - 0.002, 0.055, 0.0), Vector3(0.004, 0.058, 0.036), ARCH)
+	b.box(Vector3(-hx - 0.002, 0.108, 0.0), Vector3(0.004, 0.026, 0.026), ARCH)
+	for k in 3:
+		b.blob(Vector3(-hx - 0.026, 0.014 + 0.014 * (k / 2), -0.028 + 0.03 * (k % 2) + 0.01 * (k / 2)), Vector3(0.016, 0.014, 0.012), 5, 2, Color("#d6c7a3"), 0.1, Color("#b9a982"))
+	b.box(Vector3(0.03, 0.078, hz + 0.003), Vector3(0.026, 0.028, 0.004), ARCH)
+	# the overshot wheel on the +X wall: two rims of planks, spokes, an axle through the wall and paddles between the rims
+	var wc := Vector3(hx + 0.03, 0.062, 0.0)
+	var wr := 0.066
+	for i in 10:
+		var a0 := TAU * i / 10.0
+		var a1 := TAU * (i + 1) / 10.0
+		var p0 := wc + Vector3(0, sin(a0) * wr, cos(a0) * wr)
+		var p1 := wc + Vector3(0, sin(a1) * wr, cos(a1) * wr)
+		for sx in [-0.02, 0.02]:
+			b.pole(p0 + Vector3(sx, 0, 0), p1 + Vector3(sx, 0, 0), 0.0055, WOOD_LIGHT)
+		var mid := (p0 + p1) * 0.5
+		b.box(mid, Vector3(0.042, 0.0045, 0.02), WOOD if i % 2 == 0 else WOOD_LIGHT.darkened(0.1))
+	for a in [0.0, PI / 3.0, 2.0 * PI / 3.0]:
+		for sx in [-0.02, 0.02]:
+			b.pole(wc + Vector3(sx, sin(a) * wr, cos(a) * wr), wc + Vector3(sx, -sin(a) * wr, -cos(a) * wr), 0.0028, WOOD)
+	b.pole(Vector3(hx - 0.01, wc.y, 0.0), wc + Vector3(0.036, 0, 0), 0.0062, WOOD)
+	# the flume: a trough on two trestles running in (along Z) from the sluice to the top of the wheel, with water in it
+	var fy := wc.y + wr + 0.012
+	var fz := 0.24
+	b.box(Vector3(wc.x, fy, fz * 0.5 - 0.01), Vector3(0.034, 0.006, fz + 0.02), WOOD)
+	for sx in [-0.017, 0.017]:
+		b.box(Vector3(wc.x + sx, fy + 0.01, fz * 0.5 - 0.01), Vector3(0.004, 0.016, fz + 0.02), WOOD_LIGHT)
+	b.box(Vector3(wc.x, fy + 0.007, fz * 0.5 - 0.01), Vector3(0.028, 0.004, fz + 0.012), WATER)
+	for tz in [0.08, 0.2]:
+		for sx in [-0.017, 0.017]:
+			b.pole(Vector3(wc.x + sx, 0.0, tz), Vector3(wc.x + sx, fy, tz), 0.0045, WOOD)
+		b.box(Vector3(wc.x, fy - 0.006, tz), Vector3(0.05, 0.005, 0.008), WOOD)
+	# the sluice gate at the head of the flume: two posts, a lifted board and a lever
+	for sx in [-0.024, 0.024]:
+		b.pole(Vector3(wc.x + sx, fy - 0.01, fz + 0.012), Vector3(wc.x + sx, fy + 0.05, fz + 0.012), 0.0048, WOOD)
+	b.box(Vector3(wc.x, fy + 0.04, fz + 0.012), Vector3(0.05, 0.006, 0.006), WOOD_LIGHT)
+	b.box(Vector3(wc.x, fy + 0.022, fz + 0.012), Vector3(0.042, 0.022, 0.004), WOOD_LIGHT.lightened(0.1))
+	b.pole(Vector3(wc.x, fy + 0.012, fz + 0.016), Vector3(wc.x + 0.01, fy + 0.07, fz + 0.1), 0.0035, WOOD)
+	# stones heaped where the flume meets the bank, and a millstone leaning on the footing
+	for i in 3:
+		b.blob(Vector3(wc.x - 0.03 + 0.03 * i, 0.012, fz + 0.03), Vector3(0.02, 0.014, 0.016), 5, 2, STONE_LIGHT if i % 2 == 0 else STONE, 0.15, STONE_DARK)
+	var save := b.xf
+	b.xf = Transform3D(Basis.from_euler(Vector3(-0.35, 0.0, 0.0)), Vector3(0.0, 0.032, hz + 0.036))
+	b.prism(Vector3(0, -0.006, 0), 0.032, 0.032, 0.012, 10, STONE, STONE_LIGHT)
+	b.prism(Vector3(0, 0.0058, 0), 0.007, 0.007, 0.001, 6, ARCH, ARCH)
+	b.xf = save
 	return b.commit()
 
 # ------------------------------------------------------------------ building site

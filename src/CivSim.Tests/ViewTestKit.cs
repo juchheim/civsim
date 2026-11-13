@@ -127,7 +127,7 @@ internal static class ViewKit
         for (int c = 0; c < f.CivCount; c++)
         {
             h.Add(f.CivFlags[c]); h.Add(f.CivEra[c]); h.Add(f.CivBreadthDone[c]); h.Add(f.CivBreadthNeeded[c]); h.Add(f.CivLegacy[c]);
-            h.Add(f.CivFirstsLegacy[c]); h.Add(f.CivDominion[c]); h.Add(f.CivLandBasisPoints[c]); h.Add(f.CivPosture[c]); h.Add(f.CivRelations[c]);
+            h.Add(f.CivThrivingLegacy[c]); h.Add(f.CivDominion[c]); h.Add(f.CivLandBasisPoints[c]); h.Add(f.CivPosture[c]); h.Add(f.CivRelations[c]);
             h.Add(f.CivWeaponTier[c]); h.Add(f.CivPopulation[c]); h.Add(f.CivSettlements[c]); h.Add(f.CivProjectsDone[c]); h.Add(f.CivInsightPerYear[c]);
         }
         h.Add(f.FocusCiv);

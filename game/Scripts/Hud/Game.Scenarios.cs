@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using CivSim.Game.Ui;
 using CivSim.Sim.Core;
 using CivSim.Sim.Politics;
 using CivSim.Sim.View;
@@ -217,9 +218,25 @@ public partial class Game
                 Step(() => ZoomTo(ZoomPresets[2]), 1.2f);
                 Shot("tile-pinned-z2");
                 break;
+            case "build-panel":
+                // Docs/MVP/30: the Building tab for a town with a fixable stop, one with a stop nothing can fix, and the result of asking for another structure. --start-minute=30 --viewer=1.
+                BuildPanelScenario((run, wait) => Step(run, wait), shot => Shot(shot));
+                break;
             case "end":
                 Step(ShowEndScreen);
                 Shot("end");
+                break;
+            case "era-report":
+                // --start-minute=20 --viewer=0 (not -1): a fake age change, then Continue, then close Projects.
+                Step(() => _session!.SetPaused(false));
+                Step(() => HandleEvent(new ViewEvent { Kind = ViewEventKind.EraAdvanced, A = 3, Project = 0, Tick = _current!.Tick, Civ = (sbyte)Math.Max(0, _current.ViewerCiv), Other = -1, Settlement = -1, Figure = -1, Tile = -1, Tier = ViewEventTier.Milestone }, Math.Max(0, _current!.ViewerCiv), _current!), 0.6f);
+                Step(() => GD.Print($"SCN era report open={_eraReportOpen} paused={_session!.Paused}"));
+                Shot("era-report");
+                Step(ContinueFromEraReport, 0.8f);
+                Step(() => GD.Print($"SCN after continue web={_researchWebVisible} paused={_session!.Paused}"));
+                Shot("era-projects");
+                Step(CloseResearchWeb, 0.8f);
+                Step(() => GD.Print($"SCN after close paused={_session!.Paused}"));
                 break;
             case "zoom":
                 Step(() => ZoomTo(ZoomPresets[1]), 1.0f);
@@ -447,7 +464,7 @@ public partial class Game
                 // keystones, which end the match), let them settle in at speed, then tour what the looks leave on the map: a village with
                 // its temple and chief's hall, the people, an ard team and the resting fields, a cart on its trail, the ships, a chariot.
                 // Without --looks-grant the tour shows whatever the civilizations have learned by themselves; --looks-debug forces every
-                // look on instead. The sim ends the match at year 64, so start before that.
+                // look on instead. The match has no year cap (it ends only by a keystone clause).
                 if (HasArgument("--looks-grant"))
                 {
                     Step(() =>
@@ -720,6 +737,41 @@ public partial class Game
                     if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(2.6f); }
                 }, 2.5f);
                 Shot("defense-castle");
+                break;
+            case "core-gallery":
+                // --start-minute=30 --viewer=-1 --dev-core-gallery --looks-debug [--layout-dump=FILE] (debug builds): one settlement of each
+                // stage (docs/MVP/31 WP6c), each captured with the default core layout.
+                // Run with --always-on-top so the window keeps drawing.
+                const string corePrefix = "core";
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    foreach (Label3D label in _settlementMapLabels.Values) if (GodotObject.IsInstanceValid(label)) label.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 4.0f);
+                foreach (string coreStage in new[] { "band", "village", "town", "city", "iron", "coastal" })
+                {
+                    string stageName = coreStage;
+                    foreach (var (view, zoom, pitch) in new[] { ("", 5.0f, 50.0f), ("_top", 6.0f, 80.0f), ("_close", 3.0f, 42.0f), ("_wide", 8.5f, 80.0f), ("_wideangle", 7.0f, 48.0f) })
+                    {
+                        string suffix = view;
+                        float zm = zoom, pt = pitch;
+                        Step(() =>
+                        {
+                            Vector3 at = (Vector3)_visualRenderer!.Call("core_gallery_focus", stageName);
+                            if (at == Vector3.Zero) return;
+                            _moveAnimating = false;
+                            _target = at;
+                            _yaw = _yawTarget = 0.0f;
+                            _pitch = Mathf.DegToRad(pt);
+                            SetZoom(zm);
+                        }, 2.5f);
+                        Shot($"{corePrefix}_{stageName}{suffix}");
+                    }
+                }
                 break;
             case "travel-village":
                 // --start-minute=30 --viewer=-1 --dev-roads --dev-harbor (debug builds): paved roads from the capital with their bridges, and a harbor; run
@@ -1101,6 +1153,76 @@ public partial class Game
                     GD.Print($"SCN decree-refused tick={_current.Tick} refusedEvents={refused}");
                 }, 0.5f);
                 Shot("decree-refused");
+                break;
+            case "typography":
+                // Tour of every panel for the type and colour pass (docs/MVP/ui-typography.md). Add --ui-debug to log the top-bar wing widths.
+                Step(() => GD.Print($"SCN topbar viewport={GetViewport().GetVisibleRect().Size} cluster={_timeCluster?.GetGlobalRect()} logo={_pauseLogo?.GetGlobalRect()} " +
+                    $"left={_timeLeftWing?.GetGlobalRect()} right={_timeRightWing?.GetGlobalRect()} civ={_civCard?.GetGlobalRect()} topRight={_topRight?.GetGlobalRect()} iconsOnly={_topRightIconsOnly}"), 0.1f);
+                Shot("ty-01-hud");
+                Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; });
+                Shot("ty-02-tile");
+                Step(() => { _hoverActive = false; _hoverMoved = true; HideTileCard(); });
+                Step(() => ShowToast("Food warning", ToastKind.Critical, "A settlement may go hungry this winter.", 10, key: "t1"));
+                Step(() => ShowToast("You met the Wave Folk", ToastKind.Milestone, "They are your neighbours now.", -1, "Open Diplomacy", () => ToggleDiplomacy(true), "t2"), 0.3f);
+                Step(() => { ShowRivalAgeToast(1, 1); ShowRivalAgeToast(2, 1); }, 0.3f);
+                Shot("ty-03-toasts");
+                Step(() => OpenResearchWeb(-1), 1.0f);
+                Shot("ty-04-web");
+                Step(SelectFirstAlmostReady);
+                Shot("ty-05-inspector");
+                Step(() => SetResearchView(1), 1.2f);
+                Shot("ty-06-map");
+                Step(CloseResearchWeb);
+                Step(() => OpenPeoplePanel(PeopleTab.Overview, int.MinValue), 1.0f);
+                Shot("ty-07-people-overview");
+                Step(() => OpenPeoplePanel(PeopleTab.Stores, int.MinValue), 1.0f);
+                Shot("ty-08-people-stores");
+                Step(() => OpenPeoplePanel(PeopleTab.Work, int.MinValue), 1.0f);
+                Shot("ty-09-people-work");
+                Step(() => OpenPeoplePanel(PeopleTab.Research, int.MinValue), 1.0f);
+                Shot("ty-10-people-research");
+                Step(ClosePeoplePanel);
+                Step(() => { ShowToast("Food warning", ToastKind.Critical, "A settlement may go hungry this winter.", 10, key: "t4"); ToggleDiplomacy(true); });
+                Shot("ty-11-diplomacy");
+                Step(() => ToggleDecrees(true));
+                Shot("ty-12-decrees");
+                Step(() => ToggleDecrees(false));
+                Step(() => ToggleChronicle(true));
+                Shot("ty-13-chronicle");
+                Step(() => ToggleChronicle(false));
+                Step(() => ToggleGameMenu(true));
+                Shot("ty-14-menu");
+                Step(() => ToggleGameMenu(false));
+                Step(() => ToggleHelp(true));
+                Shot("ty-15-help");
+                Step(() => ToggleHelp(false));
+                Step(OpenSettings);
+                Shot("ty-16-settings");
+                Step(CloseSettings);
+                Step(() => ShowIntroModal(true));
+                Shot("ty-17-intro");
+                Step(DismissIntro);
+                Step(CloseResearchWeb);
+                Step(() => ShowConfirm("Load the quick save?", "Your current match will be replaced by the one saved with F5.", "Load", () => { }));
+                Shot("ty-17b-confirm");
+                Step(() => CloseModal(_confirmModal!));
+                Step(() => OpenPeoplePanel(PeopleTab.Work, int.MinValue), 0.3f);
+                Step(ClosePeoplePanel);
+                Step(() => GrantProject(FindProjectByName("Fire Keeping")), 1.2f);
+                Shot("ty-18-moment");
+                Step(() => { if (_catalog is not null) ShowAgeBanner(Math.Max(0, FindProjectByName("Fire Keeping")), 1); }, 0.6f);
+                Shot("ty-19-age-banner");
+                Step(() => _session?.SetPaused(true), 0.6f);
+                Shot("ty-20-paused");
+                Step(() =>
+                {
+                    // Longest date strings the wing is sized for (paused, so no refresh overwrites them).
+                    if (_yearLabel is not null) UiKit.SetText(_yearLabel, "Year 888");
+                    if (_seasonLabel is not null) { UiKit.SetText(_seasonLabel, "16 YEARS LEFT"); _seasonLabel.AddThemeColorOverride("font_color", UiTokens.Warning); }
+                }, 0.3f);
+                Shot("ty-20b-longest-date");
+                Step(ShowEndScreen, 1.0f);
+                Shot("ty-21-end");
                 break;
             case "dev":
                 Step(ToggleDevOverlay);

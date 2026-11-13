@@ -43,7 +43,18 @@ public class FogFairnessTests
             if (season == 40) { label = "before contact"; beforeContact = true; }
             else if (contactSeason > 0 && season == contactSeason + 3) { label = "after contact"; afterContact = true; }
             else if (season == 120 && match.Research.Era(Observer) >= 2) { label = "mid E2"; midE2 = true; }
-            if (label is null) { runner.Advance(1); continue; }
+            if (label is null)
+            {
+                // The positive control (a seen change must move the belief) needs a rival town in plain sight, which the retuned Grower no longer
+                // guarantees at the three labelled checkpoints, so it also looks at the seasons between them.
+                if (season > 40 && season % 10 == 0 && seenSettlementChecks + seenWeaponChecks == 0)
+                {
+                    if (TrySeenSettlement(match, controls, tick)) seenSettlementChecks++;
+                    if (TrySeenWeapon(match, controls, tick)) seenWeaponChecks++;
+                }
+                runner.Advance(1);
+                continue;
+            }
 
             // Seen: the belief must notice (copies of the match as it stands, before the pair below advances it).
             if (season > 40)
@@ -75,7 +86,13 @@ public class FogFairnessTests
     public void Bronze_unseen_compact_caravan_and_mandate_changes_do_not_change_the_observers_choices()
     {
         CivControl[] controls = FogFairnessHarness.DefaultControls();
-        MatchModel match = FogFairnessHarness.NewMatch(controls);
+        // The test needs a trajectory where the observer and a Council rival both reach their Mandate with the rival's force still out of the observer's
+        // sight, and where the observer has no Tin access yet. That depends on the economy's pacing, so the seed is re-picked when pacing changes:
+        // 20261019 stopped fitting with the slower E0-E3 pacing (docs/MVP/28 section 16: every rival's force is in sight by the time its Mandate unlocks);
+        // 20261021 and 20261022 stopped fitting with the build and material changes of 2026-11-10 (16b4c01), after which a queued but not yet unlocked
+        // Palisade held the build slot and starved the foundation (fixed by yielding to the foundation, LockedDefenseQueueTests). Seed 20261022 fits again.
+        const ulong bronzeSeed = 20261022;
+        MatchModel match = FogFairnessHarness.NewMatch(controls, bronzeSeed);
         var runner = new SimRunner(match);
 
         // Wait for the observer and a rival to enter E3. Stop one tick before the season boundary,
@@ -105,8 +122,8 @@ public class FogFairnessTests
         // Perturb only hidden route ownership, rival-to-rival Relations, and a hidden rival's actual fighter force,
         // alongside an unseen compact/caravan and Mandate change. Compare the planner output before advancing too,
         // so a candidate filter cannot silently consult those live values.
-        MatchModel a = FogFairnessHarness.Clone(match, controls);
-        MatchModel b = FogFairnessHarness.Clone(match, controls);
+        MatchModel a = FogFairnessHarness.Clone(match, controls, bronzeSeed);
+        MatchModel b = FogFairnessHarness.Clone(match, controls, bronzeSeed);
         EnsureCompactMandate(a, Observer);
         EnsureCompactMandate(b, Observer);
         ClearTinBuyCompacts(a, Observer);

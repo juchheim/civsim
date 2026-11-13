@@ -54,6 +54,7 @@ var tex_h := 1
 var fx_focus := Vector2.ZERO        # where the fire is now (dev scenarios aim the camera at it)
 var fx_active := false
 var cur := {}                       # tile -> Vector4(char, grass, trees, a-encoded) for the last frame
+var _city_center_tiles: Dictionary = {} # live settlement and its two surrounding hex rings
 
 var flames: Array = []
 var smokes: Array = []
@@ -151,14 +152,12 @@ func _patch_candidates(start: int, forest: bool) -> Array:
 	var candidates: Array = []
 	for tile in ring:
 		var ok: bool = _is_forest(w.biome[tile]) if forest else _is_grass(w.biome[tile])
-		if ok and _usable(tile):
+		if ok and _usable(tile) and not _city_center_tiles.has(tile):
 			candidates.append(tile)
 	_patch_candidates_by_kind[key] = candidates
 	return candidates
 
-## Where a patch may go. Only things that never change (land, the tile's kind, its distance from the village) decide this: a past
-## year's patch must stand where it did, whatever the claims and fields have become since. Within three tiles of a village is inside
-## the ground it holds from the first eras on (claim radius 3 to 4).
+## Whether a tile is land; candidate selection also excludes the live city-center footprint.
 func _usable(tile: int) -> bool:
 	return (b.w as M7WorldData).is_land(tile)
 
@@ -174,7 +173,7 @@ func _patch(st: int, civ: int, year: int, forest: bool) -> Dictionary:
 	for nb in w.neighbours(centre):
 		if tiles.size() >= (5 if not forest else 3):
 			break
-		if nb >= 0 and (_is_forest(w.biome[nb]) if forest else _is_grass(w.biome[nb])) and _usable(nb):
+		if nb >= 0 and (_is_forest(w.biome[nb]) if forest else _is_grass(w.biome[nb])) and _usable(nb) and not _city_center_tiles.has(nb):
 			tiles.append(nb)
 	var base := year * YEAR + AUTUMN + 20.0 + 80.0 * M7WorldData.hash01(st, year, 62) + (60.0 if forest else 0.0)
 	var angle := M7WorldData.hash01(st, year, 64) * TAU
@@ -198,7 +197,18 @@ func _patch(st: int, civ: int, year: int, forest: bool) -> Dictionary:
 
 func _rebuild(year_now: int) -> void:
 	events.clear()
+	_city_center_tiles.clear()
+	_patch_candidates_by_kind.clear()
 	var w: M7WorldData = b.w
+	# The settlement core occupies the hearth hex and the two surrounding rings. Keep both
+	# the burn scar and its flame effects out of every live city's built-up center.
+	for s in w.settlements:
+		if bool(s.get("remembered")) or int(s.population) <= 0:
+			continue
+		var st := int(s.tile)
+		_city_center_tiles[st] = true
+		for tile in _ring_tiles(st, 1, 2):
+			_city_center_tiles[tile] = true
 	for s in w.settlements:
 		if bool(s.get("remembered")) or int(s.population) <= 0:
 			continue
@@ -320,19 +330,20 @@ func _repaint(tile: int) -> void:
 			var acc := Vector3.ZERO                       # char, grass gone, trees gone
 			var glow := 0.0
 			var flush := 0.0
-			for u in around:
-				if not cur.has(u):
-					continue
-				var d := p.distance_to(w.tile_center(u))
-				var weight := 1.0 - smoothstep(0.36, 0.62, d)
-				if weight <= 0.0:
-					continue
-				var v: Vector4 = cur[u]
-				acc = Vector3(maxf(acc.x, v.x * weight), maxf(acc.y, v.y * weight), maxf(acc.z, v.z * weight))
-				if v.w > 0.5:
-					glow = maxf(glow, (v.w - 0.5) * 2.0 * weight)
-				else:
-					flush = maxf(flush, v.w * 2.0 * weight)
+			if not _city_center_tiles.has(w.tile_at(p)):
+				for u in around:
+					if not cur.has(u):
+						continue
+					var d := p.distance_to(w.tile_center(u))
+					var weight := 1.0 - smoothstep(0.36, 0.62, d)
+					if weight <= 0.0:
+						continue
+					var v: Vector4 = cur[u]
+					acc = Vector3(maxf(acc.x, v.x * weight), maxf(acc.y, v.y * weight), maxf(acc.z, v.z * weight))
+					if v.w > 0.5:
+						glow = maxf(glow, (v.w - 0.5) * 2.0 * weight)
+					else:
+						flush = maxf(flush, v.w * 2.0 * weight)
 			var enc := 0.5 + 0.5 * glow if glow > 0.02 else 0.5 * flush
 			var o := (ty * tex_w + tx) * 4
 			base_data[o + 2] = int(acc.z * 255.0)
@@ -392,6 +403,8 @@ func _fx(glowing: Array, tick: float) -> void:
 			var node: MeshInstance3D = flames[used]
 			var seed := M7WorldData.hash01(tile, k, 71)
 			var p := c + Vector2(seed - 0.5, M7WorldData.hash01(tile, k, 72) - 0.5) * 0.7
+			if _city_center_tiles.has(w.tile_at(p)):
+				p = c
 			var flicker := 0.75 + 0.25 * sin(tick * 0.9 + seed * 20.0)
 			var s := 0.7 + 1.3 * glow * flicker
 			node.position = Vector3(p.x, maxf(w.height_at(p), 0.0), p.y)
@@ -399,7 +412,9 @@ func _fx(glowing: Array, tick: float) -> void:
 			node.visible = true
 			used += 1
 		var key: int = g[2]
-		var acc: Array = by_event.get(key, [Vector2.ZERO, 0, 0.0])
+		var acc: Array = by_event.get(key, [Vector2.ZERO, 0, 0.0, c])
+		if acc[1] == 0:
+			acc[3] = c
 		acc[0] += c * glow
 		acc[1] += 1
 		acc[2] += glow
@@ -414,6 +429,8 @@ func _fx(glowing: Array, tick: float) -> void:
 		var acc: Array = by_event[key]
 		var weight: float = acc[2]
 		var centre: Vector2 = acc[0] / maxf(weight, 0.001)
+		if _city_center_tiles.has(w.tile_at(centre)):
+			centre = acc[3]
 		fx_focus = centre
 		var y := maxf(w.height_at(centre), 0.0)
 		var smoke: GPUParticles3D = smokes[slot]

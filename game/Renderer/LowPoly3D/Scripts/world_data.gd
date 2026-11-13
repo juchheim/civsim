@@ -12,7 +12,8 @@ enum Biome { OCEAN, COAST, ICE, TUNDRA, TAIGA, TEMPERATE_FOREST, OPEN_WOODLAND, 
 	TROPICAL_FOREST, WETLAND, DESERT, MOUNTAIN, PEAK }
 
 enum Kind { HEARTH, LEAN_TO, HIDE_TENT, PIT_HOUSE, WATTLE_HOUSE, MUDBRICK_HOUSE, LONGHOUSE, STORAGE_PIT,
-	DRYING_RACK, GRANARY, KILN, QUERN, THORN_BARRIER, LOOKOUT, WEIR, FIELD, PASTURE, ORCHARD, HILLFORT, STONE_WALLS, PALISADE }
+	DRYING_RACK, GRANARY, KILN, QUERN, THORN_BARRIER, LOOKOUT, WEIR, FIELD, PASTURE, ORCHARD, HILLFORT, STONE_WALLS, PALISADE,
+	TOTEM, MARKER, SHRINE, SIGNAL_POST, POTTERS_WORKSHOP }   # the last five were appended for docs/MVP/29 (Structure in LivingEconomyModel.cs)
 
 ## Bits of civ_looks (CivLook in src/CivSim.Sim/View/ViewTypes.cs): projects that change how land and people look.
 const LOOK_ARD := 1
@@ -83,12 +84,14 @@ var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibi
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
 var e3_overlay_bytes := PackedByteArray() # RGBA8 per tile: deposit or clue marker, mine marker, cohesion band, compact/caravan
 var forest_overlay := PackedByteArray() # visible ForestBand 0–3, zero elsewhere
+var supply_flows: Array = []          # settlement links: {from tile, to tile, kind, good, amount}
 var camp_details := [] # [tile, civ, kind, parent, deposit, crew, built, minehead]
 var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood
 var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
 var viewer_civ := -1                    # the civilization whose view this is (-1 sees everything)
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
+var core_district_ids: Array = []       # CoreDistrict names in the order used by each settlement's coreOuter rows
 var plots := PackedInt32Array() # flat [tile, kind] pairs
 var plot_kind := PackedInt32Array()   # -1 none, 0 field, 1 orchard
 var reserved := PackedByteArray()     # tiles where wild vegetation is suppressed (settlements, plots)
@@ -165,6 +168,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	var d: Dictionary = value
 	if include_world:
 		iron_work_ids = d.ironWorkIds if d.has("ironWorkIds") else []
+		core_district_ids = d.coreDistrictIds if d.has("coreDistrictIds") else []
 		width = int(d.width)
 		height = int(d.height)
 		biome = _byte_array(d.biome)
@@ -235,6 +239,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	overlay_bytes = d.overlayBytes if d.has("overlayBytes") else PackedByteArray()
 	e3_overlay_bytes = d.e3OverlayBytes if d.has("e3OverlayBytes") else PackedByteArray()
 	forest_overlay = _byte_array(d.forestOverlay) if d.has("forestOverlay") else PackedByteArray()
+	supply_flows = d.supplyFlows if d.has("supplyFlows") else []
 	camp_details.clear()
 	if d.has("campKind"):
 		var ck := _int_array(d.campKind)
@@ -247,6 +252,11 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 			camp_details.append([int(camps[i][0]), int(camps[i][1]), int(ck[i]), int(cp[i]), int(cd[i]), int(cr[i]), int(cb[i]), int(cm[i])])
 	herds = _int_data(d.herds, 7)
 	settlements = d.settlements
+	for settlement in settlements:
+		if not settlement.has("coreFront"):
+			settlement["coreFront"] = 255
+		if not settlement.has("coreOuter"):
+			settlement["coreOuter"] = []
 	plots = _int_data(d.plots, 2)
 	plot_kind.fill(-1)
 	for i in range(0, plots.size(), 2):

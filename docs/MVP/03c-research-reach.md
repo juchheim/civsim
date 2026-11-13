@@ -86,7 +86,7 @@ Lineages: [WAY](#way--wayfinding--cartography) · [TRN](#trn--land-transport) ·
 | TRD-03 | Exchange Networks | E2 | I | TRD-02, WAY-04 | Persistent trade routes between settlements and with neighbors: luxury goods flow; diffusion active along routes. *KEY-3 prerequisite.* |
 | TRD-04 | Marketplaces | E3 | S | TRD-03, SOC-07 | **Build:** Market. Internal goods distribution +30%; **Role:** Trader. |
 | TRD-05 | Market Towns | E3 | I | TRD-04, TRN-05 | Towns specialize in trade: settlements at route crossroads grow +25%. *KEY-4 prerequisite.* |
-| TRD-06 | Coinage | E4 | M | TRD-05, MET-07 | Money: trade friction −40%; taxes (admin capacity +). |
+| TRD-06 | Coinage | E4 | M | TRD-05, MET-03 | Money: trade friction −40%; taxes (admin capacity +). |
 | TRD-07 | Long-Distance Trade Routes | E4 | I | TRD-06, (HUS-09 \| SEA-07) | Caravan (overland) or maritime (harbor-to-harbor) trade: route length ×3; Silk-Road / Indian-Ocean–style network. |
 | TRD-08 | Banking | E5 | I | TRD-07, NUM-08 | Credit and bills of exchange: trade volume ×1.5; projects funded (Wonder build +15%). |
 | TRD-09 | Double-Entry Bookkeeping | E5 | M | TRD-08, NUM-09 | Accurate accounting: trade profit +20%, admin waste −. *KEY-6 prerequisite.* |

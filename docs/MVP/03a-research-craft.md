@@ -174,7 +174,7 @@ Lineages: [STN](#stn--stoneworking) · [FIR](#fir--fire--heat) · [WOD](#wod--wo
 | MET-04 | Arsenical Bronze | E3 | M | MET-03, MIN-04, [Has: Arsenic ore] | **Good:** Bronze (route A). ▸ Tools & arms: Bronze. |
 | MET-05 | Tin Bronze | E3 | M | MET-03, [Has: Tin] | **Good:** Bronze (route B, +20% quality). ▸ Tools & arms: Bronze. Tin trade becomes strategic. |
 | MET-06 | Lost-Wax Casting | E3 | M | (MET-04 \| MET-05), ART-06 | Fine bronze: statues, bells, type molds. +Prestige goods. |
-| MET-07 | Gold & Silver Working | E3 | D | MET-03, TRD-03, [Seen: Gold or Silver] | **Good:** Precious metal, the basis for coinage (TRD-06). |
+| MET-07 | Gold & Silver Working | E3 | D | MET-03, TRD-03, [Seen: Gold or Silver] | **Good:** Precious metal for luxury trade and high-value coinage; basic coinage does not require a local gold/silver discovery. |
 | MET-08 | Bloomery Iron | E3 | D | (MET-04 \| MET-05), FIR-09 | **Good:** Iron (bloom). Iron ore is common, so metal becomes available everywhere. *KEY-4 prerequisite.* |
 | MET-09 | Iron Tools | E4 | M | MET-08 | ▸ Chop: Iron axe; ▸ Till: Iron share; ▸ Quarry: Iron pick. Tools for everyone, not just elites. |
 | MET-10 | Quench & Temper | E4 | M | MET-09 | Steel edges: tool durability ×2, weapons +25%. |

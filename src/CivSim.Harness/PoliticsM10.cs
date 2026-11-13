@@ -921,7 +921,7 @@ internal static class PoliticsM10
                 {
                     result.EndDominion += politics.Territory.Dominion(c).ToDoubleForDisplay();
                     result.EndMastery += research.MasteryLegacy(c).ToDoubleForDisplay();
-                    result.EndFirsts += research.FirstsLegacy(c).ToDoubleForDisplay();
+                    result.EndFirsts += research.ThrivingLegacy(c).ToDoubleForDisplay();
                     result.EndWonders += research.WondersLegacy(c).ToDoubleForDisplay();
                 }
             }

@@ -23,6 +23,9 @@ public static class PlayerCommands
 
     // ---- levers (PoliticsSystem.Step) ----
     public static Command SetPosture(long tick, int civ, Posture posture) => new(tick, (byte)civ, CommandKind.SetPosture, (int)posture, 0, 0);
+    /// <summary>Sets the civilization-wide preference used by future autonomous decisions.</summary>
+    public static Command SetCivilizationDirection(long tick, int civ, CivilizationDirection direction)
+        => new(tick, (byte)civ, CommandKind.SetCivilizationDirection, (int)direction, 0, 0);
     /// <summary>A Beacon on a tile; replace the nearest existing Beacon if at capacity when requested.</summary>
     public static Command PlaceBeacon(long tick, int civ, int tile, int width, bool replaceIfFull = false)
         => new(tick, (byte)civ, CommandKind.PlaceBeacon, tile % width, tile / width, replaceIfFull ? 1 : 0);
@@ -77,6 +80,13 @@ public static class PlayerCommands
         => new(tick, (byte)civ, CommandKind.SetScoutPolicy, settlement, (int)policy, 0);
     public static Command SetRaidResponse(long tick, int civ, int settlement, RaidResponse response)
         => new(tick, (byte)civ, CommandKind.SetRaidResponse, settlement, (int)response, 0);
+
+    // ---- build agency (CommandKind 27, docs/MVP/30) ----
+    /// <summary>Ask an own settlement to build a structure next; <paramref name="code"/> is a <c>LivingEconomyModel.FocusCode</c>. Free; refused if the town cannot be asked for it.</summary>
+    public static Command SetBuildFocus(long tick, int civ, int settlement, int code) => new(tick, (byte)civ, CommandKind.SetBuildFocus, settlement, code, 0);
+    /// <summary>Set a structure aside for now (Iron works and civic buildings): the slot goes to the next wanted one.</summary>
+    public static Command SkipBuild(long tick, int civ, int settlement, int code) => new(tick, (byte)civ, CommandKind.SetBuildFocus, settlement, code, 1);
+    public static Command ClearBuildFocus(long tick, int civ, int settlement) => new(tick, (byte)civ, CommandKind.SetBuildFocus, settlement, -1, 0);
 
     // ---- Iron chapter orders (CommandKind 24 to 26) ----
     /// <summary>Station a crewed galley off a rival harbor you have seen; the settlement index comes from the frame.</summary>

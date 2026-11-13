@@ -98,10 +98,12 @@ public static class Raids
     /// Fraction of the defending adults who reach the fight (13 §6.1: adults within two tiles fight, the others run
     /// home): few when the raid catches the camp unready, most when it was warned. Fitted to the table of 13 §5.5.
     /// </summary>
-    public static Fix64 MobilizedShare(bool surprised) => surprised ? SurprisedShare : AlertShare;
+    public static Fix64 MobilizedShare(bool surprised, bool signalFires = false) => surprised ? (signalFires ? SignalSurprisedShare : SurprisedShare) : AlertShare;
 
     public static readonly Fix64 SurprisedShare = Fix64.FromRatio(40, 100);
     public static readonly Fix64 AlertShare = Fix64.FromRatio(52, 100);
+    /// <summary>With signal fires (COM-04 and a signal post within twenty tiles) a surprised settlement mobilizes 70% of the way to the alerted share: "response time -70%" (provisional reading, docs/MVP/29).</summary>
+    public static readonly Fix64 SignalSurprisedShare = Fix64.FromRatio(484, 1000);
     /// <summary>Share of carried goods that reaches the home settlement (the other 20% is lost on the return journey).</summary>
     public static readonly Fix64 DeliveredLootShare = Fix64.FromRatio(8, 10);
 
@@ -129,7 +131,7 @@ public static class Raids
         }
 
         // Only the defenders who reach the fight count; picked by lot so no one is always the one at home.
-        Fix64 share = MobilizedShare(surprised);
+        Fix64 share = MobilizedShare(surprised, defenses.SignalFires);
         var fighting = new List<Fighter>(defenders.Count);
         foreach (Fighter f in defenders)
             if (share >= Fix64.One || rng.NextFix01() < share) fighting.Add(f);

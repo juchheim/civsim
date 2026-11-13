@@ -13,6 +13,9 @@ internal enum FissionSiteRejectionReason
     TooCloseToAnotherSettlement,
     Unreachable,
     DisallowedByAdvisor,
+    /// <summary>A metal, salt or coal deposit lies in the site's core (docs/MVP/31 §3.3). Appended.</summary>
+    CoreDeposit,
+    Count,
 }
 
 internal readonly record struct FissionSiteSelectionAttempt(int Civ, int Parent, int Season, int ScannedTiles,
@@ -60,7 +63,7 @@ internal sealed class FissionSiteDiagnostics
     {
         static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
         string[] names = { "uninhabitable", "parentDistanceBelowMin", "beyondReach",
-            "tooCloseToSettlement", "unreachable", "disallowedByAdvisor" };
+            "tooCloseToSettlement", "unreachable", "disallowedByAdvisor", "coreDeposit" };
         var parts = new string[names.Length];
         for (int i = 0; i < parts.Length; i++) parts[i] = $"{names[i]}={(i < attempt.Rejections.Length ? attempt.Rejections[i] : 0)}";
         return $"FISSION_SITE_DIAG civ={attempt.Civ}/{civName} parent=s{attempt.Parent} season={attempt.Season} " +
