@@ -448,3 +448,8 @@ this work.
 
 KEY-4 in the Council duels arrives around minute 69 to 72 (first civilization about 68), not the 78 first estimated from the
 per-era slowdown: the late costs add 19 to 27% per era but E3 itself (about 20 minutes) is unchanged.
+
+
+## 19. Timber and stone reach the build (M12 WP-E5-0, 2026-11-13)
+
+The stuck-for-wood and stuck-for-block towns of §5 to §9 were a distribution problem: forests stood at 93% of their start while a town could fell only within 3 tiles, an Iron structure's timber was never in the wood target, and finished stone could not leave the town that made it. Three Iron-chapter changes (timber target, 8-tile felling, sister-town stone sharing) raised Iron structures built about 10% and Wonders finished from 0 to 11 over eight matches. Kept for Iron by user decision on 2026-11-13. Details, numbers and the fuel-gate check: [m12-wp7-build-wood](balance/m12-wp7-build-wood.md).

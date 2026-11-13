@@ -1,5 +1,7 @@
 # M12 WP-E5-0: timber and stone for Iron construction (2026-11-13)
 
+**Decision (user, 2026-11-13): keep these changes for the Iron chapter as well as Faith & Fief.** The frozen B4-06 block is not rerun; the four-seed fuel screen above is the evidence.
+
 **Status:** built and tested on `codex/e5-fief`. It changes **Iron-chapter behavior** (and so Faith & Fief, which contains it) and leaves Bronze exactly as it was: every change is gated on the Iron chain, and the toy, research and politics determinism checks still pass. The Iron balance was just closed ([m11-b4-06](m11-b4-06-metal-fuel-acceptance-2026-11-06.md)), so the effect on its gates is reported below, not assumed. Raw outputs: [all changes, 8 matches](m12-wp7-all-changes-output.txt), [all changes, 4 long matches](m12-wp7-long-all-output.txt), [baseline accounting](m12-wp7-baseline-it6-output.txt).
 
 ## The problem, measured
