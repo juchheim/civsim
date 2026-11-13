@@ -158,8 +158,8 @@ def part_staffing():
     print("  the F-T6 'idle institution' risk in numbers: build order must follow the pool, or monasteries and hospitals sit empty.")
     a = LIVE_E4["adults_at_key5_median"]
     live_sold = 100 * LIVE_E4["soldiers_share_of_adults_median"]
-    live_other = 100 * (1 + LIVE_E4["missionaries_median"]) / a
-    print(f"  Live E4 anchor ({LIVE_E4['label']}): soldiers {live_sold:.1f}, scholars {100 * 1 / a:.2f} and missionaries {100 * LIVE_E4['missionaries_median'] / a:.2f} per 100 adults,")
+    live_other = 100 * (LIVE_E4["scholars_at_key5_median"] + LIVE_E4["missionaries_median"]) / a
+    print(f"  Live E4 anchor ({LIVE_E4['label']}): soldiers {live_sold:.1f}, scholars {100 * LIVE_E4['scholars_at_key5_median'] / a:.2f} and missionaries {100 * LIVE_E4['missionaries_median'] / a:.2f} per 100 adults,")
     print(f"  with {LIVE_E4['idle_scholars_median']} idle scholar seats per civilization. So natural play staffs the army (about the 10% slot) and almost nothing else: the")
     print(f"  institutional demand assumed above ({sum(v for k, v in STAFF_PER_100_ADULTS.items() if not k.startswith('soldiers')):.1f} per 100 adults beyond soldiers) is ~{sum(v for k, v in STAFF_PER_100_ADULTS.items() if not k.startswith('soldiers')) / live_other:.0f}x what the live Iron economy staffs today.")
 

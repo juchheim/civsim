@@ -46,9 +46,63 @@ def theme(pid):
     return "craft" if lin in CRAFT else "kin" if lin in KIN else "reach"
 
 
+ROOT = HERE.parents[3]
+LATE_E5_DOUBLE = True  # user decision 2026-11-13: E5 late projects cost 2x like E0-E4 (docs/MVP/28 §7, §16)
+
+
+def catalog_costs():
+    """Explicit `cost:` overrides from the catalog YAML (id -> cost). Main doubled the late projects of E0-E4 this way."""
+    import re
+    out = {}
+    for path in sorted((ROOT / "content" / "catalog").glob("*.yaml")):
+        for block in re.split(r"\n  - id: ", path.read_text())[1:]:
+            m = re.search(r"^    cost: ([0-9.]+)", block, re.M)
+            if m:
+                out[block.split("\n")[0].strip()] = float(m.group(1))
+    return out
+
+
+_COSTS = catalog_costs()
+
+
+def era_depth(projects, pid):
+    """Longest same-era prerequisite chain (edges); a requires_any group counts its deepest alternative (matches docs/MVP/28's counts)."""
+    era = projects[pid]["era"]
+    memo = {}
+
+    def d(i):
+        if i in memo:
+            return memo[i]
+        p, best = projects[i], 0
+        for r in p.get("requires", []):
+            if r in projects and projects[r].get("era") == era:
+                best = max(best, d(r) + 1)
+        groups = p.get("requires_any", [])
+        if groups and isinstance(groups[0], str):
+            groups = [groups]
+        for alts in groups:
+            ins = [d(a) for a in alts if a in projects and projects[a].get("era") == era]
+            if ins:
+                best = max(best, max(ins) + 1)
+        memo[i] = best
+        return best
+
+    return d(pid)
+
+
+def late(projects, pid):
+    """True for a non-keystone project with at least three projects in its own era's chain (28 §7: 'prerequisite depth 3 or more')."""
+    return not pid.startswith("KEY-") and era_depth(projects, pid) >= 2
+
+
 def cost(projects, pid):
     p = projects[pid]
-    return ERA_BASE[p["era"]] * MULT[p["type"]]
+    if pid in _COSTS:
+        return _COSTS[pid]
+    base = ERA_BASE[p["era"]] * MULT[p["type"]]
+    if LATE_E5_DOUBLE and p["era"] == 5 and late(projects, pid):
+        return base * 2
+    return base
 
 
 def closure(projects, roots, camel=True, forced_sea=False):
@@ -174,31 +228,24 @@ def report(projects):
 
     # Insight demand.
     e4_sel = e4.candidate(projects, True)
-    e4_total = sum(e4.cost(projects[x]) for x in e4_sel)
+    e4_cand = sum(cost(projects, x) for x in e4_sel)
+    e4_all = sum(cost(projects, i) for i in regulars(projects, 4)) + cost(projects, "KEY-5")
     e5_sel = candidate(projects)
     e5_total = e5_cost(projects, e5_sel)
     rows = backfill(projects, closure(projects, KEY6_REQUIRES), key5_done(projects, True))
-    e5_all = e5_total + sum(r[2] for r in rows)
-    print("\n== Insight demand (arithmetic against supplied durations; not a live fit)")
-    print(f"  E4 candidate list cost {e4_total:,.0f}; E5 candidate list cost {e5_total:,.0f}; with backfill {e5_all:,.0f}")
-    print(f"  E5/E4 list-cost ratio {e5_total / e4_total:.2f} (EraBase ratio 5.00)")
-    for label, minutes in (("07c 10.1 projection", PROJ_MINUTES_E5), ("09 11.2 table", MODEL_MINUTES[5])):
-        need4 = e4_total / MODEL_MINUTES[4]
-        need5 = e5_all / minutes
-        print(f"  {label}: E5 in {minutes} min needs {need5:,.0f} Insight/min on average; E4 candidate over {MODEL_MINUTES[4]} min needs {need4:,.0f}; ratio {need5 / need4:.2f}x")
-    print(f"  09 11.2 model Insight/min at the end of E4 -> E5: {MODEL_INSIGHT[4]:,.0f} -> {MODEL_INSIGHT[5]:,.0f} ({MODEL_INSIGHT[5] / MODEL_INSIGHT[4]:.2f}x)")
-    print("  Caution: the 09 table's Insight column predates the current EraBase, so its absolute level is stale (the same")
-    print("  1.8x to 1.9x gap appears for E4 and E5); only the ratios are comparable. E5 needs ~4.0x the E4 rate; the model grows ~3.8x.")
-    live_e4_minutes = LIVE_E4["key4_to_key5_minutes"]  # e5_anchors.py: natural play, KEY-4 -> KEY-5 (live, descriptive)
-    live_e4_rate = e4_total / live_e4_minutes
-    print(f"\n  Live anchor ({LIVE_E4['label']}): E4 took ~{live_e4_minutes:.0f} min for {e4_total:,.0f} => ~{live_e4_rate:,.0f} Insight/min on average.")
-    print("  If the E5 average rate is g x that live E4 average, E5 (candidate + backfill) takes:")
-    for g in (2, 3, 4, 5):
-        print(f"    g = {g}: {e5_all / (live_e4_rate * g):5.1f} min")
-    need = e5_all / 17.5 / live_e4_rate
-    print(f"  So KEY-6 needs ~{need:.1f}x the live E4 *average* rate to land at 17.5 minutes (the E4 average sits well below its own end rate,")
-    print("  because population and Insight grow all through the era; see the forward estimate below).")
-    forward_estimate(e4_total, e5_all)
+    e5_cand = e5_total + sum(r[2] for r in rows)
+    e5_everything = sum(cost(projects, i) for i in regulars(projects, 5)) + cost(projects, "KEY-6")
+    late_ids = sorted(i for i in regulars(projects, 5) if late(projects, i))
+    print("\n== Insight demand (list costs; the live Iron anchor says what civilizations really spend)")
+    print(f"  Iron: 21-project candidate {e4_cand:,.0f}; the WHOLE age (all 56 + KEY-5, with the 28 s7 doubling) {e4_all:,.0f}. Live Iron civilizations finish all {LIVE_E4['e4_projects_done_median']} projects")
+    print(f"  before KEY-5, so the whole age is what they actually spent.")
+    print(f"  E5: 16-project candidate + backfill {e5_cand:,.0f} (of which E5 list {e5_total:,.0f}); EVERY E5 project + KEY-6 {e5_everything:,.0f}.")
+    print(f"  E5 late-project doubling (D9) touches {len(late_ids)} of 49: {', '.join(late_ids)}.")
+    print(f"  E5/E4 whole-age cost ratio {e5_everything / e4_all:.2f} (EraBase ratio 5.00; the whole-age ratio is lower because E4 already carries 28 doubled projects).")
+    live_rate = e4_all / LIVE_E4["key4_to_key5_minutes"]
+    print(f"  Live anchor ({LIVE_E4['label']}): the whole age over {LIVE_E4['key4_to_key5_minutes']:.0f} min => ~{live_rate:,.0f} Insight/min on average.")
+    forward_estimate(e4_all, {"A: 16-project candidate + backfill (a civilization that goes straight for KEY-6)": e5_cand,
+                              "B: every E5 project + KEY-6 (how Iron civilizations actually played)": e5_everything})
 
 
 # ---- Insight budget (02 §8.1; balance.yaml): a settlement-level fixture --------------------
@@ -213,36 +260,51 @@ def insight_per_year(adults_per_settlement, settlements, scholars, monasteries, 
     return CALIB * (commons + roles)
 
 
-def forward_estimate(e4_cost, e5_cost_total):
-    """Time to finish E5 if Insight starts at the live end-of-E4 level and keeps growing with population (exponential, rate r per minute).
+def forward_estimate(e4_spent, scenarios):
+    """Minutes to finish E5 if Insight starts at the live end-of-Iron level and keeps growing with population (exponential, r per minute).
 
-    Calibration: the same model run backwards over the live E4 interval must reproduce the E4 candidate cost, or it is not trusted.
+    Calibration: the same model run backwards over the live Iron interval must reproduce what Iron civilizations actually spent.
     """
     a = LIVE_E4["adults_at_key5_median"]
     n = LIVE_E4["settlements_at_key5_median"]
     sch = LIVE_E4["scholars_at_key5_median"]
     r0 = LIVE_E4["growth_per_minute"]
     t4 = LIVE_E4["key4_to_key5_minutes"]
-    print("\n== Forward pacing estimate (Insight starts at the live end-of-E4 level and keeps growing; not a fit)")
-    print(f"  live end-of-E4 fixture: {a} adults in {n} settlements ({a / n:.1f} each), {sch} scholar(s); Commons = 4.8 x adults^0.85 per settlement, x1.6")
-    for label, cm in (("no E4 Insight modifiers taken", 1.0), ("COM-07 and GOV-08 taken (x1.2075)", 1.05 * 1.15)):
+    print("\n== Forward pacing estimate (Insight starts at the live end-of-Iron level and keeps growing; not a fit)")
+    print(f"  live end-of-Iron fixture: {a} adults in {n} settlements ({a / n:.1f} each), {sch} scholars; Commons = 4.8 x adults^0.85 per settlement, x1.6")
+    for label, cm in (("no Iron Insight modifiers taken", 1.0), ("COM-07 and GOV-08 taken (x1.2075)", 1.05 * 1.15)):
         i_end = insight_per_year(a / n, n, sch, 0, commons_mult=cm)
-        implied_e4 = i_end * (1 - math.exp(-r0 * t4)) / r0
-        print(f"  {label}: Insight at KEY-5 ~{i_end:,.0f}/min; run backwards at r={r0:.2f} over {t4:.0f} min it implies an E4 cost of {implied_e4:,.0f} "
-              f"vs the candidate's {e4_cost:,.0f} ({100 * (implied_e4 / e4_cost - 1):+.0f}%)")
+        implied = i_end * (1 - math.exp(-r0 * t4)) / r0
+        print(f"  {label}: Insight at KEY-5 ~{i_end:,.0f}/min; run backwards at r={r0:.2f} over {t4:.0f} min it implies a spend of {implied:,.0f} "
+              f"vs Iron's actual {e4_spent:,.0f} ({100 * (implied / e4_spent - 1):+.0f}%)")
     i0 = insight_per_year(a / n, n, sch, 0, commons_mult=1.0)
-    i0m = insight_per_year(a / n, n, sch, 0, commons_mult=1.05 * 1.15)
-    print(f"  E5 candidate + backfill cost {e5_cost_total:,.0f}. Minutes to finish if Insight keeps growing at r per minute:")
-    print(f"    {'r':>5s} | {'no-modifier start':>18s} | {'modifier start':>15s} | modifier start + E5 Insight projects (+12% on average, rough)")
-    for r in (0.03, 0.04, 0.06, 0.08):
-        t_a = math.log(1 + e5_cost_total * r / i0) / r
-        t_b = math.log(1 + e5_cost_total * r / i0m) / r
-        t_c = math.log(1 + e5_cost_total * r / (i0m * 1.12)) / r
-        print(f"    {r:5.2f} | {t_a:18.1f} | {t_b:15.1f} | {t_c:.1f}")
-    print("  Reading: run backwards, the no-modifier version reproduces the live E4 cost within about 11% (it runs a little rich), and the version")
-    print("  with COM-07 and GOV-08 assumed taken overshoots by a third, so the no-modifier column is the better calibrated one. On it, KEY-6 lands")
-    print("  near 21 minutes at E4-like growth (6% a minute) and 25 at 4%: 15 to 40% above the 16.75 to 18.25 projection, but far less than a")
-    print("  flat-average reading suggests. If growth falls to 3% a minute (towns saturating) E5 runs near 28 minutes.")
+    implied0 = i0 * (1 - math.exp(-r0 * t4)) / r0
+    k = e4_spent / implied0
+    print(f"  The Commons-and-roles formula alone explains only {100 / k:.0f}% of what Iron civilizations actually spent, so it is scaled by k = {k:.2f}")
+    print("  (Know-how drain, structures, diffusion and everything the fixture leaves out). That k is a calibration to ONE anchor, not a fit.")
+    ik = i0 * k
+    target, measured = LIVE_E4["iron_target_minutes"], LIVE_E4["key4_to_key5_minutes"]
+    print(f"  Minutes to finish E5 if Insight keeps growing at r per minute (Iron target {target:.0f}, Iron measured {measured:.0f}):")
+    for name, total in scenarios.items():
+        print(f"   {name}: cost {total:,.0f}")
+        print(f"     {'r':>5s} | {'uncalibrated':>13s} | {'calibrated (x k)':>17s} | calibrated + E5 Insight projects (+12% on average, rough)")
+        for r in (0.03, 0.04, 0.06, 0.08):
+            t_a = math.log(1 + total * r / i0) / r
+            t_b = math.log(1 + total * r / ik) / r
+            t_c = math.log(1 + total * r / (ik * 1.12)) / r
+            print(f"     {r:5.2f} | {t_a:13.1f} | {t_b:17.1f} | {t_c:.1f}")
+    b_total = list(scenarios.values())[-1]
+    print(f"  Era base needed for scenario B to take a target number of minutes (calibrated, scaling every E5 cost; base 6,000 today, cost {b_total:,.0f}):")
+    for r in (0.04, 0.06, 0.08):
+        cells = []
+        for t in (measured, target):
+            need = ik * (math.exp(r * t) - 1) / r
+            cells.append(f"{t:.0f} min: x{need / b_total:.2f} (base ~{6000 * need / b_total:,.0f})")
+        print(f"     r={r:.2f}: " + "; ".join(cells))
+    print("  Reading: the uncalibrated formula reproduces less than half of Iron's real spend, so trust the calibrated column. If every civilization")
+    print("  researches the whole age as Iron does (scenario B), E5 lands close to Iron's own measured length; a civilization that rushes KEY-6")
+    print("  (scenario A) finishes in under half that. E5's length is set by how much of the age the planners research before closing it, and by")
+    print("  the era base, not by the keystone's own cost.")
 
 
 def insight_budget():
@@ -287,7 +349,13 @@ def check(projects):
     hand = {"COM-09": "M", "COM-10": "D", "NUM-08": "M", "NUM-09": "M", "TRD-08": "I", "TRD-09": "M",
             "INQ-06": "M", "WAY-08": "M", "BEL-10": "S", "GOV-10": "I", "LRN-07": "S", "LRN-08": "S"}
     assert all(projects[i]["type"] == t for i, t in hand.items()), "types drifted from 27's hand check"
-    assert sum(cost(projects, i) for i in crit) == sum(6000 * MULT[t] for t in hand.values())
+    # E5 late doubling (user decision 2026-11-13): hand-checked against the same-era chains in the catalog.
+    late_crit = {i for i in crit if late(projects, i)}
+    assert sum(cost(projects, i) for i in crit) == sum(6000 * MULT[t] * (2 if i in late_crit else 1) for i, t in hand.items())
+    # The depth definition must reproduce main's own E4 overrides exactly (28 numeric E4 projects carry a 28 §7 cost).
+    e4_late = {i for i, p in projects.items() if p.get("era") == 4 and late(projects, i)}
+    e4_override = {i for i in _COSTS if projects[i].get("era") == 4}
+    assert e4_late == e4_override and len(e4_late) == 28, (sorted(e4_late ^ e4_override), len(e4_late))
     assert cost(projects, "KEY-6") == 6000 * 2.5
     # The Craft-only variant must hold 4 craft picks and still include the 12 critical projects.
     cs = candidate(projects, "craft")

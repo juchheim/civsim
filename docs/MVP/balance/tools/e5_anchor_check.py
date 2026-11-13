@@ -109,15 +109,21 @@ def main():
     }.items():
         got = recipe(rec, rid)
         ok = got is not None and got[0] == ins and got[1] == outs and got[2] == lab
-        rows.append((ok, f"recipe {rid}", got, (ins, outs, lab), "recipes.yaml vs e4_metal_oracle"))
+        rows.append((ok, f"INFO e4_metal_oracle default for recipe {rid}", got, (ins, outs, lab), "recipes.yaml vs e4_metal_oracle.py defaults; e5 oracles read the registry"))
 
     tools = text("content/registries/tools.yaml")
-    expect("T12 service life (ws)", yaml_num(tools, "service_ws", "{id: t12,"), metal.SERVICE_WS["T12"], "tools.yaml vs e4_metal_oracle")
+    ok = yaml_num(tools, "service_ws", "{id: t12,") == metal.SERVICE_WS["T12"]
+    rows.append((ok, "INFO e4_metal_oracle default for T12 service life (ws)", yaml_num(tools, "service_ws", "{id: t12,"), metal.SERVICE_WS["T12"], "tools.yaml vs e4_metal_oracle.py defaults; e5 oracles read the registry"))
+    # What the e5 oracles actually use after apply_iron_registry must equal the registry.
+    from e5_anchors import apply_iron_registry
+    applied = apply_iron_registry(load("e4_metal_oracle"))
+    expect("applied T11 service life (ws)", applied.SERVICE_WS["T11"], yaml_num(tools, "service_ws", "{id: t11,"), "e5_anchors.apply_iron_registry vs tools.yaml")
+    expect("applied T11 wrought per kit", applied.MAKE_T11["wrought"], recipe(rec, "make_tool11")[0]["G-WROUGHT"], "e5_anchors.apply_iron_registry vs recipes.yaml")
 
-    bad = [r for r in rows if not r[0]]
+    bad = [r for r in rows if not r[0] and not r[1].startswith('INFO')]
     if not args.check or bad:
         for ok, label, actual, assumed, where in rows:
-            print(f"{'OK   ' if ok else 'DRIFT'} {label}: source {actual!r}, oracle assumes {assumed!r}  [{where}]")
+            print(f"{'OK   ' if ok else ('INFO ' if label.startswith('INFO') else 'DRIFT')} {label}: source {actual!r}, oracle assumes {assumed!r}  [{where}]")
         print(f"\nLive E4 anchor in use: {LIVE_E4['label']}: KEY-4 to KEY-5 {LIVE_E4['key4_to_key5_minutes']} min")
     if bad:
         print(f"\n{len(bad)} constant(s) drifted: update the oracle inputs, then rerun every e5_*_oracle.py --check.")

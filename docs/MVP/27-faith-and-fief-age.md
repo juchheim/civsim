@@ -1,6 +1,6 @@
 # 27 — Faith & Fief (E5): Mills, Monasteries, Cannon and the Closing of the Old World
 
-> **Planning draft, 2026-11-05. D1 (E5 as a default-off FiefChapter including E4) and D4 (Fief-only claim upkeep) are confirmed by the user; everything else is unapproved, unbuilt and unfitted.** It is the E5 counterpart of [25 — Iron Age](25-iron-age.md): scope, audit, mechanisms, acceptance gates and a work breakdown. It was written while the Iron chapter (E4) is still being balanced by another session, so it is built to **start without touching any file that balance work is changing** (§9) and to **wait for E4 sign-off before anything numeric is promoted**.
+> **Planning draft, 2026-11-05; updated 2026-11-13 after the Iron closeout merged. Confirmed by the user: D1 (E5 as a default-off FiefChapter including E4), D4 (Fief-only claim upkeep), and on 2026-11-13 D8 (E5 length matches Iron, about 25 minutes from KEY-5 to KEY-6), D9 (E5 late projects cost double, as in E0–E4), D10 (the Thriving Legacy score applies) and D11 (no countdown). Everything else is unapproved, unbuilt and unfitted.** It is the E5 counterpart of [25 — Iron Age](25-iron-age.md): scope, audit, mechanisms, acceptance gates and a work breakdown. It was written while the Iron chapter (E4) is still being balanced by another session, so it is built to **start without touching any file that balance work is changing** (§9) and to **wait for E4 sign-off before anything numeric is promoted**.
 >
 > Audit baseline: `main` at `6d6df44` (since then `43a1648` made the Iron chapter the game's default for new matches; the sim default in `ChapterRules` is unchanged, and Fief stays opt-in on top of it). Every claim marked *(verified)* was read from the catalog, registries or source on that commit. Claims marked *(assumed)* come from older design docs or from the E4 notes and must be re-checked after the E4 balance lands.
 
@@ -79,7 +79,7 @@ Two findings that shape the design:
 | MED-07 / MED-08 | MED-06 baths, outbreak model | Plague weight is 0.1 at E4, 0.15 at E6; hospital −20%, quarantine ×0.75 roll. |
 | TER-10 manorial estates, GOV-10/11 | Provinces, governors, feudal contract (distance strain only) | The catalog's "claim upkeep" has **no counterpart in the sim today** *(verified: no `ClaimUpkeep` in `src/CivSim.Sim`)*; it needs a definition (§5.3). |
 | SEA-10/11, WAY-08/09 | Harbors, galleys, blockade | Open-sea routes are new; island-crossing rules are in [21](21-island-crossing.md). |
-| NRG-05, WOD-09, FIB-10/11, MEC-07 | E4 water mill | **The E4 water mill has no grinding model to multiply** ([m11-wp7](balance/m11-wp7-food-water-health.md)). E5 is about mills, so this gap must be closed first (§5.1). |
+| NRG-05, WOD-09, FIB-10/11, MEC-07 | E4 water mill | The water mill now has a grinding model on main ([29](29-dead-unlocks.md): `MillGrainValue` 0.1, `MillPeople` 200, `MillLaborMult` 0.5, all provisional). The E5 power ledger (§5.1) must extend those constants, not replace them. |
 
 ## 5. New mechanisms (proposed bounded interpretations)
 
@@ -119,10 +119,13 @@ Cogs, lateen sails and the compass raise cargo, speed and reduce losses on route
 | Bronze, Iron | exactly as today | exactly as today | unchanged (Bronze KEY-4, Iron KEY-5) |
 | Fief, before own KEY-4 | E4 and E5 Hidden | nothing past E3 | KEY-5 does **not** end this mode |
 | Fief, after own KEY-4 | E4 opens as in Iron | Iron systems active | unchanged until a civilization has KEY-5 |
-| Fief, after own KEY-5 | E5 opens (or glimpses) by prerequisite and gate | E5 systems eligible; each still needs its local inputs, site, staff | human KEY-6, first rival KEY-6 + 12 seasons, or the hard cap |
-| Fief, after own KEY-6 | E6 Hidden | E5 economy continues, no E6 systems | countdown or cap as above |
+| Fief, after own KEY-5 | E5 opens (or glimpses) by prerequisite and gate | E5 systems eligible; each still needs its local inputs, site, staff | the human completing KEY-6; **no rival countdown and no year cap** (D11, see below) |
+| Fief, after own KEY-6 | E6 Hidden | E5 economy continues, no E6 systems | as above |
 
-- **Candidate cap and countdown (not approved):** Iron's live natural-play numbers are KEY-4 at about minute 60 and KEY-5 at about minute 79 to 81 ([m11-wp11](balance/m11-wp11-whole-match.md)). The older model gives E5 about 16.75 to 18.25 minutes ([07c §10.1](07c-e0-e2-checks.md), [09 §11.2](09-population-and-health.md)), so KEY-6 would land near minute 97 to 100. The 2026-11-05 re-anchor ([m12-wp4](balance/m12-wp4-reanchor.md)) puts the live KEY-5 median at minute 78.5 and a forward estimate of E5 at about 21 minutes, so KEY-6 near minute 100 with the slow seats near 110. A first candidate is **cap Year 120, countdown 12 seasons**, then refit once the E4 pacing fix is known.
+- **Ending (D11, user 2026-11-13: "no countdown"):** main removed the year cap on 2026-11-08 ([28 §17](28-production-gap.md)) and Iron ends on the human's KEY-5 or 48 seasons after the first rival's. For Fief the user said no countdown, which this draft reads literally: **a rival completing KEY-6 starts no clock**, so the chapter ends only when the human completes KEY-6. Headless and AI-only runs are bounded by their own `--minutes` horizon, exactly as an Iron run that nobody finishes is (28 §17). *To confirm before the plumbing is built:* whether a rival's KEY-6 should instead start a different, longer clock.
+- **Length (D8):** E5 should take about as long as Iron does now, **about 25 minutes from own KEY-5 to own KEY-6** (Iron: [28 §7a](28-production-gap.md), mean 25.1 minutes). The re-anchor in [m12-wp5](balance/m12-wp5-merge-reanchor.md) measures where E5 lands against that target.
+- **Late projects (D9):** the 28 §7 and §16 rule (non-keystone projects with at least three projects in their own era's prerequisite chain cost twice the derived cost) applies to E5. By that definition only **7 of the 49** E5 projects qualify (BLD-12, GOV-11, LRN-08, SEA-11, TRD-09, WAR-12, WAY-09), two of them on the KEY-6 path, because most E5 prerequisites sit in E4. The doubling is therefore a small lever for E5; the era base is the real one.
+- **Legacy (D10):** E5 uses main's current Legacy rules unchanged: Firsts pay nothing, Mastery 2 × (era + 1) per project, Wonder built 25 × (era + 1), and the Thriving score (√people ÷ 5 per season, less famine and disease). No E5-specific rescale.
 - Dominion victory stays as it is (direct ownership, ≥50% and 2× runner-up for 5 years; tribute never counts as land), and early Dominion endings are reported separately from KEY-6 and cap endings.
 - A Bronze or Iron save never becomes Fief implicitly; Fief writes the next replay, save and snapshot versions, and Bronze and Iron bytes and hashes stay identical.
 - Representation: keep **the simulation at 1:1** as in E4's Q3. The catalog's 1:5 is applied only to the **view** if the figure budget (≤ 600 per civilization) is exceeded; the old model has 2,559 people per civilization at the end of E5, so this is a measurement the first `--grant-e5` runs must make.
@@ -131,7 +134,7 @@ Cogs, lateen sails and the compass raise cargo, speed and reduce losses on route
 
 | ID | Target / diagnostic | Measurement |
 |---|---|---|
-| F-T1 | Own KEY-5 → KEY-6 near the model's 16.75 to 18.25 minutes, after the E4 era base is settled; cap-ending rate ≤ 10% | 80+ matches, held-out block, censored/captured seats shown |
+| F-T1 | Own KEY-5 → KEY-6 about 25 minutes (D8, matching Iron), with the E5 era base and late-project doubling as the levers; share of seats not finished by the run horizon reported | 80+ matches, held-out block, censored/captured seats shown |
 | F-T2 | Mill coverage: ≥ 60% of grain milled by water or wind within 12 seasons of the power source existing in towns that have a site | Per-town power-hour ledger; no ×-stacking without a source |
 | F-T3 | Blast furnace: iron ×4 only inside a measured charcoal budget; full-chain work share ≤ 15% in every mature 12-season window; zero blast-furnace-attributed forest-clearing crossings; fuel-short ≤ 5% | The I-T6 protocol reused on the same fixtures plus low-wood starts |
 | F-T4 | Food: three-field gives +50% productivity on rotated tiles with the fallow cost shown; matched anchors rise inside the oracle cap | Physical mass balance, five geography fixtures |
@@ -174,7 +177,7 @@ The E4 balancer is changing Iron constants, fuel/economy code and goldens. E5 wo
 | B5-02 Completeness | All 50 nodes typed, requirements/costs/practice/flavor/moment present (V22); strict validator clean; registry references resolve. **Typing done; promotion to numeric is still ahead** |
 | B5-03 Determinism | 1,000 Fief matches replay exactly; snapshot continuation exact; macOS arm64 and Windows x64 produce the same fief-v1 golden |
 | B5-04 Mode and end | All three end clauses, ties, human/headless, KEY-5 continuation, KEY-6 threshold, old-save modes, mode-bearing new saves |
-| B5-05 Pacing | F-T1 after the E4 pacing is settled; no imputation of uncompleted KEY-6 |
+| B5-05 Pacing | F-T1 (about 25 minutes, D8); no imputation of uncompleted KEY-6 |
 | B5-06 Power, fuel | F-T2, F-T3; exact input/output conservation; mill loss, site loss, captured furnace |
 | B5-07 Food, health | F-T4, F-T7; no mass creation |
 | B5-08 Siege | F-T5; no wall assault without breach; powder consumption conserved |
@@ -194,6 +197,10 @@ The E4 balancer is changing Iron constants, fuel/economy code and goldens. E5 wo
 | D4 | Define "claim upkeep" for TER-10 in Fief mode only | Yes, a small per-tile grain/labor cost | **Confirmed 2026-11-05** (size to be fitted by the oracle) |
 | D5 | Keep the simulation at 1:1; use 1:5 only to draw if the figure budget breaks | Yes | No |
 | D6 | Branch and worktree: do E5 work in its own worktree and branch (like `civsim-e4`), never in the shared main tree | Yes; content-pack golden is refreshed only at merge time | No |
+| D8 | How long should E5 be? | Match Iron, about 25 minutes. **Confirmed 2026-11-13** | No |
+| D9 | Do E5 late projects cost double? | Yes. **Confirmed 2026-11-13** (7 of 49 by the 28 §7 definition) | No |
+| D10 | Use the Thriving Legacy score? | Yes. **Confirmed 2026-11-13** | No |
+| D11 | A countdown after the first rival's KEY-6? | None. **Confirmed 2026-11-13**, read as the chapter ending only on the human's KEY-6 (to confirm the reading) | Reading only |
 | D7 | Which cut is acceptable if time runs short (tactical cavalry detail, bespoke art)? | None by default, same rule as 25 §15: no catalog promise is dropped silently | No |
 
 ## 12. Risks

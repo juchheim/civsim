@@ -1,5 +1,7 @@
 # M12 WP-E5-1b: re-anchoring the E5 oracles (2026-11-05)
 
+**Superseded in part (2026-11-13):** the Iron anchor and the pacing estimate are replaced by [m12-wp5-merge-reanchor](m12-wp5-merge-reanchor.md) after the Iron closeout merged.
+
 **Status:** diagnostic. Nothing in the simulation, content or goldens changed. This re-reads the Iron (E4) state the E5 oracles lean on and replaces one conclusion of [m12-wp1-oracle-fit](m12-wp1-oracle-fit.md). Raw run output: [m12-wp4-reanchor-output.txt](m12-wp4-reanchor-output.txt).
 
 ## What was checked

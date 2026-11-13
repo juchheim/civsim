@@ -22,6 +22,10 @@ HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("e4_metal_oracle", HERE / "e4_metal_oracle.py")
 e4m = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(e4m)
+import sys
+sys.path.insert(0, str(HERE))
+from e5_anchors import apply_iron_registry  # noqa: E402
+apply_iron_registry(e4m)  # current T11/T12 recipes and service lives, not the e4 oracle's stale defaults
 
 # --- Part A: power units -------------------------------------------------------------------------
 SOURCE_UNITS = {"water_wheel": 5.0, "windmill": 4.0, "horse_gin": 2.0}  # P (wheel from 26 'grind x5')

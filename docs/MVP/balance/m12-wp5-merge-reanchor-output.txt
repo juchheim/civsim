@@ -1,0 +1,455 @@
+== iron-match seed 20261019: 102.2 minutes simulated, chapter end RivalCountdown at season 408 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     71.6   91.0      56     21    1994   118   847    1023      118        4        6      7
+c1  Grower      70.5   90.6      56     27    2201   238  1137    1444      179        5        8     22
+c2  Warlord     66.8   91.2      56     26    2274   215  1058    1313      159        6       10     36
+c3  Sage        69.5   90.1      56     27    2077   243   893    1205      123        4        8     12
+iron works built (all settlements):
+  crane                     4    3    4    3
+  windlass_well            12   14   18   14
+  terrace                   1   44   11   41
+  aqueduct                  3    2    0    3
+  bathhouse                 4    3    3    4
+  theatre_arena             3    4    4    5
+  road                     15   17   19   17
+  bridge                    9   12   12   14
+  gatehouse                 5    6    6    5
+  frontier_wall_segment     0    1    3    2
+  castle                    0    1    1    0
+  harbor                    0    1    2    1
+  galley                    0    1    2    1
+  academy                   4    5    7    4
+  press                     3    5    5    4
+  water_mill                0    2    3    1
+  temple_tier2              4    5    6    5
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 12; aqueduct x1 (100%), bridge x1 (100%), crane x1 (100%), great_library x1 (100%), press x2 (100%), theatre_arena x2 (100%), water_mill x1 (100%)
+  c1: villages 17; (nothing wanted) x2 (0%), aqueduct x1 (100%), bathhouse x1 (100%), bridge x2 (100%), crane x1 (100%), great_library x1 (100%), great_lighthouse x1 (100%), water_mill x1 (100%)
+  c2: villages 16; aqueduct x1 (100%), bathhouse x3 (100%), crane x1 (100%), gatehouse x1 (100%), great_library x1 (16%), great_lighthouse x1 (100%), theatre_arena x1 (100%), water_mill x1 (100%)
+  c3: villages 17; (nothing wanted) x3 (0%), aqueduct x1 (11%), castle x1 (100%), great_library x1 (100%), great_lighthouse x1 (100%), temple_tier2 x1 (84%), water_mill x2 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 2 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 4 towns
+  bathhouse lacks wood: 3 towns
+  bridge lacks block: 4 towns
+  bridge lacks wood: 2 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  crane lacks bloom: 1 towns
+  crane lacks wood: 2 towns
+  gatehouse lacks block: 1 towns
+  gatehouse lacks wood: 1 towns
+  great_library lacks ashlar: 3 towns
+  great_library lacks block: 3 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 3 towns
+  great_lighthouse lacks ashlar: 3 towns
+  great_lighthouse lacks block: 3 towns
+  great_lighthouse lacks bloom: 2 towns
+  great_lighthouse lacks wood: 3 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  road lacks block: 2 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 1 towns
+  theatre_arena lacks block: 3 towns
+  theatre_arena lacks wood: 2 towns
+  water_mill lacks block: 4 towns
+  water_mill lacks wheel: 3 towns
+  water_mill lacks wood: 5 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 10  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 146, c1 214, c2 200, c3 178
+final legacy per civ: c0 4762, c1 5232, c2 5371, c3 5213
+
+== iron-match seed 20261020: 104.2 minutes simulated, chapter end RivalCountdown at season 416 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     72.8   92.2      56     32    2492   274   937    1378      140        5        5      9
+c1  Grower      77.4   94.7      56     20    1925   350   621    1008       96        4        5     12
+c2  Warlord     74.7   95.2      56     22    1890   247   752    1058      107        3        4     24
+c3  Sage        77.4   95.8      56     15    1313   132   370     537       83        3        4      5
+iron works built (all settlements):
+  crane                     4    3    3    3
+  windlass_well            14   12   11    8
+  terrace                  23   22   12   27
+  aqueduct                  5    4    2    2
+  bathhouse                 7    2    3    3
+  theatre_arena             7    3    1    5
+  road                     23   12   19   14
+  bridge                    1    5   15    6
+  gatehouse                 8    6    4    5
+  frontier_wall_segment     0    2    2    0
+  castle                    0    2    2    0
+  harbor                    1    0    1    0
+  galley                    0    0    1    0
+  academy                   5    4    3    3
+  press                     6    2    3    2
+  water_mill                1    0    1    0
+  temple_tier2              4    2    3    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; (nothing wanted) x5 (0%), bathhouse x1 (64%), gatehouse x1 (0%), great_library x1 (100%), great_lighthouse x1 (100%), press x1 (100%), theatre_arena x1 (100%)
+  c1: villages 13; aqueduct x1 (47%), bathhouse x3 (100%), bridge x1 (100%), harbor x1 (100%), theatre_arena x1 (23%)
+  c2: villages 15; (nothing wanted) x2 (0%), aqueduct x1 (100%), gatehouse x1 (0%), great_library x1 (100%), great_lighthouse x1 (100%), press x1 (0%)
+  c3: villages 10; (nothing wanted) x2 (0%), aqueduct x1 (100%), bathhouse x1 (100%), temple_tier2 x1 (23%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 1 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 4 towns
+  bathhouse lacks wood: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 3 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 2 towns
+  great_library lacks wood: 2 towns
+  great_lighthouse lacks ashlar: 2 towns
+  great_lighthouse lacks block: 2 towns
+  great_lighthouse lacks bloom: 1 towns
+  great_lighthouse lacks wood: 2 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  terrace lacks block: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 16  assaults 8  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 198, c1 147, c2 156, c3 83
+final legacy per civ: c0 5800, c1 5286, c2 5038, c3 4376
+
+== iron-match seed 20261021: 99.2 minutes simulated, chapter end RivalCountdown at season 396 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     68.0   87.2      56     31    2051   220  1063    1478      144        3        7     18
+c1  Grower      88.3      -      11      5     607   270     0     281       16        0        0      0
+c2  Warlord     75.0   97.0      51     19    1600   470   276     881      126        5        6     18
+c3  Sage        74.0   94.0      56     25    1897   259   475     802      108        4        8      8
+iron works built (all settlements):
+  crane                     5    0    0    1
+  windlass_well            19    6   12   14
+  terrace                  24    0    8   10
+  aqueduct                  4    0    0    1
+  bathhouse                 6    0    0    1
+  theatre_arena             3    0    5    5
+  road                     26    0   13   16
+  bridge                   14    0    0    4
+  gatehouse                 8    3    5    6
+  frontier_wall_segment     4    0    1    0
+  castle                    3    0    1    1
+  harbor                    1    0    1    1
+  galley                    1    0    0    0
+  academy                   3    0    5    4
+  press                     4    0    4    4
+  water_mill                2    0    0    0
+  temple_tier2              5    0    4    6
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; (nothing wanted) x1 (0%), aqueduct x2 (100%), crane x1 (100%), gatehouse x1 (32%), great_library x2 (100%), great_lighthouse x1 (100%), theatre_arena x2 (100%)
+  c1: villages 2; press x3 (100%)
+  c2: villages 12; (nothing wanted) x1 (0%), crane x4 (89%), great_dome x1 (100%), theatre_arena x1 (100%)
+  c3: villages 15; (nothing wanted) x1 (0%), aqueduct x2 (67%), bathhouse x1 (100%), castle x1 (100%), crane x5 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 3 towns
+  aqueduct lacks wood: 1 towns
+  bathhouse lacks block: 1 towns
+  bathhouse lacks wood: 1 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  crane fully supplied: 2 towns
+  crane lacks bloom: 7 towns
+  crane lacks wood: 5 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks wood: 1 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 2 towns
+  great_library lacks bloom: 2 towns
+  great_library lacks wood: 2 towns
+  great_lighthouse lacks ashlar: 1 towns
+  great_lighthouse lacks block: 1 towns
+  great_lighthouse lacks bloom: 1 towns
+  great_lighthouse lacks wood: 1 towns
+  press lacks bloom: 3 towns
+  theatre_arena lacks block: 3 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 20  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 152, c1 16, c2 129, c3 108
+final legacy per civ: c0 6684, c1 3364, c2 4568, c3 5068
+
+== iron-match seed 20261022: 99.0 minutes simulated, chapter end RivalCountdown at season 395 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.7   92.8      56     26    2136   170   610     945      138        3        9      9
+c1  Grower      72.9   92.8      56     23    1825   224   472     846      127        4        5      5
+c2  Warlord     68.9   94.1      56     26    1663   246   494     843      109        5        7     10
+c3  Sage        66.4   87.0      56     29    2078   167   583    1049      158        3        8     11
+iron works built (all settlements):
+  crane                     2    2    2    3
+  windlass_well            11    9   11   13
+  terrace                  17   12   28   15
+  aqueduct                  0    1    1    1
+  bathhouse                 1    0    2    3
+  theatre_arena             0    6    4    3
+  road                     21   15   22   17
+  bridge                   12    7    7   14
+  gatehouse                 2    2    5    4
+  frontier_wall_segment     2    1    1    1
+  castle                    0    0    1    0
+  harbor                    0    1    2    1
+  galley                    0    0    1    0
+  academy                   3    4    5    3
+  press                     1    1    3    1
+  water_mill                0    0    1    0
+  temple_tier2              6    1    6    6
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 16; aqueduct x2 (50%), bathhouse x2 (100%), crane x2 (100%), gatehouse x2 (100%), terrace x2 (100%)
+  c1: villages 15; (nothing wanted) x1 (0%), aqueduct x2 (77%), crane x5 (100%)
+  c2: villages 16; (nothing wanted) x2 (0%), aqueduct x1 (100%), crane x3 (100%), gatehouse x2 (58%), terrace x1 (100%), theatre_arena x1 (100%)
+  c3: villages 19; (nothing wanted) x1 (0%), bathhouse x2 (69%), bridge x1 (100%), gatehouse x2 (100%), great_library x1 (74%), great_lighthouse x1 (59%), theatre_arena x1 (47%), water_mill x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 3 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 3 towns
+  bathhouse lacks wood: 2 towns
+  bridge lacks ashlar: 1 towns
+  bridge lacks block: 2 towns
+  crane lacks bloom: 6 towns
+  crane lacks wood: 9 towns
+  gatehouse lacks block: 5 towns
+  gatehouse lacks wood: 3 towns
+  road lacks block: 1 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 2 towns
+  theatre_arena lacks block: 1 towns
+  water_mill lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 16  assaults 4  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 138, c1 127, c2 111, c3 158
+final legacy per civ: c0 4995, c1 4735, c2 4904, c3 5738
+
+== iron-match seed 20261023: 102.8 minutes simulated, chapter end RivalCountdown at season 410 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.2   90.6      57     31    2644   205  1016    1269      122        3        9     30
+c1  Grower      72.4   90.6      57     19    1526   401   535    1080       82        1        5      6
+c2  Warlord     78.0   96.2      57     17    1597   289   442     774       48        1        5      4
+c3  Sage        74.9   91.2      57     30    1993   362   405     855       54        1        4      5
+iron works built (all settlements):
+  crane                     5    1    3    2
+  windlass_well            18   13    9   13
+  terrace                  18    0    8   13
+  aqueduct                  4    1    1    3
+  bathhouse                 4    1    1    5
+  theatre_arena             5    3    2    3
+  road                     22    5   13   16
+  bridge                   18    3    9    9
+  gatehouse                 7    7    3    4
+  frontier_wall_segment     2    2    0    0
+  castle                    2    0    0    0
+  harbor                    0    1    0    0
+  academy                   3    1    1    1
+  press                     6    1    4    0
+  water_mill                0    0    1    0
+  temple_tier2              7    2    3    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 19; (nothing wanted) x4 (0%), academy x1 (0%), aqueduct x1 (100%), bathhouse x3 (100%), gatehouse x1 (100%), great_library x1 (100%), water_mill x1 (100%)
+  c1: villages 12; (nothing wanted) x2 (0%), aqueduct x2 (50%), castle x1 (100%), crane x1 (0%), press x1 (0%)
+  c2: villages 10; aqueduct x2 (100%), bathhouse x2 (84%), temple_tier2 x1 (94%), windlass_well x2 (50%)
+  c3: villages 19; (nothing wanted) x1 (0%), academy x1 (0%), aqueduct x3 (3%), crane x3 (21%), road x1 (71%), theatre_arena x1 (55%), water_mill x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 3 towns
+  aqueduct lacks wood: 3 towns
+  bathhouse lacks block: 4 towns
+  bathhouse lacks wood: 3 towns
+  bridge lacks block: 1 towns
+  bridge lacks wood: 1 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  gatehouse lacks wood: 1 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 1 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 1 towns
+  road lacks block: 2 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 3 towns
+  water_mill lacks block: 2 towns
+  water_mill lacks wheel: 1 towns
+  windlass_well lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 16  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 186, c1 183, c2 121, c3 120
+final legacy per civ: c0 5701, c1 5273, c2 4989, c3 4766
+
+== iron-match seed 20261024: 100.2 minutes simulated, chapter end RivalCountdown at season 400 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.8   88.2      56     27    2320   188   840    1139      158        3        9     14
+c1  Grower      72.1   90.9      56     19    1573   329   484     870      120        4        7     22
+c2  Warlord     68.6   92.2      56     27    2252   235   943    1273      149        5        8     10
+c3  Sage        71.9   91.0      56     24    1583   302   707    1036      144        2        6     24
+iron works built (all settlements):
+  crane                     3    1    4    3
+  windlass_well            13   10   14    9
+  terrace                  11   13    2    7
+  aqueduct                  4    1    3    1
+  bathhouse                 7    1    5    0
+  theatre_arena             6    4    8    3
+  road                     22   10   23   12
+  bridge                    4    9    7    9
+  gatehouse                 7    6    5    5
+  frontier_wall_segment     3    2    3    1
+  castle                    1    2    1    2
+  harbor                    0    1    1    0
+  academy                   3    4    5    2
+  press                     3    4    5    2
+  water_mill                1    0    0    0
+  temple_tier2              6    3    5    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 16; (nothing wanted) x3 (0%), bathhouse x1 (57%), crane x2 (82%), great_library x1 (100%), press x1 (100%), theatre_arena x1 (30%), water_mill x2 (100%)
+  c1: villages 11; (nothing wanted) x1 (0%), aqueduct x3 (84%), bathhouse x1 (100%), crane x1 (100%), great_library x1 (100%), water_mill x1 (100%)
+  c2: villages 17; (nothing wanted) x2 (0%), aqueduct x2 (100%), bathhouse x1 (100%), great_library x1 (100%), water_mill x2 (100%), windlass_well x2 (100%)
+  c3: villages 17; bathhouse x3 (100%), bridge x1 (100%), harbor x1 (100%), water_mill x2 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 4 towns
+  aqueduct lacks wood: 3 towns
+  bathhouse lacks block: 5 towns
+  bathhouse lacks wood: 2 towns
+  bridge lacks block: 1 towns
+  bridge lacks wood: 3 towns
+  crane lacks bloom: 2 towns
+  crane lacks wood: 2 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 3 towns
+  great_library lacks wood: 3 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks wood: 1 towns
+  road lacks block: 1 towns
+  water_mill lacks block: 7 towns
+  water_mill lacks wheel: 2 towns
+  water_mill lacks wood: 4 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 14  assaults 8  captured 8  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 163, c1 140, c2 178, c3 154
+final legacy per civ: c0 5361, c1 4514, c2 5538, c3 4464
+
+== iron-match seed 20261025: 104.5 minutes simulated, chapter end RivalCountdown at season 417 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.6   92.3      56     28    2450   179  1284    1522       88        3        9     11
+c1  Grower      73.8   93.1      56     24    1821   309   771    1121       98        5        7     29
+c2  Warlord     73.8   96.3      56     23    1460   197   542     813       94        3        6     17
+c3  Sage        71.0   93.7      56     27    2334   207   931    1212       86        4        9      8
+iron works built (all settlements):
+  crane                     7    3    5    7
+  windlass_well            16   15   14   20
+  terrace                  12   22   11   32
+  aqueduct                  2    1    1    4
+  bathhouse                 4    1    1    4
+  theatre_arena             2    4    1    4
+  road                     21   15   15   15
+  bridge                    5    2    1    3
+  gatehouse                 9    6    5    7
+  frontier_wall_segment     0    2    1    0
+  castle                    0    2    1    0
+  harbor                    4    0    0    1
+  galley                    3    0    0    0
+  academy                   3    5    3    4
+  press                     3    5    2    5
+  temple_tier2              4    5    2    6
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 18; bridge x1 (100%), crane x1 (100%), galley x1 (100%), great_library x1 (100%), press x1 (100%), temple_tier2 x1 (100%), theatre_arena x3 (100%), water_mill x1 (100%)
+  c1: villages 15; (nothing wanted) x1 (0%), aqueduct x2 (78%), bathhouse x3 (100%), temple_tier2 x1 (100%), water_mill x2 (100%)
+  c2: villages 14; (nothing wanted) x1 (0%), aqueduct x2 (72%), bathhouse x2 (100%), crane x1 (100%), press x1 (0%), theatre_arena x2 (50%)
+  c3: villages 17; (nothing wanted) x3 (0%), aqueduct x1 (100%), bathhouse x2 (74%), gatehouse x1 (100%), great_library x1 (100%), temple_tier2 x1 (22%), theatre_arena x1 (87%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 2 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 6 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 2 towns
+  crane lacks bloom: 3 towns
+  crane lacks wood: 1 towns
+  galley lacks wood: 1 towns
+  gatehouse lacks wood: 1 towns
+  great_library lacks ashlar: 2 towns
+  great_library lacks block: 2 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 2 towns
+  press lacks bloom: 1 towns
+  temple_tier2 lacks ashlar: 2 towns
+  temple_tier2 lacks wood: 1 towns
+  theatre_arena lacks block: 4 towns
+  water_mill lacks block: 3 towns
+  water_mill lacks wheel: 2 towns
+  water_mill lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 12  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 230, c1 175, c2 131, c3 183
+final legacy per civ: c0 5250, c1 5061, c2 4598, c3 5187
+
+== iron-match seed 20261026: 99.0 minutes simulated, chapter end RivalCountdown at season 395 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     68.1   87.8      56     21    1752   156   687     931      150        4        8     42
+c1  Grower      68.4   88.9      56     27    2339   537   590    1274      197        3        9     11
+c2  Warlord     72.8   96.0      44     26    1506   246   281     661       79        4        4      6
+c3  Sage        68.6   86.9      56     23    1868   305   777    1155      171        3        5     16
+iron works built (all settlements):
+  crane                     2    2    0    2
+  windlass_well            16    9    5    6
+  terrace                  16   32    6   14
+  aqueduct                  3    4    0    1
+  bathhouse                 6    2    0    1
+  theatre_arena             4    4    0    1
+  road                     13   20   13   16
+  bridge                    1   16    0   13
+  gatehouse                 5    6    3    5
+  frontier_wall_segment     2    0    2    1
+  castle                    2    0    0    1
+  harbor                    0    0    0    1
+  galley                    0    0    0    1
+  academy                   4    3    4    3
+  press                     3    1    2    2
+  temple_tier2              6    3    3    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 12; (nothing wanted) x1 (0%), aqueduct x1 (0%), crane x1 (100%), press x2 (100%), theatre_arena x3 (100%), water_mill x1 (100%)
+  c1: villages 16; aqueduct x2 (100%), bathhouse x3 (99%), bridge x1 (100%), crane x1 (100%), great_library x1 (100%), press x1 (100%), temple_tier2 x1 (0%), windlass_well x1 (38%)
+  c2: villages 17; (nothing wanted) x1 (0%), castle x1 (47%), gatehouse x1 (0%), great_dome x1 (4%), harbor x1 (100%), road x1 (23%), windlass_well x3 (87%)
+  c3: villages 14; (nothing wanted) x1 (0%), bathhouse x1 (23%), crane x1 (64%), press x1 (100%), theatre_arena x3 (100%), water_mill x1 (100%), windlass_well x1 (0%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 1 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 2 towns
+  bathhouse lacks wood: 1 towns
+  bridge lacks block: 1 towns
+  bridge lacks wood: 2 towns
+  crane lacks bloom: 2 towns
+  crane lacks wood: 1 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 1 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 1 towns
+  harbor lacks block: 1 towns
+  press lacks bloom: 4 towns
+  press lacks wood: 2 towns
+  road lacks block: 1 towns
+  theatre_arena lacks block: 5 towns
+  theatre_arena lacks wood: 4 towns
+  water_mill lacks block: 2 towns
+  water_mill lacks wheel: 1 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 10  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 150, c1 197, c2 79, c3 171
+final legacy per civ: c0 5123, c1 5520, c2 4182, c3 4789
+
