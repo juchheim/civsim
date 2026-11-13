@@ -382,6 +382,20 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     public BeaconSitePreview PreviewBeaconPlacement(int civ, int tile)
     {
         if ((uint)civ >= (uint)_civs) return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
+        return _economy.PreviewBeaconSite(civ, tile, BeaconToReplace(civ, tile));
+    }
+
+    /// <summary>Read-only site scores and blockers for explored tiles in a prospective Beacon's influence field.</summary>
+    public BeaconSiteFieldPreview PreviewBeaconFieldPlacement(int civ, int tile)
+    {
+        if ((uint)civ >= (uint)_civs)
+            return new BeaconSiteFieldPreview(new BeaconSitePreview(false, Fix64.Zero, 0, 0,
+                BeaconSiteBlockReason.NoLivingSettlement), Array.Empty<BeaconSiteHeatmapCell>(), false);
+        return _economy.PreviewBeaconField(civ, tile, BeaconToReplace(civ, tile));
+    }
+
+    private int BeaconToReplace(int civ, int tile)
+    {
         IReadOnlyList<int> beacons = _beacons[civ];
         int replaced = -1;
         if (beacons.Count >= BeaconAllowance(civ) && beacons.Count > 0)
@@ -395,7 +409,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 replaced = i;
             }
         }
-        return _economy.PreviewBeaconSite(civ, tile, replaced);
+        return replaced;
     }
 
     /// <summary>First contact between two civilizations, whatever their reach (a test and scenario hook).</summary>
@@ -568,21 +582,25 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// <summary>The owner of a tile for the economy's camp planner (docs/MVP/23 §7.2), -1 when unowned.</summary>
     int ITileOwnership.OwnerOf(int tile) => _tinFolk.Count > 0 && FreeFolkOwns(tile) ? -2 : _territory.OwnerOf(tile);
 
-    public bool Allows(int civ, int tile)
+    public bool Allows(int civ, int tile) => SiteBlockReason(civ, tile) == BeaconSiteBlockReason.None;
+
+    public BeaconSiteBlockReason SiteBlockReason(int civ, int tile)
     {
-        if (!_economy.IsCleanCoreSite(tile)) return false; // no village over a deposit (docs/MVP/31 §3.3)
+        if (!_economy.IsCleanCoreSite(tile)) return BeaconSiteBlockReason.ValuableDeposit; // no village over a deposit (docs/MVP/31 §3.3)
         int owner = _territory.OwnerOf(tile);
-        if (owner != -1 && owner != civ) return false;
+        if (owner != -1 && owner != civ) return BeaconSiteBlockReason.RivalOwned;
         for (int s = 0; s < _sCount; s++)
         {
             if (_sCiv[s] == civ || _free[s] || _sPop[s] <= 0) continue;
-            if (HexGrid.Distance(_sTile[s], tile, _width) < _rules.RivalMinDist) return false;
+            if (HexGrid.Distance(_sTile[s], tile, _width) < _rules.RivalMinDist)
+                return BeaconSiteBlockReason.TooCloseToRivalSettlement;
         }
         // Tin Folk land is theirs: daughters keep the founding distance from a free village (docs/MVP/22 §4.3, §6.4).
         foreach (TinFolkVillage v in _tinFolk)
             if (v.Joined < 0 && (uint)v.Settlement < (uint)_sCount && _free[v.Settlement] &&
-                HexGrid.Distance(_sTile[v.Settlement], tile, _width) < _rules.RivalMinDist) return false;
-        return true;
+                HexGrid.Distance(_sTile[v.Settlement], tile, _width) < _rules.RivalMinDist)
+                return BeaconSiteBlockReason.TooCloseToFreeFolk;
+        return BeaconSiteBlockReason.None;
     }
 
     /// <summary>

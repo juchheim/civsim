@@ -26,6 +26,8 @@ var e3_overlay_image: Image
 var e3_overlay_texture: ImageTexture
 var forest_overlay_image: Image
 var forest_overlay_texture: ImageTexture
+var beacon_site_image: Image
+var beacon_site_texture: ImageTexture
 var overlay_mode := 0 # 0 none, 1 claims, 2 food, 3 methods, 4 deposits, 5 trade, 6 cohesion, 7 forest
 var beacon_preview_tile := -1
 var hearth_fx_by_tile := {}
@@ -55,6 +57,7 @@ func setup_frame(frame_data: Dictionary) -> void:
 	kit = M7MeshKit.new()
 	_make_state_texture()
 	_make_overlay_texture()
+	_make_beacon_site_texture()
 	_make_materials()
 	_make_environment()
 	_make_camera()
@@ -572,12 +575,18 @@ func set_supply_network_visible(enabled: bool) -> void:
 	if builder != null:
 		builder.set_supply_network_visible(enabled)
 
-## Preview the Beacon's exact hex influence field and the hovered site's relative fit.
-## site_fit is -1 when the tile is unexplored, otherwise 0..1.
-func set_beacon_preview(tile: int, site_fit: float) -> void:
+## Preview the Beacon's exact hex influence field, site-fit heatmap, and hovered fit.
+## site_fit is -1 when the tile is unexplored, otherwise 0..1. site_state is RGBA8 per map tile.
+func set_beacon_preview(tile: int, site_fit: float, site_state: PackedByteArray) -> void:
 	beacon_preview_tile = tile
 	if not mats.has("terrain"):
 		return
+	if site_state.size() != world.width * world.height * 4:
+		site_state = PackedByteArray()
+		site_state.resize(world.width * world.height * 4)
+	beacon_site_image.set_data(world.width, world.height, false, Image.FORMAT_RGBA8, site_state)
+	beacon_site_texture.update(beacon_site_image)
+	mats.terrain.set_shader_parameter("beacon_site_state", beacon_site_texture)
 	var enabled := tile >= 0 and tile < world.width * world.height
 	mats.terrain.set_shader_parameter("beacon_preview_enabled", enabled)
 	if not enabled:
@@ -654,6 +663,12 @@ func _make_overlay_texture() -> void:
 	_update_overlay_texture()
 	_update_e3_overlay_texture()
 	_update_forest_overlay_texture()
+
+func _make_beacon_site_texture() -> void:
+	var data := PackedByteArray()
+	data.resize(world.width * world.height * 4)
+	beacon_site_image = Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, data)
+	beacon_site_texture = ImageTexture.create_from_image(beacon_site_image)
 
 func _update_overlay_texture() -> void:
 	if overlay_image == null or world == null:
@@ -734,6 +749,7 @@ func _make_materials() -> void:
 	terrain.set_shader_parameter("overlay_state", overlay_texture)
 	terrain.set_shader_parameter("e3_overlay_state", e3_overlay_texture)
 	terrain.set_shader_parameter("forest_overlay_state", forest_overlay_texture)
+	terrain.set_shader_parameter("beacon_site_state", beacon_site_texture)
 	terrain.set_shader_parameter("map_size", Vector2(world.width, world.height))
 	terrain.set_shader_parameter("overlay_forecast", 1.0 if world.season >= 2 else 0.0)
 	mats.terrain = terrain

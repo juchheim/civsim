@@ -418,16 +418,41 @@ public partial class Game
     private string BeaconPreviewText(MatchFrame frame, int tile)
     {
         if (_session is null) return "Settlement likelihood unavailable.";
-        CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(frame, tile);
-        if (!preview.CanFound)
-            return "Estimated likelihood: none · a site must be reachable and in range of a living settlement, 9+ tiles from every living settlement, not rival-owned, and clear of metal, salt, and coal deposits within one tile.";
-
+        CivSim.Sim.Economy.BeaconSiteFieldPreview field = GetBeaconPlacementField(frame, tile);
+        CivSim.Sim.Economy.BeaconSitePreview preview = field.Center;
         int fit = Math.Clamp((preview.RelativeSiteFit * CivSim.Sim.Numerics.Fix64.FromInt(100)).RoundToInt(), 0, 100);
-        string likelihood = fit >= 85 ? "High" : fit >= 60 ? "Possible" : "Low";
+        if (!preview.CanFound)
+        {
+            string baseline = field.HasLegalSite ? "best reachable legal site in this Beacon field" : "best ground in this Beacon field";
+            return $"Potential site score: {fit}% of the {baseline}. Not an option: {BeaconBlockReasonText(preview)}";
+        }
+
         string ready = preview.PendingSplits > 0
             ? $"Ready splits choosing this exact tile: {preview.PendingSplitsChoosingTile}/{preview.PendingSplits}."
             : "No split is pending right now; timing depends on population growth and conditions.";
-        return $"Estimated likelihood: {likelihood} · this tile scores {fit}% of the best reachable site in this field. {ready}";
+        return $"Site fit: {fit}% of the best reachable site for a settlement that can found here; this is a relative score, not a chance. {ready}";
+    }
+
+    private static string BeaconBlockReasonText(CivSim.Sim.Economy.BeaconSitePreview preview)
+    {
+        return preview.BlockReason switch
+        {
+            CivSim.Sim.Economy.BeaconSiteBlockReason.Uninhabitable => "water, ice, and peaks cannot host a settlement.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.ValuableDeposit => "the settlement core overlaps a metal, salt, or coal deposit.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.OccupiedSite => "a settlement already stands here.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.TooCloseToOwnSettlement =>
+                $"only {preview.BlockingDistance} hexes from one of your settlements; {preview.RequiredDistance} are required.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.TooCloseToRivalSettlement =>
+                $"only {preview.BlockingDistance} hexes from a rival settlement; {preview.RequiredDistance} are required.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.TooCloseToFreeFolk =>
+                $"only {preview.BlockingDistance} hexes from a Free Folk settlement; {preview.RequiredDistance} are required.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.RivalOwned => "a rival owns this tile.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.NoLivingSettlement => "no living settlement can send a daughter band.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.BeyondReach =>
+                $"the nearest living settlement is {preview.BlockingDistance} hexes away; current reach is {preview.RequiredDistance}.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.NoRoute => "there is no land or boat route from a settlement in range.",
+            _ => "no eligible settlement can reach this site.",
+        };
     }
 
     private void RefreshScoutControls(MatchFrame frame, int tile, bool pinned)

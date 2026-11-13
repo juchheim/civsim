@@ -295,6 +295,13 @@ public sealed class SimulationSession : IDisposable
             return _match.Politics.PreviewBeaconPlacement(civ, tile);
     }
 
+    /// <summary>Site-fit heatmap and exact blocker reasons for explored tiles in a prospective Beacon's field.</summary>
+    public BeaconSiteFieldPreview PreviewBeaconFieldPlacement(int civ, int tile)
+    {
+        lock (_stateLock)
+            return _match.Politics.PreviewBeaconFieldPlacement(civ, tile);
+    }
+
     /// <summary>Own settlements within reach of a founding site with the donor figures a refusal is judged by, read on the simulation lock.</summary>
     public System.Collections.Generic.List<FoundDonorStatus> FoundDonorStatuses(int civ, int tile)
     {

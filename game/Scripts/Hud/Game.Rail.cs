@@ -159,19 +159,19 @@ public partial class Game
         AddSwatch(forest, new Color("#145f38"), "Dense");
         forest.AddChild(UiKit.Text("Bands appear only on tiles in current sight.", "CaptionTertiary", wrap: true, minWidth: 207));
 
-        beacon.AddChild(UiKit.Text("BEACON INFLUENCE", "EyebrowTertiary"));
-        beacon.AddChild(GradientBar(new Color("#267D9E"), new Color("#F9BA40")));
+        beacon.AddChild(UiKit.Text("BEACON FIELD · SITE FIT", "EyebrowTertiary"));
+        beacon.AddChild(GradientBar(new Color("#e65242"), new Color("#4dcc7a")));
         var beaconStrength = UiKit.Row(0);
         beaconStrength.AddChild(UiKit.Text("0%", "Caption"));
         beaconStrength.AddChild(UiKit.Spacer(expand: true));
-        beaconStrength.AddChild(UiKit.Text("+50%", "Caption"));
+        beaconStrength.AddChild(UiKit.Text("100%", "Caption"));
         beacon.AddChild(beaconStrength);
-        AddSwatch(beacon, new Color("#4dcc7a"), "High site fit");
-        AddSwatch(beacon, new Color("#f5ad37"), "Moderate site fit");
-        AddSwatch(beacon, new Color("#e65242"), "Low or no legal site");
+        AddSwatch(beacon, new Color("#4dcc7a"), "High legal fit (85–100%)");
+        AddSwatch(beacon, new Color("#f5ad37"), "Moderate legal fit (60–84%)");
+        AddSwatch(beacon, new Color("#e65242"), "Low legal fit (<60%)");
+        AddSwatch(beacon, new Color("#9f3441"), "Blocked · hover for the reason");
         AddSwatch(beacon, new Color("#c7d9de"), "Unexplored · estimate unavailable");
-        beacon.AddChild(UiKit.Text("Shade shows the fission score bonus: strongest at the marker, fading to zero over 15 hexes.", "CaptionTertiary", wrap: true, minWidth: 207));
-        beacon.AddChild(UiKit.Text("Center color shows site fit. The % compares its score with nearby reachable legal sites; it is not a literal chance. Pending splits also show how many would choose the exact tile.", "CaptionTertiary", wrap: true, minWidth: 207));
+        beacon.AddChild(UiKit.Text("Tile colors show relative site score after Beacon bias. Percent is a score, not a chance; hover any tile for its exact blocker. The field extends 15 hexes from the cursor.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         _legendCard.AddChild(host);
         _hudRoot!.AddChild(_legendCard);

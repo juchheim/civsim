@@ -13,6 +13,7 @@ namespace CivSim.Sim.Economy;
 public interface IFissionSiteAdvisor
 {
     bool Allows(int civ, int tile);
+    BeaconSiteBlockReason SiteBlockReason(int civ, int tile);
     /// <summary>Multiplier on the site's food score, 1 when neutral.</summary>
     Fix64 Multiplier(int civ, int tile);
     /// <summary>The multiplier with a hypothetical Beacon placement, optionally replacing one existing Beacon.</summary>
@@ -25,8 +26,28 @@ public interface IFissionSiteAdvisor
     bool VoyageLost(int civ, int fromTile, int toTile, int season);
 }
 
-/// <summary>A read-only estimate of where a newly placed Beacon would rank as a daughter-band settlement site.</summary>
-public readonly record struct BeaconSitePreview(bool CanFound, Fix64 RelativeSiteFit, int PendingSplits, int PendingSplitsChoosingTile);
+public enum BeaconSiteBlockReason : byte
+{
+    None,
+    Uninhabitable,
+    ValuableDeposit,
+    OccupiedSite,
+    TooCloseToOwnSettlement,
+    TooCloseToRivalSettlement,
+    TooCloseToFreeFolk,
+    RivalOwned,
+    NoLivingSettlement,
+    BeyondReach,
+    NoRoute,
+}
+
+/// <summary>A read-only site score and the first rule that blocks a site, if any.</summary>
+public readonly record struct BeaconSitePreview(bool CanFound, Fix64 RelativeSiteFit, int PendingSplits,
+    int PendingSplitsChoosingTile, BeaconSiteBlockReason BlockReason = BeaconSiteBlockReason.None,
+    int BlockingDistance = -1, int RequiredDistance = 0);
+
+public readonly record struct BeaconSiteHeatmapCell(int Tile, Fix64 RelativeSiteFit, BeaconSiteBlockReason BlockReason);
+public readonly record struct BeaconSiteFieldPreview(BeaconSitePreview Center, BeaconSiteHeatmapCell[] Cells, bool HasLegalSite);
 
 /// <summary>What conflict and trade take from or add to a settlement's goods (docs/MVP/13 §4, §5.4).</summary>
 public enum LootPreference { PreservedFoodThenToolsThenFresh, FoodOnly }
@@ -51,14 +72,18 @@ public sealed partial class LivingEconomyModel
     public IFissionSiteAdvisor? SiteAdvisor { get; set; }
 
     /// <summary>
-    /// Estimates the Beacon tile against legal nearby fission sites. RelativeSiteFit is the target score divided by the strongest
-    /// reachable site score within the Beacon's 15-tile influence radius. Pending splits are checked against the full fission chooser.
+    /// Estimates the Beacon tile against legal nearby fission sites. RelativeSiteFit compares each eligible tile against the
+    /// strongest reachable site for the same parent settlement. Pending splits are checked against the full fission chooser.
     /// This is a display-only query and does not change simulation state.
     /// </summary>
     public BeaconSitePreview PreviewBeaconSite(int civ, int beaconTile, int replacedBeaconIndex = -1)
+        => PreviewBeaconField(civ, beaconTile, replacedBeaconIndex).Center;
+
+    public BeaconSiteFieldPreview PreviewBeaconField(int civ, int beaconTile, int replacedBeaconIndex = -1)
     {
-        if ((uint)beaconTile >= (uint)_world.TileCount || !IsHabitable(beaconTile) || !_coreClean[beaconTile])
-            return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
+        if ((uint)beaconTile >= (uint)_world.TileCount)
+            return new BeaconSiteFieldPreview(new BeaconSitePreview(false, Fix64.Zero, 0, 0,
+                BeaconSiteBlockReason.Uninhabitable), Array.Empty<BeaconSiteHeatmapCell>(), false);
 
         var parents = new List<SettlementState>();
         int pendingSplits = 0, pendingSplitsChoosingTile = 0;
@@ -72,50 +97,121 @@ public sealed partial class LivingEconomyModel
             if (ChooseFissionSite(parent, checked((int)_seasonsCompleted), beaconTile, replacedBeaconIndex, recordDiagnostics: false) == beaconTile)
                 pendingSplitsChoosingTile++;
         }
-        if (parents.Count == 0) return new BeaconSitePreview(false, Fix64.Zero, pendingSplits, pendingSplitsChoosingTile);
 
         int[] populations = FillSettlementPopulationScratch();
-        var localCandidates = new List<(int Tile, Fix64 Score)>(768);
-        for (int tile = 0; tile < _world.TileCount; tile++)
+        var tiles = new List<int>(768);
+        BuildFissionCandidateTiles(beaconTile, 15, tiles);
+        var candidates = new List<(int Tile, Fix64 Score, BeaconSiteBlockReason Reason, int Distance, int Required, int[] Parents)>(tiles.Count);
+        var bestParentScore = new Fix64[parents.Count];
+        Fix64 bestLegalScore = Fix64.Zero, bestPotentialScore = Fix64.Zero;
+        bool hasLegalSite = false;
+        int reach = Math.Max(14, SiteAdvisor?.SettleReach(civ) ?? 14);
+
+        foreach (int tile in tiles)
         {
-            if (HexGrid.Distance(beaconTile, tile, _world.Width) > 15 || !IsHabitable(tile) || !_coreClean[tile]) continue;
-            bool existingSite = false;
+            BeaconSiteBlockReason reason = BeaconSiteBlockReason.None;
+            int blockingDistance = -1, requiredDistance = 0;
+            if (!IsHabitable(tile)) reason = BeaconSiteBlockReason.Uninhabitable;
+            else if (!_coreClean[tile]) reason = BeaconSiteBlockReason.ValuableDeposit;
+
+            int existingSite = SettlementAtSite(tile);
+            if (reason == BeaconSiteBlockReason.None && existingSite >= 0 && !IsAbandonedSiteFor(civ, tile))
+                reason = BeaconSiteBlockReason.OccupiedSite;
+
+            int closestSettlement = int.MaxValue, closestSettlementIndex = -1;
             for (int s = 0; s < _settlements.Count; s++)
-                if (_settlements[s].SiteTile == tile) { existingSite = true; break; }
-            if (existingSite && !IsAbandonedSiteFor(civ, tile)) continue;
-            bool farEnough = true;
-            for (int s = 0; s < _settlements.Count; s++)
-                if (populations[s] > 0 && HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width) < Radius * 2 + 1)
-                { farEnough = false; break; }
-            if (!farEnough || SiteAdvisor is not null && !SiteAdvisor.Allows(civ, tile)) continue;
+            {
+                if (populations[s] <= 0) continue;
+                int distance = HexGrid.Distance(tile, _settlements[s].SiteTile, _world.Width);
+                if (distance < closestSettlement) { closestSettlement = distance; closestSettlementIndex = s; }
+            }
+            int minimumDistance = Radius * 2 + 1;
+            if (reason == BeaconSiteBlockReason.None && closestSettlement < minimumDistance)
+            {
+                blockingDistance = closestSettlement;
+                requiredDistance = minimumDistance;
+                SettlementState nearby = _settlements[closestSettlementIndex];
+                reason = IsFreeFolk(nearby) ? BeaconSiteBlockReason.TooCloseToFreeFolk
+                    : nearby.Civilization == civ ? BeaconSiteBlockReason.TooCloseToOwnSettlement
+                    : BeaconSiteBlockReason.TooCloseToRivalSettlement;
+            }
+            if (reason == BeaconSiteBlockReason.None && SiteAdvisor is not null)
+                reason = SiteAdvisor.SiteBlockReason(civ, tile);
+
+            bool withinReach = false, reachable = false;
+            int nearestParentDistance = int.MaxValue;
+            var reachableParents = new List<int>();
+            if (reason == BeaconSiteBlockReason.None)
+            {
+                if (parents.Count == 0) reason = BeaconSiteBlockReason.NoLivingSettlement;
+                else
+                {
+                    for (int parentIndex = 0; parentIndex < parents.Count; parentIndex++)
+                    {
+                        SettlementState parent = parents[parentIndex];
+                        int distance = HexGrid.Distance(parent.SiteTile, tile, _world.Width);
+                        if (distance < nearestParentDistance) nearestParentDistance = distance;
+                        if (distance > reach) continue;
+                        withinReach = true;
+                        bool hasRoute = SiteAdvisor is null || SiteAdvisor.Reachable(civ, parent.SiteTile, tile);
+                        if (!hasRoute) continue;
+                        reachableParents.Add(parentIndex);
+                        reachable = true;
+                    }
+                    if (!reachable)
+                    {
+                        requiredDistance = reach;
+                        blockingDistance = nearestParentDistance != int.MaxValue ? nearestParentDistance : -1;
+                        reason = withinReach ? BeaconSiteBlockReason.NoRoute : BeaconSiteBlockReason.BeyondReach;
+                    }
+                }
+            }
+
             Fix64 score = _siteFoodScores[tile] * (SiteAdvisor is null
                 ? Fix64.One
                 : SiteAdvisor.PreviewMultiplier(civ, tile, beaconTile, replacedBeaconIndex)) * IronFuelSitingMultiplier(civ, tile);
-            if (score >= Fix64.Zero) localCandidates.Add((tile, score));
-        }
-
-        bool canFound = false;
-        Fix64 bestFit = Fix64.Zero;
-        foreach (SettlementState parent in parents)
-        {
-            int reach = Math.Max(14, SiteAdvisor?.SettleReach(civ) ?? 14);
-            Fix64 best = Fix64.Zero, target = Fix64.Zero;
-            bool targetReachable = false;
-            foreach ((int tile, Fix64 score) in localCandidates)
+            score = Fix64.Max(Fix64.Zero, score);
+            if (reason is not (BeaconSiteBlockReason.Uninhabitable or BeaconSiteBlockReason.ValuableDeposit or BeaconSiteBlockReason.OccupiedSite) &&
+                score > bestPotentialScore) bestPotentialScore = score;
+            if (reason == BeaconSiteBlockReason.None)
             {
-                int distance = HexGrid.Distance(parent.SiteTile, tile, _world.Width);
-                if (distance < Radius * 2 + 1 || distance > reach ||
-                    SiteAdvisor is not null && !SiteAdvisor.Reachable(civ, parent.SiteTile, tile)) continue;
-                if (score > best) best = score;
-                if (tile == beaconTile) { target = score; targetReachable = true; }
+                hasLegalSite = true;
+                if (score > bestLegalScore) bestLegalScore = score;
+                foreach (int parentIndex in reachableParents)
+                    if (score > bestParentScore[parentIndex]) bestParentScore[parentIndex] = score;
             }
-            if (!targetReachable) continue;
-            canFound = true;
-            Fix64 fit = best > Fix64.Zero ? Fix64.Clamp(target / best, Fix64.Zero, Fix64.One) : Fix64.Zero;
-            if (fit > bestFit) bestFit = fit;
+            candidates.Add((tile, score, reason, blockingDistance, requiredDistance, reachableParents.ToArray()));
         }
 
-        return new BeaconSitePreview(canFound, bestFit, pendingSplits, pendingSplitsChoosingTile);
+        Fix64 denominator = bestLegalScore > Fix64.Zero ? bestLegalScore : bestPotentialScore;
+        var cells = new BeaconSiteHeatmapCell[candidates.Count];
+        BeaconSitePreview center = new(false, Fix64.Zero, pendingSplits, pendingSplitsChoosingTile,
+            BeaconSiteBlockReason.Uninhabitable);
+        bool centerSeen = false;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            (int tile, Fix64 score, BeaconSiteBlockReason reason, int distance, int required, int[] reachableParents) = candidates[i];
+            Fix64 fit = Fix64.Zero;
+            if (reason == BeaconSiteBlockReason.None)
+            {
+                foreach (int parentIndex in reachableParents)
+                {
+                    Fix64 parentBest = bestParentScore[parentIndex];
+                    if (parentBest <= Fix64.Zero) continue;
+                    fit = Fix64.Max(fit, Fix64.Clamp(score / parentBest, Fix64.Zero, Fix64.One));
+                }
+            }
+            else if (denominator > Fix64.Zero) fit = Fix64.Clamp(score / denominator, Fix64.Zero, Fix64.One);
+            cells[i] = new BeaconSiteHeatmapCell(tile, fit, reason);
+            if (tile != beaconTile) continue;
+            centerSeen = true;
+            center = new BeaconSitePreview(reason == BeaconSiteBlockReason.None, fit, pendingSplits,
+                pendingSplitsChoosingTile, reason, distance, required);
+        }
+
+        if (!centerSeen) center = new BeaconSitePreview(false, Fix64.Zero, pendingSplits,
+            pendingSplitsChoosingTile, BeaconSiteBlockReason.Uninhabitable);
+        return new BeaconSiteFieldPreview(center, cells, hasLegalSite);
     }
 
     // Diagnostic-only sink: deliberately excluded from state hashes, snapshots and serialization.

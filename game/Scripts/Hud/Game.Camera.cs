@@ -27,7 +27,7 @@ public partial class Game
     private long _beaconPreviewSequence = -1;
     private int _beaconEstimateTile = -1;
     private long _beaconEstimateSequence = -1;
-    private CivSim.Sim.Economy.BeaconSitePreview _beaconEstimate;
+    private CivSim.Sim.Economy.BeaconSiteFieldPreview _beaconFieldEstimate;
     private bool _panGestureSeen;
 
     private int ZoomLevel => _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
@@ -542,31 +542,52 @@ public partial class Game
         _beaconPreviewSequence = sequence;
 
         float fit = -1.0f;
+        byte[] heatmap = Array.Empty<byte>();
         if (_current.Visibility[tile] != (byte)TileVisibility.Unknown)
         {
-            CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(_current, tile);
+            CivSim.Sim.Economy.BeaconSiteFieldPreview field = GetBeaconPlacementField(_current, tile);
+            CivSim.Sim.Economy.BeaconSitePreview preview = field.Center;
             fit = preview.CanFound ? (float)preview.RelativeSiteFit.ToDoubleForDisplay() : 0.0f;
+            heatmap = BuildBeaconHeatmap(_current, field);
         }
-        _visualRenderer.Call("set_beacon_preview", tile, fit);
+        _visualRenderer.Call("set_beacon_preview", tile, fit, heatmap);
     }
 
-    private CivSim.Sim.Economy.BeaconSitePreview GetBeaconPlacementPreview(MatchFrame frame, int tile)
+    private CivSim.Sim.Economy.BeaconSiteFieldPreview GetBeaconPlacementField(MatchFrame frame, int tile)
     {
         if (_session is null) return default;
         if (_beaconEstimateTile != tile || _beaconEstimateSequence != frame.Sequence)
         {
-            _beaconEstimate = _session.PreviewBeaconPlacement(frame.FocusCiv, tile);
+            _beaconFieldEstimate = _session.PreviewBeaconFieldPlacement(frame.FocusCiv, tile);
             _beaconEstimateTile = tile;
             _beaconEstimateSequence = frame.Sequence;
         }
-        return _beaconEstimate;
+        return _beaconFieldEstimate;
+    }
+
+    private static byte[] BuildBeaconHeatmap(MatchFrame frame, CivSim.Sim.Economy.BeaconSiteFieldPreview field)
+    {
+        var state = new byte[frame.Width * frame.Height * 4];
+        foreach (CivSim.Sim.Economy.BeaconSiteHeatmapCell cell in field.Cells)
+        {
+            if ((uint)cell.Tile >= (uint)(frame.Width * frame.Height) ||
+                frame.Visibility[cell.Tile] == (byte)TileVisibility.Unknown) continue;
+            int offset = cell.Tile * 4;
+            int fit = Math.Clamp((cell.RelativeSiteFit * CivSim.Sim.Numerics.Fix64.FromInt(100)).RoundToInt(), 0, 100);
+            state[offset] = (byte)(fit * 255 / 100);
+            state[offset + 1] = (byte)cell.BlockReason;
+            state[offset + 3] = 255;
+        }
+        return state;
     }
 
     private void ClearBeaconPreview()
     {
-        _visualRenderer?.Call("set_beacon_preview", -1, -1.0f);
+        _visualRenderer?.Call("set_beacon_preview", -1, -1.0f, Array.Empty<byte>());
         _beaconPreviewTile = -1;
         _beaconPreviewSequence = -1;
+        _beaconEstimateTile = -1;
+        _beaconEstimateSequence = -1;
     }
 
     private void ManageBeaconAt(Vector2 screenPosition)
