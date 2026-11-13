@@ -71,11 +71,14 @@ public sealed partial class LivingEconomyModel
     {
         int fields = s.FieldTiles.Count;
         Fix64 need = Fix64.FromInt(fields);
-        if (!E3Food(s) || !HasProject(s.Civilization, "AGR-05")) return need;
-        int pairs = (s.DomesticCattle / 2).FloorToInt();
-        int perPair = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
-        int ploughed = Math.Min(fields, pairs * perPair);
-        return need - Fix64.FromInt(ploughed) * Fix64.Half;
+        if (E3Food(s) && HasProject(s.Civilization, "AGR-05"))
+        {
+            int pairs = (s.DomesticCattle / 2).FloorToInt();
+            int perPair = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
+            int ploughed = Math.Min(fields, pairs * perPair);
+            need -= Fix64.FromInt(ploughed) * Fix64.Half;
+        }
+        return need * FiefFieldCropShare(s);
     }
 
     /// <summary>

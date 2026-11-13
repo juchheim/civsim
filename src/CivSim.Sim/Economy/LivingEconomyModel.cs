@@ -2909,10 +2909,17 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 factor = required <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, settlement.FarmWorkThisYear / required);
         Fix64 yield = Fix64.Zero;
         Fix64 soilLossMod = settlement.Civic is not null ? SoilLossModifier(settlement) : Modifier(settlement.Civilization, "soil_fertility_loss");
-        foreach (int tile in settlement.FieldTiles)
+        for (int fieldIndex = 0; fieldIndex < settlement.FieldTiles.Count; fieldIndex++)
         {
+            int tile = settlement.FieldTiles[fieldIndex];
+            if (!FiefFieldCropped(settlement, fieldIndex, year))
+            {
+                WorldEconomyTile fallow = _world.Tile(tile);
+                _soil[tile] = Fix64.Min(fallow.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
+                continue;
+            }
             // A terraced hillside plot (Iron chapter): built-up soil, a fixed yield, never flooded.
-            if (IronChain && IsIronTerrace(settlement, tile)) { yield += TerraceYield; continue; }
+            if (IronChain && IsIronTerrace(settlement, tile)) { yield += TerraceYield * FiefFieldYield(settlement); continue; }
             WorldEconomyTile input = _world.Tile(tile);
             Fix64 soilRatio = input.SoilFertility <= Fix64.Zero
                 ? Fix64.Parse("0.3")
@@ -2927,12 +2934,14 @@ public sealed partial class LivingEconomyModel : ISimModel
             {
                 _soil[tile] = Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
                 // AGR-06's canals and NUM-06's calendar halve what a flood takes (E2: the whole harvest).
-                if (settlement.Civic is not null) yield += FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement));
+                if (settlement.Civic is not null)
+                    yield += FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement)) * FiefFieldYield(settlement);
             }
             else
             {
                 Fix64 fieldYield = FieldBaseYield(settlement.Civilization, input) * soilRatio;
                 if (irrigation != Fix64.One) fieldYield *= irrigation;
+                fieldYield *= FiefFieldYield(settlement);
                 if (_tendedStandYieldBonus[tile] && factor > Fix64.Zero)
                 {
                     fieldYield *= Fix64.Parse("1.25");
