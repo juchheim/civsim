@@ -74,6 +74,7 @@ internal static class IronMatchCommand
         bool ironHubFuelSharing = false;
         bool ironFissionCoveragePreserving = false;
         bool bronzeControl = false;
+        bool noBuildWood = false, noChopReach = false, noStoneShare = false;
         int ironFuelReachBufferOverride = -1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -85,6 +86,9 @@ internal static class IronMatchCommand
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--countdown": countdown = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--grant-e4": grantE4 = true; break;
+                case "--no-build-wood": noBuildWood = true; break;
+                case "--no-chop-reach": noChopReach = true; break;
+                case "--no-stone-share": noStoneShare = true; break;
                 case "--it6-accounting": it6Accounting = true; break;
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
                 case "--it2-kit-trace": it2KitTrace = true; it6Accounting = true; break;
@@ -99,7 +103,7 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
@@ -108,13 +112,13 @@ internal static class IronMatchCommand
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
         for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
             ironKitTraceSettlement, ironKitTraceFromSeason, ironKitTraceThroughSeason,
-            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride));
+            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare));
         return 0;
     }
 
     private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
         int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
-        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride)
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -122,6 +126,9 @@ internal static class IronMatchCommand
         ChapterRules rules = bronzeControl ? ChapterRules.Bronze :
             countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithCountdown(countdown);
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+        match.Economy.IronBuildWoodProcurementEnabled = !noBuildWood;
+        match.Economy.IronChopReachEnabled = !noChopReach;
+        match.Economy.IronBuildStoneSharingEnabled = !noStoneShare;
         match.Economy.B13WoodTraceEnabled = it6Accounting;
         match.Economy.IT6AccountingTraceEnabled = it6Accounting;
         match.Economy.IT2KitShareTraceEnabled = it2KitTrace;
@@ -352,6 +359,16 @@ internal static class IronMatchCommand
             {
                 string key = $"{LivingEconomyModel.IronWorkId(kind)} lacks {part}";
                 lacks[key] = lacks.GetValueOrDefault(key) + 1;
+            }
+            if (shortage.Contains("wood") && Environment.GetEnvironmentVariable("CIVSIM_WOOD_DIAG") == "1")
+            {
+                var w = match.Economy.IronWoodContext(s);
+                L($"  wood-stuck s{s} {LivingEconomyModel.IronWorkId(kind)} tier {match.Economy.Tier(s)}: store {w.Store.FloorToInt()} L, standing in range {w.InRange.FloorToInt()} L, in Iron reach {w.InReach.FloorToInt()} L, sister stores {w.SisterStores.FloorToInt()} L");
+            }
+            if ((shortage.Contains("block") || shortage.Contains("ashlar")) && Environment.GetEnvironmentVariable("CIVSIM_WOOD_DIAG") == "1")
+            {
+                var st = match.Economy.IronStoneContext(s);
+                L($"  stone-stuck s{s} {LivingEconomyModel.IronWorkId(kind)} tier {match.Economy.Tier(s)} ({shortage}): quarry stone in range {st.InRange.FloorToInt()} L, in reach 8 {st.InReach.FloorToInt()} L, sister blocks {st.SisterBlocks.FloorToInt()} ashlar {st.SisterAshlar.FloorToInt()}");
             }
             if (shortage.Length == 0) lacks[$"{LivingEconomyModel.IronWorkId(kind)} fully supplied"] = lacks.GetValueOrDefault($"{LivingEconomyModel.IronWorkId(kind)} fully supplied") + 1;
         }

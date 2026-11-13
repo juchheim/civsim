@@ -672,7 +672,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
-            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); }
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); ShareBuildStone(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
@@ -2835,17 +2835,23 @@ public sealed partial class LivingEconomyModel
         foreach (int tile in RangeTiles(s.SiteTile))
             if (IsForestTile(tile)) { standing += StandingWoodAvailableToIron(tile); forest = true; }
         if (!forest) foreach (int tile in RangeTiles(s.SiteTile)) standing += _woodStock[tile];
-        if (standing <= Fix64.Zero) return Fix64.Zero;
-        Fix64 want = Fix64.Min(amount, standing), share = want / standing, taken = Fix64.Zero;
-        foreach (int tile in RangeTiles(s.SiteTile))
+        Fix64 taken = Fix64.Zero;
+        if (standing > Fix64.Zero)
         {
-            if (forest && !IsForestTile(tile)) continue;
-            Fix64 available = forest ? StandingWoodAvailableToIron(tile) : _woodStock[tile];
-            Fix64 take = Fix64.Min(available, available * share);
-            RecordB13StandingWoodRemoval(tile, take, "chop", _woodStock[tile]);
-            _woodStock[tile] -= take;
-            taken += take;
+            Fix64 want = Fix64.Min(amount, standing), share = want / standing;
+            foreach (int tile in RangeTiles(s.SiteTile))
+            {
+                if (forest && !IsForestTile(tile)) continue;
+                Fix64 available = forest ? StandingWoodAvailableToIron(tile) : _woodStock[tile];
+                Fix64 take = Fix64.Min(available, available * share);
+                RecordB13StandingWoodRemoval(tile, take, "chop", _woodStock[tile]);
+                _woodStock[tile] -= take;
+                taken += take;
+            }
         }
+        // Iron chapter only: a town whose own range is felled out cuts the rest from the forest within the wider reach (docs/MVP/balance/m12-wp7-build-wood.md).
+        if (IronChain && IronChopReachEnabled && taken < amount) taken += HarvestReachWood(s, amount - taken);
+        if (taken <= Fix64.Zero) return Fix64.Zero;
         s.Stores[(int)Good.Wood] += taken;
         RecordLocalWoodInflow(s, taken, chop: true);
         return taken;

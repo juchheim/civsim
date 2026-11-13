@@ -2442,6 +2442,23 @@ public sealed partial class LivingEconomyModel
         if (spec.Wheel > 0) plan.Terminal[MetalSlot(MetalGood.Wheel)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Wheel) - m.Goods[(int)MetalGood.Wheel]);
     }
 
+    /// <summary>
+    /// Off, an Iron structure's timber is not part of the town's wood target and only turns up by chance (the pre-2026-11-13 behavior). Diagnostics and tests only.
+    /// </summary>
+    internal bool IronBuildWoodProcurementEnabled { get; set; } = true;
+
+    /// <summary>
+    /// The timber the Iron structure under construction needs in store, in litres (its listed wood, not the shortfall: the planner adds it to the wood target, so
+    /// woodcutters work until the store holds the fuel buffer plus this). Zero outside the Iron chapter and with no structure under way. The basic list and a player's
+    /// build focus already ask for their timber this way (docs/MVP/30); Iron works did not, and "lacks wood" was the commonest reason a fully worked Iron structure
+    /// stood unbuilt while the world's forests were 93% intact (docs/MVP/balance/m12-wp7-build-wood.md).
+    /// </summary>
+    private Fix64 IronBuildWoodProcurementNeed(SettlementState s)
+    {
+        if (!IronChain || !IronBuildWoodProcurementEnabled || s.Metal is not { IronBuildKind: >= 0 } m) return Fix64.Zero;
+        return Fix64.FromInt(IronSpecs[m.IronBuildKind].Wood);
+    }
+
     /// <summary>Seasons a fully worked structure may stand unpaid before the town shelves it and builds something else (provisional).</summary>
     private const int IronPatienceSeasons = 8;
 

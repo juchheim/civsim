@@ -1,0 +1,1018 @@
+== iron-match seed 20261019: 102.2 minutes simulated, chapter end RivalCountdown at season 408 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     71.6   91.0      56     21    1994   118   847    1023      118        4        6      7
+c1  Grower      70.5   90.6      56     27    2201   238  1137    1444      179        5        8     22
+c2  Warlord     66.8   91.2      56     26    2274   215  1058    1313      159        6       10     36
+c3  Sage        69.5   90.1      56     27    2077   243   893    1205      123        4        8     12
+iron works built (all settlements):
+  crane                     4    3    4    3
+  windlass_well            12   14   18   14
+  terrace                   1   44   11   41
+  aqueduct                  3    2    0    3
+  bathhouse                 4    3    3    4
+  theatre_arena             3    4    4    5
+  road                     15   17   19   17
+  bridge                    9   12   12   14
+  gatehouse                 5    6    6    5
+  frontier_wall_segment     0    1    3    2
+  castle                    0    1    1    0
+  harbor                    0    1    2    1
+  galley                    0    1    2    1
+  academy                   4    5    7    4
+  press                     3    5    5    4
+  water_mill                0    2    3    1
+  temple_tier2              4    5    6    5
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 12; aqueduct x1 (100%), bridge x1 (100%), crane x1 (100%), great_library x1 (100%), press x2 (100%), theatre_arena x2 (100%), water_mill x1 (100%)
+  c1: villages 17; (nothing wanted) x2 (0%), aqueduct x1 (100%), bathhouse x1 (100%), bridge x2 (100%), crane x1 (100%), great_library x1 (100%), great_lighthouse x1 (100%), water_mill x1 (100%)
+  c2: villages 16; aqueduct x1 (100%), bathhouse x3 (100%), crane x1 (100%), gatehouse x1 (100%), great_library x1 (16%), great_lighthouse x1 (100%), theatre_arena x1 (100%), water_mill x1 (100%)
+  c3: villages 17; (nothing wanted) x3 (0%), aqueduct x1 (11%), castle x1 (100%), great_library x1 (100%), great_lighthouse x1 (100%), temple_tier2 x1 (84%), water_mill x2 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 2 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 4 towns
+  bathhouse lacks wood: 3 towns
+  bridge lacks block: 4 towns
+  bridge lacks wood: 2 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  crane lacks bloom: 1 towns
+  crane lacks wood: 2 towns
+  gatehouse lacks block: 1 towns
+  gatehouse lacks wood: 1 towns
+  great_library lacks ashlar: 3 towns
+  great_library lacks block: 3 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 3 towns
+  great_lighthouse lacks ashlar: 3 towns
+  great_lighthouse lacks block: 3 towns
+  great_lighthouse lacks bloom: 2 towns
+  great_lighthouse lacks wood: 3 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  road lacks block: 2 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 1 towns
+  theatre_arena lacks block: 3 towns
+  theatre_arena lacks wood: 2 towns
+  water_mill lacks block: 4 towns
+  water_mill lacks wheel: 3 towns
+  water_mill lacks wood: 5 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 10  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 146, c1 214, c2 200, c3 178
+final legacy per civ: c0 4762, c1 5232, c2 5371, c3 5213
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2462 stock=60460.00->56004.37 L; regrowth=115095.27 L; removed chop/metal/civic/other=56530.35/58590.66/4429.88/0.00 L (Iron-era subset=52949.32 L); residual=0.00 L
+  local wood stores=0.00->1831.59 L; inflow=82390.34 L; use=80558.75 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=337 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=50/0/0/287/0; currently cleared tiles=16 (grassland=0)
+  Iron fuel hubs and selected ore suppliers (end of match):
+    s0 local-ore=True supplier=s45 ore-need=0.00
+    s3 local-ore=True supplier=s70 ore-need=0.00
+    s5 local-ore=True supplier=s26 ore-need=0.00
+    s6 local-ore=True supplier=s24 ore-need=1.79
+    s7 local-ore=True supplier=s41 ore-need=0.00
+    s8 local-ore=True supplier=s45 ore-need=0.00
+    s9 local-ore=True supplier=s12 ore-need=0.00
+    s10 local-ore=True supplier=s31 ore-need=0.00
+    s11 local-ore=True supplier=s73 ore-need=0.00
+    s12 local-ore=True supplier=s9 ore-need=0.00
+    s13 local-ore=True supplier=s32 ore-need=0.00
+    s14 local-ore=True supplier=s0 ore-need=0.00
+    s15 local-ore=True supplier=s9 ore-need=0.00
+    s16 local-ore=True supplier=s38 ore-need=0.00
+    s17 local-ore=True supplier=s43 ore-need=0.00
+    s18 local-ore=False supplier=none ore-need=0.75
+    s19 local-ore=True supplier=s30 ore-need=0.00
+    s20 local-ore=True supplier=s63 ore-need=0.00
+    s21 local-ore=True supplier=s62 ore-need=0.00
+    s22 local-ore=True supplier=s84 ore-need=0.00
+    s23 local-ore=False supplier=none ore-need=6.00
+    s24 local-ore=True supplier=s6 ore-need=0.00
+    s25 local-ore=True supplier=s6 ore-need=0.00
+    s26 local-ore=True supplier=s5 ore-need=0.00
+    s27 local-ore=True supplier=s5 ore-need=0.00
+    s29 local-ore=True supplier=s37 ore-need=0.00
+    s33 local-ore=False supplier=s38 ore-need=1.50
+    s34 local-ore=True supplier=s4 ore-need=0.00
+    s35 local-ore=False supplier=s32 ore-need=0.00
+    s36 local-ore=False supplier=none ore-need=0.00
+    s37 local-ore=True supplier=s29 ore-need=0.00
+    s38 local-ore=True supplier=s16 ore-need=0.00
+    s41 local-ore=True supplier=s7 ore-need=0.00
+    s42 local-ore=True supplier=s91 ore-need=0.00
+    s43 local-ore=True supplier=s17 ore-need=0.00
+    s44 local-ore=False supplier=s32 ore-need=0.82
+    s45 local-ore=True supplier=s0 ore-need=0.00
+    s49 local-ore=False supplier=s13 ore-need=0.66
+    s50 local-ore=False supplier=s11 ore-need=0.00
+    s52 local-ore=False supplier=s13 ore-need=3.00
+    s53 local-ore=False supplier=s75 ore-need=0.00
+    s55 local-ore=False supplier=s11 ore-need=0.90
+    s56 local-ore=False supplier=s11 ore-need=2.25
+    s58 local-ore=False supplier=s65 ore-need=0.00
+    s61 local-ore=True supplier=s30 ore-need=0.00
+    s63 local-ore=True supplier=s96 ore-need=0.00
+    s64 local-ore=True supplier=s63 ore-need=0.00
+    s65 local-ore=True supplier=s39 ore-need=0.00
+    s66 local-ore=True supplier=s51 ore-need=0.00
+    s67 local-ore=True supplier=s78 ore-need=0.00
+    s69 local-ore=True supplier=s0 ore-need=0.21
+    s72 local-ore=False supplier=s15 ore-need=0.01
+    s73 local-ore=True supplier=s75 ore-need=0.00
+    s75 local-ore=True supplier=s25 ore-need=0.00
+    s76 local-ore=True supplier=s100 ore-need=0.00
+    s77 local-ore=True supplier=s89 ore-need=0.00
+    s78 local-ore=True supplier=s34 ore-need=0.00
+    s79 local-ore=True supplier=s100 ore-need=0.00
+    s82 local-ore=True supplier=s87 ore-need=0.00
+    s85 local-ore=True supplier=s81 ore-need=0.00
+    s86 local-ore=True supplier=s67 ore-need=0.00
+    s87 local-ore=True supplier=s84 ore-need=0.00
+    s88 local-ore=True supplier=s40 ore-need=0.00
+    s89 local-ore=True supplier=s67 ore-need=0.00
+    s90 local-ore=True supplier=s101 ore-need=0.00
+    s91 local-ore=True supplier=s42 ore-need=0.00
+    s93 local-ore=True supplier=s85 ore-need=0.00
+    s94 local-ore=True supplier=s90 ore-need=0.00
+    s97 local-ore=True supplier=s103 ore-need=0.00
+    s98 local-ore=True supplier=s79 ore-need=0.00
+    s100 local-ore=True supplier=s25 ore-need=0.00
+    s101 local-ore=True supplier=s14 ore-need=0.00
+    s103 local-ore=True supplier=s90 ore-need=0.00
+  kits world: T11 made/received/sent/issued/broken/early-upgrades/retired/held/stored=2697.23/517.00/517.00/2627.00/0/90/1813.00/814/70.23; residual=0.00; T12=4563.15/319.00/319.00/4510.00/0/0/575.00/3935/53.15; residual=0.00 kits
+  settlement kit ledgers: 107/107 exact; nonzero residual sites=0
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  I-T2 settlement route screen (first kit issue or sister delivery, then 12 complete seasons; fuel follows per-tier kit transfers to sites that produced the supplied tier during the window; relay-only or stock-only sources are censored): qualify over summed producer-site demand-seasons, with at least 12
+    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ holders11/12 stock11/12 population hub start/end hub F/S site F/S hub-wood-factor hub-reach/baseline site-wood-factor site-reach/baseline made11/12 received11/12 issued11/12 upgrades fuel-sites short/demand rate unmet/plan result
+    s0 297–309 c0->c0 MET-09=296 18 18/0 100.00% 16/0 2/0 29/0 1.00/0.00 71 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 17793.63/498.00 32.60/0.00 1.00/0.00 33.00/0.00 0 [0,14] 0/20 0.00% 0.00/66.68 0.00% PASS screen
+    s1 298–310 c1->c1 MET-09=297 16 16/0 100.00% 16/0 0/0 25/0 1.00/0.00 117 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 21339.73/935.00 39.88/0.00 2.00/0.00 39.00/0.00 0 [1,13,31] 0/33 0.00% 0.00/58.01 0.00% PASS screen
+    s2 288–300 c2->c2 MET-09=287 11 11/0 100.00% 11/0 0/0 29/0 1.00/0.00 92 66/66 1/1 1/1 100.00% 18521.73/19253.00 100.00% 18794.77/511.50 44.52/0.00 0.00/0.00 44.00/0.00 0 [2] 0/12 0.00% 0.00/36.69 0.00% CENSORED assigned hub changed
+    s3 289–301 c3->c3 MET-09=288 18 18/0 100.00% 15/0 3/0 30/0 1.00/0.00 77 3/3 1/1 1/1 100.00% 17516.63/935.00 100.00% 17516.63/935.00 42.37/0.00 2.00/0.00 42.00/0.00 0 [3,25] 0/22 0.00% 0.00/50.54 0.00% PASS screen
+    s4 298–310 c1->c1 MET-09=297 26 26/0 100.00% 25/0 1/0 49/0 1.00/0.00 154 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 18184.64/811.50 55.53/0.00 5.00/0.00 60.00/0.00 0 [4,46] 0/24 0.00% 0.00/79.16 0.00% PASS screen
+    s5 288–300 c2->c2 MET-09=287 13 13/0 100.00% 12/0 1/0 76/0 1.00/0.00 198 5/5 1/1 1/1 100.00% 15951.75/1111.50 100.00% 15951.75/1111.50 79.33/0.00 4.00/0.00 79.00/0.00 0 [2,5,9,38] 0/39 0.00% 0.00/133.75 0.00% PASS screen
+    s6 289–301 c3->c3 MET-09=288 25 25/0 100.00% 25/0 0/0 39/0 1.00/0.00 132 6/6 1/1 1/1 100.00% 16278.30/825.00 100.00% 16278.30/825.00 50.25/0.00 0.00/0.00 50.00/0.00 0 [6] 0/9 0.00% 0.00/42.79 0.00% CENSORED fuel demand 9/12
+    s7 297–309 c0->c0 MET-09=296 10 10/0 100.00% 7/0 3/0 17/0 1.00/0.00 37 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 13576.08/1098.00 16.19/0.00 4.00/0.00 19.00/0.00 0 [0,7,14] 0/29 0.00% 0.00/83.26 0.00% PASS screen
+    s8 297–309 c0->c0 MET-09=296 12 12/0 100.00% 11/0 1/0 21/0 1.00/0.00 64 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 9677.61/678.00 21.95/0.00 0.00/0.00 21.00/0.00 0 [8] 0/9 0.00% 0.00/16.36 0.00% CENSORED fuel demand 9/12
+    s9 288–300 c2->c2 MET-09=287 20 20/0 100.00% 18/0 2/0 22/0 1.00/0.00 64 9/9 1/1 1/1 100.00% 12282.09/705.00 100.00% 12282.09/705.00 25.78/0.00 1.00/0.00 25.00/0.00 0 [2,9] 0/21 0.00% 0.00/60.16 0.00% PASS screen
+    s10 298–310 c1->c1 MET-09=297 14 14/0 100.00% 12/0 2/0 45/0 1.00/0.00 123 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 13825.98/675.00 41.74/0.00 10.00/0.00 45.00/0.00 0 [1,4,10,13,31,46] 0/69 0.00% 0.00/170.52 0.00% PASS screen
+    s11 289–301 c3->c3 MET-09=288 15 15/0 100.00% 12/0 3/0 22/0 1.00/0.00 67 11/11 1/1 1/1 100.00% 13212.88/662.34 100.00% 13212.88/662.34 29.77/0.00 0.00/0.00 29.00/0.00 0 [11] 0/12 0.00% 0.00/29.66 0.00% PASS screen
+    s12 288–300 c2->c2 MET-09=287 14 14/0 100.00% 10/0 4/0 32/0 1.00/0.00 101 12/12 1/1 1/1 100.00% 16332.47/1000.00 100.00% 16332.47/1000.00 28.88/0.00 2.00/0.00 28.00/0.00 0 [2,12] 0/20 0.00% 0.00/63.34 0.00% PASS screen
+    s13 298–310 c1->c1 MET-09=297 7 7/0 100.00% 5/0 2/0 15/0 0.98/0.00 48 13/13 1/1 1/1 100.00% 12112.51/440.00 100.00% 12112.51/440.00 18.87/0.00 0.00/0.00 18.00/0.00 0 [13] 0/10 0.00% 0.00/15.29 0.00% CENSORED fuel demand 10/12
+    s14 297–309 c0->c0 MET-09=296 23 23/0 100.00% 20/0 3/0 33/0 3.00/0.00 139 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 17913.63/453.00 54.11/0.00 0.00/0.00 27.00/0.00 0 [14] 0/9 0.00% 0.00/40.96 0.00% CENSORED fuel demand 9/12
+    s15 289–301 c2->c2 MET-09=287 2 2/0 100.00% 2/0 0/0 7/0 0.00/0.00 17 15/15 1/1 1/1 100.00% 11576.49/645.00 100.00% 11576.49/645.00 1.61/0.00 4.00/0.00 2.00/0.00 0 [2,5,9,15,38] 0/49 0.00% 0.00/113.66 0.00% PASS screen
+    s16 288–300 c2->c2 MET-09=287 5 5/0 100.00% 4/0 1/0 12/0 1.00/0.00 35 16/16 1/1 1/1 100.00% 10566.76/225.00 100.00% 10566.76/225.00 11.36/0.00 1.00/0.00 11.00/0.00 0 [2,5,9,16,38] 0/51 0.00% 0.00/145.44 0.00% PASS screen
+    s17 298–310 c1->c1 MET-09=297 7 7/0 100.00% 7/0 0/0 12/0 1.00/0.00 47 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 13516.25/705.00 14.13/0.00 0.00/0.00 14.00/0.00 0 [17] 0/9 0.00% 0.00/12.82 0.00% CENSORED fuel demand 9/12
+    s19 289–301 c3->c3 MET-09=288 15 15/0 100.00% 13/0 2/0 52/0 1.00/0.00 101 19/19 1/1 1/1 100.00% 17156.43/2550.00 100.00% 17156.43/2550.00 34.91/0.00 0.00/0.00 34.00/0.00 0 [19] 0/10 0.00% 0.00/26.88 0.00% CENSORED Free Folk outside civ kit network
+    s20 297–309 c0->c0 MET-09=296 24 24/0 100.00% 24/0 0/0 57/0 1.00/0.00 121 20/20 1/1 1/1 100.00% 18873.63/2920.00 100.00% 18873.63/2920.00 39.15/0.00 0.00/0.00 39.00/0.00 0 [20] 0/12 0.00% 0.00/28.99 0.00% CENSORED Free Folk outside civ kit network
+    s21 288–300 c2->c2 MET-09=287 11 11/0 100.00% 10/0 1/0 50/0 1.00/0.00 107 21/21 1/1 1/1 100.00% 18716.73/3200.00 100.00% 18716.73/3200.00 35.30/0.00 0.00/0.00 35.00/0.00 0 [21] 0/8 0.00% 0.00/25.84 0.00% CENSORED Free Folk outside civ kit network
+    s22 343–355 c1->c1 MET-09=297 27 0/27 100.00% 0/24 0/3 0/81 0.00/1.00 101 22/22 1/1 1/1 100.00% 17856.11/2685.00 100.00% 17856.11/2685.00 0.00/72.14 0.00/0.00 0.00/72.00 0 [22] 0/5 0.00% 0.00/107.88 0.00% CENSORED Free Folk outside civ kit network
+    s24 289–301 c3->c3 MET-09=288 7 7/0 100.00% 6/0 1/0 11/0 1.00/0.00 36 24/24 1/1 1/1 100.00% 17231.43/942.06 100.00% 17231.43/942.06 11.74/0.00 0.00/0.00 11.00/0.00 0 [24] 0/12 0.00% 0.00/12.87 0.00% PASS screen
+    s25 289–301 c3->c3 MET-09=288 9 9/0 100.00% 8/0 1/0 14/0 1.00/0.00 51 25/25 1/1 1/1 100.00% 15411.87/554.36 100.00% 15411.87/554.36 19.17/0.00 0.00/0.00 19.00/0.00 0 [25] 0/12 0.00% 0.00/16.67 0.00% PASS screen
+    s26 288–300 c2->c2 MET-09=287 10 10/0 100.00% 8/0 2/0 21/0 0.00/0.00 53 26/26 1/1 1/1 100.00% 16643.64/1020.00 100.00% 16643.64/1020.00 24.08/0.00 1.00/0.00 25.00/0.00 0 [2,5,9,26,38] 0/50 0.00% 0.00/154.63 0.00% PASS screen
+    s27 288–300 c2->c2 MET-09=287 9 9/0 100.00% 8/0 1/0 21/0 0.00/0.00 62 27/27 1/1 1/1 100.00% 12942.09/538.95 100.00% 12942.09/538.95 23.35/0.00 0.00/0.00 24.00/0.00 0 [27] 0/11 0.00% 0.00/19.11 0.00% CENSORED fuel demand 11/12
+    s28 291–303 c2->c2 MET-09=287 2 2/0 100.00% 1/0 1/0 6/0 0.00/0.00 18 66/66 1/1 1/1 100.00% 18554.71/19253.00 100.00% 18071.99/719.56 1.00/0.00 4.00/0.00 1.00/0.00 0 [2,28] 0/18 0.00% 0.00/25.25 0.00% CENSORED assigned hub changed
+    s29 290–302 c3->c3 MET-09=288 4 4/0 100.00% 3/0 1/0 6/0 1.00/0.00 33 29/29 1/1 1/1 100.00% 15645.92/1735.00 100.00% 15645.92/1735.00 4.35/0.00 0.00/0.00 4.00/0.00 0 [29] 0/7 0.00% 0.00/5.32 0.00% CENSORED fuel demand 7/12
+    s30 289–301 c3->c3 MET-09=288 9 9/0 100.00% 8/0 1/0 19/0 0.96/0.00 45 61/61 1/1 1/1 100.00% 17141.43/8753.44 100.00% 17186.43/1073.43 24.02/0.00 0.00/0.00 24.00/0.00 0 [30] 0/10 0.00% 0.00/18.27 0.00% CENSORED fuel demand 10/12
+    s31 298–310 c1->c1 MET-09=297 3 3/0 100.00% 3/0 0/0 9/0 0.00/0.00 32 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 18474.13/1070.00 9.04/0.00 1.00/0.00 10.00/0.00 0 [1,13,31] 0/33 0.00% 0.00/58.01 0.00% PASS screen
+    s32 298–310 c1->c1 MET-09=297 5 5/0 100.00% 5/0 0/0 12/0 1.00/0.00 46 32/32 1/1 1/1 100.00% 19434.72/1815.00 100.00% 19434.72/1815.00 12.67/0.00 0.00/0.00 12.00/0.00 0 [32] 0/11 0.00% 0.00/11.73 0.00% CENSORED fuel demand 11/12
+    s33 291–303 c2->c2 MET-09=287 11 11/0 100.00% 9/0 2/0 15/0 1.00/0.00 46 33/33 1/1 1/1 100.00% 13969.58/1000.00 100.00% 13969.58/1000.00 8.64/0.00 3.00/0.00 8.00/0.00 0 [2,33] 0/24 0.00% 0.00/28.46 0.00% PASS screen
+    s34 300–312 c1->c1 MET-09=297 2 2/0 100.00% 2/0 0/0 11/0 0.00/0.00 31 46/46 1/1 1/1 100.00% 21056.91/765.00 100.00% 16550.66/553.67 2.00/0.00 10.00/0.00 4.00/0.00 0 [1,4,31,32,34,46] 0/61 0.00% 0.00/101.94 0.00% PASS screen
+    s35 298–310 c1->c1 MET-09=297 19 19/0 100.00% 17/0 2/0 30/0 1.00/0.00 92 35/35 1/1 1/1 100.00% 15313.77/1560.00 100.00% 15313.77/1560.00 17.13/0.00 9.00/0.00 17.00/0.00 0 [1,4,10,13,31,35,46,71] 0/85 0.00% 0.00/186.67 0.00% PASS screen
+    s36 291–303 c2->c2 MET-09=287 2 2/0 100.00% 2/0 0/0 6/0 0.00/0.00 16 36/36 1/0 1/0 100.00% 3458.60/250.00 100.00% 3458.60/250.00 0.66/0.00 2.00/0.00 1.00/0.00 0 [2,36] 0/17 0.00% 0.00/21.82 0.00% PASS screen
+    s37 289–301 c3->c3 MET-09=288 8 8/0 100.00% 7/0 1/0 12/0 0.68/0.00 36 37/37 1/1 1/1 100.00% 17201.43/399.56 100.00% 17201.43/399.56 9.42/0.00 3.00/0.00 9.00/0.00 0 [3,25,37] 0/30 0.00% 0.00/57.67 0.00% PASS screen
+    s38 288–300 c2->c2 MET-09=287 5 5/0 100.00% 5/0 0/0 15/0 0.00/0.00 49 38/38 1/1 1/1 100.00% 12694.09/880.00 100.00% 12694.09/880.00 14.86/0.00 0.00/0.00 15.00/0.00 0 [38] 0/11 0.00% 0.00/14.68 0.00% CENSORED fuel demand 11/12
+    s39 290–302 c2->c2 MET-09=287 9 9/0 100.00% 7/0 2/0 16/0 1.00/0.00 46 66/66 1/1 1/1 100.00% 18499.93/19253.00 100.00% 17714.08/1213.07 9.13/0.00 6.00/0.00 10.00/0.00 0 [2,9,27,38,39,66] 0/64 0.00% 0.00/88.01 0.00% CENSORED assigned hub changed
+    s40 302–314 c1->c1 MET-09=297 2 2/0 100.00% 1/0 1/0 5/0 0.00/0.00 11 46/95 1/1 1/0 100.00% 21075.27/765.00 100.00% 21332.99/265.00 0.00/0.00 5.00/0.00 2.00/0.00 0 [1,46] 0/21 0.00% 0.00/33.50 0.00% CENSORED assigned hub changed
+    s41 297–309 c0->c0 MET-09=296 4 4/0 100.00% 4/0 0/0 10/0 1.00/0.00 30 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 14567.45/1020.00 9.98/0.00 0.00/0.00 9.00/0.00 0 [41] 0/12 0.00% 0.00/9.41 0.00% PASS screen
+    s42 297–309 c0->c0 MET-09=296 5 5/0 100.00% 4/0 1/0 13/0 1.00/0.00 34 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 9246.67/433.92 10.08/0.00 0.00/0.00 10.00/0.00 0 [42] 0/12 0.00% 0.00/8.46 0.00% PASS screen
+    s43 299–311 c1->c1 MET-09=297 3 3/0 100.00% 2/0 1/0 7/0 0.00/0.00 23 43/43 1/0 1/0 100.00% 12816.26/252.11 100.00% 12816.26/252.11 5.02/0.00 0.00/0.00 6.00/0.00 0 [43] 0/8 0.00% 0.00/1.96 0.00% CENSORED fuel demand 8/12
+    s44 302–314 c1->c1 MET-09=297 5 5/0 100.00% 4/0 1/0 8/0 1.00/0.00 31 44/44 1/1 1/1 100.00% 11267.27/877.98 100.00% 11267.27/877.98 4.00/0.00 4.00/0.00 3.00/0.00 0 [1,4,44,46] 0/42 0.00% 0.00/58.92 0.00% PASS screen
+    s45 297–309 c0->c0 MET-09=296 6 6/0 100.00% 5/0 1/0 13/0 1.00/0.00 49 14/14 1/1 1/1 100.00% 17913.63/453.00 100.00% 15174.25/925.75 10.10/0.00 1.00/0.00 10.00/0.00 0 [0,14,45] 0/32 0.00% 0.00/75.55 0.00% PASS screen
+    s46 298–310 c1->c1 MET-09=297 8 8/0 100.00% 6/0 2/0 12/0 3.03/0.00 43 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 21070.53/765.00 46.88/0.00 0.00/0.00 21.00/0.00 0 [46] 0/12 0.00% 0.00/32.81 0.00% PASS screen
+    s47 298–310 c1->c1 MET-09=297 3 3/0 100.00% 2/0 1/0 10/0 1.00/0.00 31 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 21040.23/584.26 9.67/0.00 1.00/0.00 9.00/0.00 0 [32,47] 0/23 0.00% 0.00/21.99 0.00% PASS screen
+    s48 291–303 c2->c2 MET-09=287 2 2/0 100.00% 2/0 0/0 8/0 0.00/0.00 17 48/48 1/0 1/0 100.00% 3701.23/299.67 100.00% 3701.23/299.67 4.00/0.00 3.00/0.00 4.00/0.00 0 [2,48] 0/22 0.00% 0.00/22.10 0.00% PASS screen
+    s49 298–310 c1->c1 MET-09=297 11 11/0 100.00% 11/0 0/0 14/0 0.87/0.00 44 49/49 1/1 1/1 100.00% 3826.85/125.00 100.00% 3826.85/125.00 16.57/0.00 0.00/0.00 16.00/0.00 0 [49] 0/12 0.00% 0.00/12.68 0.00% PASS screen
+    s50 292–304 c3->c3 MET-09=288 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 37 50/50 1/0 1/0 100.00% 2517.17/300.00 100.00% 2517.17/300.00 0.00/0.00 4.00/0.00 0.00/0.00 0 [6] 0/7 0.00% 0.00/27.06 0.00% CENSORED fuel demand 7/12
+    s51 288–300 c2->c2 MET-09=287 8 8/0 100.00% 4/0 4/0 19/0 1.00/0.00 66 66/66 1/1 1/1 100.00% 18521.73/19253.00 100.00% 16733.34/5833.78 18.09/0.00 0.00/0.00 18.00/0.00 0 [51] 0/9 0.00% 0.00/16.60 0.00% CENSORED assigned hub changed
+    s52 302–314 c1->c1 MET-09=297 8 8/0 100.00% 8/0 0/0 13/0 1.00/0.00 48 52/52 1/1 1/1 100.00% 3038.84/250.00 100.00% 3038.84/250.00 5.00/0.00 8.00/0.00 4.00/0.00 0 [10,46,49,52] 0/44 0.00% 0.00/50.80 0.00% PASS screen
+    s53 292–304 c3->c3 MET-09=288 2 2/0 100.00% 2/0 0/0 4/0 0.00/0.00 24 53/53 1/0 1/0 100.00% 1918.72/0.00 100.00% 1918.72/0.00 0.00/0.00 3.00/0.00 0.00/0.00 0 [11] 0/12 0.00% 0.00/12.79 0.00% PASS screen
+    s54 288–300 c2->c2 MET-09=287 5 5/0 100.00% 4/0 1/0 17/0 0.00/0.00 52 66/66 1/1 1/1 100.00% 18521.73/19253.00 100.00% 16701.96/5462.99 13.24/0.00 0.00/0.00 14.00/0.00 0 [54] 0/8 0.00% 0.00/11.15 0.00% CENSORED assigned hub changed
+    s55 292–304 c3->c3 MET-09=288 1 1/0 100.00% 1/0 0/0 2/0 0.00/0.00 9 55/55 1/0 1/0 100.00% 3718.24/240.00 100.00% 3718.24/240.00 0.00/0.00 2.00/0.00 0.00/0.00 0 [3] 0/9 0.00% 0.00/21.51 0.00% CENSORED fuel demand 9/12
+    s56 292–304 c3->c3 MET-09=288 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 13 56/56 1/0 1/0 100.00% 2772.12/305.00 100.00% 2772.12/305.00 0.00/0.00 4.00/0.00 0.00/0.00 0 [3] 0/9 0.00% 0.00/21.51 0.00% CENSORED fuel demand 9/12
+    s57 291–303 c2->c2 MET-09=287 5 5/0 100.00% 4/0 1/0 9/0 0.00/0.00 29 66/66 1/1 1/0 100.00% 18554.71/19253.00 100.00% 17068.44/4912.92 0.00/0.00 8.00/0.00 4.00/0.00 0 [5,51,66] 0/26 0.00% 0.00/56.20 0.00% CENSORED assigned hub changed
+    s58 291–303 c2->c2 MET-09=287 4 4/0 100.00% 2/0 2/0 10/0 1.00/0.00 23 58/58 1/0 1/0 100.00% 11111.07/921.65 100.00% 11111.07/921.65 5.00/0.00 5.00/0.00 4.00/0.00 0 [5,58] 0/10 0.00% 0.00/35.29 0.00% CENSORED fuel demand 10/12
+    s59 291–303 c2->c2 MET-09=287 2 2/0 100.00% 2/0 0/0 6/0 1.00/0.00 29 66/66 1/1 1/0 100.00% 18554.71/19253.00 100.00% 16358.91/3609.14 1.00/0.00 6.00/0.00 1.00/0.00 0 [2,5,9,39,59,66] 0/52 0.00% 0.00/93.25 0.00% CENSORED assigned hub changed
+    s60 291–303 c2->c2 MET-09=287 8 8/0 100.00% 6/0 2/0 16/0 0.00/0.00 32 66/66 1/1 1/1 100.00% 18554.71/19253.00 100.00% 17768.76/5453.94 4.00/0.00 11.00/0.00 6.00/0.00 0 [2,12,60,66] 0/41 0.00% 0.00/55.74 0.00% CENSORED assigned hub changed
+    s61 289–301 c3->c3 MET-09=288 7 7/0 100.00% 6/0 1/0 12/0 3.00/0.00 41 61/61 1/1 1/1 100.00% 17141.43/8753.44 100.00% 17141.43/8753.44 28.40/0.00 1.00/0.00 15.00/0.00 0 [30,61] 0/22 0.00% 0.00/39.01 0.00% PASS screen
+    s62 291–303 c2->c2 MET-09=287 5 5/0 100.00% 4/0 1/0 10/0 0.14/0.00 35 66/66 1/1 1/1 100.00% 18554.71/19253.00 100.00% 18244.74/9148.84 4.14/0.00 5.00/0.00 4.00/0.00 0 [16,26,54,62] 0/38 0.00% 0.00/29.50 0.00% CENSORED assigned hub changed
+    s63 297–309 c0->c0 MET-09=296 9 9/0 100.00% 7/0 2/0 17/0 1.00/0.00 42 63/63 1/1 1/1 100.00% 18270.13/5570.84 100.00% 18270.13/5570.84 23.55/0.00 0.00/0.00 17.00/0.00 0 [63] 0/9 0.00% 0.00/19.16 0.00% CENSORED fuel demand 9/12
+    s64 297–309 c0->c0 MET-09=296 7 7/0 100.00% 7/0 0/0 14/0 1.00/0.00 42 64/64 1/1 1/1 100.00% 15831.38/5742.58 100.00% 15831.38/5742.58 9.99/0.00 0.00/0.00 9.00/0.00 0 [64] 0/9 0.00% 0.00/9.89 0.00% CENSORED fuel demand 9/12
+    s65 291–303 c2->c2 MET-09=287 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 12 65/65 1/0 1/0 100.00% 12602.60/910.93 100.00% 12602.60/910.93 2.00/0.00 2.00/0.00 2.00/0.00 0 [26,65] 0/12 0.00% 0.00/12.96 0.00% PASS screen
+    s66 288–300 c2->c2 MET-09=287 4 4/0 100.00% 3/0 1/0 16/0 0.00/0.00 39 66/66 1/1 1/1 100.00% 18521.73/19253.00 100.00% 18521.73/19253.00 14.48/0.00 3.00/0.00 9.00/0.00 0 [27,38,66] 0/33 0.00% 0.00/46.12 0.00% CENSORED assigned hub changed
+    s67 302–314 c1->c1 MET-09=297 3 3/0 100.00% 3/0 0/0 6/0 1.00/0.00 22 46/67 1/1 1/0 100.00% 21075.27/765.00 100.00% 19676.53/2970.00 1.00/0.00 5.00/0.00 2.00/0.00 0 [4,46,67] 0/23 0.00% 0.00/46.03 0.00% CENSORED assigned hub changed
+    s68 291–303 c2->c2 MET-09=287 3 3/0 100.00% 2/0 1/0 3/0 0.00/0.00 10 66/66 1/1 1/0 100.00% 18554.71/19253.00 100.00% 15781.11/12940.64 0.00/0.00 3.00/0.00 0.00/0.00 0 [5,27] 0/17 0.00% 0.00/44.53 0.00% CENSORED assigned hub changed
+    s69 300–312 c0->c0 MET-09=296 2 2/0 100.00% 2/0 0/0 6/0 0.00/0.00 25 14/14 1/1 1/0 100.00% 17892.77/453.00 100.00% 17772.77/1805.83 0.00/0.00 5.00/0.00 1.00/0.00 0 [0,14] 0/19 0.00% 0.00/38.57 0.00% PASS screen
+    s70 292–304 c3->c3 MET-09=288 4 4/0 100.00% 3/0 1/0 6/0 0.00/0.00 22 61/61 1/1 1/0 100.00% 17188.40/8753.44 100.00% 17338.28/1319.73 0.00/0.00 6.00/0.00 3.00/0.00 0 [3,61] 0/21 0.00% 0.00/37.28 0.00% PASS screen
+    s71 298–310 c1->c1 MET-09=297 6 6/0 100.00% 4/0 2/0 11/0 1.00/0.00 29 71/71 1/0 1/0 100.00% 21400.53/3719.21 100.00% 21400.53/3719.21 7.93/0.00 0.00/0.00 7.00/0.00 0 [71] 0/6 0.00% 0.00/2.73 0.00% CENSORED fuel demand 6/12
+    s72 292–304 c2->c2 MET-09=287 4 4/0 100.00% 3/0 1/0 5/0 0.00/0.00 14 72/72 1/0 1/0 100.00% 3908.94/2959.08 100.00% 3908.94/2959.08 0.00/0.00 4.00/0.00 0.00/0.00 0 [5] 0/5 0.00% 0.00/21.50 0.00% CENSORED fuel demand 5/12
+    s73 289–301 c3->c3 MET-09=288 3 3/0 100.00% 3/0 0/0 7/0 0.00/0.00 27 73/73 1/0 1/0 100.00% 12781.65/1165.90 100.00% 12781.65/1165.90 3.90/0.00 2.00/0.00 4.00/0.00 0 [6,73] 0/11 0.00% 0.00/43.30 0.00% CENSORED fuel demand 11/12
+    s74 292–304 c2->c2 MET-09=287 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 13 74/74 0/0 0/0 100.00% 3176.29/2728.01 100.00% 3176.29/2728.01 0.00/0.00 2.00/0.00 0.00/0.00 0 [5] 0/5 0.00% 0.00/21.50 0.00% CENSORED fuel demand 5/12
+    s75 289–301 c3->c3 MET-09=288 7 7/0 100.00% 7/0 0/0 12/0 1.00/0.00 27 75/75 1/0 1/0 100.00% 11910.16/8588.66 100.00% 11910.16/8588.66 6.45/0.00 6.00/0.00 6.00/0.00 0 [6,24,25,75] 0/40 0.00% 0.00/73.53 0.00% PASS screen
+    s76 292–304 c3->c3 MET-09=288 3 3/0 100.00% 3/0 0/0 5/0 1.00/0.00 11 76/76 1/0 1/0 100.00% 11490.86/8937.66 100.00% 11490.86/8937.66 2.00/0.00 3.00/0.00 1.00/0.00 0 [3,76] 0/10 0.00% 0.00/21.77 0.00% CENSORED fuel demand 10/12
+    s77 302–314 c1->c1 MET-09=297 1 1/0 100.00% 1/0 0/0 5/0 1.00/0.00 12 77/77 1/0 1/0 100.00% 11835.81/565.48 100.00% 11835.81/565.48 3.00/0.00 2.00/0.00 2.00/0.00 0 [1,4,46,77] 0/33 0.00% 0.00/55.11 0.00% PASS screen
+    s78 302–314 c1->c1 MET-09=297 9 9/0 100.00% 9/0 0/0 12/0 0.00/0.00 42 46/78 1/1 1/1 100.00% 21075.27/765.00 100.00% 19644.08/2250.34 0.00/0.00 11.00/0.00 6.00/0.00 0 [1,4,46] 0/30 0.00% 0.00/54.72 0.00% CENSORED assigned hub changed
+    s79 292–304 c3->c3 MET-09=288 2 2/0 100.00% 1/0 1/0 5/0 1.00/0.00 23 79/79 1/0 1/0 100.00% 16847.82/15383.36 100.00% 16847.82/15383.36 2.00/0.00 2.00/0.00 1.00/0.00 0 [11,79] 0/13 0.00% 0.00/13.05 0.00% PASS screen
+    s80 293–305 c3->c3 MET-09=288 2 2/0 100.00% 2/0 0/0 5/0 0.00/0.00 24 61/61 1/1 1/0 100.00% 17159.20/8753.44 100.00% 17069.20/16730.05 0.00/0.00 1.00/0.00 1.00/0.00 0 [61] 0/12 0.00% 0.00/15.48 0.00% PASS screen
+    s81 291–303 c3->c3 MET-09=288 3 3/0 100.00% 3/0 0/0 9/0 0.00/0.00 29 61/61 1/1 1/1 100.00% 17190.26/8753.44 100.00% 16861.34/16579.40 1.40/0.00 6.00/0.00 2.00/0.00 0 [30,61,81] 0/33 0.00% 0.00/33.86 0.00% PASS screen
+    s82 302–314 c1->c1 MET-09=297 2 2/0 100.00% 2/0 0/0 3/0 0.98/0.00 10 82/82 1/0 1/0 100.00% 16919.18/3540.00 100.00% 16919.18/3540.00 0.00/0.00 2.00/0.00 0.00/0.00 0 [17] 0/6 0.00% 0.00/7.52 0.00% CENSORED fuel demand 6/12
+    s83 293–305 c3->c3 MET-09=288 9 9/0 100.00% 7/0 2/0 11/0 1.00/0.00 40 61/61 1/1 1/1 100.00% 17159.20/8753.44 100.00% 16217.72/15698.04 3.00/0.00 8.00/0.00 6.00/0.00 0 [3,61,83] 0/26 0.00% 0.00/36.02 0.00% PASS screen
+    s84 298–310 c1->c1 MET-09=297 13 13/0 100.00% 11/0 2/0 24/0 1.00/0.00 47 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 20260.53/20694.96 25.76/0.00 0.00/0.00 25.00/0.00 0 [84] 0/11 0.00% 0.00/24.91 0.00% CENSORED fuel demand 11/12
+    s85 294–306 c3->c3 MET-09=288 5 5/0 100.00% 4/0 1/0 10/0 0.00/0.00 33 85/85 1/0 1/0 100.00% 15824.14/15314.48 100.00% 15824.14/15314.48 2.74/0.00 0.00/0.00 3.00/0.00 0 [85] 0/3 0.00% 0.00/0.36 0.00% CENSORED fuel demand 3/12
+    s86 302–314 c1->c1 MET-09=297 2 2/0 100.00% 1/0 1/0 5/0 1.00/0.00 16 86/86 1/0 1/0 100.00% 13386.39/10246.42 100.00% 13386.39/10246.42 2.00/0.00 3.00/0.00 1.00/0.00 0 [10,46,86] 0/26 0.00% 0.00/41.39 0.00% PASS screen
+    s87 298–310 c1->c1 MET-09=297 11 11/0 100.00% 9/0 2/0 18/0 1.00/0.00 41 46/46 1/1 1/1 100.00% 21070.53/765.00 100.00% 19207.53/18728.48 9.53/0.00 9.00/0.00 9.00/0.00 0 [1,4,10,13,17,31,46,84,87] 0/101 0.00% 0.00/220.84 0.00% PASS screen
+    s88 302–314 c1->c1 MET-09=297 4 4/0 100.00% 4/0 0/0 10/0 0.00/0.00 24 46/95 1/1 1/0 100.00% 21075.27/765.00 100.00% 21512.99/26404.81 0.00/0.00 9.00/0.00 5.00/0.00 0 [1,4,31,32,34,46] 0/61 0.00% 0.00/66.09 0.00% CENSORED assigned hub changed
+    s89 303–315 c1->c1 MET-09=297 5 5/0 100.00% 5/0 0/0 11/0 1.00/0.00 34 46/89 1/1 1/0 100.00% 21169.01/765.00 100.00% 15215.51/12129.14 4.00/0.00 7.00/0.00 5.00/0.00 0 [1,4,46,89] 0/30 0.00% 0.00/44.35 0.00% CENSORED assigned hub changed
+    s90 300–312 c0->c0 MET-09=296 8 8/0 100.00% 6/0 2/0 15/0 0.00/0.00 36 14/14 1/1 1/0 100.00% 17892.77/453.00 100.00% 15444.19/15220.08 0.00/0.00 14.00/0.00 10.00/0.00 0 [0,14] 0/19 0.00% 0.00/38.57 0.00% PASS screen
+    s91 300–312 c0->c0 MET-09=296 3 3/0 100.00% 1/0 2/0 5/0 0.00/0.00 12 14/14 1/1 1/0 100.00% 17892.77/453.00 100.00% 9623.87/7947.23 0.00/0.00 5.00/0.00 2.00/0.00 0 [0,7,14] 0/26 0.00% 0.00/46.99 0.00% PASS screen
+    s92 293–305 c3->c3 MET-09=288 7 7/0 100.00% 5/0 2/0 12/0 0.00/0.00 32 61/61 1/1 1/0 100.00% 17159.20/8753.44 100.00% 17234.18/17732.56 0.00/0.00 11.00/0.00 4.00/0.00 0 [3,24,25,61] 0/43 0.00% 0.00/50.54 0.00% PASS screen
+    s93 295–307 c3->c3 MET-09=288 2 2/0 100.00% 0/0 2/0 3/0 0.00/0.00 8 93/93 0/0 0/0 100.00% 15407.01/13353.85 100.00% 15407.01/13353.85 0.00/0.00 2.00/0.00 0.00/0.00 0 [3] 0/8 0.00% 0.00/8.63 0.00% CENSORED fuel demand 8/12
+    s94 297–309 c0->c0 MET-09=296 4 4/0 100.00% 4/0 0/0 8/0 0.97/0.00 14 94/94 1/0 1/0 100.00% 11367.45/9422.87 100.00% 11367.45/9422.87 2.14/0.00 0.00/0.00 2.00/0.00 0 [94] 0/2 0.00% 0.00/0.26 0.00% CENSORED fuel demand 2/12
+    s95 302–314 c1->c1 MET-09=297 8 8/0 100.00% 8/0 0/0 12/0 1.91/0.00 37 46/95 1/1 1/1 100.00% 21075.27/765.00 100.00% 21405.27/26006.20 6.91/0.00 8.00/0.00 5.00/0.00 0 [1,46,47,84,95] 0/49 0.00% 0.00/51.81 0.00% CENSORED assigned hub changed
+    s96 299–311 c0->c0 MET-09=296 7 7/0 100.00% 6/0 1/0 10/0 0.00/0.00 23 63/63 1/1 1/1 100.00% 18262.98/5570.84 100.00% 16036.34/16998.48 0.00/0.00 9.00/0.00 5.00/0.00 0 [14,63] 0/15 0.00% 0.00/41.24 0.00% PASS screen
+    s97 297–309 c0->c0 MET-09=296 3 3/0 100.00% 3/0 0/0 4/0 0.58/0.00 17 97/97 1/0 1/0 100.00% 14123.28/12430.14 100.00% 14123.28/12430.14 1.25/0.00 0.00/0.00 1.00/0.00 0 [97] 0/1 0.00% 0.00/0.08 0.00% CENSORED fuel demand 1/12
+    s98 293–305 c3->c3 MET-09=288 1 1/0 100.00% 0/0 1/0 2/0 0.00/0.00 9 98/98 0/0 0/0 100.00% 13318.05/10404.02 100.00% 13318.05/10404.02 0.00/0.00 1.00/0.00 0.00/0.00 0 [11] 0/12 0.00% 0.00/10.73 0.00% PASS screen
+    s99 300–312 c0->c0 MET-09=296 2 2/0 100.00% 2/0 0/0 5/0 0.00/0.00 14 63/63 1/1 1/0 100.00% 18248.04/5570.84 100.00% 16360.31/17859.37 0.00/0.00 2.00/0.00 2.00/0.00 0 [14,63] 0/15 0.00% 0.00/32.23 0.00% PASS screen
+    s100 291–303 c3->c3 MET-09=288 9 9/0 100.00% 9/0 0/0 17/0 1.00/0.00 58 100/100 1/0 1/0 100.00% 16003.63/13192.26 100.00% 16003.63/13192.26 11.00/0.00 0.00/0.00 10.00/0.00 0 [100] 0/4 0.00% 0.00/1.97 0.00% CENSORED fuel demand 4/12
+    s101 300–312 c0->c0 MET-09=296 6 6/0 100.00% 6/0 0/0 13/0 0.00/0.00 41 14/14 1/1 1/0 100.00% 17892.77/453.00 100.00% 16147.52/15517.37 0.00/0.00 10.00/0.00 8.00/0.00 0 [0,7,14] 0/26 0.00% 0.00/46.99 0.00% CENSORED kit source not produced in window
+    s102 294–306 c3->c3 MET-09=288 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 15 61/61 1/1 0/0 100.00% 17195.43/8753.44 100.00% 17180.43/16350.66 0.00/0.00 2.00/0.00 2.00/0.00 0 [61] 0/12 0.00% 0.00/14.31 0.00% PASS screen
+    s103 300–312 c0->c0 MET-09=296 3 3/0 100.00% 2/0 1/0 3/0 0.00/0.00 13 14/14 1/1 0/0 100.00% 17892.77/453.00 100.00% 12785.31/10897.07 0.00/0.00 3.00/0.00 0.00/0.00 0 [7,14] 0/15 0.00% 0.00/32.00 0.00% PASS screen
+    s104 315–327 c0->c0 MET-09=296 3 3/0 100.00% 3/0 0/0 7/0 0.00/0.00 28 63/63 1/1 0/0 100.00% 18078.21/5570.84 100.00% 16567.61/16136.50 0.00/0.00 1.00/0.00 0.00/0.00 0 [0] 0/11 0.00% 0.00/7.50 0.00% CENSORED fuel demand 11/12
+    s105 345–357 c0->c0 MET-09=296 5 3/2 100.00% 1/2 2/0 4/2 0.00/0.00 26 63/63 1/1 0/0 100.00% 17635.10/5570.84 100.00% 16835.30/16364.18 0.00/0.00 0.00/3.00 0.00/0.00 0 [0,63] 0/20 0.00% 0.00/47.73 0.00% PASS screen
+    s106 346–358 c0->c0 MET-09=296 2 2/0 100.00% 2/0 0/0 4/1 0.00/0.00 23 63/63 1/1 0/0 100.00% 17669.38/5570.84 100.00% 16449.40/15677.91 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    I-T2 diagnostic totals: 52 screen pass, 0 fail, 53 censored; endpoint tool-worker coverage uses actual positive toolWork, split by ages 14–44 and 45+
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=2473.63/70791.34; full-chain share=4.68%; kits made/issued T11=445.00/433.00 T12=981.11/968.00; tool-ws used T11/T12=8460.95/7756.43; breaks T11/T12=0/0; T11 upgrades=22; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2568.79/15412.76/517.32/2149.59; ore mined all/Iron=1552.36/1206.97 L; Iron fire-setting wood=455.15 L; haul-ws charcoal/all-ore/Iron-ore=21.12/57.92/32.56; metal-facility build-ws=459.45; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1442 demand-seasons (0.00%); unmet 0.00/2364.60 L planned (0.00%)
+    route ramp: seasons 297–309 (12 complete after first issue), chain/work=382.24/3023.95 (12.64%), fuel short 0/119 demand-seasons (0.00%); unmet 0.00/186.64 L planned (0.00%); post-ramp seasons=100, chain/work=2026.82/56007.08 (3.62%), fuel short 0/1310 demand-seasons (0.00%); unmet 0.00/2135.64 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 89 12-season windows after 12-season route maturity; max share=7.48% at seasons 338–350, chain/work=389.81/5210.42 (metal/craft/facility=328.49/41.55/19.77 ws)
+  c1 Grower all-match metal/work=4134.66/101452.07; full-chain share=5.21%; kits made/issued T11=696.57/678.00 T12=1305.78/1292.00; tool-ws used T11/T12=13155.00/9307.40; breaks T11/T12=0/0; T11 upgrades=19; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=3485.33/20912.01/712.42/2918.64; ore mined all/Iron=2141.09/1645.27 L; Iron fire-setting wood=635.00 L; haul-ws charcoal/all-ore/Iron-ore=26.36/70.67/49.12; metal-facility build-ws=628.12; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/2183 demand-seasons (0.00%); unmet 0.00/3195.35 L planned (0.00%)
+    route ramp: seasons 298–310 (12 complete after first issue), chain/work=610.75/4587.31 (13.31%), fuel short 0/221 demand-seasons (0.00%); unmet 0.00/287.80 L planned (0.00%); post-ramp seasons=99, chain/work=3369.15/79157.39 (4.26%), fuel short 0/1943 demand-seasons (0.00%); unmet 0.00/2872.55 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 88 12-season windows after 12-season route maturity; max share=7.38% at seasons 337–349, chain/work=596.23/8075.13 (metal/craft/facility=508.13/73.94/14.16 ws)
+  c2 Warlord all-match metal/work=3922.61/102088.53; full-chain share=5.19%; kits made/issued T11=830.69/809.00 T12=1230.08/1220.00; tool-ws used T11/T12=14396.57/8208.20; breaks T11/T12=0/0; T11 upgrades=19; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=3654.05/21924.30/667.25/3095.80; ore mined all/Iron=2220.93/1742.90 L; Iron fire-setting wood=600.64 L; haul-ws charcoal/all-ore/Iron-ore=26.89/66.67/44.75; metal-facility build-ws=854.06; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/2169 demand-seasons (0.00%); unmet 0.00/3358.29 L planned (0.00%)
+    route ramp: seasons 288–300 (12 complete after first issue), chain/work=638.02/4196.40 (15.20%), fuel short 0/203 demand-seasons (0.00%); unmet 0.00/326.79 L planned (0.00%); post-ramp seasons=109, chain/work=3315.21/79303.95 (4.18%), fuel short 0/1949 demand-seasons (0.00%); unmet 0.00/2980.29 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 98 12-season windows after 12-season route maturity; max share=7.00% at seasons 337–349, chain/work=547.98/7833.62 (metal/craft/facility=448.62/44.48/54.88 ws)
+  c3 Sage all-match metal/work=3649.81/88827.42; full-chain share=5.39%; kits made/issued T11=724.97/707.00 T12=1046.18/1030.00; tool-ws used T11/T12=12857.70/6362.17; breaks T11/T12=0/0; T11 upgrades=30; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2978.29/17869.77/628.94/2489.97; ore mined all/Iron=1795.94/1406.23 L; Iron fire-setting wood=562.15 L; haul-ws charcoal/all-ore/Iron-ore=22.80/44.78/29.24; metal-facility build-ws=682.44; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/2144 demand-seasons (0.00%); unmet 0.00/2754.39 L planned (0.00%)
+    route ramp: seasons 289–301 (12 complete after first issue), chain/work=493.60/3308.14 (14.92%), fuel short 0/134 demand-seasons (0.00%); unmet 0.00/227.00 L planned (0.00%); post-ramp seasons=108, chain/work=3337.53/69416.67 (4.81%), fuel short 0/1997 demand-seasons (0.00%); unmet 0.00/2490.74 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 97 12-season windows after 12-season route maturity; max share=8.01% at seasons 311–323, chain/work=339.17/4233.46 (metal/craft/facility=256.84/19.40/62.93 ws)
+
+== iron-match seed 20261020: 104.2 minutes simulated, chapter end RivalCountdown at season 416 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     72.8   92.2      56     32    2492   274   937    1378      140        5        5      9
+c1  Grower      77.4   94.7      56     20    1925   350   621    1008       96        4        5     12
+c2  Warlord     74.7   95.2      56     22    1890   247   752    1058      107        3        4     24
+c3  Sage        77.4   95.8      56     15    1313   132   370     537       83        3        4      5
+iron works built (all settlements):
+  crane                     4    3    3    3
+  windlass_well            14   12   11    8
+  terrace                  23   22   12   27
+  aqueduct                  5    4    2    2
+  bathhouse                 7    2    3    3
+  theatre_arena             7    3    1    5
+  road                     23   12   19   14
+  bridge                    1    5   15    6
+  gatehouse                 8    6    4    5
+  frontier_wall_segment     0    2    2    0
+  castle                    0    2    2    0
+  harbor                    1    0    1    0
+  galley                    0    0    1    0
+  academy                   5    4    3    3
+  press                     6    2    3    2
+  water_mill                1    0    1    0
+  temple_tier2              4    2    3    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; (nothing wanted) x5 (0%), bathhouse x1 (64%), gatehouse x1 (0%), great_library x1 (100%), great_lighthouse x1 (100%), press x1 (100%), theatre_arena x1 (100%)
+  c1: villages 13; aqueduct x1 (47%), bathhouse x3 (100%), bridge x1 (100%), harbor x1 (100%), theatre_arena x1 (23%)
+  c2: villages 15; (nothing wanted) x2 (0%), aqueduct x1 (100%), gatehouse x1 (0%), great_library x1 (100%), great_lighthouse x1 (100%), press x1 (0%)
+  c3: villages 10; (nothing wanted) x2 (0%), aqueduct x1 (100%), bathhouse x1 (100%), temple_tier2 x1 (23%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 1 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 4 towns
+  bathhouse lacks wood: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 3 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 2 towns
+  great_library lacks wood: 2 towns
+  great_lighthouse lacks ashlar: 2 towns
+  great_lighthouse lacks block: 2 towns
+  great_lighthouse lacks bloom: 1 towns
+  great_lighthouse lacks wood: 2 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  terrace lacks block: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 16  assaults 8  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 198, c1 147, c2 156, c3 83
+final legacy per civ: c0 5800, c1 5286, c2 5038, c3 4376
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2260 stock=51000.00->48626.26 L; regrowth=91198.14 L; removed chop/metal/civic/other=44087.58/45752.02/3732.28/0.00 L (Iron-era subset=39588.27 L); residual=0.00 L
+  local wood stores=0.00->2237.40 L; inflow=70624.49 L; use=68387.09 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=216 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=8/0/0/208/0; currently cleared tiles=9 (grassland=0)
+  Iron fuel hubs and selected ore suppliers (end of match):
+    s0 local-ore=True supplier=none ore-need=0.00
+    s4 local-ore=True supplier=s37 ore-need=0.00
+    s5 local-ore=True supplier=s35 ore-need=0.00
+    s7 local-ore=True supplier=s41 ore-need=3.59
+    s8 local-ore=True supplier=s11 ore-need=0.00
+    s9 local-ore=True supplier=s12 ore-need=0.00
+    s10 local-ore=True supplier=s7 ore-need=0.00
+    s11 local-ore=True supplier=s8 ore-need=0.00
+    s12 local-ore=True supplier=s9 ore-need=0.00
+    s13 local-ore=True supplier=s31 ore-need=7.11
+    s15 local-ore=True supplier=s35 ore-need=0.00
+    s17 local-ore=True supplier=s4 ore-need=0.00
+    s18 local-ore=True supplier=s43 ore-need=0.00
+    s19 local-ore=True supplier=s5 ore-need=0.75
+    s20 local-ore=True supplier=s40 ore-need=0.00
+    s21 local-ore=False supplier=s87 ore-need=8.25
+    s22 local-ore=False supplier=none ore-need=2.25
+    s23 local-ore=True supplier=none ore-need=57.00
+    s24 local-ore=True supplier=s34 ore-need=0.00
+    s25 local-ore=False supplier=none ore-need=5.25
+    s26 local-ore=True supplier=s15 ore-need=0.00
+    s28 local-ore=True supplier=s37 ore-need=0.00
+    s29 local-ore=True supplier=s36 ore-need=1.56
+    s30 local-ore=True supplier=s13 ore-need=0.00
+    s31 local-ore=True supplier=s13 ore-need=0.00
+    s32 local-ore=True supplier=s70 ore-need=0.00
+    s35 local-ore=True supplier=s5 ore-need=0.00
+    s37 local-ore=True supplier=s4 ore-need=0.00
+    s38 local-ore=False supplier=s31 ore-need=0.75
+    s40 local-ore=True supplier=s14 ore-need=0.02
+    s42 local-ore=True supplier=s39 ore-need=0.00
+    s47 local-ore=False supplier=none ore-need=0.00
+    s48 local-ore=False supplier=none ore-need=0.00
+    s49 local-ore=True supplier=s58 ore-need=0.18
+    s51 local-ore=False supplier=s42 ore-need=0.66
+    s52 local-ore=True supplier=s60 ore-need=0.00
+    s59 local-ore=True supplier=s5 ore-need=0.00
+    s60 local-ore=True supplier=s62 ore-need=0.00
+    s61 local-ore=False supplier=none ore-need=0.00
+    s62 local-ore=True supplier=s60 ore-need=0.00
+    s63 local-ore=False supplier=s42 ore-need=1.01
+    s65 local-ore=True supplier=s33 ore-need=0.00
+    s67 local-ore=False supplier=none ore-need=0.00
+    s68 local-ore=False supplier=none ore-need=4.50
+    s70 local-ore=True supplier=s57 ore-need=0.00
+    s73 local-ore=False supplier=s40 ore-need=0.00
+    s75 local-ore=False supplier=s52 ore-need=0.00
+    s76 local-ore=False supplier=s52 ore-need=0.00
+    s77 local-ore=False supplier=s87 ore-need=0.00
+    s79 local-ore=False supplier=s89 ore-need=0.00
+    s80 local-ore=True supplier=s34 ore-need=4.34
+    s81 local-ore=True supplier=s53 ore-need=0.00
+    s87 local-ore=True supplier=s53 ore-need=0.00
+    s88 local-ore=True supplier=s53 ore-need=0.00
+    s89 local-ore=True supplier=s86 ore-need=0.00
+    s91 local-ore=False supplier=none ore-need=0.00
+    s92 local-ore=True supplier=s50 ore-need=0.00
+    s93 local-ore=False supplier=s56 ore-need=0.33
+    s95 local-ore=False supplier=none ore-need=0.00
+    s96 local-ore=False supplier=s56 ore-need=0.00
+  kits world: T11 made/received/sent/issued/broken/early-upgrades/retired/held/stored=2502.06/639.00/639.00/2450.00/0/126/1447.00/1003/52.06; residual=0.00; T12=3143.89/488.00/488.00/3082.00/0/0/402.00/2680/61.89; residual=0.00 kits
+  settlement kit ledgers: 98/98 exact; nonzero residual sites=0
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  I-T2 settlement route screen (first kit issue or sister delivery, then 12 complete seasons; fuel follows per-tier kit transfers to sites that produced the supplied tier during the window; relay-only or stock-only sources are censored): qualify over summed producer-site demand-seasons, with at least 12
+    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ holders11/12 stock11/12 population hub start/end hub F/S site F/S hub-wood-factor hub-reach/baseline site-wood-factor site-reach/baseline made11/12 received11/12 issued11/12 upgrades fuel-sites short/demand rate unmet/plan result
+    s0 311–323 c0->c0 MET-09=307 16 16/0 100.00% 16/0 0/0 18/0 1.00/0.00 72 27/27 1/1 1/0 100.00% 20858.68/3140.00 100.00% 20818.68/1220.00 22.00/0.00 11.00/0.00 26.00/0.00 0 [0,4,9,27] 0/40 0.00% 0.00/73.64 0.00% CENSORED assigned hub changed
+    s1 320–332 c1->c1 MET-09=319 18 18/0 100.00% 18/0 0/0 23/0 1.00/0.00 76 18/18 1/1 1/1 100.00% 8623.20/2308.29 100.00% 8552.43/2220.00 27.43/0.00 0.00/0.00 27.00/0.00 0 [1] 0/12 0.00% 0.00/22.54 0.00% PASS screen
+    s2 315–327 c2->c2 MET-09=314 14 14/0 100.00% 13/0 1/0 28/0 1.00/0.00 97 2/2 1/0 1/0 100.00% 20203.95/1220.00 100.00% 20203.95/1220.00 23.62/0.00 9.00/0.00 23.00/0.00 0 [2,7] 0/20 0.00% 0.00/76.81 0.00% PASS screen
+    s3 316–328 c2->c2 MET-09=314 11 11/0 100.00% 10/0 1/0 21/0 1.00/0.00 75 3/3 1/1 1/1 100.00% 18864.09/2205.00 100.00% 18864.09/2205.00 18.12/0.00 4.00/0.00 18.00/0.00 0 [3,7] 0/21 0.00% 0.00/77.98 0.00% PASS screen
+    s4 308–320 c0->c0 MET-09=307 35 35/0 100.00% 32/0 3/0 36/0 1.00/0.00 91 4/4 1/1 1/1 100.00% 13708.20/240.00 100.00% 13708.20/240.00 43.59/0.00 0.00/0.00 43.00/0.00 0 [4] 0/11 0.00% 0.00/40.17 0.00% CENSORED fuel demand 11/12
+    s5 320–332 c1->c1 MET-09=319 81 81/0 100.00% 81/0 0/0 88/0 1.00/0.00 294 5/5 1/1 1/1 100.00% 8028.70/585.00 100.00% 8028.70/585.00 104.15/0.00 0.00/0.00 104.00/0.00 0 [5] 0/8 0.00% 0.00/78.03 0.00% CENSORED fuel demand 8/12
+    s6 320–332 c1->c1 MET-09=319 10 10/0 100.00% 9/0 1/0 25/0 1.00/0.00 80 18/18 1/1 1/1 100.00% 8623.20/2308.29 100.00% 8289.22/825.00 22.48/0.00 5.00/0.00 24.00/0.00 0 [1,6,18,79] 0/34 0.00% 0.00/104.27 0.00% PASS screen
+    s7 315–327 c2->c2 MET-09=314 32 32/0 100.00% 31/0 1/0 68/0 1.00/0.00 212 7/7 1/1 1/1 100.00% 16345.67/645.00 100.00% 16345.67/645.00 87.60/0.00 0.00/0.00 87.00/0.00 0 [7] 0/12 0.00% 0.00/73.50 0.00% PASS screen
+    s8 322–334 c3->c3 MET-09=321 26 26/0 100.00% 22/0 4/0 83/0 1.00/0.00 252 8/57 1/1 1/1 100.00% 11472.81/585.00 100.00% 11472.81/585.00 93.15/0.00 1.00/0.00 94.00/0.00 0 [8,57] 0/19 0.00% 0.00/85.60 0.00% CENSORED assigned hub changed
+    s9 308–320 c0->c0 MET-09=307 14 14/0 100.00% 10/0 4/0 37/0 0.00/0.00 112 9/9 1/1 1/1 100.00% 15529.72/60.00 100.00% 15529.72/60.00 49.50/0.00 0.00/0.00 50.00/0.00 0 [9] 0/11 0.00% 0.00/37.93 0.00% CENSORED fuel demand 11/12
+    s10 315–327 c2->c2 MET-09=314 13 13/0 100.00% 13/0 0/0 49/0 1.00/0.00 96 10/10 1/1 1/1 100.00% 14792.78/0.00 100.00% 14792.78/0.00 46.95/0.00 0.00/0.00 46.00/0.00 0 [10] 0/11 0.00% 0.00/43.10 0.00% CENSORED fuel demand 11/12
+    s11 322–334 c3->c3 MET-09=321 7 7/0 100.00% 6/0 1/0 19/0 1.00/0.00 57 11/11 1/1 1/1 100.00% 9836.10/243.37 100.00% 9836.10/243.37 22.18/0.00 1.00/0.00 22.00/0.00 0 [8,11,57] 0/31 0.00% 0.00/105.93 0.00% PASS screen
+    s12 308–320 c0->c0 MET-09=307 5 5/0 100.00% 5/0 0/0 15/0 0.00/0.00 29 27/27 1/1 1/1 100.00% 20846.18/3140.00 100.00% 17471.18/630.00 20.29/0.00 0.00/0.00 21.00/0.00 0 [12,27] 0/21 0.00% 0.00/44.49 0.00% CENSORED assigned hub changed
+    s13 308–320 c0->c0 MET-09=307 26 26/0 100.00% 22/0 4/0 74/0 0.00/0.00 185 27/27 1/1 1/1 100.00% 20846.18/3140.00 100.00% 20711.18/750.00 69.81/0.00 19.00/0.00 70.00/0.00 0 [4,9,12,13,27,28,29,31,37,38,42] 0/115 0.00% 0.00/253.49 0.00% CENSORED assigned hub changed
+    s14 315–327 c2->c2 MET-09=314 9 9/0 100.00% 8/0 1/0 17/0 0.00/0.00 42 14/14 1/1 1/1 100.00% 20093.95/750.00 100.00% 20093.95/750.00 18.61/0.00 0.00/0.00 19.00/0.00 0 [14] 0/10 0.00% 0.00/25.30 0.00% CENSORED fuel demand 10/12
+    s15 323–335 c1->c1 MET-09=319 8 8/0 100.00% 8/0 0/0 10/0 0.00/0.00 45 15/15 1/1 1/1 100.00% 7420.76/360.00 100.00% 7420.76/360.00 3.00/0.00 8.00/0.00 3.00/0.00 0 [1,5,15] 0/29 0.00% 0.00/63.78 0.00% PASS screen
+    s16 322–334 c3->c3 MET-09=321 15 15/0 100.00% 14/0 1/0 18/0 1.00/0.00 71 54/57 1/1 1/1 100.00% 14310.19/705.00 100.00% 13907.85/825.00 15.42/0.00 0.00/0.00 15.00/0.00 0 [16] 0/7 0.00% 0.00/14.54 0.00% CENSORED assigned hub changed
+    s17 312–324 c0->c0 MET-09=307 6 6/0 100.00% 5/0 1/0 7/0 1.00/0.00 18 17/27 1/1 1/1 100.00% 18120.56/315.00 100.00% 18120.56/315.00 1.27/0.00 5.00/0.00 1.00/0.00 0 [0,4,9,17,27] 0/47 0.00% 0.00/67.14 0.00% CENSORED assigned hub changed
+    s18 320–332 c1->c1 MET-09=319 13 13/0 100.00% 9/0 4/0 47/0 1.00/0.00 126 18/18 1/1 1/1 100.00% 8623.20/2308.29 100.00% 8623.20/2308.29 77.20/0.00 0.00/0.00 48.00/0.00 0 [18] 0/12 0.00% 0.00/59.79 0.00% PASS screen
+    s19 322–334 c1->c1 MET-09=319 6 6/0 100.00% 6/0 0/0 9/0 1.00/0.00 35 19/19 1/1 1/1 100.00% 8294.88/405.00 100.00% 8294.88/405.00 3.35/0.00 5.00/0.00 3.00/0.00 0 [5,19] 0/13 0.00% 0.00/60.69 0.00% PASS screen
+    s20 315–327 c2->c2 MET-09=314 11 11/0 100.00% 10/0 1/0 22/0 0.00/0.00 51 20/20 1/1 1/1 100.00% 12149.59/150.00 100.00% 12149.59/150.00 22.23/0.00 0.00/0.00 23.00/0.00 0 [20] 0/12 0.00% 0.00/23.62 0.00% PASS screen
+    s24 315–327 c2->c2 MET-09=314 19 19/0 100.00% 15/0 4/0 44/0 0.00/0.00 97 24/24 1/1 1/1 100.00% 20318.95/2190.00 100.00% 20318.95/2190.00 27.74/0.00 0.00/0.00 28.00/0.00 0 [24] 0/12 0.00% 0.00/26.86 0.00% CENSORED Free Folk outside civ kit network
+    s26 320–332 c1->c1 MET-09=319 9 9/0 100.00% 7/0 2/0 34/0 0.00/0.00 85 26/26 1/1 1/1 100.00% 7885.07/600.00 100.00% 7885.07/600.00 19.40/0.00 0.00/0.00 20.00/0.00 0 [26] 0/11 0.00% 0.00/17.33 0.00% CENSORED Free Folk outside civ kit network
+    s27 308–320 c0->c0 MET-09=307 9 9/0 100.00% 8/0 1/0 14/0 5.58/0.00 37 27/27 1/1 1/1 100.00% 20846.18/3140.00 100.00% 20846.18/3140.00 30.11/0.00 0.00/0.00 19.00/0.00 0 [27] 0/10 0.00% 0.00/26.01 0.00% CENSORED assigned hub changed
+    s28 308–320 c0->c0 MET-09=307 6 6/0 100.00% 3/0 3/0 13/0 0.00/0.00 36 28/28 1/1 1/1 100.00% 12915.23/150.00 100.00% 12915.23/150.00 12.71/0.00 2.00/0.00 13.00/0.00 0 [4,9,28,38] 0/37 0.00% 0.00/91.86 0.00% PASS screen
+    s29 308–320 c0->c0 MET-09=307 4 4/0 100.00% 4/0 0/0 8/0 0.74/0.00 31 27/27 1/1 1/1 100.00% 20846.18/3140.00 100.00% 20988.71/3745.00 21.95/0.00 0.00/0.00 12.00/0.00 0 [29] 0/12 0.00% 0.00/17.82 0.00% CENSORED assigned hub changed
+    s30 308–320 c0->c0 MET-09=307 2 2/0 100.00% 2/0 0/0 7/0 0.00/0.00 23 27/27 1/1 1/1 100.00% 20846.18/3140.00 100.00% 20846.18/1196.25 3.60/0.00 2.00/0.00 4.00/0.00 0 [4,9,12,27,28,30,38] 0/69 0.00% 0.00/142.43 0.00% CENSORED assigned hub changed
+    s31 308–320 c0->c0 MET-09=307 8 8/0 100.00% 7/0 1/0 13/0 1.00/0.00 51 31/31 1/1 1/1 100.00% 18311.18/644.73 100.00% 18311.18/644.73 16.55/0.00 0.00/0.00 16.00/0.00 0 [31] 0/10 0.00% 0.00/16.97 0.00% CENSORED fuel demand 10/12
+    s32 324–336 c3->c3 MET-09=321 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 13 32/32 1/0 1/0 100.00% 13761.50/1474.58 100.00% 13761.50/1474.58 0.00/0.00 4.00/0.00 0.00/0.00 0 [8,57] 0/20 0.00% 0.00/49.69 0.00% PASS screen
+    s33 312–324 c0->c0 MET-09=307 2 2/0 100.00% 1/0 1/0 5/0 0.00/0.00 26 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 20803.60/675.00 0.00/0.00 7.00/0.00 3.00/0.00 0 [0,4,9,27,29] 0/51 0.00% 0.00/76.52 0.00% CENSORED assigned hub changed
+    s34 315–327 c2->c2 MET-09=314 9 9/0 100.00% 6/0 3/0 19/0 0.00/0.00 43 45/45 1/1 1/1 100.00% 20333.76/3611.91 100.00% 20243.95/2753.58 17.61/0.00 2.00/0.00 19.00/0.00 0 [7,34,45] 0/36 0.00% 0.00/123.18 0.00% PASS screen
+    s35 321–333 c1->c1 MET-09=319 8 8/0 100.00% 5/0 3/0 17/0 0.96/0.00 32 35/35 1/1 1/1 100.00% 5873.33/74.82 100.00% 5873.33/74.82 13.49/0.00 7.00/0.00 13.00/0.00 0 [5,35] 0/19 0.00% 0.00/69.59 0.00% PASS screen
+    s36 308–320 c0->c0 MET-09=307 3 3/0 100.00% 3/0 0/0 4/0 1.00/0.00 19 27/27 1/1 1/1 100.00% 20846.18/3140.00 100.00% 20883.58/958.76 4.67/0.00 1.00/0.00 4.00/0.00 0 [27,36] 0/22 0.00% 0.00/32.72 0.00% CENSORED assigned hub changed
+    s37 308–320 c0->c0 MET-09=307 7 7/0 100.00% 4/0 3/0 16/0 0.00/0.00 51 37/37 1/1 1/1 100.00% 12392.85/60.00 100.00% 12392.85/60.00 13.82/0.00 0.00/0.00 14.00/0.00 0 [37] 0/12 0.00% 0.00/11.34 0.00% PASS screen
+    s38 308–320 c0->c0 MET-09=307 1 1/0 100.00% 1/0 0/0 4/0 1.00/0.00 13 38/38 1/0 1/0 100.00% 9761.78/73.87 100.00% 9761.78/73.87 2.69/0.00 1.00/0.00 2.00/0.00 0 [9,38] 0/15 0.00% 0.00/38.28 0.00% CENSORED Free Folk outside civ kit network
+    s39 312–324 c0->c0 MET-09=307 4 4/0 100.00% 3/0 1/0 8/0 0.00/0.00 28 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 20443.60/895.00 0.00/0.00 7.00/0.00 4.00/0.00 0 [0,4,9,27,29] 0/51 0.00% 0.00/76.52 0.00% CENSORED assigned hub changed
+    s40 315–327 c2->c2 MET-09=314 9 9/0 100.00% 7/0 2/0 18/0 0.00/0.00 48 40/40 1/1 1/1 100.00% 17473.95/644.59 100.00% 17473.95/644.59 15.35/0.00 0.00/0.00 16.00/0.00 0 [40] 0/11 0.00% 0.00/18.08 0.00% CENSORED fuel demand 11/12
+    s41 315–327 c2->c2 MET-09=314 7 7/0 100.00% 7/0 0/0 15/0 0.00/0.00 48 41/41 1/1 1/1 100.00% 19708.95/386.02 100.00% 19708.95/386.02 14.38/0.00 1.00/0.00 15.00/0.00 0 [7,41] 0/23 0.00% 0.00/84.74 0.00% PASS screen
+    s42 308–320 c0->c0 MET-09=307 6 6/0 100.00% 6/0 0/0 11/0 1.00/0.00 43 42/42 1/1 1/1 100.00% 19615.32/1094.38 100.00% 19615.32/1094.38 13.84/0.00 0.00/0.00 13.00/0.00 0 [42] 0/12 0.00% 0.00/13.83 0.00% PASS screen
+    s43 323–335 c1->c1 MET-09=319 2 2/0 100.00% 1/0 1/0 9/0 0.81/0.00 31 18/18 1/1 1/1 100.00% 8639.33/2308.29 100.00% 8569.20/1438.13 0.81/0.00 8.00/0.00 3.00/0.00 0 [1,5,18,43] 0/42 0.00% 0.00/108.19 0.00% PASS screen
+    s44 312–324 c0->c0 MET-09=307 3 3/0 100.00% 2/0 1/0 7/0 0.00/0.00 25 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 20990.10/1932.12 0.00/0.00 10.00/0.00 7.00/0.00 0 [0,4,9,12,13,27,29] 0/69 0.00% 0.00/107.39 0.00% CENSORED assigned hub changed
+    s45 315–327 c2->c2 MET-09=314 5 5/0 100.00% 5/0 0/0 14/0 1.00/0.00 40 45/45 1/1 1/1 100.00% 20333.76/3611.91 100.00% 20333.76/3611.91 43.69/0.00 0.00/0.00 18.00/0.00 0 [45] 0/12 0.00% 0.00/33.28 0.00% PASS screen
+    s46 315–327 c2->c2 MET-09=314 6 6/0 100.00% 6/0 0/0 11/0 0.00/0.00 29 45/45 1/1 1/1 100.00% 20333.76/3611.91 100.00% 20033.41/645.00 5.30/0.00 4.00/0.00 8.00/0.00 0 [14,45,46] 0/34 0.00% 0.00/69.76 0.00% PASS screen
+    s47 315–327 c0->c0 MET-09=307 2 2/0 100.00% 2/0 0/0 4/0 1.00/0.00 16 47/47 1/0 1/0 100.00% 19885.15/0.00 100.00% 19885.15/0.00 1.60/0.00 2.00/0.00 1.00/0.00 0 [27,47] 0/12 0.00% 0.00/29.00 0.00% PASS screen
+    s48 318–330 c2->c2 MET-09=314 3 3/0 100.00% 2/0 1/0 6/0 0.00/0.00 10 48/48 1/0 1/0 100.00% 18905.00/0.00 100.00% 18905.00/0.00 0.00/0.00 5.00/0.00 0.00/0.00 0 [2,45] 0/19 0.00% 0.00/37.25 0.00% CENSORED kit source not produced in window
+    s49 312–324 c0->c0 MET-09=307 5 5/0 100.00% 5/0 0/0 5/0 0.00/0.00 25 49/27 1/1 1/1 100.00% 20936.27/1920.00 100.00% 20936.27/1920.00 0.00/0.00 4.00/0.00 0.00/0.00 0 [0,4,9,27] 0/39 0.00% 0.00/64.11 0.00% CENSORED assigned hub changed
+    s50 320–332 c1->c1 MET-09=319 4 4/0 100.00% 4/0 0/0 12/0 1.00/0.00 42 18/18 1/1 1/1 100.00% 8623.20/2308.29 100.00% 8315.84/698.76 9.67/0.00 1.00/0.00 9.00/0.00 0 [1,50] 0/23 0.00% 0.00/34.37 0.00% PASS screen
+    s51 308–320 c0->c0 MET-09=307 3 3/0 100.00% 3/0 0/0 9/0 0.00/0.00 20 51/51 1/1 1/1 100.00% 14019.02/800.00 100.00% 14019.02/800.00 5.64/0.00 1.00/0.00 6.00/0.00 0 [4,9,12,13,27,28,29,31,37,38,42,51] 0/124 0.00% 0.00/255.41 0.00% PASS screen
+    s52 318–330 c2->c2 MET-09=314 6 6/0 100.00% 5/0 1/0 11/0 1.00/0.00 27 45/45 1/1 1/1 100.00% 20229.81/3611.91 100.00% 19455.46/2084.85 1.00/0.00 10.00/0.00 2.00/0.00 0 [2,7,14,45,52] 0/49 0.00% 0.00/97.57 0.00% PASS screen
+    s53 322–334 c3->c3 MET-09=321 5 5/0 100.00% 4/0 1/0 11/0 0.00/0.00 32 54/57 1/1 1/1 100.00% 14310.19/705.00 100.00% 13699.63/630.00 5.63/0.00 3.00/0.00 7.00/0.00 0 [8,16,53,57] 0/38 0.00% 0.00/107.76 0.00% CENSORED assigned hub changed
+    s54 322–334 c3->c3 MET-09=321 5 5/0 100.00% 4/0 1/0 13/0 1.00/0.00 32 54/57 1/1 1/1 100.00% 14310.19/705.00 100.00% 14310.19/705.00 10.50/0.00 0.00/0.00 10.00/0.00 0 [54] 0/9 0.00% 0.00/10.35 0.00% CENSORED assigned hub changed
+    s55 312–324 c0->c0 MET-09=307 1 1/0 100.00% 1/0 0/0 7/0 0.00/0.00 29 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 20751.31/8688.44 0.00/0.00 6.00/0.00 1.00/0.00 0 [0,4,9,12,13,27] 0/57 0.00% 0.00/94.98 0.00% CENSORED assigned hub changed
+    s56 323–335 c1->c1 MET-09=319 4 4/0 100.00% 4/0 0/0 8/0 1.00/0.00 26 18/18 1/1 1/1 100.00% 8639.33/2308.29 100.00% 8596.88/615.00 1.00/0.00 10.00/0.00 7.00/0.00 0 [5,18,56] 0/26 0.00% 0.00/96.66 0.00% PASS screen
+    s57 325–337 c3->c3 MET-09=321 6 6/0 100.00% 6/0 0/0 11/0 2.00/0.00 23 57/57 1/1 1/1 100.00% 14118.31/1332.19 100.00% 14118.31/1332.19 20.00/0.00 5.00/0.00 5.00/0.00 0 [8,57] 0/21 0.00% 0.00/45.76 0.00% PASS screen
+    s58 312–324 c0->c0 MET-09=307 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 18 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 21101.26/7191.40 0.00/0.00 5.00/0.00 0.00/0.00 0 [0,4,9,13,27] 0/47 0.00% 0.00/90.68 0.00% CENSORED assigned hub changed
+    s59 320–332 c1->c1 MET-09=319 5 5/0 100.00% 4/0 1/0 10/0 0.00/0.00 39 59/59 1/1 1/1 100.00% 8436.90/404.83 100.00% 8436.90/404.83 8.98/0.00 0.00/0.00 9.00/0.00 0 [59] 0/12 0.00% 0.00/10.82 0.00% PASS screen
+    s60 318–330 c2->c2 MET-09=314 6 6/0 100.00% 6/0 0/0 14/0 0.00/0.00 38 45/45 1/1 1/0 100.00% 20229.81/3611.91 100.00% 19900.99/1996.29 0.00/0.00 13.00/0.00 10.00/0.00 0 [7,45] 0/23 0.00% 0.00/73.05 0.00% PASS screen
+    s61 312–324 c0->c0 MET-09=307 3 3/0 100.00% 3/0 0/0 4/0 0.00/0.00 20 61/61 0/0 0/0 100.00% 12426.43/148.69 100.00% 12426.43/148.69 0.00/0.00 3.00/0.00 0.00/0.00 0 [42] 0/12 0.00% 0.00/7.60 0.00% PASS screen
+    s62 315–327 c2->c2 MET-09=314 6 6/0 100.00% 6/0 0/0 11/0 1.00/0.00 34 62/62 1/1 1/1 100.00% 18960.47/1035.00 100.00% 18960.47/1035.00 8.13/0.00 2.00/0.00 8.00/0.00 0 [20,62] 0/23 0.00% 0.00/27.36 0.00% PASS screen
+    s63 308–320 c0->c0 MET-09=307 4 4/0 100.00% 3/0 1/0 6/0 1.00/0.00 19 63/63 1/0 1/0 100.00% 11236.20/7042.53 100.00% 11236.20/7042.53 2.36/0.00 4.00/0.00 2.00/0.00 0 [4,9,12,27,28,38,63] 0/61 0.00% 0.00/136.66 0.00% PASS screen
+    s64 312–324 c0->c0 MET-09=307 6 6/0 100.00% 6/0 0/0 8/0 0.00/0.00 31 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 21067.25/21245.80 0.00/0.00 9.00/0.00 2.00/0.00 0 [0,4,9,13,27] 0/47 0.00% 0.00/90.68 0.00% CENSORED assigned hub changed
+    s65 312–324 c0->c0 MET-09=307 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 17 65/65 0/0 0/0 100.00% 19833.68/16268.61 100.00% 19833.68/16268.61 0.00/0.00 2.00/0.00 0.00/0.00 0 [13,27] 0/18 0.00% 0.00/49.55 0.00% PASS screen
+    s66 312–324 c0->c0 MET-09=307 4 4/0 100.00% 3/0 1/0 6/0 0.00/0.00 21 29/27 1/1 1/0 100.00% 20987.22/3745.00 100.00% 22312.80/20704.96 0.00/0.00 6.00/0.00 1.00/0.00 0 [13,27] 0/18 0.00% 0.00/49.55 0.00% CENSORED assigned hub changed
+    s67 319–331 c0->c0 MET-09=307 2 2/0 100.00% 1/0 1/0 4/0 0.00/0.00 11 67/67 0/0 0/0 84.96% 18957.31/21219.05 84.96% 18957.31/21219.05 0.00/0.00 3.00/0.00 0.00/0.00 0 [0,4,9,13,27,36] 0/52 0.00% 0.00/73.55 0.00% CENSORED kit source not produced in window
+    s68 317–329 c0->c0 MET-09=307 1 1/0 100.00% 0/0 1/0 2/0 0.00/0.00 12 68/68 0/0 0/0 100.00% 15034.61/15612.44 100.00% 15034.61/15612.44 0.00/0.00 1.00/0.00 0.00/0.00 0 [0,4,9,27,29] 0/48 0.00% 0.00/67.54 0.00% CENSORED kit source not produced in window
+    s69 318–330 c2->c2 MET-09=314 9 9/0 100.00% 9/0 0/0 15/0 0.00/0.00 48 45/45 1/1 1/0 100.00% 20229.81/3611.91 100.00% 20589.81/23363.73 0.00/0.00 15.00/0.00 10.00/0.00 0 [7,34,45] 0/35 0.00% 0.00/79.69 0.00% PASS screen
+    s70 325–337 c3->c3 MET-09=321 3 3/0 100.00% 3/0 0/0 6/0 0.00/0.00 29 57/57 1/1 1/0 100.00% 14118.31/1332.19 100.00% 14103.47/7550.77 0.00/0.00 6.00/0.00 1.00/0.00 0 [8,16,57] 0/27 0.00% 0.00/49.65 0.00% PASS screen
+    s71 323–335 c3->c3 MET-09=321 5 5/0 100.00% 4/0 1/0 14/0 0.00/0.00 35 71/57 1/1 1/1 100.00% 14484.21/4316.13 100.00% 14484.21/4316.13 8.05/0.00 3.00/0.00 10.00/0.00 0 [8,16,57,71] 0/37 0.00% 0.00/87.59 0.00% CENSORED assigned hub changed
+    s72 318–330 c2->c2 MET-09=314 5 5/0 100.00% 5/0 0/0 10/0 0.00/0.00 37 45/45 1/1 1/1 100.00% 20229.81/3611.91 100.00% 19987.04/21999.79 0.00/0.00 9.00/0.00 4.00/0.00 0 [2,7,14,45] 0/38 0.00% 0.00/92.57 0.00% PASS screen
+    s73 315–327 c2->c2 MET-09=314 10 10/0 100.00% 10/0 0/0 20/0 1.00/0.00 36 73/73 1/1 1/1 100.00% 10568.95/7275.85 100.00% 10568.95/7275.85 13.10/0.00 7.00/0.00 13.00/0.00 0 [10,73] 0/19 0.00% 0.00/45.20 0.00% PASS screen
+    s74 325–337 c3->c3 MET-09=321 6 6/0 100.00% 5/0 1/0 9/0 0.00/0.00 30 57/57 1/1 1/0 100.00% 14118.31/1332.19 100.00% 14130.20/3443.08 0.00/0.00 9.00/0.00 5.00/0.00 0 [8,57] 0/21 0.00% 0.00/45.76 0.00% PASS screen
+    s75 318–330 c2->c2 MET-09=314 2 2/0 100.00% 2/0 0/0 8/0 1.00/0.00 25 75/75 1/0 1/0 100.00% 12535.93/8270.81 100.00% 12535.93/8270.81 5.22/0.00 3.00/0.00 5.00/0.00 0 [14,20,75] 0/24 0.00% 0.00/30.10 0.00% PASS screen
+    s76 318–330 c2->c2 MET-09=314 4 4/0 100.00% 2/0 2/0 8/0 0.00/0.00 34 76/76 1/0 1/0 100.00% 14500.93/10235.90 100.00% 14500.93/10235.90 2.48/0.00 5.00/0.00 3.00/0.00 0 [14,20,76] 0/21 0.00% 0.00/29.74 0.00% PASS screen
+    s77 324–336 c3->c3 MET-09=321 1 1/0 100.00% 1/0 0/0 4/0 0.00/0.00 16 77/77 1/0 1/0 100.00% 11048.01/773.94 100.00% 11048.01/773.94 0.60/0.00 2.00/0.00 1.00/0.00 0 [8,57,77] 0/21 0.00% 0.00/49.76 0.00% PASS screen
+    s78 312–324 c0->c0 MET-09=307 1 1/0 100.00% 1/0 0/0 4/0 0.00/0.00 20 29/78 1/1 0/0 100.00% 20987.22/3745.00 100.00% 23268.81/21946.54 0.00/0.00 2.00/0.00 0.00/0.00 0 [0,4,9,27] 0/39 0.00% 0.00/64.11 0.00% CENSORED assigned hub changed
+    s79 320–332 c1->c1 MET-09=319 4 4/0 100.00% 4/0 0/0 9/0 0.00/0.00 32 79/79 1/0 1/0 100.00% 8070.84/729.49 100.00% 8070.84/729.49 2.50/0.00 0.00/0.00 3.00/0.00 0 [79] 0/2 0.00% 0.00/0.33 0.00% CENSORED fuel demand 2/12
+    s80 318–330 c2->c2 MET-09=314 4 4/0 100.00% 4/0 0/0 10/0 0.00/0.00 29 45/45 1/1 1/0 100.00% 20229.81/3611.91 100.00% 20529.81/21360.74 0.00/0.00 9.00/0.00 3.00/0.00 0 [2,3,45] 0/27 0.00% 0.00/44.51 0.00% PASS screen
+    s81 325–337 c3->c3 MET-09=321 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 17 81/81 1/0 1/0 100.00% 13218.64/791.73 100.00% 13218.64/791.73 0.00/0.00 3.00/0.00 0.00/0.00 0 [11] 0/12 0.00% 0.00/6.14 0.00% PASS screen
+    s82 323–335 c1->c1 MET-09=319 1 1/0 100.00% 1/0 0/0 3/0 0.00/0.00 25 18/18 1/1 1/0 100.00% 8639.33/2308.29 100.00% 8405.89/1424.17 0.00/0.00 3.00/0.00 1.00/0.00 0 [5,18] 0/18 0.00% 0.00/91.52 0.00% PASS screen
+    s83 312–324 c0->c0 MET-09=307 2 2/0 100.00% 2/0 0/0 5/0 0.00/0.00 19 29/27 1/1 0/0 100.00% 20987.22/3745.00 100.00% 21101.26/21399.97 0.00/0.00 4.00/0.00 0.00/0.00 0 [0,4,9,13,27] 0/47 0.00% 0.00/90.68 0.00% CENSORED assigned hub changed
+    s84 318–330 c2->c2 MET-09=314 2 2/0 100.00% 2/0 0/0 4/0 0.00/0.00 23 45/45 1/1 0/0 100.00% 20229.81/3611.91 100.00% 20492.11/20323.52 0.00/0.00 3.00/0.00 0.00/0.00 0 [2] 0/7 0.00% 0.00/5.24 0.00% CENSORED fuel demand 7/12
+    s85 323–335 c1->c1 MET-09=319 4 4/0 100.00% 4/0 0/0 8/0 0.00/0.00 28 18/18 1/1 1/0 100.00% 8639.33/2308.29 100.00% 8521.88/11377.53 0.00/0.00 9.00/0.00 5.00/0.00 0 [5,18] 0/18 0.00% 0.00/91.52 0.00% PASS screen
+    s86 323–335 c1->c1 MET-09=319 8 8/0 100.00% 8/0 0/0 18/0 1.00/0.00 53 18/18 1/1 1/1 100.00% 8639.33/2308.29 100.00% 8316.47/11021.49 2.00/0.00 19.00/0.00 13.00/0.00 0 [1,6,18,86] 0/38 0.00% 0.00/62.17 0.00% PASS screen
+    s87 325–337 c3->c3 MET-09=321 5 5/0 100.00% 4/0 1/0 10/0 0.00/0.00 39 57/57 1/1 1/0 100.00% 14118.31/1332.19 100.00% 13420.99/12951.10 0.00/0.00 9.00/0.00 4.00/0.00 0 [8,11,57] 0/33 0.00% 0.00/51.90 0.00% PASS screen
+    s88 323–335 c3->c3 MET-09=321 3 3/0 100.00% 2/0 1/0 4/0 1.00/0.00 12 88/88 1/0 1/0 100.00% 12835.62/9890.60 100.00% 12835.62/9890.60 1.00/0.00 0.00/0.00 1.00/0.00 0 [88] 0/1 0.00% 0.00/0.13 0.00% CENSORED fuel demand 1/12
+    s89 320–332 c1->c1 MET-09=319 8 8/0 100.00% 7/0 1/0 23/0 0.00/0.00 50 89/89 1/1 1/1 100.00% 8336.84/9502.21 100.00% 8336.84/9502.21 16.73/0.00 4.00/0.00 17.00/0.00 0 [18,89] 0/21 0.00% 0.00/76.40 0.00% PASS screen
+    s90 311–323 c0->c0 MET-09=307 4 4/0 100.00% 3/0 1/0 6/0 0.00/0.00 24 27/27 1/1 0/0 100.00% 20858.68/3140.00 100.00% 21401.83/21164.26 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED assigned hub changed
+    s91 312–324 c0->c0 MET-09=307 1 1/0 100.00% 1/0 0/0 3/0 0.00/0.00 11 91/91 0/0 0/0 100.00% 21715.41/19230.55 100.00% 21715.41/19230.55 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s92 320–332 c1->c1 MET-09=319 3 3/0 100.00% 1/0 2/0 6/0 0.98/0.00 18 92/92 1/0 1/0 100.00% 8275.84/7949.79 100.00% 8275.84/7949.79 1.59/0.00 5.00/0.00 1.00/0.00 0 [1,5,6,18,19,35,79,92] 0/61 0.00% 0.00/198.06 0.00% PASS screen
+    s93 325–337 c1->c1 MET-09=319 4 4/0 100.00% 3/0 1/0 6/0 1.00/0.00 13 93/93 1/0 1/0 100.00% 10599.22/10775.90 100.00% 10599.22/10775.90 2.00/0.00 4.00/0.00 1.00/0.00 0 [18,93] 0/12 0.00% 0.00/21.17 0.00% PASS screen
+    s94 325–337 c3->c3 MET-09=321 3 3/0 100.00% 3/0 0/0 3/0 0.00/0.00 9 57/57 1/1 1/0 100.00% 14118.31/1332.19 100.00% 13863.92/13892.45 0.00/0.00 0.00/0.00 0.00/0.00 0 [8,57] 0/21 0.00% 0.00/45.76 0.00% PASS screen
+    s95 313–325 c0->c0 MET-09=307 1 1/0 100.00% 1/0 0/0 2/0 0.00/0.00 8 95/95 0/0 0/0 100.00% 20940.79/17334.93 100.00% 20940.79/17334.93 0.00/0.00 1.00/0.00 0.00/0.00 0 [0,4,9,27,29] 0/51 0.00% 0.00/77.15 0.00% CENSORED kit source not produced in window
+    s96 325–337 c1->c1 MET-09=319 4 4/0 100.00% 3/0 1/0 5/0 0.00/0.00 11 96/96 0/0 0/0 100.00% 10612.77/8284.91 100.00% 10612.77/8284.91 0.00/0.00 4.00/0.00 0.00/0.00 0 [18,56,86] 0/29 0.00% 0.00/31.65 0.00% PASS screen
+    s97 340–352 c1->c1 MET-09=319 5 5/0 100.00% 4/0 1/0 8/0 0.00/0.00 33 18/18 1/1 0/0 100.00% 8538.14/2308.29 100.00% 8466.56/8494.86 0.00/0.00 1.00/0.00 0.00/0.00 0 [1] 0/12 0.00% 0.00/12.73 0.00% PASS screen
+    I-T2 diagnostic totals: 52 screen pass, 0 fail, 42 censored; endpoint tool-worker coverage uses actual positive toolWork, split by ages 14–44 and 45+
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=3930.78/90232.05; full-chain share=5.74%; kits made/issued T11=646.05/633.00 T12=1095.02/1079.00; tool-ws used T11/T12=10842.29/6481.94; breaks T11/T12=0/0; T11 upgrades=20; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=3091.89/18551.34/614.50/2488.08; ore mined all/Iron=1896.32/1398.13 L; Iron fire-setting wood=508.82 L; haul-ws charcoal/all-ore/Iron-ore=39.91/72.48/32.54; metal-facility build-ws=800.95; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/2055 demand-seasons (0.00%); unmet 0.00/2748.46 L planned (0.00%)
+    route ramp: seasons 308–320 (12 complete after first issue), chain/work=502.51/3993.14 (12.58%), fuel short 0/209 demand-seasons (0.00%); unmet 0.00/276.97 L planned (0.00%); post-ramp seasons=97, chain/work=3139.79/68619.80 (4.58%), fuel short 0/1827 demand-seasons (0.00%); unmet 0.00/2441.53 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 86 12-season windows after 12-season route maturity; max share=6.38% at seasons 320–332, chain/work=301.26/4723.50 (metal/craft/facility=224.87/20.46/55.94 ws)
+  c1 Grower all-match metal/work=3214.00/65461.29; full-chain share=6.43%; kits made/issued T11=788.02/773.00 T12=686.87/671.00; tool-ws used T11/T12=10390.50/2607.48; breaks T11/T12=0/0; T11 upgrades=72; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2398.58/14391.49/445.39/1900.50; ore mined all/Iron=1479.34/1069.91 L; Iron fire-setting wood=379.99 L; haul-ws charcoal/all-ore/Iron-ore=20.43/57.95/26.66; metal-facility build-ws=629.50; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1342 demand-seasons (0.00%); unmet 0.00/2100.18 L planned (0.00%)
+    route ramp: seasons 320–332 (12 complete after first issue), chain/work=508.66/3802.35 (13.38%), fuel short 0/143 demand-seasons (0.00%); unmet 0.00/263.14 L planned (0.00%); post-ramp seasons=85, chain/work=2493.41/46474.29 (5.37%), fuel short 0/1187 demand-seasons (0.00%); unmet 0.00/1792.63 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 74 12-season windows after 12-season route maturity; max share=8.21% at seasons 379–391, chain/work=577.22/7026.50 (metal/craft/facility=501.43/51.60/24.19 ws)
+  c2 Warlord all-match metal/work=3808.52/80374.64; full-chain share=5.92%; kits made/issued T11=696.00/680.00 T12=897.42/880.00; tool-ws used T11/T12=10929.11/5015.11; breaks T11/T12=0/0; T11 upgrades=34; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2872.13/17232.76/563.15/2308.14; ore mined all/Iron=1783.27/1302.47 L; Iron fire-setting wood=508.58 L; haul-ws charcoal/all-ore/Iron-ore=21.08/52.06/25.56; metal-facility build-ws=554.52; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1662 demand-seasons (0.00%); unmet 0.00/2527.06 L planned (0.00%)
+    route ramp: seasons 315–327 (12 complete after first issue), chain/work=640.46/4266.15 (15.01%), fuel short 0/205 demand-seasons (0.00%); unmet 0.00/320.55 L planned (0.00%); post-ramp seasons=90, chain/work=2680.01/58204.07 (4.60%), fuel short 0/1438 demand-seasons (0.00%); unmet 0.00/2162.02 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 79 12-season windows after 12-season route maturity; max share=8.92% at seasons 358–370, chain/work=664.57/7451.93 (metal/craft/facility=602.62/53.18/8.77 ws)
+  c3 Sage all-match metal/work=2122.99/44271.44; full-chain share=6.15%; kits made/issued T11=372.00/364.00 T12=464.59/452.00; tool-ws used T11/T12=6170.40/1972.25; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1531.97/9191.83/277.23/1209.32; ore mined all/Iron=946.26/677.96 L; Iron fire-setting wood=228.24 L; haul-ws charcoal/all-ore/Iron-ore=16.79/36.45/11.27; metal-facility build-ws=385.62; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/919 demand-seasons (0.00%); unmet 0.00/1362.85 L planned (0.00%)
+    route ramp: seasons 322–334 (12 complete after first issue), chain/work=318.45/2421.82 (13.15%), fuel short 0/88 demand-seasons (0.00%); unmet 0.00/153.36 L planned (0.00%); post-ramp seasons=83, chain/work=1695.08/30189.51 (5.61%), fuel short 0/823 demand-seasons (0.00%); unmet 0.00/1182.55 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 72 12-season windows after 12-season route maturity; max share=8.74% at seasons 378–390, chain/work=398.17/4556.65 (metal/craft/facility=363.40/25.02/9.75 ws)
+
+== iron-match seed 20261021: 99.2 minutes simulated, chapter end RivalCountdown at season 396 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     68.0   87.2      56     31    2051   220  1063    1478      144        3        7     18
+c1  Grower      88.3      -      11      5     607   270     0     281       16        0        0      0
+c2  Warlord     75.0   97.0      51     19    1600   470   276     881      126        5        6     18
+c3  Sage        74.0   94.0      56     25    1897   259   475     802      108        4        8      8
+iron works built (all settlements):
+  crane                     5    0    0    1
+  windlass_well            19    6   12   14
+  terrace                  24    0    8   10
+  aqueduct                  4    0    0    1
+  bathhouse                 6    0    0    1
+  theatre_arena             3    0    5    5
+  road                     26    0   13   16
+  bridge                   14    0    0    4
+  gatehouse                 8    3    5    6
+  frontier_wall_segment     4    0    1    0
+  castle                    3    0    1    1
+  harbor                    1    0    1    1
+  galley                    1    0    0    0
+  academy                   3    0    5    4
+  press                     4    0    4    4
+  water_mill                2    0    0    0
+  temple_tier2              5    0    4    6
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; (nothing wanted) x1 (0%), aqueduct x2 (100%), crane x1 (100%), gatehouse x1 (32%), great_library x2 (100%), great_lighthouse x1 (100%), theatre_arena x2 (100%)
+  c1: villages 2; press x3 (100%)
+  c2: villages 12; (nothing wanted) x1 (0%), crane x4 (89%), great_dome x1 (100%), theatre_arena x1 (100%)
+  c3: villages 15; (nothing wanted) x1 (0%), aqueduct x2 (67%), bathhouse x1 (100%), castle x1 (100%), crane x5 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 3 towns
+  aqueduct lacks wood: 1 towns
+  bathhouse lacks block: 1 towns
+  bathhouse lacks wood: 1 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  crane fully supplied: 2 towns
+  crane lacks bloom: 7 towns
+  crane lacks wood: 5 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks wood: 1 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 2 towns
+  great_library lacks bloom: 2 towns
+  great_library lacks wood: 2 towns
+  great_lighthouse lacks ashlar: 1 towns
+  great_lighthouse lacks block: 1 towns
+  great_lighthouse lacks bloom: 1 towns
+  great_lighthouse lacks wood: 1 towns
+  press lacks bloom: 3 towns
+  theatre_arena lacks block: 3 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 20  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 152, c1 16, c2 129, c3 108
+final legacy per civ: c0 6684, c1 3364, c2 4568, c3 5068
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2286 stock=42510.00->40352.28 L; regrowth=72435.54 L; removed chop/metal/civic/other=37233.03/35726.66/1633.56/0.00 L (Iron-era subset=30954.54 L); residual=0.00 L
+  local wood stores=0.00->1742.91 L; inflow=62419.85 L; use=60676.94 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=138 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=57/0/0/81/0; currently cleared tiles=2 (grassland=0)
+  Iron fuel hubs and selected ore suppliers (end of match):
+    s0 local-ore=True supplier=s28 ore-need=0.00
+    s1 local-ore=True supplier=s75 ore-need=0.00
+    s4 local-ore=True supplier=s9 ore-need=0.00
+    s8 local-ore=True supplier=s90 ore-need=0.00
+    s9 local-ore=True supplier=s15 ore-need=0.00
+    s10 local-ore=True supplier=s14 ore-need=0.00
+    s11 local-ore=True supplier=s29 ore-need=0.00
+    s12 local-ore=True supplier=s7 ore-need=0.00
+    s14 local-ore=True supplier=s10 ore-need=0.00
+    s15 local-ore=True supplier=s9 ore-need=0.00
+    s22 local-ore=True supplier=s32 ore-need=0.00
+    s23 local-ore=True supplier=s11 ore-need=0.00
+    s24 local-ore=False supplier=none ore-need=9.00
+    s25 local-ore=False supplier=none ore-need=9.75
+    s26 local-ore=True supplier=none ore-need=42.75
+    s27 local-ore=True supplier=s88 ore-need=0.00
+    s33 local-ore=True supplier=s59 ore-need=0.00
+    s35 local-ore=True supplier=s59 ore-need=0.00
+    s37 local-ore=True supplier=s14 ore-need=0.00
+    s38 local-ore=True supplier=s36 ore-need=0.00
+    s39 local-ore=True supplier=none ore-need=0.00
+    s40 local-ore=True supplier=s41 ore-need=0.00
+    s42 local-ore=False supplier=s30 ore-need=7.50
+    s44 local-ore=False supplier=s30 ore-need=10.50
+    s45 local-ore=True supplier=s5 ore-need=0.00
+    s47 local-ore=False supplier=s14 ore-need=0.00
+    s48 local-ore=True supplier=s83 ore-need=0.00
+    s51 local-ore=True supplier=s3 ore-need=5.50
+    s53 local-ore=True supplier=s19 ore-need=0.00
+    s54 local-ore=True supplier=s76 ore-need=0.00
+    s55 local-ore=True supplier=s58 ore-need=2.28
+    s57 local-ore=False supplier=s30 ore-need=22.48
+    s59 local-ore=True supplier=s11 ore-need=0.00
+    s61 local-ore=False supplier=s96 ore-need=0.14
+    s65 local-ore=False supplier=s63 ore-need=9.00
+    s66 local-ore=True supplier=s63 ore-need=0.00
+    s67 local-ore=True supplier=s87 ore-need=0.00
+    s68 local-ore=False supplier=s96 ore-need=3.42
+    s71 local-ore=True supplier=none ore-need=0.00
+    s72 local-ore=True supplier=s87 ore-need=0.00
+    s73 local-ore=False supplier=s30 ore-need=4.49
+    s74 local-ore=False supplier=s54 ore-need=1.01
+    s75 local-ore=True supplier=s87 ore-need=0.00
+    s76 local-ore=True supplier=s54 ore-need=0.00
+    s77 local-ore=True supplier=s87 ore-need=0.00
+    s79 local-ore=True supplier=s80 ore-need=0.00
+    s80 local-ore=True supplier=s78 ore-need=0.00
+    s81 local-ore=False supplier=s54 ore-need=1.50
+    s82 local-ore=False supplier=s96 ore-need=11.25
+    s83 local-ore=True supplier=s48 ore-need=0.00
+    s84 local-ore=True supplier=none ore-need=0.00
+    s85 local-ore=True supplier=s34 ore-need=0.00
+    s86 local-ore=True supplier=s2 ore-need=1.13
+    s93 local-ore=False supplier=s54 ore-need=1.35
+    s94 local-ore=False supplier=s96 ore-need=4.50
+    s95 local-ore=False supplier=s63 ore-need=6.62
+    s99 local-ore=False supplier=none ore-need=0.74
+    s101 local-ore=True supplier=none ore-need=2.94
+    s102 local-ore=False supplier=none ore-need=3.00
+    s104 local-ore=False supplier=none ore-need=0.00
+    s105 local-ore=False supplier=none ore-need=0.00
+    s106 local-ore=False supplier=none ore-need=0.00
+  kits world: T11 made/received/sent/issued/broken/early-upgrades/retired/held/stored=2378.09/697.00/697.00/2329.00/5/69/1105.00/1219/49.09; residual=0.00; T12=2179.33/318.00/318.00/2125.00/0/0/311.00/1814/54.33; residual=0.00 kits
+  settlement kit ledgers: 107/107 exact; nonzero residual sites=0
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  I-T2 settlement route screen (first kit issue or sister delivery, then 12 complete seasons; fuel follows per-tier kit transfers to sites that produced the supplied tier during the window; relay-only or stock-only sources are censored): qualify over summed producer-site demand-seasons, with at least 12
+    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ holders11/12 stock11/12 population hub start/end hub F/S site F/S hub-wood-factor hub-reach/baseline site-wood-factor site-reach/baseline made11/12 received11/12 issued11/12 upgrades fuel-sites short/demand rate unmet/plan result
+    s0 281–293 c0->c0 MET-09=280 14 14/0 100.00% 14/0 0/0 24/0 1.00/0.00 72 45/45 1/1 1/1 100.00% 19037.75/448.34 100.00% 15223.28/1759.50 36.14/0.00 0.00/0.00 36.00/0.00 0 [0] 0/12 0.00% 0.00/31.39 0.00% PASS screen
+    s1 281–293 c0->c0 MET-09=280 16 16/0 100.00% 16/0 0/0 25/0 1.00/0.00 77 45/45 1/1 1/1 100.00% 19037.75/448.34 100.00% 18120.13/120.00 34.52/0.00 1.00/0.00 35.00/0.00 0 [1,45] 0/23 0.00% 0.00/57.09 0.00% PASS screen
+    s2 311–323 c2->c2 MET-09=310 34 34/0 100.00% 29/0 5/0 74/0 1.00/0.00 240 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 10601.98/1756.59 66.25/0.00 23.00/0.00 69.00/0.00 0 [2,16,18,20,21,38] 0/66 0.00% 0.00/176.99 0.00% PASS screen
+    s3 306–318 c3->c3 MET-09=305 10 10/0 100.00% 10/0 0/0 15/0 1.00/0.00 51 3/17 1/1 1/1 100.00% 12545.98/496.50 100.00% 12545.98/496.50 20.46/0.00 1.00/0.00 21.00/0.00 0 [3,17] 0/21 0.00% 0.00/38.93 0.00% CENSORED assigned hub changed
+    s4 281–293 c0->c0 MET-09=280 38 38/0 100.00% 37/0 1/0 40/0 1.00/0.00 114 4/4 1/1 1/1 100.00% 12470.38/1540.00 100.00% 12470.38/1540.00 44.38/0.00 2.00/0.00 44.00/0.00 0 [0,4] 0/23 0.00% 0.00/71.99 0.00% PASS screen
+    s5 281–293 c0->c0 MET-09=280 27 27/0 100.00% 24/0 3/0 49/0 1.00/0.00 135 45/45 1/1 1/1 100.00% 19037.75/448.34 100.00% 17305.41/505.00 60.24/0.00 20.00/0.00 63.00/0.00 0 [0,1,4,5,9,10,15,45] 0/90 0.00% 0.00/248.48 0.00% PASS screen
+    s6 315–327 c2->c2 MET-09=310 34 34/0 100.00% 30/0 4/0 36/0 0.00/0.00 107 38/38 1/1 1/0 100.00% 9592.06/2203.46 100.00% 8938.11/1540.00 0.00/0.00 36.00/0.00 8.00/0.00 0 [2,16,18,20,21,38,48,79,80] 0/94 0.00% 0.00/127.36 0.00% PASS screen
+    s7 306–318 c3->c3 MET-09=305 17 17/0 100.00% 14/0 3/0 22/0 1.00/0.00 67 3/17 1/1 1/1 100.00% 12545.98/496.50 100.00% 11365.98/1628.00 31.46/0.00 0.00/0.00 31.00/0.00 0 [7] 0/12 0.00% 0.00/23.42 0.00% CENSORED assigned hub changed
+    s8 367–379 c1->c1 MET-09=366 27 27/0 100.00% 26/0 1/0 65/0 1.00/0.00 204 8/8 1/1 1/1 100.00% 7669.59/1639.77 100.00% 7669.59/1639.77 132.85/0.00 0.00/0.00 119.00/0.00 0 [8] 0/10 0.00% 0.00/104.49 0.00% CENSORED fuel demand 10/12
+    s9 281–293 c0->c0 MET-09=280 10 10/0 100.00% 8/0 2/0 21/0 1.00/0.00 42 9/9 1/1 1/1 100.00% 10383.61/1479.00 100.00% 10383.61/1479.00 23.04/0.00 0.00/0.00 23.00/0.00 0 [9] 0/10 0.00% 0.00/21.08 0.00% CENSORED fuel demand 10/12
+    s10 281–293 c0->c0 MET-09=280 20 20/0 100.00% 18/0 2/0 36/0 1.00/0.00 83 10/10 1/1 1/1 100.00% 9117.79/1998.00 100.00% 9117.79/1998.00 41.85/0.00 0.00/0.00 41.00/0.00 0 [10] 0/11 0.00% 0.00/34.53 0.00% CENSORED fuel demand 11/12
+    s11 281–293 c0->c0 MET-09=280 8 8/0 100.00% 8/0 0/0 14/0 1.00/0.00 44 11/11 1/1 1/1 100.00% 12434.91/1662.60 100.00% 12434.91/1662.60 11.47/0.00 0.00/0.00 11.00/0.00 0 [11] 0/12 0.00% 0.00/17.01 0.00% PASS screen
+    s12 306–318 c3->c3 MET-09=305 8 8/0 100.00% 8/0 0/0 15/0 1.00/0.00 71 3/12 1/1 1/1 100.00% 12545.98/496.50 100.00% 8357.94/1593.46 20.91/0.00 0.00/0.00 20.00/0.00 0 [12] 0/12 0.00% 0.00/16.82 0.00% CENSORED assigned hub changed
+    s13 372–384 c1->c1 MET-09=366 7 7/0 100.00% 6/0 1/0 44/0 1.00/0.00 99 8/8 1/1 1/0 100.00% 7670.99/1639.77 100.00% 7411.45/1765.00 0.00/0.00 58.00/0.00 11.00/0.00 0 [8,88,92] 0/31 0.00% 0.00/65.58 0.00% CENSORED kit source not produced in window
+    s14 283–295 c0->c0 MET-09=280 6 6/0 100.00% 6/0 0/0 7/0 1.00/0.00 18 14/14 1/1 1/1 100.00% 9012.32/933.00 100.00% 9012.32/933.00 3.33/0.00 3.00/0.00 3.00/0.00 0 [0,9,14] 0/31 0.00% 0.00/41.79 0.00% PASS screen
+    s15 281–293 c0->c0 MET-09=280 10 10/0 100.00% 7/0 3/0 17/0 0.00/0.00 47 15/15 1/1 1/1 100.00% 8884.31/1687.50 100.00% 8884.31/1687.50 14.11/0.00 1.00/0.00 15.00/0.00 0 [0,15] 0/23 0.00% 0.00/43.40 0.00% PASS screen
+    s16 311–323 c2->c2 MET-09=310 16 16/0 100.00% 13/0 3/0 17/0 1.00/0.00 66 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 11291.98/505.00 19.80/0.00 1.00/0.00 19.00/0.00 0 [16,38] 0/22 0.00% 0.00/58.64 0.00% PASS screen
+    s17 306–318 c3->c3 MET-09=305 4 4/0 100.00% 2/0 2/0 14/0 1.02/0.00 29 3/17 1/1 1/1 100.00% 12545.98/496.50 100.00% 12545.98/250.00 27.38/0.00 0.00/0.00 18.00/0.00 0 [17] 0/11 0.00% 0.00/23.38 0.00% CENSORED assigned hub changed
+    s18 311–323 c2->c2 MET-09=310 21 21/0 100.00% 18/0 3/0 22/0 1.00/0.00 70 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 10396.98/1665.00 28.53/0.00 0.00/0.00 28.00/0.00 0 [18] 0/10 0.00% 0.00/39.54 0.00% CENSORED fuel demand 10/12
+    s19 306–318 c3->c3 MET-09=305 5 5/0 100.00% 3/0 2/0 10/0 0.00/0.00 33 19/17 1/1 1/1 100.00% 12000.08/780.00 100.00% 12000.08/780.00 16.79/0.00 0.00/0.00 17.00/0.00 0 [19] 0/12 0.00% 0.00/19.01 0.00% CENSORED assigned hub changed
+    s20 311–323 c2->c2 MET-09=310 4 4/0 100.00% 4/0 0/0 9/0 0.00/0.00 24 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 8775.28/1335.00 7.98/0.00 1.00/0.00 8.00/0.00 0 [20,38] 0/23 0.00% 0.00/44.76 0.00% PASS screen
+    s21 311–323 c2->c2 MET-09=310 3 3/0 100.00% 3/0 0/0 11/0 0.00/0.00 32 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 8803.05/1080.00 16.69/0.00 0.00/0.00 17.00/0.00 0 [21] 0/11 0.00% 0.00/14.16 0.00% CENSORED fuel demand 11/12
+    s22 306–318 c3->c3 MET-09=305 9 9/0 100.00% 7/0 2/0 13/0 0.00/0.00 38 22/22 1/1 1/1 100.00% 7833.65/1140.00 100.00% 7833.65/1140.00 13.20/0.00 0.00/0.00 14.00/0.00 0 [22] 0/12 0.00% 0.00/10.35 0.00% CENSORED Free Folk outside civ kit network
+    s23 281–293 c0->c0 MET-09=280 23 23/0 100.00% 17/0 6/0 36/0 1.00/0.00 76 23/23 1/1 1/1 100.00% 12786.96/1992.27 100.00% 12786.96/1992.27 24.64/0.00 0.00/0.00 24.00/0.00 0 [23] 0/12 0.00% 0.00/23.09 0.00% CENSORED Free Folk outside civ kit network
+    s27 367–379 c1->c1 MET-09=366 16 16/0 100.00% 15/0 1/0 60/0 0.00/0.00 115 27/27 1/1 1/1 100.00% 7001.95/1785.00 100.00% 7001.95/1785.00 51.01/0.00 0.00/0.00 52.00/0.00 0 [27] 0/8 0.00% 0.00/44.19 0.00% CENSORED Free Folk outside civ kit network
+    s28 281–293 c0->c0 MET-09=280 16 16/0 100.00% 13/0 3/0 21/0 1.00/0.00 62 45/45 1/1 1/1 100.00% 19037.75/448.34 100.00% 16483.28/820.33 21.65/0.00 0.00/0.00 21.00/0.00 0 [28] 0/12 0.00% 0.00/18.23 0.00% PASS screen
+    s29 281–293 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 10/0 0.00/0.00 33 45/45 1/1 1/1 100.00% 19037.75/448.34 100.00% 14785.41/1498.57 10.37/0.00 1.00/0.00 11.00/0.00 0 [10,29] 0/23 0.00% 0.00/46.41 0.00% PASS screen
+    s30 282–294 c0->c0 MET-09=280 3 3/0 100.00% 3/0 0/0 10/0 1.00/0.00 31 30/30 1/1 1/1 100.00% 12522.73/780.00 100.00% 12522.73/780.00 10.27/0.00 1.00/0.00 10.00/0.00 0 [10,30,40] 0/34 0.00% 0.00/58.74 0.00% PASS screen
+    s31 306–318 c3->c3 MET-09=305 5 5/0 100.00% 5/0 0/0 11/0 1.00/0.00 37 3/17 1/1 1/1 100.00% 12545.98/496.50 100.00% 10848.65/2910.00 8.69/0.00 0.00/0.00 8.00/0.00 0 [31] 0/12 0.00% 0.00/9.50 0.00% CENSORED assigned hub changed
+    s32 306–318 c3->c3 MET-09=305 6 6/0 100.00% 5/0 1/0 10/0 1.00/0.00 31 3/32 1/1 1/1 100.00% 12545.98/496.50 100.00% 7816.64/1755.00 11.32/0.00 0.00/0.00 11.00/0.00 0 [32] 0/11 0.00% 0.00/9.50 0.00% CENSORED assigned hub changed
+    s33 281–293 c0->c0 MET-09=280 5 5/0 100.00% 5/0 0/0 10/0 0.00/0.00 31 33/33 1/1 1/1 100.00% 11108.47/224.82 100.00% 11108.47/224.82 9.58/0.00 0.00/0.00 10.00/0.00 0 [33] 0/9 0.00% 0.00/6.08 0.00% CENSORED fuel demand 9/12
+    s34 309–321 c3->c3 MET-09=305 5 5/0 100.00% 4/0 1/0 7/0 1.00/0.00 17 17/51 1/1 1/1 100.00% 12573.83/250.00 100.00% 11756.85/1935.00 3.00/0.00 4.00/0.00 2.00/0.00 0 [3,7,17,34] 0/45 0.00% 0.00/46.73 0.00% CENSORED assigned hub changed
+    s35 367–379 c0->c0 MET-09=280 3 0/3 100.00% 0/3 0/0 0/3 0.00/0.98 12 35/35 1/1 1/1 100.00% 8382.64/120.00 100.00% 8382.64/120.00 0.00/2.94 0.00/0.00 0.00/2.00 0 [35] 0/12 0.00% 0.00/4.29 0.00% CENSORED Free Folk outside civ kit network
+    s36 311–323 c2->c2 MET-09=310 5 5/0 100.00% 4/0 1/0 11/0 0.00/0.00 28 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 8871.98/2130.00 7.38/0.00 1.00/0.00 8.00/0.00 0 [36,38] 0/23 0.00% 0.00/43.36 0.00% PASS screen
+    s37 284–296 c0->c0 MET-09=280 7 7/0 100.00% 7/0 0/0 10/0 0.00/0.00 39 37/37 1/1 1/1 100.00% 10064.56/927.29 100.00% 10064.56/927.29 3.72/0.00 5.00/0.00 4.00/0.00 0 [0,4,10,37] 0/35 0.00% 0.00/60.89 0.00% PASS screen
+    s38 311–323 c2->c2 MET-09=310 6 6/0 100.00% 6/0 0/0 15/0 1.00/0.00 49 38/38 1/1 1/1 100.00% 9611.98/2203.46 100.00% 9611.98/2203.46 43.69/0.00 0.00/0.00 26.00/0.00 0 [38] 0/12 0.00% 0.00/35.16 0.00% PASS screen
+    s39 285–297 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 6/0 0.00/0.00 27 45/45 1/1 1/0 100.00% 19117.01/448.34 100.00% 11830.89/2193.30 0.00/0.00 5.00/0.00 1.00/0.00 0 [0,45] 0/23 0.00% 0.00/36.52 0.00% PASS screen
+    s40 284–296 c0->c0 MET-09=280 5 5/0 100.00% 4/0 1/0 13/0 0.00/0.00 31 40/40 1/1 1/1 100.00% 10701.46/255.00 100.00% 10701.46/255.00 9.29/0.00 5.00/0.00 10.00/0.00 0 [10,40] 0/21 0.00% 0.00/31.20 0.00% PASS screen
+    s41 281–293 c0->c0 MET-09=280 3 3/0 100.00% 2/0 1/0 7/0 0.00/0.00 18 41/41 1/0 1/0 100.00% 11504.91/913.75 100.00% 11504.91/913.75 6.98/0.00 0.00/0.00 7.00/0.00 0 [41] 0/9 0.00% 0.00/2.04 0.00% CENSORED fuel demand 9/12
+    s42 286–298 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 7/0 0.00/0.00 13 42/42 1/0 1/0 100.00% 11291.85/420.00 100.00% 11291.85/420.00 5.00/0.00 1.00/0.00 5.00/0.00 0 [33,42] 0/11 0.00% 0.00/5.80 0.00% CENSORED fuel demand 11/12
+    s43 315–327 c2->c2 MET-09=310 6 6/0 100.00% 5/0 1/0 10/0 0.00/0.00 21 38/38 1/1 1/1 100.00% 9592.06/2203.46 100.00% 9327.06/1740.00 6.34/0.00 1.00/0.00 7.00/0.00 0 [2,20,38,43] 0/40 0.00% 0.00/80.11 0.00% PASS screen
+    s44 286–298 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 4/0 0.00/0.00 12 44/44 1/0 1/0 100.00% 9337.70/300.00 100.00% 9337.70/300.00 0.00/0.00 3.00/0.00 0.00/0.00 0 [11,33,41] 0/29 0.00% 0.00/11.10 0.00% PASS screen
+    s45 281–293 c0->c0 MET-09=280 9 9/0 100.00% 9/0 0/0 16/0 2.83/0.00 37 45/45 1/1 1/1 100.00% 19037.75/448.34 100.00% 19037.75/448.34 37.86/0.00 0.00/0.00 21.00/0.00 0 [45] 0/12 0.00% 0.00/29.35 0.00% PASS screen
+    s46 306–318 c3->c3 MET-09=305 3 3/0 100.00% 2/0 1/0 8/0 1.00/0.00 32 3/46 1/1 1/1 100.00% 12545.98/496.50 100.00% 12255.24/975.00 12.15/0.00 0.00/0.00 12.00/0.00 0 [46] 0/12 0.00% 0.00/12.02 0.00% CENSORED assigned hub changed
+    s47 285–297 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 4/0 0.97/0.00 8 47/47 1/0 1/0 100.00% 7775.50/777.33 100.00% 7775.50/777.33 0.97/0.00 3.00/0.00 0.00/0.00 0 [0,4,47] 0/22 0.00% 0.00/30.10 0.00% PASS screen
+    s48 311–323 c2->c2 MET-09=310 7 7/0 100.00% 6/0 1/0 10/0 1.00/0.00 32 48/48 1/0 1/0 100.00% 8867.79/105.00 100.00% 8867.79/105.00 7.95/0.00 0.00/0.00 7.00/0.00 0 [48] 0/8 0.00% 0.00/2.24 0.00% CENSORED fuel demand 8/12
+    s49 306–318 c3->c3 MET-09=305 6 6/0 100.00% 6/0 0/0 13/0 1.00/0.00 45 49/17 1/1 1/1 100.00% 12319.35/770.00 100.00% 12319.35/770.00 15.63/0.00 0.00/0.00 15.00/0.00 0 [49] 0/12 0.00% 0.00/14.42 0.00% CENSORED assigned hub changed
+    s50 309–321 c3->c3 MET-09=305 7 7/0 100.00% 5/0 2/0 12/0 1.00/0.00 19 50/51 1/1 1/1 100.00% 7812.69/2959.46 100.00% 7812.69/2959.46 5.12/0.00 3.00/0.00 5.00/0.00 0 [7,50] 0/23 0.00% 0.00/20.39 0.00% CENSORED assigned hub changed
+    s51 309–321 c3->c3 MET-09=305 6 6/0 100.00% 4/0 2/0 12/0 1.00/0.00 40 17/51 1/1 1/1 100.00% 12573.83/250.00 100.00% 12141.17/3092.11 1.00/0.00 11.00/0.00 6.00/0.00 0 [7,12,17,51] 0/46 0.00% 0.00/43.56 0.00% CENSORED assigned hub changed
+    s52 285–297 c0->c0 MET-09=280 3 3/0 100.00% 3/0 0/0 7/0 0.00/0.00 24 45/45 1/1 1/0 100.00% 19117.01/448.34 100.00% 16440.89/1339.55 0.00/0.00 6.00/0.00 3.00/0.00 0 [0,1,4,45] 0/42 0.00% 0.00/63.37 0.00% PASS screen
+    s53 308–320 c3->c3 MET-09=305 6 6/0 100.00% 5/0 1/0 12/0 0.00/0.00 41 53/53 1/1 1/1 100.00% 11499.50/868.48 100.00% 11499.50/868.48 4.99/0.00 8.00/0.00 5.00/0.00 0 [7,17,19,32,53] 0/57 0.00% 0.00/61.86 0.00% PASS screen
+    s54 309–321 c3->c3 MET-09=305 4 4/0 100.00% 2/0 2/0 7/0 1.00/0.00 23 54/54 1/0 1/0 100.00% 11267.31/1250.00 100.00% 11267.31/1250.00 2.87/0.00 0.00/0.00 2.00/0.00 0 [54] 0/4 0.00% 0.00/1.24 0.00% CENSORED fuel demand 4/12
+    s55 285–297 c0->c0 MET-09=280 4 4/0 100.00% 4/0 0/0 7/0 0.00/0.00 22 45/45 1/1 1/0 100.00% 19117.01/448.34 100.00% 19327.01/18741.67 0.00/0.00 9.00/0.00 4.00/0.00 0 [0,1,4,45] 0/42 0.00% 0.00/63.37 0.00% PASS screen
+    s56 318–330 c2->c2 MET-09=310 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 9 38/38 1/1 1/0 100.00% 9671.11/2203.46 100.00% 7886.11/926.81 0.00/0.00 5.00/0.00 1.00/0.00 0 [2,38] 0/22 0.00% 0.00/46.29 0.00% PASS screen
+    s57 285–297 c0->c0 MET-09=280 5 5/0 100.00% 4/0 1/0 9/0 1.00/0.00 28 57/57 1/0 1/0 100.00% 12134.66/9755.83 100.00% 12134.66/9755.83 5.00/0.00 3.00/0.00 4.00/0.00 0 [0,5,28,45,57] 0/46 0.00% 0.00/88.20 0.00% PASS screen
+    s58 285–297 c0->c0 MET-09=280 3 3/0 100.00% 2/0 1/0 8/0 0.00/0.00 21 45/45 1/1 1/0 100.00% 19117.01/448.34 100.00% 18539.75/15190.30 0.00/0.00 3.00/0.00 2.00/0.00 0 [0,5,45] 0/34 0.00% 0.00/76.64 0.00% PASS screen
+    s59 285–297 c0->c0 MET-09=280 4 4/0 100.00% 3/0 1/0 7/0 1.00/0.00 21 59/59 1/0 1/0 100.00% 11978.74/9838.95 100.00% 11978.74/9838.95 3.00/0.00 1.00/0.00 2.00/0.00 0 [0,59] 0/14 0.00% 0.00/16.78 0.00% PASS screen
+    s60 285–297 c0->c0 MET-09=280 3 3/0 100.00% 3/0 0/0 7/0 0.00/0.00 22 45/45 1/1 0/0 100.00% 19117.01/448.34 100.00% 18315.98/15048.47 0.00/0.00 3.00/0.00 3.00/0.00 0 [45] 0/11 0.00% 0.00/20.14 0.00% CENSORED fuel demand 11/12
+    s61 285–297 c0->c0 MET-09=280 4 4/0 100.00% 4/0 0/0 4/0 0.00/0.00 21 61/61 0/0 0/0 100.00% 14063.80/10021.71 100.00% 14063.80/10021.71 0.00/0.00 2.00/0.00 0.00/0.00 0 [1,45] 0/21 0.00% 0.00/33.40 0.00% PASS screen
+    s62 286–298 c0->c0 MET-09=280 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 23 45/45 1/1 0/0 100.00% 19161.60/448.34 100.00% 19161.60/18539.36 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s63 285–297 c0->c0 MET-09=280 5 5/0 100.00% 5/0 0/0 12/0 0.00/0.00 28 63/63 1/0 1/0 100.00% 17213.92/14151.86 100.00% 17213.92/14151.86 3.00/0.00 0.00/0.00 3.00/0.00 0 [63] 0/2 0.00% 0.00/0.39 0.00% CENSORED fuel demand 2/12
+    s64 287–299 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 4/0 0.00/0.00 17 64/64 0/0 0/0 100.00% 14157.77/9894.83 100.00% 14157.77/9894.83 0.00/0.00 3.00/0.00 0.00/0.00 0 [5,45] 0/20 0.00% 0.00/37.89 0.00% PASS screen
+    s65 290–302 c0->c0 MET-09=280 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 14 65/65 0/0 0/0 100.00% 13123.54/10918.31 100.00% 13123.54/10918.31 0.00/0.00 2.00/0.00 0.00/0.00 0 [1] 0/11 0.00% 0.00/9.64 0.00% CENSORED fuel demand 11/12
+    s66 291–303 c0->c0 MET-09=280 5 5/0 100.00% 4/0 1/0 13/0 0.00/0.00 35 45/45 1/1 0/0 100.00% 19186.82/448.34 100.00% 18374.60/16472.72 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s67 292–304 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 5/0 0.00/0.00 25 67/67 0/0 0/0 100.00% 10878.56/10082.43 100.00% 10878.56/10082.43 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s68 293–305 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 6/0 0.00/0.00 13 68/68 0/0 0/0 100.00% 7819.05/5692.36 100.00% 7819.05/5692.36 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s69 295–307 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 4/0 0.00/0.00 20 69/69 0/0 0/0 100.00% 16206.04/11716.29 100.00% 16206.04/11716.29 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s70 309–321 c3->c3 MET-09=305 6 6/0 100.00% 6/0 0/0 10/0 1.00/0.00 36 17/51 1/1 1/1 100.00% 12573.83/250.00 100.00% 10383.07/10220.26 12.25/0.00 4.00/0.00 12.00/0.00 0 [7,17,19,31,70] 0/53 0.00% 0.00/57.61 0.00% CENSORED assigned hub changed
+    s71 317–329 c3->c3 MET-09=305 1 1/0 100.00% 1/0 0/0 3/0 0.00/0.00 8 71/71 0/0 0/0 100.00% 9302.59/7394.76 100.00% 9302.59/7394.76 0.00/0.00 3.00/0.00 0.00/0.00 0 [3] 0/11 0.00% 0.00/8.61 0.00% CENSORED fuel demand 11/12
+    s72 297–309 c0->c0 MET-09=280 3 3/0 100.00% 2/0 1/0 4/0 0.00/0.00 19 72/72 0/0 0/0 100.00% 11056.08/10542.25 100.00% 11056.08/10542.25 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s73 300–312 c0->c0 MET-09=280 2 2/0 100.00% 1/0 1/0 4/0 0.00/0.00 12 73/73 0/0 0/0 100.00% 8738.83/9491.88 100.00% 8738.83/9491.88 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s74 307–319 c3->c3 MET-09=305 5 5/0 100.00% 4/0 1/0 8/0 1.00/0.00 32 74/74 1/0 1/0 100.00% 12764.11/12711.17 100.00% 12764.11/12711.17 0.02/0.00 4.00/0.00 3.00/0.00 0 [17,32,74] 0/23 0.00% 0.00/29.24 0.00% CENSORED assigned hub changed
+    s75 301–313 c0->c0 MET-09=280 3 3/0 100.00% 3/0 0/0 7/0 0.00/0.00 25 75/63 0/0 0/0 100.00% 15729.60/13865.32 100.00% 15729.60/13865.32 0.00/0.00 1.00/0.00 1.00/0.00 0 [63] 0/9 0.00% 0.00/9.56 0.00% CENSORED assigned hub changed
+    s76 310–322 c3->c3 MET-09=305 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 12 76/76 0/0 0/0 100.00% 11212.95/9902.30 100.00% 11212.95/9902.30 0.00/0.00 1.00/0.00 0.00/0.00 0 [3,17] 0/20 0.00% 0.00/22.40 0.00% PASS screen
+    s77 302–314 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 6/0 0.00/0.00 24 77/77 1/0 1/0 100.00% 10702.20/9772.95 100.00% 10702.20/9772.95 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s78 314–326 c2->c2 MET-09=310 10 10/0 100.00% 7/0 3/0 17/0 1.00/0.00 38 38/38 1/1 1/1 100.00% 9578.54/2203.46 100.00% 11288.54/12570.83 13.05/0.00 0.00/0.00 13.00/0.00 0 [78] 0/11 0.00% 0.00/13.60 0.00% CENSORED fuel demand 11/12
+    s79 311–323 c2->c2 MET-09=310 7 7/0 100.00% 7/0 0/0 13/0 1.00/0.00 34 79/79 1/1 1/1 100.00% 8329.17/8932.08 100.00% 8329.17/8932.08 13.41/0.00 0.00/0.00 13.00/0.00 0 [79] 0/10 0.00% 0.00/6.00 0.00% CENSORED fuel demand 10/12
+    s80 311–323 c2->c2 MET-09=310 3 3/0 100.00% 1/0 2/0 15/0 1.00/0.00 42 80/80 1/1 1/1 100.00% 9652.61/11387.28 100.00% 9652.61/11387.28 15.97/0.00 0.00/0.00 15.00/0.00 0 [80] 0/11 0.00% 0.00/9.98 0.00% CENSORED fuel demand 11/12
+    s81 310–322 c3->c3 MET-09=305 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 26 81/81 0/0 0/0 100.00% 7689.71/7859.93 100.00% 7689.71/7859.93 0.00/0.00 4.00/0.00 0.00/0.00 0 [17] 0/10 0.00% 0.00/14.74 0.00% CENSORED fuel demand 10/12
+    s82 303–315 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 5/0 0.00/0.00 21 82/63 0/0 0/0 100.00% 11777.44/9889.98 100.00% 11777.44/9889.98 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED assigned hub changed
+    s83 317–329 c2->c2 MET-09=310 6 6/0 100.00% 5/0 1/0 10/0 1.00/0.00 27 83/83 1/0 1/0 100.00% 9195.61/9486.63 100.00% 9195.61/9486.63 6.15/0.00 1.00/0.00 6.00/0.00 0 [18,83] 0/16 0.00% 0.00/10.89 0.00% PASS screen
+    s84 317–329 c2->c2 MET-09=310 2 2/0 100.00% 2/0 0/0 6/0 0.97/0.00 18 84/84 1/0 1/0 100.00% 7848.47/6890.12 100.00% 7848.47/6890.12 3.97/0.00 3.00/0.00 4.00/0.00 0 [2,38,84] 0/24 0.00% 0.00/49.66 0.00% CENSORED kit source not produced in window
+    s85 310–322 c3->c3 MET-09=305 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 9 85/85 0/0 0/0 100.00% 7819.05/7621.23 100.00% 7819.05/7621.23 0.00/0.00 1.00/0.00 0.00/0.00 0 [7] 0/12 0.00% 0.00/9.36 0.00% PASS screen
+    s86 311–323 c2->c2 MET-09=310 8 8/0 100.00% 8/0 0/0 19/0 0.00/0.00 46 86/86 1/1 1/1 100.00% 9507.43/8386.42 100.00% 9507.43/8386.42 6.64/0.00 2.00/0.00 7.00/0.00 0 [2,16,18,20,21,38,86] 0/73 0.00% 0.00/185.84 0.00% PASS screen
+    s87 307–319 c0->c0 MET-09=280 3 3/0 100.00% 3/0 0/0 7/0 0.00/0.00 17 87/63 0/0 0/0 100.00% 12620.16/11593.18 100.00% 12620.16/11593.18 0.00/0.00 3.00/0.00 3.00/0.00 0 [63] 0/11 0.00% 0.00/19.24 0.00% CENSORED assigned hub changed
+    s88 367–379 c1->c1 MET-09=366 5 5/0 100.00% 4/0 1/0 16/0 0.00/0.00 31 8/8 1/1 1/1 100.00% 7669.59/1639.77 100.00% 6881.95/1497.42 17.39/0.00 0.00/0.00 18.00/0.00 0 [88] 0/12 0.00% 0.00/14.50 0.00% PASS screen
+    s89 317–329 c2->c2 MET-09=310 5 5/0 100.00% 5/0 0/0 8/0 0.00/0.00 30 38/38 1/1 1/0 100.00% 9717.72/2203.46 100.00% 10324.16/8594.68 0.00/0.00 4.00/0.00 4.00/0.00 0 [38] 0/10 0.00% 0.00/19.92 0.00% CENSORED fuel demand 10/12
+    s90 369–381 c1->c1 MET-09=366 7 7/0 100.00% 5/0 2/0 13/0 1.00/0.00 31 8/8 1/1 1/1 100.00% 7667.00/1639.77 100.00% 6944.25/1481.39 2.93/0.00 9.00/0.00 4.00/0.00 0 [8,88,90,92] 0/44 0.00% 0.00/140.31 0.00% CENSORED kit source not produced in window
+    s91 311–323 c3->c3 MET-09=305 4 4/0 100.00% 4/0 0/0 5/0 0.00/0.00 17 17/51 1/1 0/0 100.00% 12599.83/250.00 100.00% 12749.83/12340.18 0.00/0.00 0.00/0.00 0.00/0.00 0 [17,51] 0/20 0.00% 0.00/16.10 0.00% CENSORED assigned hub changed
+    s92 367–379 c1->c1 MET-09=366 34 34/0 100.00% 33/0 1/0 39/0 0.00/0.00 129 8/8 1/1 1/1 100.00% 7669.59/1639.77 100.00% 7757.17/360.00 42.33/0.00 0.00/0.00 43.00/0.00 0 [92] 0/12 0.00% 0.00/36.04 0.00% PASS screen
+    s93 313–325 c3->c3 MET-09=305 5 5/0 100.00% 5/0 0/0 7/0 1.00/0.00 28 93/93 1/0 1/0 100.00% 9459.47/7669.20 100.00% 9459.47/7669.20 4.00/0.00 0.00/0.00 3.00/0.00 0 [93] 0/1 0.00% 0.00/0.41 0.00% CENSORED fuel demand 1/12
+    s94 313–325 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 2/0 0.00/0.00 12 94/94 0/0 0/0 100.00% 8603.97/7934.24 100.00% 8603.97/7934.24 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s95 317–329 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 2/0 0.00/0.00 12 63/95 1/1 0/0 100.00% 16389.91/14151.86 100.00% 10103.19/9851.76 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED assigned hub changed
+    s96 318–330 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 4/0 0.00/0.00 16 63/96 1/1 0/0 100.00% 16363.14/14151.86 100.00% 14142.33/11265.36 0.00/0.00 1.00/0.00 1.00/0.00 0 [63] 0/9 0.00% 0.00/14.57 0.00% CENSORED assigned hub changed
+    s97 320–332 c3->c3 MET-09=305 3 3/0 100.00% 3/0 0/0 13/0 0.00/0.00 35 51/51 1/1 0/0 100.00% 12273.60/3092.11 100.00% 10966.58/9163.21 0.00/0.00 1.00/0.00 1.00/0.00 0 [51] 0/12 0.00% 0.00/8.45 0.00% PASS screen
+    s98 321–333 c0->c0 MET-09=280 3 3/0 100.00% 2/0 1/0 6/0 0.00/0.00 20 98/98 0/0 0/0 100.00% 10347.89/7843.47 100.00% 10347.89/7843.47 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s99 326–338 c0->c0 MET-09=280 2 2/0 100.00% 1/0 1/0 2/0 0.00/0.00 6 99/99 0/0 0/0 100.00% 5344.05/3037.85 100.00% 5344.05/3037.85 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s100 330–342 c3->c3 MET-09=305 4 4/0 100.00% 3/0 1/0 8/0 0.00/0.00 20 51/51 1/1 0/0 100.00% 12388.03/3092.11 100.00% 12977.64/12112.39 0.00/0.00 2.00/0.00 2.00/0.00 0 [51] 0/12 0.00% 0.00/4.99 0.00% PASS screen
+    s101 330–342 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 14 101/101 0/0 0/0 100.00% 7750.32/6361.19 100.00% 7750.32/6361.19 0.00/0.00 1.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s102 330–342 c0->c0 MET-09=280 2 2/0 100.00% 2/0 0/0 4/0 0.00/0.00 10 102/102 0/0 0/0 100.00% 7695.17/6821.24 100.00% 7695.17/6821.24 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s103 331–343 c3->c3 MET-09=305 2 2/0 100.00% 2/0 0/0 8/0 0.00/0.00 22 51/51 1/1 0/0 100.00% 12430.63/3092.11 100.00% 12120.00/11619.00 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s104 337–349 c2->c2 MET-09=310 3 3/0 100.00% 1/0 2/0 5/0 0.00/0.00 14 104/104 0/0 0/0 100.00% 5503.03/3628.39 100.00% 5503.03/3628.39 0.00/0.00 1.00/0.00 0.00/0.00 0 [18] 0/12 0.00% 0.00/10.01 0.00% PASS screen
+    s105 337–349 c0->c0 MET-09=280 1 1/0 100.00% 1/0 0/0 3/0 0.00/0.00 12 105/105 0/0 0/0 100.00% 6466.94/5780.89 100.00% 6466.94/5780.89 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s106 337–349 c0->c0 MET-09=280 0 0/0 n/a 0/0 0/0 2/0 0.00/0.00 8 106/106 0/0 0/0 100.00% 7299.43/5640.72 100.00% 7299.43/5640.72 0.00/0.00 1.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    I-T2 diagnostic totals: 41 screen pass, 0 fail, 63 censored; endpoint tool-worker coverage uses actual positive toolWork, split by ages 14–44 and 45+
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=5372.00/108524.38; full-chain share=6.57%; kits made/issued T11=813.46/793.00 T12=1367.88/1336.00; tool-ws used T11/T12=14693.31/8321.02; breaks T11/T12=5/0; T11 upgrades=26; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=3891.91/23351.45/605.07/3140.92; ore mined all/Iron=2418.89/1773.36 L; Iron fire-setting wood=512.43 L; haul-ws charcoal/all-ore/Iron-ore=46.80/86.29/46.93; metal-facility build-ws=1206.92; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/2989 demand-seasons (0.00%); unmet 0.00/3509.19 L planned (0.00%)
+    route ramp: seasons 281–293 (12 complete after first issue), chain/work=736.32/4665.71 (15.78%), fuel short 0/211 demand-seasons (0.00%); unmet 0.00/366.65 L planned (0.00%); post-ramp seasons=104, chain/work=4789.12/86703.44 (5.52%), fuel short 0/2760 demand-seasons (0.00%); unmet 0.00/3099.28 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 93 12-season windows after 12-season route maturity; max share=7.69% at seasons 340–352, chain/work=763.13/9929.36 (metal/craft/facility=612.02/66.19/84.92 ws)
+  c1 Grower all-match metal/work=718.52/25543.51; full-chain share=3.26%; kits made/issued T11=337.00/333.00 T12=0.00/0.00; tool-ws used T11/T12=1803.51/0.00; breaks T11/T12=0/0; T11 upgrades=0; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=453.39/2720.33/11.71/273.16; ore mined all/Iron=306.11/155.39 L; Iron fire-setting wood=9.52 L; haul-ws charcoal/all-ore/Iron-ore=0.92/9.12/5.41; metal-facility build-ws=47.58; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/150 demand-seasons (0.00%); unmet 0.00/300.28 L planned (0.00%)
+    route ramp: seasons 367–379 (12 complete after first issue), chain/work=295.93/2613.56 (11.32%), fuel short 0/59 demand-seasons (0.00%); unmet 0.00/209.17 L planned (0.00%); post-ramp seasons=18, chain/work=110.84/4117.61 (2.69%), fuel short 0/85 demand-seasons (0.00%); unmet 0.00/79.29 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 7 12-season windows after 12-season route maturity; max share=3.25% at seasons 385–397, chain/work=91.96/2827.48 (metal/craft/facility=83.96/8.00/0.00 ws)
+  c2 Warlord all-match metal/work=2346.99/58833.39; full-chain share=5.00%; kits made/issued T11=739.88/730.00 T12=296.08/286.00; tool-ws used T11/T12=10263.58/725.12; breaks T11/T12=0/0; T11 upgrades=24; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1882.87/11297.22/334.01/1416.15; ore mined all/Iron=1175.19/815.93 L; Iron fire-setting wood=283.54 L; haul-ws charcoal/all-ore/Iron-ore=9.11/46.71/26.58; metal-facility build-ws=356.69; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1105 demand-seasons (0.00%); unmet 0.00/1621.49 L planned (0.00%)
+    route ramp: seasons 311–323 (12 complete after first issue), chain/work=472.23/3601.60 (13.11%), fuel short 0/146 demand-seasons (0.00%); unmet 0.00/241.44 L planned (0.00%); post-ramp seasons=74, chain/work=1547.15/40454.99 (3.82%), fuel short 0/945 demand-seasons (0.00%); unmet 0.00/1360.66 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 63 12-season windows after 12-season route maturity; max share=5.57% at seasons 376–388, chain/work=458.97/8235.66 (metal/craft/facility=398.96/53.34/6.68 ws)
+  c3 Sage all-match metal/work=3014.93/49911.79; full-chain share=7.72%; kits made/issued T11=487.75/473.00 T12=515.37/503.00; tool-ws used T11/T12=7015.26/2101.97; breaks T11/T12=0/0; T11 upgrades=19; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1872.56/11235.36/317.52/1425.69; ore mined all/Iron=1171.60/815.00 L; Iron fire-setting wood=255.41 L; haul-ws charcoal/all-ore/Iron-ore=15.31/35.01/19.68; metal-facility build-ws=588.35; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1415 demand-seasons (0.00%); unmet 0.00/1626.60 L planned (0.00%)
+    route ramp: seasons 306–318 (12 complete after first issue), chain/work=404.91/2516.14 (16.09%), fuel short 0/172 demand-seasons (0.00%); unmet 0.00/191.42 L planned (0.00%); post-ramp seasons=79, chain/work=2418.23/34069.56 (7.10%), fuel short 0/1230 demand-seasons (0.00%); unmet 0.00/1413.58 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 68 12-season windows after 12-season route maturity; max share=9.57% at seasons 369–381, chain/work=612.45/6400.35 (metal/craft/facility=529.78/46.66/36.01 ws)
+
+== iron-match seed 20261022: 99.0 minutes simulated, chapter end RivalCountdown at season 395 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.7   92.8      56     26    2136   170   610     945      138        3        9      9
+c1  Grower      72.9   92.8      56     23    1825   224   472     846      127        4        5      5
+c2  Warlord     68.9   94.1      56     26    1663   246   494     843      109        5        7     10
+c3  Sage        66.4   87.0      56     29    2078   167   583    1049      158        3        8     11
+iron works built (all settlements):
+  crane                     2    2    2    3
+  windlass_well            11    9   11   13
+  terrace                  17   12   28   15
+  aqueduct                  0    1    1    1
+  bathhouse                 1    0    2    3
+  theatre_arena             0    6    4    3
+  road                     21   15   22   17
+  bridge                   12    7    7   14
+  gatehouse                 2    2    5    4
+  frontier_wall_segment     2    1    1    1
+  castle                    0    0    1    0
+  harbor                    0    1    2    1
+  galley                    0    0    1    0
+  academy                   3    4    5    3
+  press                     1    1    3    1
+  water_mill                0    0    1    0
+  temple_tier2              6    1    6    6
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 16; aqueduct x2 (50%), bathhouse x2 (100%), crane x2 (100%), gatehouse x2 (100%), terrace x2 (100%)
+  c1: villages 15; (nothing wanted) x1 (0%), aqueduct x2 (77%), crane x5 (100%)
+  c2: villages 16; (nothing wanted) x2 (0%), aqueduct x1 (100%), crane x3 (100%), gatehouse x2 (58%), terrace x1 (100%), theatre_arena x1 (100%)
+  c3: villages 19; (nothing wanted) x1 (0%), bathhouse x2 (69%), bridge x1 (100%), gatehouse x2 (100%), great_library x1 (74%), great_lighthouse x1 (59%), theatre_arena x1 (47%), water_mill x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 3 towns
+  aqueduct lacks wood: 2 towns
+  bathhouse lacks block: 3 towns
+  bathhouse lacks wood: 2 towns
+  bridge lacks ashlar: 1 towns
+  bridge lacks block: 2 towns
+  crane lacks bloom: 6 towns
+  crane lacks wood: 9 towns
+  gatehouse lacks block: 5 towns
+  gatehouse lacks wood: 3 towns
+  road lacks block: 1 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 2 towns
+  theatre_arena lacks block: 1 towns
+  water_mill lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 16  assaults 4  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 138, c1 127, c2 111, c3 158
+final legacy per civ: c0 4995, c1 4735, c2 4904, c3 5738
+I-T6 whole-match accounting (read-only trace; world-wide forest and stock ledger):
+  forest tiles=2146 stock=45950.00->42960.62 L; regrowth=64816.99 L; removed chop/metal/civic/other=23062.74/40802.32/3941.32/0.00 L (Iron-era subset=36131.79 L); residual=0.00 L
+  local wood stores=0.00->1674.22 L; inflow=65182.31 L; use=63508.09 L; local residual=0.00 L; combined residual=0.00 L
+  game clearing rule: each tile crossing from >=5 L to <5 L; crossings=150 by final removal category chop/metal-before-MET-09/Iron-era-metal/civic/other=7/0/0/143/0; currently cleared tiles=7 (grassland=0)
+  Iron fuel hubs and selected ore suppliers (end of match):
+    s0 local-ore=True supplier=s33 ore-need=3.75
+    s1 local-ore=True supplier=s87 ore-need=4.50
+    s2 local-ore=True supplier=s42 ore-need=0.00
+    s4 local-ore=False supplier=s3 ore-need=30.39
+    s5 local-ore=False supplier=s1 ore-need=1.50
+    s6 local-ore=False supplier=s2 ore-need=11.04
+    s7 local-ore=False supplier=s33 ore-need=9.70
+    s8 local-ore=False supplier=s3 ore-need=21.14
+    s9 local-ore=False supplier=s2 ore-need=5.25
+    s11 local-ore=False supplier=s1 ore-need=16.00
+    s12 local-ore=False supplier=s33 ore-need=13.61
+    s14 local-ore=False supplier=s107 ore-need=6.00
+    s15 local-ore=True supplier=s21 ore-need=2.65
+    s16 local-ore=False supplier=none ore-need=3.00
+    s17 local-ore=False supplier=none ore-need=3.00
+    s18 local-ore=False supplier=s26 ore-need=35.25
+    s19 local-ore=False supplier=s3 ore-need=33.75
+    s22 local-ore=False supplier=s3 ore-need=30.00
+    s24 local-ore=False supplier=s55 ore-need=0.75
+    s25 local-ore=True supplier=s69 ore-need=0.00
+    s27 local-ore=True supplier=s20 ore-need=0.26
+    s29 local-ore=False supplier=s88 ore-need=3.00
+    s30 local-ore=False supplier=s32 ore-need=1.50
+    s31 local-ore=False supplier=s40 ore-need=0.75
+    s32 local-ore=True supplier=s98 ore-need=0.00
+    s33 local-ore=True supplier=s32 ore-need=0.00
+    s35 local-ore=False supplier=s55 ore-need=0.00
+    s38 local-ore=False supplier=s87 ore-need=3.00
+    s39 local-ore=False supplier=s3 ore-need=12.75
+    s40 local-ore=True supplier=s107 ore-need=0.00
+    s41 local-ore=False supplier=none ore-need=23.25
+    s42 local-ore=True supplier=s2 ore-need=0.00
+    s43 local-ore=True supplier=s23 ore-need=1.01
+    s44 local-ore=False supplier=s33 ore-need=6.00
+    s45 local-ore=False supplier=s33 ore-need=15.21
+    s46 local-ore=False supplier=none ore-need=14.25
+    s49 local-ore=False supplier=s55 ore-need=2.71
+    s52 local-ore=False supplier=s25 ore-need=0.00
+    s53 local-ore=False supplier=s55 ore-need=0.00
+    s55 local-ore=True supplier=s3 ore-need=0.00
+    s57 local-ore=True supplier=s103 ore-need=0.00
+    s58 local-ore=False supplier=s55 ore-need=1.50
+    s60 local-ore=False supplier=s55 ore-need=0.75
+    s65 local-ore=False supplier=s26 ore-need=0.00
+    s67 local-ore=False supplier=s1 ore-need=15.45
+    s69 local-ore=True supplier=s25 ore-need=0.00
+    s70 local-ore=False supplier=s69 ore-need=0.00
+    s71 local-ore=True supplier=s34 ore-need=0.00
+    s72 local-ore=False supplier=s87 ore-need=1.50
+    s73 local-ore=False supplier=none ore-need=3.51
+    s74 local-ore=False supplier=s25 ore-need=0.00
+    s75 local-ore=False supplier=s87 ore-need=2.25
+    s76 local-ore=True supplier=s50 ore-need=1.68
+    s77 local-ore=False supplier=none ore-need=0.00
+    s78 local-ore=False supplier=s71 ore-need=0.00
+    s81 local-ore=True supplier=s47 ore-need=0.00
+    s82 local-ore=True supplier=s2 ore-need=0.00
+    s85 local-ore=True supplier=s59 ore-need=0.00
+    s86 local-ore=True supplier=s64 ore-need=1.42
+    s87 local-ore=True supplier=s1 ore-need=0.00
+    s89 local-ore=True supplier=s26 ore-need=0.00
+    s90 local-ore=True supplier=s69 ore-need=0.00
+    s93 local-ore=False supplier=s25 ore-need=2.98
+    s98 local-ore=True supplier=s32 ore-need=0.00
+    s99 local-ore=False supplier=s98 ore-need=0.00
+    s100 local-ore=False supplier=none ore-need=0.00
+    s101 local-ore=False supplier=s32 ore-need=0.00
+    s102 local-ore=False supplier=s40 ore-need=0.00
+    s103 local-ore=True supplier=s57 ore-need=0.00
+    s104 local-ore=False supplier=none ore-need=0.00
+    s107 local-ore=True supplier=s40 ore-need=0.00
+  kits world: T11 made/received/sent/issued/broken/early-upgrades/retired/held/stored=2367.25/826.00/826.00/2313.00/0/85/1506.00/807/54.25; residual=0.00; T12=2496.55/395.00/395.00/2448.00/0/0/289.00/2159/48.55; residual=0.00 kits
+  settlement kit ledgers: 110/110 exact; nonzero residual sites=0
+  approved Iron-era fuel cutoff (mature interval, per civ): shortfall rate <= 5.00%, unmet / planned charcoal <= 1.00%, minimum 12 demand-seasons; shortage rate denominator counts positive planned charcoal-production demand after stored stock
+  I-T2 settlement route screen (first kit issue or sister delivery, then 12 complete seasons; fuel follows per-tier kit transfers to sites that produced the supplied tier during the window; relay-only or stock-only sources are censored): qualify over summed producer-site demand-seasons, with at least 12
+    settlement start-end owner MET-09-season workers T11/T12 coverage T11/T12 workers age14-44 age45+ holders11/12 stock11/12 population hub start/end hub F/S site F/S hub-wood-factor hub-reach/baseline site-wood-factor site-reach/baseline made11/12 received11/12 issued11/12 upgrades fuel-sites short/demand rate unmet/plan result
+    s0 305–317 c0->c0 MET-09=304 15 15/0 100.00% 12/0 3/0 27/0 0.00/0.00 71 0/0 1/1 1/1 100.00% 15463.99/615.00 100.00% 15463.99/615.00 40.62/0.00 5.00/0.00 41.00/0.00 0 [0,7,33,50,51,57,76,85] 0/86 0.00% 0.00/185.31 0.00% PASS screen
+    s1 307–319 c1->c1 MET-09=306 39 39/0 100.00% 33/0 6/0 69/0 1.00/0.00 208 28/64 1/1 1/1 100.00% 13515.79/60.00 100.00% 13760.26/390.00 102.58/0.00 11.00/0.00 105.00/0.00 0 [1,11,28,31,40,63,64,67] 0/86 0.00% 0.00/174.50 0.00% CENSORED assigned hub changed
+    s2 296–308 c2->c2 MET-09=293 8 8/0 100.00% 8/0 0/0 14/0 1.00/0.00 54 2/2 1/0 1/0 100.00% 13774.11/615.00 100.00% 13774.11/615.00 25.35/0.00 4.00/0.00 25.00/0.00 0 [2,25,34,37,71] 0/47 0.00% 0.00/74.13 0.00% PASS screen
+    s3 278–290 c3->c3 MET-09=276 49 49/0 100.00% 45/0 4/0 69/0 0.40/0.00 219 27/27 1/1 1/1 100.00% 15133.71/1520.00 100.00% 15376.40/390.00 147.83/0.00 15.00/0.00 158.00/0.00 0 [3,26,27] 0/36 0.00% 0.00/164.25 0.00% PASS screen
+    s4 283–295 c3->c3 MET-09=276 28 26/0 92.86% 24/0 2/0 26/0 0.02/0.00 103 4/4 1/1 1/1 100.00% 9613.65/210.00 100.00% 9613.65/210.00 3.02/0.00 27.00/0.00 3.00/0.00 0 [3,4,27] 0/25 0.00% 0.00/127.91 0.00% PASS screen
+    s5 307–319 c1->c1 MET-09=306 9 9/0 100.00% 8/0 1/0 10/0 0.77/0.00 40 5/5 1/1 1/1 100.00% 8955.92/210.00 100.00% 8955.92/210.00 0.03/0.00 8.00/0.00 0.00/0.00 0 [1,5,11,28,31,40,63,64,67] 0/90 0.00% 0.00/174.53 0.00% PASS screen
+    s6 295–307 c2->c2 MET-09=293 36 36/0 100.00% 32/0 4/0 55/0 1.00/0.00 180 6/6 1/1 1/1 100.00% 8798.01/255.00 100.00% 8798.01/255.00 48.75/0.00 11.00/0.00 48.00/0.00 0 [2,6,25,34,37,69,71] 0/69 0.00% 0.00/146.91 0.00% PASS screen
+    s7 309–321 c0->c0 MET-09=304 29 29/0 100.00% 29/0 0/0 45/0 0.00/0.00 140 7/7 1/1 1/1 100.00% 10076.98/255.00 100.00% 10076.98/255.00 39.06/0.00 10.00/0.00 40.00/0.00 0 [0,7,50,51,57,76,85] 0/73 0.00% 0.00/117.37 0.00% PASS screen
+    s8 283–295 c3->c3 MET-09=276 20 20/0 100.00% 18/0 2/0 20/0 0.00/0.00 81 8/8 1/1 1/1 100.00% 10504.79/1205.36 100.00% 10504.79/1205.36 0.00/0.00 21.00/0.00 0.00/0.00 0 [3,26,27] 0/36 0.00% 0.00/147.88 0.00% PASS screen
+    s9 297–309 c2->c2 MET-09=293 7 7/0 100.00% 7/0 0/0 17/0 1.00/0.00 44 9/9 1/0 1/0 100.00% 8898.72/1277.26 100.00% 8898.72/1277.26 12.00/0.00 5.00/0.00 11.00/0.00 0 [2,6,9,25,37,69] 0/61 0.00% 0.00/109.14 0.00% PASS screen
+    s10 278–290 c3->c3 MET-09=276 9 8/0 88.89% 5/0 3/0 8/0 0.90/0.00 33 27/27 1/1 1/1 100.00% 15133.71/1520.00 100.00% 14773.62/60.00 4.48/0.00 5.00/0.00 7.00/0.00 0 [3,10,26,27] 0/47 0.00% 0.00/170.40 0.00% PASS screen
+    s11 307–319 c1->c1 MET-09=306 8 8/0 100.00% 7/0 1/0 13/0 1.00/0.00 47 11/11 1/0 1/0 100.00% 9826.15/1240.00 100.00% 9826.15/1240.00 7.75/0.00 1.00/0.00 7.00/0.00 0 [1,11,28,31,40,63,64,67] 0/86 0.00% 0.00/174.50 0.00% PASS screen
+    s12 310–322 c0->c0 MET-09=304 10 10/0 100.00% 10/0 0/0 16/0 1.00/0.00 49 12/12 1/1 1/1 100.00% 12738.24/1170.00 100.00% 12738.24/1170.00 11.00/0.00 6.00/0.00 10.00/0.00 0 [0,7,12,50,51,76] 0/63 0.00% 0.00/94.89 0.00% PASS screen
+    s13 309–321 c0->c0 MET-09=304 9 9/0 100.00% 9/0 0/0 14/0 0.00/0.00 39 76/76 1/1 1/1 100.00% 15742.11/16452.00 100.00% 15846.78/120.00 0.00/0.00 13.00/0.00 5.00/0.00 0 [0,7,12,50,51,57,76,85] 0/85 0.00% 0.00/124.90 0.00% PASS screen
+    s15 294–306 c2->c2 MET-09=293 15 15/0 100.00% 14/0 1/0 40/0 0.00/0.00 55 15/15 1/1 1/1 100.00% 13358.99/885.00 100.00% 13358.99/885.00 36.24/0.00 0.00/0.00 37.00/0.00 0 [15] 0/6 0.00% 0.00/32.43 0.00% CENSORED Free Folk outside civ kit network
+    s19 285–297 c3->c3 MET-09=276 12 12/0 100.00% 11/0 1/0 17/0 1.00/0.00 53 19/19 1/1 1/1 100.00% 12740.97/1110.00 100.00% 12740.97/1110.00 7.00/0.00 13.00/0.00 6.00/0.00 0 [3,4,8,19,26,27] 0/51 0.00% 0.00/143.84 0.00% PASS screen
+    s20 285–297 c3->c3 MET-09=276 6 6/0 100.00% 6/0 0/0 7/0 0.98/0.00 14 27/27 1/1 1/1 100.00% 14502.94/1520.00 100.00% 14427.94/660.00 0.98/0.00 8.00/0.00 0.00/0.00 0 [3,20,27] 0/31 0.00% 0.00/111.19 0.00% PASS screen
+    s21 297–309 c2->c2 MET-09=293 14 14/0 100.00% 13/0 1/0 15/0 0.00/0.00 27 43/43 1/1 1/1 100.00% 13503.78/2680.00 100.00% 13576.96/0.00 0.00/0.00 19.00/0.00 7.00/0.00 0 [2,23,25,34,37,43,71] 0/64 0.00% 0.00/96.26 0.00% PASS screen
+    s22 285–297 c3->c3 MET-09=276 16 16/0 100.00% 16/0 0/0 26/0 1.00/0.00 77 22/22 1/1 1/1 100.00% 12370.11/1560.00 100.00% 12370.11/1560.00 7.00/0.00 20.00/0.00 6.00/0.00 0 [3,22,27] 0/32 0.00% 0.00/112.19 0.00% PASS screen
+    s23 295–307 c2->c2 MET-09=293 4 4/0 100.00% 3/0 1/0 6/0 1.00/0.00 10 43/43 1/1 1/1 100.00% 13533.34/2680.00 100.00% 13318.34/1065.00 2.60/0.00 7.00/0.00 2.00/0.00 0 [23,34,37,43,71] 0/45 0.00% 0.00/72.05 0.00% PASS screen
+    s24 285–297 c3->c3 MET-09=276 9 9/0 100.00% 9/0 0/0 16/0 1.00/0.00 45 24/24 1/1 1/1 100.00% 10871.00/2473.35 100.00% 10871.00/2473.35 5.00/0.00 12.00/0.00 4.00/0.00 0 [3,4,8,19,24,26,27,49,58] 0/82 0.00% 0.00/150.92 0.00% PASS screen
+    s25 294–306 c2->c2 MET-09=293 13 13/0 100.00% 11/0 2/0 20/0 1.00/0.00 53 25/25 1/1 1/1 100.00% 11786.55/1710.00 100.00% 11786.55/1710.00 34.06/0.00 0.00/0.00 34.00/0.00 0 [25] 0/12 0.00% 0.00/39.91 0.00% PASS screen
+    s26 277–289 c3->c3 MET-09=276 11 11/0 100.00% 11/0 0/0 14/0 0.59/0.00 46 27/27 1/1 1/1 100.00% 15347.48/1520.00 100.00% 14300.32/942.62 28.04/0.00 0.00/0.00 28.00/0.00 0 [26] 0/12 0.00% 0.00/28.49 0.00% PASS screen
+    s27 277–289 c3->c3 MET-09=276 8 8/0 100.00% 8/0 0/0 12/0 1.40/0.00 31 27/27 1/1 1/1 100.00% 15347.48/1520.00 100.00% 15347.48/1520.00 33.75/0.00 0.00/0.00 21.00/0.00 0 [27] 0/12 0.00% 0.00/22.78 0.00% PASS screen
+    s28 307–319 c1->c1 MET-09=306 5 5/0 100.00% 5/0 0/0 8/0 0.00/0.00 26 28/64 1/1 1/1 100.00% 13515.79/60.00 100.00% 13515.79/60.00 7.10/0.00 3.00/0.00 8.00/0.00 0 [1,11,28,31,40,63,64,67] 0/86 0.00% 0.00/174.50 0.00% CENSORED assigned hub changed
+    s29 312–324 c1->c1 MET-09=306 12 12/0 100.00% 11/0 1/0 19/0 0.00/0.00 50 29/29 1/1 1/1 100.00% 12886.12/1200.00 100.00% 12886.12/1200.00 6.00/0.00 13.00/0.00 6.00/0.00 0 [1,29,64] 0/33 0.00% 0.00/86.31 0.00% PASS screen
+    s30 307–319 c0->c0 MET-09=304 6 6/0 100.00% 5/0 1/0 10/0 1.00/0.00 25 30/30 1/1 1/1 100.00% 9352.99/1454.01 100.00% 9352.99/1454.01 8.27/0.00 1.00/0.00 8.00/0.00 0 [30,50,51,57,76,85] 0/66 0.00% 0.00/94.08 0.00% PASS screen
+    s31 309–321 c1->c1 MET-09=306 8 8/0 100.00% 8/0 0/0 14/0 1.00/0.00 45 31/31 1/1 1/1 100.00% 11876.68/1920.00 100.00% 11876.68/1920.00 18.00/0.00 1.00/0.00 18.00/0.00 0 [31,67] 0/24 0.00% 0.00/15.50 0.00% PASS screen
+    s32 307–319 c0->c0 MET-09=304 5 5/0 100.00% 5/0 0/0 8/0 0.00/0.00 26 32/32 1/1 1/1 100.00% 12944.62/1709.31 100.00% 12944.62/1709.31 2.32/0.00 4.00/0.00 3.00/0.00 0 [0,7,32,33,50,51,57,76,80,85] 0/106 0.00% 0.00/182.23 0.00% PASS screen
+    s33 305–317 c0->c0 MET-09=304 11 11/0 100.00% 8/0 3/0 16/0 1.00/0.00 42 33/33 1/1 1/1 100.00% 14248.99/1679.13 100.00% 14248.99/1679.13 16.27/0.00 1.00/0.00 16.00/0.00 0 [0,7,33,50,51,57,76,85] 0/86 0.00% 0.00/185.31 0.00% PASS screen
+    s34 294–306 c2->c2 MET-09=293 7 7/0 100.00% 6/0 1/0 12/0 1.00/0.00 42 43/43 1/1 1/1 100.00% 13479.13/2680.00 100.00% 12784.13/1740.00 16.93/0.00 2.00/0.00 16.00/0.00 0 [34,37,71] 0/28 0.00% 0.00/47.31 0.00% PASS screen
+    s35 285–297 c3->c3 MET-09=276 3 3/0 100.00% 3/0 0/0 5/0 1.00/0.00 14 35/35 1/1 1/1 100.00% 6877.89/193.15 100.00% 6877.89/193.15 1.00/0.00 4.00/0.00 0.00/0.00 0 [3,27,35] 0/35 0.00% 0.00/107.77 0.00% PASS screen
+    s36 285–297 c3->c3 MET-09=276 5 5/0 100.00% 5/0 0/0 8/0 1.00/0.00 35 27/27 1/1 1/1 100.00% 14502.94/1520.00 100.00% 11159.30/610.00 4.00/0.00 5.00/0.00 4.00/0.00 0 [3,26,27,36,61] 0/57 0.00% 0.00/139.61 0.00% PASS screen
+    s37 294–306 c2->c2 MET-09=293 8 8/0 100.00% 8/0 0/0 17/0 1.00/0.00 50 43/43 1/1 1/1 100.00% 13479.13/2680.00 100.00% 12784.13/2246.35 25.47/0.00 1.00/0.00 25.00/0.00 0 [34,37,71] 0/28 0.00% 0.00/47.31 0.00% PASS screen
+    s38 312–324 c1->c1 MET-09=306 5 5/0 100.00% 5/0 0/0 9/0 0.00/0.00 36 38/38 1/1 1/1 100.00% 10684.70/2475.00 100.00% 10684.70/2475.00 2.00/0.00 12.00/0.00 2.00/0.00 0 [1,31,38,63,64,67,72] 0/75 0.00% 0.00/107.73 0.00% CENSORED kit source not produced in window
+    s39 285–297 c3->c3 MET-09=276 6 6/0 100.00% 6/0 0/0 10/0 0.52/0.00 39 39/39 1/1 1/1 100.00% 6438.60/280.00 100.00% 6438.60/280.00 3.52/0.00 6.00/0.00 3.00/0.00 0 [3,4,27,39] 0/38 0.00% 0.00/118.47 0.00% PASS screen
+    s40 307–319 c1->c1 MET-09=306 5 5/0 100.00% 4/0 1/0 13/0 1.00/0.00 37 28/64 1/1 1/1 100.00% 13515.79/60.00 100.00% 13485.79/945.00 21.70/0.00 1.00/0.00 21.00/0.00 0 [40,63] 0/20 0.00% 0.00/35.14 0.00% CENSORED assigned hub changed
+    s42 294–306 c2->c2 MET-09=293 6 6/0 100.00% 6/0 0/0 9/0 1.00/0.00 29 42/42 1/1 1/1 100.00% 13778.88/0.00 100.00% 13778.88/0.00 10.08/0.00 4.00/0.00 10.00/0.00 0 [2,6,25,34,37,42,69,71] 0/83 0.00% 0.00/181.34 0.00% PASS screen
+    s43 294–306 c2->c2 MET-09=293 5 5/0 100.00% 5/0 0/0 13/0 1.00/0.00 43 43/43 1/1 1/1 100.00% 13479.13/2680.00 100.00% 13479.13/2680.00 43.96/0.00 0.00/0.00 25.00/0.00 0 [43] 0/12 0.00% 0.00/31.87 0.00% PASS screen
+    s45 305–317 c0->c0 MET-09=304 8 8/0 100.00% 8/0 0/0 14/0 1.00/0.00 50 45/45 1/1 1/1 100.00% 12466.29/1240.00 100.00% 12466.29/1240.00 7.62/0.00 5.00/0.00 7.00/0.00 0 [0,7,33,45,50,51,57,76,80,85] 0/110 0.00% 0.00/198.85 0.00% PASS screen
+    s46 298–310 c3->c3 MET-09=276 5 5/0 100.00% 5/0 0/0 7/0 0.00/0.00 23 46/46 1/0 1/0 100.00% 4347.75/504.73 100.00% 4347.75/504.73 1.00/0.00 5.00/0.00 1.00/0.00 0 [4,39,46] 0/23 0.00% 0.00/14.85 0.00% PASS screen
+    s47 283–295 c3->c3 MET-09=276 4 4/0 100.00% 4/0 0/0 7/0 1.00/0.00 30 27/27 1/1 1/1 100.00% 14597.37/1520.00 100.00% 12150.68/2217.44 2.51/0.00 4.00/0.00 2.00/0.00 0 [3,26,27,47] 0/47 0.00% 0.00/153.63 0.00% PASS screen
+    s48 297–309 c2->c2 MET-09=293 4 4/0 100.00% 3/0 1/0 5/0 0.00/0.00 24 43/43 1/1 1/1 100.00% 13503.78/2680.00 100.00% 13668.78/3320.00 0.00/0.00 5.00/0.00 1.00/0.00 0 [2,23,25,34,37,43,71] 0/64 0.00% 0.00/96.26 0.00% CENSORED kit source not produced in window
+    s49 277–289 c3->c3 MET-09=276 4 4/0 100.00% 4/0 0/0 10/0 1.00/0.00 37 49/49 1/0 1/0 100.00% 11753.35/3148.83 100.00% 11753.35/3148.83 9.86/0.00 0.00/0.00 9.00/0.00 0 [49] 0/10 0.00% 0.00/3.75 0.00% CENSORED fuel demand 10/12
+    s50 305–317 c0->c0 MET-09=304 9 9/0 100.00% 8/0 1/0 13/0 1.00/0.00 33 76/76 1/1 1/1 100.00% 15789.26/16452.00 100.00% 15699.32/720.00 29.16/0.00 1.00/0.00 29.00/0.00 0 [50,51,76] 0/35 0.00% 0.00/76.47 0.00% PASS screen
+    s51 305–317 c0->c0 MET-09=304 7 7/0 100.00% 6/0 1/0 15/0 0.00/0.00 50 76/76 1/1 1/1 100.00% 15789.26/16452.00 100.00% 12441.10/1680.00 27.89/0.00 2.00/0.00 29.00/0.00 0 [50,51,76] 0/35 0.00% 0.00/76.47 0.00% PASS screen
+    s52 299–311 c2->c2 MET-09=293 3 3/0 100.00% 3/0 0/0 5/0 0.00/0.00 14 52/52 1/0 1/0 100.00% 4214.79/150.00 100.00% 4214.79/150.00 0.00/0.00 5.00/0.00 0.00/0.00 0 [2,25,69] 0/31 0.00% 0.00/50.65 0.00% PASS screen
+    s53 291–303 c3->c3 MET-09=276 2 2/0 100.00% 2/0 0/0 2/0 0.00/0.00 13 53/53 1/0 1/0 100.00% 6451.33/150.00 100.00% 6451.33/150.00 0.00/0.00 1.00/0.00 0.00/0.00 0 [3,27,35,55] 0/43 0.00% 0.00/53.14 0.00% PASS screen
+    s54 323–335 c2->c2 MET-09=293 4 4/0 100.00% 3/0 1/0 6/0 0.00/0.00 13 54/52 1/1 1/1 100.00% 3712.83/142.37 100.00% 3712.83/142.37 0.00/0.00 5.00/0.00 2.00/0.00 0 [2,52] 0/17 0.00% 0.00/17.01 0.00% CENSORED assigned hub changed
+    s55 277–289 c3->c3 MET-09=276 4 4/0 100.00% 4/0 0/0 7/0 0.34/0.00 24 55/55 1/0 1/0 100.00% 13981.32/2703.21 100.00% 13981.32/2703.21 5.44/0.00 0.00/0.00 6.00/0.00 0 [55] 0/5 0.00% 0.00/0.50 0.00% CENSORED fuel demand 5/12
+    s56 303–315 c2->c2 MET-09=293 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 14 56/56 1/0 1/0 100.00% 4337.33/208.67 100.00% 4337.33/208.67 0.00/0.00 2.00/0.00 0.00/0.00 0 [2] 0/10 0.00% 0.00/3.66 0.00% CENSORED fuel demand 10/12
+    s57 305–317 c0->c0 MET-09=304 5 5/0 100.00% 4/0 1/0 11/0 1.00/0.00 31 57/57 1/1 1/1 100.00% 15459.27/2252.32 100.00% 15459.27/2252.32 21.72/0.00 1.00/0.00 21.00/0.00 0 [50,51,57,76,85] 0/58 0.00% 0.00/97.77 0.00% PASS screen
+    s58 277–289 c3->c3 MET-09=276 5 5/0 100.00% 4/0 1/0 8/0 1.00/0.00 34 58/58 1/0 1/0 100.00% 8572.98/2410.53 100.00% 8572.98/2410.53 5.31/0.00 2.00/0.00 5.00/0.00 0 [3,26,27,58] 0/39 0.00% 0.00/159.29 0.00% CENSORED kit source not produced in window
+    s59 309–321 c0->c0 MET-09=304 9 9/0 100.00% 9/0 0/0 12/0 1.00/0.00 29 76/76 1/1 1/1 100.00% 15742.11/16452.00 100.00% 13962.95/2729.59 5.00/0.00 7.00/0.00 7.00/0.00 0 [0,7,12,50,51,57,59,76,85] 0/97 0.00% 0.00/131.75 0.00% CENSORED kit source not produced in window
+    s60 285–297 c3->c3 MET-09=276 6 6/0 100.00% 6/0 0/0 8/0 0.21/0.00 37 60/60 1/1 1/1 100.00% 9325.84/7842.65 100.00% 9325.84/7842.65 0.21/0.00 8.00/0.00 0.00/0.00 0 [3,4,10,27,60] 0/46 0.00% 0.00/122.64 0.00% PASS screen
+    s61 282–294 c3->c3 MET-09=276 5 5/0 100.00% 5/0 0/0 13/0 0.00/0.00 42 27/27 1/1 1/1 100.00% 14899.05/1520.00 100.00% 12594.17/12811.07 10.71/0.00 3.00/0.00 11.00/0.00 0 [26,27,61] 0/34 0.00% 0.00/58.89 0.00% PASS screen
+    s62 288–300 c3->c3 MET-09=276 3 3/0 100.00% 3/0 0/0 8/0 0.00/0.00 31 27/27 1/1 1/0 100.00% 14665.96/1520.00 100.00% 10247.93/10572.30 0.00/0.00 7.00/0.00 4.00/0.00 0 [3,27] 0/22 0.00% 0.00/72.28 0.00% PASS screen
+    s63 307–319 c1->c1 MET-09=306 9 9/0 100.00% 7/0 2/0 12/0 1.00/0.00 39 63/64 1/1 1/1 100.00% 12054.40/2205.00 100.00% 12054.40/2205.00 19.19/0.00 0.00/0.00 19.00/0.00 0 [63] 0/9 0.00% 0.00/15.79 0.00% CENSORED assigned hub changed
+    s64 309–321 c1->c1 MET-09=306 7 7/0 100.00% 7/0 0/0 7/0 3.15/0.00 30 64/64 1/1 1/1 100.00% 13491.82/2614.00 100.00% 13491.82/2614.00 21.11/0.00 0.00/0.00 8.00/0.00 0 [64] 0/11 0.00% 0.00/16.40 0.00% CENSORED fuel demand 11/12
+    s65 288–300 c3->c3 MET-09=276 2 2/0 100.00% 1/0 1/0 3/0 1.00/0.00 11 65/65 1/0 1/0 100.00% 8135.74/6336.52 100.00% 8135.74/6336.52 1.00/0.00 3.00/0.00 0.00/0.00 0 [3,27,65] 0/23 0.00% 0.00/72.41 0.00% PASS screen
+    s66 312–324 c1->c1 MET-09=306 4 4/0 100.00% 4/0 0/0 7/0 0.00/0.00 13 64/64 1/1 1/0 100.00% 13511.02/2614.00 100.00% 11077.86/2875.00 0.00/0.00 6.00/0.00 3.00/0.00 0 [1,28,64] 0/28 0.00% 0.00/84.80 0.00% PASS screen
+    s67 309–321 c1->c1 MET-09=306 6 6/0 100.00% 6/0 0/0 12/0 0.00/0.00 40 67/67 1/1 1/1 100.00% 12195.55/2196.33 100.00% 12195.55/2196.33 6.54/0.00 0.00/0.00 7.00/0.00 0 [67] 0/12 0.00% 0.00/1.40 0.00% PASS screen
+    s68 288–300 c3->c3 MET-09=276 4 4/0 100.00% 4/0 0/0 8/0 0.00/0.00 28 27/27 1/1 1/0 100.00% 14665.96/1520.00 100.00% 12216.54/12189.87 0.00/0.00 5.00/0.00 5.00/0.00 0 [27] 0/11 0.00% 0.00/17.33 0.00% CENSORED fuel demand 11/12
+    s69 294–306 c2->c2 MET-09=293 9 9/0 100.00% 8/0 1/0 20/0 1.00/0.00 47 69/69 1/1 1/1 100.00% 11568.62/8546.59 100.00% 11568.62/8546.59 34.47/0.00 0.00/0.00 34.00/0.00 0 [69] 0/11 0.00% 0.00/29.76 0.00% CENSORED fuel demand 11/12
+    s70 299–311 c2->c2 MET-09=293 4 4/0 100.00% 3/0 1/0 6/0 1.00/0.00 13 70/70 1/0 1/0 100.00% 7869.13/6042.47 100.00% 7869.13/6042.47 2.00/0.00 4.00/0.00 1.00/0.00 0 [2,23,34,37,43,70] 0/50 0.00% 0.00/45.46 0.00% CENSORED kit source not produced in window
+    s71 294–306 c2->c2 MET-09=293 4 4/0 100.00% 3/0 1/0 7/0 1.00/0.00 14 71/71 1/0 1/0 100.00% 12219.13/9949.45 100.00% 12219.13/9949.45 7.32/0.00 1.00/0.00 7.00/0.00 0 [34,37,71] 0/28 0.00% 0.00/47.31 0.00% PASS screen
+    s72 311–323 c1->c1 MET-09=306 8 8/0 100.00% 8/0 0/0 13/0 0.00/0.00 45 72/72 1/1 1/1 100.00% 8591.17/2406.82 100.00% 8591.17/2406.82 9.97/0.00 3.00/0.00 10.00/0.00 0 [1,31,63,64,67,72] 0/65 0.00% 0.00/117.22 0.00% CENSORED kit source not produced in window
+    s73 316–328 c3->c3 MET-09=276 2 2/0 100.00% 2/0 0/0 3/0 0.00/0.00 10 73/73 1/0 1/0 100.00% 4473.79/3850.20 100.00% 4473.79/3850.20 0.00/0.00 2.00/0.00 0.00/0.00 0 [35,55] 0/23 0.00% 0.00/8.92 0.00% CENSORED kit source not produced in window
+    s74 299–311 c2->c2 MET-09=293 4 4/0 100.00% 3/0 1/0 6/0 0.00/0.00 20 74/74 1/1 1/1 100.00% 8459.68/6494.98 100.00% 8459.68/6494.98 3.00/0.00 5.00/0.00 3.00/0.00 0 [6,74] 0/20 0.00% 0.00/21.70 0.00% PASS screen
+    s75 314–326 c1->c1 MET-09=306 3 3/0 100.00% 3/0 0/0 7/0 1.00/0.00 21 75/75 1/0 1/0 100.00% 9071.84/2012.43 100.00% 9071.84/2012.43 5.00/0.00 2.00/0.00 4.00/0.00 0 [1,64,75] 0/26 0.00% 0.00/72.54 0.00% PASS screen
+    s76 305–317 c0->c0 MET-09=304 6 6/0 100.00% 5/0 1/0 10/0 2.05/0.00 26 76/76 1/1 1/1 100.00% 15789.26/16452.00 100.00% 15789.26/16452.00 29.02/0.00 0.00/0.00 11.00/0.00 0 [76] 0/12 0.00% 0.00/21.48 0.00% PASS screen
+    s77 288–300 c3->c3 MET-09=276 2 2/0 100.00% 1/0 1/0 2/0 0.00/0.00 9 77/77 0/0 0/0 100.00% 9816.54/7352.00 100.00% 9816.54/7352.00 0.00/0.00 1.00/0.00 0.00/0.00 0 [3,27] 0/22 0.00% 0.00/72.28 0.00% PASS screen
+    s78 299–311 c2->c2 MET-09=293 1 1/0 100.00% 1/0 0/0 4/0 0.00/0.00 11 78/78 1/0 1/0 100.00% 9318.53/6553.08 100.00% 9318.53/6553.08 0.00/0.00 4.00/0.00 0.00/0.00 0 [2,23,34,37,43] 0/47 0.00% 0.00/44.35 0.00% CENSORED kit source not produced in window
+    s79 299–311 c2->c2 MET-09=293 4 4/0 100.00% 4/0 0/0 10/0 0.00/0.00 21 43/43 1/1 1/0 100.00% 13573.47/2680.00 100.00% 12923.47/12306.19 0.00/0.00 9.00/0.00 5.00/0.00 0 [43] 0/12 0.00% 0.00/22.09 0.00% PASS screen
+    s80 305–317 c0->c0 MET-09=304 5 5/0 100.00% 4/0 1/0 10/0 0.00/0.00 26 76/76 1/1 1/1 100.00% 15789.26/16452.00 100.00% 15789.26/17851.12 7.25/0.00 1.00/0.00 9.00/0.00 0 [76,80] 0/24 0.00% 0.00/29.30 0.00% PASS screen
+    s81 289–301 c3->c3 MET-09=276 2 2/0 100.00% 1/0 1/0 4/0 0.00/0.00 9 81/81 0/0 0/0 100.00% 12218.15/10016.55 100.00% 12218.15/10016.55 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s82 297–309 c2->c2 MET-09=293 5 5/0 100.00% 3/0 2/0 9/0 1.00/0.00 26 82/82 1/0 1/0 100.00% 13680.48/13321.87 100.00% 13680.48/13321.87 6.99/0.00 0.00/0.00 6.00/0.00 0 [82] 0/4 0.00% 0.00/0.91 0.00% CENSORED fuel demand 4/12
+    s83 311–323 c0->c0 MET-09=304 4 4/0 100.00% 3/0 1/0 7/0 0.00/0.00 22 76/76 1/1 1/0 100.00% 15760.46/16452.00 100.00% 14550.63/14371.11 0.00/0.00 7.00/0.00 3.00/0.00 0 [0,7,33,50,76] 0/51 0.00% 0.00/76.92 0.00% PASS screen
+    s84 299–311 c2->c2 MET-09=293 7 7/0 100.00% 7/0 0/0 10/0 0.00/0.00 37 43/43 1/1 1/0 100.00% 13573.47/2680.00 100.00% 13558.47/13588.52 0.00/0.00 9.00/0.00 4.00/0.00 0 [2,43,69] 0/31 0.00% 0.00/39.73 0.00% PASS screen
+    s85 305–317 c0->c0 MET-09=304 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 18 85/85 1/1 1/1 100.00% 13834.30/11429.78 100.00% 13834.30/11429.78 1.99/0.00 2.00/0.00 2.00/0.00 0 [50,51,76,85] 0/47 0.00% 0.00/76.92 0.00% PASS screen
+    s86 314–326 c1->c1 MET-09=306 3 3/0 100.00% 3/0 0/0 6/0 0.00/0.00 21 64/64 1/1 1/0 100.00% 13459.43/2614.00 100.00% 13459.43/5910.00 0.00/0.00 6.00/0.00 2.00/0.00 0 [1,64] 0/22 0.00% 0.00/71.74 0.00% PASS screen
+    s87 314–326 c1->c1 MET-09=306 7 7/0 100.00% 5/0 2/0 11/0 1.00/0.00 31 64/64 1/1 1/1 100.00% 13459.43/2614.00 100.00% 13552.23/11988.66 1.00/0.00 10.00/0.00 2.00/0.00 0 [1,64,87] 0/34 0.00% 0.00/76.94 0.00% PASS screen
+    s88 314–326 c1->c1 MET-09=306 6 6/0 100.00% 5/0 1/0 9/0 1.00/0.00 27 64/64 1/1 1/1 100.00% 13459.43/2614.00 100.00% 13529.19/13948.66 1.00/0.00 11.00/0.00 3.00/0.00 0 [1,11,29,38,40,64,88] 0/75 0.00% 0.00/99.62 0.00% PASS screen
+    s89 293–305 c3->c3 MET-09=276 2 2/0 100.00% 2/0 0/0 2/0 0.00/0.00 11 89/89 0/0 0/0 100.00% 14036.96/12253.30 100.00% 14036.96/12253.30 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s90 299–311 c2->c2 MET-09=293 3 3/0 100.00% 3/0 0/0 4/0 0.00/0.00 7 90/90 0/0 0/0 100.00% 13513.47/11892.55 100.00% 13513.47/11892.55 0.00/0.00 2.00/0.00 0.00/0.00 0 [2,69] 0/19 0.00% 0.00/17.64 0.00% PASS screen
+    s91 299–311 c2->c2 MET-09=293 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 15 43/43 1/1 0/0 100.00% 13573.47/2680.00 100.00% 12049.39/11493.16 0.00/0.00 2.00/0.00 1.00/0.00 0 [23,34,37,43] 0/37 0.00% 0.00/41.06 0.00% PASS screen
+    s92 294–306 c3->c3 MET-09=276 11 11/0 100.00% 8/0 3/0 40/0 0.00/0.00 73 27/27 1/1 0/0 100.00% 14715.61/1520.00 100.00% 14430.61/13946.25 0.00/0.00 7.00/0.00 0.00/0.00 0 [3,27] 0/21 0.00% 0.00/24.23 0.00% PASS screen
+    s93 299–311 c2->c2 MET-09=293 2 2/0 100.00% 1/0 1/0 5/0 1.00/0.00 20 93/93 1/0 1/0 100.00% 10035.86/8511.65 100.00% 10035.86/8511.65 2.00/0.00 1.00/0.00 1.00/0.00 0 [2,93] 0/11 0.00% 0.00/3.55 0.00% CENSORED fuel demand 11/12
+    s94 311–323 c0->c0 MET-09=304 3 3/0 100.00% 3/0 0/0 8/0 0.00/0.00 19 76/76 1/1 1/0 100.00% 15760.46/16452.00 100.00% 13869.45/12975.71 0.00/0.00 7.00/0.00 3.00/0.00 0 [50,51,76] 0/31 0.00% 0.00/41.50 0.00% PASS screen
+    s95 311–323 c0->c0 MET-09=304 3 3/0 100.00% 1/0 2/0 7/0 0.00/0.00 24 76/76 1/1 1/0 100.00% 15760.46/16452.00 100.00% 15990.15/16745.97 0.00/0.00 6.00/0.00 1.00/0.00 0 [0,7,50,51,76] 0/51 0.00% 0.00/72.99 0.00% PASS screen
+    s96 297–309 c2->c2 MET-09=293 2 2/0 100.00% 2/0 0/0 8/0 0.00/0.00 27 43/43 1/1 0/0 100.00% 13503.78/2680.00 100.00% 13591.96/13491.00 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s97 314–326 c1->c1 MET-09=306 4 4/0 100.00% 4/0 0/0 6/0 0.00/0.00 30 64/64 1/1 1/0 100.00% 13459.43/2614.00 100.00% 12539.54/12109.16 0.00/0.00 6.00/0.00 0.00/0.00 0 [1,31,64] 0/32 0.00% 0.00/77.33 0.00% CENSORED kit source not produced in window
+    s98 308–320 c0->c0 MET-09=304 3 3/0 100.00% 2/0 1/0 3/0 1.00/0.00 15 98/98 1/0 1/0 100.00% 12712.05/9444.08 100.00% 12712.05/9444.08 1.26/0.00 1.00/0.00 1.00/0.00 0 [0,7,30,50,51,57,76,85,98] 0/86 0.00% 0.00/142.12 0.00% PASS screen
+    s99 312–324 c0->c0 MET-09=304 2 2/0 100.00% 2/0 0/0 4/0 1.00/0.00 15 99/99 1/0 1/0 100.00% 8780.19/6297.96 100.00% 8780.19/6297.96 2.00/0.00 2.00/0.00 1.00/0.00 0 [0,7,99] 0/21 0.00% 0.00/30.46 0.00% PASS screen
+    s100 312–324 c0->c0 MET-09=304 2 2/0 100.00% 2/0 0/0 2/0 0.00/0.00 11 100/100 0/0 0/0 100.00% 9300.81/6532.12 100.00% 9300.81/6532.12 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s101 311–323 c0->c0 MET-09=304 13 13/0 100.00% 9/0 4/0 24/0 0.00/0.00 42 101/101 1/1 1/1 100.00% 9369.95/7303.06 100.00% 9369.95/7303.06 12.90/0.00 6.00/0.00 13.00/0.00 0 [7,101] 0/18 0.00% 0.00/19.69 0.00% PASS screen
+    s102 308–320 c1->c1 MET-09=306 3 3/0 100.00% 2/0 1/0 5/0 0.00/0.00 12 102/102 0/0 0/0 100.00% 8652.94/6197.32 100.00% 8652.94/6197.32 0.00/0.00 4.00/0.00 0.00/0.00 0 [1,28,31,40,63,64,67] 0/74 0.00% 0.00/169.27 0.00% PASS screen
+    s103 312–324 c0->c0 MET-09=304 7 7/0 100.00% 7/0 0/0 17/0 0.00/0.00 35 103/103 1/0 1/0 100.00% 15309.01/13127.13 100.00% 15309.01/13127.13 10.00/0.00 7.00/0.00 11.00/0.00 0 [0,7,12,33,76,103] 0/54 0.00% 0.00/64.46 0.00% CENSORED kit source not produced in window
+    s104 314–326 c1->c1 MET-09=306 2 2/0 100.00% 2/0 0/0 2/0 0.00/0.00 12 104/104 0/0 0/0 100.00% 10461.19/7544.26 100.00% 10461.19/7544.26 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s105 313–325 c1->c1 MET-09=306 1 1/0 100.00% 1/0 0/0 4/0 0.00/0.00 15 64/64 1/1 0/0 100.00% 13492.66/2614.00 100.00% 12054.98/11327.07 0.00/0.00 1.00/0.00 1.00/0.00 0 [64] 0/12 0.00% 0.00/16.48 0.00% PASS screen
+    s106 314–326 c0->c0 MET-09=304 3 3/0 100.00% 3/0 0/0 6/0 0.00/0.00 25 76/76 1/1 0/0 100.00% 15744.15/16452.00 100.00% 14388.75/13641.42 0.00/0.00 1.00/0.00 1.00/0.00 0 [76] 0/12 0.00% 0.00/13.43 0.00% PASS screen
+    s107 317–329 c1->c1 MET-09=306 1 1/0 100.00% 1/0 0/0 2/0 0.00/0.00 15 64/64 1/1 0/0 100.00% 13493.55/2614.00 100.00% 13453.55/12321.62 0.00/0.00 0.00/0.00 0.00/0.00 0 [] 0/0 0.00% 0.00/0.00 0.00% CENSORED kit source not produced in window
+    s108 320–332 c1->c1 MET-09=306 1 1/0 100.00% 0/0 1/0 5/0 0.00/0.00 22 64/64 1/1 0/0 100.00% 13510.50/2614.00 100.00% 13510.50/13445.79 0.00/0.00 1.00/0.00 0.00/0.00 0 [1,64] 0/19 0.00% 0.00/34.33 0.00% PASS screen
+    s109 325–337 c0->c0 MET-09=304 9 9/0 100.00% 7/0 2/0 14/0 0.00/0.00 38 76/76 1/1 0/0 100.00% 15756.16/16452.00 100.00% 15681.05/15549.01 0.00/0.00 2.00/0.00 2.00/0.00 0 [76] 0/11 0.00% 0.00/12.02 0.00% CENSORED fuel demand 11/12
+    I-T2 diagnostic totals: 73 screen pass, 0 fail, 31 censored; endpoint tool-worker coverage uses actual positive toolWork, split by ages 14–44 and 45+
+  civ chain-work share = (mine/charcoal/smelt/camp work + T11/T12 kit crafting + metal-facility construction) / civilian work recorded by the metal ledger; haul is included in chain work and also broken out below:
+  c0 Builder all-match metal/work=2636.89/56916.97; full-chain share=6.44%; kits made/issued T11=423.29/410.00 T12=674.77/662.00; tool-ws used T11/T12=7726.84/4788.91; breaks T11/T12=0/0; T11 upgrades=16; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2045.63/12273.80/386.86/1557.25; ore mined all/Iron=1272.44/876.85 L; Iron fire-setting wood=338.29 L; haul-ws charcoal/all-ore/Iron-ore=22.94/57.26/32.46; metal-facility build-ws=738.93; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1577 demand-seasons (0.00%); unmet 0.00/1790.18 L planned (0.00%)
+    route ramp: seasons 305–317 (12 complete after first issue), chain/work=495.11/3055.74 (16.20%), fuel short 0/176 demand-seasons (0.00%); unmet 0.00/231.87 L planned (0.00%); post-ramp seasons=79, chain/work=2020.45/39573.59 (5.11%), fuel short 0/1389 demand-seasons (0.00%); unmet 0.00/1542.92 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 68 12-season windows after 12-season route maturity; max share=6.72% at seasons 317–329, chain/work=236.44/3516.63 (metal/craft/facility=148.41/12.19/75.84 ws)
+  c1 Grower all-match metal/work=2115.68/51832.39; full-chain share=5.60%; kits made/issued T11=519.51/503.00 T12=508.87/500.00; tool-ws used T11/T12=9086.20/3089.21; breaks T11/T12=0/0; T11 upgrades=27; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=1722.72/10336.31/210.51/1346.54; ore mined all/Iron=1060.43/758.82 L; Iron fire-setting wood=171.27 L; haul-ws charcoal/all-ore/Iron-ore=23.36/40.16/26.62; metal-facility build-ws=531.68; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/1262 demand-seasons (0.00%); unmet 0.00/1527.21 L planned (0.00%)
+    route ramp: seasons 307–319 (12 complete after first issue), chain/work=371.39/2807.00 (13.23%), fuel short 0/144 demand-seasons (0.00%); unmet 0.00/185.64 L planned (0.00%); post-ramp seasons=77, chain/work=1732.21/36599.63 (4.73%), fuel short 0/1108 demand-seasons (0.00%); unmet 0.00/1329.90 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 66 12-season windows after 12-season route maturity; max share=8.43% at seasons 319–331, chain/work=272.75/3234.02 (metal/craft/facility=209.30/14.79/48.66 ws)
+  c2 Warlord all-match metal/work=2922.37/61519.11; full-chain share=6.46%; kits made/issued T11=692.00/678.00 T12=556.64/545.00; tool-ws used T11/T12=10952.84/2435.58; breaks T11/T12=0/0; T11 upgrades=40; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2096.68/12580.10/273.43/1625.73; ore mined all/Iron=1314.96/925.57 L; Iron fire-setting wood=232.24 L; haul-ws charcoal/all-ore/Iron-ore=24.66/51.45/33.45; metal-facility build-ws=744.41; fuel-short settlement-seasons all/Iron-era=10/0
+    post-MET-09 charcoal plan: short 0/1759 demand-seasons (0.00%); unmet 0.00/1859.06 L planned (0.00%)
+    route ramp: seasons 294–306 (12 complete after first issue), chain/work=565.05/3322.36 (17.01%), fuel short 0/156 demand-seasons (0.00%); unmet 0.00/254.85 L planned (0.00%); post-ramp seasons=90, chain/work=2252.53/42908.54 (5.25%), fuel short 0/1589 demand-seasons (0.00%); unmet 0.00/1580.98 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 79 12-season windows after 12-season route maturity; max share=7.59% at seasons 350–362, chain/work=429.31/5652.81 (metal/craft/facility=369.88/30.35/29.08 ws)
+  c3 Sage all-match metal/work=2360.12/88187.80; full-chain share=3.89%; kits made/issued T11=732.45/722.00 T12=756.26/741.00; tool-ws used T11/T12=14765.89/6854.46; breaks T11/T12=0/0; T11 upgrades=2; fuel charcoal-made/wood-cut/fire-setting-wood/iron-recipe-charcoal=2369.95/14219.69/365.40/1893.49; ore mined all/Iron=1450.98/1054.43 L; Iron fire-setting wood=297.40 L; haul-ws charcoal/all-ore/Iron-ore=28.41/63.25/42.57; metal-facility build-ws=698.07; fuel-short settlement-seasons all/Iron-era=0/0
+    post-MET-09 charcoal plan: short 0/2116 demand-seasons (0.00%); unmet 0.00/2179.50 L planned (0.00%)
+    route ramp: seasons 277–289 (12 complete after first issue), chain/work=418.91/3701.95 (11.32%), fuel short 0/171 demand-seasons (0.00%); unmet 0.00/197.32 L planned (0.00%); post-ramp seasons=107, chain/work=2057.47/69219.64 (2.97%), fuel short 0/1934 demand-seasons (0.00%); unmet 0.00/1972.06 L planned (0.00%); fuel-cutoff=PASS
+    mature rolling windows: 96 12-season windows after 12-season route maturity; max share=6.79% at seasons 289–301, chain/work=286.35/4218.75 (metal/craft/facility=184.40/30.34/71.61 ws)
+

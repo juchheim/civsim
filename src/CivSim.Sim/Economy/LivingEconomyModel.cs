@@ -1964,7 +1964,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 buildWoodNeed = BasicBuildWoodProcurementNeed(settlement, season);
         // A player's build focus and the autonomous planner both ask for timber on top of the fuel buffer.
         Fix64 focusWoodNeed = BuildFocusWoodNeed(settlement, season);
-        Fix64 constructionWoodNeed = Fix64.Max(buildWoodNeed, focusWoodNeed);
+        Fix64 constructionWoodNeed = Fix64.Max(Fix64.Max(buildWoodNeed, focusWoodNeed), IronBuildWoodProcurementNeed(settlement));
         woodTarget += constructionWoodNeed;
         Fix64 woodStock = settlement.Stores[(int)Good.Wood];
         bool proactiveWoodShortfall = proactivePalisade && woodStock < woodTarget;
