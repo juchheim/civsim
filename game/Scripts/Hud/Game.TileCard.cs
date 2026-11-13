@@ -449,7 +449,7 @@ public partial class Game
             CivSim.Sim.Economy.BeaconSiteBlockReason.RivalOwned => "a rival owns this tile.",
             CivSim.Sim.Economy.BeaconSiteBlockReason.NoLivingSettlement => "no living settlement can send a daughter band.",
             CivSim.Sim.Economy.BeaconSiteBlockReason.BeyondReach =>
-                $"the nearest living settlement is {preview.BlockingDistance} hexes away; current reach is {preview.RequiredDistance}.",
+                $"the nearest settlement able to send a daughter band is {preview.BlockingDistance} hexes away; current reach is {preview.RequiredDistance}.",
             CivSim.Sim.Economy.BeaconSiteBlockReason.NoRoute => "there is no land or boat route from a settlement in range.",
             _ => "no eligible settlement can reach this site.",
         };
