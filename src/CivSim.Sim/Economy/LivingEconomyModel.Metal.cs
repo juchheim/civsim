@@ -2352,7 +2352,7 @@ public sealed partial class LivingEconomyModel
     private void SupplyFromHerds(SettlementState s, MetalState m)
     {
         int civ = s.Civilization;
-        if (Done(civ, "HUS-06")) m.Goods[(int)MetalGood.Wool] += s.DomesticSmallStock * Fix64.Half / 4;
+        if (Done(civ, "HUS-06")) m.Goods[(int)MetalGood.Wool] += s.DomesticSmallStock * Fix64.Half / 4 * FiefHerdYield(s);
         // Milk comes with the herd work (HUS-05 dairying, LivingEconomyModel.Food: half the herd's food again, WP7).
     }
 

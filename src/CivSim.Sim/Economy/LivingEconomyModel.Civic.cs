@@ -1142,6 +1142,7 @@ public sealed partial class LivingEconomyModel
     {
         if (s.Civic is not { } c || !CivInBronze(s.Civilization)) return e2Capacity;
         Fix64 halls = Fix64.FromInt(30 * c.Halls);
+        if (FiefE5Policy(s) && HasProject(s.Civilization, "WOD-10")) halls *= Fix64.FromRatio(3, 2);
         if (c.Tier >= 1 && HasProject(s.Civilization, "SOC-09"))
         {
             Fix64 dense = Fix64.FromInt(8 * s.Structures[(int)Structure.MudbrickHouse]) + halls;
@@ -1221,6 +1222,7 @@ public sealed partial class LivingEconomyModel
             if (Done(civ, "GOV-03")) t += Fix64.FromInt(3);
         }
         t += Fix64.FromInt(Math.Min(5, LuxuryItems(s) * 10 / Math.Max(1, pop)));
+        if (FiefSettlementHasReserve(s)) t += Fix64.FromInt(2);
         Fix64 wonderMult = Modifier(civ, "wonder_cohesion"), radiusMult = Modifier(civ, "wonder_radius");
         foreach (CohesionTerm term in _cohesionTerms)
         {

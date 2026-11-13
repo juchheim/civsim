@@ -1357,9 +1357,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (IsIndividualHerdCrash(herd.Id, year)) herd.CurrentAnimals *= Fix64.Half;
             Fix64 growthRate = Fix64.FromRatio(source.AnnualGrowthPercent, 100);
             if (_wildfireSeasonsRemaining[herd.CurrentTile] > 0) growthRate *= Fix64.Parse("1.3");
-            Fix64 carryingCapacity = Fix64.FromInt(source.InitialAnimalCount) * (Fix64.One + growthRate);
+            Fix64 carryingCapacity = WildHerdCarryingCapacity(herd);
             herd.CurrentAnimals = Fix64.Min(carryingCapacity,
                 herd.CurrentAnimals + herd.CurrentAnimals * growthRate);
+            if (FiefGameReserveOwner(herd.CurrentTile) >= 0)
+                herd.CurrentAnimals = Fix64.Max(herd.CurrentAnimals, carryingCapacity * Fix64.Half);
             herd.TamingYear = year;
             herd.TamingLimitThisYear = herd.CurrentAnimals * Fix64.Parse("0.2");
             herd.TamedThisYear = Fix64.Zero;
@@ -2263,7 +2265,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             bool cooperativeDrive = huntersAssigned >= 6 && HasProject(settlement.Civilization, "HNT-04");
             huntedYield = _hasIndividualHerds
-                ? HuntIndividualHerds(settlement, productiveHuntWork, rate, season, cooperativeDrive)
+                ? HuntIndividualHerds(settlement, productiveHuntWork, rate, season, cooperativeDrive, huntersAssigned: huntersAssigned)
                 : Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2,
                     SustainableHuntLimit(settlement));
             huntedUnits = huntedYield;
@@ -2629,6 +2631,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             if (herd.CurrentAnimals <= Fix64.Zero || herd.TamingYear != year ||
                 herd.TamedThisYear >= herd.TamingLimitThisYear ||
+                FiefWildHarvestable(herd, settlement.Civilization) <= Fix64.Zero ||
                 !IsWithinRange(settlement.SiteTile, herd.CurrentTile)) continue;
             if (smallEnabled && herd.Species == HerdSpecies.WildGoatSheep) return true;
             if (largeEnabled && (herd.Species is HerdSpecies.Aurochs or HerdSpecies.Bison or HerdSpecies.WildBoar)) return true;
@@ -2642,11 +2645,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 maintenanceNeed = DomesticHerdWorkNeed(settlement);
         Fix64 maintenanceWork = Fix64.Min(work, maintenanceNeed);
         Fix64 maintenanceShare = maintenanceNeed <= Fix64.Zero ? Fix64.Zero : maintenanceWork / maintenanceNeed;
-        settlement.Stores[(int)Good.Meat] += settlement.DomesticSmallStock * Fix64.Parse("0.8") / 4 * maintenanceShare;
+        Fix64 herdYield = FiefHerdYield(settlement);
+        settlement.Stores[(int)Good.Meat] += settlement.DomesticSmallStock * Fix64.Parse("0.8") / 4 * maintenanceShare * herdYield;
         settlement.Stores[(int)Good.Hide] += settlement.DomesticSmallStock * Fix64.Parse("0.2") / 4 * maintenanceShare;
-        settlement.Stores[(int)Good.Meat] += settlement.DomesticCattle * Fix64.Parse("2.5") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Meat] += settlement.DomesticCattle * Fix64.Parse("2.5") / 4 * maintenanceShare * herdYield;
         settlement.Stores[(int)Good.Hide] += settlement.DomesticCattle * Fix64.Parse("0.3") / 4 * maintenanceShare;
-        settlement.Stores[(int)Good.Meat] += settlement.DomesticPigs * Fix64.Parse("1.2") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Meat] += settlement.DomesticPigs * Fix64.Parse("1.2") / 4 * maintenanceShare * herdYield;
         if (settlement.Civic is not null) Milk(settlement, DomesticAnnualMeat(settlement) / 4 * maintenanceShare);
         // No separate waste inventory exists. Approximate pig waste as stored-food consumption.
         ConsumeStoredFoodValue(settlement,
@@ -2662,6 +2666,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             WildHerdState herd = _wildHerds[i];
             if (herd.CurrentAnimals <= Fix64.Zero || herd.TamingYear != year ||
+                FiefWildHarvestable(herd, settlement.Civilization) <= Fix64.Zero ||
                 !IsWithinRange(settlement.SiteTile, herd.CurrentTile)) continue;
             bool small = herd.Species == HerdSpecies.WildGoatSheep && HasProject(settlement.Civilization, "HUS-03");
             bool cattle = (herd.Species is HerdSpecies.Aurochs or HerdSpecies.Bison) && HasProject(settlement.Civilization, "HUS-04");
@@ -2669,7 +2674,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if ((!small && !cattle && !pig) || herd.TamedThisYear >= herd.TamingLimitThisYear) continue;
             Fix64 room = small ? smallRoom : largeRoom;
             Fix64 tame = Fix64.Min(animalsToTame,
-                Fix64.Min(room, Fix64.Min(herd.CurrentAnimals, herd.TamingLimitThisYear - herd.TamedThisYear)));
+                Fix64.Min(room, Fix64.Min(FiefWildHarvestable(herd, settlement.Civilization), herd.TamingLimitThisYear - herd.TamedThisYear)));
             if (tame <= Fix64.Zero) continue;
             herd.CurrentAnimals -= tame;
             herd.TamedThisYear += tame;
@@ -2794,7 +2799,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     private Fix64 HuntIndividualHerds(SettlementState settlement, Fix64 work, Fix64 rate, int season, bool cooperativeDrive,
-        bool enforceSustainableLimit = true)
+        bool enforceSustainableLimit = true, int huntersAssigned = 0)
     {
         if (work <= Fix64.Zero || rate <= Fix64.Zero) return Fix64.Zero;
         Fix64 remainingWork = work;
@@ -2804,11 +2809,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             WildHerdState herd = _wildHerds[i];
             if (herd.CurrentAnimals <= Fix64.Zero || !IsWithinRange(settlement.SiteTile, herd.CurrentTile)) continue;
+            int reserveOwner = FiefGameReserveOwner(herd.CurrentTile);
+            if (reserveOwner >= 0 && (reserveOwner != settlement.Civilization || !FiefReserveHuntReady(herd, settlement.Civilization, huntersAssigned))) continue;
             bool largeGame = IsLargeGame(herd.Species);
             bool drive = cooperativeDrive && largeGame;
             Fix64 herdRate = cooperativeDrive && !largeGame ? rate * Fix64.Parse("0.6875") : rate;
             Fix64 perAnimal = MeatPerAnimal(herd.Species);
-            Fix64 take = Fix64.Min(remainingWork * herdRate, herd.CurrentAnimals * perAnimal);
+            Fix64 take = Fix64.Min(remainingWork * herdRate, FiefWildHarvestable(herd, settlement.Civilization) * perAnimal);
             if (enforceSustainableLimit)
             {
                 take = Fix64.Min(take, remainingSustainableHarvest);
@@ -2832,7 +2839,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             Fix64 available = Fix64.Zero;
             foreach (int tile in RangeTiles(settlement.SiteTile))
-                if (IsLandBiome(_world.Tile(tile).BiomeId)) available += Fix64.One;
+            {
+                if (!IsLandBiome(_world.Tile(tile).BiomeId)) continue;
+                int reserveOwner = FiefGameReserveOwner(tile);
+                if (reserveOwner >= 0 && (reserveOwner != settlement.Civilization || huntersAssigned < 2)) continue;
+                available += Fix64.One;
+            }
             Fix64 smallGameRate = rate;
             Fix64 take = Fix64.Min(remainingWork * smallGameRate, available);
             settlement.Stores[(int)Good.Meat] += take;
@@ -2908,10 +2920,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 required = settlement.Civic is not null ? FieldLaborNeed(settlement) : Fix64.FromInt(settlement.FieldTiles.Count);
         Fix64 factor = required <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, settlement.FarmWorkThisYear / required);
         Fix64 yield = Fix64.Zero;
+        Fix64 claimedYield = Fix64.Zero;
         Fix64 soilLossMod = settlement.Civic is not null ? SoilLossModifier(settlement) : Modifier(settlement.Civilization, "soil_fertility_loss");
         for (int fieldIndex = 0; fieldIndex < settlement.FieldTiles.Count; fieldIndex++)
         {
             int tile = settlement.FieldTiles[fieldIndex];
+            bool claimedTile = FiefE5Policy(settlement) && TileOwnership?.OwnerOf(tile) == settlement.Civilization;
             if (!FiefFieldCropped(settlement, fieldIndex, year))
             {
                 WorldEconomyTile fallow = _world.Tile(tile);
@@ -2919,7 +2933,13 @@ public sealed partial class LivingEconomyModel : ISimModel
                 continue;
             }
             // A terraced hillside plot (Iron chapter): built-up soil, a fixed yield, never flooded.
-            if (IronChain && IsIronTerrace(settlement, tile)) { yield += TerraceYield * FiefFieldYield(settlement); continue; }
+            if (IronChain && IsIronTerrace(settlement, tile))
+            {
+                Fix64 terraceYield = TerraceYield * FiefFieldYield(settlement);
+                yield += terraceYield;
+                if (claimedTile) claimedYield += terraceYield;
+                continue;
+            }
             WorldEconomyTile input = _world.Tile(tile);
             Fix64 soilRatio = input.SoilFertility <= Fix64.Zero
                 ? Fix64.Parse("0.3")
@@ -2935,7 +2955,12 @@ public sealed partial class LivingEconomyModel : ISimModel
                 _soil[tile] = Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
                 // AGR-06's canals and NUM-06's calendar halve what a flood takes (E2: the whole harvest).
                 if (settlement.Civic is not null)
-                    yield += FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement)) * FiefFieldYield(settlement);
+                {
+                    Fix64 floodedYield = FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation *
+                        (Fix64.One - FloodLoss(settlement)) * FiefFieldYield(settlement);
+                    yield += floodedYield;
+                    if (claimedTile) claimedYield += floodedYield;
+                }
             }
             else
             {
@@ -2948,14 +2973,22 @@ public sealed partial class LivingEconomyModel : ISimModel
                     _tendedStandYieldBonus[tile] = false;
                 }
                 yield += fieldYield;
+                if (claimedTile) claimedYield += fieldYield;
                 _soil[tile] = factor > Fix64.Zero
                     ? Fix64.Max(Fix64.Zero, _soil[tile] - factor * Fix64.Parse("0.06") * soilLossMod)
                     : Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
             }
         }
-        yield *= factor * Modifier(settlement.Civilization, "field_yield");
-        if (HasProject(settlement.Civilization, "AGR-02")) yield *= Fix64.FromInt(2);
+        Fix64 realizedYieldFactor = factor * Modifier(settlement.Civilization, "field_yield");
+        yield *= realizedYieldFactor;
+        claimedYield *= realizedYieldFactor;
+        if (HasProject(settlement.Civilization, "AGR-02"))
+        {
+            yield *= Fix64.FromInt(2); // preserve the pre-Fief operation order for Bronze and Iron determinism
+            claimedYield *= Fix64.FromInt(2);
+        }
         settlement.Stores[(int)Good.Grain] += yield;
+        FiefClaimUpkeep(settlement, claimedYield);
         if (HasProject(settlement.Civilization, "BLD-05"))
             settlement.Stores[(int)Good.Straw] += yield;
         settlement.FarmWorkThisYear = Fix64.Zero;
@@ -5428,10 +5461,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         return Fix64.FromInt(3 * mature);
     }
 
-    private static Fix64 DomesticAnnualMeat(SettlementState settlement)
-        => settlement.DomesticSmallStock * Fix64.Parse("0.8") +
+    private Fix64 DomesticAnnualMeat(SettlementState settlement)
+        => (settlement.DomesticSmallStock * Fix64.Parse("0.8") +
             settlement.DomesticCattle * Fix64.Parse("2.5") +
-            settlement.DomesticPigs * Fix64.Parse("1.2");
+            settlement.DomesticPigs * Fix64.Parse("1.2")) * FiefHerdYield(settlement);
 
     // The C2 diagnostic is a sustainable late-winter share at the settlement's food capacity.
     // It is intentionally separate from LateWinterFoodShare, which records actual winter security

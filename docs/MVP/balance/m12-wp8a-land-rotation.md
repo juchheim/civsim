@@ -15,6 +15,6 @@
 
 One whole-match A/B used the same promoted temporary content pack, seed `20261019`, Fief mode, `--grant-e5` and a 130-minute horizon. KEY-6 timing was effectively unchanged: 90.8–92.9 minutes before the change and 90.9–92.9 after. End populations rose 8–16% across the four civilizations. No other E5 project or content changed. This is a smoke-scale result, not a balance sample; it does not establish a safe long-run food cap or an era-wide population target.
 
-## Still open in WP-E5-5
+## Follow-up
 
-At the time of this report, horse collar and draft power, selective breeding, game reserves, TER-10 claim upkeep, timber framing, cast-iron goods and the cannon/powder chain remained unbuilt. The horse-collar follow-up is in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md). The land/food oracle and multi-seed whole-match balance still need to be run after the rest of system C is in place.
+The remaining land and food mechanics are recorded in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md) and [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The full land/food oracle and multi-seed whole-match balance still need to run before E5 promotion.

@@ -751,9 +751,9 @@ public sealed partial class LivingEconomyModel
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
     }
 
-    internal Fix64 FixtureHuntWildHerd(int settlementIndex, Fix64 work, Fix64 rate, bool enforceSustainableLimit = true)
+    internal Fix64 FixtureHuntWildHerd(int settlementIndex, Fix64 work, Fix64 rate, bool enforceSustainableLimit = true, int huntersAssigned = 2)
         => HuntIndividualHerds(_settlements[settlementIndex], work, rate, (int)_seasonsCompleted,
-            cooperativeDrive: false, enforceSustainableLimit: enforceSustainableLimit);
+            cooperativeDrive: false, enforceSustainableLimit: enforceSustainableLimit, huntersAssigned: huntersAssigned);
 
     internal void FixtureApplyNaturalHerdCrash(int herdIndex)
     {

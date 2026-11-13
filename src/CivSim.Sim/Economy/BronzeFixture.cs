@@ -97,6 +97,12 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: true, ironChain, ironCamp: true,
             extraProjects, forestTiles);
 
+    /// <summary>A fixed-population Fief fixture for WP-E5-5's furnace fuel gate, with a controlled low-wood start.</summary>
+    public static BronzeFixture CreateFixedPopulationFiefFuelScenario(ContentPack pack, ulong seed, int people, bool coppice, int forestTiles,
+        params string[] extraProjects)
+        => Build(pack, seed, people, coppice, tin: true, arsenic: true, shaftMining: true, holdPopulation: true, ironChain: true,
+            ironCamp: true, extraProjects, forestTiles, fiefChain: true);
+
     /// <summary>A fixed-population spatial counterfactual with forest at a controlled distance from the settlement.</summary>
     public static BronzeFixture CreateFixedPopulationSpatialFuelScenario(ContentPack pack, ulong seed, int people, bool ironChain,
         bool coppice, int forestTiles, FuelForestPlacement placement, params string[] extraProjects)

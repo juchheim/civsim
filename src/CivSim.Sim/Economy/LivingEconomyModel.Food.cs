@@ -78,13 +78,14 @@ public sealed partial class LivingEconomyModel
         {
             int pairs = (s.DomesticCattle / 2).FloorToInt();
             int perPair = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
-            oxPloughed = Fix64.Min(croppedFields, Fix64.FromInt(Math.Min(fields, pairs * perPair)) * cropShare);
+            Fix64 oxCapacity = Fix64.FromInt(Math.Min(fields, pairs * perPair)) * cropShare * FiefDraftStrength(s);
+            oxPloughed = Fix64.Min(croppedFields, oxCapacity);
             need -= oxPloughed * Fix64.Half;
         }
         if (FiefHorseCollar(s))
         {
             int perHorse = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
-            Fix64 horseCapacity = Fix64.FromInt(s.Civic!.Horses) * Fix64.FromInt(perHorse * 2) * cropShare;
+            Fix64 horseCapacity = Fix64.FromInt(s.Civic!.Horses) * Fix64.FromInt(perHorse * 2) * cropShare * FiefDraftStrength(s);
             Fix64 horsePloughed = Fix64.Min(Fix64.Max(Fix64.Zero, croppedFields - oxPloughed), horseCapacity);
             need -= horsePloughed * Fix64.Half;
         }
@@ -151,7 +152,7 @@ public sealed partial class LivingEconomyModel
             WildHerdState herd = _wildHerds[i];
             if (herd.Species != HerdSpecies.Horse || herd.CurrentAnimals < Fix64.One || herd.TamingYear != year ||
                 !IsWithinRange(s.SiteTile, herd.CurrentTile)) continue;
-            Fix64 allowed = herd.CurrentAnimals * _civic.HorseTameShare - herd.TamedThisYear;
+            Fix64 allowed = Fix64.Min(FiefWildHarvestable(herd, s.Civilization), herd.CurrentAnimals) * _civic.HorseTameShare - herd.TamedThisYear;
             int tame = Math.Min(room, Math.Min((work / _civic.HorseLabor).FloorToInt(), allowed.FloorToInt()));
             if (tame <= 0) continue;
             herd.CurrentAnimals -= Fix64.FromInt(tame);
@@ -170,6 +171,7 @@ public sealed partial class LivingEconomyModel
         int year = checked((int)(_seasonsCompleted / 4));
         foreach (WildHerdState herd in _wildHerds)
             if (herd.Species == HerdSpecies.Horse && herd.CurrentAnimals >= Fix64.One && herd.TamingYear == year &&
+                FiefWildHarvestable(herd, s.Civilization) > Fix64.Zero &&
                 herd.TamedThisYear < herd.CurrentAnimals * _civic.HorseTameShare && IsWithinRange(s.SiteTile, herd.CurrentTile)) return true;
         return false;
     }

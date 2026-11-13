@@ -73,7 +73,7 @@ public static class Program
     {
         Console.Error.WriteLine("usage: civsim-harness toy [--seed N] [--ticks N] [--checksum-every N] [--check-golden FILE | --write-golden FILE | --record FILE]");
         Console.Error.WriteLine("       civsim-harness worldgen [--seed N] [--audit-seeds N] [--check-fingerprint FILE]");
-        Console.Error.WriteLine("       civsim-harness iron-fuel --pack FILE [--seeds a,b,c] [--seasons N] [--people N] [--spatial-only] [--scenario NAME]");
+        Console.Error.WriteLine("       civsim-harness iron-fuel --pack FILE [--fief] [--seeds a,b,c] [--seasons N] [--people N] [--spatial-only] [--scenario NAME]");
         Console.Error.WriteLine("       civsim-harness iron-audit [--seed N] [--seeds N] [--threads N] [--csv FILE]");
         Console.Error.WriteLine("       civsim-harness e5-audit [--seed N] [--seeds N] [--threads N] [--csv FILE]");
         Console.Error.WriteLine("       civsim-harness iron-live --pack FILE [--seed N] [--seeds N] [--minutes N]");

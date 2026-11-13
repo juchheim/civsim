@@ -16,6 +16,6 @@ The catalog's draft-power ×2 supports the relative capacity and half-labor rule
 
 Whole-match A/B: seed `33`, promoted temporary E5 pack, Fief mode, `--grant-e5`, 130-minute horizon. KEY-6 times were unchanged at 92.4, 92.4, 93.1 and 93.6 minutes. End populations changed from 2,233 / 3,493 / 2,813 / 2,148 before the collar to 2,189 / 3,347 / 2,781 / 2,157 after it. This is a one-seed smoke diagnostic, not a balance sample: the harness does not report each settlement's tame-horse count, so it cannot say which rule engaged or separate ploughing effects from haul savings. See the committed land-rotation report [m12-wp8a-land-rotation](m12-wp8a-land-rotation.md) for its separate seed-20261019 diagnostic.
 
-## Still open in WP-E5-5
+## Follow-up
 
-Selective breeding, game reserves, TER-10 claim upkeep, timber framing, cast-iron goods, the cannon/powder chain, the land/food oracle, and multi-seed whole-match balance remain open.
+Selective breeding, game reserves, TER-10 claim upkeep and timber framing are implemented in [m12-wp8c-land-systems](m12-wp8c-land-systems.md). Cast-iron goods and the cannon/powder chain remain in WP-E5-8; the land/food oracle and multi-seed whole-match balance remain open before promotion.
