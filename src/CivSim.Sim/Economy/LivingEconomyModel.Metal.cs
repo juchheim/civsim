@@ -872,13 +872,21 @@ public sealed partial class LivingEconomyModel
         => r.Def.Bellows && s.Metal is { Smelters: > 0 } && Done(s.Civilization, "FIR-09");
 
     private Fix64 OutputQuantity(SettlementState s, CompiledRecipe r)
-        => BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
+    {
+        Fix64 q = BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
+        return FurnaceActive(s, r) ? q * FurnaceOutputMult : q;
+    }
 
     private Fix64 InputQuantity(SettlementState s, CompiledRecipe r, int input)
     {
         Fix64 q = r.InputQuantity[input];
         if (BellowsActive(s, r) && Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0)
             q *= Modifier(s.Civilization, "charcoal_per_smelt");
+        if (FurnaceActive(s, r))
+        {
+            // A furnace batch: four times the iron from four times the ore and twice the charcoal (so half the charcoal per litre).
+            q *= Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0 ? FurnaceCharcoalMult : FurnaceOutputMult;
+        }
         return q;
     }
 
@@ -890,8 +898,8 @@ public sealed partial class LivingEconomyModel
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
         // A water mill turns the saw, the bellows and the forge hammer (NRG-03): half the labor for the sawyers and smiths of a mill town, the charcoal unchanged.
-        if (IronChain && IronWorksCount(s, IronStructure.WaterMill) > 0 && (r.Def.Bellows || IsMillPowered(id))) labor *= _civic.MillLabor;
-        return labor;
+        if (IronChain && (r.Def.Bellows || IsMillPowered(id)) && MillLaborFactor(s) is var millFactor && millFactor != Fix64.One) labor *= millFactor;
+        return FiefRecipeLabor(s, r, labor);
     }
 
     private static bool IsMillPowered(string recipeId)

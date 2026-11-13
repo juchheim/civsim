@@ -201,8 +201,8 @@ public sealed partial class LivingEconomyModel
         Fix64 mult = c.FoodValueMult;
         if (good == Good.Grain && c.BakeryShare > Fix64.Zero) mult *= Fix64.One + _civic.BakeryValue * c.BakeryShare;
         // A water mill grinds for up to MillPeople (NRG-03, Iron chapter only): the same shape as the bakery, a tenth of the grain's value.
-        if (good == Good.Grain && IronChain && IronWorksCount(s, IronStructure.WaterMill) > 0)
-            mult *= Fix64.One + _civic.MillValue * Fix64.Min(Fix64.One, _civic.MillPeople / Math.Max(1, Population(s.Id)));
+        if (good == Good.Grain && IronChain && MillFactor(s) > Fix64.Zero)
+            mult *= Fix64.One + _civic.MillValue * MillFactor(s) * Fix64.Min(Fix64.One, _civic.MillPeople / Math.Max(1, Population(s.Id)));
         return mult;
     }
 

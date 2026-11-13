@@ -2276,6 +2276,8 @@ public sealed partial class LivingEconomyModel
         Crane, WindlassWell, Terrace, Aqueduct, Bathhouse, Theatre, Road, Bridge, Gatehouse, FrontierWall, Castle, Harbor, Galley, Academy, GreatLibrary, GreatLighthouse, GreatDome, Press,
         // Appended after the first Iron checksums were fixed (docs/MVP/29): hashed only while non-zero, see HashIronWorks.
         WaterMill, Colonnade,
+        // Faith & Fief (docs/MVP/27 §5.1, §5.2; M12 WP-E5-5): built only in a Fief match, appended after the Iron structures and hashed only while non-zero.
+        Windmill, Sawmill, BlastFurnace,
         Count
     }
 
@@ -2315,6 +2317,11 @@ public sealed partial class LivingEconomyModel
         new("water_mill", "NRG-03", 18, 6, 0, 8, 0, Stone: true, Wheel: 1),
         // The colonnade of a Temple (registry temple_tier2): dressed stone and timber.
         new("temple_tier2", "STN-12", 16, 0, 8, 4, 0, Stone: true),
+        // Faith & Fief (all provisional, docs/MVP/27 §5): a windmill takes two wheels and timber; a sawmill timber, block and a litre of bloom for the saw;
+        // a blast furnace is block (the registry's 16 block and 8 fired brick, counted as 24 block) and timber.
+        new("windmill", "NRG-05", 24, 4, 0, 14, 0, Wheel: 1),
+        new("sawmill", "WOD-09", 20, 4, 0, 10, 1),
+        new("blast_furnace", "MET-12", 40, 24, 0, 6, 0, Stone: true),
     };
 
     /// <summary>

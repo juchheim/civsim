@@ -74,7 +74,7 @@ internal static class IronMatchCommand
         bool ironHubFuelSharing = false;
         bool ironFissionCoveragePreserving = false;
         bool bronzeControl = false;
-        bool noBuildWood = false, noChopReach = false, noStoneShare = false;
+        bool noBuildWood = false, noChopReach = false, noStoneShare = false, fief = false, grantE5 = false, noFurnace = false;
         int ironFuelReachBufferOverride = -1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -89,6 +89,9 @@ internal static class IronMatchCommand
                 case "--no-build-wood": noBuildWood = true; break;
                 case "--no-chop-reach": noChopReach = true; break;
                 case "--no-stone-share": noStoneShare = true; break;
+                case "--fief": fief = true; break;
+                case "--no-furnace": noFurnace = true; break;
+                case "--grant-e5": grantE5 = true; break;
                 case "--it6-accounting": it6Accounting = true; break;
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
                 case "--it2-kit-trace": it2KitTrace = true; it6Accounting = true; break;
@@ -103,7 +106,7 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
@@ -112,22 +115,23 @@ internal static class IronMatchCommand
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
         for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
             ironKitTraceSettlement, ironKitTraceFromSeason, ironKitTraceThroughSeason,
-            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare));
+            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace));
         return 0;
     }
 
     private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
         int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
-        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false)
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
         for (int c = 0; c < controls.Length; c++) controls[c] = CivControl.Ai(Difficulty.Warlord, Archetypes[c]);
-        ChapterRules rules = bronzeControl ? ChapterRules.Bronze :
+        ChapterRules rules = fief ? ChapterRules.Fief : bronzeControl ? ChapterRules.Bronze :
             countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithCountdown(countdown);
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
         match.Economy.IronBuildWoodProcurementEnabled = !noBuildWood;
         match.Economy.IronChopReachEnabled = !noChopReach;
+        match.Economy.FurnaceEffectEnabled = !noFurnace;
         match.Economy.IronBuildStoneSharingEnabled = !noStoneShare;
         match.Economy.B13WoodTraceEnabled = it6Accounting;
         match.Economy.IT6AccountingTraceEnabled = it6Accounting;
@@ -175,6 +179,8 @@ internal static class IronMatchCommand
         }
         int key4 = research.Catalog.IndexOf("KEY-4"), key5 = research.Catalog.IndexOf("KEY-5");
         var granted = new bool[civs];
+        var grantedE5 = new bool[civs];
+        int key6 = research.Catalog.IndexOf("KEY-6");
         var idleSeasons = new int[civs];
         var peakSoldiers = new int[civs];
         long limit = minutes * 600L;
@@ -189,6 +195,14 @@ internal static class IronMatchCommand
                     granted[c] = true;
                     foreach (ProjectDef p in research.Catalog.Projects)
                         if (p.Era == 4 && p.Index != key5) runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
+                }
+            if (grantE5)
+                for (int c = 0; c < civs; c++)
+                {
+                    if (grantedE5[c] || !research.IsDone(c, key5)) continue;
+                    grantedE5[c] = true;
+                    foreach (ProjectDef p in research.Catalog.Projects)
+                        if (p.Era == 5 && p.Index != key6) runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
                 }
             runner.Advance(150);
             end = match.EndOfMatch();
@@ -320,6 +334,16 @@ internal static class IronMatchCommand
             L($"c{c,-3}{Archetypes[c],-9}{Min(k4),7}{Min(k5),7}{e4,8}{settlements,7}{people,8}{t11,6}{t12,6}{adults,8}{soldiers,9}{scholars,9}{missionaries,9}{idleSeasons[c],7}");
         }
 
+        if (fief)
+        {
+            L("fief: E5 projects done and KEY-6 minute per civilization:");
+            for (int c = 0; c < civs; c++)
+            {
+                int e5 = research.Catalog.Projects.Count(p => p.Era == 5 && !p.Id.StartsWith("KEY-") && research.IsDone(c, p.Index));
+                long k6 = key6 >= 0 && research.IsDone(c, key6) ? research.CompletedTick(c, key6) : -1;
+                L($"  c{c} {Archetypes[c]}: {e5} E5 projects, KEY-6 {(k6 < 0 ? "-" : (k6 / 600.0).ToString("F1", CultureInfo.InvariantCulture))}");
+            }
+        }
         // Iron works by kind, per civilization.
         L("iron works built (all settlements):");
         for (int k = 0; k < LivingEconomyModel.IronWorkKindCount; k++)

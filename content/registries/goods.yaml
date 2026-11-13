@@ -116,7 +116,6 @@ goods:
   # E5 Faith & Fief additions (docs/MVP/27 §5); every quantity is provisional and no E5 row is numeric yet.
   - {id: G-SALTPETER, name: Saltpeter, category: ore, first_from: [CHM-07], durability: durable, load: 1, barter: 8, introduced_era: 5}
   - {id: G-SULFUR, name: Sulfur, category: ore, first_from: [CHM-07], durability: durable, load: 1, barter: 6, introduced_era: 5}
-  - {id: G-PIG, name: Pig iron, category: metal, first_from: [MET-12], durability: durable, load: 1, barter: 10, introduced_era: 5}
   - {id: G-CAST, name: Cast-iron goods, category: metal, first_from: [MET-12], durability: durable, load: 1, barter: 16, introduced_era: 5}
   - {id: G-CSTEEL, name: Crucible steel, category: metal, first_from: [MET-11], durability: durable, load: 1, barter: 40, introduced_era: 5}
   - {id: G-ARMS5, name: Crucible-steel arms, category: arms, first_from: [MET-11], durability: 48 seasons, load: 0.5, barter: 60, introduced_era: 5}

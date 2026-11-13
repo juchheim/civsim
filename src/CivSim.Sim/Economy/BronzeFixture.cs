@@ -73,6 +73,11 @@ internal sealed class BronzeFixture
     public static BronzeFixture CreateIronWithCamp(ContentPack pack, ulong seed, int people, params string[] extraProjects)
         => CreateWithIronTile(pack, seed, people, ironChain: true, extraProjects);
 
+    /// <summary>The same camp settlement in the Faith &amp; Fief chapter (which contains the Iron chain), for the E5 systems.</summary>
+    public static BronzeFixture CreateFiefWithCamp(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
+            extraProjects, fiefChain: true);
+
     /// <summary>The iron-camp settlement in either chapter, so a Bronze economy can be compared against the Iron one on the same world.</summary>
     public static BronzeFixture CreateWithIronTile(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true, extraProjects);
@@ -105,7 +110,7 @@ internal sealed class BronzeFixture
 
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
         bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13,
-        bool terrace = false, FuelForestPlacement? fuelForestPlacement = null)
+        bool terrace = false, FuelForestPlacement? fuelForestPlacement = null, bool fiefChain = false)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -215,6 +220,7 @@ internal sealed class BronzeFixture
             FixtureHoldSettlements = true,
             FixtureHoldPopulation = holdPopulation,
             IronChain = ironChain,
+            FiefChain = fiefChain,
         };
 
         var projects = new List<string>();

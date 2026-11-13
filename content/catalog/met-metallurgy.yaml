@@ -182,10 +182,9 @@ projects:
     requires: [MET-10, NRG-03]
     effects:
       - {kind: build, structure: blast_furnace}
-      - {kind: good, id: "G-PIG"}
       - {kind: good, id: "G-CAST"}
-      - {kind: mod, stat: furnace_iron_output, op: mult, value: 4.0, note: "per furnace-season over a bloomery, at half the bloomery's charcoal per litre of iron (P, e5_power_oracle)"}
-      - {kind: rule, text: "A furnace needs a bellows power unit. Cast-iron goods (pots, parts, cannon bodies) come from pig iron. Iron demand is capped by recipes, not open-ended. No coal exists before E6, so the furnace competes with homes and ships for forest."}
+      - {kind: mod, stat: furnace_iron_output, op: mult, value: 4.0, note: "per bloomery batch in a town with a built blast furnace and a mill: x4 iron from x4 ore and x2 charcoal and x2 labor, so half the charcoal and half the labor per litre (P, e5_power_oracle)"}
+      - {kind: rule, text: "A blast furnace works only in a smelting town with a forge and a mill (water mill or windmill) to drive its bellows. The furnace's iron is the same G-IRON the forge turns to wrought iron; cast-iron goods (pots, parts, cannon bodies) are made from it. Iron demand is capped by recipes, not open-ended. No coal exists before E6, so the furnace competes with homes and ships for forest."}
     practice: [{action: smelt, share: 100}]
     flavor: "The fire is driven until the iron runs."
     moment: "Iron runs from the furnace in a bright stream."
