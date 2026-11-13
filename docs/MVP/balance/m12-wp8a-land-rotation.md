@@ -17,4 +17,4 @@ One whole-match A/B used the same promoted temporary content pack, seed `2026101
 
 ## Follow-up
 
-The remaining land and food mechanics are recorded in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md) and [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The full land/food oracle and multi-seed whole-match balance still need to run before E5 promotion.
+The remaining land and food mechanics are recorded in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md) and [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The five-geography fixture oracle is in [m12-wp8d-land-food-oracle](m12-wp8d-land-food-oracle.md); matched natural-start anchors and multi-seed whole-match balance still need to run before E5 promotion.

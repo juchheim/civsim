@@ -39,6 +39,17 @@ def food_multiplier(field_share, herd_share, rotated_share=1.0, bred_share=1.0):
             + herd_share * (1 + (HERD_BREEDING - 1) * bred_share) + other)
 
 
+# Observations from FiefLandTests.Fief_food_oracle_covers_five_geographies_and_conserves_harvested_grain.
+# These are a simulation-backed fixture snapshot, not fitted whole-match anchors or approved targets.
+F_T4_FIXTURES = {
+    "non-river": (0.170, 1.085, 1.467),
+    "river": (0.199, 1.100, 1.472),
+    "hill": (0.116, 1.058, 1.452),
+    "inland": (0.218, 1.109, 1.465),
+    "coastal": (0.139, 1.069, 1.460),
+}
+
+
 def part_food():
     print("== Part A: three-field rotation and breeding (physical decomposition, P)")
     print(f"  cropped share {TWO_FIELD_CROPPED:.3f} -> {THREE_FIELD_CROPPED:.3f} is x{THREE_FIELD_CROPPED / TWO_FIELD_CROPPED:.3f}; "
@@ -47,8 +58,11 @@ def part_food():
     print(f"  {'field':>6s} {'herd':>6s} {'other':>6s} | multiplier | only rotated half the fields")
     for f, h in ((0.8, 0.1), (0.6, 0.15), (0.4, 0.2), (0.2, 0.2)):
         print(f"  {f:6.0%} {h:6.0%} {1 - f - h:6.0%} | {food_multiplier(f, h):10.3f} | {food_multiplier(f, h, 0.5):.3f}")
-    print("  Proposed sanity band for the E5 food step: 1.2 to 1.6 (P; I-T4's E4 step of 1.4 to 1.8 included water and cities, so a purely")
-    print("  agricultural step should be smaller).")
+    print("  The old 1.2 to 1.45 whole-settlement range used illustrative food mixes; the five map-backed F-T4 fixtures below supersede it.")
+    print("  fixture      grain share  support ratio  six-year grain ratio")
+    for name, (grain_share, support_ratio, harvest_ratio) in F_T4_FIXTURES.items():
+        print(f"  {name:<12} {grain_share:>8.1%} {support_ratio:>13.3f}x {harvest_ratio:>20.3f}x")
+    print("  The support ratio includes forage, herd and fish capacity at full field staffing; it is not an approved target or a live-match result.")
     # Horse collar frees ploughing labor where horses exist (draft x2).
     plough_share = 0.10
     print(f"  Horse collar (draft x2) on a ploughing share of {plough_share:.0%} of adult work (P) frees {plough_share / 2:.1%} of adult labor, horses permitting.")
@@ -169,6 +183,10 @@ def check():
     assert math.isclose(three_field_gain(), 1.5), three_field_gain()
     assert math.isclose(food_multiplier(0.6, 0.15), 1 + 0.6 * 0.5 + 0.15 * 0.5)
     assert math.isclose(food_multiplier(0.6, 0.15, rotated_share=0.0, bred_share=0.0), 1.0)
+    assert set(F_T4_FIXTURES) == {"non-river", "river", "hill", "inland", "coastal"}
+    for grain_share, support_ratio, harvest_ratio in F_T4_FIXTURES.values():
+        assert math.isclose(food_multiplier(grain_share, 0.0), support_ratio, abs_tol=0.001)
+        assert 1.35 <= harvest_ratio <= 1.65
     # B: upkeep arithmetic: 10% at surplus 1.3 feeds 0.13/(1.13) of people; TER-10 gives 7%.
     assert math.isclose(fed_non_farmers(0.10), 0.13 / 1.13)
     assert math.isclose(mean_yield(), 2.0)
@@ -183,7 +201,7 @@ def check():
     # D: pool is positive and below demand at a 20% army.
     freed = sum(s * (1 - 1 / m) for s, m, _ in pw.JOBS.values()) + sum(s * (1 - 1 / m) for s, m, _ in pw.TEXTILE.values()) + 0.05
     assert 100 * freed < sum(STAFF_PER_100_ADULTS.values()) + 10
-    print(f"--check PASS: three-field decomposition = x1.5; upkeep arithmetic; epidemic baseline {base:.2f} per mille inside 2 to 4 (09 §10.6: 3.0); staffing pool below war-footing demand")
+    print(f"--check PASS: three-field decomposition = x1.5; five F-T4 fixture snapshots; upkeep arithmetic; epidemic baseline {base:.2f} per mille inside 2 to 4 (09 §10.6: 3.0); staffing pool below war-footing demand")
 
 
 if __name__ == "__main__":

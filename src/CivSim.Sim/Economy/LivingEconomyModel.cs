@@ -5443,7 +5443,8 @@ public sealed partial class LivingEconomyModel : ISimModel
                     if (fullSoil) soilRatio = Fix64.One;
                     soilRatio *= irrigation;
                 }
-                Fix64 yield = input.FieldYieldPerYear * soilRatio * Modifier(civ, "field_yield");
+                Fix64 yield = input.FieldYieldPerYear * soilRatio * Modifier(civ, "field_yield") *
+                    FiefFieldCropShare(settlement) * FiefFieldYield(settlement);
                 if (HasProject(civ, "AGR-02")) yield *= Fix64.FromInt(2);
                 grainIncome += yield * FoodValue(Good.Grain, settlement);
             }

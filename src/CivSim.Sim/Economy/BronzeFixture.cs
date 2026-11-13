@@ -18,6 +18,16 @@ public enum FuelForestPlacement
     CartOnly,
 }
 
+/// <summary>Controlled terrain and water profiles for the Fief food oracle's five geography fixtures.</summary>
+internal enum FiefLandGeography
+{
+    NonRiver,
+    River,
+    Hill,
+    Inland,
+    Coastal,
+}
+
 /// <summary>
 /// The economy fixture of docs/MVP/22 §16 B12 and B13 (the live counterpart of <c>metal_sim.py</c>): one settlement of a
 /// given size on a generated map, its radius-3 range given 13 forest tiles of 30 L (22 §5.5), a copper-ore surface
@@ -78,6 +88,12 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
             extraProjects, fiefChain: true);
 
+    /// <summary>A controlled Fief food fixture with one of the five land and water profiles used by F-T4.</summary>
+    public static BronzeFixture CreateFiefLandGeography(ContentPack pack, ulong seed, int people, FiefLandGeography geography,
+        params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true,
+            ironCamp: true, extraProjects, fiefChain: true, landGeography: geography);
+
     /// <summary>The iron-camp settlement in either chapter, so a Bronze economy can be compared against the Iron one on the same world.</summary>
     public static BronzeFixture CreateWithIronTile(ContentPack pack, ulong seed, int people, bool ironChain, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain, ironCamp: true, extraProjects);
@@ -116,7 +132,8 @@ internal sealed class BronzeFixture
 
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
         bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13,
-        bool terrace = false, FuelForestPlacement? fuelForestPlacement = null, bool fiefChain = false)
+        bool terrace = false, FuelForestPlacement? fuelForestPlacement = null, bool fiefChain = false,
+        FiefLandGeography? landGeography = null)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -217,6 +234,7 @@ internal sealed class BronzeFixture
             foreach (int t in forest)
                 tiles[t] = tiles[t] with { BiomeId = (int)Biome.TemperateForest, InitialWood = Fix64.FromInt(30), WoodGrowthPerYear = Fix64.FromInt(2) };
         }
+        if (landGeography is { } geography) ConfigureFiefLandGeography(tiles, range, geography);
         var starts = new int[source.CivilizationCount];
         for (int c = 0; c < starts.Length; c++) starts[c] = source.StartingTile(c);
         var world = new WorldEconomyInput(source.Width, source.Height, tiles, starts, source.Herds, deposits);
@@ -258,6 +276,47 @@ internal sealed class BronzeFixture
         economy.FixtureStock(Settlement, "G-LEATHER", Fix64.FromInt(4));
         economy.FixtureStock(Settlement, "G-WOOD", Fix64.FromInt(20));
         return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray()) { IronTile = ironTile, TerraceTile = terraceTile };
+    }
+
+    private static void ConfigureFiefLandGeography(WorldEconomyTile[] tiles, List<int> range, FiefLandGeography geography)
+    {
+        Fix64 soil = geography switch
+        {
+            FiefLandGeography.NonRiver => Fix64.Parse("0.70"),
+            FiefLandGeography.River => Fix64.Parse("0.85"),
+            FiefLandGeography.Hill => Fix64.Parse("0.45"),
+            FiefLandGeography.Inland => Fix64.Parse("0.65"),
+            FiefLandGeography.Coastal => Fix64.Parse("0.55"),
+            _ => throw new ArgumentOutOfRangeException(nameof(geography)),
+        };
+        Fix64 forageFactor = geography == FiefLandGeography.Inland ? Fix64.Half : Fix64.One;
+
+        foreach (int tile in range)
+        {
+            WorldEconomyTile input = tiles[tile];
+            bool coast = geography == FiefLandGeography.Coastal && tile == range[0];
+            bool river = geography == FiefLandGeography.River;
+            Fix64 fish = river ? Fix64.Parse("4.8") : coast ? Fix64.FromInt(6) : Fix64.Zero;
+            tiles[tile] = input with
+            {
+                BiomeId = (int)Biome.GrasslandSteppe,
+                SoilFertility = soil,
+                FieldYieldPerYear = soil * Fix64.FromInt(4),
+                InitialForage = input.InitialForage * forageFactor,
+                SpringForage = input.SpringForage * forageFactor,
+                SummerForage = input.SummerForage * forageFactor,
+                AutumnForage = input.AutumnForage * forageFactor,
+                WinterForage = input.WinterForage * forageFactor,
+                River = river,
+                Lake = false,
+                Coast = coast,
+                FreshWater = river,
+                SalmonRun = false,
+                InitialFish = fish / Fix64.FromInt(2),
+                FishGrowthPerYear = fish,
+                Elevation = geography == FiefLandGeography.Hill ? (byte)170 : (byte)100,
+            };
+        }
     }
 
     /// <summary>Runs whole seasons, topping the stores up to a season of food before each so the settlement neither starves nor splits.</summary>

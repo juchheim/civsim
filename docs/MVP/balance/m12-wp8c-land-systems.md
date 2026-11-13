@@ -23,8 +23,8 @@ AGR-11's deterministic three-field rotation and NRG-04's horse collar remain as 
 
 ## Still open before E5 promotion
 
-- F-T2: allocate shared mill power-hours and measure actual grain coverage by source. The current source-factor model does not prove 60% grain coverage or prevent several jobs from overcommitting one mill.
-- F-T4: run the complete land/food oracle over the required geography fixtures and establish the safe crop/population range.
+- F-T2: follow up on the 9 of 90 town windows below 60% in the four-seed power-ledger screen; all nine had spent their full available source budget.
+- F-T4: the simulation-backed five-geography fixture screen is recorded in [m12-wp8d-land-food-oracle](m12-wp8d-land-food-oracle.md). It establishes physical grain output and full-staffing sustainable food capacity for the controlled profiles. Natural-start whole-match matched anchors remain open.
 - F-T3: the fixture screen is promising but not a broad balance result; retain the censored seeds in follow-up runs.
 - Cast-iron goods, powder and cannon belong to WP-E5-8. Full E5 match balance, promotion and playtesting remain in WP-E5-11/12.
 

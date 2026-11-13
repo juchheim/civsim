@@ -18,4 +18,4 @@ Whole-match A/B: seed `33`, promoted temporary E5 pack, Fief mode, `--grant-e5`,
 
 ## Follow-up
 
-Selective breeding, game reserves, TER-10 claim upkeep and timber framing are implemented in [m12-wp8c-land-systems](m12-wp8c-land-systems.md). Cast-iron goods and the cannon/powder chain remain in WP-E5-8; the land/food oracle and multi-seed whole-match balance remain open before promotion.
+Selective breeding, game reserves, TER-10 claim upkeep and timber framing are implemented in [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The five-geography fixture oracle is in [m12-wp8d-land-food-oracle](m12-wp8d-land-food-oracle.md); matched natural-start anchors and multi-seed whole-match balance remain open before promotion. Cast-iron goods and the cannon/powder chain remain in WP-E5-8.
