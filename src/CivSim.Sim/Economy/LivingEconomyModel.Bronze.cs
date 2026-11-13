@@ -259,7 +259,31 @@ public sealed partial class LivingEconomyModel
     // Derived, never hashed: recipe slots resolved against the store layout, and per-site tile lists for charcoal reach.
     private CompiledRecipe[] _compiledRecipes = Array.Empty<CompiledRecipe>();
     private int[]?[] _reachTiles = Array.Empty<int[]?>();
+    private Dictionary<int, List<MiningCampState>>? _campsByParent;
     private bool[] _coppiced = Array.Empty<bool>();
+
+    private void InvalidateCampsByParent()
+    {
+        _campsByParent = null;
+        InvalidateIronOreSupplierAssignments();
+    }
+
+    private List<MiningCampState>? CampsForParent(int parent)
+    {
+        Dictionary<int, List<MiningCampState>>? index = _campsByParent;
+        if (index is null)
+        {
+            index = new Dictionary<int, List<MiningCampState>>();
+            foreach (MiningCampState camp in _camps)
+            {
+                if (!index.TryGetValue(camp.Parent, out List<MiningCampState>? camps))
+                    index.Add(camp.Parent, camps = new List<MiningCampState>());
+                camps.Add(camp);
+            }
+            _campsByParent = index;
+        }
+        return index.TryGetValue(parent, out List<MiningCampState>? result) ? result : null;
+    }
 
     /// <summary>Who owns tiles (politics); without it the planner treats tiles within four of its own settlements as its own.</summary>
     public ITileOwnership? TileOwnership { get; set; }
@@ -728,6 +752,7 @@ public sealed partial class LivingEconomyModel
         Array.Copy(lows, _forestLowSeasons, lows.Length);
         _nextCampId = reader.ReadInt32();
         _camps.Clear();
+        InvalidateCampsByParent();
         int camps = ReadCount(reader, 100_000);
         for (int i = 0; i < camps; i++)
         {
@@ -804,6 +829,7 @@ public sealed partial class LivingEconomyModel
         Array.Copy(source._forestLowSeasons, _forestLowSeasons, _forestLowSeasons.Length);
         _nextCampId = source._nextCampId;
         _camps.Clear();
+        InvalidateCampsByParent();
         foreach (MiningCampState c in source._camps)
             _camps.Add(new MiningCampState
             {

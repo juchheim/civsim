@@ -1321,7 +1321,15 @@ public sealed partial class LivingEconomyModel
         c.LowSeasons = 0;
         c.Tier = 0;
         foreach (FigureState f in Residents(s.Id)) { f.Role = Role.None; f.Camp = -1; }
-        for (int i = _camps.Count - 1; i >= 0; i--) if (_camps[i].Parent == s.Id) _camps.RemoveAt(i);
+        bool removedCamp = false;
+        for (int i = _camps.Count - 1; i >= 0; i--)
+        {
+            if (_camps[i].Parent != s.Id) continue;
+            _camps.RemoveAt(i);
+            removedCamp = true;
+        }
+        if (removedCamp) InvalidateCampsByParent();
+        InvalidateIronOreSupplierAssignments();
         _secessions.Add(s.Id);
     }
 
