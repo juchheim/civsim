@@ -46,6 +46,23 @@ public sealed partial class LivingEconomyModel
     private int[] _ironFuelHubAssignments = Array.Empty<int>();
     private bool[] _ironLocalKitProducers = Array.Empty<bool>();
     private bool _ironFuelHubAssignmentsReady;
+    // Catchment scores remain stable while one pending-fission resolution searches for sites.
+    // Generation tags bound invalidation work and keep this derived cache out of snapshots/hashes.
+    private readonly Dictionary<long, (int Generation, Fix64 Local, Fix64 Shared)> _ironFissionFuelScores = new();
+    private int _ironFissionFuelScoreGeneration;
+    // Supplier choice depends on ore availability, local source access, population and hub structures.
+    // Cache each hub for the current dependency generation; mutations below invalidate in O(1).
+    private int[] _ironOreSupplierGenerationByHub = Array.Empty<int>();
+    private int[] _ironOreSupplierIdByHub = Array.Empty<int>();
+    private int _ironOreSupplierGeneration = 1;
+
+    internal void InvalidateIronOreSupplierAssignments()
+    {
+        _ironOreSupplierGeneration = unchecked(_ironOreSupplierGeneration + 1);
+        if (_ironOreSupplierGeneration != 0) return;
+        Array.Clear(_ironOreSupplierGenerationByHub);
+        _ironOreSupplierGeneration = 1;
+    }
 
     /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
     private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0);
@@ -152,9 +169,13 @@ public sealed partial class LivingEconomyModel
         // Preserve the production path's original ReachTiles ordering and avoid the sharing-map work unless the diagnostic
         // candidate is explicitly enabled. The distance tie order is already nearest-first in ReachTiles.
         if (!IronHubFuelSharingEnabled || !IronFuelHubsEnabled(s.Civilization))
-            return ReachTiles(s.SiteTile, reach)
-                .Select(tile => (Tile: tile, HaulDistance: HexGrid.Distance(s.SiteTile, tile, _world.Width)))
-                .ToArray();
+        {
+            ReadOnlySpan<int> tiles = ReachTiles(s.SiteTile, reach);
+            var sources = new (int Tile, int HaulDistance)[tiles.Length];
+            for (int i = 0; i < tiles.Length; i++)
+                sources[i] = (tiles[i], HexGrid.Distance(s.SiteTile, tiles[i], _world.Width));
+            return sources;
+        }
 
         // Candidate (tile, distance) pairs from the direct catchment and, when assigned, through the hub. A tile reachable both ways keeps
         // its shorter distance. Sorting by tile id then distance makes the first pair per tile the shortest, with no hash-ordered collection.
@@ -342,6 +363,36 @@ public sealed partial class LivingEconomyModel
         }
         return score;
     }
+
+    private (Fix64 Local, Fix64 Shared) IronFuelFissionCatchmentScores(int civ, int site, bool reuseDuringResolution)
+    {
+        long key = ((long)civ << 32) | (uint)site;
+        if (reuseDuringResolution && _ironFissionFuelScores.TryGetValue(key, out var cached) &&
+            cached.Generation == _ironFissionFuelScoreGeneration)
+            return (cached.Local, cached.Shared);
+
+        int localReach = Done(civ, "TRN-05") ? _bronzeConstants.CharcoalReachCarts : _bronzeConstants.CharcoalReach;
+        int sharedReach = localReach + IronShareReach(civ) + IronFuelSitingBuffer;
+        Fix64 local = Fix64.Zero, shared = Fix64.Zero;
+        foreach (int tile in ReachTiles(site, sharedReach))
+        {
+            if (!IsForestTile(tile) || IsRivalTile(civ, tile)) continue;
+            int distance = HexGrid.Distance(site, tile, _world.Width);
+            Fix64 standingAndGrowth = StandingWoodAvailableToIron(tile) + _world.Tile(tile).WoodGrowthPerYear;
+            shared += standingAndGrowth * IronFuelCatchmentWeight(distance, sharedReach);
+            if (distance <= localReach)
+                local += standingAndGrowth * IronFuelCatchmentWeight(distance, localReach);
+        }
+
+        if (reuseDuringResolution)
+            _ironFissionFuelScores[key] = (_ironFissionFuelScoreGeneration, local, shared);
+        return (local, shared);
+    }
+
+    private static Fix64 IronFuelCatchmentWeight(int distance, int reach)
+        => distance <= Radius
+            ? Fix64.FromRatio(1, 4)
+            : Fix64.FromRatio(reach + 1 - distance, reach - Radius + 1);
 
     /// <summary>
     /// Bounded preference used when an Iron-era daughter site is chosen. Food and political fit remain the base score; productive wood in
@@ -565,9 +616,10 @@ public sealed partial class LivingEconomyModel
             bool mineHead = settlementId >= 0 && _settlements[settlementId].Metal is { } m && m.MineHeads.Contains(tile);
             if (SourceBit(civ, tile) == SourceIron && MineRate(civ, tile, mineHead, out _) > Fix64.Zero) return true;
         }
-        foreach (MiningCampState camp in _camps)
-            if (camp.Parent == settlementId && SourceBit(civ, camp.Tile) == SourceIron &&
-                MineRate(civ, camp.Tile, camp.MineHead, out _) > Fix64.Zero) return true;
+        if (CampsForParent(settlementId) is { } camps)
+            foreach (MiningCampState camp in camps)
+                if (SourceBit(civ, camp.Tile) == SourceIron && MineRate(civ, camp.Tile, camp.MineHead, out _) > Fix64.Zero)
+                    return true;
         foreach (int tile in ReachTiles(siteTile, MiningReach(civ, siteTile)))
             if (IsOwnTile(civ, tile) && SourceBit(civ, tile) == SourceIron && MineRate(civ, tile, false, out _) > Fix64.Zero) return true;
         return false;
@@ -582,6 +634,30 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronFuelHubsEnabled(hub.Civilization) || !Done(hub.Civilization, "MET-09") ||
             hub.Metal is not { Forges: > 0, Smelters: > 0 }) return null;
+        if ((uint)hub.Id < (uint)_settlements.Count && ReferenceEquals(_settlements[hub.Id], hub))
+        {
+            if (_ironOreSupplierIdByHub.Length != _settlements.Count)
+            {
+                _ironOreSupplierIdByHub = new int[_settlements.Count];
+                _ironOreSupplierGenerationByHub = new int[_settlements.Count];
+                _ironOreSupplierGeneration = 1;
+            }
+            int index = hub.Id;
+            if (_ironOreSupplierGenerationByHub[index] == _ironOreSupplierGeneration)
+            {
+                int supplierId = _ironOreSupplierIdByHub[index];
+                return supplierId >= 0 ? _settlements[supplierId] : null;
+            }
+            SettlementState? selected = FindIronOreSupplierForHub(hub);
+            _ironOreSupplierIdByHub[index] = selected?.Id ?? -1;
+            _ironOreSupplierGenerationByHub[index] = _ironOreSupplierGeneration;
+            return selected;
+        }
+        return FindIronOreSupplierForHub(hub);
+    }
+
+    private SettlementState? FindIronOreSupplierForHub(SettlementState hub)
+    {
         int reach = Math.Max(IronShareReach(hub.Civilization), IronFuelPlanningReach(hub));
         SettlementState? best = null;
         bool bestDigging = false;

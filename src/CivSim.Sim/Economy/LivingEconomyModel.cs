@@ -859,6 +859,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void AddResident(FigureState figure, int settlementId)
     {
         List<FigureState> residents = Residents(settlementId);
+        if (residents.Count == 0) InvalidateIronOreSupplierAssignments();
         if (residents.Count == 0 || residents[^1].Id < figure.Id)
         {
             residents.Add(figure);
@@ -884,6 +885,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         int at = residents.IndexOf(figure);
         if (at < 0) throw new InvalidOperationException($"Figure {figure.Id} is missing from settlement {settlementId}'s resident census.");
         residents.RemoveAt(at);
+        if (residents.Count == 0) InvalidateIronOreSupplierAssignments();
         InvalidateResidentDerived(settlementId);
     }
 
@@ -1058,6 +1060,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         if (_completedProjects[civ][index]) return;
         _completedProjects[civ][index] = true;
+        InvalidateIronOreSupplierAssignments();
         ClearModifierCache(civ);
         InvalidateReachableForageShare(civ);
         if (index == _key3) _bronzeActive = true;
@@ -4533,6 +4536,12 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void ResolvePendingFissions(int season)
     {
+        _ironFissionFuelScoreGeneration = unchecked(_ironFissionFuelScoreGeneration + 1);
+        if (_ironFissionFuelScoreGeneration == 0)
+        {
+            _ironFissionFuelScores.Clear();
+            _ironFissionFuelScoreGeneration = 1;
+        }
         for (int s = 0; s < _settlements.Count; s++)
         {
             SettlementState parent = _settlements[s];
@@ -4559,7 +4568,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             int daughterCount = (Fix64.FromInt(population) * DaughterShare).RoundToInt();
             if (daughterCount >= population) daughterCount = population - 1;
             if (daughterCount < 6) { parent.FissionPending = false; Record("cancelled:belowSixDaughterMembers", daughterCount: daughterCount); continue; }
-            int site = ChooseFissionSite(parent, season);
+            int site = ChooseFissionSite(parent, season, reuseIronFuelScores: true);
             if (site < 0) { Record("noSite:pendingRetained", daughterCount: daughterCount); continue; }
             if (SiteAdvisor is not null && SiteAdvisor.VoyageLost(parent.Civilization, parent.SiteTile, site, season))
             { parent.FissionPending = false; Record("cancelled:voyageLost", site, daughterCount); continue; }
@@ -4972,7 +4981,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     private int ChooseFissionSite(SettlementState parent, int season, int previewBeaconTile = -1, int replacedBeaconIndex = -1,
-        bool recordDiagnostics = true)
+        bool recordDiagnostics = true, bool reuseIronFuelScores = false)
     {
         int[] populations = FillSettlementPopulationScratch();
         int best = -1;
@@ -4981,7 +4990,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 bestAbandonedScore = Fix64.MinValue;
         int bestAbandonedFuelSite = -1;
         Fix64 bestAbandonedFuelScore = Fix64.MinValue;
-        Fix64 bestAbandonedRawFood = Fix64.Zero, bestAbandonedMultiplier = Fix64.Zero;
+        Fix64 bestAbandonedRawFood = Fix64.Zero, bestAbandonedMultiplier = Fix64.Zero, bestAbandonedFuelMultiplier = Fix64.Zero;
         int bestFuelSite = -1;
         Fix64 bestFuelSiteScore = Fix64.MinValue;
         Fix64 bestFuelSiteRawFood = Fix64.Zero, bestFuelSiteMultiplier = Fix64.Zero;
@@ -5060,8 +5069,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 multiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
                 ? SiteAdvisor.PreviewMultiplier(parent.Civilization, tile, previewBeaconTile, replacedBeaconIndex)
                 : SiteAdvisor.Multiplier(parent.Civilization, tile);
-            Fix64 ironFuelScore = ironSiting ? IronFuelCatchmentScore(parent.Civilization, tile) : Fix64.Zero;
-            multiplier *= IronFuelSitingMultiplier(parent.Civilization, tile);
+            Fix64 ironFuelScore = Fix64.Zero;
+            if (ironSiting)
+            {
+                var fuelScores = IronFuelFissionCatchmentScores(parent.Civilization, tile, reuseIronFuelScores);
+                ironFuelScore = fuelScores.Local;
+                multiplier *= Fix64.One + Fix64.Min(Fix64.FromRatio(3, 10), fuelScores.Shared / Fix64.FromInt(100));
+            }
             Fix64 score = rawFood * multiplier;
             if (abandonedSite)
             {
@@ -5079,6 +5093,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 {
                     bestAbandonedFuelSite = tile;
                     bestAbandonedFuelScore = score;
+                    bestAbandonedFuelMultiplier = multiplier;
                 }
             }
             if (ironSiting && ironFuelScore > Fix64.Zero &&
@@ -5127,10 +5142,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 best = bestAbandonedFuelSite;
                 bestScore = bestAbandonedFuelScore;
                 selectedRawFood = _siteFoodScores[best];
-                selectedMultiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
-                    ? SiteAdvisor.PreviewMultiplier(parent.Civilization, best, previewBeaconTile, replacedBeaconIndex)
-                    : SiteAdvisor.Multiplier(parent.Civilization, best);
-                selectedMultiplier *= IronFuelSitingMultiplier(parent.Civilization, best);
+                selectedMultiplier = bestAbandonedFuelMultiplier;
             }
             else
             {

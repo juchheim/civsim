@@ -238,6 +238,7 @@ public sealed partial class LivingEconomyModel
         m.Goods[(int)MetalGood.Ochre] = s.SurfaceOchre;
         s.SurfaceOchre = Fix64.Zero;
         s.Metal = m;
+        InvalidateIronOreSupplierAssignments();
         return m;
     }
 
@@ -502,6 +503,7 @@ public sealed partial class LivingEconomyModel
     private void BronzeSeasonStart(int season)
     {
         InvalidateIronFuelHubAssignments();
+        InvalidateIronOreSupplierAssignments();
         for (int i = 0; i < _settlements.Count; i++)
         {
             SettlementState s = _settlements[i];
@@ -1882,6 +1884,7 @@ public sealed partial class LivingEconomyModel
             m.BuildProgress += GatherForBuild(s, m.BuildKind, plan.BuildAssigned);
             if (m.BuildProgress >= MetalBuildLabor(m.BuildKind) && TryPayMetalBuild(s, m.BuildKind))
             {
+                MetalBuild completedBuild = m.BuildKind;
                 spare += m.BuildProgress - MetalBuildLabor(m.BuildKind);
                 switch (m.BuildKind)
                 {
@@ -1890,6 +1893,8 @@ public sealed partial class LivingEconomyModel
                     case MetalBuild.Kiln: s.Structures[(int)Structure.Kiln]++; break;
                     case MetalBuild.MineHead: if (m.BuildTile >= 0 && !m.MineHeads.Contains(m.BuildTile)) m.MineHeads.Add(m.BuildTile); break;
                 }
+                if (completedBuild is MetalBuild.Forge or MetalBuild.Smelter or MetalBuild.MineHead)
+                    InvalidateIronOreSupplierAssignments();
                 m.BuildKind = MetalBuild.None;
                 m.BuildTile = -1;
                 m.BuildProgress = Fix64.Zero;
@@ -2269,37 +2274,40 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Tiles within <paramref name="reach"/> of a site, nearest first, then by id (derived and cached; never state).</summary>
-    private int[] ReachTiles(int site, int reach)
+    private ReadOnlySpan<int> ReachTiles(int site, int reach)
     {
         int[]? cached = _reachTiles[site];
-        if (cached is not null && cached.Length > 0 && HexGrid.Distance(site, cached[^1], _world.Width) >= reach) return Filter(cached, site, reach);
-        var list = new List<int>();
-        int max = Math.Max(reach, 12);
-        int width = _world.Width, height = _world.Height;
-        HexGrid.Coordinates(site, width, out int x, out int y);
-        for (int ny = Math.Max(0, y - max); ny <= Math.Min(height - 1, y + max); ny++)
-        for (int nx = Math.Max(0, x - max - 1); nx <= Math.Min(width - 1, x + max + 1); nx++)
+        int width = _world.Width;
+        if (cached is null || cached.Length == 0 || HexGrid.Distance(site, cached[^1], width) < reach)
         {
-            int tile = ny * width + nx;
-            if (HexGrid.Distance(site, tile, width) <= max) list.Add(tile);
+            var list = new List<int>();
+            int max = Math.Max(reach, 12);
+            int height = _world.Height;
+            HexGrid.Coordinates(site, width, out int x, out int y);
+            for (int ny = Math.Max(0, y - max); ny <= Math.Min(height - 1, y + max); ny++)
+            for (int nx = Math.Max(0, x - max - 1); nx <= Math.Min(width - 1, x + max + 1); nx++)
+            {
+                int tile = ny * width + nx;
+                if (HexGrid.Distance(site, tile, width) <= max) list.Add(tile);
+            }
+            list.Sort((a, b) =>
+            {
+                int da = HexGrid.Distance(site, a, width), db = HexGrid.Distance(site, b, width);
+                return da != db ? da.CompareTo(db) : a.CompareTo(b);
+            });
+            cached = _reachTiles[site] = list.ToArray();
         }
-        list.Sort((a, b) =>
-        {
-            int da = HexGrid.Distance(site, a, width), db = HexGrid.Distance(site, b, width);
-            return da != db ? da.CompareTo(db) : a.CompareTo(b);
-        });
-        _reachTiles[site] = list.ToArray();
-        return Filter(_reachTiles[site]!, site, reach);
-    }
 
-    private int[] Filter(int[] tiles, int site, int reach)
-    {
-        int count = 0;
-        while (count < tiles.Length && HexGrid.Distance(site, tiles[count], _world.Width) <= reach) count++;
-        if (count == tiles.Length) return tiles;
-        var result = new int[count];
-        Array.Copy(tiles, result, count);
-        return result;
+        // The cached array is sorted by distance then tile id, so binary search returns
+        // the same prefix as Filter without rescanning or allocating a copy per query.
+        int lo = 0, hi = cached.Length;
+        while (lo < hi)
+        {
+            int mid = lo + ((hi - lo) >> 1);
+            if (HexGrid.Distance(site, cached[mid], width) <= reach) lo = mid + 1;
+            else hi = mid;
+        }
+        return cached.AsSpan(0, lo);
     }
 
     /// <summary>
@@ -2384,7 +2392,10 @@ public sealed partial class LivingEconomyModel
             if (good == MetalGood.IronOre) ironFireWood = wood - rest;
         }
         litres = Fix64.Max(Fix64.Zero, Fix64.Min(litres, _ore[tile]));
+        Fix64 oreBeforeMining = _ore[tile];
         _ore[tile] -= litres;
+        if (good == MetalGood.IronOre && oreBeforeMining > Fix64.Zero && _ore[tile] <= Fix64.Zero)
+            InvalidateIronOreSupplierAssignments();
         m.Goods[(int)good] += litres;
         AddMetalStat(s.Civilization, StatOreMined, litres);
         if (good == MetalGood.IronOre) RecordIT6IronOre(s.Civilization, litres, ironFireWood);
@@ -2437,6 +2448,7 @@ public sealed partial class LivingEconomyModel
             {
                 foreach (FigureState f in residents) if (f.Camp == camp.Id) f.Camp = -1;
                 _camps.RemoveAt(c);
+                InvalidateCampsByParent();
             }
         }
         _ = season;
@@ -2656,6 +2668,7 @@ public sealed partial class LivingEconomyModel
             Id = _nextCampId++, Parent = parent.Id, Tile = tile, Opened = season, Distance = distance, Decreed = decreed, Target = cap,
         };
         _camps.Add(camp);
+        InvalidateCampsByParent();
         int crew = 0;
         foreach (FigureState f in Residents(parent.Id))
         {

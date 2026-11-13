@@ -149,6 +149,7 @@ public sealed class MatchModel : ISimModel
             foreach ((int civ, string project) in _wonders) Research.AwardWonderBuilt(civ, Research.Catalog.IndexOf(project));
             Research.OnSeasonEnd(tick);
             Politics.OnSeasonEnd(tick);
+            Economy.InvalidateIronOreSupplierAssignments();
             Ai?.OnSeasonEnd(tick);
         }
     }

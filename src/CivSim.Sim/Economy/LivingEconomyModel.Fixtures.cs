@@ -116,10 +116,18 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
-    internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
+    internal void FixtureExhaust(int tile)
+    {
+        _ore[tile] = Fix64.Zero;
+        InvalidateIronOreSupplierAssignments();
+    }
 
     /// <summary>Sets the remaining ore for a deposit in a deterministic economy fixture.</summary>
-    internal void FixtureSetOreRemaining(int tile, Fix64 amount) => _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+    internal void FixtureSetOreRemaining(int tile, Fix64 amount)
+    {
+        _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+        InvalidateIronOreSupplierAssignments();
+    }
     internal Fix64 FixtureOreRemaining(int tile) => _ore[tile];
 
     /// <summary>Adds a populated mining camp at a chosen deposit for view and lifecycle fixtures.</summary>
@@ -132,6 +140,7 @@ public sealed partial class LivingEconomyModel
             Target = Math.Max(2, crew), Built = built, MineHead = mineHead,
         };
         _camps.Add(camp);
+        InvalidateCampsByParent();
         int assigned = 0;
         foreach (FigureState f in _figures)
         {
@@ -294,6 +303,7 @@ public sealed partial class LivingEconomyModel
             case "mine_head": if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile); break;
             default: throw new ArgumentException($"Unknown metal structure '{structure}'.", nameof(structure));
         }
+        InvalidateIronOreSupplierAssignments();
     }
 
     internal void FixtureSetMetalFacilities(int settlementIndex, int forges, int smelters)
@@ -304,6 +314,7 @@ public sealed partial class LivingEconomyModel
         m.Forges = forges;
         m.Smelters = smelters;
         InvalidateIronFuelHubAssignments();
+        InvalidateIronOreSupplierAssignments();
     }
 
     internal void FixtureSetLastToolWorker(int figureIndex, bool worked)
@@ -490,6 +501,7 @@ public sealed partial class LivingEconomyModel
         RebuildSettlementSiteIndex();
         InvalidateForageSettlementOwners();
         InvalidateIronFuelHubAssignments();
+        InvalidateIronOreSupplierAssignments();
     }
 
     internal bool FixtureHasStoneWalls(int settlementIndex) => HasStoneWalls(_settlements[settlementIndex]);
@@ -653,13 +665,17 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Removes every mine head of the settlement.</summary>
     internal void FixtureClearMineHeads(int settlementIndex)
-        => (_settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.")).MineHeads.Clear();
+    {
+        (_settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.")).MineHeads.Clear();
+        InvalidateIronOreSupplierAssignments();
+    }
 
     /// <summary>Adds a mine head to a deposit tile for the settlement, as a finished MineHead build would.</summary>
     internal void FixtureAddMineHead(int settlementIndex, int tile)
     {
         MetalState m = _settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.");
         if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile);
+        InvalidateIronOreSupplierAssignments();
     }
 
     /// <summary>Each of the settlement's figures' work this season, kit durability left, and job, in figure order.</summary>
