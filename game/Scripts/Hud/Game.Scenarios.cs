@@ -745,11 +745,21 @@ public partial class Game
                     ("monastery-back", -0.55f, 0.2f, 2.0f, 36.0f, 160.0f),
                     ("castle", 0.0f, -2.2f, 5.2f, 40.0f, 0.0f), ("castle-close", 1.25f, -2.2f, 2.2f, 34.0f, 0.0f), ("castle-idle", 2.5f, -2.2f, 2.2f, 34.0f, 0.0f),
                     ("castle-back", 1.25f, -2.2f, 2.2f, 34.0f, 160.0f),
+                    ("fields", 0.0f, -8.0f, 4.4f, 50.0f, 0.0f), ("fields-close", 0.55f, -8.0f, 2.0f, 46.0f, 0.0f), ("fields-low", 0.55f, -8.0f, 1.8f, 24.0f, 0.0f),
+                    ("cogs", 0.0f, -10.4f, 2.8f, 34.0f, 0.0f), ("cog-front", 0.0f, -10.4f, 1.5f, 28.0f, 0.0f), ("cog-side", 0.0f, -10.4f, 1.5f, 28.0f, 90.0f), ("cog-stern", 0.0f, -10.4f, 1.5f, 30.0f, 200.0f),
+                    ("civic", 0.0f, -12.8f, 3.6f, 40.0f, 0.0f), ("civic-uni", -1.35f, -12.8f, 2.2f, 32.0f, 0.0f), ("civic-uni-side", -1.35f, -12.8f, 2.2f, 32.0f, 60.0f),
+                    ("civic-small", 0.9f, -12.8f, 2.0f, 30.0f, 0.0f), ("civic-small-side", 0.9f, -12.8f, 2.0f, 30.0f, 50.0f),
+                    ("industry", 0.0f, -15.0f, 3.6f, 40.0f, 0.0f), ("industry-saw", 0.0f, -15.0f, 2.4f, 34.0f, 25.0f), ("industry-powder", 1.3f, -15.0f, 2.2f, 32.0f, 25.0f),
+                    ("works", 0.0f, -17.2f, 3.4f, 38.0f, 0.0f), ("works-a", -0.8f, -17.2f, 2.2f, 30.0f, 0.0f), ("works-b", 0.8f, -17.2f, 2.2f, 30.0f, 0.0f),
+                    ("people", 0.0f, -19.4f, 2.8f, 34.0f, 0.0f), ("people-close", -0.3f, -19.4f, 2.7f, 24.0f, 0.0f), ("people-side", -0.3f, -19.4f, 2.7f, 24.0f, 70.0f),
                     ("cathedral", 0.0f, -5.2f, 4.2f, 36.0f, 0.0f), ("cathedral-front", 1.8f, -5.0f, 2.1f, 20.0f, 0.0f),
                     ("cathedral-side", 1.8f, -5.2f, 2.1f, 26.0f, 65.0f), ("cathedral-back", 1.8f, -5.2f, 2.1f, 30.0f, 155.0f), ("cathedral-stages", -0.6f, -5.2f, 2.6f, 30.0f, 25.0f),
                 })
                 {
                     string itemName = item;
+                    // --fief-only=fields,cog : photograph only the shots whose name starts with one of these (a short run, for a busy machine)
+                    string? fiefOnly = ArgumentValue("--fief-only=");
+                    if (fiefOnly is not null && !Array.Exists(fiefOnly.Split(','), o => itemName.StartsWith(o))) continue;
                     float x = dx, z = dz, zm = zoom, pitch = pitchDeg, yaw = yawDeg;
                     Step(() =>
                     {
@@ -762,6 +772,50 @@ public partial class Game
                     }, 3.0f);
                     Shot($"fief-{itemName}");
                 }
+                break;
+            case "fief-overlays":
+                // the Faith & Fief route and spread overlays (docs/MVP/32 §7, §8.4) on the live map round the capital, with synthetic data from
+                // LowPoly3DView.show_fief_overlay_demo: pilgrimage routes with way-posts and pilgrims, quarantine, disease spreading and outbreaks
+                Vector3 overlayAt = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 2.0f);
+                Step(() =>
+                {
+                    overlayAt = (Vector3)_visualRenderer!.Call("show_fief_overlay_demo");
+                    if (overlayAt != Vector3.Zero) { _moveAnimating = false; _target = overlayAt; UpdateCamera(); }
+                }, 2.0f);
+                foreach (var (shot, zoom, pitchDeg, yawDeg) in new[]
+                {
+                    ("region", 14.0f, 52.0f, 0.0f), ("wide", 8.0f, 50.0f, 0.0f), ("town", 5.0f, 44.0f, 0.0f), ("town-b", 5.0f, 44.0f, 120.0f),
+                    ("close", 3.2f, 36.0f, 30.0f), ("close-b", 3.2f, 36.0f, 150.0f), ("close-c", 3.2f, 36.0f, 270.0f),
+                })
+                {
+                    string shotName = shot;
+                    float zm = zoom, pitch = pitchDeg, yaw = yawDeg;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(pitch);
+                        _yaw = _yawTarget = Mathf.DegToRad(yaw);
+                        _moveAnimating = false;
+                        if (overlayAt != Vector3.Zero) _target = overlayAt;
+                        SetZoom(zm);
+                        UpdateCamera();
+                    }, 2.6f);
+                    Shot($"overlay-{shotName}");
+                }
+                // the quarantine gate across its route, and a pilgrimage way-post's route from above
+                Step(() =>
+                {
+                    Vector3 gate = (Vector3)_visualRenderer!.Call("fief_gate_focus");
+                    if (gate != Vector3.Zero) { _pitch = Mathf.DegToRad(34.0f); _yaw = _yawTarget = Mathf.DegToRad(20.0f); _moveAnimating = false; _target = gate; SetZoom(2.7f); UpdateCamera(); }
+                }, 2.6f);
+                Shot("overlay-gate");
                 break;
             case "defense-village":
                 // --start-minute=30 --viewer=-1 --dev-walls=1..3 [--dev-gatehouse] [--dev-castle=1..4] (debug builds): the capital behind its stone walls with

@@ -342,7 +342,31 @@ cosmetic path as the ox cart in `farm_rig` and need no sim state.
 `gothic_cathedral_1..4`) and `art_fief_war.gd` (`concentric_1..4`, `concentric_4_idle`), registered last in `ART_PASSES`, and are photographed by
 `--scenario=fief-gallery` (`LowPoly3DView.show_fief_gallery`). Nothing places them in a match yet: that needs the `FiefFrame` (§9). The windmill
 sails are a separate mesh so a rig can turn them; smoke and flame at the furnace, and the monastery's kitchen smoke, belong to the war rig and come
-with the wiring. Not started: three-field strips and the cog (the rest of P0), and all P1 and P2 items.
+with the wiring.
+
+**Status (2026-11-13, later): step 4 (P0 land and ships) is built too, as meshes, not wired.** `art_fief_land.gd` has `field_three_0..2` (the three
+rotation phases; crop, legume and grazed fallow strips, so the fallow strip moves each year) and `art_fief_sea.gd` has `cog` (steering oar) and
+`cog_lateen` (sternpost rudder and a lateen mizzen). With these every P0 item has a mesh.
+
+**Status (2026-11-13, later still): most of P1 is built as meshes, not wired.** `art_fief_civic.gd`: `university`, `hospital`, `clock_tower`,
+`print_shop`, each with a working and an idle (`_idle`) state. `art_fief_power.gd`: `sawmill` (built on the `water_mill` mesh, as decided) and
+`powder_mill`, each working and idle. `art_fief_war.gd`: `cannon`, `wall_seg_cracked`, `wall_seg_breach`, `wall_tower_cracked`, `wall_tower_breach`,
+`wall_gate_broken` (with the Iron `wall_ruin` and `wall_rubble` as the last stages). `art_fief_people.gd`: `person_monk`, `person_monk_book`,
+`person_gunner`, `person_pilgrim`, `person_knight` (mounted). `art_fief_marks.gd`: `pilgrim_marker` and `quarantine_gate`. **Not built, because they
+need data or UI that does not exist yet:** the pilgrimage route line and the outbreak and quarantine spread overlay (they draw from
+`pilgrimRoutes` and `quarantine`, §9, onto the road and terrain overlay code), the rival KEY-6 banner (the HUD has no Fief mode to hang it on yet;
+it extends the rival-era notice in `Game.Modals.cs` and `Game.Notify.cs`), and the §8.1 state glyphs and the mill power-pip row. All P2 items are
+also not started.
+
+**Status (2026-11-13, overlays): the route and spread overlays are built as renderer code, not wired to the sim.** `fief_overlay.gd` (with the shaders
+`route_line.gdshader` and `outbreak.gdshader`, and tables in `world_data.gd`) draws from the frame data of §9 as soon as it exists: pilgrimage routes
+(a dashed pale-gold line, a way-post at each end, pilgrims walking, a gold edge under a Cathedral route), quarantine (hazard stripes with a barrier gate
+mid-route), spread (pulses running from the source along the route or border over a dark underlay) and outbreaks (a turning yellow-green stain round the
+settlement, larger and stronger as it worsens, tinted differently when imported). With empty tables it builds nothing. `--scenario=fief-overlays`
+(`LowPoly3DView.show_fief_overlay_demo`) fills the tables from the live map round the human capital and photographs it. **Correction to §8.4:** there is no
+"existing outbreak tint" in the renderer and the sim has no outbreak concept yet (only an `epidemic` cause of death), so the outbreak stain is new, and the sim
+side (which settlements are in outbreak, their intensity, the spread links) is still to be designed; the table shapes in `world_data.gd` are proposals. To photograph a few rows quickly: `--scenario=fief-gallery --fief-only=fields,cog` (prefixes of the shot names), and add
+Godot's `--always-on-top` on a machine in use, or the window is throttled and every still is a copy of the first frame.
 
 The dev gallery (the same one that checks Iron works) should have one capture per mesh and per state before any of it goes into a match.
 

@@ -8,6 +8,14 @@
 ##                        curtain wall rises round it, with a killing ground between the walls and a barbican on the front: foundations, walls rising on
 ##                        scaffolding, walls and towers up, finished with conical roofs and banners
 ##   concentric_4_idle    the finished castle with nobody in it: the banners lowered and no pennants, because the defense bonus applies only while garrisoned
+##   cannon               WAR-12: an iron barrel with a swelling muzzle on a timber carriage with two spoked wheels and a trail, a rammer, a pile of shot and
+##                        a powder keg beside it; faces +Z (the rig adds the flash, smoke and recoil)
+##   wall_seg_cracked     docs/MVP/32 §8.3 (integrity 40 to 70%): a wall run, cracked through on both faces, stones fallen at its foot
+##   wall_seg_breach      (15 to 40%): a gap through the curtain with a rubble slope and broken, stepped ends
+##   wall_tower_cracked   a tower split by a crack on its faces
+##   wall_tower_breach    a tower half fallen: two walls still standing at the back corner, the others broken down to rubble
+##   wall_gate_broken     a gate with its doors splintered, one hanging from its hinge, planks fallen and a scorch over the arch
+##                        (wall_ruin and wall_rubble, art_war.gd, stay the last stages)
 extends RefCounted
 
 const STONE := Color("#8f8a80")
@@ -20,8 +28,15 @@ const ROOF := Color("#a8492c")
 const ROOF_DARK := Color("#7f3622")
 const EARTH := Color("#7b6247")
 const GROUND := Color("#8a7254")           # the trodden killing ground between the two rings
+const IRON := Color("#3f444c")
+const IRON_LIGHT := Color("#6b717a")
+const CRACK := Color("#2a2119")
 const PLAIN := M7MeshBuilder.TAG_PLAIN
 const CIV := M7MeshBuilder.TAG_CIV
+
+const SEG := 0.16           # the same wall pieces as art_defense.gd
+const WALL_H := 0.075
+const WALL_T := 0.036
 
 const OUT := 0.36                           # half-side of the outer ring (centres of the corner towers)
 const INNER_SCALE := 0.9                    # the old castle, drawn a little smaller so the killing ground fits between the rings
@@ -32,6 +47,12 @@ static func build(kit) -> void:
 	for stage in range(1, 5):
 		kit.meshes["concentric_%d" % stage] = _castle(kit, stage, false)
 	kit.meshes["concentric_4_idle"] = _castle(kit, 4, true)
+	kit.meshes["cannon"] = _cannon(kit)
+	kit.meshes["wall_seg_cracked"] = _seg_cracked(kit)
+	kit.meshes["wall_seg_breach"] = _seg_breach(kit)
+	kit.meshes["wall_tower_cracked"] = _tower_cracked(kit)
+	kit.meshes["wall_tower_breach"] = _tower_breach(kit)
+	kit.meshes["wall_gate_broken"] = _gate_broken(kit)
 
 # ------------------------------------------------------------------ pieces
 
@@ -167,4 +188,170 @@ static func _castle(kit, stage: int, idle: bool) -> ArrayMesh:
 			b.pole(Vector3(-0.2, 0.12, -OUT + 0.1), Vector3(-0.12, 0.15, -OUT + 0.1), 0.003, TIMBER_LIGHT)
 			b.pole(Vector3(-0.13, 0.148, -OUT + 0.1), Vector3(-0.13, 0.1, -OUT + 0.1), 0.0012, Color("#b9a68a"))
 			b.box(Vector3(-0.13, 0.092, -OUT + 0.1), Vector3(0.016, 0.014, 0.016), STONE_LIGHT)
+	return b.commit()
+
+# ------------------------------------------------------------------ cannon (WAR-12)
+
+static func _wheel(b: M7MeshBuilder, p: Vector3, r: float) -> void:
+	var save := b.xf
+	# the wheel's axle is along X: spin the local frame so its +Y axis points to -X and the wheel lies in the local XZ plane
+	b.xf = b.xf * Transform3D(Basis(Vector3.BACK, PI * 0.5), p)
+	b.prism(Vector3(0, -0.003, 0), r, r, 0.006, 10, TIMBER, TIMBER_LIGHT)
+	for k in 5:
+		var a := PI * k / 5.0
+		b.pole(Vector3(cos(a) * r * 0.9, 0.0, sin(a) * r * 0.9), Vector3(-cos(a) * r * 0.9, 0.0, -sin(a) * r * 0.9), 0.0024, TIMBER)
+	b.prism(Vector3(0, -0.005, 0), r * 0.2, r * 0.2, 0.01, 6, IRON, IRON)
+	b.xf = save
+
+static func _cannon(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1160)
+	b.tag = PLAIN
+	var wr := 0.022
+	# the carriage: two cheeks along Z stepped down to the trail, an axle, a transom, and two wheels
+	for sx in [-0.0125, 0.0125]:
+		b.box(Vector3(sx, 0.03, 0.01), Vector3(0.008, 0.016, 0.07), TIMBER)
+		b.box(Vector3(sx, 0.026, -0.05), Vector3(0.008, 0.01, 0.05), TIMBER_LIGHT)
+		b.box(Vector3(sx, 0.014, -0.085), Vector3(0.008, 0.008, 0.024), TIMBER)
+	b.pole(Vector3(-0.034, wr, 0.0), Vector3(0.034, wr, 0.0), 0.004, IRON)
+	b.box(Vector3(0, 0.026, -0.03), Vector3(0.03, 0.008, 0.006), TIMBER)
+	for sx in [-0.034, 0.034]:
+		_wheel(b, Vector3(sx, wr, 0.0), wr)
+	# the barrel: an iron tube along Z, thicker at the breech, a cascabel knob, a ring before the muzzle and a swelling muzzle; trunnions through the cheeks
+	var save := b.xf
+	b.xf = b.xf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0.046, -0.055))
+	b.prism(Vector3(0, 0.0, 0), 0.0135, 0.0105, 0.12, 8, IRON, IRON_LIGHT)
+	b.prism(Vector3(0, 0.0, 0), 0.0145, 0.0145, 0.008, 8, IRON_LIGHT, IRON_LIGHT)
+	b.prism(Vector3(0, 0.07, 0), 0.0115, 0.0115, 0.006, 8, IRON_LIGHT, IRON_LIGHT)
+	b.prism(Vector3(0, 0.108, 0), 0.0125, 0.0135, 0.014, 8, IRON, IRON_LIGHT)
+	b.prism(Vector3(0, 0.12, 0), 0.0075, 0.0075, 0.002, 8, SLIT, SLIT)
+	b.blob(Vector3(0, -0.006, 0), Vector3(0.007, 0.007, 0.007), 5, 3, IRON, 0.0)
+	b.xf = save
+	b.pole(Vector3(-0.0175, 0.046, -0.01), Vector3(0.0175, 0.046, -0.01), 0.0035, IRON)
+	b.box(Vector3(0, 0.0605, -0.05), Vector3(0.003, 0.004, 0.003), SLIT)
+	# the rammer lying along the carriage, a pyramid of shot, a powder keg
+	b.pole(Vector3(0.05, 0.004, -0.06), Vector3(0.05, 0.004, 0.08), 0.0028, TIMBER_LIGHT)
+	b.prism(Vector3(0.05, 0.004, 0.08), 0.006, 0.006, 0.01, 6, TIMBER, TIMBER)
+	for k in 6:
+		var row := 0 if k < 3 else (1 if k < 5 else 2)
+		var idx := k if k < 3 else (k - 3 if k < 5 else 0)
+		var span := 3 - row
+		b.blob(Vector3(-0.07 + 0.012 * (idx - (span - 1) * 0.5) + 0.036, 0.007 + 0.011 * row, 0.06 + 0.0 * row), Vector3(0.0075, 0.0075, 0.0075), 5, 3, IRON_LIGHT, 0.0, IRON)
+	b.prism(Vector3(-0.065, 0.0, -0.04), 0.011, 0.011, 0.02, 8, Color("#4a3a2a"), Color("#5e4a36"))
+	b.prism(Vector3(-0.065, 0.005, -0.04), 0.0118, 0.0118, 0.002, 8, IRON, IRON)
+	return b.commit()
+
+# ------------------------------------------------------------------ what a siege leaves of the walls (docs/MVP/32 §8.3)
+
+## A crack as a zig-zag of thin dark poles through the points, on the plane z.
+static func _crack(b: M7MeshBuilder, pts: Array, z: float) -> void:
+	for k in pts.size() - 1:
+		var a: Vector2 = pts[k]
+		var c: Vector2 = pts[k + 1]
+		b.pole(Vector3(a.x, a.y, z), Vector3(c.x, c.y, z), 0.0016, CRACK)
+
+static func _seg_cracked(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1161)
+	b.tag = PLAIN
+	_append(b, kit.meshes["wall_seg"], Transform3D.IDENTITY, false)
+	var zf := WALL_T * 0.5 + 0.0012
+	for side in [-1.0, 1.0]:
+		var z: float = side * zf
+		_crack(b, [Vector2(0.012, 0.078), Vector2(0.004, 0.06), Vector2(0.016, 0.046), Vector2(0.002, 0.03), Vector2(0.012, 0.012)], z)
+		_crack(b, [Vector2(0.004, 0.06), Vector2(-0.014, 0.052), Vector2(-0.02, 0.036)], z)
+		# a chipped place on the crown where merlons have fallen
+		b.box(Vector3(0.018 * side, 0.074, z), Vector3(0.03, 0.01, 0.0015), STONE_DARK)
+	# fallen stones at the foot on both sides
+	for k in 5:
+		var sx := -0.05 + 0.03 * k
+		var sd: float = 1.0 if k % 2 == 0 else -1.0
+		b.blob(Vector3(sx, 0.007, sd * (WALL_T * 0.5 + 0.014)), Vector3(0.011, 0.008, 0.009), 5, 2, STONE_LIGHT if k % 2 == 0 else STONE, 0.2, STONE_DARK)
+	return b.commit()
+
+static func _seg_breach(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1162)
+	b.tag = PLAIN
+	b.box(Vector3(0, 0.006, 0), Vector3(SEG, 0.018, 0.044), STONE_DARK)
+	# the two ends stand nearly to height and step down toward the gap, the stone pale where it broke
+	for side in [-1.0, 1.0]:
+		b.box(Vector3(side * 0.066, 0.04, 0), Vector3(0.028, 0.07, WALL_T), STONE, STONE_LIGHT)
+		b.box(Vector3(side * 0.045, 0.034, 0), Vector3(0.016, 0.052, WALL_T), STONE, STONE_LIGHT)
+		b.box(Vector3(side * 0.033, 0.028, 0), Vector3(0.012, 0.036, WALL_T), STONE, STONE_LIGHT)
+		b.box(Vector3(side * 0.0245, 0.022, 0), Vector3(0.005, 0.022, WALL_T - 0.004), STONE_LIGHT)
+		b.box(Vector3(side * 0.057, 0.079, 0), Vector3(0.012, 0.008, 0.02), STONE_LIGHT)
+		# a few merlons left on the standing top
+		b.box(Vector3(side * 0.074, 0.083, WALL_T * 0.5 - 0.004), Vector3(0.02, 0.014, 0.008), STONE_LIGHT)
+	# the rubble slope in the gap, rising from both sides, with a few big fallen blocks
+	for k in 7:
+		var x := -0.032 + 0.0107 * k
+		var h := 0.012 + 0.008 * (1.0 - absf(x) / 0.032)
+		b.blob(Vector3(x, 0.012 + h * 0.4, 0.004 * sin(k * 2.0)), Vector3(0.014, h * 0.9, 0.022), 5, 2, STONE_LIGHT if k % 2 == 0 else STONE, 0.22, STONE_DARK)
+	for k in 3:
+		b.box(Vector3(-0.012 + 0.014 * k, 0.012, 0.03 + 0.006 * (k % 2)), Vector3(0.016, 0.012, 0.012), STONE_LIGHT)
+	b.blob(Vector3(0.0, 0.01, -0.03), Vector3(0.026, 0.008, 0.012), 5, 2, STONE, 0.2, STONE_DARK)
+	return b.commit()
+
+static func _tower_cracked(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1163)
+	b.tag = PLAIN
+	_append(b, kit.meshes["wall_tower"], Transform3D.IDENTITY, false)
+	# a long crack down two faces (the +Z face and the +X face), and fallen stones round the foot
+	_crack(b, [Vector2(0.008, 0.124), Vector2(-0.004, 0.1), Vector2(0.01, 0.08), Vector2(-0.006, 0.058), Vector2(0.006, 0.03)], 0.0318)
+	_crack(b, [Vector2(0.002, 0.1), Vector2(0.02, 0.092)], 0.0318)
+	for k in 5:
+		var a := TAU * k / 5.0 + 0.4
+		b.blob(Vector3(cos(a) * 0.05, 0.007, sin(a) * 0.05), Vector3(0.011, 0.008, 0.01), 5, 2, STONE_LIGHT if k % 2 == 0 else STONE, 0.2, STONE_DARK)
+	return b.commit()
+
+static func _tower_breach(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1164)
+	b.tag = PLAIN
+	var r := 0.031
+	var t := 0.011
+	# the foot is whole
+	b.prism(Vector3(0, -0.03, 0), 0.058, 0.045, 0.048, 4, STONE_DARK, STONE_DARK, PI / 4.0)
+	# the two back walls still stand to the top (with merlons), the two front ones are broken down in steps
+	b.box(Vector3(0, 0.07, -r), Vector3(r * 2.0 + t, 0.1, t), STONE, STONE_LIGHT)
+	b.box(Vector3(-r, 0.07, 0), Vector3(t, 0.1, r * 2.0), STONE, STONE_LIGHT)
+	for k in 3:
+		b.box(Vector3(-r + 0.02 * k, 0.126, -r), Vector3(0.012, 0.014, 0.01), STONE_LIGHT)
+	b.box(Vector3(-r, 0.126, 0.012), Vector3(0.01, 0.014, 0.012), STONE_LIGHT)
+	b.box(Vector3(0.0, 0.056, -r - 0.0055), Vector3(0.008, 0.026, 0.002), SLIT)
+	b.box(Vector3(-r - 0.0055, 0.056, 0.0), Vector3(0.002, 0.026, 0.008), SLIT)
+	# the front (+Z) wall: broken down to a ragged half, the right (+X) wall to a low stump
+	b.box(Vector3(-0.02, 0.05, r), Vector3(0.026, 0.06, t), STONE, STONE_LIGHT)
+	b.box(Vector3(0.0, 0.034, r), Vector3(0.02, 0.028, t), STONE, STONE_LIGHT)
+	b.box(Vector3(0.018, 0.02, r), Vector3(0.016, 0.01, t), STONE, STONE_LIGHT)
+	b.box(Vector3(r, 0.03, -0.014), Vector3(t, 0.036, 0.03), STONE, STONE_LIGHT)
+	b.box(Vector3(r, 0.018, 0.012), Vector3(t, 0.01, 0.02), STONE, STONE_LIGHT)
+	# the floor inside, and the rubble spilled out over the breach and the ground
+	b.box(Vector3(0.0, 0.026, 0.0), Vector3(r * 1.8, 0.004, r * 1.8), STONE_DARK)
+	for k in 7:
+		var a := -0.2 + 0.5 * k
+		b.blob(Vector3(0.03 + 0.012 * cos(a * 2.0) + 0.01 * (k % 3), 0.012 + 0.006 * (k % 3), 0.04 + 0.03 * sin(a)), Vector3(0.013, 0.011, 0.012), 5, 2,
+			STONE_LIGHT if k % 2 == 0 else STONE, 0.22, STONE_DARK)
+	return b.commit()
+
+static func _gate_broken(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1165)
+	b.tag = PLAIN
+	_append(b, kit.meshes["wall_gate"], Transform3D.IDENTITY, false)
+	# the opening is 0.072 wide between the posts; a scorch over the arch, the doors smashed: one leaf still on its hinge, hanging askew
+	b.box(Vector3(0, 0.08, WALL_T * 0.5 + 0.001), Vector3(0.1, 0.02, 0.0015), Color("#3a3128"))
+	b.box(Vector3(0, 0.07, -WALL_T * 0.5 - 0.001), Vector3(0.1, 0.02, 0.0015), Color("#3a3128"))
+	var save := b.xf
+	b.xf = b.xf * Transform3D(Basis(Vector3.UP, 0.7) * Basis(Vector3.BACK, 0.18), Vector3(-0.034, 0.03, 0.026))
+	b.box(Vector3(0.0, 0.0, 0.0), Vector3(0.004, 0.056, 0.03), TIMBER_LIGHT)
+	b.box(Vector3(0.0035, 0.012, 0.0), Vector3(0.003, 0.004, 0.03), IRON)
+	b.box(Vector3(0.0035, -0.012, 0.0), Vector3(0.003, 0.004, 0.03), IRON)
+	b.xf = save
+	# planks and splinters fallen on the ground in front, the other leaf in pieces
+	b.xf = b.xf * Transform3D(Basis(Vector3.UP, -0.5), Vector3(0.02, 0.004, 0.04))
+	b.box(Vector3(0, 0, 0), Vector3(0.036, 0.004, 0.008), TIMBER)
+	b.box(Vector3(0.006, 0.004, 0.01), Vector3(0.03, 0.004, 0.008), TIMBER_LIGHT)
+	b.xf = save
+	b.xf = b.xf * Transform3D(Basis(Vector3.UP, 0.9), Vector3(0.036, 0.004, 0.062))
+	b.box(Vector3(0, 0, 0), Vector3(0.026, 0.004, 0.008), TIMBER)
+	b.xf = save
+	for k in 4:
+		b.blob(Vector3(-0.04 + 0.026 * k, 0.007, 0.046 + 0.01 * (k % 2)), Vector3(0.011, 0.008, 0.009), 5, 2, STONE_LIGHT if k % 2 == 0 else STONE, 0.2, STONE_DARK)
 	return b.commit()

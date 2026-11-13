@@ -12,6 +12,13 @@
 ##   blast_furnace       a tall tapering stone stack with a brick crown and a charging ramp up the back, a glowing tuyere arch at its foot, the bellows house
 ##                       and its wheel, a casting shed with a sand bed of pig iron, a heap of charcoal and a scar of bare earth round it all
 ##   blast_furnace_cold  the same furnace banked: the arch dark, the bed empty (no fuel, no charcoal, or no power unit)
+##   sawmill          WOD-09: built on the water mill (art_works.gd water_mill: its house, overshot wheel and flume, +X toward the river) with a long open saw shed
+##                    running off its village side: a log on a carriage, a saw frame driven from the wheel by a connecting rod, a log ramp, and stacks of logs
+##                    and fresh planks. Told from the water mill by its long, low timber silhouette.
+##   sawmill_idle     the same with the saw stopped, no log on the carriage and the wheel's flume dry (no power unit, no logs)
+##   powder_mill      CHM-07: a low timber shed behind earth banks on three sides (the blast goes out the open front), a stamp mill on a leat beside it, a
+##                    powder barrel stack and a red danger flag; stands apart from houses
+##   powder_mill_idle the same with the stamps still and no barrels
 extends RefCounted
 
 const STONE := Color("#8f8a80")
@@ -41,6 +48,7 @@ const CLOTH := M7MeshBuilder.TAG_CLOTH
 
 const HUB := Vector3(0.0, 0.335, 0.07)      # where the sails go, from the body's origin
 const SAIL_LEN := 0.2
+const War := preload("res://Renderer/LowPoly3D/Scripts/art_fief_war.gd")
 
 static func build(kit) -> void:
 	kit.meshes["windmill_body"] = _windmill_body(kit)
@@ -48,6 +56,10 @@ static func build(kit) -> void:
 	kit.meshes["windmill"] = _windmill_body(kit, true)
 	kit.meshes["blast_furnace"] = _furnace(kit, true)
 	kit.meshes["blast_furnace_cold"] = _furnace(kit, false)
+	kit.meshes["sawmill"] = _sawmill(kit, true)
+	kit.meshes["sawmill_idle"] = _sawmill(kit, false)
+	kit.meshes["powder_mill"] = _powder_mill(kit, true)
+	kit.meshes["powder_mill_idle"] = _powder_mill(kit, false)
 
 # ------------------------------------------------------------------ windmill
 
@@ -202,4 +214,110 @@ static func _furnace(kit, hot: bool) -> ArrayMesh:
 		b.blob(Vector3(-0.2, 0.0, 0.1), Vector3(0.1, 0.04, 0.09), 7, 3, CHARCOAL.lightened(0.04), 0.12, CHARCOAL)
 	for k in 5:
 		b.pole(Vector3(-0.24 + 0.014 * k, 0.012, -0.12), Vector3(-0.24 + 0.014 * k, 0.012, -0.2), 0.006, WOOD if k % 2 == 0 else WOOD_LIGHT)
+	return b.commit()
+
+# ------------------------------------------------------------------ sawmill
+
+static func _sawmill(kit, working: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1135 + (0 if working else 1))
+	b.tag = PLAIN
+	# the water mill is the base: house, wheel and flume stay as they are, the saw shed grows from its village (-X) side
+	War._append(b, kit.meshes["water_mill"], Transform3D.IDENTITY, false)
+	var x0 := -0.44
+	var x1 := -0.1
+	var fresh := Color("#d9b97a")
+	var fresh_dark := Color("#b99a5c")
+	# the deck of the shed and its posts, an open long roof of boards over it
+	b.box(Vector3((x0 + x1) * 0.5, 0.03, 0.0), Vector3(x1 - x0, 0.012, 0.13), WOOD_LIGHT, fresh_dark)
+	for k in 5:
+		var px := x0 + 0.02 + (x1 - x0 - 0.04) * k / 4.0
+		for sz in [-0.06, 0.06]:
+			b.pole(Vector3(px, 0.0, sz), Vector3(px, 0.092, sz), 0.0045, WOOD)
+	for sz in [-0.06, 0.06]:
+		b.pole(Vector3(x0 + 0.02, 0.09, sz), Vector3(x1 - 0.02, 0.09, sz), 0.0038, WOOD_LIGHT)
+	for sx in [x0 + 0.02, x1 - 0.02]:
+		b.pole(Vector3(sx, 0.09, -0.06), Vector3(sx, 0.09, 0.06), 0.0038, WOOD_LIGHT)
+	var rf := Color("#7a5f42")
+	for side in [-1.0, 1.0]:
+		b.quad(Vector3(x0 - 0.01, 0.094, side * 0.082), Vector3(x1 + 0.006, 0.094, side * 0.082), Vector3(x1 + 0.006, 0.128, 0.0), Vector3(x0 - 0.01, 0.128, 0.0),
+			rf if side > 0.0 else rf.darkened(0.14), Vector3((x0 + x1) * 0.5, 0.08, 0.0))
+	b.tri(Vector3(x0 - 0.01, 0.094, -0.082), Vector3(x0 - 0.01, 0.094, 0.082), Vector3(x0 - 0.01, 0.128, 0.0), rf.darkened(0.2), Vector3(0, 0.08, 0))
+	# the carriage: two rails along X with a log lying on it (when the saw is at work), the saw frame standing over it
+	for sz in [-0.022, 0.022]:
+		b.box(Vector3((x0 + x1) * 0.5, 0.04, sz), Vector3(x1 - x0 - 0.04, 0.008, 0.008), WOOD)
+	var fx := -0.23
+	if working:
+		b.pole(Vector3(x0 + 0.03, 0.054, 0.0), Vector3(-0.12, 0.054, 0.0), 0.0135, Color("#8a6a48"), 7)
+		# fresh planks falling away on the cut side
+		for k in 3:
+			b.box(Vector3(fx - 0.06 - 0.018 * k, 0.048 + 0.0, 0.0), Vector3(0.012, 0.01, 0.034), fresh)
+	# the saw frame: two uprights, top and bottom bars, a blade between them, driven up and down by a rod from the wheel's crank
+	for sz in [-0.032, 0.032]:
+		b.pole(Vector3(fx, 0.04, sz), Vector3(fx, 0.112, sz), 0.0035, WOOD)
+	b.box(Vector3(fx, 0.112, 0.0), Vector3(0.008, 0.006, 0.07), WOOD)
+	b.box(Vector3(fx, 0.062 if working else 0.07, 0.0), Vector3(0.006, 0.006, 0.07), WOOD)
+	b.box(Vector3(fx, 0.088 if working else 0.092, 0.0), Vector3(0.002, 0.048, 0.056), IRON)
+	b.pole(Vector3(-0.1, 0.07, 0.0), Vector3(fx + 0.004, 0.112, 0.0), 0.0022, WOOD_LIGHT)
+	# the log ramp climbing from the ground to the deck on the near (+Z) side, with a few logs waiting at its foot
+	b.quad(Vector3(-0.38, 0.03, 0.065), Vector3(-0.28, 0.03, 0.065), Vector3(-0.28, 0.004, 0.16), Vector3(-0.38, 0.004, 0.16), WOOD, Vector3(-0.33, 0.0, 0.1))
+	for k in 4:
+		b.pole(Vector3(-0.4 + 0.012 * (k % 2), 0.012 + 0.022 * (k / 2), 0.17 + 0.0 * k), Vector3(-0.3 + 0.012 * (k % 2), 0.012 + 0.022 * (k / 2), 0.17), 0.0125, Color("#8a6a48"), 7)
+	# stacks of finished planks on the far (-Z) side, each layer crossed
+	for layer in 5:
+		for k in 2:
+			b.box(Vector3(-0.34 + 0.012 * (k % 2), 0.008 + 0.008 * layer, -0.115 + 0.0 * k), Vector3(0.11 if layer % 2 == 0 else 0.08, 0.007, 0.048 if layer % 2 == 0 else 0.07), fresh if layer % 2 == 0 else fresh_dark)
+	# sawdust drifted at the foot of the saw
+	b.blob(Vector3(fx - 0.02, 0.036, 0.09), Vector3(0.03, 0.006, 0.022), 5, 2, Color("#d9c08a"), 0.2)
+	return b.commit()
+
+# ------------------------------------------------------------------ powder mill
+
+static func _powder_mill(kit, working: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1145 + (0 if working else 1))
+	b.tag = PLAIN
+	var earth := Color("#7b6247")
+	b.box(Vector3(0, 0.003, 0.0), Vector3(0.5, 0.006, 0.42), earth.lightened(0.04))
+	# the shed: low, timber boarded with a light roof of boards (it is meant to blow off, not fall in), a stack of stones on the roof ridge is the vent
+	b.box(Vector3(0, 0.03, -0.02), Vector3(0.14, 0.048, 0.1), WOOD_LIGHT, WOOD_LIGHT.lightened(0.08))
+	for k in 6:
+		b.box(Vector3(-0.065 + 0.026 * k, 0.03, 0.0305), Vector3(0.003, 0.048, 0.002), WOOD)
+	b.quad(Vector3(-0.08, 0.054, -0.075), Vector3(0.08, 0.054, -0.075), Vector3(0.08, 0.078, -0.02), Vector3(-0.08, 0.078, -0.02), Color("#8a7a5a"), Vector3(0, 0.03, -0.04))
+	b.quad(Vector3(-0.08, 0.078, -0.02), Vector3(0.08, 0.078, -0.02), Vector3(0.08, 0.054, 0.04), Vector3(-0.08, 0.054, 0.04), Color("#8a7a5a").darkened(0.12), Vector3(0, 0.03, 0.0))
+	b.box(Vector3(0, 0.025, 0.0315), Vector3(0.032, 0.038, 0.004), ARCH)
+	# the earth banks on three sides, grass-topped, a shaped lane open to the front (+Z)
+	for k in 3:
+		var bank: Vector3 = [Vector3(-0.115, 0.0, -0.01), Vector3(0.115, 0.0, -0.01), Vector3(0.0, 0.0, -0.115)][k]
+		var size: Vector3 = [Vector3(0.06, 0.1, 0.2), Vector3(0.06, 0.1, 0.2), Vector3(0.26, 0.1, 0.05)][k]
+		b.box(bank + Vector3(0, 0.04, 0), size * Vector3(1.0, 0.8, 1.0), earth, Color("#7a8a44"))
+		b.box(bank + Vector3(0, 0.082, 0), size * Vector3(0.7, 0.04, 0.7), Color("#7a8a44"))
+	# the stamp mill beside it on a leat: a small wheel on the +X side, a row of three stamps in a frame with iron heads over a trough
+	var wc := Vector3(0.22, 0.04, 0.05)
+	for i in 8:
+		var a0 := TAU * i / 8.0
+		var a1 := TAU * (i + 1) / 8.0
+		b.pole(wc + Vector3(0, sin(a0) * 0.036, cos(a0) * 0.036), wc + Vector3(0, sin(a1) * 0.036, cos(a1) * 0.036), 0.004, WOOD_LIGHT)
+	for a in [0.0, PI * 0.25, PI * 0.5, PI * 0.75]:
+		b.pole(wc + Vector3(0, sin(a) * 0.036, cos(a) * 0.036), wc - Vector3(0, sin(a) * 0.036, cos(a) * 0.036), 0.0024, WOOD)
+	b.box(Vector3(0.22, 0.01, 0.05), Vector3(0.05, 0.006, 0.12), Color("#4a86a8"))
+	b.pole(wc + Vector3(-0.02, 0, 0), Vector3(0.17, 0.04, 0.05), 0.0045, WOOD)
+	for k in 3:
+		var sz := 0.0 + 0.032 * k - 0.02
+		b.box(Vector3(0.145, 0.016, sz + 0.05), Vector3(0.05, 0.016, 0.022), WOOD)
+		var lift := 0.0 if not working else (0.012 if k == 1 else 0.0)
+		b.pole(Vector3(0.145, 0.03 + lift, sz + 0.05), Vector3(0.145, 0.09 + lift, sz + 0.05), 0.0035, WOOD_LIGHT)
+		b.box(Vector3(0.145, 0.03 + lift, sz + 0.05), Vector3(0.01, 0.012, 0.01), IRON)
+	b.box(Vector3(0.145, 0.088, 0.05), Vector3(0.012, 0.004, 0.09), WOOD)
+	for sz in [-0.012, 0.112]:
+		b.pole(Vector3(0.145, 0.0, sz), Vector3(0.145, 0.1, sz), 0.0035, WOOD)
+	# the barrels of finished powder, dark with iron hoops, stacked at a safe distance in front; empty when the mill is idle
+	if working:
+		for k in 5:
+			var bp := Vector3(-0.1 + 0.026 * (k % 3), 0.0, 0.15 + 0.026 * (k / 3))
+			b.prism(bp, 0.011, 0.011, 0.022, 8, Color("#4a3a2a"), Color("#5e4a36"))
+			b.prism(bp + Vector3(0, 0.005, 0), 0.0118, 0.0118, 0.0022, 8, IRON, IRON)
+			b.prism(bp + Vector3(0, 0.015, 0), 0.0118, 0.0118, 0.0022, 8, IRON, IRON)
+	# the danger flag on a pole by the track: a red pennant
+	b.pole(Vector3(-0.2, 0.0, 0.17), Vector3(-0.2, 0.12, 0.17), 0.0026, WOOD)
+	b.quad(Vector3(-0.2, 0.12, 0.17), Vector3(-0.15, 0.112, 0.17), Vector3(-0.15, 0.094, 0.17), Vector3(-0.2, 0.1, 0.17), Color("#b8352c"), Vector3(-0.17, 0.1, 1.0))
+	b.quad(Vector3(-0.2, 0.12, 0.17), Vector3(-0.15, 0.112, 0.17), Vector3(-0.15, 0.094, 0.17), Vector3(-0.2, 0.1, 0.17), Color("#b8352c").darkened(0.08), Vector3(-0.17, 0.1, -1.0))
 	return b.commit()
