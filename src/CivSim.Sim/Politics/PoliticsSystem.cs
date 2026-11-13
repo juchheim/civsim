@@ -561,9 +561,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     // ---- fission site advice (IFissionSiteAdvisor) ---------------------------------------
 
     /// <summary>
-    /// Rival-owned land is off limits, and so is ground within 23 terrain-weighted tiles of a rival settlement, just
-    /// beyond what two E1 reaches span: bands settle where they can hold a claim, not on a neighbour's doorstep
-    /// (docs/MVP/05 §9.4, 07b fission sites), and contact comes from reach, not from a daughter band wandering over.
+    /// Rival-owned land is off limits, as is ground within the same 9-hex minimum distance used by Found a Village.
+    /// Unclaimed frontier land beyond that distance remains eligible, with rival pressure still reducing its score
+    /// nearby (docs/MVP/05 §9.4, 22 §4.3).
     /// </summary>
     /// <summary>The owner of a tile for the economy's camp planner (docs/MVP/23 §7.2), -1 when unowned.</summary>
     int ITileOwnership.OwnerOf(int tile) => _tinFolk.Count > 0 && FreeFolkOwns(tile) ? -2 : _territory.OwnerOf(tile);
@@ -575,28 +575,14 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         if (owner != -1 && owner != civ) return false;
         for (int s = 0; s < _sCount; s++)
         {
-            if (_sCiv[s] == civ || _free[s]) continue;
-            if (RivalCost(s)[tile] < MinRivalCostTenths) return false;
+            if (_sCiv[s] == civ || _free[s] || _sPop[s] <= 0) continue;
+            if (HexGrid.Distance(_sTile[s], tile, _width) < _rules.RivalMinDist) return false;
         }
         // Tin Folk land is theirs: daughters keep the founding distance from a free village (docs/MVP/22 §4.3, §6.4).
         foreach (TinFolkVillage v in _tinFolk)
             if (v.Joined < 0 && (uint)v.Settlement < (uint)_sCount && _free[v.Settlement] &&
                 HexGrid.Distance(_sTile[v.Settlement], tile, _width) < _rules.RivalMinDist) return false;
         return true;
-    }
-
-    private const int MinRivalCostTenths = 230;
-    private int[]?[] _rivalCost = new int[]?[0];
-    private int _rivalCostSeason = -1;
-
-    private int[] RivalCost(int settlement)
-    {
-        if (_rivalCostSeason != _season || _rivalCost.Length < _sCount)
-        {
-            _rivalCost = new int[]?[Math.Max(_sCount, 8)];
-            _rivalCostSeason = _season;
-        }
-        return _rivalCost[settlement] ??= HexGrid.WalkingCostsFrom(_tileArray, _width, _height, _sTile[settlement], MinRivalCostTenths);
     }
 
     /// <summary>

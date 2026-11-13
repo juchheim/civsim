@@ -420,7 +420,7 @@ public partial class Game
         if (_session is null) return "Settlement likelihood unavailable.";
         CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(frame, tile);
         if (!preview.CanFound)
-            return "Estimated likelihood: none · no current settlement can legally found here.";
+            return "Estimated likelihood: none · a site must be reachable and in range of a living settlement, 9+ tiles from every living settlement, not rival-owned, and clear of metal, salt, and coal deposits within one tile.";
 
         int fit = Math.Clamp((preview.RelativeSiteFit * CivSim.Sim.Numerics.Fix64.FromInt(100)).RoundToInt(), 0, 100);
         string likelihood = fit >= 85 ? "High" : fit >= 60 ? "Possible" : "Low";
