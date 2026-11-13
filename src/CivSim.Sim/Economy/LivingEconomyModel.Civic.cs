@@ -1053,7 +1053,8 @@ public sealed partial class LivingEconomyModel
                     if (pass == 0 && !IsForestTile(tile) || pass == 1 && IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
                     int d = HexGrid.Distance(s.SiteTile, tile, _world.Width);
                     if (pass == 2 && d <= Radius) continue;
-                    Fix64 perLitre = Fix64.One / CivicChopRate + (pass == 2 ? HaulPerLitreTile * d : Fix64.Zero);
+                    Fix64 haul = pass == 2 ? HaulPerLitreTile * d * FiefHorseHaulFactor(s) : Fix64.Zero;
+                    Fix64 perLitre = Fix64.One / CivicChopRate + haul;
                     Fix64 take = Fix64.Min(Fix64.Min(missingWood - got, _woodStock[tile]), labor / perLitre);
                     if (take <= Fix64.Zero) continue;
                     RecordB13StandingWoodRemoval(tile, take, "civic", _woodStock[tile]);
@@ -1073,7 +1074,8 @@ public sealed partial class LivingEconomyModel
             {
                 if (got >= missingStone || labor <= Fix64.Zero) break;
                 if (_stoneStock[tile] <= Fix64.Zero || IsRivalTile(s.Civilization, tile)) continue;
-                Fix64 perLitre = Fix64.One + HaulPerLitreTile * HexGrid.Distance(s.SiteTile, tile, _world.Width);
+                Fix64 haul = HaulPerLitreTile * HexGrid.Distance(s.SiteTile, tile, _world.Width) * FiefHorseHaulFactor(s);
+                Fix64 perLitre = Fix64.One + haul;
                 Fix64 take = Fix64.Min(Fix64.Min(missingStone - got, _stoneStock[tile]), labor / perLitre);
                 _stoneStock[tile] -= take;
                 got += take;

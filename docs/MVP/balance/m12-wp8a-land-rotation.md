@@ -17,4 +17,4 @@ One whole-match A/B used the same promoted temporary content pack, seed `2026101
 
 ## Still open in WP-E5-5
 
-Horse collar and draft power, selective breeding, game reserves, TER-10 claim upkeep, timber framing, cast-iron goods and the cannon/powder chain remain unbuilt. The land/food oracle and multi-seed whole-match balance still need to be run after the rest of system C is in place.
+At the time of this report, horse collar and draft power, selective breeding, game reserves, TER-10 claim upkeep, timber framing, cast-iron goods and the cannon/powder chain remained unbuilt. The horse-collar follow-up is in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md). The land/food oracle and multi-seed whole-match balance still need to be run after the rest of system C is in place.

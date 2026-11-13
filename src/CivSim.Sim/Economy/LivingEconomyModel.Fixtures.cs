@@ -149,6 +149,9 @@ public sealed partial class LivingEconomyModel
         InvalidateIronFuelHubAssignments();
     }
 
+    internal Fix64 FixtureGatherMaterials(int settlementIndex, int wood, int stone, int clay, Fix64 labor)
+        => GatherMaterials(_settlements[settlementIndex], wood, stone, clay, labor);
+
     /// <summary>
     /// Scales the standing wood of every forest tile in a settlement's charcoal catchment to a percentage of its starting stock. The Iron fuel
     /// guard judges the whole catchment (ef575c3), so a thin-forest fixture must thin all of it, not only the fixture's own forest tiles.

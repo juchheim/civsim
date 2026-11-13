@@ -2245,6 +2245,7 @@ public sealed partial class LivingEconomyModel
             Fix64 haul = HaulPerLitreTile * distance / haulDivisor;
             if (IronFuelHubsEnabled(s.Civilization) && distance > IronFuelDomesticCharcoalReach(s))
                 haul *= IronFuelOuterHaulMultiplier;
+            haul *= FiefHorseHaulFactor(s);
             Fix64 perBatch = burn + woodPer / plan.MeanChopRate + haul;
             Fix64 batches = Fix64.Min(planned, available / woodPer);
             if (perBatch > Fix64.Zero) batches = Fix64.Min(batches, (metalPool + craftPool) / perBatch);
@@ -2465,7 +2466,7 @@ public sealed partial class LivingEconomyModel
             Fix64 want = plan.Want[MetalSlot(good)];
             Fix64 net = want * 2 - m.Goods[(int)good];
             Fix64 haulDivisor = Done(civ, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
-            Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor;
+            Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor * FiefHorseHaulFactor(s);
             Fix64 idle = Fix64.Zero;
             int crewCount = 0;
             foreach (FigureState f in Residents(s.Id))

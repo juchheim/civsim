@@ -70,15 +70,25 @@ public sealed partial class LivingEconomyModel
     private Fix64 FieldLaborNeed(SettlementState s)
     {
         int fields = s.FieldTiles.Count;
-        Fix64 need = Fix64.FromInt(fields);
+        Fix64 cropShare = FiefFieldCropShare(s);
+        Fix64 croppedFields = Fix64.FromInt(fields) * cropShare;
+        Fix64 need = croppedFields;
+        Fix64 oxPloughed = Fix64.Zero;
         if (E3Food(s) && HasProject(s.Civilization, "AGR-05"))
         {
             int pairs = (s.DomesticCattle / 2).FloorToInt();
             int perPair = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
-            int ploughed = Math.Min(fields, pairs * perPair);
-            need -= Fix64.FromInt(ploughed) * Fix64.Half;
+            oxPloughed = Fix64.Min(croppedFields, Fix64.FromInt(Math.Min(fields, pairs * perPair)) * cropShare);
+            need -= oxPloughed * Fix64.Half;
         }
-        return need * FiefFieldCropShare(s);
+        if (FiefHorseCollar(s))
+        {
+            int perHorse = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
+            Fix64 horseCapacity = Fix64.FromInt(s.Civic!.Horses) * Fix64.FromInt(perHorse * 2) * cropShare;
+            Fix64 horsePloughed = Fix64.Min(Fix64.Max(Fix64.Zero, croppedFields - oxPloughed), horseCapacity);
+            need -= horsePloughed * Fix64.Half;
+        }
+        return need;
     }
 
     /// <summary>

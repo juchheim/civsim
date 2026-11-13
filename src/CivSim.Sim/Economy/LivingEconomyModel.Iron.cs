@@ -697,7 +697,7 @@ public sealed partial class LivingEconomyModel
             if (extraHaulDistance > 0)
             {
                 Fix64 haulDivisor = Done(civ, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
-                Fix64 haulLabor = move * HaulPerLitreTile * extraHaulDistance / haulDivisor;
+                Fix64 haulLabor = move * HaulPerLitreTile * extraHaulDistance / haulDivisor * FiefHorseHaulFactor(supplier);
                 AddMetalStat(civ, StatMetalLabor, haulLabor);
                 RecordIT6OreHaul(civ, haulLabor, ironOre: true);
             }

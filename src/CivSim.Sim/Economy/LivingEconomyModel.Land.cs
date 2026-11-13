@@ -1,3 +1,4 @@
+using System;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
@@ -28,6 +29,12 @@ public sealed partial class LivingEconomyModel
     private Fix64 FiefFieldYield(SettlementState s)
         => FiefFieldPolicy(s) && HasProject(s.Civilization, "AGR-11") ? LegumeRotationYield : Fix64.One;
 
+    private bool FiefHorseCollar(SettlementState s)
+        => FiefFieldPolicy(s) && HasProject(s.Civilization, "NRG-04") && s.Civic is { Horses: > 0 };
+
+    /// <summary>NRG-04 doubles draft power; provisionally, horse-held Fief towns pay half labor for modeled hauling.</summary>
+    private Fix64 FiefHorseHaulFactor(SettlementState s) => FiefHorseCollar(s) ? Fix64.Half : Fix64.One;
+
     // Test fixtures intentionally use the same production path as the live harvest.
     internal int FixtureCroppedFields(int settlementIndex, int year)
     {
@@ -39,6 +46,12 @@ public sealed partial class LivingEconomyModel
     }
 
     internal Fix64 FixtureFiefFieldYield(int settlementIndex) => FiefFieldYield(_settlements[settlementIndex]);
+
+    internal void FixtureSetTameHorses(int settlementIndex, int horses)
+    {
+        if (horses < 0) throw new ArgumentOutOfRangeException(nameof(horses));
+        EnsureCivic(_settlements[settlementIndex]).Horses = horses;
+    }
 
     internal Fix64 FixtureHarvestFieldYear(int settlementIndex, int year)
     {
