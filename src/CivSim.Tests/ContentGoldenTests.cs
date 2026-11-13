@@ -56,7 +56,7 @@ public class ContentGoldenTests
     public void Keystone_closures_match_the_reference_scripts()
     {
         Analysis a = Analysis.Compute(Set);
-        Assert.Equal(new[] { 11, 28, 70, 108, 153, 174, 210, 227, 278, 338 }, a.KeystoneMeasures.Select(m => m.Closure));
+        Assert.Equal(new[] { 11, 28, 70, 108, 152, 173, 209, 226, 277, 337 }, a.KeystoneMeasures.Select(m => m.Closure));
         Assert.Equal(new[] { 11, 11, 17, 18, 17, 12, 10, 10, 14, 13 }, a.KeystoneMeasures.Select(m => m.InEraCritical));
         Assert.Equal(new[] { 13, 14, 20, 21, 21, 16, 14, 14, 18, 17 }, a.KeystoneMeasures.Select(m => m.Breadth));
     }
@@ -70,15 +70,24 @@ public class ContentGoldenTests
     }
 
     [Fact]
-    public void Critical_gates_are_exactly_the_seven_the_design_expects()
+    public void Critical_gates_are_exactly_the_six_the_design_expects()
     {
         var critical = new Graph(Set).GateImpacts().Where(g => g.IsKeystoneCritical)
             .ToDictionary(g => g.Target, g => g.BlockedKeystones[0]);
         Assert.Equal(new Dictionary<string, string>
         {
             ["clay"] = "KEY-3", ["native copper"] = "KEY-3", ["wolves"] = "KEY-4", ["wild goats or sheep"] = "KEY-4",
-            ["gold or silver"] = "KEY-5", ["coal"] = "KEY-7", ["oil seep"] = "KEY-10",
+            ["coal"] = "KEY-7", ["oil seep"] = "KEY-10",
         }, critical);
+    }
+
+    [Fact]
+    public void Key5_coinage_path_does_not_require_precious_metal_discovery()
+    {
+        Project coinage = Set.ById["TRD-06"];
+        Assert.Contains("MET-03", coinage.Requires);
+        Assert.DoesNotContain("MET-07", coinage.Requires);
+        Assert.DoesNotContain("MET-07", new Graph(Set).Closure("KEY-5"));
     }
 
     [Fact]

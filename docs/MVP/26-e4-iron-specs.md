@@ -272,7 +272,7 @@ Each row specifies the existing YAML identity, type, prerequisites and gates exa
 | SEA-07 Harbors | S / 1440 | SEA-06, BLD-09 | Build Harbor; ship capacity ×2; port-city cap support ×1.20 conditional on food/water/housing; satisfies TRD-07 OR. | sail | Stone piers reach into a sheltered bay. “The harbor makes a coast a meeting place.” | Harbor/ship routes/port city; construction. |
 | SEA-08 Great Lighthouse | W / 2400 | SEA-07, BLD-11 | Wonder Lighthouse; shipwreck risk ×0.5 civ-wide for known, maintained routes; sea trade throughput ×1.20; landmark claim uses existing wonder rules. | sail | A beacon burns above a harbor mouth. “A fixed light marks the coast at night.” | Lighthouse progress and sea-route safety. |
 | SEA-09 War Galleys | M / 1200 | SEA-07, WAR-07 | `unlock_action(naval_combat,blockade)`; ship/crew combat and blockade require WAR; blockade requirements in §4. | sail | A galley crew rows in formation past the harbor chain. “The harbor is no longer beyond an army's reach.” | War galley / harbor blockade; naval system. |
-| TRD-06 Coinage | M / 1200 | TRD-05, MET-07 | Trade friction ×0.60; tax/coin admin span +1 **P**; no currency stock/grant. | trade | A stamped coin is weighed at the market. “A shared mark settles an exchange.” | Coin/market accounting; trade/admin. |
+| TRD-06 Coinage | M / 1200 | TRD-05, MET-03 | Trade friction ×0.60; tax/coin admin span +1 **P**; no currency stock/grant. Basic coinage can use base metals; precious-metal working remains optional. | trade | A stamped coin is weighed at the market. “A shared mark settles an exchange.” | Coin/market accounting; trade/admin. |
 | TRD-07 Long-Distance Trade Routes | I / 1800 | TRD-06; `requires_any: [HUS-09, SEA-07]` | Route range ×3 for caravan or harbor-to-harbor mode; only available mode is active; no free cargo/route or import. | trade | A caravan and ship exchange cargo at a distant port. “A chain of routes joins far markets.” | Extended routes; route pathfinding. Preserve OR exactly. |
 | TRN-07 Paved Roads | S / 1440 | TRN-05, STN-11 | Build Road; move ×1.5 on built road; adoption ×2 along road; claim strength +10% along road **P**. | haul | Stone paving reaches beyond the town gate. “A road keeps its promise in every season.” | Road; movement, claim and adoption. |
 | TRN-08 Stone Bridges | S / 1440 | TRN-07, BLD-09 | Build Bridge; road may cross river where bridge physically built; no general river movement bonus. | haul | A road crosses the river on stone arches. “The two banks share one road.” | Bridge; road routing. |
@@ -341,7 +341,7 @@ This checklist is intentionally redundant with §5 so a YAML transcription can c
 | SEA-07 | S | SEA-06, BLD-09 | — | — |
 | SEA-08 | W | SEA-07, BLD-11 | — | — |
 | SEA-09 | M | SEA-07, WAR-07 | — | — |
-| TRD-06 | M | TRD-05, MET-07 | — | — |
+| TRD-06 | M | TRD-05, MET-03 | — | — |
 | TRD-07 | I | TRD-06 | HUS-09 OR SEA-07 | — |
 | TRN-07 | S | TRN-05, STN-11 | — | — |
 | TRN-08 | S | TRN-07, BLD-09 | — | — |

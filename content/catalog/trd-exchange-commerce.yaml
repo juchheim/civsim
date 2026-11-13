@@ -76,7 +76,7 @@ projects:
     era: 4
     type: M
     status: numeric
-    requires: [TRD-05, MET-07]
+    requires: [TRD-05, MET-03]
     effects:
       - {kind: mod, stat: trade_friction, op: mult, value: 0.60}
       - {kind: admin, span: 1, note: "Tax/coin administration capacity."}

@@ -478,6 +478,19 @@ public sealed partial class LivingEconomyModel
         return lacking;
     }
 
+    /// <summary>Whether last season's usable Iron kit holders fell below the 70% floor for toolworkers.</summary>
+    private bool IronToolWorkersBelowCoverageFloorLastSeason(SettlementState s)
+    {
+        int workers = 0, covered = 0;
+        foreach (FigureState f in _figures)
+        {
+            if (f.SettlementId != s.Id || f.Age < 14 || !f.WorkedWithToolLastSeason) continue;
+            workers++;
+            if (Rank(f.Kit) >= Rank(11) && f.KitLeft > ExpectedSeasonWear) covered++;
+        }
+        return workers > 0 && covered < (workers * 7 + 9) / 10;
+    }
+
     /// <summary>Reassigns an idle, service-positive Iron kit to a current tool worker who has no usable Iron tier.</summary>
     private void ReassignIdleIronKitsToToolWorkers(SettlementState s, Fix64[] toolWork)
     {
@@ -533,6 +546,14 @@ public sealed partial class LivingEconomyModel
     private bool IronSister(SettlementState s, SettlementState other, int reach)
         => other != s && other.Civilization == s.Civilization && other.Metal is not null && !IsFreeFolk(other) && Population(other.Id) > 0 &&
            HexGrid.Distance(other.SiteTile, s.SiteTile, _world.Width) <= reach;
+
+    /// <summary>Whether a settlement can relay kits through a hub's assigned Iron supply catchment.</summary>
+    private bool IronCoverageRelayCandidate(SettlementState hub, SettlementState donor)
+    {
+        if (donor.Id == hub.Id) return true;
+        int reach = Math.Max(IronShareReach(hub.Civilization), IronFuelPlanningReach(hub));
+        return IronSister(hub, donor, reach) && HasLocalIronOreSource(donor);
+    }
 
     /// <summary>Whether this site has its own workable iron source (in range, at a camp, or on its own land within mining reach).</summary>
     private bool HasLocalIronOreSource(SettlementState s)
@@ -754,28 +775,37 @@ public sealed partial class LivingEconomyModel
             bool hasRecentToolWork = false;
             bool hasIdleIronHolder = false;
             bool hasServicePositiveIronHolder = false;
+            int servicePositiveIronHolderCount = 0;
             int reserveFigure = -1;
             int uncoveredToolWorker = -1;
+            int receiverAdultCohort = 0;
             int receiverRecentToolWorkers = 0;
             int coveredRecentToolWorkers = 0;
             var uncoveredToolWorkers = new List<int>();
+            var idleUnkittedAdults = new List<int>();
             for (int i = 0; i < _figures.Count; i++)
             {
                 FigureState figure = _figures[i];
                 if (figure.SettlementId != receiver.Id || figure.Age < 14) continue;
+                receiverAdultCohort++;
                 hasRecentToolWork |= figure.WorkedWithToolLastSeason;
                 bool hasServicePositiveIronKit = (figure.Kit is 11 or 12) && figure.KitLeft > Fix64.Zero;
+                bool hasUsableIronKitForNextSeason = hasServicePositiveIronKit && figure.KitLeft > ExpectedSeasonWear;
                 if (figure.WorkedWithToolLastSeason)
                 {
                     receiverRecentToolWorkers++;
-                    if (hasServicePositiveIronKit) coveredRecentToolWorkers++;
+                    if (hasUsableIronKitForNextSeason) coveredRecentToolWorkers++;
                 }
                 hasServicePositiveIronHolder |= hasServicePositiveIronKit;
+                if (hasServicePositiveIronKit) servicePositiveIronHolderCount++;
                 if (!figure.WorkedWithToolLastSeason && hasServicePositiveIronKit)
                     hasIdleIronHolder = true;
-                if (!figure.WorkedWithToolLastSeason && figure.Kit is not (11 or 12) && reserveFigure < 0)
-                    reserveFigure = i;
-                if (figure.WorkedWithToolLastSeason && !hasServicePositiveIronKit)
+                if (!figure.WorkedWithToolLastSeason && figure.Kit is not (11 or 12))
+                {
+                    if (reserveFigure < 0) reserveFigure = i;
+                    idleUnkittedAdults.Add(i);
+                }
+                if (figure.WorkedWithToolLastSeason && !hasUsableIronKitForNextSeason)
                 {
                     if (uncoveredToolWorker < 0) uncoveredToolWorker = i;
                     uncoveredToolWorkers.Add(i);
@@ -785,15 +815,43 @@ public sealed partial class LivingEconomyModel
                 season - receiver.LastFissionSeason is >= 0 and <= 12 && IronToolWorkersLacking(receiver) > 0;
             bool largeRelayRebound = receiverRecentToolWorkers >= 40 && Population(receiver.Id) >= 110 &&
                 !IronLocalKitProducer(receiver);
-            int projectedToolWorkers = receiverRecentToolWorkers + (largeRelayRebound ? 3 : 2);
+            SettlementState receiverHub = IronFuelHubsEnabled(civ) ? IronFuelHubFor(receiver) : receiver;
+            bool largeHubCoveragePreparation = receiverRecentToolWorkers > 0 &&
+                (Population(receiver.Id) >= 110 || receiverAdultCohort >= 30) &&
+                receiverHub.Id != receiver.Id && !IronLocalKitProducer(receiver);
+            int projectedToolWorkers = Math.Max(receiverRecentToolWorkers + (largeRelayRebound ? 3 : 2),
+                largeHubCoveragePreparation ? receiverAdultCohort : 0);
             int projectedCoverageFloor = projectedToolWorkers * 7 / 10 +
                 (projectedToolWorkers * 7 % 10 == 0 ? 0 : 1);
             int directCoverageTarget = Math.Min(receiverRecentToolWorkers, projectedCoverageFloor);
+            int receiverCurrentCoverageFloor = (receiverRecentToolWorkers * 7 + 9) / 10;
+            bool receiverNeedsCurrentCoverage = receiverRecentToolWorkers > 0 &&
+                coveredRecentToolWorkers < receiverCurrentCoverageFloor;
             bool receiverNeedsProjectedCoverage = coveredRecentToolWorkers < directCoverageTarget ||
                 (projectedCoverageFloor > receiverRecentToolWorkers && reserveFigure >= 0);
+            // A relay-only site can already meet its current floor yet still have one idle adult
+            // available to hold the single kit needed for its projected two-worker rebound.
+            bool relayOnlyProjectedCoverage = !IronLocalKitProducer(receiver) && !largeHubCoveragePreparation &&
+                !hasIdleIronHolder && projectedCoverageFloor > receiverRecentToolWorkers && reserveFigure >= 0;
             bool freshDaughterCoverageSeed = recentFissionDaughterCoverageGap &&
                 !hasServicePositiveIronHolder && uncoveredToolWorkers.Count > 0;
-            if (!hasRecentToolWork || hasIdleIronHolder) continue;
+            // A small site can pause tool work after establishing its Iron route, then resume with
+            // a larger cohort before a new toolworker exists to trigger sharing. While that route
+            // marker is fresh, stage only the missing idle holders for its projected floor.
+            bool recentlyRelayedRouteRecovery = !hasRecentToolWork && receiverNeedsProjectedCoverage &&
+                reserveFigure >= 0 && servicePositiveIronHolderCount < projectedCoverageFloor &&
+                season - receiver.LastIronHolderShareSeason is >= 1 and <= 12;
+            bool receiverNeedsCoverageRelay = receiverNeedsCurrentCoverage ||
+                largeHubCoveragePreparation && receiverNeedsProjectedCoverage || recentlyRelayedRouteRecovery ||
+                relayOnlyProjectedCoverage;
+            int coverageSupplyHubId = -1;
+            // A receiver below its live 70% floor may need the same assigned Iron supply chain
+            // that already serves its hub, even when that route is longer than social sharing.
+            // Keep the entire local-mine candidate set eligible: the single preferred ore supplier
+            // may change as mines start or stop digging within the receiver's coverage window.
+            if (receiverNeedsCoverageRelay && IronFuelHubsEnabled(civ)) coverageSupplyHubId = receiverHub.Id;
+            if ((!hasRecentToolWork && !recentlyRelayedRouteRecovery) ||
+                (hasIdleIronHolder && !receiverNeedsCoverageRelay)) continue;
 
             // Existing route holders normally gate a batch top-up. A fresh fission daughter
             // with uncovered recent toolworkers may seed its current 70% floor at once, so a
@@ -807,21 +865,31 @@ public sealed partial class LivingEconomyModel
             // Aim for the 70% floor after two more workers join, while assigning all available
             // current uncovered workers first. If that projected floor exceeds the current
             // cohort, keep one additional holder on an idle adult when one is available.
-            int reboundBufferFigure = coverageTopUp && reserveFigure >= 0 &&
-                coveredRecentToolWorkers + directTransfersNeeded < projectedCoverageFloor
-                ? reserveFigure : -1;
+            int reboundBufferNeed = recentlyRelayedRouteRecovery
+                ? projectedCoverageFloor - servicePositiveIronHolderCount
+                : projectedCoverageFloor - coveredRecentToolWorkers - directTransfersNeeded;
+            int reboundBufferTransfersNeeded = coverageTopUp
+                ? Math.Min(idleUnkittedAdults.Count, Math.Max(0, reboundBufferNeed))
+                : 0;
+            if (!largeHubCoveragePreparation)
+                reboundBufferTransfersNeeded = Math.Min(1, reboundBufferTransfersNeeded);
             int transfersNeeded = coverageTopUp
-                ? directTransfersNeeded + (reboundBufferFigure >= 0 ? 1 : 0)
+                ? directTransfersNeeded + reboundBufferTransfersNeeded
                 : 1;
             if (transfersNeeded <= 0 || (!coverageTopUp && recipientFigure < 0) ||
-                (coverageTopUp && uncoveredToolWorkers.Count == 0 && reboundBufferFigure < 0)) continue;
+                (coverageTopUp && uncoveredToolWorkers.Count == 0 && reboundBufferTransfersNeeded == 0)) continue;
             int nextUncoveredWorker = 0;
+            int nextIdleUnkittedAdult = 0;
             for (int d = 0; d < _settlements.Count; d++)
             {
                 if (transfersNeeded <= 0) break;
                 if (d == r) continue;
                 SettlementState donor = _settlements[d];
-                if (!IronSister(receiver, donor, reach)) continue;
+                bool directSister = IronSister(receiver, donor, reach);
+                bool coverageSupplyLink = receiverNeedsCoverageRelay &&
+                    coverageSupplyHubId >= 0 &&
+                    IronCoverageRelayCandidate(_settlements[coverageSupplyHubId], donor);
+                if (!directSister && !coverageSupplyLink) continue;
                 bool hadActiveIronToolWorkersLastSeason = false;
                 int recentToolWorkers = 0;
                 int donorCoveredRecentToolWorkers = 0;
@@ -844,6 +912,8 @@ public sealed partial class LivingEconomyModel
                 bool recentFissionDaughterDonor = donor.Fissions == 0 &&
                     season - donor.LastFissionSeason is >= 0 and <= 12;
                 if (recentFissionDaughterDonor) continue;
+                int donorCurrentCoverageFloor = (recentToolWorkers * 7 + 9) / 10;
+                if (recentToolWorkers > 0 && donorCoveredRecentToolWorkers < donorCurrentCoverageFloor) continue;
                 bool recentlyFissionedDonor = donor.Fissions > 0 &&
                     season - donor.LastFissionSeason is >= 0 and <= 12;
                 // A settlement may have other tool work, or a large unassigned holder pool,
@@ -857,7 +927,19 @@ public sealed partial class LivingEconomyModel
                 if (!hadActiveIronToolWorkersLastSeason) continue;
                 // Start with one spare holder for compact donors; the projected-coverage branch
                 // below adds route growth and attrition reserves when the donor already covers workers.
+                bool largeLowCohortDonor = Population(donor.Id) >= 20 && recentToolWorkers <= 5;
                 int growthBuffer = recentToolWorkers >= 3 && Population(donor.Id) >= 20 ? 2 : 1;
+                // Fission can temporarily shrink the parent's recent worker count even though
+                // those workers are likely to rebound. Keep two holders beyond the reduced cohort
+                // throughout the 12-season post-split window before relaying any further spare.
+                if (recentlyFissionedDonor)
+                    growthBuffer = Math.Max(growthBuffer, 2);
+                // Towns with only three to five recent toolworkers can still rebound sharply
+                // during a route window. Keep a wider local reserve before letting them relay
+                // their idle holders; otherwise one season's small cohort can understate the
+                // coverage needed by the next season's working cohort.
+                if (largeLowCohortDonor && recentToolWorkers >= 3)
+                    growthBuffer = Math.Max(growthBuffer, 4);
                 bool lastReboundHolder = Population(donor.Id) >= 20 &&
                     servicePositiveIronHolders == recentToolWorkers + growthBuffer + 1 &&
                     (recentToolWorkers <= 2 || donor.Fissions > 0 &&
@@ -867,7 +949,8 @@ public sealed partial class LivingEconomyModel
                 int minimumHolderReserve = recentToolWorkers + growthBuffer;
                 // A daughter that is still establishing its first tool route may need one more
                 // holder from a sister; retain at least one donor spare beyond recent toolworkers.
-                if (recentFissionDaughterCoverageGap && minimumHolderReserve > recentToolWorkers + 1)
+                if (recentFissionDaughterCoverageGap && !largeLowCohortDonor &&
+                    minimumHolderReserve > recentToolWorkers + 1)
                     minimumHolderReserve--;
                 int donorProjectedGrowthBuffer = growthBuffer;
                 // When filling a sister's projected coverage, a donor that currently meets
@@ -884,7 +967,8 @@ public sealed partial class LivingEconomyModel
                     // the window. Keep both in their reserve before relaying a sister's kit.
                     donorProjectedGrowthBuffer += compactDonorNeedsProjectedReserve ? 1 : 0;
                     int projectedDonorCoverageFloor = ((recentToolWorkers + donorProjectedGrowthBuffer) * 7 + 9) / 10;
-                    int recentReboundReserve = lastReboundHolder || recentlyFissionedDonor
+                    int recentReboundReserve = lastReboundHolder || recentlyFissionedDonor ||
+                        largeLowCohortDonor && recentToolWorkers >= 3
                         ? recentToolWorkers + growthBuffer
                         : compactDonorNeedsProjectedReserve ? projectedDonorCoverageFloor + 1 : 0;
                     minimumHolderReserve = Math.Max(currentCoverageFloor, recentReboundReserve);
@@ -907,8 +991,12 @@ public sealed partial class LivingEconomyModel
                 });
                 int donorCapacity = Math.Min(donors.Count, servicePositiveIronHolders - minimumHolderReserve);
                 int moves = Math.Min(transfersNeeded, donorCapacity);
-                bool lowCohortLargeDonor = Population(donor.Id) >= 20 && recentToolWorkers <= 2;
-                if (lowCohortLargeDonor && season - donor.LastIronHolderShareSeason <= 12) continue;
+                bool lowCohortLargeDonor = largeLowCohortDonor;
+                // The cooldown protects a rebound-prone donor from repeated relay depletion.
+                // Allow another transfer when a sister is currently below the I-T2 floor; the
+                // donor's reserve and holder-pool rebound floor still cap every such transfer.
+                if (lowCohortLargeDonor && season - donor.LastIronHolderShareSeason <= 12 &&
+                    !receiverNeedsCoverageRelay) continue;
                 if (lowCohortLargeDonor)
                 {
                     // Large, low-cohort settlements can rebound sharply within one I-T2
@@ -922,11 +1010,8 @@ public sealed partial class LivingEconomyModel
                     int recipientIndex;
                     if (coverageTopUp && nextUncoveredWorker < uncoveredToolWorkers.Count)
                         recipientIndex = uncoveredToolWorkers[nextUncoveredWorker++];
-                    else if (coverageTopUp && reboundBufferFigure >= 0)
-                    {
-                        recipientIndex = reboundBufferFigure;
-                        reboundBufferFigure = -1;
-                    }
+                    else if (coverageTopUp && nextIdleUnkittedAdult < reboundBufferTransfersNeeded)
+                        recipientIndex = idleUnkittedAdults[nextIdleUnkittedAdult++];
                     else if (!coverageTopUp)
                         recipientIndex = recipientFigure;
                     else
@@ -952,6 +1037,7 @@ public sealed partial class LivingEconomyModel
                     recipient.Kit = tier;
                     recipient.KitLeft = left;
                     RecordIT6KitTransfer(donor, receiver, tier, Fix64.One, season, holderTransfer: true);
+                    receiver.LastIronHolderShareSeason = season;
                     transfersNeeded--;
                 }
                 if (moves > 0 && lowCohortLargeDonor)

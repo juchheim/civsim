@@ -450,8 +450,7 @@ Total: about 14 to 19 working days (E), of which the first 4 to 6 (WP0 to WP2) n
 
 ### 9.1 Risks
 
-* **Iron balance is still being tuned.** Every sim change moves the goldens and the acceptance runs. Mitigation: renderer first;
-  sim after the Iron acceptance rerun or with it.
+* **Iron balancing is closed by user decision.** The v68 partial block passed 39/80 completed matches; the full 80 was stopped because a profiled match took about 100 minutes. This is not a full statistical acceptance. Any later Iron simulation change still needs an appropriately scoped validation run and updated goldens.
 * **World-generation repairs** could make some seeds fail fairness acceptance. Mitigation: the 200-seed audit in WP4; fall back to
   relocating the deposit instead of moving starts (already the plan).
 * **Coastal and mountain villages** lose quarters. Mitigation: quarter reassignment (§4.2) and merge rules; the coastal case is in
