@@ -315,6 +315,7 @@ public partial class Game
         TickFocusBar((float)delta);
         if (_decreeOpen) FitDecreePanel();
         TickTileCard((float)delta);
+        TickSettlementPlates();
         TickCamera((float)delta);
         TickPulses((float)delta);
         TickSkirmishes((float)delta);

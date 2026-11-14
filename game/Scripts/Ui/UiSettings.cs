@@ -2,6 +2,9 @@ using Godot;
 
 namespace CivSim.Game.Ui;
 
+/// <summary>How much of each settlement's name plate the map draws (docs/MVP/33 Q8). Holding Alt shows every plate in full whatever this says.</summary>
+public enum PlateMode : byte { Full = 0, NamesOnly = 1, Off = 2 }
+
 /// <summary>Player UI preferences, kept in user://settings.cfg. Reading and writing never throws into the game.</summary>
 public sealed class UiSettings
 {
@@ -12,6 +15,7 @@ public sealed class UiSettings
 
     public float UiScale = 1.0f;
     public bool ReduceMotion;
+    public PlateMode SettlementPlates = PlateMode.Full;
     public bool ShowHints = true;
     public bool ShowTips = true;
     public bool PauseInWeb;
@@ -36,6 +40,8 @@ public sealed class UiSettings
             {
                 settings.UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", 1.0f).AsDouble(), 1.0f, 1.3f);
                 settings.ReduceMotion = file.GetValue(Section, "reduce_motion", false).AsBool();
+                int plates = file.GetValue(Section, "settlement_plates", (int)PlateMode.Full).AsInt32();
+                settings.SettlementPlates = System.Enum.IsDefined(typeof(PlateMode), (byte)plates) ? (PlateMode)plates : PlateMode.Full;
                 settings.ShowHints = file.GetValue(Section, "show_hints", true).AsBool();
                 settings.ShowTips = file.GetValue(Section, "show_tips", true).AsBool();
                 settings.PauseInWeb = file.GetValue(Section, "pause_in_web", false).AsBool();
@@ -64,6 +70,7 @@ public sealed class UiSettings
             var file = new ConfigFile();
             file.SetValue(Section, "ui_scale", UiScale);
             file.SetValue(Section, "reduce_motion", ReduceMotion);
+            file.SetValue(Section, "settlement_plates", (int)SettlementPlates);
             file.SetValue(Section, "show_hints", ShowHints);
             file.SetValue(Section, "show_tips", ShowTips);
             file.SetValue(Section, "pause_in_web", PauseInWeb);

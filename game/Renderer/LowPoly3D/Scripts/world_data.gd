@@ -71,6 +71,15 @@ var civ_looks := PackedInt32Array()     # per civilization: LOOK_* bits (ard plo
 var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was learned (-1 = not yet)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
+# Faith & Fief overlays (docs/MVP/32 §7, §8.4 and §9; proposed). Empty until the frame supplies them, and nothing draws while they are. Each list is
+# a table of rows and a flat tile list the rows index into, like trail_meta / trail_tiles; -1 is not used (the frame sends only tiles in sight).
+var pilgrim_routes := PackedInt32Array()   # stride 5: route id, civ, start, length, flags (bit 0: the route ends at the Gothic Cathedral's settlement)
+var pilgrim_tiles := PackedInt32Array()
+var quarantine_links := PackedInt32Array() # stride 3: kind (0 route, 1 border), start, length
+var quarantine_tiles := PackedInt32Array()
+var spread_links := PackedInt32Array()     # stride 3: start, length, intensity (permille); a run goes from the source settlement's tile to the target's
+var spread_tiles := PackedInt32Array()
+var outbreaks := PackedInt32Array()        # stride 3: tile, intensity (permille), flags (bit 0: imported)
 var sieges := PackedInt32Array()         # stride 6: settlement index in the sim, besieger civ, engines, seasons, wall integrity (permille), origin tile or -1
 var terrace_tiles := PackedInt32Array()  # tiles of terraced fields (AGR-08)
 var blockades := PackedInt32Array()      # stride 3: blockaded harbor's settlement index in the sim, blockader civ, blockader's origin settlement

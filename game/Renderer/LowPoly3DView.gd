@@ -8,6 +8,7 @@ const M7WorldBuilder = preload("res://Renderer/LowPoly3D/Scripts/world_builder.g
 const M7ZigguratRig = preload("res://Renderer/LowPoly3D/Scripts/zig_rig.gd")
 const M7WarRig = preload("res://Renderer/LowPoly3D/Scripts/war_rig.gd")
 const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
+const M7FiefOverlay = preload("res://Renderer/LowPoly3D/Scripts/fief_overlay.gd")
 
 var world: M7WorldData
 var kit: M7MeshKit
@@ -38,6 +39,7 @@ var burn_rig: M7BurnRig
 var feast_rig: M7FeastRig
 var dog_rig: M7DogRig
 var farm_rig: M7FarmRig
+var fief_overlay: M7FiefOverlay        # Faith & Fief pilgrim routes, quarantine and spread (docs/MVP/32); draws nothing until the frame has the data
 var skirmish_rig: M7SkirmishRig
 var zig_rig: M7ZigguratRig
 var war_rig: M7WarRig
@@ -78,6 +80,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	dog_rig.sync()
 	farm_rig = M7FarmRig.new(builder, world_root)
 	farm_rig.sync()
+	fief_overlay = M7FiefOverlay.new(builder, world_root)
+	fief_overlay.sync()
 	skirmish_rig = M7SkirmishRig.new(builder, world_root)
 	zig_rig = M7ZigguratRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	zig_rig.sync()
@@ -108,6 +112,7 @@ func update_frame(frame_data: Dictionary) -> void:
 	signal_rig.sync()
 	dog_rig.sync()
 	farm_rig.sync()
+	fief_overlay.sync()
 	zig_rig.sync()
 	war_rig.sync()
 	var built := Time.get_ticks_usec()
@@ -157,6 +162,8 @@ func set_render_tick(tick: float, profile: bool = false) -> void:
 		farm_rig.update(tick)
 		if profile:
 			parts["farm_update"] = Time.get_ticks_usec() - phase_started
+	if fief_overlay != null:
+		fief_overlay.update(tick)
 	if zig_rig != null:
 		zig_rig.update(tick)
 	if war_rig != null:
@@ -527,6 +534,82 @@ func show_iron_gallery() -> Vector3:
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre
 
+## Dev aid for scenarios (fief-gallery, docs/MVP/32): the Faith & Fief meshes on a plain stage, rows 2.2 apart from the nearest (+z): the windmill
+## (with and without its sails) and the blast furnace hot and banked, the monastery staffed, dormant and as a site, the concentric castle in its four
+## stages and idle, and the Gothic Cathedral in its four stages, the three-field rotation and the cogs. Returns the stage centre.
+func show_fief_gallery() -> Vector3:
+	var stage := Node3D.new()
+	stage.name = "FiefGallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(11.0, 30.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, -8.4)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	# [mesh, width it needs, scale]; a windmill_body gets its sails fitted at the hub
+	var rows := [
+		[["windmill", 0.6, 1.5], ["windmill_body", 0.6, 1.5], ["blast_furnace", 0.9, 1.25], ["blast_furnace_cold", 0.9, 1.25]],
+		[["monastery", 0.95, 1.2], ["monastery_idle", 0.95, 1.2], ["monastery_site", 0.95, 1.2]],
+		[["concentric_1", 1.25, 1.1], ["concentric_2", 1.25, 1.1], ["concentric_3", 1.25, 1.1], ["concentric_4", 1.25, 1.1], ["concentric_4_idle", 1.25, 1.1]],
+		[["gothic_cathedral_1", 1.2, 1.25], ["gothic_cathedral_2", 1.2, 1.25], ["gothic_cathedral_3", 1.2, 1.25], ["gothic_cathedral_4", 1.2, 1.25]],
+		# AGR-11: the three-field rotation in its three phases, beside the old ard field and the fallow field for comparison
+		[["field_ard", 1.1, 1.0], ["field_three_0", 1.1, 1.0], ["field_three_1", 1.1, 1.0], ["field_three_2", 1.1, 1.0], ["field_fallow", 1.1, 1.0]],
+		# SEA-10 / SEA-11: the galley for scale, the cog, and the cog with its lateen mizzen and sternpost rudder
+		[["galley", 0.9, 1.25], ["cog", 0.9, 1.25], ["cog_lateen", 1.0, 1.25]],
+		# LRN-08 / MED-07 / MEC-08 / COM-10: the university, hospital, clock tower and print shop, working and idle
+		[["university", 0.85, 1.3], ["university_idle", 0.85, 1.3], ["hospital", 0.7, 1.3], ["hospital_idle", 0.7, 1.3], ["clock_tower", 0.4, 1.4], ["print_shop", 0.45, 1.5], ["print_shop_idle", 0.45, 1.5]],
+		# WOD-09 / CHM-07: the water mill it is built on, the sawmill working and idle, the powder mill working and idle
+		[["water_mill", 0.6, 1.2], ["sawmill", 1.0, 1.2], ["sawmill_idle", 1.0, 1.2], ["powder_mill", 0.8, 1.2], ["powder_mill_idle", 0.8, 1.2]],
+		# WAR-12 / the walls under siege: a cannon, then wall, tower and gate whole, cracked, breached and ruined (the ruin is the Iron one)
+		[["cannon", 0.4, 1.6], ["wall_seg", 0.4, 1.6], ["wall_seg_cracked", 0.4, 1.6], ["wall_seg_breach", 0.4, 1.6], ["wall_ruin", 0.4, 1.6], ["wall_tower", 0.25, 1.6],
+			["wall_tower_cracked", 0.25, 1.6], ["wall_tower_breach", 0.3, 1.6], ["wall_gate", 0.4, 1.6], ["wall_gate_broken", 0.4, 1.6]],
+		# the figures (a soldier for scale) and the route markers
+		[["person_soldier", 0.3, 2.4], ["person_monk", 0.3, 2.4], ["person_monk_book", 0.3, 2.4], ["person_gunner", 0.3, 2.4], ["person_pilgrim", 0.3, 2.4], ["person_knight", 0.55, 2.2],
+			["pilgrim_marker", 0.4, 2.0], ["quarantine_gate", 0.5, 2.0]],
+	]
+	var hub := Vector3(0.0, 0.245, 0.075)
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.0, -17.2, -19.4][r]
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(i % 4), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			if name.begins_with("person"):
+				custom = Color(float(i % 4) + 0.5 * 0.98, 0.0, 0.0, 0.0)
+			var s := float(item[2])
+			var at := Vector3(x, 0.0, z)
+			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), at), custom, false)
+			if name == "windmill_body":
+				batch.add("windmill_sails", Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), at + hub * s), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	return centre
+
+## Dev aid for scenarios (fief-overlays, docs/MVP/32): fills the Faith & Fief overlay tables from the live map round the human capital (pilgrimage routes,
+## quarantine, disease spreading, outbreaks) and returns where to look (the origin when the map has no suitable ground).
+func show_fief_overlay_demo() -> Vector3:
+	return fief_overlay.load_demo() if fief_overlay != null else Vector3.ZERO
+
+## Dev aid for scenarios: where the first quarantine gate of the overlay demo stands (the origin when none).
+func fief_gate_focus() -> Vector3:
+	return fief_overlay.gate_focus if fief_overlay != null else Vector3.ZERO
+
 ## A raid or assault skirmish on the map (see skirmish_rig.gd); returns [id, seconds], or [-1, 0] when it cannot play there.
 func skirmish_start(spec: Dictionary) -> Array:
 	return skirmish_rig.start(spec) if skirmish_rig != null else [-1, 0.0]
@@ -607,6 +690,8 @@ func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> v
 		(builder.trail_node.material_override as ShaderMaterial).set_shader_parameter("width_boost", clampf(distance / 16.0, 1.0, 3.6))
 		if builder.road_node != null:
 			(builder.road_node.material_override as ShaderMaterial).set_shader_parameter("width_boost", clampf(distance / 22.0, 1.0, 2.6))
+	if fief_overlay != null:
+		fief_overlay.set_boost(clampf(distance / 22.0, 1.0, 2.6))
 	var regional := distance > 38.0
 	if builder != null:
 		builder.set_regional_lod(regional)
