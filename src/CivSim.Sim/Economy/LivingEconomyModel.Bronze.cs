@@ -259,7 +259,7 @@ public sealed partial class LivingEconomyModel
     // Derived, never hashed: recipe slots resolved against the store layout, and per-site tile lists for charcoal reach.
     private CompiledRecipe[] _compiledRecipes = Array.Empty<CompiledRecipe>();
     private int[]?[] _reachTiles = Array.Empty<int[]?>();
-    private Dictionary<int, List<MiningCampState>>? _campsByParent;
+    private List<MiningCampState>?[]? _campsByParent;
     private bool[] _coppiced = Array.Empty<bool>();
 
     private void InvalidateCampsByParent()
@@ -270,19 +270,18 @@ public sealed partial class LivingEconomyModel
 
     private List<MiningCampState>? CampsForParent(int parent)
     {
-        Dictionary<int, List<MiningCampState>>? index = _campsByParent;
+        List<MiningCampState>?[]? index = _campsByParent;
         if (index is null)
         {
-            index = new Dictionary<int, List<MiningCampState>>();
+            int size = 0;
             foreach (MiningCampState camp in _camps)
-            {
-                if (!index.TryGetValue(camp.Parent, out List<MiningCampState>? camps))
-                    index.Add(camp.Parent, camps = new List<MiningCampState>());
-                camps.Add(camp);
-            }
+                if (camp.Parent >= size) size = camp.Parent + 1;
+            index = new List<MiningCampState>?[size];
+            foreach (MiningCampState camp in _camps)
+                (index[camp.Parent] ??= new List<MiningCampState>()).Add(camp);
             _campsByParent = index;
         }
-        return index.TryGetValue(parent, out List<MiningCampState>? result) ? result : null;
+        return unchecked((uint)parent) < unchecked((uint)index.Length) ? index[parent] : null;
     }
 
     /// <summary>Who owns tiles (politics); without it the planner treats tiles within four of its own settlements as its own.</summary>

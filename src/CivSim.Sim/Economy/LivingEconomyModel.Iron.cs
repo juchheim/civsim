@@ -48,7 +48,8 @@ public sealed partial class LivingEconomyModel
     private bool _ironFuelHubAssignmentsReady;
     // Catchment scores remain stable while one pending-fission resolution searches for sites.
     // Generation tags bound invalidation work and keep this derived cache out of snapshots/hashes.
-    private readonly Dictionary<long, (int Generation, Fix64 Local, Fix64 Shared)> _ironFissionFuelScores = new();
+    // Ordered by key (never hashed); lookups are binary searches, so no iteration order can leak into the sim.
+    private readonly SortedList<long, (int Generation, Fix64 Local, Fix64 Shared)> _ironFissionFuelScores = new();
     private int _ironFissionFuelScoreGeneration;
     // Supplier choice depends on ore availability, local source access, population and hub structures.
     // Cache each hub for the current dependency generation; mutations below invalidate in O(1).
