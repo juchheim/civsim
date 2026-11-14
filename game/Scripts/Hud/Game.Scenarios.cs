@@ -906,6 +906,25 @@ public partial class Game
                         }
                 }, 0.8f);
                 Shot("plates-hover");
+                // Flicker check: zoomed out, the pointer rests on a pip; hovering must settle on one level, not alternate every frame.
+                Step(() => { _hoverActive = false; _moveAnimating = false; SetZoom(90.0f); }, 1.2f);
+                Step(() =>
+                {
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out PlateLevel level))
+                        {
+                            GD.Print($"SCN flicker: rest level={level} anchor={anchor}");
+                            _hoverActive = true; _hoverScreen = anchor + new Vector2(0, -4);
+                            break;
+                        }
+                }, 0.05f);
+                for (int f = 0; f < 8; f++)
+                    Step(() =>
+                    {
+                        for (int i = 0; i < _current!.SettlementCount; i++)
+                            if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out PlateLevel level))
+                            { GD.Print($"SCN flicker: level={level} anchor={anchor}"); break; }
+                    }, 0.04f);
                 // Phase 3: the "Names only" and "Off" settings, then a double-click on a plate.
                 Step(() => { _hoverActive = false; _uiSettings.SettlementPlates = PlateMode.NamesOnly; _moveAnimating = false; SetZoom(12.0f); if (_hudLayer is not null) _hudLayer.Visible = false; }, 1.2f);
                 Shot("plates-names-z12");

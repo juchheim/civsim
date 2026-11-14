@@ -42,6 +42,10 @@ public partial class UiSettlementPlates : Control
         public float Alpha = 1.0f;
         public double Score;
         public bool Focus;
+        /// <summary>Where the plate would sit with no focus (set for the hovered plate only): hovering enlarges a plate and lifts it away from the pointer, so the hover must also hold over this resting shape or it flickers.</summary>
+        public bool HasRest;
+        public PlateMetrics RestMetrics;
+        public Vector2 RestOrigin;
     }
 
     private readonly List<Plate> _plates = new();
@@ -263,6 +267,9 @@ public partial class UiSettlementPlates : Control
             Plate p = _drawn[i];
             if (UiDome.Hits(MetricsFor(p, p.Level), screen - p.Used)) return p.Settlement;
         }
+        // Hysteresis: the plate already hovered stays hovered while the pointer is still on its resting shape.
+        if (_hovered >= 0 && _bySettlement.TryGetValue(_hovered, out Plate? held) && held.Shown && held.HasRest &&
+            UiDome.Hits(held.RestMetrics, screen - held.RestOrigin)) return _hovered;
         return -1;
     }
 
@@ -375,6 +382,7 @@ public partial class UiSettlementPlates : Control
         foreach (Plate p in _plates)
         {
             p.Shown = false;
+            p.HasRest = false;
             p.Focus = _showAll || p.Settlement == _selected || p.Settlement == _hovered;
             if (p.Facts.Empty && _band > 0 && !p.Focus) continue;
             // The pointer tip stands a little above the village: as high as the tier's buildings would reach in world units, but never more
@@ -392,6 +400,7 @@ public partial class UiSettlementPlates : Control
             if (p.Settlement == _selected) p.Score += 1.0e9;
             else if (p.Settlement == _hovered) p.Score += 9.0e8;
             else if (_showAll) p.Score += 1.0e8;
+            if (p.Settlement == _hovered) RecordRest(p);
             p.Shown = true;
             _order.Add(p);
         }
@@ -448,9 +457,26 @@ public partial class UiSettlementPlates : Control
 
     private static int Rank(PlateLevel level) => level switch { PlateLevel.Pip => 0, PlateLevel.Names => 1, PlateLevel.Compact => 2, _ => 3 };
 
-    private PlateLevel Desired(Plate p)
+    /// <summary>Remembers the shape and spot the plate would have with no focus, ignoring crowding.</summary>
+    private void RecordRest(Plate p)
     {
-        if (p.Focus) return PlateLevel.Full;
+        PlateLevel level = Desired(p, false);
+        if (level == PlateLevel.Pip)
+        {
+            p.RestMetrics = PipMetrics(p, PipNamed(p) ? p.Name : null);
+            p.RestOrigin = p.Ground;
+        }
+        else
+        {
+            p.RestMetrics = MetricsFor(p, level);
+            p.RestOrigin = p.Anchor;
+        }
+        p.HasRest = true;
+    }
+
+    private PlateLevel Desired(Plate p, bool focus = true)
+    {
+        if (focus && p.Focus) return PlateLevel.Full;
         if (_mode == PlateMode.NamesOnly) return _band >= 2 ? PlateLevel.Pip : PlateLevel.Names;
         if (_band == 0) return PlateLevel.Full;
         if (_band == 1) return p.Facts.Relation == PlateRelation.Own && p.Facts.Capital ? PlateLevel.Full : PlateLevel.Compact;
