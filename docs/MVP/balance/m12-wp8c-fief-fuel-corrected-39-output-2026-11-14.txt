@@ -20,7 +20,7 @@ scenario                         T11 issued mean  tool-ws/kit  breaks (seeds, to
 fief-low-wood-furnace               72.6         9.79    (0/39, 0, 0)                  0.0         0.00    (0/39, 0, 0)
 fief-low-wood-no-furnace            71.6         9.94    (0/39, 0, 0)                  0.0         0.00    (0/39, 0, 0)
 
-work-share screen:
+aggregate whole-run metal work share (context only; not the rolling F-T3 gate):
   fief-low-wood-furnace: work share within 15.0% on every seed (max 1.2%)
   fief-low-wood-no-furnace: work share within 15.0% on every seed (max 1.6%)
 
@@ -30,8 +30,9 @@ fief-low-wood-furnace            0/39                    0                   0
 fief-low-wood-no-furnace         0/39                    0                   0
 
 F-T3 low-wood furnace gate (paired by seed; work share is the maximum of every rolling 12-season window after first kit output plus 12 seasons):
-  paired seeds: 39; maximum mature 12-season work share: 16.8%; seeds over 15%: 17; seeds without a mature window: 7
-  wholly late windows (end season >= 44): maximum work share 2.5%; seeds over 15%: 0; seeds without a late window: 7
+  mature-window result at unchanged 15.0% ceiling: 15/32 eligible seed pairs pass; 17 fail; 7 censored (no mature window, not counted as a pass)
+  maximum mature 12-season work share: 16.8% (1.8 percentage points above ceiling)
+  wholly late windows (end season >= 44): 32/32 eligible seed pairs pass; 0 fail; 7 censored; maximum 2.5%
   censored seed 20261026: route season 3, first kit season 0, charcoal-demand seasons 0
   censored seed 20261028: route season 3, first kit season 0, charcoal-demand seasons 0
   censored seed 20261033: route season 2, first kit season 0, charcoal-demand seasons 0
@@ -96,6 +97,7 @@ F-T3 low-wood furnace gate (paired by seed; work share is the maximum of every r
   work-share miss seed 20261054: 16.8% in seasons 6–17; 77.96/463.79 metal/civilian work
   work-share miss seed 20261056: 15.5% in seasons 5–16; 72.10/464.47 metal/civilian work
   worst window: seed 20261054, seasons 6–17; 77.96/463.79 metal/civilian work; route season 3, first kit season 5
+  worst-window gap: at least 55.94 additional non-metal work in that 12-season window would be needed to reach 15.0% with metal work unchanged
   maximum final-half NoFuel share: 0.0%; seeds over 5%: 0
   furnace-attributed clearing crossings: 0 (extra crossings with furnace effect on versus off)
 

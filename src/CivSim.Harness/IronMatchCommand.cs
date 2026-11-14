@@ -501,12 +501,18 @@ internal static class IronMatchCommand
 
         if (fief)
         {
-            L("fief: E5 projects done and KEY-6 minute per civilization:");
+            L("fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):");
             for (int c = 0; c < civs; c++)
             {
                 int e5 = research.Catalog.Projects.Count(p => p.Era == 5 && !p.Id.StartsWith("KEY-") && research.IsDone(c, p.Index));
                 long k6 = key6 >= 0 && research.IsDone(c, key6) ? research.CompletedTick(c, key6) : -1;
-                L($"  c{c} {Archetypes[c]}: {e5} E5 projects, KEY-6 {(k6 < 0 ? "-" : (k6 / 600.0).ToString("F1", CultureInfo.InvariantCulture))}");
+                long k5 = research.IsDone(c, key5) ? research.CompletedTick(c, key5) : -1;
+                string pacing = k6 >= 0 && k5 >= 0
+                    ? $"{Min(k6 - k5)} min from KEY-5 (at {Min(k6)})"
+                    : k5 >= 0
+                        ? $"not complete; observed {Min(runner.Tick - k5)} min after KEY-5 (right-censored)"
+                        : "KEY-5 not reached";
+                L($"  c{c} {Archetypes[c]}: {e5} E5 projects, KEY-5→KEY-6 {pacing}");
             }
         }
         if (fiefLandSamples is not null && fiefLandE4Samples is not null && fiefLandStarts is not null &&

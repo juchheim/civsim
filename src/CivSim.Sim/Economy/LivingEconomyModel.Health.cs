@@ -164,6 +164,7 @@ public sealed partial class LivingEconomyModel
         else if (figure.Age >= 45) h *= Fix64.FromInt(2);
         h *= c.CfrScale;
         if (HasProject(figure.Civilization, "MED-01")) h *= MedCare(figure.Civilization, Fix64.FromRatio(9, 10));
+        if (FiefChain && HospitalStaffed(_settlements[figure.SettlementId])) h *= Fix64.FromRatio(4, 5);
         return h;
     }
 

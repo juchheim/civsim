@@ -48,7 +48,8 @@ public sealed partial class LivingEconomyModel
 
     private static class Role
     {
-        public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7, Monk = 8;
+        public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7, Monk = 8,
+            Physician = 9, Attendant = 10;
     }
 
     private sealed class CivicState
@@ -410,8 +411,10 @@ public sealed partial class LivingEconomyModel
         int missionaries = MissionarySlots(s);
         int scholars = ScholarSlots(s);
         int monks = MonkSlots(s);
+        int physicians = FiefChain && Done(civ, "MED-07") && IronWorksCount(s, IronStructure.Hospital) > 0 ? 1 : 0;
+        int attendants = physicians > 0 ? 2 : 0;
         int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0,
-            haveScholars = 0, haveMonks = 0;
+            haveScholars = 0, haveMonks = 0, havePhysicians = 0, haveAttendants = 0;
         List<FigureState> residents = Residents(s.Id);
         for (int i = residents.Count - 1; i >= 0; i--)
         {
@@ -426,14 +429,16 @@ public sealed partial class LivingEconomyModel
             if (keep && f.Role == Role.Missionary && haveMissionaries < missionaries) { haveMissionaries++; continue; }
             if (keep && f.Role == Role.Scholar && haveScholars < scholars) { haveScholars++; continue; }
             if (keep && f.Role == Role.Monk && haveMonks < monks) { haveMonks++; continue; }
+            if (keep && f.Role == Role.Physician && havePhysicians < physicians) { havePhysicians++; continue; }
+            if (keep && f.Role == Role.Attendant && haveAttendants < attendants) { haveAttendants++; continue; }
             f.Role = Role.None;
         }
         int adults = 0;
         foreach (FigureState f in residents) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks); i++)
+        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks || havePhysicians < physicians || haveAttendants < attendants); i++)
         {
             // Keep at least four other working adults at home.
-            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + 4 >= adults) break;
+            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + havePhysicians + haveAttendants + 4 >= adults) break;
             FigureState f = residents[i];
             if (f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
@@ -443,7 +448,9 @@ public sealed partial class LivingEconomyModel
             else if (haveSoldiers < soldiers) { f.Role = Role.Soldier; haveSoldiers++; }
             else if (haveMissionaries < missionaries) { f.Role = Role.Missionary; haveMissionaries++; }
             else if (haveScholars < scholars) { f.Role = Role.Scholar; haveScholars++; }
-            else { f.Role = Role.Monk; haveMonks++; }
+            else if (haveMonks < monks) { f.Role = Role.Monk; haveMonks++; }
+            else if (havePhysicians < physicians) { f.Role = Role.Physician; havePhysicians++; }
+            else { f.Role = Role.Attendant; haveAttendants++; }
         }
         Fix64 spent = Fix64.Zero;
         foreach (FigureState f in residents)

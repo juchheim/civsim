@@ -247,7 +247,7 @@ internal static class IronFuelCheck
             L($"{sc.Name,-32} {Mean(rows, r => r.Kit11Issued).ToDoubleForDisplay(),7:F1}       {toolRate11.ToDoubleForDisplay(),6:F2}    ({breakSeeds11}/{rows.Count}, {totalBreaks11}, {maxBreaks11})              {Mean(rows, r => r.Kit12Issued).ToDoubleForDisplay(),7:F1}       {toolRate12.ToDoubleForDisplay(),6:F2}    ({breakSeeds12}/{rows.Count}, {totalBreaks12}, {maxBreaks12})");
         }
         L();
-        L("work-share screen:");
+        L(fief ? "aggregate whole-run metal work share (context only; not the rolling F-T3 gate):" : "work-share screen:");
         foreach (string v in workVerdicts) L("  " + v);
         L();
         L("Forest clearing diagnostic (tile crossings below the simulation's 5 L cleared-woodland threshold, full run):");
@@ -299,8 +299,13 @@ internal static class IronFuelCheck
             }
             L();
             L("F-T3 low-wood furnace gate (paired by seed; work share is the maximum of every rolling 12-season window after first kit output plus 12 seasons):");
-            L($"  paired seeds: {paired}; maximum mature 12-season work share: {Pct(maxTwelveSeasonShare)}; seeds over 15%: {workShareMisses}; seeds without a mature window: {matureWindowMisses}");
-            L($"  wholly late windows (end season >= {seasons / 2 + 12}): maximum work share {Pct(maxLateTwelveSeasonShare)}; seeds over 15%: {lateWorkShareMisses}; seeds without a late window: {lateWindowMisses}");
+            int matureEligible = paired - matureWindowMisses;
+            int maturePasses = matureEligible - workShareMisses;
+            int lateEligible = paired - lateWindowMisses;
+            int latePasses = lateEligible - lateWorkShareMisses;
+            L($"  mature-window result at unchanged {Pct(ShareCeiling)} ceiling: {maturePasses}/{matureEligible} eligible seed pairs pass; {workShareMisses} fail; {matureWindowMisses} censored (no mature window, not counted as a pass)");
+            L($"  maximum mature 12-season work share: {Pct(maxTwelveSeasonShare)} ({(maxTwelveSeasonShare > ShareCeiling ? (maxTwelveSeasonShare - ShareCeiling).ToDoubleForDisplay() * 100 : 0):F1} percentage points above ceiling)");
+            L($"  wholly late windows (end season >= {seasons / 2 + 12}): {latePasses}/{lateEligible} eligible seed pairs pass; {lateWorkShareMisses} fail; {lateWindowMisses} censored; maximum {Pct(maxLateTwelveSeasonShare)}");
             foreach (Row immature in immatureRows)
                 L($"  censored seed {immature.Seed}: route season {immature.IronRouteActivatedSeason}, first kit season {immature.IronFirstKitSeason}, charcoal-demand seasons {immature.IronEraFuelDemandSeasons}");
             foreach (Row row in furnaceRows.Values.OrderBy(row => row.Seed))
@@ -315,7 +320,13 @@ internal static class IronFuelCheck
                   $"{miss.MaxTwelveSeasonEnd - 11}–{miss.MaxTwelveSeasonEnd}; " +
                   $"{miss.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{miss.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2} metal/civilian work");
             if (worstWorkShare is { } worst)
+            {
+                Fix64 extraNonMetalLaborToCeiling = Fix64.Max(Fix64.Zero,
+                    worst.MaxTwelveSeasonMetalLabor / ShareCeiling - worst.MaxTwelveSeasonLabor);
                 L($"  worst window: seed {worst.Seed}, seasons {worst.MaxTwelveSeasonEnd - 11}–{worst.MaxTwelveSeasonEnd}; {worst.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{worst.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2} metal/civilian work; route season {worst.IronRouteActivatedSeason}, first kit season {worst.IronFirstKitSeason}");
+                if (worst.MaxTwelveSeasonShare > ShareCeiling)
+                    L($"  worst-window gap: at least {extraNonMetalLaborToCeiling.ToDoubleForDisplay():F2} additional non-metal work in that 12-season window would be needed to reach {Pct(ShareCeiling)} with metal work unchanged");
+            }
             L($"  maximum final-half NoFuel share: {Pct(maxFuelShort)}; seeds over 5%: {fuelShortMisses}");
             L($"  furnace-attributed clearing crossings: {furnaceAttributedCrossings} (extra crossings with furnace effect on versus off)");
         }

@@ -17,4 +17,13 @@ public class IronFuelCheckTests
             Assert.Contains(name, first);
         Assert.Contains("I-T6", first);
     }
+
+    [Fact]
+    public void Fief_report_separates_rolling_gate_results_from_aggregate_share_and_censors_unobserved_windows()
+    {
+        string report = IronFuelCheck.Report(TestPack.Pack, new List<ulong> { 20261019 }, seasons: 8, people: 60, fief: true);
+
+        Assert.Contains("aggregate whole-run metal work share (context only; not the rolling F-T3 gate)", report);
+        Assert.Contains("mature-window result at unchanged 15.0% ceiling: 0/0 eligible seed pairs pass; 0 fail; 1 censored (no mature window, not counted as a pass)", report);
+    }
 }

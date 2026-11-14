@@ -1824,6 +1824,7 @@ public sealed partial class LivingEconomyModel
             }
             if (Done(civ, "LRN-05") && IronWorksCount(s, IronStructure.Academy) > scholars) idle++;
             if (IronWorksCount(s, IronStructure.Monastery) > 0 && MonksAt(s.Id) == 0) idle++;
+            if (FiefChain && IronWorksCount(s, IronStructure.Hospital) > 0 && !HospitalStaffed(s)) idle++;
             if (IronWorksCount(s, IronStructure.Castle) > 0 && !CastleGarrisoned(s.Id)) idle++;
             if (IronWorksCount(s, IronStructure.Galley) > 0 && !CrewedGalley(s.Id)) idle++;
             if (Done(civ, "BEL-09") && s.Civic is { Temples: > 0 } && missionaries == 0) idle++;
@@ -1887,6 +1888,18 @@ public sealed partial class LivingEconomyModel
 
     private int MonkSlots(SettlementState s)
         => FiefChain && Done(s.Civilization, "BEL-10") ? 4 * IronWorksCount(s, IronStructure.Monastery) : 0;
+
+    private bool HospitalStaffed(SettlementState s)
+    {
+        if (!FiefChain || !Done(s.Civilization, "MED-07") || IronWorksCount(s, IronStructure.Hospital) == 0) return false;
+        int physicians = 0, attendants = 0;
+        foreach (FigureState f in Residents(s.Id))
+        {
+            if (f.Role == Role.Physician) physicians++;
+            else if (f.Role == Role.Attendant) attendants++;
+        }
+        return physicians >= 1 && attendants >= 2;
+    }
 
     public int MonkHeads(int civ)
     {
@@ -2017,6 +2030,10 @@ public sealed partial class LivingEconomyModel
     /// <summary>A castle stands here and its garrison is in post and fed (DEF-08, WAR-07): the settlement is a strongpoint and a strong claim anchor.</summary>
     public bool CastleGarrisoned(int settlementIndex)
         => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Castle) > 0 && s.Metal is { } m && m.IronSoldiersSupplied >= CastleGarrison;
+
+    /// <summary>A Fief settlement has a built DEF-09 concentric-castle upgrade.</summary>
+    public bool ConcentricCastleBuilt(int settlementIndex)
+        => FiefChain && IronWorksCount(_settlements[settlementIndex], IronStructure.ConcentricCastle) > 0;
 
     /// <summary>
     /// A professional army keeps a siege train (WAR-09): a forge town with soldiers wants one engine for every four of them, at most two. An engine is
@@ -2327,7 +2344,7 @@ public sealed partial class LivingEconomyModel
         // Appended after the first Iron checksums were fixed (docs/MVP/29): hashed only while non-zero, see HashIronWorks.
         WaterMill, Colonnade,
         // Faith & Fief (docs/MVP/27 §5.1, §5.2; M12 WP-E5-5): built only in a Fief match, appended after the Iron structures and hashed only while non-zero.
-        Windmill, Sawmill, BlastFurnace, Monastery, University,
+        Windmill, Sawmill, BlastFurnace, Monastery, University, Hospital, ConcentricCastle,
         Count
     }
 
@@ -2374,6 +2391,9 @@ public sealed partial class LivingEconomyModel
         new("blast_furnace", "MET-12", 40, 24, 0, 6, 0, Stone: true),
         new("monastery", "BEL-10", 30, 12, 0, 6, 0, Stone: true),
         new("university", "LRN-08", 40, 16, 0, 6, 0, Stone: true, Plank: 4),
+        new("hospital", "MED-07", 24, 8, 0, 4, 0, Stone: true),
+        // DEF-09 concentric fortification: a Fief-only upgrade, built at an already garrisoned castle.
+        new("concentric_castle", "DEF-09", 80, 0, 24, 12, 2, Large: true, Stone: true),
     };
 
     /// <summary>
@@ -2551,7 +2571,7 @@ public sealed partial class LivingEconomyModel
         return -1;
     }
 
-    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle };
+    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle, IronStructure.ConcentricCastle };
 
     private bool IronKindOpen(SettlementState s, MetalState m, int civ, int k, bool passShelved)
     {

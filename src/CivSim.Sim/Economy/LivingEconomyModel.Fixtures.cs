@@ -543,11 +543,29 @@ public sealed partial class LivingEconomyModel
     /// <summary>How many adults of a settlement hold a state role ("administrator" or "governor").</summary>
     internal int FixtureRoleCount(int settlementIndex, string role)
     {
-        byte id = role switch { "administrator" => Role.Administrator, "governor" => Role.Governor, _ => throw new ArgumentException(role, nameof(role)) };
+        byte id = role switch
+        {
+            "administrator" => Role.Administrator, "governor" => Role.Governor,
+            "physician" => Role.Physician, "attendant" => Role.Attendant,
+            _ => throw new ArgumentException(role, nameof(role))
+        };
         int n = 0;
         foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == id) n++;
         return n;
     }
+
+    internal void FixtureSetOutbreak(int settlementIndex, OutbreakClass outbreak)
+    {
+        CivicState civic = EnsureCivic(_settlements[settlementIndex]);
+        civic.Outbreak = (byte)outbreak;
+        civic.OutbreakSeason = outbreak == OutbreakClass.None ? (byte)0 : (byte)1;
+        civic.AttackRate = Fix64.One;
+        civic.CfrScale = Fix64.One;
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) f.Infected = outbreak != OutbreakClass.None;
+    }
+
+    internal Fix64 FixtureInfectedHazard(int figureIndex) => InfectedHazard(_figures[figureIndex]);
+    internal bool FixtureHospitalStaffed(int settlementIndex) => HospitalStaffed(_settlements[settlementIndex]);
 
     /// <summary>How many adults hold the Soldier role, and how many of them the season's upkeep supplied.</summary>
     internal (int Soldiers, int Supplied) FixtureSoldiers(int settlementIndex)
@@ -865,6 +883,8 @@ public sealed partial class LivingEconomyModel
             IronStructure.GreatLighthouse => IronWorksCount(s, IronStructure.Harbor) > 0 && WonderWanted(s, kind),
             IronStructure.Castle => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Castle) == 0 && Population(s.Id) >= 60 && HasStoneWalls(s) &&
                 NearestForeignDistance(s) <= CastleReach,
+            IronStructure.ConcentricCastle => FiefChain && Done(s.Civilization, "DEF-09") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.ConcentricCastle) == 0 && CastleGarrisoned(s.Id),
             _ => false,
         };
 

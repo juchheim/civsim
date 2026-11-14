@@ -44,7 +44,7 @@ public enum BuildWhy : byte
     OnePerCivilization, WonderHeldElsewhere, AcademyLimit, MarketsGoToLargest, NotLargestTown, NotMember,
     HousingEnough, PlannerOnlyOne, WaterNotLimiting, CraneNoLargeWork, FlatFieldsRemain, CloseToCapital,
     // Faith & Fief (appended).
-    MillAlready, NeedsMill, NeedsForge, MonasteryLimit,
+    MillAlready, NeedsMill, NeedsForge, MonasteryLimit, NeedsCastle,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -245,6 +245,18 @@ public sealed partial class LivingEconomyModel
                 if (!(gate = Size(50)).Open) return gate;
                 return CivWorksCount(civ, IronStructure.Monastery) < MaxMonasteries
                     ? BuildGate.Pass : Stop(BuildCause.Taken, BuildWhy.MonasteryLimit, MaxMonasteries);
+            case IronStructure.Hospital:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                return Size(50);
+            case IronStructure.ConcentricCastle:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "DEF-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "DEF-09");
+                if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
+                return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
             case IronStructure.Press:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
