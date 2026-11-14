@@ -1,6 +1,6 @@
 # M12 WP-E5-5 (F-T4): land and food oracle (2026-11-13)
 
-**Status:** The simulation-backed five-geography fixture screen is complete. E5 rows remain draft. The separate whole-match, matched-anchor balance sample is still open.
+**Status:** The five-geography fixture screen and a first four-seed natural-start whole-match horizon screen are complete. The natural screen is diagnostic, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
 
 ## Correction
 
@@ -22,6 +22,25 @@ All five fixtures show the expected 1.5× annual grain-food contribution before 
 
 The displayed population support is the simulation's sustainable food capacity at full field staffing, including the same world's forage, herds, and fish. It is not a proven population outcome: it does not test labor shortages or long-run whole-match growth. AGR-11 lifts that capacity by 5.8–10.9% across these fixtures. Grain's share of baseline food is 11.6–21.8%, so the older illustrative oracle range of 1.2–1.45× for whole-settlement food capacity was too high for these map-backed fixtures. Treat those earlier mix assumptions as superseded; no numeric target is approved by this screen. The dry inland fixture supports 84.6 people before AGR-11 and 92.9 after, below its 100-person starting population even with all nine fields fully staffed. This marks the weak-food edge for the natural-start anchor run; AGR-11 alone does not make every low-food start self-sufficient.
 
+## Natural-start whole-match horizon screen
+
+Four matched seed pairs (`20261019`–`20261022`) used the same temporary pack with all 50 E5 rows numeric, Fief mode, `--grant-e5`, and a 130-minute horizon. The treatment granted AGR-11 when each civilization reached KEY-5. The control withheld only AGR-11; all other E5 grants, settings, seeds, start positions and pack bytes were the same. The pack hash was `9ea23672798ab8cbd2b57b98fe8c1a6f450801fccebfe4c0665e90d7d4041a20`. Every seat reached KEY-5 and all four observations; none were censored. Matches reached the 130-minute horizon without a chapter-end event.
+
+Each seat is measured at its first season boundary after its own KEY-5, before the E5 grants, then at +4, +8 and +12 seasons. The home row tracks the settlement on the natural start tile. City share, population and summed capacity are civilization-wide. Ratios are AGR-11/control; city-share differences are percentage points. These are 16 seat pairs across eight mirror-pair locations, not 16 independent geographic starts.
+
+| Offset after own KEY-5 | Home FoodCap ratio mean / median | Civilization FoodCap ratio mean / median | Civilization sustainable capacity ratio mean / median | Civilization population ratio mean / median | City-share change mean / median |
+|---:|---:|---:|---:|---:|---:|
+| 0 seasons | 1.028 / 1.000 | 1.003 / 1.000 | 0.998 / 1.000 | 0.999 / 1.000 | −0.039 / 0.000 pp |
+| 4 seasons | 1.058 / 1.061 | 1.109 / 1.110 | 1.108 / 1.107 | 1.002 / 1.003 | +0.107 / +0.030 pp |
+| 8 seasons | 1.044 / 1.055 | 1.103 / 1.093 | 1.104 / 1.097 | 1.009 / 1.008 | +1.946 / +0.165 pp |
+| 12 seasons | 1.072 / 1.052 | 1.109 / 1.108 | 1.109 / 1.114 | 1.012 / 1.015 | +1.137 / +0.255 pp |
+
+Start descriptors use overlapping local cohorts: river/lake access within radius 3, coast distance ≤8 for coastal and 9–20 for inland, and Mountain/Peak within radius 6 for hill. The sample had 16/16 starts with river/lake access, 14 inland, two coastal, four hill, and no deep-inland or no-river starts. Thus it does not re-test the non-river or deep-inland fixture edge on natural starts.
+
+The runs share the same generated-world fingerprint and match-start checksum in all four seed pairs. At the individual KEY-5 anchor, however, only 4/16 seat checksums matched exactly: `20261019/c0`, `20261020/c0`, `20261021/c0`, and `20261022/c3`. Earlier AGR-11 grants in the treatment arm had already changed the whole-match state for the other seats. On that strict identical-state subset, +12-season mean/median ratios were 1.068/1.062 for home FoodCap, 1.114/1.120 for civilization FoodCap, and 1.118/1.118 for civilization sustainable capacity; city share changed +0.657/+0.275 pp. Those four anchors were all inland and included only one hill start. Treat the 16-seat table as a seed-paired whole-match diagnostic and the four-seat subset as a small exact-state check, not as a fitted cap or a pass/fail result. The raw manifests, start descriptors, checksums and samples are in [m12-wp8d-land-food-anchor-output-2026-11-13.txt](m12-wp8d-land-food-anchor-output-2026-11-13.txt); [fief_land_anchor_audit.py](tools/fief_land_anchor_audit.py) reproduces the summaries.
+
+These whole-match values are sustainable FoodCap/income and observed population/tier readouts; grain is not held as a separate physical store in the live economy, so this screen does not claim a whole-match grain mass balance. Physical harvested-grain conservation is established only in the controlled fixtures above. The natural-start food-cap ratio is near the fixture-derived 5.8–10.9% capacity gain at the civilization level, but geography coverage and the exact-state sample remain too small to fit an oracle band.
+
 ## Reproduction and remaining gate
 
 `FiefLandTests.Fief_food_oracle_covers_five_geographies_and_conserves_harvested_grain` checks the crop schedule, 1.5× grain contribution, sustainable population capacity, 4:3 labor cost, six-year grain output, and closed grain-store balance for all five profiles. Run it with:
@@ -30,4 +49,4 @@ The displayed population support is the simulation's sustainable food capacity a
 dotnet test src/CivSim.Tests/CivSim.Tests.csproj -c Release --filter FullyQualifiedName~FiefLandTests
 ```
 
-F-T4 still needs whole-match matched anchors over natural starts, with the existing food-cap oracle re-anchored to a live E4 trajectory. F-T2's nine low-coverage town windows also remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these fixture results promotes E5 content.
+F-T4 now has an initial natural-start horizon screen, but needs broader held-out seeds and more exact-state anchors before its food-cap oracle can be re-anchored to a live E4 trajectory. F-T2's nine low-coverage town windows also remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
