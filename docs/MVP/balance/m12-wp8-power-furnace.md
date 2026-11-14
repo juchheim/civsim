@@ -33,7 +33,7 @@ The read-only `iron-match --fief --fief-power-ledger` report opens a 12-season w
 All four runs clear the 60% population-weighted screen, while 9 of 90 individual town windows fall below it (lowest 31.7%). Each below-target window has one or two sources and spends its full power budget; these are capacity- or budget-limited towns rather than cases with idle mill power. This is a useful four-seed screen, not a fitted pass; the per-town misses and the proxy's lack of physical flour accounting remain visible for later fitting.
 
 ## Still open
-Horse-gin power (needs a draft-power model), follow-up on the 9 low-coverage town windows, natural-start whole-match F-T4 anchors, cast-iron goods and cannon (no goods slots yet), crucible steel, clock tower, the other E5 systems, AI use of any of it, the game view, and promotion of the rows.
+Horse-gin power (needs a draft-power model), follow-up on the 9 low-coverage town windows, broader held-out natural-start F-T4 balance, cast-iron goods and cannon (no goods slots yet), crucible steel, clock tower, the other E5 systems, AI use of any of it, the game view, and promotion of the rows.
 
 ## Reproduce the promoted pack
 Copy `content/` to a scratch folder, change `status: draft` to `status: numeric` on every `era: 5` row and on KEY-6 (V22 wants all or none), then `civsim build-pack --content <folder> --out e5.pack` and run `iron-match --pack e5.pack --fief --grant-e5 --minutes 130`.

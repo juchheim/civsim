@@ -18,4 +18,4 @@ Whole-match A/B: seed `33`, promoted temporary E5 pack, Fief mode, `--grant-e5`,
 
 ## Follow-up
 
-Selective breeding, game reserves, TER-10 claim upkeep and timber framing are implemented in [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The five-geography fixture oracle and focused eight-seed natural-start follow-up are in [m12-wp8d-land-food-oracle](m12-wp8d-land-food-oracle.md); it has 8/8 exact-state Builder anchors, while no-river, deep-inland, other-archetype starts and broader whole-match balance remain open before promotion. Cast-iron goods and the cannon/powder chain remain in WP-E5-8.
+Selective breeding, game reserves, TER-10 claim upkeep and timber framing are implemented in [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The [F-T4 report](m12-wp8d-land-food-oracle.md) now includes eight exact-state Builder pairs and four stratified pairs spanning all archetypes, including no-river and 15–20-tile deep-inland starts. The additional archetypes have one selected seat each; a larger balanced natural-start sample and whole-match balance remain open before promotion. Cast-iron goods and the cannon/powder chain remain in WP-E5-8.

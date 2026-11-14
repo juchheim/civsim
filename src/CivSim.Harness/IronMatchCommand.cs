@@ -671,13 +671,13 @@ internal static class IronMatchCommand
         static string H(ulong value) => value.ToString("X16", CultureInfo.InvariantCulture);
         string arm = control ? "control_no_agr11" : "agr11";
         output.AppendLine($"FIEF_LAND_MANIFEST seed={seed} arm={arm} focusCiv={(focusCiv < 0 ? "all" : focusCiv.ToString(CultureInfo.InvariantCulture))} minutes={minutes} offsetSeasons={string.Join(',', offsets)} packHash={packHash} worldFingerprint={H(worldFingerprint)} matchStartChecksum={H(matchStartChecksum)}");
-        output.AppendLine("  natural-start tags overlap: river_access/no_river uses any River or Lake tile within radius 3 (the settlement field range); coastal is nearest coast-adjacent tile <=8, inland is 9-20, deep_inland is >20; hill/no_hill uses Mountain or Peak biome within radius 6.");
+        output.AppendLine("  natural-start tags overlap: river_access/no_river uses any River or Lake tile within radius 3 (the settlement field range); coastal is nearest coast-adjacent tile <=8, inland is 9-14, deep_inland is >=15 (the prior 10,000-world audit found max coast distance 20); hill/no_hill uses Mountain or Peak biome within radius 6.");
         foreach (FiefLandStart start in starts.OrderBy(item => item.Civilization))
         {
             string tags = string.Join('|', new[]
             {
                 start.RiverLakeTilesRadius3 > 0 ? "river_access" : "no_river",
-                start.CoastDistance <= 8 ? "coastal" : start.CoastDistance <= 20 ? "inland" : "deep_inland",
+                start.CoastDistance <= 8 ? "coastal" : start.CoastDistance <= 14 ? "inland" : "deep_inland",
                 start.MountainTilesRadius6 > 0 ? "hill" : "no_hill",
             });
             output.AppendLine($"FIEF_LAND_START seed={seed} civ={start.Civilization} archetype={Archetypes[start.Civilization]} tile={start.StartTile} biome={start.StartBiome} elevation={start.Elevation} soil={start.Soil} riverLakeTilesR3={start.RiverLakeTilesRadius3} riverTilesR3={start.RiverTilesRadius3} coastDistance={start.CoastDistance} mountainTilesR6={start.MountainTilesRadius6} tags={tags}");
@@ -689,7 +689,7 @@ internal static class IronMatchCommand
             string tags = string.Join('|', new[]
             {
                 start.RiverLakeTilesRadius3 > 0 ? "river_access" : "no_river",
-                start.CoastDistance <= 8 ? "coastal" : start.CoastDistance <= 20 ? "inland" : "deep_inland",
+                start.CoastDistance <= 8 ? "coastal" : start.CoastDistance <= 14 ? "inland" : "deep_inland",
                 start.MountainTilesRadius6 > 0 ? "hill" : "no_hill",
             });
             string cityShare = sample.CivilizationPopulation > 0

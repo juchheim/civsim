@@ -17,4 +17,4 @@ One whole-match A/B used the same promoted temporary content pack, seed `2026101
 
 ## Follow-up
 
-The remaining land and food mechanics are recorded in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md) and [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The five-geography fixture oracle and focused eight-seed natural-start follow-up are in [m12-wp8d-land-food-oracle](m12-wp8d-land-food-oracle.md); that run has 8/8 exact-state Builder anchors, while no-river, deep-inland, other-archetype starts and broader whole-match balance remain open before E5 promotion.
+The remaining land and food mechanics are recorded in [m12-wp8b-horse-collar](m12-wp8b-horse-collar.md) and [m12-wp8c-land-systems](m12-wp8c-land-systems.md). The [F-T4 report](m12-wp8d-land-food-oracle.md) now includes eight exact-state Builder pairs and four stratified pairs spanning all archetypes, including no-river and 15–20-tile deep-inland starts. The additional archetypes have one selected seat each; a larger balanced natural-start sample and whole-match balance remain open before promotion.

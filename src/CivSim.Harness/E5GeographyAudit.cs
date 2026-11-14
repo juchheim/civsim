@@ -426,12 +426,12 @@ internal static class E5GeographyAudit
 
         var distinct = all.FindAll(r => r.Civ < 2);
         var coastal = all.FindAll(r => r.CoastDist <= 8);
-        var inland = all.FindAll(r => r.CoastDist > 8 && r.CoastDist <= 20);
-        var deepInland = all.FindAll(r => r.CoastDist > 20);
+        var inland = all.FindAll(r => r.CoastDist > 8 && r.CoastDist <= 14);
+        var deepInland = all.FindAll(r => r.CoastDist >= 15);
 
         L("== 1. Denominators ==");
         L($"worlds {I(seeds)}; starts {I(all.Count)}; geometrically distinct starts {I(distinct.Count)} (civ 2 and 3 mirror civ 0 and 1).");
-        L($"strata by nearest coast-adjacent tile: coastal (<= 8) {I(coastal.Count)}; inland (9-20) {I(inland.Count)}; deep inland (> 20) {I(deepInland.Count)}.");
+        L($"strata by nearest coast-adjacent tile: coastal (<= 8) {I(coastal.Count)}; inland (9-14) {I(inland.Count)}; deep inland (>= 15) {I(deepInland.Count)} (the 10,000-world audit found max distance 20).");
         L("uncontested = strictly nearer this start than any other start (a static stand-in for ownership; live claims differ).");
         L();
 

@@ -29,6 +29,7 @@
 - **Rivers:** river or lake tiles nearer this start than any other, counted within the settlement range 3, the claim radius 5 and 8. A sawmill start also needs forest (at least 15 L standing wood) within 8.
 - **Horses:** wild herds of species Horse at their generated positions; uncontested herds within 15, 20 and the E5 reach 25; animal counts; "could be Seen" means any herd within 25, contested or not.
 - **Uncontested:** strictly nearer this start than any other start (ties belong to nobody). A static stand-in for ownership; live claims differ.
+- **Coast strata:** the raw report uses coastal (≤8), inland (9–14), and deep inland (≥15); the audit's maximum start distance is 20. This reporting split exposes the 15–20-tile starts as a separate cohort and does not affect world generation or the resource audit.
 - **Trade geometry:** a capable partner has the resource on its own ground; route is a unit-cost walk, else a sail with SEA-04 (11 tiles from land), as in the iron audit. It is geometry only: no contact, relations, trade good or barter-party carrying is modeled.
 - **Per-world figures** (worlds with no start having X) were derived from the per-start CSV (`--csv`), which is a function of the seed range like the report.
 - **Reproduce:**

@@ -4,7 +4,7 @@ mirror check: local columns of civ c and c+2 differ in 0 of 20,000 pairs
 
 == 1. Denominators ==
 worlds 10,000; starts 40,000; geometrically distinct starts 20,000 (civ 2 and 3 mirror civ 0 and 1).
-strata by nearest coast-adjacent tile: coastal (<= 8) 17,094; inland (9-20) 22,906; deep inland (> 20) 0.
+strata by nearest coast-adjacent tile: coastal (<= 8) 17,094; inland (9-14) 19,868; deep inland (>= 15) 3,038 (the 10,000-world audit found max distance 20).
 uncontested = strictly nearer this start than any other start (a static stand-in for ownership; live claims differ).
 
 == 2. World truth per world ==
@@ -18,8 +18,8 @@ step 1 uncontested depth-1 within 8 | 2 within 12 (TRN-05) or 16 (SEA-05, wet si
   all starts (n=40,000): 1 local-8 28.6% | 2 carts/water 45.5% | 3 deep 0.0% | 4 contested 2.4% | 5 beyond reach 21.5% | 6 none 2.0% || own supply (1-3) 74.1%
   distinct starts (n=20,000): 1 local-8 28.6% | 2 carts/water 45.5% | 3 deep 0.0% | 4 contested 2.4% | 5 beyond reach 21.5% | 6 none 2.0% || own supply (1-3) 74.1%
   coastal (n=17,094): 1 local-8 17.1% | 2 carts/water 44.6% | 3 deep 0.0% | 4 contested 2.4% | 5 beyond reach 32.5% | 6 none 3.3% || own supply (1-3) 61.7%
-  inland (n=22,906): 1 local-8 37.1% | 2 carts/water 46.2% | 3 deep 0.0% | 4 contested 2.3% | 5 beyond reach 13.4% | 6 none 0.9% || own supply (1-3) 83.4%
-  deep inland (n=0): 1 local-8 n/a | 2 carts/water n/a | 3 deep n/a | 4 contested n/a | 5 beyond reach n/a | 6 none n/a || own supply (1-3) n/a
+  inland (n=19,868): 1 local-8 34.8% | 2 carts/water 47.9% | 3 deep 0.0% | 4 contested 2.3% | 5 beyond reach 14.1% | 6 none 1.0% || own supply (1-3) 82.7%
+  deep inland (n=3,038): 1 local-8 52.5% | 2 carts/water 35.2% | 3 deep 0.0% | 4 contested 2.8% | 5 beyond reach 8.8% | 6 none 0.7% || own supply (1-3) 87.7%
 nearest saltpeter (hex, any): min 0 p5 4 p25 8 p50 11 p75 15 p95 22 max 41 (n=40,000)
 uncontested saltpeter sites within the claim radius 5: min 0 p5 0 p25 0 p50 0 p75 0 p95 1 max 3 (n=40,000)
 uncontested saltpeter sites within the extended reach: min 0 p5 0 p25 0 p50 1 p75 2 p95 3 max 6 (n=40,000)
@@ -35,7 +35,7 @@ nearest uncontested river or lake tile (hex): min 0 p5 0 p25 0 p50 0 p75 0 p95 4
 river or lake tiles within the settlement range 3: min 0 p5 0 p25 4 p50 4 p75 4 p95 6 max 13 (n=40,000)
 starts with a river or lake tile within 3: 92.9% (37,172/40,000); within the claim radius 5: 100.0% (40,000/40,000); within 8: 100.0% (40,000/40,000)
 water-mill site (river within 5) and planks (forest within 8) for a sawmill: 95.5% (38,200/40,000)
-wind-only starts (no river or lake within 5, so a windmill is the only mill): 0.0% (0/40,000); coastal 0.0% (0/17,094); inland 0.0% (0/22,906); deep inland n/a (0/0)
+wind-only starts (no river or lake within 5, so a windmill is the only mill): 0.0% (0/40,000); coastal 0.0% (0/17,094); inland 0.0% (0/19,868); deep inland 0.0% (0/3,038)
 
 == 5. Wild horses (HUS-07 [Seen: Wild horses]; NRG-04 horse collar, TRN-09 horseshoes, WAR-10 heavy cavalry need G-HORSE) ==
 nearest horse herd (hex, any owner; 99 = none): min 0 p5 6 p25 10 p50 16 p75 24 p95 99 max 99 (n=40,000)
@@ -44,7 +44,7 @@ horse herds within 25, uncontested: min 0 p5 0 p25 0 p50 2 p75 4 p95 7 max 21 (n
 wild horses within 25, uncontested (animals at the start of the game): min 0 p5 0 p25 0 p50 45 p75 90 p95 165 max 483 (n=40,000)
 taming (HUS-07): at most 15% of a wild herd a year, so a 20-50 herd yields 3-7 animals a year; a pasture carries 2.
 starts that could be 'Seen: Wild horses' at all (any herd within 25, contested or not): 77.4% (30,950/40,000)
-strata, uncontested herd within 25: coastal 72.5% (12,398/17,094); inland 75.4% (17,276/22,906); deep inland n/a (0/0)
+strata, uncontested herd within 25: coastal 72.5% (12,398/17,094); inland 75.6% (15,020/19,868); deep inland 74.3% (2,256/3,038)
 Herds migrate seasonally (20 tiles) so these are start-of-game positions; a start with none may still see horses later.
 
 == 6. All three together (own saltpeter route, a river within 5, an own horse herd within 25) ==

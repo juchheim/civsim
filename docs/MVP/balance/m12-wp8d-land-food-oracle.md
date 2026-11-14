@@ -1,6 +1,6 @@
-# M12 WP-E5-5 (F-T4): land and food oracle (2026-11-13)
+# M12 WP-E5-5 (F-T4): land and food oracle (updated 2026-11-14)
 
-**Status:** The five-geography fixture screen, the first four-seed natural-start whole-match screen, and an eight-seed focused exact-state follow-up are complete. These are diagnostics, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
+**Status:** The five-geography fixture screen, the four-seed all-seat horizon screen, an eight-seed Builder exact-state follow-up, and a four-seed stratified all-archetype follow-up are complete. These are diagnostics, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
 
 ## Correction
 
@@ -35,7 +35,7 @@ Each seat is measured at its first season boundary after its own KEY-5, before t
 | 8 seasons | 1.044 / 1.055 | 1.103 / 1.093 | 1.104 / 1.097 | 1.009 / 1.008 | +1.946 / +0.165 pp |
 | 12 seasons | 1.072 / 1.052 | 1.109 / 1.108 | 1.109 / 1.114 | 1.012 / 1.015 | +1.137 / +0.255 pp |
 
-Start descriptors use overlapping local cohorts: river/lake access within radius 3, coast distance ≤8 for coastal and 9–20 for inland, and Mountain/Peak within radius 6 for hill. The sample had 16/16 starts with river/lake access, 14 inland, two coastal, four hill, and no deep-inland or no-river starts. Thus it does not re-test the non-river or deep-inland fixture edge on natural starts.
+Start descriptors use overlapping local cohorts: river/lake access within radius 3; coastal at coast distance ≤8, inland at 9–14, and deep inland at ≥15; Mountain/Peak within radius 6 marks hill. The 10,000-world geography audit found a maximum start coast distance of 20, so the earlier F-T4 cutoff of >20 classified no deep-inland start in that audit. Under the corrected bands, the four-seed screen has 16/16 river-access starts, 10 inland, four deep inland, two coastal, four hill and 12 no-hill starts. It still has no no-river start.
 
 The runs share the same generated-world fingerprint and match-start checksum in all four seed pairs. At the individual KEY-5 anchor, however, only 4/16 seat checksums matched exactly: `20261019/c0`, `20261020/c0`, `20261021/c0`, and `20261022/c3`. Earlier AGR-11 grants in the treatment arm had already changed the whole-match state for the other seats. On that strict identical-state subset, +12-season mean/median ratios were 1.068/1.062 for home FoodCap, 1.114/1.120 for civilization FoodCap, and 1.118/1.118 for civilization sustainable capacity; city share changed +0.657/+0.275 pp. Those four anchors were all inland and included only one hill start. Treat the 16-seat table as a seed-paired whole-match diagnostic and the four-seat subset as a small exact-state check, not as a fitted cap or a pass/fail result. The raw manifests, start descriptors, checksums and samples are in [m12-wp8d-land-food-anchor-output-2026-11-13.txt](m12-wp8d-land-food-anchor-output-2026-11-13.txt); [fief_land_anchor_audit.py](tools/fief_land_anchor_audit.py) reproduces the summaries.
 
@@ -54,7 +54,23 @@ The offset-0 capture occurs at the first season boundary where c0 has KEY-5, bef
 | 8 seasons | 1.040 / 1.062 | 1.047 / 1.060 | 1.107 / 1.115 | 1.110 / 1.113 | 1.010 / 1.010 | −1.436 / −0.050 pp |
 | 12 seasons | 1.066 / 1.060 | 1.066 / 1.066 | 1.107 / 1.104 | 1.115 / 1.116 | 1.017 / 1.018 | −0.504 / +0.205 pp |
 
-The c0 starts cover 8/8 river-access locations, six inland and two coastal, with four hill and four no-hill starts. The cohort still has no no-river or deep-inland location. Ratios are treatment/control; city-share differences are percentage points. Reported capacities remain sustainable model readouts, not physical grain stocks. The +12-season civilization sustainable-capacity mean/median is +11.5%/+11.6%; the population mean/median is +1.7%/+1.8%. City-share movement varies substantially by seed, so no city concentration conclusion is drawn. These observations remain diagnostic and do not approve a numeric target.
+
+With the corrected bands, the eight c0 starts cover 8/8 river-access locations: two coastal, five inland and one deep inland, with four hill and four no-hill starts. This cohort still has no no-river location. Ratios are treatment/control; city-share differences are percentage points. Reported capacities remain sustainable model readouts, not physical grain stocks. The +12-season civilization sustainable-capacity mean/median is +11.5%/+11.6%; population is +1.7%/+1.8%. City-share movement varies substantially by seed, so no city concentration conclusion is drawn. These observations remain diagnostic and do not approve a numeric target.
+
+## Stratified held-out follow-up
+
+The held-out scan examined seeds `20261101`–`20262100` and selected four new seed/seat pairs, one for each archetype. Each selected start has no river or lake within radius 3 and is 15–16 coast tiles away (the reachable deep-inland band): `20261237/c0` Builder, `20261376/c1` Grower, `20261882/c2` Warlord, and `20261515/c3` Sage. Each treatment granted AGR-11 only to the measured seat; the matched control withheld it. Both arms granted all other E5 projects to all seats. The matches used the same temporary pack and 130-minute horizon. All four pairs had matching world fingerprints and initial match checksums, identical offset-0 state checksums, all four offsets, and no censored focus seats.
+
+The [expanded raw output](m12-wp8d-land-expanded-anchor-output-2026-11-14.txt) combines these four pairs with the eight Builder pairs above and reproduces a 12-seat exact-state cohort. It covers four no-river starts and five deep-inland starts total (the fifth is the river-access Builder start from seed `20261024`); two starts are coastal and five inland. Hill and no-hill each have six observations. Builder accounts for nine of 12 pairs; Grower, Warlord and Sage each have one, so this is targeted coverage rather than a representative archetype mix.
+
+| Offset after each focus seat's KEY-5 | Home FoodCap ratio mean / median | Home sustainable capacity ratio mean / median | Civilization FoodCap ratio mean / median | Civilization sustainable capacity ratio mean / median | Civilization population ratio mean / median | City-share change mean / median |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 seasons | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 0.000 / 0.000 pp |
+| 4 seasons | 1.058 / 1.063 | 1.060 / 1.062 | 1.104 / 1.109 | 1.107 / 1.112 | 1.002 / 1.002 | −0.578 / −0.010 pp |
+| 8 seasons | 1.040 / 1.062 | 1.048 / 1.060 | 1.101 / 1.104 | 1.105 / 1.107 | 1.010 / 1.009 | −0.925 / +0.055 pp |
+| 12 seasons | 1.059 / 1.060 | 1.060 / 1.066 | 1.104 / 1.104 | 1.112 / 1.116 | 1.016 / 1.018 | +0.427 / +0.205 pp |
+
+At +12 seasons, civilization sustainable capacity is +11.2% on average and +11.6% at the median; population is +1.6%/+1.8%. These remain model readouts and short-horizon outcomes. The four newly selected no-river/deep-inland seats are only one observation per archetype and were selected for their geography, so they cannot establish a broad cohort effect or a fitted oracle band.
 
 ## Reproduction and remaining gate
 
@@ -64,4 +80,4 @@ The c0 starts cover 8/8 river-access locations, six inland and two coastal, with
 dotnet test src/CivSim.Tests/CivSim.Tests.csproj -c Release --filter FullyQualifiedName~FiefLandTests
 ```
 
-F-T4 now has eight focused exact-state Builder anchors, but needs held-out starts covering other archetypes, no-river and deep-inland geography before its food-cap oracle can be re-anchored to a live E4 trajectory; broader whole-match balance is also still required. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
+F-T4 now has 12 exact-state anchors across all four archetypes, including four targeted no-river/deep-inland starts. It still needs a larger balanced held-out cohort and a live E4 trajectory before fitting a food-cap oracle; broader whole-match balance is also required. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
