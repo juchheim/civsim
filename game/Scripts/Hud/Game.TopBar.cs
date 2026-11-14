@@ -285,6 +285,7 @@ public partial class Game
         UiKit.SetText(_civPeopleLabel!, people.ToString("N0"));
         UiKit.SetText(_civSettlementsLabel!, $"people · {settlements} {(settlements == 1 ? "settlement" : "settlements")}");
         int era = frame.CivEra[civ];
+        UiSkin.SetViewerEra(era);
         UiKit.SetText(_ageLabel!, UiText.AgeName(era).ToUpperInvariant() + " AGE");
         int done = frame.CivBreadthDone[civ], needed = Math.Max(1, (int)frame.CivBreadthNeeded[civ]);
         UiKit.SetText(_ageCountLabel!, $"{Math.Min(done, needed)}/{needed}");

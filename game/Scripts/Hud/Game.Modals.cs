@@ -310,7 +310,7 @@ public partial class Game
 
     private void BuildSettings()
     {
-        _settingsModal = MakeModal("settings", 610, 377, "Settings", "", () => { CloseSettings(); return true; });
+        _settingsModal = MakeModal("settings", 610, 432, "Settings", "", () => { CloseSettings(); return true; });
         var column = UiKit.Column(UiTokens.Sp2);
         var sizeRow = UiKit.Row(UiTokens.Sp3);
         sizeRow.AddChild(UiKit.Text("UI size", "BodyStrong", minWidth: 150));
@@ -333,6 +333,23 @@ public partial class Game
             if (_plates is not null) _plates.Mode = _uiSettings.SettlementPlates;
         }, 96));
         column.AddChild(platesRow);
+        var skinRow = UiKit.Row(UiTokens.Sp3);
+        skinRow.AddChild(UiKit.Text("Age skin", "BodyStrong", minWidth: 150));
+        Label skinName = UiKit.Text("", "Body", minWidth: 150);
+        skinName.HorizontalAlignment = HorizontalAlignment.Center;
+        void StepSkin(int step)
+        {
+            int index = (_uiSettings.SkinOverride + 1 + step + 11) % 11; // 0 = follow my age, 1-10 = Dawn to Information
+            _uiSettings.SkinOverride = index - 1;
+            _uiSettings.Save();
+            UiKit.SetText(skinName, _uiSettings.SkinOverride < 0 ? "Follow my age" : UiSkins.For(_uiSettings.SkinOverride).Name);
+            UiSkin.Refresh();
+        }
+        UiKit.SetText(skinName, _uiSettings.SkinOverride < 0 ? "Follow my age" : UiSkins.For(_uiSettings.SkinOverride).Name);
+        skinRow.AddChild(UiKit.Secondary("<", () => StepSkin(-1), "Previous skin", UiGlyph.None, UiTokens.ControlS));
+        skinRow.AddChild(skinName);
+        skinRow.AddChild(UiKit.Secondary(">", () => StepSkin(1), "Next skin", UiGlyph.None, UiTokens.ControlS));
+        column.AddChild(skinRow);
         column.AddChild(new UiToggle("Reduce motion", _uiSettings.ReduceMotion, v => { _uiSettings.ReduceMotion = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show control hints", _uiSettings.ShowHints, v => { _uiSettings.ShowHints = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show tips", _uiSettings.ShowTips, v => { _uiSettings.ShowTips = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });

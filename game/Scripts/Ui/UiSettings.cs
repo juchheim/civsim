@@ -16,6 +16,8 @@ public sealed class UiSettings
     public float UiScale = 1.0f;
     public bool ReduceMotion;
     public PlateMode SettlementPlates = PlateMode.Full;
+    /// <summary>Age whose skin the HUD wears regardless of the player's own age (0-9), or -1 to follow it.</summary>
+    public int SkinOverride = -1;
     public bool ShowHints = true;
     public bool ShowTips = true;
     public bool PauseInWeb;
@@ -42,6 +44,8 @@ public sealed class UiSettings
                 settings.ReduceMotion = file.GetValue(Section, "reduce_motion", false).AsBool();
                 int plates = file.GetValue(Section, "settlement_plates", (int)PlateMode.Full).AsInt32();
                 settings.SettlementPlates = System.Enum.IsDefined(typeof(PlateMode), (byte)plates) ? (PlateMode)plates : PlateMode.Full;
+                int skin = file.GetValue(Section, "skin_override", -1).AsInt32();
+                settings.SkinOverride = skin is >= 0 and < 10 ? skin : -1;
                 settings.ShowHints = file.GetValue(Section, "show_hints", true).AsBool();
                 settings.ShowTips = file.GetValue(Section, "show_tips", true).AsBool();
                 settings.PauseInWeb = file.GetValue(Section, "pause_in_web", false).AsBool();
@@ -71,6 +75,7 @@ public sealed class UiSettings
             file.SetValue(Section, "ui_scale", UiScale);
             file.SetValue(Section, "reduce_motion", ReduceMotion);
             file.SetValue(Section, "settlement_plates", (int)SettlementPlates);
+            file.SetValue(Section, "skin_override", SkinOverride);
             file.SetValue(Section, "show_hints", ShowHints);
             file.SetValue(Section, "show_tips", ShowTips);
             file.SetValue(Section, "pause_in_web", PauseInWeb);

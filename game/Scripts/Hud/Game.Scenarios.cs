@@ -206,6 +206,26 @@ public partial class Game
                 Step(OpenSettings);
                 Shot("settings");
                 break;
+            case "skins":
+                // Every age skin on the HUD plus a sheet. Use --start-minute=30 --viewer=0 and --always-on-top.
+                Step(() => OpenResearchWeb(-1), 1.0f);
+                for (int skinEra = 0; skinEra < 10; skinEra++)
+                {
+                    int e = skinEra;
+                    Step(() => { _uiSettings.SkinOverride = e; UiSkin.Refresh(); }, 1.2f);
+                    Shot($"skin-{e:00}-{UiSkins.For(e).Slug}-web");
+                }
+                Step(CloseResearchWeb, 0.6f);
+                for (int skinEra = 0; skinEra < 10; skinEra += 3)
+                {
+                    int e = skinEra;
+                    Step(() => { _uiSettings.SkinOverride = e; UiSkin.Refresh(); }, 1.2f);
+                    Step(OpenSettings, 0.5f);
+                    Shot($"skin-{e:00}-{UiSkins.For(e).Slug}-sheet");
+                    Step(CloseSettings, 0.4f);
+                }
+                Step(() => { _uiSettings.SkinOverride = -1; UiSkin.Refresh(); }, 0.3f);
+                break;
             case "diplomacy":
                 Step(() => ToggleDiplomacy(true));
                 Shot("diplomacy");
