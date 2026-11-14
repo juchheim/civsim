@@ -1,6 +1,6 @@
 # M12 WP-E5-5 (F-T4): land and food oracle (2026-11-13)
 
-**Status:** The five-geography fixture screen and a first four-seed natural-start whole-match horizon screen are complete. The natural screen is diagnostic, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
+**Status:** The five-geography fixture screen, the first four-seed natural-start whole-match screen, and an eight-seed focused exact-state follow-up are complete. These are diagnostics, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
 
 ## Correction
 
@@ -39,7 +39,22 @@ Start descriptors use overlapping local cohorts: river/lake access within radius
 
 The runs share the same generated-world fingerprint and match-start checksum in all four seed pairs. At the individual KEY-5 anchor, however, only 4/16 seat checksums matched exactly: `20261019/c0`, `20261020/c0`, `20261021/c0`, and `20261022/c3`. Earlier AGR-11 grants in the treatment arm had already changed the whole-match state for the other seats. On that strict identical-state subset, +12-season mean/median ratios were 1.068/1.062 for home FoodCap, 1.114/1.120 for civilization FoodCap, and 1.118/1.118 for civilization sustainable capacity; city share changed +0.657/+0.275 pp. Those four anchors were all inland and included only one hill start. Treat the 16-seat table as a seed-paired whole-match diagnostic and the four-seat subset as a small exact-state check, not as a fitted cap or a pass/fail result. The raw manifests, start descriptors, checksums and samples are in [m12-wp8d-land-food-anchor-output-2026-11-13.txt](m12-wp8d-land-food-anchor-output-2026-11-13.txt); [fief_land_anchor_audit.py](tools/fief_land_anchor_audit.py) reproduces the summaries.
 
-These whole-match values are sustainable FoodCap/income and observed population/tier readouts; grain is not held as a separate physical store in the live economy, so this screen does not claim a whole-match grain mass balance. Physical harvested-grain conservation is established only in the controlled fixtures above. The natural-start food-cap ratio is near the fixture-derived 5.8–10.9% capacity gain at the civilization level, but geography coverage and the exact-state sample remain too small to fit an oracle band.
+These whole-match values are sustainable FoodCap/income and observed population/tier readouts; grain is not held as a separate physical store in the live economy, so this screen does not claim a whole-match grain mass balance. Physical harvested-grain conservation is established only in the controlled fixtures above. In this first screen, the natural-start civilization FoodCap ratio is near the fixture-derived 5.8–10.9% capacity gain. The focused follow-up below resolves the exact-state sample limitation for one archetype, but geography coverage and broader whole-match evidence remain too small to fit an oracle band.
+
+## Focused exact-state natural-start follow-up
+
+The follow-up used eight matched seed pairs (`20261019`–`20261026`) on the same promoted temporary pack and 130-minute horizon. Each run focused on Builder, civilization 0. In treatment, every seat received the other E5 grants, while AGR-11 was granted only to c0; in control, all seats received the other E5 grants and none received AGR-11. All other settings, map seeds, starts, pack bytes, and non-AGR-11 E5 grants matched. The raw focus-seat rows are in [m12-wp8d-land-focused-anchor-output-2026-11-13.txt](m12-wp8d-land-focused-anchor-output-2026-11-13.txt); the earlier all-seat screen remains in [m12-wp8d-land-food-anchor-output-2026-11-13.txt](m12-wp8d-land-food-anchor-output-2026-11-13.txt).
+
+The offset-0 capture occurs at the first season boundary where c0 has KEY-5, before the harness submits E5 grants. All eight treatment/control pairs had identical initial match checksums and identical whole-match state checksums at c0's offset-0 anchor. All eight c0s produced observations at offsets 0, 4, 8 and 12; no focused seat-arm was censored. This resolves the earlier screen's 4/16 exact-anchor limitation for a focused, single-archetype cohort. It does not supply eight independent civilization archetypes: every measured seat is a Builder, one per generated world.
+
+| Offset after c0 KEY-5 | Home FoodCap ratio mean / median | Home sustainable capacity ratio mean / median | Civilization FoodCap ratio mean / median | Civilization sustainable capacity ratio mean / median | Civilization population ratio mean / median | City-share change mean / median |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 seasons | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 0.000 / 0.000 pp |
+| 4 seasons | 1.066 / 1.065 | 1.063 / 1.062 | 1.107 / 1.109 | 1.108 / 1.112 | 1.002 / 1.002 | −0.894 / −0.010 pp |
+| 8 seasons | 1.040 / 1.062 | 1.047 / 1.060 | 1.107 / 1.115 | 1.110 / 1.113 | 1.010 / 1.010 | −1.436 / −0.050 pp |
+| 12 seasons | 1.066 / 1.060 | 1.066 / 1.066 | 1.107 / 1.104 | 1.115 / 1.116 | 1.017 / 1.018 | −0.504 / +0.205 pp |
+
+The c0 starts cover 8/8 river-access locations, six inland and two coastal, with four hill and four no-hill starts. The cohort still has no no-river or deep-inland location. Ratios are treatment/control; city-share differences are percentage points. Reported capacities remain sustainable model readouts, not physical grain stocks. The +12-season civilization sustainable-capacity mean/median is +11.5%/+11.6%; the population mean/median is +1.7%/+1.8%. City-share movement varies substantially by seed, so no city concentration conclusion is drawn. These observations remain diagnostic and do not approve a numeric target.
 
 ## Reproduction and remaining gate
 
@@ -49,4 +64,4 @@ These whole-match values are sustainable FoodCap/income and observed population/
 dotnet test src/CivSim.Tests/CivSim.Tests.csproj -c Release --filter FullyQualifiedName~FiefLandTests
 ```
 
-F-T4 now has an initial natural-start horizon screen, but needs broader held-out seeds and more exact-state anchors before its food-cap oracle can be re-anchored to a live E4 trajectory. F-T2's nine low-coverage town windows also remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
+F-T4 now has eight focused exact-state Builder anchors, but needs held-out starts covering other archetypes, no-river and deep-inland geography before its food-cap oracle can be re-anchored to a live E4 trajectory; broader whole-match balance is also still required. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.

@@ -121,6 +121,7 @@ internal static class IronMatchCommand
         bool bronzeControl = false;
         bool noBuildWood = false, noChopReach = false, noStoneShare = false, fief = false, grantE5 = false, noFurnace = false, fiefPowerLedger = false;
         bool fiefLandAnchor = false, fiefLandControl = false;
+        int fiefLandFocusCiv = -1;
         int ironFuelReachBufferOverride = -1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -141,6 +142,7 @@ internal static class IronMatchCommand
                 case "--fief-power-ledger": fiefPowerLedger = true; break;
                 case "--fief-land-anchor": fiefLandAnchor = true; break;
                 case "--fief-land-control": fiefLandAnchor = true; fiefLandControl = true; break;
+                case "--fief-land-focus-civ": fiefLandFocusCiv = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--it6-accounting": it6Accounting = true; break;
                 case "--it6-supply-diagnostic": it6SupplyDiagnostic = true; it6Accounting = true; break;
                 case "--it2-kit-trace": it2KitTrace = true; it6Accounting = true; break;
@@ -155,24 +157,26 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--fief-land-anchor|--fief-land-control] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--fief-land-anchor|--fief-land-control] [--fief-land-focus-civ N] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
         if (fiefPowerLedger && !fief) throw new ArgumentException("--fief-power-ledger requires --fief.");
         if (fiefLandAnchor && (!fief || !grantE5)) throw new ArgumentException("--fief-land-anchor and --fief-land-control require --fief --grant-e5.");
+        if (fiefLandFocusCiv >= 0 && !fiefLandAnchor) throw new ArgumentException("--fief-land-focus-civ requires --fief-land-anchor or --fief-land-control.");
+        if (fiefLandFocusCiv is < -1 or >= 4) throw new ArgumentOutOfRangeException(nameof(fiefLandFocusCiv), "The Fief land focus seat must be 0–3.");
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
         for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
             ironKitTraceSettlement, ironKitTraceFromSeason, ironKitTraceThroughSeason,
-            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace, fiefPowerLedger, fiefLandAnchor, fiefLandControl));
+            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace, fiefPowerLedger, fiefLandAnchor, fiefLandControl, fiefLandFocusCiv));
         return 0;
     }
 
     private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
         int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
-        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false, bool fiefLandAnchor = false, bool fiefLandControl = false)
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false, bool fiefLandAnchor = false, bool fiefLandControl = false, int fiefLandFocusCiv = -1)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -278,9 +282,12 @@ internal static class IronMatchCommand
                 {
                     if (grantedE5[c] || !research.IsDone(c, key5)) continue;
                     grantedE5[c] = true;
+                    bool holdAgr11 = fiefLandControl || (fiefLandFocusCiv >= 0 && c != fiefLandFocusCiv);
                     foreach (ProjectDef p in research.Catalog.Projects)
-                        if (p.Era == 5 && p.Index != key6 && !(fiefLandControl && p.Id == "AGR-11"))
+                    {
+                        if (p.Era == 5 && p.Index != key6 && !(holdAgr11 && p.Id == "AGR-11"))
                             runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
+                    }
                 }
             runner.Advance(150);
             end = match.EndOfMatch();
@@ -440,7 +447,7 @@ internal static class IronMatchCommand
         }
         if (fiefLandSamples is not null && fiefLandStarts is not null && fiefLandAnchors is not null && fiefLandSampledOffsets is not null)
             AppendFiefLandAnchors(o, seed, minutes, pack.HashHex, world.Fingerprint(), fiefLandMatchStartChecksum,
-                fiefLandControl, fiefLandStarts, fiefLandAnchors, fiefLandSamples, fiefLandSampledOffsets, fiefLandOffsets);
+                fiefLandControl, fiefLandFocusCiv, fiefLandStarts, fiefLandAnchors, fiefLandSamples, fiefLandSampledOffsets, fiefLandOffsets);
         if (fiefPowerWindows is not null) AppendFiefPowerLedger(o, fiefPowerWindows.Values);
         // Iron works by kind, per civilization.
         L("iron works built (all settlements):");
@@ -656,14 +663,14 @@ internal static class IronMatchCommand
     }
 
     private static void AppendFiefLandAnchors(StringBuilder output, ulong seed, int minutes, string packHash,
-        ulong worldFingerprint, ulong matchStartChecksum, bool control, IReadOnlyList<FiefLandStart> starts,
+        ulong worldFingerprint, ulong matchStartChecksum, bool control, int focusCiv, IReadOnlyList<FiefLandStart> starts,
         IReadOnlyList<FiefLandAnchorState> anchors, IReadOnlyList<FiefLandAnchorSample> samples,
         bool[,] sampledOffsets, IReadOnlyList<int> offsets)
     {
         static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
         static string H(ulong value) => value.ToString("X16", CultureInfo.InvariantCulture);
         string arm = control ? "control_no_agr11" : "agr11";
-        output.AppendLine($"FIEF_LAND_MANIFEST seed={seed} arm={arm} minutes={minutes} offsetSeasons={string.Join(',', offsets)} packHash={packHash} worldFingerprint={H(worldFingerprint)} matchStartChecksum={H(matchStartChecksum)}");
+        output.AppendLine($"FIEF_LAND_MANIFEST seed={seed} arm={arm} focusCiv={(focusCiv < 0 ? "all" : focusCiv.ToString(CultureInfo.InvariantCulture))} minutes={minutes} offsetSeasons={string.Join(',', offsets)} packHash={packHash} worldFingerprint={H(worldFingerprint)} matchStartChecksum={H(matchStartChecksum)}");
         output.AppendLine("  natural-start tags overlap: river_access/no_river uses any River or Lake tile within radius 3 (the settlement field range); coastal is nearest coast-adjacent tile <=8, inland is 9-20, deep_inland is >20; hill/no_hill uses Mountain or Peak biome within radius 6.");
         foreach (FiefLandStart start in starts.OrderBy(item => item.Civilization))
         {
@@ -688,18 +695,18 @@ internal static class IronMatchCommand
             string cityShare = sample.CivilizationPopulation > 0
                 ? (100.0 * sample.CityPopulation / sample.CivilizationPopulation).ToString("F2", CultureInfo.InvariantCulture)
                 : "0.00";
-            output.AppendLine($"FIEF_LAND_SAMPLE seed={seed} arm={arm} civ={sample.Civilization} archetype={Archetypes[sample.Civilization]} tile={start.StartTile} tags={tags} anchorSeason={sample.AnchorSeason} offsetSeasons={sample.OffsetSeasons} tick={sample.Tick} stateChecksum={H(sample.StateChecksum)} homeFound={sample.HomeFound} homePop={sample.HomePopulation} homeTier={sample.HomeTier} homeChildren={sample.HomeChildren} homeAdults={sample.HomeAdults} homeElders={sample.HomeElders} homeFoodCap={F(sample.HomeFoodCap)} homeSustainableCapacity={F(sample.HomeSustainableCapacity)} homeGrainIncome={F(sample.HomeGrainIncome)} homeFields={sample.HomeFields} settlements={sample.SettlementCount} civPopulation={sample.CivilizationPopulation} civChildren={sample.CivilizationChildren} civAdults={sample.CivilizationAdults} civElders={sample.CivilizationElders} cityPopulation={sample.CityPopulation} cityShare={cityShare} civFoodCap={F(sample.CivilizationFoodCap)} civSustainableCapacity={F(sample.CivilizationSustainableCapacity)} civGrainIncome={F(sample.CivilizationGrainIncome)} civTotalFoodIncome={F(sample.CivilizationTotalFoodIncome)} civFields={sample.Fields}");
+            output.AppendLine($"FIEF_LAND_SAMPLE seed={seed} arm={arm} focusCiv={(focusCiv < 0 ? "all" : focusCiv.ToString(CultureInfo.InvariantCulture))} civ={sample.Civilization} archetype={Archetypes[sample.Civilization]} tile={start.StartTile} tags={tags} anchorSeason={sample.AnchorSeason} offsetSeasons={sample.OffsetSeasons} tick={sample.Tick} stateChecksum={H(sample.StateChecksum)} homeFound={sample.HomeFound} homePop={sample.HomePopulation} homeTier={sample.HomeTier} homeChildren={sample.HomeChildren} homeAdults={sample.HomeAdults} homeElders={sample.HomeElders} homeFoodCap={F(sample.HomeFoodCap)} homeSustainableCapacity={F(sample.HomeSustainableCapacity)} homeGrainIncome={F(sample.HomeGrainIncome)} homeFields={sample.HomeFields} settlements={sample.SettlementCount} civPopulation={sample.CivilizationPopulation} civChildren={sample.CivilizationChildren} civAdults={sample.CivilizationAdults} civElders={sample.CivilizationElders} cityPopulation={sample.CityPopulation} cityShare={cityShare} civFoodCap={F(sample.CivilizationFoodCap)} civSustainableCapacity={F(sample.CivilizationSustainableCapacity)} civGrainIncome={F(sample.CivilizationGrainIncome)} civTotalFoodIncome={F(sample.CivilizationTotalFoodIncome)} civFields={sample.Fields}");
         }
         for (int civ = 0; civ < anchors.Count; civ++)
         {
             if (anchors[civ].AnchorSeason < 0)
             {
-                output.AppendLine($"FIEF_LAND_CENSORED seed={seed} arm={arm} civ={civ} reason=no_key5_by_horizon");
+                output.AppendLine($"FIEF_LAND_CENSORED seed={seed} arm={arm} focusCiv={(focusCiv < 0 ? "all" : focusCiv.ToString(CultureInfo.InvariantCulture))} civ={civ} reason=no_key5_by_horizon");
                 continue;
             }
             int[] missing = Enumerable.Range(0, offsets.Count).Where(i => !sampledOffsets[civ, i]).Select(i => offsets[i]).ToArray();
             if (missing.Length > 0)
-                output.AppendLine($"FIEF_LAND_CENSORED seed={seed} arm={arm} civ={civ} anchorSeason={anchors[civ].AnchorSeason} missingOffsets={string.Join(',', missing)}");
+                output.AppendLine($"FIEF_LAND_CENSORED seed={seed} arm={arm} focusCiv={(focusCiv < 0 ? "all" : focusCiv.ToString(CultureInfo.InvariantCulture))} civ={civ} anchorSeason={anchors[civ].AnchorSeason} missingOffsets={string.Join(',', missing)}");
         }
     }
 
