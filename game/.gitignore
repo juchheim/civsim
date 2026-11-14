@@ -3,4 +3,5 @@
 !assets/ui/loading/ATG-after-video-screen.png.import
 !assets/ui/hud/*.import
 !assets/ui/skins/**/*.import
+!assets/ui/title/*.import
 !assets/fonts/**/*.import

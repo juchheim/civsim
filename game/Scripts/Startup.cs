@@ -35,6 +35,7 @@ public partial class Startup : Control
         }
 
         MouseFilter = MouseFilterEnum.Ignore;
+        UiSettings.Load();
 
         var background = new ColorRect
         {
@@ -57,6 +58,21 @@ public partial class Startup : Control
         };
         _video.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(_video);
+
+        string? shot = UserArgument("--title-shot=");
+        if (shot is not null)
+        {
+            // Development screenshot of the title screen: skip the video, optionally force a button state, save, quit.
+            _transitionStarted = true;
+            RevealAfterVideoScreen();
+            GetTree().CreateTimer(1.8).Timeout += () => { if (UserArgument("--title-state=") is string state) (_startButton as UiTitleButton)?.PreviewState(state); };
+            GetTree().CreateTimer(3.0).Timeout += () =>
+            {
+                GetViewport().GetTexture().GetImage().SavePng(shot);
+                GetTree().Quit();
+            };
+            return;
+        }
 
         VideoStream? intro = GD.Load<VideoStream>(VideoPath);
         if (intro is null)
@@ -110,28 +126,21 @@ public partial class Startup : Control
         _afterVideoImage.SetAnchorsPreset(LayoutPreset.FullRect);
         screen.AddChild(_afterVideoImage);
 
-        _startButton = new Button
+        _startButton = new UiTitleButton
         {
             Name = "StartGame",
             Text = "Start Game",
-            Theme = UiTheme.Build(),
-            ThemeTypeVariation = "Secondary",
-            CustomMinimumSize = new Vector2(340, 64),
             Modulate = new Color(1, 1, 1, 0),
-            FocusMode = FocusModeEnum.All,
             Disabled = true,
-            MouseDefaultCursorShape = CursorShape.PointingHand,
         };
-        _startButton.AddThemeFontOverride("font", UiTheme.Display);
-        _startButton.AddThemeFontSizeOverride("font_size", UiTokens.FontYear);
         _startButton.AnchorLeft = 0.5f;
         _startButton.AnchorTop = 0.68f;
         _startButton.AnchorRight = 0.5f;
         _startButton.AnchorBottom = 0.68f;
-        _startButton.OffsetLeft = -170;
-        _startButton.OffsetTop = -32;
-        _startButton.OffsetRight = 170;
-        _startButton.OffsetBottom = 32;
+        _startButton.OffsetLeft = -UiTitleButton.PlateWidth / 2;
+        _startButton.OffsetTop = -UiTitleButton.PlateHeight / 2;
+        _startButton.OffsetRight = UiTitleButton.PlateWidth / 2;
+        _startButton.OffsetBottom = UiTitleButton.PlateHeight / 2;
         _startButton.Pressed += StartGame;
         screen.AddChild(_startButton);
 
@@ -201,6 +210,12 @@ public partial class Startup : Control
             if (_startButton is not null) _startButton.Disabled = false;
             GD.PushError($"Could not open game scene {GameScenePath}: {result}");
         }
+    }
+
+    private static string? UserArgument(string prefix)
+    {
+        string? arg = OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith(prefix, StringComparison.Ordinal));
+        return arg?[prefix.Length..];
     }
 
     private static bool IsDevelopmentPresentationRun()
