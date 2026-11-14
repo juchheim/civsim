@@ -66,12 +66,15 @@ internal static class IronMatchCommand
         public required int SettlementId;
         public required int Civilization;
         public required int StartSeason;
+        public int SensitivityWaterSources, SensitivityWindSources;
         public int Samples;
         public int WaterSources, WindSources;
         public Fix64 PopulationSeasons, GrainMilledPeopleSeasons;
         public Fix64 AvailablePowerHours, GrindingUsed, SawingUsed, CraftUsed, UnusedPowerHours;
+        public Fix64 SensitivityGrainMilledPeopleSeasons;
+        public Fix64 SensitivityAvailablePowerHours, SensitivityGrindingUsed, SensitivitySawingUsed, SensitivityCraftUsed;
 
-        public void Add(MillPowerLedgerSnapshot row)
+        public void Add(MillPowerLedgerSnapshot row, MillPowerLedgerSnapshot sensitivity)
         {
             Samples++;
             Civilization = row.Civilization;
@@ -84,9 +87,15 @@ internal static class IronMatchCommand
             SawingUsed += row.SawingUsed;
             CraftUsed += row.CraftUsed;
             UnusedPowerHours += row.UnusedPowerHours;
+            SensitivityGrainMilledPeopleSeasons += sensitivity.GrainMilledPeople;
+            SensitivityAvailablePowerHours += sensitivity.AvailablePowerHours;
+            SensitivityGrindingUsed += sensitivity.GrindingUsed;
+            SensitivitySawingUsed += sensitivity.SawingUsed;
+            SensitivityCraftUsed += sensitivity.CraftUsed;
         }
 
         public Fix64 GrainCoverage => PopulationSeasons > Fix64.Zero ? GrainMilledPeopleSeasons / PopulationSeasons : Fix64.Zero;
+        public Fix64 SensitivityGrainCoverage => PopulationSeasons > Fix64.Zero ? SensitivityGrainMilledPeopleSeasons / PopulationSeasons : Fix64.Zero;
         public bool Complete => Samples >= 12;
     }
 
@@ -442,10 +451,22 @@ internal static class IronMatchCommand
                     if (!fiefPowerWindows.TryGetValue(row.SettlementId, out FiefPowerWindow? window))
                     {
                         if (!hasSource) continue;
-                        window = new FiefPowerWindow { SettlementId = row.SettlementId, Civilization = row.Civilization, StartSeason = season };
+                        window = new FiefPowerWindow
+                        {
+                            SettlementId = row.SettlementId,
+                            Civilization = row.Civilization,
+                            StartSeason = season,
+                            SensitivityWaterSources = row.WaterMillSources > 0 ? 1 : 0,
+                            SensitivityWindSources = row.WaterMillSources == 0 && row.WindmillSources > 0 ? 1 : 0,
+                        };
                         fiefPowerWindows.Add(row.SettlementId, window);
                     }
-                    if (!window.Complete && season < window.StartSeason + 12) window.Add(row);
+                    if (!window.Complete && season < window.StartSeason + 12)
+                    {
+                        MillPowerLedgerSnapshot sensitivity = match.Economy.FixtureMillPowerLedger(
+                            row.SettlementId, season, window.SensitivityWaterSources, window.SensitivityWindSources);
+                        window.Add(row, sensitivity);
+                    }
                 }
             }
             for (int c = 0; c < civs; c++)
@@ -631,6 +652,25 @@ internal static class IronMatchCommand
             string end = (window.StartSeason + Math.Min(11, window.Samples - 1)).ToString(CultureInfo.InvariantCulture);
             output.AppendLine($"  s{window.SettlementId} c{window.Civilization} seasons {window.StartSeason}–{end}: {coverage}, sources water/wind {window.WaterSources}/{window.WindSources}, power {F(window.GrindingUsed + window.SawingUsed + window.CraftUsed)}/{F(window.AvailablePowerHours)} hours" +
                 (window.Complete ? string.Empty : $" (censored {window.Samples}/12)"));
+        }
+
+        FiefPowerWindow[] low = complete.Where(window => window.GrainCoverage < Fix64.FromRatio(60, 100)).ToArray();
+        Fix64 lowPopulation = Fix64.Zero, lowMilled = Fix64.Zero, sensitivityMilled = Fix64.Zero;
+        int sensitivityPassing = 0;
+        foreach (FiefPowerWindow window in low)
+        {
+            lowPopulation += window.PopulationSeasons;
+            lowMilled += window.GrainMilledPeopleSeasons;
+            sensitivityMilled += window.SensitivityGrainMilledPeopleSeasons;
+            if (window.SensitivityGrainCoverage >= Fix64.FromRatio(60, 100)) sensitivityPassing++;
+        }
+        output.AppendLine("  one-extra-mill sensitivity for complete below-60% windows (virtual source; selected as first observed source type, water if mixed; allocation and jobs are recomputed):");
+        output.AppendLine($"    windows reaching 60%={sensitivityPassing}/{low.Length}; weighted coverage={Pct(sensitivityMilled, lowPopulation)} (baseline {Pct(lowMilled, lowPopulation)})");
+        foreach (FiefPowerWindow window in low)
+        {
+            string added = window.SensitivityWaterSources > 0 ? "water" : "wind";
+            output.AppendLine($"    s{window.SettlementId} c{window.Civilization}: add {added}; coverage {Pct(window.GrainMilledPeopleSeasons, window.PopulationSeasons)} -> {Pct(window.SensitivityGrainMilledPeopleSeasons, window.PopulationSeasons)}; " +
+                $"grind/saw/craft {F(window.GrindingUsed)}/{F(window.SawingUsed)}/{F(window.CraftUsed)} -> {F(window.SensitivityGrindingUsed)}/{F(window.SensitivitySawingUsed)}/{F(window.SensitivityCraftUsed)} hours");
         }
     }
 

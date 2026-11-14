@@ -145,6 +145,7 @@ public static class BuildText
             BuildWhy.OnePerCivilization => "Your civilization may hold only one, and it is built (or being built) elsewhere.",
             BuildWhy.WonderHeldElsewhere => "Only one of each Wonder exists, and someone holds it.",
             BuildWhy.AcademyLimit => $"Your civilization keeps at most {g.Arg} academies.",
+            BuildWhy.MonasteryLimit => $"Your civilization keeps at most {g.Arg} monasteries.",
             BuildWhy.MarketsGoToLargest => "Markets go to your civilization's largest towns, and this is not among them.",
             BuildWhy.NotLargestTown => "A Wonder is raised in your civilization's largest town, and this is not it.",
             BuildWhy.NotMember => "This settlement does not belong to your realm.",

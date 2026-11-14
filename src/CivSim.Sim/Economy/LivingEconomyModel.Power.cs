@@ -85,7 +85,7 @@ public sealed partial class LivingEconomyModel
     /// Deterministic per-season allocation, in worker-season power hours. Demand is the oracle's modeled job mix; grain
     /// coverage is the resident share served, capped by MillPeople per source and by the grinding share actually funded.
     /// </summary>
-    private MillPowerAllocation MillPower(SettlementState s)
+    private MillPowerAllocation MillPower(SettlementState s, int extraWaterSources = 0, int extraWindSources = 0)
     {
         if (!FiefChain)
             return new MillPowerAllocation(Population(s.Id), 0, 0, Fix64.Zero,
@@ -93,13 +93,15 @@ public sealed partial class LivingEconomyModel
                 Fix64.Zero, Fix64.Zero, Fix64.Zero);
 
         int population = Population(s.Id);
-        int waterSources = IronWorksCount(s, IronStructure.WaterMill);
-        int windSources = Done(s.Civilization, "NRG-05") ? IronWorksCount(s, IronStructure.Windmill) : 0;
+        int waterSources = IronWorksCount(s, IronStructure.WaterMill) + extraWaterSources;
+        int windSources = Done(s.Civilization, "NRG-05") ? IronWorksCount(s, IronStructure.Windmill) + extraWindSources : 0;
         Fix64 adults = Fix64.FromInt(population);
         Fix64 available = Fix64.FromInt(waterSources) * WaterMillPowerHours +
                           Fix64.FromInt(windSources) * WindmillPowerHours * WindAvailability;
         Fix64 grindingDemand = adults * GrindingWorkShare / GrindingMultiplier;
-        Fix64 sawingDemand = adults * SawingWorkShare / SawingMultiplier;
+        bool hasPoweredSawmill = (waterSources > 0 || windSources > 0) &&
+                                 IronWorksCount(s, IronStructure.Sawmill) > 0 && Done(s.Civilization, "WOD-09");
+        Fix64 sawingDemand = hasPoweredSawmill ? adults * SawingWorkShare / SawingMultiplier : Fix64.Zero;
         Fix64 craftDemand = adults * PoweredCraftWorkShare / PoweredCraftMultiplier;
 
         Fix64 remaining = available;
@@ -204,10 +206,13 @@ public sealed partial class LivingEconomyModel
     }
 
     internal Fix64 FixtureGrainValue(int settlementIndex) => FoodValue(Good.Grain, _settlements[settlementIndex]);
-    internal MillPowerLedgerSnapshot FixtureMillPowerLedger(int settlementIndex, int season = 0)
+    internal MillPowerLedgerSnapshot FixtureMillPowerLedger(int settlementIndex, int season = 0,
+        int extraWaterSources = 0, int extraWindSources = 0)
     {
+        if (extraWaterSources < 0) throw new ArgumentOutOfRangeException(nameof(extraWaterSources));
+        if (extraWindSources < 0) throw new ArgumentOutOfRangeException(nameof(extraWindSources));
         SettlementState s = _settlements[settlementIndex];
-        MillPowerAllocation p = MillPower(s);
+        MillPowerAllocation p = MillPower(s, extraWaterSources, extraWindSources);
         return new MillPowerLedgerSnapshot(s.Id, s.Civilization, season, Tier(s.Id), p.Population,
             p.WaterSources, p.WindSources, p.Available, p.GrindingDemand, p.GrindingUsed,
             p.SawingDemand, p.SawingUsed, p.CraftDemand, p.CraftUsed, p.Unused,

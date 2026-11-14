@@ -123,12 +123,16 @@ public class ChapterRulesTests
         MatchModel bronze = MatchModel.Create(seed, TestPack.Pack);
         MatchModel explicitBronze = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), default, default, rules: ChapterRules.Bronze);
         MatchModel iron = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), default, default, rules: ChapterRules.Iron);
+        MatchModel fief = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), default, default, rules: ChapterRules.Fief);
         Assert.Same(ChapterRules.Bronze, bronze.Rules);
         Assert.Same(ChapterRules.Iron, iron.Rules);
-        foreach (MatchModel m in new[] { bronze, explicitBronze, iron })
+        foreach (MatchModel m in new[] { bronze, explicitBronze, iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
 
-        byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron);
+        byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
+        Assert.Equal(30, System.BitConverter.ToInt32(bronzeBytes, 4));
+        Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
+        Assert.Equal(32, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.Equal(bronzeBytes, Snapshot(explicitBronze));
         Assert.Equal(bronze.ComputeChecksum(), explicitBronze.ComputeChecksum());
         Assert.True(ironBytes.Length > bronzeBytes.Length); // the Iron trailer

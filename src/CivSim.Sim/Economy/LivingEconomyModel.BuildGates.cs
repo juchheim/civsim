@@ -44,7 +44,7 @@ public enum BuildWhy : byte
     OnePerCivilization, WonderHeldElsewhere, AcademyLimit, MarketsGoToLargest, NotLargestTown, NotMember,
     HousingEnough, PlannerOnlyOne, WaterNotLimiting, CraneNoLargeWork, FlatFieldsRemain, CloseToCapital,
     // Faith & Fief (appended).
-    MillAlready, NeedsMill, NeedsForge,
+    MillAlready, NeedsMill, NeedsForge, MonasteryLimit,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -233,6 +233,18 @@ public sealed partial class LivingEconomyModel
                 if (!(gate = Town()).Open) return gate;
                 if (!(gate = Size(50)).Open) return gate;
                 return CivWorksCount(civ, IronStructure.Academy) < MaxAcademies ? BuildGate.Pass : Stop(BuildCause.Taken, BuildWhy.AcademyLimit, MaxAcademies);
+            case IronStructure.University:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                return Town();
+            case IronStructure.Monastery:
+                // BEL-10's first implementation is bounded to three staffed monasteries per Fief civilization.
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!(gate = Size(50)).Open) return gate;
+                return CivWorksCount(civ, IronStructure.Monastery) < MaxMonasteries
+                    ? BuildGate.Pass : Stop(BuildCause.Taken, BuildWhy.MonasteryLimit, MaxMonasteries);
             case IronStructure.Press:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;

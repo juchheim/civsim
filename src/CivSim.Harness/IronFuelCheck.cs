@@ -82,6 +82,10 @@ internal static class IronFuelCheck
         public Fix64 MaxTwelveSeasonLabor, MaxTwelveSeasonMetalLabor;
         public int MaxTwelveSeasonEnd;
         public int TwelveSeasonWindows;
+        public Fix64 FirstTwelveSeasonShare, FirstTwelveSeasonLabor, FirstTwelveSeasonMetalLabor;
+        public int FirstTwelveSeasonEnd;
+        public Fix64 MaxLateTwelveSeasonShare, MaxLateTwelveSeasonLabor, MaxLateTwelveSeasonMetalLabor;
+        public int MaxLateTwelveSeasonEnd, LateTwelveSeasonWindows;
         public int Kit11Breaks, Kit12Breaks;
         public int IronEraFuelDemandSeasons, IronEraFuelShortSeasons;
         public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
@@ -264,7 +268,9 @@ internal static class IronFuelCheck
             rowsByScenario.TryGetValue("fief-low-wood-no-furnace", out Dictionary<ulong, Row>? controlRows))
         {
             int paired = 0, furnaceAttributedCrossings = 0, workShareMisses = 0, fuelShortMisses = 0, matureWindowMisses = 0;
+            int lateWindowMisses = 0, lateWorkShareMisses = 0;
             Fix64 maxTwelveSeasonShare = Fix64.Zero, maxFuelShort = Fix64.Zero;
+            Fix64 maxLateTwelveSeasonShare = Fix64.Zero;
             Row? worstWorkShare = null;
             var immatureRows = new List<Row>();
             foreach (KeyValuePair<ulong, Row> pair in furnaceRows)
@@ -277,6 +283,12 @@ internal static class IronFuelCheck
                     matureWindowMisses++;
                     immatureRows.Add(furnace);
                 }
+                if (furnace.LateTwelveSeasonWindows == 0) lateWindowMisses++;
+                else
+                {
+                    maxLateTwelveSeasonShare = Fix64.Max(maxLateTwelveSeasonShare, furnace.MaxLateTwelveSeasonShare);
+                    if (furnace.MaxLateTwelveSeasonShare > ShareCeiling) lateWorkShareMisses++;
+                }
                 int extraCrossings = Math.Max(0, furnace.ForestClearThresholdCrossings - control.ForestClearThresholdCrossings);
                 furnaceAttributedCrossings += extraCrossings;
                 maxTwelveSeasonShare = Fix64.Max(maxTwelveSeasonShare, furnace.MaxTwelveSeasonShare);
@@ -288,8 +300,20 @@ internal static class IronFuelCheck
             L();
             L("F-T3 low-wood furnace gate (paired by seed; work share is the maximum of every rolling 12-season window after first kit output plus 12 seasons):");
             L($"  paired seeds: {paired}; maximum mature 12-season work share: {Pct(maxTwelveSeasonShare)}; seeds over 15%: {workShareMisses}; seeds without a mature window: {matureWindowMisses}");
+            L($"  wholly late windows (end season >= {seasons / 2 + 12}): maximum work share {Pct(maxLateTwelveSeasonShare)}; seeds over 15%: {lateWorkShareMisses}; seeds without a late window: {lateWindowMisses}");
             foreach (Row immature in immatureRows)
                 L($"  censored seed {immature.Seed}: route season {immature.IronRouteActivatedSeason}, first kit season {immature.IronFirstKitSeason}, charcoal-demand seasons {immature.IronEraFuelDemandSeasons}");
+            foreach (Row row in furnaceRows.Values.OrderBy(row => row.Seed))
+                L($"  window phases seed {row.Seed}: first eligible=" +
+                  $"{(row.TwelveSeasonWindows > 0 ? Pct(row.FirstTwelveSeasonShare) : "n/a")} end={row.FirstTwelveSeasonEnd}; " +
+                  $"late max={(row.LateTwelveSeasonWindows > 0 ? Pct(row.MaxLateTwelveSeasonShare) : "n/a")} " +
+                  $"end={row.MaxLateTwelveSeasonEnd} ({row.LateTwelveSeasonWindows} windows)");
+            foreach (Row miss in furnaceRows.Values
+                         .Where(row => row.TwelveSeasonWindows > 0 && row.MaxTwelveSeasonShare > ShareCeiling)
+                         .OrderBy(row => row.Seed))
+                L($"  work-share miss seed {miss.Seed}: {Pct(miss.MaxTwelveSeasonShare)} in seasons " +
+                  $"{miss.MaxTwelveSeasonEnd - 11}–{miss.MaxTwelveSeasonEnd}; " +
+                  $"{miss.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{miss.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2} metal/civilian work");
             if (worstWorkShare is { } worst)
                 L($"  worst window: seed {worst.Seed}, seasons {worst.MaxTwelveSeasonEnd - 11}–{worst.MaxTwelveSeasonEnd}; {worst.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{worst.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2} metal/civilian work; route season {worst.IronRouteActivatedSeason}, first kit season {worst.IronFirstKitSeason}");
             L($"  maximum final-half NoFuel share: {Pct(maxFuelShort)}; seeds over 5%: {fuelShortMisses}");
@@ -490,12 +514,30 @@ internal static class IronFuelCheck
             if (sc.Fief && s >= seasonLabor.Length - 1 && ironFirstKitSeason > 0 && s + 1 >= ironFirstKitSeason + 12)
             {
                 Fix64 share = twelveSeasonLabor > Fix64.Zero ? twelveSeasonMetalLabor / twelveSeasonLabor : Fix64.Zero;
-                if (share > row.MaxTwelveSeasonShare)
+                if (row.TwelveSeasonWindows == 0)
+                {
+                    row.FirstTwelveSeasonShare = share;
+                    row.FirstTwelveSeasonLabor = twelveSeasonLabor;
+                    row.FirstTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                    row.FirstTwelveSeasonEnd = s + 1;
+                }
+                if (row.TwelveSeasonWindows == 0 || share > row.MaxTwelveSeasonShare)
                 {
                     row.MaxTwelveSeasonShare = share;
                     row.MaxTwelveSeasonLabor = twelveSeasonLabor;
                     row.MaxTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
                     row.MaxTwelveSeasonEnd = s + 1;
+                }
+                if (s + 1 >= window + 12)
+                {
+                    if (row.LateTwelveSeasonWindows == 0 || share > row.MaxLateTwelveSeasonShare)
+                    {
+                        row.MaxLateTwelveSeasonShare = share;
+                        row.MaxLateTwelveSeasonLabor = twelveSeasonLabor;
+                        row.MaxLateTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                        row.MaxLateTwelveSeasonEnd = s + 1;
+                    }
+                    row.LateTwelveSeasonWindows++;
                 }
                 row.TwelveSeasonWindows++;
             }

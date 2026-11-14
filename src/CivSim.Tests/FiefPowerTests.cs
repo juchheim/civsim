@@ -60,11 +60,14 @@ public class FiefPowerTests
     [Fact]
     public void A_windmill_is_a_mill_that_turns_four_seasons_in_five_and_only_in_a_Fief_match()
     {
-        BronzeFixture water = Fief("NRG-05");
+        BronzeFixture water = Fief("NRG-05", "WOD-09");
         water.Economy.FixtureSetIronWork(0, "water_mill", 1);
-        BronzeFixture wind = Fief("NRG-05");
+        water.Economy.FixtureSetIronWork(0, "sawmill", 1);
+        BronzeFixture wind = Fief("NRG-05", "WOD-09");
         wind.Economy.FixtureSetIronWork(0, "windmill", 1);
-        BronzeFixture none = Fief("NRG-05");
+        wind.Economy.FixtureSetIronWork(0, "sawmill", 1);
+        BronzeFixture none = Fief("NRG-05", "WOD-09");
+        none.Economy.FixtureSetIronWork(0, "sawmill", 1);
         foreach (BronzeFixture t in new[] { water, wind, none }) t.Economy.FixtureSetTier(0, 1);   // grain value needs a civic town
 
         Fix64 plain = none.Economy.FixtureBatch(0, "forge_wrought").Labor;
@@ -119,6 +122,63 @@ public class FiefPowerTests
 
         var snapshots = powered.Economy.CaptureMillPowerSnapshots(7);
         Assert.Contains(snapshots, row => row.SettlementId == ledger.SettlementId && row.Season == 7 && row.GrainCoverage == ledger.GrainCoverage);
+    }
+
+    [Fact]
+    public void A_town_reserves_sawing_hours_only_for_a_built_WOD09_sawmill()
+    {
+        BronzeFixture withoutSawmill = Fief("NRG-03", "WOD-09");
+        withoutSawmill.Economy.FixtureAddPeople(0, 200, 25);
+        withoutSawmill.Economy.FixtureSetTier(0, 1);
+        withoutSawmill.Economy.FixtureSetIronWork(0, "water_mill", 1);
+        var noSawmillLedger = withoutSawmill.Economy.FixtureMillPowerLedger(0);
+
+        Assert.Equal(Fix64.Zero, noSawmillLedger.SawingDemand);
+        Assert.Equal(Fix64.Zero, noSawmillLedger.SawingUsed);
+        Assert.Equal(noSawmillLedger.AvailablePowerHours - noSawmillLedger.GrindingUsed,
+            noSawmillLedger.CraftUsed);
+
+        BronzeFixture unresearchedSawmill = Fief("NRG-03");
+        unresearchedSawmill.Economy.FixtureAddPeople(0, 200, 25);
+        unresearchedSawmill.Economy.FixtureSetTier(0, 1);
+        unresearchedSawmill.Economy.FixtureSetIronWork(0, "water_mill", 1);
+        unresearchedSawmill.Economy.FixtureSetIronWork(0, "sawmill", 1);
+        var unresearchedLedger = unresearchedSawmill.Economy.FixtureMillPowerLedger(0);
+        Assert.Equal(Fix64.Zero, unresearchedLedger.SawingDemand);
+        Assert.Equal(Fix64.Zero, unresearchedLedger.SawingUsed);
+
+        BronzeFixture withSawmill = Fief("NRG-03", "WOD-09");
+        withSawmill.Economy.FixtureAddPeople(0, 200, 25);
+        withSawmill.Economy.FixtureSetTier(0, 1);
+        withSawmill.Economy.FixtureSetIronWork(0, "water_mill", 1);
+        withSawmill.Economy.FixtureSetIronWork(0, "sawmill", 1);
+        var sawmillLedger = withSawmill.Economy.FixtureMillPowerLedger(0);
+
+        Assert.Equal(Fix64.FromInt(300) * Fix64.FromRatio(2, 100) / Fix64.FromInt(4),
+            sawmillLedger.SawingDemand);
+        Assert.Equal(sawmillLedger.AvailablePowerHours - sawmillLedger.GrindingUsed,
+            sawmillLedger.SawingUsed);
+        Assert.Equal(Fix64.Zero, sawmillLedger.CraftUsed);
+    }
+
+    [Fact]
+    public void A_virtual_same_type_mill_sensitivity_changes_the_ledger_without_mutating_the_town()
+    {
+        BronzeFixture f = Fief("NRG-05");
+        f.Economy.FixtureAddPeople(0, 500, 25);
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureSetIronWork(0, "windmill", 1);
+
+        var baseline = f.Economy.FixtureMillPowerLedger(0);
+        var addedWindmill = f.Economy.FixtureMillPowerLedger(0, extraWindSources: 1);
+        var actualAfter = f.Economy.FixtureMillPowerLedger(0);
+
+        Assert.Equal(1, baseline.WindmillSources);
+        Assert.Equal(2, addedWindmill.WindmillSources);
+        Assert.True(addedWindmill.GrainCoverage > baseline.GrainCoverage);
+        Assert.Equal(baseline, actualAfter); // a sensitivity readout, not a changed simulation state
+        Assert.Equal(addedWindmill.AvailablePowerHours,
+            addedWindmill.GrindingUsed + addedWindmill.SawingUsed + addedWindmill.CraftUsed + addedWindmill.UnusedPowerHours);
     }
 
     [Fact]

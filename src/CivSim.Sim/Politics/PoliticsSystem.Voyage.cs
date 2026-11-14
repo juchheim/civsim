@@ -28,9 +28,11 @@ public sealed partial class PoliticsSystem
     private int[] _landmassSize = Array.Empty<int>();
     private int[]?[] _walkFrom = Array.Empty<int[]?>();
     private int[]?[] _sailFrom = Array.Empty<int[]?>();
+    private int _way08 = -1;
 
     private void InitVoyages()
     {
+        _way08 = _research.Catalog.IndexOf("WAY-08");
         int n = _tileArray.Length;
         _landDistance = HexGrid.LandDistances(_tileArray, _width, _height);
         _landmass = new int[n];
@@ -109,7 +111,17 @@ public sealed partial class PoliticsSystem
     public int VoyageRiskPermille(int civ, int fromTile, int toTile)
     {
         int sea = SeaTilesOnRoute(civ, fromTile, toTile);
-        return sea <= 0 ? 0 : Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
+        return VoyageRiskForSeaTiles(civ, sea);
+    }
+
+    /// <summary>Base open-sea risk, with Fief's WAY-08 navigation reducing ship-loss risk by half.</summary>
+    private int VoyageRiskForSeaTiles(int civ, int sea)
+    {
+        if (sea <= 0) return 0;
+        int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
+        if (_economy.FiefChain && (uint)civ < (uint)_civs && _way08 >= 0 && _research.IsDone(civ, _way08))
+            risk /= 2;
+        return risk;
     }
 
     internal bool FixtureRollVoyageLost(int risk, ulong entity, int season, int civ) => RollVoyageLost(risk, entity, season, civ);
@@ -133,7 +145,7 @@ public sealed partial class PoliticsSystem
         int from = _sTile[e.FromSettlement], to = _sTile[e.ToSettlement];
         int sea = SeaTilesOnRoute(e.Civ, from, to);
         if (sea <= 0) return false;
-        int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
+        int risk = VoyageRiskForSeaTiles(e.Civ, sea);
         ulong entity = (ulong)(e.FromSettlement * 4099L + e.ToSettlement * 7L + (int)e.Kind);
         if (!RollVoyageLost(risk, entity, _season, e.Civ)) return false;
         _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.VoyageLost, e.TargetCiv, sea, (int)e.Kind));
@@ -168,7 +180,7 @@ public sealed partial class PoliticsSystem
     {
         int sea = SeaTilesOnRoute(civ, fromTile, toTile);
         if (sea <= 0) return false;
-        int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
+        int risk = VoyageRiskForSeaTiles(civ, sea);
         ulong entity = (ulong)(fromTile * 8191L + toTile) * 31UL + 4UL;
         if (!RollVoyageLost(risk, entity, season, civ)) return false;
         _events.Add(new PoliticsEvent(_economy.Tick, (byte)civ, PoliticsEventKind.VoyageLost, -1, sea, 4));

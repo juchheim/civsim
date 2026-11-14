@@ -1,6 +1,6 @@
 # M12 WP-E5-5 (F-T4): land and food oracle (updated 2026-11-14)
 
-**Status:** The five-geography fixture screen, four-seed all-seat horizon screen, eight-seed Builder follow-up, four-seed stratified follow-up, and 36-pair archetype-balanced natural-start cohort are complete. The cohort includes a live E4 trajectory and synchronized whole-match observations to the 180-minute horizon. These remain diagnostics, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
+**Status:** The five-geography fixture screen, matched natural-start cohorts, live E4 trajectory, and synchronized whole-match observations to the 180-minute horizon are complete. An additional 80-world unscreened holdout now supplies a population-weighted estimate and provisional empirical capacity band. These remain diagnostics, not an approved acceptance result; E5 rows remain draft and no numeric cap band is approved.
 
 ## Correction
 
@@ -113,6 +113,29 @@ Ratios are AGR-11 treatment divided by its matched control; city-share values ar
 
 All pairs have +240 and horizon-end rows. Five pairs lack the +320 snapshot because their focused KEY-5 anchor was too late for an 80-minute follow-up before the run cap (10 arm captures had at least one censored offset). The final rows cover all 288 civilization-arms, with 284 KEY-6 completions; no match ended before the 180-minute cap. This is consistent with the confirmed no-rival-countdown rule. The raw rows are in [m12-wp8d-long-horizon-output-2026-11-14.txt](m12-wp8d-long-horizon-output-2026-11-14.txt), and [fief_land_anchor_audit.py](tools/fief_land_anchor_audit.py) reports the synchronized trajectory and censorship.
 
+## Population-weighted natural-start holdout and fitted band
+
+The independent holdout selected 80 distinct seed worlds without replacement from `20270001..20280000` using selection seed `20261114`. One focus seat was drawn uniformly from the four generated seats in each world; no geography or match-outcome screening was used. The selected worlds span seeds `20270403..20279994`. Each world was replayed for 130 minutes in paired arms on the same promoted temporary pack (`9ea23672798ab8cbd2b57b98fe8c1a6f450801fccebfe4c0665e90d7d4041a20`): treatment grants AGR-11 only to the selected seat, while control withholds it; all other E5 grants match. The [seat list](m12-wp8d-population-heldout-seats-2026-11-14.tsv) and [raw manifests and samples](m12-wp8d-population-heldout-output-2026-11-14.txt) preserve the cohort.
+
+The estimator uses each control civilization's population at the matched offset-0 KEY-5 anchor as its weight, before AGR-11. The primary outcome is the selected civilization's sustainable-capacity ratio (AGR-11/control) at +12 seasons. Manifests match on pack hash, world fingerprint, start checksum and selected seat; complete pairs also match on the offset-0 focused state and tick, and on the +12 tick. The fitter validates the full frozen seed/seat list, both manifests per selected world, the selected seat, matched sample identity and the exact +12-season tick offset; missing samples must have a matching censor record. Seventy-nine of 80 pairs have a focused KEY-5 anchor and +12 sample. Seed `20277457/c2` (Warlord) did not reach KEY-5 by the 130-minute horizon in either arm, so it is reported as censored and excluded without imputation. The completed pairs comprise 18 Builders, 20 Growers, 19 Sages and 22 Warlords.
+
+| +12-season selected-civilization outcome | Result |
+|---|---:|
+| Complete matched seats | 79 / 80 |
+| Unweighted sustainable-capacity ratio, mean / median | 1.1094 / 1.1086 |
+| Population-weighted sustainable-capacity ratio | 1.1111 (+11.11%) |
+| Seed-bootstrap 95% interval for weighted mean | 1.1067–1.1155 (+10.67% to +11.55%) |
+| Population-weighted empirical 5th–95th percentile band | 1.0805–1.1401 (+8.05% to +14.01%) |
+| Population-weighted FoodCap ratio | 1.1027 (+10.27%) |
+| Population-weighted empirical 5th–95th percentile band for civilization FoodCap ratio | 1.0672–1.1297 (+6.72% to +12.97%) |
+| Population-weighted realized population ratio | 1.0180 (+1.80%) |
+| Weighted realized-population / sustainable-capacity coverage, control → treatment | 68.87% → 63.12% |
+| Sensitivity: capacity ratio weighted by control population at +12 | 1.1113 (+11.13%); band 1.0805–1.1401 |
+
+The main fitted band is the weighted central 90% of observed complete-seat sustainable-capacity ratios; the literal civilization FoodCap ratio has its own weighted band shown above. Neither band is a confidence interval, gameplay tolerance, physical-grain estimate, or approved pass/fail threshold. The bootstrap interval describes uncertainty in the weighted sustainable-capacity mean across sampled seed worlds. The +12 result is an early capacity response: realized population is only 1.8% higher, and the weighted realized-population/capacity ratio falls from 68.87% to 63.12%. It must not be read as an expected population increase or as stored grain. The 79 complete seats include 70 river-access and nine no-river starts, 30 coastal, 43 inland and six deep-inland starts; these tags overlap. They are naturally sampled, but this single holdout does not authorize promoting the E5 row or selecting a cap acceptance threshold.
+
+Use [make_fief_land_population_holdout.py](tools/make_fief_land_population_holdout.py) to reproduce the seed/seat selection, [run_fief_land_long_horizon.py](tools/run_fief_land_long_horizon.py) to replay it, and [fief_land_population_weighted_fit.py](tools/fief_land_population_weighted_fit.py) to reproduce the weighted estimate, bootstrap interval and band. [fief_land_anchor_audit.py](tools/fief_land_anchor_audit.py) checks the paired natural-start observations and their censorship.
+
 ## Reproduction and remaining gate
 
 `FiefLandTests.Fief_food_oracle_covers_five_geographies_and_conserves_harvested_grain` checks the crop schedule, 1.5× grain contribution, sustainable population capacity, 4:3 labor cost, six-year grain output, and closed grain-store balance for all five profiles. Run it with:
@@ -130,8 +153,17 @@ python3 docs/MVP/balance/tools/run_fief_land_long_horizon.py \
   docs/MVP/balance/m12-wp8d-balanced-anchor-output-2026-11-14.txt
 python3 docs/MVP/balance/tools/fief_land_anchor_audit.py \
   docs/MVP/balance/m12-wp8d-long-horizon-output-2026-11-14.txt
+python3 docs/MVP/balance/tools/make_fief_land_population_holdout.py \
+  --output docs/MVP/balance/m12-wp8d-population-heldout-seats-2026-11-14.tsv
+python3 docs/MVP/balance/tools/run_fief_land_long_horizon.py \
+  --pack /tmp/civsim-e5-long-promoted.pack --minutes 130 --workers 9 \
+  --output docs/MVP/balance/m12-wp8d-population-heldout-output-2026-11-14.txt \
+  docs/MVP/balance/m12-wp8d-population-heldout-seats-2026-11-14.tsv
+python3 docs/MVP/balance/tools/fief_land_population_weighted_fit.py \
+  docs/MVP/balance/m12-wp8d-population-heldout-output-2026-11-14.txt \
+  --seats docs/MVP/balance/m12-wp8d-population-heldout-seats-2026-11-14.tsv
 ```
 
 The long-horizon command expects the temporary test pack with all 50 E5 rows promoted; the pack is kept outside the repository and its hash is recorded in every manifest. This run did not change the content rows from `draft`.
 
-F-T4 now has 36 exact-state anchors, nine per archetype, a matched live E4 trajectory through KEY-5, and a synchronized whole-match follow-up through the 180-minute cap. Its aggregate whole-match response stays close to matched parity through +240 seasons and at the horizon. The geography sample is deliberately stratified, so it does not establish population-weighted effects or a fitted acceptance band; broader held-out balance is still needed. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
+F-T4 now has matched natural-start and long-horizon diagnostics plus an independent 80-world population-weighted holdout. At +12 seasons, the 79 complete held-out pairs estimate +11.11% weighted sustainable capacity (seed-bootstrap 95% interval +10.67% to +11.55%); the provisional weighted 5th–95th percentile band is +8.05% to +14.01%. One Warlord seat never reached KEY-5 by 130 minutes and is censored. The band is not an approved acceptance threshold: the E5 content row stays draft pending review and balance signoff, and sustainable capacity is a model readout rather than a grain stock or realized-population forecast. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.

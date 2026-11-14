@@ -1,0 +1,113 @@
+iron-fuel --fief: 39 seeds, 64 seasons (32-season steady-state window), fixed 200-person fixture settlement
+F-T3: Fief furnace versus matched no-effect control on low wood; 12-season work share <= 15.0%, fuel short <= 5%, no furnace-attributed clearing.
+spatial controls: four matched 30 L forest tiles (120 L opening stock; no Coppicing; up to 2 L/season base regrowth below the per-tile cap) placed at radii 1–3 (near), 4–8 (haul), or 9–12 (far); other wood within radius 12 is removed. Reach 8 is default; TRN-05 gives reach 12 and its lower haul cost.
+Iron hub controls: KEY-4 enables catchment-aware hubs; existing SOC-07 sharing reaches 15 tiles, GOV-04 reaches 20, and Iron physical charcoal hauling extends 8 tiles beyond that domestic reach.
+
+scenario            seeds  metal-share(mean/max)  char+fire/season  regrowth/season  all-cuts/season  mass-resid  metal-char/season  metal-cut/season  reachable wood end/start(mean/min)  end/mid  NoFuel fallback(mean/max)  T11+ at fixture12/12 after route/end  bloom+wrought
+fief-low-wood-furnace    39     0.5% / 1.2%           0.66 L       18.94 L       18.92 L       0.000 L        0.66 L          0.00 L           0.67 / 0.17          1.00      0.0%/0.0%       73.3%/74.5%/73.6%     0.42
+fief-low-wood-no-furnace    39     0.5% / 1.6%           0.83 L       19.29 L       19.08 L       0.000 L        0.83 L          0.00 L           0.66 / 0.17          1.01      0.0%/0.0%       70.0%/72.0%/72.6%     0.40
+
+I-T6 planned-charcoal shortfall (final half; demand-seasons count only seasons with a positive charcoal-production plan after existing charcoal stock):
+approved per-seed cutoff: shortfall rate <= 5.0% and unmet / planned charcoal <= 1.0%; fewer than 12 demand-seasons is censored
+scenario                  plan demand seasons mean/max  shortfall rate mean/max  planned charcoal mean L/seed  unmet mean L/seed  unmet share mean/max
+fief-low-wood-furnace       24.2/32               0.0%/0.0%              3.52                0.00         0.0%/0.0%
+  per-seed cutoff: 30/30 eligible pass; 9 censored
+fief-low-wood-no-furnace    24.2/32               0.0%/0.0%              4.43                0.00         0.0%/0.0%
+  per-seed cutoff: 30/30 eligible pass; 9 censored
+
+I-T6 tool service and replacement activity (full fixed-population fixture run):
+scenario                         T11 issued mean  tool-ws/kit  breaks (seeds, total, max)   T12 issued mean  tool-ws/kit  breaks (seeds, total, max)
+fief-low-wood-furnace               72.6         9.79    (0/39, 0, 0)                  0.0         0.00    (0/39, 0, 0)
+fief-low-wood-no-furnace            71.6         9.94    (0/39, 0, 0)                  0.0         0.00    (0/39, 0, 0)
+
+work-share screen:
+  fief-low-wood-furnace: work share within 15.0% on every seed (max 1.2%)
+  fief-low-wood-no-furnace: work share within 15.0% on every seed (max 1.6%)
+
+Forest clearing diagnostic (tile crossings below the simulation's 5 L cleared-woodland threshold, full run):
+scenario                       seeds with crossings  total tile crossings  max in one seed
+fief-low-wood-furnace            0/39                    0                   0
+fief-low-wood-no-furnace         0/39                    0                   0
+
+F-T3 low-wood furnace gate (paired by seed; work share is the maximum of every rolling 12-season window after first kit output plus 12 seasons):
+  paired seeds: 39; maximum mature 12-season work share: 16.8%; seeds over 15%: 17; seeds without a mature window: 7
+  wholly late windows (end season >= 44): maximum work share 2.5%; seeds over 15%: 0; seeds without a late window: 7
+  censored seed 20261026: route season 3, first kit season 0, charcoal-demand seasons 0
+  censored seed 20261028: route season 3, first kit season 0, charcoal-demand seasons 0
+  censored seed 20261033: route season 2, first kit season 0, charcoal-demand seasons 0
+  censored seed 20261049: route season 3, first kit season 0, charcoal-demand seasons 0
+  censored seed 20261051: route season 2, first kit season 0, charcoal-demand seasons 0
+  censored seed 20261052: route season 3, first kit season 0, charcoal-demand seasons 0
+  censored seed 20261055: route season 3, first kit season 0, charcoal-demand seasons 0
+  window phases seed 20261019: first eligible=15.0% end=16; late max=1.6% end=64 (21 windows)
+  window phases seed 20261020: first eligible=15.5% end=16; late max=1.0% end=64 (21 windows)
+  window phases seed 20261021: first eligible=15.5% end=16; late max=0.4% end=59 (21 windows)
+  window phases seed 20261022: first eligible=15.2% end=16; late max=0.8% end=64 (21 windows)
+  window phases seed 20261023: first eligible=15.9% end=18; late max=0.5% end=64 (21 windows)
+  window phases seed 20261024: first eligible=13.9% end=16; late max=1.6% end=64 (21 windows)
+  window phases seed 20261025: first eligible=14.4% end=16; late max=1.2% end=64 (21 windows)
+  window phases seed 20261026: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261027: first eligible=3.6% end=16; late max=0.0% end=44 (21 windows)
+  window phases seed 20261028: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261029: first eligible=15.7% end=17; late max=0.6% end=64 (21 windows)
+  window phases seed 20261030: first eligible=15.0% end=17; late max=0.4% end=61 (21 windows)
+  window phases seed 20261031: first eligible=14.9% end=16; late max=0.6% end=64 (21 windows)
+  window phases seed 20261032: first eligible=5.0% end=17; late max=0.5% end=48 (21 windows)
+  window phases seed 20261033: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261034: first eligible=15.6% end=15; late max=2.1% end=64 (21 windows)
+  window phases seed 20261035: first eligible=14.8% end=16; late max=0.9% end=64 (21 windows)
+  window phases seed 20261036: first eligible=14.5% end=16; late max=1.0% end=64 (21 windows)
+  window phases seed 20261037: first eligible=16.5% end=16; late max=0.9% end=64 (21 windows)
+  window phases seed 20261038: first eligible=14.9% end=17; late max=0.5% end=64 (21 windows)
+  window phases seed 20261039: first eligible=15.2% end=17; late max=0.4% end=57 (21 windows)
+  window phases seed 20261040: first eligible=15.1% end=16; late max=0.6% end=64 (21 windows)
+  window phases seed 20261041: first eligible=15.6% end=15; late max=2.5% end=64 (21 windows)
+  window phases seed 20261042: first eligible=2.6% end=17; late max=0.0% end=44 (21 windows)
+  window phases seed 20261043: first eligible=14.8% end=14; late max=2.5% end=64 (21 windows)
+  window phases seed 20261044: first eligible=14.2% end=17; late max=1.6% end=64 (21 windows)
+  window phases seed 20261045: first eligible=14.3% end=16; late max=1.0% end=64 (21 windows)
+  window phases seed 20261046: first eligible=9.2% end=17; late max=1.5% end=64 (21 windows)
+  window phases seed 20261047: first eligible=16.2% end=18; late max=0.4% end=45 (21 windows)
+  window phases seed 20261048: first eligible=15.5% end=15; late max=0.5% end=62 (21 windows)
+  window phases seed 20261049: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261050: first eligible=15.7% end=17; late max=0.5% end=61 (21 windows)
+  window phases seed 20261051: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261052: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261053: first eligible=15.6% end=18; late max=0.4% end=44 (21 windows)
+  window phases seed 20261054: first eligible=16.8% end=17; late max=0.4% end=61 (21 windows)
+  window phases seed 20261055: first eligible=n/a end=0; late max=n/a end=0 (0 windows)
+  window phases seed 20261056: first eligible=15.5% end=16; late max=1.0% end=64 (21 windows)
+  window phases seed 20261057: first eligible=13.7% end=15; late max=0.5% end=57 (21 windows)
+  work-share miss seed 20261020: 15.5% in seasons 5–16; 75.70/487.22 metal/civilian work
+  work-share miss seed 20261021: 15.5% in seasons 5–16; 74.35/480.05 metal/civilian work
+  work-share miss seed 20261022: 15.2% in seasons 5–16; 76.54/502.43 metal/civilian work
+  work-share miss seed 20261023: 15.9% in seasons 7–18; 71.89/451.61 metal/civilian work
+  work-share miss seed 20261029: 15.7% in seasons 6–17; 75.49/481.92 metal/civilian work
+  work-share miss seed 20261030: 15.0% in seasons 6–17; 73.40/487.84 metal/civilian work
+  work-share miss seed 20261034: 15.6% in seasons 4–15; 84.72/542.75 metal/civilian work
+  work-share miss seed 20261037: 16.5% in seasons 5–16; 77.89/470.98 metal/civilian work
+  work-share miss seed 20261039: 15.2% in seasons 6–17; 73.21/480.67 metal/civilian work
+  work-share miss seed 20261040: 15.1% in seasons 5–16; 76.24/505.76 metal/civilian work
+  work-share miss seed 20261041: 15.6% in seasons 4–15; 77.60/495.93 metal/civilian work
+  work-share miss seed 20261047: 16.2% in seasons 7–18; 76.32/472.10 metal/civilian work
+  work-share miss seed 20261048: 15.8% in seasons 5–16; 77.15/488.99 metal/civilian work
+  work-share miss seed 20261050: 15.7% in seasons 6–17; 74.21/474.09 metal/civilian work
+  work-share miss seed 20261053: 15.6% in seasons 7–18; 75.71/484.68 metal/civilian work
+  work-share miss seed 20261054: 16.8% in seasons 6–17; 77.96/463.79 metal/civilian work
+  work-share miss seed 20261056: 15.5% in seasons 5–16; 72.10/464.47 metal/civilian work
+  worst window: seed 20261054, seasons 6–17; 77.96/463.79 metal/civilian work; route season 3, first kit season 5
+  maximum final-half NoFuel share: 0.0%; seeds over 5%: 0
+  furnace-attributed clearing crossings: 0 (extra crossings with furnace effect on versus off)
+
+I-T2 sustainable-route checkpoint (12 complete seasons after camp and MET-09 are both available):
+Coverage counts all adult kit holders as a conservative proxy; the proposed I-T2 denominator is tool workers.
+scenario                    MET-09/camp/first-kit seasons   all-adult T11+ mean/min/max  seeds >=70%  T11+ age14-44/45+  route-wood mean/min
+
+paired Iron-minus-Bronze flows over each seed's final half (litres/season; same map and population fixture):
+
+paired Coppicing effect (Coppicing minus no-Coppicing, same seeds):
+
+NoFuel is the settlement's reported metal-method fallback, not a raw count of charcoal shortfalls. all-cuts counts standing-wood removals attributed to metal, chopping, civic and other use across the charcoal haul radius. mass-resid = Δstock − regrowth + all cuts; 0.000 means the traced forest stock balances over the window.
+end/mid is the steady-state slope of standing wood over the window (1.00 = flat; below 1 it is still being drawn down). end/start includes the one-time kit build-out.
+Reading: population and age mix are fixed; grain is topped up each season, and forge/kiln/smelter start built. This isolates fuel and labor, not a whole match.
+The Bronze reference has the same iron site but makes no iron (the chain is Iron-chapter only), so the difference between it and 'iron' is the Iron chain's cost.

@@ -151,7 +151,7 @@ public class FiefChapterTests
     }
 
     [Fact]
-    public void A_Fief_economy_runs_the_Iron_chain_and_adds_no_state_of_its_own_yet()
+    public void A_Fief_economy_runs_the_Iron_chain_and_uses_its_own_snapshot_version()
     {
         const ulong seed = 4242;
         MatchModel bronze = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), default, default, rules: ChapterRules.Bronze);
@@ -166,8 +166,10 @@ public class FiefChapterTests
 
         foreach (MatchModel m in new[] { iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
-        // No E5 system is wired, so the Fief economy's bytes equal the Iron economy's; only the research hash and the mode trailer tell them apart.
-        Assert.Equal(EconomyBytes(iron), EconomyBytes(fief));
+        byte[] ironBytes = EconomyBytes(iron), fiefBytes = EconomyBytes(fief);
+        Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
+        Assert.Equal(32, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.NotEqual(ironBytes, fiefBytes); // E5's expanded structure state belongs to the Fief snapshot only.
         Assert.NotEqual(iron.ComputeChecksum(), fief.ComputeChecksum());
     }
 

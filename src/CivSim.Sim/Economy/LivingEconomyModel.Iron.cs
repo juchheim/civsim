@@ -1253,6 +1253,10 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Iron structure kinds that existed when the first Iron checksums were fixed; later kinds are hashed only while non-zero so a match that builds none keeps its checksum.</summary>
     private const int IronKindsFirst = (int)IronStructure.Press + 1;
+    /// <summary>The E5-only structure slots belong to Fief snapshots, leaving the Iron snapshot layout unchanged.</summary>
+    private const int IronStructuresBeforeFief = (int)IronStructure.Windmill;
+
+    private int SnapshotIronStructureCount => FiefChain ? (int)IronStructure.Count : IronStructuresBeforeFief;
 
     private static void HashLaterIronKinds(ref StateHasher hash, int[]? works)
     {
@@ -1292,6 +1296,7 @@ public sealed partial class LivingEconomyModel
     private void WriteIron(BinaryWriter writer)
     {
         if (!IronChain) return;
+        int structureCount = SnapshotIronStructureCount;
         writer.Write(IronSnapshotMagic);
         int count = 0;
         for (int i = 0; i < _settlements.Count; i++) if (_settlements[i].Metal is { } m && HasIronState(m)) count++;
@@ -1304,15 +1309,16 @@ public sealed partial class LivingEconomyModel
             writer.Write(m.IronBuildKind);
             writer.Write(m.IronBuildProgress.Raw);
             writer.Write(m.IronSoldiersSupplied);
-            for (int k = 0; k < (int)IronStructure.Count; k++) writer.Write(m.IronWorks is { } w ? w[k] : 0);
+            for (int k = 0; k < structureCount; k++) writer.Write(m.IronWorks is { } w ? w[k] : 0);
             writer.Write(m.IronTerraces?.Count ?? 0);
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) writer.Write(tile);
             writer.Write(m.IronFacing?.Count ?? 0);
             if (m.IronFacing is not null) foreach (int civ in m.IronFacing) writer.Write(civ);
             writer.Write(m.IronPledgeTo);
             writer.Write(m.IronWait);
-            writer.Write(m.IronShelf?.Length ?? 0);
-            if (m.IronShelf is not null) foreach (Fix64 shelved in m.IronShelf) writer.Write(shelved.Raw);
+            int shelfCount = Math.Min(m.IronShelf?.Length ?? 0, structureCount);
+            writer.Write(shelfCount);
+            if (m.IronShelf is not null) for (int k = 0; k < shelfCount; k++) writer.Write(m.IronShelf[k].Raw);
             writer.Write(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { writer.Write(m.IronFaith[k].Raw); writer.Write(m.IronFaithSeason![k]); }
         }
@@ -1321,6 +1327,7 @@ public sealed partial class LivingEconomyModel
     private void ReadIron(BinaryReader reader)
     {
         if (!IronChain) return;
+        int structureCount = SnapshotIronStructureCount;
         if (reader.ReadUInt32() != IronSnapshotMagic) throw new InvalidDataException("The snapshot has no Iron-chapter economy section.");
         int count = reader.ReadInt32();
         if (count < 0 || count > _settlements.Count) throw new InvalidDataException("Invalid Iron-chapter settlement count.");
@@ -1339,11 +1346,11 @@ public sealed partial class LivingEconomyModel
             metal.IronBuildProgress = Fix64.FromRaw(reader.ReadInt64());
             metal.IronSoldiersSupplied = reader.ReadInt32();
             if (metal.IronSoldiersSupplied < 0) throw new InvalidDataException("Negative Iron-chapter soldier count.");
-            if (metal.IronBuildKind < -1 || metal.IronBuildKind >= (int)IronStructure.Count || metal.IronBuildProgress < Fix64.Zero)
+            if (metal.IronBuildKind < -1 || metal.IronBuildKind >= structureCount || metal.IronBuildProgress < Fix64.Zero)
                 throw new InvalidDataException("Invalid Iron-chapter build state.");
             var works = new int[(int)IronStructure.Count];
             bool any = false;
-            for (int k = 0; k < works.Length; k++)
+            for (int k = 0; k < structureCount; k++)
             {
                 works[k] = reader.ReadInt32();
                 if (works[k] < 0) throw new InvalidDataException("Negative Iron-chapter structure count.");
@@ -1372,8 +1379,8 @@ public sealed partial class LivingEconomyModel
             if ((uint)metal.IronPledgeTo > (uint)_settlements.Count) throw new InvalidDataException("Invalid Iron-chapter pledge.");
             metal.IronWait = reader.ReadInt32();
             int shelved = reader.ReadInt32();
-            if (metal.IronWait < 0 || shelved < 0 || shelved > (int)IronStructure.Count) throw new InvalidDataException("Invalid Iron-chapter shelf.");
-            metal.IronShelf = shelved == 0 ? null : new Fix64[shelved];
+            if (metal.IronWait < 0 || shelved < 0 || shelved > structureCount) throw new InvalidDataException("Invalid Iron-chapter shelf.");
+            metal.IronShelf = shelved == 0 ? null : new Fix64[(int)IronStructure.Count];
             for (int k = 0; k < shelved; k++)
             {
                 metal.IronShelf![k] = Fix64.FromRaw(reader.ReadInt64());
@@ -1770,6 +1777,7 @@ public sealed partial class LivingEconomyModel
         Check("wood", s.Stores[(int)Good.Wood], spec.Wood);
         Check("bloom", m.Goods[(int)MetalGood.Iron], spec.Bloom);
         Check("wheel", m.Goods[(int)MetalGood.Wheel], spec.Wheel);
+        Check("plank", IronStock(s, IronGood.Plank), spec.Plank);
         return string.Join(" ", parts);
     }
 
@@ -1815,6 +1823,7 @@ public sealed partial class LivingEconomyModel
                 else if (f.Role == Role.Missionary) missionaries++;
             }
             if (Done(civ, "LRN-05") && IronWorksCount(s, IronStructure.Academy) > scholars) idle++;
+            if (IronWorksCount(s, IronStructure.Monastery) > 0 && MonksAt(s.Id) == 0) idle++;
             if (IronWorksCount(s, IronStructure.Castle) > 0 && !CastleGarrisoned(s.Id)) idle++;
             if (IronWorksCount(s, IronStructure.Galley) > 0 && !CrewedGalley(s.Id)) idle++;
             if (Done(civ, "BEL-09") && s.Civic is { Temples: > 0 } && missionaries == 0) idle++;
@@ -1860,6 +1869,7 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Academies one civilization keeps (provisional): scholars are the largest single Insight role, so they are bounded by buildings, not by demand.</summary>
     private const int MaxAcademies = 3;
+    private const int MaxMonasteries = 3;
 
     private int CivWorksCount(int civ, IronStructure kind)
     {
@@ -1870,7 +1880,30 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>One scholar for each academy, once the civilization knows LRN-05 (the role is staffed from the town's adults, as a priest is; it does not create a person).</summary>
     private int ScholarSlots(SettlementState s)
-        => IronChain && Done(s.Civilization, "LRN-05") ? IronWorksCount(s, IronStructure.Academy) : 0;
+        => IronChain && Done(s.Civilization, "LRN-05")
+            ? IronWorksCount(s, IronStructure.Academy) +
+              (FiefChain && Done(s.Civilization, "LRN-08") ? IronWorksCount(s, IronStructure.University) : 0)
+            : 0;
+
+    private int MonkSlots(SettlementState s)
+        => FiefChain && Done(s.Civilization, "BEL-10") ? 4 * IronWorksCount(s, IronStructure.Monastery) : 0;
+
+    public int MonkHeads(int civ)
+    {
+        if (!FiefChain) return 0;
+        int n = 0;
+        foreach (FigureState f in _figures)
+            if (f.Role == Role.Monk && f.Civilization == civ) n++;
+        return n;
+    }
+
+    public int MonksAt(int settlementIndex)
+    {
+        if (!FiefChain) return 0;
+        int n = 0;
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) if (f.Role == Role.Monk) n++;
+        return n;
+    }
 
     /// <summary>Scholars in post across a civilization, for the research system's Insight (48 a year each in the registry).</summary>
     public int ScholarHeads(int civ)
@@ -1879,6 +1912,23 @@ public sealed partial class LivingEconomyModel
         int n = 0;
         foreach (FigureState f in _figures)
             if (f.Role == Role.Scholar && f.Civilization == civ) n++;
+        return n;
+    }
+
+    /// <summary>Scholar-equivalent Insight heads; university scholars contribute an additional half head in Fief.</summary>
+    public Fix64 ScholarInsightHeads(int civ)
+    {
+        if (!FiefChain) return Fix64.FromInt(ScholarHeads(civ));
+        Fix64 n = Fix64.Zero;
+        foreach (SettlementState s in _settlements)
+        {
+            if (s.Civilization != civ) continue;
+            int scholars = 0;
+            foreach (FigureState f in Residents(s.Id)) if (f.Role == Role.Scholar) scholars++;
+            n += Fix64.FromInt(scholars);
+            if (Done(civ, "LRN-08") && IronWorksCount(s, IronStructure.University) > 0)
+                n += Fix64.FromRatio(scholars, 2);
+        }
         return n;
     }
 
@@ -2277,13 +2327,13 @@ public sealed partial class LivingEconomyModel
         // Appended after the first Iron checksums were fixed (docs/MVP/29): hashed only while non-zero, see HashIronWorks.
         WaterMill, Colonnade,
         // Faith & Fief (docs/MVP/27 §5.1, §5.2; M12 WP-E5-5): built only in a Fief match, appended after the Iron structures and hashed only while non-zero.
-        Windmill, Sawmill, BlastFurnace,
+        Windmill, Sawmill, BlastFurnace, Monastery, University,
         Count
     }
 
     /// <summary>What a structure needs: its unlocking project, labor in work-seasons, and materials paid at completion (docs/MVP/26 §3.2; all provisional).</summary>
     private readonly record struct IronSpec(string Name, string Unlock, int Labor, int Block, int Ashlar, int Wood, int Bloom,
-        bool Large = false, bool Stone = false, bool Infrastructure = false, int Wheel = 0);
+        bool Large = false, bool Stone = false, bool Infrastructure = false, int Wheel = 0, int Plank = 0);
 
     // Large: a treadwheel crane halves the labor (MEC-06). Stone: STN-12 shortens stone work. Infrastructure: surveying (NUM-07) shortens fields, roads and aqueducts.
     private static readonly IronSpec[] IronSpecs =
@@ -2322,6 +2372,8 @@ public sealed partial class LivingEconomyModel
         new("windmill", "NRG-05", 24, 4, 0, 14, 0, Wheel: 1),
         new("sawmill", "WOD-09", 20, 4, 0, 10, 1),
         new("blast_furnace", "MET-12", 40, 24, 0, 6, 0, Stone: true),
+        new("monastery", "BEL-10", 30, 12, 0, 6, 0, Stone: true),
+        new("university", "LRN-08", 40, 16, 0, 6, 0, Stone: true, Plank: 4),
     };
 
     /// <summary>
@@ -2447,6 +2499,7 @@ public sealed partial class LivingEconomyModel
         if (spec.Ashlar > 0) plan.Terminal[MetalSlot(MetalGood.Ashlar)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]);
         if (spec.Bloom > 0) plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Bloom) - m.Goods[(int)MetalGood.Iron]);
         if (spec.Wheel > 0) plan.Terminal[MetalSlot(MetalGood.Wheel)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Wheel) - m.Goods[(int)MetalGood.Wheel]);
+        if (spec.Plank > 0) plan.Terminal[IronSlot(IronGood.Plank)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Plank) - IronStock(s, IronGood.Plank));
     }
 
     /// <summary>
@@ -2520,7 +2573,7 @@ public sealed partial class LivingEconomyModel
     private bool CanPayIronBuild(SettlementState s, MetalState m, IronSpec spec)
         => m.Goods[(int)MetalGood.Block] >= Fix64.FromInt(spec.Block) && m.Goods[(int)MetalGood.Ashlar] >= Fix64.FromInt(spec.Ashlar) &&
            m.Goods[(int)MetalGood.Iron] >= Fix64.FromInt(spec.Bloom) && s.Stores[(int)Good.Wood] >= Fix64.FromInt(spec.Wood) &&
-           m.Goods[(int)MetalGood.Wheel] >= Fix64.FromInt(spec.Wheel);
+           m.Goods[(int)MetalGood.Wheel] >= Fix64.FromInt(spec.Wheel) && IronStock(s, IronGood.Plank) >= Fix64.FromInt(spec.Plank);
 
     /// <summary>Work-seasons per litre of stone dressed from a block into ashlar (the E3 recipe: 0.5 with a T8+ kit).</summary>
     private static readonly Fix64 DressLabor = Fix64.Half;
@@ -2621,7 +2674,7 @@ public sealed partial class LivingEconomyModel
     {
         if (m.Goods[(int)MetalGood.Block] < Fix64.FromInt(spec.Block) || m.Goods[(int)MetalGood.Ashlar] < Fix64.FromInt(spec.Ashlar) ||
             m.Goods[(int)MetalGood.Iron] < Fix64.FromInt(spec.Bloom) || s.Stores[(int)Good.Wood] < Fix64.FromInt(spec.Wood) ||
-            m.Goods[(int)MetalGood.Wheel] < Fix64.FromInt(spec.Wheel)) return false;
+            m.Goods[(int)MetalGood.Wheel] < Fix64.FromInt(spec.Wheel) || IronStock(s, IronGood.Plank) < Fix64.FromInt(spec.Plank)) return false;
         if (m.IronBuildKind == (int)IronStructure.Terrace && NextTerraceTile(s) < 0) return false;
         if (m.IronBuildKind == (int)IronStructure.FrontierWall && NextFrontierFacing(s) < 0) return false;
         if (IsWonder((IronStructure)m.IronBuildKind) && WonderOwnerCiv((IronStructure)m.IronBuildKind) >= 0) return false; // someone else finished it first: there is one of each
@@ -2630,6 +2683,7 @@ public sealed partial class LivingEconomyModel
         AddStock(s, MetalSlot(MetalGood.Iron), -Fix64.FromInt(spec.Bloom));
         AddStock(s, MetalSlot(MetalGood.Wheel), -Fix64.FromInt(spec.Wheel));
         AddStock(s, (int)Good.Wood, -Fix64.FromInt(spec.Wood));
+        AddStock(s, IronSlot(IronGood.Plank), -Fix64.FromInt(spec.Plank));
         return true;
     }
 

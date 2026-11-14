@@ -211,6 +211,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
+    private const int FiefSnapshotVersion = 32;
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -6986,7 +6987,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     public void WriteSnapshot(BinaryWriter writer)
     {
-        writer.Write(0x45434F4E); writer.Write(SnapshotVersion); writer.Write(_seed);
+        writer.Write(0x45434F4E); writer.Write(FiefChain ? FiefSnapshotVersion : SnapshotVersion); writer.Write(_seed);
         writer.Write(_world.Fingerprint); writer.Write(_world.DepositFingerprint); writer.Write(_contentFingerprint);
         writer.Write(_gentleStart);
         writer.Write(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) writer.Write((byte)archetype);
@@ -7085,7 +7086,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void ReadSnapshotCore(BinaryReader reader)
     {
-        if (reader.ReadInt32() != 0x45434F4E || reader.ReadInt32() != SnapshotVersion)
+        if (reader.ReadInt32() != 0x45434F4E || reader.ReadInt32() != (FiefChain ? FiefSnapshotVersion : SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (reader.ReadUInt64() != _seed || reader.ReadUInt64() != _world.Fingerprint ||
             reader.ReadUInt64() != _world.DepositFingerprint || reader.ReadUInt64() != _contentFingerprint)

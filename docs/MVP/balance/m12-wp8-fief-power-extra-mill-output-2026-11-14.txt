@@ -1,0 +1,368 @@
+== iron-match seed 20261019: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     68.6   86.6      56     16    2332     0  1388    1517      237        4        4     20
+c1  Grower      68.6   89.0      56     31    3907     4  2431    2722      459        4        8     36
+c2  Warlord     68.9   89.7      56     24    2745     3  1771    1894      311        4        5     24
+c3  Sage        68.5   88.3      56     32    3780    14  2405    2610      419        4        8    100
+fief: E5 projects done and KEY-6 minute per civilization:
+  c0 Builder: 49 E5 projects, KEY-6 90.8
+  c1 Grower: 49 E5 projects, KEY-6 92.8
+  c2 Warlord: 49 E5 projects, KEY-6 92.8
+  c3 Sage: 49 E5 projects, KEY-6 92.5
+F-T2 mill power ledger (12 seasons from first source; grain coverage is adult-equivalent capacity, not a separate flour-stock measure):
+  completed town windows=18; censored=1; weighted grain coverage=78.5% (target >=60%: PASS); town windows meeting 60%=17/18
+  power-hours offered=820.80; allocated grind/saw/craft=460.21/32.04/310.81; unused=17.75; residual=0.00
+  s0 c0 seasons 396–407: 85.7%, sources water/wind 1/0, power 60.00/60.00 hours
+  s2 c2 seasons 399–410: 76.5%, sources water/wind 0/1, power 38.40/38.40 hours
+  s3 c3 seasons 453–464: 100.0%, sources water/wind 1/0, power 60.00/60.00 hours
+  s4 c2 seasons 361–372: 42.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s5 c0 seasons 359–370: 74.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s6 c1 seasons 359–370: 64.6%, sources water/wind 0/1, power 38.40/38.40 hours
+  s7 c3 seasons 356–367: 72.8%, sources water/wind 0/1, power 38.40/38.40 hours
+  s8 c2 seasons 394–405: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s16 c3 seasons 364–375: 80.0%, sources water/wind 0/1, power 37.54/38.40 hours
+  s23 c1 seasons 413–424: 80.0%, sources water/wind 0/1, power 30.98/38.40 hours
+  s24 c1 seasons 375–386: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s34 c0 seasons 407–418: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s43 c1 seasons 459–470: 83.8%, sources water/wind 1/0, power 60.00/60.00 hours
+  s48 c2 seasons 425–436: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s62 c3 seasons 515–520: 83.6%, sources water/wind 1/0, power 30.00/30.00 hours (censored 6/12)
+  s63 c2 seasons 390–401: 100.0%, sources water/wind 1/0, power 51.07/60.00 hours
+  s71 c3 seasons 476–487: 100.0%, sources water/wind 1/0, power 60.00/60.00 hours
+  s72 c3 seasons 408–419: 100.0%, sources water/wind 1/0, power 59.47/60.00 hours
+  s100 c1 seasons 438–449: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  one-extra-mill sensitivity for complete below-60% windows (virtual source; selected as first observed source type, water if mixed; allocation and jobs are recomputed):
+    windows reaching 60%=1/1; weighted coverage=80.0% (baseline 42.0%)
+    s4 c2: add wind; coverage 42.0% -> 80.0%; grind/saw/craft 38.40/0.00/0.00 -> 45.91/0.00/30.89 hours
+iron works built (all settlements):
+  crane                     2    7    4   11
+  windlass_well            14   20   17   26
+  terrace                  10   29   23   35
+  aqueduct                  6    7    6    9
+  bathhouse                 6    6    6    8
+  theatre_arena             3    8    6    8
+  road                     14   22   16   24
+  bridge                    3   20   13    7
+  gatehouse                 6    5    6   11
+  frontier_wall_segment     1    1    2    2
+  castle                    0    0    0    1
+  harbor                    0    1    0    2
+  galley                    0    1    0    2
+  academy                   4    4    4    4
+  great_library             0    1    0    0
+  press                     3    6    7   11
+  water_mill                1    1    1    4
+  temple_tier2              4    5    5    6
+  windmill                  2    4    4    2
+  sawmill                   1    0    2    3
+  blast_furnace             0    0    1    3
+  monastery                 3    2    3    4
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 9; blast_furnace x2 (100%), great_dome x1 (100%), monastery x3 (100%), sawmill x1 (100%)
+  c1: villages 19; aqueduct x2 (20%), blast_furnace x1 (100%), gatehouse x1 (100%), great_dome x1 (100%), monastery x6 (100%), windmill x1 (100%)
+  c2: villages 15; blast_furnace x2 (100%), castle x1 (100%), great_dome x1 (100%), monastery x1 (100%), sawmill x1 (100%), windmill x3 (100%)
+  c3: villages 18; (nothing wanted) x2 (0%), aqueduct x2 (100%), blast_furnace x3 (93%), great_dome x1 (100%), great_lighthouse x1 (100%), monastery x2 (100%), sawmill x1 (100%), windmill x2 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 2 towns
+  aqueduct lacks block: 2 towns
+  aqueduct lacks wood: 1 towns
+  blast_furnace lacks block: 7 towns
+  castle lacks ashlar: 1 towns
+  gatehouse lacks block: 1 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 4 towns
+  great_dome lacks wood: 3 towns
+  great_lighthouse lacks ashlar: 1 towns
+  great_lighthouse lacks block: 1 towns
+  great_lighthouse lacks wood: 1 towns
+  monastery lacks block: 12 towns
+  road lacks block: 1 towns
+  sawmill lacks block: 3 towns
+  windmill lacks block: 6 towns
+  windmill lacks wheel: 3 towns
+wonders held: great_library c1, great_lighthouse none, great_dome none
+events: wars 0  raids 12  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 237, c1 459, c2 313, c3 419
+final legacy per civ: c0 6039, c1 7433, c2 6276, c3 7303
+
+== iron-match seed 20261020: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     74.9   94.5      56     26    3377     6  1823    2020      333        5        6     90
+c1  Grower      77.4   96.6      56     21    2769    62  1748    1892      312        3        7     55
+c2  Warlord     76.0   98.4      56     23    2976    20  1845    1958      317        4        7     64
+c3  Sage        75.6   95.4      56     24    3012     6  1662    1777      295        3        5     69
+fief: E5 projects done and KEY-6 minute per civilization:
+  c0 Builder: 49 E5 projects, KEY-6 98.2
+  c1 Grower: 49 E5 projects, KEY-6 101.1
+  c2 Warlord: 49 E5 projects, KEY-6 101.2
+  c3 Sage: 49 E5 projects, KEY-6 99.2
+F-T2 mill power ledger (12 seasons from first source; grain coverage is adult-equivalent capacity, not a separate flour-stock measure):
+  completed town windows=26; censored=0; weighted grain coverage=74.5% (target >=60%: PASS); town windows meeting 60%=25/26
+  power-hours offered=1174.80; allocated grind/saw/craft=650.78/28.28/467.48; unused=28.25; residual=0.00
+  s0 c0 seasons 393–404: 80.8%, sources water/wind 1/1, power 39.01/43.40 hours
+  s1 c1 seasons 440–451: 100.0%, sources water/wind 1/0, power 60.00/60.00 hours
+  s2 c2 seasons 398–409: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s3 c3 seasons 385–396: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s4 c0 seasons 440–451: 68.3%, sources water/wind 1/0, power 60.00/60.00 hours
+  s5 c1 seasons 391–402: 77.3%, sources water/wind 1/1, power 83.40/83.40 hours
+  s6 c2 seasons 396–407: 24.1%, sources water/wind 0/1, power 38.40/38.40 hours
+  s7 c0 seasons 384–395: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s8 c3 seasons 388–399: 64.1%, sources water/wind 1/1, power 63.40/63.40 hours
+  s10 c2 seasons 448–459: 75.1%, sources water/wind 0/1, power 38.40/38.40 hours
+  s11 c1 seasons 441–452: 75.1%, sources water/wind 0/1, power 38.40/38.40 hours
+  s12 c3 seasons 390–401: 82.4%, sources water/wind 1/1, power 48.32/53.40 hours
+  s22 c2 seasons 448–459: 100.0%, sources water/wind 1/0, power 55.39/60.00 hours
+  s23 c3 seasons 428–439: 78.3%, sources water/wind 0/1, power 38.40/38.40 hours
+  s25 c2 seasons 441–452: 100.0%, sources water/wind 1/0, power 51.88/60.00 hours
+  s27 c2 seasons 445–456: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s29 c0 seasons 437–448: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s30 c0 seasons 385–396: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s31 c3 seasons 389–400: 80.0%, sources water/wind 0/1, power 37.89/38.40 hours
+  s41 c3 seasons 476–487: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s42 c2 seasons 401–412: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s43 c0 seasons 385–396: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s47 c2 seasons 456–467: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s70 c2 seasons 436–447: 80.0%, sources water/wind 0/1, power 32.86/38.40 hours
+  s73 c2 seasons 435–446: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s89 c3 seasons 472–483: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  one-extra-mill sensitivity for complete below-60% windows (virtual source; selected as first observed source type, water if mixed; allocation and jobs are recomputed):
+    windows reaching 60%=1/1; weighted coverage=76.0% (baseline 24.1%)
+    s6 c2: add wind; coverage 24.1% -> 76.0%; grind/saw/craft 38.40/0.00/0.00 -> 60.60/0.00/16.20 hours
+iron works built (all settlements):
+  crane                     5    3    5    7
+  windlass_well            20   12   22   16
+  terrace                  12   34   18   32
+  aqueduct                  7    6    8    6
+  bathhouse                 9    7   10    9
+  theatre_arena             8    6    9    8
+  road                     23   17   22   16
+  bridge                   19   10   11   12
+  gatehouse                 9    6    7   10
+  frontier_wall_segment     3    0    3    1
+  castle                    2    0    2    0
+  harbor                    1    1    0    2
+  galley                    1    1    0    2
+  academy                   5    3    4    4
+  great_library             0    1    0    0
+  great_dome                0    1    0    0
+  press                     7    7    8    7
+  water_mill                2    2    4    3
+  temple_tier2              4    3    8    4
+  windmill                  5    2    8    7
+  sawmill                   1    2    3    4
+  blast_furnace             2    1    5    4
+  monastery                 4    4    4    5
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 15; (nothing wanted) x1 (0%), aqueduct x2 (100%), bathhouse x1 (0%), monastery x4 (100%), windmill x3 (100%)
+  c1: villages 12; (nothing wanted) x1 (0%), aqueduct x1 (100%), blast_furnace x1 (100%), gatehouse x1 (0%), monastery x1 (100%), sawmill x1 (100%), windmill x3 (100%)
+  c2: villages 11; (nothing wanted) x4 (0%), aqueduct x1 (100%), bathhouse x1 (100%), blast_furnace x3 (100%), gatehouse x1 (100%), theatre_arena x1 (100%), windmill x1 (100%)
+  c3: villages 14; (nothing wanted) x3 (0%), aqueduct x4 (100%), blast_furnace x2 (100%), press x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 3 towns
+  aqueduct lacks block: 8 towns
+  aqueduct lacks wood: 1 towns
+  bathhouse lacks block: 1 towns
+  blast_furnace lacks block: 6 towns
+  bridge lacks block: 4 towns
+  bridge lacks wood: 4 towns
+  gatehouse lacks block: 1 towns
+  monastery lacks block: 5 towns
+  monastery lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  road lacks block: 1 towns
+  sawmill lacks block: 1 towns
+  theatre_arena lacks block: 1 towns
+  windmill lacks block: 7 towns
+  windmill lacks wood: 1 towns
+wonders held: great_library c1, great_lighthouse none, great_dome c1
+events: wars 0  raids 18  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 333, c1 312, c2 317, c3 295
+final legacy per civ: c0 7586, c1 6741, c2 6656, c3 6486
+
+== iron-match seed 20261021: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.5   90.8      56     22    2307     9  1452    1524      231        6        5     98
+c1  Grower      73.4   92.3      56     24    2964    20  1917    2105      335        5        6     43
+c2  Warlord     71.3   94.6      56     23    2507     3  1443    1751      280        4        5     85
+c3  Sage        73.5   92.4      56     22    2212    14  1370    1547      254        3        6     92
+fief: E5 projects done and KEY-6 minute per civilization:
+  c0 Builder: 49 E5 projects, KEY-6 94.7
+  c1 Grower: 49 E5 projects, KEY-6 96.1
+  c2 Warlord: 49 E5 projects, KEY-6 97.7
+  c3 Sage: 49 E5 projects, KEY-6 96.1
+F-T2 mill power ledger (12 seasons from first source; grain coverage is adult-equivalent capacity, not a separate flour-stock measure):
+  completed town windows=20; censored=0; weighted grain coverage=75.4% (target >=60%: PASS); town windows meeting 60%=19/20
+  power-hours offered=872.80; allocated grind/saw/craft=481.97/18.27/312.89; unused=59.68; residual=0.00
+  s0 c0 seasons 377–388: 70.4%, sources water/wind 1/0, power 60.00/60.00 hours
+  s2 c2 seasons 381–392: 63.6%, sources water/wind 0/1, power 38.40/38.40 hours
+  s4 c0 seasons 379–390: 100.0%, sources water/wind 1/0, power 40.22/60.00 hours
+  s5 c2 seasons 401–412: 100.0%, sources water/wind 1/0, power 34.98/60.00 hours
+  s6 c1 seasons 373–384: 82.7%, sources water/wind 1/1, power 78.40/78.40 hours
+  s7 c3 seasons 377–388: 45.7%, sources water/wind 0/1, power 38.40/38.40 hours
+  s10 c3 seasons 373–384: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s12 c3 seasons 408–419: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s14 c2 seasons 394–405: 80.0%, sources water/wind 0/1, power 34.02/38.40 hours
+  s18 c2 seasons 424–435: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s21 c2 seasons 476–487: 78.9%, sources water/wind 0/1, power 38.40/38.40 hours
+  s32 c1 seasons 399–410: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s41 c0 seasons 416–427: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s51 c1 seasons 385–396: 80.0%, sources water/wind 0/1, power 28.19/38.40 hours
+  s59 c3 seasons 435–446: 68.2%, sources water/wind 0/1, power 38.40/38.40 hours
+  s68 c2 seasons 417–428: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s72 c1 seasons 410–421: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s73 c1 seasons 412–423: 80.0%, sources water/wind 0/1, power 38.11/38.40 hours
+  s82 c3 seasons 413–424: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s84 c1 seasons 437–448: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  one-extra-mill sensitivity for complete below-60% windows (virtual source; selected as first observed source type, water if mixed; allocation and jobs are recomputed):
+    windows reaching 60%=1/1; weighted coverage=80.0% (baseline 45.7%)
+    s7 c3: add wind; coverage 45.7% -> 80.0%; grind/saw/craft 38.40/0.00/0.00 -> 43.99/15.27/17.54 hours
+iron works built (all settlements):
+  crane                     4    7    4    3
+  windlass_well            15   17   18   10
+  terrace                  12   14   15   13
+  aqueduct                  3    6    5    3
+  bathhouse                 5    8    8    5
+  theatre_arena             2    5    5    4
+  road                     18   20   17   19
+  bridge                    4   10    3    6
+  gatehouse                 7    7    7    6
+  frontier_wall_segment     4    0    3    3
+  castle                    2    0    2    3
+  harbor                    1    1    2    0
+  galley                    1    1    2    0
+  academy                   6    5    4    3
+  press                     7    7    4    5
+  water_mill                2    1    2    0
+  temple_tier2              4    6    5    5
+  windmill                  1    6    5    5
+  sawmill                   2    1    2    2
+  blast_furnace             1    2    2    3
+  monastery                 1    3    4    3
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 13; aqueduct x2 (83%), monastery x7 (100%)
+  c1: villages 15; (nothing wanted) x2 (0%), aqueduct x1 (100%), blast_furnace x2 (100%), great_dome x1 (100%), press x1 (100%), sawmill x1 (100%), windmill x1 (100%)
+  c2: villages 14; (nothing wanted) x1 (0%), aqueduct x1 (100%), blast_furnace x3 (100%), great_library x1 (100%), road x1 (0%), theatre_arena x1 (100%), windmill x1 (100%)
+  c3: villages 15; (nothing wanted) x2 (0%), gatehouse x1 (100%), great_dome x1 (100%), monastery x1 (100%), temple_tier2 x1 (100%), water_mill x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 2 towns
+  aqueduct lacks block: 3 towns
+  blast_furnace lacks block: 5 towns
+  blast_furnace lacks wood: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 2 towns
+  gatehouse lacks block: 1 towns
+  great_dome lacks ashlar: 2 towns
+  great_dome lacks block: 2 towns
+  great_dome lacks wood: 2 towns
+  great_library lacks block: 1 towns
+  monastery lacks block: 8 towns
+  press lacks bloom: 1 towns
+  sawmill lacks block: 1 towns
+  temple_tier2 lacks ashlar: 1 towns
+  theatre_arena lacks block: 1 towns
+  water_mill lacks block: 1 towns
+  water_mill lacks wheel: 1 towns
+  windmill lacks block: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 4  raids 20  assaults 4  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 242, c1 335, c2 280, c3 259
+final legacy per civ: c0 6902, c1 7058, c2 6253, c3 6222
+
+== iron-match seed 20261022: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     71.2   91.4      56     27    3521     1  1950    2365      407        3        6     63
+c1  Grower      72.9   92.9      56     17    2221    23  1218    1364      225        3        5     87
+c2  Warlord     73.5   96.7      56     24    2617     5  1598    1795      292        3        7     81
+c3  Sage        67.3   86.6      56     29    3411     1  1640    2259      371        3       10     22
+fief: E5 projects done and KEY-6 minute per civilization:
+  c0 Builder: 49 E5 projects, KEY-6 94.9
+  c1 Grower: 49 E5 projects, KEY-6 97.0
+  c2 Warlord: 49 E5 projects, KEY-6 100.8
+  c3 Sage: 49 E5 projects, KEY-6 90.2
+F-T2 mill power ledger (12 seasons from first source; grain coverage is adult-equivalent capacity, not a separate flour-stock measure):
+  completed town windows=19; censored=0; weighted grain coverage=76.7% (target >=60%: PASS); town windows meeting 60%=18/19
+  power-hours offered=881.00; allocated grind/saw/craft=520.57/44.73/281.23; unused=34.47; residual=0.00
+  s0 c0 seasons 369–380: 68.0%, sources water/wind 1/1, power 53.40/53.40 hours
+  s1 c1 seasons 380–391: 88.3%, sources water/wind 1/1, power 56.64/88.40 hours
+  s2 c2 seasons 471–482: 100.0%, sources water/wind 1/0, power 60.00/60.00 hours
+  s3 c3 seasons 382–393: 100.0%, sources water/wind 1/0, power 57.29/60.00 hours
+  s6 c2 seasons 391–402: 61.4%, sources water/wind 0/1, power 38.40/38.40 hours
+  s7 c0 seasons 408–419: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s8 c3 seasons 415–426: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s9 c3 seasons 352–363: 48.9%, sources water/wind 0/1, power 38.40/38.40 hours
+  s10 c1 seasons 374–385: 70.4%, sources water/wind 0/1, power 38.40/38.40 hours
+  s12 c0 seasons 425–436: 77.2%, sources water/wind 0/1, power 38.40/38.40 hours
+  s13 c0 seasons 370–381: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s22 c2 seasons 474–485: 78.9%, sources water/wind 0/1, power 38.40/38.40 hours
+  s24 c1 seasons 480–491: 69.5%, sources water/wind 0/1, power 38.40/38.40 hours
+  s29 c0 seasons 486–497: 75.2%, sources water/wind 0/1, power 38.40/38.40 hours
+  s33 c0 seasons 379–390: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s45 c3 seasons 491–502: 93.3%, sources water/wind 1/0, power 60.00/60.00 hours
+  s47 c2 seasons 399–410: 80.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  s81 c0 seasons 476–487: 89.0%, sources water/wind 1/0, power 60.00/60.00 hours
+  s91 c2 seasons 429–440: 78.0%, sources water/wind 0/1, power 38.40/38.40 hours
+  one-extra-mill sensitivity for complete below-60% windows (virtual source; selected as first observed source type, water if mixed; allocation and jobs are recomputed):
+    windows reaching 60%=1/1; weighted coverage=80.0% (baseline 48.9%)
+    s9 c3: add wind; coverage 48.9% -> 80.0%; grind/saw/craft 38.36/0.00/0.04 -> 42.55/0.00/34.25 hours
+iron works built (all settlements):
+  crane                     4    2    4    6
+  windlass_well            13    9   14   22
+  terrace                  31   24   10   26
+  aqueduct                  7    5    5    5
+  bathhouse                 9    6    4    5
+  theatre_arena            10    4    5    4
+  road                     23   14   19   24
+  bridge                   22   13   15    7
+  gatehouse                 7    5    5   12
+  frontier_wall_segment     1    2    1    1
+  castle                    1    1    0    0
+  harbor                    0    1    2    2
+  galley                    0    1    2    0
+  academy                   3    3    3    3
+  great_library             0    1    0    0
+  great_lighthouse          0    0    1    0
+  great_dome                1    0    0    0
+  press                     3    3    4    5
+  water_mill                2    1    1    2
+  temple_tier2              4    4    4    6
+  windmill                  6    3    4    2
+  sawmill                   2    1    1    2
+  blast_furnace             3    2    1    2
+  monastery                 3    4    3    3
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 16; (nothing wanted) x1 (0%), aqueduct x2 (75%), blast_furnace x2 (100%), harbor x1 (100%), monastery x2 (100%), sawmill x1 (100%), temple_tier2 x1 (100%), windmill x1 (100%)
+  c1: villages 11; (nothing wanted) x2 (0%), blast_furnace x1 (100%), gatehouse x1 (100%), sawmill x1 (100%), windmill x1 (100%)
+  c2: villages 15; (nothing wanted) x2 (0%), blast_furnace x3 (100%), castle x1 (100%), sawmill x1 (100%), temple_tier2 x1 (100%), windmill x1 (100%)
+  c3: villages 16; (nothing wanted) x1 (0%), aqueduct x1 (0%), bathhouse x1 (100%), blast_furnace x2 (100%), crane x1 (100%), gatehouse x1 (100%), monastery x3 (100%), theatre_arena x1 (100%), windmill x2 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 1 towns
+  bathhouse lacks block: 1 towns
+  blast_furnace lacks block: 8 towns
+  blast_furnace lacks wood: 1 towns
+  bridge lacks ashlar: 1 towns
+  bridge lacks block: 3 towns
+  bridge lacks wood: 2 towns
+  castle lacks ashlar: 1 towns
+  crane lacks bloom: 1 towns
+  crane lacks wood: 1 towns
+  gatehouse lacks block: 2 towns
+  gatehouse lacks wood: 1 towns
+  harbor lacks block: 1 towns
+  monastery lacks block: 5 towns
+  monastery lacks wood: 1 towns
+  sawmill lacks block: 3 towns
+  sawmill lacks bloom: 1 towns
+  temple_tier2 lacks ashlar: 2 towns
+  theatre_arena lacks block: 1 towns
+  windmill lacks block: 5 towns
+  windmill lacks wheel: 3 towns
+  windmill lacks wood: 1 towns
+wonders held: great_library c1, great_lighthouse c2, great_dome c0
+events: wars 2  raids 10  assaults 6  captured 6  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 407, c1 225, c2 292, c3 376
+final legacy per civ: c0 7218, c1 6451, c2 6116, c3 7931

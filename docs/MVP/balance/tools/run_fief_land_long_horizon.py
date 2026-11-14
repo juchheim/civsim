@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Run the matched F-T4 cohort through a long Fief horizon.
 
-The cohort input files are prior filtered iron-match outputs with one focus
-civilization per seed. This runner replays both AGR-11 treatment arms with the
+The cohort input files may be prior filtered iron-match outputs or a TSV with
+seed/focusCiv columns. This runner replays both AGR-11 treatment arms with the
 same world, promoted pack and focus seat, retaining only FIEF_LAND_* records.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import shlex
 import subprocess
 import sys
@@ -33,7 +34,19 @@ def load_cohort(paths: list[Path]) -> dict[int, int]:
     cohort: dict[int, int] = {}
     arm_focus: dict[tuple[int, str], int] = {}
     for path in paths:
-        for line in path.read_text().splitlines():
+        lines = path.read_text().splitlines()
+        data_lines = [line for line in lines if line.strip() and not line.lstrip().startswith("#")]
+        if data_lines and data_lines[0].split("\t")[:2] == ["seed", "focusCiv"]:
+            reader = csv.DictReader(data_lines, delimiter="\t")
+            for row in reader:
+                seed, focus = int(row["seed"]), int(row["focusCiv"])
+                if not 0 <= focus < 4:
+                    raise ValueError(f"invalid focus seat {focus} in {path}")
+                if seed in cohort and cohort[seed] != focus:
+                    raise ValueError(f"conflicting focus seats for seed={seed}")
+                cohort[seed] = focus
+            continue
+        for line in lines:
             if not line.startswith("FIEF_LAND_MANIFEST "):
                 continue
             row = fields(line)
@@ -60,7 +73,7 @@ def main() -> int:
     parser.add_argument("--minutes", type=int, default=180)
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("cohort", nargs="+", type=Path, help="prior focused cohort output files")
+    parser.add_argument("cohort", nargs="+", type=Path, help="prior focused output files or a seed/focusCiv TSV")
     args = parser.parse_args()
     if args.minutes < 130 or args.workers < 1:
         parser.error("--minutes must be at least 130 and --workers must be positive")

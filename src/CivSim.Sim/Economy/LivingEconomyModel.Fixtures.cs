@@ -849,6 +849,13 @@ public sealed partial class LivingEconomyModel
             // A town of some size builds an academy; a civilization keeps at most three (provisional): each staffed scholar is worth 48 Insight a year.
             IronStructure.Academy => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Academy) == 0 && Population(s.Id) >= 50 &&
                 CivWorksCount(s.Civilization, IronStructure.Academy) < MaxAcademies,
+            // A Fief monastery is bounded to three per civilization and only becomes wanted after BEL-10.
+            IronStructure.Monastery => FiefChain && Done(s.Civilization, "BEL-10") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.Monastery) == 0 && Population(s.Id) >= 50 &&
+                CivWorksCount(s.Civilization, IronStructure.Monastery) < MaxMonasteries,
+            // Universities provide one additional scholar post in Fief after LRN-08.
+            IronStructure.University => FiefChain && Done(s.Civilization, "LRN-08") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.University) == 0,
             // A press stands where grafted orchards give grapes or olives to press.
             IronStructure.Press => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Press) == 0 && Done(s.Civilization, "FOR-08") && s.OrchardPlots.Count > 0,
             // A river town with fields to grind for builds a water mill; a town with a Temple raises its colonnade.
