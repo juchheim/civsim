@@ -1,6 +1,6 @@
 # M12 WP-E5-5 (F-T4): land and food oracle (updated 2026-11-14)
 
-**Status:** The five-geography fixture screen, the four-seed all-seat horizon screen, an eight-seed Builder exact-state follow-up, and a four-seed stratified all-archetype follow-up are complete. These are diagnostics, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
+**Status:** The five-geography fixture screen, four-seed all-seat horizon screen, eight-seed Builder follow-up, four-seed stratified follow-up, and 36-pair archetype-balanced natural-start cohort are complete. The cohort includes a live E4 trajectory and synchronized whole-match observations to the 180-minute horizon. These remain diagnostics, not a fitted acceptance result; E5 rows remain draft and no numeric cap band is approved.
 
 ## Correction
 
@@ -72,12 +72,66 @@ The [expanded raw output](m12-wp8d-land-expanded-anchor-output-2026-11-14.txt) c
 
 At +12 seasons, civilization sustainable capacity is +11.2% on average and +11.6% at the median; population is +1.6%/+1.8%. These remain model readouts and short-horizon outcomes. The four newly selected no-river/deep-inland seats are only one observation per archetype and were selected for their geography, so they cannot establish a broad cohort effect or a fitted oracle band.
 
+## Balanced held-out cohort and live E4 trajectory
+
+The exact-state cohort now has 36 matched focus-seat pairs, nine per archetype. It combines the nine Builder anchors above with eight new Grower, eight new Warlord, and eight new Sage pairs, in addition to the prior one-per-archetype stratified anchors. New seats were chosen from a separate 1,000-seed geography scan before their match outcomes were run. Each added archetype has three coastal, four inland, and one deep-inland river-access start, split four hill/four no-hill. Across the 36 measured starts, coverage is 32 river-access and four no-river; 11 coastal, 17 inland and eight deep inland; 18 hill and 18 no-hill. This balances archetypes and deliberately covers rare geography; it is not population-weighted, and deep inland is overrepresented.
+
+The 24 new treatment/control pairs used the same promoted temporary pack (`9ea23672798ab8cbd2b57b98fe8c1a6f450801fccebfe4c0665e90d7d4041a20`), Fief mode, 130-minute horizon, and non-AGR-11 E5 grants. Treatment granted AGR-11 only to the measured seat; control withheld it. All 24 pairs matched on world fingerprint, initial match checksum, and offset-0 whole-match checksum. Together with the previous 12 pairs, all 36 anchors produced offsets 0, 4, 8 and 12 with no censored focus seats. The new cohort's raw rows and seed list are in [m12-wp8d-balanced-anchor-output-2026-11-14.txt](m12-wp8d-balanced-anchor-output-2026-11-14.txt).
+
+The run now records each focused seat's live E4 trajectory from the first season boundary after KEY-4, every four seasons, stopping before the first boundary where KEY-5 is complete. The 36 anchors provide 745 unique pre-KEY-5 snapshots. For the 24 new matched pairs, treatment and control checksums match at all 499 paired trajectory snapshots. The other 12 anchors were replayed in one arm to add their missing E4 traces; those rows are in [m12-wp8d-e4-trajectory-replay-output-2026-11-14.txt](m12-wp8d-e4-trajectory-replay-output-2026-11-14.txt). The first-observation boundary interval from KEY-4 to KEY-5 averaged 81.6 seasons (20.4 simulation minutes), with a median of 80 seasons (20.0 minutes), across all 36 anchors; the range was 68–97 seasons.
+
+| Seasons after first post-KEY-4 boundary | Focused anchors | Mean civilization population | Mean / median population ÷ sustainable food capacity |
+|---:|---:|---:|---:|
+| 0 | 36 | 712 | 34.1% / 34.0% |
+| 24 | 36 | 948 | 35.2% / 32.6% |
+| 48 | 36 | 1,226 | 42.5% / 39.6% |
+| 72 | 32 | 1,531 | 52.2% / 50.1% |
+| 80 | 17 | 1,527 | 54.4% / 50.1% |
+
+At +12 seasons after KEY-5, the 36-pair AGR-11 comparison gives mean/median ratios of 1.036/1.044 for home FoodCap, 1.046/1.050 for home sustainable capacity, 1.096/1.099 for civilization FoodCap, 1.103/1.108 for civilization sustainable capacity, and 1.016/1.016 for civilization population. City share changes +0.357/+0.285 percentage points. The support readout rises about 10–11% while realized population moves about 1.6% over this short window. In the preceding live E4 trajectory, median population reaches only about half of modeled sustainable capacity by +72 seasons. Treat sustainable capacity as a model readout, not a prediction of realized population or a grain stock; the comparison remains diagnostic and does not fit a cap band.
+
+| Archetype (n=9 each) | Civilization sustainable-capacity ratio mean / median | Civilization population ratio mean / median |
+|---|---:|---:|
+| Builder | 1.117 / 1.117 | 1.016 / 1.017 |
+| Grower | 1.111 / 1.107 | 1.014 / 1.014 |
+| Warlord | 1.103 / 1.098 | 1.014 / 1.013 |
+| Sage | 1.083 / 1.098 | 1.020 / 1.020 |
+
+## Long-horizon synchronized whole-match follow-up
+
+All 36 matched focus-seat pairs were replayed to the 180-minute cap (720 seasons) on the promoted temporary pack with hash `9ea23672798ab8cbd2b57b98fe8c1a6f450801fccebfe4c0665e90d7d4041a20`. The sample remains nine anchors per archetype and deliberately geography-stratified. Treatment granted AGR-11 only to the focused seat; control withheld it from every seat. Both arms gave all seats the other E5 grants. All 36 pairs match on initial match checksum and on the synchronized offset-0 whole-match checksum. At each fixed offset after the focused seat's KEY-5, the harness sampled all four civilizations together; it also recorded every civilization at the 180-minute horizon.
+
+| Checkpoint after focus KEY-5 | Matched pairs | Whole-match population ratio mean / median | Whole-match sustainable-capacity ratio mean / median | City-share change mean / median (pp) | Focus / rival population ratio mean |
+|---:|---:|---:|---:|---:|---:|
+| +12 seasons | 36 | 1.004 / 1.005 | 1.029 / 1.031 | −0.049 / +0.088 | 1.016 / 1.001 |
+| +48 seasons | 36 | 0.999 / 0.998 | 0.996 / 0.998 | −0.696 / −0.795 | 0.992 / 1.001 |
+| +240 seasons (60 min) | 36 | 1.000 / 0.997 | 0.996 / 0.995 | +0.051 / +0.058 | 1.001 / 1.000 |
+| +320 seasons (80 min) | 31 | 0.999 / 1.000 | 0.996 / 0.996 | −0.685 / −0.528 | 0.998 / 1.000 |
+| 180-minute horizon | 36 | 0.998 / 1.000 | 0.998 / 0.998 | −0.234 / +0.102 | 0.991 / — |
+
+Ratios are AGR-11 treatment divided by its matched control; city-share values are percentage-point differences. At the full +240-season checkpoint, the average whole-match population and capacity remain within 0.4% of control, and both focused and rival population ratios are near 1. At the horizon, the mean whole-match population and sustainable-capacity ratios are both 0.998. The sample therefore shows no broad whole-match population or capacity drift from this focused AGR-11 grant through 180 minutes. This is a matched diagnostic, not a fitted food-cap band or population-weighted estimate.
+
+All pairs have +240 and horizon-end rows. Five pairs lack the +320 snapshot because their focused KEY-5 anchor was too late for an 80-minute follow-up before the run cap (10 arm captures had at least one censored offset). The final rows cover all 288 civilization-arms, with 284 KEY-6 completions; no match ended before the 180-minute cap. This is consistent with the confirmed no-rival-countdown rule. The raw rows are in [m12-wp8d-long-horizon-output-2026-11-14.txt](m12-wp8d-long-horizon-output-2026-11-14.txt), and [fief_land_anchor_audit.py](tools/fief_land_anchor_audit.py) reports the synchronized trajectory and censorship.
+
 ## Reproduction and remaining gate
 
 `FiefLandTests.Fief_food_oracle_covers_five_geographies_and_conserves_harvested_grain` checks the crop schedule, 1.5× grain contribution, sustainable population capacity, 4:3 labor cost, six-year grain output, and closed grain-store balance for all five profiles. Run it with:
 
 ```bash
 dotnet test src/CivSim.Tests/CivSim.Tests.csproj -c Release --filter FullyQualifiedName~FiefLandTests
+python3 docs/MVP/balance/tools/fief_land_anchor_audit.py \
+  docs/MVP/balance/m12-wp8d-land-expanded-anchor-output-2026-11-14.txt \
+  docs/MVP/balance/m12-wp8d-balanced-anchor-output-2026-11-14.txt \
+  docs/MVP/balance/m12-wp8d-e4-trajectory-replay-output-2026-11-14.txt
+python3 docs/MVP/balance/tools/run_fief_land_long_horizon.py \
+  --pack /tmp/civsim-e5-long-promoted.pack --minutes 180 --workers 9 \
+  --output docs/MVP/balance/m12-wp8d-long-horizon-output-2026-11-14.txt \
+  docs/MVP/balance/m12-wp8d-land-expanded-anchor-output-2026-11-14.txt \
+  docs/MVP/balance/m12-wp8d-balanced-anchor-output-2026-11-14.txt
+python3 docs/MVP/balance/tools/fief_land_anchor_audit.py \
+  docs/MVP/balance/m12-wp8d-long-horizon-output-2026-11-14.txt
 ```
 
-F-T4 now has 12 exact-state anchors across all four archetypes, including four targeted no-river/deep-inland starts. It still needs a larger balanced held-out cohort and a live E4 trajectory before fitting a food-cap oracle; broader whole-match balance is also required. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
+The long-horizon command expects the temporary test pack with all 50 E5 rows promoted; the pack is kept outside the repository and its hash is recorded in every manifest. This run did not change the content rows from `draft`.
+
+F-T4 now has 36 exact-state anchors, nine per archetype, a matched live E4 trajectory through KEY-5, and a synchronized whole-match follow-up through the 180-minute cap. Its aggregate whole-match response stays close to matched parity through +240 seasons and at the horizon. The geography sample is deliberately stratified, so it does not establish population-weighted effects or a fitted acceptance band; broader held-out balance is still needed. F-T2's nine low-coverage town windows remain for follow-up; F-T3 needs the censored fuel-demand cases retained in a broader run. None of these results promotes E5 content.
