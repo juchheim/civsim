@@ -15,10 +15,12 @@ public static class UiSkin
 
     private static Look? LookFor(string variation) => variation switch
     {
-        "SheetPanel" => new Look(1.0f, 0.45f, 48, 192),
-        "CardPanel" or "MomentCard" or "ToastPanel" => new Look(0.85f, 0.35f, 36, 0),
-        "HudPanel" or "TimeClusterPanel" or "PillPanel" => new Look(0.7f, 0.30f, 0, 0),
-        "WebStagePanel" => new Look(1.25f, 0f, 0, 0),
+        // Texture strengths are kept low on purpose: the light speckle lifts the surface under the text, so at
+        // full strength it pushes tertiary text below 4.5:1. Re-check contrast before raising any of these.
+        "SheetPanel" => new Look(0.4f, 0.45f, 48, 192),
+        "CardPanel" or "MomentCard" or "ToastPanel" => new Look(0.45f, 0.35f, 36, 0),
+        "HudPanel" or "TimeClusterPanel" or "PillPanel" => new Look(0.4f, 0.30f, 0, 0),
+        "WebStagePanel" => new Look(0.6f, 0f, 0, 0),
         _ => null,
     };
 
