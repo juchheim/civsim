@@ -16,6 +16,7 @@ public partial class UiPopover : Control
         MouseFilter = MouseFilterEnum.Stop;
         Visible = false;
         Body = new PanelContainer { ThemeTypeVariation = variation, MouseFilter = MouseFilterEnum.Stop };
+        UiSkin.Attach(Body);
         AddChild(Body);
     }
 

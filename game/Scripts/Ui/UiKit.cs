@@ -292,6 +292,7 @@ public static class UiKit
     {
         var panel = new PanelContainer { ThemeTypeVariation = variation, MouseFilter = (Control.MouseFilterEnum)(int)filter };
         if (name is not null) panel.Name = name;
+        UiSkin.Attach(panel);
         return panel;
     }
 
