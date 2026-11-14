@@ -324,6 +324,15 @@ public partial class Game
         }, 64);
         sizeRow.AddChild(_uiSizeSegments);
         column.AddChild(sizeRow);
+        var platesRow = UiKit.Row(UiTokens.Sp3);
+        platesRow.AddChild(UiKit.Text("Settlement plates", "BodyStrong", minWidth: 150));
+        platesRow.AddChild(new UiSegmented(new[] { "Full", "Names only", "Off" }, (int)_uiSettings.SettlementPlates, index =>
+        {
+            _uiSettings.SettlementPlates = (PlateMode)index;
+            _uiSettings.Save();
+            if (_plates is not null) _plates.Mode = _uiSettings.SettlementPlates;
+        }, 96));
+        column.AddChild(platesRow);
         column.AddChild(new UiToggle("Reduce motion", _uiSettings.ReduceMotion, v => { _uiSettings.ReduceMotion = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show control hints", _uiSettings.ShowHints, v => { _uiSettings.ShowHints = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show tips", _uiSettings.ShowTips, v => { _uiSettings.ShowTips = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });

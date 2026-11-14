@@ -154,7 +154,7 @@ public partial class Game
         if (_hoverMoved || _cardTile == -2)
         {
             _hoverMoved = false;
-            if (!TryPickTile(_hoverScreen, out int tile)) { HideTileCard(); return; }
+            if (!TryPickTileOrPlate(_hoverScreen, out int tile)) { HideTileCard(); return; }
             _hoverTile = tile;
         }
         if (_hoverTile < 0) return;
@@ -170,7 +170,7 @@ public partial class Game
         if (_tileCard is null || _current is null || _session is null) return;
         _tileRefreshClock = 0;
         int tile = _pinnedTile >= 0 ? _pinnedTile : _hoverTile;
-        if (_pinnedTile < 0 && !TryPickTile(screen, out tile)) { HideTileCard(); return; }
+        if (_pinnedTile < 0 && !TryPickTileOrPlate(screen, out tile)) { HideTileCard(); return; }
         if (tile < 0) { HideTileCard(); return; }
         bool pinned = _pinnedTile >= 0;
         bool shift = Input.IsKeyPressed(Key.Shift) || pinned;

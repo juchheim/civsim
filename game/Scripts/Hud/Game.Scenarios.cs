@@ -842,6 +842,108 @@ public partial class Game
                 }, 2.5f);
                 Shot("defense-castle");
                 break;
+            case "plate-gallery":
+                // Docs/MVP/33: every settlement name-plate variant on sand, grass, snow, forest and water, drawn straight from the overlay.
+                // --start-minute=30 --viewer=0 --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    EnsurePlates().ShowGallery();
+                }, 1.0f);
+                Shot("plate-gallery");
+                Step(() => EnsurePlates().ShowGallery(1), 1.0f);
+                Shot("plate-gallery-state");
+                Step(() => EnsurePlates().ShowGallery(2), 1.0f);
+                Shot("plate-gallery-small");
+                Step(() => EnsurePlates().ShowGallery(3), 1.0f);
+                Shot("plate-gallery-names");
+                Step(() => EnsurePlates().ShowGallery(4), 1.0f);
+                Shot("plate-gallery-motion");
+                break;
+            case "plates":
+                // Docs/MVP/33: the live map at each zoom band, with the HUD hidden, then once with it. --start-minute=30 --viewer=0 --always-on-top
+                Step(() =>
+                {
+                    _session!.SetPaused(true);
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    FrameCapital(true);
+                }, 2.0f);
+                foreach (float plateZoom in new[] { 4.0f, 8.0f, 12.0f, 20.0f, 40.0f, 90.0f })
+                {
+                    float zoomNow = plateZoom;
+                    Step(() => { _moveAnimating = false; SetZoom(zoomNow); }, 1.2f);
+                    Shot($"plates-z{(int)zoomNow:00}");
+                }
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = true;
+                    _moveAnimating = false;
+                    SetZoom(12.0f);
+                }, 1.2f);
+                Shot("plates-with-hud");
+                Step(() =>
+                {
+                    // Hit test: a click on each plate's ribbon must give back its own settlement's tile; one far from any plate gives none.
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                    {
+                        int settlement = _current.SettlementIndex[i];
+                        if (_plates is null || !_plates.TryGetAnchor(settlement, out Vector2 anchor, out PlateLevel level)) { GD.Print($"SCN plate {settlement}: not shown"); continue; }
+                        bool hit = _plates.TryPickTile(anchor + new Vector2(0, -14), out int tile);
+                        bool miss = _plates.TryPickTile(anchor + new Vector2(400, 0), out int _);
+                        GD.Print($"SCN plate {settlement}: level={level} anchor={anchor} hit={hit} tile={tile} expected={_current.SettlementTile[i]} farMiss={!miss}");
+                    }
+                }, 0.5f);
+                Step(() =>
+                {
+                    // The hover line: the pointer rests on the first plate shown, as a mouse would (plate-hover).
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out _))
+                        {
+                            _hoverActive = true; _hoverScreen = anchor + new Vector2(0, -14);
+                            break;
+                        }
+                }, 0.8f);
+                Shot("plates-hover");
+                // Phase 3: the "Names only" and "Off" settings, then a double-click on a plate.
+                Step(() => { _hoverActive = false; _uiSettings.SettlementPlates = PlateMode.NamesOnly; _moveAnimating = false; SetZoom(12.0f); if (_hudLayer is not null) _hudLayer.Visible = false; }, 1.2f);
+                Shot("plates-names-z12");
+                Step(() => { _moveAnimating = false; SetZoom(28.0f); }, 1.2f);
+                Shot("plates-names-z28");
+                Step(() =>
+                {
+                    _uiSettings.SettlementPlates = PlateMode.Off;
+                    _moveAnimating = false; SetZoom(12.0f);
+                }, 1.2f);
+                Shot("plates-off");
+                Step(() =>
+                {
+                    bool any = false;
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out _, out _)) any = true;
+                    GD.Print($"SCN plates off: any plate hit-testable={any}");
+                    _uiSettings.SettlementPlates = PlateMode.Full;
+                }, 0.8f);
+                Step(() =>
+                {
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                    {
+                        if (_plates is null || !_plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out _)) continue;
+                        _pinnedTile = -1;
+                        Vector3 before = _target;
+                        Vector2 at = anchor + new Vector2(0, -14);
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = true });
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = false });
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = true, DoubleClick = true });
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = false });
+                        GD.Print($"SCN double-click: pinned={_pinnedTile} expected={_current.SettlementTile[i]} moving={_moveAnimating} before={before}");
+                        break;
+                    }
+                }, 2.0f);
+                Step(() => { _hudLayer!.Visible = true; GD.Print($"SCN double-click after: target={_target} zoom={_zoom}"); }, 0.5f);
+                Shot("plates-doubleclick");
+                break;
             case "core-gallery":
                 // --start-minute=30 --viewer=-1 --dev-core-gallery --looks-debug [--layout-dump=FILE] (debug builds): one settlement of each
                 // stage (docs/MVP/31 WP6c), each captured with the default core layout.
@@ -851,7 +953,7 @@ public partial class Game
                 {
                     if (_hudLayer is not null) _hudLayer.Visible = false;
                     if (_scrimLayer is not null) _scrimLayer.Visible = false;
-                    foreach (Label3D label in _settlementMapLabels.Values) if (GodotObject.IsInstanceValid(label)) label.Visible = false;
+                    if (_plateLayer is not null) _plateLayer.Visible = false;
                     _visualRenderer!.Call("lock_season", 0);
                     _session!.SetPaused(true);
                     FrameCapital(true);

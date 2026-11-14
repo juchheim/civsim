@@ -116,6 +116,7 @@ public partial class Game
         _openingHoldAssignmentPending = false;
         _pinnedTile = -1;
         _settlementNames.Clear();
+        _defaultNames.Clear(); _defaultNamesTaken.Clear();
         _selectedResearchProject = -1;
         _completedWhileClosed = -1;
         RebuildVisualRenderer(_current, _session);

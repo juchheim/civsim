@@ -155,6 +155,8 @@ public enum SettlementViewFlags : ushort
     Corvee = 2048,
     /// <summary>The viewer's levy host stands against it.</summary>
     LevyTarget = 4096,
+    /// <summary>The capital of its civilization (a settlement in sight; the viewer's own, or a foreign one that is not only remembered).</summary>
+    Capital = 8192,
 }
 
 /// <summary>Bits of <see cref="MatchFrame.CivFlags"/>: the viewer's relation to a civilization.</summary>

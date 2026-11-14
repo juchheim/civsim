@@ -1035,6 +1035,7 @@ public sealed partial class FrameBuilder
                 flags |= SettlementViewFlags.Palisade;
             if (_politics is { } pol && pol.TinFolk.Count > 0 && pol.IsTinFolk(s)) flags |= SettlementViewFlags.TinFolk | SettlementViewFlags.Palisade;
             if (own && eco.CorveeAt(s) >= 0) flags |= SettlementViewFlags.Corvee;
+            if (!_sFree[s] && _sCiv[s] >= 0 && eco.Capital(_sCiv[s]) == s) flags |= SettlementViewFlags.Capital;
             if (_politics is { } lp && !_omniscient && lp.LevyFor(_viewer, s) is not null) flags |= SettlementViewFlags.LevyTarget;
             target.SettlementFlags[w] = (ushort)flags;
             (int kind, Fix64 share) = eco.SettlementBuild(s);

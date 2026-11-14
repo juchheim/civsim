@@ -23,6 +23,7 @@ public partial class Game
     private Vector3 _moveFrom, _moveTo;
     private float _moveZoomFrom, _moveZoomTo, _moveT;
     private int _pinnedTile = -1;
+    private bool _swallowClick;
     private int _beaconPreviewTile = -1;
     private long _beaconPreviewSequence = -1;
     private int _beaconEstimateTile = -1;
@@ -85,7 +86,6 @@ public partial class Game
     private void UpdateCamera()
     {
         if (_visualRenderer is not null) _visualRenderer.Call("set_camera", _target, _yaw, _pitch, _zoom);
-        UpdateSettlementMapLabelScale();
         RefreshCompass();
     }
 
@@ -206,7 +206,6 @@ public partial class Game
     {
         if (_camera is null) return;
         _visualRenderer?.Call("set_camera", _target, _yaw, _pitch, _zoom);
-        UpdateSettlementMapLabelScale();
     }
 
     private bool MapOwnsKeyboard()
@@ -226,6 +225,10 @@ public partial class Game
         hit = origin + ray * distance;
         return true;
     }
+
+    /// <summary>The tile under the pointer, where a settlement's name plate counts as its tile (the plate floats over the land it names).</summary>
+    private bool TryPickTileOrPlate(Vector2 screen, out int tile)
+        => (_plates is not null && _plates.TryPickTile(screen, out tile)) || TryPickTile(screen, out tile);
 
     private bool TryPickTile(Vector2 screen, out int tile)
     {
@@ -394,10 +397,20 @@ public partial class Game
                     _orbitWithLeft = button.AltPressed;
                     _moveAnimating = false;
                     if (!TryGroundHit(position, out _grabWorld)) _grabWorld = _target;
+                    // Double-click a plate: pin it and bring the camera to it (docs/MVP/33 §6.1). The second click must not unpin it again.
+                    if (button.DoubleClick && !_decreeMapMode && !_beaconMode && _plates is not null && _plates.TryPickTile(position, out int framed))
+                    {
+                        _pinnedTile = framed;
+                        RefreshTileCardNow(position);
+                        UpdatePinLayer();
+                        FocusTile(framed);
+                        _swallowClick = true;
+                    }
                 }
                 else
                 {
-                    bool click = _leftDown && !_dragMoved;
+                    bool click = _leftDown && !_dragMoved && !_swallowClick;
+                    _swallowClick = false;
                     _leftDown = false;
                     if (click) OnMapClicked(position);
                 }
@@ -468,7 +481,7 @@ public partial class Game
             ManageBeaconAt(position);
             return;
         }
-        if (TryPickTile(position, out int tile))
+        if (TryPickTileOrPlate(position, out int tile))
         {
             _pinnedTile = _pinnedTile == tile ? -1 : tile;
             RefreshTileCardNow(position);
