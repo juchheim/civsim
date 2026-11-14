@@ -90,6 +90,7 @@ var ghosts := PackedInt32Array()        # stride 8: people who just left; fade o
 var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
 var viewer_civ := -1                    # the civilization whose view this is (-1 sees everything)
+var fief_active := false                # whether this frame carries the Fief-only settlement readout
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
 var core_district_ids: Array = []       # CoreDistrict names in the order used by each settlement's coreOuter rows
 var plots := PackedInt32Array() # flat [tile, kind] pairs
@@ -113,6 +114,22 @@ func iron_works(s: Dictionary, id: String) -> int:
 		return 0
 	var k := iron_work_ids.find(id)
 	return int(works[k]) if k >= 0 and k < works.size() else 0
+
+## Fief-only, viewer-filtered settlement values; returns an empty dictionary outside a Fief frame.
+func fief_settlement(s: Dictionary) -> Dictionary:
+	if not fief_active:
+		return {}
+	return {
+		"water_mills": int(s.get("fiefWaterMillSources", 0)),
+		"windmills": int(s.get("fiefWindmillSources", 0)),
+		"power_hours_raw": int(s.get("fiefAvailablePowerHours", 0)),
+		"grain_coverage_raw": int(s.get("fiefGrainCoverage", 0)),
+		"monks": int(s.get("fiefMonks", 0)),
+		"monasteries": int(s.get("fiefMonasteries", 0)),
+		"universities": int(s.get("fiefUniversities", 0)),
+		"hospitals": int(s.get("fiefHospitals", 0)),
+		"concentric_castle": bool(s.get("fiefConcentricCastle", false)),
+	}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.
 func siege_of(sim_index: int) -> Array:
@@ -181,6 +198,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 		push_error("MatchFrame update arrived before initial world data")
 		return false
 	viewer_civ = int(d.viewerCiv) if d.has("viewerCiv") else -1
+	fief_active = bool(d.get("fiefActive", false))
 	tick = int(d.tick)
 	year = int(d.year)
 	season = int(d.seasonOfYear)

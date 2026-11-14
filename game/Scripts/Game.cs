@@ -657,6 +657,18 @@ public partial class Game : Node3D
                 settlement["ironBuildKind"] = i < frame.Iron.BuildKind.Length ? (int)frame.Iron.BuildKind[i] : -1;
                 settlement["ironBuildPermille"] = i < frame.Iron.BuildPermille.Length ? (int)frame.Iron.BuildPermille[i] : 0;
             }
+            if (frame.Fief.Active)
+            {
+                settlement["fiefWaterMillSources"] = i < frame.Fief.WaterMillSources.Length ? frame.Fief.WaterMillSources[i] : 0;
+                settlement["fiefWindmillSources"] = i < frame.Fief.WindmillSources.Length ? frame.Fief.WindmillSources[i] : 0;
+                settlement["fiefAvailablePowerHours"] = i < frame.Fief.AvailablePowerHours.Length ? frame.Fief.AvailablePowerHours[i] : 0L;
+                settlement["fiefGrainCoverage"] = i < frame.Fief.GrainCoverage.Length ? frame.Fief.GrainCoverage[i] : 0L;
+                settlement["fiefMonks"] = i < frame.Fief.Monks.Length ? (int)frame.Fief.Monks[i] : 0;
+                settlement["fiefMonasteries"] = i < frame.Fief.Monasteries.Length ? (int)frame.Fief.Monasteries[i] : 0;
+                settlement["fiefUniversities"] = i < frame.Fief.Universities.Length ? (int)frame.Fief.Universities[i] : 0;
+                settlement["fiefHospitals"] = i < frame.Fief.Hospitals.Length ? (int)frame.Fief.Hospitals[i] : 0;
+                settlement["fiefConcentricCastle"] = i < frame.Fief.ConcentricCastle.Length && frame.Fief.ConcentricCastle[i] != 0;
+            }
 #if DEBUG
             if (i == forcedWorkAt)
             {
@@ -977,6 +989,7 @@ public partial class Game : Node3D
             ["terraceTiles"] = terraceTiles,
             ["blockades"] = blockades,
             ["viewerCiv"] = frame.ViewerCiv,
+            ["fiefActive"] = frame.Fief.Active,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,

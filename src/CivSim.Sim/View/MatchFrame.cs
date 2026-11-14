@@ -22,6 +22,8 @@ public sealed class MatchFrame
 
     /// <summary>The Iron chapter's block (works, staff, sieges, blockades, tributes, leagues, Wonders); inactive in any other chapter.</summary>
     public readonly IronFrame Iron = new();
+    /// <summary>The Faith &amp; Fief-only read model; inactive in Bronze and Iron.</summary>
+    public readonly FiefFrame Fief = new();
 
     // ---- header -------------------------------------------------------------------------------
     /// <summary>Build number from the builder that wrote it (1, 2, 3, ...).</summary>

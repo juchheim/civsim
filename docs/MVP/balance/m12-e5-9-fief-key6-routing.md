@@ -16,20 +16,22 @@ The first useful screen is two ordinary seeds with all four archetypes and a 130
 
 ### Exploratory natural screen (2026-11-14)
 
-Ran `iron-match --pack <temporary-promoted-e5.pack> --fief --seeds 2 --minutes 130` with no `--grant-e5`. The temporary content copy promoted exactly the 50 era-5 rows; repository content rows remain draft. Pack SHA-256: `4b97732080aa84cfe795cf03b86ff8f20e02f6d2dc569d8f703a2b13860ff5da`. Seeds were `20261019` and `20261020`. The existing Release harness reported per-civilization KEY-5→KEY-6 timing and censor status.
+The initial screen used seeds `20261019`–`20261020`; the larger held-out cohort used the non-overlapping fixed consecutive range `20262001`–`20262008`. Both used the existing Release harness, all four archetypes, Fief, a 130-minute horizon, and no `--grant-e5`. A temporary content copy promoted exactly the 50 era-5 rows for pack construction; repository content rows remain draft. Pack SHA-256: `4b97732080aa84cfe795cf03b86ff8f20e02f6d2dc569d8f703a2b13860ff5da`.
 
-All **8/8 seats (100%)** completed KEY-6 before the 130-minute horizon; **0** seats were censored after KEY-5 and **0** failed to reach KEY-5. The uncensored elapsed minutes by archetype were: Builder 20.4, 18.3 (median **19.35**, range 18.3–20.4); Grower 18.7, 19.8 (median **19.25**, range 18.7–19.8); Warlord 18.4, 17.7 (median **18.05**, range 17.7–18.4); Sage 19.6, 19.8 (median **19.7**, range 19.6–19.8). Every seat reached KEY-6 between 108.0 and 115.6 simulated minutes. Both matches ran to the explicit 130-minute horizon and had no chapter end.
+Across the held-out block, **29/32 seats (90.6%)** completed KEY-6 by the horizon; **2** had reached KEY-5 and were right-censored, and **1** Warlord had not reached KEY-5. All eight matches ran to the explicit 130-minute horizon with no chapter end. Among uncensored seats, elapsed KEY-5→KEY-6 minutes were: Builder median **17.55**, range **16.1–19.7** (8/8); Grower median **20.1**, range **18.1–25.9** (8/8); Warlord median **17.9**, range **15.7–18.8** (5/8); Sage median **19.7**, range **18.2–21.5** (8/8). Absolute KEY-6 completion minutes by archetype (median; range) were Builder **107.9** (103.7–117.8), Grower **112.7** (107.6–120.6), Warlord **114.9** (111.2–120.4), and Sage **111.4** (109.7–113.5). Absolute times are for completed seats only.
 
-This **n=2 screen is exploratory**, not an acceptance result; it supports proceeding to a larger held-out cohort but does not establish robust pacing or strategic quality.
+For context, the initial `20261019`–`20261020` screen completed **8/8 seats**. Its elapsed KEY-5→KEY-6 results were Builder median **19.35** (18.3–20.4), Grower **19.25** (18.7–19.8), Warlord **18.05** (17.7–18.4), and Sage **19.7** (19.6–19.8); absolute KEY-6 times spanned 108.0–115.6 minutes.
 
-No AI rule change is supported by the fixture-level evidence or this exploratory natural screen. The Council prior gives ready KEY-6 positive value, Spark explicitly routes a ready keystone, and the forecast recognizes Fief's KEY-6. The two-seed screen observed timely natural closure without a demonstrated routing defect; the larger held-out cohort is still needed to establish robust pacing. No new E5 content is promoted by this measure.
+This **n=8, 32-seat cohort is exploratory**, not an acceptance result. It includes a Warlord miss to reach KEY-5 and two right-censored Warlord KEY-6 outcomes, so it does not establish robust pacing or strategic quality.
 
-Validation completed 2026-11-14: the focused routing group and the full Release suite passed, with 1,234 tests; strict content validation also passes. The Council assertion is intentionally limited to availability and prior score, not a guarantee that the Council chooses KEY-6 ahead of all other available work. The two-seed screen is exploratory and does not establish robust natural whole-match AI pacing or strategic choices.
+No AI rule change is supported by the fixture-level evidence or these exploratory natural screens. The Council prior gives ready KEY-6 positive value, Spark explicitly routes a ready keystone, and the forecast recognizes Fief's KEY-6. The observed misses do not isolate a routing defect. No new E5 content is promoted by this measure.
+
+Validation completed 2026-11-14: the focused routing group and the full Release suite passed, with 1,234 tests; strict content validation also passes. The Council assertion is intentionally limited to availability and prior score, not a guarantee that the Council chooses KEY-6 ahead of all other available work. Both natural screens are exploratory and do not establish robust natural whole-match AI pacing or strategic choices.
 
 Reproduce with:
 
 ```bash
-dotnet run --project src/CivSim.Harness -c Release -- iron-match --pack <temporary-promoted-e5.pack> --fief --seeds 2 --minutes 130
+LC_ALL=C LANG=C dotnet run --project src/CivSim.Harness -c Release -- iron-match --pack <temporary-promoted-e5.pack> --fief --seed 20262001 --seeds 8 --minutes 130
 dotnet build CivSim.slnx -c Release
 dotnet test CivSim.slnx -c Release --filter FullyQualifiedName~FiefSparkKey6Tests
 dotnet test CivSim.slnx -c Release

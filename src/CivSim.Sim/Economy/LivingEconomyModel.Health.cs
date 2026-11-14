@@ -152,6 +152,8 @@ public sealed partial class LivingEconomyModel
                 if (f.IllnessSeasons == 0) f.IllnessSeasons = 1;
             }
         }
+        // Fixture-only, read-only observation point: infection is finalized, mortality has not yet been resolved.
+        FixtureAfterOutbreaks?.Invoke();
     }
 
     /// <summary>The epidemic hazard of an infected figure this season (09 §10.3): CFR × age (children ×1.5, elders ×2) × MED.</summary>

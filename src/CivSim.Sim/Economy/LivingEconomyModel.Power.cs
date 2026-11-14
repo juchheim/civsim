@@ -153,6 +153,22 @@ public sealed partial class LivingEconomyModel
         return snapshots;
     }
 
+    /// <summary>Read-only power budget for one settlement, avoiding a match-wide snapshot allocation in frame builders.</summary>
+    internal bool TryCaptureMillPowerSnapshot(int settlementIndex, int season, out MillPowerLedgerSnapshot snapshot)
+    {
+        snapshot = default;
+        if (!FiefChain || (uint)settlementIndex >= (uint)_settlements.Count) return false;
+        SettlementState s = _settlements[settlementIndex];
+        SettlementTier tier = Tier(s.Id);
+        if (tier < SettlementTier.Town) return false;
+        MillPowerAllocation p = MillPower(s);
+        snapshot = new MillPowerLedgerSnapshot(s.Id, s.Civilization, season, tier, p.Population,
+            p.WaterSources, p.WindSources, p.Available, p.GrindingDemand, p.GrindingUsed,
+            p.SawingDemand, p.SawingUsed, p.CraftDemand, p.CraftUsed, p.Unused,
+            p.GrainMilledPeople, p.GrainCoverage);
+        return true;
+    }
+
     /// <summary>Off, a built blast furnace changes nothing. Diagnostics only.</summary>
     internal bool FurnaceEffectEnabled { get; set; } = true;
 

@@ -1,5 +1,6 @@
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.World;
 
 namespace CivSim.Tests;
 
@@ -179,6 +180,73 @@ public class FiefPowerTests
         Assert.Equal(baseline, actualAfter); // a sensitivity readout, not a changed simulation state
         Assert.Equal(addedWindmill.AvailablePowerHours,
             addedWindmill.GrindingUsed + addedWindmill.SawingUsed + addedWindmill.CraftUsed + addedWindmill.UnusedPowerHours);
+    }
+
+    [Fact]
+    public void The_Fief_planner_blocks_a_second_windmill_even_when_the_virtual_ledger_would_add_power()
+    {
+        // This is the source type present in all four remaining F-T2 misses. The hard Built() cap is one
+        // per structure kind, so a second windmill cannot pass the planner gate.
+        BronzeFixture f = Fief("NRG-05");
+        f.Economy.FixtureAddPeople(0, 500, 25);
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureFillNaturalFields(0);
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill"));
+        f.Economy.FixtureSetIronWork(0, "windmill", 1);
+        Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill", includeAppetite: false));
+        Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill"));
+
+        var actualSource = f.Economy.FixtureMillPowerLedger(0);
+        Assert.Equal(1, actualSource.WindmillSources);
+        Assert.InRange((actualSource.AvailablePowerHours - Fix64.Parse("3.2")).Raw, -4L, 4L);
+    }
+
+    [Fact]
+    public void A_river_town_can_build_a_water_mill_alongside_a_windmill_and_nonriver_sites_are_rejected()
+    {
+        GeneratedWorld world = WorldGenerator.Generate(Seed);
+        int RiverSite(bool nearRiver)
+        {
+            for (int tile = 0; tile < world.TileCount; tile++)
+            {
+                if (world.TileAt(tile).Biome is Biome.Ocean or Biome.Coast or Biome.Peak or Biome.Ice) continue;
+                bool hasNearbyRiver = false;
+                for (int river = 0; river < world.TileCount; river++)
+                    if ((world.TileAt(river).Flags & TileFlags.River) != 0 && HexGrid.Distance(tile, river, world.Width) <= 2)
+                    { hasNearbyRiver = true; break; }
+                if (hasNearbyRiver == nearRiver) return tile;
+            }
+            return -1;
+        }
+
+        int riverSite = RiverSite(nearRiver: true);
+        int inlandSite = RiverSite(nearRiver: false);
+        Assert.True(riverSite >= 0);
+        Assert.True(inlandSite >= 0);
+
+        BronzeFixture river = Fief("NRG-03", "NRG-05");
+        river.Economy.FixtureMoveSite(0, riverSite);
+        river.Economy.FixtureAddPeople(0, 500, 25);
+        river.Economy.FixtureSetTier(0, 1);
+        river.Economy.FixtureFillNaturalFields(0);
+        river.Economy.FixtureSetIronWork(0, "windmill", 1);
+        Assert.True(river.Economy.FixtureIronGateOpen(0, "water_mill"));
+        river.Economy.FixtureSetIronWork(0, "water_mill", 1); // complete the gate-approved alternate source
+        var mixedSource = river.Economy.FixtureMillPowerLedger(0);
+        Assert.Equal(1, mixedSource.WaterMillSources);
+        Assert.Equal(1, mixedSource.WindmillSources);
+        Assert.InRange((mixedSource.AvailablePowerHours - Fix64.Parse("8.2")).Raw, -4L, 4L);
+        Assert.Equal(Fix64.FromRatio(3, 5), mixedSource.GrainCoverage);
+        Assert.Equal(mixedSource.AvailablePowerHours,
+            mixedSource.GrindingUsed + mixedSource.SawingUsed + mixedSource.CraftUsed + mixedSource.UnusedPowerHours);
+
+        BronzeFixture inland = Fief("NRG-03", "NRG-05");
+        inland.Economy.FixtureMoveSite(0, inlandSite);
+        inland.Economy.FixtureAddPeople(0, 500, 25);
+        inland.Economy.FixtureSetTier(0, 1);
+        inland.Economy.FixtureFillNaturalFields(0);
+        inland.Economy.FixtureSetIronWork(0, "windmill", 1);
+        Assert.False(inland.Economy.FixtureIronGateOpen(0, "water_mill"));
     }
 
     [Fact]

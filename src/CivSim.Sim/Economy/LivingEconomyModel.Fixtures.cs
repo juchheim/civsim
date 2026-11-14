@@ -15,6 +15,16 @@ public sealed partial class LivingEconomyModel
     private bool _holdSettlements;
     private bool _holdPopulation;
 
+    // Test-only observer for WP6 outbreak measurements. It is deliberately excluded from snapshots and checksums.
+    internal Action? FixtureAfterOutbreaks;
+
+    internal int FixtureInfectedResidentCount()
+    {
+        int count = 0;
+        foreach (FigureState figure in _figures) if (figure.Infected) count++;
+        return count;
+    }
+
     /// <summary>When set, settlements never split, so a fixture settlement keeps its size (the C1 fixture's rule for one settlement).</summary>
     internal bool FixtureHoldSettlements
     {
