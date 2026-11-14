@@ -380,7 +380,11 @@ public partial class Game
     private void BuildInspector(PanelContainer host)
     {
         _inspector = UiKit.Column(UiTokens.Sp3);
-        _inspectorScroll = UiKit.Scroll(_inspector);
+        // Breathing room between the content and the scroll bar, so the CTA and text are not flush against it.
+        var scrollPad = new MarginContainer();
+        scrollPad.AddThemeConstantOverride("margin_right", UiTokens.Sp3);
+        scrollPad.AddChild(_inspector);
+        _inspectorScroll = UiKit.Scroll(scrollPad);
         host.AddChild(_inspectorScroll);
 
         _inspEmpty = UiKit.Text("Pick a project to see what it does.", "BodySecondary", wrap: true);
