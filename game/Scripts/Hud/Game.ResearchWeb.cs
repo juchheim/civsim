@@ -407,7 +407,7 @@ public partial class Game
         _ageRoleNote = UiKit.Text("", "Caption", wrap: true);
         _inspector.AddChild(_ageRoleNote);
 
-        _ctaButton = UiKit.Primary("", OnCtaPressed, null, UiGlyph.None, UiTokens.ControlL, focus: true);
+        _ctaButton = new UiCtaButton(OnCtaPressed);
         _ctaButton.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _inspector.AddChild(_ctaButton);
         _replaceRow = UiKit.Column(UiTokens.Sp2);

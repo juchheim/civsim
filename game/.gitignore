@@ -4,4 +4,5 @@
 !assets/ui/hud/*.import
 !assets/ui/skins/**/*.import
 !assets/ui/title/*.import
+!assets/ui/cta/*.import
 !assets/fonts/**/*.import
