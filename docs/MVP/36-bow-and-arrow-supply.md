@@ -31,13 +31,13 @@ changing these three.
 
 | Good | Unlocked by | Recipe (per weapon) | Work | Where | Lasts | Barter |
 |---|---|---|---|---|---|---|
-| G-BOW, bow and arrows | HNT-06 (hunting), WAR-03 (levy stock) | 0.05 wood, 0.1 flint | 0.4 | any settlement (E0–E2 craft step) | 24 seasons in store; 10 work-seasons in a hunter's hands | 4 |
+| G-BOW, bow and arrows | HNT-06 (hunting), WAR-03 (levy stock) | 0.05 wood (no flint) | 0.4 | any settlement (E0–E2 craft step) | 24 seasons in store; 10 work-seasons in a hunter's hands | 4 |
 | G-LONGBOW, self-bow of yew or ash with arrows | WAR-11 | 1 wood, 0.1 cord | 0.4 | any settlement (craft) | 24 seasons | 4 |
 | G-CROSSBOW, with bolts | WAR-11 | 1 wood, 0.1 wrought iron (or bloom), 0.2 cord | 0.6 | a settlement with a **forge** (the iron nut, trigger and stirrup are a smith's work) | 40 seasons | 6 |
 
 - The **G-BOW** is the same good hunters already use: the hunter's bow is the war bow. Before Archery Warfare a town makes one
   hunting bow at the old E2 price (10 work). In **every chapter**, once WAR-03 is known, bow-making is a routine craft (0.4 work,
-  only 0.05 L of wood for a stave and a few shafts) and the town keeps a levy stock. A town makes **at most three bows a season**,
+  only 0.05 L of wood for a stave and a few shafts, bone-headed and fire-hardened arrows so no flint) and the town keeps a levy stock. A town makes **at most three bows a season**,
   the first one included (three times the first draft's pace of about one); the cap, not a share of craft work, is the throttle.
 - **Crossbow or longbow?** Crossbows are wanted first, as many as the forge and the iron **already in store** can make (kits
   are forged first, so crossbows never take iron from tools). The rest of the season's want is longbows, which need no iron.
@@ -51,8 +51,9 @@ changing these three.
 
 - **Target:** one weapon per resident aged 14 or more who is not a professional soldier (soldiers carry iron arms), capped at
   **40 per settlement**. G-BOW counts toward the target before WAR-11; crossbows plus longbows after it.
-- **Surplus only:** no new bows in a season when food security is under 0.8 (the line that already halves the metal chain);
-  never more than half the cut wood above the 12 L hearth-and-building reserve in a season; bows are the last E0–E2 craft
+- **Surplus only:** no new bows in a season when food security is under 0.8 (the line that already halves the metal chain); crossbows
+  and longbows (WAR-11) never take more than half the cut wood above the 12 L hearth-and-building reserve in a season, while the war bow's
+  0.05 L needs no reserve rule (the first version had one, and real towns almost never held that much wood: see §8); bows are the last E0–E2 craft
   claim after tools (G-BOW takes at most three bows' work, 1.2 of the leftover craft work), and the WAR-11 want is a *secondary* metal-plan
   want, after kits and iron arms.
 - **What that gives in the fixture** (a 100-person town, wood topped up once): three G-BOWs in the first season after WAR-03, and 5+
@@ -93,6 +94,24 @@ not a bow existed. To avoid counting bows twice the ranged branch now applies on
   (see the commit message for the new digests). The toy golden does not. The content-pack golden changes because the content changed
   (G-LONGBOW, make_longbow, the forge on make_crossbow, the WAR-11 good effect).
 - The Fief snapshot version goes from 34 to 35 (a new levy-bow section).
+
+### Balance check (2026-11-16)
+
+`iron-match` over six seeds (20261019 to 20261024), Iron and `--bronze-control`, against the build where bows were Fief-only:
+
+| | raids | assaults | captured | wars | legacy | peak soldiers |
+|---|---|---|---|---|---|---|
+| Iron, Fief-only bows (baseline) | 16 | 4 | 3.3 | 2.7 | 20379 | 595 |
+| Iron, first version (wood above a reserve, and flint) | 12.7 | 2 | 2 | 2.7 | 20228 | 600 |
+| Iron, final (0.05 L of wood, no flint) | 15.7 | 2.3 | 2.3 | 1.7 | 20192 | 622 |
+| Bronze, Fief-only bows (baseline) | 15.3 | 3 | 2.3 | 2.3 | 14266 | - |
+| Bronze, first version | 12 | 1 | 1 | 1.7 | 14208 | - |
+| Bronze, final | 14.7 | 5 | 5 | 2.7 | 14303 | - |
+
+The first version made raids and assaults fall because real towns almost never built a bow: at season 300 none of 93 towns held one, since only 13 held
+more wood than the reserve and fewer than half held flint (the unit tests had stocked both by hand). The final rule gives about nine bows a town by season
+180. Raids, legacy and soldiers are back at the baseline; assaults, captures and wars swing between 0 and 12 from seed to seed and six seeds cannot
+settle them, so a larger sample is worth running before any pace tuning.
 
 ## 9. Open questions
 
