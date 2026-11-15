@@ -10,6 +10,7 @@
 ##   concentric_4_idle    the finished castle with nobody in it: the banners lowered and no pennants, because the defense bonus applies only while garrisoned
 ##   cannon               WAR-12: an iron barrel with a swelling muzzle on a timber carriage with two spoked wheels and a trail, a rammer, a pile of shot and
 ##                        a powder keg beside it; faces +Z (the rig adds the flash, smoke and recoil)
+##   field_gun            WAR-14 (Rifles & Artillery): a long rifled breech-loader on a steel carriage with a gun shield and a split trail; faces +Z like the cannon
 ##   wall_seg_cracked     docs/MVP/32 §8.3 (integrity 40 to 70%): a wall run, cracked through on both faces, stones fallen at its foot
 ##   wall_seg_breach      (15 to 40%): a gap through the curtain with a rubble slope and broken, stepped ends
 ##   wall_tower_cracked   a tower split by a crack on its faces
@@ -48,6 +49,7 @@ static func build(kit) -> void:
 		kit.meshes["concentric_%d" % stage] = _castle(kit, stage, false)
 	kit.meshes["concentric_4_idle"] = _castle(kit, 4, true)
 	kit.meshes["cannon"] = _cannon(kit)
+	kit.meshes["field_gun"] = _field_gun(kit)
 	kit.meshes["wall_seg_cracked"] = _seg_cracked(kit)
 	kit.meshes["wall_seg_breach"] = _seg_breach(kit)
 	kit.meshes["wall_tower_cracked"] = _tower_cracked(kit)
@@ -354,4 +356,36 @@ static func _gate_broken(kit) -> ArrayMesh:
 	b.xf = save
 	for k in 4:
 		b.blob(Vector3(-0.04 + 0.026 * k, 0.007, 0.046 + 0.01 * (k % 2)), Vector3(0.011, 0.008, 0.009), 5, 2, STONE_LIGHT if k % 2 == 0 else STONE, 0.2, STONE_DARK)
+	return b.commit()
+
+
+# ------------------------------------------------------------------ the field gun (WAR-14)
+
+static func _field_gun(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1190)
+	b.tag = PLAIN
+	var wr := 0.026
+	var steel := Color("#4a5058")
+	# two big spoked wheels on an axle, a split trail running back to two spades, and a gun shield of steel plate in front of the breech
+	b.pole(Vector3(-0.036, wr, 0.0), Vector3(0.036, wr, 0.0), 0.0045, IRON)
+	for sx in [-0.036, 0.036]:
+		_wheel(b, Vector3(sx, wr, 0.0), wr)
+	for sx in [-1.0, 1.0]:
+		b.pole(Vector3(sx * 0.008, 0.034, 0.002), Vector3(sx * 0.022, 0.006, -0.125), 0.0045, steel)
+		b.box(Vector3(sx * 0.022, 0.003, -0.13), Vector3(0.012, 0.006, 0.012), IRON)
+	b.box(Vector3(0, 0.034, -0.05), Vector3(0.034, 0.006, 0.006), steel)
+	# the barrel: a long slim tube along Z with a thicker breech and a flared muzzle, in a recoil cradle, set high on the carriage
+	var save := b.xf
+	b.xf = b.xf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0.05, -0.04))
+	b.prism(Vector3(0, 0.0, 0), 0.0125, 0.009, 0.05, 8, steel, steel)
+	b.prism(Vector3(0, 0.05, 0), 0.009, 0.0075, 0.1, 8, IRON_LIGHT, IRON)
+	b.prism(Vector3(0, 0.15, 0), 0.0105, 0.0105, 0.008, 8, IRON_LIGHT, IRON_LIGHT)
+	b.prism(Vector3(0, 0.158, 0), 0.0075, 0.0075, 0.002, 8, SLIT, SLIT)
+	b.xf = save
+	b.box(Vector3(0, 0.0395, 0.0), Vector3(0.026, 0.004, 0.07), steel)
+	b.box(Vector3(0, 0.054, 0.03), Vector3(0.056, 0.04, 0.003), steel)             # the shield, with a slot for the barrel
+	b.box(Vector3(0, 0.054, 0.0315), Vector3(0.012, 0.014, 0.0015), SLIT)
+	# a stack of shells beside the trail
+	for k in 3:
+		b.pole(Vector3(0.034 + 0.006 * k, 0.012, -0.06), Vector3(0.034 + 0.006 * k, 0.026, -0.06), 0.0035, IRON_LIGHT)
 	return b.commit()

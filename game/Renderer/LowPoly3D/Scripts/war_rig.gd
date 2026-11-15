@@ -192,7 +192,7 @@ func _puff_node(colour: Color) -> MeshInstance3D:
 
 func _make_cannon(site: Dictionary) -> Dictionary:
 	var body := MeshInstance3D.new()
-	body.mesh = b.kit.get_mesh("cannon")
+	body.mesh = b.kit.get_mesh(String(site.get("mesh", "cannon")))
 	body.material_override = b.mats.prop
 	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	holder.add_child(body)
@@ -247,7 +247,7 @@ func _play_cannon(c: Dictionary, tick: float) -> void:
 		back = _smooth(t / 0.08) if t < 0.08 else 1.0 - _smooth((t - 0.08) / 1.1)
 	var origin := base - rot * Vector3(0.0, 0.0, RECOIL * ES * back)
 	(c.body as MeshInstance3D).transform = Transform3D(rot * Basis.from_scale(Vector3.ONE * ES), origin)
-	var muzzle: Vector3 = origin + rot * (CANNON_MUZZLE * ES)
+	var muzzle: Vector3 = origin + rot * ((site.get("muzzle", CANNON_MUZZLE) as Vector3) * ES)
 	# flash and light
 	var flash := c.flash as MeshInstance3D
 	var light := c.light as OmniLight3D

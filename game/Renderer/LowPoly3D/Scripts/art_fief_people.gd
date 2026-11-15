@@ -12,6 +12,9 @@
 ##   person_pilgrim     a long travelling cloak, a wide hat with a scallop badge, a staff with a gourd and a pack on the back
 ##   person_knight      a mounted knight: a bay horse under a caparison in the owner's colour, a rider in steel with a great helm and a plume, a kite shield
 ##                      in the owner's colour and a couched lance with a pennon
+##   person_pikeman     WAR-13 (Pike & Musket Drill, docs/MVP/35 section 7): a morion helmet and a steel breastplate over a buff coat, a pike twice the figure's height
+##   person_musketeer   WAR-13: a coat in the owner's colour, white cross-belts, a tricorn hat, a long musket with a bayonet and a cartridge box at the hip
+##   person_rifleman    WAR-14 (Rifles & Artillery): a long greatcoat in the owner's colour, a kepi, a rifle with a bayonet at the shoulder, a pack and rolled blanket
 ##   person_crossbow    WAR-11, docs/MVP/35: a quilted linen jack, an iron kettle hat, a crossbow levelled at the chest, a bolt case at the hip and a big shield
 ##   person_crossbow_g  on the back in the owner's colour. Built in the soldier's frame (the same 0.034 lift of the torso, about 0.097 tall)
 ##   person_longbow     WAR-11: a hooded archer at full draw, a tall pale yew stave with the string drawn to the cheek, an arrow nocked, a quiver over the
@@ -52,6 +55,9 @@ static func build(kit) -> void:
 	kit.meshes["person_crossbow_g"] = _levy(kit, true, true)
 	kit.meshes["person_longbow"] = _levy(kit, false, false)
 	kit.meshes["person_longbow_g"] = _levy(kit, false, true)
+	kit.meshes["person_pikeman"] = _drilled(kit, "pike")
+	kit.meshes["person_musketeer"] = _drilled(kit, "musket")
+	kit.meshes["person_rifleman"] = _drilled(kit, "rifle")
 
 ## The head, in the people kit's size and place, with hair of the given colour.
 static func _head(b: M7MeshBuilder, y: float = 0.05, hair: Color = HAIR) -> void:
@@ -332,3 +338,77 @@ static func _longbow_parts(b: M7MeshBuilder, garment: bool) -> void:
 	b.tag = PLAIN
 	for k in 3:
 		b.box(Vector3(0.0135 + 0.0028 * k, 0.0605, -0.0128), Vector3(0.0024, 0.007, 0.0016), FLETCH)
+
+
+# ------------------------------------------------------------------ the drilled armies (WAR-13, WAR-14; docs/MVP/35 section 7)
+const BUFF := Color("#b89a6a")
+const BELT := Color("#d8d2c0")
+const MUSKET_WOOD := Color("#4a3322")
+const BLANKET := Color("#6a5a46")
+const PACK := Color("#5a4a38")
+
+## The pikeman, the musketeer and the rifleman, in the soldier's frame (legs 0 to 0.036, torso lifted by 0.034, about 0.097 tall). The two firearm figures wear the owner's
+## colour as the whole coat, a uniform, where the older figures wear it as a mantle: a drilled national army reads as one body of one colour from above.
+static func _drilled(kit, kind: String) -> ArrayMesh:
+	var seed_of := {"pike": 1611, "musket": 1612, "rifle": 1613}
+	var b: M7MeshBuilder = kit._b(int(seed_of[kind]))
+	b.tag = PLAIN
+	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, LEG, LEG)
+	b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, LEG, LEG)
+	for sx in [-0.0075, 0.0075]:
+		b.prism(Vector3(sx, 0, 0), 0.0075, 0.0072, 0.011, 5, Color("#2f2418"), Color("#2f2418"))
+	var save := b.xf
+	b.xf = b.xf * Transform3D(Basis.IDENTITY, Vector3(0, 0.034, 0))
+	match kind:
+		"pike":
+			# a buff coat with the owner's colour as a sash, a steel breastplate, a morion helmet with a comb, a pike held upright in both hands
+			b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, BUFF, BUFF)
+			b.blob(Vector3(0, 0.014, 0.004), Vector3(0.0165, 0.0155, 0.0105), 7, 3, STEEL, 0.0)
+			b.tag = CIV
+			b.prism(Vector3(0, 0.002, 0), 0.0188, 0.0185, 0.007, 7, Color.WHITE, Color.WHITE)
+			b.prism(Vector3(0, 0.02, 0), 0.0215, 0.009, 0.012, 7, Color.WHITE, Color.WHITE)
+			b.tag = PLAIN
+			b.pole(Vector3(-0.02, 0.03, 0), Vector3(0.012, 0.012, 0.012), 0.0045, BUFF)
+			b.pole(Vector3(0.02, 0.03, 0), Vector3(0.024, 0.008, 0.012), 0.0045, BUFF)
+			_head(b, 0.05, HAIR)
+			b.blob(Vector3(0, 0.0575, 0), Vector3(0.0138, 0.0105, 0.0138), 7, 3, STEEL_DARK, 0.0)       # the morion's bowl
+			b.box(Vector3(0, 0.0675, 0), Vector3(0.003, 0.008, 0.024), STEEL_DARK)                          # its comb
+			b.prism(Vector3(0, 0.0525, 0), 0.0215, 0.0155, 0.0025, 8, STEEL, STEEL)                         # its curved brim
+			b.pole(Vector3(0.018, -0.034, 0.012), Vector3(0.022, 0.158, 0.014), 0.0021, WOOD_LIGHT)         # the pike, twice the figure's height
+			b.prism(Vector3(0.022, 0.158, 0.014), 0.0034, 0.0, 0.016, 4, STEEL, STEEL)
+		"musket":
+			# a coat in the owner's colour with white cross-belts and a cartridge box, a tricorn hat, a long musket with a bayonet at the shoulder
+			b.tag = CIV
+			b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, Color.WHITE, Color.WHITE)
+			b.tag = PLAIN
+			b.pole(Vector3(-0.014, 0.034, 0.0155), Vector3(0.014, 0.004, 0.0155), 0.0022, BELT)
+			b.pole(Vector3(0.014, 0.034, 0.0155), Vector3(-0.014, 0.004, 0.0155), 0.0022, BELT)
+			b.box(Vector3(0.0165, 0.0, 0.0), Vector3(0.006, 0.01, 0.012), Color("#2f2418"))                  # the cartridge box
+			b.pole(Vector3(-0.02, 0.03, 0), Vector3(0.008, 0.016, 0.014), 0.0045, SKIN)
+			b.pole(Vector3(0.02, 0.03, 0), Vector3(0.024, 0.008, 0.012), 0.0045, SKIN)
+			_head(b, 0.05, HAIR)
+			b.prism(Vector3(0, 0.0555, 0), 0.0245, 0.0215, 0.003, 3, Color("#2a2622"), Color("#2a2622"))      # the tricorn's three-cornered brim
+			b.blob(Vector3(0, 0.0585, 0), Vector3(0.0125, 0.007, 0.0125), 6, 3, Color("#2a2622"), 0.0)
+			var hand := Vector3(0.026, 0.008, 0.012)
+			b.pole(hand + Vector3(0, -0.04, -0.012), hand + Vector3(0.004, 0.086, 0.014), 0.0026, MUSKET_WOOD)
+			b.pole(hand + Vector3(0.004, 0.086, 0.014), hand + Vector3(0.0045, 0.094, 0.0145), 0.0012, STEEL)
+			b.prism(hand + Vector3(0.0045, 0.094, 0.0145), 0.0022, 0.0, 0.014, 4, STEEL, STEEL)
+		"rifle":
+			# a long greatcoat in the owner's colour to the knee, a kepi with a visor, a rifle with a bayonet at the shoulder, a pack with a rolled blanket
+			b.tag = CIV
+			b.prism(Vector3(0, -0.012, 0), 0.0215, 0.0152, 0.048, 8, Color.WHITE, Color.WHITE)
+			b.tag = PLAIN
+			b.prism(Vector3(0, 0.006, 0), 0.0188, 0.0183, 0.004, 8, Color("#2f2418"), Color("#2f2418"))        # the belt
+			b.pole(Vector3(-0.02, 0.03, 0), Vector3(0.008, 0.016, 0.014), 0.0045, Color("#3a3a46"))
+			b.pole(Vector3(0.02, 0.03, 0), Vector3(0.024, 0.008, 0.012), 0.0045, Color("#3a3a46"))
+			_head(b, 0.05, HAIR)
+			b.prism(Vector3(0, 0.0555, 0), 0.0128, 0.0108, 0.0105, 8, Color("#3a3a46"), Color("#3a3a46"))     # the kepi
+			b.box(Vector3(0, 0.0545, 0.0135), Vector3(0.017, 0.0022, 0.006), Color("#1f1f26"))                # its visor
+			b.box(Vector3(0, 0.014, -0.0235), Vector3(0.026, 0.03, 0.014), PACK)                               # the pack
+			b.prism(Vector3(0, 0.03, -0.0235), 0.0075, 0.0075, 0.03, 6, BLANKET, BLANKET)                      # the blanket roll on top, lying across
+			var hand2 := Vector3(0.026, 0.008, 0.012)
+			b.pole(hand2 + Vector3(0, -0.04, -0.012), hand2 + Vector3(0.004, 0.09, 0.014), 0.0024, MUSKET_WOOD)
+			b.pole(hand2 + Vector3(0.004, 0.09, 0.014), hand2 + Vector3(0.0045, 0.098, 0.0145), 0.0012, STEEL)
+			b.prism(hand2 + Vector3(0.0045, 0.098, 0.0145), 0.002, 0.0, 0.016, 4, STEEL, STEEL)
+	b.xf = save
+	return b.commit()
