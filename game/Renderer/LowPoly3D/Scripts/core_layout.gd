@@ -84,6 +84,7 @@ var _hex: Array = []         # 0 = centre, 1 + d = ring-1 hex in direction d: {t
 var _qhex: Array = []        # per quarter: the hex index it holds at this stage, or -1
 var _qhex_all: Array = []    # per quarter: the hex index it would hold (the dump shows open ground too)
 var _items: Array = []
+var _siege: Dictionary = {}       # the siege laid on this town (wb._siege_info): angle toward the besieger, integrity in permille; empty when none
 var _wall_runs: Array = []      # the whole wall runs of the stone perimeter ({q, sy}), for the bowmen of a besieged town
 var _dropped: Array = []
 var _group := 0
@@ -559,6 +560,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	_h0 = w.heights[_t]
 	_seed = float(_t % 997) / 997.0
 	_cc = M7MeshBuilder.lin(M7WorldData.civ_color(_civ), 0.5)
+	_siege = wb._siege_info(s, _c0, _seed)
 	_stage = stage_of(s)
 	_items = []
 	_dropped = []
@@ -1186,13 +1188,47 @@ func _draw_perimeter(tier: String, inset: float, used: Dictionary, edges: Array,
 			if brazier:
 				wb.props.add("flame", wb._xf(wat, top, 0.0, 0.7), Color(1, 1, 1, _seed))
 
+## What is left of the wall at a point, in permille, under the siege laid on this town (1000 when there is none): the loss is felt most on the side the besieger comes
+## from, in full within about 24 degrees of that direction and fading to nothing by about 84, so the damage faces the attacker (docs/MVP/32 §8.3).
+func _wall_integrity_at(q: Vector2) -> int:
+	if _siege.is_empty():
+		return 1000
+	var loss := 1000 - int(_siege.integrity)
+	if loss <= 0:
+		return 1000
+	var v := q - _c0
+	if v.length() < 0.001:
+		return 1000
+	var toward := Vector2(cos(float(_siege.angle)), sin(float(_siege.angle)))
+	var theta := rad_to_deg(acos(clampf(v.normalized().dot(toward), -1.0, 1.0)))
+	var falloff := clampf(1.4 - theta / 60.0, 0.0, 1.0)
+	return 1000 - roundi(float(loss) * falloff)
+
+## The wall piece to draw for what is left of it: whole above 70%, cracked from 40 to 70, broken through from 15 to 40 (a tower half fallen, a gate splintered), then
+## a knocked-down run and a heap (docs/MVP/32 §8.3).
+func _damaged_wall(base: String, left: int) -> String:
+	if left > 700:
+		return base
+	match base:
+		"wall_seg":
+			if left > 400:
+				return "wall_seg_cracked"
+			if left > 150:
+				return "wall_seg_breach"
+			return "wall_ruin" if left > 80 else "wall_rubble"
+		"wall_tower":
+			return "wall_tower_cracked" if left > 400 else "wall_tower_breach"
+		"wall_gate":
+			return "wall_gate" if left > 400 else "wall_gate_broken"
+	return base
+
 func _tower(p: Vector2, hc: Vector2, rings: int, chain: String, tier: String) -> void:
 	if w.tile_at(p) < 0 or not w.is_land(w.tile_at(p)) or wb._river_dist(p) < 0.08:
 		return
 	var sc := WALL_SCALE * (1.0 + 0.15 * (rings - 1))
 	var ang := atan2((p - hc).y, (p - hc).x)
 	var tb := Basis(Vector3.UP, -(ang + PI * 0.5)) * Basis.from_scale(Vector3(WALL_SCALE, sc, WALL_SCALE))
-	wb.props.add("wall_tower", Transform3D(tb, Vector3(p.x, w.height_at(p), p.y)), Color(1, 1, 1, _seed))
+	wb.props.add(_damaged_wall("wall_tower", _wall_integrity_at(p)), Transform3D(tb, Vector3(p.x, w.height_at(p), p.y)), Color(1, 1, 1, _seed))
 	_record({"kind": "tower", "mesh": "wall_tower", "quarter": "perimeter", "slot": "corner", "chain": chain, "tier": tier, "slot_hex": w.tile_at(p),
 		"x": p.x, "z": p.y, "r": 0.045 * WALL_SCALE * 1.4142, "perimeter": true})
 
@@ -1213,7 +1249,9 @@ func _edge_pieces(tier: String, a: Vector2, b: Vector2, gate: bool, gw: float, g
 		if tier.begins_with("stone"):
 			var mesh_name := "wall_gatehouse" if gatehouse else "wall_gate"
 			var gb := Basis(Vector3.UP, -phi) * Basis.from_scale(Vector3(WALL_SCALE, WALL_SCALE * sy, WALL_SCALE))
-			wb.props.add(mesh_name, Transform3D(gb, Vector3(m.x, w.height_at(m), m.y)), Color(1, 1, 1, _seed))
+			# a gate on the besieger's side splinters under the siege (the gatehouse keeps its towers)
+			var shown_gate := mesh_name if gatehouse else _damaged_wall("wall_gate", _wall_integrity_at(m))
+			wb.props.add(shown_gate, Transform3D(gb, Vector3(m.x, w.height_at(m), m.y)), Color(1, 1, 1, _seed))
 			var f := _foot(mesh_name)
 			_record({"kind": "gate", "mesh": mesh_name, "quarter": "perimeter", "slot": "gate", "chain": "gate", "tier": "gatehouse" if gatehouse else "gate",
 				"slot_hex": w.tile_at(m), "x": m.x, "z": m.y, "r": 0.0, "perimeter": true,
@@ -1254,9 +1292,11 @@ func _edge_pieces(tier: String, a: Vector2, b: Vector2, gate: bool, gw: float, g
 						continue
 					var sx := (rl / n) / SEG * 1.04
 					var segb := Basis(Vector3.UP, -phi) * Basis.from_scale(Vector3(sx, WALL_SCALE * sy, WALL_SCALE))
-					wb.props.add("wall_seg", Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, _seed))
+					# the run facing the besieger is the one that breaks (docs/MVP/32 §8.3): cracked, a gap through it, then a heap; the footprint stays the whole wall's
+					var li := _wall_integrity_at(q)
+					wb.props.add(_damaged_wall("wall_seg", li), Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, _seed))
 					_piece_record("wall_seg", q, phi, Vector2(SEG * 0.5 * sx, 0.022 * WALL_SCALE), tier)
-					_wall_runs.append({"q": q, "sy": sy})
+					_wall_runs.append({"q": q, "sy": sy, "li": li})
 
 func _piece_ok(q: Vector2) -> bool:
 	var tq := w.tile_at(q)
@@ -1431,14 +1471,19 @@ func _town_bow_mesh(s: Dictionary) -> String:
 ## sim reports soldiers in post for those alone), only where the wall still stands, and none once it is nearly down.
 func _wall_bowmen(s: Dictionary, siege: Dictionary) -> void:
 	var style: String = w.civ_bow_mesh(_civ) if M7WorldData.LOOKS_DEBUG else _town_bow_mesh(s)
-	if _wall_runs.is_empty() or int(siege.integrity) < 300 or style == "":
+	if _wall_runs.is_empty() or style == "":
 		return
 	var count := mini(int(s.get("soldiers", 0)), 3)
 	if count <= 0:
 		return
 	var angle := float(siege.angle)
 	var toward := Vector2(cos(angle), sin(angle))
-	var runs := _wall_runs.duplicate()
+	var runs := []
+	for r in _wall_runs:
+		if int(r.li) > 400:            # never on a run that is broken through
+			runs.append(r)
+	if runs.is_empty():
+		return
 	runs.sort_custom(func(a, b): return ((a.q as Vector2) - _c).normalized().dot(toward) > ((b.q as Vector2) - _c).normalized().dot(toward))
 	var chosen: Array = []
 	for r in runs:
