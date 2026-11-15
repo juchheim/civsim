@@ -120,6 +120,15 @@ Bronze raids 17, assaults 2.3, captures 2.3, wars 2.3, legacy 14085. Raids, lega
 lower than the baseline's 4 and 3.3 in both bow builds (and lowest with bow loss), which may be real (a bow stock is defence strength too) or seed noise;
 it is the first thing a larger sample should settle.
 
+Third check, larger sample (2026-11-15): `iron-match`, 24 paired seeds (20261101 to 20261124), both runs on the same commit with the bows on
+(`LevyBowsPerSeason = 3`) against off (`LevyBowsPerSeason = 0`, so no bow is ever made, held or lost). The earlier six-seed baseline was a different
+commit with other sessions' Iron and Politics changes mixed in, so this one isolates the bows. Means over the 24 seeds, difference (on minus off) with its
+standard error: wars 1.83 to 2.33 (+0.50, se 0.68), raids 13.8 to 16.2 (+2.3, se 1.4), assaults 1.92 to 2.25 (+0.33, se 0.72), captures 1.92 to 2.17
+(+0.25, se 0.65), chapter end 409.8 to 411.0 seasons (+1.2, se 1.7), legacy 5036 to 5045 (+9, se 31), peak soldiers 648 to 674 (+27, se 16), settlements 102.3
+to 104.5 (+2.1, se 1.1), people 8240 to 8506 (+266, se 126). All 48 matches end by the rival countdown. Nothing moves against the bows: the six-seed dip in
+assaults and captures was noise. The only differences near two standard errors (people and settlements, a few percent) point up, not down. No pace tuning is
+needed.
+
 ## 9. Open questions
 
 1. **Pace.** Settled at three bows a season (the owner's call); the cap of 40 per town now sets how long a full levy takes (about a dozen seasons).
