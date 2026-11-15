@@ -30,6 +30,8 @@ const LOOK_TILES := 1024         # CER-08 Fired Brick & Tile
 const LOOK_IRON_ARMS := 2048     # WAR-08 Iron Weapons
 const LOOK_COLONNADES := 4096    # STN-12 Ashlar & Columns
 const LOOK_GRAFTING := 8192      # FOR-08 Grafting
+const LOOK_KNIGHTS := 16384      # WAR-10 Heavy Cavalry
+const LOOK_GUNPOWDER := 32768    # WAR-12 Gunpowder Weapons
 
 ## Bits of iron_looks (IronFrame.CivLooks): per civilization, the Iron projects that leave small props.
 const IRON_CAMELS := 1      # HUS-09 Camels & Caravan Animals
@@ -228,7 +230,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	if LOOKS_DEBUG:
 		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
 		civ_looks.resize(8)
-		civ_looks.fill(16383)
+		civ_looks.fill(65535)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	sieges = _int_data(d.sieges, 6) if d.has("sieges") else PackedInt32Array()

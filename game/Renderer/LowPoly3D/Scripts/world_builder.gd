@@ -55,6 +55,8 @@ var _camp_parent_fire_by_index := {}
 var rig: M7MonumentRig
 var boat_probe := Vector2.ZERO          # the last boat placed (dev scenarios aim the camera at it)
 var chariot_probe := Vector2.ZERO       # the last chariot placed (dev scenarios aim the camera at it)
+var knight_probe := Vector2.ZERO        # the last mounted knight placed (WAR-10)
+var gunner_probe := Vector2.ZERO        # the last gunner placed in the field (WAR-12)
 var decor_spots := {}                   # decor name -> where the last one was placed (dev scenarios aim the camera at it)
 var trail_node: MeshInstance3D
 var trail_signature := -1
@@ -1034,6 +1036,10 @@ func _apply_settlement_layout_cache(cache: Dictionary) -> void:
 		boat_probe = cache.boat_probe
 	if bool(cache.get("chariot_probe_changed", false)):
 		chariot_probe = cache.chariot_probe
+	if bool(cache.get("knight_probe_changed", false)):
+		knight_probe = cache.knight_probe
+	if bool(cache.get("gunner_probe_changed", false)):
+		gunner_probe = cache.gunner_probe
 
 ## Deposits remain tied to their economic tile. Move and scale their marker on a settlement feature tile to keep it legible.
 func _deposit_visual_placement(tile: int, preferred: Vector2) -> Array:
@@ -1278,6 +1284,8 @@ func _settlements() -> void:
 		var decor_before: Dictionary = decor_spots.duplicate(true)
 		var boat_before := boat_probe
 		var chariot_before := chariot_probe
+		var knight_before := knight_probe
+		var gunner_before := gunner_probe
 		_active_visual_records = []
 		_capture_visual_records = true
 		_record_visual_occupancy(hearth, 0.13)
@@ -1310,6 +1318,10 @@ func _settlements() -> void:
 		result["boat_probe"] = boat_probe
 		result["chariot_probe_changed"] = chariot_probe != chariot_before
 		result["chariot_probe"] = chariot_probe
+		result["knight_probe_changed"] = knight_probe != knight_before
+		result["knight_probe"] = knight_probe
+		result["gunner_probe_changed"] = gunner_probe != gunner_before
+		result["gunner_probe"] = gunner_probe
 		props = outer_props
 		_merge_batcher_groups(props, result.groups)
 		settlement_layout_cache[si] = result
@@ -1998,6 +2010,20 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 			var sp := p + side * (0.12 + 0.03 * j) - dir * 0.04 * j
 			props.add("siege_stone", Transform3D(Basis.from_scale(Vector3.ONE * 1.2), Vector3(sp.x, w.height_at(sp) + 0.012, sp.y)), Color(1, 1, 1, 0.5))
 			_record_visual_occupancy(sp, 0.08)
+	# a besieger with gunpowder (WAR-12) also trains a cannon on the wall from the end of the line, with two gunners at its carriage
+	if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+		var ca := angle - ((count - 1) * 0.15 + 0.3)
+		var cdir := Vector2(cos(ca), sin(ca))
+		var cp := c + cdir * (ring + 0.75)
+		var ctq := w.tile_at(cp)
+		if ctq >= 0 and w.is_land(ctq):
+			var cyaw := atan2((c - cp).x, (c - cp).y)
+			props.add("cannon", Transform3D(Basis(Vector3.UP, cyaw) * Basis.from_scale(Vector3.ONE * 1.2), Vector3(cp.x, w.height_at(cp), cp.y)), Color(1, 1, 1, 0.5))
+			_record_visual_occupancy(cp, 0.26)
+			var cside := Vector2(-cdir.y, cdir.x)
+			for gs in [-1.0, 1.0]:
+				var gp: Vector2 = cp + cside * (0.17 * gs) - cdir * 0.06
+				props.add("person_gunner", _xf(gp, w.height_at(gp), cyaw, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 	# the camp behind the engines
 	for j in 4:
 		var a2 := angle + (j - 1.5) * 0.28
@@ -2563,6 +2589,17 @@ func _figures() -> void:
 			props.add("person_far", _xf(p, y, 0.0, 1.0), custom)
 			n += 1
 			continue
+		# raiders of a civilization with heavy cavalry (WAR-10) ride as mounted knights over open ground; the rest still take the chariot below
+		var debug_knight := M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 2     # --looks-debug: every fifth figure rides, so the knight can be inspected
+		if boat_strength <= 0.0 and age == 1 and civ >= 0 and (((fl & 256) and seed < 0.45) or debug_knight) and w.has_look(civ, M7WorldData.LOOK_KNIGHTS):
+			var riding := act == 17 or act == 18 or act == 19 or debug_knight
+			var knight_tile: int = w.tile_at(p)
+			if riding and knight_tile >= 0 and _open_ground(knight_tile):
+				props.add("person_knight", _xf(p, y, face, 1.0), custom)
+				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
+				knight_probe = p
+				n += 1
+				continue
 		# raiders of a civilization with chariots (WAR-06) ride them over open ground
 		if boat_strength <= 0.0 and age == 1 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
 			var raiding := act == 17 or act == 18 or act == 19
@@ -2591,6 +2628,14 @@ func _figures() -> void:
 				if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_IRON_ARMS):
 					mesh = "person_soldier"       # iron arms (WAR-08): helmet, shield and an iron spear
 					iron_armed = true
+				if civ >= 0 and seed >= 0.7 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+					mesh = "person_gunner"        # gunpowder (WAR-12): about three armed people in ten carry a linstock and powder horn
+					iron_armed = true
+			if M7WorldData.LOOKS_DEBUG and civ >= 0 and age == 1 and (fi / 11) % 5 == 3 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+				mesh = "person_gunner"
+				iron_armed = true
+			if mesh == "person_gunner":
+				gunner_probe = p
 			# bladed and headed tools show the tier of the method in use: stone, polished stone, copper, bronze
 			var tier := M7MeshKit.tool_tier_for_rung(rung) if rung >= 0 else 0
 			# the iron kits (11, 12) show on the figure that holds one: dark iron, then bright tempered steel (MET-09, MET-10)
@@ -2610,7 +2655,8 @@ func _figures() -> void:
 			if tier > 0 and not iron_armed and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer", "person_scythe"]:
 				mesh += "_t" + str(tier)
 		if civ >= 0 and act != 14 and w.has_look(civ, M7WorldData.LOOK_TAILORED):
-			mesh += "_g"                   # fitted parkas, sleeves, leggings and boots (FIB-04)
+			if kit.meshes.has(mesh + "_g"):
+				mesh += "_g"               # fitted parkas, sleeves, leggings and boots (FIB-04); the gunner has no tailored variant
 		if boat_strength > 0.0:
 			# the fisher stands in the boat; the hull shrinks away as they leave the water
 			props.add("person_boat_%d" % boat_tier, _xf(p, y - 0.006 * boat_strength, face, boat_strength), custom)
