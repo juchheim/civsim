@@ -305,6 +305,12 @@ func siege_focus() -> Vector3:
 		return Vector3.ZERO
 	return builder.siege_engines[0].p
 
+## Dev aid for scenarios: where the first besieger's cannon stands (the origin when none).
+func cannon_focus() -> Vector3:
+	if builder == null or builder.siege_cannons.is_empty():
+		return Vector3.ZERO
+	return builder.siege_cannons[0].p
+
 ## Dev aid for scenarios: where the first forge at work is (the origin when none).
 func forge_focus() -> Vector3:
 	if builder == null or builder.forge_sites.is_empty():

@@ -375,8 +375,14 @@ attacker). `_damaged_wall` then picks the mesh: whole above 70%; `wall_seg_crack
 below that; towers go cracked, then `wall_tower_breach`; a plain gate becomes `wall_gate_broken` from 40% down (a gatehouse keeps its towers). The layout footprints still
 record the whole wall, so `check_core_layout.py` sees no change, and with no siege nothing differs. Photographed with `--scenario=war-village --dev-walls=2
 --dev-siege=900|600|300|100`: whole, cracked on the run facing the besieger, a gap with a rubble slope and a half-fallen tower, then heaps. Wall bowmen
-(docs/MVP/35) now stand only on runs that are not broken through. **Not built:** the dust wisp and cannon flash that accompany a hit, and the concentric castle's rule that
-the outer ring breaks before the inner one.
+(docs/MVP/35) now stand only on runs that are not broken through. **Not built:** the concentric castle's rule that the outer ring breaks before the inner one.
+
+**Status (2026-11-16, cannon): the cannon fires.** `siege_cannons` (world_builder.gd, filled by `_siege_camp` for a besieger with gunpowder) hands each cannon to the war rig
+(`war_rig.gd`), which now draws the cannon itself instead of a static prop so it can recoil. One shot every 11 seconds (offset by position, so two do not fire together),
+all a pure function of the render tick: a muzzle flash with a short flicker of warm light, the carriage running back and rolling home over about a second, three puffs of
+smoke swelling and drifting off along the barrel, a dark iron ball on a low arc to the wall (0.3 s), and two puffs of dust at the impact point. Captured with
+`--scenario=war-village --dev-walls=2 --dev-siege=500 --looks-debug --cannon-burst` (a still every 0.2 s for 19 s). The dust is a puff at the target, not tied to the
+damaged wall meshes of the paragraph above, and the besieged side's gunners do not yet react to the shot.
 
 The dev gallery (the same one that checks Iron works) should have one capture per mesh and per state before any of it goes into a match.
 

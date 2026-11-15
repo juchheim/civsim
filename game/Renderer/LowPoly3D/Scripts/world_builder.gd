@@ -8,7 +8,7 @@ const RIVER_SEARCH_RADIUS := 2.0
 const STATIC_CHUNK_SIZE := 40.0
 const STATIC_DETAIL_CHUNK_SIZE := 12.0
 const SETTLEMENT_LAYOUT_ARRAYS := ["hearths", "villages", "ziggurat_sites", "castle_sites", "harbor_sites", "forge_sites",
-	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines",
+	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines", "siege_cannons",
 	"bridge_sites", "civic_sites"]
 
 const SPECIES := [
@@ -90,6 +90,7 @@ var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenari
 var chimney_smokes: Array = []          # {pos, seed}: bathhouse chimneys, for the war rig's smoke
 var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
+var siege_cannons: Array = []           # {p, yaw, target, seed}: each cannon a besieger with gunpowder (WAR-12) trains on a wall, for the war rig (recoil, flash, smoke)
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
 var bridge_sites: Array = []            # {p, y}: where each stone bridge stands
@@ -1235,6 +1236,7 @@ func _settlements() -> void:
 	beacon_fires.clear()
 	lighthouse_sites.clear()
 	siege_engines.clear()
+	siege_cannons.clear()
 	bridge_sites.clear()
 	civic_sites.clear()
 	var terrace_set := {}
@@ -2060,7 +2062,10 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 		var ctq := w.tile_at(cp)
 		if ctq >= 0 and w.is_land(ctq):
 			var cyaw := atan2((c - cp).x, (c - cp).y)
-			props.add("cannon", Transform3D(Basis(Vector3.UP, cyaw) * Basis.from_scale(Vector3.ONE * 1.2), Vector3(cp.x, w.height_at(cp), cp.y)), Color(1, 1, 1, 0.5))
+			# the cannon itself is the war rig's (it recoils when it fires); here is only where it stands and what it is aimed at
+			var cimpact := c + cdir * ring
+			siege_cannons.append({"p": Vector3(cp.x, w.height_at(cp), cp.y), "yaw": cyaw, "target": Vector3(cimpact.x, w.height_at(cimpact) + 0.1, cimpact.y),
+				"seed": M7WorldData.hash01(int(cp.x * 100.0), int(cp.y * 100.0), 83)})
 			_record_visual_occupancy(cp, 0.26)
 			var cside := Vector2(-cdir.y, cdir.x)
 			for gs in [-1.0, 1.0]:
