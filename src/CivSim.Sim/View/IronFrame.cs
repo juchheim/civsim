@@ -15,8 +15,8 @@ public sealed class IronFrame
     public int WorkKinds;
 
     // ---- per civilization: small-prop looks of the Iron Age that the 16 bits of MatchFrame.CivLooks have no room for ----
-    public const int LookCamels = 1, LookRelays = 2, LookBarrels = 4, LookPlanks = 8, LookGlass = 16, LookCrossbows = 32;
-    /// <summary>One int per civilization: bits of <c>Look*</c> for the projects it has completed (HUS-09, COM-08, WOD-07, WOD-08, CER-07, WAR-11: the levy carries crossbows or longbows). Zero outside the Iron chapter.</summary>
+    public const int LookCamels = 1, LookRelays = 2, LookBarrels = 4, LookPlanks = 8, LookGlass = 16;
+    /// <summary>One int per civilization: bits of <c>Look*</c> for the projects it has completed (HUS-09, COM-08, WOD-07, WOD-08, CER-07). Zero outside the Iron chapter.</summary>
     public int[] CivLooks = Array.Empty<int>();
 
     // ---- per settlement: actual stock behind settlement props, separate from the project looks above ----

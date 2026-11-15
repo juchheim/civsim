@@ -9,7 +9,14 @@ missile rank (its own bow style, standing 0.06 behind the line, no lunge) that l
 skirmish scenario; none in reduced motion), and an own, walled, besieged town shows up to three bowmen (gunners from the second with gunpowder) on whole wall
 runs on the besieger's side, facing out, while the wall integrity is 300 or more (`core_layout.gd` `_wall_bowmen`). The live map does not yet draw cracked or
 breached wall runs, so "none on a broken run" has nothing to test. The garrison and drill-ground slots are wired and run without errors but were not
-photographed. Original status: design, 2026-11-15. It expands the one row of [32 §6](32-e5-art-pass.md) ("Crossbow or longbow levy |
+photographed. **Superseded in part (2026-11-16): the figures now follow real stock, not the project.** The WAR-11 look bit (`IronFrame.LookCrossbows`, `IRON_CROSSBOWS`)
+and the one-bow-style-per-civilization hash are gone. `MatchFrame.SettlementBowPct` (three bytes a settlement) gives, for each settlement the viewer sees now, the
+percent of its fighting-age people who hold a crossbow, a longbow and the war bow (read from the stock combat reads, best first, so never above 100); the
+bridge sends it as the settlement's `bows`. An armed figure rolls against its own settlement's shares (`_arms_mesh`: gunner for the top three in ten with
+gunpowder, then crossbow, then longbow or war bow, then soldier or spear), and the longbow figure also stands for the early war bow, so archers appear in Bronze
+and Iron matches too. The castle garrison and drill-ground bow slots, the skirmish missile ranks (a civilization's bow style from its settlements' shares) and the
+wall bowmen follow the town's or civilization's real stock. `--looks-debug` pretends every settlement holds 25% crossbows, 25% longbows and 10% war bows. Original
+status: design, 2026-11-15. It expands the one row of [32 §6](32-e5-art-pass.md) ("Crossbow or longbow levy |
 peasant cloth, a crossbow or a long bow, a quiver | in defense, on walls, in battle | P2") into a buildable spec. Numbers marked (P) are
 proposals to tune in the gallery.
 

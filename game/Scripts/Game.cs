@@ -639,6 +639,8 @@ public partial class Game : Node3D
                 frame.SettlementEcon[econAt + EconField.BlockerNeed] > frame.SettlementEcon[econAt + EconField.BlockerHave])
                 supplyShortage = Math.Max(supplyShortage, 2);
             settlement["supplyShortage"] = supplyShortage;
+            // the share, in percent, of its fighters holding a crossbow, a longbow and the war bow (docs/MVP/36): the figures carrying bows follow it
+            settlement["bows"] = new int[] { frame.SettlementBowPct[i * 3], frame.SettlementBowPct[i * 3 + 1], frame.SettlementBowPct[i * 3 + 2] };
             // The Iron chapter's works at this settlement (counts per kind, in the order of "ironWorkIds"), the soldiers posted, and the build under way.
             if (frame.Iron.Active && frame.Iron.WorkKinds > 0 && (i + 1) * frame.Iron.WorkKinds <= frame.Iron.Works.Length)
             {

@@ -86,4 +86,26 @@ public sealed class War11FightersTests
         Assert.True(lost > Fix64.Zero, "dead fighters should have taken bows with them");
         Assert.True(lost <= Fix64.FromInt(10), $"at most one bow each: {lost}");
     }
+
+    [Fact]
+    public void The_frame_gives_the_share_of_a_towns_fighters_that_hold_each_bow()
+    {
+        var m = Prepared(ChapterRules.Fief, "KEY-3", "KEY-4", "HNT-06", "WAR-03", "WAR-11");
+        for (int i = 0; i < 4; i++) m.Runner.Advance(150);
+        var frame = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(m.Match, 0).Build(m.Match, frame);
+        int row = -1;
+        for (int w = 0; w < frame.SettlementCount; w++) if (frame.SettlementIndex[w] == m.Home) row = w;
+        Assert.True(row >= 0, "the home town is in the viewer's frame");
+        int cb = frame.SettlementBowPct[row * 3], lb = frame.SettlementBowPct[row * 3 + 1], wb = frame.SettlementBowPct[row * 3 + 2];
+        Assert.True(cb + lb + wb > 0, $"the town holds bows: {cb}/{lb}/{wb}");
+        Assert.True(cb + lb + wb <= 100, $"never more than everyone: {cb}/{lb}/{wb}");
+
+        // a civilization that does not know the weapons shows none, whatever sits in a store
+        var bare = Prepared(ChapterRules.Fief, "KEY-3", "KEY-4");
+        for (int i = 0; i < 4; i++) bare.Runner.Advance(150);
+        var f2 = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(bare.Match, 0).Build(bare.Match, f2);
+        for (int w = 0; w < f2.SettlementCount * 3; w++) Assert.Equal(0, f2.SettlementBowPct[w]);
+    }
 }
