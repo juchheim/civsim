@@ -13,6 +13,9 @@ const SIDE_MAX := 6
 const ASSAULT_SIDE_MAX := 8
 const MAX_PUFFS := 48
 const MAX_SPARKS := 10
+const MAX_ARROWS := 8                  # the volley of a side that knows WAR-11 (docs/MVP/35 §3.3): at most a third of each side's shown fighters loose one
+const ARROW_FLIGHT := 0.3              # seconds an arrow takes from the bow to the clash
+const MISSILE_BEHIND := 0.06           # the missile rank stands this far behind its side's line (before the figure scale)
 
 # timeline in seconds (normal / reduced motion)
 const T_FULL := {"rush": 1.0, "brk": 2.15, "victory": 2.55, "fade": 3.75, "end": 4.3}
@@ -99,6 +102,8 @@ var fights: Array = []
 var dust_mat: ShaderMaterial
 var spark_mat: ShaderMaterial
 var ring_mat: ShaderMaterial
+var arrow_mesh: BoxMesh
+var arrow_mat: StandardMaterial3D
 var quad: QuadMesh
 var plane: PlaneMesh
 var next_id := 1
@@ -117,6 +122,11 @@ func _ensure_shared() -> void:
 	quad.size = Vector2.ONE
 	plane = PlaneMesh.new()
 	plane.size = Vector2(2.0, 2.0)
+	arrow_mesh = BoxMesh.new()
+	arrow_mesh.size = Vector3(0.0035, 0.0035, 0.036)
+	arrow_mat = StandardMaterial3D.new()
+	arrow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	arrow_mat.albedo_color = Color("#f1e7cf")
 	for k in ["dust", "spark", "ring"]:
 		var sh := Shader.new()
 		sh.code = DUST_SHADER if k == "dust" else (SPARK_SHADER if k == "spark" else RING_SHADER)
@@ -226,12 +236,20 @@ func start(spec: Dictionary) -> Array:
 	var root := Node3D.new()
 	root.name = "Skirmish"
 	holder.add_child(root)
+	# a side whose civilization knows WAR-11 puts a third of its shown fighters in a missile rank of its own bow style (docs/MVP/35 §3.3)
+	var civs := [att_civ, def_civ]
+	var bowmen := [att_civ >= 0 and w.has_iron_look(att_civ, M7WorldData.IRON_CROSSBOWS), def_civ >= 0 and w.has_iron_look(def_civ, M7WorldData.IRON_CROSSBOWS)]
+	var bow_stand := []
+	for side in 2:
+		bow_stand.append(_multimesh(root, _person_mesh(int(civs[side]), b._bow_mesh(int(civs[side]))), b.mats.figure, most, false, true) if bowmen[side] else null)
 	var f := {
 		"id": next_id, "t": 0.0, "tl": tl, "calm": calm, "assault": assault, "most": most, "tile": tile, "root": root,
 		"home": home, "dir": dir, "perp": perp, "clash": home + dir * clash_d,
 		"civ": [att_civ, def_civ], "att_won": att_won, "counts": counts,
 		"stand": [_multimesh(root, _person_mesh(att_civ, "person_spear"), b.mats.figure, most, false, true),
 			_multimesh(root, _person_mesh(def_civ, "person_spear"), b.mats.figure, most, false, true)],
+		"bowstand": bow_stand,
+		"arrows": _multimesh(root, arrow_mesh, arrow_mat, MAX_ARROWS, false, false), "arrows_live": [], "arrow_next": 0,
 		"cheer": [_multimesh(root, b.kit.get_mesh("person_feast_cheer"), b.mats.figure, most, false, true),
 			_multimesh(root, b.kit.get_mesh("person_feast_cheer"), b.mats.figure, most, false, true)],
 		"shadow": _multimesh(root, b.kit.get_mesh("shadow_disc"), b.mats.shadow_disc, most * 2, false, true),
@@ -268,7 +286,7 @@ func start(spec: Dictionary) -> Array:
 			else:
 				start_p = home + dir * rng.randf_range(-0.04, 0.05) + perp * (lateral * 0.045 + rng.randf_range(-0.02, 0.02))
 			men.append({
-				"side": side, "i": i, "lateral": lateral, "fate": fate, "start": start_p,
+				"side": side, "i": i, "lateral": lateral, "fate": fate, "start": start_p, "missile": bool(bowmen[side]) and i % 3 == 2, "shot": false,
 				"ph": rng.randf() * TAU, "seed": rng.randf(), "stagger": rng.randf_range(0.0, 0.22),
 				"jit": Vector2(rng.randf_range(-0.012, 0.012), rng.randf_range(-0.012, 0.012)),
 				"fall_at": 0.0, "fall_dir": 1.0 if rng.randf() < 0.5 else -1.0, "last": start_p, "trail": rng.randf() * 0.1,
@@ -334,10 +352,15 @@ func _play(f: Dictionary, delta: float, sp: float, rs: float) -> void:
 		var i: int = m.i
 		var ph: float = m.ph
 		var fate: int = m.fate
-		var stand: MultiMesh = f.stand[side]
+		var missile: bool = m.missile
+		var stand: MultiMesh = f.bowstand[side] if missile else f.stand[side]
+		var other_stand: MultiMesh = f.stand[side] if missile else f.bowstand[side]
 		var cheer: MultiMesh = f.cheer[side]
 		var toward := -dir if side == 0 else dir
+		var behind := dir if side == 0 else -dir
 		var slot: Vector2 = clash + dir * (0.042 * sp if side == 0 else -0.042 * sp) + perp * (float(m.lateral) * lat_step) + (m.jit as Vector2) * sp
+		if missile:
+			slot += behind * MISSILE_BEHIND * sp          # the missile rank stands behind its line and does not close
 		var p: Vector2
 		var face := atan2(toward.x, toward.y)
 		var moving := false
@@ -361,13 +384,17 @@ func _play(f: Dictionary, delta: float, sp: float, rs: float) -> void:
 		if u >= 1.0 and t < float(m.fall_at) + 0.01:
 			var k := 0.25 if calm else 1.0
 			var wob := Vector2(sin(t * 5.3 + ph), cos(t * 4.1 + ph * 1.3)) * 0.012 * sp * k
-			var lunge := 0.0 if calm else pow(maxf(0.0, sin(t * 8.5 + ph)), 3.0) * 0.024 * sp
+			var lunge := 0.0 if calm or missile else pow(maxf(0.0, sin(t * 8.5 + ph)), 3.0) * 0.024 * sp
 			p = slot + wob + toward * lunge
 			var mid: Vector2 = enemy_mid[side] + perp * (float(m.lateral) * lat_step * 0.8)
 			var at := mid - p
-			face = atan2(at.x, at.y) + (sin(t * 6.0 + ph) * (0.12 if calm else 0.4))
-			lift = 0.0 if calm else absf(sin(t * 9.0 + ph)) * 0.004 * sp
-			tilt = 0.0 if calm else sin(t * 7.0 + ph) * 0.1
+			face = atan2(at.x, at.y) + (sin(t * 6.0 + ph) * (0.12 if calm else (0.05 if missile else 0.4)))
+			lift = 0.0 if calm or missile else absf(sin(t * 9.0 + ph)) * 0.004 * sp
+			tilt = 0.0 if calm or missile else sin(t * 7.0 + ph) * 0.1
+			# the one volley: once in place the bowman looses an arrow at the clash, a moment after the line has met (never in reduced motion)
+			if missile and not calm and not bool(m.shot) and t >= go + 0.12 + float(m.stagger) * 1.2 and t < float(tl.brk) - 0.1:
+				m.shot = true
+				_loose(f, Vector3(p.x, _ground(p) + 0.07 * sp, p.y), enemy_mid[side] + perp * (float(m.lateral) * lat_step * 0.6), sp)
 		# what happens after the break
 		var after := t - float(m.fall_at)
 		if after > 0.0:
@@ -427,6 +454,8 @@ func _play(f: Dictionary, delta: float, sp: float, rs: float) -> void:
 		var xf := Transform3D(basis.scaled(Vector3.ONE * grow), Vector3(p.x, y, p.y))
 		var custom := Color(float(int(f.civ[side]) % 8) + float(m.seed) * 0.98, 0.0, 0.0, 0.0)
 		stand.set_instance_transform(i, zero if use_cheer or grow <= 0.001 else xf)
+		if other_stand != null:
+			other_stand.set_instance_transform(i, zero)
 		cheer.set_instance_transform(i, xf if use_cheer and grow > 0.001 else zero)
 		stand.set_instance_custom_data(i, custom)
 		cheer.set_instance_custom_data(i, custom)
@@ -476,6 +505,7 @@ func _play(f: Dictionary, delta: float, sp: float, rs: float) -> void:
 				break
 		sk.append(s)
 	_update_sparks(f, delta, calm)
+	_update_arrows(f, delta, sp)
 	# the winner: a glow on the ground, rings spreading in their colour, and their banner planted where the fight was
 	var rings: MultiMesh = f.rings
 	var win_col := M7WorldData.civ_color(int(f.civ[winner_side])).lightened(0.12).srgb_to_linear()
@@ -574,3 +604,39 @@ func _update_sparks(f: Dictionary, delta: float, calm: bool) -> void:
 		var size: float = float(s.size) * (0.6 + 0.6 * u)
 		sparks.set_instance_transform(int(s.slot), Transform3D(Basis().scaled(Vector3.ONE * size), s.pos))
 		sparks.set_instance_color(int(s.slot), Color(1.0, 0.9, 0.65, flash * (0.6 if calm else 1.0)))
+
+
+## One arrow from a bowman to the clash: a short cream shaft on a low arc, over ARROW_FLIGHT seconds.
+func _loose(f: Dictionary, from: Vector3, to: Vector2, sp: float) -> void:
+	var slot := int(f.arrow_next)
+	f.arrow_next = (slot + 1) % MAX_ARROWS
+	var live: Array = f.arrows_live
+	for old in live:
+		if int(old.slot) == slot:
+			live.erase(old)
+			break
+	var target := Vector3(to.x, _ground(to) + 0.035 * sp, to.y)
+	live.append({"slot": slot, "from": from, "to": target, "age": 0.0, "arc": 0.05 * sp})
+
+func _update_arrows(f: Dictionary, delta: float, sp: float) -> void:
+	var arrows: MultiMesh = f.arrows
+	var live: Array = f.arrows_live
+	var zero := Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO)
+	for k in range(live.size() - 1, -1, -1):
+		var a: Dictionary = live[k]
+		a.age = float(a.age) + delta
+		var u: float = float(a.age) / ARROW_FLIGHT
+		if u >= 1.0:
+			arrows.set_instance_transform(int(a.slot), zero)
+			live.remove_at(k)
+			# a small kick of dust where it lands
+			_puff(f, a.to, 0.02 * sp, 0.05 * sp, 0.6, Vector3(0, 0.02, 0))
+			continue
+		var pos := _arrow_at(a, u)
+		var ahead := _arrow_at(a, minf(u + 0.06, 1.0))
+		var along := (ahead - pos)
+		var basis := Basis.looking_at(along.normalized(), Vector3.UP) if along.length() > 0.0001 else Basis.IDENTITY
+		arrows.set_instance_transform(int(a.slot), Transform3D(basis.scaled(Vector3.ONE * sp), pos))
+
+func _arrow_at(a: Dictionary, u: float) -> Vector3:
+	return (a.from as Vector3).lerp(a.to as Vector3, u) + Vector3(0.0, sin(u * PI) * float(a.arc), 0.0)

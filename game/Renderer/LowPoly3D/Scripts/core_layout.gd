@@ -84,6 +84,7 @@ var _hex: Array = []         # 0 = centre, 1 + d = ring-1 hex in direction d: {t
 var _qhex: Array = []        # per quarter: the hex index it holds at this stage, or -1
 var _qhex_all: Array = []    # per quarter: the hex index it would hold (the dump shows open ground too)
 var _items: Array = []
+var _wall_runs: Array = []      # the whole wall runs of the stone perimeter ({q, sy}), for the bowmen of a besieged town
 var _dropped: Array = []
 var _group := 0
 var _ring2: Array = []       # this settlement's sim rows: [tile, district, position, renderer hex index]
@@ -1131,6 +1132,7 @@ func _draw_perimeter(tier: String, inset: float, used: Dictionary, edges: Array,
 		brazier: bool) -> void:
 	var rings := mini(maxi(walls, 1), 3)
 	var sy := 1.0 + 0.2 * (rings - 1)
+	_wall_runs = []
 	var corners := {}
 	for i in edges.size():
 		var e: Array = edges[i]
@@ -1254,6 +1256,7 @@ func _edge_pieces(tier: String, a: Vector2, b: Vector2, gate: bool, gw: float, g
 					var segb := Basis(Vector3.UP, -phi) * Basis.from_scale(Vector3(sx, WALL_SCALE * sy, WALL_SCALE))
 					wb.props.add("wall_seg", Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, _seed))
 					_piece_record("wall_seg", q, phi, Vector2(SEG * 0.5 * sx, 0.022 * WALL_SCALE), tier)
+					_wall_runs.append({"q": q, "sy": sy})
 
 func _piece_ok(q: Vector2) -> bool:
 	var tq := w.tile_at(q)
@@ -1410,6 +1413,40 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 	var siege: Dictionary = wb._siege_info(s, _c, _seed)
 	if not siege.is_empty():
 		wb._siege_camp(_c, _seed, 1.3, siege, _cc)
+		_wall_bowmen(s, siege)
+
+## Bowmen on the wall of a besieged town of the viewer's own (WAR-11, docs/MVP/35 §3.3): up to three of its posted soldiers stand on whole wall runs on the
+## side the besieger comes from, in the civilization's bow style (gunners from the second with gunpowder), facing out over the wall. Only an own town (the
+## sim reports soldiers in post for those alone), only where the wall still stands, and none once it is nearly down.
+func _wall_bowmen(s: Dictionary, siege: Dictionary) -> void:
+	if _wall_runs.is_empty() or int(siege.integrity) < 300 or not w.has_iron_look(_civ, M7WorldData.IRON_CROSSBOWS):
+		return
+	var count := mini(int(s.get("soldiers", 0)), 3)
+	if count <= 0:
+		return
+	var angle := float(siege.angle)
+	var toward := Vector2(cos(angle), sin(angle))
+	var runs := _wall_runs.duplicate()
+	runs.sort_custom(func(a, b): return ((a.q as Vector2) - _c).normalized().dot(toward) > ((b.q as Vector2) - _c).normalized().dot(toward))
+	var chosen: Array = []
+	for r in runs:
+		var near := false
+		for c in chosen:
+			if (c.q as Vector2).distance_to(r.q) < 0.2:
+				near = true
+				break
+		if not near:
+			chosen.append(r)
+		if chosen.size() >= count:
+			break
+	var gunners := w.has_look(_civ, M7WorldData.LOOK_GUNPOWDER)
+	for k in chosen.size():
+		var r: Dictionary = chosen[k]
+		var q: Vector2 = r.q
+		var out := (q - _c).normalized()
+		var top := w.height_at(q) + 0.075 * WALL_SCALE * float(r.sy)
+		var mesh: String = "person_gunner" if gunners and k >= 1 else wb._bow_mesh(_civ)
+		wb.props.add(mesh, wb._xf(q, top, atan2(out.x, out.y), 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 func _count_groups(mesh_name: String) -> int:
 	var n := 0

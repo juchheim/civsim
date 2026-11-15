@@ -4,8 +4,12 @@ Status (2026-11-15, later): **steps 1 to 4 are built**: the two figures with the
 (`--scenario=fief-gallery --fief-only=levy`), the look bit (`IronFrame.LookCrossbows` = 32, WAR-11, `IRON_CROSSBOWS` with `--looks-debug` filling 63),
 the one weapon rule `_arms_mesh` with `_bow_mesh` (`world_builder.gd`) used by walking figures, the castle garrison and the drill ground (slots 4 and 5 are
 bows, or gunners with gunpowder; bows and gunners on the castle ring face outward). A longbowman was photographed in the live map and the gallery shows both
-figures at the soldier's height. **Not built:** step 5 (the skirmish volley) and step 6 (bowmen on a besieged wall). The garrison and drill-ground
-slots are wired and run without errors but were not photographed. Original status: design, 2026-11-15. It expands the one row of [32 §6](32-e5-art-pass.md) ("Crossbow or longbow levy |
+figures at the soldier's height. **Steps 5 and 6 are built too:** in a fight, a side whose civilization knows WAR-11 puts a third of its shown fighters in a
+missile rank (its own bow style, standing 0.06 behind the line, no lunge) that looses one arrow each at the clash (11 arrows over three fights in the
+skirmish scenario; none in reduced motion), and an own, walled, besieged town shows up to three bowmen (gunners from the second with gunpowder) on whole wall
+runs on the besieger's side, facing out, while the wall integrity is 300 or more (`core_layout.gd` `_wall_bowmen`). The live map does not yet draw cracked or
+breached wall runs, so "none on a broken run" has nothing to test. The garrison and drill-ground slots are wired and run without errors but were not
+photographed. Original status: design, 2026-11-15. It expands the one row of [32 §6](32-e5-art-pass.md) ("Crossbow or longbow levy |
 peasant cloth, a crossbow or a long bow, a quiver | in defense, on walls, in battle | P2") into a buildable spec. Numbers marked (P) are
 proposals to tune in the gallery.
 
