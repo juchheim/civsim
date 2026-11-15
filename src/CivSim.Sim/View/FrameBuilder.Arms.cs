@@ -1,3 +1,5 @@
+using CivSim.Sim.Core;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 
@@ -49,5 +51,30 @@ public sealed partial class FrameBuilder
             chariots += a.Chariots; crew += a.ChariotCrew; engines += a.Engines; strength += a.AttackStrength;
         }
         f.Total = new SettlementArms(fighters, wounded, warriors, soldiers, sSteel, sIron, sTin, sArs, sCu, steel, iron, tin, ars, cu, chariots, crew, engines, strength);
+    }
+
+    /// <summary>
+    /// Bows in the settlements the viewer sees now (docs/MVP/35, 36): the share of each one's fighting-age people holding a crossbow, a longbow and the war bow, read
+    /// from the stock combat reads. Settlements only remembered, and those of a civilization that does not yet know the weapon, carry zero.
+    /// </summary>
+    private void FillBows(MatchModel match, MatchFrame target)
+    {
+        int n = target.SettlementCount;
+        LivingEconomyModel eco = match.Economy;
+        for (int w = 0; w < n; w++)
+        {
+            int o = w * 3;
+            target.SettlementBowPct[o] = target.SettlementBowPct[o + 1] = target.SettlementBowPct[o + 2] = 0;
+            int s = target.SettlementIndex[w];
+            SettlementViewFlags flags = (SettlementViewFlags)target.SettlementFlags[w];
+            if ((flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != 0 || (uint)s >= (uint)_settlementCount) continue;
+            int civ = target.SettlementCiv[w];
+            if ((uint)civ >= (uint)_civs) continue;
+            bool crossbows = Done(match.Research, civ, _war11);
+            bool warBow = Done(match.Research, civ, _hnt06) && Done(match.Research, civ, _war03);
+            if (!crossbows && !warBow) continue;
+            eco.BowSharesAt(s, crossbows, warBow, out int cb, out int lb, out int wb);
+            target.SettlementBowPct[o] = (byte)cb; target.SettlementBowPct[o + 1] = (byte)lb; target.SettlementBowPct[o + 2] = (byte)wb;
+        }
     }
 }

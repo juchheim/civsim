@@ -663,7 +663,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 				var ang := TAU * gi / 6.0 + 0.4
 				var gp: Vector3 = M7WorldBuilder.rot_y(cyaw) * (Vector3(cos(ang), 0.0, sin(ang)) * 0.15 * float(r[2]))
 				var gb := Basis(Vector3.UP, cyaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.0)
-				var gmesh: String = wb.garrison_mesh(_civ, gi)
+				var gmesh: String = wb.garrison_mesh(_civ, gi, s.get("bows"))
 				if gmesh != "person_soldier":
 					gb = Basis(Vector3.UP, atan2(gp.x, gp.z)) * Basis.from_scale(Vector3.ONE * 1.0)   # bowmen and gunners face outward over the wall
 				wb.props.add(gmesh, Transform3D(gb, Vector3(cp.x + gp.x, w.height_at(cp) + 0.02 * float(r[2]), cp.y + gp.z)),
@@ -758,7 +758,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 			var fwd := (_c - q).normalized()
 			for i in soldiers:
 				var p := q + across * ((i % 3 - 1) * 0.085) - fwd * ((i / 3) * 0.085 - 0.04)
-				wb.props.add(wb.garrison_mesh(_civ, i), wb._xf(p, w.height_at(p), face, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+				wb.props.add(wb.garrison_mesh(_civ, i, s.get("bows")), wb._xf(p, w.height_at(p), face, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 			var de := _meta("drill_ground", dg[0], "half:s%d+s%d" % [dg[1] + 1, posmod(dg[1] + 1, 6) + 1])
 			de.merge({"mesh": "person_soldier", "count": soldiers, "x": q.x, "z": q.y, "r": 0.17})
 			_record(de)
@@ -1415,11 +1415,23 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 		wb._siege_camp(_c, _seed, 1.3, siege, _cc)
 		_wall_bowmen(s, siege)
 
+## The bow figure a town's own stock calls for (crossbow when it holds more crossbows than longbows and war bows together), empty when it holds none.
+func _town_bow_mesh(s: Dictionary) -> String:
+	var bows = s.get("bows")
+	if not (bows is Array or bows is PackedInt32Array):
+		return ""
+	var cb := int(bows[0])
+	var lb := int(bows[1]) + int(bows[2])
+	if cb + lb <= 0:
+		return ""
+	return "person_crossbow" if cb >= lb else "person_longbow"
+
 ## Bowmen on the wall of a besieged town of the viewer's own (WAR-11, docs/MVP/35 §3.3): up to three of its posted soldiers stand on whole wall runs on the
 ## side the besieger comes from, in the civilization's bow style (gunners from the second with gunpowder), facing out over the wall. Only an own town (the
 ## sim reports soldiers in post for those alone), only where the wall still stands, and none once it is nearly down.
 func _wall_bowmen(s: Dictionary, siege: Dictionary) -> void:
-	if _wall_runs.is_empty() or int(siege.integrity) < 300 or not w.has_iron_look(_civ, M7WorldData.IRON_CROSSBOWS):
+	var style: String = w.civ_bow_mesh(_civ) if M7WorldData.LOOKS_DEBUG else _town_bow_mesh(s)
+	if _wall_runs.is_empty() or int(siege.integrity) < 300 or style == "":
 		return
 	var count := mini(int(s.get("soldiers", 0)), 3)
 	if count <= 0:
@@ -1445,7 +1457,7 @@ func _wall_bowmen(s: Dictionary, siege: Dictionary) -> void:
 		var q: Vector2 = r.q
 		var out := (q - _c).normalized()
 		var top := w.height_at(q) + 0.075 * WALL_SCALE * float(r.sy)
-		var mesh: String = "person_gunner" if gunners and k >= 1 else wb._bow_mesh(_civ)
+		var mesh: String = "person_gunner" if gunners and k >= 1 else style
 		wb.props.add(mesh, wb._xf(q, top, atan2(out.x, out.y), 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 func _count_groups(mesh_name: String) -> int:

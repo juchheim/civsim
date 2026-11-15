@@ -238,10 +238,11 @@ func start(spec: Dictionary) -> Array:
 	holder.add_child(root)
 	# a side whose civilization knows WAR-11 puts a third of its shown fighters in a missile rank of its own bow style (docs/MVP/35 §3.3)
 	var civs := [att_civ, def_civ]
-	var bowmen := [att_civ >= 0 and w.has_iron_look(att_civ, M7WorldData.IRON_CROSSBOWS), def_civ >= 0 and w.has_iron_look(def_civ, M7WorldData.IRON_CROSSBOWS)]
+	var bow_style := [w.civ_bow_mesh(att_civ) if att_civ >= 0 else "", w.civ_bow_mesh(def_civ) if def_civ >= 0 else ""]
+	var bowmen := [bow_style[0] != "", bow_style[1] != ""]
 	var bow_stand := []
 	for side in 2:
-		bow_stand.append(_multimesh(root, _person_mesh(int(civs[side]), b._bow_mesh(int(civs[side]))), b.mats.figure, most, false, true) if bowmen[side] else null)
+		bow_stand.append(_multimesh(root, _person_mesh(int(civs[side]), String(bow_style[side])), b.mats.figure, most, false, true) if bowmen[side] else null)
 	var f := {
 		"id": next_id, "t": 0.0, "tl": tl, "calm": calm, "assault": assault, "most": most, "tile": tile, "root": root,
 		"home": home, "dir": dir, "perp": perp, "clash": home + dir * clash_d,

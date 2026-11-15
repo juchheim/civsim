@@ -50,7 +50,7 @@ public sealed partial class FrameBuilder
     private readonly int _width, _height, _tileCount, _civs;
     private readonly bool[] _passable;
     private readonly ResearchCatalog _catalog;
-    private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _stn10;
+    private readonly int _war03, _war11, _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _stn10;
     private readonly int[] _boatProjects;
     private readonly (int Project, CivLook Look)[] _lookProjects;
     private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
@@ -129,7 +129,7 @@ public sealed partial class FrameBuilder
         _passable = HexGrid.BuildWalkingPassability(_tiles, _width, _height);
         _catalog = match.Research.Catalog;
         _war01 = _catalog.IndexOf("WAR-01"); _war04 = _catalog.IndexOf("WAR-04"); _hnt02 = _catalog.IndexOf("HNT-02");
-        _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06");
+        _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06"); _war03 = _catalog.IndexOf("WAR-03"); _war11 = _catalog.IndexOf("WAR-11");
         _stn10 = _catalog.IndexOf("STN-10");
         _com04 = _catalog.IndexOf("COM-04");
         _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
@@ -264,6 +264,7 @@ public sealed partial class FrameBuilder
         FillOccupations(pol, target);
         FillIron(match, target);
         FillArms(match, target);
+        FillBows(match, target);
         FillFief(match, target);
         FillCivs(match, target);
         FillFocus(match, target);

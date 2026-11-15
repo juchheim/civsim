@@ -30,7 +30,7 @@ public sealed partial class FrameBuilder
         (string Project, int Bit)[] looks =
         {
             ("HUS-09", IronFrame.LookCamels), ("COM-08", IronFrame.LookRelays), ("WOD-07", IronFrame.LookBarrels), ("WOD-08", IronFrame.LookPlanks),
-            ("CER-07", IronFrame.LookGlass), ("WAR-11", IronFrame.LookCrossbows),
+            ("CER-07", IronFrame.LookGlass),
         };
         foreach ((string project, int bit) in looks)
         {

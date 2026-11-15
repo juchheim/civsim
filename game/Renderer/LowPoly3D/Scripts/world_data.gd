@@ -39,7 +39,6 @@ const IRON_RELAYS := 2      # COM-08 Courier Relays
 const IRON_BARRELS := 4     # WOD-07 Cooperage
 const IRON_PLANKS := 8      # WOD-08 Frame & Crosscut Saws
 const IRON_GLASS := 16      # CER-07 Glassblowing
-const IRON_CROSSBOWS := 32  # WAR-11 Crossbows & Longbows: the levy carries a crossbow or a longbow
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -159,6 +158,30 @@ func blockaders_of(sim_index: int) -> Array:
 	return out
 
 ## Whether a civilization has a small-prop look of the Iron Age (an IRON_* bit).
+## The share, in percent, of a settlement's fighters holding a crossbow (kind 0), a longbow (1) or the war bow (2): what the sim's frame says it holds (docs/MVP/36).
+## `--looks-debug` pretends every settlement holds some of each so the figures can be inspected.
+func bow_pct(home: int, kind: int) -> int:
+	if LOOKS_DEBUG:
+		return [25, 25, 10][kind]
+	if home < 0 or home >= settlements.size():
+		return 0
+	var bows = settlements[home].get("bows")
+	return int(bows[kind]) if bows is Array or bows is PackedInt32Array else 0
+
+## The bow mesh a civilization's fighters carry, from the bows its visible settlements hold: the crossbow when crossbows lead, else the longbow (which also stands
+## for the war bow of Archery Warfare); empty when none holds a bow.
+func civ_bow_mesh(civ: int) -> String:
+	var cb := 0
+	var lb := 0
+	for si in settlements.size():
+		if int(settlements[si].get("civ", -1)) != civ:
+			continue
+		cb += bow_pct(si, 0)
+		lb += bow_pct(si, 1) + bow_pct(si, 2)
+	if cb + lb <= 0:
+		return ""
+	return "person_crossbow" if cb >= lb else "person_longbow"
+
 func has_iron_look(civ: int, bit: int) -> bool:
 	return civ >= 0 and civ < iron_looks.size() and (iron_looks[civ] & bit) != 0
 
@@ -258,7 +281,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	iron_looks = _int_data(d.ironLooks, 1) if d.has("ironLooks") else PackedInt32Array()
 	if LOOKS_DEBUG:
 		iron_looks.resize(8)
-		iron_looks.fill(63)
+		iron_looks.fill(31)
 	tributes = _int_data(d.tributes, 2) if d.has("tributes") else PackedInt32Array()
 	leagues = _int_data(d.leagues, 1) if d.has("leagues") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()

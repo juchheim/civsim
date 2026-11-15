@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
@@ -193,6 +194,31 @@ public sealed partial class LivingEconomyModel
         if (lost <= Fix64.Zero) return Fix64.Zero;
         AddStock(s, slot, -lost);
         return lost;
+    }
+
+    /// <summary>
+    /// The share, in percent, of a settlement's fighting-age people who hold each kind of bow now: crossbows (WAR-11, Faith and Fief only), longbows, and the war bow
+    /// (HNT-06 with WAR-03). They are given out best first, one to a fighter, the same way combat does, so the three never add to more than 100. This is the number
+    /// the view turns into figures carrying bows (docs/MVP/35); it reads the same stock combat reads.
+    /// </summary>
+    internal void BowSharesAt(int settlementIndex, bool crossbowsKnown, bool warBowKnown, out int crossbow, out int longbow, out int warBow)
+    {
+        crossbow = longbow = warBow = 0;
+        SettlementState s = _settlements[settlementIndex];
+        int cb = crossbowsKnown && FiefChain ? Stock(s, FiefSlot(FiefGood.Crossbow)).FloorToInt() : 0;
+        int lb = crossbowsKnown && FiefChain ? Stock(s, FiefSlot(FiefGood.Longbow)).FloorToInt() : 0;
+        int wb = warBowKnown ? s.Stores[(int)Good.Bow].FloorToInt() : 0;
+        if (cb + lb + wb <= 0) return;
+        var records = new List<FighterRecord>();
+        ListFightingAge(settlementIndex, records);
+        int able = 0;
+        foreach (FighterRecord r in records) if (!r.Wounded) able++;
+        if (able <= 0) return;
+        int room = able;
+        int c = Math.Min(cb, room); room -= c;
+        int l = Math.Min(lb, room); room -= l;
+        int w = Math.Min(wb, room);
+        crossbow = c * 100 / able; longbow = l * 100 / able; warBow = w * 100 / able;
     }
 
     // ---- hashing and snapshots ------------------------------------------------------------------
