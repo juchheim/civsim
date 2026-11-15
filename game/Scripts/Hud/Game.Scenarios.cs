@@ -227,8 +227,48 @@ public partial class Game
                 Step(() => { _uiSettings.SkinOverride = -1; UiSkin.Refresh(); }, 0.3f);
                 break;
             case "diplomacy":
+                // One shot per page of the detail pane; the War page twice, the second scrolled to the end of the forces block.
+                // --diplomacy-grant: first give the viewer the trade, diplomacy and war research (bronze and iron arms, chariots, siege engines)
+                // and declare war on the first people met, so every order and every row of the forces block shows.
+                if (HasArgument("--diplomacy-grant"))
+                {
+                    Step(() =>
+                    {
+                        int viewer = Math.Max(0, _current?.ViewerCiv ?? 0);
+                        foreach (string id in new[] { "TRD-01", "TRD-02", "DIP-03", "WAR-01", "WAR-02", "WAR-03", "WAR-04", "WAR-05", "WAR-06", "WAR-07", "WAR-08", "WAR-09", "HNT-05", "HNT-06", "MET-10" })
+                            if (_catalog!.IndexOf(id) is int project and >= 0)
+                                _session!.Queue(new Command(_session.Tick, (byte)viewer, CommandKind.CompleteProject, project, 0, 0));
+                        _session!.SetPaused(false);
+                    }, 4.0f);
+                    Step(() =>
+                    {
+                        ToggleDiplomacy(true);
+                        if (_civOrder.Count > 0) { _selectedPoliticsCiv = _civOrder[0]; QueueDiplomacyOrder(PlayerCommands.DeclareWar); }
+                    }, 1.5f);
+                    // Hold the war (the other side may sue for peace) and queue an assault so the pending row shows.
+                    Step(() => { _session!.SetPaused(true); SelectDiplomacyTab(DiploTabWar); if (_current is not null) RefreshDiplomacy(_current); }, 0.6f);
+                    Shot("diplomacy-atwar");
+                    Step(() => { if (_assaultRow is { Enabled: true }) { QueueAssault(); SelectDiplomacyTab(DiploTabWar); if (_current is not null) RefreshDiplomacy(_current); } }, 0.6f);
+                    Shot("diplomacy-assault-queued");
+                }
                 Step(() => ToggleDiplomacy(true));
+                Step(() => SelectDiplomacyTab(DiploTabRelations), 0.4f);
                 Shot("diplomacy");
+                Step(() => SelectDiplomacyTab(DiploTabTrade), 0.4f);
+                Shot("diplomacy-trade");
+                Step(() => SelectDiplomacyTab(DiploTabWar), 0.4f);
+                Shot("diplomacy-war");
+                Step(() => { if (_diploPageScroll is not null) _diploPageScroll.ScrollVertical = int.MaxValue; }, 0.5f);
+                Shot("diplomacy-forces");
+                // Pick a settlement as the target and select the next people, if there is one.
+                Step(() =>
+                {
+                    if (_destinationSelect is not null && _destinationSelect.ItemCount > 1) { _destinationSelect.Select(1); _selectedTargetSettlement = _destinationSelect.GetItemId(1); }
+                    if (_civOrder.Count > 1) { _selectedPoliticsCiv = _civOrder[1]; _selectedTargetSettlement = -1; }
+                    SelectDiplomacyTab(DiploTabWar);
+                    if (_current is not null) RefreshDiplomacy(_current);
+                }, 0.5f);
+                Shot("diplomacy-other");
                 break;
             case "tile":
                 Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; });

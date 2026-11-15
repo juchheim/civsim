@@ -42,9 +42,12 @@ public partial class Game
     private float DockMaxHeight => Math.Max(233, _logicalSize.Y - DockTop - (Margin + FocusBarHeight + UiTokens.Sp3));
     private float DockWideWidth => MathF.Round(Math.Clamp(_logicalSize.X * (1 - 1 / Phi), 520, 610));
     private float DockNarrowWidth => MathF.Round(DockWideWidth / Phi);
+    // Diplomacy holds a people list beside a detail pane with tables (orders, forces), so it takes a wider share: 0.45 of the screen,
+    // 576 at 1280 and 720 at 1600, never more than 740. Toasts move aside for it (LayoutNotifications).
+    private float DiplomacyDockWidth => MathF.Round(Math.Clamp(_logicalSize.X * 0.45f, 576, 740));
 
     /// <summary>Width of whichever dock panel is open, or 0.</summary>
-    private float OpenDockWidth => _diplomacyOpen ? DockWideWidth : _chronicleOpen || _decreeOpen ? DockNarrowWidth : 0;
+    private float OpenDockWidth => _diplomacyOpen ? DiplomacyDockWidth : _chronicleOpen || _decreeOpen ? DockNarrowWidth : 0;
 
     /// <summary>Places a dock panel: top-right, <paramref name="height"/> tall (0 lets it size to its content, growing down).</summary>
     private void PlaceDock(Control panel, float width, float height)
