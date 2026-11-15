@@ -1884,15 +1884,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         return best;
     }
 
-    /// <summary>Weapon strength multiplier of the best weapon a civilization has, and whether it is ranged (13 §7.1).</summary>
+    /// <summary>Weapon strength multiplier of the best weapon a civilization has, and whether it is ranged (13 §7.1). This is the weapon a civilization is believed to carry (the belief ladder), bows included.</summary>
     private Fix64 Weapon(int civ, out bool ranged)
     {
         ranged = false;
         // Metal arms are locally stocked kits, applied by Fighters below. This is the fallback
         // for parties that lack cast arms and for ranged weapon technology.
-        // In a Faith & Fief match the bow is a real arm drawn from a settlement's store by Fighters(), so the fallback skips it (the civ still counts as ranged).
-        if (_research.IsDone(civ, _p.Hnt06) && _economy.FiefChain) ranged = true;
-        else if (_research.IsDone(civ, _p.Hnt06)) { ranged = true; return Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One); }
+        if (_research.IsDone(civ, _p.Hnt06)) { ranged = true; return Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One); }
+        return FieldWeapon(civ, out ranged);
+    }
+
+    /// <summary>
+    /// The weapon a fighter carries when no bow is drawn from a store: the same ladder as <see cref="Weapon"/> without the bow rung. The bow is a real arm in
+    /// every chapter (docs/MVP/36), held in a settlement's store and given to one fighter each by Fighters(), so counting it here too would count it twice.
+    /// </summary>
+    private Fix64 FieldWeapon(int civ, out bool ranged)
+    {
+        ranged = _research.IsDone(civ, _p.Hnt06);
         if (_research.IsDone(civ, _p.Hnt05)) { ranged = true; return Fix64.FromRatio(17, 10); }
         if (_research.IsDone(civ, _p.Hnt03)) return Fix64.FromRatio(16, 10);
         if (_research.IsDone(civ, _p.Hnt02)) return Fix64.FromRatio(13, 10);
@@ -1904,7 +1912,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private List<Fighter> Fighters(int settlement, bool attacking, out List<long> ids, int battleTile = -1)
     {
         int civ = _sCiv[settlement];
-        Fix64 weapon = Weapon(civ, out _);
+        Fix64 weapon = FieldWeapon(civ, out _);
         bool warriors = _research.IsDone(civ, _p.War04);
         var records = new List<LivingEconomyModel.FighterRecord>();
         _economy.ListFightingAge(settlement, records);
@@ -1920,14 +1928,14 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int copperArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
         int chariotCrew = _economy.BronzeActive && _research.IsDone(civ, _p.War06)
             ? _economy.GoodStock(settlement, "G-CHARIOT").FloorToInt() * 2 : 0;
-        // Bows from stock (docs/MVP/36, docs/MVP/27 §5.6, e5_combat_oracle.py). In a Faith & Fief match each weapon in a settlement's store arms one fighter, best first:
-        // a crossbow (2.0, bolts ignore shields), a longbow (2.0, arrows do not) or the war bow of HNT-06 (1.8, times 1.5 with WAR-03). A levy needs no drilling for the
-        // crossbow or the longbow. Other matches keep the abstract ranged fallback in Weapon(), because their economy makes no levy bows.
+        // Bows from stock (docs/MVP/36, docs/MVP/27 §5.6, e5_combat_oracle.py). Each weapon in a settlement's store arms one fighter, best first: a crossbow (WAR-11,
+        // Faith & Fief only: 2.0, bolts ignore shields), a longbow (WAR-11: 2.0, arrows do not) or the war bow of HNT-06 (1.8, times 1.5 with WAR-03) in every chapter.
+        // A levy needs no drilling for the crossbow or the longbow.
         bool fief = _economy.FiefChain;
         bool war11 = fief && _research.IsDone(civ, _p.War11);
         int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
         int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
-        int warBows = fief && _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+        int warBows = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
         Fix64 warBowStrength = Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One);
         bool openTerrain = IsChariotOpenTerrain(battleTile);
         Defenses targetDefenses = DefensesAtTile(battleTile);

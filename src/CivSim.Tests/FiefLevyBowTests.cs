@@ -98,7 +98,7 @@ public sealed class FiefLevyBowTests
     }
 
     [Fact]
-    public void War03_levy_keeps_bows_in_Fief_but_Iron_keeps_the_single_hunting_bow()
+    public void War03_levy_keeps_bows_in_every_chapter_at_up_to_three_a_season()
     {
         // Every fixture knows the E0-E2 projects, HNT-06 and WAR-03 among them.
         BronzeFixture fief = Fief("KEY-4");
@@ -107,13 +107,33 @@ public sealed class FiefLevyBowTests
         {
             f.Economy.FixtureStock(0, "G-WOOD", Fix64.FromInt(120));
             f.Economy.FixtureStock(0, "G-FLINT", Fix64.FromInt(10));
-            f.RunSeasons(8);
+            Fix64 held = f.Economy.GoodStock(0, "G-BOW");
+            for (int season = 1; season <= 4; season++)
+            {
+                f.RunSeasons(1);
+                Fix64 now = f.Economy.GoodStock(0, "G-BOW");
+                // wear takes a little back each season, so the gain never exceeds the cap
+                Assert.True(now - held <= Fix64.FromInt(CivSim.Sim.Economy.LivingEconomyModel.LevyBowsPerSeason), $"season {season}: {held} -> {now}");
+                held = now;
+            }
+            Assert.True(f.Economy.GoodStock(0, "G-BOW") >= Fix64.FromInt(5), $"levy bows after four seasons: {f.Economy.GoodStock(0, "G-BOW")}");
         }
-        Assert.True(fief.Economy.GoodStock(0, "G-BOW") >= Fix64.FromInt(5), $"Fief levy bows: {fief.Economy.GoodStock(0, "G-BOW")}");
-        Assert.True(iron.Economy.GoodStock(0, "G-BOW") <= Fix64.FromInt(2), $"Iron hunting bow only: {iron.Economy.GoodStock(0, "G-BOW")}");
         Fix64 before = fief.Economy.GoodStock(0, "G-BOW");
         Assert.Equal(Fix64.FromInt(2), fief.Economy.LoseArms(0, "G-BOW", Fix64.FromInt(2)));
         Assert.Equal(before - Fix64.FromInt(2), fief.Economy.GoodStock(0, "G-BOW"));
+    }
+
+    [Fact]
+    public void A_levy_bow_needs_almost_no_wood_and_a_town_makes_three_in_its_first_season()
+    {
+        // A stave and a few shafts: a twentieth of a litre, so three bows cost less than the hearth burns in a day.
+        Assert.True(CivSim.Sim.Economy.LivingEconomyModel.LevyBowWood <= Fix64.FromRatio(1, 10));
+        BronzeFixture iron = BronzeFixture.CreateIron(TestPack.Pack, Seed, 100, "KEY-4");
+        iron.Economy.FixtureStock(0, "G-WOOD", Fix64.FromInt(120));
+        iron.Economy.FixtureStock(0, "G-FLINT", Fix64.FromInt(10));
+        Fix64 before = iron.Economy.GoodStock(0, "G-BOW");
+        iron.RunSeasons(1);
+        Assert.Equal(Fix64.FromInt(3), iron.Economy.GoodStock(0, "G-BOW") - before);
     }
 
     private static byte[] Snapshot(LivingEconomyModel economy)

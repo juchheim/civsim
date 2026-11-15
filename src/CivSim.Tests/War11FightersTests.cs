@@ -52,14 +52,14 @@ public sealed class War11FightersTests
     }
 
     [Fact]
-    public void Other_chapters_keep_the_abstract_bow_fallback()
+    public void Every_chapter_draws_the_bow_from_stock_so_a_bow_town_is_stronger_than_a_bowless_one()
     {
-        // No levy bows are made outside a Faith & Fief match, so an Iron match must not lose the ranged strength it has always had.
+        // The bow is a stocked arm in every chapter: with Archery Warfare and no bows a town gets no free 1.8 x 1.5, and each bow it holds arms a fighter.
         var iron = Prepared(ChapterRules.Iron, "KEY-3", "HNT-05", "HNT-06", "WAR-03");
-        Weapon(iron.Match, 0, out bool ranged);
-        Assert.True(ranged);
-        Assert.Equal(Fix64.FromRatio(18, 10) * Fix64.FromRatio(15, 10), Weapon(iron.Match, 0, out _));
+        iron.Runner.Advance(1);
+        Fix64 bare = Defence(iron.Match, iron.Home);
+        iron.Match.Economy.FixtureStockTool(iron.Home, "G-BOW", 20);
+        Assert.True(Defence(iron.Match, iron.Home) > bare, "twenty bows in store should arm twenty fighters");
     }
 
-    private static Fix64 Weapon(MatchModel match, int civ, out bool ranged) => match.Politics.WeaponOf(civ, out ranged);
 }

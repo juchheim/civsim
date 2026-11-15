@@ -2232,7 +2232,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         ReplaceWornTools(settlement);
-        if (FiefChain) WearLevyArms(settlement);
+        WearLevyArms(settlement);
         Fix64 forageMod = Modifier(settlement.Civilization, "forage.yield");
         Fix64 appliedForageWork = LimitActionWorkByTool(settlement, "forage", forageWork);
         ScaleSkillWork(actionWork, SkillFamily.Forage, forageWork, appliedForageWork);
@@ -3033,8 +3033,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (HasProject(civ, "HNT-05"))
             MakeGoods(settlement, ref remaining, Good.SpearThrower, Fix64.FromInt(8), Good.Wood,
                 Fix64.Parse("0.5"), Good.Cord, Fix64.Parse("0.1"), Fix64.One);
-        // docs/MVP/36: in a Fief match Archery Warfare makes the bow a routine craft and the levy keeps a stock of them.
-        if (FiefChain && HasProject(civ, "HNT-06") && HasProject(civ, "WAR-03"))
+        // docs/MVP/36: Archery Warfare makes the bow a routine craft in every chapter, and the levy keeps a stock of them.
+        if (HasProject(civ, "HNT-06") && HasProject(civ, "WAR-03"))
             MakeLevyBows(settlement, ref remaining);
         else if (HasProject(civ, "HNT-06"))
             MakeGoods(settlement, ref remaining, Good.Bow, Fix64.FromInt(10), Good.Wood,

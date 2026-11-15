@@ -109,13 +109,14 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Work to make one levy bow with its arrows after WAR-03 (36 §3, provisional): a stave and a sheaf, not the first hunting bow's apprenticeship.</summary>
     private static readonly Fix64 LevyBowWork = Fix64.FromRatio(4, 10);
-    private static readonly Fix64 LevyBowWood = Fix64.FromRatio(3, 10);
+    /// <summary>Wood for a stave and a sheaf of shafts: a split branch and a few straight shoots, so the bow costs very little wood (36 §3).</summary>
+    internal static readonly Fix64 LevyBowWood = Fix64.FromRatio(5, 100);
     private static readonly Fix64 LevyBowFlint = Fix64.FromRatio(1, 10);
     /// <summary>A bow kept in store for the levy is useless after about six years: strings rot, staves lose their cast, arrows are spent or lost (36 §5).</summary>
     private const int LevyBowServiceSeasons = 24;
 
-    /// <summary>Share of the season's remaining craft work the levy's bows may take once the settlement has its first bow (36 §4).</summary>
-    private static readonly Fix64 LevyBowCraftShare = Fix64.FromRatio(1, 4);
+    /// <summary>The most war bows a settlement makes in one season (36 §4): about three, three times the old one-a-season pace.</summary>
+    internal const int LevyBowsPerSeason = 3;
 
     /// <summary>
     /// Archery Warfare's bows (WAR-03, 36 §3), called in place of the hunting bow's craft in a Fief match. The bow becomes a routine craft (0.4 work, 0.3 wood,
@@ -127,15 +128,16 @@ public sealed partial class LivingEconomyModel
     private void MakeLevyBows(SettlementState s, ref Fix64 remaining)
     {
         if (remaining <= Fix64.Zero) return;
-        Fix64 have = s.Stores[(int)Good.Bow];
+        Fix64 start = s.Stores[(int)Good.Bow], have = start;
         if (have < Fix64.One)
             MakeGoods(s, ref remaining, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, Good.Flint, LevyBowFlint, Fix64.One);
         have = s.Stores[(int)Good.Bow];
         if (HasProject(s.Civilization, "WAR-11") || s.FoodSecurity < LevyBowFoodFloor || remaining <= Fix64.Zero) return;
         Fix64 spareWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve) * LevyBowWoodShare;
-        Fix64 target = Fix64.Min(Fix64.FromInt(LevyBowTarget(s)), have + spareWood / LevyBowWood);
+        // At most three bows in all this season, the first one included.
+        Fix64 target = Fix64.Min(Fix64.FromInt(LevyBowTarget(s)), Fix64.Min(start + Fix64.FromInt(LevyBowsPerSeason), have + spareWood / LevyBowWood));
         if (target <= have) return;
-        Fix64 budget = remaining * LevyBowCraftShare;
+        Fix64 budget = Fix64.Min(remaining, LevyBowWork * (Fix64.FromInt(LevyBowsPerSeason) - Fix64.Min(Fix64.FromInt(LevyBowsPerSeason), have - start)));
         Fix64 granted = budget;
         MakeGoods(s, ref budget, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, Good.Flint, LevyBowFlint, target);
         remaining -= granted - budget;
@@ -147,8 +149,7 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private void WearLevyArms(SettlementState s)
     {
-        if (!FiefChain) return;
-        if (s.FiefGoods is { } fief)
+        if (FiefChain && s.FiefGoods is { } fief)
             for (int g = 0; g < (int)FiefGood.Count; g++)
             {
                 if (fief[g] <= Fix64.Zero) continue;
