@@ -129,6 +129,14 @@ func fief_settlement(s: Dictionary) -> Dictionary:
 		"universities": int(s.get("fiefUniversities", 0)),
 		"hospitals": int(s.get("fiefHospitals", 0)),
 		"concentric_castle": bool(s.get("fiefConcentricCastle", false)),
+		"grinding_demand_raw": int(s.get("fiefGrindingDemand", 0)), "grinding_used_raw": int(s.get("fiefGrindingUsed", 0)),
+		"sawing_demand_raw": int(s.get("fiefSawingDemand", 0)), "sawing_used_raw": int(s.get("fiefSawingUsed", 0)),
+		"craft_demand_raw": int(s.get("fiefCraftDemand", 0)), "craft_used_raw": int(s.get("fiefCraftUsed", 0)),
+		"physicians": int(s.get("fiefPhysicians", 0)), "attendants": int(s.get("fiefAttendants", 0)),
+		"ill_patients": int(s.get("fiefIllPatients", 0)), "wounded_patients": int(s.get("fiefWoundedPatients", 0)),
+		"treated_patients": int(s.get("fiefTreatedPatients", 0)), "hospital_staffed": bool(s.get("fiefHospitalStaffed", false)), "scholars": int(s.get("fiefScholars", 0)),
+		"scholar_insight_heads_raw": int(s.get("fiefScholarInsightHeads", 0)),
+		"key6_permille": int(s.get("fiefKey6Permille", 0)), "build_guidance": String(s.get("fiefBuildGuidance", "")),
 	}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.

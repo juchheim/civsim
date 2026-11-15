@@ -647,7 +647,8 @@ public partial class Game
             {
                 // A rival completing the chapter keystone starts the countdown (KEY-4 in Bronze, docs/MVP/22 §3.1; KEY-5 in Iron, docs/MVP/25 §3):
                 // A few years (SimulationSession.CountdownYears) to finish or the age closes.
-                if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
+                if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv &&
+                    _session is { IsReplay: false } && GameSaveMode.ShowsRivalCountdown(_session.Mode))
                     ShowToast($"{(_session.IsIron ? "The Feudal Order" : "The Iron Age")} is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
                         $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or {_session.CountdownYears} years after a rival does.",
                         key: $"rival-era-{item.Civ}-{item.A}");

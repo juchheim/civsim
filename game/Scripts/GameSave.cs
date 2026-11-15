@@ -31,7 +31,7 @@ internal sealed class GameSaveData
     public bool IntroDismissed;
     /// <summary>Player-chosen settlement names by settlement index (version 5); cosmetic, outside the sim snapshot.</summary>
     public List<KeyValuePair<int, string>> SettlementNames = new();
-    /// <summary>The chapter the match plays. Bronze saves keep version 5 and carry no mode; an Iron save is version 6.</summary>
+    /// <summary>The chapter the match plays. Bronze saves keep version 5 and carry no mode; non-Bronze saves are version 6.</summary>
     public ChapterMode Mode = ChapterMode.Bronze;
 
     public Replay ToReplay() => new()
@@ -54,7 +54,7 @@ internal static class GameSave
     /// <summary>Version 5 appends the player's settlement names after the difficulty byte.</summary>
     private const uint FirstVersionWithSettlementNames = 5;
     private const int MaxSettlementNames = 4096;
-    /// <summary>Version 6: a chapter-mode byte follows the settlement names. Written only for a non-Bronze chapter (docs/MVP/25 §3).</summary>
+    /// <summary>Version 6: a chapter-mode byte follows the settlement names. Written only for a non-Bronze chapter (docs/MVP/25 §3 and docs/MVP/27).</summary>
     private const uint FirstVersionWithChapterMode = 6;
     private const uint FirstVersionWithDifficulty = 2;
     /// <summary>Version 3: the sim snapshot carries the Bronze state (Mandate, built Wonders). An older snapshot has a different layout and cannot be restored.</summary>
@@ -73,18 +73,20 @@ internal static class GameSave
     /// A replay file is the sim's <see cref="Replay"/> followed by a small footer naming the rival difficulty, which the
     /// replay format itself does not carry but a faithful re-run needs. Files without a footer were played at Chieftain.
     /// </summary>
-    public static void WriteReplay(Stream stream, Replay replay, Difficulty difficulty)
+    public static void WriteReplay(Stream stream, Replay replay, Difficulty difficulty, ChapterMode mode = ChapterMode.Bronze)
     {
         replay.Write(stream);
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(ReplayDifficultyMagic);
         writer.Write((byte)difficulty);
+        GameSaveMode.WriteOptionalTag(writer, mode);
     }
 
-    public static Replay ReadReplay(Stream stream, out Difficulty difficulty)
+    public static Replay ReadReplay(Stream stream, out Difficulty difficulty, out ChapterMode mode)
     {
         Replay replay = Replay.Read(stream);
         difficulty = Difficulty.Chieftain;
+        mode = ChapterMode.Bronze;
         if (stream.Length - stream.Position >= 5)
         {
             using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
@@ -92,10 +94,14 @@ internal static class GameSave
             {
                 byte level = reader.ReadByte();
                 if (Enum.IsDefined(typeof(Difficulty), level)) difficulty = (Difficulty)level;
+                mode = GameSaveMode.ReadOptionalTag(reader);
             }
         }
         return replay;
     }
+
+    public static Replay ReadReplay(Stream stream, out Difficulty difficulty)
+        => ReadReplay(stream, out difficulty, out _);
 
     public static void Write(string path, GameSaveData data)
     {
@@ -144,7 +150,7 @@ internal static class GameSave
                     writer.Write(name.Key);
                     writer.Write(name.Value);
                 }
-                if (data.Mode != ChapterMode.Bronze) writer.Write((byte)data.Mode);
+                GameSaveMode.WriteOptionalTag(writer, data.Mode);
                 writer.Flush();
                 stream.Flush(flushToDisk: true);
             }
@@ -203,9 +209,7 @@ internal static class GameSave
         }
         if (version >= FirstVersionWithChapterMode)
         {
-            byte mode = reader.ReadByte();
-            if (mode != (byte)ChapterMode.Iron) throw new InvalidDataException("Invalid saved chapter mode.");
-            data.Mode = (ChapterMode)mode;
+            data.Mode = GameSaveMode.ReadTag(reader);
         }
         if (!data.PackHash.AsSpan().SequenceEqual(expectedPackHash))
             throw new InvalidDataException("Save content hash differs from the loaded content pack.");

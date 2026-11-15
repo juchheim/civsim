@@ -511,6 +511,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 	h = h * 31 + hash(String(s.get("coreGallery", "")))
 	h = h * 31 + hash(String(s.get("coreStage", "")))
 	h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
+	h = h * 31 + (1 if w.fief_active else 0)
 	if not bool(s.get("remembered")):
 		h = h * 31 + core.stage_of(s)
 		h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), core.dwelling_capacity(s))
@@ -522,6 +523,9 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 		h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
 		for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley", "water_mill", "temple_tier2"]:
 			h = h * 31 + w.iron_works(s, wid)
+		if w.fief_active:
+			for wid in ["monastery", "university", "hospital", "windmill", "blast_furnace"]:
+				h = h * 31 + w.iron_works(s, wid)
 		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 		h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 		h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17

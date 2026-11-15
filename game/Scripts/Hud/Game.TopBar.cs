@@ -285,7 +285,7 @@ public partial class Game
         UiKit.SetText(_civPeopleLabel!, people.ToString("N0"));
         UiKit.SetText(_civSettlementsLabel!, $"people · {settlements} {(settlements == 1 ? "settlement" : "settlements")}");
         int era = frame.CivEra[civ];
-        UiKit.SetText(_ageLabel!, UiText.AgeName(era).ToUpperInvariant() + " AGE");
+        UiKit.SetText(_ageLabel!, GameSaveMode.AgeLabel(_session.Mode, UiText.AgeName(era)));
         int done = frame.CivBreadthDone[civ], needed = Math.Max(1, (int)frame.CivBreadthNeeded[civ]);
         UiKit.SetText(_ageCountLabel!, $"{Math.Min(done, needed)}/{needed}");
         _ageCountLabel!.TooltipText = $"Only completed regular {UiText.AgeName(era)} Age projects add to the next-age count. Required older-age projects unlock the route but don't add to this count. Projects in progress don't count yet.";

@@ -276,7 +276,16 @@ public partial class Game
                         double powerHours = frame.Fief.AvailablePowerHours[s] / 4294967296.0;
                         double grainCoverage = frame.Fief.GrainCoverage[s] / 4294967296.0;
                         extra += $"\nFief · mill power {frame.Fief.WaterMillSources[s]} water / {frame.Fief.WindmillSources[s]} wind · {powerHours:0.#} h/season · grain {grainCoverage:P0}";
+                        double gd = frame.Fief.GrindingDemand[s] / 4294967296.0, gu = frame.Fief.GrindingUsed[s] / 4294967296.0;
+                        double sd = frame.Fief.SawingDemand[s] / 4294967296.0, su = frame.Fief.SawingUsed[s] / 4294967296.0;
+                        double cd = frame.Fief.CraftDemand[s] / 4294967296.0, cu = frame.Fief.CraftUsed[s] / 4294967296.0;
+                        extra += $"\nMill use · grain {gu:0.#}/{gd:0.#} · sawing {su:0.#}/{sd:0.#} · crafts {cu:0.#}/{cd:0.#} h";
                         extra += $"\nMonasteries {frame.Fief.Monasteries[s]} · monks {frame.Fief.Monks[s]} · universities {frame.Fief.Universities[s]} · hospitals {frame.Fief.Hospitals[s]} · concentric castle {(frame.Fief.ConcentricCastle[s] != 0 ? "built" : "none")}";
+                        extra += $"\nHospital {(frame.Fief.HospitalStaffed[s] != 0 ? "staffed" : "unavailable")} · physicians {frame.Fief.Physicians[s]} · attendants {frame.Fief.Attendants[s]} · ill/wounded {frame.Fief.IllPatients[s]}/{frame.Fief.WoundedPatients[s]} · treated {frame.Fief.TreatedPatients[s]}";
+                        double insightHeads = frame.Fief.ScholarInsightHeads[s] / 4294967296.0;
+                        extra += $"\nUniversity scholars {frame.Fief.Scholars[s]} · research contribution {insightHeads:0.#} Insight heads · KEY-6 {frame.Fief.Key6Permille[s] / 10.0:0.#}%";
+                        if (s < frame.Fief.BuildGuidance.Length && !string.IsNullOrEmpty(frame.Fief.BuildGuidance[s]))
+                            extra += $"\nBuild: {frame.Fief.BuildGuidance[s]}";
                     }
                 }
             }

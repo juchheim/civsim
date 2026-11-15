@@ -668,6 +668,22 @@ public partial class Game : Node3D
                 settlement["fiefUniversities"] = i < frame.Fief.Universities.Length ? (int)frame.Fief.Universities[i] : 0;
                 settlement["fiefHospitals"] = i < frame.Fief.Hospitals.Length ? (int)frame.Fief.Hospitals[i] : 0;
                 settlement["fiefConcentricCastle"] = i < frame.Fief.ConcentricCastle.Length && frame.Fief.ConcentricCastle[i] != 0;
+                settlement["fiefGrindingDemand"] = i < frame.Fief.GrindingDemand.Length ? frame.Fief.GrindingDemand[i] : 0L;
+                settlement["fiefGrindingUsed"] = i < frame.Fief.GrindingUsed.Length ? frame.Fief.GrindingUsed[i] : 0L;
+                settlement["fiefSawingDemand"] = i < frame.Fief.SawingDemand.Length ? frame.Fief.SawingDemand[i] : 0L;
+                settlement["fiefSawingUsed"] = i < frame.Fief.SawingUsed.Length ? frame.Fief.SawingUsed[i] : 0L;
+                settlement["fiefCraftDemand"] = i < frame.Fief.CraftDemand.Length ? frame.Fief.CraftDemand[i] : 0L;
+                settlement["fiefCraftUsed"] = i < frame.Fief.CraftUsed.Length ? frame.Fief.CraftUsed[i] : 0L;
+                settlement["fiefPhysicians"] = i < frame.Fief.Physicians.Length ? (int)frame.Fief.Physicians[i] : 0;
+                settlement["fiefAttendants"] = i < frame.Fief.Attendants.Length ? (int)frame.Fief.Attendants[i] : 0;
+                settlement["fiefIllPatients"] = i < frame.Fief.IllPatients.Length ? (int)frame.Fief.IllPatients[i] : 0;
+                settlement["fiefWoundedPatients"] = i < frame.Fief.WoundedPatients.Length ? (int)frame.Fief.WoundedPatients[i] : 0;
+                settlement["fiefTreatedPatients"] = i < frame.Fief.TreatedPatients.Length ? (int)frame.Fief.TreatedPatients[i] : 0;
+                settlement["fiefScholars"] = i < frame.Fief.Scholars.Length ? (int)frame.Fief.Scholars[i] : 0;
+                settlement["fiefHospitalStaffed"] = i < frame.Fief.HospitalStaffed.Length && frame.Fief.HospitalStaffed[i] != 0;
+                settlement["fiefScholarInsightHeads"] = i < frame.Fief.ScholarInsightHeads.Length ? frame.Fief.ScholarInsightHeads[i] : 0L;
+                settlement["fiefKey6Permille"] = i < frame.Fief.Key6Permille.Length ? (int)frame.Fief.Key6Permille[i] : 0;
+                settlement["fiefBuildGuidance"] = i < frame.Fief.BuildGuidance.Length ? frame.Fief.BuildGuidance[i] ?? "" : "";
             }
 #if DEBUG
             if (i == forcedWorkAt)

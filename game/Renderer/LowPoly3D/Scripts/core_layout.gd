@@ -695,6 +695,15 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 				if cw[0] == "bathhouse":
 					var off: Vector3 = M7WorldBuilder.rot_y(_face(r[1])) * (Vector3(-0.08, 0.205, -0.05) * float(r[2]))
 					wb.chimney_smokes.append({"pos": Vector3(r[1].x + off.x, w.height_at(r[1]) + off.y, r[1].y + off.z), "seed": _seed})
+	# Faith & Fief adds three small institutions. Reuse the established civic mesh kit and its protected civic quarter;
+	# keeping this branch mode-gated leaves Iron/Bronze presentation byte-for-byte on its existing path.
+	if w.fief_active:
+		for fw in [["monastery", "monastery", "temple", Q.SACRED], ["university", "university", "academy", Q.LEARNING], ["hospital", "hospital", "bathhouse", Q.HEALTH]]:
+			if w.iron_works(s, String(fw[0])) <= 0:
+				continue
+			var fr = _whole([int(fw[3])] + big, String(fw[1]), String(fw[2]), 1.25)
+			if fr != null:
+				wb.civic_sites.append({"kind": String(fw[1]), "p": fr[1], "y": w.height_at(fr[1]), "yaw": _face(fr[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
 	if build_pm > 0 and build_id in ["academy", "theatre_arena", "bathhouse"]:
 		_whole(big, "site", site_mesh, 1.3)
 

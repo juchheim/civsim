@@ -82,6 +82,22 @@ public class FiefChapterTests
     }
 
     [Fact]
+    public void A_same_season_rival_KEY6_does_not_change_the_humans_Fief_end()
+    {
+        var catalog = new ResearchCatalog(PromotedPack());
+        ResearchRig rig = new(civs: 4, catalog: catalog, rules: ChapterRules.Fief);
+        Grant(rig, 0, "KEY-5", season: 12);
+        Grant(rig, 2, "KEY-5", season: 12);
+        Grant(rig, 0, "KEY-6", season: 40);
+        Grant(rig, 2, "KEY-6", season: 40);
+
+        MatchEnd end = MatchEnd.Evaluate(rig.Research, humanSeat: 0);
+        Assert.Equal(MatchEndReason.HumanKeystone, end.Reason);
+        Assert.Equal((40, 0), (end.EndSeason, end.Civ));
+        Assert.Equal((-1, -1), (end.CountdownStartSeason, end.CountdownCiv));
+    }
+
+    [Fact]
     public void E5_projects_open_only_in_Fief_only_after_the_civilizations_own_KEY5()
     {
         var catalog = new ResearchCatalog(PromotedPack());
@@ -168,7 +184,7 @@ public class FiefChapterTests
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] ironBytes = EconomyBytes(iron), fiefBytes = EconomyBytes(fief);
         Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(34, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(42, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.NotEqual(ironBytes, fiefBytes); // E5's expanded structure state belongs to the Fief snapshot only.
         Assert.NotEqual(iron.ComputeChecksum(), fief.ComputeChecksum());
     }
@@ -182,7 +198,7 @@ public class FiefChapterTests
         foreach (MatchModel m in new[] { bronze, iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
-        Assert.Equal(ironBytes.Length, fiefBytes.Length);          // the same trailer, differing only in the mode byte
+        Assert.True(fiefBytes.Length > ironBytes.Length); // Fief adds its goods and structure slots to the Iron economy payload.
         Assert.NotEqual(ironBytes, fiefBytes);
         Assert.True(fiefBytes.Length > bronzeBytes.Length);
 
