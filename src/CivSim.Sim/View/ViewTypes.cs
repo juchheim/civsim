@@ -84,6 +84,10 @@ public enum CivLook : ushort
     Colonnades = 4096,
     /// <summary>FOR-08 Grafting: orchards are drawn as trellised vineyards and olive groves.</summary>
     Grafting = 8192,
+    /// <summary>WAR-10 Heavy Cavalry: armed riders on open ground are drawn as mounted knights.</summary>
+    Knights = 16384,
+    /// <summary>WAR-12 Gunpowder Weapons: some armed people are drawn as gunners and a besieger's camp has a cannon.</summary>
+    Gunpowder = 32768,
 }
 
 /// <summary>Age band by size: child under 14, adult 14 to 44, elder 45 and over (docs/MVP/08 §2.1 "life stage").</summary>

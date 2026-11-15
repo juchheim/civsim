@@ -254,6 +254,18 @@ func chariot_focus() -> Vector3:
 	var c: Vector2 = builder.chariot_probe
 	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
 
+func knight_focus() -> Vector3:
+	if builder == null or builder.knight_probe == Vector2.ZERO:
+		return Vector3.ZERO
+	var c: Vector2 = builder.knight_probe
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
+func gunner_focus() -> Vector3:
+	if builder == null or builder.gunner_probe == Vector2.ZERO:
+		return Vector3.ZERO
+	var c: Vector2 = builder.gunner_probe
+	return Vector3(c.x, maxf(world.height_at(c), 0.0), c.y)
+
 ## Dev aid for scenarios: where the last decor of a kind (temple, chiefhall, woolbales, chariot ...) was placed (the origin when none).
 ## Dev aid for scenarios: where the first civic building of a kind ("academy", "theatre", "bathhouse", "crane", "site") stands; the aqueduct for "aqueduct".
 func works_focus(kind: String) -> Vector3:

@@ -577,6 +577,10 @@ public partial class Game
                 Shot("looks-boat");
                 Step(() => Look("chariot_focus", 1.7f), 1.0f);
                 Shot("looks-chariot");
+                Step(() => Look("knight_focus", 1.7f), 1.0f);
+                Shot("looks-knight");
+                Step(() => Look("gunner_focus", 1.7f), 1.0f);
+                Shot("looks-gunner");
                 Step(() => Look("landmark_focus", 12.0f, "temple"), 1.2f);
                 Shot("looks-wide");
                 break;
