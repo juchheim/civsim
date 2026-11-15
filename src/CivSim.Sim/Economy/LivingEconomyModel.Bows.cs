@@ -111,7 +111,6 @@ public sealed partial class LivingEconomyModel
     private static readonly Fix64 LevyBowWork = Fix64.FromRatio(4, 10);
     /// <summary>Wood for a stave and a sheaf of shafts: a split branch and a few straight shoots, so the bow costs very little wood (36 §3).</summary>
     internal static readonly Fix64 LevyBowWood = Fix64.FromRatio(5, 100);
-    private static readonly Fix64 LevyBowFlint = Fix64.FromRatio(1, 10);
     /// <summary>A bow kept in store for the levy is useless after about six years: strings rot, staves lose their cast, arrows are spent or lost (36 §5).</summary>
     private const int LevyBowServiceSeasons = 24;
 
@@ -119,8 +118,8 @@ public sealed partial class LivingEconomyModel
     internal const int LevyBowsPerSeason = 3;
 
     /// <summary>
-    /// Archery Warfare's bows (WAR-03, 36 §3), called in place of the hunting bow's craft in a Fief match. The bow becomes a routine craft (0.4 work, 0.3 wood,
-    /// 0.1 flint for the bow and its arrows) instead of the E2 first bow's 10 work. Until WAR-11 the settlement keeps a G-BOW for every levy fighter, up to
+    /// Archery Warfare's bows (WAR-03, 36 §3), called in place of the hunting bow's craft in a Fief match. The bow becomes a routine craft (0.4 work and 0.05 L of wood for the
+    /// bow and its arrows, which are bone-headed and fire-hardened, so no flint) instead of the E2 first bow's 10 work. Until WAR-11 the settlement keeps a G-BOW for every levy fighter, up to
     /// <see cref="LevyBowCap"/>, the same good the hunters use; after WAR-11 the levy turns to crossbows and longbows and only the hunting bow is kept.
     /// The first bow may take all the craft work, as the hunting bow did; the rest of the levy's take at most a quarter of what is left, only in a
     /// season of enough food and from no more than half the cut wood above the reserve.
@@ -130,16 +129,16 @@ public sealed partial class LivingEconomyModel
         if (remaining <= Fix64.Zero) return;
         Fix64 start = s.Stores[(int)Good.Bow], have = start;
         if (have < Fix64.One)
-            MakeGoods(s, ref remaining, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, Good.Flint, LevyBowFlint, Fix64.One);
+            MakeGoods(s, ref remaining, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, targetStock: Fix64.One);
         have = s.Stores[(int)Good.Bow];
         if (HasProject(s.Civilization, "WAR-11") || s.FoodSecurity < LevyBowFoodFloor || remaining <= Fix64.Zero) return;
-        Fix64 spareWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve) * LevyBowWoodShare;
-        // At most three bows in all this season, the first one included.
-        Fix64 target = Fix64.Min(Fix64.FromInt(LevyBowTarget(s)), Fix64.Min(start + Fix64.FromInt(LevyBowsPerSeason), have + spareWood / LevyBowWood));
+        // At most three bows in all this season, the first one included. The wood is so little (a twentieth of a litre a bow) that it needs no reserve rule: a town
+        // makes a bow whenever it holds the wood, and MakeGoods stops at what the stores can supply.
+        Fix64 target = Fix64.Min(Fix64.FromInt(LevyBowTarget(s)), start + Fix64.FromInt(LevyBowsPerSeason));
         if (target <= have) return;
         Fix64 budget = Fix64.Min(remaining, LevyBowWork * (Fix64.FromInt(LevyBowsPerSeason) - Fix64.Min(Fix64.FromInt(LevyBowsPerSeason), have - start)));
         Fix64 granted = budget;
-        MakeGoods(s, ref budget, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, Good.Flint, LevyBowFlint, target);
+        MakeGoods(s, ref budget, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, targetStock: target);
         remaining -= granted - budget;
     }
 
