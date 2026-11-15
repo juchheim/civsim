@@ -1946,13 +1946,27 @@ func _province_standards(s: Dictionary, si: int, c: Vector2, h0: float, seed: fl
 func _bow_mesh(civ: int) -> String:
 	return "person_longbow" if M7WorldData.hash01(civ, 0, 113) < 0.5 else "person_crossbow"
 
+## The firearm infantryman of a civilization's age: the rifleman with Rifles & Artillery (WAR-14), the musketeer with Pike & Musket Drill (WAR-13), else the early
+## gunner with his linstock (WAR-12).
+func _shot_mesh(civ: int) -> String:
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_RIFLES):
+		return "person_rifleman"
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_MUSKETS):
+		return "person_musketeer"
+	return "person_gunner"
+
 ## What an armed figure of a settlement carries (docs/MVP/35 §3.1), one rule for walking people. `seed` is the person's own stable random number. Gunpowder (WAR-12)
 ## takes the top three in ten; then the person carries what the settlement's stock says: the sim's frame gives the share of its fighters holding a crossbow, a
 ## longbow and the war bow (docs/MVP/36), and a person's own roll against those shares, best first, picks theirs (the longbow figure also stands for the war bow of
 ## Archery Warfare). Otherwise iron arms (WAR-08) give the soldier, and last the spear.
 func _arms_mesh(civ: int, seed: float, home: int) -> String:
 	if civ >= 0 and seed >= 0.7 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
-		return "person_gunner"
+		return _shot_mesh(civ)
+	# a drilled army (docs/MVP/35 section 7): with rifles most armed people are riflemen; with pike and musket drill the band under the shot is pike
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_RIFLES) and seed >= 0.35:
+		return "person_rifleman"
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_MUSKETS) and seed >= 0.45:
+		return "person_pikeman"
 	var roll := fposmod(seed * 7.31 + 0.37, 1.0)          # independent of the gunner's roll above
 	var cb := float(w.bow_pct(home, 0)) / 100.0
 	var lb := float(w.bow_pct(home, 1)) / 100.0
@@ -1971,7 +1985,7 @@ func garrison_mesh(civ: int, i: int, bows: Variant = null) -> String:
 	if i < 4:
 		return "person_soldier"
 	if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
-		return "person_gunner"
+		return _shot_mesh(civ)
 	var cb := 0
 	var lb := 0
 	if M7WorldData.LOOKS_DEBUG:
@@ -2064,13 +2078,15 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 			var cyaw := atan2((c - cp).x, (c - cp).y)
 			# the cannon itself is the war rig's (it recoils when it fires); here is only where it stands and what it is aimed at
 			var cimpact := c + cdir * ring
+			var rifled := w.has_iron_look(civ, M7WorldData.IRON_RIFLES)      # Rifles & Artillery (WAR-14): a long rifled field gun instead of the old cannon
 			siege_cannons.append({"p": Vector3(cp.x, w.height_at(cp), cp.y), "yaw": cyaw, "target": Vector3(cimpact.x, w.height_at(cimpact) + 0.1, cimpact.y),
-				"seed": M7WorldData.hash01(int(cp.x * 100.0), int(cp.y * 100.0), 83)})
+				"seed": M7WorldData.hash01(int(cp.x * 100.0), int(cp.y * 100.0), 83),
+				"mesh": "field_gun" if rifled else "cannon", "muzzle": Vector3(0.0, 0.05, 0.119) if rifled else Vector3(0.0, 0.046, 0.067)})
 			_record_visual_occupancy(cp, 0.26)
 			var cside := Vector2(-cdir.y, cdir.x)
 			for gs in [-1.0, 1.0]:
 				var gp: Vector2 = cp + cside * (0.17 * gs) - cdir * 0.06
-				props.add("person_gunner", _xf(gp, w.height_at(gp), cyaw, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+				props.add(_shot_mesh(civ), _xf(gp, w.height_at(gp), cyaw, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 	# the camp behind the engines
 	for j in 4:
 		var a2 := angle + (j - 1.5) * 0.28

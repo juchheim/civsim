@@ -818,6 +818,8 @@ public partial class Game
                     ("people", 0.0f, -19.4f, 2.8f, 34.0f, 0.0f), ("people-close", -0.3f, -19.4f, 2.7f, 24.0f, 0.0f), ("people-side", -0.3f, -19.4f, 2.7f, 24.0f, 70.0f),
                     ("levy", 0.0f, -21.6f, 2.8f, 34.0f, 0.0f), ("levy-close", -0.1f, -21.6f, 2.7f, 24.0f, 0.0f), ("levy-side", -0.1f, -21.6f, 2.7f, 24.0f, 70.0f),
                     ("levy-back", -0.1f, -21.6f, 2.7f, 26.0f, 160.0f),
+                    ("drilled", 0.0f, -23.8f, 2.8f, 34.0f, 0.0f), ("drilled-close", -0.1f, -23.8f, 2.7f, 24.0f, 0.0f), ("drilled-side", -0.1f, -23.8f, 2.7f, 24.0f, 70.0f),
+                    ("drilled-back", -0.1f, -23.8f, 2.7f, 26.0f, 160.0f),
                     ("cathedral", 0.0f, -5.2f, 4.2f, 36.0f, 0.0f), ("cathedral-front", 1.8f, -5.0f, 2.1f, 20.0f, 0.0f),
                     ("cathedral-side", 1.8f, -5.2f, 2.1f, 26.0f, 65.0f), ("cathedral-back", 1.8f, -5.2f, 2.1f, 30.0f, 155.0f), ("cathedral-stages", -0.6f, -5.2f, 2.6f, 30.0f, 25.0f),
                 })

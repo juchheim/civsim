@@ -321,3 +321,26 @@ same people in both places, and the art makes the decree's host visible.
 
 **Also noticed, for the agent editing `world_data.gd`:** `--looks-debug` fills `civ_looks` with 16383, which leaves out the new Knights
 (16384) and Gunpowder (32768) bits; it should be 65535 for the debug captures to show them.
+
+## 7. The drilled armies: pike and musket, rifles and artillery (WAR-13, WAR-14; built 2026-11-16)
+
+Not part of WAR-11, but the same figure kit: the weapon techs after gunpowder, drawn so the later ages do not fall back to the soldier.
+
+| Mesh | Tech | Looks like |
+|---|---|---|
+| `person_pikeman` | WAR-13 Pike & Musket Drill | a steel breastplate and a grey morion helmet with a comb over a buff coat, a pike about twice the figure's height |
+| `person_musketeer` | WAR-13 | a coat in the owner's colour (the whole coat, a uniform, not a mantle), white cross-belts, a black tricorn, a long dark musket with a bayonet, a cartridge box |
+| `person_rifleman` | WAR-14 Rifles & Artillery | a long greatcoat in the owner's colour to the knee, a kepi with a visor, a rifle with a bayonet, a pack with a rolled blanket |
+| `field_gun` | WAR-14 | a long rifled breech-loader on a steel carriage with a gun shield and a split trail; faces +Z and fires like the cannon (the war rig takes the mesh and the muzzle from the cannon's site) |
+
+All three infantry figures stand in the soldier's frame (about 0.097 tall). The look bits are `IronFrame.LookMusketDrill` (32, WAR-13) and `IronFrame.LookRifles` (64, WAR-14),
+read in the renderer as `IRON_MUSKETS` and `IRON_RIFLES`; `--looks-debug` fills 127. Project knowledge, like the knights and gunners: the sim holds no musket or rifle stock.
+
+**Who wears what** (`_arms_mesh`, `_shot_mesh`): the top three in ten of the armed (the gunner's band) are riflemen with WAR-14, musketeers with WAR-13, else gunners. With WAR-14 everyone
+else at or above seed 0.35 is a rifleman too; with WAR-13 alone, the band from 0.45 to 0.7 is pikemen; below that the stock-driven bows, the iron soldier and the spear as before. The castle garrison
+and drill ground's last two slots and the besieged wall's gunners use the same shot figure. A besieger with WAR-14 trains the `field_gun` in place of the cannon.
+
+**Photographed** in the fief gallery (`--scenario=fief-gallery --fief-only=drilled`, the new row beside the cannon for comparison); the gallery floor was lengthened to hold it. These techs are
+eras 6 and 7, beyond what a match plays today, so the figures show in the gallery and under `--looks-debug`, not yet in a live match. **Not built:** WAR-15 to WAR-18 (tanks and aircraft, nuclear
+weapons, drones, peacekeepers), which are not field figures in the same sense and would be a separate design.
+

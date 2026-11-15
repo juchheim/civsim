@@ -563,9 +563,9 @@ func show_fief_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(11.0, 30.0)
+	plane.size = Vector2(11.0, 36.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -8.4)
+	floor_mesh.position = Vector3(0.0, -0.01, -11.4)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -596,6 +596,8 @@ func show_fief_gallery() -> Vector3:
 		# WAR-11 (docs/MVP/35): the levy beside the soldier it stands with: a spearman, a soldier, a crossbowman, an archer, a gunner, then the tailored pair
 		[["person_spear", 0.3, 2.4], ["person_soldier", 0.3, 2.4], ["person_crossbow", 0.3, 2.4], ["person_longbow", 0.3, 2.4], ["person_gunner", 0.3, 2.4],
 			["person_crossbow_g", 0.3, 2.4], ["person_longbow_g", 0.3, 2.4], ["person_gunner_g", 0.3, 2.4]],
+		# WAR-13 / WAR-14 (docs/MVP/35 §7): the drilled armies and the field gun
+		[["person_pikeman", 0.3, 2.4], ["person_musketeer", 0.3, 2.4], ["person_rifleman", 0.3, 2.4], ["person_gunner", 0.3, 2.4], ["cannon", 0.4, 1.6], ["field_gun", 0.4, 1.6]],
 	]
 	var hub := Vector3(0.0, 0.245, 0.075)
 	for r in rows.size():
@@ -604,7 +606,7 @@ func show_fief_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.0, -17.2, -19.4, -21.6][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.0, -17.2, -19.4, -21.6, -23.8][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

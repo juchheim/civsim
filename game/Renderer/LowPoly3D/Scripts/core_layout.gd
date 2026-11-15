@@ -1502,7 +1502,7 @@ func _wall_bowmen(s: Dictionary, siege: Dictionary) -> void:
 		var q: Vector2 = r.q
 		var out := (q - _c).normalized()
 		var top := w.height_at(q) + 0.075 * WALL_SCALE * float(r.sy)
-		var mesh: String = "person_gunner" if gunners and k >= 1 else style
+		var mesh: String = wb._shot_mesh(_civ) if gunners and k >= 1 else style
 		wb.props.add(mesh, wb._xf(q, top, atan2(out.x, out.y), 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 func _count_groups(mesh_name: String) -> int:
