@@ -351,6 +351,7 @@ public partial class Game
         skinRow.AddChild(UiKit.Secondary(">", () => StepSkin(1), "Next skin", UiGlyph.None, UiTokens.ControlS));
         column.AddChild(skinRow);
         column.AddChild(new UiToggle("Reduce motion", _uiSettings.ReduceMotion, v => { _uiSettings.ReduceMotion = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
+        column.AddChild(new UiToggle("Game-styled mouse pointer", _uiSettings.ThemedCursor, v => { _uiSettings.ThemedCursor = v; _uiSettings.Save(); UiCursors.Apply(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show control hints", _uiSettings.ShowHints, v => { _uiSettings.ShowHints = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show tips", _uiSettings.ShowTips, v => { _uiSettings.ShowTips = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Pause while the research web is open", _uiSettings.PauseInWeb, v => { _uiSettings.PauseInWeb = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });

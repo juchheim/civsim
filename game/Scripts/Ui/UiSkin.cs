@@ -35,6 +35,9 @@ public static class UiSkin
 
     private static event Action? Changed;
 
+    /// <summary>Raised once when the age on screen changes (not on each cross-fade frame). The mouse pointer follows it (UiCursors).</summary>
+    public static event Action? ShownEraChanged;
+
     /// <summary>The age whose skin is on screen (its target while a fade runs).</summary>
     public static int ShownEra => _shown;
 
@@ -66,6 +69,7 @@ public static class UiSkin
         bool animate = _shown >= 0 && !UiSettings.Current.ReduceMotion && Engine.GetMainLoop() is SceneTree;
         _previous = _shown;
         _shown = wanted;
+        ShownEraChanged?.Invoke();
         if (!animate)
         {
             _blend = 1f;

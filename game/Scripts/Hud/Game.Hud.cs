@@ -70,6 +70,7 @@ public partial class Game
     private void CreateHud(ulong seed)
     {
         _uiSettings = UiSettings.Load();
+        UiCursors.Apply();
         if (ArgumentValue("--ui-scale=") is { } scaleArg && float.TryParse(scaleArg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float forcedScale))
             _uiSettings.UiScale = Math.Clamp(forcedScale, 1.0f, 1.3f);
         if (HasArgument("--reduce-motion")) _uiSettings.ReduceMotion = true;

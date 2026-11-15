@@ -15,6 +15,8 @@ public sealed class UiSettings
 
     public float UiScale = 1.0f;
     public bool ReduceMotion;
+    /// <summary>Game-styled mouse pointers (docs/MVP/36); off restores the OS pointer.</summary>
+    public bool ThemedCursor = true;
     public PlateMode SettlementPlates = PlateMode.Full;
     /// <summary>Age whose skin the HUD wears regardless of the player's own age (0-9), or -1 to follow it.</summary>
     public int SkinOverride = -1;
@@ -42,6 +44,7 @@ public sealed class UiSettings
             {
                 settings.UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", 1.0f).AsDouble(), 1.0f, 1.3f);
                 settings.ReduceMotion = file.GetValue(Section, "reduce_motion", false).AsBool();
+                settings.ThemedCursor = file.GetValue(Section, "themed_cursor", true).AsBool();
                 int plates = file.GetValue(Section, "settlement_plates", (int)PlateMode.Full).AsInt32();
                 settings.SettlementPlates = System.Enum.IsDefined(typeof(PlateMode), (byte)plates) ? (PlateMode)plates : PlateMode.Full;
                 int skin = file.GetValue(Section, "skin_override", -1).AsInt32();
@@ -74,6 +77,7 @@ public sealed class UiSettings
             var file = new ConfigFile();
             file.SetValue(Section, "ui_scale", UiScale);
             file.SetValue(Section, "reduce_motion", ReduceMotion);
+            file.SetValue(Section, "themed_cursor", ThemedCursor);
             file.SetValue(Section, "settlement_plates", (int)SettlementPlates);
             file.SetValue(Section, "skin_override", SkinOverride);
             file.SetValue(Section, "show_hints", ShowHints);

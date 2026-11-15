@@ -350,6 +350,7 @@ public partial class Game
             // Scroll and pinch gestures are not consumed by every control; swallow them here so they never reach the map.
             if (input is InputEventPanGesture or InputEventMagnifyGesture or InputEventMouseButton or InputEventMouseMotion)
             {
+                if (_leftDown && _dragMoved && !_orbitWithLeft) Input.SetDefaultCursorShape(Input.CursorShape.Arrow); // a pan cut short
                 _leftDown = _rightDown = _middleDown = false;
                 GetViewport().SetInputAsHandled();
             }
@@ -410,6 +411,8 @@ public partial class Game
                 else
                 {
                     bool click = _leftDown && !_dragMoved && !_swallowClick;
+                    if (_leftDown && _dragMoved && !_orbitWithLeft)
+                        Input.SetDefaultCursorShape(_decreeMapMode || _beaconMode ? Input.CursorShape.Cross : Input.CursorShape.Arrow);
                     _swallowClick = false;
                     _leftDown = false;
                     if (click) OnMapClicked(position);
@@ -435,7 +438,11 @@ public partial class Game
     {
         if (_leftDown)
         {
-            if (!_dragMoved && (motion.Position - _leftDownPosition).Length() > 6) _dragMoved = true;
+            if (!_dragMoved && (motion.Position - _leftDownPosition).Length() > 6)
+            {
+                _dragMoved = true;
+                if (!_orbitWithLeft) Input.SetDefaultCursorShape(Input.CursorShape.Drag); // grabbing the map
+            }
             if (_dragMoved)
             {
                 if (_orbitWithLeft) Orbit(motion.Relative);

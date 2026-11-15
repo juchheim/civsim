@@ -36,6 +36,7 @@ public partial class Startup : Control
 
         MouseFilter = MouseFilterEnum.Ignore;
         UiSettings.Load();
+        UiCursors.Apply();
 
         var background = new ColorRect
         {
