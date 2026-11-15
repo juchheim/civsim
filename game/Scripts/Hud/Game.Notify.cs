@@ -248,15 +248,30 @@ public partial class Game
         float bottom = m + FocusBarHeight + UiTokens.Sp1;
         float toastWidth = _compact ? 377 : 440;
         _toastBaseHeight = _compact ? 64 : 72;
+        // Toasts keep to the open map: with a dock panel open they stand just left of it instead of covering its lower part.
+        // Between the moment card (bottom left) and a wide dock they narrow to fit; when even 320 does not fit they rise above the card.
+        float dock = OpenDockWidth;
+        float right = m + (dock > 0 ? dock + UiTokens.Sp3 : 0);
+        float momentRight = MomentLeft + (_compact ? 280 : 320) + UiTokens.Sp2;
+        float room = _logicalSize.X - right - momentRight;
+        float lift = 0;
+        if (room < toastWidth)
+        {
+            if (room >= 320) toastWidth = MathF.Floor(room);
+            else lift = (_compact ? 112 : 128) + UiTokens.Sp2;
+        }
         foreach (ToastView view in _toasts)
         {
             view.Root.CustomMinimumSize = new Vector2(toastWidth, _toastBaseHeight);
             if (view.Root.GetChild(0) is PanelContainer panel) FitToast(view, panel);
         }
-        // Toasts keep to the open map: with a dock panel open they stand just left of it instead of covering its lower part.
-        float dock = OpenDockWidth;
-        float right = m + (dock > 0 ? dock + UiTokens.Sp3 : 0);
-        AnchorTo(_toastStack, 1, 1, 1, 1, -right - toastWidth, -bottom - 3 * 80, -right, -bottom, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
+        AnchorTo(_toastStack, 1, 1, 1, 1, -right - toastWidth, -bottom - lift - 3 * 80, -right, -bottom - lift, Control.GrowDirection.Begin, Control.GrowDirection.Begin);
+        // The paused pill centres over the open map too, so it never lands on a dock's header.
+        if (_pausedPill is not null)
+        {
+            float shift = dock > 0 ? -MathF.Round((m + dock + UiTokens.Sp3) / 2) : 0;
+            AnchorTo(_pausedPill, 0.5f, 0, 0.5f, 0, shift, m + TopBandHeight + 16, shift, m + TopBandHeight + 52, Control.GrowDirection.Both);
+        }
         float momentWidth = _compact ? 280 : 320;
         float momentHeight = _compact ? 112 : 128;
         // Right of the layer rail, never on it (the rail's lowest buttons used to sit under the card at 1600 × 900).

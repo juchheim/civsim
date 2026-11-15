@@ -1901,10 +1901,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// <summary>Fighters a settlement can put up: adults and elders who are not laid up, with warriors first (13 §6.1, §7.1).</summary>
     private List<Fighter> Fighters(int settlement, bool attacking, out List<long> ids, int battleTile = -1)
     {
+        var list = new List<Fighter>();
+        ids = new List<long>();
+        FightersInto(settlement, attacking, battleTile, new List<LivingEconomyModel.FighterRecord>(), list, ids);
+        return list;
+    }
+
+    /// <summary>
+    /// <see cref="Fighters"/> into caller-owned lists, so a per-frame readout can reuse them and allocate nothing. <paramref name="ids"/> may be null when only the
+    /// strengths are wanted; the lists are cleared first.
+    /// </summary>
+    private void FightersInto(int settlement, bool attacking, int battleTile,
+        List<LivingEconomyModel.FighterRecord> records, List<Fighter> list, List<long>? ids)
+    {
         int civ = _sCiv[settlement];
         Fix64 weapon = Weapon(civ, out _);
         bool warriors = _research.IsDone(civ, _p.War04);
-        var records = new List<LivingEconomyModel.FighterRecord>();
+        records.Clear(); list.Clear(); ids?.Clear();
         _economy.ListFightingAge(settlement, records);
         int adults = 0;
         foreach (var r in records) if (r.Age < 45) adults++;
@@ -1922,8 +1935,6 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         Defenses targetDefenses = DefensesAtTile(battleTile);
         // Tin Folk defend at 0.8 strength (docs/MVP/22 §6.4).
         bool tinFolk = _tinFolk.Count > 0 && IsTinFolk(settlement);
-        var list = new List<Fighter>();
-        ids = new List<long>();
         foreach (var r in records)
         {
             if (r.Wounded) continue;
@@ -1952,9 +1963,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             }
             if (tinFolk) strength *= _trade.FolkDefense;
             list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken });
-            ids.Add(r.Id);
+            ids?.Add(r.Id);
         }
-        return list;
     }
 
     private bool IsChariotOpenTerrain(int tile)
