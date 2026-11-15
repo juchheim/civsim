@@ -2639,9 +2639,9 @@ func _figures() -> void:
 			props.add("person_far", _xf(p, y, 0.0, 1.0), custom)
 			n += 1
 			continue
-		# raiders of a civilization with heavy cavalry (WAR-10) ride as mounted knights over open ground; the rest still take the chariot below
+		# trained warriors of a civilization with heavy cavalry (WAR-10) ride as mounted knights over open ground; a called-up farmer never does (docs/MVP/35 Q4)
 		var debug_knight := M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 2     # --looks-debug: every fifth figure rides, so the knight can be inspected
-		if boat_strength <= 0.0 and age == 1 and civ >= 0 and (((fl & 256) and seed < 0.45) or debug_knight) and w.has_look(civ, M7WorldData.LOOK_KNIGHTS):
+		if boat_strength <= 0.0 and age == 1 and civ >= 0 and (((fl & 256) != 0 and (fl & 128) != 0 and seed < 0.6) or debug_knight) and w.has_look(civ, M7WorldData.LOOK_KNIGHTS):
 			var riding := act == 17 or act == 18 or act == 19 or debug_knight
 			var knight_tile: int = w.tile_at(p)
 			if riding and knight_tile >= 0 and _open_ground(knight_tile):
@@ -2650,8 +2650,9 @@ func _figures() -> void:
 				knight_probe = p
 				n += 1
 				continue
-		# raiders of a civilization with chariots (WAR-06) ride them over open ground
-		if boat_strength <= 0.0 and age == 1 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
+		# raiders of a civilization with chariots (WAR-06) ride them over open ground, until it has heavy cavalry: a knightly army does not keep a Bronze Age look (the
+		# chariots that stand in its villages stay; `--looks-debug` keeps both so each can be inspected)
+		if boat_strength <= 0.0 and age == 1 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_CHARIOTS) and (M7WorldData.LOOKS_DEBUG or not w.has_look(civ, M7WorldData.LOOK_KNIGHTS)):
 			var raiding := act == 17 or act == 18 or act == 19
 			var on_wheels := (raiding and seed < 0.7) or (M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 0)
 			var here_tile: int = w.tile_at(p)

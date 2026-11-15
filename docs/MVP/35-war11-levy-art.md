@@ -299,7 +299,7 @@ Today nobody holds a crossbow in the sim. **Recommended: project look now (as kn
 combat row, it should mark each figure that fights with a crossbow with a new figure flag (`FigureFlags` has bits 2048 to 32768 free
 below the carry field), and `_arms_mesh` should switch to that flag.** No mesh changes then.
 
-**Q4. Should only trained warriors ride as knights?** Today any armed rider with `seed < 0.45` on open ground becomes a knight, so a
+**Q4. Should only trained warriors ride as knights?** *(Done 2026-11-16: knights need the warrior flag and `seed < 0.6`, and raiders stop riding chariots once their civilization has Knights; `--looks-debug` keeps both. The knight still needs open ground and a raid, assault or occupation.)* Today any armed rider with `seed < 0.45` on open ground becomes a knight, so a
 called-up farmer can appear as a knight in steel. **Recommended: yes, add `fl & 128` (warrior) to the knight test** when the in-progress
 WAR-10 change lands. A related finding: a civilization with both chariots and knights still puts the `0.45 <= seed < 0.7` band of raiders
 in chariots, a Bronze look in a Fief army. **Recommended: chariots stop once a civilization has Knights.** Both are small edits to the
