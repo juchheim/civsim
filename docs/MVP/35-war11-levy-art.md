@@ -305,10 +305,10 @@ WAR-10 change lands. A related finding: a civilization with both chariots and kn
 in chariots, a Bronze look in a Fief army. **Recommended: chariots stop once a civilization has Knights.** Both are small edits to the
 other agent's code, so they are listed here rather than made.
 
-**Q5. Tailored (`_g`) variants?** **Recommended: build them for the two levy figures now** (nearly every E5 civilization has FIB-04), and
+**Q5. Tailored (`_g`) variants?** *(Done 2026-11-16: `person_gunner_g` built, parka with a fur hem, leggings and boots, and shown in the gallery's levy row.)* **Recommended: build them for the two levy figures now** (nearly every E5 civilization has FIB-04), and
 add `person_gunner_g` in the same pass, since the gunner is currently the only bare-legged figure in a tailored crowd.
 
-**Q6. The short E5 figures.** By the code, the monk, pilgrim and gunner stand about 0.063 to 0.087 tall against 0.097 for the villagers,
+**Q6. The short E5 figures.** *(Done 2026-11-16: a gallery photograph beside the soldier confirmed it, the monk at about 70% of a villager's height, the pilgrim about 75% and the gunner about 80%; their upper bodies are now lifted to match and the tools lengthened to reach the ground.)* By the code, the monk, pilgrim and gunner stand about 0.063 to 0.087 tall against 0.097 for the villagers,
 because they skip the torso lift of `_person`. **Recommended: confirm in the step-1 gallery row with the soldier beside them, and if the
 difference shows, lift them in a separate small commit.**
 

@@ -595,7 +595,7 @@ func show_fief_gallery() -> Vector3:
 			["pilgrim_marker", 0.4, 2.0], ["quarantine_gate", 0.5, 2.0]],
 		# WAR-11 (docs/MVP/35): the levy beside the soldier it stands with: a spearman, a soldier, a crossbowman, an archer, a gunner, then the tailored pair
 		[["person_spear", 0.3, 2.4], ["person_soldier", 0.3, 2.4], ["person_crossbow", 0.3, 2.4], ["person_longbow", 0.3, 2.4], ["person_gunner", 0.3, 2.4],
-			["person_crossbow_g", 0.3, 2.4], ["person_longbow_g", 0.3, 2.4]],
+			["person_crossbow_g", 0.3, 2.4], ["person_longbow_g", 0.3, 2.4], ["person_gunner_g", 0.3, 2.4]],
 	]
 	var hub := Vector3(0.0, 0.245, 0.075)
 	for r in rows.size():

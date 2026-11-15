@@ -7,7 +7,8 @@
 ##
 ##   person_monk        a brown robe to the ground with a rope belt, a hood, a tonsure, a small scapular in the owner's colour, a hoe
 ##   person_monk_book   the same holding a book against the chest (scribing, teaching)
-##   person_gunner      a tunic and soft cap, a powder horn at the hip and a linstock (a long pole with a glowing match) in the hand
+##   person_gunner      a tunic and soft cap, a powder horn at the hip and a linstock (a long pole with a glowing match) in the hand;
+##   person_gunner_g    the tailored version (FIB-04): parka with a fur hem, leggings and boots. Monk, pilgrim and gunner stand as tall as a villager (about 0.097)
 ##   person_pilgrim     a long travelling cloak, a wide hat with a scallop badge, a staff with a gourd and a pack on the back
 ##   person_knight      a mounted knight: a bay horse under a caparison in the owner's colour, a rider in steel with a great helm and a plume, a kite shield
 ##                      in the owner's colour and a couched lance with a pennon
@@ -43,7 +44,8 @@ const EMISSIVE := M7MeshBuilder.TAG_EMISSIVE
 static func build(kit) -> void:
 	kit.meshes["person_monk"] = _monk(kit, false)
 	kit.meshes["person_monk_book"] = _monk(kit, true)
-	kit.meshes["person_gunner"] = _gunner(kit)
+	kit.meshes["person_gunner"] = _gunner(kit, false)
+	kit.meshes["person_gunner_g"] = _gunner(kit, true)
 	kit.meshes["person_pilgrim"] = _pilgrim(kit)
 	kit.meshes["person_knight"] = _knight(kit)
 	kit.meshes["person_crossbow"] = _levy(kit, true, false)
@@ -61,10 +63,12 @@ static func _monk(kit, book: bool) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(1601 + (1 if book else 0))
 	b.tag = PLAIN
 	# the habit: a long robe from the shoulders to the ground, wider at the hem, belted with a rope
-	b.prism(Vector3(0, 0.0, 0), 0.0235, 0.0145, 0.056, 8, ROBE, ROBE)
+	b.prism(Vector3(0, 0.0, 0), 0.0235, 0.0145, 0.09, 8, ROBE, ROBE)      # taller by the 0.034 the people kit lifts a figure's torso, so a monk stands as tall as a villager
 	b.prism(Vector3(0, 0.0, 0), 0.0245, 0.0235, 0.004, 8, ROBE_DARK, ROBE_DARK)
-	b.prism(Vector3(0, 0.027, 0), 0.0172, 0.0172, 0.0035, 8, ROPE, ROPE)
-	b.pole(Vector3(0.007, 0.028, 0.016), Vector3(0.011, 0.012, 0.018), 0.0014, ROPE)
+	b.prism(Vector3(0, 0.042, 0), 0.0172, 0.0172, 0.0035, 8, ROPE, ROPE)
+	b.pole(Vector3(0.007, 0.043, 0.016), Vector3(0.011, 0.027, 0.018), 0.0014, ROPE)
+	var monk_frame := b.xf
+	b.xf = b.xf * Transform3D(Basis.IDENTITY, Vector3(0, 0.034, 0))
 	# the owner's colour as a narrow scapular over the shoulders (a monk is one of a community, not a soldier)
 	b.tag = CIV
 	# (it must stand a little proud of the robe, which is 0.0235 wide at the foot and 0.0145 at the shoulders)
@@ -87,25 +91,36 @@ static func _monk(kit, book: bool) -> ArrayMesh:
 		b.pole(Vector3(0.0215, 0.036, 0.004), Vector3(0.028, 0.016, 0.012), 0.0042, ROBE)
 		b.blob(Vector3(0.0285, 0.014, 0.0125), Vector3(0.0052, 0.0052, 0.0052), 5, 2, SKIN)
 		var hand := Vector3(0.028, 0.012, 0.012)
-		b.pole(hand + Vector3(0, -0.03, -0.006), hand + Vector3(0.002, 0.055, 0.01), 0.0026, WOOD_LIGHT)
-		b.box(hand + Vector3(0.002, -0.032, 0.0), Vector3(0.006, 0.006, 0.018), Color("#6b717a"))
+		b.pole(hand + Vector3(0, -0.044, -0.006), hand + Vector3(0.002, 0.055, 0.01), 0.0026, WOOD_LIGHT)
+		b.box(hand + Vector3(0.002, -0.046, 0.0), Vector3(0.006, 0.006, 0.018), Color("#6b717a"))
+	b.xf = monk_frame
 	return b.commit()
 
-static func _gunner(kit) -> ArrayMesh:
-	var b: M7MeshBuilder = kit._b(1603)
+static func _gunner(kit, garment: bool = false) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1610 if garment else 1603)
 	b.tag = PLAIN
-	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, LEG, LEG)
-	b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, LEG, LEG)
+	var legc: Color = M7LooksKit.LEGGING if garment else LEG
+	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+	b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+	var boot: Color = M7LooksKit.BOOT if garment else Color("#2f2418")
 	for sx in [-0.0075, 0.0075]:
-		b.prism(Vector3(sx, 0, 0), 0.0075, 0.0072, 0.01, 5, Color("#2f2418"), Color("#2f2418"))
-	# a short tunic in dark powder-stained cloth with a leather belt, and the owner's colour across the shoulders
-	b.prism(Vector3(0, 0.02, 0), 0.0185, 0.0155, 0.038, 7, Color("#5a4a3a"), Color("#5a4a3a"))
+		b.prism(Vector3(sx, 0, 0), 0.0075, 0.0072, 0.01 if not garment else 0.011, 5, boot, boot)
+		if garment:
+			b.prism(Vector3(sx, 0.0105, 0), 0.0079, 0.0079, 0.003, 5, M7LooksKit.FUR, M7LooksKit.FUR)
+	# everything above the legs is lifted by 0.014, so the gunner stands as tall as a villager (the people kit lifts a torso by 0.034 over legs 0.036 tall)
+	var gunner_frame := b.xf
+	b.xf = b.xf * Transform3D(Basis.IDENTITY, Vector3(0, 0.014, 0))
+	var coat: Color = M7LooksKit.PARKA if garment else Color("#5a4a3a")
+	# a short tunic in dark powder-stained cloth with a leather belt (the parka with a fur hem when tailored), and the owner's colour across the shoulders
+	b.prism(Vector3(0, 0.02, 0), 0.0185, 0.0155, 0.038, 7, coat, coat)
+	if garment:
+		b.prism(Vector3(0, 0.02, 0), 0.0195, 0.0192, 0.005, 7, M7LooksKit.FUR, M7LooksKit.FUR)
 	b.prism(Vector3(0, 0.024, 0), 0.0188, 0.0188, 0.004, 7, Color("#2f2418"), Color("#2f2418"))
 	b.tag = CIV
 	b.prism(Vector3(0, 0.044, 0), 0.0205, 0.009, 0.014, 7, Color.WHITE, Color.WHITE)
 	b.tag = PLAIN
-	b.pole(Vector3(-0.02, 0.05, 0), Vector3(-0.024, 0.028, 0.006), 0.0045, Color("#5a4a3a"))
-	b.pole(Vector3(0.02, 0.05, 0), Vector3(0.026, 0.03, 0.01), 0.0045, Color("#5a4a3a"))
+	b.pole(Vector3(-0.02, 0.05, 0), Vector3(-0.024, 0.028, 0.006), 0.0045, coat)
+	b.pole(Vector3(0.02, 0.05, 0), Vector3(0.026, 0.03, 0.01), 0.0045, coat)
 	_head(b, 0.07, HAIR)
 	# the soft cap with a brim turned up at the front
 	b.blob(Vector3(0, 0.0775, -0.001), Vector3(0.0132, 0.009, 0.0132), 7, 3, CAP, 0.0)
@@ -116,22 +131,25 @@ static func _gunner(kit) -> ArrayMesh:
 	b.pole(Vector3(-0.002, 0.052, 0.012), Vector3(-0.012, 0.03, 0.014), 0.0009, Color("#2f2418"))
 	# the linstock: a long pole held upright, a forked head with a smouldering match that glows
 	var hand := Vector3(0.026, 0.03, 0.012)
-	b.pole(hand + Vector3(0, -0.032, 0), hand + Vector3(0.002, 0.07, 0.004), 0.0026, WOOD_LIGHT)
+	b.pole(hand + Vector3(0, -0.044, 0), hand + Vector3(0.002, 0.07, 0.004), 0.0026, WOOD_LIGHT)
 	b.pole(hand + Vector3(0.002, 0.07, 0.004), hand + Vector3(-0.004, 0.082, 0.004), 0.0016, WOOD)
 	b.pole(hand + Vector3(0.002, 0.07, 0.004), hand + Vector3(0.008, 0.082, 0.004), 0.0016, WOOD)
 	b.tag = EMISSIVE
 	b.blob(hand + Vector3(0.0, 0.0845, 0.004), Vector3(0.0042, 0.0042, 0.0042), 5, 3, GLOW)
 	b.tag = PLAIN
+	b.xf = gunner_frame
 	return b.commit()
 
 static func _pilgrim(kit) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(1604)
 	b.tag = PLAIN
 	# a long cloak to the shins, dark and travel-worn, hem darker, with the owner's colour as a small cape at the shoulders
-	b.prism(Vector3(0, 0.006, 0), 0.0215, 0.0155, 0.05, 8, CLOAK, CLOAK)
+	b.prism(Vector3(0, 0.006, 0), 0.0215, 0.0155, 0.076, 8, CLOAK, CLOAK)      # taller by 0.026, so the pilgrim stands near a villager's height
 	b.prism(Vector3(0, 0.006, 0), 0.022, 0.0215, 0.005, 8, CLOAK_DARK, CLOAK_DARK)
 	b.prism(Vector3(-0.0075, 0, 0), 0.0055, 0.0055, 0.012, 5, Color("#2f2418"), Color("#2f2418"))
 	b.prism(Vector3(0.0075, 0, 0), 0.0055, 0.0055, 0.012, 5, Color("#2f2418"), Color("#2f2418"))
+	var pilgrim_frame := b.xf
+	b.xf = b.xf * Transform3D(Basis.IDENTITY, Vector3(0, 0.026, 0))
 	b.tag = CIV
 	b.prism(Vector3(0, 0.033, 0), 0.0195, 0.0095, 0.018, 8, Color.WHITE, Color.WHITE)
 	b.tag = PLAIN
@@ -149,8 +167,9 @@ static func _pilgrim(kit) -> ArrayMesh:
 	b.pole(Vector3(0.0215, 0.04, 0.004), Vector3(0.026, 0.02, 0.01), 0.0044, CLOAK)
 	b.pole(Vector3(-0.0215, 0.04, 0.004), Vector3(-0.026, 0.02, 0.008), 0.0044, CLOAK)
 	var hand := Vector3(0.0275, 0.02, 0.012)
-	b.pole(hand + Vector3(0, -0.02, -0.004), hand + Vector3(0.002, 0.07, 0.006), 0.0026, WOOD_LIGHT)
+	b.pole(hand + Vector3(0, -0.046, -0.004), hand + Vector3(0.002, 0.07, 0.006), 0.0026, WOOD_LIGHT)      # the staff reaches the ground from the lifted hand
 	b.blob(hand + Vector3(0.006, 0.058, 0.006), Vector3(0.0055, 0.0075, 0.0055), 6, 3, Color("#c9a050"), 0.0, Color("#a58038"))
+	b.xf = pilgrim_frame
 	return b.commit()
 
 static func _knight(kit) -> ArrayMesh:
