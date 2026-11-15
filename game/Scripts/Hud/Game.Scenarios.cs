@@ -1124,6 +1124,22 @@ public partial class Game
                     }, 2.5f);
                     Shot($"war-{call}-{_scenario.Count}");
                 }
+                // --cannon-burst: a besieger with gunpowder (--looks-debug) trains a cannon on the wall; a still every 0.2 s for 19 s, a little over one firing cycle at 1x (about 6 ticks a second)
+                if (HasArgument("--cannon-burst"))
+                {
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("cannon_focus");
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; _pitch = Mathf.DegToRad(30.0f); SetZoom(1.9f); UpdateCamera(); }
+                    }, 1.5f);
+                    float burstStart = t;
+                    for (int k = 0; k < 95; k++)
+                    {
+                        string burstName = $"cannon-{k:00}";
+                        _scenario.Add((burstStart + 0.2f * k, () => TakeScenarioShot(burstName)));
+                    }
+                    t = burstStart + 0.2f * 95 + 0.5f;
+                }
                 break;
             case "works-village":
                 // --start-minute=30 --viewer=-1 --dev-works --dev-site=2 [--dev-walls=2] (debug builds): the capital with the Iron civic works, an aqueduct and a building
