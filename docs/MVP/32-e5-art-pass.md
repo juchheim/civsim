@@ -368,6 +368,16 @@ settlement, larger and stronger as it worsens, tinted differently when imported)
 side (which settlements are in outbreak, their intensity, the spread links) is still to be designed; the table shapes in `world_data.gd` are proposals. To photograph a few rows quickly: `--scenario=fief-gallery --fief-only=fields,cog` (prefixes of the shot names), and add
 Godot's `--always-on-top` on a machine in use, or the window is throttled and every still is a copy of the first frame.
 
+**Status (2026-11-16, wall damage): the broken-wall visuals of §8.3 are wired into the live village.** `core_layout.gd` reads the siege laid on the town
+(`wb._siege_info`: the direction of the besieger and the integrity in permille) and, for each stone wall run, tower and plain gate, works out what is left of the
+wall at that spot (`_wall_integrity_at`: the loss is full within about 24 degrees of the besieger's direction and fades to nothing by about 84, so the damage faces the
+attacker). `_damaged_wall` then picks the mesh: whole above 70%; `wall_seg_cracked` from 40 to 70; `wall_seg_breach` from 15 to 40; `wall_ruin`, then `wall_rubble`,
+below that; towers go cracked, then `wall_tower_breach`; a plain gate becomes `wall_gate_broken` from 40% down (a gatehouse keeps its towers). The layout footprints still
+record the whole wall, so `check_core_layout.py` sees no change, and with no siege nothing differs. Photographed with `--scenario=war-village --dev-walls=2
+--dev-siege=900|600|300|100`: whole, cracked on the run facing the besieger, a gap with a rubble slope and a half-fallen tower, then heaps. Wall bowmen
+(docs/MVP/35) now stand only on runs that are not broken through. **Not built:** the dust wisp and cannon flash that accompany a hit, and the concentric castle's rule that
+the outer ring breaks before the inner one.
+
 The dev gallery (the same one that checks Iron works) should have one capture per mesh and per state before any of it goes into a match.
 
 ## 11. Acceptance
