@@ -64,9 +64,11 @@ changing these three.
 
 - **Age wear** (each season): crossbows (Fief only) lose 1/40 of the stock, longbows 1/24, stored G-BOWs in every chapter beyond the one in use
   1/24 (strings rot, staves lose their cast, arrows are spent). The bow in a hunter's hands still wears by hunting work as before.
-- **Levies who die** lose their weapon. Combat calls `LivingEconomyModel.LoseArms(settlement, goodId, n)`, which removes up to
-  `n` and returns what it removed (works for G-BOW, G-CROSSBOW, G-LONGBOW and the metal arms). Recommended rule: one weapon
-  lost per dead archer, of the kind that archer carried. The winner takes nothing from the field (keeps loot simple).
+- **Levies who die** lose their weapon (built, 2026-11-16). Every battle's casualties go through `PoliticsSystem.ApplyCasualties`, which now
+  charges each death to the dead fighter's settlement: the town's bow stock as a share of the fighters it could field, crossbows first, then
+  longbows, then the war bow (the order `Fighters()` draws them in), taken as a fraction of a bow through `LoseArms`, so never more than one bow
+  per death. The fight does not record which fighter held which bow, so the loss is the expected one, not an exact one. A war bow counts only from
+  Archery Warfare (before it the single bow in store is the hunter's tool); crossbows and longbows only in a Fief match. Wounded fighters keep their bows.
 - **A razed settlement** loses all its bows; **a captured settlement** keeps them under its new owner.
 - **Fission:** G-BOWs split with the other tools as today; crossbows and longbows stay with the parent town.
 
@@ -112,6 +114,11 @@ The first version made raids and assaults fall because real towns almost never b
 more wood than the reserve and fewer than half held flint (the unit tests had stocked both by hand). The final rule gives about nine bows a town by season
 180. Raids, legacy and soldiers are back at the baseline; assaults, captures and wars swing between 0 and 12 from seed to seed and six seeds cannot
 settle them, so a larger sample is worth running before any pace tuning.
+
+Second check, with bow loss on death (six seeds, same as above): Iron raids 15.3, assaults 1.3, captures 1, wars 1.3, legacy 20435, peak soldiers 603;
+Bronze raids 17, assaults 2.3, captures 2.3, wars 2.3, legacy 14085. Raids, legacy and soldiers stay at the baseline. Iron assaults and captures are
+lower than the baseline's 4 and 3.3 in both bow builds (and lowest with bow loss), which may be real (a bow stock is defence strength too) or seed noise;
+it is the first thing a larger sample should settle.
 
 ## 9. Open questions
 

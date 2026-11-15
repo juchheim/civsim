@@ -1850,13 +1850,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _events.Add(new PoliticsEvent(_tick, (byte)b, PoliticsEventKind.Skirmish, a, hurtB, hurtA));
     }
 
-    private void ApplyCasualties(List<long> dead, List<long> wounded, string conflictKind)
+    internal void ApplyCasualties(List<long> dead, List<long> wounded, string conflictKind)
     {
+        // whose people fell, so their bows are lost with them (docs/MVP/36 section 5)
+        var fallen = new List<(int Settlement, int Dead)>();
+        foreach (long id in dead)
+        {
+            if (!_economy.TryFigure(id, out FigureView who)) continue;
+            int at = fallen.FindIndex(x => x.Settlement == who.SettlementId);
+            if (at >= 0) fallen[at] = (who.SettlementId, fallen[at].Dead + 1);
+            else fallen.Add((who.SettlementId, 1));
+        }
         Action<FigureView, string, bool, int>? observer = CombatCasualtyObserverForDiagnostics;
         if (observer is null)
         {
             foreach (long id in dead) _economy.KillFigure(id);
             foreach (long id in wounded) _economy.WoundFigure(id, 2);
+            LoseBowsOfTheFallen(fallen);
             return;
         }
         foreach (long id in dead)
@@ -1868,6 +1878,39 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 _economy.WoundFigure(id, 2);
                 observer(figure, conflictKind, false, _season);
             }
+        LoseBowsOfTheFallen(fallen);
+    }
+
+    /// <summary>
+    /// A fighter who dies loses the bow they carried (docs/MVP/36 section 5), as a dead soldier loses an iron kit. The fight does not record which fighters held which
+    /// bow, so the loss is the expected one: each death costs the settlement its stock's share of the fighters it could field, crossbows first, then longbows, then
+    /// the war bow (the same order Fighters() draws them in), as a fraction of a bow. A war bow counts only from Archery Warfare (before it, the one bow in store is
+    /// the hunter's tool); crossbows and longbows only in a Faith and Fief match. Wounded fighters keep their bows.
+    /// </summary>
+    private void LoseBowsOfTheFallen(List<(int Settlement, int Dead)> fallen)
+    {
+        foreach ((int settlement, int dead) in fallen)
+        {
+            if (unchecked((uint)settlement) >= unchecked((uint)_sCount)) continue;
+            int civ = _sCiv[settlement];
+            bool war11 = _economy.FiefChain && _research.IsDone(civ, _p.War11);
+            int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
+            int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
+            int warBows = _research.IsDone(civ, _p.Hnt06) && _research.IsDone(civ, _p.War03) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+            if (crossbows + longbows + warBows == 0) continue;
+            var records = new List<LivingEconomyModel.FighterRecord>();
+            _economy.ListFightingAge(settlement, records);
+            int able = dead;
+            foreach (var r in records) if (!r.Wounded) able++;
+            int room = able;
+            int ofCrossbows = Math.Min(crossbows, room); room -= ofCrossbows;
+            int ofLongbows = Math.Min(longbows, room); room -= ofLongbows;
+            int ofWarBows = Math.Min(warBows, room);
+            Fix64 fallenCount = Fix64.FromInt(dead), all = Fix64.FromInt(able);
+            if (ofCrossbows > 0) _economy.LoseArms(settlement, "G-CROSSBOW", fallenCount * Fix64.FromInt(ofCrossbows) / all);
+            if (ofLongbows > 0) _economy.LoseArms(settlement, "G-LONGBOW", fallenCount * Fix64.FromInt(ofLongbows) / all);
+            if (ofWarBows > 0) _economy.LoseArms(settlement, "G-BOW", fallenCount * Fix64.FromInt(ofWarBows) / all);
+        }
     }
 
     // ---- shared helpers -------------------------------------------------------------------

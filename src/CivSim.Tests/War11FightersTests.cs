@@ -62,4 +62,28 @@ public sealed class War11FightersTests
         Assert.True(Defence(iron.Match, iron.Home) > bare, "twenty bows in store should arm twenty fighters");
     }
 
+
+    [Fact]
+    public void A_fighter_who_dies_takes_a_share_of_the_towns_bows_with_them_and_a_wounded_one_does_not()
+    {
+        var m = Prepared(ChapterRules.Fief, "KEY-3", "KEY-4", "HNT-06", "WAR-03", "WAR-11");
+        for (int i = 0; i < 4; i++) m.Runner.Advance(150);
+        Fix64 Bows() => m.Match.Economy.GoodStock(m.Home, "G-LONGBOW") + m.Match.Economy.GoodStock(m.Home, "G-CROSSBOW") + m.Match.Economy.GoodStock(m.Home, "G-BOW");
+        var records = new System.Collections.Generic.List<LivingEconomyModel.FighterRecord>();
+        m.Match.Economy.ListFightingAge(m.Home, records);
+        Fix64 before = Bows();
+        Assert.True(before >= Fix64.FromInt(10), $"the town should hold bows: {before}");
+
+        // wounded fighters keep their bows
+        var wounded = records.Where(r => !r.Wounded).Take(5).Select(r => r.Id).ToList();
+        m.Match.Politics.ApplyCasualties(new System.Collections.Generic.List<long>(), wounded, "test");
+        Assert.Equal(before, Bows());
+
+        // ten who die lose some of them, never more than one each
+        var fallen = records.Where(r => !r.Wounded && !wounded.Contains(r.Id)).Take(10).Select(r => r.Id).ToList();
+        m.Match.Politics.ApplyCasualties(fallen, new System.Collections.Generic.List<long>(), "test");
+        Fix64 lost = before - Bows();
+        Assert.True(lost > Fix64.Zero, "dead fighters should have taken bows with them");
+        Assert.True(lost <= Fix64.FromInt(10), $"at most one bow each: {lost}");
+    }
 }
