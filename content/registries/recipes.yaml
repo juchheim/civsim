@@ -54,7 +54,8 @@ recipes:
   - {id: crucible_steel, name: Crucible steel, unlocked_by: [MET-11], structure: [forge], inputs: {G-STEEL: 0.4, G-CLAY: 0.3, G-CHAR: 0.4}, outputs: {G-CSTEEL: 0.3}, labor: 0.6, order: 63, practice: smelt}
   - {id: make_crucible_arms, name: Make crucible-steel arms, unlocked_by: [MET-11], structure: [forge], inputs: {G-CSTEEL: 0.2, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS5: 1}, labor: 0.5, order: 64, practice: smelt}
   - {id: make_powder, name: Make gunpowder, unlocked_by: [CHM-07], structure: [powder_mill], inputs: {G-SALTPETER: 0.75, G-SULFUR: 0.1, G-CHAR: 0.15}, outputs: {G-POWDER: 1}, labor: 0.4, order: 65, practice: craft}
-  - {id: make_crossbow, name: Make a crossbow, unlocked_by: [WAR-11], inputs: {G-WOOD: 1, "G-IRON|G-WROUGHT": 0.1, G-CORD: 0.2}, outputs: {G-CROSSBOW: 1}, labor: 0.6, order: 66, practice: craft}
+  - {id: make_crossbow, name: Make a crossbow, unlocked_by: [WAR-11], structure: [forge], inputs: {G-WOOD: 1, "G-WROUGHT|G-IRON": 0.1, G-CORD: 0.2}, outputs: {G-CROSSBOW: 1}, labor: 0.6, order: 66, practice: craft, note: "bolts folded into the weapon (docs/MVP/36)"}
+  - {id: make_longbow, name: Make a longbow, unlocked_by: [WAR-11], inputs: {G-WOOD: 1, G-CORD: 0.1}, outputs: {G-LONGBOW: 1}, labor: 0.4, order: 66, practice: craft, note: "a self-bow of yew or ash with a sheaf of arrows; no iron (docs/MVP/36)"}
   - {id: make_horseshoe, name: Forge horseshoes, unlocked_by: [TRN-09], structure: [forge], inputs: {G-WROUGHT: 0.1}, outputs: {G-HORSESHOE: 4}, labor: 0.2, order: 67, practice: smelt}
   - {id: distill_spirits, name: Distill spirits, unlocked_by: [CHM-06], structure: [kiln], inputs: {G-WINE: 2, G-CHAR: 0.1}, outputs: {G-SPIRITS: 1}, labor: 0.3, order: 68, practice: craft}
   - {id: fire_porcelain, name: Fire porcelain, unlocked_by: [CER-09], structure: [kiln], inputs: {G-CLAY: 1, G-CHAR: 0.6}, outputs: {G-PORCELAIN: 0.5}, labor: 0.6, order: 69, practice: clay}

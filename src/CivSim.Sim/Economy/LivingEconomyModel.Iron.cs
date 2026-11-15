@@ -48,7 +48,7 @@ public sealed partial class LivingEconomyModel
     private bool _ironFuelHubAssignmentsReady;
 
     /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
-    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0);
+    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0) + (_fiefChain ? (int)FiefGood.Count : 0);
 
     /// <summary>
     /// True when the match plays the Iron chapter (<c>MatchModel</c> sets it from the chapter rules). Off, the Iron recipes cannot run, no Iron
@@ -61,7 +61,7 @@ public sealed partial class LivingEconomyModel
         {
             _ironChain = value;
             // The Iron recipes join the planner's list only in the Iron chapter, in content order so the craft step still runs them ascending.
-            if (value) _compiledRecipes = _allRecipes;
+            if (value) _compiledRecipes = _fiefChain ? _allFiefRecipes : _allRecipes;
         }
     }
 

@@ -146,6 +146,7 @@ public sealed partial class LivingEconomyModel
         var compiled = new List<CompiledRecipe>();
         var iron = new List<CompiledRecipe>();
         var merged = new List<CompiledRecipe>();
+        var mergedFief = new List<CompiledRecipe>();
         foreach (EconomyRecipe r in _content.Recipes)
         {
             bool enabled = r.Outputs.Length > 0;
@@ -166,6 +167,8 @@ public sealed partial class LivingEconomyModel
             int output = r.Outputs.Length > 0 ? SlotOf(r.Outputs[0].Good) : NoSlot;
             bool touchesIron = output >= IronSlotBase;
             foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesIron |= slot >= IronSlotBase;
+            bool touchesFief = output >= FiefSlotBase;
+            foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesFief |= slot >= FiefSlotBase;
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
             var entry = new CompiledRecipe
             {
@@ -174,12 +177,16 @@ public sealed partial class LivingEconomyModel
                 Task = TaskOfPractice(r.Practice), IsCharcoal = output == MetalSlot(MetalGood.Charcoal),
                 Enabled = enabled,
             };
+            // The Fief recipes (docs/MVP/36) join the planner only in a Fief match, so the Bronze and Iron recipe lists stay exactly as they were.
+            mergedFief.Add(entry);
+            if (touchesFief) continue;
             (touchesIron ? iron : compiled).Add(entry);
             merged.Add(entry);
         }
         _compiledRecipes = compiled.ToArray();
         _ironRecipes = iron.ToArray();
         _allRecipes = merged.ToArray();
+        _allFiefRecipes = mergedFief.ToArray();
     }
 
     private int SlotOf(string goodId)
@@ -190,12 +197,15 @@ public sealed partial class LivingEconomyModel
             if (MetalGoodId((MetalGood)g) == goodId) return MetalSlot((MetalGood)g);
         for (int g = 0; g < (int)IronGood.Count; g++)
             if (IronGoodId((IronGood)g) == goodId) return IronSlot((IronGood)g);
+        for (int g = 0; g < (int)FiefGood.Count; g++)
+            if (FiefGoodId((FiefGood)g) == goodId) return FiefSlot((FiefGood)g);
         return NoSlot;
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
     {
         if (slot < (int)Good.Count) return s.Stores[slot];
+        if (slot >= FiefSlotBase) return s.FiefGoods is { } fief ? fief[slot - FiefSlotBase] : Fix64.Zero;
         if (slot >= IronSlotBase) return s.Metal?.IronGoods is { } iron ? iron[slot - IronSlotBase] : Fix64.Zero;
         int metalSlot = slot - (int)Good.Count;
         if (metalSlot == (int)MetalGood.Ochre && s.Metal is null) return s.SurfaceOchre;
@@ -208,6 +218,11 @@ public sealed partial class LivingEconomyModel
         {
             if (slot == (int)Good.Wood && amount < Fix64.Zero) RecordLocalWoodUse(s, -amount, "metal");
             s.Stores[slot] = Fix64.Max(Fix64.Zero, s.Stores[slot] + amount);
+        }
+        else if (slot >= FiefSlotBase)
+        {
+            Fix64[] fief = s.FiefGoods ??= new Fix64[(int)FiefGood.Count];
+            fief[slot - FiefSlotBase] = Fix64.Max(Fix64.Zero, fief[slot - FiefSlotBase] + amount);
         }
         else if (slot >= IronSlotBase)
         {
@@ -1392,6 +1407,7 @@ public sealed partial class LivingEconomyModel
         // forest throttles it with the rest of the Iron chain (see IronWoodFactor).
         if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
+        FiefBowWants(s, m, plan);
     }
 
     /// <summary>

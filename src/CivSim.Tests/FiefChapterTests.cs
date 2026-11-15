@@ -168,7 +168,7 @@ public class FiefChapterTests
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] ironBytes = EconomyBytes(iron), fiefBytes = EconomyBytes(fief);
         Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(34, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(35, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.NotEqual(ironBytes, fiefBytes); // E5's expanded structure state belongs to the Fief snapshot only.
         Assert.NotEqual(iron.ComputeChecksum(), fief.ComputeChecksum());
     }
@@ -182,7 +182,7 @@ public class FiefChapterTests
         foreach (MatchModel m in new[] { bronze, iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
-        Assert.Equal(ironBytes.Length, fiefBytes.Length);          // the same trailer, differing only in the mode byte
+        Assert.Equal(ironBytes.Length + 8, fiefBytes.Length);      // the same trailer, differing in the mode byte and the empty levy-bow section (docs/MVP/36)
         Assert.NotEqual(ironBytes, fiefBytes);
         Assert.True(fiefBytes.Length > bronzeBytes.Length);
 

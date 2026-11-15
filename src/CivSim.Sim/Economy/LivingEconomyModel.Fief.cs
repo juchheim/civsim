@@ -22,7 +22,11 @@ public sealed partial class LivingEconomyModel
         init
         {
             _fiefChain = value;
-            if (value) IronChain = true;
+            if (value)
+            {
+                IronChain = true;
+                _compiledRecipes = _allFiefRecipes; // the Iron list plus the Fief recipes (docs/MVP/36), in content order
+            }
         }
     }
 }

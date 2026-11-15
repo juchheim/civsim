@@ -211,7 +211,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 34;
+    private const int FiefSnapshotVersion = 35; // 35: the levy-bow section (docs/MVP/36)
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -364,6 +364,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public int SiteTile;
         /// <summary>Ochre collected before the Bronze goods store is activated.</summary>
         public Fix64 SurfaceOchre;
+        /// <summary>The Faith &amp; Fief chapter's levy crossbows and longbows (docs/MVP/36), by <c>FiefGood</c>; null until the first one. Outside <see cref="Stores"/> so Bronze and Iron checksums never see it.</summary>
+        public Fix64[]? FiefGoods;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
         /// <summary>Stock of every store slot at the last season end, for the era report's goods-gained readout (never hashed).</summary>
         public Fix64[]? GainBaseline;
@@ -2230,6 +2232,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         ReplaceWornTools(settlement);
+        if (FiefChain) WearLevyArms(settlement);
         Fix64 forageMod = Modifier(settlement.Civilization, "forage.yield");
         Fix64 appliedForageWork = LimitActionWorkByTool(settlement, "forage", forageWork);
         ScaleSkillWork(actionWork, SkillFamily.Forage, forageWork, appliedForageWork);
@@ -3030,7 +3033,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (HasProject(civ, "HNT-05"))
             MakeGoods(settlement, ref remaining, Good.SpearThrower, Fix64.FromInt(8), Good.Wood,
                 Fix64.Parse("0.5"), Good.Cord, Fix64.Parse("0.1"), Fix64.One);
-        if (HasProject(civ, "HNT-06"))
+        // docs/MVP/36: in a Fief match Archery Warfare makes the bow a routine craft and the levy keeps a stock of them.
+        if (FiefChain && HasProject(civ, "HNT-06") && HasProject(civ, "WAR-03"))
+            MakeLevyBows(settlement, ref remaining);
+        else if (HasProject(civ, "HNT-06"))
             MakeGoods(settlement, ref remaining, Good.Bow, Fix64.FromInt(10), Good.Wood,
                 Fix64.Parse("0.3"), Good.Flint, Fix64.Parse("0.1"), Fix64.One);
         if (HasProject(civ, "STN-07"))
@@ -6980,6 +6986,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(_lastExpectedWinterShortfallByExactAge);
         HashBronze(ref hash);
         HashIron(ref hash);
+        HashFiefGoods(ref hash);
         HashDecrees(ref hash);
         HashBuildFocus(ref hash);
         return hash.Finish();
@@ -7074,6 +7081,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteBronze(writer);
         WriteBuildFocus(writer); // before the Iron block, so a Bronze economy reading an Iron snapshot still ends with unread bytes
         WriteIron(writer);
+        WriteFiefGoods(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7222,6 +7230,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         ReadBronze(reader);
         ReadBuildFocus(reader);
         ReadIron(reader);
+        ReadFiefGoods(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7488,6 +7497,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             Civilization = source.Civilization,
             SiteTile = source.SiteTile,
             SurfaceOchre = source.SurfaceOchre,
+            FiefGoods = source.FiefGoods is null ? null : (Fix64[])source.FiefGoods.Clone(),
             FoodSecurity = source.FoodSecurity,
             LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,
