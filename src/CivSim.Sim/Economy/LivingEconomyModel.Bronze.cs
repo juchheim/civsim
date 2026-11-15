@@ -285,7 +285,7 @@ public sealed partial class LivingEconomyModel
         for (int tile = 0; tile < tiles; tile++)
         {
             WorldDeposit d = _world.Deposit(tile);
-            _ore[tile] = OreLitres(d);
+            _ore[tile] = OreLitres(d, FiefChain);
         }
         _metalStats = new Fix64[_completedProjects.Length * StatCount];
         _metalOutputCurrent = new Fix64[_completedProjects.Length * StatCount];
@@ -296,7 +296,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Litres of ore a deposit holds (docs/MVP/22 §5.1; tin by WP4's quantity tiers 1 = 100, 2 = 150, 3 = 600 L).</summary>
-    private static Fix64 OreLitres(WorldDeposit d) => d.Kind switch
+    private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false) => d.Kind switch
     {
         DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 600, 2 => 150, _ => 100 }),
         DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 900 : 300),
@@ -304,6 +304,9 @@ public sealed partial class LivingEconomyModel
         DepositKind.Iron => Fix64.FromInt(1000),
         DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(40),
         DepositKind.Salt => Fix64.FromInt(400),
+        // Draft Fief fit hypotheses until WP-E5-11 promotes the registered quantities.
+        DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(150),
+        DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(100),
         _ => Fix64.Zero,
     };
 
@@ -358,7 +361,7 @@ public sealed partial class LivingEconomyModel
     public bool DepositWorked(int tile)
     {
         if (!_bronzeActive || unchecked((uint)tile) >= unchecked((uint)_ore.Length)) return false;
-        return _ore[tile] < OreLitres(_world.Deposit(tile));
+        return _ore[tile] < OreLitres(_world.Deposit(tile), FiefChain);
     }
 
     /// <summary>The view's forest band of a tile (docs/MVP/23 §7.4): 0 under 5 L, 1 for 5–14, 2 for 15–24, 3 from 25 L.</summary>

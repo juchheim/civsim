@@ -147,6 +147,12 @@ public class MetalEconomyTests
         Assert.Equal(Fix64.FromInt(300), LivingEconomyModel.FixtureOreLitres(new WorldDeposit(DepositKind.CopperOre, 2, 1)));
         Assert.Equal(Fix64.FromInt(900), LivingEconomyModel.FixtureOreLitres(new WorldDeposit(DepositKind.CopperOre, 1, 2)));
         Assert.Equal(Fix64.FromInt(800), LivingEconomyModel.FixtureOreLitres(new WorldDeposit(DepositKind.ArsenicalCopper, 3, 2)));
+        WorldDeposit saltpeter = new(DepositKind.Saltpeter, 2, 1);
+        WorldDeposit sulfur = new(DepositKind.Sulfur, 1, 1);
+        Assert.Equal(Fix64.Zero, LivingEconomyModel.FixtureOreLitres(saltpeter));
+        Assert.Equal(Fix64.Zero, LivingEconomyModel.FixtureOreLitres(sulfur));
+        Assert.Equal(Fix64.FromInt(150), LivingEconomyModel.FixtureOreLitres(saltpeter, includeFiefResources: true));
+        Assert.Equal(Fix64.FromInt(100), LivingEconomyModel.FixtureOreLitres(sulfur, includeFiefResources: true));
     }
 
     [Fact]

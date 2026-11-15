@@ -629,7 +629,7 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureKitBreakLeft(int tier) => KitBreakLeft(tier);
 
     /// <summary>The litres a deposit held at the start (by kind, tier and depth).</summary>
-    internal static Fix64 FixtureOreLitres(WorldDeposit deposit) => OreLitres(deposit);
+    internal static Fix64 FixtureOreLitres(WorldDeposit deposit, bool includeFiefResources = false) => OreLitres(deposit, includeFiefResources);
 
     /// <summary>Whether a civilization can dig a deposit now (unlocked, and depth 2 needs Shaft Mining).</summary>
     internal bool FixtureWorkable(int civ, int tile) => DepositWorkable(civ, tile);
