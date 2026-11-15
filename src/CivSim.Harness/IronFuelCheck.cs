@@ -34,7 +34,7 @@ internal static class IronFuelCheck
     private static readonly Fix64 ShareCeiling = Fix64.FromRatio(15, 100);
     private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint,
         bool Carts = false, bool IronHubs = false, bool Gov04Sharing = false, bool T12 = false,
-        FuelForestPlacement? SpatialPlacement = null, bool MixedT12 = false);
+        FuelForestPlacement? SpatialPlacement = null, bool MixedT12 = false, bool Fief = false, bool Furnace = false);
 
     private static readonly Scenario[] Scenarios =
     {
@@ -67,11 +67,25 @@ internal static class IronFuelCheck
         new("iron-far-12", true, false, 4, false, Carts: true, SpatialPlacement: FuelForestPlacement.CartOnly),
     };
 
+    private static readonly Scenario[] FiefScenarios =
+    {
+        new("fief-low-wood-furnace", true, true, 4, false, Fief: true, Furnace: true),
+        new("fief-low-wood-no-furnace", true, true, 4, false, Fief: true, Furnace: false),
+    };
+
     private sealed class Row
     {
         public Fix64 Share, CharcoalWoodPerSeason, WoodStart, WoodMid, WoodEnd, IronKitShareAt12, IronKitShareAfter12Route,
             IronRouteWoodRetention, IronKitShare14To44AtRoute, IronKitShare45PlusAtRoute, IronKitShare, FuelShortShare, Bloom, Wrought;
         public Fix64 Kit11Issued, Kit12Issued, Kit11ToolWork, Kit12ToolWork;
+        public Fix64 MaxTwelveSeasonShare;
+        public Fix64 MaxTwelveSeasonLabor, MaxTwelveSeasonMetalLabor;
+        public int MaxTwelveSeasonEnd;
+        public int TwelveSeasonWindows;
+        public Fix64 FirstTwelveSeasonShare, FirstTwelveSeasonLabor, FirstTwelveSeasonMetalLabor;
+        public int FirstTwelveSeasonEnd;
+        public Fix64 MaxLateTwelveSeasonShare, MaxLateTwelveSeasonLabor, MaxLateTwelveSeasonMetalLabor;
+        public int MaxLateTwelveSeasonEnd, LateTwelveSeasonWindows;
         public int Kit11Breaks, Kit12Breaks;
         public int IronEraFuelDemandSeasons, IronEraFuelShortSeasons;
         public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
@@ -96,8 +110,10 @@ internal static class IronFuelCheck
         var seeds = new List<ulong> { 20261019, 20261020, 20261021, 20261022, 20261023, 20261024, 20261025, 20261026 };
         int seasons = 40, people = 60;
         bool seasonsSpecified = false;
+        bool peopleSpecified = false;
         bool spatialOnly = false;
         bool it3Wear = false;
+        bool fief = false;
         string? scenarioName = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -106,28 +122,31 @@ internal static class IronFuelCheck
                 case "--pack": packPath = args[++i]; break;
                 case "--spatial-only": spatialOnly = true; break;
                 case "--it3-wear": it3Wear = true; break;
+                case "--fief": fief = true; break;
                 case "--scenario": scenarioName = args[++i]; break;
                 case "--seeds":
                     seeds.Clear();
                     foreach (string part in args[++i].Split(',')) seeds.Add(ulong.Parse(part, CultureInfo.InvariantCulture));
                     break;
                 case "--seasons": seasons = int.Parse(args[++i], CultureInfo.InvariantCulture); seasonsSpecified = true; break;
-                case "--people": people = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--people": people = int.Parse(args[++i], CultureInfo.InvariantCulture); peopleSpecified = true; break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
         if (packPath is null) throw new ArgumentException("iron-fuel needs --pack FILE (civsim build-pack --out FILE).");
+        if (fief && !peopleSpecified) people = 200; // A mature Fief smelting town avoids startup-only camp overhead dominating the work-share gate.
         if (it3Wear && !seasonsSpecified) seasons = 240;
+        else if (fief && !seasonsSpecified) seasons = 64;
         if (seasons < 8 || seasons % 2 != 0) throw new ArgumentException("--seasons must be an even number of at least 8.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName, it3Wear: it3Wear));
+        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName, it3Wear: it3Wear, fief: fief));
         return 0;
     }
 
     internal static string Report(ContentPack pack, IReadOnlyList<ulong> seeds, int seasons, int people,
-        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null, bool it3Wear = false)
+        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null, bool it3Wear = false, bool fief = false)
     {
-        Scenario[] selectedScenarios = Scenarios
+        Scenario[] selectedScenarios = (fief ? FiefScenarios : Scenarios)
             .Where(sc => scenarioName is null || string.Equals(sc.Name, scenarioName, StringComparison.OrdinalIgnoreCase))
             .Where(sc => !sc.MixedT12 || it3Wear)
             .Where(sc => !it3Wear || sc.Name is "iron-hub-low-wood-t12" or "iron-hub-low-wood-mixed-t12")
@@ -135,8 +154,10 @@ internal static class IronFuelCheck
         var sb = new StringBuilder();
         void L(string text = "") => sb.Append(text).Append('\n');
         int window = seasons / 2;
-        L($"iron-fuel{(spatialOnly ? " --spatial-only" : "")}: {seeds.Count} seeds, {seasons} seasons ({window}-season steady-state window), fixed {people}-person fixture settlement");
-        L(spatialOnly
+        L($"iron-fuel{(fief ? " --fief" : spatialOnly ? " --spatial-only" : "")}: {seeds.Count} seeds, {seasons} seasons ({window}-season steady-state window), fixed {people}-person fixture settlement");
+        L(fief
+            ? $"F-T3: Fief furnace versus matched no-effect control on low wood; 12-season work share <= {Pct(ShareCeiling)}, fuel short <= 5%, no furnace-attributed clearing."
+            : spatialOnly
             ? $"I-T6 spatial supply/reach counterfactual; apply the approved per-seed fuel cutoff (work-share ceiling {Pct(ShareCeiling)})."
             : $"I-T6: metal chain <= {Pct(ShareCeiling)} of civilian work; compare forest stock and fuel flows with the same-seed Bronze control");
         L("spatial controls: four matched 30 L forest tiles (120 L opening stock; no Coppicing; up to 2 L/season base regrowth below the per-tile cap) placed at radii 1–3 (near), 4–8 (haul), or 9–12 (far); other wood within radius 12 is removed. Reach 8 is default; TRN-05 gives reach 12 and its lower haul cost.");
@@ -226,7 +247,7 @@ internal static class IronFuelCheck
             L($"{sc.Name,-32} {Mean(rows, r => r.Kit11Issued).ToDoubleForDisplay(),7:F1}       {toolRate11.ToDoubleForDisplay(),6:F2}    ({breakSeeds11}/{rows.Count}, {totalBreaks11}, {maxBreaks11})              {Mean(rows, r => r.Kit12Issued).ToDoubleForDisplay(),7:F1}       {toolRate12.ToDoubleForDisplay(),6:F2}    ({breakSeeds12}/{rows.Count}, {totalBreaks12}, {maxBreaks12})");
         }
         L();
-        L("work-share screen:");
+        L(fief ? "aggregate whole-run metal work share (context only; not the rolling F-T3 gate):" : "work-share screen:");
         foreach (string v in workVerdicts) L("  " + v);
         L();
         L("Forest clearing diagnostic (tile crossings below the simulation's 5 L cleared-woodland threshold, full run):");
@@ -242,6 +263,72 @@ internal static class IronFuelCheck
                 maxCrossings = Math.Max(maxCrossings, row.ForestClearThresholdCrossings);
             }
             L($"{sc.Name,-30} {seedsWithCrossings,3}/{clearRows.Count,-14} {totalCrossings,8} {maxCrossings,19}");
+        }
+        if (fief && rowsByScenario.TryGetValue("fief-low-wood-furnace", out Dictionary<ulong, Row>? furnaceRows) &&
+            rowsByScenario.TryGetValue("fief-low-wood-no-furnace", out Dictionary<ulong, Row>? controlRows))
+        {
+            int paired = 0, furnaceAttributedCrossings = 0, workShareMisses = 0, fuelShortMisses = 0, matureWindowMisses = 0;
+            int lateWindowMisses = 0, lateWorkShareMisses = 0;
+            Fix64 maxTwelveSeasonShare = Fix64.Zero, maxFuelShort = Fix64.Zero;
+            Fix64 maxLateTwelveSeasonShare = Fix64.Zero;
+            Row? worstWorkShare = null;
+            var immatureRows = new List<Row>();
+            foreach (KeyValuePair<ulong, Row> pair in furnaceRows)
+            {
+                if (!controlRows.TryGetValue(pair.Key, out Row? control)) continue;
+                Row furnace = pair.Value;
+                paired++;
+                if (furnace.TwelveSeasonWindows == 0)
+                {
+                    matureWindowMisses++;
+                    immatureRows.Add(furnace);
+                }
+                if (furnace.LateTwelveSeasonWindows == 0) lateWindowMisses++;
+                else
+                {
+                    maxLateTwelveSeasonShare = Fix64.Max(maxLateTwelveSeasonShare, furnace.MaxLateTwelveSeasonShare);
+                    if (furnace.MaxLateTwelveSeasonShare > ShareCeiling) lateWorkShareMisses++;
+                }
+                int extraCrossings = Math.Max(0, furnace.ForestClearThresholdCrossings - control.ForestClearThresholdCrossings);
+                furnaceAttributedCrossings += extraCrossings;
+                maxTwelveSeasonShare = Fix64.Max(maxTwelveSeasonShare, furnace.MaxTwelveSeasonShare);
+                if (worstWorkShare is null || furnace.MaxTwelveSeasonShare > worstWorkShare.MaxTwelveSeasonShare) worstWorkShare = furnace;
+                maxFuelShort = Fix64.Max(maxFuelShort, furnace.FuelShortShare);
+                if (furnace.MaxTwelveSeasonShare > ShareCeiling) workShareMisses++;
+                if (furnace.FuelShortShare > Fix64.FromRatio(5, 100)) fuelShortMisses++;
+            }
+            L();
+            L("F-T3 low-wood furnace gate (paired by seed; work share is the maximum of every rolling 12-season window after first kit output plus 12 seasons):");
+            int matureEligible = paired - matureWindowMisses;
+            int maturePasses = matureEligible - workShareMisses;
+            int lateEligible = paired - lateWindowMisses;
+            int latePasses = lateEligible - lateWorkShareMisses;
+            L($"  mature-window result at unchanged {Pct(ShareCeiling)} ceiling: {maturePasses}/{matureEligible} eligible seed pairs pass; {workShareMisses} fail; {matureWindowMisses} censored (no mature window, not counted as a pass)");
+            L($"  maximum mature 12-season work share: {Pct(maxTwelveSeasonShare)} ({(maxTwelveSeasonShare > ShareCeiling ? (maxTwelveSeasonShare - ShareCeiling).ToDoubleForDisplay() * 100 : 0):F1} percentage points above ceiling)");
+            L($"  wholly late windows (end season >= {seasons / 2 + 12}): {latePasses}/{lateEligible} eligible seed pairs pass; {lateWorkShareMisses} fail; {lateWindowMisses} censored; maximum {Pct(maxLateTwelveSeasonShare)}");
+            foreach (Row immature in immatureRows)
+                L($"  censored seed {immature.Seed}: route season {immature.IronRouteActivatedSeason}, first kit season {immature.IronFirstKitSeason}, charcoal-demand seasons {immature.IronEraFuelDemandSeasons}");
+            foreach (Row row in furnaceRows.Values.OrderBy(row => row.Seed))
+                L($"  window phases seed {row.Seed}: first eligible=" +
+                  $"{(row.TwelveSeasonWindows > 0 ? Pct(row.FirstTwelveSeasonShare) : "n/a")} end={row.FirstTwelveSeasonEnd}; " +
+                  $"late max={(row.LateTwelveSeasonWindows > 0 ? Pct(row.MaxLateTwelveSeasonShare) : "n/a")} " +
+                  $"end={row.MaxLateTwelveSeasonEnd} ({row.LateTwelveSeasonWindows} windows)");
+            foreach (Row miss in furnaceRows.Values
+                         .Where(row => row.TwelveSeasonWindows > 0 && row.MaxTwelveSeasonShare > ShareCeiling)
+                         .OrderBy(row => row.Seed))
+                L($"  work-share miss seed {miss.Seed}: {Pct(miss.MaxTwelveSeasonShare)} in seasons " +
+                  $"{miss.MaxTwelveSeasonEnd - 11}–{miss.MaxTwelveSeasonEnd}; " +
+                  $"{miss.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{miss.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2} metal/civilian work");
+            if (worstWorkShare is { } worst)
+            {
+                Fix64 extraNonMetalLaborToCeiling = Fix64.Max(Fix64.Zero,
+                    worst.MaxTwelveSeasonMetalLabor / ShareCeiling - worst.MaxTwelveSeasonLabor);
+                L($"  worst window: seed {worst.Seed}, seasons {worst.MaxTwelveSeasonEnd - 11}–{worst.MaxTwelveSeasonEnd}; {worst.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{worst.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2} metal/civilian work; route season {worst.IronRouteActivatedSeason}, first kit season {worst.IronFirstKitSeason}");
+                if (worst.MaxTwelveSeasonShare > ShareCeiling)
+                    L($"  worst-window gap: at least {extraNonMetalLaborToCeiling.ToDoubleForDisplay():F2} additional non-metal work in that 12-season window would be needed to reach {Pct(ShareCeiling)} with metal work unchanged");
+            }
+            L($"  maximum final-half NoFuel share: {Pct(maxFuelShort)}; seeds over 5%: {fuelShortMisses}");
+            L($"  furnace-attributed clearing crossings: {furnaceAttributedCrossings} (extra crossings with furnace effect on versus off)");
         }
         L();
         if (!spatialOnly)
@@ -371,12 +458,21 @@ internal static class IronFuelCheck
             if (sc.Gov04Sharing) projects.Add("GOV-04");
         }
         if (sc.T12) projects.Add("MET-10");
-        BronzeFixture f = sc.SpatialPlacement is { } placement
+        if (sc.Fief) projects.AddRange(new[] { "KEY-5", "NRG-03", "MET-12" });
+        BronzeFixture f = sc.Fief
+            ? BronzeFixture.CreateFixedPopulationFiefFuelScenario(pack, seed, people, sc.Coppice, sc.ForestTiles, projects.ToArray())
+            : sc.SpatialPlacement is { } placement
             ? BronzeFixture.CreateFixedPopulationSpatialFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, placement, projects.ToArray())
             : BronzeFixture.CreateFixedPopulationFuelScenario(pack, seed, people, sc.Iron, sc.Coppice, sc.ForestTiles, projects.ToArray());
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
         e.IT6AccountingTraceEnabled = sc.Iron;
+        if (sc.Fief)
+        {
+            e.FixtureSetIronWork(BronzeFixture.Settlement, "water_mill", 1);
+            e.FixtureSetIronWork(BronzeFixture.Settlement, "blast_furnace", 1);
+            e.FurnaceEffectEnabled = sc.Furnace;
+        }
         if (sc.MixedT12) e.FixtureStock(BronzeFixture.Settlement, "G-TOOL11", Fix64.FromInt(40));
         int window = seasons / 2;
         int charcoalReach = e.FixtureIronFuelCharcoalReach(BronzeFixture.Settlement);
@@ -388,10 +484,25 @@ internal static class IronFuelCheck
         ForestTrace woodMid = default!, woodEnd = default!;
         int fuelShort = 0;
         int ironCampBuiltSeason = 0, ironToolsUnlockedSeason = 0, ironRouteActivatedSeason = 0, ironFirstKitSeason = 0;
+        MetalStatistics precedingStats = e.MetalStats(0);
+        Fix64 twelveSeasonLabor = Fix64.Zero, twelveSeasonMetalLabor = Fix64.Zero;
+        Fix64[] seasonLabor = new Fix64[12], seasonMetalLabor = new Fix64[12];
         for (int s = 0; s < seasons; s++)
         {
             if (sc.LoseIronAtMidpoint && s == window && f.IronTile >= 0) e.FixtureExhaust(f.IronTile);
             f.RunSeasons(1);
+            MetalStatistics currentStats = e.MetalStats(0);
+            int slot = s % seasonLabor.Length;
+            if (s >= seasonLabor.Length)
+            {
+                twelveSeasonLabor -= seasonLabor[slot];
+                twelveSeasonMetalLabor -= seasonMetalLabor[slot];
+            }
+            seasonLabor[slot] = currentStats.Labor - precedingStats.Labor;
+            seasonMetalLabor[slot] = currentStats.MetalLabor - precedingStats.MetalLabor;
+            twelveSeasonLabor += seasonLabor[slot];
+            twelveSeasonMetalLabor += seasonMetalLabor[slot];
+            precedingStats = currentStats;
             if (sc.MixedT12 && s == seasons / 2 - 1)
             {
                 e.FixtureComplete(0, "MET-10");
@@ -411,6 +522,36 @@ internal static class IronFuelCheck
             row.IronCampBuiltSeason = ironCampBuiltSeason;
             row.IronToolsUnlockedSeason = ironToolsUnlockedSeason;
             row.IronRouteActivatedSeason = ironRouteActivatedSeason;
+            if (sc.Fief && s >= seasonLabor.Length - 1 && ironFirstKitSeason > 0 && s + 1 >= ironFirstKitSeason + 12)
+            {
+                Fix64 share = twelveSeasonLabor > Fix64.Zero ? twelveSeasonMetalLabor / twelveSeasonLabor : Fix64.Zero;
+                if (row.TwelveSeasonWindows == 0)
+                {
+                    row.FirstTwelveSeasonShare = share;
+                    row.FirstTwelveSeasonLabor = twelveSeasonLabor;
+                    row.FirstTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                    row.FirstTwelveSeasonEnd = s + 1;
+                }
+                if (row.TwelveSeasonWindows == 0 || share > row.MaxTwelveSeasonShare)
+                {
+                    row.MaxTwelveSeasonShare = share;
+                    row.MaxTwelveSeasonLabor = twelveSeasonLabor;
+                    row.MaxTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                    row.MaxTwelveSeasonEnd = s + 1;
+                }
+                if (s + 1 >= window + 12)
+                {
+                    if (row.LateTwelveSeasonWindows == 0 || share > row.MaxLateTwelveSeasonShare)
+                    {
+                        row.MaxLateTwelveSeasonShare = share;
+                        row.MaxLateTwelveSeasonLabor = twelveSeasonLabor;
+                        row.MaxLateTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                        row.MaxLateTwelveSeasonEnd = s + 1;
+                    }
+                    row.LateTwelveSeasonWindows++;
+                }
+                row.TwelveSeasonWindows++;
+            }
             if (s == window - 1)
             {
                 mid = e.MetalStats(0);

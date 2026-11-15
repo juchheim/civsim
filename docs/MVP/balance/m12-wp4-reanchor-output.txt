@@ -1,0 +1,252 @@
+== iron-match seed 20261019: 81.5 minutes simulated, chapter end RivalCountdown at season 325 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     59.0   78.5      41     27    1379   458    79     624       27        2        3      4
+c1  Grower      59.0   78.5      37     23    1228   594     0     642       37        2        2      3
+c2  Warlord     58.1      -      25     29    1012   319     0     416       33        0        1      0
+c3  Sage        58.6   78.5      37     19     957   428     0     460       14        0        1      0
+iron works built (all settlements):
+  windlass_well             6    0    2    0
+  road                      6    0    0    0
+  academy                   2    2    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 19; academy x1 (100%), great_dome x1 (100%), theatre_arena x3 (63%), windlass_well x3 (78%)
+  c1: villages 16; (nothing wanted) x1 (0%), academy x1 (70%), crane x1 (71%), harbor x2 (63%), windlass_well x2 (78%)
+  c2: villages 26; (nothing wanted) x1 (0%), academy x1 (15%), press x1 (100%)
+  c3: villages 13; academy x1 (100%), aqueduct x1 (100%), crane x2 (18%), harbor x1 (89%), windlass_well x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 1 towns
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 1 towns
+  aqueduct lacks wood: 1 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks bloom: 1 towns
+  great_dome lacks wood: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 20  assaults 4  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 68, c1 70, c2 37, c3 53
+final legacy per civ: c0 4748, c1 4120, c2 4146, c3 4046
+
+== iron-match seed 20261020: 82.0 minutes simulated, chapter end RivalCountdown at season 327 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     65.2      -      20     17     783   302     0     363       12        0        1      0
+c1  Grower      61.1   81.4      31     30    1437   507     0     610       66        0        4      1
+c2  Warlord     65.6      -      24     18     958   386     0     425       47        0        2      0
+c3  Sage        59.0   78.9      41     33    1598   496    29     639       75        2        4      2
+iron works built (all settlements):
+  windlass_well             2    2    2    0
+  academy                   0    0    0    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 13; academy x3 (28%), great_dome x1 (25%)
+  c1: villages 23; academy x1 (48%), harbor x1 (100%), road x1 (58%), theatre_arena x3 (52%), windlass_well x1 (51%)
+  c2: villages 14; academy x3 (26%), road x1 (0%)
+  c3: villages 22; academy x1 (100%), harbor x1 (64%), theatre_arena x3 (66%), windlass_well x6 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 1 towns
+  academy lacks wood: 1 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  theatre_arena lacks wood: 2 towns
+  windlass_well lacks wood: 6 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 20  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 12, c1 66, c2 47, c3 75
+final legacy per civ: c0 3222, c1 4380, c2 3682, c3 5398
+
+== iron-match seed 20261021: 81.8 minutes simulated, chapter end RivalCountdown at season 326 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     59.3   78.6      42     30    1446   302   206     605       40        2        5      4
+c1  Grower      64.6      -      21     14     917   395     0     423        9        1        4      1
+c2  Warlord     66.1      -      20     12     741   323     0     338        3        0        2      0
+c3  Sage        59.8   78.6      36     36    1289   497     0     542       43        1        3      2
+iron works built (all settlements):
+  windlass_well             4    7    2    2
+  terrace                   1    0    0    0
+  road                      0    0    0    1
+  academy                   2    1    0    1
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 23; academy x1 (58%), great_dome x1 (100%), press x1 (100%), terrace x1 (14%), theatre_arena x2 (20%), windlass_well x1 (40%)
+  c1: villages 9; (nothing wanted) x1 (0%), academy x2 (4%), press x1 (100%), windlass_well x1 (100%)
+  c2: villages 8; (nothing wanted) x2 (0%), harbor x1 (100%), windlass_well x1 (100%)
+  c3: villages 31; (nothing wanted) x1 (0%), academy x1 (100%), theatre_arena x3 (49%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 1 towns
+  academy lacks wood: 1 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks bloom: 1 towns
+  great_dome lacks wood: 1 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 2 towns
+  theatre_arena lacks block: 1 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 16  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 70, c1 25, c2 17, c3 52
+final legacy per civ: c0 5493, c1 3295, c2 2893, c3 5057
+
+== iron-match seed 20261022: 81.0 minutes simulated, chapter end RivalCountdown at season 323 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     79.4      -       0      7     246     0     0     128        0        0        0      0
+c1  Grower      57.4   78.8      38     30    1554   416     0     871       86        1        3      2
+c2  Warlord     58.6      -      26     20     922   202     0     446       51        0        2      0
+c3  Sage        56.4   77.9      36     28    1386   447    29     635       78        1        2      2
+iron works built (all settlements):
+  windlass_well             0    3    2    3
+  harbor                    0    0    1    0
+  academy                   0    1    0    1
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 6; (nothing wanted) x1 (0%)
+  c1: villages 22; academy x1 (100%), aqueduct x1 (19%), theatre_arena x2 (98%), windlass_well x4 (58%)
+  c2: villages 16; academy x2 (61%), harbor x1 (39%), windlass_well x1 (65%)
+  c3: villages 20; harbor x2 (100%), theatre_arena x4 (51%), windlass_well x2 (53%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 2 towns
+  galley lacks wood: 1 towns
+  harbor lacks block: 2 towns
+  harbor lacks wood: 2 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 1 towns
+  theatre_arena lacks block: 2 towns
+  theatre_arena lacks wood: 2 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 6  raids 14  assaults 10  captured 10  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 0, c1 86, c2 51, c3 78
+final legacy per civ: c0 2173, c1 4919, c2 3624, c3 5513
+
+== iron-match seed 20261023: 80.2 minutes simulated, chapter end RivalCountdown at season 320 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     64.8      -      23     13     782     2     0     359       23        0        0      0
+c1  Grower      58.7   77.1      40     32    1832   679    21     870       91        1        4      4
+c2  Warlord     61.2      -      25     28    1142   343     0     493       46        0        2      0
+c3  Sage        67.5      -       7     13     420    76     0     205        0        0        0      0
+iron works built (all settlements):
+  windlass_well             0    5    4    2
+  road                      0    2    0    0
+  academy                   0    1    0    0
+  press                     0    1    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 10; academy x3 (43%)
+  c1: villages 24; crane x3 (52%), theatre_arena x4 (73%), windlass_well x1 (100%)
+  c2: villages 25; academy x3 (58%)
+  c3: villages 10; (nothing wanted) x3 (0%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 2 towns
+  academy lacks wood: 2 towns
+  crane lacks wood: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+  windlass_well lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 8  raids 4  assaults 8  captured 8  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 2
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 23, c1 97, c2 54, c3 0
+final legacy per civ: c0 3636, c1 6126, c2 3910, c3 2522
+
+== iron-match seed 20261024: 80.2 minutes simulated, chapter end RivalCountdown at season 320 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     62.2      -      22     19     748   267     0     336       13        0        2      0
+c1  Grower      61.7      -      24     25    1145   420     0     473       20        0        0      0
+c2  Warlord     57.6   78.0      30     36    1387   470     0     566       60        0        1      0
+c3  Sage        59.6   77.1      39     15     860   414    44     561       15        1        3      2
+iron works built (all settlements):
+  windlass_well             2    3    2    2
+  terrace                   0    1    0    0
+  academy                   0    0    0    1
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 17; academy x1 (100%), great_dome x1 (40%)
+  c1: villages 19; theatre_arena x3 (71%), windlass_well x3 (66%)
+  c2: villages 34; academy x1 (100%), great_library x1 (19%)
+  c3: villages 10; academy x1 (100%), harbor x2 (72%), press x1 (100%), road x1 (35%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 3 towns
+  academy lacks wood: 4 towns
+  harbor lacks block: 1 towns
+  harbor lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  theatre_arena lacks block: 1 towns
+  theatre_arena lacks wood: 1 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 6  raids 16  assaults 18  captured 16  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 5
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 13, c1 25, c2 60, c3 34
+final legacy per civ: c0 3469, c1 3565, c2 5595, c3 3990
+
+== iron-match seed 20261025: 83.0 minutes simulated, chapter end RivalCountdown at season 331 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     61.5   80.0      35     29    1164   373     0     470       44        1        2      2
+c1  Grower      60.4   80.0      41     25    1374   533    47     663       65        4        4      7
+c2  Warlord     57.9   82.0      30     29     980   532     0     626       35        0        1      0
+c3  Sage           -      -       0      6     194     0     0      80        0        0        0      0
+iron works built (all settlements):
+  windlass_well             2    5    2    0
+  terrace                   0    2    0    0
+  road                      0    3    0    0
+  academy                   1    4    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 24; great_dome x1 (66%), press x1 (100%), windlass_well x3 (73%)
+  c1: villages 15; crane x1 (38%), theatre_arena x6 (71%), windlass_well x3 (100%)
+  c2: villages 26; academy x2 (100%), harbor x1 (0%)
+  c3: villages 5; (nothing wanted) x1 (0%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 1 towns
+  academy lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  press lacks wood: 1 towns
+  terrace lacks block: 1 towns
+  terrace lacks wood: 1 towns
+  theatre_arena lacks block: 2 towns
+  theatre_arena lacks wood: 3 towns
+  windlass_well lacks wood: 5 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 6  raids 26  assaults 6  captured 6  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 45, c1 78, c2 49, c3 0
+final legacy per civ: c0 4531, c1 5076, c2 4769, c3 2163
+
+== iron-match seed 20261026: 78.0 minutes simulated, chapter end RivalCountdown at season 311 (ended: True)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     55.5   74.8      45     27    1087   188   165     512       59        4        4      6
+c1  Grower      59.1      -      25     27    1217   305     0     585       28        1        0      1
+c2  Warlord     63.3      -      13     19     719   204     0     273       26        0        0      0
+c3  Sage        60.2      -      20     26     977   330     0     425       12        0        0      0
+iron works built (all settlements):
+  windlass_well             3    2    1    1
+  terrace                   0    1    0    0
+  road                      2    0    0    0
+  academy                   4    1    0    0
+  press                     1    0    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; great_dome x2 (64%), theatre_arena x3 (72%), windlass_well x1 (77%)
+  c1: villages 23; academy x2 (100%), theatre_arena x1 (51%), windlass_well x1 (100%)
+  c2: villages 17; windlass_well x2 (80%)
+  c3: villages 23; academy x3 (46%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  academy lacks block: 1 towns
+  academy lacks wood: 2 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks bloom: 1 towns
+  great_dome lacks wood: 1 towns
+  windlass_well lacks wood: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 8  raids 12  assaults 8  captured 8  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 59, c1 28, c2 26, c3 13
+final legacy per civ: c0 6395, c1 3738, c2 2868, c3 3216
+

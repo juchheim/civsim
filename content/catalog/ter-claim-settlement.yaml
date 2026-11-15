@@ -124,7 +124,11 @@ projects:
     status: draft
     requires: [TER-08, GOV-09]
     effects:
-      - {kind: prose, text: "Rural land held cheaply: claim upkeep −30% for farm tiles."}
+      - {kind: mod, stat: claim_upkeep_farm, op: mult, value: 0.7, note: "30% off the Fief-mode farm-tile upkeep (base 10% of yield, P, user decision D4 of docs 27)"}
+      - {kind: rule, text: "The base upkeep is a Fief-chapter economy rule from KEY-5: held farm tiles pay 10% of their yield as grain to the non-farming staff of the nearest staffed seat, so no grain is created or lost; this project cuts it to 7%."}
+    practice: [{action: mark, share: 100}]
+    flavor: "The estate holds the land so the lord need not."
+    moment: "A steward counts sheaves at a manor barn."
   - id: TER-11
     name: Overseas Colonies
     era: 6

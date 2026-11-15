@@ -48,7 +48,8 @@ public sealed partial class LivingEconomyModel
 
     private static class Role
     {
-        public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7;
+        public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7, Monk = 8,
+            Physician = 9, Attendant = 10;
     }
 
     private sealed class CivicState
@@ -409,7 +410,11 @@ public sealed partial class LivingEconomyModel
         int soldiers = SoldierSlots(s);
         int missionaries = MissionarySlots(s);
         int scholars = ScholarSlots(s);
-        int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0, haveScholars = 0;
+        int monks = MonkSlots(s);
+        int physicians = FiefChain && Done(civ, "MED-07") && IronWorksCount(s, IronStructure.Hospital) > 0 ? 1 : 0;
+        int attendants = physicians > 0 ? 2 : 0;
+        int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0,
+            haveScholars = 0, haveMonks = 0, havePhysicians = 0, haveAttendants = 0;
         List<FigureState> residents = Residents(s.Id);
         for (int i = residents.Count - 1; i >= 0; i--)
         {
@@ -423,14 +428,17 @@ public sealed partial class LivingEconomyModel
             if (keep && f.Role == Role.Soldier && haveSoldiers < soldiers) { haveSoldiers++; continue; }
             if (keep && f.Role == Role.Missionary && haveMissionaries < missionaries) { haveMissionaries++; continue; }
             if (keep && f.Role == Role.Scholar && haveScholars < scholars) { haveScholars++; continue; }
+            if (keep && f.Role == Role.Monk && haveMonks < monks) { haveMonks++; continue; }
+            if (keep && f.Role == Role.Physician && havePhysicians < physicians) { havePhysicians++; continue; }
+            if (keep && f.Role == Role.Attendant && haveAttendants < attendants) { haveAttendants++; continue; }
             f.Role = Role.None;
         }
         int adults = 0;
         foreach (FigureState f in residents) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars); i++)
+        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks || havePhysicians < physicians || haveAttendants < attendants); i++)
         {
             // Keep at least four other working adults at home.
-            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + 4 >= adults) break;
+            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + havePhysicians + haveAttendants + 4 >= adults) break;
             FigureState f = residents[i];
             if (f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
@@ -439,7 +447,10 @@ public sealed partial class LivingEconomyModel
             else if (haveGovernors < governors) { f.Role = Role.Governor; haveGovernors++; }
             else if (haveSoldiers < soldiers) { f.Role = Role.Soldier; haveSoldiers++; }
             else if (haveMissionaries < missionaries) { f.Role = Role.Missionary; haveMissionaries++; }
-            else { f.Role = Role.Scholar; haveScholars++; }
+            else if (haveScholars < scholars) { f.Role = Role.Scholar; haveScholars++; }
+            else if (haveMonks < monks) { f.Role = Role.Monk; haveMonks++; }
+            else if (havePhysicians < physicians) { f.Role = Role.Physician; havePhysicians++; }
+            else { f.Role = Role.Attendant; haveAttendants++; }
         }
         Fix64 spent = Fix64.Zero;
         foreach (FigureState f in residents)
@@ -448,7 +459,7 @@ public sealed partial class LivingEconomyModel
             Fix64 amount = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
             if (amount <= Fix64.Zero) continue;
             Assign(f, EconomyJob.Craft, amount);
-            f.Task = f.Role == Role.Priest ? MetalTask.Ritual : f.Role is Role.Administrator or Role.Governor ? MetalTask.Administer : f.Role == Role.Soldier ? MetalTask.Drill : f.Role == Role.Missionary ? MetalTask.Preach : MetalTask.Records; // scholars, like scribes, work at records
+            f.Task = f.Role is Role.Priest or Role.Monk ? MetalTask.Ritual : f.Role is Role.Administrator or Role.Governor ? MetalTask.Administer : f.Role == Role.Soldier ? MetalTask.Drill : f.Role == Role.Missionary ? MetalTask.Preach : MetalTask.Records; // scholars, like scribes, work at records
             spent += amount;
         }
         PaySoldierUpkeep(s, haveSoldiers);
@@ -1053,7 +1064,8 @@ public sealed partial class LivingEconomyModel
                     if (pass == 0 && !IsForestTile(tile) || pass == 1 && IsForestTile(tile) || IsRivalTile(s.Civilization, tile)) continue;
                     int d = HexGrid.Distance(s.SiteTile, tile, _world.Width);
                     if (pass == 2 && d <= Radius) continue;
-                    Fix64 perLitre = Fix64.One / CivicChopRate + (pass == 2 ? HaulPerLitreTile * d : Fix64.Zero);
+                    Fix64 haul = pass == 2 ? HaulPerLitreTile * d * FiefHorseHaulFactor(s) : Fix64.Zero;
+                    Fix64 perLitre = Fix64.One / CivicChopRate + haul;
                     Fix64 take = Fix64.Min(Fix64.Min(missingWood - got, _woodStock[tile]), labor / perLitre);
                     if (take <= Fix64.Zero) continue;
                     RecordB13StandingWoodRemoval(tile, take, "civic", _woodStock[tile]);
@@ -1073,7 +1085,8 @@ public sealed partial class LivingEconomyModel
             {
                 if (got >= missingStone || labor <= Fix64.Zero) break;
                 if (_stoneStock[tile] <= Fix64.Zero || IsRivalTile(s.Civilization, tile)) continue;
-                Fix64 perLitre = Fix64.One + HaulPerLitreTile * HexGrid.Distance(s.SiteTile, tile, _world.Width);
+                Fix64 haul = HaulPerLitreTile * HexGrid.Distance(s.SiteTile, tile, _world.Width) * FiefHorseHaulFactor(s);
+                Fix64 perLitre = Fix64.One + haul;
                 Fix64 take = Fix64.Min(Fix64.Min(missingStone - got, _stoneStock[tile]), labor / perLitre);
                 _stoneStock[tile] -= take;
                 got += take;
@@ -1140,6 +1153,7 @@ public sealed partial class LivingEconomyModel
     {
         if (s.Civic is not { } c || !CivInBronze(s.Civilization)) return e2Capacity;
         Fix64 halls = Fix64.FromInt(30 * c.Halls);
+        if (FiefE5Policy(s) && HasProject(s.Civilization, "WOD-10")) halls *= Fix64.FromRatio(3, 2);
         if (c.Tier >= 1 && HasProject(s.Civilization, "SOC-09"))
         {
             Fix64 dense = Fix64.FromInt(8 * s.Structures[(int)Structure.MudbrickHouse]) + halls;
@@ -1219,6 +1233,7 @@ public sealed partial class LivingEconomyModel
             if (Done(civ, "GOV-03")) t += Fix64.FromInt(3);
         }
         t += Fix64.FromInt(Math.Min(5, LuxuryItems(s) * 10 / Math.Max(1, pop)));
+        if (FiefSettlementHasReserve(s)) t += Fix64.FromInt(2);
         Fix64 wonderMult = Modifier(civ, "wonder_cohesion"), radiusMult = Modifier(civ, "wonder_radius");
         foreach (CohesionTerm term in _cohesionTerms)
         {

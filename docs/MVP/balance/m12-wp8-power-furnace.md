@@ -1,0 +1,57 @@
+# M12 WP-E5-5 (first slice): mechanical power and the blast furnace (2026-11-13)
+
+**Status:** built and tested on `codex/e5-fief`. Everything is gated on the Fief chapter (`FiefChain`); an Iron match is **byte-for-byte unchanged** (two seeds compared against the pre-change output) and the Bronze goldens pass. E5 rows are still draft in the repo; experiments used a temporary pack with all 50 E5 rows promoted (script below).
+
+## What was built
+| Part | Rule (all numbers P, from the e5_power_oracle screens) |
+|---|---|
+| Windmill (NRG-05) | A mill that turns 4 seasons in 5: grain value and powered-recipe labor get 80% of a water mill's effect. Built where no water mill stands; needs 14 timber, 4 block, 1 wheel. |
+| Sawmill (WOD-09) | `saw_planks` labor ×1/4 (catalog "Saw: Mill ×4"); needs a river town of 60+ people. |
+| Blast furnace (MET-12) | In a smelting town with a forge, a smelter and a mill, each bloomery batch yields ×4 iron from ×4 ore, ×2 charcoal and ×2 labor, so half the charcoal and half the labor per litre. The first draft's separate pig-iron good was dropped: the furnace's iron is the same G-IRON the forge refines. |
+| Spinning wheel / treadle loom (FIB-11, FIB-10) | `spin_yarn` labor ×1/3, `weave_cloth` ×1/2; MEC-07 gives a mill town's weaving the mill labor cut (fulling). |
+| Plumbing | three new `IronStructure` kinds and gates (appended; hashed only while non-zero), `BuildWhy` reasons and texts, `LivingEconomyModel.Power.cs`, harness `iron-match --fief --grant-e5 --no-furnace`. |
+
+## What the runs say (4 seeds, natural Fief play, E5 promoted, 130 minutes)
+- Civilizations research **all 49 E5 projects** and reach KEY-6 at minutes **104–117**, about 20 minutes after KEY-5 (92.3).
+- The new structures get built: windmill 44–67, sawmill 20–35, blast furnace 25–39 across four matches. Windmills were stuck on 2 wheels, so the need was cut to 1.
+- **The furnace barely moves fuel**: with it on, metal wood removal is 291,862 L against 294,230 L off (-0.8%), kits made unchanged, 121 fuel-gate PASS and 0 FAIL both ways, forest ledgers close. The reason matches the oracle: iron demand is only the kits (no cast iron or cannon yet), and the bloomery step is a small share of charcoal once kits are issued. The furnace's real value arrives with cast iron and gunpowder (the war slice), not before.
+- Stuck towns are still mostly short of **blocks** (131), as in Iron.
+
+## F-T2 follow-up: shared power ledger and coverage diagnostic (2026-11-13)
+
+The Fief simulation now derives one deterministic seasonal power budget per town from its built water and wind sources. A water mill contributes 5 worker-season power hours; a windmill contributes 4 × 80% = 3.2 expected hours. The budget funds the oracle's modeled grinding, sawing and powered-craft demand in that priority order. Labor savings and blast-furnace output/fuel use use the same job coverage fractions, so work cannot claim power that another job already spent. Unused power is reported explicitly. Iron and Bronze keep their previous rules.
+
+The read-only `iron-match --fief --fief-power-ledger` report opens a 12-season window when each town first has a water or wind source. It reports town windows, population-weighted grain coverage, source counts, offered/allocated/unused power hours, and windows censored by the match horizon. Grain coverage is the resident share within the existing `MillPeople` throughput cap, adjusted for wind availability and the grinding allocation. It is a capacity proxy: the economy has no separate flour store, so this is not a physical grain-mass audit. Four 130-minute promoted-pack runs (`20261019–20261022`) recorded 90 complete town windows and zero censored windows:
+
+| Seed | Complete town windows | Population-weighted coverage | Town windows ≥60% |
+|---|---:|---:|---:|
+| 20261019 | 20 | 77.6% | 18/20 |
+| 20261020 | 25 | 73.6% | 22/25 |
+| 20261021 | 22 | 76.8% | 20/22 |
+| 20261022 | 23 | 75.4% | 21/23 |
+
+All four runs clear the 60% population-weighted screen, while 9 of 90 individual town windows fall below it (lowest 31.7%). Each below-target window has one or two sources and spends its full power budget; these are capacity- or budget-limited towns rather than cases with idle mill power. This is a useful four-seed screen, not a fitted pass; the per-town misses and the proxy's lack of physical flour accounting remain visible for later fitting.
+
+## F-T2 follow-up: virtual one-extra-mill sensitivity (2026-11-14)
+
+The four-seed rerun (`20261019–20261022`) with the promoted long-horizon pack recorded **83 complete town windows and 1 horizon-censored window**. Baseline weighted grain coverage was 78.5%, 74.5%, 75.4%, and 76.7% by seed; respectively 17/18, 25/26, 19/20, and 18/19 complete windows met 60%. Thus **79/83 complete windows** met the target, with four below-target windows total. The sole censored window (seed 20261019) is excluded from the sensitivity.
+
+The diagnostic then adds one **virtual** mill source of the first observed type for each complete below-60% window and recomputes job allocation and coverage. All four misses reached 60%: seed 20261019 improved 42.0%→80.0%, 20261020 24.1%→76.0%, 20261021 45.7%→80.0%, and 20261022 48.9%→80.0%. This points to a second source as sufficient in these four cases, but does not establish buildability, cost, placement, or realized flour production. It is a small diagnostic of only four deficient windows, not a new acceptance result; coverage remains an adult-equivalent capacity proxy.
+
+### Physical second-source follow-up (2026-11-14)
+
+The four miss rows each have exactly one windmill and no water mill. The planner does **not** permit a second windmill: `IronGate` applies the default `Built()` limit of one per structure kind before the windmill-specific Fief, town, water-mill, and field checks. A focused `FiefPowerTests` case confirms the first windmill passes the gate in a town with the project and fields, while the gate rejects it after one is standing. A second deterministic fixture uses an actual generated river-adjacent site, fills its natural fields, and confirms the water-mill gate opens despite an existing windmill; after setting that gate-approved water mill complete, the ledger reports both sources and allocates their combined power. A non-river site with natural fields is rejected. This proves a cross-type alternate source is generically buildable and operable under the model, but does not establish that any of the four earlier undercoverage towns had an eligible river site or resources. The ledger output lacks site/river and construction-resource history for those exact windows, so their physical alternate-source eligibility remains unknown. No flour stock is modeled.
+
+Reproduce with the existing promoted pack (the command took about half an hour on this checkout):
+
+```sh
+dotnet run --project src/CivSim.Harness -- iron-match --pack /tmp/civsim-e5-long-promoted.pack --fief --grant-e5 --fief-power-ledger --minutes 130 --seed 20261019 --seeds 4
+```
+
+Raw output: [m12-wp8-fief-power-extra-mill-output-2026-11-14.txt](m12-wp8-fief-power-extra-mill-output-2026-11-14.txt).
+
+## Still open
+Horse-gin power (needs a draft-power model), the original screen's nine low-coverage windows, cast-iron goods and cannon (no goods slots yet), crucible steel, clock tower, the other E5 systems, AI use of any of it, the game view, and promotion of the rows remain open. The later four-seed sensitivity rerun had four low-coverage complete windows, all of which reached 60% under a virtual extra-source recalculation; a focused gate test shows that a second windmill is rejected by the current one-per-kind build cap. Physical alternate water-mill eligibility at those exact sites, construction resources, and realized flour production remain unmeasured. The broader held-out F-T4 estimate and diagnostic bands are in [the land-food report](m12-wp8d-land-food-oracle.md); their acceptance threshold remains unapproved. After correcting phantom sawmill demand, the 39-seed F-T3 rerun in [the land-systems report](m12-wp8c-land-systems.md) still misses the every-mature-window ceiling: 17/32 eligible pairs fail by up to 1.8 percentage points; all eligible late windows pass, and seven pairs without kit output are censored. No supported mechanical fix emerged, so the report keeps the 15% gate unchanged and marks F-T3 unmet.
+
+## Reproduce the promoted pack
+Copy `content/` to a scratch folder, change `status: draft` to `status: numeric` on every `era: 5` row and on KEY-6 (V22 wants all or none), then `civsim build-pack --content <folder> --out e5.pack` and run `iron-match --pack e5.pack --fief --grant-e5 --minutes 130`.

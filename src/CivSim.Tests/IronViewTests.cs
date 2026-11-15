@@ -137,6 +137,47 @@ public sealed class IronViewTests
     }
 
     [Fact]
+    public void Fief_frame_exposes_power_and_fief_state_only_for_owned_settlements()
+    {
+        var pack = TestPack.WithNumeric("KEY-5", "NRG-03", "NRG-05", "DEF-09");
+        MatchModel match = MatchModel.Create(Seed, pack, World.Value, Balanced, default, rules: ChapterRules.Fief);
+        var runner = new SimRunner(match);
+        var fiefCatalog = new ResearchCatalog(pack);
+        foreach (string project in new[] { "KEY-5", "NRG-03", "NRG-05", "DEF-09" })
+            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, fiefCatalog.IndexOf(project), 0, 0));
+        runner.Advance(2);
+        int home = Settlement(match, 0), rival = Settlement(match, 1);
+        match.Economy.FixtureSetTier(home, 1);
+        match.Economy.FixtureSetTier(rival, 1);
+        match.Economy.FixtureBuildIronStructure(home, "water_mill");
+        match.Economy.FixtureBuildIronStructure(home, "windmill");
+        match.Economy.FixtureBuildIronStructure(home, "monastery");
+        match.Economy.FixtureBuildIronStructure(home, "university");
+        match.Economy.FixtureBuildIronStructure(home, "hospital");
+        match.Economy.FixtureBuildIronStructure(home, "concentric_castle");
+        match.Economy.FixtureBuildIronStructure(rival, "water_mill");
+
+        MatchFrame own = Frame(match, 0);
+        Assert.True(own.Fief.Active);
+        int ownRow = own.IndexOfSettlement(home);
+        Assert.True(ownRow >= 0);
+        Assert.Equal(1, own.Fief.WaterMillSources[ownRow]);
+        Assert.Equal(1, own.Fief.WindmillSources[ownRow]);
+        Assert.True(own.Fief.AvailablePowerHours[ownRow] > 0);
+        Assert.Equal(1, own.Fief.Monasteries[ownRow]);
+        Assert.Equal(1, own.Fief.Universities[ownRow]);
+        Assert.Equal(1, own.Fief.Hospitals[ownRow]);
+        Assert.Equal(1, own.Fief.ConcentricCastle[ownRow]);
+        Assert.Equal(0, own.Fief.WaterMillSources[own.IndexOfSettlement(rival)]);
+        Assert.Equal(0, own.Fief.ConcentricCastle[own.IndexOfSettlement(rival)]);
+
+        MatchFrame iron = Frame(Rig(ChapterRules.Iron).Match, -1);
+        MatchFrame bronze = Frame(Rig(ChapterRules.Bronze).Match, -1);
+        Assert.False(iron.Fief.Active);
+        Assert.False(bronze.Fief.Active);
+    }
+
+    [Fact]
     public void The_new_commands_reach_the_rules_and_a_Bronze_match_refuses_them()
     {
         (MatchModel match, SimRunner runner) = Rig(ChapterRules.Iron);

@@ -87,7 +87,11 @@ projects:
     status: draft
     requires: [LRN-05, BEL-10]
     effects:
-      - {kind: prose, text: "Scholars trained in every diocese: Scholar count cap +50%."}
+      - {kind: mod, stat: scholar_cap, op: mult, value: 1.5, note: "slots exist only at staffed schools and monasteries; no scholar without a building"}
+      - {kind: rule, text: "Scholar slots grow with each school but a scholar must be a real adult in a real seat."}
+    practice: [{action: teach, share: 100}]
+    flavor: "Every diocese keeps a school."
+    moment: "Boys recite from slates in a cathedral close."
   - id: LRN-08
     name: Universities
     era: 5
@@ -95,7 +99,13 @@ projects:
     status: draft
     requires: [LRN-07, GOV-10]
     effects:
-      - {kind: prose, text: "Build: University. Scholar Insight ×1.5; all adoption +25%. *KEY-6 prerequisite.*"}
+      - {kind: build, structure: university}
+      - {kind: mod, stat: scholar_insight, op: mult, value: 1.5, note: "staffed scholars at a university only"}
+      - {kind: adopt, mult: 1.25}
+      - {kind: rule, text: "KEY-6 prerequisite."}
+    practice: [{action: teach, share: 100}]
+    flavor: "Masters and students form a guild of their own."
+    moment: "Students crowd a lecture hall to hear a master dispute."
   - id: LRN-09
     name: Learned Societies
     era: 6

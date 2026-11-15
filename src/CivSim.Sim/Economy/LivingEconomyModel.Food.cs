@@ -70,12 +70,26 @@ public sealed partial class LivingEconomyModel
     private Fix64 FieldLaborNeed(SettlementState s)
     {
         int fields = s.FieldTiles.Count;
-        Fix64 need = Fix64.FromInt(fields);
-        if (!E3Food(s) || !HasProject(s.Civilization, "AGR-05")) return need;
-        int pairs = (s.DomesticCattle / 2).FloorToInt();
-        int perPair = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
-        int ploughed = Math.Min(fields, pairs * perPair);
-        return need - Fix64.FromInt(ploughed) * Fix64.Half;
+        Fix64 cropShare = FiefFieldCropShare(s);
+        Fix64 croppedFields = Fix64.FromInt(fields) * cropShare;
+        Fix64 need = croppedFields;
+        Fix64 oxPloughed = Fix64.Zero;
+        if (E3Food(s) && HasProject(s.Civilization, "AGR-05"))
+        {
+            int pairs = (s.DomesticCattle / 2).FloorToInt();
+            int perPair = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
+            Fix64 oxCapacity = Fix64.FromInt(Math.Min(fields, pairs * perPair)) * cropShare * FiefDraftStrength(s);
+            oxPloughed = Fix64.Min(croppedFields, oxCapacity);
+            need -= oxPloughed * Fix64.Half;
+        }
+        if (FiefHorseCollar(s))
+        {
+            int perHorse = HasProject(s.Civilization, "NRG-02") ? _civic.ArdPerPairNrg02 : _civic.ArdPerPair;
+            Fix64 horseCapacity = Fix64.FromInt(s.Civic!.Horses) * Fix64.FromInt(perHorse * 2) * cropShare * FiefDraftStrength(s);
+            Fix64 horsePloughed = Fix64.Min(Fix64.Max(Fix64.Zero, croppedFields - oxPloughed), horseCapacity);
+            need -= horsePloughed * Fix64.Half;
+        }
+        return need;
     }
 
     /// <summary>
@@ -138,7 +152,7 @@ public sealed partial class LivingEconomyModel
             WildHerdState herd = _wildHerds[i];
             if (herd.Species != HerdSpecies.Horse || herd.CurrentAnimals < Fix64.One || herd.TamingYear != year ||
                 !IsWithinRange(s.SiteTile, herd.CurrentTile)) continue;
-            Fix64 allowed = herd.CurrentAnimals * _civic.HorseTameShare - herd.TamedThisYear;
+            Fix64 allowed = Fix64.Min(FiefWildHarvestable(herd, s.Civilization), herd.CurrentAnimals) * _civic.HorseTameShare - herd.TamedThisYear;
             int tame = Math.Min(room, Math.Min((work / _civic.HorseLabor).FloorToInt(), allowed.FloorToInt()));
             if (tame <= 0) continue;
             herd.CurrentAnimals -= Fix64.FromInt(tame);
@@ -157,6 +171,7 @@ public sealed partial class LivingEconomyModel
         int year = checked((int)(_seasonsCompleted / 4));
         foreach (WildHerdState herd in _wildHerds)
             if (herd.Species == HerdSpecies.Horse && herd.CurrentAnimals >= Fix64.One && herd.TamingYear == year &&
+                FiefWildHarvestable(herd, s.Civilization) > Fix64.Zero &&
                 herd.TamedThisYear < herd.CurrentAnimals * _civic.HorseTameShare && IsWithinRange(s.SiteTile, herd.CurrentTile)) return true;
         return false;
     }
@@ -200,9 +215,15 @@ public sealed partial class LivingEconomyModel
         if (s.Civic is not { } c) return Fix64.One;
         Fix64 mult = c.FoodValueMult;
         if (good == Good.Grain && c.BakeryShare > Fix64.Zero) mult *= Fix64.One + _civic.BakeryValue * c.BakeryShare;
-        // A water mill grinds for up to MillPeople (NRG-03, Iron chapter only): the same shape as the bakery, a tenth of the grain's value.
-        if (good == Good.Grain && IronChain && IronWorksCount(s, IronStructure.WaterMill) > 0)
-            mult *= Fix64.One + _civic.MillValue * Fix64.Min(Fix64.One, _civic.MillPeople / Math.Max(1, Population(s.Id)));
+        // Iron keeps the original water-mill rule byte-for-byte. Fief grain value is proportional to the share of residents
+        // covered by source capacity and the grinding job's allocation from the shared power ledger.
+        if (good == Good.Grain && IronChain)
+        {
+            if (FiefChain)
+                mult *= Fix64.One + _civic.MillValue * MillPower(s).GrainCoverage;
+            else if (MillFactor(s) > Fix64.Zero)
+                mult *= Fix64.One + _civic.MillValue * MillFactor(s) * Fix64.Min(Fix64.One, _civic.MillPeople / Math.Max(1, Population(s.Id)));
+        }
         return mult;
     }
 

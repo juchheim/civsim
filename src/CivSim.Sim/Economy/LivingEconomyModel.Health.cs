@@ -152,6 +152,8 @@ public sealed partial class LivingEconomyModel
                 if (f.IllnessSeasons == 0) f.IllnessSeasons = 1;
             }
         }
+        // Fixture-only, read-only observation point: infection is finalized, mortality has not yet been resolved.
+        FixtureAfterOutbreaks?.Invoke();
     }
 
     /// <summary>The epidemic hazard of an infected figure this season (09 §10.3): CFR × age (children ×1.5, elders ×2) × MED.</summary>
@@ -164,6 +166,7 @@ public sealed partial class LivingEconomyModel
         else if (figure.Age >= 45) h *= Fix64.FromInt(2);
         h *= c.CfrScale;
         if (HasProject(figure.Civilization, "MED-01")) h *= MedCare(figure.Civilization, Fix64.FromRatio(9, 10));
+        if (FiefChain && HospitalStaffed(_settlements[figure.SettlementId])) h *= Fix64.FromRatio(4, 5);
         return h;
     }
 

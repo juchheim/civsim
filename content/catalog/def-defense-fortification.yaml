@@ -112,7 +112,12 @@ projects:
     status: draft
     requires: [DEF-08, MEC-06]
     effects:
-      - {kind: prose, text: "Castles ×2 defense; siege attrition favors defenders."}
+      - {kind: build, structure: concentric_castle}
+      - {kind: defense, structure: concentric_castle, mult: 1.5, text: "Garrisoned concentric castle; fitted below the 1.9 storm crossover of e5_combat_oracle"}
+      - {kind: rule, text: "Siege attrition favors defenders: engine and cannon crews working against a concentric castle suffer 25% more attrition (P)."}
+    practice: [{action: build, share: 100}]
+    flavor: "Ring within ring, each wall covering the next."
+    moment: "Two curtain walls rise, one behind the other, around a keep."
   - id: DEF-10
     name: Star Forts
     era: 6

@@ -25,6 +25,9 @@ public sealed class MatchFrame
     /// <summary>What the viewer's people are armed with: base weapon, arms research, and per-settlement fighters, kits and siege engines.</summary>
     public readonly ArmsFrame Arms = new();
 
+    /// <summary>The Faith &amp; Fief-only read model; inactive in Bronze and Iron.</summary>
+    public readonly FiefFrame Fief = new();
+
     // ---- header -------------------------------------------------------------------------------
     /// <summary>Build number from the builder that wrote it (1, 2, 3, ...).</summary>
     public long Sequence;

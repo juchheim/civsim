@@ -130,7 +130,12 @@ projects:
     status: draft
     requires: [BEL-09, LRN-05]
     effects:
-      - {kind: prose, text: "Build: Monastery. Insight +16 each; copies texts (knowledge never lost); farms wilderness."}
+      - {kind: build, structure: monastery}
+      - {kind: role, id: monk}
+      - {kind: rule, text: "A monastery staffed by 4 monks (P) yields 16 Insight a year, keeps a copy of the settlement's Know-how pool so a capture or collapse loses less, and its monks farm up to 6 wilderness tiles (P). Monks are adults taken off other work; an empty monastery yields nothing."}
+    practice: [{action: ritual, share: 100}]
+    flavor: "A cloister keeps what the world forgets."
+    moment: "Monks copy a page by candlelight inside a stone cloister."
   - id: BEL-11
     name: Pilgrimage Routes
     era: 5
@@ -138,7 +143,12 @@ projects:
     status: draft
     requires: [BEL-10, TRN-07]
     effects:
-      - {kind: prose, text: "Pilgrims travel roads: trade +15% along routes; claim along routes +."}
+      - {kind: unlock_action, action: pilgrimage}
+      - {kind: mod, stat: route_trade, op: mult, value: 1.15, note: "only along completed connected roads that carry pilgrims"}
+      - {kind: rule, text: "Claim strength along a pilgrimage route that is completed and traveled rises by 5% (P); pilgrims never reveal fog and need food for the journey."}
+    practice: [{action: pilgrimage, share: 100}]
+    flavor: "The road is the prayer."
+    moment: "Pilgrims in grey cloaks walk toward a distant shrine."
   - id: BEL-12
     name: "Reformation & Tolerance"
     era: 6

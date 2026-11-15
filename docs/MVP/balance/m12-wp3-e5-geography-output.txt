@@ -1,0 +1,71 @@
+e5-audit seeds 1..10000 (10,000 worlds, 40,000 starts)
+digest 396970e01a1cd3c450d4d2caefd816ea602d52f2b9106d07b5c1ac5f6ba0dd50
+mirror check: local columns of civ c and c+2 differ in 0 of 20,000 pairs
+
+== 1. Denominators ==
+worlds 10,000; starts 40,000; geometrically distinct starts 20,000 (civ 2 and 3 mirror civ 0 and 1).
+strata by nearest coast-adjacent tile: coastal (<= 8) 17,094; inland (9-14) 19,868; deep inland (>= 15) 3,038 (the 10,000-world audit found max distance 20).
+uncontested = strictly nearer this start than any other start (a static stand-in for ownership; live claims differ).
+
+== 2. World truth per world ==
+saltpeter deposits on the map: min 12 p5 12 p25 12 p50 12 p75 12 p95 12 max 12 (n=10,000)
+sulfur deposits on the map: min 8 p5 8 p25 8 p50 8 p75 8 p95 8 max 8 (n=10,000)
+wild horse herds on the map: min 0 p5 0 p25 4 p50 12 p75 24 p95 40 max 88 (n=10,000)
+worlds with no saltpeter at all: 0.0%; with no sulfur: 0.0%; with no horse herd: 12.6%
+
+== 3. Saltpeter (CHM-07 [Has: Saltpeter]) ==
+step 1 uncontested depth-1 within 8 | 2 within 12 (TRN-05) or 16 (SEA-05, wet site) | 3 depth-2 within that reach | 4 only nearer a rival | 5 within 25 but beyond reach | 6 none within 25
+  all starts (n=40,000): 1 local-8 28.6% | 2 carts/water 45.5% | 3 deep 0.0% | 4 contested 2.4% | 5 beyond reach 21.5% | 6 none 2.0% || own supply (1-3) 74.1%
+  distinct starts (n=20,000): 1 local-8 28.6% | 2 carts/water 45.5% | 3 deep 0.0% | 4 contested 2.4% | 5 beyond reach 21.5% | 6 none 2.0% || own supply (1-3) 74.1%
+  coastal (n=17,094): 1 local-8 17.1% | 2 carts/water 44.6% | 3 deep 0.0% | 4 contested 2.4% | 5 beyond reach 32.5% | 6 none 3.3% || own supply (1-3) 61.7%
+  inland (n=19,868): 1 local-8 34.8% | 2 carts/water 47.9% | 3 deep 0.0% | 4 contested 2.3% | 5 beyond reach 14.1% | 6 none 1.0% || own supply (1-3) 82.7%
+  deep inland (n=3,038): 1 local-8 52.5% | 2 carts/water 35.2% | 3 deep 0.0% | 4 contested 2.8% | 5 beyond reach 8.8% | 6 none 0.7% || own supply (1-3) 87.7%
+nearest saltpeter (hex, any): min 0 p5 4 p25 8 p50 11 p75 15 p95 22 max 41 (n=40,000)
+uncontested saltpeter sites within the claim radius 5: min 0 p5 0 p25 0 p50 0 p75 0 p95 1 max 3 (n=40,000)
+uncontested saltpeter sites within the extended reach: min 0 p5 0 p25 0 p50 1 p75 2 p95 3 max 6 (n=40,000)
+uncontested saltpeter sites within the E5 reach 25 (where an expanded realm would hold them): min 0 p5 0 p25 2 p50 3 p75 3 p95 4 max 6 (n=40,000)
+starts with a saltpeter site inside the claim radius 5: 10.5% (4,214/40,000)
+starts with a saltpeter site anywhere in the E5 reach, uncontested: 94.7% (37,898/40,000)
+saltpeter + sulfur both on own ground (steps 1-3 for each): 54.4% (21,746/40,000)
+  sulfur, all starts (n=40,000): 1 local-8 20.7% | 2 carts/water 43.6% | 3 deep 0.0% | 4 contested 2.8% | 5 beyond reach 28.0% | 6 none 4.9% || own supply (1-3) 64.3%
+
+== 4. Rivers and lakes (NRG-03 water mill and WOD-09 sawmill [Near: River]; wind needs none) ==
+start site itself on a river or lake tile: 76.7% (30,664/40,000)
+nearest uncontested river or lake tile (hex): min 0 p5 0 p25 0 p50 0 p75 0 p95 4 max 4 (n=40,000)
+river or lake tiles within the settlement range 3: min 0 p5 0 p25 4 p50 4 p75 4 p95 6 max 13 (n=40,000)
+starts with a river or lake tile within 3: 92.9% (37,172/40,000); within the claim radius 5: 100.0% (40,000/40,000); within 8: 100.0% (40,000/40,000)
+water-mill site (river within 5) and planks (forest within 8) for a sawmill: 95.5% (38,200/40,000)
+wind-only starts (no river or lake within 5, so a windmill is the only mill): 0.0% (0/40,000); coastal 0.0% (0/17,094); inland 0.0% (0/19,868); deep inland 0.0% (0/3,038)
+
+== 5. Wild horses (HUS-07 [Seen: Wild horses]; NRG-04 horse collar, TRN-09 horseshoes, WAR-10 heavy cavalry need G-HORSE) ==
+nearest horse herd (hex, any owner; 99 = none): min 0 p5 6 p25 10 p50 16 p75 24 p95 99 max 99 (n=40,000)
+uncontested horse herds within 15 / 20 / 25: 48.6% (19,442/40,000) / 64.7% (25,884/40,000) / 74.2% (29,674/40,000)
+horse herds within 25, uncontested: min 0 p5 0 p25 0 p50 2 p75 4 p95 7 max 21 (n=40,000)
+wild horses within 25, uncontested (animals at the start of the game): min 0 p5 0 p25 0 p50 45 p75 90 p95 165 max 483 (n=40,000)
+taming (HUS-07): at most 15% of a wild herd a year, so a 20-50 herd yields 3-7 animals a year; a pasture carries 2.
+starts that could be 'Seen: Wild horses' at all (any herd within 25, contested or not): 77.4% (30,950/40,000)
+strata, uncontested herd within 25: coastal 72.5% (12,398/17,094); inland 75.6% (15,020/19,868); deep inland 74.3% (2,256/3,038)
+Herds migrate seasonally (20 tiles) so these are start-of-game positions; a start with none may still see horses later.
+
+== 6. All three together (own saltpeter route, a river within 5, an own horse herd within 25) ==
+  3 of 3 local: 55.8% (22,316/40,000)
+  2 of 3 local: 36.7% (14,690/40,000)
+  1 of 3 local: 7.5% (2,994/40,000)
+  0 of 3 local: 0.0% (0/40,000)
+  powder chain whole (saltpeter and sulfur) plus river plus horses: 41.3% (16,528/40,000)
+  no saltpeter and no horses on own ground: 7.5% (2,994/40,000)
+
+== 7. Trade geometry for what a start lacks (geography only; no contact, relations, TradeGood or barter-party carrying is modeled) ==
+capable partner = its own start has the resource on its own ground. Route = unit-cost walk else sail with SEA-04 (11 tiles from land); seasons = tiles / 10.
+-- saltpeter: starts lacking it on own ground: 10,352 (25.9%)
+   mate has it: 41.8%; walkable to mate: 41.8%; mate walk tiles: min 21 p5 21 p25 21 p50 22 p75 24 p95 26 max 27 (n=4,328)
+   no walkable mate: 6,024; of those a mate sailable 0.0%; another civilization walkable 0.0%; sailable 0.0%
+   no geographic route to any capable start: 6,024 (15.1% of all starts)
+-- horses: starts lacking it on own ground: 10,326 (25.8%)
+   mate has it: 26.8%; walkable to mate: 26.8%; mate walk tiles: min 21 p5 21 p25 21 p50 22 p75 23 p95 26 max 27 (n=2,770)
+   no walkable mate: 7,556; of those a mate sailable 0.0%; another civilization walkable 0.0%; sailable 0.0%
+   no geographic route to any capable start: 7,556 (18.9% of all starts)
+
+== 8. Limits ==
+worlds with no saltpeter anywhere (0) leave every start in them without powder unless the tile gate is relaxed; they are counted above, never dropped.
+Deposits are generator truth; whether a civilization knows them at CHM-07 is a discovery question (MIN-08 reveals veins inside own territory; the geology-discovery branch changes how early). Static starts only: no expansion, no rivals' growth.

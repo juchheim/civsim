@@ -83,7 +83,13 @@ projects:
     status: draft
     requires: [MED-06, BEL-09]
     effects:
-      - {kind: prose, text: "Build: Hospital. Epidemic deaths −20%; elders live longer."}
+      - {kind: build, structure: hospital}
+      - {kind: hazard, cause: epidemic, mult: 0.8, scope: local}
+      - {kind: mod, stat: elder_hazard, op: mult, value: 0.95, note: "elders in a settlement with a staffed hospital (P)"}
+      - {kind: rule, text: "A hospital works only with a physician and 2 attendants (P); an empty hospital has no effect."}
+    practice: [{action: heal, share: 100}]
+    flavor: "The sick are brought to a house for them."
+    moment: "Sisters tend rows of beds in a long ward."
   - id: MED-08
     name: Quarantine
     era: 5
@@ -91,7 +97,11 @@ projects:
     status: draft
     requires: [MED-07, GOV-10]
     effects:
-      - {kind: prose, text: "Epidemics spread between settlements −50%."}
+      - {kind: mod, stat: outbreak_roll, op: mult, value: 0.75, note: "imported outbreaks only, about half of all outbreaks"}
+      - {kind: mod, stat: epidemic_spread, op: mult, value: 0.5, note: "between settlements linked by route or shared border"}
+    practice: [{action: heal, share: 100}]
+    flavor: "Ships wait forty days before the gate opens."
+    moment: "A harbor chain holds a plague ship offshore."
   - id: MED-09
     name: Anatomy
     era: 6

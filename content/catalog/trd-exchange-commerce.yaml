@@ -104,7 +104,12 @@ projects:
     status: draft
     requires: [TRD-07, NUM-08]
     effects:
-      - {kind: prose, text: "Credit and bills of exchange: trade volume ×1.5; projects funded (Wonder build +15%)."}
+      - {kind: mod, stat: trade_volume, op: mult, value: 1.5, note: "credit moves existing goods sooner; it creates none"}
+      - {kind: mod, stat: wonder_build_labor, op: mult, value: 0.8696, note: "Wonder funding: build 15% faster"}
+      - {kind: rule, text: "Bills of exchange settle between markets linked by a route; they mint no coin and no goods."}
+    practice: [{action: trade, share: 100}]
+    flavor: "A promise travels where coin cannot."
+    moment: "A merchant signs a bill that a distant banker will honor."
   - id: TRD-09
     name: Double-Entry Bookkeeping
     era: 5
@@ -112,7 +117,12 @@ projects:
     status: draft
     requires: [TRD-08, NUM-09]
     effects:
-      - {kind: prose, text: "Accurate accounting: trade profit +20%, admin waste −. *KEY-6 prerequisite.*"}
+      - {kind: mod, stat: trade_profit, op: mult, value: 1.2}
+      - {kind: mod, stat: admin_waste, op: mult, value: 0.9}
+      - {kind: rule, text: "KEY-6 prerequisite."}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "Every debit finds its twin."
+    moment: "A clerk enters a sum on both pages of a ledger."
   - id: TRD-10
     name: Joint-Stock Company
     era: 6

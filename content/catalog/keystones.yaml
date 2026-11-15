@@ -96,7 +96,12 @@ keystones:
     requires: [COM-10, TRD-09, WAY-08, LRN-08]
     breadth: {era: 5, min: 16}
     effects:
-      - {kind: prose, text: "Discovery era; scale 1:25; oceans open."}
+      - {kind: era_advance, era: 6}
+      - {kind: legacy, text: Keystone}
+      - {kind: rule, text: "Normal keystone event and score only; no free ships, population or E6 systems; oceans open as a rule of the Discovery chapter, not here."}
+    practice: [{action: scribe, share: 100}]
+    flavor: "Words, ledgers, compasses and schools open the wider world."
+    moment: "A press, a ledger, a compass and a lecture hall are shown together."
   - id: KEY-7
     name: Industrial Revolution
     era: 6

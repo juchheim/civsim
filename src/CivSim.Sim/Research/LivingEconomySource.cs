@@ -257,7 +257,9 @@ public sealed class LivingEconomySource : IResearchSource
         if (priestRole >= 0) heads[priestRole] += _priests[civ];
         if (scribeRole >= 0) heads[scribeRole] += _scribes[civ];
         int scholarRole = _catalog.RoleIndex("scholar");
-        if (scholarRole >= 0) heads[scholarRole] += Fix64.FromInt(_economy.ScholarHeads(civ)); // Iron chapter only; zero everywhere else
+        if (scholarRole >= 0) heads[scholarRole] += _economy.ScholarInsightHeads(civ); // Iron scholars; Fief university scholars receive +50%
+        int monkRole = _catalog.RoleIndex("monk");
+        if (monkRole >= 0) heads[monkRole] += Fix64.FromInt(_economy.MonkHeads(civ)); // Fief chapter only; zero everywhere else
         Fix64 workers = adults + elders;
         (Fix64 insight, Fix64 roles, Fix64 knowHow) = ArchetypeScales(_archetypes[civ]);
         return new InsightInputs

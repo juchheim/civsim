@@ -42,3 +42,6 @@ actions:
   - {id: siege_assault, name: Engine assault, class: activity, introduced_era: 4}
   - {id: naval_blockade, name: Harbor blockade, class: activity, introduced_era: 4}
   - {id: till, name: Till, class: family, introduced_era: 4}
+  # E5 Faith & Fief additions (docs/MVP/27 §5).
+  - {id: fire_cannon, name: Fire cannon, class: activity, introduced_era: 5}
+  - {id: pilgrimage, name: Pilgrimage, class: activity, introduced_era: 5}

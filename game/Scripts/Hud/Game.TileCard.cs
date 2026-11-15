@@ -267,6 +267,17 @@ public partial class Game
                     extra += $"\nCohesion: {CohesionName(frame.SettlementCohesion[s])}";
                     if (own && (frame.SettlementOverreach[s] != 0 || frame.SettlementSpanPenalty[s] != 0))
                         extra += $" · overreach {frame.SettlementOverreach[s]} · span strain {frame.SettlementSpanPenalty[s]}";
+                    SettlementViewFlags settlementFlags = (SettlementViewFlags)frame.SettlementFlags[s];
+                    bool fiefOwn = (settlementFlags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) == SettlementViewFlags.Own;
+                    if (fiefOwn && frame.Fief.Active && s < frame.Fief.WaterMillSources.Length && s < frame.Fief.GrainCoverage.Length &&
+                        s < frame.Fief.AvailablePowerHours.Length && s < frame.Fief.WindmillSources.Length && s < frame.Fief.Monks.Length &&
+                        s < frame.Fief.Monasteries.Length && s < frame.Fief.Universities.Length && s < frame.Fief.Hospitals.Length && s < frame.Fief.ConcentricCastle.Length)
+                    {
+                        double powerHours = frame.Fief.AvailablePowerHours[s] / 4294967296.0;
+                        double grainCoverage = frame.Fief.GrainCoverage[s] / 4294967296.0;
+                        extra += $"\nFief · mill power {frame.Fief.WaterMillSources[s]} water / {frame.Fief.WindmillSources[s]} wind · {powerHours:0.#} h/season · grain {grainCoverage:P0}";
+                        extra += $"\nMonasteries {frame.Fief.Monasteries[s]} · monks {frame.Fief.Monks[s]} · universities {frame.Fief.Universities[s]} · hospitals {frame.Fief.Hospitals[s]} · concentric castle {(frame.Fief.ConcentricCastle[s] != 0 ? "built" : "none")}";
+                    }
                 }
             }
             if (showSupply) extra += (extra.Length > 0 ? "\n\n" : "") + SupplyNetworkDetails(frame, supplySettlement);

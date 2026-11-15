@@ -211,6 +211,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
+    private const int FiefSnapshotVersion = 35; // 35: the levy-bow section (docs/MVP/36)
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -363,6 +364,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public int SiteTile;
         /// <summary>Ochre collected before the Bronze goods store is activated.</summary>
         public Fix64 SurfaceOchre;
+        /// <summary>The Faith &amp; Fief chapter's levy crossbows and longbows (docs/MVP/36), by <c>FiefGood</c>; null until the first one. Outside <see cref="Stores"/> so Bronze and Iron checksums never see it.</summary>
+        public Fix64[]? FiefGoods;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
         /// <summary>Stock of every store slot at the last season end, for the era report's goods-gained readout (never hashed).</summary>
         public Fix64[]? GainBaseline;
@@ -1360,9 +1363,11 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (IsIndividualHerdCrash(herd.Id, year)) herd.CurrentAnimals *= Fix64.Half;
             Fix64 growthRate = Fix64.FromRatio(source.AnnualGrowthPercent, 100);
             if (_wildfireSeasonsRemaining[herd.CurrentTile] > 0) growthRate *= Fix64.Parse("1.3");
-            Fix64 carryingCapacity = Fix64.FromInt(source.InitialAnimalCount) * (Fix64.One + growthRate);
+            Fix64 carryingCapacity = WildHerdCarryingCapacity(herd);
             herd.CurrentAnimals = Fix64.Min(carryingCapacity,
                 herd.CurrentAnimals + herd.CurrentAnimals * growthRate);
+            if (FiefGameReserveOwner(herd.CurrentTile) >= 0)
+                herd.CurrentAnimals = Fix64.Max(herd.CurrentAnimals, carryingCapacity * Fix64.Half);
             herd.TamingYear = year;
             herd.TamingLimitThisYear = herd.CurrentAnimals * Fix64.Parse("0.2");
             herd.TamedThisYear = Fix64.Zero;
@@ -1967,7 +1972,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 buildWoodNeed = BasicBuildWoodProcurementNeed(settlement, season);
         // A player's build focus and the autonomous planner both ask for timber on top of the fuel buffer.
         Fix64 focusWoodNeed = BuildFocusWoodNeed(settlement, season);
-        Fix64 constructionWoodNeed = Fix64.Max(buildWoodNeed, focusWoodNeed);
+        Fix64 constructionWoodNeed = Fix64.Max(Fix64.Max(buildWoodNeed, focusWoodNeed), IronBuildWoodProcurementNeed(settlement));
         woodTarget += constructionWoodNeed;
         Fix64 woodStock = settlement.Stores[(int)Good.Wood];
         bool proactiveWoodShortfall = proactivePalisade && woodStock < woodTarget;
@@ -2230,6 +2235,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         ReplaceWornTools(settlement);
+        WearLevyArms(settlement);
         Fix64 forageMod = Modifier(settlement.Civilization, "forage.yield");
         Fix64 appliedForageWork = LimitActionWorkByTool(settlement, "forage", forageWork);
         ScaleSkillWork(actionWork, SkillFamily.Forage, forageWork, appliedForageWork);
@@ -2266,7 +2272,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             bool cooperativeDrive = huntersAssigned >= 6 && HasProject(settlement.Civilization, "HNT-04");
             huntedYield = _hasIndividualHerds
-                ? HuntIndividualHerds(settlement, productiveHuntWork, rate, season, cooperativeDrive)
+                ? HuntIndividualHerds(settlement, productiveHuntWork, rate, season, cooperativeDrive, huntersAssigned: huntersAssigned)
                 : Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2,
                     SustainableHuntLimit(settlement));
             huntedUnits = huntedYield;
@@ -2632,6 +2638,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             if (herd.CurrentAnimals <= Fix64.Zero || herd.TamingYear != year ||
                 herd.TamedThisYear >= herd.TamingLimitThisYear ||
+                FiefWildHarvestable(herd, settlement.Civilization) <= Fix64.Zero ||
                 !IsWithinRange(settlement.SiteTile, herd.CurrentTile)) continue;
             if (smallEnabled && herd.Species == HerdSpecies.WildGoatSheep) return true;
             if (largeEnabled && (herd.Species is HerdSpecies.Aurochs or HerdSpecies.Bison or HerdSpecies.WildBoar)) return true;
@@ -2645,11 +2652,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 maintenanceNeed = DomesticHerdWorkNeed(settlement);
         Fix64 maintenanceWork = Fix64.Min(work, maintenanceNeed);
         Fix64 maintenanceShare = maintenanceNeed <= Fix64.Zero ? Fix64.Zero : maintenanceWork / maintenanceNeed;
-        settlement.Stores[(int)Good.Meat] += settlement.DomesticSmallStock * Fix64.Parse("0.8") / 4 * maintenanceShare;
+        Fix64 herdYield = FiefHerdYield(settlement);
+        settlement.Stores[(int)Good.Meat] += settlement.DomesticSmallStock * Fix64.Parse("0.8") / 4 * maintenanceShare * herdYield;
         settlement.Stores[(int)Good.Hide] += settlement.DomesticSmallStock * Fix64.Parse("0.2") / 4 * maintenanceShare;
-        settlement.Stores[(int)Good.Meat] += settlement.DomesticCattle * Fix64.Parse("2.5") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Meat] += settlement.DomesticCattle * Fix64.Parse("2.5") / 4 * maintenanceShare * herdYield;
         settlement.Stores[(int)Good.Hide] += settlement.DomesticCattle * Fix64.Parse("0.3") / 4 * maintenanceShare;
-        settlement.Stores[(int)Good.Meat] += settlement.DomesticPigs * Fix64.Parse("1.2") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Meat] += settlement.DomesticPigs * Fix64.Parse("1.2") / 4 * maintenanceShare * herdYield;
         if (settlement.Civic is not null) Milk(settlement, DomesticAnnualMeat(settlement) / 4 * maintenanceShare);
         // No separate waste inventory exists. Approximate pig waste as stored-food consumption.
         ConsumeStoredFoodValue(settlement,
@@ -2665,6 +2673,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             WildHerdState herd = _wildHerds[i];
             if (herd.CurrentAnimals <= Fix64.Zero || herd.TamingYear != year ||
+                FiefWildHarvestable(herd, settlement.Civilization) <= Fix64.Zero ||
                 !IsWithinRange(settlement.SiteTile, herd.CurrentTile)) continue;
             bool small = herd.Species == HerdSpecies.WildGoatSheep && HasProject(settlement.Civilization, "HUS-03");
             bool cattle = (herd.Species is HerdSpecies.Aurochs or HerdSpecies.Bison) && HasProject(settlement.Civilization, "HUS-04");
@@ -2672,7 +2681,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             if ((!small && !cattle && !pig) || herd.TamedThisYear >= herd.TamingLimitThisYear) continue;
             Fix64 room = small ? smallRoom : largeRoom;
             Fix64 tame = Fix64.Min(animalsToTame,
-                Fix64.Min(room, Fix64.Min(herd.CurrentAnimals, herd.TamingLimitThisYear - herd.TamedThisYear)));
+                Fix64.Min(room, Fix64.Min(FiefWildHarvestable(herd, settlement.Civilization), herd.TamingLimitThisYear - herd.TamedThisYear)));
             if (tame <= Fix64.Zero) continue;
             herd.CurrentAnimals -= tame;
             herd.TamedThisYear += tame;
@@ -2797,7 +2806,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     private Fix64 HuntIndividualHerds(SettlementState settlement, Fix64 work, Fix64 rate, int season, bool cooperativeDrive,
-        bool enforceSustainableLimit = true)
+        bool enforceSustainableLimit = true, int huntersAssigned = 0)
     {
         if (work <= Fix64.Zero || rate <= Fix64.Zero) return Fix64.Zero;
         Fix64 remainingWork = work;
@@ -2807,11 +2816,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             WildHerdState herd = _wildHerds[i];
             if (herd.CurrentAnimals <= Fix64.Zero || !IsWithinRange(settlement.SiteTile, herd.CurrentTile)) continue;
+            int reserveOwner = FiefGameReserveOwner(herd.CurrentTile);
+            if (reserveOwner >= 0 && (reserveOwner != settlement.Civilization || !FiefReserveHuntReady(herd, settlement.Civilization, huntersAssigned))) continue;
             bool largeGame = IsLargeGame(herd.Species);
             bool drive = cooperativeDrive && largeGame;
             Fix64 herdRate = cooperativeDrive && !largeGame ? rate * Fix64.Parse("0.6875") : rate;
             Fix64 perAnimal = MeatPerAnimal(herd.Species);
-            Fix64 take = Fix64.Min(remainingWork * herdRate, herd.CurrentAnimals * perAnimal);
+            Fix64 take = Fix64.Min(remainingWork * herdRate, FiefWildHarvestable(herd, settlement.Civilization) * perAnimal);
             if (enforceSustainableLimit)
             {
                 take = Fix64.Min(take, remainingSustainableHarvest);
@@ -2835,7 +2846,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         {
             Fix64 available = Fix64.Zero;
             foreach (int tile in RangeTiles(settlement.SiteTile))
-                if (IsLandBiome(_world.Tile(tile).BiomeId)) available += Fix64.One;
+            {
+                if (!IsLandBiome(_world.Tile(tile).BiomeId)) continue;
+                int reserveOwner = FiefGameReserveOwner(tile);
+                if (reserveOwner >= 0 && (reserveOwner != settlement.Civilization || huntersAssigned < 2)) continue;
+                available += Fix64.One;
+            }
             Fix64 smallGameRate = rate;
             Fix64 take = Fix64.Min(remainingWork * smallGameRate, available);
             settlement.Stores[(int)Good.Meat] += take;
@@ -2911,11 +2927,26 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 required = settlement.Civic is not null ? FieldLaborNeed(settlement) : Fix64.FromInt(settlement.FieldTiles.Count);
         Fix64 factor = required <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, settlement.FarmWorkThisYear / required);
         Fix64 yield = Fix64.Zero;
+        Fix64 claimedYield = Fix64.Zero;
         Fix64 soilLossMod = settlement.Civic is not null ? SoilLossModifier(settlement) : Modifier(settlement.Civilization, "soil_fertility_loss");
-        foreach (int tile in settlement.FieldTiles)
+        for (int fieldIndex = 0; fieldIndex < settlement.FieldTiles.Count; fieldIndex++)
         {
+            int tile = settlement.FieldTiles[fieldIndex];
+            bool claimedTile = FiefE5Policy(settlement) && TileOwnership?.OwnerOf(tile) == settlement.Civilization;
+            if (!FiefFieldCropped(settlement, fieldIndex, year))
+            {
+                WorldEconomyTile fallow = _world.Tile(tile);
+                _soil[tile] = Fix64.Min(fallow.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
+                continue;
+            }
             // A terraced hillside plot (Iron chapter): built-up soil, a fixed yield, never flooded.
-            if (IronChain && IsIronTerrace(settlement, tile)) { yield += TerraceYield; continue; }
+            if (IronChain && IsIronTerrace(settlement, tile))
+            {
+                Fix64 terraceYield = TerraceYield * FiefFieldYield(settlement);
+                yield += terraceYield;
+                if (claimedTile) claimedYield += terraceYield;
+                continue;
+            }
             WorldEconomyTile input = _world.Tile(tile);
             Fix64 soilRatio = input.SoilFertility <= Fix64.Zero
                 ? Fix64.Parse("0.3")
@@ -2930,26 +2961,41 @@ public sealed partial class LivingEconomyModel : ISimModel
             {
                 _soil[tile] = Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
                 // AGR-06's canals and NUM-06's calendar halve what a flood takes (E2: the whole harvest).
-                if (settlement.Civic is not null) yield += FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation * (Fix64.One - FloodLoss(settlement));
+                if (settlement.Civic is not null)
+                {
+                    Fix64 floodedYield = FieldBaseYield(settlement.Civilization, input) * soilRatio * irrigation *
+                        (Fix64.One - FloodLoss(settlement)) * FiefFieldYield(settlement);
+                    yield += floodedYield;
+                    if (claimedTile) claimedYield += floodedYield;
+                }
             }
             else
             {
                 Fix64 fieldYield = FieldBaseYield(settlement.Civilization, input) * soilRatio;
                 if (irrigation != Fix64.One) fieldYield *= irrigation;
+                fieldYield *= FiefFieldYield(settlement);
                 if (_tendedStandYieldBonus[tile] && factor > Fix64.Zero)
                 {
                     fieldYield *= Fix64.Parse("1.25");
                     _tendedStandYieldBonus[tile] = false;
                 }
                 yield += fieldYield;
+                if (claimedTile) claimedYield += fieldYield;
                 _soil[tile] = factor > Fix64.Zero
                     ? Fix64.Max(Fix64.Zero, _soil[tile] - factor * Fix64.Parse("0.06") * soilLossMod)
                     : Fix64.Min(input.SoilFertility, _soil[tile] + Fix64.Parse("0.10"));
             }
         }
-        yield *= factor * Modifier(settlement.Civilization, "field_yield");
-        if (HasProject(settlement.Civilization, "AGR-02")) yield *= Fix64.FromInt(2);
+        Fix64 realizedYieldFactor = factor * Modifier(settlement.Civilization, "field_yield");
+        yield *= realizedYieldFactor;
+        claimedYield *= realizedYieldFactor;
+        if (HasProject(settlement.Civilization, "AGR-02"))
+        {
+            yield *= Fix64.FromInt(2); // preserve the pre-Fief operation order for Bronze and Iron determinism
+            claimedYield *= Fix64.FromInt(2);
+        }
         settlement.Stores[(int)Good.Grain] += yield;
+        FiefClaimUpkeep(settlement, claimedYield);
         if (HasProject(settlement.Civilization, "BLD-05"))
             settlement.Stores[(int)Good.Straw] += yield;
         settlement.FarmWorkThisYear = Fix64.Zero;
@@ -2990,7 +3036,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (HasProject(civ, "HNT-05"))
             MakeGoods(settlement, ref remaining, Good.SpearThrower, Fix64.FromInt(8), Good.Wood,
                 Fix64.Parse("0.5"), Good.Cord, Fix64.Parse("0.1"), Fix64.One);
-        if (HasProject(civ, "HNT-06"))
+        // docs/MVP/36: Archery Warfare makes the bow a routine craft in every chapter, and the levy keeps a stock of them.
+        if (HasProject(civ, "HNT-06") && HasProject(civ, "WAR-03"))
+            MakeLevyBows(settlement, ref remaining);
+        else if (HasProject(civ, "HNT-06"))
             MakeGoods(settlement, ref remaining, Good.Bow, Fix64.FromInt(10), Good.Wood,
                 Fix64.Parse("0.3"), Good.Flint, Fix64.Parse("0.1"), Fix64.One);
         if (HasProject(civ, "STN-07"))
@@ -5413,7 +5462,8 @@ public sealed partial class LivingEconomyModel : ISimModel
                     if (fullSoil) soilRatio = Fix64.One;
                     soilRatio *= irrigation;
                 }
-                Fix64 yield = input.FieldYieldPerYear * soilRatio * Modifier(civ, "field_yield");
+                Fix64 yield = input.FieldYieldPerYear * soilRatio * Modifier(civ, "field_yield") *
+                    FiefFieldCropShare(settlement) * FiefFieldYield(settlement);
                 if (HasProject(civ, "AGR-02")) yield *= Fix64.FromInt(2);
                 grainIncome += yield * FoodValue(Good.Grain, settlement);
             }
@@ -5431,10 +5481,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         return Fix64.FromInt(3 * mature);
     }
 
-    private static Fix64 DomesticAnnualMeat(SettlementState settlement)
-        => settlement.DomesticSmallStock * Fix64.Parse("0.8") +
+    private Fix64 DomesticAnnualMeat(SettlementState settlement)
+        => (settlement.DomesticSmallStock * Fix64.Parse("0.8") +
             settlement.DomesticCattle * Fix64.Parse("2.5") +
-            settlement.DomesticPigs * Fix64.Parse("1.2");
+            settlement.DomesticPigs * Fix64.Parse("1.2")) * FiefHerdYield(settlement);
 
     // The C2 diagnostic is a sustainable late-winter share at the settlement's food capacity.
     // It is intentionally separate from LateWinterFoodShare, which records actual winter security
@@ -6948,6 +6998,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(_lastExpectedWinterShortfallByExactAge);
         HashBronze(ref hash);
         HashIron(ref hash);
+        HashFiefGoods(ref hash);
         HashDecrees(ref hash);
         HashBuildFocus(ref hash);
         return hash.Finish();
@@ -6955,7 +7006,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     public void WriteSnapshot(BinaryWriter writer)
     {
-        writer.Write(0x45434F4E); writer.Write(SnapshotVersion); writer.Write(_seed);
+        writer.Write(0x45434F4E); writer.Write(FiefChain ? FiefSnapshotVersion : SnapshotVersion); writer.Write(_seed);
         writer.Write(_world.Fingerprint); writer.Write(_world.DepositFingerprint); writer.Write(_contentFingerprint);
         writer.Write(_gentleStart);
         writer.Write(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) writer.Write((byte)archetype);
@@ -7042,19 +7093,20 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteBronze(writer);
         WriteBuildFocus(writer); // before the Iron block, so a Bronze economy reading an Iron snapshot still ends with unread bytes
         WriteIron(writer);
+        WriteFiefGoods(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain };
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain, FiefChain = FiefChain };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }
 
     private void ReadSnapshotCore(BinaryReader reader)
     {
-        if (reader.ReadInt32() != 0x45434F4E || reader.ReadInt32() != SnapshotVersion)
+        if (reader.ReadInt32() != 0x45434F4E || reader.ReadInt32() != (FiefChain ? FiefSnapshotVersion : SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (reader.ReadUInt64() != _seed || reader.ReadUInt64() != _world.Fingerprint ||
             reader.ReadUInt64() != _world.DepositFingerprint || reader.ReadUInt64() != _contentFingerprint)
@@ -7190,6 +7242,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         ReadBronze(reader);
         ReadBuildFocus(reader);
         ReadIron(reader);
+        ReadFiefGoods(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7456,6 +7509,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             Civilization = source.Civilization,
             SiteTile = source.SiteTile,
             SurfaceOchre = source.SurfaceOchre,
+            FiefGoods = source.FiefGoods is null ? null : (Fix64[])source.FiefGoods.Clone(),
             FoodSecurity = source.FoodSecurity,
             LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,
@@ -7520,15 +7574,15 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(content.Projects.Length);
         foreach (EconomyProject project in content.Projects)
         { hash.Add(project.Index); hash.Add(Hash64.OfString(project.Id)); hash.Add(project.Era); hash.Add(project.EnterEra); }
-        // The legacy Bronze fingerprint represents each E4 draft project by its original single prose
-        // placeholder, so typing draft effects does not alter old checksums. Iron activation needs a
-        // separate full-content fingerprint before any E4 effect can run.
+        // The legacy Bronze fingerprint represents each E4 and E5 draft project by its original single prose
+        // placeholder, so typing draft effects does not alter old checksums. Iron or Fief activation needs a
+        // separate full-content fingerprint before any E4 or E5 effect can run.
         int bronzeEffectCount = 0;
-        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era == 4 ? 1 : project.EffectCount;
+        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era is 4 or 5 ? 1 : project.EffectCount;
         hash.Add(bronzeEffectCount);
         foreach (EconomyProject project in content.Projects)
         {
-            if (project.Era == 4)
+            if (project.Era is 4 or 5)
             {
                 AddEffectFingerprint(ref hash, project.Index, "prose");
                 continue;

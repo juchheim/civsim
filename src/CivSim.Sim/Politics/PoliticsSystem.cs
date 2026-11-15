@@ -267,7 +267,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
             Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
-            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, War09, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06, Dip07, Gov08, Gov09;
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, Def09, War09, War11, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06, Dip07, Gov08, Gov09;
 
         public P(ResearchCatalog c)
         {
@@ -281,7 +281,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
             Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
             Trd06 = c.IndexOf("TRD-06"); Trd07 = c.IndexOf("TRD-07"); Way06 = c.IndexOf("WAY-06"); Hus09 = c.IndexOf("HUS-09"); Sea07 = c.IndexOf("SEA-07"); Sea09 = c.IndexOf("SEA-09"); Dip06 = c.IndexOf("DIP-06"); Dip07 = c.IndexOf("DIP-07"); Gov08 = c.IndexOf("GOV-08"); Gov09 = c.IndexOf("GOV-09");
-            Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); War09 = c.IndexOf("WAR-09");
+            Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); Def09 = c.IndexOf("DEF-09"); War09 = c.IndexOf("WAR-09"); War11 = c.IndexOf("WAR-11");
         }
     }
 
@@ -1888,13 +1888,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         return best;
     }
 
-    /// <summary>Weapon strength multiplier of the best weapon a civilization has, and whether it is ranged (13 §7.1).</summary>
+    /// <summary>Weapon strength multiplier of the best weapon a civilization has, and whether it is ranged (13 §7.1). This is the weapon a civilization is believed to carry (the belief ladder), bows included.</summary>
     private Fix64 Weapon(int civ, out bool ranged)
     {
         ranged = false;
         // Metal arms are locally stocked kits, applied by Fighters below. This is the fallback
         // for parties that lack cast arms and for ranged weapon technology.
         if (_research.IsDone(civ, _p.Hnt06)) { ranged = true; return Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One); }
+        return FieldWeapon(civ, out ranged);
+    }
+
+    /// <summary>
+    /// The weapon a fighter carries when no bow is drawn from a store: the same ladder as <see cref="Weapon"/> without the bow rung. The bow is a real arm in
+    /// every chapter (docs/MVP/36), held in a settlement's store and given to one fighter each by Fighters(), so counting it here too would count it twice.
+    /// </summary>
+    private Fix64 FieldWeapon(int civ, out bool ranged)
+    {
+        ranged = _research.IsDone(civ, _p.Hnt06);
         if (_research.IsDone(civ, _p.Hnt05)) { ranged = true; return Fix64.FromRatio(17, 10); }
         if (_research.IsDone(civ, _p.Hnt03)) return Fix64.FromRatio(16, 10);
         if (_research.IsDone(civ, _p.Hnt02)) return Fix64.FromRatio(13, 10);
@@ -1919,7 +1929,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         List<LivingEconomyModel.FighterRecord> records, List<Fighter> list, List<long>? ids)
     {
         int civ = _sCiv[settlement];
-        Fix64 weapon = Weapon(civ, out _);
+        Fix64 weapon = FieldWeapon(civ, out _);
         bool warriors = _research.IsDone(civ, _p.War04);
         records.Clear(); list.Clear(); ids?.Clear();
         _economy.ListFightingAge(settlement, records);
@@ -1935,6 +1945,15 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int copperArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
         int chariotCrew = _economy.BronzeActive && _research.IsDone(civ, _p.War06)
             ? _economy.GoodStock(settlement, "G-CHARIOT").FloorToInt() * 2 : 0;
+        // Bows from stock (docs/MVP/36, docs/MVP/27 §5.6, e5_combat_oracle.py). Each weapon in a settlement's store arms one fighter, best first: a crossbow (WAR-11,
+        // Faith & Fief only: 2.0, bolts ignore shields), a longbow (WAR-11: 2.0, arrows do not) or the war bow of HNT-06 (1.8, times 1.5 with WAR-03) in every chapter.
+        // A levy needs no drilling for the crossbow or the longbow.
+        bool fief = _economy.FiefChain;
+        bool war11 = fief && _research.IsDone(civ, _p.War11);
+        int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
+        int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
+        int warBows = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+        Fix64 warBowStrength = Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One);
         bool openTerrain = IsChariotOpenTerrain(battleTile);
         Defenses targetDefenses = DefensesAtTile(battleTile);
         // Tin Folk defend at 0.8 strength (docs/MVP/22 §6.4).
@@ -1946,10 +1965,15 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             if (warrior) warriorSlots--;
             Fix64 weaponStrength = weapon;
             Fix64 casualtiesTaken = Fix64.One;
+            Fix64 shieldFactor = Fix64.One;
+            bool bolt = false, levyBow = false;
             if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
             else if (r.Soldier && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); }
-            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
-            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
+            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
+            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
+            else if (crossbows > 0 && Combat.BoltStrength > weaponStrength) { crossbows--; bolt = true; levyBow = true; weaponStrength = Combat.BoltStrength; }
+            else if (longbows > 0 && Combat.BoltStrength > weaponStrength) { longbows--; levyBow = true; weaponStrength = Combat.BoltStrength; }
+            else if (warBows > 0 && warBowStrength > weaponStrength) { warBows--; weaponStrength = warBowStrength; }
             else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
@@ -1958,7 +1982,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             {
                 strength = weaponStrength * Fix64.FromRatio(13, 10);
             }
-            else strength = (attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weaponStrength;
+            else strength = (levyBow ? Fix64.One : attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weaponStrength;
             if (chariotCrew > 0)
             {
                 chariotCrew--;
@@ -1966,7 +1990,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 if (openTerrain && !targetDefenses.Hillfort && !targetDefenses.StoneWalls) strength *= Fix64.FromInt(2);
             }
             if (tinFolk) strength *= _trade.FolkDefense;
-            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken });
+            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken, ShieldFactor = shieldFactor, Bolt = bolt });
             ids?.Add(r.Id);
         }
     }
@@ -2032,6 +2056,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             HillfortRefuge: hillfortRefuge, BronzeRules: _economy.BronzeActive,
             Gatehouse: walls && _economy.IronChain && _research.IsDone(civ, _p.Def06) && _economy.HasGatehouse(settlement),
             Castle: _economy.IronChain && _research.IsDone(civ, _p.Def08) && _economy.CastleGarrisoned(settlement),
+            ConcentricCastle: _economy.FiefChain && _research.IsDone(civ, _p.Def09) && _economy.ConcentricCastleBuilt(settlement) &&
+                              _economy.CastleGarrisoned(settlement),
             Feudal: _economy.IronChain && _p.Gov09 >= 0 && _research.IsDone(civ, _p.Gov09) && _economy.UnderFeudalContractAt(settlement)));
     }
 

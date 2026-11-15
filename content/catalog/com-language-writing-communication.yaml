@@ -112,7 +112,11 @@ projects:
     status: draft
     requires: [COM-08, FIB-07]
     effects:
-      - {kind: prose, text: "Cheap writing: all writing-based roles +30%."}
+      - {kind: good, id: "G-PAPER"}
+      - {kind: mod, stat: writing_role_output, op: mult, value: 1.3, note: "scribes and scholars only (writing roles)"}
+    practice: [{action: scribe, share: 100}]
+    flavor: "A page costs a rag, not a flock."
+    moment: "A sheet is lifted wet from a vat and hung to dry."
   - id: COM-10
     name: Movable Type
     era: 5
@@ -120,7 +124,14 @@ projects:
     status: draft
     requires: [COM-09, MEC-05, MET-06]
     effects:
-      - {kind: prose, text: "Printing press: books abundant; Insight +15%; diffusion ×1.5. *KEY-6 prerequisite.*"}
+      - {kind: build, structure: print_shop}
+      - {kind: good, id: "G-BOOK"}
+      - {kind: mod, stat: commons_insight, op: mult, value: 1.15, note: "Commons Insight only"}
+      - {kind: mod, stat: diffusion_discount, op: mult, value: 1.5, note: "contribution only, capped at the existing 0.5 cost floor"}
+      - {kind: rule, text: "KEY-6 prerequisite."}
+    practice: [{action: scribe, share: 100}]
+    flavor: "Letters are cast once and set a thousand times."
+    moment: "A press descends and a page comes away black and sharp."
   - id: COM-11
     name: "Newspapers & Pamphlets"
     era: 6

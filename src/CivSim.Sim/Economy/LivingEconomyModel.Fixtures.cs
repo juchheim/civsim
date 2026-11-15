@@ -15,6 +15,16 @@ public sealed partial class LivingEconomyModel
     private bool _holdSettlements;
     private bool _holdPopulation;
 
+    // Test-only observer for WP6 outbreak measurements. It is deliberately excluded from snapshots and checksums.
+    internal Action? FixtureAfterOutbreaks;
+
+    internal int FixtureInfectedResidentCount()
+    {
+        int count = 0;
+        foreach (FigureState figure in _figures) if (figure.Infected) count++;
+        return count;
+    }
+
     /// <summary>When set, settlements never split, so a fixture settlement keeps its size (the C1 fixture's rule for one settlement).</summary>
     internal bool FixtureHoldSettlements
     {
@@ -157,6 +167,9 @@ public sealed partial class LivingEconomyModel
         _woodStock[tile] = litres;
         InvalidateIronFuelHubAssignments();
     }
+
+    internal Fix64 FixtureGatherMaterials(int settlementIndex, int wood, int stone, int clay, Fix64 labor)
+        => GatherMaterials(_settlements[settlementIndex], wood, stone, clay, labor);
 
     /// <summary>
     /// Scales the standing wood of every forest tile in a settlement's charcoal catchment to a percentage of its starting stock. The Iron fuel
@@ -552,11 +565,29 @@ public sealed partial class LivingEconomyModel
     /// <summary>How many adults of a settlement hold a state role ("administrator" or "governor").</summary>
     internal int FixtureRoleCount(int settlementIndex, string role)
     {
-        byte id = role switch { "administrator" => Role.Administrator, "governor" => Role.Governor, _ => throw new ArgumentException(role, nameof(role)) };
+        byte id = role switch
+        {
+            "administrator" => Role.Administrator, "governor" => Role.Governor,
+            "physician" => Role.Physician, "attendant" => Role.Attendant,
+            _ => throw new ArgumentException(role, nameof(role))
+        };
         int n = 0;
         foreach (FigureState f in _figures) if (f.SettlementId == _settlements[settlementIndex].Id && f.Role == id) n++;
         return n;
     }
+
+    internal void FixtureSetOutbreak(int settlementIndex, OutbreakClass outbreak)
+    {
+        CivicState civic = EnsureCivic(_settlements[settlementIndex]);
+        civic.Outbreak = (byte)outbreak;
+        civic.OutbreakSeason = outbreak == OutbreakClass.None ? (byte)0 : (byte)1;
+        civic.AttackRate = Fix64.One;
+        civic.CfrScale = Fix64.One;
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) f.Infected = outbreak != OutbreakClass.None;
+    }
+
+    internal Fix64 FixtureInfectedHazard(int figureIndex) => InfectedHazard(_figures[figureIndex]);
+    internal bool FixtureHospitalStaffed(int settlementIndex) => HospitalStaffed(_settlements[settlementIndex]);
 
     /// <summary>How many adults hold the Soldier role, and how many of them the season's upkeep supplied.</summary>
     internal (int Soldiers, int Supplied) FixtureSoldiers(int settlementIndex)
@@ -764,9 +795,9 @@ public sealed partial class LivingEconomyModel
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
     }
 
-    internal Fix64 FixtureHuntWildHerd(int settlementIndex, Fix64 work, Fix64 rate, bool enforceSustainableLimit = true)
+    internal Fix64 FixtureHuntWildHerd(int settlementIndex, Fix64 work, Fix64 rate, bool enforceSustainableLimit = true, int huntersAssigned = 2)
         => HuntIndividualHerds(_settlements[settlementIndex], work, rate, (int)_seasonsCompleted,
-            cooperativeDrive: false, enforceSustainableLimit: enforceSustainableLimit);
+            cooperativeDrive: false, enforceSustainableLimit: enforceSustainableLimit, huntersAssigned: huntersAssigned);
 
     internal void FixtureApplyNaturalHerdCrash(int herdIndex)
     {
@@ -862,6 +893,13 @@ public sealed partial class LivingEconomyModel
             // A town of some size builds an academy; a civilization keeps at most three (provisional): each staffed scholar is worth 48 Insight a year.
             IronStructure.Academy => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Academy) == 0 && Population(s.Id) >= 50 &&
                 CivWorksCount(s.Civilization, IronStructure.Academy) < MaxAcademies,
+            // A Fief monastery is bounded to three per civilization and only becomes wanted after BEL-10.
+            IronStructure.Monastery => FiefChain && Done(s.Civilization, "BEL-10") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.Monastery) == 0 && Population(s.Id) >= 50 &&
+                CivWorksCount(s.Civilization, IronStructure.Monastery) < MaxMonasteries,
+            // Universities provide one additional scholar post in Fief after LRN-08.
+            IronStructure.University => FiefChain && Done(s.Civilization, "LRN-08") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.University) == 0,
             // A press stands where grafted orchards give grapes or olives to press.
             IronStructure.Press => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Press) == 0 && Done(s.Civilization, "FOR-08") && s.OrchardPlots.Count > 0,
             // A river town with fields to grind for builds a water mill; a town with a Temple raises its colonnade.
@@ -871,6 +909,8 @@ public sealed partial class LivingEconomyModel
             IronStructure.GreatLighthouse => IronWorksCount(s, IronStructure.Harbor) > 0 && WonderWanted(s, kind),
             IronStructure.Castle => s.Civic is { Tier: >= 1 } && IronWorksCount(s, IronStructure.Castle) == 0 && Population(s.Id) >= 60 && HasStoneWalls(s) &&
                 NearestForeignDistance(s) <= CastleReach,
+            IronStructure.ConcentricCastle => FiefChain && Done(s.Civilization, "DEF-09") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.ConcentricCastle) == 0 && CastleGarrisoned(s.Id),
             _ => false,
         };
 

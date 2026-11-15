@@ -72,7 +72,11 @@ projects:
     status: draft
     requires: [CHM-05, CER-07]
     effects:
-      - {kind: prose, text: "Good: Spirits and essences (trade, medicine, preservation). Early lab practice."}
+      - {kind: good, id: "G-SPIRITS"}
+      - {kind: rule, text: "Spirits are a trade and medicine good (recipe distill_spirits from wine). A hospital holding spirits cuts its epidemic deaths by 25% instead of 20% (P)."}
+    practice: [{action: preserve, share: 100}]
+    flavor: "The essence of the wine is caught in a cool vessel."
+    moment: "Clear spirit drips from a still."
   - id: CHM-07
     name: Gunpowder
     era: 5
@@ -81,7 +85,14 @@ projects:
     requires: [CHM-06]
     gates: [{kind: has, target: Saltpeter}]
     effects:
-      - {kind: prose, text: "Good: Gunpowder. Enables firearms, cannon and blasting."}
+      - {kind: good, id: "G-POWDER"}
+      - {kind: good, id: "G-SALTPETER"}
+      - {kind: good, id: "G-SULFUR"}
+      - {kind: build, structure: powder_mill}
+      - {kind: rule, text: "Recipe make_powder: 0.75 saltpeter, 0.10 sulfur and 0.15 charcoal make 1 powder (P). Saltpeter comes from a deposit in own territory or by trade. A mine head holding powder digs x1.5 (blasting, P)."}
+    practice: [{action: craft, share: 100}]
+    flavor: "A black grain that breaks stone."
+    moment: "A pinch of powder flashes in a clay dish."
   - id: CHM-08
     name: "Acids & Alkalis"
     era: 6

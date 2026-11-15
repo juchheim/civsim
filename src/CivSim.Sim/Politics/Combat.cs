@@ -10,6 +10,10 @@ public readonly record struct Fighter(long Id, Fix64 Strength)
 {
     /// <summary>Individual multiplier for shield and chariot crew casualty reduction.</summary>
     public Fix64 CasualtiesTaken { get; init; } = Fix64.One;
+    /// <summary>The shield part of <see cref="CasualtiesTaken"/> (0.7 for a shielded fighter), kept apart so bolts can pierce it (WAR-11).</summary>
+    public Fix64 ShieldFactor { get; init; } = Fix64.One;
+    /// <summary>A crossbow or longbow fighter (WAR-11): shields give the other side no help against these.</summary>
+    public bool Bolt { get; init; }
 }
 
 /// <summary>The conditions of one engagement.</summary>
@@ -76,6 +80,9 @@ public static class Combat
         return chariotOnOpenTerrain ? strength * Fix64.FromInt(2) : strength;
     }
 
+    /// <summary>WAR-11 crossbow and longbow weapon strength (docs/MVP/balance/tools/e5_combat_oracle.py): 2.0, used by a levy with no drilling (training 1.0).</summary>
+    public static readonly Fix64 BoltStrength = Fix64.FromInt(2);
+
     public static Fix64 MilitiaStrength(string weapon) => E3WeaponStrength(weapon) * Fix64.FromRatio(6, 10);
     public static Fix64 ShieldCasualtyFactor(Fix64 shieldedShare)
         => Fix64.One - Fix64.FromRatio(3, 10) * Fix64.Clamp(shieldedShare, Fix64.Zero, Fix64.One);
@@ -98,7 +105,7 @@ public static class Combat
         if (setup.AttackerRangedFirst && !a.Empty && !d.Empty)
         {
             Fix64 shot = Casualties(a.Strength * setup.AttackerMult, d.Strength * setup.DefenderMult * Fix64.Half)
-                * d.CasualtiesTaken * setup.DefenderCasualtiesTaken;
+                * d.CasualtiesTakenFrom(a) * setup.DefenderCasualtiesTaken;
             Hit(d, shot, ref rng, dead.DefenderDead, dead.DefenderWounded);
         }
 
@@ -116,8 +123,8 @@ public static class Combat
             Fix64 defend = d.Strength * setup.DefenderMult;
             if (setup.DefendersSurprised && rounds == 1) defend = defend * Fix64.Half;
             // Both sides take their casualties from the strengths at the start of the round.
-            Fix64 onDefenders = Casualties(attack, defend) * d.CasualtiesTaken * setup.DefenderCasualtiesTaken;
-            Fix64 onAttackers = Casualties(defend, attack) * a.CasualtiesTaken * setup.AttackerCasualtiesTaken;
+            Fix64 onDefenders = Casualties(attack, defend) * d.CasualtiesTakenFrom(a) * setup.DefenderCasualtiesTaken;
+            Fix64 onAttackers = Casualties(defend, attack) * a.CasualtiesTakenFrom(d) * setup.AttackerCasualtiesTaken;
             Hit(d, onDefenders, ref rng, dead.DefenderDead, dead.DefenderWounded);
             Hit(a, onAttackers, ref rng, dead.AttackerDead, dead.AttackerWounded);
             bool defendersBroke = d.Empty || d.Lost >= setup.DefenderBreak;
@@ -164,13 +171,14 @@ public static class Combat
         private readonly IReadOnlyList<Fighter> _fighters;
         private readonly bool[] _down;
         private readonly Fix64 _start;
+        private Fix64 _bolt;
 
         public Side(IReadOnlyList<Fighter> fighters)
         {
             _fighters = fighters;
             _down = new bool[fighters.Count];
             Alive = fighters.Count;
-            foreach (Fighter f in fighters) _start += f.Strength;
+            foreach (Fighter f in fighters) { _start += f.Strength; if (f.Bolt) _bolt += f.Strength; }
             Strength = _start;
         }
 
@@ -187,6 +195,27 @@ public static class Combat
                 return factor / Alive;
             }
         }
+
+        /// <summary>
+        /// Casualty factor against a foe: shields help less the larger the foe's share of strength that is crossbows and longbows (WAR-11).
+        /// With no bolt fighters on the other side this is exactly <see cref="CasualtiesTaken"/>.
+        /// </summary>
+        public Fix64 CasualtiesTakenFrom(Side foe)
+        {
+            if (foe._bolt.Raw == 0 || foe.Strength.Raw <= 0 || Alive == 0) return CasualtiesTaken;
+            Fix64 share = Fix64.Clamp(foe._bolt / foe.Strength, Fix64.Zero, Fix64.One);
+            Fix64 factor = Fix64.Zero;
+            for (int i = 0; i < _fighters.Count; i++)
+            {
+                if (_down[i]) continue;
+                Fix64 taken = _fighters[i].CasualtiesTaken;
+                Fix64 shield = _fighters[i].ShieldFactor;
+                if (shield < Fix64.One && shield.Raw > 0) taken += (taken / shield - taken) * share;
+                factor += taken;
+            }
+            return factor / Alive;
+        }
+
         public Fix64 Lost => _start.Raw == 0 ? Fix64.One : (_start - Strength) / _start;
 
         /// <summary>The n-th fighter still standing, in the order they were listed.</summary>
@@ -202,6 +231,7 @@ public static class Combat
             _down[index] = true;
             Alive--;
             Strength -= _fighters[index].Strength;
+            if (_fighters[index].Bolt) _bolt -= _fighters[index].Strength;
             return _fighters[index].Id;
         }
     }

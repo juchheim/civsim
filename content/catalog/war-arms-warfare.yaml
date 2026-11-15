@@ -126,7 +126,11 @@ projects:
     status: draft
     requires: [WAR-08, TRN-09]
     effects:
-      - {kind: prose, text: "Mounted shock troops ×2 in open battle."}
+      - {kind: role, id: knight}
+      - {kind: combat, text: "Mounted shock troops: strength x2 in open battle only (never in an assault on a wall or a storm); needs a horse, G-HORSESHOE and steel arms; at most a quarter of soldier slots (P)."}
+    practice: [{action: ride, share: 100}]
+    flavor: "A charge is a weight that arrives."
+    moment: "Armored riders couch their lances and thunder across a field."
   - id: WAR-11
     name: "Crossbows & Longbows"
     era: 5
@@ -134,7 +138,12 @@ projects:
     status: draft
     requires: [WAR-08, MEC-07]
     effects:
-      - {kind: prose, text: "Ranged troops pierce armor; peasant levies effective."}
+      - {kind: good, id: "G-CROSSBOW"}
+      - {kind: good, id: "G-LONGBOW"}
+      - {kind: combat, text: "Levy ranged weapon: strength 2.0 for an undrilled levy (P), fires a first-round volley, and bolts ignore the shield casualty reduction; peasant levies are effective."}
+    practice: [{action: fight, share: 100}]
+    flavor: "A farmer learns the crossbow in a week."
+    moment: "A line of levies cranks and levels crossbows."
   - id: WAR-12
     name: Gunpowder Weapons
     era: 5
@@ -142,7 +151,13 @@ projects:
     status: draft
     requires: [WAR-11, CHM-07]
     effects:
-      - {kind: prose, text: "Cannon and handguns: walls (pre–Star Fort) −70% effective."}
+      - {kind: role, id: gunner}
+      - {kind: good, id: "G-CANNON"}
+      - {kind: unlock_action, action: fire_cannon}
+      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per firing season, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Needs cast iron, a blast furnace and powder."}
+    practice: [{action: fire_cannon, share: 100}]
+    flavor: "Thunder is taught to break walls."
+    moment: "A gunner touches a match and a wall shudders."
   - id: WAR-13
     name: "Pike & Musket Drill"
     era: 6

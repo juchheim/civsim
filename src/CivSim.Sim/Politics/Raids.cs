@@ -9,7 +9,7 @@ namespace CivSim.Sim.Politics;
 public readonly record struct Defenses(
     bool ThornBarrier, bool Palisade, bool Watchers, bool Dogs, bool SignalFires, bool AlarmCalls, bool HillSite,
     bool Archery, bool Night, bool RaidedRecently, bool Hillfort = false, bool StoneWalls = false, bool HillfortRefuge = false,
-    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false, bool Feudal = false)
+    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false, bool Feudal = false, bool ConcentricCastle = false)
 {
     public static readonly Defenses None = default;
 
@@ -19,6 +19,8 @@ public readonly record struct Defenses(
     public static readonly Fix64 FeudalLocalDefense = Fix64.FromRatio(115, 100);
     /// <summary>A garrisoned castle is a strongpoint: defenders fight at x1.25 (provisional; the catalog names the castle a strongpoint without a number).</summary>
     public static readonly Fix64 CastleStrongpoint = Fix64.FromRatio(5, 4);
+    /// <summary>DEF-09's fitted upgrade to an already garrisoned castle; x1.25 × x1.5 = x1.875, below the 1.9 storm crossover.</summary>
+    public static readonly Fix64 ConcentricCastleMultiplier = Fix64.FromRatio(3, 2);
 
     /// <summary>Product of the defense multipliers on defenders' strength (13 §6.2; Bronze barriers replace each other).</summary>
     public Fix64 Multiplier()
@@ -42,7 +44,7 @@ public readonly record struct Defenses(
         }
         if (modernBarrier) m = m * barrier;
         if (HillSite) m = m * Fix64.FromRatio(12, 10);
-        if (Castle) m = m * CastleStrongpoint;
+        if (Castle) m = m * CastleStrongpoint * (ConcentricCastle ? ConcentricCastleMultiplier : Fix64.One);
         if (Feudal) m = m * FeudalLocalDefense;
         if (Archery && (modernBarrier ? barrier > Fix64.One : ThornBarrier || Palisade)) m = m * Fix64.FromRatio(5, 4);
         return m;

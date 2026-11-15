@@ -43,6 +43,8 @@ public enum BuildWhy : byte
     NoFreeGround, NoRiver, NoHillSite, ShrineSpacing, NoTerraceTile, NoRivalNear, NotCoast, NotCapitalSite, NoLandRoute, IsCapital, NoRiverOnRoad,
     OnePerCivilization, WonderHeldElsewhere, AcademyLimit, MarketsGoToLargest, NotLargestTown, NotMember,
     HousingEnough, PlannerOnlyOne, WaterNotLimiting, CraneNoLargeWork, FlatFieldsRemain, CloseToCapital,
+    // Faith & Fief (appended).
+    MillAlready, NeedsMill, NeedsForge, MonasteryLimit, NeedsCastle,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -231,6 +233,30 @@ public sealed partial class LivingEconomyModel
                 if (!(gate = Town()).Open) return gate;
                 if (!(gate = Size(50)).Open) return gate;
                 return CivWorksCount(civ, IronStructure.Academy) < MaxAcademies ? BuildGate.Pass : Stop(BuildCause.Taken, BuildWhy.AcademyLimit, MaxAcademies);
+            case IronStructure.University:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                return Town();
+            case IronStructure.Monastery:
+                // BEL-10's first implementation is bounded to three staffed monasteries per Fief civilization.
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!(gate = Size(50)).Open) return gate;
+                return CivWorksCount(civ, IronStructure.Monastery) < MaxMonasteries
+                    ? BuildGate.Pass : Stop(BuildCause.Taken, BuildWhy.MonasteryLimit, MaxMonasteries);
+            case IronStructure.Hospital:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                return Size(50);
+            case IronStructure.ConcentricCastle:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "DEF-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "DEF-09");
+                if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
+                return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
             case IronStructure.Press:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
@@ -241,6 +267,28 @@ public sealed partial class LivingEconomyModel
                 if (!(gate = Town()).Open) return gate;
                 if (!_nearRiver[s.SiteTile]) return Stop(BuildCause.Site, BuildWhy.NoRiver);
                 return s.FieldTiles.Count >= MillFields ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsFields, MillFields);
+            case IronStructure.Windmill:
+                // Milling without a river (NRG-05): wanted by a town that has no water mill and enough worked fields to grind for.
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (IronWorksCount(s, IronStructure.WaterMill) > 0) return Stop(BuildCause.NotNeeded, BuildWhy.MillAlready);
+                return s.FieldTiles.Count >= MillFields ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsFields, MillFields);
+            case IronStructure.Sawmill:
+                // A water-powered sawmill (WOD-09) on a river, in a town big enough to saw planks for.
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!_nearRiver[s.SiteTile]) return Stop(BuildCause.Site, BuildWhy.NoRiver);
+                return Size(60);
+            case IronStructure.BlastFurnace:
+                // A blast furnace (MET-12) works only in a smelting town with a forge and a mill to drive its bellows.
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!(gate = Size(80)).Open) return gate;
+                if (!HasMill(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsMill);
+                return s.Metal is { Forges: > 0, Smelters: > 0 } ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsForge);
             case IronStructure.Colonnade:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;

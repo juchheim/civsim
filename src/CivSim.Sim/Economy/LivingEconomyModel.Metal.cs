@@ -146,6 +146,7 @@ public sealed partial class LivingEconomyModel
         var compiled = new List<CompiledRecipe>();
         var iron = new List<CompiledRecipe>();
         var merged = new List<CompiledRecipe>();
+        var mergedFief = new List<CompiledRecipe>();
         foreach (EconomyRecipe r in _content.Recipes)
         {
             bool enabled = r.Outputs.Length > 0;
@@ -166,6 +167,8 @@ public sealed partial class LivingEconomyModel
             int output = r.Outputs.Length > 0 ? SlotOf(r.Outputs[0].Good) : NoSlot;
             bool touchesIron = output >= IronSlotBase;
             foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesIron |= slot >= IronSlotBase;
+            bool touchesFief = output >= FiefSlotBase;
+            foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesFief |= slot >= FiefSlotBase;
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
             var entry = new CompiledRecipe
             {
@@ -174,12 +177,16 @@ public sealed partial class LivingEconomyModel
                 Task = TaskOfPractice(r.Practice), IsCharcoal = output == MetalSlot(MetalGood.Charcoal),
                 Enabled = enabled,
             };
+            // The Fief recipes (docs/MVP/36) join the planner only in a Fief match, so the Bronze and Iron recipe lists stay exactly as they were.
+            mergedFief.Add(entry);
+            if (touchesFief) continue;
             (touchesIron ? iron : compiled).Add(entry);
             merged.Add(entry);
         }
         _compiledRecipes = compiled.ToArray();
         _ironRecipes = iron.ToArray();
         _allRecipes = merged.ToArray();
+        _allFiefRecipes = mergedFief.ToArray();
     }
 
     private int SlotOf(string goodId)
@@ -190,12 +197,15 @@ public sealed partial class LivingEconomyModel
             if (MetalGoodId((MetalGood)g) == goodId) return MetalSlot((MetalGood)g);
         for (int g = 0; g < (int)IronGood.Count; g++)
             if (IronGoodId((IronGood)g) == goodId) return IronSlot((IronGood)g);
+        for (int g = 0; g < (int)FiefGood.Count; g++)
+            if (FiefGoodId((FiefGood)g) == goodId) return FiefSlot((FiefGood)g);
         return NoSlot;
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
     {
         if (slot < (int)Good.Count) return s.Stores[slot];
+        if (slot >= FiefSlotBase) return s.FiefGoods is { } fief ? fief[slot - FiefSlotBase] : Fix64.Zero;
         if (slot >= IronSlotBase) return s.Metal?.IronGoods is { } iron ? iron[slot - IronSlotBase] : Fix64.Zero;
         int metalSlot = slot - (int)Good.Count;
         if (metalSlot == (int)MetalGood.Ochre && s.Metal is null) return s.SurfaceOchre;
@@ -208,6 +218,11 @@ public sealed partial class LivingEconomyModel
         {
             if (slot == (int)Good.Wood && amount < Fix64.Zero) RecordLocalWoodUse(s, -amount, "metal");
             s.Stores[slot] = Fix64.Max(Fix64.Zero, s.Stores[slot] + amount);
+        }
+        else if (slot >= FiefSlotBase)
+        {
+            Fix64[] fief = s.FiefGoods ??= new Fix64[(int)FiefGood.Count];
+            fief[slot - FiefSlotBase] = Fix64.Max(Fix64.Zero, fief[slot - FiefSlotBase] + amount);
         }
         else if (slot >= IronSlotBase)
         {
@@ -674,7 +689,7 @@ public sealed partial class LivingEconomyModel
                     }
                 }
             }
-            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); }
+            if (IronChain && IronSharingEnabled) { ShareIronGoods(civ, reach, season); SharePublicGrain(civ, reach); ShareBuildStone(civ, reach); }
         }
         if (traceShare && traceReceiver?.Metal is { } afterReceiver && traceDonor?.Metal is { } afterDonor)
         {
@@ -874,13 +889,22 @@ public sealed partial class LivingEconomyModel
         => r.Def.Bellows && s.Metal is { Smelters: > 0 } && Done(s.Civilization, "FIR-09");
 
     private Fix64 OutputQuantity(SettlementState s, CompiledRecipe r)
-        => BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
+    {
+        Fix64 q = BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
+        return FurnaceActive(s, r) ? q * FurnaceOutputFactor(s) : q;
+    }
 
     private Fix64 InputQuantity(SettlementState s, CompiledRecipe r, int input)
     {
         Fix64 q = r.InputQuantity[input];
         if (BellowsActive(s, r) && Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0)
             q *= Modifier(s.Civilization, "charcoal_per_smelt");
+        if (FurnaceActive(s, r))
+        {
+            // The furnace's x4 output and x2 charcoal use only apply to the share of craft work covered by the shared ledger.
+            q *= Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0
+                ? FurnaceInputAndLaborFactor(s) : FurnaceOutputFactor(s);
+        }
         return q;
     }
 
@@ -891,9 +915,21 @@ public sealed partial class LivingEconomyModel
         if (id is "make_wheel" or "build_cart" or "build_chariot") labor *= Modifier(s.Civilization, "wheel_and_cart_labor");
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
-        // A water mill turns the saw, the bellows and the forge hammer (NRG-03): half the labor for the sawyers and smiths of a mill town, the charcoal unchanged.
-        if (IronChain && IronWorksCount(s, IronStructure.WaterMill) > 0 && (r.Def.Bellows || IsMillPowered(id))) labor *= _civic.MillLabor;
-        return labor;
+        // Outside Fief preserve Iron's water-mill rule. In Fief these jobs draw from one budget in priority order:
+        // grinding, sawing, then powered craft and bellows work.
+        if (IronChain && (r.Def.Bellows || IsMillPowered(id)))
+        {
+            if (FiefChain)
+            {
+                bool sawing = id == "saw_planks";
+                Fix64 poweredLabor = sawing && IronWorksCount(s, IronStructure.Sawmill) > 0 && Done(s.Civilization, "WOD-09")
+                    ? SawmillLaborMult : _civic.MillLabor;
+                labor *= MillPoweredLaborFactor(s, sawing ? MillPowerJob.Sawing : MillPowerJob.Craft, poweredLabor);
+            }
+            else if (MillLaborFactor(s) is var millFactor && millFactor != Fix64.One)
+                labor *= millFactor;
+        }
+        return FiefRecipeLabor(s, r, labor);
     }
 
     private static bool IsMillPowered(string recipeId)
@@ -1373,6 +1409,7 @@ public sealed partial class LivingEconomyModel
         // forest throttles it with the rest of the Iron chain (see IronWoodFactor).
         if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
+        FiefBowWants(s, m, plan);
     }
 
     /// <summary>
@@ -2242,6 +2279,7 @@ public sealed partial class LivingEconomyModel
             Fix64 haul = HaulPerLitreTile * distance / haulDivisor;
             if (IronFuelHubsEnabled(s.Civilization) && distance > IronFuelDomesticCharcoalReach(s))
                 haul *= IronFuelOuterHaulMultiplier;
+            haul *= FiefHorseHaulFactor(s);
             Fix64 perBatch = burn + woodPer / plan.MeanChopRate + haul;
             Fix64 batches = Fix64.Min(planned, available / woodPer);
             if (perBatch > Fix64.Zero) batches = Fix64.Min(batches, (metalPool + craftPool) / perBatch);
@@ -2351,7 +2389,7 @@ public sealed partial class LivingEconomyModel
     private void SupplyFromHerds(SettlementState s, MetalState m)
     {
         int civ = s.Civilization;
-        if (Done(civ, "HUS-06")) m.Goods[(int)MetalGood.Wool] += s.DomesticSmallStock * Fix64.Half / 4;
+        if (Done(civ, "HUS-06")) m.Goods[(int)MetalGood.Wool] += s.DomesticSmallStock * Fix64.Half / 4 * FiefHerdYield(s);
         // Milk comes with the herd work (HUS-05 dairying, LivingEconomyModel.Food: half the herd's food again, WP7).
     }
 
@@ -2469,7 +2507,7 @@ public sealed partial class LivingEconomyModel
             Fix64 want = plan.Want[MetalSlot(good)];
             Fix64 net = want * 2 - m.Goods[(int)good];
             Fix64 haulDivisor = Done(civ, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
-            Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor;
+            Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor * FiefHorseHaulFactor(s);
             Fix64 idle = Fix64.Zero;
             int crewCount = 0;
             foreach (FigureState f in Residents(s.Id))
@@ -2848,17 +2886,23 @@ public sealed partial class LivingEconomyModel
         foreach (int tile in RangeTiles(s.SiteTile))
             if (IsForestTile(tile)) { standing += StandingWoodAvailableToIron(tile); forest = true; }
         if (!forest) foreach (int tile in RangeTiles(s.SiteTile)) standing += _woodStock[tile];
-        if (standing <= Fix64.Zero) return Fix64.Zero;
-        Fix64 want = Fix64.Min(amount, standing), share = want / standing, taken = Fix64.Zero;
-        foreach (int tile in RangeTiles(s.SiteTile))
+        Fix64 taken = Fix64.Zero;
+        if (standing > Fix64.Zero)
         {
-            if (forest && !IsForestTile(tile)) continue;
-            Fix64 available = forest ? StandingWoodAvailableToIron(tile) : _woodStock[tile];
-            Fix64 take = Fix64.Min(available, available * share);
-            RecordB13StandingWoodRemoval(tile, take, "chop", _woodStock[tile]);
-            _woodStock[tile] -= take;
-            taken += take;
+            Fix64 want = Fix64.Min(amount, standing), share = want / standing;
+            foreach (int tile in RangeTiles(s.SiteTile))
+            {
+                if (forest && !IsForestTile(tile)) continue;
+                Fix64 available = forest ? StandingWoodAvailableToIron(tile) : _woodStock[tile];
+                Fix64 take = Fix64.Min(available, available * share);
+                RecordB13StandingWoodRemoval(tile, take, "chop", _woodStock[tile]);
+                _woodStock[tile] -= take;
+                taken += take;
+            }
         }
+        // Iron chapter only: a town whose own range is felled out cuts the rest from the forest within the wider reach (docs/MVP/balance/m12-wp7-build-wood.md).
+        if (IronChain && IronChopReachEnabled && taken < amount) taken += HarvestReachWood(s, amount - taken);
+        if (taken <= Fix64.Zero) return Fix64.Zero;
         s.Stores[(int)Good.Wood] += taken;
         RecordLocalWoodInflow(s, taken, chop: true);
         return taken;

@@ -121,7 +121,12 @@ projects:
     status: draft
     requires: [TRN-06, MET-10]
     effects:
-      - {kind: prose, text: "Riders ×1.3 speed and endurance; heavy cavalry possible."}
+      - {kind: good, id: "G-HORSESHOE"}
+      - {kind: mod, stat: rider_speed, op: mult, value: 1.3, note: "riders; endurance x1.3 as well"}
+      - {kind: rule, text: "Heavy cavalry (WAR-10) becomes possible; horseshoes wear out, about 1 per horse per 12 seasons (P)."}
+    practice: [{action: ride, share: 100}]
+    flavor: "Iron under the hoof, iron at the foot."
+    moment: "A smith nails a shoe to a warhorse's hoof."
   - id: TRN-10
     name: "Turnpikes & Coaches"
     era: 6

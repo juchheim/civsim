@@ -72,7 +72,11 @@ projects:
     status: draft
     requires: [INQ-05, CER-07]
     effects:
-      - {kind: prose, text: Enables lenses and the compass.}
+      - {kind: unlock, text: "Lens Grinding: lodestone and lens experiments are the first controlled optics.", project: "CER-10"}
+      - {kind: unlock, text: "Magnetic Compass.", project: "WAY-08"}
+    practice: [{action: scout, share: 100}]
+    flavor: "A bent ray and a turning needle."
+    moment: "A scholar draws a lens across a candle and a lodestone across a needle."
   - id: INQ-07
     name: "Telescope & Heliocentrism"
     era: 6

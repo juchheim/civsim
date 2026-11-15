@@ -814,8 +814,9 @@ public sealed partial class LivingEconomyModel
         }
         foreach (FigureState f in _figures)
         {
+            byte maxRole = FiefChain ? Role.Attendant : IronChain ? Role.Scholar : Role.Scribe;
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
-                f.Role > (IronChain ? Role.Scholar : Role.Scribe))
+                f.Role > maxRole)
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
         }
         ValidateCivic();
