@@ -1,6 +1,11 @@
 # 35 — Crossbow and longbow levy (WAR-11): the on-map art
 
-Status: design, 2026-11-15. Nothing here is built. It expands the one row of [32 §6](32-e5-art-pass.md) ("Crossbow or longbow levy |
+Status (2026-11-15, later): **steps 1 to 4 are built**: the two figures with their tailored `_g` variants (`art_fief_people.gd`), the gallery row
+(`--scenario=fief-gallery --fief-only=levy`), the look bit (`IronFrame.LookCrossbows` = 32, WAR-11, `IRON_CROSSBOWS` with `--looks-debug` filling 63),
+the one weapon rule `_arms_mesh` with `_bow_mesh` (`world_builder.gd`) used by walking figures, the castle garrison and the drill ground (slots 4 and 5 are
+bows, or gunners with gunpowder; bows and gunners on the castle ring face outward). A longbowman was photographed in the live map and the gallery shows both
+figures at the soldier's height. **Not built:** step 5 (the skirmish volley) and step 6 (bowmen on a besieged wall). The garrison and drill-ground
+slots are wired and run without errors but were not photographed. Original status: design, 2026-11-15. It expands the one row of [32 §6](32-e5-art-pass.md) ("Crossbow or longbow levy |
 peasant cloth, a crossbow or a long bow, a quiver | in defense, on walls, in battle | P2") into a buildable spec. Numbers marked (P) are
 proposals to tune in the gallery.
 

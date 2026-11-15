@@ -587,6 +587,9 @@ func show_fief_gallery() -> Vector3:
 		# the figures (a soldier for scale) and the route markers
 		[["person_soldier", 0.3, 2.4], ["person_monk", 0.3, 2.4], ["person_monk_book", 0.3, 2.4], ["person_gunner", 0.3, 2.4], ["person_pilgrim", 0.3, 2.4], ["person_knight", 0.55, 2.2],
 			["pilgrim_marker", 0.4, 2.0], ["quarantine_gate", 0.5, 2.0]],
+		# WAR-11 (docs/MVP/35): the levy beside the soldier it stands with: a spearman, a soldier, a crossbowman, an archer, a gunner, then the tailored pair
+		[["person_spear", 0.3, 2.4], ["person_soldier", 0.3, 2.4], ["person_crossbow", 0.3, 2.4], ["person_longbow", 0.3, 2.4], ["person_gunner", 0.3, 2.4],
+			["person_crossbow_g", 0.3, 2.4], ["person_longbow_g", 0.3, 2.4]],
 	]
 	var hub := Vector3(0.0, 0.245, 0.075)
 	for r in rows.size():
@@ -595,7 +598,7 @@ func show_fief_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.0, -17.2, -19.4][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.0, -17.2, -19.4, -21.6][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

@@ -1940,6 +1940,27 @@ func _province_standards(s: Dictionary, si: int, c: Vector2, h0: float, seed: fl
 			extent = maxf(extent, q2.distance_to(c) + 0.1)
 	return extent
 
+## The civilization's bow (WAR-11, docs/MVP/35 §3.2): one style for the whole match, chosen by a stable hash of the civilization, so a people never shows both.
+func _bow_mesh(civ: int) -> String:
+	return "person_longbow" if M7WorldData.hash01(civ, 0, 113) < 0.5 else "person_crossbow"
+
+## What an armed figure carries (docs/MVP/35 §3.1), one rule for walking people, the castle garrison and the drill ground. `seed` is the person's own stable
+## random number; `warrior` is a trained warrior or a posted soldier. Gunpowder (WAR-12) takes the top three in ten, then the bow (WAR-11) takes those and every
+## called-up ordinary adult, then iron arms (WAR-08) give the soldier, and last the spear.
+func _arms_mesh(civ: int, seed: float, warrior: bool) -> String:
+	if civ >= 0 and seed >= 0.7 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+		return "person_gunner"
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_CROSSBOWS) and (seed >= 0.7 or not warrior):
+		return _bow_mesh(civ)
+	if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_IRON_ARMS):
+		return "person_soldier"
+	return "person_spear"
+
+## A posted soldier's figure in slot `i` of six (the garrison ring or the drill ground): the last two slots are the bows, or the gunners with gunpowder.
+func garrison_mesh(civ: int, i: int) -> String:
+	var mesh := _arms_mesh(civ, (float(i) + 0.5) / 6.0, true)
+	return "person_soldier" if mesh == "person_spear" else mesh
+
 ## The soldiers posted in a village of the viewer's own (WAR-07): up to six iron-armed soldiers drawn up in two ranks on a drill ground at the edge, facing the
 ## hearth. Returns how far it reaches, 0 with none.
 func _drill(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, civ: int) -> float:
@@ -1965,7 +1986,7 @@ func _drill(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, plac
 			var rank := i / 3
 			var file := i % 3 - 1
 			var p := q + across * (file * 0.1) - fwd * (rank * 0.1)
-			props.add("person_soldier", _xf(p, w.height_at(p), face, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+			props.add(garrison_mesh(civ, i), _xf(p, w.height_at(p), face, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 		placed.append(q)
 		return q.distance_to(c) + 0.2
 	return 0.0
@@ -2191,8 +2212,11 @@ func _castle(s: Dictionary, t: int, c: Vector2, h0: float, seed: float, radius: 
 		var local := Vector3(cos(ang), 0.0, sin(ang)) * 0.15 * CASTLE_SCALE
 		var gp: Vector3 = rot_y(yaw) * local
 		var wp := p + Vector2(gp.x, gp.z)
-		var gb := Basis(Vector3.UP, yaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.1)
-		props.add("person_soldier", Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+		var gmesh := garrison_mesh(civ, gi)
+		# the soldiers walk the wall; the bowmen and gunners stand facing outward over it
+		var gface := yaw + ang + PI * 0.5 if gmesh == "person_soldier" else atan2(gp.x, gp.z)
+		var gb := Basis(Vector3.UP, gface) * Basis.from_scale(Vector3.ONE * 1.1)
+		props.add(gmesh, Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 ## A ring of palisade segments with a gate, outside the houses (and the thorn hedge if there is one).
 func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) -> void:
@@ -2624,15 +2648,13 @@ func _figures() -> void:
 				mesh = "person_crook"     # herders walk with a crook once they follow the herds (HUS-02)
 			var iron_armed := false
 			if fl & 256:
-				mesh = "person_spear"
-				if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_IRON_ARMS):
-					mesh = "person_soldier"       # iron arms (WAR-08): helmet, shield and an iron spear
-					iron_armed = true
-				if civ >= 0 and seed >= 0.7 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
-					mesh = "person_gunner"        # gunpowder (WAR-12): about three armed people in ten carry a linstock and powder horn
-					iron_armed = true
+				mesh = _arms_mesh(civ, seed, (fl & 128) != 0)   # spear, iron soldier, crossbow or longbow, or gunner (docs/MVP/35 §3.1)
+				iron_armed = mesh != "person_spear"
 			if M7WorldData.LOOKS_DEBUG and civ >= 0 and age == 1 and (fi / 11) % 5 == 3 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
 				mesh = "person_gunner"
+				iron_armed = true
+			if M7WorldData.LOOKS_DEBUG and civ >= 0 and age == 1 and (fi / 11) % 5 == 4 and w.has_iron_look(civ, M7WorldData.IRON_CROSSBOWS):
+				mesh = _bow_mesh(civ)
 				iron_armed = true
 			if mesh == "person_gunner":
 				gunner_probe = p

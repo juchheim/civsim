@@ -39,6 +39,7 @@ const IRON_RELAYS := 2      # COM-08 Courier Relays
 const IRON_BARRELS := 4     # WOD-07 Cooperage
 const IRON_PLANKS := 8      # WOD-08 Frame & Crosscut Saws
 const IRON_GLASS := 16      # CER-07 Glassblowing
+const IRON_CROSSBOWS := 32  # WAR-11 Crossbows & Longbows: the levy carries a crossbow or a longbow
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -257,7 +258,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	iron_looks = _int_data(d.ironLooks, 1) if d.has("ironLooks") else PackedInt32Array()
 	if LOOKS_DEBUG:
 		iron_looks.resize(8)
-		iron_looks.fill(31)
+		iron_looks.fill(63)
 	tributes = _int_data(d.tributes, 2) if d.has("tributes") else PackedInt32Array()
 	leagues = _int_data(d.leagues, 1) if d.has("leagues") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()

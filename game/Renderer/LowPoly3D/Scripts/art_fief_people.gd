@@ -11,6 +11,10 @@
 ##   person_pilgrim     a long travelling cloak, a wide hat with a scallop badge, a staff with a gourd and a pack on the back
 ##   person_knight      a mounted knight: a bay horse under a caparison in the owner's colour, a rider in steel with a great helm and a plume, a kite shield
 ##                      in the owner's colour and a couched lance with a pennon
+##   person_crossbow    WAR-11, docs/MVP/35: a quilted linen jack, an iron kettle hat, a crossbow levelled at the chest, a bolt case at the hip and a big shield
+##   person_crossbow_g  on the back in the owner's colour. Built in the soldier's frame (the same 0.034 lift of the torso, about 0.097 tall)
+##   person_longbow     WAR-11: a hooded archer at full draw, a tall pale yew stave with the string drawn to the cheek, an arrow nocked, a quiver over the
+##   person_longbow_g   shoulder with a band in the owner's colour. The `_g` variants wear the tailored parka, leggings and boots (FIB-04) like the other people
 extends RefCounted
 
 const SKIN := Color("#b07a52")
@@ -42,6 +46,10 @@ static func build(kit) -> void:
 	kit.meshes["person_gunner"] = _gunner(kit)
 	kit.meshes["person_pilgrim"] = _pilgrim(kit)
 	kit.meshes["person_knight"] = _knight(kit)
+	kit.meshes["person_crossbow"] = _levy(kit, true, false)
+	kit.meshes["person_crossbow_g"] = _levy(kit, true, true)
+	kit.meshes["person_longbow"] = _levy(kit, false, false)
+	kit.meshes["person_longbow_g"] = _levy(kit, false, true)
 
 ## The head, in the people kit's size and place, with hair of the given colour.
 static func _head(b: M7MeshBuilder, y: float = 0.05, hair: Color = HAIR) -> void:
@@ -190,3 +198,118 @@ static func _knight(kit) -> ArrayMesh:
 	b.quad(pen, pen + Vector3(0.0, -0.0, -0.034), pen + Vector3(0.0, -0.014, -0.032), pen + Vector3(0.0, -0.01, 0.0), Color.WHITE, pen + Vector3(-1.0, 0, 0))
 	b.tag = PLAIN
 	return b.commit()
+
+
+# ------------------------------------------------------------------ the levy (WAR-11, docs/MVP/35)
+const JACK := Color("#b8a888")           # undyed linen, quilted
+const JACK_BAND := Color("#9c8c6c")
+const KETTLE := Color("#5f666e")
+const KETTLE_BRIM := Color("#8d949c")
+const PROD := Color("#3f444c")           # wrought iron, the kit's tier-4 colour
+const STRING := Color("#2f2418")
+const HOOD := Color("#55603e")           # the archer's muted green-brown, so he does not read as a monk
+const YEW := Color("#c49a5a")
+const BOWSTRING := Color("#e8dfc8")
+const SHAFT := Color("#8a6a48")
+const QUIVER := Color("#6e5238")
+const FLETCH := Color("#efe6d0")
+
+## The crossbowman or the archer, in the soldier's frame: legs 0 to 0.036, the torso block lifted by 0.034, the head at about 0.084.
+static func _levy(kit, crossbow: bool, garment: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1606 + (1 if crossbow else 0) * 2 + (1 if garment else 0))
+	var legc: Color = M7LooksKit.LEGGING if garment else LEG
+	b.tag = PLAIN
+	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+	b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, legc, legc)
+	if garment:
+		for sx in [-0.0075, 0.0075]:
+			b.prism(Vector3(sx, 0, 0), 0.0075, 0.0072, 0.011, 5, M7LooksKit.BOOT, M7LooksKit.BOOT)
+			b.prism(Vector3(sx, 0.0105, 0), 0.0079, 0.0079, 0.003, 5, M7LooksKit.FUR, M7LooksKit.FUR)
+	var save := b.xf
+	b.xf = b.xf * Transform3D(Basis.IDENTITY, Vector3(0, 0.034, 0))
+	# the body: a quilted jack for the crossbowman, the people's tunic (toned per instance) for the archer; the parka for both when tailored
+	b.tag = M7MeshBuilder.TAG_CLOTH
+	if garment:
+		b.prism(Vector3(0, -0.013, 0), 0.0235, 0.0155, 0.049, 7, M7LooksKit.PARKA, M7LooksKit.PARKA)
+		b.tag = PLAIN
+		b.prism(Vector3(0, -0.013, 0), 0.0243, 0.0237, 0.005, 7, M7LooksKit.FUR, M7LooksKit.FUR)
+	elif crossbow:
+		b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, JACK, JACK)
+		b.tag = PLAIN
+		b.prism(Vector3(0, 0.004, 0), 0.0171, 0.0167, 0.004, 7, JACK_BAND, JACK_BAND)
+		b.prism(Vector3(0, 0.014, 0), 0.0162, 0.0158, 0.004, 7, JACK_BAND, JACK_BAND)
+	else:
+		b.prism(Vector3(0, 0, 0), 0.018, 0.015, 0.036, 7, TUNIC, TUNIC)
+		b.tag = PLAIN
+		b.prism(Vector3(0, 0.002, 0), 0.0188, 0.0185, 0.005, 7, Color("#3a2c20"), Color("#3a2c20"))   # a belt
+	# the owner's colour over the shoulders, the main identity read from above
+	b.tag = CIV
+	b.prism(Vector3(0, 0.02, 0), 0.0215, 0.009, 0.022, 7, Color.WHITE, Color.WHITE)
+	b.tag = PLAIN
+	if crossbow:
+		_crossbow_parts(b, garment)
+	else:
+		_longbow_parts(b, garment)
+	b.xf = save
+	return b.commit()
+
+static func _crossbow_parts(b: M7MeshBuilder, garment: bool) -> void:
+	var sleeve: Color = M7LooksKit.PARKA if garment else JACK
+	# both arms forward, the stock against the right shoulder
+	b.pole(Vector3(0.02, 0.03, 0), Vector3(0.011, 0.024, 0.026), 0.0048, sleeve)
+	b.pole(Vector3(-0.02, 0.03, 0), Vector3(-0.002, 0.026, 0.036), 0.0048, sleeve)
+	b.blob(Vector3(0.011, 0.024, 0.027), Vector3(0.0052, 0.0052, 0.0052), 5, 3, SKIN)
+	b.blob(Vector3(-0.002, 0.026, 0.038), Vector3(0.0052, 0.0052, 0.0052), 5, 3, SKIN)
+	# head, and a kettle hat: a low iron crown and a flat brim
+	_head(b, 0.05, HAIR)
+	b.blob(Vector3(0, 0.0575, 0), Vector3(0.0138, 0.0092, 0.0138), 7, 3, KETTLE, 0.0)
+	b.prism(Vector3(0, 0.0535, 0), 0.0205, 0.0195, 0.003, 8, KETTLE_BRIM, KETTLE_BRIM)
+	# the crossbow, levelled at the chest: a stock, a prod across the front with two limbs, and a string drawn back to the nut
+	b.box(Vector3(0.004, 0.025, 0.026), Vector3(0.0045, 0.0045, 0.054), WOOD)
+	b.box(Vector3(0.004, 0.0275, 0.012), Vector3(0.006, 0.004, 0.012), WOOD)
+	b.pole(Vector3(0.004, 0.025, 0.054), Vector3(0.026, 0.025, 0.046), 0.0032, PROD)
+	b.pole(Vector3(0.004, 0.025, 0.054), Vector3(-0.018, 0.025, 0.046), 0.0032, PROD)
+	b.pole(Vector3(0.026, 0.025, 0.046), Vector3(0.004, 0.025, 0.034), 0.0009, STRING)
+	b.pole(Vector3(-0.018, 0.025, 0.046), Vector3(0.004, 0.025, 0.034), 0.0009, STRING)
+	b.box(Vector3(0.004, 0.025, 0.058), Vector3(0.008, 0.007, 0.0025), PROD)      # the stirrup at the front
+	b.box(Vector3(0.004, 0.0275, 0.044), Vector3(0.0016, 0.0016, 0.02), SHAFT)    # a bolt laid in the groove
+	# the bolt case at the right hip, three bolt ends showing
+	b.box(Vector3(0.021, 0.0, -0.01), Vector3(0.008, 0.016, 0.01), QUIVER)
+	for k in 3:
+		b.box(Vector3(0.0185 + 0.0025 * k, 0.0105, -0.01), Vector3(0.0016, 0.004, 0.0016), FLETCH)
+	# the pavise on the back: a big flat board with the owner's colour on its face, readable from every side
+	b.box(Vector3(0, 0.014, -0.0245), Vector3(0.032, 0.05, 0.004), WOOD)
+	b.tag = CIV
+	b.box(Vector3(0, 0.014, -0.0275), Vector3(0.026, 0.044, 0.0016), Color.WHITE)
+	b.tag = PLAIN
+	b.box(Vector3(0, 0.014, -0.0292), Vector3(0.006, 0.006, 0.002), PROD)         # the boss
+
+static func _longbow_parts(b: M7MeshBuilder, garment: bool) -> void:
+	var sleeve: Color = M7LooksKit.PARKA if garment else TUNIC
+	# the left arm straight out to the grip, the right hand drawn to the cheek
+	var grip := Vector3(-0.004, 0.0375, 0.036)
+	var cheek := Vector3(0.012, 0.046, 0.006)
+	b.pole(Vector3(-0.02, 0.03, 0), grip + Vector3(0, -0.004, -0.004), 0.0048, sleeve)
+	b.pole(Vector3(0.02, 0.03, 0), cheek + Vector3(0.002, -0.002, 0.0), 0.0048, sleeve)
+	b.blob(grip, Vector3(0.0052, 0.0052, 0.0052), 5, 3, SKIN)
+	b.blob(cheek, Vector3(0.0052, 0.0052, 0.0052), 5, 3, SKIN)
+	# head and a hood with a short cape over the shoulders, in a muted green-brown
+	_head(b, 0.05, HAIR)
+	b.blob(Vector3(0, 0.048, -0.004), Vector3(0.0158, 0.0152, 0.0125), 7, 3, HOOD, 0.0)
+	b.blob(Vector3(0, 0.038, -0.004), Vector3(0.0215, 0.008, 0.017), 7, 3, HOOD, 0.0)
+	# the stave: a pale curve in front, its tips toward the archer, and the string drawn from tip to cheek and tip
+	var pts := [Vector3(-0.004, -0.016, 0.012), Vector3(-0.004, 0.011, 0.030), grip, Vector3(-0.004, 0.064, 0.030), Vector3(-0.004, 0.091, 0.012)]
+	for k in pts.size() - 1:
+		b.pole(pts[k], pts[k + 1], 0.0032, YEW)
+	b.pole(pts[0], cheek + Vector3(0, 0, 0.002), 0.0009, BOWSTRING)
+	b.pole(pts[4], cheek + Vector3(0, 0, 0.002), 0.0009, BOWSTRING)
+	# the arrow, nocked at the string and run along the stave to the grip, with an iron head just past it
+	b.pole(cheek, grip + Vector3(0.0, 0.0, 0.012), 0.0013, SHAFT)
+	b.box(grip + Vector3(0.0, 0.0, 0.0145), Vector3(0.003, 0.003, 0.005), PROD)
+	# the quiver over the right shoulder: a slanted tube with fletchings, and a band of the owner's colour at its mouth
+	b.pole(Vector3(0.012, 0.012, -0.022), Vector3(0.016, 0.056, -0.0135), 0.0055, QUIVER)
+	b.tag = CIV
+	b.pole(Vector3(0.0148, 0.044, -0.0158), Vector3(0.0157, 0.052, -0.0142), 0.0062, Color.WHITE)
+	b.tag = PLAIN
+	for k in 3:
+		b.box(Vector3(0.0135 + 0.0028 * k, 0.0605, -0.0128), Vector3(0.0024, 0.007, 0.0016), FLETCH)

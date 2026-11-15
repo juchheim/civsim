@@ -662,7 +662,10 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 				var ang := TAU * gi / 6.0 + 0.4
 				var gp: Vector3 = M7WorldBuilder.rot_y(cyaw) * (Vector3(cos(ang), 0.0, sin(ang)) * 0.15 * float(r[2]))
 				var gb := Basis(Vector3.UP, cyaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.0)
-				wb.props.add("person_soldier", Transform3D(gb, Vector3(cp.x + gp.x, w.height_at(cp) + 0.02 * float(r[2]), cp.y + gp.z)),
+				var gmesh: String = wb.garrison_mesh(_civ, gi)
+				if gmesh != "person_soldier":
+					gb = Basis(Vector3.UP, atan2(gp.x, gp.z)) * Basis.from_scale(Vector3.ONE * 1.0)   # bowmen and gunners face outward over the wall
+				wb.props.add(gmesh, Transform3D(gb, Vector3(cp.x + gp.x, w.height_at(cp) + 0.02 * float(r[2]), cp.y + gp.z)),
 					Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 	var zs: int = wb.zig_stage(s)
 	if zs > 0:
@@ -754,7 +757,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 			var fwd := (_c - q).normalized()
 			for i in soldiers:
 				var p := q + across * ((i % 3 - 1) * 0.085) - fwd * ((i / 3) * 0.085 - 0.04)
-				wb.props.add("person_soldier", wb._xf(p, w.height_at(p), face, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+				wb.props.add(wb.garrison_mesh(_civ, i), wb._xf(p, w.height_at(p), face, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 			var de := _meta("drill_ground", dg[0], "half:s%d+s%d" % [dg[1] + 1, posmod(dg[1] + 1, 6) + 1])
 			de.merge({"mesh": "person_soldier", "count": soldiers, "x": q.x, "z": q.y, "r": 0.17})
 			_record(de)
