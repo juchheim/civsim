@@ -8,8 +8,11 @@ figures at the soldier's height. **Steps 5 and 6 are built too:** in a fight, a 
 missile rank (its own bow style, standing 0.06 behind the line, no lunge) that looses one arrow each at the clash (11 arrows over three fights in the
 skirmish scenario; none in reduced motion), and an own, walled, besieged town shows up to three bowmen (gunners from the second with gunpowder) on whole wall
 runs on the besieger's side, facing out, while the wall integrity is 300 or more (`core_layout.gd` `_wall_bowmen`). The live map does not yet draw cracked or
-breached wall runs, so "none on a broken run" has nothing to test. The garrison and drill-ground slots are wired and run without errors but were not
-photographed. **Superseded in part (2026-11-16): the figures now follow real stock, not the project.** The WAR-11 look bit (`IronFrame.LookCrossbows`, `IRON_CROSSBOWS`)
+breached wall runs, so "none on a broken run" has nothing to test. Photographed on 2026-11-16 with `--scenario=core-gallery --dev-core-gallery --looks-debug` (the walled Iron city): the drill ground's front rank
+is three soldiers with shields and the back rank has the two gunners with glowing linstocks (under `--looks-debug` the civilization has gunpowder, so the last two slots are gunners
+and the bow slots were not seen there); the castle courtyard shows the garrison, but the shot is too small to tell its last two slots apart. `--scenario=fief-gallery
+--fief-only=levy` (the `levy-back` shot) shows the crossbowman's pavise, a board in the owner's colour with a boss, and the archer's quiver band, from behind.
+**Superseded in part (2026-11-16): the figures now follow real stock, not the project.** The WAR-11 look bit (`IronFrame.LookCrossbows`, `IRON_CROSSBOWS`)
 and the one-bow-style-per-civilization hash are gone. `MatchFrame.SettlementBowPct` (three bytes a settlement) gives, for each settlement the viewer sees now, the
 percent of its fighting-age people who hold a crossbow, a longbow and the war bow (read from the stock combat reads, best first, so never above 100); the
 bridge sends it as the settlement's `bows`. An armed figure rolls against its own settlement's shares (`_arms_mesh`: gunner for the top three in ten with
