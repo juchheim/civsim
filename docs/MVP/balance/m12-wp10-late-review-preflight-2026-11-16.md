@@ -21,17 +21,29 @@ A small `OS.GetUserDataDir()` probe is staged in the scratch copy. The resolved 
 
 Use only the Debug `--fief-playtest` path with a scratch numeric-status pack. `--research-era=6` queues the normal `CompleteProject` command for numeric projects in eras before 6, including Fief projects; it does not grant structures or represent natural research. Keystones are assigned to the era they enter, so KEY-6 stays incomplete and does not end the inspection match. Do not use `--start-minute` because `SimulationSession.CanSave` is false for those sessions. The `fief-gallery` is synthetic and hides the HUD, so it cannot cover this review.
 
-When the host is idle and the scratch source copy is current:
+For a local UI review, build a disposable numeric-status pack from a copied content tree. This route is for the Debug playtest only; it is not a pinned balance cohort or promotion artifact. Run from the repository root:
 
 ```sh
-python3 docs/MVP/balance/tools/build_e5_status_pack_pair.py \
-  --content-root content \
-  --output-dir /tmp/civsim-wp10-late-review-20261116/packs
+PLAYTEST_OUT="$(mktemp -d /tmp/civsim-wp10-late-review.XXXXXX)"
+mkdir "$PLAYTEST_OUT/content-numeric-e5"
+cp -R content/. "$PLAYTEST_OUT/content-numeric-e5/"
+python3 - "$PLAYTEST_OUT/content-numeric-e5" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "docs/MVP/balance/tools")
+from build_e5_status_pack_pair import promote_e5_statuses
+
+ids = promote_e5_statuses(Path(sys.argv[1]))
+print(f"Enabled {len(ids)} E5 rows in the temporary content copy.")
+PY
+dotnet run --project src/CivSim.Cli -c Release -- build-pack \
+  --content "$PLAYTEST_OUT/content-numeric-e5" \
+  --out "$PLAYTEST_OUT/numeric-e5.pack"
 
 godot-mono --headless --path game --script res://_wp10_userdata_probe.gd
 godot-mono --headless --editor --path game --quit
 dotnet build game/CivSim.Game.csproj -c Debug
-CIVSIM_PACK=/tmp/civsim-wp10-late-review-20261116/packs/numeric-e5.pack \
+CIVSIM_PACK="$PLAYTEST_OUT/numeric-e5.pack" \
   godot-mono --path game -- --fief-playtest --research-era=6 --seed=12345 --always-on-top
 ```
 
