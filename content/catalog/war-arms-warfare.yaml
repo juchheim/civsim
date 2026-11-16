@@ -149,8 +149,8 @@ projects:
     era: 5
     type: M
     status: draft
-    cost: 12000
-    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6000 x M 1.0."
+    cost: 12800
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [WAR-11, CHM-07]
     effects:
       - {kind: role, id: gunner}

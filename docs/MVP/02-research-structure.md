@@ -158,7 +158,9 @@ Cost = EraBase[era] × TypeMult[type] × DiffusionMult × EraLagMult × GateMult
 
 | Era | E0 | E1 | E2 | E3 | E4 | E5 | E6 | E7 | E8 | E9 |
 |-----|----|----|----|----|----|----|----|----|----|----|
-| **EraBase** | 22 | 50 | **150** | **400** | **1,200** | **6,000** | **32,000** | **280,000** | **1,700,000** | **9,000,000** |
+| **EraBase** | 22 | 50 | **150** | **400** | **1,200** | **6,400** | **32,000** | **280,000** | **1,700,000** | **9,000,000** |
+
+E5's 6,400 base is a draft F-T1 fit hypothesis from 15 of 20 completed calibration worlds on source `a7ad158`; it uses the observed completed-seat median and does not qualify acceptance. The distinct-source 5ee calibration's 6,700 fit is historical and is not pooled into this estimate. See [the partial calibration record](balance/m12-e5-ft1-partial-calibration-fit-2026-11-16.md). Keep the E5 project rows in `draft` status until the fresh 80-world holdout and WP-E5-11 acceptance.
 
 *The WS-H fit ([09 §11.1](09-population-and-health.md#111-re-fit)) is historical. The current cadence for E2–E9 is the follow-up in [07c §10.1](07c-e0-e2-checks.md#101-roots-and-bronze-still-finish-too-quickly-2026-10-24); those longer-era projections still need fresh live acceptance runs.*
 
