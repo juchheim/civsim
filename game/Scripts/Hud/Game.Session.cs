@@ -39,7 +39,7 @@ public partial class Game
             if (_introDismissed) WriteIntroPreference();
             ReplaceSession(restored);
             RestoreSettlementNames(data.SettlementNames);
-            ShowToast("Game loaded", ToastKind.Info, GameSaveMode.LoadDetail(data.Mode, (_current?.Year ?? 0) + 1), key: "loaded");
+            ShowToast("Game loaded", ToastKind.Info, GameSaveMode.LoadDetail(restored.Mode, (_current?.Year ?? 0) + 1), key: "loaded");
         }
         catch (Exception ex) { ShowToast("Couldn't load", ToastKind.Warning, ex.Message, key: "load-failed"); }
     }
@@ -83,6 +83,9 @@ public partial class Game
         if (_peopleOpen) ClosePeoplePanel();
         _session?.Dispose();
         _session = replacement;
+        DisplayServer.WindowSetTitle(_session.Mode == ChapterMode.Fief
+            ? $"CivSim — {_look.Name} · FIEF PLAYTEST · UNPROMOTED"
+            : $"CivSim — {_look.Name}");
         if (!_session.Frames.TryAcquire() || _session.Frames.Current is null)
             throw new InvalidOperationException("The replacement simulation did not publish its initial frame.");
         _previous = _session.Frames.Previous;
@@ -117,6 +120,7 @@ public partial class Game
         _openingHoldAssignmentPending = false;
         _pinnedTile = -1;
         _settlementNames.Clear();
+        _defaultNames.Clear(); _defaultNamesTaken.Clear();
         _selectedResearchProject = -1;
         _completedWhileClosed = -1;
         RebuildVisualRenderer(_current, _session);
@@ -132,6 +136,7 @@ public partial class Game
     private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode mode = ChapterMode.Iron)
     {
         if (_contentPack is null) return;
+        if (IsFiefPlaytestLaunch()) mode = ChapterMode.Fief;
         _onboardingSeen = 0;
         _matchSeed = seed;
         HideEndScreen();
@@ -141,7 +146,13 @@ public partial class Game
             BeginOpeningHold();
             OpenResearchWeb(-1);
         }
-        ShowToast("New match", ToastKind.Info, $"{(mode == ChapterMode.Iron ? "" : "Bronze Age. ")}Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
+        string detail = mode switch
+        {
+            ChapterMode.Fief => $"FIEF PLAYTEST · UNPROMOTED DRAFT VALUES. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+            ChapterMode.Bronze => $"Bronze Age. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+            _ => $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+        };
+        ShowToast(mode == ChapterMode.Fief ? "Unpromoted Fief playtest" : "New match", ToastKind.Info, detail, key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>

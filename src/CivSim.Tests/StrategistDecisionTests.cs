@@ -1013,7 +1013,37 @@ public class StrategistDecisionTests
         noDistress.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
         (_, ActionRecorder rejected) = Decide(noDistress);
         Assert.DoesNotContain(rejected.Orders, o => o.StartsWith("war", StringComparison.Ordinal));
-        Assert.Contains(noDistress.Notes("WarRejected"), n => n.Reason.Contains("no distress evidence"));
+        Assert.Contains(noDistress.Notes("WarRejected"), n => n.Reason.Contains("no distress or siege-stock evidence"));
+    }
+
+    [Fact]
+    public void Strategist_uses_its_own_cannon_and_powder_stock_to_choose_a_walled_target()
+    {
+        Scene MakeScene(bool fief, Fix64 cannon, Fix64 powder)
+        {
+            var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+            scene.Own.FiefChapter = fief;
+            OwnSettlement origin = scene.Own.Settlements[0];
+            origin.Fighters = 30;
+            origin.Adults = 30;
+            origin.AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+            origin.CannonStock = cannon;
+            origin.PowderStock = powder;
+            scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+            scene.ExploreAll();
+            scene.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
+            return scene;
+        }
+
+        Scene scene = MakeScene(fief: true, Fix64.One, Fix64.FromRatio(1, 4));
+        (_, ActionRecorder ready) = Decide(scene);
+        Assert.Contains("assault 6", ready.Orders);
+        Assert.Contains(scene.Notes("War"), note => note.Reason.Contains("own cannon and powder stock support a breach"));
+
+        (_, ActionRecorder shortOnPowder) = Decide(MakeScene(fief: true, Fix64.One, Fix64.FromRatio(249, 1000)));
+        Assert.DoesNotContain(shortOnPowder.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
+        (_, ActionRecorder nonFief) = Decide(MakeScene(fief: false, Fix64.One, Fix64.One));
+        Assert.DoesNotContain(nonFief.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
     }
 
     [Fact]

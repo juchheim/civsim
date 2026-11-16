@@ -81,7 +81,7 @@ public sealed class MatchModel : ISimModel
         if (!controls.IsEmpty && controls.Length != profiles.Length) throw new ArgumentException("One control per civilization.", nameof(controls));
         for (int c = 0; c < controls.Length; c++)
             if (controls[c].Kind == ControlKind.Ai) profiles[c] = controls[c].Spec.Archetype;
-        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart) { MaxEra = rules.EconomyMaxEra, IronChain = rules.IsIron, FiefChain = rules.IsFief };
+        var economy = new LivingEconomyModel(seed, EconomyContent.FromPack(pack), world, profiles, gentleStart, rules.Mode) { MaxEra = rules.EconomyMaxEra, IronChain = rules.IsIron, FiefChain = rules.IsFief };
         var source = new LivingEconomySource(economy, world, generated, catalog, profiles);
         var setups = new ResearchCivSetup[profiles.Length];
         for (int c = 0; c < setups.Length; c++)
@@ -149,6 +149,7 @@ public sealed class MatchModel : ISimModel
             foreach ((int civ, string project) in _wonders) Research.AwardWonderBuilt(civ, Research.Catalog.IndexOf(project));
             Research.OnSeasonEnd(tick);
             Politics.OnSeasonEnd(tick);
+            Economy.InvalidateIronOreSupplierAssignments();
             Ai?.OnSeasonEnd(tick);
         }
     }

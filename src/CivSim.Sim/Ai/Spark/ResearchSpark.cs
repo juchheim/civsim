@@ -92,6 +92,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     public int Decisions { get; private set; }
     /// <summary>The last plan written (slots, then queue), for tests and the debug overlay.</summary>
     public IReadOnlyList<int> LastPlan => _plan;
+    internal bool HorseBlockedForDiagnostics(int project) => (uint)project < (uint)_start.HorseBlocked.Length && _start.HorseBlocked[project];
     /// <summary>The forecast of the last decision's chosen plan.</summary>
     public ForecastResult LastForecast { get; private set; }
     internal ForecastResult? LastB29ReportForecastForDiagnostics { get; private set; }
@@ -143,10 +144,21 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     {
         _start.CaptureResearch(readout, ctx.Civ, ctx.Spec.Archetype);
         _start.CaptureBronze(ctx.Own.Bronze);
+        Array.Clear(_start.HorseBlocked);
+        if (ctx.Own.FiefChapter && ctx.Belief.HorseSource != HorseSourceKnowledge.Seen)
+        {
+            int horse = fc.Catalog.IndexOf("HUS-07");
+            if (horse >= 0)
+            {
+                for (int p = 0; p < fc.Count; p++)
+                    if (!_start.Done[p] && IsHorseDependent(fc, p, horse)) _start.HorseBlocked[p] = true;
+            }
+        }
         _start.Season = ctx.Season;
         _start.People = _start.EstimatePeople(ctx.Own.Population, ctx.Own.Adults, ctx.Own.Settlements.Count);
         _tracker.Gain.CopyTo(_start.KnowHowGen);
-        for (int p = 0; p < fc.Count; p++) _state[p] = fc.IsNumeric[p] ? port.State(p) : ProjectState.Hidden;
+        for (int p = 0; p < fc.Count; p++)
+            _state[p] = !fc.IsNumeric[p] || _start.HorseBlocked[p] ? ProjectState.Hidden : port.State(p);
         int horizon = Math.Max(SparkTuning.MinHorizonSeasons, _profile.HorizonEras * ForecastTuning.SeasonsPerEra);
         _forecast.Prepare(_start, horizon);
 
@@ -304,6 +316,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             f.Done[p] = done;
             f.FirstBy[p] = s.FirstBy[p];
             f.SeenBlocked[p] = s.SeenBlocked[p];
+            f.HorseBlocked[p] = s.HorseBlocked[p];
             f.Progress[p] = done ? Fix64.Zero : s.Progress[p];
             f.KnowHowApplied[p] = done ? Fix64.Zero : s.KnowHowApplied[p];
             Fix64 cost = s.Cost[p];
@@ -405,7 +418,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             if (IsSignature(_spec.Archetype, code)) bonus += SparkTuning.SignatureBonus;
             bonus += BronzeForkBonus(p, _met04, _met05, met03Done, IsDone(_min04), tinAccessProbability, arsenicAccess);
             if (p == _gov02 && !_start.Done[p])
-                bonus += PostureUnlockBonus(frontier, defense, attack, PostureUnlockBonusOverrideForDiagnostics);
+                // The posture guards compare normalized intent with FortifyAt, not Legacy-equivalent bonuses.
+                // Keep the older chapters' established valuation while correcting the Fief planner's units.
+                bonus += ctx.Own.FiefChapter
+                    ? PostureUnlockBonus(intent.FrontierValue, defenseUrgency, intent.AttackReadiness, PostureUnlockBonusOverrideForDiagnostics)
+                    : PostureUnlockBonus(frontier, defense, attack, PostureUnlockBonusOverrideForDiagnostics);
             _value.Bonus[p] = bonus;
         }
     }
@@ -759,6 +776,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private bool CanFollow(int p, int[] seq, int length)
     {
         ForecastCatalog fc = _fc!;
+        if (_start.HorseBlocked[p]) return false;
         for (int i = 0; i < length; i++) if (seq[i] == p) return false;
         if (_state[p] is ProjectState.Available or ProjectState.Slotted) return true;
         foreach (int r in fc.Requires[p]) if (!_start.Done[r] && !Contains(seq, length, r)) return false;
@@ -774,7 +792,27 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             for (int i = 0; i < length; i++) if (fc.Era[seq[i]] == era && !fc.IsKeystone[seq[i]]) count++;
             if (count < fc.BreadthMin[p]) return false;
         }
-        return !_start.SeenBlocked[p];
+        return !_start.SeenBlocked[p] && !_start.HorseBlocked[p];
+    }
+
+    private static bool IsHorseDependent(ForecastCatalog catalog, int project, int horseProject)
+    {
+        if (project == horseProject) return true;
+        var stack = new Stack<int>();
+        var visited = new bool[catalog.Count];
+        stack.Push(project);
+        while (stack.Count != 0)
+        {
+            int current = stack.Pop();
+            if (visited[current]) continue;
+            visited[current] = true;
+            foreach (int requirement in catalog.Requires[current])
+            {
+                if (requirement == horseProject) return true;
+                stack.Push(requirement);
+            }
+        }
+        return false;
     }
 
     private static bool Contains(int[] seq, int length, int p)

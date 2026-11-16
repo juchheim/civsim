@@ -23,11 +23,12 @@ public partial class Game
     private Vector3 _moveFrom, _moveTo;
     private float _moveZoomFrom, _moveZoomTo, _moveT;
     private int _pinnedTile = -1;
+    private bool _swallowClick;
     private int _beaconPreviewTile = -1;
     private long _beaconPreviewSequence = -1;
     private int _beaconEstimateTile = -1;
     private long _beaconEstimateSequence = -1;
-    private CivSim.Sim.Economy.BeaconSitePreview _beaconEstimate;
+    private CivSim.Sim.Economy.BeaconSiteFieldPreview _beaconFieldEstimate;
     private bool _panGestureSeen;
 
     private int ZoomLevel => _zoom switch { < 7 => 0, < 22 => 1, < 60 => 2, _ => 3 };
@@ -85,7 +86,6 @@ public partial class Game
     private void UpdateCamera()
     {
         if (_visualRenderer is not null) _visualRenderer.Call("set_camera", _target, _yaw, _pitch, _zoom);
-        UpdateSettlementMapLabelScale();
         RefreshCompass();
     }
 
@@ -206,7 +206,6 @@ public partial class Game
     {
         if (_camera is null) return;
         _visualRenderer?.Call("set_camera", _target, _yaw, _pitch, _zoom);
-        UpdateSettlementMapLabelScale();
     }
 
     private bool MapOwnsKeyboard()
@@ -226,6 +225,10 @@ public partial class Game
         hit = origin + ray * distance;
         return true;
     }
+
+    /// <summary>The tile under the pointer, where a settlement's name plate counts as its tile (the plate floats over the land it names).</summary>
+    private bool TryPickTileOrPlate(Vector2 screen, out int tile)
+        => (_plates is not null && _plates.TryPickTile(screen, out tile)) || TryPickTile(screen, out tile);
 
     private bool TryPickTile(Vector2 screen, out int tile)
     {
@@ -347,6 +350,7 @@ public partial class Game
             // Scroll and pinch gestures are not consumed by every control; swallow them here so they never reach the map.
             if (input is InputEventPanGesture or InputEventMagnifyGesture or InputEventMouseButton or InputEventMouseMotion)
             {
+                if (_leftDown && _dragMoved && !_orbitWithLeft) Input.SetDefaultCursorShape(Input.CursorShape.Arrow); // a pan cut short
                 _leftDown = _rightDown = _middleDown = false;
                 GetViewport().SetInputAsHandled();
             }
@@ -394,10 +398,22 @@ public partial class Game
                     _orbitWithLeft = button.AltPressed;
                     _moveAnimating = false;
                     if (!TryGroundHit(position, out _grabWorld)) _grabWorld = _target;
+                    // Double-click a plate: pin it and bring the camera to it (docs/MVP/33 §6.1). The second click must not unpin it again.
+                    if (button.DoubleClick && !_decreeMapMode && !_beaconMode && _plates is not null && _plates.TryPickTile(position, out int framed))
+                    {
+                        _pinnedTile = framed;
+                        RefreshTileCardNow(position);
+                        UpdatePinLayer();
+                        FocusTile(framed);
+                        _swallowClick = true;
+                    }
                 }
                 else
                 {
-                    bool click = _leftDown && !_dragMoved;
+                    bool click = _leftDown && !_dragMoved && !_swallowClick;
+                    if (_leftDown && _dragMoved && !_orbitWithLeft)
+                        Input.SetDefaultCursorShape(_decreeMapMode || _beaconMode ? Input.CursorShape.Cross : Input.CursorShape.Arrow);
+                    _swallowClick = false;
                     _leftDown = false;
                     if (click) OnMapClicked(position);
                 }
@@ -422,7 +438,11 @@ public partial class Game
     {
         if (_leftDown)
         {
-            if (!_dragMoved && (motion.Position - _leftDownPosition).Length() > 6) _dragMoved = true;
+            if (!_dragMoved && (motion.Position - _leftDownPosition).Length() > 6)
+            {
+                _dragMoved = true;
+                if (!_orbitWithLeft) Input.SetDefaultCursorShape(Input.CursorShape.Drag); // grabbing the map
+            }
             if (_dragMoved)
             {
                 if (_orbitWithLeft) Orbit(motion.Relative);
@@ -468,7 +488,7 @@ public partial class Game
             ManageBeaconAt(position);
             return;
         }
-        if (TryPickTile(position, out int tile))
+        if (TryPickTileOrPlate(position, out int tile))
         {
             _pinnedTile = _pinnedTile == tile ? -1 : tile;
             RefreshTileCardNow(position);
@@ -542,31 +562,52 @@ public partial class Game
         _beaconPreviewSequence = sequence;
 
         float fit = -1.0f;
+        byte[] heatmap = Array.Empty<byte>();
         if (_current.Visibility[tile] != (byte)TileVisibility.Unknown)
         {
-            CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(_current, tile);
+            CivSim.Sim.Economy.BeaconSiteFieldPreview field = GetBeaconPlacementField(_current, tile);
+            CivSim.Sim.Economy.BeaconSitePreview preview = field.Center;
             fit = preview.CanFound ? (float)preview.RelativeSiteFit.ToDoubleForDisplay() : 0.0f;
+            heatmap = BuildBeaconHeatmap(_current, field);
         }
-        _visualRenderer.Call("set_beacon_preview", tile, fit);
+        _visualRenderer.Call("set_beacon_preview", tile, fit, heatmap);
     }
 
-    private CivSim.Sim.Economy.BeaconSitePreview GetBeaconPlacementPreview(MatchFrame frame, int tile)
+    private CivSim.Sim.Economy.BeaconSiteFieldPreview GetBeaconPlacementField(MatchFrame frame, int tile)
     {
         if (_session is null) return default;
         if (_beaconEstimateTile != tile || _beaconEstimateSequence != frame.Sequence)
         {
-            _beaconEstimate = _session.PreviewBeaconPlacement(frame.FocusCiv, tile);
+            _beaconFieldEstimate = _session.PreviewBeaconFieldPlacement(frame.FocusCiv, tile);
             _beaconEstimateTile = tile;
             _beaconEstimateSequence = frame.Sequence;
         }
-        return _beaconEstimate;
+        return _beaconFieldEstimate;
+    }
+
+    private static byte[] BuildBeaconHeatmap(MatchFrame frame, CivSim.Sim.Economy.BeaconSiteFieldPreview field)
+    {
+        var state = new byte[frame.Width * frame.Height * 4];
+        foreach (CivSim.Sim.Economy.BeaconSiteHeatmapCell cell in field.Cells)
+        {
+            if ((uint)cell.Tile >= (uint)(frame.Width * frame.Height) ||
+                frame.Visibility[cell.Tile] == (byte)TileVisibility.Unknown) continue;
+            int offset = cell.Tile * 4;
+            int fit = Math.Clamp((cell.RelativeSiteFit * CivSim.Sim.Numerics.Fix64.FromInt(100)).RoundToInt(), 0, 100);
+            state[offset] = (byte)(fit * 255 / 100);
+            state[offset + 1] = (byte)cell.BlockReason;
+            state[offset + 3] = 255;
+        }
+        return state;
     }
 
     private void ClearBeaconPreview()
     {
-        _visualRenderer?.Call("set_beacon_preview", -1, -1.0f);
+        _visualRenderer?.Call("set_beacon_preview", -1, -1.0f, Array.Empty<byte>());
         _beaconPreviewTile = -1;
         _beaconPreviewSequence = -1;
+        _beaconEstimateTile = -1;
+        _beaconEstimateSequence = -1;
     }
 
     private void ManageBeaconAt(Vector2 screenPosition)

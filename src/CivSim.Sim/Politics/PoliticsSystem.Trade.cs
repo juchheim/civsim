@@ -59,6 +59,15 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     // ---- public surface --------------------------------------------------------------------------------
 
     public IReadOnlyList<Compact> Compacts => _compacts;
+    internal Compact FixtureAddCompact(int sellerCiv, int buyerCiv, TradeGood good)
+    {
+        var compact = new Compact { Id = _nextCompactId++, SellerCiv = sellerCiv, BuyerCiv = buyerCiv, Good = good };
+        _compacts.Add(compact);
+        return compact;
+    }
+    internal void FixtureEndCompact(Compact compact) => EndCompact(compact, CompactEndReason.Relations);
+    internal void FixtureArriveCaravan(Expedition expedition) => ArriveCaravan(expedition);
+    internal void FixtureSendCaravan(Compact compact) => SendCaravan(compact);
     public IReadOnlyList<Pact> Pacts => _pacts;
     public IReadOnlyList<TinFolkVillage> TinFolk => _tinFolk;
     public IReadOnlyList<FolkTie> FolkTies => _folkTies;
@@ -215,6 +224,31 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         return packAnimals || byHarbor ? Math.Max(1, (tiles + 2) / 3) : tiles;
     }
 
+    /// <summary>Fief sea shipments use the catalogued SEA-05 plank-boat load (12 L); SEA-10 doubles it to 24 L.</summary>
+    internal Fix64 CaravanCargoCapacity(int mover, int fromHub, int toHub)
+    {
+        if (!_economy.FiefChain || unchecked((uint)fromHub) >= (uint)_sCount || unchecked((uint)toHub) >= (uint)_sCount)
+            return Fix64.MaxValue;
+        if (SeaTilesOnRoute(mover, _sTile[fromHub], _sTile[toHub]) <= 0) return Fix64.MaxValue;
+        Fix64 capacity = Fix64.FromInt(12);
+        int sea10 = _catalog.IndexOf("SEA-10");
+        if (sea10 >= 0 && (uint)mover < (uint)_civs && _research.IsDone(mover, sea10)) capacity *= 2;
+        return capacity;
+    }
+
+    internal Fix64 FixtureCaravanCargoCapacity(int mover, int fromHub, int toHub)
+        => CaravanCargoCapacity(mover, fromHub, toHub);
+
+    private Fix64 LimitCaravanCargo(int mover, int fromHub, int toHub, TradeGood good, Fix64 load)
+    {
+        Fix64 capacity = CaravanCargoCapacity(mover, fromHub, toHub);
+        if (good == TradeGood.Food && capacity != Fix64.MaxValue) capacity *= 2; // docs/MVP/10: 1 L ≈ 2 R of fresh food
+        return Fix64.Min(load, capacity);
+    }
+
+    internal Fix64 FixtureLimitCaravanCargo(int mover, int fromHub, int toHub, TradeGood good, Fix64 load)
+        => LimitCaravanCargo(mover, fromHub, toHub, good, load);
+
 
     /// <summary>Both sides gain at the geometric-mean price when the buyer's value is at least (1 + g)² of the seller's.</summary>
     private bool BothGain(Fix64 sellerValue, Fix64 buyerValue, int sellerCiv, int buyerCiv)
@@ -288,8 +322,18 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int sellerHub = HubOf(sellerCiv, sellerFolk, good, selling: true, -1);
         int buyerHub = HubOf(buyerCiv, buyerFolk, good, selling: false, sellerHub);
         if (sellerHub < 0 || buyerHub < 0) return OrderRefusalReason.NoSite;
-        if (Travel(sellerCiv >= 0 ? sellerCiv : buyerCiv, _sTile[sellerHub], _sTile[buyerHub]) == int.MaxValue) return OrderRefusalReason.OutOfReach;
-        if (RouteBlocked(sellerCiv, buyerCiv, sellerHub, buyerHub)) return OrderRefusalReason.Rejected;
+        if (Travel(sellerCiv >= 0 ? sellerCiv : buyerCiv, _sTile[sellerHub], _sTile[buyerHub]) == int.MaxValue)
+        {
+            TraceSea10Route("route_rejected", new Compact { SellerCiv = sellerCiv, BuyerCiv = buyerCiv, Good = good }, null,
+                sellerHub, buyerHub, "unreachable_or_water_locked", Fix64.Zero, Fix64.Zero, Fix64.Zero);
+            return OrderRefusalReason.OutOfReach;
+        }
+        if (RouteBlocked(sellerCiv, buyerCiv, sellerHub, buyerHub))
+        {
+            TraceSea10Route("route_rejected", new Compact { SellerCiv = sellerCiv, BuyerCiv = buyerCiv, Good = good }, null,
+                sellerHub, buyerHub, "route_blocked", Fix64.Zero, Fix64.Zero, Fix64.Zero);
+            return OrderRefusalReason.Rejected;
+        }
         // The receiver decides by expected value (docs/MVP/22 §6.2): both sides gain at current scarcity and Relations ≥ 0.
         Fix64 vs = UnitValue(sellerHub, good), vb = UnitValue(buyerHub, good);
         int receiver = folk ? -1 : target;
@@ -433,6 +477,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     /// <summary>Tin Folk work their placers; compacts check their terms, count their seasons and send a caravan when there is something to carry.</summary>
     private void RunTrade()
     {
+        TraceSea10Milestones();
         foreach (TinFolkVillage v in _tinFolk)
             if (v.Joined < 0 && unchecked((uint)v.Settlement) < unchecked((uint)_sCount) && _free[v.Settlement] && _sPop[v.Settlement] > 0)
                 _economy.WorkTinPlacer(v.Settlement, v.Placer, FolkOrePerSeason);
@@ -492,38 +537,50 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     /// </summary>
     private void SendCaravan(Compact c)
     {
-        if (c.Good == TradeGood.Food && c.SellerCiv >= 0 && HasFoodExportShortage(c.SellerCiv)) return;
+        if (c.Good == TradeGood.Food && c.SellerCiv >= 0 && HasFoodExportShortage(c.SellerCiv))
+        { TraceSea10Route("route_rejected", c, null, c.LastSeller, c.LastBuyer, "food_export_shortage", Fix64.Zero, Fix64.Zero, Fix64.Zero); return; }
         int seller = HubOf(c.SellerCiv, c.SellerFolk, c.Good, selling: true, -1);
         int buyer = HubOf(c.BuyerCiv, c.BuyerFolk, c.Good, selling: false, seller);
-        if (seller < 0 || buyer < 0 || seller == buyer) return;
-        if (BlockadeCutsRoute(seller, buyer)) return; // a galley is off one of the harbors: the sea route is shut, the goods stay
-        Fix64 load = Fix64.Min(Surplus(seller, c.Good), Shortfall(buyer, c.Good));
-        if (load < MinLoad) return;
-        Fix64 vs = UnitValue(seller, c.Good), vb = UnitValue(buyer, c.Good);
-        if (!BothGain(vs, vb, c.SellerCiv, c.BuyerCiv)) return;
+        if (seller < 0 || buyer < 0 || seller == buyer)
+        { TraceSea10Route("route_rejected", c, null, seller, buyer, "missing_or_same_hub", Fix64.Zero, Fix64.Zero, Fix64.Zero); return; }
+        if (BlockadeCutsRoute(seller, buyer))
+        { TraceSea10Route("route_rejected", c, null, seller, buyer, "blockade", Fix64.Zero, Fix64.Zero, Fix64.Zero); return; }
         int mover = c.SellerCiv >= 0 ? c.SellerCiv : _sCiv[seller];
         int travel = Travel(c.SellerCiv >= 0 ? c.SellerCiv : c.BuyerCiv, _sTile[seller], _sTile[buyer]);
-        if (travel == int.MaxValue) return;
+        if (travel == int.MaxValue)
+        { TraceSea10Route("route_rejected", c, null, seller, buyer, "unreachable_or_water_locked", Fix64.Zero, Fix64.Zero, Fix64.Zero); return; }
+        Fix64 requested = Fix64.Min(Surplus(seller, c.Good), Shortfall(buyer, c.Good));
+        Fix64 load = requested;
+        load = LimitCaravanCargo(c.SellerCiv >= 0 ? c.SellerCiv : c.BuyerCiv, seller, buyer, c.Good, load);
+        if (load < MinLoad)
+        { TraceSea10Route("route_rejected", c, null, seller, buyer, "below_minimum_load", requested, load, Fix64.Zero); return; }
+        Fix64 vs = UnitValue(seller, c.Good), vb = UnitValue(buyer, c.Good);
+        if (!BothGain(vs, vb, c.SellerCiv, c.BuyerCiv))
+        { TraceSea10Route("route_rejected", c, null, seller, buyer, "no_mutual_gain", requested, load, Fix64.Zero); return; }
         bool hostileRoute = c.Good == TradeGood.Tin && RoadCrossesHostileTerritory(mover, seller, buyer);
         bool canEscort = hostileRoute && CanProvideTwoWarriorEscorts(seller, mover);
         // Keep the Compact active and its goods at the seller until this route is safe or two escorts can be fielded.
-        if (ShouldWaitForSafeCaravanRoute(hostileRoute, canEscort)) return;
+        if (ShouldWaitForSafeCaravanRoute(hostileRoute, canEscort))
+        { TraceSea10Route("route_rejected", c, null, seller, buyer, "unsafe_route_wait", requested, load, Fix64.Zero); return; }
         Fix64 taken = c.Good == TradeGood.Food
             ? _economy.TakeGoods(seller, load, LootPreference.FoodOnly)
             : _economy.TakeGood(seller, DecreeArgs.GoodId(c.Good), load);
-        if (taken < MinLoad) { if (taken > Fix64.Zero) Unload(seller, c.Good, taken); return; }
+        if (taken < MinLoad) { if (taken > Fix64.Zero) Unload(seller, c.Good, taken); TraceSea10Route("route_rejected", c, null, seller, buyer, "stock_take_below_minimum", requested, load, taken); return; }
         int partySize = canEscort ? 4 : 2;
         List<Fighter> crew = PickParty(seller, mover, partySize, attacking: false, out List<long> ids, stayHome: 4);
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = mover, TargetCiv = c.BuyerCiv, FromSettlement = seller, ToSettlement = buyer,
             ArriveSeason = _season + SeasonsFor(CaravanTiles(mover, seller, buyer, travel)), Id = _nextPartyId++, Good = c.Good, Cargo = taken, CompactId = c.Id,
-            FolkSeller = c.SellerFolk, Value = Fix64.Sqrt(vs * vb), EscortCount = canEscort ? Math.Min(2, Math.Max(0, ids.Count - 2)) : 0,
+            FolkSeller = c.SellerFolk, Value = Fix64.Sqrt(vs * vb) * PilgrimageTradeMultiplier(seller, buyer), SellerBookValue = _economy.FiefChain ? vs : Fix64.Zero,
+            CarriesPlague = _economy.FiefChain && _economy.OutbreakAt(seller).Class == OutbreakClass.Plague,
+            EscortCount = canEscort ? Math.Min(2, Math.Max(0, ids.Count - 2)) : 0,
         };
         for (int i = 0; i < ids.Count; i++) { caravan.Members.Add(ids[i]); caravan.Strengths.Add(crew[i].Strength); }
         _expeditions.Add(caravan);
         c.LastSeller = seller;
         c.LastBuyer = buyer;
+        TraceSea10Route("shipment_dispatched", c, caravan, seller, buyer, "dispatched", requested, load, taken);
     }
 
     private void Unload(int settlement, TradeGood good, Fix64 amount)
@@ -554,15 +611,40 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
             if (unchecked((uint)seller) < unchecked((uint)_sCount)) Unload(seller, e.Good, e.Cargo);
             return;
         }
+        Fix64[]? buyerStocksBefore = FiefWp7TraceObserverForDiagnostics is null ? null : CaptureWp7Stocks(buyer);
+        Fix64[]? sellerStocksBefore = FiefWp7TraceObserverForDiagnostics is null ? null : CaptureWp7Stocks(seller);
         Fix64 price = e.Value;
         Fix64 owed = e.Cargo * price;
-        Fix64 paid = c.Good == TradeGood.Food ? PayInGoods(buyer, seller, owed) : _economy.TakeGoods(buyer, owed, LootPreference.FoodOnly);
+        bool canCredit = CanUseFiefCredit(c.BuyerCiv);
+        Fix64 paymentLimit = canCredit ? Fix64.Min(owed, FiefCreditFoodPaymentLimit(buyer)) : owed;
+        Fix64 paid = c.Good == TradeGood.Food ? PayInGoods(buyer, seller, owed) : _economy.TakeGoods(buyer, paymentLimit, LootPreference.FoodOnly);
         if (c.Good != TradeGood.Food && unchecked((uint)seller) < unchecked((uint)_sCount)) _economy.GiveGoods(seller, paid);
-        Fix64 delivered = owed <= Fix64.Zero ? e.Cargo : Fix64.Min(e.Cargo, e.Cargo * paid / owed);
+        Fix64 unpaidValue = Fix64.Max(Fix64.Zero, owed - paid);
+        bool creditIssued = canCredit && unpaidValue > Fix64.Zero &&
+            TryOriginateFiefCredit(c.BuyerCiv, c.SellerCiv, buyer, seller, unpaidValue);
+        Fix64 delivered = creditIssued || owed <= Fix64.Zero ? e.Cargo : Fix64.Min(e.Cargo, e.Cargo * paid / owed);
+        TraceSea10Route("shipment_delivered", c, e, seller, buyer, creditIssued ? "delivered_with_credit" : "delivery_settled", e.Cargo, e.Cargo, e.Cargo, delivered, paid, e.Cargo - delivered);
         Unload(buyer, e.Good, delivered);
         if (e.Cargo > delivered && unchecked((uint)seller) < unchecked((uint)_sCount)) Unload(seller, e.Good, e.Cargo - delivered);
-        if (unchecked((uint)seller) < unchecked((uint)_sCount) && _economy.OutbreakAt(seller).Class == OutbreakClass.Plague)
-            _economy.ImportOutbreak(buyer, OutbreakClass.Plague);
+        RecordFiefTradeProfit(c, e, delivered, paid);
+        if (FiefWp7TraceObserverForDiagnostics is not null && buyerStocksBefore is not null && sellerStocksBefore is not null)
+        {
+            var deltas = new System.Text.StringBuilder();
+            for (int slot = 0; slot < buyerStocksBefore.Length; slot++)
+            {
+                Fix64 buyerDelta = _economy.GoodStock(buyer, LivingEconomyModel.StoreSlotId(slot)) - buyerStocksBefore[slot];
+                Fix64 sellerDelta = _economy.GoodStock(seller, LivingEconomyModel.StoreSlotId(slot)) - sellerStocksBefore[slot];
+                if (buyerDelta == Fix64.Zero && sellerDelta == Fix64.Zero) continue;
+                if (deltas.Length > 0) deltas.Append(';');
+                deltas.Append(LivingEconomyModel.StoreSlotId(slot)).Append(':').Append(buyerDelta.Raw).Append(':').Append(sellerDelta.Raw);
+            }
+            FiefWp7TraceObserverForDiagnostics($"wp7-trd09-transaction seed={_seed} season={_season} sellerCiv={c.SellerCiv} buyerCiv={c.BuyerCiv} sellerSettlement={seller} buyerSettlement={buyer} good={DecreeArgs.GoodId(c.Good)} dispatchFrozenUnitValue={e.SellerBookValue.Raw} quantity={e.Cargo.Raw} delivered={delivered.Raw} returned={(e.Cargo - delivered).Raw} owed={owed.Raw} paid={paid.Raw} creditIssued={creditIssued.ToString().ToLowerInvariant()} stockDeltas={deltas} dispatch=true delivery={(delivered > Fix64.Zero).ToString().ToLowerInvariant()}");
+        }
+        if (unchecked((uint)seller) < unchecked((uint)_sCount) &&
+            (_economy.FiefChain
+                ? e.CarriesPlague || _economy.OutbreakAt(seller).Class == OutbreakClass.Plague
+                : _economy.OutbreakAt(seller).Class == OutbreakClass.Plague))
+            _economy.ImportOutbreak(buyer, OutbreakClass.Plague, e.Id);
         c.Deliveries++;
         c.Delivered += delivered;
         c.LastVolume = delivered;
@@ -577,6 +659,14 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
                 tie.Deliveries++;
             }
         }
+    }
+
+    private Fix64[] CaptureWp7Stocks(int settlement)
+    {
+        var values = new Fix64[LivingEconomyModel.StoreSlotCount];
+        for (int slot = 0; slot < values.Length; slot++)
+            values[slot] = _economy.GoodStock(settlement, LivingEconomyModel.StoreSlotId(slot));
+        return values;
     }
 
     /// <summary>A food compact is paid in the buyer's metals or luxuries (copper, tin, bronze, salt, gold, faience), the first it can spare.</summary>
@@ -769,6 +859,9 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         if (folk >= 0 && FolkTieOf(raid.Civ, folk, create: true) is { } tie) tie.Relations += _trade.CaravanRaidRelations;
         _dip.AdjustReputation(raid.Civ, _trade.CaravanRaidReputation);
         _events.Add(new PoliticsEvent(_tick, (byte)raid.Civ, PoliticsEventKind.CaravanRaided, c?.SellerCiv ?? -1, caravan.CompactId, outcome.Success ? lootPermille : -1));
+        TraceSea10Route(outcome.Success || crew.Count == 0 ? "shipment_raid_loss" : "shipment_raid_survived", c, caravan,
+            caravan.FromSettlement, caravan.ToSettlement, outcome.Success || crew.Count == 0 ? "cargo_looted" : "cargo_retained",
+            caravan.Cargo, caravan.Cargo, caravan.Cargo, lost: loot);
     }
 
     // ---- goods barter (docs/MVP/22 §6.1) ---------------------------------------------------------------
@@ -883,6 +976,8 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         h.Add(_tinFolk.Count);
         foreach (TinFolkVillage v in _tinFolk) { h.Add(v.Settlement); h.Add(v.Placer); h.Add(v.SinceSeason); h.Add(v.Joined); }
         foreach (byte b in _embargo) h.Add(b);
+        HashFiefCreditClaims(ref h);
+        HashFiefTradeAccounting(ref h);
     }
 
     private void WriteTrade(System.IO.BinaryWriter w)
@@ -902,6 +997,8 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         w.Write(_tinFolk.Count);
         foreach (TinFolkVillage v in _tinFolk) { w.Write(v.Settlement); w.Write(v.Placer); w.Write(v.SinceSeason); w.Write(v.Joined); }
         w.Write(_embargo);
+        WriteFiefCreditClaims(w);
+        WriteFiefTradeAccounting(w);
     }
 
     private void ReadTrade(System.IO.BinaryReader r)
@@ -932,5 +1029,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         byte[] embargo = r.ReadBytes(_embargo.Length);
         if (embargo.Length != _embargo.Length) throw new System.IO.InvalidDataException("Snapshot embargo table is truncated.");
         Array.Copy(embargo, _embargo, embargo.Length);
+        ReadFiefCreditClaims(r);
+        ReadFiefTradeAccounting(r);
     }
 }

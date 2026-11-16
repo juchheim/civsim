@@ -139,6 +139,8 @@ public sealed partial class LivingEconomyModel
         public readonly Fix64[] Goods = new Fix64[(int)MetalGood.Count];
         /// <summary>The Iron chapter's goods (docs/MVP/25 §4), kept apart from <see cref="Goods"/> so a Bronze checksum and snapshot never see them. Allocated on first use.</summary>
         public Fix64[]? IronGoods;
+        /// <summary>Fief-only powder and cannon-chain goods, kept outside the Iron goods prefix so Iron hashes and snapshots remain exact.</summary>
+        public Fix64[] FiefGoods = Array.Empty<Fix64>();
         /// <summary>Iron-chapter structures built here, by <c>IronStructure</c>; null until the first one. Outside <see cref="Goods"/> and the Structures array, so Bronze hashes never see it.</summary>
         public int[]? IronWorks;
         /// <summary>The Iron structure under construction (an <c>IronStructure</c> value) or -1, with the labor put into it.</summary>
@@ -259,7 +261,30 @@ public sealed partial class LivingEconomyModel
     // Derived, never hashed: recipe slots resolved against the store layout, and per-site tile lists for charcoal reach.
     private CompiledRecipe[] _compiledRecipes = Array.Empty<CompiledRecipe>();
     private int[]?[] _reachTiles = Array.Empty<int[]?>();
+    private List<MiningCampState>?[]? _campsByParent;
     private bool[] _coppiced = Array.Empty<bool>();
+
+    private void InvalidateCampsByParent()
+    {
+        _campsByParent = null;
+        InvalidateIronOreSupplierAssignments();
+    }
+
+    private List<MiningCampState>? CampsForParent(int parent)
+    {
+        List<MiningCampState>?[]? index = _campsByParent;
+        if (index is null)
+        {
+            int size = 0;
+            foreach (MiningCampState camp in _camps)
+                if (camp.Parent >= size) size = camp.Parent + 1;
+            index = new List<MiningCampState>?[size];
+            foreach (MiningCampState camp in _camps)
+                (index[camp.Parent] ??= new List<MiningCampState>()).Add(camp);
+            _campsByParent = index;
+        }
+        return unchecked((uint)parent) < unchecked((uint)index.Length) ? index[parent] : null;
+    }
 
     /// <summary>Who owns tiles (politics); without it the planner treats tiles within four of its own settlements as its own.</summary>
     public ITileOwnership? TileOwnership { get; set; }
@@ -620,6 +645,12 @@ public sealed partial class LivingEconomyModel
             if (m.Goods[g] <= Fix64.Zero) continue;
             total += m.Goods[g] * _metalBarter[g];
         }
+        if (FiefChain)
+            for (int g = 0; g < (int)FiefGood.Count; g++)
+            {
+                Fix64 stock = m.FiefGoods.Length > 0 ? m.FiefGoods[g] : Fix64.Zero;
+                if (stock > Fix64.Zero) total += stock * GoodBarterValue(FiefGoodId((FiefGood)g));
+            }
         return total;
     }
 
@@ -731,6 +762,7 @@ public sealed partial class LivingEconomyModel
         Array.Copy(lows, _forestLowSeasons, lows.Length);
         _nextCampId = reader.ReadInt32();
         _camps.Clear();
+        InvalidateCampsByParent();
         int camps = ReadCount(reader, 100_000);
         for (int i = 0; i < camps; i++)
         {
@@ -793,7 +825,7 @@ public sealed partial class LivingEconomyModel
         }
         foreach (FigureState f in _figures)
         {
-            byte maxRole = FiefChain ? Role.Attendant : IronChain ? Role.Scholar : Role.Scribe;
+            byte maxRole = FiefChain ? Role.MasterMason : IronChain ? Role.Scholar : Role.Scribe;
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
                 f.Role > maxRole)
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
@@ -808,6 +840,7 @@ public sealed partial class LivingEconomyModel
         Array.Copy(source._forestLowSeasons, _forestLowSeasons, _forestLowSeasons.Length);
         _nextCampId = source._nextCampId;
         _camps.Clear();
+        InvalidateCampsByParent();
         foreach (MiningCampState c in source._camps)
             _camps.Add(new MiningCampState
             {
@@ -832,6 +865,7 @@ public sealed partial class LivingEconomyModel
         };
         Array.Copy(source.Goods, m.Goods, m.Goods.Length);
         if (source.IronGoods is not null) m.IronGoods = (Fix64[])source.IronGoods.Clone();
+        if (source.FiefGoods.Length > 0) m.FiefGoods = (Fix64[])source.FiefGoods.Clone();
         if (source.IronWorks is not null) m.IronWorks = (int[])source.IronWorks.Clone();
         m.IronBuildKind = source.IronBuildKind;
         m.IronBuildProgress = source.IronBuildProgress;

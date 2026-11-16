@@ -28,6 +28,7 @@ namespace CivSim.Harness;
 /// Bare --check-m10, or either omitted sample dimension, defaults to a quick diagnostic (1 seed, 2 minutes).
 /// Full-sample classification requires explicitly supplying both dimensions at acceptance size (at least 8 seeds, 64 minutes).
 /// civsim-harness ai --pack FILE --exploit [--generations N] [--children N] [--seeds N] [--screen-minutes N] [--minutes N]
+///   [--exploit-screen-first-seed N] [--exploit-validation-first-seed N] [--exploit-output FILE] [--mode bronze|iron|fief]
 /// Bare --exploit defaults to a quick diagnostic (1 generation, 1 child, 1 seed, 2-minute screen); acceptance
 /// requires 10,000 distinct candidates and 64-minute validation of 16 finalists on fresh mirrored seeds.
 /// </code>
@@ -89,6 +90,8 @@ internal static class AiCommand
         bool warlordB30Trace = false, warlordB28Trace = false, b28ProactiveDefenseDiagnostic = false,
             b28PublicEraShadowDiagnostic = false, b28AffordabilityTimeline = false;
         bool generationsGiven = false, childrenGiven = false, seedsGiven = false, screenMinutesGiven = false;
+        ulong? exploitScreenFirstSeed = null, exploitValidationFirstSeed = null;
+        string? exploitOutput = null;
         int seeds = 8, minutes = 33, observationMinutes = 0, screenMinutes = ExploitSearch.ScreenMinutesDefault, generations = 6, children = 12;
         ulong firstSeed = Tournament.BaseSeed;
         var archetype = EconomyArchetype.Balanced;
@@ -172,6 +175,9 @@ internal static class AiCommand
                 case "--children": children = int.Parse(args[++i], CultureInfo.InvariantCulture); childrenGiven = true; break;
                 case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
                 case "--first-seed": firstSeed = ulong.Parse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture); break;
+                case "--exploit-screen-first-seed": exploitScreenFirstSeed = ulong.Parse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture); break;
+                case "--exploit-validation-first-seed": exploitValidationFirstSeed = ulong.Parse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture); break;
+                case "--exploit-output": exploitOutput = args[++i]; break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); minutesGiven = true; break;
                 case "--observation-minutes": observationMinutes = int.Parse(args[++i], CultureInfo.InvariantCulture); observationMinutesGiven = true; break;
                 case "--screen-minutes": screenMinutes = int.Parse(args[++i], CultureInfo.InvariantCulture); screenMinutesGiven = true; break;
@@ -220,14 +226,20 @@ internal static class AiCommand
                 childrenGiven ? children : null,
                 seedsGiven ? seeds : null,
                 minutesGiven ? minutes : null,
-                screenMinutesGiven ? screenMinutes : null);
+                screenMinutesGiven ? screenMinutes : null,
+                exploitScreenFirstSeed,
+                exploitValidationFirstSeed);
             ExploitSearch.SearchResult search = ExploitSearch.Search(pack,
-                options.Generations, options.Children, options.Seeds, options.ScreenMinutes, options.Minutes, firstSeed);
+                options.Generations, options.Children, options.Seeds, options.ScreenMinutes, options.Minutes, firstSeed,
+                Tournament.ChapterOverride, options.ScreenFirstSeed, options.ValidationFirstSeed);
             Console.WriteLine($"A6 screen: {search.UniqueCandidates:N0} distinct candidates ({search.ScreenEvaluations:N0} evaluations), {search.ScreenMinutes}-minute horizon.");
             Console.WriteLine($"Finalists: {search.Finalists.Count}; full validation: {search.Validations.Count}/{search.Finalists.Count} at {search.ValidationMinutes} minutes, {ExploitSearch.ValidationSeedPairs} fresh mirrored seed pairs each.");
-            Console.WriteLine($"Deterministic seed ranges: screen {Tournament.BaseSeed + 5000}–{Tournament.BaseSeed + 5000 + (ulong)Math.Max(0, options.Seeds - 1)}; validation {Tournament.BaseSeed + 9000}–{Tournament.BaseSeed + 9000 + (ulong)(ExploitSearch.ValidationSeedPairs - 1)}.");
+            Console.WriteLine($"Deterministic seed ranges: screen {options.ScreenFirstSeed}–{options.ScreenFirstSeed + (ulong)options.Seeds - 1}; validation {options.ValidationFirstSeed}–{options.ValidationFirstSeed + (ulong)(ExploitSearch.ValidationSeedPairs - 1)}; chapter {Tournament.ChapterOverride?.Mode.ToString() ?? "Bronze"}.");
             foreach (ExploitSearch.Validation validation in search.Validations)
                 Console.WriteLine($"  finalist {validation.WinRate:P0} vs Warlord: {validation.Policy}");
+            string finalistResults = ExploitSearch.FormatFinalistResults(search);
+            Console.Write(finalistResults);
+            if (exploitOutput is not null) File.WriteAllText(exploitOutput, finalistResults);
             double highestConfirmed = search.Validations.Count == 0 ? double.NaN : search.Validations.Max(v => v.WinRate);
             ExploitSearch.GateResult result = ExploitSearch.Classify(search.UniqueCandidates, search.ScreenMinutes,
                 search.ValidationMinutes, search.Finalists.Count, search.Validations.Count, highestConfirmed);

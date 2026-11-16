@@ -63,7 +63,7 @@ projects:
     effects:
       - {kind: build, structure: windmill}
       - {kind: rule, text: "A built windmill supplies 4 power units at 80% availability on any open tile for grinding and mill-driven jobs, so milling no longer needs a river; drainage pumps reclaim wetland tiles to field only while a pump job is staffed."}
-    practice: [{action: craft, share: 100}]
+    practice: [{action: work_animals, share: 50}, {action: craft, share: 50}]
     flavor: "The wind turns the grain to flour."
     moment: "Sails turn on a ridge and the millstones begin."
   - id: NRG-06

@@ -1,0 +1,18 @@
+{
+  "status": "pending-final-WP-E5-11-freeze",
+  "head": null,
+  "tree": null,
+  "sourceAggregateSha256": null,
+  "sourceFileManifestSha256": null,
+  "packSha256": null,
+  "harnessDllSha256": null,
+  "simDllSha256": null,
+  "runnerSha256": "7527ed5a4e745cbc86e54727da844e123303786e4f8033ceeda5c37ea46fb555",
+  "runnerHelperSha256": "496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a",
+  "fixtureSha256": "4d10c84cb94cd3486238ab6cd9bc734240a5a72c942f662776e00d156ef3e829",
+  "manifest": "m12-e5-12-natural-seeds-2026-11-16.txt",
+  "manifestSha256": "c3ef15f4654a0fb1a0834a61dc6516dfc407493d2a5e7f1e4c8e22684e87b461",
+  "minutes": 130,
+  "grantE5": false,
+  "outputRoot": "/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/wp-e5-12-final-2026-11-16-r1"
+}

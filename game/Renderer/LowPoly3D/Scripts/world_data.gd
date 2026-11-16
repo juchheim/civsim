@@ -30,6 +30,8 @@ const LOOK_TILES := 1024         # CER-08 Fired Brick & Tile
 const LOOK_IRON_ARMS := 2048     # WAR-08 Iron Weapons
 const LOOK_COLONNADES := 4096    # STN-12 Ashlar & Columns
 const LOOK_GRAFTING := 8192      # FOR-08 Grafting
+const LOOK_KNIGHTS := 16384      # WAR-10 Heavy Cavalry
+const LOOK_GUNPOWDER := 32768    # WAR-12 Gunpowder Weapons
 
 ## Bits of iron_looks (IronFrame.CivLooks): per civilization, the Iron projects that leave small props.
 const IRON_CAMELS := 1      # HUS-09 Camels & Caravan Animals
@@ -37,6 +39,8 @@ const IRON_RELAYS := 2      # COM-08 Courier Relays
 const IRON_BARRELS := 4     # WOD-07 Cooperage
 const IRON_PLANKS := 8      # WOD-08 Frame & Crosscut Saws
 const IRON_GLASS := 16      # CER-07 Glassblowing
+const IRON_MUSKETS := 32    # WAR-13 Pike & Musket Drill: pikemen and musketeers
+const IRON_RIFLES := 64     # WAR-14 Rifles & Artillery: riflemen and the field gun
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -71,6 +75,15 @@ var civ_looks := PackedInt32Array()     # per civilization: LOOK_* bits (ard plo
 var feast_learned := PackedInt32Array()  # per civilization: tick SOC-05 was learned (-1 = not yet)
 var trail_meta := PackedInt32Array()     # stride 5: level, civ, trade, start, length
 var trail_tiles := PackedInt32Array()    # flat tile list, -1 = unexplored or open water
+# Faith & Fief overlays (docs/MVP/32 §7, §8.4 and §9; proposed). Empty until the frame supplies them, and nothing draws while they are. Each list is
+# a table of rows and a flat tile list the rows index into, like trail_meta / trail_tiles; -1 is not used (the frame sends only tiles in sight).
+var pilgrim_routes := PackedInt32Array()   # stride 5: route id, civ, start, length, flags (bit 0: the route ends at the Gothic Cathedral's settlement)
+var pilgrim_tiles := PackedInt32Array()
+var quarantine_links := PackedInt32Array() # stride 3: kind (0 route, 1 border), start, length
+var quarantine_tiles := PackedInt32Array()
+var spread_links := PackedInt32Array()     # stride 3: start, length, intensity (permille); a run goes from the source settlement's tile to the target's
+var spread_tiles := PackedInt32Array()
+var outbreaks := PackedInt32Array()        # stride 3: tile, intensity (permille), flags (bit 0: imported)
 var sieges := PackedInt32Array()         # stride 6: settlement index in the sim, besieger civ, engines, seasons, wall integrity (permille), origin tile or -1
 var terrace_tiles := PackedInt32Array()  # tiles of terraced fields (AGR-08)
 var blockades := PackedInt32Array()      # stride 3: blockaded harbor's settlement index in the sim, blockader civ, blockader's origin settlement
@@ -129,14 +142,6 @@ func fief_settlement(s: Dictionary) -> Dictionary:
 		"universities": int(s.get("fiefUniversities", 0)),
 		"hospitals": int(s.get("fiefHospitals", 0)),
 		"concentric_castle": bool(s.get("fiefConcentricCastle", false)),
-		"grinding_demand_raw": int(s.get("fiefGrindingDemand", 0)), "grinding_used_raw": int(s.get("fiefGrindingUsed", 0)),
-		"sawing_demand_raw": int(s.get("fiefSawingDemand", 0)), "sawing_used_raw": int(s.get("fiefSawingUsed", 0)),
-		"craft_demand_raw": int(s.get("fiefCraftDemand", 0)), "craft_used_raw": int(s.get("fiefCraftUsed", 0)),
-		"physicians": int(s.get("fiefPhysicians", 0)), "attendants": int(s.get("fiefAttendants", 0)),
-		"ill_patients": int(s.get("fiefIllPatients", 0)), "wounded_patients": int(s.get("fiefWoundedPatients", 0)),
-		"treated_patients": int(s.get("fiefTreatedPatients", 0)), "hospital_staffed": bool(s.get("fiefHospitalStaffed", false)), "scholars": int(s.get("fiefScholars", 0)),
-		"scholar_insight_heads_raw": int(s.get("fiefScholarInsightHeads", 0)),
-		"key6_permille": int(s.get("fiefKey6Permille", 0)), "build_guidance": String(s.get("fiefBuildGuidance", "")),
 	}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.
@@ -155,6 +160,30 @@ func blockaders_of(sim_index: int) -> Array:
 	return out
 
 ## Whether a civilization has a small-prop look of the Iron Age (an IRON_* bit).
+## The share, in percent, of a settlement's fighters holding a crossbow (kind 0), a longbow (1) or the war bow (2): what the sim's frame says it holds (docs/MVP/36).
+## `--looks-debug` pretends every settlement holds some of each so the figures can be inspected.
+func bow_pct(home: int, kind: int) -> int:
+	if LOOKS_DEBUG:
+		return [25, 25, 10][kind]
+	if home < 0 or home >= settlements.size():
+		return 0
+	var bows = settlements[home].get("bows")
+	return int(bows[kind]) if bows is Array or bows is PackedInt32Array else 0
+
+## The bow mesh a civilization's fighters carry, from the bows its visible settlements hold: the crossbow when crossbows lead, else the longbow (which also stands
+## for the war bow of Archery Warfare); empty when none holds a bow.
+func civ_bow_mesh(civ: int) -> String:
+	var cb := 0
+	var lb := 0
+	for si in settlements.size():
+		if int(settlements[si].get("civ", -1)) != civ:
+			continue
+		cb += bow_pct(si, 0)
+		lb += bow_pct(si, 1) + bow_pct(si, 2)
+	if cb + lb <= 0:
+		return ""
+	return "person_crossbow" if cb >= lb else "person_longbow"
+
 func has_iron_look(civ: int, bit: int) -> bool:
 	return civ >= 0 and civ < iron_looks.size() and (iron_looks[civ] & bit) != 0
 
@@ -245,7 +274,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	if LOOKS_DEBUG:
 		# --looks-debug: every civilization knows every look, so the visuals can be inspected without researching them
 		civ_looks.resize(8)
-		civ_looks.fill(16383)
+		civ_looks.fill(65535)
 	trail_meta = _int_data(d.trailMeta, 5) if d.has("trailMeta") else PackedInt32Array()
 	trail_tiles = _int_data(d.trailTiles, 1) if d.has("trailTiles") else PackedInt32Array()
 	sieges = _int_data(d.sieges, 6) if d.has("sieges") else PackedInt32Array()
@@ -254,7 +283,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	iron_looks = _int_data(d.ironLooks, 1) if d.has("ironLooks") else PackedInt32Array()
 	if LOOKS_DEBUG:
 		iron_looks.resize(8)
-		iron_looks.fill(31)
+		iron_looks.fill(127)
 	tributes = _int_data(d.tributes, 2) if d.has("tributes") else PackedInt32Array()
 	leagues = _int_data(d.leagues, 1) if d.has("leagues") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()

@@ -1,0 +1,14 @@
+{
+  "protocol": "WP-E5-5/F-T4",
+  "minutes": 180,
+  "arms": ["agr11", "control_no_agr11"],
+  "pins": {
+    "headCommit": null,
+    "sourceAggregateSha256": null,
+    "packSha256": null,
+    "harnessDllSha256": null,
+    "simDllSha256": null,
+    "runnerSha256": null
+  },
+  "runs": []
+}

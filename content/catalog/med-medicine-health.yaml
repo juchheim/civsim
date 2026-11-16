@@ -83,6 +83,7 @@ projects:
     status: draft
     requires: [MED-06, BEL-09]
     effects:
+      - {kind: role, id: attendant}
       - {kind: build, structure: hospital}
       - {kind: hazard, cause: epidemic, mult: 0.8, scope: local}
       - {kind: mod, stat: elder_hazard, op: mult, value: 0.95, note: "elders in a settlement with a staffed hospital (P)"}

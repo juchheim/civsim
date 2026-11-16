@@ -206,9 +206,69 @@ public partial class Game
                 Step(OpenSettings);
                 Shot("settings");
                 break;
+            case "skins":
+                // Every age skin on the HUD plus a sheet. Use --start-minute=30 --viewer=0 and --always-on-top.
+                Step(() => OpenResearchWeb(-1), 1.0f);
+                for (int skinEra = 0; skinEra < 10; skinEra++)
+                {
+                    int e = skinEra;
+                    Step(() => { _uiSettings.SkinOverride = e; UiSkin.Refresh(); }, 1.2f);
+                    Shot($"skin-{e:00}-{UiSkins.For(e).Slug}-web");
+                }
+                Step(CloseResearchWeb, 0.6f);
+                for (int skinEra = 0; skinEra < 10; skinEra += 3)
+                {
+                    int e = skinEra;
+                    Step(() => { _uiSettings.SkinOverride = e; UiSkin.Refresh(); }, 1.2f);
+                    Step(OpenSettings, 0.5f);
+                    Shot($"skin-{e:00}-{UiSkins.For(e).Slug}-sheet");
+                    Step(CloseSettings, 0.4f);
+                }
+                Step(() => { _uiSettings.SkinOverride = -1; UiSkin.Refresh(); }, 0.3f);
+                break;
             case "diplomacy":
+                // One shot per page of the detail pane; the War page twice, the second scrolled to the end of the forces block.
+                // --diplomacy-grant: first give the viewer the trade, diplomacy and war research (bronze and iron arms, chariots, siege engines)
+                // and declare war on the first people met, so every order and every row of the forces block shows.
+                if (HasArgument("--diplomacy-grant"))
+                {
+                    Step(() =>
+                    {
+                        int viewer = Math.Max(0, _current?.ViewerCiv ?? 0);
+                        foreach (string id in new[] { "TRD-01", "TRD-02", "DIP-03", "WAR-01", "WAR-02", "WAR-03", "WAR-04", "WAR-05", "WAR-06", "WAR-07", "WAR-08", "WAR-09", "HNT-05", "HNT-06", "MET-10" })
+                            if (_catalog!.IndexOf(id) is int project and >= 0)
+                                _session!.Queue(new Command(_session.Tick, (byte)viewer, CommandKind.CompleteProject, project, 0, 0));
+                        _session!.SetPaused(false);
+                    }, 4.0f);
+                    Step(() =>
+                    {
+                        ToggleDiplomacy(true);
+                        if (_civOrder.Count > 0) { _selectedPoliticsCiv = _civOrder[0]; QueueDiplomacyOrder(PlayerCommands.DeclareWar); }
+                    }, 1.5f);
+                    // Hold the war (the other side may sue for peace) and queue an assault so the pending row shows.
+                    Step(() => { _session!.SetPaused(true); SelectDiplomacyTab(DiploTabWar); if (_current is not null) RefreshDiplomacy(_current); }, 0.6f);
+                    Shot("diplomacy-atwar");
+                    Step(() => { if (_assaultRow is { Enabled: true }) { QueueAssault(); SelectDiplomacyTab(DiploTabWar); if (_current is not null) RefreshDiplomacy(_current); } }, 0.6f);
+                    Shot("diplomacy-assault-queued");
+                }
                 Step(() => ToggleDiplomacy(true));
+                Step(() => SelectDiplomacyTab(DiploTabRelations), 0.4f);
                 Shot("diplomacy");
+                Step(() => SelectDiplomacyTab(DiploTabTrade), 0.4f);
+                Shot("diplomacy-trade");
+                Step(() => SelectDiplomacyTab(DiploTabWar), 0.4f);
+                Shot("diplomacy-war");
+                Step(() => { if (_diploPageScroll is not null) _diploPageScroll.ScrollVertical = int.MaxValue; }, 0.5f);
+                Shot("diplomacy-forces");
+                // Pick a settlement as the target and select the next people, if there is one.
+                Step(() =>
+                {
+                    if (_destinationSelect is not null && _destinationSelect.ItemCount > 1) { _destinationSelect.Select(1); _selectedTargetSettlement = _destinationSelect.GetItemId(1); }
+                    if (_civOrder.Count > 1) { _selectedPoliticsCiv = _civOrder[1]; _selectedTargetSettlement = -1; }
+                    SelectDiplomacyTab(DiploTabWar);
+                    if (_current is not null) RefreshDiplomacy(_current);
+                }, 0.5f);
+                Shot("diplomacy-other");
                 break;
             case "tile":
                 Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; });
@@ -517,6 +577,10 @@ public partial class Game
                 Shot("looks-boat");
                 Step(() => Look("chariot_focus", 1.7f), 1.0f);
                 Shot("looks-chariot");
+                Step(() => Look("knight_focus", 1.7f), 1.0f);
+                Shot("looks-knight");
+                Step(() => Look("gunner_focus", 1.7f), 1.0f);
+                Shot("looks-gunner");
                 Step(() => Look("landmark_focus", 12.0f, "temple"), 1.2f);
                 Shot("looks-wide");
                 break;
@@ -713,6 +777,114 @@ public partial class Game
                     Shot($"iron-{itemName}");
                 }
                 break;
+            case "fief-gallery":
+                // the Faith & Fief meshes (docs/MVP/32) on a stage above the map (LowPoly3DView.show_fief_gallery): windmill and blast furnace, monastery,
+                // concentric castle, Gothic Cathedral, each in its states and stages
+                Vector3 fiefOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 1.5f);
+                Step(() =>
+                {
+                    fiefOrigin = (Vector3)_visualRenderer!.Call("show_fief_gallery");
+                    _moveAnimating = false;
+                    _target = fiefOrigin;
+                    _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                    _pitch = Mathf.DegToRad(52.0f);
+                    ZoomTo(9.0f);
+                    UpdateCamera();
+                }, 1.5f);
+                Shot("fief-all");
+                foreach (var (item, dx, dz, zoom, pitchDeg, yawDeg) in new[]
+                {
+                    // rows: z 2.4 power (windmill x -1.2 / -0.6, furnaces 0.15 / 1.05), 0.2 monastery, -2.2 castles (x -2.5 .. 2.5), -5.2 cathedrals (x -1.8 .. 1.8)
+                    ("power", 0.0f, 2.4f, 3.4f, 38.0f, 0.0f), ("windmill", -0.9f, 2.4f, 1.6f, 26.0f, 0.0f), ("windmill-side", -0.9f, 2.4f, 1.6f, 26.0f, 70.0f),
+                    ("furnace", 0.6f, 2.4f, 1.9f, 30.0f, 0.0f), ("furnace-back", 0.6f, 2.4f, 1.9f, 34.0f, 150.0f),
+                    ("monastery", 0.0f, 0.2f, 3.4f, 40.0f, 0.0f), ("monastery-close", -0.55f, 0.2f, 1.9f, 36.0f, 0.0f), ("monastery-idle", 0.45f, 0.2f, 1.9f, 36.0f, 0.0f),
+                    ("monastery-back", -0.55f, 0.2f, 2.0f, 36.0f, 160.0f),
+                    ("castle", 0.0f, -2.2f, 5.2f, 40.0f, 0.0f), ("castle-close", 1.25f, -2.2f, 2.2f, 34.0f, 0.0f), ("castle-idle", 2.5f, -2.2f, 2.2f, 34.0f, 0.0f),
+                    ("castle-back", 1.25f, -2.2f, 2.2f, 34.0f, 160.0f),
+                    ("fields", 0.0f, -8.0f, 4.4f, 50.0f, 0.0f), ("fields-close", 0.55f, -8.0f, 2.0f, 46.0f, 0.0f), ("fields-low", 0.55f, -8.0f, 1.8f, 24.0f, 0.0f),
+                    ("cogs", 0.0f, -10.4f, 2.8f, 34.0f, 0.0f), ("cog-front", 0.0f, -10.4f, 1.5f, 28.0f, 0.0f), ("cog-side", 0.0f, -10.4f, 1.5f, 28.0f, 90.0f), ("cog-stern", 0.0f, -10.4f, 1.5f, 30.0f, 200.0f),
+                    ("civic", 0.0f, -12.8f, 3.6f, 40.0f, 0.0f), ("civic-uni", -1.35f, -12.8f, 2.2f, 32.0f, 0.0f), ("civic-uni-side", -1.35f, -12.8f, 2.2f, 32.0f, 60.0f),
+                    ("civic-small", 0.9f, -12.8f, 2.0f, 30.0f, 0.0f), ("civic-small-side", 0.9f, -12.8f, 2.0f, 30.0f, 50.0f),
+                    ("industry", 0.0f, -15.0f, 3.6f, 40.0f, 0.0f), ("industry-saw", 0.0f, -15.0f, 2.4f, 34.0f, 25.0f), ("industry-powder", 1.3f, -15.0f, 2.2f, 32.0f, 25.0f),
+                    ("works", 0.0f, -17.2f, 3.4f, 38.0f, 0.0f), ("works-a", -0.8f, -17.2f, 2.2f, 30.0f, 0.0f), ("works-b", 0.8f, -17.2f, 2.2f, 30.0f, 0.0f),
+                    ("people", 0.0f, -19.4f, 2.8f, 34.0f, 0.0f), ("people-close", -0.3f, -19.4f, 2.7f, 24.0f, 0.0f), ("people-side", -0.3f, -19.4f, 2.7f, 24.0f, 70.0f),
+                    ("levy", 0.0f, -21.6f, 2.8f, 34.0f, 0.0f), ("levy-close", -0.1f, -21.6f, 2.7f, 24.0f, 0.0f), ("levy-side", -0.1f, -21.6f, 2.7f, 24.0f, 70.0f),
+                    ("levy-back", -0.1f, -21.6f, 2.7f, 26.0f, 160.0f),
+                    ("drilled", 0.0f, -23.8f, 2.8f, 34.0f, 0.0f), ("drilled-close", -0.1f, -23.8f, 2.7f, 24.0f, 0.0f), ("drilled-side", -0.1f, -23.8f, 2.7f, 24.0f, 70.0f),
+                    ("drilled-back", -0.1f, -23.8f, 2.7f, 26.0f, 160.0f),
+                    ("cathedral", 0.0f, -5.2f, 4.2f, 36.0f, 0.0f), ("cathedral-front", 1.8f, -5.0f, 2.1f, 20.0f, 0.0f),
+                    ("cathedral-side", 1.8f, -5.2f, 2.1f, 26.0f, 65.0f), ("cathedral-back", 1.8f, -5.2f, 2.1f, 30.0f, 155.0f), ("cathedral-stages", -0.6f, -5.2f, 2.6f, 30.0f, 25.0f),
+                })
+                {
+                    string itemName = item;
+                    // --fief-only=fields,cog : photograph only the shots whose name starts with one of these (a short run, for a busy machine)
+                    string? fiefOnly = ArgumentValue("--fief-only=");
+                    if (fiefOnly is not null && !Array.Exists(fiefOnly.Split(','), o => itemName.StartsWith(o))) continue;
+                    float x = dx, z = dz, zm = zoom, pitch = pitchDeg, yaw = yawDeg;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(pitch);
+                        _yaw = _yawTarget = Mathf.DegToRad(yaw);
+                        _moveAnimating = false;
+                        _target = new Vector3(fiefOrigin.X + x, fiefOrigin.Y, fiefOrigin.Z + z);
+                        ZoomTo(zm);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot($"fief-{itemName}");
+                }
+                break;
+            case "fief-overlays":
+                // the Faith & Fief route and spread overlays (docs/MVP/32 §7, §8.4) on the live map round the capital, with synthetic data from
+                // LowPoly3DView.show_fief_overlay_demo: pilgrimage routes with way-posts and pilgrims, quarantine, disease spreading and outbreaks
+                Vector3 overlayAt = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 2.0f);
+                Step(() =>
+                {
+                    overlayAt = (Vector3)_visualRenderer!.Call("show_fief_overlay_demo");
+                    if (overlayAt != Vector3.Zero) { _moveAnimating = false; _target = overlayAt; UpdateCamera(); }
+                }, 2.0f);
+                foreach (var (shot, zoom, pitchDeg, yawDeg) in new[]
+                {
+                    ("region", 14.0f, 52.0f, 0.0f), ("wide", 8.0f, 50.0f, 0.0f), ("town", 5.0f, 44.0f, 0.0f), ("town-b", 5.0f, 44.0f, 120.0f),
+                    ("close", 3.2f, 36.0f, 30.0f), ("close-b", 3.2f, 36.0f, 150.0f), ("close-c", 3.2f, 36.0f, 270.0f),
+                })
+                {
+                    string shotName = shot;
+                    float zm = zoom, pitch = pitchDeg, yaw = yawDeg;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(pitch);
+                        _yaw = _yawTarget = Mathf.DegToRad(yaw);
+                        _moveAnimating = false;
+                        if (overlayAt != Vector3.Zero) _target = overlayAt;
+                        SetZoom(zm);
+                        UpdateCamera();
+                    }, 2.6f);
+                    Shot($"overlay-{shotName}");
+                }
+                // the quarantine gate across its route, and a pilgrimage way-post's route from above
+                Step(() =>
+                {
+                    Vector3 gate = (Vector3)_visualRenderer!.Call("fief_gate_focus");
+                    if (gate != Vector3.Zero) { _pitch = Mathf.DegToRad(34.0f); _yaw = _yawTarget = Mathf.DegToRad(20.0f); _moveAnimating = false; _target = gate; SetZoom(2.7f); UpdateCamera(); }
+                }, 2.6f);
+                Shot("overlay-gate");
+                break;
             case "defense-village":
                 // --start-minute=30 --viewer=-1 --dev-walls=1..3 [--dev-gatehouse] [--dev-castle=1..4] (debug builds): the capital behind its stone walls with
                 // its castle, from afar and close up; --looks-debug gives it every look
@@ -738,6 +910,127 @@ public partial class Game
                 }, 2.5f);
                 Shot("defense-castle");
                 break;
+            case "plate-gallery":
+                // Docs/MVP/33: every settlement name-plate variant on sand, grass, snow, forest and water, drawn straight from the overlay.
+                // --start-minute=30 --viewer=0 --always-on-top
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    EnsurePlates().ShowGallery();
+                }, 1.0f);
+                Shot("plate-gallery");
+                Step(() => EnsurePlates().ShowGallery(1), 1.0f);
+                Shot("plate-gallery-state");
+                Step(() => EnsurePlates().ShowGallery(2), 1.0f);
+                Shot("plate-gallery-small");
+                Step(() => EnsurePlates().ShowGallery(3), 1.0f);
+                Shot("plate-gallery-names");
+                Step(() => EnsurePlates().ShowGallery(4), 1.0f);
+                Shot("plate-gallery-motion");
+                break;
+            case "plates":
+                // Docs/MVP/33: the live map at each zoom band, with the HUD hidden, then once with it. --start-minute=30 --viewer=0 --always-on-top
+                Step(() =>
+                {
+                    _session!.SetPaused(true);
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    FrameCapital(true);
+                }, 2.0f);
+                foreach (float plateZoom in new[] { 4.0f, 8.0f, 12.0f, 20.0f, 40.0f, 90.0f })
+                {
+                    float zoomNow = plateZoom;
+                    Step(() => { _moveAnimating = false; SetZoom(zoomNow); }, 1.2f);
+                    Shot($"plates-z{(int)zoomNow:00}");
+                }
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = true;
+                    _moveAnimating = false;
+                    SetZoom(12.0f);
+                }, 1.2f);
+                Shot("plates-with-hud");
+                Step(() =>
+                {
+                    // Hit test: a click on each plate's ribbon must give back its own settlement's tile; one far from any plate gives none.
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                    {
+                        int settlement = _current.SettlementIndex[i];
+                        if (_plates is null || !_plates.TryGetAnchor(settlement, out Vector2 anchor, out PlateLevel level)) { GD.Print($"SCN plate {settlement}: not shown"); continue; }
+                        bool hit = _plates.TryPickTile(anchor + new Vector2(0, -14), out int tile);
+                        bool miss = _plates.TryPickTile(anchor + new Vector2(400, 0), out int _);
+                        GD.Print($"SCN plate {settlement}: level={level} anchor={anchor} hit={hit} tile={tile} expected={_current.SettlementTile[i]} farMiss={!miss}");
+                    }
+                }, 0.5f);
+                Step(() =>
+                {
+                    // The hover line: the pointer rests on the first plate shown, as a mouse would (plate-hover).
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out _))
+                        {
+                            _hoverActive = true; _hoverScreen = anchor + new Vector2(0, -14);
+                            break;
+                        }
+                }, 0.8f);
+                Shot("plates-hover");
+                // Flicker check: zoomed out, the pointer rests on a pip; hovering must settle on one level, not alternate every frame.
+                Step(() => { _hoverActive = false; _moveAnimating = false; SetZoom(90.0f); }, 1.2f);
+                Step(() =>
+                {
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out PlateLevel level))
+                        {
+                            GD.Print($"SCN flicker: rest level={level} anchor={anchor}");
+                            _hoverActive = true; _hoverScreen = anchor + new Vector2(0, -4);
+                            break;
+                        }
+                }, 0.05f);
+                for (int f = 0; f < 8; f++)
+                    Step(() =>
+                    {
+                        for (int i = 0; i < _current!.SettlementCount; i++)
+                            if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out PlateLevel level))
+                            { GD.Print($"SCN flicker: level={level} anchor={anchor}"); break; }
+                    }, 0.04f);
+                // Phase 3: the "Names only" and "Off" settings, then a double-click on a plate.
+                Step(() => { _hoverActive = false; _uiSettings.SettlementPlates = PlateMode.NamesOnly; _moveAnimating = false; SetZoom(12.0f); if (_hudLayer is not null) _hudLayer.Visible = false; }, 1.2f);
+                Shot("plates-names-z12");
+                Step(() => { _moveAnimating = false; SetZoom(28.0f); }, 1.2f);
+                Shot("plates-names-z28");
+                Step(() =>
+                {
+                    _uiSettings.SettlementPlates = PlateMode.Off;
+                    _moveAnimating = false; SetZoom(12.0f);
+                }, 1.2f);
+                Shot("plates-off");
+                Step(() =>
+                {
+                    bool any = false;
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                        if (_plates is not null && _plates.TryGetAnchor(_current.SettlementIndex[i], out _, out _)) any = true;
+                    GD.Print($"SCN plates off: any plate hit-testable={any}");
+                    _uiSettings.SettlementPlates = PlateMode.Full;
+                }, 0.8f);
+                Step(() =>
+                {
+                    for (int i = 0; i < _current!.SettlementCount; i++)
+                    {
+                        if (_plates is null || !_plates.TryGetAnchor(_current.SettlementIndex[i], out Vector2 anchor, out _)) continue;
+                        _pinnedTile = -1;
+                        Vector3 before = _target;
+                        Vector2 at = anchor + new Vector2(0, -14);
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = true });
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = false });
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = true, DoubleClick = true });
+                        HandleMouseButton(new InputEventMouseButton { Position = at, ButtonIndex = MouseButton.Left, Pressed = false });
+                        GD.Print($"SCN double-click: pinned={_pinnedTile} expected={_current.SettlementTile[i]} moving={_moveAnimating} before={before}");
+                        break;
+                    }
+                }, 2.0f);
+                Step(() => { _hudLayer!.Visible = true; GD.Print($"SCN double-click after: target={_target} zoom={_zoom}"); }, 0.5f);
+                Shot("plates-doubleclick");
+                break;
             case "core-gallery":
                 // --start-minute=30 --viewer=-1 --dev-core-gallery --looks-debug [--layout-dump=FILE] (debug builds): one settlement of each
                 // stage (docs/MVP/31 WP6c), each captured with the default core layout.
@@ -747,7 +1040,7 @@ public partial class Game
                 {
                     if (_hudLayer is not null) _hudLayer.Visible = false;
                     if (_scrimLayer is not null) _scrimLayer.Visible = false;
-                    foreach (Label3D label in _settlementMapLabels.Values) if (GodotObject.IsInstanceValid(label)) label.Visible = false;
+                    if (_plateLayer is not null) _plateLayer.Visible = false;
                     _visualRenderer!.Call("lock_season", 0);
                     _session!.SetPaused(true);
                     FrameCapital(true);
@@ -832,6 +1125,22 @@ public partial class Game
                         if (at != Vector3.Zero) { _moveAnimating = false; _target = at; SetZoom(zoom); }
                     }, 2.5f);
                     Shot($"war-{call}-{_scenario.Count}");
+                }
+                // --cannon-burst: a besieger with gunpowder (--looks-debug) trains a cannon on the wall; a still every 0.2 s for 19 s, a little over one firing cycle at 1x (about 6 ticks a second)
+                if (HasArgument("--cannon-burst"))
+                {
+                    Step(() =>
+                    {
+                        Vector3 at = (Vector3)_visualRenderer!.Call("cannon_focus");
+                        if (at != Vector3.Zero) { _moveAnimating = false; _target = at; _pitch = Mathf.DegToRad(30.0f); SetZoom(1.9f); UpdateCamera(); }
+                    }, 1.5f);
+                    float burstStart = t;
+                    for (int k = 0; k < 95; k++)
+                    {
+                        string burstName = $"cannon-{k:00}";
+                        _scenario.Add((burstStart + 0.2f * k, () => TakeScenarioShot(burstName)));
+                    }
+                    t = burstStart + 0.2f * 95 + 0.5f;
                 }
                 break;
             case "works-village":

@@ -1,6 +1,8 @@
 using System.Linq;
 using System;
 using System.IO;
+using CivSim.Harness;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Research;
 
@@ -132,7 +134,7 @@ public class ChapterRulesTests
         byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
         Assert.Equal(30, System.BitConverter.ToInt32(bronzeBytes, 4));
         Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(34, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(44, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.Equal(bronzeBytes, Snapshot(explicitBronze));
         Assert.Equal(bronze.ComputeChecksum(), explicitBronze.ComputeChecksum());
         Assert.True(ironBytes.Length > bronzeBytes.Length); // the Iron trailer
@@ -164,7 +166,7 @@ public class ChapterRulesTests
         var seats = new[] { CivSim.Sim.Economy.EconomyArchetype.Balanced, CivSim.Sim.Economy.EconomyArchetype.Balanced,
             CivSim.Sim.Economy.EconomyArchetype.Balanced, CivSim.Sim.Economy.EconomyArchetype.Balanced };
         ulong fingerprint = CivSim.Sim.Economy.WorldEconomyInput.FromGeneratedWorld(WorldGen(seed)).Fingerprint;
-        foreach (ChapterRules rules in new[] { ChapterRules.Bronze, ChapterRules.Iron })
+        foreach (ChapterRules rules in new[] { ChapterRules.Bronze, ChapterRules.Iron, ChapterRules.Fief })
         {
             MatchModel match = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), seats, default, rules: rules);
             var runner = new SimRunner(match);
@@ -189,6 +191,88 @@ public class ChapterRulesTests
         ironRunner.Advance(Season);
         MatchReplay asBronze = MatchReplay.FromRun(seed, TestPack.Pack, seats, ironRunner, fingerprint, ChapterRules.Bronze);
         Assert.False(asBronze.Verify(TestPack.Pack).Ok);
+    }
+
+    [Fact]
+    public void Fief_match_harness_can_record_and_verify_its_own_match_replay()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "civsim-fief-replay-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string packPath = Path.Combine(root, "pack.json");
+            string output = Path.Combine(root, "replays");
+            File.WriteAllBytes(packPath, TestPack.Pack.Bytes);
+            Assert.Equal(0, IronMatchCommand.RunFief(new[] { "--pack", packPath, "--seed", "31337", "--minutes", "0", "--record-dir", output }));
+
+            string replayPath = Path.Combine(output, "31337.replay");
+            Assert.True(File.Exists(replayPath));
+            using var stream = File.OpenRead(replayPath);
+            MatchReplay replay = MatchReplay.Read(stream);
+            Assert.Same(ChapterRules.Fief, replay.Rules);
+            Assert.Equal(MatchReplay.FiefControlFormatVersion, BitConverter.ToUInt32(File.ReadAllBytes(replayPath), 4));
+            Assert.Equal(4, replay.Controls.Length);
+            Assert.True(replay.Verify(TestPack.Pack).Ok);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fief_match_harness_persists_and_verifies_750_tick_continuation_checkpoints()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "civsim-fief-continuation-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string packPath = Path.Combine(root, "pack.json");
+            string output = Path.Combine(root, "checkpoints");
+            File.WriteAllBytes(packPath, TestPack.Pack.Bytes);
+            Assert.Equal(0, IronMatchCommand.RunFief(new[] { "--pack", packPath, "--seed", "31337", "--minutes", "2", "--checkpoint-continuation", output }));
+
+            string reportPath = Path.Combine(output, "31337.continuation.csv");
+            string[] rows = File.ReadAllLines(reportPath);
+            Assert.Contains(rows, row => row.StartsWith("checkpoint,31337,0,31337-0.snapshot,", StringComparison.Ordinal));
+            Assert.Contains(rows, row => row.StartsWith("checkpoint,31337,750,31337-750.snapshot,", StringComparison.Ordinal));
+            Assert.Contains(rows, row => row.StartsWith("interval,31337,50,,,", StringComparison.Ordinal));
+            Assert.Contains(rows, row => row.StartsWith("interval,31337,1200,,,", StringComparison.Ordinal));
+            Assert.Contains("final,31337,1200,,,", string.Join("\n", rows));
+            Assert.True(File.Exists(Path.Combine(output, "31337-0.snapshot")));
+            Assert.True(File.Exists(Path.Combine(output, "31337-750.snapshot")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fief_match_harness_records_exact_seed_file_contents()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "civsim-fief-seed-file-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string packPath = Path.Combine(root, "pack.json");
+            string seedsPath = Path.Combine(root, "seeds.txt");
+            string output = Path.Combine(root, "replays");
+            File.WriteAllBytes(packPath, TestPack.Pack.Bytes);
+            File.WriteAllText(seedsPath, "31337\n42424\n");
+            Assert.Equal(0, IronMatchCommand.RunFief(new[] { "--pack", packPath, "--seeds-file", seedsPath, "--minutes", "0", "--record-dir", output }));
+            foreach (ulong seed in new ulong[] { 31337, 42424 })
+            {
+                using var stream = File.OpenRead(Path.Combine(output, $"{seed}.replay"));
+                MatchReplay replay = MatchReplay.Read(stream);
+                Assert.Equal(seed, replay.Replay.MatchSeed);
+                Assert.True(replay.Verify(TestPack.Pack).Ok);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static CivSim.Sim.World.GeneratedWorld WorldGen(ulong seed) => CivSim.Sim.World.WorldGenerator.Generate(seed);

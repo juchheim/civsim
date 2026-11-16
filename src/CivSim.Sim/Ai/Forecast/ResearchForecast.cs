@@ -249,6 +249,7 @@ public sealed class ResearchForecast
             if (_c.Era[p] > start.Era) b++;
             if (_c.IsKeystone[p] && start.DoneByEra[_c.BreadthEra[p]] < _c.BreadthMin[p]) b++;
             if (start.SeenBlocked[p]) b++; // lifted when reach grows (an era) or a reveal project lands
+            if (start.HorseBlocked[p]) b++;
             _blockers0[p] = b;
         }
 
@@ -866,7 +867,7 @@ public sealed class ResearchForecast
             // WAY-01's trails, or with INQ-03's ore lore (docs/MVP/07c §7a): the mean-field assumption is that the gate opens.
             _seenOpen = true;
             foreach (int q in _c.Numeric)
-                if (_start.SeenBlocked[q] && --_blockers[q] == 0) MarkAvailable(q);
+                if (_start.SeenBlocked[q] && !_start.HorseBlocked[q] && --_blockers[q] == 0) MarkAvailable(q);
         }
         foreach (int d in _c.Dependents[p])
             if (--_blockers[d] == 0) MarkAvailable(d);

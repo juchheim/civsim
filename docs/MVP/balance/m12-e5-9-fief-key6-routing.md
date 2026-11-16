@@ -1,12 +1,12 @@
 # WP-E5-9 first slice: Fief KEY-6 research routing (2026-11-14)
 
-**Status:** Focused test coverage added for the existing generic Spark, Council, and forecast keystone paths in Fief. No simulator source changes were needed. E5 content remains draft; the test pack promotes the E5 rows in memory only.
+**Status:** Focused coverage exists for the generic Spark, Council, and forecast keystone paths in Fief. A first Fief-only Strategist slice now exposes the AI's own powder/cannon stores and lets it evaluate a visible stone-walled target when a cannon and one shot of powder are at its rally settlement. The policy uses the existing `Assault` order; politics starts siege investment when the party arrives and loads available weapons. This is a narrow feasibility signal, not a fitted siege policy or an AI acceptance result. E5 content remains draft; the test pack used by historical fixture checks promotes E5 rows in memory only.
 
 The test completes KEY-5 and every E5 project except KEY-6 for both a Warlord Spark and the human Council seat, so KEY-6's direct prerequisites and era-5 breadth requirement are ready. It disables the Spark seat's Council fallback to make its event-driven `keystone ready` routing observable, then verifies KEY-6 reaches Primary. For the Council seat, it verifies KEY-6 is Available and receives a nonzero score from the Council prior. This checks eligibility and scoring, not that the Council always puts KEY-6 ahead of its other available work. A one-season forecast assertion checks that the Fief forecast either reports completion or still treats KEY-6 as available.
 
 ## What this does not establish
 
-The fixture-level check does not establish whole-match strategic quality. The separate two-seed natural screen below observed 8/8 closures under the 25-minute target in this small sample, but remains exploratory and does not establish robust pacing. The report does not cover the full A1–A8 Fief AI acceptance gates, larger held-out cohorts, multiplayer performance, or game/view integration. Strategist powder and cannon logic remains dependent on WP-E5-8's missing weapon and powder goods, production accounting, and siege support. The WP-E5-9 package is therefore still open, and no draft content is promoted.
+The fixture-level check does not establish whole-match strategic quality. The separate natural screens below remain exploratory and do not establish robust pacing. The report does not cover the full A1–A8 Fief AI acceptance gates, larger held-out cohorts, multiplayer performance, or game/view integration. Strategist weapon evaluation only checks own rally stock, visible walls, force, supply, relief, and winter; it does not estimate target stores or capitulation timing. The WP-E5-9 package is therefore still open, and no draft content is promoted.
 
 ## Small natural-closure measure
 

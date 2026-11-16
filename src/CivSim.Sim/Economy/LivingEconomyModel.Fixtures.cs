@@ -81,6 +81,43 @@ public sealed partial class LivingEconomyModel
         EnsureCivic(_settlements[settlementIndex]).PeopleLastYear = people;
     }
 
+    internal void FixtureSetFigureAge(long figureId, int age)
+    {
+        if (age < 0) throw new ArgumentOutOfRangeException(nameof(age));
+        int index = FigureIndex(figureId);
+        if (index < 0) throw new ArgumentOutOfRangeException(nameof(figureId));
+        _figures[index].Age = age;
+    }
+
+    internal void FixtureSetMonks(int settlementIndex, int count)
+    {
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        List<FigureState> residents = Residents(_settlements[settlementIndex].Id);
+        foreach (FigureState figure in residents) figure.Role = Role.None;
+        int assigned = 0;
+        foreach (FigureState figure in residents)
+        {
+            if (assigned >= count) break;
+            if (figure.Age is < 14 or >= 60 || figure.Role != Role.None) continue;
+            figure.Role = Role.Monk;
+            assigned++;
+        }
+        if (assigned != count) throw new InvalidOperationException("Fixture does not have enough unassigned adults for monks.");
+    }
+
+    /// <summary>Creates a real removal plus the same last-season death record consumed by Fief politics.</summary>
+    internal void FixtureKillFigureForSuccession(long figureId)
+    {
+        int index = FigureIndex(figureId);
+        if (index < 0) throw new ArgumentOutOfRangeException(nameof(figureId));
+        FigureState figure = _figures[index];
+        var death = new EconomyDeathEvent(figure.Id, figure.Civilization, figure.SettlementId, figure.Age, figure.Female,
+            figure.PregnancySeasons, EconomyDeathCause.Senescence, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero,
+            Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero);
+        if (!KillFigure(figureId)) throw new InvalidOperationException("Fixture figure could not be removed.");
+        _lastDeathEvents.Add(death);
+    }
+
     /// <summary>Adds (or with a negative amount removes) a good in a settlement's stores.</summary>
     internal void FixtureStock(int settlementIndex, string goodId, Fix64 amount)
     {
@@ -126,10 +163,18 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Empties a deposit (an exhausted, captured or cut-off mine).</summary>
-    internal void FixtureExhaust(int tile) => _ore[tile] = Fix64.Zero;
+    internal void FixtureExhaust(int tile)
+    {
+        _ore[tile] = Fix64.Zero;
+        InvalidateIronOreSupplierAssignments();
+    }
 
     /// <summary>Sets the remaining ore for a deposit in a deterministic economy fixture.</summary>
-    internal void FixtureSetOreRemaining(int tile, Fix64 amount) => _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+    internal void FixtureSetOreRemaining(int tile, Fix64 amount)
+    {
+        _ore[tile] = Fix64.Max(Fix64.Zero, amount);
+        InvalidateIronOreSupplierAssignments();
+    }
     internal Fix64 FixtureOreRemaining(int tile) => _ore[tile];
 
     /// <summary>Adds a populated mining camp at a chosen deposit for view and lifecycle fixtures.</summary>
@@ -142,6 +187,7 @@ public sealed partial class LivingEconomyModel
             Target = Math.Max(2, crew), Built = built, MineHead = mineHead,
         };
         _camps.Add(camp);
+        InvalidateCampsByParent();
         int assigned = 0;
         foreach (FigureState f in _figures)
         {
@@ -229,6 +275,12 @@ public sealed partial class LivingEconomyModel
     }
 
     internal void FixtureSetCivilization(int settlementIndex, int civ) => _settlements[settlementIndex].Civilization = civ;
+    internal void FixtureSetCivilizationAndResidents(int settlementIndex, int civ)
+    {
+        _settlements[settlementIndex].Civilization = civ;
+        foreach (FigureState figure in _figures)
+            if (figure.SettlementId == settlementIndex) figure.Civilization = civ;
+    }
     internal void FixtureSetStoredCohesion(int settlementIndex, Fix64 value) => _settlements[settlementIndex].Cohesion = value;
     internal void FixtureSetStructureCount(int settlementIndex, string structure, int count)
     {
@@ -307,6 +359,7 @@ public sealed partial class LivingEconomyModel
             case "mine_head": if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile); break;
             default: throw new ArgumentException($"Unknown metal structure '{structure}'.", nameof(structure));
         }
+        InvalidateIronOreSupplierAssignments();
     }
 
     internal void FixtureSetMetalFacilities(int settlementIndex, int forges, int smelters)
@@ -317,6 +370,7 @@ public sealed partial class LivingEconomyModel
         m.Forges = forges;
         m.Smelters = smelters;
         InvalidateIronFuelHubAssignments();
+        InvalidateIronOreSupplierAssignments();
     }
 
     internal void FixtureSetLastToolWorker(int figureIndex, bool worked)
@@ -432,6 +486,26 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
     }
 
+    internal bool FixtureTryPayIronBuild(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name)
+            {
+                SettlementState s = _settlements[settlementIndex];
+                MetalState m = EnsureMetal(s);
+                m.IronBuildKind = k;
+                return TryPayIronBuild(s, m, IronSpecs[k]);
+            }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal int FixtureIronStructureCount(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronWorksCount(_settlements[settlementIndex], (IronStructure)k);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
     internal void FixtureShelfIronBuild(int settlementIndex)
     {
         MetalState metal = EnsureMetal(_settlements[settlementIndex]);
@@ -503,6 +577,7 @@ public sealed partial class LivingEconomyModel
         RebuildSettlementSiteIndex();
         InvalidateForageSettlementOwners();
         InvalidateIronFuelHubAssignments();
+        InvalidateIronOreSupplierAssignments();
     }
 
     internal bool FixtureHasStoneWalls(int settlementIndex) => HasStoneWalls(_settlements[settlementIndex]);
@@ -537,6 +612,13 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
     }
 
+    internal bool FixtureIronBuildFeasible(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronBuildFeasible(_settlements[settlementIndex], (IronStructure)k);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
     /// <summary>Runs one public-grain transfer for a civilization and returns the grain units moved.</summary>
     internal Fix64 FixtureSharePublicGrain(int civ) => SharePublicGrain(civ, Math.Max(0, ShareReach(civ)));
     internal Fix64 FixtureGrainUnits(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Grain];
@@ -556,7 +638,7 @@ public sealed partial class LivingEconomyModel
         byte id = role switch
         {
             "administrator" => Role.Administrator, "governor" => Role.Governor,
-            "physician" => Role.Physician, "attendant" => Role.Attendant,
+            "physician" => Role.Physician, "attendant" => Role.Attendant, "master_mason" => Role.MasterMason,
             _ => throw new ArgumentException(role, nameof(role))
         };
         int n = 0;
@@ -573,6 +655,9 @@ public sealed partial class LivingEconomyModel
         civic.CfrScale = Fix64.One;
         foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) f.Infected = outbreak != OutbreakClass.None;
     }
+
+    internal Fix64 FixtureInterSettlementOutbreakChance(int settlementIndex)
+        => InterSettlementOutbreakChance(_settlements[settlementIndex]);
 
     internal Fix64 FixtureInfectedHazard(int figureIndex) => InfectedHazard(_figures[figureIndex]);
     internal bool FixtureHospitalStaffed(int settlementIndex) => HospitalStaffed(_settlements[settlementIndex]);
@@ -674,6 +759,14 @@ public sealed partial class LivingEconomyModel
         return (plan.BuildNeed, plan.MineNeed, plan.CharcoalNeed, plan.SmeltNeed);
     }
 
+    internal Fix64 FixtureRecipePlannedBatches(int settlementIndex, string recipeId, Fix64 totalWork)
+    {
+        MetalPlan plan = PlanMetal(_settlements[settlementIndex], totalWork);
+        for (int i = 0; i < _compiledRecipes.Length; i++)
+            if (_compiledRecipes[i].Def.Id == recipeId) return plan.Batches[i];
+        throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
     /// <summary>Whether the settlement can obtain an ore this season (stock, a positive-rate deposit, or an own-land camp site).</summary>
     internal bool FixtureCanObtainOre(int settlementIndex, MetalAccessKind kind)
     {
@@ -684,13 +777,17 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Removes every mine head of the settlement.</summary>
     internal void FixtureClearMineHeads(int settlementIndex)
-        => (_settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.")).MineHeads.Clear();
+    {
+        (_settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.")).MineHeads.Clear();
+        InvalidateIronOreSupplierAssignments();
+    }
 
     /// <summary>Adds a mine head to a deposit tile for the settlement, as a finished MineHead build would.</summary>
     internal void FixtureAddMineHead(int settlementIndex, int tile)
     {
         MetalState m = _settlements[settlementIndex].Metal ?? throw new InvalidOperationException("Not a Bronze settlement.");
         if (!m.MineHeads.Contains(tile)) m.MineHeads.Add(tile);
+        InvalidateIronOreSupplierAssignments();
     }
 
     /// <summary>Each of the settlement's figures' work this season, kit durability left, and job, in figure order.</summary>
@@ -770,6 +867,8 @@ public sealed partial class LivingEconomyModel
         => DomesticHerdWorkNeed(_settlements[settlementIndex]);
 
     internal bool FixtureCanTameFromRange(int settlementIndex) => CanTameFromRange(_settlements[settlementIndex]);
+
+    internal Fix64 FixtureAdminWasteSavings(int civ, Fix64 administrationWork) => AdminWasteSavings(civ, administrationWork);
 
     internal void FixtureSetWildHerd(int herdIndex, int tile, Fix64 animals)
     {
@@ -895,6 +994,8 @@ public sealed partial class LivingEconomyModel
                 NearestForeignDistance(s) <= CastleReach,
             IronStructure.ConcentricCastle => FiefChain && Done(s.Civilization, "DEF-09") && s.Civic is { Tier: >= 1 } &&
                 IronWorksCount(s, IronStructure.ConcentricCastle) == 0 && CastleGarrisoned(s.Id),
+            IronStructure.PowderMill => FiefChain && Done(s.Civilization, "CHM-07") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.PowderMill) == 0,
             _ => false,
         };
 

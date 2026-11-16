@@ -18,6 +18,7 @@ public partial class Game
         public UiButton Button = null!;
         public Label Text = null!;
         public UiIcon Lock = null!;
+        public Control? Extra;
         public Action Act = null!;
         public string Label = "", ConfirmLabel = "";
         public bool NeedsConfirm, Confirming, Enabled;
@@ -29,8 +30,8 @@ public partial class Game
     private UiLayer? _diplomacyLayer;
     private readonly List<UiCivRow> _civRows = new();
     private VBoxContainer? _civList;
-    private Control? _diplomacyDetail, _diplomacyEmpty, _friendlyBlock, _hostileBlock, _partiesBlock;
-    private Label? _diploEmptyLabel, _diploName, _diploMeta, _diploAi, _diploNoParties;
+    private Control? _civListColumn, _civListDivider, _diplomacyDetail;
+    private Label? _diploEmptyLabel, _diploName, _diploMeta, _diploAi, _diploNoParties, _diploStanding, _diploPartyCount;
     private UiEmblem? _diploEmblem;
     private OptionButton? _diploCompactGood;
     private OptionButton? _raidPartySize;
@@ -52,6 +53,15 @@ public partial class Game
     private readonly List<int> _civOrder = new();
     private readonly record struct ProjectedRelation(bool AtWar, bool Allied, bool InTruce, bool WarQueued, bool PeaceQueued, bool AllianceQueued, bool AssaultQueued);
 
+    // The detail pane's three pages: Relations (gifts, alliance, league), Trade (barter, compacts, embargo), War (war and peace, raids, assault,
+    // with the forces readiness right below the assault it informs). One page shows at a time so no order list grows into a long scroll.
+    private const int DiploTabRelations = 0, DiploTabTrade = 1, DiploTabWar = 2;
+    private static readonly string[] DiploTabNames = { "Relations", "Trade", "War" };
+    private UiSegmented? _diploTabs;
+    private readonly Control?[] _diploPages = new Control?[3];
+    private ScrollContainer? _diploPageScroll;
+    private int _diploTab = DiploTabRelations;
+
     private void CreateDiplomacyDrawer()
     {
         if (_catalog is not null)
@@ -68,7 +78,9 @@ public partial class Game
         _diplomacyDrawer.Visible = false;
         var root = UiKit.Column(UiTokens.Sp2);
         var header = UiKit.Row(UiTokens.Sp2);
-        header.AddChild(UiKit.Text("Diplomacy", "Heading"));
+        var heading = UiKit.Text("Diplomacy", "Heading");
+        heading.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        header.AddChild(heading);
         header.AddChild(UiKit.Spacer(expand: true));
         header.AddChild(UiKit.IconButton(UiGlyph.Close, "Close (O)", () => ToggleDiplomacy(false), 36, 16));
         root.AddChild(header);
@@ -76,30 +88,35 @@ public partial class Game
         _diploEmptyLabel = UiKit.Text("", "BodySecondary", wrap: true);
         root.AddChild(_diploEmptyLabel);
 
+        // Body: the peoples you know on the left, the selected people on the right.
         var body = UiKit.Row(UiTokens.Sp3);
         body.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        var listColumn = UiKit.Column(UiTokens.Sp2);
+        listColumn.AddChild(UiKit.Text("PEOPLES YOU KNOW", "EyebrowTertiary"));
         _civList = UiKit.Column(UiTokens.Sp1);
-        var listScroll = UiKit.Scroll(_civList);
-        listScroll.SizeFlagsHorizontal = Control.SizeFlags.Fill;
-        listScroll.CustomMinimumSize = new Vector2(199, 0);
-        body.AddChild(listScroll);
+        listColumn.AddChild(UiKit.Scroll(_civList));
+        _civListColumn = listColumn;
+        body.AddChild(listColumn);
+        _civListDivider = UiKit.Divider(vertical: true);
+        body.AddChild(_civListDivider);
 
         var detail = UiKit.Column(UiTokens.Sp2);
+        detail.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        detail.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         _diplomacyDetail = detail;
-        var detailScroll = UiKit.Scroll(detail);
-        detailScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        body.AddChild(detailScroll);
+        body.AddChild(detail);
         root.AddChild(body);
-        _diplomacyEmpty = _diploEmptyLabel;
 
-        var title = UiKit.Row(UiTokens.Sp2);
-        _diploEmblem = new UiEmblem(0, 34);
+        // 1. Who they are and where you stand.
+        var title = UiKit.Row(UiTokens.Sp3);
+        _diploEmblem = new UiEmblem(0, 40) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
         title.AddChild(_diploEmblem);
+        var identity = UiKit.Column(UiTokens.Sp1);
+        identity.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _diploName = UiKit.Text("", "Title", ellipsis: true);
-        title.AddChild(_diploName);
-        detail.AddChild(title);
+        identity.AddChild(_diploName);
         var chips = new HFlowContainer();
-        chips.AddThemeConstantOverride("h_separation", UiTokens.Sp2);
+        chips.AddThemeConstantOverride("h_separation", UiTokens.Sp1 + 2);
         chips.AddThemeConstantOverride("v_separation", UiTokens.Sp1);
         _diploStatusChip = UiKit.Chip("CONTACTED");
         _diploRelationChip = UiKit.Chip("NEUTRAL");
@@ -107,17 +124,20 @@ public partial class Game
         chips.AddChild(_diploStatusChip);
         chips.AddChild(_diploRelationChip);
         chips.AddChild(_diploAgeChip);
-        detail.AddChild(chips);
-        _diploMeta = UiKit.Text("", "Caption");
-        detail.AddChild(_diploMeta);
-        _diploAi = UiKit.Text("", "CaptionTertiary", wrap: true);
-        detail.AddChild(_diploAi);
+        identity.AddChild(chips);
+        title.AddChild(identity);
+        detail.AddChild(title);
 
-        detail.AddChild(UiKit.Text("DESTINATION", "EyebrowTertiary"));
+        // 2. The settlement the next gift, barter, raid, assault or blockade goes to.
+        var targetRow = UiKit.Row(UiTokens.Sp3);
+        var targetLabel = UiKit.Text("TARGET", "EyebrowTertiary");
+        targetLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        targetRow.AddChild(targetLabel);
         _destinationSelect = new OptionButton
         {
-            CustomMinimumSize = new Vector2(0, UiTokens.ControlM),
+            CustomMinimumSize = new Vector2(0, UiTokens.ControlS),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            ClipText = true,
             TooltipText = "Used for gifts and barter. Raids and assaults also use this target. Choose Civilization decides to let the simulation pick.",
         };
         _destinationSelect.ItemSelected += selected =>
@@ -126,81 +146,163 @@ public partial class Game
             _selectedTargetSettlement = _destinationSelect.GetItemId((int)selected);
             if (_current is not null) RefreshDiplomacy(_current);
         };
-        detail.AddChild(_destinationSelect);
+        targetRow.AddChild(_destinationSelect);
+        detail.AddChild(targetRow);
 
-        var friendly = UiKit.Column(UiTokens.Sp2);
-        friendly.AddChild(UiKit.Text("FRIENDLY", "EyebrowTertiary"));
+        // 3. The grouped orders, one page at a time.
+        _diploTabs = new UiSegmented(DiploTabNames, _diploTab, SelectDiplomacyTab, 96) { SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+        _diploTabs.SetTooltip(DiploTabRelations, "Gifts, alliances and leagues.");
+        _diploTabs.SetTooltip(DiploTabTrade, "Barter trips, standing trade compacts and embargoes.");
+        _diploTabs.SetTooltip(DiploTabWar, "War and peace, raids and assaults, and how ready your fighters are.");
+        detail.AddChild(_diploTabs);
+
+        var pages = UiKit.Column(0);
+        // Breathing room between the page and its scroll bar.
+        var scrollPad = new MarginContainer();
+        scrollPad.AddThemeConstantOverride("margin_right", UiTokens.Sp3);
+        scrollPad.AddChild(pages);
+        _diploPageScroll = UiKit.Scroll(scrollPad);
+        detail.AddChild(_diploPageScroll);
+
+        // Relations
+        var relations = UiKit.Column(UiTokens.Sp2);
+        _diploStanding = UiKit.Text("", "Caption", wrap: true);
+        relations.AddChild(_diploStanding);
+        _diploMeta = UiKit.Text("", "CaptionTertiary", wrap: true);
+        relations.AddChild(_diploMeta);
+        _diploAi = UiKit.Text("", "CaptionTertiary", wrap: true);
+        relations.AddChild(_diploAi);
+        relations.AddChild(SectionLabel("ORDERS"));
         _giftRow = NewOrderRow("Send gift", QueueGift, false, "");
-        _barterRow = NewOrderRow("Barter", QueueBarter, false, "");
         _allianceRow = NewOrderRow("Form alliance", () => QueueDiplomacyOrder(PlayerCommands.FormAlliance), false, "");
-        _peaceRow = NewOrderRow("Make peace", () => QueueDiplomacyOrder(PlayerCommands.MakePeace), false, "");
         _leagueRow = NewOrderRow("Form league", () => QueueDiplomacyOrder(PlayerCommands.FormLeague), false, "");
-        foreach (OrderRow row in new[] { _giftRow, _barterRow, _allianceRow, _peaceRow, _leagueRow }) friendly.AddChild(row.Root);
-        var compactControls = UiKit.Row(UiTokens.Sp2);
-        _diploCompactGood = new OptionButton { CustomMinimumSize = new Vector2(130, UiTokens.ControlM) };
+        foreach (OrderRow row in new[] { _giftRow, _allianceRow, _leagueRow }) relations.AddChild(row.Root);
+        pages.AddChild(relations);
+        _diploPages[DiploTabRelations] = relations;
+
+        // Trade
+        var trade = UiKit.Column(UiTokens.Sp2);
+        trade.AddChild(SectionLabel("TRIPS"));
+        _barterRow = NewOrderRow("Barter", QueueBarter, false, "");
+        trade.AddChild(_barterRow.Root);
+        trade.AddChild(SectionLabel("STANDING TRADE"));
+        trade.AddChild(UiKit.Text("A compact is a lasting goods route with this people. An embargo stops your traders selling them one good.", "CaptionTertiary", wrap: true));
+        var goodRow = UiKit.Row(UiTokens.Sp2);
+        var goodLabel = UiKit.Text("Good", "Caption", minWidth: 44);
+        goodLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        goodRow.AddChild(goodLabel);
+        _diploCompactGood = new OptionButton { CustomMinimumSize = new Vector2(120, UiTokens.ControlS), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         foreach (TradeGood good in new[] { TradeGood.Tin, TradeGood.Copper, TradeGood.Bronze, TradeGood.Salt, TradeGood.Gold, TradeGood.Food, TradeGood.Luxury })
             _diploCompactGood.AddItem(good.ToString(), (int)good);
-        _diploCompactSell = new CheckButton { Text = "Sell", TooltipText = "Off: buy this good · On: sell this good" };
-        _diploCompactAction = UiKit.Secondary("Compact", QueueSelectedCompact, "Offer a standing goods route to this people.");
-        compactControls.AddChild(_diploCompactGood); compactControls.AddChild(_diploCompactSell); compactControls.AddChild(_diploCompactAction);
-        friendly.AddChild(compactControls);
-        var embargoControls = UiKit.Row(UiTokens.Sp2);
-        _diploEmbargoAction = UiKit.Secondary("Toggle embargo", ToggleSelectedEmbargo, "Stop or resume selling the selected good to this people.");
-        embargoControls.AddChild(_diploEmbargoAction);
-        friendly.AddChild(embargoControls);
-        detail.AddChild(friendly);
-        _friendlyBlock = friendly;
+        _diploCompactGood.ItemSelected += _ => { if (_current is not null) RefreshDiplomacy(_current); };
+        goodRow.AddChild(_diploCompactGood);
+        var buyLabel = UiKit.Text("Buy", "Caption");
+        buyLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        goodRow.AddChild(buyLabel);
+        _diploCompactSell = new CheckButton { Text = "", TooltipText = "Off: you buy this good from them · On: you sell it to them", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        goodRow.AddChild(_diploCompactSell);
+        var sellLabel = UiKit.Text("Sell", "Caption");
+        sellLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        goodRow.AddChild(sellLabel);
+        trade.AddChild(goodRow);
+        var tradeActions = UiKit.Row(UiTokens.Sp2);
+        _diploCompactAction = UiKit.Secondary("Offer compact", QueueSelectedCompact, "Offer a standing goods route to this people.");
+        _diploCompactAction.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _diploEmbargoAction = UiKit.Secondary("Set embargo", ToggleSelectedEmbargo, "Stop or resume selling the selected good to this people.");
+        _diploEmbargoAction.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        tradeActions.AddChild(_diploCompactAction);
+        tradeActions.AddChild(_diploEmbargoAction);
+        trade.AddChild(tradeActions);
+        pages.AddChild(trade);
+        _diploPages[DiploTabTrade] = trade;
 
-        var hostile = UiKit.Column(UiTokens.Sp2);
-        hostile.AddChild(UiKit.Text("HOSTILE", "EyebrowTertiary"));
-        _raidRow = NewOrderRow("Raid", QueueRaid, true, "Confirm raid");
+        // War: the orders, then the forces they would send.
+        var war = UiKit.Column(UiTokens.Sp2);
+        war.AddChild(SectionLabel("ORDERS"));
+        _warRow = NewOrderRow("Declare war", () => QueueDiplomacyOrder(PlayerCommands.DeclareWar), true, "Confirm war");
+        _peaceRow = NewOrderRow("Make peace", () => QueueDiplomacyOrder(PlayerCommands.MakePeace), false, "");
+        _tributeRow = NewOrderRow("Impose tribute", () => QueueDiplomacyOrder(PlayerCommands.ImposeTribute), true, "Confirm terms");
         var raidSizeRow = UiKit.Row(UiTokens.Sp2);
-        raidSizeRow.AddChild(UiKit.Text("Party size", "Caption"));
-        _raidPartySize = new OptionButton { CustomMinimumSize = new Vector2(128, UiTokens.ControlM) };
+        var raidSizeLabel = UiKit.Text("Party size", "Caption");
+        raidSizeLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        raidSizeRow.AddChild(raidSizeLabel);
+        _raidPartySize = new OptionButton { CustomMinimumSize = new Vector2(118, 32) };
         _raidPartySize.AddItem("4 raiders", 4);
         _raidPartySize.AddItem("Up to 8", 8);
         _raidPartySize.AddItem("Up to 12", 12);
         _raidPartySize.Select(0);
         raidSizeRow.AddChild(_raidPartySize);
-        hostile.AddChild(raidSizeRow);
-        _warRow = NewOrderRow("Declare war", () => QueueDiplomacyOrder(PlayerCommands.DeclareWar), true, "Confirm war");
-        _assaultRow = NewOrderRow("Assault", QueueAssault, true, "Confirm assault");
-        _tributeRow = NewOrderRow("Impose tribute", () => QueueDiplomacyOrder(PlayerCommands.ImposeTribute), true, "Confirm terms");
+        _raidRow = NewOrderRow("Raid", QueueRaid, true, "Confirm raid", raidSizeRow);
         _blockadeRow = NewOrderRow("Blockade harbor", QueueBlockade, true, "Confirm blockade");
-        foreach (OrderRow row in new[] { _raidRow, _warRow, _assaultRow, _tributeRow, _blockadeRow }) hostile.AddChild(row.Root);
-        detail.AddChild(hostile);
-        _hostileBlock = hostile;
+        _assaultRow = NewOrderRow("Assault", QueueAssault, true, "Confirm assault");
+        foreach (OrderRow row in new[] { _warRow, _peaceRow, _tributeRow, _raidRow, _blockadeRow, _assaultRow }) war.AddChild(row.Root);
+        war.AddChild(BuildArmsBlock());
+        pages.AddChild(war);
+        _diploPages[DiploTabWar] = war;
 
-        var parties = UiKit.Column(UiTokens.Sp2);
-        parties.AddChild(UiKit.Text("YOUR PARTIES", "EyebrowTertiary"));
+        // 4. Parties on the road, under every page.
+        detail.AddChild(UiKit.Divider());
+        var partiesHead = UiKit.Row(UiTokens.Sp2);
+        partiesHead.AddChild(UiKit.Text("ON THE ROAD", "EyebrowTertiary"));
+        _diploPartyCount = UiKit.Text("", "Num");
+        partiesHead.AddChild(_diploPartyCount);
+        partiesHead.AddChild(UiKit.Spacer(expand: true));
+        _diploNoParties = UiKit.Text("No parties out.", "CaptionTertiary");
+        partiesHead.AddChild(_diploNoParties);
+        detail.AddChild(partiesHead);
         _partyList = UiKit.Column(UiTokens.Sp1);
-        parties.AddChild(_partyList);
-        _diploNoParties = UiKit.Text("No parties on the road.", "CaptionTertiary");
-        parties.AddChild(_diploNoParties);
-        detail.AddChild(parties);
-        _partiesBlock = parties;
+        detail.AddChild(_partyList);
 
+        SelectDiplomacyTab(_diploTab);
         _diplomacyDrawer.AddChild(root);
         _hudRoot!.AddChild(_diplomacyDrawer);
         _diplomacyLayer = RegisterLayer("diplomacy", false, () => { ToggleDiplomacy(false); return true; });
     }
 
-    private OrderRow NewOrderRow(string label, Action act, bool confirm, string confirmLabel)
+    private static Control SectionLabel(string text)
     {
-        var row = new OrderRow { Label = label, Act = act, NeedsConfirm = confirm, ConfirmLabel = confirmLabel };
+        var label = UiKit.Text(text, "EyebrowTertiary");
+        return UiKit.Margin(label, 0, UiTokens.Sp1, 0, 0);
+    }
+
+    private void SelectDiplomacyTab(int tab)
+    {
+        _diploTab = Math.Clamp(tab, 0, _diploPages.Length - 1);
+        for (int i = 0; i < _diploPages.Length; i++)
+            if (_diploPages[i] is { } page) UiKit.SetVisible(page, i == _diploTab);
+        _diploTabs?.Select(_diploTab, false);
+        if (_diploPageScroll is not null) _diploPageScroll.ScrollVertical = 0;
+        foreach (OrderRow? row in new[] { _raidRow, _warRow, _assaultRow, _tributeRow, _blockadeRow })
+            if (row is not null) CancelConfirm(row);
+    }
+
+    /// <summary>One order: a fixed-width button, then what it does, or a lock and the reason it can't be given yet (quiet, never louder than the button).</summary>
+    private OrderRow NewOrderRow(string label, Action act, bool confirm, string confirmLabel, Control? extra = null)
+    {
+        var row = new OrderRow { Label = label, Act = act, NeedsConfirm = confirm, ConfirmLabel = confirmLabel, Extra = extra };
         row.Root = UiKit.Row(UiTokens.Sp3);
-        row.Button = UiKit.Secondary(label, null, null, UiGlyph.None, UiTokens.ControlM, true);
-        row.Button.CustomMinimumSize = new Vector2(144, UiTokens.ControlM);
+        row.Root.CustomMinimumSize = new Vector2(0, UiTokens.ControlS);
+        row.Button = UiKit.Secondary(label, null, null, UiGlyph.None, UiTokens.ControlS, true);
+        row.Button.CustomMinimumSize = new Vector2(OrderButtonWidth, UiTokens.ControlS);
         row.Button.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
         row.Button.Pressed += () => PressOrder(row);
         row.Root.AddChild(row.Button);
-        row.Lock = new UiIcon(UiGlyph.Lock, 16, UiTokens.TextTertiary) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
-        row.Root.AddChild(row.Lock);
+        var column = UiKit.Column(UiTokens.Sp1);
+        column.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        column.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        var line = UiKit.Row(6);
+        row.Lock = new UiIcon(UiGlyph.Lock, 14, UiTokens.TextTertiary) { SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
+        line.AddChild(row.Lock);
         row.Text = UiKit.Text("", "Caption", wrap: true);
-        row.Text.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
-        row.Root.AddChild(row.Text);
+        row.Text.MouseFilter = Control.MouseFilterEnum.Stop;
+        line.AddChild(row.Text);
+        column.AddChild(line);
+        if (extra is not null) column.AddChild(extra);
+        row.Root.AddChild(column);
         return row;
     }
+
+    private const int OrderButtonWidth = 136;
 
     private void PressOrder(OrderRow row)
     {
@@ -241,9 +343,10 @@ public partial class Game
     private void LayoutDiplomacyDrawer(float top)
     {
         if (_diplomacyDrawer is null) return;
-        // The wide dock width (list + detail). Full dock height once someone is met; before that, only as tall as its message.
+        // Its own, wider dock width (list + detail). Full dock height once someone is met; before that, only as tall as its message.
         _drawerFullHeight = DockMaxHeight;
-        PlaceDock(_diplomacyDrawer, DockWideWidth, _civOrder.Count > 0 ? _drawerFullHeight : 0);
+        if (_civListColumn is not null) _civListColumn.CustomMinimumSize = new Vector2(_compact ? 164 : 196, 0);
+        PlaceDock(_diplomacyDrawer, DiplomacyDockWidth, _civOrder.Count > 0 ? _drawerFullHeight : 0);
     }
 
     private float _drawerFullHeight;
@@ -289,10 +392,11 @@ public partial class Game
         UiKit.SetText(_diploEmptyLabel!, !own ? "Orders are available only when you play your own civilization."
             : _civOrder.Count == 0 ? "You haven't met anyone yet. Scouts and growing borders will find your neighbours." : "");
         bool full = _civOrder.Count > 0;
-        if (full != _diplomacyDrawer!.CustomMinimumSize.Y > 0) PlaceDock(_diplomacyDrawer, DockWideWidth, full ? _drawerFullHeight : 0);
+        if (full != _diplomacyDrawer!.CustomMinimumSize.Y > 0) PlaceDock(_diplomacyDrawer, DiplomacyDockWidth, full ? _drawerFullHeight : 0);
         if (!full) _diplomacyDrawer.ResetSize();
-        _civList.GetParent<Control>().Visible = _civOrder.Count > 0;
-        _diplomacyDetail!.GetParent<Control>().Visible = _civOrder.Count > 0 && own;
+        UiKit.SetVisible(_civListColumn!, _civOrder.Count > 0);
+        UiKit.SetVisible(_diplomacyDetail!, _civOrder.Count > 0 && own);
+        UiKit.SetVisible(_civListDivider!, _civOrder.Count > 0 && own);
         if (_civOrder.Count == 0) return;
         if (!_civOrder.Contains(_selectedPoliticsCiv)) { _selectedPoliticsCiv = _civOrder[0]; _selectedTargetSettlement = -1; }
 
@@ -354,17 +458,32 @@ public partial class Game
         int seen = 0;
         for (int i = 0; i < frame.SettlementCount; i++)
             if (frame.SettlementCiv[i] == target && (frame.SettlementFlags[i] & (ushort)(SettlementViewFlags.FreeFolk | SettlementViewFlags.Empty)) == 0) seen++;
-        UiKit.SetText(_diploMeta!, $"{seen} {(seen == 1 ? "settlement" : "settlements")} seen");
+        UiKit.SetText(_diploMeta!, seen == 0 ? "None of their settlements seen yet." : $"{seen} of their {(seen == 1 ? "settlement" : "settlements")} seen.");
+        UiKit.SetText(_diploStanding!, StandingText(contacted, atWar, allied, truce, relations));
         string ai = "";
         if (contacted)
             for (int i = frame.AiWhyCount - 1; i >= 0; i--)
-                if (frame.AiWhyEntries[i].Civ == target) { ai = $"Their elders: “{frame.AiWhyEntries[i].Reason}”"; break; }
+                if (frame.AiWhyEntries[i].Civ == target) { ai = $"Their elders say: “{frame.AiWhyEntries[i].Reason}”"; break; }
         UiKit.SetText(_diploAi!, ai);
         UiKit.SetVisible(_diploAi!, ai.Length > 0);
 
         RefreshDestinations(frame, target);
         RefreshOrders(frame, target, contacted, atWar, allied, truce, relations, relation.AssaultQueued);
         RefreshParties(frame);
+        RefreshArms(frame);
+    }
+
+    /// <summary>One plain sentence on where the two peoples stand and what moves it, at the top of the Relations page.</summary>
+    private string StandingText(bool contacted, bool atWar, bool allied, bool truce, int relations)
+    {
+        if (!contacted) return "You have only seen them from afar. Meet them (scouts, borders or trade) before you can send anything.";
+        if (atWar) return $"You are at war (relations {relations:+0;−0;0}). The War page has the orders that end it.";
+        if (allied) return $"You are allies (relations {relations:+0;−0;0}) and defend each other.";
+        string mood = RelationWord(relations).ToLowerInvariant();
+        string next = relations <= 0 ? "Gifts warm them; barter needs relations above 0."
+            : relations <= 40 ? "Gifts and barter warm them; above 40 they will hear an alliance."
+            : "Warm enough for an alliance.";
+        return (truce ? "A truce holds. " : "") + $"Relations are {mood} ({relations:+0;−0;0}). {next} Raids and war cool them.";
     }
 
     private ProjectedRelation RelationAfterQueuedOrders(MatchFrame frame, int civ)
@@ -541,7 +660,10 @@ public partial class Game
         row.Button.Disabled = !enabled;
         row.Lock.Visible = !enabled;
         UiKit.SetText(row.Text, text);
-        row.Text.ThemeTypeVariation = enabled ? "Caption" : "CaptionTertiary";
+        UiKit.SetVariation(row.Text, enabled ? "Caption" : "CaptionTertiary");
+        if (row.Text.TooltipText != text) row.Text.TooltipText = text;
+        if (row.Button.TooltipText != text) row.Button.TooltipText = text;
+        if (row.Extra is not null) UiKit.SetVisible(row.Extra, enabled);
         if (!enabled) CancelConfirm(row);
     }
 
@@ -607,6 +729,7 @@ public partial class Game
             {
                 var row = UiKit.Row(UiTokens.Sp2);
                 var text = UiKit.Text("", "Body", ellipsis: true);
+                text.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
                 var bar = new UiProgressBar(6) { CustomMinimumSize = new Vector2(89, 6), SizeFlagsHorizontal = Control.SizeFlags.Fill };
                 var recall = UiKit.Ghost("Recall", null, "Survivors head home.", UiGlyph.None, 30);
                 int captured = ordinal;
@@ -683,6 +806,8 @@ public partial class Game
         }
         for (int i = pendingOrdinal; i < _pendingPartyRows.Count; i++) _pendingPartyRows[i].Visible = false;
         UiKit.SetVisible(_diploNoParties!, ordinal == 0 && pendingOrdinal == 0);
+        UiKit.SetText(_diploPartyCount!, ordinal + pendingOrdinal > 0 ? (ordinal + pendingOrdinal).ToString() : "");
+        UiKit.SetVisible(_partyList!, ordinal + pendingOrdinal > 0);
     }
 
     // ---- orders ------------------------------------------------------------------------------

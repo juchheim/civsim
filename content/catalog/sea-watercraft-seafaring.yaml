@@ -149,6 +149,8 @@ projects:
     era: 5
     type: M
     status: draft
+    cost: 12000
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6000 x M 1.0."
     requires: [SEA-10]
     effects:
       - {kind: mod, stat: sea_route_speed, op: mult, value: 1.4}

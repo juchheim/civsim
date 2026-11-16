@@ -19,8 +19,13 @@ public sealed partial class LivingEconomyModel
 {
     private const int OutbreakClasses = 5;
     private static readonly ulong OutbreakStream = Hash64.OfString("economy.outbreak");
+    private static readonly ulong QuarantineStream = Hash64.OfString("economy.quarantine");
+    private static readonly ulong ImportedOutbreakRollStream = Hash64.OfString("economy.quarantine.imported-outbreak-roll");
     private static readonly ulong InfectionStream = Hash64.OfString("economy.infection");
     private static readonly Fix64 Log2E = Fix64.Parse("1.442695040888963");
+    // F-T7 calibration candidate: 0.282944 fits a 12% pooled expected-hazard share on the frozen
+    // 20-world calibration cohort. It remains a draft until the disjoint held-out cohort passes.
+    private static readonly Fix64 FiefDraftEpidemicHazardScale = Fix64.Parse("0.282944");
 
     // docs/MVP/09 §10.2: R0, case fatality and seasons of immunity by class (Fever, Flux, Pox, Plague).
     private static readonly Fix64[] OutbreakR0 = { Fix64.Zero, Fix64.FromRatio(3, 2), Fix64.FromInt(2), Fix64.FromInt(4), Fix64.FromInt(2) };
@@ -75,6 +80,17 @@ public sealed partial class LivingEconomyModel
         return rho * (Fix64.One - c.Sanitation) * (Fix64.One + inflow) * IronSanitationFactor(s);
     }
 
+    private bool HasFiefQuarantine(SettlementState s)
+        => FiefChain && HasProject(s.Civilization, "MED-08");
+
+    private Fix64 InterSettlementOutbreakChance(SettlementState destination)
+        => HasFiefQuarantine(destination) ? Fix64.FromRatio(25, 1000) : Fix64.FromRatio(5, 100);
+
+    private (bool ImportGate, bool OutbreakRoll) FiefImportedOutbreakRolls(SettlementState destination, long importEvent)
+        => (
+            Pcg32.ForStream(_seed, QuarantineStream, (ulong)(uint)destination.Id, importEvent).NextChance(1, 2),
+            Pcg32.ForStream(_seed, ImportedOutbreakRollStream, (ulong)(uint)destination.Id, importEvent).NextChance(3, 4));
+
     /// <summary>Starts, advances and spreads outbreaks at the season start, and marks this season's infected figures.</summary>
     private void StartOutbreaks(int season)
     {
@@ -120,9 +136,12 @@ public sealed partial class LivingEconomyModel
                     for (int o = 0; o < n && sister == 0; o++)
                         if (o != i && activeBefore[o] != 0 && _settlements[o].Civilization == s.Civilization &&
                             HexGrid.Distance(_settlements[o].SiteTile, s.SiteTile, _world.Width) <= Math.Max(reach, 15)) sister = activeBefore[o];
-                    Fix64 roll = rng.NextFix01();
-                    if (sister != 0 && roll < Fix64.FromRatio(5, 100)) cls = sister;
-                    else if (roll < Fix64.Min(Fix64.FromRatio(1, 4), Fix64.FromRatio(1, 100) * pressure))
+                    Fix64 localRoll = rng.NextFix01();
+                    Fix64 sisterRoll = FiefChain
+                        ? Pcg32.ForStream(_seed, QuarantineStream, (ulong)(uint)s.Id, season).NextFix01()
+                        : localRoll;
+                    if (sister != 0 && sisterRoll < InterSettlementOutbreakChance(s)) cls = sister;
+                    else if (localRoll < Fix64.Min(Fix64.FromRatio(1, 4), Fix64.FromRatio(1, 100) * pressure))
                     {
                         uint pick = rng.NextBelow(100);
                         int acc = 0;
@@ -167,6 +186,7 @@ public sealed partial class LivingEconomyModel
         h *= c.CfrScale;
         if (HasProject(figure.Civilization, "MED-01")) h *= MedCare(figure.Civilization, Fix64.FromRatio(9, 10));
         if (FiefChain && HospitalStaffed(_settlements[figure.SettlementId])) h *= Fix64.FromRatio(4, 5);
+        if (FiefChain) h *= FiefDraftEpidemicHazardScale;
         return h;
     }
 
@@ -190,14 +210,34 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// A disease arrives from outside (docs/MVP/22 §10: compacts and caravans carry plague; WP8 calls this when a route delivers
-    /// from a settlement with an outbreak). It takes hold at the next season start if no outbreak is running there.
+    /// from a settlement with an outbreak). It takes hold at the next season start if no outbreak is running there. In Fief,
+    /// MED-08 applies an event-keyed 1-in-2 import gate and a separate 3-in-4 imported-outbreak roll.
     /// </summary>
-    public void ImportOutbreak(int settlementIndex, OutbreakClass cls)
+    public bool ImportOutbreak(int settlementIndex, OutbreakClass cls)
+        => ImportOutbreak(settlementIndex, cls, _seasonsCompleted);
+
+    /// <summary>Attempts a route-borne import with stable event-keyed gates, so multiple arrivals do not share quarantine rolls.</summary>
+    public bool ImportOutbreak(int settlementIndex, OutbreakClass cls, long importEvent)
     {
         SettlementState s = _settlements[settlementIndex];
-        if (cls == OutbreakClass.None || !CivInBronze(s.Civilization)) return;
+        if (cls == OutbreakClass.None || !CivInBronze(s.Civilization)) return false;
+        bool quarantined = HasFiefQuarantine(s);
+        if (quarantined)
+        {
+            (bool importGate, bool outbreakRoll) = FiefImportedOutbreakRolls(s, importEvent);
+            if (!importGate || !outbreakRoll)
+            {
+                if (FiefChain) RecordFiefImportForDiagnostics(s.Civilization, blocked: true);
+                return false;
+            }
+        }
         EnsureCivic(s).ImportedOutbreak = (byte)cls;
+        if (FiefChain) RecordFiefImportForDiagnostics(s.Civilization, blocked: false);
+        return true;
     }
+
+    internal (bool ImportGate, bool OutbreakRoll) FixtureFiefImportedOutbreakRolls(int settlementIndex, long importEvent)
+        => FiefImportedOutbreakRolls(_settlements[settlementIndex], importEvent);
 
     /// <summary>The outbreak running at a settlement, if any, and its season (1 or 2): what a caravan leaving it carries.</summary>
     public (OutbreakClass Class, int Season) OutbreakAt(int settlementIndex)

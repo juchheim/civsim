@@ -139,11 +139,11 @@ public sealed class IronViewTests
     [Fact]
     public void Fief_frame_exposes_power_and_fief_state_only_for_owned_settlements()
     {
-        var pack = TestPack.WithNumeric("KEY-5", "NRG-03", "NRG-05", "DEF-09");
+        var pack = TestPack.WithNumeric("KEY-5", "NRG-03", "NRG-05", "DEF-09", "LRN-07", "LRN-08", "MED-07", "KEY-6");
         MatchModel match = MatchModel.Create(Seed, pack, World.Value, Balanced, default, rules: ChapterRules.Fief);
         var runner = new SimRunner(match);
         var fiefCatalog = new ResearchCatalog(pack);
-        foreach (string project in new[] { "KEY-5", "NRG-03", "NRG-05", "DEF-09" })
+        foreach (string project in new[] { "KEY-5", "NRG-03", "NRG-05", "DEF-09", "LRN-07", "LRN-08", "MED-07" })
             runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, fiefCatalog.IndexOf(project), 0, 0));
         runner.Advance(2);
         int home = Settlement(match, 0), rival = Settlement(match, 1);
@@ -155,9 +155,12 @@ public sealed class IronViewTests
         match.Economy.FixtureBuildIronStructure(home, "university");
         match.Economy.FixtureBuildIronStructure(home, "hospital");
         match.Economy.FixtureBuildIronStructure(home, "concentric_castle");
+        runner.Advance(150);
         match.Economy.FixtureBuildIronStructure(rival, "water_mill");
 
-        MatchFrame own = Frame(match, 0);
+        var own = new MatchFrame();
+        var ownBuilder = new FrameBuilder(match, 0) { WantBuildOutlooks = true };
+        ownBuilder.Build(match, own);
         Assert.True(own.Fief.Active);
         int ownRow = own.IndexOfSettlement(home);
         Assert.True(ownRow >= 0);
@@ -168,6 +171,15 @@ public sealed class IronViewTests
         Assert.Equal(1, own.Fief.Universities[ownRow]);
         Assert.Equal(1, own.Fief.Hospitals[ownRow]);
         Assert.Equal(1, own.Fief.ConcentricCastle[ownRow]);
+        Assert.True(own.Fief.GrindingDemand[ownRow] > 0);
+        Assert.True(own.Fief.GrindingUsed[ownRow] >= 0);
+        Assert.Equal(match.Economy.FixtureHospitalStaffed(home), own.Fief.HospitalStaffed[ownRow] != 0);
+        Assert.Equal(match.Economy.FixtureRoleCount(home, "physician"), own.Fief.Physicians[ownRow]);
+        Assert.Equal(match.Economy.FixtureRoleCount(home, "attendant"), own.Fief.Attendants[ownRow]);
+        Assert.True(own.Fief.Scholars[ownRow] >= 0);
+        Assert.True(own.Fief.ScholarInsightHeads[ownRow] >= own.Fief.Scholars[ownRow] * 4294967296L);
+        Assert.InRange(own.Fief.Key6Permille[ownRow], (short)0, (short)1000);
+        Assert.False(string.IsNullOrEmpty(own.Fief.BuildGuidance[ownRow]));
         Assert.Equal(0, own.Fief.WaterMillSources[own.IndexOfSettlement(rival)]);
         Assert.Equal(0, own.Fief.ConcentricCastle[own.IndexOfSettlement(rival)]);
 

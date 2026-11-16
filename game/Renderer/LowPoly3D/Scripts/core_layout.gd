@@ -84,6 +84,8 @@ var _hex: Array = []         # 0 = centre, 1 + d = ring-1 hex in direction d: {t
 var _qhex: Array = []        # per quarter: the hex index it holds at this stage, or -1
 var _qhex_all: Array = []    # per quarter: the hex index it would hold (the dump shows open ground too)
 var _items: Array = []
+var _siege: Dictionary = {}       # the siege laid on this town: angle toward the besieger and integrity in permille
+var _wall_runs: Array = []      # the whole wall runs of the stone perimeter ({q, sy}), for the bowmen of a besieged town
 var _dropped: Array = []
 var _group := 0
 var _ring2: Array = []       # this settlement's sim rows: [tile, district, position, renderer hex index]
@@ -558,6 +560,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	_h0 = w.heights[_t]
 	_seed = float(_t % 997) / 997.0
 	_cc = M7MeshBuilder.lin(M7WorldData.civ_color(_civ), 0.5)
+	_siege = wb._siege_info(s, _c0, _seed)
 	_stage = stage_of(s)
 	_items = []
 	_dropped = []
@@ -662,7 +665,10 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 				var ang := TAU * gi / 6.0 + 0.4
 				var gp: Vector3 = M7WorldBuilder.rot_y(cyaw) * (Vector3(cos(ang), 0.0, sin(ang)) * 0.15 * float(r[2]))
 				var gb := Basis(Vector3.UP, cyaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.0)
-				wb.props.add("person_soldier", Transform3D(gb, Vector3(cp.x + gp.x, w.height_at(cp) + 0.02 * float(r[2]), cp.y + gp.z)),
+				var gmesh: String = wb.garrison_mesh(_civ, gi, s.get("bows"))
+				if gmesh != "person_soldier":
+					gb = Basis(Vector3.UP, atan2(gp.x, gp.z)) * Basis.from_scale(Vector3.ONE * 1.0)   # bowmen and gunners face outward over the wall
+				wb.props.add(gmesh, Transform3D(gb, Vector3(cp.x + gp.x, w.height_at(cp) + 0.02 * float(r[2]), cp.y + gp.z)),
 					Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 	var zs: int = wb.zig_stage(s)
 	if zs > 0:
@@ -763,7 +769,7 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 			var fwd := (_c - q).normalized()
 			for i in soldiers:
 				var p := q + across * ((i % 3 - 1) * 0.085) - fwd * ((i / 3) * 0.085 - 0.04)
-				wb.props.add("person_soldier", wb._xf(p, w.height_at(p), face, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+				wb.props.add(wb.garrison_mesh(_civ, i, s.get("bows")), wb._xf(p, w.height_at(p), face, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 			var de := _meta("drill_ground", dg[0], "half:s%d+s%d" % [dg[1] + 1, posmod(dg[1] + 1, 6) + 1])
 			de.merge({"mesh": "person_soldier", "count": soldiers, "x": q.x, "z": q.y, "r": 0.17})
 			_record(de)
@@ -1137,6 +1143,7 @@ func _draw_perimeter(tier: String, inset: float, used: Dictionary, edges: Array,
 		brazier: bool) -> void:
 	var rings := mini(maxi(walls, 1), 3)
 	var sy := 1.0 + 0.2 * (rings - 1)
+	_wall_runs = []
 	var corners := {}
 	for i in edges.size():
 		var e: Array = edges[i]
@@ -1190,13 +1197,44 @@ func _draw_perimeter(tier: String, inset: float, used: Dictionary, edges: Array,
 			if brazier:
 				wb.props.add("flame", wb._xf(wat, top, 0.0, 0.7), Color(1, 1, 1, _seed))
 
+## Remaining wall integrity falls most on the side facing the besieger, fading across the other sides.
+func _wall_integrity_at(q: Vector2) -> int:
+	if _siege.is_empty():
+		return 1000
+	var loss := 1000 - int(_siege.integrity)
+	if loss <= 0:
+		return 1000
+	var v := q - _c0
+	if v.length() < 0.001:
+		return 1000
+	var toward := Vector2(cos(float(_siege.angle)), sin(float(_siege.angle)))
+	var theta := rad_to_deg(acos(clampf(v.normalized().dot(toward), -1.0, 1.0)))
+	var falloff := clampf(1.4 - theta / 60.0, 0.0, 1.0)
+	return 1000 - roundi(float(loss) * falloff)
+
+func _damaged_wall(base: String, left: int) -> String:
+	if left > 700:
+		return base
+	match base:
+		"wall_seg":
+			if left > 400:
+				return "wall_seg_cracked"
+			if left > 150:
+				return "wall_seg_breach"
+			return "wall_ruin" if left > 80 else "wall_rubble"
+		"wall_tower":
+			return "wall_tower_cracked" if left > 400 else "wall_tower_breach"
+		"wall_gate":
+			return "wall_gate" if left > 400 else "wall_gate_broken"
+	return base
+
 func _tower(p: Vector2, hc: Vector2, rings: int, chain: String, tier: String) -> void:
 	if w.tile_at(p) < 0 or not w.is_land(w.tile_at(p)) or wb._river_dist(p) < 0.08:
 		return
 	var sc := WALL_SCALE * (1.0 + 0.15 * (rings - 1))
 	var ang := atan2((p - hc).y, (p - hc).x)
 	var tb := Basis(Vector3.UP, -(ang + PI * 0.5)) * Basis.from_scale(Vector3(WALL_SCALE, sc, WALL_SCALE))
-	wb.props.add("wall_tower", Transform3D(tb, Vector3(p.x, w.height_at(p), p.y)), Color(1, 1, 1, _seed))
+	wb.props.add(_damaged_wall("wall_tower", _wall_integrity_at(p)), Transform3D(tb, Vector3(p.x, w.height_at(p), p.y)), Color(1, 1, 1, _seed))
 	_record({"kind": "tower", "mesh": "wall_tower", "quarter": "perimeter", "slot": "corner", "chain": chain, "tier": tier, "slot_hex": w.tile_at(p),
 		"x": p.x, "z": p.y, "r": 0.045 * WALL_SCALE * 1.4142, "perimeter": true})
 
@@ -1217,7 +1255,8 @@ func _edge_pieces(tier: String, a: Vector2, b: Vector2, gate: bool, gw: float, g
 		if tier.begins_with("stone"):
 			var mesh_name := "wall_gatehouse" if gatehouse else "wall_gate"
 			var gb := Basis(Vector3.UP, -phi) * Basis.from_scale(Vector3(WALL_SCALE, WALL_SCALE * sy, WALL_SCALE))
-			wb.props.add(mesh_name, Transform3D(gb, Vector3(m.x, w.height_at(m), m.y)), Color(1, 1, 1, _seed))
+			var shown_gate := mesh_name if gatehouse else _damaged_wall("wall_gate", _wall_integrity_at(m))
+			wb.props.add(shown_gate, Transform3D(gb, Vector3(m.x, w.height_at(m), m.y)), Color(1, 1, 1, _seed))
 			var f := _foot(mesh_name)
 			_record({"kind": "gate", "mesh": mesh_name, "quarter": "perimeter", "slot": "gate", "chain": "gate", "tier": "gatehouse" if gatehouse else "gate",
 				"slot_hex": w.tile_at(m), "x": m.x, "z": m.y, "r": 0.0, "perimeter": true,
@@ -1258,8 +1297,10 @@ func _edge_pieces(tier: String, a: Vector2, b: Vector2, gate: bool, gw: float, g
 						continue
 					var sx := (rl / n) / SEG * 1.04
 					var segb := Basis(Vector3.UP, -phi) * Basis.from_scale(Vector3(sx, WALL_SCALE * sy, WALL_SCALE))
-					wb.props.add("wall_seg", Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, _seed))
+					var li := _wall_integrity_at(q)
+					wb.props.add(_damaged_wall("wall_seg", li), Transform3D(segb, Vector3(q.x, w.height_at(q), q.y)), Color(1, 1, 1, _seed))
 					_piece_record("wall_seg", q, phi, Vector2(SEG * 0.5 * sx, 0.022 * WALL_SCALE), tier)
+					_wall_runs.append({"q": q, "sy": sy, "li": li})
 
 func _piece_ok(q: Vector2) -> bool:
 	var tq := w.tile_at(q)
@@ -1416,6 +1457,57 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 	var siege: Dictionary = wb._siege_info(s, _c, _seed)
 	if not siege.is_empty():
 		wb._siege_camp(_c, _seed, 1.3, siege, _cc)
+		_wall_bowmen(s, siege)
+
+## The bow figure a town's own stock calls for (crossbow when it holds more crossbows than longbows and war bows together), empty when it holds none.
+func _town_bow_mesh(s: Dictionary) -> String:
+	var bows = s.get("bows")
+	if not (bows is Array or bows is PackedInt32Array):
+		return ""
+	var cb := int(bows[0])
+	var lb := int(bows[1]) + int(bows[2])
+	if cb + lb <= 0:
+		return ""
+	return "person_crossbow" if cb >= lb else "person_longbow"
+
+## Bowmen on the wall of a besieged town of the viewer's own (WAR-11, docs/MVP/35 §3.3): up to three of its posted soldiers stand on whole wall runs on the
+## side the besieger comes from, in the civilization's bow style (gunners from the second with gunpowder), facing out over the wall. Only an own town (the
+## sim reports soldiers in post for those alone), only where the wall still stands, and none once it is nearly down.
+func _wall_bowmen(s: Dictionary, siege: Dictionary) -> void:
+	var style: String = w.civ_bow_mesh(_civ) if M7WorldData.LOOKS_DEBUG else _town_bow_mesh(s)
+	if _wall_runs.is_empty() or style == "":
+		return
+	var count := mini(int(s.get("soldiers", 0)), 3)
+	if count <= 0:
+		return
+	var angle := float(siege.angle)
+	var toward := Vector2(cos(angle), sin(angle))
+	var runs := []
+	for r in _wall_runs:
+		if int(r.li) > 400:
+			runs.append(r)
+	if runs.is_empty():
+		return
+	runs.sort_custom(func(a, b): return ((a.q as Vector2) - _c).normalized().dot(toward) > ((b.q as Vector2) - _c).normalized().dot(toward))
+	var chosen: Array = []
+	for r in runs:
+		var near := false
+		for c in chosen:
+			if (c.q as Vector2).distance_to(r.q) < 0.2:
+				near = true
+				break
+		if not near:
+			chosen.append(r)
+		if chosen.size() >= count:
+			break
+	var gunners := w.has_look(_civ, M7WorldData.LOOK_GUNPOWDER)
+	for k in chosen.size():
+		var r: Dictionary = chosen[k]
+		var q: Vector2 = r.q
+		var out := (q - _c).normalized()
+		var top := w.height_at(q) + 0.075 * WALL_SCALE * float(r.sy)
+		var mesh: String = wb._shot_mesh(_civ) if gunners and k >= 1 else style
+		wb.props.add(mesh, wb._xf(q, top, atan2(out.x, out.y), 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 func _count_groups(mesh_name: String) -> int:
 	var n := 0

@@ -6,6 +6,7 @@ using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Randomness;
+using CivSim.Sim.Research;
 using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
@@ -16,6 +17,10 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel : ISimModel
 {
+    /// <summary>Optional read-only harness observer for WP7 exposure rows; it is not simulation state.</summary>
+    public Action<string>? FiefWp7TraceObserverForDiagnostics { get; set; }
+    /// <summary>Paired WP7 counterfactual only: suppresses the GOV-11 growth multiplier without changing research or keyed rolls.</summary>
+    internal bool FiefWp7SuppressGov11GrowthForDiagnostics { get; set; }
     /// <summary>The shared civilization directions, null for standalone economy fixtures that use Balanced defaults.</summary>
     internal CivilizationGuidance? Guidance { get; set; }
     private static readonly Fix64 B28EstimatedWoodPerChopWork = Fix64.FromRatio(9, 5);
@@ -211,7 +216,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 34;
+    private const int FiefSnapshotVersion = 44;
+    internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
+    private bool _fiefCraftNeedsMigration;
+    private bool _fiefBowGoodsNeedRead;
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
     private const int BronzeMaxEra = 3;
@@ -364,6 +372,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public int SiteTile;
         /// <summary>Ochre collected before the Bronze goods store is activated.</summary>
         public Fix64 SurfaceOchre;
+        /// <summary>Faith &amp; Fief chapter's crossbows and longbows (docs/MVP/36); null until a levy arm is stocked.</summary>
+        public Fix64[]? FiefGoods;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
         /// <summary>Stock of every store slot at the last season end, for the era report's goods-gained readout (never hashed).</summary>
         public Fix64[]? GainBaseline;
@@ -452,6 +462,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private readonly EconomyEffect[][] _methodEffectsByAction;
     private readonly WorldEconomyInput _world;
     private readonly ulong _contentFingerprint;
+    private readonly ChapterMode _contentFingerprintMode;
     private readonly Fix64[] _forageStock;
     private readonly Fix64[] _herdFoodStock;
     // Derived from individual herd state in herd-id order alongside _herdFoodStock.
@@ -578,7 +589,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     public LivingEconomyModel(ulong seed, EconomyContent content, WorldEconomyInput world,
-        ReadOnlySpan<EconomyArchetype> archetypes, bool gentleStart = false)
+        ReadOnlySpan<EconomyArchetype> archetypes, bool gentleStart = false,
+        ChapterMode contentFingerprintMode = ChapterMode.Bronze)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(world);
@@ -590,6 +602,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         _seed = seed;
         _gentleStart = gentleStart;
         _content = content;
+        _contentFingerprintMode = contentFingerprintMode;
+        // The chapter is already known when MatchModel constructs the economy. Set the backing
+        // mode flags before InitializeBronze seeds chapter-specific ore; init-property setters
+        // run only after this constructor returns and would otherwise leave Fief deposits empty.
+        // Keep the signed-off Iron initialization order unchanged; Fief needs its containing chain
+        // active from initialization because its additional ores/state are seeded at construction.
+        _ironChain = contentFingerprintMode == ChapterMode.Fief;
+        _fiefChain = contentFingerprintMode == ChapterMode.Fief;
         _methodEffectsByAction = BuildMethodEffectsByAction(content);
         _world = world;
         _archetypes = new EconomyArchetype[world.CivilizationCount];
@@ -598,7 +618,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         for (int i = 0; i < _archetypes.Length; i++)
             if (!Enum.IsDefined(_archetypes[i]))
                 throw new ArgumentOutOfRangeException(nameof(archetypes), $"Unknown archetype value {(byte)_archetypes[i]}.");
-        _contentFingerprint = FingerprintContent(content);
+        _contentFingerprint = FingerprintContent(content, contentFingerprintMode);
         _forageStock = new Fix64[world.TileCount];
         _herdFoodStock = new Fix64[world.TileCount];
         _wildHerdFoodGrowthPerYear = new Fix64[world.TileCount];
@@ -674,6 +694,10 @@ public sealed partial class LivingEconomyModel : ISimModel
             settlement.Stores[(int)Good.Nuts] = Fix64.FromInt(5);
         }
         InitializeBronze();
+        // Recipe tables are compiled during InitializeBronze, so select the appropriate table
+        // only after compilation has populated the chapter-specific arrays.
+        if (_fiefChain) _compiledRecipes = _allRecipes;
+        else if (_ironChain) _compiledRecipes = _ironChainRecipes;
     }
 
     public long Tick => _tick;
@@ -860,6 +884,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void AddResident(FigureState figure, int settlementId)
     {
         List<FigureState> residents = Residents(settlementId);
+        if (residents.Count == 0) InvalidateIronOreSupplierAssignments();
         if (residents.Count == 0 || residents[^1].Id < figure.Id)
         {
             residents.Add(figure);
@@ -885,6 +910,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         int at = residents.IndexOf(figure);
         if (at < 0) throw new InvalidOperationException($"Figure {figure.Id} is missing from settlement {settlementId}'s resident census.");
         residents.RemoveAt(at);
+        if (residents.Count == 0) InvalidateIronOreSupplierAssignments();
         InvalidateResidentDerived(settlementId);
     }
 
@@ -1059,6 +1085,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         if (_completedProjects[civ][index]) return;
         _completedProjects[civ][index] = true;
+        InvalidateIronOreSupplierAssignments();
         ClearModifierCache(civ);
         InvalidateReachableForageShare(civ);
         if (index == _key3) _bronzeActive = true;
@@ -2182,6 +2209,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                     {
                         Assign(figure, EconomyJob.Craft, craftAmount);
                         craftWork += craftAmount;
+                        TraceWp7CraftAssignment(figure, craftAmount, "general_craft");
                     }
                 }
                 if (toolWork is not null) toolWork[i] += amount;
@@ -2230,6 +2258,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         ReplaceWornTools(settlement);
+        WearLevyArms(settlement);
         Fix64 forageMod = Modifier(settlement.Civilization, "forage.yield");
         Fix64 appliedForageWork = LimitActionWorkByTool(settlement, "forage", forageWork);
         ScaleSkillWork(actionWork, SkillFamily.Forage, forageWork, appliedForageWork);
@@ -2401,6 +2430,14 @@ public sealed partial class LivingEconomyModel : ISimModel
                 foodWorkRequested, foodWorkAssigned, forageWork, huntWork, fishWork, farmWork, preserveWork,
                 foragePotentialYield, forageStockBeforeHarvest, foraged, huntedYield, fishYield, weirFishYield, grainYield, Fix64.Zero);
         }
+    }
+
+    private void TraceWp7CraftAssignment(FigureState figure, Fix64 work, string activity)
+    {
+        if (!FiefChain || work <= Fix64.Zero || FiefWp7TraceObserverForDiagnostics is not { } observer) return;
+        bool guilds = HasProject(figure.Civilization, "SOC-11");
+        Fix64 speed = guilds ? Fix64.Parse("1.5") : Fix64.One;
+        observer($"wp7-soc11-training seed={_seed} season={_seasonsCompleted} civ={figure.Civilization} settlement={figure.SettlementId} figure={figure.Id} activity={activity} assignedWork={work.Raw} trainingExposure={ (work * speed).Raw} soc11={guilds.ToString().ToLowerInvariant()} event=non_recipe_role_season");
     }
 
     private void BeginHealthSeason(FigureState figure, int season)
@@ -2917,7 +2954,12 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void HarvestFields(SettlementState settlement, int year)
     {
-        if (settlement.UnderInvestment || settlement.FieldTiles.Count == 0 || !HasProject(settlement.Civilization, "AGR-01")) return;
+        if (settlement.UnderInvestment) return;
+        if (settlement.FieldTiles.Count == 0 || !HasProject(settlement.Civilization, "AGR-01"))
+        {
+            if (FiefChain) settlement.Stores[(int)Good.Grain] += FiefWildernessFarmYield(settlement);
+            return;
+        }
         Fix64 required = settlement.Civic is not null ? FieldLaborNeed(settlement) : Fix64.FromInt(settlement.FieldTiles.Count);
         Fix64 factor = required <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, settlement.FarmWorkThisYear / required);
         Fix64 yield = Fix64.Zero;
@@ -2988,6 +3030,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             yield *= Fix64.FromInt(2); // preserve the pre-Fief operation order for Bronze and Iron determinism
             claimedYield *= Fix64.FromInt(2);
         }
+        // Monastery assignments are separate derived wilderness plots; they never enter FieldTiles or claim upkeep.
+        yield += FiefWildernessFarmYield(settlement);
         settlement.Stores[(int)Good.Grain] += yield;
         FiefClaimUpkeep(settlement, claimedYield);
         if (HasProject(settlement.Civilization, "BLD-05"))
@@ -3030,7 +3074,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (HasProject(civ, "HNT-05"))
             MakeGoods(settlement, ref remaining, Good.SpearThrower, Fix64.FromInt(8), Good.Wood,
                 Fix64.Parse("0.5"), Good.Cord, Fix64.Parse("0.1"), Fix64.One);
-        if (HasProject(civ, "HNT-06"))
+        // docs/MVP/36: Archery Warfare makes the bow a routine craft in every chapter, and the levy keeps a stock of them.
+        if (HasProject(civ, "HNT-06") && HasProject(civ, "WAR-03"))
+            MakeLevyBows(settlement, ref remaining);
+        else if (HasProject(civ, "HNT-06"))
             MakeGoods(settlement, ref remaining, Good.Bow, Fix64.FromInt(10), Good.Wood,
                 Fix64.Parse("0.3"), Good.Flint, Fix64.Parse("0.1"), Fix64.One);
         if (HasProject(civ, "STN-07"))
@@ -4056,7 +4103,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             else if (figure.Female && figure.Age is >= 14 and < 45)
             {
-                Fix64 targetFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization);
+                Fix64 targetFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization) * FiefCityGrowthMultiplier(settlement);
+                Fix64 cityGrowthMultiplier = FiefCityGrowthMultiplier(settlement);
                 Fix64 conceptionChance = Fix64.One / (Fix64.One / targetFertility - Fix64.FromInt(3));
                 if (!conceptionCapKnown)
                 {
@@ -4079,7 +4127,22 @@ public sealed partial class LivingEconomyModel : ISimModel
                     trackedChance = conceptionChance;
                 }
                 Pcg32 birth = Pcg32.ForStream(_seed, BirthStream, (ulong)figure.Id, season);
-                if (birth.NextFix01() < Fix64.Clamp(conceptionChance, Fix64.Zero, Fix64.One))
+                Fix64 birthRoll = birth.NextFix01();
+                bool conceived = birthRoll < Fix64.Clamp(conceptionChance, Fix64.Zero, Fix64.One);
+                if (FiefWp7TraceObserverForDiagnostics is not null && settlement.Civic is { Tier: (byte)SettlementTier.City })
+                {
+                    bool charter = HasProject(settlement.Civilization, "GOV-11");
+                    Fix64 controlFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization);
+                    Fix64 treatmentFertility = controlFertility * FiefCityGrowthMultiplierTreatment(settlement);
+                    Fix64 controlChance = Fix64.One / (Fix64.One / controlFertility - Fix64.FromInt(3));
+                    controlChance *= priorSeasonFoodSecurity * fertilityHealth * (Fix64.One - crowding);
+                    Fix64 treatmentChance = Fix64.One / (Fix64.One / treatmentFertility - Fix64.FromInt(3));
+                    treatmentChance *= priorSeasonFoodSecurity * fertilityHealth * (Fix64.One - crowding);
+                    bool controlConceived = birthRoll < Fix64.Clamp(controlChance, Fix64.Zero, Fix64.One);
+                    bool treatmentConceived = birthRoll < Fix64.Clamp(treatmentChance, Fix64.Zero, Fix64.One);
+                    FiefWp7TraceObserverForDiagnostics($"wp7-gov11-growth seed={_seed} season={season} civ={settlement.Civilization} settlement={settlement.Id} figure={figure.Id} city=true gov11={charter.ToString().ToLowerInvariant()} actualMode={(FiefWp7SuppressGov11GrowthForDiagnostics ? "control_suppressed" : "treatment")} growthMultiplier={cityGrowthMultiplier.Raw} actualConceptionChance={conceptionChance.Raw} actualOutcome={(conceived ? "conception" : "no_conception")} controlFertilityInput={controlFertility.Raw} treatmentFertilityInput={treatmentFertility.Raw} controlConceptionChance={controlChance.Raw} treatmentConceptionChance={treatmentChance.Raw} keyedRoll={birthRoll.Raw} controlOutcome={(controlConceived ? "conception" : "no_conception")} treatmentOutcome={(treatmentConceived ? "conception" : "no_conception")} pairedBasis=same_figure_same_state_same_keyed_roll");
+                }
+                if (conceived)
                 {
                     figure.PregnancySeasons = 3;
                     if (FoodWorkAttributionTraceEnabled) conceptions++;
@@ -4227,7 +4290,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         if (adult && figure.Female && figure.PregnancySeasons == 1)
         {
             // Normalize to a 1:1 sex ratio and the uncrowded seasonal delivery rate.
-            Fix64 deliveriesPerAdult = Fix64.Half * Fix64.Parse("0.13") * FertilityMultiplier(civ);
+            Fix64 deliveriesPerAdult = Fix64.Half * Fix64.Parse("0.13") * FertilityMultiplier(civ) * FiefCityGrowthMultiplier(_settlements[figure.SettlementId]);
             Fix64 maternal = annual * Fix64.Parse("0.06") * seasonalScale / deliveriesPerAdult;
             maternal *= CauseModifier(civ, "maternal");
             if (figure.MidwifeAttended) maternal *= MedCare(civ, Fix64.Parse("0.6"));
@@ -4392,6 +4455,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         _lastExpectedHazardsByExactAgeAndCause[exactAgeOffset + (int)EconomyDeathCause.Endemic] += hazards.Endemic;
         _lastExpectedHazardsByExactAgeAndCause[exactAgeOffset + (int)EconomyDeathCause.Epidemic] += hazards.Epidemic;
         _lastExpectedHazardsByExactAgeAndCause[exactAgeOffset + (int)EconomyDeathCause.Starvation] += hazards.Starvation + hazards.WinterShortfall;
+        if (FiefHealthTraceEnabledForDiagnostics) RecordFiefExpectedHazardsForDiagnostics(figure, hazards);
         _lastExpectedWinterShortfallByExactAge[figure.Age] += hazards.WinterShortfall;
         _lastExpectedHazardsByExactAgeAndCause[exactAgeOffset + (int)EconomyDeathCause.Exposure] += hazards.Exposure;
         _lastExpectedHazardsByExactAgeAndCause[exactAgeOffset + (int)EconomyDeathCause.Injury] += hazards.Injury;
@@ -4402,6 +4466,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void RecordDeath(FigureState figure, EconomyDeathCause cause, HazardBreakdown hazards, int season)
     {
+        if (FiefHealthTraceEnabledForDiagnostics) RecordFiefDeathForDiagnostics(figure, cause);
         RecordIT6IronKitRetired(figure.Civilization, figure.SettlementId, figure.Kit, Fix64.One, $"natural-death:{cause}");
         int band = figure.Age < 14 ? 0 : figure.Age < 45 ? 1 : 2;
         _lastDeathsByCause[(int)cause]++;
@@ -4576,6 +4641,12 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void ResolvePendingFissions(int season)
     {
+        _ironFissionFuelScoreGeneration = unchecked(_ironFissionFuelScoreGeneration + 1);
+        if (_ironFissionFuelScoreGeneration == 0)
+        {
+            _ironFissionFuelScores.Clear();
+            _ironFissionFuelScoreGeneration = 1;
+        }
         for (int s = 0; s < _settlements.Count; s++)
         {
             SettlementState parent = _settlements[s];
@@ -4602,7 +4673,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             int daughterCount = (Fix64.FromInt(population) * DaughterShare).RoundToInt();
             if (daughterCount >= population) daughterCount = population - 1;
             if (daughterCount < 6) { parent.FissionPending = false; Record("cancelled:belowSixDaughterMembers", daughterCount: daughterCount); continue; }
-            int site = ChooseFissionSite(parent, season);
+            int site = ChooseFissionSite(parent, season, reuseIronFuelScores: true);
             if (site < 0) { Record("noSite:pendingRetained", daughterCount: daughterCount); continue; }
             if (SiteAdvisor is not null && SiteAdvisor.VoyageLost(parent.Civilization, parent.SiteTile, site, season))
             { parent.FissionPending = false; Record("cancelled:voyageLost", site, daughterCount); continue; }
@@ -5015,7 +5086,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     private int ChooseFissionSite(SettlementState parent, int season, int previewBeaconTile = -1, int replacedBeaconIndex = -1,
-        bool recordDiagnostics = true)
+        bool recordDiagnostics = true, bool reuseIronFuelScores = false)
     {
         int[] populations = FillSettlementPopulationScratch();
         int best = -1;
@@ -5024,7 +5095,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 bestAbandonedScore = Fix64.MinValue;
         int bestAbandonedFuelSite = -1;
         Fix64 bestAbandonedFuelScore = Fix64.MinValue;
-        Fix64 bestAbandonedRawFood = Fix64.Zero, bestAbandonedMultiplier = Fix64.Zero;
+        Fix64 bestAbandonedRawFood = Fix64.Zero, bestAbandonedMultiplier = Fix64.Zero, bestAbandonedFuelMultiplier = Fix64.Zero;
         int bestFuelSite = -1;
         Fix64 bestFuelSiteScore = Fix64.MinValue;
         Fix64 bestFuelSiteRawFood = Fix64.Zero, bestFuelSiteMultiplier = Fix64.Zero;
@@ -5103,8 +5174,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 multiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
                 ? SiteAdvisor.PreviewMultiplier(parent.Civilization, tile, previewBeaconTile, replacedBeaconIndex)
                 : SiteAdvisor.Multiplier(parent.Civilization, tile);
-            Fix64 ironFuelScore = ironSiting ? IronFuelCatchmentScore(parent.Civilization, tile) : Fix64.Zero;
-            multiplier *= IronFuelSitingMultiplier(parent.Civilization, tile);
+            Fix64 ironFuelScore = Fix64.Zero;
+            if (ironSiting)
+            {
+                var fuelScores = IronFuelFissionCatchmentScores(parent.Civilization, tile, reuseIronFuelScores);
+                ironFuelScore = fuelScores.Local;
+                multiplier *= Fix64.One + Fix64.Min(Fix64.FromRatio(3, 10), fuelScores.Shared / Fix64.FromInt(100));
+            }
             Fix64 score = rawFood * multiplier;
             if (abandonedSite)
             {
@@ -5122,6 +5198,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 {
                     bestAbandonedFuelSite = tile;
                     bestAbandonedFuelScore = score;
+                    bestAbandonedFuelMultiplier = multiplier;
                 }
             }
             if (ironSiting && ironFuelScore > Fix64.Zero &&
@@ -5170,10 +5247,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 best = bestAbandonedFuelSite;
                 bestScore = bestAbandonedFuelScore;
                 selectedRawFood = _siteFoodScores[best];
-                selectedMultiplier = SiteAdvisor is null ? Fix64.One : previewBeaconTile >= 0
-                    ? SiteAdvisor.PreviewMultiplier(parent.Civilization, best, previewBeaconTile, replacedBeaconIndex)
-                    : SiteAdvisor.Multiplier(parent.Civilization, best);
-                selectedMultiplier *= IronFuelSitingMultiplier(parent.Civilization, best);
+                selectedMultiplier = bestAbandonedFuelMultiplier;
             }
             else
             {
@@ -6851,6 +6925,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         // From KEY-3 Cohesion sets the pace: ×(1 + 0.15 (C − 65) ÷ 35), 0.85–1.15 (docs/MVP/22 §8.3); exactly 1 before it.
         if ((uint)figure.SettlementId < (uint)_settlements.Count && _settlements[figure.SettlementId].Civic is { } c && c.WorkMult != Fix64.One)
             work *= c.WorkMult;
+        if ((uint)figure.SettlementId < (uint)_settlements.Count)
+            work *= ClockTowerWorkFactor(_settlements[figure.SettlementId]);
         return work;
     }
 
@@ -6980,6 +7056,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         hash.Add(_lastExpectedWinterShortfallByExactAge);
         HashBronze(ref hash);
         HashIron(ref hash);
+        HashFiefKnowHow(ref hash);
+        HashFiefGoods(ref hash);
         HashDecrees(ref hash);
         HashBuildFocus(ref hash);
         return hash.Finish();
@@ -7074,20 +7152,28 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteBronze(writer);
         WriteBuildFocus(writer); // before the Iron block, so a Bronze economy reading an Iron snapshot still ends with unread bytes
         WriteIron(writer);
+        WriteFiefKnowHow(writer);
+        WriteFiefGoods(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart) { MaxEra = MaxEra, IronChain = IronChain, FiefChain = FiefChain };
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart, _contentFingerprintMode) { MaxEra = MaxEra, IronChain = IronChain, FiefChain = FiefChain };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }
 
     private void ReadSnapshotCore(BinaryReader reader)
     {
-        if (reader.ReadInt32() != 0x45434F4E || reader.ReadInt32() != (FiefChain ? FiefSnapshotVersion : SnapshotVersion))
+        int magic = reader.ReadInt32();
+        int version = reader.ReadInt32();
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
+        if (FiefChain) FiefSnapshotVersionForRestore = version;
+        _fiefKnowHowNeedsMigration = FiefChain && version == 40;
+        _fiefCraftNeedsMigration = FiefChain && version < 42;
+        _fiefBowGoodsNeedRead = FiefChain && version >= 43;
         if (reader.ReadUInt64() != _seed || reader.ReadUInt64() != _world.Fingerprint ||
             reader.ReadUInt64() != _world.DepositFingerprint || reader.ReadUInt64() != _contentFingerprint)
             throw new InvalidDataException("Snapshot seed, world or content does not match this model.");
@@ -7222,6 +7308,14 @@ public sealed partial class LivingEconomyModel : ISimModel
         ReadBronze(reader);
         ReadBuildFocus(reader);
         ReadIron(reader);
+        if (FiefChain && !_fiefKnowHowNeedsMigration) ReadFiefKnowHow(reader);
+        else if (FiefChain && reader.BaseStream.CanSeek && reader.BaseStream.Length - reader.BaseStream.Position >= sizeof(uint))
+        {
+            long position = reader.BaseStream.Position;
+            if (reader.ReadUInt32() == 0x48574F4B) throw new InvalidDataException("Fief Know-how tail requires snapshot version 41.");
+            reader.BaseStream.Position = position;
+        }
+        ReadFiefGoods(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7407,10 +7501,18 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void CopySnapshotStateFrom(LivingEconomyModel source)
     {
         InvalidateForageSettlementOwners();
+        FiefSnapshotVersionForRestore = source.FiefSnapshotVersionForRestore;
         _tick = source._tick;
         _seasonsCompleted = source._seasonsCompleted;
         _nextFigureId = source._nextFigureId;
         _lastWinterWasHarsh = source._lastWinterWasHarsh;
+        _fiefKnowHowNeedsMigration = source._fiefKnowHowNeedsMigration;
+        _fiefCraftNeedsMigration = source._fiefCraftNeedsMigration;
+        _fiefKnowHowBuckets.Clear();
+        foreach (Fix64[]? bucket in source._fiefKnowHowBuckets)
+            _fiefKnowHowBuckets.Add(bucket is null ? null : (Fix64[])bucket.Clone());
+        _fiefKnowHowReserve = source._fiefKnowHowReserve is null ? null :
+            Array.ConvertAll(source._fiefKnowHowReserve, static reserve => (Fix64[])reserve.Clone());
         _winterForageMultiplier = source._winterForageMultiplier;
         Array.Copy(source._forageStock, _forageStock, _forageStock.Length);
         Array.Copy(source._herdFoodStock, _herdFoodStock, _herdFoodStock.Length);
@@ -7488,6 +7590,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             Civilization = source.Civilization,
             SiteTile = source.SiteTile,
             SurfaceOchre = source.SurfaceOchre,
+            FiefGoods = source.FiefGoods is null ? null : (Fix64[])source.FiefGoods.Clone(),
             FoodSecurity = source.FoodSecurity,
             LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,
@@ -7546,21 +7649,25 @@ public sealed partial class LivingEconomyModel : ISimModel
         for (int i = 0; i < values.Length; i++) values[i] = Fix64.FromRaw(reader.ReadInt64());
     }
 
-    private static ulong FingerprintContent(EconomyContent content)
+    private static ulong FingerprintContent(EconomyContent content, ChapterMode mode)
     {
         var hash = new StateHasher();
         hash.Add(content.Projects.Length);
         foreach (EconomyProject project in content.Projects)
         { hash.Add(project.Index); hash.Add(Hash64.OfString(project.Id)); hash.Add(project.Era); hash.Add(project.EnterEra); }
-        // The legacy Bronze fingerprint represents each E4 and E5 draft project by its original single prose
-        // placeholder, so typing draft effects does not alter old checksums. Iron or Fief activation needs a
-        // separate full-content fingerprint before any E4 or E5 effect can run.
-        int bronzeEffectCount = 0;
-        foreach (EconomyProject project in content.Projects) bronzeEffectCount += project.Era is 4 or 5 ? 1 : project.EffectCount;
-        hash.Add(bronzeEffectCount);
+        // Bronze and Iron retain the legacy placeholder slots for future E4/E5 rows. Numeric E5 rows remain
+        // unavailable outside Fief, so their draft values must not alter legacy-mode checksums. Fief fingerprints
+        // typed E4/E5 effects because both eras are playable there.
+        bool fingerprintEraFour = mode == ChapterMode.Fief;
+        bool fingerprintEraFive = mode == ChapterMode.Fief;
+        bool legacyProject(EconomyProject project) =>
+            project.Era == 4 ? !fingerprintEraFour : project.Era == 5 && !fingerprintEraFive;
+        int effectCount = 0;
+        foreach (EconomyProject project in content.Projects) effectCount += legacyProject(project) ? 1 : project.EffectCount;
+        hash.Add(effectCount);
         foreach (EconomyProject project in content.Projects)
         {
-            if (project.Era is 4 or 5)
+            if (legacyProject(project))
             {
                 AddEffectFingerprint(ref hash, project.Index, "prose");
                 continue;
@@ -7573,21 +7680,22 @@ public sealed partial class LivingEconomyModel : ISimModel
                     effect.Rung, effect.Value, effect.Mult, effect.Take, effect.Rate, effect.Unit);
             }
         }
-        int bronzeActionCount = 0;
-        foreach (EconomyAction action in content.Actions) if (action.IntroducedEra <= 3) bronzeActionCount++;
-        hash.Add(bronzeActionCount);
+        int registryEraCeiling = mode == ChapterMode.Fief ? ChapterRules.Fief.LastResearchEra : 3;
+        int actionCount = 0;
+        foreach (EconomyAction action in content.Actions) if (action.IntroducedEra <= registryEraCeiling) actionCount++;
+        hash.Add(actionCount);
         foreach (EconomyAction action in content.Actions)
         {
-            if (action.IntroducedEra > 3) continue;
+            if (action.IntroducedEra > registryEraCeiling) continue;
             hash.Add(Hash64.OfString(action.Id)); AddOptional(ref hash, action.BaseRate);
             hash.Add(Hash64.OfString(action.Unit ?? ""));
         }
-        int bronzeGoodCount = 0;
-        foreach (EconomyGood good in content.Goods) if (good.IntroducedEra <= 3) bronzeGoodCount++;
-        hash.Add(bronzeGoodCount);
+        int goodCount = 0;
+        foreach (EconomyGood good in content.Goods) if (good.IntroducedEra <= registryEraCeiling) goodCount++;
+        hash.Add(goodCount);
         foreach (EconomyGood good in content.Goods)
         {
-            if (good.IntroducedEra > 3) continue;
+            if (good.IntroducedEra > registryEraCeiling) continue;
             hash.Add(Hash64.OfString(good.Id)); hash.Add(good.Spoilage);
         }
         return hash.Finish();

@@ -690,7 +690,8 @@ public sealed partial class PoliticsSystem
 
     private bool BronzeStateEmpty => _decreeQueue.Count == 0 && _levies.Count == 0 && _investments.Count == 0 && _foundBoost.Count == 0 && _nextPartyId == 0 &&
                                      _compacts.Count == 0 && _pacts.Count == 0 && _folkTies.Count == 0 && _tinFolk.Count == 0 &&
-                                     !_tinFolkSpawned && !AnyRevealed() && !AnyEmbargo() && !AnyMandate();
+                                     !_tinFolkSpawned && !AnyRevealed() && !AnyEmbargo() && !AnyMandate() &&
+                                     (!_economy.FiefChain || (!HasDynasticInheritanceState() && _fiefLeaderIds.Length == 0));
 
     private bool AnyRevealed()
     {
@@ -739,6 +740,7 @@ public sealed partial class PoliticsSystem
         HashTrade(ref h);
         HashInvestments(ref h);
         if (_economy.IronChain) { HashBlockades(ref h); HashTributes(ref h); HashLeagues(ref h); }
+        if (_economy.FiefChain) { HashDynasticInheritance(ref h); HashFiefLeadership(ref h); }
     }
 
     private void WriteBronze(System.IO.BinaryWriter w)
@@ -784,6 +786,7 @@ public sealed partial class PoliticsSystem
         WriteTrade(w);
         WriteInvestments(w);
         if (_economy.IronChain) { WriteBlockades(w); WriteTributes(w); WriteLeagues(w); }
+        if (_economy.FiefChain) { WriteDynasticInheritance(w); WriteFiefLeadership(w); }
     }
 
     private void ReadBronze(System.IO.BinaryReader r)
@@ -842,6 +845,7 @@ public sealed partial class PoliticsSystem
         ReadTrade(r);
         ReadInvestments(r);
         if (_economy.IronChain) { ReadBlockades(r); ReadTributes(r); ReadLeagues(r); }
+        if (_economy.FiefChain) { ReadDynasticInheritance(r); ReadFiefLeadership(r); }
     }
 }
 

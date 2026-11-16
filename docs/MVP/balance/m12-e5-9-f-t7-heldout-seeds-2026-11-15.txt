@@ -1,0 +1,23 @@
+# F-T7 held-out natural cohort; 20 seeds sampled without replacement using random.Random(20261118), sorted; no world, KEY-5, geography, or outcome screening. Keep unopened until the candidate/source/pack/harness hashes are frozen.
+# Sampling pool: [21100000, 21199999]
+seed
+21100448
+21102371
+21105959
+21109757
+21121649
+21126706
+21128485
+21129504
+21130044
+21141430
+21144942
+21149977
+21155510
+21164838
+21171259
+21186001
+21188762
+21191972
+21192182
+21198641

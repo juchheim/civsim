@@ -139,6 +139,7 @@ projects:
     requires: [WAR-08, MEC-07]
     effects:
       - {kind: good, id: "G-CROSSBOW"}
+      - {kind: good, id: "G-LONGBOW"}
       - {kind: combat, text: "Levy ranged weapon: strength 2.0 for an undrilled levy (P), fires a first-round volley, and bolts ignore the shield casualty reduction; peasant levies are effective."}
     practice: [{action: fight, share: 100}]
     flavor: "A farmer learns the crossbow in a week."
@@ -148,6 +149,8 @@ projects:
     era: 5
     type: M
     status: draft
+    cost: 12000
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6000 x M 1.0."
     requires: [WAR-11, CHM-07]
     effects:
       - {kind: role, id: gunner}

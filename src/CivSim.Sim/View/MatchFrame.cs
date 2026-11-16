@@ -22,6 +22,9 @@ public sealed class MatchFrame
 
     /// <summary>The Iron chapter's block (works, staff, sieges, blockades, tributes, leagues, Wonders); inactive in any other chapter.</summary>
     public readonly IronFrame Iron = new();
+    /// <summary>What the viewer's people are armed with: base weapon, arms research, and per-settlement fighters, kits and siege engines.</summary>
+    public readonly ArmsFrame Arms = new();
+
     /// <summary>The Faith &amp; Fief-only read model; inactive in Bronze and Iron.</summary>
     public readonly FiefFrame Fief = new();
 
@@ -151,6 +154,11 @@ public sealed class MatchFrame
     public short[] SettlementSpanPenalty = Array.Empty<short>();
     /// <summary><see cref="SettlementViewFlags"/>.</summary>
     public ushort[] SettlementFlags = Array.Empty<ushort>();
+    /// <summary>
+    /// Three bytes per settlement: the percent of its fighting-age people holding a crossbow, a longbow and the war bow (docs/MVP/36). Zero for a settlement the
+    /// viewer only remembers, and where a kind is not yet known to its civilization. The figures carrying bows follow these shares.
+    /// </summary>
+    public byte[] SettlementBowPct = Array.Empty<byte>();
     /// <summary>Structure kind under construction, -1 none.</summary>
     public sbyte[] SettlementBuildKind = Array.Empty<sbyte>();
     /// <summary>Its labor done, permille.</summary>
@@ -486,6 +494,7 @@ public sealed class MatchFrame
 
     internal void EnsureSettlements(int n)
     {
+        Ensure(ref SettlementBowPct, n * 3);      // three bytes a settlement, so it grows on its own count, not the one-a-settlement arrays'
         if (SettlementIndex.Length < n)
         {
             Ensure(ref SettlementIndex, n); Ensure(ref SettlementCiv, n); Ensure(ref SettlementTile, n); Ensure(ref SettlementPopulation, n);

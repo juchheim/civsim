@@ -225,7 +225,7 @@ public sealed partial class LivingEconomyModel
             {
                 if (amount > 0) needList.Add(new BuildNeed(MetalSlot(good), Stock(s, MetalSlot(good)), Fix64.FromInt(amount)));
             }
-            Need(MetalGood.Block, spec.Block); Need(MetalGood.Ashlar, spec.Ashlar); Need(MetalGood.Iron, spec.Bloom); Need(MetalGood.Wheel, spec.Wheel);
+            Need(MetalGood.Block, spec.Block); Need(MetalGood.Ashlar, spec.Ashlar); Need(MetalGood.Iron, spec.Bloom); Need(MetalGood.Wheel, spec.Wheel); Need(MetalGood.Glass, spec.Glass);
             if (spec.Wood > 0) needList.Add(new BuildNeed((int)Good.Wood, s.Stores[(int)Good.Wood], Fix64.FromInt(spec.Wood)));
             BuildNeed[] needs = needList.ToArray();
             Fix64 labor = IronLaborOf(s, spec);

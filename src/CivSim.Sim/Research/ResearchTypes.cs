@@ -110,6 +110,21 @@ public interface IResearchSource
     /// (docs/MVP/05 §16.2), plus the work-weighted share of working people (the practising share of Commons).
     /// </summary>
     void GetPractice(int civ, IResearchView view, Span<Fix64> workByPracticeIndex, out Fix64 practisingShare);
+    /// <summary>Fief-only local attribution. The span is settlement-major; sources without local retention leave it untouched.</summary>
+    void GetPracticeBySettlement(int civ, IResearchView view, Span<Fix64> workBySettlementPractice) { }
+    bool HasSettlementKnowHowRetention => false;
+    int RetentionSettlementCount(int civ) => 0;
+    int RetentionSettlementId(int civ, int ordinal) => -1;
+    int CopyRetentionSettlementIds(int civ, Span<int> into) => 0;
+    void EnsureKnowHowRetention(int lineageCount) { }
+    Fix64 KnowHowReserve(int civ, int lineage) => Fix64.Zero;
+    void AddKnowHowReserve(int civ, int lineage, Fix64 amount) { }
+    Fix64 KnowHowBucket(int settlementId, int lineage) => Fix64.Zero;
+    void AddKnowHowBucket(int settlementId, int lineage, Fix64 amount) { }
+    void DebitKnowHowBuckets(int civ, int lineage, Fix64 amount) { }
+    bool NeedsKnowHowMigration => false;
+    void MigrateKnowHow(int lineageCount, Func<int, int, Fix64> pool) { }
+    void SetKnowHowDiscardHandler(Action<int, int, Fix64> handler) { }
     UrgencySignals GetSignals(int civ);
     int SettlementCount(int civ);
     Fix64 SettlementPeople(int civ, int settlement);

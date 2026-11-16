@@ -1,0 +1,79 @@
+{
+  "status": "prepared_dormant_calibration_only",
+  "preparedUtc": "2026-11-16",
+  "candidateTuplePath": "/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/candidate.json",
+  "candidate": "5ee659bd",
+  "head": "bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c",
+  "sourceAggregateSha256": "5ee659bd7303b24190f59ad01299f4d7430e18ce3adb0441470cab96b1452733",
+  "sourceFileCount": 1045,
+  "numericPackPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/numeric-e5.pack",
+  "numericPackSha256": "f360a3d93047ac248d97574af3bff24e9ffb28c13217a578c473e7dd02a0a05a",
+  "releaseHarnessPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/harness-release/CivSim.Harness.dll",
+  "releaseHarnessSha256": "26fd3451b52bf342c757118324fa2d6dd8b881d4dbda81435438e9285037d100",
+  "adjacentSimPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/harness-release/CivSim.Sim.dll",
+  "adjacentSimSha256": "b347189f8d386a4b2a2756271298a8a05e41e7abb82009566ccb8dfa2f631dfe",
+  "gameDebugDllSha256": "e5308c05256736c8b557e3a9b29668ed5756d6a696c53c56ddd3b5bfc50ef8a6",
+  "seedManifestPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-wp-e5-6-f-t6-t7-current-calibration-preflight-2026-11-16/calibration-seeds.txt",
+  "seedManifestSha256": "571d27e2f7454d6f5d91a33c0859a19a3ad159ffaea27a5d6dd4ae640b209d10",
+  "seedCount": 20,
+  "seedRange": [
+    34000000,
+    34000019
+  ],
+  "seeds": [
+    34000000,
+    34000001,
+    34000002,
+    34000003,
+    34000004,
+    34000005,
+    34000006,
+    34000007,
+    34000008,
+    34000009,
+    34000010,
+    34000011,
+    34000012,
+    34000013,
+    34000014,
+    34000015,
+    34000016,
+    34000017,
+    34000018,
+    34000019
+  ],
+  "seedCrossChecks": {
+    "wp7CalibrationSourcePath": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-e5-7-prereg-2026-11-16/wp7-calibration-seeds.txt",
+    "wp7CalibrationSha256": "443e0c4de1d6f63e23ae4d86c18dfbec9e75d773421e3bac1eb13df4eb48b021",
+    "wp7CalibrationSetMatches": true,
+    "wp7HoldoutPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-e5-7-prereg-2026-11-16/wp7-holdout-seeds.txt",
+    "wp7HoldoutSha256": "80e638045a3457057db028b63206288e233cb23ae3eacaa9f17e7ef6901c0793",
+    "overlapWithWp7Holdout": [],
+    "priorFt7CalibrationPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-e5-9-f-t7-calibration-seeds-2026-11-15.txt",
+    "priorFt7CalibrationSha256": "9a675be767becdb8e9cc4511ace1c8be95000ea14ff7a0c844d8064567da836d",
+    "overlapWithPriorFt7Calibration": [],
+    "priorFt7HoldoutPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-e5-9-f-t7-heldout-seeds-2026-11-15.txt",
+    "priorFt7HoldoutSha256": "b9a6207bd5d72810ef58559dba063926a45fdc19f095fd65bb539e7cb0ef4a20",
+    "overlapWithPriorFt7Holdout": []
+  },
+  "protocol": {
+    "minutes": 130,
+    "mode": "natural fief-match",
+    "grantE5": false,
+    "traces": [
+      "--fief-health-trace",
+      "--fief-institution-trace"
+    ],
+    "cohortRole": "calibration"
+  },
+  "acceptanceCriteria": {
+    "ft6": "Dormant cutoff remains diagnostic and unapproved; report working/dormant/unresolved institution staffing and typed blockers.",
+    "ft7": "Keep 10\u201314% expected epidemic-hazard-share band and 95% seed-bootstrap CI includes 12%; preserve exposure, cohort-size, and censoring requirements."
+  },
+  "requiredExposure": "Retain valid MED-08 import exposure as an explicit evidence requirement; natural cohort import counters must be reviewed and cannot claim import-mechanic validation without valid route-import attempts. Focused keyed-gate evidence remains separate.",
+  "runner": "docs/MVP/balance/tools/run_fief_t6_t7_cohort.py",
+  "analyzer": "docs/MVP/balance/tools/analyze_fief_t6_t7_cohort.py",
+  "outputDir": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-wp-e5-6-f-t6-t7-current-calibration-preflight-2026-11-16/output",
+  "analysisPath": "/Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-wp-e5-6-f-t6-t7-current-calibration-preflight-2026-11-16/analysis.md",
+  "launchState": "DO NOT LAUNCH: host saturation noted by task; no calibration cohort or holdout launched."
+}

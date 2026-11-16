@@ -72,8 +72,8 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
-    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _wonderLibrary;
-    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07;
+    private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _statWritingRoleOutput, _statDiffusionDiscount, _wonderLibrary;
+    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10;
     private long _tick;
 
 
@@ -112,7 +112,11 @@ public sealed partial class ResearchSystem : IResearchView
         _statScholar = catalog.StatIndex("scholar_insight");            // INQ-04, BEL-08, LRN-06 (Iron chapter)
         _statScribeLearning = catalog.StatIndex("scribe_learning_output"); // COM-07
         _statMecNrgCost = catalog.StatIndex("mec_nrg_project_cost");     // INQ-05
+        _statWritingRoleOutput = catalog.StatIndex("writing_role_output"); // COM-09
+        _statDiffusionDiscount = catalog.StatIndex("diffusion_discount"); // COM-10
         _wonderLibrary = catalog.IndexOf("LRN-06");
+        _com09 = catalog.IndexOf("COM-09");
+        _com10 = catalog.IndexOf("COM-10");
         _soc03 = catalog.IndexOf("SOC-03");
         _trd04 = catalog.IndexOf("TRD-04");
         _bel05 = catalog.IndexOf("BEL-05");
@@ -148,6 +152,11 @@ public sealed partial class ResearchSystem : IResearchView
             RebuildDerived(c);
             RefreshInsight(c);
             RefreshStates(c, announce: true);
+        }
+        if (_source.HasSettlementKnowHowRetention)
+        {
+            _source.EnsureKnowHowRetention(catalog.LineageCodes.Count);
+            _source.SetKnowHowDiscardHandler(OnKnowHowDiscarded);
         }
     }
 
@@ -254,6 +263,8 @@ public sealed partial class ResearchSystem : IResearchView
             if (o != civ && InContact(civ, o) && _civs[o].Done[project]) knowers++;
         // The Great Library (LRN-06, once built) doubles each knowing civilization's discount; the floor stays, so a cost never goes below it.
         Fix64 step = _wonderLibrary >= 0 && c.WondersBuilt.BinarySearch(_wonderLibrary) >= 0 ? _diffusionStep * 2 : _diffusionStep;
+        if (Rules.IsFief && _com10 >= 0 && c.Done[_com10] && _statDiffusionDiscount >= 0)
+            step *= c.ModMult[_statDiffusionDiscount];
         if (knowers > 0) cost = cost * Fix64.Max(_diffusionFloor, Fix64.One - step * knowers);
         int lag = c.Era - def.Era;
         if (lag > 0) cost = cost * FixMath.PowInt(_eraLag, lag);
@@ -491,6 +502,8 @@ public sealed partial class ResearchSystem : IResearchView
                 {
                     civ.KnowHow[def.Lineage] -= kh;
                     civ.KnowHowApplied[p] += kh;
+                    if (_source.HasSettlementKnowHowRetention)
+                        _source.DebitKnowHowBuckets(c, def.Lineage, kh);
                     progress += kh;
                 }
             }
@@ -750,6 +763,8 @@ public sealed partial class ResearchSystem : IResearchView
             // The Iron chapter's learning mods apply to one role each (docs/MVP/26 §2.3 "Insight +x%" names its pool): scholars, and the scribes' own output.
             if (r == _roleScholar && _statScholar >= 0) output = output * civ.ModMult[_statScholar];
             if (r == _roleScribe && _statScribeLearning >= 0) output = output * civ.ModMult[_statScribeLearning];
+            if (Rules.IsFief && _com09 >= 0 && civ.Done[_com09] && (r == _roleScribe || r == _roleScholar) && _statWritingRoleOutput >= 0)
+                output = output * civ.ModMult[_statWritingRoleOutput];
             if ((r == _roleScribe || r == _rolePriest) && _statRoleInsight >= 0) output = output * civ.ModMult[_statRoleInsight];
             roles += output;
         }
@@ -774,6 +789,15 @@ public sealed partial class ResearchSystem : IResearchView
         // season's Commons scaled by how much of the population is practising.
         Fix64 season = civ.CommonsPerYear / 4 * _knowHowOfCommons * practisingShare * inputs.KnowHowScale * civ.KnowHowGain;
         civ.KnowHowPerYear = season * 4;
+        bool retainLocally = _source.HasSettlementKnowHowRetention;
+        int settlementCount = retainLocally ? _source.RetentionSettlementCount(c) : 0;
+        int[] settlementIds = retainLocally ? new int[settlementCount] : Array.Empty<int>();
+        if (retainLocally && _source.CopyRetentionSettlementIds(c, settlementIds) != settlementCount)
+            throw new InvalidOperationException("Fief Know-how settlement list changed during seasonal generation.");
+        Fix64[] localPractice = retainLocally
+            ? new Fix64[settlementCount * _practiceWork.Length]
+            : Array.Empty<Fix64>();
+        if (retainLocally) _source.GetPracticeBySettlement(c, this, localPractice);
         for (int a = 0; a < _practiceWork.Length; a++)
         {
             if (_practiceWork[a].Raw == 0) continue;
@@ -782,9 +806,44 @@ public sealed partial class ResearchSystem : IResearchView
             {
                 Fix64 generated = part * percent / 100 * civ.KnowHowLineageGain[lineage];
                 civ.KnowHow[lineage] += generated;
+                if (retainLocally && generated > Fix64.Zero)
+                    AttributeKnowHow(c, lineage, a, generated, localPractice, settlementIds);
                 if (_diagnosticKnowHowGenerated is { } diagnostic) diagnostic[c][lineage] += generated;
             }
         }
+    }
+
+    private void AttributeKnowHow(int civ, int lineage, int practice, Fix64 generated, Fix64[] localPractice, int[] settlementIds)
+    {
+        int settlementCount = settlementIds.Length;
+        Fix64 total = Fix64.Zero;
+        for (int s = 0; s < settlementCount; s++) total += localPractice[s * _practiceWork.Length + practice];
+        if (total <= Fix64.Zero)
+        {
+            // No local provenance: retain the amount in the explicit civilization reserve.
+            // The reserve is part of the same spendable pool, and is debited after settlement buckets.
+            _source.AddKnowHowReserve(civ, lineage, generated);
+            return;
+        }
+        Fix64 assigned = Fix64.Zero;
+        int last = -1;
+        for (int s = 0; s < settlementCount; s++)
+            if (localPractice[s * _practiceWork.Length + practice] > Fix64.Zero) last = s;
+        for (int s = 0; s < settlementCount; s++)
+        {
+            Fix64 work = localPractice[s * _practiceWork.Length + practice];
+            if (work <= Fix64.Zero) continue;
+            Fix64 remaining = Fix64.Max(Fix64.Zero, generated - assigned);
+            Fix64 amount = s == last ? remaining : Fix64.Min(remaining, generated * work / total);
+            assigned += amount;
+            _source.AddKnowHowBucket(settlementIds[s], lineage, amount);
+        }
+    }
+
+    private void OnKnowHowDiscarded(int civ, int lineage, Fix64 amount)
+    {
+        CivResearch research = _civs[civ];
+        research.KnowHow[lineage] = Fix64.Max(Fix64.Zero, research.KnowHow[lineage] - amount);
     }
 
     // ---- derived effects (modifier registry) ----------------------------------------------
@@ -972,6 +1031,8 @@ public sealed partial class ResearchSystem : IResearchView
         for (int i = 0; i < _firstBy.Length; i++) _firstBy[i] = r.ReadInt32();
         for (int i = 0; i < _contact.Length; i++) _contact[i] = r.ReadBoolean();
         _source.ReadSnapshot(r);
+        if (_source.NeedsKnowHowMigration)
+            _source.MigrateKnowHow(_catalog.LineageCodes.Count, (civ, lineage) => _civs[civ].KnowHow[lineage]);
         _events.Clear();
         _completions.Clear();
         for (int c = 0; c < _civs.Length; c++)

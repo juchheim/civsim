@@ -12,7 +12,7 @@ namespace CivSim.Tests;
 public sealed class FiefVoyageTests
 {
     private const ulong Seed = 20261019;
-    private static readonly Lazy<CivSim.Sim.Content.ContentPack> Pack = new(() => TestPack.WithNumeric("WAY-08"));
+    private static readonly Lazy<CivSim.Sim.Content.ContentPack> Pack = new(() => TestPack.WithNumeric("WAY-08", "WAY-09", "KEY-6"));
     private static readonly Lazy<GeneratedWorld> World = new(() => WorldGenerator.Generate(Seed));
     private static readonly EconomyArchetype[] Balanced =
         { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
@@ -43,6 +43,9 @@ public sealed class FiefVoyageTests
         (MatchModel match, SimRunner runner, int home) = Start();
         Grant(runner, match, 0, "KEY-5", "SEA-04");
         PoliticsSystem politics = match.Politics;
+        Assert.False(politics.CanSail(0), "Fief keeps open-ocean crossings closed through E5");
+        Grant(runner, match, 0, "KEY-6");
+        Assert.True(politics.CanSail(0), "open-ocean crossings unlock after the civilization completes KEY-6");
         int destination = Enumerable.Range(0, World.Value.TileCount)
             .First(t => World.Value.TileAt(t).IsLand && politics.SeaTilesOnRoute(0, home, t) > 0);
         int seaTiles = politics.SeaTilesOnRoute(0, home, destination);
@@ -91,5 +94,40 @@ public sealed class FiefVoyageTests
 
         Assert.False(match.Research.IsDone(0, match.Research.Catalog.IndexOf("WAY-08")));
         Assert.Equal(risk, politics.VoyageRiskPermille(0, home, destination));
+    }
+
+    [Fact]
+    public void Way09_speeds_only_Fief_sea_routes_and_stays_inert_in_Iron()
+    {
+        (MatchModel fief, SimRunner fiefRunner, int fiefHome) = Start();
+        Grant(fiefRunner, fief, 0, "KEY-5", "SEA-04", "KEY-6");
+        PoliticsSystem fiefPolitics = fief.Politics;
+        int seaDestination = Enumerable.Range(0, World.Value.TileCount)
+            .Where(t => World.Value.TileAt(t).IsLand && fiefPolitics.SeaTilesOnRoute(0, fiefHome, t) > 0)
+            .OrderByDescending(t => fiefPolitics.TravelSeasons(0, fiefHome, t))
+            .First();
+        int seaBefore = fiefPolitics.TravelSeasons(0, fiefHome, seaDestination);
+        Assert.True(seaBefore > 1, "the fixture needs a long enough sailing route to expose the speed change");
+
+        int landDestination = Enumerable.Range(0, World.Value.TileCount)
+            .Where(t => fiefPolitics.SeaTilesOnRoute(0, fiefHome, t) == 0)
+            .OrderByDescending(t => fiefPolitics.TravelSeasons(0, fiefHome, t))
+            .First();
+        int landBefore = fiefPolitics.TravelSeasons(0, fiefHome, landDestination);
+
+        Grant(fiefRunner, fief, 0, "WAY-09");
+        int seaAfter = fiefPolitics.TravelSeasons(0, fiefHome, seaDestination);
+        Assert.True(seaAfter < seaBefore, $"WAY-09 should shorten a Fief sea route ({seaBefore} to {seaAfter} seasons)");
+        Assert.Equal(landBefore, fiefPolitics.TravelSeasons(0, fiefHome, landDestination));
+
+        (MatchModel iron, SimRunner ironRunner, int ironHome) = Start(ChapterRules.Iron);
+        Grant(ironRunner, iron, 0, "KEY-4", "SEA-04");
+        PoliticsSystem ironPolitics = iron.Politics;
+        int ironDestination = Enumerable.Range(0, World.Value.TileCount)
+            .First(t => World.Value.TileAt(t).IsLand && ironPolitics.SeaTilesOnRoute(0, ironHome, t) > 0);
+        int ironBefore = ironPolitics.TravelSeasons(0, ironHome, ironDestination);
+        Grant(ironRunner, iron, 0, "WAY-09");
+        Assert.False(iron.Research.IsDone(0, iron.Research.Catalog.IndexOf("WAY-09")));
+        Assert.Equal(ironBefore, ironPolitics.TravelSeasons(0, ironHome, ironDestination));
     }
 }

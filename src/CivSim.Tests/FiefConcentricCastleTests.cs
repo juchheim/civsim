@@ -34,6 +34,14 @@ public sealed class FiefConcentricCastleTests
         {
             int index = match.Research.Catalog.IndexOf(project);
             Assert.True(index >= 0, $"{project} must exist in the test pack");
+            if (match.Research.Catalog.Projects[index].Era == ChapterRules.Fief.LastResearchEra &&
+                !match.Research.IsDone(0, match.Research.Catalog.IndexOf("KEY-5")))
+            {
+                int key5 = match.Research.Catalog.IndexOf("KEY-5");
+                Assert.True(key5 >= 0, "KEY-5 must exist in the Fief test pack");
+                runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, key5, 0, 0));
+                runner.Advance(2);
+            }
             runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, index, 0, 0));
             runner.Advance(2);
         }

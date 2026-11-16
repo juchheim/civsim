@@ -264,7 +264,7 @@ Paper prototypes with people are replaced by an automated **AI harness** (decisi
 | Warlord AI vs. Council bot (same archetype, mirrored seeds) | wins ≥ 85% on Legacy |
 | Warlord AI vs. each opening script | wins ≥ 70% |
 | Warlord AI vs. Rusher | survives ≥ 95% (loses no settlement in ≥ 80%); wins ≥ 70% |
-| Legend vs. Warlord | wins ≥ 65% (E3 chapter: ≥ 45%, Legend not worse than Warlord; see 22 §16 B31) |
+| Legend vs. Warlord | wins ≥ 65% (E3 and Fief chapters: ≥ 45%, Legend not worse than Warlord; see 22 §16 B31 and 27 B5-10, re-baselined 2026-11-16) |
 | Chieftain vs. Warlord | wins 25–40% (a real step, not a cliff) |
 | Archetype balance at equal difficulty | no archetype wins > 30% of 4-player free-for-alls (25% is fair) |
 | Exploit searcher | after screening 10,000 distinct fixed policies, no policy in a 16-policy diverse finalist set beats Warlord > 55% on fresh, mirrored, 64-minute matches |

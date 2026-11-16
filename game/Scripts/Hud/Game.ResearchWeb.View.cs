@@ -1083,6 +1083,7 @@ public partial class Game
         UiKit.SetText(cta, text);
         cta.Disabled = disabled;
         UiKit.SetVariation(cta, primary ? "Primary" : "Secondary");
+        (cta as UiCtaButton)?.ApplyLook(primary, disabled);
         cta.CustomMinimumSize = new Vector2(0, primary ? UiTokens.ControlL : UiTokens.ControlM);
         UiKit.SetText(_inspWhy!, why);
         UiKit.SetVisible(_inspWhy!, why.Length > 0);

@@ -13,6 +13,7 @@ uniform bool beacon_preview_enabled = false;
 uniform vec2 beacon_preview_axial = vec2(-10000.0);
 uniform vec2 beacon_preview_uv = vec2(-1.0);
 uniform float beacon_preview_fit = -1.0;
+uniform sampler2D beacon_site_state : filter_nearest;
 uniform float territory_strength = 1.0;
 uniform float claim_overlay_strength = 0.0;
 uniform float overlay_forecast = 0.0;
@@ -164,7 +165,7 @@ void fragment() {
 		}
 		}
 	}
-	// Beacon planning field: exact odd-r hex distance, with the same 15-tile falloff used by fission scoring.
+	// Beacon planning field: site-fit heatmap inside the exact 15-hex influence field.
 	if (beacon_preview_enabled && !wall) {
 		vec2 cell = floor(tile_uv * map_size);
 		float row = cell.y;
@@ -172,17 +173,26 @@ void fragment() {
 		float dq = q - beacon_preview_axial.x;
 		float dr = row - beacon_preview_axial.y;
 		float beacon_distance = max(max(abs(dq), abs(dr)), abs(dq + dr));
-		if (beacon_distance < 15.0) {
+		if (beacon_distance <= 15.0) {
 			float pull = clamp(1.0 - beacon_distance / 15.0, 0.0, 1.0);
 			vec3 field_tint = mix(vec3(0.12, 0.49, 0.62), vec3(0.98, 0.73, 0.25), pull);
-			c = mix(c, field_tint, 0.38 * pull);
+			c = mix(c, field_tint, 0.12 * pull);
+			vec4 site_state = texture(beacon_site_state, tile_uv);
+			if (site_state.a > 0.5) {
+				float fit = site_state.r;
+				float blocked = floor(site_state.g * 255.0 + 0.5);
+				vec3 fit_tint = blocked > 0.5 ? vec3(0.62, 0.12, 0.20)
+					: fit >= 0.845 ? vec3(0.30, 0.82, 0.48)
+					: fit >= 0.595 ? vec3(0.96, 0.68, 0.22) : vec3(0.90, 0.32, 0.24);
+				c = mix(c, fit_tint, 0.60);
+			}
 		}
 		if (beacon_distance == 15.0) c = mix(c, vec3(0.78, 0.89, 0.79), 0.48);
 		vec2 center_cell = floor(beacon_preview_uv * map_size);
 		if (all(equal(cell, center_cell))) {
 			vec3 fit_tint = beacon_preview_fit < 0.0 ? vec3(0.78, 0.85, 0.87)
-				: beacon_preview_fit >= 0.85 ? vec3(0.30, 0.82, 0.48)
-				: beacon_preview_fit >= 0.60 ? vec3(0.96, 0.68, 0.22) : vec3(0.90, 0.32, 0.24);
+				: beacon_preview_fit >= 0.845 ? vec3(0.30, 0.82, 0.48)
+				: beacon_preview_fit >= 0.595 ? vec3(0.96, 0.68, 0.22) : vec3(0.90, 0.32, 0.24);
 			c = mix(c, fit_tint, 0.52);
 		}
 	}

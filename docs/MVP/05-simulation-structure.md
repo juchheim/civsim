@@ -339,6 +339,7 @@ flowchart TD
 - **Trigger:** a settlement fissions at **85% of its EffectivePopCap** (§9.1), whichever cap binds, so food or housing pressure triggers it as well as group size. The daughter group is ~40% of the settlement and at least 6 people; below that the split waits. With these values the first fission comes at about minute 7 ([07](07-balance-findings.md) F5). The timing is a knife-edge (minute 6–13 across archetypes), so caps should rise project by project rather than per era, and a seasonal pressure trigger (late-winter food security) is a candidate for WS-H.
 - **Before SOC-03 Band Alliances**, fissioned bands still belong to your civilization (the player's Spark), but with **low ties**: they share Insight at 50% and secede more easily.
 - **Posture Expand** lowers the fission threshold. **Prosper** raises it, which grows bigger settlements.
+- **Site limits:** a daughter site must be reachable within settlement range, have no valuable deposit in its core (the site tile and ring 1), and be at least 9 hexes from every living settlement. Rival-owned tiles remain off limits; unclaimed frontier tiles use the same 9-hex rival spacing as *Found a Village* (22 §4.3).
 - Fission is the main way the map fills. Its pace comes from Kin (growth, caps) and its direction from Reach (Beacons, claims, travel).
 
 ### 9.5 Settlement tiers

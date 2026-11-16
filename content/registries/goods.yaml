@@ -122,6 +122,7 @@ goods:
   - {id: G-POWDER, name: Gunpowder, category: material, first_from: [CHM-07], durability: durable, load: 1, barter: 20, introduced_era: 5}
   - {id: G-CANNON, name: Cannon, category: arms, first_from: [WAR-12], durability: 60 seasons, load: 4, barter: 80, introduced_era: 5}
   - {id: G-CROSSBOW, name: Crossbow, category: arms, first_from: [WAR-11], durability: 40 seasons, load: 0.5, barter: 6, introduced_era: 5}
+  - {id: G-LONGBOW, name: Longbow and arrows, category: arms, first_from: [WAR-11], durability: 24 seasons, load: 0.3, barter: 4, introduced_era: 5}
   - {id: G-HORSESHOE, name: Horseshoe, category: tool, first_from: [TRN-09], durability: 12 seasons, load: 0.2, barter: 1, introduced_era: 5}
   - {id: G-SPIRITS, name: Distilled spirits, category: luxury, first_from: [CHM-06], spoilage: 0.01, load: 0.5, barter: 14, introduced_era: 5}
   - {id: G-PORCELAIN, name: Porcelain, category: luxury, first_from: [CER-09], durability: durable, load: 0.4, barter: 40, introduced_era: 5}

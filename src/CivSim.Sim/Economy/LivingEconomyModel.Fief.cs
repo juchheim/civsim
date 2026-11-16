@@ -1,3 +1,6 @@
+using System;
+using CivSim.Sim.Numerics;
+
 namespace CivSim.Sim.Economy;
 
 /// <summary>
@@ -22,7 +25,91 @@ public sealed partial class LivingEconomyModel
         init
         {
             _fiefChain = value;
-            if (value) IronChain = true;
+            if (value)
+            {
+                IronChain = true;
+                _compiledRecipes = _allRecipes;
+            }
         }
+    }
+
+    private static readonly Fix64 PowderPerCannonShot = Fix64.FromRatio(1, 4);
+    private static readonly Fix64 BaseFiefRecipeWaste = Fix64.FromRatio(1, 20);
+
+    private Fix64 FiefRecipeWasteRate(int civilization)
+        => Done(civilization, "SOC-11") ? BaseFiefRecipeWaste / Fix64.Parse("1.2") : BaseFiefRecipeWaste;
+
+    /// <summary>Fief craft-role training exposure in work-seasons; guild apprenticeship speed affects only this quantity.</summary>
+    internal Fix64 FiefCraftRoleTraining(int settlementIndex)
+        => FiefChain && _settlements[settlementIndex].Civic is { } civic ? civic.CraftRoleTraining : Fix64.Zero;
+
+    /// <summary>Cumulative modeled recipe-input loss, including the guild reduction, for focused diagnostics.</summary>
+    internal Fix64 FiefRecipeWaste(int settlementIndex)
+        => FiefChain && _settlements[settlementIndex].Civic is { } civic ? civic.GuildRecipeWaste : Fix64.Zero;
+
+    /// <summary>Accumulated output-independent craft quality units (one per batch; 1.2 with SOC-11).</summary>
+    internal Fix64 FiefCraftQuality(int settlementIndex)
+        => FiefChain && _settlements[settlementIndex].Civic is { } civic ? civic.CraftQualityUnits : Fix64.Zero;
+
+    /// <summary>Read-only Fief weapon stock for the owning civilization's AI view.</summary>
+    internal Fix64 FiefStock(int settlementIndex, string goodId)
+    {
+        if (!FiefChain) return Fix64.Zero;
+        int slot = SlotOf(goodId);
+        return slot < 0 ? Fix64.Zero : Stock(_settlements[settlementIndex], slot);
+    }
+
+    /// <summary>Draws Fief cannons from a settlement's existing stock for an active siege.</summary>
+    public int TakeCannons(int settlementIndex, int max)
+    {
+        if (!FiefChain || max <= 0) return 0;
+        SettlementState settlement = _settlements[settlementIndex];
+        int count = Math.Min(max, Stock(settlement, FiefSlot(FiefGood.Cannon)).FloorToInt());
+        if (count > 0) AddStock(settlement, FiefSlot(FiefGood.Cannon), Fix64.FromInt(-count));
+        return count;
+    }
+
+    /// <summary>Returns unused siege cannons to their home settlement.</summary>
+    public void ReturnCannons(int settlementIndex, int count)
+    {
+        if (!FiefChain || count <= 0) return;
+        AddStock(_settlements[settlementIndex], FiefSlot(FiefGood.Cannon), Fix64.FromInt(count));
+    }
+
+    /// <summary>Consumes a quarter unit of existing powder for each cannon that fires this season; returns full shots paid.</summary>
+    public int PayCannonPowder(int settlementIndex, int requestedShots)
+    {
+        if (!FiefChain || requestedShots <= 0) return 0;
+        SettlementState settlement = _settlements[settlementIndex];
+        int shots = Math.Min(requestedShots, (Stock(settlement, FiefSlot(FiefGood.Powder)) / PowderPerCannonShot).FloorToInt());
+        if (shots > 0) AddStock(settlement, FiefSlot(FiefGood.Powder), -PowderPerCannonShot * shots);
+        return shots;
+    }
+
+    private void FiefWeaponWants(SettlementState settlement, MetalPlan plan)
+    {
+        FiefCommunicationWants(settlement, plan);
+        if (!FiefChain || !Done(settlement.Civilization, "WAR-12") ||
+            !Done(settlement.Civilization, "CHM-07") ||
+            IronWorksCount(settlement, IronStructure.BlastFurnace) == 0 ||
+            IronWorksCount(settlement, IronStructure.PowderMill) == 0 ||
+            Stock(settlement, FiefSlot(FiefGood.Saltpeter)) <= Fix64.Zero && !HasFiefDepositInReach(settlement, FiefGood.Saltpeter) ||
+            Stock(settlement, FiefSlot(FiefGood.Sulfur)) <= Fix64.Zero && !HasFiefDepositInReach(settlement, FiefGood.Sulfur)) return;
+        plan.Terminal[FiefSlot(FiefGood.Cannon)] = Fix64.One;
+        plan.Terminal[FiefSlot(FiefGood.Powder)] = PowderPerCannonShot;
+    }
+
+    internal void FixtureSetGoodStock(int settlementIndex, string goodId, Fix64 amount)
+    {
+        int slot = SlotOf(goodId);
+        if (slot == NoSlot) throw new ArgumentException($"Unknown good '{goodId}'.", nameof(goodId));
+        AddStock(_settlements[settlementIndex], slot, amount - Stock(_settlements[settlementIndex], slot));
+    }
+
+    internal Fix64 FixtureGoodStock(int settlementIndex, string goodId)
+    {
+        int slot = SlotOf(goodId);
+        if (slot == NoSlot) throw new ArgumentException($"Unknown good '{goodId}'.", nameof(goodId));
+        return Stock(_settlements[settlementIndex], slot);
     }
 }

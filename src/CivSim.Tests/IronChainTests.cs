@@ -133,13 +133,13 @@ public class IronChainTests
         Assert.Equal(iron.Economy.ComputeChecksum(), restored.Economy.ComputeChecksum());
         Assert.Equal(F("1.25"), restored.Economy.GoodStock(0, "G-WROUGHT"));
 
-        // Neither economy reads the other's snapshot.
+        // The Iron economy rejects the Bronze snapshot. A Bronze economy can read an Iron economy's Bronze prefix,
+        // but it must leave the Iron-only section unread; MatchModel rejects that cross-mode save at its mode trailer.
         Assert.ThrowsAny<Exception>(() => Restore(Iron("MET-09").Economy, Snapshot(Bronze("MET-09").Economy)));
-        // A Bronze economy leaves the Iron section unread, which the match-level reader rejects as trailing bytes.
-        using var stream = new MemoryStream(saved);
-        using var reader = new BinaryReader(stream);
-        Bronze("MET-09").Economy.ReadSnapshot(reader);
-        Assert.NotEqual(stream.Length, stream.Position);
+        using var ironStream = new MemoryStream(saved);
+        using var ironReader = new BinaryReader(ironStream);
+        Bronze("MET-09").Economy.ReadSnapshot(ironReader);
+        Assert.True(ironStream.Position < ironStream.Length, "A Bronze economy must leave the Iron-only snapshot section unread.");
     }
 
     [Fact]

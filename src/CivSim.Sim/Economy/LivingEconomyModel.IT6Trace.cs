@@ -12,6 +12,8 @@ internal readonly record struct IT6AccountingSnapshot(
     Fix64 Kit11ToolWork, Fix64 Kit12ToolWork, int Kit11Breaks, int Kit12Breaks, int Kit11Upgrades,
     Fix64 Kit11Retired, Fix64 Kit12Retired,
     Fix64 KitRecipeLabor, Fix64 MetalFacilityBuildLabor, Fix64 IronRecipeCharcoal,
+    Fix64 MineLabor, Fix64 CharcoalLabor, Fix64 SmeltLabor, Fix64 CampLabor, Fix64 IdleMetalLabor,
+    Fix64 BloomeryLabor, Fix64 BloomeryIronOutput, Fix64 ForgeWroughtOutput,
     Fix64 IronOreMined, Fix64 IronFireSettingWood, Fix64 CharcoalHaulLabor, Fix64 OreHaulLabor, Fix64 IronOreHaulLabor,
     int MetalFuelShortSeasons, int IronEraFuelShortSeasons,
     int IronEraFuelDemandSeasons, Fix64 IronEraCharcoalPlan, Fix64 IronEraCharcoalUnmet);
@@ -33,6 +35,9 @@ internal readonly record struct IT6FuelSiteSnapshot(
     int ToolWorkers, int T11ToolWorkers, int T12ToolWorkers,
     int ToolWorkers14To44, int T11ToolWorkers14To44, int T12ToolWorkers14To44,
     int ToolWorkers45Plus, int T11ToolWorkers45Plus, int T12ToolWorkers45Plus);
+
+internal readonly record struct IT6FiefMaterialStocks(
+    Fix64 IronOre, Fix64 Charcoal, Fix64 Iron, Fix64 Wrought, Fix64 Steel, Fix64 Kit11, Fix64 Kit12);
 
 /// <summary>Counts of live T11/T12 holders by remaining service fraction; diagnostic only.</summary>
 internal readonly record struct IT3WearDistribution(
@@ -67,6 +72,8 @@ public sealed partial class LivingEconomyModel
         public int Kit11Breaks, Kit12Breaks, Kit11Upgrades;
         public Fix64 Kit11Retired, Kit12Retired;
         public Fix64 KitRecipeLabor, MetalFacilityBuildLabor, IronRecipeCharcoal;
+        public Fix64 MineLabor, CharcoalLabor, SmeltLabor, CampLabor, IdleMetalLabor;
+        public Fix64 BloomeryLabor, BloomeryIronOutput, ForgeWroughtOutput;
         public Fix64 IronOreMined, IronFireSettingWood, CharcoalHaulLabor, OreHaulLabor, IronOreHaulLabor;
         public int MetalFuelShortSeasons, IronEraFuelShortSeasons, IronEraFuelDemandSeasons;
         public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
@@ -92,6 +99,7 @@ public sealed partial class LivingEconomyModel
     private List<IT6FuelSiteFlow>? _it6FuelSiteFlows;
     private List<IT6KitTransferSnapshot>? _it6KitTransfers;
     internal bool IT6AccountingTraceEnabled { get; set; }
+    internal bool IT6FiefSeasonTraceEnabled { get; set; }
     internal bool IT2KitShareTraceEnabled { get; set; }
     private List<IT2KitShareDecisionSnapshot>? _it2KitShareDecisions;
     private List<IT2KitRetirementSnapshot>? _it2KitRetirements;
@@ -130,10 +138,24 @@ public sealed partial class LivingEconomyModel
         return new IT6AccountingSnapshot(f.Kit11Produced, f.Kit12Produced, f.Kit11Issued, f.Kit12Issued,
             f.Kit11ToolWork, f.Kit12ToolWork, f.Kit11Breaks, f.Kit12Breaks, f.Kit11Upgrades,
             f.Kit11Retired, f.Kit12Retired,
-            f.KitRecipeLabor, f.MetalFacilityBuildLabor, f.IronRecipeCharcoal, f.IronOreMined,
+            f.KitRecipeLabor, f.MetalFacilityBuildLabor, f.IronRecipeCharcoal,
+            f.MineLabor, f.CharcoalLabor, f.SmeltLabor, f.CampLabor, f.IdleMetalLabor,
+            f.BloomeryLabor, f.BloomeryIronOutput, f.ForgeWroughtOutput, f.IronOreMined,
             f.IronFireSettingWood, f.CharcoalHaulLabor, f.OreHaulLabor, f.IronOreHaulLabor,
             f.MetalFuelShortSeasons, f.IronEraFuelShortSeasons,
             f.IronEraFuelDemandSeasons, f.IronEraCharcoalPlan, f.IronEraCharcoalUnmet);
+    }
+
+    internal IT6FiefMaterialStocks CaptureIT6FiefMaterialStocks(int settlementIndex)
+    {
+        if (!IT6FiefSeasonTraceEnabled || (uint)settlementIndex >= (uint)_settlements.Count ||
+            _settlements[settlementIndex].Metal is not { } metal)
+            return default;
+        SettlementState settlement = _settlements[settlementIndex];
+        return new IT6FiefMaterialStocks(
+            metal.Goods[(int)MetalGood.IronOre], metal.Goods[(int)MetalGood.Charcoal],
+            metal.Goods[(int)MetalGood.Iron], IronStock(settlement, IronGood.Wrought), IronStock(settlement, IronGood.Steel),
+            IronStock(settlement, IronGood.Kit11), IronStock(settlement, IronGood.Kit12));
     }
 
     /// <summary>Read-only histogram of equipped Iron kits' remaining KitLeft, normalized by that tier's service life.</summary>
@@ -351,6 +373,13 @@ public sealed partial class LivingEconomyModel
     {
         if (!IT6AccountingTraceEnabled || !IronChain || batches <= Fix64.Zero) return;
         IT6CivFlow flow = IT6Flow(settlement.Civilization);
+        if (IT6FiefSeasonTraceEnabled && recipe.Def.Id == "bloomery")
+        {
+            flow.BloomeryLabor += batches * RecipeLabor(settlement, recipe, anyMetalKit: true);
+            flow.BloomeryIronOutput += batches * OutputQuantity(settlement, recipe);
+        }
+        else if (IT6FiefSeasonTraceEnabled && recipe.Def.Id == "forge_wrought")
+            flow.ForgeWroughtOutput += batches * OutputQuantity(settlement, recipe);
         if (recipe.OutputSlot == IronSlot(IronGood.Kit11))
         {
             Fix64 output = batches * OutputQuantity(settlement, recipe);
@@ -435,6 +464,18 @@ public sealed partial class LivingEconomyModel
     {
         if (!IT6AccountingTraceEnabled || !IronChain || labor <= Fix64.Zero) return;
         IT6Flow(civilization).MetalFacilityBuildLabor += labor;
+    }
+
+    private void RecordIT6FiefMetalLabor(int civilization, Fix64 mine, Fix64 charcoal, Fix64 smelt,
+        Fix64 camp, Fix64 idle)
+    {
+        if (!IT6FiefSeasonTraceEnabled || !FiefChain) return;
+        IT6CivFlow flow = IT6Flow(civilization);
+        flow.MineLabor += mine;
+        flow.CharcoalLabor += charcoal;
+        flow.SmeltLabor += smelt;
+        flow.CampLabor += camp;
+        flow.IdleMetalLabor += idle;
     }
 
     private void RecordIT6IronOre(int civilization, Fix64 ore, Fix64 fireWood)

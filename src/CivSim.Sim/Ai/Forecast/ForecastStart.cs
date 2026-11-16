@@ -99,6 +99,7 @@ public sealed class ForecastStart
         Cost = new Fix64[n];
         FirstBy = new int[n];
         SeenBlocked = new bool[n];
+        HorseBlocked = new bool[n];
         DoneByEra = new int[ResearchCatalog.EraCount];
         KnowHow = new Fix64[catalog.LineageCount];
         KnowHowGen = new Fix64[catalog.LineageCount];
@@ -118,6 +119,8 @@ public sealed class ForecastStart
     public int[] FirstBy;
     /// <summary>Projects held back by a [Seen] gate the civilization has not met: the forecast never unlocks them.</summary>
     public bool[] SeenBlocked;
+    /// <summary>Fief planner-only blockers for horse-dependent projects while horse sources remain unconfirmed.</summary>
+    public bool[] HorseBlocked;
     public int[] DoneByEra;
     public Fix64[] KnowHow;
     /// <summary>Know-how each lineage gained in the last season (observed), the base of the projection.</summary>

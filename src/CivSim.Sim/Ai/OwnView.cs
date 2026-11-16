@@ -21,6 +21,8 @@ public sealed class OwnSettlement
     public Defenses Defenses;
     /// <summary>Exact own-state indicator that this settlement already has a queued Palisade, Hillfort, or StoneWalls build.</summary>
     public bool PhysicalDefenseQueued;
+    /// <summary>Exact own Fief siege stores at this settlement; zero outside Fief.</summary>
+    public Fix64 CannonStock, PowderStock;
 }
 
 /// <summary>What one civilization knows about its dealings with another: mutual knowledge, so exact.</summary>
@@ -50,6 +52,7 @@ public sealed class OwnView
     public ForecastBronzeStart Bronze { get; } = new();
     /// <summary>Exact access held by this civilization; own state is not fogged (docs/MVP/14 §3.1).</summary>
     public bool TinAccess, ArsenicAccess;
+    public bool FiefChapter;
     public bool RangedWeapon;
     /// <summary>Iron chapter, exact own state: ports with a crewed galley in post (ascending), and the civilization's standing in tribute and leagues.</summary>
     public readonly List<int> CrewedGalleyHomes = new();
@@ -80,6 +83,7 @@ internal static class OwnViewBuilder
         view.Tick = tick;
         view.Season = politics.Season;
         view.Era = research.Era(civ);
+        view.FiefChapter = economy.FiefChain;
         view.Posture = politics.PostureOf(civ);
         view.BeaconAllowance = politics.BeaconAllowance(civ);
         view.ReachTiles = politics.ReachOf(civ);
@@ -191,6 +195,7 @@ internal static class OwnViewBuilder
                 LastRaidObservedSeason = politics.LastRaidObservedSeasonOf(s),
                 LastRaidObservedAttackers = politics.LastRaidObservedAttackersOf(s),
                 LastRaidObservedByCiv = politics.LastRaidObservedByCivOf(s),
+                CannonStock = economy.FiefStock(s, "G-CANNON"), PowderStock = economy.FiefStock(s, "G-POWDER"),
             };
             ownSettlement.Defenders.AddRange(politics.OwnDefendersOf(civ, s));
             view.Settlements.Add(ownSettlement);

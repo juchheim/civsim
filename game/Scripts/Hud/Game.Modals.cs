@@ -310,7 +310,7 @@ public partial class Game
 
     private void BuildSettings()
     {
-        _settingsModal = MakeModal("settings", 610, 377, "Settings", "", () => { CloseSettings(); return true; });
+        _settingsModal = MakeModal("settings", 610, 432, "Settings", "", () => { CloseSettings(); return true; });
         var column = UiKit.Column(UiTokens.Sp2);
         var sizeRow = UiKit.Row(UiTokens.Sp3);
         sizeRow.AddChild(UiKit.Text("UI size", "BodyStrong", minWidth: 150));
@@ -324,7 +324,34 @@ public partial class Game
         }, 64);
         sizeRow.AddChild(_uiSizeSegments);
         column.AddChild(sizeRow);
+        var platesRow = UiKit.Row(UiTokens.Sp3);
+        platesRow.AddChild(UiKit.Text("Settlement plates", "BodyStrong", minWidth: 150));
+        platesRow.AddChild(new UiSegmented(new[] { "Full", "Names only", "Off" }, (int)_uiSettings.SettlementPlates, index =>
+        {
+            _uiSettings.SettlementPlates = (PlateMode)index;
+            _uiSettings.Save();
+            if (_plates is not null) _plates.Mode = _uiSettings.SettlementPlates;
+        }, 96));
+        column.AddChild(platesRow);
+        var skinRow = UiKit.Row(UiTokens.Sp3);
+        skinRow.AddChild(UiKit.Text("Age skin", "BodyStrong", minWidth: 150));
+        Label skinName = UiKit.Text("", "Body", minWidth: 150);
+        skinName.HorizontalAlignment = HorizontalAlignment.Center;
+        void StepSkin(int step)
+        {
+            int index = (_uiSettings.SkinOverride + 1 + step + 11) % 11; // 0 = follow my age, 1-10 = Dawn to Information
+            _uiSettings.SkinOverride = index - 1;
+            _uiSettings.Save();
+            UiKit.SetText(skinName, _uiSettings.SkinOverride < 0 ? "Follow my age" : UiSkins.For(_uiSettings.SkinOverride).Name);
+            UiSkin.Refresh();
+        }
+        UiKit.SetText(skinName, _uiSettings.SkinOverride < 0 ? "Follow my age" : UiSkins.For(_uiSettings.SkinOverride).Name);
+        skinRow.AddChild(UiKit.Secondary("<", () => StepSkin(-1), "Previous skin", UiGlyph.None, UiTokens.ControlS));
+        skinRow.AddChild(skinName);
+        skinRow.AddChild(UiKit.Secondary(">", () => StepSkin(1), "Next skin", UiGlyph.None, UiTokens.ControlS));
+        column.AddChild(skinRow);
         column.AddChild(new UiToggle("Reduce motion", _uiSettings.ReduceMotion, v => { _uiSettings.ReduceMotion = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
+        column.AddChild(new UiToggle("Game-styled mouse pointer", _uiSettings.ThemedCursor, v => { _uiSettings.ThemedCursor = v; _uiSettings.Save(); UiCursors.Apply(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show control hints", _uiSettings.ShowHints, v => { _uiSettings.ShowHints = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Show tips", _uiSettings.ShowTips, v => { _uiSettings.ShowTips = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
         column.AddChild(new UiToggle("Pause while the research web is open", _uiSettings.PauseInWeb, v => { _uiSettings.PauseInWeb = v; _uiSettings.Save(); }) { ThemeTypeVariation = "ToggleRow" });
@@ -647,8 +674,7 @@ public partial class Game
             {
                 // A rival completing the chapter keystone starts the countdown (KEY-4 in Bronze, docs/MVP/22 §3.1; KEY-5 in Iron, docs/MVP/25 §3):
                 // A few years (SimulationSession.CountdownYears) to finish or the age closes.
-                if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv &&
-                    _session is { IsReplay: false } && GameSaveMode.ShowsRivalCountdown(_session.Mode))
+                if (item.A >= (_session?.IsIron == true ? 5 : 4) && item.Civ != frame.ViewerCiv && _session is { IsReplay: false })
                     ShowToast($"{(_session.IsIron ? "The Feudal Order" : "The Iron Age")} is coming: {Math.Max(1, (_session.ChapterSeasonsLeft + 3) / 4)} years left", ToastKind.Info,
                         $"The {UiText.CivName(item.Civ)} reached the {UiText.AgeName(item.A)} age. The match ends when your people get there too, or {_session.CountdownYears} years after a rival does.",
                         key: $"rival-era-{item.Civ}-{item.A}");

@@ -9,7 +9,8 @@ namespace CivSim.Sim.Politics;
 public readonly record struct Defenses(
     bool ThornBarrier, bool Palisade, bool Watchers, bool Dogs, bool SignalFires, bool AlarmCalls, bool HillSite,
     bool Archery, bool Night, bool RaidedRecently, bool Hillfort = false, bool StoneWalls = false, bool HillfortRefuge = false,
-    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false, bool Feudal = false, bool ConcentricCastle = false)
+    bool BronzeRules = false, bool Gatehouse = false, bool Castle = false, bool Feudal = false, bool ConcentricCastle = false,
+    bool PowderBreach = false)
 {
     public static readonly Defenses None = default;
 
@@ -27,14 +28,19 @@ public readonly record struct Defenses(
     {
         Fix64 m = Fix64.FromRatio(11, 10);
         bool modernBarrier = BronzeRules || Hillfort || StoneWalls;
-        Fix64 barrier = Fix64.One;
+        Fix64 barrier = StoneWalls && PowderBreach ? Fix64.Zero : Fix64.One;
         if (modernBarrier)
         {
             if (ThornBarrier) barrier = Fix64.FromRatio(13, 10);
             if (Palisade) barrier = Fix64.Max(barrier, Fix64.FromInt(2));
             if (Hillfort) barrier = Fix64.Max(barrier, Fix64.FromRatio(5, 2));
             // A gatehouse and towers on a standing wall lift its intact multiplier from 3.0 to 4.5 (DEF-06).
-            if (StoneWalls) barrier = Fix64.Max(barrier, Gatehouse ? IntactTowerWall : Fix64.FromInt(3));
+            if (StoneWalls)
+            {
+                Fix64 wall = Gatehouse ? IntactTowerWall : Fix64.FromInt(3);
+                if (PowderBreach) wall *= Fix64.FromRatio(3, 10);
+                barrier = Fix64.Max(barrier, wall);
+            }
         }
         else
         {
@@ -52,7 +58,7 @@ public readonly record struct Defenses(
 
     /// <summary>Hillforts and walls shelter raided stores; walls cannot be assaulted in E3.</summary>
     public Fix64 LootMultiplier() => Hillfort || StoneWalls || HillfortRefuge ? Fix64.FromRatio(1, 4) : Fix64.One;
-    public bool CanBeAssaulted() => !StoneWalls;
+    public bool CanBeAssaulted() => !StoneWalls || PowderBreach;
 }
 
 /// <summary>How a raid went.</summary>
@@ -216,23 +222,43 @@ public static class Sieges
     public static readonly Fix64 FrontierRaidSuccess = Fix64.FromRatio(3, 10);
     /// <summary>Engines one host can bring (provisional): a siege train, not an arsenal.</summary>
     public const int MaxEngines = 3;
+    /// <summary>Maximum cannons carried by one siege host (draft WP-E5-8 fit hypothesis).</summary>
+    public const int MaxCannons = 3;
+    /// <summary>A powder-backed cannon contributes twice one engine's wall damage (draft WP-E5-8 fit hypothesis).</summary>
+    public static readonly Fix64 CannonWallDamage = Fix64.FromInt(2);
+    /// <summary>Draft WP-E5-8 per-adult, per-siege-turn crew attrition chance.</summary>
+    public static readonly Fix64 BaseSiegeCrewAttrition = Fix64.FromRatio(1, 100);
+    /// <summary>DEF-09 relative increase to siege-crew attrition against a garrisoned concentric castle.</summary>
+    public static readonly Fix64 ConcentricCrewAttritionMultiplier = Fix64.FromRatio(125, 100);
     /// <summary>Seasons an engine lasts in the field before it is spent (G-ENGINE durability, 12 seasons).</summary>
     public const int EngineSeasons = 12;
     /// <summary>Share of an intact 3.0 wall one running engine reduces each season (provisional): two seasons for a lone engine against a bare wall, calibrated to the x0.4 intention.</summary>
     public static readonly Fix64 BreachPerEngine = Fix64.FromRatio(1, 2);
 
+    /// <summary>Seeded per-person WP-E5 crew attrition roll, independent of member iteration order.</summary>
+    public static bool RollCrewAttrition(ulong seed, int settlement, int season, long figureId, bool def09Concentric)
+    {
+        ulong entity = unchecked(((ulong)(uint)settlement << 32) ^ (ulong)figureId);
+        Pcg32 rng = Pcg32.ForStream(seed, Hash64.OfString("politics.siege.crew-attrition"), entity, season);
+        int threshold = (BaseSiegeCrewAttrition * (def09Concentric ? ConcentricCrewAttritionMultiplier : Fix64.One) * Fix64.FromInt(10_000)).FloorToInt();
+        return rng.NextBelow(10_000) < (uint)threshold;
+    }
+
     /// <summary>
     /// The wall's integrity after a season of engine fire (WAR-09): each running engine takes <see cref="BreachPerEngine"/> of an intact wall, scaled down by a stronger
     /// wall (a gatehouse's 4.5 against 3.0 makes the same engines take half again as long). Never below zero; zero is a breach.
     /// </summary>
-    public static Fix64 Batter(Fix64 integrity, int runningEngines, Fix64 wallMultiplier)
+    public static Fix64 Batter(Fix64 integrity, Fix64 runningEngines, Fix64 wallMultiplier)
     {
-        if (runningEngines <= 0) return integrity;
+        if (runningEngines <= Fix64.Zero) return integrity;
         Fix64 scale = wallMultiplier > Fix64.Zero ? Fix64.FromInt(3) / wallMultiplier : Fix64.One;
         Fix64 left = integrity - BreachPerEngine * runningEngines * scale;
         // A thirds-of-a-wall step leaves a rounding crumb that is not a standing wall: anything under a millionth is a breach.
         return left <= Fix64.FromRaw(4295) ? Fix64.Zero : left;
     }
+
+    public static Fix64 Batter(Fix64 integrity, int runningEngines, Fix64 wallMultiplier)
+        => Batter(integrity, Fix64.FromInt(runningEngines), wallMultiplier);
 
     /// <summary>Investment requires a host at least 1.2× the settlement's unwalled field strength.</summary>
     public static bool CanInvest(Fix64 besieger, Fix64 unwalledDefenders)

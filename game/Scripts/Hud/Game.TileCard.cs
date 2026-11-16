@@ -154,7 +154,7 @@ public partial class Game
         if (_hoverMoved || _cardTile == -2)
         {
             _hoverMoved = false;
-            if (!TryPickTile(_hoverScreen, out int tile)) { HideTileCard(); return; }
+            if (!TryPickTileOrPlate(_hoverScreen, out int tile)) { HideTileCard(); return; }
             _hoverTile = tile;
         }
         if (_hoverTile < 0) return;
@@ -170,7 +170,7 @@ public partial class Game
         if (_tileCard is null || _current is null || _session is null) return;
         _tileRefreshClock = 0;
         int tile = _pinnedTile >= 0 ? _pinnedTile : _hoverTile;
-        if (_pinnedTile < 0 && !TryPickTile(screen, out tile)) { HideTileCard(); return; }
+        if (_pinnedTile < 0 && !TryPickTileOrPlate(screen, out tile)) { HideTileCard(); return; }
         if (tile < 0) { HideTileCard(); return; }
         bool pinned = _pinnedTile >= 0;
         bool shift = Input.IsKeyPressed(Key.Shift) || pinned;
@@ -276,14 +276,25 @@ public partial class Game
                         double powerHours = frame.Fief.AvailablePowerHours[s] / 4294967296.0;
                         double grainCoverage = frame.Fief.GrainCoverage[s] / 4294967296.0;
                         extra += $"\nFief · mill power {frame.Fief.WaterMillSources[s]} water / {frame.Fief.WindmillSources[s]} wind · {powerHours:0.#} h/season · grain {grainCoverage:P0}";
-                        double gd = frame.Fief.GrindingDemand[s] / 4294967296.0, gu = frame.Fief.GrindingUsed[s] / 4294967296.0;
-                        double sd = frame.Fief.SawingDemand[s] / 4294967296.0, su = frame.Fief.SawingUsed[s] / 4294967296.0;
-                        double cd = frame.Fief.CraftDemand[s] / 4294967296.0, cu = frame.Fief.CraftUsed[s] / 4294967296.0;
-                        extra += $"\nMill use · grain {gu:0.#}/{gd:0.#} · sawing {su:0.#}/{sd:0.#} · crafts {cu:0.#}/{cd:0.#} h";
                         extra += $"\nMonasteries {frame.Fief.Monasteries[s]} · monks {frame.Fief.Monks[s]} · universities {frame.Fief.Universities[s]} · hospitals {frame.Fief.Hospitals[s]} · concentric castle {(frame.Fief.ConcentricCastle[s] != 0 ? "built" : "none")}";
-                        extra += $"\nHospital {(frame.Fief.HospitalStaffed[s] != 0 ? "staffed" : "unavailable")} · physicians {frame.Fief.Physicians[s]} · attendants {frame.Fief.Attendants[s]} · ill/wounded {frame.Fief.IllPatients[s]}/{frame.Fief.WoundedPatients[s]} · treated {frame.Fief.TreatedPatients[s]}";
-                        double insightHeads = frame.Fief.ScholarInsightHeads[s] / 4294967296.0;
-                        extra += $"\nUniversity scholars {frame.Fief.Scholars[s]} · research contribution {insightHeads:0.#} Insight heads · KEY-6 {frame.Fief.Key6Permille[s] / 10.0:0.#}%";
+                        if (s < frame.Fief.GrindingDemand.Length && s < frame.Fief.GrindingUsed.Length &&
+                            s < frame.Fief.SawingDemand.Length && s < frame.Fief.SawingUsed.Length &&
+                            s < frame.Fief.CraftDemand.Length && s < frame.Fief.CraftUsed.Length)
+                        {
+                            double gd = frame.Fief.GrindingDemand[s] / 4294967296.0, gu = frame.Fief.GrindingUsed[s] / 4294967296.0;
+                            double sd = frame.Fief.SawingDemand[s] / 4294967296.0, su = frame.Fief.SawingUsed[s] / 4294967296.0;
+                            double cd = frame.Fief.CraftDemand[s] / 4294967296.0, cu = frame.Fief.CraftUsed[s] / 4294967296.0;
+                            extra += $"\nMill use · grain {gu:0.#}/{gd:0.#} · sawing {su:0.#}/{sd:0.#} · crafts {cu:0.#}/{cd:0.#} h";
+                        }
+                        if (s < frame.Fief.HospitalStaffed.Length && s < frame.Fief.Physicians.Length &&
+                            s < frame.Fief.Attendants.Length && s < frame.Fief.IllPatients.Length &&
+                            s < frame.Fief.WoundedPatients.Length && s < frame.Fief.TreatedPatients.Length)
+                            extra += $"\nHospital {(frame.Fief.HospitalStaffed[s] != 0 ? "staffed" : "unavailable")} · physicians {frame.Fief.Physicians[s]} · attendants {frame.Fief.Attendants[s]} · ill/wounded {frame.Fief.IllPatients[s]}/{frame.Fief.WoundedPatients[s]} · treated {frame.Fief.TreatedPatients[s]}";
+                        if (s < frame.Fief.Scholars.Length && s < frame.Fief.ScholarInsightHeads.Length && s < frame.Fief.Key6Permille.Length)
+                        {
+                            double insightHeads = frame.Fief.ScholarInsightHeads[s] / 4294967296.0;
+                            extra += $"\nUniversity scholars {frame.Fief.Scholars[s]} · research contribution {insightHeads:0.#} Insight heads · KEY-6 {frame.Fief.Key6Permille[s] / 10.0:0.#}%";
+                        }
                         if (s < frame.Fief.BuildGuidance.Length && !string.IsNullOrEmpty(frame.Fief.BuildGuidance[s]))
                             extra += $"\nBuild: {frame.Fief.BuildGuidance[s]}";
                     }
@@ -438,16 +449,41 @@ public partial class Game
     private string BeaconPreviewText(MatchFrame frame, int tile)
     {
         if (_session is null) return "Settlement likelihood unavailable.";
-        CivSim.Sim.Economy.BeaconSitePreview preview = GetBeaconPlacementPreview(frame, tile);
-        if (!preview.CanFound)
-            return "Estimated likelihood: none · no current settlement can legally found here.";
-
+        CivSim.Sim.Economy.BeaconSiteFieldPreview field = GetBeaconPlacementField(frame, tile);
+        CivSim.Sim.Economy.BeaconSitePreview preview = field.Center;
         int fit = Math.Clamp((preview.RelativeSiteFit * CivSim.Sim.Numerics.Fix64.FromInt(100)).RoundToInt(), 0, 100);
-        string likelihood = fit >= 85 ? "High" : fit >= 60 ? "Possible" : "Low";
+        if (!preview.CanFound)
+        {
+            string baseline = field.HasLegalSite ? "best reachable legal site in this Beacon field" : "best ground in this Beacon field";
+            return $"Potential site score: {fit}% of the {baseline}. Not an option: {BeaconBlockReasonText(preview)}";
+        }
+
         string ready = preview.PendingSplits > 0
             ? $"Ready splits choosing this exact tile: {preview.PendingSplitsChoosingTile}/{preview.PendingSplits}."
             : "No split is pending right now; timing depends on population growth and conditions.";
-        return $"Estimated likelihood: {likelihood} · this tile scores {fit}% of the best reachable site in this field. {ready}";
+        return $"Site fit: {fit}% of the best reachable site for a settlement that can found here; this is a relative score, not a chance. {ready}";
+    }
+
+    private static string BeaconBlockReasonText(CivSim.Sim.Economy.BeaconSitePreview preview)
+    {
+        return preview.BlockReason switch
+        {
+            CivSim.Sim.Economy.BeaconSiteBlockReason.Uninhabitable => "water, ice, and peaks cannot host a settlement.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.ValuableDeposit => "the settlement core overlaps a metal, salt, or coal deposit.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.OccupiedSite => "a settlement already stands here.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.TooCloseToOwnSettlement =>
+                $"only {preview.BlockingDistance} hexes from one of your settlements; {preview.RequiredDistance} are required.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.TooCloseToRivalSettlement =>
+                $"only {preview.BlockingDistance} hexes from a rival settlement; {preview.RequiredDistance} are required.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.TooCloseToFreeFolk =>
+                $"only {preview.BlockingDistance} hexes from a Free Folk settlement; {preview.RequiredDistance} are required.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.RivalOwned => "a rival owns this tile.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.NoLivingSettlement => "no living settlement can send a daughter band.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.BeyondReach =>
+                $"the nearest settlement able to send a daughter band is {preview.BlockingDistance} hexes away; current reach is {preview.RequiredDistance}.",
+            CivSim.Sim.Economy.BeaconSiteBlockReason.NoRoute => "there is no land or boat route from a settlement in range.",
+            _ => "no eligible settlement can reach this site.",
+        };
     }
 
     private void RefreshScoutControls(MatchFrame frame, int tile, bool pinned)

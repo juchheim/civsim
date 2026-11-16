@@ -235,8 +235,8 @@ public sealed class SimulationSession : IDisposable
     public MatchEndReason EndReason => (MatchEndReason)Volatile.Read(ref _endReason);
     /// <summary>How hard the rival peoples think. It decides their behaviour, so saves and replays must carry it.</summary>
     public Difficulty Difficulty => _difficulty;
-    public bool IsReplay => _replayMode;
     public ChapterMode Mode => _match.Rules.Mode;
+    public bool IsReplay => _replayMode;
     public bool ReplayFinished => Volatile.Read(ref _replayFinished) != 0;
     public string ReplayStatus => Volatile.Read(ref _replayStatus) ?? "Replay is playing.";
     public bool CanSave => _initialStartMinute == 0 && !_replayMode;
@@ -295,6 +295,13 @@ public sealed class SimulationSession : IDisposable
     {
         lock (_stateLock)
             return _match.Politics.PreviewBeaconPlacement(civ, tile);
+    }
+
+    /// <summary>Site-fit heatmap and exact blocker reasons for explored tiles in a prospective Beacon's field.</summary>
+    public BeaconSiteFieldPreview PreviewBeaconFieldPlacement(int civ, int tile)
+    {
+        lock (_stateLock)
+            return _match.Politics.PreviewBeaconFieldPlacement(civ, tile);
     }
 
     /// <summary>Own settlements within reach of a founding site with the donor figures a refusal is judged by, read on the simulation lock.</summary>

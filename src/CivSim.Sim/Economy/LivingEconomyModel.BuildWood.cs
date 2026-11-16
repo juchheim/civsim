@@ -22,7 +22,7 @@ public sealed partial class LivingEconomyModel
     private Fix64 HarvestReachWood(SettlementState s, Fix64 amount)
     {
         if (amount <= Fix64.Zero) return Fix64.Zero;
-        int[] ring = ReachTiles(s.SiteTile, WoodReachTiles);
+        ReadOnlySpan<int> ring = ReachTiles(s.SiteTile, WoodReachTiles);
         Fix64 standing = Fix64.Zero;
         foreach (int tile in ring)
         {

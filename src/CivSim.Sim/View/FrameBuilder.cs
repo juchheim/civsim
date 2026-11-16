@@ -50,7 +50,8 @@ public sealed partial class FrameBuilder
     private readonly int _width, _height, _tileCount, _civs;
     private readonly bool[] _passable;
     private readonly ResearchCatalog _catalog;
-    private readonly int _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _stn10;
+    private readonly int _war03, _war11, _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _stn10;
+    private readonly int _way09;
     private readonly int[] _boatProjects;
     private readonly (int Project, CivLook Look)[] _lookProjects;
     private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
@@ -128,8 +129,9 @@ public sealed partial class FrameBuilder
         _viewer = viewerCiv;
         _passable = HexGrid.BuildWalkingPassability(_tiles, _width, _height);
         _catalog = match.Research.Catalog;
+        _way09 = _catalog.IndexOf("WAY-09");
         _war01 = _catalog.IndexOf("WAR-01"); _war04 = _catalog.IndexOf("WAR-04"); _hnt02 = _catalog.IndexOf("HNT-02");
-        _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06");
+        _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06"); _war03 = _catalog.IndexOf("WAR-03"); _war11 = _catalog.IndexOf("WAR-11");
         _stn10 = _catalog.IndexOf("STN-10");
         _com04 = _catalog.IndexOf("COM-04");
         _fir05 = _catalog.IndexOf("FIR-05"); _agr04 = _catalog.IndexOf("AGR-04"); _soc05 = _catalog.IndexOf("SOC-05");
@@ -151,6 +153,7 @@ public sealed partial class FrameBuilder
             (_catalog.IndexOf("WAR-08"), CivLook.IronArms),
             (_catalog.IndexOf("STN-12"), CivLook.Colonnades),
             (_catalog.IndexOf("FOR-08"), CivLook.Grafting),
+            (_catalog.IndexOf("WAR-10"), CivLook.Knights), (_catalog.IndexOf("WAR-12"), CivLook.Gunpowder),
         };
         _monumentTile = new int[_civs]; _monumentSettlement = new int[_civs];
         Array.Fill(_monumentTile, -1); Array.Fill(_monumentSettlement, -1);
@@ -262,6 +265,8 @@ public sealed partial class FrameBuilder
         FillSupplyTransfers(eco, pol, target);
         FillOccupations(pol, target);
         FillIron(match, target);
+        FillArms(match, target);
+        FillBows(match, target);
         FillFief(match, target);
         FillCivs(match, target);
         FillFocus(match, target);
@@ -622,6 +627,21 @@ public sealed partial class FrameBuilder
                         _rememberedOwnerTick[t] = observationTick;
                     }
                 }
+        if (!_omniscient && _economy.FiefChain && _way09 >= 0 && research.IsDone(_viewer, _way09))
+        {
+            // Portolans extend a known shoreline over adjacent water only. They do not reveal land beyond the
+            // observed coastline, and derive entirely from this viewer's existing explored-map memory.
+            for (int t = 0; t < _tileCount; t++)
+                if (Visible(t) || pol.IsRevealed(_viewer, t)) _explored[t] = 1;
+            Span<int> neighbors = stackalloc int[6];
+            for (int t = 0; t < _tileCount; t++)
+            {
+                if (_explored[t] == 0 || !_tiles[t].IsLand) continue;
+                int count = HexGrid.Neighbors(t, _width, _height, neighbors);
+                for (int k = 0; k < count; k++)
+                    if (!_tiles[neighbors[k]].IsLand) _explored[neighbors[k]] = 1;
+            }
+        }
         // Record surface evidence first so a clue discovered later in tile order can support local prospecting now.
         if (!_omniscient)
             for (int t = 0; t < _tileCount; t++)
@@ -1036,6 +1056,7 @@ public sealed partial class FrameBuilder
                 flags |= SettlementViewFlags.Palisade;
             if (_politics is { } pol && pol.TinFolk.Count > 0 && pol.IsTinFolk(s)) flags |= SettlementViewFlags.TinFolk | SettlementViewFlags.Palisade;
             if (own && eco.CorveeAt(s) >= 0) flags |= SettlementViewFlags.Corvee;
+            if (!_sFree[s] && _sCiv[s] >= 0 && eco.Capital(_sCiv[s]) == s) flags |= SettlementViewFlags.Capital;
             if (_politics is { } lp && !_omniscient && lp.LevyFor(_viewer, s) is not null) flags |= SettlementViewFlags.LevyTarget;
             target.SettlementFlags[w] = (ushort)flags;
             (int kind, Fix64 share) = eco.SettlementBuild(s);

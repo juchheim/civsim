@@ -23,10 +23,54 @@ public sealed class Investment
     /// <summary>Siege engines the host carries (WAR-09), and the seasons they have been in the field.</summary>
     public int Engines { get; internal set; }
     public int EngineSeasons { get; internal set; }
+    /// <summary>Fief cannons carried by this host (WAR-12).</summary>
+    public int Cannons { get; internal set; }
+    public int CannonSeasons { get; internal set; }
+    /// <summary>True when powder-backed cannon fire has opened the standing wall.</summary>
+    public bool PowderBreach { get; internal set; }
     /// <summary>Wall integrity: 1 intact, 0 breached. Only an engine train reduces it.</summary>
     public Fix64 Integrity { get; internal set; } = Fix64.One;
     public List<long> Members { get; } = new();
     public List<Fix64> Strengths { get; } = new();
+}
+
+/// <summary>Diagnostic-only observation of a live Fief siege turn; never included in simulation state.</summary>
+public readonly record struct SiegeTraceObservation
+{
+    private readonly SiegeTraceObservationData? _data;
+
+    internal SiegeTraceObservation(int season, int attacker, int defender, int settlement, int engines, int cannons, Fix64 integrity)
+        => _data = new SiegeTraceObservationData(season, attacker, defender, settlement, engines, cannons, integrity);
+
+    internal bool IsInitialized => _data is not null;
+    public int Season => _data?.Season ?? 0;
+    public int Attacker => _data?.Attacker ?? 0;
+    public int Defender => _data?.Defender ?? 0;
+    public int Settlement => _data?.Settlement ?? 0;
+    public int Engines { get => _data?.Engines ?? 0; internal set { if (_data is not null) _data.Engines = value; } }
+    public int Cannons { get => _data?.Cannons ?? 0; internal set { if (_data is not null) _data.Cannons = value; } }
+    public int EngineCrews { get => _data?.EngineCrews ?? 0; internal set { if (_data is not null) _data.EngineCrews = value; } }
+    public int CannonCrews { get => _data?.CannonCrews ?? 0; internal set { if (_data is not null) _data.CannonCrews = value; } }
+    public int CannonShots { get => _data?.CannonShots ?? 0; internal set { if (_data is not null) _data.CannonShots = value; } }
+    public Fix64 PowderPaid { get => _data?.PowderPaid ?? Fix64.Zero; internal set { if (_data is not null) _data.PowderPaid = value; } }
+    public int AttritionAssignedCrews { get => _data?.AttritionAssignedCrews ?? 0; internal set { if (_data is not null) _data.AttritionAssignedCrews = value; } }
+    public int AttritionDeaths { get => _data?.AttritionDeaths ?? 0; internal set { if (_data is not null) _data.AttritionDeaths = value; } }
+    public bool Def09Active { get => _data?.Def09Active ?? false; internal set { if (_data is not null) _data.Def09Active = value; } }
+    public Fix64 IntegrityBefore { get => _data?.IntegrityBefore ?? Fix64.Zero; internal set { if (_data is not null) _data.IntegrityBefore = value; } }
+    public Fix64 IntegrityAfter { get => _data?.IntegrityAfter ?? Fix64.Zero; internal set { if (_data is not null) _data.IntegrityAfter = value; } }
+    public bool PowderBreach { get => _data?.PowderBreach ?? false; internal set { if (_data is not null) _data.PowderBreach = value; } }
+    public bool Supplied { get => _data?.Supplied ?? false; internal set { if (_data is not null) _data.Supplied = value; } }
+    public bool FireAttempted { get => _data?.FireAttempted ?? false; internal set { if (_data is not null) _data.FireAttempted = value; } }
+}
+
+internal sealed class SiegeTraceObservationData(int season, int attacker, int defender, int settlement,
+    int engines, int cannons, Fix64 integrity)
+{
+    public readonly int Season = season, Attacker = attacker, Defender = defender, Settlement = settlement;
+    public int Engines = engines, Cannons = cannons, EngineCrews, CannonCrews, CannonShots;
+    public Fix64 PowderPaid, IntegrityBefore = integrity, IntegrityAfter = integrity;
+    public int AttritionAssignedCrews, AttritionDeaths;
+    public bool PowderBreach, Supplied, FireAttempted, Def09Active;
 }
 
 public sealed partial class PoliticsSystem
@@ -36,6 +80,9 @@ public sealed partial class PoliticsSystem
 
     /// <summary>Active walled-settlement investments, in ascending settlement order.</summary>
     public IReadOnlyList<Investment> Investments => _investments;
+
+    /// <summary>Optional report-only observer. Null by default; observations are not saved or checksummed.</summary>
+    public Action<SiegeTraceObservation>? SiegeTraceObserverForDiagnostics { get; set; }
 
     public Investment? InvestmentAt(int settlement)
     {
@@ -109,6 +156,11 @@ public sealed partial class PoliticsSystem
         // A host with crew takes the home settlement's engines (WAR-09): four crew for each, up to three.
         if (_economy.IronChain && _research.IsDone(party.Civ, _p.War09) && party.FromSettlement < _sCount)
             investment.Engines = _economy.TakeEngines(party.FromSettlement, Math.Min(Sieges.MaxEngines, ids.Count / Sieges.CrewPerEngine));
+        if (_economy.FiefChain && _research.IsDone(party.Civ, _p.War12) && party.FromSettlement < _sCount)
+        {
+            int cannonSlots = Math.Max(0, ids.Count / Sieges.CrewPerEngine - investment.Engines);
+            investment.Cannons = _economy.TakeCannons(party.FromSettlement, Math.Min(Sieges.MaxCannons, cannonSlots));
+        }
         _investments.Insert(at, investment);
         _economy.SetUnderInvestment(settlement, true);
         CutInvestmentRoutes(settlement);
@@ -140,6 +192,25 @@ public sealed partial class PoliticsSystem
             strength += fighter.Strength;
         }
         return strength;
+    }
+
+    private bool FiefCrewAttrition(Investment investment, List<Fighter> besiegers, out int assigned, out int deaths, out bool def09Active)
+    {
+        assigned = 0;
+        deaths = 0;
+        def09Active = false;
+        if (!_economy.FiefChain || investment.Engines + investment.Cannons <= 0 || besiegers.Count == 0) return false;
+        Defenses defenses = DefensesOf(investment.Settlement);
+        def09Active = defenses.ConcentricCastle && UnwalledDefenseStrength(investment.Settlement) > Fix64.Zero &&
+                     _research.IsDone(investment.TargetCiv, _p.Def09);
+        assigned = Math.Min((investment.Engines + investment.Cannons) * Sieges.CrewPerEngine, besiegers.Count);
+        var dead = new List<long>();
+        for (int i = 0; i < assigned; i++)
+            if (Sieges.RollCrewAttrition(_seed, investment.Settlement, _season, besiegers[i].Id, def09Active)) dead.Add(besiegers[i].Id);
+        deaths = dead.Count;
+        if (deaths == 0) return false;
+        ApplyCasualties(dead, new List<long>(), "siegeCrewAttrition");
+        return true;
     }
 
     private void AdvanceInvestments()
@@ -180,6 +251,26 @@ public sealed partial class PoliticsSystem
                 // helper's starting value so its per-season subtraction leaves the actual post-ration store level.
                 investment.State = investment.State with { StoresSeasons = need <= Fix64.Zero ? Fix64.Zero : stores / need + Sieges.RationNeed };
             }
+            SiegeTraceObservation siegeTrace = SiegeTraceObserverForDiagnostics is null ? default :
+                new SiegeTraceObservation(_season, investment.Civ, investment.TargetCiv, investment.Settlement,
+                    investment.Engines, investment.Cannons, investment.Integrity)
+                {
+                    PowderBreach = investment.PowderBreach,
+                    Supplied = supplied,
+                };
+            bool crewCasualties = FiefCrewAttrition(investment, besiegers, out int assignedCrewCount, out int crewDeathCount, out bool def09Active);
+            if (siegeTrace.IsInitialized)
+            {
+                siegeTrace.AttritionAssignedCrews = assignedCrewCount;
+                siegeTrace.AttritionDeaths = crewDeathCount;
+                siegeTrace.Def09Active = def09Active;
+                SiegeTraceObserverForDiagnostics?.Invoke(siegeTrace);
+            }
+            if (crewCasualties)
+            {
+                force = CurrentInvestmentStrength(investment, besiegers);
+                investment.State = investment.State with { BesiegerStrength = force };
+            }
             int carriedFood = investment.State.BesiegerFoodSeasons;
             Fix64 strengthBefore = force;
             SiegeState next = investment.State;
@@ -195,7 +286,7 @@ public sealed partial class PoliticsSystem
                 else if (homeDefense > Fix64.FromRatio(8, 10) * force) result = SiegeResult.Sally;
             }
             _economy.BurnStructure(investment.Settlement);
-            if (investment.Engines > 0 && result is SiegeResult.Ongoing or SiegeResult.Capitulated && BatterWalls(investment, supplied, besiegers))
+            if ((investment.Engines > 0 || investment.Cannons > 0) && (result is SiegeResult.Ongoing or SiegeResult.Capitulated) && BatterWalls(investment, supplied, besiegers, siegeTrace))
             {
                 // The wall is breached: the besiegers storm it at once, and the existing assault resolver decides (breach, defenders, casualties).
                 StormBreach(i, investment, besiegers);
@@ -245,16 +336,46 @@ public sealed partial class PoliticsSystem
     /// A season of engine fire (WAR-09). The train needs supply and charcoal from home to run; the engines that run take the wall down at
     /// <see cref="Sieges.Batter"/>'s rate, and spent engines (twelve seasons in the field) are lost. Returns true on the season the wall is breached.
     /// </summary>
-    private bool BatterWalls(Investment investment, bool supplied, List<Fighter> besiegers)
+    private bool BatterWalls(Investment investment, bool supplied, List<Fighter> besiegers, SiegeTraceObservation trace)
     {
-        int crewed = Math.Min(investment.Engines, besiegers.Count / Sieges.CrewPerEngine);
-        int running = supplied ? _economy.PayEngineUpkeep(investment.HomeSettlement, crewed) : 0;
+        Fix64 integrityBefore = investment.Integrity;
+        int enginesBefore = investment.Engines, cannonsBefore = investment.Cannons;
+        int engineCrews = Math.Min(investment.Engines, besiegers.Count / Sieges.CrewPerEngine);
+        int cannonCrews = Math.Min(investment.Cannons, Math.Max(0, besiegers.Count / Sieges.CrewPerEngine - engineCrews));
+        int running = supplied ? _economy.PayEngineUpkeep(investment.HomeSettlement, engineCrews) : 0;
+        int firingCannons = supplied ? _economy.PayCannonPowder(investment.HomeSettlement, cannonCrews) : 0;
         investment.EngineSeasons++;
         if (investment.EngineSeasons >= Sieges.EngineSeasons) investment.Engines = 0;
-        if (investment.Integrity <= Fix64.Zero) return true;
+        if (investment.Integrity <= Fix64.Zero)
+        {
+            UpdateSiegeTrace(trace, investment, supplied, enginesBefore, cannonsBefore, engineCrews, cannonCrews,
+                firingCannons, integrityBefore);
+            return true;
+        }
         Defenses defenses = DefensesOf(investment.Settlement);
-        investment.Integrity = Sieges.Batter(investment.Integrity, running, defenses.Gatehouse ? Defenses.IntactTowerWall : Fix64.FromInt(3));
+        investment.Integrity = Sieges.Batter(investment.Integrity, Fix64.FromInt(running) + firingCannons * Sieges.CannonWallDamage, defenses.Gatehouse ? Defenses.IntactTowerWall : Fix64.FromInt(3));
+        if (firingCannons > 0) investment.PowderBreach = true;
+        UpdateSiegeTrace(trace, investment, supplied, enginesBefore, cannonsBefore, engineCrews, cannonCrews,
+            firingCannons, integrityBefore);
         return investment.Integrity <= Fix64.Zero;
+    }
+
+    private void UpdateSiegeTrace(SiegeTraceObservation trace, Investment investment, bool supplied,
+        int engines, int cannons, int engineCrews, int cannonCrews, int shots, Fix64 integrityBefore)
+    {
+        if (!trace.IsInitialized) return;
+        trace.Engines = engines;
+        trace.Cannons = cannons;
+        trace.EngineCrews = engineCrews;
+        trace.CannonCrews = cannonCrews;
+        trace.CannonShots = shots;
+        trace.PowderPaid = Fix64.FromRatio(shots, 4);
+        trace.IntegrityBefore = integrityBefore;
+        trace.IntegrityAfter = investment.Integrity;
+        trace.PowderBreach = investment.PowderBreach;
+        trace.Supplied = supplied;
+        trace.FireAttempted = true;
+        SiegeTraceObserverForDiagnostics?.Invoke(trace);
     }
 
     /// <summary>
@@ -265,7 +386,9 @@ public sealed partial class PoliticsSystem
     {
         int settlement = investment.Settlement, loser = _sCiv[settlement];
         List<Fighter> defenders = Fighters(settlement, attacking: false, out _, _sTile[settlement]);
-        Defenses breached = DefensesOf(settlement) with { StoneWalls = false, Gatehouse = false };
+        Defenses breached = investment.PowderBreach
+            ? DefensesOf(settlement) with { PowderBreach = true }
+            : DefensesOf(settlement) with { StoneWalls = false, Gatehouse = false };
         BattleResult result = Captures.Assault(besiegers, defenders, breached, childrenInside: true, _seed,
             SiegeStream ^ 0x425245414348UL ^ (ulong)settlement ^ (ulong)_season * 7919UL);
         ApplyCasualties(result.AttackerDead, result.AttackerWounded, "siegeBreach");
@@ -309,6 +432,14 @@ public sealed partial class PoliticsSystem
         if (investment.Engines > 0 && investment.HomeSettlement < _sCount && _sCiv[investment.HomeSettlement] == investment.Civ)
             _economy.ReturnEngines(investment.HomeSettlement, investment.Engines);
         investment.Engines = 0;
+        ReturnCannons(investment);
+    }
+
+    private void ReturnCannons(Investment investment)
+    {
+        if (investment.Cannons > 0 && investment.HomeSettlement < _sCount && _sCiv[investment.HomeSettlement] == investment.Civ)
+            _economy.ReturnCannons(investment.HomeSettlement, investment.Cannons);
+        investment.Cannons = 0;
     }
 
     private List<int> AllInvestedSettlements()
@@ -432,6 +563,7 @@ public sealed partial class PoliticsSystem
             h.Add(investment.State.DefenderStrength); h.Add(investment.State.StoresSeasons); h.Add(investment.State.BesiegerFoodSeasons);
             h.Add(investment.State.Season); h.Add(investment.Members.Count);
             if (_economy.IronChain) { h.Add(investment.Engines); h.Add(investment.EngineSeasons); h.Add(investment.Integrity); }
+            if (_economy.FiefChain) { h.Add(investment.Cannons); h.Add(investment.CannonSeasons); h.Add(investment.PowderBreach); }
             for (int i = 0; i < investment.Members.Count; i++) { h.Add(investment.Members[i]); h.Add(investment.Strengths[i]); }
         }
     }
@@ -447,6 +579,7 @@ public sealed partial class PoliticsSystem
             writer.Write(investment.State.DefenderStrength.Raw); writer.Write(investment.State.StoresSeasons.Raw);
             writer.Write(investment.State.BesiegerFoodSeasons); writer.Write(investment.State.Season);
             if (_economy.IronChain) { writer.Write(investment.Engines); writer.Write(investment.EngineSeasons); writer.Write(investment.Integrity.Raw); }
+            if (_economy.FiefChain) { writer.Write(investment.Cannons); writer.Write(investment.CannonSeasons); writer.Write(investment.PowderBreach); }
             writer.Write(investment.Members.Count);
             for (int i = 0; i < investment.Members.Count; i++)
             { writer.Write(investment.Members[i]); writer.Write(investment.Strengths[i].Raw); }
@@ -472,6 +605,12 @@ public sealed partial class PoliticsSystem
                 investment.Engines = reader.ReadInt32(); investment.EngineSeasons = reader.ReadInt32(); investment.Integrity = Fix64.FromRaw(reader.ReadInt64());
                 if (investment.Engines < 0 || investment.Engines > Sieges.MaxEngines || investment.EngineSeasons < 0 || investment.Integrity < Fix64.Zero || investment.Integrity > Fix64.One)
                     throw new InvalidDataException("Snapshot investment engines are invalid.");
+            }
+            if (_economy.FiefChain)
+            {
+                investment.Cannons = reader.ReadInt32(); investment.CannonSeasons = reader.ReadInt32(); investment.PowderBreach = reader.ReadBoolean();
+                if (investment.Cannons < 0 || investment.Cannons > Sieges.MaxCannons || investment.CannonSeasons < 0)
+                    throw new InvalidDataException("Snapshot investment cannons are invalid.");
             }
             int members = reader.ReadInt32();
             if (members < 0 || members > 100_000 || (uint)investment.Settlement >= (uint)_economy.SettlementCount ||

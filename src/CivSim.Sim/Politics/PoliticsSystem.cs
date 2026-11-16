@@ -94,6 +94,8 @@ public enum PoliticsEventKind : byte
     LeagueJoined,
     /// <summary>A member left a league. Other = -1, A = members before it left.</summary>
     LeagueEnded,
+    /// <summary>A BEL-11 pilgrimage completed over connected roads. Other = destination settlement, A = origin settlement, B = food spent.</summary>
+    PilgrimageCompleted,
 }
 
 /// <summary>Diagnostic-only mining-camp claim-radius alternatives for frontier projection.</summary>
@@ -156,6 +158,10 @@ public sealed class Expedition
     /// <summary>Goods carried: a caravan's or a goods-barter load (<see cref="TradeGood"/>), with <see cref="Cargo"/> in the good's unit.</summary>
     public TradeGood Good;
     public Fix64 Cargo;
+    /// <summary>Fief-only seller book value per cargo unit, frozen when a caravan is loaded.</summary>
+    public Fix64 SellerBookValue;
+    /// <summary>Fief-only disease cargo: the caravan departed while its seller settlement had Plague.</summary>
+    public bool CarriesPlague;
     /// <summary>The compact a caravan serves, else -1.</summary>
     public int CompactId = -1;
     /// <summary>A Free Folk village that sent the caravan (its seller), else -1; the buyer's village is <see cref="ToSettlement"/>.</summary>
@@ -266,8 +272,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     private readonly struct P
     {
         public readonly int Way01, Way02, Way03, Trn02, Ter02, Trd01, Trd02, Dip01, Dip03, Com01, Com02, Com04,
-            Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, Def04, Def05,
-            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, Def09, War09, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06, Dip07, Gov08, Gov09;
+            Def01, Def02, Def03, Hus01, War01, War02, War03, War04, War05, War06, War12, Def04, Def05,
+            Hnt02, Hnt03, Hnt05, Hnt06, Gov02, Gov03, Art05, Bel01, Sea04, Fod07, Def06, Def07, Def08, Def09, War09, War11, Trd06, Trd07, Way06, Hus09, Sea07, Sea09, Dip06, Dip07, Gov08, Gov09;
 
         public P(ResearchCatalog c)
         {
@@ -276,12 +282,13 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Dip03 = c.IndexOf("DIP-03"); Com01 = c.IndexOf("COM-01"); Com02 = c.IndexOf("COM-02"); Com04 = c.IndexOf("COM-04");
             Def01 = c.IndexOf("DEF-01"); Def02 = c.IndexOf("DEF-02"); Def03 = c.IndexOf("DEF-03"); Hus01 = c.IndexOf("HUS-01");
             War01 = c.IndexOf("WAR-01"); War02 = c.IndexOf("WAR-02"); War03 = c.IndexOf("WAR-03"); War04 = c.IndexOf("WAR-04");
+            War12 = c.IndexOf("WAR-12");
             War05 = c.IndexOf("WAR-05"); War06 = c.IndexOf("WAR-06"); Def04 = c.IndexOf("DEF-04"); Def05 = c.IndexOf("DEF-05");
             Hnt02 = c.IndexOf("HNT-02"); Hnt03 = c.IndexOf("HNT-03"); Hnt05 = c.IndexOf("HNT-05"); Hnt06 = c.IndexOf("HNT-06");
             Gov02 = c.IndexOf("GOV-02"); Gov03 = c.IndexOf("GOV-03"); Art05 = c.IndexOf("ART-05"); Bel01 = c.IndexOf("BEL-01");
             Sea04 = c.IndexOf("SEA-04"); Fod07 = c.IndexOf("FOD-07");
             Trd06 = c.IndexOf("TRD-06"); Trd07 = c.IndexOf("TRD-07"); Way06 = c.IndexOf("WAY-06"); Hus09 = c.IndexOf("HUS-09"); Sea07 = c.IndexOf("SEA-07"); Sea09 = c.IndexOf("SEA-09"); Dip06 = c.IndexOf("DIP-06"); Dip07 = c.IndexOf("DIP-07"); Gov08 = c.IndexOf("GOV-08"); Gov09 = c.IndexOf("GOV-09");
-            Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); Def09 = c.IndexOf("DEF-09"); War09 = c.IndexOf("WAR-09");
+            Def06 = c.IndexOf("DEF-06"); Def07 = c.IndexOf("DEF-07"); Def08 = c.IndexOf("DEF-08"); Def09 = c.IndexOf("DEF-09"); War09 = c.IndexOf("WAR-09"); War11 = c.IndexOf("WAR-11");
         }
     }
 
@@ -295,6 +302,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _width = generated.Width;
         _height = generated.Height;
         _civs = economy.CivilizationCount;
+        _fiefTradeProfit = new Fix64[_civs];
         _seed = seed;
         _gentleStart = gentleStart;
         _archetypes = archetypes.ToArray();
@@ -334,6 +342,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         InitializeScoutSimulation();
         InitDecrees();
         RefreshSettlements();
+        InitializeFiefLeadership();
         ApplyEconomyInputs();
     }
 
@@ -382,6 +391,20 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     public BeaconSitePreview PreviewBeaconPlacement(int civ, int tile)
     {
         if ((uint)civ >= (uint)_civs) return new BeaconSitePreview(false, Fix64.Zero, 0, 0);
+        return _economy.PreviewBeaconSite(civ, tile, BeaconToReplace(civ, tile));
+    }
+
+    /// <summary>Read-only site scores and blockers for explored tiles in a prospective Beacon's influence field.</summary>
+    public BeaconSiteFieldPreview PreviewBeaconFieldPlacement(int civ, int tile)
+    {
+        if ((uint)civ >= (uint)_civs)
+            return new BeaconSiteFieldPreview(new BeaconSitePreview(false, Fix64.Zero, 0, 0,
+                BeaconSiteBlockReason.NoLivingSettlement), Array.Empty<BeaconSiteHeatmapCell>(), false);
+        return _economy.PreviewBeaconField(civ, tile, BeaconToReplace(civ, tile));
+    }
+
+    private int BeaconToReplace(int civ, int tile)
+    {
         IReadOnlyList<int> beacons = _beacons[civ];
         int replaced = -1;
         if (beacons.Count >= BeaconAllowance(civ) && beacons.Count > 0)
@@ -395,7 +418,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 replaced = i;
             }
         }
-        return _economy.PreviewBeaconSite(civ, tile, replaced);
+        return replaced;
     }
 
     /// <summary>First contact between two civilizations, whatever their reach (a test and scenario hook).</summary>
@@ -534,6 +557,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     if (!OrderEmbargo(civ, command.A, (TradeGood)Math.Clamp(command.B, 0, 255), command.C != 0))
                         Refused(command, command.A, command.A < 0 || command.A >= _civs || command.A == civ ? OrderRefusalReason.InvalidTarget : OrderRefusalReason.RequirementsNotMet);
                     break;
+                case CommandKind.Pilgrimage:
+                    if (command.A < 0 || command.A >= _sCount || command.B < 0 || command.B >= _sCount)
+                        Refused(command, command.B, OrderRefusalReason.InvalidTarget);
+                    else if (!OrderPilgrimage(civ, command.A, command.B))
+                        Refused(command, command.B, OrderRefusalReason.RequirementsNotMet);
+                    break;
             }
         }
         AdvanceScoutSimulation(tick);
@@ -561,42 +590,32 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     // ---- fission site advice (IFissionSiteAdvisor) ---------------------------------------
 
     /// <summary>
-    /// Rival-owned land is off limits, and so is ground within 23 terrain-weighted tiles of a rival settlement, just
-    /// beyond what two E1 reaches span: bands settle where they can hold a claim, not on a neighbour's doorstep
-    /// (docs/MVP/05 §9.4, 07b fission sites), and contact comes from reach, not from a daughter band wandering over.
+    /// Rival-owned land is off limits, as is ground within the same 9-hex minimum distance used by Found a Village.
+    /// Unclaimed frontier land beyond that distance remains eligible, with rival pressure still reducing its score
+    /// nearby (docs/MVP/05 §9.4, 22 §4.3).
     /// </summary>
     /// <summary>The owner of a tile for the economy's camp planner (docs/MVP/23 §7.2), -1 when unowned.</summary>
     int ITileOwnership.OwnerOf(int tile) => _tinFolk.Count > 0 && FreeFolkOwns(tile) ? -2 : _territory.OwnerOf(tile);
 
-    public bool Allows(int civ, int tile)
+    public bool Allows(int civ, int tile) => SiteBlockReason(civ, tile) == BeaconSiteBlockReason.None;
+
+    public BeaconSiteBlockReason SiteBlockReason(int civ, int tile)
     {
-        if (!_economy.IsCleanCoreSite(tile)) return false; // no village over a deposit (docs/MVP/31 §3.3)
+        if (!_economy.IsCleanCoreSite(tile)) return BeaconSiteBlockReason.ValuableDeposit; // no village over a deposit (docs/MVP/31 §3.3)
         int owner = _territory.OwnerOf(tile);
-        if (owner != -1 && owner != civ) return false;
+        if (owner != -1 && owner != civ) return BeaconSiteBlockReason.RivalOwned;
         for (int s = 0; s < _sCount; s++)
         {
-            if (_sCiv[s] == civ || _free[s]) continue;
-            if (RivalCost(s)[tile] < MinRivalCostTenths) return false;
+            if (_sCiv[s] == civ || _free[s] || _sPop[s] <= 0) continue;
+            if (HexGrid.Distance(_sTile[s], tile, _width) < _rules.RivalMinDist)
+                return BeaconSiteBlockReason.TooCloseToRivalSettlement;
         }
         // Tin Folk land is theirs: daughters keep the founding distance from a free village (docs/MVP/22 §4.3, §6.4).
         foreach (TinFolkVillage v in _tinFolk)
             if (v.Joined < 0 && (uint)v.Settlement < (uint)_sCount && _free[v.Settlement] &&
-                HexGrid.Distance(_sTile[v.Settlement], tile, _width) < _rules.RivalMinDist) return false;
-        return true;
-    }
-
-    private const int MinRivalCostTenths = 230;
-    private int[]?[] _rivalCost = new int[]?[0];
-    private int _rivalCostSeason = -1;
-
-    private int[] RivalCost(int settlement)
-    {
-        if (_rivalCostSeason != _season || _rivalCost.Length < _sCount)
-        {
-            _rivalCost = new int[]?[Math.Max(_sCount, 8)];
-            _rivalCostSeason = _season;
-        }
-        return _rivalCost[settlement] ??= HexGrid.WalkingCostsFrom(_tileArray, _width, _height, _sTile[settlement], MinRivalCostTenths);
+                HexGrid.Distance(_sTile[v.Settlement], tile, _width) < _rules.RivalMinDist)
+                return BeaconSiteBlockReason.TooCloseToFreeFolk;
+        return BeaconSiteBlockReason.None;
     }
 
     /// <summary>
@@ -656,6 +675,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _season = checked((int)_economy.SeasonsCompleted);
         ApplyPendingRaidResponses();
         RefreshSettlements();
+        AdvanceFiefLeadership();
         TakeSecessions();
         SpawnTinFolk();
         PlaceCamps();
@@ -665,6 +685,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             AccrueDominionWithTribute();
             _dip.YearlyDrift();
         }
+        ResolveFiefLawEvents();
         DetectContacts();
         RecordVisibleRaidWarningsForActiveWithdrawals();
         ResolveExpeditions();
@@ -678,9 +699,11 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         RecoverCohesion();
         RunCivMinds();
         RunTrade();
+        CollectFiefCreditClaims();
         ResolveDecrees();
         DriftOverlap();
         ApplyEconomyInputs();
+        ClearCompletedPilgrimageRoutes();
     }
 
     private void RefreshSettlements()
@@ -1643,7 +1666,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                     foreach (int tile in road)
                     {
                         int d = HexGrid.Distance(_sTile[s], tile, _width);
-                        if (d <= radius) settlements.Add(new ClaimSource(civ, tile, 0, emission * RoadClaimBonus * Fix64.FromInt(radius + 1 - d) / (radius + 1)));
+                        Fix64 traveledBonus = _economy.FiefChain ? PilgrimageClaimBonusAt(civ, tile) : Fix64.Zero;
+                        if (d <= radius) settlements.Add(new ClaimSource(civ, tile, 0, emission * (RoadClaimBonus + traveledBonus) * Fix64.FromInt(radius + 1 - d) / (radius + 1)));
                     }
                 }
             }
@@ -1846,13 +1870,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         _events.Add(new PoliticsEvent(_tick, (byte)b, PoliticsEventKind.Skirmish, a, hurtB, hurtA));
     }
 
-    private void ApplyCasualties(List<long> dead, List<long> wounded, string conflictKind)
+    internal void ApplyCasualties(List<long> dead, List<long> wounded, string conflictKind)
     {
+        // whose people fell, so their bows are lost with them (docs/MVP/36 section 5)
+        var fallen = new List<(int Settlement, int Dead)>();
+        foreach (long id in dead)
+        {
+            if (!_economy.TryFigure(id, out FigureView who)) continue;
+            int at = fallen.FindIndex(x => x.Settlement == who.SettlementId);
+            if (at >= 0) fallen[at] = (who.SettlementId, fallen[at].Dead + 1);
+            else fallen.Add((who.SettlementId, 1));
+        }
         Action<FigureView, string, bool, int>? observer = CombatCasualtyObserverForDiagnostics;
         if (observer is null)
         {
             foreach (long id in dead) _economy.KillFigure(id);
             foreach (long id in wounded) _economy.WoundFigure(id, 2);
+            LoseBowsOfTheFallen(fallen);
             return;
         }
         foreach (long id in dead)
@@ -1864,6 +1898,39 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 _economy.WoundFigure(id, 2);
                 observer(figure, conflictKind, false, _season);
             }
+        LoseBowsOfTheFallen(fallen);
+    }
+
+    /// <summary>
+    /// A fighter who dies loses the bow they carried (docs/MVP/36 section 5), as a dead soldier loses an iron kit. The fight does not record which fighters held which
+    /// bow, so the loss is the expected one: each death costs the settlement its stock's share of the fighters it could field, crossbows first, then longbows, then
+    /// the war bow (the same order Fighters() draws them in), as a fraction of a bow. A war bow counts only from Archery Warfare (before it, the one bow in store is
+    /// the hunter's tool); crossbows and longbows only in a Faith and Fief match. Wounded fighters keep their bows.
+    /// </summary>
+    private void LoseBowsOfTheFallen(List<(int Settlement, int Dead)> fallen)
+    {
+        foreach ((int settlement, int dead) in fallen)
+        {
+            if (unchecked((uint)settlement) >= unchecked((uint)_sCount)) continue;
+            int civ = _sCiv[settlement];
+            bool war11 = _economy.FiefChain && _research.IsDone(civ, _p.War11);
+            int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
+            int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
+            int warBows = _research.IsDone(civ, _p.Hnt06) && _research.IsDone(civ, _p.War03) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+            if (crossbows + longbows + warBows == 0) continue;
+            var records = new List<LivingEconomyModel.FighterRecord>();
+            _economy.ListFightingAge(settlement, records);
+            int able = dead;
+            foreach (var r in records) if (!r.Wounded) able++;
+            int room = able;
+            int ofCrossbows = Math.Min(crossbows, room); room -= ofCrossbows;
+            int ofLongbows = Math.Min(longbows, room); room -= ofLongbows;
+            int ofWarBows = Math.Min(warBows, room);
+            Fix64 fallenCount = Fix64.FromInt(dead), all = Fix64.FromInt(able);
+            if (ofCrossbows > 0) _economy.LoseArms(settlement, "G-CROSSBOW", fallenCount * Fix64.FromInt(ofCrossbows) / all);
+            if (ofLongbows > 0) _economy.LoseArms(settlement, "G-LONGBOW", fallenCount * Fix64.FromInt(ofLongbows) / all);
+            if (ofWarBows > 0) _economy.LoseArms(settlement, "G-BOW", fallenCount * Fix64.FromInt(ofWarBows) / all);
+        }
     }
 
     // ---- shared helpers -------------------------------------------------------------------
@@ -1884,13 +1951,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         return best;
     }
 
-    /// <summary>Weapon strength multiplier of the best weapon a civilization has, and whether it is ranged (13 §7.1).</summary>
+    /// <summary>Weapon strength multiplier of the best weapon a civilization has, and whether it is ranged (13 §7.1). This is the weapon a civilization is believed to carry (the belief ladder), bows included.</summary>
     private Fix64 Weapon(int civ, out bool ranged)
     {
         ranged = false;
         // Metal arms are locally stocked kits, applied by Fighters below. This is the fallback
         // for parties that lack cast arms and for ranged weapon technology.
         if (_research.IsDone(civ, _p.Hnt06)) { ranged = true; return Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One); }
+        return FieldWeapon(civ, out ranged);
+    }
+
+    /// <summary>
+    /// The weapon a fighter carries when no bow is drawn from a store: the same ladder as <see cref="Weapon"/> without the bow rung. The bow is a real arm in
+    /// every chapter (docs/MVP/36), held in a settlement's store and given to one fighter each by Fighters(), so counting it here too would count it twice.
+    /// </summary>
+    private Fix64 FieldWeapon(int civ, out bool ranged)
+    {
+        ranged = _research.IsDone(civ, _p.Hnt06);
         if (_research.IsDone(civ, _p.Hnt05)) { ranged = true; return Fix64.FromRatio(17, 10); }
         if (_research.IsDone(civ, _p.Hnt03)) return Fix64.FromRatio(16, 10);
         if (_research.IsDone(civ, _p.Hnt02)) return Fix64.FromRatio(13, 10);
@@ -1901,10 +1978,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// <summary>Fighters a settlement can put up: adults and elders who are not laid up, with warriors first (13 §6.1, §7.1).</summary>
     private List<Fighter> Fighters(int settlement, bool attacking, out List<long> ids, int battleTile = -1)
     {
+        var list = new List<Fighter>();
+        ids = new List<long>();
+        FightersInto(settlement, attacking, battleTile, new List<LivingEconomyModel.FighterRecord>(), list, ids);
+        return list;
+    }
+
+    /// <summary>
+    /// <see cref="Fighters"/> into caller-owned lists, so a per-frame readout can reuse them and allocate nothing. <paramref name="ids"/> may be null when only the
+    /// strengths are wanted; the lists are cleared first.
+    /// </summary>
+    private void FightersInto(int settlement, bool attacking, int battleTile,
+        List<LivingEconomyModel.FighterRecord> records, List<Fighter> list, List<long>? ids)
+    {
         int civ = _sCiv[settlement];
-        Fix64 weapon = Weapon(civ, out _);
+        Fix64 weapon = FieldWeapon(civ, out _);
         bool warriors = _research.IsDone(civ, _p.War04);
-        var records = new List<LivingEconomyModel.FighterRecord>();
+        records.Clear(); list.Clear(); ids?.Clear();
         _economy.ListFightingAge(settlement, records);
         int adults = 0;
         foreach (var r in records) if (r.Age < 45) adults++;
@@ -1918,12 +2008,19 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int copperArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
         int chariotCrew = _economy.BronzeActive && _research.IsDone(civ, _p.War06)
             ? _economy.GoodStock(settlement, "G-CHARIOT").FloorToInt() * 2 : 0;
+        // Bows from stock (docs/MVP/36, docs/MVP/27 §5.6, e5_combat_oracle.py). Each weapon in a settlement's store arms one fighter, best first: a crossbow (WAR-11,
+        // Faith & Fief only: 2.0, bolts ignore shields), a longbow (WAR-11: 2.0, arrows do not) or the war bow of HNT-06 (1.8, times 1.5 with WAR-03) in every chapter.
+        // A levy needs no drilling for the crossbow or the longbow.
+        bool fief = _economy.FiefChain;
+        bool war11 = fief && _research.IsDone(civ, _p.War11);
+        int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
+        int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
+        int warBows = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+        Fix64 warBowStrength = Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One);
         bool openTerrain = IsChariotOpenTerrain(battleTile);
         Defenses targetDefenses = DefensesAtTile(battleTile);
         // Tin Folk defend at 0.8 strength (docs/MVP/22 §6.4).
         bool tinFolk = _tinFolk.Count > 0 && IsTinFolk(settlement);
-        var list = new List<Fighter>();
-        ids = new List<long>();
         foreach (var r in records)
         {
             if (r.Wounded) continue;
@@ -1931,10 +2028,15 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             if (warrior) warriorSlots--;
             Fix64 weaponStrength = weapon;
             Fix64 casualtiesTaken = Fix64.One;
+            Fix64 shieldFactor = Fix64.One;
+            bool bolt = false, levyBow = false;
             if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
             else if (r.Soldier && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); }
-            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
-            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); casualtiesTaken *= Combat.ShieldCasualtyFactor(Fix64.One); }
+            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
+            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
+            else if (crossbows > 0 && Combat.BoltStrength > weaponStrength) { crossbows--; bolt = true; levyBow = true; weaponStrength = Combat.BoltStrength; }
+            else if (longbows > 0 && Combat.BoltStrength > weaponStrength) { longbows--; levyBow = true; weaponStrength = Combat.BoltStrength; }
+            else if (warBows > 0 && warBowStrength > weaponStrength) { warBows--; weaponStrength = warBowStrength; }
             else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
@@ -1943,7 +2045,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             {
                 strength = weaponStrength * Fix64.FromRatio(13, 10);
             }
-            else strength = (attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weaponStrength;
+            else strength = (levyBow ? Fix64.One : attacking ? Fix64.One : Fix64.FromRatio(6, 10)) * weaponStrength;
             if (chariotCrew > 0)
             {
                 chariotCrew--;
@@ -1951,10 +2053,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 if (openTerrain && !targetDefenses.Hillfort && !targetDefenses.StoneWalls) strength *= Fix64.FromInt(2);
             }
             if (tinFolk) strength *= _trade.FolkDefense;
-            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken });
-            ids.Add(r.Id);
+            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken, ShieldFactor = shieldFactor, Bolt = bolt });
+            ids?.Add(r.Id);
         }
-        return list;
     }
 
     private bool IsChariotOpenTerrain(int tile)
@@ -2153,6 +2254,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (int v in _warSince) h.Add(v);
         h.Add(RaidCount); h.Add(RaidsSucceeded); h.Add(Gifts); h.Add(BarterTrips); h.Add(CaptureCount); h.Add(Skirmishes); h.Add(Wars);
         HashBronze(ref h);
+        if (_economy.FiefChain) HashPilgrimageState(ref h);
         HashScoutSimulation(ref h);
         HashRaidResponses(ref h);
     }
@@ -2194,6 +2296,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (int v in _warSince) w.Write(v);
         w.Write(RaidCount); w.Write(RaidsSucceeded); w.Write(Gifts); w.Write(BarterTrips); w.Write(CaptureCount); w.Write(Skirmishes); w.Write(Wars);
         WriteBronze(w);
+        if (_economy.FiefChain) WritePilgrimageState(w);
         WriteScoutSimulation(w);
         WriteRaidResponses(w);
     }
@@ -2250,6 +2353,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         RaidCount = r.ReadInt32(); RaidsSucceeded = r.ReadInt32(); Gifts = r.ReadInt32(); BarterTrips = r.ReadInt32();
         CaptureCount = r.ReadInt32(); Skirmishes = r.ReadInt32(); Wars = r.ReadInt32();
         ReadBronze(r);
+        if (_economy.FiefChain) ReadPilgrimageState(r);
         ReadScoutSimulation(r);
         ReadRaidResponses(r);
         _events.Clear();

@@ -487,8 +487,10 @@ public sealed partial class Strategist
         bool supplied = HasKnownSupplyPath(v, site.Tile, width);
         bool hungryWinter = option.LandsSeason >= 2 && origin.LateWinterForecast < StrategistTuning.WinterFoodFloor;
         bool weakReliefMargin = relievedDefense > Fix64.Zero && force < relievedDefense * option.Required;
-        // Without target stores, visible distress is the only settlement-specific evidence of vulnerability.
-        bool favorable = site.Distress;
+        // Without target stores, visible distress is the ordinary vulnerability signal. In Fief, a ready cannon
+        // train at the rally settlement is a second, own-stock signal for a visible walled target.
+        bool powderReady = v.Own.FiefChapter && origin.CannonStock >= Fix64.One && origin.PowderStock >= Fix64.FromRatio(1, 4);
+        bool favorable = site.Distress || powderReady;
         option.CaptureChance = Fix64.Zero; // deliberately unknown until target-store beliefs exist
         Fix64 conditionalGain = landPerSettlement * s.HorizonYears;
         Fix64 cost = v.Own.Others[read.Civ].AtWar ? Fix64.Zero : StrategistTuning.WarReputationLegacy;
@@ -498,7 +500,7 @@ public sealed partial class Strategist
         option.Feasible = option.TacticallyViable;
         option.Why = $"Stone Walls: investment ratio {F2(option.Ratio)} (plan needs {F2(option.Required)}; rules gate {F2(Sieges.MinimumInvestmentRatio)}), " +
                      $"{(supplied ? "supplied" : "no known supply path within 8 tiles")}, " +
-                     $"{(favorable ? "target distress seen" : "no distress evidence; target stores unknown")}" +
+                     $"{(site.Distress ? "target distress seen" : powderReady ? "own cannon and powder stock support a breach" : "no distress or siege-stock evidence; target stores unknown")}" +
                      (weakReliefMargin ? $", relief strength {F1(relief)} threatens the host" : "") +
                      (hungryWinter ? ", winter food short" : "") + "; stores are unobserved, so capitulation timing is unknown";
         return option;

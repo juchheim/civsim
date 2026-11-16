@@ -67,7 +67,7 @@ public sealed class AiSystem
             DifficultyProfile profile = DifficultyProfile.From(pack, level);
             (IBeliefBuilder builder, IResearchSpark spark, IStrategist strategist) = AiMinds.Create(control, profile, research.Catalog);
             var map = new MapKnowledge(generated.Tiles.ToArray(), generated.Width, generated.Height);
-            var belief = new Belief(civ, controls.Length, research.Catalog.Count, map);
+            var belief = new Belief(civ, controls.Length, research.Catalog.Count, map, economy.FiefChain);
             var context = new AiContext
             {
                 Civ = civ, MatchSeed = seed, Spec = control.Spec, Profile = profile, Own = new OwnView(), Belief = belief, Intent = new StrategicIntent(),

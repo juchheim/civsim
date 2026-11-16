@@ -97,6 +97,8 @@ projects:
     era: 5
     type: S
     status: draft
+    cost: 14400
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6000 x S 1.2."
     requires: [LRN-07, GOV-10]
     effects:
       - {kind: build, structure: university}

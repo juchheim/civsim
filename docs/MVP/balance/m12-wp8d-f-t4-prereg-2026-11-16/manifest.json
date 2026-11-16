@@ -1,0 +1,818 @@
+{
+  "protocol": "WP-E5-5/F-T4",
+  "minutes": 180,
+  "arms": [
+    "agr11",
+    "control_no_agr11"
+  ],
+  "pins": {
+    "headCommit": "0000000000000000000000000000000000000000",
+    "sourceAggregateSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "packSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "harnessDllSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "simDllSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "runnerSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "runs": [
+    {
+      "seed": 50003539,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50003539,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50006066,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50006066,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50006879,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50006879,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50006946,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50006946,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50013794,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50013794,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50038398,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50038398,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50085092,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50085092,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50120807,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50120807,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50128531,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50128531,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50145097,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50145097,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50165432,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50165432,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50174023,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50174023,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50192913,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50192913,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50198005,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50198005,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50201891,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50201891,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50213833,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50213833,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50214797,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50214797,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50219771,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50219771,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50220586,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50220586,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50223398,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50223398,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50224360,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50224360,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50235061,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50235061,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50238901,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50238901,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50247844,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50247844,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50256869,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50256869,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50261500,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50261500,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50269804,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50269804,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50337339,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50337339,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50353720,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50353720,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50374148,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50374148,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50381763,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50381763,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50411860,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50411860,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50414745,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50414745,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50422707,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50422707,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50424177,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50424177,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50455818,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50455818,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50458344,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50458344,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50472210,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50472210,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50479717,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50479717,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50488765,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50488765,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50509448,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50509448,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50521181,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50521181,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50526346,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50526346,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50526678,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50526678,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50528733,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50528733,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50530505,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50530505,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50546304,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50546304,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50546720,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50546720,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50559608,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50559608,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50574675,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50574675,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50584754,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50584754,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50588619,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50588619,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50590850,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50590850,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50600613,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50600613,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50602302,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50602302,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50602611,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50602611,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50607369,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50607369,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50620314,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50620314,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50658515,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50658515,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50658659,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50658659,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50666311,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50666311,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50674233,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50674233,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50678525,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50678525,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50721004,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50721004,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50740819,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50740819,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50747368,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50747368,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50760083,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50760083,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50762306,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50762306,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50797034,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50797034,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50811080,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50811080,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50819377,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50819377,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50856176,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50856176,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50872838,
+      "focusCiv": 2,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50872838,
+      "focusCiv": 2,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50898494,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50898494,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50916907,
+      "focusCiv": 3,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50916907,
+      "focusCiv": 3,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50941711,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50941711,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50975618,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50975618,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50984612,
+      "focusCiv": 1,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50984612,
+      "focusCiv": 1,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50985242,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50985242,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    },
+    {
+      "seed": 50992143,
+      "focusCiv": 0,
+      "arm": "agr11"
+    },
+    {
+      "seed": 50992143,
+      "focusCiv": 0,
+      "arm": "control_no_agr11"
+    }
+  ]
+}

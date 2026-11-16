@@ -1,3 +1,4 @@
+using System.Linq;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.World;
@@ -6,7 +7,7 @@ namespace CivSim.Tests;
 
 /// <summary>
 /// Faith &amp; Fief mechanical power and the blast furnace (M12 WP-E5-5, docs/MVP/27 §5.1 and §5.2): a windmill is a (weaker) mill, a mill town's sawing, bellows and
-/// hammer work costs less labor, a blast furnace makes each bloomery batch four times the iron for twice the charcoal and labor, and the spinning wheel and treadle
+/// hammer work costs less labor, a blast furnace makes each bloomery batch four times the iron from four times the ore, with fitted charcoal and twice the labor, and the spinning wheel and treadle
 /// loom cut textile labor. Every effect exists only in the Fief chapter.
 /// </summary>
 public class FiefPowerTests
@@ -17,7 +18,7 @@ public class FiefPowerTests
     private static BronzeFixture Iron(params string[] projects) => BronzeFixture.CreateIronWithCamp(TestPack.Pack, Seed, 100, projects);
 
     [Fact]
-    public void A_blast_furnace_makes_a_bloomery_batch_four_times_the_iron_for_four_times_the_ore_twice_the_charcoal_and_twice_the_labor()
+    public void A_blast_furnace_makes_a_bloomery_batch_four_times_the_iron_for_four_times_the_ore_fitted_charcoal_and_twice_the_labor()
     {
         BronzeFixture f = Fief("MET-12", "NRG-03");
         var before = f.Economy.FixtureBatch(0, "bloomery");
@@ -28,11 +29,11 @@ public class FiefPowerTests
 
         // The recipe's first input is the charcoal and its second the ore (the compiled order).
         Assert.Equal(withMill.Output * 4, withFurnace.Output);
-        Assert.Equal(withMill.Input0 * 2, withFurnace.Input0);          // charcoal
+        Assert.Equal(withMill.Input0, withFurnace.Input0);              // fitted x1 charcoal
         Assert.Equal(withMill.Input1 * 4, withFurnace.Input1);          // ore
         Assert.Equal(withMill.Labor * 2, withFurnace.Labor);
-        // Half the charcoal and half the labor per litre of iron: the point of the furnace.
-        Assert.Equal(withMill.Input0 / withMill.Output / 2, withFurnace.Input0 / withFurnace.Output);
+        // One-quarter the charcoal and half the labor per litre of iron at this coverage.
+        Assert.Equal(withMill.Input0 / withMill.Output / 4, withFurnace.Input0 / withFurnace.Output);
         Assert.Equal(withMill.Labor / withMill.Output / 2, withFurnace.Labor / withFurnace.Output);
         Assert.Equal(before, withMill);                                  // the mill alone changes nothing about a bloomery batch (the bloomery is not a hammer or saw job)
     }
@@ -110,8 +111,8 @@ public class FiefPowerTests
         Assert.Equal(Fix64.Zero, ledger.UnusedPowerHours);
         Assert.Equal(ledger.AvailablePowerHours,
             ledger.GrindingUsed + ledger.SawingUsed + ledger.CraftUsed + ledger.UnusedPowerHours);
-        Assert.Equal(Fix64.FromRatio(2, 3), ledger.GrainCoverage);                       // 200 of 300 residents have mill capacity
-        Assert.Equal(Fix64.FromInt(200), ledger.GrainMilledPeople);
+        Assert.InRange((ledger.GrainCoverage - Fix64.FromRatio(13, 15)).Raw, -8L, 8L); // 260 of 300 residents have mill capacity
+        Assert.Equal(Fix64.FromInt(260), ledger.GrainMilledPeople);
 
         BronzeFixture handPowered = Fief("NRG-03", "WOD-09");
         handPowered.Economy.FixtureAddPeople(0, 200, 25);
@@ -183,22 +184,46 @@ public class FiefPowerTests
     }
 
     [Fact]
-    public void The_Fief_planner_blocks_a_second_windmill_even_when_the_virtual_ledger_would_add_power()
+    public void The_Fief_planner_allows_a_second_windmill_until_grain_capacity_reaches_sixty_percent()
     {
-        // This is the source type present in all four remaining F-T2 misses. The hard Built() cap is one
-        // per structure kind, so a second windmill cannot pass the planner gate.
+        // The source type present in all four remaining F-T2 misses. One existing source leaves this town
+        // below the draft 60% capacity screen, so a second windmill is wanted; it is not wanted after coverage clears.
         BronzeFixture f = Fief("NRG-05");
-        f.Economy.FixtureAddPeople(0, 500, 25);
+        f.Economy.FixtureAddPeople(0, 300, 25); // 400 residents total, so two windmills clear the 60% screen
         f.Economy.FixtureSetTier(0, 1);
         f.Economy.FixtureFillNaturalFields(0);
         Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill"));
         f.Economy.FixtureSetIronWork(0, "windmill", 1);
-        Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill", includeAppetite: false));
+        var oneMill = f.Economy.FixtureMillPowerLedger(0);
+        Assert.True(oneMill.GrainCoverage < Fix64.FromRatio(60, 100));
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill", includeAppetite: false));
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill"));
+
+        f.Economy.FixtureSetIronWork(0, "windmill", 2);
+        var twoMills = f.Economy.FixtureMillPowerLedger(0);
+        Assert.Equal(2, twoMills.WindmillSources);
+        Assert.True(twoMills.GrainCoverage >= Fix64.FromRatio(60, 100), $"population={twoMills.Population}, coverage={twoMills.GrainCoverage}");
         Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill"));
 
-        var actualSource = f.Economy.FixtureMillPowerLedger(0);
-        Assert.Equal(1, actualSource.WindmillSources);
-        Assert.InRange((actualSource.AvailablePowerHours - Fix64.Parse("3.2")).Raw, -4L, 4L);
+        f.Economy.FixtureSetIronWork(0, "windmill", 3);
+        Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill", includeAppetite: false));
+    }
+
+    [Fact]
+    public void A_second_Fief_windmill_build_remains_feasible_with_one_already_built_and_stops_at_two()
+    {
+        BronzeFixture f = Fief("NRG-05");
+        f.Economy.FixtureAddPeople(0, 300, 25);
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureFillNaturalFields(0);
+        f.Economy.FixtureSetIronWork(0, "windmill", 1);
+        f.Economy.FixtureStartIronBuild(0, "windmill");
+
+        Assert.True(f.Economy.FixtureIronBuildWanted(0, "windmill"));
+        Assert.True(f.Economy.FixtureIronBuildFeasible(0, "windmill"));
+
+        f.Economy.FixtureSetIronWork(0, "windmill", 2);
+        Assert.False(f.Economy.FixtureIronBuildFeasible(0, "windmill"));
     }
 
     [Fact]
@@ -236,7 +261,7 @@ public class FiefPowerTests
         Assert.Equal(1, mixedSource.WaterMillSources);
         Assert.Equal(1, mixedSource.WindmillSources);
         Assert.InRange((mixedSource.AvailablePowerHours - Fix64.Parse("8.2")).Raw, -4L, 4L);
-        Assert.Equal(Fix64.FromRatio(3, 5), mixedSource.GrainCoverage);
+        Assert.InRange((mixedSource.GrainCoverage - Fix64.Parse("0.78")).Raw, -8L, 8L);
         Assert.Equal(mixedSource.AvailablePowerHours,
             mixedSource.GrindingUsed + mixedSource.SawingUsed + mixedSource.CraftUsed + mixedSource.UnusedPowerHours);
 
@@ -247,6 +272,49 @@ public class FiefPowerTests
         inland.Economy.FixtureFillNaturalFields(0);
         inland.Economy.FixtureSetIronWork(0, "windmill", 1);
         Assert.False(inland.Economy.FixtureIronGateOpen(0, "water_mill"));
+    }
+
+    [Fact]
+    public void A_windmill_can_complement_a_water_mill_only_below_the_coverage_target_and_stops_at_two_windmills()
+    {
+        GeneratedWorld world = WorldGenerator.Generate(Seed);
+        int riverSite = Enumerable.Range(0, world.TileCount).First(tile =>
+            (world.TileAt(tile).Flags & TileFlags.River) != 0 &&
+            world.TileAt(tile).Biome is not (Biome.Ocean or Biome.Coast or Biome.Peak or Biome.Ice));
+
+        BronzeFixture f = Fief("NRG-03", "NRG-05");
+        f.Economy.FixtureMoveSite(0, riverSite);
+        f.Economy.FixtureAddPeople(0, 700, 25); // 800 residents; water plus one windmill stays below 60%.
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureFillNaturalFields(0);
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "water_mill"));
+        f.Economy.FixtureSetIronWork(0, "water_mill", 1);
+        Assert.True(f.Economy.FixtureMillPowerLedger(0).GrainCoverage < Fix64.FromRatio(60, 100));
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill"));
+
+        f.Economy.FixtureSetIronWork(0, "windmill", 1);
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill"));
+        f.Economy.FixtureSetIronWork(0, "windmill", 2);
+        Assert.True(f.Economy.FixtureMillPowerLedger(0).GrainCoverage >= Fix64.FromRatio(60, 100));
+        Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill"));
+        f.Economy.FixtureSetIronWork(0, "windmill", 3);
+        Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill", includeAppetite: false));
+    }
+
+    [Fact]
+    public void Two_windmills_with_the_260_person_capacity_fit_clear_the_sixty_percent_target()
+    {
+        BronzeFixture f = Fief("NRG-05");
+        f.Economy.FixtureAddPeople(0, 508, 25);
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureFillNaturalFields(0);
+        f.Economy.FixtureSetIronWork(0, "windmill", 2);
+
+        var ledger = f.Economy.FixtureMillPowerLedger(0);
+        Assert.Equal(2, ledger.WindmillSources);
+        Assert.True(ledger.GrainCoverage >= Fix64.FromRatio(60, 100), $"population={ledger.Population}, coverage={ledger.GrainCoverage}");
+        Assert.Equal(ledger.AvailablePowerHours,
+            ledger.GrindingUsed + ledger.SawingUsed + ledger.CraftUsed + ledger.UnusedPowerHours);
     }
 
     [Fact]

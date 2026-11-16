@@ -8,7 +8,7 @@ const RIVER_SEARCH_RADIUS := 2.0
 const STATIC_CHUNK_SIZE := 40.0
 const STATIC_DETAIL_CHUNK_SIZE := 12.0
 const SETTLEMENT_LAYOUT_ARRAYS := ["hearths", "villages", "ziggurat_sites", "castle_sites", "harbor_sites", "forge_sites",
-	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines",
+	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines", "siege_cannons",
 	"bridge_sites", "civic_sites"]
 
 const SPECIES := [
@@ -55,6 +55,8 @@ var _camp_parent_fire_by_index := {}
 var rig: M7MonumentRig
 var boat_probe := Vector2.ZERO          # the last boat placed (dev scenarios aim the camera at it)
 var chariot_probe := Vector2.ZERO       # the last chariot placed (dev scenarios aim the camera at it)
+var knight_probe := Vector2.ZERO        # the last mounted knight placed (WAR-10)
+var gunner_probe := Vector2.ZERO        # the last gunner placed in the field (WAR-12)
 var decor_spots := {}                   # decor name -> where the last one was placed (dev scenarios aim the camera at it)
 var trail_node: MeshInstance3D
 var trail_signature := -1
@@ -88,6 +90,7 @@ var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenari
 var chimney_smokes: Array = []          # {pos, seed}: bathhouse chimneys, for the war rig's smoke
 var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
+var siege_cannons: Array = []           # {p, yaw, target, seed}: each cannon animated by the war rig
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
 var bridge_sites: Array = []            # {p, y}: where each stone bridge stands
@@ -1038,6 +1041,10 @@ func _apply_settlement_layout_cache(cache: Dictionary) -> void:
 		boat_probe = cache.boat_probe
 	if bool(cache.get("chariot_probe_changed", false)):
 		chariot_probe = cache.chariot_probe
+	if bool(cache.get("knight_probe_changed", false)):
+		knight_probe = cache.knight_probe
+	if bool(cache.get("gunner_probe_changed", false)):
+		gunner_probe = cache.gunner_probe
 
 ## Deposits remain tied to their economic tile. Move and scale their marker on a settlement feature tile to keep it legible.
 func _deposit_visual_placement(tile: int, preferred: Vector2) -> Array:
@@ -1233,6 +1240,7 @@ func _settlements() -> void:
 	beacon_fires.clear()
 	lighthouse_sites.clear()
 	siege_engines.clear()
+	siege_cannons.clear()
 	bridge_sites.clear()
 	civic_sites.clear()
 	var terrace_set := {}
@@ -1282,6 +1290,8 @@ func _settlements() -> void:
 		var decor_before: Dictionary = decor_spots.duplicate(true)
 		var boat_before := boat_probe
 		var chariot_before := chariot_probe
+		var knight_before := knight_probe
+		var gunner_before := gunner_probe
 		_active_visual_records = []
 		_capture_visual_records = true
 		_record_visual_occupancy(hearth, 0.13)
@@ -1314,6 +1324,10 @@ func _settlements() -> void:
 		result["boat_probe"] = boat_probe
 		result["chariot_probe_changed"] = chariot_probe != chariot_before
 		result["chariot_probe"] = chariot_probe
+		result["knight_probe_changed"] = knight_probe != knight_before
+		result["knight_probe"] = knight_probe
+		result["gunner_probe_changed"] = gunner_probe != gunner_before
+		result["gunner_probe"] = gunner_probe
 		props = outer_props
 		_merge_batcher_groups(props, result.groups)
 		settlement_layout_cache[si] = result
@@ -1932,6 +1946,62 @@ func _province_standards(s: Dictionary, si: int, c: Vector2, h0: float, seed: fl
 			extent = maxf(extent, q2.distance_to(c) + 0.1)
 	return extent
 
+## A bow figure for the debug fills, by a stable hash of the civilization (the real figures follow the bows the settlements hold).
+func _bow_mesh(civ: int) -> String:
+	return "person_longbow" if M7WorldData.hash01(civ, 0, 113) < 0.5 else "person_crossbow"
+
+## The firearm infantryman of a civilization's age: the rifleman with Rifles & Artillery (WAR-14), the musketeer with Pike & Musket Drill (WAR-13), else the early
+## gunner with his linstock (WAR-12).
+func _shot_mesh(civ: int) -> String:
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_RIFLES):
+		return "person_rifleman"
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_MUSKETS):
+		return "person_musketeer"
+	return "person_gunner"
+
+## What an armed figure of a settlement carries (docs/MVP/35 §3.1), one rule for walking people. `seed` is the person's own stable random number. Gunpowder (WAR-12)
+## takes the top three in ten; then the person carries what the settlement's stock says: the sim's frame gives the share of its fighters holding a crossbow, a
+## longbow and the war bow (docs/MVP/36), and a person's own roll against those shares, best first, picks theirs (the longbow figure also stands for the war bow of
+## Archery Warfare). Otherwise iron arms (WAR-08) give the soldier, and last the spear.
+func _arms_mesh(civ: int, seed: float, home: int) -> String:
+	if civ >= 0 and seed >= 0.7 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+		return _shot_mesh(civ)
+	# a drilled army (docs/MVP/35 section 7): with rifles most armed people are riflemen; with pike and musket drill the band under the shot is pike
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_RIFLES) and seed >= 0.35:
+		return "person_rifleman"
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_MUSKETS) and seed >= 0.45:
+		return "person_pikeman"
+	var roll := fposmod(seed * 7.31 + 0.37, 1.0)          # independent of the gunner's roll above
+	var cb := float(w.bow_pct(home, 0)) / 100.0
+	var lb := float(w.bow_pct(home, 1)) / 100.0
+	var wb := float(w.bow_pct(home, 2)) / 100.0
+	if roll < cb:
+		return "person_crossbow"
+	if roll < cb + lb + wb:
+		return "person_longbow"
+	if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_IRON_ARMS):
+		return "person_soldier"
+	return "person_spear"
+
+## A posted soldier's figure in slot `i` of six (the garrison ring or the drill ground), given the settlement's `bows` (crossbow, longbow, war bow percent): the last
+## two slots are gunners with gunpowder, else bows if the town holds crossbows or longbows, else soldiers like the rest.
+func garrison_mesh(civ: int, i: int, bows: Variant = null) -> String:
+	if i < 4:
+		return "person_soldier"
+	if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+		return _shot_mesh(civ)
+	var cb := 0
+	var lb := 0
+	if M7WorldData.LOOKS_DEBUG:
+		cb = w.bow_pct(0, 0)
+		lb = w.bow_pct(0, 1)
+	elif bows is Array or bows is PackedInt32Array:
+		cb = int(bows[0])
+		lb = int(bows[1])
+	if cb + lb <= 0:
+		return "person_soldier"
+	return "person_crossbow" if cb >= lb else "person_longbow"
+
 ## The soldiers posted in a village of the viewer's own (WAR-07): up to six iron-armed soldiers drawn up in two ranks on a drill ground at the edge, facing the
 ## hearth. Returns how far it reaches, 0 with none.
 func _drill(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, placed: Array, civ: int) -> float:
@@ -1957,7 +2027,7 @@ func _drill(s: Dictionary, c: Vector2, h0: float, seed: float, rmax: float, plac
 			var rank := i / 3
 			var file := i % 3 - 1
 			var p := q + across * (file * 0.1) - fwd * (rank * 0.1)
-			props.add("person_soldier", _xf(p, w.height_at(p), face, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+			props.add(garrison_mesh(civ, i, s.get("bows")), _xf(p, w.height_at(p), face, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 		placed.append(q)
 		return q.distance_to(c) + 0.2
 	return 0.0
@@ -2002,6 +2072,25 @@ func _siege_camp(c: Vector2, seed: float, ring: float, siege: Dictionary, cc: Co
 			var sp := p + side * (0.12 + 0.03 * j) - dir * 0.04 * j
 			props.add("siege_stone", Transform3D(Basis.from_scale(Vector3.ONE * 1.2), Vector3(sp.x, w.height_at(sp) + 0.012, sp.y)), Color(1, 1, 1, 0.5))
 			_record_visual_occupancy(sp, 0.08)
+	# a besieger with gunpowder (WAR-12) also trains a cannon on the wall from the end of the line, with two gunners at its carriage
+	if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+		var ca := angle - ((count - 1) * 0.15 + 0.3)
+		var cdir := Vector2(cos(ca), sin(ca))
+		var cp := c + cdir * (ring + 0.75)
+		var ctq := w.tile_at(cp)
+		if ctq >= 0 and w.is_land(ctq):
+			var cyaw := atan2((c - cp).x, (c - cp).y)
+			# the cannon itself is the war rig's (it recoils when it fires); here is only where it stands and what it is aimed at
+			var cimpact := c + cdir * ring
+			var rifled := w.has_iron_look(civ, M7WorldData.IRON_RIFLES)      # Rifles & Artillery (WAR-14): a long rifled field gun instead of the old cannon
+			siege_cannons.append({"p": Vector3(cp.x, w.height_at(cp), cp.y), "yaw": cyaw, "target": Vector3(cimpact.x, w.height_at(cimpact) + 0.1, cimpact.y),
+				"seed": M7WorldData.hash01(int(cp.x * 100.0), int(cp.y * 100.0), 83),
+				"mesh": "field_gun" if rifled else "cannon", "muzzle": Vector3(0.0, 0.05, 0.119) if rifled else Vector3(0.0, 0.046, 0.067)})
+			_record_visual_occupancy(cp, 0.26)
+			var cside := Vector2(-cdir.y, cdir.x)
+			for gs in [-1.0, 1.0]:
+				var gp: Vector2 = cp + cside * (0.17 * gs) - cdir * 0.06
+				props.add(_shot_mesh(civ), _xf(gp, w.height_at(gp), cyaw, 1.0), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 	# the camp behind the engines
 	for j in 4:
 		var a2 := angle + (j - 1.5) * 0.28
@@ -2169,8 +2258,11 @@ func _castle(s: Dictionary, t: int, c: Vector2, h0: float, seed: float, radius: 
 		var local := Vector3(cos(ang), 0.0, sin(ang)) * 0.15 * CASTLE_SCALE
 		var gp: Vector3 = rot_y(yaw) * local
 		var wp := p + Vector2(gp.x, gp.z)
-		var gb := Basis(Vector3.UP, yaw + ang + PI * 0.5) * Basis.from_scale(Vector3.ONE * 1.1)
-		props.add("person_soldier", Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+		var gmesh := garrison_mesh(civ, gi, s.get("bows"))
+		# the soldiers walk the wall; the bowmen and gunners stand facing outward over it
+		var gface := yaw + ang + PI * 0.5 if gmesh == "person_soldier" else atan2(gp.x, gp.z)
+		var gb := Basis(Vector3.UP, gface) * Basis.from_scale(Vector3.ONE * 1.1)
+		props.add(gmesh, Transform3D(gb, Vector3(wp.x, site.y + 0.02 * CASTLE_SCALE, wp.y)), Color(float(civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 
 ## A ring of palisade segments with a gate, outside the houses (and the thorn hedge if there is one).
 func _decor_palisade(t: int, c: Vector2, seed: float, ring: float, tint: Color) -> void:
@@ -2567,8 +2659,20 @@ func _figures() -> void:
 			props.add("person_far", _xf(p, y, 0.0, 1.0), custom)
 			n += 1
 			continue
-		# raiders of a civilization with chariots (WAR-06) ride them over open ground
-		if boat_strength <= 0.0 and age == 1 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_CHARIOTS):
+		# trained warriors of a civilization with heavy cavalry (WAR-10) ride as mounted knights over open ground; a called-up farmer never does (docs/MVP/35 Q4)
+		var debug_knight := M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 2     # --looks-debug: every fifth figure rides, so the knight can be inspected
+		if boat_strength <= 0.0 and age == 1 and civ >= 0 and (((fl & 256) != 0 and (fl & 128) != 0 and seed < 0.6) or debug_knight) and w.has_look(civ, M7WorldData.LOOK_KNIGHTS):
+			var riding := act == 17 or act == 18 or act == 19 or debug_knight
+			var knight_tile: int = w.tile_at(p)
+			if riding and knight_tile >= 0 and _open_ground(knight_tile):
+				props.add("person_knight", _xf(p, y, face, 1.0), custom)
+				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
+				knight_probe = p
+				n += 1
+				continue
+		# raiders of a civilization with chariots (WAR-06) ride them over open ground, until it has heavy cavalry: a knightly army does not keep a Bronze Age look (the
+		# chariots that stand in its villages stay; --looks-debug keeps both so each can be inspected)
+		if boat_strength <= 0.0 and age == 1 and civ >= 0 and w.has_look(civ, M7WorldData.LOOK_CHARIOTS) and (M7WorldData.LOOKS_DEBUG or not w.has_look(civ, M7WorldData.LOOK_KNIGHTS)):
 			var raiding := act == 17 or act == 18 or act == 19
 			var on_wheels := (raiding and seed < 0.7) or (M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 0)
 			var here_tile: int = w.tile_at(p)
@@ -2591,10 +2695,13 @@ func _figures() -> void:
 				mesh = "person_crook"     # herders walk with a crook once they follow the herds (HUS-02)
 			var iron_armed := false
 			if fl & 256:
-				mesh = "person_spear"
-				if civ >= 0 and w.has_look(civ, M7WorldData.LOOK_IRON_ARMS):
-					mesh = "person_soldier"       # iron arms (WAR-08): helmet, shield and an iron spear
-					iron_armed = true
+				mesh = _arms_mesh(civ, seed, home)   # spear, iron soldier, crossbow or longbow from the settlement's stock, or gunner (docs/MVP/35 §3.1)
+				iron_armed = mesh != "person_spear"
+			if M7WorldData.LOOKS_DEBUG and civ >= 0 and age == 1 and (fi / 11) % 5 == 3 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
+				mesh = "person_gunner"
+				iron_armed = true
+			if mesh == "person_gunner":
+				gunner_probe = p
 			# bladed and headed tools show the tier of the method in use: stone, polished stone, copper, bronze
 			var tier := M7MeshKit.tool_tier_for_rung(rung) if rung >= 0 else 0
 			# the iron kits (11, 12) show on the figure that holds one: dark iron, then bright tempered steel (MET-09, MET-10)
@@ -2614,7 +2721,8 @@ func _figures() -> void:
 			if tier > 0 and not iron_armed and mesh in ["person_spear", "person_axe", "person_hoe", "person_hammer", "person_scythe"]:
 				mesh += "_t" + str(tier)
 		if civ >= 0 and act != 14 and w.has_look(civ, M7WorldData.LOOK_TAILORED):
-			mesh += "_g"                   # fitted parkas, sleeves, leggings and boots (FIB-04)
+			if kit.meshes.has(mesh + "_g"):
+				mesh += "_g"               # fitted parkas, sleeves, leggings and boots (FIB-04); the gunner has no tailored variant
 		if boat_strength > 0.0:
 			# the fisher stands in the boat; the hull shrinks away as they leave the water
 			props.add("person_boat_%d" % boat_tier, _xf(p, y - 0.006 * boat_strength, face, boat_strength), custom)

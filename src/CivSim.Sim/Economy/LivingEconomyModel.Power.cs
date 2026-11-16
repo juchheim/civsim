@@ -7,6 +7,9 @@ namespace CivSim.Sim.Economy;
 internal readonly record struct MillPowerLedgerSnapshot(
     int SettlementId, int Civilization, int Season, SettlementTier Tier, int Population,
     int WaterMillSources, int WindmillSources,
+    bool SiteNearRiver, int FieldTiles,
+    BuildGate WaterMillHardGate, BuildGate WindmillHardGate, BuildGate WindmillWantedGate,
+    Fix64 WoodStock, Fix64 BlockStock, Fix64 WheelStock,
     Fix64 AvailablePowerHours,
     Fix64 GrindingDemand, Fix64 GrindingUsed,
     Fix64 SawingDemand, Fix64 SawingUsed,
@@ -23,6 +26,9 @@ public sealed partial class LivingEconomyModel
 {
     /// <summary>The share of seasons a windmill turns (P, docs/MVP/27 §5.1); a deterministic factor, never a roll.</summary>
     private static readonly Fix64 WindAvailability = Fix64.FromRatio(8, 10);
+
+    /// <summary>Draft Fief capacity fit: one mill source represents this many residents before source availability and shared grinding power are applied.</summary>
+    private static readonly Fix64 FiefMillPeoplePerSource = Fix64.FromInt(260);
 
     // One power hour serves one worker for one season. Job shares and multipliers are the provisional E5 oracle inputs.
     private static readonly Fix64 WaterMillPowerHours = Fix64.FromInt(5);
@@ -55,6 +61,22 @@ public sealed partial class LivingEconomyModel
 
         private static Fix64 JobCoverage(Fix64 used, Fix64 demand)
             => demand > Fix64.Zero ? Fix64.Min(Fix64.One, used / demand) : Fix64.Zero;
+    }
+
+    private MillPowerLedgerSnapshot CaptureMillPowerSnapshot(SettlementState s, int season)
+    {
+        MillPowerAllocation p = MillPower(s);
+        BuildGate waterGate = IronGate(s, IronStructure.WaterMill, includeAppetite: false);
+        BuildGate windHardGate = IronGate(s, IronStructure.Windmill, includeAppetite: false);
+        BuildGate windWantedGate = windHardGate.Open
+            ? IronGate(s, IronStructure.Windmill, includeAppetite: true)
+            : windHardGate;
+        return new MillPowerLedgerSnapshot(s.Id, s.Civilization, season, Tier(s.Id), p.Population,
+            p.WaterSources, p.WindSources, _nearRiver[s.SiteTile], s.FieldTiles.Count,
+            waterGate, windHardGate, windWantedGate,
+            s.Stores[(int)Good.Wood], Stock(s, MetalSlot(MetalGood.Block)), Stock(s, MetalSlot(MetalGood.Wheel)),
+            p.Available, p.GrindingDemand, p.GrindingUsed, p.SawingDemand, p.SawingUsed,
+            p.CraftDemand, p.CraftUsed, p.Unused, p.GrainMilledPeople, p.GrainCoverage);
     }
 
     /// <summary>
@@ -116,7 +138,8 @@ public sealed partial class LivingEconomyModel
         Fix64 sourceAvailability = sourceCount > 0
             ? (Fix64.FromInt(waterSources) + Fix64.FromInt(windSources) * WindAvailability) / Fix64.FromInt(sourceCount)
             : Fix64.Zero;
-        Fix64 millCapacity = _civic.MillPeople * Fix64.FromInt(sourceCount);
+        Fix64 millCapacityPerSource = FiefChain ? FiefMillPeoplePerSource : _civic.MillPeople;
+        Fix64 millCapacity = millCapacityPerSource * Fix64.FromInt(sourceCount);
         Fix64 eligiblePeople = Fix64.Min(adults, millCapacity);
         Fix64 grindingCoverage = grindingDemand > Fix64.Zero ? Fix64.Min(Fix64.One, grindingUsed / grindingDemand) : Fix64.Zero;
         // Preserve the first-pass mill-capacity rule: each source serves MillPeople, while an intermittent wind source
@@ -144,11 +167,7 @@ public sealed partial class LivingEconomyModel
         {
             SettlementTier tier = Tier(s.Id);
             if (tier < SettlementTier.Town) continue;
-            MillPowerAllocation p = MillPower(s);
-            snapshots.Add(new MillPowerLedgerSnapshot(s.Id, s.Civilization, season, tier, p.Population,
-                p.WaterSources, p.WindSources, p.Available, p.GrindingDemand, p.GrindingUsed,
-                p.SawingDemand, p.SawingUsed, p.CraftDemand, p.CraftUsed, p.Unused,
-                p.GrainMilledPeople, p.GrainCoverage));
+            snapshots.Add(CaptureMillPowerSnapshot(s, season));
         }
         return snapshots;
     }
@@ -161,11 +180,7 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         SettlementTier tier = Tier(s.Id);
         if (tier < SettlementTier.Town) return false;
-        MillPowerAllocation p = MillPower(s);
-        snapshot = new MillPowerLedgerSnapshot(s.Id, s.Civilization, season, tier, p.Population,
-            p.WaterSources, p.WindSources, p.Available, p.GrindingDemand, p.GrindingUsed,
-            p.SawingDemand, p.SawingUsed, p.CraftDemand, p.CraftUsed, p.Unused,
-            p.GrainMilledPeople, p.GrainCoverage);
+        snapshot = CaptureMillPowerSnapshot(s, season);
         return true;
     }
 
@@ -182,6 +197,14 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Fuel and labor interpolate to x2 only for the craft work actually covered by the shared power budget.</summary>
     private Fix64 FurnaceInputAndLaborFactor(SettlementState s) => Fix64.One + MillPower(s).Coverage(MillPowerJob.Craft);
+
+    internal (bool Active, Fix64 CraftCoverage) CaptureFiefFurnaceDiagnostic(int settlementIndex)
+    {
+        if (!FiefChain || (uint)settlementIndex >= (uint)_settlements.Count) return (false, Fix64.Zero);
+        SettlementState s = _settlements[settlementIndex];
+        CompiledRecipe bloomery = FixtureRecipe("bloomery");
+        return (FurnaceActive(s, bloomery), MillPower(s).Coverage(MillPowerJob.Craft));
+    }
 
     /// <summary>The Fief chapter's recipe-labor changes, applied on top of <see cref="RecipeLabor"/>: the sawmill, the spinning wheel and treadle loom, and fulling.</summary>
     private Fix64 FiefRecipeLabor(SettlementState s, CompiledRecipe r, Fix64 labor)
@@ -229,10 +252,21 @@ public sealed partial class LivingEconomyModel
         if (extraWindSources < 0) throw new ArgumentOutOfRangeException(nameof(extraWindSources));
         SettlementState s = _settlements[settlementIndex];
         MillPowerAllocation p = MillPower(s, extraWaterSources, extraWindSources);
-        return new MillPowerLedgerSnapshot(s.Id, s.Civilization, season, Tier(s.Id), p.Population,
-            p.WaterSources, p.WindSources, p.Available, p.GrindingDemand, p.GrindingUsed,
-            p.SawingDemand, p.SawingUsed, p.CraftDemand, p.CraftUsed, p.Unused,
-            p.GrainMilledPeople, p.GrainCoverage);
+        return CaptureMillPowerSnapshot(s, season) with
+        {
+            WaterMillSources = p.WaterSources,
+            WindmillSources = p.WindSources,
+            AvailablePowerHours = p.Available,
+            GrindingDemand = p.GrindingDemand,
+            GrindingUsed = p.GrindingUsed,
+            SawingDemand = p.SawingDemand,
+            SawingUsed = p.SawingUsed,
+            CraftDemand = p.CraftDemand,
+            CraftUsed = p.CraftUsed,
+            UnusedPowerHours = p.Unused,
+            GrainMilledPeople = p.GrainMilledPeople,
+            GrainCoverage = p.GrainCoverage,
+        };
     }
     internal bool FixtureIronGateOpen(int settlementIndex, string kind, bool includeAppetite = true)
     {

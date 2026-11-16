@@ -119,7 +119,7 @@ projects:
       - {kind: good, id: "G-MANUSCRIPT"}
       - {kind: mod, stat: monastery_insight, op: mult, value: 1.1, note: "staffed monasteries only"}
       - {kind: rule, text: "Recipe copy_manuscript at a monastery: luxury books for prestige trade; vellum, pigment and gold are consumed."}
-    practice: [{action: scribe, share: 100}]
+    practice: [{action: scribe, share: 50}, {action: tell_stories, share: 50}]
     flavor: "Gold leaf lifts a word into light."
     moment: "A monk lays gold leaf on a painted capital."
   - id: ART-10

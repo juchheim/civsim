@@ -49,7 +49,7 @@ public sealed partial class LivingEconomyModel
     private static class Role
     {
         public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7, Monk = 8,
-            Physician = 9, Attendant = 10;
+            Physician = 9, Attendant = 10, MasterMason = 11;
     }
 
     private sealed class CivicState
@@ -85,6 +85,10 @@ public sealed partial class LivingEconomyModel
         public readonly byte[] ImmuneSeasons = new byte[OutbreakClasses];
         public byte ImportedOutbreak;
         public Fix64 Sanitation;
+        // Fief-only workshop diagnostics/state: accumulated recipe waste and craft-role training exposure.
+        public Fix64 GuildRecipeWaste;
+        public Fix64 CraftQualityUnits;
+        public Fix64 CraftRoleTraining;
         /// <summary>Harness tracing only (never hashed or saved): the last season's civic plan and labor.</summary>
         public Fix64 TracePlan, TraceLabor, TraceHousingWant, TraceAvailableWork, TraceFoodShare, TraceCivicRequested, TraceCivicAssigned;
     }
@@ -165,7 +169,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>An E3 project's `cohesion` effect as a term of the target (docs/MVP/23 §1.2).</summary>
-    private readonly record struct CohesionTerm(int Project, int Value, string Scope, int Radius, CivicBuild Structure, bool Wonder, bool Iron = false);
+    private readonly record struct CohesionTerm(int Project, int Value, string Scope, int Radius, CivicBuild Structure, bool Wonder, bool Iron = false, bool Fief = false);
 
     private CivicConstants _civic;
     private CohesionTerm[] _cohesionTerms = Array.Empty<CohesionTerm>();
@@ -192,7 +196,7 @@ public sealed partial class LivingEconomyModel
         var terms = new List<CohesionTerm>();
         foreach (EconomyProject p in _content.Projects)
         {
-            if (p.Era is not (3 or 4)) continue; // E4 terms are kept apart (Iron) and read only when the economy plays the Iron chapter
+            if (p.Era is not (3 or 4 or 5)) continue; // E4/E5 terms are read only when the matching Iron/Fief chapter is active
             CivicBuild structure = CivicBuild.None;
             bool wonder = false;
             for (int i = p.EffectStart; i < p.EffectStart + p.EffectCount; i++)
@@ -208,7 +212,7 @@ public sealed partial class LivingEconomyModel
             {
                 EconomyEffect e = _content.Effects[i];
                 if (e.Kind == "cohesion" && e.Value is { } v)
-                    terms.Add(new CohesionTerm(p.Index, v.RoundToInt(), e.Scope ?? "all", e.Radius ?? 0, structure, wonder, Iron: p.Era == 4));
+                    terms.Add(new CohesionTerm(p.Index, v.RoundToInt(), e.Scope ?? "all", e.Radius ?? 0, structure, wonder, Iron: p.Era == 4, Fief: p.Era == 5));
                 if (e.Kind == "tier")
                 {
                     if (e.Tier == "town" && e.Radius is { } tr) _townRadius = tr;
@@ -404,6 +408,7 @@ public sealed partial class LivingEconomyModel
             if (CapitalOf(civ) == s.Id) scribes++;
             if (Done(civ, "LRN-04")) scribes += 2 * c.Schools;
         }
+        if (FiefChain && Done(civ, "COM-10")) scribes += IronWorksCount(s, IronStructure.PrintShop);
         // The Iron chapter's state roles (docs/MVP/26 §3.3): an administrator at the capital (GOV-07) and a governor at each province seat (TER-08).
         int administrators = IronChain && Done(civ, "GOV-07") && CapitalOf(civ) == s.Id ? 1 : 0;
         int governors = WantsGovernor(s) ? 1 : 0;
@@ -413,8 +418,9 @@ public sealed partial class LivingEconomyModel
         int monks = MonkSlots(s);
         int physicians = FiefChain && Done(civ, "MED-07") && IronWorksCount(s, IronStructure.Hospital) > 0 ? 1 : 0;
         int attendants = physicians > 0 ? 2 : 0;
+        int masterMasons = FiefChain && Done(civ, "STN-13") && WantsMasterMason(s) ? 1 : 0;
         int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0,
-            haveScholars = 0, haveMonks = 0, havePhysicians = 0, haveAttendants = 0;
+            haveScholars = 0, haveMonks = 0, havePhysicians = 0, haveAttendants = 0, haveMasterMasons = 0;
         List<FigureState> residents = Residents(s.Id);
         for (int i = residents.Count - 1; i >= 0; i--)
         {
@@ -431,14 +437,15 @@ public sealed partial class LivingEconomyModel
             if (keep && f.Role == Role.Monk && haveMonks < monks) { haveMonks++; continue; }
             if (keep && f.Role == Role.Physician && havePhysicians < physicians) { havePhysicians++; continue; }
             if (keep && f.Role == Role.Attendant && haveAttendants < attendants) { haveAttendants++; continue; }
+            if (keep && f.Role == Role.MasterMason && haveMasterMasons < masterMasons) { haveMasterMasons++; continue; }
             f.Role = Role.None;
         }
         int adults = 0;
         foreach (FigureState f in residents) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks || havePhysicians < physicians || haveAttendants < attendants); i++)
+        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks || havePhysicians < physicians || haveAttendants < attendants || haveMasterMasons < masterMasons); i++)
         {
             // Keep at least four other working adults at home.
-            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + havePhysicians + haveAttendants + 4 >= adults) break;
+            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + havePhysicians + haveAttendants + haveMasterMasons + 4 >= adults) break;
             FigureState f = residents[i];
             if (f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
@@ -450,9 +457,11 @@ public sealed partial class LivingEconomyModel
             else if (haveScholars < scholars) { f.Role = Role.Scholar; haveScholars++; }
             else if (haveMonks < monks) { f.Role = Role.Monk; haveMonks++; }
             else if (havePhysicians < physicians) { f.Role = Role.Physician; havePhysicians++; }
-            else { f.Role = Role.Attendant; haveAttendants++; }
+            else if (haveAttendants < attendants) { f.Role = Role.Attendant; haveAttendants++; }
+            else { f.Role = Role.MasterMason; haveMasterMasons++; }
         }
         Fix64 spent = Fix64.Zero;
+        Fix64 administrationWork = Fix64.Zero;
         foreach (FigureState f in residents)
         {
             if (f.Role == Role.None) continue;
@@ -461,10 +470,18 @@ public sealed partial class LivingEconomyModel
             Assign(f, EconomyJob.Craft, amount);
             f.Task = f.Role is Role.Priest or Role.Monk ? MetalTask.Ritual : f.Role is Role.Administrator or Role.Governor ? MetalTask.Administer : f.Role == Role.Soldier ? MetalTask.Drill : f.Role == Role.Missionary ? MetalTask.Preach : MetalTask.Records; // scholars, like scribes, work at records
             spent += amount;
+            if (f.Role is Role.Administrator or Role.Governor) administrationWork += amount;
         }
         PaySoldierUpkeep(s, haveSoldiers);
-        return spent;
+        // Double-entry bookkeeping reduces the work lost to administrative overhead by 10%; the staff remain assigned.
+        Fix64 adminSavings = AdminWasteSavings(s.Civilization, administrationWork);
+        if (FiefChain && (haveAdministrators + haveGovernors) > 0)
+            FiefWp7TraceObserverForDiagnostics?.Invoke($"wp7-trd09-admin season={_seasonsCompleted} civ={s.Civilization} settlement={s.Id} administrators={haveAdministrators} governors={haveGovernors} assignedBase={administrationWork.Raw} released={adminSavings.Raw} actualCost={(administrationWork - adminSavings).Raw} ordinaryPoolReturn={adminSavings.Raw} trd09={Done(s.Civilization, "TRD-09").ToString().ToLowerInvariant()}");
+        return spent - adminSavings;
     }
+
+    private Fix64 AdminWasteSavings(int civ, Fix64 administrationWork)
+        => FiefChain && Done(civ, "TRD-09") ? administrationWork * Fix64.FromRatio(1, 10) : Fix64.Zero;
 
     // ---- civic construction --------------------------------------------------------------------------------
 
@@ -1224,6 +1241,7 @@ public sealed partial class LivingEconomyModel
         int capital = CapitalOf(civ);
         SettlementState? cap = capital >= 0 ? _settlements[capital] : null;
         Fix64 t = Fix64.FromInt(_civic.Base);
+        if (HasClockTowerWithin(s)) t += Fix64.FromInt(2);
         if (!conquered)
         {
             if (s.Structures[(int)Structure.Hearth] > 0) t += Fix64.FromInt(5);
@@ -1239,7 +1257,8 @@ public sealed partial class LivingEconomyModel
         {
             if (!_completedProjects[civ][term.Project]) continue;
             if (term.Iron && !IronChain) continue;
-            if (term.Wonder && !CivHasZiggurat(civ)) continue;
+            if (term.Fief && (!FiefChain || IronWorksCount(s, IronStructure.GothicCathedral) == 0)) continue;
+            if (term.Wonder && !term.Fief && !CivHasZiggurat(civ)) continue;
             Fix64 value = Fix64.FromInt(term.Value) * (term.Wonder && term.Scope == "radius" ? wonderMult : Fix64.One);
             int radius = term.Wonder ? (Fix64.FromInt(term.Radius) * radiusMult).RoundToInt() : term.Radius;
             bool applies = term.Scope switch
@@ -1336,7 +1355,15 @@ public sealed partial class LivingEconomyModel
         c.LowSeasons = 0;
         c.Tier = 0;
         foreach (FigureState f in Residents(s.Id)) { f.Role = Role.None; f.Camp = -1; }
-        for (int i = _camps.Count - 1; i >= 0; i--) if (_camps[i].Parent == s.Id) _camps.RemoveAt(i);
+        bool removedCamp = false;
+        for (int i = _camps.Count - 1; i >= 0; i--)
+        {
+            if (_camps[i].Parent != s.Id) continue;
+            _camps.RemoveAt(i);
+            removedCamp = true;
+        }
+        if (removedCamp) InvalidateCampsByParent();
+        InvalidateIronOreSupplierAssignments();
         _secessions.Add(s.Id);
     }
 
@@ -1514,6 +1541,7 @@ public sealed partial class LivingEconomyModel
             hash.Add(c.Outbreak); hash.Add(c.OutbreakSeason); hash.Add(c.AttackRate); hash.Add(c.CfrScale); hash.Add(c.Immune);
             foreach (byte b in c.ImmuneSeasons) hash.Add(b);
             hash.Add(c.ImportedOutbreak); hash.Add(c.Sanitation);
+            if (FiefChain) { hash.Add(c.GuildRecipeWaste); hash.Add(c.CraftQualityUnits); hash.Add(c.CraftRoleTraining); }
         }
     }
 
@@ -1536,6 +1564,7 @@ public sealed partial class LivingEconomyModel
             w.Write(c.Outbreak); w.Write(c.OutbreakSeason); w.Write(c.AttackRate.Raw); w.Write(c.CfrScale.Raw);
             for (int k = 0; k < OutbreakClasses; k++) { w.Write(c.Immune[k].Raw); w.Write(c.ImmuneSeasons[k]); }
             w.Write(c.ImportedOutbreak); w.Write(c.Sanitation.Raw);
+            if (FiefChain) { w.Write(c.GuildRecipeWaste.Raw); w.Write(c.CraftQualityUnits.Raw); w.Write(c.CraftRoleTraining.Raw); }
         }
     }
 
@@ -1567,6 +1596,11 @@ public sealed partial class LivingEconomyModel
             c.Outbreak = r.ReadByte(); c.OutbreakSeason = r.ReadByte(); c.AttackRate = Fix64.FromRaw(r.ReadInt64()); c.CfrScale = Fix64.FromRaw(r.ReadInt64());
             for (int k = 0; k < OutbreakClasses; k++) { c.Immune[k] = Fix64.FromRaw(r.ReadInt64()); c.ImmuneSeasons[k] = r.ReadByte(); }
             c.ImportedOutbreak = r.ReadByte(); c.Sanitation = Fix64.FromRaw(r.ReadInt64());
+            if (FiefChain && !_fiefCraftNeedsMigration)
+            {
+                c.GuildRecipeWaste = Fix64.FromRaw(r.ReadInt64()); c.CraftQualityUnits = Fix64.FromRaw(r.ReadInt64());
+                c.CraftRoleTraining = Fix64.FromRaw(r.ReadInt64());
+            }
             _settlements[i].Civic = c;
         }
     }
@@ -1600,7 +1634,8 @@ public sealed partial class LivingEconomyModel
             ConqueredTerm = source.ConqueredTerm, DeathsThisYear = source.DeathsThisYear, DeathsLastYear = source.DeathsLastYear,
             PeopleLastYear = source.PeopleLastYear, Target = source.Target, Horses = source.Horses, Outbreak = source.Outbreak,
             OutbreakSeason = source.OutbreakSeason, AttackRate = source.AttackRate, CfrScale = source.CfrScale, ImportedOutbreak = source.ImportedOutbreak,
-            Sanitation = source.Sanitation,
+            Sanitation = source.Sanitation, GuildRecipeWaste = source.GuildRecipeWaste, CraftQualityUnits = source.CraftQualityUnits,
+            CraftRoleTraining = source.CraftRoleTraining,
         };
         c.Canals.AddRange(source.Canals);
         c.CanalProgress = source.CanalProgress; c.Dwelling = source.Dwelling; c.DwellingProgress = source.DwellingProgress;
