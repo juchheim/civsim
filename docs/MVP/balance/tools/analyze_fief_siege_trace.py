@@ -69,7 +69,8 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def validate_provenance(freeze: dict[str, Any], manifest_path: Path, seeds: list[int]) -> dict[str, Any]:
-    if freeze.get("trace") != EXPECTED_TRACE:
+    traces = freeze.get("traces")
+    if freeze.get("trace") != EXPECTED_TRACE and not (isinstance(traces, list) and EXPECTED_TRACE in traces):
         raise ValueError(f"run freeze trace must be {EXPECTED_TRACE!r}")
     if freeze.get("minutes") != EXPECTED_MINUTES:
         raise ValueError(f"run freeze must use {EXPECTED_MINUTES} minutes")
@@ -145,7 +146,10 @@ def validate_run(raw_dir: Path, manifest_path: Path) -> tuple[list[int], dict[st
         raise ValueError("run status is not a completed full cohort")
     if any(row.get("status") in ("failed", "interrupted") for row in status_rows):
         raise ValueError("run status contains a failed or interrupted event")
-    if status_rows[0].get("trace") != EXPECTED_TRACE or sum(row.get("status") == "running" for row in status_rows) != 1:
+    status_traces = status_rows[0].get("traces")
+    if (status_rows[0].get("trace") != EXPECTED_TRACE and
+            not (isinstance(status_traces, list) and EXPECTED_TRACE in status_traces)) or \
+            sum(row.get("status") == "running" for row in status_rows) != 1:
         raise ValueError("run status trace protocol or event sequence is invalid")
 
     raw_files: dict[int, Path] = {}
@@ -160,10 +164,13 @@ def validate_run(raw_dir: Path, manifest_path: Path) -> tuple[list[int], dict[st
             raise ValueError(f"seed {seed} does not have exactly one successful completion record")
         starts = [row for row in events if row.get("status") == "running"]
         command = starts[0].get("command") if len(starts) == 1 else None
-        command_valid = (isinstance(command, list) and len(command) == 10 and bool(command[0]) and
+        selected_traces = freeze.get("traces")
+        expected_flags = selected_traces if isinstance(selected_traces, list) else [EXPECTED_TRACE]
+        command_valid = (isinstance(command, list) and len(command) == 9 + len(expected_flags) and bool(command[0]) and
                          Path(str(command[1])).resolve() == Path(freeze["harness"]).resolve() and
                          command[2:] == ["fief-match", "--pack", str(Path(freeze["pack"]).resolve()),
-                                         "--seed", str(seed), "--minutes", str(EXPECTED_MINUTES), EXPECTED_TRACE])
+                                         "--seed", str(seed), "--minutes", str(EXPECTED_MINUTES), *expected_flags])
+        command_valid = command_valid and EXPECTED_TRACE in expected_flags
         if not command_valid:
             raise ValueError(f"seed {seed} command does not match the frozen natural siege protocol")
         if completed[0].get("output_sha256") != sha256(output):

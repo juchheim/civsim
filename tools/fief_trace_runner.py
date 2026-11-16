@@ -105,6 +105,25 @@ def read_seeds(path: Path) -> list[int]:
     if not vals or len(vals) != len(set(vals)) or any(n < 0 for n in vals): raise ValueError("seed file must contain unique nonnegative seeds")
     return vals
 
+TRACE_FLAGS = {
+    "sea10": "--fief-sea10-trace",
+    "territory": "--fief-territory-trace",
+    "siege": "--fief-siege-trace",
+}
+
+def selected_trace_flags(args) -> list[str]:
+    """Return a stable, nonempty selection while preserving legacy trace_kind callers."""
+    kinds = getattr(args, "trace_kinds", None)
+    if kinds is None:
+        kinds = [getattr(args, "trace_kind", "sea10")]
+    if not kinds or len(kinds) != len(set(kinds)):
+        raise ValueError("select one or more distinct trace kinds")
+    unknown = set(kinds) - TRACE_FLAGS.keys()
+    if unknown:
+        raise ValueError(f"unsupported trace kind: {sorted(unknown)[0]}")
+    # Keep command and freeze ordering deterministic regardless of CLI argument order.
+    return [TRACE_FLAGS[kind] for kind in TRACE_FLAGS if kind in kinds]
+
 def run(args) -> int:
     manifest = validate(args.provenance, args.source_root, args.pack, args.harness, args.sim)
     seed_file_hash = sha(args.seeds)
@@ -112,18 +131,20 @@ def run(args) -> int:
     if sha(args.seeds) != seed_file_hash: raise ValueError("seed file changed while being frozen")
     if args.output.exists(): raise ValueError(f"output path already exists; refusing overwrite: {args.output}")
     args.output.mkdir(parents=True, exist_ok=False)
-    trace_flag = {"sea10": "--fief-sea10-trace", "territory": "--fief-territory-trace", "siege": "--fief-siege-trace"}[args.trace_kind]
+    trace_flags = selected_trace_flags(args)
+    legacy_trace = trace_flags[0] if len(trace_flags) == 1 else None
     freeze = {"provenance": manifest, "source_root": str(args.source_root.resolve()), "pack": str(args.pack.resolve()),
              "harness": str(args.harness.resolve()), "sim": str(args.sim.resolve()), "minutes": args.minutes,
              "runner": str(Path(__file__).resolve()), "runner_sha256": sha(Path(__file__).resolve()),
              "output": str(args.output.resolve()),
              "seed_file": str(args.seeds.resolve()), "seed_file_sha256": seed_file_hash,
-             "seeds": seeds, "trace": trace_flag}
+             "seeds": seeds, "trace": legacy_trace, "traces": trace_flags}
     with (args.output / "run-freeze.json").open("x", encoding="utf-8") as f:
         json.dump(freeze, f, indent=2, sort_keys=True); f.write("\n")
     run_status = args.output / "run-status.jsonl"
     run_status.open("x", encoding="utf-8").close()
-    append_event(run_status, {"status": "running", "seed_count": len(seeds), "trace": trace_flag})
+    append_event(run_status, {"status": "running", "seed_count": len(seeds),
+                              "trace": legacy_trace, "traces": trace_flags})
     current_seed = None
     current_status = None
     current_output = None
@@ -138,7 +159,7 @@ def run(args) -> int:
             current_status = args.output / f"seed-{seed}.status.jsonl"
             current_status.open("x", encoding="utf-8").close()
             cmd = ["dotnet", str(args.harness), "fief-match", "--pack", str(args.pack), "--seed", str(seed),
-                   "--minutes", str(args.minutes), trace_flag]
+                   "--minutes", str(args.minutes), *trace_flags]
             append_event(current_status, {"seed": seed, "status": "running", "command": cmd})
             with out.open("ab") as stdout:
                 exit_code = run_frozen_command(cmd, stdout)
@@ -173,7 +194,11 @@ def main() -> int:
     p.add_argument("--pack", type=Path, required=True); p.add_argument("--harness", type=Path, required=True)
     p.add_argument("--sim", type=Path, required=True); p.add_argument("--seeds", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True); p.add_argument("--minutes", type=int, required=True)
-    p.add_argument("--trace-kind", choices=("sea10", "territory", "siege"), default="sea10")
+    trace_group = p.add_mutually_exclusive_group()
+    trace_group.add_argument("--trace-kind", choices=tuple(TRACE_FLAGS), default="sea10",
+                             help="legacy single-trace option (default: sea10)")
+    trace_group.add_argument("--trace-kinds", choices=tuple(TRACE_FLAGS), nargs="+",
+                             help="capture this selected subset of compatible natural trace kinds")
     a = p.parse_args()
     if a.minutes <= 0: p.error("--minutes must be positive")
     try: return run(a)

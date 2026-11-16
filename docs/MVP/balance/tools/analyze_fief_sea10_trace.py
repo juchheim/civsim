@@ -134,7 +134,11 @@ def validate_frozen_run(run_dir: Path, seeds_path: Path, provenance_path: Path) 
     provenance, provenance_hash = load_provenance(provenance_path)
     if freeze.get("provenance") != provenance:
         raise ValueError("run freeze provenance does not match the supplied frozen provenance file")
-    if freeze.get("minutes") != 130 or freeze.get("trace") != "--fief-sea10-trace":
+    traces = freeze.get("traces")
+    has_sea10 = freeze.get("trace") == "--fief-sea10-trace" or (
+        isinstance(traces, list) and "--fief-sea10-trace" in traces
+    )
+    if freeze.get("minutes") != 130 or not has_sea10:
         raise ValueError("run freeze must be the 130-minute --fief-sea10-trace protocol")
     if freeze.get("seeds") != seeds or freeze.get("seed_file_sha256") != sha256(seeds_path):
         raise ValueError("run freeze seed list or seed-manifest SHA does not match the supplied manifest")

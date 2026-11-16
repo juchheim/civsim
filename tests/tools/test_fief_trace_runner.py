@@ -71,6 +71,42 @@ class FiefTraceRunnerTests(unittest.TestCase):
                     self.assertEqual(0, runner.run(a))
                 self.assertIn(flag, call.call_args.args[0])
 
+    def test_runner_combines_selected_traces_and_freezes_provenance(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); source, pack, harness, sim, manifest=self.fixture(root)
+            seeds=root/"seeds"; seeds.write_text("105\n")
+            class Args: pass
+            a=Args(); a.provenance=manifest; a.source_root=source; a.pack=pack; a.harness=harness; a.sim=sim
+            a.seeds=seeds; a.output=root/"combined"; a.minutes=130
+            # Argument order must not affect the deterministic command order.
+            a.trace_kinds=["territory", "siege", "sea10"]
+            expected=["--fief-sea10-trace", "--fief-territory-trace", "--fief-siege-trace"]
+            def fake_process(cmd, stdout):
+                stdout.write(b"mock match output\n")
+                return 0
+            with patch.object(runner, "run_frozen_command", side_effect=fake_process) as call:
+                self.assertEqual(0, runner.run(a))
+            command=call.call_args.args[0]
+            self.assertEqual(expected, command[-3:])
+            freeze=json.loads((a.output/"run-freeze.json").read_text())
+            self.assertEqual(expected, freeze["traces"])
+            self.assertIsNone(freeze["trace"])
+            self.assertEqual(json.loads(manifest.read_text()), freeze["provenance"])
+            self.assertEqual("combined", Path(freeze["output"]).name)
+            self.assertTrue(a.output.is_dir())
+
+    def test_multi_trace_requires_fresh_output_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); source, pack, harness, sim, manifest=self.fixture(root)
+            seeds=root/"seeds"; seeds.write_text("106\n")
+            output=root/"existing"; output.mkdir(); marker=put(output/"keep.txt", b"keep")
+            class Args: pass
+            a=Args(); a.provenance=manifest; a.source_root=source; a.pack=pack; a.harness=harness; a.sim=sim
+            a.seeds=seeds; a.output=output; a.minutes=130; a.trace_kinds=["sea10", "siege"]
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                runner.run(a)
+            self.assertEqual(marker, runner.sha(output/"keep.txt"))
+
     def test_duplicate_seeds_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"seeds"; p.write_text("7\n7\n")
