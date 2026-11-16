@@ -51,9 +51,7 @@ At minute 0, use `]` to advance speed, `[` to reduce speed, and Space or P to pa
 
 ## Remaining checks
 
-- Verify the scratch `OS.GetUserDataDir()` runtime path before any save/replay action.
-- Refresh the scratch source from the final candidate after WP-E5-7/WP-E5-8/F-T8 source work settles; the existing copy is pre-WP7 instrumentation.
-- On an idle host, build/import and run the late-age route, then inspect actual institutions, detailed Shift card, save/load, and replay save/watch.
+- In a graphical session, inspect a naturally completed late-age institution in the world and the detailed Shift settlement card. The integrated current-source runtime save/load/replay pass is now recorded below.
 - Preserve ordinary/Release Fief selection gating until the WP-E5-11 promotion and integration gates pass.
 
 ## Restore regression found during late review
@@ -99,3 +97,19 @@ Evidence files:
 - Dev-fixture launch log: `/private/tmp/civsim-wp10-live-evidence-20261116/logs/game-live-fixture.log`, SHA-256 `baae9cbb01eda04e5d2bbd5f15d025aa953806d58a1899a1f817df42d76154ce`.
 
 This closes the visual mesh placement check using explicitly injected real model state and verifies the concentric castle fix in a live renderer. Natural institution construction, natural stock accumulation, and save/load of the injected fixture remain unverified; retain those boundaries in any WP-E5 gate decision. No E5 status was changed, and no balance cohorts were run.
+
+## Superseding natural buildability run — 2026-11-16
+
+A four-match natural Fief run on clean detached HEAD `70a6b3324f8a0ff7464216fb24ab853eb7581b7b` resolves the earlier question of whether institutions can complete under normal progression. A scratch copy of the content tree changed only the 50 E5/KEY-6 status fields to `numeric`; its pack SHA-256 is `592c53f50dff8328c59d8b8bb5273e8d81e6e5ba7de63e7c8b06b9b4a05f9c76`. Four Warlord matches (seeds `20261019`–`20261022`) ran for 130 simulated minutes each, without grants, injection, or world screening, and ended at season 519. Every seed built castles, monasteries, universities, and hospitals. Across the four matches, 17 castles, 38 monasteries, 6 universities, and 28 hospitals completed; all completed institutions were working at season 519. First traced completion seasons varied by seed; the per-seed table and transient staffing details are in the [run evidence](/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/wp-e5-10-natural-buildability-20261116-103001/evidence.md). This is buildability evidence, not a broad prevalence or balance estimate.
+
+Full command, counts, trace notes, and hashes are in the external [run evidence](/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/wp-e5-10-natural-buildability-20261116-103001/evidence.md) and raw [natural match log](/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/wp-e5-10-natural-buildability-20261116-103001/natural-fief-130m-seeds-20261019-20261022.log). Current-source `GameSaveModeTests`, `SimulationSessionSaveTests`, and `FiefDynasticInheritanceTests` pass 26/26. The separate graphical inspection of a naturally completed late-age institution and the detailed Shift card remains open.
+
+## Final integrated-source persistence run — 2026-11-16
+
+A fresh disposable project copied the current E5 `content/src/game` files byte-for-byte (1,211 files; normalized digest `12b48fa48567d892d68dd0a28fd83d95aa1741184b21827e6ab46169fe2c2aff`) from dirty primary HEAD `70a6b3324f8a0ff7464216fb24ab853eb7581b7b`. Only the disposable project received a unique Godot user-data directory and a `wp10-persistence` scenario that calls the same save/load/replay methods as the game controls. The user's open Godot session and primary checkout were untouched.
+
+Godot 4.7.2 Mono Debug headless editor import and `dotnet build game/CivSim.Game.csproj -c Debug` passed with 0 warnings/errors. The Fief scenario started seed 12345, quick-saved at tick 60, started replacement seed 12346, restored seed 12345, recorded and watched an 80-tick Fief replay, and matched 1/1 periodic checksums. The process emitted `WP10_LIVE_PERSISTENCE_PASS` and exited 0. The save captured Fief mode, seed, and state checksum.
+
+The numeric diagnostic pack SHA-256 is `592c53f50dff8328c59d8b8bb5273e8d81e6e5ba7de63e7c8b06b9b4a05f9c76`; repository E5 catalog rows remain draft. Game/Sim DLL hashes are `75b4d096fb5f019b37c761d3a1efe75b1a4c35c7f33af6cf64f99af25287d906` / `6af8fb91203e21a42f148fc9fb5039199ddd4c118f4d876b0488333b53f27804`. Durable run evidence and quick-save/replay artifacts are in `/Users/ejuchheim/Projects/CivSim/civsim-e5-runs/wp-e5-10-integrated-live-20261116-current/`; report hash `aa12fd306a47eb20af1b757bdc3d4e9b9983a3485d8a264cd0f06cbc647aefe7`, runtime log hash `064abc5defdeb3b7129261c5b21beaae58eed3b37eb69d09861ae140bed24766`.
+
+This closes the isolated integrated-source runtime persistence check. It does not close the remaining graphical verification of naturally completed institution placement and the detailed Shift card. Keep WP-E5-10 open for that visual review.

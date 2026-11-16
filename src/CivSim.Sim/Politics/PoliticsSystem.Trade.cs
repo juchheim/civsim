@@ -66,6 +66,8 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         return compact;
     }
     internal void FixtureEndCompact(Compact compact) => EndCompact(compact, CompactEndReason.Relations);
+    internal OrderRefusalReason FixtureExecuteCompact(int civ, int target, TradeGood good, bool sell)
+        => ExecuteCompact(civ, target, DecreeArgs.PackCompact(good, sell), out _, out _);
     internal void FixtureArriveCaravan(Expedition expedition) => ArriveCaravan(expedition);
     internal void FixtureSendCaravan(Compact compact) => SendCaravan(compact);
     public IReadOnlyList<Pact> Pacts => _pacts;
@@ -340,6 +342,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         bool accepts = receiver >= 0 && _judge[receiver] is { } judge
             ? judge.Accepts(this, civ, receiver, CompactVariant.Goods, good, !weSell, vs, vb)
             : BothGain(vs, vb, sellerCiv, buyerCiv);
+        FiefWp7TraceObserverForDiagnostics?.Invoke($"wp7-trd09-offer seed={_seed} season={_season} proposer={civ} sellerCiv={sellerCiv} buyerCiv={buyerCiv} sellerSettlement={sellerHub} buyerSettlement={buyerHub} good={DecreeArgs.GoodId(good)} sellerUnitValue={vs.Raw} buyerUnitValue={vb.Raw} accepted={accepts.ToString().ToLowerInvariant()} event=offer");
         if (!accepts) return OrderRefusalReason.Rejected;
         var compact = new Compact
         {
@@ -589,6 +592,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         Fix64 sellerBookBasis = _economy.FiefChain ? vs : Fix64.Zero;
         Fix64 agreedInvoice = Fix64.Sqrt(vs * vb) * PilgrimageTradeMultiplier(seller, buyer);
         Fix64 invoice = _economy.FiefChain ? FiefTradeInvoice(c.SellerCiv, agreedInvoice, sellerBookBasis) : agreedInvoice;
+        FiefWp7TraceObserverForDiagnostics?.Invoke($"wp7-trd09-dispatch seed={_seed} season={_season} compact={c.Id} sellerCiv={c.SellerCiv} buyerCiv={c.BuyerCiv} sellerSettlement={seller} buyerSettlement={buyer} good={DecreeArgs.GoodId(c.Good)} dispatchSellerUnitValue={vs.Raw} buyerUnitValue={vb.Raw} cargo={taken.Raw} agreedUnitInvoice={agreedInvoice.Raw} invoice={invoice.Raw} dispatchFrozenUnitValue={sellerBookBasis.Raw} event=dispatch");
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = mover, TargetCiv = c.BuyerCiv, FromSettlement = seller, ToSettlement = buyer,

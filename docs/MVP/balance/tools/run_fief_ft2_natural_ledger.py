@@ -22,6 +22,7 @@ from cohort_provenance import capture, verify_expected
 MATCH_RE = re.compile(r"^== fief-match seed (\d+): .+$", re.MULTILINE)
 LEDGER_RE = re.compile(r"^F-T2 mill power ledger \(12 seasons from first source; grain coverage is adult-equivalent capacity, not a separate flour-stock measure\):$", re.MULTILINE)
 SUMMARY_RE = re.compile(r"^  completed town windows=(\d+); censored=(\d+); .+$", re.MULTILINE)
+WINDOW_ROW_PREFIX_RE = re.compile(r"^  s\d+ c\d+ seasons(?: |$)")
 WINDOW_RE = re.compile(
     r"^  s(?P<settlement>\d+) c(?P<civ>\d+) seasons (?P<start>\d+)–(?P<end>\d+): "
     r"(?P<coverage>(?:\d+(?:\.\d+)?%|n/a)), sources water/wind (?P<water>\d+)/(?P<wind>\d+), "
@@ -80,7 +81,7 @@ def parse_result(raw_text: str, expected_seed: int) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     seen_towns: set[tuple[int, int]] = set()
     for line_number, line in enumerate(raw_text.splitlines(), 1):
-        if not line.startswith("  s"):
+        if WINDOW_ROW_PREFIX_RE.match(line) is None:
             continue
         match = WINDOW_RE.fullmatch(line)
         if match is None:

@@ -70,7 +70,7 @@ public sealed class FiefSiegeBalanceExposureTests
         return new GeneratedWorld(source.Seed, source.Settings, tiles, starts, source.Herds.ToArray(), source.Predators.ToArray(), source.Report);
     }
 
-    private static (Rig Rig, int Home, int Target) Prepared(bool cannon, bool engine, bool concentric)
+    private static (Rig Rig, int Home, int Target) Prepared(bool cannon, bool engine, bool concentric, int cannonCount = 2)
     {
         var rig = new Rig();
         rig.Grant(0, "KEY-5", "WAR-09", "WAR-12", "CHM-07");
@@ -82,9 +82,9 @@ public sealed class FiefSiegeBalanceExposureTests
         economy.FixtureSetGoodStock(home, "G-GRAIN", Fix64.FromInt(1000));
         economy.FixtureSetGoodStock(target, "G-GRAIN", Fix64.FromInt(1000));
         economy.FixtureSetGoodStock(home, "G-CHAR", Fix64.FromInt(30));
-        if (cannon) economy.FixtureSetGoodStock(home, "G-CANNON", Fix64.FromInt(2));
+        if (cannon) economy.FixtureSetGoodStock(home, "G-CANNON", Fix64.FromInt(cannonCount));
         if (engine) economy.FixtureSetGoodStock(home, "G-ENGINE", Fix64.FromInt(2));
-        if (cannon) economy.FixtureSetGoodStock(home, "G-POWDER", Fix64.One);
+        if (cannon) economy.FixtureSetGoodStock(home, "G-POWDER", cannonCount == 1 ? Fix64.FromRatio(1, 4) : Fix64.One);
         economy.FixtureBuildStructure(target, "stone_walls");
         Assert.True(economy.FixtureHasStoneWalls(target));
         if (concentric)
@@ -105,6 +105,64 @@ public sealed class FiefSiegeBalanceExposureTests
             $"controlled siege did not begin; season={rig.Match.Politics.Season}; events=" +
             string.Join(" | ", rig.Match.Politics.Events.Select(e => $"{e.Kind}:c{e.Civ}:other{e.Other}:a{e.A}:b{e.B}")));
         return (rig, home, target);
+    }
+
+    [Fact]
+    public void One_powdered_cannon_fires_one_shot_spends_exactly_one_quarter_and_assigns_four_adults_once()
+    {
+        (Rig rig, int home, int target) = Prepared(cannon: true, engine: false, concentric: true, cannonCount: 1);
+        Investment siege = Assert.Single(rig.Match.Politics.Investments);
+        Assert.Equal(1, siege.Cannons);
+        Assert.Equal(Fix64.Zero, rig.Match.Economy.FixtureGoodStock(home, "G-CANNON"));
+        Defenses garrisoned = rig.Match.Politics.FixtureDefensesOf(target);
+        Assert.True(garrisoned.Castle && garrisoned.ConcentricCastle);
+        Assert.Equal((garrisoned with { ConcentricCastle = false }).Multiplier() * Defenses.ConcentricCastleMultiplier,
+            garrisoned.Multiplier());
+
+        var observations = new System.Collections.Generic.List<SiegeTraceObservation>();
+        var crewDeaths = new System.Collections.Generic.List<long>();
+        rig.Match.Politics.SiegeTraceObserverForDiagnostics = observations.Add;
+        rig.Match.Politics.CombatCasualtyObserverForDiagnostics = (figure, kind, dead, _) =>
+        {
+            if (kind == "siegeCrewAttrition" && dead) crewDeaths.Add(figure.Id);
+        };
+
+        rig.Season();
+
+        SiegeTraceObservation observation = observations[0];
+        Assert.Equal(1, observation.CannonShots);
+        Assert.Equal(1, observation.CannonCrews);
+        Assert.Equal(4, observation.AttritionAssignedCrews);
+        Assert.True(observation.Def09Active);
+        Assert.Equal(Fix64.FromRatio(1, 4), observation.PowderPaid);
+        Assert.Equal(Fix64.Zero, rig.Match.Economy.FixtureGoodStock(home, "G-POWDER"));
+        Assert.Equal(Fix64.Zero, siege.Integrity);
+        Assert.True(siege.PowderBreach);
+        Assert.True((rig.Match.Politics.FixtureDefensesOf(target) with { PowderBreach = siege.PowderBreach }).CanBeAssaulted());
+
+        long[] assigned = siege.Members.Take(4).ToArray();
+        long[] expectedDeaths = assigned.Where(id => Sieges.RollCrewAttrition(Seed, target, observation.Season, id, def09Concentric: true)).ToArray();
+        Assert.Equal(expectedDeaths.OrderBy(id => id), crewDeaths.OrderBy(id => id));
+        Assert.Equal(crewDeaths.Count, crewDeaths.Distinct().Count());
+    }
+
+    [Fact]
+    public void Cannon_without_powder_does_not_damage_or_breach_a_wall()
+    {
+        (Rig rig, int home, int target) = Prepared(cannon: true, engine: false, concentric: false, cannonCount: 1);
+        Investment siege = Assert.Single(rig.Match.Politics.Investments);
+        rig.Match.Economy.FixtureSetGoodStock(home, "G-POWDER", Fix64.Zero);
+        var observations = new System.Collections.Generic.List<SiegeTraceObservation>();
+        rig.Match.Politics.SiegeTraceObserverForDiagnostics = observations.Add;
+
+        rig.Season();
+
+        Assert.Equal(Fix64.One, siege.Integrity);
+        Assert.False(siege.PowderBreach);
+        Assert.Equal(0, observations[0].CannonShots);
+        Assert.Equal(Fix64.Zero, observations[0].PowderPaid);
+        Assert.Equal(Fix64.Zero, rig.Match.Economy.FixtureGoodStock(home, "G-POWDER"));
+        Assert.DoesNotContain(rig.Match.Politics.Events, e => e.Kind == PoliticsEventKind.AssaultResolved && e.Civ == 0 && e.B == target);
     }
 
     [Fact]

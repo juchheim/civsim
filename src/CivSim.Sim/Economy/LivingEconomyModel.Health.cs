@@ -187,7 +187,11 @@ public sealed partial class LivingEconomyModel
         if (HasProject(figure.Civilization, "MED-01")) h *= MedCare(figure.Civilization, Fix64.FromRatio(9, 10));
         if (FiefChain && HospitalStaffed(_settlements[figure.SettlementId]))
         {
-            h *= Fix64.FromRatio(4, 5);
+            SettlementState settlement = _settlements[figure.SettlementId];
+            int spiritsSlot = SlotOf("G-SPIRITS");
+            bool spiritsHeld = Done(figure.Civilization, "CHM-06") && spiritsSlot != NoSlot &&
+                Stock(settlement, spiritsSlot) > Fix64.Zero;
+            h *= spiritsHeld ? Fix64.FromRatio(3, 4) : Fix64.FromRatio(4, 5);
             // MED-07's typed elder_hazard (x0.95): elders in a settlement with a staffed hospital, by the same age line as the age factor above.
             if (figure.Age >= 45) h *= Modifier(figure.Civilization, "elder_hazard");
         }

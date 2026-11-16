@@ -23,7 +23,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Fief-only goods. Stored in a separate snapshot tail so Iron keeps its original goods array and checksum.</summary>
-    private enum FiefGood : byte { Saltpeter, Sulfur, CastIron, Powder, Cannon, Paper, Book, Count }
+    private enum FiefGood : byte { Saltpeter, Sulfur, CastIron, Powder, Cannon, Paper, Book, Spirits, CrucibleSteel, Arms5, Count }
 
     private const int IronGoodsBeforeFief = (int)IronGood.Count;
     private static int FiefSlotBase => IronSlotBase + (int)IronGood.Count;
@@ -32,7 +32,8 @@ public sealed partial class LivingEconomyModel
     private static string FiefGoodId(FiefGood good) => good switch
     {
         FiefGood.Saltpeter => "G-SALTPETER", FiefGood.Sulfur => "G-SULFUR", FiefGood.CastIron => "G-CAST",
-        FiefGood.Powder => "G-POWDER", FiefGood.Cannon => "G-CANNON", FiefGood.Paper => "G-PAPER", FiefGood.Book => "G-BOOK", _ => "",
+        FiefGood.Powder => "G-POWDER", FiefGood.Cannon => "G-CANNON", FiefGood.Paper => "G-PAPER", FiefGood.Book => "G-BOOK",
+        FiefGood.Spirits => "G-SPIRITS", FiefGood.CrucibleSteel => "G-CSTEEL", FiefGood.Arms5 => "G-ARMS5", _ => "",
     };
 
     private static string IronGoodId(IronGood good) => good switch
@@ -1523,7 +1524,14 @@ public sealed partial class LivingEconomyModel
             if (FiefChain)
             {
                 var fiefGoods = new Fix64[(int)FiefGood.Count];
-                ReadFixArray(reader, fiefGoods);
+                if (FiefSnapshotVersionForRestore >= 47) ReadFixArray(reader, fiefGoods);
+                else
+                {
+                    var legacyLength = FiefSnapshotVersionForRestore >= 46 ? (int)FiefGood.CrucibleSteel : (int)FiefGood.Spirits;
+                    var legacyFiefGoods = new Fix64[legacyLength];
+                    ReadFixArray(reader, legacyFiefGoods);
+                    Array.Copy(legacyFiefGoods, fiefGoods, legacyFiefGoods.Length);
+                }
                 foreach (Fix64 amount in fiefGoods) if (amount < Fix64.Zero) throw new InvalidDataException("Snapshot contains a negative Fief-good stock.");
                 metal.FiefGoods = fiefGoods;
             }
@@ -1700,9 +1708,14 @@ public sealed partial class LivingEconomyModel
         int soldiers = 0;
         foreach (FigureState f in Residents(s.Id)) if (f.Role == Role.Soldier) soldiers++;
         if (soldiers == 0) return;
-        Fix64 have = IronStock(s, IronGood.Arms3) + IronStock(s, IronGood.Arms4);
-        IronGood tier = Done(s.Civilization, "MET-10") ? IronGood.Arms4 : IronGood.Arms3;
-        plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+        Fix64 have = IronStock(s, IronGood.Arms3) + IronStock(s, IronGood.Arms4) + Stock(s, FiefSlot(FiefGood.Arms5));
+        if (FiefChain && Done(s.Civilization, "MET-11"))
+            plan.Terminal[FiefSlot(FiefGood.Arms5)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+        else
+        {
+            IronGood tier = Done(s.Civilization, "MET-10") ? IronGood.Arms4 : IronGood.Arms3;
+            plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+        }
     }
 
     /// <summary>

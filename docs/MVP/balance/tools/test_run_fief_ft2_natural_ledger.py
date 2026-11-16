@@ -124,6 +124,12 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(any("malformed F-T2 town window row" in error for error in parsed["parseErrors"]))
         self.assertTrue(parsed["parseErrors"])
 
+    def test_unrelated_sawmill_summary_is_not_parsed_as_town_window(self):
+        text = result_text(101) + "  sawmill lacks wood: 1 towns\n"
+        parsed = runner.parse_result(text, 101)
+        self.assertEqual([], parsed["parseErrors"])
+        self.assertEqual(3, parsed["townWindowRows"])
+
     def test_censored_short_window_counts_only_as_censored(self):
         parsed = runner.parse_result(result_text(101), 101)
         censored = next(row for row in parsed["townWindows"] if row["civ"] == 1)

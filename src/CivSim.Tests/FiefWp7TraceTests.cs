@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -6,6 +7,7 @@ using CivSim.Harness;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
 
@@ -42,6 +44,113 @@ public sealed class FiefWp7TraceTests
             runner.Submit(new Command(runner.Tick, (byte)civ, CommandKind.CompleteProject, index, 0, 0));
             runner.Advance(2);
         }
+    }
+
+    private sealed class AcceptAllCompactJudge : ICompactJudge
+    {
+        public bool Accepts(PoliticsSystem politics, int proposer, int receiver, CompactVariant variant, TradeGood good,
+            bool receiverSells, Fix64 sellerValue, Fix64 buyerValue) => true;
+    }
+
+    private static int SettlementFor(MatchModel match, int civ)
+        => Enumerable.Range(0, match.Economy.SettlementCount)
+            .First(settlement => match.Economy.SettlementLite(settlement).Civilization == civ);
+
+    [Fact]
+    public void TRD09_offer_dispatch_and_arrival_trace_is_transaction_neutral()
+    {
+        const ulong seed = Seed + 41;
+        var pack = TestPack.WithNumeric("TRD-09");
+        GeneratedWorld world = WorldGenerator.Generate(seed);
+        MatchModel quiet = MatchModel.Create(seed, pack, world, Balanced, default, rules: ChapterRules.Fief);
+        MatchModel traced = MatchModel.Create(seed, pack, world, Balanced, default, rules: ChapterRules.Fief);
+        var quietRunner = new SimRunner(quiet);
+        var tracedRunner = new SimRunner(traced);
+        for (int civ = 0; civ < 4; civ++)
+        {
+            quiet.Politics.SetDecreePolicy(civ, null);
+            traced.Politics.SetDecreePolicy(civ, null);
+        }
+        int buyerCiv = -1;
+        for (int candidate = 1; candidate < 4; candidate++)
+        {
+            quiet.Politics.ForceContact(0, candidate);
+            traced.Politics.ForceContact(0, candidate);
+            if (quiet.Politics.Diplomacy.Contacted(0, candidate) &&
+                !quiet.Politics.Diplomacy.AtWar(0, candidate) &&
+                quiet.Politics.Diplomacy.Relations(0, candidate) >= 0)
+            {
+                buyerCiv = candidate;
+                break;
+            }
+        }
+        Assert.InRange(buyerCiv, 1, 3);
+        quiet.Politics.SetCompactJudge(buyerCiv, new AcceptAllCompactJudge());
+        traced.Politics.SetCompactJudge(buyerCiv, new AcceptAllCompactJudge());
+
+        Grant(quietRunner, quiet, 0, "KEY-3", "TRD-09");
+        Grant(tracedRunner, traced, 0, "KEY-3", "TRD-09");
+        int seller = SettlementFor(quiet, 0), buyer = SettlementFor(quiet, buyerCiv);
+        int tracedSeller = SettlementFor(traced, 0), tracedBuyer = SettlementFor(traced, buyerCiv);
+        int sellerTile = quiet.Economy.SettlementLite(seller).SiteTile;
+        var occupiedTiles = Enumerable.Range(0, quiet.Economy.SettlementCount)
+            .Select(settlement => quiet.Economy.SettlementLite(settlement).SiteTile).ToHashSet();
+        int adjacentLandTile = Enumerable.Range(0, world.TileCount)
+            .First(tile => world.TileAt(tile).IsLand && !occupiedTiles.Contains(tile) &&
+                           HexGrid.Distance(sellerTile, tile, world.Width) == 1);
+        quiet.Economy.FixtureMoveSite(buyer, adjacentLandTile);
+        traced.Economy.FixtureMoveSite(tracedBuyer, adjacentLandTile);
+        quiet.Politics.FixtureRefreshPilgrimageSettlements();
+        traced.Politics.FixtureRefreshPilgrimageSettlements();
+        foreach ((MatchModel match, int sellerIndex, int buyerIndex) in new[]
+        {
+            (quiet, seller, buyer), (traced, tracedSeller, tracedBuyer),
+        })
+        {
+            match.Economy.FixtureStock(sellerIndex, "G-SALT", Fix64.FromInt(1000));
+            match.Economy.FixtureStock(buyerIndex, "G-SALT", -match.Economy.GoodStock(buyerIndex, "G-SALT"));
+        }
+        var rows = new List<string>();
+        traced.Politics.FiefWp7TraceObserverForDiagnostics = rows.Add;
+        Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
+
+        OrderRefusalReason quietOffer = quiet.Politics.FixtureExecuteCompact(0, buyerCiv, TradeGood.Salt, sell: true);
+        OrderRefusalReason tracedOffer = traced.Politics.FixtureExecuteCompact(0, buyerCiv, TradeGood.Salt, sell: true);
+        Assert.True(quietOffer == 0 && tracedOffer == 0,
+            $"offers must match and succeed; quiet={quietOffer}, traced={tracedOffer}, buyer={buyerCiv}, relation={quiet.Politics.Diplomacy.Relations(0, buyerCiv)}, war={quiet.Politics.Diplomacy.AtWar(0, buyerCiv)}");
+        Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
+        Assert.Single(quiet.Politics.Compacts, compact => compact.Active && compact.Good == TradeGood.Salt);
+        Assert.Contains(rows, row => row.Contains("wp7-trd09-offer", StringComparison.Ordinal) &&
+                                     row.Contains("event=offer", StringComparison.Ordinal) &&
+                                     row.Contains("accepted=true", StringComparison.Ordinal) &&
+                                     row.Contains("sellerUnitValue=", StringComparison.Ordinal) &&
+                                     row.Contains("buyerUnitValue=", StringComparison.Ordinal));
+
+        Compact quietCompact = Assert.Single(quiet.Politics.Compacts, compact => compact.Active && compact.Good == TradeGood.Salt);
+        Compact tracedCompact = Assert.Single(traced.Politics.Compacts, compact => compact.Active && compact.Good == TradeGood.Salt);
+        quiet.Politics.FixtureSendCaravan(quietCompact);
+        traced.Politics.FixtureSendCaravan(tracedCompact);
+        Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
+        Expedition quietShipment = Assert.Single(quiet.Politics.Expeditions, shipment => shipment.Kind == ExpeditionKind.Caravan && shipment.CompactId == quietCompact.Id);
+        Expedition tracedShipment = Assert.Single(traced.Politics.Expeditions, shipment => shipment.Kind == ExpeditionKind.Caravan && shipment.CompactId == tracedCompact.Id);
+        Assert.Equal(quietShipment.Cargo, tracedShipment.Cargo);
+        Assert.Equal(quietShipment.Value, tracedShipment.Value);
+        string dispatchRow = Assert.Single(rows, row => row.Contains("wp7-trd09-dispatch", StringComparison.Ordinal));
+        Assert.Contains("event=dispatch", dispatchRow, StringComparison.Ordinal);
+        Assert.Contains("dispatchFrozenUnitValue=", dispatchRow, StringComparison.Ordinal);
+        static long RawField(string row, string name)
+            => long.Parse(row.Split(' ').Single(part => part.StartsWith(name + "=", StringComparison.Ordinal)).Split('=')[1]);
+        Assert.True(RawField(dispatchRow, "cargo") > 0);
+        Assert.True(RawField(dispatchRow, "invoice") > 0);
+
+        quiet.Politics.FixtureArriveCaravan(quietShipment);
+        traced.Politics.FixtureArriveCaravan(tracedShipment);
+        Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
+        string transactionRow = Assert.Single(rows, row => row.Contains("wp7-trd09-transaction", StringComparison.Ordinal));
+        Assert.True(RawField(transactionRow, "paid") > 0);
+        Assert.True(RawField(transactionRow, "delivered") > 0);
+        string stockDeltas = transactionRow.Split(' ').Single(part => part.StartsWith("stockDeltas=", StringComparison.Ordinal))["stockDeltas=".Length..];
+        Assert.NotEmpty(stockDeltas);
     }
 
     [Fact]

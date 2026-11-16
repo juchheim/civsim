@@ -506,19 +506,41 @@ public sealed partial class LivingEconomyModel
     {
         fireSetting = false;
         WorldDeposit d = _world.Deposit(tile);
-        if (d.Kind is DepositKind.Gold or DepositKind.Silver) return BaseRate("pan_gold", Fix64.FromRatio(1, 10));
-        if (d.Kind == DepositKind.Salt) return BaseRate("salt", Fix64.One);
-        if (d.Kind is DepositKind.Saltpeter or DepositKind.Sulfur) return BaseRate("mine", Fix64.One);
-        Fix64 factor = d.Kind == DepositKind.Tin ? Fix64.Half : Fix64.One;
-        Fix64 rate = BaseRate("mine", Fix64.One) * factor;
-        if (mineHead && Done(civ, "MIN-04"))
+        Fix64 rate;
+        if (d.Kind is DepositKind.Gold or DepositKind.Silver) rate = BaseRate("pan_gold", Fix64.FromRatio(1, 10));
+        else if (d.Kind == DepositKind.Salt) rate = BaseRate("salt", Fix64.One);
+        else if (d.Kind is DepositKind.Saltpeter or DepositKind.Sulfur) rate = BaseRate("mine", Fix64.One);
+        else
         {
-            Fix64 fire = MethodMult(civ, "mine", 2);
-            Fix64 shaft = MethodMult(civ, "mine", 1);
-            if (fire > Fix64.Zero) { fireSetting = true; return rate * fire; }
-            if (shaft > Fix64.Zero) return rate * shaft;
+            Fix64 factor = d.Kind == DepositKind.Tin ? Fix64.Half : Fix64.One;
+            rate = BaseRate("mine", Fix64.One) * factor;
+            if (mineHead && Done(civ, "MIN-04"))
+            {
+                Fix64 fire = MethodMult(civ, "mine", 2);
+                Fix64 shaft = MethodMult(civ, "mine", 1);
+                if (fire > Fix64.Zero) { fireSetting = true; rate *= fire; }
+                else if (shaft > Fix64.Zero) rate *= shaft;
+                else if (d.Depth >= 2) rate = Fix64.Zero;
+            }
+            else if (d.Depth >= 2) rate = Fix64.Zero;
         }
-        return d.Depth >= 2 ? Fix64.Zero : rate;
+
+        // MIN-08 is a Fief-only bonus for known veins within the civilization's own territory.
+        // Ownership is the economy's existing visibility/claim boundary; don't boost unowned or rival deposits.
+        if (rate > Fix64.Zero && FiefChain && Done(civ, "MIN-08") && _ore[tile] > Fix64.Zero &&
+            d.Kind != DepositKind.None && IsOwnTile(civ, tile))
+            rate *= Fix64.FromRatio(5, 4);
+        return rate;
+    }
+
+    internal Fix64 FixtureMineRate(int civ, int tile)
+        => DepositWorkable(civ, tile) ? MineRate(civ, tile, mineHead: false, out _) : Fix64.Zero;
+
+    internal int FixtureFirstUnknownDepositTile()
+    {
+        for (int tile = 0; tile < _world.TileCount; tile++)
+            if (_world.Deposit(tile).Kind == DepositKind.None || _ore[tile] <= Fix64.Zero) return tile;
+        return -1;
     }
 
     private bool IsOwnTile(int civ, int tile)

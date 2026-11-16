@@ -80,6 +80,28 @@ public sealed partial class PoliticsSystem
         if (!_economy.FiefChain) return;
         EnsureDynasticInheritanceState();
 
+        // One observation row is the denominator unit: a live Free Folk settlement-season.
+        // Claimant-specific keyed draws remain separate rows below. This prepass is read-only
+        // and runs only when an observer is installed, so tracing cannot alter decisions.
+        if (FiefWp7TraceObserverForDiagnostics is { } observer)
+        {
+            for (int settlement = 0; settlement < _sCount; settlement++)
+            {
+                if (!_free[settlement] || _sPop[settlement] <= 0) continue;
+                var eligibleClaimants = new System.Collections.Generic.List<int>();
+                for (int civ = 0; civ < _civs; civ++)
+                    if (DynasticEligible(civ, settlement)) eligibleClaimants.Add(civ);
+
+                (int settlementId, _, _, _, _, _) = _economy.SettlementLite(settlement);
+                int pendingClaimant = _dynasticPendingCiv[settlement];
+                string classification = pendingClaimant >= 0
+                    ? "pending_confirmation"
+                    : eligibleClaimants.Count > 0 ? "eligible_exposure" : "no_eligible_claimant";
+                string claimantIds = eligibleClaimants.Count == 0 ? "none" : string.Join(",", eligibleClaimants);
+                observer($"wp7-dip08 seed={_seed} season={season} settlement={settlementId} settlementSeasonKey={season}:{settlementId} event=settlement_season live=true freeFolk=true population={_sPop[settlement]} eligibleClaimantCount={eligibleClaimants.Count} eligibleClaimantIds={claimantIds} pendingClaimant={pendingClaimant} classification={classification}");
+            }
+        }
+
         for (int settlement = 0; settlement < _sCount; settlement++)
         {
             int claimant = _dynasticPendingCiv[settlement];

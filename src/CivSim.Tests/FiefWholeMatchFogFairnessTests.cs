@@ -39,6 +39,25 @@ public sealed class FiefWholeMatchFogFairnessTests
         CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Grower), CivControl.Ai(Difficulty.Legend, EconomyArchetype.Sage),
     };
 
+    [Fact]
+    public void Visible_fleet_control_is_applied_and_observed_in_the_checkpoint_mind()
+    {
+        CivControl[] controls = FogFairnessHarness.DefaultControls();
+        const ulong seed = 20261116;
+        MatchModel baseline = FogFairnessHarness.NewMatch(controls, seed, fief: true);
+        MatchModel perturbed = FogFairnessHarness.NewMatch(controls, seed, fief: true);
+
+        // Establish both minds at the same checkpoint, then plant the fixture and run its
+        // same-tick observation/decision pass, as the whole-match harness does after season end.
+        baseline.Ai!.OnSeasonEnd(0);
+        perturbed.Ai!.OnSeasonEnd(0);
+        Assert.Null(ApplyVisibleFleetControl(perturbed, observer: 0));
+        perturbed.Ai.OnSeasonEnd(0);
+
+        List<string> diffs = FogFairnessHarness.CompareMinds(baseline, perturbed, observer: 0, sinceTick: 0);
+        Assert.Contains(diffs, diff => diff.StartsWith("own fleet:", StringComparison.Ordinal));
+    }
+
     private sealed class Row
     {
         public ulong Seed; public int Season; public int Observer; public string Kind = "";
@@ -184,14 +203,18 @@ public sealed class FiefWholeMatchFogFairnessTests
                     MatchModel fc = Clone(match, pack, seed);
                     var fr = new SimRunner(fc, int.MaxValue, tick);
                     var frow = new Row { Seed = seed, Season = season, Observer = it.Observer, Kind = "triage-fleet-control" };
-                    string? why = ApplyVisible(fc, match, it.Observer, "visible-fleet");
-                    if (why is not null) { frow.NotApplied = why; lock (lockObj) writer.WriteLine(ToJson(frow)); }
-                    else runs.Add(("fleet-control", it.Observer, fc, fr, frow, ""));
+                    runs.Add(("fleet-control", it.Observer, fc, fr, frow, ""));
                 }
                 runner.Advance(1);
                 foreach (var r in runs) r.Runner.Advance(1);
                 foreach (var r in runs)
                 {
+                    if (r.Label == "fleet-control")
+                    {
+                        string? why = ApplyVisibleFleetControl(r.Copy, r.Observer);
+                        if (why is not null) { r.Row.NotApplied = why; lock (lockObj) writer.WriteLine(ToJson(r.Row)); continue; }
+                        r.Copy.Ai!.OnSeasonEnd(tick);
+                    }
                     List<string> diffs = Compare(match, r.Copy, r.Observer, tick);
                     AiSeat bs = match.Ai!.SeatOf(r.Observer)!, cs = r.Copy.Ai!.SeatOf(r.Observer)!;
                     var inputDiffs = new List<string>();
@@ -267,7 +290,10 @@ public sealed class FiefWholeMatchFogFairnessTests
                 if (!HasHome(match, visibleObserver)) { row.NotApplied = "observer has no settlement"; rows.Add(row); continue; }
                 MatchModel copy = Clone(match, pack, seed);
                 var cr = new SimRunner(copy, int.MaxValue, tick);
-                string? why = ApplyVisible(copy, match, visibleObserver, kind);
+                // Fleet is applied at the checkpoint's observation phase below. Planting a fake
+                // supplied-crew count before the season pass is invalid: the economy correctly
+                // replaces it from real soldier residents and food during that pass.
+                string? why = kind == "visible-fleet" ? null : ApplyVisible(copy, match, visibleObserver, kind);
                 if (why is not null) { row.NotApplied = why; rows.Add(row); continue; }
                 row.Applied = true;
                 pending.Add((row, copy, cr, null, ExpectedLabel(kind)));
@@ -276,15 +302,25 @@ public sealed class FiefWholeMatchFogFairnessTests
 
             runner.Advance(1);
             foreach ((_, _, SimRunner advanceRunner, _, _) in pending) advanceRunner.Advance(1);
+            foreach ((Row row, MatchModel copy, _, _, _) in pending)
+            {
+                if (row.Kind != "visible-fleet") continue;
+                string? why = ApplyVisibleFleetControl(copy, row.Observer);
+                if (why is not null)
+                {
+                    row.Applied = false;
+                    row.NotApplied = why;
+                    continue;
+                }
+                // Re-evaluate this checkpoint's AI observation and decision pipeline at the same
+                // season-end tick, with the visible fleet present in own state.
+                copy.Ai!.OnSeasonEnd(tick);
+            }
             foreach ((Row row, MatchModel copy, _, MatchModel? against, string? expect) in pending)
             {
                 MatchModel reference = against ?? match;
                 row.WorldChanged = copy.ComputeChecksum() != reference.ComputeChecksum();
                 row.Diffs = row.Applied ? Compare(reference, copy, row.Observer, tick) : new List<string>();
-                if (row.Applied && row.Kind == "visible-fleet" && copy.Ai!.SeatOf(row.Observer)!.Own.CrewedGalleyHomes.Count <= reference.Ai!.SeatOf(row.Observer)!.Own.CrewedGalleyHomes.Count)
-                {
-                    row.Applied = false; row.NotApplied = "planted crew lapsed by season end (fixture did not persist)"; row.Diffs = new List<string>();
-                }
                 if (!row.Applied) { }
                 else if (expect is null)
                 {
@@ -656,17 +692,7 @@ public sealed class FiefWholeMatchFogFairnessTests
                 copy.Economy.FixtureStock(home, "G-POWDER", Fix64.FromInt(7));
                 return null;
             case "visible-fleet":
-            {
-                int target = -1;
-                for (int s = 0; s < copy.Politics.SettlementTotal; s++)
-                    if (copy.Politics.SettlementCivOf(s) == observer && !copy.Politics.IsFreeFolk(s) && copy.Politics.SettlementPopulationOf(s) > 0 && !copy.Economy.CrewedGalley(s)) { target = s; break; }
-                if (target < 0) return "every own settlement already has a crewed galley";
-                copy.Economy.FixtureBuildIronStructure(target, "harbor");
-                copy.Economy.FixtureBuildIronStructure(target, "galley");
-                copy.Economy.FixtureSetSoldiersSupplied(target, 8);
-                if (!copy.Economy.CrewedGalley(target)) return "fixture did not produce a crewed galley";
-                return null;
-            }
+                return ApplyVisibleFleetControl(copy, observer);
             default:
             {
                 if (baseline.Ai!.SeatOf(observer)!.Belief.HorseSource == HorseSourceKnowledge.Seen) return "observer already knows a horse source";
@@ -684,6 +710,19 @@ public sealed class FiefWholeMatchFogFairnessTests
                 return null;
             }
         }
+    }
+
+    internal static string? ApplyVisibleFleetControl(MatchModel copy, int observer)
+    {
+        int target = -1;
+        for (int s = 0; s < copy.Politics.SettlementTotal; s++)
+            if (copy.Politics.SettlementCivOf(s) == observer && !copy.Politics.IsFreeFolk(s) && copy.Politics.SettlementPopulationOf(s) > 0 && !copy.Economy.CrewedGalley(s)) { target = s; break; }
+        if (target < 0) return "every own settlement already has a crewed galley";
+        copy.Economy.FixtureBuildIronStructure(target, "harbor");
+        copy.Economy.FixtureBuildIronStructure(target, "galley");
+        copy.Economy.FixtureSetSoldiersSupplied(target, 8);
+        if (!copy.Economy.CrewedGalley(target)) return "fixture did not produce a crewed galley";
+        return null;
     }
 
     /// <summary>The research half of FogFairnessHarness.PerturbUnseen (rivals never contacted and whose figures are out of sight).</summary>

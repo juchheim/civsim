@@ -1,6 +1,6 @@
 # F-T8 measurement implementation and calibration note — 2026-11-16
 
-**Status:** An opt-in Fief territory trace and deterministic metric fixtures are added to the working tree after isolated development. They have not yet been built or run. No F-T8 cohort was launched. This is instrumentation and a provisional calibration note only; F-T8 and all E5 numeric rows remain unpromoted.
+**Status:** An opt-in Fief territory trace and deterministic metric fixtures are integrated. Focused current-source Release verification passed 32/32 across territory trace, hospital, siege-exposure, crucible-steel, and mine-surveying tests. No F-T8 cohort was launched. This is instrumentation and a provisional calibration note only; F-T8 and all E5 numeric rows remain unpromoted.
 
 ## Governing wording and limits
 
@@ -54,3 +54,7 @@ For an autonomous first calibration, use the existing four-player E4 live refere
 `FiefTerritoryTraceTests` covers percent/City-share arithmetic, claimed-weight Dominion accrual, the exact 50%-and-2× rule, and elapsed-season persistence/reset behavior. The isolated follow-up patch adds an `Append` integration test that samples season 0 through season 4, verifies all four civilizations and annual-field labeling, and compares traced/untraced match checksums after every sample. It also changes the persistence counter to elapsed seasonal intervals and prevents season 0 from emitting a false annual net delta. The patch is not compiled or executed because active AI cohorts and test processes are consuming the host. A Release build and focused test run remain due when those workloads are idle. Release binaries were left untouched.
 
 F-T8 still needs a dedicated unscreened cohort on the frozen current candidate, a live E4 reference or matched baseline with comparable seeds/starts/horizons, analysis by geography and horizon, censors, and review of whether observed City share/map fill/Dominion trajectories meet the design intent. A Dominion predicate trace cannot close a missing in-engine victory ending. No threshold was promoted and no simulation cohort was started.
+
+### Focused current-source verification — 2026-11-16
+
+The current working-tree source snapshot `bb41f33e82b5bb12e84e1fa57e10e93366d28123f3f6ce433943942fd67b4afc` (HEAD `70a6b3324f8a0ff7464216fb24ab853eb7581b7b`) was copied to a disposable build directory. The numeric-status pack was built from a separate temporary content copy; no canonical row status changed. A Release test filter covering `FiefTerritoryTraceTests`, `FiefHospitalTests`, `FiefSiegeBalanceExposureTests`, `FiefCrucibleSteelTests`, and `FiefMineSurveyingTests` passed **32/32** in 14 seconds. This validates the current instrumentation/mechanics fixtures only; it does not establish F-T8 cohort acceptance or numeric promotion. The user-facing Godot playtest was left untouched.

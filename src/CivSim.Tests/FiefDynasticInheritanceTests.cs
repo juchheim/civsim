@@ -23,8 +23,10 @@ public sealed class FiefDynasticInheritanceTests
         => MatchModel.Create(seed, Pack.Value, World.Value, Balanced, default, rules: rules ?? ChapterRules.Fief);
 
     private static void Grant(MatchModel match, int civ, params string[] projects)
+        => Grant(new SimRunner(match), match, civ, projects);
+
+    private static void Grant(SimRunner runner, MatchModel match, int civ, params string[] projects)
     {
-        var runner = new SimRunner(match);
         foreach (string project in projects)
         {
             int index = match.Research.Catalog.IndexOf(project);
@@ -47,6 +49,37 @@ public sealed class FiefDynasticInheritanceTests
         => Enumerable.Range(0, World.Value.TileCount)
             .Where(t => World.Value.TileAt(t).IsLand && HexGrid.Distance(origin, t, World.Value.Width) == distance)
             .First();
+
+    private static (MatchModel Quiet, MatchModel Traced, int Folk) ConfigureTwoEligibleClaimants()
+    {
+        MatchModel quiet = Start();
+        MatchModel traced = Start();
+        (int source, int folk) = SourceAndFolk(quiet);
+        int sourceTile = quiet.Economy.SettlementLite(source).SiteTile;
+        int alliedHome = Enumerable.Range(0, quiet.Economy.SettlementCount)
+            .First(s => quiet.Economy.SettlementLite(s).Civilization == 2);
+        int alliedTile = TileAtDistance(sourceTile, 4);
+        int folkTile = TileAtDistance(sourceTile, 2);
+
+        foreach (MatchModel match in new[] { quiet, traced })
+        {
+            match.Economy.FixtureMoveSite(alliedHome, alliedTile);
+            match.Politics.FixtureRefreshPilgrimageSettlements();
+            match.Politics.FixtureSetFreeFolkSettlement(folk, folkTile);
+            match.Politics.FixtureAlly(0, 2);
+            var runner = new SimRunner(match);
+            Grant(runner, match, 0, "KEY-5", "DIP-07", "GOV-09", "DIP-08");
+            Grant(runner, match, 2, "KEY-5", "DIP-07", "GOV-09", "DIP-08");
+            Assert.True(match.Politics.FixtureDynasticEligible(0, folk));
+            Assert.True(match.Politics.FixtureDynasticEligible(2, folk));
+        }
+        return (quiet, traced, folk);
+    }
+
+    private static string[] DenominatorRows(System.Collections.Generic.IEnumerable<string> rows, int settlementId)
+        => rows.Where(row => row.Contains("event=settlement_season", StringComparison.Ordinal) &&
+                             row.Contains($"settlement={settlementId} ", StringComparison.Ordinal))
+               .ToArray();
 
     private static byte[] Snapshot(MatchModel match)
     {
@@ -114,6 +147,49 @@ public sealed class FiefDynasticInheritanceTests
         resumed.Politics.FixtureAdvanceDynasticInheritance(rollSeason + 2);
         Assert.False(resumed.Politics.IsFreeFolk(folk));
         Assert.Equal(0, resumed.Politics.SettlementCivOf(folk));
+    }
+
+    [Fact]
+    public void Trace_emits_one_settlement_season_denominator_with_multiple_eligible_claimants_and_is_checksum_neutral()
+    {
+        (MatchModel quiet, MatchModel traced, int folk) = ConfigureTwoEligibleClaimants();
+        var rows = new System.Collections.Generic.List<string>();
+        traced.Politics.FiefWp7TraceObserverForDiagnostics = rows.Add;
+        Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
+
+        quiet.Politics.FixtureAdvanceDynasticInheritance(40);
+        traced.Politics.FixtureAdvanceDynasticInheritance(40);
+
+        Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
+        int folkId = traced.Economy.SettlementLite(folk).Id;
+        string row = Assert.Single(DenominatorRows(rows, folkId));
+        Assert.Contains($"settlementSeasonKey=40:{folkId}", row, StringComparison.Ordinal);
+        Assert.Contains("eligibleClaimantCount=2", row, StringComparison.Ordinal);
+        Assert.Contains("eligibleClaimantIds=0,2", row, StringComparison.Ordinal);
+        Assert.Contains("classification=eligible_exposure", row, StringComparison.Ordinal);
+
+        string[] allDenominators = rows.Where(r => r.Contains("event=settlement_season", StringComparison.Ordinal)).ToArray();
+        string[] keys = allDenominators.Select(r => r.Split("settlementSeasonKey=", 2)[1].Split(' ')[0]).ToArray();
+        Assert.Equal(keys.Length, keys.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void Trace_emits_a_no_eligible_claimant_row_for_a_live_free_folk_settlement()
+    {
+        MatchModel match = Start();
+        (int _, int folk) = SourceAndFolk(match);
+        int sourceTile = match.Economy.SettlementLite(0).SiteTile;
+        match.Politics.FixtureSetFreeFolkSettlement(folk, TileAtDistance(sourceTile, 4));
+        var rows = new System.Collections.Generic.List<string>();
+        match.Politics.FiefWp7TraceObserverForDiagnostics = rows.Add;
+
+        match.Politics.FixtureAdvanceDynasticInheritance(9);
+
+        int folkId = match.Economy.SettlementLite(folk).Id;
+        string row = Assert.Single(DenominatorRows(rows, folkId));
+        Assert.Contains("eligibleClaimantCount=0", row, StringComparison.Ordinal);
+        Assert.Contains("eligibleClaimantIds=none", row, StringComparison.Ordinal);
+        Assert.Contains("classification=no_eligible_claimant", row, StringComparison.Ordinal);
     }
 
     [Fact]

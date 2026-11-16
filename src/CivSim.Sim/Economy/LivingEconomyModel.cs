@@ -216,7 +216,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 45;
+    private const int FiefSnapshotVersion = 47;
     internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
     private bool _fiefCraftNeedsMigration;
     private bool _fiefBowGoodsNeedRead;
@@ -258,6 +258,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     // These are visible care episodes; the baseline hazards also include acute unobserved cases.
     private static readonly Fix64 HealthEpisodeChance = Fix64.Parse("0.16");
     private static readonly Fix64 CarePatientWork = Fix64.Parse("0.1");
+    // Maximum base adult work at high Cohesion, including the Fief Clock Tower's 5% multiplier.
+    private static readonly Fix64 MaximumCareWork = Fix64.FromRatio(115, 100) * Fix64.FromRatio(105, 100);
     private const byte HealerRole = 1;
     private const byte MidwifeRole = 2;
     // §10.9 specifies the ten-tick loss condition, but no fuel or work rate. The
@@ -7168,7 +7170,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int magic = reader.ReadInt32();
         int version = reader.ReadInt32();
-        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (FiefChain) FiefSnapshotVersionForRestore = version;
         _fiefKnowHowNeedsMigration = FiefChain && version == 40;
@@ -7445,9 +7447,10 @@ public sealed partial class LivingEconomyModel : ISimModel
                 f.HuntWorkThisSeason > f.WorkThisSeason || f.HuntingInjuryHazard < Fix64.Zero ||
                 f.HuntingInjuryHazard > Fix64.Parse("0.03"))
                 throw new InvalidDataException("Snapshot contains an invalid figure or settlement reference.");
+            Fix64 effectiveWorkCapacity = WorkCapacity(f);
             if (f.IllnessSeasons > 2 || f.WoundSeasons > 2 || f.CareRolesThisSeason > (HealerRole | MidwifeRole) ||
-                // Cohesion paces work up to ×1.15 from KEY-3 (docs/MVP/22 §8.3), so a provider may give up to 1.15 work-seasons.
-                f.CareWorkThisSeason < Fix64.Zero || f.CareWorkThisSeason > Fix64.FromRatio(115, 100) ||
+                f.CareWorkThisSeason < Fix64.Zero || f.CareWorkThisSeason > MaximumCareWork ||
+                f.CareWorkThisSeason + f.FireWorkThisSeason > f.WorkThisSeason ||
                 f.CareWorkThisSeason > f.WorkThisSeason ||
                 f.FireWorkThisSeason < Fix64.Zero || f.FireWorkThisSeason > FireKeepingWork ||
                 f.FireWorkThisSeason > f.WorkThisSeason ||
@@ -7459,7 +7462,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 ((f.MidwifeAttended || (f.CareRolesThisSeason & MidwifeRole) != 0) && !HasProject(f.Civilization, "MED-03")) ||
                 ((f.CareRolesThisSeason & HealerRole) != 0 && !HasProject(f.Civilization, "MED-01") &&
                     !HasProject(f.Civilization, "MED-02")))
-                throw new InvalidDataException($"Snapshot contains invalid health or care state (figure {f.Id}: illness {f.IllnessSeasons}, wound {f.WoundSeasons}, care {f.CareRolesThisSeason}/{f.CareWorkThisSeason}, fire {f.FireWorkThisSeason}, job {f.Job}, work {f.WorkThisSeason}).");
+                throw new InvalidDataException($"Snapshot contains invalid health or care state (figure {f.Id}: age {f.Age}, illness {f.IllnessSeasons}, wound {f.WoundSeasons}, care {f.CareRolesThisSeason}/{f.CareWorkThisSeason}, fire {f.FireWorkThisSeason}, capacity {effectiveWorkCapacity}, diseaseTreated {f.DiseaseTreated}, woundTreated {f.WoundTreated}, midwifeAttended {f.MidwifeAttended}, MED-01 {HasProject(f.Civilization, "MED-01")}, MED-02 {HasProject(f.Civilization, "MED-02")}, MED-03 {HasProject(f.Civilization, "MED-03")}, job {f.Job}, work {f.WorkThisSeason}).");
             if (f.SkillLevels.Length != (int)SkillFamily.Count || f.SkillPractice.Length != (int)SkillFamily.Count)
                 throw new InvalidDataException("Snapshot action-skill state has an invalid length.");
             for (int skill = 0; skill < (int)SkillFamily.Count; skill++)

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
@@ -99,6 +100,34 @@ public sealed class FiefGuildCraftTests
     }
 
     [Fact]
+    public void SOC11_does_not_change_T12_kit_service_life_or_per_work_durability()
+    {
+        var pack = TestPack.WithNumeric("SOC-11");
+        BronzeFixture plain = BronzeFixture.CreateFiefWithCamp(pack, Seed + 6, 100, "MEC-03");
+        BronzeFixture guild = BronzeFixture.CreateFiefWithCamp(pack, Seed + 6, 100, "MEC-03", "SOC-11");
+        int adult = -1;
+        foreach (BronzeFixture fixture in new[] { plain, guild })
+        {
+            int candidate = Enumerable.Range(0, fixture.Economy.FigureCount)
+                .FirstOrDefault(i => fixture.Economy.Figure(i).Age >= 14, -1);
+            Assert.True(candidate >= 0, "the paired Fief fixture needs an adult carrying a T12 kit");
+            if (adult < 0) adult = candidate;
+            else Assert.Equal(adult, candidate);
+            fixture.Economy.FixtureSetKit(candidate, 12, Fix64.FromInt(40));
+        }
+
+        Assert.Equal(Fix64.FromInt(60), plain.Economy.FixtureKitLife(12).Service);
+        Assert.Equal(plain.Economy.FixtureKitLife(12), guild.Economy.FixtureKitLife(12));
+        Assert.Equal(Fix64.One, plain.Economy.FixtureCraftServiceLifeMultiplier(0, "G-TOOL12", 60));
+        Assert.Equal(Fix64.One, guild.Economy.FixtureCraftServiceLifeMultiplier(0, "G-TOOL12", 60));
+
+        plain.Economy.FixtureWearKit(adult, Fix64.FromInt(10));
+        guild.Economy.FixtureWearKit(adult, Fix64.FromInt(10));
+        Assert.Equal(Fix64.FromInt(30), plain.Economy.FixtureKitLeft(adult));
+        Assert.Equal(plain.Economy.FixtureKitLeft(adult), guild.Economy.FixtureKitLeft(adult));
+    }
+
+    [Fact]
     public void Fief_craft_training_and_waste_continue_through_snapshot()
     {
         BronzeFixture fixture = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, Seed, 100, "MEC-03");
@@ -131,5 +160,58 @@ public sealed class FiefGuildCraftTests
         Assert.Contains("soc11=true", row, System.StringComparison.Ordinal);
         Assert.Contains("qualityIndex=", row, System.StringComparison.Ordinal);
         Assert.Contains("trainingWork=", row, System.StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SOC11_trace_observer_is_exact_state_neutral_for_tool_durability_and_T12_life()
+    {
+        var pack = TestPack.WithNumeric("SOC-11");
+        BronzeFixture control = BronzeFixture.CreateFiefWithCamp(pack, Seed + 5, 100, "MEC-03", "SOC-11");
+        BronzeFixture traced = BronzeFixture.CreateFiefWithCamp(pack, Seed + 5, 100, "MEC-03", "SOC-11");
+        int t12Figure = -1;
+        foreach (BronzeFixture fixture in new[] { control, traced })
+        {
+            fixture.Economy.FixtureSetGoodStock(0, "G-ARMS3", Fix64.FromInt(48));
+            fixture.Economy.FixtureStock(0, "G-TOOL12", Fix64.FromInt(2));
+            for (int adult = 0; adult < fixture.Economy.FigureCount; adult++)
+            {
+                if (fixture.Economy.Figure(adult).Age < 14) continue;
+                fixture.Economy.FixtureSetKit(adult, 12, Fix64.FromInt(40));
+                if (t12Figure < 0) t12Figure = adult;
+                else Assert.Equal(t12Figure, adult);
+                break;
+            }
+        }
+        Assert.True(t12Figure >= 0, "the paired Fief fixture needs an adult carrying a T12 kit");
+
+        // Exercise actual kit wear before the traced season. The dedicated T12 kit model has a
+        // 60 work-season base life; SOC-11's registry crafted-good service-life modifier must
+        // remain exactly one for kits and must not change this one unit of wear.
+        Assert.Equal(Fix64.FromInt(60), control.Economy.FixtureKitLife(12).Service);
+        Assert.Equal(control.Economy.FixtureKitLife(12), traced.Economy.FixtureKitLife(12));
+        Assert.Equal(Fix64.One, control.Economy.FixtureCraftServiceLifeMultiplier(0, "G-TOOL12", 60));
+        Assert.Equal(Fix64.One, traced.Economy.FixtureCraftServiceLifeMultiplier(0, "G-TOOL12", 60));
+        control.Economy.FixtureWearKit(t12Figure, Fix64.One);
+        traced.Economy.FixtureWearKit(t12Figure, Fix64.One);
+        Assert.Equal(Fix64.FromInt(39), control.Economy.FixtureKitLeft(t12Figure));
+        Assert.Equal(control.Economy.FixtureKitLeft(t12Figure), traced.Economy.FixtureKitLeft(t12Figure));
+
+        var rows = new System.Collections.Generic.List<string>();
+        traced.Economy.FiefWp7TraceObserverForDiagnostics = rows.Add;
+        control.RunSeasons(1);
+        traced.RunSeasons(1);
+
+        // The serialized state covers each figure's kit tier/remaining service, plus registry goods.
+        // Therefore this is an exact paired observer-on/off assertion for durability and T12 life.
+        Assert.Equal(Snapshot(control.Economy), Snapshot(traced.Economy));
+        Assert.Equal(control.Economy.ComputeChecksum(), traced.Economy.ComputeChecksum());
+        Assert.NotEmpty(rows);
+        Assert.True(control.Economy.FixtureGoodStock(0, "G-ARMS3") < Fix64.FromInt(48), "the paired season should exercise registry life aging");
+        Assert.Equal(control.Economy.FixtureGoodStock(0, "G-TOOL12"), traced.Economy.FixtureGoodStock(0, "G-TOOL12"));
+        for (int i = 0; i < control.Economy.FigureCount; i++)
+        {
+            Assert.Equal(control.Economy.FigureKit(i).Tier, traced.Economy.FigureKit(i).Tier);
+            Assert.Equal(control.Economy.FixtureKitLeft(i), traced.Economy.FixtureKitLeft(i));
+        }
     }
 }

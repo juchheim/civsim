@@ -282,6 +282,16 @@ public sealed partial class LivingEconomyModel
             if (figure.SettlementId == settlementIndex) figure.Civilization = civ;
     }
     internal void FixtureSetStoredCohesion(int settlementIndex, Fix64 value) => _settlements[settlementIndex].Cohesion = value;
+    internal void FixtureSetCivicWorkMult(int settlementIndex, Fix64 value)
+        => EnsureCivic(_settlements[settlementIndex]).WorkMult = value;
+    internal void FixtureSetCareWork(int figureIndex, byte roles, Fix64 careWork, Fix64 totalWork)
+    {
+        FigureState figure = _figures[figureIndex];
+        figure.CareRolesThisSeason = roles;
+        figure.CareWorkThisSeason = careWork;
+        figure.WorkThisSeason = totalWork;
+        figure.Job = EconomyJob.Craft;
+    }
     internal void FixtureSetStructureCount(int settlementIndex, string structure, int count)
     {
         int kind = StructureIndex(structure);

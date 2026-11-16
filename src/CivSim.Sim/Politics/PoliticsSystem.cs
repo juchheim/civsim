@@ -2002,6 +2002,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         // The Iron chapter's standing soldiers fight as professionals (training x1.5 in place of the warrior's x1.3, never both) with iron or steel-edge arms
         // when the settlement holds them, strongest first; the arms are theirs alone.
         int steelArms = _economy.IronChain ? _economy.GoodStock(settlement, "G-ARMS4").FloorToInt() : 0;
+        int crucibleArms = _economy.FiefChain ? _economy.GoodStock(settlement, "G-ARMS5").FloorToInt() : 0;
         int ironArms = _economy.IronChain ? _economy.GoodStock(settlement, "G-ARMS3").FloorToInt() : 0;
         int tinArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2T").FloorToInt() : 0;
         int arsenicalArms = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2A").FloorToInt() : 0;
@@ -2030,7 +2031,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Fix64 casualtiesTaken = Fix64.One;
             Fix64 shieldFactor = Fix64.One;
             bool bolt = false, levyBow = false;
-            if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
+            if (r.Soldier && crucibleArms > 0) { crucibleArms--; weaponStrength = Fix64.FromRatio(36, 10); }
+            else if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
             else if (r.Soldier && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); }
             else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
             else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
