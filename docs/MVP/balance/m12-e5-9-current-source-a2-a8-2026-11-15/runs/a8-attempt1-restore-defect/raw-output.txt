@@ -1,0 +1,64 @@
+Test run for /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/bin/Release/net10.0/CivSim.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:08:14.82]     CivSim.Tests.FiefWholeMatchFogFairnessTests.Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state [FAIL]
+  Failed CivSim.Tests.FiefWholeMatchFogFairnessTests.Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state [8 m 10 s]
+  Error Message:
+   System.AggregateException : One or more errors occurred. (Dynastic inheritance state has the wrong settlement count.) (Dynastic inheritance state has the wrong settlement count.) (Dynastic inheritance state has the wrong settlement count.)
+---- System.IO.InvalidDataException : Dynastic inheritance state has the wrong settlement count.
+---- System.IO.InvalidDataException : Dynastic inheritance state has the wrong settlement count.
+---- System.IO.InvalidDataException : Dynastic inheritance state has the wrong settlement count.
+  Stack Trace:
+     at System.Threading.Tasks.TaskReplicator.Run[TState](ReplicatableUserAction`1 action, ParallelOptions options, Boolean stopOnFirstFailure)
+   at System.Threading.Tasks.Parallel.ForWorker[TLocal,TInt](TInt fromInclusive, TInt toExclusive, ParallelOptions parallelOptions, Action`1 body, Action`2 bodyWithState, Func`4 bodyWithLocal, Func`1 localInit, Action`1 localFinally)
+--- End of stack trace from previous location ---
+   at System.Threading.Tasks.Parallel.ForWorker[TLocal,TInt](TInt fromInclusive, TInt toExclusive, ParallelOptions parallelOptions, Action`1 body, Action`2 bodyWithState, Func`4 bodyWithLocal, Func`1 localInit, Action`1 localFinally)
+   at System.Threading.Tasks.Parallel.ForEachWorker[TSource,TLocal](TSource[] array, ParallelOptions parallelOptions, Action`1 body, Action`2 bodyWithState, Action`3 bodyWithStateAndIndex, Func`4 bodyWithStateAndLocal, Func`5 bodyWithEverything, Func`1 localInit, Action`1 localFinally)
+   at System.Threading.Tasks.Parallel.ForEachWorker[TSource,TLocal](IEnumerable`1 source, ParallelOptions parallelOptions, Action`1 body, Action`2 bodyWithState, Action`3 bodyWithStateAndIndex, Func`4 bodyWithStateAndLocal, Func`5 bodyWithEverything, Func`1 localInit, Action`1 localFinally)
+   at System.Threading.Tasks.Parallel.ForEach[TSource](IEnumerable`1 source, ParallelOptions parallelOptions, Action`1 body)
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state() in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 72
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace #1 (System.IO.InvalidDataException) -----
+   at CivSim.Sim.Politics.PoliticsSystem.ReadDynasticInheritance(BinaryReader r)
+   at CivSim.Sim.Politics.PoliticsSystem.ReadBronze(BinaryReader r)
+   at CivSim.Sim.Politics.PoliticsSystem.ReadSnapshot(BinaryReader r)
+   at CivSim.Sim.Research.MatchModel.ReadSnapshot(BinaryReader reader)
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.Clone(MatchModel source, ContentPack pack, UInt64 seed) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 276
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.PlayMatch(ContentPack pack, UInt64 seed, Int32 interval, Int32 minutes) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 138
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.<>c__DisplayClass4_0.<Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state>b__0(UInt64 seed) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 74
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass31_0`2.<ForEachWorker>b__0(Int32 i)
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass19_0`2.<ForWorker>b__1(RangeWorker& currentWorker, Int64 timeout, Boolean& replicationDelegateYieldedBeforeCompletion)
+--- End of stack trace from previous location ---
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass19_0`2.<ForWorker>b__1(RangeWorker& currentWorker, Int64 timeout, Boolean& replicationDelegateYieldedBeforeCompletion)
+   at System.Threading.Tasks.TaskReplicator.Replica`1.ExecuteAction(Boolean& yieldedBeforeCompletion)
+   at System.Threading.Tasks.TaskReplicator.Replica.Execute()
+----- Inner Stack Trace #2 (System.IO.InvalidDataException) -----
+   at CivSim.Sim.Politics.PoliticsSystem.ReadDynasticInheritance(BinaryReader r)
+   at CivSim.Sim.Politics.PoliticsSystem.ReadBronze(BinaryReader r)
+   at CivSim.Sim.Politics.PoliticsSystem.ReadSnapshot(BinaryReader r)
+   at CivSim.Sim.Research.MatchModel.ReadSnapshot(BinaryReader reader)
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.Clone(MatchModel source, ContentPack pack, UInt64 seed) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 276
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.PlayMatch(ContentPack pack, UInt64 seed, Int32 interval, Int32 minutes) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 138
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.<>c__DisplayClass4_0.<Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state>b__0(UInt64 seed) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 74
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass31_0`2.<ForEachWorker>b__0(Int32 i)
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass19_0`2.<ForWorker>b__1(RangeWorker& currentWorker, Int64 timeout, Boolean& replicationDelegateYieldedBeforeCompletion)
+--- End of stack trace from previous location ---
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass19_0`2.<ForWorker>b__1(RangeWorker& currentWorker, Int64 timeout, Boolean& replicationDelegateYieldedBeforeCompletion)
+   at System.Threading.Tasks.TaskReplicator.Replica`1.ExecuteAction(Boolean& yieldedBeforeCompletion)
+   at System.Threading.Tasks.TaskReplicator.Replica.Execute()
+----- Inner Stack Trace #3 (System.IO.InvalidDataException) -----
+   at CivSim.Sim.Politics.PoliticsSystem.ReadDynasticInheritance(BinaryReader r)
+   at CivSim.Sim.Politics.PoliticsSystem.ReadBronze(BinaryReader r)
+   at CivSim.Sim.Politics.PoliticsSystem.ReadSnapshot(BinaryReader r)
+   at CivSim.Sim.Research.MatchModel.ReadSnapshot(BinaryReader reader)
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.Clone(MatchModel source, ContentPack pack, UInt64 seed) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 276
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.PlayMatch(ContentPack pack, UInt64 seed, Int32 interval, Int32 minutes) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 138
+   at CivSim.Tests.FiefWholeMatchFogFairnessTests.<>c__DisplayClass4_0.<Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state>b__0(UInt64 seed) in /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs:line 74
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass31_0`2.<ForEachWorker>b__0(Int32 i)
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass19_0`2.<ForWorker>b__1(RangeWorker& currentWorker, Int64 timeout, Boolean& replicationDelegateYieldedBeforeCompletion)
+--- End of stack trace from previous location ---
+   at System.Threading.Tasks.Parallel.<>c__DisplayClass19_0`2.<ForWorker>b__1(RangeWorker& currentWorker, Int64 timeout, Boolean& replicationDelegateYieldedBeforeCompletion)
+   at System.Threading.Tasks.TaskReplicator.Replica`1.ExecuteAction(Boolean& yieldedBeforeCompletion)
+   at System.Threading.Tasks.TaskReplicator.Replica.Execute()
+
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 8 m 10 s - CivSim.Tests.dll (net10.0)

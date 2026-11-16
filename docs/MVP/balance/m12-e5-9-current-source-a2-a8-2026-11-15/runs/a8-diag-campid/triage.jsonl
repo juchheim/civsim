@@ -1,0 +1,18 @@
+{"seed":20261049,"season":240,"observer":0,"label":"null","changes":[0,0,0,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261049,"season":240,"observer":0,"label":"deposits","changes":[8,0,0,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261049,"season":240,"observer":0,"label":"powder","changes":[0,6,0,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261049,"season":240,"observer":0,"label":"fleet","changes":[0,0,9,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261049,"season":240,"observer":0,"label":"horses","changes":[0,0,0,16,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261049,"season":240,"observer":0,"label":"people","changes":[0,0,0,0,569],"inputsEqual":false,"extra":"","diffCount":2,"diffs":["belief hash: 7055598539193056187 vs 702923765919037942","extra rival 1 mining camp seen 1: id 6 tile 8517 seen 240 crew 2 vs id 5 tile 8517 seen 240 crew 2"]}
+{"seed":20261049,"season":240,"observer":0,"label":"research","changes":[0,0,0,0,6],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261049,"season":240,"observer":0,"label":"full","changes":[8,6,9,16,575],"inputsEqual":false,"extra":"","diffCount":2,"diffs":["belief hash: 7055598539193056187 vs 702923765919037942","extra rival 1 mining camp seen 1: id 6 tile 8517 seen 240 crew 2 vs id 5 tile 8517 seen 240 crew 2"]}
+{"seed":20261049,"season":240,"observer":0,"label":"fleet-control","changes":[0,0,0,0,0],"inputsEqual":true,"extra":"crewedGalleysAfter clone=0 baseline=0","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"null","changes":[0,0,0,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"deposits","changes":[8,0,0,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"powder","changes":[0,6,0,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"fleet","changes":[0,0,9,0,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"horses","changes":[0,0,0,8,0],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"people","changes":[0,0,0,0,689],"inputsEqual":false,"extra":"","diffCount":2,"diffs":["belief hash: 7386193148967219442 vs 11486353137204715202","extra rival 2 mining camp seen 6: id 26 tile 7483 seen 256 crew 2 vs id 25 tile 7483 seen 256 crew 2"]}
+{"seed":20261034,"season":256,"observer":3,"label":"research","changes":[0,0,0,0,6],"inputsEqual":true,"extra":"","diffCount":0,"diffs":[]}
+{"seed":20261034,"season":256,"observer":3,"label":"full","changes":[8,6,9,8,695],"inputsEqual":false,"extra":"","diffCount":2,"diffs":["belief hash: 7386193148967219442 vs 11486353137204715202","extra rival 2 mining camp seen 6: id 26 tile 7483 seen 256 crew 2 vs id 25 tile 7483 seen 256 crew 2"]}
+{"seed":20261034,"season":256,"observer":3,"label":"fleet-control","changes":[0,0,0,0,0],"inputsEqual":true,"extra":"crewedGalleysAfter clone=0 baseline=0","diffCount":0,"diffs":[]}

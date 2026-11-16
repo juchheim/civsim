@@ -1,0 +1,4 @@
+Test run for /private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/bin/Release/net10.0/CivSim.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 46 s - CivSim.Tests.dll (net10.0)
