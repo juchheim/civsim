@@ -149,8 +149,8 @@ public partial class Game
 
     /// <summary>
     /// Developer option <c>--research-era=N</c> (0 to 9): the human civilization is given every project of the ages before N, as if it had played them, so a later
-    /// age can be looked at without playing there. It uses the sim's own project-grant command, so it is recorded like any command; saves and replays of such a match
-    /// are for inspection, not for play.
+    /// age can be looked at without playing there. Keystones are assigned to the age they enter, so the target-age keystone remains available instead of ending the
+    /// inspection match. It uses the sim's own project-grant command, so it is recorded like any command; saves and replays of such a match are for inspection, not for play.
     /// </summary>
     private void ApplyResearchEraArgument()
     {
@@ -158,7 +158,7 @@ public partial class Game
         int granted = 0;
         foreach (ProjectDef def in _catalog.Projects)
         {
-            if (!def.Numeric || def.Era >= era) continue;
+            if (!ResearchEraGrant.ShouldGrant(def, era)) continue;
             _session.Queue(new Command(_session.Tick, 0, CommandKind.CompleteProject, def.Index, 0, 0));
             granted++;
         }

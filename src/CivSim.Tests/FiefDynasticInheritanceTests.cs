@@ -116,6 +116,26 @@ public sealed class FiefDynasticInheritanceTests
         Assert.Equal(0, resumed.Politics.SettlementCivOf(folk));
     }
 
+    [Fact]
+    public void Fief_snapshot_refreshes_settlement_count_before_reading_dynastic_state()
+    {
+        MatchModel match = Start();
+        int site = Enumerable.Range(0, World.Value.TileCount)
+            .First(tile => World.Value.TileAt(tile).IsLand &&
+                           Enumerable.Range(0, match.Economy.SettlementCount)
+                               .All(settlement => match.Economy.SettlementLite(settlement).SiteTile != tile));
+        int added = match.Economy.FoundSettlement(1, site, Array.Empty<long>());
+        match.Politics.FixtureSetFreeFolkSettlement(added, site);
+
+        byte[] saved = Snapshot(match);
+        MatchModel resumed = Start();
+        using var reader = new BinaryReader(new MemoryStream(saved));
+        resumed.ReadSnapshot(reader);
+
+        Assert.Equal(match.Economy.SettlementCount, resumed.Economy.SettlementCount);
+        Assert.Equal(match.ComputeChecksum(), resumed.ComputeChecksum());
+    }
+
     [Theory]
     [InlineData(ChapterMode.Bronze)]
     [InlineData(ChapterMode.Iron)]

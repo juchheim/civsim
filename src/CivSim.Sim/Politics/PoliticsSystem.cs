@@ -2352,6 +2352,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         for (int i = 0; i < _warSince.Length; i++) _warSince[i] = r.ReadInt32();
         RaidCount = r.ReadInt32(); RaidsSucceeded = r.ReadInt32(); Gifts = r.ReadInt32(); BarterTrips = r.ReadInt32();
         CaptureCount = r.ReadInt32(); Skirmishes = r.ReadInt32(); Wars = r.ReadInt32();
+        // Economy restoration happens before politics restoration and may change the settlement count. Refresh the
+        // politics cache before Fief's serialized settlement-indexed state is read from the Bronze extension tail.
+        RefreshSettlements();
         ReadBronze(r);
         if (_economy.FiefChain) ReadPilgrimageState(r);
         ReadScoutSimulation(r);

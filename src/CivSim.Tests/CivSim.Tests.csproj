@@ -21,6 +21,7 @@
     <!-- The research Map's pure layout lives in the Godot project; it has no Godot types, so it is tested here. -->
     <Compile Include="..\..\game\Scripts\Ui\ResearchRadialLayout.cs" Link="Game\ResearchRadialLayout.cs" />
     <Compile Include="..\..\game\Scripts\Ui\ResearchEraLens.cs" Link="Game\ResearchEraLens.cs" />
+    <Compile Include="..\..\game\Scripts\Ui\ResearchEraGrant.cs" Link="Game\ResearchEraGrant.cs" />
     <Compile Include="..\..\game\Scripts\GameSave.cs" Link="Game\GameSave.cs" />
     <Compile Include="..\..\game\Scripts\GameSaveMode.cs" Link="Game\GameSaveMode.cs" />
     <Compile Include="..\..\game\Scripts\SimulationSession.cs" Link="Game\SimulationSession.cs" />

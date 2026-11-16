@@ -19,7 +19,7 @@ A small `OS.GetUserDataDir()` probe is staged in the scratch copy. The resolved 
 
 ## Safe inspection route
 
-Use only the Debug `--fief-playtest` path with a scratch numeric-status pack. `--research-era=6` queues the normal `CompleteProject` command for numeric projects with era `< 6`, including Fief projects; it does not grant structures or represent natural research. Do not use `--start-minute` because `SimulationSession.CanSave` is false for those sessions. The `fief-gallery` is synthetic and hides the HUD, so it cannot cover this review.
+Use only the Debug `--fief-playtest` path with a scratch numeric-status pack. `--research-era=6` queues the normal `CompleteProject` command for numeric projects in eras before 6, including Fief projects; it does not grant structures or represent natural research. Keystones are assigned to the era they enter, so KEY-6 stays incomplete and does not end the inspection match. Do not use `--start-minute` because `SimulationSession.CanSave` is false for those sessions. The `fief-gallery` is synthetic and hides the HUD, so it cannot cover this review.
 
 When the host is idle and the scratch source copy is current:
 
@@ -43,6 +43,10 @@ At minute 0, use `]` to advance speed, `[` to reduce speed, and Space or P to pa
 - Refresh the scratch source from the final candidate after WP-E5-7/WP-E5-8/F-T8 source work settles; the existing copy is pre-WP7 instrumentation.
 - On an idle host, build/import and run the late-age route, then inspect actual institutions, detailed Shift card, save/load, and replay save/watch.
 - Preserve ordinary/Release Fief selection gating until the WP-E5-11 promotion and integration gates pass.
+
+## Restore regression found during late review
+
+The 2026-11-16 live review reached Year 23, saved successfully, then failed quick-load with `Dynastic inheritance state has the wrong settlement count.` `MatchModel.ReadSnapshot()` restores Economy before Politics; Politics previously read its Fief settlement-indexed tail before refreshing its cached settlement count. `PoliticsSystem.ReadSnapshot()` now refreshes that cache immediately before reading the Bronze extension tail. `FiefDynasticInheritanceTests.Fief_snapshot_refreshes_settlement_count_before_reading_dynastic_state` adds a settlement, snapshots the match, restores it, and requires the restored settlement count and full match checksum to match. Focused Release results after the fix: Fief dynastic-inheritance tests 6/6 passed; SimulationSession save/replay tests 2/2 passed. The current Debug game build succeeds with 0 warnings and errors. The previous live scratch process used the pre-fix binary, so successful in-game quick-load/replay still needs a fresh live pass before WP-E5-10 can close.
 
 ## Superseding E5 readiness snapshot — 2026-11-16
 
