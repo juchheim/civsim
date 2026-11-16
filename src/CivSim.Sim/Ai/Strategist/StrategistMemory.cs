@@ -108,6 +108,7 @@ internal sealed class WarOption
     public Fix64 OriginWinter;
     public Fix64 Ratio, Required, CaptureChance, Deaths, Wounded, Casualties, Value, Window;
     public Fix64 LocalForce, BelievedDefense;
+    public Fix64 AttackForce;
     public string GlobalForceDiagnostic = "";
     /// <summary>Tactical, value, and supply checks pass before strategic launch blockers are applied.</summary>
     public bool TacticallyViable;
@@ -121,6 +122,12 @@ internal readonly record struct CampaignEvaluationDiagnostic(int Civ, int Rival,
     int OriginSettlement, int AlternateOriginSettlement, int Attackers, int AlternateOriginAttackers, Fix64 Ratio, Fix64 Required,
     Fix64 CaptureChance, Fix64 Value, bool TacticallyViable, bool Feasible, bool Selected, string Reason,
     string GlobalForceDiagnostic);
+
+/// <summary>Opt-in, report-only view of the Strategist's per-settlement siege candidate and gates.</summary>
+internal readonly record struct SiegeCampaignDiagnostic(int Civ, int Rival, int Season, int Settlement, int Tile,
+    bool Fresh, bool WallsSeen, bool Selected, bool Evaluated, int OriginSettlement, int Attackers, Fix64 ForceRatio,
+    bool ForceEligible, bool SupplyEligible, bool DistressOrStockEligible, bool ReliefEligible, bool WinterEligible,
+    string RejectionReason);
 
 /// <summary>Report-only plan scores and a raw-score shadow with defense urgency removed.</summary>
 internal readonly record struct CampaignPlanEvaluationDiagnostic(int Civ, int Season, int Era, Fix64 Frontier,

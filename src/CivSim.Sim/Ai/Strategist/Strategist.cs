@@ -66,6 +66,8 @@ public sealed partial class Strategist : IStrategist
     private int _publicEraDefenseShadowRows;
     /// <summary>Harness-only observer for the campaign options the Strategist already evaluates; never read by policy.</summary>
     internal Action<CampaignEvaluationDiagnostic>? CampaignEvaluationObserverForDiagnostics { get; set; }
+    /// <summary>Harness-only observer for visible-wall siege candidate gates; null by default and never read by policy.</summary>
+    internal Action<SiegeCampaignDiagnostic>? SiegeCampaignObserverForDiagnostics { get; set; }
     /// <summary>Harness-only output observer called after this season's plan and target are selected.</summary>
     internal Action<int, int, GrandPlan, int>? CampaignPlanObserverForDiagnostics { get; set; }
     /// <summary>Harness-only plan-score snapshot; its null default keeps normal decisions and random state untouched.</summary>
