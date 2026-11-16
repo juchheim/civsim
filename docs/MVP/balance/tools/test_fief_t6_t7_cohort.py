@@ -27,15 +27,43 @@ class FrozenCohortScriptTests(unittest.TestCase):
         self.assertEqual(sorted(seeds), seeds)
         self.assertEqual(len(seeds), len(set(seeds)))
 
+    def test_test_assembly_is_required_and_hash_mismatch_fails_before_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            pack, harness, sim = root / "numeric.pack", root / "harness.dll", root / "sim.dll"
+            manifest, test_assembly = root / "seeds.txt", root / "CivSim.Tests.dll"
+            pack.write_bytes(b"frozen pack")
+            harness.write_bytes(b"frozen harness")
+            sim.write_bytes(b"frozen sim")
+            manifest.write_bytes(runner.DEFAULT_MANIFEST.read_bytes())
+            args = SimpleNamespace(
+                pack=pack, harness_dll=harness, sim_dll=sim, test_assembly=test_assembly,
+                manifest=manifest, output_dir=root / "output", expected_head="unused",
+                expected_source_aggregate="unused", expected_pack_sha256="unused",
+                expected_harness_sha256="unused", expected_sim_sha256="unused",
+                expected_test_assembly_sha256="unused", expected_manifest_sha256=runner.sha256(manifest),
+                dotnet="dotnet", minutes=130, cohort_role="calibration", resume=False,
+            )
+            with patch.object(runner.subprocess, "run") as invoke:
+                with self.assertRaisesRegex(FileNotFoundError, "test assembly does not exist"):
+                    runner.run(args)
+                test_assembly.write_bytes(b"unexpected test assembly")
+                with self.assertRaisesRegex(ValueError, "test assembly SHA-256 mismatch"):
+                    runner.run(args)
+            self.assertFalse(args.output_dir.exists())
+            invoke.assert_not_called()
+
     def test_interrupted_cohort_resume_verifies_prefix_and_reruns_only_incomplete_seeds(self) -> None:
         seeds = runner.load_manifest(runner.DEFAULT_MANIFEST)
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             pack, harness, sim = root / "numeric.pack", root / "harness.dll", root / "sim.dll"
+            test_assembly = root / "CivSim.Tests.dll"
             manifest = root / "seeds.txt"
             pack.write_bytes(b"frozen pack")
             harness.write_bytes(b"frozen harness")
             sim.write_bytes(b"frozen sim")
+            test_assembly.write_bytes(b"frozen test assembly")
             provenance = runner.capture(Path(__file__).resolve().parents[4], pack, harness, sim)
             manifest.write_bytes(runner.DEFAULT_MANIFEST.read_bytes())
             output_dir = root / "calibration"
@@ -69,6 +97,8 @@ class FrozenCohortScriptTests(unittest.TestCase):
                 "harnessDllPath": str(harness.resolve()),
                 "harnessDllSha256": runner.sha256(harness),
                 "simDllPath": str(sim.resolve()), "simDllSha256": runner.sha256(sim),
+                "testAssemblyPath": str(test_assembly.resolve()),
+                "testAssemblySha256": runner.sha256(test_assembly),
                 "headCommit": provenance["headCommit"],
                 "sourceAggregateSha256": provenance["sourceAggregateSha256"],
                 "manifestPath": str(manifest.resolve()),
@@ -78,10 +108,12 @@ class FrozenCohortScriptTests(unittest.TestCase):
             }
             (output_dir / "run_metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
             args = SimpleNamespace(
-                pack=pack, harness_dll=harness, sim_dll=sim, manifest=manifest, output_dir=output_dir,
+                pack=pack, harness_dll=harness, sim_dll=sim, test_assembly=test_assembly,
+                manifest=manifest, output_dir=output_dir,
                 expected_head=provenance["headCommit"], expected_source_aggregate=provenance["sourceAggregateSha256"],
                 expected_pack_sha256=provenance["packSha256"], expected_harness_sha256=provenance["harnessDllSha256"],
                 expected_sim_sha256=provenance["simDllSha256"], expected_manifest_sha256=runner.sha256(manifest),
+                expected_test_assembly_sha256=runner.sha256(test_assembly),
                 dotnet="dotnet", minutes=130, cohort_role="calibration", resume=True,
             )
             expected_run_provenance = runner.capture_run_provenance(
@@ -104,6 +136,8 @@ class FrozenCohortScriptTests(unittest.TestCase):
             provenance = json.loads((output_dir / "provenance.json").read_text(encoding="utf-8"))
             self.assertEqual("calibration", provenance["cohortRole"])
             self.assertEqual("10.0.100", provenance["dotnetVersion"])
+            self.assertEqual(str(test_assembly.resolve()), provenance["testAssemblyPath"])
+            self.assertEqual(runner.sha256(test_assembly), provenance["testAssemblySha256"])
             self.assertIn("FiefQuarantineTests.cs", " ".join(provenance["testSources"]))
             self.assertEqual("complete", completed["status"])
             self.assertEqual(20, len(completed["runs"]))
@@ -117,10 +151,12 @@ class FrozenCohortScriptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             pack, harness, sim = root / "numeric.pack", root / "harness.dll", root / "sim.dll"
+            test_assembly = root / "CivSim.Tests.dll"
             manifest = root / "seeds.txt"
             pack.write_bytes(b"frozen pack")
             harness.write_bytes(b"frozen harness")
             sim.write_bytes(b"frozen sim")
+            test_assembly.write_bytes(b"frozen test assembly")
             provenance = runner.capture(Path(__file__).resolve().parents[4], pack, harness, sim)
             manifest.write_bytes(runner.DEFAULT_MANIFEST.read_bytes())
             output_dir = root / "calibration"
@@ -133,6 +169,8 @@ class FrozenCohortScriptTests(unittest.TestCase):
                 "packPath": str(pack.resolve()), "packSha256": runner.sha256(pack),
                 "harnessDllPath": str(harness.resolve()), "harnessDllSha256": runner.sha256(harness),
                 "simDllPath": str(sim.resolve()), "simDllSha256": runner.sha256(sim),
+                "testAssemblyPath": str(test_assembly.resolve()),
+                "testAssemblySha256": runner.sha256(test_assembly),
                 "headCommit": provenance["headCommit"],
                 "sourceAggregateSha256": provenance["sourceAggregateSha256"],
                 "manifestPath": str(manifest.resolve()), "manifestSha256": runner.sha256(manifest),
@@ -148,10 +186,12 @@ class FrozenCohortScriptTests(unittest.TestCase):
             }
             (output_dir / "run_metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
             args = SimpleNamespace(
-                pack=pack, harness_dll=harness, sim_dll=sim, manifest=manifest, output_dir=output_dir,
+                pack=pack, harness_dll=harness, sim_dll=sim, test_assembly=test_assembly,
+                manifest=manifest, output_dir=output_dir,
                 expected_head=provenance["headCommit"], expected_source_aggregate=provenance["sourceAggregateSha256"],
                 expected_pack_sha256=provenance["packSha256"], expected_harness_sha256=provenance["harnessDllSha256"],
                 expected_sim_sha256=provenance["simDllSha256"], expected_manifest_sha256=runner.sha256(manifest),
+                expected_test_assembly_sha256=runner.sha256(test_assembly),
                 dotnet="dotnet", minutes=130, cohort_role="calibration", resume=True,
             )
             (output_dir / "provenance.json").write_text(json.dumps(

@@ -50,7 +50,7 @@ def load_manifest(path: Path) -> list[int]:
 
 def capture_run_provenance(repo_root: Path, args: argparse.Namespace, manifest_hash: str) -> dict[str, object]:
     """Capture the extra source/runtime pins omitted from legacy run_metadata."""
-    test_dll = args.harness_dll.parent / "CivSim.Tests.dll"
+    test_dll = args.test_assembly.resolve()
     test_sources = {str(path): sha256(repo_root / path) for path in PINNED_TEST_SOURCES}
     runtime = subprocess.run([args.dotnet, "--version"], check=True, capture_output=True, text=True).stdout.strip()
     return {
@@ -61,8 +61,8 @@ def capture_run_provenance(repo_root: Path, args: argparse.Namespace, manifest_h
         "packSha256": sha256(args.pack),
         "harnessDllSha256": sha256(args.harness_dll),
         "simDllSha256": sha256(args.sim_dll),
-        "testAssemblyPath": str(test_dll) if test_dll.is_file() else None,
-        "testAssemblySha256": sha256(test_dll) if test_dll.is_file() else None,
+        "testAssemblyPath": str(test_dll),
+        "testAssemblySha256": sha256(test_dll),
         "testSources": test_sources,
         "runnerSha256": sha256(Path(__file__).resolve()),
         "analyzerSha256": sha256(Path(__file__).with_name("analyze_fief_t6_t7_cohort.py")),
@@ -83,11 +83,14 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pack", required=True, type=Path, help="Exact natural Fief content pack to measure")
     parser.add_argument("--harness-dll", type=Path, default=DEFAULT_HARNESS)
     parser.add_argument("--sim-dll", type=Path, help="adjacent CivSim.Sim.dll; defaults beside the harness")
+    parser.add_argument("--test-assembly", type=Path, required=True,
+                        help="exact Release CivSim.Tests.dll to include in the frozen provenance tuple")
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--expected-source-aggregate", required=True)
     parser.add_argument("--expected-pack-sha256", required=True)
     parser.add_argument("--expected-harness-sha256", required=True)
     parser.add_argument("--expected-sim-sha256", required=True)
+    parser.add_argument("--expected-test-assembly-sha256", required=True)
     parser.add_argument("--expected-manifest-sha256", required=True,
                         help="required SHA-256, including for a custom manifest path")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
@@ -104,12 +107,18 @@ def run(args: argparse.Namespace) -> int:
     args.pack = args.pack.resolve()
     args.harness_dll = args.harness_dll.resolve()
     args.sim_dll = (args.sim_dll or args.harness_dll.with_name("CivSim.Sim.dll")).resolve()
+    args.test_assembly = args.test_assembly.resolve()
     args.manifest = args.manifest.resolve()
     args.output_dir = args.output_dir.resolve()
-    for path, label in ((args.pack, "content pack"), (args.harness_dll, "harness DLL"), (args.sim_dll, "adjacent Sim DLL"), (args.manifest, "seed manifest")):
+    for path, label in ((args.pack, "content pack"), (args.harness_dll, "harness DLL"),
+                        (args.sim_dll, "adjacent Sim DLL"), (args.test_assembly, "test assembly"),
+                        (args.manifest, "seed manifest")):
         if not path.is_file():
             raise FileNotFoundError(f"{label} does not exist: {path}")
     manifest_hash = sha256(args.manifest)
+    test_assembly_hash = sha256(args.test_assembly)
+    if test_assembly_hash != args.expected_test_assembly_sha256:
+        raise ValueError(f"test assembly SHA-256 mismatch: expected {args.expected_test_assembly_sha256}, got {test_assembly_hash}")
     if manifest_hash != args.expected_manifest_sha256:
         raise ValueError(f"manifest SHA-256 mismatch: expected {args.expected_manifest_sha256}, got {manifest_hash}")
     if args.manifest == DEFAULT_MANIFEST.resolve() and manifest_hash != EXPECTED_MANIFEST_SHA256:
@@ -151,6 +160,8 @@ def run(args: argparse.Namespace) -> int:
             "harnessDllSha256": sha256(args.harness_dll),
             "simDllPath": str(args.sim_dll),
             "simDllSha256": sha256(args.sim_dll),
+            "testAssemblyPath": str(args.test_assembly),
+            "testAssemblySha256": test_assembly_hash,
             "headCommit": provenance_before["headCommit"],
             "sourceAggregateSha256": provenance_before["sourceAggregateSha256"],
             "manifestPath": str(args.manifest),
@@ -206,6 +217,8 @@ def run(args: argparse.Namespace) -> int:
             "harnessDllSha256": sha256(args.harness_dll),
             "simDllPath": str(args.sim_dll),
             "simDllSha256": sha256(args.sim_dll),
+            "testAssemblyPath": str(args.test_assembly),
+            "testAssemblySha256": test_assembly_hash,
             "headCommit": provenance_before["headCommit"],
             "sourceAggregateSha256": provenance_before["sourceAggregateSha256"],
             "manifestPath": str(args.manifest.resolve()),

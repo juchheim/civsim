@@ -23,8 +23,8 @@ For F-T7, report pooled expected epidemic-hazard share and its seed-bootstrap in
 
 ## Launch sequence after source freeze
 
-1. Confirm the host is idle and the source has stabilized. Finalize and record all pins; rebuild the Release Harness and adjacent Sim from that exact source and run focused F-T6/F-T7 tests. Do not reuse binaries after any source change.
-2. Create a new absent calibration output directory, fill `--expected-*` values from the final freeze, and pass this calibration manifest's SHA-256 as `--expected-manifest-sha256`. Run the existing runner with `--cohort-role calibration`.
+1. Confirm the host is idle and the source has stabilized. Finalize and record all pins; rebuild the Release Harness, adjacent Sim, and Release test assembly from that exact source and run focused F-T6/F-T7 tests. Do not reuse binaries after any source change.
+2. Create a new absent calibration output directory, fill `--expected-*` values from the final freeze, including `--test-assembly` and `--expected-test-assembly-sha256`, and pass this calibration manifest's SHA-256 as `--expected-manifest-sha256`. Run the existing runner with `--cohort-role calibration`.
 3. Analyze calibration descriptively. If a draft candidate/source changes, rebuild and re-pin the complete tuple before holdout. Do not change F-T6 criteria or treat the draft F-T7 screen as approved.
 4. Only after candidate and pins are frozen, create a new absent held-out output directory and run the disjoint held-out manifest with `--cohort-role held_out`. Preserve its outcomes unopened until then.
 5. Analyze held-out data descriptively against the preregistered measurements. Do not promote numeric values or claim MED-08 natural import validation without valid attempts.

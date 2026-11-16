@@ -16,6 +16,8 @@ The shared 20-seed manifest is [calibration-seeds.txt](calibration-seeds.txt), S
 
 These pack and DLL hashes were read and checked against the candidate tuple. The runner additionally re-captures the current repository source aggregate, head, pack, harness, and Sim and fails closed if any expected value differs.
 
+The runner also requires the exact Release `CivSim.Tests.dll` path and its frozen SHA-256. Add `--test-assembly <absolute path>` and `--expected-test-assembly-sha256 <final SHA-256>` from the final source freeze to any launch command; this prepared command is incomplete until those pins are available.
+
 ## Protocol and unchanged criteria
 
 Use one natural `fief-match` per seed, 130 minutes, no `--grant-e5`, with `--fief-health-trace --fief-institution-trace`. Retain all seed outputs, censoring, unresolved institution staffing, MED-08/quarantine state, and import counters.
@@ -31,11 +33,13 @@ python3 docs/MVP/balance/tools/run_fief_t6_t7_cohort.py \
   --pack /Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/numeric-e5.pack \
   --harness-dll /Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/harness-release/CivSim.Harness.dll \
   --sim-dll /Users/ejuchheim/Projects/CivSim/civsim-e5-runs/candidate-5ee659bd/harness-release/CivSim.Sim.dll \
+  --test-assembly <absolute-path-to-final-Release-CivSim.Tests.dll> \
   --expected-head bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c \
   --expected-source-aggregate 5ee659bd7303b24190f59ad01299f4d7430e18ce3adb0441470cab96b1452733 \
   --expected-pack-sha256 f360a3d93047ac248d97574af3bff24e9ffb28c13217a578c473e7dd02a0a05a \
   --expected-harness-sha256 26fd3451b52bf342c757118324fa2d6dd8b881d4dbda81435438e9285037d100 \
   --expected-sim-sha256 b347189f8d386a4b2a2756271298a8a05e41e7abb82009566ccb8dfa2f631dfe \
+  --expected-test-assembly-sha256 <final-test-assembly-SHA-256> \
   --expected-manifest-sha256 571d27e2f7454d6f5d91a33c0859a19a3ad159ffaea27a5d6dd4ae640b209d10 \
   --manifest /Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-wp-e5-6-f-t6-t7-current-calibration-preflight-2026-11-16/calibration-seeds.txt \
   --output-dir /Users/ejuchheim/Projects/CivSim/civsim-e5/docs/MVP/balance/m12-wp-e5-6-f-t6-t7-current-calibration-preflight-2026-11-16/output \
