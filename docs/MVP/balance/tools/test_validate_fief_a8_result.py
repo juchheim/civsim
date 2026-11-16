@@ -36,7 +36,7 @@ class ValidateFiefA8ResultTests(unittest.TestCase):
                     "seed": seed, "season": 16, "observer": 0, "kind": kind,
                     "applied": applied, "pass": applied, "deposits": 1,
                     "powder": 1, "fleet": 1, "horses": 1, "people": 1,
-                    "diffs": [],
+                    "diffs": (["visible input detected"] if kind in validator.VISIBLE else []),
                 }
                 rows.append(row)
         rows_path = run_dir / "a8-rows.jsonl"
@@ -88,6 +88,7 @@ class ValidateFiefA8ResultTests(unittest.TestCase):
             run_dir, pins, rows = self.make_run(Path(temp))
             row = next(row for row in rows if row["kind"] == "unseen-composite")
             row["pass"] = False
+            row["diffs"] = ["belief hash differs"]
             (run_dir / "a8-rows.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
             summary = json.loads((run_dir / "a8-summary.json").read_text())
             summary["tierBComposite"]["withInputOrDecisionDiffs"] = 1
@@ -100,6 +101,38 @@ class ValidateFiefA8ResultTests(unittest.TestCase):
             result = validator.validate(run_dir, pins)
             self.assertEqual("fail", result["status"])
             self.assertEqual(1, result["compositeFailures"])
+
+    def test_rejects_unseen_horse_diff_hidden_by_true_pass_bit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run_dir, pins, rows = self.make_run(Path(temp))
+            row = next(row for row in rows if row["kind"] == "unseen-horse")
+            row["diffs"] = ["horse source: Seen vs Unknown"]
+            # Simulate a stale/incorrect harness pass bit and consistently update
+            # the artifact hashes and summaries. The validator must inspect raw diffs.
+            rows_path = run_dir / "a8-rows.jsonl"
+            rows_path.write_text("".join(json.dumps(item) + "\n" for item in rows))
+            meta_path = run_dir / "run_metadata.json"
+            meta = json.loads(meta_path.read_text())
+            meta["artifacts"]["a8-rows.jsonl"] = {
+                "bytes": rows_path.stat().st_size, "sha256": digest(rows_path)}
+            meta_path.write_text(json.dumps(meta))
+            with self.assertRaisesRegex(ValueError, "unseen-horse pass bit disagrees"):
+                validator.validate(run_dir, pins)
+
+    def test_rejects_visible_control_marked_detected_without_any_raw_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run_dir, pins, rows = self.make_run(Path(temp))
+            row = next(row for row in rows if row["kind"] == "visible-horse")
+            row["diffs"] = []
+            rows_path = run_dir / "a8-rows.jsonl"
+            rows_path.write_text("".join(json.dumps(item) + "\n" for item in rows))
+            meta_path = run_dir / "run_metadata.json"
+            meta = json.loads(meta_path.read_text())
+            meta["artifacts"]["a8-rows.jsonl"] = {
+                "bytes": rows_path.stat().st_size, "sha256": digest(rows_path)}
+            meta_path.write_text(json.dumps(meta))
+            with self.assertRaisesRegex(ValueError, "visible-horse detection bit disagrees"):
+                validator.validate(run_dir, pins)
 
     def test_rejects_unapplied_positive_control_even_if_old_summary_claimed_zero_misses(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

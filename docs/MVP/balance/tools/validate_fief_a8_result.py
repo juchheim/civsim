@@ -144,12 +144,26 @@ def validate(run_dir: Path, pins_path: Path) -> dict[str, Any]:
         require(type(seed) is int and seed in seeds, f"row {index}: seed outside frozen manifest")
         require(type(row.get("applied")) is bool, f"row {index}: applied must be boolean")
         require(type(row.get("pass")) is bool, f"row {index}: pass must be boolean")
+        diffs = row.get("diffs")
+        require(isinstance(diffs, list) and all(isinstance(diff, str) for diff in diffs),
+                f"row {index}: diffs must be a list of strings")
         counts[kind] += 1
         row_seeds[kind].add(seed)
         if row["applied"]:
             applied[kind] += 1
         if row["pass"]:
             passed[kind] += 1
+
+        # Do not trust the harness's derived pass bit on its own. In particular,
+        # the whole-match horse mutation (AddHorseTriple) compares against a
+        # constructed reference clone, and must be held to the same raw-diff
+        # rule as the ordinary unseen-state mutations.
+        if row["applied"] and (kind == "null-control" or kind in UNSEEN):
+            require(row["pass"] == (len(diffs) == 0),
+                    f"row {index}: {kind} pass bit disagrees with raw diffs")
+        elif kind in VISIBLE and row["applied"]:
+            require(row["pass"] == (len(diffs) > 0),
+                    f"row {index}: {kind} detection bit disagrees with raw diffs")
 
         if kind in {"unseen-strict", "unseen-composite", "unseen-horse"} and row["applied"]:
             for category, field in EXPOSURE_FIELDS.items():

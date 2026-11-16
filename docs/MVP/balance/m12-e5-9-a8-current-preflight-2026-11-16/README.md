@@ -2,6 +2,10 @@
 
 **Status: stale historical preflight; do not run its pinned commands.** This preflight does not close A8. The 5ee values below are preserved as diagnostics only. The `d3908981…` source aggregate was a prior intermediate snapshot after the corrected test source was added; it is no longer the current working-tree aggregate. At this audit, HEAD remains `bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c` and the dirty `content/src/game` snapshot hashes to `fd22df0fc0ca563a3e85c38538012aa05200e5e18ff6f04c77afdea7b07fbd48` across 1,046 files. This working-tree hash identifies the current source only; it is not a clean final freeze and has no verified final pack or Release binary tuple. A fresh final-tuple preflight is required after WP-E5-11's freeze, including new source, pack, Harness, Sim, test-source, test-assembly, runner, validator, and hash-helper hashes.
 
+## Validator follow-up — 2026-11-16
+
+The raw-row validator now independently checks each row's `pass` bit against its serialized `diffs`: null and unseen rows pass only with no diffs, while an applied visible positive control counts as detected only with at least one diff. This includes `unseen-horse`, the whole-match `AddHorseTriple` mutation path that the earlier partial triage did not exercise. Focused regression fixtures reproduce both former false-accept cases: an unseen-horse row with a nonempty diff and stale `pass: true`, and a visible-horse row with no diff but stale `pass: true`; both are rejected even when row artifact hashes are refreshed. The run3 whole-run output remains historical evidence only. This change has not been built or exercised against whole matches, and it does not explain or clear the historical unseen-state failures. A fresh frozen whole-match cohort is still required after the candidate freeze; no 8-seed cohort was run for this change.
+
 ## Historical 5ee pins (diagnostic record only)
 
 - HEAD: `bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c`
