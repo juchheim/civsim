@@ -2557,9 +2557,9 @@ public sealed partial class LivingEconomyModel
         new("water_mill", "NRG-03", 18, 6, 0, 8, 0, Stone: true, Wheel: 1),
         // The colonnade of a Temple (registry temple_tier2): dressed stone and timber.
         new("temple_tier2", "STN-12", 16, 0, 8, 4, 0, Stone: true),
-        // Faith & Fief (all provisional, docs/MVP/27 §5): a windmill takes two wheels and timber; a sawmill timber, block and a litre of bloom for the saw;
+        // Faith & Fief (all provisional, docs/MVP/27 §5): a windmill is a timber post mill (18 wood, one wheel, no dressed blocks: blocks were the late-game bottleneck that left second sources unbuilt, F-T2); a sawmill timber, block and a litre of bloom for the saw;
         // a blast furnace is block (the registry's 16 block and 8 fired brick, counted as 24 block) and timber.
-        new("windmill", "NRG-05", 24, 4, 0, 14, 0, Wheel: 1),
+        new("windmill", "NRG-05", 24, 0, 0, 18, 0, Wheel: 1),
         new("sawmill", "WOD-09", 20, 4, 0, 10, 1),
         new("blast_furnace", "MET-12", 40, 24, 0, 6, 0, Stone: true),
         new("monastery", "BEL-10", 30, 12, 0, 6, 0, Stone: true),
@@ -2694,6 +2694,22 @@ public sealed partial class LivingEconomyModel
                 m.IronWait = 0;
             }
         }
+        // The same deficit windmill takes the slot from a longer build at once (the shelf keeps the other build's progress), so that its stone work, timber and wheel are planned like
+        // any current build's; while it stands shelved and fully worked, the town plans only its wheel and blocks.
+        int millKind = !focused ? FiefMillDeficitKind(s, civ) : -1;
+        if (millKind >= 0 && m.IronBuildKind != millKind)
+        {
+            IronSpec millSpec = IronSpecs[millKind];
+            // Taking the slot is what funds the windmill: only the current build gets its stone work, timber and wheel planned. A windmill that was fully worked and then
+            // shelved for want of materials does not retake the slot until they are in store, so a town without stone cannot hold its queue hostage.
+            bool shelvedWorked = m.IronShelf is { } shelf && shelf[millKind] > Fix64.Zero && shelf[millKind] >= IronLaborOf(s, millSpec);
+            if (!shelvedWorked || CanPayIronBuild(s, m, millSpec)) SwitchIronBuild(s, m, millKind);
+            else
+            {
+                if (millSpec.Block > 0) plan.Terminal[MetalSlot(MetalGood.Block)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(millSpec.Block) - m.Goods[(int)MetalGood.Block]);
+                if (millSpec.Wheel > 0) plan.Terminal[MetalSlot(MetalGood.Wheel)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(millSpec.Wheel) - m.Goods[(int)MetalGood.Wheel]);
+            }
+        }
         if (m.IronBuildKind < 0)
         {
             int next = NextWantedIronKind(s, m, civ, skip: -1, passShelved: false);
@@ -2747,6 +2763,9 @@ public sealed partial class LivingEconomyModel
             }
             if (preferred >= 0) return preferred;
         }
+        // A Fief town whose mills cover under 60% of its grain wants its second windmill ahead of the queue (D12, F-T2).
+        int deficitMill = FiefMillDeficitKind(s, civ);
+        if (deficitMill >= 0 && deficitMill != skip && IronKindOpen(s, m, civ, deficitMill, passShelved)) return deficitMill;
         // Defense works are taken first (docs/MVP/28 §9): they are wanted only by a walled town (gatehouse) or a walled border town (castle, with the crane that halves
         // its labor), they are cheap or rare, and at the end of the enum order they were reached by 1 walled town in 20.
         foreach (IronStructure first in DefenseFirst)
@@ -2757,6 +2776,19 @@ public sealed partial class LivingEconomyModel
         for (int k = 0; k < (int)IronStructure.Count; k++)
             if (k != skip && IronKindOpen(s, m, civ, k, passShelved)) return k;
         return -1;
+    }
+
+    /// <summary>
+    /// The windmill's kind index when this Fief town already has a mill but its modeled grain coverage is under the draft 60% screen, so a second windmill is wanted
+    /// (the appetite and the two-windmill cap are in <see cref="IronGate"/>); -1 otherwise. Without this a second source waited behind whatever else the town was
+    /// building and was funded in one season of twelve (F-T2 natural cohort, seeds 20700066 and 20701208).
+    /// </summary>
+    private int FiefMillDeficitKind(SettlementState s, int civ)
+    {
+        if (!FiefChain || !Done(civ, "NRG-05")) return -1;
+        if (IronWorksCount(s, IronStructure.WaterMill) + IronWorksCount(s, IronStructure.Windmill) == 0) return -1;
+        int kind = (int)IronStructure.Windmill;
+        return IronBuildWanted(s, IronStructure.Windmill) && !BuildFocusSkips(s, BuildTrack.Iron, kind) ? kind : -1;
     }
 
     private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle, IronStructure.ConcentricCastle };

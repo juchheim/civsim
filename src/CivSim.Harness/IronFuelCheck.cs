@@ -30,6 +30,9 @@ internal static class IT6FuelGate
 /// </summary>
 internal static class IronFuelCheck
 {
+    /// <summary>Fit screen only (F-T3): overrides the Fief furnace's bloomery labor factor at full coverage for every run in this process.</summary>
+    private static Fix64? LaborFactorOverride;
+
     /// <summary>I-T6's ceiling on the share of civilian work the metal chain may take.</summary>
     private static readonly Fix64 ShareCeiling = Fix64.FromRatio(15, 100);
     private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint,
@@ -132,6 +135,7 @@ internal static class IronFuelCheck
                 case "--spatial-only": spatialOnly = true; break;
                 case "--it3-wear": it3Wear = true; break;
                 case "--fief": fief = true; break;
+                case "--furnace-labor-factor": LaborFactorOverride = Fix64.Parse(args[++i]); break;
                 case "--trace-fief-seasons": traceFiefSeasons = true; break;
                 case "--furnace-charcoal-candidates":
                     foreach (string value in args[++i].Split(','))
@@ -538,6 +542,7 @@ internal static class IronFuelCheck
             e.FixtureSetIronWork(BronzeFixture.Settlement, "water_mill", 1);
             e.FixtureSetIronWork(BronzeFixture.Settlement, "blast_furnace", 1);
             e.FurnaceEffectEnabled = sc.Furnace;
+            if (sc.Furnace && LaborFactorOverride is { } laborFactor) e.FurnaceLaborFactorOverride = laborFactor;
             if (sc.Furnace && furnaceCharcoalFactor is { } factor)
                 e.FurnaceCharcoalFactorOverride = factor;
         }

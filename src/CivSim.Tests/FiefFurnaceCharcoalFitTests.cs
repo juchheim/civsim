@@ -62,6 +62,18 @@ public sealed class FiefFurnaceCharcoalFitTests
         Assert.Equal(plain.Output * Fix64.FromInt(4), powered.Output);
         Assert.Equal(plain.Input1 * Fix64.FromInt(4), powered.Input1); // ore remains x4
         Assert.Equal(plain.Input0, powered.Input0); // fitted charcoal input is x1
-        Assert.Equal(plain.Labor * Fix64.FromInt(2), powered.Labor);
+        Assert.Equal(plain.Labor, powered.Labor); // fitted F-T3 labor factor x1 (the catalog's x2 missed the 15% rule)
+    }
+
+    [Fact]
+    public void Ore_reduction_carries_no_SOC_11_craft_loss()
+    {
+        const ulong seed = 20261114;
+        BronzeFixture fief = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, seed, 100, "MET-08");
+        BronzeFixture iron = BronzeFixture.CreateIron(TestPack.Pack, seed, 100, "MET-08");
+        var fiefBloomery = fief.Economy.FixtureBatch(0, "bloomery");
+        var ironBloomery = iron.Economy.FixtureBatch(0, "bloomery");
+        Assert.Equal(ironBloomery.Input0, fiefBloomery.Input0); // charcoal
+        Assert.Equal(ironBloomery.Input1, fiefBloomery.Input1); // ore
     }
 }

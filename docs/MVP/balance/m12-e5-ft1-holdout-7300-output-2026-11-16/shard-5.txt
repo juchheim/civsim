@@ -1,0 +1,927 @@
+== fief-match seed 20609866: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     66.7   87.9      56     40    5223     1  3478    3689      621       10        8     66
+c1  Grower      72.3   90.8      56     22    2501    15  1579    1680      269       10        4     45
+c2  Warlord     69.1   91.4      56     30    3997     4  2564    2700      449        9        7     80
+c3  Sage        71.1   89.6      56     25    2983     5  2060    2186      361        8        3     76
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 22.8 min from KEY-5 (at 110.7)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 27.5 min from KEY-5 (at 118.3)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 24.4 min from KEY-5 (at 115.8)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 23.9 min from KEY-5 (at 113.5)
+iron works built (all settlements):
+  crane                     5    4    7    7
+  windlass_well            24   12   21   11
+  terrace                  22   35   28   28
+  aqueduct                  7    3    5    4
+  bathhouse                 4    1    6    7
+  theatre_arena             4    0    7    4
+  road                     29   19   28   18
+  bridge                   11    2   21    3
+  gatehouse                10    5   10    5
+  frontier_wall_segment     2    1    3    3
+  castle                    1    0    2    3
+  harbor                    1    1    1    2
+  galley                    0    1    1    2
+  academy                   6    2    3    3
+  great_library             1    0    0    0
+  press                     9    3   11    7
+  water_mill                2    0    1    3
+  temple_tier2              3    4    6    2
+  windmill                 11    6   11    5
+  sawmill                   1    1    0    0
+  monastery                 2    2    3    3
+  powder_mill               0    1    3    0
+  print_shop               12    4   10    8
+  clock_tower               1    0    3    0
+  cathedral_school          0    3    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 26; castle x1 (100%), cathedral_school x2 (100%), clock_tower x1 (100%), gothic_cathedral x1 (66%), hospital x3 (100%), powder_mill x4 (100%), theatre_arena x1 (100%), windlass_well x1 (0%)
+  c1: villages 16; clock_tower x4 (100%), gothic_cathedral x1 (100%), university x1 (100%)
+  c2: villages 16; (nothing wanted) x1 (0%), blast_furnace x2 (100%), cathedral_school x7 (100%), gatehouse x1 (71%), hospital x3 (100%)
+  c3: villages 17; clock_tower x7 (100%), gothic_cathedral x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  blast_furnace lacks block: 2 towns
+  bridge lacks ashlar: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 4 towns
+  castle lacks ashlar: 1 towns
+  cathedral_school lacks block: 9 towns
+  cathedral_school lacks wood: 4 towns
+  clock_tower lacks block: 12 towns
+  clock_tower lacks bloom: 1 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 2 towns
+  hospital lacks block: 6 towns
+  powder_mill lacks block: 4 towns
+  powder_mill lacks wood: 1 towns
+  theatre_arena lacks block: 1 towns
+  university lacks block: 1 towns
+  university lacks plank: 1 towns
+  university lacks wood: 1 towns
+wonders held: great_library c0, great_lighthouse none, great_dome none
+events: wars 0  raids 22  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 621, c1 269, c2 449, c3 365
+final legacy per civ: c0 8356, c1 5908, c2 7847, c3 6468
+
+== fief-match seed 20615524: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     73.1   91.5      56     21    2117     1  1221    1367      221        3        4     63
+c1  Grower      66.5   85.9      56     39    3789     3  2692    2824      453       15        5     90
+c2  Warlord     80.6  103.5      56     25    2397    32  1427    1600      260        5        4     63
+c3  Sage        79.9   99.6      56     31    3388    23  2151    2325      367       12        6     51
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 29.2 min from KEY-5 (at 120.7)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 21.3 min from KEY-5 (at 107.2)
+  c2 Warlord: 46 E5 projects, KEY-5→KEY-6 23.0 min from KEY-5 (at 126.5)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 21.2 min from KEY-5 (at 120.8)
+iron works built (all settlements):
+  crane                     4    8    7    7
+  windlass_well            11   18   14   20
+  terrace                   9   36   15   33
+  aqueduct                  0    2    0    6
+  bathhouse                 1    4    0    9
+  theatre_arena             0    6    1    7
+  road                     16   31   19   23
+  bridge                    8   29   12   18
+  gatehouse                 3    8    6    8
+  frontier_wall_segment     2    4    2    2
+  castle                    1    1    2    1
+  harbor                    3    3    3    2
+  galley                    2    3    3    2
+  academy                   3    4    3    5
+  press                     4    9    6    8
+  water_mill                0    1    1    2
+  temple_tier2              4    4    1    3
+  windmill                  5   10    5    9
+  sawmill                   0    3    0    1
+  blast_furnace             0    1    0    0
+  monastery                 0    4    1    2
+  university                0    0    0    2
+  hospital                  0    2    0    5
+  powder_mill               0    3    1    6
+  print_shop                5    8    2    5
+  clock_tower               0    0    0    1
+  cathedral_school          0    3    0    1
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 15; gothic_cathedral x1 (73%), hospital x2 (100%), powder_mill x3 (100%)
+  c1: villages 29; aqueduct x2 (100%), castle x1 (66%), clock_tower x4 (100%), gothic_cathedral x1 (100%), great_lighthouse x1 (100%), powder_mill x1 (100%)
+  c2: villages 17; blast_furnace x4 (93%), gatehouse x1 (43%), sawmill x2 (100%), windmill x1 (100%)
+  c3: villages 19; blast_furnace x3 (89%), cathedral_school x1 (100%), clock_tower x3 (66%), gothic_cathedral x1 (100%), monastery x1 (87%), powder_mill x2 (100%), windmill x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 2 towns
+  aqueduct lacks block: 2 towns
+  aqueduct lacks wood: 1 towns
+  blast_furnace lacks block: 4 towns
+  bridge lacks ashlar: 1 towns
+  bridge lacks block: 6 towns
+  bridge lacks wood: 5 towns
+  cathedral_school lacks block: 1 towns
+  clock_tower lacks block: 6 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 2 towns
+  gothic_cathedral lacks wood: 1 towns
+  great_lighthouse lacks ashlar: 1 towns
+  great_lighthouse lacks block: 1 towns
+  great_lighthouse lacks bloom: 1 towns
+  great_lighthouse lacks wood: 1 towns
+  hospital lacks block: 2 towns
+  powder_mill lacks block: 6 towns
+  sawmill lacks block: 2 towns
+  windmill lacks wheel: 1 towns
+  windmill lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 16  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 222, c1 453, c2 260, c3 367
+final legacy per civ: c0 6027, c1 8123, c2 6107, c3 6639
+
+== fief-match seed 20618577: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     74.5   93.9      57     25    2974     8  1974    2136      341       14        7     88
+c1  Grower      73.9   92.0      57     31    3597    17  2381    2533      423       10        8     82
+c2  Warlord     79.3  102.4      57     18    2051    29  1392    1544      245        5        5     57
+c3  Sage        66.7   87.0      57     39    4136    18  3019    3265      506       17        5     79
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 21.1 min from KEY-5 (at 114.9)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 22.9 min from KEY-5 (at 114.9)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 22.9 min from KEY-5 (at 125.3)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 23.3 min from KEY-5 (at 110.3)
+iron works built (all settlements):
+  crane                     8    8    5    9
+  windlass_well            24   28   13   22
+  terrace                   2   35   12   30
+  aqueduct                  6    2    2    8
+  bathhouse                 8    7    4   10
+  theatre_arena             6    9    4    9
+  road                     23   27   16   28
+  bridge                   17    2    9   24
+  gatehouse                 9   10    6   10
+  frontier_wall_segment     4    6    3    2
+  castle                    2    7    2    0
+  harbor                    2    2    1    3
+  galley                    2    2    0    2
+  academy                   6    5    3    4
+  great_library             0    0    0    1
+  great_dome                0    0    1    0
+  press                     5    6    4    9
+  water_mill                3    3    1    1
+  temple_tier2              6    4    4    3
+  windmill                  8    9    6   11
+  sawmill                   1    2    0    1
+  monastery                 3    2    1    3
+  university                1    0    0    0
+  hospital                  1    2    0    4
+  concentric_castle         0    3    0    0
+  powder_mill               1    2    1    4
+  print_shop                6    7    3    8
+  clock_tower               0    0    0    1
+  cathedral_school          1    1    0    5
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 13; aqueduct x2 (100%), cathedral_school x1 (100%), concentric_castle x2 (100%), gothic_cathedral x1 (66%), hospital x2 (100%), powder_mill x3 (100%), print_shop x1 (100%)
+  c1: villages 17; aqueduct x1 (100%), cathedral_school x1 (100%), clock_tower x5 (97%), gothic_cathedral x1 (100%), hospital x1 (100%), powder_mill x3 (100%), press x1 (100%), university x1 (100%)
+  c2: villages 11; blast_furnace x1 (100%), hospital x2 (100%), press x1 (0%), sawmill x3 (100%)
+  c3: villages 22; (nothing wanted) x2 (0%), aqueduct x1 (0%), cathedral_school x3 (99%), clock_tower x3 (100%), gatehouse x2 (73%), gothic_cathedral x1 (100%), great_lighthouse x1 (100%), powder_mill x4 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 3 towns
+  aqueduct lacks block: 3 towns
+  blast_furnace lacks block: 1 towns
+  bridge lacks ashlar: 2 towns
+  bridge lacks block: 10 towns
+  bridge lacks wood: 2 towns
+  cathedral_school lacks block: 4 towns
+  clock_tower lacks block: 7 towns
+  clock_tower lacks bloom: 1 towns
+  concentric_castle lacks ashlar: 2 towns
+  gatehouse lacks block: 1 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 2 towns
+  gothic_cathedral lacks wood: 1 towns
+  great_lighthouse lacks ashlar: 1 towns
+  great_lighthouse lacks block: 1 towns
+  great_lighthouse lacks wood: 1 towns
+  hospital lacks block: 5 towns
+  powder_mill lacks block: 10 towns
+  press lacks bloom: 1 towns
+  print_shop lacks plank: 1 towns
+  sawmill lacks block: 3 towns
+  sawmill lacks bloom: 1 towns
+  university lacks block: 2 towns
+wonders held: great_library c3, great_lighthouse none, great_dome c2
+events: wars 4  raids 6  assaults 4  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 341, c1 423, c2 247, c3 509
+final legacy per civ: c0 6298, c1 7101, c2 5948, c3 7580
+
+== fief-match seed 20622604: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     72.2   93.2      57     37    3882     4  2263    2369      381        9        7     66
+c1  Grower      84.8  103.1      57     21    1850    55  1241    1357      212       10        5     48
+c2  Warlord     70.4   93.6      57     39    3930    21  2443    2775      384        7        9     55
+c3  Sage        84.9  103.4      57     12     991    29   539     620      102        0        3      1
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 29.8 min from KEY-5 (at 123.0)
+  c1 Grower: 27 E5 projects, KEY-5→KEY-6 26.1 min from KEY-5 (at 129.3)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 28.9 min from KEY-5 (at 122.5)
+  c3 Sage: 16 E5 projects, KEY-5→KEY-6 not complete; observed 26.6 min after KEY-5 (right-censored)
+iron works built (all settlements):
+  crane                     8    6    9    2
+  windlass_well            26   12   26    6
+  terrace                  15   11   21    4
+  aqueduct                  7    2    5    0
+  bathhouse                 5    2    9    0
+  theatre_arena             6    2   10    0
+  road                     27   14   36    9
+  bridge                   23   11   16    2
+  gatehouse                 8    4   12    3
+  frontier_wall_segment     2    3    3    0
+  castle                    1    2    3    0
+  harbor                    2    2    1    0
+  galley                    2    2    1    0
+  academy                   4    4    3    0
+  great_dome                1    0    0    0
+  press                     9    5   12    2
+  water_mill                1    0    3    0
+  temple_tier2              5    3    6    0
+  windmill                 10    0   11    0
+  monastery                 1    2    2    0
+  hospital                  1    0    1    0
+  concentric_castle         0    0    1    0
+  powder_mill               0    0    3    0
+  print_shop                7    6    5    0
+  clock_tower               2    0    1    0
+  cathedral_school          2    1    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 23; bathhouse x2 (100%), great_library x1 (100%), hospital x1 (100%), monastery x1 (100%), powder_mill x9 (97%)
+  c1: villages 15; university x6 (100%)
+  c2: villages 24; (nothing wanted) x1 (0%), blast_furnace x1 (1%), cathedral_school x2 (100%), clock_tower x1 (100%), crane x1 (100%), gothic_cathedral x1 (100%), hospital x5 (100%), monastery x1 (100%), theatre_arena x1 (0%), water_mill x1 (100%)
+  c3: villages 8; castle x1 (100%), cathedral_school x1 (100%), crane x1 (53%), hospital x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  bathhouse lacks block: 2 towns
+  bridge lacks block: 3 towns
+  bridge lacks wood: 2 towns
+  castle lacks ashlar: 1 towns
+  castle lacks bloom: 1 towns
+  cathedral_school lacks block: 3 towns
+  clock_tower lacks block: 1 towns
+  crane lacks bloom: 1 towns
+  gothic_cathedral lacks ashlar: 1 towns
+  gothic_cathedral lacks glass: 1 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 1 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 1 towns
+  hospital lacks block: 7 towns
+  hospital lacks wood: 2 towns
+  monastery lacks block: 2 towns
+  powder_mill lacks block: 8 towns
+  road lacks block: 1 towns
+  university lacks block: 6 towns
+  water_mill lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome c0
+events: wars 4  raids 8  assaults 4  captured 4  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 381, c1 215, c2 384, c3 107
+final legacy per civ: c0 7332, c1 5003, c2 8480, c3 4737
+
+== fief-match seed 20630706: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     79.2   97.5      56     39    3583    12  2025    2160      363        5        4     35
+c1  Grower      80.8  101.9      56     25    2457    48  1495    1661      265        7        4     60
+c2  Warlord     72.3   95.3      56     28    3178     7  1801    1938      325       11        9    100
+c3  Sage        72.3   91.1      56     26    2796    17  1964    2029      349        9        6     80
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 25.9 min from KEY-5 (at 123.4)
+  c1 Grower: 45 E5 projects, KEY-5→KEY-6 24.8 min from KEY-5 (at 126.7)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 28.6 min from KEY-5 (at 123.9)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 19.3 min from KEY-5 (at 110.3)
+iron works built (all settlements):
+  crane                     5    3    6    4
+  windlass_well            17   14   16   14
+  terrace                  48   11   31   12
+  aqueduct                  5    1    5    3
+  bathhouse                 4    2    5    3
+  theatre_arena             2    2    8    4
+  road                     24   13   24   18
+  bridge                   20   11   20   13
+  gatehouse                 7    6    7    7
+  frontier_wall_segment     3    3    4    4
+  castle                    1    1    3    3
+  harbor                    0    1    0    1
+  galley                    0    0    0    1
+  academy                   3    3    4    5
+  great_dome                1    0    0    0
+  press                     7    4    8    5
+  water_mill                1    2    1    2
+  temple_tier2              2    2    7    3
+  windmill                 10    0    9    4
+  sawmill                   1    0    1    2
+  blast_furnace             1    0    0    0
+  monastery                 1    2    2    1
+  hospital                  3    2    2    1
+  powder_mill               3    2    6    0
+  print_shop                6    2    7    4
+  clock_tower               1    1    2    0
+  cathedral_school          0    0    2    1
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 28; (nothing wanted) x1 (0%), blast_furnace x2 (100%), castle x1 (100%), great_library x1 (100%), monastery x1 (100%), powder_mill x5 (100%)
+  c1: villages 16; blast_furnace x1 (100%), castle x1 (100%), crane x1 (0%), frontier_wall_segment x1 (0%), gatehouse x1 (42%), great_library x1 (100%), powder_mill x2 (100%), print_shop x1 (100%)
+  c2: villages 18; blast_furnace x2 (100%), cathedral_school x1 (100%), clock_tower x1 (100%), hospital x5 (100%), monastery x1 (100%)
+  c3: villages 18; bathhouse x1 (0%), clock_tower x3 (100%), concentric_castle x1 (100%), gothic_cathedral x1 (100%), hospital x1 (100%), press x1 (0%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  blast_furnace lacks block: 5 towns
+  blast_furnace lacks wood: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 2 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  cathedral_school lacks block: 1 towns
+  clock_tower lacks block: 4 towns
+  clock_tower lacks bloom: 1 towns
+  concentric_castle lacks ashlar: 1 towns
+  concentric_castle lacks bloom: 1 towns
+  gothic_cathedral lacks ashlar: 1 towns
+  gothic_cathedral lacks glass: 1 towns
+  great_library lacks ashlar: 2 towns
+  great_library lacks block: 2 towns
+  great_library lacks bloom: 1 towns
+  great_library lacks wood: 1 towns
+  hospital lacks block: 6 towns
+  hospital lacks wood: 1 towns
+  monastery lacks block: 2 towns
+  monastery lacks wood: 2 towns
+  powder_mill lacks block: 7 towns
+  powder_mill lacks wood: 1 towns
+  print_shop lacks bloom: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome c0
+events: wars 0  raids 22  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 363, c1 265, c2 326, c3 357
+final legacy per civ: c0 6173, c1 6605, c2 6831, c3 7553
+
+== fief-match seed 20639418: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     76.1   95.7      56     31    3556    10  2231    2353      380       14        5     78
+c1  Grower      76.2   96.8      56     26    3275     3  2047    2178      356       18        5     44
+c2  Warlord     78.2  102.6      56     20    2076    25  1354    1430      233       11        2     58
+c3  Sage        69.6   88.9      56     39    3769     4  2481    2711      441       19        6     19
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 23.3 min from KEY-5 (at 118.9)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 25.6 min from KEY-5 (at 122.5)
+  c2 Warlord: 24 E5 projects, KEY-5→KEY-6 not complete; observed 27.4 min after KEY-5 (right-censored)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 20.6 min from KEY-5 (at 109.5)
+iron works built (all settlements):
+  crane                     6    7    3    7
+  windlass_well            20   18   10   20
+  terrace                  24   24   15   49
+  aqueduct                  7    5    2    7
+  bathhouse                 8    8    2    9
+  theatre_arena             4    5    1    9
+  road                     25   23   18   26
+  bridge                   20    8   10   15
+  gatehouse                 8    8    5    8
+  frontier_wall_segment     5    2    2    1
+  castle                    3    1    2    0
+  harbor                    1    0    0    0
+  galley                    1    0    0    0
+  academy                   4    3    3    5
+  press                     7    4    4    7
+  water_mill                2    1    1    2
+  temple_tier2              3    4    2    4
+  windmill                  7    8    0   10
+  sawmill                   1    2    0    1
+  blast_furnace             0    1    0    2
+  monastery                 4    6    4    4
+  university                0    1    0    1
+  hospital                  2    3    0    2
+  powder_mill               2    3    3    4
+  print_shop                7    4    0    7
+  clock_tower               1    1    4    2
+  cathedral_school          2    2    0    4
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; cathedral_school x5 (80%), clock_tower x1 (100%), gothic_cathedral x1 (100%), hospital x2 (100%), powder_mill x1 (100%)
+  c1: villages 15; (nothing wanted) x1 (0%), blast_furnace x2 (100%), castle x1 (100%), clock_tower x3 (80%), gothic_cathedral x1 (100%), hospital x1 (100%), powder_mill x1 (100%), print_shop x1 (100%)
+  c2: villages 14; aqueduct x1 (100%), bathhouse x1 (100%), cathedral_school x1 (77%), gatehouse x1 (87%), powder_mill x2 (100%)
+  c3: villages 28; cathedral_school x2 (100%), clock_tower x5 (100%), gothic_cathedral x1 (100%), powder_mill x1 (100%), sawmill x1 (100%), university x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks block: 1 towns
+  bathhouse lacks block: 1 towns
+  bathhouse lacks wood: 1 towns
+  blast_furnace lacks block: 2 towns
+  bridge lacks block: 4 towns
+  bridge lacks wood: 3 towns
+  castle lacks ashlar: 1 towns
+  cathedral_school lacks block: 6 towns
+  clock_tower lacks block: 8 towns
+  clock_tower lacks bloom: 1 towns
+  clock_tower lacks wood: 1 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 3 towns
+  gothic_cathedral lacks wood: 2 towns
+  hospital lacks block: 3 towns
+  hospital lacks wood: 2 towns
+  powder_mill lacks block: 5 towns
+  powder_mill lacks wood: 1 towns
+  print_shop lacks bloom: 1 towns
+  road lacks block: 2 towns
+  sawmill lacks block: 1 towns
+  university lacks block: 1 towns
+  university lacks plank: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 14  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 380, c1 356, c2 233, c3 441
+final legacy per civ: c0 6946, c1 6660, c2 5298, c3 7726
+
+== fief-match seed 20645373: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.9   89.0      56     36    4529     3  3130    3490      495        8        7     61
+c1  Grower      88.3  118.4      56      8     519   147   222     495       67        2        2     22
+c2  Warlord     73.4   95.4      56     40    4651    15  3371    3661      490       12        9     69
+c3  Sage           -      -       0      0       0     0     0       3        0        0        0      0
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 23.3 min from KEY-5 (at 112.3)
+  c1 Grower: 0 E5 projects, KEY-5→KEY-6 not complete; observed 11.6 min after KEY-5 (right-censored)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 26.7 min from KEY-5 (at 122.1)
+  c3 Sage: 0 E5 projects, KEY-5→KEY-6 KEY-5 not reached
+iron works built (all settlements):
+  crane                    10    2   10    0
+  windlass_well            24    4   28    0
+  terrace                  36    0   57    0
+  aqueduct                 10    0    8    0
+  bathhouse                 8    1    9    0
+  theatre_arena             5    1   10    0
+  road                     40    3   35    0
+  bridge                   32    0   32    0
+  gatehouse                10    2   13    0
+  frontier_wall_segment     2    0    0    0
+  castle                    0    2    0    0
+  harbor                    2    0    4    0
+  galley                    2    0    3    0
+  academy                   4    2    5    0
+  great_dome                0    0    1    0
+  press                    11    2   11    0
+  water_mill                2    1    4    0
+  temple_tier2              5    2    3    0
+  windmill                 10    0    8    0
+  sawmill                   2    0    0    0
+  monastery                 2    0    3    0
+  hospital                  0    0    1    0
+  powder_mill               2    0    1    0
+  print_shop                9    0   10    0
+  clock_tower               1    0    3    0
+  cathedral_school          0    0    1    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 23; bathhouse x1 (100%), gothic_cathedral x1 (100%), hospital x3 (100%), powder_mill x7 (100%), press x1 (100%)
+  c1: villages 6; bathhouse x1 (100%), great_library x1 (100%)
+  c2: villages 24; aqueduct x1 (49%), bathhouse x1 (32%), blast_furnace x1 (100%), cathedral_school x1 (100%), crane x1 (0%), gatehouse x1 (0%), gothic_cathedral x1 (100%), hospital x3 (100%), powder_mill x5 (100%), theatre_arena x1 (100%)
+  c3: villages 0; 
+what the stuck towns lack (settlements whose structure is fully worked):
+  bathhouse lacks block: 2 towns
+  blast_furnace lacks block: 1 towns
+  bridge lacks ashlar: 2 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 3 towns
+  cathedral_school lacks block: 1 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 2 towns
+  great_library lacks ashlar: 1 towns
+  great_library lacks block: 1 towns
+  hospital lacks block: 6 towns
+  powder_mill lacks block: 12 towns
+  press lacks bloom: 1 towns
+  theatre_arena lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome c2
+events: wars 6  raids 8  assaults 8  captured 8  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 514, c1 67, c2 491, c3 0
+final legacy per civ: c0 9167, c1 4051, c2 9285, c3 1397
+
+== fief-match seed 20660953: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     81.8  101.6      56     20    2680    10  1503    1689      274        7        5     81
+c1  Grower      73.5   94.2      56     34    3924     8  2535    2664      457       17        7     64
+c2  Warlord     77.8  100.3      56     25    3258    19  1902    2019      344        3        6     77
+c3  Sage        67.8   87.7      56     36    3729     3  2640    2816      471       13        7     99
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 19.8 min from KEY-5 (at 121.4)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 21.4 min from KEY-5 (at 115.6)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 25.3 min from KEY-5 (at 125.6)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 17.4 min from KEY-5 (at 105.1)
+iron works built (all settlements):
+  crane                     6   10    5   10
+  windlass_well            16   20   18   20
+  terrace                  13   47   12   33
+  aqueduct                  4    4    7    5
+  bathhouse                 5    5    8    6
+  theatre_arena             3    7    6   10
+  road                     17   26   21   24
+  bridge                   14    8   17    8
+  gatehouse                 5    9    7   10
+  frontier_wall_segment     7    2    3    3
+  castle                    4    2    2    3
+  harbor                    0    2    1    0
+  galley                    0    2    1    0
+  academy                   4    4    3    4
+  press                     6    9    8    9
+  water_mill                1    3    2    2
+  temple_tier2              4    6    4    5
+  windmill                  7    7    8    9
+  sawmill                   0    0    1    2
+  blast_furnace             0    0    0    1
+  monastery                 1    4    0    4
+  university                1    2    0    0
+  hospital                  0    1    0    2
+  concentric_castle         0    1    1    0
+  powder_mill               1    3    3    4
+  print_shop                3   10    6    9
+  clock_tower               0    1    5    2
+  cathedral_school          0    3    0    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 12; aqueduct x2 (100%), clock_tower x2 (100%), concentric_castle x1 (100%), great_dome x1 (100%), powder_mill x2 (100%)
+  c1: villages 21; aqueduct x1 (100%), blast_furnace x1 (100%), cathedral_school x2 (100%), clock_tower x4 (100%), crane x1 (100%), gothic_cathedral x1 (100%), hospital x2 (100%), press x1 (100%)
+  c2: villages 14; aqueduct x1 (100%), blast_furnace x3 (100%), crane x1 (100%), hospital x2 (100%), sawmill x2 (100%), university x2 (81%)
+  c3: villages 24; aqueduct x1 (100%), blast_furnace x1 (100%), cathedral_school x5 (100%), concentric_castle x1 (100%), gothic_cathedral x1 (100%), powder_mill x1 (100%), sawmill x1 (100%), university x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 4 towns
+  aqueduct lacks block: 5 towns
+  blast_furnace lacks block: 5 towns
+  bridge lacks ashlar: 1 towns
+  bridge lacks block: 4 towns
+  bridge lacks wood: 4 towns
+  cathedral_school lacks block: 7 towns
+  cathedral_school lacks wood: 1 towns
+  clock_tower lacks block: 6 towns
+  concentric_castle lacks ashlar: 2 towns
+  crane lacks bloom: 2 towns
+  gothic_cathedral lacks ashlar: 1 towns
+  gothic_cathedral lacks glass: 2 towns
+  gothic_cathedral lacks wood: 1 towns
+  great_dome lacks ashlar: 1 towns
+  great_dome lacks block: 1 towns
+  great_dome lacks bloom: 1 towns
+  great_dome lacks wood: 1 towns
+  hospital lacks block: 4 towns
+  hospital lacks wood: 1 towns
+  powder_mill lacks block: 3 towns
+  press fully supplied: 1 towns
+  sawmill lacks block: 3 towns
+  university lacks block: 2 towns
+  university lacks plank: 2 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 30  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 274, c1 457, c2 344, c3 475
+final legacy per civ: c0 5602, c1 7611, c2 6598, c3 7905
+
+== fief-match seed 20667156: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     73.0   94.1      56     31    3873     5  2558    2732      429       16        6     78
+c1  Grower      75.6   94.1      56     21    2403     8  1370    1580      266        7        5     75
+c2  Warlord     69.3   90.4      56     19    2259     8  1494    1657      272        4        3     70
+c3  Sage        70.6   87.1      56     39    3876     6  2451    2651      445       16        7    112
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 23.1 min from KEY-5 (at 117.3)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 27.3 min from KEY-5 (at 121.4)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 30.9 min from KEY-5 (at 121.2)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 22.0 min from KEY-5 (at 109.2)
+iron works built (all settlements):
+  crane                    11    6    5    6
+  windlass_well            24   14   12   19
+  terrace                  30   30    0   29
+  aqueduct                  5    1    2    4
+  bathhouse                 5    2    5    9
+  theatre_arena             8    1    4    8
+  road                     29   14   17   29
+  bridge                   20   13   14   16
+  gatehouse                11    5    6   10
+  frontier_wall_segment     2    3    2    4
+  castle                    3    4    2    3
+  harbor                    2    0    3    0
+  galley                    2    0    3    0
+  academy                   6    3    4    4
+  great_dome                1    0    0    0
+  press                    12    3    5    5
+  water_mill                2    0    1    1
+  temple_tier2              6    4    2    6
+  windmill                 11    7    6   10
+  sawmill                   1    1    1    0
+  monastery                 3    2    0    5
+  university                0    0    0    2
+  hospital                  2    0    0    2
+  concentric_castle         0    0    1    1
+  powder_mill               3    0    4    4
+  print_shop                9    1    2    9
+  clock_tower               1    0    0    0
+  cathedral_school          3    1    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 18; blast_furnace x2 (100%), cathedral_school x1 (100%), gothic_cathedral x1 (100%), powder_mill x8 (100%), windlass_well x1 (6%)
+  c1: villages 14; blast_furnace x2 (100%), clock_tower x2 (100%), concentric_castle x1 (100%), print_shop x1 (100%), university x1 (100%)
+  c2: villages 13; cathedral_school x1 (100%), gothic_cathedral x1 (100%), hospital x4 (100%)
+  c3: villages 28; aqueduct x2 (100%), cathedral_school x5 (100%), clock_tower x3 (100%), gothic_cathedral x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 2 towns
+  blast_furnace lacks block: 4 towns
+  blast_furnace lacks wood: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 2 towns
+  cathedral_school lacks block: 7 towns
+  cathedral_school lacks wood: 1 towns
+  clock_tower lacks block: 5 towns
+  clock_tower lacks bloom: 1 towns
+  clock_tower lacks wood: 1 towns
+  concentric_castle lacks ashlar: 1 towns
+  concentric_castle lacks bloom: 1 towns
+  gothic_cathedral lacks ashlar: 3 towns
+  gothic_cathedral lacks glass: 3 towns
+  gothic_cathedral lacks wood: 1 towns
+  hospital lacks block: 4 towns
+  hospital lacks wood: 1 towns
+  powder_mill lacks block: 8 towns
+  print_shop lacks bloom: 1 towns
+  print_shop lacks plank: 1 towns
+  print_shop lacks wood: 1 towns
+  road lacks block: 1 towns
+  university lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome c0
+events: wars 0  raids 10  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 433, c1 268, c2 272, c3 445
+final legacy per civ: c0 8112, c1 6273, c2 6158, c3 7158
+
+== fief-match seed 20673841: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     66.1   85.6      56     37    3578     0  2038    2279      357       12        7     96
+c1  Grower      70.1   87.8      56     24    2485     4  1656    1733      266        3        6     84
+c2  Warlord     74.6   98.5      56     26    3100     9  1729    2013      330       13        6     80
+c3  Sage        74.6   94.8      56     34    3455    18  2347    2500      413       16        9     64
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 28.4 min from KEY-5 (at 114.0)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 29.1 min from KEY-5 (at 117.0)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 24.4 min from KEY-5 (at 122.9)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 18.9 min from KEY-5 (at 113.8)
+iron works built (all settlements):
+  crane                     7    6    7    9
+  windlass_well            20   16   16   20
+  terrace                  21   23   28   20
+  aqueduct                  4    0    6    2
+  bathhouse                 3    2    5    6
+  theatre_arena             2    1    5    6
+  road                     23   18   22   21
+  bridge                   20   13   18   13
+  gatehouse                 9    8    7    9
+  frontier_wall_segment     0    3    5    5
+  castle                    0    2    3    2
+  harbor                    2    0    2    0
+  galley                    2    0    1    0
+  academy                   3    3    5    5
+  press                     7    5    7    7
+  water_mill                1    0    2    2
+  temple_tier2              2    2    5    6
+  windmill                  7    8    7   10
+  sawmill                   1    2    2    1
+  blast_furnace             0    0    1    0
+  monastery                 3    0    3    4
+  university                1    0    1    0
+  hospital                  3    0    3    1
+  concentric_castle         0    0    1    0
+  powder_mill               2    0    3    2
+  print_shop                7    6    5   10
+  clock_tower               2    0    2    0
+  cathedral_school          2    0    1    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 24; aqueduct x1 (100%), blast_furnace x1 (100%), gatehouse x2 (68%), gothic_cathedral x1 (100%), powder_mill x7 (100%), road x1 (0%)
+  c1: villages 16; bathhouse x1 (100%), blast_furnace x1 (100%), cathedral_school x2 (100%), clock_tower x2 (100%), concentric_castle x1 (100%), crane x1 (100%)
+  c2: villages 16; blast_furnace x1 (100%), castle x1 (100%), cathedral_school x1 (100%), clock_tower x2 (79%), gothic_cathedral x1 (100%), print_shop x4 (100%)
+  c3: villages 22; blast_furnace x1 (100%), cathedral_school x3 (100%), clock_tower x5 (100%), concentric_castle x1 (100%), gothic_cathedral x1 (100%), print_shop x1 (68%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 1 towns
+  bathhouse lacks block: 1 towns
+  blast_furnace lacks block: 4 towns
+  bridge lacks ashlar: 3 towns
+  bridge lacks block: 9 towns
+  bridge lacks wood: 5 towns
+  castle lacks ashlar: 1 towns
+  castle lacks wood: 1 towns
+  cathedral_school lacks block: 6 towns
+  clock_tower lacks block: 8 towns
+  clock_tower lacks bloom: 1 towns
+  clock_tower lacks wood: 1 towns
+  concentric_castle lacks ashlar: 2 towns
+  crane lacks bloom: 1 towns
+  gothic_cathedral lacks ashlar: 3 towns
+  gothic_cathedral lacks glass: 3 towns
+  gothic_cathedral lacks wood: 1 towns
+  powder_mill lacks block: 7 towns
+  powder_mill lacks wood: 1 towns
+  print_shop lacks bloom: 3 towns
+  print_shop lacks wood: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 16  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 4
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 357, c1 266, c2 330, c3 413
+final legacy per civ: c0 7513, c1 6139, c2 6558, c3 6918
+
+== fief-match seed 20680633: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.4   91.0      56     21    2397     1  1467    1551      252        4        5     62
+c1  Grower      70.7   89.8      56     40    4040     9  2892    3043      457       10        7     69
+c2  Warlord     72.1   94.8      56     26    3064     7  1969    2038      348        5        5     47
+c3  Sage        74.6   92.9      56     32    3751    15  2290    2513      407       10        4     69
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 28.4 min from KEY-5 (at 119.4)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 25.3 min from KEY-5 (at 115.1)
+  c2 Warlord: 49 E5 projects, KEY-5→KEY-6 25.1 min from KEY-5 (at 119.9)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 24.3 min from KEY-5 (at 117.2)
+iron works built (all settlements):
+  crane                     4    8   10    7
+  windlass_well            16   25   20   20
+  terrace                   3   51    9   31
+  aqueduct                  5    7    2    3
+  bathhouse                 5   10    3    6
+  theatre_arena             4   11    2    4
+  road                     15   30   23   28
+  bridge                   12   22    2   21
+  gatehouse                 8    8    8    6
+  frontier_wall_segment     4    2    2    5
+  castle                    3    1    1    4
+  harbor                    0    3    0    1
+  galley                    0    3    0    1
+  academy                   4    4    3    3
+  press                     7   12    6   10
+  water_mill                0    2    2    2
+  temple_tier2              3    4    4    3
+  windmill                  8   11    9    9
+  monastery                 0    3    1    2
+  hospital                  0    0    0    2
+  concentric_castle         1    1    0    0
+  powder_mill               1    2    0    1
+  print_shop                5   11    9    6
+  clock_tower               0    0    2    1
+  cathedral_school          0    0    0    2
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 13; (nothing wanted) x1 (0%), blast_furnace x1 (100%), cathedral_school x2 (100%), gothic_cathedral x1 (100%), powder_mill x3 (100%)
+  c1: villages 27; cathedral_school x2 (100%), clock_tower x10 (100%), gothic_cathedral x1 (100%)
+  c2: villages 16; cathedral_school x3 (100%), clock_tower x1 (100%), gothic_cathedral x1 (100%), hospital x1 (100%), powder_mill x4 (100%)
+  c3: villages 21; cathedral_school x2 (100%), clock_tower x4 (100%), concentric_castle x1 (100%), gothic_cathedral x1 (100%), powder_mill x2 (100%), university x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  blast_furnace lacks block: 1 towns
+  blast_furnace lacks wood: 1 towns
+  bridge lacks block: 2 towns
+  bridge lacks wood: 3 towns
+  cathedral_school lacks block: 9 towns
+  clock_tower lacks block: 15 towns
+  clock_tower lacks bloom: 1 towns
+  concentric_castle lacks ashlar: 1 towns
+  gothic_cathedral lacks ashlar: 4 towns
+  gothic_cathedral lacks glass: 4 towns
+  hospital lacks block: 1 towns
+  powder_mill lacks block: 9 towns
+  road lacks block: 1 towns
+  university lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 0  raids 10  assaults 0  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 2
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 255, c1 457, c2 348, c3 407
+final legacy per civ: c0 6182, c1 8034, c2 6569, c3 6947
+
+== fief-match seed 20690303: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     72.6   91.6      56     26    3200     7  2025    2130      363       12       10     97
+c1  Grower      76.2   96.6      56     29    3143    24  1906    2172      362       15        8     66
+c2  Warlord        -      -       0      0       0     0     0      37        0        0        0      0
+c3  Sage        69.5   88.5      56     37    4037     3  3151    3776      456       22       11     58
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 22.2 min from KEY-5 (at 113.8)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 23.7 min from KEY-5 (at 120.3)
+  c2 Warlord: 0 E5 projects, KEY-5→KEY-6 KEY-5 not reached
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 22.8 min from KEY-5 (at 111.3)
+iron works built (all settlements):
+  crane                     6    4    0    1
+  windlass_well            14   21    0   20
+  terrace                  10   14    0   52
+  aqueduct                  7    3    0    9
+  bathhouse                 8    5    0   11
+  theatre_arena             6    4    0   13
+  road                     24   22    0   49
+  bridge                   12   16    0   38
+  gatehouse                 7    9    0    8
+  frontier_wall_segment     3    4    0    0
+  castle                    3    3    0    0
+  harbor                    1    1    0    2
+  galley                    1    0    0    1
+  academy                   5    5    0    4
+  great_dome                0    0    0    1
+  press                     7    4    0   12
+  water_mill                2    1    0    2
+  temple_tier2              6    2    0    6
+  windmill                  9    8    0   11
+  sawmill                   0    0    0    1
+  monastery                 3    2    0    4
+  university                0    0    0    1
+  hospital                  0    1    0    9
+  powder_mill               2    0    0    5
+  print_shop                7    0    0   11
+  clock_tower               1    0    0    3
+  cathedral_school          1    4    0    6
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 16; blast_furnace x1 (100%), cathedral_school x3 (100%), concentric_castle x1 (100%), gothic_cathedral x1 (100%), hospital x2 (100%), powder_mill x2 (100%)
+  c1: villages 17; clock_tower x5 (95%), monastery x1 (100%), powder_mill x2 (100%), press x1 (100%), print_shop x2 (100%), windlass_well x1 (55%)
+  c2: villages 0; 
+  c3: villages 21; aqueduct x1 (100%), blast_furnace x3 (100%), cathedral_school x4 (100%), clock_tower x5 (93%), gothic_cathedral x1 (100%), sawmill x1 (100%), university x1 (100%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 1 towns
+  aqueduct lacks wood: 1 towns
+  blast_furnace lacks block: 4 towns
+  bridge lacks block: 1 towns
+  bridge lacks wood: 5 towns
+  cathedral_school lacks block: 7 towns
+  cathedral_school lacks wood: 1 towns
+  clock_tower lacks block: 8 towns
+  clock_tower lacks bloom: 5 towns
+  concentric_castle lacks ashlar: 1 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 2 towns
+  gothic_cathedral lacks wood: 1 towns
+  hospital lacks block: 2 towns
+  monastery lacks block: 1 towns
+  powder_mill lacks block: 4 towns
+  powder_mill lacks wood: 1 towns
+  press lacks bloom: 1 towns
+  print_shop lacks bloom: 2 towns
+  sawmill lacks block: 1 towns
+  sawmill lacks bloom: 1 towns
+  university lacks block: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome c3
+events: wars 2  raids 6  assaults 2  captured 2  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 363, c1 362, c2 0, c3 460
+final legacy per civ: c0 7232, c1 7112, c2 1368, c3 8710
+
+== fief-match seed 20696250: 130.0 minutes simulated, chapter end None at season none (ended: False)
+civ arch       KEY-4  KEY-5 E4 done  settl  people   T11   T12  adults soldiers scholars missions  idleS
+c0  Builder     70.0   86.0      56     31    3550     1  2428    2522      425       10        6     79
+c1  Grower      70.5   89.4      56     26    2856     1  1942    2095      342        5        4     78
+c2  Warlord     75.6   98.8      56     15    1680    19  1089    1176      175        1        4     76
+c3  Sage        67.7   83.6      56     38    3501     1  2538    2807      393        5        4     81
+fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an unfinished row is censored at the run horizon):
+  c0 Builder: 49 E5 projects, KEY-5→KEY-6 22.3 min from KEY-5 (at 108.3)
+  c1 Grower: 49 E5 projects, KEY-5→KEY-6 27.1 min from KEY-5 (at 116.6)
+  c2 Warlord: 38 E5 projects, KEY-5→KEY-6 30.1 min from KEY-5 (at 128.9)
+  c3 Sage: 49 E5 projects, KEY-5→KEY-6 23.5 min from KEY-5 (at 107.0)
+iron works built (all settlements):
+  crane                     7    6    4    8
+  windlass_well            20   14    8   20
+  terrace                  16   12    2   34
+  aqueduct                  0    1    0    6
+  bathhouse                 1    4    0   10
+  theatre_arena             5    5    0    6
+  road                     25   20   12   35
+  bridge                   19   18    9   29
+  gatehouse                 6    6    3    9
+  frontier_wall_segment     1    2    0    2
+  castle                    0    1    0    1
+  harbor                    2    2    1    2
+  galley                    2    2    1    2
+  academy                   4    3    1    3
+  press                     6    3    4    7
+  water_mill                0    2    0    3
+  temple_tier2              3    3    2    3
+  windmill                  9    5    3    7
+  sawmill                   1    0    0    2
+  monastery                 1    1    0    1
+  hospital                  1    1    0    1
+  powder_mill               3    2    0    2
+  print_shop                4    6    4    8
+  cathedral_school          2    0    0    0
+iron build in progress (town count by structure, with the share of its labor done):
+  c0: villages 21; aqueduct x3 (66%), cathedral_school x4 (100%), gothic_cathedral x1 (100%), powder_mill x2 (100%)
+  c1: villages 18; (nothing wanted) x1 (0%), cathedral_school x1 (100%), clock_tower x6 (100%)
+  c2: villages 11; blast_furnace x2 (98%), windmill x2 (50%)
+  c3: villages 26; blast_furnace x1 (100%), cathedral_school x3 (100%), gothic_cathedral x1 (100%), hospital x3 (100%), powder_mill x2 (100%), terrace x1 (70%), theatre_arena x1 (70%)
+what the stuck towns lack (settlements whose structure is fully worked):
+  aqueduct lacks ashlar: 1 towns
+  aqueduct lacks block: 2 towns
+  blast_furnace lacks block: 2 towns
+  bridge lacks block: 4 towns
+  bridge lacks wood: 6 towns
+  cathedral_school lacks block: 8 towns
+  cathedral_school lacks wood: 3 towns
+  clock_tower lacks block: 6 towns
+  clock_tower lacks wood: 1 towns
+  gothic_cathedral lacks ashlar: 2 towns
+  gothic_cathedral lacks glass: 2 towns
+  gothic_cathedral lacks wood: 1 towns
+  hospital lacks block: 3 towns
+  powder_mill lacks block: 4 towns
+  windmill lacks wheel: 1 towns
+wonders held: great_library none, great_lighthouse none, great_dome none
+events: wars 2  raids 14  assaults 2  captured 0  investments 0  blockades 0/0  tributes 0/0  leagues 0/0  compacts 3
+now: tributes 0, leagues 0, blockades 0, investments 0 (with engines 0)
+peak soldiers per civ: c0 429, c1 342, c2 175, c3 405
+final legacy per civ: c0 6959, c1 6675, c2 5147, c3 7722
+

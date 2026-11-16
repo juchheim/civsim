@@ -15,12 +15,19 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel
 {
-    /// <summary>WAR-11 levy arms, stored apart from the E5 paper, book and siege-goods ledger.</summary>
-    private enum BowGood : byte { Crossbow, Longbow, Count }
+    /// <summary>
+    /// WAR-11 levy arms, stored apart from the E5 paper, book and siege-goods ledger. ART-09 manuscripts and CER-10 spectacles (Learning.cs) follow the bows in the
+    /// same per-settlement array; the first two entries keep their snapshot positions, and an older (two-entry) snapshot is padded with zeros.
+    /// </summary>
+    private enum BowGood : byte { Crossbow, Longbow, Manuscript, Spectacles, Count }
+
+    /// <summary>Entries of the per-settlement array before ART-09 and CER-10 (snapshot versions 43 and 44).</summary>
+    private const int LegacyBowGoodCount = 2;
 
     private static string BowGoodId(BowGood good) => good switch
     {
-        BowGood.Crossbow => "G-CROSSBOW", BowGood.Longbow => "G-LONGBOW", _ => "",
+        BowGood.Crossbow => "G-CROSSBOW", BowGood.Longbow => "G-LONGBOW",
+        BowGood.Manuscript => "G-MANUSCRIPT", BowGood.Spectacles => "G-SPECTACLES", _ => "",
     };
 
     private static int BowSlotBase => FiefSlotBase + (int)FiefGood.Count;
@@ -151,6 +158,7 @@ public sealed partial class LivingEconomyModel
             }
         Fix64 idle = s.Stores[(int)Good.Bow] - Fix64.One;
         if (idle > Fix64.Zero) RetireStoredTool(s, Good.Bow, idle / LevyBowServiceSeasons);
+        WearSpectacles(s);
     }
 
     /// <summary>Removes untouched units of a durable tool from store first, then the one in use, keeping the work left within what the stock can hold.</summary>
@@ -232,7 +240,11 @@ public sealed partial class LivingEconomyModel
             if (!HasFiefGoods(_settlements[i])) continue;
             if (!any) { hash.Add(FiefGoodsTag); any = true; }
             hash.Add(i);
-            hash.Add(_settlements[i].FiefGoods!);
+            Fix64[] goods = _settlements[i].FiefGoods!;
+            // Manuscripts and spectacles join the hash only once one exists, so a match without them keeps its earlier checksum.
+            bool learned = false;
+            for (int g = LegacyBowGoodCount; g < goods.Length; g++) learned |= goods[g] != Fix64.Zero;
+            hash.Add(learned ? goods : goods[..LegacyBowGoodCount]);
         }
     }
 
@@ -265,7 +277,13 @@ public sealed partial class LivingEconomyModel
                 throw new InvalidDataException("Invalid Fief levy-bow settlement index.");
             previous = index;
             var bows = new Fix64[(int)BowGood.Count];
-            ReadFixArray(reader, bows);
+            if (FiefSnapshotVersionForRestore >= 45) ReadFixArray(reader, bows);
+            else
+            {
+                var legacy = new Fix64[LegacyBowGoodCount];
+                ReadFixArray(reader, legacy);
+                Array.Copy(legacy, bows, LegacyBowGoodCount);
+            }
             foreach (Fix64 amount in bows) if (amount < Fix64.Zero) throw new InvalidDataException("Snapshot contains a negative bow stock.");
             _settlements[index].FiefGoods = bows;
         }

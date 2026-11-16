@@ -532,6 +532,24 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
     }
 
     /// <summary>
+    /// What one caravan asks for before the vessel's limit: the seller's surplus or the buyer's stated need, whichever is less. NUM-08, TRD-08 and GOV-10 (Fief) let credit and
+    /// written contracts widen the stated need, so the caravan may carry more of what the buyer lacks, never more than the seller can spare.
+    /// </summary>
+    private Fix64 CaravanRequest(int sellerCiv, int buyerCiv, int seller, int buyer, TradeGood good)
+    {
+        int mover = sellerCiv >= 0 ? sellerCiv : buyerCiv;
+        Fix64 need = Shortfall(buyer, good);
+        if (_economy.FiefChain) need *= _economy.FiefTradeVolumeFactor(mover);
+        return Fix64.Min(Surplus(seller, good), need);
+    }
+
+    private Fix64 CaravanLoad(int sellerCiv, int buyerCiv, int seller, int buyer, TradeGood good)
+        => LimitCaravanCargo(sellerCiv >= 0 ? sellerCiv : buyerCiv, seller, buyer, good, CaravanRequest(sellerCiv, buyerCiv, seller, buyer, good));
+
+    internal Fix64 FixtureCaravanLoad(int sellerCiv, int buyerCiv, int seller, int buyer, TradeGood good)
+        => CaravanLoad(sellerCiv, buyerCiv, seller, buyer, good);
+
+    /// <summary>
     /// One delivery (docs/MVP/22 §6.2–6.3): the seller loads min(surplus, the buyer's next 4 seasons of need) if both still gain at the
     /// scarcity rate; two carriers walk it to the buyer (boats and carts as the route allows).
     /// </summary>
@@ -549,7 +567,7 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         int travel = Travel(c.SellerCiv >= 0 ? c.SellerCiv : c.BuyerCiv, _sTile[seller], _sTile[buyer]);
         if (travel == int.MaxValue)
         { TraceSea10Route("route_rejected", c, null, seller, buyer, "unreachable_or_water_locked", Fix64.Zero, Fix64.Zero, Fix64.Zero); return; }
-        Fix64 requested = Fix64.Min(Surplus(seller, c.Good), Shortfall(buyer, c.Good));
+        Fix64 requested = CaravanRequest(c.SellerCiv, c.BuyerCiv, seller, buyer, c.Good);
         Fix64 load = requested;
         load = LimitCaravanCargo(c.SellerCiv >= 0 ? c.SellerCiv : c.BuyerCiv, seller, buyer, c.Good, load);
         if (load < MinLoad)

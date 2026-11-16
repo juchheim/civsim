@@ -307,7 +307,7 @@ public sealed partial class LivingEconomyModel
         int span = 0;
         foreach (EconomyEffect e in _content.Effects)
             if (e.Kind == "admin" && e.Span is { } sp && _completedProjects[civ][e.ProjectIndex]) span += sp;
-        return span;
+        return FiefAdminCapacity(civ, span);
     }
 
     /// <summary>AdminReduction = 1 − Π(1 − r) over completed `admin` effects (docs/MVP/22 §8.3).</summary>
@@ -1342,6 +1342,7 @@ public sealed partial class LivingEconomyModel
         items += m.Goods[(int)MetalGood.Gold] * 10 * goldWeight;
         // Blown glass, wine and pressed oil are luxuries too in the Iron chapter (a batch of glass makes four).
         if (IronChain) items += IronStock(s, IronGood.BlownGlass) + IronStock(s, IronGood.Wine) + IronStock(s, IronGood.OilPlant);
+        items += LearnedLuxuryItems(s);
         return items.FloorToInt();
     }
 

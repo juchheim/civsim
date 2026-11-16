@@ -73,7 +73,7 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
     private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _statWritingRoleOutput, _statDiffusionDiscount, _wonderLibrary;
-    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10;
+    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10, _cer10, _roleMonk, _statMonasteryInsight, _statAdminCapacity;
     private long _tick;
 
 
@@ -117,6 +117,10 @@ public sealed partial class ResearchSystem : IResearchView
         _wonderLibrary = catalog.IndexOf("LRN-06");
         _com09 = catalog.IndexOf("COM-09");
         _com10 = catalog.IndexOf("COM-10");
+        _cer10 = catalog.IndexOf("CER-10");                               // spectacles gate its Elder Insight
+        _roleMonk = catalog.RoleIndex("monk");
+        _statMonasteryInsight = catalog.StatIndex("monastery_insight");   // ART-09
+        _statAdminCapacity = catalog.StatIndex("admin_capacity");         // NUM-08
         _soc03 = catalog.IndexOf("SOC-03");
         _trd04 = catalog.IndexOf("TRD-04");
         _bel05 = catalog.IndexOf("BEL-05");
@@ -746,7 +750,10 @@ public sealed partial class ResearchSystem : IResearchView
         // Before SOC-03 daughter bands share Insight at half strength (docs/MVP/09 §7.4).
         Fix64 ties = civ.Done[_soc03] ? Fix64.One
             : (Fix64.One + _lowTies * (settlements - 1)) / settlements;
-        Fix64 effective = (inputs.Adults + _elderCommons * lmElder * inputs.Elders) * ties;
+        // CER-10 (Fief): the spectacle bonus reaches only the elders who hold a pair, so it weights the elder head count rather than multiplying every elder.
+        Fix64 spectacleShare = Rules.IsFief && inputs.Elders.Raw > 0 ? Fix64.Min(Fix64.One, inputs.SpectacleHolders / inputs.Elders) : Fix64.Zero;
+        Fix64 spectacleLift = Fix64.One + (civ.SpectacleElderMult - Fix64.One) * spectacleShare;
+        Fix64 effective = (inputs.Adults + _elderCommons * lmElder * spectacleLift * inputs.Elders) * ties;
         Fix64 commons = _commonsCoef * FixMath.Pow(effective, _commonsExp) * lmCommons;
 
         Fix64 roles = Fix64.Zero;
@@ -756,7 +763,9 @@ public sealed partial class ResearchSystem : IResearchView
             if (role.Insight.Raw == 0 || role.UnlockedBy < 0 || !civ.Done[role.UnlockedBy]) continue;
             Fix64 heads = inputs.RoleHeads is { } h && r < h.Length ? h[r] : Fix64.Zero;
             Fix64 output = heads * role.Insight;
-            if (r == _roleElder) output = output * lmElder;
+            if (r == _roleElder) output = output * lmElder * spectacleLift;
+            // ART-09 (Fief): illuminated manuscripts lift only the Insight of monks at a staffed monastery, which is every monk head the economy reports.
+            if (Rules.IsFief && r == _roleMonk && _statMonasteryInsight >= 0) output = output * civ.ModMult[_statMonasteryInsight];
             // E3 roles by structure (docs/MVP/22 §8.4): COM-06 ×1.5 scribe output, NUM-06 +4 a Priest, SOC-08 +10% role Insight.
             if (r == _roleScribe && _statScribe >= 0) output = output * civ.ModMult[_statScribe];
             if (r == _rolePriest && _statPriest >= 0) output = output + heads * civ.ModFlat[_statPriest];
@@ -857,6 +866,7 @@ public sealed partial class ResearchSystem : IResearchView
         Array.Fill(civ.CapMult, Fix64.One);
         Array.Fill(civ.KnowHowLineageGain, Fix64.One);
         civ.AdoptMult = Fix64.One;
+        civ.SpectacleElderMult = Fix64.One;
         civ.KnowHowGain = Fix64.One;
         civ.GroupCapValue = Fix64.Zero;
         civ.MandateUnlocked = false;
@@ -878,6 +888,11 @@ public sealed partial class ResearchSystem : IResearchView
                 {
                     case EffectKind.Mod when e.Stat is not null && e.HasValue:
                         int s = _catalog.StatIndex(e.Stat);
+                        if (Rules.IsFief && p == _cer10 && s == _statElder && e.Op == "mult")
+                        {
+                            civ.SpectacleElderMult = civ.SpectacleElderMult * (Fix64.One + (e.Value - Fix64.One) * adopted * pioneer);
+                            break;
+                        }
                         switch (e.Op)
                         {
                             case "pct": civ.ModMult[s] = civ.ModMult[s] * (Fix64.One + e.Value * adopted * pioneer); break;
@@ -917,6 +932,8 @@ public sealed partial class ResearchSystem : IResearchView
                 }
             }
         }
+        if (Rules.IsFief && _statAdminCapacity >= 0 && civ.AdminSpan > 0 && civ.ModMult[_statAdminCapacity] != Fix64.One)
+            civ.AdminSpan = (Fix64.FromInt(civ.AdminSpan) * civ.ModMult[_statAdminCapacity] + Fix64.Half).FloorToInt(); // NUM-08, rounded as the economy does
         civ.MandateCap = Math.Max(0, mandateCap);
         civ.MandateRecharge = Math.Max(_catalog.MandateRechargeMin, mandateRecharge);
         if (civ.Mandate > civ.MandateCap) civ.Mandate = civ.MandateCap;

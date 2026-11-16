@@ -31,10 +31,10 @@ public class FiefPowerTests
         Assert.Equal(withMill.Output * 4, withFurnace.Output);
         Assert.Equal(withMill.Input0, withFurnace.Input0);              // fitted x1 charcoal
         Assert.Equal(withMill.Input1 * 4, withFurnace.Input1);          // ore
-        Assert.Equal(withMill.Labor * 2, withFurnace.Labor);
-        // One-quarter the charcoal and half the labor per litre of iron at this coverage.
+        Assert.Equal(withMill.Labor, withFurnace.Labor);                // fitted x1 labor (F-T3)
+        // One-quarter the charcoal and one-quarter the labor per litre of iron at this coverage.
         Assert.Equal(withMill.Input0 / withMill.Output / 4, withFurnace.Input0 / withFurnace.Output);
-        Assert.Equal(withMill.Labor / withMill.Output / 2, withFurnace.Labor / withFurnace.Output);
+        Assert.Equal(withMill.Labor / withMill.Output / 4, withFurnace.Labor / withFurnace.Output);
         Assert.Equal(before, withMill);                                  // the mill alone changes nothing about a bloomery batch (the bloomery is not a hammer or saw job)
     }
 
@@ -207,6 +207,36 @@ public class FiefPowerTests
 
         f.Economy.FixtureSetIronWork(0, "windmill", 3);
         Assert.False(f.Economy.FixtureIronGateOpen(0, "windmill", includeAppetite: false));
+    }
+
+    [Fact]
+    public void A_town_below_the_grain_screen_puts_its_second_windmill_ahead_of_another_build_in_progress()
+    {
+        BronzeFixture f = Fief("NRG-05", "BEL-10");
+        f.Economy.FixtureAddPeople(0, 300, 25); // 400 residents: one windmill leaves coverage under 60%
+        f.Economy.FixtureSetTier(0, 1);
+        f.Economy.FixtureFillNaturalFields(0);
+        f.Economy.FixtureSetIronWork(0, "windmill", 1);
+        f.Economy.FixtureStartIronBuild(0, "monastery");
+        Assert.True(f.Economy.FixtureIronGateOpen(0, "windmill"));
+        var chosen = f.Economy.FixtureRunIronBuildWants(0);
+        Assert.Equal(f.Economy.FixtureIronKindOf("windmill"), chosen.Kind);
+        // As the current build, its wheel is planned like any structure's; the post mill needs no dressed blocks.
+        Assert.True(chosen.WheelWant >= Fix64.One);
+        Assert.Equal(Fix64.Zero, chosen.BlockWant);
+    }
+
+    [Fact]
+    public void The_windmill_does_not_jump_the_queue_once_coverage_is_met()
+    {
+        BronzeFixture met = Fief("NRG-05", "BEL-10");
+        met.Economy.FixtureSetTier(0, 1);
+        met.Economy.FixtureFillNaturalFields(0);
+        met.Economy.FixtureSetIronWork(0, "windmill", 2);
+        met.Economy.FixtureStartIronBuild(0, "monastery");
+        met.Economy.FixtureSetGoodStock(0, "G-WHEEL", Fix64.FromInt(2));
+        met.Economy.FixtureSetGoodStock(0, "G-BLOCK", Fix64.FromInt(10));
+        Assert.NotEqual(met.Economy.FixtureIronKindOf("windmill"), met.Economy.FixtureRunIronBuildWants(0).Kind);
     }
 
     [Fact]

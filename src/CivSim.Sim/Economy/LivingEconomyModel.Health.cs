@@ -185,7 +185,12 @@ public sealed partial class LivingEconomyModel
         else if (figure.Age >= 45) h *= Fix64.FromInt(2);
         h *= c.CfrScale;
         if (HasProject(figure.Civilization, "MED-01")) h *= MedCare(figure.Civilization, Fix64.FromRatio(9, 10));
-        if (FiefChain && HospitalStaffed(_settlements[figure.SettlementId])) h *= Fix64.FromRatio(4, 5);
+        if (FiefChain && HospitalStaffed(_settlements[figure.SettlementId]))
+        {
+            h *= Fix64.FromRatio(4, 5);
+            // MED-07's typed elder_hazard (x0.95): elders in a settlement with a staffed hospital, by the same age line as the age factor above.
+            if (figure.Age >= 45) h *= Modifier(figure.Civilization, "elder_hazard");
+        }
         if (FiefChain) h *= FiefDraftEpidemicHazardScale;
         return h;
     }

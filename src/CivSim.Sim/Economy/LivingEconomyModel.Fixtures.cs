@@ -441,6 +441,12 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         return $"tier {(s.Civic?.Tier ?? 255)} kind {s.Metal?.IronBuildKind} progress {s.Metal?.IronBuildProgress.ToDoubleForDisplay():F2} block {(s.Metal?.Goods[(int)MetalGood.Block] ?? Fix64.Zero).ToDoubleForDisplay():F1} wood {s.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} pop {Population(s.Id)}";
     }
+    internal int FixtureIronKindOf(string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++) if (IronSpecs[k].Name == name) return k;
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
     internal int FixtureIronBuildKind(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildKind ?? -1;
 
     /// <summary>The extra effective farm work a figure's scythe gives for a stated amount of farm work (zero without AGR-09 and a T11 or T12 kit).</summary>

@@ -36,6 +36,19 @@ public sealed partial class LivingEconomyModel
     private static readonly Fix64 PowderPerCannonShot = Fix64.FromRatio(1, 4);
     private static readonly Fix64 BaseFiefRecipeWaste = Fix64.FromRatio(1, 20);
 
+    /// <summary>
+    /// The SOC-11 craft-loss allowance is a loss of "non-kit crafted goods" (catalog note). Tool kits keep their service-life rule, and ore reduction and metal refining
+    /// (smelting, alloying, bloomery, wrought iron, steel) make intermediate metal, not crafted goods, so they carry no craft loss: their fuel and ore are already
+    /// accounted by the I-T6 fuel ledger, and a flat 5% on them put the Fief ramp-up window over the F-T3 15% work-share rule (docs/MVP/balance/m12-e5-ft3-fit-2026-11-16.md).
+    /// </summary>
+    private static bool FiefCraftLossApplies(CompiledRecipe r)
+    {
+        string id = r.Def.Id;
+        if (id.StartsWith("make_tool", StringComparison.Ordinal) || id.StartsWith("cast_t", StringComparison.Ordinal)) return false;
+        if (id.StartsWith("smelt_", StringComparison.Ordinal) || id.StartsWith("cosmelt_", StringComparison.Ordinal)) return false;
+        return id is not ("alloy_bronze" or "bloomery" or "forge_wrought" or "carburize_steel");
+    }
+
     private Fix64 FiefRecipeWasteRate(int civilization)
         => Done(civilization, "SOC-11") ? BaseFiefRecipeWaste / Fix64.Parse("1.2") : BaseFiefRecipeWaste;
 

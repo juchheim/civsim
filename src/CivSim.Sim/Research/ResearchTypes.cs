@@ -74,6 +74,8 @@ public struct InsightInputs
 {
     public Fix64 Adults;
     public Fix64 Elders;
+    /// <summary>Elders who hold a pair of spectacles (CER-10, Fief chapter only; at most <see cref="Elders"/>).</summary>
+    public Fix64 SpectacleHolders;
     public int Settlements;
     /// <summary>Role holders by role index in <see cref="ResearchCatalog.Roles"/>; a role only produces once its project is done.</summary>
     public Fix64[] RoleHeads;

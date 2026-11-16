@@ -1,0 +1,21 @@
+{
+  "calibrationCompletion": {
+    "6000": "73/80",
+    "6700": "74/80",
+    "7300": "73/80"
+  },
+  "calibrationMedians": {
+    "6000": 22.5,
+    "6700": 23.1,
+    "7300": 24.9
+  },
+  "candidate": "F-T1 era-5 base_cost 7300 (repo base stays 6000; all rows draft)",
+  "fitBlock": "20-world calibration m12-wp5-fief-ft1-calibration-seeds-2026-11-15.txt",
+  "frozenUtc": "2026-11-16T11:05:22.047957+00:00",
+  "gate": "D21: >=256/320 seats complete by 130 min; completed-seat median 22.5-27.5 min; no imputation",
+  "harnessDllSha256": "94e3707c69bec6e4ce4044f3dd0f6ea9ddf42ae03ab8e6a68ab6bb229c5ac1ab",
+  "holdoutManifestSha256": "c21765567392eb2d0b68f10bd04ddf0681dde72d35f27fdf6d6002803d306526",
+  "packSha256": "c4b27bbb6b20aaad0fc18a6555feab42ea08409bef9247d41a66895b27b04a86",
+  "simDllSha256": "2de47f0ee7fb246f2eeec62a0a42504eb34818d744bca923e4e5705643b4d35b",
+  "sourceAggregate": "9e70ca453ead9c67938d6d5ca909c760929f8d114c78593e8ec7d0b62e8a5411"
+}

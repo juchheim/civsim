@@ -240,7 +240,7 @@ public sealed class LivingEconomySource : IResearchSource
 
     public InsightInputs GetInsightInputs(int civ)
     {
-        Fix64 adults = Fix64.Zero, elders = Fix64.Zero, hearthAdults = Fix64.Zero;
+        Fix64 adults = Fix64.Zero, elders = Fix64.Zero, hearthAdults = Fix64.Zero, spectacleHolders = Fix64.Zero;
         int settlements = _settlementIndices[civ].Count;
         var heads = new Fix64[_catalog.Roles.Count];
         int elderRole = _catalog.RoleIndex("elder"), shamanRole = _catalog.RoleIndex("shaman");
@@ -248,6 +248,7 @@ public sealed class LivingEconomySource : IResearchSource
         {
             adults += _adults[civ][s];
             elders += _elders[civ][s];
+            spectacleHolders += Fix64.Min(_elders[civ][s], Fix64.FromInt(_economy.SpectacleStockAt(_settlementIndices[civ][s])));
             if (_hearth[civ][s]) hearthAdults += _adults[civ][s] + _elders[civ][s];
             // One Elder per settlement that has an elder; one Shaman per settlement with a viable group (docs/MVP/02 §8.1).
             if (elderRole >= 0 && _elders[civ][s] > Fix64.Zero) heads[elderRole] += Fix64.One;
@@ -266,6 +267,7 @@ public sealed class LivingEconomySource : IResearchSource
         {
             Adults = adults,
             Elders = elders,
+            SpectacleHolders = spectacleHolders,
             Settlements = settlements,
             RoleHeads = heads,
             StructureOutput = _cities[civ] * _cityInsight,

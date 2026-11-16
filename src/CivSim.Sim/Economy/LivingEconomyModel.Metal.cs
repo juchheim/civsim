@@ -907,6 +907,7 @@ public sealed partial class LivingEconomyModel
             if (id == "press" && IronWorksCount(s, IronStructure.Press) > 0) return true;
             if (id == "blast_furnace" && FiefChain && IronWorksCount(s, IronStructure.BlastFurnace) > 0) return true;
             if (id == "powder_mill" && FiefChain && IronWorksCount(s, IronStructure.PowderMill) > 0) return true;
+            if (id == "monastery" && MonasteryStaffed(s)) return true;
             if (id == "print_shop" && FiefChain && IronWorksCount(s, IronStructure.PrintShop) > 0 && RoleHeads(s.Id).Scribes > 0) return true;
         }
         return false;
@@ -927,7 +928,7 @@ public sealed partial class LivingEconomyModel
         // WP-E5-7 draft fit: artisan loss is modeled as 5% extra input per recipe batch.
         // Guilds improve the craft-quality index by 20%, represented conservatively as
         // a 1/1.2 reduction to that loss. This never changes recipe output or tool life.
-        if (FiefChain && !r.Def.Id.StartsWith("make_tool", StringComparison.Ordinal) && !r.Def.Id.StartsWith("cast_t", StringComparison.Ordinal))
+        if (FiefChain && FiefCraftLossApplies(r))
             q *= Fix64.One + FiefRecipeWasteRate(s.Civilization);
         if (BellowsActive(s, r) && Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0)
             q *= Modifier(s.Civilization, "charcoal_per_smelt");
@@ -1443,6 +1444,7 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
         FiefBowWants(s, m, plan);
+        FiefLearningWants(s, plan);
     }
 
     /// <summary>
@@ -2269,7 +2271,7 @@ public sealed partial class LivingEconomyModel
         if (FiefChain)
         {
             CivicState civic = EnsureCivic(s);
-            Fix64 wasteRate = FiefRecipeWasteRate(s.Civilization);
+            Fix64 wasteRate = FiefCraftLossApplies(recipe) ? FiefRecipeWasteRate(s.Civilization) : Fix64.Zero;
             for (int i = 0; i < recipe.InputQuantity.Length; i++)
                 civic.GuildRecipeWaste += batches * recipe.InputQuantity[i] * wasteRate;
             civic.CraftQualityUnits += batches * (Done(s.Civilization, "SOC-11") ? Fix64.Parse("1.2") : Fix64.One);

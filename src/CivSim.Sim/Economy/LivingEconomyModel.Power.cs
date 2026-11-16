@@ -198,6 +198,30 @@ public sealed partial class LivingEconomyModel
     /// <summary>Fuel and labor interpolate to x2 only for the craft work actually covered by the shared power budget.</summary>
     private Fix64 FurnaceInputAndLaborFactor(SettlementState s) => Fix64.One + MillPower(s).Coverage(MillPowerJob.Craft);
 
+    /// <summary>Bloomery labor per batch at full powered coverage in a Fief furnace (a draft fit hypothesis, fitted from the catalog's x2 to x1 for F-T3: the x4 batch needs the same crew labor as a hand batch, so labor per litre falls to a quarter, as the fitted charcoal factor does).</summary>
+    internal static readonly Fix64 FurnaceLaborFactorAtFullCoverage = Fix64.One;
+
+    /// <summary>Harness-only override of <see cref="FurnaceLaborFactorAtFullCoverage"/>, between 1 and 2; null keeps the live default.</summary>
+    internal Fix64? FurnaceLaborFactorOverride { get; set; }
+
+    /// <summary>Labor factor interpolates from 1 (no powered craft work) to the full-coverage factor with the share of craft work the shared power budget covers.</summary>
+    private Fix64 FurnaceLaborFactor(SettlementState s)
+    {
+        Fix64 full = FurnaceLaborFactorOverride ?? FurnaceLaborFactorAtFullCoverage;
+        if (full < Fix64.One || full > Fix64.FromInt(2)) throw new InvalidOperationException("The Fief furnace labor factor must be between 1 and 2.");
+        return Fix64.One + (full - Fix64.One) * MillPower(s).Coverage(MillPowerJob.Craft);
+    }
+
+    /// <summary>Runs the Iron build selection once for a settlement and reports the chosen kind and the wheel and block wants it planned (tests only).</summary>
+    internal (int Kind, Fix64 WheelWant, Fix64 BlockWant) FixtureRunIronBuildWants(int settlementIndex)
+    {
+        SettlementState s = _settlements[settlementIndex];
+        MetalState m = EnsureMetal(s);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        IronBuildWants(s, m, plan);
+        return (m.IronBuildKind, plan.Terminal[MetalSlot(MetalGood.Wheel)], plan.Terminal[MetalSlot(MetalGood.Block)]);
+    }
+
     internal (bool Active, Fix64 CraftCoverage) CaptureFiefFurnaceDiagnostic(int settlementIndex)
     {
         if (!FiefChain || (uint)settlementIndex >= (uint)_settlements.Count) return (false, Fix64.Zero);
@@ -216,7 +240,7 @@ public sealed partial class LivingEconomyModel
         if (id == "weave_cloth" && Done(civ, "FIB-10")) labor *= Fix64.Half;                               // treadle loom x2
         if (id == "weave_cloth" && Done(civ, "MEC-07") && HasMill(s))
             labor *= MillPoweredLaborFactor(s, MillPowerJob.Craft, _civic.MillLabor);                        // a fulling mill shares the craft budget
-        if (FurnaceActive(s, r)) labor *= FurnaceInputAndLaborFactor(s);
+        if (FurnaceActive(s, r)) labor *= FurnaceLaborFactor(s);
         return labor;
     }
 

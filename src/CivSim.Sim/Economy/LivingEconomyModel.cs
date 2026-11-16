@@ -216,7 +216,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 44;
+    private const int FiefSnapshotVersion = 45;
     internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
     private bool _fiefCraftNeedsMigration;
     private bool _fiefBowGoodsNeedRead;
@@ -7168,7 +7168,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int magic = reader.ReadInt32();
         int version = reader.ReadInt32();
-        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (FiefChain) FiefSnapshotVersionForRestore = version;
         _fiefKnowHowNeedsMigration = FiefChain && version == 40;
